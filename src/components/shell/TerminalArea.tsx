@@ -1,19 +1,21 @@
 // TerminalArea.tsx — panel terminal bawah: divider resize, tab strip,
-// dan pane aktif. Sesi non-aktif tetap hidup (holder-nya dilepas dari DOM).
+// grid pane tab aktif, dan toast batas pane.
+// Pane tab non-aktif tetap hidup (holder xterm-nya dilepas dari DOM).
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
+import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
 import TerminalTabs from '../terminal/TerminalTabs';
-import XtermPane from '../terminal/XtermPane';
 
 export default function TerminalArea() {
   const visible = useTerminal((s) => s.visible);
   const height = useTerminal((s) => s.height);
   const setHeight = useTerminal((s) => s.setHeight);
-  const sessions = useTerminal((s) => s.sessions);
-  const activeId = useTerminal((s) => s.activeId);
-  const createSession = useTerminal((s) => s.createSession);
+  const tabs = useTerminal((s) => s.terminalTabs);
+  const activeTabId = useTerminal((s) => s.activeTabId);
   const setVisible = useTerminal((s) => s.setVisible);
+  const toast = useTerminal((s) => s.toast);
+  const setToast = useTerminal((s) => s.setToast);
 
   const dragging = useRef(false);
 
@@ -37,10 +39,19 @@ export default function TerminalArea() {
     };
   }, [setHeight]);
 
+  // Toast hilang sendiri setelah 3.5s.
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [toast, setToast]);
+
   const startResize = useCallback(() => {
     dragging.current = true;
     document.body.classList.add('is-resizing-v');
   }, []);
+
+  const paneCount = tabs.reduce((n, t) => n + t.panes.length, 0);
 
   if (!visible) {
     return (
@@ -50,12 +61,12 @@ export default function TerminalArea() {
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
-        Terminal {sessions.length > 0 && <span className="term-badge">{sessions.length}</span>}
+        Terminal {paneCount > 0 && <span className="term-badge">{paneCount}</span>}
       </button>
     );
   }
 
-  const active = sessions.find((s) => s.id === activeId) ?? null;
+  const active = tabs.find((t) => t.id === activeTabId) ?? null;
 
   return (
     <section className="term-area" style={{ height }} aria-label="Panel terminal">
@@ -68,18 +79,13 @@ export default function TerminalArea() {
       />
       <TerminalTabs />
 
-      <div className="term-body">
-        {active ? (
-          <XtermPane key={active.id} session={active} />
-        ) : (
-          <div className="term-empty">
-            <p className="side-muted">Belum ada terminal</p>
-            <button className="btn btn-primary" onClick={() => void createSession('shell')}>
-              Buka Terminal
-            </button>
-          </div>
-        )}
-      </div>
+      <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
+
+      {toast && (
+        <div className="term-toast" role="status" data-testid="term-toast">
+          {toast}
+        </div>
+      )}
     </section>
   );
 }
