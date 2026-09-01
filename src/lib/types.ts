@@ -80,15 +80,26 @@ export interface SearchResult {
 
 export type FsChangeKind = 'create' | 'remove' | 'modify';
 
-// ── terminal / pty (fase 05) ──
+// ── terminal / pty (fase 05) + multi-pane & agent (fase 06) ──
 
-/** fase 06 menambah 'agent' | 'ssh' | 'browser'. */
-export type PtyKind = 'shell' | 'private' | 'cmd' | 'bash' | 'wsl' | 'pwsh';
+/** Jenis proses yang bisa di-spawn lewat pty. */
+export type PtyKind = 'shell' | 'private' | 'cmd' | 'bash' | 'wsl' | 'pwsh' | 'agent' | 'ssh';
+
+/** Jenis pane di grid terminal. 'browser' tidak punya PTY. */
+export type PaneKind = PtyKind | 'browser';
 
 export interface ShellInfo {
   id: string;
   label: string;
   path: string;
+}
+
+/** CLI agent yang terdeteksi di mesin (fase 06). */
+export interface AgentInfo {
+  id: string;
+  label: string;
+  path: string;
+  version: string | null;
 }
 
 export interface PtyInfo {
@@ -99,16 +110,31 @@ export interface PtyInfo {
   alive: boolean;
 }
 
-/** Satu tab terminal (satu pane di fase 05; multi-pane di fase 06). */
-export interface TerminalSession {
+export type PaneStatus = 'live' | 'exited' | 'connecting' | 'error';
+
+/** Satu pane dalam TerminalTab (ARCHITECTURE.md §5). */
+export interface PaneMeta {
+  id: string;
+  kind: PaneKind;
+  /** hanya untuk kind 'agent' */
+  agent?: { name: string; label: string };
+  title: string;
+  /** id sesi PTY — sama dengan `id` (browser: undefined) */
+  sessionId?: string;
+  status: PaneStatus;
+  cwd: string | null;
+  pid?: number | null;
+  /** hanya untuk kind 'browser' */
+  url?: string;
+}
+
+/** Satu tab terminal berisi 1..maxPanes pane. */
+export interface TerminalTab {
   id: string;
   title: string;
-  kind: PtyKind;
-  /** label shell untuk ikon/tooltip */
-  shellLabel: string;
-  pid: number | null;
-  alive: boolean;
-  cwd: string | null;
+  panes: PaneMeta[];
+  layout: 'grid' | 'split';
+  activePaneId: string | null;
 }
 
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */

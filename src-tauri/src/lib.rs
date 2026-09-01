@@ -1,6 +1,7 @@
 // lib.rs — entry point Zephyr: register plugin, state, dan semua command.
 // Kontrak nama command: ARCHITECTURE.md §2.
 
+mod agents;
 mod app_state;
 mod dialogs;
 mod errors;
@@ -85,6 +86,8 @@ pub fn run() {
             pty::pty_list,
             pty::pty_set_paused,
             pty::pty_interrupt,
+            // agent CLI (fase 06)
+            agents::list_agents,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,

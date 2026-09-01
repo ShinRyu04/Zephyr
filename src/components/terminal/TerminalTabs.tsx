@@ -1,54 +1,73 @@
-// TerminalTabs.tsx — daftar tab terminal + tombol "+" (pilih shell) +
-// kebab menu (Rename/Kill/Clear/Close) + tombol sembunyikan panel.
+// TerminalTabs.tsx — tab strip terminal + toolbar:
+// "+" pane shell, dropdown jenis shell, [+ Agent] popover, Split,
+// Split With Browser, kebab (Rename/Clear/Kill/Close), sembunyikan panel.
 
 import { useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import { clearTerm } from '../../lib/xtermRegistry';
-import type { PtyKind, TerminalSession } from '../../lib/types';
+import PaneIcon, { AgentLogo } from './PaneIcons';
+import type { PaneKind, TerminalTab } from '../../lib/types';
 
-/** Ikon per jenis shell (inline SVG, tanpa lib ikon). */
-function ShellIcon({ kind }: { kind: string }) {
-  if (kind === 'private') {
-    return (
-      <svg viewBox="0 0 16 16" className="tt-icon" role="img" aria-label="Private (tanpa riwayat)">
-        <path
-          d="M1.6 8s2.4-4 6.4-4 6.4 4 6.4 4-2.4 4-6.4 4S1.6 8 1.6 8z"
-          fill="none"
-          stroke="var(--warning)"
-          strokeWidth="1.2"
-        />
-        <circle cx="8" cy="8" r="1.7" fill="var(--warning)" />
-        <path d="M3 13L13 3" stroke="var(--warning)" strokeWidth="1.3" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (kind === 'cmd') {
-    return (
-      <svg viewBox="0 0 16 16" className="tt-icon" aria-hidden="true">
-        <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M4 6h2M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (kind === 'bash' || kind === 'wsl') {
-    return (
-      <svg viewBox="0 0 16 16" className="tt-icon" aria-hidden="true">
-        <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="var(--success)" strokeWidth="1.2" />
-        <path d="M4.2 6.2l2 2-2 2M8 10.4h3.5" stroke="var(--success)" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-      </svg>
-    );
-  }
-  // PowerShell (default)
+/** Ikon aksi kecil untuk tombol toolbar & item menu (ukuran seragam). */
+function ActionIcon({
+  name,
+}: {
+  name:
+    | 'plus'
+    | 'chevron'
+    | 'kebab'
+    | 'hide'
+    | 'rename'
+    | 'clear'
+    | 'kill'
+    | 'close'
+    | 'split'
+    | 'browser'
+    | 'robot'
+    | 'maximize'
+    | 'restore';
+}) {
+  const common = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.4,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
   return (
     <svg viewBox="0 0 16 16" className="tt-icon" aria-hidden="true">
-      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="var(--accent)" strokeWidth="1.2" />
-      <path d="M5 5.6l3 2.4-3 2.4M8.6 10.4h3" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+      {name === 'plus' && <path d="M8 3.5v9M3.5 8h9" {...common} />}
+      {name === 'chevron' && <path d="M4 6.5l4 3.5 4-3.5" {...common} />}
+      {name === 'kebab' && (
+        <>
+          <circle cx="8" cy="3.6" r="1.15" fill="currentColor" />
+          <circle cx="8" cy="8" r="1.15" fill="currentColor" />
+          <circle cx="8" cy="12.4" r="1.15" fill="currentColor" />
+        </>
+      )}
+      {name === 'hide' && <path d="M3.5 5.5l4.5 4 4.5-4M3.5 11h9" {...common} />}
+      {name === 'rename' && <path d="M9.5 3.5l3 3-6 6H3.5v-3z" {...common} />}
+      {name === 'clear' && <path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.7 8h5.6l.7-8" {...common} />}
+      {name === 'kill' && <path d="M8 2.8v5.4M5 4.6a4.2 4.2 0 106 0" {...common} />}
+      {name === 'close' && <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" {...common} />}
+      {name === 'split' && <path d="M2.5 3h11v10h-11zM8 3v10" {...common} />}
+      {name === 'browser' && <path d="M2.5 3.5h11v9h-11zM2.5 6h11" {...common} />}
+      {name === 'robot' && (
+        <>
+          <rect x="3" y="5.5" width="10" height="7" rx="2" {...common} />
+          <path d="M8 3v2.5" {...common} />
+          <circle cx="6.2" cy="9" r="0.9" fill="currentColor" />
+          <circle cx="9.8" cy="9" r="0.9" fill="currentColor" />
+        </>
+      )}
+      {name === 'maximize' && <path d="M4 9.5l4-3.5 4 3.5" {...common} />}
+      {name === 'restore' && <path d="M4 6.5l4 3.5 4-3.5" {...common} />}
     </svg>
   );
 }
 
-function RenameInput({ session }: { session: TerminalSession }) {
-  const rename = useTerminal((s) => s.renameSession);
+function RenameInput({ tab }: { tab: TerminalTab }) {
+  const rename = useTerminal((s) => s.renameTab);
   const setRenaming = useTerminal((s) => s.setRenaming);
   const ref = useRef<HTMLInputElement | null>(null);
 
@@ -61,49 +80,62 @@ function RenameInput({ session }: { session: TerminalSession }) {
     <input
       ref={ref}
       className="tt-rename"
-      defaultValue={session.title}
-      aria-label="Nama terminal"
+      defaultValue={tab.title}
+      aria-label="Nama tab terminal"
+      onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') rename(session.id, (e.target as HTMLInputElement).value);
+        if (e.key === 'Enter') rename(tab.id, (e.target as HTMLInputElement).value);
         else if (e.key === 'Escape') setRenaming(null);
       }}
-      onBlur={(e) => rename(session.id, e.target.value)}
+      onBlur={(e) => rename(tab.id, e.target.value)}
     />
   );
 }
 
 export default function TerminalTabs() {
-  const sessions = useTerminal((s) => s.sessions);
-  const activeId = useTerminal((s) => s.activeId);
+  const tabs = useTerminal((s) => s.terminalTabs);
+  const activeTabId = useTerminal((s) => s.activeTabId);
   const shells = useTerminal((s) => s.shells);
+  const agents = useTerminal((s) => s.agents);
   const pickerOpen = useTerminal((s) => s.pickerOpen);
+  const agentPickerOpen = useTerminal((s) => s.agentPickerOpen);
   const menuFor = useTerminal((s) => s.menuFor);
   const renamingId = useTerminal((s) => s.renamingId);
   const terminalError = useTerminal((s) => s.terminalError);
 
-  const setActive = useTerminal((s) => s.setActive);
-  const createSession = useTerminal((s) => s.createSession);
-  const closeSession = useTerminal((s) => s.closeSession);
-  const killSession = useTerminal((s) => s.killSession);
+  const setActiveTab = useTerminal((s) => s.setActiveTab);
+  const newTab = useTerminal((s) => s.newTab);
+  const closeTab = useTerminal((s) => s.closeTab);
+  const addPane = useTerminal((s) => s.addPane);
+  const closePane = useTerminal((s) => s.closePane);
+  const killPane = useTerminal((s) => s.killPane);
+  const setLayout = useTerminal((s) => s.setLayout);
   const setPickerOpen = useTerminal((s) => s.setPickerOpen);
+  const setAgentPickerOpen = useTerminal((s) => s.setAgentPickerOpen);
   const setMenuFor = useTerminal((s) => s.setMenuFor);
   const setRenaming = useTerminal((s) => s.setRenaming);
+  const setPaneMenuFor = useTerminal((s) => s.setPaneMenuFor);
   const setVisible = useTerminal((s) => s.setVisible);
+  const maximized = useTerminal((s) => s.maximized);
+  const toggleMaximized = useTerminal((s) => s.toggleMaximized);
 
-  // Tutup dropdown/menu saat klik di luar.
+  // Tutup semua dropdown saat klik di luar / Escape.
   useEffect(() => {
-    if (!pickerOpen && !menuFor) return;
+    if (!pickerOpen && !agentPickerOpen && !menuFor) return;
     const onDown = (e: MouseEvent) => {
       const el = e.target as HTMLElement;
       if (!el.closest('.tt-dropdown') && !el.closest('.tt-btn')) {
         setPickerOpen(false);
+        setAgentPickerOpen(false);
         setMenuFor(null);
       }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setPickerOpen(false);
+        setAgentPickerOpen(false);
         setMenuFor(null);
+        setPaneMenuFor(null);
       }
     };
     window.addEventListener('mousedown', onDown);
@@ -112,48 +144,46 @@ export default function TerminalTabs() {
       window.removeEventListener('mousedown', onDown);
       window.removeEventListener('keydown', onKey);
     };
-  }, [pickerOpen, menuFor, setPickerOpen, setMenuFor]);
+  }, [pickerOpen, agentPickerOpen, menuFor, setPickerOpen, setAgentPickerOpen, setMenuFor, setPaneMenuFor]);
 
-  const menuSession = sessions.find((s) => s.id === menuFor);
+  const menuTab = tabs.find((t) => t.id === menuFor);
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
+  const activePane = activeTab?.panes.find((p) => p.id === activeTab.activePaneId) ?? null;
 
   return (
     <div className="term-header">
       <div className="tt-list" role="tablist" aria-label="Tab terminal">
-        {sessions.map((s) => (
+        {tabs.map((t) => (
           <div
-            key={s.id}
+            key={t.id}
             role="tab"
-            aria-selected={s.id === activeId}
+            aria-selected={t.id === activeTabId}
             tabIndex={0}
-            title={`${s.title}${s.pid ? ` — pid ${s.pid}` : ''}${s.alive ? '' : ' (mati)'}`}
-            className={`tt-tab${s.id === activeId ? ' is-active' : ''}${s.alive ? '' : ' is-dead'}`}
-            data-term-tab={s.id}
-            onClick={() => setActive(s.id)}
+            title={`${t.title} — ${t.panes.length} pane`}
+            className={`tt-tab${t.id === activeTabId ? ' is-active' : ''}`}
+            data-term-tab={t.id}
+            onClick={() => setActiveTab(t.id)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                setActive(s.id);
+                setActiveTab(t.id);
               }
             }}
-            onDoubleClick={() => setRenaming(s.id)}
+            onDoubleClick={() => setRenaming(t.id)}
           >
-            <ShellIcon kind={s.kind} />
-            {renamingId === s.id ? (
-              <RenameInput session={s} />
-            ) : (
-              <span className="tt-name">{s.title}</span>
-            )}
-            {!s.alive && <span className="tt-dead">exited</span>}
+            <PaneIcon kind={t.panes[0]?.kind ?? 'shell'} agentId={t.panes[0]?.agent?.name} />
+            {renamingId === t.id ? <RenameInput tab={t} /> : <span className="tt-name">{t.title}</span>}
+            {t.panes.length > 1 && <span className="tt-count">{t.panes.length}</span>}
             <button
-              className="tt-close"
-              title="Tutup terminal"
-              aria-label={`Tutup ${s.title}`}
+              className="tt-tab-close"
+              title="Tutup tab terminal"
+              aria-label={`Tutup ${t.title}`}
               onClick={(e) => {
                 e.stopPropagation();
-                void closeSession(s.id);
+                void closeTab(t.id);
               }}
             >
-              ✕
+              <ActionIcon name="close" />
             </button>
           </div>
         ))}
@@ -164,12 +194,12 @@ export default function TerminalTabs() {
 
         <button
           className="tt-btn"
-          title="Terminal baru (Ctrl+`)"
-          aria-label="Terminal baru"
+          title="Pane shell baru (Ctrl+Shift+`)"
+          aria-label="Pane shell baru"
           data-testid="term-new"
-          onClick={() => void createSession('shell')}
+          onClick={() => void addPane('shell')}
         >
-          ＋
+          <ActionIcon name="plus" />
         </button>
 
         <div className="tt-picker-wrap">
@@ -180,7 +210,7 @@ export default function TerminalTabs() {
             data-testid="term-picker"
             onClick={() => setPickerOpen(!pickerOpen)}
           >
-            ⌄
+            <ActionIcon name="chevron" />
           </button>
           {pickerOpen && (
             <div className="tt-dropdown" role="menu">
@@ -190,9 +220,9 @@ export default function TerminalTabs() {
                   className="tt-drop-item"
                   role="menuitem"
                   title={sh.path}
-                  onClick={() => void createSession((sh.id === 'shell' ? 'shell' : sh.id) as PtyKind)}
+                  onClick={() => void addPane((sh.id === 'powershell' ? 'shell' : sh.id) as PaneKind)}
                 >
-                  <ShellIcon kind={sh.id} />
+                  <PaneIcon kind={sh.id === 'powershell' ? 'shell' : (sh.id as PaneKind)} />
                   {sh.label}
                 </button>
               ))}
@@ -201,57 +231,144 @@ export default function TerminalTabs() {
                 className="tt-drop-item"
                 role="menuitem"
                 data-testid="term-new-private"
-                onClick={() => void createSession('private')}
+                onClick={() => void addPane('private')}
               >
-                <ShellIcon kind="private" />
+                <PaneIcon kind="private" />
                 Private Terminal
+              </button>
+              <button
+                className="tt-drop-item"
+                role="menuitem"
+                data-testid="term-new-tab"
+                onClick={() => {
+                  newTab();
+                  setPickerOpen(false);
+                }}
+              >
+                <ActionIcon name="plus" />
+                Tab terminal baru
               </button>
             </div>
           )}
         </div>
 
+        {/* ── + Agent ── */}
         <div className="tt-picker-wrap">
           <button
             className="tt-btn"
-            title="Menu terminal aktif"
-            aria-label="Menu terminal aktif"
-            data-testid="term-kebab"
-            disabled={!activeId}
-            onClick={() => setMenuFor(menuFor ? null : activeId)}
+            title="Tambah pane AI agent"
+            aria-label="Tambah pane AI agent"
+            data-testid="term-agent"
+            onClick={() => setAgentPickerOpen(!agentPickerOpen)}
           >
-            ⋮
+            <ActionIcon name="robot" />
           </button>
-          {menuSession && (
+          {agentPickerOpen && (
+            <div className="tt-dropdown" role="menu" data-testid="agent-picker">
+              {agents.length === 0 ? (
+                <div className="tt-drop-empty">
+                  Tidak ada CLI agent terdeteksi.
+                  <br />
+                  Pasang opencode / claude / codex / gemini.
+                </div>
+              ) : (
+                agents.map((a) => (
+                  <button
+                    key={a.id}
+                    className="tt-drop-item"
+                    role="menuitem"
+                    title={`${a.path} — klik lagi untuk pane kedua`}
+                    data-agent={a.id}
+                    onClick={() => void addPane('agent', { agentId: a.id })}
+                  >
+                    <AgentLogo id={a.id} />
+                    {a.label}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        <button
+          className="tt-btn"
+          title="Split: susun 2 pane atas-bawah / kiri-kanan"
+          aria-label="Ubah layout split"
+          data-testid="term-split"
+          disabled={!activeTab || activeTab.panes.length < 2}
+          onClick={() => activeTab && setLayout(activeTab.id, activeTab.layout === 'grid' ? 'split' : 'grid')}
+        >
+          <ActionIcon name="split" />
+        </button>
+
+        <button
+          className="tt-btn"
+          title="Split With Browser"
+          aria-label="Split With Browser"
+          data-testid="term-browser"
+          onClick={() => void addPane('browser')}
+        >
+          <ActionIcon name="browser" />
+        </button>
+
+        <div className="tt-picker-wrap">
+          <button
+            className="tt-btn"
+            title="Menu tab terminal"
+            aria-label="Menu tab terminal"
+            data-testid="term-kebab"
+            disabled={!activeTabId}
+            onClick={() => setMenuFor(menuFor ? null : activeTabId)}
+          >
+            <ActionIcon name="kebab" />
+          </button>
+          {menuTab && (
             <div className="tt-dropdown tt-dropdown-right" role="menu">
-              <button className="tt-drop-item" role="menuitem" onClick={() => setRenaming(menuSession.id)}>
-                Rename
+              <button className="tt-drop-item" role="menuitem" onClick={() => setRenaming(menuTab.id)}>
+                <ActionIcon name="rename" />
+                Rename Tab
               </button>
               <button
                 className="tt-drop-item"
                 role="menuitem"
                 data-testid="term-clear"
+                disabled={!activePane || activePane.kind === 'browser'}
                 onClick={() => {
-                  clearTerm(menuSession.id);
+                  if (activePane) clearTerm(activePane.id);
                   setMenuFor(null);
                 }}
               >
-                Clear
+                <ActionIcon name="clear" />
+                Clear Pane
               </button>
               <button
                 className="tt-drop-item"
                 role="menuitem"
                 data-testid="term-kill"
-                onClick={() => void killSession(menuSession.id)}
+                disabled={!activePane || activePane.kind === 'browser'}
+                onClick={() => activePane && void killPane(activePane.id)}
               >
+                <ActionIcon name="kill" />
                 Kill Process
+              </button>
+              <button
+                className="tt-drop-item"
+                role="menuitem"
+                data-testid="term-close-pane"
+                disabled={!activePane}
+                onClick={() => activePane && void closePane(activePane.id)}
+              >
+                <ActionIcon name="close" />
+                Close Pane
               </button>
               <div className="tt-drop-sep" />
               <button
                 className="tt-drop-item tt-drop-danger"
                 role="menuitem"
-                onClick={() => void closeSession(menuSession.id)}
+                onClick={() => void closeTab(menuTab.id)}
               >
-                Close Terminal
+                <ActionIcon name="close" />
+                Close Tab
               </button>
             </div>
           )}
@@ -259,11 +376,22 @@ export default function TerminalTabs() {
 
         <button
           className="tt-btn"
+          title={maximized ? 'Pulihkan ukuran panel (Ctrl+Alt+`)' : 'Perbesar panel (Ctrl+Alt+`)'}
+          aria-label={maximized ? 'Pulihkan ukuran panel terminal' : 'Perbesar panel terminal'}
+          aria-pressed={maximized}
+          data-testid="term-maximize"
+          onClick={toggleMaximized}
+        >
+          <ActionIcon name={maximized ? 'restore' : 'maximize'} />
+        </button>
+
+        <button
+          className="tt-btn"
           title="Sembunyikan panel (Ctrl+`)"
           aria-label="Sembunyikan panel terminal"
           onClick={() => setVisible(false)}
         >
-          ▾
+          <ActionIcon name="hide" />
         </button>
       </div>
     </div>

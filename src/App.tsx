@@ -30,6 +30,7 @@ export default function App() {
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const bootstrap = useStore((s) => s.bootstrap);
+  const terminalMaximized = useTerminal((s) => s.maximized);
   const dragging = useRef(false);
 
   // 1) Muat settings + restore session sekali di awal.
@@ -102,11 +103,14 @@ export default function App() {
           document.querySelector<HTMLInputElement>('.search-input')?.focus();
         }, 60);
       } else if (e.key === '`') {
-        // Ctrl+` : toggle panel terminal; Ctrl+Shift+` : terminal baru
+        // Ctrl+` : toggle panel; Ctrl+Shift+` : pane shell baru; Ctrl+Alt+` : perbesar/restore
         e.preventDefault();
         const t = useTerminal.getState();
-        if (e.shiftKey) void t.createSession('shell');
-        else if (t.sessions.length === 0) void t.createSession('shell');
+        if (e.altKey) {
+          if (!t.visible) t.setVisible(true);
+          t.toggleMaximized();
+        } else if (e.shiftKey) void t.addPane('shell');
+        else if (t.allPanes().length === 0) void t.addPane('shell');
         else t.toggleVisible();
       }
     };
@@ -182,9 +186,10 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // 7) Terminal (fase 05): daftar shell, output PTY, dan exit proses.
+  // 7) Terminal (fase 05/06): daftar shell + agent, output PTY, exit proses.
   useEffect(() => {
     void useTerminal.getState().loadShells();
+    void useTerminal.getState().loadAgents();
     // StrictMode dev menjalankan effect DUA kali; tanpa guard ini listener
     // terdaftar ganda dan setiap byte output terminal tampil dobel.
     if (ptyListenersBound) return;
@@ -193,9 +198,9 @@ export default function App() {
     void onPtyOutput((id, data) => writeTo(id, data));
     void onPtyExit((id) => {
       useTerminal.getState().markExited(id);
-      // Sesi private: buang scrollback begitu prosesnya berakhir.
-      const s = useTerminal.getState().sessions.find((x) => x.id === id);
-      if (s?.kind === 'private') disposeHandle(id);
+      // Pane private: buang scrollback begitu prosesnya berakhir.
+      const p = useTerminal.getState().findPane(id);
+      if (p?.kind === 'private') disposeHandle(id);
     });
   }, []);
 
@@ -219,7 +224,7 @@ export default function App() {
           </>
         )}
 
-        <main className="main-area">
+        <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
           <EditorArea />
           <TerminalArea />
         </main>
