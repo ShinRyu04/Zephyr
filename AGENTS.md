@@ -48,6 +48,7 @@ WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223" ./target/de
 # 3. terminal C: jalankan seluruh verifikasi
 npm run verify           # fase 02+03 -> "== 26/26 lulus =="
 npm run verify:04        # fase 04    -> "== 17/17 lulus =="
+npm run verify:05        # fase 05    -> "== 12/12 lulus ==" (butuh ~90s)
 npm run soak             # stabilitas 180s (V11 fase 04)
 ```
 
@@ -61,6 +62,20 @@ sering gagal di WebView2 ("Promise was collected") — pakai helper
 `runAsync()` yang menyimpan promise di `window` lalu polling. Untuk mencari
 baris tree jangan cocokkan `textContent` (ikut glyph SVG ikon); pakai
 atribut `title` yang berisi path lengkap.
+
+Khusus terminal (fase 05):
+- `navigator.clipboard` **selalu gagal** di WebView2 saat dokumen tidak
+  fokus (`NotAllowedError`). Copy/paste memakai plugin Tauri
+  `clipboard-manager` lewat `src/lib/clipboard.ts` — verifikasi juga harus
+  lewat jalur itu (`__ZEPHYR_PTY__.copy/paste/clipRead`).
+- Ctrl+C: `AttachConsole` + `GenerateConsoleCtrlEvent` MEMATIKAN proses
+  Zephyr sendiri (sudah dibuktikan). Jangan dicoba lagi; `pty_interrupt`
+  mengirim `\x03` lalu membunuh pohon proses turunan shell.
+- Listener `pty-output` harus dipasang sekali per proses (guard modul, bukan
+  hanya cleanup effect) — StrictMode dev memasangnya dua kali dan setiap byte
+  output tampil dobel.
+- V2 warna: jangan hitung semua span `xterm-fg-*` (PSReadLine mewarnai baris
+  input juga). Cocokkan span yang isinya tepat sama dengan penanda output.
 
 ## 4. Konvensi
 
