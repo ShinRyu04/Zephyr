@@ -3,6 +3,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type {
+  AgentInfo,
   AppInfo,
   DirNode,
   Encoding,
@@ -100,6 +101,8 @@ export const revealPath = (path: string) => invoke<void>('reveal_path', { path }
 // ── terminal / pty (fase 05) ──
 
 export const listShells = () => invoke<ShellInfo[]>('list_shells');
+/** fase 06: CLI agent yang terdeteksi di mesin. */
+export const listAgents = () => invoke<AgentInfo[]>('list_agents');
 export const ptySpawn = (opts: {
   id: string;
   kind?: string;

@@ -21,3 +21,6 @@ secrets.json
 # fixture workspace yang dibuat otomatis oleh scripts/verify04.mjs
 testfiles/ws-a/
 testfiles/ws-b/
+
+# halaman uji browser pane (verify06 menyalakan server-nya sendiri)
+testfiles/browser-pane/

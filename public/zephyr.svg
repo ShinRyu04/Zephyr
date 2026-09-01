@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- favicon Zephyr — geometri SAMA dengan src/components/shell/ZephyrLogo.tsx
+       dan src-tauri/icon-source.png (scripts/gen_icon.py). Ubah bertiga bersamaan. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#121826"/>
+      <stop offset="1" stop-color="#0a0e18"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="1020" height="1020" rx="208" fill="url(#bg)" stroke="#30363d" stroke-width="4"/>
+  <path d="M150 300 Q425 352 700 300" fill="none" stroke="#3884ff" stroke-width="26" stroke-linecap="round" opacity="0.35"/>
+  <path d="M330 756 Q605 808 880 756" fill="none" stroke="#3884ff" stroke-width="26" stroke-linecap="round" opacity="0.27"/>
+  <path d="M268 300 L756 300 L756 396 L464 628 L756 628 L756 724 L268 724 L268 628 L560 396 L268 396 Z" fill="#e8f0ff"/>
+  <circle cx="834" cy="296" r="38" fill="#3884ff"/>
+</svg>

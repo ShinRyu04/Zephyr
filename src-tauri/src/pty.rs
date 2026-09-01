@@ -179,6 +179,12 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
             find("pwsh").ok_or_else(|| ZephyrError::Pty("pwsh tidak ditemukan".into()))?,
             vec!["-NoLogo".into()],
         )),
+        // Agent CLI (fase 06): program datang dari Settings.startCommands
+        // lewat parameter `command`/`args`. Kalau sampai ke sini berarti
+        // frontend tidak mengirimnya — itu bug, bukan kondisi normal.
+        "agent" => Err(ZephyrError::InvalidInput(
+            "kind 'agent' wajib menyertakan command".into(),
+        )),
         // default: PowerShell biasa (profil user tetap dipakai)
         _ => Ok((
             find("powershell")
