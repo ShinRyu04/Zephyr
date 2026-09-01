@@ -1,0 +1,2 @@
+﻿File ini punya BOM UTF-8.
+Baris kedua: éèç aman.

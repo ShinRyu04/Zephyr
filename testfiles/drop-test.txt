@@ -1,0 +1,2 @@
+File uji untuk V9 (drag & drop dari Windows Explorer ke editor Zephyr).
+Baris kedua supaya isinya tidak kosong.

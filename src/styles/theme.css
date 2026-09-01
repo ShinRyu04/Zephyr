@@ -1,0 +1,104 @@
+/* theme.css — SATU-SATUNYA sumber token warna Zephyr.
+   AGENTS.md: komponen DILARANG memakai hex hardcoded; pakai var(--*).
+   Tema tambahan (Nord, Tokyo Night, dst) menyusul di fase 13 dengan
+   cara override token yang sama di [data-theme="..."]. */
+
+:root,
+[data-theme='zephyr-dark'] {
+  /* permukaan */
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c2128;
+  --surface-3: #21262d;
+  --border: #30363d;
+  --border-strong: #484f58;
+
+  /* teks */
+  --text: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --text-inverse: #0d1117;
+
+  /* aksen & status */
+  --accent: #3884ff;
+  --accent-hover: #4c93ff;
+  --accent-subtle: rgba(56, 132, 255, 0.16);
+  --danger: #f85149;
+  --warning: #d29922;
+  --success: #3fb950;
+  --modified: #d29922;
+  --added: #3fb950;
+  --deleted: #f85149;
+
+  /* editor */
+  --editor-bg: #0d1117;
+  --editor-gutter: #6e7681;
+  --editor-active-line: rgba(255, 255, 255, 0.035);
+  --editor-selection: rgba(56, 132, 255, 0.3);
+  --editor-cursor: #e6edf3;
+  --editor-match: rgba(210, 153, 34, 0.35);
+
+  /* syntax (dipakai CodeMirror theme) */
+  --syn-keyword: #ff7b72;
+  --syn-string: #a5d6ff;
+  --syn-number: #79c0ff;
+  --syn-comment: #8b949e;
+  --syn-function: #d2a8ff;
+  --syn-variable: #ffa657;
+  --syn-type: #7ee787;
+  --syn-operator: #79c0ff;
+  --syn-tag: #7ee787;
+  --syn-attr: #79c0ff;
+  --syn-invalid: #f85149;
+
+  /* metrik layout */
+  --activitybar-w: 48px;
+  --statusbar-h: 24px;
+  --tabbar-h: 34px;
+  --radius: 6px;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: Consolas, 'Cascadia Mono', 'Segoe UI Mono', 'Courier New', monospace;
+}
+
+[data-theme='zephyr-light'] {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --surface-2: #eef1f4;
+  --surface-3: #e6eaef;
+  --border: #d0d7de;
+  --border-strong: #afb8c1;
+
+  --text: #1f2328;
+  --text-secondary: #59636e;
+  --text-muted: #818b98;
+  --text-inverse: #ffffff;
+
+  --accent: #0969da;
+  --accent-hover: #0a5fc0;
+  --accent-subtle: rgba(9, 105, 218, 0.12);
+  --danger: #cf222e;
+  --warning: #9a6700;
+  --success: #1a7f37;
+  --modified: #9a6700;
+  --added: #1a7f37;
+  --deleted: #cf222e;
+
+  --editor-bg: #ffffff;
+  --editor-gutter: #818b98;
+  --editor-active-line: rgba(0, 0, 0, 0.03);
+  --editor-selection: rgba(9, 105, 218, 0.22);
+  --editor-cursor: #1f2328;
+  --editor-match: rgba(154, 103, 0, 0.28);
+
+  --syn-keyword: #cf222e;
+  --syn-string: #0a3069;
+  --syn-number: #0550ae;
+  --syn-comment: #6e7781;
+  --syn-function: #8250df;
+  --syn-variable: #953800;
+  --syn-type: #1a7f37;
+  --syn-operator: #0550ae;
+  --syn-tag: #1a7f37;
+  --syn-attr: #0550ae;
+  --syn-invalid: #cf222e;
+}

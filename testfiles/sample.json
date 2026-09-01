@@ -1,0 +1,14 @@
+{
+  "nama": "zephyr-test",
+  "versi": "0.5.0",
+  "aktif": true,
+  "kosong": null,
+  "angka": 42,
+  "pecahan": 3.14,
+  "daftar": ["satu", "dua", "tiga"],
+  "objek": {
+    "nested": {
+      "dalam": "sekali"
+    }
+  }
+}
