@@ -1,0 +1,637 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* index.css — layout shell Zephyr.
+   SEMUA warna dari token di src/styles/theme.css (AGENTS.md §4). */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body.is-resizing {
+  cursor: ew-resize;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ─────────── kerangka ─────────── */
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ─────────── ActivityBar ─────────── */
+
+.activitybar {
+  width: var(--activitybar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+  gap: 2px;
+}
+
+.ab-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.ab-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.ab-btn.is-active {
+  color: var(--text);
+}
+
+.ab-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.ab-indicator {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+/* ─────────── Sidebar ─────────── */
+
+.sidebar {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow: auto;
+}
+
+.resizer {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: ew-resize;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.resizer:hover {
+  background: var(--accent-subtle);
+}
+
+.side-panel {
+  padding: 10px 0;
+}
+
+.side-section {
+  padding: 6px 12px 14px;
+}
+
+.side-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.side-muted,
+.side-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.side-hint {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.side-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+.side-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.side-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.side-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.side-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.side-item.is-active {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+.side-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─────────── tombol umum ─────────── */
+
+.btn {
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.btn:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ─────────── area utama ─────────── */
+
+.main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.editor-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-host {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.zephyr-cm-host,
+.zephyr-cm-host .cm-editor {
+  height: 100%;
+}
+
+/* Panel search bawaan CodeMirror disembunyikan — Zephyr punya FindBar sendiri. */
+.cm-panels {
+  display: none !important;
+}
+
+.terminal-area {
+  height: 200px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminal-placeholder {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ─────────── tab bar ─────────── */
+
+.tabbar {
+  height: var(--tabbar-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabbar-scroll {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tabbar-scroll::-webkit-scrollbar {
+  height: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 10px;
+  max-width: 200px;
+  border-right: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.tab:hover {
+  background: var(--surface-2);
+}
+
+.tab.is-active {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.tab.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.tab.is-dragover {
+  background: var(--accent-subtle);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--modified);
+  flex-shrink: 0;
+}
+
+.tab-close {
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  font-size: 10px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-close:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.tabbar-new {
+  width: 30px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.tabbar-new:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* ─────────── FindBar ─────────── */
+
+.find-bar {
+  flex-shrink: 0;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.find-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.find-toggle {
+  width: 16px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.find-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 320px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.find-input:focus {
+  border-color: var(--accent);
+}
+.find-input.is-invalid {
+  border-color: var(--danger);
+}
+
+.find-flag {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+.find-flag:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.find-flag.is-on {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.find-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 78px;
+}
+
+.find-btn {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.find-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.find-btn-wide {
+  border: 1px solid var(--border);
+}
+
+/* ─────────── empty state ─────────── */
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.empty-logo {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 6px;
+}
+
+.empty-title {
+  font-size: 26px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  color: var(--text);
+}
+
+.empty-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.empty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.empty-keys {
+  display: flex;
+  gap: 18px;
+  margin-top: 22px;
+  font-size: 11px;
+}
+.empty-keys > div {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.empty-keys dt {
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-secondary);
+}
+
+/* ─────────── StatusBar ─────────── */
+
+.statusbar {
+  height: var(--statusbar-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sb-brand {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sb-sep {
+  color: var(--border-strong);
+}
+
+.sb-spacer {
+  flex: 1;
+}
+
+.sb-message {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40vw;
+}
+
+.sb-btn {
+  padding: 0 6px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.sb-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.sb-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ─────────── modal ─────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  width: 420px;
+  max-width: 90vw;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.modal-body {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
