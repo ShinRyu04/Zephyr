@@ -211,4 +211,64 @@ mod tests {
         let out = re.replace_all("foo bar", regex::NoExpand("$1x"));
         assert_eq!(out, "$1x bar");
     }
+
+    // ───────── fase 05: terminal / pty ─────────
+
+    #[test]
+    fn list_shells_menemukan_powershell_dan_path_nyata() {
+        let shells = crate::pty::list_shells().unwrap();
+        let ps = shells
+            .iter()
+            .find(|s| s.id == "powershell")
+            .expect("powershell wajib ada di Windows");
+        assert!(
+            std::path::Path::new(&ps.path).exists(),
+            "path shell harus benar-benar ada: {}",
+            ps.path
+        );
+        // Tidak boleh ada id ganda (dropdown "+" akan dobel).
+        let mut ids: Vec<_> = shells.iter().map(|s| s.id.clone()).collect();
+        ids.sort();
+        let jumlah = ids.len();
+        ids.dedup();
+        assert_eq!(jumlah, ids.len(), "id shell duplikat: {ids:?}");
+    }
+
+    #[test]
+    fn private_shell_pakai_noprofile_dan_savenothing() {
+        let (prog, args) = crate::pty::resolve_shell_for_test("private", None).unwrap();
+        assert!(prog.to_lowercase().contains("powershell") || prog.to_lowercase().contains("pwsh"));
+        let joined = args.join(" ");
+        assert!(args.iter().any(|a| a == "-NoProfile"), "args: {joined}");
+        assert!(
+            joined.contains("HistorySaveStyle SaveNothing"),
+            "riwayat harus dimatikan: {joined}"
+        );
+        // -NoExit wajib, kalau tidak shell langsung tertutup setelah -Command.
+        assert!(args.iter().any(|a| a == "-NoExit"), "args: {joined}");
+    }
+
+    #[test]
+    fn shell_normal_tidak_mematikan_profil_user() {
+        let (_, args) = crate::pty::resolve_shell_for_test("shell", None).unwrap();
+        assert!(
+            !args.iter().any(|a| a == "-NoProfile"),
+            "terminal biasa harus memuat profil user"
+        );
+    }
+
+    #[test]
+    fn command_eksplisit_menang_atas_kind() {
+        let (prog, args) =
+            crate::pty::resolve_shell_for_test("private", Some(r"C:\Windows\System32\cmd.exe"))
+                .unwrap();
+        assert_eq!(prog, r"C:\Windows\System32\cmd.exe");
+        assert!(args.is_empty());
+    }
+
+    #[test]
+    fn kind_tidak_dikenal_jatuh_ke_powershell() {
+        let (prog, _) = crate::pty::resolve_shell_for_test("entah-apa", None).unwrap();
+        assert!(prog.to_lowercase().contains("powershell") || prog.to_lowercase().contains("pwsh"));
+    }
 }

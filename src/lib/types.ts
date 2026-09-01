@@ -80,6 +80,37 @@ export interface SearchResult {
 
 export type FsChangeKind = 'create' | 'remove' | 'modify';
 
+// ── terminal / pty (fase 05) ──
+
+/** fase 06 menambah 'agent' | 'ssh' | 'browser'. */
+export type PtyKind = 'shell' | 'private' | 'cmd' | 'bash' | 'wsl' | 'pwsh';
+
+export interface ShellInfo {
+  id: string;
+  label: string;
+  path: string;
+}
+
+export interface PtyInfo {
+  id: string;
+  kind: string;
+  shell: string;
+  pid: number | null;
+  alive: boolean;
+}
+
+/** Satu tab terminal (satu pane di fase 05; multi-pane di fase 06). */
+export interface TerminalSession {
+  id: string;
+  title: string;
+  kind: PtyKind;
+  /** label shell untuk ikon/tooltip */
+  shellLabel: string;
+  pid: number | null;
+  alive: boolean;
+  cwd: string | null;
+}
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;

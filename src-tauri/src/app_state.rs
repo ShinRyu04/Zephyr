@@ -3,9 +3,9 @@
 // lokasi folder data user (%APPDATA%\zephyr\), dan sampler RAM.
 
 use crate::errors::{ZResult, ZephyrError};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub struct AppState {
@@ -23,6 +23,11 @@ pub struct AppState {
     /// Generasi watcher aktif (fase 04). Thread watcher berhenti sendiri
     /// begitu nilai ini melewati generasinya — dipakai saat ganti workspace.
     watch_generation: Arc<AtomicU64>,
+    /// Sesi terminal hidup (fase 05), key = id pane.
+    ptys: Mutex<HashMap<String, Arc<crate::pty::PtySession>>>,
+    /// true saat window minimized: emit output PTY ditunda (output tetap
+    /// dikumpulkan di buffer supaya tidak ada desync).
+    render_paused: Arc<AtomicBool>,
 }
 
 impl AppState {
@@ -39,6 +44,74 @@ impl AppState {
             data_dir,
             git_lock: Mutex::new(()),
             watch_generation: Arc::new(AtomicU64::new(0)),
+            ptys: Mutex::new(HashMap::new()),
+            render_paused: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    // ── registry sesi PTY (fase 05) ──
+
+    pub fn pty_insert(&self, session: crate::pty::PtySession) {
+        if let Ok(mut map) = self.ptys.lock() {
+            map.insert(session.id.clone(), Arc::new(session));
+        }
+    }
+
+    pub fn pty_exists(&self, id: &str) -> bool {
+        self.ptys
+            .lock()
+            .map(|m| m.contains_key(id))
+            .unwrap_or(false)
+    }
+
+    pub fn pty_remove(&self, id: &str) {
+        if let Ok(mut map) = self.ptys.lock() {
+            map.remove(id);
+        }
+    }
+
+    pub fn pty_list(&self) -> Vec<crate::pty::PtyInfo> {
+        match self.ptys.lock() {
+            Ok(map) => map.values().map(|s| s.info()).collect(),
+            Err(_) => vec![],
+        }
+    }
+
+    /// Jalankan aksi pada sesi tertentu. Arc di-clone dulu supaya lock
+    /// registry TIDAK ditahan selama I/O (menghindari deadlock).
+    pub fn with_pty<T, F>(&self, id: &str, f: F) -> ZResult<T>
+    where
+        F: FnOnce(&crate::pty::PtySession) -> ZResult<T>,
+    {
+        let session = {
+            let map = self
+                .ptys
+                .lock()
+                .map_err(|_| ZephyrError::Internal("registry pty terkunci".into()))?;
+            map.get(id).cloned()
+        };
+        match session {
+            Some(s) => f(&s),
+            None => Err(ZephyrError::NotFound(format!("sesi terminal {id}"))),
+        }
+    }
+
+    pub fn render_paused_flag(&self) -> Arc<AtomicBool> {
+        self.render_paused.clone()
+    }
+
+    pub fn set_render_paused(&self, paused: bool) {
+        self.render_paused.store(paused, Ordering::Relaxed);
+    }
+
+    /// Matikan semua terminal (dipakai saat app ditutup).
+    pub fn pty_kill_all(&self) {
+        let sessions: Vec<_> = match self.ptys.lock() {
+            Ok(mut m) => m.drain().map(|(_, v)| v).collect(),
+            Err(_) => return,
+        };
+        for s in sessions {
+            s.terminate();
         }
     }
 

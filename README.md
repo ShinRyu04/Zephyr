@@ -54,6 +54,23 @@ npm run tauri build   # rilis (MSI + NSIS)
 
 Data Anda tersimpan aman di `%APPDATA%\zephyr\`.
 
+## Catatan: Private Terminal (jujur, apa adanya)
+
+Private Terminal bukan sandbox dan bukan sesi user lain. Yang benar-benar
+dilakukan Zephyr:
+
+- shell dijalankan dengan `-NoProfile` (profil PowerShell Anda tidak dimuat),
+- `Set-PSReadLineOption -HistorySaveStyle SaveNothing` — perintah yang Anda
+  ketik **tidak ditulis** ke `ConsoleHost_history.txt` milik akun Anda
+  (diverifikasi otomatis di `npm run verify:05`, V6a),
+- env `ZEPHYR_PRIVATE=1` supaya skrip Anda bisa mendeteksi mode ini,
+- scrollback pane dihapus dari memori saat tab ditutup.
+
+Yang **tidak** dilakukan: mengganti user Windows, mengisolasi filesystem,
+atau menyembunyikan proses. Perintah tetap berjalan sebagai akun Anda dan
+tetap bisa terlihat di Task Manager / event log sistem. Untuk sesi yang
+benar-benar bersih, gunakan akun Windows terpisah.
+
 ## Dokumentasi
 
 - PRD: `Zephyr PRD.md`

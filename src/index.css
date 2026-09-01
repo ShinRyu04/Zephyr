@@ -309,6 +309,273 @@ input {
   color: var(--text-muted);
 }
 
+/* ─────────── Terminal (fase 05) ─────────── */
+
+body.is-resizing-v {
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.term-area {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  border-top: 1px solid var(--border);
+  background: var(--editor-bg);
+}
+
+.term-resizer {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 5;
+}
+.term-resizer:hover {
+  background: var(--accent-subtle);
+}
+
+.term-collapsed {
+  flex-shrink: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.term-collapsed:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.term-badge {
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  text-align: center;
+}
+
+.term-header {
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.tt-list {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tt-list::-webkit-scrollbar {
+  height: 0;
+}
+
+.tt-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px 0 9px;
+  max-width: 210px;
+  border-right: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+.tt-tab:hover {
+  background: var(--surface-2);
+}
+.tt-tab.is-active {
+  background: var(--editor-bg);
+  color: var(--text);
+}
+.tt-tab.is-active::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: var(--accent);
+}
+.tt-tab.is-dead {
+  opacity: 0.6;
+}
+
+.tt-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.tt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tt-dead {
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--danger);
+}
+
+.tt-rename {
+  width: 110px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  outline: none;
+}
+
+.tt-close {
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.tt-close:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.tt-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.tt-error {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--danger);
+  margin-right: 6px;
+}
+
+.tt-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.tt-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.tt-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tt-picker-wrap {
+  position: relative;
+}
+
+.tt-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 130;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.tt-dropdown-right {
+  left: auto;
+  right: 0;
+}
+
+.tt-drop-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+  text-align: left;
+}
+.tt-drop-item:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.tt-drop-danger:hover {
+  background: var(--danger);
+}
+
+.tt-drop-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.term-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.xterm-pane,
+.xterm-holder {
+  position: absolute;
+  inset: 0;
+  padding: 4px 0 4px 8px;
+}
+.xterm-holder {
+  padding: 0;
+}
+
+.xterm-pane .xterm {
+  height: 100%;
+}
+
+.term-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
 /* ─────────── tab bar ─────────── */
 
 .tabbar {

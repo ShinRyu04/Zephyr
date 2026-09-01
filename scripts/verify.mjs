@@ -141,13 +141,19 @@ const main = async () => {
       activityButtons: document.querySelectorAll('.activitybar .ab-btn').length,
       statusbar: document.querySelector('.sb-brand')?.textContent ?? '',
       resizer: !!document.querySelector('.resizer'),
-      terminalArea: !!document.querySelector('.terminal-area'),
+      // fase 05 mengganti placeholder .terminal-area dengan panel nyata
+      terminalArea: !!document.querySelector('.term-area'),
+      terminalResizer: !!document.querySelector('.term-resizer'),
       emptyState: !!document.querySelector('.empty-state'),
     })`),
   );
   check('F02-V4a', sh.activityButtons === 6, `ActivityBar ${sh.activityButtons} ikon`);
   check('F02-V6a', /Zephyr v\d+\.\d+\.\d+/.test(sh.statusbar), `StatusBar "${sh.statusbar}"`);
-  check('F02-V5a', sh.resizer && sh.terminalArea, `divider + area terminal ada`);
+  check(
+    'F02-V5a',
+    sh.resizer && sh.terminalArea && sh.terminalResizer,
+    `divider sidebar=${sh.resizer}, panel terminal (.term-area)=${sh.terminalArea}, divider terminal=${sh.terminalResizer}`,
+  );
   check('F03-V0', sh.emptyState, 'empty state tampil saat tanpa tab');
 
   // klik tiap ikon (1..5 lalu 0 — klik ikon aktif menutup sidebar)

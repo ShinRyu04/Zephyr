@@ -86,12 +86,32 @@ file biner (ada byte NUL di 8KB pertama).
 ### terminal (pty)
 | Command | Params → Result |
 |---|---|
-| `pty_spawn` | { id, command, args, cwd } → pid |
-| `pty_write` | { id, data } → void |
+| `list_shells` | → [{ id, label, path }] — shell yang ADA di mesin (powershell/pwsh/cmd/bash/wsl) |
+| `pty_spawn` | { id, kind?, command?, args?, cwd?, cols?, rows? } → pid |
+| `pty_write` | { id, data } → void (termasuk `\x03` untuk Ctrl+C) |
 | `pty_resize` | { id, cols, rows } → void |
 | `pty_kill` | { id } → void |
-| `pty_list` | → string[] (id hidup) |
-| `list_agents` | → [{ name, path, version? }] |
+| `pty_list` | → [{ id, kind, shell, pid, alive }] |
+| `pty_set_paused` | { paused } → void (tunda EMIT saat minimized; output tetap dibuffer) |
+| `pty_interrupt` | { id } → jumlah proses yang dihentikan (Ctrl+C: `\x03` + kill pohon turunan shell) |
+| `list_agents` | → [{ name, path, version? }] (fase 06) |
+
+`kind`: `'shell' \| 'private' \| 'cmd' \| 'bash' \| 'wsl' \| 'pwsh'` (fase 06
+menambah `'agent'`). **Private** = PowerShell `-NoProfile` +
+`Set-PSReadLineOption -HistorySaveStyle SaveNothing` + env `ZEPHYR_PRIVATE=1`
+→ perintahnya tidak ditulis ke `ConsoleHost_history.txt` milik user.
+Implementasi PTY: crate **portable-pty 0.8 (ConPTY)** — keputusan final
+fase 05, tidak ada fallback pipa.
+
+**Ctrl+C (`pty_interrupt`)** — keputusan fase 05: byte `\x03` saja tidak
+menghentikan program yang tidak membaca stdin di ConPTY, dan jalur resmi
+`AttachConsole` + `GenerateConsoleCtrlEvent` ikut mematikan proses Zephyr
+(sudah diuji, jangan diulang). Yang dipakai: `\x03` ke pty + terminasi
+seluruh pohon proses turunan shell (terdalam dulu) via `sysinfo`.
+
+**Clipboard terminal** memakai plugin `tauri-plugin-clipboard-manager`
+(`src/lib/clipboard.ts`), BUKAN `navigator.clipboard` — WebView2 menolak
+dengan `NotAllowedError: Document is not focused`.
 
 ### ssh
 | Command | Params → Result |
@@ -134,6 +154,7 @@ Semua git diserialisasi (semaphore 1 proses). `git_push --force` TIDAK ada.
 | `workspace-opened` | { path } | 04 |
 | `fs-changed` | { path, dir, kind: 'create'\|'remove'\|'modify' } | 04 |
 | `pty-output` | { id, data } (batched 16ms) | 05 |
+| `pty-exit` | { id } (proses berakhir sendiri) | 05 |
 | `ssh-status` | { paneId, state, message } | 07 |
 | `ai-chunk` | { id, text? , err?, done? } | 09 |
 | `git-progress` | { op, phase } | 10/14 |
