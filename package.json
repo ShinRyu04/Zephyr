@@ -10,7 +10,9 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "verify:04": "node scripts/verify04.mjs",
+    "soak": "node scripts/soak.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",

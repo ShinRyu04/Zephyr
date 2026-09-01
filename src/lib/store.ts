@@ -6,11 +6,13 @@ import { create } from 'zustand';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import * as cmd from './commands';
 import { detectLang } from './lang';
+import { revealPosition } from './editorRegistry';
 import {
   DEFAULT_SETTINGS,
   type ActivityId,
   type Encoding,
   type LineEnding,
+  type RecentEntry,
   type Settings,
   type Tab,
 } from './types';
@@ -34,6 +36,7 @@ interface StoreState {
 
   // workspace & editor
   workspace: string | null;
+  recents: RecentEntry[];
   tabs: Tab[];
   activeTabId: string | null;
   untitledSeq: number;
@@ -60,6 +63,9 @@ interface StoreActions {
 
   bootstrap: () => Promise<void>;
   openFolderDialog: () => Promise<void>;
+  openWorkspace: (dir: string) => Promise<void>;
+  closeWorkspace: () => Promise<void>;
+  refreshRecents: () => Promise<void>;
   openFileDialog: () => Promise<void>;
   openPath: (path: string) => Promise<void>;
   newUntitled: () => void;
@@ -72,6 +78,16 @@ interface StoreActions {
   requestCloseTab: (id: string) => void;
   forceCloseTab: (id: string) => void;
   reorderTab: (from: number, to: number) => void;
+
+  // ── dipakai Explorer (fase 04) ──
+  /** Buka file lalu lompat ke baris/kolom (hasil Search). 1-based. */
+  openPathAt: (path: string, line: number, col?: number) => Promise<void>;
+  /** Path file/folder berubah nama → perbarui tab terkait. */
+  renamePathInTabs: (from: string, to: string) => void;
+  /** Tutup semua tab yang berada di dalam salah satu path (file/folder). */
+  closeTabsUnder: (paths: string[]) => void;
+  /** Muat ulang isi tab dari disk (setelah replace / diubah dari luar). */
+  reloadTabFromDisk: (path: string) => Promise<void>;
 
   resolveConfirm: (choice: 'save' | 'discard' | 'cancel') => Promise<void>;
   requestCloseWindow: () => boolean;
@@ -105,6 +121,7 @@ export const useStore = create<Store>((set, get) => ({
   cursor: { line: 1, col: 1 },
 
   workspace: null,
+  recents: [],
   tabs: [],
   activeTabId: null,
   untitledSeq: 0,
@@ -142,6 +159,9 @@ export const useStore = create<Store>((set, get) => ({
       set({ settingsLoaded: true, statusMessage: cmd.asZephyrError(e).message });
     }
 
+    // Daftar recent selalu dimuat (dipakai empty-state Explorer).
+    await get().refreshRecents();
+
     if (!get().settings.general.restoreSession) return;
 
     try {
@@ -173,10 +193,52 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const dir = await cmd.folderDialogOpen();
       if (!dir) return;
-      await cmd.workspaceOpen(dir);
-      set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
+      await get().openWorkspace(dir);
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
+    }
+  },
+
+  /** Buka folder sebagai workspace: set state, muat tree, pasang watcher. */
+  openWorkspace: async (dir) => {
+    try {
+      await cmd.workspaceOpen(dir);
+      set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
+
+      // Explorer: reset tree lalu muat level pertama + pasang watcher.
+      const { useExplorer } = await import('./explorerStore');
+      const ex = useExplorer.getState();
+      useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
+      await ex.loadDir(dir, true);
+      try {
+        await cmd.fsWatch(dir);
+      } catch {
+        /* watcher gagal bukan alasan membatalkan buka folder */
+      }
+      await get().refreshRecents();
+    } catch (e) {
+      set({ statusMessage: cmd.asZephyrError(e).message });
+    }
+  },
+
+  closeWorkspace: async () => {
+    try {
+      await cmd.fsUnwatch();
+      await cmd.workspaceClose();
+    } catch {
+      /* abaikan */
+    }
+    const { useExplorer } = await import('./explorerStore');
+    useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
+    set({ workspace: null, statusMessage: 'Workspace ditutup' });
+    await get().refreshRecents();
+  },
+
+  refreshRecents: async () => {
+    try {
+      set({ recents: await cmd.listRecents() });
+    } catch {
+      /* non-fatal */
     }
   },
 
@@ -324,6 +386,71 @@ export const useStore = create<Store>((set, get) => ({
       tabs.splice(to, 0, moved);
       return { tabs };
     }),
+
+  // ── integrasi Explorer / Search (fase 04) ──
+
+  openPathAt: async (path, line, col = 1) => {
+    await get().openPath(path);
+    // Tunggu satu frame supaya EditorView tab tersebut sudah terpasang.
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    revealPosition(line, col);
+  },
+
+  renamePathInTabs: (from, to) => {
+    const fromNorm = from.replace(/[\\/]+$/, '');
+    const prefix = `${fromNorm.toLowerCase()}\\`;
+    set((s) => ({
+      tabs: s.tabs.map((t) => {
+        if (!t.path) return t;
+        const lower = t.path.toLowerCase();
+        if (lower === fromNorm.toLowerCase()) {
+          return { ...t, path: to, name: baseName(to), lang: detectLang(to) };
+        }
+        if (lower.startsWith(prefix)) {
+          const suffix = t.path.slice(fromNorm.length);
+          const next = `${to}${suffix}`;
+          return { ...t, path: next, name: baseName(next), lang: detectLang(next) };
+        }
+        return t;
+      }),
+    }));
+    void get().persistSession();
+  },
+
+  closeTabsUnder: (paths) => {
+    const targets = paths.map((p) => p.replace(/[\\/]+$/, '').toLowerCase());
+    const doomed = get()
+      .tabs.filter((t) => {
+        if (!t.path) return false;
+        const lower = t.path.toLowerCase();
+        return targets.some((x) => lower === x || lower.startsWith(`${x}\\`));
+      })
+      .map((t) => t.id);
+    for (const id of doomed) get().forceCloseTab(id);
+  },
+
+  reloadTabFromDisk: async (path) => {
+    const tab = get().tabs.find((t) => t.path?.toLowerCase() === path.toLowerCase());
+    if (!tab) return;
+    try {
+      const res = await cmd.fsRead(tab.path as string);
+      set((s) => ({
+        tabs: s.tabs.map((t) =>
+          t.id === tab.id
+            ? {
+                ...t,
+                content: res.content,
+                encoding: res.detectedEncoding,
+                lineEnding: res.lineEnding,
+                unsaved: false,
+              }
+            : t,
+        ),
+      }));
+    } catch (e) {
+      set({ statusMessage: cmd.asZephyrError(e).message });
+    }
+  },
 
   resolveConfirm: async (choice) => {
     const c = get().confirm;

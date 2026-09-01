@@ -4,10 +4,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
   AppInfo,
+  DirNode,
   Encoding,
   LineEnding,
   ReadResult,
   RecentEntry,
+  SearchResult,
   SessionTab,
   Settings,
   StatResult,
@@ -62,3 +64,33 @@ export const fileDialogOpen = (multiple = false) =>
 export const fileDialogSave = (defaultPath?: string) =>
   invoke<string | null>('file_dialog_save', { defaultPath });
 export const folderDialogOpen = () => invoke<string | null>('folder_dialog_open');
+
+// ── explorer / search (fase 04) ──
+
+export const scanDir = (path: string) => invoke<DirNode[]>('scan_dir', { path });
+export const fsWatch = (path: string) => invoke<void>('fs_watch', { path });
+export const fsUnwatch = () => invoke<void>('fs_unwatch');
+export const searchFiles = (
+  query: string,
+  opts: { glob?: string; caseSensitive?: boolean; regex?: boolean } = {},
+) =>
+  invoke<SearchResult>('search_files', {
+    query,
+    glob: opts.glob,
+    caseSensitive: opts.caseSensitive ?? false,
+    regex: opts.regex ?? false,
+  });
+export const replaceInFile = (
+  path: string,
+  query: string,
+  replacement: string,
+  opts: { caseSensitive?: boolean; regex?: boolean } = {},
+) =>
+  invoke<number>('replace_in_file', {
+    path,
+    query,
+    replacement,
+    caseSensitive: opts.caseSensitive ?? false,
+    regex: opts.regex ?? false,
+  });
+export const revealPath = (path: string) => invoke<void>('reveal_path', { path });

@@ -6,6 +6,7 @@ import { useStore, useActiveTab } from '../../lib/store';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
+import Breadcrumbs from './Breadcrumbs';
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
@@ -69,6 +70,7 @@ export default function EditorArea() {
   return (
     <section className="editor-area">
       <EditorTabBar />
+      <Breadcrumbs />
       <FindBar />
       <div className="editor-host">
         {tabs.length === 0 || !tab ? <EmptyState /> : <CodeMirrorEditor key={tab.id} tab={tab} />}
