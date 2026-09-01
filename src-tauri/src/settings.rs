@@ -204,6 +204,8 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
 
 #[tauri::command]
 pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
+    // Hentikan watcher fase 04 agar tidak ada thread menggantung.
+    state.stop_watcher();
     if let Ok(mut ws) = state.workspace.lock() {
         *ws = None;
     }

@@ -50,6 +50,36 @@ export interface SessionTab {
   encoding: Encoding;
 }
 
+// ── explorer / search (fase 04) ──
+
+export interface DirNode {
+  name: string;
+  path: string;
+  isDir: boolean;
+  hasChildren: boolean;
+}
+
+export interface SearchHit {
+  path: string;
+  name: string;
+  /** 1-based */
+  line: number;
+  /** 1-based, dihitung dalam karakter */
+  col: number;
+  matchLen: number;
+  preview: string;
+  before?: string | null;
+  after?: string | null;
+}
+
+export interface SearchResult {
+  hits: SearchHit[];
+  filesScanned: number;
+  truncated: boolean;
+}
+
+export type FsChangeKind = 'create' | 'remove' | 'modify';
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;

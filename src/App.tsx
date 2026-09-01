@@ -10,7 +10,9 @@ import EditorArea from './components/shell/EditorArea';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import { useStore } from './lib/store';
+import { useExplorer } from './lib/explorerStore';
 import { flushTab } from './lib/editorRegistry';
+import { onFsChanged } from './lib/events';
 import './styles/theme.css';
 import './index.css';
 
@@ -64,6 +66,10 @@ export default function App() {
       } else if (k === 'o' && !e.shiftKey) {
         e.preventDefault();
         void s.openFileDialog();
+      } else if (k === 'o' && e.shiftKey) {
+        // Ctrl+Shift+O: buka folder (workspace)
+        e.preventDefault();
+        void s.openFolderDialog();
       } else if (k === 's') {
         e.preventDefault();
         if (!s.activeTabId) return;
@@ -78,6 +84,14 @@ export default function App() {
       } else if (k === 'b') {
         e.preventDefault();
         s.toggleSidebar();
+      } else if (k === 'f' && e.shiftKey) {
+        // Ctrl+Shift+F: cari di workspace (fase 04)
+        e.preventDefault();
+        s.setActivity('search');
+        if (!s.sidebarVisible) s.toggleSidebar();
+        window.setTimeout(() => {
+          document.querySelector<HTMLInputElement>('.search-input')?.focus();
+        }, 60);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -120,6 +134,29 @@ export default function App() {
           event.preventDefault();
         }
       })
+      .then((un) => {
+        unlisten = un;
+      })
+      .catch(() => {
+        /* non-Tauri */
+      });
+    return () => unlisten?.();
+  }, []);
+
+  // 6) Watcher (fase 04): file berubah dari luar -> re-scan folder terkait.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onFsChanged(({ dir, path, kind }) => {
+      const ex = useExplorer.getState();
+      void ex.refreshDir(dir);
+      // Perubahan isi file yang sedang dibuka & belum diedit -> muat ulang.
+      if (kind === 'modify') {
+        const tab = useStore
+          .getState()
+          .tabs.find((t) => t.path?.toLowerCase() === path.toLowerCase());
+        if (tab && !tab.unsaved) void useStore.getState().reloadTabFromDisk(path);
+      }
+    })
       .then((un) => {
         unlisten = un;
       })

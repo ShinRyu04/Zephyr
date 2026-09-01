@@ -2,6 +2,7 @@
 // kebab-case, tanpa titik. Satu tempat agar tidak ada typo tersebar.
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { FsChangeKind } from './types';
 
 export const EV = {
   workspaceOpened: 'workspace-opened',
@@ -28,4 +29,13 @@ export function onWorkspaceOpened(cb: (path: string) => void): Promise<UnlistenF
 
 export function onSettingsChanged(cb: (key: string) => void): Promise<UnlistenFn> {
   return listen<{ key: string }>(EV.settingsChanged, (e) => cb(e.payload.key));
+}
+
+/** fase 04: perubahan file dari luar app (watcher). */
+export function onFsChanged(
+  cb: (p: { path: string; dir: string; kind: FsChangeKind }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ path: string; dir: string; kind: FsChangeKind }>(EV.fsChanged, (e) =>
+    cb(e.payload),
+  );
 }
