@@ -12,6 +12,7 @@
     "tauri:build": "tauri build",
     "verify": "node scripts/verify.mjs",
     "verify:04": "node scripts/verify04.mjs",
+    "verify:05": "node scripts/verify05.mjs",
     "soak": "node scripts/soak.mjs"
   },
   "dependencies": {
@@ -39,17 +40,19 @@
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
     "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2.0.0",
     "@tauri-apps/plugin-store": "^2.0.0",
     "@tauri-apps/plugin-window-state": "^2.0.0",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.15.0",
     "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
     "codemirror": "^6.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0",
-    "xterm": "^5.3.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

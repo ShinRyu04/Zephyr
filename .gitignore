@@ -17,3 +17,7 @@ Thumbs.db
 .env
 .env.*
 secrets.json
+
+# fixture workspace yang dibuat otomatis oleh scripts/verify04.mjs
+testfiles/ws-a/
+testfiles/ws-b/

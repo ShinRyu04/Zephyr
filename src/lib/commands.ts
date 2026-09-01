@@ -7,11 +7,13 @@ import type {
   DirNode,
   Encoding,
   LineEnding,
+  PtyInfo,
   ReadResult,
   RecentEntry,
   SearchResult,
   SessionTab,
   Settings,
+  ShellInfo,
   StatResult,
   ZephyrError,
 } from './types';
@@ -94,3 +96,24 @@ export const replaceInFile = (
     regex: opts.regex ?? false,
   });
 export const revealPath = (path: string) => invoke<void>('reveal_path', { path });
+
+// ── terminal / pty (fase 05) ──
+
+export const listShells = () => invoke<ShellInfo[]>('list_shells');
+export const ptySpawn = (opts: {
+  id: string;
+  kind?: string;
+  command?: string;
+  args?: string[];
+  cwd?: string | null;
+  cols?: number;
+  rows?: number;
+}) => invoke<number>('pty_spawn', opts);
+export const ptyWrite = (id: string, data: string) => invoke<void>('pty_write', { id, data });
+export const ptyResize = (id: string, cols: number, rows: number) =>
+  invoke<void>('pty_resize', { id, cols, rows });
+export const ptyKill = (id: string) => invoke<void>('pty_kill', { id });
+export const ptyList = () => invoke<PtyInfo[]>('pty_list');
+export const ptySetPaused = (paused: boolean) => invoke<void>('pty_set_paused', { paused });
+/** Ctrl+C sungguhan (CTRL_C_EVENT), bukan sekadar byte 0x03. */
+export const ptyInterrupt = (id: string) => invoke<void>('pty_interrupt', { id });

@@ -8,6 +8,7 @@ export const EV = {
   workspaceOpened: 'workspace-opened',
   fsChanged: 'fs-changed',
   ptyOutput: 'pty-output',
+  ptyExit: 'pty-exit',
   sshStatus: 'ssh-status',
   aiChunk: 'ai-chunk',
   gitProgress: 'git-progress',
@@ -38,4 +39,16 @@ export function onFsChanged(
   return listen<{ path: string; dir: string; kind: FsChangeKind }>(EV.fsChanged, (e) =>
     cb(e.payload),
   );
+}
+
+/** fase 05: output terminal (sudah digabung per 16ms di Rust). */
+export function onPtyOutput(cb: (id: string, data: string) => void): Promise<UnlistenFn> {
+  return listen<{ id: string; data: string }>(EV.ptyOutput, (e) =>
+    cb(e.payload.id, e.payload.data),
+  );
+}
+
+/** fase 05: proses shell berakhir sendiri (exit / EOF). */
+export function onPtyExit(cb: (id: string) => void): Promise<UnlistenFn> {
+  return listen<{ id: string }>(EV.ptyExit, (e) => cb(e.payload.id));
 }

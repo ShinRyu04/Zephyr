@@ -7,14 +7,23 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import ActivityBar from './components/shell/ActivityBar';
 import Sidebar from './components/shell/Sidebar';
 import EditorArea from './components/shell/EditorArea';
+import TerminalArea from './components/shell/TerminalArea';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import { useStore } from './lib/store';
 import { useExplorer } from './lib/explorerStore';
+import { useTerminal } from './lib/terminalStore';
 import { flushTab } from './lib/editorRegistry';
-import { onFsChanged } from './lib/events';
+import { onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
+import { writeTo, disposeHandle } from './lib/xtermRegistry';
 import './styles/theme.css';
+import '@xterm/xterm/css/xterm.css';
 import './index.css';
+
+/** Guard: listener PTY hanya boleh didaftarkan sekali per proses.
+ *  React StrictMode (dev) menjalankan effect dua kali — kalau listener
+ *  terdaftar dua kali, setiap byte output terminal tampil dobel. */
+let ptyListenersBound = false;
 
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
@@ -92,6 +101,13 @@ export default function App() {
         window.setTimeout(() => {
           document.querySelector<HTMLInputElement>('.search-input')?.focus();
         }, 60);
+      } else if (e.key === '`') {
+        // Ctrl+` : toggle panel terminal; Ctrl+Shift+` : terminal baru
+        e.preventDefault();
+        const t = useTerminal.getState();
+        if (e.shiftKey) void t.createSession('shell');
+        else if (t.sessions.length === 0) void t.createSession('shell');
+        else t.toggleVisible();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -166,6 +182,23 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
+  // 7) Terminal (fase 05): daftar shell, output PTY, dan exit proses.
+  useEffect(() => {
+    void useTerminal.getState().loadShells();
+    // StrictMode dev menjalankan effect DUA kali; tanpa guard ini listener
+    // terdaftar ganda dan setiap byte output terminal tampil dobel.
+    if (ptyListenersBound) return;
+    ptyListenersBound = true;
+
+    void onPtyOutput((id, data) => writeTo(id, data));
+    void onPtyExit((id) => {
+      useTerminal.getState().markExited(id);
+      // Sesi private: buang scrollback begitu prosesnya berakhir.
+      const s = useTerminal.getState().sessions.find((x) => x.id === id);
+      if (s?.kind === 'private') disposeHandle(id);
+    });
+  }, []);
+
   return (
     <div className="app-root">
       <div className="app-body">
@@ -188,9 +221,7 @@ export default function App() {
 
         <main className="main-area">
           <EditorArea />
-          <div className="terminal-area">
-            <span className="terminal-placeholder">Terminal — fase 05</span>
-          </div>
+          <TerminalArea />
         </main>
       </div>
 

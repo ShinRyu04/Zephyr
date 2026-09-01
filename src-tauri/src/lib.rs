@@ -6,13 +6,14 @@ mod dialogs;
 mod errors;
 mod explorer;
 mod fs_utils;
+mod pty;
 mod settings;
 mod tests_fs;
 
 use app_state::AppState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::WindowEvent;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,11 +22,15 @@ pub fn run() {
     let minimized = Arc::new(AtomicBool::new(false));
     let minimized_setup = minimized.clone();
 
-    let result = tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Clipboard lewat Rust: navigator.clipboard di WebView2 menolak
+        // saat dokumen tidak fokus, sedangkan copy/paste terminal harus
+        // selalu bisa (klik kanan, Ctrl+Shift+C, Shift+Insert).
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AppState::new())
         .setup(move |app| {
             // Sampler RAM untuk StatusBar (fase 02 V6).
@@ -33,11 +38,14 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(move |window, event| {
-            // Update flag minimized dari main thread.
+            // Update flag minimized dari main thread; sekaligus tunda emit
+            // output PTY supaya CPU tidak terbuang saat window disembunyikan.
             if let WindowEvent::Resized(_) = event {
                 if window.label() == "main" {
                     let m = window.is_minimized().unwrap_or(false);
-                    minimized.store(m, Ordering::Relaxed);
+                    if m != minimized.swap(m, Ordering::Relaxed) {
+                        window.state::<AppState>().set_render_paused(m);
+                    }
                 }
             }
         })
@@ -68,14 +76,30 @@ pub fn run() {
             explorer::search_files,
             explorer::replace_in_file,
             explorer::reveal_path,
+            // terminal / pty (fase 05)
+            pty::list_shells,
+            pty::pty_spawn,
+            pty::pty_write,
+            pty::pty_resize,
+            pty::pty_kill,
+            pty::pty_list,
+            pty::pty_set_paused,
+            pty::pty_interrupt,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
             dialogs::folder_dialog_open,
         ])
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!());
 
-    if let Err(e) = result {
-        eprintln!("[zephyr] gagal start: {e:?}");
+    match app {
+        Ok(app) => app.run(|handle, event| {
+            // Saat app benar-benar keluar, matikan semua shell anak supaya
+            // tidak ada proses tertinggal di Task Manager (V7 fase 05).
+            if let RunEvent::Exit = event {
+                handle.state::<AppState>().pty_kill_all();
+            }
+        }),
+        Err(e) => eprintln!("[zephyr] gagal start: {e:?}"),
     }
 }
