@@ -506,6 +506,13 @@ const main = async () => {
   fs.rmSync(repFile, { force: true });
 
   // ───────── V10: recent list ─────────
+  // Fixture workspace dibuat di sini supaya V10 reproducible di mesin bersih
+  // (folder ini sengaja tidak di-commit).
+  for (const dir of [WS, WS_B]) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'readme.txt'), `fixture ${path.basename(dir)}\n`);
+  }
+
   const v10 = JSON.parse(
     await cdp.runAsync(`
       await s.openWorkspace(${JSON.stringify(WS)});
