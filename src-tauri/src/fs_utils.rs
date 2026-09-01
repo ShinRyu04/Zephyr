@@ -136,6 +136,32 @@ fn mtime_ms(meta: &std::fs::Metadata) -> u64 {
         .unwrap_or(0)
 }
 
+// ───────── helper internal untuk modul lain (explorer.rs) ─────────
+
+/// Baca file + deteksi encoding/line ending. Konten dinormalkan ke `\n`.
+pub fn read_file_detect(path: &Path) -> ZResult<ReadResult> {
+    let bytes = std::fs::read(path)?;
+    let (raw, detected) = decode_bytes(&bytes, None)?;
+    let line_ending = detect_line_ending(&raw).to_string();
+    Ok(ReadResult {
+        content: raw.replace("\r\n", "\n"),
+        detected_encoding: detected,
+        line_ending,
+    })
+}
+
+/// Tulis konten dengan encoding + line ending eksplisit.
+pub fn write_file_encoded(
+    path: &Path,
+    content: &str,
+    encoding: &str,
+    line_ending: &str,
+) -> ZResult<()> {
+    let bytes = encode_string(content, encoding, line_ending)?;
+    std::fs::write(path, bytes)?;
+    Ok(())
+}
+
 // ───────────────────────── commands ─────────────────────────
 
 #[tauri::command(async)]

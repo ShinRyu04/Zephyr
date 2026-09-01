@@ -134,4 +134,81 @@ mod tests {
         assert_eq!(d["mcp"]["port"], 9222);
         assert_eq!(d["editor"]["tabSize"], 2);
     }
+
+    // ───────── fase 04: explorer & search ─────────
+
+    #[test]
+    fn ignore_list_menutup_folder_berat() {
+        for d in ["node_modules", ".git", "target", "dist", "venv", ".next"] {
+            assert!(
+                crate::explorer::is_ignored_for_test(d, true),
+                "{d} harus di-ignore"
+            );
+        }
+        // Case-insensitive (Windows).
+        assert!(crate::explorer::is_ignored_for_test("Node_Modules", true));
+        // File biasa & folder src tidak boleh di-ignore.
+        assert!(!crate::explorer::is_ignored_for_test("src", true));
+        assert!(!crate::explorer::is_ignored_for_test("package.json", false));
+        // Nama file yang kebetulan sama dengan folder ignore tetap tampil.
+        assert!(!crate::explorer::is_ignored_for_test("target", false));
+    }
+
+    #[test]
+    fn search_literal_memperlakukan_titik_sebagai_teks() {
+        // Non-regex: "a.c" tidak boleh cocok dengan "abc".
+        let re = crate::explorer::build_regex_for_test("a.c", false, true).unwrap();
+        assert!(re.is_match("xxa.cxx"));
+        assert!(!re.is_match("xxabcxx"));
+
+        // Regex: titik jadi wildcard.
+        let re2 = crate::explorer::build_regex_for_test("a.c", true, true).unwrap();
+        assert!(re2.is_match("xxabcxx"));
+    }
+
+    #[test]
+    fn search_case_insensitive_default() {
+        let ci = crate::explorer::build_regex_for_test("import", false, false).unwrap();
+        assert!(ci.is_match("IMPORT React"));
+
+        let cs = crate::explorer::build_regex_for_test("import", false, true).unwrap();
+        assert!(!cs.is_match("IMPORT React"));
+        assert!(cs.is_match("import React"));
+    }
+
+    #[test]
+    fn search_regex_tidak_valid_ditolak() {
+        let bad = crate::explorer::build_regex_for_test("(unclosed", true, false);
+        assert!(bad.is_err(), "regex rusak harus mengembalikan InvalidInput");
+    }
+
+    #[test]
+    fn scan_dir_mengurutkan_folder_dulu() {
+        // Siapkan struktur: b.txt, a.txt, folder zz, folder aa, node_modules
+        let mut root = std::env::temp_dir();
+        root.push(format!("zephyr-scan-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("zz")).unwrap();
+        std::fs::create_dir_all(root.join("aa")).unwrap();
+        std::fs::create_dir_all(root.join("node_modules")).unwrap();
+        std::fs::write(root.join("b.txt"), "b").unwrap();
+        std::fs::write(root.join("a.txt"), "a").unwrap();
+
+        let names = crate::explorer::scan_names_for_test(&root).unwrap();
+        assert_eq!(
+            names,
+            vec!["aa", "zz", "a.txt", "b.txt"],
+            "folder dulu (alfabetis), lalu file; node_modules disembunyikan"
+        );
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn replace_literal_tidak_menafsirkan_dollar() {
+        // NoExpand: "$1" di teks pengganti harus tertulis apa adanya.
+        let re = crate::explorer::build_regex_for_test("foo", false, true).unwrap();
+        let out = re.replace_all("foo bar", regex::NoExpand("$1x"));
+        assert_eq!(out, "$1x bar");
+    }
 }

@@ -8,8 +8,9 @@
 import { undo, redo } from '@codemirror/commands';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from './store';
-import { flushTab, getActiveView } from './editorRegistry';
-import { fsRead, sessionLoad } from './commands';
+import { useExplorer } from './explorerStore';
+import { flushTab, getActiveView, revealPosition } from './editorRegistry';
+import { fsRead, sessionLoad, scanDir, searchFiles } from './commands';
 
 type CmdName = 'undo' | 'redo';
 
@@ -17,9 +18,11 @@ export function installDevBridge(): void {
   const w = window as unknown as Record<string, unknown>;
 
   w.__ZEPHYR__ = useStore;
+  w.__ZEPHYR_EX__ = useExplorer;
   w.__ZEPHYR_CM__ = () => getActiveView();
   w.__ZEPHYR_FLUSH__ = (tabId: string) => flushTab(tabId);
-  w.__ZEPHYR_FS__ = { read: fsRead, sessionLoad };
+  w.__ZEPHYR_FS__ = { read: fsRead, sessionLoad, scanDir, searchFiles };
+  w.__ZEPHYR_REVEAL__ = (line: number, col?: number) => revealPosition(line, col);
   w.__ZEPHYR_CMD__ = (name: CmdName) => {
     const view = getActiveView();
     if (!view) return false;

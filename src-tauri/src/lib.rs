@@ -4,6 +4,7 @@
 mod app_state;
 mod dialogs;
 mod errors;
+mod explorer;
 mod fs_utils;
 mod settings;
 mod tests_fs;
@@ -60,6 +61,13 @@ pub fn run() {
             fs_utils::fs_rename,
             fs_utils::session_load,
             fs_utils::session_save,
+            // explorer / search (fase 04)
+            explorer::scan_dir,
+            explorer::fs_watch,
+            explorer::fs_unwatch,
+            explorer::search_files,
+            explorer::replace_in_file,
+            explorer::reveal_path,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,

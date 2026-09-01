@@ -46,13 +46,21 @@ cd src-tauri
 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223" ./target/debug/zephyr.exe
 
 # 3. terminal C: jalankan seluruh verifikasi
-npm run verify           # -> "== 26/26 lulus =="
+npm run verify           # fase 02+03 -> "== 26/26 lulus =="
+npm run verify:04        # fase 04    -> "== 17/17 lulus =="
+npm run soak             # stabilitas 180s (V11 fase 04)
 ```
 
-`scripts/verify.mjs` menempel via CDP dan memeriksa DOM + store nyata.
+`scripts/verify*.mjs` menempel via CDP dan memeriksa DOM + store nyata.
 `scripts/probe.mjs <port> "<expr>" [--reload]` untuk cek satu ekspresi.
-Jembatan `window.__ZEPHYR__` hanya ada di mode dev (`src/lib/devBridge.ts`),
-di-tree-shake dari build release.
+Jembatan `window.__ZEPHYR__` / `__ZEPHYR_EX__` hanya ada di mode dev
+(`src/lib/devBridge.ts`), di-tree-shake dari build release.
+
+Catatan menulis verifikasi: `Runtime.evaluate` dengan `awaitPromise:true`
+sering gagal di WebView2 ("Promise was collected") — pakai helper
+`runAsync()` yang menyimpan promise di `window` lalu polling. Untuk mencari
+baris tree jangan cocokkan `textContent` (ikut glyph SVG ikon); pakai
+atribut `title` yang berisi path lengkap.
 
 ## 4. Konvensi
 
