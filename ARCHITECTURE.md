@@ -65,10 +65,23 @@ xterm.js. Backend Rust pegang fs/pty/git/ssh/mcp/settings.
 | Command | Params → Result |
 |---|---|
 | `workspace_open` | { path } → void (emit `workspace-opened`) |
-| `workspace_close` | → void |
-| `scan_dir` | { path } → DirNode[] (ignore list, depth ≤40) |
-| `fs_watch` | { path } → void (emit `fs-changed`) |
-| `search_files` | { query, glob?, caseSensitive?, regex? } → Match[] (max 500) |
+| `workspace_close` | → void (juga menghentikan watcher) |
+| `scan_dir` | { path } → DirNode[] — **satu level** (lazy); folder dulu lalu file, alfabetis; depth ≤40 |
+| `fs_watch` | { path } → void (emit `fs-changed`, debounce 250ms, rekursif) |
+| `fs_unwatch` | → void (stop watcher aktif) |
+| `search_files` | { query, glob?, caseSensitive?, regex? } → { hits: SearchHit[] (max 500), filesScanned, truncated } |
+| `replace_in_file` | { path, query, replacement, caseSensitive?, regex? } → jumlah penggantian |
+| `reveal_path` | { path } → void (Explorer, `/select,` untuk file) |
+
+```ts
+interface DirNode { name; path; isDir; hasChildren }   // hasChildren = tampilkan chevron
+interface SearchHit { path; name; line; col; matchLen; preview; before?; after? }
+```
+Ignore (dipakai `scan_dir`, `search_files`, dan watcher — harus SAMA):
+`node_modules .git .venv venv dist build target out .next .cache .turbo
+.svelte-kit __pycache__ .pytest_cache`; `*.lock` hanya dilewati saat
+pencarian isi (tetap TAMPIL di tree). Pencarian melewati file >2MB dan
+file biner (ada byte NUL di 8KB pertama).
 
 ### terminal (pty)
 | Command | Params → Result |
@@ -119,7 +132,7 @@ Semua git diserialisasi (semaphore 1 proses). `git_push --force` TIDAK ada.
 | Event | Payload | Sumber |
 |---|---|---|
 | `workspace-opened` | { path } | 04 |
-| `fs-changed` | { path, kind } | 04 |
+| `fs-changed` | { path, dir, kind: 'create'\|'remove'\|'modify' } | 04 |
 | `pty-output` | { id, data } (batched 16ms) | 05 |
 | `ssh-status` | { paneId, state, message } | 07 |
 | `ai-chunk` | { id, text? , err?, done? } | 09 |
@@ -185,6 +198,27 @@ interface Settings {   // = settings.json
 Persist (store plugin): `settings`, `recentWorkspaces`, `layout`,
 `mcp.enabled`. **`ai.apiKeys` TIDAK persist di frontend** — hanya di
 `secrets.json` via Rust.
+
+**Store kedua (fase 04): `lib/explorerStore.ts` — `useExplorer`.**
+Dipisah agar store editor tetap ramping; keduanya saling memanggil lewat
+import langsung, bukan lewat komponen.
+```ts
+interface ExplorerStore {
+  children: Record<string, DirNode[]>   // isi per folder (lazy, key = path)
+  expanded: Record<string, boolean>
+  selected: string[]; anchor: string | null   // multi-select Ctrl/Shift
+  ctxMenu: { x, y, path, isDir } | null
+  inlineEdit: { kind:'new-file'|'new-folder'|'rename'; target; initial } | null
+  explorerError: string | null
+  // search
+  query; glob; caseSensitive; regex; replaceWith
+  searching: boolean; hits: SearchHit[]; filesScanned; truncated
+  searchError: string | null
+}
+```
+`useStore` menyediakan jembatan yang dipakai Explorer: `openWorkspace`,
+`closeWorkspace`, `refreshRecents`, `recents`, `openPathAt(path,line,col)`,
+`renamePathInTabs`, `closeTabsUnder`, `reloadTabFromDisk`.
 
 ---
 

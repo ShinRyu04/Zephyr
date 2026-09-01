@@ -5,7 +5,8 @@
 use crate::errors::{ZResult, ZephyrError};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 pub struct AppState {
     /// Workspace (folder) yang sedang dibuka. None = belum buka folder.
@@ -19,6 +20,9 @@ pub struct AppState {
     /// Semaphore git (dipakai fase 10) — 1 proses git sekaligus.
     #[allow(dead_code)]
     pub git_lock: Mutex<()>,
+    /// Generasi watcher aktif (fase 04). Thread watcher berhenti sendiri
+    /// begitu nilai ini melewati generasinya — dipakai saat ganti workspace.
+    watch_generation: Arc<AtomicU64>,
 }
 
 impl AppState {
@@ -34,7 +38,25 @@ impl AppState {
             allowed: Mutex::new(HashSet::new()),
             data_dir,
             git_lock: Mutex::new(()),
+            watch_generation: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    // ── watcher (fase 04) ──
+
+    /// Naikkan generasi lalu kembalikan generasi BARU untuk thread watcher.
+    pub fn next_watch_generation(&self) -> u64 {
+        self.watch_generation.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    /// Handle yang dibaca thread watcher untuk tahu kapan harus berhenti.
+    pub fn watch_stop_flag(&self) -> Arc<AtomicU64> {
+        self.watch_generation.clone()
+    }
+
+    /// Minta semua watcher lama berhenti (dipanggil saat ganti/tutup workspace).
+    pub fn stop_watcher(&self) {
+        self.watch_generation.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn file(&self, name: &str) -> PathBuf {
