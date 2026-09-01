@@ -11,7 +11,7 @@ import { useStore } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt } from './commands';
+import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt, listAgents } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize } from './xtermRegistry';
 import { copySelection, pasteInto } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
@@ -49,6 +49,8 @@ export function installDevBridge(): void {
     paste: (id: string) => pasteInto(id),
     clipRead: () => clipboardRead(),
     clipWrite: (t: string) => clipboardWrite(t),
+    /** fase 06: daftar agent CLI yang terdeteksi (untuk verifikasi). */
+    agents: () => listAgents(),
   };
   w.__ZEPHYR_CMD__ = (name: CmdName) => {
     const view = getActiveView();

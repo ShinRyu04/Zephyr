@@ -271,4 +271,42 @@ mod tests {
         let (prog, _) = crate::pty::resolve_shell_for_test("entah-apa", None).unwrap();
         assert!(prog.to_lowercase().contains("powershell") || prog.to_lowercase().contains("pwsh"));
     }
+
+    #[test]
+    fn kind_agent_tanpa_command_ditolak() {
+        // Pane agent WAJIB mengirim start command dari Settings; kalau tidak,
+        // ini bug frontend dan harus gagal keras, bukan diam-diam jadi shell.
+        assert!(crate::pty::resolve_shell_for_test("agent", None).is_err());
+        let (prog, _) =
+            crate::pty::resolve_shell_for_test("agent", Some(r"C:\Windows\System32\cmd.exe"))
+                .unwrap();
+        assert!(prog.to_lowercase().ends_with("cmd.exe"));
+    }
+
+    // ───────── fase 06: deteksi agent CLI ─────────
+
+    #[test]
+    fn list_agents_hanya_mengembalikan_path_yang_ada() {
+        let found = crate::agents::list_agents().unwrap();
+        for a in &found {
+            assert!(
+                std::path::Path::new(&a.path).is_file(),
+                "{} menunjuk path yang tidak ada: {}",
+                a.id,
+                a.path
+            );
+            assert!(!a.label.is_empty());
+        }
+        // id unik (popover tidak boleh dobel)
+        let mut ids: Vec<_> = found.iter().map(|a| a.id.clone()).collect();
+        let n = ids.len();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(n, ids.len(), "id agent duplikat");
+    }
+
+    #[test]
+    fn find_exe_menolak_nama_yang_tidak_ada() {
+        assert!(crate::agents::find_exe_for_test("zephyr-agent-yang-tidak-ada-xyz").is_none());
+    }
 }

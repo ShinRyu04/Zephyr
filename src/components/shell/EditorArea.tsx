@@ -7,6 +7,7 @@ import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import Breadcrumbs from './Breadcrumbs';
+import ZephyrLogo from './ZephyrLogo';
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
@@ -15,17 +16,7 @@ function EmptyState() {
 
   return (
     <div className="empty-state">
-      <svg viewBox="0 0 120 120" className="empty-logo" aria-hidden="true">
-        <rect x="4" y="4" width="112" height="112" rx="24" fill="var(--surface)" stroke="var(--border)" />
-        <path
-          d="M34 38h52l-34 44h34"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <ZephyrLogo size={88} className="empty-logo" />
       <h1 className="empty-title">Zephyr</h1>
       <p className="empty-sub">Code faster. Lighter. Yours.</p>
 

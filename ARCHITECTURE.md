@@ -94,10 +94,14 @@ file biner (ada byte NUL di 8KB pertama).
 | `pty_list` | → [{ id, kind, shell, pid, alive }] |
 | `pty_set_paused` | { paused } → void (tunda EMIT saat minimized; output tetap dibuffer) |
 | `pty_interrupt` | { id } → jumlah proses yang dihentikan (Ctrl+C: `\x03` + kill pohon turunan shell) |
-| `list_agents` | → [{ name, path, version? }] (fase 06) |
+| `list_agents` | → [{ id, label, path, version }] — CLI agent yang ADA di mesin (fase 06) |
 
-`kind`: `'shell' \| 'private' \| 'cmd' \| 'bash' \| 'wsl' \| 'pwsh'` (fase 06
-menambah `'agent'`). **Private** = PowerShell `-NoProfile` +
+`kind`: `'shell' \| 'private' \| 'cmd' \| 'bash' \| 'wsl' \| 'pwsh' \| 'agent' \| 'ssh'`.
+Pane `'browser'` tidak punya PTY. **`kind: 'agent'` WAJIB menyertakan
+`command`** (dari `settings.agents.startCommands`, fallback path hasil
+`list_agents`) — tanpa itu `pty_spawn` menolak, bukan diam-diam jadi shell.
+
+**Private** = PowerShell `-NoProfile` +
 `Set-PSReadLineOption -HistorySaveStyle SaveNothing` + env `ZEPHYR_PRIVATE=1`
 → perintahnya tidak ditulis ke `ConsoleHost_history.txt` milik user.
 Implementasi PTY: crate **portable-pty 0.8 (ConPTY)** — keputusan final
@@ -200,9 +204,10 @@ interface Store {
   mcp: { enabled: boolean; running: boolean; port: number }
 }
 interface Tab { id; path: string|null; name; encoding; lineEnding; unsaved; content; lang }
-interface TerminalTab { id; title; panes: PaneMeta[]; layout: 'grid'|'split' }
-interface PaneMeta { id; kind:'shell'|'private'|'agent'|'ssh'|'browser';
-  agent?: {name}; title; sessionId?; status; cwd }
+interface TerminalTab { id; title; panes: PaneMeta[]; layout: 'grid'|'split'; activePaneId: string|null }
+interface PaneMeta { id; kind:'shell'|'private'|'cmd'|'bash'|'wsl'|'pwsh'|'agent'|'ssh'|'browser';
+  agent?: {name,label}; title; sessionId?; status:'live'|'exited'|'connecting'|'error';
+  cwd; pid?; url? }   // url hanya untuk kind 'browser' (iframe)
 interface Settings {   // = settings.json
   general:{theme,fontFamily,fontSize,lineHeight,uiLang,zoom,restoreSession,checkUpdates}
   editor:{tabSize,insertSpaces,wordWrap,minimap,cursorStyle,smoothScroll,formatOnSave}

@@ -49,6 +49,7 @@ WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223" ./target/de
 npm run verify           # fase 02+03 -> "== 26/26 lulus =="
 npm run verify:04        # fase 04    -> "== 17/17 lulus =="
 npm run verify:05        # fase 05    -> "== 12/12 lulus ==" (butuh ~90s)
+npm run verify:06        # fase 06    -> "== 12/12 lulus ==" (butuh ~2 menit)
 npm run soak             # stabilitas 180s (V11 fase 04)
 ```
 
@@ -76,6 +77,17 @@ Khusus terminal (fase 05):
   output tampil dobel.
 - V2 warna: jangan hitung semua span `xterm-fg-*` (PSReadLine mewarnai baris
   input juga). Cocokkan span yang isinya tepat sama dengan penanda output.
+
+Khusus multi-pane (fase 06):
+- Port **8080 TIDAK bisa dipakai** di mesin ini (`WinError 10013` — masuk
+  excluded port range Hyper-V/WinNAT). Server uji browser pane pakai 8099.
+- Isi DOM `<iframe>` pane browser TIDAK bisa dibaca dari luar (sandbox =
+  origin lain). Bukti yang sah: `data-loads` (event `load`) + log request di
+  server uji.
+- Store terminal sekarang `terminalTabs[].panes[]` (bukan `sessions[]`):
+  `addPane/closePane/killPane/allPanes/findPane`. `pane.id` = id sesi PTY.
+- Batas pane dari `settings.agents.maxPanes` (default 6) — verifikasi yang
+  membuat banyak pane harus `closeTab` dulu, kalau tidak kena toast batas.
 
 ## 4. Konvensi
 

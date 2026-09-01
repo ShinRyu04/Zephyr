@@ -166,7 +166,7 @@ const main = async () => {
 
   // Bersihkan state.
   await cdp.runAsync(`
-    for (const x of t.sessions.slice()) await T.getState().closeSession(x.id);
+    for (const x of t.terminalTabs.slice()) await T.getState().closeTab(x.id);
     s.tabs.slice().forEach((tab) => s.forceCloseTab(tab.id));
     window.__ZEPHYR_ERRORS__.length = 0;
     return 'reset';
@@ -175,7 +175,7 @@ const main = async () => {
 
   // ───────── V1: terminal muncul, prompt PowerShell, echo halo ─────────
   const id1 = await cdp.runAsync(`
-    const id = await T.getState().createSession('shell', 100, 26);
+    const id = await T.getState().addPane('shell');
     await new Promise(r => setTimeout(r, 2000));
     return id;
   `);
@@ -183,10 +183,10 @@ const main = async () => {
   const dom = JSON.parse(
     await cdp.eval(`JSON.stringify({
       area: !!document.querySelector('.term-area'),
-      tabs: document.querySelectorAll('.tt-tab').length,
+      tabs: document.querySelectorAll('.pane').length,
       xtermMounted: !!document.querySelector('.xterm-pane .xterm-screen'),
-      title: document.querySelector('.tt-tab .tt-name')?.textContent,
-      pid: window.__ZEPHYR_TERM__.getState().sessions[0]?.pid,
+      title: document.querySelector('.pane-head .pane-title')?.textContent,
+      pid: window.__ZEPHYR_TERM__.getState().allPanes()[0]?.pid,
       prompt: window.__ZEPHYR_PTY__.read(${JSON.stringify(id1)}, 30),
     })`),
   );
@@ -276,7 +276,7 @@ const main = async () => {
   // pastikan output streaming lalu Ctrl+C membunuh SELURUH pohon proses.
   const shellPid = JSON.parse(
     await cdp.runAsync(`
-      const sess = T.getState().sessions.find(x => x.id === ${JSON.stringify(id1)});
+      const sess = T.getState().findPane(${JSON.stringify(id1)});
       return JSON.stringify(sess.pid);
     `),
   );
@@ -321,9 +321,9 @@ const main = async () => {
       await P.write(${JSON.stringify(id1)}, 'cls\\r');
       await new Promise(r => setTimeout(r, 800));
       const revive = await window.__ZV_RUN__(${JSON.stringify(id1)}, 'echo setelah-ctrlc', '^setelah-ctrlc\\\\s*$');
-      const sess = T.getState().sessions.find(x => x.id === ${JSON.stringify(id1)});
+      const sess = T.getState().findPane(${JSON.stringify(id1)});
       return JSON.stringify({ killed, sebelum, t1, t2, outputBerhenti: t1 === t2,
-        shellHidup: sess.alive, bangkit: /^setelah-ctrlc\\s*$/m.test(revive) });
+        shellHidup: sess.status === 'live', bangkit: /^setelah-ctrlc\\s*$/m.test(revive) });
     `,
       60000,
     ),
@@ -405,15 +405,15 @@ const main = async () => {
   const markNorm = `ZEPHYR-NORM-${stamp}`;
 
   const id2 = await cdp.runAsync(`
-    const id = await T.getState().createSession('private', 90, 24);
+    const id = await T.getState().addPane('private');
     await new Promise(r => setTimeout(r, 2500));
     return id;
   `);
   const priv = JSON.parse(
     await cdp.runAsync(`
       const st = T.getState();
-      const sess = st.sessions.find(x => x.id === ${JSON.stringify(id2)});
-      const tab = document.querySelector('[data-term-tab=' + JSON.stringify(${JSON.stringify(id2)}) + ']');
+      const sess = st.findPane(${JSON.stringify(id2)});
+      const tab = document.querySelector('[data-pane-head=' + JSON.stringify(${JSON.stringify(id2)}) + ']');
       const buf = await window.__ZV_RUN__(${JSON.stringify(id2)},
         'echo "priv=$env:ZEPHYR_PRIVATE style=$((Get-PSReadLineOption).HistorySaveStyle)"',
         'priv=1 style=');
@@ -455,14 +455,14 @@ const main = async () => {
     await cdp.runAsync(`
       const punyaInstance = P.ids().includes(${JSON.stringify(id2)});
       const isiSebelum = P.read(${JSON.stringify(id2)}, 40).length;
-      await T.getState().closeSession(${JSON.stringify(id2)});
+      await T.getState().closePane(${JSON.stringify(id2)});
       await new Promise(r => setTimeout(r, 700));
       return JSON.stringify({
         punyaInstance, isiSebelum,
         instanceDibuang: !P.ids().includes(${JSON.stringify(id2)}),
         scrollbackKosong: P.read(${JSON.stringify(id2)}, 40) === '',
         tanpaDialog: !document.querySelector('.modal[role="dialog"]'),
-        sisaTab: T.getState().sessions.length,
+        sisaTab: T.getState().allPanes().length,
       });
     `),
   );
@@ -479,16 +479,16 @@ const main = async () => {
   // ───────── V7: kill dari kebab -> pid benar-benar mati ─────────
   const victim = JSON.parse(
     await cdp.runAsync(`
-      const id = await T.getState().createSession('shell', 80, 20);
+      const id = await T.getState().addPane('shell');
       await new Promise(r => setTimeout(r, 1800));
-      const sess = T.getState().sessions.find(x => x.id === id);
+      const sess = T.getState().findPane(id);
       return JSON.stringify({ id, pid: sess.pid });
     `),
   );
   const aliveBefore = pidAlive(victim.pid);
   await cdp.runAsync(`
-    T.getState().setActive(${JSON.stringify(victim.id)});
-    await T.getState().killSession(${JSON.stringify(victim.id)});
+    T.getState().setActivePane(T.getState().activeTabId, ${JSON.stringify(victim.id)});
+    await T.getState().killPane(${JSON.stringify(victim.id)});
     await new Promise(r => setTimeout(r, 1300));
     return 'killed';
   `);
@@ -496,9 +496,9 @@ const main = async () => {
   const aliveAfter = pidAlive(victim.pid);
   const marked = JSON.parse(
     await cdp.eval(`(() => {
-      const sess = window.__ZEPHYR_TERM__.getState().sessions.find(x => x.id === ${JSON.stringify(victim.id)});
-      const tab = document.querySelector('[data-term-tab=' + JSON.stringify(${JSON.stringify(victim.id)}) + ']');
-      return JSON.stringify({ alive: sess?.alive, deadBadge: !!tab?.querySelector('.tt-dead') });
+      const sess = window.__ZEPHYR_TERM__.getState().findPane(${JSON.stringify(victim.id)});
+      const head = document.querySelector('[data-pane-head=' + JSON.stringify(${JSON.stringify(victim.id)}) + ']');
+      return JSON.stringify({ alive: sess?.status === 'live', deadBadge: !!head?.querySelector('.tt-dead') });
     })()`),
   );
   check(
@@ -506,7 +506,7 @@ const main = async () => {
     aliveBefore && !aliveAfter && marked.alive === false && marked.deadBadge,
     `pid ${victim.pid}: hidup sebelum=${aliveBefore}, mati sesudah (tasklist)=${!aliveAfter}, UI menandai "exited"=${marked.deadBadge}`,
   );
-  await cdp.runAsync(`await T.getState().closeSession(${JSON.stringify(victim.id)}); return 'x';`);
+  await cdp.runAsync(`await T.getState().closePane(${JSON.stringify(victim.id)}); return 'x';`);
 
   // ───────── V8: tiga terminal independen ─────────
   const three = JSON.parse(
@@ -514,7 +514,7 @@ const main = async () => {
       `
       const ids = [${JSON.stringify(id1)}];
       for (let i = 0; i < 2; i++) {
-        ids.push(await T.getState().createSession('shell', 80, 20));
+        ids.push(await T.getState().addPane('shell'));
         await new Promise(r => setTimeout(r, 1800));
       }
       // bersihkan layar semua sesi lalu tulis penanda unik
@@ -530,7 +530,7 @@ const main = async () => {
       const bufs = ids.map((id) => P.read(id, 40));
       return JSON.stringify({
         ids,
-        pids: T.getState().sessions.map(x => x.pid),
+        pids: T.getState().allPanes().map(x => x.pid),
         // tiap layar HANYA memuat penandanya sendiri
         isolated: bufs.every((b, i) =>
           new RegExp('^PENANDA-' + i + '\\\\s*$', 'm').test(b) &&
@@ -587,7 +587,7 @@ const main = async () => {
 
   // bersihkan semua sesi uji
   await cdp.runAsync(`
-    for (const x of T.getState().sessions.slice()) await T.getState().closeSession(x.id);
+    for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);
     return 'cleanup';
   `);
 
