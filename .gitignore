@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# logs & cache
+*.log
+npm-debug.log*
+.vite/
+.DS_Store
+Thumbs.db
+
+# env & secrets (jangan pernah di-commit)
+.env
+.env.*
+secrets.json

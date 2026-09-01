@@ -1,0 +1,4 @@
+# Byte-exact: file uji encoding tidak boleh diubah Git.
+# sample-bom.txt punya BOM UTF-8, sample-ansi.txt ber-encoding Windows-1252.
+testfiles/sample-bom.txt  -text
+testfiles/sample-ansi.txt -text
