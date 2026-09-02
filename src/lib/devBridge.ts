@@ -9,7 +9,7 @@ import { undo, redo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from './store';
-import { MAX_LOADED_TABS } from './store';
+import { MAX_LOADED_TABS, maxLoadedTabs } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
@@ -19,7 +19,7 @@ import { THEMES, systemPrefersDark } from './themes';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch, setWindowSize, takeBrokenConfig } from './commands';
+import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch, setWindowSize, takeBrokenConfig, workspaceOpen } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
 import { copySelection, pasteInto, writeChunked } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
@@ -369,6 +369,11 @@ export function installDevBridge(): void {
         readOnly: t.readOnly === true,
         note: t.note ?? '',
         bytes: t.bytes ?? 0,
+        /** panjang konten yang BENAR-BENAR ditahan di memori (0 = dilepas).
+         *  Beda dari `bytes` yang merupakan ukuran file di disk — memakai
+         *  `bytes` untuk menilai "tab dilepas" selalu salah (fase 16). */
+        held: t.content.length,
+        loaded: t.loaded !== false,
         unsaved: t.unsaved,
         existed: t.existed === true,
       })),
@@ -411,6 +416,10 @@ export function installDevBridge(): void {
     resize: (w: number, h: number) => setWindowSize(w, h),
     /** laporan config rusak terakhir yang di-backup Rust (fase 16.3) */
     brokenConfig: () => takeBrokenConfig(),
+    /** batas tab termuat yang BERLAKU sekarang (ikut mode penghemat RAM) */
+    maxTabs: () => maxLoadedTabs(),
+    /** workspace_open MENTAH — untuk membuktikan penolakan root drive (16.3) */
+    openWs: (p: string) => workspaceOpen(p),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

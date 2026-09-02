@@ -6,6 +6,51 @@ Bug yang ditemukan tapi TIDAK diperbaiki juga dicatat, dengan alasannya.
 
 ---
 
+## Fase 16 — Bugfix Vol 2 (perf, RAM, startup, edge case)
+
+Status verifikasi: **10/10 lulus** lewat `npm run verify:16`. `tsc --noEmit`
+0 error, `cargo test --lib` 74 lulus. Stress 16.4 dijalankan terpisah dengan
+`npm run stress`.
+
+| # | Gejala | Akar | Fix | Verifikasi |
+|---|--------|------|-----|------------|
+| 21 | `settings.json` rusak (syntax error) → seluruh preferensi user hilang tanpa pemberitahuan | `read_json` memakai `.ok()`, jadi parse gagal = `None` = pakai default, file buruk ditimpa pada penulisan berikutnya | `settings.rs`: file rusak dipindah ke `<nama>.broken-<unix>` dan path-nya dicatat di `LAST_BROKEN`; command `take_broken_config` melaporkannya ke UI | V6: `settings.json` dirusak → `get_settings` mengembalikan default lengkap, file buruk ada di `.broken-…` dengan isi aslinya |
+| 22 | Membuka `C:\` sebagai workspace membuat Explorer menelusuri seluruh disk (termasuk `Windows\WinSxS`) | Tidak ada pemeriksaan root drive | `paths::is_drive_root()` + penolakan di `workspace_open` dengan pesan yang menjelaskan apa yang harus dilakukan | V5: ditolak dalam 6ms, `InvalidInput` menyebut "root drive", workspace tidak berubah |
+| 23 | Path Windows >260 karakter gagal dibaca/ditulis walau filenya ada | `std::fs` butuh prefix `\\?\` untuk path panjang | `paths::long_path()` menambahkan prefix (termasuk bentuk `\\?\UNC\` untuk share); dipakai `fs_read`, `write_file_encoded`, `fs_stat`, `fs_exists`, `fs_create_file`, `fs_create_dir`, `fs_rename` | V4: path 349 karakter — tulis, baca, dan file benar-benar ada di disk. Plus 2 unit test Rust |
+| 24 | AI panel menggantung ~38 detik saat provider tidak menjawab (offline / Base URL salah), tanpa pesan | `ureq` tanpa `timeout_connect`; percobaan koneksi berulang di lapisan bawah Windows melipatgandakan penantian | `ai.rs`: `Agent` eksplisit dengan `timeout_connect(10s)` + `timeout_per_call(12s)` + `max_redirects(3)`; pesan error diterjemahkan jadi "periksa koneksi internet atau Base URL" | V7: error datang dalam 10,3s dan tampil sebagai bubble di area chat, bukan console; `pending` kembali null |
+| 25 | Tidak ada cara melihat kondisi app selain menebak dari gejala | Diagnostics fase 14 hanya angka mentah | Tabel status per domain (fs/pty/git/mcp/ai/extensions/log) + info host (OS, CPU, RAM mesin) + `self_test` yang benar-benar menulis file, resolve shell, menjalankan `git --version`, menyambung socket MCP, dan menulis log + Export report JSON tanpa secret | V8 & V9: 7 domain terisi, self-test 5/5 hijau dengan waktu tiap item, laporan 1,5KB JSON valid di clipboard |
+| 26 | Tidak ada satu tombol untuk menurunkan pemakaian RAM | — | Settings → General "Mode penghemat RAM": smooth scroll off, minimap dipaksa off, batas tab termuat 8 (dari 12) lewat `maxLoadedTabs()` | V3: dengan lowRam ON, 12 file dibuka → hanya 8 memegang konten; `data-lowram=1`, `data-smooth=0`; tersimpan ke disk |
+
+Info host (OS/CPU/RAM mesin) diambil **sekali** di thread sampler, bukan di
+dalam command — larangan membuat `sysinfo::System` di dalam `get_diagnostics`
+dari fase 14 tetap berlaku (dulu menyebabkan app keluar sendiri saat dipolling).
+
+### Angka yang terukur (dev build)
+
+- Startup: `ui-ready` @870–980ms setelah proses mulai. Gate ≤2500ms diuji ulang
+  di release (fase 17) karena dev build memuat React DEV + HMR + source map.
+- 20 tab + 4 pane: RAM total 430–453MB, dari itu 12 tab memegang konten dan 8
+  dilepas otomatis. JS heap turun 12–29% setelah semua ditutup + GC paksa.
+  Gate <400MB juga milik release build.
+
+### Bug harness fase 16 (dicatat supaya tidak terulang)
+
+1. **`bytes` bukan bukti "tab dilepas".** `Tab.bytes` = ukuran file di disk dan
+   selalu >0. Yang menunjukkan konten masih di memori adalah `content.length` —
+   devBridge sekarang mengekspornya sebagai `held`.
+2. **`perf_mark` menumpuk sepanjang proses hidup.** Reload halaman dev menambah
+   `ui-ready` baru, jadi harness harus mengambil mark PERTAMA per nama.
+3. **Backtick di dalam komentar `//` yang berada di dalam template literal
+   menutup template-nya** — file harness jadi syntax error yang menyesatkan.
+4. **`findModel` dengan id model yang tidak ada di katalog fallback ke provider
+   saat ini.** `setModel('gpt-4o-mini')` (bukan id katalog) membuat provider
+   tetap gemini, jadi uji "offline" tidak pernah menyentuh openai.
+5. **Sub-string `.broken` di `read_json` menghapus file dari disk** — pastikan
+   harness memulihkan `settings.json` asli setelah menguji, kalau tidak sesi
+   berikutnya mulai dengan default.
+
+---
+
 ## Fase 15 — Bugfix Vol 1 (audit fitur fase 02–14)
 
 Status verifikasi: **17/17 lulus** lewat `npm run verify:15` di app hidup
