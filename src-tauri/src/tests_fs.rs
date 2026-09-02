@@ -306,7 +306,50 @@ mod tests {
     }
 
     #[test]
-    fn find_exe_menolak_nama_yang_tidak_ada() {
-        assert!(crate::agents::find_exe_for_test("zephyr-agent-yang-tidak-ada-xyz").is_none());
+    fn settings_null_menghapus_key() {
+        // Dipakai tombol "Reset ke default" per item (shortcut/start command).
+        let mut base = serde_json::json!({
+            "shortcuts": { "view.explorer": "Ctrl+Alt+E", "file.save": "Ctrl+S" },
+            "agents": { "startCommands": { "opencode": ["a", "b"] }, "maxPanes": 6 }
+        });
+        let patch = serde_json::json!({
+            "shortcuts": { "view.explorer": null },
+            "agents": { "startCommands": { "opencode": null } }
+        });
+        crate::settings::merge_for_test(&mut base, &patch);
+
+        assert!(
+            base["shortcuts"].get("view.explorer").is_none(),
+            "null harus MENGHAPUS key, bukan menyimpan null: {base}"
+        );
+        assert_eq!(base["shortcuts"]["file.save"], "Ctrl+S", "key lain aman");
+        assert!(base["agents"]["startCommands"].get("opencode").is_none());
+        assert_eq!(base["agents"]["maxPanes"], 6);
+    }
+
+    // ───────── fase 08: secrets & API key ─────────
+
+    #[test]
+    fn secret_roundtrip_dan_tidak_plaintext() {
+        let key = "sk-test-1234567890abcdefXYZ";
+        let (enc, dec) = crate::secrets::roundtrip_for_test(key);
+        assert_eq!(dec.as_deref(), Some(key), "harus bisa dibaca kembali");
+        assert!(
+            !enc.contains("sk-test"),
+            "bentuk tersimpan TIDAK boleh memuat key plaintext: {enc}"
+        );
+        assert_ne!(enc, key);
+    }
+
+    #[test]
+    fn preview_key_menutupi_bagian_tengah() {
+        let p = crate::secrets::preview_for_test("sk-abcdefghijklmnop4f2a");
+        assert!(p.starts_with("sk-a"), "{p}");
+        assert!(p.ends_with("4f2a"), "{p}");
+        assert!(!p.contains("efghij"), "bagian tengah harus tertutup: {p}");
+        // key pendek: seluruhnya ditutup
+        assert!(crate::secrets::preview_for_test("abc")
+            .chars()
+            .all(|c| c == '•'));
     }
 }

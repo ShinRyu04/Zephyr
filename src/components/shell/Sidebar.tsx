@@ -1,9 +1,14 @@
-// Sidebar.tsx — panel kiri. Explorer & Search sudah nyata (fase 04);
-// SCM/AI/Terminal/Settings masih placeholder sampai fase masing-masing.
+// Sidebar.tsx — panel kiri per ikon ActivityBar.
+//
+// CATATAN (jangan diulang): daftar 11 section Settings hidup di SINI
+// (SettingsNav), bukan di dalam halaman. Sempat ada di dua tempat dan
+// hasilnya daftar dobel + Reset Semua muncul dua kali di layar.
 
 import { useStore } from '../../lib/store';
 import ExplorerPanel from '../explorer/ExplorerPanel';
 import SearchPanel from '../explorer/SearchPanel';
+import SettingsNav from '../settings/SettingsNav';
+import TerminalPanel from './TerminalPanel';
 
 function Placeholder({ title, note }: { title: string; note: string }) {
   return (
@@ -29,8 +34,8 @@ export default function Sidebar() {
     case 'ai':
       return <Placeholder title="AI / MCP" note="Panel AI fase 09, MCP 9222 fase 11." />;
     case 'terminal':
-      return <Placeholder title="Terminal" note="Terminal & agent pane — fase 05–06." />;
+      return <TerminalPanel />;
     case 'settings':
-      return <Placeholder title="Settings" note="Halaman settings lengkap — fase 08." />;
+      return <SettingsNav />;
   }
 }

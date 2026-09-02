@@ -14,6 +14,7 @@
     "verify:04": "node scripts/verify04.mjs",
     "verify:05": "node scripts/verify05.mjs",
     "verify:06": "node scripts/verify06.mjs",
+    "verify:08": "node scripts/verify08.mjs",
     "soak": "node scripts/soak.mjs"
   },
   "dependencies": {

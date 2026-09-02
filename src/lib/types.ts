@@ -137,6 +137,23 @@ export interface TerminalTab {
   activePaneId: string | null;
 }
 
+// ── models / API key (fase 08) ──
+
+/** Status key satu provider. TIDAK memuat key asli — hanya mask. */
+export interface PublicModel {
+  provider: string;
+  hasKey: boolean;
+  /** mis. "sk-a…4f2a"; kosong bila belum ada key */
+  preview: string;
+}
+
+export interface ModelTestResult {
+  ok: boolean;
+  message: string;
+  status: number | null;
+  ms: number;
+}
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;
@@ -195,6 +212,7 @@ export interface EditorSettings {
   cursorStyle: 'line' | 'block' | 'underline';
   smoothScroll: boolean;
   formatOnSave: boolean;
+  showWhitespace: boolean;
 }
 
 export interface ThemeSettings {
@@ -240,6 +258,7 @@ export const DEFAULT_SETTINGS: Settings = {
     cursorStyle: 'line',
     smoothScroll: false,
     formatOnSave: false,
+    showWhitespace: false,
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
   shortcuts: {},

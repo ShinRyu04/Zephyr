@@ -8,6 +8,7 @@ mod errors;
 mod explorer;
 mod fs_utils;
 mod pty;
+mod secrets;
 mod settings;
 mod tests_fs;
 
@@ -88,6 +89,11 @@ pub fn run() {
             pty::pty_interrupt,
             // agent CLI (fase 06)
             agents::list_agents,
+            // settings lanjutan (fase 08)
+            secrets::get_public_models,
+            secrets::set_model_key,
+            secrets::test_model_connection,
+            secrets::reset_settings,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,

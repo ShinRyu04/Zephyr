@@ -35,9 +35,17 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   settings: () => (
+    // Gerigi (gear) 8 gigi — geometri dihitung dari lingkaran R=7/r=5.15,
+    // bukan pola "matahari" (garis lurus memancar) seperti sebelumnya.
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
-      <circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M8 1.6v1.8M8 12.6v1.8M14.4 8h-1.8M3.4 8H1.6M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3M12.5 12.5l-1.3-1.3M4.8 4.8L3.5 3.5" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+      <path
+        d="M6.72 1.12L9.28 1.12L8.94 2.94L10.92 3.76L11.96 2.23L13.77 4.04L12.24 5.08L13.06 7.06L14.88 6.72L14.88 9.28L13.06 8.94L12.24 10.92L13.77 11.96L11.96 13.77L10.92 12.24L8.94 13.06L9.28 14.88L6.72 14.88L7.06 13.06L5.08 12.24L4.04 13.77L2.23 11.96L3.76 10.92L2.94 8.94L1.12 9.28L1.12 6.72L2.94 7.06L3.76 5.08L2.23 4.04L4.04 2.23L5.08 3.76L7.06 2.94Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="8" cy="8" r="2.3" fill="none" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   ),
 };
@@ -58,6 +66,7 @@ export default function ActivityBar() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
+  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
 
   return (
     <nav className="activitybar" aria-label="Activity Bar">
@@ -71,7 +80,23 @@ export default function ActivityBar() {
             title={LABEL[id]}
             aria-label={LABEL[id]}
             aria-pressed={isActive}
+            data-activity={id}
             onClick={() => {
+              // Settings punya halaman di area utama + nav di sidebar, tapi
+              // perilaku tombolnya sama seperti ikon lain: klik = buka,
+              // klik lagi (saat sedang aktif) = tutup.
+              if (id === 'settings') {
+                if (activity === 'settings' && sidebarVisible) {
+                  toggleSidebar();
+                  setSettingsOpen(false);
+                } else {
+                  setActivity('settings');
+                  setSettingsOpen(true);
+                  if (!sidebarVisible) toggleSidebar();
+                }
+                return;
+              }
+              setSettingsOpen(false);
               // klik ikon aktif = toggle sidebar (perilaku VS Code)
               if (activity === id) toggleSidebar();
               else {

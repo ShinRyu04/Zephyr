@@ -10,8 +10,12 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
+import { useSettingsUi } from './settingsStore';
+import { THEMES } from './themes';
+import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
+import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt, listAgents } from './commands';
+import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize } from './xtermRegistry';
 import { copySelection, pasteInto } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
@@ -56,6 +60,32 @@ export function installDevBridge(): void {
     const view = getActiveView();
     if (!view) return false;
     return name === 'undo' ? undo(view) : redo(view);
+  };
+  // Settings (fase 08): store UI halaman + jalur key/model lewat Rust.
+  w.__ZEPHYR_SET__ = {
+    ui: useSettingsUi,
+    /** tema yang benar-benar terpasang di <html> */
+    activeTheme: () => document.documentElement.dataset.theme ?? '',
+    themes: () => THEMES.map((t) => t.id),
+    /** binding efektif per action (default + override user) */
+    bindings: () => {
+      const custom = useStore.getState().settings.shortcuts;
+      return ACTIONS.map((a) => ({
+        id: a.id,
+        binding: effectiveBinding(a.id, custom),
+        isCustom: !!custom[a.id],
+      }));
+    },
+    conflicts: (actionId: string, binding: string) =>
+      findConflicts(actionId, binding, useStore.getState().settings.shortcuts),
+    publicModels: () => getPublicModels(),
+    setKey: (provider: string, key: string) => setModelKey(provider, key),
+    testKey: (provider: string, baseUrl?: string) => testModelConnection(provider, baseUrl),
+    resetAll: () => resetSettings(),
+    /** baca settings.json langsung dari disk (bukan dari store) */
+    settingsFromDisk: () => getSettings(),
+    /** terjemahan label untuk membuktikan toggle bahasa */
+    t: (key: string) => translate(useStore.getState().settings.general.uiLang, key),
   };
   // Untuk menguji jalur onCloseRequested (V7 fase 02 / V5 fase 03).
   w.__ZEPHYR_WIN__ = {
