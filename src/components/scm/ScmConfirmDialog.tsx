@@ -47,6 +47,13 @@ export default function ScmConfirmDialog() {
           ok: 'Push & set upstream',
           danger: false,
         };
+      case 'pull-first':
+        return {
+          title: `Remote punya ${confirm.behind} commit baru`,
+          body: 'Push akan ditolak git selama commit itu belum ada di lokal. Pull dulu lalu push?',
+          ok: 'Pull lalu push',
+          danger: false,
+        };
     }
   })();
 

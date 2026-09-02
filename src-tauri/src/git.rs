@@ -735,7 +735,25 @@ fn valid_branch_name(name: &str) -> ZResult<String> {
         return Err(ZephyrError::InvalidInput("nama branch kosong".into()));
     }
     // Tolak yang jelas berbahaya sebelum git menolaknya sendiri.
-    if n.starts_with('-') || n.contains("..") || n.contains(' ') || n.contains('~') {
+    // CATATAN fase 15.3: '/' TETAP DIIZINKAN — "feat/ui" adalah nama branch
+    // yang sah dan dropdown/checkout harus bekerja untuknya. Yang dilarang
+    // hanya bentuk yang membuat git bingung atau bisa dibaca sebagai flag.
+    if n.starts_with('-')
+        || n.contains("..")
+        || n.contains(' ')
+        || n.contains('~')
+        || n.contains('^')
+        || n.contains(':')
+        || n.contains('?')
+        || n.contains('*')
+        || n.contains('[')
+        || n.contains('\\')
+        || n.starts_with('/')
+        || n.ends_with('/')
+        || n.contains("//")
+        || n.ends_with(".lock")
+        || n.ends_with('.')
+    {
         return Err(ZephyrError::InvalidInput(format!(
             "nama branch tidak valid: {n}"
         )));
@@ -801,6 +819,14 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
         vec!["diff", "--no-color", "--", p]
     };
     let out = git(&state, &args)?;
+    // FASE 15.3: file biner. `git diff` untuk PNG membalas satu baris
+    // "Binary files a/x.png and b/x.png differ" — kalau itu dilempar apa adanya
+    // ke viewer, `kindOf()` menandainya sebagai baris konteks dan tidak jelas
+    // bagi user. Ganti dengan blok berlabel + ukuran supaya jelas dan tidak
+    // ada byte mentah yang pernah masuk DOM.
+    if out.contains("Binary files ") || out.contains("GIT binary patch") {
+        return Ok(binary_diff_note(&state, p, &out));
+    }
     if !out.trim().is_empty() {
         return Ok(out);
     }
@@ -818,6 +844,37 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
         }
     }
     Ok(out)
+}
+
+/// Blok pengganti diff untuk file biner (fase 15.3). Menyertakan ukuran file
+/// di worktree bila masih ada, supaya user tetap dapat informasi berguna.
+fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
+    let size = state
+        .workspace_path()
+        .map(|root| root.join(rel.replace('/', std::path::MAIN_SEPARATOR_STR)))
+        .and_then(|full| std::fs::metadata(full).ok())
+        .map(|m| m.len());
+    let ukuran = match size {
+        Some(n) if n >= 1024 * 1024 => format!("{:.1} MB", n as f64 / 1024.0 / 1024.0),
+        Some(n) if n >= 1024 => format!("{} KB", n / 1024),
+        Some(n) => format!("{n} B"),
+        None => "ukuran tidak diketahui".to_string(),
+    };
+    // Baris "index ..." dari git tetap dibawa (berguna), sisanya dibuang.
+    let index_line = raw
+        .lines()
+        .find(|l| l.starts_with("index "))
+        .unwrap_or("")
+        .to_string();
+    let mut s = format!("diff --git a/{rel} b/{rel}\n");
+    if !index_line.is_empty() {
+        s.push_str(&index_line);
+        s.push('\n');
+    }
+    s.push_str(&format!(
+        "Binary file ({ukuran}) — perbedaan tidak ditampilkan\n"
+    ));
+    s
 }
 
 /// Diff buatan untuk file baru (belum dilacak git).

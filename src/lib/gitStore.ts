@@ -28,7 +28,9 @@ export type ScmConfirm =
   | { kind: 'discard'; paths: string[] }
   | { kind: 'discard-all'; paths: string[] }
   | { kind: 'delete-branch'; name: string }
-  | { kind: 'set-upstream'; branch: string };
+  | { kind: 'set-upstream'; branch: string }
+  /** fase 15.3: remote punya commit yang belum kita punya → tawarkan pull dulu. */
+  | { kind: 'pull-first'; behind: number };
 
 export interface DiffView {
   path: string;
@@ -246,6 +248,21 @@ export const useGit = create<GitStore>((set, get) => ({
   closeDiff: () => set({ diff: null }),
 
   push: async (setUpstream) => {
+    // fase 15.3: remote sudah punya commit yang belum kita punya → push pasti
+    // ditolak git (non-fast-forward). Tanya dulu alih-alih membiarkan user
+    // menebak dari pesan git. `pullBeforePush` = setting yang menentukan
+    // apakah kita menawarkan pull otomatis atau langsung menolak.
+    const st = get().status;
+    if (!setUpstream && st?.isRepo && st.behind > 0) {
+      if (useStore.getState().settings.git.pullBeforePush) {
+        set({ confirm: { kind: 'pull-first', behind: st.behind } });
+        return;
+      }
+      set({
+        scmError: `Remote punya ${st.behind} commit yang belum ada di lokal — pull dulu sebelum push`,
+      });
+      return;
+    }
     set({ busy: true, busyLabel: 'push', scmError: null, scmInfo: null });
     try {
       const out = await cmd.gitPush(setUpstream ?? false);
@@ -373,6 +390,12 @@ export const useGit = create<GitStore>((set, get) => ({
         break;
       case 'set-upstream':
         await get().push(true);
+        break;
+      // fase 15.3: "pull dulu" → pull, lalu lanjut push kalau tidak konflik.
+      case 'pull-first':
+        await get().pull(false);
+        if (get().scmError) return;
+        await get().push(false);
         break;
     }
   },

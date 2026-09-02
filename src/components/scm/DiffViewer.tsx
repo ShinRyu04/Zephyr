@@ -24,6 +24,7 @@ function kindOf(line: string): Kind {
     line.startsWith('rename ') ||
     line.startsWith('old mode') ||
     line.startsWith('new mode') ||
+    line.startsWith('Binary file') ||
     line.startsWith('\\ No newline')
   )
     return 'meta';
@@ -46,6 +47,9 @@ export default function DiffViewer() {
   // Buang baris kosong terakhir dari trailing newline agar tidak ada baris hampa.
   if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
 
+  // fase 15.3: label khusus file biner supaya tidak terlihat seperti diff kosong.
+  const isBinary = lines.some((l) => l.startsWith('Binary file'));
+
   let added = 0;
   let removed = 0;
   for (const l of lines) {
@@ -63,6 +67,11 @@ export default function DiffViewer() {
         <span className={`diff-tag ${diff.staged ? 'is-staged' : ''}`} data-testid="diff-side">
           {diff.staged ? 'staged' : 'working tree'}
         </span>
+        {isBinary && (
+          <span className="diff-tag" data-testid="diff-binary">
+            binary file
+          </span>
+        )}
         <span className="diff-stat" data-testid="diff-stat">
           <span className="diff-plus">+{added}</span> <span className="diff-minus">−{removed}</span>
         </span>

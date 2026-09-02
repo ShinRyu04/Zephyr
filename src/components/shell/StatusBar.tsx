@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
-import { getAppInfo } from '../../lib/commands';
+import { getAppInfo, getDiagnostics } from '../../lib/commands';
 import { onRamUsage } from '../../lib/events';
 import { LANG_LABEL } from '../../lib/lang';
 
@@ -87,17 +87,37 @@ export default function StatusBar() {
       .catch(() => {
         /* event RAM tidak tersedia (mis. mode browser) */
       });
-    return () => stop?.();
+
+    // fase 15.6: event `ram-usage` baru datang beberapa detik setelah start,
+    // jadi status bar sempat menampilkan '--'. Baca sekali dari Rust setelah
+    // 300ms supaya angkanya langsung ada dan tidak pernah NaN.
+    const t = window.setTimeout(() => {
+      void getDiagnostics()
+        .then((d) => {
+          const n = Number(d.ramTotalBytes ?? d.ramBytes);
+          if (Number.isFinite(n) && n > 0) setRamBytes(n);
+        })
+        .catch(() => {
+          /* non-Tauri */
+        });
+    }, 300);
+
+    return () => {
+      window.clearTimeout(t);
+      stop?.();
+    };
   }, [setRamBytes]);
 
-  const ramText = ramBytes > 0 ? `${Math.round(ramBytes / 1024 / 1024)} MB` : '--';
+  // Number.isFinite menjaga terhadap NaN/Infinity dari sumber apa pun (15.6).
+  const ramText =
+    Number.isFinite(ramBytes) && ramBytes > 0 ? `${Math.round(ramBytes / 1024 / 1024)} MB` : '--';
 
   return (
     <footer className="statusbar">
       <span className="sb-item sb-brand">Zephyr v{version}</span>
       <span className="sb-sep">|</span>
       <GitBadge />
-      <span className="sb-item" title="Memori proses Zephyr">
+      <span className="sb-item" title="Memori proses Zephyr" data-testid="sb-ram">
         RAM: {ramText}
       </span>
       <span className="sb-sep">|</span>

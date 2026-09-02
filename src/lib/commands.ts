@@ -62,12 +62,24 @@ export const workspaceClose = () => invoke<void>('workspace_close');
 
 export const fsRead = (path: string, encoding?: Encoding) =>
   invoke<ReadResult>('fs_read', { path, encoding });
+/** fase 15.1: `wasExisting` = tab ini dibaca dari disk. Bila filenya sudah
+ *  lenyap, Rust menolak (NotFound) supaya UI bisa bertanya "buat baru?".
+ *  `allowMissing` = jawaban "ya, buat baru". */
 export const fsWrite = (
   path: string,
   content: string,
   encoding?: Encoding,
   lineEnding?: LineEnding,
-) => invoke<void>('fs_write', { path, content, encoding, lineEnding });
+  opts?: { wasExisting?: boolean; allowMissing?: boolean },
+) =>
+  invoke<void>('fs_write', {
+    path,
+    content,
+    encoding,
+    lineEnding,
+    wasExisting: opts?.wasExisting ?? false,
+    allowMissing: opts?.allowMissing ?? false,
+  });
 export const fsExists = (path: string) => invoke<boolean>('fs_exists', { path });
 export const fsStat = (path: string) => invoke<StatResult>('fs_stat', { path });
 export const fsCreateFile = (path: string, content?: string) =>

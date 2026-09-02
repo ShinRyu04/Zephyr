@@ -76,6 +76,36 @@ input {
 
 /* ─────────── ActivityBar ─────────── */
 
+/* ─────────── layout sempit (fase 15.6) ───────────
+   Jendela minimum 800x520: sidebar dilipat oleh App.tsx, sisanya diatur di
+   sini. Yang penting: tidak ada elemen yang memaksa lebar minimum lebih besar
+   dari viewport (itu yang membuat layout "pecah" / muncul scrollbar horizontal). */
+body.is-narrow .sidebar {
+  max-width: 40vw;
+}
+body.is-narrow .statusbar {
+  overflow: hidden;
+}
+/* Item status bar yang paling tidak penting disembunyikan lebih dulu supaya
+   Ln/Col + pesan status tetap terbaca. */
+body.is-narrow .sb-brand,
+body.is-narrow .sb-btn[disabled] {
+  display: none;
+}
+body.is-narrow .find-bar .find-input {
+  min-width: 80px;
+}
+/* Palette tidak boleh lebih lebar dari jendela. */
+body.is-narrow .cp-modal {
+  width: calc(100vw - 24px);
+  max-width: calc(100vw - 24px);
+}
+/* Tooltip ActivityBar di layout sempit: `title` native tidak bisa keluar dari
+   jendela, jadi cukup pastikan tombolnya sendiri tidak melebar. */
+body.is-narrow .ab-btn {
+  width: 36px;
+}
+
 .activitybar {
   width: var(--activitybar-w);
   flex-shrink: 0;
@@ -997,8 +1027,32 @@ body.is-resizing-v {
   border: 1px solid var(--border);
 }
 
-/* ─────────── empty state ─────────── */
+/* ─────────── banner read-only (fase 15.1) ─────────── */
+.ro-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--fg0, var(--text));
+  background: var(--bg2, var(--panel-header-bg));
+  border-bottom: 1px solid var(--border);
+}
+.ro-banner .ro-ico {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--warning);
+}
+.ro-banner .ro-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
+/* ─────────── empty state ─────────── */
 .empty-state {
   height: 100%;
   display: flex;

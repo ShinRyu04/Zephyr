@@ -50,9 +50,12 @@ export function onPtyOutput(cb: (id: string, data: string) => void): Promise<Unl
   );
 }
 
-/** fase 05: proses shell berakhir sendiri (exit / EOF). */
-export function onPtyExit(cb: (id: string) => void): Promise<UnlistenFn> {
-  return listen<{ id: string }>(EV.ptyExit, (e) => cb(e.payload.id));
+/** fase 05: proses shell berakhir sendiri (exit / EOF).
+ *  fase 15.2: `code` = exit code sebenarnya dari proses (null bila tak diketahui). */
+export function onPtyExit(cb: (id: string, code: number | null) => void): Promise<UnlistenFn> {
+  return listen<{ id: string; code?: number | null }>(EV.ptyExit, (e) =>
+    cb(e.payload.id, e.payload.code ?? null),
+  );
 }
 
 /** fase 09: potongan jawaban AI (text / err / done). */

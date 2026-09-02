@@ -20,6 +20,14 @@ use std::path::{Path, PathBuf};
 use tauri::State;
 
 const BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
+/// BOM UTF-16 (fase 15): FF FE = little endian, FE FF = big endian.
+const BOM_UTF16LE: [u8; 2] = [0xFF, 0xFE];
+const BOM_UTF16BE: [u8; 2] = [0xFE, 0xFF];
+
+/// Di atas ini file dibuka READ-ONLY ringan (fase 15.1): CodeMirror tidak
+/// diberi ekstensi berat dan UI menandainya, supaya 5MB JSON tidak membekukan
+/// editor. Batas keras tetap 32MB.
+pub const BIG_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Terjemahkan error I/O menjadi ZephyrError yang menyebut PATH-nya.
 /// `From<io::Error>` bawaan tidak tahu path apa yang gagal, jadi pesan yang
@@ -42,6 +50,13 @@ pub struct ReadResult {
     pub content: String,
     pub detected_encoding: String,
     pub line_ending: String,
+    /// fase 15.1: true = file terlalu besar (>4MB) atau encoding yang belum
+    /// bisa ditulis balik (UTF-16). Frontend membuka tab sebagai read-only.
+    pub read_only: bool,
+    /// ukuran file di disk (byte); 0 untuk pembacaan non-file.
+    pub bytes: u64,
+    /// alasan read_only untuk ditampilkan ke user ("" = tidak read-only).
+    pub note: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -82,11 +97,44 @@ fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)>
                 return Ok((cow.into_owned(), "ansi".into()));
             }
             "utf8" | "utf8-bom" => {}
+            // Reload paksa sebagai UTF-16 (dipakai tombol "buka sebagai …").
+            "utf16le" => {
+                let body = if bytes.len() >= 2 && bytes[0..2] == BOM_UTF16LE {
+                    &bytes[2..]
+                } else {
+                    bytes
+                };
+                let (cow, _, _) = encoding_rs::UTF_16LE.decode(body);
+                return Ok((cow.into_owned(), "utf16le".into()));
+            }
+            "utf16be" => {
+                let body = if bytes.len() >= 2 && bytes[0..2] == BOM_UTF16BE {
+                    &bytes[2..]
+                } else {
+                    bytes
+                };
+                let (cow, _, _) = encoding_rs::UTF_16BE.decode(body);
+                return Ok((cow.into_owned(), "utf16be".into()));
+            }
             other => {
                 return Err(ZephyrError::Encoding(format!(
                     "encoding tidak dikenal: {other}"
                 )))
             }
+        }
+    }
+
+    // UTF-16 (fase 15.1). Dicek SEBELUM UTF-8: byte FF FE bukan UTF-8 valid,
+    // jadi tanpa cabang ini file UTF-16 jatuh ke fallback ANSI dan tampil
+    // sebagai teks berlubang "h.a.l.o." — itu bug yang dilaporkan user.
+    if bytes.len() >= 2 {
+        if bytes[0..2] == BOM_UTF16LE {
+            let (cow, _, _) = encoding_rs::UTF_16LE.decode(&bytes[2..]);
+            return Ok((cow.into_owned(), "utf16le".into()));
+        }
+        if bytes[0..2] == BOM_UTF16BE {
+            let (cow, _, _) = encoding_rs::UTF_16BE.decode(&bytes[2..]);
+            return Ok((cow.into_owned(), "utf16be".into()));
         }
     }
 
@@ -137,6 +185,14 @@ fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Ve
             }
             Ok(cow.into_owned())
         }
+        // KEPUTUSAN v1 (fase 15.1): file UTF-16 dibaca dan ditampilkan benar,
+        // tapi TIDAK ditulis balik sebagai UTF-16. Menulis ulang UTF-16 butuh
+        // menjaga BOM + endianness + surrogate pair; salah sedikit = file user
+        // rusak. Frontend menawarkan "simpan sebagai UTF-8" secara eksplisit.
+        "utf16le" | "utf16be" => Err(ZephyrError::Encoding(
+            "file UTF-16 dibuka read-only — pakai \"Simpan sebagai UTF-8\" untuk mengeditnya"
+                .into(),
+        )),
         other => Err(ZephyrError::Encoding(format!(
             "encoding tidak dikenal: {other}"
         ))),
@@ -158,11 +214,35 @@ pub fn read_file_detect(path: &Path) -> ZResult<ReadResult> {
     let bytes = std::fs::read(path)?;
     let (raw, detected) = decode_bytes(&bytes, None)?;
     let line_ending = detect_line_ending(&raw).to_string();
+    let (read_only, note) = read_only_reason(bytes.len() as u64, &detected);
     Ok(ReadResult {
         content: raw.replace("\r\n", "\n"),
         detected_encoding: detected,
         line_ending,
+        read_only,
+        bytes: bytes.len() as u64,
+        note,
     })
+}
+
+/// Tentukan apakah file harus dibuka read-only + alasannya (fase 15.1).
+fn read_only_reason(len: u64, encoding: &str) -> (bool, String) {
+    if encoding == "utf16le" || encoding == "utf16be" {
+        return (
+            true,
+            "file UTF-16 — dibuka baca-saja; simpan sebagai UTF-8 untuk mengedit".to_string(),
+        );
+    }
+    if len > BIG_FILE_BYTES {
+        return (
+            true,
+            format!(
+                "file besar ({:.1} MB) — mode baca-saja ringan",
+                len as f64 / (1024.0 * 1024.0)
+            ),
+        );
+    }
+    (false, String::new())
 }
 
 /// Tulis konten dengan encoding + line ending eksplisit.
@@ -204,6 +284,7 @@ pub fn fs_read(
     let bytes = std::fs::read(&p).map_err(|e| map_fs_err(e, &path))?;
     let (raw, detected) = decode_bytes(&bytes, encoding.as_deref())?;
     let line_ending = detect_line_ending(&raw).to_string();
+    let (read_only, note) = read_only_reason(meta.len(), &detected);
 
     // File yang dibaca user boleh ditulis balik (Ctrl+S) walau di luar
     // workspace — TAPI hanya file itu sendiri. `allow()` juga mengizinkan
@@ -216,9 +297,17 @@ pub fn fs_read(
         content: raw.replace("\r\n", "\n"),
         detected_encoding: detected,
         line_ending,
+        read_only,
+        bytes: meta.len(),
+        note,
     })
 }
 
+/// Tulis file. `was_existing`/`allow_missing` = jaring pengaman fase 15.1:
+/// tab yang dibaca dari disk mengirim `was_existing:true`; kalau file-nya
+/// sudah lenyap, Rust menolak dengan NotFound supaya UI bisa bertanya
+/// "file hilang — buat baru?" alih-alih diam-diam membuatnya kembali.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(async)]
 pub fn fs_write(
     state: State<AppState>,
@@ -226,6 +315,8 @@ pub fn fs_write(
     content: String,
     encoding: Option<String>,
     line_ending: Option<String>,
+    was_existing: Option<bool>,
+    allow_missing: Option<bool>,
 ) -> ZResult<()> {
     let p = PathBuf::from(&path);
     state.ensure_writable(&p)?;
@@ -233,6 +324,15 @@ pub fn fs_write(
     // Tentukan encoding & line ending target: pakai yang diminta, kalau
     // tidak ada ambil dari file yang sudah ada, kalau file baru -> utf8+crlf.
     let existing = std::fs::read(&p).ok();
+    // fase 15.1: file yang tadinya ada lalu dihapus dari luar. `allow_missing`
+    // false = tolak dengan NotFound supaya UI bisa bertanya "buat baru?".
+    // Tanpa ini Ctrl+S diam-diam membuat file baru dan user tidak tahu bahwa
+    // file aslinya sudah lenyap (mis. karena git checkout / hapus manual).
+    if existing.is_none() && !allow_missing.unwrap_or(false) && was_existing.unwrap_or(false) {
+        return Err(ZephyrError::NotFound(format!(
+            "{path} sudah tidak ada di disk"
+        )));
+    }
     let (fallback_enc, fallback_le) = match &existing {
         Some(bytes) => {
             let (raw, enc) = decode_bytes(bytes, None)?;
