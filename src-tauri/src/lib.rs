@@ -7,6 +7,7 @@ mod ai;
 mod app_state;
 mod browser;
 mod credential;
+mod diagnostics;
 mod dialogs;
 mod errors;
 mod explorer;
@@ -14,9 +15,11 @@ mod extensions;
 mod fs_utils;
 mod git;
 mod github;
+mod logging;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
+mod paths;
 mod pty;
 mod secrets;
 mod settings;
@@ -24,12 +27,14 @@ mod tests_ai;
 mod tests_browser;
 mod tests_fs;
 mod tests_git;
+mod tests_log;
 mod tests_mcp;
 
 use app_state::AppState;
+use serde_json::json;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
 /// Mode `zephyr git-credential <op>`: dipanggil git, bukan user.
 /// true = argumen memang untuk helper dan sudah dijawab (proses harus keluar
@@ -45,6 +50,13 @@ pub fn run() {
     let minimized = Arc::new(AtomicBool::new(false));
     let minimized_setup = minimized.clone();
 
+    // Logging dipasang PALING AWAL (fase 14.6) supaya error saat membangun
+    // window pun tercatat. AppState dibuat di sini karena ia yang tahu lokasi
+    // %APPDATA%\zephyr\logs.
+    let state = AppState::new();
+    logging::init(&state.data_dir.join("logs"));
+    let boot = std::time::Instant::now();
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -54,13 +66,18 @@ pub fn run() {
         // saat dokumen tidak fokus, sedangkan copy/paste terminal harus
         // selalu bisa (klik kanan, Ctrl+Shift+C, Shift+Insert).
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(AppState::new())
+        .manage(state)
         .setup(move |app| {
             // Sampler RAM untuk StatusBar (fase 02 V6).
             settings::spawn_ram_sampler(app.handle().clone(), minimized_setup);
-            // MCP (fase 11): kalau user sudah menyalakannya, hidupkan lagi
-            // saat app dibuka supaya AI CLI yang sudah didaftari langsung
-            // menemukan port-nya tanpa harus klik switch dulu.
+            // Panic hook boleh memberi tahu frontend mulai dari sini (14.6).
+            logging::attach_app(app.handle().clone());
+            app.state::<AppState>()
+                .perf_mark("setup", Some(boot.elapsed().as_millis() as u64));
+
+            // MCP (fase 11): LAZY (fase 14.5) — socket, task axum, dan token
+            // generator TIDAK pernah dibuat kalau switch-nya mati. Yang dibaca
+            // saat startup cuma satu key di settings.json.
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let enabled = {
@@ -71,24 +88,50 @@ pub fn run() {
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false)
                 };
-                if enabled {
-                    if let Err(e) = mcp_server::start(handle.clone()).await {
-                        eprintln!("[zephyr] MCP tidak bisa start: {e}");
-                    }
+                if !enabled {
+                    tracing::debug!("MCP tidak aktif — server tidak dijalankan (lazy)");
+                    return;
+                }
+                match mcp_server::start(handle.clone()).await {
+                    Ok(port) => tracing::info!(port, "MCP hidup saat startup"),
+                    Err(e) => tracing::warn!("MCP tidak bisa start: {e}"),
                 }
             });
+            tracing::info!(ms = boot.elapsed().as_millis() as u64, "setup selesai");
             Ok(())
         })
         .on_window_event(move |window, event| {
-            // Update flag minimized dari main thread; sekaligus tunda emit
-            // output PTY supaya CPU tidak terbuang saat window disembunyikan.
-            if let WindowEvent::Resized(_) = event {
-                if window.label() == "main" {
+            if window.label() != "main" {
+                return;
+            }
+            match event {
+                // Update flag minimized dari main thread; sekaligus tunda emit
+                // output PTY supaya CPU tidak terbuang saat window disembunyikan.
+                WindowEvent::Resized(size) => {
                     let m = window.is_minimized().unwrap_or(false);
                     if m != minimized.swap(m, Ordering::Relaxed) {
                         window.state::<AppState>().set_render_paused(m);
+                        tracing::debug!(minimized = m, "render pause diubah");
                     }
+                    // fase 14.4: `window-resized` kanonik. Payload kecil (2 angka)
+                    // dan idempoten — frontend cukup menyimpan nilai terakhir.
+                    let _ = window.emit(
+                        "window-resized",
+                        json!({ "width": size.width, "height": size.height }),
+                    );
                 }
+                // fase 14.4: `file-dropped`. Frontend punya onDragDropEvent
+                // sendiri untuk membuka tab; event ini melengkapi kontrak §3
+                // dan mencatat drop ke log.
+                WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+                    let list: Vec<String> = paths
+                        .iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect();
+                    tracing::info!(count = list.len(), "file di-drop ke window");
+                    let _ = window.emit("file-dropped", json!({ "paths": list }));
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -178,6 +221,11 @@ pub fn run() {
             extensions::extensions_add,
             extensions::extensions_remove,
             extensions::extensions_folder,
+            // diagnostics / logging (fase 14)
+            diagnostics::get_diagnostics,
+            diagnostics::log_frontend,
+            diagnostics::perf_mark,
+            diagnostics::debug_panic,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
@@ -190,11 +238,16 @@ pub fn run() {
             // Saat app benar-benar keluar, matikan semua shell anak supaya
             // tidak ada proses tertinggal di Task Manager (V7 fase 05).
             if let RunEvent::Exit = event {
-                handle.state::<AppState>().pty_kill_all();
+                let st = handle.state::<AppState>();
+                tracing::info!(uptime_ms = st.uptime_ms(), "application exit");
+                st.pty_kill_all();
                 // Tutup socket MCP supaya port 9222 tidak tertinggal listening.
                 mcp_server::stop(handle);
             }
         }),
-        Err(e) => eprintln!("[zephyr] gagal start: {e:?}"),
+        Err(e) => {
+            tracing::error!("gagal start: {e:?}");
+            eprintln!("[zephyr] gagal start: {e:?}");
+        }
     }
 }

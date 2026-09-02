@@ -76,7 +76,9 @@ pub fn folder_dialog_open(app: AppHandle, state: State<AppState>) -> ZResult<Opt
         .blocking_pick_folder()
         .map(|p| p.to_string());
     if let Some(p) = &picked {
-        state.allow(std::path::Path::new(p));
+        // Folder yang dipilih user: hanya folder ITU yang di-whitelist.
+        // `allow()` akan ikut mengizinkan INDUK-nya (bug V2 fase 14).
+        state.allow_exact(std::path::Path::new(p));
     }
     Ok(picked)
 }

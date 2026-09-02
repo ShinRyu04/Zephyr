@@ -15,6 +15,7 @@ import * as cmd from './commands';
 import { useStore } from './store';
 import type {
   GhStatus,
+  GitProgress,
   GhTestResult,
   GitBranches,
   GitChange,
@@ -47,6 +48,10 @@ interface GitState {
   busy: boolean;
   /** nama operasi terakhir yang sedang berjalan, untuk tooltip */
   busyLabel: string;
+  /** fase 14.4: fase terakhir dari event `git-progress` (start/done/error).
+   *  Datang dari Rust, jadi UI tahu operasi jaringan benar-benar sudah mulai
+   *  — bukan menebak dari `busy` yang diset frontend sendiri. */
+  progress: GitProgress | null;
   scmError: string | null;
   scmInfo: string | null;
   confirm: ScmConfirm | null;
@@ -69,6 +74,8 @@ interface GitActions {
   refresh: () => Promise<void>;
   refreshAll: () => Promise<void>;
   setMessage: (m: string) => void;
+  /** fase 14.4: dipanggil listener `git-progress` di App.tsx. */
+  setProgress: (p: GitProgress | null) => void;
   setError: (m: string | null) => void;
   setInfo: (m: string | null) => void;
   setConfirm: (c: ScmConfirm | null) => void;
@@ -119,6 +126,7 @@ export const useGit = create<GitStore>((set, get) => ({
   message: '',
   busy: false,
   busyLabel: '',
+  progress: null,
   scmError: null,
   scmInfo: null,
   confirm: null,
@@ -132,6 +140,7 @@ export const useGit = create<GitStore>((set, get) => ({
   patFormOpen: false,
 
   setMessage: (m) => set({ message: m }),
+  setProgress: (p) => set({ progress: p }),
   setError: (m) => set({ scmError: m }),
   setInfo: (m) => set({ scmInfo: m }),
   setConfirm: (c) => set({ confirm: c }),
