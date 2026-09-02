@@ -24,6 +24,8 @@ import type {
   ProbeResult,
   PublicModel,
   QuickFile,
+  ExtensionInfo,
+  ExtensionLoad,
   ModelTestResult,
   ReadResult,
   RecentEntry,
@@ -216,3 +218,14 @@ export const mcpRotateToken = () => invoke<string>('mcp_rotate_token');
 export const mcpWriteCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_write_cli', { ids });
 export const mcpRemoveCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_remove_cli', { ids });
 export const mcpCliStatus = () => invoke<CliStatus[]>('mcp_cli_status');
+
+// ── extensions (fase 13) ──
+
+export const extensionsList = () => invoke<ExtensionInfo[]>('extensions_list');
+/** Muat manifest + file entry (≤1MB). Kode TIDAK dieksekusi (manifest-only v1). */
+export const extensionsLoad = (id: string) => invoke<ExtensionLoad>('extensions_load', { id });
+/** Daftarkan folder ekstensi dari luar (user memilih package.json-nya). */
+export const extensionsAdd = (path: string) => invoke<ExtensionInfo>('extensions_add', { path });
+export const extensionsRemove = (id: string) => invoke<boolean>('extensions_remove', { id });
+/** → path %APPDATA%\zephyr\extensions (dibuat bila belum ada). */
+export const extensionsFolder = () => invoke<string>('extensions_folder');

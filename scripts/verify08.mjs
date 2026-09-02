@@ -611,13 +611,17 @@ const main = async () => {
 
 
   // ───────── V11: extensions enable/disable ─────────
+  // Fase 13 mengganti daftar bawaan (6 → 8: + file-icon/git/ai provider) dan
+  // memindahkan section-nya ke SectionsExtensions.tsx. Daftar bawaan dibaca
+  // dari Rust (`extensions_list`), bukan konstanta frontend.
   const v11 = JSON.parse(
     await cdp.runAsync(`
       await bukaSettings('extensions');
-      const kartu = qa('[data-ext]').map(e => e.dataset.ext);
-      const semuaOnAwal = qa('[data-ext] [role="switch"]').every(b => b.getAttribute('aria-checked') === 'true');
+      await wait(600);
+      const kartu = qa('[data-testid="ext-list"] [data-ext]').map(e => e.dataset.ext);
+      const semuaOnAwal = qa('[data-testid="ext-list"] [role="switch"]').every(b => b.getAttribute('aria-checked') === 'true');
       q('[data-testid="ext-lang-rust"]').click();
-      await wait(650);
+      await wait(800);
       const disk = (await X.settingsFromDisk()).extensions.enabled;
       const rustOff = q('[data-testid="ext-lang-rust"]').getAttribute('aria-checked') === 'false';
       return JSON.stringify({ kartu, semuaOnAwal, disk, rustOff });
@@ -625,11 +629,12 @@ const main = async () => {
   );
   check(
     'V11',
-    v11.kartu.length === 6 &&
+    v11.kartu.length === 8 &&
       v11.semuaOnAwal &&
       v11.rustOff &&
       !v11.disk.includes('lang-rust') &&
-      v11.disk.includes('lang-web'),
+      v11.disk.includes('lang-web') &&
+      v11.disk.includes('git-provider'),
     `${v11.kartu.length} ekstensi bawaan, awalnya semua aktif=${v11.semuaOnAwal}; mematikan lang-rust -> UI off=${v11.rustOff}, disk enabled=[${v11.disk.join(', ')}]`,
   );
 

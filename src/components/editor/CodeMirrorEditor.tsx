@@ -40,7 +40,7 @@ import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
 import { useStore } from '../../lib/store';
 import { loadLangExtension } from '../../lib/lang';
-import { zephyrEditorTheme, zephyrHighlight } from '../../lib/cmTheme';
+import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
 import type { Tab } from '../../lib/types';
 
@@ -57,12 +57,15 @@ export default function CodeMirrorEditor({ tab }: Props) {
   const tabComp = useRef(new Compartment());
   const langComp = useRef(new Compartment());
   const wsComp = useRef(new Compartment());
+  const themeComp = useRef(new Compartment());
   const pending = useRef<number | null>(null);
 
   const updateTabContent = useStore((s) => s.updateTabContent);
   const setCursor = useStore((s) => s.setCursor);
   const editorSettings = useStore((s) => s.settings.editor);
   const general = useStore((s) => s.settings.general);
+  /** Tema aktif (id yang benar-benar terpasang di <html>) — fase 13. */
+  const themeId = useStore((s) => s.activeTheme);
 
   // Bangun view sekali per tab (id berubah = tab lain).
   useEffect(() => {
@@ -114,7 +117,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
       // foldGutter SENGAJA tidak dipakai (hemat RAM, sesuai fase 03).
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       zephyrHighlight,
-      zephyrEditorTheme,
+      themeComp.current.of(editorTheme(themeId)),
       baseKeymap,
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
@@ -189,6 +192,15 @@ export default function CodeMirrorEditor({ tab }: Props) {
       alive = false;
     };
   }, [tab.lang, tab.id]);
+
+  // Tema berganti -> tukar EditorView.theme lewat compartment (fase 13).
+  // Warna sendiri datang dari CSS var, tapi flag `dark` CM6 harus ikut
+  // supaya default internal CM (panel, scrollbar) tidak salah kontras.
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: themeComp.current.reconfigure(editorTheme(themeId)),
+    });
+  }, [themeId]);
 
   // Setting editor berubah -> reconfigure compartment saja.
   useEffect(() => {

@@ -10,7 +10,7 @@
 
 import { create } from 'zustand';
 import * as cmd from './commands';
-import { availableCommands, COMMAND_BY_ID, type CommandDef } from './commandRegistry';
+import { availableCommands, findCommand, type CommandDef } from './commandRegistry';
 import { useStore } from './store';
 import { effectiveBinding } from './shortcuts';
 import type { QuickFile } from './types';
@@ -236,7 +236,7 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   },
 
   runCommandById: async (id) => {
-    const c: CommandDef | undefined = COMMAND_BY_ID.get(id);
+    const c: CommandDef | undefined = findCommand(id);
     if (!c) return;
     const recent = [id, ...get().recent.filter((x) => x !== id)].slice(0, MAX_RECENT);
     set({ recent, lastRun: { id, at: Date.now() } });
