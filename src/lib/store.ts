@@ -7,9 +7,11 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import * as cmd from './commands';
 import { detectLang } from './lang';
 import { revealPosition } from './editorRegistry';
+import { applyTheme } from './themes';
 import {
   DEFAULT_SETTINGS,
   type ActivityId,
+  type AppInfo,
   type Encoding,
   type LineEnding,
   type RecentEntry,
@@ -50,6 +52,10 @@ interface StoreState {
 
   settings: Settings;
   settingsLoaded: boolean;
+  /** versi + data dir dari Rust (dipakai Settings → Tentang). */
+  appInfo: AppInfo | null;
+  /** halaman Settings sedang dibuka di area utama (fase 08). */
+  settingsOpen: boolean;
 }
 
 interface StoreActions {
@@ -60,6 +66,8 @@ interface StoreActions {
   setStatus: (m: string) => void;
   setCursor: (line: number, col: number) => void;
   setFindOpen: (open: boolean) => void;
+  /** Buka/tutup halaman Settings di area utama (fase 08). */
+  setSettingsOpen: (open: boolean) => void;
 
   bootstrap: () => Promise<void>;
   openFolderDialog: () => Promise<void>;
@@ -94,6 +102,8 @@ interface StoreActions {
 
   persistSession: () => Promise<void>;
   applySettings: (patch: Record<string, unknown>) => Promise<void>;
+  /** Muat ulang settings dari disk (dipakai setelah reset_settings). */
+  reloadSettings: () => Promise<void>;
 }
 
 export type Store = StoreState & StoreActions;
@@ -134,6 +144,8 @@ export const useStore = create<Store>((set, get) => ({
 
   settings: DEFAULT_SETTINGS,
   settingsLoaded: false,
+  appInfo: null,
+  settingsOpen: false,
 
   // ── shell ──
   setActivity: (a) => set({ activity: a }),
@@ -143,6 +155,7 @@ export const useStore = create<Store>((set, get) => ({
   setStatus: (m) => set({ statusMessage: m }),
   setCursor: (line, col) => set({ cursor: { line, col } }),
   setFindOpen: (open) => set({ findOpen: open }),
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   // ── bootstrap: settings + restore session ──
   bootstrap: async () => {
@@ -153,10 +166,16 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const s = await cmd.getSettings();
       set({ settings: s, settingsLoaded: true });
-      document.documentElement.dataset.theme =
-        s.general.theme === 'light' ? 'zephyr-light' : (s.theme.current || 'zephyr-dark');
+      applyTheme(s.general, s.theme);
     } catch (e) {
       set({ settingsLoaded: true, statusMessage: cmd.asZephyrError(e).message });
+    }
+
+    // Info app (versi/data dir) untuk Settings → Tentang. Non-fatal.
+    try {
+      set({ appInfo: await cmd.getAppInfo() });
+    } catch {
+      /* biarkan null */
     }
 
     // Daftar recent selalu dimuat (dipakai empty-state Explorer).
@@ -506,6 +525,18 @@ export const useStore = create<Store>((set, get) => ({
       await cmd.setSettings(patch);
       const s = await cmd.getSettings();
       set({ settings: s });
+      // Tema/zoom harus langsung terlihat tanpa restart (V2/V3 fase 08).
+      applyTheme(s.general, s.theme);
+    } catch (e) {
+      set({ statusMessage: cmd.asZephyrError(e).message });
+    }
+  },
+
+  reloadSettings: async () => {
+    try {
+      const s = await cmd.getSettings();
+      set({ settings: s });
+      applyTheme(s.general, s.theme);
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }

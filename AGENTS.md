@@ -14,6 +14,10 @@ mengontrol jendela.
 ## 2. Cara kerja
 
 - Urutan build dipecah menjadi fases 01–17. JALANKAN URUT; jangan lompat.
+- **HANYA FASE 07 (SSH) yang DITUNDA** atas keputusan user: belum punya
+  hosting untuk diuji, jadi fitur ini menyusul nanti. Urutan efektif:
+  06 → 08 → 09 → 10 → **11 (MCP 9222 TETAP DIKERJAKAN)** → 12 → dst.
+  Kontrak command SSH tetap tercatat di `ARCHITECTURE.md` bila nanti dibuka.
 - Prompt tiap fase ada di: `C:\Users\home\OneDrive\Desktop\Ai\Zephyr\`
   (`01-` .. `17-`), dimulai dari `00-BACA-DULU-URUTAN-EKSEKUSI.txt`.
 - Satu fase = satu misi: implementasi → verifikasi → commit → lanjut.
@@ -50,6 +54,7 @@ npm run verify           # fase 02+03 -> "== 26/26 lulus =="
 npm run verify:04        # fase 04    -> "== 17/17 lulus =="
 npm run verify:05        # fase 05    -> "== 12/12 lulus ==" (butuh ~90s)
 npm run verify:06        # fase 06    -> "== 12/12 lulus ==" (butuh ~2 menit)
+npm run verify:08        # fase 08    -> "== 15/15 lulus =="
 npm run soak             # stabilitas 180s (V11 fase 04)
 ```
 
@@ -126,3 +131,31 @@ Khusus multi-pane (fase 06):
 - Jangan pernah menampilkan/menulis API key ke log.
 
 Baca PRD dulu bila ragu terhadap keputusan arsitektur.
+
+## 8. Jebakan fase 08 (Settings) — sudah kena, jangan diulang
+
+- **Nav 11 section + tombol "Reset Semua" ada di SIDEBAR KIRI**
+  (`components/settings/SettingsNav.tsx`), BUKAN di dalam `SettingsPage`.
+  Pernah dibuat di dua tempat → daftar section tampil dobel di layar.
+- **Tombol ActivityBar Settings harus toggle** seperti ikon lain: klik = buka,
+  klik lagi saat aktif = tutup panel + halaman.
+- **`deep_merge` di `settings.rs` memakai `null` = HAPUS key** (RFC 7386).
+  Tombol "reset per item" (shortcut / start command) WAJIB mengirim
+  `{ shortcuts: { 'x': null } }`; mengirim objek tanpa key itu tidak
+  menghapus apa pun karena patch di-merge, bukan menimpa.
+- **Mengubah `input.value` dari CDP tidak memicu React `onChange`.** Harness
+  `verify08.mjs` memakai helper `setNativeValue()` (setter asli prototipe +
+  event input & change). Tanpa itu semua uji "isi field lalu cek disk" gagal
+  padahal aplikasinya benar.
+- **`get_public_models` selalu mengembalikan 6 provider katalog**, walau
+  `secrets.json` kosong — supaya frontend dapat `hasKey:false` alih-alih
+  entri yang hilang (`undefined`).
+- **Flag `capturing` (perekam shortcut) mematikan SEMUA shortcut global.**
+  `ShortcutsSection` wajib membersihkannya saat unmount, kalau tidak flag
+  nyangkut dan seluruh shortcut app mati sampai reload.
+- **Harness fase 02/03 memeriksa empty-state editor**, jadi `verify08.mjs`
+  harus menutup halaman Settings di akhir (`setSettingsOpen(false)`) —
+  kalau tidak `F03-V0` gagal karena editor tertutup halaman Settings.
+- **API key**: `%APPDATA%\zephyr\secrets.json`, XOR + kunci BLAKE3 dari
+  MachineGuid+host+user. Ini OBFUSKASI, bukan proteksi dari orang yang sudah
+  memegang akun Windows. `reset_settings` TIDAK menghapus file ini.

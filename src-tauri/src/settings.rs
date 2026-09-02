@@ -47,7 +47,8 @@ pub fn default_settings() -> Value {
             "minimap": false,
             "cursorStyle": "line",
             "smoothScroll": false,
-            "formatOnSave": false
+            "formatOnSave": false,
+            "showWhitespace": false
         },
         "theme": { "current": "zephyr-dark", "accent": "#3884ff" },
         "shortcuts": {},
@@ -61,10 +62,20 @@ pub fn default_settings() -> Value {
 }
 
 /// Merge rekursif: `patch` menimpa `base` per-key (object di-merge dalam).
+///
+/// `null` di patch = HAPUS key (semantik JSON Merge Patch / RFC 7386).
+/// Ini bukan hiasan: tanpa itu tombol "Reset ke default" per item —
+/// `agents.startCommands[x]`, `shortcuts[x]` — tidak akan pernah bisa
+/// membuang entri dari settings.json, karena merge biasa cuma menambah.
+/// Konsekuensinya: tidak ada setting yang boleh bernilai null secara sah.
 fn deep_merge(base: &mut Value, patch: &Value) {
     match (base, patch) {
         (Value::Object(b), Value::Object(p)) => {
             for (k, v) in p {
+                if v.is_null() {
+                    b.remove(k);
+                    continue;
+                }
                 match b.get_mut(k) {
                     Some(slot) => deep_merge(slot, v),
                     None => {

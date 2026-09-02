@@ -13,10 +13,13 @@ import ConfirmDialog from './components/shell/ConfirmDialog';
 import { useStore } from './lib/store';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
+import { useSettingsUi } from './lib/settingsStore';
+import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { flushTab } from './lib/editorRegistry';
 import { onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle } from './lib/xtermRegistry';
 import './styles/theme.css';
+import './styles/settings.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -63,56 +66,116 @@ export default function App() {
     document.body.classList.add('is-resizing');
   }, []);
 
-  // 3) Shortcut global: Ctrl+N/O/S, Ctrl+Shift+S, Ctrl+F, Ctrl+W, Ctrl+B.
+  // 3) Shortcut global: dibaca dari KATALOG (lib/shortcuts.ts) + override user
+  //    di settings.shortcuts, jadi remap di Settings langsung berlaku tanpa
+  //    restart. Jangan kembalikan ke if/else hardcoded.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      const s = useStore.getState();
-      const k = e.key.toLowerCase();
+      // Saat satu baris Shortcuts sedang menunggu tombol, jangan jalankan
+      // action apa pun (handler capture di SettingsPage yang menangani).
+      if (useSettingsUi.getState().capturing) return;
 
-      if (k === 'n' && !e.shiftKey) {
-        e.preventDefault();
-        s.newUntitled();
-      } else if (k === 'o' && !e.shiftKey) {
-        e.preventDefault();
-        void s.openFileDialog();
-      } else if (k === 'o' && e.shiftKey) {
-        // Ctrl+Shift+O: buka folder (workspace)
-        e.preventDefault();
-        void s.openFolderDialog();
-      } else if (k === 's') {
-        e.preventDefault();
-        if (!s.activeTabId) return;
-        flushTab(s.activeTabId); // ambil isi terbaru dari CodeMirror
-        void (e.shiftKey ? s.saveTabAs(s.activeTabId) : s.saveTab(s.activeTabId));
-      } else if (k === 'f' && !e.shiftKey) {
-        e.preventDefault();
-        s.setFindOpen(true);
-      } else if (k === 'w' && !e.shiftKey) {
-        e.preventDefault();
-        if (s.activeTabId) s.requestCloseTab(s.activeTabId);
-      } else if (k === 'b') {
-        e.preventDefault();
-        s.toggleSidebar();
-      } else if (k === 'f' && e.shiftKey) {
-        // Ctrl+Shift+F: cari di workspace (fase 04)
-        e.preventDefault();
-        s.setActivity('search');
-        if (!s.sidebarVisible) s.toggleSidebar();
-        window.setTimeout(() => {
-          document.querySelector<HTMLInputElement>('.search-input')?.focus();
-        }, 60);
-      } else if (e.key === '`') {
-        // Ctrl+` : toggle panel; Ctrl+Shift+` : pane shell baru; Ctrl+Alt+` : perbesar/restore
-        e.preventDefault();
-        const t = useTerminal.getState();
-        if (e.altKey) {
-          if (!t.visible) t.setVisible(true);
-          t.toggleMaximized();
-        } else if (e.shiftKey) void t.addPane('shell');
-        else if (t.allPanes().length === 0) void t.addPane('shell');
-        else t.toggleVisible();
+      const binding = eventToBinding(e);
+      if (!binding) return;
+
+      const s = useStore.getState();
+      const actionId = bindingMap(s.settings.shortcuts).get(binding);
+      if (!actionId) return;
+
+      const t = useTerminal.getState();
+      const g = s.settings.general;
+
+      switch (actionId) {
+        case 'file.new':
+          s.newUntitled();
+          break;
+        case 'file.open':
+          void s.openFileDialog();
+          break;
+        case 'file.openFolder':
+          void s.openFolderDialog();
+          break;
+        case 'file.save':
+          if (!s.activeTabId) return;
+          flushTab(s.activeTabId); // ambil isi terbaru dari CodeMirror
+          void s.saveTab(s.activeTabId);
+          break;
+        case 'file.saveAs':
+          if (!s.activeTabId) return;
+          flushTab(s.activeTabId);
+          void s.saveTabAs(s.activeTabId);
+          break;
+        case 'file.closeTab':
+          if (s.activeTabId) s.requestCloseTab(s.activeTabId);
+          break;
+        case 'edit.find':
+          s.setFindOpen(true);
+          break;
+        case 'edit.findInFiles':
+          s.setSettingsOpen(false);
+          s.setActivity('search');
+          if (!s.sidebarVisible) s.toggleSidebar();
+          window.setTimeout(() => {
+            document.querySelector<HTMLInputElement>('.search-input')?.focus();
+          }, 60);
+          break;
+        case 'view.sidebar':
+          s.toggleSidebar();
+          break;
+        case 'view.explorer':
+          s.setSettingsOpen(false);
+          s.setActivity('explorer');
+          if (!s.sidebarVisible) s.toggleSidebar();
+          break;
+        case 'view.settings':
+          s.setActivity('settings');
+          s.setSettingsOpen(true);
+          break;
+        case 'view.zoomIn':
+          void s.applySettings({ general: { zoom: Math.min(200, g.zoom + 10) } });
+          break;
+        case 'view.zoomOut':
+          void s.applySettings({ general: { zoom: Math.max(50, g.zoom - 10) } });
+          break;
+        case 'view.zoomReset':
+          void s.applySettings({ general: { zoom: 100 } });
+          break;
+        case 'terminal.toggle':
+          if (t.allPanes().length === 0) void t.addPane('shell');
+          else t.toggleVisible();
+          break;
+        case 'terminal.new':
+          void t.addPane('shell');
+          break;
+        // ai.* dan git.panel dieksekusi mulai fase 09/10; sekarang cukup
+        // membuka panel terkait supaya tombolnya tidak "mati".
+        case 'ai.panel':
+          s.setSettingsOpen(false);
+          s.setActivity('ai');
+          if (!s.sidebarVisible) s.toggleSidebar();
+          break;
+        case 'git.panel':
+          s.setSettingsOpen(false);
+          s.setActivity('scm');
+          if (!s.sidebarVisible) s.toggleSidebar();
+          break;
+        default:
+          return; // action belum punya implementasi -> jangan telan event
       }
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // 3b) Ctrl+Alt+` tidak ada di katalog (khusus perbesar panel terminal).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || !e.altKey || e.key !== '`') return;
+      e.preventDefault();
+      const t = useTerminal.getState();
+      if (!t.visible) t.setVisible(true);
+      t.toggleMaximized();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

@@ -1,4 +1,6 @@
 // EditorArea.tsx — tab bar + FindBar + editor tab aktif + empty state.
+// Halaman Settings (fase 08) menumpang area yang sama: saat settingsOpen
+// true, ia menggantikan editor supaya bisa dibuka tanpa mengganggu tab.
 // Drag-drop file dari Windows Explorer ditangani lewat event Tauri
 // (onDragDropEvent) di App.tsx, bukan di sini.
 
@@ -8,6 +10,7 @@ import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import Breadcrumbs from './Breadcrumbs';
 import ZephyrLogo from './ZephyrLogo';
+import SettingsPage from '../settings/SettingsPage';
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
@@ -46,8 +49,8 @@ function EmptyState() {
           <dd>simpan</dd>
         </div>
         <div>
-          <dt>Ctrl+F</dt>
-          <dd>cari</dd>
+          <dt>Ctrl+,</dt>
+          <dd>pengaturan</dd>
         </div>
       </dl>
     </div>
@@ -57,6 +60,28 @@ function EmptyState() {
 export default function EditorArea() {
   const tabs = useStore((s) => s.tabs);
   const tab = useActiveTab();
+  const settingsOpen = useStore((s) => s.settingsOpen);
+  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+
+  if (settingsOpen) {
+    return (
+      <section className="editor-area">
+        <div className="set-topbar">
+          <span className="set-topbar-title">Pengaturan</span>
+          <button
+            className="btn btn-sm"
+            data-testid="set-close"
+            onClick={() => setSettingsOpen(false)}
+          >
+            Tutup
+          </button>
+        </div>
+        <div className="editor-host">
+          <SettingsPage />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="editor-area">

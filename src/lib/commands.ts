@@ -9,6 +9,8 @@ import type {
   Encoding,
   LineEnding,
   PtyInfo,
+  PublicModel,
+  ModelTestResult,
   ReadResult,
   RecentEntry,
   SearchResult,
@@ -119,4 +121,16 @@ export const ptyKill = (id: string) => invoke<void>('pty_kill', { id });
 export const ptyList = () => invoke<PtyInfo[]>('pty_list');
 export const ptySetPaused = (paused: boolean) => invoke<void>('pty_set_paused', { paused });
 /** Ctrl+C sungguhan (CTRL_C_EVENT), bukan sekadar byte 0x03. */
-export const ptyInterrupt = (id: string) => invoke<void>('pty_interrupt', { id });
+export const ptyInterrupt = (id: string) => invoke<number>('pty_interrupt', { id });
+
+// ── settings lanjutan (fase 08) ──
+
+/** Status API key per provider — TIDAK memuat key asli. */
+export const getPublicModels = () => invoke<PublicModel[]>('get_public_models');
+/** Simpan/ganti key. `key` kosong = hapus. */
+export const setModelKey = (provider: string, key: string) =>
+  invoke<void>('set_model_key', { provider, key });
+export const testModelConnection = (provider: string, baseUrl?: string) =>
+  invoke<ModelTestResult>('test_model_connection', { provider, baseUrl });
+/** Hapus settings.json (secrets.json TIDAK disentuh). */
+export const resetSettings = () => invoke<void>('reset_settings');
