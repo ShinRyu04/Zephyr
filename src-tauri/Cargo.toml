@@ -34,6 +34,12 @@ blake3 = "1.8.7"
 base64 = "0.23.1"
 ureq = { version = "3", features = ["json"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+# Auto-update dalam app (fase 17.6). Endpoint masih kosong — plugin tetap
+# dipasang supaya UI "Check for Updates" punya jalur nyata; kalau endpoints
+# kosong, `check()` mengembalikan error yang ditangkap dan ditampilkan sebagai
+# "Update belum dikonfigurasi" (17.6.e).
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 # Logging (fase 14): tracing + penulis file sendiri (rotate 2MB) di logging.rs.
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }

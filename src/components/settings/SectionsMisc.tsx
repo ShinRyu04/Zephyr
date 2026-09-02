@@ -12,6 +12,7 @@ import { getDiagnostics, debugPanic } from '../../lib/commands';
 import type { Diagnostics } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
 import { SelfTestPanel, ExportPanel } from './SectionsDiag';
+import UpdatePanel from './UpdatePanel';
 
 export function ScmSection() {
   const t = useT();
@@ -195,11 +196,12 @@ export function AboutSection() {
       </div>
 
       <p className="set-note">
-        Fase yang sudah jalan: 01–06 dan 08–14. Fase 07 (SSH) ditunda menunggu
+        Fase yang sudah jalan: 01–06 dan 08–17. Fase 07 (SSH) ditunda menunggu
         host. Angka di Diagnostics di bawah diukur langsung dari proses ini —
         bukan perkiraan.
       </p>
 
+      <UpdatePanel versiSekarang={info?.version ?? '0.0.0'} />
       <DiagnosticsPanel />
     </Section>
   );

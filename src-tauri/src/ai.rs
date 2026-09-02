@@ -101,13 +101,29 @@ pub fn ai_chat(
     let prov = provider.clone();
 
     std::thread::spawn(move || {
-        let mut req = ureq::post(&prepared.url)
-            .config()
+        // FASE 16.3: Agent dengan konfigurasi eksplisit + `max_retries(0)`.
+        // Tanpa ini ureq mengulang percobaan koneksi yang gagal, sehingga
+        // timeout_connect 10s berlipat jadi ~25-35s dan UI terasa menggantung.
+        // Untuk streaming AI retry otomatis juga salah secara semantik: request
+        // pertama bisa sudah sampai ke provider dan menagih token.
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_connect(Some(std::time::Duration::from_secs(10)))
             // Streaming bisa lama; batasi waktu MENUNGGU header saja, bukan
             // total durasi, supaya jawaban panjang tidak terputus di tengah.
             .timeout_recv_response(Some(std::time::Duration::from_secs(30)))
+            // FASE 16.3: `timeout_connect` SENDIRI tidak cukup di Windows —
+            // terbukti host yang men-drop paket tetap memakan ~38s karena
+            // percobaan koneksi berulang di lapisan bawah. `timeout_per_call`
+            // membatasi SELURUH fase permintaan sampai header diterima, jadi
+            // user offline mendapat pesan dalam ~12s, bukan setengah menit.
+            // Ini TIDAK memotong streaming: batasnya berlaku sampai respons
+            // header, bukan sampai body selesai dibaca.
+            .timeout_per_call(Some(std::time::Duration::from_secs(12)))
+            .max_redirects(3)
             .http_status_as_error(false)
-            .build();
+            .build()
+            .into();
+        let mut req = agent.post(&prepared.url);
         for (k, v) in &prepared.headers {
             req = req.header(k.as_str(), v.as_str());
         }
@@ -115,10 +131,27 @@ pub fn ai_chat(
         let resp = match req.send_json(&prepared.body) {
             Ok(r) => r,
             Err(e) => {
-                emit_chunk(
-                    &handle,
-                    json!({ "id": req_id, "err": format!("Tidak bisa menghubungi provider: {e}") }),
-                );
+                // Pesan ramah untuk kasus paling sering: tidak ada internet /
+                // host tidak bisa dihubungi. Teks mentah ureq ("dns error",
+                // "connection refused") tidak berarti apa-apa bagi user.
+                let teks = e.to_string();
+                let low = teks.to_lowercase();
+                let pesan = if low.contains("dns")
+                    || low.contains("resolve")
+                    || low.contains("connect")
+                    || low.contains("timed out")
+                    || low.contains("timeout")
+                    || low.contains("refused")
+                    || low.contains("unreachable")
+                {
+                    format!(
+                        "Tidak bisa menghubungi provider — periksa koneksi internet \
+                         atau Base URL di Settings → Model AI ({teks})"
+                    )
+                } else {
+                    format!("Tidak bisa menghubungi provider: {teks}")
+                };
+                emit_chunk(&handle, json!({ "id": req_id, "err": pesan }));
                 return;
             }
         };
