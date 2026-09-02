@@ -21,7 +21,9 @@ import type {
   LineEnding,
   McpStatus,
   PtyInfo,
+  ProbeResult,
   PublicModel,
+  QuickFile,
   ModelTestResult,
   ReadResult,
   RecentEntry,
@@ -111,6 +113,11 @@ export const replaceInFile = (
     regex: opts.regex ?? false,
   });
 export const revealPath = (path: string) => invoke<void>('reveal_path', { path });
+/** fase 12: daftar file workspace untuk Quick Open (Ctrl+P). */
+export const listWorkspaceFiles = (limit?: number) =>
+  invoke<QuickFile[]>('list_workspace_files', { limit });
+/** fase 12: cek apakah URL boleh di-embed di iframe (header dibaca Rust). */
+export const browserProbe = (url: string) => invoke<ProbeResult>('browser_probe', { url });
 
 // ── terminal / pty (fase 05) ──
 

@@ -72,6 +72,23 @@ xterm.js. Backend Rust pegang fs/pty/git/ssh/mcp/settings.
 | `search_files` | { query, glob?, caseSensitive?, regex? } → { hits: SearchHit[] (max 500), filesScanned, truncated } |
 | `replace_in_file` | { path, query, replacement, caseSensitive?, regex? } → jumlah penggantian |
 | `reveal_path` | { path } → void (Explorer, `/select,` untuk file) |
+| `list_workspace_files` | { limit? } → QuickFile[] — Quick Open Ctrl+P (fase 12), aturan ignore sama dengan search, default max 5000 |
+| `browser_probe` | { url } → ProbeResult — cek boleh-embed dari header respons (fase 12) |
+
+```ts
+interface QuickFile { path; rel; name }                 // rel = relatif root, '/' separator
+interface ProbeResult {
+  url; reachable; status: number | null;
+  embeddable: boolean;      // false → UI tawarkan "Buka di browser eksternal"
+  reason: string;           // alasan apa adanya untuk ditampilkan
+  header: string | null;    // header yang jadi dasar keputusan
+  ms: number;
+}
+```
+`browser_probe` menolak `X-Frame-Options: DENY|SAMEORIGIN|ALLOW-FROM` dan
+`CSP frame-ancestors` yang bukan `*`. Header TIDAK bisa dibaca dari dalam
+webview, dan event `load` tetap menyala untuk halaman error — jadi keputusan
+embed HARUS dari sini, bukan dari timeout di frontend.
 
 ```ts
 interface DirNode { name; path; isDir; hasChildren }   // hasChildren = tampilkan chevron
@@ -221,6 +238,7 @@ mati bila `clientId` kosong; PAT selalu tersedia.
 | `git-progress` | { op, phase } | 10/14 |
 | `mcp-action` | { type, payload } | 11 |
 | `mcp-screenshot` | { paneId, path } | 11 |
+| `mcp-connect` | { client, userAgent } — ada klien menyapa `/health`; `client` hanya label dari UA (bisa dipalsukan), BUKAN auth | 12 |
 | `settings-changed` | { key } | 14 |
 | `window-resized` | { width, height } | 14 |
 | `file-dropped` | { paths } | 03/14 |
@@ -289,6 +307,25 @@ Target config CLI (`mcp_config.rs`): `.claude.json`, `.codex/config.toml`
 `.copilot/mcp-config.json`, `.cursor/mcp.json`, `Startup/.mcp.json`.
 Entri: `{"zephyr":{type:"http",url,headers:{Authorization}}}`; JSON di-parse &
 di-merge (key lain utuh), file lama selalu disalin ke `<nama>.bak`.
+
+### Command Palette & Quick Open (fase 12)
+
+`lib/commandRegistry.ts` = SATU sumber daftar action (`COMMANDS`, 40 entri:
+File / Editor / View / Terminal / Git / AI / MCP / Settings / Help). Setiap
+entri `{ id, title, group, keywords?, action?, enabled?, run }`; `action`
+menautkannya ke binding di `shortcuts.ts`, `enabled()` menyembunyikan command
+yang tidak relevan (mis. `git.commit` hanya saat workspace = repo).
+
+`lib/paletteStore.ts` memegang modal dua-mode: `command` (Ctrl+Shift+P) dan
+`file` (Ctrl+P, dari `list_workspace_files`). Skor fuzzy: prefix > kata >
+substring > subsequence, dengan bonus recent (10 terakhir). Daftar hasil
+dihitung lewat `items()`, BUKAN selector zustand (selector yang membuat array
+baru memicu update tak berujung — pelajaran fase 09).
+
+Shortcut yang wajib ada & bebas konflik: `Ctrl+Shift+P` `Ctrl+P`
+`Ctrl+Shift+E` `Ctrl+Shift+F` `Ctrl+Shift+G` `Ctrl+Shift+T` `Ctrl+\``
+`Ctrl+N` `Ctrl+O` `Ctrl+S` `Ctrl+W` `Ctrl+Tab` `Ctrl+B` `Ctrl+J` `Ctrl+=`
+`Ctrl+-` `Ctrl+0`.
 
 ---
 

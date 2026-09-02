@@ -15,6 +15,7 @@ export const EV = {
   gitProgress: 'git-progress',
   mcpAction: 'mcp-action',
   mcpScreenshot: 'mcp-screenshot',
+  mcpConnect: 'mcp-connect',
   settingsChanged: 'settings-changed',
   windowResized: 'window-resized',
   fileDropped: 'file-dropped',
@@ -75,4 +76,12 @@ export function onMcpScreenshot(
   cb: (p: { paneId: string; path: string }) => void,
 ): Promise<UnlistenFn> {
   return listen<{ paneId: string; path: string }>(EV.mcpScreenshot, (e) => cb(e.payload));
+}
+
+/** fase 12: ada klien yang menyapa `GET /health` — bukti koneksi AI CLI.
+ *  `client` hanya label dari User-Agent (bisa dipalsukan), bukan identitas. */
+export function onMcpConnect(
+  cb: (p: { client: string; userAgent: string }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ client: string; userAgent: string }>(EV.mcpConnect, (e) => cb(e.payload));
 }

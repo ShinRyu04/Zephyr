@@ -10,7 +10,7 @@
 
 import { useRef, useState } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
-import BrowserPane from './BrowserPane';
+import BrowserPane, { shortUrl } from './BrowserPane';
 import PaneIcon from './PaneIcons';
 import XtermPane from './XtermPane';
 import type { PaneMeta, TerminalTab } from '../../lib/types';
@@ -34,10 +34,30 @@ export function PaneEmpty() {
         <button className="btn" data-testid="empty-agent" onClick={() => setAgentPickerOpen(true)}>
           AI Agent…
         </button>
-        <button className="btn" data-testid="empty-browser" onClick={() => void addPane('browser')}>
-          Browser
-        </button>
       </div>
+
+      {/* Tombol besar tersendiri: ini fitur yang dicari orang saat develop web —
+          shell di kiri, preview dev server di kanan. */}
+      <button
+        className="pane-split-browser"
+        data-testid="empty-split-browser"
+        onClick={async () => {
+          // Shell dulu (kalau belum ada) supaya benar-benar jadi split 50/50.
+          await addPane('shell');
+          await addPane('browser');
+        }}
+      >
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M8 2.6v10.8M3.4 6l1.6 1.6-1.6 1.6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          <path d="M9.6 5.6h3.2M9.6 8h3.2M9.6 10.4h2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+        <span>
+          <strong>Split With Browser</strong>
+          <em>shell + preview dev server berdampingan</em>
+        </span>
+      </button>
+
       <p className="pane-empty-sub">up to 6 panes per tab</p>
     </div>
   );
@@ -87,7 +107,9 @@ function PaneHeader({
       title={`${pane.title}${pane.pid ? ` — pid ${pane.pid}` : ''}`}
     >
       <PaneIcon kind={pane.kind} agentId={pane.agent?.name} />
-      <span className="pane-title">{pane.title}</span>
+      <span className="pane-title">
+        {pane.kind === 'browser' && pane.url ? shortUrl(pane.url) : pane.title}
+      </span>
       {pane.pid ? <span className="pane-pid">{pane.pid}</span> : null}
       {pane.status === 'exited' && <span className="tt-dead">exited</span>}
 

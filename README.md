@@ -14,13 +14,17 @@ startup < 3 detik). Dibangun dari nol dengan **Tauri 2 + React**.
 
 - **Editor modern**: tab, syntax highlight, find & replace, multi-cursor,
   autocomplete, restore session.
+- **Command Palette** (`Ctrl+Shift+P`): 40 action dengan pencarian fuzzy dan
+  urutan yang mengingat pemakaian terakhir, plus **Quick Open** (`Ctrl+P`)
+  untuk melompat ke file mana pun di workspace.
 - **Explorer & Search** di workspace dengan file watcher real-time.
 - **Terminal multi-pane** (sampai 6 pane per tab):
   - Shell biasa & **Private Terminal**
   - **AI Agent Terminal**: spawn opencode / Claude CLI / Codex / Gemini
     CLI / Grok / Pi / GitHub Copilot langsung di dalam pane; klik lagi
     untuk duplikat.
-  - **Browser Pane** (Split With Browser).
+  - **Browser Pane** (Split With Browser): shell di kiri, preview dev server
+    di kanan, lengkap dengan URL bar, back/forward, reload, dan home.
 - **SSH Connections** untuk remote work.
 - **Settings lengkap**: General, Code Editor, Theme, Shortcuts, Models,
   Agents, Extensions, Source Control, MCP, About.
@@ -105,6 +109,16 @@ menulis ke disk** (menyimpan tetap keputusan Anda), dan `set_setting` dibatasi
 whitelist tampilan/editor — kredensial serta setting MCP sendiri tidak bisa
 diubah dari luar. Yang perlu Anda sadari: selama tahu tokennya, apa pun yang
 berjalan sebagai akun Anda bisa mengemudikan jendela ini.
+
+## Catatan: Browser Pane (jujur, apa adanya)
+
+Pane browser adalah `<iframe>` di dalam webview, bukan browser penuh. Banyak
+situs besar (Google, GitHub) mengirim `X-Frame-Options` atau
+`CSP frame-ancestors` yang **melarang** dirinya di-embed. Zephyr tidak menebak
+lewat timeout: header respons dibaca dulu di sisi Rust, lalu pane menampilkan
+alasan sebenarnya beserta header aslinya dan menawarkan **Buka di browser
+eksternal**. Untuk dev server lokal — kasus pemakaian utamanya — iframe bekerja
+normal.
 
 ## Catatan: Private Terminal (jujur, apa adanya)
 

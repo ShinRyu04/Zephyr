@@ -12,6 +12,13 @@ import { Row, Section, Toggle } from './SettingsControls';
 /** Daftar CLI ditampilkan urut seperti prompt fase 11 §11.4. */
 const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'copilot', 'cursor', 'startup'];
 
+/** Path panjang dipendekkan jadi `~\.config\opencode\opencode.json`. */
+function shortPath(p: string): string {
+  if (!p) return '—';
+  const home = /^([A-Za-z]:\\Users\\[^\\]+)\\/.exec(p);
+  return home ? `~\\${p.slice(home[1].length + 1)}` : p;
+}
+
 function EyeIcon({ off }: { off: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -39,6 +46,8 @@ export default function McpPanel() {
   const lastWrite = useMcp((s) => s.lastWrite);
   const lastAction = useMcp((s) => s.lastAction);
   const served = useMcp((s) => s.served);
+  const log = useMcp((s) => s.log);
+  const clearLog = useMcp((s) => s.clearLog);
   const init = useMcp((s) => s.init);
   const toggleServer = useMcp((s) => s.toggleServer);
   const toggleChecked = useMcp((s) => s.toggleChecked);
@@ -131,7 +140,13 @@ export default function McpPanel() {
           {ORDER.map((id) => {
             const c = byId.get(id);
             return (
-              <label key={id} className="mcp-cli" data-registered={c?.registered ? '1' : '0'}>
+              <label
+                key={id}
+                className="mcp-cli"
+                data-registered={c?.registered ? '1' : '0'}
+                data-testid={`mcp-cli-row-${id}`}
+                data-cli-id={id}
+              >
                 <input
                   type="checkbox"
                   checked={checked.includes(id)}
@@ -139,6 +154,9 @@ export default function McpPanel() {
                   onChange={() => toggleChecked(id)}
                 />
                 <span className="mcp-cli-name">{c?.label ?? id}</span>
+                <code className="mcp-cli-path" title={c?.path ?? ''} data-testid={`mcp-path-${id}`}>
+                  {shortPath(c?.path ?? '')}
+                </code>
                 <span
                   className={`mcp-cli-badge${c?.registered ? ' is-on' : ''}`}
                   data-testid={`mcp-reg-${id}`}
@@ -182,16 +200,55 @@ export default function McpPanel() {
       )}
 
       {lastWrite.length > 0 && (
-        <ul className="mcp-results" data-testid="mcp-results">
-          {lastWrite.map((r) => (
-            <li key={r.id} className={r.ok ? 'is-ok' : 'is-error'} data-cli={r.id}>
-              <span className="mcp-res-label">{r.label}</span>
-              <code className="mcp-res-path">{r.path}</code>
-              <span className="mcp-res-msg">{r.message}</span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mcp-results" data-testid="mcp-results">
+            {lastWrite.map((r) => (
+              <li key={r.id} className={r.ok ? 'is-ok' : 'is-error'} data-cli={r.id}>
+                <span className="mcp-res-label">{r.label}</span>
+                <code className="mcp-res-path">{r.path}</code>
+                <span className="mcp-res-msg">{r.message}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="set-note" data-testid="mcp-hint-restart">
+            Restart CLI-nya agar MCP terbaca. Setelah itu agent bisa: membaca pane &amp; tab editor,
+            mengetik di terminal, membuka file, dan menjalankan command editor.
+          </p>
+        </>
       )}
+
+      <div className="mcp-logwrap">
+        <div className="mcp-log-head">
+          <span>Aktivitas MCP</span>
+          {log.length > 0 && (
+            <button className="tp-op" data-testid="mcp-log-clear" onClick={() => clearLog()}>
+              bersihkan
+            </button>
+          )}
+        </div>
+        <ul className="mcp-log" data-testid="mcp-log">
+          {log.length === 0 ? (
+            <li className="mcp-log-empty">
+              Belum ada koneksi. Begitu sebuah AI CLI menyapa <code>/health</code> atau memanggil
+              tool, barisnya muncul di sini — bukti nyata, bukan klaim.
+            </li>
+          ) : (
+            log.map((l, i) => (
+              <li
+                key={`${l.at}-${i}`}
+                className={`mcp-log-row is-${l.kind}`}
+                data-kind={l.kind}
+                data-testid="mcp-log-row"
+              >
+                <span className="mcp-log-time">
+                  {new Date(l.at).toLocaleTimeString('id-ID', { hour12: false })}
+                </span>
+                <span className="mcp-log-text">{l.text}</span>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
 
       <div className="mcp-info-grid" data-testid="mcp-infogrid">
         <div className="mcp-info-card">

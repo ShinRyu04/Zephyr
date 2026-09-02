@@ -39,6 +39,11 @@ interface McpState {
   served: number;
   /** path screenshot terakhir dari `screenshot_pane` */
   lastShot: string | null;
+  /** log koneksi/aktivitas MCP terbaru (paling baru di depan, maks 20).
+   *  Ini bukti nyata "MCP connected" yang diminta fase 12 — bukan klaim. */
+  log: { at: number; text: string; kind: 'connect' | 'action' | 'server' }[];
+  /** toast singkat: user harus sadar saat agent mengambil screenshot */
+  toast: string | null;
 }
 
 interface McpActions {
@@ -55,6 +60,10 @@ interface McpActions {
   copyToken: () => Promise<void>;
   setError: (m: string | null) => void;
   setInfo: (m: string | null) => void;
+  setToast: (m: string | null) => void;
+  /** Tambah satu baris log aktivitas (dipakai handleAction & toggleServer). */
+  pushLog: (text: string, kind: 'connect' | 'action' | 'server') => void;
+  clearLog: () => void;
   /** Dipanggil listener event: jalankan permintaan lalu jawab ke Rust. */
   handleAction: (a: McpAction) => Promise<void>;
 }
@@ -73,6 +82,8 @@ export const useMcp = create<McpStore>((set, get) => ({
   lastAction: null,
   served: 0,
   lastShot: null,
+  log: [],
+  toast: null,
 
   init: async () => {
     await get().refresh();
@@ -110,9 +121,11 @@ export const useMcp = create<McpStore>((set, get) => ({
               ? `Server MCP jalan di 127.0.0.1:${port}`
               : `Port ${want} dipakai program lain — MCP jalan di ${port}`,
         });
+        get().pushLog(`server hidup di 127.0.0.1:${port}`, 'server');
       } else {
         await cmd.mcpStop();
         set({ mcpInfo: 'Server MCP dimatikan; port tidak lagi listening' });
+        get().pushLog('server dimatikan', 'server');
       }
       // settings.mcp.enabled diubah di Rust → tarik ulang ke store.
       await useStore.getState().reloadSettings();
@@ -213,6 +226,11 @@ export const useMcp = create<McpStore>((set, get) => ({
 
   setError: (m) => set({ mcpError: m }),
   setInfo: (m) => set({ mcpInfo: m }),
+  setToast: (m) => set({ toast: m }),
+
+  pushLog: (text, kind) =>
+    set((s) => ({ log: [{ at: Date.now(), text, kind }, ...s.log].slice(0, 20) })),
+  clearLog: () => set({ log: [] }),
 
   handleAction: async (a) => {
     // Notifikasi satu arah (mis. port-fallback) tidak punya reqId.
@@ -229,12 +247,28 @@ export const useMcp = create<McpStore>((set, get) => ({
     let result: unknown;
     try {
       result = await runAction(a.type, (a.payload ?? {}) as Record<string, unknown>);
+      const detail = describe(a.type, a.payload);
       set((s) => ({
         served: s.served + 1,
-        lastAction: { type: a.type, at: Date.now(), detail: describe(a.type, a.payload) },
+        lastAction: { type: a.type, at: Date.now(), detail },
       }));
+      // Health check pertama dari sebuah agent = bukti "MCP connected".
+      // `counts` hanya dipanggil oleh GET /health, jadi itu penandanya.
+      if (a.type === 'counts') {
+        const sudah = get().log.some((l) => l.kind === 'connect');
+        get().pushLog(sudah ? 'health check dari AI CLI' : 'MCP connected: AI CLI menyapa /health', 'connect');
+      } else {
+        get().pushLog(detail, 'action');
+      }
+      // Agent mengambil screenshot pane: user WAJIB tahu.
+      if (a.type === 'pane_text') {
+        const pid = String((a.payload as { paneId?: string } | undefined)?.paneId ?? '');
+        set({ toast: `AI CLI mengambil screenshot pane ${pid.slice(0, 18)}…` });
+      }
     } catch (e) {
-      result = { error: cmd.asZephyrError(e).message };
+      const msg = cmd.asZephyrError(e).message;
+      result = { error: msg };
+      get().pushLog(`${a.type} gagal: ${msg}`, 'action');
     }
     try {
       await cmd.mcpReply(a.reqId, result);

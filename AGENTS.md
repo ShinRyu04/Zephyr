@@ -189,3 +189,50 @@ Baca PRD dulu bila ragu terhadap keputusan arsitektur.
 - **Toast AI hidup 3.2 detik.** Harness yang membaca toast sebagai "kirim
   diblokir" harus membersihkannya (`setToast(null)`) sebelum pengiriman
   berikutnya, kalau tidak uji berikutnya lanjut sebelum jawaban datang.
+
+## 10. Jebakan fase 11 (MCP 9222) — sudah kena, jangan diulang
+
+- **Port 9223 TIDAK boleh jadi fallback MCP di mesin ini**: itu debug port
+  WebView2 yang dipakai semua harness verifikasi. Fallback mencoba 9222..9226.
+- **`settings.mcp.port` ditimpa port hasil bind**, jadi tidak bisa dipakai
+  membandingkan "diminta vs terpakai". Port yang diminta disimpan di
+  `McpRuntime.requested`; `mcp_status` membacanya dari runtime.
+- **`mcp_start` menyetel `enabled = true` SEBELUM bind**, kalau tidak
+  `/health` menjawab 503 walau socket sudah hidup.
+- **Toggle di Settings = `<button role="switch">`**, bukan `<input>` — harness
+  harus membaca `aria-checked`, bukan `.checked`.
+- **Titik dirty tab memakai class `.tab-dot`** (bukan `data-testid="tab-dirty"`).
+- **`fetch` ke port mati MELEMPAR**, tidak mengembalikan status. Helper `rpc()`
+  di harness wajib `try/catch` → status 0.
+- **`editor_open` menutup halaman Settings** (supaya tab terlihat), jadi harness
+  harus membuka panel MCP lagi sebelum mengklik tombolnya.
+- **Listener `mcp-action` butuh guard modul** (`mcpListenerBound`), sama seperti
+  `pty-output` dan `ai-chunk`.
+
+## 11. Jebakan fase 12 (Palette + Browser Pane) — sudah kena, jangan diulang
+
+- **`git.commit` tidak muncul di palette kalau workspace bukan repo git.**
+  Command punya `enabled()` dan `availableCommands()` menyaringnya. Harness
+  WAJIB `openWorkspace` ke repo dulu + `__ZEPHYR_GIT__.refresh()`, kalau tidak
+  V1 gagal padahal palette-nya benar.
+- **`closePane(paneId)` hanya menerima SATU argumen** (bukan `(tabId, paneId)`).
+  Salah tanda tangan → pane tidak tertutup dan ujinya gagal senyap.
+- **`spawnSync('npx.cmd', ...)` mengembalikan `status: null` di MSYS/git-bash.**
+  Panggil tsc dari harness dengan
+  `spawnSync(process.execPath, ['node_modules/typescript/lib/tsc.js', '--noEmit'])`.
+- **Deteksi "situs menolak embed" TIDAK boleh pakai timeout event `load`.**
+  Chromium tetap mem-fire `load` untuk halaman error X-Frame-Options. Header
+  dibaca di Rust (`browser.rs` → `browser_probe`, crate `ureq`) lalu UI
+  menampilkan alasan sebenarnya beserta header aslinya.
+- **Baris shortcut di Settings memakai atribut `data-sc-row`**, bukan
+  `data-testid="sc-row-*"`.
+- **Path config CLI dibaca dari `title` pada `.mcp-cli-path`** (teks di dalamnya
+  dipendekkan jadi `~\…`); barisnya `[data-testid="mcp-cli-row-<id>"]`.
+- **`Ctrl+Shift+T` sekarang = pane terminal baru** (dulu `Ctrl+Shift+\``) dan
+  `Ctrl+J` = toggle panel bawah. Dua-duanya terdaftar di `ACTIONS`
+  (`shortcuts.ts`) supaya tidak bentrok.
+- **Palette = satu modal dua mode** (`command` untuk Ctrl+Shift+P, `file` untuk
+  Ctrl+P); pembedanya atribut `data-mode` di `[data-testid="cp-modal"]`.
+- **Selector zustand di `CommandPalette` tidak boleh mengembalikan array baru**
+  (pelajaran fase 09 masih berlaku): daftar hasil dihitung lewat
+  `items()` di store, bukan selector.
