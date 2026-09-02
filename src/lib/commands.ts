@@ -4,6 +4,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
   AgentInfo,
+  AiMessage,
   AppInfo,
   DirNode,
   Encoding,
@@ -134,3 +135,19 @@ export const testModelConnection = (provider: string, baseUrl?: string) =>
   invoke<ModelTestResult>('test_model_connection', { provider, baseUrl });
 /** Hapus settings.json (secrets.json TIDAK disentuh). */
 export const resetSettings = () => invoke<void>('reset_settings');
+
+// ── AI panel (fase 09) ──
+
+/** Mulai chat streaming. Jawaban datang lewat event `ai-chunk` dengan id
+ *  yang sama. Key dibaca di Rust — TIDAK dikirim dari sini. */
+export const aiChat = (opts: {
+  id: string;
+  provider: string;
+  model: string;
+  messages: AiMessage[];
+  baseUrl?: string;
+  maxTokens?: number;
+}) => invoke<void>('ai_chat', opts);
+
+/** Batalkan streaming. false = id sudah tidak berjalan. */
+export const aiCancel = (id: string) => invoke<boolean>('ai_cancel', { id });

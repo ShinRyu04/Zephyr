@@ -5,6 +5,7 @@
 // hasilnya daftar dobel + Reset Semua muncul dua kali di layar.
 
 import { useStore } from '../../lib/store';
+import AiSidebar from '../ai/AiSidebar';
 import ExplorerPanel from '../explorer/ExplorerPanel';
 import SearchPanel from '../explorer/SearchPanel';
 import SettingsNav from '../settings/SettingsNav';
@@ -32,7 +33,7 @@ export default function Sidebar() {
     case 'scm':
       return <Placeholder title="Source Control" note="Integrasi git — fase 10." />;
     case 'ai':
-      return <Placeholder title="AI / MCP" note="Panel AI fase 09, MCP 9222 fase 11." />;
+      return <AiSidebar />;
     case 'terminal':
       return <TerminalPanel />;
     case 'settings':

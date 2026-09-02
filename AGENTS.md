@@ -55,6 +55,7 @@ npm run verify:04        # fase 04    -> "== 17/17 lulus =="
 npm run verify:05        # fase 05    -> "== 12/12 lulus ==" (butuh ~90s)
 npm run verify:06        # fase 06    -> "== 12/12 lulus ==" (butuh ~2 menit)
 npm run verify:08        # fase 08    -> "== 15/15 lulus =="
+npm run verify:09        # fase 09    -> "== 10/10 lulus ==" (butuh ~2 menit)
 npm run soak             # stabilitas 180s (V11 fase 04)
 ```
 
@@ -159,3 +160,32 @@ Baca PRD dulu bila ragu terhadap keputusan arsitektur.
 - **API key**: `%APPDATA%\zephyr\secrets.json`, XOR + kunci BLAKE3 dari
   MachineGuid+host+user. Ini OBFUSKASI, bukan proteksi dari orang yang sudah
   memegang akun Windows. `reset_settings` TIDAK menghapus file ini.
+
+## 9. Jebakan fase 09 (AI panel) — sudah kena, jangan diulang
+
+- **Gemini WAJIB `?alt=sse`.** Tanpa itu `:streamGenerateContent` membalas
+  JSON array yang di-pretty-print dan dipecah sembarang antar paket TCP —
+  satu objek tersebar di banyak baris, jadi parsing per baris menghasilkan
+  0 token dan pesan "Provider tidak mengirim teks apa pun".
+- **Selector zustand v5 tidak boleh membuat objek/array baru.**
+  `useTerminal((s) => s.terminalTabs.flatMap(...))` di `AiPanel` langsung
+  memicu `Maximum update depth exceeded` (hasil selector dibandingkan `===`).
+  Ambil primitif: `reduce((n,t) => n + t.panes.length, 0)`.
+- **Listener `ai-chunk` butuh guard modul** (`aiListenerBound` di App.tsx),
+  sama seperti `pty-output`: StrictMode dev memasang dua kali → setiap token
+  tampil dobel.
+- **Cancel harus menyaring chunk yang sudah di jalan.** `ai_cancel` hanya
+  menyetel flag; Rust bisa sudah mengirim beberapa potongan. `aiStore` punya
+  `Set` id yang dibatalkan dan mengabaikan chunk-nya, kalau tidak teks masih
+  bertambah setelah user menekan Stop.
+- **`ai_chat` mengembalikan `()` lalu streaming lewat event.** Pesan error
+  dari `invoke` (mis. belum ada key) tetap harus diubah jadi bubble error —
+  lihat `send()` yang memanggil `onChunk` manual.
+- **Harness verify09 memakai mock provider** (`scripts/mock-ai.mjs`, port
+  8098, versi dicek lewat `/__version`) supaya streaming/adapter/cancel
+  diuji lewat jalur Rust asli tanpa kuota. Mock versi lama yang nyangkut di
+  port pernah membuat V3–V5 gagal padahal aplikasinya benar — karena itu
+  harness menolak versi yang tidak cocok.
+- **Toast AI hidup 3.2 detik.** Harness yang membaca toast sebagai "kirim
+  diblokir" harus membersihkannya (`setToast(null)`) sebelum pengiriman
+  berikutnya, kalau tidak uji berikutnya lanjut sebelum jawaban datang.

@@ -28,6 +28,9 @@ pub struct AppState {
     /// true saat window minimized: emit output PTY ditunda (output tetap
     /// dikumpulkan di buffer supaya tidak ada desync).
     render_paused: Arc<AtomicBool>,
+    /// Permintaan AI yang sedang berjalan (fase 09), key = id request.
+    /// Nilainya flag batal yang dibaca thread streaming tiap baris.
+    ai_reqs: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 impl AppState {
@@ -46,6 +49,35 @@ impl AppState {
             watch_generation: Arc::new(AtomicU64::new(0)),
             ptys: Mutex::new(HashMap::new()),
             render_paused: Arc::new(AtomicBool::new(false)),
+            ai_reqs: Mutex::new(HashMap::new()),
+        }
+    }
+
+    // ── permintaan AI (fase 09) ──
+
+    /// Daftarkan request baru; kembalikan flag batal untuk thread streaming.
+    pub fn ai_begin(&self, id: &str) -> Arc<AtomicBool> {
+        let flag = Arc::new(AtomicBool::new(false));
+        if let Ok(mut m) = self.ai_reqs.lock() {
+            // id yang sama dipakai ulang = permintaan lama dibatalkan dulu.
+            if let Some(old) = m.insert(id.to_string(), flag.clone()) {
+                old.store(true, Ordering::Relaxed);
+            }
+        }
+        flag
+    }
+
+    /// true = ada request dengan id itu dan sudah ditandai batal.
+    pub fn ai_cancel(&self, id: &str) -> bool {
+        match self.ai_reqs.lock() {
+            Ok(mut m) => match m.remove(id) {
+                Some(flag) => {
+                    flag.store(true, Ordering::Relaxed);
+                    true
+                }
+                None => false,
+            },
+            Err(_) => false,
         }
     }
 

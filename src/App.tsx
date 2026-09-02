@@ -13,13 +13,15 @@ import ConfirmDialog from './components/shell/ConfirmDialog';
 import { useStore } from './lib/store';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
+import { useAi } from './lib/aiStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { flushTab } from './lib/editorRegistry';
-import { onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
+import { onAiChunk, onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/settings.css';
+import './styles/ai.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -27,6 +29,9 @@ import './index.css';
  *  React StrictMode (dev) menjalankan effect dua kali — kalau listener
  *  terdaftar dua kali, setiap byte output terminal tampil dobel. */
 let ptyListenersBound = false;
+
+/** Guard yang sama untuk listener `ai-chunk` (fase 09). */
+let aiListenerBound = false;
 
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
@@ -147,12 +152,21 @@ export default function App() {
         case 'terminal.new':
           void t.addPane('shell');
           break;
-        // ai.* dan git.panel dieksekusi mulai fase 09/10; sekarang cukup
-        // membuka panel terkait supaya tombolnya tidak "mati".
-        case 'ai.panel':
+        // ── AI panel (fase 09) ──
+        case 'ai.panel': {
+          // Toggle seperti ikon lain: kalau panel AI sudah tampil, tutup.
           s.setSettingsOpen(false);
           s.setActivity('ai');
           if (!s.sidebarVisible) s.toggleSidebar();
+          if (t.visible && t.dock === 'ai') t.setVisible(false);
+          else {
+            t.setVisible(true);
+            t.setDock('ai');
+          }
+          break;
+        }
+        case 'ai.send':
+          void useAi.getState().send();
           break;
         case 'git.panel':
           s.setSettingsOpen(false);
@@ -176,6 +190,25 @@ export default function App() {
       const t = useTerminal.getState();
       if (!t.visible) t.setVisible(true);
       t.toggleMaximized();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // 3c) Ctrl+I (fase 09 §9.4): buka panel AI lalu fokuskan input.
+  //     Tidak masuk katalog shortcut karena bukan action yang bisa di-remap
+  //     di fase 08 — ini pintasan "inline" ala Copilot.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'i') return;
+      e.preventDefault();
+      const s = useStore.getState();
+      const t = useTerminal.getState();
+      s.setSettingsOpen(false);
+      t.setVisible(true);
+      t.setDock('ai');
+      // Panel mungkin baru ter-mount; beri satu frame sebelum fokus.
+      window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 80);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -265,6 +298,16 @@ export default function App() {
       const p = useTerminal.getState().findPane(id);
       if (p?.kind === 'private') disposeHandle(id);
     });
+  }, []);
+
+  // 8) AI (fase 09): init store + listener `ai-chunk`.
+  //    Guard modul WAJIB seperti pty: StrictMode dev memasang listener dua
+  //    kali dan setiap token jawaban akan tampil dobel.
+  useEffect(() => {
+    void useAi.getState().init();
+    if (aiListenerBound) return;
+    aiListenerBound = true;
+    void onAiChunk((c) => useAi.getState().onChunk(c));
   }, []);
 
   return (
