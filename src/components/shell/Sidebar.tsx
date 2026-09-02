@@ -8,19 +8,9 @@ import { useStore } from '../../lib/store';
 import AiSidebar from '../ai/AiSidebar';
 import ExplorerPanel from '../explorer/ExplorerPanel';
 import SearchPanel from '../explorer/SearchPanel';
+import SourceControlPanel from '../scm/SourceControlPanel';
 import SettingsNav from '../settings/SettingsNav';
 import TerminalPanel from './TerminalPanel';
-
-function Placeholder({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="side-panel">
-      <div className="side-section">
-        <div className="side-title">{title}</div>
-        <p className="side-muted">{note}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function Sidebar() {
   const activity = useStore((s) => s.activity);
@@ -31,7 +21,7 @@ export default function Sidebar() {
     case 'search':
       return <SearchPanel />;
     case 'scm':
-      return <Placeholder title="Source Control" note="Integrasi git — fase 10." />;
+      return <SourceControlPanel />;
     case 'ai':
       return <AiSidebar />;
     case 'terminal':
