@@ -32,7 +32,7 @@ tauri-plugin-clipboard-manager = "2"
 which = "8"
 blake3 = "1.8.7"
 base64 = "0.23.1"
-ureq = "3"
+ureq = { version = "3", features = ["json"] }
 
 [features]
 # Fitur custom-protocol hanya aktif saat build release (production).

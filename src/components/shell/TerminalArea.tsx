@@ -4,6 +4,8 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
+import AiPanel from '../ai/AiPanel';
+import DockSwitch from './DockSwitch';
 import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
 import TerminalTabs from '../terminal/TerminalTabs';
 
@@ -11,6 +13,7 @@ export default function TerminalArea() {
   const visible = useTerminal((s) => s.visible);
   const height = useTerminal((s) => s.height);
   const setHeight = useTerminal((s) => s.setHeight);
+  const dock = useTerminal((s) => s.dock);
   const tabs = useTerminal((s) => s.terminalTabs);
   const activeTabId = useTerminal((s) => s.activeTabId);
   const setVisible = useTerminal((s) => s.setVisible);
@@ -57,11 +60,12 @@ export default function TerminalArea() {
     return (
       <button
         className="term-collapsed"
-        title="Tampilkan terminal (Ctrl+`)"
+        title="Tampilkan panel bawah (Ctrl+`)"
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
-        Terminal {paneCount > 0 && <span className="term-badge">{paneCount}</span>}
+        {dock === 'ai' ? 'AI' : 'Terminal'}{' '}
+        {dock === 'terminal' && paneCount > 0 && <span className="term-badge">{paneCount}</span>}
       </button>
     );
   }
@@ -69,7 +73,7 @@ export default function TerminalArea() {
   const active = tabs.find((t) => t.id === activeTabId) ?? null;
 
   return (
-    <section className="term-area" style={{ height }} aria-label="Panel terminal">
+    <section className="term-area" style={{ height }} aria-label="Panel bawah">
       <div
         className="term-resizer"
         role="separator"
@@ -77,9 +81,19 @@ export default function TerminalArea() {
         aria-label="Ubah tinggi panel terminal"
         onPointerDown={startResize}
       />
-      <TerminalTabs />
 
-      <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
+      {/* Pemilih isi panel bawah: Terminal | AI (fase 09) — baris sendiri
+          di atas isi panel, seperti semula. */}
+      <DockSwitch />
+
+      {dock === 'ai' ? (
+        <AiPanel />
+      ) : (
+        <>
+          <TerminalTabs />
+          <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
+        </>
+      )}
 
       {toast && (
         <div className="term-toast" role="status" data-testid="term-toast">

@@ -24,6 +24,8 @@ interface TerminalState {
   height: number;
   /** panel diperbesar menutupi area editor (fase 06) */
   maximized: boolean;
+  /** isi panel bawah: terminal atau panel AI (fase 09) */
+  dock: 'terminal' | 'ai';
   terminalTabs: TerminalTab[];
   activeTabId: string | null;
   shells: ShellInfo[];
@@ -47,6 +49,8 @@ interface TerminalActions {
   toggleVisible: () => void;
   toggleMaximized: () => void;
   setHeight: (h: number) => void;
+  /** Pilih isi panel bawah (fase 09). */
+  setDock: (d: 'terminal' | 'ai') => void;
   loadShells: () => Promise<void>;
   loadAgents: () => Promise<void>;
   setPickerOpen: (v: boolean) => void;
@@ -106,6 +110,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   visible: true,
   height: 260,
   maximized: false,
+  dock: 'terminal',
   terminalTabs: [],
   activeTabId: null,
   shells: [],
@@ -123,6 +128,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     set((s) => (s.visible ? { visible: false, maximized: false } : { visible: true })),
   toggleMaximized: () => set((s) => ({ maximized: !s.maximized })),
   setHeight: (h) => set({ height: Math.max(120, Math.min(700, h)) }),
+  setDock: (d) => set({ dock: d }),
   setPickerOpen: (v) => set({ pickerOpen: v, agentPickerOpen: false, menuFor: null }),
   setAgentPickerOpen: (v) => set({ agentPickerOpen: v, pickerOpen: false, menuFor: null }),
   setMenuFor: (id) => set({ menuFor: id, pickerOpen: false, agentPickerOpen: false }),

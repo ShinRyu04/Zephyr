@@ -154,6 +154,49 @@ export interface ModelTestResult {
   ms: number;
 }
 
+// ── AI panel (fase 09) ──
+
+export type AiRole = 'user' | 'assistant' | 'system';
+
+/** Pesan yang dikirim ke Rust (bentuk minimal yang dimengerti adapter). */
+export interface AiMessage {
+  role: AiRole;
+  content: string;
+}
+
+/** Pesan di UI: AiMessage + metadata tampilan. */
+export interface ChatMsg extends AiMessage {
+  id: string;
+  /** epoch ms */
+  at: number;
+  /** true saat token masih mengalir */
+  streaming?: boolean;
+  /** pesan error dari provider (ditampilkan sebagai bubble merah) */
+  error?: string;
+  /** model yang menjawab (untuk logo di bubble) */
+  model?: string;
+  /** file yang dilampirkan bersama pesan user */
+  attached?: { path: string; bytes: number; truncated: boolean };
+}
+
+/** Satu percakapan. History dibatasi 200 pesan (prompt fase 09). */
+export interface ChatSession {
+  id: string;
+  title: string;
+  model: string;
+  provider: string;
+  messages: ChatMsg[];
+  createdAt: number;
+}
+
+/** Payload event `ai-chunk` dari Rust. */
+export interface AiChunk {
+  id: string;
+  text?: string;
+  err?: string;
+  done?: boolean;
+}
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;

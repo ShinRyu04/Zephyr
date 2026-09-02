@@ -11,6 +11,8 @@ import { useStore } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
+import { useAi, extractCommand, isDestructive, MAX_MSGS } from './aiStore';
+import { ALL_MODELS } from './modelCatalog';
 import { THEMES } from './themes';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
@@ -86,6 +88,33 @@ export function installDevBridge(): void {
     settingsFromDisk: () => getSettings(),
     /** terjemahan label untuk membuktikan toggle bahasa */
     t: (key: string) => translate(useStore.getState().settings.general.uiLang, key),
+  };
+  // AI panel (fase 09): store chat + jalur streaming/terminal.
+  w.__ZEPHYR_AI__ = {
+    store: useAi,
+    /** daftar model di katalog (untuk membuktikan dropdown lengkap) */
+    catalog: () => ALL_MODELS.map((m) => ({ id: m.id, provider: m.provider, logo: m.logo, baseUrl: m.baseUrl })),
+    /** deteksi perintah berbahaya (dipakai uji konfirmasi) */
+    destructive: (cmdText: string) => isDestructive(cmdText),
+    /** blok perintah terakhir dari sebuah jawaban markdown */
+    command: (md: string) => extractCommand(md),
+    /** kirim pesan langsung tanpa mengetik di textarea */
+    send: (text: string) => useAi.getState().send(text),
+    cancel: () => useAi.getState().cancel(),
+    /** isi chat sesi aktif (role + teks + status) */
+    messages: () =>
+      (useAi.getState().activeSession()?.messages ?? []).map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        streaming: !!m.streaming,
+        error: m.error ?? null,
+        model: m.model ?? null,
+        attached: m.attached ?? null,
+      })),
+    /** simpanan localStorage mentah (bukti V9 restore) */
+    persisted: () => localStorage.getItem('zephyr.ai.sessions.v1'),
+    maxMsgs: MAX_MSGS,
   };
   // Untuk menguji jalur onCloseRequested (V7 fase 02 / V5 fase 03).
   w.__ZEPHYR_WIN__ = {

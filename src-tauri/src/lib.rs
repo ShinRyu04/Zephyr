@@ -1,7 +1,9 @@
 // lib.rs — entry point Zephyr: register plugin, state, dan semua command.
 // Kontrak nama command: ARCHITECTURE.md §2.
 
+mod adapters;
 mod agents;
+mod ai;
 mod app_state;
 mod dialogs;
 mod errors;
@@ -10,6 +12,7 @@ mod fs_utils;
 mod pty;
 mod secrets;
 mod settings;
+mod tests_ai;
 mod tests_fs;
 
 use app_state::AppState;
@@ -94,6 +97,9 @@ pub fn run() {
             secrets::set_model_key,
             secrets::test_model_connection,
             secrets::reset_settings,
+            // AI panel (fase 09)
+            ai::ai_chat,
+            ai::ai_cancel,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,

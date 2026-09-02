@@ -167,6 +167,17 @@ pub fn get_public_models(state: State<AppState>) -> ZResult<Vec<PublicModel>> {
     Ok(out)
 }
 
+/// Ambil key satu provider untuk dipakai DI DALAM Rust (fase 09: ai.rs).
+/// Sengaja tidak `pub` sebagai command: nilainya tidak boleh keluar ke
+/// frontend. Kosong = belum ada key.
+pub fn key_for(state: &AppState, provider: &str) -> String {
+    read_secrets(state)
+        .get(provider.trim())
+        .and_then(|v| v.as_str())
+        .and_then(decrypt)
+        .unwrap_or_default()
+}
+
 /// Simpan/ganti key satu provider. `key` kosong = hapus.
 #[tauri::command(async)]
 pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> ZResult<()> {
