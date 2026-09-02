@@ -1,10 +1,14 @@
-// SectionsMisc.tsx — Extensions, Source Control, MCP, SSH, Tentang (fase 08).
+// SectionsMisc.tsx — Extensions, Source Control, SSH, Tentang (fase 08).
+//
+// MCP tidak di sini: panelnya `McpPanel.tsx` (fase 11). Switch server, token,
+// dan tabel "Dikontrol oleh" cukup ada di SATU tempat — pelajaran fase 08,
+// kontrol yang dibuat dua kali muncul dobel di layar.
 
 import { useState } from 'react';
 import { openPath, openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
-import { NumberInput, Row, Section, TextInput, Toggle } from './SettingsControls';
+import { Row, Section, TextInput, Toggle } from './SettingsControls';
 
 /** Ekstensi bawaan yang bisa dimatikan. Loader ekstensi eksternal = fase 19. */
 const BUILTIN_EXTENSIONS = [
@@ -110,106 +114,6 @@ export function ScmSection() {
   );
 }
 
-/** CLI yang bisa didaftari config MCP (dieksekusi di fase 11). */
-const MCP_CLIS = [
-  { id: 'claude', label: 'Claude Code' },
-  { id: 'codex', label: 'Codex CLI' },
-  { id: 'gemini', label: 'Gemini CLI' },
-  { id: 'opencode', label: 'opencode' },
-  { id: 'copilot', label: 'GitHub Copilot CLI' },
-  { id: 'cursor', label: 'Cursor' },
-  { id: 'startup', label: 'Startup/.mcp.json' },
-];
-
-export function McpSection() {
-  const t = useT();
-  const mcp = useStore((s) => s.settings.mcp);
-  const apply = useStore((s) => s.applySettings);
-
-  const toggleCli = (id: string, on: boolean) => {
-    const next = on ? [...new Set([...mcp.writeToCli, id])] : mcp.writeToCli.filter((x) => x !== id);
-    void apply({ mcp: { writeToCli: next } });
-  };
-
-  const genToken = () => {
-    const bytes = new Uint8Array(24);
-    crypto.getRandomValues(bytes);
-    const tok = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-    void apply({ mcp: { token: tok } });
-  };
-
-  return (
-    <Section title={t('settings.mcp')}>
-      <p className="set-note" data-testid="mcp-note">
-        Server MCP membuat AI CLI dari luar bisa membaca pane/editor dan
-        mengendalikan jendela Zephyr. Pilihan di sini sudah tersimpan, tapi
-        servernya sendiri dibangun di fase 11 — sampai itu selesai statusnya
-        tetap berhenti dan port {mcp.port} TIDAK dibuka. Saya tidak menampilkan
-        "berjalan" untuk sesuatu yang belum ada.
-      </p>
-
-      <Row label={t('mcp.enable')} hint="tersimpan sekarang, aktif setelah fase 11">
-        <Toggle
-          label={t('mcp.enable')}
-          testid="mcp-enable"
-          checked={mcp.enabled}
-          onChange={(v) => void apply({ mcp: { enabled: v } })}
-        />
-      </Row>
-
-      <Row label={t('mcp.status')}>
-        <span className="mcp-status is-stopped" data-testid="mcp-status">
-          <span className="mcp-dot" />
-          {t('common.stopped')} — backend fase 11 belum dibuat
-        </span>
-      </Row>
-
-      <Row label={t('mcp.port')} hint="9222 = kontrak tetap (ARCHITECTURE.md)">
-        <NumberInput
-          label={t('mcp.port')}
-          testid="mcp-port"
-          min={1024}
-          max={65535}
-          value={mcp.port}
-          onChange={(v) => void apply({ mcp: { port: v } })}
-        />
-      </Row>
-
-      <Row label={t('mcp.token')} hint="Bearer token; kosong = tolak semua koneksi">
-        <span className="mcp-tokenrow">
-          <TextInput
-            label={t('mcp.token')}
-            testid="mcp-token"
-            mono
-            value={mcp.token}
-            placeholder="(belum ada token)"
-            onChange={(v) => void apply({ mcp: { token: v } })}
-          />
-          <button className="btn btn-sm" data-testid="mcp-gen" onClick={genToken}>
-            Generate
-          </button>
-        </span>
-      </Row>
-
-      <Row label={t('mcp.writeToCli')} hint="menulis entri server ke config CLI (fase 11)">
-        <div className="mcp-clis" data-testid="mcp-clis">
-          {MCP_CLIS.map((c) => (
-            <label key={c.id} className="mcp-cli">
-              <input
-                type="checkbox"
-                checked={mcp.writeToCli.includes(c.id)}
-                data-testid={`mcp-cli-${c.id}`}
-                onChange={(e) => toggleCli(c.id, e.target.checked)}
-              />
-              <span>{c.label}</span>
-            </label>
-          ))}
-        </div>
-      </Row>
-    </Section>
-  );
-}
-
 export function SshSection() {
   const t = useT();
   const recent = useStore((s) => s.settings.ssh.recentHosts ?? []);
@@ -289,6 +193,7 @@ export function AboutSection() {
     ['Frontend', 'React 18 + TypeScript + Vite 6'],
     ['Editor', 'CodeMirror 6'],
     ['Terminal', '@xterm/xterm 5.5 + portable-pty (ConPTY)'],
+    ['Automation', 'MCP JSON-RPC di 127.0.0.1:9222 (fase 11)'],
   ];
   return (
     <Section title={t('settings.about')}>
@@ -338,9 +243,9 @@ export function AboutSection() {
       </div>
 
       <p className="set-note">
-        Fase yang sudah jalan: 01–06 dan 08. Fase 07 (SSH) ditunda menunggu host;
-        MCP port 9222 menyusul di fase 11. Halaman Diagnostics dibuat di fase 16 —
-        sampai itu ada, folder log di atas adalah tempat memeriksa masalah.
+        Fase yang sudah jalan: 01–06 dan 08–11. Fase 07 (SSH) ditunda menunggu
+        host. Halaman Diagnostics dibuat di fase 16 — sampai itu ada, folder log
+        di atas adalah tempat memeriksa masalah.
       </p>
     </Section>
   );

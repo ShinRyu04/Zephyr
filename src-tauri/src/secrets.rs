@@ -178,6 +178,23 @@ pub fn key_for(state: &AppState, provider: &str) -> String {
         .unwrap_or_default()
 }
 
+/// Simpan/ganti satu secret dari dalam Rust (fase 10: token GitHub).
+/// Nilai kosong = hapus. TIDAK ada command Tauri yang membaca kembali
+/// nilainya — hanya `key_for` di dalam proses.
+pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
+    let n = name.trim();
+    if n.is_empty() {
+        return Err(ZephyrError::InvalidInput("nama secret kosong".into()));
+    }
+    let mut map = read_secrets(state);
+    if value.trim().is_empty() {
+        map.remove(n);
+    } else {
+        map.insert(n.to_string(), Value::String(encrypt(value.trim())));
+    }
+    write_secrets(state, &map)
+}
+
 /// Simpan/ganti key satu provider. `key` kosong = hapus.
 #[tauri::command(async)]
 pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> ZResult<()> {
