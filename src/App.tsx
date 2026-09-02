@@ -10,6 +10,7 @@ import EditorArea from './components/shell/EditorArea';
 import TerminalArea from './components/shell/TerminalArea';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
+import SaveIssueDialog from './components/shell/SaveIssueDialog';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
 import CommandPalette from './components/shell/CommandPalette';
 import McpToast from './components/shell/McpToast';
@@ -59,6 +60,11 @@ let mcpListenerBound = false;
 /** Guard yang sama untuk handler error global (fase 14.6). Tanpa ini satu
  *  rejection dikirim dua kali ke file log di mode dev. */
 let errorHandlersBound = false;
+
+/** fase 15.6: true = sidebar dilipat OLEH kode karena jendela sempit (<1000px),
+ *  bukan oleh user. Hanya yang dilipat otomatis yang dibuka lagi saat jendela
+ *  dilebarkan — kalau tidak, sidebar yang sengaja ditutup user muncul sendiri. */
+let autoCollapsed = false;
 
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
@@ -355,10 +361,17 @@ export default function App() {
     ptyListenersBound = true;
 
     void onPtyOutput((id, data) => writeTo(id, data));
-    void onPtyExit((id) => {
-      useTerminal.getState().markExited(id);
-      // Pane private: buang scrollback begitu prosesnya berakhir.
+    void onPtyExit((id, code) => {
+      useTerminal.getState().markExited(id, code);
       const p = useTerminal.getState().findPane(id);
+      // fase 15.2: tulis penanda ke layar pane supaya user tahu prosesnya
+      // sudah berakhir (dan dengan code apa) — bukan pane yang diam menipu.
+      // Pane private dibuang scrollback-nya, jadi tidak perlu penanda.
+      if (p && p.kind !== 'private') {
+        const label = code === null || code === undefined ? 'exited' : `exited code ${code}`;
+        writeTo(id, `\r\n\x1b[90m[process ${label}]\x1b[0m\r\n`);
+      }
+      // Pane private: buang scrollback begitu prosesnya berakhir.
       if (p?.kind === 'private') disposeHandle(id);
     });
   }, []);
@@ -458,6 +471,33 @@ export default function App() {
     };
   }, []);
 
+  // 9f) fase 15.6: layout sempit. Di bawah 1000px lebar jendela, sidebar
+  //     otomatis dilipat (dan panel bawah dipersempit lewat CSS) supaya
+  //     editor tetap punya ruang baca di jendela minimum 800x520. Kalau
+  //     jendela dilebarkan lagi, sidebar yang DILIPAT OTOMATIS dibuka
+  //     kembali — sidebar yang ditutup manual oleh user tidak diganggu.
+  useEffect(() => {
+    const NARROW = 1000;
+    const apply = () => {
+      const narrow = window.innerWidth < NARROW;
+      document.body.classList.toggle('is-narrow', narrow);
+      const s = useStore.getState();
+      if (narrow && s.sidebarVisible) {
+        autoCollapsed = true;
+        s.toggleSidebar();
+      } else if (!narrow && autoCollapsed && !s.sidebarVisible) {
+        autoCollapsed = false;
+        s.toggleSidebar();
+      } else if (!narrow) {
+        autoCollapsed = false;
+      }
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    return () => window.removeEventListener('resize', apply);
+  }, []);
+
+
   // 9e) Error global (fase 14.6): `window.onerror` + `unhandledrejection`
   //     dikirim ke file log Rust dan ditampilkan sebagai pesan status.
   //     Tanpa ini kesalahan di WebView hilang begitu app ditutup.
@@ -518,6 +558,7 @@ export default function App() {
 
       <StatusBar />
       <ConfirmDialog />
+      <SaveIssueDialog />
       <ScmConfirmDialog />
       <CommandPalette />
       <McpToast />

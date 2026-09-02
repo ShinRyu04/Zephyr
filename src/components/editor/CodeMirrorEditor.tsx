@@ -67,6 +67,11 @@ export default function CodeMirrorEditor({ tab }: Props) {
   /** Tema aktif (id yang benar-benar terpasang di <html>) — fase 13. */
   const themeId = useStore((s) => s.activeTheme);
 
+  // fase 15.1: tab read-only (file >4MB / UTF-16). Ekstensi berat DILEPAS —
+  // 5MB JSON dengan bracket matching + highlight aktif membekukan UI beberapa
+  // detik; tanpa itu file terbuka mulus dan tetap bisa dibaca/di-scroll.
+  const readOnly = tab.readOnly === true;
+
   // Bangun view sekali per tab (id berubah = tab lain).
   useEffect(() => {
     const host = hostRef.current;
@@ -106,14 +111,22 @@ export default function CodeMirrorEditor({ tab }: Props) {
       drawSelection(),
       dropCursor(),
       EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion(),
+      // Mode ringan (fase 15.1): file besar / UTF-16 dibuka baca-saja tanpa
+      // indentOnInput, bracket matching, autocompletion, atau highlight
+      // seleksi — semuanya berjalan per dokumen dan itulah yang membekukan
+      // editor pada JSON 5MB.
+      ...(readOnly
+        ? [EditorState.readOnly.of(true), EditorView.editable.of(false)]
+        : [
+            indentOnInput(),
+            bracketMatching(),
+            closeBrackets(),
+            autocompletion(),
+            highlightSelectionMatches(),
+          ]),
       rectangularSelection(),
       crosshairCursor(),
       highlightActiveLine(),
-      highlightSelectionMatches(),
       // foldGutter SENGAJA tidak dipakai (hemat RAM, sesuai fase 03).
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       zephyrHighlight,
@@ -166,13 +179,25 @@ export default function CodeMirrorEditor({ tab }: Props) {
   }, [tab.id]);
 
   // Konten diganti dari luar (mis. reload file / restore) -> sinkronkan doc.
+  // fase 15.1: perubahan dilakukan sebagai SATU transaksi biasa, bukan rebuild
+  // view — history CM6 tetap utuh, jadi Ctrl+Z setelah file berubah di disk
+  // mengembalikan isi sebelumnya alih-alih tidak melakukan apa pun.
+  // `annotations: Transaction.addToHistory` dibiarkan default (true) supaya
+  // langkah reload sendiri bisa di-undo.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
     if (current !== tab.content) {
+      const sel = view.state.selection.main;
       view.dispatch({
         changes: { from: 0, to: current.length, insert: tab.content },
+        // Kursor dijaga di posisi yang sama (di-clamp ke panjang baru) supaya
+        // user tidak terlempar ke awal file setiap kali disk berubah.
+        selection: {
+          anchor: Math.min(sel.anchor, tab.content.length),
+          head: Math.min(sel.head, tab.content.length),
+        },
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,7 +205,14 @@ export default function CodeMirrorEditor({ tab }: Props) {
 
   // Bahasa berubah (mis. setelah Save As) tanpa rebuild view.
   // Import parser dilakukan dinamis; abaikan hasil kalau view sudah mati.
+  // fase 15.1: file read-only besar TIDAK diberi parser — parse 5MB JSON
+  // lewat Lezer memakan detik dan puluhan MB tanpa manfaat untuk file yang
+  // hanya dibaca.
   useEffect(() => {
+    if (readOnly) {
+      viewRef.current?.dispatch({ effects: langComp.current.reconfigure([]) });
+      return;
+    }
     let alive = true;
     void loadLangExtension(tab.lang).then((ext) => {
       if (!alive) return;
@@ -191,7 +223,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
     return () => {
       alive = false;
     };
-  }, [tab.lang, tab.id]);
+  }, [tab.lang, tab.id, readOnly]);
 
   // Tema berganti -> tukar EditorView.theme lewat compartment (fase 13).
   // Warna sendiri datang dari CSS var, tapi flag `dark` CM6 harus ikut
@@ -228,6 +260,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
       className="zephyr-cm-host"
       data-cursor-style={editorSettings.cursorStyle}
       data-smooth={editorSettings.smoothScroll ? '1' : '0'}
+      data-readonly={readOnly ? '1' : '0'}
       style={{
         fontSize: `${general.fontSize}px`,
         fontFamily: general.fontFamily,

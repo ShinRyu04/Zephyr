@@ -25,6 +25,10 @@ const LS_KEY = 'zephyr.ai.sessions.v1';
 export const MAX_MSGS = 200;
 /** Batas isi file yang dilampirkan (12KB, prompt fase 09). */
 export const ATTACH_LIMIT = 12 * 1024;
+/** fase 15.5: batas panjang satu pesan user. Di atas ini pesan DIPOTONG
+ *  dengan catatan — provider akan menolak / memotong sendiri secara diam-diam,
+ *  dan itu lebih membingungkan daripada pemberitahuan jujur. */
+export const MSG_LIMIT = 8 * 1024;
 
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
@@ -265,11 +269,21 @@ export const useAi = create<AiStore>((set, get) => ({
   activeSession: () => get().sessions.find((s) => s.id === get().activeId) ?? null,
 
   send: async (text) => {
-    const content = (text ?? get().draft).trim();
-    if (!content) return;
+    const raw = (text ?? get().draft).trim();
+    if (!raw) return;
     if (get().pending) {
       set({ toast: 'Masih menunggu jawaban — batalkan dulu' });
       return;
+    }
+
+    // fase 15.5: pesan raksasa dipotong DI SINI dengan catatan yang terlihat,
+    // bukan dibiarkan ditolak provider dengan error 400 yang tidak jelas.
+    let content = raw;
+    if (raw.length > MSG_LIMIT) {
+      content =
+        `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
+        `dikirim ${MSG_LIMIT} karakter pertama]`;
+      set({ toast: `Pesan ${raw.length} karakter dipotong ke ${MSG_LIMIT}` });
     }
 
     // V2: tanpa API key jangan kirim apa pun, jangan crash.
@@ -437,7 +451,10 @@ export const useAi = create<AiStore>((set, get) => ({
     useTerminal.getState().setVisible(true);
     try {
       // '\r' = Enter di ConPTY. Perintah multi-baris dikirim baris per baris.
-      await cmd.ptyWrite(pane.id, `${command.replace(/\r?\n/g, '\r')}\r`);
+      // fase 15.2: lewat writeChunked supaya blok kode panjang tidak korup
+      // di ConPTY (sama seperti paste).
+      const { writeChunked } = await import('./terminalClipboard');
+      await writeChunked(pane.id, `${command.replace(/\r?\n/g, '\r')}\r`);
       set({ toast: 'Perintah dikirim ke terminal', confirmCmd: null });
       return true;
     } catch (e) {

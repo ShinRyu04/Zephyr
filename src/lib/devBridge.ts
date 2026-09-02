@@ -6,21 +6,22 @@
 // dibungkus `if (import.meta.env.DEV)` sehingga Rollup men-tree-shake-nya.
 
 import { undo, redo } from '@codemirror/commands';
+import { EditorView } from '@codemirror/view';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from './store';
 import { MAX_LOADED_TABS } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
-import { useAi, extractCommand, isDestructive, MAX_MSGS } from './aiStore';
+import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
 import { ALL_MODELS } from './modelCatalog';
 import { THEMES, systemPrefersDark } from './themes';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog } from './commands';
+import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
-import { copySelection, pasteInto } from './terminalClipboard';
+import { copySelection, pasteInto, writeChunked } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
 import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
@@ -346,6 +347,64 @@ export function installDevBridge(): void {
     crashVisible: () => !!document.querySelector('[data-testid="crash-dialog"]'),
     crashMessage: () =>
       document.querySelector('[data-testid="crash-message"]')?.textContent ?? null,
+  };
+
+  // ── fase 15: bugfix vol 1. Jalur yang dipakai verify15.mjs ──
+  w.__ZEPHYR_BUG__ = {
+    /** fs_read mentah — untuk melihat readOnly/note/bytes/encoding */
+    read: (path: string) => fsRead(path),
+    /** fs_write dengan opsi wasExisting/allowMissing (uji "file hilang") */
+    write: (
+      path: string,
+      content: string,
+      opts?: { wasExisting?: boolean; allowMissing?: boolean },
+    ) => fsWrite(path, content, undefined, undefined, opts),
+    /** ringkasan tab: read-only? note? encoding? existed? */
+    tabs: () =>
+      useStore.getState().tabs.map((t) => ({
+        id: t.id,
+        name: t.name,
+        path: t.path,
+        encoding: t.encoding,
+        readOnly: t.readOnly === true,
+        note: t.note ?? '',
+        bytes: t.bytes ?? 0,
+        unsaved: t.unsaved,
+        existed: t.existed === true,
+      })),
+    /** dialog simpan (file hilang / UTF-16) */
+    saveIssue: () => useStore.getState().saveIssue,
+    resolveSave: (choice: 'ok' | 'cancel') => useStore.getState().resolveSaveIssue(choice),
+    save: (id: string) => useStore.getState().saveTab(id),
+    /** editor read-only benar-benar menolak edit? */
+    cmEditable: () => {
+      const v = getActiveView();
+      return v ? { editable: v.state.facet(EditorView.editable), lines: v.state.doc.lines } : null;
+    },
+    /** paste ke terminal lewat jalur chunk 4KB (fase 15.2) */
+    writeChunked: (id: string, data: string) => writeChunked(id, data),
+    /** pane + exit code (fase 15.2) */
+    panes: () =>
+      useTerminal.getState().allPanes().map((p) => ({
+        id: p.id,
+        kind: p.kind,
+        status: p.status,
+        exitCode: p.exitCode ?? null,
+      })),
+    /** git: diff mentah (uji label binary) */
+    diffRaw: (path: string, staged = false) => gitDiff(path, staged),
+    /** commit mentah — bukti Rust menolak pesan kosong walau UI dilewati */
+    commitRaw: (msg: string) => gitCommit(msg),
+    branchRaw: (name: string) => gitCreateBranch(name),
+    /** batas AI (fase 15.5) */
+    aiLimits: () => ({ msg: MSG_LIMIT, attach: ATTACH_LIMIT, maxMsgs: MAX_MSGS }),
+    /** layout sempit aktif? (fase 15.6) */
+    narrow: () => document.body.classList.contains('is-narrow'),
+    /** teks RAM di status bar — bukti tidak NaN (fase 15.6) */
+    ramText: () =>
+      document.querySelector('[data-testid="sb-ram"]')?.textContent?.trim() ?? null,
+    /** jumlah baris palette yang BENAR-BENAR dirender (virtual scroll) */
+    cpRendered: () => document.querySelectorAll('[data-testid="cp-row"]').length,
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.
