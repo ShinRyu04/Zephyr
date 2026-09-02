@@ -39,6 +39,9 @@ pub struct AppState {
     /// Serialisasi method MCP: dua agent CLI yang mengemudi sekaligus
     /// diproses satu per satu (V11 fase 11), bukan saling menimpa.
     mcp_lock: tokio::sync::Mutex<()>,
+    /// Isi file `main` ekstensi yang sudah dimuat (fase 13), key = id.
+    /// Disimpan TAPI TIDAK dieksekusi — lihat catatan di extensions.rs.
+    ext_code: Mutex<HashMap<String, String>>,
 }
 
 /// Server MCP yang hidup: port yang benar-benar terikat + kanal shutdown.
@@ -72,7 +75,26 @@ impl AppState {
             mcp_rt: Mutex::new(None),
             mcp_pending: Mutex::new(HashMap::new()),
             mcp_lock: tokio::sync::Mutex::new(()),
+            ext_code: Mutex::new(HashMap::new()),
         }
+    }
+
+    // ── ekstensi (fase 13) ──
+
+    /// Simpan isi file entry ekstensi (validasi ukuran di extensions.rs).
+    pub fn ext_store_code(&self, id: &str, code: String) {
+        if let Ok(mut m) = self.ext_code.lock() {
+            m.insert(id.to_string(), code);
+        }
+    }
+
+    /// Jumlah byte kode yang tersimpan untuk satu ekstensi (0 = belum dimuat).
+    #[allow(dead_code)]
+    pub fn ext_code_len(&self, id: &str) -> usize {
+        self.ext_code
+            .lock()
+            .map(|m| m.get(id).map(|c| c.len()).unwrap_or(0))
+            .unwrap_or(0)
     }
 
     // ── server MCP (fase 11) ──

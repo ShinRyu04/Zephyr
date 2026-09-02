@@ -1,0 +1,179 @@
+/* themes-extra.css — tema komunitas (fase 13 memisahkannya dari theme.css).
+   nord · tokyo-night · gruvbox-dark · one-dark
+   Setiap blok WAJIB memuat set token yang sama dengan :root di theme.css. */
+
+/* ── Nord (arctic, biru dingin) ── */
+[data-theme='nord'] {
+  --bg: #2e3440;
+  --surface: #3b4252;
+  --surface-2: #434c5e;
+  --surface-3: #4c566a;
+  --border: #4c566a;
+  --border-strong: #616e88;
+
+  --text: #eceff4;
+  --text-secondary: #d8dee9;
+  --text-muted: #8c98ab;
+  --text-inverse: #2e3440;
+
+  --accent: #88c0d0;
+  --accent-hover: #8fbcbb;
+  --accent-subtle: rgba(136, 192, 208, 0.18);
+  --danger: #bf616a;
+  --warning: #ebcb8b;
+  --success: #a3be8c;
+  --modified: #ebcb8b;
+  --added: #a3be8c;
+  --deleted: #bf616a;
+
+  --editor-bg: #2e3440;
+  --editor-gutter: #6b7689;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(136, 192, 208, 0.28);
+  --editor-cursor: #d8dee9;
+  --editor-match: rgba(235, 203, 139, 0.32);
+
+  --syn-keyword: #81a1c1;
+  --syn-string: #a3be8c;
+  --syn-number: #b48ead;
+  --syn-comment: #7b88a1;
+  --syn-function: #88c0d0;
+  --syn-variable: #d8dee9;
+  --syn-type: #8fbcbb;
+  --syn-operator: #81a1c1;
+  --syn-tag: #8fbcbb;
+  --syn-attr: #8fbcbb;
+  --syn-invalid: #bf616a;
+}
+
+/* ── Tokyo Night ── */
+[data-theme='tokyo-night'] {
+  --bg: #1a1b26;
+  --surface: #1f2335;
+  --surface-2: #24283b;
+  --surface-3: #2f334d;
+  --border: #343b58;
+  --border-strong: #414868;
+
+  --text: #c0caf5;
+  --text-secondary: #9aa5ce;
+  --text-muted: #6b7394;
+  --text-inverse: #1a1b26;
+
+  --accent: #7aa2f7;
+  --accent-hover: #8fb3f8;
+  --accent-subtle: rgba(122, 162, 247, 0.18);
+  --danger: #f7768e;
+  --warning: #e0af68;
+  --success: #9ece6a;
+  --modified: #e0af68;
+  --added: #9ece6a;
+  --deleted: #f7768e;
+
+  --editor-bg: #1a1b26;
+  --editor-gutter: #565f89;
+  --editor-active-line: rgba(255, 255, 255, 0.035);
+  --editor-selection: rgba(122, 162, 247, 0.26);
+  --editor-cursor: #c0caf5;
+  --editor-match: rgba(224, 175, 104, 0.3);
+
+  --syn-keyword: #bb9af7;
+  --syn-string: #9ece6a;
+  --syn-number: #ff9e64;
+  --syn-comment: #565f89;
+  --syn-function: #7aa2f7;
+  --syn-variable: #c0caf5;
+  --syn-type: #2ac3de;
+  --syn-operator: #89ddff;
+  --syn-tag: #f7768e;
+  --syn-attr: #e0af68;
+  --syn-invalid: #f7768e;
+}
+
+/* ── Gruvbox Dark (hangat, retro) ── */
+[data-theme='gruvbox-dark'] {
+  --bg: #282828;
+  --surface: #32302f;
+  --surface-2: #3c3836;
+  --surface-3: #504945;
+  --border: #504945;
+  --border-strong: #665c54;
+
+  --text: #ebdbb2;
+  --text-secondary: #d5c4a1;
+  --text-muted: #a89984;
+  --text-inverse: #282828;
+
+  --accent: #fabd2f;
+  --accent-hover: #ffd75f;
+  --accent-subtle: rgba(250, 189, 47, 0.16);
+  --danger: #fb4934;
+  --warning: #fe8019;
+  --success: #b8bb26;
+  --modified: #fe8019;
+  --added: #b8bb26;
+  --deleted: #fb4934;
+
+  --editor-bg: #282828;
+  --editor-gutter: #7c6f64;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(250, 189, 47, 0.24);
+  --editor-cursor: #ebdbb2;
+  --editor-match: rgba(254, 128, 25, 0.3);
+
+  --syn-keyword: #fb4934;
+  --syn-string: #b8bb26;
+  --syn-number: #d3869b;
+  --syn-comment: #928374;
+  --syn-function: #8ec07c;
+  --syn-variable: #83a598;
+  --syn-type: #fabd2f;
+  --syn-operator: #fe8019;
+  --syn-tag: #8ec07c;
+  --syn-attr: #fabd2f;
+  --syn-invalid: #fb4934;
+}
+
+/* ── One Dark Pro ── */
+[data-theme='one-dark'] {
+  --bg: #282c34;
+  --surface: #21252b;
+  --surface-2: #2c313a;
+  --surface-3: #3a3f4b;
+  --border: #3e4451;
+  --border-strong: #4b5263;
+
+  --text: #abb2bf;
+  --text-secondary: #9099a8;
+  --text-muted: #6b7280;
+  --text-inverse: #282c34;
+
+  --accent: #61afef;
+  --accent-hover: #7cbcf2;
+  --accent-subtle: rgba(97, 175, 239, 0.16);
+  --danger: #e06c75;
+  --warning: #e5c07b;
+  --success: #98c379;
+  --modified: #e5c07b;
+  --added: #98c379;
+  --deleted: #e06c75;
+
+  --editor-bg: #282c34;
+  --editor-gutter: #636d83;
+  --editor-active-line: rgba(255, 255, 255, 0.035);
+  --editor-selection: rgba(97, 175, 239, 0.24);
+  --editor-cursor: #528bff;
+  --editor-match: rgba(229, 192, 123, 0.3);
+
+  --syn-keyword: #c678dd;
+  --syn-string: #98c379;
+  --syn-number: #d19a66;
+  --syn-comment: #5c6370;
+  --syn-function: #61afef;
+  --syn-variable: #e06c75;
+  --syn-type: #e5c07b;
+  --syn-operator: #56b6c2;
+  --syn-tag: #e06c75;
+  --syn-attr: #d19a66;
+  --syn-invalid: #e06c75;
+}

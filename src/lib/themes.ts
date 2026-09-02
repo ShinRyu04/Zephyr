@@ -30,6 +30,19 @@ export function systemPrefersDark(): boolean {
 }
 
 /**
+ * Pantau perubahan tema Windows (V2 fase 13). Dipanggil sekali dari App.tsx;
+ * callback hanya dipicu saat mode efektif = 'system', supaya user yang
+ * memilih tema spesifik tidak ikut tertimpa OS.
+ */
+export function watchSystemTheme(onChange: (dark: boolean) => void): () => void {
+  const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+  if (!mq) return () => {};
+  const handler = (e: MediaQueryListEvent) => onChange(e.matches);
+  mq.addEventListener('change', handler);
+  return () => mq.removeEventListener('change', handler);
+}
+
+/**
  * Tema efektif dari settings.
  * `general.theme` (dark/light/system) menentukan MODE, `theme.current`
  * menentukan tema spesifik. Kalau keduanya bertentangan (mis. mode light

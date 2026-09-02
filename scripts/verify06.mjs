@@ -135,27 +135,35 @@ const main = async () => {
   }
 
   // Bersihkan state terminal & editor.
+  // `setVisible(true)` WAJIB: harness lain (fase 13) menutup panel bawah, dan
+  // placeholder pane hanya ada di DOM saat panel terlihat.
   await cdp.runAsync(`
     for (const x of t.terminalTabs.slice()) await T.getState().closeTab(x.id);
     s.tabs.slice().forEach((tab) => s.forceCloseTab(tab.id));
+    s.setSettingsOpen(false);
     window.__ZEPHYR_ERRORS__.length = 0;
+    T.getState().setVisible(true);
+    T.getState().setDock('terminal');
     T.getState().setHeight(520);
     return 'reset';
   `);
-  await sleep(600);
+  await sleep(900);
 
   // ───────── V1: placeholder tab kosong ─────────
+  // Fase 12 menambah tombol besar "Split With Browser" DI LUAR
+  // `.pane-empty-actions` (blok tersendiri), jadi hitungannya 3 + 1.
   const v1 = JSON.parse(
     await cdp.eval(`JSON.stringify({
       placeholder: !!document.querySelector('[data-testid="pane-empty"]'),
       tombol: [...document.querySelectorAll('.pane-empty-actions button')].map(b => b.textContent.trim()),
+      splitBrowser: !!document.querySelector('[data-testid="empty-split-browser"]'),
       sub: document.querySelector('.pane-empty-sub')?.textContent ?? '',
     })`),
   );
   check(
     'V1',
-    v1.placeholder && v1.tombol.length === 4 && /6 panes/.test(v1.sub),
-    `placeholder tampil dengan tombol [${v1.tombol.join(', ')}] dan keterangan "${v1.sub}"`,
+    v1.placeholder && v1.tombol.length === 3 && v1.splitBrowser && /6 panes/.test(v1.sub),
+    `placeholder tampil dengan tombol [${v1.tombol.join(', ')}] + tombol besar "Split With Browser" dan keterangan "${v1.sub}"`,
   );
 
   // ───────── V2: Shell + Private lewat klik DOM ─────────

@@ -347,6 +347,45 @@ export interface CliStatus {
   registered: boolean;
 }
 
+// ── extensions (fase 13) ──
+
+/** Satu command yang dikontribusikan manifest ekstensi. */
+export interface ExtCommand {
+  /** selalu di-prefix `ext.<extId>.` supaya tidak menimpa command inti */
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface ExtensionInfo {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  enabled: boolean;
+  path: string;
+  /** true = ekstensi bawaan (internal, tidak bisa dilepas) */
+  builtin: boolean;
+  main: string;
+  /** ukuran file main; -1 = tidak ada */
+  mainBytes: number;
+  commands: ExtCommand[];
+  /** alasan ekstensi tidak bisa dipakai (manifest rusak / >1MB) */
+  error: string | null;
+}
+
+/** Hasil `extensions_load`. `executed` SELALU false di v1 (manifest-only). */
+export interface ExtensionLoad {
+  id: string;
+  name: string;
+  version: string;
+  main: string;
+  mainBytes: number;
+  commands: ExtCommand[];
+  manifest: Record<string, unknown>;
+  executed: boolean;
+}
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;

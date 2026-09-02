@@ -24,3 +24,10 @@ testfiles/ws-b/
 
 # halaman uji browser pane (verify06 menyalakan server-nya sendiri)
 testfiles/browser-pane/
+
+# dokumen kerja internal — TIDAK ikut repo/GitHub (keputusan user)
+# tetap ada di disk sebagai panduan lokal, tapi jangan pernah di-commit lagi
+AGENTS.md
+ARCHITECTURE.md
+Zephyr PRD.md
+Zephyr Build Prompt.txt

@@ -20,12 +20,17 @@ import { useAi } from './lib/aiStore';
 import { useGit } from './lib/gitStore';
 import { useMcp } from './lib/mcpStore';
 import { usePalette } from './lib/paletteStore';
+import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
+import { applyTheme, watchSystemTheme } from './lib/themes';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { flushTab } from './lib/editorRegistry';
 import { onAiChunk, onFsChanged, onGhLogin, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
-import { writeTo, disposeHandle } from './lib/xtermRegistry';
+import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
+import './styles/theme-light.css';
+import './styles/themes-extra.css';
+import './styles/tokens.css';
 import './styles/settings.css';
 import './styles/ai.css';
 import './styles/scm.css';
@@ -418,6 +423,31 @@ export default function App() {
     void onMcpConnect(({ client }) => {
       useMcp.getState().pushLog(`MCP connected: ${client}`, 'connect');
     });
+  }, []);
+
+  // 9d) Ekstensi + tema (fase 13).
+  //     - daftar ekstensi dimuat sekali supaya command manifest siap di palette
+  //     - `commandPalette.open` dari MCP sampai ke sini lewat event window
+  //       (mcpStore tidak boleh import paletteStore — lingkaran import)
+  //     - tema Windows dipantau: hanya berlaku saat mode = 'system'
+  useEffect(() => {
+    void useExtensions.getState().refresh();
+
+    const openPalette = () => void usePalette.getState().openPalette('command');
+    window.addEventListener('zephyr-palette-open', openPalette);
+
+    const stopWatch = watchSystemTheme(() => {
+      const s = useStore.getState();
+      if (s.settings.general.theme !== 'system') return;
+      // applyTheme membaca ulang preferensi OS; cukup panggil lagi.
+      useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
+      retheme();
+    });
+
+    return () => {
+      window.removeEventListener('zephyr-palette-open', openPalette);
+      stopWatch();
+    };
   }, []);
 
   return (

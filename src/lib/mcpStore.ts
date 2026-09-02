@@ -17,6 +17,7 @@ import { useTerminal } from './terminalStore';
 import { useAi } from './aiStore';
 import { useGit } from './gitStore';
 import { useSettingsUi } from './settingsStore';
+import { useExtensions } from './extensionStore';
 import { flushTab } from './editorRegistry';
 import { readBuffer } from './xtermRegistry';
 import type { CliStatus, CliWriteResult, McpAction, McpStatus, PaneKind } from './types';
@@ -288,15 +289,7 @@ function describe(type: string, payload?: Record<string, unknown>): string {
 
 const str = (p: Record<string, unknown>, k: string): string => String(p[k] ?? '');
 
-/** Ekstensi bawaan — cermin dari BUILTIN_EXTENSIONS di SectionsMisc.tsx. */
-const BUILTIN_EXT = [
-  'lang-web',
-  'lang-python',
-  'lang-rust',
-  'lang-markdown',
-  'git-decor',
-  'bracket-pair',
-];
+/** Ekstensi (fase 13): daftar nyata dari Rust lewat extensionStore. */
 
 /**
  * Pelaksana satu permintaan MCP di sisi UI. Melempar Error = jawaban error
@@ -367,12 +360,16 @@ async function runAction(type: string, p: Record<string, unknown>): Promise<unkn
     }
 
     case 'list_extensions': {
-      const enabled = s().settings.extensions.enabled;
-      return BUILTIN_EXT.map((id) => ({
-        id,
-        enabled: enabled.length === 0 || enabled.includes(id),
-        version: s().appInfo?.version ?? '0.5.0',
-        builtin: true,
+      // fase 13: daftar nyata dari Rust (bawaan + folder), bukan konstanta.
+      const ex = useExtensions.getState();
+      if (ex.list.length === 0) await ex.refresh();
+      return useExtensions.getState().list.map((e) => ({
+        id: e.id,
+        name: e.name,
+        enabled: e.enabled,
+        version: e.version,
+        builtin: e.builtin,
+        commands: e.commands.map((c) => c.id),
       }));
     }
 
@@ -471,16 +468,11 @@ async function runEditorCommand(id: string): Promise<unknown> {
 
   switch (id) {
     case 'commandPalette.open':
-      // Palette penuh = fase 12. Sampai itu ada, jangan mengaku sukses:
-      // buka Search di sidebar sebagai jalur terdekat dan katakan apa adanya.
-      s.setSettingsOpen(false);
-      s.setActivity('search');
-      if (!s.sidebarVisible) s.toggleSidebar();
-      return {
-        ok: true,
-        id,
-        note: 'Command Palette penuh dibuat di fase 12; sekarang membuka panel Search',
-      };
+      // Palette penuh ada sejak fase 12, tapi mcpStore TIDAK boleh import
+      // paletteStore: paletteStore → commandRegistry → mcpStore = lingkaran.
+      // Jalur yang dipakai: event window, ditangkap App.tsx.
+      window.dispatchEvent(new Event('zephyr-palette-open'));
+      return { ok: true, id };
 
     case 'terminal.new': {
       const paneId = await t.addPane('shell');

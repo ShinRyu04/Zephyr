@@ -244,16 +244,9 @@
   color: var(--success);
 }
 
-.tt-btn-browser {
-  width: auto;
-  gap: 5px;
-  padding: 0 8px;
-}
-
-.tt-btn-label {
-  font-size: 11px;
-  white-space: nowrap;
-}
+/* Tombol Split With Browser di toolbar = IKON SAJA (seperti tombol lain).
+   Label teksnya pernah ada di sini dan menutupi tombol "+ Agent" di
+   sebelahnya — toolbar terminal sempit, jadi teks tidak boleh ikut. */
 
 .bp-stage {
   position: relative;
