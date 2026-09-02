@@ -8,6 +8,7 @@ import * as cmd from './commands';
 import { detectLang } from './lang';
 import { revealPosition } from './editorRegistry';
 import { applyTheme } from './themes';
+import { retheme } from './xtermRegistry';
 import {
   DEFAULT_SETTINGS,
   type ActivityId,
@@ -56,6 +57,11 @@ interface StoreState {
   appInfo: AppInfo | null;
   /** halaman Settings sedang dibuka di area utama (fase 08). */
   settingsOpen: boolean;
+  /** id tema yang BENAR-BENAR terpasang di <html> (fase 13).
+   *  Dipisah dari settings.theme.current karena mode 'system' + pill
+   *  terang/gelap bisa membuat keduanya berbeda; komponen yang butuh warna
+   *  (CodeMirror, xterm) harus ikut yang ini. */
+  activeTheme: string;
 }
 
 interface StoreActions {
@@ -149,6 +155,7 @@ export const useStore = create<Store>((set, get) => ({
   settingsLoaded: false,
   appInfo: null,
   settingsOpen: false,
+  activeTheme: 'zephyr-dark',
 
   // ── shell ──
   setActivity: (a) => set({ activity: a }),
@@ -169,7 +176,8 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const s = await cmd.getSettings();
       set({ settings: s, settingsLoaded: true });
-      applyTheme(s.general, s.theme);
+      set({ activeTheme: applyTheme(s.general, s.theme) });
+      retheme(); // terminal hidup ikut tema (V3 fase 13)
     } catch (e) {
       set({ settingsLoaded: true, statusMessage: cmd.asZephyrError(e).message });
     }
@@ -538,7 +546,8 @@ export const useStore = create<Store>((set, get) => ({
       const s = await cmd.getSettings();
       set({ settings: s });
       // Tema/zoom harus langsung terlihat tanpa restart (V2/V3 fase 08).
-      applyTheme(s.general, s.theme);
+      set({ activeTheme: applyTheme(s.general, s.theme) });
+      retheme(); // terminal hidup ikut tema (V3 fase 13)
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
@@ -548,7 +557,8 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const s = await cmd.getSettings();
       set({ settings: s });
-      applyTheme(s.general, s.theme);
+      set({ activeTheme: applyTheme(s.general, s.theme) });
+      retheme(); // terminal hidup ikut tema (V3 fase 13)
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }

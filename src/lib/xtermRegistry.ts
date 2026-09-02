@@ -19,26 +19,45 @@ export interface TermHandle {
 
 const handles = new Map<string, TermHandle>();
 
-/** Ambil token warna dari theme.css supaya terminal ikut tema Zephyr. */
+/** Ambil token warna dari theme.css supaya terminal ikut tema Zephyr.
+ *  16 warna ANSI datang dari `--terminal-ansi-0..15` (tokens.css, fase 13) —
+ *  jangan kembali ke hex hardcoded: tema terang butuh ANSI-0 gelap. */
 function themeFromCss(): Record<string, string> {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
+  const ansi = (n: number, fallback: string) => v(`--terminal-ansi-${n}`, fallback);
   return {
-    background: v('--editor-bg', '#1e1e1e'),
-    foreground: v('--text', '#d4d4d4'),
+    background: v('--terminal-bg', v('--editor-bg', '#0d1117')),
+    foreground: v('--terminal-fg', v('--text', '#e6edf3')),
     cursor: v('--editor-cursor', '#aeafad'),
-    cursorAccent: v('--bg', '#1e1e1e'),
-    selectionBackground: v('--editor-selection', 'rgba(56,132,255,0.3)'),
-    black: '#1e1e1e',
-    red: v('--syn-keyword', '#f85149'),
-    green: v('--success', '#3fb950'),
-    yellow: v('--warning', '#d29922'),
-    blue: v('--accent', '#3884ff'),
-    magenta: v('--syn-function', '#d2a8ff'),
-    cyan: v('--syn-number', '#79c0ff'),
-    white: v('--text', '#d4d4d4'),
-    brightBlack: v('--text-muted', '#6e7681'),
+    cursorAccent: v('--bg', '#0d1117'),
+    selectionBackground: v('--selection-bg', 'rgba(56,132,255,0.3)'),
+    black: ansi(0, '#1c2128'),
+    red: ansi(1, '#f85149'),
+    green: ansi(2, '#3fb950'),
+    yellow: ansi(3, '#d29922'),
+    blue: ansi(4, '#3884ff'),
+    magenta: ansi(5, '#d2a8ff'),
+    cyan: ansi(6, '#79c0ff'),
+    white: ansi(7, '#8b949e'),
+    brightBlack: ansi(8, '#6e7681'),
+    brightRed: ansi(9, '#ff7b72'),
+    brightGreen: ansi(10, '#7ee787'),
+    brightYellow: ansi(11, '#e3b341'),
+    brightBlue: ansi(12, '#4c93ff'),
+    brightMagenta: ansi(13, '#ffa657'),
+    brightCyan: ansi(14, '#a5d6ff'),
+    brightWhite: ansi(15, '#e6edf3'),
   };
+}
+
+/** Terapkan tema aktif ke SEMUA terminal hidup (fase 13 V3).
+ *  Dipanggil dari store setelah `applyTheme()`; token CSS sudah berganti
+ *  saat ini, jadi cukup baca ulang. */
+export function retheme(): number {
+  const theme = themeFromCss();
+  for (const h of handles.values()) h.term.options.theme = theme;
+  return handles.size;
 }
 
 export function getHandle(id: string): TermHandle | undefined {
@@ -179,6 +198,12 @@ export function selectLine(id: string, row: number): boolean {
 export function termSize(id: string): { cols: number; rows: number } | null {
   const h = handles.get(id);
   return h ? { cols: h.term.cols, rows: h.term.rows } : null;
+}
+
+/** Warna xterm yang SEDANG dipakai satu pane (bukti tema terminal, fase 13). */
+export function termOptionsTheme(id: string): Record<string, string> | null {
+  const h = handles.get(id);
+  return h ? ({ ...(h.term.options.theme ?? {}) } as Record<string, string>) : null;
 }
 
 export function activeIds(): string[] {

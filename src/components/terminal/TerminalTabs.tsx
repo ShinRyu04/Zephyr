@@ -302,7 +302,7 @@ export default function TerminalTabs() {
         </button>
 
         <button
-          className="tt-btn tt-btn-browser"
+          className="tt-btn"
           title="Split With Browser — tambah pane preview di samping shell"
           aria-label="Split With Browser"
           data-testid="term-browser"
@@ -314,7 +314,6 @@ export default function TerminalTabs() {
           }}
         >
           <ActionIcon name="browser" />
-          <span className="tt-btn-label">Split With Browser</span>
         </button>
 
         <div className="tt-picker-wrap">

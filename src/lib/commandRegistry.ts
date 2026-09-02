@@ -16,9 +16,19 @@ import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
 import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
+import { useExtensions } from './extensionStore';
+import { THEMES } from './themes';
 import { flushTab } from './editorRegistry';
 
-export type CmdGroup = 'File' | 'View' | 'Terminal' | 'Git' | 'AI' | 'MCP' | 'Settings';
+export type CmdGroup =
+  | 'File'
+  | 'View'
+  | 'Terminal'
+  | 'Git'
+  | 'AI'
+  | 'MCP'
+  | 'Settings'
+  | 'Extensions';
 
 export interface CommandDef {
   id: string;
@@ -440,6 +450,62 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'ekstensi',
     run: () => openSettingsSection('extensions'),
   },
+  // ── Extensions & tema (fase 13) ──
+  {
+    id: 'theme.next',
+    title: 'Preferences: Color Theme (siklus berikutnya)',
+    group: 'Settings',
+    keywords: 'tema ganti dark light nord tokyo gruvbox',
+    run: async () => {
+      const s = S();
+      const cur = s.settings.theme.current;
+      const i = THEMES.findIndex((t) => t.id === cur);
+      const next = THEMES[(i + 1 + THEMES.length) % THEMES.length];
+      await s.applySettings({
+        theme: { current: next.id },
+        general: { theme: next.kind === 'light' ? 'light' : 'dark' },
+      });
+      s.setStatus(`Tema: ${next.label}`);
+    },
+  },
+  {
+    id: 'theme.toggleDarkLight',
+    title: 'Preferences: Toggle Dark/Light',
+    group: 'Settings',
+    keywords: 'terang gelap mode',
+    run: async () => {
+      const s = S();
+      const toLight = s.settings.general.theme !== 'light';
+      await s.applySettings({
+        general: { theme: toLight ? 'light' : 'dark' },
+        theme: { current: toLight ? 'zephyr-light' : 'zephyr-dark' },
+      });
+    },
+  },
+  {
+    id: 'extensions.marketplace',
+    title: 'Extensions: Open Marketplace',
+    group: 'Extensions',
+    keywords: 'marketplace toko pasang install',
+    run: () => {
+      openSettingsSection('extensions');
+      useExtensions.getState().setMarketOpen(true);
+    },
+  },
+  {
+    id: 'extensions.openFolder',
+    title: 'Extensions: Open Extensions Folder',
+    group: 'Extensions',
+    keywords: 'folder ekstensi appdata',
+    run: () => useExtensions.getState().openFolder(),
+  },
+  {
+    id: 'extensions.refresh',
+    title: 'Extensions: Reload List',
+    group: 'Extensions',
+    keywords: 'muat ulang scan',
+    run: () => useExtensions.getState().refresh(),
+  },
   {
     id: 'explorer.revealActive',
     title: 'Explorer: Reveal Active File',
@@ -455,7 +521,36 @@ export const COMMANDS: CommandDef[] = [
 
 export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
 
+/**
+ * Command dari manifest ekstensi AKTIF (fase 13).
+ *
+ * v1 manifest-only: kode ekstensi tidak dieksekusi, jadi `run()` di sini
+ * jujur — ia melaporkan asal command lewat status bar, bukan berpura-pura
+ * menjalankan logika yang tidak ada. Yang dibuktikan V6: entri manifest
+ * benar-benar sampai ke palette dan bisa dipanggil.
+ */
+export function extensionCommands(): CommandDef[] {
+  return useExtensions.getState().commands().map((c) => ({
+    id: c.id,
+    title: c.title,
+    group: 'Extensions' as CmdGroup,
+    keywords: `${c.extId} ${c.extName} ${c.description} ekstensi`,
+    run: () => {
+      S().setStatus(`${c.title} — dari ekstensi ${c.extName} (manifest v1)`);
+      useExtensions.setState({
+        extInfo: `Command "${c.title}" dijalankan dari ekstensi ${c.extName}`,
+      });
+    },
+  }));
+}
+
 /** Command yang boleh tampil sekarang (mis. butuh workspace/tab aktif). */
 export function availableCommands(): CommandDef[] {
-  return COMMANDS.filter((c) => (c.enabled ? c.enabled() : true));
+  const core = COMMANDS.filter((c) => (c.enabled ? c.enabled() : true));
+  return [...core, ...extensionCommands()];
+}
+
+/** Cari satu command (inti ATAU dari ekstensi) berdasarkan id. */
+export function findCommand(id: string): CommandDef | undefined {
+  return COMMAND_BY_ID.get(id) ?? extensionCommands().find((c) => c.id === id);
 }

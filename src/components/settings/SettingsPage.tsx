@@ -8,7 +8,8 @@ import { useEffect } from 'react';
 import { useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
 import { AgentsSection, ModelsSection, ShortcutsSection } from './SectionsAdvanced';
-import { AboutSection, ExtensionsSection, ScmSection, SshSection } from './SectionsMisc';
+import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
+import { ExtensionsSection } from './SectionsExtensions';
 import McpPanel from './McpPanel';
 
 function SectionBody({ id }: { id: SectionId }) {

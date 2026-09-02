@@ -10,57 +10,6 @@ import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
 
-/** Ekstensi bawaan yang bisa dimatikan. Loader ekstensi eksternal = fase 19. */
-const BUILTIN_EXTENSIONS = [
-  { id: 'lang-web', label: 'Bahasa Web', desc: 'HTML, CSS, JS/TS, JSON' },
-  { id: 'lang-python', label: 'Python', desc: 'highlight + indentasi' },
-  { id: 'lang-rust', label: 'Rust', desc: 'highlight' },
-  { id: 'lang-markdown', label: 'Markdown', desc: 'highlight + preview (fase 15)' },
-  { id: 'git-decor', label: 'Dekorasi Git', desc: 'warna status file di Explorer (fase 10)' },
-  { id: 'bracket-pair', label: 'Bracket Pair', desc: 'pasangan tanda kurung berwarna' },
-];
-
-export function ExtensionsSection() {
-  const t = useT();
-  const ext = useStore((s) => s.settings.extensions);
-  const apply = useStore((s) => s.applySettings);
-
-  // Daftar `enabled` kosong = semua bawaan aktif (default paling ramah).
-  const isOn = (id: string) => ext.enabled.length === 0 || ext.enabled.includes(id);
-
-  const toggle = (id: string, on: boolean) => {
-    const base = ext.enabled.length === 0 ? BUILTIN_EXTENSIONS.map((e) => e.id) : ext.enabled;
-    const next = on ? [...new Set([...base, id])] : base.filter((x) => x !== id);
-    void apply({ extensions: { enabled: next } });
-  };
-
-  return (
-    <Section title={t('settings.extensions')}>
-      <p className="set-note">
-        Ini ekstensi bawaan yang sudah ada di dalam Zephyr. Pemasangan ekstensi
-        dari luar (marketplace/file) belum ada — itu bagian fase 19, jadi di sini
-        hanya bisa dimatikan/dihidupkan.
-      </p>
-      <div className="ext-list" data-testid="ext-list">
-        {BUILTIN_EXTENSIONS.map((e) => (
-          <div key={e.id} className="ext-card" data-ext={e.id}>
-            <div className="ext-info">
-              <span className="ext-name">{e.label}</span>
-              <span className="ext-desc">{e.desc}</span>
-            </div>
-            <Toggle
-              label={e.label}
-              testid={`ext-${e.id}`}
-              checked={isOn(e.id)}
-              onChange={(v) => toggle(e.id, v)}
-            />
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
 export function ScmSection() {
   const t = useT();
   const git = useStore((s) => s.settings.git);
