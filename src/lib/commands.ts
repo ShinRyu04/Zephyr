@@ -6,9 +6,20 @@ import type {
   AgentInfo,
   AiMessage,
   AppInfo,
+  CliStatus,
+  CliWriteResult,
+  DeviceLogin,
   DirNode,
   Encoding,
+  GhStatus,
+  GhTestResult,
+  GhUser,
+  GitBranches,
+  GitCommitInfo,
+  GitStatusResult,
+  GitUser,
   LineEnding,
+  McpStatus,
   PtyInfo,
   PublicModel,
   ModelTestResult,
@@ -151,3 +162,50 @@ export const aiChat = (opts: {
 
 /** Batalkan streaming. false = id sudah tidak berjalan. */
 export const aiCancel = (id: string) => invoke<boolean>('ai_cancel', { id });
+
+// ── Source Control / git (fase 10) ──
+
+export const gitInit = (path?: string) => invoke<void>('git_init', { path });
+export const gitStatus = () => invoke<GitStatusResult>('git_status');
+export const gitStage = (paths: string[]) => invoke<void>('git_stage', { paths });
+export const gitUnstage = (paths: string[]) => invoke<void>('git_unstage', { paths });
+/** → hash pendek commit baru */
+export const gitCommit = (message: string) => invoke<string>('git_commit', { message });
+export const gitPush = (setUpstream = false) =>
+  invoke<string>('git_push', { setUpstream });
+export const gitPull = (rebase = false) => invoke<string>('git_pull', { rebase });
+export const gitFetch = () => invoke<string>('git_fetch');
+export const gitBranches = () => invoke<GitBranches>('git_branches');
+export const gitCheckout = (branch: string) => invoke<void>('git_checkout', { branch });
+export const gitCreateBranch = (name: string, from?: string) =>
+  invoke<void>('git_create_branch', { name, from });
+export const gitDeleteBranch = (name: string) => invoke<void>('git_delete_branch', { name });
+export const gitDiff = (path: string, staged = false) =>
+  invoke<string>('git_diff', { path, staged });
+export const gitDiscard = (paths: string[]) => invoke<void>('git_discard', { paths });
+export const gitLog = (n = 20) => invoke<GitCommitInfo[]>('git_log', { n });
+export const gitConfigGetUser = () => invoke<GitUser>('git_config_get_user');
+
+// ── GitHub auth (fase 10). Token TIDAK pernah menyeberang ke frontend. ──
+
+export const ghStatus = () => invoke<GhStatus>('gh_status');
+/** Simpan PAT setelah divalidasi Rust ke GitHub. Token salah → error. */
+export const ghSetPat = (token: string) => invoke<GhUser>('gh_set_pat', { token });
+/** Mulai device flow; hasil akhir datang lewat event `gh-login`. */
+export const ghLoginDevice = () => invoke<DeviceLogin>('gh_login_device');
+export const ghLogout = () => invoke<void>('gh_logout');
+export const ghTest = () => invoke<GhTestResult>('gh_test');
+
+// ── MCP server 9222 (fase 11) ──
+
+export const mcpStatus = () => invoke<McpStatus>('mcp_status');
+/** Nyalakan server; → port yang benar-benar dipakai (9222 atau 9223). */
+export const mcpStart = () => invoke<number>('mcp_start');
+export const mcpStop = () => invoke<boolean>('mcp_stop');
+/** Jawaban frontend untuk satu `mcp-action`. */
+export const mcpReply = (reqId: string, result: unknown) =>
+  invoke<boolean>('mcp_reply', { reqId, result });
+export const mcpRotateToken = () => invoke<string>('mcp_rotate_token');
+export const mcpWriteCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_write_cli', { ids });
+export const mcpRemoveCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_remove_cli', { ids });
+export const mcpCliStatus = () => invoke<CliStatus[]>('mcp_cli_status');

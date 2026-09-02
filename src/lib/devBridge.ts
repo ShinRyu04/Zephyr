@@ -21,6 +21,8 @@ import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPau
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize } from './xtermRegistry';
 import { copySelection, pasteInto } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
+import { useGit } from './gitStore';
+import { useMcp } from './mcpStore';
 
 type CmdName = 'undo' | 'redo';
 
@@ -115,6 +117,79 @@ export function installDevBridge(): void {
     /** simpanan localStorage mentah (bukti V9 restore) */
     persisted: () => localStorage.getItem('zephyr.ai.sessions.v1'),
     maxMsgs: MAX_MSGS,
+  };
+  // Source Control (fase 10): store git + jalur command untuk harness.
+  w.__ZEPHYR_GIT__ = {
+    store: useGit,
+    status: () => useGit.getState().status,
+    refresh: () => useGit.getState().refreshAll(),
+    /** daftar perubahan ringkas (path/status/staged) */
+    changes: () =>
+      (useGit.getState().status?.changes ?? []).map((c) => ({
+        path: c.path,
+        status: c.status,
+        staged: c.staged,
+        isNew: c.isNew,
+        isDeleted: c.isDeleted,
+        origPath: c.origPath,
+      })),
+    stage: (paths: string[]) => useGit.getState().stage(paths),
+    unstage: (paths: string[]) => useGit.getState().unstage(paths),
+    setMessage: (m: string) => useGit.getState().setMessage(m),
+    commit: () => useGit.getState().commit(),
+    push: (setUpstream?: boolean) => useGit.getState().push(setUpstream ?? false),
+    pull: (rebase?: boolean) => useGit.getState().pull(rebase ?? false),
+    sync: () => useGit.getState().sync(),
+    branches: () => useGit.getState().branches,
+    checkout: (b: string) => useGit.getState().checkout(b),
+    createBranch: (n: string) => useGit.getState().createBranch(n),
+    deleteBranch: (n: string) => useGit.getState().deleteBranch(n),
+    log: () => useGit.getState().log,
+    openDiff: (path: string, staged = false) => {
+      const c = (useGit.getState().status?.changes ?? []).find(
+        (x) => x.path === path && x.staged === staged,
+      );
+      return c ? useGit.getState().openDiff(c) : Promise.resolve();
+    },
+    diff: () => useGit.getState().diff,
+    closeDiff: () => useGit.getState().closeDiff(),
+    /** dialog konfirmasi: buka & jawab (uji discard tanpa klik) */
+    confirm: () => useGit.getState().confirm,
+    setConfirm: (c: unknown) => useGit.getState().setConfirm(c as never),
+    resolveConfirm: () => useGit.getState().resolveConfirm(),
+    error: () => useGit.getState().scmError,
+    info: () => useGit.getState().scmInfo,
+    busy: () => useGit.getState().busy,
+    // GitHub
+    gh: () => useGit.getState().gh,
+    ghMessage: () => useGit.getState().ghMessage,
+    loadGh: () => useGit.getState().loadGh(),
+    savePat: (t: string) => useGit.getState().savePat(t),
+    logoutGh: () => useGit.getState().logoutGh(),
+    testGh: () => useGit.getState().testGh(),
+    setClientId: (id: string) => useGit.getState().setClientId(id),
+  };
+  // MCP (fase 11): store panel + jalur command untuk harness verify11.
+  w.__ZEPHYR_MCP__ = {
+    store: useMcp,
+    status: () => useMcp.getState().status,
+    refresh: () => useMcp.getState().refresh(),
+    /** nyalakan/matikan server lewat jalur UI yang sama */
+    toggle: (on: boolean) => useMcp.getState().toggleServer(on),
+    clis: () => useMcp.getState().clis,
+    refreshClis: () => useMcp.getState().refreshClis(),
+    setChecked: (ids: string[]) => useMcp.getState().setChecked(ids),
+    write: () => useMcp.getState().writeToCli(),
+    remove: () => useMcp.getState().removeFromCli(),
+    rotate: () => useMcp.getState().rotateToken(),
+    lastWrite: () => useMcp.getState().lastWrite,
+    lastAction: () => useMcp.getState().lastAction,
+    served: () => useMcp.getState().served,
+    lastShot: () => useMcp.getState().lastShot,
+    error: () => useMcp.getState().mcpError,
+    info: () => useMcp.getState().mcpInfo,
+    setError: (m: string | null) => useMcp.getState().setError(m),
+    setInfo: (m: string | null) => useMcp.getState().setInfo(m),
   };
   // Untuk menguji jalur onCloseRequested (V7 fase 02 / V5 fase 03).
   w.__ZEPHYR_WIN__ = {

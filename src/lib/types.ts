@@ -197,6 +197,135 @@ export interface AiChunk {
   done?: boolean;
 }
 
+// ── Source Control / git (fase 10) ──
+
+/** Satu entri perubahan. `staged` menentukan grup di UI. */
+export interface GitChange {
+  /** path relatif root repo, separator '/' */
+  path: string;
+  /** M A D R C U T ? */
+  status: string;
+  staged: boolean;
+  isNew: boolean;
+  isDeleted: boolean;
+  /** nama lama saat rename */
+  origPath: string | null;
+}
+
+export interface GitStatusResult {
+  isRepo: boolean;
+  repoRoot: string | null;
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  changes: GitChange[];
+  hasRemote: boolean;
+  conflicted: boolean;
+}
+
+export interface GitBranches {
+  current: string | null;
+  locals: string[];
+  remotes: string[];
+}
+
+export interface GitCommitInfo {
+  hash7: string;
+  subject: string;
+  author: string;
+  date: string;
+  refs: string;
+}
+
+export interface GitUser {
+  name: string | null;
+  email: string | null;
+}
+
+// ── GitHub auth (fase 10) ──
+
+export type GhMethod = 'none' | 'pat' | 'oauth';
+
+export interface GhStatus {
+  signedIn: boolean;
+  method: GhMethod;
+  user: string | null;
+  scopes: string[];
+  /** epoch detik; null = tidak kadaluarsa */
+  expiresAt: number | null;
+  /** true = clientId terisi → tombol OAuth aktif */
+  oauthConfigured: boolean;
+  expired: boolean;
+}
+
+export interface GhUser {
+  user: string;
+  scopes: string[];
+}
+
+export interface DeviceLogin {
+  userCode: string;
+  verificationUri: string;
+  expiresAt: number;
+  interval: number;
+}
+
+export interface GhTestResult {
+  ok: boolean;
+  user: string | null;
+  message: string;
+  status: number | null;
+}
+
+/** Payload event `gh-login` (bentuk sama dengan ssh-status). */
+export interface GhLoginEvent {
+  state: 'pending' | 'success' | 'error';
+  message?: string;
+}
+
+// ── MCP server 9222 (fase 11) ──
+
+/** Status server MCP dari Rust (`mcp_status`). */
+export interface McpStatus {
+  running: boolean;
+  /** port yang benar-benar listening (bisa 9223 bila 9222 dipakai) */
+  port: number;
+  /** port yang diminta di settings */
+  requestedPort: number;
+  token: string;
+  uptimeMs: number;
+  enabled: boolean;
+}
+
+/** Payload event `mcp-action`: permintaan Rust yang dijawab frontend. */
+export interface McpAction {
+  /** dikembalikan lewat `mcp_reply`; kosong untuk notifikasi satu arah */
+  reqId?: string;
+  type: string;
+  payload?: Record<string, unknown>;
+}
+
+/** Hasil menulis/menghapus entri zephyr di config satu AI CLI. */
+export interface CliWriteResult {
+  id: string;
+  label: string;
+  path: string;
+  ok: boolean;
+  /** true = file lama disalin ke <nama>.bak */
+  backup: boolean;
+  message: string;
+}
+
+/** Apakah config satu CLI sudah memuat entri zephyr. */
+export interface CliStatus {
+  id: string;
+  label: string;
+  path: string;
+  exists: boolean;
+  registered: boolean;
+}
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;
@@ -276,7 +405,21 @@ export interface Settings {
     attachActiveFile: boolean;
   };
   extensions: { enabled: string[] };
-  git: { userName?: string; userEmail?: string; defaultBranch: string; pullBeforePush: boolean };
+  git: {
+    userName?: string;
+    userEmail?: string;
+    defaultBranch: string;
+    pullBeforePush: boolean;
+    /** fase 10: metadata login GitHub — token TIDAK di sini (secrets.json) */
+    github?: {
+      method?: GhMethod;
+      user?: string | null;
+      scopes?: string[];
+      expiresAt?: number | null;
+      /** Client ID OAuth App milik user; kosong = tombol OAuth mati */
+      clientId?: string;
+    };
+  };
   mcp: { enabled: boolean; port: number; token: string; writeToCli: string[] };
   ssh: { recentHosts?: string[] };
 }

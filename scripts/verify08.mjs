@@ -536,39 +536,79 @@ const main = async () => {
     `CLI terdeteksi [${v9.agents.join(', ')}] = ${v9.kartu.length} kartu; start command ${v9.target}: "${v9.cmdSebelum}" -> disk ${JSON.stringify(v9.diskCmd)} -> reset ke default (${v9.setelahReset}); maxPanes disk=${v9.maxDisk} store=${v9.maxStore}`,
   );
 
-  // ───────── V10: MCP toggle jujur (UI hidup, backend fase 11) ─────────
+  // ───────── V10: panel MCP (fase 11 menggantikan panel palsu fase 08) ─────────
+  // Fase 08 dulu hanya menyimpan pilihan & selalu menampilkan "Berhenti".
+  // Sejak fase 11 panel ini mengendalikan server sungguhan, jadi yang diuji
+  // di sini: switch benar-benar menyalakan server, token datang dari mcp.json
+  // (bukan settings.json), dan daftar CLI lengkap. Detail protokolnya diuji
+  // di verify11.mjs.
   const v10 = JSON.parse(
     await cdp.runAsync(`
       await bukaSettings('mcp');
       const errSebelum = window.__ZEPHYR_ERRORS__.length;
+      const M = window.__ZEPHYR_MCP__;
+      const tungguMcp = async () => {
+        const batas = Date.now() + 20000;
+        while (M.store.getState().busy && Date.now() < batas) await wait(80);
+        await wait(150);
+      };
+      // Pastikan mulai dari kondisi mati.
+      await M.toggle(false);
+      await tungguMcp();
+      const statusMati = q('[data-testid="mcp-status"]');
+      const mati = { running: statusMati?.dataset.running, teks: statusMati?.textContent?.trim() };
+
       q('[data-testid="mcp-enable"]').click();
-      await wait(600);
-      const disk1 = (await X.settingsFromDisk()).mcp;
-      q('[data-testid="mcp-gen"]').click();
-      await wait(600);
-      const disk2 = (await X.settingsFromDisk()).mcp;
+      await tungguMcp();
+      await wait(400);
+      await M.refresh();
+      // Ambil NILAI-nya sekarang, bukan simpan node: React mengganti elemen
+      // saat re-render, jadi membaca dataset di akhir memberi status terakhir
+      // (sudah dimatikan lagi) — bukan status saat hidup.
+      const elHidup = q('[data-testid="mcp-status"]');
+      const hidupRunning = elHidup?.dataset.running ?? null;
+      const hidupTeks = elHidup?.textContent?.trim() ?? null;
+      const st = M.status();
+
+      // Pilih satu CLI: pilihan wajib tersimpan ke settings.json.
       q('[data-testid="mcp-cli-opencode"]').click();
-      await wait(600);
-      const disk3 = (await X.settingsFromDisk()).mcp;
-      const status = q('[data-testid="mcp-status"]').textContent.trim();
-      const cli = qa('[data-testid^="mcp-cli-"]').length;
+      await wait(700);
+      const disk = (await X.settingsFromDisk()).mcp;
+
+      // Kembalikan ke kondisi mati supaya uji lain tidak terpengaruh.
+      q('[data-testid="mcp-enable"]').click();
+      await tungguMcp();
+      await wait(300);
+      M.setChecked([]);
+
       return JSON.stringify({
         errBaru: window.__ZEPHYR_ERRORS__.length - errSebelum,
-        enabled: disk1.enabled, tokenLen: (disk2.token || '').length,
-        writeToCli: disk3.writeToCli, status, cli, port: disk3.port,
+        mati,
+        hidupRunning,
+        hidupTeks,
+        port: st?.port, tokenLen: (st?.token || '').length,
+        enabledDisk: disk.enabled, writeToCli: disk.writeToCli,
+        cli: qa('[data-testid^="mcp-cli-"]').length,
+        tokenDiSettings: (disk.token || ''),
+        akhirRunning: q('[data-testid="mcp-status"]')?.dataset.running,
       });
-    `),
+    `, 60000),
   );
   check(
     'V10',
     v10.errBaru === 0 &&
-      v10.enabled === true &&
-      v10.tokenLen === 48 &&
-      v10.writeToCli.includes('opencode') &&
+      v10.mati.running === '0' &&
+      v10.hidupRunning === '1' &&
+      /Running/.test(v10.hidupTeks) &&
       v10.port === 9222 &&
-      /Berhenti|Stopped/.test(v10.status),
-    `toggle tersimpan (enabled=${v10.enabled}), token ${v10.tokenLen} char, ${v10.cli} CLI checkbox (dipilih: ${v10.writeToCli.join(', ')}), port ${v10.port}, status jujur "${v10.status}", console error baru=${v10.errBaru}`,
+      v10.tokenLen === 32 &&
+      v10.cli === 7 &&
+      v10.writeToCli.includes('opencode') &&
+      v10.tokenDiSettings === '' &&
+      v10.akhirRunning === '0',
+    `switch OFF→"${v10.mati.teks}", ON→"${v10.hidupTeks}" (server nyata di port ${v10.port}); token ${v10.tokenLen} char dari mcp.json dan TIDAK ikut ke settings.json; ${v10.cli} CLI checkbox, pilihan tersimpan (${v10.writeToCli.join(', ')}); dimatikan lagi di akhir; console error baru=${v10.errBaru}`,
   );
+
 
   // ───────── V11: extensions enable/disable ─────────
   const v11 = JSON.parse(
@@ -665,7 +705,8 @@ const main = async () => {
   );
   check(
     'V13',
-    v13.baris === 8 &&
+    // Fase 11 menambah satu baris "Automation" (MCP 9222) → 9 baris.
+    v13.baris === 9 &&
       /^\d+\.\d+\.\d+$/.test(v13.versi) &&
       /zephyr/i.test(v13.dataDir) &&
       v13.zoomAwal === '16px' &&
