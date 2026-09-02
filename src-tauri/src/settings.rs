@@ -38,7 +38,8 @@ pub fn default_settings() -> Value {
             "uiLang": "id",
             "zoom": 100,
             "restoreSession": true,
-            "checkUpdates": false
+            "checkUpdates": false,
+            "lowRam": false
         },
         "editor": {
             "tabSize": 2,
@@ -88,9 +89,58 @@ fn deep_merge(base: &mut Value, patch: &Value) {
     }
 }
 
+/// Baca JSON dari disk. File yang RUSAK (syntax error) tidak boleh membuat
+/// Zephyr membuang settings user secara diam-diam: fase 16.3 memindahkannya ke
+/// `<nama>.broken` (dengan timestamp) lalu mengembalikan None supaya default
+/// yang dipakai. Nama file backup dicatat di `LAST_BROKEN` agar UI bisa
+/// memberi tahu user lewat toast.
 fn read_json(path: &PathBuf) -> Option<Value> {
     let raw = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&raw).ok()
+    match serde_json::from_str(&raw) {
+        Ok(v) => Some(v),
+        Err(e) => {
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let mut backup = path.clone();
+            let nama = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "settings.json".into());
+            backup.set_file_name(format!("{nama}.broken-{stamp}"));
+            let ok = std::fs::rename(path, &backup).is_ok();
+            tracing::error!(
+                "{} rusak ({e}) — {} ke {}",
+                path.display(),
+                if ok {
+                    "dipindahkan"
+                } else {
+                    "GAGAL memindahkan"
+                },
+                backup.display()
+            );
+            if ok {
+                if let Ok(mut slot) = LAST_BROKEN.lock() {
+                    *slot = backup.to_string_lossy().to_string();
+                }
+            }
+            None
+        }
+    }
+}
+
+/// Path file config rusak terakhir yang di-backup (fase 16.3). Dibaca sekali
+/// oleh frontend lewat `take_broken_config` lalu dikosongkan.
+static LAST_BROKEN: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// Ambil (dan kosongkan) laporan config rusak terakhir. `""` = tidak ada.
+#[tauri::command(async)]
+pub fn take_broken_config() -> ZResult<String> {
+    let mut slot = LAST_BROKEN
+        .lock()
+        .map_err(|_| ZephyrError::Internal("lock LAST_BROKEN".into()))?;
+    Ok(std::mem::take(&mut *slot))
 }
 
 fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
@@ -202,6 +252,16 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
     }
     let canon = crate::app_state::normalize(&p);
     let as_string = canon.to_string_lossy().to_string();
+
+    // FASE 16.3: root drive (C:\, D:\) sebagai workspace berarti scan seluruh
+    // disk — Explorer akan menelusuri Windows\WinSxS, node_modules global, dan
+    // folder sistem yang tidak boleh dibaca. Ditolak dengan pesan yang
+    // menjelaskan apa yang harus dilakukan, bukan dibiarkan membekukan app.
+    if crate::paths::is_drive_root(&canon) {
+        return Err(ZephyrError::InvalidInput(format!(
+            "{as_string} adalah root drive — buka folder proyek di dalamnya, bukan seluruh disk (scan root bisa memakan puluhan menit dan menyentuh folder sistem)"
+        )));
+    }
 
     state.set_workspace(canon.clone())?;
     // allow_exact, BUKAN allow(): allow() ikut mem-whitelist folder INDUK
@@ -325,6 +385,45 @@ pub fn ram_total_peak() -> u64 {
     RAM_TOTAL_PEAK.load(Ordering::Relaxed)
 }
 
+// ── FASE 16.5: info host (statis, diisi sekali saat sampler start) ──
+//
+// Nilai-nilai ini TIDAK berubah selama proses hidup, jadi diambil satu kali di
+// thread sampler lalu disimpan. `get_diagnostics` HANYA membaca — larangan
+// membuat `sysinfo::System` di command tetap berlaku (pelajaran V8 fase 14).
+static HOST_RAM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static HOST_CPU: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static HOST_OS: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+pub fn host_ram_total() -> u64 {
+    HOST_RAM.load(Ordering::Relaxed)
+}
+
+pub fn host_cpu_count() -> usize {
+    HOST_CPU.load(Ordering::Relaxed)
+}
+
+pub fn host_os() -> String {
+    HOST_OS.lock().map(|s| s.clone()).unwrap_or_default()
+}
+
+/// Isi info host sekali. Dipanggil dari thread sampler.
+fn isi_info_host(sys: &mut sysinfo::System) {
+    sys.refresh_memory();
+    HOST_RAM.store(sys.total_memory(), Ordering::Relaxed);
+    HOST_CPU.store(
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(0),
+        Ordering::Relaxed,
+    );
+    let nama = sysinfo::System::name().unwrap_or_else(|| "Windows".into());
+    let ver = sysinfo::System::os_version().unwrap_or_default();
+    let build = sysinfo::System::kernel_version().unwrap_or_default();
+    if let Ok(mut slot) = HOST_OS.lock() {
+        *slot = format!("{nama} {ver} (build {build})").trim().to_string();
+    }
+}
+
 /// Jumlahkan memori proses ini + semua turunannya (maks 6 tingkat).
 /// HANYA dipanggil dari thread sampler — lihat catatan RAM_LAST.
 fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
@@ -369,6 +468,9 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
         // menyegarkan SEMUA proses; jangan dicampur dengan yang pid-spesifik.
         let mut sys_all = sysinfo::System::new();
         let mut putaran: u64 = 0;
+        // FASE 16.5: info host (OS, RAM fisik, CPU) diambil SEKALI di sini
+        // supaya `get_diagnostics` tidak perlu menyentuh sysinfo sama sekali.
+        isi_info_host(&mut sys_all);
         loop {
             std::thread::sleep(std::time::Duration::from_secs(3));
 

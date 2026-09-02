@@ -30,6 +30,40 @@ pub struct Normalized {
     pub inside: bool,
 }
 
+/// Batas keras ukuran file yang boleh dibuka editor.
+/// FASE 16.3: path Windows >260 karakter. `std::fs` di Rust sudah memakai API
+/// Unicode (`CreateFileW`) yang mendukung path panjang lewat prefix `\\?\`,
+/// tapi HANYA kalau path-nya absolut dan tidak memuat `..`/`.`. Helper ini
+/// menyiapkan bentuk itu; dipakai fs_utils sebelum operasi baca/tulis.
+pub fn long_path(p: &Path) -> PathBuf {
+    let s = p.to_string_lossy();
+    // Sudah pakai prefix, atau bukan path absolut bergaya drive → biarkan.
+    if s.starts_with(r"\\?\") || s.len() < 240 {
+        return p.to_path_buf();
+    }
+    // UNC (\\server\share) memakai bentuk khusus \\?\UNC\server\share.
+    if let Some(rest) = s.strip_prefix(r"\\") {
+        return PathBuf::from(format!(r"\\?\UNC\{rest}"));
+    }
+    if p.is_absolute() {
+        return PathBuf::from(format!(r"\\?\{s}"));
+    }
+    p.to_path_buf()
+}
+
+/// FASE 16.3: true = path ini adalah root sebuah drive (`C:\`, `D:\`, `\\srv\share`).
+/// Dipakai `workspace_open` untuk menolak scan seluruh disk.
+pub fn is_drive_root(p: &Path) -> bool {
+    let mut it = p.components();
+    match (it.next(), it.next(), it.next()) {
+        // Windows: Prefix (C:) + RootDir (\) dan tidak ada komponen lain.
+        (Some(Component::Prefix(_)), Some(Component::RootDir), None) => true,
+        // Kalau tidak ada prefix (unix-like / hasil normalisasi aneh): "/" saja.
+        (Some(Component::RootDir), None, _) => true,
+        _ => false,
+    }
+}
+
 /// Buang prefix UNC Windows (`\\?\`) agar perbandingan & tampilan konsisten.
 pub fn strip_unc(p: &Path) -> PathBuf {
     let s = p.to_string_lossy();

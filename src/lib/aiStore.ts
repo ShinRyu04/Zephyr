@@ -123,7 +123,10 @@ interface AiState {
   draft: string;
   /** lampirkan file aktif ke pesan berikutnya */
   attachActive: boolean;
-  /** status key per provider (tanpa key asli) */
+  /** fase 15.5: laporan pemotongan pesan terakhir (null = tidak ada).
+   *  Dipisah dari `toast` karena toast bisa tertimpa pesan lain (mis. guard
+   *  API key) sebelum user/harness membacanya. */
+  lastTruncated: { from: number; to: number } | null;
   keys: PublicModel[];
   /** dropdown model terbuka */
   modelMenuOpen: boolean;
@@ -183,6 +186,7 @@ export const useAi = create<AiStore>((set, get) => ({
   pending: null,
   draft: '',
   attachActive: false,
+  lastTruncated: null,
   keys: [],
   modelMenuOpen: false,
   confirmCmd: null,
@@ -283,7 +287,12 @@ export const useAi = create<AiStore>((set, get) => ({
       content =
         `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
         `dikirim ${MSG_LIMIT} karakter pertama]`;
-      set({ toast: `Pesan ${raw.length} karakter dipotong ke ${MSG_LIMIT}` });
+      set({
+        toast: `Pesan ${raw.length} karakter dipotong ke ${MSG_LIMIT}`,
+        lastTruncated: { from: raw.length, to: MSG_LIMIT },
+      });
+    } else {
+      set({ lastTruncated: null });
     }
 
     // V2: tanpa API key jangan kirim apa pun, jangan crash.
