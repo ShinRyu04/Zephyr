@@ -108,6 +108,18 @@ export function GeneralSection() {
         />
       </Row>
 
+      <Row
+        label="Mode penghemat RAM"
+        hint="smooth scroll off, minimap dipaksa off, batas tab termuat 8 (dari 12)"
+      >
+        <Toggle
+          label="Mode penghemat RAM"
+          testid="general-lowram"
+          checked={g.lowRam === true}
+          onChange={(v) => patch({ lowRam: v })}
+        />
+      </Row>
+
       <Row label={t('general.openDataFolder')} hint={dataDir || '%APPDATA%\\zephyr'}>
         <button
           className="btn"

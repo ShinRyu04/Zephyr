@@ -139,6 +139,7 @@ pub fn run() {
             settings::get_app_info,
             settings::get_settings,
             settings::set_settings,
+            settings::take_broken_config,
             settings::set_window_size,
             settings::list_recents,
             settings::workspace_open,
@@ -223,6 +224,7 @@ pub fn run() {
             extensions::extensions_folder,
             // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
+            diagnostics::self_test,
             diagnostics::log_frontend,
             diagnostics::perf_mark,
             diagnostics::debug_panic,

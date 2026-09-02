@@ -57,6 +57,32 @@ export interface Diagnostics {
   lastPanic: string;
   marks: PerfMark[];
   counters: Record<string, number>;
+  /** fase 16.5: nama + versi OS (dari sysinfo) */
+  os: string;
+  /** fase 16.5: RAM fisik total mesin (byte) */
+  hostRamBytes: number;
+  /** fase 16.5: jumlah CPU logis */
+  cpuCount: number;
+  /** fase 16.5: status per domain untuk tabel Diagnostics */
+  domains: DomainStatus[];
+}
+
+/** Satu baris tabel status domain di Diagnostics (fase 16.5). */
+export interface DomainStatus {
+  /** id domain: fs, pty, git, mcp, ai, extensions, log */
+  id: string;
+  /** ok | warn | off */
+  level: 'ok' | 'warn' | 'off';
+  /** ringkasan satu baris, mis. "3 pane aktif" */
+  detail: string;
+}
+
+/** Hasil satu mini-test dari `self_test` (fase 16.5). */
+export interface SelfTestItem {
+  name: string;
+  ok: boolean;
+  ms: number;
+  detail: string;
 }
 
 /** Payload event `git-progress` (fase 14.4). */
@@ -493,6 +519,9 @@ export interface GeneralSettings {
   zoom: number;
   restoreSession: boolean;
   checkUpdates: boolean;
+  /** fase 16.2: mode penghemat RAM — smooth scroll off, minimap dipaksa off,
+   *  batas tab termuat diturunkan ke 8 (dari 12). */
+  lowRam?: boolean;
 }
 
 export interface EditorSettings {
@@ -554,6 +583,7 @@ export const DEFAULT_SETTINGS: Settings = {
     zoom: 100,
     restoreSession: true,
     checkUpdates: false,
+    lowRam: false,
   },
   editor: {
     tabSize: 2,

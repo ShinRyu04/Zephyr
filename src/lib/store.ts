@@ -156,8 +156,17 @@ const opening = new Set<string>();
  *  tab-nya TETAP ada di tab bar, hanya string kontennya dibuang supaya 30+
  *  tab tidak menumpuk puluhan MB. Isinya dibaca ulang dari disk saat tab itu
  *  diaktifkan (`ensureTabLoaded`). Tab yang belum disimpan (`unsaved`) dan
- *  untitled TIDAK PERNAH dilepas — kontennya cuma ada di memori. */
+ *  untitled TIDAK PERNAH dilepas — kontennya cuma ada di memori.
+ *
+ *  fase 16.2: mode penghemat RAM (`settings.general.lowRam`) menurunkan batas
+ *  ini ke 8 lewat `maxLoadedTabs()`. Konstanta tetap diekspor karena harness
+ *  fase 14 memakainya sebagai nilai default. */
 export const MAX_LOADED_TABS = 12;
+
+/** Batas tab termuat yang BERLAKU sekarang (ikut mode penghemat RAM). */
+export function maxLoadedTabs(): number {
+  return useStore.getState().settings.general.lowRam ? 8 : MAX_LOADED_TABS;
+}
 
 /** Urutan sentuh terakhir per tab id (paling belakang = paling baru).
  *  Di luar store supaya tidak memicu render; hanya dipakai untuk memilih
@@ -426,11 +435,12 @@ export const useStore = create<Store>((set, get) => ({
    *  tab aktif — kehilangan buffer yang belum disimpan tidak bisa diterima. */
   unloadColdTabs: () => {
     const { tabs, activeTabId } = get();
+    const batas = maxLoadedTabs();
     const loaded = tabs.filter((t) => t.loaded !== false);
-    if (loaded.length <= MAX_LOADED_TABS) return;
+    if (loaded.length <= batas) return;
 
     const lepas = new Set<string>();
-    let target = loaded.length - MAX_LOADED_TABS;
+    let target = loaded.length - batas;
     for (const id of touchOrder) {
       if (target <= 0) break;
       if (id === activeTabId) continue;
@@ -455,7 +465,7 @@ export const useStore = create<Store>((set, get) => ({
     set((s) => ({
       tabs: s.tabs.map((t) => (lepas.has(t.id) ? { ...t, content: '', loaded: false } : t)),
       statusMessage:
-        s.tabs.length > MAX_LOADED_TABS
+        s.tabs.length > batas
           ? `Tab terlalu banyak — ${lepas.size} tab dilepas dari memori (isi dibaca ulang saat dibuka)`
           : s.statusMessage,
     }));
