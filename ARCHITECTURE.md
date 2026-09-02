@@ -139,7 +139,18 @@ di store/UI sejak fase 06, jadi implementasinya tinggal mengisi backend.
 | `set_model_key` | { provider, key } → void (key kosong = hapus; Rust-only storage) |
 | `test_model_connection` | { provider, baseUrl? } → { ok, message, status, ms } |
 | `reset_settings` | → void (hapus settings.json; `secrets.json` TIDAK disentuh) |
-| `ai_chat` | { provider, model, messages, maxTokens? } → stream via `ai-chunk` |
+| `ai_chat` | { id, provider, model, messages, baseUrl?, maxTokens? } → void; jawaban streaming lewat `ai-chunk` |
+| `ai_cancel` | { id } → bool (false = id sudah tidak berjalan) |
+
+**AI (fase 09).** Key dibaca DI RUST (`secrets::key_for`) dan tidak pernah
+dikirim dari frontend. Tiga format request ditangani modul terpisah
+(`adapters/openai.rs`, `anthropic.rs`, `gemini.rs`): OpenAI-compatible
+(`openai`/`deepseek`/`local`/`custom`) memakai `/chat/completions` + SSE,
+Anthropic memakai `/v1/messages` + `x-api-key` + `anthropic-version`
+(`system` sebagai field terpisah, `max_tokens` wajib), Gemini memakai
+`/v1beta/models/<model>:streamGenerateContent` + `x-goog-api-key` dan
+membalas **JSON array bertahap**, bukan SSE. `ai_cancel` menyetel flag di
+`AppState.ai_reqs`; thread streaming memeriksanya tiap baris.
 
 Catatan `set_settings` (fase 08): patch di-**deep merge**, dan nilai `null`
 berarti **hapus key** (RFC 7386). Itulah jalur "reset per item" untuk

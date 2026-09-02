@@ -1,10 +1,28 @@
-# Zephyr
+<div align="center">
+  <img src="src-tauri/icons/icon.png" width="120" height="120" alt="Zephyr" />
+  <h1>Zephyr</h1>
+  <p><em>Code faster. Lighter. Yours.</em></p>
+  <p><strong>Satu jendela ringan: editor, terminal multi-pane, AI agent, git, dan MCP server — tanpa Electron.</strong></p>
 
-Code faster. Lighter. Yours.
+  <p>
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
+    <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey" alt="platform" />
+    <img src="https://img.shields.io/badge/runtime-no%20Electron-brightgreen" alt="no Electron" />
+    <img src="https://img.shields.io/badge/telemetry-none-blue" alt="no telemetry" />
+    <img src="https://img.shields.io/badge/RAM%20idle-%3C400MB-orange" alt="RAM" />
+  </p>
+</div>
+
+---
+
+## Apa itu Zephyr?
 
 Zephyr adalah **code editor desktop buatan sendiri** — nyaman seperti
 VS Code, tapi lebih lengkap dan lebih ringan (RAM idle < 400 MB,
-startup < 3 detik). Dibangun dari nol dengan **Tauri 2 + React**.
+startup < 3 detik). Dibangun dari nol dengan **Tauri 2 + React**: inti Rust
+memegang semua resource OS, UI-nya satu webview — tanpa runtime Node dan
+tanpa Chromium yang dibundel. **Tanpa telemetri**; API key disimpan Rust di
+`%APPDATA%\zephyr\secrets.json`, tidak pernah dikirim ke UI.
 
 ## Fitur Utama
 
@@ -20,9 +38,13 @@ startup < 3 detik). Dibangun dari nol dengan **Tauri 2 + React**.
 - **SSH Connections** untuk remote work.
 - **Settings lengkap**: General, Code Editor, Theme, Shortcuts, Models,
   Agents, Extensions, Source Control, MCP, About.
-- **AI Panel** multi-provider dengan **logo model yang sesuai**
-  (Gemini, OpenAI, Anthropic, DeepSeek, opencode, custom) + API key
-  per model + streaming chat + lampirkan file aktif.
+- **AI Panel** multi-provider dengan **logo brand yang sesuai**
+  (Gemini, OpenAI, Anthropic, DeepSeek, opencode, custom): chat streaming
+  kata-per-kata, render markdown + blok kode, lampirkan file aktif sebagai
+  konteks (maks 12KB), tombol **Jalankan di Terminal** untuk jawaban yang
+  memuat perintah shell (perintah berisiko wajib dikonfirmasi), Stop di
+  tengah jawaban, dan riwayat chat yang pulih setelah app ditutup.
+  API key per provider disimpan Rust — frontend hanya melihat mask.
 - **Source Control** (git): status, diff, commit, branch, push/pull.
 - **MCP Server port 9222**: AI CLI luar (Claude Code, Codex, Gemini CLI,
   opencode, Copilot CLI, Cursor) bisa **membaca dan mengendalikan**
@@ -70,6 +92,22 @@ Yang **tidak** dilakukan: mengganti user Windows, mengisolasi filesystem,
 atau menyembunyikan proses. Perintah tetap berjalan sebagai akun Anda dan
 tetap bisa terlihat di Task Manager / event log sistem. Untuk sesi yang
 benar-benar bersih, gunakan akun Windows terpisah.
+
+## Konfigurasi AI
+
+**Settings → Model AI**, pilih provider lalu tempel API key. Key ditulis Rust
+ke `%APPDATA%\zephyr\secrets.json` (XOR + kunci turunan mesin), TIDAK ke
+`settings.json` dan tidak pernah dikirim ke UI — frontend hanya menerima
+`hasKey` + mask `sk-…4f2a`. Katalog provider & model: `src/lib/modelCatalog.tsx`.
+
+Zephyr memakai tiga adapter di sisi Rust, jadi format request tiap provider
+benar apa adanya: OpenAI-compatible (`/chat/completions` + SSE) untuk
+OpenAI/DeepSeek/local/custom, Anthropic Messages API (`x-api-key` +
+`anthropic-version`), dan Gemini (`:streamGenerateContent?alt=sse`).
+
+**Mau sepenuhnya lokal?** Pilih provider *Lokal (opencode / loopback)* dan
+arahkan base URL ke server OpenAI-compatible milikmu (LM Studio, Ollama,
+llama.cpp, vLLM) — mis. `http://127.0.0.1:1234/v1`.
 
 ## Dokumentasi
 
