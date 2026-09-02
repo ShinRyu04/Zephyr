@@ -1,0 +1,452 @@
+/* palette.css — Command Palette & Quick Open (fase 12).
+   Warna WAJIB dari CSS variables (AGENTS.md §4). */
+
+.cp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 84px;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+  animation: cp-fade 90ms ease-out;
+}
+
+@keyframes cp-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cp-modal {
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  animation: cp-pop 110ms ease-out;
+}
+
+@keyframes cp-pop {
+  from {
+    transform: translateY(-6px) scale(0.99);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.cp-inputrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cp-prefix {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--accent);
+  min-width: 8px;
+}
+
+.cp-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.cp-input::placeholder {
+  color: var(--text-muted);
+}
+
+.cp-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-list {
+  overflow-y: auto;
+  padding: 4px 0;
+  min-height: 40px;
+}
+
+.cp-spacer {
+  pointer-events: none;
+}
+
+.cp-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 30px;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-row:hover {
+  background: var(--hover-bg, rgba(255, 255, 255, 0.04));
+}
+
+.cp-row.is-active {
+  background: var(--accent-soft, rgba(56, 132, 255, 0.16));
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.cp-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-hit {
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cp-row.is-active .cp-hit {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.cp-detail {
+  flex: none;
+  max-width: 46%;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: right;
+}
+
+.cp-kbd,
+.cp-foot kbd {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  background: var(--bg);
+  white-space: nowrap;
+}
+
+.cp-empty {
+  margin: 0;
+  padding: 14px 14px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cp-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.cp-foot kbd {
+  margin-right: 2px;
+}
+
+.cp-foot-mode {
+  margin-left: auto;
+}
+
+/* ── Split With Browser (placeholder pane) ── */
+
+.pane-split-browser {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 9px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--accent-soft, rgba(56, 132, 255, 0.12));
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.pane-split-browser:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.pane-split-browser span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.pane-split-browser strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pane-split-browser em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.pane-split-browser:hover em {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── toolbar browser pane ── */
+
+.bp-lock {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  color: var(--text-muted);
+}
+
+.bp-lock.is-https {
+  color: var(--success);
+}
+
+.tt-btn-browser {
+  width: auto;
+  gap: 5px;
+  padding: 0 8px;
+}
+
+.tt-btn-label {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.bp-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.bp-busy {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.bp-blocked {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 22px;
+  background: var(--editor-bg);
+}
+
+.bp-blocked-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning);
+}
+
+.bp-blocked-body {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.bp-blocked-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.bp-blank {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.bp-blank p {
+  margin: 0;
+}
+
+/* ── log & toast MCP (fase 12) ── */
+
+.mcp-cli-path {
+  flex: none;
+  max-width: 220px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-logwrap {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mcp-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.mcp-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 168px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+}
+
+.mcp-log-empty {
+  padding: 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.mcp-log-row {
+  display: flex;
+  gap: 9px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+}
+
+.mcp-log-row.is-connect {
+  border-left-color: var(--success);
+  color: var(--success);
+}
+
+.mcp-log-row.is-server {
+  border-left-color: var(--accent);
+}
+
+.mcp-log-time {
+  flex: none;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mcp-log-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-toast {
+  position: fixed;
+  bottom: 34px;
+  right: 18px;
+  z-index: 420;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 380px;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: mcp-toast-in 140ms ease-out;
+}
+
+@keyframes mcp-toast-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.mcp-toast svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.mcp-toast-x {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+.mcp-toast-x:hover {
+  color: var(--text);
+}

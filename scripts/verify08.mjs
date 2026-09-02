@@ -588,7 +588,7 @@ const main = async () => {
         hidupTeks,
         port: st?.port, tokenLen: (st?.token || '').length,
         enabledDisk: disk.enabled, writeToCli: disk.writeToCli,
-        cli: qa('[data-testid^="mcp-cli-"]').length,
+        cli: qa('[data-testid^="mcp-cli-row-"]').length,
         tokenDiSettings: (disk.token || ''),
         akhirRunning: q('[data-testid="mcp-status"]')?.dataset.running,
       });

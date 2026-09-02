@@ -255,6 +255,17 @@ pub struct SearchResult {
     pub truncated: bool,
 }
 
+/// Satu file untuk quick-open palette (Ctrl+P, fase 12).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuickFile {
+    /// path absolut (dipakai `openPath`)
+    pub path: String,
+    /// path relatif ke root workspace, separator '/'
+    pub rel: String,
+    pub name: String,
+}
+
 fn build_regex(query: &str, regex: bool, case_sensitive: bool) -> ZResult<regex::Regex> {
     let pattern = if regex {
         query.to_string()
@@ -288,6 +299,52 @@ fn collect_files(root: &Path, out: &mut Vec<PathBuf>, depth: usize) {
             out.push(p);
         }
     }
+}
+
+/// Daftar path file di workspace untuk quick-open (Ctrl+P, fase 12).
+///
+/// Memakai `collect_files` yang sama dengan search (aturan ignore identik),
+/// jadi node_modules/target/.git tidak pernah ikut. Dibatasi 20.000 file oleh
+/// collect_files; di sini dipotong lagi ke `limit` (default 5.000) supaya
+/// payload ke frontend tetap ringan — palette memfilternya di memori.
+#[tauri::command(async)]
+pub fn list_workspace_files(
+    state: State<AppState>,
+    limit: Option<usize>,
+) -> ZResult<Vec<QuickFile>> {
+    let ws = state
+        .workspace_path()
+        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_files(&ws, &mut files, 0);
+
+    let cap = limit.unwrap_or(5_000).clamp(1, 20_000);
+    let truncated = files.len() > cap;
+    files.truncate(cap);
+
+    let mut out: Vec<QuickFile> = files
+        .iter()
+        .map(|p| {
+            let rel = p
+                .strip_prefix(&ws)
+                .unwrap_or(p)
+                .to_string_lossy()
+                .replace('\\', "/");
+            QuickFile {
+                path: p.to_string_lossy().to_string(),
+                rel,
+                name: p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default(),
+            }
+        })
+        .collect();
+    // Urut per path relatif supaya daftar stabil antar pemanggilan.
+    out.sort_by(|a, b| a.rel.to_lowercase().cmp(&b.rel.to_lowercase()));
+    let _ = truncated;
+    Ok(out)
 }
 
 /// Cari teks di seluruh workspace. `glob` memfilter nama file (mis. `*.ts`).

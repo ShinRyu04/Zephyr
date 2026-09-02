@@ -11,21 +11,25 @@ import TerminalArea from './components/shell/TerminalArea';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
+import CommandPalette from './components/shell/CommandPalette';
+import McpToast from './components/shell/McpToast';
 import { useStore } from './lib/store';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
 import { useAi } from './lib/aiStore';
 import { useGit } from './lib/gitStore';
 import { useMcp } from './lib/mcpStore';
+import { usePalette } from './lib/paletteStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { flushTab } from './lib/editorRegistry';
-import { onAiChunk, onFsChanged, onGhLogin, onMcpAction, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
+import { onAiChunk, onFsChanged, onGhLogin, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/settings.css';
 import './styles/ai.css';
 import './styles/scm.css';
+import './styles/palette.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -92,6 +96,21 @@ export default function App() {
       // action apa pun (handler capture di SettingsPage yang menangani).
       if (useSettingsUi.getState().capturing) return;
 
+      // Palette terbuka: modal-nya yang memegang keyboard (Arrow/Enter/Esc).
+      // Hanya pemicu palette sendiri yang boleh lewat supaya Ctrl+P ↔
+      // Ctrl+Shift+P bisa berganti mode tanpa menutup dulu.
+      if (usePalette.getState().open) {
+        const b = eventToBinding(e);
+        const id = b ? bindingMap(useStore.getState().settings.shortcuts).get(b) : null;
+        if (id === 'view.palette' || id === 'view.quickOpen') {
+          e.preventDefault();
+          void usePalette
+            .getState()
+            .openPalette(id === 'view.palette' ? 'command' : 'file');
+        }
+        return;
+      }
+
       const binding = eventToBinding(e);
       if (!binding) return;
 
@@ -139,6 +158,24 @@ export default function App() {
         case 'view.sidebar':
           s.toggleSidebar();
           break;
+        case 'view.panel':
+          // Ctrl+J: kalau belum ada pane sama sekali, buat satu supaya panel
+          // yang muncul tidak kosong melongo.
+          if (t.allPanes().length === 0 && !t.visible) void t.addPane('shell');
+          else t.toggleVisible();
+          break;
+        case 'view.palette':
+          void usePalette.getState().openPalette('command');
+          break;
+        case 'view.quickOpen':
+          void usePalette.getState().openPalette('file');
+          break;
+        case 'view.nextTab':
+          s.cycleTab(1);
+          break;
+        case 'view.prevTab':
+          s.cycleTab(-1);
+          break;
         case 'view.explorer':
           s.setSettingsOpen(false);
           s.setActivity('explorer');
@@ -162,6 +199,9 @@ export default function App() {
           else t.toggleVisible();
           break;
         case 'terminal.new':
+          void t.addPane('shell');
+          break;
+        case 'terminal.newPane':
           void t.addPane('shell');
           break;
         // ── AI panel (fase 09) ──
@@ -369,7 +409,14 @@ export default function App() {
     mcpListenerBound = true;
     void onMcpAction((a) => void useMcp.getState().handleAction(a));
     void onMcpScreenshot(({ paneId, path }) => {
+      const m = useMcp.getState();
+      m.setToast(`AI CLI mengambil screenshot pane ${paneId.slice(-6)}`);
+      m.pushLog(`screenshot_pane ${paneId.slice(-6)} → ${path.split(/[\\/]/).pop()}`, 'action');
       useMcp.setState({ lastShot: path, mcpInfo: `Screenshot pane ${paneId} → ${path}` });
+    });
+    // fase 12: setiap AI CLI menyapa /health saat menyambung → bukti koneksi.
+    void onMcpConnect(({ client }) => {
+      useMcp.getState().pushLog(`MCP connected: ${client}`, 'connect');
     });
   }, []);
 
@@ -402,6 +449,8 @@ export default function App() {
       <StatusBar />
       <ConfirmDialog />
       <ScmConfirmDialog />
+      <CommandPalette />
+      <McpToast />
     </div>
   );
 }

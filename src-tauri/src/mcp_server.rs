@@ -173,6 +173,35 @@ fn unauthorized() -> axum::response::Response {
         .into_response()
 }
 
+/// Tebak AI CLI mana yang menyapa dari User-Agent-nya.
+///
+/// Bukan identitas yang bisa dipercaya (UA gampang dipalsukan) — ini murni
+/// label agar user tahu "ada sesuatu yang menyambung", jadi tidak dipakai untuk
+/// keputusan keamanan apa pun. Auth tetap Bearer token.
+fn tebak_cli(ua: &str) -> String {
+    let low = ua.to_ascii_lowercase();
+    for (kunci, nama) in [
+        ("claude", "Claude Code"),
+        ("codex", "Codex CLI"),
+        ("gemini", "Gemini CLI"),
+        ("opencode", "opencode"),
+        ("copilot", "GitHub Copilot CLI"),
+        ("cursor", "Cursor"),
+        ("curl", "curl"),
+        ("node", "Node/skrip"),
+        ("python", "Python/skrip"),
+    ] {
+        if low.contains(kunci) {
+            return nama.to_string();
+        }
+    }
+    if ua.trim().is_empty() {
+        "klien tak dikenal".to_string()
+    } else {
+        ua.chars().take(40).collect()
+    }
+}
+
 fn bearer_ok(headers: &HeaderMap, token: &str) -> bool {
     headers
         .get("authorization")
@@ -183,7 +212,12 @@ fn bearer_ok(headers: &HeaderMap, token: &str) -> bool {
 }
 
 /// GET /health — tanpa auth. 503 bila MCP dimatikan di settings.
-async fn health(AxState(ctx): AxState<Arc<Ctx>>) -> axum::response::Response {
+///
+/// Selain status, handler ini juga MENCATAT siapa yang menyapa (fase 12):
+/// health adalah hal pertama yang di-hit setiap AI CLI saat menyambung, jadi
+/// dari sini panel MCP bisa menampilkan "MCP connected: <cli>" — bukti koneksi
+/// yang nyata, bukan klaim.
+async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::response::Response {
     let state = ctx.app.state::<AppState>();
     if !settings_enabled(&state) {
         return (
@@ -192,6 +226,14 @@ async fn health(AxState(ctx): AxState<Arc<Ctx>>) -> axum::response::Response {
         )
             .into_response();
     }
+    let ua = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let _ = ctx.app.emit(
+        "mcp-connect",
+        json!({ "client": tebak_cli(ua), "userAgent": ua }),
+    );
     let counts = ui_call(&ctx.app, "counts", json!({}))
         .await
         .unwrap_or_else(|_| json!({ "panes": 0, "editors": 0 }));

@@ -5,6 +5,7 @@ mod adapters;
 mod agents;
 mod ai;
 mod app_state;
+mod browser;
 mod credential;
 mod dialogs;
 mod errors;
@@ -20,6 +21,7 @@ mod secrets;
 mod settings;
 mod tests_ai;
 mod tests_fs;
+mod tests_browser;
 mod tests_git;
 mod tests_mcp;
 
@@ -113,6 +115,9 @@ pub fn run() {
             explorer::fs_watch,
             explorer::fs_unwatch,
             explorer::search_files,
+            explorer::list_workspace_files,
+            // browser pane (fase 12)
+            browser::browser_probe,
             explorer::replace_in_file,
             explorer::reveal_path,
             // terminal / pty (fase 05)

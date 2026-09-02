@@ -31,14 +31,20 @@ export const ACTIONS: ActionDef[] = [
   { id: 'edit.findInFiles', label: 'Cari di workspace', group: 'Edit', default: 'Ctrl+Shift+F' },
 
   { id: 'view.sidebar', label: 'Toggle sidebar', group: 'View', default: 'Ctrl+B' },
+  { id: 'view.panel', label: 'Toggle panel bawah', group: 'View', default: 'Ctrl+J' },
   { id: 'view.explorer', label: 'Buka Explorer', group: 'View', default: 'Ctrl+Shift+E' },
+  { id: 'view.palette', label: 'Command Palette', group: 'View', default: 'Ctrl+Shift+P' },
+  { id: 'view.quickOpen', label: 'Quick Open file', group: 'View', default: 'Ctrl+P' },
+  { id: 'view.nextTab', label: 'Tab editor berikutnya', group: 'View', default: 'Ctrl+Tab' },
+  { id: 'view.prevTab', label: 'Tab editor sebelumnya', group: 'View', default: 'Ctrl+Shift+Tab' },
   { id: 'view.settings', label: 'Buka Settings', group: 'View', default: 'Ctrl+,' },
   { id: 'view.zoomIn', label: 'Zoom in', group: 'View', default: 'Ctrl+=' },
   { id: 'view.zoomOut', label: 'Zoom out', group: 'View', default: 'Ctrl+-' },
   { id: 'view.zoomReset', label: 'Zoom reset', group: 'View', default: 'Ctrl+0' },
 
   { id: 'terminal.toggle', label: 'Toggle panel terminal', group: 'Terminal', default: 'Ctrl+`' },
-  { id: 'terminal.new', label: 'Pane terminal baru', group: 'Terminal', default: 'Ctrl+Shift+`' },
+  { id: 'terminal.new', label: 'Pane terminal baru', group: 'Terminal', default: 'Ctrl+Shift+T' },
+  { id: 'terminal.newPane', label: 'Pane terminal baru (alt)', group: 'Terminal', default: 'Ctrl+Shift+`' },
 
   // Dipakai mulai fase 09 / 10 — didaftarkan sekarang supaya tabelnya lengkap
   // dan user bisa me-remap lebih awal.
