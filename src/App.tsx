@@ -13,6 +13,7 @@ import ConfirmDialog from './components/shell/ConfirmDialog';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
 import CommandPalette from './components/shell/CommandPalette';
 import McpToast from './components/shell/McpToast';
+import CrashDialog from './components/shell/CrashDialog';
 import { useStore } from './lib/store';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
@@ -25,7 +26,8 @@ import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { flushTab } from './lib/editorRegistry';
-import { onAiChunk, onFsChanged, onGhLogin, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
+import { logFrontend, perfMark } from './lib/commands';
+import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/theme-light.css';
@@ -53,6 +55,10 @@ let ghListenerBound = false;
  *  permintaan MCP dieksekusi dua kali di dev — editor_open membuka dua tab
  *  dan `mcp_reply` kedua ditolak Rust. */
 let mcpListenerBound = false;
+
+/** Guard yang sama untuk handler error global (fase 14.6). Tanpa ini satu
+ *  rejection dikirim dua kali ke file log di mode dev. */
+let errorHandlersBound = false;
 
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
@@ -375,6 +381,8 @@ export default function App() {
     if (ghListenerBound) return;
     ghListenerBound = true;
     void onGhLogin((e) => useGit.getState().onGhLogin(e));
+    // fase 14.4: progres operasi git dari Rust (payload kecil, idempoten).
+    void onGitProgress((p) => useGit.getState().setProgress(p));
   }, []);
 
   // 9b) Refresh status git setiap workspace berganti atau file berubah.
@@ -450,6 +458,38 @@ export default function App() {
     };
   }, []);
 
+  // 9e) Error global (fase 14.6): `window.onerror` + `unhandledrejection`
+  //     dikirim ke file log Rust dan ditampilkan sebagai pesan status.
+  //     Tanpa ini kesalahan di WebView hilang begitu app ditutup.
+  useEffect(() => {
+    if (errorHandlersBound) return;
+    errorHandlersBound = true;
+
+    const lapor = (level: 'error' | 'warn', text: string) => {
+      void logFrontend(level, text).catch(() => {
+        /* Rust tidak tersedia (mode browser) — biarkan */
+      });
+      useStore.getState().setStatus('Terjadi kesalahan; lihat log');
+    };
+
+    const onErr = (e: ErrorEvent) => {
+      lapor('error', `onerror: ${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`);
+    };
+    const onRej = (e: PromiseRejectionEvent) => {
+      const r = e.reason;
+      const text =
+        r instanceof Error ? `${r.message}\n${r.stack ?? ''}` : JSON.stringify(r ?? null);
+      lapor('error', `unhandledrejection: ${text}`);
+    };
+
+    window.addEventListener('error', onErr);
+    window.addEventListener('unhandledrejection', onRej);
+    // Tandai UI siap supaya Diagnostics punya angka startup end-to-end.
+    void perfMark('ui-ready', Math.round(performance.now())).catch(() => {
+      /* non-Tauri */
+    });
+  }, []);
+
   return (
     <div className="app-root">
       <div className="app-body">
@@ -481,6 +521,7 @@ export default function App() {
       <ScmConfirmDialog />
       <CommandPalette />
       <McpToast />
+      <CrashDialog />
     </div>
   );
 }

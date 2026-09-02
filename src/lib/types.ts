@@ -28,6 +28,41 @@ export interface AppInfo {
   dataDir: string;
 }
 
+/** Satu titik ukur performa dari Rust (fase 14.5). */
+export interface PerfMark {
+  name: string;
+  atMs: number;
+  durMs: number | null;
+}
+
+/** About → Diagnostics (fase 14.5/14.6). Semua angka diukur di proses ini. */
+export interface Diagnostics {
+  version: string;
+  uptimeMs: number;
+  /** proses zephyr.exe saja */
+  ramBytes: number;
+  /** zephyr.exe + turunan WebView2 — angka yang cocok dengan Task Manager */
+  ramTotalBytes: number;
+  /** puncak RAM total sejak start */
+  ramPeakBytes: number;
+  ptyCount: number;
+  /** 0 = server MCP mati */
+  mcpPort: number;
+  logFile: string;
+  logBytes: number;
+  debug: boolean;
+  panicked: boolean;
+  lastPanic: string;
+  marks: PerfMark[];
+  counters: Record<string, number>;
+}
+
+/** Payload event `git-progress` (fase 14.4). */
+export interface GitProgress {
+  op: string;
+  phase: 'start' | 'done' | 'error';
+}
+
 export interface ReadResult {
   content: string;
   detectedEncoding: Encoding;
@@ -396,6 +431,10 @@ export interface Tab {
   unsaved: boolean;
   content: string;
   lang: LangId;
+  /** fase 14.5: false = isi tab sudah DILEPAS dari memori (tab banyak).
+   *  Tab tetap ada di tab bar; isinya dibaca ulang dari disk saat diaktifkan.
+   *  undefined dianggap true (tab lama / untitled). */
+  loaded?: boolean;
 }
 
 export type LangId =

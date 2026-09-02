@@ -34,6 +34,11 @@ blake3 = "1.8.7"
 base64 = "0.23.1"
 ureq = { version = "3", features = ["json"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+# Logging (fase 14): tracing + penulis file sendiri (rotate 2MB) di logging.rs.
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }
+# Hanya untuk stempel waktu lokal di log & nama file harian.
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 
 [features]
 # Fitur custom-protocol hanya aktif saat build release (production).

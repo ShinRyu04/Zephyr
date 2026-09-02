@@ -106,6 +106,11 @@ interface StoreActions {
   /** Pindah tab editor relatif (+1 = kanan, -1 = kiri), melingkar (fase 12). */
   cycleTab: (delta: number) => void;
 
+  /** fase 14.5: pastikan isi tab ada di memori (dibaca ulang bila sudah dilepas). */
+  ensureTabLoaded: (id: string) => Promise<void>;
+  /** fase 14.5: lepas isi tab yang lama tidak dipakai bila tab > MAX_LOADED_TABS. */
+  unloadColdTabs: () => void;
+
   resolveConfirm: (choice: 'save' | 'discard' | 'cancel') => Promise<void>;
   requestCloseWindow: () => boolean;
 
@@ -130,6 +135,25 @@ let bootstrapStarted = false;
  *  dipanggil dua kali berdekatan untuk file yang sama (await fs_read
  *  membuat pengecekan `tabs.find` di bawah rentan race). */
 const opening = new Set<string>();
+
+/** fase 14.5 — batas tab yang isinya boleh tinggal di memori sekaligus.
+ *  Di atas ini, tab yang paling lama tidak disentuh dilepas (`loaded:false`):
+ *  tab-nya TETAP ada di tab bar, hanya string kontennya dibuang supaya 30+
+ *  tab tidak menumpuk puluhan MB. Isinya dibaca ulang dari disk saat tab itu
+ *  diaktifkan (`ensureTabLoaded`). Tab yang belum disimpan (`unsaved`) dan
+ *  untitled TIDAK PERNAH dilepas — kontennya cuma ada di memori. */
+export const MAX_LOADED_TABS = 12;
+
+/** Urutan sentuh terakhir per tab id (paling belakang = paling baru).
+ *  Di luar store supaya tidak memicu render; hanya dipakai untuk memilih
+ *  tab mana yang dilepas. */
+const touchOrder: string[] = [];
+
+function touchTab(id: string): void {
+  const i = touchOrder.indexOf(id);
+  if (i >= 0) touchOrder.splice(i, 1);
+  touchOrder.push(id);
+}
 
 export const useStore = create<Store>((set, get) => ({
   activity: 'explorer',
@@ -287,6 +311,8 @@ export const useStore = create<Store>((set, get) => ({
     const existing = get().tabs.find((t) => t.path === path);
     if (existing) {
       set({ activeTabId: existing.id });
+      touchTab(existing.id);
+      void get().ensureTabLoaded(existing.id);
       return;
     }
     // Sedang dibuka oleh pemanggil lain -> jangan bikin tab kedua.
@@ -310,8 +336,12 @@ export const useStore = create<Store>((set, get) => ({
         unsaved: false,
         content: res.content,
         lang: detectLang(path),
+        loaded: true,
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
+      touchTab(tab.id);
+      // fase 14.5: buka tab ke-13 → tab paling lama dilepas dari memori.
+      get().unloadColdTabs();
       void get().persistSession();
     } finally {
       opening.delete(path);
@@ -329,16 +359,92 @@ export const useStore = create<Store>((set, get) => ({
       unsaved: false,
       content: '',
       lang: 'plain',
+      loaded: true,
     };
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id, untitledSeq: n }));
+    touchTab(tab.id);
   },
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+  setActiveTab: (id) => {
+    set({ activeTabId: id });
+    touchTab(id);
+    // Tab yang isinya sudah dilepas dibaca ulang sebelum editor mount.
+    void get().ensureTabLoaded(id);
+  },
+
+  /** fase 14.5: baca ulang isi tab dari disk bila sudah dilepas. */
+  ensureTabLoaded: async (id) => {
+    const tab = get().tabs.find((t) => t.id === id);
+    if (!tab || tab.loaded !== false || !tab.path) return;
+    try {
+      const res = await cmd.fsRead(tab.path);
+      set((s) => ({
+        tabs: s.tabs.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                content: res.content,
+                encoding: res.detectedEncoding,
+                lineEnding: res.lineEnding,
+                loaded: true,
+              }
+            : t,
+        ),
+      }));
+    } catch (e) {
+      // File hilang saat tab dibuka lagi → pesan jelas dari Rust (V1 fase 14).
+      set({ statusMessage: cmd.asZephyrError(e).message });
+    }
+  },
+
+  /** fase 14.5: lepas konten tab paling lama bila melebihi MAX_LOADED_TABS.
+   *  Yang dilepas hanya tab tersimpan (punya path, tidak `unsaved`) dan bukan
+   *  tab aktif — kehilangan buffer yang belum disimpan tidak bisa diterima. */
+  unloadColdTabs: () => {
+    const { tabs, activeTabId } = get();
+    const loaded = tabs.filter((t) => t.loaded !== false);
+    if (loaded.length <= MAX_LOADED_TABS) return;
+
+    const lepas = new Set<string>();
+    let target = loaded.length - MAX_LOADED_TABS;
+    for (const id of touchOrder) {
+      if (target <= 0) break;
+      if (id === activeTabId) continue;
+      const t = tabs.find((x) => x.id === id);
+      if (!t || t.loaded === false || !t.path || t.unsaved) continue;
+      lepas.add(id);
+      target--;
+    }
+    // Tab yang belum pernah tercatat di touchOrder (mis. hasil restore) ikut
+    // dipertimbangkan supaya batas benar-benar ditegakkan.
+    if (target > 0) {
+      for (const t of tabs) {
+        if (target <= 0) break;
+        if (t.id === activeTabId || t.loaded === false || !t.path || t.unsaved) continue;
+        if (lepas.has(t.id)) continue;
+        lepas.add(t.id);
+        target--;
+      }
+    }
+    if (lepas.size === 0) return;
+
+    set((s) => ({
+      tabs: s.tabs.map((t) => (lepas.has(t.id) ? { ...t, content: '', loaded: false } : t)),
+      statusMessage:
+        s.tabs.length > MAX_LOADED_TABS
+          ? `Tab terlalu banyak — ${lepas.size} tab dilepas dari memori (isi dibaca ulang saat dibuka)`
+          : s.statusMessage,
+    }));
+  },
 
   updateTabContent: (id, content) =>
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.id === id ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved } : t,
+        // Tab yang isinya dilepas (fase 14.5) tidak menerima update: editor
+        // untuknya tidak di-mount, jadi update apa pun di sini palsu.
+        t.id === id && t.loaded !== false
+          ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved }
+          : t,
       ),
     })),
 
@@ -346,11 +452,22 @@ export const useStore = create<Store>((set, get) => ({
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab) return false;
     if (!tab.path) return get().saveTabAs(id);
+    // fase 14.5: tab yang isinya sudah dilepas TIDAK boleh disimpan —
+    // content-nya string kosong, menulisnya akan mengosongkan file di disk.
+    if (tab.loaded === false) {
+      await get().ensureTabLoaded(id);
+      const again = get().tabs.find((t) => t.id === id);
+      if (!again || again.loaded === false) {
+        set({ statusMessage: 'Tab belum dimuat ulang — buka dulu sebelum menyimpan' });
+        return false;
+      }
+    }
+    const cur = get().tabs.find((t) => t.id === id) as Tab;
     try {
-      await cmd.fsWrite(tab.path, tab.content, tab.encoding, tab.lineEnding);
+      await cmd.fsWrite(cur.path as string, cur.content, cur.encoding, cur.lineEnding);
       set((s) => ({
         tabs: s.tabs.map((t) => (t.id === id ? { ...t, unsaved: false } : t)),
-        statusMessage: `Disimpan: ${tab.name}`,
+        statusMessage: `Disimpan: ${cur.name}`,
       }));
       return true;
     } catch (e) {
@@ -465,7 +582,7 @@ export const useStore = create<Store>((set, get) => ({
     if (tabs.length < 2) return;
     const i = tabs.findIndex((t) => t.id === activeTabId);
     const next = (((i < 0 ? 0 : i) + delta) % tabs.length + tabs.length) % tabs.length;
-    set({ activeTabId: tabs[next].id });
+    get().setActiveTab(tabs[next].id);
   },
 
   reloadTabFromDisk: async (path) => {

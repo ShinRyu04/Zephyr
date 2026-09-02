@@ -26,6 +26,16 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 
+/// Jendela batching emit `pty-output` (fase 14.4). 16ms ≈ satu frame 60fps:
+/// lebih kecil hanya membuang IPC, lebih besar membuat ketikan terasa lambat.
+const BATCH: Duration = Duration::from_millis(16);
+/// Batas satu batch. Output raksasa (`type file_besar`) dipecah agar satu
+/// pesan IPC tidak menahan event loop WebView.
+const MAX_BATCH_BYTES: usize = 256 * 1024;
+/// Saat window minimized, output ditahan sampai sebesar ini lalu tetap dikirim
+/// (mencegah pemakaian memori tak terbatas kalau user minimize berjam-jam).
+const HOLD_CAP: usize = 512 * 1024;
+
 /// Satu sesi terminal hidup.
 pub struct PtySession {
     pub id: String,
@@ -232,12 +242,26 @@ pub fn pty_spawn(
     };
 
     // cwd: workspace bila ada, kalau tidak %USERPROFILE%.
-    let workdir = cwd
-        .filter(|c| !c.trim().is_empty())
-        .map(std::path::PathBuf::from)
-        .or_else(|| state.workspace_path())
-        .or_else(|| std::env::var("USERPROFILE").ok().map(Into::into))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    // FASE 14.2: cwd yang datang dari frontend/MCP DIVALIDASI — harus folder
+    // yang benar-benar ada, dan bila di luar workspace harus sudah lolos
+    // `ensure_writable` (whitelist dialog). Tanpa ini `pane_new` dari agent
+    // MCP bisa menjalankan shell di folder mana pun di disk.
+    let workdir = match cwd.filter(|c| !c.trim().is_empty()) {
+        Some(raw) => {
+            let dir = crate::paths::validate_cwd(std::path::Path::new(&raw))?;
+            // Di luar workspace hanya boleh kalau memang di-whitelist user.
+            if let Some(ws) = state.workspace_path() {
+                if !crate::paths::is_inside(&ws, &dir) {
+                    state.ensure_writable(&dir)?;
+                }
+            }
+            dir
+        }
+        None => state
+            .workspace_path()
+            .or_else(|| std::env::var("USERPROFILE").ok().map(Into::into))
+            .unwrap_or_else(|| std::path::PathBuf::from(".")),
+    };
 
     let size = PtySize {
         rows: rows.unwrap_or(24).max(1),
@@ -315,27 +339,51 @@ pub fn pty_spawn(
         alive_reader.store(false, Ordering::Relaxed);
     });
 
-    // ── thread 2: gabung potongan tiap 16ms lalu emit ke frontend ──
+    // ── thread 2: gabung potongan per FRAME lalu emit ke frontend ──
+    // FASE 14.4: batching dipertegas. Sebelumnya `recv_timeout(16ms)` bisa
+    // mengirim satu emit per potongan kecil saat data datang beruntun; sekarang
+    // loop MENGURAS channel (`try_recv`) sampai kosong lalu mengirim SATU emit
+    // per BATCH_MS. Untuk `ping -t` di 2 pane ini memotong jumlah pesan IPC
+    // dari ratusan/detik menjadi ≤62/detik per pane (V4).
     let app_emit = app.clone();
     let emit_id = id.clone();
     let alive_emit = alive.clone();
     let paused = state.render_paused_flag();
     std::thread::spawn(move || {
-        let mut pending: Vec<u8> = Vec::with_capacity(16 * 1024);
+        let mut pending: Vec<u8> = Vec::with_capacity(64 * 1024);
         let mut last = Instant::now();
+        let mut closed = false;
 
         loop {
-            match rx.recv_timeout(Duration::from_millis(16)) {
-                Ok(chunk) => pending.extend_from_slice(&chunk),
+            match rx.recv_timeout(BATCH) {
+                Ok(chunk) => {
+                    pending.extend_from_slice(&chunk);
+                    // Kuras sisa channel: semua yang sudah tiba ikut satu emit.
+                    loop {
+                        match rx.try_recv() {
+                            Ok(more) => {
+                                pending.extend_from_slice(&more);
+                                if pending.len() >= MAX_BATCH_BYTES {
+                                    break;
+                                }
+                            }
+                            Err(mpsc::TryRecvError::Empty) => break,
+                            Err(mpsc::TryRecvError::Disconnected) => {
+                                closed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
-                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(mpsc::RecvTimeoutError::Disconnected) => closed = true,
             }
 
             // Saat window minimized, output TETAP dikumpulkan (tidak hilang),
             // hanya pengirimannya ditunda supaya tidak membuang CPU render.
-            let hold = paused.load(Ordering::Relaxed) && pending.len() < 512 * 1024;
+            let hold = paused.load(Ordering::Relaxed) && pending.len() < HOLD_CAP;
 
-            if !pending.is_empty() && !hold && last.elapsed() >= Duration::from_millis(16) {
+            if !pending.is_empty() && !hold && last.elapsed() >= BATCH {
                 let data = String::from_utf8_lossy(&pending).to_string();
                 pending.clear();
                 last = Instant::now();
@@ -345,6 +393,10 @@ pub fn pty_spawn(
                 {
                     return; // app tutup
                 }
+            }
+
+            if closed {
+                break;
             }
         }
 
