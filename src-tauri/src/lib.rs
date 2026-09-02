@@ -67,6 +67,8 @@ pub fn run() {
         // selalu bisa (klik kanan, Ctrl+Shift+C, Shift+Insert).
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(state)
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(move |app| {
             // Sampler RAM untuk StatusBar (fase 02 V6).
             settings::spawn_ram_sampler(app.handle().clone(), minimized_setup);
