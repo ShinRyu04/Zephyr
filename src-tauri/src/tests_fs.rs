@@ -352,4 +352,49 @@ mod tests {
             .chars()
             .all(|c| c == '•'));
     }
+
+    // ── FASE 16.3: path panjang & root drive ──
+
+    #[test]
+    fn long_path_menambah_prefix_untuk_path_panjang() {
+        use std::path::Path;
+        // Path pendek TIDAK diubah — prefix hanya menambah kerumitan.
+        let pendek = Path::new(r"C:\Users\a\proyek\file.txt");
+        assert_eq!(crate::paths::long_path(pendek), pendek.to_path_buf());
+
+        // Path >240 karakter dapat prefix `\\?\`.
+        let dalam = format!(r"C:\Users\a\{}\file.txt", "folder-panjang\\".repeat(20));
+        let hasil = crate::paths::long_path(Path::new(&dalam));
+        assert!(
+            hasil.to_string_lossy().starts_with(r"\\?\C:\"),
+            "harus dapat prefix: {}",
+            hasil.display()
+        );
+
+        // Yang sudah punya prefix tidak ditumpuk dua kali.
+        let sudah = format!(r"\\?\C:\{}", "x".repeat(300));
+        let hasil2 = crate::paths::long_path(Path::new(&sudah));
+        assert!(!hasil2.to_string_lossy().starts_with(r"\\?\\\?\"));
+
+        // UNC panjang memakai bentuk \\?\UNC\server\share
+        let unc = format!(r"\\server\share\{}", "y".repeat(300));
+        let hasil3 = crate::paths::long_path(Path::new(&unc));
+        assert!(
+            hasil3
+                .to_string_lossy()
+                .starts_with(r"\\?\UNC\server\share"),
+            "{}",
+            hasil3.display()
+        );
+    }
+
+    #[test]
+    fn is_drive_root_menolak_root_tapi_izinkan_folder() {
+        use std::path::Path;
+        assert!(crate::paths::is_drive_root(Path::new(r"C:\")));
+        assert!(crate::paths::is_drive_root(Path::new(r"D:\")));
+        assert!(!crate::paths::is_drive_root(Path::new(r"C:\Users")));
+        assert!(!crate::paths::is_drive_root(Path::new(r"D:\Zephyr")));
+        assert!(!crate::paths::is_drive_root(Path::new(r"C:\Users\a\b")));
+    }
 }

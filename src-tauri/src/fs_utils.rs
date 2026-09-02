@@ -253,7 +253,8 @@ pub fn write_file_encoded(
     line_ending: &str,
 ) -> ZResult<()> {
     let bytes = encode_string(content, encoding, line_ending)?;
-    std::fs::write(path, bytes)?;
+    // FASE 16.3: prefix `\\?\` untuk path panjang (>260 char).
+    std::fs::write(crate::paths::long_path(path), bytes)?;
     Ok(())
 }
 
@@ -267,6 +268,10 @@ pub fn fs_read(
 ) -> ZResult<ReadResult> {
     let p = PathBuf::from(&path);
     state.ensure_readable(&p)?;
+    // FASE 16.3: path >260 karakter butuh prefix `\\?\` di Windows, kalau tidak
+    // `metadata`/`read` gagal dengan "The system cannot find the path specified"
+    // walau filenya ada.
+    let p = crate::paths::long_path(&p);
 
     // FASE 14 V1: file yang sudah dihapus harus memberi pesan yang jelas
     // (nama filenya), bukan "os error 2" mentah dari Windows.
@@ -360,14 +365,15 @@ pub fn fs_write(
 
 #[tauri::command(async)]
 pub fn fs_exists(path: String) -> ZResult<bool> {
-    Ok(Path::new(&path).exists())
+    // FASE 16.3: path panjang butuh prefix `\\?\`.
+    Ok(crate::paths::long_path(Path::new(&path)).exists())
 }
 
 #[tauri::command(async)]
 pub fn fs_stat(state: State<AppState>, path: String) -> ZResult<StatResult> {
     let p = PathBuf::from(&path);
     state.ensure_readable(&p)?;
-    let meta = std::fs::metadata(&p).map_err(|e| map_fs_err(e, &path))?;
+    let meta = std::fs::metadata(crate::paths::long_path(&p)).map_err(|e| map_fs_err(e, &path))?;
     Ok(StatResult {
         size: meta.len(),
         is_dir: meta.is_dir(),
@@ -383,17 +389,18 @@ pub fn fs_create_file(
 ) -> ZResult<()> {
     let p = PathBuf::from(&path);
     state.ensure_writable(&p)?;
-    if p.exists() {
+    let lp = crate::paths::long_path(&p);
+    if lp.exists() {
         return Err(ZephyrError::InvalidInput(format!("{path} sudah ada")));
     }
     if let Some(parent) = p.parent() {
         if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
+            std::fs::create_dir_all(crate::paths::long_path(parent))?;
         }
     }
     // File baru: UTF-8 tanpa BOM, line ending Windows.
     let bytes = encode_string(&content.unwrap_or_default(), "utf8", "crlf")?;
-    std::fs::write(&p, bytes)?;
+    std::fs::write(&lp, bytes)?;
     Ok(())
 }
 
@@ -401,7 +408,8 @@ pub fn fs_create_file(
 pub fn fs_create_dir(state: State<AppState>, path: String) -> ZResult<()> {
     let p = PathBuf::from(&path);
     state.ensure_writable(&p)?;
-    std::fs::create_dir_all(&p)?;
+    // FASE 16.3: prefix `\\?\` untuk path panjang.
+    std::fs::create_dir_all(crate::paths::long_path(&p))?;
     Ok(())
 }
 
@@ -438,13 +446,16 @@ pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()
     let b = PathBuf::from(&to);
     state.ensure_writable(&a)?;
     state.ensure_writable(&b)?;
-    if !a.exists() {
+    // FASE 16.3: prefix `\\?\` untuk path panjang.
+    let la = crate::paths::long_path(&a);
+    let lb = crate::paths::long_path(&b);
+    if !la.exists() {
         return Err(ZephyrError::NotFound(from));
     }
-    if b.exists() {
+    if lb.exists() {
         return Err(ZephyrError::InvalidInput(format!("{to} sudah ada")));
     }
-    std::fs::rename(&a, &b)?;
+    std::fs::rename(&la, &lb)?;
     tracing::info!(from = %state.label(&a), to = %state.label(&b), "fs_rename");
     Ok(())
 }

@@ -19,7 +19,7 @@ import { THEMES, systemPrefersDark } from './themes';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch } from './commands';
+import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch, setWindowSize, takeBrokenConfig } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
 import { copySelection, pasteInto, writeChunked } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
@@ -398,6 +398,8 @@ export function installDevBridge(): void {
     branchRaw: (name: string) => gitCreateBranch(name),
     /** batas AI (fase 15.5) */
     aiLimits: () => ({ msg: MSG_LIMIT, attach: ATTACH_LIMIT, maxMsgs: MAX_MSGS }),
+    /** laporan pemotongan pesan terakhir (fase 15.5) */
+    aiTruncated: () => useAi.getState().lastTruncated,
     /** layout sempit aktif? (fase 15.6) */
     narrow: () => document.body.classList.contains('is-narrow'),
     /** teks RAM di status bar — bukti tidak NaN (fase 15.6) */
@@ -405,6 +407,10 @@ export function installDevBridge(): void {
       document.querySelector('[data-testid="sb-ram"]')?.textContent?.trim() ?? null,
     /** jumlah baris palette yang BENAR-BENAR dirender (virtual scroll) */
     cpRendered: () => document.querySelectorAll('[data-testid="cp-row"]').length,
+    /** ubah ukuran jendela lewat command Rust (uji layout sempit 15.6) */
+    resize: (w: number, h: number) => setWindowSize(w, h),
+    /** laporan config rusak terakhir yang di-backup Rust (fase 16.3) */
+    brokenConfig: () => takeBrokenConfig(),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

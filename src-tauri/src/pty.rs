@@ -327,6 +327,11 @@ pub fn pty_spawn(
 
     // ── thread 1: baca byte mentah dari pty ──
     let (tx, rx) = mpsc::channel::<Vec<u8>>();
+    // FASE 15.2: slot exit code + pengirim kedua untuk membangunkan thread emit.
+    // `exit_slot` diisi thread `wait` (thread 3) lalu dibaca thread emit.
+    let exit_slot: Arc<Mutex<Option<u32>>> = Arc::new(Mutex::new(None));
+    let exit_emit = exit_slot.clone();
+    let tx_exit = tx.clone();
     let alive_reader = alive.clone();
     std::thread::spawn(move || {
         let mut reader = reader;
@@ -358,10 +363,6 @@ pub fn pty_spawn(
     let emit_id = id.clone();
     let alive_emit = alive.clone();
     let paused = state.render_paused_flag();
-    // FASE 15.2: `child` dipindahkan ke thread ini supaya setelah EOF kita bisa
-    // memanggil `wait()` dan mengirim EXIT CODE sebenarnya ke UI ("process
-    // exited code 1"). Tanpa ini pane agent yang selesai hanya diam.
-    let mut child_wait = child;
     std::thread::spawn(move || {
         let mut pending: Vec<u8> = Vec::with_capacity(64 * 1024);
         let mut last = Instant::now();
@@ -411,6 +412,13 @@ pub fn pty_spawn(
             if closed {
                 break;
             }
+            // FASE 15.2: ConPTY tidak selalu meng-EOF pipe master saat shell
+            // keluar, jadi `closed` bisa tidak pernah true. Thread `wait`
+            // menyetel `alive=false` begitu proses mati — itu sinyal kedua
+            // untuk keluar dari loop ini setelah buffer terakhir dikirim.
+            if !alive_emit.load(Ordering::Relaxed) && pending.is_empty() {
+                break;
+            }
         }
 
         // Sisa buffer sebelum memberi tahu proses berakhir.
@@ -419,11 +427,43 @@ pub fn pty_spawn(
             let _ = app_emit.emit("pty-output", json!({ "id": emit_id, "data": data }));
         }
         alive_emit.store(false, Ordering::Relaxed);
-        // FASE 15.2: ambil exit code sebenarnya. `wait()` di sini tidak akan
-        // menggantung karena kita baru sampai sini setelah pty EOF (proses
-        // sudah berakhir). Kalau toh gagal, kirim tanpa code alih-alih diam.
-        let code = child_wait.wait().ok().map(|s| s.exit_code());
+        // FASE 15.2: exit code diambil oleh thread `wait` terpisah (lihat
+        // bawah) dan disimpan di `exit_slot`. Di sini kita hanya menunggu
+        // sebentar agar nilainya sudah tersedia, lalu mengirimnya.
+        //
+        // KENAPA TIDAK `child.wait()` DI SINI (sudah kena): thread ini baru
+        // keluar dari loop setelah channel reader terputus. Untuk ConPTY di
+        // Windows, pipe master TIDAK ikut EOF hanya karena shell keluar —
+        // conhost menahannya. Jadi `wait()` di thread ini tidak pernah
+        // tercapai, `pty-exit` tak pernah dikirim, dan pane terlihat "live"
+        // selamanya walau `exit 3` sudah dijalankan.
+        for _ in 0..20 {
+            if exit_emit.lock().map(|s| s.is_some()).unwrap_or(false) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let code = exit_emit.lock().ok().and_then(|s| *s);
         let _ = app_emit.emit("pty-exit", json!({ "id": emit_id, "code": code }));
+    });
+
+    // ── thread 3: tunggu proses anak berakhir, catat exit code ──
+    // Terpisah dari thread emit karena `wait()` memblokir sampai proses mati,
+    // sementara thread emit harus tetap mengalirkan output. Thread ini yang
+    // MEMBUAT `alive=false` untuk kasus ConPTY (pipe tidak EOF).
+    let exit_wait = exit_slot.clone();
+    let alive_wait = alive.clone();
+    let tx_wake = tx_exit;
+    std::thread::spawn(move || {
+        let mut child = child;
+        let code = child.wait().ok().map(|s| s.exit_code());
+        if let Ok(mut slot) = exit_wait.lock() {
+            *slot = Some(code.unwrap_or(0));
+        }
+        alive_wait.store(false, Ordering::Relaxed);
+        // Bangunkan thread emit: kirim byte kosong supaya `recv_timeout`
+        // kembali dan loop-nya melihat `alive == false`.
+        let _ = tx_wake.send(Vec::new());
     });
 
     Ok(pid.unwrap_or(0))
