@@ -1,0 +1,99 @@
+/* tokens.css — token turunan fase 13.
+ *
+ * theme.css tetap SUMBER palet (6 tema, `[data-theme='…']`). File ini
+ * menambahkan nama token yang diminta kontrak fase 13 (shell chrome,
+ * gutter, 16 warna ANSI terminal) sebagai TURUNAN dari palet itu — bukan
+ * palet kedua. Konsekuensinya penting: menambah tema baru cukup di
+ * theme.css, seluruh token di bawah ikut sendiri karena nilainya
+ * `var(--…)` yang dievaluasi ulang per elemen.
+ *
+ * Kalau ada nilai yang harus beda per tema (mis. ANSI hitam di tema
+ * terang), override-nya ada di blok `[data-theme='…']` di bawah. */
+
+:root {
+  /* permukaan (alias kontrak fase 13 → palet fase 08) */
+  --bg0: var(--bg);
+  --bg1: var(--surface);
+  --bg2: var(--surface-2);
+  --bg3: var(--surface-3);
+
+  /* teks */
+  --fg0: var(--text);
+  --fg1: var(--text-secondary);
+  --fg2: var(--text-muted);
+  --accent-fg: var(--text-inverse);
+
+  /* editor */
+  --editor-background: var(--editor-bg);
+  --editor-foreground: var(--text);
+  --gutter-bg: var(--editor-bg);
+  --gutter-fg: var(--editor-gutter);
+  --line-active: var(--editor-active-line);
+  --line-active-bg: var(--editor-active-line);
+  --selection-bg: var(--editor-selection);
+
+  /* syntax (nama kontrak fase 13) */
+  --syntax-keyword: var(--syn-keyword);
+  --syntax-string: var(--syn-string);
+  --syntax-number: var(--syn-number);
+  --syntax-comment: var(--syn-comment);
+  --syntax-fn: var(--syn-function);
+  --syntax-type: var(--syn-type);
+  --syntax-operator: var(--syn-operator);
+
+  /* chrome */
+  --panel-header-bg: var(--surface);
+  --toolbar-bg: var(--surface);
+  --statusbar-bg: var(--surface);
+  --titlebar-bg: var(--surface);
+  --input-bg: var(--surface-2);
+  --input-border: var(--border);
+  --focus-ring: var(--accent);
+
+  /* terminal */
+  --terminal-bg: var(--editor-bg);
+  --terminal-fg: var(--text);
+
+  /* 16 warna ANSI — dipakai xterm lewat xtermRegistry.themeFromCss() */
+  --terminal-ansi-0: #1c2128;
+  --terminal-ansi-1: var(--danger);
+  --terminal-ansi-2: var(--success);
+  --terminal-ansi-3: var(--warning);
+  --terminal-ansi-4: var(--accent);
+  --terminal-ansi-5: var(--syn-function);
+  --terminal-ansi-6: var(--syn-operator);
+  --terminal-ansi-7: var(--text-secondary);
+  --terminal-ansi-8: var(--text-muted);
+  --terminal-ansi-9: var(--syn-keyword);
+  --terminal-ansi-10: var(--syn-type);
+  --terminal-ansi-11: var(--syn-attr);
+  --terminal-ansi-12: var(--accent-hover);
+  --terminal-ansi-13: var(--syn-variable);
+  --terminal-ansi-14: var(--syn-number);
+  --terminal-ansi-15: var(--text);
+}
+
+/* Tema terang: ANSI 0 harus benar-benar gelap (di tema gelap ia permukaan),
+   dan abu-abu terang perlu diturunkan supaya teks tetap terbaca. */
+[data-theme='zephyr-light'] {
+  --terminal-ansi-0: #24292f;
+  --terminal-ansi-7: #57606a;
+  --terminal-ansi-8: #6e7781;
+  --terminal-ansi-15: #1f2328;
+}
+
+[data-theme='nord'] {
+  --terminal-ansi-0: #3b4252;
+}
+
+[data-theme='tokyo-night'] {
+  --terminal-ansi-0: #1f2335;
+}
+
+[data-theme='gruvbox-dark'] {
+  --terminal-ansi-0: #32302f;
+}
+
+[data-theme='one-dark'] {
+  --terminal-ansi-0: #21252b;
+}

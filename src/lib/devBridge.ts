@@ -13,18 +13,19 @@ import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS } from './aiStore';
 import { ALL_MODELS } from './modelCatalog';
-import { THEMES } from './themes';
+import { THEMES, systemPrefersDark } from './themes';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings } from './commands';
-import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize } from './xtermRegistry';
+import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder } from './commands';
+import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
 import { copySelection, pasteInto } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
 import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
 import { usePalette } from './paletteStore';
-import { COMMANDS } from './commandRegistry';
+import { useExtensions } from './extensionStore';
+import { COMMANDS, availableCommands, extensionCommands } from './commandRegistry';
 
 type CmdName = 'undo' | 'redo';
 
@@ -221,6 +222,9 @@ export function installDevBridge(): void {
     files: () => usePalette.getState().files.length,
     /** seluruh katalog command (untuk membuktikan registry lengkap) */
     commands: () => COMMANDS.map((c) => ({ id: c.id, title: c.title, group: c.group })),
+    /** command yang benar-benar tampil sekarang, TERMASUK dari ekstensi */
+    available: () =>
+      availableCommands().map((c) => ({ id: c.id, title: c.title, group: c.group })),
     /** tabel shortcut efektif + deteksi konflik (V4) */
     shortcutTable: () => {
       const custom = useStore.getState().settings.shortcuts;
@@ -239,6 +243,58 @@ export function installDevBridge(): void {
         .map(([binding, ids]) => ({ binding, ids }));
       return { rows, conflicts };
     },
+  };
+  // Ekstensi + tema (fase 13): store, jalur load/toggle, dan token warna
+  // yang benar-benar terkomputasi di <html> (bukti V1/V3).
+  w.__ZEPHYR_EXT__ = {
+    store: useExtensions,
+    list: () => useExtensions.getState().list,
+    refresh: () => useExtensions.getState().refresh(),
+    toggle: (id: string, on: boolean) => useExtensions.getState().toggle(id, on),
+    load: (id: string) => useExtensions.getState().load(id),
+    /** panggil `extensions_load` LANGSUNG supaya error (mis. >1MB) terlihat */
+    loadRaw: (id: string) => extensionsLoad(id),
+    addPath: (p: string) => useExtensions.getState().addPath(p),
+    remove: (id: string) => useExtensions.getState().remove(id),
+    folder: () => extensionsFolder(),
+    error: () => useExtensions.getState().extError,
+    info: () => useExtensions.getState().extInfo,
+    setError: (m: string | null) => useExtensions.getState().setError(m),
+    market: (open: boolean) => useExtensions.getState().setMarketOpen(open),
+    /** command yang disumbang ekstensi aktif */
+    extCommands: () => extensionCommands().map((c) => ({ id: c.id, title: c.title, group: c.group })),
+  };
+  w.__ZEPHYR_THEME__ = {
+    active: () => document.documentElement.dataset.theme ?? '',
+    /** id tema di store (dipakai CodeMirror) */
+    inStore: () => useStore.getState().activeTheme,
+    ids: () => THEMES.map((t) => t.id),
+    set: (id: string) => {
+      const info = THEMES.find((t) => t.id === id);
+      return useStore.getState().applySettings({
+        theme: { current: id },
+        general: { theme: info?.kind === 'light' ? 'light' : 'dark' },
+      });
+    },
+    mode: (m: 'dark' | 'light' | 'system') =>
+      useStore.getState().applySettings({ general: { theme: m } }),
+    /** nilai satu token CSS setelah komputasi */
+    token: (name: string) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim(),
+    /** semua token wajib fase 13 + nilainya (kosong = token hilang) */
+    tokens: (names: string[]) => {
+      const css = getComputedStyle(document.documentElement);
+      const out: Record<string, string> = {};
+      for (const n of names) out[n] = css.getPropertyValue(n).trim();
+      return out;
+    },
+    /** warna terminal xterm yang sedang dipakai (bukti V3) */
+    termTheme: (id: string) => {
+      const t = termOptionsTheme(id);
+      return t ? { background: t.background, red: t.red, green: t.green, black: t.black } : null;
+    },
+    retheme: () => retheme(),
+    systemDark: () => systemPrefersDark(),
   };
   // Untuk menguji jalur onCloseRequested (V7 fase 02 / V5 fase 03).
   w.__ZEPHYR_WIN__ = {

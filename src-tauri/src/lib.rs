@@ -10,6 +10,7 @@ mod credential;
 mod dialogs;
 mod errors;
 mod explorer;
+mod extensions;
 mod fs_utils;
 mod git;
 mod github;
@@ -20,8 +21,8 @@ mod pty;
 mod secrets;
 mod settings;
 mod tests_ai;
-mod tests_fs;
 mod tests_browser;
+mod tests_fs;
 mod tests_git;
 mod tests_mcp;
 
@@ -171,6 +172,12 @@ pub fn run() {
             mcp_commands::mcp_write_cli,
             mcp_commands::mcp_remove_cli,
             mcp_commands::mcp_cli_status,
+            // extensions (fase 13)
+            extensions::extensions_list,
+            extensions::extensions_load,
+            extensions::extensions_add,
+            extensions::extensions_remove,
+            extensions::extensions_folder,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
