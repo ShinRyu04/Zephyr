@@ -10,18 +10,22 @@ import EditorArea from './components/shell/EditorArea';
 import TerminalArea from './components/shell/TerminalArea';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
+import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
 import { useStore } from './lib/store';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
 import { useAi } from './lib/aiStore';
+import { useGit } from './lib/gitStore';
+import { useMcp } from './lib/mcpStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { flushTab } from './lib/editorRegistry';
-import { onAiChunk, onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
+import { onAiChunk, onFsChanged, onGhLogin, onMcpAction, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/settings.css';
 import './styles/ai.css';
+import './styles/scm.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -32,6 +36,14 @@ let ptyListenersBound = false;
 
 /** Guard yang sama untuk listener `ai-chunk` (fase 09). */
 let aiListenerBound = false;
+
+/** Guard yang sama untuk listener `gh-login` (fase 10). */
+let ghListenerBound = false;
+
+/** Guard yang sama untuk listener `mcp-action` (fase 11). Tanpa ini setiap
+ *  permintaan MCP dieksekusi dua kali di dev — editor_open membuka dua tab
+ *  dan `mcp_reply` kedua ditolak Rust. */
+let mcpListenerBound = false;
 
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
@@ -310,6 +322,57 @@ export default function App() {
     void onAiChunk((c) => useAi.getState().onChunk(c));
   }, []);
 
+  // 9) Source Control (fase 10): status awal + listener `gh-login`.
+  //    Guard modul sama seperti pty/ai — device flow yang di-handle dua kali
+  //    akan menimpa pesan status berulang.
+  useEffect(() => {
+    void useGit.getState().init();
+    if (ghListenerBound) return;
+    ghListenerBound = true;
+    void onGhLogin((e) => useGit.getState().onGhLogin(e));
+  }, []);
+
+  // 9b) Refresh status git setiap workspace berganti atau file berubah.
+  //     Debounce 250ms: satu `git status` per burst, bukan per event.
+  useEffect(() => {
+    let timer: number | undefined;
+    const bump = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void useGit.getState().refresh(), 250);
+    };
+    let unlisten: (() => void) | undefined;
+    onFsChanged(bump)
+      .then((un) => {
+        unlisten = un;
+      })
+      .catch(() => {
+        /* non-Tauri */
+      });
+    const unsub = useStore.subscribe((s, prev) => {
+      if (s.workspace !== prev.workspace) void useGit.getState().init();
+      // Simpan file → status git berubah walau watcher tidak sempat kirim.
+      if (s.tabs !== prev.tabs) bump();
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unlisten?.();
+      unsub();
+    };
+  }, []);
+
+  // 9c) MCP (fase 11): status server + listener `mcp-action`.
+  //     Guard modul WAJIB (lihat mcpListenerBound di atas): satu permintaan
+  //     MCP tidak boleh dieksekusi dua kali.
+  useEffect(() => {
+    void useMcp.getState().init();
+    if (mcpListenerBound) return;
+    mcpListenerBound = true;
+    void onMcpAction((a) => void useMcp.getState().handleAction(a));
+    void onMcpScreenshot(({ paneId, path }) => {
+      useMcp.setState({ lastShot: path, mcpInfo: `Screenshot pane ${paneId} → ${path}` });
+    });
+  }, []);
+
   return (
     <div className="app-root">
       <div className="app-body">
@@ -338,6 +401,7 @@ export default function App() {
 
       <StatusBar />
       <ConfirmDialog />
+      <ScmConfirmDialog />
     </div>
   );
 }

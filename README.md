@@ -73,6 +73,39 @@ Punya server model sendiri? Pilih provider *Lokal (opencode / loopback)*
 lalu arahkan base URL ke server OpenAI-compatible milik Anda (LM Studio,
 Ollama, llama.cpp, vLLM), misal `http://127.0.0.1:1234/v1`.
 
+## Menghubungkan AI CLI ke Zephyr (MCP port 9222)
+
+Buka **Settings → MCP**, nyalakan switch besarnya. Zephyr jadi server
+JSON-RPC 2.0 di `http://127.0.0.1:9222` — loopback saja, tidak pernah terbuka
+ke jaringan — dan setiap permintaan wajib membawa
+`Authorization: Bearer <token>`. Tokennya di-generate sekali ke
+`%APPDATA%\zephyr\mcp.json`; tombol mata untuk melihatnya, Copy untuk
+menyalin, "Token baru" kalau mau mencabut akses lama.
+
+Centang CLI yang mau didaftari lalu tekan **Tulis ke CLI**. Zephyr menyisipkan
+entri `zephyr` ke config masing-masing (`~/.claude.json`,
+`~/.codex/config.toml`, `~/.gemini/settings.json`,
+`~/.config/opencode/opencode.json`, `~/.copilot/mcp-config.json`,
+`~/.cursor/mcp.json`, `Startup/.mcp.json`) — key lain di file itu tidak
+disentuh, dan versi lamanya selalu disalin ke `<nama>.bak` dulu.
+
+Cek cepat tanpa CLI apa pun:
+
+```powershell
+curl http://127.0.0.1:9222/health
+curl -H "Authorization: Bearer <token>" http://127.0.0.1:9222/mcp
+```
+
+18 tool tersedia: `list_panes`, `list_editors`, `get_window`, `get_settings`,
+`list_extensions`, `terminal_write`, `terminal_key`, `pane_new`, `pane_close`,
+`editor_open`, `editor_write`, `editor_insert`, `editor_close`, `run_command`,
+`screenshot_pane`, `set_setting`, dan dua alias. Dua batasan yang saya sebut
+apa adanya: **`editor_write`/`editor_insert` hanya mengubah buffer tab, tidak
+menulis ke disk** (menyimpan tetap keputusan Anda), dan `set_setting` dibatasi
+whitelist tampilan/editor — kredensial serta setting MCP sendiri tidak bisa
+diubah dari luar. Yang perlu Anda sadari: selama tahu tokennya, apa pun yang
+berjalan sebagai akun Anda bisa mengemudikan jendela ini.
+
 ## Catatan: Private Terminal (jujur, apa adanya)
 
 Private Terminal bukan sandbox dan bukan sesi user lain. Yang benar-benar

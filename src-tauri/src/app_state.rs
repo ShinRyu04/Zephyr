@@ -31,6 +31,25 @@ pub struct AppState {
     /// Permintaan AI yang sedang berjalan (fase 09), key = id request.
     /// Nilainya flag batal yang dibaca thread streaming tiap baris.
     ai_reqs: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    /// Server MCP yang sedang hidup (fase 11). None = tidak listening.
+    mcp_rt: Mutex<Option<McpRuntime>>,
+    /// Permintaan MCP yang menunggu jawaban frontend, key = reqId.
+    /// Rust mengirim event `mcp-action`, frontend menjawab `mcp_reply`.
+    mcp_pending: Mutex<HashMap<String, tokio::sync::oneshot::Sender<serde_json::Value>>>,
+    /// Serialisasi method MCP: dua agent CLI yang mengemudi sekaligus
+    /// diproses satu per satu (V11 fase 11), bukan saling menimpa.
+    mcp_lock: tokio::sync::Mutex<()>,
+}
+
+/// Server MCP yang hidup: port yang benar-benar terikat + kanal shutdown.
+pub struct McpRuntime {
+    pub port: u16,
+    /// Port yang DIMINTA saat start (bisa beda dari `port` bila terpakai).
+    /// Disimpan di sini karena settings.mcp.port ditimpa port hasil bind —
+    /// tanpa ini UI kehilangan info "9222 dipakai, jadi pindah".
+    pub requested: u16,
+    pub started: std::time::Instant,
+    pub shutdown: tokio::sync::oneshot::Sender<()>,
 }
 
 impl AppState {
@@ -50,7 +69,81 @@ impl AppState {
             ptys: Mutex::new(HashMap::new()),
             render_paused: Arc::new(AtomicBool::new(false)),
             ai_reqs: Mutex::new(HashMap::new()),
+            mcp_rt: Mutex::new(None),
+            mcp_pending: Mutex::new(HashMap::new()),
+            mcp_lock: tokio::sync::Mutex::new(()),
         }
+    }
+
+    // ── server MCP (fase 11) ──
+
+    /// Simpan runtime server yang baru terikat.
+    pub fn mcp_set_runtime(&self, rt: McpRuntime) {
+        if let Ok(mut slot) = self.mcp_rt.lock() {
+            *slot = Some(rt);
+        }
+    }
+
+    /// Ambil runtime keluar (untuk mengirim signal shutdown).
+    pub fn mcp_take_runtime(&self) -> Option<McpRuntime> {
+        self.mcp_rt.lock().ok().and_then(|mut s| s.take())
+    }
+
+    /// Port yang sedang listening; None = server mati.
+    pub fn mcp_port(&self) -> Option<u16> {
+        self.mcp_rt
+            .lock()
+            .ok()
+            .and_then(|s| s.as_ref().map(|r| r.port))
+    }
+
+    /// Port yang DIMINTA saat start (untuk banner fallback di UI).
+    pub fn mcp_requested_port(&self) -> Option<u16> {
+        self.mcp_rt
+            .lock()
+            .ok()
+            .and_then(|s| s.as_ref().map(|r| r.requested))
+    }
+
+    pub fn mcp_uptime_ms(&self) -> u64 {
+        self.mcp_rt
+            .lock()
+            .ok()
+            .and_then(|s| s.as_ref().map(|r| r.started.elapsed().as_millis() as u64))
+            .unwrap_or(0)
+    }
+
+    /// Daftarkan permintaan ke frontend; kembalikan penerima jawabannya.
+    pub fn mcp_register(&self, id: &str) -> tokio::sync::oneshot::Receiver<serde_json::Value> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        if let Ok(mut m) = self.mcp_pending.lock() {
+            m.insert(id.to_string(), tx);
+        }
+        rx
+    }
+
+    /// Frontend menjawab. false = id tidak dikenal / sudah kadaluarsa.
+    pub fn mcp_resolve(&self, id: &str, value: serde_json::Value) -> bool {
+        let tx = match self.mcp_pending.lock() {
+            Ok(mut m) => m.remove(id),
+            Err(_) => None,
+        };
+        match tx {
+            Some(tx) => tx.send(value).is_ok(),
+            None => false,
+        }
+    }
+
+    /// Buang permintaan yang timeout supaya map tidak bocor.
+    pub fn mcp_forget(&self, id: &str) {
+        if let Ok(mut m) = self.mcp_pending.lock() {
+            m.remove(id);
+        }
+    }
+
+    /// Mutex serialisasi method MCP.
+    pub fn mcp_lock(&self) -> &tokio::sync::Mutex<()> {
+        &self.mcp_lock
     }
 
     // ── permintaan AI (fase 09) ──
