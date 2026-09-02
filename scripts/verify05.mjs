@@ -241,8 +241,12 @@ const main = async () => {
   );
 
   // ───────── V3: resize -> grid ikut, output tetap benar ─────────
+  // Baseline dipaksa 240px lebih dulu: kalau tidak, hasil V3 ikut tinggi
+  // panel yang ditinggalkan run/uji sebelumnya (pernah bikin V3 gagal palsu).
   const resize = JSON.parse(
     await cdp.runAsync(`
+      T.getState().setHeight(240);
+      await new Promise(r => setTimeout(r, 1000));
       const before = P.size(${JSON.stringify(id1)});
       T.getState().setHeight(430);
       await new Promise(r => setTimeout(r, 1000));
