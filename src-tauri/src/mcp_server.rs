@@ -31,6 +31,15 @@ use tauri::{AppHandle, Emitter, Manager};
 /// Batas tunggu jawaban frontend untuk satu method.
 const UI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 
+/// FASE 15.4: batas byte untuk `editor_write` / `editor_insert`.
+/// Buffer tab hidup di WebView; menerima payload puluhan MB lewat IPC bisa
+/// menghabiskan memori proses render. 1MB sama dengan batas ekstensi (fase 13).
+const MAX_EDITOR_WRITE: usize = 1024 * 1024;
+
+/// FASE 15.4: batas byte satu `terminal_write`. Menulis megabyte ke ConPTY
+/// dalam satu panggilan membuat shell tersedak; agent harus memecah sendiri.
+const MAX_TERMINAL_WRITE: usize = 64 * 1024;
+
 #[derive(Clone)]
 struct Ctx {
     app: AppHandle,
@@ -152,8 +161,16 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
 }
 
 /// Matikan server (socket ditutup — port tidak lagi listening).
+///
+/// FASE 15.4: permintaan yang masih menunggu jawaban UI dibatalkan dengan
+/// error terstruktur ("MCP dimatikan…") supaya agent yang terhubung menerima
+/// balasan JSON-RPC error alih-alih menggantung sampai timeout 8 detik.
 pub fn stop(app: &AppHandle) -> bool {
     let state = app.state::<AppState>();
+    let dibatalkan = state.mcp_fail_pending("MCP dimatikan saat permintaan berjalan — coba lagi setelah server dinyalakan");
+    if dibatalkan > 0 {
+        tracing::info!("mcp_stop membatalkan {dibatalkan} permintaan yang menggantung");
+    }
     match state.mcp_take_runtime() {
         Some(rt) => {
             let _ = rt.shutdown.send(());
@@ -532,12 +549,22 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
         }
 
         // ── write: terminal (jalur PTY asli di Rust) ──
+        // Serialisasi: `handle_one` sudah memegang `mcp_lock` untuk SETIAP
+        // permintaan, jadi dua `terminal_write` bersamaan diproses berurutan
+        // dan byte-nya tidak bisa saling menyelip (V dua-agent fase 15.4).
         "terminal_write" => {
             let pane = need_str(&params, "paneId")?;
             let data = params
                 .get("data")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| ZephyrError::InvalidInput("param 'data' wajib ada".into()))?;
+            if data.len() > MAX_TERMINAL_WRITE {
+                return Err(ZephyrError::InvalidInput(format!(
+                    "data {} byte melewati batas {} byte (64KB) untuk terminal_write",
+                    data.len(),
+                    MAX_TERMINAL_WRITE
+                )));
+            }
             pty_write_raw(&state, &pane, data)?;
             Ok(json!({ "ok": true, "paneId": pane, "bytes": data.len() }))
         }
@@ -593,6 +620,16 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 .get("content")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| ZephyrError::InvalidInput("param 'content' wajib ada".into()))?;
+            // FASE 15.4: batas ukuran. Tanpa ini satu panggilan agent bisa
+            // mengirim buffer puluhan MB lewat IPC ke WebView dan menghabiskan
+            // memori proses render (OOM) — ditolak lebih awal, di Rust.
+            if content.len() > MAX_EDITOR_WRITE {
+                return Err(ZephyrError::InvalidInput(format!(
+                    "content {} byte melewati batas {} byte (1MB) untuk editor_write",
+                    content.len(),
+                    MAX_EDITOR_WRITE
+                )));
+            }
             // Kontrak keras: buffer saja, TIDAK menulis disk.
             ui_call(app, "editor_write", json!({ "tabId": tab, "content": content })).await
         }
@@ -602,6 +639,13 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 .get("text")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| ZephyrError::InvalidInput("param 'text' wajib ada".into()))?;
+            if text.len() > MAX_EDITOR_WRITE {
+                return Err(ZephyrError::InvalidInput(format!(
+                    "text {} byte melewati batas {} byte (1MB) untuk editor_insert",
+                    text.len(),
+                    MAX_EDITOR_WRITE
+                )));
+            }
             ui_call(
                 app,
                 "editor_insert",

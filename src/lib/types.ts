@@ -1,7 +1,9 @@
 // types.ts — tipe bersama frontend. Bentuk mengikuti ARCHITECTURE.md §5.
 // Wajib sinkron dengan serde di src-tauri (fs_utils.rs, settings.rs).
 
-export type Encoding = 'utf8' | 'utf8-bom' | 'ansi';
+/** fase 15.1: utf16le/utf16be hanya BISA DIBACA — file-nya dibuka read-only
+ *  dan harus disimpan sebagai UTF-8 lewat "Simpan sebagai UTF-8". */
+export type Encoding = 'utf8' | 'utf8-bom' | 'ansi' | 'utf16le' | 'utf16be';
 export type LineEnding = 'crlf' | 'lf';
 
 export type ErrorCode =
@@ -67,6 +69,12 @@ export interface ReadResult {
   content: string;
   detectedEncoding: Encoding;
   lineEnding: LineEnding;
+  /** fase 15.1: file >4MB atau UTF-16 → tab dibuka baca-saja. */
+  readOnly: boolean;
+  /** ukuran file di disk (byte) */
+  bytes: number;
+  /** alasan read-only untuk ditampilkan ke user ('' = bisa diedit) */
+  note: string;
 }
 
 export interface StatResult {
@@ -182,6 +190,8 @@ export interface PaneMeta {
   pid?: number | null;
   /** hanya untuk kind 'browser' */
   url?: string;
+  /** fase 15.2: exit code proses saat status='exited' (null = tak diketahui). */
+  exitCode?: number | null;
 }
 
 /** Satu tab terminal berisi 1..maxPanes pane. */
@@ -435,6 +445,16 @@ export interface Tab {
    *  Tab tetap ada di tab bar; isinya dibaca ulang dari disk saat diaktifkan.
    *  undefined dianggap true (tab lama / untitled). */
   loaded?: boolean;
+  /** fase 15.1: tab baca-saja (file >4MB atau UTF-16). Editor tidak bisa
+   *  diketik dan ekstensi berat dilepas supaya file besar tidak membekukan UI. */
+  readOnly?: boolean;
+  /** alasan read-only (ditampilkan sebagai banner di atas editor) */
+  note?: string;
+  /** ukuran file saat dibaca (byte) */
+  bytes?: number;
+  /** fase 15.1: file ini PERNAH ada di disk. Dipakai `fs_write` untuk
+   *  membedakan "file hilang dari luar" dari "file baru". */
+  existed?: boolean;
 }
 
 export type LangId =

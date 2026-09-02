@@ -18,6 +18,11 @@ import { useStore } from './store';
 import { disposeHandle } from './xtermRegistry';
 import type { AgentInfo, PaneKind, PaneMeta, ShellInfo, TerminalTab } from './types';
 
+/** fase 15.2: pane yang sedang dalam proses ditutup. Di luar store supaya
+ *  tidak memicu render; hanya untuk mencegah `closePane` ganda saat user
+ *  menutup 6 pane bertubi-tubi (double dispose xterm + pty_kill kedua gagal). */
+const closing = new Set<string>();
+
 interface TerminalState {
   visible: boolean;
   /** tinggi panel terminal dalam px */
@@ -75,7 +80,7 @@ interface TerminalActions {
   killPane: (paneId: string) => Promise<void>;
   reorderPane: (tabId: string, from: number, to: number) => void;
   setPaneUrl: (paneId: string, url: string) => void;
-  markExited: (paneId: string) => void;
+  markExited: (paneId: string, code?: number | null) => void;
   refreshFromBackend: () => Promise<void>;
 
   // ── selector bantu ──
@@ -317,6 +322,13 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     })),
 
   closePane: async (paneId) => {
+    // fase 15.2: menutup 6 pane dengan cepat memanggil ini berkali-kali
+    // sebelum `ptyKill` yang pertama selesai. Tanpa guard, pane yang sama
+    // bisa masuk dua kali → `disposeHandle` dipanggil dua kali (xterm
+    // double-dispose) dan `pty_kill` kedua mengembalikan error "sesi tidak
+    // ditemukan" yang muncul sebagai toast palsu.
+    if (closing.has(paneId)) return;
+    closing.add(paneId);
     const pane = get().findPane(paneId);
     if (pane && pane.kind !== 'browser') {
       try {
@@ -347,6 +359,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       paneMenuFor: null,
       menuFor: null,
     }));
+    closing.delete(paneId);
   },
 
   killPane: async (paneId) => {
@@ -379,11 +392,13 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       })),
     })),
 
-  markExited: (paneId) =>
+  markExited: (paneId, code) =>
     set((s) => ({
       terminalTabs: s.terminalTabs.map((t) => ({
         ...t,
-        panes: t.panes.map((p) => (p.id === paneId ? { ...p, status: 'exited' } : p)),
+        panes: t.panes.map((p) =>
+          p.id === paneId ? { ...p, status: 'exited', exitCode: code ?? p.exitCode ?? null } : p,
+        ),
       })),
     })),
 

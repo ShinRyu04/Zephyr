@@ -342,6 +342,22 @@ impl AppState {
         }
     }
 
+    /// FASE 15.4: server dimatikan saat masih ada permintaan menggantung.
+    /// Semua penunggu dijawab dengan error TERSTRUKTUR sekarang, bukan
+    /// dibiarkan menunggu sampai `UI_TIMEOUT` (agent-nya terlihat hang).
+    /// Mengembalikan jumlah permintaan yang dibatalkan.
+    pub fn mcp_fail_pending(&self, reason: &str) -> usize {
+        let drained: Vec<_> = match write_lock(&self.mcp_pending, "mcp_pending") {
+            Ok(mut m) => m.drain().map(|(_, tx)| tx).collect(),
+            Err(_) => return 0,
+        };
+        let n = drained.len();
+        for tx in drained {
+            let _ = tx.send(serde_json::json!({ "error": reason }));
+        }
+        n
+    }
+
     /// Mutex serialisasi method MCP.
     pub fn mcp_lock(&self) -> &tokio::sync::Mutex<()> {
         &self.mcp_lock

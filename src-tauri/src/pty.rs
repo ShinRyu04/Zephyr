@@ -285,6 +285,15 @@ pub fn pty_spawn(
     cmd.env("ZEPHYR_TERMINAL", "1");
     if kind == "private" {
         cmd.env("ZEPHYR_PRIVATE", "1");
+        // FASE 15.2: kalau user menjalankan bash/sh DI DALAM pane private,
+        // riwayatnya juga tidak boleh menyentuh disk. PowerShell diurus lewat
+        // `-HistorySaveStyle SaveNothing` di resolve_shell; ini menutup jalur
+        // shell POSIX (git-bash, WSL, sh) yang membaca HISTFILE/HISTSIZE.
+        cmd.env("HISTFILE", "");
+        cmd.env("HISTSIZE", "0");
+        cmd.env("HISTFILESIZE", "0");
+        // bash membaca ini untuk memutuskan apa yang TIDAK dicatat.
+        cmd.env("HISTCONTROL", "ignoreboth");
     }
 
     let child = pair
@@ -349,6 +358,10 @@ pub fn pty_spawn(
     let emit_id = id.clone();
     let alive_emit = alive.clone();
     let paused = state.render_paused_flag();
+    // FASE 15.2: `child` dipindahkan ke thread ini supaya setelah EOF kita bisa
+    // memanggil `wait()` dan mengirim EXIT CODE sebenarnya ke UI ("process
+    // exited code 1"). Tanpa ini pane agent yang selesai hanya diam.
+    let mut child_wait = child;
     std::thread::spawn(move || {
         let mut pending: Vec<u8> = Vec::with_capacity(64 * 1024);
         let mut last = Instant::now();
@@ -406,7 +419,11 @@ pub fn pty_spawn(
             let _ = app_emit.emit("pty-output", json!({ "id": emit_id, "data": data }));
         }
         alive_emit.store(false, Ordering::Relaxed);
-        let _ = app_emit.emit("pty-exit", json!({ "id": emit_id }));
+        // FASE 15.2: ambil exit code sebenarnya. `wait()` di sini tidak akan
+        // menggantung karena kita baru sampai sini setelah pty EOF (proses
+        // sudah berakhir). Kalau toh gagal, kirim tanpa code alih-alih diam.
+        let code = child_wait.wait().ok().map(|s| s.exit_code());
+        let _ = app_emit.emit("pty-exit", json!({ "id": emit_id, "code": code }));
     });
 
     Ok(pid.unwrap_or(0))

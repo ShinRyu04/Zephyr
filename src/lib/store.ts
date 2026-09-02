@@ -28,6 +28,15 @@ export interface ConfirmState {
   intent: 'close-tab' | 'close-window';
 }
 
+/** fase 15.1: file tab hilang dari disk saat Ctrl+S, atau tab UTF-16 yang
+ *  minta disimpan sebagai UTF-8. Dua-duanya butuh jawaban user dulu. */
+export interface SaveIssue {
+  kind: 'missing' | 'utf16';
+  tabId: string;
+  path: string;
+  name: string;
+}
+
 interface StoreState {
   // shell
   activity: ActivityId;
@@ -45,6 +54,8 @@ interface StoreState {
   untitledSeq: number;
   findOpen: boolean;
   confirm: ConfirmState | null;
+  /** fase 15.1: pertanyaan saat simpan (file hilang / UTF-16). */
+  saveIssue: SaveIssue | null;
 
   // slot kontrak fase berikutnya
   terminalTabs: never[];
@@ -114,6 +125,10 @@ interface StoreActions {
   resolveConfirm: (choice: 'save' | 'discard' | 'cancel') => Promise<void>;
   requestCloseWindow: () => boolean;
 
+  /** fase 15.1: jawab dialog simpan (file hilang / UTF-16 → UTF-8). */
+  setSaveIssue: (i: SaveIssue | null) => void;
+  resolveSaveIssue: (choice: 'ok' | 'cancel') => Promise<void>;
+
   persistSession: () => Promise<void>;
   applySettings: (patch: Record<string, unknown>) => Promise<void>;
   /** Muat ulang settings dari disk (dipakai setelah reset_settings). */
@@ -170,6 +185,7 @@ export const useStore = create<Store>((set, get) => ({
   untitledSeq: 0,
   findOpen: false,
   confirm: null,
+  saveIssue: null,
 
   terminalTabs: [],
   ai: { model: 'gemini-3.6-flash', messages: [] },
@@ -337,6 +353,10 @@ export const useStore = create<Store>((set, get) => ({
         content: res.content,
         lang: detectLang(path),
         loaded: true,
+        readOnly: res.readOnly,
+        note: res.note,
+        bytes: res.bytes,
+        existed: true,
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
       touchTab(tab.id);
@@ -387,6 +407,10 @@ export const useStore = create<Store>((set, get) => ({
                 encoding: res.detectedEncoding,
                 lineEnding: res.lineEnding,
                 loaded: true,
+                readOnly: res.readOnly,
+                note: res.note,
+                bytes: res.bytes,
+                existed: true,
               }
             : t,
         ),
@@ -442,7 +466,9 @@ export const useStore = create<Store>((set, get) => ({
       tabs: s.tabs.map((t) =>
         // Tab yang isinya dilepas (fase 14.5) tidak menerima update: editor
         // untuknya tidak di-mount, jadi update apa pun di sini palsu.
-        t.id === id && t.loaded !== false
+        // Tab read-only (fase 15.1) juga ditolak — buffer harus tetap sama
+        // dengan disk supaya tidak ada "unsaved" yang tak bisa disimpan.
+        t.id === id && t.loaded !== false && !t.readOnly
           ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved }
           : t,
       ),
@@ -463,15 +489,44 @@ export const useStore = create<Store>((set, get) => ({
       }
     }
     const cur = get().tabs.find((t) => t.id === id) as Tab;
+    // fase 15.1: tab UTF-16 tidak boleh ditulis balik sebagai UTF-16 (risiko
+    // merusak file). Tanyakan dulu apakah user mau menyimpannya jadi UTF-8.
+    if (cur.encoding === 'utf16le' || cur.encoding === 'utf16be') {
+      set({
+        saveIssue: {
+          kind: 'utf16',
+          tabId: id,
+          path: cur.path as string,
+          name: cur.name,
+        },
+      });
+      return false;
+    }
     try {
-      await cmd.fsWrite(cur.path as string, cur.content, cur.encoding, cur.lineEnding);
+      await cmd.fsWrite(cur.path as string, cur.content, cur.encoding, cur.lineEnding, {
+        wasExisting: cur.existed === true,
+      });
       set((s) => ({
-        tabs: s.tabs.map((t) => (t.id === id ? { ...t, unsaved: false } : t)),
+        tabs: s.tabs.map((t) => (t.id === id ? { ...t, unsaved: false, existed: true } : t)),
         statusMessage: `Disimpan: ${cur.name}`,
       }));
       return true;
     } catch (e) {
-      set({ statusMessage: `Gagal simpan: ${cmd.asZephyrError(e).message}` });
+      const err = cmd.asZephyrError(e);
+      // fase 15.1: file lenyap dari luar (git checkout / hapus manual) →
+      // JANGAN diam-diam membuat ulang; tanya user dulu.
+      if (err.code === 'NotFound' && cur.existed) {
+        set({
+          saveIssue: {
+            kind: 'missing',
+            tabId: id,
+            path: cur.path as string,
+            name: cur.name,
+          },
+        });
+        return false;
+      }
+      set({ statusMessage: `Gagal simpan: ${err.message}` });
       return false;
     }
   },
@@ -482,11 +537,24 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const target = await cmd.fileDialogSave(tab.path ?? tab.name);
       if (!target) return false;
-      await cmd.fsWrite(target, tab.content, tab.encoding, tab.lineEnding);
+      // Save As selalu menulis UTF-8: encoding sumber (mis. UTF-16) tidak
+      // dibawa serta — itulah gunanya "simpan sebagai UTF-8" (fase 15.1).
+      const enc = tab.encoding === 'utf16le' || tab.encoding === 'utf16be' ? 'utf8' : tab.encoding;
+      await cmd.fsWrite(target, tab.content, enc, tab.lineEnding);
       set((s) => ({
         tabs: s.tabs.map((t) =>
           t.id === id
-            ? { ...t, path: target, name: baseName(target), unsaved: false, lang: detectLang(target) }
+            ? {
+                ...t,
+                path: target,
+                name: baseName(target),
+                unsaved: false,
+                lang: detectLang(target),
+                encoding: enc,
+                readOnly: false,
+                note: '',
+                existed: true,
+              }
             : t,
         ),
         statusMessage: `Disimpan: ${baseName(target)}`,
@@ -599,6 +667,10 @@ export const useStore = create<Store>((set, get) => ({
                 encoding: res.detectedEncoding,
                 lineEnding: res.lineEnding,
                 unsaved: false,
+                readOnly: res.readOnly,
+                note: res.note,
+                bytes: res.bytes,
+                existed: true,
               }
             : t,
         ),
@@ -644,6 +716,48 @@ export const useStore = create<Store>((set, get) => ({
     if (dirty.length === 0) return true;
     set({ confirm: { tabIds: dirty.map((t) => t.id), intent: 'close-window' } });
     return false;
+  },
+
+  setSaveIssue: (i) => set({ saveIssue: i }),
+
+  /** fase 15.1: jawaban user atas dialog simpan.
+   *  - missing + ok  → tulis ulang file (buat baru di path yang sama)
+   *  - utf16   + ok  → tulis ulang sebagai UTF-8 di path yang sama */
+  resolveSaveIssue: async (choice) => {
+    const issue = get().saveIssue;
+    if (!issue) return;
+    set({ saveIssue: null });
+    if (choice === 'cancel') {
+      set({ statusMessage: 'Simpan dibatalkan' });
+      return;
+    }
+    const tab = get().tabs.find((t) => t.id === issue.tabId);
+    if (!tab || !tab.path) return;
+    try {
+      if (issue.kind === 'utf16') {
+        await cmd.fsWrite(tab.path, tab.content, 'utf8', tab.lineEnding, { allowMissing: true });
+        set((s) => ({
+          tabs: s.tabs.map((t) =>
+            t.id === issue.tabId
+              ? { ...t, unsaved: false, encoding: 'utf8', readOnly: false, note: '', existed: true }
+              : t,
+          ),
+          statusMessage: `Disimpan sebagai UTF-8: ${tab.name}`,
+        }));
+      } else {
+        await cmd.fsWrite(tab.path, tab.content, tab.encoding, tab.lineEnding, {
+          allowMissing: true,
+        });
+        set((s) => ({
+          tabs: s.tabs.map((t) =>
+            t.id === issue.tabId ? { ...t, unsaved: false, existed: true } : t,
+          ),
+          statusMessage: `Dibuat ulang: ${tab.name}`,
+        }));
+      }
+    } catch (e) {
+      set({ statusMessage: `Gagal simpan: ${cmd.asZephyrError(e).message}` });
+    }
   },
 
   persistSession: async () => {
