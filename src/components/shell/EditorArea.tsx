@@ -9,6 +9,7 @@ import { useGit } from '../../lib/gitStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
+import ReadOnlyBanner from '../editor/ReadOnlyBanner';
 import Breadcrumbs from './Breadcrumbs';
 import ZephyrLogo from './ZephyrLogo';
 import SettingsPage from '../settings/SettingsPage';
@@ -102,6 +103,7 @@ export default function EditorArea() {
     <section className="editor-area">
       <EditorTabBar />
       <Breadcrumbs />
+      <ReadOnlyBanner />
       <FindBar />
       <div className="editor-host">
         {tabs.length === 0 || !tab ? <EmptyState /> : <CodeMirrorEditor key={tab.id} tab={tab} />}

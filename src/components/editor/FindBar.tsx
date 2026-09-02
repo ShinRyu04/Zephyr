@@ -27,6 +27,8 @@ export default function FindBar() {
   const [showReplace, setShowReplace] = useState(false);
   const [count, setCount] = useState(0);
   const [invalid, setInvalid] = useState(false);
+  /** fase 15.1: pencarian dihentikan karena melewati batas langkah. */
+  const [tooMany, setTooMany] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Hitung jumlah match langsung dari dokumen (independen dari panel CM).
@@ -37,6 +39,7 @@ export default function FindBar() {
       if (!query) {
         setCount(0);
         setInvalid(false);
+        setTooMany(false);
         return;
       }
       const text = docText();
@@ -44,10 +47,32 @@ export default function FindBar() {
         const flags = caseSensitive ? 'g' : 'gi';
         const pattern = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const re = new RegExp(pattern, flags);
-        setCount(text.match(re)?.length ?? 0);
+        // fase 15.1: `String.match(/g/)` pada regex seperti `a+` di file besar
+        // bisa menghasilkan ratusan ribu match dan menggantung UI beberapa
+        // detik. Iterasi manual dengan BATAS LANGKAH: berhenti di 20.000 dan
+        // beri tahu user, bukan diam-diam membeku. Match kosong (mis. `a*`)
+        // juga harus memajukan lastIndex sendiri — kalau tidak loop-nya abadi.
+        const LIMIT = 20000;
+        let n = 0;
+        let stopped = false;
+        re.lastIndex = 0;
+        for (;;) {
+          const m = re.exec(text);
+          if (!m) break;
+          n++;
+          if (m[0].length === 0) re.lastIndex++;
+          if (re.lastIndex > text.length) break;
+          if (n >= LIMIT) {
+            stopped = true;
+            break;
+          }
+        }
+        setCount(n);
+        setTooMany(stopped);
         setInvalid(false);
       } catch {
         setCount(0);
+        setTooMany(false);
         setInvalid(true);
       }
     },
@@ -146,8 +171,16 @@ export default function FindBar() {
           .*
         </button>
 
-        <span className="find-count">
-          {invalid ? 'regex tidak valid' : count > 0 ? `${count} hasil` : query ? 'tidak ada' : ''}
+        <span className="find-count" data-testid="find-count">
+          {invalid
+            ? 'regex tidak valid'
+            : tooMany
+              ? `20.000+ hasil (dihentikan)`
+              : count > 0
+                ? `${count} hasil`
+                : query
+                  ? 'tidak ada'
+                  : ''}
         </span>
 
         <button className="find-btn" title="Sebelumnya (Shift+Enter)" onClick={() => act(findPrevious)}>
