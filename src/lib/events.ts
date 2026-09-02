@@ -2,7 +2,7 @@
 // kebab-case, tanpa titik. Satu tempat agar tidak ada typo tersebar.
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { AiChunk, FsChangeKind, GhLoginEvent, McpAction } from './types';
+import type { AiChunk, FsChangeKind, GhLoginEvent, GitProgress, McpAction } from './types';
 
 export const EV = {
   workspaceOpened: 'workspace-opened',
@@ -84,4 +84,21 @@ export function onMcpConnect(
   cb: (p: { client: string; userAgent: string }) => void,
 ): Promise<UnlistenFn> {
   return listen<{ client: string; userAgent: string }>(EV.mcpConnect, (e) => cb(e.payload));
+}
+
+/** fase 14: operasi git jaringan mulai/selesai (spinner tanpa menebak). */
+export function onGitProgress(cb: (p: GitProgress) => void): Promise<UnlistenFn> {
+  return listen<GitProgress>(EV.gitProgress, (e) => cb(e.payload));
+}
+
+/** fase 14: ukuran window berubah (payload kecil, idempoten). */
+export function onWindowResized(
+  cb: (p: { width: number; height: number }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ width: number; height: number }>(EV.windowResized, (e) => cb(e.payload));
+}
+
+/** fase 14: file di-drop ke window (dari Rust; UI juga punya onDragDropEvent). */
+export function onFileDropped(cb: (paths: string[]) => void): Promise<UnlistenFn> {
+  return listen<{ paths: string[] }>(EV.fileDropped, (e) => cb(e.payload.paths));
 }

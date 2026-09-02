@@ -8,6 +8,7 @@
 import { undo, redo } from '@codemirror/commands';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStore } from './store';
+import { MAX_LOADED_TABS } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
@@ -17,7 +18,7 @@ import { THEMES, systemPrefersDark } from './themes';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, sessionLoad, scanDir, searchFiles, ptyWrite, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder } from './commands';
+import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
 import { copySelection, pasteInto } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
@@ -300,6 +301,51 @@ export function installDevBridge(): void {
   w.__ZEPHYR_WIN__ = {
     close: () => getCurrentWindow().close(),
     destroy: () => getCurrentWindow().destroy(),
+  };
+
+  // ── fase 14: hardening backend. Jalur yang dipakai verify14.mjs ──
+  w.__ZEPHYR_DIAG__ = {
+    /** angka nyata dari Rust: RAM, uptime, log, marks, counters */
+    get: () => getDiagnostics(),
+    /** tulis satu baris ke file log Rust */
+    log: (level: 'error' | 'warn' | 'info', msg: string) => logFrontend(level, msg),
+    mark: (name: string, durMs?: number) => perfMark(name, durMs),
+    /** HANYA debug build: memicu panic di Rust (uji panic hook + dialog) */
+    panic: () => debugPanic(),
+    /** fs_write MENTAH — untuk membuktikan penolakan WorkspaceOutside (V2) */
+    write: (path: string, content: string) => fsWrite(path, content),
+    /** fs_read MENTAH — pesan NotFound yang dilihat user (V1) */
+    read: (path: string) => fsRead(path),
+    /** pty_spawn MENTAH dengan cwd bebas (uji validasi cwd 14.2) */
+    spawn: (id: string, cwd: string) => ptySpawn({ id, kind: 'shell', cwd }),
+    kill: (id: string) => ptyKill(id),
+    /** batas tab yang isinya boleh tinggal di memori (14.5) */
+    maxLoadedTabs: MAX_LOADED_TABS,
+    /** ringkasan tab: mana yang masih memegang konten */
+    tabs: () =>
+      useStore.getState().tabs.map((t) => ({
+        id: t.id,
+        name: t.name,
+        loaded: t.loaded !== false,
+        bytes: t.content.length,
+        unsaved: t.unsaved,
+      })),
+    /** total karakter konten yang ditahan seluruh tab */
+    heldChars: () => useStore.getState().tabs.reduce((n, t) => n + t.content.length, 0),
+    unload: () => useStore.getState().unloadColdTabs(),
+    ensure: (id: string) => useStore.getState().ensureTabLoaded(id),
+    /** git: jalur mentah untuk uji semaphore (V3) */
+    git: {
+      status: () => gitStatus(),
+      stage: (paths: string[]) => gitStage(paths),
+      commit: (msg: string) => gitCommit(msg),
+      log: (n?: number) => gitLog(n ?? 5),
+      progress: () => useGit.getState().progress,
+    },
+    /** dialog crash sedang tampil? (V7) */
+    crashVisible: () => !!document.querySelector('[data-testid="crash-dialog"]'),
+    crashMessage: () =>
+      document.querySelector('[data-testid="crash-message"]')?.textContent ?? null,
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.
