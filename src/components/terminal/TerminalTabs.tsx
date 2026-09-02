@@ -194,7 +194,7 @@ export default function TerminalTabs() {
 
         <button
           className="tt-btn"
-          title="Pane shell baru (Ctrl+Shift+`)"
+          title="Pane shell baru (Ctrl+Shift+T)"
           aria-label="Pane shell baru"
           data-testid="term-new"
           onClick={() => void addPane('shell')}
@@ -302,13 +302,19 @@ export default function TerminalTabs() {
         </button>
 
         <button
-          className="tt-btn"
-          title="Split With Browser"
+          className="tt-btn tt-btn-browser"
+          title="Split With Browser — tambah pane preview di samping shell"
           aria-label="Split With Browser"
           data-testid="term-browser"
-          onClick={() => void addPane('browser')}
+          onClick={async () => {
+            // Belum ada pane sama sekali? buat shell dulu supaya benar-benar
+            // jadi split, bukan cuma browser sendirian.
+            if ((activeTab?.panes.length ?? 0) === 0) await addPane('shell');
+            await addPane('browser');
+          }}
         >
           <ActionIcon name="browser" />
+          <span className="tt-btn-label">Split With Browser</span>
         </button>
 
         <div className="tt-picker-wrap">
