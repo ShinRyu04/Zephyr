@@ -70,6 +70,10 @@ export default function CodeMirrorEditor({ tab }: Props) {
   // fase 15.1: tab read-only (file >4MB / UTF-16). Ekstensi berat DILEPAS —
   // 5MB JSON dengan bracket matching + highlight aktif membekukan UI beberapa
   // detik; tanpa itu file terbuka mulus dan tetap bisa dibaca/di-scroll.
+  // fase 16.2: mode penghemat RAM memaksa smoothScroll & minimap off, terlepas
+  // dari isi settings.editor — supaya satu tombol benar-benar berpengaruh dan
+  // user tidak perlu mematikan tiga hal satu-satu.
+  const lowRam = useStore((s) => s.settings.general.lowRam === true);
   const readOnly = tab.readOnly === true;
 
   // Bangun view sekali per tab (id berubah = tab lain).
@@ -259,7 +263,8 @@ export default function CodeMirrorEditor({ tab }: Props) {
       ref={hostRef}
       className="zephyr-cm-host"
       data-cursor-style={editorSettings.cursorStyle}
-      data-smooth={editorSettings.smoothScroll ? '1' : '0'}
+      data-smooth={editorSettings.smoothScroll && !lowRam ? '1' : '0'}
+      data-lowram={lowRam ? '1' : '0'}
       data-readonly={readOnly ? '1' : '0'}
       style={{
         fontSize: `${general.fontSize}px`,

@@ -10,6 +10,7 @@ import type {
   CliWriteResult,
   DeviceLogin,
   Diagnostics,
+  SelfTestItem,
   DirNode,
   Encoding,
   GhStatus,
@@ -55,6 +56,8 @@ export const setSettings = (patch: Record<string, unknown>) =>
 export const setWindowSize = (width: number, height: number) =>
   invoke<void>('set_window_size', { width, height });
 export const listRecents = () => invoke<RecentEntry[]>('list_recents');
+/** fase 16.3: path file config rusak yang di-backup Rust ('' = tidak ada). */
+export const takeBrokenConfig = () => invoke<string>('take_broken_config');
 export const workspaceOpen = (path: string) => invoke<void>('workspace_open', { path });
 export const workspaceClose = () => invoke<void>('workspace_close');
 
@@ -247,6 +250,8 @@ export const extensionsFolder = () => invoke<string>('extensions_folder');
 
 /** Angka yang benar-benar diukur di proses Rust (RAM, uptime, log, marks). */
 export const getDiagnostics = () => invoke<Diagnostics>('get_diagnostics');
+/** fase 16.5: mini-test nyata per domain (fs/pty/git/mcp/log). */
+export const selfTest = () => invoke<SelfTestItem[]>('self_test');
 /** Kirim error frontend ke file log yang sama dengan Rust. */
 export const logFrontend = (level: 'error' | 'warn' | 'info', message: string) =>
   invoke<void>('log_frontend', { level, message });

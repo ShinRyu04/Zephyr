@@ -8,10 +8,10 @@ Bug yang ditemukan tapi TIDAK diperbaiki juga dicatat, dengan alasannya.
 
 ## Fase 15 — Bugfix Vol 1 (audit fitur fase 02–14)
 
-Status verifikasi: perbaikan sudah masuk kode, `npx tsc --noEmit` 0 error,
-`cargo test --lib` lulus. **Harness `verify15.mjs` belum dibuat**, jadi kolom
-Verifikasi di bawah menyebut cara membuktikannya, bukan klaim sudah terbukti.
-Yang sudah terbukti otomatis ditandai eksplisit.
+Status verifikasi: **17/17 lulus** lewat `npm run verify:15` di app hidup
+(`scripts/verify15.mjs`, CDP port 9223). `npx tsc --noEmit` 0 error,
+`cargo test --lib` 74 lulus. Kolom Verifikasi di bawah menyebut apa yang
+BENAR-BENAR diperiksa harness, bukan rencana.
 
 ### 15.1 Editor
 
@@ -91,7 +91,24 @@ sebagai array dari `onDragDropEvent`, tidak pernah lewat string shell.
 
 ### Sisa pekerjaan fase 15
 
-1. `scripts/verify15.mjs` — harness CDP untuk membuktikan item di atas di app
-   hidup (belum dibuat).
-2. Smoke regresi fase 03 (open/save), 06 (agent pane), 10 (commit),
-   11 (MCP health) setelah perubahan ini.
+Tidak ada. `npm run verify:15` = 17/17 lulus (V1, V1b, V2, V3, V4, V4b, V5,
+V5b, V5c, V6, V7, V7b, V8, V8b, V9, V10, V11).
+
+Tiga bug HARNESS yang tertangkap saat menjalankannya — dicatat karena akan
+menjebak harness fase berikutnya juga:
+
+1. **Render-pause menahan output PTY.** Saat jendela Zephyr tidak di depan,
+   Rust menandainya "minimized" dan menahan emit `pty-output` sampai 512KB
+   (`HOLD_CAP` fase 14.4). Harness apa pun yang membaca buffer terminal WAJIB
+   `__ZEPHYR_SET_PAUSED__(false)` lebih dulu.
+2. **`git init --bare` tanpa `-b main`** membuat HEAD remote menunjuk `master`,
+   sehingga `branch.ab` tetap `+0 -0` dan uji "push saat behind" tidak pernah
+   terpicu.
+3. **PSReadLine tidak bisa dipakai sebagai bukti paste besar.** PowerShell
+   me-render ulang baris input dan hanya menampilkan sebagiannya untuk input
+   10.000 karakter; pakai pane `cmd` yang meneruskan byte apa adanya.
+
+Ditambah satu temuan Rust yang nyata: **ConPTY tidak meng-EOF pipe master saat
+shell keluar**, jadi `child.wait()` di thread emit tidak pernah tercapai dan
+`pty-exit` tak pernah terkirim. Perbaikannya thread `wait` terpisah yang
+mengisi slot exit code + menyetel `alive=false` (lihat #8).

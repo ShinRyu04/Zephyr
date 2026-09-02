@@ -11,6 +11,7 @@ import { useT } from '../../lib/i18n';
 import { getDiagnostics, debugPanic } from '../../lib/commands';
 import type { Diagnostics } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
+import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 
 export function ScmSection() {
   const t = useT();
@@ -240,6 +241,9 @@ function DiagnosticsPanel() {
 
   const rows: Array<[string, string]> = d
     ? [
+        ['OS', d.os || '-'],
+        ['CPU logis', d.cpuCount > 0 ? String(d.cpuCount) : '-'],
+        ['RAM mesin', d.hostRamBytes > 0 ? mb(d.hostRamBytes) : '-'],
         ['Uptime', secs(d.uptimeMs)],
         ['RAM total (dengan WebView2)', mb(d.ramTotalBytes)],
         ['RAM proses inti', mb(d.ramBytes)],
@@ -289,6 +293,27 @@ function DiagnosticsPanel() {
           ))}
         </tbody>
       </table>
+
+      {/* fase 16.5: status per domain — nilainya dari Rust, bukan tebakan UI. */}
+      {d && d.domains.length > 0 && (
+        <table className="about-table diag-domains" data-testid="diag-domains">
+          <tbody>
+            {d.domains.map((x) => (
+              <tr key={x.id} data-domain={x.id} data-level={x.level}>
+                <td className="about-k">{x.id}</td>
+                <td className="about-v">
+                  <span className={`diag-dot is-${x.level}`} aria-hidden="true" />
+                  <span className="diag-level">{x.level}</span>
+                  <code>{x.detail}</code>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <SelfTestPanel />
+      <ExportPanel d={d} />
 
       {d && d.marks.length > 0 && (
         <>

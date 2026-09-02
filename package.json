@@ -21,6 +21,9 @@
     "verify:12": "node scripts/verify12.mjs",
     "verify:13": "node scripts/verify13.mjs",
     "verify:14": "node scripts/verify14.mjs",
+    "verify:15": "node scripts/verify15.mjs",
+    "verify:16": "node scripts/verify16.mjs",
+    "stress": "node scripts/stress.mjs",
     "mock:ai": "node scripts/mock-ai.mjs 8098",
     "soak": "node scripts/soak.mjs"
   },
