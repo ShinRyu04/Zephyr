@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
+import { useGit } from '../../lib/gitStore';
 import { getAppInfo } from '../../lib/commands';
 import { onRamUsage } from '../../lib/events';
 import { LANG_LABEL } from '../../lib/lang';
@@ -12,6 +13,55 @@ const ENC_LABEL: Record<string, string> = {
   'utf8-bom': 'UTF-8 with BOM',
   ansi: 'Windows-1252',
 };
+
+/** Badge git (fase 10): branch + Σ perubahan + ↑↓, ikon berputar saat sibuk.
+ *  Klik = buka panel Source Control. Tidak tampil bila bukan repo. */
+function GitBadge() {
+  const isRepo = useGit((s) => s.status?.isRepo ?? false);
+  const branch = useGit((s) => s.status?.branch ?? null);
+  const ahead = useGit((s) => s.status?.ahead ?? 0);
+  const behind = useGit((s) => s.status?.behind ?? 0);
+  // Primitif, bukan array — selector zustand v5 tidak boleh bikin objek baru.
+  const changes = useGit((s) => s.status?.changes.length ?? 0);
+  const busy = useGit((s) => s.busy);
+  const setActivity = useStore((s) => s.setActivity);
+
+  if (!isRepo) return null;
+
+  return (
+    <>
+      <button
+        className="sb-item sb-git"
+        data-testid="sb-git"
+        title={busy ? 'git sedang berjalan…' : 'Source Control'}
+        onClick={() => setActivity('scm')}
+      >
+        <svg viewBox="0 0 16 16" className={`sb-git-ico ${busy ? 'scm-rot' : ''}`} aria-hidden="true">
+          <path
+            d="M5 3.5v9M11 3.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM5 3.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM5 12.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM11 6.5c0 2-1.5 3-6 3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span data-testid="sb-git-branch">{branch ?? '(detached)'}</span>
+        {changes > 0 && (
+          <span className="sb-git-count" data-testid="sb-git-changes">
+            {changes}
+          </span>
+        )}
+        {(ahead > 0 || behind > 0) && (
+          <span className="sb-git-ab" data-testid="sb-git-ab">
+            {ahead > 0 && `↑${ahead}`}
+            {behind > 0 && `↓${behind}`}
+          </span>
+        )}
+      </button>
+      <span className="sb-sep">|</span>
+    </>
+  );
+}
 
 export default function StatusBar() {
   const [version, setVersion] = useState('0.5.0');
@@ -46,6 +96,7 @@ export default function StatusBar() {
     <footer className="statusbar">
       <span className="sb-item sb-brand">Zephyr v{version}</span>
       <span className="sb-sep">|</span>
+      <GitBadge />
       <span className="sb-item" title="Memori proses Zephyr">
         RAM: {ramText}
       </span>

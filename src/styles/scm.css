@@ -1,0 +1,567 @@
+/* scm.css — Source Control (fase 10): panel sidebar, diff viewer, badge
+   status bar. Semua warna dari CSS variables di theme.css (aturan §4:
+   dilarang hex hardcoded di komponen). */
+
+/* ── panel ── */
+
+.scm {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.scm-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.scm-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+
+.scm-head-actions {
+  display: flex;
+  gap: 2px;
+}
+
+/* Ikon berputar saat operasi git jalan (sync/push/pull). */
+.scm-rot {
+  display: inline-flex;
+  animation: scm-spin 1s linear infinite;
+}
+
+@keyframes scm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.scm-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: scm-spin 0.8s linear infinite;
+}
+
+/* ── branch bar ── */
+
+.scm-branchbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  flex: 0 0 auto;
+}
+
+.scm-branch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 3px 8px;
+  cursor: pointer;
+  font: inherit;
+  max-width: 100%;
+}
+
+.scm-branch-btn:hover {
+  background: var(--surface-3);
+}
+
+.scm-ab {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.scm-conflict {
+  color: var(--warning);
+  font-size: 11px;
+}
+
+/* ── commit box ── */
+
+.scm-commit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 8px;
+  flex: 0 0 auto;
+}
+
+.scm-msg {
+  width: 100%;
+  resize: vertical;
+  min-height: 46px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  font: inherit;
+  font-family: var(--font-ui);
+}
+
+.scm-msg:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── pesan ── */
+
+.scm-error,
+.scm-info {
+  margin: 0 10px 6px;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: 0 0 auto;
+}
+
+.scm-error {
+  background: var(--accent-subtle);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.scm-info {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+/* ── daftar perubahan ── */
+
+.scm-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.scm-section {
+  border-top: 1px solid var(--border);
+}
+
+.scm-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.scm-sec-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.scm-count {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+}
+
+.scm-sec-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.scm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.scm-row {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding-right: 6px;
+}
+
+.scm-row:hover {
+  background: var(--surface-2);
+}
+
+.scm-row.is-active {
+  background: var(--editor-selection);
+}
+
+.scm-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 0 4px 0 10px;
+  cursor: pointer;
+  height: 100%;
+}
+
+.scm-name {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.scm-dir {
+  flex: 1 1 auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.scm-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+/* Tombol kecil per baris: hanya tampil saat hover/fokus supaya bersih. */
+.scm-mini {
+  opacity: 0;
+}
+
+.scm-row:hover .scm-mini,
+.scm-mini:focus-visible,
+.scm-sec-head .scm-mini {
+  opacity: 1;
+}
+
+.scm-badge {
+  width: 14px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.scm-badge.is-modified {
+  color: var(--modified);
+}
+.scm-badge.is-added,
+.scm-badge.is-untracked {
+  color: var(--added);
+}
+.scm-badge.is-deleted {
+  color: var(--deleted);
+}
+.scm-badge.is-renamed {
+  color: var(--accent);
+}
+.scm-badge.is-conflict {
+  color: var(--warning);
+}
+
+.scm-clean {
+  padding: 10px;
+}
+
+/* ── menu (branch switcher / kebab) ── */
+
+.scm-menu {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  max-height: 220px;
+  overflow-y: auto;
+  flex: 0 0 auto;
+}
+
+.scm-menu-title {
+  padding: 4px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.scm-menu-row {
+  display: flex;
+  align-items: center;
+}
+
+.scm-menu-row .scm-mini {
+  opacity: 0;
+}
+
+.scm-menu-row:hover .scm-mini {
+  opacity: 1;
+}
+
+.scm-menu-item {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.scm-menu-item:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.scm-menu-item:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.scm-menu-item.is-current {
+  color: var(--accent);
+}
+
+.scm-menu-item.is-danger {
+  color: var(--danger);
+}
+
+.scm-menu-ico {
+  width: 14px;
+  display: inline-flex;
+}
+
+.scm-menu-ico .ex-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* ── baris GitHub ── */
+
+.scm-github {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.scm-gh-state {
+  font-size: 11px;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.scm-gh-state.is-ok {
+  color: var(--success);
+}
+.scm-gh-state.is-warn {
+  color: var(--warning);
+}
+.scm-gh-state.is-off {
+  color: var(--text-muted);
+}
+
+.scm-gh-actions,
+.scm-gh-form,
+.scm-gh-device {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 6px;
+}
+
+.scm-gh-form .input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.scm-gh-code {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  user-select: all;
+}
+
+.scm-gh-msg {
+  margin: 0;
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+/* ── diff viewer ── */
+
+.diff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--editor-bg);
+}
+
+.diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.diff-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45%;
+}
+
+.diff-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
+.diff-tag.is-staged {
+  color: var(--added);
+  border-color: var(--added);
+}
+
+.diff-stat {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-plus {
+  color: var(--added);
+}
+
+.diff-minus {
+  color: var(--deleted);
+}
+
+.diff-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.diff-pre {
+  margin: 0;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  tab-size: 4;
+}
+
+.diff-line {
+  display: block;
+  padding: 0 10px;
+  white-space: pre;
+}
+
+.diff-line.is-add {
+  background: var(--accent-subtle);
+  color: var(--added);
+}
+
+.diff-line.is-del {
+  background: var(--editor-active-line);
+  color: var(--deleted);
+}
+
+.diff-line.is-hunk {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+.diff-line.is-meta {
+  color: var(--text-muted);
+}
+
+.diff-empty {
+  padding: 12px;
+}
+
+/* ── badge status bar ── */
+
+.sb-git {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.sb-git:hover {
+  color: var(--text);
+}
+
+.sb-git-ico {
+  width: 12px;
+  height: 12px;
+}
+
+.sb-git-count,
+.sb-git-ab {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
