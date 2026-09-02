@@ -5,20 +5,35 @@ mod adapters;
 mod agents;
 mod ai;
 mod app_state;
+mod credential;
 mod dialogs;
 mod errors;
 mod explorer;
 mod fs_utils;
+mod git;
+mod github;
+mod mcp_commands;
+mod mcp_config;
+mod mcp_server;
 mod pty;
 mod secrets;
 mod settings;
 mod tests_ai;
 mod tests_fs;
+mod tests_git;
+mod tests_mcp;
 
 use app_state::AppState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Manager, RunEvent, WindowEvent};
+
+/// Mode `zephyr git-credential <op>`: dipanggil git, bukan user.
+/// true = argumen memang untuk helper dan sudah dijawab (proses harus keluar
+/// tanpa membuka window). Lihat credential.rs untuk kontraknya.
+pub fn run_credential_helper() -> bool {
+    credential::handle_cli()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -40,6 +55,25 @@ pub fn run() {
         .setup(move |app| {
             // Sampler RAM untuk StatusBar (fase 02 V6).
             settings::spawn_ram_sampler(app.handle().clone(), minimized_setup);
+            // MCP (fase 11): kalau user sudah menyalakannya, hidupkan lagi
+            // saat app dibuka supaya AI CLI yang sudah didaftari langsung
+            // menemukan port-nya tanpa harus klik switch dulu.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let enabled = {
+                    let st = handle.state::<AppState>();
+                    settings::read_settings_value(&st)
+                        .get("mcp")
+                        .and_then(|m| m.get("enabled"))
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                };
+                if enabled {
+                    if let Err(e) = mcp_server::start(handle.clone()).await {
+                        eprintln!("[zephyr] MCP tidak bisa start: {e}");
+                    }
+                }
+            });
             Ok(())
         })
         .on_window_event(move |window, event| {
@@ -100,6 +134,38 @@ pub fn run() {
             // AI panel (fase 09)
             ai::ai_chat,
             ai::ai_cancel,
+            // git (fase 10)
+            git::git_init,
+            git::git_status,
+            git::git_stage,
+            git::git_unstage,
+            git::git_commit,
+            git::git_push,
+            git::git_pull,
+            git::git_fetch,
+            git::git_branches,
+            git::git_checkout,
+            git::git_create_branch,
+            git::git_delete_branch,
+            git::git_diff,
+            git::git_discard,
+            git::git_log,
+            git::git_config_get_user,
+            // GitHub auth (fase 10)
+            github::gh_status,
+            github::gh_set_pat,
+            github::gh_login_device,
+            github::gh_logout,
+            github::gh_test,
+            // MCP server 9222 (fase 11)
+            mcp_commands::mcp_status,
+            mcp_commands::mcp_start,
+            mcp_commands::mcp_stop,
+            mcp_commands::mcp_reply,
+            mcp_commands::mcp_rotate_token,
+            mcp_commands::mcp_write_cli,
+            mcp_commands::mcp_remove_cli,
+            mcp_commands::mcp_cli_status,
             // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
@@ -113,6 +179,8 @@ pub fn run() {
             // tidak ada proses tertinggal di Task Manager (V7 fase 05).
             if let RunEvent::Exit = event {
                 handle.state::<AppState>().pty_kill_all();
+                // Tutup socket MCP supaya port 9222 tidak tertinggal listening.
+                mcp_server::stop(handle);
             }
         }),
         Err(e) => eprintln!("[zephyr] gagal start: {e:?}"),

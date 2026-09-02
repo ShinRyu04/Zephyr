@@ -8,7 +8,8 @@ import { useEffect } from 'react';
 import { useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
 import { AgentsSection, ModelsSection, ShortcutsSection } from './SectionsAdvanced';
-import { AboutSection, ExtensionsSection, McpSection, ScmSection, SshSection } from './SectionsMisc';
+import { AboutSection, ExtensionsSection, ScmSection, SshSection } from './SectionsMisc';
+import McpPanel from './McpPanel';
 
 function SectionBody({ id }: { id: SectionId }) {
   switch (id) {
@@ -29,7 +30,7 @@ function SectionBody({ id }: { id: SectionId }) {
     case 'scm':
       return <ScmSection />;
     case 'mcp':
-      return <McpSection />;
+      return <McpPanel />;
     case 'ssh':
       return <SshSection />;
     case 'about':

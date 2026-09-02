@@ -55,7 +55,7 @@ pub fn default_settings() -> Value {
         "models": { "activeProvider": "gemini", "providers": {} },
         "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
         "extensions": { "enabled": [] },
-        "git": { "defaultBranch": "main", "pullBeforePush": true },
+        "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
         "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
         "ssh": { "recentHosts": [] }
     })
@@ -221,6 +221,64 @@ pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
         *ws = None;
     }
     Ok(())
+}
+
+/// Baca settings efektif (default + settings.json) sebagai Value.
+/// Dipakai modul lain (github.rs) tanpa perlu State/command.
+pub fn read_settings_value(state: &AppState) -> Value {
+    let mut merged = default_settings();
+    if let Some(user) = read_json(&state.file("settings.json")) {
+        deep_merge(&mut merged, &user);
+    }
+    merged
+}
+
+/// Terapkan patch ke settings.json lalu beri tahu frontend.
+/// Sama seperti command `set_settings`, tapi bisa dipanggil dari Rust.
+pub fn patch_settings(app: &AppHandle, state: &AppState, patch: Value) -> ZResult<()> {
+    patch_settings_no_emit(state, patch.clone())?;
+    if let Value::Object(map) = &patch {
+        for k in map.keys() {
+            let _ = app.emit("settings-changed", json!({ "key": k }));
+        }
+    }
+    Ok(())
+}
+
+/// Versi tanpa event (dipakai thread yang tidak memegang AppHandle).
+pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
+    if !patch.is_object() {
+        return Err(ZephyrError::InvalidInput("patch harus object".into()));
+    }
+    let path = state.file("settings.json");
+    let mut current = read_json(&path).unwrap_or_else(|| json!({}));
+    deep_merge(&mut current, &patch);
+    write_json(&path, &current)
+}
+
+/// `settings.git.defaultBranch` (fase 10: dipakai `git init -b`).
+pub fn git_default_branch(state: &AppState) -> String {
+    read_settings_value(state)
+        .get("git")
+        .and_then(|g| g.get("defaultBranch"))
+        .and_then(|b| b.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "main".to_string())
+}
+
+/// Identitas commit dari Settings → Source Control (fase 08).
+/// Dipakai hanya bila `git config user.*` belum diisi di mesin ini.
+pub fn git_identity(state: &AppState) -> (Option<String>, Option<String>) {
+    let v = read_settings_value(state);
+    let g = v.get("git");
+    let pick = |key: &str| {
+        g.and_then(|x| x.get(key))
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    (pick("userName"), pick("userEmail"))
 }
 
 // ───────────────────── sampler RAM (fase 02 V6) ─────────────────────

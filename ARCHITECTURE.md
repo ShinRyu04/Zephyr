@@ -159,11 +159,45 @@ yang boleh bernilai `null` secara sah.
 
 ### git
 `git_init {path}`, `git_status`, `git_stage {paths}`, `git_unstage {paths}`,
-`git_commit {message}`, `git_push`, `git_pull {rebase?}`, `git_fetch`,
-`git_branches`, `git_checkout {branch}`, `git_create_branch {name, from?}`,
-`git_delete_branch {name}`, `git_diff {path, staged?}`, `git_discard {paths}`,
-`git_log {n?}`, `git_config_get_user`.
-Semua git diserialisasi (semaphore 1 proses). `git_push --force` TIDAK ada.
+`git_commit {message}`, `git_push {setUpstream?}`, `git_pull {rebase?}`,
+`git_fetch`, `git_branches`, `git_checkout {branch}`,
+`git_create_branch {name, from?}`, `git_delete_branch {name}`,
+`git_diff {path, staged?}`, `git_discard {paths}`, `git_log {n?}`,
+`git_config_get_user`.
+Semua git diserialisasi (semaphore 1 proses, `AppState.git_lock`).
+`git_push --force` TIDAK ada.
+
+**Implementasi (fase 10, final):** spawn **git CLI**, bukan gix/git2 —
+perilakunya identik dengan terminal user dan mendukung credential helper,
+rename detection, serta konflik merge tanpa reimplementasi. Status dibaca
+`git status --porcelain=v2 --branch --untracked-files=all -z`; record `2 `
+(rename) menaruh path lama di record BERIKUTNYA setelah `\0`. Timeout 30s per
+perintah, lalu pohon prosesnya dibunuh. `GIT_TERMINAL_PROMPT=0` + `LC_ALL=C`;
+di Windows `CREATE_NO_WINDOW` supaya tidak ada jendela konsol berkedip.
+`git_status` mengembalikan `isRepo:false` (bukan error) bila folder belum
+repo. Untuk file untracked, `git_diff` membuat unified diff sintetis (maks
+2000 baris) supaya viewer tetap menampilkan isinya.
+
+### GitHub auth (fase 10)
+`gh_status`, `gh_set_pat {token}`, `gh_login_device`, `gh_logout`, `gh_test`.
+`gh_refresh` bukan command — dipanggil internal (`github::try_refresh`) saat
+push/pull kena 401, lalu operasinya diulang **sekali**.
+
+Pemisahan data:
+- `settings.json → git.github { method:"none"|"pat"|"oauth", user, scopes,
+  expiresAt, clientId }` — metadata, tidak rahasia.
+- `secrets.json → github { token, refresh }` — RAHASIA, Rust-only, tidak
+  pernah menyeberang IPC.
+
+Token dipakai lewat subcommand CLI `zephyr git-credential get|store|erase`
+(BUKAN command Tauri), disisipkan per-invocation:
+`git -c credential.helper= -c credential.helper='!"<exe>" git-credential' …`.
+Helper hanya menjawab `host=github.com` + `protocol=https`; host lain dan
+`store`/`erase` = NO-OP, sehingga credential manager user (GCM) tetap
+menangani sisanya dan `git push` dari terminal biasa tidak berubah perilaku.
+Helper juga hanya disisipkan bila remote origin memang github.com HTTPS dan
+Zephyr punya token. OAuth memakai **Device Flow** (tanpa client secret) dan
+mati bila `clientId` kosong; PAT selalu tersedia.
 
 ### extensions
 | Command | Params → Result |
@@ -183,6 +217,7 @@ Semua git diserialisasi (semaphore 1 proses). `git_push --force` TIDAK ada.
 | `pty-exit` | { id } (proses berakhir sendiri) | 05 |
 | `ssh-status` | { paneId, state, message } | 07 |
 | `ai-chunk` | { id, text? , err?, done? } | 09 |
+| `gh-login` | { state: 'pending'\|'success'\|'error', message? } | 10 |
 | `git-progress` | { op, phase } | 10/14 |
 | `mcp-action` | { type, payload } | 11 |
 | `mcp-screenshot` | { paneId, path } | 11 |
@@ -201,17 +236,59 @@ dinormalkan ke `\n`; saat menulis, Rust mengembalikan line ending asal file
 
 ## 4. MCP JSON-RPC methods (port 9222 — namespace terpisah)
 
-Fitur unggulan, DIKERJAKAN di fase 11. UI switch-nya sudah dibuat di fase 08.
+Fitur unggulan, **SELESAI di fase 11**. UI switch-nya dibuat di fase 08 lalu
+diganti panel penuh `components/settings/McpPanel.tsx`.
 
-**Read:** `list_panes`, `list_editors`, `list_terminals`, `get_settings`,
-`get_setting {key}`, `list_extensions`, `get_window`.
+**Read:** `list_panes`, `list_terminals` (alias), `list_editors`,
+`get_settings`, `get_setting {key}`, `list_extensions`, `get_window`.
 **Write/action:** `terminal_write {paneId,data}`, `terminal_key {paneId,key}`,
-`pane_close {paneId}`, `pane_new {type,agent?,title?}`, `editor_open {path}`,
+`pane_close {paneId}`, `pane_new {type,agent?}`, `editor_open {path}`,
 `editor_close {tabId}`, `editor_write {tabId,content}` (buffer saja, bukan
 disk), `editor_insert {tabId,text,at?}`, `run_command {id}`,
 `screenshot_pane {paneId}`, `set_setting {key,value}` (whitelist).
-**Meta:** `GET /health` (tanpa auth), `GET /mcp` (schema tools).
-Auth: `Authorization: Bearer <token>`; hanya 127.0.0.1.
+**Meta:** `GET /health` (tanpa auth), `GET /mcp` (schema 18 tool),
+`tools/list`, `ping`.
+Auth: `Authorization: Bearer <token>`; bind HANYA 127.0.0.1.
+
+**Implementasi (fase 11, final):**
+- `mcp_server.rs` — axum 0.8 di atas runtime tokio Tauri. Route `POST /`
+  (juga `/rpc`), `GET /health`, `GET /mcp`. Batch JSON-RPC (array) dilayani.
+- Port: `settings.mcp.port` lalu **5 kandidat** (9222..9226). 9223 di mesin
+  dev dipakai debug port WebView2, jadi satu fallback tidak cukup. Port hasil
+  bind ditulis ke `settings.mcp.port` + `mcp.json`, dan `McpRuntime.requested`
+  menyimpan port asli untuk banner UI.
+- Yang bisa dijawab Rust dijawab di Rust (settings, PTY write/key lewat
+  registry `AppState.with_pty` — teks masuk shell walau window tidak fokus).
+  Yang butuh zustand dikirim ke frontend: event `mcp-action`
+  `{reqId,type,payload}` → frontend menjawab command **`mcp_reply
+  {reqId,result}`**; Rust menunggu oneshot maks **8 detik**.
+- Serialisasi: setiap method mengambil `AppState.mcp_lock`
+  (`tokio::sync::Mutex`) → dua AI CLI yang mengemudi bersamaan diproses satu
+  per satu.
+- `screenshot_pane` v1 menulis **isi buffer terminal sebagai .txt** di `%TEMP%`
+  lalu emit `mcp-screenshot`. Capture PNG jendela = fase 16; jangan mengaku
+  PNG untuk file teks.
+- `set_setting` whitelist 10 key tampilan/editor. `mcp.*`, `git.github.*`,
+  dan path DITOLAK — agent tidak boleh mematikan auth-nya sendiri.
+  `get_settings` memask `mcp.token` → `"***"` dan membuang `git.github`.
+
+### Command Tauri MCP (fase 11)
+| Command | Params → Result |
+|---|---|
+| `mcp_status` | → { running, port, requestedPort, token, uptimeMs, enabled } |
+| `mcp_start` | → port yang dipakai (set `mcp.enabled=true` dulu) |
+| `mcp_stop` | → bool (socket ditutup, port berhenti listening) |
+| `mcp_reply` | { reqId, result } → bool |
+| `mcp_rotate_token` | → token baru |
+| `mcp_write_cli` | { ids } → CliWriteResult[] (backup .bak, merge JSON/TOML) |
+| `mcp_remove_cli` | { ids } → CliWriteResult[] |
+| `mcp_cli_status` | → [{ id, label, path, exists, registered }] |
+
+Target config CLI (`mcp_config.rs`): `.claude.json`, `.codex/config.toml`
+(TOML), `.gemini/settings.json`, `.config/opencode/opencode.json` (key `mcp`),
+`.copilot/mcp-config.json`, `.cursor/mcp.json`, `Startup/.mcp.json`.
+Entri: `{"zephyr":{type:"http",url,headers:{Authorization}}}`; JSON di-parse &
+di-merge (key lain utuh), file lama selalu disalin ke `<nama>.bak`.
 
 ---
 

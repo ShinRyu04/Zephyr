@@ -2,7 +2,7 @@
 // kebab-case, tanpa titik. Satu tempat agar tidak ada typo tersebar.
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { AiChunk, FsChangeKind } from './types';
+import type { AiChunk, FsChangeKind, GhLoginEvent, McpAction } from './types';
 
 export const EV = {
   workspaceOpened: 'workspace-opened',
@@ -11,6 +11,7 @@ export const EV = {
   ptyExit: 'pty-exit',
   sshStatus: 'ssh-status',
   aiChunk: 'ai-chunk',
+  ghLogin: 'gh-login',
   gitProgress: 'git-progress',
   mcpAction: 'mcp-action',
   mcpScreenshot: 'mcp-screenshot',
@@ -56,4 +57,22 @@ export function onPtyExit(cb: (id: string) => void): Promise<UnlistenFn> {
 /** fase 09: potongan jawaban AI (text / err / done). */
 export function onAiChunk(cb: (c: AiChunk) => void): Promise<UnlistenFn> {
   return listen<AiChunk>(EV.aiChunk, (e) => cb(e.payload));
+}
+
+/** fase 10: hasil OAuth device flow GitHub (pending/success/error). */
+export function onGhLogin(cb: (e: GhLoginEvent) => void): Promise<UnlistenFn> {
+  return listen<GhLoginEvent>(EV.ghLogin, (e) => cb(e.payload));
+}
+
+/** fase 11: permintaan dari server MCP yang harus dijawab frontend.
+ *  `reqId` dikembalikan lewat command `mcp_reply`. */
+export function onMcpAction(cb: (a: McpAction) => void): Promise<UnlistenFn> {
+  return listen<McpAction>(EV.mcpAction, (e) => cb(e.payload));
+}
+
+/** fase 11: hasil screenshot_pane (path file di %TEMP%). */
+export function onMcpScreenshot(
+  cb: (p: { paneId: string; path: string }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ paneId: string; path: string }>(EV.mcpScreenshot, (e) => cb(e.payload));
 }
