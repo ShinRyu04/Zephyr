@@ -2,7 +2,7 @@
 // kebab-case, tanpa titik. Satu tempat agar tidak ada typo tersebar.
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { FsChangeKind } from './types';
+import type { AiChunk, FsChangeKind } from './types';
 
 export const EV = {
   workspaceOpened: 'workspace-opened',
@@ -51,4 +51,9 @@ export function onPtyOutput(cb: (id: string, data: string) => void): Promise<Unl
 /** fase 05: proses shell berakhir sendiri (exit / EOF). */
 export function onPtyExit(cb: (id: string) => void): Promise<UnlistenFn> {
   return listen<{ id: string }>(EV.ptyExit, (e) => cb(e.payload.id));
+}
+
+/** fase 09: potongan jawaban AI (text / err / done). */
+export function onAiChunk(cb: (c: AiChunk) => void): Promise<UnlistenFn> {
+  return listen<AiChunk>(EV.aiChunk, (e) => cb(e.payload));
 }
