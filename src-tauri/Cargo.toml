@@ -30,6 +30,9 @@ regex = "1.13.1"
 globset = "0.4.20"
 tauri-plugin-clipboard-manager = "2"
 which = "8"
+blake3 = "1.8.7"
+base64 = "0.23.1"
+ureq = "3"
 
 [features]
 # Fitur custom-protocol hanya aktif saat build release (production).

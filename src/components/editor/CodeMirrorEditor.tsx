@@ -37,6 +37,7 @@ import {
 import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { lintKeymap } from '@codemirror/lint';
+import { highlightWhitespace } from '@codemirror/view';
 import { useStore } from '../../lib/store';
 import { loadLangExtension } from '../../lib/lang';
 import { zephyrEditorTheme, zephyrHighlight } from '../../lib/cmTheme';
@@ -55,6 +56,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
   const wrapComp = useRef(new Compartment());
   const tabComp = useRef(new Compartment());
   const langComp = useRef(new Compartment());
+  const wsComp = useRef(new Compartment());
   const pending = useRef<number | null>(null);
 
   const updateTabContent = useStore((s) => s.updateTabContent);
@@ -115,6 +117,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
       zephyrEditorTheme,
       baseKeymap,
       langComp.current.of([]),
+      wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
       wrapComp.current.of(editorSettings.wordWrap ? EditorView.lineWrapping : []),
       tabComp.current.of(indentUnit.of(editorSettings.insertSpaces ? ' '.repeat(editorSettings.tabSize) : '\t')),
       EditorState.tabSize.of(editorSettings.tabSize),
@@ -197,16 +200,25 @@ export default function CodeMirrorEditor({ tab }: Props) {
         tabComp.current.reconfigure(
           indentUnit.of(editorSettings.insertSpaces ? ' '.repeat(editorSettings.tabSize) : '\t'),
         ),
+        wsComp.current.reconfigure(editorSettings.showWhitespace ? highlightWhitespace() : []),
       ],
     });
-  }, [editorSettings.wordWrap, editorSettings.insertSpaces, editorSettings.tabSize]);
+  }, [
+    editorSettings.wordWrap,
+    editorSettings.insertSpaces,
+    editorSettings.tabSize,
+    editorSettings.showWhitespace,
+  ]);
 
   return (
     <div
       ref={hostRef}
       className="zephyr-cm-host"
+      data-cursor-style={editorSettings.cursorStyle}
+      data-smooth={editorSettings.smoothScroll ? '1' : '0'}
       style={{
         fontSize: `${general.fontSize}px`,
+        fontFamily: general.fontFamily,
         // dipakai oleh .cm-scroller di cmTheme.ts
         ['--editor-line-height' as string]: String(general.lineHeight),
       }}

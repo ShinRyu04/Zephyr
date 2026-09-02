@@ -409,8 +409,9 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   },
 }));
 
-/** Start command bawaan bila Settings belum diubah user. */
-function defaultStartCommand(agentId: string, path: string): string[] {
+/** Start command bawaan bila Settings belum diubah user.
+ *  Diekspor karena Settings → Agents menampilkannya sebagai placeholder. */
+export function defaultStartCommand(agentId: string, path: string): string[] {
   // GitHub Copilot CLI dijalankan sebagai subcommand `gh copilot`.
   if (agentId === 'gh') return [path, 'copilot'];
   return [path];

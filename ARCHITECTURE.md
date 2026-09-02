@@ -118,6 +118,11 @@ seluruh pohon proses turunan shell (terdalam dulu) via `sysinfo`.
 dengan `NotAllowedError: Document is not focused`.
 
 ### ssh
+**STATUS: DITUNDA (fase 07) — user belum punya hosting untuk diuji.** Fitur
+ini menyusul, bukan dibatalkan. Kontrak di bawah tetap berlaku kalau nanti
+dikerjakan — jangan pakai nama lain. Pane `kind: 'ssh'` dan ikonnya sudah ada
+di store/UI sejak fase 06, jadi implementasinya tinggal mengisi backend.
+
 | Command | Params → Result |
 |---|---|
 | `ssh_list` | → SshHost[] (tanpa password; hanya `hasPassword`) |
@@ -130,10 +135,16 @@ dengan `NotAllowedError: Document is not focused`.
 ### models / ai
 | Command | Params → Result |
 |---|---|
-| `get_public_models` | → [{ provider, model, hasKey, preview }] |
-| `set_model_key` | { provider, key } → void (Rust-only storage) |
-| `test_model_connection` | { provider } → { ok, message } |
+| `get_public_models` | → [{ provider, hasKey, preview }] — SELALU memuat 6 provider katalog walau `secrets.json` kosong; TIDAK memuat key asli |
+| `set_model_key` | { provider, key } → void (key kosong = hapus; Rust-only storage) |
+| `test_model_connection` | { provider, baseUrl? } → { ok, message, status, ms } |
+| `reset_settings` | → void (hapus settings.json; `secrets.json` TIDAK disentuh) |
 | `ai_chat` | { provider, model, messages, maxTokens? } → stream via `ai-chunk` |
+
+Catatan `set_settings` (fase 08): patch di-**deep merge**, dan nilai `null`
+berarti **hapus key** (RFC 7386). Itulah jalur "reset per item" untuk
+`shortcuts[x]` dan `agents.startCommands[x]`. Konsekuensi: tidak ada setting
+yang boleh bernilai `null` secara sah.
 
 ### git
 `git_init {path}`, `git_status`, `git_stage {paths}`, `git_unstage {paths}`,
@@ -178,6 +189,8 @@ dinormalkan ke `\n`; saat menulis, Rust mengembalikan line ending asal file
 ---
 
 ## 4. MCP JSON-RPC methods (port 9222 — namespace terpisah)
+
+Fitur unggulan, DIKERJAKAN di fase 11. UI switch-nya sudah dibuat di fase 08.
 
 **Read:** `list_panes`, `list_editors`, `list_terminals`, `get_settings`,
 `get_setting {key}`, `list_extensions`, `get_window`.
