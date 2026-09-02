@@ -5,12 +5,14 @@
 // (onDragDropEvent) di App.tsx, bukan di sini.
 
 import { useStore, useActiveTab } from '../../lib/store';
+import { useGit } from '../../lib/gitStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import Breadcrumbs from './Breadcrumbs';
 import ZephyrLogo from './ZephyrLogo';
 import SettingsPage from '../settings/SettingsPage';
+import DiffViewer from '../scm/DiffViewer';
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
@@ -62,6 +64,8 @@ export default function EditorArea() {
   const tab = useActiveTab();
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  // Diff SCM (fase 10) menumpang area yang sama seperti Settings.
+  const hasDiff = useGit((s) => s.diff !== null);
 
   if (settingsOpen) {
     return (
@@ -78,6 +82,17 @@ export default function EditorArea() {
         </div>
         <div className="editor-host">
           <SettingsPage />
+        </div>
+      </section>
+    );
+  }
+
+  if (hasDiff) {
+    return (
+      <section className="editor-area">
+        <EditorTabBar />
+        <div className="editor-host">
+          <DiffViewer />
         </div>
       </section>
     );
