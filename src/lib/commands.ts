@@ -9,6 +9,7 @@ import type {
   CliStatus,
   CliWriteResult,
   DeviceLogin,
+  Diagnostics,
   DirNode,
   Encoding,
   GhStatus,
@@ -229,3 +230,16 @@ export const extensionsAdd = (path: string) => invoke<ExtensionInfo>('extensions
 export const extensionsRemove = (id: string) => invoke<boolean>('extensions_remove', { id });
 /** → path %APPDATA%\zephyr\extensions (dibuat bila belum ada). */
 export const extensionsFolder = () => invoke<string>('extensions_folder');
+
+// ── diagnostics / logging (fase 14) ──
+
+/** Angka yang benar-benar diukur di proses Rust (RAM, uptime, log, marks). */
+export const getDiagnostics = () => invoke<Diagnostics>('get_diagnostics');
+/** Kirim error frontend ke file log yang sama dengan Rust. */
+export const logFrontend = (level: 'error' | 'warn' | 'info', message: string) =>
+  invoke<void>('log_frontend', { level, message });
+/** Catat penanda perf dari frontend (mis. 'ui-ready'). */
+export const perfMark = (name: string, durMs?: number) =>
+  invoke<void>('perf_mark', { name, durMs });
+/** HANYA build debug: memicu panic untuk menguji panic hook (V7 fase 14). */
+export const debugPanic = () => invoke<void>('debug_panic');

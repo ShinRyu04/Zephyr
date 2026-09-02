@@ -4,10 +4,12 @@
 // dan tabel "Dikontrol oleh" cukup ada di SATU tempat — pelajaran fase 08,
 // kontrol yang dibuat dua kali muncul dobel di layar.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { openPath, openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
+import { getDiagnostics, debugPanic } from '../../lib/commands';
+import type { Diagnostics } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
 
 export function ScmSection() {
@@ -192,10 +194,144 @@ export function AboutSection() {
       </div>
 
       <p className="set-note">
-        Fase yang sudah jalan: 01–06 dan 08–11. Fase 07 (SSH) ditunda menunggu
-        host. Halaman Diagnostics dibuat di fase 16 — sampai itu ada, folder log
-        di atas adalah tempat memeriksa masalah.
+        Fase yang sudah jalan: 01–06 dan 08–14. Fase 07 (SSH) ditunda menunggu
+        host. Angka di Diagnostics di bawah diukur langsung dari proses ini —
+        bukan perkiraan.
       </p>
+
+      <DiagnosticsPanel />
     </Section>
+  );
+}
+
+const mb = (b: number) => `${(b / 1024 / 1024).toFixed(1)} MB`;
+const secs = (ms: number) => {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}j ${m}m` : m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
+};
+
+/** About → Diagnostics (fase 14.5). Semua nilai dari command `get_diagnostics`;
+ *  tidak ada yang dihitung ulang di frontend supaya tidak ada dua sumber angka. */
+function DiagnosticsPanel() {
+  const [d, setD] = useState<Diagnostics | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [auto, setAuto] = useState(false);
+
+  const load = () => {
+    getDiagnostics()
+      .then((x) => {
+        setD(x);
+        setErr(null);
+      })
+      .catch((e) => setErr(String(e)));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (!auto) return;
+    const t = window.setInterval(load, 3000);
+    return () => window.clearInterval(t);
+  }, [auto]);
+
+  const rows: Array<[string, string]> = d
+    ? [
+        ['Uptime', secs(d.uptimeMs)],
+        ['RAM total (dengan WebView2)', mb(d.ramTotalBytes)],
+        ['RAM proses inti', mb(d.ramBytes)],
+        ['RAM total puncak', mb(d.ramPeakBytes)],
+        ['Pane terminal hidup', String(d.ptyCount)],
+        ['MCP', d.mcpPort > 0 ? `listening :${d.mcpPort}` : 'mati'],
+        ['Build', d.debug ? 'debug' : 'release'],
+        ['File log', d.logFile || '-'],
+        ['Ukuran log', `${(d.logBytes / 1024).toFixed(1)} KB (rotate 2 MB)`],
+        ['Panic sesi ini', d.panicked ? d.lastPanic || 'ya' : 'tidak ada'],
+      ]
+    : [];
+
+  return (
+    <div className="diag" data-testid="diag-panel">
+      <div className="diag-head">
+        <span className="diag-title">Diagnostics</span>
+        <button className="btn btn-sm" data-testid="diag-refresh" onClick={load}>
+          Muat ulang
+        </button>
+        <label className="diag-auto">
+          <input
+            type="checkbox"
+            data-testid="diag-auto"
+            checked={auto}
+            onChange={(e) => setAuto(e.target.checked)}
+          />
+          <span>tiap 3s</span>
+        </label>
+      </div>
+
+      {err && (
+        <p className="set-note diag-err" data-testid="diag-error">
+          {err}
+        </p>
+      )}
+
+      <table className="about-table" data-testid="diag-table">
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}>
+              <td className="about-k">{k}</td>
+              <td className="about-v">
+                <code>{v}</code>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {d && d.marks.length > 0 && (
+        <>
+          <p className="set-note">Penanda waktu (ms sejak proses mulai):</p>
+          <ul className="diag-marks" data-testid="diag-marks">
+            {d.marks.slice(-12).map((m, i) => (
+              <li key={`${m.name}-${m.atMs}-${i}`} data-mark={m.name}>
+                <code>{m.name}</code>
+                <span>
+                  @{m.atMs}ms{m.durMs !== null ? ` (${m.durMs}ms)` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {d && Object.keys(d.counters).length > 0 && (
+        <p className="set-note" data-testid="diag-counters">
+          Operasi sejak start:{' '}
+          {Object.entries(d.counters)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => `${k}=${v}`)
+            .join(', ')}
+        </p>
+      )}
+
+      {d?.debug && (
+        <div className="diag-danger">
+          <button
+            className="btn btn-sm"
+            data-testid="diag-panic"
+            title="Hanya build debug: memicu panic di Rust untuk menguji panic hook + dialog crash"
+            onClick={() => void debugPanic().catch(() => {})}
+          >
+            Uji panic (debug)
+          </button>
+          <span className="set-note">
+            Menulis stack ke log lalu memunculkan dialog crash. Tombol ini tidak
+            ada di build release.
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

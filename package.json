@@ -20,6 +20,7 @@
     "verify:11": "node scripts/verify11.mjs",
     "verify:12": "node scripts/verify12.mjs",
     "verify:13": "node scripts/verify13.mjs",
+    "verify:14": "node scripts/verify14.mjs",
     "mock:ai": "node scripts/mock-ai.mjs 8098",
     "soak": "node scripts/soak.mjs"
   },

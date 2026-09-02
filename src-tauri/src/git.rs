@@ -24,7 +24,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -162,6 +162,35 @@ fn kill_tree(pid: u32) {
     let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
 }
 
+/// Emit `git-progress` { op, phase } — fase 14.4. Payload kecil & idempoten:
+/// frontend hanya perlu tahu operasi apa yang mulai/selesai supaya bisa
+/// menampilkan spinner tanpa menebak dari `busy` sendiri.
+fn progress(app: &AppHandle, op: &str, phase: &str) {
+    let _ = app.emit(
+        "git-progress",
+        serde_json::json!({ "op": op, "phase": phase }),
+    );
+}
+
+/// Bungkus satu operasi jaringan: emit start/end + catat durasi ke log.
+fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -> ZResult<T> {
+    progress(app, op, "start");
+    let t0 = std::time::Instant::now();
+    let out = f();
+    let ms = t0.elapsed().as_millis() as u64;
+    match &out {
+        Ok(_) => {
+            tracing::info!(op, ms, "git selesai");
+            progress(app, op, "done");
+        }
+        Err(e) => {
+            tracing::warn!(op, ms, code = e.code(), "git gagal: {e}");
+            progress(app, op, "error");
+        }
+    }
+    out
+}
+
 /// Workspace aktif; semua command git bekerja relatif ke sini.
 fn ws(state: &AppState) -> ZResult<PathBuf> {
     state
@@ -176,10 +205,7 @@ fn git(state: &AppState, args: &[&str]) -> ZResult<String> {
 
 fn git_extra(state: &AppState, args: &[&str], extra: &[String]) -> ZResult<String> {
     let dir = ws(state)?;
-    let _guard = state
-        .git_lock
-        .lock()
-        .map_err(|_| ZephyrError::Internal("git_lock terkunci".into()))?;
+    let _guard = state.git_permit()?;
     let out = run_git_in(&dir, args, extra)?;
     if !out.ok {
         return Err(ZephyrError::Git(clean_err(&out.stderr, &out.stdout)));
@@ -191,10 +217,7 @@ fn git_extra(state: &AppState, args: &[&str], extra: &[String]) -> ZResult<Strin
 /// operasi yang "gagal wajar", mis. pull dengan konflik).
 fn git_soft(state: &AppState, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
     let dir = ws(state)?;
-    let _guard = state
-        .git_lock
-        .lock()
-        .map_err(|_| ZephyrError::Internal("git_lock terkunci".into()))?;
+    let _guard = state.git_permit()?;
     run_git_in(&dir, args, extra)
 }
 
@@ -368,10 +391,7 @@ pub fn git_init(state: State<AppState>, path: Option<String>) -> ZResult<()> {
         )));
     }
     state.ensure_writable(&dir)?;
-    let _guard = state
-        .git_lock
-        .lock()
-        .map_err(|_| ZephyrError::Internal("git_lock terkunci".into()))?;
+    let _guard = state.git_permit()?;
     // Branch awal mengikuti settings.git.defaultBranch bila ada.
     let default_branch = crate::settings::git_default_branch(&state);
     let out = run_git_in(&dir, &["init", "-b", &default_branch], &[])?;
@@ -404,10 +424,7 @@ pub fn git_status(state: State<AppState>) -> ZResult<GitStatus> {
         }
     };
 
-    let _guard = state
-        .git_lock
-        .lock()
-        .map_err(|_| ZephyrError::Internal("git_lock terkunci".into()))?;
+    let _guard = state.git_permit()?;
 
     let root = run_git_in(&dir, &["rev-parse", "--show-toplevel"], &[])?;
     if !root.ok {
@@ -577,22 +594,30 @@ fn is_github_https(url: &str) -> bool {
 }
 
 #[tauri::command(async)]
-pub fn git_push(state: State<AppState>, set_upstream: Option<bool>) -> ZResult<String> {
-    let extra = credential_args(&state);
-    let branch = current_branch(&state)?;
+pub fn git_push(
+    app: AppHandle,
+    state: State<AppState>,
+    set_upstream: Option<bool>,
+) -> ZResult<String> {
+    with_progress(&app, "push", || push_inner(&state, set_upstream))
+}
+
+fn push_inner(state: &AppState, set_upstream: Option<bool>) -> ZResult<String> {
+    let extra = credential_args(state);
+    let branch = current_branch(state)?;
     let out = if set_upstream.unwrap_or(false) {
-        git_soft(&state, &["push", "-u", "origin", &branch], &extra)?
+        git_soft(state, &["push", "-u", "origin", &branch], &extra)?
     } else {
-        git_soft(&state, &["push"], &extra)?
+        git_soft(state, &["push"], &extra)?
     };
     if !out.ok {
         // 401 di tengah operasi & token OAuth kadaluarsa → refresh lalu
         // coba SEKALI lagi (bukan loop).
-        if looks_like_auth_error(&out.stderr) && crate::github::try_refresh(&state) {
+        if looks_like_auth_error(&out.stderr) && crate::github::try_refresh(state) {
             let retry = if set_upstream.unwrap_or(false) {
-                git_soft(&state, &["push", "-u", "origin", &branch], &extra)?
+                git_soft(state, &["push", "-u", "origin", &branch], &extra)?
             } else {
-                git_soft(&state, &["push"], &extra)?
+                git_soft(state, &["push"], &extra)?
             };
             if retry.ok {
                 return Ok(scrub_url_credentials(&format!(
@@ -621,14 +646,18 @@ fn looks_like_auth_error(stderr: &str) -> bool {
 }
 
 #[tauri::command(async)]
-pub fn git_pull(state: State<AppState>, rebase: Option<bool>) -> ZResult<String> {
-    let extra = credential_args(&state);
+pub fn git_pull(app: AppHandle, state: State<AppState>, rebase: Option<bool>) -> ZResult<String> {
+    with_progress(&app, "pull", || pull_inner(&state, rebase))
+}
+
+fn pull_inner(state: &AppState, rebase: Option<bool>) -> ZResult<String> {
+    let extra = credential_args(state);
     let args: Vec<&str> = if rebase.unwrap_or(false) {
         vec!["pull", "--rebase"]
     } else {
         vec!["pull", "--no-rebase"]
     };
-    let out = git_soft(&state, &args, &extra)?;
+    let out = git_soft(state, &args, &extra)?;
     if !out.ok {
         return Err(ZephyrError::Git(clean_err(&out.stderr, &out.stdout)));
     }
@@ -639,9 +668,13 @@ pub fn git_pull(state: State<AppState>, rebase: Option<bool>) -> ZResult<String>
 }
 
 #[tauri::command(async)]
-pub fn git_fetch(state: State<AppState>) -> ZResult<String> {
-    let extra = credential_args(&state);
-    let out = git_soft(&state, &["fetch", "--prune"], &extra)?;
+pub fn git_fetch(app: AppHandle, state: State<AppState>) -> ZResult<String> {
+    with_progress(&app, "fetch", || fetch_inner(&state))
+}
+
+fn fetch_inner(state: &AppState) -> ZResult<String> {
+    let extra = credential_args(state);
+    let out = git_soft(state, &["fetch", "--prune"], &extra)?;
     if !out.ok {
         return Err(ZephyrError::Git(clean_err(&out.stderr, &out.stdout)));
     }

@@ -203,11 +203,13 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
     let canon = crate::app_state::normalize(&p);
     let as_string = canon.to_string_lossy().to_string();
 
-    if let Ok(mut ws) = state.workspace.lock() {
-        *ws = Some(canon.clone());
-    }
-    state.allow(&canon);
+    state.set_workspace(canon.clone())?;
+    // allow_exact, BUKAN allow(): allow() ikut mem-whitelist folder INDUK
+    // workspace, sehingga fs_write ke folder sebelahnya lolos (bug V2 fase 14).
+    state.allow_exact(&canon);
     push_recent(&state, &as_string)?;
+    state.perf_mark("workspace_open", None);
+    tracing::info!(path = %as_string, "workspace dibuka");
 
     let _ = app.emit("workspace-opened", json!({ "path": as_string }));
     Ok(())
@@ -217,9 +219,8 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
 pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
     // Hentikan watcher fase 04 agar tidak ada thread menggantung.
     state.stop_watcher();
-    if let Ok(mut ws) = state.workspace.lock() {
-        *ws = None;
-    }
+    state.clear_workspace();
+    tracing::info!("workspace ditutup");
     Ok(())
 }
 
@@ -283,6 +284,77 @@ pub fn git_identity(state: &AppState) -> (Option<String>, Option<String>) {
 
 // ───────────────────── sampler RAM (fase 02 V6) ─────────────────────
 
+/// RAM tertinggi yang pernah tercatat (byte) — dibaca Diagnostics.
+static RAM_PEAK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Sampel RAM TERAKHIR (byte). Diagnostics membaca ini, BUKAN memanggil
+/// sysinfo sendiri.
+///
+/// KENAPA (fase 14, sudah kena): `get_diagnostics` awalnya membuat
+/// `sysinfo::System::new()` + `refresh_processes_specifics` sendiri tiap
+/// dipanggil. Saat harness V8 memanggilnya tiap 30 detik, proses Zephyr
+/// KELUAR SENDIRI (`RunEvent::Exit`, exit code 0) setelah ~1 menit — gejala
+/// sama seperti catatan fase 02 tentang sysinfo 0.39 di Windows. Aturan
+/// sekarang: HANYA thread sampler ini yang menyentuh sysinfo untuk pid sendiri.
+static RAM_LAST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// RAM TOTAL = proses ini + seluruh turunannya (`msedgewebview2.exe`).
+///
+/// KENAPA ADA (fase 14, tertangkap saat V8): WebView2 jalan sebagai PROSES
+/// TERPISAH (browser + renderer + GPU). `zephyr.exe` sendiri cuma ~37MB,
+/// sementara total yang dilihat user di Task Manager bisa 300MB+. Melaporkan
+/// angka proses sendiri saja = mengaku hemat padahal bukan.
+static RAM_TOTAL_LAST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static RAM_TOTAL_PEAK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Puncak RAM proses ini saja (dipakai unit test & debugging).
+#[allow(dead_code)]
+pub fn ram_peak() -> u64 {
+    RAM_PEAK.load(Ordering::Relaxed)
+}
+
+/// Sampel RAM terakhir dari sampler (0 = belum ada sampel).
+pub fn ram_last() -> u64 {
+    RAM_LAST.load(Ordering::Relaxed)
+}
+
+/// RAM total (proses + turunan WebView2) terakhir & puncaknya.
+pub fn ram_total_last() -> u64 {
+    RAM_TOTAL_LAST.load(Ordering::Relaxed)
+}
+
+pub fn ram_total_peak() -> u64 {
+    RAM_TOTAL_PEAK.load(Ordering::Relaxed)
+}
+
+/// Jumlahkan memori proses ini + semua turunannya (maks 6 tingkat).
+/// HANYA dipanggil dari thread sampler — lihat catatan RAM_LAST.
+fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        false,
+        sysinfo::ProcessRefreshKind::nothing().with_memory(),
+    );
+    let mut total = sys.process(own).map(|p| p.memory()).unwrap_or(0);
+    for (pid, proc_) in sys.processes() {
+        if *pid == own {
+            continue;
+        }
+        let mut cur = proc_.parent();
+        let mut depth = 0usize;
+        while let Some(p) = cur {
+            if p == own {
+                total += proc_.memory();
+                break;
+            }
+            cur = sys.process(p).and_then(|x| x.parent());
+            depth += 1;
+            if depth > 6 {
+                break;
+            }
+        }
+    }
+    total
+}
+
 /// Thread ringan: tiap 3 detik emit `ram-usage`.
 /// Berhenti mengukur saat window minimized (hemat CPU, sesuai catatan fase 02).
 ///
@@ -293,6 +365,10 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let pid = sysinfo::Pid::from_u32(std::process::id());
         let mut sys = sysinfo::System::new();
+        // Sampler total (WebView2) memakai instance sysinfo SENDIRI karena ia
+        // menyegarkan SEMUA proses; jangan dicampur dengan yang pid-spesifik.
+        let mut sys_all = sysinfo::System::new();
+        let mut putaran: u64 = 0;
         loop {
             std::thread::sleep(std::time::Duration::from_secs(3));
 
@@ -312,7 +388,29 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
                 sysinfo::ProcessRefreshKind::nothing().with_memory(),
             );
             let bytes = sys.process(pid).map(|p| p.memory()).unwrap_or(0);
-            if app.emit("ram-usage", json!({ "bytes": bytes })).is_err() {
+            RAM_LAST.store(bytes, Ordering::Relaxed);
+            RAM_PEAK.fetch_max(bytes, Ordering::Relaxed);
+
+            // Total (termasuk WebView2) lebih mahal karena men-scan semua
+            // proses → cukup tiap 4 putaran (12 detik).
+            putaran += 1;
+            if putaran % 4 == 1 {
+                let total = hitung_total(&mut sys_all, pid);
+                if total > 0 {
+                    RAM_TOTAL_LAST.store(total, Ordering::Relaxed);
+                    RAM_TOTAL_PEAK.fetch_max(total, Ordering::Relaxed);
+                }
+            }
+
+            // `bytes` = proses ini saja (dipakai StatusBar sejak fase 02);
+            // `total` ikut dikirim supaya UI bisa menampilkan angka jujur.
+            if app
+                .emit(
+                    "ram-usage",
+                    json!({ "bytes": bytes, "totalBytes": RAM_TOTAL_LAST.load(Ordering::Relaxed) }),
+                )
+                .is_err()
+            {
                 break; // app sudah tutup
             }
         }

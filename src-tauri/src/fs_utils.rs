@@ -21,6 +21,21 @@ use tauri::State;
 
 const BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
+/// Terjemahkan error I/O menjadi ZephyrError yang menyebut PATH-nya.
+/// `From<io::Error>` bawaan tidak tahu path apa yang gagal, jadi pesan yang
+/// dilihat user cuma "os error 2" — V1 fase 14 minta pesan yang jelas.
+pub fn map_fs_err(e: std::io::Error, path: &str) -> ZephyrError {
+    match e.kind() {
+        std::io::ErrorKind::NotFound => ZephyrError::NotFound(format!(
+            "{path} tidak ada (mungkin sudah dihapus atau dipindah)"
+        )),
+        std::io::ErrorKind::PermissionDenied => {
+            ZephyrError::Permission(format!("{path} tidak boleh diakses"))
+        }
+        _ => ZephyrError::Io(format!("{path}: {e}")),
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadResult {
@@ -173,7 +188,9 @@ pub fn fs_read(
     let p = PathBuf::from(&path);
     state.ensure_readable(&p)?;
 
-    let meta = std::fs::metadata(&p)?;
+    // FASE 14 V1: file yang sudah dihapus harus memberi pesan yang jelas
+    // (nama filenya), bukan "os error 2" mentah dari Windows.
+    let meta = std::fs::metadata(&p).map_err(|e| map_fs_err(e, &path))?;
     if meta.is_dir() {
         return Err(ZephyrError::InvalidInput(format!("{path} adalah folder")));
     }
@@ -184,12 +201,16 @@ pub fn fs_read(
         ));
     }
 
-    let bytes = std::fs::read(&p)?;
+    let bytes = std::fs::read(&p).map_err(|e| map_fs_err(e, &path))?;
     let (raw, detected) = decode_bytes(&bytes, encoding.as_deref())?;
     let line_ending = detect_line_ending(&raw).to_string();
 
-    // File yang dibaca user boleh ditulis balik (Ctrl+S) walau di luar workspace.
-    state.allow(&p);
+    // File yang dibaca user boleh ditulis balik (Ctrl+S) walau di luar
+    // workspace — TAPI hanya file itu sendiri. `allow()` juga mengizinkan
+    // folder induknya, dan itu terlalu longgar untuk jalur baca: membuka satu
+    // file di C:\Windows tidak boleh membuat seluruh C:\Windows bisa ditulis.
+    state.allow_exact(&p);
+    state.bump("fs_read");
 
     Ok(ReadResult {
         content: raw.replace("\r\n", "\n"),
@@ -223,6 +244,7 @@ pub fn fs_write(
     let enc = encoding.unwrap_or(fallback_enc);
     let le = line_ending.unwrap_or(fallback_le);
     let bytes = encode_string(&content, &enc, &le)?;
+    let bytes_len = bytes.len();
 
     if let Some(parent) = p.parent() {
         if !parent.as_os_str().is_empty() && !parent.exists() {
@@ -230,7 +252,9 @@ pub fn fs_write(
         }
     }
     std::fs::write(&p, bytes)?;
-    state.allow(&p);
+    state.allow_exact(&p);
+    state.bump("fs_write");
+    tracing::debug!(path = %state.label(&p), bytes = bytes_len, enc = %enc, "fs_write");
     Ok(())
 }
 
@@ -243,7 +267,7 @@ pub fn fs_exists(path: String) -> ZResult<bool> {
 pub fn fs_stat(state: State<AppState>, path: String) -> ZResult<StatResult> {
     let p = PathBuf::from(&path);
     state.ensure_readable(&p)?;
-    let meta = std::fs::metadata(&p)?;
+    let meta = std::fs::metadata(&p).map_err(|e| map_fs_err(e, &path))?;
     Ok(StatResult {
         size: meta.len(),
         is_dir: meta.is_dir(),
@@ -302,7 +326,9 @@ pub fn fs_delete(state: State<AppState>, paths: Vec<String>, recursive: bool) ->
         } else {
             std::fs::remove_file(&p)?;
         }
+        tracing::info!(path = %state.label(&p), "fs_delete");
     }
+    state.bump("fs_delete");
     Ok(())
 }
 
@@ -319,6 +345,7 @@ pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()
         return Err(ZephyrError::InvalidInput(format!("{to} sudah ada")));
     }
     std::fs::rename(&a, &b)?;
+    tracing::info!(from = %state.label(&a), to = %state.label(&b), "fs_rename");
     Ok(())
 }
 
