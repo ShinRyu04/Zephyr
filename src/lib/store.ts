@@ -97,6 +97,9 @@ interface StoreActions {
   /** Muat ulang isi tab dari disk (setelah replace / diubah dari luar). */
   reloadTabFromDisk: (path: string) => Promise<void>;
 
+  /** Pindah tab editor relatif (+1 = kanan, -1 = kiri), melingkar (fase 12). */
+  cycleTab: (delta: number) => void;
+
   resolveConfirm: (choice: 'save' | 'discard' | 'cancel') => Promise<void>;
   requestCloseWindow: () => boolean;
 
@@ -446,6 +449,15 @@ export const useStore = create<Store>((set, get) => ({
       })
       .map((t) => t.id);
     for (const id of doomed) get().forceCloseTab(id);
+  },
+
+  /** Pindah tab editor relatif, melingkar (Ctrl+Tab / Ctrl+Shift+Tab). */
+  cycleTab: (delta) => {
+    const { tabs, activeTabId } = get();
+    if (tabs.length < 2) return;
+    const i = tabs.findIndex((t) => t.id === activeTabId);
+    const next = (((i < 0 ? 0 : i) + delta) % tabs.length + tabs.length) % tabs.length;
+    set({ activeTabId: tabs[next].id });
   },
 
   reloadTabFromDisk: async (path) => {

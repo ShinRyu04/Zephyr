@@ -78,6 +78,27 @@ export interface SearchResult {
   truncated: boolean;
 }
 
+/** Satu file untuk Quick Open palette (fase 12). */
+export interface QuickFile {
+  /** path absolut */
+  path: string;
+  /** path relatif ke root workspace, separator '/' */
+  rel: string;
+  name: string;
+}
+
+/** Hasil `browser_probe` (fase 12): boleh di-embed atau tidak. */
+export interface ProbeResult {
+  url: string;
+  reachable: boolean;
+  status: number | null;
+  embeddable: boolean;
+  reason: string;
+  /** header yang menjadi dasar keputusan (transparansi ke user) */
+  header: string | null;
+  ms: number;
+}
+
 export type FsChangeKind = 'create' | 'remove' | 'modify';
 
 // ── terminal / pty (fase 05) + multi-pane & agent (fase 06) ──

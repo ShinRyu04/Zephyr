@@ -23,6 +23,8 @@ import { copySelection, pasteInto } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
 import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
+import { usePalette } from './paletteStore';
+import { COMMANDS } from './commandRegistry';
 
 type CmdName = 'undo' | 'redo';
 
@@ -173,6 +175,10 @@ export function installDevBridge(): void {
   w.__ZEPHYR_MCP__ = {
     store: useMcp,
     status: () => useMcp.getState().status,
+    log: () => useMcp.getState().log,
+    toast: () => useMcp.getState().toast,
+    setToast: (m: string | null) => useMcp.getState().setToast(m),
+    clearLog: () => useMcp.getState().clearLog(),
     refresh: () => useMcp.getState().refresh(),
     /** nyalakan/matikan server lewat jalur UI yang sama */
     toggle: (on: boolean) => useMcp.getState().toggleServer(on),
@@ -190,6 +196,49 @@ export function installDevBridge(): void {
     info: () => useMcp.getState().mcpInfo,
     setError: (m: string | null) => useMcp.getState().setError(m),
     setInfo: (m: string | null) => useMcp.getState().setInfo(m),
+  };
+  // Command Palette / Quick Open (fase 12).
+  w.__ZEPHYR_CP__ = {
+    store: usePalette,
+    open: (mode: 'command' | 'file') => usePalette.getState().openPalette(mode),
+    close: () => usePalette.getState().close(),
+    setQuery: (q: string) => usePalette.getState().setQuery(q),
+    move: (d: number) => usePalette.getState().move(d),
+    accept: (i?: number) => usePalette.getState().accept(i),
+    /** hasil terfilter saat ini (label + detail + binding) */
+    items: () =>
+      usePalette.getState().items().map((x) => ({
+        id: x.id,
+        label: x.label,
+        detail: x.detail,
+        binding: x.binding ?? null,
+        score: Math.round(x.score),
+      })),
+    index: () => usePalette.getState().index,
+    isOpen: () => usePalette.getState().open,
+    mode: () => usePalette.getState().mode,
+    lastRun: () => usePalette.getState().lastRun,
+    files: () => usePalette.getState().files.length,
+    /** seluruh katalog command (untuk membuktikan registry lengkap) */
+    commands: () => COMMANDS.map((c) => ({ id: c.id, title: c.title, group: c.group })),
+    /** tabel shortcut efektif + deteksi konflik (V4) */
+    shortcutTable: () => {
+      const custom = useStore.getState().settings.shortcuts;
+      const rows = ACTIONS.map((a) => ({
+        id: a.id,
+        label: a.label,
+        group: a.group,
+        binding: effectiveBinding(a.id, custom),
+      }));
+      const seen = new Map<string, string[]>();
+      for (const r of rows) {
+        seen.set(r.binding, [...(seen.get(r.binding) ?? []), r.id]);
+      }
+      const conflicts = [...seen.entries()]
+        .filter(([, ids]) => ids.length > 1)
+        .map(([binding, ids]) => ({ binding, ids }));
+      return { rows, conflicts };
+    },
   };
   // Untuk menguji jalur onCloseRequested (V7 fase 02 / V5 fase 03).
   w.__ZEPHYR_WIN__ = {
