@@ -17,6 +17,7 @@ import { useMcp } from './mcpStore';
 import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
+import { useNotif } from './notificationStore';
 import { THEMES } from './themes';
 import { flushTab } from './editorRegistry';
 
@@ -517,6 +518,29 @@ export const COMMANDS: CommandDef[] = [
       if (p) await useExplorer.getState().reveal(p);
     },
   },
+
+  // ── Notifications (fase 27) ──
+  {
+    id: 'notifications.show',
+    title: 'Notifications: Show Notifications',
+    group: 'View',
+    keywords: 'notifikasi lonceng riwayat pemberitahuan',
+    run: () => useNotif.getState().setCenterOpen(true),
+  },
+  {
+    id: 'notifications.clear',
+    title: 'Notifications: Clear Notifications',
+    group: 'View',
+    keywords: 'notifikasi bersihkan hapus riwayat',
+    run: () => useNotif.getState().clear(),
+  },
+  {
+    id: 'notifications.toggleDnd',
+    title: 'Notifications: Toggle Do Not Disturb',
+    group: 'View',
+    keywords: 'notifikasi dnd redam senyap jangan ganggu',
+    run: () => useNotif.getState().toggleDnd(),
+  },
 ];
 
 export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
@@ -553,4 +577,14 @@ export function availableCommands(): CommandDef[] {
 /** Cari satu command (inti ATAU dari ekstensi) berdasarkan id. */
 export function findCommand(id: string): CommandDef | undefined {
   return COMMAND_BY_ID.get(id) ?? extensionCommands().find((c) => c.id === id);
+}
+
+/** FASE 27: jalankan command by id. Dipakai tombol aksi notifikasi supaya
+ *  toast tidak perlu tahu apa pun tentang implementasi tiap domain.
+ *  Mengembalikan false bila id tidak dikenal (mis. ekstensi sudah dimatikan). */
+export async function runCommand(id: string): Promise<boolean> {
+  const c = findCommand(id);
+  if (!c) return false;
+  await c.run();
+  return true;
 }

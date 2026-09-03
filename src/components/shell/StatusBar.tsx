@@ -7,6 +7,7 @@ import { useGit } from '../../lib/gitStore';
 import { getAppInfo, getDiagnostics } from '../../lib/commands';
 import { onRamUsage } from '../../lib/events';
 import { LANG_LABEL } from '../../lib/lang';
+import { NotifBell } from '../notifications/NotificationCenter';
 
 const ENC_LABEL: Record<string, string> = {
   utf8: 'UTF-8',
@@ -134,6 +135,7 @@ export default function StatusBar() {
       <span className="sb-spacer" />
 
       {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
+      <NotifBell />
       <button
         className="sb-btn"
         title="Format document — Prettier di fase berikutnya"
