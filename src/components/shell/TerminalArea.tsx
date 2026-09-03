@@ -1,6 +1,10 @@
-// TerminalArea.tsx — panel terminal bawah: divider resize, tab strip,
+// TerminalArea.tsx — isi tab "Terminal" pada panel bawah: tab strip terminal,
 // grid pane tab aktif, dan toast batas pane.
 // Pane tab non-aktif tetap hidup (holder xterm-nya dilepas dari DOM).
+//
+// FASE 20: komponen ini sekarang DIRENDER DI DALAM Panel.tsx (`embedded`),
+// jadi resizer + tinggi panel dipegang Panel, bukan di sini. Mode non-embedded
+// dipertahankan supaya tidak ada perubahan perilaku bila dipakai sendiri.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
@@ -9,7 +13,7 @@ import DockSwitch from './DockSwitch';
 import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
 import TerminalTabs from '../terminal/TerminalTabs';
 
-export default function TerminalArea() {
+export default function TerminalArea({ embedded = false }: { embedded?: boolean }) {
   const visible = useTerminal((s) => s.visible);
   const height = useTerminal((s) => s.height);
   const setHeight = useTerminal((s) => s.setHeight);
@@ -56,7 +60,8 @@ export default function TerminalArea() {
 
   const paneCount = tabs.reduce((n, t) => n + t.panes.length, 0);
 
-  if (!visible) {
+  // Dalam mode embedded, visibilitas & tinggi diurus Panel.tsx.
+  if (!visible && !embedded) {
     return (
       <button
         className="term-collapsed"
@@ -71,6 +76,27 @@ export default function TerminalArea() {
   }
 
   const active = tabs.find((t) => t.id === activeTabId) ?? null;
+
+  if (embedded) {
+    return (
+      <div className="term-embedded" aria-label="Terminal">
+        <DockSwitch />
+        {dock === 'ai' ? (
+          <AiPanel />
+        ) : (
+          <>
+            <TerminalTabs />
+            <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
+          </>
+        )}
+        {toast && (
+          <div className="term-toast" role="status" data-testid="term-toast">
+            {toast}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <section className="term-area" style={{ height }} aria-label="Panel bawah">

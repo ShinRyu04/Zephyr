@@ -410,6 +410,12 @@ pub fn tools_schema() -> Value {
                  json!({ "id": s("id command") }), vec!["id"]),
             tool("screenshot_pane", "Simpan isi buffer pane ke file teks di %TEMP% lalu kembalikan path.",
                  json!({ "paneId": s("id pane") }), vec!["paneId"]),
+            // fase 20: baca-saja, supaya AI CLI bisa melihat diagnostik & log
+            // tanpa jalur tulis baru.
+            tool("get_problems", "Daftar diagnostik (Problems) yang sedang tampil di panel bawah.",
+                 json!({ "severity": s("filter opsional: error|warning|info|hint") }), vec![]),
+            tool("get_output", "Isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug).",
+                 json!({ "channel": s("id channel"), "tail": json!({ "type": "integer", "description": "ambil N baris terakhir" }) }), vec![]),
         ]
     })
 }
@@ -605,6 +611,18 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
         "pane_close" => {
             let pane = need_str(&params, "paneId")?;
             ui_call(app, "pane_close", json!({ "paneId": pane })).await
+        }
+        // fase 20: baca-saja. Store-nya di frontend, jadi tetap lewat ui_call.
+        "get_problems" => {
+            ui_call(app, "get_problems", json!({ "severity": params.get("severity") })).await
+        }
+        "get_output" => {
+            ui_call(
+                app,
+                "get_output",
+                json!({ "channel": params.get("channel"), "tail": params.get("tail") }),
+            )
+            .await
         }
         "editor_open" => {
             let path = need_str(&params, "path")?;

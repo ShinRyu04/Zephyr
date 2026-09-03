@@ -570,6 +570,8 @@ export interface Settings {
   };
   mcp: { enabled: boolean; port: number; token: string; writeToCli: string[] };
   ssh: { recentHosts?: string[] };
+  /** fase 20: preferensi panel bawah (tab terlihat, tab aktif, tinggi) */
+  panel: { visibleTabs: string[]; activeTab: string; height: number };
 }
 
 /** Default frontend — cermin dari default_settings() di settings.rs. */
@@ -603,4 +605,9 @@ export const DEFAULT_SETTINGS: Settings = {
   git: { defaultBranch: 'main', pullBeforePush: true },
   mcp: { enabled: false, port: 9222, token: '', writeToCli: [] },
   ssh: { recentHosts: [] },
+  panel: {
+    visibleTabs: ['problems', 'output', 'debug', 'terminal', 'ports'],
+    activeTab: 'terminal',
+    height: 260,
+  },
 };

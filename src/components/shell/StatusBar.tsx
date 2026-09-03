@@ -8,6 +8,8 @@ import { getAppInfo, getDiagnostics } from '../../lib/commands';
 import { onRamUsage } from '../../lib/events';
 import { LANG_LABEL } from '../../lib/lang';
 import { NotifBell } from '../notifications/NotificationCenter';
+import { useProblems } from '../../lib/problemsStore';
+import { runCommand } from '../../lib/commandRegistry';
 
 const ENC_LABEL: Record<string, string> = {
   utf8: 'UTF-8',
@@ -58,6 +60,41 @@ function GitBadge() {
             {behind > 0 && `↓${behind}`}
           </span>
         )}
+      </button>
+      <span className="sb-sep">|</span>
+    </>
+  );
+}
+
+/** Ringkasan diagnostik (fase 20). Tetap tampil walau panel tertutup —
+ *  itu gunanya: tahu ada error tanpa membuka panel. Klik = buka Problems. */
+function ProblemsBadge() {
+  // Primitif, bukan objek: selector zustand v5 dibandingkan dengan ===.
+  const errors = useProblems((s) => {
+    let n = 0;
+    for (const list of s.byFile.values()) for (const d of list) if (d.severity === 'error') n++;
+    return n;
+  });
+  const warnings = useProblems((s) => {
+    let n = 0;
+    for (const list of s.byFile.values()) for (const d of list) if (d.severity === 'warning') n++;
+    return n;
+  });
+
+  return (
+    <>
+      <button
+        className="sb-item sb-problems"
+        data-testid="sb-problems"
+        title={`${errors} error, ${warnings} warning — buka Problems`}
+        onClick={() => void runCommand('problemsPanel.focus')}
+      >
+        <span className="sb-prob-err" data-testid="sb-prob-errors">
+          ⊗ {errors}
+        </span>
+        <span className="sb-prob-warn" data-testid="sb-prob-warnings">
+          ⚠ {warnings}
+        </span>
       </button>
       <span className="sb-sep">|</span>
     </>
@@ -118,6 +155,7 @@ export default function StatusBar() {
       <span className="sb-item sb-brand">Zephyr v{version}</span>
       <span className="sb-sep">|</span>
       <GitBadge />
+      <ProblemsBadge />
       <span className="sb-item" title="Memori proses Zephyr" data-testid="sb-ram">
         RAM: {ramText}
       </span>

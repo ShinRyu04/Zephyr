@@ -32,6 +32,11 @@ import { useNotif } from './notificationStore';
 import { useKb } from './keybindingStore';
 import { chordConflicts, chordFor } from './keybindings';
 import { MENUS } from './menu';
+import { usePanel } from './panelStore';
+import { useProblems } from './problemsStore';
+import { useOutput } from './outputStore';
+import { usePorts } from './portsStore';
+import { evaluateDebugExpr } from '../components/shell/DebugConsoleView';
 
 type CmdName = 'undo' | 'redo';
 
@@ -538,6 +543,62 @@ export function installDevBridge(): void {
       window.dispatchEvent(ev);
       return ev.defaultPrevented;
     },
+  };
+
+  // ── fase 20: panel bawah ──
+  w.__ZEPHYR_PANEL__ = {
+    store: usePanel,
+    activeTab: () => usePanel.getState().activeTab,
+    visibleTabs: () => usePanel.getState().visibleTabs.slice(),
+    focusTab: (id: string) => usePanel.getState().focusTab(id as never),
+    toggleTabVisible: (id: string) => usePanel.getState().toggleTabVisible(id as never),
+    cycleTab: (d: 1 | -1) => usePanel.getState().cycleTab(d),
+    menuOpen: (v: boolean) => usePanel.getState().setTabMenuOpen(v),
+    hydrate: (vt?: string[], at?: string) => usePanel.getState().hydrate(vt, at),
+    /** state panel dari terminalStore (satu sumber visible/height/maximized) */
+    visible: () => useTerminal.getState().visible,
+    height: () => useTerminal.getState().height,
+    maximized: () => useTerminal.getState().maximized,
+
+    problems: {
+      set: (file: string, list: unknown[]) =>
+        useProblems.getState().setDiagnostics(file, list as never),
+      removeFile: (file: string) => useProblems.getState().removeFile(file),
+      clearAll: () => useProblems.getState().clearAll(),
+      all: () => useProblems.getState().all(),
+      counts: () => useProblems.getState().counts(),
+      forFile: (file: string) => useProblems.getState().forFile(file),
+      setFilter: (q: string) => useProblems.getState().setFilter(q),
+      setActiveOnly: (v: boolean) => useProblems.getState().setActiveOnly(v),
+    },
+
+    output: {
+      append: (ch: string, text: string) => useOutput.getState().append(ch, text),
+      clear: (ch: string) => useOutput.getState().clear(ch),
+      lines: (ch: string) => useOutput.getState().lines(ch).length,
+      tail: (ch: string, n = 5) => useOutput.getState().lines(ch).slice(-n),
+      list: () => useOutput.getState().list(),
+      setChannel: (id: string) => useOutput.getState().setActiveChannel(id),
+      activeChannel: () => useOutput.getState().activeChannel,
+      autoScroll: () => useOutput.getState().autoScroll,
+      setAutoScroll: (v: boolean) => useOutput.getState().setAutoScroll(v),
+      wrap: () => useOutput.getState().wrap,
+      setWrap: (v: boolean) => useOutput.getState().setWrap(v),
+      addChannel: (id: string, label: string) => useOutput.getState().addChannel(id, label),
+    },
+
+    ports: {
+      add: (p: Record<string, unknown>) => usePorts.getState().add(p as never),
+      remove: (id: string) => usePorts.getState().remove(id),
+      update: (id: string, patch: Record<string, unknown>) =>
+        usePorts.getState().update(id, patch as never),
+      list: () => usePorts.getState().list(),
+      urlFor: (id: string) => usePorts.getState().urlFor(id),
+      clear: () => usePorts.getState().clear(),
+    },
+
+    /** REPL Debug Console (fase 20 = no-op yang menulis ke Output "debug") */
+    debugEval: (expr: string) => evaluateDebugExpr(expr),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.
