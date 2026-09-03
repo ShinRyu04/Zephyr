@@ -1761,3 +1761,154 @@ body.is-resizing-v {
   font-size: 11.5px;
 }
 .del-list code { font-family: var(--font-mono); color: var(--text); }
+
+/* ─────────── Menu bar (fase 18.1) ─────────── */
+.menubar {
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  flex-shrink: 0;
+  background: var(--titlebar-bg, var(--surface));
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  user-select: none;
+  position: relative;
+  z-index: 60;
+}
+.mb-menu { position: relative; }
+.mb-top {
+  height: 100%;
+  padding: 0 9px;
+  color: var(--text-muted);
+  border-radius: 0;
+}
+.mb-top:hover { color: var(--text); background: var(--surface-2); }
+.mb-top.is-open { color: var(--text); background: var(--surface-2); }
+.mb-top u { text-decoration: underline; text-underline-offset: 2px; }
+
+.mb-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 248px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg1, var(--surface));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+  z-index: 61;
+}
+.mb-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+.mb-item:hover:not(:disabled),
+.mb-item.is-active:not(:disabled) { background: var(--surface-2); }
+.mb-item:disabled,
+.mb-item[data-disabled='1'] {
+  color: var(--text-muted);
+  opacity: 0.55;
+  cursor: default;
+}
+.mb-label { flex: 1; min-width: 0; }
+.mb-chord {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+.mb-arrow { color: var(--text-muted); font-size: 13px; line-height: 1; }
+.mb-sep { height: 1px; margin: 4px 6px; background: var(--border); }
+.mb-sub-wrap { position: relative; }
+.mb-submenu { top: -4px; left: 100%; }
+body.is-narrow .menubar { font-size: 11px; }
+body.is-narrow .mb-top { padding: 0 6px; }
+
+/* ─────────── Editor Keyboard Shortcuts (fase 18.4) ─────────── */
+.kb-backdrop { align-items: flex-start; padding-top: 6vh; }
+.kb-panel {
+  width: min(980px, calc(100vw - 40px));
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg1, var(--surface));
+  box-shadow: 0 14px 40px rgb(0 0 0 / 46%);
+  overflow: hidden;
+}
+.kb-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-header-bg, var(--surface-2));
+}
+.kb-title { font-size: 12.5px; color: var(--text); }
+.kb-search {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--input-bg, var(--bg0));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: var(--radius);
+}
+.kb-count { font-size: 11px; color: var(--text-muted); min-width: 28px; text-align: right; }
+.kb-rekam {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2, var(--surface-2));
+  font-size: 11.5px;
+  color: var(--text);
+}
+.kb-rekam code { font-family: var(--font-mono); color: var(--accent); }
+.kb-konflik { color: var(--warning); }
+.kb-table-wrap { overflow: auto; flex: 1; }
+.kb-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.kb-table th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: 6px 9px;
+  color: var(--text-muted);
+  font-weight: 500;
+  background: var(--bg1, var(--surface));
+  border-bottom: 1px solid var(--border);
+}
+.kb-table td { padding: 5px 9px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.kb-cmd { display: flex; flex-direction: column; gap: 1px; }
+.kb-cmd-title { color: var(--text); }
+.kb-cmd-id { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.kb-table kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg0, var(--surface-2));
+  color: var(--text);
+}
+.kb-when, .kb-layer, .kb-src { color: var(--text-muted); }
+.kb-layer[data-layer='stub'] { color: var(--warning); }
+.kb-src[data-user='1'] { color: var(--accent); }
+.kb-aksi { display: flex; gap: 5px; }
+.kb-foot {
+  padding: 7px 11px;
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+}
+.kb-foot code { font-family: var(--font-mono); }

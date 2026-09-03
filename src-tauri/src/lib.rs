@@ -142,6 +142,8 @@ pub fn run() {
             settings::get_settings,
             settings::set_settings,
             settings::take_broken_config,
+            settings::get_keybindings,
+            settings::set_keybindings,
             settings::set_window_size,
             settings::list_recents,
             settings::workspace_open,

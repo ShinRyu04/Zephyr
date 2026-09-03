@@ -18,11 +18,13 @@ import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
 import { useNotif } from './notificationStore';
+import { useKb } from './keybindingStore';
 import { THEMES } from './themes';
 import { flushTab } from './editorRegistry';
 
 export type CmdGroup =
   | 'File'
+  | 'Edit'
   | 'View'
   | 'Terminal'
   | 'Git'
@@ -541,6 +543,219 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'notifikasi dnd redam senyap jangan ganggu',
     run: () => useNotif.getState().toggleDnd(),
   },
+
+  // ── FASE 18: command yang dibutuhkan menu bar ──
+  // Yang fiturnya SUDAH ADA didaftarkan di sini supaya item menu benar-benar
+  // bekerja. Yang belum ada (debug.*, problems.*, nav.*) SENGAJA tidak
+  // didaftarkan — menu menampilkannya sebagai disabled (syarat 18.1), bukan
+  // disembunyikan, supaya user tahu apa yang direncanakan.
+  {
+    id: 'file.openFolder',
+    title: 'File: Open Folder…',
+    group: 'File',
+    action: 'file.openFolder',
+    keywords: 'buka folder workspace',
+    run: () => S().openFolderDialog(),
+  },
+  {
+    id: 'file.saveAll',
+    title: 'File: Save All',
+    group: 'File',
+    keywords: 'simpan semua',
+    enabled: () => S().tabs.some((t) => t.unsaved),
+    run: async () => {
+      const s = S();
+      for (const t of s.tabs.filter((x) => x.unsaved)) {
+        flushTab(t.id);
+        await s.saveTab(t.id);
+      }
+    },
+  },
+  {
+    id: 'editor.closeAll',
+    title: 'View: Close All Editors',
+    group: 'View',
+    keywords: 'tutup semua tab editor',
+    enabled: () => S().tabs.length > 0,
+    run: () => {
+      for (const t of S().tabs.slice()) S().requestCloseTab(t.id);
+    },
+  },
+  {
+    id: 'edit.find',
+    title: 'Edit: Find',
+    group: 'Edit',
+    action: 'edit.find',
+    keywords: 'cari temukan',
+    run: () => S().setFindOpen(true),
+  },
+  {
+    id: 'edit.replace',
+    title: 'Edit: Replace',
+    group: 'Edit',
+    keywords: 'ganti replace',
+    run: () => {
+      S().setFindOpen(true);
+      // FindBar punya toggle replace sendiri; buka barisnya lewat klik tombol
+      // yang sama supaya tidak ada dua jalur state.
+      window.setTimeout(() => {
+        document.querySelector<HTMLButtonElement>('.find-toggle')?.click();
+      }, 80);
+    },
+  },
+  {
+    id: 'edit.findInFiles',
+    title: 'Edit: Find in Files',
+    group: 'Edit',
+    action: 'edit.findInFiles',
+    keywords: 'cari workspace global search',
+    run: () => {
+      openSide('search');
+      window.setTimeout(() => {
+        document.querySelector<HTMLInputElement>('.search-input')?.focus();
+      }, 60);
+    },
+  },
+  {
+    id: 'view.palette',
+    title: 'View: Command Palette…',
+    group: 'View',
+    action: 'view.palette',
+    keywords: 'palette perintah',
+    // paletteStore TIDAK boleh diimport di sini: paletteStore → commandRegistry
+    // sudah membentuk lingkaran (pelajaran fase 13 dengan mcpStore). Pakai
+    // event window yang ditangkap App.tsx.
+    run: () => window.dispatchEvent(new Event('zephyr-palette-open')),
+  },
+  {
+    id: 'view.quickOpen',
+    title: 'View: Quick Open File…',
+    group: 'View',
+    action: 'view.quickOpen',
+    keywords: 'buka cepat file',
+    run: () => window.dispatchEvent(new Event('zephyr-quickopen')),
+  },
+  {
+    id: 'ai.panel',
+    title: 'AI: Toggle AI Panel',
+    group: 'AI',
+    action: 'ai.panel',
+    keywords: 'ai chat panel',
+    run: () => {
+      const s = S();
+      const t = T();
+      s.setSettingsOpen(false);
+      s.setActivity('ai');
+      if (!s.sidebarVisible) s.toggleSidebar();
+      if (t.visible && t.dock === 'ai') t.setVisible(false);
+      else {
+        t.setVisible(true);
+        t.setDock('ai');
+      }
+    },
+  },
+  {
+    id: 'extensions.focus',
+    title: 'Extensions: Focus Extensions',
+    group: 'Extensions',
+    keywords: 'ekstensi buka',
+    run: () => openSettingsSection('extensions'),
+  },
+  {
+    id: 'terminal.kill',
+    title: 'Terminal: Kill Active Pane',
+    group: 'Terminal',
+    keywords: 'bunuh matikan pane',
+    enabled: () => T().allPanes().length > 0,
+    run: async () => {
+      const t = T();
+      const tab = t.terminalTabs.find((x) => x.id === t.activeTabId);
+      const id = tab?.activePaneId ?? t.allPanes()[0]?.id;
+      if (id) await t.killPane(id);
+    },
+  },
+  {
+    id: 'terminal.clear',
+    title: 'Terminal: Clear Active Pane',
+    group: 'Terminal',
+    keywords: 'bersihkan layar clear',
+    enabled: () => T().allPanes().length > 0,
+    run: async () => {
+      const t = T();
+      const tab = t.terminalTabs.find((x) => x.id === t.activeTabId);
+      const id = tab?.activePaneId ?? t.allPanes()[0]?.id;
+      if (id) {
+        const { clearTerm } = await import('./xtermRegistry');
+        clearTerm(id);
+      }
+    },
+  },
+  {
+    id: 'window.fullscreen',
+    title: 'View: Toggle Full Screen',
+    group: 'View',
+    keywords: 'fullscreen layar penuh',
+    run: async () => {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const w = getCurrentWindow();
+      await w.setFullscreen(!(await w.isFullscreen()));
+    },
+  },
+  {
+    id: 'editor.wordWrap.toggle',
+    title: 'View: Toggle Word Wrap',
+    group: 'View',
+    keywords: 'wrap lipat baris',
+    run: () => S().applySettings({ editor: { wordWrap: !S().settings.editor.wordWrap } }),
+  },
+  {
+    id: 'workbench.openGlobalKeybindings',
+    title: 'Preferences: Keyboard Shortcuts',
+    group: 'Settings',
+    keywords: 'keybinding shortcut chord remap',
+    run: () => useKb.getState().setEditorOpen(true),
+  },
+  {
+    id: 'help.about',
+    title: 'Help: About Zephyr',
+    group: 'Settings',
+    keywords: 'tentang versi diagnostics',
+    run: () => openSettingsSection('about'),
+  },
+  {
+    id: 'help.docs',
+    title: 'Help: Documentation',
+    group: 'Settings',
+    keywords: 'dokumentasi bantuan',
+    run: async () => {
+      const { openUrl } = await import('@tauri-apps/plugin-opener');
+      await openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {});
+    },
+  },
+  {
+    id: 'help.checkUpdates',
+    title: 'Help: Check for Updates…',
+    group: 'Settings',
+    keywords: 'update pembaruan versi baru',
+    run: async () => {
+      const { useUpdater } = await import('./updaterStore');
+      await useUpdater.getState().check();
+      openSettingsSection('about');
+    },
+  },
+  // Tema per nama: menu View → Theme butuh satu command per tema supaya
+  // pilihannya langsung, bukan lewat "next theme".
+  ...THEMES.map((t) => ({
+    id: `theme.${t.id}`,
+    title: `Theme: ${t.label}`,
+    group: 'Settings' as const,
+    keywords: `tema warna ${t.kind}`,
+    run: () =>
+      S().applySettings({
+        theme: { current: t.id },
+        general: { theme: t.kind === 'light' ? ('light' as const) : ('dark' as const) },
+      }),
+  })),
 ];
 
 export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));

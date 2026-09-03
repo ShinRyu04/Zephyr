@@ -143,6 +143,41 @@ pub fn take_broken_config() -> ZResult<String> {
     Ok(std::mem::take(&mut *slot))
 }
 
+// ── FASE 18: keybindings.json (override user untuk chord) ──
+//
+// File TERPISAH dari settings.json — sengaja, sesuai 18.4. Alasannya praktis:
+// user boleh menyuntingnya dengan tangan (VS Code-style), dan formatnya array
+// bukan object, jadi tidak cocok masuk deep_merge settings yang memakai
+// semantik JSON Merge Patch (null = hapus key).
+//
+// Bentuk: [{ "key": "ctrl+alt+s", "command": "file.save", "when": "global" }]
+
+/// Baca `keybindings.json`. Array kosong bila belum ada / rusak (file rusak
+/// tetap di-backup lewat `read_json`).
+#[tauri::command(async)]
+pub fn get_keybindings(state: State<AppState>) -> ZResult<Value> {
+    let p = state.file("keybindings.json");
+    match read_json(&p) {
+        Some(v) if v.is_array() => Ok(v),
+        _ => Ok(Value::Array(vec![])),
+    }
+}
+
+/// Tulis seluruh daftar override. `bindings` HARUS array.
+#[tauri::command(async)]
+pub fn set_keybindings(app: AppHandle, state: State<AppState>, bindings: Value) -> ZResult<()> {
+    if !bindings.is_array() {
+        return Err(ZephyrError::InvalidInput("keybindings harus array".into()));
+    }
+    write_json(&state.file("keybindings.json"), &bindings)?;
+    let _ = app.emit("settings-changed", json!({ "key": "keybindings" }));
+    tracing::info!(
+        n = bindings.as_array().map(|a| a.len()).unwrap_or(0),
+        "keybindings.json ditulis"
+    );
+    Ok(())
+}
+
 fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;

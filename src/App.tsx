@@ -14,6 +14,8 @@ import SaveIssueDialog from './components/shell/SaveIssueDialog';
 import Toast from './components/notifications/Toast';
 import NotificationCenter from './components/notifications/NotificationCenter';
 import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
+import MenuBar from './components/shell/MenuBar';
+import KeybindingsEditor from './components/shell/KeybindingsEditor';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
 import CommandPalette from './components/shell/CommandPalette';
 import McpToast from './components/shell/McpToast';
@@ -29,6 +31,9 @@ import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
+import { useKb } from './lib/keybindingStore';
+import { runCommand } from './lib/commandRegistry';
+import { notifyWarn } from './lib/notificationStore';
 import { flushTab } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
 import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
@@ -110,6 +115,12 @@ export default function App() {
   // 3) Shortcut global: dibaca dari KATALOG (lib/shortcuts.ts) + override user
   //    di settings.shortcuts, jadi remap di Settings langsung berlaku tanpa
   //    restart. Jangan kembalikan ke if/else hardcoded.
+  //
+  //    FASE 18: handler ini tetap ada untuk action lama (settings.shortcuts),
+  //    TAPI resolver chord baru (3d, di bawah) berjalan di fase CAPTURE lebih
+  //    dulu. Kalau resolver sudah menangani sebuah chord, ia memanggil
+  //    stopPropagation sehingga handler ini tidak ikut jalan — tidak ada
+  //    double-fire (syarat V6).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Saat satu baris Shortcuts sedang menunggu tombol, jangan jalankan
@@ -286,6 +297,119 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // 3d) FASE 18.2 — RESOLVER CHORD GLOBAL.
+  //
+  // Berjalan di fase CAPTURE supaya bisa memutuskan lebih dulu apakah sebuah
+  // chord miliknya, milik CodeMirror, atau milik xterm. Aturan yang dipegang:
+  //
+  //   * layer 'editor'/'terminal' → JANGAN dicegat saat fokus memang di sana.
+  //     CodeMirror & xterm punya keymap sendiri; meniru logikanya di sini
+  //     pasti berbeda perilaku (syarat 18.2 & V9).
+  //   * layer 'stub' → chord DIKONSUMSI (preventDefault) tapi tidak melakukan
+  //     apa pun selain memberi tahu user. Tanpa ini F5 akan me-reload WebView
+  //     dan Zephyr terlihat "restart sendiri".
+  //   * sequence: chord pertama yang merupakan PREFIX tidak memicu apa pun,
+  //     hanya menyetel `pending`. Chord kedua menyelesaikannya; Esc atau 1,5s
+  //     membatalkan.
+  //   * input/textarea native TIDAK diganggu untuk chord biasa (Ctrl+A dsb.)
+  //     — hanya chord bermodifier yang benar-benar terdaftar yang dicegat.
+  useEffect(() => {
+    void useKb.getState().load();
+
+    const onKey = (e: KeyboardEvent) => {
+      // Perekam chord di editor Keyboard Shortcuts / Settings memegang keyboard.
+      if (useSettingsUi.getState().capturing) return;
+      if (useKb.getState().editorOpen && document.querySelector('[data-testid="kb-recording"]')) {
+        return;
+      }
+
+      const chord = eventToBinding(e);
+      if (!chord) return;
+
+      const kb = useKb.getState();
+      const pending = kb.pending;
+      const seq = pending ? `${pending} ${chord}` : chord;
+
+      // Esc membatalkan pending (syarat V4).
+      if (pending && e.key === 'Escape') {
+        e.preventDefault();
+        kb.setPending('');
+        useStore.getState().setStatus('');
+        return;
+      }
+
+      // Chord pertama sebuah sequence: tahan, jangan fire apa pun.
+      if (!pending && kb.isPrefix(chord)) {
+        e.preventDefault();
+        e.stopPropagation();
+        kb.setPending(chord);
+        useStore.getState().setStatus(`${chord} — menunggu tombol berikutnya…`);
+        return;
+      }
+
+      const hit = kb.resolve(seq);
+      if (pending) kb.setPending('');
+
+      if (!hit) {
+        if (pending) useStore.getState().setStatus('');
+        return;
+      }
+
+      // Serahkan ke pemilik layer yang benar.
+      const el = document.activeElement;
+      const diEditor = !!el?.closest('.zephyr-cm-host');
+      const diTerminal = !!el?.closest('.xterm');
+      if (hit.layer === 'editor' && diEditor) return;
+      if (hit.layer === 'terminal' && diTerminal) return;
+      // Chord tanpa modifier di dalam input/textarea milik input itu.
+      const diInput =
+        el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+      if (diInput && !e.ctrlKey && !e.altKey && !e.metaKey) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      kb.setLastRun(hit.command);
+
+      if (hit.layer === 'stub') {
+        // Fiturnya belum ada — beri tahu sekali, jangan diam dan jangan error.
+        notifyWarn(`${hit.label ?? hit.command} belum tersedia di versi ini`, {
+          source: 'keybinding',
+        });
+        useStore.getState().setStatus('');
+        return;
+      }
+
+      useStore.getState().setStatus('');
+      void runCommand(hit.command).then((ok) => {
+        if (!ok) {
+          notifyWarn(`Command ${hit.command} tidak terdaftar`, { source: 'keybinding' });
+        }
+      });
+    };
+
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+
+  // 3e) Context key untuk resolver: fokus editor vs terminal (18.2).
+  //     Diambil dari event fokus NYATA, bukan ditebak dari state — inilah yang
+  //     membuat Ctrl+Up berarti scroll editor vs scroll buffer terminal (V5).
+  useEffect(() => {
+    const perbarui = () => {
+      const el = document.activeElement;
+      const kb = useKb.getState();
+      kb.setCtx('editorFocus', !!el?.closest('.zephyr-cm-host'));
+      kb.setCtx('terminalFocus', !!el?.closest('.xterm'));
+    };
+    window.addEventListener('focusin', perbarui);
+    window.addEventListener('click', perbarui);
+    perbarui();
+    return () => {
+      window.removeEventListener('focusin', perbarui);
+      window.removeEventListener('click', perbarui);
+    };
+  }, []);
+
   // 4) Drop file dari Windows Explorer -> buka jadi tab (PRD V9).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -459,6 +583,10 @@ export default function App() {
 
     const openPalette = () => void usePalette.getState().openPalette('command');
     window.addEventListener('zephyr-palette-open', openPalette);
+    // fase 18: command `view.quickOpen` dari menu bar / chord juga lewat event
+    // supaya commandRegistry tidak perlu import paletteStore (lingkaran).
+    const openQuick = () => void usePalette.getState().openPalette('file');
+    window.addEventListener('zephyr-quickopen', openQuick);
 
     const stopWatch = watchSystemTheme(() => {
       const s = useStore.getState();
@@ -470,6 +598,7 @@ export default function App() {
 
     return () => {
       window.removeEventListener('zephyr-palette-open', openPalette);
+      window.removeEventListener('zephyr-quickopen', openQuick);
       stopWatch();
     };
   }, []);
@@ -535,6 +664,7 @@ export default function App() {
 
   return (
     <div className="app-root">
+      <MenuBar />
       <div className="app-body">
         <ActivityBar />
 
@@ -569,6 +699,7 @@ export default function App() {
       <Toast />
       <NotificationCenter />
       <DeleteConfirmDialog />
+      <KeybindingsEditor />
     </div>
   );
 }
