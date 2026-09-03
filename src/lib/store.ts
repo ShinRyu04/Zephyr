@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import * as cmd from './commands';
 import { detectLang } from './lang';
+import { kunciPath, pathSama } from './pathKey';
 import { revealPosition } from './editorRegistry';
 import { applyTheme } from './themes';
 import { retheme } from './xtermRegistry';
@@ -344,7 +345,12 @@ export const useStore = create<Store>((set, get) => ({
 
   openPath: async (path) => {
     // Sudah terbuka? cukup fokuskan.
-    const existing = get().tabs.find((t) => t.path === path);
+    //
+    // Perbandingan lewat `pathSama`, BUKAN `===`: path yang sama bisa datang
+    // dalam tiga bentuk (Explorer `D:\a`, workspace `D:/a`, language server
+    // `d:\a`). Dengan `===`, mengklik baris di panel Problems membuka tab
+    // KEDUA untuk file yang sudah terbuka — bug nyata fase 21.
+    const existing = get().tabs.find((t) => t.path && pathSama(t.path, path));
     if (existing) {
       set({ activeTabId: existing.id });
       touchTab(existing.id);
@@ -352,13 +358,14 @@ export const useStore = create<Store>((set, get) => ({
       return;
     }
     // Sedang dibuka oleh pemanggil lain -> jangan bikin tab kedua.
-    if (opening.has(path)) return;
-    opening.add(path);
+    const kunci = kunciPath(path);
+    if (opening.has(kunci)) return;
+    opening.add(kunci);
 
     try {
       const res = await cmd.fsRead(path);
       // Cek ulang setelah await: mungkin sudah dibuka sementara kita menunggu.
-      const again = get().tabs.find((t) => t.path === path);
+      const again = get().tabs.find((t) => t.path && pathSama(t.path, path));
       if (again) {
         set({ activeTabId: again.id });
         return;
@@ -384,7 +391,7 @@ export const useStore = create<Store>((set, get) => ({
       get().unloadColdTabs();
       void get().persistSession();
     } finally {
-      opening.delete(path);
+      opening.delete(kunci);
     }
   },
 

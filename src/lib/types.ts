@@ -572,6 +572,12 @@ export interface Settings {
   ssh: { recentHosts?: string[] };
   /** fase 20: preferensi panel bawah (tab terlihat, tab aktif, tinggi) */
   panel: { visibleTabs: string[]; activeTab: string; height: number };
+  /** fase 21: language server (per bahasa bisa dimatikan / di-override) */
+  lsp: {
+    enabled: boolean;
+    idleSeconds: number;
+    servers: Record<string, { enabled?: boolean; cmd?: string[]; initOptions?: Record<string, unknown> }>;
+  };
 }
 
 /** Default frontend — cermin dari default_settings() di settings.rs. */
@@ -610,4 +616,5 @@ export const DEFAULT_SETTINGS: Settings = {
     activeTab: 'terminal',
     height: 260,
   },
+  lsp: { enabled: true, idleSeconds: 300, servers: {} },
 };

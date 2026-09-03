@@ -16,6 +16,7 @@ import NotificationCenter from './components/notifications/NotificationCenter';
 import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
 import MenuBar from './components/shell/MenuBar';
 import KeybindingsEditor from './components/shell/KeybindingsEditor';
+import LspOverlay from './components/editor/LspOverlay';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
 import CommandPalette from './components/shell/CommandPalette';
 import McpToast from './components/shell/McpToast';
@@ -32,11 +33,12 @@ import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
+import { useLsp } from './lib/lspStore';
 import { runCommand } from './lib/commandRegistry';
 import { notifyWarn } from './lib/notificationStore';
 import { flushTab } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
-import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
+import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/theme-light.css';
@@ -47,6 +49,7 @@ import './styles/ai.css';
 import './styles/scm.css';
 import './styles/palette.css';
 import './styles/panel.css';
+import './styles/lsp.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -65,6 +68,10 @@ let ghListenerBound = false;
  *  permintaan MCP dieksekusi dua kali di dev — editor_open membuka dua tab
  *  dan `mcp_reply` kedua ditolak Rust. */
 let mcpListenerBound = false;
+
+/** Guard yang sama untuk listener `lsp-event` (fase 21). Tanpa ini setiap
+ *  publishDiagnostics diproses dua kali di dev dan Problems berkedip. */
+let lspListenerBound = false;
 
 /** Guard yang sama untuk handler error global (fase 14.6). Tanpa ini satu
  *  rejection dikirim dua kali ke file log di mode dev. */
@@ -424,6 +431,36 @@ export default function App() {
     };
   }, []);
 
+  // 3f) FASE 21: listener event language server + reaper idle.
+  //     Guard modul, sama seperti pty-output / ai-chunk / mcp-action —
+  //     StrictMode dev memasang effect dua kali dan setiap diagnostik akan
+  //     diproses dobel.
+  useEffect(() => {
+    if (lspListenerBound) return;
+    lspListenerBound = true;
+
+    let un: (() => void) | undefined;
+    onLspEvent((ev) => useLsp.getState().onEvent(ev))
+      .then((u) => {
+        un = u;
+      })
+      .catch(() => {
+        /* mode browser tanpa Tauri — biarkan */
+      });
+
+    // Reaper: kebijakan idle-shutdown ada di UI karena UI yang tahu file mana
+    // masih dibuka. 30 detik cukup responsif tanpa membebani.
+    const timer = window.setInterval(() => {
+      void useLsp.getState().reap();
+    }, 30_000);
+
+    return () => {
+      un?.();
+      window.clearInterval(timer);
+      lspListenerBound = false;
+    };
+  }, []);
+
   // 4) Drop file dari Windows Explorer -> buka jadi tab (PRD V9).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -714,6 +751,7 @@ export default function App() {
       <NotificationCenter />
       <DeleteConfirmDialog />
       <KeybindingsEditor />
+      <LspOverlay />
     </div>
   );
 }

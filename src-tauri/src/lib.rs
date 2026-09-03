@@ -16,6 +16,7 @@ mod fs_utils;
 mod git;
 mod github;
 mod logging;
+mod lsp;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
@@ -144,6 +145,15 @@ pub fn run() {
             settings::take_broken_config,
             settings::get_keybindings,
             settings::set_keybindings,
+            lsp::lsp_start,
+            lsp::lsp_request,
+            lsp::lsp_notify,
+            lsp::lsp_stop,
+            lsp::lsp_stop_all,
+            lsp::lsp_status,
+            lsp::lsp_reap,
+            lsp::lsp_set_idle,
+            lsp::lsp_probe,
             settings::set_window_size,
             settings::list_recents,
             settings::workspace_open,

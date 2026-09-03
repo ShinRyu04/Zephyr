@@ -1,0 +1,214 @@
+/* lsp.css — squiggle, hover tooltip, dan overlay LSP (fase 21).
+   Warna dari token src/styles/theme.css & tokens.css (AGENTS.md §4). */
+
+/* ─────────── Squiggle inline ─────────── */
+.cm-zdiag {
+  /* Garis bergelombang dibuat dari gradien berulang, bukan gambar —
+     tetap tajam di semua DPI dan ikut warna token tema. */
+  background-repeat: repeat-x;
+  background-position: bottom left;
+  background-size: 4px 2px;
+  padding-bottom: 1px;
+}
+.cm-zdiag-error {
+  background-image: linear-gradient(45deg, transparent 45%, var(--danger) 45%, var(--danger) 55%, transparent 55%);
+}
+.cm-zdiag-warning {
+  background-image: linear-gradient(45deg, transparent 45%, var(--warning) 45%, var(--warning) 55%, transparent 55%);
+}
+.cm-zdiag-info,
+.cm-zdiag-hint {
+  background-image: linear-gradient(45deg, transparent 45%, var(--accent) 45%, var(--accent) 55%, transparent 55%);
+}
+
+/* ─────────── Hover tooltip ─────────── */
+.cm-zhover {
+  max-width: 560px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 7px 9px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text);
+  background: var(--bg1, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 40%);
+}
+
+/* Popup completion CodeMirror ikut tema Zephyr. */
+.cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg1, var(--surface));
+  box-shadow: 0 6px 20px rgb(0 0 0 / 40%);
+}
+.cm-tooltip.cm-tooltip-autocomplete > ul {
+  max-height: 260px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.cm-tooltip.cm-tooltip-autocomplete > ul > li {
+  padding: 2px 7px;
+  color: var(--text);
+}
+.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--accent);
+  color: #fff;
+}
+.cm-completionDetail {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-style: normal;
+  font-size: 10.5px;
+}
+.cm-completionIcon {
+  color: var(--text-muted);
+  opacity: 0.9;
+}
+
+/* ─────────── Overlay: rename · quick fix · go to symbol ─────────── */
+.lsp-backdrop {
+  align-items: flex-start;
+  padding-top: 14vh;
+}
+.lsp-rename {
+  width: min(420px, calc(100vw - 40px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg1, var(--surface));
+  box-shadow: 0 14px 40px rgb(0 0 0 / 46%);
+}
+.lsp-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.lsp-input {
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--input-bg, var(--bg0));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: var(--radius);
+}
+.lsp-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.lsp-row-btn {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+.lsp-list {
+  width: min(620px, calc(100vw - 40px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg1, var(--surface));
+  box-shadow: 0 14px 40px rgb(0 0 0 / 46%);
+  overflow: hidden;
+}
+.lsp-list-head {
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-header-bg, var(--surface-2));
+  font-size: 11.5px;
+  color: var(--text);
+}
+.lsp-items {
+  overflow: auto;
+  padding: 4px;
+}
+.lsp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: var(--text);
+  text-align: left;
+  font-size: 11.5px;
+}
+.lsp-item.is-active,
+.lsp-item:hover {
+  background: var(--surface-2);
+}
+.lsp-sym-kind {
+  min-width: 74px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.lsp-sym-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.lsp-sym-loc {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.lsp-empty {
+  margin: 0;
+  padding: 14px 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ─────────── Settings → Language Servers ─────────── */
+.lsp-srv-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+}
+.lsp-srv-name {
+  min-width: 178px;
+  color: var(--text);
+}
+.lsp-srv-cmd {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text);
+  background: var(--input-bg, var(--bg0));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: var(--radius);
+}
+.lsp-srv-state {
+  min-width: 92px;
+  font-size: 10px;
+  text-align: right;
+}
+.lsp-srv-state[data-ok='1'] {
+  color: var(--success, #3fb950);
+}
+.lsp-srv-state[data-ok='0'] {
+  color: var(--text-muted);
+}
+.lsp-srv-live {
+  min-width: 68px;
+  font-size: 10px;
+  color: var(--accent);
+  text-align: right;
+}

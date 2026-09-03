@@ -17,12 +17,15 @@ import { useMcp } from './mcpStore';
 import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
-import { useNotif } from './notificationStore';
+import { useNotif, notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
 import { useOutput } from './outputStore';
+import { useProblems } from './problemsStore';
+import { useLsp } from './lspStore';
+import { serverForPath } from './lsp';
 import { THEMES } from './themes';
-import { flushTab } from './editorRegistry';
+import { flushTab, getActiveView, revealPosition } from './editorRegistry';
 
 export type CmdGroup =
   | 'File'
@@ -51,6 +54,19 @@ export interface CommandDef {
 
 const S = () => useStore.getState();
 const T = () => useTerminal.getState();
+
+/** FASE 21: tab aktif + view CodeMirror-nya (dipakai command LSP). */
+const konteksLsp = () => {
+  const s = S();
+  const tab = s.tabs.find((t) => t.id === s.activeTabId);
+  return { path: tab?.path ?? null, view: getActiveView() };
+};
+
+/** Command LSP hanya aktif kalau file yang terbuka punya language server. */
+const lspSiap = () => {
+  const { path } = konteksLsp();
+  return !!path && !!serverForPath(path) && useLsp.getState().settings().enabled;
+};
 
 /** Buka satu panel sidebar + pastikan sidebar terlihat. */
 function openSide(activity: 'explorer' | 'search' | 'scm' | 'ai' | 'terminal') {
@@ -841,6 +857,173 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'tab panel sebelumnya',
     run: () => usePanel.getState().cycleTab(-1),
+  },
+  // ── FASE 21: LSP (IntelliSense, navigasi, refactor) ──
+  {
+    id: 'editor.gotoDefinition',
+    title: 'Go: Go to Definition',
+    group: 'Edit',
+    keywords: 'definisi lompat f12 lsp',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const { path, view } = konteksLsp();
+      if (!path || !view) return;
+      const { lspDefinition } = await import('./lspCm');
+      try {
+        const loc = await lspDefinition(path, view, view.state.selection.main.head);
+        if (!loc) {
+          notifyWarn('Definisi tidak ditemukan', { source: 'LSP' });
+          return;
+        }
+        await S().openPath(loc.file);
+        window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
+      } catch (e) {
+        notifyError('Go to Definition gagal', { source: 'LSP', detail: String(e) });
+      }
+    },
+  },
+  {
+    id: 'editor.findReferences',
+    title: 'Go: Find All References',
+    group: 'Edit',
+    keywords: 'referensi shift f12 lsp',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const { path, view } = konteksLsp();
+      if (!path || !view) return;
+      const { lspReferences } = await import('./lspCm');
+      try {
+        const refs = await lspReferences(path, view, view.state.selection.main.head);
+        if (refs.length === 0) {
+          notifyWarn('Tidak ada referensi', { source: 'LSP' });
+          return;
+        }
+        // Hasil ditampilkan di Problems (fase 20) sebagai severity 'info'
+        // dengan source "references" — reuse tabel yang sudah ada, bukan panel
+        // baru; brief fase 21 mengizinkannya.
+        const byFile = new Map<string, typeof refs>();
+        for (const r of refs) {
+          byFile.set(r.file, [...(byFile.get(r.file) ?? []), r]);
+        }
+        useProblems.getState().clearSource('references');
+        for (const [file, list] of byFile) {
+          const lama = useProblems.getState().forFile(file).filter((d) => d.source !== 'references');
+          useProblems.getState().setDiagnostics(file, [
+            ...lama,
+            ...list.map((r) => ({
+              file: r.file,
+              line: r.line,
+              column: r.column,
+              severity: 'info' as const,
+              message: `referensi ${r.line}:${r.column}`,
+              source: 'references',
+            })),
+          ]);
+        }
+        usePanel.getState().focusTab('problems');
+        notifyInfo(`${refs.length} referensi di ${byFile.size} file`, { source: 'LSP' });
+      } catch (e) {
+        notifyError('Find References gagal', { source: 'LSP', detail: String(e) });
+      }
+    },
+  },
+  {
+    id: 'editor.formatDocument',
+    title: 'Edit: Format Document',
+    group: 'Edit',
+    keywords: 'format rapikan lsp',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const { path, view } = konteksLsp();
+      if (!path || !view) return;
+      const { lspFormat } = await import('./lspCm');
+      const ed = S().settings.editor;
+      try {
+        const n = await lspFormat(path, view, ed.tabSize, ed.insertSpaces);
+        notifyInfo(n > 0 ? `Dokumen diformat (${n} perubahan)` : 'Sudah rapi', { source: 'LSP' });
+      } catch (e) {
+        notifyError('Format gagal', { source: 'LSP', detail: String(e) });
+      }
+    },
+  },
+  {
+    id: 'editor.renameSymbol',
+    title: 'Edit: Rename Symbol',
+    group: 'Edit',
+    keywords: 'rename ganti nama f2 lsp',
+    enabled: () => lspSiap(),
+    run: () => {
+      // Input rename dirender oleh RenameInput (komponen) supaya tidak memakai
+      // window.prompt — dialog native diberantas di fase 27.
+      window.dispatchEvent(new Event('zephyr-lsp-rename'));
+    },
+  },
+  {
+    id: 'editor.quickFix',
+    title: 'Edit: Quick Fix',
+    group: 'Edit',
+    keywords: 'quick fix code action lampu lsp',
+    enabled: () => lspSiap(),
+    run: () => window.dispatchEvent(new Event('zephyr-lsp-codeaction')),
+  },
+  {
+    id: 'editor.gotoSymbol',
+    title: 'Go: Go to Symbol in File',
+    group: 'Edit',
+    keywords: 'symbol simbol daftar lsp',
+    enabled: () => lspSiap(),
+    run: () => window.dispatchEvent(new Event('zephyr-lsp-symbols')),
+  },
+  {
+    id: 'lsp.restart',
+    title: 'LSP: Restart Language Servers',
+    group: 'Settings',
+    keywords: 'lsp restart ulang language server',
+    run: async () => {
+      await useLsp.getState().stopAll();
+      notifyInfo('Semua language server dimatikan; akan start lagi saat file dibuka', {
+        source: 'LSP',
+      });
+    },
+  },
+  {
+    id: 'lsp.showOutput',
+    title: 'LSP: Show Output',
+    group: 'Settings',
+    keywords: 'lsp log output',
+    run: () => {
+      useOutput.getState().setActiveChannel('lsp');
+      usePanel.getState().focusTab('output');
+    },
+  },
+  {
+    id: 'lsp.status',
+    title: 'LSP: Show Running Servers',
+    group: 'Settings',
+    keywords: 'lsp status server hidup',
+    run: async () => {
+      const list = (await useLsp.getState().status()) as {
+        id: string;
+        pid: number;
+        idle: number;
+        openDocs?: number;
+        open_docs?: number;
+      }[];
+      if (list.length === 0) {
+        notifyInfo('Tidak ada language server yang hidup', { source: 'LSP' });
+        return;
+      }
+      for (const s of list) {
+        useOutput
+          .getState()
+          .append(
+            'lsp',
+            `${s.id} — pid ${s.pid}, idle ${s.idle}s, ${s.open_docs ?? s.openDocs ?? 0} dokumen`,
+          );
+      }
+      useOutput.getState().setActiveChannel('lsp');
+      usePanel.getState().focusTab('output');
+    },
   },
   // Tema per nama: menu View → Theme butuh satu command per tema supaya
   // pilihannya langsung, bukan lewat "next theme".

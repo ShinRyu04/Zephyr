@@ -109,10 +109,12 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+A', 'editor.selectAll', 'editor', 'editorFocus'),
   D('Alt+Z', 'editor.wordWrap.toggle', 'app'),
   D('Shift+Alt+A', 'editor.blockComment.toggle', 'stub', 'editorFocus', 'Toggle Block Comment'),
-  D('Shift+Alt+F', 'editor.formatDocument', 'stub', 'editorFocus', 'Format Document'),
-  D('F12', 'editor.gotoDefinition', 'stub', 'editorFocus', 'Go to Definition'),
-  D('F2', 'editor.renameSymbol', 'stub', 'editorFocus', 'Rename Symbol'),
-  D('Ctrl+.', 'editor.quickFix', 'stub', 'editorFocus', 'Quick Fix'),
+  // fase 21: format & navigasi simbol sekarang NYATA (lewat LSP).
+  D('Shift+Alt+F', 'editor.formatDocument', 'app', 'editorFocus'),
+  D('F12', 'editor.gotoDefinition', 'app', 'editorFocus'),
+  D('Shift+F12', 'editor.findReferences', 'app', 'editorFocus'),
+  D('F2', 'editor.renameSymbol', 'app', 'editorFocus'),
+  D('Ctrl+.', 'editor.quickFix', 'app', 'editorFocus'),
   D('Ctrl+Space', 'editor.triggerSuggest', 'editor', 'editorFocus'),
 
   // ── Selection ──
@@ -149,7 +151,7 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
 
   // ── Go ──
   D('Ctrl+G', 'editor.gotoLine', 'stub', 'editorFocus', 'Go to Line'),
-  D('Ctrl+Shift+Alt+O', 'editor.gotoSymbol', 'stub', 'editorFocus', 'Go to Symbol'),
+  D('Ctrl+Shift+O', 'editor.gotoSymbol', 'app', 'editorFocus'),
   D('Alt+Left', 'nav.back', 'stub', 'global', 'Go Back'),
   D('Alt+Right', 'nav.forward', 'stub', 'global', 'Go Forward'),
   D('F8', 'editor.nextError', 'stub', 'global', 'Next Problem'),
