@@ -99,6 +99,18 @@ export const MENUS: MenuDef[] = [
           { label: 'Zoom Out', command: 'view.zoomOut' },
           { label: 'Reset Zoom', command: 'view.zoomReset' },
           { label: 'Toggle Word Wrap', command: 'editor.wordWrap.toggle' },
+          SEP,
+          // fase 24: editor extras — semuanya toggle yang tersimpan ke settings.
+          { label: 'Show Breadcrumbs', command: 'editor.breadcrumbs.toggle' },
+          { label: 'Show Sticky Scroll', command: 'editor.stickyScroll.toggle' },
+          { label: 'Show Minimap', command: 'editor.minimap.toggle' },
+          { label: 'Show Indent Guides', command: 'editor.indentGuides.toggle' },
+          { label: 'Show Color Decorators', command: 'editor.colorDecorators.toggle' },
+          { label: 'Highlight Ambiguous Unicode', command: 'editor.unicodeHighlight.toggle' },
+          {
+            label: 'Bracket Pair Colorization',
+            command: 'editor.bracketPairColorization.toggle',
+          },
         ],
       },
       {

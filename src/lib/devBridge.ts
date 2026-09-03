@@ -38,6 +38,7 @@ import { useOutput } from './outputStore';
 import { usePorts } from './portsStore';
 import { evaluateDebugExpr } from '../components/shell/DebugConsoleView';
 import { useLsp } from './lspStore';
+import { minimapDebug } from '../components/editor/Minimap';
 import {
   LSP_SERVERS,
   effectiveSpec,
@@ -717,6 +718,110 @@ export function installDevBridge(): void {
       error: document.querySelectorAll('.cm-zdiag-error').length,
       warning: document.querySelectorAll('.cm-zdiag-warning').length,
     }),
+  };
+
+  // ── fase 24: editor extras ──
+  w.__ZEPHYR_EXTRAS__ = {
+    /** apakah komponen benar-benar dirender (bukan hanya setting-nya true) */
+    ada: () => ({
+      breadcrumbs: !!document.querySelector('[data-testid="breadcrumbs"]'),
+      minimap: !!document.querySelector('[data-testid="minimap"]'),
+      sticky: !!document.querySelector('[data-testid="sticky-scroll"]'),
+      findBar: !!document.querySelector('[data-testid="find-bar"]'),
+    }),
+    /** jumlah node yang benar-benar dirender — bukti "ringan" bisa diukur */
+    hitung: () => ({
+      indentGuide: document.querySelectorAll('.cm-zig').length,
+      bracket: document.querySelectorAll('.cm-zbr').length,
+      swatch: document.querySelectorAll('[data-testid="color-swatch"]').length,
+      unicode: document.querySelectorAll('[data-testid="unicode-warn"]').length,
+      stickyRow: document.querySelectorAll('[data-testid="sticky-row"]').length,
+      bcPath: document.querySelectorAll('[data-testid="bc-path-seg"]').length,
+      bcSym: document.querySelectorAll('[data-testid="bc-sym-seg"]').length,
+      minimapCanvas: document.querySelectorAll('[data-testid="minimap-canvas"]').length,
+      cmLine: document.querySelectorAll('.cm-line').length,
+    }),
+    /** warna kelas bracket per kedalaman, untuk membuktikan warnanya beda */
+    warnaBracket: () =>
+      [0, 1, 2, 3, 4, 5].map((i) => {
+        const el = document.querySelector(`.cm-zbr-${i}`);
+        return el ? getComputedStyle(el).color : null;
+      }),
+    /** nilai swatch pertama + apakah <input type=color> asli ada */
+    swatchPertama: () => {
+      const el = document.querySelector('[data-testid="color-swatch"]');
+      if (!el) return null;
+      const inp = el.querySelector('[data-testid="color-input"]') as HTMLInputElement | null;
+      return {
+        warna: el.getAttribute('data-color'),
+        bg: getComputedStyle(el).backgroundColor,
+        adaInput: !!inp,
+        nilaiInput: inp?.value ?? null,
+      };
+    },
+    /** ubah warna lewat <input> asli (memicu jalur onChange yang sama) */
+    ubahWarna: (hex: string) => {
+      const el = document.querySelector('[data-testid="color-swatch"]');
+      const inp = el?.querySelector('[data-testid="color-input"]') as HTMLInputElement | null;
+      if (!inp) return false;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(inp, hex);
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    },
+    /** teks baris sticky yang sedang menempel */
+    stickyTeks: () =>
+      [...document.querySelectorAll('[data-testid="sticky-row"]')].map((el) => ({
+        line: el.getAttribute('data-line'),
+        teks: (el.textContent ?? '').trim().slice(0, 60),
+      })),
+    /** segmen breadcrumbs: path + simbol */
+    breadcrumbs: () => ({
+      path: [...document.querySelectorAll('[data-testid="bc-path-seg"]')].map((e) =>
+        (e.textContent ?? '').replace(/›/g, '').trim(),
+      ),
+      simbol: [...document.querySelectorAll('[data-testid="bc-sym-seg"]')].map(
+        (e) => e.getAttribute('data-sym-name') ?? '',
+      ),
+      perkiraan: !!document.querySelector('[data-testid="bc-approx"]'),
+    }),
+    /** klik segmen breadcrumb ke-n lalu buka dropdown */
+    bukaDropdown: (n = 0) => {
+      const el = document.querySelectorAll('[data-testid="bc-sym-seg"]')[n] as
+        | HTMLButtonElement
+        | undefined;
+      if (!el) return false;
+      el.click();
+      return true;
+    },
+    dropdownItems: () =>
+      [...document.querySelectorAll('[data-testid="bc-dropdown-item"]')].map((e) =>
+        (e.textContent ?? '').trim(),
+      ),
+    /** posisi & tinggi kotak viewport minimap (px) */
+    minimapViewport: () => {
+      const el = document.querySelector('[data-testid="minimap-viewport"]') as HTMLElement | null;
+      if (!el) return null;
+      const s = getComputedStyle(el);
+      return { transform: s.transform, height: s.height };
+    },
+    /** catatan render minimap: berapa kali gambar() dipanggil & alasan gagal */
+    minimapDebug: () => ({ ...minimapDebug }),
+    /** pohon simbol mentah (LSP atau fallback indentasi) */
+    simbol: async () => {
+      const { pohonSimbol } = await import('./symbolTree');
+      const view = getActiveView();
+      const path = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId)
+        ?.path;
+      if (!view) return null;
+      const r = await pohonSimbol(path ?? undefined, view.state);
+      const ringkas = (n: unknown[]): unknown[] =>
+        n.map((x) => {
+          const o = x as { nama: string; kind: number; dari: number; sampai: number; anak: unknown[] };
+          return { nama: o.nama, kind: o.kind, dari: o.dari, sampai: o.sampai, anak: ringkas(o.anak) };
+        });
+      return { punyaLsp: r.punyaLsp, pohon: ringkas(r.pohon) };
+    },
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

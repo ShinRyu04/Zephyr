@@ -219,6 +219,91 @@ export function EditorSection() {
           onChange={(v) => patch({ showWhitespace: v })}
         />
       </Row>
+
+      {/* ── fase 24: editor extras ──
+          Nama kunci sengaja sama dengan VS Code supaya user yang pindah tidak
+          perlu belajar nama baru. Yang berat diberi peringatan di hint. */}
+      <p className="set-note">
+        Kenyamanan editor di bawah ini bisa dimatikan satu per satu. Semuanya
+        juga ada di menu View → Appearance.
+      </p>
+
+      <Row label={t('editor.breadcrumbs')} hint="jalur folder + simbol dari language server">
+        <Toggle
+          label={t('editor.breadcrumbs')}
+          testid="editor-breadcrumbs"
+          checked={e.breadcrumbs}
+          onChange={(v) => patch({ breadcrumbs: v })}
+        />
+      </Row>
+
+      <Row label={t('editor.stickyScroll')} hint="baris function/class menempel saat scroll">
+        <Toggle
+          label={t('editor.stickyScroll')}
+          testid="editor-sticky"
+          checked={e.stickyScroll}
+          onChange={(v) => patch({ stickyScroll: v })}
+        />
+      </Row>
+
+      <Row label={t('editor.stickyScrollMaxLines')} hint="berapa baris header ditumpuk">
+        <NumberInput
+          label={t('editor.stickyScrollMaxLines')}
+          testid="editor-sticky-max"
+          min={1}
+          max={10}
+          value={e.stickyScrollMaxLines}
+          onChange={(v) => patch({ stickyScrollMaxLines: v })}
+        />
+      </Row>
+
+      <Row
+        label={t('editor.minimapRenderCharacters')}
+        hint="gambar teks asli, bukan blok warna — jauh lebih berat"
+      >
+        <Toggle
+          label={t('editor.minimapRenderCharacters')}
+          testid="editor-minimap-chars"
+          checked={e.minimapRenderCharacters}
+          onChange={(v) => patch({ minimapRenderCharacters: v })}
+        />
+      </Row>
+
+      <Row label={t('editor.indentGuides')} hint="garis indentasi + indent aktif">
+        <Toggle
+          label={t('editor.indentGuides')}
+          testid="editor-indent-guides"
+          checked={e.indentGuides}
+          onChange={(v) => patch({ indentGuides: v })}
+        />
+      </Row>
+
+      <Row label={t('editor.colorDecorators')} hint="swatch #hex/rgb()/hsl(), klik untuk picker">
+        <Toggle
+          label={t('editor.colorDecorators')}
+          testid="editor-color-dec"
+          checked={e.colorDecorators}
+          onChange={(v) => patch({ colorDecorators: v })}
+        />
+      </Row>
+
+      <Row label={t('editor.unicodeHighlight')} hint="tandai karakter ambigu & tak terlihat">
+        <Toggle
+          label={t('editor.unicodeHighlight')}
+          testid="editor-unicode"
+          checked={e.unicodeHighlight}
+          onChange={(v) => patch({ unicodeHighlight: v })}
+        />
+      </Row>
+
+      <Row label={t('editor.bracketPairColorization')} hint="warna bracket per kedalaman">
+        <Toggle
+          label={t('editor.bracketPairColorization')}
+          testid="editor-bracket-color"
+          checked={e.bracketPairColorization}
+          onChange={(v) => patch({ bracketPairColorization: v })}
+        />
+      </Row>
     </Section>
   );
 }

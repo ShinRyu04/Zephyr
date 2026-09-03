@@ -2,7 +2,7 @@
 // Catatan RAM (PRD R3): view hanya dibuat untuk tab AKTIF; tab non-aktif
 // tidak punya EditorView sama sekali, kontennya hidup di store.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EditorState, Compartment, type Extension } from '@codemirror/state';
 import {
   EditorView,
@@ -26,6 +26,14 @@ import {
   insertBlankLine,
   cursorMatchingBracket,
   selectLine,
+  // fase 24: multi-cursor & pemindahan baris
+  moveLineUp,
+  moveLineDown,
+  copyLineUp,
+  copyLineDown,
+  addCursorAbove,
+  addCursorBelow,
+  simplifySelection,
 } from '@codemirror/commands';
 import {
   bracketMatching,
@@ -35,7 +43,7 @@ import {
   defaultHighlightStyle,
 } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
-import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
 import { useStore } from '../../lib/store';
@@ -47,7 +55,12 @@ import { diagCompartment, diagnosticsGutter } from '../../lib/diagnosticsGutter'
 import { useLsp } from '../../lib/lspStore';
 import { serverForPath } from '../../lib/lsp';
 import { lspAutocompletion, lspHover, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
-import type { Tab } from '../../lib/types';
+import { bracketPairColors, indentGuides } from '../../lib/cmIndent';
+import { colorDecorators, unicodeHighlight } from '../../lib/cmColor';
+import Minimap from './Minimap';
+import Breadcrumbs from './Breadcrumbs';
+import StickyScroll from './StickyScroll';
+import type { EditorSettings, Tab } from '../../lib/types';
 
 interface Props {
   tab: Tab;
@@ -61,6 +74,24 @@ const LSP_DEBOUNCE_MS = 350;
  *  jadi `?? []` inline akan memicu render tak berhingga (pelajaran fase 09). */
 const EMPTY_DIAG: Diagnostic[] = [];
 
+/**
+ * Ekstensi "editor extras" fase 24 yang bisa dinyalakan/dimatikan lewat
+ * Settings. Dikumpulkan di satu tempat supaya toggle = satu reconfigure.
+ *
+ * Tab read-only (fase 15.1) tidak mendapat apa pun: file 5MB yang dibuka
+ * baca-saja justru yang paling rentan membeku, dan semua fitur di bawah ini
+ * memproses viewport pada setiap update.
+ */
+function extrasEditor(e: EditorSettings, readOnly: boolean): Extension[] {
+  if (readOnly) return [];
+  const out: Extension[] = [];
+  if (e.indentGuides) out.push(indentGuides());
+  if (e.bracketPairColorization) out.push(bracketPairColors());
+  if (e.colorDecorators) out.push(colorDecorators());
+  if (e.unicodeHighlight) out.push(unicodeHighlight());
+  return out;
+}
+
 export default function CodeMirrorEditor({ tab }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -69,9 +100,18 @@ export default function CodeMirrorEditor({ tab }: Props) {
   const langComp = useRef(new Compartment());
   const wsComp = useRef(new Compartment());
   const themeComp = useRef(new Compartment());
+  /** fase 24: extras yang bisa di-toggle tanpa rebuild view */
+  const extrasComp = useRef(new Compartment());
   const pending = useRef<number | null>(null);
   /** debounce didChange LSP, terpisah dari debounce simpan-ke-store */
   const lspPending = useRef<number | null>(null);
+
+  /** fase 24: naik setiap dokumen berubah — dipakai minimap, breadcrumbs, dan
+   *  sticky scroll untuk tahu kapan harus menghitung ulang. View disimpan di
+   *  ref (tidak memicu render), jadi butuh state terpisah agar anak ikut. */
+  const [viewSiap, setViewSiap] = useState(0);
+  const [docVersion, setDocVersion] = useState(0);
+  const [barisKursor, setBarisKursor] = useState(1);
 
   const updateTabContent = useStore((s) => s.updateTabContent);
   const setCursor = useStore((s) => s.setCursor);
@@ -123,6 +163,18 @@ export default function CodeMirrorEditor({ tab }: Props) {
       { key: 'Mod-l', run: selectLine },
       { key: 'Shift-Mod-\\', run: cursorMatchingBracket },
       { key: 'Mod-Enter', run: insertBlankLine },
+      // fase 24: multi-cursor polish. Ctrl+D & Alt+Up/Down memang ada di
+      // searchKeymap/defaultKeymap, tapi didaftarkan ULANG di sini supaya
+      // urutannya di atas keduanya — chord global fase 18 tidak boleh
+      // mendahului editor untuk tombol yang jelas milik editor.
+      { key: 'Mod-d', run: selectNextOccurrence, preventDefault: true },
+      { key: 'Alt-ArrowUp', run: moveLineUp, preventDefault: true },
+      { key: 'Alt-ArrowDown', run: moveLineDown, preventDefault: true },
+      { key: 'Shift-Alt-ArrowUp', run: copyLineUp, preventDefault: true },
+      { key: 'Shift-Alt-ArrowDown', run: copyLineDown, preventDefault: true },
+      { key: 'Mod-Alt-ArrowUp', run: addCursorAbove, preventDefault: true },
+      { key: 'Mod-Alt-ArrowDown', run: addCursorBelow, preventDefault: true },
+      { key: 'Escape', run: simplifySelection },
     ]);
 
     const extensions: Extension[] = [
@@ -160,6 +212,9 @@ export default function CodeMirrorEditor({ tab }: Props) {
       themeComp.current.of(editorTheme(themeId)),
       diagCompartment.of([]),
       squiggleCompartment.of([]),
+      // fase 24: extras dikumpulkan di satu compartment supaya toggle Settings
+      // hanya perlu reconfigure — rebuild view membuang undo history (fase 13).
+      extrasComp.current.of(extrasEditor(editorSettings, readOnly)),
       baseKeymap,
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
@@ -190,7 +245,12 @@ export default function CodeMirrorEditor({ tab }: Props) {
           const pos = u.state.selection.main.head;
           const line = u.state.doc.lineAt(pos);
           setCursor(line.number, pos - line.from + 1);
+          // fase 24: breadcrumbs butuh baris kursor. State hanya diubah kalau
+          // barisnya BENAR-BENAR pindah — kalau ikut setiap kolom, breadcrumbs
+          // re-render pada setiap penekanan panah kiri/kanan.
+          setBarisKursor((lama) => (lama === line.number ? lama : line.number));
         }
+        if (u.docChanged) setDocVersion((v) => v + 1);
       }),
     ];
 
@@ -202,6 +262,9 @@ export default function CodeMirrorEditor({ tab }: Props) {
     setActiveView(view);
     registerFlush(tab.id, flush);
     view.focus();
+    // fase 24: beri tahu anak (minimap/breadcrumbs/sticky) bahwa view sudah ada.
+    setViewSiap((n) => n + 1);
+    setDocVersion((v) => v + 1);
 
     // FASE 21: didOpen setelah view siap. Server di-start lazy di dalam
     // openDoc → ensureFor, jadi membuka file .md tidak menyalakan tsserver.
@@ -330,20 +393,73 @@ export default function CodeMirrorEditor({ tab }: Props) {
     editorSettings.showWhitespace,
   ]);
 
+  // fase 24: toggle extras -> reconfigure compartment (bukan rebuild view).
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: extrasComp.current.reconfigure(extrasEditor(editorSettings, readOnly)),
+    });
+  }, [
+    editorSettings.indentGuides,
+    editorSettings.bracketPairColorization,
+    editorSettings.colorDecorators,
+    editorSettings.unicodeHighlight,
+    readOnly,
+  ]);
+
+  // fase 24: minimap & sticky dipaksa mati di lowRam / read-only — konsisten
+  // dengan fase 16.2 (satu tombol lowRam harus benar-benar berpengaruh).
+  const extrasAktif = !readOnly && !lowRam;
+  const tampilMinimap = extrasAktif && editorSettings.minimap;
+  const tampilBreadcrumbs = !readOnly && editorSettings.breadcrumbs;
+  const tampilSticky = extrasAktif && editorSettings.stickyScroll;
+  // viewSiap dipakai sebagai dependensi eksplisit: view hidup di ref, jadi
+  // tanpa ini anak-anak akan menerima `null` selamanya pada render pertama.
+  const view = viewSiap > 0 ? viewRef.current : null;
+
   return (
-    <div
-      ref={hostRef}
-      className="zephyr-cm-host"
-      data-cursor-style={editorSettings.cursorStyle}
-      data-smooth={editorSettings.smoothScroll && !lowRam ? '1' : '0'}
-      data-lowram={lowRam ? '1' : '0'}
-      data-readonly={readOnly ? '1' : '0'}
-      style={{
-        fontSize: `${general.fontSize}px`,
-        fontFamily: general.fontFamily,
-        // dipakai oleh .cm-scroller di cmTheme.ts
-        ['--editor-line-height' as string]: String(general.lineHeight),
-      }}
-    />
+    <div className="cm-wrap" data-testid="cm-wrap">
+      {tampilBreadcrumbs && (
+        <Breadcrumbs
+          view={view}
+          path={tab.path ?? undefined}
+          docVersion={docVersion}
+          barisKursor={barisKursor}
+        />
+      )}
+      <div className="cm-body">
+        <div
+          ref={hostRef}
+          className="zephyr-cm-host"
+          data-cursor-style={editorSettings.cursorStyle}
+          data-smooth={editorSettings.smoothScroll && !lowRam ? '1' : '0'}
+          data-lowram={lowRam ? '1' : '0'}
+          data-readonly={readOnly ? '1' : '0'}
+          style={{
+            fontSize: `${general.fontSize}px`,
+            fontFamily: general.fontFamily,
+            // dipakai oleh .cm-scroller di cmTheme.ts
+            ['--editor-line-height' as string]: String(general.lineHeight),
+          }}
+        />
+        {tampilSticky && (
+          <StickyScroll
+            view={view}
+            path={tab.path ?? undefined}
+            docVersion={docVersion}
+            maxLines={editorSettings.stickyScrollMaxLines}
+          />
+        )}
+        {tampilMinimap && (
+          <Minimap
+            view={view}
+            path={tab.path ?? undefined}
+            renderCharacters={editorSettings.minimapRenderCharacters}
+            docVersion={docVersion}
+          />
+        )}
+      </div>
+    </div>
   );
 }

@@ -25,6 +25,8 @@ import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
 import { serverForPath } from './lsp';
 import { THEMES } from './themes';
+import { keHex6 } from './cmColor';
+import type { EditorSettings } from './types';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
 
 export type CmdGroup =
@@ -725,6 +727,84 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'wrap lipat baris',
     run: () => S().applySettings({ editor: { wordWrap: !S().settings.editor.wordWrap } }),
+  },
+  // ── fase 24: editor extras ──
+  // Satu command per fitur, semuanya lewat applySettings supaya nilainya
+  // langsung tersimpan ke disk (%APPDATA%\zephyr\settings.json) dan bertahan
+  // setelah restart — tidak ada state UI terpisah yang bisa jadi tidak sinkron.
+  ...(
+    [
+      ['editor.breadcrumbs.toggle', 'View: Toggle Breadcrumbs', 'breadcrumbs', 'jalur simbol path'],
+      ['editor.stickyScroll.toggle', 'View: Toggle Sticky Scroll', 'stickyScroll', 'header menempel'],
+      ['editor.minimap.toggle', 'View: Toggle Minimap', 'minimap', 'peta gulir kanan'],
+      [
+        'editor.indentGuides.toggle',
+        'View: Toggle Indent Guides',
+        'indentGuides',
+        'garis indentasi',
+      ],
+      [
+        'editor.colorDecorators.toggle',
+        'View: Toggle Color Decorators',
+        'colorDecorators',
+        'swatch warna hex rgb',
+      ],
+      [
+        'editor.unicodeHighlight.toggle',
+        'View: Toggle Unicode Highlight',
+        'unicodeHighlight',
+        'karakter ambigu',
+      ],
+      [
+        'editor.bracketPairColorization.toggle',
+        'View: Toggle Bracket Pair Colorization',
+        'bracketPairColorization',
+        'warna bracket kedalaman',
+      ],
+    ] as const
+  ).map(([id, title, kunci, keywords]) => ({
+    id,
+    title,
+    group: 'View' as const,
+    keywords,
+    run: () =>
+      S().applySettings({
+        editor: { [kunci]: !S().settings.editor[kunci] } as Partial<EditorSettings>,
+      }),
+  })),
+  {
+    id: 'editor.documentColors',
+    title: 'Color: Document Colors',
+    group: 'View',
+    keywords: 'warna hex rgb hsl daftar dokumen',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const view = getActiveView();
+      if (!view) return;
+      // Dihitung dari SELURUH dokumen (bukan viewport): ini daftar, bukan
+      // dekorasi — user memintanya sekali dan berharap lengkap.
+      const teks = view.state.doc.toString();
+      const hitung = new Map<string, number>();
+      const re =
+        /#[0-9a-fA-F]{3,8}\b|\brgba?\(\s*[^)\n]{1,60}\)|\bhsla?\(\s*[^)\n]{1,60}\)/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(teks)) !== null) {
+        const hex = keHex6(m[0]);
+        if (!hex) continue;
+        hitung.set(hex, (hitung.get(hex) ?? 0) + 1);
+      }
+      if (hitung.size === 0) {
+        notifyInfo('Tidak ada warna di dokumen ini');
+        return;
+      }
+      const urut = [...hitung.entries()].sort((a, b) => b[1] - a[1]);
+      notifyInfo(
+        `${hitung.size} warna: ${urut
+          .slice(0, 8)
+          .map(([h, n]) => `${h}×${n}`)
+          .join(', ')}${urut.length > 8 ? ', …' : ''}`,
+      );
+    },
   },
   {
     id: 'workbench.openGlobalKeybindings',
