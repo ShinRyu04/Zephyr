@@ -42,6 +42,8 @@ import { useStore } from '../../lib/store';
 import { loadLangExtension } from '../../lib/lang';
 import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
+import { useProblems, type Diagnostic } from '../../lib/problemsStore';
+import { diagCompartment, diagnosticsGutter } from '../../lib/diagnosticsGutter';
 import type { Tab } from '../../lib/types';
 
 interface Props {
@@ -49,6 +51,10 @@ interface Props {
 }
 
 const DEBOUNCE_MS = 300;
+
+/** Referensi stabil: selector zustand v5 membandingkan hasil dengan ===,
+ *  jadi `?? []` inline akan memicu render tak berhingga (pelajaran fase 09). */
+const EMPTY_DIAG: Diagnostic[] = [];
 
 export default function CodeMirrorEditor({ tab }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -135,6 +141,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       zephyrHighlight,
       themeComp.current.of(editorTheme(themeId)),
+      diagCompartment.of([]),
       baseKeymap,
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
@@ -237,6 +244,20 @@ export default function CodeMirrorEditor({ tab }: Props) {
       effects: themeComp.current.reconfigure(editorTheme(themeId)),
     });
   }, [themeId]);
+
+  // FASE 20: gutter marker diagnostik. Compartment di-reconfigure, bukan
+  // rebuild view — rebuild membuang undo history + posisi kursor (fase 13).
+  // Squiggle inline BUKAN di sini: itu pekerjaan fase 21 (LSP).
+  const diagList = useProblems((s) => (tab.path ? s.byFile.get(tab.path) ?? EMPTY_DIAG : EMPTY_DIAG));
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: diagCompartment.reconfigure(
+        diagnosticsGutter(diagList, view.state.doc.lines),
+      ),
+    });
+  }, [diagList]);
 
   // Setting editor berubah -> reconfigure compartment saja.
   useEffect(() => {

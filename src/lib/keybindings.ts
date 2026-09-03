@@ -125,8 +125,8 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
 
   // ── View / panel ──
   D('Ctrl+B', 'view.sidebar', 'app'),
-  D('Ctrl+J', 'view.panel', 'app'),
-  D('Ctrl+`', 'terminal.toggle', 'app'),
+  D('Ctrl+J', 'workbench.action.togglePanel', 'app'),
+  D('Ctrl+`', 'terminalPanel.focus', 'app'),
   D('Ctrl+Shift+`', 'terminal.new', 'app'),
   D('Ctrl+Shift+E', 'view.explorer', 'app'),
   D('Ctrl+Shift+F', 'edit.findInFiles', 'app'),
@@ -139,8 +139,12 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+Tab', 'view.nextTab', 'app'),
   D('Ctrl+Shift+Tab', 'view.prevTab', 'app'),
   D('F11', 'window.fullscreen', 'app'),
-  D('Ctrl+Shift+U', 'output.focus', 'stub', 'global', 'Focus Output'),
-  D('Ctrl+Shift+M', 'problems.focus', 'stub', 'global', 'Focus Problems'),
+  // fase 20: tab panel bawah — dulu 'stub', sekarang nyata.
+  D('Ctrl+Shift+U', 'outputPanel.focus', 'app'),
+  D('Ctrl+Shift+M', 'problemsPanel.focus', 'app'),
+  D('Ctrl+Shift+Y', 'debugConsolePanel.focus', 'app'),
+  D('Ctrl+PageDown', 'panel.nextTab', 'app'),
+  D('Ctrl+PageUp', 'panel.prevTab', 'app'),
   D('Ctrl+Shift+D', 'debug.focus', 'stub', 'global', 'Focus Run & Debug'),
 
   // ── Go ──

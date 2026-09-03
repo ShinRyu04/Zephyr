@@ -58,7 +58,13 @@ pub fn default_settings() -> Value {
         "extensions": { "enabled": [] },
         "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
         "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
-        "ssh": { "recentHosts": [] }
+        "ssh": { "recentHosts": [] },
+        // fase 20: preferensi panel bawah
+        "panel": {
+            "visibleTabs": ["problems", "output", "debug", "terminal", "ports"],
+            "activeTab": "terminal",
+            "height": 260
+        }
     })
 }
 
