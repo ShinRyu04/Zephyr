@@ -6,6 +6,7 @@ mod agents;
 mod ai;
 mod app_state;
 mod browser;
+mod cli;
 mod credential;
 mod dap;
 mod diagnostics;
@@ -50,6 +51,20 @@ pub fn run_credential_helper() -> bool {
     credential::handle_cli()
 }
 
+// ───────────────────────── command CLI (fase 28) ─────────────────────────
+//
+// Command DIDEFINISIKAN di cli.rs, bukan di sini: `generate_handler!` mengimpor
+// nama command ke modul tempat ia dipanggil, jadi command yang tinggal di lib.rs
+// bertabrakan dengan dirinya sendiri (E0255 "defined multiple times").
+
+/// Mode konsol `--help` / `--version` (fase 28).
+///
+/// Sama polanya dengan credential helper: ditangani SEBELUM Tauri start supaya
+/// `zephyr --version` tidak membuka window sekadar untuk mencetak satu baris.
+pub fn run_cli_console() -> bool {
+    cli::tangani_help_version()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Status minimized dipegang di sini (bukan dibaca dari thread lain):
@@ -65,6 +80,28 @@ pub fn run() {
     let boot = std::time::Instant::now();
 
     let app = tauri::Builder::default()
+        // ═══ fase 28: single instance HARUS plugin PERTAMA ═══
+        //
+        // Plugin dijalankan sesuai urutan penambahan (catatan resmi
+        // plugins-workspace). Kalau ini bukan yang pertama, instance kedua
+        // sudah membangun window/state sebelum sadar harus keluar.
+        //
+        // argv yang diterima di sini SUDAH memuat argv[0] (path exe), jadi
+        // di-skip sebelum di-parse.
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            let args = cli::parse(
+                &argv.iter().skip(1).cloned().collect::<Vec<String>>(),
+                std::path::Path::new(&cwd),
+            );
+            // Fokus jendela dulu: user menjalankan `zephyr x` untuk MELIHAT
+            // hasilnya, jadi jendela harus muncul walau argumennya kosong.
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+            let _ = app.emit("cli-args", &args);
+        }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
@@ -278,6 +315,13 @@ pub fn run() {
             search::search_cancel,
             search::search_rg_info,
             search::search_replace,
+            // CLI launcher (fase 28)
+            cli::cli_args_awal,
+            cli::cli_wait_selesai,
+            cli::cli_wait_buat,
+            cli::cli_wait_aktif,
+            cli::cli_teks,
+            cli::cli_parse,
             // debugger DAP (fase 22)
             dap::dap_load,
             dap::dap_adapters,

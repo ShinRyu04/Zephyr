@@ -36,6 +36,7 @@ import { bindTaskListeners, useTasks } from './lib/tasksStore';
 import { useHistory } from './lib/historyStore';
 import { bindSearchListeners, useSearch } from './lib/searchStore';
 import { bindDebugListeners } from './lib/debugStore';
+import { bindCliListeners } from './lib/cliStore';
 import { usePanel } from './lib/panelStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
@@ -614,6 +615,10 @@ export default function App() {
     // fase 22: listener `dap-event`/`dap-output` + sinkronisasi context key
     // `debugActive` (yang membuat F11 = step-into saat debug, fullscreen di luar).
     bindDebugListeners();
+    // fase 28: event `cli-args` (instance kedua) + tarik argumen instance
+    // pertama. Dipanggil SETELAH listener lain supaya `zephyr file.ts:10:5`
+    // membuka tab di app yang sudah siap, bukan setengah jalan.
+    void bindCliListeners();
     // tasks.json hanya ada kalau sudah ada workspace. Dibaca lewat subscribe,
     // bukan selector: `workspace` bisa berubah setelah bootstrap selesai dan
     // effect dengan array dependensi kosong tidak akan melihatnya.

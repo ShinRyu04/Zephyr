@@ -6,6 +6,7 @@ import type {
   AgentInfo,
   AiMessage,
   AppInfo,
+  CliArgs,
   CliStatus,
   CliWriteResult,
   DeviceLogin,
@@ -448,3 +449,20 @@ export const dapSetVariable = (variablesReference: number, name: string, value: 
 export const dapSetBreakpoints = (path: string, lines: number[]) =>
   invoke<Record<string, unknown>>('dap_set_breakpoints', { path, lines });
 export const dapLoadedSources = () => invoke<Record<string, unknown>>('dap_loaded_sources');
+
+// ── CLI launcher (fase 28) ──
+
+/** Argumen CLI instance PERTAMA (event `cli-args` hanya dari instance kedua). */
+export const cliArgsAwal = () => invoke<CliArgs>('cli_args_awal');
+/** Parse argv lewat jalur produk — dipakai harness verify28. */
+export const cliParse = (argv: string[], cwd: string) =>
+  invoke<CliArgs>('cli_parse', { argv, cwd });
+/** Hapus penanda `--wait` → proses `zephyr --wait` di terminal lanjut. */
+export const cliWaitSelesai = (token: string) => invoke<boolean>('cli_wait_selesai', { token });
+/** Buat penanda `--wait` (shim CLI; juga dipakai harness). */
+export const cliWaitBuat = (token: string) => invoke<string>('cli_wait_buat', { token });
+/** true = penanda masih ada, artinya proses CLI masih menunggu. */
+export const cliWaitAktif = (token: string) => invoke<boolean>('cli_wait_aktif', { token });
+/** Teks banner/help/version; `warna:false` = plain untuk pipe. */
+export const cliTeks = (mode: 'help' | 'version' | 'banner', warna: boolean, kolom?: number) =>
+  invoke<string>('cli_teks', { mode, warna, kolom });

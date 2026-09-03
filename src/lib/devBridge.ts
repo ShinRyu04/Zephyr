@@ -21,6 +21,15 @@ import { useTasks } from './tasksStore';
 import { useHistory } from './historyStore';
 import { useSearch } from './searchStore';
 import { useDebug } from './debugStore';
+import { useCli } from './cliStore';
+import {
+  cliParse,
+  cliTeks,
+  cliWaitAktif,
+  cliWaitBuat,
+  cliWaitSelesai,
+} from './commands';
+import type { CliArgs } from './types';
 import {
   tasksMatchLine as tasksMatchLineCmd,
   tasksDetectPort as tasksDetectPortCmd,
@@ -1232,6 +1241,41 @@ export function installDevBridge(): void {
     domBarisAktif: () => document.querySelectorAll('.cm-baris-aktif').length,
     /** context key debugActive aktif atau tidak (yang mengatur F10/F11) */
     ctxDebugActive: () => useKb.getState().ctx.includes('debugActive'),
+  };
+
+  // ── fase 28: bridge CLI launcher (harness verify28) ──
+  w.__ZEPHYR_CLI__ = {
+    store: () => useCli,
+    state: () => useCli.getState(),
+    /** argumen CLI terakhir yang dijalankan */
+    terakhir: () => useCli.getState().terakhir,
+    jumlahJalan: () => useCli.getState().jumlahJalan,
+    menunggu: () => useCli.getState().menunggu,
+    bersihkan: () => useCli.getState().bersihkan(),
+
+    /**
+     * Parse argv lewat JALUR PRODUK (Rust `cli::parse`), bukan salinan JS.
+     * Ini yang membuat uji sintaks `file.ts:10:5` benar-benar menguji parser
+     * yang dipakai app, bukan implementasi kedua di harness.
+     */
+    parse: (argv: string[], cwd: string) => cliParse(argv, cwd),
+    /** jalankan argumen seolah datang dari instance kedua */
+    jalankan: (args: CliArgs) => useCli.getState().jalankan(args),
+    /** teks --help/--version dari Rust; warna=false = jalur pipe */
+    teks: (mode: 'help' | 'version' | 'banner', warna: boolean, kolom?: number) =>
+      cliTeks(mode, warna, kolom),
+
+    waitBuat: (token: string) => cliWaitBuat(token),
+    waitAktif: (token: string) => cliWaitAktif(token),
+    waitSelesai: (token: string) => cliWaitSelesai(token),
+    lepasWait: (path: string) => useCli.getState().lepasWait(path),
+
+    /** diff yang terpasang di DiffViewer (bukti V4) */
+    diff: () => {
+      const d = useGit.getState().diff;
+      return d ? { path: d.path, source: d.source, panjang: d.text.length, teks: d.text } : null;
+    },
+    tutupDiff: () => useGit.getState().closeDiff(),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

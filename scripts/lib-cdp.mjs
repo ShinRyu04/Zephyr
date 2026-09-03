@@ -101,6 +101,7 @@ export class Cdp {
         const SR = window.__ZEPHYR_SRC__;
         /** fase 22: bridge Run & Debug (DAP) */
         const DBG = window.__ZEPHYR_DBG__;
+        const CLI = window.__ZEPHYR_CLI__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

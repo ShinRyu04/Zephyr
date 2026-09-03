@@ -617,6 +617,14 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   forceCloseTab: (id) => {
+    // fase 28: `zephyr --wait <file>` menahan proses di terminal sampai tab
+    // ini ditutup. Pelepasannya dipasang DI SINI, bukan di komponen tab: tab
+    // bisa ditutup dari palette, shortcut, klik ×, atau closeTabsUnder —
+    // menaruhnya di satu jalur UI berarti jalur lain menggantung shell user.
+    const tabTutup = get().tabs.find((t) => t.id === id);
+    if (tabTutup?.path) {
+      void import('./cliStore').then((m) => m.useCli.getState().lepasWait(tabTutup.path as string));
+    }
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id);
       const tabs = s.tabs.filter((t) => t.id !== id);
