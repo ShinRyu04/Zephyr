@@ -305,10 +305,7 @@ const PAKET: &[Paket] = &[
             ("snippets/react.json", SNIPPET_REACT_JSON),
         ],
     ),
-    (
-        "zephyr.lang-toml",
-        &[("zephyr-extension.json", LANG_TOML)],
-    ),
+    ("zephyr.lang-toml", &[("zephyr-extension.json", LANG_TOML)]),
     ("zephyr.lang-lua", &[("zephyr-extension.json", LANG_LUA)]),
     (
         "zephyr.ikon-bulat",
@@ -368,8 +365,8 @@ mod tests {
                 .map(|(_, isi)| *isi)
                 .unwrap_or_else(|| panic!("{id}: tidak punya zephyr-extension.json"));
 
-            let v: serde_json::Value =
-                serde_json::from_str(manifest).unwrap_or_else(|e| panic!("{id}: manifest rusak {e}"));
+            let v: serde_json::Value = serde_json::from_str(manifest)
+                .unwrap_or_else(|e| panic!("{id}: manifest rusak {e}"));
 
             assert_eq!(
                 v.get("id").and_then(|x| x.as_str()),

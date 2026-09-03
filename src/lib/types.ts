@@ -739,3 +739,70 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   lsp: { enabled: true, idleSeconds: 300, servers: {} },
 };
+
+// ─────────────────── tasks (fase 23) ───────────────────
+
+/** Satu task dari tasks.json setelah divalidasi Rust. */
+export interface TaskDef {
+  label: string;
+  /** shell | process | npm */
+  kind: string;
+  command: string;
+  args: string[];
+  cwd: string;
+  env: Record<string, string>;
+  /** build | test | '' */
+  group: string;
+  isDefault: boolean;
+  problemMatchers: string[];
+  dependsOn: string[];
+  /** sequence | parallel */
+  dependsOrder: string;
+  /** always | silent | never */
+  reveal: string;
+  /** output | terminal */
+  panel: string;
+  isBackground: boolean;
+  background: {
+    activeOnStart: boolean;
+    beginsPattern: string;
+    endsPattern: string;
+  };
+  /** peringatan skema yang tidak fatal */
+  warnings: string[];
+}
+
+export interface TasksFile {
+  version: string;
+  tasks: TaskDef[];
+  /** path file yang benar-benar dibaca; '' kalau tidak ada */
+  path: string;
+  errors: string[];
+}
+
+/** Satu masalah hasil problem matcher. */
+export interface TaskProblem {
+  file: string;
+  line: number;
+  column: number;
+  severity: string;
+  message: string;
+  code: string;
+  /** nama matcher yang menangkapnya */
+  matcher: string;
+}
+
+export interface TaskRun {
+  id: string;
+  label: string;
+  /** running | done | failed | killed */
+  status: string;
+  exitCode: number | null;
+  pid: number | null;
+  startedMs: number;
+  endedMs: number | null;
+  problems: TaskProblem[];
+  lines: number;
+  active: boolean;
+  cwd: string;
+}

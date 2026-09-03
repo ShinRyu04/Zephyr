@@ -189,6 +189,12 @@ export const MENUS: MenuDef[] = [
       { label: 'Kill Active Pane', command: 'terminal.kill' },
       { label: 'Clear Terminal', command: 'terminal.clear' },
       SEP,
+      // Tasks (fase 23) — di menu Terminal, sama seperti VS Code.
+      { label: 'Run Build Task', command: 'tasks.runBuild' },
+      { label: 'Run Task…', command: 'tasks.runTask' },
+      { label: 'Terminate Task', command: 'tasks.terminate' },
+      { label: 'Show Task Output', command: 'tasks.showOutput' },
+      SEP,
       { label: 'MCP Server', command: 'mcp.panel' },
     ],
   },
