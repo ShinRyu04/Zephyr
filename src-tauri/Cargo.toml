@@ -40,6 +40,10 @@ axum = { version = "0.8", default-features = false, features = ["http1", "json",
 # "Update belum dikonfigurasi" (17.6.e).
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# fase 28: instance kedua meneruskan argv ke jendela pertama (ala `code`).
+# WAJIB plugin PERTAMA yang didaftarkan — plugin jalan sesuai urutan
+# penambahan, dan pengecekan instance harus terjadi sebelum apa pun dimulai.
+tauri-plugin-single-instance = "2"
 # Logging (fase 14): tracing + penulis file sendiri (rotate 2MB) di logging.rs.
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }

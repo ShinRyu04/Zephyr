@@ -942,3 +942,33 @@ export interface AdapterSpec {
   /** '' = adapter tersedia; berisi instruksi install bila belum */
   missing: string;
 }
+
+// ── CLI launcher (fase 28) ──
+
+/**
+ * Satu target dari command line.
+ *
+ * Bentuknya persis enum `cli::Target` di Rust (serde externally-tagged):
+ * `{ folder: "D:/x" }`, `{ file: { path, line, col } }`, `{ diff: { kiri, kanan } }`.
+ * Parser tinggal di RUST supaya satu definisi saja yang menentukan arti
+ * `file.ts:10:5` — harness menguji parser lewat jalur produk (`cli_parse`),
+ * bukan menyalin logikanya ke JS.
+ */
+export type CliTarget =
+  | { folder: string }
+  | { file: { path: string; line: number | null; col: number | null } }
+  | { diff: { kiri: string; kanan: string } };
+
+export interface CliArgs {
+  targets: CliTarget[];
+  newWindow: boolean;
+  wait: boolean;
+  /** token penanda --wait (diisi shim, bukan user) */
+  waitToken: string | null;
+  help: boolean;
+  version: boolean;
+  /** argumen tak dikenal — dilaporkan lewat notifikasi, bukan didiamkan */
+  errors: string[];
+  /** true = tanpa argumen sama sekali → buka workspace/recent terakhir */
+  kosong: boolean;
+}
