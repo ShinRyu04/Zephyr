@@ -49,7 +49,15 @@ pub fn default_settings() -> Value {
             "cursorStyle": "line",
             "smoothScroll": false,
             "formatOnSave": false,
-            "showWhitespace": false
+            "showWhitespace": false,
+            "breadcrumbs": true,
+            "stickyScroll": false,
+            "stickyScrollMaxLines": 3,
+            "minimapRenderCharacters": false,
+            "indentGuides": true,
+            "colorDecorators": true,
+            "unicodeHighlight": true,
+            "bracketPairColorization": true
         },
         "theme": { "current": "zephyr-dark", "accent": "#3884ff" },
         "shortcuts": {},

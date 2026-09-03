@@ -5,12 +5,14 @@
 // jadi tidak ada dua baris tab bertumpuk (pelajaran fase 09: baris tambahan
 // di atas panel menutupi toolbar kanan terminal).
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { PANEL_TABS, usePanel, type PanelTabId } from '../../lib/panelStore';
+import Popover from './Popover';
 import { useProblems } from '../../lib/problemsStore';
 import { useOutput } from '../../lib/outputStore';
 import { usePorts } from '../../lib/portsStore';
 import { useTerminal } from '../../lib/terminalStore';
+import { TerminalOps } from '../terminal/TerminalTabs';
 import { runCommand } from '../../lib/commandRegistry';
 
 export default function PanelTabStrip() {
@@ -38,15 +40,11 @@ export default function PanelTabStrip() {
   const maximized = useTerminal((s) => s.maximized);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
+  /** anchor tombol "…" — menunya dirender lewat portal (lihat Popover). */
+  const btnMenu = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    if (!tabMenuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setTabMenuOpen(false);
-    };
-    window.addEventListener('mousedown', onDown);
-    return () => window.removeEventListener('mousedown', onDown);
-  }, [tabMenuOpen, setTabMenuOpen]);
+  // Klik-di-luar diurus Popover sendiri; efek lama dihapus supaya tidak ada dua
+  // penutup yang saling balap.
 
   const badge = (id: PanelTabId) => {
     if (id === 'problems' && (errors > 0 || warnings > 0)) {
@@ -106,13 +104,21 @@ export default function PanelTabStrip() {
 
       <span className="pts-spacer" />
 
+      {/* fase 24.1: kontrol khusus terminal ([+ ▾] dan [⋮]) numpang di baris ini,
+          sejajar Problems/Output/…, dan HANYA saat tab Terminal aktif. Dulu
+          mereka punya baris toolbar sendiri di bawah — dua baris chrome untuk
+          satu tingkat kendali. Waktu tab lain aktif, tombol ini dilepas dari DOM
+          (bukan disembunyikan) supaya tidak bisa di-fokus lewat Tab. */}
+      {activeTab === 'terminal' && <TerminalOps />}
+
       <div className="pts-ops" ref={menuRef}>
         <button
           className="pts-op"
           data-testid="pts-menu"
           title="Tampilkan / sembunyikan tab"
-          aria-haspopup="true"
+          aria-haspopup="menu"
           aria-expanded={tabMenuOpen}
+          ref={btnMenu}
           onClick={() => setTabMenuOpen(!tabMenuOpen)}
         >
           …
@@ -135,7 +141,14 @@ export default function PanelTabStrip() {
         </button>
 
         {tabMenuOpen && (
-          <div className="pts-menu" role="menu" data-testid="pts-menu-list">
+          <Popover
+            anchor={btnMenu.current}
+            arah="down"
+            sisi="right"
+            className="pts-menu"
+            testid="pts-menu-list"
+            onClose={() => setTabMenuOpen(false)}
+          >
             {PANEL_TABS.map((t) => (
               <button
                 key={t.id}
@@ -150,7 +163,7 @@ export default function PanelTabStrip() {
                 {t.label}
               </button>
             ))}
-          </div>
+          </Popover>
         )}
       </div>
     </div>

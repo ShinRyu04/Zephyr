@@ -515,7 +515,11 @@ body.is-resizing-v {
   align-items: center;
   /* jarak antar tombol toolbar: sebelumnya 1px -> terlihat berdempet */
   gap: 3px;
-  padding: 0 6px;
+  /* fase 24.1: hidup di baris tab panel (PanelTabStrip), tepat sebelum
+     …/perbesar/tutup. Tidak lagi punya baris sendiri. */
+  padding: 0 4px 0 0;
+  margin-right: 2px;
+  border-right: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -556,10 +560,9 @@ body.is-resizing-v {
 }
 
 .tt-dropdown {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 130;
+  /* Posisi & z-index diatur .zpop (portal ke <body>, lihat editor-extras.css).
+     Dulu absolut di dalam .tt-picker-wrap dan terpotong `overflow: hidden`
+     panel bawah — itu sebabnya menu terlihat "tertimpa". */
   min-width: 208px;
   /* padding lebih lega + jarak antar item, supaya tidak berdempet */
   padding: 6px;
@@ -610,6 +613,54 @@ body.is-resizing-v {
   height: 1px;
   margin: 4px 8px;
   background: var(--border);
+}
+
+/* ── fase 24.1: toolbar terminal 6 tombol → 2 ── */
+
+/* [+ ▾] satu kontrol dua bagian: aksi utama + panah pilihan. Keduanya SEJAJAR
+   horizontal — .tt-actions memakai flex row, dan wrapper ini harus ikut row,
+   bukan menumpuk atas-bawah. */
+.tt-split-btn {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+/* Dua tombol menyatu jadi satu kesatuan visual. */
+.tt-split-btn > .tt-btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.tt-btn-caret {
+  width: 15px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.tt-btn-caret .tt-icon {
+  width: 11px;
+  height: 11px;
+}
+/* Garis pemisah tipis di antara keduanya, hanya muncul saat di-hover supaya
+   toolbar tetap bersih. */
+.tt-split-btn:hover > .tt-btn:first-child {
+  box-shadow: inset -1px 0 0 var(--border);
+}
+
+/* Judul kelompok di dalam dropdown ("Shell", "AI agent", "Pane aktif"). */
+.tt-drop-label {
+  padding: 4px 10px 2px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  user-select: none;
+}
+.tt-drop-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .term-body {

@@ -1,0 +1,451 @@
+/* editor-extras.css — breadcrumbs, minimap, sticky scroll, indent guides,
+   bracket colors, color swatch, unicode highlight (fase 24).
+
+   Semua warna dari CSS variable (AGENTS.md §4). Tidak ada hex hardcoded. */
+
+/* ═════════ Kerangka: breadcrumbs di atas, minimap di kanan ═════════ */
+
+.cm-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cm-body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  /* Dipakai .cm-sticky agar overlay-nya berhenti sebelum minimap.
+     Diset ke lebar nyata oleh .cm-body:has(.cm-minimap) di bawah. */
+  --minimap-w: 0px;
+}
+
+/* Sticky scroll tidak boleh menutupi minimap. */
+.cm-body:has(.cm-minimap) {
+  --minimap-w: 84px;
+}
+
+.cm-body > .zephyr-cm-host {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ═════════ Breadcrumbs ═════════ */
+
+.cm-breadcrumbs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 24px;
+  padding: 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--fg2);
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.cm-breadcrumbs::-webkit-scrollbar {
+  height: 0;
+}
+
+.bc-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.bc-sym {
+  cursor: pointer;
+}
+.bc-sym:hover {
+  background: var(--bg3);
+  color: var(--fg0);
+}
+.bc-sym:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.bc-sep {
+  padding: 0 1px;
+  color: var(--fg2);
+  opacity: 0.55;
+}
+
+.bc-ikon {
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.bc-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bc-perkiraan {
+  margin-left: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--bg3);
+  color: var(--fg2);
+  font-size: 10px;
+  cursor: help;
+}
+
+.bc-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  min-width: 200px;
+  max-width: 420px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 3px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 38%);
+}
+
+.bc-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fg1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bc-item:hover {
+  background: var(--bg3);
+  color: var(--fg0);
+}
+.bc-item.is-current {
+  background: var(--accent-dim, var(--bg3));
+  color: var(--fg0);
+}
+
+.bc-item-nama {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bc-item-baris {
+  flex: 0 0 auto;
+  color: var(--fg2);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═════════ Sticky scroll ═════════ */
+
+.cm-sticky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: var(--minimap-w, 0px);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg1);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 22%);
+}
+
+.cm-sticky-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--fg1);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.cm-sticky-row:hover {
+  background: var(--bg3);
+  color: var(--fg0);
+}
+
+.cm-sticky-ikon {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.cm-sticky-teks {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cm-sticky-baris {
+  flex: 0 0 auto;
+  color: var(--fg2);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═════════ Minimap ═════════ */
+
+.cm-minimap {
+  --minimap-w: 84px;
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--minimap-w);
+  overflow: hidden;
+  background: var(--bg1);
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.cm-minimap canvas {
+  display: block;
+}
+
+.cm-minimap-viewport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: var(--fg0);
+  opacity: 0.13;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ═════════ Indent guides ═════════ */
+
+/* Guide digambar dengan repeating background-image: nol node DOM tambahan,
+   berapa pun jumlah levelnya. --zig-n = jumlah level, --zig-step = lebar satu
+   level dalam px, --zig-act = level yang disorot (0 = tidak ada). */
+.cm-zig {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border) 0,
+    var(--border) 1px,
+    transparent 1px,
+    transparent var(--zig-step, 16px)
+  );
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: calc(var(--zig-n, 0) * var(--zig-step, 16px)) 100%;
+}
+
+/* Level aktif: garis lebih terang di posisi --zig-act. */
+.cm-zig[style*='--zig-act:1']::before,
+.cm-zig[style*='--zig-act:2']::before,
+.cm-zig[style*='--zig-act:3']::before,
+.cm-zig[style*='--zig-act:4']::before,
+.cm-zig[style*='--zig-act:5']::before,
+.cm-zig[style*='--zig-act:6']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  left: calc((var(--zig-act) - 1) * var(--zig-step));
+  background: var(--fg2);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ═════════ Bracket pair colorization ═════════ */
+
+.cm-zbr-0 {
+  color: var(--bracket-1);
+}
+.cm-zbr-1 {
+  color: var(--bracket-2);
+}
+.cm-zbr-2 {
+  color: var(--bracket-3);
+}
+.cm-zbr-3 {
+  color: var(--bracket-4);
+}
+.cm-zbr-4 {
+  color: var(--bracket-5);
+}
+.cm-zbr-5 {
+  color: var(--bracket-6);
+}
+.cm-zbr-bad {
+  color: var(--danger);
+  text-decoration: underline wavy var(--danger);
+  text-underline-offset: 2px;
+}
+
+/* ═════════ Color decorators ═════════ */
+
+.cm-zcolor {
+  position: relative;
+  display: inline-block;
+  width: 0.78em;
+  height: 0.78em;
+  margin-right: 0.28em;
+  vertical-align: -0.06em;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  /* kotak kecil transparan tetap terlihat di atas latar apa pun */
+  background-image: linear-gradient(45deg, var(--bg3) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--bg3) 25%, transparent 25%);
+  background-size: 6px 6px;
+}
+
+.cm-zcolor-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ═════════ Popover portal (fase 24.1) ═════════ */
+
+/* Semua dropdown toolbar terminal dirender ke <body> lewat portal supaya tidak
+   dipotong rantai `overflow: hidden` panel bawah. Posisi diatur inline oleh
+   komponen Popover; di sini hanya kerangka + urutan tumpukan.
+   400 = di atas panel (40–140) tapi di bawah command palette (400+). */
+.zpop {
+  position: fixed;
+  z-index: 360;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+/* Popover memakai kelas isi yang sama seperti sebelumnya (.tt-dropdown), jadi
+   properti posisi absolut lamanya harus dinetralkan di dalam portal. */
+.zpop.tt-dropdown {
+  position: fixed;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  top: auto;
+  min-width: 208px;
+  padding: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}
+
+/* ═════════ Terminal: kolom tab kanan (fase 24.1, ala VS Code) ═════════ */
+
+/* Pane di kiri, daftar tab vertikal di kanan. */
+.term-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.term-split > .term-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Kolom tab hanya dirender saat tab terminal >= 2 (lihat TerminalSideTabs),
+   jadi dengan satu terminal tidak ada ruang yang terpakai sama sekali. */
+.tt-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 0 0 auto;
+  width: 148px;
+  padding: 4px 4px 4px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+.tt-side .tt-tab {
+  /* Tab horizontal memakai border bawah sebagai penanda aktif; di kolom
+     vertikal penandanya garis KIRI, seperti daftar terminal VS Code. */
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border-bottom: none;
+  border-left: 2px solid transparent;
+  border-radius: 3px;
+}
+.tt-side .tt-tab.is-active {
+  border-left-color: var(--accent);
+  background: var(--surface-3);
+}
+.tt-side .tt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═════════ Highlight all (Find, fase 24) ═════════ */
+
+/* CodeMirror menandai semua hasil dengan .cm-searchMatch tapi warnanya samar;
+   saat "sorot semua" aktif, dinaikkan supaya benar-benar terlihat. Kelas ada
+   di <body> karena FindBar hidup di luar pohon .cm-editor. */
+body.find-highlight-all .cm-searchMatch {
+  background: color-mix(in srgb, var(--warning) 34%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--warning) 60%, transparent);
+  border-radius: 2px;
+}
+
+body.find-highlight-all .cm-searchMatch-selected {
+  background: color-mix(in srgb, var(--accent) 46%, transparent);
+  outline: 1px solid var(--accent);
+}
+
+/* ═════════ Unicode highlight ═════════ */
+
+.cm-zuni {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--warning) 26%, transparent);
+  outline: 1px dashed var(--warning);
+  outline-offset: -1px;
+  cursor: help;
+}

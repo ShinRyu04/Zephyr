@@ -41,6 +41,16 @@
   --syntax-type: var(--syn-type);
   --syntax-operator: var(--syn-operator);
 
+  /* bracket pair colorization (fase 24) — 6 tingkat lalu berulang.
+     Turunan dari palet syntax yang sudah ada, jadi tiap tema ikut otomatis
+     tanpa menambah daftar warna kedua (pelajaran fase 13). */
+  --bracket-1: var(--syn-keyword);
+  --bracket-2: var(--syn-string);
+  --bracket-3: var(--syn-number);
+  --bracket-4: var(--syn-function);
+  --bracket-5: var(--syn-type);
+  --bracket-6: var(--syn-operator);
+
   /* chrome */
   --panel-header-bg: var(--surface);
   --toolbar-bg: var(--surface);

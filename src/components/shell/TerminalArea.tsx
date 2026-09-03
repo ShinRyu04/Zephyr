@@ -1,17 +1,22 @@
-// TerminalArea.tsx — isi tab "Terminal" pada panel bawah: tab strip terminal,
-// grid pane tab aktif, dan toast batas pane.
-// Pane tab non-aktif tetap hidup (holder xterm-nya dilepas dari DOM).
+// TerminalArea.tsx — isi panel bawah untuk dock Terminal/AI.
 //
-// FASE 20: komponen ini sekarang DIRENDER DI DALAM Panel.tsx (`embedded`),
-// jadi resizer + tinggi panel dipegang Panel, bukan di sini. Mode non-embedded
-// dipertahankan supaya tidak ada perubahan perilaku bila dipakai sendiri.
+// FASE 20: dirender DI DALAM Panel.tsx (`embedded`), jadi resizer + tinggi panel
+// dipegang Panel. Mode non-embedded dipertahankan supaya komponen ini masih bisa
+// dipakai berdiri sendiri.
+//
+// FASE 24.1 (tata letak ala VS Code, permintaan user):
+//   * Tombol [+ ▾] / [⋮] pindah ke baris tab panel (PanelTabStrip) — lihat
+//     TerminalOps. Tidak ada lagi baris `.term-header` di sini.
+//   * Daftar tab terminal jadi kolom VERTIKAL di sisi kanan (TerminalSideTabs),
+//     dan hanya tampil kalau tab terminal ≥ 2.
+//   * DockSwitch (Terminal | AI) tetap satu baris tipis di atas isi.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import AiPanel from '../ai/AiPanel';
 import DockSwitch from './DockSwitch';
 import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
-import TerminalTabs from '../terminal/TerminalTabs';
+import { TerminalSideTabs } from '../terminal/TerminalTabs';
 
 export default function TerminalArea({ embedded = false }: { embedded?: boolean }) {
   const visible = useTerminal((s) => s.visible);
@@ -77,18 +82,22 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
 
   const active = tabs.find((t) => t.id === activeTabId) ?? null;
 
+  // Pane di kiri, daftar tab vertikal di kanan (kolomnya null kalau < 2 tab).
+  const isi =
+    dock === 'ai' ? (
+      <AiPanel />
+    ) : (
+      <div className="term-split">
+        <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
+        <TerminalSideTabs />
+      </div>
+    );
+
   if (embedded) {
     return (
       <div className="term-embedded" aria-label="Terminal">
         <DockSwitch />
-        {dock === 'ai' ? (
-          <AiPanel />
-        ) : (
-          <>
-            <TerminalTabs />
-            <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
-          </>
-        )}
+        {isi}
         {toast && (
           <div className="term-toast" role="status" data-testid="term-toast">
             {toast}
@@ -108,18 +117,8 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
         onPointerDown={startResize}
       />
 
-      {/* Pemilih isi panel bawah: Terminal | AI (fase 09) — baris sendiri
-          di atas isi panel, seperti semula. */}
       <DockSwitch />
-
-      {dock === 'ai' ? (
-        <AiPanel />
-      ) : (
-        <>
-          <TerminalTabs />
-          <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
-        </>
-      )}
+      {isi}
 
       {toast && (
         <div className="term-toast" role="status" data-testid="term-toast">

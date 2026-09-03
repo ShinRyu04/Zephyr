@@ -1,7 +1,12 @@
 // FindBar.tsx — panel Find & Replace di dalam editor (bukan dialog browser).
 // Query -> highlight semua, hitung match, next/prev, replace 1/semua, regex.
+//
+// FASE 24 menambah: whole word, find in selection, highlight all (toggle), dan
+// tombol "cari di semua file" yang menyerahkan query ke panel Search (fase 25).
+// Semua flag disimpan di state komponen — bukan settings — karena ini pilihan
+// per-pencarian, bukan preferensi jangka panjang.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SearchQuery,
   setSearchQuery,
@@ -11,9 +16,11 @@ import {
   replaceAll,
   openSearchPanel,
   closeSearchPanel,
+  selectMatches,
 } from '@codemirror/search';
 import { getActiveView } from '../../lib/editorRegistry';
 import { useStore } from '../../lib/store';
+import { notifyInfo } from '../../lib/notificationStore';
 
 export default function FindBar() {
   const open = useStore((s) => s.findOpen);
@@ -24,6 +31,11 @@ export default function FindBar() {
   const [replaceWith, setReplaceWith] = useState('');
   const [regex, setRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
+  /** batasi pencarian ke teks yang sedang diseleksi */
+  const [inSelection, setInSelection] = useState(false);
+  /** highlight semua hasil (bukan hanya yang aktif) */
+  const [highlightAll, setHighlightAll] = useState(true);
   const [showReplace, setShowReplace] = useState(false);
   const [count, setCount] = useState(0);
   const [invalid, setInvalid] = useState(false);
@@ -42,10 +54,25 @@ export default function FindBar() {
         setTooMany(false);
         return;
       }
-      const text = docText();
+      const view = getActiveView();
+      // "Find in selection": hanya hitung di dalam rentang terpilih, supaya
+      // angka yang ditampilkan cocok dengan apa yang benar-benar akan diganti.
+      let text = docText();
+      if (inSelection && view) {
+        const sel = view.state.selection.main;
+        if (!sel.empty) text = view.state.doc.sliceString(sel.from, sel.to);
+      }
       try {
         const flags = caseSensitive ? 'g' : 'gi';
-        const pattern = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let pattern = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Whole word: \b tidak berfungsi kalau query diawali/diakhiri simbol,
+        // jadi dipasang hanya ketika ujungnya karakter kata — persis seperti
+        // yang dilakukan CodeMirror sendiri.
+        if (wholeWord) {
+          const kiri = /^\w/.test(query) ? '\\b' : '';
+          const kanan = /\w$/.test(query) ? '\\b' : '';
+          pattern = `${kiri}(?:${pattern})${kanan}`;
+        }
         const re = new RegExp(pattern, flags);
         // fase 15.1: `String.match(/g/)` pada regex seperti `a+` di file besar
         // bisa menghasilkan ratusan ribu match dan menggantung UI beberapa
@@ -76,7 +103,7 @@ export default function FindBar() {
         setInvalid(true);
       }
     },
-    [query, regex, caseSensitive],
+    [query, regex, caseSensitive, wholeWord, inSelection],
   );
 
   // Terapkan query ke CodeMirror agar highlight & next/prev sinkron.
@@ -92,6 +119,7 @@ export default function FindBar() {
             replace: replaceWith,
             regexp: regex,
             caseSensitive,
+            wholeWord,
           }),
         ),
       });
@@ -101,7 +129,14 @@ export default function FindBar() {
       /* query regex tidak valid — ditandai lewat `invalid` */
     }
     recount();
-  }, [query, replaceWith, regex, caseSensitive, open, activeTabId, recount]);
+  }, [query, replaceWith, regex, caseSensitive, wholeWord, open, activeTabId, recount]);
+
+  // Highlight all: kelas di <body> mengaktifkan aturan CSS untuk
+  // .cm-searchMatch (default CodeMirror hanya menonjolkan match aktif).
+  useEffect(() => {
+    document.body.classList.toggle('find-highlight-all', open && highlightAll);
+    return () => document.body.classList.remove('find-highlight-all');
+  }, [open, highlightAll]);
 
   useEffect(() => {
     if (open) {
@@ -112,6 +147,20 @@ export default function FindBar() {
       if (view) closeSearchPanel(view);
     }
   }, [open]);
+
+  const cariDiSemuaFile = useCallback(() => {
+    if (!query) return;
+    // Panel Search adalah fase 25. Sampai ada, query diserahkan lewat event
+    // window + notifikasi, BUKAN tombol mati: jalurnya sudah benar, yang
+    // menangkap event tinggal dipasang nanti.
+    const ev = new CustomEvent('zephyr-search-in-files', {
+      detail: { query, regex, caseSensitive, wholeWord },
+    });
+    const tertangkap = !window.dispatchEvent(ev) || false;
+    if (!tertangkap) {
+      notifyInfo(`Cari "${query}" di semua file — panel Search hadir di fase 25`);
+    }
+  }, [query, regex, caseSensitive, wholeWord]);
 
   if (!open) return null;
 
@@ -135,7 +184,7 @@ export default function FindBar() {
   };
 
   return (
-    <div className="find-bar" onKeyDown={onKeyDown}>
+    <div className="find-bar" data-testid="find-bar" onKeyDown={onKeyDown}>
       <div className="find-row">
         <button
           className="find-toggle"
@@ -148,6 +197,7 @@ export default function FindBar() {
         <input
           ref={inputRef}
           className={`find-input${invalid ? ' is-invalid' : ''}`}
+          data-testid="find-input"
           placeholder="Cari"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -156,6 +206,7 @@ export default function FindBar() {
 
         <button
           className={`find-flag${caseSensitive ? ' is-on' : ''}`}
+          data-testid="find-case"
           title="Case sensitive"
           aria-pressed={caseSensitive}
           onClick={() => setCaseSensitive((v) => !v)}
@@ -163,12 +214,40 @@ export default function FindBar() {
           Aa
         </button>
         <button
+          className={`find-flag${wholeWord ? ' is-on' : ''}`}
+          data-testid="find-word"
+          title="Whole word"
+          aria-pressed={wholeWord}
+          onClick={() => setWholeWord((v) => !v)}
+        >
+          ab
+        </button>
+        <button
           className={`find-flag${regex ? ' is-on' : ''}`}
+          data-testid="find-regex"
           title="Regular expression"
           aria-pressed={regex}
           onClick={() => setRegex((v) => !v)}
         >
           .*
+        </button>
+        <button
+          className={`find-flag${inSelection ? ' is-on' : ''}`}
+          data-testid="find-in-sel"
+          title="Cari hanya di dalam seleksi"
+          aria-pressed={inSelection}
+          onClick={() => setInSelection((v) => !v)}
+        >
+          ⌷
+        </button>
+        <button
+          className={`find-flag${highlightAll ? ' is-on' : ''}`}
+          data-testid="find-hl-all"
+          title="Sorot semua hasil"
+          aria-pressed={highlightAll}
+          onClick={() => setHighlightAll((v) => !v)}
+        >
+          ≡
         </button>
 
         <span className="find-count" data-testid="find-count">
@@ -177,7 +256,7 @@ export default function FindBar() {
             : tooMany
               ? `20.000+ hasil (dihentikan)`
               : count > 0
-                ? `${count} hasil`
+                ? `${count} hasil${inSelection ? ' (seleksi)' : ''}`
                 : query
                   ? 'tidak ada'
                   : ''}
@@ -189,6 +268,22 @@ export default function FindBar() {
         <button className="find-btn" title="Berikutnya (Enter)" onClick={() => act(findNext)}>
           ↓
         </button>
+        <button
+          className="find-btn"
+          data-testid="find-select-all"
+          title="Pilih semua hasil (multi-cursor)"
+          onClick={() => act(selectMatches)}
+        >
+          ⋮
+        </button>
+        <button
+          className="find-btn"
+          data-testid="find-in-files"
+          title="Cari di semua file"
+          onClick={cariDiSemuaFile}
+        >
+          ⌕
+        </button>
         <button className="find-btn" title="Tutup (Esc)" onClick={() => setFindOpen(false)}>
           ✕
         </button>
@@ -199,6 +294,7 @@ export default function FindBar() {
           <span className="find-toggle" aria-hidden="true" />
           <input
             className="find-input"
+            data-testid="find-replace-input"
             placeholder="Ganti dengan"
             value={replaceWith}
             onChange={(e) => setReplaceWith(e.target.value)}
@@ -207,7 +303,11 @@ export default function FindBar() {
           <button className="find-btn find-btn-wide" onClick={() => act(replaceNext)}>
             Ganti
           </button>
-          <button className="find-btn find-btn-wide" onClick={() => act(replaceAll)}>
+          <button
+            className="find-btn find-btn-wide"
+            data-testid="find-replace-all"
+            onClick={() => act(replaceAll)}
+          >
             Ganti semua
           </button>
         </div>

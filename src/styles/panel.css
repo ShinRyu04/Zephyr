@@ -124,16 +124,14 @@
   background: var(--surface-3, var(--bg2));
 }
 .pts-menu {
-  position: absolute;
-  top: 26px;
-  right: 0;
+  /* Posisi diatur inline oleh Popover (portal ke <body>) — dulu absolut di
+     dalam .pts-ops dan ikut terpotong `overflow: hidden` panel. */
   min-width: 178px;
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg1, var(--surface));
   box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
-  z-index: 40;
 }
 .pts-menu-item {
   display: flex;
