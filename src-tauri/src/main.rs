@@ -9,5 +9,11 @@ fn main() {
     if zephyr_lib::run_credential_helper() {
         return;
     }
+    // fase 28: `zephyr --help` / `--version` juga mode konsol. Sama alasannya —
+    // membuka window untuk mencetak satu baris teks membuat editor berkedip
+    // tiap kali user cuma memeriksa versi.
+    if zephyr_lib::run_cli_console() {
+        return;
+    }
     zephyr_lib::run()
 }
