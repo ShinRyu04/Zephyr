@@ -19,6 +19,7 @@ import { THEMES, systemPrefersDark, semuaTema } from './themes';
 import { useExt19, getBahasaWorkspace } from './extensionsStore19';
 import { useTasks } from './tasksStore';
 import { useHistory } from './historyStore';
+import { useSearch } from './searchStore';
 import {
   tasksMatchLine as tasksMatchLineCmd,
   tasksDetectPort as tasksDetectPortCmd,
@@ -1068,6 +1069,89 @@ export function installDevBridge(): void {
       availableCommands()
         .filter((c) => c.id.startsWith('timeline.'))
         .map((c) => c.id),
+  };
+
+  // ── fase 25: bridge Global Search (harness verify25) ──
+  w.__ZEPHYR_SRC__ = {
+    store: () => useSearch,
+    state: () => useSearch.getState(),
+    /** info binary rg yang benar-benar dipakai */
+    rg: () => useSearch.getState().rg,
+    cekRg: () => useSearch.getState().cekRg(),
+    setQuery: (q: string) => useSearch.getState().setQuery(q),
+    setReplaceWith: (r: string) => useSearch.getState().setReplaceWith(r),
+    setInclude: (g: string) => useSearch.getState().setInclude(g),
+    setExclude: (g: string) => useSearch.getState().setExclude(g),
+    setMaxResults: (n: number) => useSearch.getState().setMaxResults(n),
+    /** batasi pencarian ke satu folder ('' = seluruh workspace) */
+    setRoot: (p: string) => useSearch.getState().setRoot(p),
+    /** setel semua flag sekaligus supaya harness tidak perlu banyak toggle */
+    setFlag: (f: {
+      caseSensitive?: boolean;
+      wholeWord?: boolean;
+      regex?: boolean;
+      respectGitignore?: boolean;
+      includeHidden?: boolean;
+    }) => useSearch.setState(f),
+    jalankan: () => useSearch.getState().jalankan(),
+    batalkan: () => useSearch.getState().batalkan(),
+    bersihkan: () => useSearch.getState().bersihkan(),
+    /** ringkasan hasil: jumlah, file, waktu, truncated */
+    summary: () => useSearch.getState().summary,
+    total: () => useSearch.getState().total,
+    error: () => useSearch.getState().error,
+    running: () => useSearch.getState().running,
+    /** hasil terkelompok per file (path relatif dipendekkan) */
+    grup: () =>
+      useSearch.getState().grup.map((g) => ({
+        path: g.path,
+        n: g.hits.length,
+        terbuka: g.terbuka,
+        baris: g.hits.slice(0, 3).map((h) => h.line),
+      })),
+    /** satu hit lengkap, untuk memeriksa kolom & ranges */
+    hit: (i: number) => useSearch.getState().semuaHit()[i] ?? null,
+    jumlahHit: () => useSearch.getState().semuaHit().length,
+    bukaHit: (i: number) => {
+      const h = useSearch.getState().semuaHit()[i];
+      return h ? useSearch.getState().bukaHit(h) : Promise.resolve();
+    },
+    lompat: (d: number) => useSearch.getState().lompat(d),
+    indeksAktif: () => useSearch.getState().indeksAktif,
+    riwayat: () => useSearch.getState().riwayat,
+    replaceSatuFile: (p: string) => useSearch.getState().replaceSatuFile(p),
+    replaceSemua: () => useSearch.getState().replaceSemua(),
+    undoReplace: () => useSearch.getState().undoReplace(),
+    replaceTerakhir: () =>
+      (useSearch.getState().replaceTerakhir ?? []).map((h) => ({
+        path: h.path,
+        jumlah: h.jumlah,
+        adaSnapshot: h.snapshot !== '',
+        error: h.error,
+      })),
+    setReplaceTerbuka: (v: boolean) => useSearch.getState().setReplaceTerbuka(v),
+    /** jumlah node DOM yang BENAR-BENAR dirender (bukti virtualisasi) */
+    domHit: () => document.querySelectorAll('[data-testid="sr-hit"]').length,
+    domFile: () => document.querySelectorAll('[data-testid="sr-file"]').length,
+    tinggiSpacer: () => {
+      const el = document.querySelector<HTMLElement>('[data-testid="sr-spacer"]');
+      return el ? Math.round(el.getBoundingClientRect().height) : 0;
+    },
+    /** gulirkan daftar hasil (untuk menguji virtualisasi) */
+    gulir: (y: number) => {
+      const el = document.querySelector<HTMLElement>('[data-testid="sr-results"]')
+        ?? document.querySelector<HTMLElement>('.search-results');
+      if (!el) return -1;
+      el.scrollTop = y;
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+      return el.scrollTop;
+    },
+    /** teks yang tersorot <mark> di baris hasil ke-i */
+    sorotan: (i: number) => {
+      const baris = document.querySelectorAll('[data-testid="sr-hit"]')[i];
+      if (!baris) return [];
+      return [...baris.querySelectorAll('mark')].map((m) => m.textContent ?? '');
+    },
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

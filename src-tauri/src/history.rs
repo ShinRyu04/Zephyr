@@ -44,7 +44,10 @@ const CEK_BINER_BYTE: usize = 8192;
 
 /// Alasan snapshot dibuat.
 fn reason_valid(r: &str) -> bool {
-    matches!(r, "save" | "before-rename" | "manual" | "before-restore")
+    matches!(
+        r,
+        "save" | "before-rename" | "manual" | "before-restore" | "before-replace"
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -239,6 +242,63 @@ fn izinkan(state: &AppState, p: &Path) -> ZResult<PathBuf> {
 }
 
 // ───────────────────────── command ─────────────────────────
+
+/// Snapshot untuk pemanggil INTERNAL (mis. search_replace fase 25).
+///
+/// Dipisah dari command `history_snapshot` karena command Tauri menerima
+/// `State<AppState>`, sementara modul lain sudah memegang `&AppState`.
+/// Mengembalikan id snapshot, atau '' bila di-skip (isi identik / besar /
+/// biner) — pemanggil TIDAK boleh menganggap '' sebagai kegagalan fatal.
+pub fn snapshot_internal(state: &AppState, path: &Path, reason: &str) -> ZResult<String> {
+    if !reason_valid(reason) {
+        return Err(ZephyrError::InvalidInput(format!(
+            "reason \"{reason}\" tidak dikenal"
+        )));
+    }
+    let abs = izinkan(state, path)?;
+    let meta_fs = std::fs::metadata(&abs)?;
+    if !meta_fs.is_file() {
+        return Ok(String::new());
+    }
+    if meta_fs.len() > BATAS_BYTE {
+        return Ok(String::new());
+    }
+    let isi = std::fs::read(&abs)?;
+    if !alasan_skip(&isi, meta_fs.len()).is_empty() {
+        return Ok(String::new());
+    }
+
+    let dir = dir_untuk(state, &abs);
+    std::fs::create_dir_all(&dir)?;
+    let mut meta = baca_meta(&dir);
+    meta.path = abs.to_string_lossy().to_string();
+
+    let hash = blake3::hash(&isi).to_hex().to_string();
+    if hash == meta.hash_terakhir {
+        // Isi identik dengan snapshot terakhir → jangan tulis duplikat, TAPI
+        // jangan kembalikan '' juga.
+        //
+        // Pemanggil internal (search_replace) memakai id ini untuk undo. Kalau
+        // dedup mengembalikan string kosong, Replace All pada file yang isinya
+        // sama dengan snapshot sebelumnya menjadi TIDAK BISA dibatalkan — dan
+        // itu justru terjadi pada kasus paling wajar: user menjalankan replace
+        // dua kali, atau file dikembalikan ke isi lama lalu di-replace lagi.
+        // Snapshot yang sudah ada isinya identik, jadi ia pengganti yang sah.
+        if let Some(s) = daftar_snapshot(&dir).first() {
+            return Ok(s.id.clone());
+        }
+        // Meta mengaku pernah menyimpan hash ini tapi filenya sudah tidak ada
+        // (dipangkas / dihapus manual) — tulis ulang supaya undo tetap punya
+        // sandaran.
+    }
+    let id = format!("{}__{}.snap", now_ms(), reason);
+    std::fs::write(dir.join(&id), &isi)?;
+    meta.hash_terakhir = hash;
+    meta.total += 1;
+    tulis_meta(&dir, &meta);
+    pangkas(&dir, 50, 30);
+    Ok(id)
+}
 
 /// Buat snapshot sebuah file. Mengembalikan id snapshot, atau '' bila di-skip.
 #[tauri::command(async)]

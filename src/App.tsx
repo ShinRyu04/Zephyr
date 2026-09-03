@@ -34,6 +34,7 @@ import { applyTheme, watchSystemTheme } from './lib/themes';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindTaskListeners, useTasks } from './lib/tasksStore';
 import { useHistory } from './lib/historyStore';
+import { bindSearchListeners, useSearch } from './lib/searchStore';
 import { usePanel } from './lib/panelStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
@@ -209,6 +210,23 @@ export default function App() {
           window.setTimeout(() => {
             document.querySelector<HTMLInputElement>('.search-input')?.focus();
           }, 60);
+          break;
+        // fase 25: Ctrl+Shift+H = sama seperti Ctrl+Shift+F tapi panel replace
+        // langsung terbuka — itu satu-satunya bedanya di VS Code juga.
+        case 'edit.replaceInFiles':
+          s.setSettingsOpen(false);
+          s.setActivity('search');
+          if (!s.sidebarVisible) s.toggleSidebar();
+          useSearch.getState().setReplaceTerbuka(true);
+          window.setTimeout(() => {
+            document.querySelector<HTMLInputElement>('.search-input')?.focus();
+          }, 60);
+          break;
+        case 'edit.nextMatch':
+          void useSearch.getState().lompat(1);
+          break;
+        case 'edit.prevMatch':
+          void useSearch.getState().lompat(-1);
           break;
         case 'view.sidebar':
           s.toggleSidebar();
@@ -589,6 +607,8 @@ export default function App() {
   //     effect dua kali dan setiap baris output task akan tampil dobel.
   useEffect(() => {
     bindTaskListeners();
+    // fase 25: listener `search-hit` juga punya guard modul sendiri.
+    bindSearchListeners();
     // tasks.json hanya ada kalau sudah ada workspace. Dibaca lewat subscribe,
     // bukan selector: `workspace` bisa berubah setelah bootstrap selesai dan
     // effect dengan array dependensi kosong tidak akan melihatnya.
