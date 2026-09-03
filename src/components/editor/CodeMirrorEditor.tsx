@@ -42,8 +42,11 @@ import { useStore } from '../../lib/store';
 import { loadLangExtension } from '../../lib/lang';
 import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
-import { useProblems, type Diagnostic } from '../../lib/problemsStore';
+import { useProblems, kunciPath, type Diagnostic } from '../../lib/problemsStore';
 import { diagCompartment, diagnosticsGutter } from '../../lib/diagnosticsGutter';
+import { useLsp } from '../../lib/lspStore';
+import { serverForPath } from '../../lib/lsp';
+import { lspAutocompletion, lspHover, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
 import type { Tab } from '../../lib/types';
 
 interface Props {
@@ -51,6 +54,8 @@ interface Props {
 }
 
 const DEBOUNCE_MS = 300;
+/** didChange ke LSP lebih cepat dari simpan-ke-store supaya diagnostics responsif. */
+const LSP_DEBOUNCE_MS = 350;
 
 /** Referensi stabil: selector zustand v5 membandingkan hasil dengan ===,
  *  jadi `?? []` inline akan memicu render tak berhingga (pelajaran fase 09). */
@@ -65,6 +70,8 @@ export default function CodeMirrorEditor({ tab }: Props) {
   const wsComp = useRef(new Compartment());
   const themeComp = useRef(new Compartment());
   const pending = useRef<number | null>(null);
+  /** debounce didChange LSP, terpisah dari debounce simpan-ke-store */
+  const lspPending = useRef<number | null>(null);
 
   const updateTabContent = useStore((s) => s.updateTabContent);
   const setCursor = useStore((s) => s.setCursor);
@@ -81,6 +88,11 @@ export default function CodeMirrorEditor({ tab }: Props) {
   // user tidak perlu mematikan tiga hal satu-satu.
   const lowRam = useStore((s) => s.settings.general.lowRam === true);
   const readOnly = tab.readOnly === true;
+
+  // FASE 21: apakah file ini punya language server? Dihitung sekali per tab —
+  // extension CodeMirror dibangun saat view dibuat dan tidak bisa ditambah
+  // belakangan tanpa rebuild (yang membuang undo history, pelajaran fase 13).
+  const adaLsp = !readOnly && !!tab.path && !!serverForPath(tab.path);
 
   // Bangun view sekali per tab (id berubah = tab lain).
   useEffect(() => {
@@ -131,8 +143,13 @@ export default function CodeMirrorEditor({ tab }: Props) {
             indentOnInput(),
             bracketMatching(),
             closeBrackets(),
-            autocompletion(),
+            // FASE 21: kalau ada language server untuk file ini, completion
+            // datang dari LSP (override); kalau tidak, autocompletion bawaan
+            // CodeMirror tetap dipakai. Satu `autocompletion()` saja — dua
+            // instance membuat dua popup bersaing.
+            adaLsp ? lspAutocompletion(tab.path ?? '') : autocompletion(),
             highlightSelectionMatches(),
+            ...(adaLsp ? [lspHover(tab.path ?? '')] : []),
           ]),
       rectangularSelection(),
       crosshairCursor(),
@@ -142,6 +159,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
       zephyrHighlight,
       themeComp.current.of(editorTheme(themeId)),
       diagCompartment.of([]),
+      squiggleCompartment.of([]),
       baseKeymap,
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
@@ -155,6 +173,18 @@ export default function CodeMirrorEditor({ tab }: Props) {
             pending.current = null;
             updateTabContent(tab.id, u.state.doc.toString());
           }, DEBOUNCE_MS);
+          // FASE 21: kirim didChange ke language server dengan debounce
+          // sendiri (lebih cepat dari simpan-ke-store) supaya diagnostics
+          // terasa langsung tapi tidak satu request per ketikan.
+          if (adaLsp && tab.path) {
+            if (lspPending.current !== null) window.clearTimeout(lspPending.current);
+            const teks = u.state.doc.toString();
+            const p = tab.path;
+            lspPending.current = window.setTimeout(() => {
+              lspPending.current = null;
+              void useLsp.getState().changeDoc(p, teks);
+            }, LSP_DEBOUNCE_MS);
+          }
         }
         if (u.selectionSet || u.docChanged) {
           const pos = u.state.selection.main.head;
@@ -173,16 +203,28 @@ export default function CodeMirrorEditor({ tab }: Props) {
     registerFlush(tab.id, flush);
     view.focus();
 
+    // FASE 21: didOpen setelah view siap. Server di-start lazy di dalam
+    // openDoc → ensureFor, jadi membuka file .md tidak menyalakan tsserver.
+    if (adaLsp && tab.path) {
+      const p = tab.path;
+      const def = serverForPath(p);
+      void useLsp.getState().openDoc(p, tab.content, def?.languageId ?? 'plaintext');
+    }
+
     const pos = view.state.selection.main.head;
     const line = view.state.doc.lineAt(pos);
     setCursor(line.number, pos - line.from + 1);
 
     return () => {
       flush();
+      if (lspPending.current !== null) window.clearTimeout(lspPending.current);
       unregisterFlush(tab.id);
       setActiveView(null);
       view.destroy();
       viewRef.current = null;
+      // didClose supaya server tahu dokumen tidak dipakai lagi (dan bisa
+      // dimatikan saat idle — V5).
+      if (adaLsp && tab.path) void useLsp.getState().closeDoc(tab.path);
     };
     // Sengaja hanya bergantung pada id tab: perubahan setting ditangani
     // effect terpisah lewat compartment (tanpa rebuild view).
@@ -248,14 +290,23 @@ export default function CodeMirrorEditor({ tab }: Props) {
   // FASE 20: gutter marker diagnostik. Compartment di-reconfigure, bukan
   // rebuild view — rebuild membuang undo history + posisi kursor (fase 13).
   // Squiggle inline BUKAN di sini: itu pekerjaan fase 21 (LSP).
-  const diagList = useProblems((s) => (tab.path ? s.byFile.get(tab.path) ?? EMPTY_DIAG : EMPTY_DIAG));
+  const diagList = useProblems((s) =>
+    tab.path ? s.byFile.get(kunciPath(tab.path)) ?? EMPTY_DIAG : EMPTY_DIAG,
+  );
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: diagCompartment.reconfigure(
-        diagnosticsGutter(diagList, view.state.doc.lines),
-      ),
+      effects: [
+        diagCompartment.reconfigure(diagnosticsGutter(diagList, view.state.doc.lines)),
+        // FASE 21: squiggle inline. Dipisah dari gutter supaya keduanya bisa
+        // di-update independen dan tetap satu sumber data (problemsStore).
+        squiggleCompartment.reconfigure(
+          diagList.length === 0
+            ? []
+            : EditorView.decorations.of(squiggleFor(diagList, view)),
+        ),
+      ],
     });
   }, [diagList]);
 

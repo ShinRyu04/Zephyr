@@ -10,6 +10,7 @@ import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
 import { AgentsSection, ModelsSection, ShortcutsSection } from './SectionsAdvanced';
 import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
 import { ExtensionsSection } from './SectionsExtensions';
+import SectionsLsp from './SectionsLsp';
 import McpPanel from './McpPanel';
 
 function SectionBody({ id }: { id: SectionId }) {
@@ -28,6 +29,8 @@ function SectionBody({ id }: { id: SectionId }) {
       return <AgentsSection />;
     case 'extensions':
       return <ExtensionsSection />;
+    case 'lsp':
+      return <SectionsLsp />;
     case 'scm':
       return <ScmSection />;
     case 'mcp':

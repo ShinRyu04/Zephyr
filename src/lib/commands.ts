@@ -62,6 +62,25 @@ export const takeBrokenConfig = () => invoke<string>('take_broken_config');
 export const getKeybindings = () => invoke<unknown[]>('get_keybindings');
 export const setKeybindings = (bindings: unknown[]) =>
   invoke<void>('set_keybindings', { bindings });
+// ── fase 21: Language Server Protocol ──
+export const lspStart = (
+  spec: { id: string; cmd: string[]; lang: string },
+  root: string,
+  initOptions: unknown,
+  idleSecs?: number,
+) => invoke<unknown>('lsp_start', { spec, root, initOptions, idleSecs });
+export const lspRequest = (server: string, method: string, params: unknown) =>
+  invoke<unknown>('lsp_request', { server, method, params });
+export const lspNotify = (server: string, method: string, params: unknown) =>
+  invoke<void>('lsp_notify', { server, method, params });
+export const lspStop = (server: string) => invoke<boolean>('lsp_stop', { server });
+export const lspStopAll = () => invoke<number>('lsp_stop_all');
+export const lspStatus = () => invoke<unknown[]>('lsp_status');
+export const lspReap = () => invoke<string[]>('lsp_reap');
+export const lspSetIdle = (server: string, secs: number) =>
+  invoke<void>('lsp_set_idle', { server, secs });
+export const lspProbe = (spec: { id: string; cmd: string[]; lang: string }, root?: string) =>
+  invoke<unknown>('lsp_probe', { spec, root });
 export const workspaceOpen = (path: string) => invoke<void>('workspace_open', { path });
 export const workspaceClose = () => invoke<void>('workspace_close');
 

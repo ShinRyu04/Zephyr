@@ -37,6 +37,13 @@ import { useProblems } from './problemsStore';
 import { useOutput } from './outputStore';
 import { usePorts } from './portsStore';
 import { evaluateDebugExpr } from '../components/shell/DebugConsoleView';
+import { useLsp } from './lspStore';
+import {
+  LSP_SERVERS,
+  effectiveSpec,
+  pathToUri as pathToUriLsp,
+  serverForPath as serverForPathLsp,
+} from './lsp';
 
 type CmdName = 'undo' | 'redo';
 
@@ -599,6 +606,117 @@ export function installDevBridge(): void {
 
     /** REPL Debug Console (fase 20 = no-op yang menulis ke Output "debug") */
     debugEval: (expr: string) => evaluateDebugExpr(expr),
+  };
+
+  // ── fase 21: language server ──
+  w.__ZEPHYR_LSP__ = {
+    store: useLsp,
+    /** server yang hidup menurut store frontend */
+    aktif: () => Object.keys(useLsp.getState().aktif),
+    /** status dari Rust (pid, idle, dokumen terbuka) */
+    status: () => useLsp.getState().status(),
+    /** dokumen yang sudah didOpen */
+    docs: () =>
+      Object.entries(useLsp.getState().docs).map(([path, d]) => ({
+        path,
+        serverId: d.serverId,
+        version: d.version,
+      })),
+    ensureFor: (path: string) => useLsp.getState().ensureFor(path),
+    openDoc: (path: string, text: string, lang: string) =>
+      useLsp.getState().openDoc(path, text, lang),
+    changeDoc: (path: string, text: string) => useLsp.getState().changeDoc(path, text),
+    closeDoc: (path: string) => useLsp.getState().closeDoc(path),
+    req: (path: string, method: string, params: Record<string, unknown>) =>
+      useLsp.getState().req(path, method, params),
+    stop: (id: string) => useLsp.getState().stop(id),
+    stopAll: () => useLsp.getState().stopAll(),
+    reap: () => useLsp.getState().reap(),
+    setIdle: (id: string, secs: number) => useLsp.getState().setIdle(id, secs),
+    probeAll: () => useLsp.getState().probeAll(),
+    probe: () => useLsp.getState().probe,
+    error: () => useLsp.getState().lspError,
+    /** katalog + spesifikasi efektif (untuk membuktikan override Settings) */
+    katalog: () =>
+      LSP_SERVERS.map((d) => ({
+        id: d.id,
+        langs: d.langs,
+        ext: d.extensions,
+        spec: effectiveSpec(d, useLsp.getState().settings()),
+      })),
+    serverForPath: (p: string) => serverForPathLsp(p)?.id ?? null,
+
+    // Fitur editor lewat jalur nyata (bukan meniru logikanya di harness).
+    definition: async (path: string) => {
+      const { lspDefinition } = await import('./lspCm');
+      const view = getActiveView();
+      if (!view) return null;
+      return lspDefinition(path, view, view.state.selection.main.head);
+    },
+    references: async (path: string) => {
+      const { lspReferences } = await import('./lspCm');
+      const view = getActiveView();
+      if (!view) return [];
+      return lspReferences(path, view, view.state.selection.main.head);
+    },
+    hover: async (path: string) => {
+      const view = getActiveView();
+      if (!view) return null;
+      const { offsetToLsp } = await import('./lspCm');
+      const { hoverText } = await import('./lsp');
+      const res = (await useLsp
+        .getState()
+        .req(path, 'textDocument/hover', {
+          textDocument: { uri: pathToUriLsp(path) },
+          position: offsetToLsp(view, view.state.selection.main.head),
+        })) as { contents?: unknown } | null;
+      return res ? hoverText(res.contents) : null;
+    },
+    completion: async (path: string) => {
+      const view = getActiveView();
+      if (!view) return [];
+      const { offsetToLsp } = await import('./lspCm');
+      const res = await useLsp.getState().req(path, 'textDocument/completion', {
+        textDocument: { uri: pathToUriLsp(path) },
+        position: offsetToLsp(view, view.state.selection.main.head),
+        context: { triggerKind: 1 },
+      });
+      const items = Array.isArray(res) ? res : ((res as { items?: unknown[] })?.items ?? []);
+      return (items as Record<string, unknown>[]).slice(0, 40).map((i) => String(i.label ?? ''));
+    },
+    symbols: async (path: string) => {
+      const { lspDocumentSymbols } = await import('./lspCm');
+      const res = await lspDocumentSymbols(path);
+      return res.map((r) => String((r as Record<string, unknown>).name ?? ''));
+    },
+    format: async (path: string) => {
+      const { lspFormat } = await import('./lspCm');
+      const view = getActiveView();
+      if (!view) return 0;
+      const ed = useStore.getState().settings.editor;
+      return lspFormat(path, view, ed.tabSize, ed.insertSpaces);
+    },
+    rename: async (path: string, baru: string) => {
+      const { lspRename } = await import('./lspCm');
+      const view = getActiveView();
+      if (!view) return null;
+      return lspRename(path, view, view.state.selection.main.head, baru);
+    },
+    /** pindahkan kursor ke line/col (1-based) sebelum memanggil fitur di atas */
+    goto: (line: number, col: number) => {
+      const view = getActiveView();
+      if (!view) return false;
+      const l = view.state.doc.line(Math.min(Math.max(line, 1), view.state.doc.lines));
+      const pos = Math.min(l.from + Math.max(col - 1, 0), l.to);
+      view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+      return true;
+    },
+    /** jumlah node squiggle yang benar-benar dirender */
+    squiggles: () => ({
+      total: document.querySelectorAll('.cm-zdiag').length,
+      error: document.querySelectorAll('.cm-zdiag-error').length,
+      warning: document.querySelectorAll('.cm-zdiag-warning').length,
+    }),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

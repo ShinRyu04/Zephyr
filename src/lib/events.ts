@@ -20,7 +20,15 @@ export const EV = {
   windowResized: 'window-resized',
   fileDropped: 'file-dropped',
   ramUsage: 'ram-usage',
+  lspEvent: 'lsp-event',
 } as const;
+
+/** fase 21: notifikasi & status language server dari Rust. */
+export function onLspEvent(
+  cb: (ev: Record<string, unknown>) => void,
+): Promise<UnlistenFn> {
+  return listen<Record<string, unknown>>(EV.lspEvent, (e) => cb(e.payload));
+}
 
 export function onRamUsage(cb: (bytes: number) => void): Promise<UnlistenFn> {
   return listen<{ bytes: number }>(EV.ramUsage, (e) => cb(e.payload.bytes));

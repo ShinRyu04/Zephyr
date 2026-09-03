@@ -141,6 +141,8 @@ export const MENUS: MenuDef[] = [
       { label: 'Go to File…', command: 'view.quickOpen' },
       { label: 'Go to Line…', command: 'editor.gotoLine' },
       { label: 'Go to Symbol…', command: 'editor.gotoSymbol' },
+      { label: 'Go to Definition', command: 'editor.gotoDefinition' },
+      { label: 'Find All References', command: 'editor.findReferences' },
       SEP,
       { label: 'Next Problem', command: 'editor.nextError' },
       { label: 'Previous Problem', command: 'editor.prevError' },
