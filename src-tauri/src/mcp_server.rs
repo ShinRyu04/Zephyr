@@ -167,7 +167,9 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
 /// balasan JSON-RPC error alih-alih menggantung sampai timeout 8 detik.
 pub fn stop(app: &AppHandle) -> bool {
     let state = app.state::<AppState>();
-    let dibatalkan = state.mcp_fail_pending("MCP dimatikan saat permintaan berjalan — coba lagi setelah server dinyalakan");
+    let dibatalkan = state.mcp_fail_pending(
+        "MCP dimatikan saat permintaan berjalan — coba lagi setelah server dinyalakan",
+    );
     if dibatalkan > 0 {
         tracing::info!("mcp_stop membatalkan {dibatalkan} permintaan yang menggantung");
     }
@@ -266,10 +268,7 @@ async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
 }
 
 /// GET /mcp — daftar tool + schema (discovery), butuh auth.
-async fn schema(
-    AxState(ctx): AxState<Arc<Ctx>>,
-    headers: HeaderMap,
-) -> axum::response::Response {
+async fn schema(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::response::Response {
     if !bearer_ok(&headers, &ctx.token) {
         return unauthorized();
     }
@@ -419,7 +418,6 @@ pub fn tools_schema() -> Value {
         ]
     })
 }
-
 
 /// Kirim `mcp-action` ke frontend lalu tunggu `mcp_reply` dengan reqId sama.
 /// Frontend-lah yang memegang zustand (tab editor, pane, layout).
@@ -606,7 +604,12 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 .and_then(|v| v.as_str())
                 .unwrap_or("shell")
                 .to_string();
-            ui_call(app, "pane_new", json!({ "type": kind, "agent": params.get("agent") })).await
+            ui_call(
+                app,
+                "pane_new",
+                json!({ "type": kind, "agent": params.get("agent") }),
+            )
+            .await
         }
         "pane_close" => {
             let pane = need_str(&params, "paneId")?;
@@ -614,7 +617,12 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
         }
         // fase 20: baca-saja. Store-nya di frontend, jadi tetap lewat ui_call.
         "get_problems" => {
-            ui_call(app, "get_problems", json!({ "severity": params.get("severity") })).await
+            ui_call(
+                app,
+                "get_problems",
+                json!({ "severity": params.get("severity") }),
+            )
+            .await
         }
         "get_output" => {
             ui_call(
@@ -649,7 +657,12 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 )));
             }
             // Kontrak keras: buffer saja, TIDAK menulis disk.
-            ui_call(app, "editor_write", json!({ "tabId": tab, "content": content })).await
+            ui_call(
+                app,
+                "editor_write",
+                json!({ "tabId": tab, "content": content }),
+            )
+            .await
         }
         "editor_insert" => {
             let tab = need_str(&params, "tabId")?;
@@ -731,4 +744,3 @@ async fn screenshot(app: &AppHandle, pane: &str) -> ZResult<Value> {
         "note": "v1 menyimpan isi buffer terminal sebagai teks; capture PNG jendela menyusul di fase 16"
     }))
 }
-

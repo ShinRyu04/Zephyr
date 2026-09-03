@@ -46,8 +46,8 @@ mod tests {
         assert_eq!(v["mcpServers"]["zephyr"]["url"], "http://127.0.0.1:9224");
 
         // key induk bertipe salah -> diganti object, tidak panik
-        let out2 = merge_json_for_test(r#"{"mcpServers": "rusak"}"#, "mcpServers", 9222, TOKEN)
-            .unwrap();
+        let out2 =
+            merge_json_for_test(r#"{"mcpServers": "rusak"}"#, "mcpServers", 9222, TOKEN).unwrap();
         let v2: Value = serde_json::from_str(&out2).unwrap();
         assert!(v2["mcpServers"]["zephyr"].is_object());
     }
@@ -93,7 +93,10 @@ mod tests {
         let existing = "model = \"gpt-5\"\n\n[mcp_servers.lain]\ncommand = \"x\"\n";
         let out = merge_toml_for_test(existing, "mcp_servers", 9222, TOKEN);
 
-        assert!(out.contains("model = \"gpt-5\""), "baris lain hilang: {out}");
+        assert!(
+            out.contains("model = \"gpt-5\""),
+            "baris lain hilang: {out}"
+        );
         assert!(out.contains("[mcp_servers.lain]"), "server lain hilang");
         assert!(out.contains("[mcp_servers.zephyr]"));
         assert!(out.contains("url = \"http://127.0.0.1:9222\""));

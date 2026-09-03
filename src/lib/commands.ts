@@ -38,6 +38,9 @@ import type {
   Settings,
   ShellInfo,
   StatResult,
+  TaskProblem,
+  TaskRun,
+  TasksFile,
   ZephyrError,
 } from './types';
 
@@ -306,3 +309,42 @@ export const perfMark = (name: string, durMs?: number) =>
   invoke<void>('perf_mark', { name, durMs });
 /** HANYA build debug: memicu panic untuk menguji panic hook (V7 fase 14). */
 export const debugPanic = () => invoke<void>('debug_panic');
+
+// ─────────────────── tasks (fase 23) ───────────────────
+
+/** Baca + validasi tasks.json (.zephyr/ lalu .vscode/). */
+export const tasksLoad = (root?: string) => invoke<TasksFile>('tasks_load', { root });
+/** Nama preset problem matcher yang tersedia. */
+export const tasksMatchers = () => invoke<string[]>('tasks_matchers');
+/** Uji satu baris terhadap sebuah matcher (diagnosa/harness). */
+export const tasksMatchLine = (matcher: string, line: string, root?: string) =>
+  invoke<TaskProblem | null>('tasks_match_line', { matcher, line, root });
+/**
+ * Jalankan satu task. Output/masalah/port mengalir lewat event
+ * `task-output` / `task-problem` / `task-port` / `task-exit`.
+ */
+export const tasksRun = (a: {
+  id: string;
+  label: string;
+  kind: string;
+  command: string;
+  args: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  problemMatchers?: string[];
+  isBackground?: boolean;
+  beginsPattern?: string;
+  endsPattern?: string;
+}) => invoke<string>('tasks_run', a);
+/** Tunggu sebuah run selesai. */
+export const tasksWait = (id: string, timeoutMs?: number) =>
+  invoke<TaskRun>('tasks_wait', { id, timeoutMs });
+/** Hentikan run beserta seluruh pohon prosesnya. */
+export const tasksKill = (id: string) => invoke<boolean>('tasks_kill', { id });
+/** Daftar run yang tercatat di Rust. */
+export const tasksRuns = () => invoke<TaskRun[]>('tasks_runs');
+/** Buang riwayat run yang sudah selesai. */
+export const tasksClearRuns = () => invoke<number>('tasks_clear_runs');
+/** Deteksi port dari sebuah baris output (harness). */
+export const tasksDetectPort = (line: string) =>
+  invoke<{ port: number; https: boolean } | null>('tasks_detect_port', { line });

@@ -174,7 +174,9 @@ fn script_node(node_modules: &Path, bin_name: &str) -> Option<PathBuf> {
 /// memaksa versi global — perilaku yang sama dengan VS Code untuk TypeScript.
 fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(String, Vec<String>)> {
     if spec.cmd.is_empty() {
-        return Err(ZephyrError::InvalidInput("cmd language server kosong".into()));
+        return Err(ZephyrError::InvalidInput(
+            "cmd language server kosong".into(),
+        ));
     }
     let exe = spec.cmd[0].clone();
     let args: Vec<String> = spec.cmd[1..].to_vec();
@@ -216,7 +218,11 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
         }
         // Tidak ketemu paketnya → pakai shim Windows (.cmd) sebagai cadangan.
         let bin = nm.join(".bin");
-        for nama in [format!("{exe}.cmd"), format!("{exe}.exe"), format!("{exe}.bat")] {
+        for nama in [
+            format!("{exe}.cmd"),
+            format!("{exe}.exe"),
+            format!("{exe}.bat"),
+        ] {
             let k = bin.join(&nama);
             if k.is_file() {
                 return Ok((k.to_string_lossy().to_string(), args));
@@ -525,8 +531,14 @@ fn client_capabilities() -> Value {
 
 /// Konversi path Windows → file:// URI yang diterima language server.
 pub fn path_to_uri(p: &Path) -> String {
-    let s = crate::paths::strip_unc(p).to_string_lossy().replace('\\', "/");
-    let s = if s.starts_with('/') { s } else { format!("/{s}") };
+    let s = crate::paths::strip_unc(p)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let s = if s.starts_with('/') {
+        s
+    } else {
+        format!("/{s}")
+    };
     // Encode karakter yang bermasalah; biarkan '/' , ':' dan alfanumerik.
     let mut out = String::from("file://");
     for ch in s.chars() {
@@ -626,7 +638,10 @@ pub async fn lsp_notify(server: String, method: String, params: Value) -> ZResul
             }
         }
     }
-    write_msg(&srv, &json!({ "jsonrpc": "2.0", "method": method, "params": params }))
+    write_msg(
+        &srv,
+        &json!({ "jsonrpc": "2.0", "method": method, "params": params }),
+    )
 }
 
 #[tauri::command(async)]

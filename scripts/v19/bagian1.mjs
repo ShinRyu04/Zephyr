@@ -229,6 +229,19 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
     // Tabel Keyboard Shortcuts: kolom Sumber harus menyebut ekstensi.
     window.__ZEPHYR_KB__.editor(true);
     await wait(700);
+    // BUG HARNESS: KeybindingsEditor MENYIMPAN teks pencarian antar pembukaan,
+    // dan verify18 meninggalkannya berisi "save" — barisnya tersaring habis,
+    // jadi V4 membaca null dan menyimpulkan produknya salah. Kosongkan dulu.
+    // setNativeValue dipakai karena mengubah .value dari CDP tidak memicu
+    // onChange React (pelajaran fase 08).
+    const cari = q('[data-testid="kb-search"]');
+    if (cari && cari.value) {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, 'value').set;
+      setter.call(cari, '');
+      cari.dispatchEvent(new Event('input', { bubbles: true }));
+      await wait(500);
+    }
     const baris = q('[data-kb-row="' + cmdUji + '"]');
     const sel = baris ? baris.querySelector('.kb-src') : null;
     const srcTeks = sel ? sel.textContent.trim() : null;

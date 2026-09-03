@@ -17,6 +17,12 @@ import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT
 import { ALL_MODELS } from './modelCatalog';
 import { THEMES, systemPrefersDark, semuaTema } from './themes';
 import { useExt19, getBahasaWorkspace } from './extensionsStore19';
+import { useTasks } from './tasksStore';
+import {
+  tasksMatchLine as tasksMatchLineCmd,
+  tasksDetectPort as tasksDetectPortCmd,
+  tasksMatchers as tasksMatchersCmd,
+} from './commands';
 import { KATALOG_BUNDLED } from './extCatalog';
 import {
   ringkasanLoader,
@@ -918,6 +924,93 @@ export function installDevBridge(): void {
     chord: (command: string) => chordFor(command, useKb.getState().bindings),
     sumberChord: (command: string) =>
       useKb.getState().bindings.find((b) => b.command === command)?.source ?? null,
+  };
+
+  // ── fase 23: bridge Tasks (harness verify23) ──
+  w.__ZEPHYR_TASK__ = {
+    store: () => useTasks,
+    state: () => useTasks.getState(),
+    muat: (root?: string) => useTasks.getState().muat(root),
+    /** task yang berhasil divalidasi Rust */
+    daftar: () =>
+      useTasks
+        .getState()
+        .daftar()
+        .map((t) => ({
+          label: t.label,
+          kind: t.kind,
+          command: t.command,
+          group: t.group,
+          isDefault: t.isDefault,
+          matchers: t.problemMatchers,
+          dependsOn: t.dependsOn,
+          dependsOrder: t.dependsOrder,
+          isBackground: t.isBackground,
+          reveal: t.reveal,
+          cwd: t.cwd,
+        })),
+    /** error skema dari tasks.json (bukti task rusak tidak menjatuhkan sisanya) */
+    errors: () => useTasks.getState().file?.errors ?? [],
+    path: () => useTasks.getState().file?.path ?? '',
+    buildDefault: () => useTasks.getState().buildDefault()?.label ?? null,
+    jalankan: (label: string) => useTasks.getState().jalankan(label),
+    jalankanBuild: () => useTasks.getState().jalankanBuild(),
+    hentikan: (runId: string) => useTasks.getState().hentikan(runId),
+    hentikanSemua: () => useTasks.getState().hentikanSemua(),
+    runs: () =>
+      useTasks.getState().runs.map((r) => ({
+        id: r.id,
+        label: r.label,
+        status: r.status,
+        exitCode: r.exitCode,
+        pid: r.pid,
+        lines: r.lines,
+      })),
+    runsAktif: () => useTasks.getState().runsAktif().length,
+    recent: () => useTasks.getState().recent,
+    /** true kalau task background sudah kena endsPattern (siap untuk fase 22) */
+    siap: (runId: string) => useTasks.getState().ready[runId] === true,
+    /** baris output yang benar-benar masuk channel Output fase 20 */
+    output: (label: string) => useOutput.getState().lines(`task:${label}`),
+    channels: () => useOutput.getState().list().map((c) => c.id),
+    /** diagnostik yang dihasilkan problem matcher, dari problemsStore nyata */
+    problems: (label?: string) =>
+      useProblems
+        .getState()
+        .all()
+        .filter((d) => (label ? d.source === `task:${label}` : d.source.startsWith('task:')))
+        .map((d) => ({
+          file: d.file,
+          line: d.line,
+          column: d.column,
+          severity: d.severity,
+          message: d.message,
+          code: d.code ?? '',
+          source: d.source,
+        })),
+    /** port yang terdeteksi otomatis dari output task (integrasi fase 20) */
+    ports: () =>
+      usePorts
+        .getState()
+        .list()
+        .map((p) => ({
+          hostPort: p.hostPort,
+          protocol: p.protocol,
+          source: p.source,
+          process: p.process,
+          status: p.status,
+        })),
+    hapusPorts: () => usePorts.getState().clear(),
+    /** uji matcher tanpa menjalankan proses */
+    matchLine: (matcher: string, line: string, root?: string) =>
+      tasksMatchLineCmd(matcher, line, root),
+    detectPort: (line: string) => tasksDetectPortCmd(line),
+    matchers: () => tasksMatchersCmd(),
+    /** command task yang benar-benar terdaftar di palette */
+    commandsDiPalette: () =>
+      availableCommands()
+        .filter((c) => c.id.startsWith('task.') || c.id.startsWith('tasks.'))
+        .map((c) => c.id),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

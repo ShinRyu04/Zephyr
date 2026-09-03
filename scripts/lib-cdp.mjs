@@ -93,6 +93,8 @@ export class Cdp {
         const EX = window.__ZEPHYR_EXTRAS__;
         /** fase 19: bridge Extensions native */
         const E19 = window.__ZEPHYR_EXT19__;
+        /** fase 23: bridge Tasks */
+        const TK = window.__ZEPHYR_TASK__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

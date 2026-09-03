@@ -26,6 +26,7 @@ mod paths;
 mod pty;
 mod secrets;
 mod settings;
+mod tasks;
 mod tests_ai;
 mod tests_browser;
 mod tests_fs;
@@ -70,6 +71,8 @@ pub fn run() {
         // selalu bisa (klik kanan, Ctrl+Shift+C, Shift+Insert).
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(state)
+        // Runtime task (fase 23): daftar run + peta proses anak.
+        .manage(tasks::TasksRuntime::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
@@ -246,6 +249,16 @@ pub fn run() {
             ext_pkg::extensions_manifests,
             ext_bundled::extensions_write_bundled,
             ext_bundled::extensions_bundled_ids,
+            // tasks (fase 23)
+            tasks::tasks_load,
+            tasks::tasks_matchers,
+            tasks::tasks_match_line,
+            tasks::tasks_run,
+            tasks::tasks_wait,
+            tasks::tasks_kill,
+            tasks::tasks_runs,
+            tasks::tasks_clear_runs,
+            tasks::tasks_detect_port,
             // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
             diagnostics::self_test,

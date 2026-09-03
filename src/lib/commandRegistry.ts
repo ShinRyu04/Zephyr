@@ -21,6 +21,7 @@ import { commandsEkstensi } from './extLoader';
 import { useNotif, notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
+import { useTasks, channelUntuk } from './tasksStore';
 import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
@@ -39,7 +40,8 @@ export type CmdGroup =
   | 'AI'
   | 'MCP'
   | 'Settings'
-  | 'Extensions';
+  | 'Extensions'
+  | 'Tasks';
 
 export interface CommandDef {
   id: string;
@@ -1164,9 +1166,101 @@ export const COMMANDS: CommandDef[] = [
         general: { theme: t.kind === 'light' ? ('light' as const) : ('dark' as const) },
       }),
   })),
+  // ── Tasks (fase 23) ──
+  //
+  // `enabled()` menyaring saat tasks.json tidak ada, mengikuti pelajaran fase 12
+  // (`git.commit` yang muncul di palette padahal workspace bukan repo).
+  {
+    id: 'tasks.runBuild',
+    title: 'Tasks: Run Build Task',
+    group: 'Tasks',
+    keywords: 'build compile jalankan ctrl+shift+b',
+    enabled: () => useTasks.getState().buildDefault() !== null,
+    run: async () => {
+      usePanel.getState().focusTab('output');
+      await useTasks.getState().jalankanBuild();
+    },
+  },
+  {
+    id: 'tasks.runTask',
+    title: 'Tasks: Run Task',
+    group: 'Tasks',
+    keywords: 'task jalankan run',
+    enabled: () => useTasks.getState().daftar().length > 0,
+    run: async () => {
+      // Daftar task muncul sebagai command sendiri (lihat taskCommands()),
+      // jadi entri ini hanya membuka palette dengan awalan yang tepat.
+      window.dispatchEvent(
+        new CustomEvent('zephyr-palette-open', { detail: { query: 'Task: ' } }),
+      );
+    },
+  },
+  {
+    id: 'tasks.terminate',
+    title: 'Tasks: Terminate Task',
+    group: 'Tasks',
+    keywords: 'stop kill hentikan task',
+    enabled: () => useTasks.getState().runsAktif().length > 0,
+    run: async () => {
+      const n = await useTasks.getState().hentikanSemua();
+      notifyInfo(`${n} task dihentikan`, { source: 'Tasks' });
+    },
+  },
+  {
+    id: 'tasks.reload',
+    title: 'Tasks: Reload tasks.json',
+    group: 'Tasks',
+    keywords: 'refresh muat ulang task',
+    run: async () => {
+      const f = await useTasks.getState().muat();
+      if (f) notifyInfo(`${f.tasks.length} task dimuat`, { source: 'Tasks' });
+    },
+  },
+  {
+    id: 'tasks.showOutput',
+    title: 'Tasks: Show Task Output',
+    group: 'Tasks',
+    keywords: 'output log task',
+    enabled: () => useTasks.getState().runs.length > 0,
+    run: () => {
+      const T = useTasks.getState();
+      const terakhir = T.runs[T.runs.length - 1];
+      usePanel.getState().focusTab('output');
+      if (terakhir) useOutput.getState().setActiveChannel(channelUntuk(terakhir.label));
+    },
+  },
 ];
 
-export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
+/**
+ * Satu command per task di tasks.json (fase 23).
+ *
+ * Dibuat DINAMIS, bukan ditulis di `COMMANDS`: daftarnya berubah setiap
+ * tasks.json disimpan, dan urutannya mengikuti riwayat `recent` supaya task
+ * yang baru dipakai muncul lebih dulu — itu yang bikin "Run Task" enak dipakai.
+ */
+export function taskCommands(): CommandDef[] {
+  const T = useTasks.getState();
+  const recent = T.recent;
+  const urut = [...T.daftar()].sort((a, b) => {
+    const ia = recent.indexOf(a.label);
+    const ib = recent.indexOf(b.label);
+    if (ia === ib) return a.label.localeCompare(b.label);
+    if (ia < 0) return 1;
+    if (ib < 0) return -1;
+    return ia - ib;
+  });
+  return urut.map((t) => ({
+    id: `task.${t.label}`,
+    title: `Task: ${t.label}`,
+    group: 'Tasks' as const,
+    keywords: `${t.group} ${t.command} ${t.kind}`.trim(),
+    description: t.command || `dependsOn: ${t.dependsOn.join(', ')}`,
+    run: async () => {
+      usePanel.getState().focusTab('output');
+      await useTasks.getState().jalankan(t.label);
+    },
+  }));
+}
 
 /**
  * Command dari manifest ekstensi AKTIF (fase 13).
@@ -1216,12 +1310,18 @@ export function extensionCommands(): CommandDef[] {
 /** Command yang boleh tampil sekarang (mis. butuh workspace/tab aktif). */
 export function availableCommands(): CommandDef[] {
   const core = COMMANDS.filter((c) => (c.enabled ? c.enabled() : true));
-  return [...core, ...extensionCommands()];
+  return [...core, ...taskCommands(), ...extensionCommands()];
 }
+
+export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
 
 /** Cari satu command (inti ATAU dari ekstensi) berdasarkan id. */
 export function findCommand(id: string): CommandDef | undefined {
-  return COMMAND_BY_ID.get(id) ?? extensionCommands().find((c) => c.id === id);
+  return (
+    COMMAND_BY_ID.get(id) ??
+    taskCommands().find((c) => c.id === id) ??
+    extensionCommands().find((c) => c.id === id)
+  );
 }
 
 /** FASE 27: jalankan command by id. Dipakai tombol aksi notifikasi supaya
