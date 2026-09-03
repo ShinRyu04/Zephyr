@@ -27,8 +27,11 @@ import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
 import { usePalette } from './paletteStore';
 import { useExtensions } from './extensionStore';
-import { COMMANDS, availableCommands, extensionCommands, runCommand } from './commandRegistry';
+import { COMMANDS, availableCommands, extensionCommands, findCommand, runCommand } from './commandRegistry';
 import { useNotif } from './notificationStore';
+import { useKb } from './keybindingStore';
+import { chordConflicts, chordFor } from './keybindings';
+import { MENUS } from './menu';
 
 type CmdName = 'undo' | 'redo';
 
@@ -461,6 +464,80 @@ export function installDevBridge(): void {
     pendingDelete: () => useExplorer.getState().pendingDelete,
     confirmDelete: () => useExplorer.getState().confirmDelete(),
     cancelDelete: () => useExplorer.getState().cancelDelete(),
+  };
+
+  // ── fase 18: menu bar + keybinding registry ──
+  w.__ZEPHYR_KB__ = {
+    store: useKb,
+    /** semua binding efektif (default ⊕ user), tanpa fungsi */
+    bindings: () =>
+      useKb.getState().bindings.map((b) => ({
+        chord: b.chord,
+        command: b.command,
+        when: b.when,
+        layer: b.layer,
+        label: b.label ?? null,
+      })),
+    /** chord efektif untuk satu command ('' = tidak ada) */
+    chordFor: (command: string) => chordFor(command, useKb.getState().bindings),
+    user: () => useKb.getState().user,
+    /** simpan override chord baru */
+    remap: (command: string, chord: string, when?: string) =>
+      useKb.getState().remap(command, chord, when as never),
+    removeBinding: (command: string) => useKb.getState().removeBinding(command),
+    resetOne: (command: string) => useKb.getState().resetOne(command),
+    resetAll: () => useKb.getState().resetAll(),
+    /** resolusi sequence -> binding (null = tidak ada) */
+    resolve: (seq: string) => useKb.getState().resolve(seq),
+    isPrefix: (seq: string) => useKb.getState().isPrefix(seq),
+    pending: () => useKb.getState().pending,
+    setPending: (c: string) => useKb.getState().setPending(c),
+    ctx: () => useKb.getState().ctx,
+    setCtx: (key: string, on: boolean) => useKb.getState().setCtx(key as never, on),
+    /** command terakhir yang dijalankan resolver — bukti V4/V5/V6 */
+    lastRun: () => useKb.getState().lastRun,
+    setLastRun: (v: string | null) => useKb.getState().setLastRun(v),
+    /** editor Keyboard Shortcuts (18.4) */
+    editor: (open: boolean) => useKb.getState().setEditorOpen(open),
+    editorOpen: () => useKb.getState().editorOpen,
+    /** konflik chord untuk sebuah command */
+    conflicts: (command: string, chord: string, when = 'global') =>
+      chordConflicts(command, chord, when as never, useKb.getState().bindings),
+    /** struktur menu bar; command yang tidak terdaftar ditandai */
+    menu: () =>
+      MENUS.map((m) => ({
+        label: m.label,
+        mnemonic: m.mnemonic,
+        items: m.items.map((it) => ({
+          kind: it.kind ?? 'item',
+          label: it.label ?? null,
+          command: it.command ?? null,
+          hasCommand: it.command ? !!findCommand(it.command) : null,
+          children:
+            it.children?.map((c) => ({
+              label: c.label ?? null,
+              command: c.command ?? null,
+              hasCommand: c.command ? !!findCommand(c.command) : null,
+            })) ?? null,
+        })),
+      })),
+    /** kirim chord sintetis ke window (jalur yang sama dengan tombol nyata) */
+    press: (chord: string) => {
+      const parts = chord.split('+');
+      const key = parts[parts.length - 1];
+      const mods = parts.slice(0, -1).map((m) => m.toLowerCase());
+      const ev = new KeyboardEvent('keydown', {
+        key: key.length === 1 ? key.toLowerCase() : key,
+        code: key.length === 1 ? `Key${key.toUpperCase()}` : key,
+        ctrlKey: mods.includes('ctrl'),
+        shiftKey: mods.includes('shift'),
+        altKey: mods.includes('alt'),
+        bubbles: true,
+        cancelable: true,
+      });
+      window.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    },
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

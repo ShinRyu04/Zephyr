@@ -1,0 +1,253 @@
+// MenuBar.tsx — menu bar atas ala VS Code (fase 18.1).
+//
+// Aturan yang dipegang:
+//   * Item HANYA memanggil commandId dari commandRegistry. Command yang tidak
+//     ada = item DISABLED, bukan disembunyikan (18.1/V8).
+//   * Accelerator DIAMBIL dari keybindingStore, bukan string literal — jadi
+//     remap user langsung terlihat di menu (V7).
+//   * Keyboard penuh: Alt menyorot, Alt+huruf membuka menu, panah pindah,
+//     Enter memilih, Esc menutup (V2, aksesibilitas wajib).
+
+import { useEffect, useRef, useState } from 'react';
+import { MENUS, type MenuItem } from '../../lib/menu';
+import { findCommand, runCommand } from '../../lib/commandRegistry';
+import { useKb } from '../../lib/keybindingStore';
+import { chordFor, displayChord } from '../../lib/keybindings';
+
+/** Item yang bisa difokus (bukan separator). */
+const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
+
+export default function MenuBar() {
+  const bindings = useKb((s) => s.bindings);
+  /** index menu yang terbuka; -1 = tertutup */
+  const [buka, setBuka] = useState(-1);
+  /** index item aktif di dalam dropdown; -1 = belum ada */
+  const [idx, setIdx] = useState(-1);
+  /** label submenu yang terbuka (View → Appearance) */
+  const [sub, setSub] = useState<string | null>(null);
+  /** Alt ditekan = mnemonic digarisbawahi */
+  const [altAktif, setAltAktif] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const tutup = () => {
+    setBuka(-1);
+    setIdx(-1);
+    setSub(null);
+  };
+
+  // Klik di luar menutup dropdown.
+  useEffect(() => {
+    if (buka < 0) return;
+    const onDown = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) tutup();
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [buka]);
+
+  // Alt & mnemonic. Ditangkap di fase CAPTURE supaya resolver chord global
+  // tidak lebih dulu menelannya; Alt+huruf bukan chord app mana pun.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt' && !e.ctrlKey && !e.shiftKey) {
+        setAltAktif(true);
+        return;
+      }
+      if (e.altKey && !e.ctrlKey && e.key.length === 1) {
+        const i = MENUS.findIndex((m) => m.mnemonic === e.key.toLowerCase());
+        if (i >= 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          setBuka(i);
+          setIdx(MENUS[i].items.findIndex(bisaFokus));
+          setSub(null);
+        }
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setAltAktif(false);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('keyup', onKeyUp, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('keyup', onKeyUp, true);
+    };
+  }, []);
+
+  // Navigasi keyboard saat dropdown terbuka.
+  useEffect(() => {
+    if (buka < 0) return;
+    const items = MENUS[buka].items;
+    const onKey = (e: KeyboardEvent) => {
+      const geser = (arah: 1 | -1) => {
+        let n = idx;
+        for (let i = 0; i < items.length; i++) {
+          n = (n + arah + items.length) % items.length;
+          if (bisaFokus(items[n])) break;
+        }
+        setIdx(n);
+      };
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        tutup();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        geser(1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        geser(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const it = items[idx];
+        if (it?.children) {
+          setSub(it.label ?? null);
+        } else {
+          const n = (buka + 1) % MENUS.length;
+          setBuka(n);
+          setIdx(MENUS[n].items.findIndex(bisaFokus));
+          setSub(null);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (sub) {
+          setSub(null);
+        } else {
+          const n = (buka - 1 + MENUS.length) % MENUS.length;
+          setBuka(n);
+          setIdx(MENUS[n].items.findIndex(bisaFokus));
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const it = items[idx];
+        if (it?.children) setSub(it.label ?? null);
+        else if (it?.command) pilih(it.command);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [buka, idx, sub]);
+
+  const pilih = (command: string) => {
+    tutup();
+    void runCommand(command);
+  };
+
+  const renderItem = (it: MenuItem, i: number, dalamSub = false) => {
+    if (it.kind === 'sep') return <div className="mb-sep" key={`sep-${i}`} role="separator" />;
+
+    const def = it.command ? findCommand(it.command) : undefined;
+    // "Ada tapi belum boleh dipakai" (enabled() false) DAN "belum ada sama
+    // sekali" dua-duanya jadi disabled — user tetap melihat itemnya (18.1).
+    const adaCommand = !!def;
+    const bolehJalan = adaCommand && (def!.enabled ? def!.enabled() : true);
+    const nonaktif = !!it.command && !bolehJalan;
+    const chord = it.command ? chordFor(it.command, bindings) : '';
+
+    if (it.children) {
+      const terbuka = sub === it.label;
+      return (
+        <div className="mb-sub-wrap" key={it.label}>
+          <button
+            className={`mb-item mb-has-sub${idx === i && !dalamSub ? ' is-active' : ''}`}
+            data-testid="mb-item"
+            data-command="submenu"
+            aria-haspopup="true"
+            aria-expanded={terbuka}
+            onMouseEnter={() => {
+              setIdx(i);
+              setSub(it.label ?? null);
+            }}
+            onClick={() => setSub(terbuka ? null : (it.label ?? null))}
+          >
+            <span className="mb-label">{it.label}</span>
+            <span className="mb-arrow" aria-hidden="true">
+              ›
+            </span>
+          </button>
+          {terbuka && (
+            <div className="mb-dropdown mb-submenu" role="menu" data-testid="mb-submenu">
+              {it.children.map((c, j) => renderItem(c, j, true))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <button
+        key={it.command ?? it.label}
+        className={`mb-item${idx === i && !dalamSub ? ' is-active' : ''}`}
+        data-testid="mb-item"
+        data-command={it.command}
+        data-disabled={nonaktif ? '1' : '0'}
+        data-chord={chord}
+        role="menuitem"
+        disabled={nonaktif}
+        aria-disabled={nonaktif}
+        title={nonaktif ? `${it.label} — belum tersedia` : it.label}
+        onMouseEnter={() => !dalamSub && setIdx(i)}
+        onClick={() => it.command && pilih(it.command)}
+      >
+        <span className="mb-label">{it.label}</span>
+        {chord && (
+          <span className="mb-chord" data-testid="mb-chord">
+            {displayChord(chord)}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="menubar" ref={rootRef} data-testid="menubar" role="menubar">
+      {MENUS.map((m, i) => {
+        const mnemonicIdx = m.label.toLowerCase().indexOf(m.mnemonic);
+        return (
+          <div className="mb-menu" key={m.label}>
+            <button
+              className={`mb-top${buka === i ? ' is-open' : ''}`}
+              data-testid="mb-top"
+              data-menu={m.label}
+              aria-haspopup="true"
+              aria-expanded={buka === i}
+              onClick={() => {
+                if (buka === i) tutup();
+                else {
+                  setBuka(i);
+                  setIdx(m.items.findIndex(bisaFokus));
+                  setSub(null);
+                }
+              }}
+              onMouseEnter={() => {
+                // Hover memindah antar menu HANYA saat sudah ada yang terbuka
+                // (perilaku VS Code / Windows).
+                if (buka >= 0 && buka !== i) {
+                  setBuka(i);
+                  setIdx(m.items.findIndex(bisaFokus));
+                  setSub(null);
+                }
+              }}
+            >
+              {altAktif && mnemonicIdx >= 0 ? (
+                <>
+                  {m.label.slice(0, mnemonicIdx)}
+                  <u>{m.label[mnemonicIdx]}</u>
+                  {m.label.slice(mnemonicIdx + 1)}
+                </>
+              ) : (
+                m.label
+              )}
+            </button>
+
+            {buka === i && (
+              <div className="mb-dropdown" role="menu" data-testid="mb-dropdown">
+                {m.items.map((it, j) => renderItem(it, j))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
