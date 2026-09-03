@@ -23,6 +23,7 @@ import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
 import { useTasks, channelUntuk } from './tasksStore';
 import { useHistory } from './historyStore';
+import { useDebug } from './debugStore';
 import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
@@ -42,7 +43,8 @@ export type CmdGroup =
   | 'MCP'
   | 'Settings'
   | 'Extensions'
-  | 'Tasks';
+  | 'Tasks'
+  | 'Debug';
 
 export interface CommandDef {
   id: string;
@@ -1287,6 +1289,133 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => (useHistory.getState().info?.snapshots.length ?? 0) > 0,
     run: async () => {
       await useHistory.getState().bersihkan();
+    },
+  },
+  // ── Run & Debug (fase 22) ──
+  {
+    id: 'debug.focus',
+    title: 'Debug: Fokus Run & Debug',
+    group: 'Debug',
+    keywords: 'debug run breakpoint launch',
+    run: () => {
+      const s = S();
+      s.setSettingsOpen(false);
+      s.setActivity('debug');
+      if (!s.sidebarVisible) s.toggleSidebar();
+      void useDebug.getState().muatLaunch();
+      void useDebug.getState().muatAdapters();
+    },
+  },
+  {
+    id: 'debug.start',
+    title: 'Debug: Start Debugging',
+    group: 'Debug',
+    keywords: 'debug jalankan f5 launch',
+    run: async () => {
+      const D = useDebug.getState();
+      // Kalau sesi sudah hidup dan sedang paused, F5 = Continue (perilaku
+      // VS Code). Satu tombol untuk dua arti, itu yang diharapkan user.
+      if (D.state === 'stopped') {
+        await D.kontrol('continue');
+        return;
+      }
+      if (D.state !== 'inactive') return;
+      if (!D.launch) await D.muatLaunch();
+      await useDebug.getState().start();
+    },
+  },
+  {
+    id: 'debug.stop',
+    title: 'Debug: Stop',
+    group: 'Debug',
+    keywords: 'debug hentikan shift f5',
+    enabled: () => useDebug.getState().state !== 'inactive',
+    run: async () => {
+      await useDebug.getState().stop();
+    },
+  },
+  {
+    id: 'debug.restart',
+    title: 'Debug: Restart',
+    group: 'Debug',
+    keywords: 'debug ulangi restart',
+    enabled: () => useDebug.getState().state !== 'inactive',
+    run: async () => {
+      await useDebug.getState().restart();
+    },
+  },
+  {
+    id: 'debug.pause',
+    title: 'Debug: Pause',
+    group: 'Debug',
+    keywords: 'debug jeda f6',
+    enabled: () => useDebug.getState().state === 'running',
+    run: async () => {
+      await useDebug.getState().kontrol('pause');
+    },
+  },
+  {
+    id: 'debug.stepOver',
+    title: 'Debug: Step Over',
+    group: 'Debug',
+    keywords: 'debug langkah f10',
+    enabled: () => useDebug.getState().state === 'stopped',
+    run: async () => {
+      await useDebug.getState().kontrol('next');
+    },
+  },
+  {
+    id: 'debug.stepInto',
+    title: 'Debug: Step Into',
+    group: 'Debug',
+    keywords: 'debug masuk f11',
+    enabled: () => useDebug.getState().state === 'stopped',
+    run: async () => {
+      await useDebug.getState().kontrol('stepIn');
+    },
+  },
+  {
+    id: 'debug.stepOut',
+    title: 'Debug: Step Out',
+    group: 'Debug',
+    keywords: 'debug keluar shift f11',
+    enabled: () => useDebug.getState().state === 'stopped',
+    run: async () => {
+      await useDebug.getState().kontrol('stepOut');
+    },
+  },
+  {
+    id: 'debug.toggleBreakpoint',
+    title: 'Debug: Toggle Breakpoint',
+    group: 'Debug',
+    keywords: 'debug breakpoint f9 titik henti',
+    enabled: () => {
+      const s = S();
+      return !!s.tabs.find((t) => t.id === s.activeTabId)?.path;
+    },
+    run: async () => {
+      const s = S();
+      const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      if (!p) return;
+      // Baris dari posisi kursor editor — F9 memasang breakpoint di baris
+      // tempat kursor berada, bukan baris pertama.
+      const { activeLine } = await import('./editorRegistry');
+      const line = activeLine();
+      if (line < 1) {
+        notifyWarn('Tidak ada kursor di editor', { source: 'debug' });
+        return;
+      }
+      await useDebug.getState().toggleBreakpoint(p, line);
+    },
+  },
+  {
+    id: 'debug.clearBreakpoints',
+    title: 'Debug: Hapus Semua Breakpoint',
+    group: 'Debug',
+    keywords: 'debug bersihkan breakpoint',
+    enabled: () => useDebug.getState().breakpoints.length > 0,
+    run: async () => {
+      await useDebug.getState().hapusSemuaBreakpoint();
     },
   },
 ];

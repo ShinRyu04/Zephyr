@@ -42,6 +42,9 @@ import type {
   SearchOpts,
   SearchSummary,
   ReplaceHasil,
+  DebugConfig,
+  LaunchFile,
+  AdapterSpec,
   TaskProblem,
   TaskRun,
   TasksFile,
@@ -404,3 +407,44 @@ export const searchRgInfo = (rgPath?: string) =>
  */
 export const searchReplace = (files: string[], opts: SearchOpts, replacement: string) =>
   invoke<ReplaceHasil[]>('search_replace', { files, opts, replacement });
+
+// ─────────────────── debugger DAP (fase 22) ───────────────────
+
+/** Baca launch.json dari .zephyr/ atau .vscode/. */
+export const dapLoad = () => invoke<LaunchFile>('dap_load');
+/** Daftar adapter + status install-nya (untuk UI & pesan V5). */
+export const dapAdapters = () => invoke<AdapterSpec[]>('dap_adapters');
+/**
+ * Mulai sesi debug. Rust yang mengurus urutan DAP wajib
+ * (initialize → initialized → setBreakpoints → configurationDone → launch).
+ */
+export const dapStart = (config: DebugConfig, breakpoints: { path: string; line: number }[]) =>
+  invoke<{
+    pid: number;
+    adapter: string;
+    transport: string;
+    port: number | null;
+    capabilities: Record<string, unknown>;
+    breakpoints: { path: string; body: { breakpoints?: unknown[] } }[];
+    launch: unknown;
+  }>('dap_start', { config, breakpoints });
+/** Hentikan sesi + seluruh pohon proses debuggee. */
+export const dapStop = () => invoke<boolean>('dap_stop');
+export const dapStatus = () => invoke<Record<string, unknown>>('dap_status');
+/** continue | next | stepIn | stepOut | pause */
+export const dapKontrol = (aksi: string, threadId: number) =>
+  invoke<Record<string, unknown>>('dap_kontrol', { aksi, threadId });
+export const dapThreads = () => invoke<Record<string, unknown>>('dap_threads');
+export const dapStack = (threadId: number) =>
+  invoke<Record<string, unknown>>('dap_stack', { threadId });
+export const dapScopes = (frameId: number) =>
+  invoke<Record<string, unknown>>('dap_scopes', { frameId });
+export const dapVariables = (variablesReference: number) =>
+  invoke<Record<string, unknown>>('dap_variables', { variablesReference });
+export const dapEvaluate = (expression: string, frameId?: number, context?: string) =>
+  invoke<Record<string, unknown>>('dap_evaluate', { expression, frameId, context });
+export const dapSetVariable = (variablesReference: number, name: string, value: string) =>
+  invoke<Record<string, unknown>>('dap_set_variable', { variablesReference, name, value });
+export const dapSetBreakpoints = (path: string, lines: number[]) =>
+  invoke<Record<string, unknown>>('dap_set_breakpoints', { path, lines });
+export const dapLoadedSources = () => invoke<Record<string, unknown>>('dap_loaded_sources');

@@ -52,6 +52,13 @@ import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
 import { useProblems, kunciPath, type Diagnostic } from '../../lib/problemsStore';
 import { diagCompartment, diagnosticsGutter } from '../../lib/diagnosticsGutter';
+import {
+  bpCompartment,
+  barisAktifCompartment,
+  breakpointGutter,
+  barisAktifExt,
+} from '../../lib/breakpointGutter';
+import { useDebug } from '../../lib/debugStore';
 import { useLsp } from '../../lib/lspStore';
 import { serverForPath } from '../../lib/lsp';
 import { lspAutocompletion, lspHover, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
@@ -224,6 +231,10 @@ export default function CodeMirrorEditor({ tab }: Props) {
       zephyrHighlight,
       themeComp.current.of(editorTheme(themeId)),
       diagCompartment.of([]),
+      // FASE 22: gutter breakpoint + highlight baris aktif. Compartment
+      // terpisah dari diagnostik supaya keduanya bisa di-update sendiri.
+      bpCompartment.of([]),
+      barisAktifCompartment.of([]),
       squiggleCompartment.of([]),
       // fase 24: extras dikumpulkan di satu compartment supaya toggle Settings
       // hanya perlu reconfigure — rebuild view membuang undo history (fase 13).
@@ -387,6 +398,46 @@ export default function CodeMirrorEditor({ tab }: Props) {
       ],
     });
   }, [diagList]);
+
+  // FASE 22: gutter breakpoint. Daftar diambil per FILE supaya klik di tab lain
+  // tidak memicu render ulang tab ini.
+  //
+  // Selector mengembalikan array — dan zustand v5 membandingkannya dengan ===
+  // sehingga array baru tiap render memicu loop tak berujung (pelajaran fase
+  // 09). Karena itu yang diambil adalah string ringkas, lalu daftar aslinya
+  // dibaca dari getState() di dalam effect.
+  const bpKunci = useDebug((s) =>
+    tab.path
+      ? s.breakpoints
+          .filter((b) => kunciPath(b.path) === kunciPath(tab.path as string))
+          .map((b) => `${b.line}:${b.verified ? 1 : 0}:${b.enabled ? 1 : 0}`)
+          .join(',')
+      : '',
+  );
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !tab.path) return;
+    const daftar = useDebug.getState().breakpointsUntuk(tab.path);
+    view.dispatch({
+      effects: bpCompartment.reconfigure(
+        breakpointGutter(daftar, (line) => {
+          void useDebug.getState().toggleBreakpoint(tab.path as string, line);
+        }),
+      ),
+    });
+  }, [bpKunci, tab.path]);
+
+  // FASE 22: highlight baris yang sedang dieksekusi (kuning) saat paused.
+  const barisAktif = useDebug((s) =>
+    s.barisAktif && tab.path && kunciPath(s.barisAktif.path) === kunciPath(tab.path)
+      ? s.barisAktif.line
+      : null,
+  );
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: barisAktifCompartment.reconfigure(barisAktifExt(barisAktif)),
+    });
+  }, [barisAktif]);
 
   // Setting editor berubah -> reconfigure compartment saja.
   useEffect(() => {

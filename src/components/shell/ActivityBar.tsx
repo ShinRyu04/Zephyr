@@ -28,6 +28,23 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
       <path d="M8 1.8l1.6 3.4 3.6.5-2.6 2.6.6 3.7L8 10.3l-3.2 1.7.6-3.7L2.8 5.7l3.6-.5L8 1.8z" fill="none" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   ),
+  debug: () => (
+    // Tombol play di dalam bug: bentuk LITERAL (Run & Debug), bukan garis
+    // abstrak — ikon harus bisa dikenali dari bentuknya.
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <circle cx="8" cy="8.4" r="4.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      {/* kaki-kaki bug */}
+      <path
+        d="M3.6 8.4H1.7M12.4 8.4h1.9M4.6 5.4L3.2 4M11.4 5.4L12.8 4M4.6 11.4L3.2 12.8M11.4 11.4l1.4 1.4"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* play di tengah */}
+      <path d="M6.9 6.6l3 1.8-3 1.8z" fill="currentColor" />
+    </svg>
+  ),
   terminal: () => (
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
       <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
@@ -74,6 +91,7 @@ const LABEL: Record<ActivityId, string> = {
   explorer: 'Explorer',
   search: 'Search',
   scm: 'Source Control',
+  debug: 'Run & Debug (Ctrl+Shift+D)',
   ai: 'AI / MCP',
   terminal: 'Terminal',
   extensions: 'Extensions (Ctrl+Shift+X)',
@@ -81,10 +99,12 @@ const LABEL: Record<ActivityId, string> = {
 };
 
 // Extensions di BAWAH daftar (prompt 19.1), tepat sebelum Settings.
+// Run & Debug tepat setelah Source Control, seperti VS Code.
 const ORDER: ActivityId[] = [
   'explorer',
   'search',
   'scm',
+  'debug',
   'ai',
   'terminal',
   'extensions',

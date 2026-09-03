@@ -176,6 +176,7 @@ export const MENUS: MenuDef[] = [
       { label: 'Step Out', command: 'debug.stepOut' },
       SEP,
       { label: 'Toggle Breakpoint', command: 'debug.toggleBreakpoint' },
+      { label: 'Hapus Semua Breakpoint', command: 'debug.clearBreakpoints' },
     ],
   },
   {

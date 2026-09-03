@@ -7,6 +7,7 @@ mod ai;
 mod app_state;
 mod browser;
 mod credential;
+mod dap;
 mod diagnostics;
 mod dialogs;
 mod errors;
@@ -77,6 +78,8 @@ pub fn run() {
         .manage(tasks::TasksRuntime::default())
         // Runtime pencarian (fase 25): flag batal untuk query yang sedang jalan.
         .manage(search::SearchRuntime::default())
+        // Runtime debugger (fase 22): satu sesi DAP aktif.
+        .manage(dap::DapRuntime::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
@@ -275,6 +278,21 @@ pub fn run() {
             search::search_cancel,
             search::search_rg_info,
             search::search_replace,
+            // debugger DAP (fase 22)
+            dap::dap_load,
+            dap::dap_adapters,
+            dap::dap_start,
+            dap::dap_stop,
+            dap::dap_status,
+            dap::dap_kontrol,
+            dap::dap_threads,
+            dap::dap_stack,
+            dap::dap_scopes,
+            dap::dap_variables,
+            dap::dap_evaluate,
+            dap::dap_set_variable,
+            dap::dap_set_breakpoints,
+            dap::dap_loaded_sources,
             // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
             diagnostics::self_test,

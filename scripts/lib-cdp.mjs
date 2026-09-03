@@ -99,6 +99,8 @@ export class Cdp {
         const HS = window.__ZEPHYR_HIST__;
         /** fase 25: bridge Global Search (ripgrep) */
         const SR = window.__ZEPHYR_SRC__;
+        /** fase 22: bridge Run & Debug (DAP) */
+        const DBG = window.__ZEPHYR_DBG__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];
