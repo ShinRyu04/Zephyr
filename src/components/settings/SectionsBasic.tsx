@@ -3,7 +3,7 @@
 import { openPath } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
-import { THEMES } from '../../lib/themes';
+import { semuaTema } from '../../lib/themes';
 import { NumberInput, Pills, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
 export function GeneralSection() {
@@ -323,7 +323,8 @@ export function ThemeSection() {
       </p>
 
       <div className="theme-grid" data-testid="theme-grid">
-        {THEMES.map((th) => {
+        {/* semuaTema() = bawaan + tema dari ekstensi aktif (fase 19.5). */}
+        {semuaTema().map((th) => {
           const active = theme.current === th.id;
           return (
             <button

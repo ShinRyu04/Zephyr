@@ -245,7 +245,7 @@ export default function FileTree() {
               {node.isDir ? (
                 <FolderIcon open={!!expanded[node.path]} />
               ) : (
-                <FileIcon lang={detectLang(node.name)} />
+                <FileIcon lang={detectLang(node.name)} name={node.name} />
               )}
               <span className="tree-name">{node.name}</span>
             </div>

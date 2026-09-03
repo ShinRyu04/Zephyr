@@ -17,6 +17,7 @@ import { useMcp } from './mcpStore';
 import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
+import { commandsEkstensi } from './extLoader';
 import { useNotif, notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
@@ -24,7 +25,7 @@ import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
 import { serverForPath } from './lsp';
-import { THEMES } from './themes';
+import { THEMES, semuaTema } from './themes';
 import { keHex6 } from './cmColor';
 import type { EditorSettings } from './types';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
@@ -71,7 +72,9 @@ const lspSiap = () => {
 };
 
 /** Buka satu panel sidebar + pastikan sidebar terlihat. */
-function openSide(activity: 'explorer' | 'search' | 'scm' | 'ai' | 'terminal') {
+function openSide(
+  activity: 'explorer' | 'search' | 'scm' | 'ai' | 'terminal' | 'extensions',
+) {
   const s = S();
   s.setSettingsOpen(false);
   s.setActivity(activity);
@@ -482,8 +485,10 @@ export const COMMANDS: CommandDef[] = [
     run: async () => {
       const s = S();
       const cur = s.settings.theme.current;
-      const i = THEMES.findIndex((t) => t.id === cur);
-      const next = THEMES[(i + 1 + THEMES.length) % THEMES.length];
+      // semuaTema() ikut memutar tema dari ekstensi aktif (fase 19).
+      const daftar = semuaTema();
+      const i = daftar.findIndex((t) => t.id === cur);
+      const next = daftar[(i + 1 + daftar.length) % daftar.length];
       await s.applySettings({
         theme: { current: next.id },
         general: { theme: next.kind === 'light' ? 'light' : 'dark' },
@@ -676,10 +681,51 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'extensions.focus',
-    title: 'Extensions: Focus Extensions',
+    title: 'Extensions: Show Installed',
     group: 'Extensions',
-    keywords: 'ekstensi buka',
+    keywords: 'ekstensi buka installed marketplace',
+    // fase 19: Extensions punya panel sendiri di ActivityBar KIRI (19.1).
+    // Dulu ini membuka Settings → Extensions; sekarang Settings tetap ada
+    // untuk daftar bawaan, tapi Ctrl+Shift+X ke panel yang benar.
+    run: () => openSide('extensions'),
+  },
+  {
+    id: 'extensions.installFromFolder',
+    title: 'Extensions: Install from Folder…',
+    group: 'Extensions',
+    keywords: 'pasang ekstensi folder',
+    run: async () => {
+      openSide('extensions');
+      const { useExt19 } = await import('./extensionsStore19');
+      await useExt19.getState().installDariDialog(true);
+    },
+  },
+  {
+    id: 'extensions.installFromZext',
+    title: 'Extensions: Install from .zext…',
+    group: 'Extensions',
+    keywords: 'pasang ekstensi arsip zip zext',
+    run: async () => {
+      openSide('extensions');
+      const { useExt19 } = await import('./extensionsStore19');
+      await useExt19.getState().installDariDialog(false);
+    },
+  },
+  {
+    id: 'extensions.settings',
+    title: 'Extensions: Bawaan Zephyr (Settings)',
+    group: 'Extensions',
+    keywords: 'ekstensi bawaan builtin settings',
     run: () => openSettingsSection('extensions'),
+  },
+  {
+    id: 'workbench.reloadWindow',
+    title: 'Developer: Reload Window',
+    group: 'View',
+    keywords: 'muat ulang jendela reload',
+    run: () => {
+      window.location.reload();
+    },
   },
   {
     id: 'terminal.kill',
@@ -1131,18 +1177,40 @@ export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
  * benar-benar sampai ke palette dan bisa dipanggil.
  */
 export function extensionCommands(): CommandDef[] {
-  return useExtensions.getState().commands().map((c) => ({
-    id: c.id,
-    title: c.title,
+  // Dua sumber: paket gaya package.json (fase 13, extensionStore) dan paket
+  // native zephyr-extension.json (fase 19, extLoader). Keduanya sudah memakai
+  // namespace `ext.<id>.<nama>` dari parse_commands di Rust, jadi id-nya tidak
+  // bisa menimpa command inti; dedupe di sini hanya untuk kasus satu paket
+  // terdaftar di dua jalur.
+  const out = new Map<string, CommandDef>();
+
+  const buat = (
+    id: string,
+    title: string,
+    extId: string,
+    extName: string,
+    description: string,
+  ): CommandDef => ({
+    id,
+    title,
     group: 'Extensions' as CmdGroup,
-    keywords: `${c.extId} ${c.extName} ${c.description} ekstensi`,
+    keywords: `${extId} ${extName} ${description} ekstensi`,
     run: () => {
-      S().setStatus(`${c.title} — dari ekstensi ${c.extName} (manifest v1)`);
+      S().setStatus(`${title} — dari ekstensi ${extName} (manifest v1)`);
       useExtensions.setState({
-        extInfo: `Command "${c.title}" dijalankan dari ekstensi ${c.extName}`,
+        extInfo: `Command "${title}" dijalankan dari ekstensi ${extName}`,
       });
     },
-  }));
+  });
+
+  for (const c of useExtensions.getState().commands()) {
+    out.set(c.id, buat(c.id, c.title, c.extId, c.extName, c.description));
+  }
+  for (const c of commandsEkstensi()) {
+    if (out.has(c.id)) continue;
+    out.set(c.id, buat(c.id, c.title, c.extId, c.extId, c.description));
+  }
+  return Array.from(out.values());
 }
 
 /** Command yang boleh tampil sekarang (mis. butuh workspace/tab aktif). */

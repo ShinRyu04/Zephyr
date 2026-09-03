@@ -46,7 +46,6 @@ const main = async () => {
   // sehingga element.focus() TIDAK memindah document.activeElement dan context
   // key editorFocus/terminalFocus tidak pernah menyala. Focus emulation CDP
   // memperbaikinya — tanpa ini V9 gagal padahal aplikasinya benar.
-  await cdp.send('Page.bringToFront').catch(() => {});
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
 
   if ((await cdp.eval('typeof window.__ZEPHYR_KB__')) === 'undefined') {
@@ -110,6 +109,11 @@ const main = async () => {
       jml,
       errors: (window.__ZEPHYR_ERRORS__ || []).slice(0, 4),
       totalBinding: KB.bindings().length,
+      // Fase 19: ekstensi uji yang tertinggal dari verify19 bisa menyisakan
+      // error tak berhubungan di buffer. Catat agar penyebabnya terlihat.
+      ekstensiTerpasang: window.__ZEPHYR_EXT19__
+        ? window.__ZEPHYR_EXT19__.terpasang().map((x) => x.id)
+        : [],
     });
   `,
     40000,
@@ -119,6 +123,10 @@ const main = async () => {
     tsc.status === 0 && v10.nilaiInput === 'save' && v10.errors.length === 0,
     `tsc exit ${tsc.status}; ketikan "save" di field pencarian utuh ("${v10.nilaiInput}") → ` +
       `${v10.jml} baris cocok dari ${v10.totalBinding} binding; console error: ${v10.errors.length}` +
+      (v10.errors.length > 0 ? `\n  → ${v10.errors.join('\n  → ').slice(0, 300)}` : '') +
+      (v10.ekstensiTerpasang.length > 0
+        ? `\n  (ekstensi terpasang saat uji: ${JSON.stringify(v10.ekstensiTerpasang)})`
+        : '') +
       (tsc.status !== 0 ? `\n${(tsc.stdout || '').split('\n').slice(0, 6).join('\n')}` : ''),
   );
 

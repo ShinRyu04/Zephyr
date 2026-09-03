@@ -29,7 +29,6 @@ const main = async () => {
 
   // Focus emulation: tanpa ini document.hasFocus() palsu dan element.focus()
   // tidak memindah activeElement (pelajaran fase 18).
-  await cdp.send('Page.bringToFront').catch(() => {});
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
 
   if ((await cdp.eval('typeof window.__ZEPHYR_PANEL__')) === 'undefined') {

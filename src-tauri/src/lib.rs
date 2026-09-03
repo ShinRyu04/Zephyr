@@ -11,6 +11,8 @@ mod diagnostics;
 mod dialogs;
 mod errors;
 mod explorer;
+mod ext_bundled;
+mod ext_pkg;
 mod extensions;
 mod fs_utils;
 mod git;
@@ -236,6 +238,14 @@ pub fn run() {
             extensions::extensions_add,
             extensions::extensions_remove,
             extensions::extensions_folder,
+            // fase 19: manifest native, install/uninstall, kontribusi
+            ext_pkg::extensions_install,
+            ext_pkg::extensions_uninstall,
+            ext_pkg::extensions_set_enabled,
+            ext_pkg::extensions_read_contrib,
+            ext_pkg::extensions_manifests,
+            ext_bundled::extensions_write_bundled,
+            ext_bundled::extensions_bundled_ids,
             // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
             diagnostics::self_test,

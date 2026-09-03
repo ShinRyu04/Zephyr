@@ -15,7 +15,21 @@ import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
 import { ALL_MODELS } from './modelCatalog';
-import { THEMES, systemPrefersDark } from './themes';
+import { THEMES, systemPrefersDark, semuaTema } from './themes';
+import { useExt19, getBahasaWorkspace } from './extensionsStore19';
+import { KATALOG_BUNDLED } from './extCatalog';
+import {
+  ringkasanLoader,
+  muatSemuaEkstensi,
+  themesEkstensi,
+  keymapEkstensi,
+  bahasaEkstensi,
+  jumlahSnippet,
+  adaSnippet,
+  adaIconTheme,
+  ikonUntukExt,
+} from './extLoader';
+import { extensiUntukFile, labelBahasa } from './lang';
 import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
@@ -822,6 +836,88 @@ export function installDevBridge(): void {
         });
       return { punyaLsp: r.punyaLsp, pohon: ringkas(r.pohon) };
     },
+  };
+
+  // ── fase 19: bridge Extensions native (harness verify19) ──
+  w.__ZEPHYR_EXT19__ = {
+    store: () => useExt19,
+    state: () => useExt19.getState(),
+    refresh: () => useExt19.getState().refresh(),
+    /** ekstensi yang benar-benar terpasang (manifest valid) */
+    terpasang: () =>
+      useExt19
+        .getState()
+        .terpasang()
+        .map((m) => ({
+          id: m.manifest!.id,
+          nama: m.manifest!.name,
+          versi: m.manifest!.version,
+          enabled: m.enabled,
+          tercatat: m.tercatat,
+          path: m.path,
+          manifestFile: m.manifest!.manifestFile,
+          engineOk: m.manifest!.engineOk,
+          kontribusi: {
+            themes: m.manifest!.contributes.themes.map((t) => t.label),
+            keymaps: m.manifest!.contributes.keymaps.length,
+            snippets: m.manifest!.contributes.snippets.map((s) => s.language),
+            languages: m.manifest!.contributes.languages.map((l) => l.id),
+            iconThemes: m.manifest!.contributes.iconThemes.length,
+            commands: m.manifest!.contributes.commands.map((c) => c.id),
+          },
+        })),
+    rusak: () =>
+      useExt19
+        .getState()
+        .rusak()
+        .map((m) => ({ path: m.path, error: m.error })),
+    hasil: () => useExt19.getState().hasil().map((x) => x.id),
+    install: (p: string) => useExt19.getState().install(p),
+    installKatalog: (id: string) => {
+      const it = KATALOG_BUNDLED.find((x) => x.id === id);
+      if (!it) return Promise.resolve(false);
+      return useExt19.getState().installKatalog(it);
+    },
+    uninstall: (id: string) => useExt19.getState().uninstall(id),
+    setEnabled: (id: string, on: boolean) => useExt19.getState().setEnabled(id, on),
+    setQ: (q: string) => useExt19.getState().setQ(q),
+    setTab: (t: 'installed' | 'recommended' | 'marketplace') => useExt19.getState().setTab(t),
+    setDetail: (id: string | null) => useExt19.getState().setDetail(id),
+    setRemoteUrl: (url: string) => useExt19.setState({ remoteUrl: url }),
+    muatRemote: () => useExt19.getState().muatRemote(),
+    /** ringkasan kontribusi yang BENAR-BENAR disuplai loader */
+    ringkasan: () => ringkasanLoader(),
+    muatSemua: () => muatSemuaEkstensi(),
+    themesEkstensi: () =>
+      themesEkstensi().map((t) => ({ id: t.id, label: t.label, kind: t.kind })),
+    keymapEkstensi: () => keymapEkstensi(),
+    bahasaEkstensi: () => bahasaEkstensi(),
+    jumlahSnippet: () => jumlahSnippet(),
+    adaSnippet: (l: string) => adaSnippet(l),
+    adaIconTheme: () => adaIconTheme(),
+    ikonUntukExt: (e: string) => ikonUntukExt(e),
+    /** command ekstensi yang benar-benar terdaftar di palette */
+    commandsDiPalette: () =>
+      availableCommands()
+        .filter((c) => c.id.startsWith('ext.'))
+        .map((c) => c.id),
+    bahasaWorkspace: () => getBahasaWorkspace(),
+    /** semua tema yang bisa dipilih user (bawaan + ekstensi) */
+    semuaTema: () => semuaTema().map((t) => t.id),
+    /** token warna efektif di <html> — bukti tema ekstensi benar-benar dipakai */
+    tokenAktif: (nama: string) =>
+      getComputedStyle(document.documentElement).getPropertyValue(nama).trim(),
+    extTheme: () => document.documentElement.dataset.extTheme ?? null,
+    /** bahasa + parser untuk sebuah nama file (lewat jalur produk) */
+    bahasaUntukFile: async (nama: string) => {
+      const r = await extensiUntukFile(nama);
+      return { langId: r.langId, dariEkstensi: r.dariEkstensi, jmlExt: r.ext.length };
+    },
+    labelBahasa: (nama: string) => labelBahasa(nama),
+    /** chord efektif untuk sebuah command (bukti keymap ekstensi aktif) */
+    chord: (command: string) => chordFor(command, useKb.getState().bindings),
+    sumberChord: (command: string) =>
+      useKb.getState().bindings.find((b) => b.command === command)?.source ?? null,
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

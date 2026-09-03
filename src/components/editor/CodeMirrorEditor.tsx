@@ -47,7 +47,7 @@ import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
 import { useStore } from '../../lib/store';
-import { loadLangExtension } from '../../lib/lang';
+import { extensiUntukFile } from '../../lib/lang';
 import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
 import { useProblems, kunciPath, type Diagnostic } from '../../lib/problemsStore';
@@ -92,7 +92,20 @@ function extrasEditor(e: EditorSettings, readOnly: boolean): Extension[] {
   return out;
 }
 
+/** Naik setiap loader ekstensi selesai — memicu editor memasang ulang parser. */
+export const naikkanExtVersi = () => {
+  window.dispatchEvent(new Event('zephyr-ext-loaded'));
+};
+
 export default function CodeMirrorEditor({ tab }: Props) {
+  // fase 19: dinaikkan lewat event `zephyr-ext-loaded` saat loader ekstensi
+  // selesai, supaya file .toml/.lua langsung dapat parser tanpa reload.
+  const [extVersi, setExtVersi] = useState(0);
+  useEffect(() => {
+    const on = () => setExtVersi((v) => v + 1);
+    window.addEventListener('zephyr-ext-loaded', on);
+    return () => window.removeEventListener('zephyr-ext-loaded', on);
+  }, []);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const wrapComp = useRef(new Compartment());
@@ -330,7 +343,9 @@ export default function CodeMirrorEditor({ tab }: Props) {
       return;
     }
     let alive = true;
-    void loadLangExtension(tab.lang).then((ext) => {
+    // fase 19: satu pintu — parser bawaan ATAU parser dari ekstensi, plus
+    // completion snippet ekstensi untuk bahasa itu (lihat lang.ts).
+    void extensiUntukFile(tab.path ?? tab.name).then(({ ext }) => {
       if (!alive) return;
       viewRef.current?.dispatch({
         effects: langComp.current.reconfigure(ext),
@@ -339,7 +354,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
     return () => {
       alive = false;
     };
-  }, [tab.lang, tab.id, readOnly]);
+  }, [tab.lang, tab.id, tab.path, tab.name, readOnly, extVersi]);
 
   // Tema berganti -> tukar EditorView.theme lewat compartment (fase 13).
   // Warna sendiri datang dari CSS var, tapi flag `dark` CM6 harus ikut
