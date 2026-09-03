@@ -15,6 +15,18 @@ export function getActiveView(): EditorView | null {
   return activeView;
 }
 
+/**
+ * Baris kursor di editor aktif (1-based). 0 = tidak ada editor.
+ *
+ * Dipakai `debug.toggleBreakpoint` (F9): breakpoint harus mendarat di baris
+ * tempat kursor berada, bukan baris pertama file.
+ */
+export function activeLine(): number {
+  const view = activeView;
+  if (!view) return 0;
+  return view.state.doc.lineAt(view.state.selection.main.head).number;
+}
+
 export function registerFlush(tabId: string, fn: () => void): void {
   flushers.set(tabId, fn);
 }

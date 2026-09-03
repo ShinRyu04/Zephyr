@@ -7,6 +7,7 @@
 import { useStore, useActiveTab } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
+import DebugToolbar from '../debug/DebugToolbar';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import ReadOnlyBanner from '../editor/ReadOnlyBanner';
@@ -110,6 +111,10 @@ export default function EditorArea() {
           dan ikut mati saat file read-only). */}
       <ReadOnlyBanner />
       <FindBar />
+      {/* fase 22: toolbar debug mengambang, hanya saat sesi hidup. Diletakkan
+          di editor-area (bukan di dalam CodeMirrorEditor) supaya tetap terlihat
+          walau tab yang aktif bukan file yang sedang di-debug. */}
+      <DebugToolbar />
       <div className="editor-host">
         {tabs.length === 0 || !tab ? <EmptyState /> : <CodeMirrorEditor key={tab.id} tab={tab} />}
       </div>
