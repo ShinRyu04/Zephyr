@@ -31,6 +31,7 @@ import { usePalette } from './lib/paletteStore';
 import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
+import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
 import { useLsp } from './lib/lspStore';
@@ -51,6 +52,7 @@ import './styles/palette.css';
 import './styles/panel.css';
 import './styles/lsp.css';
 import './styles/editor-extras.css';
+import './styles/extensions.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -632,6 +634,13 @@ export default function App() {
   //     - tema Windows dipantau: hanya berlaku saat mode = 'system'
   useEffect(() => {
     void useExtensions.getState().refresh();
+    // fase 19: muat kontribusi ekstensi NATIVE (tema/keymap/snippet/bahasa/
+    // command/icon theme) lalu terapkan tema lagi — kalau tema aktif milik
+    // ekstensi, `applyTheme` pertama (di bootstrap) belum mengenalnya.
+    void muatSemuaEkstensi().then(() => {
+      const s = useStore.getState();
+      useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
+    });
 
     const openPalette = () => void usePalette.getState().openPalette('command');
     window.addEventListener('zephyr-palette-open', openPalette);

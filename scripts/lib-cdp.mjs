@@ -91,6 +91,8 @@ export class Cdp {
         /** fase 21/24: bridge yang datang belakangan (boleh undefined di app lama) */
         const LSP = window.__ZEPHYR_LSP__;
         const EX = window.__ZEPHYR_EXTRAS__;
+        /** fase 19: bridge Extensions native */
+        const E19 = window.__ZEPHYR_EXT19__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

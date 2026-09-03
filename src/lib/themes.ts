@@ -22,7 +22,32 @@ export const THEMES: ThemeInfo[] = [
   { id: 'one-dark', label: 'One Dark Pro', kind: 'dark', hint: 'ala Atom/VS Code' },
 ];
 
-export const isKnownTheme = (id: string) => THEMES.some((t) => t.id === id);
+export const isKnownTheme = (id: string) =>
+  THEMES.some((t) => t.id === id) || temaEkstensiTerdaftar(id);
+
+/**
+ * Tema dari ekstensi (fase 19). Disuntik `extLoader` supaya `themes.ts` tidak
+ * perlu import extLoader (yang mengimport commands.ts → lingkaran).
+ * Bentuk sama seperti THEMES; token warnanya diterapkan oleh callback.
+ */
+let temaEkstensi: ThemeInfo[] = [];
+let terapkanEkstensi: ((id: string) => boolean) | null = null;
+
+export function daftarkanTemaEkstensi(
+  list: ThemeInfo[],
+  terapkan: (id: string) => boolean,
+): void {
+  temaEkstensi = list;
+  terapkanEkstensi = terapkan;
+}
+
+export const temaEkstensiTerdaftar = (id: string) => temaEkstensi.some((t) => t.id === id);
+
+/** Semua tema yang bisa dipilih user: bawaan + dari ekstensi aktif. */
+export const semuaTema = (): ThemeInfo[] => [...THEMES, ...temaEkstensi];
+
+const infoTema = (id: string): ThemeInfo | undefined =>
+  THEMES.find((t) => t.id === id) ?? temaEkstensi.find((t) => t.id === id);
 
 /** Preferensi OS — dipakai bila general.theme === 'system'. */
 export function systemPrefersDark(): boolean {
@@ -51,7 +76,7 @@ export function watchSystemTheme(onChange: (dark: boolean) => void): () => void 
  */
 export function resolveTheme(general: { theme: string }, theme: { current: string }): string {
   const wanted = isKnownTheme(theme.current) ? theme.current : 'zephyr-dark';
-  const info = THEMES.find((t) => t.id === wanted)!;
+  const info = infoTema(wanted) ?? THEMES[0];
 
   const mode = general.theme === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : general.theme;
   if (mode === 'light' && info.kind !== 'light') return 'zephyr-light';
@@ -66,12 +91,33 @@ export function applyTheme(
 ): string {
   const id = resolveTheme(general, theme);
   const root = document.documentElement;
-  root.dataset.theme = id;
 
   // Aksen kustom: hapus dulu supaya kembali ke nilai tema saat dikosongkan.
+  // WAJIB sebelum token ekstensi diterapkan — dulu urutannya kebalik, jadi
+  // `removeProperty('--accent')` menghapus --accent yang baru saja dipasang
+  // tema ekstensi (V3: --bg0 berubah tapi --accent tidak).
   root.style.removeProperty('--accent');
   root.style.removeProperty('--accent-hover');
   root.style.removeProperty('--accent-subtle');
+
+  // Tema ekstensi (fase 19): token warnanya CSS variable inline, dan
+  // `data-theme` dipasang ke basis gelap/terang supaya token yang TIDAK
+  // disebut ekstensi tetap punya nilai — kalau tidak, tema yang cuma
+  // mendefinisikan 5 warna membuat sisa UI kehilangan warna sama sekali.
+  const dariEkstensi = temaEkstensiTerdaftar(id);
+  if (dariEkstensi) {
+    const kind = infoTema(id)?.kind === 'light' ? 'zephyr-light' : 'zephyr-dark';
+    root.dataset.theme = kind;
+    root.dataset.extTheme = id;
+    terapkanEkstensi?.(id);
+  } else {
+    root.dataset.theme = id;
+    delete root.dataset.extTheme;
+    // Bersihkan token milik tema ekstensi sebelumnya.
+    terapkanEkstensi?.('');
+  }
+
+  // Aksen pilihan USER menang di atas tema (termasuk tema ekstensi).
   if (theme.accent && /^#[0-9a-f]{6}$/i.test(theme.accent)) {
     root.style.setProperty('--accent', theme.accent);
     root.style.setProperty('--accent-hover', theme.accent);

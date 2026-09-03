@@ -77,7 +77,6 @@ const main = async () => {
 
   // WebView2 tanpa fokus OS: element.focus() tidak memindah activeElement
   // (pelajaran fase 18) — completion & hover butuh view yang benar-benar fokus.
-  await cdp.send('Page.bringToFront').catch(() => {});
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
 
   if ((await cdp.eval('typeof window.__ZEPHYR_LSP__')) === 'undefined') {

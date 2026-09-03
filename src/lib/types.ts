@@ -457,6 +457,91 @@ export interface ExtensionLoad {
   executed: boolean;
 }
 
+// ── extensions native, manifest `zephyr-extension.json` (fase 19) ──
+
+export interface ContribTheme {
+  label: string;
+  path: string;
+  kind: 'dark' | 'light';
+}
+export interface ContribKeymap {
+  label: string;
+  path: string;
+}
+export interface ContribSnippet {
+  language: string;
+  path: string;
+}
+export interface ContribLanguage {
+  id: string;
+  /** tanpa titik di depan, mis. ["toml"] */
+  extensions: string[];
+  /** paket CodeMirror yang di-lazy-import, mis. "@codemirror/lang-toml" */
+  cmLang: string;
+  /** alternatif tanpa paket: nama mode @codemirror/legacy-modes */
+  legacyMode: string;
+  label: string;
+}
+export interface ContribIconTheme {
+  label: string;
+  path: string;
+}
+
+export interface ExtContributes {
+  themes: ContribTheme[];
+  keymaps: ContribKeymap[];
+  snippets: ContribSnippet[];
+  languages: ContribLanguage[];
+  iconThemes: ContribIconTheme[];
+  commands: ExtCommand[];
+}
+
+export interface ExtManifest {
+  id: string;
+  name: string;
+  publisher: string;
+  version: string;
+  description: string;
+  icon: string;
+  categories: string[];
+  /** `engines.zephyr` apa adanya */
+  engine: string;
+  engineOk: boolean;
+  contributes: ExtContributes;
+  raw: Record<string, unknown>;
+  /** 'zephyr-extension.json' | 'package.json' */
+  manifestFile: string;
+}
+
+/** Satu entri hasil `extensions_manifests`. */
+export interface ExtManifestStatus {
+  manifest: ExtManifest | null;
+  enabled: boolean;
+  /** true = tercatat di installed.json (folder liar → false) */
+  tercatat: boolean;
+  path: string;
+  error: string | null;
+}
+
+export interface ExtInstallHasil {
+  id: string;
+  name: string;
+  version: string;
+  path: string;
+  /** true = tema/keymap/bahasa berubah → tawarkan Reload Window */
+  perluReload: boolean;
+  manifest: ExtManifest;
+}
+
+/** Kategori resmi (19.2). */
+export type ExtKategori =
+  | 'Themes'
+  | 'Keymaps'
+  | 'Snippets'
+  | 'Languages'
+  | 'Icon Themes'
+  | 'Other';
+
 /** Tab editor. `path: null` = untitled (belum pernah disimpan). */
 export interface Tab {
   id: string;
@@ -506,7 +591,14 @@ export type LangId =
   | 'ini'
   | 'plain';
 
-export type ActivityId = 'explorer' | 'search' | 'scm' | 'ai' | 'terminal' | 'settings';
+export type ActivityId =
+  | 'explorer'
+  | 'search'
+  | 'scm'
+  | 'ai'
+  | 'terminal'
+  | 'extensions'
+  | 'settings';
 
 // ── Settings (subset yang dipakai sampai fase 03; sisanya menyusul) ──
 

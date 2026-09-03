@@ -64,7 +64,7 @@ export default function EditorTabBar() {
               }
             }}
           >
-            <FileIcon lang={t.lang} />
+            <FileIcon lang={t.lang} name={t.name} />
             <span className="tab-name">{t.name}</span>
             {t.unsaved && <span className="tab-dot" title="Belum disimpan" aria-hidden="true" />}
             <button

@@ -34,6 +34,26 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
       <path d="M4.2 6l2 2-2 2M8.4 10h3.4" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" />
     </svg>
   ),
+  extensions: () => (
+    // Empat kotak, satu terpisah — sama seperti VS Code (prompt 19.1).
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <rect x="1.8" y="1.8" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="1.8" y="9" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="9" y="9" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      {/* kotak keempat "lepas": digeser + garis putus-putus */}
+      <rect
+        x="9.6"
+        y="1.2"
+        width="5.2"
+        height="5.2"
+        rx="0.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeDasharray="2 1.4"
+      />
+    </svg>
+  ),
   settings: () => (
     // Gerigi (gear) 8 gigi — geometri dihitung dari lingkaran R=7/r=5.15,
     // bukan pola "matahari" (garis lurus memancar) seperti sebelumnya.
@@ -56,10 +76,20 @@ const LABEL: Record<ActivityId, string> = {
   scm: 'Source Control',
   ai: 'AI / MCP',
   terminal: 'Terminal',
+  extensions: 'Extensions (Ctrl+Shift+X)',
   settings: 'Settings',
 };
 
-const ORDER: ActivityId[] = ['explorer', 'search', 'scm', 'ai', 'terminal', 'settings'];
+// Extensions di BAWAH daftar (prompt 19.1), tepat sebelum Settings.
+const ORDER: ActivityId[] = [
+  'explorer',
+  'search',
+  'scm',
+  'ai',
+  'terminal',
+  'extensions',
+  'settings',
+];
 
 export default function ActivityBar() {
   const activity = useStore((s) => s.activity);

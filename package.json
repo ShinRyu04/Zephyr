@@ -26,6 +26,7 @@
     "verify:18": "node scripts/verify18.mjs",
     "verify:20": "node scripts/verify20.mjs",
     "verify:21": "node scripts/verify21.mjs",
+    "verify:19": "node scripts/verify19.mjs",
     "verify:24": "node scripts/verify24.mjs",
     "verify:27": "node scripts/verify27.mjs",
     "smoke:release": "node scripts/smoke-release.mjs src-tauri/target/release/zephyr.exe 9224",
