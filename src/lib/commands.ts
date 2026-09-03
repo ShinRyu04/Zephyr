@@ -39,6 +39,9 @@ import type {
   ShellInfo,
   StatResult,
   HistoryInfo,
+  SearchOpts,
+  SearchSummary,
+  ReplaceHasil,
   TaskProblem,
   TaskRun,
   TasksFile,
@@ -381,3 +384,23 @@ export const historyPrune = (path: string, maxPerFile: number, maxDays: number) 
 /** Statistik pemakaian disk seluruh history. */
 export const historyStats = () =>
   invoke<{ root: string; folder: number; snapshot: number; byte: number }>('history_stats');
+
+// ─────────────────── global search via ripgrep (fase 25) ───────────────────
+
+/**
+ * Jalankan pencarian ripgrep. Hasil MENGALIR lewat event `search-hit`;
+ * nilai kembaliannya hanya ringkasan (jumlah, waktu, error).
+ */
+export const searchGrep = (opts: SearchOpts, rgPath?: string) =>
+  invoke<SearchSummary>('search_grep', { opts, rgPath });
+/** Batalkan pencarian yang sedang jalan. */
+export const searchCancel = () => invoke<boolean>('search_cancel');
+/** Info binary rg (ada/tidak, jalur, versi) untuk Settings. */
+export const searchRgInfo = (rgPath?: string) =>
+  invoke<{ ada: boolean; path: string; versi: string }>('search_rg_info', { rgPath });
+/**
+ * Replace di banyak file. Setiap file di-snapshot ke Local History lebih dulu
+ * (reason `before-replace`) supaya bisa di-undo.
+ */
+export const searchReplace = (files: string[], opts: SearchOpts, replacement: string) =>
+  invoke<ReplaceHasil[]>('search_replace', { files, opts, replacement });

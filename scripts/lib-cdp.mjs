@@ -97,6 +97,8 @@ export class Cdp {
         const TK = window.__ZEPHYR_TASK__;
         /** fase 26: bridge Timeline / Local History */
         const HS = window.__ZEPHYR_HIST__;
+        /** fase 25: bridge Global Search (ripgrep) */
+        const SR = window.__ZEPHYR_SRC__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

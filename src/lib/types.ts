@@ -850,3 +850,55 @@ export interface TimelineEntry {
   reason?: string;
   size?: number;
 }
+
+// ─────────────────── global search via ripgrep (fase 25) ───────────────────
+
+/** Opsi pencarian yang dikirim ke Rust (cermin `SearchOpts` di search.rs). */
+export interface SearchOpts {
+  query: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  regex: boolean;
+  /** glob "files to include", dipisah koma */
+  include: string;
+  /** glob "files to exclude", dipisah koma */
+  exclude: string;
+  respectGitignore: boolean;
+  includeHidden: boolean;
+  maxResults?: number;
+  /** folder awal; default = workspace */
+  root?: string;
+}
+
+/** Satu match dari ripgrep. */
+export interface RgHit {
+  path: string;
+  /** 1-based */
+  line: number;
+  /** 1-based, dalam KARAKTER (Rust sudah mengonversi dari byte) */
+  col: number;
+  matchLen: number;
+  preview: string;
+  /** semua rentang [kolom, panjang] di baris ini */
+  ranges: [number, number][];
+}
+
+export interface SearchSummary {
+  hits: number;
+  files: number;
+  /** true = dihentikan karena batas hasil / dibatalkan */
+  truncated: boolean;
+  elapsedMs: number;
+  /** jalur rg yang dipakai */
+  rg: string;
+  /** '' = sukses; berisi pesan bila rg tidak ada */
+  error: string;
+}
+
+export interface ReplaceHasil {
+  path: string;
+  jumlah: number;
+  /** id snapshot Local History sebelum tulis ('' = tidak ada) */
+  snapshot: string;
+  error: string;
+}

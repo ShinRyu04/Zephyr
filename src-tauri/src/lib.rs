@@ -25,6 +25,7 @@ mod mcp_config;
 mod mcp_server;
 mod paths;
 mod pty;
+mod search;
 mod secrets;
 mod settings;
 mod tasks;
@@ -74,6 +75,8 @@ pub fn run() {
         .manage(state)
         // Runtime task (fase 23): daftar run + peta proses anak.
         .manage(tasks::TasksRuntime::default())
+        // Runtime pencarian (fase 25): flag batal untuk query yang sedang jalan.
+        .manage(search::SearchRuntime::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
@@ -267,6 +270,11 @@ pub fn run() {
             history::history_clear,
             history::history_prune,
             history::history_stats,
+            // global search & replace (fase 25)
+            search::search_grep,
+            search::search_cancel,
+            search::search_rg_info,
+            search::search_replace,
             // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
             diagnostics::self_test,

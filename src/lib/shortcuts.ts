@@ -29,6 +29,10 @@ export const ACTIONS: ActionDef[] = [
 
   { id: 'edit.find', label: 'Cari di file', group: 'Edit', default: 'Ctrl+F' },
   { id: 'edit.findInFiles', label: 'Cari di workspace', group: 'Edit', default: 'Ctrl+Shift+F' },
+  // fase 25: replace lintas file + navigasi hasil.
+  { id: 'edit.replaceInFiles', label: 'Ganti di workspace', group: 'Edit', default: 'Ctrl+Shift+H' },
+  { id: 'edit.nextMatch', label: 'Hasil pencarian berikutnya', group: 'Edit', default: 'F4' },
+  { id: 'edit.prevMatch', label: 'Hasil pencarian sebelumnya', group: 'Edit', default: 'Shift+F4' },
 
   { id: 'view.sidebar', label: 'Toggle sidebar', group: 'View', default: 'Ctrl+B' },
   { id: 'view.panel', label: 'Toggle panel bawah', group: 'View', default: 'Ctrl+J' },
