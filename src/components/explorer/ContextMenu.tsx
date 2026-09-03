@@ -11,7 +11,7 @@ export default function ContextMenu() {
   const selected = useExplorer((s) => s.selected);
   const close = useExplorer((s) => s.closeCtxMenu);
   const startInline = useExplorer((s) => s.startInline);
-  const deletePaths = useExplorer((s) => s.deletePaths);
+  const askDelete = useExplorer((s) => s.askDelete);
   const reveal = useExplorer((s) => s.reveal);
   const copyPath = useExplorer((s) => s.copyPath);
   const toggleExpand = useExplorer((s) => s.toggleExpand);
@@ -56,14 +56,12 @@ export default function ContextMenu() {
     });
   };
 
+  // FASE 27: `window.confirm()` DILARANG (native, memblokir, tidak bisa
+  // di-tema, tidak bisa diuji harness). Konfirmasi hapus lewat store Explorer
+  // yang sudah punya dialog sendiri.
   const confirmDelete = () => {
-    const label =
-      targets.length > 1 ? `${targets.length} item` : `"${targets[0].split(/[\\/]/).pop()}"`;
-    if (window.confirm(`Hapus ${label} secara permanen? Tindakan ini tidak bisa dibatalkan.`)) {
-      void deletePaths(targets);
-    } else {
-      close();
-    }
+    close();
+    askDelete(targets);
   };
 
   return (
