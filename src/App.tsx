@@ -35,6 +35,7 @@ import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindTaskListeners, useTasks } from './lib/tasksStore';
 import { useHistory } from './lib/historyStore';
 import { bindSearchListeners, useSearch } from './lib/searchStore';
+import { bindDebugListeners } from './lib/debugStore';
 import { usePanel } from './lib/panelStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
@@ -58,6 +59,7 @@ import './styles/lsp.css';
 import './styles/editor-extras.css';
 import './styles/extensions.css';
 import './styles/history.css';
+import './styles/debug.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -609,6 +611,9 @@ export default function App() {
     bindTaskListeners();
     // fase 25: listener `search-hit` juga punya guard modul sendiri.
     bindSearchListeners();
+    // fase 22: listener `dap-event`/`dap-output` + sinkronisasi context key
+    // `debugActive` (yang membuat F11 = step-into saat debug, fullscreen di luar).
+    bindDebugListeners();
     // tasks.json hanya ada kalau sudah ada workspace. Dibaca lewat subscribe,
     // bukan selector: `workspace` bisa berubah setelah bootstrap selesai dan
     // effect dengan array dependensi kosong tidak akan melihatnya.

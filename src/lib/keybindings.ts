@@ -159,16 +159,19 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('F8', 'editor.nextError', 'stub', 'global', 'Next Problem'),
   D('Shift+F8', 'editor.prevError', 'stub', 'global', 'Previous Problem'),
 
-  // ── Run / Debug (semua stub sampai fase 22) ──
+  // ── Run / Debug (fase 22: layer 'app', bukan lagi 'stub') ──
   // F11 SENGAJA didaftarkan dua kali dengan `when` berbeda: saat debugActive
   // ia step-into, di luar itu fullscreen. Resolver memilih yang paling
   // spesifik — inilah gunanya context key (catatan konflik 18.3).
-  D('F5', 'debug.start', 'stub', 'global', 'Start Debugging'),
-  D('Shift+F5', 'debug.stop', 'stub', 'debugActive', 'Stop Debugging'),
-  D('F10', 'debug.stepOver', 'stub', 'debugActive', 'Step Over'),
-  D('F11', 'debug.stepInto', 'stub', 'debugActive', 'Step Into'),
-  D('Shift+F11', 'debug.stepOut', 'stub', 'debugActive', 'Step Out'),
-  D('F9', 'debug.toggleBreakpoint', 'stub', 'global', 'Toggle Breakpoint'),
+  D('F5', 'debug.start', 'app', 'global', 'Start Debugging'),
+  D('Shift+F5', 'debug.stop', 'app', 'debugActive', 'Stop Debugging'),
+  D('Ctrl+Shift+F5', 'debug.restart', 'app', 'debugActive', 'Restart Debugging'),
+  D('F6', 'debug.pause', 'app', 'debugActive', 'Pause'),
+  D('F10', 'debug.stepOver', 'app', 'debugActive', 'Step Over'),
+  D('F11', 'debug.stepInto', 'app', 'debugActive', 'Step Into'),
+  D('Shift+F11', 'debug.stepOut', 'app', 'debugActive', 'Step Out'),
+  D('F9', 'debug.toggleBreakpoint', 'app', 'global', 'Toggle Breakpoint'),
+  D('Ctrl+Shift+D', 'debug.focus', 'app', 'global', 'Run & Debug'),
 
   // ── Terminal (xterm yang menangani) ──
   D('Ctrl+Shift+C', 'terminal.copy', 'terminal', 'terminalFocus'),

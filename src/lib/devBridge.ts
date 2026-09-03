@@ -20,6 +20,7 @@ import { useExt19, getBahasaWorkspace } from './extensionsStore19';
 import { useTasks } from './tasksStore';
 import { useHistory } from './historyStore';
 import { useSearch } from './searchStore';
+import { useDebug } from './debugStore';
 import {
   tasksMatchLine as tasksMatchLineCmd,
   tasksDetectPort as tasksDetectPortCmd,
@@ -1152,6 +1153,85 @@ export function installDevBridge(): void {
       if (!baris) return [];
       return [...baris.querySelectorAll('mark')].map((m) => m.textContent ?? '');
     },
+  };
+
+  // ── fase 22: bridge Run & Debug (harness verify22) ──
+  w.__ZEPHYR_DBG__ = {
+    store: () => useDebug,
+    state: () => useDebug.getState(),
+    /** status sesi: inactive | starting | running | stopped */
+    status: () => useDebug.getState().state,
+    alasanStop: () => useDebug.getState().alasanStop,
+    error: () => useDebug.getState().error,
+    caps: () => useDebug.getState().caps,
+
+    muatLaunch: () => useDebug.getState().muatLaunch(),
+    muatAdapters: () => useDebug.getState().muatAdapters(),
+    launch: () => useDebug.getState().launch,
+    adapters: () => useDebug.getState().adapters,
+    pilihConfig: (n: string) => useDebug.getState().pilihConfig(n),
+    configTerpilih: () => useDebug.getState().configTerpilih,
+
+    toggleBreakpoint: (p: string, l: number) => useDebug.getState().toggleBreakpoint(p, l),
+    breakpoints: () =>
+      useDebug.getState().breakpoints.map((b) => ({
+        path: b.path,
+        line: b.line,
+        verified: b.verified,
+        enabled: b.enabled,
+      })),
+    hapusSemuaBreakpoint: () => useDebug.getState().hapusSemuaBreakpoint(),
+
+    start: (n?: string) => useDebug.getState().start(n),
+    stop: () => useDebug.getState().stop(),
+    restart: () => useDebug.getState().restart(),
+    kontrol: (a: 'continue' | 'next' | 'stepIn' | 'stepOut' | 'pause') =>
+      useDebug.getState().kontrol(a),
+
+    threads: () => useDebug.getState().threads,
+    frames: () =>
+      useDebug.getState().frames.map((f) => ({
+        id: f.id,
+        name: f.name,
+        path: f.path,
+        line: f.line,
+        column: f.column,
+      })),
+    frameTerpilih: () => useDebug.getState().frameTerpilih,
+    pilihFrame: (id: number) => useDebug.getState().pilihFrame(id),
+    scopes: () => useDebug.getState().scopes,
+    /** variabel satu scope/objek; [] kalau belum dimuat */
+    vars: (ref: number) => useDebug.getState().variables[ref] ?? [],
+    expandVariable: (ref: number) => useDebug.getState().expandVariable(ref),
+    setVariable: (ref: number, n: string, v: string) =>
+      useDebug.getState().setVariable(ref, n, v),
+    /** cari variabel bernama X di semua scope yang sudah dimuat */
+    cariVar: (nama: string) => {
+      const st = useDebug.getState();
+      for (const ref of Object.keys(st.variables)) {
+        const v = st.variables[Number(ref)].find((x) => x.name === nama);
+        if (v) return { name: v.name, value: v.value, type: v.type, ref: v.variablesReference };
+      }
+      return null;
+    },
+
+    watch: () => useDebug.getState().watch,
+    tambahWatch: (e: string) => useDebug.getState().tambahWatch(e),
+    hapusWatch: (e: string) => useDebug.getState().hapusWatch(e),
+
+    repl: () => useDebug.getState().repl,
+    evalRepl: (e: string) => useDebug.getState().evalRepl(e),
+    bersihkanRepl: () => useDebug.getState().bersihkanRepl(),
+
+    barisAktif: () => useDebug.getState().barisAktif,
+    loadedSources: () => useDebug.getState().loadedSources,
+    /** jumlah marker breakpoint yang benar-benar dirender di gutter editor */
+    domBp: () => document.querySelectorAll('.cm-bp-marker').length,
+    domBpVerified: () => document.querySelectorAll('.cm-bp-marker.is-verified').length,
+    /** true = ada baris yang di-highlight kuning (paused) */
+    domBarisAktif: () => document.querySelectorAll('.cm-baris-aktif').length,
+    /** context key debugActive aktif atau tidak (yang mengatur F10/F11) */
+    ctxDebugActive: () => useKb.getState().ctx.includes('debugActive'),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

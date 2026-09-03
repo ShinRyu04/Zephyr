@@ -595,6 +595,8 @@ export type ActivityId =
   | 'explorer'
   | 'search'
   | 'scm'
+  // fase 22: Run & Debug
+  | 'debug'
   | 'ai'
   | 'terminal'
   | 'extensions'
@@ -901,4 +903,42 @@ export interface ReplaceHasil {
   /** id snapshot Local History sebelum tulis ('' = tidak ada) */
   snapshot: string;
   error: string;
+}
+
+// ─────────────────── debugger DAP (fase 22) ───────────────────
+
+/** Satu konfigurasi launch.json (cermin `DebugConfig` di dap.rs). */
+export interface DebugConfig {
+  name: string;
+  type: string;
+  request: string;
+  program?: string;
+  cwd?: string;
+  args: string[];
+  env: Record<string, string>;
+  stopOnEntry: boolean;
+  /** field adapter yang tidak ada di skema kita, diteruskan apa adanya */
+  [k: string]: unknown;
+}
+
+export interface InvalidEntry {
+  index: number;
+  name: string;
+  reason: string;
+}
+
+export interface LaunchFile {
+  /** jalur file yang dibaca ('' = tidak ada launch.json) */
+  path: string;
+  version: string;
+  configurations: DebugConfig[];
+  invalid: InvalidEntry[];
+}
+
+export interface AdapterSpec {
+  id: string;
+  cmd: string[];
+  tcp: boolean;
+  /** '' = adapter tersedia; berisi instruksi install bila belum */
+  missing: string;
 }

@@ -10,6 +10,7 @@
 
 import { useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
+import { useDebug } from '../../lib/debugStore';
 
 /** Placeholder tipe; fase 22 akan memindahkannya ke debugConsoleStore.ts. */
 export interface DebugEvalResult {
@@ -18,17 +19,25 @@ export interface DebugEvalResult {
 }
 
 /**
- * Evaluasi ekspresi REPL. Fase 20: no-op yang mencatat ke Output "Debug".
- * Fase 22 mengganti isinya dengan panggilan DAP `evaluate` request.
+ * Evaluasi ekspresi REPL lewat DAP `evaluate` (context: "repl").
+ *
+ * Fase 20 menyisakan ini sebagai no-op; fase 22 menyambungkannya ke sesi
+ * sungguhan. Bentuk UI tidak berubah — itu memang tujuan kontrak fase 20.
  */
-export const evaluateDebugExpr = (expr: string): DebugEvalResult => {
-  const teks = `> ${expr}\nDebug adapter belum aktif (fase 22). Ekspresi tidak dievaluasi.`;
-  useOutput.getState().append('debug', teks);
-  return { ok: false, text: teks };
+export const evaluateDebugExpr = async (expr: string): Promise<DebugEvalResult> => {
+  const teks = await useDebug.getState().evalRepl(expr);
+  const ok = useDebug.getState().state !== 'inactive';
+  useOutput.getState().append('debug', `> ${expr}\n${teks}`);
+  return { ok, text: teks };
 };
 
 export default function DebugConsoleView() {
-  const lines = useOutput((s) => s.channels.find((c) => c.id === 'debug')?.lines ?? []);
+  // fase 22: isi console = riwayat REPL dari debugStore (input + hasil +
+  // stdout/stderr program), bukan lagi channel Output "Debug". Channel Output
+  // tetap diisi sebagai log teknis adapter.
+  const repl = useDebug((s) => s.repl);
+  const state = useDebug((s) => s.state);
+  const bersihkanRepl = useDebug((s) => s.bersihkanRepl);
   const [expr, setExpr] = useState('');
   /** riwayat input supaya panah atas/bawah berguna seperti REPL sungguhan */
   const riwayat = useRef<string[]>([]);
@@ -40,7 +49,7 @@ export default function DebugConsoleView() {
     if (!t) return;
     riwayat.current.unshift(t);
     posisi.current = -1;
-    evaluateDebugExpr(t);
+    void evaluateDebugExpr(t);
     setExpr('');
     window.setTimeout(() => {
       const el = bodyRef.current;
@@ -49,17 +58,22 @@ export default function DebugConsoleView() {
   };
 
   return (
-    <div className="dc-root" data-testid="debug-console-view">
+    <div className="dc-root" data-testid="debug-console-view" data-dbg-state={state}>
       <div className="dc-body" ref={bodyRef} data-testid="dc-body">
-        {lines.length === 0 ? (
+        {repl.length === 0 ? (
           <p className="dc-empty" data-testid="dc-empty">
-            Debug Console. Debugger (DAP) datang di fase 22 — sekarang ekspresi yang
-            dikirim dicatat ke channel Output “Debug”.
+            Debug Console. Mulai sesi debug (F5) lalu evaluasi ekspresi di frame yang
+            sedang berhenti.
           </p>
         ) : (
-          lines.map((l, i) => (
-            <div className="dc-line" data-testid="dc-line" key={i}>
-              {l || '\u00a0'}
+          repl.map((l, i) => (
+            <div
+              className={`dc-line is-${l.kind}`}
+              data-testid="dc-line"
+              data-kind={l.kind}
+              key={i}
+            >
+              {l.kind === 'input' ? `› ${l.text}` : l.text || '\u00a0'}
             </div>
           ))
         )}
@@ -100,6 +114,14 @@ export default function DebugConsoleView() {
         />
         <button className="btn btn-sm" data-testid="dc-send" onClick={kirim}>
           Kirim
+        </button>
+        <button
+          className="btn btn-sm"
+          title="Bersihkan console"
+          data-testid="dc-clear"
+          onClick={bersihkanRepl}
+        >
+          ⌫
         </button>
       </div>
     </div>
