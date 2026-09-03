@@ -3,7 +3,8 @@
    memakai hex resmi di SVG-nya sendiri, bukan di sini. */
 
 /* ── pemilih isi panel bawah: Terminal | AI ──
-   Baris sendiri di atas isi panel (bentuk yang disetujui user). */
+   Satu baris tipis berisi pemilih SAJA (fase 24.1). Tab terminal pindah ke kolom
+   kanan, tombol [+ ▾]/[⋮] pindah ke baris tab panel. */
 .dock-switch {
   display: flex;
   align-items: stretch;
@@ -12,6 +13,14 @@
   padding: 0 6px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.dock-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
   flex: 0 0 auto;
 }
 

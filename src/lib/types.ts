@@ -533,6 +533,25 @@ export interface EditorSettings {
   smoothScroll: boolean;
   formatOnSave: boolean;
   showWhitespace: boolean;
+  // ── fase 24: editor extras ──
+  // Nama kunci mengikuti VS Code (breadcrumbs.enabled, editor.stickyScroll, …)
+  // supaya settings & keymap terasa familier — keputusan brief fase 24.
+  /** breadcrumbs di atas editor (folder/file + jalur simbol dari LSP) */
+  breadcrumbs: boolean;
+  /** baris header (function/class) menempel saat scroll */
+  stickyScroll: boolean;
+  /** jumlah maksimum baris sticky yang ditumpuk */
+  stickyScrollMaxLines: number;
+  /** minimap menggambar karakter, bukan hanya blok warna (lebih berat) */
+  minimapRenderCharacters: boolean;
+  /** garis panduan indentasi + penanda indent aktif */
+  indentGuides: boolean;
+  /** swatch warna inline untuk #hex / rgb() / hsl() */
+  colorDecorators: boolean;
+  /** tandai karakter unicode ambigu/tak terlihat */
+  unicodeHighlight: boolean;
+  /** warnai pasangan bracket berdasarkan kedalaman */
+  bracketPairColorization: boolean;
 }
 
 export interface ThemeSettings {
@@ -602,6 +621,16 @@ export const DEFAULT_SETTINGS: Settings = {
     smoothScroll: false,
     formatOnSave: false,
     showWhitespace: false,
+    // fase 24: yang murah dinyalakan, yang berat (minimap, renderCharacters)
+    // tetap mati sampai user memintanya — target RAM PRD < 400MB.
+    breadcrumbs: true,
+    stickyScroll: false,
+    stickyScrollMaxLines: 3,
+    minimapRenderCharacters: false,
+    indentGuides: true,
+    colorDecorators: true,
+    unicodeHighlight: true,
+    bracketPairColorization: true,
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
   shortcuts: {},

@@ -88,6 +88,9 @@ export class Cdp {
         const CP = window.__ZEPHYR_CP__;
         const SET = window.__ZEPHYR_SET__;
         const PTY = window.__ZEPHYR_PTY__;
+        /** fase 21/24: bridge yang datang belakangan (boleh undefined di app lama) */
+        const LSP = window.__ZEPHYR_LSP__;
+        const EX = window.__ZEPHYR_EXTRAS__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

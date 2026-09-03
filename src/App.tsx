@@ -50,6 +50,7 @@ import './styles/scm.css';
 import './styles/palette.css';
 import './styles/panel.css';
 import './styles/lsp.css';
+import './styles/editor-extras.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 

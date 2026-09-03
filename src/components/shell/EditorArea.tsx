@@ -10,7 +10,6 @@ import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import ReadOnlyBanner from '../editor/ReadOnlyBanner';
-import Breadcrumbs from './Breadcrumbs';
 import ZephyrLogo from './ZephyrLogo';
 import SettingsPage from '../settings/SettingsPage';
 import DiffViewer from '../scm/DiffViewer';
@@ -102,7 +101,13 @@ export default function EditorArea() {
   return (
     <section className="editor-area">
       <EditorTabBar />
-      <Breadcrumbs />
+      {/* fase 24.1: <Breadcrumbs /> versi shell DIHAPUS dari sini.
+          Ada DUA komponen bernama Breadcrumbs: yang lama (shell/, hanya path)
+          dan yang fase 24 (editor/, path + simbol LSP + dropdown navigasi).
+          Keduanya terender sekaligus, jadi jalur file tampil dua kali dan
+          memakan 46px tinggi editor. Yang dipertahankan versi fase 24, yang
+          dirender di dalam CodeMirrorEditor (butuh EditorView + baris kursor,
+          dan ikut mati saat file read-only). */}
       <ReadOnlyBanner />
       <FindBar />
       <div className="editor-host">
