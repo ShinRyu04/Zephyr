@@ -31,3 +31,9 @@ AGENTS.md
 ARCHITECTURE.md
 Zephyr PRD.md
 Zephyr Build Prompt.txt
+
+# Kunci privat updater (fase 17.6) — HILANG = user lama tidak bisa update lagi.
+# JANGAN pernah di-commit. Simpan salinannya di tempat aman di luar repo.
+src-tauri/zephyr.key
+src-tauri/zephyr.key.pub
+*.key
