@@ -14,16 +14,14 @@ pub fn mcp_status(app: AppHandle, state: State<AppState>) -> ZResult<McpStatus> 
     let running_port = state.mcp_port();
     // Saat server hidup, port yang diminta datang dari runtime — settings.mcp.port
     // sudah ditimpa port hasil bind, jadi tidak bisa dipakai membandingkan.
-    let requested = state
-        .mcp_requested_port()
-        .unwrap_or_else(|| {
-            crate::settings::read_settings_value(&state)
-                .get("mcp")
-                .and_then(|m| m.get("port"))
-                .and_then(|v| v.as_u64())
-                .and_then(|n| u16::try_from(n).ok())
-                .unwrap_or(9222)
-        });
+    let requested = state.mcp_requested_port().unwrap_or_else(|| {
+        crate::settings::read_settings_value(&state)
+            .get("mcp")
+            .and_then(|m| m.get("port"))
+            .and_then(|v| v.as_u64())
+            .and_then(|n| u16::try_from(n).ok())
+            .unwrap_or(9222)
+    });
     let enabled = crate::settings::read_settings_value(&state)
         .get("mcp")
         .and_then(|m| m.get("enabled"))
@@ -90,7 +88,10 @@ pub fn mcp_remove_cli(ids: Vec<String>) -> ZResult<Vec<CliWriteResult>> {
     if ids.is_empty() {
         return Err(ZephyrError::InvalidInput("tidak ada CLI dipilih".into()));
     }
-    Ok(ids.iter().map(|id| crate::mcp_config::remove_cli(id)).collect())
+    Ok(ids
+        .iter()
+        .map(|id| crate::mcp_config::remove_cli(id))
+        .collect())
 }
 
 /// Apakah tiap CLI sudah punya entri zephyr di config-nya.

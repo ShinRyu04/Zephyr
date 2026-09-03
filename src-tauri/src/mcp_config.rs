@@ -115,13 +115,55 @@ pub enum Format {
 
 /// Daftar CLI yang didukung (ARCHITECTURE.md §4 / prompt fase 11 §11.4).
 pub const TARGETS: [CliTarget; 7] = [
-    CliTarget { id: "claude", label: "Claude Code", rel: ".claude.json", format: Format::Json, key: "mcpServers" },
-    CliTarget { id: "codex", label: "Codex CLI", rel: ".codex/config.toml", format: Format::Toml, key: "mcp_servers" },
-    CliTarget { id: "gemini", label: "Gemini CLI", rel: ".gemini/settings.json", format: Format::Json, key: "mcpServers" },
-    CliTarget { id: "opencode", label: "opencode", rel: ".config/opencode/opencode.json", format: Format::Json, key: "mcp" },
-    CliTarget { id: "copilot", label: "GitHub Copilot CLI", rel: ".copilot/mcp-config.json", format: Format::Json, key: "mcpServers" },
-    CliTarget { id: "cursor", label: "Cursor", rel: ".cursor/mcp.json", format: Format::Json, key: "mcpServers" },
-    CliTarget { id: "startup", label: "Startup/.mcp.json", rel: "Startup/.mcp.json", format: Format::Json, key: "mcpServers" },
+    CliTarget {
+        id: "claude",
+        label: "Claude Code",
+        rel: ".claude.json",
+        format: Format::Json,
+        key: "mcpServers",
+    },
+    CliTarget {
+        id: "codex",
+        label: "Codex CLI",
+        rel: ".codex/config.toml",
+        format: Format::Toml,
+        key: "mcp_servers",
+    },
+    CliTarget {
+        id: "gemini",
+        label: "Gemini CLI",
+        rel: ".gemini/settings.json",
+        format: Format::Json,
+        key: "mcpServers",
+    },
+    CliTarget {
+        id: "opencode",
+        label: "opencode",
+        rel: ".config/opencode/opencode.json",
+        format: Format::Json,
+        key: "mcp",
+    },
+    CliTarget {
+        id: "copilot",
+        label: "GitHub Copilot CLI",
+        rel: ".copilot/mcp-config.json",
+        format: Format::Json,
+        key: "mcpServers",
+    },
+    CliTarget {
+        id: "cursor",
+        label: "Cursor",
+        rel: ".cursor/mcp.json",
+        format: Format::Json,
+        key: "mcpServers",
+    },
+    CliTarget {
+        id: "startup",
+        label: "Startup/.mcp.json",
+        rel: "Startup/.mcp.json",
+        format: Format::Json,
+        key: "mcpServers",
+    },
 ];
 
 pub fn target(id: &str) -> Option<&'static CliTarget> {
@@ -167,7 +209,9 @@ fn backup_file(p: &std::path::Path) -> bool {
     }
     let bak = p.with_file_name(format!(
         "{}.bak",
-        p.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_default()
+        p.file_name()
+            .map(|x| x.to_string_lossy().to_string())
+            .unwrap_or_default()
     ));
     std::fs::copy(p, bak).is_ok()
 }
@@ -454,4 +498,3 @@ pub fn merge_toml_for_test(existing: &str, key: &str, port: u16, token: &str) ->
 pub fn strip_toml_for_test(existing: &str, key: &str) -> String {
     strip_toml_block(existing, key)
 }
-

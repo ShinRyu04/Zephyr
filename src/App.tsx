@@ -32,6 +32,8 @@ import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
 import { muatSemuaEkstensi } from './lib/extLoader';
+import { bindTaskListeners, useTasks } from './lib/tasksStore';
+import { usePanel } from './lib/panelStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
 import { useLsp } from './lib/lspStore';
@@ -275,6 +277,19 @@ export default function App() {
           s.setSettingsOpen(false);
           s.setActivity('scm');
           if (!s.sidebarVisible) s.toggleSidebar();
+          break;
+        // ── Tasks (fase 23) ──
+        case 'tasks.build':
+          usePanel.getState().focusTab('output');
+          void useTasks.getState().jalankanBuild();
+          break;
+        case 'tasks.run':
+          window.dispatchEvent(
+            new CustomEvent('zephyr-palette-open', { detail: { query: 'Task: ' } }),
+          );
+          break;
+        case 'tasks.terminate':
+          void useTasks.getState().hentikanSemua();
           break;
         default:
           return; // action belum punya implementasi -> jangan telan event
@@ -567,8 +582,22 @@ export default function App() {
     void onAiChunk((c) => useAi.getState().onChunk(c));
   }, []);
 
+  // 8b) Tasks (fase 23): listener event Rust + muat tasks.json.
+  //     `bindTaskListeners` punya guard modul sendiri — StrictMode dev memasang
+  //     effect dua kali dan setiap baris output task akan tampil dobel.
+  useEffect(() => {
+    bindTaskListeners();
+    // tasks.json hanya ada kalau sudah ada workspace. Dibaca lewat subscribe,
+    // bukan selector: `workspace` bisa berubah setelah bootstrap selesai dan
+    // effect dengan array dependensi kosong tidak akan melihatnya.
+    const T = () => useTasks.getState();
+    if (useStore.getState().workspace) void T().muat();
+    return useStore.subscribe((s, prev) => {
+      if (s.workspace !== prev.workspace && s.workspace) void T().muat();
+    });
+  }, []);
+
   // 9) Source Control (fase 10): status awal + listener `gh-login`.
-  //    Guard modul sama seperti pty/ai — device flow yang di-handle dua kali
   //    akan menimpa pesan status berulang.
   useEffect(() => {
     void useGit.getState().init();
@@ -642,7 +671,18 @@ export default function App() {
       useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
     });
 
-    const openPalette = () => void usePalette.getState().openPalette('command');
+    // `detail.query` (fase 23): "Run Task" membuka palette yang sudah terisi
+    // "Task: " supaya daftar task langsung tersaring. openPalette() selalu
+    // mengosongkan query, jadi setQuery HARUS dipanggil setelahnya.
+    const openPalette = (e: Event) => {
+      const q = (e as CustomEvent<{ query?: string }>).detail?.query;
+      void usePalette
+        .getState()
+        .openPalette('command')
+        .then(() => {
+          if (q) usePalette.getState().setQuery(q);
+        });
+    };
     window.addEventListener('zephyr-palette-open', openPalette);
     // fase 18: command `view.quickOpen` dari menu bar / chord juga lewat event
     // supaya commandRegistry tidak perlu import paletteStore (lingkaran).

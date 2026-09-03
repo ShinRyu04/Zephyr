@@ -13,7 +13,7 @@ export interface ActionDef {
   /** label ditampilkan di tabel Shortcuts */
   label: string;
   /** kelompok untuk pengurutan tabel */
-  group: 'File' | 'Edit' | 'View' | 'Terminal' | 'AI' | 'Git';
+  group: 'File' | 'Edit' | 'View' | 'Terminal' | 'AI' | 'Git' | 'Tasks';
   default: string;
 }
 
@@ -51,6 +51,11 @@ export const ACTIONS: ActionDef[] = [
   { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: 'Ctrl+Shift+A' },
   { id: 'ai.send', label: 'Kirim prompt AI', group: 'AI', default: 'Ctrl+Enter' },
   { id: 'git.panel', label: 'Buka Source Control', group: 'Git', default: 'Ctrl+Shift+G' },
+
+  // Tasks (fase 23). Ctrl+Shift+B = Run Build Task, sama seperti VS Code.
+  { id: 'tasks.build', label: 'Run Build Task', group: 'Tasks', default: 'Ctrl+Shift+B' },
+  { id: 'tasks.run', label: 'Run Task', group: 'Tasks', default: '' },
+  { id: 'tasks.terminate', label: 'Terminate Task', group: 'Tasks', default: '' },
 ];
 
 export const ACTION_BY_ID = new Map(ACTIONS.map((a) => [a.id, a]));
