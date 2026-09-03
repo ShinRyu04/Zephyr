@@ -181,8 +181,8 @@ export default function KeybindingsEditor() {
                   <td className="kb-layer" data-layer={b.layer}>
                     {LAYER_LABEL[b.layer]}
                   </td>
-                  <td className="kb-src" data-user={b.isUser ? '1' : '0'}>
-                    {b.isUser ? 'User' : 'Default'}
+                  <td className="kb-src" data-user={b.isUser ? '1' : '0'} data-src={b.source ?? ''}>
+                    {b.isUser ? 'User' : b.source ? `Ekstensi: ${b.source}` : 'Default'}
                   </td>
                   <td className="kb-aksi">
                     <button

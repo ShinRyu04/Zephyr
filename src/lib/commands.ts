@@ -27,6 +27,8 @@ import type {
   PublicModel,
   QuickFile,
   ExtensionInfo,
+  ExtInstallHasil,
+  ExtManifestStatus,
   ExtensionLoad,
   ModelTestResult,
   ReadResult,
@@ -268,6 +270,27 @@ export const extensionsAdd = (path: string) => invoke<ExtensionInfo>('extensions
 export const extensionsRemove = (id: string) => invoke<boolean>('extensions_remove', { id });
 /** → path %APPDATA%\zephyr\extensions (dibuat bila belum ada). */
 export const extensionsFolder = () => invoke<string>('extensions_folder');
+
+// ── extensions native fase 19 (manifest `zephyr-extension.json`) ──
+
+/** Pasang dari folder, file `.zext` (zip), atau manifest-nya langsung. */
+export const extensionsInstall = (path: string) =>
+  invoke<ExtInstallHasil>('extensions_install', { path });
+/** Hapus folder + entri installed.json (hanya di dalam extensions/). */
+export const extensionsUninstall = (id: string) => invoke<boolean>('extensions_uninstall', { id });
+/** Enable/disable tanpa menghapus file. */
+export const extensionsSetEnabled = (id: string, on: boolean) =>
+  invoke<boolean>('extensions_set_enabled', { id, on });
+/** Baca file kontribusi (tema/keymap/snippet) — path wajib di dalam ekstensi. */
+export const extensionsReadContrib = (id: string, rel: string) =>
+  invoke<Record<string, unknown>>('extensions_read_contrib', { id, rel });
+/** Manifest + status semua ekstensi terpasang (dipakai loader 19.5). */
+export const extensionsManifests = () => invoke<ExtManifestStatus[]>('extensions_manifests');
+/** Tulis paket bundled ke folder staging → path untuk `extensions_install`. */
+export const extensionsWriteBundled = (id: string) =>
+  invoke<string>('extensions_write_bundled', { id });
+/** Id paket bundled yang tersedia offline. */
+export const extensionsBundledIds = () => invoke<string[]>('extensions_bundled_ids');
 
 // ── diagnostics / logging (fase 14) ──
 

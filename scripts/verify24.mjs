@@ -97,7 +97,6 @@ const main = async () => {
   const { cdp, page } = await Cdp.attach(CDP_PORT);
   console.log(`# target: ${page.title}\n`);
 
-  await cdp.send('Page.bringToFront').catch(() => {});
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
 
   if ((await cdp.eval('typeof window.__ZEPHYR_EXTRAS__')) === 'undefined') {

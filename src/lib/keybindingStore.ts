@@ -8,6 +8,7 @@
 // berarti scroll editor vs scroll buffer terminal (syarat 18.2/V5).
 
 import { create } from 'zustand';
+import { keymapEkstensi } from './extLoader';
 import * as cmd from './commands';
 import {
   DEFAULT_BINDINGS,
@@ -74,7 +75,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
     try {
       const raw = await cmd.getKeybindings();
       const user = Array.isArray(raw) ? (raw as UserBinding[]) : [];
-      set({ user, bindings: mergeBindings(user), kbError: null });
+      set({ user, bindings: mergeBindings(user, keymapEkstensi()), kbError: null });
     } catch (e) {
       // Gagal baca bukan alasan mematikan seluruh shortcut — pakai default.
       set({ user: [], bindings: DEFAULT_BINDINGS, kbError: cmd.asZephyrError(e).message });
@@ -86,7 +87,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
     if (!c) return;
     const user = get().user.filter((u) => u.command !== command);
     user.push({ key: c, command, when: when ?? 'global' });
-    set({ user, bindings: mergeBindings(user) });
+    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
     try {
       await cmd.setKeybindings(user);
     } catch (e) {
@@ -97,7 +98,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
   removeBinding: async (command) => {
     const user = get().user.filter((u) => u.command !== command);
     user.push({ key: '', command, remove: true });
-    set({ user, bindings: mergeBindings(user) });
+    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
     try {
       await cmd.setKeybindings(user);
     } catch (e) {
@@ -107,7 +108,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
 
   resetOne: async (command) => {
     const user = get().user.filter((u) => u.command !== command);
-    set({ user, bindings: mergeBindings(user) });
+    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
     try {
       await cmd.setKeybindings(user);
     } catch (e) {

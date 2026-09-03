@@ -156,7 +156,7 @@ export default function SearchPanel() {
         {grouped.map(([path, list]) => (
           <div className="sr-file" key={path}>
             <div className="sr-file-head" title={path}>
-              <FileIcon lang={detectLang(path)} />
+              <FileIcon lang={detectLang(path)} name={path} />
               <span className="sr-file-name">{baseOf(path)}</span>
               <span className="sr-count">{list.length}</span>
               {showReplace && (

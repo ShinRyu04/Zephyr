@@ -33,6 +33,8 @@ export interface KeyBinding {
   layer: Layer;
   /** label untuk tabel Keyboard Shortcuts bila command belum ada di registry */
   label?: string;
+  /** fase 19: id ekstensi asal binding ini — kolom "Source" di editor shortcut */
+  source?: string;
 }
 
 /** Normalisasi sequence: tiap chord dinormalkan, dipisah satu spasi. */
@@ -195,8 +197,48 @@ export interface UserBinding {
  * menggantikan chord default-nya (bukan menambah entri kedua) — kalau tidak,
  * satu command akan punya dua chord dan tabel jadi membingungkan.
  */
-export function mergeBindings(user: UserBinding[]): KeyBinding[] {
+/**
+ * Merge default ⊕ ekstensi ⊕ user.
+ *
+ * Urutan 19.5: Default → Extension → User. Ekstensi boleh MENAMBAH chord dan
+ * menimpa default (itu gunanya keymap "ala Sublime"), tapi override USER selalu
+ * menang di atas keduanya — kalau tidak, memasang keymap ekstensi diam-diam
+ * membuang remap yang user ketik sendiri.
+ */
+export function mergeBindings(
+  user: UserBinding[],
+  ext: Array<{ key: string; command: string; source: string }> = [],
+): KeyBinding[] {
   const out = DEFAULT_BINDINGS.map((b) => ({ ...b }));
+
+  for (const e of ext) {
+    const chord = normalizeChord(e.key ?? '');
+    if (!chord || !e.command) continue;
+    // Chord yang diambil ekstensi HARUS dilepas dari binding lain, kalau tidak
+    // dua command punya chord sama dan `resolve()` mengembalikan yang pertama
+    // ketemu — bukti nyata: keymap Sublime memberi Ctrl+Shift+D ke
+    // editor.copyLineDown, tapi resolver tetap menjawab debug.focus (default).
+    for (const b of out) {
+      if (b.command !== e.command && b.chord === chord) b.chord = '';
+    }
+    const idx = out.findIndex((b) => b.command === e.command);
+    if (idx >= 0) {
+      out[idx] = { ...out[idx], chord, source: e.source };
+    } else {
+      out.push({
+        chord,
+        command: e.command,
+        when: 'global',
+        layer: 'app',
+        source: e.source,
+      });
+    }
+  }
+  // Binding yang chord-nya direbut ekstensi dibuang dari tabel.
+  const bersih = out.filter((b) => b.chord !== '');
+  out.length = 0;
+  out.push(...bersih);
+
   for (const u of user) {
     if (!u || !u.command) continue;
     const idx = out.findIndex((b) => b.command === u.command);
@@ -207,7 +249,8 @@ export function mergeBindings(user: UserBinding[]): KeyBinding[] {
     const chord = normalizeChord(u.key ?? '');
     if (!chord) continue;
     if (idx >= 0) {
-      out[idx] = { ...out[idx], chord, when: u.when ?? out[idx].when };
+      // `source` dilepas: begitu user meremap, sumbernya user, bukan ekstensi.
+      out[idx] = { ...out[idx], chord, when: u.when ?? out[idx].when, source: undefined };
     } else {
       // Command yang tidak ada di default (mis. dari ekstensi) tetap boleh
       // diberi chord oleh user.

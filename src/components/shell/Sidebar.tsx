@@ -7,6 +7,7 @@
 import { useStore } from '../../lib/store';
 import AiSidebar from '../ai/AiSidebar';
 import ExplorerPanel from '../explorer/ExplorerPanel';
+import ExtensionsView from '../extensions/ExtensionsView';
 import SearchPanel from '../explorer/SearchPanel';
 import SourceControlPanel from '../scm/SourceControlPanel';
 import SettingsNav from '../settings/SettingsNav';
@@ -26,6 +27,8 @@ export default function Sidebar() {
       return <AiSidebar />;
     case 'terminal':
       return <TerminalPanel />;
+    case 'extensions':
+      return <ExtensionsView />;
     case 'settings':
       return <SettingsNav />;
   }

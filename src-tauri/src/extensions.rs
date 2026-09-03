@@ -208,6 +208,12 @@ fn parse_commands(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
     out
 }
 
+/// Wrapper publik untuk `parse_commands` — dipakai `ext_pkg.rs` (fase 19)
+/// supaya aturan namespace `ext.<id>.<nama>` cuma punya SATU definisi.
+pub fn parse_commands_pub(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
+    parse_commands(ext_id, manifest)
+}
+
 /// Baca satu folder ekstensi → info. None = bukan paket ekstensi.
 fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
     let pkg = dir.join("package.json");
@@ -418,6 +424,26 @@ pub fn extensions_add(state: State<AppState>, path: String) -> ZResult<Extension
         write_registry(&state, &list)?;
     }
     Ok(info)
+}
+
+/// Lepas satu id dari registry path luar. Dipakai `ext_pkg::extensions_uninstall`
+/// supaya uninstall tidak meninggalkan entri hantu di registry.json.
+pub fn registry_lepas(state: &AppState, id: &str) -> ZResult<bool> {
+    let before = registry_paths(state);
+    let after: Vec<PathBuf> = before
+        .iter()
+        .filter(|p| {
+            p.file_name()
+                .map(|n| n.to_string_lossy() != id)
+                .unwrap_or(true)
+        })
+        .cloned()
+        .collect();
+    if after.len() == before.len() {
+        return Ok(false);
+    }
+    write_registry(state, &after)?;
+    Ok(true)
 }
 
 #[tauri::command]
