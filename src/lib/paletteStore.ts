@@ -11,6 +11,8 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { availableCommands, findCommand, type CommandDef } from './commandRegistry';
+import { useKb } from './keybindingStore';
+import { chordFor } from './keybindings';
 import { useStore } from './store';
 import { effectiveBinding } from './shortcuts';
 import type { QuickFile } from './types';
@@ -210,7 +212,12 @@ export const usePalette = create<PaletteStore>((set, get) => ({
         label: c.title,
         detail: c.group,
         group: c.group,
-        binding: c.action ? effectiveBinding(c.action, custom) : undefined,
+        // FASE 18: accelerator diambil dari registry keybinding (default ⊕
+        // user) supaya SEMUA command menampilkan chord-nya, bukan hanya yang
+        // punya `action` lama dari fase 08 (syarat V3).
+        binding:
+          chordFor(c.id, useKb.getState().bindings) ||
+          (c.action ? effectiveBinding(c.action, custom) : undefined),
         score: m.score + recentBonus,
         hits: m.hits.filter((i) => i < c.title.length),
       });

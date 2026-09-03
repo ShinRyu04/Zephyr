@@ -58,6 +58,10 @@ export const setWindowSize = (width: number, height: number) =>
 export const listRecents = () => invoke<RecentEntry[]>('list_recents');
 /** fase 16.3: path file config rusak yang di-backup Rust ('' = tidak ada). */
 export const takeBrokenConfig = () => invoke<string>('take_broken_config');
+/** fase 18.4: override chord user dari %APPDATA%\zephyr\keybindings.json. */
+export const getKeybindings = () => invoke<unknown[]>('get_keybindings');
+export const setKeybindings = (bindings: unknown[]) =>
+  invoke<void>('set_keybindings', { bindings });
 export const workspaceOpen = (path: string) => invoke<void>('workspace_open', { path });
 export const workspaceClose = () => invoke<void>('workspace_close');
 
