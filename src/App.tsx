@@ -11,6 +11,9 @@ import TerminalArea from './components/shell/TerminalArea';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import SaveIssueDialog from './components/shell/SaveIssueDialog';
+import Toast from './components/notifications/Toast';
+import NotificationCenter from './components/notifications/NotificationCenter';
+import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
 import CommandPalette from './components/shell/CommandPalette';
 import McpToast from './components/shell/McpToast';
@@ -563,6 +566,9 @@ export default function App() {
       <CommandPalette />
       <McpToast />
       <CrashDialog />
+      <Toast />
+      <NotificationCenter />
+      <DeleteConfirmDialog />
     </div>
   );
 }

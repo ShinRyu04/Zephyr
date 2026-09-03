@@ -119,7 +119,7 @@ export default function FileTree() {
   const commitInline = useExplorer((s) => s.commitInline);
   const cancelInline = useExplorer((s) => s.cancelInline);
   const startInline = useExplorer((s) => s.startInline);
-  const deletePaths = useExplorer((s) => s.deletePaths);
+  const askDelete = useExplorer((s) => s.askDelete);
   const movePath = useExplorer((s) => s.movePath);
 
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -146,9 +146,8 @@ export default function FileTree() {
     } else if (e.key === 'Delete') {
       e.preventDefault();
       const targets = selected.includes(node.path) ? selected : [node.path];
-      if (window.confirm(`Hapus ${targets.length} item secara permanen?`)) {
-        void deletePaths(targets);
-      }
+      // FASE 27: dialog dalam-app, bukan `window.confirm` yang memblokir.
+      askDelete(targets);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (node.isDir) void toggleExpand(node.path);

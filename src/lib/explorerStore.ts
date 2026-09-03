@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
+import { notifyError, notifyInfo } from './notificationStore';
 import type { DirNode, SearchHit } from './types';
 
 /** Menu konteks yang sedang tampil (posisi viewport + target). */
@@ -37,6 +38,8 @@ interface ExplorerState {
   inlineEdit: InlineEdit | null;
   /** pesan error terakhir dari operasi file */
   explorerError: string | null;
+  /** FASE 27: path yang menunggu konfirmasi hapus (null = tidak ada dialog) */
+  pendingDelete: string[] | null;
 
   // search
   query: string;
@@ -67,6 +70,11 @@ interface ExplorerActions {
   commitInline: (value: string) => Promise<void>;
 
   deletePaths: (paths: string[]) => Promise<void>;
+  /** FASE 27: minta konfirmasi hapus lewat dialog dalam-app (bukan
+   *  `window.confirm` yang memblokir dan tidak bisa di-tema/diuji). */
+  askDelete: (paths: string[]) => void;
+  cancelDelete: () => void;
+  confirmDelete: () => Promise<void>;
   movePath: (from: string, toDir: string) => Promise<void>;
   reveal: (path: string) => Promise<void>;
   copyPath: (path: string) => Promise<void>;
@@ -109,6 +117,8 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   ctxMenu: null,
   inlineEdit: null,
   explorerError: null,
+  /** FASE 27: path yang menunggu konfirmasi hapus (null = tidak ada). */
+  pendingDelete: null,
 
   query: '',
   glob: '',
@@ -249,9 +259,33 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
       }));
       // Tutup tab file yang dihapus (termasuk yang ada di dalam folder).
       useStore.getState().closeTabsUnder(paths);
+      // FASE 27: laporkan lewat notifikasi terpusat, bukan hanya status bar
+      // yang gampang tertimpa. Riwayatnya tersimpan di Notification Center.
+      notifyInfo(
+        paths.length === 1
+          ? `Dihapus: ${baseOf(paths[0])}`
+          : `${paths.length} item dihapus`,
+        { source: 'explorer' },
+      );
     } catch (e) {
-      set({ explorerError: cmd.asZephyrError(e).message, ctxMenu: null });
+      const msg = cmd.asZephyrError(e).message;
+      set({ explorerError: msg, ctxMenu: null });
+      notifyError('Gagal menghapus', { detail: msg, source: 'explorer' });
     }
+  },
+
+  /** FASE 27: buka dialog konfirmasi hapus (menggantikan `window.confirm`). */
+  askDelete: (paths) => {
+    if (paths.length === 0) return;
+    set({ pendingDelete: paths, ctxMenu: null });
+  },
+
+  cancelDelete: () => set({ pendingDelete: null }),
+
+  confirmDelete: async () => {
+    const paths = get().pendingDelete;
+    set({ pendingDelete: null });
+    if (paths && paths.length > 0) await get().deletePaths(paths);
   },
 
   movePath: async (from, toDir) => {

@@ -27,7 +27,8 @@ import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
 import { usePalette } from './paletteStore';
 import { useExtensions } from './extensionStore';
-import { COMMANDS, availableCommands, extensionCommands } from './commandRegistry';
+import { COMMANDS, availableCommands, extensionCommands, runCommand } from './commandRegistry';
+import { useNotif } from './notificationStore';
 
 type CmdName = 'undo' | 'redo';
 
@@ -420,6 +421,46 @@ export function installDevBridge(): void {
     maxTabs: () => maxLoadedTabs(),
     /** workspace_open MENTAH — untuk membuktikan penolakan root drive (16.3) */
     openWs: (p: string) => workspaceOpen(p),
+  };
+
+  // ── fase 27: notifikasi terpusat ──
+  w.__ZEPHYR_NOTIF__ = {
+    store: useNotif,
+    notify: (n: Parameters<ReturnType<typeof useNotif.getState>['notify']>[0]) =>
+      useNotif.getState().notify(n),
+    update: (id: string, patch: Record<string, unknown>) =>
+      useNotif.getState().update(id, patch as never),
+    progress: (id: string, v: number | 'indeterminate') => useNotif.getState().progress(id, v),
+    dismiss: (id: string) => useNotif.getState().dismiss(id),
+    clear: () => useNotif.getState().clear(),
+    /** riwayat ringkas (tanpa fungsi) */
+    items: () =>
+      useNotif.getState().items.map((x) => ({
+        id: x.id,
+        severity: x.severity,
+        message: x.message,
+        detail: x.detail ?? null,
+        source: x.source ?? null,
+        progress: x.progress ?? null,
+        sticky: !!x.sticky,
+        read: x.read,
+        actions: x.actions.map((a) => a.command),
+      })),
+    /** id yang sedang tampil sebagai toast */
+    toasts: () => useNotif.getState().toasts,
+    unread: () => useNotif.getState().items.filter((x) => !x.read).length,
+    dnd: () => useNotif.getState().dnd,
+    setDnd: (v: boolean) => useNotif.getState().setDnd(v),
+    center: (open: boolean) => useNotif.getState().setCenterOpen(open),
+    centerOpen: () => useNotif.getState().centerOpen,
+    markAllRead: () => useNotif.getState().markAllRead(),
+    /** jalankan command by id (jalur yang dipakai tombol aksi notifikasi) */
+    run: (id: string) => runCommand(id),
+    /** dialog hapus Explorer (pengganti window.confirm, fase 27) */
+    askDelete: (paths: string[]) => useExplorer.getState().askDelete(paths),
+    pendingDelete: () => useExplorer.getState().pendingDelete,
+    confirmDelete: () => useExplorer.getState().confirmDelete(),
+    cancelDelete: () => useExplorer.getState().cancelDelete(),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.
