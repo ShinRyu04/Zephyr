@@ -227,6 +227,17 @@ export const useStore = create<Store>((set, get) => ({
       set({ settings: s, settingsLoaded: true });
       set({ activeTheme: applyTheme(s.general, s.theme) });
       retheme(); // terminal hidup ikut tema (V3 fase 13)
+      // fase 20: pulihkan preferensi panel bawah (tab terlihat, tab aktif,
+      // tinggi). Import dinamis supaya store.ts tidak mengimport panelStore
+      // secara statis — panelStore mengimport store.ts (lingkaran).
+      if (s.panel) {
+        const { usePanel } = await import('./panelStore');
+        usePanel.getState().hydrate(s.panel.visibleTabs, s.panel.activeTab);
+        if (typeof s.panel.height === 'number' && s.panel.height > 0) {
+          const { useTerminal } = await import('./terminalStore');
+          useTerminal.getState().setHeight(s.panel.height);
+        }
+      }
     } catch (e) {
       set({ settingsLoaded: true, statusMessage: cmd.asZephyrError(e).message });
     }

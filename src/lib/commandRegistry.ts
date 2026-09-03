@@ -19,6 +19,8 @@ import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
 import { useNotif } from './notificationStore';
 import { useKb } from './keybindingStore';
+import { usePanel } from './panelStore';
+import { useOutput } from './outputStore';
 import { THEMES } from './themes';
 import { flushTab } from './editorRegistry';
 
@@ -742,6 +744,103 @@ export const COMMANDS: CommandDef[] = [
       await useUpdater.getState().check();
       openSettingsSection('about');
     },
+  },
+  // ── FASE 20: panel bawah (Problems/Output/Debug/Terminal/Ports) ──
+  {
+    id: 'workbench.action.togglePanel',
+    title: 'View: Toggle Panel',
+    group: 'View',
+    action: 'view.panel',
+    keywords: 'panel bawah buka tutup',
+    run: () => T().toggleVisible(),
+  },
+  {
+    id: 'workbench.action.focusPanel',
+    title: 'View: Focus Panel',
+    group: 'View',
+    keywords: 'fokus panel bawah',
+    run: () => usePanel.getState().focusTab(usePanel.getState().activeTab),
+  },
+  {
+    id: 'workbench.action.toggleMaximizedPanel',
+    title: 'View: Toggle Maximized Panel',
+    group: 'View',
+    keywords: 'perbesar panel maximize',
+    run: () => {
+      const t = T();
+      if (!t.visible) t.setVisible(true);
+      t.toggleMaximized();
+    },
+  },
+  {
+    id: 'problemsPanel.focus',
+    title: 'View: Show Problems',
+    group: 'View',
+    keywords: 'masalah diagnostik error warning',
+    run: () => usePanel.getState().focusTab('problems'),
+  },
+  {
+    id: 'outputPanel.focus',
+    title: 'View: Show Output',
+    group: 'View',
+    keywords: 'output log channel',
+    run: () => usePanel.getState().focusTab('output'),
+  },
+  {
+    id: 'debugConsolePanel.focus',
+    title: 'View: Focus Debug Console',
+    group: 'View',
+    keywords: 'debug console repl',
+    run: () => usePanel.getState().focusTab('debug'),
+  },
+  {
+    id: 'terminalPanel.focus',
+    title: 'View: Show Terminal',
+    group: 'Terminal',
+    keywords: 'terminal panel bawah',
+    run: () => usePanel.getState().focusTab('terminal'),
+  },
+  {
+    id: 'portsPanel.focus',
+    title: 'View: Show Ports',
+    group: 'View',
+    keywords: 'port forward',
+    run: () => usePanel.getState().focusTab('ports'),
+  },
+  {
+    id: 'panel.clearOutput',
+    title: 'Output: Clear Active Channel',
+    group: 'View',
+    keywords: 'bersihkan output log',
+    run: () => useOutput.getState().clear(useOutput.getState().activeChannel),
+  },
+  {
+    id: 'panel.toggleWrap',
+    title: 'Output: Toggle Word Wrap',
+    group: 'View',
+    keywords: 'wrap lipat output',
+    run: () => useOutput.getState().toggleWrap(),
+  },
+  {
+    id: 'panel.toggleScrollLock',
+    title: 'Output: Toggle Scroll Lock',
+    group: 'View',
+    keywords: 'scroll lock auto',
+    run: () => useOutput.getState().toggleAutoScroll(),
+  },
+  {
+    id: 'panel.nextTab',
+    title: 'View: Next Panel Tab',
+    group: 'View',
+    keywords: 'tab panel berikutnya',
+    run: () => usePanel.getState().cycleTab(1),
+  },
+  {
+    id: 'panel.prevTab',
+    title: 'View: Previous Panel Tab',
+    group: 'View',
+    keywords: 'tab panel sebelumnya',
+    run: () => usePanel.getState().cycleTab(-1),
   },
   // Tema per nama: menu View → Theme butuh satu command per tema supaya
   // pilihannya langsung, bukan lewat "next theme".

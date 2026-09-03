@@ -7,7 +7,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import ActivityBar from './components/shell/ActivityBar';
 import Sidebar from './components/shell/Sidebar';
 import EditorArea from './components/shell/EditorArea';
-import TerminalArea from './components/shell/TerminalArea';
+import Panel from './components/shell/Panel';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import SaveIssueDialog from './components/shell/SaveIssueDialog';
@@ -46,6 +46,7 @@ import './styles/settings.css';
 import './styles/ai.css';
 import './styles/scm.css';
 import './styles/palette.css';
+import './styles/panel.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -144,6 +145,15 @@ export default function App() {
 
       const binding = eventToBinding(e);
       if (!binding) return;
+
+      // FASE 18/20: registry keybinding sekarang pemilik tunggal chord.
+      // Handler ini terdaftar LEBIH DULU dari resolver (efek 3d), dan untuk
+      // event yang di-dispatch langsung ke `window` listener berjalan sesuai
+      // urutan registrasi — jadi stopImmediatePropagation di resolver tidak
+      // bisa mencegah handler ini. Kalau tidak bail out di sini, satu chord
+      // dijalankan DUA KALI (Ctrl+J toggle dua kali = tidak terjadi apa-apa).
+      const hitKb = useKb.getState().resolve(binding);
+      if (hitKb) return;
 
       const s = useStore.getState();
       const actionId = bindingMap(s.settings.shortcuts).get(binding);
@@ -341,7 +351,11 @@ export default function App() {
       // Chord pertama sebuah sequence: tahan, jangan fire apa pun.
       if (!pending && kb.isPrefix(chord)) {
         e.preventDefault();
-        e.stopPropagation();
+        // stopImmediatePropagation, BUKAN stopPropagation: handler shortcut
+        // lama (fase 08) juga terdaftar di `window`, dan stopPropagation tidak
+        // memblokir listener pada node yang SAMA. Tanpa ini satu chord
+        // dieksekusi dua kali — Ctrl+J toggle dua kali = tidak terjadi apa-apa.
+        e.stopImmediatePropagation();
         kb.setPending(chord);
         useStore.getState().setStatus(`${chord} — menunggu tombol berikutnya…`);
         return;
@@ -367,7 +381,7 @@ export default function App() {
       if (diInput && !e.ctrlKey && !e.altKey && !e.metaKey) return;
 
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       kb.setLastRun(hit.command);
 
       if (hit.layer === 'stub') {
@@ -685,7 +699,7 @@ export default function App() {
 
         <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
           <EditorArea />
-          <TerminalArea />
+          <Panel />
         </main>
       </div>
 

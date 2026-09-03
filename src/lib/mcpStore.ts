@@ -18,6 +18,8 @@ import { useAi } from './aiStore';
 import { useGit } from './gitStore';
 import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
+import { useProblems } from './problemsStore';
+import { useOutput } from './outputStore';
 import { flushTab } from './editorRegistry';
 import { readBuffer } from './xtermRegistry';
 import type { CliStatus, CliWriteResult, McpAction, McpStatus, PaneKind } from './types';
@@ -399,6 +401,46 @@ async function runAction(type: string, p: Record<string, unknown>): Promise<unkn
       const paneId = str(p, 'paneId');
       if (!t().findPane(paneId)) throw new Error(`pane ${paneId} tidak ada`);
       return { paneId, text: readBuffer(paneId, 500) };
+    }
+
+    // ── fase 20: panel bawah, BACA-SAJA ──
+    // Sengaja tidak ada set_problems/append_output dari MCP: menulis
+    // diagnostik dari luar akan membuat Problems tidak lagi mencerminkan
+    // keadaan nyata language server (fase 21).
+    case 'get_problems': {
+      const sev = typeof p.severity === 'string' ? p.severity : null;
+      const semua = useProblems.getState().all();
+      const list = sev ? semua.filter((d) => d.severity === sev) : semua;
+      const { errors, warnings } = useProblems.getState().counts();
+      return {
+        counts: { errors, warnings },
+        total: list.length,
+        problems: list.slice(0, 500).map((d) => ({
+          file: d.file,
+          line: d.line,
+          column: d.column,
+          severity: d.severity,
+          message: d.message,
+          source: d.source,
+          code: d.code ?? null,
+        })),
+      };
+    }
+
+    case 'get_output': {
+      const o = useOutput.getState();
+      const id = typeof p.channel === 'string' && p.channel ? p.channel : o.activeChannel;
+      const ch = o.channels.find((c) => c.id === id);
+      if (!ch) {
+        throw new Error(`channel ${id} tidak ada (tersedia: ${o.channels.map((c) => c.id).join(', ')})`);
+      }
+      const tail = typeof p.tail === 'number' && p.tail > 0 ? Math.min(p.tail, 2000) : 200;
+      return {
+        channel: ch.id,
+        label: ch.label,
+        total: ch.lines.length,
+        lines: ch.lines.slice(-tail),
+      };
     }
 
     case 'editor_open': {
