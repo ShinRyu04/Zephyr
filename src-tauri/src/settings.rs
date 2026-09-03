@@ -64,7 +64,10 @@ pub fn default_settings() -> Value {
             "visibleTabs": ["problems", "output", "debug", "terminal", "ports"],
             "activeTab": "terminal",
             "height": 260
-        }
+        },
+        // fase 21: language server. `servers` kosong = pakai default katalog
+        // di src/lib/lsp.ts; user boleh menimpa cmd/enabled per bahasa.
+        "lsp": { "enabled": true, "idleSeconds": 300, "servers": {} }
     })
 }
 

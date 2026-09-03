@@ -10,6 +10,7 @@
 // Array datar akan membuat entri lama menumpuk.
 
 import { create } from 'zustand';
+import { kunciPath } from './pathKey';
 
 export type Severity = 'error' | 'warning' | 'info' | 'hint';
 
@@ -28,6 +29,18 @@ export interface Diagnostic {
 
 /** Urutan tampil: error dulu, lalu warning, dst. */
 const RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2, hint: 3 };
+
+/**
+ * Kunci Map untuk sebuah path — didefinisikan di `pathKey.ts` dan
+ * di-re-export di sini supaya pemakai lama tetap jalan.
+ *
+ * WAJIB dinormalisasi: sumber diagnostik memberi bentuk path yang berbeda —
+ * LSP mengirim `file:///d%3A/x/y.ts` (jadi `d:\x\y.ts`, drive HURUF KECIL),
+ * sedangkan tab editor bisa memegang `D:/x/y.ts`. Tanpa normalisasi,
+ * `setDiagnostics()` dan `forFile()` memakai kunci berbeda untuk file yang
+ * SAMA: badge status bar naik tapi tabel & squiggle kosong.
+ */
+export { kunciPath };
 
 interface ProblemsState {
   /** file → diagnostik. Map, bukan objek, supaya path Windows dengan titik
@@ -61,17 +74,19 @@ export const useProblems = create<ProblemsState & ProblemsActions>((set, get) =>
 
   setDiagnostics: (file, list) =>
     set((s) => {
+      const k = kunciPath(file);
       const next = new Map(s.byFile);
-      if (list.length === 0) next.delete(file);
-      else next.set(file, list);
+      if (list.length === 0) next.delete(k);
+      else next.set(k, list);
       return { byFile: next };
     }),
 
   removeFile: (file) =>
     set((s) => {
-      if (!s.byFile.has(file)) return {};
+      const k = kunciPath(file);
+      if (!s.byFile.has(k)) return {};
       const next = new Map(s.byFile);
-      next.delete(file);
+      next.delete(k);
       return { byFile: next };
     }),
 
@@ -103,7 +118,7 @@ export const useProblems = create<ProblemsState & ProblemsActions>((set, get) =>
     return out;
   },
 
-  forFile: (file) => get().byFile.get(file) ?? [],
+  forFile: (file) => get().byFile.get(kunciPath(file)) ?? [],
 
   counts: () => {
     let errors = 0;

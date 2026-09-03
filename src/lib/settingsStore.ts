@@ -14,6 +14,7 @@ export type SectionId =
   | 'models'
   | 'agents'
   | 'extensions'
+  | 'lsp'
   | 'scm'
   | 'mcp'
   | 'ssh'
@@ -27,6 +28,7 @@ export const SECTION_ORDER: SectionId[] = [
   'models',
   'agents',
   'extensions',
+  'lsp',
   'scm',
   'mcp',
   'ssh',

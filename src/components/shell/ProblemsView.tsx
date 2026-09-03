@@ -9,7 +9,7 @@
 // React akan me-render semuanya.
 
 import { useMemo, useRef, useState } from 'react';
-import { useProblems, type Diagnostic, type Severity } from '../../lib/problemsStore';
+import { useProblems, kunciPath, type Diagnostic, type Severity } from '../../lib/problemsStore';
 import { useStore } from '../../lib/store';
 import { revealPosition } from '../../lib/editorRegistry';
 
@@ -49,7 +49,9 @@ export default function ProblemsView() {
     const semua = useProblems.getState().all();
     const q = filter.trim().toLowerCase();
     return semua.filter((d) => {
-      if (activeOnly && filePathAktif && d.file !== filePathAktif) return false;
+      if (activeOnly && filePathAktif && kunciPath(d.file) !== kunciPath(filePathAktif)) {
+        return false;
+      }
       if (!q) return true;
       return (
         d.message.toLowerCase().includes(q) ||

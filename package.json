@@ -25,6 +25,7 @@
     "verify:16": "node scripts/verify16.mjs",
     "verify:18": "node scripts/verify18.mjs",
     "verify:20": "node scripts/verify20.mjs",
+    "verify:21": "node scripts/verify21.mjs",
     "verify:27": "node scripts/verify27.mjs",
     "smoke:release": "node scripts/smoke-release.mjs src-tauri/target/release/zephyr.exe 9224",
     "stress": "node scripts/stress.mjs",
@@ -82,6 +83,7 @@
     "postcss": "^8.5.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",
+    "typescript-language-server": "^4.4.0",
     "vite": "^6.0.1",
     "ws": "^8.21.3"
   }

@@ -44,9 +44,10 @@ interface OutputActions {
   lines: (channelId: string) => string[];
 }
 
-/** Channel bawaan. "Tasks" & "Debug" ditambahkan fase 23/22. */
+/** Channel bawaan. "Tasks" ditambahkan fase 23. */
 const DEFAULT_CHANNELS: OutputChannel[] = [
   { id: 'zephyr', label: 'Zephyr', lines: [], dirty: false },
+  { id: 'lsp', label: 'LSP', lines: [], dirty: false },
   { id: 'mcp', label: 'MCP', lines: [], dirty: false },
   { id: 'ssh', label: 'SSH', lines: [], dirty: false },
   { id: 'extensions', label: 'Extensions', lines: [], dirty: false },

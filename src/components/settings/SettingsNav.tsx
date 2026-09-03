@@ -17,6 +17,7 @@ const NAV_KEY: Record<SectionId, string> = {
   models: 'settings.models',
   agents: 'settings.agents',
   extensions: 'settings.extensions',
+  lsp: 'settings.lsp',
   scm: 'settings.scm',
   mcp: 'settings.mcp',
   ssh: 'settings.ssh',
@@ -82,6 +83,15 @@ export function NavIcon({ id }: { id: SectionId }) {
             d="M6.4 2.6h3.2v2.2a1.4 1.4 0 102.2 1.2h1.6v3.2H11a1.4 1.4 0 10-1.4 2.2v1.6H6.4v-1.8a1.4 1.4 0 10-1.2-2.2H2.6V6.4h2.2a1.4 1.4 0 101.6-1.6z"
             {...st}
           />
+        </svg>
+      );
+    case 'lsp':
+      // Ikon "kode cerdas": kurung kurawal + kilat kecil.
+      return (
+        <svg {...p}>
+          <path d="M6 3.2C4.2 3.6 4.6 7 3.2 8c1.4 1 1 4.4 2.8 4.8" {...st} />
+          <path d="M10 3.2c1.8.4 1.4 3.8 2.8 4.8-1.4 1-1 4.4-2.8 4.8" {...st} />
+          <path d="M8.4 5.8 6.9 8.3h2.2L7.6 10.6" {...st} />
         </svg>
       );
     case 'scm':

@@ -41,3 +41,6 @@ src-tauri/zephyr.key.pub
 # laporan kerja internal — jangan ikut repo (keputusan user)
 BUGLOG.md
 BUILD_REPORT.md
+
+# catatan lanjut sesi internal — jangan ikut repo
+LANJUT-FASE-21.md
