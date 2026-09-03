@@ -33,6 +33,7 @@ import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindTaskListeners, useTasks } from './lib/tasksStore';
+import { useHistory } from './lib/historyStore';
 import { usePanel } from './lib/panelStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
@@ -55,6 +56,7 @@ import './styles/panel.css';
 import './styles/lsp.css';
 import './styles/editor-extras.css';
 import './styles/extensions.css';
+import './styles/history.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -689,6 +691,18 @@ export default function App() {
     const openQuick = () => void usePalette.getState().openPalette('file');
     window.addEventListener('zephyr-quickopen', openQuick);
 
+    // fase 26: snapshot Local History. store.ts memancarkan event ini SEBELUM
+    // menulis file; ia tidak boleh mengimpor historyStore karena historyStore
+    // sudah mengimpor store.ts (lingkaran impor).
+    const onSnapshot = (e: Event) => {
+      const d = (e as CustomEvent<{ path?: string; reason?: string }>).detail;
+      if (!d?.path) return;
+      void useHistory
+        .getState()
+        .snapshotSave(d.path, (d.reason as 'save' | 'manual') ?? 'save');
+    };
+    window.addEventListener('zephyr-history-snapshot', onSnapshot);
+
     const stopWatch = watchSystemTheme(() => {
       const s = useStore.getState();
       if (s.settings.general.theme !== 'system') return;
@@ -700,6 +714,7 @@ export default function App() {
     return () => {
       window.removeEventListener('zephyr-palette-open', openPalette);
       window.removeEventListener('zephyr-quickopen', openQuick);
+      window.removeEventListener('zephyr-history-snapshot', onSnapshot);
       stopWatch();
     };
   }, []);

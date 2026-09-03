@@ -689,6 +689,14 @@ export interface Settings {
     idleSeconds: number;
     servers: Record<string, { enabled?: boolean; cmd?: string[]; initOptions?: Record<string, unknown> }>;
   };
+  /** fase 26: Local History (snapshot tiap save) */
+  history: {
+    enabled: boolean;
+    /** snapshot maksimum yang disimpan per file */
+    maxPerFile: number;
+    /** buang snapshot lebih tua dari ini (hari); 0 = tanpa batas umur */
+    maxDays: number;
+  };
 }
 
 /** Default frontend — cermin dari default_settings() di settings.rs. */
@@ -738,6 +746,9 @@ export const DEFAULT_SETTINGS: Settings = {
     height: 260,
   },
   lsp: { enabled: true, idleSeconds: 300, servers: {} },
+  // fase 26: dinyalakan secara default — ini safety-net, gunanya justru saat
+  // user belum sadar butuh. Retensi 50 snapshot/file & 30 hari menjaga disk.
+  history: { enabled: true, maxPerFile: 50, maxDays: 30 },
 };
 
 // ─────────────────── tasks (fase 23) ───────────────────
@@ -805,4 +816,37 @@ export interface TaskRun {
   lines: number;
   active: boolean;
   cwd: string;
+}
+
+// ─────────────────── local history (fase 26) ───────────────────
+
+/** Satu snapshot Local History. */
+export interface Snapshot {
+  /** nama file snapshot, dipakai untuk read/restore */
+  id: string;
+  timestampMs: number;
+  /** save | before-rename | manual | before-restore */
+  reason: string;
+  size: number;
+}
+
+export interface HistoryInfo {
+  /** folder history file ini; '' bila belum ada snapshot */
+  dir: string;
+  snapshots: Snapshot[];
+  /** alasan file ini tidak di-snapshot ('' = boleh) */
+  skip: string;
+}
+
+/** Entri Timeline: snapshot lokal ATAU commit git, dalam satu urutan waktu. */
+export interface TimelineEntry {
+  kind: 'snapshot' | 'commit';
+  /** id snapshot, atau hash commit */
+  id: string;
+  timestampMs: number;
+  label: string;
+  detail: string;
+  /** hanya untuk snapshot */
+  reason?: string;
+  size?: number;
 }

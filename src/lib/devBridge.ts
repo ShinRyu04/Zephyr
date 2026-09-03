@@ -18,10 +18,16 @@ import { ALL_MODELS } from './modelCatalog';
 import { THEMES, systemPrefersDark, semuaTema } from './themes';
 import { useExt19, getBahasaWorkspace } from './extensionsStore19';
 import { useTasks } from './tasksStore';
+import { useHistory } from './historyStore';
 import {
   tasksMatchLine as tasksMatchLineCmd,
   tasksDetectPort as tasksDetectPortCmd,
   tasksMatchers as tasksMatchersCmd,
+  historySnapshot as cmdHistorySnapshot,
+  historyList as cmdHistoryList,
+  historyRead as cmdHistoryRead,
+  historyPrune as cmdHistoryPrune,
+  historyStats as cmdHistoryStats,
 } from './commands';
 import { KATALOG_BUNDLED } from './extCatalog';
 import {
@@ -1010,6 +1016,57 @@ export function installDevBridge(): void {
     commandsDiPalette: () =>
       availableCommands()
         .filter((c) => c.id.startsWith('task.') || c.id.startsWith('tasks.'))
+        .map((c) => c.id),
+  };
+
+  // ── fase 26: bridge Timeline / Local History (harness verify26) ──
+  w.__ZEPHYR_HIST__ = {
+    store: () => useHistory,
+    state: () => useHistory.getState(),
+    muat: (f: string) => useHistory.getState().muat(f),
+    /** snapshot lewat jalur PRODUK (menghormati settings.history) */
+    snapshot: (f: string, reason?: 'save' | 'manual' | 'before-rename' | 'before-restore') =>
+      useHistory.getState().snapshotSave(f, reason ?? 'manual'),
+    /** snapshot langsung ke Rust — untuk menguji batas/dedup tanpa setting */
+    snapshotRaw: (f: string, reason: string, maks?: number, hari?: number) =>
+      cmdHistorySnapshot(
+        f,
+        reason as 'save' | 'manual' | 'before-rename' | 'before-restore',
+        maks,
+        hari,
+      ),
+    list: (f: string) => cmdHistoryList(f),
+    read: (f: string, id: string) => cmdHistoryRead(f, id),
+    prune: (f: string, maks: number, hari: number) => cmdHistoryPrune(f, maks, hari),
+    clear: (f: string) => useHistory.getState().bersihkan(f),
+    stats: () => cmdHistoryStats(),
+    /** entri Timeline yang benar-benar dirender store (snapshot + commit git) */
+    timeline: () =>
+      useHistory.getState().timeline.map((t) => ({
+        kind: t.kind,
+        id: t.id,
+        label: t.label,
+        reason: t.reason ?? null,
+        size: t.size ?? null,
+        ts: t.timestampMs,
+      })),
+    snapshots: () => useHistory.getState().info?.snapshots.length ?? 0,
+    skip: () => useHistory.getState().info?.skip ?? '',
+    dir: () => useHistory.getState().info?.dir ?? '',
+    file: () => useHistory.getState().file,
+    pilih: (id: string | null) => useHistory.getState().pilih(id),
+    isiSnapshot: () => useHistory.getState().isiSnapshot,
+    restore: (id: string) => useHistory.getState().restore(id),
+    /** diff yang terpasang di DiffViewer (bukti kiri=riwayat kanan=kini) */
+    diff: () => {
+      const d = useGit.getState().diff;
+      return d ? { path: d.path, teks: d.text } : null;
+    },
+    tutupDiff: () => useGit.getState().closeDiff(),
+    /** command Timeline yang benar-benar terdaftar di palette */
+    commandsDiPalette: () =>
+      availableCommands()
+        .filter((c) => c.id.startsWith('timeline.'))
         .map((c) => c.id),
   };
 
