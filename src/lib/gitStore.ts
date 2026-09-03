@@ -36,6 +36,14 @@ export interface DiffView {
   path: string;
   staged: boolean;
   text: string;
+  /**
+   * Asal diff. `history` (fase 26) berarti isinya BUKAN dari `git diff`, jadi
+   * `refresh()` tidak boleh membuangnya: diff riwayat memakai label seperti
+   * "catatan.txt (riwayat 2 jam lalu)" yang memang tidak pernah muncul di
+   * `status.changes`, dan tanpa penanda ini setiap refresh git (yang jalan
+   * tiap kali file disimpan) langsung menutup diff yang baru dibuka user.
+   */
+  source?: 'git' | 'history';
 }
 
 interface GitState {
@@ -159,8 +167,10 @@ export const useGit = create<GitStore>((set, get) => ({
       const status = await cmd.gitStatus();
       set({ status });
       // Diff yang terbuka bisa jadi basi setelah stage/commit.
+      // Diff dari Local History (fase 26) DIKECUALIKAN: pathnya label riwayat,
+      // bukan path yang pernah ada di status.changes.
       const d = get().diff;
-      if (d && status.isRepo) {
+      if (d && d.source !== 'history' && status.isRepo) {
         const still = status.changes.some((c) => c.path === d.path);
         if (!still) set({ diff: null });
       }

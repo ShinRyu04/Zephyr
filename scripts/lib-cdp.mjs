@@ -95,6 +95,8 @@ export class Cdp {
         const E19 = window.__ZEPHYR_EXT19__;
         /** fase 23: bridge Tasks */
         const TK = window.__ZEPHYR_TASK__;
+        /** fase 26: bridge Timeline / Local History */
+        const HS = window.__ZEPHYR_HIST__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

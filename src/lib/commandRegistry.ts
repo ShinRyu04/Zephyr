@@ -22,6 +22,7 @@ import { useNotif, notifyError, notifyInfo, notifyWarn } from './notificationSto
 import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
 import { useTasks, channelUntuk } from './tasksStore';
+import { useHistory } from './historyStore';
 import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
@@ -1227,6 +1228,65 @@ export const COMMANDS: CommandDef[] = [
       const terakhir = T.runs[T.runs.length - 1];
       usePanel.getState().focusTab('output');
       if (terakhir) useOutput.getState().setActiveChannel(channelUntuk(terakhir.label));
+    },
+  },
+  // ── Local History / Timeline (fase 26) ──
+  {
+    id: 'timeline.focus',
+    title: 'Timeline: Focus',
+    group: 'View',
+    keywords: 'history riwayat snapshot timeline',
+    run: () => {
+      const s = S();
+      s.setSettingsOpen(false);
+      s.setActivity('explorer');
+      if (!s.sidebarVisible) s.toggleSidebar();
+      const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      if (p) void useHistory.getState().muat(p);
+    },
+  },
+  {
+    id: 'timeline.snapshot',
+    title: 'Timeline: Snapshot Sekarang',
+    group: 'View',
+    keywords: 'history simpan versi manual',
+    enabled: () => {
+      const s = S();
+      return !!s.tabs.find((t) => t.id === s.activeTabId)?.path;
+    },
+    run: async () => {
+      const s = S();
+      const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      if (!p) return;
+      const id = await useHistory.getState().snapshotSave(p, 'manual');
+      if (id) notifyInfo('Snapshot dibuat', { source: 'history' });
+      else notifyWarn('Snapshot dilewati (isi sama / file besar / biner)', { source: 'history' });
+    },
+  },
+  {
+    id: 'timeline.restore',
+    title: 'Timeline: Restore from History',
+    group: 'View',
+    keywords: 'history kembalikan versi lama',
+    enabled: () => useHistory.getState().timeline.some((t) => t.kind === 'snapshot'),
+    run: async () => {
+      const H = useHistory.getState();
+      const snap = H.timeline.find((t) => t.kind === 'snapshot');
+      if (!snap) {
+        notifyWarn('Belum ada snapshot untuk file ini', { source: 'history' });
+        return;
+      }
+      await H.restore(snap.id);
+    },
+  },
+  {
+    id: 'timeline.clear',
+    title: 'Timeline: Hapus Riwayat File Ini',
+    group: 'View',
+    keywords: 'history bersihkan hapus snapshot',
+    enabled: () => (useHistory.getState().info?.snapshots.length ?? 0) > 0,
+    run: async () => {
+      await useHistory.getState().bersihkan();
     },
   },
 ];
