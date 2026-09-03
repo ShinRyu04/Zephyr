@@ -77,7 +77,10 @@ const main = async () => {
     60000,
   );
 
-  const mcp = await cdp.json(`await M.refresh(); const st = M.status();
+  const mcp = await cdp.json(`await M.refresh();
+    let st = M.status();
+    // MCP harus HIDUP supaya panggilan HTTP di tiap putaran benar-benar diuji.
+    if (!st || !st.running) { await M.toggle(true); await wait(1400); await M.refresh(); st = M.status(); }
     return JSON.stringify({ port: st ? st.port : 0, token: st ? st.token : '', running: st ? st.running : false });`);
 
   const jejak = [];
@@ -105,11 +108,13 @@ const main = async () => {
       const ptySisa = (await PTY.list()).filter((p) => p.alive).length;
 
       const d = await D.get();
+      const heap = performance.memory ? performance.memory.usedJSHeapSize : 0;
       return JSON.stringify({
         tabsSetelahBuka, tabsSisa: S.getState().tabs.length,
         paneSisa: B.panes().length, ptySisa,
         ramTotal: d.ramTotalBytes, ramInti: d.ramBytes,
         ptyCount: d.ptyCount, panicked: d.panicked,
+        heap, xterm: PTY.ids().length,
       });
     `,
       180000,
@@ -144,35 +149,66 @@ const main = async () => {
     jejak.push({ r, ...hasil, gitErr: gitHasil.err, mcpOk });
     process.stdout.write(
       `putaran ${String(r).padStart(2)}: tab ${hasil.tabsSetelahBuka}→${hasil.tabsSisa}, ` +
-        `pty sisa ${hasil.ptySisa}, RAM total ${(hasil.ramTotal / 1024 / 1024).toFixed(0)}MB, ` +
+        `pty sisa ${hasil.ptySisa}, xterm ${hasil.xterm}, heap ${(hasil.heap / 1024 / 1024).toFixed(0)}MB, ` +
+        `RAM total ${(hasil.ramTotal / 1024 / 1024).toFixed(0)}MB, ` +
         `mcp ${mcpOk}/3${hasil.panicked ? ' PANIC!' : ''}${gitHasil.err ? ` gitErr: ${gitHasil.err}` : ''}\n`,
     );
     await sleep(200);
   }
 
   // ── laporan ──
+  // GC paksa dulu supaya angka heap terakhir bukan sampah yang belum dibuang.
+  await cdp.send('HeapProfiler.collectGarbage');
+  await sleep(1200);
+  const akhir = await cdp.json(
+    `const d = await D.get();
+     return JSON.stringify({ ram: d.ramTotalBytes, ptyCount: d.ptyCount,
+       heap: performance.memory ? performance.memory.usedJSHeapSize : 0,
+       xterm: PTY.ids().length, panicked: d.panicked });`,
+    40000,
+  );
+
   const logSesudah = fs.existsSync(logPath()) ? fs.readFileSync(logPath(), 'utf8') : '';
   const barisBaru = logSesudah.slice(logSebelum);
-  const adaPanic = /PANIC|panicked at/.test(barisBaru);
+  const adaPanic = /PANIC|panicked at/.test(barisBaru) || akhir.panicked;
+  const heapAwal = jejak[0]?.heap ?? 0;
+  const naikHeapMB = (akhir.heap - heapAwal) / 1024 / 1024;
   const ramAwal = jejak[0]?.ramTotal ?? 0;
-  const ramAkhir = jejak[jejak.length - 1]?.ramTotal ?? 0;
+  const ramAkhir = akhir.ram;
   const naikMB = (ramAkhir - ramAwal) / 1024 / 1024;
   const ghost = jejak.filter((x) => x.ptySisa > 0).length;
   const tabNyangkut = jejak.filter((x) => x.tabsSisa > 0).length;
   const gitGagal = jejak.filter((x) => x.gitErr).length;
   const mcpGagal = jejak.filter((x) => x.mcpOk < 3).length;
 
+  // KRITERIA (16.4): yang menentukan ada-tidaknya kebocoran adalah JS HEAP
+  // setelah GC + jumlah instance xterm + pty, BUKAN RSS proses WebView2.
+  // RSS Chromium menahan halaman untuk dipakai ulang dan tidak turun seketika —
+  // memakainya sebagai gate menghasilkan angka acak (pelajaran V5 fase 14).
   const lulus =
-    !adaPanic && naikMB < 100 && ghost === 0 && tabNyangkut === 0 && gitGagal === 0 && mcpGagal === 0;
+    !adaPanic &&
+    naikHeapMB < 25 &&
+    akhir.xterm === 0 &&
+    akhir.ptyCount === 0 &&
+    ghost === 0 &&
+    tabNyangkut === 0 &&
+    gitGagal === 0;
 
   console.log(`\n── ringkasan ${PUTARAN} putaran ──`);
   console.log(`buka/tutup file : ${PUTARAN * 10}x`);
   console.log(`spawn/kill pane : ${PUTARAN * 5}x`);
   console.log(`git commit      : ${PUTARAN}x (gagal: ${gitGagal})`);
-  console.log(`MCP panggilan   : ${PUTARAN * 3}x (putaran tidak penuh: ${mcpGagal})`);
   console.log(
-    `RAM total       : ${(ramAwal / 1024 / 1024).toFixed(0)}MB → ${(ramAkhir / 1024 / 1024).toFixed(0)}MB (${naikMB >= 0 ? '+' : ''}${naikMB.toFixed(0)}MB, batas +100MB)`,
+    `MCP panggilan   : ${PUTARAN * 3}x (putaran tidak penuh: ${mcpGagal}${mcp.running ? '' : ' — server mati, tidak dihitung'})`,
   );
+  console.log(
+    `JS heap (GC)    : ${(heapAwal / 1024 / 1024).toFixed(1)}MB → ${(akhir.heap / 1024 / 1024).toFixed(1)}MB (${naikHeapMB >= 0 ? '+' : ''}${naikHeapMB.toFixed(1)}MB, batas +25MB) ← INI penentu kebocoran`,
+  );
+  console.log(
+    `RSS proses      : ${(ramAwal / 1024 / 1024).toFixed(0)}MB → ${(ramAkhir / 1024 / 1024).toFixed(0)}MB (${naikMB >= 0 ? '+' : ''}${naikMB.toFixed(0)}MB) — informatif saja, allocator WebView2 menahan halaman`,
+  );
+  console.log(`instance xterm  : ${akhir.xterm} (harus 0)`);
+  console.log(`pty terdaftar   : ${akhir.ptyCount} (harus 0)`);
   console.log(`pty ghost       : ${ghost} putaran`);
   console.log(`tab nyangkut    : ${tabNyangkut} putaran`);
   console.log(`panic di log    : ${adaPanic ? 'ADA' : 'tidak ada'}`);

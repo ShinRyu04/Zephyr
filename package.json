@@ -1,7 +1,7 @@
 {
   "name": "zephyr",
   "private": true,
-  "version": "0.5.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "verify:14": "node scripts/verify14.mjs",
     "verify:15": "node scripts/verify15.mjs",
     "verify:16": "node scripts/verify16.mjs",
+    "smoke:release": "node scripts/smoke-release.mjs src-tauri/target/release/zephyr.exe 9224",
     "stress": "node scripts/stress.mjs",
     "mock:ai": "node scripts/mock-ai.mjs 8098",
     "soak": "node scripts/soak.mjs"
