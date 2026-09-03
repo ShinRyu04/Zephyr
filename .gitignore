@@ -37,3 +37,7 @@ Zephyr Build Prompt.txt
 src-tauri/zephyr.key
 src-tauri/zephyr.key.pub
 *.key
+
+# laporan kerja internal — jangan ikut repo (keputusan user)
+BUGLOG.md
+BUILD_REPORT.md
