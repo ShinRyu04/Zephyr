@@ -4,6 +4,7 @@
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
 import FileTree from './FileTree';
+import TimelineView from './TimelineView';
 import ContextMenu from './ContextMenu';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
@@ -128,6 +129,8 @@ export default function ExplorerPanel() {
       <div className="explorer-body">
         <FileTree />
       </div>
+
+      <TimelineView />
 
       <ContextMenu />
     </div>

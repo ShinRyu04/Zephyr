@@ -1,0 +1,189 @@
+/* history.css — Timeline / Local History (fase 26).
+ *
+ * Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded.
+ * Timeline duduk di bawah file tree dan TIDAK boleh mendorong tree keluar:
+ * karena itu `flex: 0 0 auto` dengan tinggi maksimum, bukan flex tumbuh.
+ */
+
+.timeline {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 45%;
+  border-top: 1px solid var(--border);
+  background: var(--bg1);
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--fg1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.timeline-header:hover {
+  background: var(--bg2);
+  color: var(--fg0);
+}
+
+.tl-caret {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  transition: transform 120ms ease;
+}
+
+.tl-caret[data-open='1'] {
+  transform: rotate(90deg);
+}
+
+.timeline-title {
+  flex: 1;
+  text-align: left;
+}
+
+.timeline-count {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--bg3);
+  color: var(--fg2);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.timeline-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 6px 6px;
+}
+
+.timeline-actions {
+  display: flex;
+  gap: 4px;
+  padding: 2px 2px 6px;
+}
+
+.timeline-skip {
+  margin: 0 2px 6px;
+  padding: 4px 6px;
+  border-left: 2px solid var(--warning);
+  background: var(--bg2);
+  color: var(--fg2);
+  font-size: 11px;
+}
+
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  border-radius: 3px;
+}
+
+.timeline-item:hover {
+  background: var(--bg2);
+}
+
+.timeline-item.is-active {
+  background: var(--selection);
+}
+
+.tl-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--fg1);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tl-badge {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tl-badge[data-kind='snapshot'] {
+  background: var(--accent-dim, var(--bg3));
+  color: var(--accent);
+}
+
+.tl-badge[data-kind='commit'] {
+  background: var(--bg3);
+  color: var(--fg2);
+}
+
+.tl-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-time {
+  flex: 0 0 auto;
+  color: var(--fg2);
+  font-size: 10px;
+}
+
+.tl-restore {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fg2);
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.timeline-item:hover .tl-restore,
+.tl-restore:focus-visible {
+  opacity: 1;
+}
+
+.tl-restore:hover {
+  background: var(--bg3);
+  color: var(--accent);
+}
+
+/* Settings → Editor: blok Local History. */
+.hist-stats {
+  margin: 4px 0 0;
+  color: var(--fg2);
+  font-size: 11px;
+}

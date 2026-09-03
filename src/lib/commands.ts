@@ -38,6 +38,7 @@ import type {
   Settings,
   ShellInfo,
   StatResult,
+  HistoryInfo,
   TaskProblem,
   TaskRun,
   TasksFile,
@@ -348,3 +349,35 @@ export const tasksClearRuns = () => invoke<number>('tasks_clear_runs');
 /** Deteksi port dari sebuah baris output (harness). */
 export const tasksDetectPort = (line: string) =>
   invoke<{ port: number; https: boolean } | null>('tasks_detect_port', { line });
+
+// ─────────────────── local history (fase 26) ───────────────────
+
+/**
+ * Simpan snapshot sebuah file. `id` kosong berarti di-skip — alasannya di
+ * field `skip` (isi identik, file besar, atau biner).
+ */
+export const historySnapshot = (
+  path: string,
+  reason: 'save' | 'before-rename' | 'manual' | 'before-restore' = 'save',
+  maxPerFile?: number,
+  maxDays?: number,
+) =>
+  invoke<{ id: string; skip: string; dibuang?: number; total?: number }>('history_snapshot', {
+    path,
+    reason,
+    maxPerFile,
+    maxDays,
+  });
+/** Daftar snapshot sebuah file (terbaru di depan). */
+export const historyList = (path: string) => invoke<HistoryInfo>('history_list', { path });
+/** Isi satu snapshot — untuk diff & restore. */
+export const historyRead = (path: string, id: string) =>
+  invoke<string>('history_read', { path, id });
+/** Hapus seluruh history sebuah file. */
+export const historyClear = (path: string) => invoke<number>('history_clear', { path });
+/** Pangkas paksa memakai batas tertentu (dipakai saat setting berubah). */
+export const historyPrune = (path: string, maxPerFile: number, maxDays: number) =>
+  invoke<number>('history_prune', { path, maxPerFile, maxDays });
+/** Statistik pemakaian disk seluruh history. */
+export const historyStats = () =>
+  invoke<{ root: string; folder: number; snapshot: number; byte: number }>('history_stats');

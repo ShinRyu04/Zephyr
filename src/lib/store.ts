@@ -531,6 +531,17 @@ export const useStore = create<Store>((set, get) => ({
       return false;
     }
     try {
+      // fase 26: snapshot Local History diambil SEBELUM menulis — isi yang
+      // disimpan adalah versi LAMA di disk, itu yang berguna untuk kembali.
+      // Mengambilnya sesudah menulis hanya menyalin versi yang baru saja
+      // ditulis, jadi tidak ada yang bisa dipulihkan.
+      // Dipanggil lewat event supaya store.ts tidak perlu mengimpor
+      // historyStore (historyStore sudah mengimpor store.ts → lingkaran).
+      window.dispatchEvent(
+        new CustomEvent('zephyr-history-snapshot', {
+          detail: { path: cur.path as string, reason: 'save' },
+        }),
+      );
       await cmd.fsWrite(cur.path as string, cur.content, cur.encoding, cur.lineEnding, {
         wasExisting: cur.existed === true,
       });

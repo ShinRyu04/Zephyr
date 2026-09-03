@@ -75,7 +75,11 @@ pub fn default_settings() -> Value {
         },
         // fase 21: language server. `servers` kosong = pakai default katalog
         // di src/lib/lsp.ts; user boleh menimpa cmd/enabled per bahasa.
-        "lsp": { "enabled": true, "idleSeconds": 300, "servers": {} }
+        "lsp": { "enabled": true, "idleSeconds": 300, "servers": {} },
+        // fase 26: Local History. Dinyalakan default karena ini safety-net —
+        // gunanya justru sebelum user sadar membutuhkannya. Retensi menjaga
+        // disk: 50 snapshot/file, buang yang lebih tua dari 30 hari.
+        "history": { "enabled": true, "maxPerFile": 50, "maxDays": 30 }
     })
 }
 

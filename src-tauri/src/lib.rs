@@ -17,6 +17,7 @@ mod extensions;
 mod fs_utils;
 mod git;
 mod github;
+mod history;
 mod logging;
 mod lsp;
 mod mcp_commands;
@@ -259,6 +260,13 @@ pub fn run() {
             tasks::tasks_runs,
             tasks::tasks_clear_runs,
             tasks::tasks_detect_port,
+            // local history / timeline (fase 26)
+            history::history_snapshot,
+            history::history_list,
+            history::history_read,
+            history::history_clear,
+            history::history_prune,
+            history::history_stats,
             // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
             diagnostics::self_test,
