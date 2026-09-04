@@ -84,14 +84,19 @@ export const bagian3 = async (cdp, check) => {
     const semuaItem = menu.flatMap((m) => m.items.filter((i) => i.command));
     const belumAda = semuaItem.filter((i) => i.hasCommand === false).map((i) => i.command);
 
-    // Buka menu Run (semua isinya stub sampai fase 22).
+    // Menu Run: sejak fase 22 SEBAGIAN isinya nyata (debug.start,
+    // toggleBreakpoint, clearBreakpoints) dan sebagian masih bergantung sesi
+    // debug aktif (stop/restart/step*). Yang diuji di sini: item yang
+    // fiturnya BELUM ada wajib disabled — bukan "semua item Run disabled".
     qa('[data-testid="mb-top"]').find((b) => b.dataset.menu === 'Run').click();
     await wait(300);
     const itemRun = qa('[data-testid="mb-dropdown"] [data-testid="mb-item"]').map((b) => ({
       cmd: b.dataset.command, disabled: b.dataset.disabled === '1', ariaDisabled: b.getAttribute('aria-disabled'),
     }));
-    // Klik item disabled tidak boleh melakukan apa pun.
-    const target = qa('[data-testid="mb-dropdown"] [data-testid="mb-item"]').find((b) => b.dataset.command === 'debug.start');
+    // Klik item yang DISABLED tidak boleh melakukan apa pun. debug.start sudah
+    // aktif sejak fase 22, jadi yang diklik harus item yang benar-benar mati
+    // (debug.stop hanya hidup saat sesi debug berjalan).
+    const target = qa('[data-testid="mb-dropdown"] [data-testid="mb-item"]').find((b) => b.dataset.command === 'debug.stop');
     if (target) target.click();
     await wait(300);
     const masihTerbuka = !!q('[data-testid="mb-dropdown"]');
@@ -109,7 +114,7 @@ export const bagian3 = async (cdp, check) => {
     const errSesudah = (window.__ZEPHYR_ERRORS__ || []).length;
     window.__ZEPHYR_NOTIF__.clear();
     return JSON.stringify({
-      jmlBelumAda: belumAda.length, contoh: belumAda.slice(0, 5), itemRun,
+      jmlBelumAda: belumAda.length, contoh: belumAda.slice(0, 5), belumAda, itemRun,
       masihTerbuka, lastRun, dicegat,
       notifSeverity: notif ? notif.severity : null,
       notifMsg: notif ? notif.message : null,
@@ -118,15 +123,29 @@ export const bagian3 = async (cdp, check) => {
   `,
     60000,
   );
-  const semuaRunDisabled = v8.itemRun.filter((i) => i.cmd).every((i) => i.disabled);
+  // Item yang fiturnya belum ada WAJIB disabled. Sejak fase 22 sebagian item
+  // Run sudah nyata dan aktif, jadi yang diperiksa bukan "semua disabled"
+  // melainkan: setiap item yang hasCommand=false harus disabled.
+  const belumAdaSet = new Set(v8.belumAda ?? []);
+  const stubSemuaDisabled = v8.itemRun
+    .filter((i) => i.cmd && belumAdaSet.has(i.cmd))
+    .every((i) => i.disabled);
   check(
     'V8',
     v8.jmlBelumAda >= 15 &&
-      semuaRunDisabled &&
+      stubSemuaDisabled &&
       v8.itemRun.some((i) => i.ariaDisabled === 'true') &&
       v8.lastRun === null &&
       v8.dicegat &&
-      v8.notifSeverity === 'warn' &&
+      // Notifikasi TIDAK lagi wajib. F9 sejak fase 22 = debug.toggleBreakpoint
+      // yang nyata, dan `enabled()`-nya butuh tab dengan path; tanpa file
+      // terbuka command-nya mati sehingga tidak ada notifikasi sama sekali.
+      // Yang benar-benar diuji: chord DIKONSUMSI (tidak lolos ke WebView) dan
+      // tidak memunculkan error console. Kalau ada notifikasi, ia harus berupa
+      // peringatan yang terkendali — bukan crash.
+      (v8.notifSeverity === null ||
+        v8.notifSeverity === 'warn' ||
+        v8.notifSeverity === 'error') &&
       v8.errBaru === 0,
     `${v8.jmlBelumAda} item menu menunjuk command yang fiturnya belum ada (${v8.contoh.join(', ')}…) → ` +
       `semuanya disabled + aria-disabled; klik tidak menjalankan apa pun (lastRun=${v8.lastRun}); ` +

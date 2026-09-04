@@ -202,6 +202,29 @@ for (const a of ADEGAN) {
   await simpan(a.nama);
 }
 
+// WAJIB: cabut override emulasi.
+//
+// setDeviceMetricsOverride MENEMPEL di page sampai dicabut atau app di-restart.
+// Kalau ditinggalkan, harness verifikasi berikutnya membaca viewport palsu —
+// verify12 V5 mengukur lebar pane 0px dan gagal, padahal produknya benar.
+await cdp.send('Emulation.clearDeviceMetricsOverride');
+await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+
+// Pulihkan workspace ke D:/Zephyr: harness fase 12/22/23/25 mengharapkannya,
+// dan extensions_load fase 29 menolak jalan tanpa workspace.
+console.log(
+  'pulih:',
+  await cdp.json(`
+  await WS.setTrust('D:/Zephyr', true);
+  await wait(200);
+  await S.getState().openWorkspace('D:/Zephyr');
+  await wait(900);
+  for (const t of [...S.getState().tabs]) S.getState().forceCloseTab(t.id);
+  ${BERSIH}
+  return JSON.stringify({ ws: S.getState().workspace, tab: S.getState().tabs.length });
+`),
+);
+
 console.log('SELESAI');
 process.exit(0);
 
