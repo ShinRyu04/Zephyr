@@ -878,6 +878,12 @@ pub fn tasks_run(
     begins_pattern: Option<String>,
     ends_pattern: Option<String>,
 ) -> ZResult<String> {
+    // fase 29: tasks.json datang dari REPO, bukan dari user. Folder yang belum
+    // dipercaya tidak boleh menjalankan perintah apa pun — penjaga di sini,
+    // bukan di UI: command ini bisa dipanggil dari palette, keybinding, MCP,
+    // atau bridge dev, dan tombol yang disembunyikan tidak menahan apa pun.
+    crate::workspace::ensure_trusted(&state, "Menjalankan task")?;
+
     if id.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("id run kosong".into()));
     }

@@ -3,9 +3,11 @@
 
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
+import { useWs } from '../../lib/workspaceStore';
 import FileTree from './FileTree';
 import TimelineView from './TimelineView';
 import ContextMenu from './ContextMenu';
+import RootSection from '../workspace/RootSection';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -62,13 +64,24 @@ export default function ExplorerPanel() {
   const refreshAll = useExplorer((s) => s.refreshAll);
   const startInline = useExplorer((s) => s.startInline);
 
+  // fase 29: multi-root. Selector mengembalikan PRIMITIF (panjang + gabungan
+  // path), bukan array baru — selector yang membuat array baru memicu
+  // "Maximum update depth exceeded" di zustand v5 (pelajaran fase 09).
+  const jumlahRoot = useWs((s) => s.roots.length);
+  const kunciRoots = useWs((s) => s.roots.map((r) => r.path).join('|'));
+  const wsFile = useWs((s) => s.file);
+
   if (!workspace) return <EmptyWorkspace />;
 
+  const roots = useWs.getState().roots;
+  const multi = jumlahRoot > 1;
+
   return (
-    <div className="explorer">
+    <div className="explorer" data-roots={jumlahRoot} data-ws-file={wsFile}>
       <div className="explorer-header">
-        <span className="explorer-title" title={workspace}>
-          {baseOf(workspace)}
+        <span className="explorer-title" title={wsFile || workspace}>
+          {wsFile ? baseOf(wsFile).replace(/\.code-workspace$/, '') : baseOf(workspace)}
+          {multi && <span className="explorer-count"> ({jumlahRoot} folder)</span>}
         </span>
         <div className="explorer-actions">
           <button
@@ -127,7 +140,19 @@ export default function ExplorerPanel() {
       </div>
 
       <div className="explorer-body">
-        <FileTree />
+        {/* Root tunggal tetap dirender tanpa header section: menambah satu
+            lapisan header untuk satu folder hanya membuang ruang vertikal.
+            `kunciRoots` dipakai sebagai key supaya tree dibangun ulang saat
+            daftar root berubah. */}
+        {multi ? (
+          <div className="root-list" data-testid="root-list" key={kunciRoots}>
+            {roots.map((r) => (
+              <RootSection key={r.path} root={r} tunggal={false} />
+            ))}
+          </div>
+        ) : (
+          <FileTree />
+        )}
       </div>
 
       <TimelineView />

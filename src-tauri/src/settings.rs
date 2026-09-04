@@ -90,7 +90,7 @@ pub fn default_settings() -> Value {
 /// `agents.startCommands[x]`, `shortcuts[x]` — tidak akan pernah bisa
 /// membuang entri dari settings.json, karena merge biasa cuma menambah.
 /// Konsekuensinya: tidak ada setting yang boleh bernilai null secara sah.
-fn deep_merge(base: &mut Value, patch: &Value) {
+pub fn deep_merge_um(base: &mut Value, patch: &Value) {
     match (base, patch) {
         (Value::Object(b), Value::Object(p)) => {
             for (k, v) in p {
@@ -99,7 +99,7 @@ fn deep_merge(base: &mut Value, patch: &Value) {
                     continue;
                 }
                 match b.get_mut(k) {
-                    Some(slot) => deep_merge(slot, v),
+                    Some(slot) => deep_merge_um(slot, v),
                     None => {
                         b.insert(k.clone(), v.clone());
                     }
@@ -115,7 +115,7 @@ fn deep_merge(base: &mut Value, patch: &Value) {
 /// `<nama>.broken` (dengan timestamp) lalu mengembalikan None supaya default
 /// yang dipakai. Nama file backup dicatat di `LAST_BROKEN` agar UI bisa
 /// memberi tahu user lewat toast.
-fn read_json(path: &PathBuf) -> Option<Value> {
+pub fn read_json_um(path: &PathBuf) -> Option<Value> {
     let raw = std::fs::read_to_string(path).ok()?;
     match serde_json::from_str(&raw) {
         Ok(v) => Some(v),
@@ -178,7 +178,7 @@ pub fn take_broken_config() -> ZResult<String> {
 #[tauri::command(async)]
 pub fn get_keybindings(state: State<AppState>) -> ZResult<Value> {
     let p = state.file("keybindings.json");
-    match read_json(&p) {
+    match read_json_um(&p) {
         Some(v) if v.is_array() => Ok(v),
         _ => Ok(Value::Array(vec![])),
     }
@@ -221,8 +221,8 @@ pub fn get_app_info(app: AppHandle, state: State<AppState>) -> ZResult<AppInfo> 
 #[tauri::command]
 pub fn get_settings(state: State<AppState>) -> ZResult<Value> {
     let mut merged = default_settings();
-    if let Some(user) = read_json(&state.file("settings.json")) {
-        deep_merge(&mut merged, &user);
+    if let Some(user) = read_json_um(&state.file("settings.json")) {
+        deep_merge_um(&mut merged, &user);
     }
     Ok(merged)
 }
@@ -233,8 +233,8 @@ pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZRe
         return Err(ZephyrError::InvalidInput("patch harus object".into()));
     }
     let path = state.file("settings.json");
-    let mut current = read_json(&path).unwrap_or_else(|| json!({}));
-    deep_merge(&mut current, &patch);
+    let mut current = read_json_um(&path).unwrap_or_else(|| json!({}));
+    deep_merge_um(&mut current, &patch);
     write_json(&path, &current)?;
 
     // Beritahu frontend key mana yang berubah (ARCHITECTURE.md §3).
@@ -261,7 +261,7 @@ pub fn set_window_size(app: AppHandle, width: f64, height: f64) -> ZResult<()> {
 #[tauri::command]
 pub fn list_recents(state: State<AppState>) -> ZResult<Vec<RecentEntry>> {
     let path = state.file("recent.json");
-    let raw = match read_json(&path) {
+    let raw = match read_json_um(&path) {
         Some(v) => v,
         None => return Ok(vec![]),
     };
@@ -284,14 +284,14 @@ pub fn list_recents(state: State<AppState>) -> ZResult<Vec<RecentEntry>> {
 }
 
 /// Catat workspace ke recent.json (dipakai `workspace_open`).
-fn push_recent(state: &AppState, path: &str) -> ZResult<()> {
+pub fn push_recent(state: &AppState, path: &str) -> ZResult<()> {
     let file = state.file("recent.json");
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
 
-    let mut list: Vec<Value> = read_json(&file)
+    let mut list: Vec<Value> = read_json_um(&file)
         .and_then(|v| v.as_array().cloned())
         .unwrap_or_default();
     list.retain(|e| e.get("path").and_then(|p| p.as_str()) != Some(path));
@@ -319,6 +319,11 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
         )));
     }
 
+    // fase 29: `workspace_open` = buka SATU folder, jadi daftar root tambahan
+    // harus dikosongkan. Tanpa ini root dari workspace sebelumnya menempel
+    // terus dan V3 melihat "Zephyr, Root B" alih-alih "Root A, Root B".
+    // clear_roots() juga membersihkan nama root & file .code-workspace.
+    state.clear_roots();
     state.set_workspace(canon.clone())?;
     // allow_exact, BUKAN allow(): allow() ikut mem-whitelist folder INDUK
     // workspace, sehingga fs_write ke folder sebelahnya lolos (bug V2 fase 14).
@@ -344,8 +349,8 @@ pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
 /// Dipakai modul lain (github.rs) tanpa perlu State/command.
 pub fn read_settings_value(state: &AppState) -> Value {
     let mut merged = default_settings();
-    if let Some(user) = read_json(&state.file("settings.json")) {
-        deep_merge(&mut merged, &user);
+    if let Some(user) = read_json_um(&state.file("settings.json")) {
+        deep_merge_um(&mut merged, &user);
     }
     merged
 }
@@ -368,8 +373,8 @@ pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
         return Err(ZephyrError::InvalidInput("patch harus object".into()));
     }
     let path = state.file("settings.json");
-    let mut current = read_json(&path).unwrap_or_else(|| json!({}));
-    deep_merge(&mut current, &patch);
+    let mut current = read_json_um(&path).unwrap_or_else(|| json!({}));
+    deep_merge_um(&mut current, &patch);
     write_json(&path, &current)
 }
 
@@ -579,5 +584,5 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
 
 #[cfg(test)]
 pub fn merge_for_test(base: &mut Value, patch: &Value) {
-    deep_merge(base, patch)
+    deep_merge_um(base, patch)
 }

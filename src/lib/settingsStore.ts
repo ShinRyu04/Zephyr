@@ -17,6 +17,7 @@ export type SectionId =
   | 'lsp'
   | 'scm'
   | 'mcp'
+  | 'security'
   | 'ssh'
   | 'about';
 
@@ -31,6 +32,9 @@ export const SECTION_ORDER: SectionId[] = [
   'lsp',
   'scm',
   'mcp',
+  // fase 29: Workspace Trust. Ditempatkan sebelum 'ssh' karena keduanya
+  // section keamanan, dan 'about' harus tetap terakhir.
+  'security',
   'ssh',
   'about',
 ];

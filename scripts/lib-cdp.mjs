@@ -102,6 +102,8 @@ export class Cdp {
         /** fase 22: bridge Run & Debug (DAP) */
         const DBG = window.__ZEPHYR_DBG__;
         const CLI = window.__ZEPHYR_CLI__;
+        /** fase 29: bridge multi-root + Workspace Trust */
+        const WS = window.__ZEPHYR_WS__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

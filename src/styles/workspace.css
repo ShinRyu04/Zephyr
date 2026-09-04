@@ -1,0 +1,297 @@
+/* workspace.css — multi-root Explorer, Restricted banner, dialog Trust (fase 29).
+   Semua warna dari CSS variable (AGENTS.md §4) — nol hex hardcoded. */
+
+/* ── daftar root di Explorer ── */
+
+.root-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.root-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.root-section:last-child {
+  border-bottom: none;
+}
+
+.rs-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 4px;
+  background: var(--surface-3);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.root-section.is-active .rs-head {
+  /* Root aktif ditandai garis aksen di kiri, bukan warna latar penuh:
+     latar penuh membuat dua root terlihat seperti dua panel berbeda. */
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.rs-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 2px 2px;
+  text-align: left;
+}
+
+.rs-toggle:hover {
+  color: var(--text);
+}
+
+.rs-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-chev {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  opacity: 0.75;
+}
+
+.rs-badges {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.rs-badge {
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.rs-git {
+  color: var(--warning);
+}
+
+.rs-restricted {
+  color: var(--warning);
+  border-color: var(--warning);
+  cursor: pointer;
+}
+
+.rs-restricted:hover {
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface-2));
+}
+
+.rs-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 90ms linear;
+}
+
+.rs-head:hover .rs-actions,
+.rs-head:focus-within .rs-actions {
+  opacity: 1;
+}
+
+.rs-body {
+  padding-bottom: 2px;
+}
+
+.explorer-count {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── banner Restricted Mode ── */
+
+.restricted-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface-2));
+  border-bottom: 1px solid var(--warning);
+  color: var(--text);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.rb-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--warning);
+}
+
+.rb-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── dialog Trust ── */
+
+.trust-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.trust-card {
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  padding: 20px 22px 18px;
+  text-align: center;
+}
+
+.trust-icon {
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.trust-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.trust-path {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.trust-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.trust-text code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-3);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.trust-list {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.trust-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.trust-nanti {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.trust-nanti:hover {
+  color: var(--text-secondary);
+}
+
+/* ── daftar trust di Settings ── */
+
+.trust-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trust-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.trust-row-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trust-row-level {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+}
+
+.trust-row-level.is-trusted {
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.trust-row-level.is-restricted {
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}

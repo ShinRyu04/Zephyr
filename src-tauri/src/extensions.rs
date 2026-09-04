@@ -351,6 +351,11 @@ pub fn extensions_list(state: State<AppState>) -> ZResult<Vec<ExtensionInfo>> {
 /// Isi `main` disimpan di state, TIDAK dieksekusi (lihat catatan atas file).
 #[tauri::command]
 pub fn extensions_load(state: State<AppState>, id: String) -> ZResult<ExtensionLoad> {
+    // fase 29: ekstensi v1 manifest-only, tapi `contributes.commands` yang
+    // didaftarkan ke palette berasal dari folder repo/marketplace. Folder
+    // tak-tepercaya tidak boleh menyuntik command ke palette.
+    crate::workspace::ensure_trusted(&state, "Memuat ekstensi")?;
+
     let info = list_all(&state)
         .into_iter()
         .find(|x| x.id == id)

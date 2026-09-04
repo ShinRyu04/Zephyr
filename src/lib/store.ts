@@ -90,6 +90,8 @@ interface StoreActions {
   bootstrap: () => Promise<void>;
   openFolderDialog: () => Promise<void>;
   openWorkspace: (dir: string) => Promise<void>;
+  /** fase 29: sinkron state frontend TANPA memanggil workspace_open di Rust */
+  syncWorkspaceLokal: (dir: string) => Promise<void>;
   closeWorkspace: () => Promise<void>;
   refreshRecents: () => Promise<void>;
   openFileDialog: () => Promise<void>;
@@ -294,22 +296,35 @@ export const useStore = create<Store>((set, get) => ({
   openWorkspace: async (dir) => {
     try {
       await cmd.workspaceOpen(dir);
-      set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
-
-      // Explorer: reset tree lalu muat level pertama + pasang watcher.
-      const { useExplorer } = await import('./explorerStore');
-      const ex = useExplorer.getState();
-      useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
-      await ex.loadDir(dir, true);
-      try {
-        await cmd.fsWatch(dir);
-      } catch {
-        /* watcher gagal bukan alasan membatalkan buka folder */
-      }
-      await get().refreshRecents();
+      await get().syncWorkspaceLokal(dir);
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
+  },
+
+  /**
+   * Bagian FRONTEND dari "pindah workspace": state, tree, watcher, recents.
+   *
+   * fase 29: dipisah dari `openWorkspace` karena `workspace_open` di Rust
+   * MENGOSONGKAN daftar root (benar untuk "buka satu folder"). Jalur multi-root
+   * — `workspace_open_file` dan `workspace_set_active_root` — sudah memasang
+   * root sendiri di Rust, jadi memanggil `openWorkspace` sesudahnya akan
+   * menghapus root yang baru saja dipasang.
+   */
+  syncWorkspaceLokal: async (dir) => {
+    set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
+
+    // Explorer: reset tree lalu muat level pertama + pasang watcher.
+    const { useExplorer } = await import('./explorerStore');
+    const ex = useExplorer.getState();
+    useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
+    await ex.loadDir(dir, true);
+    try {
+      await cmd.fsWatch(dir);
+    } catch {
+      /* watcher gagal bukan alasan membatalkan buka folder */
+    }
+    await get().refreshRecents();
   },
 
   closeWorkspace: async () => {

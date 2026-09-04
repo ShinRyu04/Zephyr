@@ -103,8 +103,11 @@ function InlineInput({
   );
 }
 
-export default function FileTree() {
+export default function FileTree({ root }: { root?: string }) {
   const workspace = useStore((s) => s.workspace);
+  // fase 29: satu FileTree per ROOT. `root` yang dikirim ExplorerPanel menang;
+  // tanpa prop ia jatuh ke workspace aktif supaya pemakaian lama tidak berubah.
+  const akar = root ?? workspace;
   const openPath = useStore((s) => s.openPath);
   const activeTabPath = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.path ?? null);
 
@@ -126,15 +129,15 @@ export default function FileTree() {
   const dragSrc = useRef<string | null>(null);
 
   const rows = useMemo(
-    () => (workspace ? buildRows(workspace, children, expanded) : []),
-    [workspace, children, expanded],
+    () => (akar ? buildRows(akar, children, expanded) : []),
+    [akar, children, expanded],
   );
   const order = useMemo(() => rows.map((r) => r.node.path), [rows]);
 
-  if (!workspace) return null;
+  if (!akar) return null;
 
   const rowDepthFor = (dir: string) => {
-    if (dir === workspace) return 0;
+    if (dir === akar) return 0;
     const found = rows.find((r) => r.node.path === dir);
     return found ? found.depth + 1 : 0;
   };
@@ -156,11 +159,11 @@ export default function FileTree() {
   };
 
   return (
-    <div className="tree" role="tree" aria-label="File Explorer">
+    <div className="tree" role="tree" aria-label="File Explorer" data-root={akar}>
       {explorerError && <div className="tree-error">{explorerError}</div>}
 
       {/* input "new" tepat di bawah root bila targetnya root */}
-      {inlineEdit && inlineEdit.kind !== 'rename' && inlineEdit.target === workspace && (
+      {inlineEdit && inlineEdit.kind !== 'rename' && inlineEdit.target === akar && (
         <InlineInput
           initial={inlineEdit.initial}
           depth={0}

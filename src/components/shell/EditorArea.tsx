@@ -8,6 +8,7 @@ import { useStore, useActiveTab } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import DebugToolbar from '../debug/DebugToolbar';
+import RestrictedBanner from '../workspace/RestrictedBanner';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import ReadOnlyBanner from '../editor/ReadOnlyBanner';
@@ -71,6 +72,7 @@ export default function EditorArea() {
   if (settingsOpen) {
     return (
       <section className="editor-area">
+        <RestrictedBanner />
         <div className="set-topbar">
           <span className="set-topbar-title">Pengaturan</span>
           <button
@@ -91,6 +93,7 @@ export default function EditorArea() {
   if (hasDiff) {
     return (
       <section className="editor-area">
+        <RestrictedBanner />
         <EditorTabBar />
         <div className="editor-host">
           <DiffViewer />
@@ -101,6 +104,10 @@ export default function EditorArea() {
 
   return (
     <section className="editor-area">
+      {/* fase 29: banner Restricted di ATAS area editor, bukan sidebar —
+          sidebar bisa disembunyikan dan peringatan keamanan tidak boleh
+          ikut hilang. */}
+      <RestrictedBanner />
       <EditorTabBar />
       {/* fase 24.1: <Breadcrumbs /> versi shell DIHAPUS dari sini.
           Ada DUA komponen bernama Breadcrumbs: yang lama (shell/, hanya path)

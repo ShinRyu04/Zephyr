@@ -24,6 +24,12 @@ import { usePanel } from './panelStore';
 import { useTasks, channelUntuk } from './tasksStore';
 import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
+import { useWs } from './workspaceStore';
+import {
+  fileDialogOpen as fileDialogOpenCmd,
+  fileDialogSave as fileDialogSaveCmd,
+  folderDialogOpen as folderDialogOpenCmd,
+} from './commands';
 import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
@@ -1416,6 +1422,79 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => useDebug.getState().breakpoints.length > 0,
     run: async () => {
       await useDebug.getState().hapusSemuaBreakpoint();
+    },
+  },
+  // ── Multi-root workspace + Trust (fase 29) ──
+  {
+    id: 'workspace.addFolder',
+    title: 'Workspace: Tambah Folder ke Workspace',
+    group: 'File',
+    keywords: 'workspace root folder multi tambah add',
+    run: async () => {
+      const dir = await folderDialogOpenCmd();
+      if (!dir) return;
+      await useWs.getState().tambahRoot(dir);
+    },
+  },
+  {
+    id: 'workspace.removeFolder',
+    title: 'Workspace: Hapus Folder Aktif dari Workspace',
+    group: 'File',
+    keywords: 'workspace root folder hapus remove',
+    // Hanya berguna kalau ada >1 root: menghapus root terakhir ditolak Rust,
+    // jadi command-nya disaring di sini alih-alih memunculkan error.
+    enabled: () => useWs.getState().roots.length > 1,
+    run: async () => {
+      const aktif = useWs.getState().activeRoot;
+      if (aktif) await useWs.getState().hapusRoot(aktif);
+    },
+  },
+  {
+    id: 'workspace.openFile',
+    title: 'Workspace: Buka File .code-workspace',
+    group: 'File',
+    keywords: 'workspace code-workspace buka open multi root',
+    run: async () => {
+      const picked = await fileDialogOpenCmd(false);
+      const p = picked?.[0];
+      if (!p) return;
+      await useWs.getState().bukaFile(p);
+    },
+  },
+  {
+    id: 'workspace.saveAs',
+    title: 'Workspace: Save Workspace As…',
+    group: 'File',
+    keywords: 'workspace simpan save as code-workspace',
+    enabled: () => useWs.getState().roots.length > 0,
+    run: async () => {
+      const ws = useWs.getState();
+      const usul = ws.file || `${S().workspace ?? ''}/zephyr.code-workspace`;
+      const p = await fileDialogSaveCmd(usul);
+      if (!p) return;
+      await ws.simpanFile(p);
+    },
+  },
+  {
+    id: 'workspace.manageTrust',
+    title: 'Workspace: Manage Workspace Trust',
+    group: 'File',
+    keywords: 'trust restricted keamanan security percaya folder',
+    run: () => {
+      const ws = useWs.getState();
+      ws.tanya(ws.activeRoot || null);
+    },
+  },
+  {
+    id: 'workspace.trustList',
+    title: 'Workspace: Daftar Folder Tepercaya',
+    group: 'File',
+    keywords: 'trust daftar list security settings',
+    run: async () => {
+      const s = S();
+      s.setActivity('settings');
+      s.setSettingsOpen(true);
+      await useWs.getState().muatDaftarTrust();
     },
   },
 ];
