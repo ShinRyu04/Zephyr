@@ -9,11 +9,11 @@
   --surface-2: #eef1f4;
   --surface-3: #e6eaef;
   --border: #d0d7de;
-  --border-strong: #afb8c1;
+  --border-strong: #83919f;
 
   --text: #1f2328;
   --text-secondary: #59636e;
-  --text-muted: #818b98;
+  --text-muted: #697380;
   --text-inverse: #ffffff;
 
   --accent: #0969da;
@@ -27,7 +27,7 @@
   --deleted: #cf222e;
 
   --editor-bg: #ffffff;
-  --editor-gutter: #818b98;
+  --editor-gutter: #6d7785;
   --editor-active-line: rgba(0, 0, 0, 0.03);
   --editor-selection: rgba(9, 105, 218, 0.22);
   --editor-cursor: #1f2328;

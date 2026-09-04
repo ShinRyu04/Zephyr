@@ -106,6 +106,8 @@ export class Cdp {
         const WS = window.__ZEPHYR_WS__;
         /** fase 30: bridge Snippets */
         const SN = window.__ZEPHYR_SNIP__;
+        /** fase 31: bridge Accessibility */
+        const AY = window.__ZEPHYR_A11Y__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

@@ -37,6 +37,8 @@ import {
   prevSnippetField as prevSnippetFieldCm,
   clearSnippet as clearSnippetCm,
 } from '@codemirror/autocomplete';
+// fase 31: a11y — pengumuman, setelan, dan preferensi OS.
+import { osMintaReducedMotion, useA11y } from './a11yStore';
 import {
   cliParse,
   cliTeks,
@@ -1488,6 +1490,138 @@ export function installDevBridge(): void {
     jumlahField: () => {
       const v = getActiveView();
       return v ? v.dom.querySelectorAll('.cm-snippetField').length : 0;
+    },
+  };
+
+  // ── FASE 31: aksesibilitas ──
+  w.__ZEPHYR_A11Y__ = {
+    store: () => useA11y,
+    state: () => useA11y.getState(),
+    /** kirim pengumuman lewat jalur produk (bukan menulis DOM langsung) */
+    umumkan: (teks: string, kesopanan?: 'polite' | 'assertive') =>
+      useA11y.getState().umumkan(teks, kesopanan),
+    riwayat: () => useA11y.getState().riwayat,
+    bersihkan: () => useA11y.getState().bersihkan(),
+    /** isi live region yang SEBENARNYA dirender (bukti V3) */
+    isiLive: () => ({
+      polite: document.querySelector('[data-testid="a11y-live-polite"]')?.textContent ?? null,
+      assertive:
+        document.querySelector('[data-testid="a11y-live-assertive"]')?.textContent ?? null,
+      politeAria: document
+        .querySelector('[data-testid="a11y-live-polite"]')
+        ?.getAttribute('aria-live'),
+      assertiveAria: document
+        .querySelector('[data-testid="a11y-live-assertive"]')
+        ?.getAttribute('aria-live'),
+    }),
+    /** atribut a11y di <html> — bukti setelan benar-benar diterapkan */
+    atribut: () => ({
+      reducedMotion: document.documentElement.dataset.reducedMotion ?? null,
+      screenReader: document.documentElement.dataset.screenReader ?? null,
+      theme: document.documentElement.dataset.theme ?? null,
+    }),
+    osReducedMotion: () => osMintaReducedMotion(),
+    /** setelan efektif dari store utama */
+    setelan: () => useStore.getState().settings.accessibility ?? null,
+
+    /** Hitung rasio kontras dua warna CSS var yang SEDANG dipakai. */
+    kontras: (varFg: string, varBg: string) => {
+      const cs = getComputedStyle(document.documentElement);
+      const parse = (v: string): [number, number, number] | null => {
+        const s = cs.getPropertyValue(v).trim();
+        const mh = /^#([0-9a-f]{6})$/i.exec(s);
+        if (mh) {
+          const n = parseInt(mh[1], 16);
+          return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+        }
+        const mr = /^rgba?\(([^)]+)\)$/i.exec(s);
+        if (mr) {
+          const p = mr[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+          if (p.length >= 3) return [p[0], p[1], p[2]];
+        }
+        return null;
+      };
+      const fg = parse(varFg);
+      const bg = parse(varBg);
+      if (!fg || !bg) return null;
+      const lum = ([r, g, b]: [number, number, number]) => {
+        const f = (x: number) => {
+          const c = x / 255;
+          return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+      };
+      const a = lum(fg);
+      const b2 = lum(bg);
+      return +((Math.max(a, b2) + 0.05) / (Math.min(a, b2) + 0.05)).toFixed(2);
+    },
+
+    /** Jumlah dialog modal yang terlihat + apakah punya focus trap terpasang. */
+    dialogAktif: () =>
+      [...document.querySelectorAll('[role="dialog"]')]
+        .filter((el) => (el as HTMLElement).offsetParent !== null || el.clientHeight > 0)
+        .map((el) => ({
+          label: el.getAttribute('aria-label') ?? el.getAttribute('aria-labelledby'),
+          modal: el.getAttribute('aria-modal'),
+          fokusabel: el.querySelectorAll(
+            'button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])',
+          ).length,
+        })),
+
+    /** Elemen yang sedang fokus — dipakai membuktikan trap & skip link. */
+    fokus: () => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return null;
+      return {
+        tag: el.tagName.toLowerCase(),
+        testid: el.getAttribute('data-testid'),
+        label: el.getAttribute('aria-label'),
+        cls: el.className || null,
+        teks: (el.textContent ?? '').trim().slice(0, 40),
+        diDalamDialog: !!el.closest('[role="dialog"]'),
+      };
+    },
+
+    /** Fokuskan elemen berdasarkan selector (untuk memulai uji Tab). */
+    fokuskan: (sel: string) => {
+      const el = document.querySelector<HTMLElement>(sel);
+      if (!el) return false;
+      el.focus();
+      return document.activeElement === el;
+    },
+
+    /**
+     * Kirim Tab / Shift+Tab sebagai KeyboardEvent asli.
+     *
+     * TIDAK memakai Input.dispatchKeyEvent CDP: focus trap fase 31 memasang
+     * listener di `document` dengan capture, dan event CDP yang dikirim saat
+     * dokumen tidak fokus tidak selalu sampai (pelajaran fase 05 WebView2).
+     */
+    tekanTab: (shift = false) => {
+      const ev = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        code: 'Tab',
+        shiftKey: shift,
+        bubbles: true,
+        cancelable: true,
+      });
+      return document.dispatchEvent(ev);
+    },
+    tekanEscape: () =>
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          code: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+
+    /** Jalankan axe-core pada dokumen hidup (V6). Kode axe disuntik harness. */
+    axe: async (opsi?: Record<string, unknown>) => {
+      const g = window as unknown as { axe?: { run: (ctx: unknown, o?: unknown) => Promise<unknown> } };
+      if (!g.axe) return { err: 'axe belum disuntik' };
+      return (await g.axe.run(document, opsi ?? {})) as unknown;
     },
   };
 

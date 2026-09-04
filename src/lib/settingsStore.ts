@@ -18,6 +18,7 @@ export type SectionId =
   | 'scm'
   | 'mcp'
   | 'security'
+  | 'accessibility'
   | 'ssh'
   | 'about';
 
@@ -35,6 +36,9 @@ export const SECTION_ORDER: SectionId[] = [
   // fase 29: Workspace Trust. Ditempatkan sebelum 'ssh' karena keduanya
   // section keamanan, dan 'about' harus tetap terakhir.
   'security',
+  // fase 31: Accessibility. Setelah 'security' karena keduanya "kebijakan
+  // app", bukan konfigurasi fitur.
+  'accessibility',
   'ssh',
   'about',
 ];

@@ -19,8 +19,15 @@ export default function EditorTabBar() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="tabbar" role="tablist" aria-label="Tab editor">
-      <div className="tabbar-scroll">
+    // FASE 31: `role="tablist"` DIPINDAH ke .tabbar-scroll.
+    //
+    // ARIA: anak langsung tablist harus `tab`. Sebelumnya .tabbar memegang
+    // tablist sementara tombol "Tab baru" (+) juga anak langsungnya — axe
+    // menandainya aria-required-children CRITICAL, dan screen reader membaca
+    // strukturnya rusak. Sekarang tablist hanya membungkus tab-tabnya, dan
+    // tombol + berada di luar.
+    <div className="tabbar">
+      <div className="tabbar-scroll" role="tablist" aria-label="Tab editor">
         {tabs.map((t, i) => (
           <div
             key={t.id}
@@ -54,6 +61,15 @@ export default function EditorTabBar() {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 setActiveTab(t.id);
+              } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                // FASE 31: tutup tab dari keyboard.
+                //
+                // Wajib ada karena tombol ✕ dikeluarkan dari urutan Tab
+                // (tabIndex -1, lihat di bawah): tanpa handler ini pengguna
+                // keyboard kehilangan satu-satunya cara menutup tab dari
+                // tab strip.
+                e.preventDefault();
+                requestCloseTab(t.id);
               }
             }}
             onAuxClick={(e) => {
@@ -67,17 +83,25 @@ export default function EditorTabBar() {
             <FileIcon lang={t.lang} name={t.name} />
             <span className="tab-name">{t.name}</span>
             {t.unsaved && <span className="tab-dot" title="Belum disimpan" aria-hidden="true" />}
-            <button
+            {/* FASE 31: tombol ✕ diganti <span>.
+                ARIA melarang `role="tab"` punya keturunan interaktif, dan
+                `tabIndex={-1}` TIDAK cukup — axe: "a negative tabindex on an
+                element inside an interactive control does not prevent
+                assistive technologies from focusing the element". Jadi
+                elemennya memang tidak boleh interaktif: <span> + aria-hidden,
+                klik tetap jalan untuk mouse, keyboard memakai
+                Delete/Backspace di tab-nya (lihat onKeyDown). */}
+            <span
               className="tab-close"
               title="Tutup"
-              aria-label={`Tutup ${t.name}`}
+              aria-hidden="true"
               onClick={(e) => {
                 e.stopPropagation();
                 requestCloseTab(t.id);
               }}
             >
               ✕
-            </button>
+            </span>
           </div>
         ))}
       </div>

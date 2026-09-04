@@ -65,6 +65,14 @@ pub fn default_settings() -> Value {
         "models": { "activeProvider": "gemini", "providers": {} },
         "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
         "extensions": { "enabled": [] },
+        // fase 31: aksesibilitas. Nama kunci mengikuti VS Code
+        // (accessibility.*) supaya settings terasa familier.
+        "accessibility": {
+            "reducedMotion": false,
+            "screenReader": false,
+            "autoFocusDialog": true,
+            "toastDurasiMin": 3200
+        },
         "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
         "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
         "ssh": { "recentHosts": [] },

@@ -207,7 +207,7 @@
 
 .pane-split-browser:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .pane-split-browser span {

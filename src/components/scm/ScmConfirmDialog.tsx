@@ -4,6 +4,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useGit } from '../../lib/gitStore';
+// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
+// screen reader — ia TIDAK mengurung fokus keyboard.
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function ScmConfirmDialog() {
   const confirm = useGit((s) => s.confirm);
@@ -14,6 +17,13 @@ export default function ScmConfirmDialog() {
   useEffect(() => {
     if (confirm) okRef.current?.focus();
   }, [confirm]);
+
+  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
+  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    aktif: !!confirm,
+    onEscape: () => setConfirm(null),
+  });
 
   if (!confirm) return null;
 
@@ -65,7 +75,7 @@ export default function ScmConfirmDialog() {
         if (e.key === 'Escape') setConfirm(null);
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="scm-cf-title">
+      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="scm-cf-title">
         <h2 className="modal-title" id="scm-cf-title" data-testid="scm-confirm-title">
           {title}
         </h2>
