@@ -149,7 +149,13 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+Shift+Y', 'debugConsolePanel.focus', 'app'),
   D('Ctrl+PageDown', 'panel.nextTab', 'app'),
   D('Ctrl+PageUp', 'panel.prevTab', 'app'),
-  D('Ctrl+Shift+D', 'debug.focus', 'stub', 'global', 'Focus Run & Debug'),
+  // Ctrl+Shift+D → debug.focus TIDAK didaftarkan di sini.
+  // Fase 18 menaruhnya sebagai 'stub' di blok View, lalu fase 22 mendaftarkan
+  // chord yang sama sebagai 'app' di blok Run/Debug. Dua entri dengan command
+  // DAN chord identik: resolve() mengembalikan yang pertama ketemu (stub), jadi
+  // shortcut-nya tidak pernah benar-benar membuka Run & Debug — dan React
+  // melempar "two children with the same key" di KeybindingsEditor karena
+  // key-nya `${command}-${chord}`. Entri yang sah ada di blok Run / Debug.
 
   // ── Go ──
   D('Ctrl+G', 'editor.gotoLine', 'stub', 'editorFocus', 'Go to Line'),

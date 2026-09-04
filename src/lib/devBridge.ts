@@ -315,6 +315,12 @@ export function installDevBridge(): void {
       }));
       const seen = new Map<string, string[]>();
       for (const r of rows) {
+        // Binding KOSONG bukan konflik. `findConflicts()` di shortcuts.ts —
+        // yang dipakai produk saat menyimpan — mengembalikan [] untuk binding
+        // kosong, jadi bridge ini harus memakai aturan yang sama. Tanpa guard
+        // ini, tasks.run dan tasks.terminate (dua-duanya default '') dilaporkan
+        // bertabrakan padahal keduanya memang belum punya shortcut.
+        if (!r.binding) continue;
         seen.set(r.binding, [...(seen.get(r.binding) ?? []), r.id]);
       }
       const conflicts = [...seen.entries()]

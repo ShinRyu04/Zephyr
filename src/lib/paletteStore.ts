@@ -58,8 +58,19 @@ function saveRecent(ids: string[]) {
 /**
  * Cocokkan `query` ke `text`. null = tidak cocok.
  * Mengembalikan skor + indeks karakter yang cocok untuk highlight.
+ *
+ * `ketatSubsequence` menonaktifkan lapisan 4 (subsequence). Dipakai untuk
+ * mencocokkan ke `keywords`: query 3 huruf seperti "git" hampir selalu bisa
+ * dipungut sebagai subsequence dari gabungan title+keywords yang panjang
+ * (mis. "notifikasi lonceng riwayat pemberitahuan" → g?…i?…t?), jadi
+ * separuh isi palette lolos dan daftar hasil kehilangan arti. Untuk judul
+ * lapisan subsequence tetap berguna ("gtd" → "Go to Definition").
  */
-export function fuzzyMatch(text: string, query: string): { score: number; hits: number[] } | null {
+export function fuzzyMatch(
+  text: string,
+  query: string,
+  ketatSubsequence = false,
+): { score: number; hits: number[] } | null {
   if (!query) return { score: 0, hits: [] };
   const t = text.toLowerCase();
   const q = query.toLowerCase();
@@ -78,6 +89,7 @@ export function fuzzyMatch(text: string, query: string): { score: number; hits: 
   if (sub >= 0) {
     return { score: 600 - sub - t.length / 2, hits: range(sub, q.length) };
   }
+  if (ketatSubsequence) return null;
   // 4) subsequence (fuzzy): huruf berurutan tapi tidak berdampingan
   const hits: number[] = [];
   let ti = 0;
@@ -203,7 +215,11 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     const list: PaletteItem[] = [];
     for (const c of availableCommands()) {
       const hay = `${c.title} ${c.keywords ?? ''}`;
-      const m = fuzzyMatch(c.title, q) ?? fuzzyMatch(hay, q);
+      // Judul: keempat lapisan (subsequence berguna — "gtd" → Go to Definition).
+      // Keywords: subsequence DIMATIKAN. Tanpa itu query "git" memungut 22 dari
+      // 38 command lewat huruf yang tersebar di keywords panjang, dan daftar
+      // hasil berhenti berarti. Dibuktikan dari CP.items() di app hidup.
+      const m = fuzzyMatch(c.title, q) ?? fuzzyMatch(hay, q, true);
       if (!m) continue;
       const r = recent.indexOf(c.id);
       const recentBonus = r >= 0 ? (MAX_RECENT - r) * 12 : 0;

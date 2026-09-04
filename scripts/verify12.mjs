@@ -421,6 +421,14 @@ const main = async () => {
   const v5 = JSON.parse(
     await cdp.runAsync(`
       s.setSettingsOpen(false);
+      // Tab panel WAJIB disetel ke 'terminal'.
+      //
+      // Harness ini ditulis di fase 12, SEBELUM fase 20 menambahkan tab panel
+      // bawah (Problems/Output/Debug/Terminal/Ports). Kalau uji lain
+      // meninggalkan tab 'problems' aktif, .term-area tidak dirender sama
+      // sekali, dan .pane-grid mengukur 0x0 — V5 gagal padahal split-nya benar.
+      window.__ZEPHYR_PANEL__.store.getState().setActiveTab('terminal');
+      await wait(200);
       for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
       await wait(300);
       TS().setVisible(true);
@@ -815,6 +823,26 @@ const main = async () => {
   // node menggantung selamanya walau semua uji sudah lulus.
   srv.closeAllConnections?.();
   srv.close();
+  // Workspace DIPULIHKAN ke repo sebelum harness ini keluar.
+  //
+  // V11 sengaja mengosongkan workspace sebagai bukti pembersihan, tapi SANDBOX
+  // di bawah dihapus dari disk. Kalau app dibiarkan menunjuk folder yang sudah
+  // lenyap, harness berikutnya (verify13 V7) menemukan workspace null +
+  // dialog trust menggantung untuk path yang tidak ada — setTrust gagal senyap
+  // karena foldernya memang tidak ada lagi.
+  await cdp.runAsync(
+    `
+    // window.__ZEPHYR_WS__ dipakai langsung: prelude verify12 dibuat di fase 12
+    // dan tidak punya alias 'WS' (bridge itu baru ada di fase 29).
+    await window.__ZEPHYR_WS__.setTrust(${JSON.stringify(process.cwd().replace(/\\/g, '/'))}, true);
+    await wait(200);
+    await s.openWorkspace(${JSON.stringify(process.cwd().replace(/\\/g, '/'))});
+    await wait(600);
+    s.tabs.slice().forEach((t) => s.forceCloseTab(t.id));
+    return 'ok';
+  `,
+    30000,
+  );
   fs.rmSync(SANDBOX, { recursive: true, force: true });
   cdp.close();
 
