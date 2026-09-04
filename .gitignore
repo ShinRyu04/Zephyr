@@ -44,6 +44,14 @@ BUILD_REPORT.md
 
 # catatan lanjut sesi internal — jangan ikut repo
 LANJUT-FASE-21.md
+FREE-STACK-NOTES.md
+
+# Dokumentasi rilis & publikasi — TIDAK ikut repo (keputusan user).
+# Tetap ada di disk; yang dipublikasikan hanya lewat repo website/releases.
+README.md
+CHANGELOG.md
+RELEASE_NOTES.md
+PUBLISH.md
 
 # Fixture verifikasi fase 23 (tasks.json uji + skrip proses palsu).
 # Ini artefak UJI, bukan konfigurasi proyek: kalau ikut ter-commit, siapa pun
