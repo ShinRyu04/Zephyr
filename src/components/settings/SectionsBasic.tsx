@@ -193,6 +193,24 @@ export function EditorSection() {
         />
       </Row>
 
+      <Row
+        label={t('editor.snippetSuggestions')}
+        hint="posisi saran snippet di daftar completion"
+      >
+        <Select
+          label={t('editor.snippetSuggestions')}
+          testid="editor-snippet-sug"
+          value={e.snippetSuggestions}
+          onChange={(v) => patch({ snippetSuggestions: v as typeof e.snippetSuggestions })}
+          options={[
+            { value: 'inline', label: 'Inline (campur, urut relevansi)' },
+            { value: 'top', label: 'Atas' },
+            { value: 'bottom', label: 'Bawah' },
+            { value: 'none', label: 'Matikan' },
+          ]}
+        />
+      </Row>
+
       <Row label={t('editor.smoothScroll')} hint="lebih halus, sedikit lebih berat">
         <Toggle
           label={t('editor.smoothScroll')}

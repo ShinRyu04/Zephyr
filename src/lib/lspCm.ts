@@ -14,6 +14,8 @@ import { Compartment, RangeSetBuilder, type Extension } from '@codemirror/state'
 import { Decoration, EditorView, hoverTooltip, type DecorationSet } from '@codemirror/view';
 import { useLsp } from './lspStore';
 import { COMPLETION_KIND, hoverText, pathToUri, uriToPath } from './lsp';
+import { keCompletion, konteksDari, useSnip } from './snippetStore';
+import { useStore } from './store';
 import type { Diagnostic } from './problemsStore';
 
 /** posisi CodeMirror (offset) → posisi LSP (line/character, 0-based). */
@@ -120,9 +122,88 @@ export function lspCompletionSource(path: string) {
   };
 }
 
+/**
+ * Sumber completion snippet untuk CodeMirror.
+ *
+ * DIPAKAI BERSAMA sumber lain, tidak menggantikannya: `autocompletion({
+ * override: [...] })` mengganti SELURUH sumber, jadi snippet didaftarkan
+ * sebagai sumber tambahan supaya completion LSP fase 21 dan kata-dari-dokumen
+ * tetap jalan.
+ *
+ * Konteks variabel dibaca SAAT SUMBER DIPANGGIL, bukan saat ekstensi dibuat:
+ * seleksi dan baris kursor berubah tiap ketikan, dan konteks yang dibekukan di
+ * awal akan mengisi ${TM_SELECTED_TEXT} dengan seleksi lama.
+ */
+export function snippetCompletionSource(path: string, langId: () => string) {
+  return async (ctx: CompletionContext): Promise<CompletionResult | null> => {
+    const mode = pengaturanSnippet();
+    if (mode === 'none') return null;
+
+    const lang = langId();
+    const S = useSnip.getState();
+    // Muat sekali per bahasa; hasilnya di-cache di store.
+    let daftar = S.untuk(lang);
+    if (daftar.length === 0) {
+      const setb = await S.muat(lang);
+      daftar = setb?.snippets ?? [];
+    }
+    if (daftar.length === 0) return null;
+
+    const kata = ctx.matchBefore(/[\w$-]*/);
+    const from = kata ? kata.from : ctx.pos;
+    const diketik = kata ? kata.text : '';
+    // Tanpa apa pun yang diketik, jangan banjiri popup — kecuali user memang
+    // meminta eksplisit (Ctrl+Space).
+    if (!ctx.explicit && diketik.length === 0) return null;
+
+    const cocok = diketik
+      ? daftar.filter((s) => s.prefix.toLowerCase().startsWith(diketik.toLowerCase()))
+      : daftar;
+    if (cocok.length === 0) return null;
+
+    // ctx.view bisa undefined (completion dari state tanpa view) — tanpa view
+    // tidak ada seleksi/baris untuk dibaca, jadi snippet dilewati.
+    if (!ctx.view) return null;
+    const konteks = await konteksDari(ctx.view, path);
+    const boostMode = mode === 'top' ? 99 : mode === 'bottom' ? -99 : 0;
+
+    return {
+      from,
+      options: cocok.slice(0, 80).map((s) => {
+        const c = keCompletion(s, konteks);
+        return { ...c, boost: (c.boost ?? 0) + boostMode };
+      }),
+      validFor: /^[\w$-]*$/,
+    };
+  };
+}
+
+/** Nilai `editor.snippetSuggestions` dari settings (fase 08). */
+function pengaturanSnippet(): 'top' | 'bottom' | 'inline' | 'none' {
+  const m = useStore.getState().settings.editor?.snippetSuggestions ?? 'inline';
+  return m === 'top' || m === 'bottom' || m === 'none' ? m : 'inline';
+}
+
 export function lspAutocompletion(path: string): Extension {
   return autocompletion({
     override: [lspCompletionSource(path)],
+    activateOnTyping: true,
+    maxRenderedOptions: 60,
+  });
+}
+
+/**
+ * Autocompletion lengkap: snippet (fase 30) + LSP (fase 21) bila ada.
+ *
+ * Keduanya di SATU `autocompletion()`. Dua instance membuat dua popup bersaing
+ * (pelajaran fase 21), jadi sumbernya digabung dalam satu `override`.
+ */
+export function autocompletionZephyr(path: string, langId: () => string, adaLsp: boolean): Extension {
+  const sumber = adaLsp
+    ? [snippetCompletionSource(path, langId), lspCompletionSource(path)]
+    : [snippetCompletionSource(path, langId)];
+  return autocompletion({
+    override: sumber,
     activateOnTyping: true,
     maxRenderedOptions: 60,
   });
