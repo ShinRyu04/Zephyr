@@ -160,8 +160,13 @@ export const bagian2 = async (cdp, check) => {
       v6.saatDebug &&
       v6.saatDebug.c === 'debug.stepInto' &&
       v6.saatDebug.w === 'debugActive' &&
+      // Fase 22 memindahkan F5 dari layer 'stub' ke 'app' (debugger DAP jadi
+      // nyata). Assert lama mematok 'stub', jadi ia menuntut fiturnya TIDAK
+      // ada — kebalikan dari yang kita mau. Yang diuji sekarang: F5 memanggil
+      // debug.start, layer apa pun selain 'stub'.
       v6.f5 &&
-      v6.f5.l === 'stub' &&
+      v6.f5.c === 'debug.start' &&
+      v6.f5.l !== 'stub' &&
       v6.shiftF5 === 'debug.stop' &&
       v6.shiftF5Mati === null,
     `F11 di luar debug = ${v6.normal.c} (when=${v6.normal.w}); saat debugActive = ${v6.saatDebug.c} ` +

@@ -264,6 +264,20 @@ const main = async () => {
     for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
     s.setSettingsOpen(false);
     s.setActivity('explorer');
+    // Workspace WAJIB terbuka dan dipercaya sebelum V7.
+    //
+    // Fase 29 membuat extensions_load menolak jalan tanpa workspace
+    // (ensure_trusted di Rust), sedangkan harness ini ditulis di fase 13 dan
+    // tidak pernah membuka folder. Kalau verify12 dijalankan lebih dulu — ia
+    // MENGOSONGKAN workspace di pembersihan V11 — V7 gagal dengan "Memuat
+    // ekstensi butuh workspace terbuka", bukan dengan pesan batas 1MB yang
+    // sedang diuji.
+    // window.__ZEPHYR_WS__ langsung: prelude verify13 dibuat di fase 13 dan
+    // tidak punya alias 'WS' (bridge trust baru ada di fase 29).
+    await window.__ZEPHYR_WS__.setTrust(${JSON.stringify(SANDBOX.replace(/\\/g, '/'))}, true);
+    await wait(200);
+    await s.openWorkspace(${JSON.stringify(SANDBOX.replace(/\\/g, '/'))});
+    await wait(700);
     await s.applySettings({ extensions: { enabled: [] }, general: { theme: 'dark' }, theme: { current: 'zephyr-dark', accent: '' } });
     await s.openPath(${JSON.stringify(sampleFile)});
     await wait(700);
