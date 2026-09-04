@@ -7,6 +7,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useExplorer } from '../../lib/explorerStore';
+// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
+// screen reader — ia TIDAK mengurung fokus keyboard.
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 const nama = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -23,6 +26,13 @@ export default function DeleteConfirmDialog() {
     if (pending) okRef.current?.focus();
   }, [pending]);
 
+  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
+  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    aktif: !!pending && pending.length > 0,
+    onEscape: () => cancel(),
+  });
+
   if (!pending || pending.length === 0) return null;
 
   const satu = pending.length === 1;
@@ -35,7 +45,7 @@ export default function DeleteConfirmDialog() {
         if (e.key === 'Escape') cancel();
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
+      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="del-title">
         <h2 className="modal-title" id="del-title" data-testid="del-title">
           {satu ? `Hapus "${nama(pending[0])}"?` : `Hapus ${pending.length} item?`}
         </h2>

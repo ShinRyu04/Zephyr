@@ -264,6 +264,19 @@ export default function CodeMirrorEditor({ tab }: Props) {
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
       wrapComp.current.of(editorSettings.wordWrap ? EditorView.lineWrapping : []),
+      // FASE 31: nama & deskripsi editor untuk screen reader.
+      //
+      // CodeMirror merender teks ke <div contenteditable> yang secara default
+      // TIDAK punya nama aksesibel — Narrator hanya menyebut "edit". Atribut
+      // ini yang membuatnya membacakan nama file dan bahasa saat fokus masuk.
+      EditorView.contentAttributes.of({
+        'aria-label': `Editor: ${tab.name}${tab.path ? ` (${tab.path})` : ''}`,
+        // `textbox` + multiline: sebagian screen reader memakai ini untuk
+        // memutuskan mode navigasi baris, bukan mode dokumen.
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-readonly': readOnly ? 'true' : 'false',
+      }),
       tabComp.current.of(indentUnit.of(editorSettings.insertSpaces ? ' '.repeat(editorSettings.tabSize) : '\t')),
       EditorState.tabSize.of(editorSettings.tabSize),
       EditorView.updateListener.of((u) => {

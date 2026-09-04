@@ -147,11 +147,12 @@ export default function MenuBar() {
     if (it.children) {
       const terbuka = sub === it.label;
       return (
-        <div className="mb-sub-wrap" key={it.label}>
+        <div className="mb-sub-wrap" key={it.label} role="none">
           <button
             className={`mb-item mb-has-sub${idx === i && !dalamSub ? ' is-active' : ''}`}
             data-testid="mb-item"
             data-command="submenu"
+            role="menuitem"
             aria-haspopup="true"
             aria-expanded={terbuka}
             onMouseEnter={() => {
@@ -204,11 +205,17 @@ export default function MenuBar() {
       {MENUS.map((m, i) => {
         const mnemonicIdx = m.label.toLowerCase().indexOf(m.mnemonic);
         return (
-          <div className="mb-menu" key={m.label}>
+          // FASE 31: role="none" WAJIB di wrapper.
+          //
+          // Spesifikasi ARIA: anak langsung `menubar` harus `menuitem` (atau
+          // group/none). div pembungkus biasa membuat struktur menu rusak di
+          // screen reader — axe menandainya `aria-required-children` critical.
+          <div className="mb-menu" key={m.label} role="none">
             <button
               className={`mb-top${buka === i ? ' is-open' : ''}`}
               data-testid="mb-top"
               data-menu={m.label}
+              role="menuitem"
               aria-haspopup="true"
               aria-expanded={buka === i}
               onClick={() => {

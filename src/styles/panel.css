@@ -89,7 +89,7 @@
 }
 .pts-badge.is-error {
   background: var(--danger);
-  color: #fff;
+  color: var(--text-inverse);
 }
 .pts-badge.is-warn {
   background: var(--warning);

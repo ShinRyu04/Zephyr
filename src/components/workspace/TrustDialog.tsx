@@ -9,12 +9,23 @@
 // akan jalan" lebih berguna daripada "restricted mode aktif".
 
 import { useWs } from '../../lib/workspaceStore';
+// fase 31: kurung fokus. `aria-modal` hanya memberi tahu screen reader —
+// ia TIDAK mengurung fokus keyboard.
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function TrustDialog() {
   const tanyaUntuk = useWs((s) => s.tanyaUntuk);
   const setTrust = useWs((s) => s.setTrust);
   const tanya = useWs((s) => s.tanya);
   const roots = useWs((s) => s.roots);
+
+  // Hook WAJIB di atas early return (Rules of Hooks).
+  //
+  // TANPA onEscape: saat status masih `unknown`, dialog Trust memang TIDAK
+  // boleh ditutup tanpa memilih (keputusan fase 29) — memberi Escape jalan
+  // keluar akan meninggalkan folder di keadaan yang mematikan semua eksekusi
+  // tanpa user tahu kenapa.
+  const trapRef = useFocusTrap<HTMLDivElement>({ aktif: !!tanyaUntuk });
 
   if (!tanyaUntuk) return null;
 
@@ -23,7 +34,7 @@ export default function TrustDialog() {
 
   return (
     <div className="trust-overlay" data-testid="trust-dialog">
-      <div className="trust-card" role="dialog" aria-modal="true" aria-labelledby="trust-title">
+      <div className="trust-card" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="trust-title">
         <div className="trust-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="34" height="34">
             <path

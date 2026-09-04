@@ -275,7 +275,7 @@ body.is-narrow .ab-btn {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
@@ -287,7 +287,7 @@ body.is-narrow .ab-btn {
 }
 .btn-danger:hover {
   background: var(--danger);
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 /* ─────────── area utama ─────────── */
@@ -404,7 +404,7 @@ body.is-resizing-v {
   padding: 0 4px;
   border-radius: 7px;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 10px;
   text-align: center;
 }
@@ -596,7 +596,7 @@ body.is-resizing-v {
 }
 .tt-drop-item:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
 }
 .tt-drop-danger:hover {
   background: var(--danger);
@@ -1365,7 +1365,7 @@ body.is-resizing-v {
 }
 .ctx-item:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
 }
 .ctx-item:hover .ctx-key {
   color: rgba(255, 255, 255, 0.75);

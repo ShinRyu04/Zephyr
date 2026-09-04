@@ -672,6 +672,17 @@ export interface Settings {
     attachActiveFile: boolean;
   };
   extensions: { enabled: string[] };
+  /** fase 31: aksesibilitas — penamaan mengikuti VS Code (accessibility.*) */
+  accessibility?: {
+    /** matikan animasi & transisi di dalam app (di luar preferensi OS) */
+    reducedMotion: boolean;
+    /** xterm SR-mode, CM6 tanpa virtualisasi, teks alt untuk indikator warna */
+    screenReader: boolean;
+    /** dialog memindahkan fokus otomatis saat dibuka */
+    autoFocusDialog: boolean;
+    /** durasi minimum toast (ms) — screen reader butuh waktu membacakan */
+    toastDurasiMin: number;
+  };
   git: {
     userName?: string;
     userEmail?: string;
@@ -748,6 +759,14 @@ export const DEFAULT_SETTINGS: Settings = {
   models: { activeProvider: 'gemini', providers: {} },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
   extensions: { enabled: [] },
+  // fase 31: default a11y = tidak mengubah perilaku. Reduced motion tetap
+  // dihormati lewat preferensi OS (media query di a11y.css) walau ini false.
+  accessibility: {
+    reducedMotion: false,
+    screenReader: false,
+    autoFocusDialog: true,
+    toastDurasiMin: 3200,
+  },
   git: { defaultBranch: 'main', pullBeforePush: true },
   mcp: { enabled: false, port: 9222, token: '', writeToCli: [] },
   ssh: { recentHosts: [] },

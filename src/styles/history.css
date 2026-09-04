@@ -57,7 +57,9 @@
   padding: 0 4px;
   border-radius: 8px;
   background: var(--bg3);
-  color: var(--fg2);
+  /* FASE 31: --fg2 (= --text-muted) hanya 3.97:1 di atas --bg3 pada 10px.
+     Sama seperti .tl-badge — badge kecil butuh kontras lebih. */
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 600;
   text-align: center;
@@ -142,7 +144,11 @@
 
 .tl-badge[data-kind='commit'] {
   background: var(--bg3);
-  color: var(--fg2);
+  /* FASE 31: `--fg2` (= --text-muted) hanya 3.97:1 di atas --bg3, dan badge ini
+     9px bold — teks kecil justru butuh kontras lebih, bukan kurang. Dipakai
+     --text-secondary yang 5.6:1 di atas surface-3 di semua tema.
+     (Ditemukan axe-core: color-contrast serious x14, satu per baris commit.) */
+  color: var(--text-secondary);
 }
 
 .tl-label {

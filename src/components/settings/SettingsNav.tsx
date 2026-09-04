@@ -21,6 +21,7 @@ const NAV_KEY: Record<SectionId, string> = {
   scm: 'settings.scm',
   mcp: 'settings.mcp',
   security: 'settings.security',
+  accessibility: 'settings.accessibility',
   ssh: 'settings.ssh',
   about: 'settings.about',
 };
@@ -118,6 +119,18 @@ export function NavIcon({ id }: { id: SectionId }) {
           <rect x="3.4" y="7.2" width="9.2" height="6.2" rx="1.2" {...st} />
           <path d="M5.8 7.2V5.4a2.2 2.2 0 014.4 0v1.8" {...st} />
           <path d="M8 9.6v1.6" {...st} />
+        </svg>
+      );
+    case 'accessibility':
+      // Ikon aksesibilitas universal: figur dengan lengan terentang di dalam
+      // lingkaran. Bentuknya LITERAL (kepala + badan + lengan + kaki), bukan
+      // garis-garis abstrak — sesuai selera ikon yang dipakai di app ini.
+      return (
+        <svg {...p}>
+          <circle cx="8" cy="8" r="6.2" {...st} />
+          <circle cx="8" cy="4.9" r="0.95" fill="currentColor" stroke="none" />
+          <path d="M4.6 6.6h6.8" {...st} />
+          <path d="M8 6.9v3.1M8 10l-1.7 2.4M8 10l1.7 2.4" {...st} />
         </svg>
       );
     case 'ssh':
