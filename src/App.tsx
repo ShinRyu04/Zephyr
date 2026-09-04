@@ -32,6 +32,9 @@ import { usePalette } from './lib/paletteStore';
 import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
+// fase 31
+import { terapkanA11y, umumkan as umumkanA11y } from './lib/a11yStore';
+import LiveRegion from './components/a11y/LiveRegion';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindTaskListeners, useTasks } from './lib/tasksStore';
 import { useHistory } from './lib/historyStore';
@@ -45,7 +48,7 @@ import { useKb } from './lib/keybindingStore';
 import { useLsp } from './lib/lspStore';
 import { runCommand } from './lib/commandRegistry';
 import { notifyWarn } from './lib/notificationStore';
-import { flushTab } from './lib/editorRegistry';
+import { flushTab, getActiveView } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
 import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
@@ -66,6 +69,10 @@ import './styles/debug.css';
 import './styles/workspace.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
+// fase 31: a11y WAJIB TERAKHIR — index.css punya 12 aturan `outline: none`
+// dengan specificity yang sama (`:where()` = 0), jadi yang menang ditentukan
+// URUTAN. Ditaruh sebelum index.css berarti focus ring-nya ditimpa balik.
+import './styles/a11y.css';
 
 /** Guard: listener PTY hanya boleh didaftarkan sekali per proses.
  *  React StrictMode (dev) menjalankan effect dua kali — kalau listener
@@ -707,6 +714,7 @@ export default function App() {
     void muatSemuaEkstensi().then(() => {
       const s = useStore.getState();
       useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
+      terapkanA11y(s.settings.accessibility); // fase 31
     });
 
     // `detail.query` (fase 23): "Run Task" membuka palette yang sudah terisi
@@ -744,6 +752,7 @@ export default function App() {
       if (s.settings.general.theme !== 'system') return;
       // applyTheme membaca ulang preferensi OS; cukup panggil lagi.
       useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
+      terapkanA11y(s.settings.accessibility); // fase 31
       retheme();
     });
 
@@ -816,6 +825,26 @@ export default function App() {
 
   return (
     <div className="app-root">
+      {/* FASE 31: skip link — elemen fokusabel PERTAMA di app.
+          Tanpa ini pengguna keyboard harus melewati ~20 tombol ActivityBar +
+          Sidebar sebelum sampai ke editor, setiap kali. Dibuat <button> bukan
+          <a href="#..."> karena editor bukan anchor target dan CodeMirror
+          butuh .focus() nyata, bukan perpindahan hash. */}
+      <button
+        className="a11y-skip"
+        data-testid="a11y-skip"
+        onClick={() => {
+          const v = getActiveView();
+          if (v) {
+            v.focus();
+            umumkanA11y('Fokus di editor.');
+          } else {
+            umumkanA11y('Belum ada file yang terbuka.', 'assertive');
+          }
+        }}
+      >
+        Lompat ke editor
+      </button>
       <MenuBar />
       <div className="app-body">
         <ActivityBar />
@@ -854,6 +883,9 @@ export default function App() {
       <TrustDialog />
       <KeybindingsEditor />
       <LspOverlay />
+      {/* fase 31: live region a11y. Dirender TERAKHIR supaya tidak menyisip
+          di antara landmark dan tidak mengganggu urutan Tab (ia tak fokusabel). */}
+      <LiveRegion />
     </div>
   );
 }

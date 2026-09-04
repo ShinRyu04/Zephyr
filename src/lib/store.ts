@@ -9,7 +9,11 @@ import { detectLang } from './lang';
 import { kunciPath, pathSama } from './pathKey';
 import { revealPosition } from './editorRegistry';
 import { applyTheme } from './themes';
-import { retheme } from './xtermRegistry';
+// fase 31: setelan a11y diterapkan di JALUR YANG SAMA dengan applyTheme —
+// kalau hanya satu jalur, setelan hilang saat settings dimuat ulang dari disk
+// (pelajaran fase 13 dengan retheme()).
+import { terapkanA11y } from './a11yStore';
+import { retheme, reSrMode } from './xtermRegistry';
 import {
   DEFAULT_SETTINGS,
   type ActivityId,
@@ -230,6 +234,8 @@ export const useStore = create<Store>((set, get) => ({
       set({ settings: s, settingsLoaded: true });
       set({ activeTheme: applyTheme(s.general, s.theme) });
       retheme(); // terminal hidup ikut tema (V3 fase 13)
+      terapkanA11y(s.accessibility); // fase 31: reduced-motion / screen-reader
+      reSrMode(); // fase 31: xterm hidup ikut mode screen reader
       // fase 20: pulihkan preferensi panel bawah (tab terlihat, tab aktif,
       // tinggi). Import dinamis supaya store.ts tidak mengimport panelStore
       // secara statis — panelStore mengimport store.ts (lingkaran).
@@ -841,6 +847,8 @@ export const useStore = create<Store>((set, get) => ({
       // Tema/zoom harus langsung terlihat tanpa restart (V2/V3 fase 08).
       set({ activeTheme: applyTheme(s.general, s.theme) });
       retheme(); // terminal hidup ikut tema (V3 fase 13)
+      terapkanA11y(s.accessibility); // fase 31: reduced-motion / screen-reader
+      reSrMode(); // fase 31: xterm hidup ikut mode screen reader
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
@@ -852,6 +860,8 @@ export const useStore = create<Store>((set, get) => ({
       set({ settings: s });
       set({ activeTheme: applyTheme(s.general, s.theme) });
       retheme(); // terminal hidup ikut tema (V3 fase 13)
+      terapkanA11y(s.accessibility); // fase 31: reduced-motion / screen-reader
+      reSrMode(); // fase 31: xterm hidup ikut mode screen reader
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }

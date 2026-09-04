@@ -17,12 +17,12 @@
   --surface-2: #1c2128;
   --surface-3: #21262d;
   --border: #30363d;
-  --border-strong: #484f58;
+  --border-strong: #5e6773;
 
   /* teks */
   --text: #e6edf3;
   --text-secondary: #8b949e;
-  --text-muted: #6e7681;
+  --text-muted: #7b838f;
   --text-inverse: #0d1117;
 
   /* aksen & status */
@@ -38,7 +38,7 @@
 
   /* editor */
   --editor-bg: #0d1117;
-  --editor-gutter: #6e7681;
+  --editor-gutter: #757e8a;
   --editor-active-line: rgba(255, 255, 255, 0.035);
   --editor-selection: rgba(56, 132, 255, 0.3);
   --editor-cursor: #e6edf3;

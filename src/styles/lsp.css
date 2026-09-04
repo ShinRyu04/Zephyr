@@ -56,7 +56,7 @@
 }
 .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected] {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
 }
 .cm-completionDetail {
   margin-left: 8px;

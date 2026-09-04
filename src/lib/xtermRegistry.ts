@@ -60,6 +60,34 @@ export function retheme(): number {
   return handles.size;
 }
 
+/**
+ * Apakah mode screen reader aktif (dibaca dari atribut <html>).
+ *
+ * Atribut, bukan import store: xtermRegistry dipakai dari mana saja termasuk
+ * sebelum store siap, dan mengimport store di sini membentuk lingkaran
+ * (store.ts sudah mengimport xtermRegistry untuk retheme()).
+ */
+function srModeAktif(): boolean {
+  try {
+    return document.documentElement.dataset.screenReader === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Terapkan mode screen reader ke SEMUA terminal hidup (fase 31).
+ *
+ * Terpisah dari `retheme()` walau dipanggil bersamaan: xterm menyimpan salinan
+ * opsi sendiri, dan terminal yang sudah dibuat tidak ikut berubah hanya karena
+ * atribut <html> berubah — sama seperti masalah warna di fase 13.
+ */
+export function reSrMode(): number {
+  const aktif = srModeAktif();
+  for (const h of handles.values()) h.term.options.screenReaderMode = aktif;
+  return handles.size;
+}
+
 export function getHandle(id: string): TermHandle | undefined {
   return handles.get(id);
 }
@@ -86,6 +114,11 @@ export function ensureHandle(
     allowProposedApi: true,
     convertEol: false,
     theme: themeFromCss(),
+    // FASE 31: xterm menggambar terminal ke canvas/DOM yang TIDAK bisa dibaca
+    // screen reader. `screenReaderMode` membuatnya memelihara live region
+    // tersembunyi berisi teks baris — satu-satunya cara Narrator tahu isi
+    // terminal. Mahal (DOM per baris), jadi hanya saat user memintanya.
+    screenReaderMode: srModeAktif(),
     // Windows: baris terakhir sering ditulis ulang; mode ini menghindari
     // artefak wrap di ConPTY.
     windowsPty: { backend: 'conpty' },

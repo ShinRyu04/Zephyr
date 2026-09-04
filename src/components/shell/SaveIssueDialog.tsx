@@ -8,6 +8,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useStore } from '../../lib/store';
+// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
+// screen reader — ia TIDAK mengurung fokus keyboard.
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function SaveIssueDialog() {
   const issue = useStore((s) => s.saveIssue);
@@ -17,6 +20,13 @@ export default function SaveIssueDialog() {
   useEffect(() => {
     if (issue) okRef.current?.focus();
   }, [issue]);
+
+  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
+  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    aktif: !!issue,
+    onEscape: () => void resolve('cancel'),
+  });
 
   if (!issue) return null;
 
@@ -37,7 +47,7 @@ export default function SaveIssueDialog() {
         if (e.key === 'Escape') void resolve('cancel');
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="si-title">
+      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="si-title">
         <h2 className="modal-title" id="si-title" data-testid="save-issue-title">
           {title}
         </h2>

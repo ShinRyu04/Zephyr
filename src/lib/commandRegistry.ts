@@ -26,6 +26,9 @@ import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
 import { useWs } from './workspaceStore';
 import { sisipkanSnippet, useSnip } from './snippetStore';
+// fase 31: pengumuman screen reader. Diberi alias supaya tidak bertabrakan
+// dengan variabel lokal bernama `umumkan` di command mana pun.
+import { umumkan as umumkanA11y } from './a11yStore';
 import {
   fileDialogOpen as fileDialogOpenCmd,
   fileDialogSave as fileDialogSaveCmd,
@@ -1424,6 +1427,103 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => useDebug.getState().breakpoints.length > 0,
     run: async () => {
       await useDebug.getState().hapusSemuaBreakpoint();
+    },
+  },
+  // ── Aksesibilitas (fase 31) ──
+  {
+    id: 'a11y.toggleScreenReaderMode',
+    title: 'Accessibility: Toggle Screen Reader Mode',
+    group: 'Settings',
+    keywords: 'aksesibilitas screen reader narrator nvda pembaca layar a11y',
+    run: async () => {
+      const s = S();
+      const a = s.settings.accessibility;
+      const baru = !a?.screenReader;
+      await s.applySettings({
+        accessibility: {
+          reducedMotion: !!a?.reducedMotion,
+          screenReader: baru,
+          autoFocusDialog: a?.autoFocusDialog ?? true,
+          toastDurasiMin: a?.toastDurasiMin ?? 3200,
+        },
+      });
+      umumkanA11y(
+        baru
+          ? 'Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar.'
+          : 'Mode screen reader nonaktif.',
+      );
+    },
+  },
+  {
+    id: 'a11y.toggleReducedMotion',
+    title: 'Accessibility: Toggle Reduced Motion',
+    group: 'Settings',
+    keywords: 'aksesibilitas animasi transisi kurangi gerak motion a11y',
+    run: async () => {
+      const s = S();
+      const a = s.settings.accessibility;
+      const baru = !a?.reducedMotion;
+      await s.applySettings({
+        accessibility: {
+          reducedMotion: baru,
+          screenReader: !!a?.screenReader,
+          autoFocusDialog: a?.autoFocusDialog ?? true,
+          toastDurasiMin: a?.toastDurasiMin ?? 3200,
+        },
+      });
+      umumkanA11y(baru ? 'Animasi dikurangi.' : 'Animasi dinyalakan.');
+    },
+  },
+  {
+    id: 'a11y.highContrast',
+    title: 'Accessibility: Tema High Contrast',
+    group: 'Settings',
+    keywords: 'aksesibilitas kontras tinggi tema low vision aaa a11y',
+    run: async () => {
+      const s = S();
+      // Toggle: kalau sudah high-contrast, kembalikan ke zephyr-dark.
+      const kembali = s.settings.theme.current === 'high-contrast';
+      await s.applySettings({
+        theme: { current: kembali ? 'zephyr-dark' : 'high-contrast' },
+        general: { theme: 'dark' },
+      });
+      umumkanA11y(kembali ? 'Tema Zephyr Dark.' : 'Tema High Contrast aktif.');
+    },
+  },
+  {
+    id: 'a11y.focusEditor',
+    title: 'Accessibility: Fokus ke Editor',
+    group: 'View',
+    keywords: 'fokus editor keyboard a11y lompat',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      v?.focus();
+      umumkanA11y('Fokus di editor.');
+    },
+  },
+  {
+    id: 'a11y.announceStatus',
+    title: 'Accessibility: Bacakan Status Editor',
+    group: 'View',
+    keywords: 'bacakan status baris kolom posisi a11y screen reader',
+    run: () => {
+      const s = S();
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      const v = getActiveView();
+      if (!tab || !v) {
+        umumkanA11y('Tidak ada file yang terbuka.', 'assertive');
+        return;
+      }
+      const sel = v.state.selection.main;
+      const baris = v.state.doc.lineAt(sel.head);
+      const total = v.state.doc.lines;
+      const kotor = tab.unsaved ? ', belum disimpan' : '';
+      umumkanA11y(
+        `${tab.name}${kotor}. Baris ${baris.number} dari ${total}, kolom ${
+          sel.head - baris.from + 1
+        }.`,
+      );
     },
   },
   // ── Snippets (fase 30) ──

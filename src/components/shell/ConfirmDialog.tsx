@@ -3,6 +3,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useStore } from '../../lib/store';
+// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
+// screen reader — ia TIDAK mengurung fokus keyboard.
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function ConfirmDialog() {
   const confirm = useStore((s) => s.confirm);
@@ -13,6 +16,13 @@ export default function ConfirmDialog() {
   useEffect(() => {
     if (confirm) saveRef.current?.focus();
   }, [confirm]);
+
+  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
+  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    aktif: !!confirm,
+    onEscape: () => void resolveConfirm('cancel'),
+  });
 
   if (!confirm) return null;
 
@@ -28,7 +38,7 @@ export default function ConfirmDialog() {
         if (e.key === 'Escape') void resolveConfirm('cancel');
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="cf-title">
+      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="cf-title">
         <h2 className="modal-title" id="cf-title">
           Simpan perubahan pada {tab?.name ?? 'file ini'}?
         </h2>
