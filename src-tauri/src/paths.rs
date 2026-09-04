@@ -129,6 +129,15 @@ pub fn is_inside(root: &Path, child: &Path) -> bool {
     child == root || child.starts_with(&root)
 }
 
+/// Apakah dua path menunjuk lokasi yang sama (fase 29).
+///
+/// Perbandingan `==` pada PathBuf TIDAK cukup di Windows: `D:\a` dan `D:/a`
+/// dan `d:\A` adalah folder yang sama tapi tiga nilai berbeda. Ini definisi
+/// yang sama semangatnya dengan `src/lib/pathKey.ts` di frontend.
+pub fn is_same(a: &Path, b: &Path) -> bool {
+    normalize_cmp(a) == normalize_cmp(b)
+}
+
 /// Bentuk untuk perbandingan: Windows tidak peka huruf besar/kecil.
 fn normalize_cmp(p: &Path) -> PathBuf {
     #[cfg(windows)]

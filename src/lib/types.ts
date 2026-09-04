@@ -943,6 +943,32 @@ export interface AdapterSpec {
   missing: string;
 }
 
+// ── Multi-root workspace + Trust (fase 29) ──
+
+/** Tingkat kepercayaan folder; `unknown` = belum pernah ditanya. */
+export type TrustLevel = 'unknown' | 'trusted' | 'restricted';
+
+export interface WsRoot {
+  path: string;
+  name: string;
+  isRepo: boolean;
+  trust: TrustLevel;
+}
+
+export interface WorkspaceInfo {
+  roots: WsRoot[];
+  /** root aktif — yang dilihat git/search/tasks lewat workspace_path() */
+  activeRoot: string;
+  /** path .code-workspace ('' = folder biasa) */
+  file: string;
+  /** true = SEMUA root tepercaya */
+  trusted: boolean;
+  /** true = ada root yang belum pernah ditanya */
+  perluTanya: boolean;
+  /** teks banner Restricted ('' = tidak restricted) */
+  alasan: string;
+}
+
 // ── CLI launcher (fase 28) ──
 
 /**

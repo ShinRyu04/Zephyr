@@ -37,6 +37,14 @@ export const MENUS: MenuDef[] = [
       { label: 'Open File…', command: 'file.open' },
       { label: 'Open Folder…', command: 'file.openFolder' },
       SEP,
+      // fase 29: multi-root workspace. Ditempatkan di menu File karena itu
+      // tempat semua operasi "buka/simpan sesuatu" berada.
+      { label: 'Add Folder to Workspace…', command: 'workspace.addFolder' },
+      { label: 'Remove Folder from Workspace', command: 'workspace.removeFolder' },
+      { label: 'Open Workspace from File…', command: 'workspace.openFile' },
+      { label: 'Save Workspace As…', command: 'workspace.saveAs' },
+      { label: 'Manage Workspace Trust', command: 'workspace.manageTrust' },
+      SEP,
       { label: 'Save', command: 'file.save' },
       { label: 'Save As…', command: 'file.saveAs' },
       { label: 'Save All', command: 'file.saveAll' },

@@ -9,6 +9,7 @@ import type {
   CliArgs,
   CliStatus,
   CliWriteResult,
+  WorkspaceInfo,
   DeviceLogin,
   Diagnostics,
   SelfTestItem,
@@ -466,3 +467,31 @@ export const cliWaitAktif = (token: string) => invoke<boolean>('cli_wait_aktif',
 /** Teks banner/help/version; `warna:false` = plain untuk pipe. */
 export const cliTeks = (mode: 'help' | 'version' | 'banner', warna: boolean, kolom?: number) =>
   invoke<string>('cli_teks', { mode, warna, kolom });
+
+// ── multi-root workspace + trust (fase 29) ──
+
+export const workspaceInfo = () => invoke<WorkspaceInfo>('workspace_info');
+export const workspaceSetTrust = (path: string, trust: boolean) =>
+  invoke<WorkspaceInfo>('workspace_set_trust', { path, trust });
+export const workspaceForgetTrust = (path: string) =>
+  invoke<WorkspaceInfo>('workspace_forget_trust', { path });
+export const workspaceTrustList = () =>
+  invoke<{ path: string; trust: string }[]>('workspace_trust_list');
+export const workspaceAddRoot = (path: string) =>
+  invoke<WorkspaceInfo>('workspace_add_root', { path });
+export const workspaceRemoveRoot = (path: string) =>
+  invoke<WorkspaceInfo>('workspace_remove_root', { path });
+export const workspaceSetActiveRoot = (path: string) =>
+  invoke<WorkspaceInfo>('workspace_set_active_root', { path });
+export const workspaceOpenFile = (path: string) =>
+  invoke<WorkspaceInfo>('workspace_open_file', { path });
+export const workspaceSaveFile = (path: string, settings?: Record<string, unknown>) =>
+  invoke<string>('workspace_save_file', { path, settings });
+export const workspaceSettingsEfektif = (root?: string) =>
+  invoke<Record<string, unknown>>('workspace_settings_efektif', { root });
+/** dari scope mana sebuah kunci berasal: default|user|workspace|folder */
+export const workspaceSettingsAsal = (key: string, root?: string) =>
+  invoke<string>('workspace_settings_asal', { key, root });
+export const workspaceSetSettings = (patch: Record<string, unknown>) =>
+  invoke<Record<string, unknown>>('workspace_set_settings', { patch });
+export const workspaceBolehEksekusi = () => invoke<boolean>('workspace_boleh_eksekusi');

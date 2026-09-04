@@ -92,6 +92,20 @@ pub struct AppState {
     /// Dipakai agar file di luar workspace tetap boleh dibaca/ditulis
     /// SETELAH user memilihnya sendiri (ARCHITECTURE.md §7.1).
     allowed: RwLock<HashSet<PathBuf>>,
+    /// fase 29: root TAMBAHAN selain `workspace` (multi-root).
+    ///
+    /// `workspace` tetap jadi root AKTIF dan tetap jadi jawaban
+    /// `workspace_path()` — 10 modul memakainya (git, search, tasks, dap,
+    /// history, pty, explorer, dialogs, diagnostics). Daftar ini ditambahkan
+    /// di sampingnya, dan hanya penjaga tulis yang belajar soal daftar; kalau
+    /// `workspace` dibuang, setiap jalur tulis harus diubah dalam satu fase.
+    roots_extra: RwLock<Vec<PathBuf>>,
+    /// Nama tampil per root (dari .code-workspace), key = path lowercase.
+    root_names: RwLock<HashMap<String, String>>,
+    /// Path file .code-workspace yang sedang dipakai ('' = folder biasa).
+    ws_file: RwLock<String>,
+    /// Settings scope WORKSPACE (dari .code-workspace).
+    ws_settings: RwLock<Option<serde_json::Value>>,
     /// %APPDATA%\zephyr\
     pub data_dir: PathBuf,
     /// Semaphore git (14.3) — 1 proses git sekaligus.
@@ -163,6 +177,10 @@ impl AppState {
         Self {
             workspace: RwLock::new(None),
             allowed: RwLock::new(HashSet::new()),
+            roots_extra: RwLock::new(Vec::new()),
+            root_names: RwLock::new(HashMap::new()),
+            ws_file: RwLock::new(String::new()),
+            ws_settings: RwLock::new(None),
             data_dir,
             git_sem: tokio::sync::Semaphore::new(1),
             watch_generation: Arc::new(AtomicU64::new(0)),
@@ -525,6 +543,167 @@ impl AppState {
             .and_then(|w| w.clone())
     }
 
+    // ── multi-root (fase 29) ──
+
+    /// Semua root: root aktif DULU, lalu root tambahan.
+    ///
+    /// Urutan penting: explorer menampilkannya apa adanya, dan root aktif di
+    /// posisi pertama membuat "root utama" jelas tanpa penanda tambahan.
+    pub fn roots(&self) -> Vec<PathBuf> {
+        let mut out = Vec::new();
+        if let Some(ws) = self.workspace_path() {
+            out.push(ws);
+        }
+        if let Ok(extra) = read_lock(&self.roots_extra, "roots_extra") {
+            for r in extra.iter() {
+                if !out.iter().any(|x| crate::paths::is_same(x, r)) {
+                    out.push(r.clone());
+                }
+            }
+        }
+        out
+    }
+
+    /// Tambah root. Kalau belum ada workspace, root ini jadi root AKTIF.
+    pub fn add_root(&self, path: PathBuf, nama: Option<String>) -> ZResult<()> {
+        if let Some(n) = nama {
+            if let Ok(mut m) = write_lock(&self.root_names, "root_names") {
+                m.insert(kunci_root(&path), n);
+            }
+        }
+        if self.workspace_path().is_none() {
+            return self.set_workspace(path);
+        }
+        let mut extra = write_lock(&self.roots_extra, "roots_extra")?;
+        if !extra.iter().any(|x| crate::paths::is_same(x, &path))
+            && !self
+                .workspace_path()
+                .map(|w| crate::paths::is_same(&w, &path))
+                .unwrap_or(false)
+        {
+            extra.push(path);
+        }
+        Ok(())
+    }
+
+    /// Hapus root. Menghapus root AKTIF akan menaikkan root berikutnya.
+    pub fn remove_root(&self, path: &Path) -> ZResult<()> {
+        let aktif = self.workspace_path();
+        if aktif
+            .as_deref()
+            .map(|w| crate::paths::is_same(w, path))
+            .unwrap_or(false)
+        {
+            // Root aktif dihapus: promosikan root tambahan pertama. Tanpa ini
+            // workspace jadi None dan seluruh fitur mati padahal masih ada
+            // folder lain yang terbuka.
+            let pengganti = {
+                let mut extra = write_lock(&self.roots_extra, "roots_extra")?;
+                if extra.is_empty() {
+                    None
+                } else {
+                    Some(extra.remove(0))
+                }
+            };
+            match pengganti {
+                Some(p) => self.set_workspace(p)?,
+                None => {
+                    return Err(ZephyrError::InvalidInput(
+                        "root terakhir tidak bisa dihapus — pakai Close Folder".into(),
+                    ))
+                }
+            }
+            return Ok(());
+        }
+        let mut extra = write_lock(&self.roots_extra, "roots_extra")?;
+        let sebelum = extra.len();
+        extra.retain(|x| !crate::paths::is_same(x, path));
+        if extra.len() == sebelum {
+            return Err(ZephyrError::NotFound(format!(
+                "{} bukan root workspace",
+                path.to_string_lossy()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Jadikan root tertentu sebagai root aktif (bertukar dengan yang lama).
+    pub fn set_active_root(&self, path: &Path) -> ZResult<()> {
+        let lama = self.workspace_path();
+        if lama
+            .as_deref()
+            .map(|w| crate::paths::is_same(w, path))
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+        {
+            let mut extra = write_lock(&self.roots_extra, "roots_extra")?;
+            if !extra.iter().any(|x| crate::paths::is_same(x, path)) {
+                return Err(ZephyrError::NotFound(format!(
+                    "{} bukan root workspace",
+                    path.to_string_lossy()
+                )));
+            }
+            extra.retain(|x| !crate::paths::is_same(x, path));
+            if let Some(l) = lama {
+                extra.insert(0, l);
+            }
+        }
+        self.set_workspace(path.to_path_buf())
+    }
+
+    pub fn clear_roots(&self) {
+        if let Ok(mut extra) = write_lock(&self.roots_extra, "roots_extra") {
+            extra.clear();
+        }
+        if let Ok(mut m) = write_lock(&self.root_names, "root_names") {
+            m.clear();
+        }
+        // File & settings .code-workspace juga dilepas: keduanya milik
+        // workspace yang baru ditutup, dan membiarkannya membuat Explorer
+        // menampilkan judul workspace lama untuk folder yang berbeda.
+        self.set_workspace_file(String::new());
+        self.set_workspace_settings(None);
+        self.clear_workspace();
+    }
+
+    /// Nama tampil root: dari .code-workspace bila ada, kalau tidak basename.
+    pub fn nama_root(&self, path: &Path) -> String {
+        if let Ok(m) = read_lock(&self.root_names, "root_names") {
+            if let Some(n) = m.get(&kunci_root(path)) {
+                return n.clone();
+            }
+        }
+        path.file_name()
+            .map(|x| x.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string_lossy().to_string())
+    }
+
+    pub fn workspace_file(&self) -> String {
+        read_lock(&self.ws_file, "ws_file")
+            .map(|s| s.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn set_workspace_file(&self, f: String) {
+        if let Ok(mut s) = write_lock(&self.ws_file, "ws_file") {
+            *s = f;
+        }
+    }
+
+    pub fn workspace_settings(&self) -> Option<serde_json::Value> {
+        read_lock(&self.ws_settings, "ws_settings")
+            .ok()
+            .and_then(|v| v.clone())
+    }
+
+    pub fn set_workspace_settings(&self, v: Option<serde_json::Value>) {
+        if let Ok(mut s) = write_lock(&self.ws_settings, "ws_settings") {
+            *s = v;
+        }
+    }
+
     /// Validasi path untuk operasi TULIS.
     /// Boleh bila: (a) dalam workspace aktif (dibandingkan pakai path
     /// KANONIK, jadi `..` dan symlink tidak bisa dipakai kabur), atau
@@ -540,6 +719,16 @@ impl AppState {
         if norm.inside {
             crate::paths::warn_if_symlink_escapes(ws.as_deref(), p);
             return Ok(());
+        }
+
+        // fase 29: root TAMBAHAN juga boleh ditulis. Ini satu-satunya tempat
+        // yang perlu tahu soal multi-root — kalau tiap command diajari sendiri,
+        // salah satu pasti lupa dan file di root kedua jadi read-only diam-diam.
+        for r in self.roots() {
+            if crate::paths::is_inside(&r, &norm.absolute) {
+                crate::paths::warn_if_symlink_escapes(Some(&r), p);
+                return Ok(());
+            }
         }
 
         if let Ok(set) = read_lock(&self.allowed, "allowed") {
@@ -595,6 +784,20 @@ impl AppState {
 /// implementasinya sekarang ada di `paths.rs` (fase 14.2).
 pub fn normalize(p: &Path) -> PathBuf {
     crate::paths::canonical_or_parent(p)
+}
+
+/// Kunci map untuk root (fase 29): Windows tidak peka huruf besar/kecil.
+fn kunci_root(p: &Path) -> String {
+    let s = p.to_string_lossy().replace('\\', "/");
+    let s = s.trim_end_matches('/').to_string();
+    #[cfg(windows)]
+    {
+        s.to_lowercase()
+    }
+    #[cfg(not(windows))]
+    {
+        s
+    }
 }
 
 fn resolve_data_dir() -> PathBuf {

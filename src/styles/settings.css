@@ -331,6 +331,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* fase 29: sub-heading di dalam satu section (Security). Lebih kecil dari
+   .set-h2 — dua judul sebesar itu dalam satu halaman membuat section terlihat
+   seperti dua halaman berbeda. */
+.set-h2-sub {
+  font-size: 14px;
+  margin-top: 18px;
+  padding-bottom: 6px;
+}
+
 .set-note {
   font-size: 12px;
   line-height: 1.55;

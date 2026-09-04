@@ -22,12 +22,19 @@ import { useHistory } from './historyStore';
 import { useSearch } from './searchStore';
 import { useDebug } from './debugStore';
 import { useCli } from './cliStore';
+import { useWs } from './workspaceStore';
 import {
   cliParse,
   cliTeks,
   cliWaitAktif,
   cliWaitBuat,
   cliWaitSelesai,
+  dapStart as dapStartCmd,
+  extensionsLoad as extensionsLoadCmd,
+  lspStart as lspStartCmd,
+  tasksRun as tasksRunCmd,
+  tasksKill as tasksKillCmd,
+  workspaceBolehEksekusi as workspaceBolehEksekusiCmd,
 } from './commands';
 import type { CliArgs } from './types';
 import {
@@ -1276,6 +1283,118 @@ export function installDevBridge(): void {
       return d ? { path: d.path, source: d.source, panjang: d.text.length, teks: d.text } : null;
     },
     tutupDiff: () => useGit.getState().closeDiff(),
+  };
+
+  // ── fase 29: bridge multi-root + Workspace Trust (harness verify29) ──
+  w.__ZEPHYR_WS__ = {
+    store: () => useWs,
+    state: () => useWs.getState(),
+    muat: () => useWs.getState().muat(),
+    /** daftar root: path, nama, isRepo, trust */
+    roots: () => useWs.getState().roots,
+    activeRoot: () => useWs.getState().activeRoot,
+    file: () => useWs.getState().file,
+    trusted: () => useWs.getState().trusted,
+    alasan: () => useWs.getState().alasan,
+    perluTanya: () => useWs.getState().perluTanya,
+
+    tambahRoot: (p: string) => useWs.getState().tambahRoot(p),
+    hapusRoot: (p: string) => useWs.getState().hapusRoot(p),
+    jadikanAktif: (p: string) => useWs.getState().jadikanAktif(p),
+    bukaFile: (p: string) => useWs.getState().bukaFile(p),
+    simpanFile: (p: string) => useWs.getState().simpanFile(p),
+
+    setTrust: (p: string, t: boolean) => useWs.getState().setTrust(p, t),
+    lupakanTrust: (p: string) => useWs.getState().lupakanTrust(p),
+    daftarTrust: () => useWs.getState().daftarTrust,
+    muatDaftarTrust: () => useWs.getState().muatDaftarTrust(),
+    tanya: (p: string | null) => useWs.getState().tanya(p),
+    tanyaUntuk: () => useWs.getState().tanyaUntuk,
+
+    /** settings efektif + asal nilai (uji urutan scope) */
+    settingsEfektif: (root?: string) => useWs.getState().settingsEfektif(root),
+    asalNilai: (key: string, root?: string) => useWs.getState().asalNilai(key, root),
+    setSettingsWorkspace: (patch: Record<string, unknown>) =>
+      useWs.getState().setSettingsWorkspace(patch),
+    bolehEksekusi: () => workspaceBolehEksekusiCmd(),
+
+    /** jumlah section root yang benar-benar dirender di DOM */
+    domRoots: () => document.querySelectorAll('[data-testid="root-head"]').length,
+    domRootPaths: () =>
+      [...document.querySelectorAll('.root-section')].map((el) =>
+        el.getAttribute('data-root') || '',
+      ),
+    /** jumlah tree yang dirender, per root */
+    domTrees: () =>
+      [...document.querySelectorAll('.tree[data-root]')].map((el) => ({
+        root: el.getAttribute('data-root') || '',
+        baris: el.querySelectorAll('.tree-row').length,
+      })),
+    domBanner: () => {
+      const el = document.querySelector('[data-testid="restricted-banner"]');
+      return el ? (el.querySelector('.rb-text')?.textContent ?? '') : null;
+    },
+    domDialog: () => {
+      const el = document.querySelector('[data-testid="trust-dialog"]');
+      if (!el) return null;
+      return {
+        path: el.querySelector('[data-testid="trust-path"]')?.textContent ?? '',
+        adaYes: !!el.querySelector('[data-testid="trust-yes"]'),
+        adaNo: !!el.querySelector('[data-testid="trust-no"]'),
+        adaTutup: !!el.querySelector('[data-testid="trust-close"]'),
+      };
+    },
+    klikBanner: () => {
+      const b = document.querySelector('[data-testid="rb-manage"]') as HTMLButtonElement | null;
+      b?.click();
+      return !!b;
+    },
+    klikTrustYes: () => {
+      const b = document.querySelector('[data-testid="trust-yes"]') as HTMLButtonElement | null;
+      b?.click();
+      return !!b;
+    },
+    klikTrustNo: () => {
+      const b = document.querySelector('[data-testid="trust-no"]') as HTMLButtonElement | null;
+      b?.click();
+      return !!b;
+    },
+
+    /**
+     * Panggil KEEMPAT jalur eksekusi langsung lewat command Rust.
+     *
+     * Ini inti V5: yang harus menolak adalah COMMAND-nya, bukan tombol yang
+     * disembunyikan UI. Store dilewati sengaja — store menangkap error dan
+     * mengubahnya jadi notifikasi, jadi harness tidak bisa membedakan
+     * "ditolak" dari "tidak dijalankan".
+     */
+    mentahTask: (id: string) =>
+      tasksRunCmd({
+        id,
+        label: 'uji-trust',
+        kind: 'shell',
+        command: 'cmd',
+        args: ['/c', 'echo halo'],
+      }),
+    mentahDebug: () =>
+      dapStartCmd(
+        {
+          name: 'uji-trust',
+          // WAJIB `type`, bukan `tipe`: DebugConfig di Rust memakai
+          // #[serde(rename = "type")], jadi payload dengan `tipe` gagal
+          // DESERIALISASI sebelum ensure_trusted dipanggil — errornya
+          // "missing field type", bukan "diblokir", dan uji trust jadi bohong.
+          type: 'node',
+          request: 'launch',
+          program: 'a.js',
+        } as unknown as Parameters<typeof dapStartCmd>[0],
+        [],
+      ),
+    mentahLsp: (root: string) =>
+      lspStartCmd({ id: 'typescript', cmd: ['node', '--version'], lang: 'typescript' }, root, null),
+    mentahExt: (id: string) => extensionsLoadCmd(id),
+    /** matikan run uji supaya tidak menggantung (tasks_kill) */
+    matikanTask: (id: string) => tasksKillCmd(id),
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

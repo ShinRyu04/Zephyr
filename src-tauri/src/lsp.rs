@@ -23,7 +23,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
@@ -268,11 +268,22 @@ fn reply_server_request(srv: &Server, id: &Value, method: &str) {
 #[tauri::command(async)]
 pub async fn lsp_start(
     app: AppHandle,
+    state: State<'_, AppState>,
     spec: ServerSpec,
     root: String,
     init_options: Option<Value>,
     idle_secs: Option<u64>,
 ) -> ZResult<Value> {
+    // fase 29: language server adalah PROSES yang bisa menjalankan kode dari
+    // konfigurasi repo (plugin eslint, tsserver dengan custom transformer).
+    // Root yang diminta yang diperiksa, bukan root aktif — LSP dipanggil per
+    // root di workspace multi-root.
+    if !root.is_empty() {
+        crate::workspace::ensure_trusted_path(&state, Path::new(&root), "Language server")?;
+    } else {
+        crate::workspace::ensure_trusted(&state, "Language server")?;
+    }
+
     let key = format!("{}::{}", spec.id, root.to_lowercase());
 
     // Sudah hidup? pakai yang ada (satu server per bahasa+root).

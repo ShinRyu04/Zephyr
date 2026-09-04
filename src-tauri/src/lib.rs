@@ -37,6 +37,7 @@ mod tests_fs;
 mod tests_git;
 mod tests_log;
 mod tests_mcp;
+mod workspace;
 
 use app_state::AppState;
 use serde_json::json;
@@ -322,6 +323,20 @@ pub fn run() {
             cli::cli_wait_aktif,
             cli::cli_teks,
             cli::cli_parse,
+            // multi-root + workspace trust (fase 29)
+            workspace::workspace_info,
+            workspace::workspace_set_trust,
+            workspace::workspace_forget_trust,
+            workspace::workspace_trust_list,
+            workspace::workspace_add_root,
+            workspace::workspace_remove_root,
+            workspace::workspace_set_active_root,
+            workspace::workspace_open_file,
+            workspace::workspace_save_file,
+            workspace::workspace_settings_efektif,
+            workspace::workspace_settings_asal,
+            workspace::workspace_set_settings,
+            workspace::workspace_boleh_eksekusi,
             // debugger DAP (fase 22)
             dap::dap_load,
             dap::dap_adapters,
