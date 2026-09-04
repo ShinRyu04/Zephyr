@@ -1,9 +1,17 @@
+<div align="center">
+
+<img src="docs/zephyr-logo.svg" width="112" alt="Logo Zephyr" />
+
 # Zephyr
 
 **Code faster. Lighter. Yours.**
 
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
+
+`v1.0.0` · Tauri 2 · React 18 · TypeScript · Rust
+
+</div>
 
 ![Zephyr — editor, explorer, dan terminal](docs/screenshots/01-editor.png)
 
