@@ -104,6 +104,8 @@ export class Cdp {
         const CLI = window.__ZEPHYR_CLI__;
         /** fase 29: bridge multi-root + Workspace Trust */
         const WS = window.__ZEPHYR_WS__;
+        /** fase 30: bridge Snippets */
+        const SN = window.__ZEPHYR_SNIP__;
         const CM = () => window.__ZEPHYR_CM__();
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];

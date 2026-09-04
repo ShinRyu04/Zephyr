@@ -23,6 +23,20 @@ import { useSearch } from './searchStore';
 import { useDebug } from './debugStore';
 import { useCli } from './cliStore';
 import { useWs } from './workspaceStore';
+// fase 30: mesin snippet + perintah tab-stop CM6 dipakai langsung supaya
+// harness bisa menekan Tab tanpa bergantung pada fokus dokumen.
+import {
+  nilaiVariabel,
+  sisipkanSnippet,
+  terjemahBody,
+  useSnip,
+  type KonteksVar,
+} from './snippetStore';
+import {
+  nextSnippetField as nextSnippetFieldCm,
+  prevSnippetField as prevSnippetFieldCm,
+  clearSnippet as clearSnippetCm,
+} from '@codemirror/autocomplete';
 import {
   cliParse,
   cliTeks,
@@ -1395,6 +1409,86 @@ export function installDevBridge(): void {
     mentahExt: (id: string) => extensionsLoadCmd(id),
     /** matikan run uji supaya tidak menggantung (tasks_kill) */
     matikanTask: (id: string) => tasksKillCmd(id),
+  };
+
+  // ── FASE 30: snippets ──
+  w.__ZEPHYR_SNIP__ = {
+    store: () => useSnip,
+    state: () => useSnip.getState(),
+    muat: (lang: string, paksa = true) => useSnip.getState().muat(lang, paksa),
+    /** snippet yang tersedia untuk sebuah bahasa (dari cache) */
+    untuk: (lang: string) => useSnip.getState().untuk(lang),
+    bersihkanCache: () => useSnip.getState().bersihkanCache(),
+    bukaFileUser: (lang: string) => useSnip.getState().bukaFileUser(lang),
+    daftarUser: () => useSnip.getState().bahasaUser,
+    /**
+     * Terjemahkan body VS Code → template CM6 tanpa menyentuh editor.
+     *
+     * Dipakai harness untuk memeriksa penerjemah secara terpisah dari
+     * completion: kalau uji end-to-end gagal, ini yang membedakan "parser
+     * salah" dari "integrasi CM salah".
+     */
+    terjemah: (body: string, konteks?: Partial<KonteksVar>) =>
+      terjemahBody(body, {
+        seleksi: '',
+        path: 'D:/uji/a.ts',
+        baris: '',
+        nomorBaris: 1,
+        clipboard: '',
+        indent: '',
+        ...(konteks ?? {}),
+      }),
+    /** nilai variabel yang dipakai penerjemah (untuk memeriksa CURRENT_YEAR dll) */
+    variabel: (konteks?: Partial<KonteksVar>) =>
+      nilaiVariabel({
+        seleksi: '',
+        path: 'D:/uji/a.ts',
+        baris: '',
+        nomorBaris: 1,
+        clipboard: '',
+        indent: '',
+        ...(konteks ?? {}),
+      }),
+    /** sisipkan snippet ke editor aktif, mengaktifkan mode tab stop */
+    sisip: async (lang: string, prefix: string) => {
+      const v = getActiveView();
+      if (!v) return 'tidak ada editor aktif';
+      const S = useSnip.getState();
+      if (S.untuk(lang).length === 0) await S.muat(lang);
+      const s = S.untuk(lang).find((x) => x.prefix === prefix);
+      if (!s) return `snippet '${prefix}' tidak ada untuk ${lang}`;
+      const tab = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
+      await sisipkanSnippet(v, s, tab?.path ?? '');
+      return 'ok';
+    },
+    /**
+     * Tekan Tab / Shift+Tab lewat perintah CM6 langsung.
+     *
+     * TIDAK memakai Input.dispatchKeyEvent: keymap snippet hidup di dalam
+     * EditorView, dan event CDP yang dikirim saat dokumen tidak fokus tidak
+     * pernah sampai ke sana (pelajaran fase 05 soal fokus WebView2).
+     */
+    tabStop: (maju = true) => {
+      const v = getActiveView();
+      if (!v) return false;
+      return maju ? nextSnippetFieldCm(v) : prevSnippetFieldCm(v);
+    },
+    keluarSnippet: () => {
+      const v = getActiveView();
+      return v ? clearSnippetCm(v) : false;
+    },
+    /** apakah mode tab stop sedang aktif (ada field yang bisa dituju) */
+    modeAktif: () => {
+      const v = getActiveView();
+      if (!v) return false;
+      // CM6 tidak mengekspos state snippet; keberadaan field dideteksi dari
+      // dekorasi `.cm-snippetField` yang dirender mesin snippet-nya.
+      return v.dom.querySelectorAll('.cm-snippetField').length > 0;
+    },
+    jumlahField: () => {
+      const v = getActiveView();
+      return v ? v.dom.querySelectorAll('.cm-snippetField').length : 0;
+    },
   };
 
   // Kumpulkan error konsol & promise rejection untuk V10.

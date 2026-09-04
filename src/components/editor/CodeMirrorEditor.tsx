@@ -42,7 +42,17 @@ import {
   syntaxHighlighting,
   defaultHighlightStyle,
 } from '@codemirror/language';
-import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  // fase 30: mesin tab stop CM6 dipakai apa adanya — Zephyr hanya
+  // menerjemahkan sintaks VS Code ke sintaks CM6 (lihat snippetStore.ts).
+  snippetKeymap,
+  nextSnippetField,
+  prevSnippetField,
+  clearSnippet,
+} from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
@@ -61,7 +71,7 @@ import {
 import { useDebug } from '../../lib/debugStore';
 import { useLsp } from '../../lib/lspStore';
 import { serverForPath } from '../../lib/lsp';
-import { lspAutocompletion, lspHover, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
+import { autocompletionZephyr, lspHover, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
 import { bracketPairColors, indentGuides } from '../../lib/cmIndent';
 import { colorDecorators, unicodeHighlight } from '../../lib/cmColor';
 import Minimap from './Minimap';
@@ -219,7 +229,18 @@ export default function CodeMirrorEditor({ tab }: Props) {
             // datang dari LSP (override); kalau tidak, autocompletion bawaan
             // CodeMirror tetap dipakai. Satu `autocompletion()` saja — dua
             // instance membuat dua popup bersaing.
-            adaLsp ? lspAutocompletion(tab.path ?? '') : autocompletion(),
+            // FASE 21 + 30: satu `autocompletion()` yang menggabungkan sumber
+            // snippet (fase 30) dan LSP (fase 21). Dua instance membuat dua
+            // popup bersaing, dan `override` mengganti SELURUH sumber — jadi
+            // keduanya harus masuk lewat satu pintu.
+            autocompletionZephyr(tab.path ?? '', () => tab.lang, adaLsp),
+            // fase 30: Tab/Shift+Tab pindah tab stop, Esc keluar. Didaftarkan
+            // SETELAH autocompletion supaya keymap-nya lebih tinggi
+            // prioritasnya daripada indent-with-tab.
+            snippetKeymap.of([
+              { key: 'Tab', run: nextSnippetField, shift: prevSnippetField },
+              { key: 'Escape', run: clearSnippet },
+            ]),
             highlightSelectionMatches(),
             ...(adaLsp ? [lspHover(tab.path ?? '')] : []),
           ]),

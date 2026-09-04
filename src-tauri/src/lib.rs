@@ -30,6 +30,7 @@ mod pty;
 mod search;
 mod secrets;
 mod settings;
+mod snippets;
 mod tasks;
 mod tests_ai;
 mod tests_browser;
@@ -337,6 +338,11 @@ pub fn run() {
             workspace::workspace_settings_asal,
             workspace::workspace_set_settings,
             workspace::workspace_boleh_eksekusi,
+            // snippets (fase 30)
+            snippets::snippets_load,
+            snippets::snippets_user_file,
+            snippets::snippets_user_list,
+            snippets::snippets_builtin_langs,
             // debugger DAP (fase 22)
             dap::dap_load,
             dap::dap_adapters,

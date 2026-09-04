@@ -50,6 +50,7 @@ pub fn default_settings() -> Value {
             "smoothScroll": false,
             "formatOnSave": false,
             "showWhitespace": false,
+            "snippetSuggestions": "inline",
             "breadcrumbs": true,
             "stickyScroll": false,
             "stickyScrollMaxLines": 3,

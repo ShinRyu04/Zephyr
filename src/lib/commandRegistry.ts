@@ -25,6 +25,7 @@ import { useTasks, channelUntuk } from './tasksStore';
 import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
 import { useWs } from './workspaceStore';
+import { sisipkanSnippet, useSnip } from './snippetStore';
 import {
   fileDialogOpen as fileDialogOpenCmd,
   fileDialogSave as fileDialogSaveCmd,
@@ -50,7 +51,8 @@ export type CmdGroup =
   | 'Settings'
   | 'Extensions'
   | 'Tasks'
-  | 'Debug';
+  | 'Debug'
+  | 'Snippets';
 
 export interface CommandDef {
   id: string;
@@ -1424,6 +1426,55 @@ export const COMMANDS: CommandDef[] = [
       await useDebug.getState().hapusSemuaBreakpoint();
     },
   },
+  // ── Snippets (fase 30) ──
+  {
+    id: 'snippets.insert',
+    title: 'Snippets: Insert Snippet',
+    group: 'Snippets',
+    keywords: 'snippet sisip template potongan kode',
+    // Butuh tab aktif: tanpa editor tidak ada tempat menyisipkan.
+    enabled: () => !!S().activeTabId,
+    run: async () => {
+      const tab = S().tabs.find((t) => t.id === S().activeTabId);
+      if (!tab) return;
+      // Muat dulu, lalu buka palette dengan query "Snippet: ". Pemuatan
+      // dikerjakan DI SINI (bukan di snippetCommands) supaya daftar sudah
+      // lengkap saat palette dirender — snippetCommands hanya membaca cache.
+      await useSnip.getState().muat(tab.lang);
+      window.dispatchEvent(
+        new CustomEvent('zephyr-palette-open', { detail: { query: 'Snippet: ' } }),
+      );
+    },
+  },
+  {
+    id: 'snippets.configureUser',
+    title: 'Snippets: Configure User Snippets',
+    group: 'Snippets',
+    keywords: 'snippet user konfigurasi edit json bahasa',
+    run: async () => {
+      const s = S();
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      // Bahasa tab aktif kalau ada, kalau tidak 'global'. Menanyakan bahasa
+      // lewat modal sendiri tidak sebanding: user yang mau bahasa lain bisa
+      // membuka file bahasa itu lebih dulu, dan file global selalu tersedia.
+      const lang = tab?.lang && tab.lang !== 'plain' ? tab.lang : 'global';
+      const p = await useSnip.getState().bukaFileUser(lang);
+      if (p) await s.openPath(p);
+    },
+  },
+  {
+    id: 'snippets.reload',
+    title: 'Snippets: Muat Ulang Snippet',
+    group: 'Snippets',
+    keywords: 'snippet reload refresh muat ulang',
+    run: async () => {
+      const s = S();
+      useSnip.getState().bersihkanCache();
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      await useSnip.getState().muat(tab?.lang ?? 'global', true);
+      await useSnip.getState().muatDaftar();
+    },
+  },
   // ── Multi-root workspace + Trust (fase 29) ──
   {
     id: 'workspace.addFolder',
@@ -1576,9 +1627,42 @@ export function extensionCommands(): CommandDef[] {
 }
 
 /** Command yang boleh tampil sekarang (mis. butuh workspace/tab aktif). */
+/**
+ * FASE 30: "Insert Snippet" sebagai command DINAMIS, satu per snippet.
+ *
+ * Alasan memakai pola `taskCommands()` alih-alih membuat quick-pick sendiri:
+ * palette sudah punya pencarian fuzzy, keyboard nav, dan highlight. Membuat
+ * modal kedua berarti menulis ulang semuanya, dan Zephyr belum punya komponen
+ * quick-pick generik (dicek: tidak ada `QuickPick` di src/).
+ *
+ * Daftar dibaca dari CACHE store, tidak memicu pemuatan: `availableCommands()`
+ * dipanggil tiap ketikan di palette, dan `await` di sana akan membuat daftar
+ * berkedip. Cache diisi lebih dulu oleh command `snippets.insert` di bawah.
+ */
+export function snippetCommands(): CommandDef[] {
+  const view = getActiveView();
+  if (!view) return [];
+  const tab = S().tabs.find((t) => t.id === S().activeTabId);
+  if (!tab) return [];
+  const lang = tab.lang;
+  const daftar = useSnip.getState().untuk(lang);
+  return daftar.slice(0, 200).map((s) => ({
+    id: `snippet.${s.lang}.${s.prefix}`,
+    title: `Snippet: ${s.prefix} — ${s.name}`,
+    group: 'Snippets' as const,
+    keywords: `${s.description} ${s.sumber} ${s.lang}`.trim(),
+    description: s.description || undefined,
+    run: async () => {
+      const v = getActiveView();
+      if (!v) return;
+      await sisipkanSnippet(v, s, tab.path ?? '');
+    },
+  }));
+}
+
 export function availableCommands(): CommandDef[] {
   const core = COMMANDS.filter((c) => (c.enabled ? c.enabled() : true));
-  return [...core, ...taskCommands(), ...extensionCommands()];
+  return [...core, ...taskCommands(), ...extensionCommands(), ...snippetCommands()];
 }
 
 export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));

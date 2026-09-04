@@ -9,6 +9,7 @@ import type {
   CliArgs,
   CliStatus,
   CliWriteResult,
+  SnippetSet,
   WorkspaceInfo,
   DeviceLogin,
   Diagnostics,
@@ -495,3 +496,14 @@ export const workspaceSettingsAsal = (key: string, root?: string) =>
 export const workspaceSetSettings = (patch: Record<string, unknown>) =>
   invoke<Record<string, unknown>>('workspace_set_settings', { patch });
 export const workspaceBolehEksekusi = () => invoke<boolean>('workspace_boleh_eksekusi');
+
+// ── snippets (fase 30) ──
+
+/** Muat snippet untuk sebuah bahasa (sudah termasuk induk + global). */
+export const snippetsLoad = (lang: string) => invoke<SnippetSet>('snippets_load', { lang });
+/** Path file snippet user; dibuat berisi template bila belum ada. */
+export const snippetsUserFile = (lang: string) => invoke<string>('snippets_user_file', { lang });
+/** Bahasa yang sudah punya file snippet user. */
+export const snippetsUserList = () => invoke<string[]>('snippets_user_list');
+/** Bahasa yang punya snippet bawaan. */
+export const snippetsBuiltinLangs = () => invoke<string[]>('snippets_builtin_langs');
