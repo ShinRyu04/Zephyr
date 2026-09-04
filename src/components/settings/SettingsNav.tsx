@@ -20,6 +20,7 @@ const NAV_KEY: Record<SectionId, string> = {
   lsp: 'settings.lsp',
   scm: 'settings.scm',
   mcp: 'settings.mcp',
+  security: 'settings.security',
   ssh: 'settings.ssh',
   about: 'settings.about',
 };
@@ -108,6 +109,15 @@ export function NavIcon({ id }: { id: SectionId }) {
         <svg {...p}>
           <path d="M2.6 11.4V6.2a2 2 0 012-2h6.8a2 2 0 012 2v5.2" {...st} />
           <path d="M5.4 11.4V7.6M8 11.4V6.8M10.6 11.4V8.4" {...st} />
+        </svg>
+      );
+    case 'security':
+      // Gembok: keamanan, bukan "shield" — shield sudah dipakai dialog Trust.
+      return (
+        <svg {...p}>
+          <rect x="3.4" y="7.2" width="9.2" height="6.2" rx="1.2" {...st} />
+          <path d="M5.8 7.2V5.4a2.2 2.2 0 014.4 0v1.8" {...st} />
+          <path d="M8 9.6v1.6" {...st} />
         </svg>
       );
     case 'ssh':

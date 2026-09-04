@@ -12,6 +12,7 @@ import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
 import { ExtensionsSection } from './SectionsExtensions';
 import SectionsLsp from './SectionsLsp';
 import McpPanel from './McpPanel';
+import SecuritySection from './SecuritySection';
 
 function SectionBody({ id }: { id: SectionId }) {
   switch (id) {
@@ -35,6 +36,8 @@ function SectionBody({ id }: { id: SectionId }) {
       return <ScmSection />;
     case 'mcp':
       return <McpPanel />;
+    case 'security':
+      return <SecuritySection />;
     case 'ssh':
       return <SshSection />;
     case 'about':

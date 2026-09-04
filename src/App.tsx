@@ -14,6 +14,7 @@ import SaveIssueDialog from './components/shell/SaveIssueDialog';
 import Toast from './components/notifications/Toast';
 import NotificationCenter from './components/notifications/NotificationCenter';
 import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
+import TrustDialog from './components/workspace/TrustDialog';
 import MenuBar from './components/shell/MenuBar';
 import KeybindingsEditor from './components/shell/KeybindingsEditor';
 import LspOverlay from './components/editor/LspOverlay';
@@ -37,6 +38,7 @@ import { useHistory } from './lib/historyStore';
 import { bindSearchListeners, useSearch } from './lib/searchStore';
 import { bindDebugListeners } from './lib/debugStore';
 import { bindCliListeners } from './lib/cliStore';
+import { bindWorkspaceListeners } from './lib/workspaceStore';
 import { usePanel } from './lib/panelStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
@@ -61,6 +63,7 @@ import './styles/editor-extras.css';
 import './styles/extensions.css';
 import './styles/history.css';
 import './styles/debug.css';
+import './styles/workspace.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
@@ -619,6 +622,9 @@ export default function App() {
     // pertama. Dipanggil SETELAH listener lain supaya `zephyr file.ts:10:5`
     // membuka tab di app yang sudah siap, bukan setengah jalan.
     void bindCliListeners();
+    // fase 29: daftar root + status trust. Dipanggil TERAKHIR karena
+    // `workspace_info` membaca workspace yang baru dipasang bootstrap.
+    void bindWorkspaceListeners();
     // tasks.json hanya ada kalau sudah ada workspace. Dibaca lewat subscribe,
     // bukan selector: `workspace` bisa berubah setelah bootstrap selesai dan
     // effect dengan array dependensi kosong tidak akan melihatnya.
@@ -845,6 +851,7 @@ export default function App() {
       <Toast />
       <NotificationCenter />
       <DeleteConfirmDialog />
+      <TrustDialog />
       <KeybindingsEditor />
       <LspOverlay />
     </div>

@@ -877,6 +877,10 @@ pub fn dap_start(
     config: DebugConfig,
     breakpoints: Vec<SumberBreakpoint>,
 ) -> ZResult<Value> {
+    // fase 29: launch.json juga datang dari repo, dan adapter menjalankan
+    // program apa pun yang ditunjuknya. Folder tak-tepercaya = tidak debug.
+    crate::workspace::ensure_trusted(&state, "Debug")?;
+
     // Sesi lama dibunuh dulu: brief menetapkan satu sesi aktif.
     let _ = stop_internal(&rt);
 
