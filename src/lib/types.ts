@@ -646,6 +646,12 @@ export interface EditorSettings {
   unicodeHighlight: boolean;
   /** warnai pasangan bracket berdasarkan kedalaman */
   bracketPairColorization: boolean;
+  // ── fase 30: snippets ──
+  /**
+   * Posisi saran snippet di dalam popup completion.
+   * 'top' | 'bottom' | 'inline' (bercampur, urut relevansi) | 'none' (matikan).
+   */
+  snippetSuggestions: 'top' | 'bottom' | 'inline' | 'none';
 }
 
 export interface ThemeSettings {
@@ -733,6 +739,9 @@ export const DEFAULT_SETTINGS: Settings = {
     colorDecorators: true,
     unicodeHighlight: true,
     bracketPairColorization: true,
+    // fase 30: 'inline' = snippet bercampur dengan saran lain, diurut
+    // relevansi. Default VS Code juga inline.
+    snippetSuggestions: 'inline',
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
   shortcuts: {},
@@ -941,6 +950,36 @@ export interface AdapterSpec {
   tcp: boolean;
   /** '' = adapter tersedia; berisi instruksi install bila belum */
   missing: string;
+}
+
+// ── Snippets (fase 30) ──
+
+/** Satu snippet siap dipakai; bentuknya sama dengan `snippets::Snippet` di Rust. */
+export interface Snippet {
+  /** nama entri di file JSON */
+  name: string;
+  /** yang diketik user untuk memunculkannya */
+  prefix: string;
+  /** body sebagai SATU string (array di file sudah digabung '\n') */
+  body: string;
+  description: string;
+  lang: string;
+  /** 'builtin' | 'user' | 'ext:<id>' */
+  sumber: string;
+}
+
+export interface SnippetFileRusak {
+  path: string;
+  alasan: string;
+}
+
+export interface SnippetSet {
+  lang: string;
+  snippets: Snippet[];
+  userPath: string;
+  userAda: boolean;
+  /** file yang gagal diparse + alasannya — dilaporkan, tidak didiamkan */
+  rusak: SnippetFileRusak[];
 }
 
 // ── Multi-root workspace + Trust (fase 29) ──
