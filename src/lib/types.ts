@@ -753,6 +753,16 @@ export interface Settings {
     /** buang snapshot lebih tua dari ini (hari); 0 = tanpa batas umur */
     maxDays: number;
   };
+  /** fase 33: state notifikasi update & pengumuman (dikelola frontend).
+   *  `lastSeenVersion` = versi terakhir yang dijalankan (banner "diperbarui
+   *  ke vX" muncul sekali saat versi berubah); `pendingNotes` = catatan rilis
+   *  yang menunggu ditampilkan setelah restart; `seenAnnouncements` = id
+   *  pengumuman yang sudah dilihat (dari announcements.json di GitHub). */
+  update?: {
+    lastSeenVersion: string;
+    pendingNotes: string;
+    seenAnnouncements: string[];
+  };
 }
 
 /** Default frontend — cermin dari default_settings() di settings.rs. */
@@ -816,6 +826,8 @@ export const DEFAULT_SETTINGS: Settings = {
   // fase 26: dinyalakan secara default — ini safety-net, gunanya justru saat
   // user belum sadar butuh. Retensi 50 snapshot/file & 30 hari menjaga disk.
   history: { enabled: true, maxPerFile: 50, maxDays: 30 },
+  // fase 33: state notifikasi update & pengumuman.
+  update: { lastSeenVersion: '', pendingNotes: '', seenAnnouncements: [] },
 };
 
 // ─────────────────── tasks (fase 23) ───────────────────

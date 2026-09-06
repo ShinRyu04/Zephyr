@@ -16,6 +16,7 @@ import NotificationCenter from './components/notifications/NotificationCenter';
 import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
 import TrustDialog from './components/workspace/TrustDialog';
 import MenuBar from './components/shell/MenuBar';
+import UpdateBanner from './components/shell/UpdateBanner';
 import KeybindingsEditor from './components/shell/KeybindingsEditor';
 import LspOverlay from './components/editor/LspOverlay';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
@@ -48,6 +49,7 @@ import { useKb } from './lib/keybindingStore';
 import { useLsp } from './lib/lspStore';
 import { runCommand } from './lib/commandRegistry';
 import { notifyWarn } from './lib/notificationStore';
+import { cekPengumuman } from './lib/announcements';
 import { flushTab, getActiveView } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
 import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
@@ -116,6 +118,19 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  // 1b) fase 33: setelah settings termuat, ambil pengumuman dari GitHub
+  //     (info bug/berita) — senyap, hanya jika checkUpdates aktif.
+  useEffect(() => {
+    if (useStore.getState().settingsLoaded) {
+      void cekPengumuman();
+      return;
+    }
+    const unsub = useStore.subscribe((s, prev) => {
+      if (!prev.settingsLoaded && s.settingsLoaded) void cekPengumuman();
+    });
+    return unsub;
+  }, []);
 
   // 2) Drag divider sidebar (pointer events supaya tetap jalan di luar elemen).
   useEffect(() => {
@@ -847,6 +862,7 @@ export default function App() {
         Lompat ke editor
       </button>
       <MenuBar />
+      <UpdateBanner />
       <div className="app-body">
         <ActivityBar />
 
