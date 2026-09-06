@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.1.3` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.5` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -33,9 +33,9 @@ langsung jalan tanpa install tambahan).
 
 ### Cara install Zephyr (3 langkah)
 
-1. **Unduh installer** — `Zephyr_1.1.3_x64-setup.exe` (atau `.msi`) dari
+1. **Unduh installer** — `Zephyr_1.1.5_x64-setup.exe` (atau `.msi`) dari
    halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.3_x64-setup.exe` — itu installer-nya.
+   `Zephyr_1.1.5_x64-setup.exe` — itu installer-nya.
 2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
    anyway**. Ini normal: installer belum ditandatangani, bukan berarti
    berbahaya. Source-nya terbuka dan bisa diverifikasi.
@@ -137,11 +137,12 @@ folder.
 ![Marketplace ekstensi dengan logo asli](docs/screenshots/05-market.png)
 
 **Notifikasi update** — Zephyr bisa memeriksa rilis baru dari dalam app
-(Settings → Tentang → Cek update) dan memasangnya sendiri. Saat update
-selesai ada pemberitahuan, setelah restart muncul banner "Zephyr diperbarui
-ke vX" dengan catatan rilis, dan info bug/berita tampil lewat Notification
-Center (lonceng di status bar). Aktifkan "Cek pembaruan otomatis" di
-Settings → General untuk menerima info ini tanpa klik manual.
+(Settings → Tentang → Cek update) dan memasangnya sendiri. Aktifkan "Cek
+pembaruan otomatis" di Settings → General: tiap app dibuka, Zephyr cek
+sendiri dan muncul notifikasi di lonceng kalau ada versi baru — klik "Lihat
+& pasang" langsung beres. Saat update selesai ada pemberitahuan, setelah
+restart muncul banner "Zephyr diperbarui ke vX" dengan catatan rilis, dan
+info bug/berita tampil lewat Notification Center (lonceng di status bar).
 
 **Menu bar lengkap** — File / Edit / Selection / View / Go / Run / Terminal /
 Help semuanya aktif: undo-redo, cut-copy-paste, komentar, seleksi multi-kursor,
