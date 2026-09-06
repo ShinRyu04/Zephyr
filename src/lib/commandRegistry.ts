@@ -1,13 +1,13 @@
-// commandRegistry.ts — daftar SEMUA action yang bisa dipanggil dari Command
-// Palette (fase 12).
-//
-// Satu sumber kebenaran: palette, MCP `run_command`, dan (nanti) menu konteks
-// memakai daftar ini. Tiap entri punya `run()` sendiri sehingga palette tidak
-// perlu tahu store mana yang dipakai.
-//
-// `keybinding` sengaja TIDAK disimpan di sini — binding hidup di
-// lib/shortcuts.ts (bisa di-remap user). Yang ditampilkan palette diambil dari
-// sana lewat `effectiveBinding(actionId)` supaya tidak ada dua sumber.
+
+
+
+
+
+
+
+
+
+
 
 import { useStore } from './store';
 import { useTerminal } from './terminalStore';
@@ -27,8 +27,8 @@ import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
 import { useWs } from './workspaceStore';
 import { sisipkanSnippet, useSnip } from './snippetStore';
-// fase 31: pengumuman screen reader. Diberi alias supaya tidak bertabrakan
-// dengan variabel lokal bernama `umumkan` di command mana pun.
+
+
 import { umumkan as umumkanA11y } from './a11yStore';
 import {
   fileDialogOpen as fileDialogOpenCmd,
@@ -43,6 +43,10 @@ import { THEMES, semuaTema } from './themes';
 import { keHex6 } from './cmColor';
 import type { EditorSettings } from './types';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
+import { clipboardWrite, clipboardRead } from './clipboard';
+import { undo, redo, selectAll, selectLine, toggleComment, toggleBlockComment, selectParentSyntax } from '@codemirror/commands';
+import { selectSelectionMatches, gotoLine } from '@codemirror/search';
+import { EditorSelection, type SelectionRange } from '@codemirror/state';
 
 export type CmdGroup =
   | 'File'
@@ -60,14 +64,14 @@ export type CmdGroup =
 
 export interface CommandDef {
   id: string;
-  /** label yang dicari user, mis. "Terminal: New Shell" */
+   
   title: string;
   group: CmdGroup;
-  /** kata kunci tambahan untuk pencarian (tidak ditampilkan) */
+   
   keywords?: string;
-  /** id action di lib/shortcuts.ts bila punya keybinding */
+   
   action?: string;
-  /** false = entri disembunyikan (mis. butuh workspace) */
+   
   enabled?: () => boolean;
   run: () => void | Promise<void>;
 }
@@ -75,20 +79,43 @@ export interface CommandDef {
 const S = () => useStore.getState();
 const T = () => useTerminal.getState();
 
-/** FASE 21: tab aktif + view CodeMirror-nya (dipakai command LSP). */
+ 
 const konteksLsp = () => {
   const s = S();
   const tab = s.tabs.find((t) => t.id === s.activeTabId);
   return { path: tab?.path ?? null, view: getActiveView() };
 };
 
-/** Command LSP hanya aktif kalau file yang terbuka punya language server. */
+const lompatMasalah = (arah: 1 | -1) => {
+  const s = S();
+  const tab = s.tabs.find((t) => t.id === s.activeTabId);
+  if (!tab?.path) return;
+  const v = getActiveView();
+  const baris = v ? v.state.doc.lineAt(v.state.selection.main.head).number : 1;
+  const diags = useProblems
+    .getState()
+    .all()
+    .filter((d) => d.file === tab.path)
+    .sort((a, b) => a.line - b.line || a.column - b.column);
+  if (!diags.length) {
+    notifyInfo('Tidak ada masalah di file ini', { source: 'editor' });
+    return;
+  }
+  const idx = diags.findIndex((d) => d.line > baris || (d.line === baris && d.column > 0));
+  let target: (typeof diags)[number];
+  if (arah === 1) target = idx === -1 ? diags[0] : diags[idx];
+  else target = idx <= 0 ? diags[diags.length - 1] : diags[idx - 1];
+  revealPosition(target.line, target.column);
+  v?.focus();
+};
+
+ 
 const lspSiap = () => {
   const { path } = konteksLsp();
   return !!path && !!serverForPath(path) && useLsp.getState().settings().enabled;
 };
 
-/** Buka satu panel sidebar + pastikan sidebar terlihat. */
+ 
 function openSide(
   activity: 'explorer' | 'search' | 'scm' | 'ai' | 'terminal' | 'extensions',
 ) {
@@ -107,7 +134,7 @@ function openSettingsSection(section: Parameters<ReturnType<typeof useSettingsUi
 }
 
 export const COMMANDS: CommandDef[] = [
-  // ── File ──
+  
   {
     id: 'file.new',
     title: 'File: New Untitled',
@@ -181,7 +208,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => S().closeWorkspace(),
   },
 
-  // ── View ──
+  
   {
     id: 'view.explorer',
     title: 'View: Focus Explorer',
@@ -269,7 +296,7 @@ export const COMMANDS: CommandDef[] = [
       t.toggleMaximized();
     },
   },
-  // ── FASE 33: split editor (grup editor berdampingan) ──
+  
   {
     id: 'view.splitEditorRight',
     title: 'View: Split Editor Right',
@@ -293,7 +320,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSettingsSection('shortcuts'),
   },
 
-  // ── Terminal ──
+  
   {
     id: 'terminal.new',
     title: 'Terminal: New Shell',
@@ -329,7 +356,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'Terminal',
     keywords: 'browser preview iframe localhost',
     run: async () => {
-      // Shell dulu bila tab masih kosong supaya benar-benar jadi split 50/50.
+      
       const t = T();
       if ((t.activeTab()?.panes.length ?? 0) === 0) await t.addPane('shell');
       await t.addPane('browser');
@@ -374,7 +401,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSide('terminal'),
   },
 
-  // ── Git ──
+  
   {
     id: 'git.panel',
     title: 'Git: Open Source Control',
@@ -394,7 +421,7 @@ export const COMMANDS: CommandDef[] = [
       const g = useGit.getState();
       const staged = (g.status?.changes ?? []).filter((c) => c.staged).length;
       if (staged === 0 || !g.message.trim()) {
-        // Jangan pura-pura commit: fokuskan kotak pesan & katakan alasannya.
+        
         useGit.setState({
           scmError:
             staged === 0
@@ -425,7 +452,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => useGit.getState().sync(),
   },
 
-  // ── AI ──
+  
   {
     id: 'ai.focus',
     title: 'AI: Focus Chat Panel',
@@ -459,7 +486,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSettingsSection('models'),
   },
 
-  // ── MCP ──
+  
   {
     id: 'mcp.panel',
     title: 'MCP: Control Zephyr from your AI CLI',
@@ -486,7 +513,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => useMcp.getState().copyToken(),
   },
 
-  // ── Settings ──
+  
   {
     id: 'view.settings',
     title: 'Settings: Open',
@@ -509,7 +536,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'ekstensi',
     run: () => openSettingsSection('extensions'),
   },
-  // ── Extensions & tema (fase 13) ──
+  
   {
     id: 'theme.next',
     title: 'Preferences: Color Theme (siklus berikutnya)',
@@ -518,7 +545,7 @@ export const COMMANDS: CommandDef[] = [
     run: async () => {
       const s = S();
       const cur = s.settings.theme.current;
-      // semuaTema() ikut memutar tema dari ekstensi aktif (fase 19).
+      
       const daftar = semuaTema();
       const i = daftar.findIndex((t) => t.id === cur);
       const next = daftar[(i + 1 + daftar.length) % daftar.length];
@@ -579,7 +606,7 @@ export const COMMANDS: CommandDef[] = [
     },
   },
 
-  // ── Notifications (fase 27) ──
+  
   {
     id: 'notifications.show',
     title: 'Notifications: Show Notifications',
@@ -602,11 +629,11 @@ export const COMMANDS: CommandDef[] = [
     run: () => useNotif.getState().toggleDnd(),
   },
 
-  // ── FASE 18: command yang dibutuhkan menu bar ──
-  // Yang fiturnya SUDAH ADA didaftarkan di sini supaya item menu benar-benar
-  // bekerja. Yang belum ada (debug.*, problems.*, nav.*) SENGAJA tidak
-  // didaftarkan — menu menampilkannya sebagai disabled (syarat 18.1), bukan
-  // disembunyikan, supaya user tahu apa yang direncanakan.
+  
+  
+  
+  
+  
   {
     id: 'file.openFolder',
     title: 'File: Open Folder…',
@@ -654,8 +681,8 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'ganti replace',
     run: () => {
       S().setFindOpen(true);
-      // FindBar punya toggle replace sendiri; buka barisnya lewat klik tombol
-      // yang sama supaya tidak ada dua jalur state.
+      
+      
       window.setTimeout(() => {
         document.querySelector<HTMLButtonElement>('.find-toggle')?.click();
       }, 80);
@@ -680,9 +707,9 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     action: 'view.palette',
     keywords: 'palette perintah',
-    // paletteStore TIDAK boleh diimport di sini: paletteStore → commandRegistry
-    // sudah membentuk lingkaran (pelajaran fase 13 dengan mcpStore). Pakai
-    // event window yang ditangkap App.tsx.
+    
+    
+    
     run: () => window.dispatchEvent(new Event('zephyr-palette-open')),
   },
   {
@@ -717,9 +744,9 @@ export const COMMANDS: CommandDef[] = [
     title: 'Extensions: Show Installed',
     group: 'Extensions',
     keywords: 'ekstensi buka installed marketplace',
-    // fase 19: Extensions punya panel sendiri di ActivityBar KIRI (19.1).
-    // Dulu ini membuka Settings → Extensions; sekarang Settings tetap ada
-    // untuk daftar bawaan, tapi Ctrl+Shift+X ke panel yang benar.
+    
+    
+    
     run: () => openSide('extensions'),
   },
   {
@@ -807,10 +834,10 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'wrap lipat baris',
     run: () => S().applySettings({ editor: { wordWrap: !S().settings.editor.wordWrap } }),
   },
-  // ── fase 24: editor extras ──
-  // Satu command per fitur, semuanya lewat applySettings supaya nilainya
-  // langsung tersimpan ke disk (%APPDATA%\zephyr\settings.json) dan bertahan
-  // setelah restart — tidak ada state UI terpisah yang bisa jadi tidak sinkron.
+  
+  
+  
+  
   ...(
     [
       ['editor.breadcrumbs.toggle', 'View: Toggle Breadcrumbs', 'breadcrumbs', 'jalur simbol path'],
@@ -860,8 +887,8 @@ export const COMMANDS: CommandDef[] = [
     run: () => {
       const view = getActiveView();
       if (!view) return;
-      // Dihitung dari SELURUH dokumen (bukan viewport): ini daftar, bukan
-      // dekorasi — user memintanya sekali dan berharap lengkap.
+      
+      
       const teks = view.state.doc.toString();
       const hitung = new Map<string, number>();
       const re =
@@ -920,7 +947,7 @@ export const COMMANDS: CommandDef[] = [
       openSettingsSection('about');
     },
   },
-  // ── FASE 20: panel bawah (Problems/Output/Debug/Terminal/Ports) ──
+  
   {
     id: 'workbench.action.togglePanel',
     title: 'View: Toggle Panel',
@@ -1017,7 +1044,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'tab panel sebelumnya',
     run: () => usePanel.getState().cycleTab(-1),
   },
-  // ── FASE 21: LSP (IntelliSense, navigasi, refactor) ──
+  
   {
     id: 'editor.gotoDefinition',
     title: 'Go: Go to Definition',
@@ -1057,9 +1084,9 @@ export const COMMANDS: CommandDef[] = [
           notifyWarn('Tidak ada referensi', { source: 'LSP' });
           return;
         }
-        // Hasil ditampilkan di Problems (fase 20) sebagai severity 'info'
-        // dengan source "references" — reuse tabel yang sudah ada, bukan panel
-        // baru; brief fase 21 mengizinkannya.
+        
+        
+        
         const byFile = new Map<string, typeof refs>();
         for (const r of refs) {
           byFile.set(r.file, [...(byFile.get(r.file) ?? []), r]);
@@ -1112,8 +1139,8 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'rename ganti nama f2 lsp',
     enabled: () => lspSiap(),
     run: () => {
-      // Input rename dirender oleh RenameInput (komponen) supaya tidak memakai
-      // window.prompt — dialog native diberantas di fase 27.
+      
+      
       window.dispatchEvent(new Event('zephyr-lsp-rename'));
     },
   },
@@ -1184,8 +1211,8 @@ export const COMMANDS: CommandDef[] = [
       usePanel.getState().focusTab('output');
     },
   },
-  // Tema per nama: menu View → Theme butuh satu command per tema supaya
-  // pilihannya langsung, bukan lewat "next theme".
+  
+  
   ...THEMES.map((t) => ({
     id: `theme.${t.id}`,
     title: `Theme: ${t.label}`,
@@ -1197,10 +1224,10 @@ export const COMMANDS: CommandDef[] = [
         general: { theme: t.kind === 'light' ? ('light' as const) : ('dark' as const) },
       }),
   })),
-  // ── Tasks (fase 23) ──
-  //
-  // `enabled()` menyaring saat tasks.json tidak ada, mengikuti pelajaran fase 12
-  // (`git.commit` yang muncul di palette padahal workspace bukan repo).
+  
+  
+  
+  
   {
     id: 'tasks.runBuild',
     title: 'Tasks: Run Build Task',
@@ -1219,8 +1246,8 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'task jalankan run',
     enabled: () => useTasks.getState().daftar().length > 0,
     run: async () => {
-      // Daftar task muncul sebagai command sendiri (lihat taskCommands()),
-      // jadi entri ini hanya membuka palette dengan awalan yang tepat.
+      
+      
       window.dispatchEvent(
         new CustomEvent('zephyr-palette-open', { detail: { query: 'Task: ' } }),
       );
@@ -1260,7 +1287,7 @@ export const COMMANDS: CommandDef[] = [
       if (terakhir) useOutput.getState().setActiveChannel(channelUntuk(terakhir.label));
     },
   },
-  // ── Local History / Timeline (fase 26) ──
+  
   {
     id: 'timeline.focus',
     title: 'Timeline: Focus',
@@ -1319,7 +1346,7 @@ export const COMMANDS: CommandDef[] = [
       await useHistory.getState().bersihkan();
     },
   },
-  // ── Run & Debug (fase 22) ──
+  
   {
     id: 'debug.focus',
     title: 'Debug: Fokus Run & Debug',
@@ -1341,8 +1368,8 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'debug jalankan f5 launch',
     run: async () => {
       const D = useDebug.getState();
-      // Kalau sesi sudah hidup dan sedang paused, F5 = Continue (perilaku
-      // VS Code). Satu tombol untuk dua arti, itu yang diharapkan user.
+      
+      
       if (D.state === 'stopped') {
         await D.kontrol('continue');
         return;
@@ -1425,8 +1452,8 @@ export const COMMANDS: CommandDef[] = [
       const s = S();
       const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
       if (!p) return;
-      // Baris dari posisi kursor editor — F9 memasang breakpoint di baris
-      // tempat kursor berada, bukan baris pertama.
+      
+      
       const { activeLine } = await import('./editorRegistry');
       const line = activeLine();
       if (line < 1) {
@@ -1446,7 +1473,7 @@ export const COMMANDS: CommandDef[] = [
       await useDebug.getState().hapusSemuaBreakpoint();
     },
   },
-  // ── Aksesibilitas (fase 31) ──
+  
   {
     id: 'a11y.toggleScreenReaderMode',
     title: 'Accessibility: Toggle Screen Reader Mode',
@@ -1498,7 +1525,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'aksesibilitas kontras tinggi tema low vision aaa a11y',
     run: async () => {
       const s = S();
-      // Toggle: kalau sudah high-contrast, kembalikan ke zephyr-dark.
+      
       const kembali = s.settings.theme.current === 'high-contrast';
       await s.applySettings({
         theme: { current: kembali ? 'zephyr-dark' : 'high-contrast' },
@@ -1543,20 +1570,20 @@ export const COMMANDS: CommandDef[] = [
       );
     },
   },
-  // ── Snippets (fase 30) ──
+  
   {
     id: 'snippets.insert',
     title: 'Snippets: Insert Snippet',
     group: 'Snippets',
     keywords: 'snippet sisip template potongan kode',
-    // Butuh tab aktif: tanpa editor tidak ada tempat menyisipkan.
+    
     enabled: () => !!S().activeTabId,
     run: async () => {
       const tab = S().tabs.find((t) => t.id === S().activeTabId);
       if (!tab) return;
-      // Muat dulu, lalu buka palette dengan query "Snippet: ". Pemuatan
-      // dikerjakan DI SINI (bukan di snippetCommands) supaya daftar sudah
-      // lengkap saat palette dirender — snippetCommands hanya membaca cache.
+      
+      
+      
       await useSnip.getState().muat(tab.lang);
       window.dispatchEvent(
         new CustomEvent('zephyr-palette-open', { detail: { query: 'Snippet: ' } }),
@@ -1571,9 +1598,9 @@ export const COMMANDS: CommandDef[] = [
     run: async () => {
       const s = S();
       const tab = s.tabs.find((t) => t.id === s.activeTabId);
-      // Bahasa tab aktif kalau ada, kalau tidak 'global'. Menanyakan bahasa
-      // lewat modal sendiri tidak sebanding: user yang mau bahasa lain bisa
-      // membuka file bahasa itu lebih dulu, dan file global selalu tersedia.
+      
+      
+      
       const lang = tab?.lang && tab.lang !== 'plain' ? tab.lang : 'global';
       const p = await useSnip.getState().bukaFileUser(lang);
       if (p) await s.openPath(p);
@@ -1592,7 +1619,7 @@ export const COMMANDS: CommandDef[] = [
       await useSnip.getState().muatDaftar();
     },
   },
-  // ── Multi-root workspace + Trust (fase 29) ──
+  
   {
     id: 'workspace.addFolder',
     title: 'Workspace: Tambah Folder ke Workspace',
@@ -1609,8 +1636,8 @@ export const COMMANDS: CommandDef[] = [
     title: 'Workspace: Hapus Folder Aktif dari Workspace',
     group: 'File',
     keywords: 'workspace root folder hapus remove',
-    // Hanya berguna kalau ada >1 root: menghapus root terakhir ditolak Rust,
-    // jadi command-nya disaring di sini alih-alih memunculkan error.
+    
+    
     enabled: () => useWs.getState().roots.length > 1,
     run: async () => {
       const aktif = useWs.getState().activeRoot;
@@ -1665,15 +1692,439 @@ export const COMMANDS: CommandDef[] = [
       await useWs.getState().muatDaftarTrust();
     },
   },
+  {
+    id: 'editor.undo',
+    title: 'Edit: Undo',
+    group: 'Edit',
+    keywords: 'undo batal',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) undo(v);
+    },
+  },
+  {
+    id: 'editor.redo',
+    title: 'Edit: Redo',
+    group: 'Edit',
+    keywords: 'redo ulangi',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) redo(v);
+    },
+  },
+  {
+    id: 'editor.clip.cut',
+    title: 'Edit: Cut',
+    group: 'Edit',
+    keywords: 'potong gunting clipboard',
+    enabled: () => !!getActiveView(),
+    run: async () => {
+      const v = getActiveView();
+      if (!v) return;
+      const { from, to } = v.state.selection.main;
+      const txt = v.state.sliceDoc(from, to);
+      if (!txt) return;
+      await clipboardWrite(txt);
+      v.dispatch({ changes: { from, to } });
+      v.focus();
+    },
+  },
+  {
+    id: 'editor.clip.copy',
+    title: 'Edit: Copy',
+    group: 'Edit',
+    keywords: 'salin clipboard',
+    enabled: () => !!getActiveView(),
+    run: async () => {
+      const v = getActiveView();
+      if (!v) return;
+      const { from, to } = v.state.selection.main;
+      const txt = v.state.sliceDoc(from, to);
+      if (!txt) return;
+      await clipboardWrite(txt);
+      notifyInfo('Disalin ke clipboard', { source: 'editor' });
+    },
+  },
+  {
+    id: 'editor.clip.paste',
+    title: 'Edit: Paste',
+    group: 'Edit',
+    keywords: 'tempel clipboard',
+    enabled: () => !!getActiveView(),
+    run: async () => {
+      const v = getActiveView();
+      if (!v) return;
+      const txt = await clipboardRead();
+      if (!txt) return;
+      const { from, to } = v.state.selection.main;
+      v.dispatch({ changes: { from, to, insert: txt } });
+      v.focus();
+    },
+  },
+  {
+    id: 'editor.comment.toggle',
+    title: 'Edit: Toggle Line Comment',
+    group: 'Edit',
+    keywords: 'komentar baris',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) toggleComment(v);
+    },
+  },
+  {
+    id: 'editor.blockComment.toggle',
+    title: 'Edit: Toggle Block Comment',
+    group: 'Edit',
+    keywords: 'komentar blok',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) toggleBlockComment(v);
+    },
+  },
+  {
+    id: 'editor.selectAll',
+    title: 'Selection: Select All',
+    group: 'Edit',
+    keywords: 'pilih semua select all',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) selectAll(v);
+    },
+  },
+  {
+    id: 'editor.select.expand',
+    title: 'Selection: Expand Selection',
+    group: 'Edit',
+    keywords: 'perluas pilihan expand',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) selectParentSyntax(v);
+    },
+  },
+  {
+    id: 'editor.select.shrink',
+    title: 'Selection: Shrink Selection',
+    group: 'Edit',
+    keywords: 'persempit pilihan shrink',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (!v) return;
+      const { from, to } = v.state.selection.main;
+      if (from === to) return;
+      const head = v.state.selection.main.head;
+      const anchor = v.state.selection.main.anchor;
+      const dir = head > anchor ? -1 : 1;
+      const nh = head + dir;
+      if (nh === anchor) return;
+      v.dispatch({ selection: { anchor, head: nh } });
+      v.focus();
+    },
+  },
+  {
+    id: 'editor.cursor.above',
+    title: 'Selection: Add Cursor Above',
+    group: 'Edit',
+    keywords: 'kursor tambah atas',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (!v) return;
+      const { state } = v;
+      const ranges = state.selection.ranges;
+      const extra: SelectionRange[] = [];
+      for (const r of ranges) {
+        const line = state.doc.lineAt(r.head);
+        const target = state.doc.line(Math.max(1, line.number - 1));
+        if (target.number === line.number) continue;
+        const col = Math.min(r.head - line.from, target.length);
+        extra.push(EditorSelection.cursor(target.from + col));
+      }
+      if (extra.length) v.dispatch({ selection: EditorSelection.create([...ranges, ...extra]) });
+      v.focus();
+    },
+  },
+  {
+    id: 'editor.cursor.below',
+    title: 'Selection: Add Cursor Below',
+    group: 'Edit',
+    keywords: 'kursor tambah bawah',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (!v) return;
+      const { state } = v;
+      const ranges = state.selection.ranges;
+      const extra: SelectionRange[] = [];
+      for (const r of ranges) {
+        const line = state.doc.lineAt(r.head);
+        const target = state.doc.line(Math.min(state.doc.lines, line.number + 1));
+        if (target.number === line.number) continue;
+        const col = Math.min(r.head - line.from, target.length);
+        extra.push(EditorSelection.cursor(target.from + col));
+      }
+      if (extra.length) v.dispatch({ selection: EditorSelection.create([...ranges, ...extra]) });
+      v.focus();
+    },
+  },
+  {
+    id: 'editor.cursor.lineEnds',
+    title: 'Selection: Add Cursor to Line Ends',
+    group: 'Edit',
+    keywords: 'kursor akhir baris',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (!v) return;
+      const { state } = v;
+      const lines = new Set<number>();
+      for (const r of state.selection.ranges) {
+        const a = state.doc.lineAt(r.from).number;
+        const b = state.doc.lineAt(r.to).number;
+        for (let n = a; n <= b; n++) lines.add(n);
+      }
+      const extra: SelectionRange[] = [];
+      for (const n of lines) extra.push(EditorSelection.cursor(state.doc.line(n).to));
+      if (extra.length) v.dispatch({ selection: EditorSelection.create(extra) });
+      v.focus();
+    },
+  },
+  {
+    id: 'editor.select.line',
+    title: 'Selection: Select Current Line',
+    group: 'Edit',
+    keywords: 'pilih baris',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) selectLine(v);
+    },
+  },
+  {
+    id: 'editor.select.occurrences',
+    title: 'Selection: Select All Occurrences',
+    group: 'Edit',
+    keywords: 'pilih semua kemunculan',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) selectSelectionMatches(v);
+    },
+  },
+  {
+    id: 'editor.gotoLine',
+    title: 'Go: Go to Line…',
+    group: 'Edit',
+    keywords: 'lompat baris goto line',
+    enabled: () => !!getActiveView(),
+    run: () => {
+      const v = getActiveView();
+      if (v) gotoLine(v);
+    },
+  },
+  {
+    id: 'editor.nextError',
+    title: 'Go: Next Problem',
+    group: 'Edit',
+    keywords: 'error berikutnya next problem',
+    enabled: () => !!S().tabs.find((t) => t.id === S().activeTabId)?.path,
+    run: () => lompatMasalah(1),
+  },
+  {
+    id: 'editor.prevError',
+    title: 'Go: Previous Problem',
+    group: 'Edit',
+    keywords: 'error sebelumnya prev problem',
+    enabled: () => !!S().tabs.find((t) => t.id === S().activeTabId)?.path,
+    run: () => lompatMasalah(-1),
+  },
+  {
+    id: 'editor.reopen',
+    title: 'File: Reopen Closed Editor',
+    group: 'File',
+    keywords: 'buka kembali tab ditutup reopen',
+    enabled: () => !!S().lastClosed,
+    run: () => {
+      const p = S().lastClosed?.path;
+      if (p) void S().openPath(p);
+    },
+  },
+  {
+    id: 'explorer.closeFolder',
+    title: 'File: Close Folder',
+    group: 'File',
+    keywords: 'tutup folder workspace',
+    enabled: () => !!S().workspace,
+    run: () => S().closeWorkspace(),
+  },
+  {
+    id: 'nav.back',
+    title: 'Go: Back',
+    group: 'View',
+    keywords: 'kembali mundur back',
+    enabled: () => S().navBack.length > 0,
+    run: () => {
+      const s = S();
+      const path = s.navBack[s.navBack.length - 1];
+      if (!path) return;
+      const tab = s.tabs.find((t) => t.path === path);
+      if (!tab) return;
+      const cur = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      s.setNavBack(s.navBack.slice(0, -1));
+      if (cur) s.setNavForward([...s.navForward, cur]);
+      s.setNavSuppress(true);
+      s.setActiveTab(tab.id);
+      s.setNavSuppress(false);
+    },
+  },
+  {
+    id: 'nav.forward',
+    title: 'Go: Forward',
+    group: 'View',
+    keywords: 'maju lanjut forward',
+    enabled: () => S().navForward.length > 0,
+    run: () => {
+      const s = S();
+      const path = s.navForward[s.navForward.length - 1];
+      if (!path) return;
+      const tab = s.tabs.find((t) => t.path === path);
+      if (!tab) return;
+      const cur = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      s.setNavForward(s.navForward.slice(0, -1));
+      if (cur) s.setNavBack([...s.navBack, cur]);
+      s.setNavSuppress(true);
+      s.setActiveTab(tab.id);
+      s.setNavSuppress(false);
+    },
+  },
+  {
+    id: 'editor.breadcrumbs.toggle',
+    title: 'View: Toggle Breadcrumbs',
+    group: 'View',
+    keywords: 'breadcrumbs toggle',
+    run: () => S().applySettings({ editor: { breadcrumbs: !S().settings.editor.breadcrumbs } }),
+  },
+  {
+    id: 'editor.stickyScroll.toggle',
+    title: 'View: Toggle Sticky Scroll',
+    group: 'View',
+    keywords: 'sticky scroll toggle',
+    run: () => S().applySettings({ editor: { stickyScroll: !S().settings.editor.stickyScroll } }),
+  },
+  {
+    id: 'editor.minimap.toggle',
+    title: 'View: Toggle Minimap',
+    group: 'View',
+    keywords: 'minimap toggle',
+    run: () => S().applySettings({ editor: { minimap: !S().settings.editor.minimap } }),
+  },
+  {
+    id: 'editor.indentGuides.toggle',
+    title: 'View: Toggle Indent Guides',
+    group: 'View',
+    keywords: 'indent guides toggle',
+    run: () => S().applySettings({ editor: { indentGuides: !S().settings.editor.indentGuides } }),
+  },
+  {
+    id: 'editor.colorDecorators.toggle',
+    title: 'View: Toggle Color Decorators',
+    group: 'View',
+    keywords: 'color decorators toggle',
+    run: () => S().applySettings({ editor: { colorDecorators: !S().settings.editor.colorDecorators } }),
+  },
+  {
+    id: 'editor.unicodeHighlight.toggle',
+    title: 'View: Toggle Unicode Highlight',
+    group: 'View',
+    keywords: 'unicode highlight toggle',
+    run: () => S().applySettings({ editor: { unicodeHighlight: !S().settings.editor.unicodeHighlight } }),
+  },
+  {
+    id: 'editor.bracketPairColorization.toggle',
+    title: 'View: Toggle Bracket Pair Colorization',
+    group: 'View',
+    keywords: 'bracket pair colorization toggle',
+    run: () =>
+      S().applySettings({ editor: { bracketPairColorization: !S().settings.editor.bracketPairColorization } }),
+  },
+  {
+    id: 'theme.zephyr-dark',
+    title: 'Theme: Zephyr Dark',
+    group: 'View',
+    keywords: 'tema gelap zephyr dark',
+    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'zephyr-dark' } }),
+  },
+  {
+    id: 'theme.zephyr-light',
+    title: 'Theme: Zephyr Light',
+    group: 'View',
+    keywords: 'tema terang zephyr light',
+    run: () => S().applySettings({ general: { theme: 'light' }, theme: { current: 'zephyr-light' } }),
+  },
+  {
+    id: 'theme.nord',
+    title: 'Theme: Nord',
+    group: 'View',
+    keywords: 'tema nord',
+    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'nord' } }),
+  },
+  {
+    id: 'theme.tokyo-night',
+    title: 'Theme: Tokyo Night',
+    group: 'View',
+    keywords: 'tema tokyo night',
+    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'tokyo-night' } }),
+  },
+  {
+    id: 'theme.gruvbox',
+    title: 'Theme: Gruvbox',
+    group: 'View',
+    keywords: 'tema gruvbox',
+    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'gruvbox-dark' } }),
+  },
+  {
+    id: 'theme.one-dark-pro',
+    title: 'Theme: One Dark Pro',
+    group: 'View',
+    keywords: 'tema one dark pro',
+    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'one-dark' } }),
+  },
+  {
+    id: 'window.close',
+    title: 'File: Exit',
+    group: 'File',
+    keywords: 'keluar tutup exit window',
+    run: async () => {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().close();
+    },
+  },
+  {
+    id: 'window.new',
+    title: 'File: New Window',
+    group: 'File',
+    keywords: 'jendela baru window new',
+    run: async () => {
+      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+      new WebviewWindow(`zephyr-${Date.now()}`, {
+        url: 'index.html',
+        title: 'Zephyr',
+        width: 1440,
+        height: 900,
+        minWidth: 800,
+        minHeight: 520,
+      });
+    },
+  },
 ];
 
-/**
- * Satu command per task di tasks.json (fase 23).
- *
- * Dibuat DINAMIS, bukan ditulis di `COMMANDS`: daftarnya berubah setiap
- * tasks.json disimpan, dan urutannya mengikuti riwayat `recent` supaya task
- * yang baru dipakai muncul lebih dulu — itu yang bikin "Run Task" enak dipakai.
- */
+ 
 export function taskCommands(): CommandDef[] {
   const T = useTasks.getState();
   const recent = T.recent;
@@ -1698,20 +2149,13 @@ export function taskCommands(): CommandDef[] {
   }));
 }
 
-/**
- * Command dari manifest ekstensi AKTIF (fase 13).
- *
- * v1 manifest-only: kode ekstensi tidak dieksekusi, jadi `run()` di sini
- * jujur — ia melaporkan asal command lewat status bar, bukan berpura-pura
- * menjalankan logika yang tidak ada. Yang dibuktikan V6: entri manifest
- * benar-benar sampai ke palette dan bisa dipanggil.
- */
+ 
 export function extensionCommands(): CommandDef[] {
-  // Dua sumber: paket gaya package.json (fase 13, extensionStore) dan paket
-  // native zephyr-extension.json (fase 19, extLoader). Keduanya sudah memakai
-  // namespace `ext.<id>.<nama>` dari parse_commands di Rust, jadi id-nya tidak
-  // bisa menimpa command inti; dedupe di sini hanya untuk kasus satu paket
-  // terdaftar di dua jalur.
+  
+  
+  
+  
+  
   const out = new Map<string, CommandDef>();
 
   const buat = (
@@ -1743,19 +2187,8 @@ export function extensionCommands(): CommandDef[] {
   return Array.from(out.values());
 }
 
-/** Command yang boleh tampil sekarang (mis. butuh workspace/tab aktif). */
-/**
- * FASE 30: "Insert Snippet" sebagai command DINAMIS, satu per snippet.
- *
- * Alasan memakai pola `taskCommands()` alih-alih membuat quick-pick sendiri:
- * palette sudah punya pencarian fuzzy, keyboard nav, dan highlight. Membuat
- * modal kedua berarti menulis ulang semuanya, dan Zephyr belum punya komponen
- * quick-pick generik (dicek: tidak ada `QuickPick` di src/).
- *
- * Daftar dibaca dari CACHE store, tidak memicu pemuatan: `availableCommands()`
- * dipanggil tiap ketikan di palette, dan `await` di sana akan membuat daftar
- * berkedip. Cache diisi lebih dulu oleh command `snippets.insert` di bawah.
- */
+ 
+ 
 export function snippetCommands(): CommandDef[] {
   const view = getActiveView();
   if (!view) return [];
@@ -1784,7 +2217,7 @@ export function availableCommands(): CommandDef[] {
 
 export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
 
-/** Cari satu command (inti ATAU dari ekstensi) berdasarkan id. */
+ 
 export function findCommand(id: string): CommandDef | undefined {
   return (
     COMMAND_BY_ID.get(id) ??
@@ -1793,9 +2226,7 @@ export function findCommand(id: string): CommandDef | undefined {
   );
 }
 
-/** FASE 27: jalankan command by id. Dipakai tombol aksi notifikasi supaya
- *  toast tidak perlu tahu apa pun tentang implementasi tiap domain.
- *  Mengembalikan false bila id tidak dikenal (mis. ekstensi sudah dimatikan). */
+ 
 export async function runCommand(id: string): Promise<boolean> {
   const c = findCommand(id);
   if (!c) return false;

@@ -1,6 +1,6 @@
-// store.ts — state global Zephyr (Zustand). Bentuk mengikuti
-// ARCHITECTURE.md §5. Key camelCase. Slot terminalTabs/ai/mcp sudah
-// disiapkan sesuai kontrak walau baru dipakai di fase 05+.
+
+
+
 
 import { create } from 'zustand';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -9,14 +9,14 @@ import { detectLang } from './lang';
 import { kunciPath, pathSama } from './pathKey';
 import { revealPosition } from './editorRegistry';
 import { applyTheme } from './themes';
-// fase 31: setelan a11y diterapkan di JALUR YANG SAMA dengan applyTheme —
-// kalau hanya satu jalur, setelan hilang saat settings dimuat ulang dari disk
-// (pelajaran fase 13 dengan retheme()).
+
+
+
 import { terapkanA11y } from './a11yStore';
 import { retheme, reSrMode } from './xtermRegistry';
-// fase 33: split editor — group fokus dipakai openPath/newUntitled untuk
-// menandai tab. Import LANGSUNG (bukan dinamis): editorLayoutStore tidak
-// mengimpor balik store.ts, jadi tidak ada lingkaran.
+
+
+
 import { useLayout } from './editorLayoutStore';
 import {
   DEFAULT_SETTINGS,
@@ -29,16 +29,15 @@ import {
   type Tab,
 } from './types';
 
-/** Dialog konfirmasi tab kotor: [Simpan][Jangan Simpan][Batal]. */
+ 
 export interface ConfirmState {
-  /** tab yang ditanyakan */
+   
   tabIds: string[];
-  /** apa yang dilakukan setelah semua beres */
+   
   intent: 'close-tab' | 'close-window';
 }
 
-/** fase 15.1: file tab hilang dari disk saat Ctrl+S, atau tab UTF-16 yang
- *  minta disimpan sebagai UTF-8. Dua-duanya butuh jawaban user dulu. */
+ 
 export interface SaveIssue {
   kind: 'missing' | 'utf16';
   tabId: string;
@@ -47,7 +46,7 @@ export interface SaveIssue {
 }
 
 interface StoreState {
-  // shell
+  
   activity: ActivityId;
   sidebarVisible: boolean;
   sidebarWidth: number;
@@ -55,7 +54,7 @@ interface StoreState {
   statusMessage: string;
   cursor: { line: number; col: number };
 
-  // workspace & editor
+  
   workspace: string | null;
   recents: RecentEntry[];
   tabs: Tab[];
@@ -63,25 +62,26 @@ interface StoreState {
   untitledSeq: number;
   findOpen: boolean;
   confirm: ConfirmState | null;
-  /** fase 15.1: pertanyaan saat simpan (file hilang / UTF-16). */
+   
   saveIssue: SaveIssue | null;
 
-  // slot kontrak fase berikutnya
+  
   terminalTabs: never[];
   ai: { model: string; messages: never[] };
   mcp: { enabled: boolean; running: boolean; port: number };
 
   settings: Settings;
   settingsLoaded: boolean;
-  /** versi + data dir dari Rust (dipakai Settings → Tentang). */
+   
   appInfo: AppInfo | null;
   updateBanner: { version: string; notes: string } | null;
-  /** halaman Settings sedang dibuka di area utama (fase 08). */
+  navBack: string[];
+  navForward: string[];
+  navSuppress: boolean;
+  lastClosed: { path: string } | null;
+   
   settingsOpen: boolean;
-  /** id tema yang BENAR-BENAR terpasang di <html> (fase 13).
-   *  Dipisah dari settings.theme.current karena mode 'system' + pill
-   *  terang/gelap bisa membuat keduanya berbeda; komponen yang butuh warna
-   *  (CodeMirror, xterm) harus ikut yang ini. */
+   
   activeTheme: string;
 }
 
@@ -93,14 +93,18 @@ interface StoreActions {
   setStatus: (m: string) => void;
   setCursor: (line: number, col: number) => void;
   setFindOpen: (open: boolean) => void;
-  /** Buka/tutup halaman Settings di area utama (fase 08). */
+   
   setSettingsOpen: (open: boolean) => void;
   setUpdateBanner: (b: { version: string; notes: string } | null) => void;
+  setNavBack: (v: string[]) => void;
+  setNavForward: (v: string[]) => void;
+  setNavSuppress: (v: boolean) => void;
+  setLastClosed: (v: { path: string } | null) => void;
 
   bootstrap: () => Promise<void>;
   openFolderDialog: () => Promise<void>;
   openWorkspace: (dir: string) => Promise<void>;
-  /** fase 29: sinkron state frontend TANPA memanggil workspace_open di Rust */
+   
   syncWorkspaceLokal: (dir: string) => Promise<void>;
   closeWorkspace: () => Promise<void>;
   refreshRecents: () => Promise<void>;
@@ -112,39 +116,39 @@ interface StoreActions {
   updateTabContent: (id: string, content: string) => void;
   saveTab: (id: string) => Promise<boolean>;
   saveTabAs: (id: string) => Promise<boolean>;
-  /** Tutup tab; kalau kotor munculkan dialog dulu. */
+   
   requestCloseTab: (id: string) => void;
   forceCloseTab: (id: string) => void;
   reorderTab: (from: number, to: number) => void;
 
-  // ── dipakai Explorer (fase 04) ──
-  /** Buka file lalu lompat ke baris/kolom (hasil Search). 1-based. */
+  
+   
   openPathAt: (path: string, line: number, col?: number) => Promise<void>;
-  /** Path file/folder berubah nama → perbarui tab terkait. */
+   
   renamePathInTabs: (from: string, to: string) => void;
-  /** Tutup semua tab yang berada di dalam salah satu path (file/folder). */
+   
   closeTabsUnder: (paths: string[]) => void;
-  /** Muat ulang isi tab dari disk (setelah replace / diubah dari luar). */
+   
   reloadTabFromDisk: (path: string) => Promise<void>;
 
-  /** Pindah tab editor relatif (+1 = kanan, -1 = kiri), melingkar (fase 12). */
+   
   cycleTab: (delta: number) => void;
 
-  /** fase 14.5: pastikan isi tab ada di memori (dibaca ulang bila sudah dilepas). */
+   
   ensureTabLoaded: (id: string) => Promise<void>;
-  /** fase 14.5: lepas isi tab yang lama tidak dipakai bila tab > MAX_LOADED_TABS. */
+   
   unloadColdTabs: () => void;
 
   resolveConfirm: (choice: 'save' | 'discard' | 'cancel') => Promise<void>;
   requestCloseWindow: () => boolean;
 
-  /** fase 15.1: jawab dialog simpan (file hilang / UTF-16 → UTF-8). */
+   
   setSaveIssue: (i: SaveIssue | null) => void;
   resolveSaveIssue: (choice: 'ok' | 'cancel') => Promise<void>;
 
   persistSession: () => Promise<void>;
   applySettings: (patch: Record<string, unknown>) => Promise<void>;
-  /** Muat ulang settings dari disk (dipakai setelah reset_settings). */
+   
   reloadSettings: () => Promise<void>;
 }
 
@@ -155,35 +159,21 @@ const nextId = () => `t${++idSeq}`;
 
 const baseName = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
-/** Guard idempotensi: bootstrap hanya boleh berjalan sekali per proses
- *  (React StrictMode memanggil effect dua kali di mode dev). */
+ 
 let bootstrapStarted = false;
 
-/** Path yang sedang dalam proses dibuka. Mencegah tab ganda saat openPath
- *  dipanggil dua kali berdekatan untuk file yang sama (await fs_read
- *  membuat pengecekan `tabs.find` di bawah rentan race). */
+ 
 const opening = new Set<string>();
 
-/** fase 14.5 — batas tab yang isinya boleh tinggal di memori sekaligus.
- *  Di atas ini, tab yang paling lama tidak disentuh dilepas (`loaded:false`):
- *  tab-nya TETAP ada di tab bar, hanya string kontennya dibuang supaya 30+
- *  tab tidak menumpuk puluhan MB. Isinya dibaca ulang dari disk saat tab itu
- *  diaktifkan (`ensureTabLoaded`). Tab yang belum disimpan (`unsaved`) dan
- *  untitled TIDAK PERNAH dilepas — kontennya cuma ada di memori.
- *
- *  fase 16.2: mode penghemat RAM (`settings.general.lowRam`) menurunkan batas
- *  ini ke 8 lewat `maxLoadedTabs()`. Konstanta tetap diekspor karena harness
- *  fase 14 memakainya sebagai nilai default. */
+ 
 export const MAX_LOADED_TABS = 12;
 
-/** Batas tab termuat yang BERLAKU sekarang (ikut mode penghemat RAM). */
+ 
 export function maxLoadedTabs(): number {
   return useStore.getState().settings.general.lowRam ? 8 : MAX_LOADED_TABS;
 }
 
-/** Urutan sentuh terakhir per tab id (paling belakang = paling baru).
- *  Di luar store supaya tidak memicu render; hanya dipakai untuk memilih
- *  tab mana yang dilepas. */
+ 
 const touchOrder: string[] = [];
 
 function touchTab(id: string): void {
@@ -217,10 +207,14 @@ export const useStore = create<Store>((set, get) => ({
   settingsLoaded: false,
   appInfo: null,
   updateBanner: null,
+  navBack: [],
+  navForward: [],
+  navSuppress: false,
+  lastClosed: null,
   settingsOpen: false,
   activeTheme: 'zephyr-dark',
 
-  // ── shell ──
+  
   setActivity: (a) => set({ activity: a }),
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
@@ -230,10 +224,14 @@ export const useStore = create<Store>((set, get) => ({
   setFindOpen: (open) => set({ findOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setUpdateBanner: (b) => set({ updateBanner: b }),
+  setNavBack: (v) => set({ navBack: v }),
+  setNavForward: (v) => set({ navForward: v }),
+  setNavSuppress: (v) => set({ navSuppress: v }),
+  setLastClosed: (v) => set({ lastClosed: v }),
 
-  // ── bootstrap: settings + restore session ──
+  
   bootstrap: async () => {
-    // StrictMode di dev memanggil effect dua kali -> tab akan dobel.
+    
     if (bootstrapStarted) return;
     bootstrapStarted = true;
 
@@ -241,12 +239,12 @@ export const useStore = create<Store>((set, get) => ({
       const s = await cmd.getSettings();
       set({ settings: s, settingsLoaded: true });
       set({ activeTheme: applyTheme(s.general, s.theme) });
-      retheme(); // terminal hidup ikut tema (V3 fase 13)
-      terapkanA11y(s.accessibility); // fase 31: reduced-motion / screen-reader
-      reSrMode(); // fase 31: xterm hidup ikut mode screen reader
-      // fase 20: pulihkan preferensi panel bawah (tab terlihat, tab aktif,
-      // tinggi). Import dinamis supaya store.ts tidak mengimport panelStore
-      // secara statis — panelStore mengimport store.ts (lingkaran).
+      retheme(); 
+      terapkanA11y(s.accessibility); 
+      reSrMode(); 
+      
+      
+      
       if (s.panel) {
         const { usePanel } = await import('./panelStore');
         usePanel.getState().hydrate(s.panel.visibleTabs, s.panel.activeTab);
@@ -259,7 +257,7 @@ export const useStore = create<Store>((set, get) => ({
       set({ settingsLoaded: true, statusMessage: cmd.asZephyrError(e).message });
     }
 
-    // Info app (versi/data dir) untuk Settings → Tentang. Non-fatal.
+    
     try {
       const info = await cmd.getAppInfo();
       set({ appInfo: info });
@@ -281,10 +279,10 @@ export const useStore = create<Store>((set, get) => ({
         });
       }
     } catch {
-      /* biarkan null */
+       
     }
 
-    // Daftar recent selalu dimuat (dipakai empty-state Explorer).
+    
     await get().refreshRecents();
 
     if (!get().settings.general.restoreSession) return;
@@ -297,7 +295,7 @@ export const useStore = create<Store>((set, get) => ({
           await get().openPath(t.path);
           restored++;
         } catch {
-          // file hilang -> skip (dicatat di status bar)
+          
         }
       }
       const missing = saved.length - restored;
@@ -310,7 +308,7 @@ export const useStore = create<Store>((set, get) => ({
         });
       }
     } catch {
-      /* session.json rusak/absen — abaikan */
+       
     }
   },
 
@@ -324,7 +322,7 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  /** Buka folder sebagai workspace: set state, muat tree, pasang watcher. */
+   
   openWorkspace: async (dir) => {
     try {
       await cmd.workspaceOpen(dir);
@@ -334,19 +332,11 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  /**
-   * Bagian FRONTEND dari "pindah workspace": state, tree, watcher, recents.
-   *
-   * fase 29: dipisah dari `openWorkspace` karena `workspace_open` di Rust
-   * MENGOSONGKAN daftar root (benar untuk "buka satu folder"). Jalur multi-root
-   * — `workspace_open_file` dan `workspace_set_active_root` — sudah memasang
-   * root sendiri di Rust, jadi memanggil `openWorkspace` sesudahnya akan
-   * menghapus root yang baru saja dipasang.
-   */
+   
   syncWorkspaceLokal: async (dir) => {
     set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
 
-    // Explorer: reset tree lalu muat level pertama + pasang watcher.
+    
     const { useExplorer } = await import('./explorerStore');
     const ex = useExplorer.getState();
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
@@ -354,7 +344,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       await cmd.fsWatch(dir);
     } catch {
-      /* watcher gagal bukan alasan membatalkan buka folder */
+       
     }
     await get().refreshRecents();
   },
@@ -364,7 +354,7 @@ export const useStore = create<Store>((set, get) => ({
       await cmd.fsUnwatch();
       await cmd.workspaceClose();
     } catch {
-      /* abaikan */
+       
     }
     const { useExplorer } = await import('./explorerStore');
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
@@ -376,7 +366,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       set({ recents: await cmd.listRecents() });
     } catch {
-      /* non-fatal */
+       
     }
   },
 
@@ -391,17 +381,17 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   openPath: async (path) => {
-    // Sudah terbuka? cukup fokuskan.
-    //
-    // Perbandingan lewat `pathSama`, BUKAN `===`: path yang sama bisa datang
-    // dalam tiga bentuk (Explorer `D:\a`, workspace `D:/a`, language server
-    // `d:\a`). Dengan `===`, mengklik baris di panel Problems membuka tab
-    // KEDUA untuk file yang sudah terbuka — bug nyata fase 21.
+    
+    
+    
+    
+    
+    
     const existing = get().tabs.find((t) => t.path && pathSama(t.path, path));
     if (existing) {
       set({ activeTabId: existing.id });
-      // fase 33: tab yang dibuka ulang ikut pindah ke group fokus sekarang
-      // (perilaku VS Code: open selalu tampil di group aktif).
+      
+      
       const fokus = useLayout.getState().fokus;
       set((s) => ({
         tabs: s.tabs.map((t) => (t.id === existing.id ? { ...t, groupId: fokus } : t)),
@@ -410,21 +400,21 @@ export const useStore = create<Store>((set, get) => ({
       void get().ensureTabLoaded(existing.id);
       return;
     }
-    // Sedang dibuka oleh pemanggil lain -> jangan bikin tab kedua.
+    
     const kunci = kunciPath(path);
     if (opening.has(kunci)) return;
     opening.add(kunci);
 
     try {
       const res = await cmd.fsRead(path);
-      // Cek ulang setelah await: mungkin sudah dibuka sementara kita menunggu.
+      
       const again = get().tabs.find((t) => t.path && pathSama(t.path, path));
       if (again) {
         set({ activeTabId: again.id });
         return;
       }
-      // Buka file pertama saat TIDAK ada tab sama sekali → kembali ke satu
-      // grup (mode split yang ditinggalkan tanpa tab tidak boleh bertahan).
+      
+      
       if (get().tabs.length === 0) useLayout.getState().reset();
       const tab: Tab = {
         id: nextId(),
@@ -444,7 +434,7 @@ export const useStore = create<Store>((set, get) => ({
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
       touchTab(tab.id);
-      // fase 14.5: buka tab ke-13 → tab paling lama dilepas dari memori.
+      
       get().unloadColdTabs();
       void get().persistSession();
     } finally {
@@ -471,17 +461,28 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   setActiveTab: (id) => {
+    const s = get();
+    const prev = s.tabs.find((t) => t.id === s.activeTabId);
+    const next = s.tabs.find((t) => t.id === id);
+    const prevPath = prev?.path ?? null;
+    const nextPath = next?.path ?? null;
+    if (!s.navSuppress && prevPath && nextPath && prevPath !== nextPath) {
+      set((st) => ({
+        navBack: [...st.navBack.slice(-49), prevPath],
+        navForward: [],
+      }));
+    }
     set({ activeTabId: id });
     touchTab(id);
-    // fase 33: tab yang diaktifkan memindahkan fokus grup ke grup pemiliknya
-    // (klik tab di group kanan = group kanan jadi fokus).
+    
+    
     const gid = get().tabs.find((t) => t.id === id)?.groupId;
     if (gid) useLayout.getState().fokusGroup(gid);
-    // Tab yang isinya sudah dilepas dibaca ulang sebelum editor mount.
+    
     void get().ensureTabLoaded(id);
   },
 
-  /** fase 14.5: baca ulang isi tab dari disk bila sudah dilepas. */
+   
   ensureTabLoaded: async (id) => {
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab || tab.loaded !== false || !tab.path) return;
@@ -505,14 +506,12 @@ export const useStore = create<Store>((set, get) => ({
         ),
       }));
     } catch (e) {
-      // File hilang saat tab dibuka lagi → pesan jelas dari Rust (V1 fase 14).
+      
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
   },
 
-  /** fase 14.5: lepas konten tab paling lama bila melebihi MAX_LOADED_TABS.
-   *  Yang dilepas hanya tab tersimpan (punya path, tidak `unsaved`) dan bukan
-   *  tab aktif — kehilangan buffer yang belum disimpan tidak bisa diterima. */
+   
   unloadColdTabs: () => {
     const { tabs, activeTabId } = get();
     const batas = maxLoadedTabs();
@@ -529,8 +528,8 @@ export const useStore = create<Store>((set, get) => ({
       lepas.add(id);
       target--;
     }
-    // Tab yang belum pernah tercatat di touchOrder (mis. hasil restore) ikut
-    // dipertimbangkan supaya batas benar-benar ditegakkan.
+    
+    
     if (target > 0) {
       for (const t of tabs) {
         if (target <= 0) break;
@@ -554,10 +553,10 @@ export const useStore = create<Store>((set, get) => ({
   updateTabContent: (id, content) =>
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        // Tab yang isinya dilepas (fase 14.5) tidak menerima update: editor
-        // untuknya tidak di-mount, jadi update apa pun di sini palsu.
-        // Tab read-only (fase 15.1) juga ditolak — buffer harus tetap sama
-        // dengan disk supaya tidak ada "unsaved" yang tak bisa disimpan.
+        
+        
+        
+        
         t.id === id && t.loaded !== false && !t.readOnly
           ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved }
           : t,
@@ -568,8 +567,8 @@ export const useStore = create<Store>((set, get) => ({
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab) return false;
     if (!tab.path) return get().saveTabAs(id);
-    // fase 14.5: tab yang isinya sudah dilepas TIDAK boleh disimpan —
-    // content-nya string kosong, menulisnya akan mengosongkan file di disk.
+    
+    
     if (tab.loaded === false) {
       await get().ensureTabLoaded(id);
       const again = get().tabs.find((t) => t.id === id);
@@ -579,8 +578,8 @@ export const useStore = create<Store>((set, get) => ({
       }
     }
     const cur = get().tabs.find((t) => t.id === id) as Tab;
-    // fase 15.1: tab UTF-16 tidak boleh ditulis balik sebagai UTF-16 (risiko
-    // merusak file). Tanyakan dulu apakah user mau menyimpannya jadi UTF-8.
+    
+    
     if (cur.encoding === 'utf16le' || cur.encoding === 'utf16be') {
       set({
         saveIssue: {
@@ -593,12 +592,12 @@ export const useStore = create<Store>((set, get) => ({
       return false;
     }
     try {
-      // fase 26: snapshot Local History diambil SEBELUM menulis — isi yang
-      // disimpan adalah versi LAMA di disk, itu yang berguna untuk kembali.
-      // Mengambilnya sesudah menulis hanya menyalin versi yang baru saja
-      // ditulis, jadi tidak ada yang bisa dipulihkan.
-      // Dipanggil lewat event supaya store.ts tidak perlu mengimpor
-      // historyStore (historyStore sudah mengimpor store.ts → lingkaran).
+      
+      
+      
+      
+      
+      
       window.dispatchEvent(
         new CustomEvent('zephyr-history-snapshot', {
           detail: { path: cur.path as string, reason: 'save' },
@@ -614,8 +613,8 @@ export const useStore = create<Store>((set, get) => ({
       return true;
     } catch (e) {
       const err = cmd.asZephyrError(e);
-      // fase 15.1: file lenyap dari luar (git checkout / hapus manual) →
-      // JANGAN diam-diam membuat ulang; tanya user dulu.
+      
+      
       if (err.code === 'NotFound' && cur.existed) {
         set({
           saveIssue: {
@@ -638,8 +637,8 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const target = await cmd.fileDialogSave(tab.path ?? tab.name);
       if (!target) return false;
-      // Save As selalu menulis UTF-8: encoding sumber (mis. UTF-16) tidak
-      // dibawa serta — itulah gunanya "simpan sebagai UTF-8" (fase 15.1).
+      
+      
       const enc = tab.encoding === 'utf16le' || tab.encoding === 'utf16be' ? 'utf8' : tab.encoding;
       await cmd.fsWrite(target, tab.content, enc, tab.lineEnding);
       set((s) => ({
@@ -679,13 +678,14 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   forceCloseTab: (id) => {
-    // fase 28: `zephyr --wait <file>` menahan proses di terminal sampai tab
-    // ini ditutup. Pelepasannya dipasang DI SINI, bukan di komponen tab: tab
-    // bisa ditutup dari palette, shortcut, klik ×, atau closeTabsUnder —
-    // menaruhnya di satu jalur UI berarti jalur lain menggantung shell user.
+    
+    
+    
+    
     const tabTutup = get().tabs.find((t) => t.id === id);
     if (tabTutup?.path) {
       void import('./cliStore').then((m) => m.useCli.getState().lepasWait(tabTutup.path as string));
+      set({ lastClosed: { path: tabTutup.path } });
     }
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id);
@@ -695,13 +695,13 @@ export const useStore = create<Store>((set, get) => ({
         const neighbour = tabs[Math.min(idx, tabs.length - 1)];
         activeTabId = neighbour ? neighbour.id : null;
       }
-      // fase 33: kosongkan slot group pemilik tab (kalau tab tsb yang tampil
-      // di group-nya, group itu tidak boleh menunjuk tab yang sudah hilang).
+      
+      
       const gid = s.tabs.find((t) => t.id === id)?.groupId;
       if (gid) useLayout.getState().setGroupTab(gid, null);
-      // Tab terakhir ditutup → kembali ke mode satu grup (default). Kalau
-      // tidak, mode split nyangkut saat semua tab kosong (harness lama
-      // mengharapkan satu tab bar).
+      
+      
+      
       if (tabs.length === 0) useLayout.getState().reset();
       return { tabs, activeTabId };
     });
@@ -719,11 +719,11 @@ export const useStore = create<Store>((set, get) => ({
       return { tabs };
     }),
 
-  // ── integrasi Explorer / Search (fase 04) ──
+  
 
   openPathAt: async (path, line, col = 1) => {
     await get().openPath(path);
-    // Tunggu satu frame supaya EditorView tab tersebut sudah terpasang.
+    
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     revealPosition(line, col);
   },
@@ -761,7 +761,7 @@ export const useStore = create<Store>((set, get) => ({
     for (const id of doomed) get().forceCloseTab(id);
   },
 
-  /** Pindah tab editor relatif, melingkar (Ctrl+Tab / Ctrl+Shift+Tab). */
+   
   cycleTab: (delta) => {
     const { tabs, activeTabId } = get();
     if (tabs.length < 2) return;
@@ -810,7 +810,7 @@ export const useStore = create<Store>((set, get) => ({
     if (choice === 'save') {
       const ok = await get().saveTab(current);
       if (!ok) {
-        set({ confirm: null }); // batal simpan -> batalkan penutupan
+        set({ confirm: null }); 
         return;
       }
     }
@@ -827,7 +827,7 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  /** true = boleh tutup sekarang; false = ada dialog yang harus dijawab. */
+   
   requestCloseWindow: () => {
     const dirty = get().tabs.filter((t) => t.unsaved);
     if (dirty.length === 0) return true;
@@ -837,9 +837,7 @@ export const useStore = create<Store>((set, get) => ({
 
   setSaveIssue: (i) => set({ saveIssue: i }),
 
-  /** fase 15.1: jawaban user atas dialog simpan.
-   *  - missing + ok  → tulis ulang file (buat baru di path yang sama)
-   *  - utf16   + ok  → tulis ulang sebagai UTF-8 di path yang sama */
+   
   resolveSaveIssue: async (choice) => {
     const issue = get().saveIssue;
     if (!issue) return;
@@ -884,7 +882,7 @@ export const useStore = create<Store>((set, get) => ({
         .map((t) => ({ path: t.path as string, encoding: t.encoding }));
       await cmd.sessionSave(tabs);
     } catch {
-      /* non-fatal */
+       
     }
   },
 
@@ -893,11 +891,11 @@ export const useStore = create<Store>((set, get) => ({
       await cmd.setSettings(patch);
       const s = await cmd.getSettings();
       set({ settings: s });
-      // Tema/zoom harus langsung terlihat tanpa restart (V2/V3 fase 08).
+      
       set({ activeTheme: applyTheme(s.general, s.theme) });
-      retheme(); // terminal hidup ikut tema (V3 fase 13)
-      terapkanA11y(s.accessibility); // fase 31: reduced-motion / screen-reader
-      reSrMode(); // fase 31: xterm hidup ikut mode screen reader
+      retheme(); 
+      terapkanA11y(s.accessibility); 
+      reSrMode(); 
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
@@ -908,16 +906,16 @@ export const useStore = create<Store>((set, get) => ({
       const s = await cmd.getSettings();
       set({ settings: s });
       set({ activeTheme: applyTheme(s.general, s.theme) });
-      retheme(); // terminal hidup ikut tema (V3 fase 13)
-      terapkanA11y(s.accessibility); // fase 31: reduced-motion / screen-reader
-      reSrMode(); // fase 31: xterm hidup ikut mode screen reader
+      retheme(); 
+      terapkanA11y(s.accessibility); 
+      reSrMode(); 
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
   },
 }));
 
-/** Selector kecil yang sering dipakai. */
+ 
 export const useActiveTab = (): Tab | null => {
   const id = useStore((s) => s.activeTabId);
   const tabs = useStore((s) => s.tabs);
