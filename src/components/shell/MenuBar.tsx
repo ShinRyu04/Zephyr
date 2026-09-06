@@ -276,7 +276,7 @@ export default function MenuBar() {
               fill="currentColor"
             />
           </svg>
-          <span className="mb-cc-label">Zephyr</span>
+          <span className="mb-cc-label">Cari file &amp; perintah…</span>
         </button>
       </div>
     </div>

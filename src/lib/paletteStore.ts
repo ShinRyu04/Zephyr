@@ -17,6 +17,16 @@ import { useStore } from './store';
 import { effectiveBinding } from './shortcuts';
 import type { QuickFile } from './types';
 
+/**
+ * Cache daftar command (mode command). Di-reset tiap palette dibuka —
+ * extension/snippet yang berubah antar bukaan ikut. Filter per ketikan
+ * hanya bekerja di memori, tanpa membangun ulang command ekstensi.
+ */
+let daftarCommandCache: CommandDef[] | null = null;
+function cacheCommands(): void {
+  daftarCommandCache = availableCommands();
+}
+
 export type PaletteMode = 'command' | 'file';
 
 /** Satu baris hasil di daftar. */
@@ -162,6 +172,14 @@ export const usePalette = create<PaletteStore>((set, get) => ({
 
   openPalette: async (mode) => {
     set({ open: true, mode, query: '', index: 0, filesError: null });
+    if (mode === 'command') {
+      // Hitung daftar command SEKALI saat palette dibuka, bukan tiap
+      // ketikan. availableCommands() membangun ulang command ekstensi +
+      // snippet (bisa 500+ objek) — menjalankannya per karakter query
+      // membuat palette terasa lambat. Hasilnya di-cache; item() hanya
+      // mem-filter di memori.
+      cacheCommands();
+    }
     if (mode !== 'file') return;
     // Mode file butuh daftar dari Rust. Workspace belum dibuka = katakan
     // apa adanya, jangan tampilkan daftar kosong tanpa alasan.
@@ -213,7 +231,8 @@ export const usePalette = create<PaletteStore>((set, get) => ({
 
     const custom = useStore.getState().settings.shortcuts;
     const list: PaletteItem[] = [];
-    for (const c of availableCommands()) {
+    const sumber = daftarCommandCache ?? availableCommands();
+    for (const c of sumber) {
       const hay = `${c.title} ${c.keywords ?? ''}`;
       // Judul: keempat lapisan (subsequence berguna — "gtd" → Go to Definition).
       // Keywords: subsequence DIMATIKAN. Tanpa itu query "git" memungut 22 dari

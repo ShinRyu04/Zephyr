@@ -141,7 +141,9 @@ const main = async () => {
   // ───────── fase 02: shell ─────────
   const sh = JSON.parse(
     await cdp.eval(`JSON.stringify({
-      activityButtons: document.querySelectorAll('.activitybar .ab-btn').length,
+      // Ikon NAVIGASI punya data-activity; tombol akun GitHub (ab-gh) di
+      // bawah tidak dihitung sebagai ikon activity.
+      activityButtons: document.querySelectorAll('.activitybar .ab-btn[data-activity]').length,
       statusbar: document.querySelector('.sb-brand')?.textContent ?? '',
       resizer: !!document.querySelector('.resizer'),
       // fase 05 mengganti placeholder .terminal-area dengan panel nyata
