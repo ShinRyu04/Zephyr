@@ -200,6 +200,31 @@ export interface PtyInfo {
   alive: boolean;
 }
 
+/** Host SSH tersimpan (fase 07) — password TIDAK pernah dikirim. */
+export interface SshHost {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  user: string;
+  auth: 'key' | 'password';
+  keyPath: string;
+  savePassword: boolean;
+  hasPassword: boolean;
+}
+
+/** Config yang dikirim frontend ke ssh_add/ssh_update. */
+export interface SshConfigInput {
+  id?: string;
+  name: string;
+  host: string;
+  port: number;
+  user: string;
+  auth: 'key' | 'password';
+  keyPath?: string;
+  savePassword?: boolean;
+}
+
 export type PaneStatus = 'live' | 'exited' | 'connecting' | 'error';
 
 /** Satu pane dalam TerminalTab (ARCHITECTURE.md §5). */

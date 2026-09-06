@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
 import { openPath, openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
-import { getDiagnostics, debugPanic } from '../../lib/commands';
-import type { Diagnostics } from '../../lib/types';
+import * as cmd from '../../lib/commands';
+import type { Diagnostics, SshConfigInput, SshHost } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
 import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 import UpdatePanel from './UpdatePanel';
@@ -69,61 +69,291 @@ export function ScmSection() {
 
 export function SshSection() {
   const t = useT();
-  const recent = useStore((s) => s.settings.ssh.recentHosts ?? []);
-  const apply = useStore((s) => s.applySettings);
-  const [draft, setDraft] = useState('');
+  const setStatus = useStore((s) => s.setStatus);
+  const [hosts, setHosts] = useState<SshHost[]>([]);
+  const [muat, setMuat] = useState(false);
+  const [form, setForm] = useState<SshConfigInput | null>(null); // null = form tertutup
+  const [err, setErr] = useState<string | null>(null);
+  const [sibuk, setSibuk] = useState(false);
 
-  const tambah = () => {
-    const v = draft.trim();
-    if (!v) return;
-    void apply({ ssh: { recentHosts: [...new Set([...recent, v])].slice(-10) } });
-    setDraft('');
+  const tarik = async () => {
+    try {
+      setHosts(await cmd.sshList());
+    } catch (e) {
+      setErr(cmd.asZephyrError(e).message);
+    }
   };
+
+  useEffect(() => {
+    void (async () => {
+      setMuat(true);
+      await tarik();
+      setMuat(false);
+    })();
+  }, []);
+
+  const simpan = async () => {
+    if (!form) return;
+    setSibuk(true);
+    setErr(null);
+    try {
+      if (form.id) await cmd.sshUpdate(form);
+      else await cmd.sshAdd(form);
+      setForm(null);
+      await tarik();
+      setStatus(form.id ? 'Host SSH diperbarui' : 'Host SSH ditambahkan');
+    } catch (e) {
+      setErr(cmd.asZephyrError(e).message);
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  const hapus = async (h: SshHost) => {
+    if (!window.confirm(`Hapus host SSH "${h.name}"?`)) return;
+    try {
+      await cmd.sshDelete(h.id);
+      await tarik();
+      setStatus(`Host SSH ${h.name} dihapus`);
+    } catch (e) {
+      setErr(cmd.asZephyrError(e).message);
+    }
+  };
+
+  const connect = async (h: SshHost) => {
+    setSibuk(true);
+    setErr(null);
+    try {
+      const paneId = await cmd.sshConnect(h.id);
+      // Buka panel terminal & tampilkan pane ssh.
+      const st = useStore.getState();
+      st.setActivity('terminal');
+      if (!st.sidebarVisible) st.toggleSidebar();
+      // Pane dikelola store terminal lewat event pty (id = paneId).
+      setStatus(`SSH: ${h.user}@${h.host} — pane ${paneId.slice(0, 12)}`);
+      setForm(null);
+      // Beri tahu store terminal supaya pane diregistrasi.
+      const ts = (await import('../../lib/terminalStore')).useTerminal.getState();
+      await ts.daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
+    } catch (e) {
+      setErr(cmd.asZephyrError(e).message);
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  const kosong: SshConfigInput = {
+    name: '',
+    host: '',
+    port: 22,
+    user: '',
+    auth: 'key',
+    keyPath: '',
+    savePassword: false,
+  };
+
+  const valid =
+    !!form &&
+    form.name.trim() !== '' &&
+    form.host.trim() !== '' &&
+    form.user.trim() !== '' &&
+    form.port >= 1 &&
+    form.port <= 65535 &&
+    (form.auth !== 'key' || (form.keyPath ?? '').trim() !== '');
 
   return (
     <Section title={t('settings.ssh')}>
       <p className="set-note" data-testid="ssh-note">
-        Manajemen koneksi SSH (daftar host, connect ke pane terminal, reconnect)
-        adalah fase 07 dan ditunda sampai ada host untuk diuji. Kontrak
-        commandnya sudah dicatat di ARCHITECTURE.md, jadi saat dikerjakan nanti
-        tidak ada nama yang berubah.
-      </p>
-      <p className="set-note">
-        Yang sudah siap dari sisi terminal: jenis pane <code>ssh</code> ada di
-        store dan grid pane, jadi fase 07 hanya perlu menambah backend + panel
-        host.
+        Kelola host SSH lalu buka koneksinya sebagai pane terminal. Auth key pakai
+        keyPath (passphrase diketik langsung di pane); auth password diketik di pane
+        saat connect — Zephyr tidak menyimpan password kecuali kamu memilih simpan
+        (terenkripsi).
       </p>
 
-      <Row label="Catatan host" hint="hanya daftar teks; belum bisa connect">
-        <span className="mcp-tokenrow">
-          <TextInput
-            label="Host SSH"
-            testid="ssh-draft"
-            mono
-            placeholder="user@host:22"
-            value={draft}
-            onChange={setDraft}
-          />
-          <button className="btn btn-sm" data-testid="ssh-add" onClick={tambah} disabled={!draft.trim()}>
-            Tambah
+      {err && (
+        <p className="xv-err" role="alert" data-testid="ssh-err">
+          {err}
+        </p>
+      )}
+
+      {!form ? (
+        <div className="ssh-toolbar">
+          <button
+            className="btn btn-sm btn-primary"
+            data-testid="ssh-form-open"
+            onClick={() => {
+              setErr(null);
+              setForm({ ...kosong });
+            }}
+          >
+            + Tambah host
           </button>
-        </span>
-      </Row>
+          <button className="btn btn-sm" data-testid="ssh-refresh" onClick={() => void tarik()}>
+            Muat ulang
+          </button>
+        </div>
+      ) : (
+        <div className="ssh-form" data-testid="ssh-form">
+          <Row label="Nama">
+            <TextInput
+              label="Nama"
+              testid="ssh-f-name"
+              value={form.name}
+              placeholder="mis. server produksi"
+              onChange={(v) => setForm({ ...form, name: v })}
+            />
+          </Row>
+          <Row label="Host">
+            <TextInput
+              label="Host"
+              testid="ssh-f-host"
+              mono
+              value={form.host}
+              placeholder="192.168.1.10 atau host.example.com"
+              onChange={(v) => setForm({ ...form, host: v })}
+            />
+          </Row>
+          <Row label="Port">
+            <TextInput
+              label="Port"
+              testid="ssh-f-port"
+              mono
+              value={String(form.port)}
+              onChange={(v) => setForm({ ...form, port: Number(v) || 0 })}
+            />
+          </Row>
+          <Row label="User">
+            <TextInput
+              label="User"
+              testid="ssh-f-user"
+              mono
+              value={form.user}
+              placeholder="root"
+              onChange={(v) => setForm({ ...form, user: v })}
+            />
+          </Row>
+          <Row label="Auth">
+            <span className="ssh-auth">
+              <label className="set-row-inline">
+                <input
+                  type="radio"
+                  data-testid="ssh-f-auth-key"
+                  checked={form.auth === 'key'}
+                  onChange={() => setForm({ ...form, auth: 'key' })}
+                />
+                Kunci (key)
+              </label>
+              <label className="set-row-inline">
+                <input
+                  type="radio"
+                  data-testid="ssh-f-auth-password"
+                  checked={form.auth === 'password'}
+                  onChange={() => setForm({ ...form, auth: 'password' })}
+                />
+                Password
+              </label>
+            </span>
+          </Row>
+          {form.auth === 'key' && (
+            <Row label="Path kunci" hint="passphrase diketik saat connect">
+              <TextInput
+                label="KeyPath"
+                testid="ssh-f-keypath"
+                mono
+                value={form.keyPath ?? ''}
+                placeholder="C:/Users/…/.ssh/id_ed25519"
+                onChange={(v) => setForm({ ...form, keyPath: v })}
+              />
+            </Row>
+          )}
+          <Row label="Simpan password" hint="dienkripsi (XOR+BLAKE3) di ssh.json">
+            <Toggle
+              label="Simpan password"
+              testid="ssh-f-savepw"
+              checked={form.savePassword ?? false}
+              onChange={(v) => setForm({ ...form, savePassword: v })}
+            />
+          </Row>
 
-      {recent.length > 0 && (
+          <div className="ssh-form-actions">
+            <button
+              className="btn btn-sm btn-primary"
+              data-testid="ssh-f-save"
+              disabled={!valid || sibuk}
+              onClick={() => void simpan()}
+            >
+              {form.id ? 'Simpan perubahan' : 'Tambah host'}
+            </button>
+            <button
+              className="btn btn-sm"
+              data-testid="ssh-f-cancel"
+              onClick={() => {
+                setForm(null);
+                setErr(null);
+              }}
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {muat && hosts.length === 0 && <p className="set-note">Memuat…</p>}
+      {!muat && hosts.length === 0 && !form && (
+        <p className="set-note" data-testid="ssh-kosong">
+          Belum ada host. Klik "+ Tambah host" untuk mulai.
+        </p>
+      )}
+
+      {hosts.length > 0 && (
         <ul className="ssh-list" data-testid="ssh-list">
-          {recent.map((h) => (
-            <li key={h} className="ssh-item">
-              <code>{h}</code>
-              <button
-                className="tp-op"
-                data-testid={`ssh-del-${h}`}
-                onClick={() =>
-                  void apply({ ssh: { recentHosts: recent.filter((x) => x !== h) } })
-                }
-              >
-                hapus
-              </button>
+          {hosts.map((h) => (
+            <li key={h.id} className="ssh-item" data-ssh-host={h.id}>
+              <span className="ssh-item-info">
+                <span className="ssh-item-name" data-testid={`ssh-name-${h.id}`}>
+                  {h.name}
+                </span>
+                <span className="ssh-item-meta">
+                  {h.user}@{h.host}:{h.port} · {h.auth}
+                  {h.hasPassword ? ' · pw tersimpan' : ''}
+                </span>
+              </span>
+              <span className="ssh-item-actions">
+                <button
+                  className="btn btn-xs"
+                  data-testid={`ssh-connect-${h.id}`}
+                  disabled={sibuk}
+                  onClick={() => void connect(h)}
+                >
+                  Connect
+                </button>
+                <button
+                  className="btn btn-xs"
+                  data-testid={`ssh-edit-${h.id}`}
+                  onClick={() => {
+                    setErr(null);
+                    setForm({
+                      id: h.id,
+                      name: h.name,
+                      host: h.host,
+                      port: h.port,
+                      user: h.user,
+                      auth: h.auth,
+                      keyPath: h.keyPath,
+                      savePassword: h.savePassword,
+                    });
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="btn btn-xs"
+                  data-testid={`ssh-del-${h.id}`}
+                  onClick={() => void hapus(h)}
+                >
+                  Hapus
+                </button>
+              </span>
             </li>
           ))}
         </ul>
@@ -223,7 +453,7 @@ function DiagnosticsPanel() {
   const [auto, setAuto] = useState(false);
 
   const load = () => {
-    getDiagnostics()
+    cmd.getDiagnostics()
       .then((x) => {
         setD(x);
         setErr(null);
@@ -349,7 +579,7 @@ function DiagnosticsPanel() {
             className="btn btn-sm"
             data-testid="diag-panic"
             title="Hanya build debug: memicu panic di Rust untuk menguji panic hook + dialog crash"
-            onClick={() => void debugPanic().catch(() => {})}
+            onClick={() => void cmd.debugPanic().catch(() => {})}
           >
             Uji panic (debug)
           </button>
