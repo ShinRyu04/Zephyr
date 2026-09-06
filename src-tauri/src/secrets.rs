@@ -75,6 +75,19 @@ fn decrypt(enc: &str) -> Option<String> {
     String::from_utf8(xor_crypt(&raw)).ok()
 }
 
+/// Enkripsi XOR+BLAKE3 untuk data non-kunci (dipakai ssh.rs — password host
+/// SSH disimpan terenkripsi di ssh.json, bukan plaintext; kontrak fase 07).
+pub fn encrypt_string(plain: &str) -> String {
+    encrypt(plain)
+}
+
+/// Kebalikan `encrypt_string`; None bila tidak bisa didekripsi.
+/// (Dipakai nanti oleh koneksi non-interaktif berbasis libssh.)
+#[allow(dead_code)]
+pub fn decrypt_string(enc: &str) -> Option<String> {
+    decrypt(enc)
+}
+
 fn secrets_path(state: &AppState) -> PathBuf {
     state.file("secrets.json")
 }

@@ -44,6 +44,8 @@ import type {
   HistoryInfo,
   SearchOpts,
   SearchSummary,
+  SshConfigInput,
+  SshHost,
   ReplaceHasil,
   DebugConfig,
   LaunchFile,
@@ -197,6 +199,22 @@ export const ptyList = () => invoke<PtyInfo[]>('pty_list');
 export const ptySetPaused = (paused: boolean) => invoke<void>('pty_set_paused', { paused });
 /** Ctrl+C sungguhan (CTRL_C_EVENT), bukan sekadar byte 0x03. */
 export const ptyInterrupt = (id: string) => invoke<number>('pty_interrupt', { id });
+
+// ── SSH (fase 07) ──
+
+export const sshList = () => invoke<SshHost[]>('ssh_list');
+export const sshAdd = (config: SshConfigInput) => invoke<void>('ssh_add', { config });
+export const sshUpdate = (config: SshConfigInput) => invoke<void>('ssh_update', { config });
+export const sshDelete = (id: string) => invoke<void>('ssh_delete', { id });
+export const sshSavePassword = (id: string, password: string) =>
+  invoke<SshHost>('ssh_save_password', { id, password });
+export const sshClearPassword = (id: string) =>
+  invoke<SshHost>('ssh_clear_password', { id });
+/** Connect → kembalikan paneId sesi ssh di panel terminal. */
+export const sshConnect = (configId: string, cols?: number, rows?: number) =>
+  invoke<string>('ssh_connect', { configId, cols, rows });
+export const sshDisconnect = (paneId: string) =>
+  invoke<void>('ssh_disconnect', { paneId });
 
 // ── settings lanjutan (fase 08) ──
 
