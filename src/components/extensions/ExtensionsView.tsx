@@ -52,15 +52,15 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
 
       <div className="xc-body">
         <span className="xc-nama">
-          {item.name}
+          <span className="xc-nama-txt">{item.name}</span>
           {item.bundled && <span className="xc-tag">offline</span>}
           {rusak && <span className="xc-tag is-err">rusak</span>}
+          <span className="xc-meta">
+            {item.publisher} · v{sudah?.manifest?.version || item.version} ·{' '}
+            {item.categories.join(', ')}
+          </span>
         </span>
         <span className="xc-desc">{item.description}</span>
-        <span className="xc-meta">
-          {item.publisher} · v{sudah?.manifest?.version || item.version} ·{' '}
-          {item.categories.join(', ')}
-        </span>
         {rusak && (
           <span className="xc-err" data-testid={`xc-err-${item.id}`}>
             {sudah?.error}
@@ -73,15 +73,21 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
           <button
             className="btn btn-sm btn-primary"
             data-testid={`xc-install-${item.id}`}
-            disabled={sibuk || !item.bundled}
-            title={item.bundled ? 'Pasang dari katalog bundled' : 'Belum tersedia offline'}
+            disabled={sibuk || (!item.bundled && !item.url)}
+            title={
+              item.bundled
+                ? 'Pasang dari katalog bundled'
+                : item.url
+                  ? `Unduh & pasang v${item.version}`
+                  : 'Belum tersedia offline'
+            }
             onClick={async () => {
               setSibuk(true);
               await installKatalog(item);
               setSibuk(false);
             }}
           >
-            {sibuk ? '…' : 'Install'}
+            {sibuk ? '…' : item.bundled ? 'Install' : 'Install'}
           </button>
         ) : (
           <button
@@ -275,6 +281,8 @@ export default function ExtensionsView() {
   const refresh = useExt19((s) => s.refresh);
   const installDariDialog = useExt19((s) => s.installDariDialog);
   const reloadWindow = useExt19((s) => s.reloadWindow);
+  const [menuAksi, setMenuAksi] = useState(false);
+  const btnAksi = useRef<HTMLButtonElement | null>(null);
 
   // Bahasa di workspace → dasar tab RECOMMENDED (19.1).
   const workspace = useStore((s) => s.workspace);
@@ -298,6 +306,15 @@ export default function ExtensionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Marketplace: muat registry remote setiap kali tabnya dibuka (dan saat
+  // pencarian berubah) supaya daftar tidak basi.
+  useEffect(() => {
+    if (tab === 'marketplace') {
+      void useExt19.getState().muatRemote();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, q, remoteUrl]);
+
   // `hasil()` FUNGSI, bukan selector — selector yang mengembalikan array baru
   // memicu "Maximum update depth exceeded" di zustand v5 (pelajaran fase 09).
   const daftar = useExt19.getState().hasil();
@@ -317,6 +334,56 @@ export default function ExtensionsView() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        <div className="xv-actions-menu">
+          <button
+            ref={btnAksi}
+            className="xv-actions-btn"
+            data-testid="ext-actions-btn"
+            title="Tindakan ekstensi"
+            aria-haspopup="menu"
+            aria-expanded={menuAksi}
+            onClick={() => setMenuAksi(!menuAksi)}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <circle cx="8" cy="3" r="1.4" fill="currentColor" />
+              <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+              <circle cx="8" cy="13" r="1.4" fill="currentColor" />
+            </svg>
+          </button>
+          {menuAksi && (
+            <Popover
+              anchor={btnAksi.current}
+              arah="down"
+              sisi="right"
+              className="xv-actions-pop"
+              testid="ext-actions-menu"
+              onClose={() => setMenuAksi(false)}
+            >
+              <button
+                data-testid="ext-install-folder"
+                onClick={() => {
+                  setMenuAksi(false);
+                  void installDariDialog(true);
+                }}
+              >
+                Install from Folder…
+              </button>
+              <button
+                data-testid="ext-install-zext"
+                onClick={() => {
+                  setMenuAksi(false);
+                  void installDariDialog(false);
+                }}
+              >
+                Install from .vsix…
+              </button>
+              <div className="xc-menu-sep" />
+              <button data-testid="ext-reload-list" onClick={() => void refresh()}>
+                Muat ulang
+              </button>
+            </Popover>
+          )}
+        </div>
       </div>
 
       <div className="xv-tabs" role="tablist" aria-label="Kelompok ekstensi">
@@ -334,27 +401,7 @@ export default function ExtensionsView() {
         ))}
       </div>
 
-      <div className="xv-actions">
-        <button
-          className="btn btn-sm"
-          data-testid="ext-install-folder"
-          onClick={() => void installDariDialog(true)}
-        >
-          Install from Folder…
-        </button>
-        <button
-          className="btn btn-sm"
-          data-testid="ext-install-zext"
-          onClick={() => void installDariDialog(false)}
-        >
-          Install from .zext…
-        </button>
-        <button className="btn btn-sm" data-testid="ext-reload-list" onClick={() => void refresh()}>
-          Muat ulang
-        </button>
-      </div>
-
-      {perluReload && (
+    {perluReload && (
         <div className="xv-reload" data-testid="ext-reload-bar" role="status">
           <span>Perubahan tema/keymap/bahasa berlaku setelah reload.</span>
           <button className="btn btn-sm btn-primary" data-testid="ext-reload" onClick={reloadWindow}>

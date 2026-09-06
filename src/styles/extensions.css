@@ -1,4 +1,5 @@
 /* extensions.css — panel Extensions di sidebar kiri (fase 19).
+   Gaya baris: LIST RINGKAS ala VS Code (fase 32) — bukan kartu besar.
    Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded. */
 
 .xv {
@@ -10,12 +11,16 @@
 }
 
 .xv-head {
-  padding: 8px 8px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 4px;
   flex: 0 0 auto;
 }
 
 .xv-search {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   height: 26px;
   padding: 0 8px;
   font-size: 12px;
@@ -29,19 +34,62 @@
   border-color: var(--accent);
 }
 
+/* Menu aksi (…): Install from Folder / .vsix / Reload — dipindah ke sini
+   supaya tidak makan satu baris penuh (sebelumnya 3 tombol berjajar). */
+.xv-actions-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+.xv-actions-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: 4px;
+}
+.xv-actions-btn:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+.xv-actions-pop {
+  min-width: 190px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}
+.xv-actions-pop button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  text-align: left;
+}
+.xv-actions-pop button:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
 .xv-tabs {
   display: flex;
   gap: 2px;
-  padding: 0 8px;
+  padding: 0 8px 6px;
   flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
 }
 .xv-tab {
   flex: 1;
-  height: 24px;
+  height: 22px;
   font-size: 11px;
   color: var(--text-secondary);
-  border-radius: 4px 4px 0 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 3px;
 }
 .xv-tab:hover {
   color: var(--text);
@@ -49,25 +97,15 @@
 }
 .xv-tab.is-active {
   color: var(--text);
-  border-bottom-color: var(--accent);
   background: var(--surface-2);
-}
-
-.xv-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 8px;
-  flex: 0 0 auto;
-  border-bottom: 1px solid var(--border);
 }
 
 .xv-reload {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px;
-  padding: 6px 8px;
+  margin: 6px 8px 0;
+  padding: 5px 8px;
   font-size: 11.5px;
   color: var(--text);
   background: var(--surface-3);
@@ -82,8 +120,8 @@
 .xv-err,
 .xv-info,
 .xv-note {
-  margin: 8px;
-  padding: 6px 8px;
+  margin: 6px 8px 0;
+  padding: 5px 8px;
   font-size: 11.5px;
   line-height: 1.45;
   border-radius: 4px;
@@ -105,90 +143,106 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 6px 8px 12px;
+  padding: 2px 0 12px;
   scrollbar-width: thin;
 }
 
-/* ── kartu ekstensi ── */
+/* ── baris ekstensi (list ringkas ala VS Code) ── */
 
 .xc {
   display: flex;
-  gap: 8px;
-  padding: 8px;
-  margin-bottom: 6px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-2);
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 0;
 }
 .xc:hover {
-  border-color: var(--accent);
+  background: var(--surface-2);
 }
 .xc.is-broken {
-  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 
 .xc-logo {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text);
   background: var(--surface-3);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .xc-body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   flex: 1 1 auto;
   min-width: 0;
 }
 .xc-nama {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12.5px;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.xc-nama-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xc-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
 }
 .xc-tag {
-  padding: 0 5px;
-  font-size: 9px;
+  padding: 0 4px;
+  font-size: 8.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
   background: var(--surface-3);
   border-radius: 3px;
+  flex: 0 0 auto;
 }
 .xc-tag.is-err {
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 15%, transparent);
 }
 .xc-desc {
-  font-size: 11.5px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.3;
   color: var(--text-secondary);
-}
-.xc-meta {
-  font-size: 10.5px;
-  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .xc-err {
   font-size: 10.5px;
   line-height: 1.4;
   color: var(--danger);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .xc-aksi {
   display: flex;
-  align-items: flex-start;
-  gap: 3px;
+  align-items: center;
+  gap: 2px;
   flex: 0 0 auto;
 }
 

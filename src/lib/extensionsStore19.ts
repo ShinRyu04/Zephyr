@@ -94,6 +94,55 @@ const cocok = (it: KatalogItem, q: string) => {
   );
 };
 
+/**
+ * Tebak kategori dari nama/displayName ekstensi (Open VSX tidak mengirim
+ * `categories` yang konsisten — banyak item kosong). Dipakai biar kartu
+ * marketplace tidak semua bertuliskan "Other".
+ */
+const KATA_KATEGORI: Array<[string, string]> = [
+  ['python', 'Programming Languages'],
+  ['java', 'Programming Languages'],
+  ['golang', 'Programming Languages'],
+  ['go ', 'Programming Languages'],
+  ['rust', 'Programming Languages'],
+  ['ruby', 'Programming Languages'],
+  ['php', 'Programming Languages'],
+  ['c/c++', 'Programming Languages'],
+  ['c++', 'Programming Languages'],
+  ['c#', 'Programming Languages'],
+  ['dart', 'Programming Languages'],
+  ['flutter', 'Frameworks'],
+  ['typescript', 'Programming Languages'],
+  ['javascript', 'Programming Languages'],
+  ['lua', 'Programming Languages'],
+  ['r ', 'Programming Languages'],
+  ['theme', 'Themes'],
+  ['snippet', 'Snippets'],
+  ['linter', 'Linters'],
+  ['debugger', 'Debuggers'],
+  ['language pack', 'Language Packs'],
+  ['ai', 'AI'],
+  ['copilot', 'AI'],
+];
+function inferKategori(nama: string): string[] {
+  const n = nama.toLowerCase();
+  for (const [kata, kat] of KATA_KATEGORI) {
+    if (n.includes(kata)) return [kat];
+  }
+  return ['Other'];
+}
+
+/**
+ * Ambil huruf awal nama utk kotak logo. Open VSX mengirim `logo` sebagai
+ * OBJEK { url, size } (bukan string), jadi ambil inisial dari displayName —
+ * daftar tidak men-download gambar (hemat bandwidth & tetap cepat).
+ */
+function logoDari(o: Record<string, unknown>): string {
+  const nama = String(o.displayName ?? o.name ?? '?').trim();
+  if (!nama || nama === '?') return '?';
+  return nama.slice(0, 2).toUpperCase();
+}
+
 export const useExt19 = create<Ext19Store>((set, get) => ({
   manifests: [],
   loading: false,
@@ -105,7 +154,12 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   info: null,
   perluReload: false,
   ringkasan: ringkasanLoader(),
-  remoteUrl: '',
+  // Registry publik Open VSX (VSCodium/Code-OSS pakai ini juga) — gratis,
+  // tanpa token, dan menyediakan file .vsix + metadata untuk diunduh.
+  // Sumber kebenaran: ini bukan bagian dari settings (tidak ada di 19.3),
+  // jadi cukup default di store. ExtensionCard men-download .vsix lalu
+  // menyerahkan ke `extensions_install` yang sudah handle zip.
+  remoteUrl: 'https://open-vsx.org/api',
   remote: null,
   remoteErr: null,
 
@@ -146,12 +200,17 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   },
 
   installKatalog: async (item) => {
-    // Katalog bundled = folder contoh yang DITULIS Zephyr sendiri ke
-    // extensions/. Tidak ada unduhan jaringan di jalur ini (19.3: bundled
-    // harus bisa dipasang offline).
+    // Dua sumber: paket bundled (ditulis Zephyr sendiri, offline) ATAU
+    // unduhan .vsix dari registry remote (Open VSX). Untuk remote:
+    // 1. unduh file ke temp, 2. serahkan ke `extensions_install` yang sudah
+    //    handle .zip/.vsix lewat unzip_zext (zip-slip aman, fase 19).
     try {
-      const path = await cmd.extensionsWriteBundled(item.id);
-      return await get().install(path);
+      if (item.bundled || !item.url) {
+        const path = await cmd.extensionsWriteBundled(item.id);
+        return await get().install(path);
+      }
+      const vsixPath = await cmd.extensionsDownloadVsix(item.url, item.id);
+      return await get().install(vsixPath);
     } catch (e) {
       set({ err: cmd.asZephyrError(e).message });
       return false;
@@ -226,25 +285,39 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
       return;
     }
     try {
-      const r = await fetch(url, { headers: { accept: 'application/json' } });
+      // Query pencarian default. Open VSX `/api/-/search?query=…` dipakai
+      // karena bisa difilter kategori (bahasa).
+      const q = get().q.trim();
+      const base = url.replace(/\/+$/, '');
+      const searchUrl = q
+        ? `${base}/-/search?query=${encodeURIComponent(q)}&size=100&sortBy=relevance`
+        : `${base}/-/search?query=language&size=100&sortBy=downloadCount`;
+      const r = await fetch(searchUrl, { headers: { accept: 'application/json' } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = (await r.json()) as unknown;
       const arr = Array.isArray(data) ? data : (data as { extensions?: unknown }).extensions;
       if (!Array.isArray(arr)) throw new Error('bentuk registry tidak dikenal');
+      const kategoriDari = (o: Record<string, unknown>) => {
+        const cats = Array.isArray(o.categories) ? (o.categories as string[]) : [];
+        // Open VSX menaruh kategori bahasa di `keywords`/nama; fallback dari
+        // displayName agar kartu tidak semua "Other".
+        return cats.length > 0 ? cats : inferKategori(String(o.name ?? '') + ' ' + String(o.displayName ?? ''));
+      };
       set({
-        remote: arr.slice(0, 200).map((x) => {
+        remote: arr.slice(0, 100).map((x) => {
           const o = x as Record<string, unknown>;
+          const files = (o.files ?? {}) as Record<string, unknown>;
           return {
-            id: String(o.id ?? ''),
-            name: String(o.name ?? o.id ?? ''),
-            publisher: String(o.publisher ?? '-'),
+            id: String(o.namespace && o.name ? `${o.namespace}.${o.name}` : o.id ?? ''),
+            name: String(o.displayName ?? o.name ?? ''),
+            publisher: String(o.namespace ?? '-'),
             version: String(o.version ?? '-'),
             description: String(o.description ?? ''),
-            categories: Array.isArray(o.categories) ? (o.categories as string[]) : ['Other'],
-            logo: String(o.logo ?? '?').slice(0, 3),
-            /** remote tidak punya paket lokal */
+            categories: kategoriDari(o),
+            logo: logoDari(o),
             bundled: false,
-            url: String(o.url ?? ''),
+            // Untuk install: URL unduhan .vsix (dipakai ExtensionCard).
+            url: String(files.download ?? o.url ?? ''),
           } satisfies KatalogItem;
         }),
         remoteErr: null,
