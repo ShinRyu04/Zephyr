@@ -22,6 +22,7 @@ use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 use tauri::State;
 
 /// Batas ukuran arsip `.zext` yang mau di-unzip (16 MB).
@@ -594,7 +595,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
                 .extension()
                 .map(|x| x.to_string_lossy().to_lowercase())
                 .unwrap_or_default();
-            if ext == "zext" || ext == "zip" {
+            if ext == "zext" || ext == "zip" || ext == "vsix" {
                 unzip_zext(&asal, &staging)?;
             } else if asal
                 .file_name()
@@ -609,7 +610,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
                 copy_dir(induk, &staging, &mut n)?;
             } else {
                 return Err(ZephyrError::InvalidInput(
-                    "pilih folder ekstensi, file .zext, atau manifest-nya".into(),
+                    "pilih folder ekstensi, file .zext/.vsix, atau manifest-nya".into(),
                 ));
             }
         } else {
@@ -832,4 +833,74 @@ pub struct ExtManifestStatus {
     pub tercatat: bool,
     pub path: String,
     pub error: Option<String>,
+}
+
+// ───────────────────── unduh .vsix dari registry ─────────────────────
+
+/// Batas ukuran unduhan .vsix (arsip ekstensi). VSIX bahasa besar (mis.
+/// Flutter ~80MB) TIDAK cocok untuk model manifest-only; batas ini menjaga
+/// folder temp tidak penuh oleh unduhan raksasa.
+const MAX_VSIX_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Unduh file `.vsix` dari URL registry (Open VSX) ke folder temp Zephyr,
+/// lalu kembalikan path-nya untuk `extensions_install`.
+///
+/// KEAMANAN (SSRF): URL wajib https + host yang diizinkan. Tanpa ini
+/// manifest ekstensi bisa memancing app mengunduh dari `http://localhost`
+/// atau `file://` internal — membuka pintu ke jaringan internal user.
+#[tauri::command(async)]
+pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
+    const IZIN: &[&str] = &["open-vsx.org", "www.open-vsx.org"];
+    let host = url.split('/').nth(2).unwrap_or("").to_lowercase();
+    if !url.starts_with("https://") || !IZIN.contains(&host.as_str()) {
+        return Err(ZephyrError::Permission(
+            "unduhan ekstensi hanya dari registry tepercaya (open-vsx.org)".into(),
+        ));
+    }
+
+    // id tidak boleh mengandung separator — dipakai nama file.
+    if id.contains('/') || id.contains('\\') || id.contains("..") {
+        return Err(ZephyrError::InvalidInput(format!("id tidak valid: {id}")));
+    }
+
+    let dir_tmp = std::env::temp_dir().join("zephyr-ext");
+    std::fs::create_dir_all(&dir_tmp)?;
+    let tujuan = dir_tmp.join(format!("{id}.vsix"));
+
+    let r = ureq::get(&url)
+        .config()
+        .timeout_global(Some(Duration::from_secs(120)))
+        .http_status_as_error(false)
+        .build()
+        .header("Accept", "application/octet-stream")
+        .header("User-Agent", "Zephyr-Editor/1.0")
+        .call()
+        .map_err(|e| ZephyrError::Git(format!("gagal mengunduh .vsix: {e}")))?;
+
+    if r.status().as_u16() != 200 {
+        return Err(ZephyrError::Git(format!(
+            "registry menjawab {} saat mengunduh .vsix",
+            r.status().as_u16()
+        )));
+    }
+
+    // Baca binary dgn batas eksplisit 64MB (default ureq hanya 10MB — VSIX
+    // bahasa besar sering 20-40MB, kena "larger than request limit").
+    let bytes = r
+        .into_body()
+        .with_config()
+        .limit(MAX_VSIX_BYTES)
+        .read_to_vec()
+        .map_err(|e| ZephyrError::Git(format!("gagal membaca unduhan: {e}")))?;
+    if bytes.len() as u64 > MAX_VSIX_BYTES {
+        return Err(ZephyrError::InvalidInput(
+            ".vsix melebihi batas 64MB".into(),
+        ));
+    }
+    if bytes.is_empty() {
+        return Err(ZephyrError::InvalidInput(".vsix kosong".into()));
+    }
+    std::fs::write(&tujuan, &bytes)?;
+
+    Ok(tujuan.to_string_lossy().to_string())
 }

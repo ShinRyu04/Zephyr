@@ -9,8 +9,6 @@
 //     node_modules. Ini yang membuat installer tetap 7 MB.
 //   * `cmd` selalu berisi executable + argumen; Rust yang me-resolve-nya.
 
-import type { LangId } from './types';
-
 export interface LspServerDef {
   /** id server (kunci settings + folder %APPDATA%\zephyr\lsp\<id>) */
   id: string;
@@ -18,8 +16,8 @@ export interface LspServerDef {
   label: string;
   /** languageId LSP yang dikirim di didOpen */
   languageId: string;
-  /** LangId internal Zephyr yang ditangani server ini */
-  langs: LangId[];
+  /** LangId internal Zephyr yang ditangani server ini (untuk display). */
+  langs: string[];
   /** ekstensi file (dengan titik) */
   extensions: string[];
   /** perintah default; elemen 0 = executable */
@@ -121,6 +119,106 @@ export const LSP_SERVERS: LspServerDef[] = [
     extensions: ['.css', '.scss', '.less'],
     cmd: ['vscode-css-languageserver', '--stdio'],
     install: 'npm i -g vscode-langservers-extracted',
+  },
+  {
+    id: 'dart',
+    label: 'Dart',
+    languageId: 'dart',
+    langs: ['dart'],
+    extensions: ['.dart'],
+    // Dart SDK menyertakan analysis server. Flutter menaruhnya di PATH.
+    cmd: ['dart', 'language-server', '--protocol=lsp'],
+    install: 'Pasang Dart SDK (atau Flutter) — dart harus ada di PATH',
+  },
+  {
+    id: 'php',
+    label: 'PHP (Intelephense)',
+    languageId: 'php',
+    langs: ['php'],
+    extensions: ['.php'],
+    cmd: ['intelephense', '--stdio'],
+    install: 'npm i -g intelephense',
+  },
+  {
+    id: 'java',
+    label: 'Java (jdtls)',
+    languageId: 'java',
+    langs: ['java'],
+    extensions: ['.java'],
+    cmd: ['jdtls'],
+    install: 'Pasang Eclipse JDT LS (jdtls) dan taruh di PATH',
+  },
+  {
+    id: 'csharp',
+    label: 'C# (OmniSharp)',
+    languageId: 'csharp',
+    langs: ['csharp'],
+    extensions: ['.cs'],
+    cmd: ['omnisharp'],
+    install: 'Pasang OmniSharp (omnisharp-roslyn) dan taruh di PATH',
+  },
+  {
+    id: 'ruby',
+    label: 'Ruby (solargraph)',
+    languageId: 'ruby',
+    langs: ['ruby'],
+    extensions: ['.rb'],
+    cmd: ['solargraph', 'stdio'],
+    install: 'gem install solargraph',
+  },
+  {
+    id: 'lua',
+    label: 'Lua (lua-language-server)',
+    languageId: 'lua',
+    langs: ['lua'],
+    extensions: ['.lua'],
+    cmd: ['lua-language-server'],
+    install: 'Pasang lua-language-server (winget/choco) dan taruh di PATH',
+  },
+  {
+    id: 'kotlin',
+    label: 'Kotlin (kotlin-language-server)',
+    languageId: 'kotlin',
+    langs: ['kotlin'],
+    extensions: ['.kt', '.kts'],
+    cmd: ['kotlin-language-server'],
+    install: 'Pasang kotlin-language-server dan taruh di PATH',
+  },
+  {
+    id: 'swift',
+    label: 'Swift (sourcekit-lsp)',
+    languageId: 'swift',
+    langs: ['swift'],
+    extensions: ['.swift'],
+    cmd: ['sourcekit-lsp'],
+    install: 'sourcekit-lsp ikut Xcode (macOS) — Windows butuh build manual',
+  },
+  {
+    id: 'r',
+    label: 'R (languageserver)',
+    languageId: 'r',
+    langs: ['r'],
+    extensions: ['.r', '.R'],
+    cmd: ['R', '--no-echo', '-e', 'languageserver::run()'],
+    install: 'install.packages("languageserver") di R',
+  },
+  {
+    id: 'docker',
+    label: 'Docker (dockerfile-language-server)',
+    languageId: 'dockerfile',
+    langs: ['dockerfile'],
+    extensions: ['dockerfile'],
+    cmd: ['docker-langserver', '--stdio'],
+    install: 'npm i -g dockerfile-language-server-nodejs',
+  },
+  {
+    id: 'vue',
+    label: 'Vue (volar)',
+    languageId: 'vue',
+    langs: ['vue'],
+    extensions: ['.vue'],
+    cmd: ['vue-language-server', '--stdio'],
+    install: 'npm i -g @vue/language-server',
   },
 ];
 

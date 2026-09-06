@@ -304,6 +304,9 @@ export const extensionsWriteBundled = (id: string) =>
   invoke<string>('extensions_write_bundled', { id });
 /** Id paket bundled yang tersedia offline. */
 export const extensionsBundledIds = () => invoke<string[]>('extensions_bundled_ids');
+/** Unduh .vsix dari registry remote ke folder temp → path untuk `extensions_install`. */
+export const extensionsDownloadVsix = (url: string, id: string) =>
+  invoke<string>('extensions_download_vsix', { url, id });
 
 // ── diagnostics / logging (fase 14) ──
 
