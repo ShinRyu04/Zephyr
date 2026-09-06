@@ -1,0 +1,66 @@
+/* fase 33: split editor — dua grup editor berdampingan + divider geser. */
+.editor-split {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  border-right: 1px solid transparent;
+}
+
+.editor-area.is-split .editor-group:not(.is-fokus) .tabbar {
+  opacity: 0.72;
+}
+
+.editor-group .editor-host {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-group.is-fokus .editor-host {
+  box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* Group kanan tidak perlu garis tepi ganda. */
+.editor-split .editor-group:last-child {
+  border-right: none;
+}
+
+.empty-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.editor-split-divider {
+  width: 4px;
+  flex: 0 0 auto;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.editor-split-divider:hover,
+.editor-split-divider:active {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Tab bar di dalam group tetap mengambil gaya yang sama; yang beda hanya
+   batas bawahnya menyatu dengan host editor. */
+.editor-group > .tabbar {
+  flex: 0 0 auto;
+}

@@ -130,6 +130,9 @@ const main = async () => {
     s.setActivity('explorer');
     if (!s.sidebarVisible) s.toggleSidebar();
     s.setFindOpen(false);
+    // Settings bisa nyangkut terbuka dari harness lain (verify08 dkk) —
+    // kalau terbuka, editor-area tidak ter-render dan uji editor gagal.
+    if (s.settingsOpen) s.setSettingsOpen(false);
     window.__ZEPHYR_ERRORS__.length = 0;
     return 'reset';
   })()`);
@@ -157,6 +160,9 @@ const main = async () => {
   check('F03-V0', sh.emptyState, 'empty state tampil saat tanpa tab');
 
   // klik tiap ikon (1..5 lalu 0 — klik ikon aktif menutup sidebar)
+  // Catatan: judul per view TIDAK seragam — explorer pakai .explorer-title
+  // (header fase 29, root tunggal tanpa section header), view lain pakai
+  // .side-title. Baca keduanya.
   const seen = [];
   for (const i of [1, 2, 3, 4, 5, 0]) {
     await cdp.eval(
@@ -166,7 +172,9 @@ const main = async () => {
     seen.push(
       JSON.parse(
         await cdp.eval(`JSON.stringify({
-          title: document.querySelector('.side-title')?.textContent ?? '(kosong)',
+          title: document.querySelector('.explorer-title')?.textContent
+              ?? document.querySelector('.side-title')?.textContent
+              ?? '(kosong)',
           activity: window.__ZEPHYR__.getState().activity,
           visible: window.__ZEPHYR__.getState().sidebarVisible,
         })`),

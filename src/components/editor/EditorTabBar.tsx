@@ -5,8 +5,11 @@ import { useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import FileIcon from './FileIcon';
 
-export default function EditorTabBar() {
-  const tabs = useStore((s) => s.tabs);
+/** Tab bar SATU group editor.
+ *  `gid` diberikan saat mode split (fase 33): hanya tab milik group itu yang
+ *  tampil. Tanpa `gid` (mode tunggal / halaman lain) = semua tab. */
+export default function EditorTabBar({ gid }: { gid?: string }) {
+  const tabsAll = useStore((s) => s.tabs);
   const activeTabId = useStore((s) => s.activeTabId);
   const setActiveTab = useStore((s) => s.setActiveTab);
   const requestCloseTab = useStore((s) => s.requestCloseTab);
@@ -15,6 +18,8 @@ export default function EditorTabBar() {
 
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const tabs = gid ? tabsAll.filter((t) => t.groupId === gid) : tabsAll;
 
   if (tabs.length === 0) return null;
 
