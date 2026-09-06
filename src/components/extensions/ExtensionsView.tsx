@@ -48,7 +48,28 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
     >
       <span className={`xc-logo${item.logoUrl ? ' has-img' : ''}`} aria-hidden="true">
         {item.logoUrl ? (
-          <img src={item.logoUrl} alt="" loading="lazy" className="xc-logo-img" />
+          <img
+            src={item.logoUrl}
+            alt=""
+            loading="lazy"
+            className="xc-logo-img"
+            data-logo-src={item.id}
+            // Logo gagal dimuat / diblokir → jatuh ke inisial (tidak ada
+            // kotak kosong di daftar).
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const parent = e.currentTarget.closest('.xc-logo');
+              if (parent && parent.textContent === '') parent.textContent = item.logo;
+            }}
+            onLoad={(e) => {
+              // naturalWidth 0 = gambar kosong/rusak walau "complete"
+              if (e.currentTarget.naturalWidth === 0) {
+                e.currentTarget.style.display = 'none';
+                const parent = e.currentTarget.closest('.xc-logo');
+                if (parent && parent.textContent === '') parent.textContent = item.logo;
+              }
+            }}
+          />
         ) : (
           item.logo
         )}

@@ -13,6 +13,7 @@ import { MENUS, type MenuItem } from '../../lib/menu';
 import { findCommand, runCommand } from '../../lib/commandRegistry';
 import { useKb } from '../../lib/keybindingStore';
 import { chordFor, displayChord } from '../../lib/keybindings';
+import { usePalette } from '../../lib/paletteStore';
 
 /** Item yang bisa difokus (bukan separator). */
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
@@ -255,6 +256,29 @@ export default function MenuBar() {
           </div>
         );
       })}
+
+      {/* Command center ala VS Code (fase 34): kotak di baris menu sejajar
+          File/Edit/dll. Klik = buka Command Palette (mode command). */}
+      <div className="mb-cc-wrap" role="none">
+        <button
+          className="mb-cc"
+          data-testid="mb-command-center"
+          title="Command Palette — cari perintah & file (Ctrl+Shift+P / Ctrl+P)"
+          aria-haspopup="dialog"
+          onClick={() => {
+            tutup();
+            void usePalette.getState().openPalette('command');
+          }}
+        >
+          <svg className="mb-cc-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M10.5 5.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0zm-.8 3.9 4 4.1-1 1-4-4.1a5 5 0 0 1-6.7-6.7L1 7 1.9 5.6A5 5 0 0 1 8 1a5 5 0 0 1 5.5 4.3l.4 2.6-1.9.5-2.3.5z"
+              fill="currentColor"
+            />
+          </svg>
+          <span className="mb-cc-label">Zephyr</span>
+        </button>
+      </div>
     </div>
   );
 }
