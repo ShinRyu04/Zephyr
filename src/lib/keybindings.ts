@@ -132,6 +132,9 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+J', 'workbench.action.togglePanel', 'app'),
   D('Ctrl+`', 'terminalPanel.focus', 'app'),
   D('Ctrl+Shift+`', 'terminal.new', 'app'),
+  // fase 33: split editor (Ctrl+\ ala VS Code; Ctrl+Shift+\ dipakai
+  // editor.jumpToBracket di layer editor, jadi versi app ini aman).
+  D('Ctrl+\\', 'view.splitEditorRight', 'app'),
   D('Ctrl+Shift+E', 'view.explorer', 'app'),
   D('Ctrl+Shift+F', 'edit.findInFiles', 'app'),
   D('Ctrl+Shift+G', 'git.panel', 'app'),

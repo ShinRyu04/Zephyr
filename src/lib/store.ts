@@ -14,6 +14,10 @@ import { applyTheme } from './themes';
 // (pelajaran fase 13 dengan retheme()).
 import { terapkanA11y } from './a11yStore';
 import { retheme, reSrMode } from './xtermRegistry';
+// fase 33: split editor — group fokus dipakai openPath/newUntitled untuk
+// menandai tab. Import LANGSUNG (bukan dinamis): editorLayoutStore tidak
+// mengimpor balik store.ts, jadi tidak ada lingkaran.
+import { useLayout } from './editorLayoutStore';
 import {
   DEFAULT_SETTINGS,
   type ActivityId,
@@ -374,6 +378,12 @@ export const useStore = create<Store>((set, get) => ({
     const existing = get().tabs.find((t) => t.path && pathSama(t.path, path));
     if (existing) {
       set({ activeTabId: existing.id });
+      // fase 33: tab yang dibuka ulang ikut pindah ke group fokus sekarang
+      // (perilaku VS Code: open selalu tampil di group aktif).
+      const fokus = useLayout.getState().fokus;
+      set((s) => ({
+        tabs: s.tabs.map((t) => (t.id === existing.id ? { ...t, groupId: fokus } : t)),
+      }));
       touchTab(existing.id);
       void get().ensureTabLoaded(existing.id);
       return;
@@ -391,6 +401,9 @@ export const useStore = create<Store>((set, get) => ({
         set({ activeTabId: again.id });
         return;
       }
+      // Buka file pertama saat TIDAK ada tab sama sekali → kembali ke satu
+      // grup (mode split yang ditinggalkan tanpa tab tidak boleh bertahan).
+      if (get().tabs.length === 0) useLayout.getState().reset();
       const tab: Tab = {
         id: nextId(),
         path,
@@ -405,6 +418,7 @@ export const useStore = create<Store>((set, get) => ({
         note: res.note,
         bytes: res.bytes,
         existed: true,
+        groupId: useLayout.getState().fokus,
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
       touchTab(tab.id);
@@ -428,6 +442,7 @@ export const useStore = create<Store>((set, get) => ({
       content: '',
       lang: 'plain',
       loaded: true,
+      groupId: useLayout.getState().fokus,
     };
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id, untitledSeq: n }));
     touchTab(tab.id);
@@ -436,6 +451,10 @@ export const useStore = create<Store>((set, get) => ({
   setActiveTab: (id) => {
     set({ activeTabId: id });
     touchTab(id);
+    // fase 33: tab yang diaktifkan memindahkan fokus grup ke grup pemiliknya
+    // (klik tab di group kanan = group kanan jadi fokus).
+    const gid = get().tabs.find((t) => t.id === id)?.groupId;
+    if (gid) useLayout.getState().fokusGroup(gid);
     // Tab yang isinya sudah dilepas dibaca ulang sebelum editor mount.
     void get().ensureTabLoaded(id);
   },
@@ -654,6 +673,14 @@ export const useStore = create<Store>((set, get) => ({
         const neighbour = tabs[Math.min(idx, tabs.length - 1)];
         activeTabId = neighbour ? neighbour.id : null;
       }
+      // fase 33: kosongkan slot group pemilik tab (kalau tab tsb yang tampil
+      // di group-nya, group itu tidak boleh menunjuk tab yang sudah hilang).
+      const gid = s.tabs.find((t) => t.id === id)?.groupId;
+      if (gid) useLayout.getState().setGroupTab(gid, null);
+      // Tab terakhir ditutup → kembali ke mode satu grup (default). Kalau
+      // tidak, mode split nyangkut saat semua tab kosong (harness lama
+      // mengharapkan satu tab bar).
+      if (tabs.length === 0) useLayout.getState().reset();
       return { tabs, activeTabId };
     });
     void get().persistSession();
