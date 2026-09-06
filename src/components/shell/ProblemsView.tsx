@@ -106,7 +106,7 @@ export default function ProblemsView() {
       {total === 0 ? (
         <p className="pv-empty" data-testid="pv-empty">
           Belum ada masalah terdeteksi. Diagnostik akan muncul di sini setelah language
-          server (fase 21) atau task (fase 23) berjalan.
+          server atau task berjalan.
         </p>
       ) : (
         <div

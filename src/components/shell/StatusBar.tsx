@@ -179,7 +179,7 @@ export default function StatusBar() {
       <NotifBell />
       <button
         className="sb-btn"
-        title="Format document — Prettier di fase berikutnya"
+        title="Format document — tersedia lewat perintah Format"
         disabled
         aria-disabled="true"
       >

@@ -317,7 +317,7 @@ export function AgentsSection() {
         />
       </Row>
 
-      <Row label={t('agents.attachActiveFile')} hint="dipakai fase 09 (panel AI)">
+      <Row label={t('agents.attachActiveFile')} hint="dipakai panel AI">
         <Toggle
           label={t('agents.attachActiveFile')}
           testid="agents-attach"

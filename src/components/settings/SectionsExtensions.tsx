@@ -100,7 +100,7 @@ export function ExtensionsSection() {
         <code>package.json</code> dan mendaftarkan <code>contributes.commands</code> ke
         Command Palette, tetapi TIDAK menjalankan kode JS-nya. Menjalankannya di dalam
         webview berarti memberi ekstensi pihak ketiga akses ke seluruh jembatan IPC
-        (fs, pty, git, API key) — itu tidak sebanding untuk fase ini.
+        (fs, pty, git, API key) — itu tidak sebanding dengan manfaatnya.
       </p>
 
       <div className="ext-actions">
