@@ -589,6 +589,13 @@ export type LangId =
   | 'c'
   | 'shell'
   | 'ini'
+  | 'dart'
+  | 'ruby'
+  | 'lua'
+  | 'perl'
+  | 'swift'
+  | 'kotlin'
+  | 'scala'
   | 'plain';
 
 export type ActivityId =

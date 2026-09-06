@@ -59,6 +59,17 @@ const BY_EXT: Record<string, LangId> = {
   conf: 'ini',
   env: 'ini',
   properties: 'ini',
+  // Bahasa tambahan (fase 32): highlight lewat legacy-modes, tanpa LSP.
+  dart: 'dart',
+  rb: 'ruby',
+  lua: 'lua',
+  perl: 'perl',
+  pl: 'perl',
+  pm: 'perl',
+  swift: 'swift',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  scala: 'scala',
   txt: 'plain',
   log: 'plain',
 };
@@ -134,6 +145,13 @@ export const LANG_LABEL: Record<LangId, string> = {
   c: 'C',
   shell: 'Shell',
   ini: 'INI',
+  dart: 'Dart',
+  ruby: 'Ruby',
+  lua: 'Lua',
+  perl: 'Perl',
+  swift: 'Swift',
+  kotlin: 'Kotlin',
+  scala: 'Scala',
   plain: 'Plain Text',
 };
 
@@ -242,6 +260,52 @@ async function build(lang: LangId): Promise<Extension[]> {
       const { StreamLanguage } = await import('@codemirror/language');
       const { properties } = await import('@codemirror/legacy-modes/mode/properties');
       return [StreamLanguage.define(properties)];
+    }
+    case 'ruby': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { ruby } = await import('@codemirror/legacy-modes/mode/ruby');
+      return [StreamLanguage.define(ruby)];
+    }
+    case 'lua': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { lua } = await import('@codemirror/legacy-modes/mode/lua');
+      return [StreamLanguage.define(lua)];
+    }
+    case 'perl': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { perl } = await import('@codemirror/legacy-modes/mode/perl');
+      return [StreamLanguage.define(perl)];
+    }
+    case 'swift': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { swift } = await import('@codemirror/legacy-modes/mode/swift');
+      return [StreamLanguage.define(swift)];
+    }
+    // dart/kotlin/scala: tidak punya file mode sendiri — semuanya ada di
+    // `clike` (CodeMirror legacy) sebagai objek parser terpisah.
+    case 'dart': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const clike = (await import('@codemirror/legacy-modes/mode/clike')) as unknown as Record<
+        string,
+        Parameters<typeof StreamLanguage.define>[0]
+      >;
+      return [StreamLanguage.define(clike.dart)];
+    }
+    case 'kotlin': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const clike = (await import('@codemirror/legacy-modes/mode/clike')) as unknown as Record<
+        string,
+        Parameters<typeof StreamLanguage.define>[0]
+      >;
+      return [StreamLanguage.define(clike.kotlin)];
+    }
+    case 'scala': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const clike = (await import('@codemirror/legacy-modes/mode/clike')) as unknown as Record<
+        string,
+        Parameters<typeof StreamLanguage.define>[0]
+      >;
+      return [StreamLanguage.define(clike.scala)];
     }
     default:
       return [];
