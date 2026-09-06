@@ -1971,15 +1971,18 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => S().navBack.length > 0,
     run: () => {
       const s = S();
-      const path = s.navBack[s.navBack.length - 1];
-      if (!path) return;
-      const tab = s.tabs.find((t) => t.path === path);
-      if (!tab) return;
-      const cur = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      const loc = s.navBack[s.navBack.length - 1];
+      if (!loc) return;
+      const cur = s.tabs.find((t) => t.id === s.activeTabId);
       s.setNavBack(s.navBack.slice(0, -1));
-      if (cur) s.setNavForward([...s.navForward, cur]);
+      if (cur?.path) {
+        s.setNavForward([
+          ...s.navForward,
+          { path: cur.path, line: s.cursor.line, col: s.cursor.col },
+        ]);
+      }
       s.setNavSuppress(true);
-      s.setActiveTab(tab.id);
+      void s.openPathAt(loc.path, loc.line, loc.col);
       s.setNavSuppress(false);
     },
   },
@@ -1991,15 +1994,18 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => S().navForward.length > 0,
     run: () => {
       const s = S();
-      const path = s.navForward[s.navForward.length - 1];
-      if (!path) return;
-      const tab = s.tabs.find((t) => t.path === path);
-      if (!tab) return;
-      const cur = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      const loc = s.navForward[s.navForward.length - 1];
+      if (!loc) return;
+      const cur = s.tabs.find((t) => t.id === s.activeTabId);
       s.setNavForward(s.navForward.slice(0, -1));
-      if (cur) s.setNavBack([...s.navBack, cur]);
+      if (cur?.path) {
+        s.setNavBack([
+          ...s.navBack,
+          { path: cur.path, line: s.cursor.line, col: s.cursor.col },
+        ]);
+      }
       s.setNavSuppress(true);
-      s.setActiveTab(tab.id);
+      void s.openPathAt(loc.path, loc.line, loc.col);
       s.setNavSuppress(false);
     },
   },
