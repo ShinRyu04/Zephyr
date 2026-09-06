@@ -753,6 +753,11 @@ export interface Settings {
     /** buang snapshot lebih tua dari ini (hari); 0 = tanpa batas umur */
     maxDays: number;
   };
+  update?: {
+    lastSeenVersion: string;
+    pendingNotes: string;
+    seenAnnouncements: string[];
+  };
 }
 
 /** Default frontend — cermin dari default_settings() di settings.rs. */
@@ -816,6 +821,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // fase 26: dinyalakan secara default — ini safety-net, gunanya justru saat
   // user belum sadar butuh. Retensi 50 snapshot/file & 30 hari menjaga disk.
   history: { enabled: true, maxPerFile: 50, maxDays: 30 },
+  update: { lastSeenVersion: '', pendingNotes: '', seenAnnouncements: [] },
 };
 
 // ─────────────────── tasks (fase 23) ───────────────────
