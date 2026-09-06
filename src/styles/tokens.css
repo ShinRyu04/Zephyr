@@ -107,3 +107,10 @@
 [data-theme='one-dark'] {
   --terminal-ansi-0: #21252b;
 }
+
+[data-theme='senja'] {
+  --terminal-ansi-0: #2b2128;
+  --terminal-ansi-7: #d8c3b6;
+  --terminal-ansi-8: #a58d80;
+  --terminal-ansi-15: #f5e6dc;
+}

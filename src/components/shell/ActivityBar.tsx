@@ -1,6 +1,9 @@
 // ActivityBar.tsx — ikon vertikal kiri (48px). State aktif di Zustand.
 
+import { useEffect } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
+import { useGit } from '../../lib/gitStore';
 import type { ActivityId } from '../../lib/types';
 
 const Icons: Record<ActivityId, () => JSX.Element> = {
@@ -117,6 +120,42 @@ export default function ActivityBar() {
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const gh = useGit((s) => s.gh);
+  const loadGh = useGit((s) => s.loadGh);
+  const loginDevice = useGit((s) => s.loginDevice);
+
+  useEffect(() => {
+    void loadGh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const signedIn = !!gh?.signedIn;
+  const user = gh?.user ?? null;
+  const oauthSiap = !!gh?.oauthConfigured;
+
+  // Klik ikon GitHub: langsung ke alur login — bukan cuma buka panel SCM
+  // (yang bisa tampak "terkunci" oleh empty-state repo). Kalau OAuth siap,
+  // langsung start device flow (browser terbuka); kalau tidak, buka halaman
+  // bikin OAuth App di GitHub supaya user tinggal daftarkan client_id.
+  const klikGh = () => {
+    setSettingsOpen(false);
+    if (!signedIn && oauthSiap) {
+      // Langsung start device flow — browser GitHub terbuka minta kode.
+      void loginDevice();
+      setActivity('scm');
+      if (!sidebarVisible) toggleSidebar();
+    } else if (!signedIn && !oauthSiap) {
+      // Belum ada client_id: jangan matikan tombol — buka panduan bikin
+      // OAuth App + buka panel SCM tempat client_id bisa ditempel.
+      void openUrl('https://github.com/settings/developers');
+      setActivity('scm');
+      if (!sidebarVisible) toggleSidebar();
+    } else {
+      // Sudah login: buka Source Control.
+      setActivity('scm');
+      if (!sidebarVisible) toggleSidebar();
+    }
+  };
 
   return (
     <nav className="activitybar" aria-label="Activity Bar">
@@ -160,6 +199,38 @@ export default function ActivityBar() {
           </button>
         );
       })}
+
+      {/* Akun GitHub di BAWAH activity bar (pojok kiri bawah, ala VS Code).
+          Belum login: tombol avatar "…" → buka Source Control (login di sana).
+          Sudah login: avatar bulat berisi inisial user; klik tetap ke SCM. */}
+      <span className="ab-spacer" aria-hidden="true" />
+      <button
+        className={`ab-btn ab-gh${signedIn ? ' is-in' : ''}`}
+        data-testid="ab-gh"
+        title={
+          signedIn
+            ? `@${user} — akun GitHub (klik: Source Control)`
+            : oauthSiap
+              ? 'Login GitHub (buka browser)'
+              : 'Login GitHub — buka Source Control'
+        }
+        aria-label={signedIn ? `Akun GitHub: @${user}` : 'Login GitHub'}
+        onClick={klikGh}
+      >
+        {signedIn ? (
+          <span className="ab-gh-avatar" aria-hidden="true">
+            {(user ?? '?').slice(0, 1).toUpperCase()}
+          </span>
+        ) : (
+          <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+            {/* mark-github resmi (Octocat, GitHub Primer) */}
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
+              fill="currentColor"
+            />
+          </svg>
+        )}
+      </button>
     </nav>
   );
 }

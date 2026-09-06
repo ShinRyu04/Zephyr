@@ -99,12 +99,24 @@ pub fn stored_user(state: &AppState) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+/// client_id OAuth App publik Zephyr ("Zephyr Editor", milik ShinRyu04).
+/// Client ID BUKAN rahasia (lihat saja di halaman OAuth App siapa pun yang
+/// punya akses repo) — token user-lah yang privat, dan itu tetap lokal.
+/// Dengan default ini user TIDAK perlu membuat OAuth App sendiri: cukup
+/// "Sign in with GitHub" → device flow → authorize. (Bisa ditimpa lewat
+/// settings git.github.clientId — mis. fork yang mau pakai app sendiri.)
+const DEFAULT_CLIENT_ID: &str = "Iv23lisC4fTKXZOoVeIX";
+
 fn client_id(state: &AppState) -> Option<String> {
-    meta(state)
+    let dari_settings = meta(state)
         .get("clientId")
         .and_then(|c| c.as_str())
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.is_empty());
+    match dari_settings {
+        Some(s) => Some(s),
+        None => Some(DEFAULT_CLIENT_ID.to_string()),
+    }
 }
 
 // ───────────────────────── HTTP kecil ─────────────────────────

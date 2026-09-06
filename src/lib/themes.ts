@@ -20,6 +20,7 @@ export const THEMES: ThemeInfo[] = [
   { id: 'tokyo-night', label: 'Tokyo Night', kind: 'dark', hint: 'ungu-biru, malam' },
   { id: 'gruvbox-dark', label: 'Gruvbox Dark', kind: 'dark', hint: 'hangat, retro' },
   { id: 'one-dark', label: 'One Dark Pro', kind: 'dark', hint: 'ala Atom/VS Code' },
+  { id: 'senja', label: 'Senja', kind: 'dark', hint: 'gelap hangat, aksen jingga senja' },
   // FASE 31: high contrast adalah TEMA BIASA, bukan mode terpisah — seluruh
   // mesin tema (kartu Settings, retheme xterm, Compartment CodeMirror) langsung
   // bekerja. Sebagai "mode", tiap pembaca tema harus diajari kasus kedua.

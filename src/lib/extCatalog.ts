@@ -31,16 +31,6 @@ export interface KatalogItem {
 
 export const KATALOG_BUNDLED: KatalogItem[] = [
   {
-    id: 'zephyr.tema-senja',
-    name: 'Tema Senja',
-    publisher: 'zephyr',
-    version: '1.0.0',
-    description: 'Tema gelap hangat: latar cokelat-ungu, aksen jingga senja.',
-    categories: ['Themes'],
-    logo: '🌇',
-    bundled: true,
-  },
-  {
     id: 'zephyr.tema-kertas',
     name: 'Tema Kertas',
     publisher: 'zephyr',

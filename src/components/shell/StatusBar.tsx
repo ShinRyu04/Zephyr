@@ -101,66 +101,8 @@ function ProblemsBadge() {
   );
 }
 
-/** Badge akun GitHub (fase 34): avatar/ikon + username di pojok kiri bawah.
- *  Klik = buka panel Source Control (login device flow ada di sana).
- *  Tidak tampil bila oauth/PAT tidak dikonfigurasi. */
-function GhBadge() {
-  const gh = useGit((s) => s.gh);
-  const loadGh = useGit((s) => s.loadGh);
-  const setActivity = useStore((s) => s.setActivity);
-
-  // Muat status login sekali saat status bar terpasang (kalau belum).
-  useEffect(() => {
-    void loadGh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const signedIn = !!gh?.signedIn;
-  const user = gh?.user ?? null;
-
-  if (!signedIn) {
-    // Belum login: tombol kecil "GitHub" supaya user tahu fiturnya ada.
-    return (
-      <>
-        <button
-          className="sb-item sb-gh sb-gh-out"
-          data-testid="sb-gh-signin"
-          title="Login GitHub — buka Source Control"
-          onClick={() => setActivity('scm')}
-        >
-          <svg viewBox="0 0 16 16" className="sb-gh-ico" aria-hidden="true">
-            <path
-              d="M8 1.5a6.5 6.5 0 00-2.05 12.67c.33.06.45-.14.45-.31v-1.1c-1.83.4-2.22-.88-2.22-.88-.3-.76-.73-.96-.73-.96-.6-.41.04-.4.04-.4.66.05 1 .68 1 .68.59 1 .1 1.55.77 1.55.77.53.9 1.38.64 1.71.49.05-.38.2-.64.37-.79-1.3-.15-2.66-.65-2.66-2.89 0-.64.23-1.16.6-1.57-.06-.15-.26-.75.06-1.56 0 0 .49-.16 1.6.6a5.6 5.6 0 012.92 0c1.1-.76 1.6-.6 1.6-.6.32.81.12 1.41.06 1.56.37.41.6.93.6 1.57 0 2.25-1.37 2.74-2.67 2.89.21.18.4.54.4 1.09v1.62c0 .16.12.37.46.3A6.5 6.5 0 008 1.5z"
-              fill="currentColor"
-            />
-          </svg>
-          <span>GitHub</span>
-        </button>
-        <span className="sb-sep">|</span>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <button
-        className="sb-item sb-gh"
-        data-testid="sb-gh-user"
-        title={`@${user} — klik untuk Source Control`}
-        onClick={() => setActivity('scm')}
-      >
-        <svg viewBox="0 0 16 16" className="sb-gh-ico" aria-hidden="true">
-          <path
-            d="M8 1.5a6.5 6.5 0 00-2.05 12.67c.33.06.45-.14.45-.31v-1.1c-1.83.4-2.22-.88-2.22-.88-.3-.76-.73-.96-.73-.96-.6-.41.04-.4.04-.4.66.05 1 .68 1 .68.59 1 .1 1.55.77 1.55.77.53.9 1.38.64 1.71.49.05-.38.2-.64.37-.79-1.3-.15-2.66-.65-2.66-2.89 0-.64.23-1.16.6-1.57-.06-.15-.26-.75.06-1.56 0 0 .49-.16 1.6.6a5.6 5.6 0 012.92 0c1.1-.76 1.6-.6 1.6-.6.32.81.12 1.41.06 1.56.37.41.6.93.6 1.57 0 2.25-1.37 2.74-2.67 2.89.21.18.4.54.4 1.09v1.62c0 .16.12.37.46.3A6.5 6.5 0 008 1.5z"
-            fill="currentColor"
-          />
-        </svg>
-        <span data-testid="sb-gh-login">@{user}</span>
-      </button>
-      <span className="sb-sep">|</span>
-    </>
-  );
-}
+/** Badge akun GitHub TIDAK di sini — pindah ke bawah ActivityBar (fase 34,
+ *  ala VS Code). StatusBar cukup GitBadge + ProblemsBadge. */
 
 export default function StatusBar() {
   const [version, setVersion] = useState('0.5.0');
@@ -215,7 +157,6 @@ export default function StatusBar() {
     <footer className="statusbar">
       <span className="sb-item sb-brand">Zephyr v{version}</span>
       <span className="sb-sep">|</span>
-      <GhBadge />
       <GitBadge />
       <ProblemsBadge />
       <span className="sb-item" title="Memori proses Zephyr" data-testid="sb-ram">

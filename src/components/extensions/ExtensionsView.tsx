@@ -299,6 +299,12 @@ export default function ExtensionsView() {
   const detailFor = useExt19((s) => s.detailFor);
   const remoteUrl = useExt19((s) => s.remoteUrl);
   const remoteErr = useExt19((s) => s.remoteErr);
+  // Subscribe ke `remote` — TANPA ini daftar Marketplace tidak pernah muncul:
+  // `daftar` dihitung dari getState().hasil() di bawah, dan render baru hanya
+  // terjadi kalau ada state yang di-subscribe berubah. `muatRemote()` mengubah
+  // `remote` secara async; tanpa subscribe, komponen diam walau data sudah
+  // datang (bug: tab Marketplace tampak kosong).
+  const remote = useExt19((s) => s.remote);
   const jmlManifest = useExt19((s) => s.manifests.length);
 
   const setQ = useExt19((s) => s.setQ);
@@ -347,6 +353,7 @@ export default function ExtensionsView() {
   void q;
   void tab;
   void jmlManifest;
+  void remote;
 
   return (
     <div className="xv" data-testid="extensions-view">
