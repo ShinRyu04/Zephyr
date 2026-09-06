@@ -1660,6 +1660,37 @@ body.is-resizing-v {
   font-weight: 600;
 }
 
+/* Badge akun GitHub di pojok kiri bawah (fase 34). */
+.sb-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sb-gh:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.sb-gh-ico {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.sb-gh-out {
+  color: var(--accent);
+}
+
+.sb-gh-out:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .sb-sep {
   color: var(--border-strong);
 }
@@ -1911,6 +1942,44 @@ body.is-resizing-v {
   z-index: 60;
 }
 .mb-menu { position: relative; }
+/* Command center (fase 34): kotak sejajar menu File/Edit, dipaksa ke kanan. */
+.mb-cc-wrap {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+.mb-cc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg0, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 12px;
+  max-width: 240px;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+.mb-cc:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--surface-2);
+}
+.mb-cc-ico {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+.mb-cc-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .mb-top {
   height: 100%;
   padding: 0 9px;
