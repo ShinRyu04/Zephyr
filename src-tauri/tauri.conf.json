@@ -52,7 +52,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4MTlDOTc2RUJBNkE5NTYKUldSV3FhYnJkc2taU0tnbDZHcThYa2NGcklNVCtnMStpV3c1clRpTWxqeHBqdUUvK2h2NmdxRHAK",
-      "endpoints": []
+      "endpoints": ["https://github.com/ShinRyu04/Zephyr/releases/latest/download/latest.json"]
     }
   }
 }
