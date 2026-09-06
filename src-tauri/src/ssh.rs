@@ -1,4 +1,4 @@
-// ssh.rs — koneksi SSH fase 07 (dikerjakan setelah hosting tersedia).
+// ssh.rs — koneksi SSH: manajemen host + sesi sebagai pane terminal.
 //
 // Kontrak (ARCHITECTURE.md):
 //   ssh_list      -> SshHost[] (password TIDAK pernah serial; hanya hasPassword)

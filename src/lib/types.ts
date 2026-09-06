@@ -200,7 +200,7 @@ export interface PtyInfo {
   alive: boolean;
 }
 
-/** Host SSH tersimpan (fase 07) — password TIDAK pernah dikirim. */
+/** Host SSH tersimpan — password TIDAK pernah dikirim. */
 export interface SshHost {
   id: string;
   name: string;
