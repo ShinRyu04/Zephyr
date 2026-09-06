@@ -29,10 +29,11 @@ function Marketplace() {
     <div className="market" data-testid="market">
       <div className="market-head">
         <div>
-          <h3 className="market-title">Zephyr Marketplace — segera</h3>
+          <h3 className="market-title">Zephyr Marketplace</h3>
           <p className="market-sub">
-            Katalog ekstensi online belum aktif. Kartu di bawah menunjukkan bentuk
-            akhirnya; tombol Install sengaja mati sampai backend registry ada.
+            Buka ActivityBar → Extensions (Ctrl+Shift+X) untuk marketplace Open VSX
+            yang bisa dicari & dipasang langsung. Daftar di bawah ini pintasan ke
+            ekstensi populer di registry tersebut.
           </p>
         </div>
         <button className="btn" data-testid="market-close" onClick={() => setMarketOpen(false)}>
@@ -53,10 +54,15 @@ function Marketplace() {
             <button
               className="btn btn-sm"
               data-testid={`market-install-${m.id}`}
-              disabled
-              title="Marketplace belum aktif"
+              onClick={() => {
+                // Tutup Settings, buka panel Extensions (marketplace nyata).
+                setMarketOpen(false);
+                import('../../lib/commandRegistry').then(({ runCommand }) =>
+                  runCommand('extensions.focus'),
+                );
+              }}
             >
-              Install
+              Buka
             </button>
           </article>
         ))}

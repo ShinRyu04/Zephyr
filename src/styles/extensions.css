@@ -175,6 +175,19 @@
   color: var(--text);
   background: var(--surface-3);
   border-radius: 4px;
+  overflow: hidden;
+}
+
+.xc-logo.has-img {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.xc-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .xc-body {

@@ -17,8 +17,10 @@ export interface KatalogItem {
   version: string;
   description: string;
   categories: string[];
-  /** 1-3 karakter untuk kotak logo */
+  /** 1-3 karakter untuk kotak logo (bundled / fallback) */
   logo: string;
+  /** khusus remote: URL logo asli dari registry (dipakai <img>, bukan inisial) */
+  logoUrl?: string;
   /** true = paketnya ada di dalam app (bisa dipasang offline) */
   bundled: boolean;
   /** bahasa yang membuat item ini direkomendasikan (19.1 RECOMMENDED) */

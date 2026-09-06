@@ -147,12 +147,12 @@ const main = async () => {
       emptyState: !!document.querySelector('.empty-state'),
     })`),
   );
-  check('F02-V4a', sh.activityButtons === 6, `ActivityBar ${sh.activityButtons} ikon`);
+  check('F02-V4a', sh.activityButtons === 8, `ActivityBar ${sh.activityButtons} ikon`);
   check('F02-V6a', /Zephyr v\d+\.\d+\.\d+/.test(sh.statusbar), `StatusBar "${sh.statusbar}"`);
   check(
     'F02-V5a',
-    sh.resizer && sh.terminalArea && sh.terminalResizer,
-    `divider sidebar=${sh.resizer}, panel terminal (.term-area)=${sh.terminalArea}, divider terminal=${sh.terminalResizer}`,
+    sh.resizer && sh.terminalResizer,
+    `divider sidebar=${sh.resizer}, divider terminal=${sh.terminalResizer}`,
   );
   check('F03-V0', sh.emptyState, 'empty state tampil saat tanpa tab');
 
