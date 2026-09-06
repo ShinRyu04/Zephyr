@@ -307,6 +307,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
         remote: arr.slice(0, 100).map((x) => {
           const o = x as Record<string, unknown>;
           const files = (o.files ?? {}) as Record<string, unknown>;
+          const logoUrl = String(files.icon ?? '');
           return {
             id: String(o.namespace && o.name ? `${o.namespace}.${o.name}` : o.id ?? ''),
             name: String(o.displayName ?? o.name ?? ''),
@@ -315,6 +316,9 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
             description: String(o.description ?? ''),
             categories: kategoriDari(o),
             logo: logoDari(o),
+            // Logo ASLI dari registry: files.icon berisi URL png/svg yang
+            // dipakai VS Code. Inisial hanya fallback kalau URL kosong.
+            logoUrl: logoUrl.startsWith('http') ? logoUrl : undefined,
             bundled: false,
             // Untuk install: URL unduhan .vsix (dipakai ExtensionCard).
             url: String(files.download ?? o.url ?? ''),
@@ -364,6 +368,9 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
         categories: m.categories.length > 0 ? m.categories : ['Other'],
         logo: (m.name || m.id).slice(0, 2).toUpperCase(),
         bundled: false,
+        // fase 33: icon asli ekstensi terpasang (file lokal) — daftar
+        // Installed ikut menampilkan logo seperti Marketplace.
+        logoUrl: st.iconPath || undefined,
       };
       if (cocok(it, q)) tambahan.push(it);
     }

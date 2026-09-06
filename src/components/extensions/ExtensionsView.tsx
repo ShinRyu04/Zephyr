@@ -46,8 +46,12 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
       data-terpasang={terpasang ? '1' : '0'}
       data-enabled={aktif ? '1' : '0'}
     >
-      <span className="xc-logo" aria-hidden="true">
-        {item.logo}
+      <span className={`xc-logo${item.logoUrl ? ' has-img' : ''}`} aria-hidden="true">
+        {item.logoUrl ? (
+          <img src={item.logoUrl} alt="" loading="lazy" className="xc-logo-img" />
+        ) : (
+          item.logo
+        )}
       </span>
 
       <div className="xc-body">
