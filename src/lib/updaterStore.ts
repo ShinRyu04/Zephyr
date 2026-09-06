@@ -13,7 +13,7 @@
 
 import { create } from 'zustand';
 import * as cmd from './commands';
-import { notifyInfo } from './notificationStore';
+import { notifyInfo, useNotif } from './notificationStore';
 
 export type UpdateStatus =
   | 'idle'
@@ -49,6 +49,8 @@ interface UpdaterActions {
 
 /** Objek Update dari plugin, disimpan di luar store (bukan data serializable). */
 let updateObj: unknown = null;
+
+let lastNotified = '';
 
 /** true = pesan kegagalan ini berarti "endpoint belum dikonfigurasi", bukan
  *  masalah jaringan. Plugin melaporkannya sebagai error biasa, jadi kita
@@ -93,6 +95,16 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         dialogOpen: !opts?.senyap,
         message: null,
       });
+      if (upd.version !== lastNotified) {
+        lastNotified = upd.version;
+        useNotif.getState().notify({
+          severity: 'info',
+          message: `Zephyr v${upd.version} tersedia`,
+          detail: upd.body ?? undefined,
+          source: 'update',
+          actions: [{ label: 'Lihat & pasang', command: 'help.checkUpdates' }],
+        });
+      }
     } catch (e) {
       const pesan = e instanceof Error ? e.message : String(e);
       if (belumDikonfigurasi(pesan)) {
@@ -162,7 +174,6 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   reset: () => set({ status: 'idle', version: null, notes: null, progress: 0, message: null }),
 }));
 
-/** Label tombol per status (dipakai Settings → Tentang & nanti MenuBar). */
 export function labelStatus(s: UpdateStatus, versi: string | null, progress: number): string {
   switch (s) {
     case 'checking':
