@@ -45,6 +45,12 @@ export interface SaveIssue {
   name: string;
 }
 
+export interface NavLoc {
+  path: string;
+  line: number;
+  col: number;
+}
+
 interface StoreState {
   
   activity: ActivityId;
@@ -75,8 +81,8 @@ interface StoreState {
    
   appInfo: AppInfo | null;
   updateBanner: { version: string; notes: string } | null;
-  navBack: string[];
-  navForward: string[];
+  navBack: NavLoc[];
+  navForward: NavLoc[];
   navSuppress: boolean;
   lastClosed: { path: string } | null;
    
@@ -96,8 +102,8 @@ interface StoreActions {
    
   setSettingsOpen: (open: boolean) => void;
   setUpdateBanner: (b: { version: string; notes: string } | null) => void;
-  setNavBack: (v: string[]) => void;
-  setNavForward: (v: string[]) => void;
+  setNavBack: (v: NavLoc[]) => void;
+  setNavForward: (v: NavLoc[]) => void;
   setNavSuppress: (v: boolean) => void;
   setLastClosed: (v: { path: string } | null) => void;
 
@@ -290,6 +296,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const saved = await cmd.sessionLoad();
       let restored = 0;
+      set({ navSuppress: true });
       for (const t of saved) {
         try {
           await get().openPath(t.path);
@@ -298,6 +305,7 @@ export const useStore = create<Store>((set, get) => ({
           
         }
       }
+      set({ navSuppress: false });
       const missing = saved.length - restored;
       if (restored > 0) {
         set({
@@ -381,12 +389,17 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   openPath: async (path) => {
-    
-    
-    
-    
-    
-    
+    const s0 = get();
+    if (!s0.navSuppress && s0.activeTabId) {
+      const tabAktif = s0.tabs.find((t) => t.id === s0.activeTabId);
+      if (tabAktif?.path && tabAktif.path !== path) {
+        const loc: NavLoc = { path: tabAktif.path, line: s0.cursor.line, col: s0.cursor.col };
+        set((st) => ({
+          navBack: [...st.navBack.slice(-49), loc],
+          navForward: [],
+        }));
+      }
+    }
     const existing = get().tabs.find((t) => t.path && pathSama(t.path, path));
     if (existing) {
       set({ activeTabId: existing.id });
@@ -467,8 +480,9 @@ export const useStore = create<Store>((set, get) => ({
     const prevPath = prev?.path ?? null;
     const nextPath = next?.path ?? null;
     if (!s.navSuppress && prevPath && nextPath && prevPath !== nextPath) {
+      const loc: NavLoc = { path: prevPath, line: s.cursor.line, col: s.cursor.col };
       set((st) => ({
-        navBack: [...st.navBack.slice(-49), prevPath],
+        navBack: [...st.navBack.slice(-49), loc],
         navForward: [],
       }));
     }
