@@ -75,6 +75,8 @@ interface TerminalActions {
   // ── pane ──
   /** Tambah pane ke tab aktif. null = ditolak (batas / error spawn). */
   addPane: (kind: PaneKind, opts?: { agentId?: string; url?: string }) => Promise<string | null>;
+  /** Daftarkan pane yang sudah di-spawn Rust (sesi SSH dll). */
+  daftarkanPaneEksternal: (paneId: string, kind: string, title: string) => Promise<string>;
   setActivePane: (tabId: string, paneId: string) => void;
   closePane: (paneId: string) => Promise<void>;
   killPane: (paneId: string) => Promise<void>;
@@ -312,6 +314,35 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       });
       return null;
     }
+  },
+
+  /**
+   * Daftarkan pane EKSTERNAL yang sudah di-spawn Rust (mis. sesi SSH fase 07 —
+   * ssh_connect membuat pty sendiri dan mengembalikan paneId). Pane ini
+   * mengikuti semua alur terminal: tab bar, close, output event pty.
+   */
+  daftarkanPaneEksternal: async (paneId, kind, title) => {
+    let tabId = get().activeTabId;
+    if (!tabId || !get().terminalTabs.some((t) => t.id === tabId)) tabId = get().newTab();
+    const pane: PaneMeta = {
+      id: paneId,
+      kind: kind as PaneKind,
+      title,
+      sessionId: paneId,
+      status: 'live',
+      cwd: useStore.getState().workspace,
+      pid: 0,
+    };
+    set((s) => ({
+      terminalTabs: s.terminalTabs.map((t) =>
+        t.id === tabId ? { ...t, panes: [...t.panes, pane], activePaneId: paneId } : t,
+      ),
+      visible: true,
+      pickerOpen: false,
+      agentPickerOpen: false,
+      terminalError: null,
+    }));
+    return paneId;
   },
 
   setActivePane: (tabId, paneId) =>

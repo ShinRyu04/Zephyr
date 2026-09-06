@@ -6451,6 +6451,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ureq",
+ "uuid",
  "which",
  "zip 5.1.1",
 ]

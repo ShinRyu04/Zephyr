@@ -31,6 +31,7 @@ mod search;
 mod secrets;
 mod settings;
 mod snippets;
+mod ssh;
 mod tasks;
 mod tests_ai;
 mod tests_browser;
@@ -239,6 +240,15 @@ pub fn run() {
             pty::pty_list,
             pty::pty_set_paused,
             pty::pty_interrupt,
+            // SSH (fase 07)
+            ssh::ssh_list,
+            ssh::ssh_add,
+            ssh::ssh_update,
+            ssh::ssh_delete,
+            ssh::ssh_save_password,
+            ssh::ssh_clear_password,
+            ssh::ssh_connect,
+            ssh::ssh_disconnect,
             // agent CLI (fase 06)
             agents::list_agents,
             // settings lanjutan (fase 08)
