@@ -1,0 +1,11 @@
+{
+  "announcements": [
+    {
+      "id": "2026-09-07-v1.1.2",
+      "severity": "info",
+      "title": "Zephyr v1.1.2 — pemberitahuan update di dalam app",
+      "detail": "Rilis ini menambah: toast saat update selesai dipasang, banner \"Zephyr diperbarui ke vX\" setelah restart, dan pengumuman info bug/berita yang tampil di sini. Aktifkan \"Cek pembaruan otomatis\" di Settings → General untuk menerima info ini.",
+      "date": "2026-09-07"
+    }
+  ]
+}

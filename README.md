@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.1.0` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.2` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -33,9 +33,9 @@ langsung jalan tanpa install tambahan).
 
 ### Cara install Zephyr (3 langkah)
 
-1. **Unduh installer** — `Zephyr_1.1.0_x64-setup.exe` (atau `.msi`) dari
+1. **Unduh installer** — `Zephyr_1.1.2_x64-setup.exe` (atau `.msi`) dari
    halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.0_x64-setup.exe` — itu installer-nya.
+   `Zephyr_1.1.2_x64-setup.exe` — itu installer-nya.
 2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
    anyway**. Ini normal: installer belum ditandatangani, bukan berarti
    berbahaya. Source-nya terbuka dan bisa diverifikasi.
@@ -136,6 +136,13 @@ folder.
 
 ![Marketplace ekstensi dengan logo asli](docs/screenshots/05-market.png)
 
+**Notifikasi update** — Zephyr bisa memeriksa rilis baru dari dalam app
+(Settings → Tentang → Cek update) dan memasangnya sendiri. Saat update
+selesai ada pemberitahuan, setelah restart muncul banner "Zephyr diperbarui
+ke vX" dengan catatan rilis, dan info bug/berita tampil lewat Notification
+Center (lonceng di status bar). Aktifkan "Cek pembaruan otomatis" di
+Settings → General untuk menerima info ini tanpa klik manual.
+
 **Sisanya** — global search lewat ripgrep, tasks runner dengan problem matcher,
 local history + timeline, multi-root workspace dengan workspace trust, 7 tema
 (+ Senja), CLI launcher (`zephyr .`, `--diff`, `--wait`), dan Settings 14
@@ -166,8 +173,10 @@ seluruh IPC termasuk fs, pty, git, dan secrets.
 Installer tidak ditandatangani, jadi SmartScreen akan memperingatkan saat
 pertama kali dijalankan.
 
-Auto-update dalam aplikasi belum aktif (belum ada private key signing) — cek
-halaman Releases untuk versi baru.
+Auto-update dalam aplikasi aktif: tombol "Cek update" di Settings → Tentang
+memeriksa GitHub Releases dan memasang versi baru langsung dari app. Artefak
+update ditandatangani dengan kunci minisign Zephyr; versi lama menemukan
+versi baru ini lewat `latest.json`.
 
 API key disimpan dengan XOR + kunci BLAKE3 dari MachineGuid. Itu **obfuskasi,
 bukan enkripsi** — cukup untuk mencegah key terbaca sekilas, tidak cukup

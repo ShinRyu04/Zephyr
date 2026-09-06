@@ -12,6 +12,8 @@
 //   idle → checking → unconfigured | error
 
 import { create } from 'zustand';
+import * as cmd from './commands';
+import { notifyInfo } from './notificationStore';
 
 export type UpdateStatus =
   | 'idle'
@@ -136,6 +138,11 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         status: 'ready',
         message: 'Update terpasang — restart Zephyr untuk memakainya',
       });
+      notifyInfo('Update terpasang — restart Zephyr untuk memakainya', {
+        source: 'update',
+      });
+      const notes = get().notes ?? '';
+      void cmd.setSettings({ update: { pendingNotes: notes } }).catch(() => {});
     } catch (e) {
       const pesan = e instanceof Error ? e.message : String(e);
       set({ status: 'error', message: `Gagal memasang update: ${pesan}` });
