@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import ActivityBar from './components/shell/ActivityBar';
 import Sidebar from './components/shell/Sidebar';
-import EditorArea from './components/shell/EditorArea';
+import SplitEditor from './components/shell/SplitEditor';
 import Panel from './components/shell/Panel';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
@@ -64,6 +64,7 @@ import './styles/panel.css';
 import './styles/lsp.css';
 import './styles/editor-extras.css';
 import './styles/extensions.css';
+import './styles/split-editor.css';
 import './styles/history.css';
 import './styles/debug.css';
 import './styles/workspace.css';
@@ -865,7 +866,7 @@ export default function App() {
         )}
 
         <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
-          <EditorArea />
+          <SplitEditor />
           <Panel />
         </main>
       </div>

@@ -138,6 +138,10 @@ export const MENUS: MenuDef[] = [
       { label: 'Toggle Maximized Panel', command: 'workbench.action.toggleMaximizedPanel' },
       { label: 'Toggle Terminal', command: 'terminalPanel.focus' },
       SEP,
+      // fase 33: layout editor
+      { label: 'Split Editor Right', command: 'view.splitEditorRight' },
+      { label: 'Join Editor Groups', command: 'view.joinEditorGroups' },
+      SEP,
       { label: 'Explorer', command: 'view.explorer' },
       { label: 'Search', command: 'edit.findInFiles' },
       { label: 'Source Control', command: 'git.panel' },

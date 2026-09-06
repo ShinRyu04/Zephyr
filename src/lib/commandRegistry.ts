@@ -21,6 +21,7 @@ import { commandsEkstensi } from './extLoader';
 import { useNotif, notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
+import { useLayout } from './editorLayoutStore';
 import { useTasks, channelUntuk } from './tasksStore';
 import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
@@ -267,6 +268,22 @@ export const COMMANDS: CommandDef[] = [
       if (!t.visible) t.setVisible(true);
       t.toggleMaximized();
     },
+  },
+  // ── FASE 33: split editor (grup editor berdampingan) ──
+  {
+    id: 'view.splitEditorRight',
+    title: 'View: Split Editor Right',
+    group: 'View',
+    keywords: 'layout grup dua kolom berdampingan',
+    run: () => useLayout.getState().splitKanan(),
+  },
+  {
+    id: 'view.joinEditorGroups',
+    title: 'View: Join Editor Groups',
+    group: 'View',
+    keywords: 'gabung layout satu kolom',
+    enabled: () => useLayout.getState().split,
+    run: () => useLayout.getState().gabungKanan(),
   },
   {
     id: 'shortcut.list',
