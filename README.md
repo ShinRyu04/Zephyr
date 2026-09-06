@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.0.0` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.0` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -26,6 +26,33 @@ Gemini CLI, atau opencode bisa membaca dan mengubah isi jendelanya.
 Installer NSIS-nya 5,6 MB dan MSI-nya 8,0 MB. Sebagai pembanding, installer
 editor berbasis Electron biasanya 80–120 MB.
 
+## Instal
+
+Butuh Windows 10/11 (WebView2 Runtime sudah ada di Windows 11, jadi biasanya
+langsung jalan).
+
+1. **Unduh installer** — `Zephyr_1.1.0_x64-setup.exe` (atau `.msi`) dari
+   halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases).
+2. **Jalankan installer** — SmartScreen mungkin memperingatkan karena installer
+   belum ditandatangani; klik **More info → Run anyway**. Itu normal, bukan
+   tanda bahaya.
+3. **Selesai** — Zephyr terbuka. Klik **Open Folder** di sidebar untuk membuka
+   proyekmu.
+4. **(Opsional) Pasang ekstensi** — buka panel Extensions → tab **Marketplace**,
+   cari ekstensi, klik **Install**. Zephyr menarik `.vsix` langsung dari Open
+   VSX, jadi ekstensi VS Code yang publik ikut tersedia.
+
+> Ekstensi v1 bersifat **manifest-only**: Zephyr membaca `package.json` dan
+> mendaftarkan `contributes.commands` ke Command Palette, tetapi TIDAK
+> menjalankan kode JS ekstensi. Bahasa, tema, snippet, keymap, dan command ikut
+> aktif; extension host penuh (kode JS ekstensi) sengaja tidak dijalankan demi
+> keamanan.
+
+Data dan settings disimpan di `%APPDATA%\zephyr\` — hapus folder itu untuk
+reset penuh.
+
+![Settings → SSH: kelola host dan buka sesi sebagai pane terminal](docs/screenshots/04-ssh.png)
+
 ## Yang ada di dalamnya
 
 **Editor** — CodeMirror 6. Tab multi-file, deteksi encoding (UTF-8, BOM,
@@ -37,6 +64,11 @@ langsung.
 **Terminal** — sampai 6 pane per tab lewat ConPTY: PowerShell, cmd, pwsh, bash,
 WSL. Ada Private Terminal yang scrollback-nya dihapus saat ditutup, pane khusus
 AI agent CLI, dan browser pane dengan "Split With Browser".
+
+**SSH** — kelola daftar host (nama, host, port, user, auth key/password) di
+Settings → SSH, lalu buka koneksinya sebagai pane terminal biasa. Password
+hanya disimpan bila kamu memilih "simpan", dan itu pun terenkripsi (XOR+BLAKE3)
+di `ssh.json`, bukan plaintext.
 
 **Source Control** — status, diff, stage, commit, branch, push/pull/sync, log.
 Diff file biner dilabeli alih-alih memuntahkan byte mentah. Push saat remote
@@ -63,10 +95,22 @@ subsequence.
 
 ![Command palette](docs/screenshots/03-palette.png)
 
+**GitHub login** — login akun GitHub lewat device flow (browser), tampil sebagai
+avatar di pojok kiri bawah, dipakai untuk push/pull tanpa repot credential.
+
+**Split editor** — bagi editor jadi dua grup (View → Split Editor Right,
+`Ctrl+\`), tiap grup punya tab bar sendiri, gabungkan kembali kapan saja.
+
+**Ekstensi & Marketplace** — cari & pasang ekstensi dari Open VSX langsung di
+panel Extensions, lengkap dengan logo asli; atau install `.vsix` manual dari
+folder.
+
+![Marketplace ekstensi dengan logo asli](docs/screenshots/05-market.png)
+
 **Sisanya** — global search lewat ripgrep, tasks runner dengan problem matcher,
-local history + timeline, multi-root workspace dengan workspace trust, 7 tema,
-CLI launcher (`zephyr .`, `--diff`, `--wait`), dan Settings 14 section dengan
-shortcut yang bisa di-remap beserta deteksi konflik.
+local history + timeline, multi-root workspace dengan workspace trust, 7 tema
+(+ Senja), CLI launcher (`zephyr .`, `--diff`, `--wait`), dan Settings 14
+section dengan shortcut yang bisa di-remap beserta deteksi konflik.
 
 ## Aksesibilitas
 
@@ -85,8 +129,6 @@ Bukan tempelan. Fase terakhir seluruhnya soal ini:
 
 ## Kondisi jujur
 
-Yang **belum** ada: SSH remote (ditunda sampai ada hosting untuk mengujinya).
-
 Marketplace ekstensi masih terbatas: ekstensi v1 **hanya membaca manifest**, kode
 JS-nya tidak dijalankan. Itu keputusan keamanan, bukan kemalasan — mengeksekusi
 JS ekstensi berarti memberi pihak ketiga akses penuh ke `window`, artinya ke
@@ -94,6 +136,9 @@ seluruh IPC termasuk fs, pty, git, dan secrets.
 
 Installer tidak ditandatangani, jadi SmartScreen akan memperingatkan saat
 pertama kali dijalankan.
+
+Auto-update dalam aplikasi belum aktif (belum ada private key signing) — cek
+halaman Releases untuk versi baru.
 
 API key disimpan dengan XOR + kunci BLAKE3 dari MachineGuid. Itu **obfuskasi,
 bukan enkripsi** — cukup untuk mencegah key terbaca sekilas, tidak cukup
