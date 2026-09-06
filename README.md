@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.1.2` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.3` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -33,9 +33,9 @@ langsung jalan tanpa install tambahan).
 
 ### Cara install Zephyr (3 langkah)
 
-1. **Unduh installer** — `Zephyr_1.1.2_x64-setup.exe` (atau `.msi`) dari
+1. **Unduh installer** — `Zephyr_1.1.3_x64-setup.exe` (atau `.msi`) dari
    halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.2_x64-setup.exe` — itu installer-nya.
+   `Zephyr_1.1.3_x64-setup.exe` — itu installer-nya.
 2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
    anyway**. Ini normal: installer belum ditandatangani, bukan berarti
    berbahaya. Source-nya terbuka dan bisa diverifikasi.
@@ -142,6 +142,13 @@ selesai ada pemberitahuan, setelah restart muncul banner "Zephyr diperbarui
 ke vX" dengan catatan rilis, dan info bug/berita tampil lewat Notification
 Center (lonceng di status bar). Aktifkan "Cek pembaruan otomatis" di
 Settings → General untuk menerima info ini tanpa klik manual.
+
+**Menu bar lengkap** — File / Edit / Selection / View / Go / Run / Terminal /
+Help semuanya aktif: undo-redo, cut-copy-paste, komentar, seleksi multi-kursor,
+toggle breadcrumbs/minimap/sticky scroll, ganti tema, lompat antar error,
+riwayat tab (Go → Back/Forward), reopen editor yang ditutup, buka jendela
+baru, dan keluar. Semua item juga tersedia di Command Palette
+(`Ctrl+Shift+P`).
 
 **Sisanya** — global search lewat ripgrep, tasks runner dengan problem matcher,
 local history + timeline, multi-root workspace dengan workspace trust, 7 tema

@@ -76,7 +76,7 @@ export default function McpPanel() {
         file, menjalankan command. Hanya loopback: tidak pernah terbuka ke jaringan.
       </p>
 
-      <Row label={t('mcp.enable')} hint={`switch besar; port ${mcp.port} (kontrak ARCHITECTURE.md)`}>
+      <Row label={t('mcp.enable')} hint={`switch besar; port ${mcp.port}`}>
         <Toggle
           label={t('mcp.enable')}
           testid="mcp-enable"
