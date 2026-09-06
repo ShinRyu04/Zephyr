@@ -115,13 +115,15 @@ function GitHubRow() {
             <button
               className="btn btn-sm btn-primary"
               data-testid="scm-gh-signin"
-              disabled={!gh?.oauthConfigured}
               title={
                 gh?.oauthConfigured
                   ? 'Login lewat GitHub Device Flow'
-                  : 'Set client_id dulu (GitHub OAuth App dengan Device Flow aktif)'
+                  : 'Belum ada client_id — klik untuk membuka halaman OAuth App GitHub'
               }
-              onClick={() => void loginDevice()}
+              onClick={() => {
+                if (gh?.oauthConfigured) void loginDevice();
+                else void openUrl('https://github.com/settings/developers');
+              }}
             >
               Sign in with GitHub
             </button>
@@ -492,6 +494,8 @@ export default function SourceControlPanel() {
   const unstaged = changes.filter((c) => !c.staged);
   const canCommit = stagedCount > 0 && message.trim().length > 0 && !busy;
 
+  // Bagian git butuh workspace, tapi LOGIN GITHUB tidak — panel tetap
+  // menampilkan GitHubRow (login/akun) walau belum ada folder dibuka.
   if (!workspace) {
     return (
       <div className="side-panel">
@@ -499,6 +503,7 @@ export default function SourceControlPanel() {
           <div className="side-title">Source Control</div>
           <p className="side-muted">Buka folder dulu untuk memakai git.</p>
         </div>
+        <GitHubRow />
       </div>
     );
   }

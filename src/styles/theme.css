@@ -72,3 +72,48 @@
    - themes-extra.css -> nord, tokyo-night, gruvbox-dark, one-dark
    - tokens.css       -> token turunan (bg0..bg3, fg0..fg2, ansi 0..15)
    Semuanya di-import di src/App.tsx SETELAH file ini. */
+
+/* Senja (fase 34) — dulu ekstensi bundled, kini tema bawaan.
+   Palet asli: latar cokelat-ungu hangat, aksen jingga senja (#ff8c42). */
+[data-theme='senja'] {
+  --bg: #1a1418;
+  --surface: #221a20;
+  --surface-2: #2b2128;
+  --surface-3: #372a31;
+  --border: #3d2f37;
+  --border-strong: #57444e;
+
+  --text: #f5e6dc;
+  --text-secondary: #d8c3b6;
+  --text-muted: #a58d80;
+  --text-inverse: #1a1418;
+
+  --accent: #ff8c42;
+  --accent-hover: #ffa066;
+  --accent-subtle: rgba(255, 140, 66, 0.18);
+  --danger: #f0625d;
+  --warning: #e8a33d;
+  --success: #8fbf6f;
+  --modified: #e8a33d;
+  --added: #8fbf6f;
+  --deleted: #f0625d;
+
+  --editor-bg: #1a1418;
+  --editor-gutter: #8a766d;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(255, 140, 66, 0.28);
+  --editor-cursor: #f5e6dc;
+  --editor-match: rgba(232, 163, 61, 0.32);
+
+  --syn-keyword: #ff8c42;
+  --syn-string: #c3d17a;
+  --syn-number: #e8a33d;
+  --syn-comment: #7d6a63;
+  --syn-function: #7ec9d1;
+  --syn-variable: #f5c2a0;
+  --syn-type: #9fbf7f;
+  --syn-operator: #e8a33d;
+  --syn-tag: #9fbf7f;
+  --syn-attr: #c3d17a;
+  --syn-invalid: #f0625d;
+}

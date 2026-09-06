@@ -17,46 +17,6 @@ use tauri::State;
 /// (id, nama file, isi) — file pertama selalu `zephyr-extension.json`.
 type Paket = (&'static str, &'static [(&'static str, &'static str)]);
 
-const TEMA_SENJA: &str = r##"{
-  "id": "zephyr.tema-senja",
-  "name": "Tema Senja",
-  "publisher": "zephyr",
-  "version": "1.0.0",
-  "description": "Tema gelap hangat: latar cokelat-ungu, aksen jingga senja.",
-  "engines": { "zephyr": ">=1.0" },
-  "categories": ["Themes"],
-  "contributes": {
-    "themes": [{ "label": "Senja", "kind": "dark", "path": "./themes/senja.json" }]
-  }
-}"##;
-
-const TEMA_SENJA_JSON: &str = r##"{
-  "colors": {
-    "--bg0": "#1a1418",
-    "--bg1": "#221a20",
-    "--bg2": "#2b2128",
-    "--bg3": "#372a31",
-    "--fg0": "#f5e6dc",
-    "--fg1": "#d8c3b6",
-    "--fg2": "#a58d80",
-    "--accent": "#ff8c42",
-    "--border": "#3d2f37",
-    "--surface": "#221a20",
-    "--surface-2": "#2b2128",
-    "--surface-3": "#372a31",
-    "--text": "#f5e6dc",
-    "--text-secondary": "#d8c3b6",
-    "--text-muted": "#a58d80",
-    "--danger": "#f0625d",
-    "--warning": "#e8a33d",
-    "--syntax-comment": "#7d6a63",
-    "--syntax-keyword": "#ff8c42",
-    "--syntax-string": "#c3d17a",
-    "--syntax-number": "#e8a33d",
-    "--syntax-function": "#7ec9d1"
-  }
-}"##;
-
 const TEMA_KERTAS: &str = r##"{
   "id": "zephyr.tema-kertas",
   "name": "Tema Kertas",
@@ -270,13 +230,6 @@ const IKON_BULAT_JSON: &str = r##"{
 /// Semua paket bundled. Id WAJIB sama dengan `KATALOG_BUNDLED` di
 /// src/lib/extCatalog.ts — kalau menambah, ubah keduanya.
 const PAKET: &[Paket] = &[
-    (
-        "zephyr.tema-senja",
-        &[
-            ("zephyr-extension.json", TEMA_SENJA),
-            ("themes/senja.json", TEMA_SENJA_JSON),
-        ],
-    ),
     (
         "zephyr.tema-kertas",
         &[

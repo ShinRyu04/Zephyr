@@ -10,6 +10,7 @@ import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
 import { LSP_SERVERS, effectiveSpec, DEFAULT_LSP_SETTINGS } from '../../lib/lsp';
 import { notifyInfo } from '../../lib/notificationStore';
+import { clipboardWrite } from '../../lib/clipboard';
 
 export default function SectionsLsp() {
   const settings = useStore((s) => s.settings);
@@ -144,18 +145,50 @@ export default function SectionsLsp() {
               <span className="lsp-srv-live" data-testid={`lsp-srv-live-${def.id}`}>
                 {hidup.length > 0 ? `pid ${hidup[0].pid}` : ''}
               </span>
+              {!p?.ok && (
+                <button
+                  className="btn btn-xs"
+                  data-testid={`lsp-srv-copy-${def.id}`}
+                  title={`Salin perintah pasang: ${def.install}`}
+                  onClick={async () => {
+                    await clipboardWrite(def.install);
+                    notifyInfo(`Perintah pasang ${def.label} disalin`, { source: 'LSP' });
+                  }}
+                >
+                  salin
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
-      <p className="set-note">
-        Cara memasang yang belum ada: {LSP_SERVERS.filter((d) => !probe[d.id]?.ok).length === 0
-          ? 'semua sudah terpasang.'
-          : LSP_SERVERS.filter((d) => !probe[d.id]?.ok)
-              .map((d) => `${d.label} → ${d.install}`)
-              .join(' · ')}
-      </p>
+      <div className="set-note lsp-belum" data-testid="lsp-belum">
+        {(() => {
+          const belum = LSP_SERVERS.filter((d) => !probe[d.id]?.ok);
+          if (belum.length === 0) return 'Semua language server terpasang.';
+          return (
+            <>
+              <span>
+                <strong>{belum.length} belum terpasang.</strong> Klik <em>salin</em> untuk
+                perintah pasangnya, lalu jalankan di terminal.
+              </span>
+              <button
+                className="btn btn-sm"
+                data-testid="lsp-copy-semua"
+                title="Salin semua perintah pasang yang belum terpasang"
+                onClick={async () => {
+                  const teks = belum.map((d) => `# ${d.label}\n${d.install}`).join('\n\n');
+                  await clipboardWrite(teks);
+                  notifyInfo(`${belum.length} perintah pasang disalin`, { source: 'LSP' });
+                }}
+              >
+                Salin semua perintah
+              </button>
+            </>
+          );
+        })()}
+      </div>
     </section>
   );
 }
