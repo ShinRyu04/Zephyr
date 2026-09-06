@@ -41,7 +41,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "windows": {
       "nsis": {
         "installMode": "both",
@@ -51,7 +51,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUzRUI1QkJFNjAwMTI5RUIKUldUcktRRmd2bHZyVS9aaXhtNFpnbVNybXFuRmIyZGR3cmt0Q3JQRG5Va1ZkY1dJY0F5eTRyWksK",
+      "pubkey": "",
       "endpoints": []
     }
   }
