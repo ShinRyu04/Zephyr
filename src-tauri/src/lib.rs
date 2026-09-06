@@ -240,7 +240,7 @@ pub fn run() {
             pty::pty_list,
             pty::pty_set_paused,
             pty::pty_interrupt,
-            // SSH (fase 07)
+            // SSH
             ssh::ssh_list,
             ssh::ssh_add,
             ssh::ssh_update,

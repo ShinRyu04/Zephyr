@@ -426,8 +426,7 @@ export function AboutSection() {
       </div>
 
       <p className="set-note">
-        Fase yang sudah jalan: 01–06 dan 08–17. Fase 07 (SSH) ditunda menunggu
-        host. Angka di Diagnostics di bawah diukur langsung dari proses ini —
+        Angka di Diagnostics di bawah diukur langsung dari proses ini —
         bukan perkiraan.
       </p>
 

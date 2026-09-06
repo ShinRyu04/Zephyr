@@ -1,6 +1,6 @@
 // PortsView.tsx — tabel port forward (fase 20).
 //
-// Sumber otomatis (SSH fase 07, task fase 23) memanggil `usePorts.add()`.
+// Sumber otomatis (SSH, task fase 23) memanggil `usePorts.add()`.
 // Di fase ini hanya "Add Port" manual yang bisa membuat entri, dan itu memang
 // scope-nya — tabel + aksinya yang harus benar sekarang.
 
@@ -88,7 +88,7 @@ export default function PortsView() {
 
       {ports.length === 0 ? (
         <p className="ports-empty" data-testid="ports-empty">
-          Belum ada port yang diteruskan. Sesi SSH (fase 07) dan task yang membuka
+          Belum ada port yang diteruskan. Sesi SSH dan task yang membuka
           port (fase 23) akan otomatis muncul di sini.
         </p>
       ) : (

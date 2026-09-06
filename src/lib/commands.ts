@@ -200,7 +200,7 @@ export const ptySetPaused = (paused: boolean) => invoke<void>('pty_set_paused', 
 /** Ctrl+C sungguhan (CTRL_C_EVENT), bukan sekadar byte 0x03. */
 export const ptyInterrupt = (id: string) => invoke<number>('pty_interrupt', { id });
 
-// ── SSH (fase 07) ──
+// ── SSH ──
 
 export const sshList = () => invoke<SshHost[]>('ssh_list');
 export const sshAdd = (config: SshConfigInput) => invoke<void>('ssh_add', { config });

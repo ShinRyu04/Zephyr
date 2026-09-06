@@ -76,7 +76,7 @@ fn decrypt(enc: &str) -> Option<String> {
 }
 
 /// Enkripsi XOR+BLAKE3 untuk data non-kunci (dipakai ssh.rs — password host
-/// SSH disimpan terenkripsi di ssh.json, bukan plaintext; kontrak fase 07).
+/// SSH disimpan terenkripsi di ssh.json, bukan plaintext.
 pub fn encrypt_string(plain: &str) -> String {
     encrypt(plain)
 }
