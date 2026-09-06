@@ -28,25 +28,54 @@ editor berbasis Electron biasanya 80–120 MB.
 
 ## Instal
 
-Butuh Windows 10/11 (WebView2 Runtime sudah ada di Windows 11, jadi biasanya
-langsung jalan).
+Butuh **Windows 10/11** (WebView2 Runtime sudah ada di Windows 11, jadi biasanya
+langsung jalan tanpa install tambahan).
+
+### Cara install Zephyr (3 langkah)
 
 1. **Unduh installer** — `Zephyr_1.1.0_x64-setup.exe` (atau `.msi`) dari
-   halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases).
-2. **Jalankan installer** — SmartScreen mungkin memperingatkan karena installer
-   belum ditandatangani; klik **More info → Run anyway**. Itu normal, bukan
-   tanda bahaya.
-3. **Selesai** — Zephyr terbuka. Klik **Open Folder** di sidebar untuk membuka
-   proyekmu.
-4. **(Opsional) Pasang ekstensi** — buka panel Extensions → tab **Marketplace**,
-   cari ekstensi, klik **Install**. Zephyr menarik `.vsix` langsung dari Open
-   VSX, jadi ekstensi VS Code yang publik ikut tersedia.
+   halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
+   `Zephyr_1.1.0_x64-setup.exe` — itu installer-nya.
+2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
+   anyway**. Ini normal: installer belum ditandatangani, bukan berarti
+   berbahaya. Source-nya terbuka dan bisa diverifikasi.
+3. **Selesai** — Zephyr terbuka. Di sidebar kiri klik **Open Folder** untuk
+   membuka proyekmu, atau **Open File** untuk file tunggal.
 
-> Ekstensi v1 bersifat **manifest-only**: Zephyr membaca `package.json` dan
-> mendaftarkan `contributes.commands` ke Command Palette, tetapi TIDAK
-> menjalankan kode JS ekstensi. Bahasa, tema, snippet, keymap, dan command ikut
-> aktif; extension host penuh (kode JS ekstensi) sengaja tidak dijalankan demi
-> keamanan.
+Tidak perlu install apa pun tambahan — Rust, Node, dan WebView2 sudah ditangani
+installer. Data dan settings tersimpan di `%APPDATA%\zephyr\`.
+
+### Cara install ekstensi (2 cara)
+
+**Dari Marketplace:**
+1. Buka panel **Extensions** (ikon kotak-kotak di sidebar kiri, atau
+   `Ctrl+Shift+X`).
+2. Tab **Marketplace** → ketik nama ekstensi di kotak cari → klik **Install**
+   pada hasil yang kamu mau.
+3. Zephyr mengunduh `.vsix` langsung dari **Open VSX** — jadi ekstensi VS Code
+   publik yang tersedia di sana ikut tersedia.
+
+**Dari file `.vsix` manual:**
+1. Unduh file `.vsix` dari mana pun (halaman rilis ekstensi, Open VSX, dll).
+2. Di panel Extensions, klik tombol **⋯** (pojok kanan header) →
+   **Install from .vsix…** → pilih filenya.
+3. Selesai — ekstensi muncul di tab **Installed** dan bisa diaktifkan/dimatikan.
+
+> **Catatan penting soal ekstensi:** ekstensi v1 bersifat **manifest-only** —
+> Zephyr membaca `package.json` dan mendaftarkan `contributes.commands` ke
+> Command Palette, tetapi **tidak menjalankan kode JS ekstensi**. Bahasa, tema,
+> snippet, keymap, dan command ikut aktif; extension host penuh (kode JS
+> ekstensi) sengaja tidak dijalankan demi keamanan.
+
+### Cara pakai SSH ke server/VPS
+
+1. Buka **Settings → SSH** (atau panel terminal → dropdown Connect SSH).
+2. Klik **+ Tambah host** — isi nama, host (IP/domain), port (default 22),
+   user, dan metode auth (kunci SSH atau password).
+3. Klik **Connect** — terbuka pane terminal yang terhubung ke server. Ketik
+   password/passphrase langsung di pane kalau diminta.
+4. Untuk memutuskan: klik **X** di header pane, atau kanan-klik pane →
+   **Disconnect**.
 
 Data dan settings disimpan di `%APPDATA%\zephyr\` — hapus folder itu untuk
 reset penuh.
@@ -178,6 +207,3 @@ Harness ada di `scripts/verify*.mjs`. Unit test Rust: `cd src-tauri && cargo tes
 ## Lisensi
 
 Tidak dilisensikan. Semua hak dipegang pemilik repositori.
-
-Tidak ada telemetri, tidak ada analytics, tidak ada crash reporting otomatis. Log
-dan settings hanya ada di `%APPDATA%\zephyr\`.
