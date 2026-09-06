@@ -32,6 +32,7 @@ import { useMcp } from './lib/mcpStore';
 import { usePalette } from './lib/paletteStore';
 import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
+import { useUpdater } from './lib/updaterStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
 // fase 31
 import { terapkanA11y, umumkan as umumkanA11y } from './lib/a11yStore';
@@ -106,6 +107,17 @@ let errorHandlersBound = false;
  *  dilebarkan — kalau tidak, sidebar yang sengaja ditutup user muncul sendiri. */
 let autoCollapsed = false;
 
+async function cekUpdateStartup() {
+  try {
+    const s = useStore.getState();
+    if (!s.settings.general?.checkUpdates) return;
+    const u = useUpdater.getState();
+    if (u.status === 'idle') await u.check({ senyap: true });
+  } catch {
+    /* diam */
+  }
+}
+
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
@@ -122,10 +134,14 @@ export default function App() {
   useEffect(() => {
     if (useStore.getState().settingsLoaded) {
       void cekPengumuman();
+      void cekUpdateStartup();
       return;
     }
     const unsub = useStore.subscribe((s, prev) => {
-      if (!prev.settingsLoaded && s.settingsLoaded) void cekPengumuman();
+      if (!prev.settingsLoaded && s.settingsLoaded) {
+        void cekPengumuman();
+        void cekUpdateStartup();
+      }
     });
     return unsub;
   }, []);
