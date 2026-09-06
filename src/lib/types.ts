@@ -521,6 +521,9 @@ export interface ExtManifestStatus {
   tercatat: boolean;
   path: string;
   error: string | null;
+  /** fase 33: path absolut icon ekstensi (icon di package.json / icon.png),
+   *  dibaca loader — dipakai daftar Installed biar logo asli tampil. */
+  iconPath?: string | null;
 }
 
 export interface ExtInstallHasil {
@@ -566,6 +569,8 @@ export interface Tab {
   /** fase 15.1: file ini PERNAH ada di disk. Dipakai `fs_write` untuk
    *  membedakan "file hilang dari luar" dari "file baru". */
   existed?: boolean;
+  /** fase 33: id grup editor tempat tab ini tampil. null = ikut group fokus. */
+  groupId?: string | null;
 }
 
 export type LangId =

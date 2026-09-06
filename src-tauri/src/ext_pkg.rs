@@ -801,6 +801,36 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
         match read_manifest(&d) {
             Ok(m) => {
                 let ent = installed.iter().find(|x| x.id == m.id);
+                // Icon asli ekstensi (fase 33): baca `icon` dari manifest atau
+                // icon.png/svg/gif di akar, kirim sebagai DATA URL biar bisa
+                // langsung dipakai <img> (WebView2 tidak bisa memuat path
+                // file lokal mentah, dan asset protocol tidak diaktifkan).
+                let icon_bytes: Option<Vec<u8>> = if m.icon.is_empty() {
+                    ["icon.png", "icon.svg", "icon.gif"]
+                        .iter()
+                        .find(|fb| d.join(fb).is_file())
+                        .and_then(|fb| std::fs::read(d.join(fb)).ok())
+                } else {
+                    resolve_in_ext(&d, &m.icon)
+                        .ok()
+                        .and_then(|p| std::fs::read(p).ok())
+                };
+                let icon_data = icon_bytes.and_then(|b| {
+                    use base64::Engine;
+                    let mime = if b.starts_with(b"<svg") {
+                        "image/svg+xml"
+                    } else {
+                        "image/png"
+                    };
+                    if b.len() > 256 * 1024 {
+                        None // icon raksasa → jangan bebani IPC
+                    } else {
+                        Some(format!(
+                            "data:{mime};base64,{}",
+                            base64::engine::general_purpose::STANDARD.encode(b)
+                        ))
+                    }
+                });
                 out.push(ExtManifestStatus {
                     // Belum tercatat di installed.json (mis. folder ditaruh
                     // manual) → dianggap TERPASANG TAPI MATI, biar user yang
@@ -810,6 +840,7 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
                     path: d.to_string_lossy().to_string(),
                     error: None,
                     manifest: Some(m),
+                    icon_path: icon_data,
                 });
             }
             Err(e) => out.push(ExtManifestStatus {
@@ -818,6 +849,7 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
                 path: d.to_string_lossy().to_string(),
                 error: Some(e.to_string()),
                 manifest: None,
+                icon_path: None,
             }),
         }
     }
@@ -833,6 +865,9 @@ pub struct ExtManifestStatus {
     pub tercatat: bool,
     pub path: String,
     pub error: Option<String>,
+    /// path absolut icon ekstensi (kalau ada) — daftar Installed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_path: Option<String>,
 }
 
 // ───────────────────── unduh .vsix dari registry ─────────────────────
