@@ -317,7 +317,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   },
 
   /**
-   * Daftarkan pane EKSTERNAL yang sudah di-spawn Rust (mis. sesi SSH fase 07 —
+   * Daftarkan pane EKSTERNAL yang sudah di-spawn Rust (mis. sesi SSH —
    * ssh_connect membuat pty sendiri dan mengembalikan paneId). Pane ini
    * mengikuti semua alur terminal: tab bar, close, output event pty.
    */

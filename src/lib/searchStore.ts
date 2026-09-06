@@ -51,7 +51,7 @@ interface SearchState {
   /**
    * Folder awal pencarian. '' = seluruh workspace.
    *
-   * Ada karena "Search in Folder" (klik kanan di file tree) dan leg SSH fase 07
+   * Ada karena "Search in Folder" (klik kanan di file tree) dan leg SSH
    * dua-duanya perlu mempersempit root; search.rs sudah menerimanya dan
    * menolak root di luar workspace.
    */
