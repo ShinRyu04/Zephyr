@@ -22,7 +22,7 @@ export function ScmSection() {
   return (
     <Section title={t('settings.scm')}>
       <p className="set-note">
-        Identitas ini dipakai saat commit dari Zephyr (fase 10). Dibiarkan kosong
+        Identitas ini dipakai saat commit dari Zephyr. Dibiarkan kosong
         = pakai konfigurasi <code>git config</code> yang sudah ada di mesin/repo.
       </p>
 
@@ -376,7 +376,7 @@ export function AboutSection() {
     ['Frontend', 'React 18 + TypeScript + Vite 6'],
     ['Editor', 'CodeMirror 6'],
     ['Terminal', '@xterm/xterm 5.5 + portable-pty (ConPTY)'],
-    ['Automation', 'MCP JSON-RPC di 127.0.0.1:9222 (fase 11)'],
+    ['Automation', 'MCP JSON-RPC di 127.0.0.1:9222'],
   ];
   return (
     <Section title={t('settings.about')}>

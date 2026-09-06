@@ -158,7 +158,7 @@ export default function FindBar() {
     });
     const tertangkap = !window.dispatchEvent(ev) || false;
     if (!tertangkap) {
-      notifyInfo(`Cari "${query}" di semua file — panel Search hadir di fase 25`);
+      notifyInfo(`Cari "${query}" di semua file — panel Search ada di sidebar`);
     }
   }, [query, regex, caseSensitive, wholeWord]);
 

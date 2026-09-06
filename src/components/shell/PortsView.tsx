@@ -89,7 +89,7 @@ export default function PortsView() {
       {ports.length === 0 ? (
         <p className="ports-empty" data-testid="ports-empty">
           Belum ada port yang diteruskan. Sesi SSH dan task yang membuka
-          port (fase 23) akan otomatis muncul di sini.
+          port akan otomatis muncul di sini.
         </p>
       ) : (
         <div className="ports-table-wrap">
