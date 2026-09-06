@@ -158,9 +158,67 @@ fn str_field(v: &Value, key: &str) -> String {
         .to_string()
 }
 
+/// Baca peta lokal `package.nls.json` (+ `package.nls.<locale>.json` bila
+/// ada). VS Code memakai file ini untuk mengganti `%key%` di dalam
+/// `contributes.commands[].title` — tanpa ini title tampil mentah seperti
+/// `%contributes.commands.java.project.build%` di Command Palette.
+fn nls_map(dir: &Path) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    for fname in ["package.nls.json", "package.nls.en.json", "package.nls.id.json"] {
+        let p = dir.join(fname);
+        let Ok(raw) = std::fs::read_to_string(&p) else {
+            continue;
+        };
+        if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+            if let Some(obj) = v.as_object() {
+                for (k, val) in obj {
+                    if let Some(s) = val.as_str() {
+                        map.insert(k.clone(), s.to_string());
+                    }
+                }
+            }
+        }
+    }
+    map
+}
+
+/// Ganti `%key%` pada string memakai peta nls. String tanpa `%` dikembalikan
+/// apa adanya. Key yang tidak ditemukan TETAP dipakai (lebih baik daripada
+/// judul kosong), tapi tanda `%` dibuang supaya tidak tampil mentah.
+fn resolve_nls(s: &str, nls: &std::collections::HashMap<String, String>) -> String {
+    if !s.contains('%') {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('%') else {
+            // `%` tanpa pasangan: buang sisanya agar tidak mentah.
+            return out;
+        };
+        let key = &after[..end];
+        match nls.get(key) {
+            Some(val) => out.push_str(val),
+            None => {
+                // Key tidak dikenal: lewati (jangan tampilkan `%key%`).
+                // Nama command asli lebih informatif sebagai fallback?
+                // Tidak — biarkan kosong, caller mengganti dengan raw.
+                out.push_str(key);
+            }
+        }
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Ambil `contributes.commands` dari manifest. Bentuk yang diterima:
 /// `[{ command|name, title|label, description? }]`.
-fn parse_commands(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
+/// `dir` dipakai membaca `package.nls.json` untuk resolve `%key%` pada title.
+fn parse_commands(ext_id: &str, manifest: &Value, dir: &Path) -> Vec<ExtCommand> {
+    let nls = nls_map(dir);
     let arr = manifest
         .get("contributes")
         .and_then(|c| c.get("commands"))
@@ -183,7 +241,7 @@ fn parse_commands(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
         }
         let title = {
             let t = str_field(&c, "title");
-            if t.is_empty() {
+            let resolved = if t.is_empty() {
                 let l = str_field(&c, "label");
                 if l.is_empty() {
                     raw.clone()
@@ -192,6 +250,16 @@ fn parse_commands(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
                 }
             } else {
                 t
+            };
+            // VS Code: title bisa berupa kunci lokal `%...%` — resolve dari
+            // package.nls.json supaya Command Palette tidak menampilkan kunci
+            // mentah. Kalau kunci tidak dikenal, pakai nama command (short)
+            // sebagai ganti.
+            let r = resolve_nls(&resolved, &nls);
+            if r.is_empty() {
+                raw.clone()
+            } else {
+                r
             }
         };
         // Namespace WAJIB: ekstensi tidak boleh menimpa command inti.
@@ -210,8 +278,9 @@ fn parse_commands(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
 
 /// Wrapper publik untuk `parse_commands` — dipakai `ext_pkg.rs` (fase 19)
 /// supaya aturan namespace `ext.<id>.<nama>` cuma punya SATU definisi.
-pub fn parse_commands_pub(ext_id: &str, manifest: &Value) -> Vec<ExtCommand> {
-    parse_commands(ext_id, manifest)
+/// `dir` (bila ada) dipakai resolve `%key%` nls; kosong = tanpa nls.
+pub fn parse_commands_pub(ext_id: &str, manifest: &Value, dir: Option<&Path>) -> Vec<ExtCommand> {
+    parse_commands(ext_id, manifest, dir.unwrap_or_else(|| Path::new("")))
 }
 
 /// Baca satu folder ekstensi → info. None = bukan paket ekstensi.
@@ -281,7 +350,7 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
         // Ekstensi rusak/kebesaran tidak boleh terlihat aktif walau ada di
         // settings — kalau tidak, palette menampilkan command yang tak jalan.
         enabled: error.is_none() && enabled.iter().any(|x| x == &id),
-        commands: parse_commands(&id, &manifest),
+        commands: parse_commands(&id, &manifest, &dir),
         name,
         version: str_field(&manifest, "version"),
         description: str_field(&manifest, "description"),

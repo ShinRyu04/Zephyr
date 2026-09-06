@@ -180,7 +180,7 @@ fn engine_cocok(spec: &str) -> bool {
     }
 }
 
-fn parse_contributes(ext_id: &str, v: &Value) -> Contributes {
+fn parse_contributes(ext_id: &str, v: &Value, dir: &Path) -> Contributes {
     let mut c = Contributes::default();
 
     for t in arr(v, "contributes", "themes") {
@@ -275,7 +275,7 @@ fn parse_contributes(ext_id: &str, v: &Value) -> Contributes {
         });
     }
 
-    c.commands = crate::extensions::parse_commands_pub(ext_id, v);
+    c.commands = crate::extensions::parse_commands_pub(ext_id, v, Some(dir));
     c
 }
 
@@ -320,7 +320,7 @@ pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
         .to_string();
 
     Ok(ExtManifest {
-        contributes: parse_contributes(&id, &v),
+        contributes: parse_contributes(&id, &v, dir),
         name: {
             let n = sf(&v, "displayName");
             if n.is_empty() {
