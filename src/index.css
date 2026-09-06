@@ -1887,6 +1887,34 @@ body.is-resizing-v {
   border-bottom: 1px solid var(--border);
   font-size: 12px;
 }
+/* fase 33: banner "Zephyr diperbarui ke vX" — strip di bawah menu bar,
+   muncul sekali setelah versi app berubah. */
+.upd-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-header-bg, var(--surface-2));
+  color: var(--text);
+}
+.upd-banner-ico { color: var(--accent); font-size: 13px; }
+.upd-banner-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+}
+.upd-banner-text strong { white-space: nowrap; }
+.upd-banner-notes {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .nc-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
 .nc-dot.is-info { background: var(--accent); }
 .nc-dot.is-warn { background: var(--warning); }

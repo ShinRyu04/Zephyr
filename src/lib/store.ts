@@ -75,6 +75,8 @@ interface StoreState {
   settingsLoaded: boolean;
   /** versi + data dir dari Rust (dipakai Settings → Tentang). */
   appInfo: AppInfo | null;
+  /** fase 33: banner "Zephyr diperbarui ke vX" (null = tidak tampil). */
+  updateBanner: { version: string; notes: string } | null;
   /** halaman Settings sedang dibuka di area utama (fase 08). */
   settingsOpen: boolean;
   /** id tema yang BENAR-BENAR terpasang di <html> (fase 13).
@@ -94,6 +96,8 @@ interface StoreActions {
   setFindOpen: (open: boolean) => void;
   /** Buka/tutup halaman Settings di area utama (fase 08). */
   setSettingsOpen: (open: boolean) => void;
+  /** fase 33: tampilkan/sembunyikan banner "diperbarui ke vX". */
+  setUpdateBanner: (b: { version: string; notes: string } | null) => void;
 
   bootstrap: () => Promise<void>;
   openFolderDialog: () => Promise<void>;
@@ -214,6 +218,7 @@ export const useStore = create<Store>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   settingsLoaded: false,
   appInfo: null,
+  updateBanner: null,
   settingsOpen: false,
   activeTheme: 'zephyr-dark',
 
@@ -226,6 +231,7 @@ export const useStore = create<Store>((set, get) => ({
   setCursor: (line, col) => set({ cursor: { line, col } }),
   setFindOpen: (open) => set({ findOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setUpdateBanner: (b) => set({ updateBanner: b }),
 
   // ── bootstrap: settings + restore session ──
   bootstrap: async () => {
@@ -256,8 +262,31 @@ export const useStore = create<Store>((set, get) => ({
     }
 
     // Info app (versi/data dir) untuk Settings → Tentang. Non-fatal.
+    // fase 33: sekalian deteksi "Zephyr baru saja di-update" → banner
+    // "diperbarui ke vX" muncul SEKALI, lalu lastSeenVersion dicatat.
     try {
-      set({ appInfo: await cmd.getAppInfo() });
+      const info = await cmd.getAppInfo();
+      set({ appInfo: info });
+      const upd = get().settings.update;
+      if (upd && upd.lastSeenVersion && upd.lastSeenVersion !== info.version) {
+        set({ updateBanner: { version: info.version, notes: upd.pendingNotes || '' } });
+      }
+      if (upd && upd.lastSeenVersion !== info.version) {
+        // Tandai versi sekarang + kosongkan notes menunggu (banner sudah
+        // diambil). Non-fatal: kalau gagal menulis, banner muncul lagi di
+        // start berikutnya — tidak berbahaya, hanya mengulang sekali.
+        await cmd
+          .setSettings({
+            update: { lastSeenVersion: info.version, pendingNotes: '' },
+          })
+          .catch(() => {});
+        set({
+          settings: {
+            ...get().settings,
+            update: { ...upd, lastSeenVersion: info.version, pendingNotes: '' },
+          },
+        });
+      }
     } catch {
       /* biarkan null */
     }

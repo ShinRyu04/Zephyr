@@ -88,7 +88,17 @@ pub fn default_settings() -> Value {
         // fase 26: Local History. Dinyalakan default karena ini safety-net —
         // gunanya justru sebelum user sadar membutuhkannya. Retensi menjaga
         // disk: 50 snapshot/file, buang yang lebih tua dari 30 hari.
-        "history": { "enabled": true, "maxPerFile": 50, "maxDays": 30 }
+        "history": { "enabled": true, "maxPerFile": 50, "maxDays": 30 },
+        // fase 33: state notifikasi update & pengumuman (dikelola frontend).
+        // `lastSeenVersion` = versi terakhir yang dijalankan app (untuk banner
+        // "diperbarui ke vX"); `pendingNotes` = catatan rilis yang menunggu
+        // ditampilkan setelah restart; `seenAnnouncements` = id pengumuman
+        // yang sudah dilihat user (dari announcements.json di GitHub).
+        "update": {
+            "lastSeenVersion": "",
+            "pendingNotes": "",
+            "seenAnnouncements": []
+        }
     })
 }
 
