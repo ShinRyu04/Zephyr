@@ -88,7 +88,6 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+K P', 'file.copyPath', 'app'),
   D('Ctrl+K R', 'explorer.revealActive', 'app'),
   D('Ctrl+Shift+N', 'window.new', 'stub', 'global', 'New Window'),
-  D('Ctrl+Shift+T', 'editor.reopen', 'stub', 'global', 'Reopen Closed Editor'),
 
   // ── Edit (CodeMirror) ──
   D('Ctrl+Z', 'editor.undo', 'editor', 'editorFocus'),
