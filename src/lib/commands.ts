@@ -294,7 +294,6 @@ export const mcpCliStatus = () => invoke<CliStatus[]>('mcp_cli_status');
 // ── extensions (fase 13) ──
 
 export const extensionsList = () => invoke<ExtensionInfo[]>('extensions_list');
-/** Muat manifest + file entry (≤1MB). Kode TIDAK dieksekusi (manifest-only v1). */
 export const extensionsLoad = (id: string) => invoke<ExtensionLoad>('extensions_load', { id });
 /** Daftarkan folder ekstensi dari luar (user memilih package.json-nya). */
 export const extensionsAdd = (path: string) => invoke<ExtensionInfo>('extensions_add', { path });
@@ -315,6 +314,8 @@ export const extensionsSetEnabled = (id: string, on: boolean) =>
 /** Baca file kontribusi (tema/keymap/snippet) — path wajib di dalam ekstensi. */
 export const extensionsReadContrib = (id: string, rel: string) =>
   invoke<Record<string, unknown>>('extensions_read_contrib', { id, rel });
+export const extensionsReadMain = (id: string, rel: string) =>
+  invoke<string>('extensions_read_main', { id, rel });
 /** Manifest + status semua ekstensi terpasang (dipakai loader 19.5). */
 export const extensionsManifests = () => invoke<ExtManifestStatus[]>('extensions_manifests');
 /** Tulis paket bundled ke folder staging → path untuk `extensions_install`. */

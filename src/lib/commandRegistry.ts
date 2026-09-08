@@ -18,6 +18,7 @@ import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
 import { commandsEkstensi } from './extLoader';
+import { sandboxCommands, runEkstensiCommand } from './extHost';
 import { useNotif, notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
@@ -2189,6 +2190,22 @@ export function extensionCommands(): CommandDef[] {
   for (const c of commandsEkstensi()) {
     if (out.has(c.id)) continue;
     out.set(c.id, buat(c.id, c.title, c.extId, c.extId, c.description));
+  }
+  for (const c of sandboxCommands()) {
+    if (out.has(c.id)) continue;
+    out.set(c.id, {
+      id: c.id,
+      title: c.title,
+      group: 'Extensions' as CmdGroup,
+      keywords: `${c.extId} ${c.title} ekstensi sandbox`,
+      run: () => {
+        void runEkstensiCommand(c.extId, c.id, []).catch((e) =>
+          useNotif
+            .getState()
+            .notify({ severity: 'error', message: `Ekstensi ${c.extId}: ${c.title}`, detail: String(e.message || e), source: 'extensions' }),
+        );
+      },
+    });
   }
   return Array.from(out.values());
 }
