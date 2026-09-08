@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.1.5` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.6` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -33,9 +33,9 @@ langsung jalan tanpa install tambahan).
 
 ### Cara install Zephyr (3 langkah)
 
-1. **Unduh installer** — `Zephyr_1.1.5_x64-setup.exe` (atau `.msi`) dari
+1. **Unduh installer** — `Zephyr_1.1.6_x64-setup.exe` (atau `.msi`) dari
    halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.5_x64-setup.exe` — itu installer-nya.
+   `Zephyr_1.1.6_x64-setup.exe` — itu installer-nya.
 2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
    anyway**. Ini normal: installer belum ditandatangani, bukan berarti
    berbahaya. Source-nya terbuka dan bisa diverifikasi.
@@ -111,7 +111,8 @@ watch, dan call stack.
 
 **AI Panel** — chat streaming dengan tiga adapter (OpenAI, Anthropic, Gemini),
 katalog model berlogo. API key disimpan di sisi Rust; frontend hanya melihat
-`hasKey` dan versi tersamar.
+`hasKey` dan versi tersamar. Sekarang support custom provider — tambah sendiri
+provider AI dengan base URL dan API key di Settings → Providers.
 
 **MCP Server :9222** — HTTP JSON-RPC dengan Bearer token. 20+ method untuk
 membaca pane, menulis ke terminal, membuka dan mengubah buffer editor, dan
@@ -131,8 +132,8 @@ avatar di pojok kiri bawah, dipakai untuk push/pull tanpa repot credential.
 `Ctrl+\`), tiap grup punya tab bar sendiri, gabungkan kembali kapan saja.
 
 **Ekstensi & Marketplace** — cari & pasang ekstensi dari Open VSX langsung di
-panel Extensions, lengkap dengan logo asli; atau install `.vsix` manual dari
-folder.
+panel Extensions, lengkap dengan logo asli, jumlah unduhan, rating, dan filter
+kategori; atau install `.vsix` manual dari folder.
 
 ![Marketplace ekstensi dengan logo asli](docs/screenshots/05-market.png)
 

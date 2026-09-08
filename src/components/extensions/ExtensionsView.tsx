@@ -23,6 +23,12 @@ const TAB_LABEL: Record<ExtTab, string> = {
   marketplace: 'Marketplace',
 };
 
+function formatUnduhan(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}jt`;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}rb`;
+  return String(n);
+}
+
 /** Kartu satu ekstensi (19.1 ExtensionCard). */
 function ExtensionCard({ item }: { item: KatalogItem }) {
   const sudah = useExt19((s) => s.manifests.find((m) => m.manifest?.id === item.id) ?? null);
@@ -83,6 +89,16 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
           <span className="xc-meta">
             {item.publisher} · v{sudah?.manifest?.version || item.version} ·{' '}
             {item.categories.join(', ')}
+            {typeof item.unduhan === 'number' && item.unduhan > 0 && (
+              <span className="xc-stat" data-testid={`xc-unduhan-${item.id}`}>
+                {' '}· {formatUnduhan(item.unduhan)} unduhan
+              </span>
+            )}
+            {typeof item.rating === 'number' && item.rating > 0 && (
+              <span className="xc-stat" data-testid={`xc-rating-${item.id}`}>
+                {' '}· {item.rating.toFixed(1)}★
+              </span>
+            )}
           </span>
         </span>
         <span className="xc-desc">{item.description}</span>

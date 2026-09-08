@@ -220,6 +220,9 @@
   text-overflow: ellipsis;
   flex: 0 1 auto;
 }
+.xc-stat {
+  color: var(--text-faint, var(--text-muted));
+}
 .xc-tag {
   padding: 0 4px;
   font-size: 8.5px;
