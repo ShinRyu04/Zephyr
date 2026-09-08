@@ -73,9 +73,6 @@ input {
   flex: 1;
   min-height: 0;
 }
-.app-body.sidebar-right {
-  flex-direction: row-reverse;
-}
 .app-body.sidebar-right .sidebar {
   border-right: none;
   border-left: 1px solid var(--border);
@@ -227,8 +224,130 @@ body.is-narrow .ab-btn {
 .sidebar {
   flex-shrink: 0;
   background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+.sidebar-left {
   border-right: 1px solid var(--border);
+}
+.sidebar-right {
+  border-left: 1px solid var(--border);
+}
+
+/* Sidebar container layout */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Header sidebar */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.sidebar-pos {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Menu items */
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+  gap: 2px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  text-align: left;
+  position: relative;
+}
+.sidebar-menu-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.sidebar-menu-item.is-active {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 500;
+}
+.sidebar-menu-icon {
+  font-size: 16px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.sidebar-menu-label {
+  flex: 1;
+}
+.sidebar-menu-indicator {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+/* Konten panel */
+.sidebar-content {
+  flex: 1;
   overflow: auto;
+  padding: 8px 0;
+}
+
+/* Secondary sidebar — di sisi berlawanan */
+.secondary-sidebar {
+  flex-shrink: 0;
+  background: var(--surface);
+  overflow: auto;
+}
+.app-body.sidebar-right .secondary-sidebar {
+  border-right: 1px solid var(--border);
+}
+.app-body:not(.sidebar-right) .secondary-sidebar {
+  border-left: 1px solid var(--border);
+}
+
+.secondary-empty {
+  padding: 20px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.secondary-hint {
+  font-size: 11px;
+  margin-top: 4px;
+  color: var(--text-secondary);
 }
 
 .resizer {
@@ -240,6 +359,10 @@ body.is-narrow .ab-btn {
 }
 .resizer:hover {
   background: var(--accent-subtle);
+}
+
+.secondary-resizer {
+  cursor: ew-resize;
 }
 
 .side-panel {
