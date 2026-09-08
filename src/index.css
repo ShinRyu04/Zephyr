@@ -2016,166 +2016,52 @@ body.is-resizing-v {
   height: 15px;
 }
 .mb-layout-menu {
-  width: 320px;
-  padding: 12px 14px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  min-width: 230px;
+  padding: 4px;
 }
-.mb-lm-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.mb-lm-h-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mb-lm-h-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-.mb-lm-h-pill {
-  padding: 1px 7px;
-  border-radius: 4px;
-  background: var(--surface-2);
-  color: var(--text-muted);
+.mb-lm-title {
+  padding: 5px 8px 3px;
   font-size: 11px;
-  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
 }
-.mb-lm-h-right {
+.mb-lm-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
-}
-.mb-lm-h-btn {
-  padding: 3px 8px;
-  border-radius: 4px;
+  width: 100%;
+  padding: 6px 8px;
   border: none;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text);
-  font-size: 12px;
-  cursor: pointer;
-}
-.mb-lm-h-btn:hover {
-  background: var(--surface-2);
-}
-.mb-lm-h-done {
-  padding: 3px 10px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.mb-lm-h-done:hover {
-  background: var(--surface-3);
-}
-.mb-lm-sec-title {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  color: var(--text-muted);
-  margin: 4px 0 8px;
-}
-.mb-lm-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.mb-lm-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  font-size: 12.5px;
   cursor: pointer;
   text-align: left;
 }
-.mb-lm-card:hover {
-  background: var(--surface-3);
+.mb-lm-item:hover {
+  background: var(--surface-2);
 }
-.mb-lm-card.is-active {
-  border-color: var(--accent);
-  background: var(--accent-subtle);
+.mb-lm-item.is-sel {
+  color: var(--accent);
 }
-.mb-lm-mini {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 3px;
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  padding: 4px;
-  border-radius: 3px;
-  background: var(--bg);
+.mb-lm-label {
+  flex: none;
+  font-weight: 600;
 }
-.mb-lm-mini-cell {
-  border-radius: 2px;
-  background: var(--surface-3);
-}
-.mb-lm-mini-cell.on {
-  background: var(--border-strong);
-}
-.mb-lm-card.is-active .mb-lm-mini-cell.on {
-  background: var(--accent);
-}
-.mb-lm-card-label {
+.mb-lm-desc {
   font-size: 11.5px;
   color: var(--text-muted);
 }
-.mb-lm-card.is-active .mb-lm-card-label {
-  color: var(--text);
-  font-weight: 600;
+.mb-lm-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
 }
-.mb-lm-new {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 10px;
-  border-radius: 4px;
-  border: 1px dashed var(--border-strong);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.mb-lm-new:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.mb-lm-new-plus {
-  font-size: 14px;
-  color: var(--accent);
-  font-weight: 600;
-}
-.mb-lm-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 2px 2px;
-  color: var(--text-muted);
-  font-size: 11.5px;
-  cursor: pointer;
-}
-.mb-lm-footer:hover {
-  color: var(--text);
-}
-.mb-lm-footer-ic {
-  width: 13px;
-  height: 13px;
+.mb-lm-check.is-on .mb-lm-label::before {
+  content: '✓ ';
   color: var(--accent);
 }
 /* Command center (fase 34): pill lebar di TENGAH baris menu ala VS Code —
