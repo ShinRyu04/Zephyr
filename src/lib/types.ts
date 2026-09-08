@@ -701,6 +701,7 @@ export interface Settings {
   general: GeneralSettings;
   editor: EditorSettings;
   theme: ThemeSettings;
+  sidebar: 'left' | 'right';
   shortcuts: Record<string, string>;
   models: { activeProvider: string; providers: Record<string, { baseUrl?: string; model?: string }> };
   agents: {
@@ -798,6 +799,7 @@ export const DEFAULT_SETTINGS: Settings = {
     snippetSuggestions: 'inline',
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
+  sidebar: 'left',
   shortcuts: {},
   models: { activeProvider: 'gemini', providers: {} },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
