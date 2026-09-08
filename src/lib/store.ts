@@ -94,6 +94,7 @@ interface StoreState {
 interface StoreActions {
   setActivity: (a: ActivityId) => void;
   toggleSidebar: () => void;
+  setSidebarVisible: (v: boolean) => void;
   setSidebarWidth: (w: number) => void;
   setRamBytes: (b: number) => void;
   setStatus: (m: string) => void;
@@ -154,7 +155,7 @@ interface StoreActions {
 
   persistSession: () => Promise<void>;
   applySettings: (patch: Record<string, unknown>) => Promise<void>;
-   
+  applyLayout: (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => Promise<void>;
   reloadSettings: () => Promise<void>;
 }
 
@@ -223,6 +224,7 @@ export const useStore = create<Store>((set, get) => ({
   
   setActivity: (a) => set({ activity: a }),
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
+  setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
   setRamBytes: (b) => set({ ramBytes: b }),
   setStatus: (m) => set({ statusMessage: m }),
@@ -913,6 +915,27 @@ export const useStore = create<Store>((set, get) => ({
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
+  },
+
+  /** Terapkan mode layout: kombinasi sidebar + panel bawah. */
+  applyLayout: async (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => {
+    const st = useStore.getState();
+    const { useTerminal } = await import('./terminalStore');
+    const term = useTerminal.getState();
+    let sidebar: 'left' | 'right' | undefined;
+    let sbVisible = st.sidebarVisible;
+    let panelVisible = term.visible;
+    if (mode === 'focus') { sbVisible = false; panelVisible = false; }
+    else if (mode === 'term') { sbVisible = false; panelVisible = true; }
+    else if (mode === 'quad') { sbVisible = true; panelVisible = true; sidebar = 'left'; }
+    else if (mode === 'default') { sidebar = 'left'; sbVisible = true; panelVisible = true; }
+    if (opsi?.sidebar !== undefined) sbVisible = opsi.sidebar;
+    if (opsi?.panel !== undefined) panelVisible = opsi.panel;
+    st.setSidebarVisible(sbVisible);
+    term.setVisible(panelVisible);
+    const patch: Record<string, unknown> = { layout: mode };
+    if (sidebar) patch.sidebar = sidebar;
+    await st.applySettings(patch);
   },
 
   reloadSettings: async () => {
