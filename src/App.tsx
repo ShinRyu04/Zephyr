@@ -121,6 +121,7 @@ async function cekUpdateStartup() {
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
+  const sidebarKanan = useStore((s) => s.settings.sidebar === 'right');
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const bootstrap = useStore((s) => s.bootstrap);
   const terminalMaximized = useTerminal((s) => s.maximized);
@@ -151,7 +152,8 @@ export default function App() {
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
       // 48px = lebar ActivityBar (token --activitybar-w)
-      setSidebarWidth(e.clientX - 48);
+      const kanan = useStore.getState().settings.sidebar === 'right';
+      setSidebarWidth(kanan ? window.innerWidth - e.clientX - 48 : e.clientX - 48);
     };
     const onUp = () => {
       if (!dragging.current) return;
@@ -877,7 +879,7 @@ export default function App() {
       </button>
       <MenuBar />
       <UpdateBanner />
-      <div className="app-body">
+      <div className={`app-body${sidebarKanan ? ' sidebar-right' : ''}`}>
         <ActivityBar />
 
         {sidebarVisible && (
