@@ -532,6 +532,7 @@ export interface ExtManifest {
   /** `engines.zephyr` apa adanya */
   engine: string;
   engineOk: boolean;
+  main: string;
   contributes: ExtContributes;
   raw: Record<string, unknown>;
   /** 'zephyr-extension.json' | 'package.json' */

@@ -14,10 +14,6 @@
 // tidak boleh menghapus bawaan; karena itu setiap fungsi di sini menolak entri
 // yang id-nya sudah dipakai inti.
 //
-// KEAMANAN: kode JS ekstensi tetap TIDAK dieksekusi (19.6 + keputusan fase 13).
-// Yang dibaca hanyalah file JSON deklaratif lewat `extensions_read_contrib`,
-// yang di Rust dijaga tetap di dalam folder ekstensi.
-
 import { snippetCompletion } from '@codemirror/autocomplete';
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
@@ -434,6 +430,14 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
     naikkanExtVersi();
   } catch {
     /* di luar UI (harness/node) tidak ada editor */
+  }
+
+  // Sandbox: jalankan kode `main` ekstensi di Web Worker terisolasi.
+  try {
+    const { muatEkstensiRuntime } = await import('./extHost');
+    await muatEkstensiRuntime(daftar);
+  } catch {
+    /* non-fatal */
   }
 
   return hasil;

@@ -302,6 +302,7 @@ pub fn run() {
             ext_pkg::extensions_uninstall,
             ext_pkg::extensions_set_enabled,
             ext_pkg::extensions_read_contrib,
+            ext_pkg::extensions_read_main,
             ext_pkg::extensions_manifests,
             ext_pkg::extensions_download_vsix,
             ext_bundled::extensions_write_bundled,
