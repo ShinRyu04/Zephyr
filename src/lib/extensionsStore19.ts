@@ -43,12 +43,15 @@ interface Ext19State {
   /** hasil fetch remote; null = belum/ tidak tersedia */
   remote: KatalogItem[] | null;
   remoteErr: string | null;
+  /** filter kategori tab Marketplace; '' = semua */
+  kategori: string;
 }
 
 interface Ext19Actions {
   refresh: () => Promise<void>;
   setQ: (q: string) => void;
   setTab: (t: ExtTab) => void
+  setKategori: (k: string) => void;
   setDetail: (id: string | null) => void;
   setMenu: (id: string | null) => void;
   setErr: (m: string | null) => void;
@@ -162,6 +165,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   remoteUrl: 'https://open-vsx.org/api',
   remote: null,
   remoteErr: null,
+  kategori: '',
 
   refresh: async () => {
     set({ loading: true });
@@ -178,6 +182,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
 
   setQ: (q) => set({ q }),
   setTab: (tab) => set({ tab, menuFor: null }),
+  setKategori: (kategori) => set({ kategori }),
   setDetail: (detailFor) => set({ detailFor, menuFor: null }),
   setMenu: (menuFor) => set({ menuFor }),
   setErr: (err) => set({ err }),
@@ -323,7 +328,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
             // Untuk install: URL unduhan .vsix (dipakai ExtensionCard).
             url: String(files.download ?? o.url ?? ''),
             unduhan: typeof o.downloadCount === 'number' ? o.downloadCount : undefined,
-            rating: typeof o.rating === 'number' ? o.rating : undefined,
+            rating: typeof o.averageRating === 'number' ? o.averageRating : undefined,
           } satisfies KatalogItem;
         }),
         remoteErr: null,
@@ -347,9 +352,11 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   },
 
   hasil: () => {
-    const { q, tab, remote } = get();
+    const { q, tab, remote, kategori } = get();
     if (tab === 'marketplace') {
-      return (remote ?? []).filter((it) => cocok(it, q));
+      return (remote ?? []).filter(
+        (it) => cocok(it, q) && (!kategori || it.categories.includes(kategori)),
+      );
     }
     if (tab === 'recommended') {
       return get().rekomendasi().filter((it) => cocok(it, q));
