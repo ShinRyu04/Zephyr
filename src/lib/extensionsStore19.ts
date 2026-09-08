@@ -322,6 +322,8 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
             bundled: false,
             // Untuk install: URL unduhan .vsix (dipakai ExtensionCard).
             url: String(files.download ?? o.url ?? ''),
+            unduhan: typeof o.downloadCount === 'number' ? o.downloadCount : undefined,
+            rating: typeof o.rating === 'number' ? o.rating : undefined,
           } satisfies KatalogItem;
         }),
         remoteErr: null,

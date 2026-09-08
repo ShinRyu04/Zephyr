@@ -27,6 +27,8 @@ export interface KatalogItem {
   untukBahasa?: string[];
   /** khusus remote: URL unduhan .zext */
   url?: string;
+  unduhan?: number;
+  rating?: number;
 }
 
 export const KATALOG_BUNDLED: KatalogItem[] = [
