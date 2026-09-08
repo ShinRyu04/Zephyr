@@ -702,6 +702,7 @@ export interface Settings {
   editor: EditorSettings;
   theme: ThemeSettings;
   sidebar: 'left' | 'right';
+  layout: 'default' | 'focus' | 'term' | 'quad';
   shortcuts: Record<string, string>;
   models: { activeProvider: string; providers: Record<string, { baseUrl?: string; model?: string }> };
   agents: {
@@ -800,6 +801,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
   sidebar: 'left',
+  layout: 'default',
   shortcuts: {},
   models: { activeProvider: 'gemini', providers: {} },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },

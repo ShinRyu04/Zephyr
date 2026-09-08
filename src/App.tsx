@@ -142,6 +142,10 @@ export default function App() {
       if (!prev.settingsLoaded && s.settingsLoaded) {
         void cekPengumuman();
         void cekUpdateStartup();
+        const l = s.settings.layout;
+        if (l && l !== 'default') {
+          void s.applyLayout(l);
+        }
       }
     });
     return unsub;
