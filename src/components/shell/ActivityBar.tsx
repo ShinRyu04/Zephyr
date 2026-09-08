@@ -1,10 +1,11 @@
 // ActivityBar.tsx — ikon vertikal kiri (48px). State aktif di Zustand.
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
 import type { ActivityId } from '../../lib/types';
+import Popover from './Popover';
 
 const Icons: Record<ActivityId, () => JSX.Element> = {
   explorer: () => (
@@ -120,9 +121,13 @@ export default function ActivityBar() {
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const applySettings = useStore((s) => s.applySettings);
+  const pos = useStore((s) => s.settings.sidebar);
   const gh = useGit((s) => s.gh);
   const loadGh = useGit((s) => s.loadGh);
   const loginDevice = useGit((s) => s.loginDevice);
+  const [posOpen, setPosOpen] = useState(false);
+  const layoutBtn = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     void loadGh();
@@ -199,6 +204,86 @@ export default function ActivityBar() {
           </button>
         );
       })}
+
+      {/* Posisi sidebar (kiri/kanan) + toggle — ikon layout ala VS Code.
+          Klik: buka menu kecil; pilih Kiri/Kanan/Sembunyikan. */}
+      <button
+        className={`ab-btn${posOpen ? ' is-active' : ''}`}
+        data-testid="ab-layout"
+        ref={layoutBtn}
+        title={pos === 'right' ? 'Sidebar di kanan — ubah posisi' : 'Sidebar di kiri — ubah posisi'}
+        aria-label="Posisi sidebar"
+        aria-haspopup="menu"
+        aria-expanded={posOpen}
+        onClick={() => setPosOpen((o) => !o)}
+      >
+        <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+          {/* panel kiri (sidebar) + panel utama terbelah dua — ikon layout */}
+          <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M11.2 8.2v5.6M8.4 8.2h5.8" stroke="currentColor" strokeWidth="1.3" />
+        </svg>
+      </button>
+      {posOpen && (
+        <Popover
+          anchor={layoutBtn.current}
+          arah="up"
+          sisi="left"
+          testid="ab-layout-menu"
+          onClose={() => setPosOpen(false)}
+        >
+          <div className="ab-layout-menu" role="menu">
+            <button
+              className={`ab-lm-item${pos === 'left' ? ' is-sel' : ''}`}
+              role="menuitemradio"
+              aria-checked={pos === 'left'}
+              data-layout="left"
+              onClick={() => {
+                void applySettings({ sidebar: 'left' });
+                setPosOpen(false);
+              }}
+            >
+              <svg viewBox="0 0 16 16" className="ab-lm-ic" aria-hidden="true">
+                <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+              Sidebar di kiri
+            </button>
+            <button
+              className={`ab-lm-item${pos === 'right' ? ' is-sel' : ''}`}
+              role="menuitemradio"
+              aria-checked={pos === 'right'}
+              data-layout="right"
+              onClick={() => {
+                void applySettings({ sidebar: 'right' });
+                setPosOpen(false);
+              }}
+            >
+              <svg viewBox="0 0 16 16" className="ab-lm-ic" aria-hidden="true">
+                <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M10.2 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+              Sidebar di kanan
+            </button>
+            <div className="ab-lm-sep" role="separator" />
+            <button
+              className="ab-lm-item"
+              role="menuitem"
+              data-layout="hide"
+              onClick={() => {
+                if (sidebarVisible) toggleSidebar();
+                setPosOpen(false);
+              }}
+            >
+              <svg viewBox="0 0 16 16" className="ab-lm-ic" aria-hidden="true">
+                <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" strokeDasharray="1.6 1.2" />
+              </svg>
+              Sembunyikan sidebar
+            </button>
+          </div>
+        </Popover>
+      )}
 
       {/* Akun GitHub di BAWAH activity bar (pojok kiri bawah, ala VS Code).
           Belum login: tombol avatar "…" → buka Source Control (login di sana).
