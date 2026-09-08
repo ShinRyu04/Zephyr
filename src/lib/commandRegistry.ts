@@ -240,6 +240,20 @@ export const COMMANDS: CommandDef[] = [
     run: () => S().toggleSidebar(),
   },
   {
+    id: 'view.sidebarRight',
+    title: 'View: Move Sidebar Right',
+    group: 'View',
+    keywords: 'posisi kanan',
+    run: () => S().applySettings({ sidebar: 'right' }),
+  },
+  {
+    id: 'view.sidebarLeft',
+    title: 'View: Move Sidebar Left',
+    group: 'View',
+    keywords: 'posisi kiri',
+    run: () => S().applySettings({ sidebar: 'left' }),
+  },
+  {
     id: 'view.panel',
     title: 'View: Toggle Bottom Panel',
     group: 'View',
