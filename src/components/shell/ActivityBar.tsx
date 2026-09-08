@@ -228,7 +228,7 @@ export default function ActivityBar() {
         <Popover
           anchor={layoutBtn.current}
           arah="up"
-          sisi="left"
+          sisi={pos === 'right' ? 'left' : 'right'}
           testid="ab-layout-menu"
           onClose={() => setPosOpen(false)}
         >
