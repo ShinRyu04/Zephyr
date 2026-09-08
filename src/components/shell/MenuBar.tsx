@@ -15,7 +15,6 @@ import { useKb } from '../../lib/keybindingStore';
 import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
 import { useStore } from '../../lib/store';
-import { useTerminal } from '../../lib/terminalStore';
 import Popover from './Popover';
 
 /** Item yang bisa difokus (bukan separator). */
@@ -35,8 +34,6 @@ export default function MenuBar() {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const layoutBtn = useRef<HTMLButtonElement>(null);
   const layoutMode = useStore((s) => s.settings.layout);
-  const sbVisible = useStore((s) => s.sidebarVisible);
-  const termVisible = useTerminal((s) => s.visible);
 
   const tutup = () => {
     setBuka(-1);
@@ -287,67 +284,91 @@ export default function MenuBar() {
           </svg>
         </button>
         {layoutOpen && (
-          <Popover
-            anchor={layoutBtn.current}
-            arah="down"
-            sisi="left"
-            testid="mb-layout-menu"
-            onClose={() => setLayoutOpen(false)}
-          >
-            <div className="mb-layout-menu" role="menu">
-              <div className="mb-lm-title">Preset</div>
-              {(
-                [
-                  ['default', 'Default', 'sidebar kiri + panel bawah'],
-                  ['focus', 'Focus', 'cuma editor, semua panel disembunyikan'],
-                  ['term', 'Terminal dock', 'editor + terminal bawah'],
-                  ['quad', 'Quad', 'sidebar + editor + terminal'],
-                ] as const
-              ).map(([mode, label, desc]) => (
-                <button
-                  key={mode}
-                  className={`mb-lm-item${layoutMode === mode ? ' is-sel' : ''}`}
-                  role="menuitemradio"
-                  aria-checked={layoutMode === mode}
-                  data-layout={mode}
-                  onClick={() => {
-                    void useStore.getState().applyLayout(mode);
-                    setLayoutOpen(false);
-                  }}
-                >
-                  <span className="mb-lm-label">{label}</span>
-                  <span className="mb-lm-desc">{desc}</span>
-                </button>
-              ))}
-              <div className="mb-lm-sep" role="separator" />
-              <div className="mb-lm-title">Custom</div>
-              <button
-                className={`mb-lm-item mb-lm-check${sbVisible ? ' is-on' : ''}`}
-                role="menuitemcheckbox"
-                aria-checked={sbVisible}
-                data-layout="cb-sidebar"
-                onClick={() => {
-                  void useStore.getState().applyLayout('default', { sidebar: !sbVisible });
-                  setLayoutOpen(false);
-                }}
-              >
-                <span className="mb-lm-label">Tampilkan sidebar</span>
-              </button>
-              <button
-                className={`mb-lm-item mb-lm-check${termVisible ? ' is-on' : ''}`}
-                role="menuitemcheckbox"
-                aria-checked={termVisible}
-                data-layout="cb-panel"
-                onClick={() => {
-                  void useStore.getState().applyLayout('default', { panel: !termVisible });
-                  setLayoutOpen(false);
-                }}
-              >
-                <span className="mb-lm-label">Tampilkan panel bawah</span>
-              </button>
-            </div>
-          </Popover>
-        )}
+                  <Popover
+                    anchor={layoutBtn.current}
+                    arah="down"
+                    sisi="left"
+                    testid="mb-layout-menu"
+                    onClose={() => setLayoutOpen(false)}
+                  >
+                    <div className="mb-layout-menu" role="menu" data-testid="mb-layout-panel">
+                      <div className="mb-lm-header">
+                        <div className="mb-lm-h-left">
+                          <span className="mb-lm-h-title">Layout</span>
+                          <span className="mb-lm-h-pill">Ctrl+Shift+\</span>
+                        </div>
+                        <div className="mb-lm-h-right">
+                          <button
+                            className="mb-lm-h-btn"
+                            role="menuitem"
+                            onClick={() => {
+                              void useStore.getState().applyLayout('default');
+                              setLayoutOpen(false);
+                            }}
+                          >
+                            Reset
+                          </button>
+                          <button
+                            className="mb-lm-h-done"
+                            role="menuitem"
+                            onClick={() => setLayoutOpen(false)}
+                          >
+                            Selesai
+                          </button>
+                        </div>
+                        </div>
+
+                        <div className="mb-lm-sec-title">TEMPLATE</div>
+                      <div className="mb-lm-grid" data-testid="mb-lm-grid">
+                        {(
+                          [
+                            ['default', 'Default', [1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [0, 0, 1, 1]],
+                            ['focus', 'Focus', [0, 0, 0, 1], [0, 1, 1, 1], [0, 1, 1, 1], [0, 0, 0, 1]],
+                            ['term', 'Terminal deck', [1, 1, 0, 0], [1, 1, 1, 0], [1, 1, 1, 0], [1, 1, 1, 1]],
+                            ['quad', 'Quad', [1, 0, 0, 1], [1, 0, 0, 1], [1, 0, 0, 1], [1, 0, 0, 1]],
+                          ] as const
+                        ).map(([mode, label, defC, focC, termC, quadC]) => {
+                          const isActive = layoutMode === mode;
+                          const cells = mode === 'default' ? defC : mode === 'focus' ? focC : mode === 'term' ? termC : quadC;
+                          return (
+                            <button
+                              key={mode}
+                              className={`mb-lm-card${isActive ? ' is-active' : ''}`}
+                              role="menuitemradio"
+                              aria-checked={isActive}
+                              data-layout={mode}
+                              onClick={() => {
+                                void useStore.getState().applyLayout(mode);
+                                setLayoutOpen(false);
+                              }}
+                            >
+                              <span className={`mb-lm-mini${isActive ? ' is-active' : ''}`} aria-hidden="true">
+                                {cells.map((c, ci) => (
+                                  <span key={ci} className={`mb-lm-mini-cell${c ? ' on' : ''}`} />
+                                ))}
+                              </span>
+                              <span className="mb-lm-card-label">{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button className="mb-lm-new" data-testid="mb-lm-new" onClick={() => setLayoutOpen(false)}>
+                        <span className="mb-lm-new-plus" aria-hidden="true">+</span>
+                        <span>Layout grid baru</span>
+                      </button>
+
+                      <div className="mb-lm-footer" onClick={() => setLayoutOpen(false)}>
+                        <svg className="mb-lm-footer-ic" viewBox="0 0 16 16" aria-hidden="true">
+                          <path d="M3 1.5h8l2 2V14.5H3z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                          <rect x="4.5" y="2.5" width="6" height="3" fill="currentColor" />
+                          <rect x="4.5" y="7.5" width="7" height="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                        </svg>
+                        <span>Simpan susunan saat ini sebagai template</span>
+                      </div>
+                    </div>
+                  </Popover>
+                )}
       </div>
 
       {/* Command center ala VS Code (fase 34): kotak di baris menu sejajar
