@@ -762,7 +762,15 @@ pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> 
     const MAX_MAIN_BYTES: u64 = 1024 * 1024;
     let dir =
         ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
-    let file = resolve_in_ext(&dir, &rel)?;
+    let file = resolve_in_ext(&dir, &rel).or_else(|e| {
+        if !rel.ends_with(".js") && !rel.ends_with(".cjs") {
+            resolve_in_ext(&dir, &format!("{rel}.js"))
+                .or_else(|_| resolve_in_ext(&dir, &format!("{rel}.cjs")))
+                .or(Err(e))
+        } else {
+            Err(e)
+        }
+    })?;
     let sz = std::fs::metadata(&file)?.len();
     if sz > MAX_MAIN_BYTES {
         return Err(ZephyrError::InvalidInput(format!(

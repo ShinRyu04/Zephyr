@@ -77,6 +77,19 @@ export function GeneralSection() {
         />
       </Row>
 
+      <Row label="Posisi sidebar" hint="kiri atau kanan, ala VS Code">
+        <Pills
+          label="sidebar-position"
+          testid="general-sidebar-pos"
+          value={useStore.getState().settings.sidebar}
+          onChange={(v) => void apply({ sidebar: v as 'left' | 'right' })}
+          options={[
+            { value: 'left', label: 'Kiri' },
+            { value: 'right', label: 'Kanan' },
+          ]}
+        />
+      </Row>
+
       <Row label={t('general.zoom')} hint="Ctrl+= / Ctrl+- / Ctrl+0">
         <NumberInput
           label={t('general.zoom')}

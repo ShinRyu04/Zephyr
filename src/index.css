@@ -73,6 +73,16 @@ input {
   flex: 1;
   min-height: 0;
 }
+.app-body.sidebar-right {
+  flex-direction: row-reverse;
+}
+.app-body.sidebar-right .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+.app-body.sidebar-right .resizer {
+  cursor: col-resize;
+}
 
 /* ─────────── ActivityBar ─────────── */
 
