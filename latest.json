@@ -1,0 +1,12 @@
+{
+  "version": "1.1.6",
+  "notes": "v1.1.6: Ekstensi jalan di sandbox, marketplace makin lengkap, git amend/stash, outline & minimap klik, AI chat persist, custom provider",
+  "pub_date": "2026-09-08T07:55:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.6/Zephyr_1.1.6_x64-setup.exe",
+      "hash": ""
+    }
+  }
+}
