@@ -119,6 +119,7 @@ pub struct ExtManifest {
     pub engine: String,
     /// false = engine minta versi Zephyr yang lebih baru
     pub engine_ok: bool,
+    pub main: String,
     pub contributes: Contributes,
     /// manifest mentah (ditampilkan di panel Details)
     pub raw: Value,
@@ -349,6 +350,7 @@ pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
             .unwrap_or_default(),
         engine_ok: engine_cocok(&engine),
         engine,
+        main: sf(&v, "main"),
         raw: v,
         manifest_file: file,
         id,
@@ -753,6 +755,22 @@ pub fn extensions_read_contrib(state: State<AppState>, id: String, rel: String) 
     let raw = std::fs::read_to_string(&file)?;
     serde_json::from_str(&raw)
         .map_err(|e| ZephyrError::InvalidInput(format!("{rel} bukan JSON valid: {e}")))
+}
+
+#[tauri::command]
+pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> ZResult<String> {
+    const MAX_MAIN_BYTES: u64 = 1024 * 1024;
+    let dir =
+        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+    let file = resolve_in_ext(&dir, &rel)?;
+    let sz = std::fs::metadata(&file)?.len();
+    if sz > MAX_MAIN_BYTES {
+        return Err(ZephyrError::InvalidInput(format!(
+            "{rel} berukuran {} KB — batas 1MB",
+            sz / 1024
+        )));
+    }
+    std::fs::read_to_string(&file).map_err(ZephyrError::from)
 }
 
 /// Folder sebuah ekstensi: extensions/<id> atau path dari installed.json.
