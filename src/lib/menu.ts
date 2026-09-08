@@ -134,6 +134,8 @@ export const MENUS: MenuDef[] = [
       },
       SEP,
       { label: 'Toggle Sidebar', command: 'view.sidebar' },
+      { label: 'Move Sidebar Right', command: 'view.sidebarRight' },
+      { label: 'Move Sidebar Left', command: 'view.sidebarLeft' },
       { label: 'Toggle Panel', command: 'workbench.action.togglePanel' },
       { label: 'Toggle Maximized Panel', command: 'workbench.action.toggleMaximizedPanel' },
       { label: 'Toggle Terminal', command: 'terminalPanel.focus' },
