@@ -325,6 +325,8 @@ export default function ExtensionsView() {
 
   const setQ = useExt19((s) => s.setQ);
   const setTab = useExt19((s) => s.setTab);
+  const kategori = useExt19((s) => s.kategori);
+  const setKategori = useExt19((s) => s.setKategori);
   const refresh = useExt19((s) => s.refresh);
   const installDariDialog = useExt19((s) => s.installDariDialog);
   const reloadWindow = useExt19((s) => s.reloadWindow);
@@ -484,6 +486,27 @@ export default function ExtensionsView() {
         <p className="xv-note" data-testid="ext-rec-empty">
           Buka folder proyek dulu — rekomendasi dihitung dari bahasa file di workspace.
         </p>
+      )}
+
+      {tab === 'marketplace' && remote && remote.length > 0 && (
+        <div className="xv-filter" data-testid="ext-filter">
+          <label htmlFor="ext-filter-kat">Kategori</label>
+          <select
+            id="ext-filter-kat"
+            value={kategori}
+            onChange={(e) => setKategori(e.target.value)}
+            data-testid="ext-filter-select"
+          >
+            <option value="">Semua</option>
+            {Array.from(new Set(remote.flatMap((it) => it.categories)))
+              .sort()
+              .map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+          </select>
+        </div>
       )}
 
       <div className="xv-list" data-testid="ext-cards">

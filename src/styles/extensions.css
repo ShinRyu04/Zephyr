@@ -84,6 +84,22 @@
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border);
 }
+.xv-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.xv-filter select {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+}
 .xv-tab {
   flex: 1;
   height: 22px;
