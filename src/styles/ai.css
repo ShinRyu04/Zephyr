@@ -458,6 +458,10 @@
   resize: none;
   min-height: 42px;
   max-height: 140px;
+  /* Baris baru (Shift+Enter) otomatis membesarkan kotak sampai max-height —
+     tanpa ini teks mengalir keluar/scroll dan terlihat "tidak bisa baris
+     baru". field-sizing didukung WebView2/Chrome 123+. */
+  field-sizing: content;
   padding: 6px 8px;
   font-family: var(--font-ui);
   font-size: 12.5px;

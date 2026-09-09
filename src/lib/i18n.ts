@@ -72,6 +72,11 @@ const ID: Dict = {
   'models.active': 'Provider aktif',
   'models.saved': 'Key tersimpan',
   'models.noKey': 'Belum ada key',
+  'models.answerLang': 'Bahasa jawaban AI',
+  'models.answerLangHint': 'Instruksi bahasa dikirim ke model di tiap percakapan',
+  'models.answerFollow': 'Ikuti pertanyaan (otomatis)',
+  'models.answerCustom': 'Lainnya (tulis nama bahasa)',
+  'models.answerCustomPlaceholder': 'mis. Jawa, Español, Français…',
 
   'agents.maxPanes': 'Maksimal pane per tab',
   'agents.startCommand': 'Start command',
@@ -164,6 +169,11 @@ const EN: Dict = {
   'models.active': 'Active provider',
   'models.saved': 'Key saved',
   'models.noKey': 'No key yet',
+  'models.answerLang': 'AI answer language',
+  'models.answerLangHint': 'Language instruction is sent to the model on every conversation',
+  'models.answerFollow': 'Follow the question (auto)',
+  'models.answerCustom': 'Other (type a language name)',
+  'models.answerCustomPlaceholder': 'e.g. Javanese, Español, Français…',
 
   'agents.maxPanes': 'Max panes per tab',
   'agents.startCommand': 'Start command',

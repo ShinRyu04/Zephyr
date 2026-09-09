@@ -15,11 +15,17 @@ import { useKb } from '../../lib/keybindingStore';
 import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
 import { useStore } from '../../lib/store';
-import { useTerminal } from '../../lib/terminalStore';
-import Popover from './Popover';
 
 /** Item yang bisa difokus (bukan separator). */
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
+
+/** Posisi panel ala VS Code + label menu (Layout di kanan atas). */
+const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; desc: string }[] = [
+  { id: 'left', label: 'Kiri', desc: 'panel di samping kiri editor' },
+  { id: 'right', label: 'Kanan', desc: 'panel di samping kanan editor' },
+  { id: 'top', label: 'Atas', desc: 'panel di atas editor' },
+  { id: 'bottom', label: 'Bawah', desc: 'panel di bawah editor' },
+];
 
 export default function MenuBar() {
   const bindings = useKb((s) => s.bindings);
@@ -32,11 +38,9 @@ export default function MenuBar() {
   /** Alt ditekan = mnemonic digarisbawahi */
   const [altAktif, setAltAktif] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [layoutOpen, setLayoutOpen] = useState(false);
-  const layoutBtn = useRef<HTMLButtonElement>(null);
-  const layoutMode = useStore((s) => s.settings.layout);
-  const sbVisible = useStore((s) => s.sidebarVisible);
-  const termVisible = useTerminal((s) => s.visible);
+  const posPanel = useStore((s) => s.settings.sidebar);
+  const setSidebarVisible = useStore((s) => s.setSidebarVisible);
+  const applySettings = useStore((s) => s.applySettings);
 
   const tutup = () => {
     setBuka(-1);
@@ -265,90 +269,7 @@ export default function MenuBar() {
         );
       })}
 
-      {/* Layout: 4 preset + toggle custom. Sejajar File/Edit/dll. */}
-      <div className="mb-menu mb-layout" role="none">
-        <button
-          className={`mb-top mb-layout-btn${layoutOpen ? ' is-open' : ''}`}
-          data-testid="mb-layout"
-          ref={layoutBtn}
-          title="Layout — pilih preset atau atur manual"
-          aria-label="Layout"
-          aria-haspopup="menu"
-          aria-expanded={layoutOpen}
-          onClick={() => {
-            tutup();
-            setLayoutOpen((o) => !o);
-          }}
-        >
-          <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
-            <rect x="1.6" y="2.2" width="12.8" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M11 8.2v5.6M8.2 8.2h5.6" stroke="currentColor" strokeWidth="1.3" />
-          </svg>
-        </button>
-        {layoutOpen && (
-          <Popover
-            anchor={layoutBtn.current}
-            arah="down"
-            sisi="left"
-            testid="mb-layout-menu"
-            onClose={() => setLayoutOpen(false)}
-          >
-            <div className="mb-layout-menu" role="menu">
-              <div className="mb-lm-title">Preset</div>
-              {(
-                [
-                  ['default', 'Default', 'sidebar kiri + panel bawah'],
-                  ['focus', 'Focus', 'cuma editor, semua panel disembunyikan'],
-                  ['term', 'Terminal dock', 'editor + terminal bawah'],
-                  ['quad', 'Quad', 'sidebar + editor + terminal'],
-                ] as const
-              ).map(([mode, label, desc]) => (
-                <button
-                  key={mode}
-                  className={`mb-lm-item${layoutMode === mode ? ' is-sel' : ''}`}
-                  role="menuitemradio"
-                  aria-checked={layoutMode === mode}
-                  data-layout={mode}
-                  onClick={() => {
-                    void useStore.getState().applyLayout(mode);
-                    setLayoutOpen(false);
-                  }}
-                >
-                  <span className="mb-lm-label">{label}</span>
-                  <span className="mb-lm-desc">{desc}</span>
-                </button>
-              ))}
-              <div className="mb-lm-sep" role="separator" />
-              <div className="mb-lm-title">Custom</div>
-              <button
-                className={`mb-lm-item mb-lm-check${sbVisible ? ' is-on' : ''}`}
-                role="menuitemcheckbox"
-                aria-checked={sbVisible}
-                data-layout="cb-sidebar"
-                onClick={() => {
-                  void useStore.getState().applyLayout('default', { sidebar: !sbVisible });
-                  setLayoutOpen(false);
-                }}
-              >
-                <span className="mb-lm-label">Tampilkan sidebar</span>
-              </button>
-              <button
-                className={`mb-lm-item mb-lm-check${termVisible ? ' is-on' : ''}`}
-                role="menuitemcheckbox"
-                aria-checked={termVisible}
-                data-layout="cb-panel"
-                onClick={() => {
-                  void useStore.getState().applyLayout('default', { panel: !termVisible });
-                  setLayoutOpen(false);
-                }}
-              >
-                <span className="mb-lm-label">Tampilkan panel bawah</span>
-              </button>
-            </div>
-          </Popover>
-        )}
-      </div>
+
 
       {/* Command center ala VS Code (fase 34): kotak di baris menu sejajar
           File/Edit/dll. Klik = buka Command Palette (mode command). */}
@@ -370,6 +291,55 @@ export default function MenuBar() {
             />
           </svg>
           <span className="mb-cc-label">Cari file &amp; perintah…</span>
+        </button>
+      </div>
+
+      {/* Layout panel — 4 tombol posisi SELALU TERLIHAT di kanan atas menu
+          bar (bukan popover): klik langsung pindah, tanpa buka menu dulu.
+          Posisi aktif ditandai; tombol mata di ujung = sembunyikan panel. */}
+      <div className="mb-layout" role="radiogroup" aria-label="Posisi panel">
+        {POSISI_PANEL.map((p) => (
+          <button
+            key={p.id}
+            className={`mb-layout-btn${posPanel === p.id ? ' is-on' : ''}`}
+            data-testid={`mb-layout-${p.id}`}
+            title={`Panel ${p.label} — ${p.desc}`}
+            aria-label={`Panel ${p.label}`}
+            role="radio"
+            aria-checked={posPanel === p.id}
+            onClick={() => {
+              tutup();
+              void applySettings({ sidebar: p.id });
+              setSidebarVisible(true);
+            }}
+          >
+            <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
+              {/* ikon layout: panel kiri/kanan/atas/bawah di sekitar editor */}
+              <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+              {p.id === 'left' && <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />}
+              {p.id === 'right' && <path d="M10.2 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />}
+              {p.id === 'top' && <path d="M2.2 5.8h11.6" stroke="currentColor" strokeWidth="1.3" />}
+              {p.id === 'bottom' && <path d="M2.2 10.2h11.6" stroke="currentColor" strokeWidth="1.3" />}
+            </svg>
+          </button>
+        ))}
+        <div className="mb-layout-sep" role="separator" />
+        <button
+          className="mb-layout-btn"
+          data-testid="mb-layout-hide"
+          title="Sembunyikan panel"
+          aria-label="Sembunyikan panel"
+          onClick={() => {
+            tutup();
+            setSidebarVisible(false);
+          }}
+        >
+          <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
+            {/* mata dicoret = panel disembunyikan */}
+            <path d="M1.6 8s2.1-3.4 6.4-3.4 6.4 3.4 6.4 3.4-2.1 3.4-6.4 3.4S1.6 8 1.6 8z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            <circle cx="8" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M2.5 13.5 13.5 2.5" stroke="currentColor" strokeWidth="1.4" />
+          </svg>
         </button>
       </div>
     </div>

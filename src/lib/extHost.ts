@@ -1,24 +1,23 @@
 import * as cmd from './commands';
 import { useNotif } from './notificationStore';
+import { skripEkstensi } from './extRunner';
 import type { ExtManifestStatus } from './types';
 
 type RegisterMsg = { type: 'register'; id: string; title: string };
 type InvokeReq = { type: 'invoke'; id: string; seq: number; args: unknown[] };
 type ResultMsg = { type: 'result'; seq: number; ok: boolean; value?: unknown; error?: string };
-type WorkerMsg = RegisterMsg | ResultMsg;
+/** Pesan dari worker yang diteruskan ke notifikasi Zephyr (fase 19.7). */
+type NotifyMsg = { type: 'notify'; severity: 'info' | 'warn' | 'error'; message: string };
+type WorkerMsg = RegisterMsg | ResultMsg | NotifyMsg;
 
-const RUNNER = `
-let handlers = {};
-const zephyr = {
-  registerCommand: (id, title, fn) => {
-    handlers[String(id)] = fn;
-    self.postMessage({ type: 'register', id: String(id), title: String(title || id) });
-  },
-};
+/** Runner worker + shim CommonJS/vscode dihasilkan extRunner.ts (bisa diuji).
+ *  Bagian invoke (panggil command) didefinisikan di sini supaya skrip utuh
+ *  tetap satu sumber: PREAMBLE + kode ekstensi + TRAILER + handler invoke. */
+const INVOKE = `
 self.onmessage = (e) => {
   const m = e.data;
   if (!m || m.type !== 'invoke') return;
-  const fn = handlers[m.id];
+  const fn = __zh[m.id];
   if (!fn) {
     self.postMessage({ type: 'result', seq: m.seq, ok: false, error: 'command tak dikenal: ' + m.id });
     return;
@@ -79,6 +78,24 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     }
     return;
   }
+  // Pesan dari ekstensi (mis. vscode.window.showErrorMessage) → notifikasi app.
+  if (m.type === 'notify') {
+    // Aktivasi GAGAL → matikan ekstensi otomatis supaya error tidak muncul
+    // terus di tiap pembukaan app. User bisa aktifkan lagi kalau mau coba
+    // ulang (mis. setelah konfigurasi berubah).
+    if (
+      m.severity === 'warn' &&
+      (m.message.startsWith('aktivasi') || m.message.startsWith('tidak bisa dimuat'))
+    ) {
+      void cmd.extensionsSetEnabled(extId, false).catch(() => {});
+    }
+    useNotif.getState().notify({
+      severity: m.severity,
+      message: `Ekstensi ${extId}: ${m.message}`,
+      source: 'extensions',
+    });
+    return;
+  }
   const p = rt.pending.get(m.seq);
   if (!p) return;
   rt.pending.delete(m.seq);
@@ -86,8 +103,18 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
   else p.reject(new Error(m.error || 'gagal'));
 }
 
-function bukaRuntime(extId: string, code: string): void {
-  const blob = new Blob([RUNNER, '\n', code], { type: 'application/javascript' });
+function bukaRuntime(
+  extId: string,
+  code: string,
+  files: Record<string, string>,
+  mainRel: string,
+): void {
+  // Skrip utuh = shim CommonJS/vscode + peta file ekstensi (untuk require
+  // relatif) + kode ekstensi + aktivasi + handler invoke. Dihasilkan
+  // extRunner.ts supaya bisa diuji tanpa Worker sungguhan.
+  const blob = new Blob([skripEkstensi(code, files, mainRel), '\n', INVOKE], {
+    type: 'application/javascript',
+  });
   const workerUrl = URL.createObjectURL(blob);
   const worker = new Worker(workerUrl);
   const rt: ExtRuntime = { worker, workerUrl, nextSeq: 1, pending: new Map() };
@@ -105,12 +132,16 @@ export async function muatEkstensiRuntime(daftar: ExtManifestStatus[]): Promise<
     if (!main) continue;
     try {
       const code = await cmd.extensionsReadMain(st.manifest.id, main);
-      bukaRuntime(st.manifest.id, code);
+      const files = await cmd.extensionsReadFiles(st.manifest.id);
+      bukaRuntime(st.manifest.id, code, files, main);
     } catch (e) {
+      // Gagal dimuat di sandbox → matikan otomatis supaya error tidak
+      // berulang di tiap pembukaan app; pesan menjelaskan alasannya.
+      void cmd.extensionsSetEnabled(st.manifest.id, false).catch(() => {});
       useNotif.getState().notify({
         severity: 'error',
-        message: `Ekstensi ${st.manifest.id} gagal dimuat`,
-        detail: cmd.asZephyrError(e).message,
+        message: `Ekstensi ${st.manifest.id} dinonaktifkan: gagal dimuat di sandbox Zephyr`,
+        detail: `${cmd.asZephyrError(e).message} — kemungkinan butuh runtime eksternal (Python/Java/Docker/dll) yang tidak tersedia di Zephyr. Aktifkan lagi di Settings → Ekstensi kalau ingin mencoba ulang.`,
         source: 'extensions',
       });
     }

@@ -241,17 +241,43 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'view.sidebarRight',
-    title: 'View: Move Sidebar Right',
+    title: 'View: Move Panel Right',
     group: 'View',
     keywords: 'posisi kanan',
-    run: () => S().applySettings({ sidebar: 'right' }),
+    run: () => {
+      S().applySettings({ sidebar: 'right' });
+      S().setSidebarVisible(true);
+    },
   },
   {
     id: 'view.sidebarLeft',
-    title: 'View: Move Sidebar Left',
+    title: 'View: Move Panel Left',
     group: 'View',
     keywords: 'posisi kiri',
-    run: () => S().applySettings({ sidebar: 'left' }),
+    run: () => {
+      S().applySettings({ sidebar: 'left' });
+      S().setSidebarVisible(true);
+    },
+  },
+  {
+    id: 'view.sidebarTop',
+    title: 'View: Move Panel Top',
+    group: 'View',
+    keywords: 'posisi atas',
+    run: () => {
+      S().applySettings({ sidebar: 'top' });
+      S().setSidebarVisible(true);
+    },
+  },
+  {
+    id: 'view.sidebarBottom',
+    title: 'View: Move Panel Bottom',
+    group: 'View',
+    keywords: 'posisi bawah',
+    run: () => {
+      S().applySettings({ sidebar: 'bottom' });
+      S().setSidebarVisible(true);
+    },
   },
   {
     id: 'view.panel',
