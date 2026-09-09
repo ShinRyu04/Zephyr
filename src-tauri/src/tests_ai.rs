@@ -187,4 +187,195 @@ mod tests {
         let v2 = json!({ "promptFeedback": { "blockReason": "SAFETY" } });
         assert!(adapters::extract_delta("gemini", &v2).is_none());
     }
+
+    // ── fase 35: mode agent (tool-calling) ──────────────────────────────
+
+    use crate::ai::{AgentMsg, ToolCall, ToolSpec};
+
+    fn agent_msg(role: &str, content: &str) -> AgentMsg {
+        AgentMsg {
+            role: role.into(),
+            content: content.into(),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+        }
+    }
+
+    fn spec(name: &str) -> ToolSpec {
+        ToolSpec {
+            name: name.into(),
+            description: format!("tool {name}"),
+            parameters: json!({ "type": "object", "properties": {} }),
+        }
+    }
+
+    #[test]
+    fn prepare_tools_openai_bawa_array_tools_dan_tool_result() {
+        let mut asst = agent_msg("assistant", "saya cek dulu");
+        asst.tool_calls = Some(vec![ToolCall {
+            id: "call_1".into(),
+            name: "terminal_exec".into(),
+            args: json!({ "cmd": "ls" }),
+        }]);
+        let mut tool = agent_msg("tool", "hasil: 3 file");
+        tool.tool_call_id = Some("call_1".into());
+
+        let p = adapters::prepare_tools(
+            "openai",
+            "gpt-5.2",
+            &[asst, tool],
+            &[spec("terminal_exec")],
+            None,
+            "K",
+            512,
+        )
+        .unwrap();
+
+        // tools masuk sebagai array function
+        assert_eq!(p.body["tools"][0]["function"]["name"], json!("terminal_exec"));
+        // pesan assistant membawa tool_calls ber-args JSON-string
+        assert_eq!(p.body["messages"][0]["tool_calls"][0]["id"], json!("call_1"));
+        assert_eq!(
+            p.body["messages"][0]["tool_calls"][0]["function"]["arguments"],
+            json!("{\"cmd\":\"ls\"}")
+        );
+        // hasil tool dikemas role=tool dengan tool_call_id
+        assert_eq!(p.body["messages"][1]["role"], json!("tool"));
+        assert_eq!(p.body["messages"][1]["tool_call_id"], json!("call_1"));
+        assert_eq!(p.body["messages"][1]["content"], json!("hasil: 3 file"));
+        assert!(!p.sse);
+    }
+
+    #[test]
+    fn parse_tool_openai_baca_teks_dan_tool_calls() {
+        let v = json!({
+            "choices": [{
+                "message": {
+                    "content": "oke",
+                    "tool_calls": [{
+                        "id": "c1",
+                        "type": "function",
+                        "function": { "name": "editor_read", "arguments": "{\"path\":\"a.ts\"}" }
+                    }]
+                }
+            }]
+        });
+        let r = adapters::parse_tool_response("openai", &v);
+        assert_eq!(r.content, "oke");
+        assert_eq!(r.tool_calls.len(), 1);
+        assert_eq!(r.tool_calls[0].name, "editor_read");
+        assert_eq!(r.tool_calls[0].args["path"], json!("a.ts"));
+        assert!(!r.done);
+
+        // tanpa tool_calls -> done
+        let v2 = json!({ "choices": [{ "message": { "content": "selesai" } }] });
+        let r2 = adapters::parse_tool_response("openai", &v2);
+        assert!(r2.tool_calls.is_empty() && r2.done);
+    }
+
+    #[test]
+    fn prepare_tools_anthropic_system_dipisah_dan_tool_result_dibungkus() {
+        let sys = agent_msg("system", "kamu agent Zephyr");
+        let mut asst = agent_msg("assistant", "");
+        asst.tool_calls = Some(vec![ToolCall {
+            id: "tu1".into(),
+            name: "terminal_exec".into(),
+            args: json!({ "cmd": "ls" }),
+        }]);
+        let mut tool = agent_msg("tool", "3 file");
+        tool.tool_call_id = Some("tu1".into());
+
+        let p = adapters::prepare_tools(
+            "anthropic",
+            "claude-4.2",
+            &[sys, asst, tool],
+            &[spec("terminal_exec")],
+            None,
+            "K",
+            512,
+        )
+        .unwrap();
+
+        assert_eq!(p.body["system"], json!("kamu agent Zephyr"));
+        assert!(p.body.get("messages").is_some());
+        // tool_result dibungkus dalam user message (aturan Anthropic)
+        assert_eq!(p.body["messages"][1]["role"], json!("user"));
+        assert_eq!(
+            p.body["messages"][1]["content"][0]["type"],
+            json!("tool_result")
+        );
+        assert_eq!(p.body["messages"][1]["content"][0]["tool_use_id"], json!("tu1"));
+        assert_eq!(p.body["tools"][0]["name"], json!("terminal_exec"));
+        assert!(p.body["tools"][0].get("input_schema").is_some());
+    }
+
+    #[test]
+    fn parse_tool_anthropic_baca_block_teks_dan_tool_use() {
+        let v = json!({
+            "content": [
+                { "type": "text", "text": "jalankan" },
+                { "type": "tool_use", "id": "tu9", "name": "terminal_read", "input": { "lines": 5 } }
+            ]
+        });
+        let r = adapters::parse_tool_response("anthropic", &v);
+        assert_eq!(r.content, "jalankan");
+        assert_eq!(r.tool_calls.len(), 1);
+        assert_eq!(r.tool_calls[0].name, "terminal_read");
+        assert_eq!(r.tool_calls[0].args["lines"], json!(5));
+        assert!(!r.done);
+    }
+
+    #[test]
+    fn prepare_tools_gemini_pakai_function_declarations() {
+        let sys = agent_msg("system", "jangan bohong");
+        let mut tool = agent_msg("tool", "ok");
+        tool.tool_call_id = Some("gc1".into());
+        tool.name = Some("terminal_exec".into());
+
+        let p = adapters::prepare_tools(
+            "gemini",
+            "gemini-2.5-pro",
+            &[sys, tool],
+            &[spec("terminal_exec")],
+            None,
+            "K",
+            512,
+        )
+        .unwrap();
+
+        assert_eq!(
+            p.body["systemInstruction"]["parts"][0]["text"],
+            json!("jangan bohong")
+        );
+        assert_eq!(
+            p.body["tools"][0]["functionDeclarations"][0]["name"],
+            json!("terminal_exec")
+        );
+        // hasil tool jadi functionResponse
+        assert_eq!(
+            p.body["contents"][0]["parts"][0]["functionResponse"]["name"],
+            json!("terminal_exec")
+        );
+    }
+
+    #[test]
+    fn parse_tool_gemini_sintesis_id_tool_call() {
+        let v = json!({
+            "candidates": [{
+                "content": {
+                    "parts": [
+                        { "text": "gas" },
+                        { "functionCall": { "name": "editor_read", "args": { "path": "b.ts" } } }
+                    ]
+                }
+            }]
+        });
+        let r = adapters::parse_tool_response("gemini", &v);
+        assert_eq!(r.content, "gas");
+        assert_eq!(r.tool_calls.len(), 1);
+        // Gemini gak kasih id -> disintesis dari nama + indeks
+        assert_eq!(r.tool_calls[0].id, "editor_read-0");
+        assert!(!r.done);
+    }
 }

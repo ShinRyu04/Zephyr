@@ -10,7 +10,7 @@ pub mod anthropic;
 pub mod gemini;
 pub mod openai;
 
-use crate::ai::{ChatMsg, Prepared};
+use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ToolSpec};
 use crate::errors::ZResult;
 use serde_json::Value;
 
@@ -46,4 +46,34 @@ pub fn extract_delta(provider: &str, v: &Value) -> Option<String> {
 /// Buang '/' di ujung supaya penggabungan URL tidak jadi '//'.
 pub fn trim_base(url: &str) -> String {
     url.trim().trim_end_matches('/').to_string()
+}
+
+/// Bangun request NON-streaming dengan tools (fase 35 mode agent).
+pub fn prepare_tools(
+    provider: &str,
+    model: &str,
+    messages: &[AgentMsg],
+    tools: &[ToolSpec],
+    base_url: Option<&str>,
+    key: &str,
+    max_tokens: u32,
+) -> ZResult<Prepared> {
+    match provider {
+        "anthropic" => Ok(anthropic::prepare_tools(
+            model, messages, tools, base_url, key, max_tokens,
+        )),
+        "gemini" => Ok(gemini::prepare_tools(model, messages, tools, base_url, key, max_tokens)),
+        _ => Ok(openai::prepare_tools(
+            provider, model, messages, tools, base_url, key, max_tokens,
+        )),
+    }
+}
+
+/// Parse jawaban non-streaming menjadi teks + panggilan tool.
+pub fn parse_tool_response(provider: &str, v: &Value) -> AiToolResult {
+    match provider {
+        "anthropic" => anthropic::parse_tool_response(v),
+        "gemini" => gemini::parse_tool_response(v),
+        _ => openai::parse_tool_response(v),
+    }
 }

@@ -30,6 +30,51 @@ pub struct ChatMsg {
     pub content: String,
 }
 
+/// Satu panggilan tool yang diminta model (fase 35: mode agent).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ToolCall {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub args: Value,
+}
+
+/// Pesan untuk loop agent — role 'tool' membawa hasil eksekusi tool.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AgentMsg {
+    /// 'user' | 'assistant' | 'system' | 'tool'
+    pub role: String,
+    pub content: String,
+    /// role='tool' → id tool_call yang dijawab
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// role='assistant' yang berisi panggilan tool
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
+    /// role='tool' → nama tool (dipakai Gemini functionResponse)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+/// Skema satu tool yang dikirim ke model.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ToolSpec {
+    pub name: String,
+    pub description: String,
+    #[serde(default)]
+    pub parameters: Value,
+}
+
+/// Jawaban non-streaming mode agent: teks + panggilan tool (bila ada).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiToolResult {
+    pub content: String,
+    pub tool_calls: Vec<ToolCall>,
+    /// true = model selesai (tidak ada tool call lagi)
+    pub done: bool,
+}
+
 /// Hasil siap-kirim dari adapter: URL, header, body JSON.
 pub struct Prepared {
     pub url: String,
@@ -253,4 +298,109 @@ pub fn ai_chat(
 #[tauri::command(async)]
 pub fn ai_cancel(state: State<AppState>, id: String) -> ZResult<bool> {
     Ok(state.ai_cancel(&id))
+}
+
+/// Satu langkah loop agent (fase 35): kirim seluruh riwayat + tools,
+/// dapatkan jawaban NON-streaming berisi teks dan/atau panggilan tool.
+/// Frontend yang memutuskan loop (jalankan tool → append hasil → ulang).
+#[tauri::command]
+pub async fn ai_tool_chat(
+    state: State<'_, AppState>,
+    provider: String,
+    model: String,
+    messages: Vec<AgentMsg>,
+    tools: Vec<ToolSpec>,
+    base_url: Option<String>,
+    max_tokens: Option<u32>,
+) -> ZResult<AiToolResult> {
+    if messages.is_empty() {
+        return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
+    }
+    // Key dibaca DI SINI (sama seperti ai_chat) — tidak pernah ke frontend.
+    let key = crate::secrets::key_for(&state, &provider);
+    if key.is_empty() {
+        return Err(ZephyrError::InvalidInput(format!(
+            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+        )));
+    }
+
+    let prepared = adapters::prepare_tools(
+        &provider,
+        &model,
+        &messages,
+        &tools,
+        base_url.as_deref(),
+        &key,
+        max_tokens.unwrap_or(2048),
+    )?;
+    let prov = provider.clone();
+
+    // Panggilan HTTP blocking di thread terpisah supaya command lain tidak
+    // ikut tertahan. Timeout per call 60s — cukup untuk reasoning model.
+    let hasil = tokio::task::spawn_blocking(move || {
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_connect(Some(std::time::Duration::from_secs(10)))
+            .timeout_per_call(Some(std::time::Duration::from_secs(60)))
+            .max_redirects(3)
+            .http_status_as_error(false)
+            .build()
+            .into();
+        let mut req = agent.post(&prepared.url);
+        for (k, v) in &prepared.headers {
+            req = req.header(k.as_str(), v.as_str());
+        }
+        match req.send_json(&prepared.body) {
+            Ok(r) => {
+                let status = r.status().as_u16();
+                let mut body = r.into_body();
+                let raw: String = body.read_to_string().unwrap_or_default();
+                Ok::<(u16, String), String>((status, raw))
+            }
+            Err(e) => {
+                let teks = e.to_string();
+                let low = teks.to_lowercase();
+                let pesan = if low.contains("dns")
+                    || low.contains("resolve")
+                    || low.contains("connect")
+                    || low.contains("timed out")
+                    || low.contains("timeout")
+                    || low.contains("refused")
+                    || low.contains("unreachable")
+                {
+                    format!(
+                        "Tidak bisa menghubungi provider — periksa koneksi internet \
+                         atau Base URL di Settings → Model AI ({teks})"
+                    )
+                } else {
+                    format!("Tidak bisa menghubungi provider: {teks}")
+                };
+                Err(pesan)
+            }
+        }
+    })
+    .await
+    .map_err(|e| ZephyrError::Internal(format!("thread panik: {e}")))?;
+
+    let (status, raw) = hasil.map_err(ZephyrError::InvalidInput)?;
+    if status >= 400 {
+        // Detail pesan provider bila ada (aman: tidak memuat key).
+        let detail = serde_json::from_str::<Value>(&raw)
+            .ok()
+            .and_then(|v| {
+                v.pointer("/error/message")
+                    .and_then(|m| m.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_default();
+        let msg = if detail.is_empty() {
+            friendly(status)
+        } else {
+            format!("{} — {}", friendly(status), detail)
+        };
+        return Err(ZephyrError::InvalidInput(msg));
+    }
+
+    let v: Value = serde_json::from_str(&raw)
+        .map_err(|e| ZephyrError::InvalidInput(format!("jawaban provider tidak valid: {e}")))?;
+    Ok(adapters::parse_tool_response(&prov, &v))
 }
