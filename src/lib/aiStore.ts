@@ -30,6 +30,21 @@ export const ATTACH_LIMIT = 12 * 1024;
  *  dan itu lebih membingungkan daripada pemberitahuan jujur. */
 export const MSG_LIMIT = 8 * 1024;
 
+/**
+ * Instruksi bahasa jawaban AI (Settings → Model AI).
+ * Mengembalikan '' kalau 'follow' (biarkan model mengikuti bahasa pertanyaan).
+ * Instruksi ditulis dalam bahasa sasarannya sendiri supaya tidak bergantung
+ * pada pemahaman model terhadap bahasa Indonesia.
+ */
+export function systemPromptFor(answerLang: string): string {
+  if (!answerLang || answerLang === 'follow') return '';
+  if (answerLang === 'id') return 'Selalu jawab dalam bahasa Indonesia.';
+  if (answerLang === 'en') return 'Always answer in English.';
+  // Bahasa bebas (custom): dipakai apa adanya — model modern mengerti nama
+  // bahasa dalam konteks ini.
+  return `Selalu jawab dalam bahasa ${answerLang}.`;
+}
+
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 
@@ -350,6 +365,11 @@ export const useAi = create<AiStore>((set, get) => ({
     const history: AiMessage[] = prev
       .filter((m) => !m.error && m.content.trim())
       .map((m) => ({ role: m.role, content: m.content }));
+    // Bahasa jawaban AI (Settings → Model AI): instruksi dikirim sebagai pesan
+    // system di awal tiap percakapan supaya model konsisten menjawab dalam
+    // bahasa pilihan. 'follow' = biarkan model mengikuti bahasa pertanyaan.
+    const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
+    if (sys) history.unshift({ role: 'system', content: sys });
     history.push({ role: 'user', content: payloadContent });
 
     set((s) => ({

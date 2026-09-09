@@ -121,8 +121,10 @@ async function cekUpdateStartup() {
 export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
-  const sidebarKanan = useStore((s) => s.settings.sidebar === 'right');
+  const sidebarHeight = useStore((s) => s.sidebarHeight);
+  const pos = useStore((s) => s.settings.sidebar);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
+  const setSidebarHeight = useStore((s) => s.setSidebarHeight);
   const bootstrap = useStore((s) => s.bootstrap);
   const terminalMaximized = useTerminal((s) => s.maximized);
   const dragging = useRef(false);
@@ -155,9 +157,23 @@ export default function App() {
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
+      const s = useStore.getState();
+      const p = s.settings.sidebar;
+      // Posisi atas/bawah: divider horizontal → ubah TINGGI panel.
+      // 48px = tinggi ActivityBar horizontal (token --activitybar-w) yang
+      // ikut pindah ke atas/bawah — panel ada DI BAWAH ActivityBar (atas)
+      // atau DI ATAS ActivityBar (bawah), jadi tingginya dikurangi 48.
+      if (p === 'top' || p === 'bottom') {
+        const rect = document
+          .querySelector<HTMLElement>('.app-body-col')
+          ?.getBoundingClientRect();
+        if (!rect) return;
+        const h = p === 'top' ? e.clientY - rect.top - 48 : rect.bottom - e.clientY - 48;
+        setSidebarHeight(h);
+        return;
+      }
       // 48px = lebar ActivityBar (token --activitybar-w)
-      const kanan = useStore.getState().settings.sidebar === 'right';
-      setSidebarWidth(kanan ? window.innerWidth - e.clientX - 48 : e.clientX - 48);
+      setSidebarWidth(p === 'right' ? window.innerWidth - e.clientX - 48 : e.clientX - 48);
     };
     const onUp = () => {
       if (!dragging.current) return;
@@ -551,45 +567,58 @@ export default function App() {
   // 4) Drop file dari Windows Explorer -> buka jadi tab (PRD V9).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    getCurrentWindow()
-      .onDragDropEvent(async (event) => {
-        if (event.payload.type !== 'drop') return;
-        const s = useStore.getState();
-        for (const p of event.payload.paths) {
-          try {
-            await s.openPath(p);
-          } catch {
-            s.setStatus(`Tidak bisa membuka: ${p}`);
+    // getCurrentWindow() melempar SINKRON di luar Tauri (browser dev) —
+    // `.catch()` di bawah tidak menjangkaunya. Tanpa try/catch ini React
+    // unmount seluruh tree dan layar jadi hitam di mode dev browser.
+    try {
+      getCurrentWindow()
+        .onDragDropEvent(async (event) => {
+          if (event.payload.type !== 'drop') return;
+          const s = useStore.getState();
+          for (const p of event.payload.paths) {
+            try {
+              await s.openPath(p);
+            } catch {
+              s.setStatus(`Tidak bisa membuka: ${p}`);
+            }
           }
-        }
-      })
-      .then((un) => {
-        unlisten = un;
-      })
-      .catch(() => {
-        /* di luar Tauri (browser dev) event ini tidak ada */
-      });
+        })
+        .then((un) => {
+          unlisten = un;
+        })
+        .catch(() => {
+          /* di luar Tauri (browser dev) event ini tidak ada */
+        });
+    } catch {
+      /* non-Tauri */
+    }
     return () => unlisten?.();
   }, []);
 
   // 5) Tutup window dengan tab kotor -> tahan, tampilkan dialog.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    getCurrentWindow()
-      .onCloseRequested(async (event) => {
-        const s = useStore.getState();
-        flushTab(s.activeTabId);
-        await s.persistSession();
-        if (!useStore.getState().requestCloseWindow()) {
-          event.preventDefault();
-        }
-      })
-      .then((un) => {
-        unlisten = un;
-      })
-      .catch(() => {
-        /* non-Tauri */
-      });
+    // Lihat catatan di efek 4: getCurrentWindow() throw sinkron di luar
+    // Tauri, jadi bungkus try/catch supaya React tidak unmount.
+    try {
+      getCurrentWindow()
+        .onCloseRequested(async (event) => {
+          const s = useStore.getState();
+          flushTab(s.activeTabId);
+          await s.persistSession();
+          if (!useStore.getState().requestCloseWindow()) {
+            event.preventDefault();
+          }
+        })
+        .then((un) => {
+          unlisten = un;
+        })
+        .catch(() => {
+          /* non-Tauri */
+        });
+    } catch {
+      /* non-Tauri */
+    }
     return () => unlisten?.();
   }, []);
 
@@ -883,28 +912,78 @@ export default function App() {
       </button>
       <MenuBar />
       <UpdateBanner />
-      <div className={`app-body${sidebarKanan ? ' sidebar-right' : ''}`}>
-        <ActivityBar />
+      <div className={`app-body sidebar-pos-${pos}`}>
+        {/* ActivityBar IKUT PINDAH mengikuti posisi panel:
+            - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)
+            - atas/bawah : horizontal di tepi atas/bawah (CSS)
+            Urutan DOM dibuat tetap [ActivityBar, sidebar?, main, …] supaya
+            flex-direction row-reverse/column dari sidebar-pos-* bekerja. */}
+        <div className="app-body-col">
+          {pos !== 'bottom' && <ActivityBar />}
 
-        {sidebarVisible && (
-          <>
-            <aside className="sidebar" style={{ width: sidebarWidth }} aria-label="Sidebar">
-              <Sidebar />
-            </aside>
-            <div
-              className="resizer"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Ubah lebar sidebar"
-              onPointerDown={startResize}
-            />
-          </>
-        )}
+          {/* Posisi ATAS: panel di atas editor, divider horizontal. */}
+          {pos === 'top' && sidebarVisible && (
+            <>
+              <aside
+                className="sidebar sidebar-h"
+                style={{ height: sidebarHeight }}
+                aria-label="Sidebar"
+              >
+                <Sidebar />
+              </aside>
+              <div
+                className="resizer resizer-h"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Ubah tinggi panel"
+                onPointerDown={startResize}
+              />
+            </>
+          )}
 
-        <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
-          <SplitEditor />
-          <Panel />
-        </main>
+          {/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal. */}
+          {(pos === 'left' || pos === 'right') && sidebarVisible && (
+            <>
+              <aside className="sidebar" style={{ width: sidebarWidth }} aria-label="Sidebar">
+                <Sidebar />
+              </aside>
+              <div
+                className="resizer"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Ubah lebar sidebar"
+                onPointerDown={startResize}
+              />
+            </>
+          )}
+
+          <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
+            <SplitEditor />
+            <Panel />
+          </main>
+
+          {/* Posisi BAWAH: divider horizontal + panel di bawah editor. */}
+          {pos === 'bottom' && sidebarVisible && (
+            <>
+              <div
+                className="resizer resizer-h"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Ubah tinggi panel"
+                onPointerDown={startResize}
+              />
+              <aside
+                className="sidebar sidebar-h"
+                style={{ height: sidebarHeight }}
+                aria-label="Sidebar"
+              >
+                <Sidebar />
+              </aside>
+            </>
+          )}
+
+          {pos === 'bottom' && <ActivityBar />}
+        </div>
       </div>
 
       <StatusBar />

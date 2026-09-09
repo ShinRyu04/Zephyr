@@ -73,12 +73,56 @@ input {
   flex: 1;
   min-height: 0;
 }
-.app-body.sidebar-right .sidebar {
+
+/* Kolom isi app-body: sidebar + main-area. Arahnya ditentukan posisi panel
+   (sidebar-pos-*), ala VS Code Layout. */
+.app-body-col {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+/* KIRI (default): urutan DOM sidebar → main. */
+/* KANAN: dibalik — sidebar tampil di sisi kanan editor. */
+.app-body.sidebar-pos-right .app-body-col {
+  flex-direction: row-reverse;
+}
+
+/* ATAS / BAWAH: panel di atas/bawah editor (kolom). */
+.app-body.sidebar-pos-top .app-body-col,
+.app-body.sidebar-pos-bottom .app-body-col {
+  flex-direction: column;
+}
+
+.app-body.sidebar-pos-right .sidebar {
   border-right: none;
   border-left: 1px solid var(--border);
 }
-.app-body.sidebar-right .resizer {
+.app-body.sidebar-pos-right .resizer {
   cursor: col-resize;
+}
+
+/* Panel horizontal (posisi atas/bawah): selebar konten, tingginya diatur
+   inline lewat sidebarHeight (drag divider horizontal). */
+.sidebar-h {
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.app-body.sidebar-pos-top .sidebar-h {
+  border-bottom: 1px solid var(--border);
+}
+.app-body.sidebar-pos-bottom .sidebar-h {
+  border-top: 1px solid var(--border);
+}
+
+/* Divider horizontal untuk posisi atas/bawah. */
+.resizer-h {
+  width: auto;
+  height: 4px;
+  flex-shrink: 0;
+  cursor: ns-resize;
 }
 
 /* ─────────── ActivityBar ─────────── */
@@ -162,42 +206,6 @@ body.is-narrow .ab-btn {
   border-radius: 1px;
 }
 
-/* Menu posisi sidebar (ikon layout di activity bar). */
-.ab-layout-menu {
-  min-width: 176px;
-  padding: 4px;
-}
-.ab-lm-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 8px;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text);
-  font-size: 12.5px;
-  cursor: pointer;
-  text-align: left;
-}
-.ab-lm-item:hover {
-  background: var(--surface-2);
-}
-.ab-lm-item.is-sel {
-  color: var(--accent);
-}
-.ab-lm-ic {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
-.ab-lm-sep {
-  height: 1px;
-  margin: 4px 6px;
-  background: var(--border);
-}
-
 /* Akun GitHub di bawah activity bar (ala VS Code). */
 .ab-spacer {
   flex: 1 1 auto;
@@ -217,6 +225,48 @@ body.is-narrow .ab-btn {
   color: #fff;
   background: #2da44e;
   user-select: none;
+}
+
+/* ─────────── ActivityBar ikut posisi panel ───────────
+   ActivityBar dirender DI DALAM .app-body-col bersama sidebar, jadi ia
+   ikut arah flex:
+     - kiri  : vertikal di tepi kiri (default)
+     - kanan : vertikal di tepi kanan (row-reverse di .app-body-col)
+     - atas  : HORIZONTAL di atas panel
+     - bawah : HORIZONTAL di bawah panel */
+.app-body.sidebar-pos-right .activitybar {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+.app-body.sidebar-pos-top .activitybar,
+.app-body.sidebar-pos-bottom .activitybar {
+  flex-direction: row;
+  width: 100%;
+  height: var(--activitybar-w);
+  padding: 0 6px;
+  border-right: none;
+  align-items: center;
+}
+.app-body.sidebar-pos-top .activitybar {
+  border-bottom: 1px solid var(--border);
+}
+.app-body.sidebar-pos-bottom .activitybar {
+  border-top: 1px solid var(--border);
+}
+/* Indikator aktif: di mode horizontal pindah ke tepi atas tombol. */
+.app-body.sidebar-pos-top .activitybar .ab-indicator,
+.app-body.sidebar-pos-bottom .activitybar .ab-indicator {
+  left: 50%;
+  top: 5px;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+}
+/* Avatar GitHub di ujung kanan saat horizontal (spacer mendorong ke kanan). */
+.app-body.sidebar-pos-top .activitybar .ab-gh,
+.app-body.sidebar-pos-bottom .activitybar .ab-gh {
+  margin-bottom: 0;
+  margin-right: 6px;
 }
 
 /* ─────────── Sidebar ─────────── */
@@ -2127,71 +2177,53 @@ body.is-resizing-v {
   z-index: 60;
 }
 .mb-menu { position: relative; }
-/* Tombol layout: ikon sejajar File/Edit/dll. */
+/* Tombol posisi panel — SELALU terlihat di kanan atas (bukan popover).
+   Empat ikon layout + tombol sembunyikan panel (mata dicoret). */
+.mb-layout {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px 0 12px;
+}
 .mb-layout-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
+  width: 24px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.mb-layout-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.mb-layout-btn.is-on {
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 .mb-layout-ic {
   width: 15px;
   height: 15px;
 }
-.mb-layout-menu {
-  min-width: 230px;
-  padding: 4px;
-}
-.mb-lm-title {
-  padding: 5px 8px 3px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-muted);
-}
-.mb-lm-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 8px;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text);
-  font-size: 12.5px;
-  cursor: pointer;
-  text-align: left;
-}
-.mb-lm-item:hover {
-  background: var(--surface-2);
-}
-.mb-lm-item.is-sel {
-  color: var(--accent);
-}
-.mb-lm-label {
-  flex: none;
-  font-weight: 600;
-}
-.mb-lm-desc {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-.mb-lm-sep {
-  height: 1px;
-  margin: 4px 6px;
+.mb-layout-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
   background: var(--border);
-}
-.mb-lm-check.is-on .mb-lm-label::before {
-  content: '✓ ';
-  color: var(--accent);
 }
 /* Command center (fase 34): pill lebar di TENGAH baris menu ala VS Code —
    nempel setelah Help tapi memanjang ke kanan (bukan kotak kecil di pojok). */
 .mb-cc-wrap {
   display: flex;
   align-items: center;
+  /* Rata TENGAH di baris menu (ala VS Code command center) — bukan nempel
+     setelah menu Help di kiri. */
+  justify-content: center;
   flex: 1 1 auto;
   min-width: 0;
   margin-left: 12px;
@@ -2208,8 +2240,8 @@ body.is-resizing-v {
   background: var(--bg0, var(--surface-2));
   color: var(--text-muted);
   font-size: 12px;
-  width: 100%;
-  max-width: 480px;
+  width: min(480px, 100%);
+  flex: 0 1 auto;
   cursor: pointer;
   text-align: left;
   transition: border-color 120ms, background 120ms;

@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use tauri::State;
 
 /// Batas ukuran file `main` (prompt fase 13: max 1MB).
-pub const MAX_MAIN_BYTES: u64 = 1_048_576;
+pub const MAX_MAIN_BYTES: u64 = 20_971_520;
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -340,8 +340,9 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
     let mut error = None;
     if main_bytes > MAX_MAIN_BYTES as i64 {
         error = Some(format!(
-            "file {main} berukuran {} KB — melebihi batas 1MB, ekstensi ditolak",
-            main_bytes / 1024
+            "file {main} berukuran {} KB — melebihi batas {} MB, ekstensi ditolak",
+            main_bytes / 1024,
+            MAX_MAIN_BYTES / 1024 / 1024
         ));
     }
 

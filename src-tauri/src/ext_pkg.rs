@@ -21,14 +21,17 @@ use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 use tauri::State;
 
-/// Batas ukuran arsip `.zext` yang mau di-unzip (16 MB).
-const MAX_ZEXT_BYTES: u64 = 16 * 1024 * 1024;
-/// Batas total byte hasil unzip — penjaga zip bomb.
-const MAX_UNZIP_TOTAL: u64 = 64 * 1024 * 1024;
+/// Batas ukuran arsip yang mau di-unzip. Dinaikkan dari 16 MB karena
+/// ekstensi marketplace (mis. ms-python) bisa puluhan MB.
+const MAX_ZEXT_BYTES: u64 = 1024 * 1024 * 1024; // 1 GB
+/// Batas total byte hasil unzip — penjaga zip bomb (tetap jauh di atas
+/// ukuran arsip supaya ekstensi besar yang mengembang wajar tidak kena).
+const MAX_UNZIP_TOTAL: u64 = 2 * 1024 * 1024 * 1024; // 2 GB
 /// Batas file yang dibaca sebagai kontribusi (tema/keymap/snippet JSON).
 const MAX_CONTRIB_BYTES: u64 = 512 * 1024;
 
@@ -481,8 +484,9 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
     let sz = std::fs::metadata(arsip)?.len();
     if sz > MAX_ZEXT_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            "arsip {} MB melebihi batas 16MB",
-            sz / 1024 / 1024
+            "arsip {} MB melebihi batas {} MB",
+            sz / 1024 / 1024,
+            MAX_ZEXT_BYTES / 1024 / 1024
         )));
     }
     let f = std::fs::File::open(arsip)?;
@@ -759,7 +763,7 @@ pub fn extensions_read_contrib(state: State<AppState>, id: String, rel: String) 
 
 #[tauri::command]
 pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> ZResult<String> {
-    const MAX_MAIN_BYTES: u64 = 1024 * 1024;
+    const MAX_MAIN_BYTES: u64 = 20 * 1024 * 1024;
     let dir =
         ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
     let file = resolve_in_ext(&dir, &rel).or_else(|e| {
@@ -779,6 +783,93 @@ pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> 
         )));
     }
     std::fs::read_to_string(&file).map_err(ZephyrError::from)
+}
+
+/// Baca SEMUA file JS/JSON sebuah ekstensi sebagai peta relpath -> isi.
+///
+/// Dipakai sandbox untuk mendukung `require('./file')` relatif antar file
+/// ekstensi (mis. main yang memuat `./dist/extension.bundle`). File biner
+/// (.wasm/.node/dll/...) dilewati — mustahil dijalankan di Web Worker.
+///
+/// Batas: 32MB per file, 128MB total, maks 2000 file, kedalaman 20 folder.
+/// File yang melampaui batas TIDAK masuk peta; `require`-nya nanti memberi
+/// error "tidak ditemukan" yang jelas (bukan ReferenceError membingungkan).
+#[tauri::command]
+pub fn extensions_read_files(state: State<AppState>, id: String) -> ZResult<HashMap<String, String>> {
+    const PER_FILE: u64 = 32 * 1024 * 1024; // 32 MB per file
+    const TOTAL: u64 = 128 * 1024 * 1024; // 128 MB total
+    const MAX_FILES: usize = 2000;
+    const MAX_DEPTH: u32 = 20;
+
+    let dir = ext_dir_of(&state, &id)
+        .ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+    let mut out = HashMap::new();
+    let mut total: u64 = 0;
+
+    fn walk(
+        root: &Path,
+        dir: &Path,
+        depth: u32,
+        out: &mut HashMap<String, String>,
+        total: &mut u64,
+        per_file: u64,
+        total_max: u64,
+        max_files: usize,
+        max_depth: u32,
+    ) -> ZResult<()> {
+        if depth > max_depth || out.len() >= max_files {
+            return Ok(());
+        }
+        let rd = match std::fs::read_dir(dir) {
+            Ok(rd) => rd,
+            Err(_) => return Ok(()),
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.starts_with('.') {
+                    continue;
+                }
+                walk(root, &p, depth + 1, out, total, per_file, total_max, max_files, max_depth)?;
+                continue;
+            }
+            if out.len() >= max_files || *total >= total_max {
+                break;
+            }
+            let name = e.file_name().to_string_lossy().to_string();
+            let lower = name.to_ascii_lowercase();
+            if !(lower.ends_with(".js")
+                || lower.ends_with(".cjs")
+                || lower.ends_with(".mjs")
+                || lower.ends_with(".json"))
+            {
+                continue;
+            }
+            let sz = match std::fs::metadata(&p) {
+                Ok(m) => m.len(),
+                Err(_) => continue,
+            };
+            if sz > per_file {
+                continue;
+            }
+            let rel = p
+                .strip_prefix(root)
+                .map(|r| r.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            if rel.is_empty() {
+                continue;
+            }
+            if let Ok(isi) = std::fs::read_to_string(&p) {
+                *total += sz;
+                out.insert(rel, isi);
+            }
+        }
+        Ok(())
+    }
+
+    walk(&dir, &dir, 0, &mut out, &mut total, PER_FILE, TOTAL, MAX_FILES, MAX_DEPTH)?;
+    Ok(out)
 }
 
 /// Folder sebuah ekstensi: extensions/<id> atau path dari installed.json.
@@ -901,7 +992,8 @@ pub struct ExtManifestStatus {
 /// Batas ukuran unduhan .vsix (arsip ekstensi). VSIX bahasa besar (mis.
 /// Flutter ~80MB) TIDAK cocok untuk model manifest-only; batas ini menjaga
 /// folder temp tidak penuh oleh unduhan raksasa.
-const MAX_VSIX_BYTES: u64 = 64 * 1024 * 1024;
+/// Batas unduhan .vsix — VSIX bahasa besar bisa 50+ MB.
+const MAX_VSIX_BYTES: u64 = 1024 * 1024 * 1024; // 1 GB
 
 /// Unduh file `.vsix` dari URL registry (Open VSX) ke folder temp Zephyr,
 /// lalu kembalikan path-nya untuk `extensions_install`.
@@ -954,9 +1046,10 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
         .read_to_vec()
         .map_err(|e| ZephyrError::Git(format!("gagal membaca unduhan: {e}")))?;
     if bytes.len() as u64 > MAX_VSIX_BYTES {
-        return Err(ZephyrError::InvalidInput(
-            ".vsix melebihi batas 64MB".into(),
-        ));
+        return Err(ZephyrError::InvalidInput(format!(
+            ".vsix melebihi batas {} MB",
+            MAX_VSIX_BYTES / 1024 / 1024
+        )));
     }
     if bytes.is_empty() {
         return Err(ZephyrError::InvalidInput(".vsix kosong".into()));

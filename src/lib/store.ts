@@ -56,6 +56,8 @@ interface StoreState {
   activity: ActivityId;
   sidebarVisible: boolean;
   sidebarWidth: number;
+  /** tinggi panel saat posisi sidebar = top/bottom (ala VS Code). */
+  sidebarHeight: number;
   ramBytes: number;
   statusMessage: string;
   cursor: { line: number; col: number };
@@ -96,6 +98,7 @@ interface StoreActions {
   toggleSidebar: () => void;
   setSidebarVisible: (v: boolean) => void;
   setSidebarWidth: (w: number) => void;
+  setSidebarHeight: (h: number) => void;
   setRamBytes: (b: number) => void;
   setStatus: (m: string) => void;
   setCursor: (line: number, col: number) => void;
@@ -193,6 +196,7 @@ export const useStore = create<Store>((set, get) => ({
   activity: 'explorer',
   sidebarVisible: true,
   sidebarWidth: 260,
+  sidebarHeight: 200,
   ramBytes: 0,
   statusMessage: '',
   cursor: { line: 1, col: 1 },
@@ -226,6 +230,7 @@ export const useStore = create<Store>((set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
+  setSidebarHeight: (h) => set({ sidebarHeight: Math.max(120, Math.min(480, h)) }),
   setRamBytes: (b) => set({ ramBytes: b }),
   setStatus: (m) => set({ statusMessage: m }),
   setCursor: (line, col) => set({ cursor: { line, col } }),
