@@ -134,6 +134,10 @@ export function ModelsSection() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [reveal, setReveal] = useState<string | null>(null);
   const loaded = useRef(false);
+  // Bahasa jawaban AI: 'follow' | 'id' | 'en' | nama bahasa bebas.
+  const answerLang = models.answerLang ?? 'follow';
+  const answerBuiltin =
+    answerLang === 'follow' || answerLang === 'id' || answerLang === 'en';
 
   useEffect(() => {
     if (loaded.current) return;
@@ -160,6 +164,31 @@ export function ModelsSection() {
           onChange={(v) => void apply({ models: { activeProvider: v } })}
           options={PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
         />
+      </Row>
+
+      {/* Multi bahasa: instruksi bahasa jawaban dikirim ke model tiap chat. */}
+      <Row label={t('models.answerLang')} hint={t('models.answerLangHint')}>
+        <Select
+          label={t('models.answerLang')}
+          testid="models-answerlang"
+          value={answerBuiltin ? answerLang : 'custom'}
+          onChange={(v) => void apply({ models: { answerLang: v } })}
+          options={[
+            { value: 'follow', label: t('models.answerFollow') },
+            { value: 'id', label: 'Indonesia' },
+            { value: 'en', label: 'English' },
+            { value: 'custom', label: t('models.answerCustom') },
+          ]}
+        />
+        {!answerBuiltin && (
+          <TextInput
+            label={t('models.answerCustom')}
+            testid="models-answerlang-custom"
+            placeholder={t('models.answerCustomPlaceholder')}
+            value={answerLang === 'custom' ? '' : answerLang}
+            onChange={(v) => void apply({ models: { answerLang: v.trim() || 'follow' } })}
+          />
+        )}
       </Row>
 
       <div className="prov-list">

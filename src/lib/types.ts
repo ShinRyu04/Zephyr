@@ -701,10 +701,16 @@ export interface Settings {
   general: GeneralSettings;
   editor: EditorSettings;
   theme: ThemeSettings;
-  sidebar: 'left' | 'right';
+  /** Posisi panel samping ala VS Code: kiri, kanan, atas, atau bawah. */
+  sidebar: 'left' | 'right' | 'top' | 'bottom';
   layout: 'default' | 'focus' | 'term' | 'quad';
   shortcuts: Record<string, string>;
-  models: { activeProvider: string; providers: Record<string, { baseUrl?: string; model?: string }> };
+  models: {
+    activeProvider: string;
+    providers: Record<string, { baseUrl?: string; model?: string }>;
+    /** bahasa jawaban AI: 'follow' = ikuti pertanyaan; 'id'/'en'; atau nama bahasa bebas */
+    answerLang: string;
+  };
   agents: {
     maxPanes: number;
     order: string[];
@@ -803,7 +809,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebar: 'left',
   layout: 'default',
   shortcuts: {},
-  models: { activeProvider: 'gemini', providers: {} },
+  models: { activeProvider: 'gemini', providers: {}, answerLang: 'follow' },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
   extensions: { enabled: [] },
   // fase 31: default a11y = tidak mengubah perilaku. Reduced motion tetap

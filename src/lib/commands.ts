@@ -316,6 +316,10 @@ export const extensionsReadContrib = (id: string, rel: string) =>
   invoke<Record<string, unknown>>('extensions_read_contrib', { id, rel });
 export const extensionsReadMain = (id: string, rel: string) =>
   invoke<string>('extensions_read_main', { id, rel });
+
+/** Semua file JS/JSON ekstensi (relpath -> isi) untuk require('./...') relatif. */
+export const extensionsReadFiles = (id: string) =>
+  invoke<Record<string, string>>('extensions_read_files', { id });
 /** Manifest + status semua ekstensi terpasang (dipakai loader 19.5). */
 export const extensionsManifests = () => invoke<ExtManifestStatus[]>('extensions_manifests');
 /** Tulis paket bundled ke folder staging → path untuk `extensions_install`. */

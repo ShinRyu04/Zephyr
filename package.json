@@ -1,7 +1,7 @@
 {
   "name": "zephyr",
   "private": true,
-  "version": "1.1.6",
+  "version": "1.1.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "verify": "node scripts/verify.mjs",
+    "verify:update": "node scripts/verify-update.mjs",
     "verify:04": "node scripts/verify04.mjs",
     "verify:05": "node scripts/verify05.mjs",
     "verify:06": "node scripts/verify06.mjs",
@@ -35,6 +36,7 @@
     "verify:29": "node scripts/verify29.mjs",
     "verify:30": "node scripts/verify30.mjs",
     "verify:31": "node scripts/verify31.mjs",
+    "verify:32": "node scripts/verify32.mjs",
     "a11y:kontras": "node scripts/a11y-kontras.mjs",
     "verify:24": "node scripts/verify24.mjs",
     "verify:27": "node scripts/verify27.mjs",
@@ -78,6 +80,7 @@
     "@xterm/addon-search": "^0.15.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
+    "chrome-remote-interface": "^0.34.0",
     "codemirror": "^6.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
