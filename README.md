@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.1.6` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.7` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -33,9 +33,9 @@ langsung jalan tanpa install tambahan).
 
 ### Cara install Zephyr (3 langkah)
 
-1. **Unduh installer** — `Zephyr_1.1.6_x64-setup.exe` (atau `.msi`) dari
+1. **Unduh installer** — `Zephyr_1.1.7_x64-setup.exe` (atau `.msi`) dari
    halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.6_x64-setup.exe` — itu installer-nya.
+   `Zephyr_1.1.7_x64-setup.exe` — itu installer-nya.
 2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
    anyway**. Ini normal: installer belum ditandatangani, bukan berarti
    berbahaya. Source-nya terbuka dan bisa diverifikasi.
