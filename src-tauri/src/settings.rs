@@ -64,7 +64,9 @@ pub fn default_settings() -> Value {
         "shortcuts": {},
         "models": { "activeProvider": "gemini", "providers": {} },
         "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
-        "extensions": { "enabled": [] },
+        // fase 34: `trust` = whitelist runtime eksternal per ekstensi
+        // (ext_exec membaca dari sini; kosong = semua ditolak).
+        "extensions": { "enabled": [], "trust": {} },
         // fase 31: aksesibilitas. Nama kunci mengikuti VS Code
         // (accessibility.*) supaya settings terasa familier.
         "accessibility": {

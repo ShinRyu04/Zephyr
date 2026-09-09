@@ -50,7 +50,28 @@ var zephyr = {
     __zh[String(id)] = fn;
     self.postMessage({ type: 'register', id: String(id), title: String(title || id) });
   },
+  // fase 34: jalankan runtime eksternal DENGAN IZIN. Eksekusi terjadi di
+  // sisi Rust dari binary yang di-whitelist (settings.extensions.trust);
+  // worker cuma dapat stdout/stderr/exit — tidak pernah pegang akses exec
+  // langsung. Belum diizinkan? Main thread akan meminta persetujuan user
+  // dulu, promise ini menunggu sampai user memutuskan.
+  exec: function (runtime, args, opts) {
+    return new Promise(function (resolve, reject) {
+      var seq = ++__zhExecSeq;
+      __zhExecPending[seq] = { resolve: resolve, reject: reject };
+      self.postMessage({
+        type: 'exec-req',
+        seq: seq,
+        runtime: String(runtime),
+        args: Array.isArray(args) ? args.map(String) : [],
+        cwd: opts && opts.cwd ? String(opts.cwd) : null,
+        timeoutMs: opts && opts.timeoutMs ? Number(opts.timeoutMs) : 60000,
+      });
+    });
+  },
 };
+var __zhExecSeq = 0;
+var __zhExecPending = {};
 
 // ── Shim CommonJS (tanpa ini: "module is not defined") ──
 var module = { exports: {} };
