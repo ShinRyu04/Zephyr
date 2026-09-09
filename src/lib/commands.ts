@@ -48,6 +48,9 @@ import type {
   SshHost,
   ReplaceHasil,
   ExtExecResult,
+  AgentMsg,
+  AgentToolSpec,
+  AiToolResult,
   DebugConfig,
   LaunchFile,
   AdapterSpec,
@@ -244,6 +247,16 @@ export const aiChat = (opts: {
 
 /** Batalkan streaming. false = id sudah tidak berjalan. */
 export const aiCancel = (id: string) => invoke<boolean>('ai_cancel', { id });
+
+/** Satu langkah loop agent (fase 35) — non-streaming, bisa memuat tool calls. */
+export const aiToolChat = (opts: {
+  provider: string;
+  model: string;
+  messages: AgentMsg[];
+  tools: AgentToolSpec[];
+  baseUrl?: string;
+  maxTokens?: number;
+}) => invoke<AiToolResult>('ai_tool_chat', opts);
 
 // ── Source Control / git (fase 10) ──
 

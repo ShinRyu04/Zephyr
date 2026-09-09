@@ -259,6 +259,8 @@ pub fn run() {
             // AI panel (fase 09)
             ai::ai_chat,
             ai::ai_cancel,
+            // fase 35: mode agent — satu langkah loop dengan tool calling
+            ai::ai_tool_chat,
             // git (fase 10)
             git::git_init,
             git::git_status,

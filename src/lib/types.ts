@@ -583,6 +583,41 @@ export interface ExtTrust {
   grantedAt: string;
 }
 
+// ── mode agent (fase 35) ──
+
+/** Satu panggilan tool yang diminta model. */
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+/** Pesan untuk loop agent — role 'tool' membawa hasil eksekusi tool. */
+export interface AgentMsg {
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  /** role='tool' → id tool_call yang dijawab */
+  toolCallId?: string;
+  /** role='assistant' yang berisi panggilan tool */
+  toolCalls?: AgentToolCall[];
+  /** role='tool' → nama tool (dipakai Gemini functionResponse) */
+  name?: string;
+}
+
+/** Skema tool yang dikirim ke model (gaya OpenAI; adapter mengonversi). */
+export interface AgentToolSpec {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+/** Jawaban non-streaming mode agent: teks + panggilan tool (bila ada). */
+export interface AiToolResult {
+  content: string;
+  toolCalls: AgentToolCall[];
+  done: boolean;
+}
+
 /** Kategori resmi (19.2). */
 export type ExtKategori =
   | 'Themes'
