@@ -61,11 +61,12 @@ installer. Data dan settings tersimpan di `%APPDATA%\zephyr\`.
    **Install from .vsix…** → pilih filenya.
 3. Selesai — ekstensi muncul di tab **Installed** dan bisa diaktifkan/dimatikan.
 
-> **Catatan penting soal ekstensi:** ekstensi v1 bersifat **manifest-only** —
-> Zephyr membaca `package.json` dan mendaftarkan `contributes.commands` ke
-> Command Palette, tetapi **tidak menjalankan kode JS ekstensi**. Bahasa, tema,
-> snippet, keymap, dan command ikut aktif; extension host penuh (kode JS
-> ekstensi) sengaja tidak dijalankan demi keamanan.
+> **Catatan penting soal ekstensi:** kode JS ekstensi dijalankan di **sandbox
+> Web Worker terisolasi** — tidak bisa menyentuh `window`, `require` modul
+> sistem, atau fs. Command dari ekstensi ikut terdaftar di Command Palette;
+> tema, snippet, keymap, dan bahasa tetap jalan. Ekstensi yang butuh runtime
+> eksternal (Python, Java, Docker, dll.) tidak bisa jalan penuh karena sandbox
+> sengaja diputus dari sistem.
 
 ### Cara pakai SSH ke server/VPS
 
@@ -174,13 +175,15 @@ Bukan tempelan. Fase terakhir seluruhnya soal ini:
 
 ## Kondisi jujur
 
-Marketplace ekstensi masih terbatas: ekstensi v1 **hanya membaca manifest**, kode
-JS-nya tidak dijalankan. Itu keputusan keamanan, bukan kemalasan — mengeksekusi
-JS ekstensi berarti memberi pihak ketiga akses penuh ke `window`, artinya ke
-seluruh IPC termasuk fs, pty, git, dan secrets.
+Ekstensi dari marketplace dijalankan di **sandbox Web Worker terisolasi**:
+kode JS-nya jalan (command muncul di palette), tapi tidak bisa menyentuh
+`window`, modul sistem (`fs`, `child_process`, dll.), atau IPC Zephyr.
+Ekstensi yang butuh runtime eksternal (Python, Java, Docker, dll.) tetap tidak
+bisa jalan penuh — itu batas sandbox, bukan bug.
 
-Installer tidak ditandatangani, jadi SmartScreen akan memperingatkan saat
-pertama kali dijalankan.
+Installer ditandatangani dengan kunci minisign Zephyr (diverifikasi app saat
+auto-update), tapi itu bukan code-signing certificate dari CA, jadi SmartScreen
+tetap bisa memperingatkan saat pertama kali dijalankan.
 
 Auto-update dalam aplikasi aktif: tombol "Cek update" di Settings → Tentang
 memeriksa GitHub Releases dan memasang versi baru langsung dari app. Artefak
