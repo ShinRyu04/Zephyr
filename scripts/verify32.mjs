@@ -285,5 +285,24 @@ cek(
   ringkas(m),
 );
 
+// V11 — fase 34: zephyr.exec mengirim exec-req ke main thread (runtime, args,
+// cwd, timeout). Main thread yang memutuskan izin + eksekusi; worker cuma
+// menunggu jawaban exec-resp.
+m = jalankan(
+  skripEkstensi(`zephyr.exec('python', ['--version'], { cwd: 'D:/ws', timeoutMs: 5000 });`),
+);
+cek(
+  'V11 zephyr.exec → exec-req terkirim (runtime+args+cwd+timeout)',
+  m.some(
+    (x) =>
+      x.type === 'exec-req' &&
+      x.runtime === 'python' &&
+      x.args[0] === '--version' &&
+      x.cwd === 'D:/ws' &&
+      x.timeoutMs === 5000,
+  ),
+  ringkas(m),
+);
+
 console.log(gagal === 0 ? '\nSemua lulus.' : `\n${gagal} gagal.`);
 process.exit(gagal ? 1 : 0);

@@ -1,13 +1,13 @@
 // SectionsExtensions.tsx — Settings → Extensions + Marketplace (fase 13).
 //
-// v1 MANIFEST-ONLY: kode JS ekstensi tidak dieksekusi (alasan keamanan ada di
-// src-tauri/src/extensions.rs). Yang nyata di sini: daftar bawaan + ekstensi
-// folder, toggle yang tersimpan ke settings, manifest yang dibaca dari disk,
-// dan command manifest yang muncul di Command Palette.
+// Yang nyata di sini: daftar bawaan + ekstensi folder, toggle yang tersimpan
+// ke settings, manifest yang dibaca dari disk, command manifest di Command
+// Palette, dan (fase 34) whitelist izin runtime eksternal per ekstensi.
 
 import { useEffect } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
 import { useT } from '../../lib/i18n';
+import { useStore } from '../../lib/store';
 import { Section, Toggle } from './SettingsControls';
 
 /** Kartu marketplace — placeholder, tombol Install memang mati. */
@@ -71,6 +71,62 @@ function Marketplace() {
   );
 }
 
+/** fase 34: whitelist runtime eksternal per ekstensi (yang sudah diizinkan).
+ *  Cabut = hapus grant; eksekusi berikutnya minta persetujuan lagi. */
+function IzinRuntime() {
+  const trust = useStore((s) => s.settings.extensions.trust ?? {});
+  const list = useExtensions((s) => s.list);
+  const applySettings = useStore((s) => s.applySettings);
+  const nama = (id: string) => list.find((e) => e.id === id)?.name ?? id;
+
+  const entries = Object.entries(trust).filter(([, t]) => t && Object.keys(t.runtimes ?? {}).length > 0);
+  if (entries.length === 0) {
+    return (
+      <>
+        <h3 className="ext-h3">Izin runtime eksternal (0)</h3>
+        <p className="set-note" data-testid="ext-trust-empty">
+          Belum ada. Ekstensi yang butuh runtime eksternal (Python, Java, Node,
+          dll.) akan minta izin lewat dialog saat pertama kali memanggil{' '}
+          <code>zephyr.exec()</code> — eksekusi selalu di sisi Rust dari binary
+          yang kamu setujui, dan bisa dicabut di sini.
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <h3 className="ext-h3" data-testid="ext-trust-head">
+        Izin runtime eksternal ({entries.length})
+      </h3>
+      <div className="ext-list" data-testid="ext-trust-list">
+        {entries.map(([id, t]) => (
+          <div key={id} className="ext-card" data-ext-trust={id}>
+            <div className="ext-info">
+              <span className="ext-name">
+                {nama(id)} <code>{id}</code>
+              </span>
+              {Object.entries(t.runtimes ?? {}).map(([rt, bin]) => (
+                <span key={rt} className="ext-meta" title={bin}>
+                  <code>{rt}</code> → {bin}
+                </span>
+              ))}
+              <span className="ext-meta">diberi izin {t.grantedAt ? new Date(t.grantedAt).toLocaleDateString('id-ID') : '—'}</span>
+            </div>
+            <button
+              className="tp-op"
+              data-testid={`ext-revoke-${id}`}
+              onClick={() => void applySettings({ extensions: { trust: { [id]: null } } })}
+            >
+              cabut izin
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function ExtensionsSection() {
   const t = useT();
   const list = useExtensions((s) => s.list);
@@ -96,11 +152,12 @@ export function ExtensionsSection() {
   return (
     <Section title={t('settings.extensions')}>
       <p className="set-note">
-        Ekstensi v1 bersifat <strong>manifest-only</strong>: Zephyr membaca{' '}
-        <code>package.json</code> dan mendaftarkan <code>contributes.commands</code> ke
-        Command Palette, tetapi TIDAK menjalankan kode JS-nya. Menjalankannya di dalam
-        webview berarti memberi ekstensi pihak ketiga akses ke seluruh jembatan IPC
-        (fs, pty, git, API key) — itu tidak sebanding dengan manfaatnya.
+        Kode JS ekstensi dijalankan di <strong>sandbox Web Worker terisolasi</strong>{' '}
+        (tanpa <code>window</code>/fs/IPC), jadi command dari ekstensi bisa jalan
+        tanpa memberi akses sistem. Ekstensi yang butuh{' '}
+        <strong>runtime eksternal</strong> (Python, Java, Node, dll.) bisa minta izin
+        lewat <code>zephyr.exec()</code> — eksekusi selalu di sisi Rust dari binary
+        yang kamu setujui, dan izinnya bisa dicabut di bawah.
       </p>
 
       <div className="ext-actions">
@@ -136,6 +193,8 @@ export function ExtensionsSection() {
       {marketOpen && <Marketplace />}
 
       <h3 className="ext-h3">Bawaan Zephyr ({builtin.length})</h3>
+
+      <IzinRuntime />
       <div className="ext-list" data-testid="ext-list">
         {builtin.map((e) => (
           <div key={e.id} className="ext-card" data-ext={e.id}>

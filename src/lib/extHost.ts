@@ -1,6 +1,8 @@
 import * as cmd from './commands';
 import { useNotif } from './notificationStore';
 import { skripEkstensi } from './extRunner';
+import { useStore } from './store';
+import { useExtApproval } from './extApprovalStore';
 import type { ExtManifestStatus } from './types';
 
 type RegisterMsg = { type: 'register'; id: string; title: string };
@@ -8,7 +10,17 @@ type InvokeReq = { type: 'invoke'; id: string; seq: number; args: unknown[] };
 type ResultMsg = { type: 'result'; seq: number; ok: boolean; value?: unknown; error?: string };
 /** Pesan dari worker yang diteruskan ke notifikasi Zephyr (fase 19.7). */
 type NotifyMsg = { type: 'notify'; severity: 'info' | 'warn' | 'error'; message: string };
-type WorkerMsg = RegisterMsg | ResultMsg | NotifyMsg;
+/** fase 34: permintaan eksekusi runtime eksternal (zephyr.exec). */
+type ExecReq = {
+  type: 'exec-req';
+  seq: number;
+  runtime: string;
+  args: string[];
+  cwd: string | null;
+  timeoutMs: number;
+};
+type ExecResp = { type: 'exec-resp'; seq: number; ok: boolean; value?: unknown; error?: string };
+type WorkerMsg = RegisterMsg | ResultMsg | NotifyMsg | ExecReq;
 
 /** Runner worker + shim CommonJS/vscode dihasilkan extRunner.ts (bisa diuji).
  *  Bagian invoke (panggil command) didefinisikan di sini supaya skrip utuh
@@ -16,7 +28,17 @@ type WorkerMsg = RegisterMsg | ResultMsg | NotifyMsg;
 const INVOKE = `
 self.onmessage = (e) => {
   const m = e.data;
-  if (!m || m.type !== 'invoke') return;
+  if (!m) return;
+  // Jawaban eksekusi runtime (fase 34) — resolve/reject pending zephyr.exec.
+  if (m.type === 'exec-resp') {
+    const pe = __zhExecPending[m.seq];
+    if (!pe) return;
+    delete __zhExecPending[m.seq];
+    if (m.ok) pe.resolve(m.value);
+    else pe.reject(new Error(m.error || 'eksekusi runtime gagal'));
+    return;
+  }
+  if (m.type !== 'invoke') return;
   const fn = __zh[m.id];
   if (!fn) {
     self.postMessage({ type: 'result', seq: m.seq, ok: false, error: 'command tak dikenal: ' + m.id });
@@ -78,6 +100,11 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     }
     return;
   }
+  // fase 34: eksekusi runtime eksternal — cek izin → (dialog) → ext_exec.
+  if (m.type === 'exec-req') {
+    void prosesExecReq(extId, m, rt);
+    return;
+  }
   // Pesan dari ekstensi (mis. vscode.window.showErrorMessage) → notifikasi app.
   if (m.type === 'notify') {
     // Aktivasi GAGAL → matikan ekstensi otomatis supaya error tidak muncul
@@ -101,6 +128,53 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
   rt.pending.delete(m.seq);
   if (m.ok) p.resolve(m.value);
   else p.reject(new Error(m.error || 'gagal'));
+}
+
+/**
+ * Satu permintaan zephyr.exec: whitelist ada? jalankan langsung. Belum?
+ * resolve path binary lalu minta persetujuan user lewat modal; setelah
+ * disetujui (grant ditulis ke settings) jalankan via Rust ext_exec.
+ */
+async function prosesExecReq(extId: string, m: ExecReq, rt: ExtRuntime): Promise<void> {
+  const jawab = (ok: boolean, value?: unknown, error?: string) =>
+    rt.worker.postMessage({ type: 'exec-resp', seq: m.seq, ok, value, error } as ExecResp);
+  try {
+    const trust = useStore.getState().settings.extensions.trust?.[extId];
+    let bin: string | null = trust?.runtimes?.[m.runtime] ?? null;
+    if (!bin) {
+      bin = await cmd.extWhich(m.runtime);
+      if (!bin) {
+        jawab(
+          false,
+          undefined,
+          `runtime '${m.runtime}' tidak ditemukan di PATH — eksekusi ditolak. Pastikan ter-install, atau beri izin manual di Settings → Ekstensi.`,
+        );
+        return;
+      }
+      const disetujui = await useExtApproval.getState().minta({
+        extId,
+        runtime: m.runtime,
+        binPath: bin,
+        args: m.args,
+        cwd: m.cwd,
+      });
+      if (!disetujui) {
+        jawab(false, undefined, 'eksekusi ditolak user');
+        return;
+      }
+    }
+    const res = await cmd.extExec({
+      extId,
+      runtime: m.runtime,
+      bin: bin,
+      args: m.args,
+      cwd: m.cwd,
+      timeoutMs: m.timeoutMs,
+    });
+    jawab(true, res);
+  } catch (e) {
+    jawab(false, undefined, cmd.asZephyrError(e).message);
+  }
 }
 
 function bukaRuntime(

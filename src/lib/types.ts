@@ -562,6 +562,27 @@ export interface ExtInstallHasil {
   manifest: ExtManifest;
 }
 
+/** Hasil eksekusi satu proses runtime eksternal (fase 34). */
+export interface ExtExecResult {
+  /** null = proses dibunuh karena timeout */
+  code: number | null;
+  stdout: string;
+  stderr: string;
+  /** true = output dipotong karena melebihi batas */
+  truncated: boolean;
+  durationMs: number;
+  killed: boolean;
+}
+
+/** Izin runtime eksternal sebuah ekstensi (fase 34).
+ *  Eksekusi SELALU di sisi Rust dari binary yang di-whitelist — ekstensi
+ *  tidak pernah memegang akses exec langsung. */
+export interface ExtTrust {
+  /** runtimeId -> path binary yang diizinkan (mis. python -> C:\...\python.exe) */
+  runtimes: Record<string, string>;
+  grantedAt: string;
+}
+
 /** Kategori resmi (19.2). */
 export type ExtKategori =
   | 'Themes'
@@ -717,7 +738,12 @@ export interface Settings {
     startCommands: Record<string, string[]>;
     attachActiveFile: boolean;
   };
-  extensions: { enabled: string[] };
+  extensions: {
+    enabled: string[];
+    /** fase 33: izin runtime eksternal per ekstensi (whitelist binary).
+     *  key = extension id; lihat ExtTrust. */
+    trust: Record<string, ExtTrust>;
+  };
   /** fase 31: aksesibilitas — penamaan mengikuti VS Code (accessibility.*) */
   accessibility?: {
     /** matikan animasi & transisi di dalam app (di luar preferensi OS) */
@@ -811,7 +837,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   models: { activeProvider: 'gemini', providers: {}, answerLang: 'follow' },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
-  extensions: { enabled: [] },
+  extensions: { enabled: [], trust: {} },
   // fase 31: default a11y = tidak mengubah perilaku. Reduced motion tetap
   // dihormati lewat preferensi OS (media query di a11y.css) walau ini false.
   accessibility: {

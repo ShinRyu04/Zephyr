@@ -47,6 +47,7 @@ import type {
   SshConfigInput,
   SshHost,
   ReplaceHasil,
+  ExtExecResult,
   DebugConfig,
   LaunchFile,
   AdapterSpec,
@@ -330,6 +331,24 @@ export const extensionsBundledIds = () => invoke<string[]>('extensions_bundled_i
 /** Unduh .vsix dari registry remote ke folder temp → path untuk `extensions_install`. */
 export const extensionsDownloadVsix = (url: string, id: string) =>
   invoke<string>('extensions_download_vsix', { url, id });
+
+// ── izin runtime eksternal ekstensi (fase 34) ──
+
+/** Resolve path binary sebuah runtime lewat PATH. null = tidak ketemu. */
+export const extWhich = (runtime: string) =>
+  invoke<string | null>('ext_which', { runtime });
+/**
+ * Jalankan binary yang SUDAH di-whitelist untuk ekstensi ini. Rust memeriksa
+ * ulang izin dari settings — path yang tidak cocok dengan grant ditolak.
+ */
+export const extExec = (opts: {
+  extId: string;
+  runtime: string;
+  bin: string;
+  args: string[];
+  cwd?: string | null;
+  timeoutMs?: number;
+}) => invoke<ExtExecResult>('ext_exec', opts);
 
 // ── diagnostics / logging (fase 14) ──
 

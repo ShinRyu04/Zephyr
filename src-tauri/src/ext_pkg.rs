@@ -885,6 +885,157 @@ pub fn ext_dir_of(state: &AppState, id: &str) -> Option<PathBuf> {
         .filter(|p| p.is_dir())
 }
 
+/// Resolve path absolut sebuah runtime lewat PATH (fase 34).
+/// null = tidak ketemu (ekstensi akan ditolak dengan pesan jelas).
+#[tauri::command]
+pub fn ext_which(runtime: String) -> ZResult<Option<String>> {
+    match which::which(&runtime) {
+        Ok(p) => Ok(Some(p.to_string_lossy().to_string())),
+        Err(_) => Ok(None),
+    }
+}
+
+/// Hasil satu eksekusi runtime eksternal (fase 34).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtExecResult {
+    /// null = proses dibunuh karena timeout
+    pub code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+    /// true = output dipotong karena melebihi batas (atau timeout)
+    pub truncated: bool,
+    pub duration_ms: u64,
+    pub killed: bool,
+}
+
+/// Jalankan binary runtime yang SUDAH di-whitelist untuk ekstensi ini.
+///
+/// Rust memegang otoritas izin: `settings.extensions.trust[extId].runtimes[runtime]`
+/// HARUS sama dengan `bin` yang dikirim frontend — kalau tidak cocok ditolak,
+/// apa pun yang diklaim frontend. cwd divalidasi (di dalam workspace, atau
+/// lewat whitelist writable). Proses diberi timeout lalu dibunuh, output
+/// dibatasi 512 KB per stream.
+#[tauri::command]
+pub async fn ext_exec(
+    state: State<'_, AppState>,
+    ext_id: String,
+    runtime: String,
+    bin: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    timeout_ms: Option<u64>,
+) -> ZResult<ExtExecResult> {
+    use tokio::io::AsyncReadExt;
+
+    const MAX_OUT: usize = 512 * 1024;
+
+    // 1) Whitelist dari settings — satu-satunya sumber kebenaran.
+    let settings = crate::settings::read_settings_value(&state);
+    let granted = settings
+        .get("extensions")
+        .and_then(|e| e.get("trust"))
+        .and_then(|t| t.get(&ext_id))
+        .and_then(|x| x.get("runtimes"))
+        .and_then(|r| r.get(&runtime))
+        .and_then(|b| b.as_str())
+        .unwrap_or("");
+    if granted.is_empty() {
+        return Err(ZephyrError::InvalidInput(format!(
+            "ekstensi {ext_id} belum diberi izin runtime '{runtime}'"
+        )));
+    }
+    if granted != bin {
+        return Err(ZephyrError::InvalidInput(format!(
+            "path runtime '{runtime}' untuk ekstensi {ext_id} tidak cocok dengan izin — minta izin ulang"
+        )));
+    }
+
+    // 2) cwd divalidasi — harus ada & di dalam workspace (atau whitelist writable).
+    let workdir = match cwd.filter(|c| !c.trim().is_empty()) {
+        Some(raw) => {
+            let dir = crate::paths::validate_cwd(std::path::Path::new(&raw))?;
+            if let Some(ws) = state.workspace_path() {
+                if !crate::paths::is_inside(&ws, &dir) {
+                    state.ensure_writable(&dir)?;
+                }
+            }
+            dir
+        }
+        None => state
+            .workspace_path()
+            .or_else(|| std::env::var("USERPROFILE").ok().map(Into::into))
+            .unwrap_or_else(|| std::path::PathBuf::from(".")),
+    };
+
+    // 3) Spawn + baca output (dibatasi) + timeout + kill.
+    let mut child = match tokio::process::Command::new(&bin)
+        .args(&args)
+        .current_dir(&workdir)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            return Err(ZephyrError::InvalidInput(format!(
+                "gagal menjalankan {bin}: {e}"
+            )));
+        }
+    };
+
+    let mut stdout = child.stdout.take().expect("stdout piped");
+    let mut stderr = child.stderr.take().expect("stderr piped");
+    let t0 = std::time::Instant::now();
+
+    async fn baca_capped<R: AsyncReadExt + Unpin>(r: &mut R, cap: usize) -> (String, bool) {
+        let mut out = String::new();
+        let mut buf = [0u8; 4096];
+        let mut truncated = false;
+        loop {
+            match r.read(&mut buf).await {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    if out.len() + n > cap {
+                        truncated = true;
+                        break;
+                    }
+                    // Byte biner tidak boleh merusak pesan → placeholder.
+                    out.push_str(&String::from_utf8_lossy(&buf[..n]));
+                }
+            }
+        }
+        (out, truncated)
+    }
+
+    let (so, se) = tokio::join!(baca_capped(&mut stdout, MAX_OUT), baca_capped(&mut stderr, MAX_OUT));
+    let mut truncated = so.1 || se.1;
+
+    let ms = timeout_ms.unwrap_or(60_000).max(1_000);
+    let (code, killed) =
+        match tokio::time::timeout(Duration::from_millis(ms), child.wait()).await {
+            // st = io::Result<ExitStatus> — error wait jarang; perlakukan sebagai
+            // tidak ada exit code (bukan kegagalan izin).
+            Ok(st) => (st.ok().and_then(|s| s.code()), false),
+            Err(_) => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                truncated = true;
+                (None, true)
+            }
+        };
+
+    Ok(ExtExecResult {
+        code,
+        stdout: so.0,
+        stderr: se.0,
+        truncated,
+        duration_ms: t0.elapsed().as_millis() as u64,
+        killed,
+    })
+}
+
 /// Manifest lengkap semua ekstensi terpasang (dipakai loader frontend 19.5).
 #[tauri::command]
 pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestStatus>> {
