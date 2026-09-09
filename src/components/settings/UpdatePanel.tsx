@@ -1,9 +1,11 @@
 // UpdatePanel.tsx — UI auto-update di Settings → Tentang (fase 17.6.d).
 //
-// KONDISI SEKARANG: endpoint rilis belum ada, jadi status yang paling sering
-// muncul adalah 'unconfigured'. Panel HARUS tetap informatif dan tidak error:
-// itu syarat 17.6.e. Saat endpoint diisi nanti, panel ini langsung berfungsi
-// penuh tanpa perubahan kode.
+// Endpoint rilis AKTIF: status yang paling sering muncul di sini 'up-to-date'
+// (app sekelas dengan latest.json) atau 'available' (ada versi baru). Status
+// 'unconfigured' tinggal penjaga lama untuk kasus endpoint kosong.
+//
+// Panel harus tetap informatif dan tidak error dalam kondisi apa pun
+// (syarat 17.6.e).
 
 import { useUpdater, labelStatus } from '../../lib/updaterStore';
 
