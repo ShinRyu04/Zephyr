@@ -1,10 +1,10 @@
 {
   "version": "1.1.7",
   "notes": "v1.1.7: panel bisa dipindah atas/bawah, bahasa jawaban AI, ekstensi besar jalan di sandbox (require relatif antar file)",
-  "pub_date": "2026-09-09T12:28:00+07:00",
+  "pub_date": "2026-09-09T12:39:00+07:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSV3FhYnJkc2taU0w3RWNyUVROWnV5a3I4b1RiYjViakRPakNQNzgxVGJEUHZmOVQ0TVVTMWJZVHQ1M3M4OGQvTGhHUU1nQlZBOWxVSzdvMnBZYkx4dEw2RmlPeGU1a3dvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTMxMjA5CWZpbGU6WmVwaHlyXzEuMS43X3g2NC1zZXR1cC5leGUKUndZSkdMaWx6cENSKytFZDVTVFRIZUFrYUxUTUJpMDE4Ujl0M0gzVU5hT1MzSXQ2ZXpVRXhveG9UNGR6V2l3MGViK1p2Mk5wK2VTWUE3djBuajNwRHc9PQo=",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSV3FhYnJkc2taU0M4dHpvWXVKNFhBYTZnWXhVanpETUMwWkN3b1V2S052cm5HMFNhcGJoUjY3aWhaT1dNV1hBcDF4V1RCRjUzc210TTN4eEd1UWcvSGg5ekNjODdUaWc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTMyMzcxCWZpbGU6WmVwaHlyXzEuMS43X3g2NC1zZXR1cC5leGUKL2hFcGdBOFZJRHlVWXdHVUdlMGxDWDd6dlVMRFpEMlBvK3VtR0xOQWluZG5FRkdKNVh6TTh4QjdoY2JhNEZrd3pPY1dMK2xEZE9zbmFXbEJrOEV4QWc9PQo=",
       "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.7/Zephyr_1.1.7_x64-setup.exe"
     }
   }
