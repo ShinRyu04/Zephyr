@@ -48,7 +48,7 @@ pub fn trim_base(url: &str) -> String {
     url.trim().trim_end_matches('/').to_string()
 }
 
-/// Bangun request NON-streaming dengan tools (fase 35 mode agent).
+/// Bangun request NON-streaming dengan tools (mode agent).
 pub fn prepare_tools(
     provider: &str,
     model: &str,

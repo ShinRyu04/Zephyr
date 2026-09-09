@@ -130,7 +130,7 @@ mod tests {
         assert!(out.contains("model = \"x\""));
     }
 
-    // ── fase 35a: Hermes Agent (YAML, ~/.hermes/config.yaml) ────────────────
+    // ── Hermes Agent (YAML, ~/.hermes/config.yaml) ────────────────
 
     use crate::mcp_config::{merge_yaml_for_test, strip_yaml_for_test};
 

@@ -59,7 +59,7 @@ pub fn extract_delta(v: &Value) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-/// Request non-streaming + tools (fase 35 mode agent).
+/// Request non-streaming + tools (mode agent).
 pub fn prepare_tools(
     provider: &str,
     model: &str,

@@ -2,7 +2,7 @@
 //
 // Yang nyata di sini: daftar bawaan + ekstensi folder, toggle yang tersimpan
 // ke settings, manifest yang dibaca dari disk, command manifest di Command
-// Palette, dan (fase 34) whitelist izin runtime eksternal per ekstensi.
+// Palette, dan whitelist izin runtime eksternal per ekstensi.
 
 import { useEffect } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
@@ -71,7 +71,7 @@ function Marketplace() {
   );
 }
 
-/** fase 34: whitelist runtime eksternal per ekstensi (yang sudah diizinkan).
+/** Whitelist runtime eksternal per ekstensi (yang sudah diizinkan).
  *  Cabut = hapus grant; eksekusi berikutnya minta persetujuan lagi. */
 function IzinRuntime() {
   const trust = useStore((s) => s.settings.extensions.trust ?? {});

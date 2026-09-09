@@ -60,7 +60,7 @@ pub fn prepare(
     }
 }
 
-/// Request non-streaming + tools (fase 35). Tool result dikemas sebagai
+/// Request non-streaming + tools. Tool result dikemas sebagai
 /// user message dengan content block `tool_result` (aturan Anthropic).
 pub fn prepare_tools(
     model: &str,

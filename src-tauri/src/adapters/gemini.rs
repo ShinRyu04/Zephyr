@@ -65,7 +65,7 @@ pub fn prepare(
     }
 }
 
-/// Request non-streaming + tools (fase 35). Fungsi dipanggil lewat
+/// Request non-streaming + tools. Fungsi dipanggil lewat
 /// functionDeclarations; hasil tool dikirim sebagai functionResponse.
 pub fn prepare_tools(
     model: &str,

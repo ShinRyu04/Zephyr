@@ -50,7 +50,7 @@ var zephyr = {
     __zh[String(id)] = fn;
     self.postMessage({ type: 'register', id: String(id), title: String(title || id) });
   },
-  // fase 34: jalankan runtime eksternal DENGAN IZIN. Eksekusi terjadi di
+  // Jalankan runtime eksternal DENGAN IZIN. Eksekusi terjadi di
   // sisi Rust dari binary yang di-whitelist (settings.extensions.trust);
   // worker cuma dapat stdout/stderr/exit — tidak pernah pegang akses exec
   // langsung. Belum diizinkan? Main thread akan meminta persetujuan user

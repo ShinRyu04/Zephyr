@@ -101,7 +101,7 @@ function ProblemsBadge() {
   );
 }
 
-/** Badge akun GitHub TIDAK di sini — pindah ke bawah ActivityBar (fase 34,
+/** Badge akun GitHub TIDAK di sini — pindah ke bawah ActivityBar (
  *  ala VS Code). StatusBar cukup GitBadge + ProblemsBadge. */
 
 export default function StatusBar() {

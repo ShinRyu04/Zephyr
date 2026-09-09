@@ -112,7 +112,7 @@ pub enum Format {
     Json,
     Toml,
     /// Hermes Agent (Nous Research) memakai ~/.hermes/config.yaml
-    /// dengan blok `mcp_servers:` (YAML) — fase 35a.
+    /// dengan blok `mcp_servers:` (YAML).
     Yaml,
 }
 
