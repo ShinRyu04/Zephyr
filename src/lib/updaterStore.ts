@@ -1,15 +1,14 @@
 // updaterStore.ts — auto-update dalam app (fase 17.6).
 //
-// KONDISI SEKARANG: `plugins.updater.endpoints` di tauri.conf.json KOSONG
-// karena belum ada hosting. Itu bukan bug — semua kode di sini harus tetap
-// aman: `check()` akan gagal, dan kegagalan itu diterjemahkan menjadi status
-// 'unconfigured' dengan pesan yang jelas, BUKAN crash atau toast error
-// berulang (syarat 17.6.e).
-//
-// Alur lengkap saat endpoint sudah diisi:
+// Endpoint rilis AKTIF (GitHub Releases → latest.json, lihat tauri.conf.json),
+// jadi alur lengkap bisa diuji langsung dari app:
 //   idle → checking → available(versi) → downloading(%) → ready → (restart)
 //   idle → checking → up-to-date
-//   idle → checking → unconfigured | error
+//   idle → checking → error (jaringan / endpoint mati)
+//
+// Status 'unconfigured' masih ada sebagai penjaga lama: kalau endpoint kosong
+// suatu saat, `check()` gagal dan diterjemahkan jadi pesan jelas, BUKAN crash
+// atau toast error berulang (syarat 17.6.e).
 
 import { create } from 'zustand';
 import * as cmd from './commands';
