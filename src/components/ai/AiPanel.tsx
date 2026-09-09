@@ -31,6 +31,15 @@ export default function AiPanel() {
   const send = useAi((s) => s.send);
   const cancel = useAi((s) => s.cancel);
   const runInTerminal = useAi((s) => s.runInTerminal);
+  const agentMode = useAi((s) => s.agentMode);
+  const approvalMode = useAi((s) => s.approvalMode);
+  const agentBusy = useAi((s) => s.agentBusy);
+  const agentSteps = useAi((s) => s.agentSteps);
+  const agentConfirm = useAi((s) => s.agentConfirm);
+  const setAgentMode = useAi((s) => s.setAgentMode);
+  const setApprovalMode = useAi((s) => s.setApprovalMode);
+  const agentPutuskan = useAi((s) => s.agentPutuskan);
+  const sibuk = pending || agentBusy;
 
   const activeTab = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null);
   // JANGAN memakai selector yang membuat array/objek baru (mis. flatMap):
@@ -74,6 +83,37 @@ export default function AiPanel() {
       <div className="ai-head">
         <ModelSelector />
 
+        {/* Mode: chat streaming biasa vs agent (tool loop, fase 35). */}
+        <div className="ai-mode" role="group" aria-label="Mode AI">
+          <button
+            className={`ai-mode-btn${agentMode === 'chat' ? ' is-on' : ''}`}
+            data-testid="ai-mode-chat"
+            onClick={() => setAgentMode('chat')}
+          >
+            Chat
+          </button>
+          <button
+            className={`ai-mode-btn${agentMode === 'agent' ? ' is-on' : ''}`}
+            data-testid="ai-mode-agent"
+            onClick={() => setAgentMode('agent')}
+          >
+            Agent
+          </button>
+        </div>
+        {agentMode === 'agent' && (
+          <select
+            className="ai-approval"
+            data-testid="ai-approval"
+            value={approvalMode}
+            aria-label="Mode persetujuan perintah agent"
+            onChange={(e) => setApprovalMode(e.target.value as 'ask' | 'auto' | 'readonly')}
+          >
+            <option value="ask">Minta izin</option>
+            <option value="auto">Auto</option>
+            <option value="readonly">Read-only</option>
+          </select>
+        )}
+
         <div className="ai-head-right">
           {/* CATATAN UI (aturan user, sudah kena di fase 08): tombol aksi
               hidup di SATU tempat. "Chat baru" + riwayat ada di sidebar kiri
@@ -102,6 +142,29 @@ export default function AiPanel() {
           msgs.map((m) => <ChatMessage key={m.id} msg={m} />)
         )}
       </div>
+
+      {/* Log langkah agent (fase 35): tool yang dipanggil + hasil singkat. */}
+      {(agentBusy || agentSteps.length > 0) && (
+        <div className="ai-agent" data-testid="ai-agent">
+          {agentSteps.map((st, i) => (
+            <div key={i} className={`ai-agent-step is-${st.kind}`} data-step-kind={st.kind}>
+              {st.kind === 'tool' ? (
+                <>
+                  <span className="ai-agent-tool">{st.name}</span>
+                  <code className="ai-agent-args">{st.args}</code>
+                  {st.result !== undefined && (
+                    <pre className={`ai-agent-result${st.ok ? '' : ' is-err'}`}>{st.result}</pre>
+                  )}
+                </>
+              ) : st.kind === 'mulai' ? (
+                <span className="ai-agent-note">Memikirkan langkah…</span>
+              ) : (
+                <span className="ai-agent-note">Tugas selesai.</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Action bar: muncul hanya kalau jawaban terakhir memuat perintah. */}
       {lastCommand && (
@@ -132,7 +195,13 @@ export default function AiPanel() {
           data-testid="ai-input"
           rows={2}
           placeholder={
-            pending ? 'Menunggu jawaban…' : 'Tulis pesan (Enter kirim, Shift+Enter baris baru)'
+            sibuk
+              ? agentMode === 'agent'
+                ? 'Agent sedang bekerja…'
+                : 'Menunggu jawaban…'
+              : agentMode === 'agent'
+                ? 'Ketik tugas untuk agent (Enter kirim)…'
+                : 'Tulis pesan (Enter kirim, Shift+Enter baris baru)'
           }
           value={draft}
           spellCheck={false}
@@ -147,7 +216,7 @@ export default function AiPanel() {
         />
 
         <div className="ai-input-side">
-          {pending ? (
+          {sibuk ? (
             <button
               className="btn btn-sm btn-danger"
               data-testid="ai-stop"
@@ -159,10 +228,10 @@ export default function AiPanel() {
             <button
               className="btn btn-sm btn-primary"
               data-testid="ai-send"
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || agentBusy}
               onClick={() => void send()}
             >
-              Kirim
+              {agentMode === 'agent' ? 'Jalankan' : 'Kirim'}
             </button>
           )}
 
@@ -204,6 +273,34 @@ export default function AiPanel() {
           <span className="ai-panehint">{paneCount} pane terminal</span>
         </div>
       </div>
+
+      {/* Persetujuan tool agent (fase 35): mode ask / perintah berbahaya. */}
+      {agentConfirm && (
+        <div className="ai-confirm" role="alertdialog" data-testid="ai-agent-confirm">
+          <p className="ai-confirm-title">
+            {agentConfirm.isDestructive
+              ? 'Perintah berpotensi merusak — izinkan agent?'
+              : `Agent minta izin menjalankan ${agentConfirm.tool}:`}
+          </p>
+          <code className="ai-confirm-cmd">{agentConfirm.argsText}</code>
+          <div className="ai-confirm-btns">
+            <button
+              className="btn btn-sm btn-danger"
+              data-testid="ai-agent-confirm-yes"
+              onClick={() => agentPutuskan(true)}
+            >
+              Izinkan
+            </button>
+            <button
+              className="btn btn-sm"
+              data-testid="ai-agent-confirm-no"
+              onClick={() => agentPutuskan(false)}
+            >
+              Tolak
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirmCmd && (
         <div className="ai-confirm" role="alertdialog" data-testid="ai-confirm">

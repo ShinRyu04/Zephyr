@@ -18,7 +18,8 @@ import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, PROVIDER_BY_ID } from './modelCatalog';
-import type { AiChunk, AiMessage, ChatMsg, ChatSession, PublicModel } from './types';
+import { agentToolSpecs, jalankanAgentTool } from './agentTools';
+import type { AiChunk, AiMessage, AgentMsg, ChatMsg, ChatSession, PublicModel } from './types';
 
 const LS_KEY = 'zephyr.ai.sessions.v1';
 /** Batas history per sesi (prompt fase 09: max 200 msg). */
@@ -47,6 +48,26 @@ export function systemPromptFor(answerLang: string): string {
 
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
+
+// ── mode agent (fase 35) ──
+
+/** Maks langkah tool per tugas agent — penjaga biaya & loop tak berujung. */
+export const MAX_AGENT_STEPS = 25;
+
+/** Satu baris log aktivitas agent untuk task aktif (UI, bukan persisted). */
+export interface AgentStep {
+  kind: 'mulai' | 'tool' | 'selesai';
+  name?: string;
+  args?: string;
+  result?: string;
+  ok?: boolean;
+  at: number;
+}
+
+/** Resolver persetujuan tool yang menunggu keputusan user (di luar state). */
+let agentConfirmResolve: ((ok: boolean) => void) | null = null;
+/** Flag batal — loop agent memeriksa tiap langkah. */
+let agentBatal = false;
 
 /** Request yang sudah dibatalkan user. Chunk yang masih tiba untuk id ini
  *  diabaikan — Rust bisa sudah mengirim beberapa potongan sebelum flag batal
@@ -148,6 +169,19 @@ interface AiState {
   /** konfirmasi kirim perintah berbahaya ke terminal */
   confirmCmd: string | null;
   toast: string | null;
+
+  // ── mode agent (fase 35) ──
+
+  /** 'chat' = streaming biasa; 'agent' = tool loop. */
+  agentMode: 'chat' | 'agent';
+  /** persetujuan perintah agent: ask (default) | auto | readonly */
+  approvalMode: 'ask' | 'auto' | 'readonly';
+  /** loop agent sedang berjalan */
+  agentBusy: boolean;
+  /** log langkah task aktif */
+  agentSteps: AgentStep[];
+  /** tool yang menunggu persetujuan user (modal di AiPanel) */
+  agentConfirm: { tool: string; argsText: string; isDestructive: boolean } | null;
 }
 
 interface AiActions {
@@ -161,6 +195,13 @@ interface AiActions {
   setAttachActive: (v: boolean) => void;
   setToast: (v: string | null) => void;
   setConfirmCmd: (v: string | null) => void;
+
+  setAgentMode: (m: 'chat' | 'agent') => void;
+  setApprovalMode: (m: 'ask' | 'auto' | 'readonly') => void;
+  /** Jawaban modal persetujuan tool agent. */
+  agentPutuskan: (setujui: boolean) => void;
+  /** Loop agent (dipanggil send() saat agentMode='agent'). */
+  sendAgent: (text: string) => Promise<void>;
 
   newChat: () => string;
   selectChat: (id: string) => void;
@@ -206,6 +247,12 @@ export const useAi = create<AiStore>((set, get) => ({
   modelMenuOpen: false,
   confirmCmd: null,
   toast: null,
+
+  agentMode: 'chat',
+  approvalMode: 'ask',
+  agentBusy: false,
+  agentSteps: [],
+  agentConfirm: null,
 
   init: async () => {
     // Model aktif mengikuti Settings → Model AI kalau sudah pernah dipilih.
@@ -262,6 +309,16 @@ export const useAi = create<AiStore>((set, get) => ({
   setAttachActive: (v) => set({ attachActive: v }),
   setToast: (v) => set({ toast: v }),
   setConfirmCmd: (v) => set({ confirmCmd: v }),
+  setAgentMode: (m) => set({ agentMode: m }),
+  setApprovalMode: (m) => set({ approvalMode: m }),
+  agentPutuskan: (setujui) => {
+    if (agentConfirmResolve) {
+      const r = agentConfirmResolve;
+      agentConfirmResolve = null;
+      r(setujui);
+    }
+    set({ agentConfirm: null });
+  },
 
   newChat: () => {
     const s = makeSession(get().model, get().provider);
@@ -290,6 +347,11 @@ export const useAi = create<AiStore>((set, get) => ({
   send: async (text) => {
     const raw = (text ?? get().draft).trim();
     if (!raw) return;
+    // Mode agent: jalankan tool loop, bukan streaming chat biasa.
+    if (get().agentMode === 'agent') {
+      await get().sendAgent(raw);
+      return;
+    }
     if (get().pending) {
       set({ toast: 'Masih menunggu jawaban — batalkan dulu' });
       return;
@@ -407,7 +469,212 @@ export const useAi = create<AiStore>((set, get) => ({
     }
   },
 
+  sendAgent: async (raw) => {
+    if (get().pending || get().agentBusy) {
+      set({ toast: 'Masih ada tugas agent berjalan — Stop dulu' });
+      return;
+    }
+    // Sama seperti send(): pesan raksasa dipotong dengan catatan jelas.
+    let content = raw;
+    if (raw.length > MSG_LIMIT) {
+      content =
+        `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
+        `dikirim ${MSG_LIMIT} karakter pertama]`;
+      set({
+        toast: `Pesan ${raw.length} karakter dipotong ke ${MSG_LIMIT}`,
+        lastTruncated: { from: raw.length, to: MSG_LIMIT },
+      });
+    } else {
+      set({ lastTruncated: null });
+    }
+
+    await get().loadKeys();
+    if (!get().hasKey()) {
+      const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
+      set({ toast: `Isi API key ${label} di Settings → Model AI` });
+      return;
+    }
+
+    let sessionId = get().activeId;
+    if (!sessionId) sessionId = get().newChat();
+
+    const userMsg: ChatMsg = { id: nextId('m'), role: 'user', content, at: Date.now() };
+    const botMsg: ChatMsg = {
+      id: nextId('m'),
+      role: 'assistant',
+      content: '',
+      at: Date.now(),
+      streaming: false,
+      model: get().model,
+    };
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId
+          ? {
+              ...x,
+              title: x.messages.length === 0 ? content.slice(0, 42) : x.title,
+              messages: [...x.messages, userMsg, botMsg].slice(-MAX_MSGS),
+            }
+          : x,
+      ),
+      draft: '',
+      toast: null,
+      agentSteps: [],
+      agentBusy: true,
+      agentConfirm: null,
+    }));
+    persist(get());
+    agentBatal = false;
+
+    const def = findModel(get().model, get().provider);
+    const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
+
+    // Riwayat untuk model: user/assistant dari sesi (tool context per tugas,
+    // tidak dipersist — lihat catatan di header file).
+    const history: AgentMsg[] = [];
+    const prev = (get().activeSession()?.messages ?? []).filter(
+      (m) => !m.error && m.content.trim() && m.id !== botMsg.id,
+    );
+    for (const m of prev) {
+      if (m.role === 'user' || m.role === 'assistant') {
+        history.push({ role: m.role, content: m.content });
+      }
+    }
+    const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
+    if (sys) history.unshift({ role: 'system', content: sys });
+    history.push({ role: 'user', content });
+
+    let akhir = '';
+    let langkah = 0;
+    try {
+      for (; langkah < MAX_AGENT_STEPS; langkah++) {
+        if (agentBatal) break;
+        set((s) => ({
+          agentSteps: [...s.agentSteps, { kind: 'mulai', at: Date.now() }],
+        }));
+
+        const res = await cmd.aiToolChat({
+          provider: def.provider,
+          model: def.id,
+          messages: history,
+          tools: agentToolSpecs(),
+          baseUrl: cfg.baseUrl || undefined,
+          maxTokens: def.maxOut ?? 2048,
+        });
+        akhir = res.content;
+        history.push({ role: 'assistant', content: res.content, toolCalls: res.toolCalls });
+        if (res.done || res.toolCalls.length === 0) break;
+
+        for (const tc of res.toolCalls) {
+          if (agentBatal) break;
+          const argsObj = (tc.args ?? {}) as Record<string, unknown>;
+          const perintah =
+            tc.name === 'terminal_exec' ? String(argsObj.command ?? '') : '';
+          const readOnlyBlok =
+            get().approvalMode === 'readonly' &&
+            (tc.name === 'terminal_exec' || tc.name === 'editor_write');
+          const perluSetuju =
+            tc.name === 'terminal_exec' &&
+            (get().approvalMode === 'ask' || isDestructive(perintah));
+
+          let hasil: string;
+          let ok = true;
+          if (readOnlyBlok) {
+            hasil = `(ditolak: mode read-only tidak mengizinkan ${tc.name})`;
+            ok = false;
+          } else if (perluSetuju) {
+            set({
+              agentConfirm: {
+                tool: tc.name,
+                argsText: JSON.stringify(argsObj),
+                isDestructive: tc.name === 'terminal_exec' && isDestructive(perintah),
+              },
+            });
+            const disetujui = await new Promise<boolean>((resolve) => {
+              agentConfirmResolve = resolve;
+            });
+            agentConfirmResolve = null;
+            set({ agentConfirm: null });
+            if (!disetujui || agentBatal) {
+              hasil = '(ditolak user)';
+              ok = false;
+            } else {
+              try {
+                hasil = await jalankanAgentTool(tc.name, argsObj);
+              } catch (e) {
+                hasil = `ERROR: ${(e as Error).message ?? String(e)}`;
+                ok = false;
+              }
+            }
+          } else {
+            try {
+              hasil = await jalankanAgentTool(tc.name, argsObj);
+            } catch (e) {
+              hasil = `ERROR: ${(e as Error).message ?? String(e)}`;
+              ok = false;
+            }
+          }
+
+          if (agentBatal) break;
+          set((s) => ({
+            agentSteps: [
+              ...s.agentSteps,
+              {
+                kind: 'tool',
+                name: tc.name,
+                args: JSON.stringify(argsObj),
+                result: hasil.slice(0, 400),
+                ok,
+                at: Date.now(),
+              },
+            ],
+          }));
+          history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: hasil });
+        }
+      }
+    } catch (e) {
+      if (!akhir) akhir = `Gagal menjalankan agent: ${cmd.asZephyrError(e).message}`;
+    }
+
+    if (agentBatal) {
+      if (!akhir) akhir = '(dibatalkan user)';
+      agentBatal = false;
+    }
+    if (langkah >= MAX_AGENT_STEPS) {
+      akhir = `${akhir || ''}\n\n[Batas ${MAX_AGENT_STEPS} langkah tool tercapai — tugas dihentikan]`;
+    }
+
+    set((s) => ({
+      agentBusy: false,
+      agentSteps: [...s.agentSteps, { kind: 'selesai', at: Date.now() }],
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId
+          ? {
+              ...x,
+              messages: x.messages.map((m) =>
+                m.id === botMsg.id
+                  ? { ...m, content: akhir || '(tidak ada jawaban)', streaming: false }
+                  : m,
+              ),
+            }
+          : x,
+      ),
+    }));
+    persist(get());
+  },
+
   cancel: async () => {
+    // Loop agent: tandai batal; modal persetujuan yang terbuka ikut ditutup.
+    if (get().agentBusy) {
+      agentBatal = true;
+      if (agentConfirmResolve) {
+        const r = agentConfirmResolve;
+        agentConfirmResolve = null;
+        r(false);
+      }
+      set({ agentConfirm: null });
+      return;
+    }
     const id = get().pending;
     if (!id) return;
     // Tandai dulu supaya chunk yang MASIH DI JALAN (sudah dikirim Rust
