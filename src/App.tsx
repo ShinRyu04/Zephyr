@@ -998,7 +998,7 @@ export default function App() {
       <NotificationCenter />
       <DeleteConfirmDialog />
       <TrustDialog />
-      {/* fase 34: izin runtime eksternal ekstensi — global, bisa muncul kapan
+      {/* Izin runtime eksternal ekstensi — global, bisa muncul kapan
           saja karena eksekusi bisa diminta dari worker mana pun. */}
       <ExtApprovalModal />
       <KeybindingsEditor />

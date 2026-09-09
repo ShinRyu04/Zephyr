@@ -285,7 +285,7 @@ cek(
   ringkas(m),
 );
 
-// V11 — fase 34: zephyr.exec mengirim exec-req ke main thread (runtime, args,
+// V11 — zephyr.exec mengirim exec-req ke main thread (runtime, args,
 // cwd, timeout). Main thread yang memutuskan izin + eksekusi; worker cuma
 // menunggu jawaban exec-resp.
 m = jalankan(

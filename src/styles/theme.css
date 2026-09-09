@@ -73,7 +73,7 @@
    - tokens.css       -> token turunan (bg0..bg3, fg0..fg2, ansi 0..15)
    Semuanya di-import di src/App.tsx SETELAH file ini. */
 
-/* Senja (fase 34) — dulu ekstensi bundled, kini tema bawaan.
+/* Senja — dulu ekstensi bundled, kini tema bawaan.
    Palet asli: latar cokelat-ungu hangat, aksen jingga senja (#ff8c42). */
 [data-theme='senja'] {
   --bg: #1a1418;

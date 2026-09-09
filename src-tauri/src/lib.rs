@@ -259,7 +259,7 @@ pub fn run() {
             // AI panel (fase 09)
             ai::ai_chat,
             ai::ai_cancel,
-            // fase 35: mode agent — satu langkah loop dengan tool calling
+            // mode agent — satu langkah loop dengan tool calling
             ai::ai_tool_chat,
             // git (fase 10)
             git::git_init,
@@ -306,7 +306,7 @@ pub fn run() {
             ext_pkg::extensions_read_contrib,
             ext_pkg::extensions_read_main,
             ext_pkg::extensions_read_files,
-            // fase 34: izin runtime eksternal ekstensi (whitelist + exec)
+            // izin runtime eksternal ekstensi (whitelist + exec)
             ext_pkg::ext_which,
             ext_pkg::ext_exec,
             ext_pkg::extensions_manifests,

@@ -83,7 +83,7 @@ export default function AiPanel() {
       <div className="ai-head">
         <ModelSelector />
 
-        {/* Mode: chat streaming biasa vs agent (tool loop, fase 35). */}
+        {/* Mode: chat streaming biasa vs agent (tool loop). */}
         <div className="ai-mode" role="group" aria-label="Mode AI">
           <button
             className={`ai-mode-btn${agentMode === 'chat' ? ' is-on' : ''}`}
@@ -143,7 +143,7 @@ export default function AiPanel() {
         )}
       </div>
 
-      {/* Log langkah agent (fase 35): tool yang dipanggil + hasil singkat. */}
+      {/* Log langkah agent: tool yang dipanggil + hasil singkat. */}
       {(agentBusy || agentSteps.length > 0) && (
         <div className="ai-agent" data-testid="ai-agent">
           {agentSteps.map((st, i) => (
@@ -274,7 +274,7 @@ export default function AiPanel() {
         </div>
       </div>
 
-      {/* Persetujuan tool agent (fase 35): mode ask / perintah berbahaya. */}
+      {/* Persetujuan tool agent: mode ask / perintah berbahaya. */}
       {agentConfirm && (
         <div className="ai-confirm" role="alertdialog" data-testid="ai-agent-confirm">
           <p className="ai-confirm-title">

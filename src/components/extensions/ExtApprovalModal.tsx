@@ -1,4 +1,4 @@
-// ExtApprovalModal.tsx — dialog izin runtime eksternal ekstensi (fase 34).
+// ExtApprovalModal.tsx — dialog izin runtime eksternal ekstensi.
 // Muncul ketika worker ekstensi memanggil zephyr.exec() untuk runtime yang
 // belum di-whitelist. Ini SATU-SATUNYA pintu persetujuan: tanpa klik
 // "Izinkan", Rust menolak eksekusi apa pun.

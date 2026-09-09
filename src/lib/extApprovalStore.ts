@@ -1,4 +1,4 @@
-// extApprovalStore.ts — persetujuan izin runtime eksternal ekstensi (fase 34).
+// extApprovalStore.ts — persetujuan izin runtime eksternal ekstensi.
 //
 // Ketika worker ekstensi memanggil zephyr.exec() untuk runtime yang BELUM
 // di-whitelist, extHost menaruh permintaan di sini → modal approval muncul →

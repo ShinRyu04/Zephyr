@@ -271,7 +271,7 @@ export default function MenuBar() {
 
 
 
-      {/* Command center ala VS Code (fase 34): kotak di baris menu sejajar
+      {/* Command center ala VS Code: kotak di baris menu sejajar
           File/Edit/dll. Klik = buka Command Palette (mode command). */}
       <div className="mb-cc-wrap" role="none">
         <button
