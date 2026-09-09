@@ -384,7 +384,7 @@ export function AboutSection() {
         <span className="about-name">Zephyr</span>
         <span className="about-tag">code editor ringan, dibangun dari nol</span>
       </div>
-      <p className="set-note">Dibuat oleh ShinRyu04 — dibangun bersama Zephyr AI.</p>
+      <p className="set-note">Dibuat oleh ShinRyu04.</p>
 
       <table className="about-table" data-testid="about-table">
         <tbody>
