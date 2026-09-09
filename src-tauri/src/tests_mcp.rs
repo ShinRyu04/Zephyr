@@ -129,4 +129,55 @@ mod tests {
         assert!(out.contains("command = \"y\""));
         assert!(out.contains("model = \"x\""));
     }
+
+    // ── fase 35a: Hermes Agent (YAML, ~/.hermes/config.yaml) ────────────────
+
+    use crate::mcp_config::{merge_yaml_for_test, strip_yaml_for_test};
+
+    #[test]
+    fn merge_yaml_menambah_blok_dan_menjaga_baris_lain() {
+        let existing = "name: \"agent-ku\"\nskills:\n  enabled: true\nmcp_servers:\n  lain:\n    url: \"http://x\"\n";
+        let out = merge_yaml_for_test(existing, "mcp_servers", 9222, TOKEN);
+
+        assert!(out.contains("name: \"agent-ku\""), "baris lain hilang: {out}");
+        assert!(out.contains("skills:"), "blok lain hilang");
+        assert!(out.contains("  lain:"), "server lain hilang");
+        assert!(out.contains("mcp_servers:"));
+        assert!(out.contains("  zephyr:"));
+        assert!(out.contains("    url: \"http://127.0.0.1:9222\""));
+        assert!(out.contains(&format!("Authorization: \"Bearer {TOKEN}\"")));
+    }
+
+    #[test]
+    fn merge_yaml_idempoten_dan_ganti_port() {
+        let a = merge_yaml_for_test("model: x\n", "mcp_servers", 9222, TOKEN);
+        let b = merge_yaml_for_test(&a, "mcp_servers", 9224, TOKEN);
+        // Hanya SATU blok zephyr, dan portnya yang baru.
+        assert_eq!(b.matches("  zephyr:").count(), 1);
+        assert!(b.contains("127.0.0.1:9224"));
+        assert!(!b.contains("127.0.0.1:9222"));
+        assert!(b.contains("model: x"));
+    }
+
+    #[test]
+    fn merge_yaml_pada_file_kosong() {
+        let out = merge_yaml_for_test("", "mcp_servers", 9223, TOKEN);
+        assert!(out.contains("mcp_servers:"));
+        assert!(out.contains("  zephyr:"));
+        assert!(out.contains("127.0.0.1:9223"));
+    }
+
+    #[test]
+    fn strip_yaml_membuang_blok_zephyr_dan_menjaga_lain() {
+        let with = merge_yaml_for_test(
+            "name: x\nmcp_servers:\n  lain:\n    url: \"http://y\"\n",
+            "mcp_servers",
+            9222,
+            TOKEN,
+        );
+        let out = strip_yaml_for_test(&with, "mcp_servers");
+        assert!(!out.contains("zephyr"), "sisa entri zephyr: {out}");
+        assert!(out.contains("  lain:"), "server lain hilang");
+        assert!(out.contains("name: x"));
+    }
 }

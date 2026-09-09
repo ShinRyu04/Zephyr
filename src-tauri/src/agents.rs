@@ -35,6 +35,7 @@ const CATALOG: &[(&str, &str, &str)] = &[
     ("pi", "Pi CLI", "pi"),
     ("gh", "GitHub Copilot CLI", "gh"),
     ("cursor", "Cursor Agent", "cursor"),
+    ("hermes", "Hermes Agent", "hermes"),
 ];
 
 /// Lokasi umum di luar PATH (Windows) untuk satu nama executable.

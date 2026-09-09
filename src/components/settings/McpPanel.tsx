@@ -10,7 +10,7 @@ import { useT } from '../../lib/i18n';
 import { Row, Section, Toggle } from './SettingsControls';
 
 /** Daftar CLI ditampilkan urut seperti prompt fase 11 §11.4. */
-const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'copilot', 'cursor', 'startup'];
+const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'hermes', 'copilot', 'cursor', 'startup'];
 
 /** Path panjang dipendekkan jadi `~\.config\opencode\opencode.json`. */
 function shortPath(p: string): string {

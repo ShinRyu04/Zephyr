@@ -101,7 +101,7 @@ pub struct CliTarget {
     pub label: &'static str,
     /// Path relatif dari %USERPROFILE% (atau absolut bila diawali drive).
     pub rel: &'static str,
-    /// Format file: json | toml
+    /// Format file: json | toml | yaml
     pub format: Format,
     /// Key induk tempat server MCP didaftarkan.
     pub key: &'static str,
@@ -111,10 +111,13 @@ pub struct CliTarget {
 pub enum Format {
     Json,
     Toml,
+    /// Hermes Agent (Nous Research) memakai ~/.hermes/config.yaml
+    /// dengan blok `mcp_servers:` (YAML) — fase 35a.
+    Yaml,
 }
 
 /// Daftar CLI yang didukung (ARCHITECTURE.md §4 / prompt fase 11 §11.4).
-pub const TARGETS: [CliTarget; 7] = [
+pub const TARGETS: [CliTarget; 8] = [
     CliTarget {
         id: "claude",
         label: "Claude Code",
@@ -142,6 +145,13 @@ pub const TARGETS: [CliTarget; 7] = [
         rel: ".config/opencode/opencode.json",
         format: Format::Json,
         key: "mcp",
+    },
+    CliTarget {
+        id: "hermes",
+        label: "Hermes Agent",
+        rel: ".hermes/config.yaml",
+        format: Format::Yaml,
+        key: "mcp_servers",
     },
     CliTarget {
         id: "copilot",
@@ -266,6 +276,70 @@ fn merge_toml(existing: &str, key: &str, port: u16, token: &str) -> String {
     }
 }
 
+/// Hermes Agent memakai YAML (~/.hermes/config.yaml). Tanpa dependensi yaml:
+/// blok `mcp_servers.zephyr:` ditulis/diganti sebagai teks ber-indent — cukup
+/// dan tidak menyentuh baris lain (sama prinsipnya seperti TOML di atas).
+fn merge_yaml(existing: &str, key: &str, port: u16, token: &str) -> String {
+    let block = format!(
+        "{key}:\n  zephyr:\n    type: http\n    url: \"http://127.0.0.1:{port}\"\n    headers:\n      Authorization: \"Bearer {token}\"\n",
+    );
+    let cleaned = strip_yaml_block(existing, key);
+    if cleaned.trim().is_empty() {
+        block
+    } else {
+        format!("{}\n{block}", cleaned.trim_end())
+    }
+}
+
+/// Hapus blok `<key>` → `zephyr:` dari YAML (indent 2 di bawah key induk).
+/// YAML pakai indent, jadi dicari: baris `key:` di kolom 0, lalu anak
+/// `zephyr:` di indent 2 — baris setelahnya ikut dihapus sampai indent
+/// kembali <= 2 atau keluar dari blok induk.
+fn strip_yaml_block(existing: &str, key: &str) -> String {
+    let mut out: Vec<&str> = Vec::new();
+    let mut in_parent = false; // sedang di dalam blok `key:`
+    let mut skipping = false; // sedang melewati blok `zephyr:`
+    for line in existing.lines() {
+        let indent = line.len() - line.trim_start().len();
+        let t = line.trim_start();
+        if t.is_empty() || t.starts_with('#') {
+            if !skipping {
+                out.push(line);
+            }
+            continue;
+        }
+        // Top-level: cari `key:` di kolom 0.
+        if indent == 0 {
+            in_parent = t == format!("{key}:") || t.starts_with(&format!("{key}: "));
+            skipping = false;
+            out.push(line);
+            continue;
+        }
+        if !in_parent {
+            out.push(line);
+            continue;
+        }
+        // Di dalam `key:` — anak level-1 (indent 2) menentukan blok mana.
+        if indent <= 2 {
+            skipping = t.starts_with("zephyr:") || t.starts_with("zephyr: ");
+            if !skipping {
+                out.push(line);
+            }
+            continue;
+        }
+        // Anak level > 2 (isi blok) — ikut dihapus bila sedang skip.
+        if !skipping {
+            out.push(line);
+        }
+    }
+    let joined = out.join("\n");
+    if joined.trim().is_empty() {
+        String::new()
+    } else {
+        format!("{}\n", joined.trim_end())
+    }
+}
+
 /// Hapus blok `[<key>.zephyr]` (termasuk sub-tabel headers) dari TOML.
 fn strip_toml_block(existing: &str, key: &str) -> String {
     let mine = format!("[{key}.zephyr");
@@ -331,6 +405,7 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
             }
         },
         Format::Toml => merge_toml(&existing, t.key, port, token),
+        Format::Yaml => merge_yaml(&existing, t.key, port, token),
     };
 
     if let Some(parent) = p.parent() {
@@ -421,6 +496,7 @@ pub fn remove_cli(id: &str) -> CliWriteResult {
             }
         },
         Format::Toml => strip_toml_block(&existing, t.key),
+        Format::Yaml => strip_yaml_block(&existing, t.key),
     };
     match std::fs::write(&p, next) {
         Ok(()) => CliWriteResult {
@@ -465,6 +541,7 @@ pub fn cli_status() -> Vec<CliStatus> {
                     .and_then(|v| v.get(t.key).and_then(|s| s.get("zephyr")).cloned())
                     .is_some(),
                 Format::Toml => raw.contains(&format!("[{}.zephyr]", t.key)),
+                Format::Yaml => raw.lines().any(|l| l.trim_start().starts_with("zephyr:")),
             };
             CliStatus {
                 id: t.id.into(),
@@ -497,4 +574,14 @@ pub fn merge_toml_for_test(existing: &str, key: &str, port: u16, token: &str) ->
 #[cfg(test)]
 pub fn strip_toml_for_test(existing: &str, key: &str) -> String {
     strip_toml_block(existing, key)
+}
+
+#[cfg(test)]
+pub fn merge_yaml_for_test(existing: &str, key: &str, port: u16, token: &str) -> String {
+    merge_yaml(existing, key, port, token)
+}
+
+#[cfg(test)]
+pub fn strip_yaml_for_test(existing: &str, key: &str) -> String {
+    strip_yaml_block(existing, key)
 }
