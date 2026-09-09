@@ -17,6 +17,7 @@ import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
 import TrustDialog from './components/workspace/TrustDialog';
 import MenuBar from './components/shell/MenuBar';
 import UpdateBanner from './components/shell/UpdateBanner';
+import ExtApprovalModal from './components/extensions/ExtApprovalModal';
 import KeybindingsEditor from './components/shell/KeybindingsEditor';
 import LspOverlay from './components/editor/LspOverlay';
 import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
@@ -997,6 +998,9 @@ export default function App() {
       <NotificationCenter />
       <DeleteConfirmDialog />
       <TrustDialog />
+      {/* fase 34: izin runtime eksternal ekstensi — global, bisa muncul kapan
+          saja karena eksekusi bisa diminta dari worker mana pun. */}
+      <ExtApprovalModal />
       <KeybindingsEditor />
       <LspOverlay />
       {/* fase 31: live region a11y. Dirender TERAKHIR supaya tidak menyisip

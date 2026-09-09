@@ -304,6 +304,9 @@ pub fn run() {
             ext_pkg::extensions_read_contrib,
             ext_pkg::extensions_read_main,
             ext_pkg::extensions_read_files,
+            // fase 34: izin runtime eksternal ekstensi (whitelist + exec)
+            ext_pkg::ext_which,
+            ext_pkg::ext_exec,
             ext_pkg::extensions_manifests,
             ext_pkg::extensions_download_vsix,
             ext_bundled::extensions_write_bundled,
