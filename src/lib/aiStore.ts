@@ -49,7 +49,7 @@ export function systemPromptFor(answerLang: string): string {
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 
-// ── mode agent (fase 35) ──
+// ── mode agent ──
 
 /** Maks langkah tool per tugas agent — penjaga biaya & loop tak berujung. */
 export const MAX_AGENT_STEPS = 25;
@@ -170,7 +170,7 @@ interface AiState {
   confirmCmd: string | null;
   toast: string | null;
 
-  // ── mode agent (fase 35) ──
+  // ── mode agent ──
 
   /** 'chat' = streaming biasa; 'agent' = tool loop. */
   agentMode: 'chat' | 'agent';

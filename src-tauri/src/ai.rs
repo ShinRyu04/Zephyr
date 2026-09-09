@@ -30,7 +30,7 @@ pub struct ChatMsg {
     pub content: String,
 }
 
-/// Satu panggilan tool yang diminta model (fase 35: mode agent).
+/// Satu panggilan tool yang diminta model (mode agent).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolCall {
     pub id: String,
@@ -300,7 +300,7 @@ pub fn ai_cancel(state: State<AppState>, id: String) -> ZResult<bool> {
     Ok(state.ai_cancel(&id))
 }
 
-/// Satu langkah loop agent (fase 35): kirim seluruh riwayat + tools,
+/// Satu langkah loop agent: kirim seluruh riwayat + tools,
 /// dapatkan jawaban NON-streaming berisi teks dan/atau panggilan tool.
 /// Frontend yang memutuskan loop (jalankan tool → append hasil → ulang).
 #[tauri::command]

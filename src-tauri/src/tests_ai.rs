@@ -188,7 +188,7 @@ mod tests {
         assert!(adapters::extract_delta("gemini", &v2).is_none());
     }
 
-    // ── fase 35: mode agent (tool-calling) ──────────────────────────────
+    // ── mode agent (tool-calling) ──────────────────────────────
 
     use crate::ai::{AgentMsg, ToolCall, ToolSpec};
 

@@ -885,7 +885,7 @@ pub fn ext_dir_of(state: &AppState, id: &str) -> Option<PathBuf> {
         .filter(|p| p.is_dir())
 }
 
-/// Resolve path absolut sebuah runtime lewat PATH (fase 34).
+/// Resolve path absolut sebuah runtime lewat PATH.
 /// null = tidak ketemu (ekstensi akan ditolak dengan pesan jelas).
 #[tauri::command]
 pub fn ext_which(runtime: String) -> ZResult<Option<String>> {
@@ -895,7 +895,7 @@ pub fn ext_which(runtime: String) -> ZResult<Option<String>> {
     }
 }
 
-/// Hasil satu eksekusi runtime eksternal (fase 34).
+/// Hasil satu eksekusi runtime eksternal.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtExecResult {

@@ -10,7 +10,7 @@ type InvokeReq = { type: 'invoke'; id: string; seq: number; args: unknown[] };
 type ResultMsg = { type: 'result'; seq: number; ok: boolean; value?: unknown; error?: string };
 /** Pesan dari worker yang diteruskan ke notifikasi Zephyr (fase 19.7). */
 type NotifyMsg = { type: 'notify'; severity: 'info' | 'warn' | 'error'; message: string };
-/** fase 34: permintaan eksekusi runtime eksternal (zephyr.exec). */
+/** Permintaan eksekusi runtime eksternal (zephyr.exec). */
 type ExecReq = {
   type: 'exec-req';
   seq: number;
@@ -29,7 +29,7 @@ const INVOKE = `
 self.onmessage = (e) => {
   const m = e.data;
   if (!m) return;
-  // Jawaban eksekusi runtime (fase 34) — resolve/reject pending zephyr.exec.
+  // Jawaban eksekusi runtime — resolve/reject pending zephyr.exec.
   if (m.type === 'exec-resp') {
     const pe = __zhExecPending[m.seq];
     if (!pe) return;
@@ -100,7 +100,7 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     }
     return;
   }
-  // fase 34: eksekusi runtime eksternal — cek izin → (dialog) → ext_exec.
+  // Eksekusi runtime eksternal — cek izin → (dialog) → ext_exec.
   if (m.type === 'exec-req') {
     void prosesExecReq(extId, m, rt);
     return;

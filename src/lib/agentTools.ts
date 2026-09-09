@@ -1,4 +1,4 @@
-// agentTools.ts — tool yang bisa dipanggil model di mode agent (fase 35).
+// agentTools.ts — tool yang bisa dipanggil model di mode agent.
 //
 // Prinsip sama seperti MCP: eksekusi lewat jalur yang SUDAH ada dan aman.
 //   * terminal_exec/read → pane ConPTY Zephyr (bukan spawn bebas)

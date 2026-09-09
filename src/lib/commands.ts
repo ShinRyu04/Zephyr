@@ -248,7 +248,7 @@ export const aiChat = (opts: {
 /** Batalkan streaming. false = id sudah tidak berjalan. */
 export const aiCancel = (id: string) => invoke<boolean>('ai_cancel', { id });
 
-/** Satu langkah loop agent (fase 35) — non-streaming, bisa memuat tool calls. */
+/** Satu langkah loop agent — non-streaming, bisa memuat tool calls. */
 export const aiToolChat = (opts: {
   provider: string;
   model: string;
@@ -345,7 +345,7 @@ export const extensionsBundledIds = () => invoke<string[]>('extensions_bundled_i
 export const extensionsDownloadVsix = (url: string, id: string) =>
   invoke<string>('extensions_download_vsix', { url, id });
 
-// ── izin runtime eksternal ekstensi (fase 34) ──
+// ── izin runtime eksternal ekstensi ──
 
 /** Resolve path binary sebuah runtime lewat PATH. null = tidak ketemu. */
 export const extWhich = (runtime: string) =>

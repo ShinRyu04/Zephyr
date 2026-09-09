@@ -2216,7 +2216,7 @@ body.is-resizing-v {
   margin: 0 6px;
   background: var(--border);
 }
-/* Command center (fase 34): pill lebar di TENGAH baris menu ala VS Code —
+/* Command center: pill lebar di TENGAH baris menu ala VS Code —
    nempel setelah Help tapi memanjang ke kanan (bukan kotak kecil di pojok). */
 .mb-cc-wrap {
   display: flex;

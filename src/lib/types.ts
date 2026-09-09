@@ -562,7 +562,7 @@ export interface ExtInstallHasil {
   manifest: ExtManifest;
 }
 
-/** Hasil eksekusi satu proses runtime eksternal (fase 34). */
+/** Hasil eksekusi satu proses runtime eksternal. */
 export interface ExtExecResult {
   /** null = proses dibunuh karena timeout */
   code: number | null;
@@ -574,7 +574,7 @@ export interface ExtExecResult {
   killed: boolean;
 }
 
-/** Izin runtime eksternal sebuah ekstensi (fase 34).
+/** Izin runtime eksternal sebuah ekstensi.
  *  Eksekusi SELALU di sisi Rust dari binary yang di-whitelist — ekstensi
  *  tidak pernah memegang akses exec langsung. */
 export interface ExtTrust {
@@ -583,7 +583,7 @@ export interface ExtTrust {
   grantedAt: string;
 }
 
-// ── mode agent (fase 35) ──
+// ── mode agent ──
 
 /** Satu panggilan tool yang diminta model. */
 export interface AgentToolCall {
