@@ -1,23 +1,25 @@
 # Zephyr v1.1.7
 
-## UPDATE LAGI
+Menu layout yang kemaren gua bikin ribet (popover) gua lepasin, sekarang tinggal pencet tombol langsung di menu bar. Sisanya nyusul nih.
+
+## UPDATE NIH
 
 ### Panel Bisa Pindah Atas/Bawah
 
-Sebelumnya panel cuma bisa kiri/kanan. Sekarang ada 4 tombol posisi yang selalu kelihatan di kanan atas menu bar: kiri, kanan, atas, bawah — plus tombol mata buat nyembunyiin panel. Klik langsung pindah, gak usah buka menu.
+Dulu panel cuma bisa kiri/kanan. Sekarang ada 4 tombol posisi yang selalu kelihatan di kanan atas menu bar: kiri, kanan, atas, bawah. Plus tombol mata buat nyembunyiin panel. Klik langsung pindah, gak usah buka menu lagi.
 
-Panel yang dipindah ke atas/bawah juga bisa di-resize vertikal (drag divider). Menu View → Panel Position dan command palette kebagian juga (`Move Panel Top/Bottom`).
+Panel yang dipindah ke atas/bawah bisa di-resize vertikal, tinggal drag divider-nya. Menu View → Panel Position sama command palette juga kebagian (`Move Panel Top/Bottom`).
 
 ### Bahasa Jawaban AI
 
-Settings → Model AI → **Bahasa jawaban AI**. Pilih:
+Settings → Model AI → **Bahasa jawaban AI**. Tinggal pilih:
 
 - Ikuti pertanyaan (otomatis)
 - Indonesia
 - English
 - Lainnya — tulis nama bahasa bebas, mis. Jawa, Español, Français
 
-Instruksinya dikirim sebagai system message di awal tiap percakapan, jadi model konsisten jawab pake bahasa pilihan, bukan cuma ikut-ikutan bahasa prompt.
+Instruksinya dikirim sebagai system message di awal tiap percakapan, jdi model konsisten jawab pake bahasa pilihan. Gak cuma ikut-ikutan bahasa prompt.
 
 ### Ekstensi Gede Bisa Masuk
 
@@ -31,15 +33,15 @@ Ekstensi bahasa (Python, Java, dll) yang bundle-nya puluhan MB sekarang bisa dip
 
 ### Sandbox Ekstensi: require Relatif Jalan
 
-Dulu cuma file `main` yang dimuat di sandbox. Sekarang backend baca semua file JS/JSON ekstensi, jadi `require('./dist/extension.bundle')` dan require relatif lain beneran resolve. Notifikasi dari ekstensi (`showInformationMessage`, `showErrorMessage`) juga diteruskan ke notifikasi Zephyr.
+Dulu cuma file `main` yang dimuat di sandbox. Sekarang backend baca semua file JS/JSON ekstensi, jdi `require('./dist/extension.bundle')` dan require relatif lain beneran resolve. Notifikasi dari ekstensi (`showInformationMessage`, `showErrorMessage`) juga diteruskan ke notifikasi Zephyr.
 
 ### Ekstensi Gagal = Auto Nonaktif
 
-Ekstensi yang gagal dimuat di sandbox sekarang otomatis dinonaktifkan — bukan error melulu tiap kali buka app. Pesannya jelas: kebanyakan butuh runtime eksternal (Python/Java/Docker) yang gak ada di sandbox. Mau coba ulang? Aktifkan lagi di Settings → Ekstensi.
+Ekstensi yang gagal dimuat di sandbox sekarang otomatis dinonaktifkan. Gak error melulu tiap kali buka app. Pesannya jelas: kebanyakan butuh runtime eksternal (Python/Java/Docker) yang gak ada di sandbox. Mau coba ulang? Aktifkan lagi di Settings → Ekstensi.
 
 ### Fix
 
-- Drag & drop file dan event tutup window dibungkus `try/catch` — dulu bisa bikin layar hitam pas jalan di browser dev.
+Drag & drop file dan event tutup window dibungkus `try/catch` — dulu bisa bikin layar hitam pas jalan di browser dev.
 
 ---
 
@@ -48,8 +50,10 @@ Ekstensi yang gagal dimuat di sandbox sekarang otomatis dinonaktifkan — bukan 
 - **Baru pertama:** ambil `Zephyr_1.1.7_x64-setup.exe` atau `.msi` di Releases.
 - **Udah punya:** Settings → About → Check for updates. Atau tunggu notif lonceng kalo auto-update nyala.
 
-Signature installer diverifikasi app sebelum install (minisign). SmartScreen tetep bisa protes karena bukan sertifikat EV — More info → Run anyway. Aman.
+Signature installer diverifikasi app sebelum install. SmartScreen tetep bisa protes karena bukan sertifikat EV — More info → Run anyway. Aman.
 
 ---
+
+**Catatan:** installer sekarang udah ditandatangani (minisign) buat auto-update, jdi update yang ke-download cuma dipasang kalo signature-nya cocok.
 
 Gaskeun.
