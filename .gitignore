@@ -58,3 +58,6 @@ PUBLISH.md
 # yang clone repo akan melihat 8 task "uji: ..." di palette mereka.
 .zephyr/
 scripts/uji23/
+
+# manifest update v1.1.8 — cuma lokal, jangan ikut repo sebelum rilis
+latest-1.1.8.json
