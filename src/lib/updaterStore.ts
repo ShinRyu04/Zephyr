@@ -78,6 +78,20 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
    *  sebagai error (syarat 17.6.e — jangan spam toast saat offline). */
   check: async (opts) => {
     if (get().status === 'checking' || get().status === 'downloading') return;
+    // Cek update cuma untuk build RELEASE. Di mode dev (`tauri dev` /
+    // `npm run dev`) plugin updater ikut jalan, tapi installernya untuk
+    // build release — dipasang di atas build dev cuma bikin kacau. Skip
+    // penuh; panel Tetap kasih tahu kenapa.
+    if (import.meta.env.DEV) {
+      set({
+        status: 'idle',
+        version: null,
+        notes: null,
+        progress: 0,
+        message: 'Mode dev — cek update dinonaktifkan',
+      });
+      return;
+    }
     set({ status: 'checking', message: null, progress: 0 });
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
