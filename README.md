@@ -9,7 +9,7 @@
 Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
 Rust. Bukan fork VS Code, bukan Electron.
 
-`v1.1.7` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.8` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -23,7 +23,7 @@ sehari-hari. Zephyr menjawab dua-duanya: satu proses Rust, WebView2 bawaan
 Windows sebagai renderer, dan server MCP di port 9222 supaya Claude Code, Codex,
 Gemini CLI, atau opencode bisa membaca dan mengubah isi jendelanya.
 
-Installer NSIS-nya 5,6 MB dan MSI-nya 8,0 MB. Sebagai pembanding, installer
+Installer NSIS-nya 6,1 MB dan MSI-nya 9,0 MB. Sebagai pembanding, installer
 editor berbasis Electron biasanya 80–120 MB.
 
 ## Instal
@@ -33,9 +33,9 @@ langsung jalan tanpa install tambahan).
 
 ### Cara install Zephyr (3 langkah)
 
-1. **Unduh installer** — `Zephyr_1.1.7_x64-setup.exe` (atau `.msi`) dari
+1. **Unduh installer** — `Zephyr_1.1.8_x64-setup.exe` (atau `.msi`) dari
    halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.7_x64-setup.exe` — itu installer-nya.
+   `Zephyr_1.1.8_x64-setup.exe` — itu installer-nya.
 2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
    anyway**. Ini normal: installer belum ditandatangani, bukan berarti
    berbahaya. Source-nya terbuka dan bisa diverifikasi.
@@ -111,9 +111,12 @@ diagnostics, rename. Debugger lewat DAP (js-debug) dengan breakpoint, step,
 watch, dan call stack.
 
 **AI Panel** — chat streaming dengan tiga adapter (OpenAI, Anthropic, Gemini),
-katalog model berlogo. API key disimpan di sisi Rust; frontend hanya melihat
-`hasKey` dan versi tersamar. Sekarang support custom provider — tambah sendiri
-provider AI dengan base URL dan API key di Settings → Providers.
+katalog model berlogo (dari rilis pertama sampai terbaru). API key disimpan di
+sisi Rust; frontend hanya melihat `hasKey` dan versi tersamar. Support
+custom/local AI: **Settings → Model AI** pilih **Lokal** atau **Custom**, isi
+base URL (mis. `http://127.0.0.1:11434/v1` buat Ollama), ketik nama model atau
+pilih dari dropdown ▾ (tombol **Refresh** menarik daftar model langsung dari
+provider). Model custom muncul di dropdown panel AI, bukan cuma di terminal AI.
 
 **MCP Server :9222** — HTTP JSON-RPC dengan Bearer token. 20+ method untuk
 membaca pane, menulis ke terminal, membuka dan mengubah buffer editor, dan
