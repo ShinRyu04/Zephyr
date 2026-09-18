@@ -51,6 +51,10 @@ Workflow GitHub Actions `build-linux` udah disiapin: pas rilis versi berikutnya,
 
 Buka workspace dengan bahasa tertentu, Marketplace nyaranin extension yang cocok buat bahasa itu.
 
+### Donasi (Saweria)
+
+Zephyr gratis dan tetap gratis. Kalau kamu suka dan mau dukung pengembangannya, ada tombol **☕ Donasi** di **status bar bawah** (kanan) dan di **Settings → Tentang** — langsung buka Saweria (`saweria.co/ShinRyuga04`). Bisa juga lewat **Help → Donasi** atau `Ctrl+Shift+P` → ketik "donasi". Traktiranmu banget diapresiasi. 🙏
+
 ---
 
 ## Cara Update
