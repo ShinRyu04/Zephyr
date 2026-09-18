@@ -1929,6 +1929,20 @@ body.is-resizing-v {
   opacity: 0.45;
   cursor: default;
 }
+/* Tombol donasi status bar — sedikit menonjol tapi tetap subtle. */
+.sb-btn.sb-donate {
+  color: var(--accent, #e0a458);
+  font-weight: 600;
+}
+.sb-btn.sb-donate:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--accent, #e0a458);
+}
+/* Tombol donasi di About. */
+.btn.btn-donate {
+  border-color: var(--accent, #e0a458);
+  color: var(--accent, #e0a458);
+}
 
 /* ─────────── modal ─────────── */
 
