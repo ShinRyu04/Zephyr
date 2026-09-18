@@ -27,6 +27,18 @@ Mau pake model lawas yang murah atau model terbaru, semua ada di dropdown.
 
 Notifikasi "versi baru tersedia" (dialog update, banner, sama lonceng) sekarang nampilin catatan rilis beneran — heading, poin-poin, sama tabel daftar perubahan. Jadi langsung keliatan apa aja yang baru, bukan cuma "Versi baru tersedia".
 
+### Dialog Update Gaya Zephyr
+
+Dialog "Zephyr v1.1.8 tersedia" sekarang versi Zephyr sendiri:
+- Lebih gede — changelog langsung kelihatan tanpa scroll panjang.
+- Ada baris versi lama → versi baru + tanggal rilis.
+- Tombol **Lihat di GitHub** buat buka halaman Release langsung.
+- Tombol **Nanti** / **Download & install**.
+
+### Build Linux (Coming Soon)
+
+Workflow GitHub Actions `build-linux` udah disiapin: pas rilis versi berikutnya, otomatis kebuild `.deb` + `.AppImage` buat Linux, release di GitHub Releases. Pantengin terus.
+
 ### Rekomendasi Extension Otomatis
 
 Buka workspace dengan bahasa tertentu, Marketplace nyaranin extension yang cocok buat bahasa itu.

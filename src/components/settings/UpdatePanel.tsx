@@ -10,9 +10,21 @@
 import { useUpdater, labelStatus } from '../../lib/updaterStore';
 import { Changelog } from './changelogRender';
 
+const URL_RILIS = 'https://github.com/ShinRyu04/Zephyr/releases';
+
+async function bukaRilis() {
+  try {
+    const { openUrl } = await import('@tauri-apps/plugin-opener');
+    await openUrl(URL_RILIS);
+  } catch {
+    /* diam — link hanya pelengkap */
+  }
+}
+
 export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }) {
   const status = useUpdater((s) => s.status);
   const versi = useUpdater((s) => s.version);
+  const pubDate = useUpdater((s) => s.pubDate);
   const notes = useUpdater((s) => s.notes);
   const progress = useUpdater((s) => s.progress);
   const message = useUpdater((s) => s.message);
@@ -77,20 +89,35 @@ export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }
       )}
 
       {dialogOpen && status === 'available' && (
-        <div className="modal-backdrop" role="presentation">
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="upd-title">
-            <h2 className="modal-title" id="upd-title" data-testid="upd-dialog-title">
-              Zephyr v{versi} tersedia
-            </h2>
-            <div className="modal-body upd-body" data-testid="upd-dialog-notes">
-                          {notes ? <Changelog teks={notes} /> : 'Tidak ada catatan rilis.'}
-                        </div>
-            <div className="modal-actions">
-              <button className="btn btn-primary" data-testid="upd-dialog-ok" onClick={() => void unduh()}>
-                Update sekarang
+        <div className="upd-backdrop" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) tutup(); }}>
+          <div className="upd-dialog" role="dialog" aria-modal="true" aria-labelledby="upd-title">
+            <div className="upd-dialog-head">
+              <span className="upd-dialog-ico" aria-hidden="true">✦</span>
+              <div>
+                <h2 className="upd-dialog-title" id="upd-title" data-testid="upd-dialog-title">
+                  Zephyr v{versi} tersedia
+                </h2>
+                <p className="upd-sub" data-testid="upd-dialog-sub">
+                  v{versiSekarang} → v{versi}{pubDate ? ` · ${new Date(pubDate).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
+                </p>
+              </div>
+              <button className="btn btn-sm upd-dialog-x" data-testid="upd-dialog-x" aria-label="Tutup" onClick={tutup}>
+                ✕
               </button>
+            </div>
+            <div className="upd-dialog-notes" data-testid="upd-dialog-notes">
+              {notes ? <Changelog teks={notes} /> : 'Tidak ada catatan rilis.'}
+            </div>
+            <div className="upd-dialog-actions">
+              <button className="btn btn-link" data-testid="upd-dialog-github" onClick={() => void bukaRilis()} title={URL_RILIS}>
+                Lihat di GitHub
+              </button>
+              <span className="sb-spacer" />
               <button className="btn" data-testid="upd-dialog-later" onClick={tutup}>
                 Nanti
+              </button>
+              <button className="btn btn-primary" data-testid="upd-dialog-ok" onClick={() => void unduh()}>
+                Download & install
               </button>
             </div>
           </div>
