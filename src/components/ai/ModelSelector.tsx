@@ -4,11 +4,43 @@
 // oleh Settings → Model AI). Setiap baris: logo + nama model + provider +
 // ukuran konteks + badge key. Provider tanpa key tetap bisa dipilih supaya
 // user melihat status oranye + tombol ke Settings (V2), bukan model hilang.
+// Provider `freeText` (custom/local/deepseek) menampilkan input teks di atas
+// daftar supaya user bisa mengetik nama model bebas; nama yang pernah diketik
+// disimpan per provider (localStorage) dan tampil sebagai daftar pilihan,
+// plus model terbaru ditarik langsung dari provider (list_models). Daftar
+// lengkap katalog SELALU tampil di bawahnya supaya dari mana pun bisa balik
+// ke provider lain.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { ALL_MODELS, fmtCtx, findModel, PROVIDER_BY_ID, ProviderLogo } from '../../lib/modelCatalog';
+import {
+  ALL_MODELS,
+  fmtCtx,
+  findModel,
+  MODEL_BY_ID,
+  PROVIDER_BY_ID,
+  ProviderLogo,
+} from '../../lib/modelCatalog';
+
+/** Nama model yang pernah diketik user per provider (custom/local). */
+const LS_SAVED = 'zephyr.ai.custommodels.v1';
+
+function loadSaved(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(LS_SAVED);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (Array.isArray(v)) out[k] = v.filter((x): x is string => typeof x === 'string');
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 export default function ModelSelector() {
   const model = useAi((s) => s.model);
@@ -20,8 +52,14 @@ export default function ModelSelector() {
   const setActivity = useStore((s) => s.setActivity);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const wrap = useRef<HTMLDivElement | null>(null);
+  const [typed, setTyped] = useState('');
+  const [saved, setSaved] = useState<Record<string, string[]>>(loadSaved);
+  // Model hasil fetch langsung dari provider (list_models).
+  const [remote, setRemote] = useState<Record<string, string[]>>({});
+  const [fetching, setFetching] = useState(false);
 
   const active = findModel(model, provider);
+  const freeText = PROVIDER_BY_ID.get(provider)?.freeText === true;
   const hasKey = keys.some((k) => k.provider === provider && k.hasKey);
   const baseUrl =
     useStore((s) => s.settings.models.providers[provider]?.baseUrl) || active.baseUrl;
@@ -42,6 +80,54 @@ export default function ModelSelector() {
       window.removeEventListener('keydown', onKey);
     };
   }, [open, setOpen]);
+
+  // Setiap kali menu dibuka, isi input dengan model aktif (kalau model itu
+  // bukan preset, biarkan user melanjutkan ketikannya).
+  useEffect(() => {
+    if (open) setTyped(freeText && !MODEL_BY_ID.has(model) ? model : '');
+  }, [open, freeText, model]);
+
+  /** Tarik daftar model langsung dari provider (list_models, Rust). */
+  const loadRemote = async () => {
+    if (!freeText || fetching) return;
+    setFetching(true);
+    try {
+      const ids = await cmd.listModels(provider, baseUrl || undefined);
+      setRemote((r) => ({ ...r, [provider]: ids }));
+    } catch {
+      /* tanpa key / offline — daftar tersimpan tetap tampil */
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  // Saat menu provider freeText dibuka, ambil model terbaru dari provider.
+  useEffect(() => {
+    if (open && freeText) void loadRemote();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, freeText, provider]);
+
+  const commitTyped = (close?: boolean) => {
+    const v = typed.trim();
+    if (!v) return;
+    void setModel(v);
+    // Simpan ke daftar model custom provider ini (tanpa duplikat).
+    setSaved((s) => {
+      const list = s[provider] ?? [];
+      const next = list.includes(v) ? list : [...list, v];
+      const out = { ...s, [provider]: next };
+      try {
+        localStorage.setItem(LS_SAVED, JSON.stringify(out));
+      } catch {
+        /* kuota penuh — daftar tetap di memori */
+      }
+      return out;
+    });
+    if (close) setOpen(false);
+  };
+
+  const savedList = saved[provider] ?? [];
+  const remoteList = remote[provider] ?? [];
 
   return (
     <div className="ai-model-wrap" ref={wrap}>
@@ -89,6 +175,94 @@ export default function ModelSelector() {
 
       {open && (
         <div className="ai-model-menu" role="listbox" data-testid="ai-model-menu">
+          {freeText && (
+            <div className="ai-model-typed">
+              <input
+                type="text"
+                className="ai-model-input"
+                data-testid="ai-model-input"
+                placeholder="Ketik nama model… (Enter)"
+                value={typed}
+                spellCheck={false}
+                autoFocus
+                onChange={(e) => setTyped(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') commitTyped(true);
+                                }}
+                              />
+              <button
+                type="button"
+                className="ai-model-refresh"
+                data-testid="ai-model-refresh"
+                disabled={fetching}
+                title="Ambil daftar model terbaru dari provider"
+                onClick={() => void loadRemote()}
+              >
+                {fetching ? '…' : '↻'}
+              </button>
+            </div>
+          )}
+
+          {/* Bagian khusus provider freeText: model dari API + yang tersimpan. */}
+          {freeText && (
+            <>
+              {remoteList.length > 0 && (
+                <>
+                  <div className="ai-model-group">Dari provider (API)</div>
+                  {remoteList.map((id) => (
+                    <button
+                      key={`api:${id}`}
+                      role="option"
+                      aria-selected={id === active.id}
+                      className={`ai-model-item${id === active.id ? ' is-active' : ''}`}
+                      data-model-item={id}
+                      data-provider={provider}
+                      onClick={() => void setModel(id)}
+                    >
+                      <ProviderLogo id={provider} size={16} />
+                      <span className="ai-mi-main">
+                        <span className="ai-mi-name">{id}</span>
+                        <span className="ai-mi-sub">dari {provider} · API</span>
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {savedList.length > 0 && (
+                <>
+                  <div className="ai-model-group">Tersimpan</div>
+                  {savedList.map((id) => (
+                    <button
+                      key={`sv:${id}`}
+                      role="option"
+                      aria-selected={id === active.id}
+                      className={`ai-model-item${id === active.id ? ' is-active' : ''}`}
+                      data-model-item={id}
+                      data-provider={provider}
+                      onClick={() => void setModel(id)}
+                    >
+                      <ProviderLogo id={provider} size={16} />
+                      <span className="ai-mi-main">
+                        <span className="ai-mi-name">{id}</span>
+                        <span className="ai-mi-sub">tersimpan untuk {provider}</span>
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {remoteList.length === 0 && savedList.length === 0 && (
+                <div className="ai-model-empty">
+                  Belum ada model — ketik nama model di atas, atau pastikan API
+                  key & base URL provider sudah diisi lalu klik ↻.
+                </div>
+              )}
+              <div className="ai-model-group">Semua provider</div>
+            </>
+          )}
+
+          {/* Daftar lengkap katalog — SELALU tampil, supaya dari provider
+              freeText (custom/local/deepseek) tetap bisa balik ke provider
+              lain dengan mengklik modelnya. */}
           {ALL_MODELS.map((m) => {
             const ok = keys.some((k) => k.provider === m.provider && k.hasKey);
             return (

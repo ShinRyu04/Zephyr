@@ -1,5 +1,6 @@
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
+import { Changelog } from '../settings/changelogRender';
 
 export default function UpdateBanner() {
   const banner = useStore((s) => s.updateBanner);
@@ -15,7 +16,11 @@ export default function UpdateBanner() {
       </span>
       <span className="upd-banner-text">
         <strong>Zephyr diperbarui ke v{banner.version}</strong>
-        {banner.notes && <span className="upd-banner-notes">{banner.notes}</span>}
+        {banner.notes && (
+        <span className="upd-banner-notes">
+          <Changelog teks={banner.notes} />
+        </span>
+      )}
       </span>
       <button
         className="btn btn-sm"

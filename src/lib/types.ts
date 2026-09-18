@@ -279,6 +279,8 @@ export type AiRole = 'user' | 'assistant' | 'system';
 export interface AiMessage {
   role: AiRole;
   content: string;
+  /** lampiran gambar sebagai data URL (hanya pesan user) */
+  image?: string;
 }
 
 /** Pesan di UI: AiMessage + metadata tampilan. */
@@ -562,6 +564,28 @@ export interface ExtInstallHasil {
   manifest: ExtManifest;
 }
 
+/** Satu entri di registry Zephyr (bundled / user / remote). */
+export interface RegistryEntry {
+  id: string;
+  name: string;
+  publisher: string;
+  version: string;
+  description: string;
+  categories: string[];
+  /** 1-3 karakter logo (fallback kalau iconUrl tak bisa dimuat) */
+  logo: string;
+  /** URL logo PNG/SVG (opsional) */
+  iconUrl: string;
+  /** Warna merek (lingkaran logo generik, opsional) */
+  logoColor: string;
+  /** URL unduh paket .zext — wajib kalau tidak bundled */
+  url: string;
+  downloadCount: number;
+  rating: number;
+  /** bahasa yang membuat entri direkomendasikan (mis. ['rust','toml']) */
+  languages: string[];
+}
+
 /** Hasil eksekusi satu proses runtime eksternal. */
 export interface ExtExecResult {
   /** null = proses dibunuh karena timeout */
@@ -778,6 +802,9 @@ export interface Settings {
     /** fase 33: izin runtime eksternal per ekstensi (whitelist binary).
      *  key = extension id; lihat ExtTrust. */
     trust: Record<string, ExtTrust>;
+    /** URL registry Zephyr (WAJIB https). Kosong = bundled + registry.json
+     *  user saja. Bisa diisi publik (mis. GitHub Pages) atau server sendiri. */
+    registryUrl?: string;
   };
   /** fase 31: aksesibilitas — penamaan mengikuti VS Code (accessibility.*) */
   accessibility?: {

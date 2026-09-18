@@ -15,6 +15,7 @@ mod tests {
         ChatMsg {
             role: role.into(),
             content: content.into(),
+            image: None,
         }
     }
 

@@ -110,15 +110,21 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     // Aktivasi GAGAL → matikan ekstensi otomatis supaya error tidak muncul
     // terus di tiap pembukaan app. User bisa aktifkan lagi kalau mau coba
     // ulang (mis. setelah konfigurasi berubah).
-    if (
+    const gagalAktivasi =
       m.severity === 'warn' &&
-      (m.message.startsWith('aktivasi') || m.message.startsWith('tidak bisa dimuat'))
-    ) {
+      (m.message.startsWith('aktivasi') || m.message.startsWith('tidak bisa dimuat'));
+    if (gagalAktivasi) {
       void cmd.extensionsSetEnabled(extId, false).catch(() => {});
     }
     useNotif.getState().notify({
       severity: m.severity,
       message: `Ekstensi ${extId}: ${m.message}`,
+      // v1 manifest-only: penyebab paling umum adalah ekstensi VS Code penuh
+      // yang butuh runtime eksternal / host API lengkap. Sampaikan alasan
+      // konkret supaya user paham kenapa ekstensi dinonaktifkan.
+      detail: gagalAktivasi
+        ? 'Ekstensi VS Code penuh biasanya butuh runtime eksternal (Python/Java/Docker/Node) atau API host yang tidak tersedia di sandbox Zephyr v1 (manifest-only).'
+        : undefined,
       source: 'extensions',
     });
     return;
@@ -182,11 +188,13 @@ function bukaRuntime(
   code: string,
   files: Record<string, string>,
   mainRel: string,
+  manifest: Record<string, unknown>,
+  envPath = '',
 ): void {
   // Skrip utuh = shim CommonJS/vscode + peta file ekstensi (untuk require
   // relatif) + kode ekstensi + aktivasi + handler invoke. Dihasilkan
   // extRunner.ts supaya bisa diuji tanpa Worker sungguhan.
-  const blob = new Blob([skripEkstensi(code, files, mainRel), '\n', INVOKE], {
+  const blob = new Blob([skripEkstensi(code, files, mainRel, manifest, envPath), '\n', INVOKE], {
     type: 'application/javascript',
   });
   const workerUrl = URL.createObjectURL(blob);
@@ -199,6 +207,26 @@ function bukaRuntime(
   runtimes.set(extId, rt);
 }
 
+
+/** PATH untuk sandbox ekstensi: deteksi go.exe di lokasi umum supaya pesan
+ *  ekstensi Go tidak membingungkan; fallback: string PATH standar Windows. */
+async function envPathUntukEkstensi(): Promise<string> {
+  const dasar = [
+    "C:\\Windows\\System32",
+    "C:\\Windows",
+    "C:\\Program Files\\Go\\bin",
+    "C:\\Go\\bin",
+  ].join(";");
+  try {
+    const go = await cmd.extWhich("go");
+    if (go) {
+      const dir = go.replace(/[\\/][^\\/]+$/, "");
+      return dir + ";" + dasar;
+    }
+  } catch { /* abaikan */ }
+  return dasar;
+}
+
 export async function muatEkstensiRuntime(daftar: ExtManifestStatus[]): Promise<void> {
   for (const st of daftar) {
     if (!st.enabled || st.error || !st.manifest) continue;
@@ -207,15 +235,15 @@ export async function muatEkstensiRuntime(daftar: ExtManifestStatus[]): Promise<
     try {
       const code = await cmd.extensionsReadMain(st.manifest.id, main);
       const files = await cmd.extensionsReadFiles(st.manifest.id);
-      bukaRuntime(st.manifest.id, code, files, main);
+      bukaRuntime(st.manifest.id, code, files, main, st.manifest.raw ?? {}, await envPathUntukEkstensi());
     } catch (e) {
       // Gagal dimuat di sandbox → matikan otomatis supaya error tidak
       // berulang di tiap pembukaan app; pesan menjelaskan alasannya.
       void cmd.extensionsSetEnabled(st.manifest.id, false).catch(() => {});
       useNotif.getState().notify({
         severity: 'error',
-        message: `Ekstensi ${st.manifest.id} dinonaktifkan: gagal dimuat di sandbox Zephyr`,
-        detail: `${cmd.asZephyrError(e).message} — kemungkinan butuh runtime eksternal (Python/Java/Docker/dll) yang tidak tersedia di Zephyr. Aktifkan lagi di Settings → Ekstensi kalau ingin mencoba ulang.`,
+        message: `Ekstensi ${st.manifest.id} dinonaktifkan: gagal dimuat di sandbox Zephyr v1`,
+        detail: `${cmd.asZephyrError(e).message}. Kemungkinan besar ekstensi ini butuh runtime eksternal (Python/Java/Docker/Node) yang tidak didukung Zephyr v1 (manifest-only). Aktifkan lagi di Settings → Ekstensi kalau ingin mencoba ulang.`,
         source: 'extensions',
       });
     }

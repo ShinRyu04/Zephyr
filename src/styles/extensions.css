@@ -199,6 +199,13 @@
   border-radius: 4px;
 }
 
+/* Logo berwarna merek (mis. #00add8 Go) — lingkaran, teks putih kontras. */
+.xc-logo.has-color {
+  border-radius: 50%;
+  color: #fff;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
 .xc-logo-img {
   width: 100%;
   height: 100%;

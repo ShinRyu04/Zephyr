@@ -12,6 +12,7 @@ import * as cmd from './commands';
 import { useStore } from './store';
 import { useTerminal } from './terminalStore';
 import { writeChunked } from './terminalClipboard';
+import { runAction } from './mcpStore';
 import type { AgentToolSpec } from './types';
 
 export interface AgentTool {
@@ -151,6 +152,66 @@ export const AGENT_TOOLS: AgentTool[] = [
     run: async (args) => {
       const nodes = await cmd.scanDir(String(args.path));
       return nodes.map((n) => (n.isDir ? `${n.name}/` : n.name)).join('\n') || '(kosong)';
+    },
+  },
+  {
+    spec: {
+      name: 'list_panes',
+      description:
+        'Daftar pane terminal/browser yang sedang terbuka (paneId, type, title, agent, pid, running). Berguna untuk mengetahui terminal mana yang hidup sebelum menjalankan perintah.',
+      parameters: { type: 'object', properties: {} },
+    },
+    run: async () => JSON.stringify(await runAction('list_panes', {})),
+  },
+  {
+    spec: {
+      name: 'get_problems',
+      description:
+        'Baca diagnostik (Problems) yang sedang tampil di panel bawah: error & warning per file. Filter severity opsional: error | warning | info | hint.',
+      parameters: {
+        type: 'object',
+        properties: { severity: { type: 'string', description: 'filter opsional: error|warning|info|hint' } },
+      },
+    },
+    run: async (args) => {
+      const p = await runAction('get_problems', args);
+      const r = p as { counts?: { errors?: number; warnings?: number }; problems?: unknown[] };
+      const probs = Array.isArray(r.problems) ? r.problems : [];
+      if (probs.length === 0) {
+        return `Tidak ada masalah. (counts: ${JSON.stringify(r.counts ?? {})})`;
+      }
+      return probs
+        .map((x) => {
+          const d = x as { file?: string; line?: number; column?: number; severity?: string; message?: string };
+          return `[${d.severity ?? '?'}] ${d.file ?? '?'}:${d.line ?? '?'}:${d.column ?? '?'} ${d.message ?? ''}`;
+        })
+        .join('\n');
+    },
+  },
+  {
+    spec: {
+      name: 'get_output',
+      description:
+        'Baca isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug). Param channel wajib; tail opsional (default 200 baris terakhir).',
+      parameters: {
+        type: 'object',
+        properties: {
+          channel: { type: 'string', description: 'id channel: zephyr|mcp|ssh|extensions|debug' },
+          tail: { type: 'number', description: 'ambil N baris terakhir (default 200, maks 2000)' },
+        },
+        required: ['channel'],
+      },
+    },
+    run: async (args) => {
+      const r = (await runAction('get_output', args)) as {
+        channel?: string;
+        total?: number;
+        lines?: string[];
+      };
+      const lines = Array.isArray(r.lines) ? r.lines : [];
+      return lines.length === 0
+        ? `(channel ${r.channel ?? args.channel} kosong)`
+        : `[${r.channel ?? ''} — ${r.total ?? lines.length} baris]\n${lines.join('\n')}`;
     },
   },
 ];

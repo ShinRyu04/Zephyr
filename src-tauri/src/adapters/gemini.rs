@@ -11,7 +11,7 @@
 //     baris dengan koma menempel, sehingga parsing per baris pasti gagal.
 //     (Sudah dibuktikan di verify09: 0 token terbaca.)
 
-use crate::adapters::trim_base;
+use crate::adapters::{split_data_url, trim_base};
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ToolCall, ToolSpec};
 use serde_json::{json, Value};
 
@@ -38,11 +38,19 @@ pub fn prepare(
             continue;
         }
         let role = if m.role == "assistant" {
-            "model"
-        } else {
-            "user"
-        };
-        contents.push(json!({ "role": role, "parts": [{ "text": m.content }] }));
+                    "model"
+                } else {
+                    "user"
+                };
+                let mut parts = vec![json!({ "text": m.content })];
+                if let Some(img) = &m.image {
+                    if let Some((mime, data)) = split_data_url(img) {
+                        parts.push(json!({
+                            "inline_data": { "mime_type": mime, "data": data }
+                        }));
+                    }
+                }
+                contents.push(json!({ "role": role, "parts": parts }));
     }
 
     let mut body = json!({

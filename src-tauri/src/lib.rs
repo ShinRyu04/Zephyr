@@ -14,7 +14,9 @@ mod dialogs;
 mod errors;
 mod explorer;
 mod ext_bundled;
+mod ext_lang_icons;
 mod ext_pkg;
+mod ext_registry;
 mod extensions;
 mod fs_utils;
 mod git;
@@ -39,6 +41,7 @@ mod tests_fs;
 mod tests_git;
 mod tests_log;
 mod tests_mcp;
+mod titlebar;
 mod workspace;
 
 use app_state::AppState;
@@ -253,9 +256,10 @@ pub fn run() {
             agents::list_agents,
             // settings lanjutan (fase 08)
             secrets::get_public_models,
-            secrets::set_model_key,
-            secrets::test_model_connection,
-            secrets::reset_settings,
+                        secrets::set_model_key,
+                        secrets::test_model_connection,
+                        secrets::list_models,
+                        secrets::reset_settings,
             // AI panel (fase 09)
             ai::ai_chat,
             ai::ai_cancel,
@@ -313,6 +317,12 @@ pub fn run() {
             ext_pkg::extensions_download_vsix,
             ext_bundled::extensions_write_bundled,
             ext_bundled::extensions_bundled_ids,
+            // Registry native (menggantikan proxy Open VSX di frontend)
+            ext_registry::ext_registry_list,
+            ext_registry::ext_registry_save,
+            ext_registry::ext_registry_read,
+            ext_registry::ext_registry_installed,
+            ext_registry::ext_registry_url_diizinkan,
             // tasks (fase 23)
             tasks::tasks_load,
             tasks::tasks_matchers,
@@ -386,6 +396,8 @@ pub fn run() {
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
             dialogs::folder_dialog_open,
+            // title bar Windows (nyatu dengan baris menu)
+            titlebar::titlebar_theme,
         ])
         .build(tauri::generate_context!());
 

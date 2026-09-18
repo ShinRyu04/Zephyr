@@ -8,6 +8,7 @@
 // (syarat 17.6.e).
 
 import { useUpdater, labelStatus } from '../../lib/updaterStore';
+import { Changelog } from './changelogRender';
 
 export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }) {
   const status = useUpdater((s) => s.status);
@@ -81,9 +82,9 @@ export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }
             <h2 className="modal-title" id="upd-title" data-testid="upd-dialog-title">
               Zephyr v{versi} tersedia
             </h2>
-            <p className="modal-body" data-testid="upd-dialog-notes">
-              {notes || 'Tidak ada catatan rilis.'}
-            </p>
+            <div className="modal-body upd-body" data-testid="upd-dialog-notes">
+                          {notes ? <Changelog teks={notes} /> : 'Tidak ada catatan rilis.'}
+                        </div>
             <div className="modal-actions">
               <button className="btn btn-primary" data-testid="upd-dialog-ok" onClick={() => void unduh()}>
                 Update sekarang
