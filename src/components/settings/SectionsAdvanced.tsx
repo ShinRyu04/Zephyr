@@ -133,7 +133,8 @@ export function ModelsSection() {
   const apply = useStore((s) => s.applySettings);
   const ui = useSettingsUi();
   const [draft, setDraft] = useState<Record<string, string>>({});
-    const [reveal, setReveal] = useState<string | null>(null);
+    const [suggestOpen, setSuggestOpen] = useState<string | null>(null);
+      const [reveal, setReveal] = useState<string | null>(null);
     // Model hasil "Refresh" dari provider (id → daftar model API), di-merge
     // ke dropdown supaya katalog tidak ketinggalan zaman.
     const [remote, setRemote] = useState<Record<string, string[]>>({});
@@ -305,27 +306,77 @@ export function ModelsSection() {
                                   <span className="prov-flabel">{t('models.model')}</span>
                                   {p.freeText ? (
                                                       <div className="prov-model-row">
-                                                        <TextInput
-                                                          label={`${p.label} model`}
-                                                          testid={`prov-model-${p.id}`}
-                                                          placeholder={p.models[0].note}
-                                                          list={`prov-models-${p.id}`}
-                                                          value={cfg.model ?? ''}
-                                                          onChange={(v) =>
-                                                            void apply({
-                                                              models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v.trim() } } },
-                                                            })
-                                                          }
-                                                        />
-                                                        {/* Saran dari katalog provider ini + hasil Refresh (API);
-                                                            tetap bisa diketik bebas. */}
-                                                        <datalist id={`prov-models-${p.id}`}>
-                                                          {[...p.models.map((m) => m.id), ...(remote[p.id] ?? [])]
-                                                            .filter((id, i, a) => id && a.indexOf(id) === i)
-                                                            .map((id) => (
-                                                              <option key={id} value={id} />
-                                                            ))}
-                                                        </datalist>
+                                                                                                              <TextInput
+                                                                                                                label={`${p.label} model`}
+                                                                                                                testid={`prov-model-${p.id}`}
+                                                                                                                placeholder={p.models[0].note}
+                                                                                                                list={`prov-models-${p.id}`}
+                                                                                                                value={cfg.model ?? ''}
+                                                                                                                onChange={(v) =>
+                                                                                                                  void apply({
+                                                                                                                    models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v.trim() } } },
+                                                                                                                  })
+                                                                                                                }
+                                                                                                              />
+                                                                                                              {/* Dropdown ▼: pilih model custom/lokal dari katalog + hasil Refresh */}
+                                                                                                              <button
+                                                                                                                type="button"
+                                                                                                                className="btn btn-sm prov-drop-btn"
+                                                                                                                data-testid={`prov-drop-${p.id}`}
+                                                                                                                aria-haspopup="listbox"
+                                                                                                                aria-expanded={suggestOpen === p.id}
+                                                                                                                title="Pilih model dari daftar"
+                                                                                                                onClick={() => setSuggestOpen(suggestOpen === p.id ? null : p.id)}
+                                                                                                              >
+                                                                                                                ▾
+                                                                                                              </button>
+                                                                                                              {suggestOpen === p.id && (
+                                                                                                                <div
+                                                                                                                  className="prov-drop-menu"
+                                                                                                                  role="listbox"
+                                                                                                                  data-testid={`prov-drop-menu-${p.id}`}
+                                                                                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                                                                                >
+                                                                                                                  {[...p.models, ...(remote[p.id] ?? []).map((id) => ({ id }))]
+                                                                                                                    .filter(
+                                                                                                                      (m, i, arr) =>
+                                                                                                                        m.id && arr.findIndex((x) => x.id === m.id) === i,
+                                                                                                                    )
+                                                                                                                    .map((m) => (
+                                                                                                                      <button
+                                                                                                                        type="button"
+                                                                                                                        key={m.id}
+                                                                                                                        role="option"
+                                                                                                                        aria-selected={cfg.model === m.id}
+                                                                                                                        data-model-item={m.id}
+                                                                                                                        className={`prov-drop-item${cfg.model === m.id ? ' is-active' : ''}`}
+                                                                                                                        onClick={() => {
+                                                                                                                          void apply({
+                                                                                                                            models: { providers: { ...models.providers, [p.id]: { ...cfg, model: m.id } } },
+                                                                                                                          });
+                                                                                                                          setSuggestOpen(null);
+                                                                                                                        }}
+                                                                                                                      >
+                                                                                                                        <span className="ai-mi-name">{m.id}</span>
+                                                                                                                      </button>
+                                                                                                                    ))}
+                                                                                                                  {(!p.models.length && !(remote[p.id] ?? []).length) && (
+                                                                                                                    <div className="ai-model-empty">
+                                                                                                                      Ketik nama model di kolom, atau klik Refresh buat
+                                                                                                                      ambil dari provider.
+                                                                                                                    </div>
+                                                                                                                  )}
+                                                                                                                </div>
+                                                                                                              )}
+                                                                                                              {/* Saran dari katalog provider ini + hasil Refresh (API);
+                                                                                                                  tetap bisa diketik bebas. */}
+                                                                                                              <datalist id={`prov-models-${p.id}`}>
+                                                                                                                {[...p.models.map((m) => m.id), ...(remote[p.id] ?? [])]
+                                                                                                                  .filter((id, i, a) => id && a.indexOf(id) === i)
+                                                                                                                  .map((id) => (
+                                                                                                                    <option key={id} value={id} />
+                                                                                                                  ))}
+                                                                                                              </datalist>
                                                         <button
                                                           type="button"
                                                           className="btn btn-sm"
@@ -372,9 +423,21 @@ export function ModelsSection() {
                                       </button>
                                     </div>
                                   )}
-                                </label>
+                                                                  </label>
 
-                <div className="prov-test">
+                                                  {p.freeText && (
+                                                    <p className="set-note prov-hint" data-testid={`prov-hint-${p.id}`}>
+                                                      <strong>Cara pakai:</strong> isi <em>base URL</em> (mis.
+                                                      <code> http://127.0.0.1:11434/v1</code> buat Ollama) kalau
+                                                      lokal, lalu ketik <em>nama model</em> di kolom atau pilih
+                                                      dari <strong>▾</strong>. Klik <strong>Refresh</strong> buat
+                                                      narik daftar model langsung dari provider. Model ini muncul
+                                                      di dropdown panel AI (kiri bawah) — bukan hanya di terminal
+                                                      AI.
+                                                    </p>
+                                                  )}
+
+                                                  <div className="prov-test">
                   <button
                     type="button"
                     className="btn btn-sm"
