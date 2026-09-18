@@ -118,7 +118,10 @@ local AI work too: **Settings → Model AI**, pick **Lokal** or **Custom**, fill
 in the base URL (for Ollama: `http://127.0.0.1:11434/v1`), type the model name
 or pick it from the ▾ dropdown (the **Refresh** button pulls the model list
 straight from the provider). Custom models show up in the AI panel dropdown,
-not only in the AI terminal.
+not only in the AI terminal. Replies can be **regenerated** ([↻]) or **copied** ([⧉])
+from the bubble, and an optional **local RAG** (Settings → Model AI → Local RAG)
+searches the whole project through a local server (e.g. enowx-rag + Qdrant +
+Ollama) and feeds the top chunks to the model as context.
 
 **MCP Server :9222** — HTTP JSON-RPC with a Bearer token. 20+ methods to read
 panes, write to the terminal, open and change editor buffers, and run command

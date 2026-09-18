@@ -56,6 +56,19 @@ Open a workspace with a given language and the Marketplace suggests matching ext
 
 Zephyr is free and stays free. If you like it and want to support development, there is a **☕ Donasi** button in the **bottom status bar** (right side) and in **Settings → About**. It opens Saweria (`saweria.co/ShinRyuga04`). You can also go through **Help → Donasi** or press `Ctrl+Shift+P` and type "donasi". Every tip is appreciated.
 
+### Local RAG answers (project memory)
+
+The AI panel can now search the whole project before answering — not just the file you have open.
+
+- **Settings → Model AI → Local RAG**: turn it on, point it at a local RAG server (default `http://localhost:7777`, e.g. enowx-rag + Qdrant + Ollama), and set the project id.
+- Every question then retrieves the top chunks from your own codebase and feeds them to the model as context. Ask "how does donate work" and it answers from the actual `StatusBar.tsx`, not from guesswork.
+- If the RAG server is down or misconfigured, the chat still works — it just shows a toast instead of blocking.
+
+### Regenerate & copy answers
+
+- **↻** on any AI reply: drops that reply and re-runs the same question (same context, new answer).
+- **⧉** on any bubble: copies the message text to the clipboard. Hover a bubble to see the buttons; they hide while it is still streaming.
+
 ---
 
 ## How to update
