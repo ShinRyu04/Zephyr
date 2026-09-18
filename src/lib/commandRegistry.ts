@@ -968,15 +968,25 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSettingsSection('about'),
   },
   {
-    id: 'help.docs',
-    title: 'Help: Documentation',
-    group: 'Settings',
-    keywords: 'dokumentasi bantuan',
-    run: async () => {
-      const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {});
+      id: 'help.docs',
+      title: 'Help: Documentation',
+      group: 'Settings',
+      keywords: 'dokumentasi bantuan',
+      run: async () => {
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {});
+      },
     },
-  },
+    {
+      id: 'help.donate',
+      title: 'Help: Donasi Dukung Zephyr (Saweria)',
+      group: 'Settings',
+      keywords: 'donasi dukung saweria dana kasih support traktir',
+      run: async () => {
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl('https://saweria.co/ShinRyuga04').catch(() => {});
+      },
+    },
   {
     id: 'help.checkUpdates',
     title: 'Help: Check for Updates…',

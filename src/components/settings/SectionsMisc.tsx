@@ -466,13 +466,20 @@ export function AboutSection() {
           Buka folder data
         </button>
         <button
-          className="btn"
-          data-testid="about-releases"
-          onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr/releases').catch(() => {})}
-        >
-          Halaman rilis
-        </button>
-      </div>
+                  className="btn"
+                  data-testid="about-releases"
+                  onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr/releases').catch(() => {})}
+                >
+                  Halaman rilis
+                </button>
+                <button
+                  className="btn btn-donate"
+                  data-testid="about-donate"
+                  onClick={() => void openUrl('https://saweria.co/ShinRyuga04').catch(() => {})}
+                >
+                  ☕ Donasi (Saweria)
+                </button>
+              </div>
 
       <p className="set-note">
         Angka di Diagnostics di bawah diukur langsung dari proses ini —
