@@ -23,6 +23,14 @@ Katalog model tiap provider diisi dari yang paling awal sampe yang paling baru:
 
 Mau pake model lawas yang murah atau model terbaru, semua ada di dropdown.
 
+### Custom / Lokal AI Makin Gampang
+
+Pake model sendiri (Ollama, LM Studio, OpenAI-compatible, dll) sekarang gampang:
+
+- **Settings → Model AI → pilih "Lokal (opencode / loopback)" atau "Custom"**.
+- **Base URL** diisi (buat Ollama: `http://127.0.0.1:11434/v1`), lalu **model name** diketik di kolom — sekarang ada **tombol ▾ dropdown** biar tinggal pilih dari daftar katalog + daftar dari API (tombol **Refresh** narik model langsung dari provider).
+- **Munculnya di panel AI (kiri bawah), bukan cuma terminal AI** — dropdown model di panel AI nampilin model custom yang udah kamu set, dilengkapi logo & status key. Ada petunjuk "Cara pakai" langsung di halaman Settings.
+
 ### Notifikasi Update Dengan Daftar Perubahan
 
 Notifikasi "versi baru tersedia" (dialog update, banner, sama lonceng) sekarang nampilin catatan rilis beneran — heading, poin-poin, sama tabel daftar perubahan. Jadi langsung keliatan apa aja yang baru, bukan cuma "Versi baru tersedia".
