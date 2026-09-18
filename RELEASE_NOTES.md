@@ -1,71 +1,72 @@
 # Zephyr v1.1.8
 
-## UPDATE NIH
+## What's new
 
-Marketplace makin gede, model AI makin lengkap, notifikasi update makin jelas.
+Bigger marketplace, fuller AI model list, clearer update notes.
 
-### Marketplace Bahasa 101
+### 101 language marketplace
 
-Semua language pack programmer sekarang ada di Marketplace — dari Python, JavaScript, Rust, Go, C/C++, sampe COBOL, Brainfuck, APL, dan lainnya. Tinggal cari, Install, Enable. Jalan tanpa error.
+Every programmer language pack is now in the Marketplace, from Python, JavaScript, Rust, Go, C/C++ down to COBOL, Brainfuck, APL, and more. Search it, hit Install, hit Enable. It works without errors.
 
-### Logo Asli Tiap Bahasa
+### Real logo per language
 
-Gak pake inisial warna lagi. Tiap bahasa di Marketplace sekarang pake logo asli (Simple Icons / Devicon / VS Code Icons) yang kebundel langsung di app — offline tetep muncul.
+No more colored initials. Each language in the Marketplace now uses its real logo (Simple Icons / Devicon / VS Code Icons), bundled with the app, so they still show up offline.
 
-### Model AI Dari Dulu Sampai Sekarang
+### AI models, oldest to newest
 
-Katalog model tiap provider diisi dari yang paling awal sampe yang paling baru:
+Each provider's catalog runs from its earliest models to its latest:
 
-- **Google Gemini:** 1.0 Pro → 3.8 Flash, plus Nano Banana buat gambar
-- **OpenAI:** GPT-3.5 → GPT-6 Astra, plus seri o1/o3 buat reasoning
+- **Google Gemini:** 1.0 Pro → 3.8 Flash, plus Nano Banana for images
+- **OpenAI:** GPT-3.5 → GPT-6 Astra, plus the o1/o3 reasoning series
 - **Anthropic:** Claude 1 → Claude Fable 5.1, plus Sonnet/Opus/Haiku
-- **DeepSeek:** V3 → V4 Pro, plus Coder & Reasoner
+- **DeepSeek:** V3 → V4 Pro, plus Coder and Reasoner
 
-Mau pake model lawas yang murah atau model terbaru, semua ada di dropdown.
+Cheap old models or the newest ones, both are in the dropdown.
 
-### Custom / Lokal AI Makin Gampang
+### Custom / local AI, easier
 
-Pake model sendiri (Ollama, LM Studio, OpenAI-compatible, dll) sekarang gampang:
+Using your own model (Ollama, LM Studio, OpenAI-compatible, etc.) is simpler now:
 
-- **Settings → Model AI → pilih "Lokal (opencode / loopback)" atau "Custom"**.
-- **Base URL** diisi (buat Ollama: `http://127.0.0.1:11434/v1`), lalu **model name** diketik di kolom — sekarang ada **tombol ▾ dropdown** biar tinggal pilih dari daftar katalog + daftar dari API (tombol **Refresh** narik model langsung dari provider).
-- **Munculnya di panel AI (kiri bawah), bukan cuma terminal AI** — dropdown model di panel AI nampilin model custom yang udah kamu set, dilengkapi logo & status key. Ada petunjuk "Cara pakai" langsung di halaman Settings.
+- **Settings → Model AI → pick "Lokal (opencode / loopback)" or "Custom"**.
+- Fill in the **base URL** (for Ollama: `http://127.0.0.1:11434/v1`), then type the **model name** in the field. There is now a **▾ dropdown button** so you can pick from the catalog list plus the API list (the **Refresh** button pulls models straight from the provider).
+- It shows up in the **AI panel (bottom left), not just the AI terminal**. The AI panel dropdown lists the custom model you set, with logo and key status. A "how to use" hint sits right on the Settings page.
 
-### Notifikasi Update Dengan Daftar Perubahan
+### Update notifications with the actual changelog
 
-Notifikasi "versi baru tersedia" (dialog update, banner, sama lonceng) sekarang nampilin catatan rilis beneran — heading, poin-poin, sama tabel daftar perubahan. Jadi langsung keliatan apa aja yang baru, bukan cuma "Versi baru tersedia".
+The "new version available" notification (update dialog, banner, and bell) now shows the real release notes: headings, bullet points, and the changelog table. You can see what changed at a glance instead of a bare "New version available".
 
-### Dialog Update Gaya Zephyr
+### Zephyr-style update dialog
 
-Dialog "Zephyr v1.1.8 tersedia" sekarang versi Zephyr sendiri:
-- Lebih gede — changelog langsung kelihatan tanpa scroll panjang.
-- Ada baris versi lama → versi baru + tanggal rilis.
-- Tombol **Lihat di GitHub** buat buka halaman Release langsung.
-- Tombol **Nanti** / **Download & install**.
+The "Zephyr v1.1.8 available" dialog is now Zephyr's own:
 
-### Build Linux (Coming Soon)
+- Bigger, so the changelog is visible without long scrolling.
+- Shows old version → new version plus the release date.
+- A **View on GitHub** button that opens the Release page directly.
+- **Later** / **Download & install** buttons.
 
-Workflow GitHub Actions `build-linux` udah disiapin: pas rilis versi berikutnya, otomatis kebuild `.deb` + `.AppImage` buat Linux, release di GitHub Releases. Pantengin terus.
+### Linux build (coming soon)
 
-### Rekomendasi Extension Otomatis
+The `build-linux` GitHub Actions workflow is ready: on the next version release it automatically builds `.deb` + `.AppImage` for Linux and attaches them to GitHub Releases. Stay tuned.
 
-Buka workspace dengan bahasa tertentu, Marketplace nyaranin extension yang cocok buat bahasa itu.
+### Automatic extension recommendations
 
-### Donasi (Saweria)
+Open a workspace with a given language and the Marketplace suggests matching extensions.
 
-Zephyr gratis dan tetap gratis. Kalau kamu suka dan mau dukung pengembangannya, ada tombol **☕ Donasi** di **status bar bawah** (kanan) dan di **Settings → Tentang** — langsung buka Saweria (`saweria.co/ShinRyuga04`). Bisa juga lewat **Help → Donasi** atau `Ctrl+Shift+P` → ketik "donasi". Traktiranmu banget diapresiasi. 🙏
+### Donations (Saweria)
 
----
-
-## Cara Update
-
-- **Baru pertama:** ambil `Zephyr_1.1.8_x64-setup.exe` atau `.msi` di Releases.
-- **Udah punya:** Settings → About → Check for updates. Atau tunggu notif lonceng kalo auto-update nyala.
-
-Signature installer diverifikasi app sebelum install. SmartScreen tetep bisa protes karena bukan sertifikat EV — More info → Run anyway. Aman.
+Zephyr is free and stays free. If you like it and want to support development, there is a **☕ Donasi** button in the **bottom status bar** (right side) and in **Settings → About**. It opens Saweria (`saweria.co/ShinRyuga04`). You can also go through **Help → Donasi** or press `Ctrl+Shift+P` and type "donasi". Every tip is appreciated.
 
 ---
 
-**Catatan:** installer ditandatangani (minisign) buat auto-update, jadi update yang ke-download cuma dipasang kalo signature-nya cocok.
+## How to update
 
-Gaskeun.
+- **First time:** grab `Zephyr_1.1.8_x64-setup.exe` or the `.msi` from Releases.
+- **Already have it:** Settings → About → Check for updates. Or wait for the bell if auto-update is on.
+
+The app verifies the installer signature before installing. SmartScreen can still complain because this is not an EV certificate. More info → Run anyway. It is safe.
+
+---
+
+**Note:** installers are signed (minisign) for auto-update, so a downloaded update only installs if its signature matches.
+
+Enjoy.

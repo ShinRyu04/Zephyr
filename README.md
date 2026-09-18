@@ -6,222 +6,226 @@
 
 **Code faster. Lighter. Yours.**
 
-Code editor desktop untuk Windows, dibangun dari nol dengan Tauri 2 + React +
-Rust. Bukan fork VS Code, bukan Electron.
+A desktop code editor for Windows, built from scratch with Tauri 2 + React +
+Rust. Not a VS Code fork, not Electron.
 
 `v1.1.8` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
-![Zephyr — editor, explorer, dan terminal](docs/screenshots/01-editor.png)
+![Zephyr — editor, explorer, and terminal](docs/screenshots/01-editor.png)
 
-## Kenapa ini ada
+## Why this exists
 
-Gua mau editor yang rasanya seperti VS Code tapi tidak menyeret runtime browser
-sendiri, dan yang bisa dikendalikan langsung oleh AI CLI yang sudah gua pakai
-sehari-hari. Zephyr menjawab dua-duanya: satu proses Rust, WebView2 bawaan
-Windows sebagai renderer, dan server MCP di port 9222 supaya Claude Code, Codex,
-Gemini CLI, atau opencode bisa membaca dan mengubah isi jendelanya.
+I wanted an editor that feels like VS Code but does not drag along its own
+browser runtime, and that the AI CLIs I already use every day can drive
+directly. Zephyr does both: one Rust process, the WebView2 that ships with
+Windows as the renderer, and an MCP server on port 9222 so Claude Code, Codex,
+Gemini CLI, or opencode can read and change what is in the window.
 
-Installer NSIS-nya 6,1 MB dan MSI-nya 9,0 MB. Sebagai pembanding, installer
-editor berbasis Electron biasanya 80–120 MB.
+The NSIS installer is 6.1 MB and the MSI is 9.0 MB. For comparison, an
+Electron-based editor installer is usually 80–120 MB.
 
-## Instal
+## Install
 
-Butuh **Windows 10/11** (WebView2 Runtime sudah ada di Windows 11, jadi biasanya
-langsung jalan tanpa install tambahan).
+You need **Windows 10/11** (WebView2 Runtime ships with Windows 11, so it
+usually runs with nothing extra to install).
 
-### Cara install Zephyr (3 langkah)
+### Installing Zephyr (3 steps)
 
-1. **Unduh installer** — `Zephyr_1.1.8_x64-setup.exe` (atau `.msi`) dari
-   halaman [Releases](https://github.com/ShinRyu04/Zephyr/releases). Cari file
-   `Zephyr_1.1.8_x64-setup.exe` — itu installer-nya.
-2. **Jalankan installer** — kalau SmartScreen muncul, klik **More info → Run
-   anyway**. Ini normal: installer belum ditandatangani, bukan berarti
-   berbahaya. Source-nya terbuka dan bisa diverifikasi.
-3. **Selesai** — Zephyr terbuka. Di sidebar kiri klik **Open Folder** untuk
-   membuka proyekmu, atau **Open File** untuk file tunggal.
+1. **Download the installer** — `Zephyr_1.1.8_x64-setup.exe` (or the `.msi`)
+   from the [Releases](https://github.com/ShinRyu04/Zephyr/releases) page. Look
+   for the file named `Zephyr_1.1.8_x64-setup.exe`. That is the installer.
+2. **Run the installer** — if SmartScreen shows up, click **More info → Run
+   anyway**. This is normal for a build without an EV certificate. It does not
+   mean the file is harmful. The source is open and can be checked.
+3. **Done** — Zephyr opens. In the left sidebar click **Open Folder** for a
+   project, or **Open File** for a single file.
 
-Tidak perlu install apa pun tambahan — Rust, Node, dan WebView2 sudah ditangani
-installer. Data dan settings tersimpan di `%APPDATA%\zephyr\`.
+Nothing else needs installing. Rust, Node, and WebView2 are handled by the
+installer. Data and settings live in `%APPDATA%\zephyr\`.
 
-### Cara install ekstensi (2 cara)
+### Installing extensions (2 ways)
 
-**Dari Marketplace:**
-1. Buka panel **Extensions** (ikon kotak-kotak di sidebar kiri, atau
+**From the Marketplace:**
+1. Open the **Extensions** panel (the grid icon in the left sidebar, or
    `Ctrl+Shift+X`).
-2. Tab **Marketplace** → ketik nama ekstensi di kotak cari → klik **Install**
-   pada hasil yang kamu mau.
-3. Zephyr mengunduh `.vsix` langsung dari **Open VSX** — jadi ekstensi VS Code
-   publik yang tersedia di sana ikut tersedia.
+2. Go to the **Marketplace** tab → type the extension name in the search box →
+   click **Install** on the one you want.
+3. Zephyr downloads the `.vsix` straight from **Open VSX**, so public VS Code
+   extensions listed there are available too.
 
-**Dari file `.vsix` manual:**
-1. Unduh file `.vsix` dari mana pun (halaman rilis ekstensi, Open VSX, dll).
-2. Di panel Extensions, klik tombol **⋯** (pojok kanan header) →
-   **Install from .vsix…** → pilih filenya.
-3. Selesai — ekstensi muncul di tab **Installed** dan bisa diaktifkan/dimatikan.
+**From a manual `.vsix` file:**
+1. Download the `.vsix` from anywhere (an extension release page, Open VSX,
+   etc.).
+2. In the Extensions panel, click the **⋯** button (top-right of the header) →
+   **Install from .vsix…** → pick the file.
+3. Done. The extension shows up in the **Installed** tab and can be turned on
+   and off.
 
-> **Catatan penting soal ekstensi:** kode JS ekstensi dijalankan di **sandbox
-> Web Worker terisolasi** — tidak bisa menyentuh `window`, `require` modul
-> sistem, atau fs. Command dari ekstensi ikut terdaftar di Command Palette;
-> tema, snippet, keymap, dan bahasa tetap jalan. Ekstensi yang butuh runtime
-> eksternal (Python, Java, Docker, dll.) tidak bisa jalan penuh karena sandbox
-> sengaja diputus dari sistem.
+> **Worth knowing about extensions:** extension JS runs in an **isolated
+> sandbox Web Worker**. It cannot touch `window`, load system modules, or
+> reach the filesystem. Commands from extensions still register in the Command
+> Palette; themes, snippets, keymaps, and languages keep working. Extensions
+> that need an outside runtime (Python, Java, Docker, etc.) cannot run fully
+> because the sandbox is cut off from the system on purpose.
 
-### Cara pakai SSH ke server/VPS
+### Using SSH to reach a server/VPS
 
-1. Buka **Settings → SSH** (atau panel terminal → dropdown Connect SSH).
-2. Klik **+ Tambah host** — isi nama, host (IP/domain), port (default 22),
-   user, dan metode auth (kunci SSH atau password).
-3. Klik **Connect** — terbuka pane terminal yang terhubung ke server. Ketik
-   password/passphrase langsung di pane kalau diminta.
-4. Untuk memutuskan: klik **X** di header pane, atau kanan-klik pane →
+1. Open **Settings → SSH** (or the terminal panel → Connect SSH dropdown).
+2. Click **+ Add host**. Fill in the name, host (IP/domain), port (default 22),
+   user, and auth method (SSH key or password).
+3. Click **Connect**. A terminal pane opens connected to the server. Type your
+   password/passphrase right in the pane when asked.
+4. To disconnect: click **X** in the pane header, or right-click the pane →
    **Disconnect**.
 
-Data dan settings disimpan di `%APPDATA%\zephyr\` — hapus folder itu untuk
-reset penuh.
+Data and settings sit in `%APPDATA%\zephyr\`. Delete that folder for a full
+reset.
 
-![Settings → SSH: kelola host dan buka sesi sebagai pane terminal](docs/screenshots/04-ssh.png)
+![Settings → SSH: manage hosts and open sessions as terminal panes](docs/screenshots/04-ssh.png)
 
-## Yang ada di dalamnya
+## What is inside
 
-**Editor** — CodeMirror 6. Tab multi-file, deteksi encoding (UTF-8, BOM,
-Windows-1252, UTF-16), file di atas 4 MB masuk mode ringan baca-saja, find &
-replace regex dengan batas langkah supaya pola katastrofik tidak menggantung UI.
-Snippet memakai format VS Code apa adanya, jadi file snippet lama bisa disalin
-langsung.
+**Editor** — CodeMirror 6. Multi-file tabs, encoding detection (UTF-8, BOM,
+Windows-1252, UTF-16), files over 4 MB open in a light read-only mode, find &
+replace with regex plus a step cap so catastrophic patterns cannot hang the UI.
+Snippets use the VS Code format as-is, so old snippet files copy over directly.
 
-**Terminal** — sampai 6 pane per tab lewat ConPTY: PowerShell, cmd, pwsh, bash,
-WSL. Ada Private Terminal yang scrollback-nya dihapus saat ditutup, pane khusus
-AI agent CLI, dan browser pane dengan "Split With Browser".
+**Terminal** — up to 6 panes per tab through ConPTY: PowerShell, cmd, pwsh,
+bash, WSL. There is a Private Terminal whose scrollback is wiped when closed, a
+dedicated AI agent CLI pane, and a browser pane via "Split With Browser".
 
-**SSH** — kelola daftar host (nama, host, port, user, auth key/password) di
-Settings → SSH, lalu buka koneksinya sebagai pane terminal biasa. Password
-hanya disimpan bila kamu memilih "simpan", dan itu pun terenkripsi (XOR+BLAKE3)
-di `ssh.json`, bukan plaintext.
+**SSH** — keep a host list (name, host, port, user, key/password auth) in
+Settings → SSH, then open each connection as a plain terminal pane. Passwords
+are stored only if you pick "save", and even then encrypted (XOR+BLAKE3) in
+`ssh.json`, not plaintext.
 
 **Source Control** — status, diff, stage, commit, branch, push/pull/sync, log.
-Diff file biner dilabeli alih-alih memuntahkan byte mentah. Push saat remote
-lebih baru menawarkan pull dulu, bukan menolak diam-diam.
+Binary file diffs get a label instead of dumping raw bytes. Pushing when the
+remote moved ahead offers a pull first instead of failing quietly.
 
-![Source Control dengan perubahan nyata](docs/screenshots/02-source-control.png)
+![Source Control with real changes](docs/screenshots/02-source-control.png)
 
-**Language intelligence** — LSP per bahasa: completion, hover, go-to-definition,
-diagnostics, rename. Debugger lewat DAP (js-debug) dengan breakpoint, step,
-watch, dan call stack.
+**Language intelligence** — per-language LSP: completion, hover,
+go-to-definition, diagnostics, rename. Debugging through DAP (js-debug) with
+breakpoints, stepping, watch, and call stack.
 
-**AI Panel** — chat streaming dengan tiga adapter (OpenAI, Anthropic, Gemini),
-katalog model berlogo (dari rilis pertama sampai terbaru). API key disimpan di
-sisi Rust; frontend hanya melihat `hasKey` dan versi tersamar. Support
-custom/local AI: **Settings → Model AI** pilih **Lokal** atau **Custom**, isi
-base URL (mis. `http://127.0.0.1:11434/v1` buat Ollama), ketik nama model atau
-pilih dari dropdown ▾ (tombol **Refresh** menarik daftar model langsung dari
-provider). Model custom muncul di dropdown panel AI, bukan cuma di terminal AI.
+**AI Panel** — streaming chat with three adapters (OpenAI, Anthropic, Gemini),
+a model catalog with logos (oldest release through newest). API keys stay on
+the Rust side; the frontend only sees `hasKey` and a masked version. Custom and
+local AI work too: **Settings → Model AI**, pick **Lokal** or **Custom**, fill
+in the base URL (for Ollama: `http://127.0.0.1:11434/v1`), type the model name
+or pick it from the ▾ dropdown (the **Refresh** button pulls the model list
+straight from the provider). Custom models show up in the AI panel dropdown,
+not only in the AI terminal.
 
-**MCP Server :9222** — HTTP JSON-RPC dengan Bearer token. 20+ method untuk
-membaca pane, menulis ke terminal, membuka dan mengubah buffer editor, dan
-menjalankan command palette. `editor_write` sengaja hanya menyentuh buffer, tidak
-menulis ke disk — AI yang salah tidak bisa merusak file tanpa kamu menyimpannya.
+**MCP Server :9222** — HTTP JSON-RPC with a Bearer token. 20+ methods to read
+panes, write to the terminal, open and change editor buffers, and run command
+palette commands. `editor_write` only touches the buffer, never the disk, so a
+misbehaving AI cannot wreck a file without you saving it.
 
-**Command palette** — dua mode dalam satu modal: `Ctrl+Shift+P` untuk command,
-`Ctrl+P` untuk file. Pencocokannya berlapis: prefix, awal kata, substring, lalu
-subsequence.
+**Command palette** — two modes in one modal: `Ctrl+Shift+P` for commands,
+`Ctrl+P` for files. Matching runs in layers: prefix, word start, substring,
+then subsequence.
 
 ![Command palette](docs/screenshots/03-palette.png)
 
-**GitHub login** — login akun GitHub lewat device flow (browser), tampil sebagai
-avatar di pojok kiri bawah, dipakai untuk push/pull tanpa repot credential.
+**GitHub login** — sign in with your GitHub account through the device flow
+(browser), show up as an avatar in the bottom-left corner, push and pull
+without credential hassle.
 
-**Split editor** — bagi editor jadi dua grup (View → Split Editor Right,
-`Ctrl+\`), tiap grup punya tab bar sendiri, gabungkan kembali kapan saja.
+**Split editor** — split the editor into two groups (View → Split Editor Right,
+`Ctrl+\`), each group with its own tab bar, merge back any time.
 
-**Ekstensi & Marketplace** — cari & pasang ekstensi dari Open VSX langsung di
-panel Extensions, lengkap dengan logo asli, jumlah unduhan, rating, dan filter
-kategori; atau install `.vsix` manual dari folder.
+**Extensions & Marketplace** — find and install extensions from Open VSX right
+in the Extensions panel, with real logos, download counts, ratings, and
+category filters; or install a manual `.vsix` from a folder.
 
-![Marketplace ekstensi dengan logo asli](docs/screenshots/05-market.png)
+![Extension marketplace with real logos](docs/screenshots/05-market.png)
 
-**Notifikasi update** — Zephyr bisa memeriksa rilis baru dari dalam app
-(Settings → Tentang → Cek update) dan memasangnya sendiri. Aktifkan "Cek
-pembaruan otomatis" di Settings → General: tiap app dibuka, Zephyr cek
-sendiri dan muncul notifikasi di lonceng kalau ada versi baru — klik "Lihat
-& pasang" langsung beres. Saat update selesai ada pemberitahuan, setelah
-restart muncul banner "Zephyr diperbarui ke vX" dengan catatan rilis, dan
-info bug/berita tampil lewat Notification Center (lonceng di status bar).
+**Update notifications** — Zephyr can check for new releases from inside the
+app (Settings → Tentang → Check update) and install them itself. Turn on
+"Check for updates automatically" in Settings → General: each time the app
+opens, Zephyr checks on its own and a bell notification appears when a new
+version exists. Clicking "Lihat & pasang" finishes it. A notice confirms the
+finished update, after restart a "Zephyr updated to vX" banner shows the
+release notes, and bug/news info comes through the Notification Center (the
+bell in the status bar).
 
-**Menu bar lengkap** — File / Edit / Selection / View / Go / Run / Terminal /
-Help semuanya aktif: undo-redo, cut-copy-paste, komentar, seleksi multi-kursor,
-toggle breadcrumbs/minimap/sticky scroll, ganti tema, lompat antar error,
-riwayat tab (Go → Back/Forward), reopen editor yang ditutup, buka jendela
-baru, dan keluar. Semua item juga tersedia di Command Palette
+**Full menu bar** — File / Edit / Selection / View / Go / Run / Terminal /
+Help all work: undo-redo, cut-copy-paste, comments, multi-cursor selection,
+breadcrumbs/minimap/sticky scroll toggles, theme switching, jumping between
+errors, tab history (Go → Back/Forward), reopening closed editors, opening new
+windows, and quitting. Every item is also in the Command Palette
 (`Ctrl+Shift+P`).
 
-**Donasi** — Zephyr gratis. Kalau suka, ada tombol **☕ Donasi** di status bar
-bawah (kanan) dan di **Settings → Tentang** → buka Saweria
-(`saweria.co/ShinRyuga04`). Juga tersedia lewat **Help → Donasi** atau Command
-Palette (ketik "donasi").
+**Donations** — Zephyr is free. If you like it, a **☕ Donasi** button sits in
+the bottom status bar (right side) and in **Settings → Tentang**, opening
+Saweria (`saweria.co/ShinRyuga04`). It is also under **Help → Donasi** or in
+the Command Palette (type "donasi").
 
-**Sisanya** — global search lewat ripgrep, tasks runner dengan problem matcher,
-local history + timeline, multi-root workspace dengan workspace trust, 7 tema
-(+ Senja), CLI launcher (`zephyr .`, `--diff`, `--wait`), dan Settings 14
-section dengan shortcut yang bisa di-remap beserta deteksi konflik.
+**The rest** — global search through ripgrep, a tasks runner with problem
+matchers, local history + timeline, multi-root workspaces with workspace trust,
+7 themes (+ Senja), a CLI launcher (`zephyr .`, `--diff`, `--wait`), and a
+14-section Settings page with remappable shortcuts plus conflict detection.
 
-## Aksesibilitas
+## Accessibility
 
-Bukan tempelan. Fase terakhir seluruhnya soal ini:
+Not a bolt-on. The last phase was entirely about this:
 
-- Kontras WCAG AA untuk teks di **7 tema** — 29 token digeser sampai lolos,
-  diverifikasi oleh `scripts/a11y-kontras.mjs` yang mengukur nilai hex final,
-  bukan float.
-- Tema **High Contrast** memenuhi AAA: 23/23 pasangan warna, teks utama 21:1.
-- Keyboard-only: focus trap di semua dialog modal, skip link sebagai elemen
-  fokusabel pertama, focus ring dua lapis lewat `:focus-visible`.
-- Screen reader: satu live region untuk seluruh app, `screenReaderMode` xterm,
-  dan nama aksesibel untuk area editor CodeMirror.
-- `prefers-reduced-motion` dihormati, plus setelan aplikasi terpisah.
-- axe-core dijalankan pada dokumen hidup di WebView2 — 0 pelanggaran.
+- WCAG AA contrast for text in **7 themes**. 29 tokens moved until they passed,
+  checked by `scripts/a11y-kontras.mjs`, which measures final hex values, not
+  floats.
+- The **High Contrast** theme passes AAA: 23/23 color pairs, main text at 21:1.
+- Keyboard-only: focus traps in every modal dialog, a skip link as the first
+  focusable element, a two-layer focus ring through `:focus-visible`.
+- Screen readers: one live region for the whole app, `screenReaderMode` in
+  xterm, and accessible names for the CodeMirror editor area.
+- `prefers-reduced-motion` is respected, plus a separate in-app setting.
+- axe-core runs against the live document in WebView2. 0 violations.
 
-## Kondisi jujur
+## Honest state
 
-Ekstensi dari marketplace dijalankan di **sandbox Web Worker terisolasi**:
-kode JS-nya jalan (command muncul di palette), tapi tidak bisa menyentuh
-`window`, modul sistem (`fs`, `child_process`, dll.), atau IPC Zephyr.
-Ekstensi yang butuh runtime eksternal (Python, Java, Docker, dll.) tetap tidak
-bisa jalan penuh — itu batas sandbox, bukan bug.
+Marketplace extensions run in an **isolated sandbox Web Worker**: their JS runs
+(commands show up in the palette) but cannot touch `window`, system modules
+(`fs`, `child_process`, etc.), or Zephyr IPC. Extensions that need an outside
+runtime (Python, Java, Docker, etc.) still cannot run fully. That is the
+sandbox doing its job, not a bug.
 
-Installer ditandatangani dengan kunci minisign Zephyr (diverifikasi app saat
-auto-update), tapi itu bukan code-signing certificate dari CA, jadi SmartScreen
-tetap bisa memperingatkan saat pertama kali dijalankan.
+Installers carry a Zephyr minisign key (the app checks it during auto-update),
+but that is not a CA-issued code-signing certificate, so SmartScreen can still
+warn on first run.
 
-Auto-update dalam aplikasi aktif: tombol "Cek update" di Settings → Tentang
-memeriksa GitHub Releases dan memasang versi baru langsung dari app. Artefak
-update ditandatangani dengan kunci minisign Zephyr; versi lama menemukan
-versi baru ini lewat `latest.json`.
+In-app auto-update works: the "Check update" button in Settings → Tentang
+checks GitHub Releases and installs the new version from inside the app. Update
+artifacts carry the Zephyr minisign key; old versions find new ones through
+`latest.json`.
 
-API key disimpan dengan XOR + kunci BLAKE3 dari MachineGuid. Itu **obfuskasi,
-bukan enkripsi** — cukup untuk mencegah key terbaca sekilas, tidak cukup
-melindungi dari orang yang sudah memegang akun Windows kamu. Lihat
+API keys are stored with XOR + a BLAKE3 key from the MachineGuid. That is
+**obfuscation, not encryption**. Enough to stop a key from being read at a
+glance, not enough against someone who already holds your Windows account. See
 [SECURITY.md](SECURITY.md).
 
-## Bangun dari sumber
+## Build from source
 
 ```bash
 npm install
-npm run tauri dev          # mode dev
-npm run tauri build        # MSI + NSIS di src-tauri/target/release/bundle/
+npm run tauri dev          # dev mode
+npm run tauri build        # MSI + NSIS in src-tauri/target/release/bundle/
 ```
 
-Butuh Rust stable, Node 20+, dan WebView2 Runtime (sudah ada di Windows 11).
+Needs Rust stable, Node 20+, and the WebView2 Runtime (already on Windows 11).
 
-## Verifikasi
+## Verification
 
-Verifikasi tidak "dianggap lulus" — tiap fase dibuktikan dari DOM dan state yang
-hidup lewat Chrome DevTools Protocol:
+Verification is never "assumed to pass". Every phase is proven against the live
+DOM and state through the Chrome DevTools Protocol:
 
 ```bash
 npm run dev                # terminal 1
 
-# terminal 2 — app dengan port debug WebView2
+# terminal 2 — app with the WebView2 debug port
 cd src-tauri
 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223" \
   ./target/debug/zephyr.exe
@@ -229,10 +233,10 @@ WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223" \
 npm run verify:31          # terminal 3
 ```
 
-Harness ada di `scripts/verify*.mjs`. Unit test Rust: `cd src-tauri && cargo test
---lib` (148 test). Screenshot di README ini juga dihasilkan dari app hidup lewat
-`scripts/shot.mjs`, bukan mockup.
+Harnesses live in `scripts/verify*.mjs`. Rust unit tests: `cd src-tauri &&
+cargo test --lib` (148 tests). The screenshots in this README also come from
+the live app through `scripts/shot.mjs`, not mockups.
 
-## Lisensi
+## License
 
-Tidak dilisensikan. Semua hak dipegang pemilik repositori.
+Not licensed. All rights stay with the repository owner.
