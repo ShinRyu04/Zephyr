@@ -69,6 +69,8 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const isUser = msg.role === 'user';
   const def = msg.model ? findModel(msg.model) : null;
+  const regenerate = useAi((s) => s.regenerate);
+  const setToast = useAi((s) => s.setToast);
 
   return (
     <div
@@ -85,6 +87,30 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             <span className="ai-who">{def?.label ?? 'Assistant'}</span>
           </>
         )}
+        <span className="ai-msg-actions">
+          {!isUser && !msg.streaming && !msg.error && (
+            <button
+              className="ai-msg-act"
+              data-testid="ai-regenerate"
+              title="Buat ulang jawaban ini"
+              onClick={() => void regenerate()}
+            >
+              ↻
+            </button>
+          )}
+          {!msg.streaming && !msg.error && (
+            <button
+              className="ai-msg-act"
+              data-testid="ai-copy-msg"
+              title="Salin isi jawaban"
+              onClick={() => {
+                void clipboardWrite(msg.content).then(() => setToast('Disalin'));
+              }}
+            >
+              ⧉
+            </button>
+          )}
+        </span>
         {msg.attached && (
           <span className="ai-attach-chip" title={msg.attached.path} data-testid="ai-attach-chip">
             {msg.attached.path.split(/[\\/]/).pop()}

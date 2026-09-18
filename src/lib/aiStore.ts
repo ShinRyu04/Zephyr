@@ -221,6 +221,8 @@ interface AiActions {
   newChat: () => string;
     selectChat: (id: string) => void;
     deleteChat: (id: string) => void;
+    /** Ulangi jawaban AI terakhir (tombol ↻). */
+    regenerate: () => Promise<void>;
     activeSession: () => ChatSession | null;
     /** Salin seluruh sesi aktif ke clipboard sebagai markdown. */
     exportChat: () => Promise<void>;
@@ -361,6 +363,25 @@ export const useAi = create<AiStore>((set, get) => ({
     persist(get());
   },
 
+  /** Ulangi jawaban terakhir: hapus balasan AI terakhir lalu kirim ulang
+   *  pertanyaan user terakhir. Dipakai tombol ↻ di bubble. */
+  regenerate: async () => {
+    if (get().pending) return;
+    const s = get().activeSession();
+    if (!s) return;
+    const last = [...s.messages].reverse().find((m) => m.role === 'user' && !m.error);
+    if (!last) return;
+    // Buang pesan setelah pertanyaan terakhir (biasanya jawaban AI yang mau diganti).
+    const idx = s.messages.findIndex((m) => m.id === last.id);
+    const keep = s.messages.slice(0, idx + 1);
+    set((st) => ({
+      sessions: st.sessions.map((x) =>
+        x.id === s.id ? { ...x, messages: keep } : x,
+      ),
+    }));
+    await get().send(last.content);
+  },
+
   activeSession: () => get().sessions.find((s) => s.id === get().activeId) ?? null,
 
   exportChat: async () => {
@@ -446,6 +467,31 @@ export const useAi = create<AiStore>((set, get) => ({
     }
 
     const reqId = nextId('req');
+    let ragContext: string | null = null;
+    const rag = useStore.getState().settings.models;
+    if (rag.ragEnabled && rag.ragUrl.trim() && rag.ragProject.trim()) {
+      try {
+        const hits = await cmd.ragSearch(
+          rag.ragUrl.trim().replace(/\/+$/, ''),
+          rag.ragProject.trim(),
+          raw.slice(0, 400),
+          rag.ragK || 4,
+        );
+        if (hits.length > 0) {
+          ragContext =
+            'Konteks RAG dari project ini (jawab berdasarkan ini kalau relevan):\n\n' +
+            hits
+              .map(
+                (h, i) =>
+                  `[${i + 1}] ${h.sourceFile || '(tanpa file)'} (skor ${h.score.toFixed(2)})\n${h.content}`,
+              )
+              .join('\n\n---\n\n');
+        }
+      } catch (e) {
+        // RAG mati / salah config: jangan blokir chat, beri tahu saja.
+        set({ toast: cmd.asZephyrError(e).message });
+      }
+    }
         const userMsg: ChatMsg = {
           id: nextId('m'),
           role: 'user',
@@ -478,6 +524,10 @@ export const useAi = create<AiStore>((set, get) => ({
     // bahasa pilihan. 'follow' = biarkan model mengikuti bahasa pertanyaan.
     const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
         if (sys) history.unshift({ role: 'system', content: sys });
+    // Konteks RAG disisipkan sebagai pesan "user" terpisah sebelum pertanyaan
+    // asli, supaya model melihatnya tanpa dicampur ke riwayat chat (dan tanpa
+    // membebani payload bila RAG kosong).
+    if (ragContext) history.push({ role: 'user', content: ragContext });
             history.push({ role: 'user', content: payloadContent + IDENTITY_REMINDER, ...(img ? { image: img } : {}) });
 
     set((s) => ({
