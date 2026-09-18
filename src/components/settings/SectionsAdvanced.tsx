@@ -215,7 +215,47 @@ export function ModelsSection() {
         )}
       </Row>
 
-      <div className="prov-list">
+            {/* RAG lokal: cari konteks project sebelum kirim ke LLM. (fase 34) */}
+            <Row label="RAG lokal" hint="Pakai server RAG (mis. enowx-rag di localhost:7777) untuk mencari konteks project sebelum menjawab. Mati = chat biasa.">
+              <div className="prov-rag">
+                <Toggle
+                  label="Aktifkan RAG"
+                  testid="models-rag-toggle"
+                  checked={models.ragEnabled}
+                  onChange={(v) => void apply({ models: { ragEnabled: v } })}
+                />
+                {models.ragEnabled && (
+                  <>
+                    <TextInput
+                      label="Base URL"
+                      testid="models-rag-url"
+                      mono
+                      placeholder="http://localhost:7777"
+                      value={models.ragUrl}
+                      onChange={(v) => void apply({ models: { ragUrl: v } })}
+                    />
+                    <TextInput
+                      label="Project ID"
+                      testid="models-rag-project"
+                      mono
+                      placeholder="zephyr"
+                      value={models.ragProject}
+                      onChange={(v) => void apply({ models: { ragProject: v } })}
+                    />
+                    <NumberInput
+                      label="Jumlah chunk"
+                      testid="models-rag-k"
+                      min={1}
+                      max={20}
+                      value={models.ragK}
+                      onChange={(v) => void apply({ models: { ragK: v } })}
+                    />
+                  </>
+                )}
+              </div>
+            </Row>
+
+            <div className="prov-list">
         {PROVIDERS.map((p) => {
           const cfg = models.providers[p.id] ?? {};
           const has = ui.hasKey(p.id);

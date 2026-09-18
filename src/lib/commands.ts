@@ -205,6 +205,19 @@ export const listWorkspaceFiles = (limit?: number) =>
 /** fase 12: cek apakah URL boleh di-embed di iframe (header dibaca Rust). */
 export const browserProbe = (url: string) => invoke<ProbeResult>('browser_probe', { url });
 
+// ── RAG lokal (fase 34) ──
+// Bukan fetch biasa: server enowx-rag (localhost:7777) tidak kirim CORS,
+// jadi request lewat Rust (ureq) seperti browser_probe.
+
+export interface RagHit {
+  content: string;
+  sourceFile: string;
+  score: number;
+}
+/** Cari konteks project di server RAG. Gagal = Err (toast), bukan diam. */
+export const ragSearch = (baseUrl: string, project: string, query: string, k: number) =>
+  invoke<RagHit[]>('rag_search', { baseUrl, project, query, k });
+
 // ── terminal / pty (fase 05) ──
 
 export const listShells = () => invoke<ShellInfo[]>('list_shells');

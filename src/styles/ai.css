@@ -369,6 +369,33 @@
 .ai-dots {
   animation: ai-blink 1.1s steps(1) infinite;
 }
+.ai-msg-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.ai-msg:hover .ai-msg-actions,
+.ai-msg:focus-within .ai-msg-actions {
+  opacity: 1;
+}
+.ai-msg-act {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 5px;
+  cursor: pointer;
+}
+.ai-msg-act:hover {
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
 @keyframes ai-blink {
   50% {
     opacity: 0.25;

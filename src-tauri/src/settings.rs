@@ -62,7 +62,7 @@ pub fn default_settings() -> Value {
         },
         "theme": { "current": "zephyr-dark", "accent": "#3884ff" },
         "shortcuts": {},
-        "models": { "activeProvider": "gemini", "providers": {} },
+        "models": { "activeProvider": "gemini", "providers": {}, "answerLang": "follow", "ragEnabled": false, "ragUrl": "http://localhost:7777", "ragProject": "", "ragK": 4 },
         "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
         // `trust` = whitelist runtime eksternal per ekstensi
         // (ext_exec membaca dari sini; kosong = semua ditolak).

@@ -28,6 +28,7 @@ mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
 mod paths;
+mod rag;
 mod pty;
 mod search;
 mod secrets;
@@ -231,7 +232,9 @@ pub fn run() {
             explorer::search_files,
             explorer::list_workspace_files,
             // browser pane (fase 12)
-            browser::browser_probe,
+                        browser::browser_probe,
+                        // RAG lokal (fase 34): cari konteks project sebelum kirim ke LLM.
+                        rag::rag_search,
             explorer::replace_in_file,
             explorer::reveal_path,
             // terminal / pty (fase 05)

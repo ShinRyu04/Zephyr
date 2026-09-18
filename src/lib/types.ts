@@ -786,11 +786,19 @@ export interface Settings {
   layout: 'default' | 'focus' | 'term' | 'quad';
   shortcuts: Record<string, string>;
   models: {
-    activeProvider: string;
-    providers: Record<string, { baseUrl?: string; model?: string }>;
-    /** bahasa jawaban AI: 'follow' = ikuti pertanyaan; 'id'/'en'; atau nama bahasa bebas */
-    answerLang: string;
-  };
+      activeProvider: string;
+      providers: Record<string, { baseUrl?: string; model?: string }>;
+      /** bahasa jawaban AI: 'follow' = ikuti pertanyaan; 'id'/'en'; atau nama bahasa bebas */
+      answerLang: string;
+      /** RAG lokal (enowx-rag + Qdrant + Ollama): cari konteks project sebelum kirim ke LLM. */
+      ragEnabled: boolean;
+      /** base URL server RAG (mis. http://localhost:7777) */
+      ragUrl: string;
+      /** project id di server RAG (mis. nama workspace/repo) */
+      ragProject: string;
+      /** jumlah chunk yang diambil per pencarian */
+      ragK: number;
+    };
   agents: {
     maxPanes: number;
     order: string[];
@@ -897,7 +905,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebar: 'left',
   layout: 'default',
   shortcuts: {},
-  models: { activeProvider: 'gemini', providers: {}, answerLang: 'follow' },
+  models: { activeProvider: 'gemini', providers: {}, answerLang: 'follow', ragEnabled: false, ragUrl: 'http://localhost:7777', ragProject: '', ragK: 4 },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
   extensions: { enabled: [], trust: {} },
   // fase 31: default a11y = tidak mengubah perilaku. Reduced motion tetap
