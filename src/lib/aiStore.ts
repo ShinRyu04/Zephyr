@@ -32,19 +32,31 @@ export const ATTACH_LIMIT = 12 * 1024;
 export const MSG_LIMIT = 8 * 1024;
 
 /**
- * Instruksi bahasa jawaban AI (Settings → Model AI).
- * Mengembalikan '' kalau 'follow' (biarkan model mengikuti bahasa pertanyaan).
- * Instruksi ditulis dalam bahasa sasarannya sendiri supaya tidak bergantung
- * pada pemahaman model terhadap bahasa Indonesia.
+ * Identitas + instruksi bahasa jawaban AI (Settings → Model AI).
+ * Identitas SELALU dikirim supaya model memperkenalkan diri sebagai Zephyr AI
+ * apa pun provider/key yang dipakai; instruksi bahasa menyusul bila disetel.
  */
 export function systemPromptFor(answerLang: string): string {
-  if (!answerLang || answerLang === 'follow') return '';
-  if (answerLang === 'id') return 'Selalu jawab dalam bahasa Indonesia.';
-  if (answerLang === 'en') return 'Always answer in English.';
+  const id =
+    'Kamu adalah Zeph, asisten AI bawaan editor Zephyr. ' +
+    'Jawab dengan ramah, jelas, dan ringkas.';
+  if (!answerLang || answerLang === 'follow') return id;
+  if (answerLang === 'id') return `${id} Selalu jawab dalam bahasa Indonesia.`;
+  if (answerLang === 'en') return `${id} Always answer in English.`;
   // Bahasa bebas (custom): dipakai apa adanya — model modern mengerti nama
   // bahasa dalam konteks ini.
-  return `Selalu jawab dalam bahasa ${answerLang}.`;
+  return `${id} Selalu jawab dalam bahasa ${answerLang}.`;
 }
+
+/**
+ * Pengingat identitas yang ditempel di AKHIR pesan user (posisi paling akhir
+ * yang bisa dikontrol Zephyr). System prompt dari Zephyr ada di awal riwayat,
+ * sedangkan gateway/provider bisa menyuntik identitasnya sendiri di belakang
+ * — model biasanya mematuhi instruksi paling akhir, jadi baris ini lebih
+ * kuat daripada system prompt saja.
+ */
+const IDENTITY_REMINDER =
+  '\n\n(Kamu adalah Zeph, asisten AI bawaan editor Zephyr.)';
 
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
@@ -158,7 +170,9 @@ interface AiState {
   /** draft input (di store supaya Ctrl+I & "Analisis error TS" bisa mengisi) */
   draft: string;
   /** lampirkan file aktif ke pesan berikutnya */
-  attachActive: boolean;
+    attachActive: boolean;
+    /** gambar (data URL) menunggu dikirim bersama pesan berikutnya; null = kosong */
+    draftImage: string | null;
   /** fase 15.5: laporan pemotongan pesan terakhir (null = tidak ada).
    *  Dipisah dari `toast` karena toast bisa tertimpa pesan lain (mis. guard
    *  API key) sebelum user/harness membacanya. */
@@ -192,8 +206,9 @@ interface AiActions {
   setModel: (modelId: string) => Promise<void>;
   setModelMenuOpen: (v: boolean) => void;
   setDraft: (v: string) => void;
-  setAttachActive: (v: boolean) => void;
-  setToast: (v: string | null) => void;
+    setAttachActive: (v: boolean) => void;
+    setDraftImage: (v: string | null) => void;
+    setToast: (v: string | null) => void;
   setConfirmCmd: (v: string | null) => void;
 
   setAgentMode: (m: 'chat' | 'agent') => void;
@@ -204,9 +219,11 @@ interface AiActions {
   sendAgent: (text: string) => Promise<void>;
 
   newChat: () => string;
-  selectChat: (id: string) => void;
-  deleteChat: (id: string) => void;
-  activeSession: () => ChatSession | null;
+    selectChat: (id: string) => void;
+    deleteChat: (id: string) => void;
+    activeSession: () => ChatSession | null;
+    /** Salin seluruh sesi aktif ke clipboard sebagai markdown. */
+    exportChat: () => Promise<void>;
 
   /** Kirim draft (atau teks tertentu) ke provider. */
   send: (text?: string) => Promise<void>;
@@ -241,8 +258,9 @@ export const useAi = create<AiStore>((set, get) => ({
   provider: 'gemini',
   pending: null,
   draft: '',
-  attachActive: false,
-  lastTruncated: null,
+    attachActive: false,
+    draftImage: null,
+    lastTruncated: null,
   keys: [],
   modelMenuOpen: false,
   confirmCmd: null,
@@ -306,8 +324,9 @@ export const useAi = create<AiStore>((set, get) => ({
 
   setModelMenuOpen: (v) => set({ modelMenuOpen: v }),
   setDraft: (v) => set({ draft: v }),
-  setAttachActive: (v) => set({ attachActive: v }),
-  setToast: (v) => set({ toast: v }),
+    setAttachActive: (v) => set({ attachActive: v }),
+    setDraftImage: (v) => set({ draftImage: v }),
+    setToast: (v) => set({ toast: v }),
   setConfirmCmd: (v) => set({ confirmCmd: v }),
   setAgentMode: (m) => set({ agentMode: m }),
   setApprovalMode: (m) => set({ approvalMode: m }),
@@ -344,11 +363,33 @@ export const useAi = create<AiStore>((set, get) => ({
 
   activeSession: () => get().sessions.find((s) => s.id === get().activeId) ?? null,
 
+  exportChat: async () => {
+    const s = get().activeSession();
+    if (!s || s.messages.length === 0) {
+      set({ toast: 'Tidak ada pesan untuk diekspor' });
+      return;
+    }
+    const def = findModel(s.model, s.provider);
+    const lines: string[] = [`# ${s.title}`, '', `**Model:** ${def.label} (${def.providerLabel})`, ''];
+    for (const m of s.messages) {
+      if (m.error) continue;
+      lines.push(`## ${m.role === 'user' ? 'User' : def.label}`, '');
+      if (m.image) lines.push('_[lampiran gambar — tidak ikut diekspor]_', '');
+      lines.push(m.content, '');
+    }
+    const md = lines.join('\n');
+    const { clipboardWrite } = await import('./clipboard');
+    await clipboardWrite(md);
+    set({ toast: `Chat diekspor (${md.length} karakter) — disalin ke clipboard` });
+  },
+
   send: async (text) => {
     const raw = (text ?? get().draft).trim();
-    if (!raw) return;
+    const img = get().draftImage;
+    if (!raw && !img) return;
     // Mode agent: jalankan tool loop, bukan streaming chat biasa.
     if (get().agentMode === 'agent') {
+      if (!raw) return;
       await get().sendAgent(raw);
       return;
     }
@@ -405,13 +446,14 @@ export const useAi = create<AiStore>((set, get) => ({
     }
 
     const reqId = nextId('req');
-    const userMsg: ChatMsg = {
-      id: nextId('m'),
-      role: 'user',
-      content,
-      at: Date.now(),
-      attached,
-    };
+        const userMsg: ChatMsg = {
+          id: nextId('m'),
+          role: 'user',
+          content,
+          at: Date.now(),
+          attached,
+          image: img ?? undefined,
+        };
     const botMsg: ChatMsg = {
       id: reqId, // id pesan assistant = id request supaya chunk mudah dicocokkan
       role: 'assistant',
@@ -424,15 +466,19 @@ export const useAi = create<AiStore>((set, get) => ({
     // Riwayat yang dikirim: seluruh pesan sebelumnya + pesan baru (versi
     // payload dengan lampiran), tanpa pesan yang error.
     const prev = get().activeSession()?.messages ?? [];
-    const history: AiMessage[] = prev
-      .filter((m) => !m.error && m.content.trim())
-      .map((m) => ({ role: m.role, content: m.content }));
+        const history: AiMessage[] = prev
+              .filter((m) => !m.error && (m.content.trim() || m.image))
+              .map((m) => ({
+                role: m.role,
+                content: m.content,
+                ...(m.image ? { image: m.image } : {}),
+              }));
     // Bahasa jawaban AI (Settings → Model AI): instruksi dikirim sebagai pesan
     // system di awal tiap percakapan supaya model konsisten menjawab dalam
     // bahasa pilihan. 'follow' = biarkan model mengikuti bahasa pertanyaan.
     const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
-    if (sys) history.unshift({ role: 'system', content: sys });
-    history.push({ role: 'user', content: payloadContent });
+        if (sys) history.unshift({ role: 'system', content: sys });
+            history.push({ role: 'user', content: payloadContent + IDENTITY_REMINDER, ...(img ? { image: img } : {}) });
 
     set((s) => ({
       sessions: s.sessions.map((x) =>
@@ -446,8 +492,9 @@ export const useAi = create<AiStore>((set, get) => ({
           : x,
       ),
       draft: text ? s.draft : '',
-      pending: reqId,
-      toast: null,
+            draftImage: null,
+            pending: reqId,
+            toast: null,
     }));
     persist(get());
 
@@ -542,7 +589,7 @@ export const useAi = create<AiStore>((set, get) => ({
     }
     const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
     if (sys) history.unshift({ role: 'system', content: sys });
-    history.push({ role: 'user', content });
+    history.push({ role: 'user', content: content + IDENTITY_REMINDER });
 
     let akhir = '';
     let langkah = 0;

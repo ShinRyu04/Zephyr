@@ -7,7 +7,7 @@
 //   * stream  : SSE dengan beberapa tipe event; teks ada di
 //               content_block_delta.delta.text
 
-use crate::adapters::trim_base;
+use crate::adapters::{split_data_url, trim_base};
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ToolCall, ToolSpec};
 use serde_json::{json, Value};
 
@@ -28,13 +28,24 @@ pub fn prepare(
     let mut turns: Vec<Value> = Vec::new();
     for m in messages {
         if m.role == "system" {
-            if !system.is_empty() {
-                system.push_str("\n\n");
-            }
-            system.push_str(&m.content);
-            continue;
-        }
-        turns.push(json!({ "role": m.role, "content": m.content }));
+                    if !system.is_empty() {
+                        system.push_str("\n\n");
+                    }
+                    system.push_str(&m.content);
+                    continue;
+                }
+                if let Some(img) = &m.image {
+                    let mut blocks = vec![json!({ "type": "text", "text": m.content })];
+                    if let Some((mime, data)) = split_data_url(img) {
+                        blocks.push(json!({
+                            "type": "image",
+                            "source": { "type": "base64", "media_type": mime, "data": data }
+                        }));
+                    }
+                    turns.push(json!({ "role": m.role, "content": blocks }));
+                } else {
+                    turns.push(json!({ "role": m.role, "content": m.content }));
+                }
     }
 
     let mut body = json!({

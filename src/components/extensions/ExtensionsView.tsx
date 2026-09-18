@@ -16,6 +16,7 @@ import { useExplorer } from '../../lib/explorerStore';
 import { detectLang } from '../../lib/lang';
 import Popover from '../shell/Popover';
 import { useRef, useState } from 'react';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 const TAB_LABEL: Record<ExtTab, string> = {
   installed: 'Installed',
@@ -30,14 +31,19 @@ function formatUnduhan(n: number): string {
 }
 
 /** Kartu satu ekstensi (19.1 ExtensionCard). */
-function ExtensionCard({ item }: { item: KatalogItem }) {
+function ExtensionCard({
+  item,
+  onUninstall,
+}: {
+  item: KatalogItem;
+  onUninstall: (item: KatalogItem) => void;
+}) {
   const sudah = useExt19((s) => s.manifests.find((m) => m.manifest?.id === item.id) ?? null);
   const menuFor = useExt19((s) => s.menuFor);
   const setMenu = useExt19((s) => s.setMenu);
   const setDetail = useExt19((s) => s.setDetail);
   const installKatalog = useExt19((s) => s.installKatalog);
   const setEnabled = useExt19((s) => s.setEnabled);
-  const uninstall = useExt19((s) => s.uninstall);
   const [sibuk, setSibuk] = useState(false);
   const btnGear = useRef<HTMLButtonElement | null>(null);
 
@@ -52,7 +58,11 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
       data-terpasang={terpasang ? '1' : '0'}
       data-enabled={aktif ? '1' : '0'}
     >
-      <span className={`xc-logo${item.logoUrl ? ' has-img' : ''}`} aria-hidden="true">
+      <span
+        className={`xc-logo${item.logoUrl ? ' has-img' : ''}${item.logoColor ? ' has-color' : ''}`}
+        aria-hidden="true"
+        style={item.logoColor && !item.logoUrl ? { background: item.logoColor } : undefined}
+      >
         {item.logoUrl ? (
           <img
             src={item.logoUrl}
@@ -85,6 +95,7 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
         <span className="xc-nama">
           <span className="xc-nama-txt">{item.name}</span>
           {item.bundled && <span className="xc-tag">offline</span>}
+          {item.perluRuntime && <span className="xc-tag is-err">butuh runtime</span>}
           {rusak && <span className="xc-tag is-err">rusak</span>}
           <span className="xc-meta">
             {item.publisher} · v{sudah?.manifest?.version || item.version} ·{' '}
@@ -197,10 +208,7 @@ function ExtensionCard({ item }: { item: KatalogItem }) {
                     className="xc-menu-item is-danger"
                     role="menuitem"
                     data-testid={`xc-uninstall-${item.id}`}
-                    onClick={() => {
-                      // Konfirmasi wajib (19.4) — hapus folder tidak bisa dibatalkan.
-                      if (window.confirm(`Hapus ${item.name}?`)) void uninstall(item.id);
-                    }}
+                    onClick={() => onUninstall(item)}
                   >
                     Uninstall
                   </button>
@@ -333,6 +341,17 @@ export default function ExtensionsView() {
   const [menuAksi, setMenuAksi] = useState(false);
   const btnAksi = useRef<HTMLButtonElement | null>(null);
 
+  // Konfirmasi Uninstall memakai dialog React (bukan window.confirm yang
+  // diblokir WebView Tauri). State lokal cukup karena dialognya hanya hidup di
+  // dalam panel ini — pola yang sama dipakai ScmConfirmDialog / DeleteConfirmDialog
+  // lewat store domain, tapi di sini menambah store baru tidak perlu.
+  const [uninstallTarget, setUninstallTarget] = useState<KatalogItem | null>(null);
+  const [sibukUninstall, setSibukUninstall] = useState(false);
+  const uninstallTrapRef = useFocusTrap<HTMLDivElement>({
+    aktif: !!uninstallTarget,
+    onEscape: () => setUninstallTarget(null),
+  });
+
   // Bahasa di workspace → dasar tab RECOMMENDED (19.1).
   const workspace = useStore((s) => s.workspace);
   const anakRoot = useExplorer((s) => (workspace ? s.children[workspace] : undefined));
@@ -367,6 +386,10 @@ export default function ExtensionsView() {
   // `hasil()` FUNGSI, bukan selector — selector yang mengembalikan array baru
   // memicu "Maximum update depth exceeded" di zustand v5 (pelajaran fase 09).
   const daftar = useExt19.getState().hasil();
+  // Item marketplace yang lolos filter manifest-only, plus hitungan yang
+  // disembunyikan karena butuh runtime eksternal (dipakai pesan + dropdown).
+  const remoteBersih = (remote ?? []).filter((it) => !it.perluRuntime);
+  const tersembunyiRuntime = (remote ?? []).filter((it) => it.perluRuntime).length;
   // Dipaksa ikut render ulang saat state yang relevan berubah.
   void q;
   void tab;
@@ -488,7 +511,7 @@ export default function ExtensionsView() {
         </p>
       )}
 
-      {tab === 'marketplace' && remote && remote.length > 0 && (
+      {tab === 'marketplace' && remoteBersih.length > 0 && (
         <div className="xv-filter" data-testid="ext-filter">
           <label htmlFor="ext-filter-kat">Kategori</label>
           <select
@@ -498,7 +521,7 @@ export default function ExtensionsView() {
             data-testid="ext-filter-select"
           >
             <option value="">Semua</option>
-            {Array.from(new Set(remote.flatMap((it) => it.categories)))
+            {Array.from(new Set(remoteBersih.flatMap((it) => it.categories)))
               .sort()
               .map((k) => (
                 <option key={k} value={k}>
@@ -512,14 +535,69 @@ export default function ExtensionsView() {
       <div className="xv-list" data-testid="ext-cards">
         {loading && daftar.length === 0 && <p className="xv-note">Memuat…</p>}
         {daftar.map((it) => (
-          <ExtensionCard key={it.id} item={it} />
+          <ExtensionCard key={it.id} item={it} onUninstall={setUninstallTarget} />
         ))}
         {!loading && daftar.length === 0 && tab !== 'marketplace' && (
           <p className="xv-note" data-testid="ext-kosong">
             Tidak ada yang cocok dengan “{q}”.
           </p>
         )}
+        {!loading && daftar.length === 0 && tab === 'marketplace' && remote && (
+          <p className="xv-note" data-testid="ext-market-empty">
+            {tersembunyiRuntime > 0
+              ? `Menampilkan ekstensi manifest-only. ${tersembunyiRuntime} ekstensi disembunyikan karena butuh runtime eksternal (Python/Java/Node/Docker) yang tidak didukung Zephyr v1.`
+              : `Tidak ada ekstensi manifest-only yang cocok dengan “${q}”. Gunakan katalog bundled atau Install from .vsix/folder.`}
+          </p>
+        )}
       </div>
+
+      {uninstallTarget && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          data-testid="ext-uninstall-confirm"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setUninstallTarget(null);
+          }}
+        >
+          <div
+            className="modal"
+            ref={uninstallTrapRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ext-uninstall-title"
+          >
+            <h2 className="modal-title" id="ext-uninstall-title" data-testid="ext-uninstall-title">
+              Hapus {uninstallTarget.name}?
+            </h2>
+            <p className="modal-body" data-testid="ext-uninstall-body">
+              Folder ekstensi akan dihapus PERMANEN (tidak bisa di-undo).
+            </p>
+            <div className="modal-actions">
+              <button
+                className="btn btn-danger"
+                data-testid="ext-uninstall-ok"
+                disabled={sibukUninstall}
+                onClick={async () => {
+                  setSibukUninstall(true);
+                  await useExt19.getState().uninstall(uninstallTarget.id);
+                  setSibukUninstall(false);
+                  setUninstallTarget(null);
+                }}
+              >
+                {sibukUninstall ? '…' : 'Hapus'}
+              </button>
+              <button
+                className="btn"
+                data-testid="ext-uninstall-cancel"
+                onClick={() => setUninstallTarget(null)}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {detailFor && <Details id={detailFor} />}
     </div>

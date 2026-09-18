@@ -25,6 +25,7 @@ import type {
   ExtManifestStatus,
 } from './types';
 import { THEMES, type ThemeInfo } from './themes';
+import { petakanTemaVscode } from './vscodeThemeMap';
 
 /** Tema dari ekstensi yang sudah didaftarkan (id -> token warna). */
 const themeTokens = new Map<string, Record<string, string>>();
@@ -108,10 +109,9 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
       const raw = (await cmd.extensionsReadContrib(m.id, t.path)) as Record<string, unknown>;
       // Bentuk yang diterima: { colors: {...} } (ala VS Code) atau objek datar.
       const colors = (raw.colors ?? raw.tokens ?? raw) as Record<string, unknown>;
-      const tok: Record<string, string> = {};
-      for (const [k, v] of Object.entries(colors)) {
-        if (typeof v === 'string' && v.length <= 64) tok[k] = v;
-      }
+      // Terjemahkan warna VS Code (camelCase) → token CSS Zephyr (kebab).
+      // Dulu kunci mentah disuntik apa adanya (0/42 cocok) → tema tidak berefek.
+      const tok: Record<string, string> = petakanTemaVscode(colors);
       if (Object.keys(tok).length === 0) continue;
       themeTokens.set(id, tok);
       daftarThemeInfo.push({
@@ -246,23 +246,114 @@ const PAKET_DIIZINKAN: Record<string, () => Promise<Extension[]>> = {
 };
 
 /** Mode legacy yang boleh dipakai (nama file di @codemirror/legacy-modes). */
+/**
+ * Semua mode @codemirror/legacy-modes yang terdaftar sebagai paket bundled
+ * (ext_bundled.rs PAKET_BAHASA). Daftar di-generate — tiap mode sudah
+ * diverifikasi bisa di-import di runtime, jadi tidak ada mode yang terdaftar
+ * tapi gagal dimuat (itu sumber error "ekstensi tidak bisa di-enable").
+ */
 const MODE_LEGACY = new Set([
-  'toml',
-  'lua',
-  'perl',
-  'ruby',
-  'shell',
-  'swift',
-  'powershell',
-  'dockerfile',
-  'nginx',
-  'properties',
-  'diff',
-  'haskell',
-  'erlang',
+  'apl',
+  'asciiarmor',
+  'asterisk',
+  'brainfuck',
+  'clike',
   'clojure',
+  'cmake',
+  'cobol',
+  'coffeescript',
+  'commonlisp',
+  'crystal',
+  'css',
+  'cypher',
+  'd',
+  'diff',
+  'dockerfile',
+  'dtd',
+  'dylan',
+  'ebnf',
+  'ecl',
+  'eiffel',
+  'elm',
+  'erlang',
+  'factor',
+  'fcl',
+  'forth',
+  'fortran',
+  'gas',
+  'gherkin',
+  'go',
   'groovy',
+  'haskell',
+  'haxe',
+  'http',
+  'idl',
+  'javascript',
+  'jinja2',
+  'julia',
+  'livescript',
+  'lua',
+  'mathematica',
+  'mbox',
+  'mirc',
+  'mllike',
+  'modelica',
+  'mscgen',
+  'mumps',
+  'nginx',
+  'nsis',
+  'ntriples',
+  'octave',
+  'oz',
+  'pascal',
+  'pegjs',
+  'perl',
+  'pig',
+  'powershell',
+  'properties',
+  'protobuf',
+  'pug',
+  'puppet',
+  'python',
+  'q',
   'r',
+  'rpm',
+  'ruby',
+  'rust',
+  'sas',
+  'sass',
+  'scheme',
+  'shell',
+  'sieve',
+  'smalltalk',
+  'solr',
+  'sparql',
+  'spreadsheet',
+  'sql',
+  'stex',
+  'stylus',
+  'swift',
+  'tcl',
+  'textile',
+  'tiddlywiki',
+  'tiki',
+  'toml',
+  'troff',
+  'ttcn',
+  'ttcn-cfg',
+  'turtle',
+  'vb',
+  'vbscript',
+  'velocity',
+  'verilog',
+  'vhdl',
+  'wast',
+  'webidl',
+  'xml',
+  'xquery',
+  'yacas',
+  'yaml',
+  'z80'
 ]);
 
 export async function muatCmBahasa(l: ContribLanguage): Promise<Extension[]> {

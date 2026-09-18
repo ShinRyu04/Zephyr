@@ -38,15 +38,24 @@ pub fn prepare(
             ("Accept".into(), "text/event-stream".into()),
         ],
         body: json!({
-            "model": model,
-            "messages": messages.iter().map(|m| json!({
-                "role": m.role,
-                "content": m.content,
-            })).collect::<Vec<_>>(),
-            "stream": true,
-            "max_tokens": max_tokens,
-        }),
-        sse: true,
+                    "model": model,
+                    "messages": messages.iter().map(|m| {
+                        if let Some(img) = &m.image {
+                            json!({
+                                "role": m.role,
+                                "content": [
+                                    { "type": "text", "text": m.content },
+                                    { "type": "image_url", "image_url": { "url": img } },
+                                ],
+                            })
+                        } else {
+                            json!({ "role": m.role, "content": m.content })
+                        }
+                    }).collect::<Vec<_>>(),
+                    "stream": true,
+                    "max_tokens": max_tokens,
+                }),
+                sse: true,
     }
 }
 

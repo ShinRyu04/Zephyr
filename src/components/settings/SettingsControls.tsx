@@ -149,6 +149,7 @@ export function TextInput({
   testid,
   mono,
   password,
+  list,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -157,6 +158,8 @@ export function TextInput({
   testid?: string;
   mono?: boolean;
   password?: boolean;
+  /** id <datalist> — tampilkan saran sambil tetap bisa ketik bebas. */
+  list?: string;
 }) {
   return (
     <input
@@ -167,6 +170,7 @@ export function TextInput({
       spellCheck={false}
       aria-label={label}
       data-testid={testid}
+      list={list}
       onChange={(e) => onChange(e.target.value)}
     />
   );

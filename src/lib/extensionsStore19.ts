@@ -97,55 +97,7 @@ const cocok = (it: KatalogItem, q: string) => {
   );
 };
 
-/**
- * Tebak kategori dari nama/displayName ekstensi (Open VSX tidak mengirim
- * `categories` yang konsisten — banyak item kosong). Dipakai biar kartu
- * marketplace tidak semua bertuliskan "Other".
- */
-const KATA_KATEGORI: Array<[string, string]> = [
-  ['python', 'Programming Languages'],
-  ['java', 'Programming Languages'],
-  ['golang', 'Programming Languages'],
-  ['go ', 'Programming Languages'],
-  ['rust', 'Programming Languages'],
-  ['ruby', 'Programming Languages'],
-  ['php', 'Programming Languages'],
-  ['c/c++', 'Programming Languages'],
-  ['c++', 'Programming Languages'],
-  ['c#', 'Programming Languages'],
-  ['dart', 'Programming Languages'],
-  ['flutter', 'Frameworks'],
-  ['typescript', 'Programming Languages'],
-  ['javascript', 'Programming Languages'],
-  ['lua', 'Programming Languages'],
-  ['r ', 'Programming Languages'],
-  ['theme', 'Themes'],
-  ['snippet', 'Snippets'],
-  ['linter', 'Linters'],
-  ['debugger', 'Debuggers'],
-  ['language pack', 'Language Packs'],
-  ['ai', 'AI'],
-  ['copilot', 'AI'],
-];
-function inferKategori(nama: string): string[] {
-  const n = nama.toLowerCase();
-  for (const [kata, kat] of KATA_KATEGORI) {
-    if (n.includes(kata)) return [kat];
-  }
-  return ['Other'];
-}
-
-/**
- * Ambil huruf awal nama utk kotak logo. Open VSX mengirim `logo` sebagai
- * OBJEK { url, size } (bukan string), jadi ambil inisial dari displayName —
- * daftar tidak men-download gambar (hemat bandwidth & tetap cepat).
- */
-function logoDari(o: Record<string, unknown>): string {
-  const nama = String(o.displayName ?? o.name ?? '?').trim();
-  if (!nama || nama === '?') return '?';
-  return nama.slice(0, 2).toUpperCase();
-}
-
+/** Tebak apakah sebuah item registry (Open VSX) butuh runtime eksternal. */
 export const useExt19 = create<Ext19Store>((set, get) => ({
   manifests: [],
   loading: false,
@@ -157,12 +109,9 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   info: null,
   perluReload: false,
   ringkasan: ringkasanLoader(),
-  // Registry publik Open VSX (VSCodium/Code-OSS pakai ini juga) — gratis,
-  // tanpa token, dan menyediakan file .vsix + metadata untuk diunduh.
-  // Sumber kebenaran: ini bukan bagian dari settings (tidak ada di 19.3),
-  // jadi cukup default di store. ExtensionCard men-download .vsix lalu
-  // menyerahkan ke `extensions_install` yang sudah handle zip.
-  remoteUrl: 'https://open-vsx.org/api',
+  // Registry native Zephyr. URL remote (kalau ada) dibaca backend dari
+  // settings.extensions.registryUrl — bukan hardcode open-vsx.org lagi.
+  remoteUrl: '',
   remote: null,
   remoteErr: null,
   kategori: '',
@@ -283,58 +232,42 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   },
 
   muatRemote: async () => {
-    const url = get().remoteUrl.trim();
-    if (!url) {
-      // 19.3 + V10: registry kosong BUKAN error.
-      set({ remote: null, remoteErr: null });
-      return;
-    }
+    // Registry sekarang dibaca di BACKEND (ext_registry_list) — format index
+    // Zephyr sendiri, bukan Open VSX. Frontend cuma meneruskan pencarian;
+    // validasi, batas, dan penggabungan bundled+user+remote semua di Rust.
     try {
-      // Query pencarian default. Open VSX `/api/-/search?query=…` dipakai
-      // karena bisa difilter kategori (bahasa).
-      const q = get().q.trim();
-      const base = url.replace(/\/+$/, '');
-      const searchUrl = q
-        ? `${base}/-/search?query=${encodeURIComponent(q)}&size=100&sortBy=relevance`
-        : `${base}/-/search?query=language&size=100&sortBy=downloadCount`;
-      const r = await fetch(searchUrl, { headers: { accept: 'application/json' } });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = (await r.json()) as unknown;
-      const arr = Array.isArray(data) ? data : (data as { extensions?: unknown }).extensions;
-      if (!Array.isArray(arr)) throw new Error('bentuk registry tidak dikenal');
-      const kategoriDari = (o: Record<string, unknown>) => {
-        const cats = Array.isArray(o.categories) ? (o.categories as string[]) : [];
-        // Open VSX menaruh kategori bahasa di `keywords`/nama; fallback dari
-        // displayName agar kartu tidak semua "Other".
-        return cats.length > 0 ? cats : inferKategori(String(o.name ?? '') + ' ' + String(o.displayName ?? ''));
-      };
+      const arr = await cmd.extRegistryList(get().q);
       set({
-        remote: arr.slice(0, 100).map((x) => {
-          const o = x as Record<string, unknown>;
-          const files = (o.files ?? {}) as Record<string, unknown>;
-          const logoUrl = String(files.icon ?? '');
-          return {
-            id: String(o.namespace && o.name ? `${o.namespace}.${o.name}` : o.id ?? ''),
-            name: String(o.displayName ?? o.name ?? ''),
-            publisher: String(o.namespace ?? '-'),
-            version: String(o.version ?? '-'),
-            description: String(o.description ?? ''),
-            categories: kategoriDari(o),
-            logo: logoDari(o),
-            // Logo ASLI dari registry: files.icon berisi URL png/svg yang
-            // dipakai VS Code. Inisial hanya fallback kalau URL kosong.
-            logoUrl: logoUrl.startsWith('http') ? logoUrl : undefined,
-            bundled: false,
-            // Untuk install: URL unduhan .vsix (dipakai ExtensionCard).
-            url: String(files.download ?? o.url ?? ''),
-            unduhan: typeof o.downloadCount === 'number' ? o.downloadCount : undefined,
-            rating: typeof o.averageRating === 'number' ? o.averageRating : undefined,
-          } satisfies KatalogItem;
-        }),
+        // Petakan RegistryEntry (backend) ke KatalogItem (UI) — satu-satunya
+        // tempat bentuknya berbeda. `perluRuntime` tidak perlu lagi: registry
+        // Zephyr hanya berisi paket yang memang bisa dipasang.
+        // Entri tanpa `url` = paket bundled (ditulis extensions_write_bundled,
+        // bukan diunduh) → `bundled: true` supaya tombol Install aktif.
+        remote: arr.map((e) => ({
+          id: e.id,
+          name: e.name || e.id,
+          publisher: e.publisher || '-',
+          version: e.version || '-',
+          description: e.description,
+          categories: e.categories.length > 0 ? e.categories : ['Other'],
+          logo: e.logo || (e.name || e.id).slice(0, 2).toUpperCase(),
+          logoUrl: e.iconUrl || undefined,
+          logoColor: e.logoColor || undefined,
+          // Bahasa yang membuat paket ini direkomendasikan (tab Recommended
+          // membandingkan ini dengan bahasa file di workspace).
+          untukBahasa: e.languages.length > 0 ? e.languages : undefined,
+          bundled: !e.url,
+          url: e.url || undefined,
+          unduhan: e.downloadCount || undefined,
+          rating: e.rating || undefined,
+        })),
+        // Registry backend selalu "tersedia" (bundled index selalu ada),
+        // jadi tab Marketplace tidak boleh lagi menulis "belum dikonfigurasi".
+        remoteUrl: 'native',
         remoteErr: null,
       });
     } catch (e) {
-      set({ remote: null, remoteErr: e instanceof Error ? e.message : String(e) });
+      set({ remote: null, remoteErr: cmd.asZephyrError(e).message });
     }
   },
 
@@ -346,15 +279,26 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   rekomendasi: () => {
     const bahasa = getBahasaWorkspace();
     if (bahasa.length === 0) return [];
-    return KATALOG_BUNDLED.filter(
-      (k) => k.untukBahasa && k.untukBahasa.some((b) => bahasa.includes(b)),
-    );
+    const cocokBahasa = (k: KatalogItem) =>
+      k.untukBahasa && k.untukBahasa.some((b) => bahasa.includes(b));
+    // Gabung katalog bundled + marketplace (paket bahasa ada di marketplace,
+    // bukan katalog) — pasang yang belum terpasang dulu, sisanya sebagai
+    // saran kedua. Tanpa duplikat id.
+    const dariMarket = (get().remote ?? []).filter(cocokBahasa);
+    const dariKatalog = KATALOG_BUNDLED.filter(cocokBahasa);
+    const sudah = new Set(get().terpasang().map((s) => s.manifest!.id));
+    const urut = (k: KatalogItem) => (sudah.has(k.id) ? 1 : 0);
+    return [...dariMarket, ...dariKatalog]
+      .sort((a, b) => urut(a) - urut(b))
+      .filter((k, i, arr) => arr.findIndex((x) => x.id === k.id) === i);
   },
 
   hasil: () => {
     const { q, tab, remote, kategori } = get();
     if (tab === 'marketplace') {
-      return (remote ?? []).filter(
+      // Hanya tampilkan item manifest-only (tidak butuh runtime eksternal).
+      const daftarRemote = (remote ?? []).filter((it) => !it.perluRuntime);
+      return daftarRemote.filter(
         (it) => cocok(it, q) && (!kategori || it.categories.includes(kategori)),
       );
     }

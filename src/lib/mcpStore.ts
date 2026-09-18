@@ -295,9 +295,10 @@ const str = (p: Record<string, unknown>, k: string): string => String(p[k] ?? ''
 
 /**
  * Pelaksana satu permintaan MCP di sisi UI. Melempar Error = jawaban error
- * JSON-RPC ke agent (bukan crash).
+ * JSON-RPC ke agent (bukan crash). Di-export supaya tool agent (agentTools.ts)
+ * bisa memakai jalur yang sama tanpa lewat HTTP.
  */
-async function runAction(type: string, p: Record<string, unknown>): Promise<unknown> {
+export async function runAction(type: string, p: Record<string, unknown>): Promise<unknown> {
   const s = () => useStore.getState();
   const t = () => useTerminal.getState();
 

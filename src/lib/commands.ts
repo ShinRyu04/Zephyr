@@ -57,6 +57,7 @@ import type {
   TaskProblem,
   TaskRun,
   TasksFile,
+  RegistryEntry,
   ZephyrError,
 } from './types';
 
@@ -76,6 +77,29 @@ export const setSettings = (patch: Record<string, unknown>) =>
   invoke<void>('set_settings', { patch });
 export const setWindowSize = (width: number, height: number) =>
   invoke<void>('set_window_size', { width, height });
+/**
+ * Registry native Zephyr (menggantikan proxy Open VSX).
+ *
+ * Backend `ext_registry_list` membaca index format Zephyr sendiri dari
+ * bundled + `%APPDATA%\zephyr\registry.json` + URL remote. Frontend tidak
+ * lagi `fetch()` ke open-vsx.org — dulu hampir semua hasilnya ekstensi VS
+ * Code penuh yang lalu disembunyikan atau gagal dipasang.
+ */
+export const extRegistryList = (query: string) =>
+  invoke<RegistryEntry[]>('ext_registry_list', { query });
+/** Baca registry user sebagai teks (dipakai editor di Settings). */
+export const extRegistryRead = () => invoke<string>('ext_registry_read');
+/** Tulis registry user (harus valid; Rust memvalidasi sebelum disimpan). */
+export const extRegistrySave = (teks: string) =>
+  invoke<void>('ext_registry_save', { teks });
+/** Daftar id+versi yang sudah terpasang (membedakan tombol pasang/terpasang). */
+export const extRegistryInstalled = () =>
+  invoke<{ id: string; version: string; enabled: boolean }[]>(
+    'ext_registry_installed',
+  );
+/** Apakah sebuah URL unduh .zext diizinkan oleh allowlist backend. */
+export const extRegistryUrlDiizinkan = (url: string) =>
+  invoke<boolean>('ext_registry_url_diizinkan', { url });
 export const listRecents = () => invoke<RecentEntry[]>('list_recents');
 /** fase 16.3: path file config rusak yang di-backup Rust ('' = tidak ada). */
 export const takeBrokenConfig = () => invoke<string>('take_broken_config');
@@ -229,6 +253,10 @@ export const setModelKey = (provider: string, key: string) =>
   invoke<void>('set_model_key', { provider, key });
 export const testModelConnection = (provider: string, baseUrl?: string) =>
   invoke<ModelTestResult>('test_model_connection', { provider, baseUrl });
+
+/** Ambil daftar model dari provider (Settings → Model AI → Refresh). */
+export const listModels = (provider: string, baseUrl?: string) =>
+  invoke<string[]>('list_models', { provider, baseUrl });
 /** Hapus settings.json (secrets.json TIDAK disentuh). */
 export const resetSettings = () => invoke<void>('reset_settings');
 
