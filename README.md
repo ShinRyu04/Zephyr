@@ -156,6 +156,11 @@ riwayat tab (Go → Back/Forward), reopen editor yang ditutup, buka jendela
 baru, dan keluar. Semua item juga tersedia di Command Palette
 (`Ctrl+Shift+P`).
 
+**Donasi** — Zephyr gratis. Kalau suka, ada tombol **☕ Donasi** di status bar
+bawah (kanan) dan di **Settings → Tentang** → buka Saweria
+(`saweria.co/ShinRyuga04`). Juga tersedia lewat **Help → Donasi** atau Command
+Palette (ketik "donasi").
+
 **Sisanya** — global search lewat ripgrep, tasks runner dengan problem matcher,
 local history + timeline, multi-root workspace dengan workspace trust, 7 tema
 (+ Senja), CLI launcher (`zephyr .`, `--diff`, `--wait`), dan Settings 14
