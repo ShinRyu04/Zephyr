@@ -1566,3 +1566,72 @@
   max-height: 46vh;
   overflow-y: auto;
 }
+
+/* ── Dialog "versi baru tersedia" (gaya sendiri, bukan jiplakan) ── */
+.upd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+.upd-dialog {
+  width: min(880px, calc(100vw - 48px));
+  max-height: calc(100vh - 72px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg, var(--surface-1));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.upd-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.upd-dialog-ico {
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--accent);
+}
+.upd-dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.upd-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.upd-dialog-x {
+  margin-left: auto;
+}
+.upd-dialog-notes {
+  padding: 6px 18px 12px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.upd-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 4px;
+}

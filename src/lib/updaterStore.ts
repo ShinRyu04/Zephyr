@@ -28,6 +28,8 @@ interface UpdaterState {
   status: UpdateStatus;
   /** versi yang tersedia (kalau ada) */
   version: string | null;
+  /** tanggal rilis (pub_date dari latest.json, opsional ala TEDI) */
+  pubDate: string | null;
   /** catatan rilis dari latest.json */
   notes: string | null;
   /** persen unduhan 0..100 (hanya saat downloading) */
@@ -69,6 +71,7 @@ function belumDikonfigurasi(pesan: string): boolean {
 export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   status: 'idle',
   version: null,
+  pubDate: null,
   notes: null,
   progress: 0,
   message: null,
@@ -86,6 +89,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       set({
         status: 'idle',
         version: null,
+        pubDate: null,
         notes: null,
         progress: 0,
         message: 'Mode dev — cek update dinonaktifkan',
@@ -101,9 +105,11 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         return;
       }
       updateObj = upd;
+      const updAny = upd as { date?: string | null };
       set({
         status: 'available',
         version: upd.version,
+        pubDate: updAny.date ?? null,
         notes: upd.body ?? null,
         dialogOpen: !opts?.senyap,
         message: null,
@@ -184,7 +190,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   },
 
   tutupDialog: () => set({ dialogOpen: false }),
-  reset: () => set({ status: 'idle', version: null, notes: null, progress: 0, message: null }),
+  reset: () => set({ status: 'idle', version: null, pubDate: null, notes: null, progress: 0, message: null }),
 }));
 
 export function labelStatus(s: UpdateStatus, versi: string | null, progress: number): string {
