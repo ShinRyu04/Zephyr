@@ -28,6 +28,9 @@ use tauri::{AppHandle, Emitter, State};
 pub struct ChatMsg {
     pub role: String,
     pub content: String,
+    /// Lampiran gambar sebagai data URL (`data:<mime>;base64,...`), opsional.
+    #[serde(default)]
+    pub image: Option<String>,
 }
 
 /// Satu panggilan tool yang diminta model (mode agent).

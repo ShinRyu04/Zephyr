@@ -1,0 +1,11 @@
+{
+  "version": "1.1.8",
+  "notes": "## Zephyr v1.1.8\n\nGede-gedean: marketplace bahasa + model AI lengkap. Simak di bawah.\n\n### Marketplace Bahasa (101 bahasa)\n\nSemua language pack sekarang ada di Marketplace dengan **logo asli** (bukan singkatan teks):\n\n| Bahasa | Logo | Warna |\n| --- | --- | --- |\n| Python | Simple Icons | #3776ab |\n| Rust | Simple Icons | #dea584 |\n| Go | Simple Icons | #00add8 |\n| JavaScript | Simple Icons | #f7df1e |\n| C/C++ | VS Code Icons | #659ad2 |\n| Java/Java (clike) | VS Code Icons | #659ad2 |\n| PowerShell | Devicon | #012456 |\n| SQL | Devicon | #e38c00 |\n\nTotal **101 pack bahasa** + 5 ekstensi awal = 106 di Marketplace. Semua bisa di-install & di-enable tanpa error, dan **tidak otomatis masuk daftar Installed**. Ada rekomendasi otomatis dari bahasa file yang sedang dibuka di workspace.\n\n### Model AI Lengkap\n\nKatalog AI sekarang berisi model dari rilis pertama sampai terbaru:\n\n| Provider | Model | Catatan |\n| --- | --- | --- |\n| Google Gemini | 3.8 Flash, 3.7 Flash, 3.6 Flash, 3.5 Flash(-Lite), 3.1 Pro/Flash-Lite, 2.5 Pro/Flash(-Lite), 2.5 image, 2.0, 1.5, 1.0 | lengkap |\n| OpenAI | GPT-6 Astra, GPT-5.6 Sol/Terra/Luna, GPT-5.2, 5.1 mini, o4-mini, o3, o1, GPT-5, GPT-4.1, 4o, 4, 3.5 | lengkap |\n| Anthropic | Claude Fable 5.1/5, Opus 5/4.8, Sonnet 5/4.5, Haiku 4.5, 3.7, 3.5, 3, 2.1, 2, 1 | lengkap |\n| DeepSeek | V4 Pro, Flash (V4.1), Chat (V3.2), Reasoner (R1), Coder, V3 | lengkap |\n\n### Fix & Lainnya\n\n- Notifikasi update & dialog \"Apa yang baru\" sekarang menampilkan **tabel perubahan** (bukan teks polos).\n- Perbaikan tipe + pembersihan kode katalog model.\n\nCara update: buka Settings → Tentang → Cek update, atau tunggu notif lonceng.",
+  "pub_date": "2026-09-18T00:00:00.000Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSV3FhYnJkc2taU0JvYUM4eVFsaWIvN3NsZFZDcTNqVEIxS0VDSlVwMjUrZWZNOXhZTlBhNGdNOFNFd0VYOXRkRlJReVgyOC9wSVV6Ykt1VHpSWW90R1ZXWlVCY3hoSkF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTM1MzA3CWZpbGU6WmVwaHlyXzEuMS44X3g2NC1zZXR1cC5leGUKMW92L0ZvQlFtUzhFVEpldy9VcVJVWk9qVTVLMWN3ODdhY05sOG50VW9WdUpEWnE3YWpHZ0JTWUczOEhERkRvNHI4N3FuZW95ek05NWRqODJMaE9SQ1E9PQo=",
+      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.8/Zephyr_1.1.8_x64-setup.exe"
+    }
+  }
+}

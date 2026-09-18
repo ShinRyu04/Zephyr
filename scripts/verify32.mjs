@@ -304,5 +304,57 @@ cek(
   ringkas(m),
 );
 
+// V12 — vscode.extensions.getExtension(id sendiri) → stub dengan packageJSON
+// (manifest asli dikirim lewat skripEkstensi). Kasus nyata: golang.go memanggil
+// vscode3.extensions.getExtension(extensionId)?.packageJSON saat aktivasi.
+m = jalankan(
+  skripEkstensi(
+    `const e = require('vscode').extensions.getExtension('uji.kit'); if (!e || !e.packageJSON || e.packageJSON.versiUji !== 'abc') throw new Error('stub salah');`,
+    {}, 'main.js', { publisher: 'uji', name: 'kit', versiUji: 'abc' },
+  ),
+);
+cek(
+  'V12 extensions.getExtension(id sendiri) → stub + packageJSON manifest asli',
+  !m.some((x) => x.type === "notify"),
+  ringkas(m),
+);
+
+// V13 — getExtension(id lain) → undefined (pola VS Code).
+m = jalankan(
+  skripEkstensi(
+    `const e = require('vscode').extensions.getExtension('lain.aneh'); if (e !== undefined) throw new Error('harusnya undefined');`,
+    {}, 'main.js', { publisher: 'uji', name: 'kit' },
+  ),
+);
+cek(
+  'V13 extensions.getExtension(id lain) → undefined',
+  !m.some((x) => x.type === "notify"),
+  ringkas(m),
+);
+
+// V14 — workspace.getConfiguration(...).get()/has()/inspect() stub aman.
+m = jalankan(
+  skripEkstensi(
+    `const c = require('vscode').workspace.getConfiguration('x'); const v = c.get('y'); const h = c.has('y'); const i = c.inspect('y'); if (v !== undefined || h !== false || i !== undefined) throw new Error('stub config salah');`,
+  ),
+);
+cek(
+  'V14 getConfiguration().get/has/inspect → stub tanpa lempar',
+  !m.some((x) => x.type === "notify"),
+  ringkas(m),
+);
+
+// V15 — extensions.all + onDidChange tersedia (pola VS Code).
+m = jalankan(
+  skripEkstensi(
+    `const v = require('vscode'); if (!Array.isArray(v.extensions.all)) throw new Error('all bukan array'); if (typeof v.extensions.onDidChange.dispose !== 'function') throw new Error('onDidChange rusak');`,
+  ),
+);
+cek(
+  'V15 extensions.all (array) + onDidChange tersedia',
+  !m.some((x) => x.type === "notify"),
+  ringkas(m),
+);
+
 console.log(gagal === 0 ? '\nSemua lulus.' : `\n${gagal} gagal.`);
 process.exit(gagal ? 1 : 0);

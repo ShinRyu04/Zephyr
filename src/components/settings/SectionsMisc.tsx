@@ -13,6 +13,7 @@ import type { Diagnostics, SshConfigInput, SshHost } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
 import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 import UpdatePanel from './UpdatePanel';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export function ScmSection() {
   const t = useT();
@@ -75,6 +76,11 @@ export function SshSection() {
   const [form, setForm] = useState<SshConfigInput | null>(null); // null = form tertutup
   const [err, setErr] = useState<string | null>(null);
   const [sibuk, setSibuk] = useState(false);
+  const [hapusTarget, setHapusTarget] = useState<SshHost | null>(null);
+  const hapusTrapRef = useFocusTrap<HTMLDivElement>({
+    aktif: !!hapusTarget,
+    onEscape: () => setHapusTarget(null),
+  });
 
   const tarik = async () => {
     try {
@@ -110,13 +116,14 @@ export function SshSection() {
   };
 
   const hapus = async (h: SshHost) => {
-    if (!window.confirm(`Hapus host SSH "${h.name}"?`)) return;
     try {
       await cmd.sshDelete(h.id);
       await tarik();
       setStatus(`Host SSH ${h.name} dihapus`);
     } catch (e) {
       setErr(cmd.asZephyrError(e).message);
+    } finally {
+      setHapusTarget(null);
     }
   };
 
@@ -349,7 +356,7 @@ export function SshSection() {
                 <button
                   className="btn btn-xs"
                   data-testid={`ssh-del-${h.id}`}
-                  onClick={() => void hapus(h)}
+                  onClick={() => setHapusTarget(h)}
                 >
                   Hapus
                 </button>
@@ -357,6 +364,48 @@ export function SshSection() {
             </li>
           ))}
         </ul>
+      )}
+
+      {hapusTarget && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          data-testid="ssh-del-confirm"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setHapusTarget(null);
+          }}
+        >
+          <div
+            className="modal"
+            ref={hapusTrapRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ssh-del-title"
+          >
+            <h2 className="modal-title" id="ssh-del-title" data-testid="ssh-del-title">
+              Hapus host SSH "{hapusTarget.name}"?
+            </h2>
+            <p className="modal-body" data-testid="ssh-del-body">
+              Koneksi host ini akan dihapus dari daftar.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="btn btn-danger"
+                data-testid="ssh-del-ok"
+                onClick={() => void hapus(hapusTarget)}
+              >
+                Hapus
+              </button>
+              <button
+                className="btn"
+                data-testid="ssh-del-cancel"
+                onClick={() => setHapusTarget(null)}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </Section>
   );

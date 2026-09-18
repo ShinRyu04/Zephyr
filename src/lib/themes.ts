@@ -5,6 +5,7 @@
 //
 // Token warnanya sendiri ada di src/styles/theme.css ([data-theme='...']).
 
+
 export interface ThemeInfo {
   id: string;
   label: string;
@@ -140,6 +141,15 @@ export function applyTheme(
 
   return id;
 }
+
+/**
+ * Samakan title bar bawaan Windows dengan tema aktif.
+ *
+ * Tanpa ini, band atas tetap abu sistem (`#232323`) sementara baris menu tepat
+ * di bawahnya memakai `--titlebar-bg` — dua warna bertumpuk yang terlihat tidak
+ * nyatu. Warnanya dibaca dari CSS yang sudah dihitung, jadi tema bawaan, tema
+ * ekstensi, tema VS Code, dan aksen user ikut otomatis.
+ */
 
 function hexToRgba(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);

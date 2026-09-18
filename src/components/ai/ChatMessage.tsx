@@ -104,6 +104,9 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
         </p>
       ) : (
         <div className="ai-body" data-ai-body={msg.id}>
+          {msg.image && (
+            <img className="ai-msg-img" src={msg.image} alt="Lampiran" data-testid="ai-msg-img" />
+          )}
           {isUser ? (
             <p className="ai-plain">{msg.content}</p>
           ) : (

@@ -339,6 +339,116 @@ pub fn test_model_connection(
     })
 }
 
+/// Ambil daftar model yang tersedia dari provider (untuk tombol "Refresh"
+/// di Settings → Model AI). Logika endpoint sama dengan test_model_connection:
+/// gemini pakai /v1beta/models, anthropic /v1/models, sisanya (openai/
+/// deepseek/custom) /models. Key tidak pernah ikut keluar.
+#[tauri::command(async)]
+pub fn list_models(
+    state: State<AppState>,
+    provider: String,
+    base_url: Option<String>,
+) -> ZResult<Vec<String>> {
+    let key = key_for(&state, &provider);
+    if key.is_empty() {
+        return Err(ZephyrError::InvalidInput(format!(
+            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+        )));
+    }
+
+    let (url, header, value, style) = match provider.trim() {
+        "gemini" => (
+            format!(
+                "{}/v1beta/models",
+                base_url
+                    .clone()
+                    .unwrap_or_else(|| "https://generativelanguage.googleapis.com".into())
+                    .trim_end_matches('/')
+            ),
+            "x-goog-api-key",
+            key.clone(),
+            "gemini",
+        ),
+        "anthropic" => (
+            format!(
+                "{}/v1/models",
+                base_url
+                    .clone()
+                    .unwrap_or_else(|| "https://api.anthropic.com".into())
+                    .trim_end_matches('/')
+            ),
+            "x-api-key",
+            key.clone(),
+            "openai",
+        ),
+        other => (
+            format!(
+                "{}/models",
+                base_url
+                    .clone()
+                    .unwrap_or_else(|| match other {
+                        "deepseek" => "https://api.deepseek.com/v1".into(),
+                        _ => "https://api.openai.com/v1".to_string(),
+                    })
+                    .trim_end_matches('/')
+            ),
+            "Authorization",
+            format!("Bearer {key}"),
+            "openai",
+        ),
+    };
+
+    let mut req = ureq::get(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(8)))
+        .build()
+        .header(header, &value);
+    if provider.trim() == "anthropic" {
+        req = req.header("anthropic-version", "2023-06-01");
+    }
+
+    let body = req.call().map_err(|e| match e {
+            ureq::Error::StatusCode(code) => ZephyrError::InvalidInput(format!(
+                "Server menjawab {code} — cek key & base URL"
+            )),
+            e => ZephyrError::InvalidInput(format!("Tidak bisa menghubungi server: {e}")),
+        })?;
+
+        let json: serde_json::Value = serde_json::from_str(
+            &body
+                .into_body()
+                .read_to_string()
+                .map_err(|e| ZephyrError::InvalidInput(format!("Gagal baca respon: {e}")))?,
+        )
+        .map_err(|e| ZephyrError::InvalidInput(format!("Respon bukan JSON: {e}")))?;
+
+    let ids: Vec<String> = if style == "gemini" {
+        // Gemini: models[].name = "models/gemini-3.8-flash"
+        json.get("models")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|m| m.get("name").and_then(|n| n.as_str()))
+                    .map(|n| n.strip_prefix("models/").unwrap_or(n).to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        // OpenAI/Anthropic: data[].id
+        json.get("data")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|m| m.get("id").and_then(|n| n.as_str()))
+                    .map(|s| s.to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+
+    Ok(ids)
+}
+
 /// Hapus settings.json (Reset Semua ke Default). secrets.json TIDAK
 /// disentuh: API key bukan "setting" dan menghapusnya diam-diam berbahaya.
 #[tauri::command(async)]

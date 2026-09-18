@@ -14,6 +14,7 @@ import { useStore } from '../../lib/store';
 import { useTerminal } from '../../lib/terminalStore';
 import ChatMessage from './ChatMessage';
 import ModelSelector from './ModelSelector';
+import { clipboardReadImage } from '../../lib/clipboard';
 
 export default function AiPanel() {
   const sessions = useAi((s) => s.sessions);
@@ -21,15 +22,18 @@ export default function AiPanel() {
   const pending = useAi((s) => s.pending);
   const draft = useAi((s) => s.draft);
   const attachActive = useAi((s) => s.attachActive);
+  const draftImage = useAi((s) => s.draftImage);
   const toast = useAi((s) => s.toast);
   const confirmCmd = useAi((s) => s.confirmCmd);
 
   const setDraft = useAi((s) => s.setDraft);
   const setAttachActive = useAi((s) => s.setAttachActive);
+  const setDraftImage = useAi((s) => s.setDraftImage);
   const setToast = useAi((s) => s.setToast);
   const setConfirmCmd = useAi((s) => s.setConfirmCmd);
   const send = useAi((s) => s.send);
   const cancel = useAi((s) => s.cancel);
+  const exportChat = useAi((s) => s.exportChat);
   const runInTerminal = useAi((s) => s.runInTerminal);
   const agentMode = useAi((s) => s.agentMode);
   const approvalMode = useAi((s) => s.approvalMode);
@@ -54,6 +58,7 @@ export default function AiPanel() {
 
   const scroller = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const photoRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-scroll saat token baru masuk (kecuali user sedang scroll ke atas).
   useEffect(() => {
@@ -121,7 +126,21 @@ export default function AiPanel() {
               yang mengulang fungsi sidebar. */}
           <span className="ai-count" data-testid="ai-msg-count">
             {msgs.length} pesan
+            {msgs.length > 0 && (
+              <span className="ai-tokens" data-testid="ai-token-count" title="Perkiraan token (jumlah karakter ÷ 4)">
+                · ≈{Math.round(msgs.reduce((n, m) => n + m.content.length, 0) / 4)} token
+              </span>
+            )}
           </span>
+          <button
+            className="ai-export"
+            data-testid="ai-export"
+            disabled={msgs.length === 0 || !!pending}
+            title="Salin seluruh chat sebagai markdown ke clipboard"
+            onClick={() => void exportChat()}
+          >
+            Ekspor
+          </button>
           <span className="ai-chatname" data-testid="ai-chat-name">
             {session?.title ?? '—'}
           </span>
@@ -189,6 +208,19 @@ export default function AiPanel() {
       )}
 
       <div className="ai-input-row">
+        {draftImage && (
+          <div className="ai-imgpreview" data-testid="ai-imgpreview">
+            <img src={draftImage} alt="Lampiran gambar" />
+            <button
+              className="ai-imgremove"
+              data-testid="ai-imgremove"
+              title="Hapus gambar"
+              onClick={() => setDraftImage(null)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <textarea
           ref={inputRef}
           className="ai-input"
@@ -213,6 +245,16 @@ export default function AiPanel() {
               void send();
             }
           }}
+          onPaste={(e) => {
+            // Win+Shift+S lalu Ctrl+V: tempel screenshot jadi lampiran gambar.
+            void clipboardReadImage().then((url) => {
+              if (url) {
+                e.preventDefault();
+                setDraftImage(url);
+                setToast('Screenshot ditempel sebagai lampiran');
+              }
+            });
+          }}
         />
 
         <div className="ai-input-side">
@@ -228,7 +270,7 @@ export default function AiPanel() {
             <button
               className="btn btn-sm btn-primary"
               data-testid="ai-send"
-              disabled={!draft.trim() || agentBusy}
+              disabled={(!draft.trim() && !draftImage) || agentBusy}
               onClick={() => void send()}
             >
               {agentMode === 'agent' ? 'Jalankan' : 'Kirim'}
@@ -248,6 +290,34 @@ export default function AiPanel() {
           >
             {attachActive ? '✓' : '+'} file aktif
           </button>
+
+          <button
+            className="ai-photo"
+            data-testid="ai-photo"
+            title="Lampirkan gambar (maks 3,5 MB) — atau Win+Shift+S lalu Ctrl+V"
+            onClick={() => photoRef.current?.click()}
+          >
+            + gambar
+          </button>
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            hidden
+            data-testid="ai-photo-input"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              if (f.size > 3_500_000) {
+                setToast('Gambar maksimal 3,5 MB');
+                return;
+              }
+              const r = new FileReader();
+              r.onload = () => setDraftImage(String(r.result));
+              r.readAsDataURL(f);
+            }}
+          />
 
           {/* §9.4: kirim error TS ke AI. Hanya aktif kalau ada pane terminal
               (perintahnya dijalankan di sana lalu hasilnya diminta dianalisis). */}

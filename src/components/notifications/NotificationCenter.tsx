@@ -7,6 +7,7 @@
 
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
+import { Changelog } from '../settings/changelogRender';
 
 const waktu = (ts: number): string => {
   const d = new Date(ts);
@@ -21,7 +22,7 @@ function Baris({ n }: { n: Notif }) {
       <span className={`nc-dot is-${n.severity}`} aria-hidden="true" />
       <div className="nc-body">
         <span className="nc-msg">{n.message}</span>
-        {n.detail && <span className="nc-detail">{n.detail}</span>}
+        {n.detail && <span className="nc-detail"><Changelog teks={n.detail} /></span>}
         <span className="nc-meta">
           {waktu(n.timestamp)}
           {n.source ? ` · ${n.source}` : ''}

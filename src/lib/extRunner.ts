@@ -23,11 +23,19 @@ export function skripEkstensi(
   code: string,
   files: Record<string, string> = {},
   mainRel = 'main.js',
+  manifest: Record<string, unknown> = {},
+  envPath = '',
+  goroot = '',
+  gopath = '',
 ): string {
   const header = `
 var __zhFiles = ${JSON.stringify(files)};
 var __filename = ${JSON.stringify(mainRel)};
 var __dirname = ${JSON.stringify(dirRel(mainRel))};
+var __zhManifest = ${JSON.stringify(manifest)};
+var __zhEnvPath = ${JSON.stringify(envPath)};
+var __zhEnvGoroot = ${JSON.stringify(goroot)};
+var __zhEnvGopath = ${JSON.stringify(gopath)};
 var require = __zhMakeRequire(__dirname);
 `;
   return `${PREAMBLE}${header}
@@ -78,7 +86,20 @@ var module = { exports: {} };
 var exports = module.exports;
 var global = self;
 var process = {
-  env: {},
+  env: (function () {
+    // Env minimal tapi nyata: ekstensi (mis. vscode-go) membaca PATH/GOROOT
+    // untuk mencari binary runtime. Nilai diambil dari proses utama.
+    var e = {};
+    try {
+      e.PATH = __zhEnvPath || "";
+      e.Path = e.PATH;
+      e.GOROOT = __zhEnvGoroot || "";
+      e.GOPATH = __zhEnvGopath || "";
+      e.HOME = "/";
+      e.APPDATA = "";
+    } catch (err) {}
+    return e;
+  })(),
   platform: 'win32',
   arch: 'x64',
   version: 'v20.0.0',
@@ -504,12 +525,22 @@ function __zhVscode() {
   Disposable.from = function () { return new Disposable(null); };
 
   function Uri() {}
+  function __zhUriWith(u, ubah) {
+    var u2 = { scheme: u.scheme, path: u.path, fsPath: u.fsPath, query: u.query ?? "", fragment: u.fragment ?? "" };
+    if (ubah) for (var k in ubah) u2[k] = ubah[k];
+    u2.with = function (x) { return __zhUriWith(u2, x); };
+    u2.toJSON = function () { return { scheme: u2.scheme, path: u2.path }; };
+    u2.toString = u.toString;
+    return u2;
+  }
   Uri.parse = function (s) {
     var u = new Uri();
     u.scheme = 'file';
     u.path = String(s);
     u.fsPath = String(s).replace(/^file:\\/\\//, '');
     u.toString = function () { return String(s); };
+    u.with = function (ubah) { return __zhUriWith(u, ubah); };
+    u.toJSON = function () { return { scheme: u.scheme, path: u.path }; };
     return u;
   };
   Uri.file = function (p) {
@@ -518,6 +549,8 @@ function __zhVscode() {
     u.path = String(p);
     u.fsPath = String(p);
     u.toString = function () { return 'file:///' + String(p); };
+    u.with = function (ubah) { return __zhUriWith(u, ubah); };
+    u.toJSON = function () { return { scheme: u.scheme, path: u.path }; };
     return u;
   };
   Uri.joinPath = function (base) {
@@ -776,10 +809,29 @@ function __zhVscode() {
   var InlayHintKind = Object.freeze({ Type: 1, Parameter: 2 });
 
   return {
-    version: '1.1.7',
+    // vscode.version: SAH sebagai VS Code-compatible (bukan versi Zephyr).
+    // Language client ekstensi memeriksa semver ini (mis. ^1.91.0) sebelum aktif.
+    version: '1.95.0',
     Disposable: Disposable,
     Uri: Uri,
-    EventEmitter: EventEmitter,
+    EventEmitter: class ZEmitter {
+      constructor() { this._zhLs = []; }
+      get event() {
+        var self = this;
+        return function (fn) {
+          self._zhLs.push(fn);
+          return { dispose: function () { var i = self._zhLs.indexOf(fn); if (i >= 0) self._zhLs.splice(i, 1); } };
+        };
+      }
+      on(fn) { return this.event()(fn); }
+      addListener(fn) { return this.on(fn); }
+      once(fn) { var d = this.on(fn); return d; }
+      off(fn) {}
+      removeListener(fn) {}
+      emit(x) { var ls = this._zhLs.slice(); for (var i = 0; i < ls.length; i++) ls[i](x); return true; }
+      fire(x) { return this.emit(x); }
+      dispose() { this._zhLs = []; }
+    },
     // Kelas nyata: tanpa ini class X extends vscode.Y crash saat load.
     CompletionItem: CompletionItem,
     CodeAction: CodeAction,
@@ -829,6 +881,164 @@ function __zhVscode() {
     DocumentHighlightKind: DocumentHighlightKind,
     CommentMode: CommentMode,
     InlayHintKind: InlayHintKind,
+    ExtensionMode: { Production: 1, Development: 2, Test: 3 },
+    MessageType: { Error: 1, Warning: 2, Info: 3, Log: 4, Debug: 5 },
+    LogLevel: { Off: 0, Trace: 1, Debug: 2, Info: 3, Warning: 4, Error: 5, Critical: 6 },
+    ConfigurationTarget: ConfigurationTarget,
+    UIKind: { Desktop: 1, Web: 2 },
+    ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 },
+    ConfigurationScope: { Default: 1, Resource: 2, Window: 3, LanguageOverridable: 4, Machine: 5, MachineOverridable: 6 },
+    ViewColumn: ViewColumn,
+    QuickInputButtonKind: undefined,
+    // ── Kelas tambahan (dipakai bundle marketplace saat LOAD via __toESM) ──
+    Emitter: class Emitter {
+      constructor() { this._listeners = []; this._event = null; }
+      get event() {
+        var self = this;
+        if (!this._event) {
+          this._event = function (fn) {
+            if (!self._listeners) self._listeners = [];
+            self._listeners.push(fn);
+            return { dispose: function () { var i = self._listeners.indexOf(fn); if (i >= 0) self._listeners.splice(i, 1); } };
+          };
+        }
+        return this._event;
+      }
+      fire(x) { var ls = (this._listeners || []).slice(); for (var i = 0; i < ls.length; i++) ls[i](x); }
+      dispose() { this._listeners = []; }
+    },
+    CancellationTokenSource: class CancellationTokenSource {
+      constructor() {
+        this._token = { isCancellationRequested: false, onCancellationRequested: function () { return { dispose: function () {} }; } };
+      }
+      get token() { return this._token; }
+      cancel() { this._token.isCancellationRequested = true; }
+      dispose() {}
+    },
+    CancellationToken: undefined, // namespace-ish; token dari CTS di atas
+    Progress: undefined,
+    ProgressType: class ProgressType {},
+    ProgressToken: undefined,
+    ProgressPart: class ProgressPart {},
+    WorkspaceFolder: undefined,
+    RelativePattern: class RelativePattern { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
+    TextDocumentSyncKind: { None: 0, Full: 1, Incremental: 2 },
+    TextDocumentSaveReason: { Manual: 1, AfterDelay: 2, FocusOut: 3 },
+    TextDocumentEdit: class TextDocumentEdit {},
+    TextDocumentContentChangeEvent: class TextDocumentContentChangeEvent {},
+    TextDocumentFilter: undefined,
+    TextDocumentRegistrationOptions: undefined,
+    DiagnosticRelatedInformation: class DiagnosticRelatedInformation { constructor(location, message) { this.location = location; this.message = message; } },
+    DiagnosticCode: undefined,
+    DiagnosticServerCancellationData: undefined,
+    DiagnosticPullMode: undefined,
+    CodeActionTriggerKind: { Invoke: 1, Automatic: 2 },
+    CodeActionTag: undefined,
+    CodeActionContext: class CodeActionContext {},
+    CompletionItemLabelDetails: class CompletionItemLabelDetails {},
+    CompletionItemTag: undefined,
+    Color: class Color { constructor(red, green, blue, alpha) { this.red = red; this.green = green; this.blue = blue; this.alpha = alpha; } },
+    ColorInformation: class ColorInformation {},
+    ColorPresentation: class ColorPresentation {},
+    FoldingRange: class FoldingRange {},
+    FoldingRangeKind: undefined,
+    FoldingRangeRefreshRequest: undefined,
+    FoldingRangeRequest: undefined,
+    SelectionRange: class SelectionRange {},
+    SemanticTokens: class SemanticTokens {},
+    SemanticTokensEdit: class SemanticTokensEdit {},
+    SemanticTokensEdits: class SemanticTokensEdits {},
+    SemanticTokensRefreshRequest: undefined,
+    SemanticTokensRangeRequest: undefined,
+    SemanticTokensRequest: undefined,
+    SemanticTokensRegistrationType: undefined,
+    SemanticTokensLegend: undefined,
+    InlineCompletionTriggerKind: { Invoke: 0, Automatic: 1 },
+    InlineCompletionList: class InlineCompletionList {},
+    InlineCompletionItem: class InlineCompletionItem {},
+    InlineValueContext: undefined,
+    InlineValueText: class InlineValueText {},
+    InlineValueVariableLookup: class InlineValueVariableLookup {},
+    InlineValueEvaluatableExpression: class InlineValueEvaluatableExpression {},
+    InlineValueRefreshRequest: undefined,
+    InlineValueRequest: undefined,
+    CallHierarchyIncomingCall: class CallHierarchyIncomingCall {},
+    CallHierarchyOutgoingCall: class CallHierarchyOutgoingCall {},
+    CallHierarchyPrepareRequest: undefined,
+    CallHierarchyIncomingCallsRequest: undefined,
+    CallHierarchyOutgoingCallsRequest: undefined,
+    TypeHierarchyPrepareRequest: undefined,
+    TypeHierarchySubtypesRequest: undefined,
+    TypeHierarchySupertypesRequest: undefined,
+    InlayHintRequest: undefined,
+    InlayHintResolveRequest: undefined,
+    InlayHintRefreshRequest: undefined,
+    DiagnosticRefreshRequest: undefined,
+    CodeActionRequest: undefined,
+    CodeActionResolveRequest: undefined,
+    DocumentHighlightRequest: undefined,
+    TextDocumentLanguageFeature: undefined,
+    TextDocumentEventFeature: undefined,
+    DiagnosticFeature: undefined,
+    CompletionItemFeature: undefined,
+    DocumentHighlightFeature: undefined,
+    CodeActionFeature: undefined,
+    FoldingRangeFeature: undefined,
+    CallHierarchyFeature: undefined,
+    TypeHierarchyFeature: undefined,
+    InlineValueFeature: undefined,
+    InlayHintsFeature: undefined,
+    InlineCompletionItemFeature: undefined,
+    TextDocumentContentFeature: undefined,
+    ProgressFeature: undefined,
+    NotebookDocumentSyncFeature: undefined,
+    InlineCompletionRequest: undefined,
+    Task: undefined,
+    TaskScope: undefined,
+    TaskGroup: undefined,
+    TaskRevealKind: undefined,
+    TaskPanelKind: undefined,
+    TaskRunRequest: undefined,
+    CustomExecution: class CustomExecution { constructor(cb) { this._cb = cb; } },
+    ShellExecution: class ShellExecution {},
+    ProcessExecution: class ProcessExecution {},
+    ShellQuoting: undefined,
+    DebugConfiguration: class DebugConfiguration {},
+    DebugAdapterExecutable: class DebugAdapterExecutable {},
+    DebugAdapterServer: class DebugAdapterServer {},
+    DebugAdapterNamedPipeServer: class DebugAdapterNamedPipeServer {},
+    Breakpoint: class Breakpoint {},
+    SourceBreakpoint: class SourceBreakpoint {},
+    FunctionBreakpoint: class FunctionBreakpoint {},
+    FilterType: undefined,
+    LogPoint: undefined,
+    QuickPickItemKind: { Separator: -1, Default: 0 },
+    TelemetryTrustedValue: class TelemetryTrustedValue { constructor(v) { this.value = v; } },
+    TelemetryEventNotification: undefined,
+    TelemetryReporter: undefined,
+    AuthenticationFailed: undefined,
+    Comment: undefined,
+    CommentEnd: undefined,
+    CommentStatement: undefined,
+    Markdown: undefined,
+    Notebook: undefined,
+    NotebookCell: undefined,
+    NotebookCellKind: undefined,
+    NotebookCellArrayChange: undefined,
+    NotebookCellTextDocumentFilter: undefined,
+    NotebookDocument: undefined,
+    NotebookDocumentFilter: undefined,
+    NotebookDocumentSyncRegistrationType: undefined,
+    LanguageModelTextPart: class LanguageModelTextPart {},
+    LanguageModelToolResult: class LanguageModelToolResult {},
+    EventGridDomains: undefined,
+    EventGridEventSubscriptions: undefined,
+    EventGridTopics: undefined,
+    CancellationToken: undefined,
+    ProgressToken: undefined,
+    Event: undefined,
+    WorkspaceFolder: undefined,
+    Progress: undefined,
     commands: {
       registerCommand: function (id, fn) {
         __zh[String(id)] = fn;
@@ -870,11 +1080,62 @@ function __zhVscode() {
           clear: function () {},
           show: function () {},
           hide: function () {},
+          replace: function () {},
+          debug: function () {},
+          info: function () {},
+          warn: function () {},
+          error: function () {},
+          trace: function () {},
           dispose: function () {},
+          onDidChangeLogLevel: function () { return { dispose: function () {} }; },
         };
       },
       showQuickPick: function () { return Promise.resolve(undefined); },
       showInputBox: function () { return Promise.resolve(undefined); },
+      createWebviewPanel: function (viewType, title) {
+        return {
+          viewType: String(viewType), title: String(title), webview: {
+            html: "", options: {}, cspSource: "",
+            asWebviewUri: function (u) { return u; },
+            postMessage: function () { return Promise.resolve(true); },
+            onDidReceiveMessage: function () { return { dispose: function () {} }; },
+          },
+          onDidDispose: function () { return { dispose: function () {} }; },
+          onDidChangeViewState: function () { return { dispose: function () {} }; },
+          reveal: function () {}, dispose: function () {}
+        };
+      },
+      registerWebviewPanelSerializer: function () { return { dispose: function () {} }; },
+      createTreeView: function (id, opts) {
+        return {
+          visible: false,
+          message: undefined,
+          title: opts && opts.title ? String(opts.title) : String(id),
+          description: undefined,
+          onDidCollapseElement: function () { return { dispose: function () {} }; },
+          onDidExpandElement: function () { return { dispose: function () {} }; },
+          onDidChangeVisibility: function () { return { dispose: function () {} }; },
+          onDidChangeSelection: function () { return { dispose: function () {} }; },
+          reveal: function () { return Promise.resolve(); },
+          dispose: function () {}
+        };
+      },
+      registerTreeDataProvider: function () { return { dispose: function () {} }; },
+      showQuickPick: function () { return Promise.resolve(undefined); },
+      createStatusBarItem: function () { return { text: "", command: "", show: function () {}, hide: function () {}, dispose: function () {} }; },
+      setStatusBarMessage: function () { return { dispose: function () {} }; },
+      showTextDocument: function () { return Promise.resolve(undefined); },
+      openTextDocument: function () { return Promise.resolve(undefined); },
+      activeTextEditor: undefined,
+      visibleTextEditors: [],
+      onDidChangeActiveTextEditor: function () { return { dispose: function () {} }; },
+      onDidChangeVisibleTextEditors: function () { return { dispose: function () {} }; },
+      onDidChangeTextEditorSelection: function () { return { dispose: function () {} }; },
+      showSaveDialog: function () { return Promise.resolve(undefined); },
+      onDidChangeWindowTitle: function () { return { dispose: function () {} }; },
+      state: { focused: true, active: true },
+      onDidChangeWindowState: function () { return { dispose: function () {} }; },
+      showOpenDialog: function () { return Promise.resolve(undefined); },
       showWorkspaceFolderPick: function () { return Promise.resolve(undefined); },
       createTextEditorDecorationType: function () {
         return { key: String(Math.random()), dispose: function () {} };
@@ -894,11 +1155,36 @@ function __zhVscode() {
       workspaceFolders: [],
       getConfiguration: function () {
         return {
-          get: function () { return undefined; },
+          get: function (key, def) { return def === undefined ? undefined : def; },
           has: function () { return false; },
           update: function () { return Promise.resolve(undefined); },
+          inspect: function () { return undefined; },
         };
       },
+      registerFileSystemProvider: function () { return { dispose: function () {} }; },
+      createFileSystemWatcher: function (pattern) {
+        return {
+          onDidCreate: function () { return { dispose: function () {} }; },
+          onDidChange: function () { return { dispose: function () {} }; },
+          onDidDelete: function () { return { dispose: function () {} }; },
+          dispose: function () {}
+        };
+      },
+      onDidChangeTextDocument: function () { return { dispose: function () {} }; },
+      onDidRenameFiles: function () { return { dispose: function () {} }; },
+      onDidCreateFiles: function () { return { dispose: function () {} }; },
+      onDidDeleteFiles: function () { return { dispose: function () {} }; },
+      onWillRenameFiles: { event: function () { return { dispose: function () {} }; } },
+      registerTextDocumentContentProvider: function () { return { dispose: function () {} }; },
+      registerWorkspaceFolderManager: undefined,
+      onDidChangeWorkspaceFolders: function () { return { dispose: function () {} }; },
+      onWillSaveTextDocument: { event: function () { return { dispose: function () {} }; } },
+      onDidSaveTextDocument: function () { return { dispose: function () {} }; },
+      onDidOpenTextDocument: function () { return { dispose: function () {} }; },
+      onDidCloseTextDocument: function () { return { dispose: function () {} }; },
+      workspaceFolders: [],
+      name: "workspace",
+      textDocuments: [],
       onDidChangeConfiguration: noopDisposable,
       getWorkspaceFolder: function () { return undefined; },
       openTextDocument: function () {
@@ -992,11 +1278,87 @@ function __zhVscode() {
       },
       openExternal: function () { return Promise.resolve(true); },
       asExternalUri: function () { return Promise.resolve(Uri.file('/')); },
+      createTelemetryLogger: function () {
+        return {
+          logUsage: function () {},
+          logError: function () {},
+          onDidChangeEnableStates: function () { return { dispose: function () {} }; },
+          onDidChangeLogLevel: function () { return { dispose: function () {} }; },
+          telemetryLevel: 0,
+          isUsageEnabled: false,
+          isErrorsEnabled: false,
+          dispose: function () {}
+        };
+      },
+      appNamePrimary: "Zephyr",
       shell: undefined,
+    },
+    // extensions: stub pola VS Code — getExtension(id) mengembalikan stub
+    // ekstensi sendiri (packageJSON = manifest asli) dan undefined untuk id
+    // lain. Tanpa ini ekstensi penuh (mis. golang.go) meledak "Cannot read
+    // properties of undefined (reading 'getExtension')" saat aktivasi.
+    lm: {
+      registerTool: function () { return { dispose: function () {} }; },
+      registerChatVariableResolver: function () { return { dispose: function () {} }; },
+      selectChatModels: function () { return Promise.resolve([]); },
+    },
+    chat: {
+      registerChatParticipant: function () { return { dispose: function () {} }; },
+      registerChatVariableResolver: function () { return { dispose: function () {} }; },
+      registerChatCommandProvider: function () { return { dispose: function () {} }; },
+      createChatParticipant: function () { return { dispose: function () {} }; },
+    },
+    tasks: {
+      registerTaskProvider: function () { return { dispose: function () {} }; },
+      taskExecutions: [],
+      onDidStartTask: function () { return { dispose: function () {} }; },
+      onDidEndTask: function () { return { dispose: function () {} }; },
+      onDidStartTaskProcess: function () { return { dispose: function () {} }; },
+      onDidEndTaskProcess: function () { return { dispose: function () {} }; },
+      fetchTasks: function () { return Promise.resolve([]); },
+      executeTask: function () { return Promise.reject(new Error("tasks tidak didukung di sandbox Zephyr")); },
+    },
+    debug: {
+      registerDebugConfigurationProvider: function () { return { dispose: function () {} }; },
+      registerDebugAdapterDescriptorFactory: function () { return { dispose: function () {} }; },
+      registerDebugAdapterTrackerFactory: function () { return { dispose: function () {} }; },
+      onDidStartDebugSession: function () { return { dispose: function () {} }; },
+      onDidTerminateDebugSession: function () { return { dispose: function () {} }; },
+      onDidChangeActiveDebugSession: function () { return { dispose: function () {} }; },
+      onDidReceiveDebugSessionCustomEvent: function () { return { dispose: function () {} }; },
+      onDidChangeBreakpoints: function () { return { dispose: function () {} }; },
+      registerBreakpointTracker: undefined,
+      activeDebugSession: undefined,
+      activeDebugConsole: undefined,
+      breakpoints: [],
+      startDebugging: function () { return Promise.resolve(false); },
+      stopDebugging: function () {},
+      addBreakpoints: function () {},
+      removeBreakpoints: function () {},
+    },
+    extensions: {
+      getExtension: function (id) {
+        var nid = String(id || '').toLowerCase();
+        var pid = String(__zhManifest && (__zhManifest.publisher || '') || '');
+        var nm = String(__zhManifest && (__zhManifest.name || '') || '');
+        var own = pid && nm ? pid + '.' + nm : '';
+        if (!own || nid !== own.toLowerCase()) return undefined;
+        return {
+          id: own,
+          packageJSON: __zhManifest,
+          exports: undefined,
+          extensionPath: '/',
+          extensionUri: Uri.file('/'),
+          isActive: true,
+          activate: function () { return Promise.resolve(); },
+        };
+      },
+      all: [],
+      onDidChange: { event: function () { return function () {}; }, dispose: function () {} },
     },
   };
 }
-var vscode = __zhVscode();
+var vscode = __zhSafeNs(__zhVscode(), "vscode");
 
 // ── fs: objek NYATA (bukan Proxy) dengan API standar lengkap. ──
 // Setiap fungsi melempar error JELAS kalau DIPANGGIL. Ini penting:
@@ -1109,6 +1471,93 @@ function __zhLoadFile(rel) {
   return mod.exports;
 }
 
+// ── Modul node yang bisa dipetakan ke API browser Worker ──
+function __zhCrypto() {
+  var w = self.crypto;
+  return {
+    getRandomValues: function (arr) { return w.getRandomValues(arr); },
+    randomBytes: function (n) {
+      var a = new Uint8Array(n); w.getRandomValues(a);
+      return {
+        data: a,
+        toString: function (enc) {
+          var hex = ""; for (var i = 0; i < a.length; i++) hex += ("0" + a[i].toString(16)).slice(-2);
+          return enc === "hex" ? hex : Array.from(a).join(",");
+        },
+        length: n
+      };
+    },
+    randomUUID: function () { return w.randomUUID(); },
+    createHash: function () {
+      // Hash asli tidak ada di WebCrypto — stub jelas yang TIDAK crash saat load
+      return { update: function () { return this; }, digest: function () { return ""; } };
+    },
+    webcrypto: w,
+  };
+}
+function __zhUrl() {
+  return {
+    URL: URL,
+    URLSearchParams: URLSearchParams,
+    parse: function (u) { try { return new URL(String(u)); } catch (e) { return null; } },
+    format: function (u) { return String(u); },
+    pathToFileURL: function (p) { return new URL("file://" + String(p).split(/[\\/]/).join("/")); },
+    fileURLToPath: function (u) { return decodeURIComponent(String(u).replace(/^file:[\\/][\\/]/, "")); },
+  };
+}
+function __zhStringDecoder() {
+  function StringDecoder(enc) { this.encoding = enc || "utf8"; }
+  StringDecoder.prototype.write = function (buf) { return new TextDecoder(this.encoding === "hex" ? "utf-8" : this.encoding).decode(buf); };
+  StringDecoder.prototype.end = function () { return ""; };
+  return { StringDecoder: StringDecoder };
+}
+function __zhZlib() {
+  return new Proxy({}, {
+    get: function (t, prop) {
+      if (prop === "toString" || prop === Symbol.toPrimitive) return function () { return "[zlib]"; };
+      return function () { throw new Error("zlib." + String(prop) + " tidak didukung di sandbox Zephyr"); };
+    },
+  });
+}
+function __zhReadline() {
+  function Interface() {}
+  Interface.prototype.question = function (q, cb) { if (cb) cb(""); };
+  Interface.prototype.close = function () {};
+  Interface.prototype.on = function () {};
+  return { Interface: Interface, createInterface: function () { return new Interface(); } };
+}
+function __zhFsPromises() {
+  var f = __zhFs();
+  return {
+    readFile: function () { return f.readFile.apply(f, arguments); },
+    writeFile: function () { return f.writeFile.apply(f, arguments); },
+    stat: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
+    readdir: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
+    mkdir: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
+    unlink: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
+  };
+}
+
+// ── Lapisan universal anti-"is not a function" ──
+function __zhSafeFn(nama) {
+  var fn = function () { return __zhSafeNs({}, nama + "()"); };
+  fn.then = function (res) { return Promise.resolve(undefined).then(res); };
+  fn.catch = function () { return Promise.resolve(undefined); };
+  fn.event = function () { return { dispose: function () {} }; };
+  fn.dispose = function () {};
+  fn.toString = function () { return "[vscode." + nama + " (stub aman)]"; };
+  return fn;
+}
+function __zhSafeNs(target, nama) {
+  return new Proxy(target, {
+    get: function (t, prop) {
+      if (prop in t) return t[prop];
+      if (prop === "then" || prop === Symbol.toPrimitive) return undefined;
+      if (prop === "valueOf") return function () { return 0; };
+      return __zhSafeFn(nama + "." + String(prop));
+    },
+  });
+}
 function __zhMakeRequire(dir) {
   return function (id) {
     id = String(id);
@@ -1125,8 +1574,29 @@ function __zhMakeRequire(dir) {
       return { setImmediate: setImmediate, clearImmediate: clearImmediate, setTimeout: setTimeout, clearTimeout: clearTimeout, setInterval: setInterval, clearInterval: clearInterval };
     }
     if (id === 'process' || id === 'node:process') return process;
+    if (id === 'crypto' || id === 'node:crypto') return __zhCrypto();
+    if (id === 'url' || id === 'node:url') return __zhUrl();
+    if (id === 'zlib' || id === 'node:zlib') return __zhZlib();
+    if (id === 'string_decoder' || id === 'node:string_decoder') return __zhStringDecoder();
+    if (id === 'readline') return __zhReadline();
+    if (id === 'fs/promises' || id === 'node:fs/promises') return __zhFsPromises();
     if (id === 'assert' || id === 'node:assert') {
-      return { ok: function () {}, equal: function () {}, deepEqual: function () {} };
+      var __zhAssert = function (cond, msg) { if (!cond) throw new Error(msg || "assertion gagal"); };
+      __zhAssert.ok = function (cond, msg) { if (!cond) throw new Error(msg || "assertion gagal"); };
+      __zhAssert.equal = function () {};
+      __zhAssert.deepEqual = function () {};
+      __zhAssert.strictEqual = function () {};
+      __zhAssert.deepStrictEqual = function () {};
+      __zhAssert.notEqual = function () {};
+      __zhAssert.notDeepEqual = function () {};
+      __zhAssert.notStrictEqual = function () {};
+      __zhAssert.throws = function () {};
+      __zhAssert.doesNotThrow = function () {};
+      __zhAssert.fail = function (msg) { throw new Error(msg || "assert.fail"); };
+      __zhAssert.AssertionError = class AssertionError extends Error {};
+      // Interop ESM: bundle esbuild memanggil assert.default(...)
+      __zhAssert.default = __zhAssert;
+      return __zhAssert;
     }
     // require relatif/sibling ('.', '..', atau absolut): file di dalam folder
     // ekstensi yang dikirim backend sebagai __zhFiles.
@@ -1174,17 +1644,36 @@ try {
       store: function () { return Promise.resolve(undefined); },
     },
     asAbsolutePath: function (p) { return String(p); },
+    environmentVariableCollection: {
+      clear: function () {},
+      replace: function () {},
+      append: function () {},
+      prepend: function () {},
+      get: function () { return undefined; },
+      forEach: function () {},
+      delete: function () {},
+      persistent: false,
+    },
     logUri: vscode.Uri.file('/'),
     storageUri: null,
     globalStorageUri: null,
-    extension: { id: 'zephyr-extension', extensionUri: vscode.Uri.file('/') },
+    extension: {
+      id: 'zephyr-extension',
+      extensionUri: vscode.Uri.file('/'),
+      packageJSON: __zhManifest,
+      packageJSONPath: "/package.json",
+      extensionPath: "/",
+      extensionKind: 1,
+      isActive: true,
+      exports: undefined,
+    },
   };
   if (module.exports && typeof module.exports.activate === 'function') {
     Promise.resolve(module.exports.activate(__zhCtx)).catch(function (err) {
       self.postMessage({
         type: 'notify',
         severity: 'warn',
-        message: 'aktivasi: ' + ((err && err.message) || err),
+        message: 'aktivasi: ' + ((err && err.message) || (err && err.constructor && err.constructor.name) || String(err) || '(tanpa pesan)') + (err && err.stack ? ' @@' + String(err.stack).split(String.fromCharCode(10)).slice(1, 4).join(' | ').slice(0, 500) : ''),
       });
     });
   }

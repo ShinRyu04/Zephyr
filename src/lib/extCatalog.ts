@@ -21,6 +21,8 @@ export interface KatalogItem {
   logo: string;
   /** khusus remote: URL logo asli dari registry (dipakai <img>, bukan inisial) */
   logoUrl?: string;
+  /** warna merek → lingkaran logo berwarna (mis. #00add8 untuk Go) */
+  logoColor?: string;
   /** true = paketnya ada di dalam app (bisa dipasang offline) */
   bundled: boolean;
   /** bahasa yang membuat item ini direkomendasikan (19.1 RECOMMENDED) */
@@ -29,6 +31,10 @@ export interface KatalogItem {
   url?: string;
   unduhan?: number;
   rating?: number;
+  /** true = item marketplace butuh runtime eksternal / eksekusi JS penuh.
+   *  Zephyr v1 manifest-only TIDAK bisa menjalankannya, jadi item begini
+   *  disembunyikan dari tab Marketplace (atau ditandai bila masih tampil). */
+  perluRuntime?: boolean;
 }
 
 export const KATALOG_BUNDLED: KatalogItem[] = [
@@ -75,27 +81,6 @@ export const KATALOG_BUNDLED: KatalogItem[] = [
     untukBahasa: ['typescript', 'tsx', 'javascript', 'jsx'],
   },
   {
-    id: 'zephyr.lang-toml',
-    name: 'Bahasa TOML',
-    publisher: 'zephyr',
-    version: '1.0.0',
-    description: 'Syntax highlight .toml (Cargo.toml, pyproject.toml) via mode legacy.',
-    categories: ['Languages'],
-    logo: 'T',
-    bundled: true,
-    untukBahasa: ['rust', 'python'],
-  },
-  {
-    id: 'zephyr.lang-lua',
-    name: 'Bahasa Lua',
-    publisher: 'zephyr',
-    version: '1.0.0',
-    description: 'Syntax highlight .lua untuk skrip Neovim/Love2D.',
-    categories: ['Languages'],
-    logo: 'Lu',
-    bundled: true,
-  },
-  {
     id: 'zephyr.ikon-bulat',
     name: 'Ikon Bulat',
     publisher: 'zephyr',
@@ -105,6 +90,7 @@ export const KATALOG_BUNDLED: KatalogItem[] = [
     logo: '⬤',
     bundled: true,
   },
+
 ];
 
 export const katalogById = (id: string) => KATALOG_BUNDLED.find((x) => x.id === id) ?? null;

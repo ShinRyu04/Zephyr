@@ -731,6 +731,17 @@
   align-items: center;
   gap: 10px;
 }
+.prov-model-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.prov-model-row .set-select {
+  flex: 1;
+  min-width: 0;
+}
 .prov-flabel {
   flex: 0 0 84px;
   font-size: 11.5px;
@@ -1506,4 +1517,52 @@
   height: 100%;
   background: var(--accent);
   transition: width 0.18s ease;
+}
+
+/* Changelog update (render markdown ringan + tabel) */
+.upd-changelog {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.upd-changelog h4,
+.upd-changelog h5,
+.upd-changelog h6 {
+  margin: 12px 0 5px;
+  font-weight: 600;
+}
+.upd-changelog p {
+  margin: 5px 0;
+}
+.upd-changelog ul,
+.upd-changelog ol {
+  margin: 5px 0;
+  padding-left: 20px;
+}
+.upd-changelog code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg2, var(--surface-2));
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.upd-tabel {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 9px 0;
+  font-size: 12px;
+}
+.upd-tabel th,
+.upd-tabel td {
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.upd-tabel th {
+  background: var(--bg2, var(--surface-2));
+  font-weight: 600;
+}
+.upd-body {
+  max-height: 46vh;
+  overflow-y: auto;
 }

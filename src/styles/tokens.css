@@ -56,6 +56,9 @@
   --toolbar-bg: var(--surface);
   --statusbar-bg: var(--surface);
   --titlebar-bg: var(--surface);
+  /* Warna judul + ikon di title bar bawaan Windows (titlebar.rs). Dipakai
+     juga oleh baris menu, jadi keduanya selalu satu warna. */
+  --titlebar-fg: var(--text);
   --input-bg: var(--surface-2);
   --input-border: var(--border);
   --focus-ring: var(--accent);

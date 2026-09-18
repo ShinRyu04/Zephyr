@@ -1,11 +1,5 @@
 {
-  "version": "1.1.7",
-  "notes": "v1.1.7: panel bisa dipindah atas/bawah, bahasa jawaban AI, ekstensi besar jalan di sandbox (require relatif antar file)",
-  "pub_date": "2026-09-09T12:39:00+07:00",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSV3FhYnJkc2taU0M4dHpvWXVKNFhBYTZnWXhVanpETUMwWkN3b1V2S052cm5HMFNhcGJoUjY3aWhaT1dNV1hBcDF4V1RCRjUzc210TTN4eEd1UWcvSGg5ekNjODdUaWc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTMyMzcxCWZpbGU6WmVwaHlyXzEuMS43X3g2NC1zZXR1cC5leGUKL2hFcGdBOFZJRHlVWXdHVUdlMGxDWDd6dlVMRFpEMlBvK3VtR0xOQWluZG5FRkdKNVh6TTh4QjdoY2JhNEZrd3pPY1dMK2xEZE9zbmFXbEJrOEV4QWc9PQo=",
-      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.7/Zephyr_1.1.7_x64-setup.exe"
-    }
-  }
+  "version": "1.1.8",
+  "notes": "## Zephyr v1.1.8\n\nGede-gedean: marketplace bahasa + model AI lengkap. Simak di bawah.\n\n### Marketplace Bahasa (101 bahasa)\n\nSemua language pack sekarang ada di Marketplace, lengkap dengan logo asli tiap bahasa (Simple Icons/Devicon/VS Code Icons), bisa install & enable tanpa error.\n\n### Model AI dari rilis pertama sampai terbaru\n\n| Provider | Model baru | Model lawas |\n| --- | --- | --- |\n| Gemini | 3.8 Flash, 3.7 Flash, 3.6 Flash, 3.5 Flash(-Lite), 3.1 Pro/Flash-Lite, Nano Banana 1 & 2 | 2.5 Pro/Flash(-Lite), 2.0 Flash, 1.5 Pro/Flash, 1.0 Pro |\n| OpenAI | GPT-6 Astra, GPT-5.6 Sol/Terra/Luna, GPT-5.2, GPT-5.1 mini | GPT-5, 5 mini, 5 nano, 4.1, 4o, 4o mini, 4 Turbo, 4, 3.5 Turbo, o1/o3 |\n| Anthropic | Claude Fable 5.1, Fable 5, Opus 5, Opus 4.8, Sonnet 5, Sonnet 4.5, Haiku 4.5 | Claude 3.7/3.5/3 Opus/Sonnet/Haiku, Claude 2.1, Claude 2, Claude 1 |\n| DeepSeek | V4 Pro, Flash (V4.1) | Chat (V3.2), Reasoner (R1), Coder, V3 |\n\n### Lainnya\n\n- **Logo asli** di Marketplace: 73 logo SVG berwarna, tanpa teks/singkatan.\n- Rekomendasi extension otomatis berdasarkan bahasa workspace.\n- Perbaikan kecil & stabilitas.\n",
+  "pub_date": "2026-09-18T00:00:00Z"
 }

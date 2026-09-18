@@ -66,7 +66,13 @@ pub fn default_settings() -> Value {
         "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
         // `trust` = whitelist runtime eksternal per ekstensi
         // (ext_exec membaca dari sini; kosong = semua ditolak).
-        "extensions": { "enabled": [], "trust": {} },
+        "extensions": {
+            "enabled": [],
+            "trust": {},
+            // URL registry Zephyr (https). Kosong = hanya bundled +
+            // registry.json user yang dipakai.
+            "registryUrl": ""
+        },
         // fase 31: aksesibilitas. Nama kunci mengikuti VS Code
         // (accessibility.*) supaya settings terasa familier.
         "accessibility": {

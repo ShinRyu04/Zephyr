@@ -908,7 +908,13 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   applySettings: async (patch) => {
+    // Optimistis: terapkan patch ke state lokal dulu supaya kontrol UI respons
+    // tanpa jeda IPC (bug: checkbox terasa "tidak bisa diganti" karena re-render
+    // menunggu dua kali IPC bolak-balik). File tetap ditulis setelahnya.
     try {
+      const sebelumnya = get().settings;
+      const gabungan = { ...sebelumnya, ...(patch as Record<string, unknown>) };
+      set({ settings: gabungan as typeof sebelumnya });
       await cmd.setSettings(patch);
       const s = await cmd.getSettings();
       set({ settings: s });

@@ -1,63 +1,23 @@
-# dependencies
+# Build & tools
 node_modules/
-
-# build output
 dist/
-src-tauri/target/
-src-tauri/gen/schemas/
-
-# logs & cache
-*.log
-npm-debug.log*
 .vite/
-.DS_Store
-Thumbs.db
+src-tauri/target/
+src-tauri/gen/
 
-# env & secrets (jangan pernah di-commit)
-.env
-.env.*
-secrets.json
+# Artefak koleksi ikon (unduhan sekali pakai) — jangan masuk repo
+.si-tmp/
 
-# fixture workspace yang dibuat otomatis oleh scripts/verify04.mjs
-testfiles/ws-a/
-testfiles/ws-b/
+# Artefak internal git (rewrite/history) — jangan pernah di-commit
+.git-rewrite/
 
-# halaman uji browser pane (verify06 menyalakan server-nya sendiri)
-testfiles/browser-pane/
-
-# dokumen kerja internal — TIDAK ikut repo/GitHub (keputusan user)
-# tetap ada di disk sebagai panduan lokal, tapi jangan pernah di-commit lagi
-AGENTS.md
-ARCHITECTURE.md
-Zephyr PRD.md
-Zephyr Build Prompt.txt
-
-# Kunci privat updater (fase 17.6) — HILANG = user lama tidak bisa update lagi.
-# JANGAN pernah di-commit. Simpan salinannya di tempat aman di luar repo.
-src-tauri/zephyr.key
-src-tauri/zephyr.key.pub
-*.key
-
-# laporan kerja internal — jangan ikut repo (keputusan user)
-BUGLOG.md
-BUILD_REPORT.md
-
-# catatan lanjut sesi internal — jangan ikut repo
-LANJUT-FASE-21.md
-LANJUT-MENU.md
-FREE-STACK-NOTES.md
-
-# Dokumentasi rilis & publikasi — TIDAK ikut repo (keputusan user).
-# Tetap ada di disk; yang dipublikasikan hanya lewat repo website/releases.
-CHANGELOG.md
-RELEASE_NOTES.md
-PUBLISH.md
-
-# Fixture verifikasi fase 23 (tasks.json uji + skrip proses palsu).
-# Ini artefak UJI, bukan konfigurasi proyek: kalau ikut ter-commit, siapa pun
-# yang clone repo akan melihat 8 task "uji: ..." di palette mereka.
+# Direktori uji lokal
 .zephyr/
-scripts/uji23/
 
-# manifest update v1.1.8 — cuma lokal, jangan ikut repo sebelum rilis
-latest-1.1.8.json
+# Kunci & rahasia signing
+*.key
+*.key.pub
+signing-key.txt
+
+# File lokal / sementara
+*.log

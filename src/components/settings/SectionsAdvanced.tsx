@@ -12,7 +12,8 @@ import {
   eventToBinding,
   findConflicts,
 } from '../../lib/shortcuts';
-import { PROVIDERS, ProviderLogo } from '../../lib/modelCatalog';
+import { PROVIDERS, ProviderLogo, type ProviderInfo } from '../../lib/modelCatalog';
+import * as cmd from '../../lib/commands';
 import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
@@ -132,18 +133,40 @@ export function ModelsSection() {
   const apply = useStore((s) => s.applySettings);
   const ui = useSettingsUi();
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [reveal, setReveal] = useState<string | null>(null);
-  const loaded = useRef(false);
+    const [reveal, setReveal] = useState<string | null>(null);
+    // Model hasil "Refresh" dari provider (id → daftar model API), di-merge
+    // ke dropdown supaya katalog tidak ketinggalan zaman.
+    const [remote, setRemote] = useState<Record<string, string[]>>({});
+    const [fetching, setFetching] = useState<string | null>(null);
+    const loaded = useRef(false);
   // Bahasa jawaban AI: 'follow' | 'id' | 'en' | nama bahasa bebas.
   const answerLang = models.answerLang ?? 'follow';
   const answerBuiltin =
     answerLang === 'follow' || answerLang === 'id' || answerLang === 'en';
 
   useEffect(() => {
-    if (loaded.current) return;
-    loaded.current = true;
-    void ui.loadKeys();
-  }, [ui]);
+      if (loaded.current) return;
+      loaded.current = true;
+      void ui.loadKeys();
+    }, [ui]);
+
+    /** Muat daftar model langsung dari provider (tombol Refresh). */
+    const refreshModels = async (p: ProviderInfo) => {
+      setFetching(p.id);
+      try {
+        const ids = await cmd.listModels(p.id, models.providers[p.id]?.baseUrl || undefined);
+        setRemote((r) => ({ ...r, [p.id]: ids }));
+        ui.setMessage(
+          ids.length > 0
+            ? `${p.label}: ${ids.length} model dimuat dari provider`
+            : `${p.label}: daftar model kosong / tidak terbaca`,
+        );
+      } catch (e) {
+        ui.setMessage(cmd.asZephyrError(e).message);
+      } finally {
+        setFetching(null);
+      }
+    };
 
   return (
     <Section title={t('settings.models')}>
@@ -279,22 +302,77 @@ export function ModelsSection() {
                 </label>
 
                 <label className="prov-field">
-                  <span className="prov-flabel">{t('models.model')}</span>
-                  <Select
-                    label={`${p.label} model`}
-                    testid={`prov-model-${p.id}`}
-                    value={cfg.model ?? p.models[0].id}
-                    onChange={(v) =>
-                      void apply({
-                        models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v } } },
-                      })
-                    }
-                    options={p.models.map((m) => ({
-                      value: m.id,
-                      label: m.note ? `${m.label} — ${m.note}` : m.label,
-                    }))}
-                  />
-                </label>
+                                  <span className="prov-flabel">{t('models.model')}</span>
+                                  {p.freeText ? (
+                                                      <div className="prov-model-row">
+                                                        <TextInput
+                                                          label={`${p.label} model`}
+                                                          testid={`prov-model-${p.id}`}
+                                                          placeholder={p.models[0].note}
+                                                          list={`prov-models-${p.id}`}
+                                                          value={cfg.model ?? ''}
+                                                          onChange={(v) =>
+                                                            void apply({
+                                                              models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v.trim() } } },
+                                                            })
+                                                          }
+                                                        />
+                                                        {/* Saran dari katalog provider ini + hasil Refresh (API);
+                                                            tetap bisa diketik bebas. */}
+                                                        <datalist id={`prov-models-${p.id}`}>
+                                                          {[...p.models.map((m) => m.id), ...(remote[p.id] ?? [])]
+                                                            .filter((id, i, a) => id && a.indexOf(id) === i)
+                                                            .map((id) => (
+                                                              <option key={id} value={id} />
+                                                            ))}
+                                                        </datalist>
+                                                        <button
+                                                          type="button"
+                                                          className="btn btn-sm"
+                                                          data-testid={`prov-refresh-${p.id}`}
+                                                          disabled={fetching === p.id || !has}
+                                                          title="Ambil daftar model langsung dari provider"
+                                                          onClick={() => void refreshModels(p)}
+                                                        >
+                                                          {fetching === p.id ? 'Memuat…' : 'Refresh'}
+                                                        </button>
+                                                      </div>
+                                                    ) : (
+                                    <div className="prov-model-row">
+                                      <Select
+                                        label={`${p.label} model`}
+                                        testid={`prov-model-${p.id}`}
+                                        value={cfg.model ?? p.models[0].id}
+                                        onChange={(v) =>
+                                          void apply({
+                                            models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v } } },
+                                          })
+                                        }
+                                        options={[
+                                          ...p.models.map((m) => ({
+                                            value: m.id,
+                                            label: m.note ? `${m.label} — ${m.note}` : m.label,
+                                          })),
+                                          // Model hasil fetch dari provider (Refresh): tanpa
+                                          // duplikat dengan katalog, ditandai "(API)".
+                                          ...(remote[p.id] ?? [])
+                                            .filter((id) => !p.models.some((m) => m.id === id))
+                                            .map((id) => ({ value: id, label: `${id} (API)` })),
+                                        ]}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        data-testid={`prov-refresh-${p.id}`}
+                                        disabled={fetching === p.id || !has}
+                                        title="Ambil daftar model langsung dari provider"
+                                        onClick={() => void refreshModels(p)}
+                                      >
+                                        {fetching === p.id ? 'Memuat…' : 'Refresh'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </label>
 
                 <div className="prov-test">
                   <button

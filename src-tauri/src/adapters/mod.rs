@@ -14,6 +14,18 @@ use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ToolSpec};
 use crate::errors::ZResult;
 use serde_json::Value;
 
+/// Pecah data URL `data:<mime>;base64,<data>` menjadi (mime, base64).
+pub fn split_data_url(v: &str) -> Option<(String, String)> {
+    let rest = v.strip_prefix("data:")?;
+    let (meta, data) = rest.split_once(',')?;
+    let mime = meta.split(';').next().unwrap_or("image/png").to_string();
+    if meta.contains(";base64") {
+        Some((mime, data.to_string()))
+    } else {
+        None
+    }
+}
+
 pub fn prepare(
     provider: &str,
     model: &str,
