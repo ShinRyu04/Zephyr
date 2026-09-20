@@ -22,7 +22,7 @@ export const THEMES: ThemeInfo[] = [
   { id: 'gruvbox-dark', label: 'Gruvbox Dark', kind: 'dark', hint: 'hangat, retro' },
   { id: 'one-dark', label: 'One Dark Pro', kind: 'dark', hint: 'ala Atom/VS Code' },
   { id: 'senja', label: 'Senja', kind: 'dark', hint: 'gelap hangat, aksen jingga senja' },
-  { id: 'terax-dark', label: 'Terax Acrylic', kind: 'dark', hint: 'modern ADE, transparan & glass' },
+  { id: 'zephyr-acrylic', label: 'Zephyr Dark Acrylic', kind: 'dark', hint: 'modern ADE, transparan & glass' },
   // FASE 31: high contrast adalah TEMA BIASA, bukan mode terpisah — seluruh
   // mesin tema (kartu Settings, retheme xterm, Compartment CodeMirror) langsung
   // bekerja. Sebagai "mode", tiap pembaca tema harus diajari kasus kedua.

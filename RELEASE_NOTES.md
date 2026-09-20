@@ -29,10 +29,10 @@ Added presets and official SVG brand logos for popular OpenAI-compatible provide
 
 Default base URLs and authentication headers are configured in the Rust backend (`adapters/openai.rs` and `secrets.rs`).
 
-### Visual Git graph & Terax theme
+### Visual Git graph & Zephyr Dark Acrylic theme
 
 - **Git commit graph:** The Source Control panel now renders a visual branch/commit history graph with commit hashes, commit messages, author info, dates, and branch/tag refs.
-- **Terax Acrylic theme:** A new dark theme (`terax-dark`) inspired by modern developer workspaces, featuring dark graphite surfaces, crisp contrast, and cyan accent colors.
+- **Zephyr Dark Acrylic theme:** A new dark theme (`zephyr-acrylic`) inspired by modern developer workspaces, featuring dark graphite surfaces, crisp contrast, and cyan accent colors.
 
 ### Direct agent tools & project memory
 

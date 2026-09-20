@@ -178,8 +178,8 @@
   --syn-invalid: #e06c75;
 }
 
-/* ── Terax Dark (modern terminal-first acrylic look) ── */
-[data-theme='terax-dark'] {
+/* ── Zephyr Dark Acrylic (modern terminal-first acrylic look) ── */
+[data-theme='zephyr-acrylic'] {
   --bg: #12141a;
   --surface: #181b22;
   --surface-2: #212530;
