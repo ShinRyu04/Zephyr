@@ -468,6 +468,55 @@ function NewBranchDialog() {
 
 // ───────────────────────── panel utama ─────────────────────────
 
+function GitGraphSection() {
+  const log = useGit((s) => s.log);
+  if (!log || log.length === 0) return null;
+
+  return (
+    <div className="scm-graph-wrap" style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 6px', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+        <span>Commit History & Graph</span>
+        <span style={{ fontSize: '10px' }}>{log.length} commits</span>
+      </div>
+      <div className="scm-graph-list" style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '12px' }}>
+        {log.map((c, i) => (
+          <div
+            key={c.hash7}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              cursor: 'default',
+              userSelect: 'none',
+              gap: '8px',
+            }}
+            title={`${c.hash7} - ${c.subject}\nAuthor: ${c.author}\nDate: ${c.date}${c.refs ? `\nRefs: ${c.refs}` : ''}`}
+          >
+            {/* Visual graph line & dot */}
+            <div style={{ position: 'relative', width: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+              {i > 0 && <div style={{ position: 'absolute', top: -10, bottom: 8, width: '2px', background: 'var(--accent)' }} />}
+              {i < log.length - 1 && <div style={{ position: 'absolute', top: 8, bottom: -10, width: '2px', background: 'var(--accent)' }} />}
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: i === 0 ? 'var(--accent)' : 'var(--border-strong)', border: '2px solid var(--surface)', zIndex: 1 }} />
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--accent)', fontSize: '11px', flexShrink: 0 }}>
+              {c.hash7}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, color: 'var(--text)' }}>
+              {c.subject}
+            </span>
+            {c.refs && (
+              <span style={{ fontSize: '10px', background: 'var(--surface-3)', padding: '1px 4px', borderRadius: '3px', color: 'var(--warning)', flexShrink: 0, maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {c.refs.replace(/^HEAD -> /, '')}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SourceControlPanel() {
   const workspace = useStore((s) => s.workspace);
   const status = useGit((s) => s.status);
@@ -710,6 +759,7 @@ export default function SourceControlPanel() {
             Tidak ada perubahan — working tree bersih.
           </p>
         )}
+        <GitGraphSection />
       </div>
 
       <GitHubRow />

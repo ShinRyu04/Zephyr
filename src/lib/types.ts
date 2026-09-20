@@ -355,6 +355,7 @@ export interface GitCommitInfo {
   author: string;
   date: string;
   refs: string;
+  parents?: string[];
 }
 
 export interface GitUser {

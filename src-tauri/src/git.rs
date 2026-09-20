@@ -78,6 +78,7 @@ pub struct GitCommitInfo {
     pub author: String,
     pub date: String,
     pub refs: String,
+    pub parents: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -944,10 +945,10 @@ pub fn git_discard(state: State<AppState>, paths: Vec<String>) -> ZResult<()> {
 
 #[tauri::command(async)]
 pub fn git_log(state: State<AppState>, n: Option<u32>) -> ZResult<Vec<GitCommitInfo>> {
-    let count = n.unwrap_or(20).clamp(1, 200).to_string();
+    let count = n.unwrap_or(30).clamp(1, 200).to_string();
     // %x1f = unit separator, %x1e = record separator → aman untuk subject
-    // yang memuat tab/pipe.
-    let fmt = "--pretty=format:%h%x1f%s%x1f%an%x1f%ad%x1f%D%x1e";
+    // yang memuat tab/pipe. %p = parent hashes
+    let fmt = "--pretty=format:%h%x1f%s%x1f%an%x1f%ad%x1f%D%x1f%p%x1e";
     let raw = match git(&state, &["log", &format!("-n{count}"), "--date=short", fmt]) {
         Ok(r) => r,
         // Repo baru tanpa commit: `git log` gagal — itu bukan error UI.
@@ -963,12 +964,18 @@ pub fn git_log(state: State<AppState>, n: Option<u32>) -> ZResult<Vec<GitCommitI
         if f.len() < 5 {
             continue;
         }
+        let parents = if f.len() >= 6 {
+            f[5].split_whitespace().map(|s| s.to_string()).collect()
+        } else {
+            vec![]
+        };
         out.push(GitCommitInfo {
             hash7: f[0].to_string(),
             subject: f[1].to_string(),
             author: f[2].to_string(),
             date: f[3].to_string(),
             refs: f[4].to_string(),
+            parents,
         });
     }
     Ok(out)
