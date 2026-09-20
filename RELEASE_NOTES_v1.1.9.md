@@ -2,7 +2,7 @@
 
 ## What's new
 
-Terminal shortcuts, AI CLI multiline input, Linux compatibility fixes, visual Git graph, and new BYOK AI providers.
+Terminal shortcuts, AI CLI multiline input, Linux builds, visual Git graph, expanded AI providers, 10 UI languages, and a wider update dialog.
 
 ### Terminal clipboard & shortcuts
 
@@ -15,19 +15,20 @@ Terminal shortcuts, AI CLI multiline input, Linux compatibility fixes, visual Gi
 - **File reveal on Linux & macOS:** "Reveal in File Explorer" now invokes `xdg-open` on Linux and `open -R` on macOS instead of failing when Windows `explorer.exe` is absent.
 - **DAP process cleanup:** Debuggee processes under Linux/macOS are now killed cleanly via `kill -9` when stopping a debug session, mirroring Windows `taskkill /T /F`.
 - **Packaging workflow:** `.github/workflows/build-linux.yml` is wired up to build `.deb` and `.AppImage` packages.
+- **Linux builds available:** this release ships `Zephyr_1.1.9_amd64.deb` and `Zephyr_1.1.9_amd64.AppImage`, both signed with minisign.
 
 ### Expanded BYOK AI providers
 
 Added presets and official SVG brand logos for popular OpenAI-compatible providers:
 
-- **Groq:** Llama 3.3 70B Versatile, Llama 3.1 8B Instant, Mixtral 8x7B
-- **OpenRouter:** Claude 3.7 Sonnet, Llama 3.3 70B, DeepSeek V3
-- **xAI:** Grok 2, Grok 2 Mini
-- **Mistral AI:** Mistral Large, Codestral, Mistral Small
-- **Cerebras:** Llama 3.3 70B, Llama 3.1 8B
+- **Groq (24 models):** Llama 3.3/3.1/3/4, Qwen3 family, GPT OSS family, Kimi K2, DeepSeek R1 Distill, Mixtral, Gemma 2, MiniMax M2.7, Compound
+- **OpenRouter:** curated presets plus automatic live model list — saving your API key pulls the full catalog from the provider, no typing needed
+- **xAI (17 models):** Grok 4.6 → 4.5 → 4.3 → 4.20 family → Build 0.1 → Grok 4/3/2 generations, Beta and Vision variants
+- **Mistral AI (13 models):** Large 3, Medium 3.5, Small 4, Ministral 3B/8B/14B, Devstral 2, Codestral, Magistral, Voxtral, OCR
+- **Cerebras (7 models):** GPT OSS 120B, Llama 3.1 8B, Llama 3.3 70B, Qwen 3 32B/235B, GLM 4.7, Gemma 4 31B
 - **Ollama (Local):** Qwen 2.5 Coder, Llama 3.2, DeepSeek R1
 
-Default base URLs and authentication headers are configured in the Rust backend (`adapters/openai.rs` and `secrets.rs`).
+Default base URLs and authentication headers are configured in the Rust backend (`adapters/openai.rs` and `secrets.rs`). Any provider's catalog also refreshes live from its `/v1/models` endpoint whenever a key is saved or the dropdown is opened.
 
 ### Visual Git graph & Zephyr Dark Acrylic theme
 
@@ -38,6 +39,17 @@ Default base URLs and authentication headers are configured in the Rust backend 
 
 - **`file_write` & `file_edit` agent tools:** In agent mode, Zephyr can now directly write new files or apply targeted edits to existing files on disk, automatically syncing any open editor tab buffers.
 - **Project memory (`ZEPHYR.md` / `TERAX.md`):** The built-in AI assistant automatically reads instructions from `ZEPHYR.md` or `TERAX.md` located at the workspace root when present.
+
+### Update experience & UI languages
+
+- **Auto-update on by default:** fresh installs check for new releases on startup and notify through the bell — no manual toggle needed.
+- **Wider update dialog:** the "new version available" dialog is now wider with cleaner changelog typography, plus Install / Later / View on GitHub actions.
+- **Update-finished notes:** after restart, a banner announces the new version with a "What's new" button that opens the full changelog.
+- **10 UI languages:** Settings → General now offers Indonesia, English, 日本語, 한국어, 中文, Español, Français, Deutsch, Português, and العربية — every label synced, with layered fallback so nothing ever shows blank or mixed.
+
+### Donations
+
+- **Support dialog:** the ☕ button (status bar, Settings → About, Help menu, Command Palette) now opens a choice of **Trakteer** (`trakteer.id/ryuga-9jfin`) or **Saweria** (`saweria.co/ShinRyuga04`).
 
 ---
 
