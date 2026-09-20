@@ -377,7 +377,7 @@ export function ModelsSection() {
                                                                                                                   data-testid={`prov-drop-menu-${p.id}`}
                                                                                                                   onMouseDown={(e) => e.stopPropagation()}
                                                                                                                 >
-                                                                                                                  {[...p.models, ...(remote[p.id] ?? []).map((id) => ({ id }))]
+                                                                                                                  {[...p.models, ...(remote[p.id] ?? []).map((id) => ({ id })), ...(ui.remoteModels[p.id] ?? []).map((id) => ({ id }))]
                                                                                                                     .filter(
                                                                                                                       (m, i, arr) =>
                                                                                                                         m.id && arr.findIndex((x) => x.id === m.id) === i,
@@ -444,9 +444,11 @@ export function ModelsSection() {
                                             value: m.id,
                                             label: m.note ? `${m.label} — ${m.note}` : m.label,
                                           })),
-                                          // Model hasil fetch dari provider (Refresh): tanpa
-                                          // duplikat dengan katalog, ditandai "(API)".
-                                          ...(remote[p.id] ?? [])
+                                          // Model hasil fetch dari provider (otomatis saat key
+                                          // disimpan + tombol Refresh): tanpa duplikat dengan
+                                          // katalog, ditandai "(API)".
+                                          ...[...(remote[p.id] ?? []), ...(ui.remoteModels[p.id] ?? [])]
+                                            .filter((id, i, a) => id && a.indexOf(id) === i)
                                             .filter((id) => !p.models.some((m) => m.id === id))
                                             .map((id) => ({ value: id, label: `${id} (API)` })),
                                         ]}
@@ -455,11 +457,11 @@ export function ModelsSection() {
                                         type="button"
                                         className="btn btn-sm"
                                         data-testid={`prov-refresh-${p.id}`}
-                                        disabled={fetching === p.id || !has}
+                                        disabled={fetching === p.id || ui.fetchingModels === p.id || !has}
                                         title="Ambil daftar model langsung dari provider"
                                         onClick={() => void refreshModels(p)}
                                       >
-                                        {fetching === p.id ? 'Memuat…' : 'Refresh'}
+                                        {fetching === p.id || ui.fetchingModels === p.id ? 'Memuat…' : 'Refresh'}
                                       </button>
                                     </div>
                                   )}

@@ -57,12 +57,17 @@ interface SettingsUiState {
   /** tahap konfirmasi Reset Semua: 0 = tidak aktif, 1 = tanya, 2 = tanya lagi */
   resetStage: 0 | 1 | 2;
   message: string | null;
+  /** Daftar model live per provider (id → daftar model API). */
+  remoteModels: Record<string, string[]>;
+  /** provider yang sedang di-fetch daftar modelnya */
+  fetchingModels: string | null;
 }
 
 interface SettingsUiActions {
   setSection: (s: SectionId) => void;
   loadKeys: () => Promise<void>;
   saveKey: (provider: string, key: string) => Promise<void>;
+  refreshRemoteModels: (provider: string) => Promise<string[]>;
   testConnection: (provider: string, baseUrl?: string) => Promise<void>;
   setCapturing: (actionId: string | null) => void;
   setConflictWarning: (msg: string | null) => void;
@@ -81,6 +86,11 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   conflictWarning: null,
   resetStage: 0,
   message: null,
+  /** Daftar model live per provider (id → daftar model API), diisi otomatis
+   *  saat key disimpan atau tombol Refresh ditekan. Dipakai dropdown
+   *  Settings + AI panel supaya tidak ketinggalan zaman. */
+  remoteModels: {},
+  fetchingModels: null,
 
   setSection: (s) => set({ section: s, capturing: null, conflictWarning: null, resetStage: 0 }),
 
@@ -96,8 +106,25 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
     try {
       await cmd.setModelKey(provider, key);
       set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key tersimpan' : 'API key dihapus' });
+      // Begitu key OpenRouter (atau provider OpenAI-compatible lain) masuk,
+      // langsung tarik daftar model live-nya supaya user tinggal pilih.
+      if (key.trim()) void get().refreshRemoteModels(provider);
+      else set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: [] } }));
     } catch (e) {
       set({ message: cmd.asZephyrError(e).message });
+    }
+  },
+
+  /** Ambil daftar model live dari provider (lewat Rust list_models). */
+  refreshRemoteModels: async (provider) => {
+    set({ fetchingModels: provider });
+    try {
+      const ids = await cmd.listModels(provider);
+      set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: ids }, fetchingModels: null }));
+      return ids;
+    } catch (e) {
+      set({ message: cmd.asZephyrError(e).message, fetchingModels: null });
+      return [];
     }
   },
 

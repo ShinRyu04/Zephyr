@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
+import { useSettingsUi } from '../../lib/settingsStore';
 import {
   ALL_MODELS,
   fmtCtx,
@@ -89,7 +90,7 @@ export default function ModelSelector() {
 
   /** Tarik daftar model langsung dari provider (list_models, Rust). */
   const loadRemote = async () => {
-    if (!freeText || fetching) return;
+    if (fetching) return;
     setFetching(true);
     try {
       const ids = await cmd.listModels(provider, baseUrl || undefined);
@@ -101,11 +102,12 @@ export default function ModelSelector() {
     }
   };
 
-  // Saat menu provider freeText dibuka, ambil model terbaru dari provider.
+  // Saat menu dibuka dan provider punya key, ambil model terbaru dari
+  // provider — berlaku untuk SEMUA provider (bukan cuma freeText).
   useEffect(() => {
-    if (open && freeText) void loadRemote();
+    if (open && hasKey) void loadRemote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, freeText, provider]);
+  }, [open, provider]);
 
   const commitTyped = (close?: boolean) => {
     const v = typed.trim();
@@ -127,7 +129,12 @@ export default function ModelSelector() {
   };
 
   const savedList = saved[provider] ?? [];
-  const remoteList = remote[provider] ?? [];
+  // Model live dari provider: cache lokal menu ini + cache global (terisi
+  // otomatis saat key disimpan di Settings, mis. OpenRouter).
+  const uiRemote = useSettingsUi((s) => s.remoteModels[provider] ?? []);
+  const remoteList = [...remote[provider] ?? [], ...uiRemote].filter(
+    (id, i, a) => id && a.indexOf(id) === i,
+  );
 
   return (
     <div className="ai-model-wrap" ref={wrap}>
@@ -203,31 +210,37 @@ export default function ModelSelector() {
             </div>
           )}
 
-          {/* Bagian khusus provider freeText: model dari API + yang tersimpan. */}
+          {/* Model live dari provider (otomatis saat key disimpan + Refresh):
+              tampil untuk SEMUA provider, bukan cuma freeText — Groq, xAI,
+              Mistral, Cerebras, dan OpenRouter ikut dapat daftar live-nya. */}
+          {remoteList.length > 0 && (
+            <>
+              <div className="ai-model-group">Dari provider (API)</div>
+              {remoteList
+                .filter((id) => !MODEL_BY_ID.has(id))
+                .map((id) => (
+                  <button
+                    key={`api:${id}`}
+                    role="option"
+                    aria-selected={id === active.id}
+                    className={`ai-model-item${id === active.id ? ' is-active' : ''}`}
+                    data-model-item={id}
+                    data-provider={provider}
+                    onClick={() => void setModel(id)}
+                  >
+                    <ProviderLogo id={provider} size={16} />
+                    <span className="ai-mi-main">
+                      <span className="ai-mi-name">{id}</span>
+                      <span className="ai-mi-sub">dari {provider} · API</span>
+                    </span>
+                  </button>
+                ))}
+            </>
+          )}
+
+          {/* Bagian khusus provider freeText: input ketik + yang tersimpan. */}
           {freeText && (
             <>
-              {remoteList.length > 0 && (
-                <>
-                  <div className="ai-model-group">Dari provider (API)</div>
-                  {remoteList.map((id) => (
-                    <button
-                      key={`api:${id}`}
-                      role="option"
-                      aria-selected={id === active.id}
-                      className={`ai-model-item${id === active.id ? ' is-active' : ''}`}
-                      data-model-item={id}
-                      data-provider={provider}
-                      onClick={() => void setModel(id)}
-                    >
-                      <ProviderLogo id={provider} size={16} />
-                      <span className="ai-mi-main">
-                        <span className="ai-mi-name">{id}</span>
-                        <span className="ai-mi-sub">dari {provider} · API</span>
-                      </span>
-                    </button>
-                  ))}
-                </>
-              )}
               {savedList.length > 0 && (
                 <>
                   <div className="ai-model-group">Tersimpan</div>
