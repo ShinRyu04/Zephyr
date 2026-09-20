@@ -2,7 +2,7 @@
 
 import { openPath } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
-import { useT } from '../../lib/i18n';
+import { useT, UI_LANGS } from '../../lib/i18n';
 import { semuaTema } from '../../lib/themes';
 import { NumberInput, Pills, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
@@ -65,15 +65,12 @@ export function GeneralSection() {
       </Row>
 
       <Row label={t('general.uiLang')} hint="label utama saja, bukan seluruh teks">
-        <Pills
+        <Select
           label={t('general.uiLang')}
           testid="general-lang"
           value={g.uiLang}
           onChange={(v) => patch({ uiLang: v as typeof g.uiLang })}
-          options={[
-            { value: 'id', label: 'Indonesia' },
-            { value: 'en', label: 'English' },
-          ]}
+          options={UI_LANGS}
         />
       </Row>
 

@@ -1556,22 +1556,34 @@
 
 /* Changelog update (render markdown ringan + tabel) */
 .upd-changelog {
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
 }
 .upd-changelog h4,
 .upd-changelog h5,
 .upd-changelog h6 {
-  margin: 12px 0 5px;
-  font-weight: 600;
+  margin: 14px 0 6px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.upd-changelog h4:first-child,
+.upd-changelog h5:first-child {
+  margin-top: 2px;
 }
 .upd-changelog p {
-  margin: 5px 0;
+  margin: 6px 0;
 }
 .upd-changelog ul,
 .upd-changelog ol {
-  margin: 5px 0;
-  padding-left: 20px;
+  margin: 6px 0;
+  padding-left: 22px;
+}
+.upd-changelog li {
+  margin: 3px 0;
+}
+.upd-changelog li::marker {
+  color: var(--accent);
 }
 .upd-changelog code {
   font-family: var(--font-mono);
@@ -1614,8 +1626,8 @@
   background: rgba(0, 0, 0, 0.55);
 }
 .upd-dialog {
-  width: min(880px, calc(100vw - 48px));
-  max-height: calc(100vh - 72px);
+  width: min(960px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);

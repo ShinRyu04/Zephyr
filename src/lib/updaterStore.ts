@@ -116,10 +116,20 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       });
       if (upd.version !== lastNotified) {
         lastNotified = upd.version;
+        // Lonceng cukup menampilkan ringkasan 1 baris — changelog lengkap
+        // ada di dialog (klik "Lihat & pasang"), bukan wall-of-text di toast.
+        const ringkas = (upd.body ?? '')
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l && !/^#/.test(l))
+          .slice(0, 3)
+          .join(' · ')
+          .replace(/\*\*/g, '')
+          .slice(0, 220);
         useNotif.getState().notify({
           severity: 'info',
           message: `Zephyr v${upd.version} tersedia`,
-          detail: upd.body ?? undefined,
+          detail: ringkas || undefined,
           source: 'update',
           actions: [{ label: 'Lihat & pasang', command: 'help.checkUpdates' }],
         });

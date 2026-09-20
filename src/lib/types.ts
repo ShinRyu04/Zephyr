@@ -728,7 +728,8 @@ export interface GeneralSettings {
   fontFamily: string;
   fontSize: number;
   lineHeight: number;
-  uiLang: 'id' | 'en';
+  /** bahasa antarmuka: id | en | ja | ko | zh | es | fr | de | pt | ar */
+  uiLang: string;
   zoom: number;
   restoreSession: boolean;
   checkUpdates: boolean;
