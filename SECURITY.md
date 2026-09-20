@@ -1,104 +1,104 @@
-# Keamanan
+# Security
 
-## Melaporkan kerentanan
+## Reporting a vulnerability
 
-Kirim email ke **muhkhalid039@gmail.com** dengan subjek diawali `[zephyr-security]`.
-Jangan buka issue publik untuk kerentanan yang belum ditambal.
+Email **muhkhalid039@gmail.com** with the subject starting with `[zephyr-security]`.
+Do not open a public issue for an unpatched vulnerability.
 
-Sertakan versi Zephyr, versi Windows, langkah reproduksi, dan dampak yang kamu
-lihat. Kalau ada proof-of-concept, lampirkan.
+Include your Zephyr version, Windows version, reproduction steps, and the impact
+you observed. Attach a proof-of-concept if you have one.
 
-Ini proyek satu orang, jadi gua tidak bisa menjanjikan SLA. Yang bisa gua
-janjikan: laporan dibaca, dan kalau valid akan ditambal atau — kalau memang tidak
-bisa ditambal — dicatat terbuka di dokumen ini.
+This is a one-person project, so I cannot promise an SLA. What I can promise:
+every report gets read, and if it is valid it will either be patched or — if it
+genuinely cannot be patched — recorded openly in this document.
 
-## Versi yang didukung
+## Supported versions
 
-Hanya rilis terbaru. Tidak ada backport ke versi lama.
+Only the latest release. No backports to older versions.
 
-## Batas keamanan yang sudah diketahui
+## Known security boundaries
 
-Ini bukan daftar bug. Ini keputusan desain yang perlu kamu tahu sebelum
-memutuskan seberapa jauh mempercayai Zephyr.
+This is not a bug list. These are design decisions you should know before
+deciding how far to trust Zephyr.
 
-### API key adalah obfuskasi, bukan enkripsi
+### API keys are obfuscation, not encryption
 
-Key provider AI disimpan di `%APPDATA%\zephyr\secrets.json`, di-XOR dengan kunci
-BLAKE3 yang diturunkan dari MachineGuid + hostname + username.
+AI provider keys are stored in `%APPDATA%\zephyr\secrets.json`, XORed with a
+BLAKE3 key derived from MachineGuid + hostname + username.
 
-Artinya: file itu tidak bisa dibaca sekilas, dan tidak berguna kalau disalin ke
-mesin lain. Tapi siapa pun yang **sudah** bisa menjalankan kode sebagai akun
-Windows kamu dapat menurunkan kunci yang sama dan membukanya. Ini melindungi dari
-mata yang lewat, bukan dari penyerang yang sudah masuk.
+That means: the file cannot be read at a glance, and it is useless if copied to
+another machine. But anyone who can already run code as your Windows user can
+derive the same key and open it. It protects against passing eyes, not against
+an attacker who is already in.
 
-`reset_settings` **tidak** menghapus file ini. Hapus manual kalau perlu.
+`reset_settings` does **not** delete this file. Delete it manually if needed.
 
-### Server MCP di port 9222
+### MCP server on port 9222
 
-Server hanya mendengarkan di localhost dan mewajibkan Bearer token. Token
-disimpan di `%APPDATA%\zephyr\` dan bisa dilihat lewat Settings.
+The server only listens on localhost and requires a Bearer token. The token
+lives in `%APPDATA%\zephyr\` and can be viewed from Settings.
 
-Yang perlu disadari: **proses lokal mana pun** yang bisa membaca file token itu
-bisa mengendalikan jendela Zephyr — membaca isi buffer editor, menulis ke
-terminal, dan menjalankan command palette. Batas kepercayaannya adalah akun
-Windows kamu, bukan proses.
+What to be aware of: **any local process** that can read that token file can
+drive the Zephyr window — reading editor buffer contents, writing to the
+terminal, and running command palette commands. The trust boundary is your
+Windows account, not the process.
 
-`editor_write` dan `editor_insert` sengaja hanya menyentuh buffer di memori,
-tidak menulis ke disk. Jadi AI yang keliru tidak bisa merusak file tanpa kamu
-menekan simpan. Batasnya 1 MB per panggilan; `terminal_write` 64 KB.
+`editor_write` and `editor_insert` deliberately only touch the in-memory buffer,
+never the disk. So a misbehaving AI cannot wreck a file without you pressing
+save. The limit is 1 MB per call; `terminal_write` is 64 KB.
 
-Server bisa dimatikan sepenuhnya di Settings → MCP.
+The server can be turned off completely in Settings → MCP.
 
 ### Workspace Trust
 
-Membuka folder yang belum dipercaya menjalankannya dalam Restricted Mode: tasks
-runner, debugger, language server, dan pemuatan ekstensi **ditolak di sisi Rust**,
-bukan cuma disembunyikan di UI. Penjaganya `ensure_trusted()`.
+Opening an untrusted folder runs it in Restricted Mode: the tasks runner,
+debugger, language server, and extension loading are **rejected on the Rust
+side**, not just hidden in the UI. The guard is `ensure_trusted()`.
 
-Trust mewarisi ke bawah, tidak ke atas: mempercayai `D:\proyek` mencakup
-subfoldernya, tapi mempercayai `D:\proyek\sub` tidak membuat `D:\proyek`
-dipercaya. Status `Unknown` diperlakukan sama seperti `Restricted`.
+Trust inherits downward, not upward: trusting `D:\projects` covers its
+subfolders, but trusting `D:\projects\sub` does not trust `D:\projects`.
+`Unknown` status is treated the same as `Restricted`.
 
-Alasan ini penting: `tasks.json` dan `launch.json` bisa menjalankan program apa
-pun. Meng-clone repo asing lalu membukanya tanpa gerbang ini sama dengan
-menjalankan kode orang lain.
+Why this matters: `tasks.json` and `launch.json` can run anything. Cloning a
+foreign repo and opening it without this gate is the same as running someone
+else's code.
 
-### Ekstensi tidak menjalankan JavaScript
+### Extensions do not run JavaScript
 
-Ekstensi v1 hanya membaca `package.json` dan mendaftarkan `contributes.commands`
-ke palette. Kode JS-nya **tidak pernah dieksekusi**.
+v1 extensions only have their `package.json` read, registering
+`contributes.commands` into the palette. Their JS code is **never executed**.
 
-Ini disengaja dan tidak akan diubah tanpa sandbox yang benar. Mengeksekusi JS
-ekstensi di WebView yang sama berarti memberi ekstensi pihak ketiga akses penuh
-ke `window`, dan lewat itu ke seluruh IPC — filesystem, PTY, git, dan secrets.
-Ekstensi yang manifest-nya rusak atau `main`-nya di atas 1 MB dipaksa
+This is deliberate and will not change without a proper sandbox. Running
+extension JS in the same WebView would give third-party extensions full access
+to `window`, and through it to all of IPC — filesystem, PTY, git, and secrets.
+Extensions with a broken manifest or a `main` over 1 MB are forced to
 `enabled: false`.
 
-### Penulisan file dibatasi workspace
+### File writes are limited to the workspace
 
-Operasi tulis di luar folder workspace ditolak di sisi Rust. Path dinormalisasi
-dulu, jadi `..\..\Windows\System32` tidak lolos.
+Writes outside the workspace folder are rejected on the Rust side. Paths are
+normalized first, so `..\..\Windows\System32` does not slip through.
 
-### Installer tidak ditandatangani
+### The installer is unsigned
 
-Tidak ada sertifikat code signing, jadi SmartScreen akan memperingatkan. Cara
-memverifikasi yang kamu unduh: bandingkan hash-nya dengan yang dipublikasikan di
-halaman rilis.
+There is no code-signing certificate, so SmartScreen will warn. How to verify
+what you downloaded: compare its hash against the one published on the release
+page.
 
-Kunci privat updater tidak ada di repositori ini dan tidak akan pernah
-di-commit.
+The updater private key is not in this repository and will never be committed.
 
 ### Browser pane
 
-Browser pane memakai `<iframe>` dengan sandbox, jadi isinya tidak bisa membaca
-DOM Zephyr maupun memanggil IPC. Situs yang mengirim `X-Frame-Options: DENY`
-memang tidak bisa dimuat — itu perilaku benar, dan alasannya ditampilkan beserta
-header aslinya, bukan pesan gagal generik.
+The browser pane uses a sandboxed `<iframe>`, so its contents cannot read the
+Zephyr DOM or call IPC. Sites that send `X-Frame-Options: DENY` genuinely
+cannot load — that is correct behavior, and the reason is shown along with the
+original header, not a generic failure message.
 
-## Yang di luar cakupan
+## Out of scope
 
-- Penyerang yang sudah mengeksekusi kode sebagai akun Windows kamu. Semua
-  penyimpanan lokal — secrets, token MCP, daftar trust — jatuh dalam kasus ini.
-- Modifikasi berkas Zephyr di disk oleh proses lain.
-- Kerentanan di WebView2 Runtime itu sendiri; itu ditambal lewat Windows Update.
-- Perilaku provider AI pihak ketiga terhadap data yang kamu kirim ke sana.
+- An attacker already executing code as your Windows user. All local storage
+  — secrets, the MCP token, the trust list — falls in this case.
+- Modification of Zephyr files on disk by other processes.
+- Vulnerabilities in the WebView2 Runtime itself; those are patched via Windows
+  Update.
+- Behavior of third-party AI providers toward data you send them.
