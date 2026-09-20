@@ -38,7 +38,7 @@ pub fn default_settings() -> Value {
             "uiLang": "id",
             "zoom": 100,
             "restoreSession": true,
-            "checkUpdates": false,
+            "checkUpdates": true,
             "lowRam": false
         },
         "editor": {

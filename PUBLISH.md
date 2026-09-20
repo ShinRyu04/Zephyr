@@ -26,12 +26,12 @@ src-tauri/tauri.conf.json  "version": "1.1.1"
 
 ```bash
 export TAURI_SIGNING_PRIVATE_KEY_PATH="C:/Users/home/AppData/Roaming/zephyr/zephyr.key"
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat "$APPDATA/zephyr/signing-key.txt")"
 npm run tauri:build
 ```
 
-Hasil di `src-tauri/target/release/bundle/` (updater Windows pakai NSIS exe,
-BUKAN zip):
+Hasil di `src-tauri/target/release/bundle/` (Tauri v2: updater Windows memakai
+installer NSIS/MSI langsung + `.sig`, BUKAN zip):
 
 ```
 msi/Zephyr_1.1.1_x64_en-US.msi         <- installer MSI

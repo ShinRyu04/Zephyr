@@ -81,9 +81,8 @@ export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }
 
       {status === 'unconfigured' && (
         <p className="set-note" data-testid="upd-note">
-          Zephyr punya kerangka auto-update lengkap (keypair + artefak
-          <code> .msi.zip</code> + <code>.sig</code>), tetapi URL rilis belum
-          diisi karena belum ada hosting. Setelah URL ada, tombol di atas
+          Endpoint update belum terisi. Isi <code>plugins.updater.endpoints</code> di{' '}
+          <code>src-tauri/tauri.conf.json</code>, lalu build ulang — tombol di atas
           langsung berfungsi tanpa install ulang.
         </p>
       )}

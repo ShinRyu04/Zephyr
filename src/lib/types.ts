@@ -876,7 +876,7 @@ export const DEFAULT_SETTINGS: Settings = {
     uiLang: 'id',
     zoom: 100,
     restoreSession: true,
-    checkUpdates: false,
+    checkUpdates: true,
     lowRam: false,
   },
   editor: {
