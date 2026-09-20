@@ -163,10 +163,11 @@ errors, tab history (Go → Back/Forward), reopening closed editors, opening new
 windows, and quitting. Every item is also in the Command Palette
 (`Ctrl+Shift+P`).
 
-**Donations** — Zephyr is free. If you like it, a **☕ Donasi** button sits in
-the bottom status bar (right side) and in **Settings → Tentang**, opening
-Saweria (`saweria.co/ShinRyuga04`). It is also under **Help → Donasi** or in
-the Command Palette (type "donasi").
+**Donations** — Zephyr is free. If you like it, a **☕ Support** button sits in
+the bottom status bar (right side) and in **Settings → About**, opening a
+choice of **Trakteer** (`trakteer.id/ryuga-9jfin`) or **Saweria**
+(`saweria.co/ShinRyuga04`). It is also under **Help → Support** or in
+the Command Palette (type "donate").
 
 **The rest** — global search through ripgrep, a tasks runner with problem
 matchers, local history + timeline, multi-root workspaces with workspace trust,

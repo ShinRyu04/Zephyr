@@ -103,6 +103,8 @@ const ID: Dict = {
   'update.doneHint': 'Restart untuk memakai versi terbaru.',
   'update.whatsNew': 'Apa yang baru',
   'update.fullChangelog': 'Buka changelog lengkap',
+  'donate.title': 'Dukung Zephyr',
+  'donate.hint': 'Pilih platform donasi favoritmu',
   'common.ok': 'OK',
   'common.close': 'Tutup',
 
@@ -208,6 +210,8 @@ const EN: Dict = {
   'update.doneHint': 'Restart to use the latest version.',
   'update.whatsNew': "What's new",
   'update.fullChangelog': 'Open full changelog',
+  'donate.title': 'Support Zephyr',
+  'donate.hint': 'Choose your preferred platform',
   'common.ok': 'OK',
   'common.close': 'Close',
 
@@ -317,6 +321,8 @@ const JA: Dict = {
   'update.doneHint': '再起動して最新版を使用してください。',
   'update.whatsNew': '新着情報',
   'update.fullChangelog': '完全な変更履歴を開く',
+  'donate.title': 'Zephyrを支援',
+  'donate.hint': 'お好みのプラットフォームを選択',
   'common.ok': 'OK',
   'common.close': '閉じる',
 };
@@ -413,6 +419,8 @@ const KO: Dict = {
   'update.doneHint': '최신 버전을 사용하려면 다시 시작하세요.',
   'update.whatsNew': '새로운 기능',
   'update.fullChangelog': '전체 변경 로그 열기',
+  'donate.title': 'Zephyr 후원',
+  'donate.hint': '원하는 플랫폼을 선택하세요',
   'common.ok': '확인',
   'common.close': '닫기',
 };
@@ -509,6 +517,8 @@ const ZH: Dict = {
   'update.doneHint': '重新启动以使用最新版本。',
   'update.whatsNew': '新内容',
   'update.fullChangelog': '打开完整更新日志',
+  'donate.title': '支持 Zephyr',
+  'donate.hint': '选择您偏好的平台',
   'common.ok': '确定',
   'common.close': '关闭',
 };
@@ -605,6 +615,8 @@ const ES: Dict = {
   'update.doneHint': 'Reinicia para usar la última versión.',
   'update.whatsNew': 'Qué hay de nuevo',
   'update.fullChangelog': 'Abrir registro de cambios completo',
+  'donate.title': 'Apoyar a Zephyr',
+  'donate.hint': 'Elige tu plataforma preferida',
   'common.ok': 'Aceptar',
   'common.close': 'Cerrar',
 };
@@ -701,6 +713,8 @@ const FR: Dict = {
   'update.doneHint': 'Redémarrez pour utiliser la dernière version.',
   'update.whatsNew': 'Nouveautés',
   'update.fullChangelog': 'Ouvrir le journal complet',
+  'donate.title': 'Soutenir Zephyr',
+  'donate.hint': 'Choisissez votre plateforme préférée',
   'common.ok': 'OK',
   'common.close': 'Fermer',
 };
@@ -797,6 +811,8 @@ const DE: Dict = {
   'update.doneHint': 'Starten Sie neu, um die neueste Version zu verwenden.',
   'update.whatsNew': 'Neuerungen',
   'update.fullChangelog': 'Vollständiges Änderungsprotokoll öffnen',
+  'donate.title': 'Zephyr unterstützen',
+  'donate.hint': 'Wähle deine bevorzugte Plattform',
   'common.ok': 'OK',
   'common.close': 'Schließen',
 };
@@ -893,6 +909,8 @@ const PT: Dict = {
   'update.doneHint': 'Reinicie para usar a versão mais recente.',
   'update.whatsNew': 'Novidades',
   'update.fullChangelog': 'Abrir changelog completo',
+  'donate.title': 'Apoiar o Zephyr',
+  'donate.hint': 'Escolha sua plataforma preferida',
   'common.ok': 'OK',
   'common.close': 'Fechar',
 };
@@ -989,6 +1007,8 @@ const AR: Dict = {
   'update.doneHint': 'أعد التشغيل لاستخدام أحدث إصدار.',
   'update.whatsNew': 'ما الجديد',
   'update.fullChangelog': 'فتح سجل التغييرات الكامل',
+  'donate.title': 'ادعم Zephyr',
+  'donate.hint': 'اختر منصتك المفضلة',
   'common.ok': 'موافق',
   'common.close': 'إغلاق',
 };

@@ -1554,6 +1554,33 @@
   transition: width 0.18s ease;
 }
 
+/* ── Dialog pilihan donasi ── */
+.donate-dialog {
+  width: min(420px, calc(100vw - 48px));
+}
+.donate-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 18px;
+}
+.donate-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  text-align: left;
+}
+.donate-opt strong {
+  font-size: 14px;
+}
+.donate-url {
+  font-size: 11.5px;
+  opacity: 0.7;
+  font-family: var(--font-mono);
+}
+
 /* Changelog update (render markdown ringan + tabel) */
 .upd-changelog {
   font-size: 13px;

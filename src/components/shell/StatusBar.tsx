@@ -178,10 +178,10 @@ export default function StatusBar() {
             <button
               className="sb-btn sb-donate"
               data-testid="sb-donate"
-              title="Donasi: dukung Zephyr lewat Saweria (☕)"
-              onClick={() => void runCommand('help.donate')}
+              title="Support Zephyr — Trakteer / Saweria (☕)"
+              onClick={() => useStore.getState().setDonateOpen(true)}
             >
-              ☕ Donasi
+              ☕ Support
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />

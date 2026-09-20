@@ -17,6 +17,7 @@ import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
 import TrustDialog from './components/workspace/TrustDialog';
 import MenuBar from './components/shell/MenuBar';
 import UpdateBanner from './components/shell/UpdateBanner';
+import DonateDialog from './components/shell/DonateDialog';
 import ExtApprovalModal from './components/extensions/ExtApprovalModal';
 import KeybindingsEditor from './components/shell/KeybindingsEditor';
 import LspOverlay from './components/editor/LspOverlay';
@@ -913,6 +914,7 @@ export default function App() {
       </button>
       <MenuBar />
       <UpdateBanner />
+      <DonateDialog />
       <div className={`app-body sidebar-pos-${pos}`}>
         {/* ActivityBar IKUT PINDAH mengikuti posisi panel:
             - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)

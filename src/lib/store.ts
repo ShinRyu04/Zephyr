@@ -83,6 +83,8 @@ interface StoreState {
    
   appInfo: AppInfo | null;
   updateBanner: { version: string; notes: string } | null;
+  /** dialog pilihan donasi (Trakteer / Saweria) terbuka */
+  donateOpen: boolean;
   navBack: NavLoc[];
   navForward: NavLoc[];
   navSuppress: boolean;
@@ -106,6 +108,7 @@ interface StoreActions {
    
   setSettingsOpen: (open: boolean) => void;
   setUpdateBanner: (b: { version: string; notes: string } | null) => void;
+  setDonateOpen: (v: boolean) => void;
   setNavBack: (v: NavLoc[]) => void;
   setNavForward: (v: NavLoc[]) => void;
   setNavSuppress: (v: boolean) => void;
@@ -218,6 +221,7 @@ export const useStore = create<Store>((set, get) => ({
   settingsLoaded: false,
   appInfo: null,
   updateBanner: null,
+  donateOpen: false,
   navBack: [],
   navForward: [],
   navSuppress: false,
@@ -237,6 +241,7 @@ export const useStore = create<Store>((set, get) => ({
   setFindOpen: (open) => set({ findOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setUpdateBanner: (b) => set({ updateBanner: b }),
+  setDonateOpen: (v) => set({ donateOpen: v }),
   setNavBack: (v) => set({ navBack: v }),
   setNavForward: (v) => set({ navForward: v }),
   setNavSuppress: (v) => set({ navSuppress: v }),

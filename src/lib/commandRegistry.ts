@@ -979,12 +979,12 @@ export const COMMANDS: CommandDef[] = [
     },
     {
       id: 'help.donate',
-      title: 'Help: Donasi Dukung Zephyr (Saweria)',
+      title: 'Help: Support Zephyr (Trakteer / Saweria)',
       group: 'Settings',
-      keywords: 'donasi dukung saweria dana kasih support traktir',
+      keywords: 'donasi dukung support trakteer saweria traktir',
       run: async () => {
-        const { openUrl } = await import('@tauri-apps/plugin-opener');
-        await openUrl('https://saweria.co/ShinRyuga04').catch(() => {});
+        const { useStore } = await import('./store');
+        useStore.getState().setDonateOpen(true);
       },
     },
   {

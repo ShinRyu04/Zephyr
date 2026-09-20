@@ -475,9 +475,9 @@ export function AboutSection() {
                 <button
                   className="btn btn-donate"
                   data-testid="about-donate"
-                  onClick={() => void openUrl('https://saweria.co/ShinRyuga04').catch(() => {})}
+                  onClick={() => useStore.getState().setDonateOpen(true)}
                 >
-                  ☕ Donasi (Saweria)
+                  ☕ Support Zephyr
                 </button>
               </div>
 
