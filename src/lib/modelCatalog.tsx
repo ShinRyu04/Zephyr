@@ -11,6 +11,12 @@ export type LogoId =
   | 'openai'
   | 'anthropic'
   | 'deepseek'
+  | 'groq'
+  | 'xai'
+  | 'openrouter'
+  | 'mistral'
+  | 'cerebras'
+  | 'ollama'
   | 'opencode'
   | 'generic';
 
@@ -135,6 +141,78 @@ export const PROVIDERS: ProviderInfo[] = [
                                                 { id: 'deepseek-coder', label: 'DeepSeek Coder', note: 'coding, lama', ctx: 128_000, maxOut: 8192 },
                                                 { id: 'deepseek-v3', label: 'DeepSeek V3', note: 'lama', ctx: 128_000, maxOut: 8192 },
                                               ],
+      },
+      {
+        id: 'groq',
+        label: 'Groq',
+        baseUrl: 'https://api.groq.com/openai/v1',
+        envKey: 'GROQ_API_KEY',
+        logo: 'groq',
+        models: [
+          { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', note: 'cepat, serbaguna', ctx: 128_000, maxOut: 32768 },
+          { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant', note: 'ultra cepat', ctx: 128_000, maxOut: 8192 },
+          { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', note: 'MoE', ctx: 32_768, maxOut: 4096 },
+        ],
+      },
+      {
+        id: 'openrouter',
+        label: 'OpenRouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        envKey: 'OPENROUTER_API_KEY',
+        logo: 'openrouter',
+        freeText: true,
+        models: [
+          { id: 'anthropic/claude-3.7-sonnet', label: 'Claude 3.7 Sonnet (Router)', note: 'frontier', ctx: 200_000, maxOut: 64000 },
+          { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B (Router)', note: 'open weights', ctx: 128_000, maxOut: 32768 },
+          { id: 'deepseek/deepseek-chat', label: 'DeepSeek V3 (Router)', note: 'ekonomis', ctx: 128_000, maxOut: 8192 },
+        ],
+      },
+      {
+        id: 'xai',
+        label: 'xAI (Grok)',
+        baseUrl: 'https://api.x.ai/v1',
+        envKey: 'XAI_API_KEY',
+        logo: 'xai',
+        models: [
+          { id: 'grok-2-latest', label: 'Grok 2', note: 'terbaru, penalaran', ctx: 131_072, maxOut: 8192 },
+          { id: 'grok-2-mini', label: 'Grok 2 Mini', note: 'ringan, cepat', ctx: 131_072, maxOut: 8192 },
+        ],
+      },
+      {
+        id: 'mistral',
+        label: 'Mistral AI',
+        baseUrl: 'https://api.mistral.ai/v1',
+        envKey: 'MISTRAL_API_KEY',
+        logo: 'mistral',
+        models: [
+          { id: 'mistral-large-latest', label: 'Mistral Large', note: 'flagship', ctx: 128_000, maxOut: 32768 },
+          { id: 'codestral-latest', label: 'Codestral', note: 'khusus coding', ctx: 256_000, maxOut: 32768 },
+          { id: 'mistral-small-latest', label: 'Mistral Small', note: 'hemat, cepat', ctx: 128_000, maxOut: 8192 },
+        ],
+      },
+      {
+        id: 'cerebras',
+        label: 'Cerebras',
+        baseUrl: 'https://api.cerebras.ai/v1',
+        envKey: 'CEREBRAS_API_KEY',
+        logo: 'cerebras',
+        models: [
+          { id: 'llama3.3-70b', label: 'Llama 3.3 70B (Cerebras)', note: 'kecepatan wafer', ctx: 128_000, maxOut: 8192 },
+          { id: 'llama3.1-8b', label: 'Llama 3.1 8B (Cerebras)', note: 'ultra low latency', ctx: 128_000, maxOut: 8192 },
+        ],
+      },
+      {
+        id: 'ollama',
+        label: 'Ollama (Lokal)',
+        baseUrl: 'http://127.0.0.1:11434/v1',
+        envKey: 'OLLAMA_API_KEY',
+        logo: 'ollama',
+        freeText: true,
+        models: [
+          { id: 'qwen2.5-coder:latest', label: 'Qwen 2.5 Coder', note: 'lokal coding', ctx: 32_768, maxOut: 4096 },
+          { id: 'llama3.2:latest', label: 'Llama 3.2', note: 'lokal ringan', ctx: 128_000, maxOut: 4096 },
+          { id: 'deepseek-r1:latest', label: 'DeepSeek R1 (Lokal)', note: 'lokal reasoning', ctx: 32_768, maxOut: 4096 },
+        ],
       },
       {
         id: 'local',
@@ -293,6 +371,55 @@ export function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
             strokeLinecap="round"
           />
           <circle cx="8" cy="8" r="1.9" fill="none" stroke="#f5a623" strokeWidth="1.3" />
+        </svg>
+      );
+    case 'groq':
+      return (
+        <svg {...p} aria-label="Groq">
+          <circle cx="8" cy="8" r="6" fill="none" stroke="#f55036" strokeWidth="1.5" />
+          <path d="M8 4.5v7M5.5 8h5" stroke="#f55036" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case 'xai':
+      return (
+        <svg {...p} aria-label="xAI">
+          <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
+    case 'openrouter':
+      return (
+        <svg {...p} aria-label="OpenRouter">
+          <rect x="3" y="3" width="10" height="10" rx="3" fill="none" stroke="#6366f1" strokeWidth="1.4" />
+          <circle cx="8" cy="8" r="2" fill="#6366f1" />
+        </svg>
+      );
+    case 'mistral':
+      return (
+        <svg {...p} aria-label="Mistral AI">
+          <rect x="3" y="3" width="3" height="3" fill="#ff7000" />
+          <rect x="7" y="3" width="3" height="3" fill="#ff7000" />
+          <rect x="11" y="3" width="3" height="3" fill="#ff7000" />
+          <rect x="3" y="7" width="3" height="3" fill="#ff7000" />
+          <rect x="11" y="7" width="3" height="3" fill="#ff7000" />
+          <rect x="3" y="11" width="3" height="3" fill="#ff7000" />
+          <rect x="7" y="11" width="3" height="3" fill="#ff7000" />
+          <rect x="11" y="11" width="3" height="3" fill="#ff7000" />
+        </svg>
+      );
+    case 'cerebras':
+      return (
+        <svg {...p} aria-label="Cerebras">
+          <circle cx="8" cy="8" r="5.5" fill="none" stroke="#00c853" strokeWidth="1.5" />
+          <circle cx="8" cy="8" r="2.5" fill="#00c853" />
+        </svg>
+      );
+    case 'ollama':
+      return (
+        <svg {...p} aria-label="Ollama">
+          <circle cx="8" cy="8" r="6" fill="#1e293b" />
+          <circle cx="6" cy="7" r="1" fill="#ffffff" />
+          <circle cx="10" cy="7" r="1" fill="#ffffff" />
+          <path d="M6 10q2 1.5 4 0" stroke="#ffffff" strokeWidth="1" fill="none" strokeLinecap="round" />
         </svg>
       );
     default:

@@ -281,7 +281,7 @@ pub fn test_model_connection(
             "x-api-key",
             key.clone(),
         ),
-        // openai / deepseek / custom: OpenAI-compatible
+        // openai / deepseek / groq / openrouter / xai / mistral / cerebras / custom: OpenAI-compatible
         other => (
             format!(
                 "{}/models",
@@ -289,6 +289,13 @@ pub fn test_model_connection(
                     .clone()
                     .unwrap_or_else(|| match other {
                         "deepseek" => "https://api.deepseek.com/v1".into(),
+                        "groq" => "https://api.groq.com/openai/v1".into(),
+                        "openrouter" => "https://openrouter.ai/api/v1".into(),
+                        "xai" => "https://api.x.ai/v1".into(),
+                        "mistral" => "https://api.mistral.ai/v1".into(),
+                        "cerebras" => "https://api.cerebras.ai/v1".into(),
+                        "ollama" => "http://127.0.0.1:11434/v1".into(),
+                        "lmstudio" => "http://127.0.0.1:1234/v1".into(),
                         _ => "https://api.openai.com/v1".to_string(),
                     })
                     .trim_end_matches('/')

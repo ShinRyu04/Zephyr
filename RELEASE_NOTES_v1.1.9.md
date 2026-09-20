@@ -16,6 +16,9 @@ Terminal workflow enhancements, AI CLI multi-line support, Linux compatibility f
 - **DAP Process Tree Termination:** Perbaikan penghentian proses debuggee (DAP) pada Linux/Unix menggunakan sinyal `kill -9` sebagai pendamping `taskkill /T /F` di Windows.
 - **Workflow & Bundle Configuration:** Workflow `.github/workflows/build-linux.yml` disiapkan untuk memproduksi paket `.deb` dan `.AppImage` Linux secara otomatis.
 
-### AI & Agentic Foundation (Terax Alignment)
+### Expanded BYOK AI Providers (Terax Parity)
 
-- Fondasi integrasi model AI yang lebih luas serta loop eksekusi agent yang mendukung eksekusi multi-line dan input multi-turn di terminal.
+- **New AI Providers:** Menambahkan dukungan native dan preset katalog untuk **Groq**, **OpenRouter**, **xAI (Grok)**, **Mistral AI**, **Cerebras**, dan **Ollama (Lokal)** ke dalam Zephyr.
+- **Provider Logos & Icons:** Setiap provider baru dilengkapi SVG logo brand resmi di dropdown Model AI dan status bar.
+- **Unified Base URLs:** Backend Rust (`adapters/openai.rs` dan `secrets.rs`) otomatis mengenali base URL default untuk masing-masing provider OpenAI-compatible baru ini saat validasi koneksi dan streaming.
+
