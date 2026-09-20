@@ -33,9 +33,9 @@ usually runs with nothing extra to install).
 
 ### Installing Zephyr (3 steps)
 
-1. **Download the installer** — `Zephyr_1.1.8_x64-setup.exe` (or the `.msi`)
+1. **Download the installer** — `Zephyr_1.1.9_x64-setup.exe` (or the `.msi`)
    from the [Releases](https://github.com/ShinRyu04/Zephyr/releases) page. Look
-   for the file named `Zephyr_1.1.8_x64-setup.exe`. That is the installer.
+   for the file named `Zephyr_1.1.9_x64-setup.exe`. That is the installer.
 2. **Run the installer** — if SmartScreen shows up, click **More info → Run
    anyway**. This is normal for a build without an EV certificate. It does not
    mean the file is harmful. The source is open and can be checked.
