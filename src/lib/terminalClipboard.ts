@@ -5,11 +5,12 @@ import { clipboardRead, clipboardWrite } from './clipboard';
 import { ptyWrite } from './commands';
 import { getHandle, getSelection } from './xtermRegistry';
 
-/** Batas satu potongan paste ke PTY (fase 15.2).
- *  ConPTY punya buffer input terbatas: menulis 10KB sekaligus membuat
- *  potongan akhir hilang / karakter teracak di layar. 4KB adalah ukuran
- *  yang sama dengan buffer baca kita di Rust, jadi aman dua arah. */
-const PASTE_CHUNK = 4096;
+/** Batas satu potongan paste ke PTY.
+ *  ConPTY Windows dan terminal interaktif sangat rentan terpotong bila dikirimi
+ *  chunk terlalu besar tanpa jeda, atau saat teks multi-line dikirim tanpa bracketed paste.
+ *  512 byte dengan jeda 12ms memastikan ConPTY dan stdin buffer aplikasi (seperti AI CLI)
+ *  dapat mengonsumsi stream tanpa ada buffer overflow / truncation. */
+const PASTE_CHUNK = 512;
 
 /** Salin seleksi terminal ke clipboard. Mengembalikan teks yang tersalin. */
 export async function copySelection(id: string): Promise<string> {
@@ -20,7 +21,7 @@ export async function copySelection(id: string): Promise<string> {
   return sel;
 }
 
-/** Tulis teks ke PTY dalam potongan 4KB (fase 15.2).
+/** Tulis teks ke PTY dalam potongan aman anti-potong.
  *  Dipakai paste dan jalur MCP/AI "kirim ke terminal". */
 export async function writeChunked(id: string, data: string): Promise<number> {
   let sent = 0;
@@ -28,19 +29,24 @@ export async function writeChunked(id: string, data: string): Promise<number> {
     const part = data.slice(i, i + PASTE_CHUNK);
     await ptyWrite(id, part);
     sent += part.length;
-    // Beri ConPTY satu tick untuk mengalirkan buffernya sebelum potongan
-    // berikutnya. Tanpa jeda ini paste 10KB masih bisa terpotong.
-    if (i + PASTE_CHUNK < data.length) await new Promise((r) => setTimeout(r, 8));
+    // Beri jeda kecil agar buffer ConPTY tidak meluap
+    if (i + PASTE_CHUNK < data.length) await new Promise((r) => setTimeout(r, 12));
   }
   return sent;
 }
 
-/** Tempel isi clipboard ke terminal (dikirim ke shell sebagai input). */
+/** Tempel isi clipboard ke terminal (dikirim ke shell sebagai input).
+ *  Mendukung bracketed paste jika memungkinkan agar teks panjang/multi-line
+ *  di AI CLI tidak terpotong atau mengeksekusi perintah prematur. */
 export async function pasteInto(id: string): Promise<string> {
   const text = await clipboardRead();
-  if (!text) return '';
-  // CR dinormalkan: shell menerima \r sebagai Enter, \n bisa dobel-eksekusi.
-  const data = text.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
-  await writeChunked(id, data);
+  if (!text) return "";
+  const cr = String.fromCharCode(13);
+  const lf = String.fromCharCode(10);
+  const lines = text.split(lf).map((l) => (l.endsWith(cr) ? l.slice(0, -1) : l));
+  const normalized = lines.join(cr);
+  const esc = String.fromCharCode(27);
+  const payload = esc + "[200~" + normalized + esc + "[201~";
+  await writeChunked(id, payload);
   return text;
 }

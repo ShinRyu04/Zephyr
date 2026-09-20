@@ -49,8 +49,8 @@ export default function XtermPane({ pane }: Props) {
     if (!handle.term.element) handle.term.open(handle.holder);
     flushQueue(pane.id);
 
-    // Shortcut clipboard ala Windows Terminal. Dikembalikan `false` supaya
-    // xterm tidak juga mengirim byte-nya ke shell.
+    // Shortcut clipboard ala Windows Terminal + Ctrl+V langsung + Shift+Enter untuk multi-line di AI CLI.
+    // Dikembalikan `false` supaya xterm tidak juga mengirim byte-nya ke shell secara default.
     handle.term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true;
       const k = e.key.toLowerCase();
@@ -58,13 +58,26 @@ export default function XtermPane({ pane }: Props) {
         void copySelection(pane.id);
         return false;
       }
-      if ((e.ctrlKey && e.shiftKey && k === 'v') || (e.shiftKey && e.key === 'Insert')) {
+      // Dukung Ctrl+V langsung (selain Ctrl+Shift+V dan Shift+Insert)
+      if (
+        (e.ctrlKey && !e.shiftKey && !e.altKey && k === 'v') ||
+        (e.ctrlKey && e.shiftKey && k === 'v') ||
+        (e.shiftKey && e.key === 'Insert')
+      ) {
         void pasteInto(pane.id);
         return false;
       }
       // Ctrl+C tanpa seleksi = interrupt (ditangani onData); dengan seleksi = copy.
       if (e.ctrlKey && !e.shiftKey && k === 'c' && getSelection(pane.id)) {
         void copySelection(pane.id);
+        return false;
+      }
+      // Shift+Enter untuk AI CLI / Shell multi-baris:
+      // Kirim newline yang tidak memicu submit langsung (\n atau escape sequence CSI u \x1b[13;2u)
+      if (e.shiftKey && !e.ctrlKey && !e.altKey && e.key === 'Enter') {
+        void cmd.ptyWrite(pane.id, '\x1b[13;2u').catch(() => {
+          void cmd.ptyWrite(pane.id, '\n');
+        });
         return false;
       }
       return true;
