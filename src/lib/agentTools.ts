@@ -124,6 +124,69 @@ export const AGENT_TOOLS: AgentTool[] = [
   },
   {
     spec: {
+      name: 'file_write',
+      description:
+        'Tulis langsung isi file ke disk (atau buat file baru jika belum ada). Memperbarui buffer tab bila file sedang dibuka di editor.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Path file (absolut atau relatif workspace)' },
+          content: { type: 'string', description: 'Isi lengkap teks yang akan ditulis ke file' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+    run: async (args) => {
+      const filePath = String(args.path ?? '').trim();
+      const content = String(args.content ?? '');
+      if (!filePath) throw new Error('file_write: path kosong');
+      await cmd.fsWrite(filePath, content);
+      // Sinkronkan ke tab editor bila sedang terbuka
+      const st = useStore.getState();
+      const tab = st.tabs.find((t) => t.path === filePath);
+      if (tab) {
+        st.updateTabContent(tab.id, content);
+      }
+      return `File ${filePath} berhasil ditulis ke disk (${content.length} karakter).`;
+    },
+  },
+  {
+    spec: {
+      name: 'file_edit',
+      description:
+        'Ubah sebagian isi file yang ada di disk dengan mencari teks lama (old_text) dan menggantinya dengan teks baru (new_text).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Path file' },
+          old_text: { type: 'string', description: 'Teks persis yang ingin diganti' },
+          new_text: { type: 'string', description: 'Teks pengganti' },
+        },
+        required: ['path', 'old_text', 'new_text'],
+      },
+    },
+    run: async (args) => {
+      const filePath = String(args.path ?? '').trim();
+      const oldText = String(args.old_text ?? '');
+      const newText = String(args.new_text ?? '');
+      if (!filePath) throw new Error('file_edit: path kosong');
+      const r = await cmd.fsRead(filePath);
+      const original = r.content ?? '';
+      if (!original.includes(oldText)) {
+        throw new Error(`file_edit: old_text tidak ditemukan di dalam ${filePath}`);
+      }
+      const updated = original.replace(oldText, newText);
+      await cmd.fsWrite(filePath, updated);
+      const st = useStore.getState();
+      const tab = st.tabs.find((t) => t.path === filePath);
+      if (tab) {
+        st.updateTabContent(tab.id, updated);
+      }
+      return `File ${filePath} berhasil diedit dan disimpan ke disk.`;
+    },
+  },
+  {
+    spec: {
       name: 'file_read',
       description:
         'Baca isi file dari disk (read-only, maks 100KB). Path bisa absolut atau relatif terhadap workspace.',

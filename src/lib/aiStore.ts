@@ -39,7 +39,8 @@ export const MSG_LIMIT = 8 * 1024;
 export function systemPromptFor(answerLang: string): string {
   const id =
     'Kamu adalah Zeph, asisten AI bawaan editor Zephyr. ' +
-    'Jawab dengan ramah, jelas, dan ringkas.';
+    'Jawab dengan ramah, jelas, dan ringkas. ' +
+    'Jika terdapat file ZEPHYR.md atau TERAX.md di root workspace, jadikan itu aturan dan memori proyek utama.';
   if (!answerLang || answerLang === 'follow') return id;
   if (answerLang === 'id') return `${id} Selalu jawab dalam bahasa Indonesia.`;
   if (answerLang === 'en') return `${id} Always answer in English.`;

@@ -22,3 +22,9 @@ Terminal workflow enhancements, AI CLI multi-line support, Linux compatibility f
 - **Provider Logos & Icons:** Setiap provider baru dilengkapi SVG logo brand resmi di dropdown Model AI dan status bar.
 - **Unified Base URLs:** Backend Rust (`adapters/openai.rs` dan `secrets.rs`) otomatis mengenali base URL default untuk masing-masing provider OpenAI-compatible baru ini saat validasi koneksi dan streaming.
 
+### Agent Tools Expansion & Project Memory (Terax Parity)
+
+- **Agent Direct File Operations:** Ditambahkan dua tool baru untuk agent: `file_write` (menulis file utuh/baru ke disk) dan `file_edit` (melakukan targeted edit find-and-replace pada file yang ada di disk). Perubahan file otomatis tersinkronisasi ke tab buffer jika file sedang aktif dibuka.
+- **Project Memory (`ZEPHYR.md` / `TERAX.md`):** System prompt AI kini otomatis memuat instruksi aturan proyek dari file `ZEPHYR.md` atau `TERAX.md` di root workspace bila ada.
+
+
