@@ -9,7 +9,7 @@
 A desktop code editor for Windows, built from scratch with Tauri 2 + React +
 Rust. Not a VS Code fork, not Electron.
 
-`v1.1.8` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.9` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 

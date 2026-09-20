@@ -1,85 +1,53 @@
-# Zephyr v1.1.8
+# Zephyr v1.1.9
 
 ## What's new
 
-Bigger marketplace, fuller AI model list, clearer update notes.
+Terminal shortcuts, AI CLI multiline input, Linux compatibility fixes, visual Git graph, and new BYOK AI providers.
 
-### 101 language marketplace
+### Terminal clipboard & shortcuts
 
-Every programmer language pack is now in the Marketplace, from Python, JavaScript, Rust, Go, C/C++ down to COBOL, Brainfuck, APL, and more. Search it, hit Install, hit Enable. It works without errors.
+- **Native `Ctrl+V` paste:** You can now paste straight into the terminal with `Ctrl+V`, alongside `Ctrl+Shift+V` and `Shift+Insert`. Right-clicking is no longer required.
+- **`Shift+Enter` for AI CLIs:** In the terminal, `Shift+Enter` now emits a true multiline escape sequence (`\x1b[13;2u` / `\n`) instead of immediately submitting the command. This makes typing multiline prompts in Claude Code, Codex, Hermes, or Aider work as expected.
+- **Bracketed paste (anti-truncation):** Pastes are now wrapped in bracketed paste mode (`\x1b[200~ ... \x1b[201~`) with 512-byte paced chunks. Large code snippets or multiline commands no longer overflow ConPTY or drop characters on Windows.
 
-### Real logo per language
+### Linux & cross-platform fixes
 
-No more colored initials. Each language in the Marketplace now uses its real logo (Simple Icons / Devicon / VS Code Icons), bundled with the app, so they still show up offline.
+- **File reveal on Linux & macOS:** "Reveal in File Explorer" now invokes `xdg-open` on Linux and `open -R` on macOS instead of failing when Windows `explorer.exe` is absent.
+- **DAP process cleanup:** Debuggee processes under Linux/macOS are now killed cleanly via `kill -9` when stopping a debug session, mirroring Windows `taskkill /T /F`.
+- **Packaging workflow:** `.github/workflows/build-linux.yml` is wired up to build `.deb` and `.AppImage` packages.
 
-### AI models, oldest to newest
+### Expanded BYOK AI providers
 
-Each provider's catalog runs from its earliest models to its latest:
+Added presets and official SVG brand logos for popular OpenAI-compatible providers:
 
-- **Google Gemini:** 1.0 Pro → 3.8 Flash, plus Nano Banana for images
-- **OpenAI:** GPT-3.5 → GPT-6 Astra, plus the o1/o3 reasoning series
-- **Anthropic:** Claude 1 → Claude Fable 5.1, plus Sonnet/Opus/Haiku
-- **DeepSeek:** V3 → V4 Pro, plus Coder and Reasoner
+- **Groq:** Llama 3.3 70B Versatile, Llama 3.1 8B Instant, Mixtral 8x7B
+- **OpenRouter:** Claude 3.7 Sonnet, Llama 3.3 70B, DeepSeek V3
+- **xAI:** Grok 2, Grok 2 Mini
+- **Mistral AI:** Mistral Large, Codestral, Mistral Small
+- **Cerebras:** Llama 3.3 70B, Llama 3.1 8B
+- **Ollama (Local):** Qwen 2.5 Coder, Llama 3.2, DeepSeek R1
 
-Cheap old models or the newest ones, both are in the dropdown.
+Default base URLs and authentication headers are configured in the Rust backend (`adapters/openai.rs` and `secrets.rs`).
 
-### Custom / local AI, easier
+### Visual Git graph & Terax theme
 
-Using your own model (Ollama, LM Studio, OpenAI-compatible, etc.) is simpler now:
+- **Git commit graph:** The Source Control panel now renders a visual branch/commit history graph with commit hashes, commit messages, author info, dates, and branch/tag refs.
+- **Terax Acrylic theme:** A new dark theme (`terax-dark`) inspired by modern developer workspaces, featuring dark graphite surfaces, crisp contrast, and cyan accent colors.
 
-- **Settings → Model AI → pick "Lokal (opencode / loopback)" or "Custom"**.
-- Fill in the **base URL** (for Ollama: `http://127.0.0.1:11434/v1`), then type the **model name** in the field. There is now a **▾ dropdown button** so you can pick from the catalog list plus the API list (the **Refresh** button pulls models straight from the provider).
-- It shows up in the **AI panel (bottom left), not just the AI terminal**. The AI panel dropdown lists the custom model you set, with logo and key status. A "how to use" hint sits right on the Settings page.
+### Direct agent tools & project memory
 
-### Update notifications with the actual changelog
-
-The "new version available" notification (update dialog, banner, and bell) now shows the real release notes: headings, bullet points, and the changelog table. You can see what changed at a glance instead of a bare "New version available".
-
-### Zephyr-style update dialog
-
-The "Zephyr v1.1.8 available" dialog is now Zephyr's own:
-
-- Bigger, so the changelog is visible without long scrolling.
-- Shows old version → new version plus the release date.
-- A **View on GitHub** button that opens the Release page directly.
-- **Later** / **Download & install** buttons.
-
-### Linux build (coming soon)
-
-The `build-linux` GitHub Actions workflow is ready: on the next version release it automatically builds `.deb` + `.AppImage` for Linux and attaches them to GitHub Releases. Stay tuned.
-
-### Automatic extension recommendations
-
-Open a workspace with a given language and the Marketplace suggests matching extensions.
-
-### Donations (Saweria)
-
-Zephyr is free and stays free. If you like it and want to support development, there is a **☕ Donasi** button in the **bottom status bar** (right side) and in **Settings → About**. It opens Saweria (`saweria.co/ShinRyuga04`). You can also go through **Help → Donasi** or press `Ctrl+Shift+P` and type "donasi". Every tip is appreciated.
-
-### Local RAG answers (project memory)
-
-The AI panel can now search the whole project before answering — not just the file you have open.
-
-- **Settings → Model AI → Local RAG**: turn it on, point it at a local RAG server (default `http://localhost:7777`, e.g. enowx-rag + Qdrant + Ollama), and set the project id.
-- Every question then retrieves the top chunks from your own codebase and feeds them to the model as context. Ask "how does donate work" and it answers from the actual `StatusBar.tsx`, not from guesswork.
-- If the RAG server is down or misconfigured, the chat still works — it just shows a toast instead of blocking.
-
-### Regenerate & copy answers
-
-- **↻** on any AI reply: drops that reply and re-runs the same question (same context, new answer).
-- **⧉** on any bubble: copies the message text to the clipboard. Hover a bubble to see the buttons; they hide while it is still streaming.
+- **`file_write` & `file_edit` agent tools:** In agent mode, Zephyr can now directly write new files or apply targeted edits to existing files on disk, automatically syncing any open editor tab buffers.
+- **Project memory (`ZEPHYR.md` / `TERAX.md`):** The built-in AI assistant automatically reads instructions from `ZEPHYR.md` or `TERAX.md` located at the workspace root when present.
 
 ---
 
 ## How to update
 
-- **First time:** grab `Zephyr_1.1.8_x64-setup.exe` or the `.msi` from Releases.
+- **First time:** grab `Zephyr_1.1.9_x64-setup.exe` or the `.msi` from Releases.
 - **Already have it:** Settings → About → Check for updates. Or wait for the bell if auto-update is on.
 
-The app verifies the installer signature before installing. SmartScreen can still complain because this is not an EV certificate. More info → Run anyway. It is safe.
+The app verifies the installer signature before installing. SmartScreen can still warn because this is not an EV certificate: click **More info → Run anyway**.
 
 ---
 
-**Note:** installers are signed (minisign) for auto-update, so a downloaded update only installs if its signature matches.
-
-Enjoy.
+**Note:** Installers are signed (minisign) for auto-update, so a downloaded update only installs if its signature matches.
