@@ -1207,6 +1207,14 @@ fn stop_internal(_rt: &DapRuntime) -> ZResult<bool> {
             .stderr(std::process::Stdio::null())
             .status();
     }
+    #[cfg(not(windows))]
+    if sesi.pid != 0 {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &sesi.pid.to_string()])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
     sesi.berakhir.store(true, Ordering::SeqCst);
     if let Ok(mut g) = k.port.lock() {
         *g = None;
