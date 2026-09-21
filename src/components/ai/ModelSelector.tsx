@@ -60,10 +60,17 @@ export default function ModelSelector() {
   const [fetching, setFetching] = useState(false);
 
   const active = findModel(model, provider);
-  const freeText = PROVIDER_BY_ID.get(provider)?.freeText === true;
-  const hasKey = keys.some((k) => k.provider === provider && k.hasKey);
-  const baseUrl =
-    useStore((s) => s.settings.models.providers[provider]?.baseUrl) || active.baseUrl;
+    const freeText = PROVIDER_BY_ID.get(provider)?.freeText === true;
+    const hasKey = keys.some((k) => k.provider === provider && k.hasKey);
+    // JANGAN memakai selector yang mengembalikan objek/array baru di sini
+    // (zustand v5 membandingkan hasil selector dengan ===): mis.
+    //   useStore((s) => s.settings.models.providers[provider])   // objek baru
+    //   useSettingsUi((s) => s.remoteModels[provider] ?? [])     // array baru
+    // Keduanya memicu render loop -> "Maximum update depth exceeded" -> React
+    // unmount seluruh tree -> layar hitam total begitu panel AI dibuka.
+    // Ambil lewat getState() di dalam function; selector di bawah hanya
+    // mengambil referensi stabil (=bukan "dipakai sebagai nilai render").
+    const baseUrl = useStore.getState().settings.models.providers[provider]?.baseUrl || active.baseUrl;
 
   // Klik di luar / Escape menutup dropdown.
   useEffect(() => {
@@ -129,12 +136,15 @@ export default function ModelSelector() {
   };
 
   const savedList = saved[provider] ?? [];
-  // Model live dari provider: cache lokal menu ini + cache global (terisi
-  // otomatis saat key disimpan di Settings, mis. OpenRouter).
-  const uiRemote = useSettingsUi((s) => s.remoteModels[provider] ?? []);
-  const remoteList = [...remote[provider] ?? [], ...uiRemote].filter(
-    (id, i, a) => id && a.indexOf(id) === i,
-  );
+    // Model live dari provider: cache lokal menu ini + cache global (terisi
+    // otomatis saat key disimpan di Settings, mis. OpenRouter).
+    // `remoteModels` diambil polos (referensi objek stabil) — jangan pakai
+    // `?? []` di sini karena selector itu membuat ARRAY BARU tiap render
+    // (aturan zustand v5, lihat catatan baseUrl di atas).
+    const uiRemoteList = useSettingsUi((s) => s.remoteModels)[provider] ?? [];
+    const remoteList = [...remote[provider] ?? [], ...uiRemoteList].filter(
+      (id, i, a) => id && a.indexOf(id) === i,
+    );
 
   return (
     <div className="ai-model-wrap" ref={wrap}>
