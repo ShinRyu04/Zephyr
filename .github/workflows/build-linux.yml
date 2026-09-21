@@ -41,7 +41,9 @@ jobs:
           cargo check --all-targets 2>&1 | tail -30
 
       - name: Build release bundle
-        run: npx tauri build --bundles deb appimage
+        # `npx tauri build` bisa gagal ("could not determine executable to run")
+        # di runner karena @tauri-apps/cli tidak ter-install (npm cache issue).
+        run: npx --yes @tauri-apps/cli@^2 build --bundles deb appimage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
