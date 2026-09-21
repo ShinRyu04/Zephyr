@@ -51,6 +51,12 @@ Default base URLs and authentication headers are configured in the Rust backend 
 
 - **Support dialog:** the ☕ button (status bar, Settings → About, Help menu, Command Palette) now opens a choice of **Trakteer** (`trakteer.id/ryuga-9jfin`) or **Saweria** (`saweria.co/ShinRyuga04`).
 
+### Bug fixes in this refresh
+
+- **AI panel black screen:** fixed a crash that blanked the entire window when opening the AI panel. The model dropdown (`ModelSelector`) used Zustand v5 selectors that returned new objects/arrays on every render, causing an infinite render loop ("Maximum update depth exceeded") that unmounted the whole UI. The dropdown now reads store values through stable references.
+- **Linux builds refreshed:** `.deb` and `.AppImage` were rebuilt with the AI panel fix and signed for auto-update.
+- **Linux packaging pipeline fixed:** the release workflow now installs dependencies (`npm ci`) and signs bundles via GitHub secrets, so Linux artifacts ship with valid signatures.
+
 ---
 
 ## How to update
