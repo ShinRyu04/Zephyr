@@ -8,13 +8,16 @@
 // CodeMirror penuh: satu instance EditorView per blok kode akan memakan RAM
 // jauh di atas target PRD (<400MB idle).
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAi, isDestructive } from '../../lib/aiStore';
+import { barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { ChatMsg } from '../../lib/types';
+import ReasonedBlock from './ReasonedBlock';
+import { tx } from '../../lib/i18n';
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -30,15 +33,75 @@ const SHELL_LANGS = new Set([
   'terminal',
 ]);
 
+/** A-7: path relatif/absolut di teks AI, opsional dengan :baris — jadi
+ *  tombol yang membuka file di editor. Path Windows memakai backslash. */
+const REF_RE = /^(?:\.{0,2}\/|\.{0,2}\\)?[\w@./\\-]+(?:\.\w{1,8})(?::(\d+))?$/;
+
 function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const runInTerminal = useAi((s) => s.runInTerminal);
   const setToast = useAi((s) => s.setToast);
   const isShell = SHELL_LANGS.has(lang);
 
+  // A-5: Terapkan = ganti isi tab aktif; Sisipkan = tambah di posisi kursor.
+  // A-6: sebelum mengganti, tampilkan diff hijau/merah supaya user melihat apa
+  // yang berubah lebih dulu — bukan langsung menimpa isi file.
+  const [pratinjau, setPratinjau] = useState<DiffRow[] | null>(null);
+
+  const terapkan = () => {
+    void import('../../lib/store').then(({ useStore }) => {
+      const s = useStore.getState();
+      const id = s.activeTabId;
+      if (!id) return setToast(tx('Tidak ada tab editor aktif'));
+      const tab = s.tabs.find((t) => t.id === id);
+      const lama = tab?.content ?? '';
+      if (lama === code) return setToast(tx('Isi file sudah sama dengan kode ini'));
+      setPratinjau(barisDiff(lama, code));
+    });
+  };
+
+  const konfirmasiTerapkan = () => {
+    setPratinjau(null);
+    void import('../../lib/store').then(({ useStore }) => {
+      const s = useStore.getState();
+      const id = s.activeTabId;
+      if (!id) return setToast(tx('Tidak ada tab editor aktif'));
+      s.updateTabContent(id, code);
+      setToast(tx('Isi tab diganti — Ctrl+S untuk menyimpan'));
+    });
+  };
+  const sisipkan = () => {
+    void import('../../lib/mcpStore').then(({ runAction }) => {
+      void runAction('editor_insert', { text: code }).then((r) => {
+        const rr = r as { tabId?: string } | null;
+        setToast(rr?.tabId ? tx('Kode disisipkan di kursor') : tx('Tidak ada tab aktif untuk menyisipkan'));
+      });
+    });
+  };
+
   return (
     <div className="ai-code" data-lang={lang || 'text'}>
       <div className="ai-code-head">
         <span className="ai-code-lang">{lang || 'text'}</span>
+        {!isShell && (
+          <>
+            <button
+              className="ai-code-btn"
+              data-testid="ai-apply-code"
+              title={tx('Ganti isi tab editor aktif dengan kode ini')}
+              onClick={terapkan}
+            >
+              Terapkan
+            </button>
+            <button
+              className="ai-code-btn"
+              data-testid="ai-insert-code"
+              title={tx('Sisipkan kode di posisi kursor')}
+              onClick={sisipkan}
+            >
+              Sisipkan
+            </button>
+          </>
+        )}
         <button
           className="ai-code-btn"
           data-testid="ai-copy-code"
@@ -62,6 +125,38 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
       <pre className="ai-pre">
         <code>{code}</code>
       </pre>
+      {pratinjau && (
+        <div className="ai-diff" data-testid="ai-diff">
+          <div className="ai-diff-head">
+            <span className="ai-diff-sum">
+              {ringkasDiff(pratinjau).tambah} baris ditambah ·{' '}
+              {ringkasDiff(pratinjau).hapus} baris dihapus
+            </span>
+            <button className="ai-code-btn is-run" data-testid="ai-diff-ok" onClick={konfirmasiTerapkan}>
+              Terapkan
+            </button>
+            <button
+              className="ai-code-btn"
+              data-testid="ai-diff-cancel"
+              onClick={() => setPratinjau(null)}
+            >
+              Batal
+            </button>
+          </div>
+          <div className="ai-diff-body">
+            {pratinjau.map((r, i) => (
+              <div key={i} className={`ai-diff-row is-${r.kind}`} data-kind={r.kind}>
+                <span className="ai-diff-no">{r.a ?? ''}</span>
+                <span className="ai-diff-no">{r.b ?? ''}</span>
+                <span className="ai-diff-sign">
+                  {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ' '}
+                </span>
+                <span className="ai-diff-text">{r.text || ' '}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -71,6 +166,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const def = msg.model ? findModel(msg.model) : null;
   const regenerate = useAi((s) => s.regenerate);
   const setToast = useAi((s) => s.setToast);
+  const [buka, setBuka] = useState<Record<number, boolean>>({});
 
   return (
     <div
@@ -102,7 +198,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             <button
               className="ai-msg-act"
               data-testid="ai-copy-msg"
-              title="Salin isi jawaban"
+              title={tx('Salin isi jawaban')}
               onClick={() => {
                 void clipboardWrite(msg.content).then(() => setToast('Disalin'));
               }}
@@ -130,13 +226,86 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
         </p>
       ) : (
         <div className="ai-body" data-ai-body={msg.id}>
-          {msg.image && (
-            <img className="ai-msg-img" src={msg.image} alt="Lampiran" data-testid="ai-msg-img" />
+          {(() => {
+            // 1.1.10: pesan lama menyimpan satu gambar di `image`, pesan baru di
+            // `images`. Gabungkan supaya keduanya tampil.
+            const imgs = msg.images?.length ? msg.images : msg.image ? [msg.image] : [];
+            if (imgs.length === 0) return null;
+            return (
+              <div className="ai-msg-imgs" data-testid="ai-msg-imgs">
+                {imgs.map((src, i) => (
+                  <img
+                    className="ai-msg-img"
+                    key={i}
+                    src={src}
+                    alt={`Lampiran ${i + 1}`}
+                    data-testid="ai-msg-img"
+                  />
+                ))}
+              </div>
+            );
+          })()}
+          {msg.tools && msg.tools.length > 0 && (
+            <div className="ai-toolruns" data-testid="ai-toolruns">
+              {msg.tools.map((t, i) => (
+                <div className="ai-toolrun" key={i} data-tool-name={t.name}>
+                  <button
+                    className="ai-toolrun-head"
+                    data-testid="ai-toolrun-toggle"
+                    aria-expanded={!!buka[i]}
+                    onClick={() => setBuka((b) => ({ ...b, [i]: !b[i] }))}
+                  >
+                    <span className="ai-toolrun-caret">{buka[i] ? '▾' : '▸'}</span>
+                    <span className="ai-toolrun-name">{t.name}</span>
+                    <code className="ai-toolrun-args">{t.args}</code>
+                    {!t.ok && <span className="ai-toolrun-fail">gagal</span>}
+                  </button>
+                  {buka[i] && (
+                    <>
+                      <pre className={`ai-toolrun-out${t.ok ? '' : ' is-err'}`} data-testid="ai-toolrun-out">
+                        {t.result || '(tanpa output)'}
+                      </pre>
+                      <div className="ai-toolrun-act">
+                        <button
+                          className="ai-code-btn"
+                          data-testid="ai-toolrun-copy"
+                          onClick={() => {
+                            void clipboardWrite(t.result).then(() => setToast(tx('Output disalin')));
+                          }}
+                        >
+                          Salin
+                        </button>
+                        <button
+                          className="ai-code-btn"
+                          data-testid="ai-toolrun-open"
+                          title={tx('Buka pane terminal di panel bawah')}
+                          onClick={() => {
+                            void import('../../lib/panelStore').then((m) => {
+                              m.usePanel.getState().focusTab('terminal');
+                            });
+                          }}
+                        >
+                          Buka di terminal
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
           {isUser ? (
             <p className="ai-plain">{msg.content}</p>
           ) : (
-            <Markdown
+            <>
+              {/* T1.1: blok "Reasoned" — penalaran model, bisa dilipat.
+                  Terlipat secara default supaya jawaban tetap jadi fokus;
+                  dibuka otomatis saat masih mengalir supaya user melihat
+                  model benar-benar berpikir (bukan menggantung). */}
+              {msg.reasoning && (
+                <ReasonedBlock text={msg.reasoning} streaming={!!msg.streaming} />
+              )}
+              <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
                 // Fence -> CodeBlock; inline code tetap <code>.
@@ -144,7 +313,29 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 code: ({ className, children }) => {
                   const text = String(children ?? '').replace(/\n$/, '');
                   const m = /language-([\w-]+)/.exec(className ?? '');
-                  if (!m && !text.includes('\n')) return <code className="ai-inline">{text}</code>;
+                  if (!m && !text.includes('\n')) {
+                    // A-7: inline code yang berbentuk path (opsional :baris)
+                    // bisa diklik untuk loncat ke file & barisnya.
+                    const ref = REF_RE.exec(text);
+                    if (ref) {
+                      return (
+                        <button
+                          className="ai-file-ref"
+                          data-testid="ai-file-ref"
+                          title={`Buka ${ref[1]}${ref[2] ? `:${ref[2]}` : ''}`}
+                          onClick={() => {
+                            void import('../../lib/store').then(({ useStore }) => {
+                              const line = ref[2] ? Number(ref[2]) : 1;
+                              void useStore.getState().openPathAt(ref[1], line);
+                            });
+                          }}
+                        >
+                          {text}
+                        </button>
+                      );
+                    }
+                    return <code className="ai-inline">{text}</code>;
+                  }
                   return <CodeBlock code={text} lang={(m?.[1] ?? '').toLowerCase()} />;
                 },
                 a: ({ href, children }) => (
@@ -156,6 +347,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             >
               {msg.content}
             </Markdown>
+            </>
           )}
         </div>
       )}

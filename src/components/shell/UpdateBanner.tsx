@@ -5,7 +5,7 @@ import { useT } from '../../lib/i18n';
 import { Changelog } from '../settings/changelogRender';
 
 export default function UpdateBanner() {
-  const t = useT();
+  const tr = useT();
   const banner = useStore((s) => s.updateBanner);
   const setUpdateBanner = useStore((s) => s.setUpdateBanner);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
@@ -13,7 +13,7 @@ export default function UpdateBanner() {
 
   if (!banner) return null;
 
-  const judul = t('update.done').replace('{v}', banner.version);
+  const judul = tr('update.done').replace('{v}', banner.version);
 
   return (
     <>
@@ -23,7 +23,7 @@ export default function UpdateBanner() {
         </span>
         <span className="upd-banner-text">
           <strong>{judul}</strong>
-          <span className="upd-banner-notes">{t('update.doneHint')}</span>
+          <span className="upd-banner-notes">{tr('update.doneHint')}</span>
         </span>
         {banner.notes && (
           <button
@@ -31,13 +31,13 @@ export default function UpdateBanner() {
             data-testid="upd-banner-notes"
             onClick={() => setLihat(true)}
           >
-            {t('update.whatsNew')}
+            {tr('update.whatsNew')}
           </button>
         )}
         <button
           className="btn btn-sm upd-dialog-x"
           data-testid="upd-banner-close"
-          aria-label={t('common.close')}
+          aria-label={tr('common.close')}
           onClick={() => setUpdateBanner(null)}
         >
           ✕
@@ -63,7 +63,7 @@ export default function UpdateBanner() {
               </div>
               <button
                 className="btn btn-sm upd-dialog-x"
-                aria-label={t('common.close')}
+                aria-label={tr('common.close')}
                 onClick={() => setLihat(false)}
               >
                 ✕
@@ -83,10 +83,10 @@ export default function UpdateBanner() {
                   setSettingsOpen(true);
                 }}
               >
-                {t('update.fullChangelog')}
+                {tr('update.fullChangelog')}
               </button>
               <button className="btn btn-primary" data-testid="upd-done-ok" onClick={() => setLihat(false)}>
-                {t('common.ok')}
+                {tr('common.ok')}
               </button>
             </div>
           </div>

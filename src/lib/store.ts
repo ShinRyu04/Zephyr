@@ -129,6 +129,9 @@ interface StoreActions {
   updateTabContent: (id: string, content: string) => void;
   saveTab: (id: string) => Promise<boolean>;
   saveTabAs: (id: string) => Promise<boolean>;
+  /** T1.4: format satu tab lewat LSP. Balikannya = jumlah edit diterapkan
+   *  (0 = tidak ada perubahan atau formatter tidak tersedia). */
+  formatTab: (id: string) => Promise<number>;
    
   requestCloseTab: (id: string) => void;
   forceCloseTab: (id: string) => void;
@@ -183,7 +186,7 @@ export const MAX_LOADED_TABS = 12;
 
  
 export function maxLoadedTabs(): number {
-  return useStore.getState().settings.general.lowRam ? 8 : MAX_LOADED_TABS;
+  return useStore.getState().settings.general.lowRam ? 4 : MAX_LOADED_TABS;
 }
 
  
@@ -193,6 +196,32 @@ function touchTab(id: string): void {
   const i = touchOrder.indexOf(id);
   if (i >= 0) touchOrder.splice(i, 1);
   touchOrder.push(id);
+}
+
+ 
+
+/**
+ * Merge dalam (RFC 7386) yang meniru `deep_merge_um` di `settings.rs`.
+ *
+ * Sebelumnya `applySettings` hanya shallow-merge, jadi patch seperti
+ * `{ models: { answerLang: 'id' } }` MENGHAPUS seluruh `models.providers`
+ * di state optimistis → `models.providers[p.id]` undefined → crash render
+ * (layar blank) sampai app di-reload. Rust sendiri sudah merge dalam, jadi
+ * state frontend harus mengikuti semantik yang sama: `null` = hapus key.
+ */
+function mergeDalam(base: unknown, patch: unknown): unknown {
+  if (
+    base !== null && typeof base === 'object' && !Array.isArray(base) &&
+    patch !== null && typeof patch === 'object' && !Array.isArray(patch)
+  ) {
+    const hasil: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(patch as Record<string, unknown>)) {
+      if (v === null) { delete hasil[k]; continue; }
+      hasil[k] = k in hasil ? mergeDalam(hasil[k], v) : v;
+    }
+    return hasil;
+  }
+  return patch;
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -618,12 +647,18 @@ export const useStore = create<Store>((set, get) => ({
       return false;
     }
     try {
-      
-      
-      
-      
-      
-      
+      // T1.4: format-on-save. Dijalankan SEBELUM snapshot & tulis supaya
+      // hasil format ikut tersimpan dan masih bisa di-undo (edit masuk
+      // riwayat CodeMirror). Kalau formatter tidak ada atau gagal, save
+      // TETAP lanjut — memblokir save karena formatter bermasalah jauh
+      // lebih buruk daripada menyimpan file yang belum rapi.
+      if (get().settings.editor.formatOnSave) {
+        const diformat = await get().formatTab(id);
+        if (diformat > 0) {
+          set({ statusMessage: `Diformat (${diformat} perubahan) · ${cur.name}` });
+        }
+      }
+
       window.dispatchEvent(
         new CustomEvent('zephyr-history-snapshot', {
           detail: { path: cur.path as string, reason: 'save' },
@@ -654,6 +689,34 @@ export const useStore = create<Store>((set, get) => ({
       }
       set({ statusMessage: `Gagal simpan: ${err.message}` });
       return false;
+    }
+  },
+
+  /** T1.4: format dokumen lewat LSP. Aman dipanggil walau LSP tidak siap —
+   *  balikannya 0 dan save tetap jalan. */
+  formatTab: async (id) => {
+    const tab = get().tabs.find((t) => t.id === id);
+    if (!tab?.path) return 0;
+    // Hanya tab yang sedang tampil punya EditorView hidup; tab lain di-skip
+    // (formatter butuh view untuk menerapkan edit).
+    if (get().activeTabId !== id) return 0;
+    const { getActiveView } = await import('./editorRegistry');
+    const view = getActiveView();
+    if (!view) return 0;
+    const ed = get().settings.editor;
+    try {
+      const { lspFormat } = await import('./lspCm');
+      const n = await lspFormat(tab.path, view, ed.tabSize, ed.insertSpaces);
+      // Edit sudah masuk view; tarik ulang isi dokumen ke store supaya yang
+      // ditulis ke disk adalah versi TERFORMAT, bukan versi lama.
+      if (n > 0) {
+        const teks = view.state.doc.toString();
+        get().updateTabContent(id, teks);
+      }
+      return n;
+    } catch {
+      // Formatter tidak tersedia / server menolak — bukan alasan gagal save.
+      return 0;
     }
   },
 
@@ -918,7 +981,9 @@ export const useStore = create<Store>((set, get) => ({
     // menunggu dua kali IPC bolak-balik). File tetap ditulis setelahnya.
     try {
       const sebelumnya = get().settings;
-      const gabungan = { ...sebelumnya, ...(patch as Record<string, unknown>) };
+      // Merge DALAM — bukan spread dangkal — supaya patch `{ models: { x } }`
+      // tidak menghapus `models.providers` (penyebab layar blank).
+      const gabungan = mergeDalam(sebelumnya, patch);
       set({ settings: gabungan as typeof sebelumnya });
       await cmd.setSettings(patch);
       const s = await cmd.getSettings();

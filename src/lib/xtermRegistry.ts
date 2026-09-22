@@ -95,7 +95,7 @@ export function getHandle(id: string): TermHandle | undefined {
 /** Buat (atau ambil) instance untuk sesi tertentu. */
 export function ensureHandle(
   id: string,
-  opts: { fontFamily: string; fontSize: number; onData: (d: string) => void; onResize: (c: number, r: number) => void },
+  opts: { fontFamily: string; fontSize: number; scrollback?: number; onData: (d: string) => void; onResize: (c: number, r: number) => void },
 ): TermHandle {
   const existing = handles.get(id);
   if (existing) return existing;
@@ -110,7 +110,8 @@ export function ensureHandle(
     lineHeight: 1.2,
     cursorBlink: true,
     cursorStyle: 'bar',
-    scrollback: 5000,
+    // Baris scrollback per pane; pemanggil memangkasnya di mode hemat RAM.
+    scrollback: opts.scrollback ?? 5000,
     allowProposedApi: true,
     convertEol: false,
     theme: themeFromCss(),

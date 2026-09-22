@@ -13,6 +13,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useGit } from '../../lib/gitStore';
 import { useStore } from '../../lib/store';
 import type { GitChange } from '../../lib/types';
+import { useT, tx } from '../../lib/i18n';
 
 /** Warna badge status mengikuti token tema (dilarang hex di komponen). */
 const STATUS_CLASS: Record<string, string> = {
@@ -263,7 +264,7 @@ function ChangeRow({ c }: { c: GitChange }) {
           {!c.staged && (
             <button
               className="ex-btn scm-mini"
-              title="Buang perubahan (permanen)"
+              title={tx('Buang perubahan (permanen)')}
               aria-label={`Discard ${c.path}`}
               data-testid="scm-discard"
               onClick={() => setConfirm({ kind: 'discard', paths: [c.path] })}
@@ -318,7 +319,7 @@ function Group({
           {!staged && (
             <button
               className="ex-btn scm-mini"
-              title="Buang semua perubahan (permanen)"
+              title={tx('Buang semua perubahan (permanen)')}
               aria-label="Discard all"
               data-testid="scm-discard-all"
               onClick={() => setConfirm({ kind: 'discard-all', paths })}
@@ -518,6 +519,7 @@ function GitGraphSection() {
 }
 
 export default function SourceControlPanel() {
+  const tr = useT();
   const workspace = useStore((s) => s.workspace);
   const status = useGit((s) => s.status);
   const message = useGit((s) => s.message);
@@ -550,7 +552,7 @@ export default function SourceControlPanel() {
       <div className="side-panel">
         <div className="side-section">
           <div className="side-title">Source Control</div>
-          <p className="side-muted">Buka folder dulu untuk memakai git.</p>
+          <p className="side-muted">{tr('Buka folder dulu untuk memakai git.')}</p>
         </div>
         <GitHubRow />
       </div>
@@ -562,7 +564,7 @@ export default function SourceControlPanel() {
       <div className="side-panel" data-testid="scm-empty">
         <div className="side-section">
           <div className="side-title">Source Control</div>
-          <p className="side-muted">Folder ini belum jadi repositori git.</p>
+          <p className="side-muted">{tr('Folder ini belum jadi repositori git.')}</p>
           <div className="side-actions">
             <button
               className="btn btn-primary"
@@ -688,7 +690,7 @@ export default function SourceControlPanel() {
         <button
           className="scm-branch-btn"
           data-testid="scm-branch"
-          title="Ganti branch"
+          title={tr('Ganti branch')}
           onClick={() => setBranchMenuOpen(!branchMenuOpen)}
         >
           <Icon d={I.branch} />
@@ -713,7 +715,7 @@ export default function SourceControlPanel() {
           className="scm-msg"
           data-testid="scm-message"
           rows={2}
-          placeholder="Pesan commit (Ctrl+Enter untuk commit)"
+          placeholder={tr('Pesan commit (Ctrl+Enter untuk commit)')}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => {
@@ -732,7 +734,7 @@ export default function SourceControlPanel() {
               ? 'Stage dulu (klik + di file)'
               : message.trim()
                 ? 'Commit perubahan yang di-stage'
-                : 'Tulis pesan commit dulu'
+                : tr('Tulis pesan commit dulu')
           }
           onClick={() => void commit()}
         >

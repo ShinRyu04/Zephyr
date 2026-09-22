@@ -17,6 +17,7 @@ import { detectLang } from '../../lib/lang';
 import Popover from '../shell/Popover';
 import { useRef, useState } from 'react';
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useT } from '../../lib/i18n';
 
 const TAB_LABEL: Record<ExtTab, string> = {
   installed: 'Installed',
@@ -314,6 +315,7 @@ function Details({ id }: { id: string }) {
 }
 
 export default function ExtensionsView() {
+  const tr = useT();
   const q = useExt19((s) => s.q);
   const tab = useExt19((s) => s.tab);
   const loading = useExt19((s) => s.loading);
@@ -402,8 +404,8 @@ export default function ExtensionsView() {
         <input
           className="xv-search"
           data-testid="ext-search"
-          placeholder="Cari ekstensi…"
-          aria-label="Cari ekstensi"
+          placeholder={tr('Cari ekstensi…')}
+          aria-label={tr('Cari ekstensi')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

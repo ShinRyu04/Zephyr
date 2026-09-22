@@ -31,10 +31,10 @@ pub enum ZephyrError {
     #[error("io: {0}")]
     Io(String),
     #[error("internal: {0}")]
-        Internal(String),
-        #[error("rag: {0}")]
-        Rag(String),
-    }
+    Internal(String),
+    #[error("rag: {0}")]
+    Rag(String),
+}
 
 impl ZephyrError {
     /// Kode stabil yang dibaca frontend (jangan diubah tanpa update types.ts).

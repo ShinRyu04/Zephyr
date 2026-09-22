@@ -9,6 +9,7 @@
 // verify10 wajib menutupnya (`closeDiff`) sebelum selesai.
 
 import { useGit } from '../../lib/gitStore';
+import { useT } from '../../lib/i18n';
 
 type Kind = 'add' | 'del' | 'hunk' | 'meta' | 'ctx';
 
@@ -34,6 +35,7 @@ function kindOf(line: string): Kind {
 }
 
 export default function DiffViewer() {
+  const tr = useT();
   const diff = useGit((s) => s.diff);
   const closeDiff = useGit((s) => s.closeDiff);
   const stage = useGit((s) => s.stage);
@@ -93,7 +95,7 @@ export default function DiffViewer() {
           title={
             diff.staged
               ? 'Unstage dulu sebelum membuang perubahan'
-              : 'Buang perubahan file ini (permanen)'
+              : tr('Buang perubahan file ini (permanen)')
           }
           onClick={() => setConfirm({ kind: 'discard', paths: [diff.path] })}
         >
@@ -106,7 +108,7 @@ export default function DiffViewer() {
 
       <div className="diff-body">
         {lines.length === 0 ? (
-          <p className="side-muted diff-empty">Tidak ada perbedaan untuk file ini.</p>
+          <p className="side-muted diff-empty">{tr('Tidak ada perbedaan untuk file ini.')}</p>
         ) : (
           <pre className="diff-pre" data-testid="diff-pre">
             {lines.map((l, i) => {

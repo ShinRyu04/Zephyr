@@ -8,10 +8,12 @@
 import { useEffect } from 'react';
 
 import { useWs } from '../../lib/workspaceStore';
+import { useT } from '../../lib/i18n';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
 export default function SecuritySection() {
+  const tr = useT();
   const daftar = useWs((s) => s.daftarTrust);
   const roots = useWs((s) => s.roots);
   const trusted = useWs((s) => s.trusted);
@@ -87,7 +89,7 @@ export default function SecuritySection() {
 
       <h3 className="set-h2 set-h2-sub">Keputusan tersimpan ({daftar.length})</h3>
       {daftar.length === 0 ? (
-        <p className="set-note">Belum ada folder yang pernah diberi keputusan trust.</p>
+        <p className="set-note">{tr('Belum ada folder yang pernah diberi keputusan trust.')}</p>
       ) : (
         <div className="trust-rows" data-testid="sec-trust-list">
           {daftar.map((d) => (
@@ -104,7 +106,7 @@ export default function SecuritySection() {
               </span>
               <button
                 className="btn btn-sm"
-                title="Lupakan keputusan — folder akan ditanya lagi saat dibuka"
+                title={tr('Lupakan keputusan — folder akan ditanya lagi saat dibuka')}
                 onClick={() => void lupakanTrust(d.path)}
               >
                 Lupakan

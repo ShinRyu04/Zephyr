@@ -48,6 +48,7 @@ import { clipboardWrite, clipboardRead } from './clipboard';
 import { undo, redo, selectAll, selectLine, toggleComment, toggleBlockComment, selectParentSyntax } from '@codemirror/commands';
 import { selectSelectionMatches, gotoLine } from '@codemirror/search';
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
+import { tx } from './i18n';
 
 export type CmdGroup =
   | 'File'
@@ -99,7 +100,7 @@ const lompatMasalah = (arah: 1 | -1) => {
     .filter((d) => d.file === tab.path)
     .sort((a, b) => a.line - b.line || a.column - b.column);
   if (!diags.length) {
-    notifyInfo('Tidak ada masalah di file ini', { source: 'editor' });
+    notifyInfo(tx('Tidak ada masalah di file ini'), { source: 'editor' });
     return;
   }
   const idx = diags.findIndex((d) => d.line > baris || (d.line === baris && d.column > 0));
@@ -941,7 +942,7 @@ export const COMMANDS: CommandDef[] = [
         hitung.set(hex, (hitung.get(hex) ?? 0) + 1);
       }
       if (hitung.size === 0) {
-        notifyInfo('Tidak ada warna di dokumen ini');
+        notifyInfo(tx('Tidak ada warna di dokumen ini'));
         return;
       }
       const urut = [...hitung.entries()].sort((a, b) => b[1] - a[1]);
@@ -1109,13 +1110,13 @@ export const COMMANDS: CommandDef[] = [
       try {
         const loc = await lspDefinition(path, view, view.state.selection.main.head);
         if (!loc) {
-          notifyWarn('Definisi tidak ditemukan', { source: 'LSP' });
+          notifyWarn(tx('Definisi tidak ditemukan'), { source: 'LSP' });
           return;
         }
         await S().openPath(loc.file);
         window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
       } catch (e) {
-        notifyError('Go to Definition gagal', { source: 'LSP', detail: String(e) });
+        notifyError(tx('Go to Definition gagal'), { source: 'LSP', detail: String(e) });
       }
     },
   },
@@ -1132,7 +1133,7 @@ export const COMMANDS: CommandDef[] = [
       try {
         const refs = await lspReferences(path, view, view.state.selection.main.head);
         if (refs.length === 0) {
-          notifyWarn('Tidak ada referensi', { source: 'LSP' });
+          notifyWarn(tx('Tidak ada referensi'), { source: 'LSP' });
           return;
         }
         
@@ -1160,7 +1161,7 @@ export const COMMANDS: CommandDef[] = [
         usePanel.getState().focusTab('problems');
         notifyInfo(`${refs.length} referensi di ${byFile.size} file`, { source: 'LSP' });
       } catch (e) {
-        notifyError('Find References gagal', { source: 'LSP', detail: String(e) });
+        notifyError(tx('Find References gagal'), { source: 'LSP', detail: String(e) });
       }
     },
   },
@@ -1179,10 +1180,22 @@ export const COMMANDS: CommandDef[] = [
         const n = await lspFormat(path, view, ed.tabSize, ed.insertSpaces);
         notifyInfo(n > 0 ? `Dokumen diformat (${n} perubahan)` : 'Sudah rapi', { source: 'LSP' });
       } catch (e) {
-        notifyError('Format gagal', { source: 'LSP', detail: String(e) });
+        notifyError(tx('Format gagal'), { source: 'LSP', detail: String(e) });
       }
     },
   },
+  // ── T3.4: Zen mode ──
+  {
+    id: 'view.zenMode',
+    title: 'View: Toggle Zen Mode',
+    group: 'View',
+    keywords: 'zen fokus fokusmode distraksi',
+    run: async () => {
+      const { useTampilan } = await import('./tampilanStore');
+      useTampilan.getState().toggleZen();
+    },
+  },
+
   {
     id: 'editor.renameSymbol',
     title: 'Edit: Rename Symbol',
@@ -1218,7 +1231,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'lsp restart ulang language server',
     run: async () => {
       await useLsp.getState().stopAll();
-      notifyInfo('Semua language server dimatikan; akan start lagi saat file dibuka', {
+      notifyInfo(tx('Semua language server dimatikan; akan start lagi saat file dibuka'), {
         source: 'LSP',
       });
     },
@@ -1247,7 +1260,7 @@ export const COMMANDS: CommandDef[] = [
         open_docs?: number;
       }[];
       if (list.length === 0) {
-        notifyInfo('Tidak ada language server yang hidup', { source: 'LSP' });
+        notifyInfo(tx('Tidak ada language server yang hidup'), { source: 'LSP' });
         return;
       }
       for (const s of list) {
@@ -1367,8 +1380,8 @@ export const COMMANDS: CommandDef[] = [
       const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
       if (!p) return;
       const id = await useHistory.getState().snapshotSave(p, 'manual');
-      if (id) notifyInfo('Snapshot dibuat', { source: 'history' });
-      else notifyWarn('Snapshot dilewati (isi sama / file besar / biner)', { source: 'history' });
+      if (id) notifyInfo(tx('Snapshot dibuat'), { source: 'history' });
+      else notifyWarn(tx('Snapshot dilewati (isi sama / file besar / biner)'), { source: 'history' });
     },
   },
   {
@@ -1381,7 +1394,7 @@ export const COMMANDS: CommandDef[] = [
       const H = useHistory.getState();
       const snap = H.timeline.find((t) => t.kind === 'snapshot');
       if (!snap) {
-        notifyWarn('Belum ada snapshot untuk file ini', { source: 'history' });
+        notifyWarn(tx('Belum ada snapshot untuk file ini'), { source: 'history' });
         return;
       }
       await H.restore(snap.id);
@@ -1508,7 +1521,7 @@ export const COMMANDS: CommandDef[] = [
       const { activeLine } = await import('./editorRegistry');
       const line = activeLine();
       if (line < 1) {
-        notifyWarn('Tidak ada kursor di editor', { source: 'debug' });
+        notifyWarn(tx('Tidak ada kursor di editor'), { source: 'debug' });
         return;
       }
       await useDebug.getState().toggleBreakpoint(p, line);
@@ -1795,7 +1808,7 @@ export const COMMANDS: CommandDef[] = [
       const txt = v.state.sliceDoc(from, to);
       if (!txt) return;
       await clipboardWrite(txt);
-      notifyInfo('Disalin ke clipboard', { source: 'editor' });
+      notifyInfo(tx('Disalin ke clipboard'), { source: 'editor' });
     },
   },
   {

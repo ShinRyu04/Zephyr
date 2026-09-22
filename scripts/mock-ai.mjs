@@ -17,6 +17,8 @@
 //   berisi "RMCMD"   -> jawaban memuat perintah destruktif (rm -rf)
 //   berisi "ECHOFILE"-> mengutip 120 karakter pertama blok file terlampir
 //   berisi "ERR401"  -> jawab HTTP 401 (uji pesan error ramah)
+//   berisi "TOOLCALL:<nama>" -> balas SATU tool call ke tool itu (uji agent
+//                        loop + tool baru: skill_list/skill_view/memory_write)
 // Selain itu: jawaban default dengan **bold** untuk uji markdown.
 
 import http from 'node:http';
@@ -25,8 +27,38 @@ const PORT = Number(process.argv[2] ?? 8098);
 /** Dinaikkan tiap kali protokol/perilaku mock berubah. Harness menolak
  *  server versi lama yang masih nyangkut di port (sudah kena sekali:
  *  mock lama tanpa alt=sse membuat V3..V5 gagal padahal app benar). */
-const VERSION = 2;
+const VERSION = 3;
 const log = [];
+
+/** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
+const TOOL_ARGS = {
+  skill_list: {},
+  skill_view: { name: 'godmode' },
+  skill_write: {
+    name: 'uji-skill',
+    description: 'Skill yang ditulis mock untuk verifikasi.',
+    content: '# Uji\n\nLangkah: panggil echo ZEPHYR-SKILL-OK.',
+  },
+  skill_delete: { name: 'uji-skill' },
+  memory_write: {
+    section: 'memory',
+    action: 'add',
+    content: 'Verifikasi 1.1.11: tool memory_write jalan dari loop agent.',
+  },
+  memory_read: {},
+  cron_create: { name: 'uji-cron', command: 'echo ZEPHYR-CRON-OK', every_minutes: 30 },
+  cron_list: {},
+  cron_delete: { id: 'job-uji' },
+};
+
+/** Kalau prompt memuat TOOLCALL:<nama>, kembalikan spesifikasinya. */
+function toolCallDariPrompt(prompt) {
+  const m = /TOOLCALL:([a-z_]+)/.exec(prompt);
+  if (!m) return null;
+  const nama = m[1];
+  if (!(nama in TOOL_ARGS)) return null;
+  return { nama, args: TOOL_ARGS[nama] };
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -81,6 +113,14 @@ const server = http.createServer(async (req, res) => {
   } else if (Array.isArray(body.contents)) {
     prompt = String(body.contents[body.contents.length - 1]?.parts?.[0]?.text ?? '');
   }
+
+  // Sudah ada hasil tool di riwayat? Berarti tool SUDAH dijalankan sekali;
+  // balas teks biasa, bukan tool call lagi. Tanpa ini agent loop berputar
+  // sampai MAX_AGENT_STEPS karena mock selalu meminta tool yang sama.
+  const hasilTool = Array.isArray(body.messages)
+    ? [...body.messages].reverse().find((m) => m.role === 'tool')
+    : null;
+  const sudahPakaiTool = Boolean(hasilTool);
 
   const entry = {
     at: Date.now(),
@@ -142,10 +182,18 @@ const server = http.createServer(async (req, res) => {
   const reply = buildReply(prompt);
   const slow = prompt.includes('SLOW');
   const gap = slow ? 400 : 45;
+  // Hanya minta tool SEKALI: kalau hasil tool sudah ada di riwayat, balas
+  // teks biasa supaya loop agent berhenti (bukan berputar sampai batas).
+  const toolCall = sudahPakaiTool ? null : toolCallDariPrompt(prompt);
+  // Saat sudah ada hasil tool: kutip hasilnya di jawaban supaya harness bisa
+  // membuktikan tool benar-benar dijalankan DAN hasilnya sampai ke model.
+  const replyFinal = sudahPakaiTool
+    ? `Tool sudah dijalankan. Hasilnya:\n\n${String(hasilTool.content ?? '').slice(0, 400)}`
+    : reply;
 
   // ── Gemini: alt=sse -> SSE seperti OpenAI; tanpa alt=sse -> JSON array ──
   if (entry.kind === 'gemini') {
-    const toks = tokenize(reply);
+    const toks = tokenize(replyFinal);
     if (entry.altSse) {
       res.writeHead(200, {
         'content-type': 'text/event-stream',
@@ -187,7 +235,7 @@ const server = http.createServer(async (req, res) => {
     res.write(
       `data: ${JSON.stringify({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}\n\n`,
     );
-    for (const t of tokenize(reply)) {
+    for (const t of tokenize(replyFinal)) {
       if (res.destroyed) return;
       res.write(
         `data: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: t } })}\n\n`,
@@ -205,7 +253,41 @@ const server = http.createServer(async (req, res) => {
     'cache-control': 'no-cache',
     connection: 'keep-alive',
   });
-  for (const t of tokenize(reply)) {
+  if (toolCall) {
+    // Potongan pertama: id + nama. Potongan kedua: argumen JSON.
+    // Dua potongan sengaja — itu bentuk nyata dari provider dan menguji
+    // akumulator `ToolAcc` (argumen menempel sepotong-sepotong).
+    res.write(
+      `data: ${JSON.stringify({
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'call_mock_1', type: 'function', function: { name: toolCall.nama, arguments: '' } },
+              ],
+            },
+          },
+        ],
+      })}\n\n`,
+    );
+    await sleep(gap);
+    const argsStr = JSON.stringify(toolCall.args);
+    for (let i = 0; i < argsStr.length; i += 24) {
+      if (res.destroyed) return;
+      res.write(
+        `data: ${JSON.stringify({
+          choices: [
+            { delta: { tool_calls: [{ index: 0, function: { arguments: argsStr.slice(i, i + 24) } }] } },
+          ],
+        })}\n\n`,
+      );
+      await sleep(10);
+    }
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+  for (const t of tokenize(replyFinal)) {
     if (res.destroyed) return;
     res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`);
     await sleep(gap);

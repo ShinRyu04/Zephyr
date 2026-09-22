@@ -1,9 +1,10 @@
 // ActivityBar.tsx — ikon vertikal kiri (48px). State aktif di Zustand.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
+import GhMenu from './GhMenu';
 import type { ActivityId } from '../../lib/types';
 
 const Icons: Record<ActivityId, () => JSX.Element> = {
@@ -123,6 +124,7 @@ export default function ActivityBar() {
   const gh = useGit((s) => s.gh);
   const loadGh = useGit((s) => s.loadGh);
   const loginDevice = useGit((s) => s.loginDevice);
+  const logoutAkun = useGit((s) => s.logoutGh);
 
   useEffect(() => {
     void loadGh();
@@ -132,33 +134,54 @@ export default function ActivityBar() {
   const signedIn = !!gh?.signedIn;
   const user = gh?.user ?? null;
   const oauthSiap = !!gh?.oauthConfigured;
+  const avatarUrl = gh?.avatarUrl ?? null;
+  // Kalau gambar gagal dimuat (offline / URL mati), jatuh ke inisial.
+  const [avatarGagal, setAvatarGagal] = useState(false);
+  useEffect(() => {
+    setAvatarGagal(false);
+  }, [avatarUrl]);
 
-  // Klik ikon GitHub: langsung ke alur login — bukan cuma buka panel SCM
-  // (yang bisa tampak "terkunci" oleh empty-state repo). Kalau OAuth siap,
-  // langsung start device flow (browser terbuka); kalau tidak, buka halaman
-  // bikin OAuth App di GitHub supaya user tinggal daftarkan client_id.
-  const klikGh = () => {
+  // Klik ikon GitHub: buka dropdown akun (ala VS Code), BUKAN langsung
+  // menjalankan aksi. Sebelumnya klik langsung memicu device-flow/OAuth —
+  // sekarang konsekuensinya terlihat dulu di menu, dan user bisa memilih.
+  // Saat belum login, aksi login tetap satu klik di dalam menu itu.
+  const [menuGhTerbuka, setMenuGhTerbuka] = useState(false);
+  const [anchorGh, setAnchorGh] = useState<HTMLElement | null>(null);
+
+  const klikGh = (e: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorGh(e.currentTarget);
+    setMenuGhTerbuka((v) => !v);
     setSettingsOpen(false);
-    if (!signedIn && oauthSiap) {
-      // Langsung start device flow — browser GitHub terbuka minta kode.
+  };
+
+  /** Login: device flow kalau OAuth siap, kalau tidak buka panduan OAuth App. */
+  const loginGh = () => {
+    if (oauthSiap) {
       void loginDevice();
-      setActivity('scm');
-      if (!sidebarVisible) toggleSidebar();
-    } else if (!signedIn && !oauthSiap) {
-      // Belum ada client_id: jangan matikan tombol — buka panduan bikin
-      // OAuth App + buka panel SCM tempat client_id bisa ditempel.
-      void openUrl('https://github.com/settings/developers');
-      setActivity('scm');
-      if (!sidebarVisible) toggleSidebar();
     } else {
-      // Sudah login: buka Source Control.
-      setActivity('scm');
-      if (!sidebarVisible) toggleSidebar();
+      void openUrl('https://github.com/settings/developers');
     }
+    setActivity('scm');
+    if (!sidebarVisible) toggleSidebar();
+  };
+
+  const logoutGh = () => {
+    void logoutAkun();
   };
 
   return (
-    <nav className="activitybar" aria-label="Activity Bar">
+    <>
+      {menuGhTerbuka && (
+        <GhMenu
+          anchor={anchorGh}
+          gh={gh}
+          onClose={() => setMenuGhTerbuka(false)}
+          onLogin={loginGh}
+          onLogout={logoutGh}
+          onBukaToken={() => void openUrl('https://github.com/settings/tokens')}
+        />
+      )}
+      <nav className="activitybar" aria-label="Activity Bar">
       {ORDER.map((id) => {
         const Icon = Icons[id];
         const isActive = activity === id && sidebarVisible;
@@ -219,7 +242,18 @@ export default function ActivityBar() {
       >
         {signedIn ? (
           <span className="ab-gh-avatar" aria-hidden="true">
-            {(user ?? '?').slice(0, 1).toUpperCase()}
+            {avatarUrl && !avatarGagal ? (
+              <img
+                className="ab-gh-img"
+                src={avatarUrl}
+                alt=""
+                draggable={false}
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarGagal(true)}
+              />
+            ) : (
+              (user ?? '?').slice(0, 1).toUpperCase()
+            )}
           </span>
         ) : (
           <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
@@ -231,6 +265,7 @@ export default function ActivityBar() {
           </svg>
         )}
       </button>
-    </nav>
+      </nav>
+    </>
   );
 }

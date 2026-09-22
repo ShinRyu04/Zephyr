@@ -54,7 +54,12 @@ struct RagMeta {
 /// dikembalikan sebagai `Err` yang bisa ditampilkan panel AI sebagai toast,
 /// supaya user tahu RAG-nya mati (bukan diam-diam dikirim tanpa konteks).
 #[tauri::command(async)]
-pub fn rag_search(base_url: String, project: String, query: String, k: u32) -> ZResult<Vec<RagHit>> {
+pub fn rag_search(
+    base_url: String,
+    project: String,
+    query: String,
+    k: u32,
+) -> ZResult<Vec<RagHit>> {
     let base = base_url.trim().trim_end_matches('/');
     if !(base.starts_with("http://") || base.starts_with("https://")) {
         return Err(ZephyrError::InvalidInput(
@@ -88,9 +93,10 @@ pub fn rag_search(base_url: String, project: String, query: String, k: u32) -> Z
         .send_json(&payload)
         .map_err(|e| map_rag_err(&e, &base))?;
 
-    let body = resp.into_body().read_to_string().map_err(|e| {
-        ZephyrError::Rag(format!("Respons RAG tidak terbaca: {e}"))
-    })?;
+    let body = resp
+        .into_body()
+        .read_to_string()
+        .map_err(|e| ZephyrError::Rag(format!("Respons RAG tidak terbaca: {e}")))?;
 
     let parsed: RagResponse = serde_json::from_str(&body)
         .map_err(|e| ZephyrError::Rag(format!("Respons RAG bukan JSON valid: {e}")))?;
@@ -111,6 +117,8 @@ fn map_rag_err(e: &ureq::Error, base: &str) -> ZephyrError {
         ureq::Error::StatusCode(code) => {
             ZephyrError::Rag(format!("Server RAG menjawab HTTP {code} (query ditolak?)"))
         }
-        other => ZephyrError::Rag(format!("Server RAG di {base} tidak bisa dihubungi: {other}")),
+        other => ZephyrError::Rag(format!(
+            "Server RAG di {base} tidak bisa dihubungi: {other}"
+        )),
     }
 }

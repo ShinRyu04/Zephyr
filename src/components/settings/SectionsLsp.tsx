@@ -11,8 +11,10 @@ import { useLsp } from '../../lib/lspStore';
 import { LSP_SERVERS, effectiveSpec, DEFAULT_LSP_SETTINGS } from '../../lib/lsp';
 import { notifyInfo } from '../../lib/notificationStore';
 import { clipboardWrite } from '../../lib/clipboard';
+import { useT } from '../../lib/i18n';
 
 export default function SectionsLsp() {
+  const tr = useT();
   const settings = useStore((s) => s.settings);
   const applySettings = useStore((s) => s.applySettings);
   const probe = useLsp((s) => s.probe);
@@ -176,7 +178,7 @@ export default function SectionsLsp() {
               <button
                 className="btn btn-sm"
                 data-testid="lsp-copy-semua"
-                title="Salin semua perintah pasang yang belum terpasang"
+                title={tr('Salin semua perintah pasang yang belum terpasang')}
                 onClick={async () => {
                   const teks = belum.map((d) => `# ${d.label}\n${d.install}`).join('\n\n');
                   await clipboardWrite(teks);

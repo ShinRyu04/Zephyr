@@ -5,11 +5,13 @@
 // Alasannya datang dari Rust (`ReadResult.note`), bukan ditebak di UI.
 
 import { useStore, useActiveTab } from '../../lib/store';
+import { useT } from '../../lib/i18n';
 
 const fmt = (n: number): string =>
   n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`;
 
 export default function ReadOnlyBanner() {
+  const tr = useT();
   const tab = useActiveTab();
   const saveTabAs = useStore((s) => s.saveTabAs);
   const setSaveIssue = useStore((s) => s.setSaveIssue);
@@ -37,7 +39,7 @@ export default function ReadOnlyBanner() {
         <button
           className="btn btn-sm"
           data-testid="ro-save-utf8"
-          title="Tulis ulang file ini sebagai UTF-8 supaya bisa diedit"
+          title={tr('Tulis ulang file ini sebagai UTF-8 supaya bisa diedit')}
           onClick={() =>
             setSaveIssue({
               kind: 'utf16',
@@ -53,7 +55,7 @@ export default function ReadOnlyBanner() {
         <button
           className="btn btn-sm"
           data-testid="ro-save-copy"
-          title="Simpan salinan yang bisa diedit"
+          title={tr('Simpan salinan yang bisa diedit')}
           onClick={() => void saveTabAs(tab.id)}
         >
           Simpan salinan…

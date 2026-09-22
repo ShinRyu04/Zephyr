@@ -638,6 +638,106 @@
   color: var(--text);
   background: var(--surface-2);
 }
+.ai-imgstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.ai-msg-imgs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+/* Hasil tool di dalam bubble jawaban (item 23). */
+.ai-toolruns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+.ai-toolrun {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.ai-toolrun-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-toolrun-head:hover {
+  background: var(--surface-3, var(--surface-2));
+}
+.ai-toolrun-caret {
+  color: var(--muted);
+  font-size: 10px;
+}
+.ai-toolrun-name {
+  font-weight: 600;
+  font-size: 11px;
+}
+.ai-toolrun-args {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+.ai-toolrun-fail {
+  font-size: 10px;
+  color: var(--danger, #d66);
+  text-transform: uppercase;
+}
+.ai-toolrun-out {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-toolrun-out.is-err {
+  color: var(--danger, #d66);
+}
+/* A-7: referensi file yang bisa diklik di teks jawaban. */
+.ai-file-ref {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92em;
+  cursor: pointer;
+}
+.ai-file-ref:hover {
+  border-color: var(--accent);
+  text-decoration: underline;
+}
+.ai-toolrun-act {
+  display: flex;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  border-top: 1px solid var(--border);
+}
 .ai-imgpreview {
   position: relative;
   width: 88px;
@@ -768,6 +868,215 @@
   flex-direction: column;
   gap: 2px;
 }
+/* A-9: kotak cari riwayat chat. */
+.ai-side-search {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+}
+.ai-side-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* A-3: menu quick chat dari seleksi editor. */
+.cm-ai-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 35%);
+}
+.cm-ai-menu button {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.cm-ai-menu button:hover {
+  background: var(--accent);
+  color: var(--accent-fg, #fff);
+}
+
+/* A-8: saran slash command di atas input. */
+.ai-slash {
+  display: flex;
+  flex-direction: column;
+  max-height: 168px;
+  margin-bottom: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+}
+.ai-slash-item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-slash-item.is-on {
+  background: var(--surface-2);
+}
+.ai-slash-cmd {
+  color: var(--accent);
+  font-family: var(--font-mono, monospace);
+}
+.ai-slash-label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* A-4: chat mini melayang di editor (Ctrl+I). Posisi mengambang di kanan atas
+   area editor supaya tidak menutupi baris yang sedang dikerjakan. */
+.ic {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 55;
+  width: 380px;
+  max-width: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 6px);
+  padding: var(--sp-3, 10px);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-1);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 45%);
+}
+.ic-head {
+  display: flex;
+  align-items: center;
+}
+.ic-title {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ic-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ic-close:hover {
+  color: var(--text);
+}
+.ic-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.ic-input {
+  width: 100%;
+  padding: var(--sp-2, 6px);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--input-bg, var(--surface-2));
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+.ic-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.ic-out {
+  max-height: 180px;
+  overflow: auto;
+  padding: var(--sp-2, 6px);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.ic-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A-6: pratinjau diff sebelum "Terapkan" menimpa isi tab. */
+.ai-diff {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-1);
+}
+.ai-diff-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.ai-diff-sum {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.ai-diff-body {
+  max-height: 320px;
+  overflow: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.ai-diff-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 6px;
+  white-space: pre;
+}
+.ai-diff-row.is-add {
+  background: color-mix(in srgb, var(--success, #2e7d32) 18%, transparent);
+}
+.ai-diff-row.is-del {
+  background: color-mix(in srgb, var(--danger, #c62828) 18%, transparent);
+}
+.ai-diff-no {
+  flex: 0 0 34px;
+  color: var(--text-muted);
+  text-align: right;
+  user-select: none;
+}
+.ai-diff-sign {
+  flex: 0 0 10px;
+  color: var(--text-muted);
+}
+.ai-diff-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .ai-side-item {
   display: flex;
   align-items: center;
@@ -792,6 +1101,18 @@
 .ai-side-btn.is-active {
   background: var(--accent-subtle);
   color: var(--text);
+}
+/* Baris judul + tombol "Hapus semua" sejajar. Tombolnya sendiri pakai
+   .tp-op (border tipis, hover merah) — konsisten dengan tombol hapus
+   per-chat di daftar di bawahnya. */
+.ai-side-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ai-side-clear {
+  flex: 0 0 auto;
 }
 .ai-side-title {
   flex: 1 1 auto;
@@ -848,6 +1169,139 @@
   flex: 0 0 auto;
 }
 
+/* T1.2/T1.5: baris pemilih jalur AI (Native vs CLI). */
+.ai-cli-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.ai-cli-chip {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 10.5px;
+  padding: 2px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ai-cli-chip:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.ai-cli-chip.is-on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ai-cli-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ai-cli-chip.is-off {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.ai-cli-warn {
+  color: var(--warn, #d29922);
+}
+
+.ai-cli-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: auto;
+}
+
+/* T1.1: blok "Reasoned" — penalaran model, bisa dilipat. */
+.ai-reasoned {
+  margin: 2px 0 8px;
+  border-left: 2px solid var(--border);
+  padding-left: 8px;
+}
+
+.ai-reasoned-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-reasoned-head:hover {
+  color: var(--text);
+}
+
+.ai-reasoned-caret {
+  flex: 0 0 auto;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.ai-reasoned-label {
+  flex: 0 0 auto;
+  font-style: italic;
+}
+
+.ai-reasoned-meta {
+  flex: 1 1 auto;
+  opacity: 0.6;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-reasoned-body {
+  margin: 4px 0 0;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* T1.1: pemilih tingkat penalaran. Disamakan dengan .ai-approval supaya
+   baris header tidak punya dua bahasa visual. */
+.ai-effort {
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 5px;
+  flex: 0 0 auto;
+}
+
+/* Sorot saat bukan default — user harus bisa melihat dengan sekali lihat
+   bahwa penalaran sedang dinaikkan (berpengaruh ke biaya & waktu). */
+.ai-effort[data-aktif='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .ai-agent {
   display: flex;
   flex-direction: column;
@@ -902,4 +1356,513 @@
 .ai-agent-note {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* Panel Todo agent ala opencode (item 24). */
+.ai-todos {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 6px 8px;
+}
+.ai-todos-head {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.ai-todo {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.ai-todo-bullet {
+  color: var(--text-muted);
+  width: 12px;
+  text-align: center;
+  flex: none;
+}
+.ai-todo.is-done .ai-todo-bullet {
+  color: var(--success, #4a4);
+}
+.ai-todo.is-done .ai-todo-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.ai-todo.is-in_progress .ai-todo-bullet {
+  color: var(--accent);
+}
+.ai-todo-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+
+/* ── T2.1: subagent paralel (tampilan kartu ala TEDI) ─────────────────── */
+.sub-open {
+  align-self: flex-start;
+  margin: 4px 10px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.sub-open:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sub-form {
+  margin: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  flex: 0 0 auto;
+}
+
+.sub-form-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sub-form-hint {
+  flex: 1 1 auto;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.sub-form-close {
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.sub-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--text);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  font-size: 11.5px;
+  font-family: var(--mono);
+  padding: 7px 9px;
+  resize: vertical;
+}
+
+.sub-input:focus { outline: none; }
+
+.sub-form-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+}
+
+.sub-count {
+  flex: 1 1 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.sub-count.is-err { color: var(--err, #f85149); }
+
+/* ── panel ── */
+.sub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 7px 10px;
+  overflow-y: auto;
+  max-height: 52vh;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+}
+
+.sub-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.sub-judul {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sub-maks {
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.sub-spacer { flex: 1 1 auto; }
+
+.sub-daftar {
+  display: grid;
+  /* 2 kolom di panel lebar (>= 420px), 1 kolom di panel sempit. TEDI
+     menampilkan beberapa kartu berdampingan supaya 4 subagent terbaca
+     tanpa scroll. */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 7px;
+}
+
+/* ── kartu ── */
+.sub-card {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: var(--bg);
+  font-size: 11px;
+  transition: border-color 0.2s ease;
+}
+
+.sub-card.is-jalan {
+  border-left-color: var(--accent);
+  /* Denyut halus: menandakan masih hidup tanpa mengganggu. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.sub-card.is-selesai { border-left-color: var(--ok, #3fb950); }
+.sub-card.is-gagal { border-left-color: var(--err, #f85149); }
+.sub-card.is-batal { border-left-color: var(--text-muted); opacity: 0.7; }
+.sub-card.is-menunggu { border-left-color: var(--border); }
+
+.sub-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sub-ikon {
+  flex: 0 0 auto;
+  font-size: 11px;
+  width: 12px;
+  text-align: center;
+}
+
+.sub-card.is-jalan .sub-ikon { color: var(--accent); }
+.sub-card.is-selesai .sub-ikon { color: var(--ok, #3fb950); }
+.sub-card.is-gagal .sub-ikon { color: var(--err, #f85149); }
+
+.sub-nama {
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+}
+
+.sub-badge {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 5px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.sub-card.is-jalan .sub-badge {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sub-card.is-selesai .sub-badge {
+  color: var(--ok, #3fb950);
+  border-color: var(--ok, #3fb950);
+}
+
+.sub-card.is-gagal .sub-badge {
+  color: var(--err, #f85149);
+  border-color: var(--err, #f85149);
+}
+
+.sub-meta {
+  flex: 1 1 auto;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sub-batal {
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 3px;
+}
+
+.sub-batal:hover { color: var(--err, #f85149); }
+
+.sub-tugas {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 3px;
+  font-size: 10.5px;
+}
+
+/* Langkah yang SEDANG dikerjakan — selalu terlihat. */
+.sub-now {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--bg-panel);
+  font-size: 10.5px;
+  overflow: hidden;
+}
+
+.sub-spin {
+  flex: 0 0 auto;
+  color: var(--accent);
+  animation: todo-pulse 1.2s ease-in-out infinite;
+}
+
+.sub-now code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.sub-now-args,
+.sub-now-pikir {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-err {
+  color: var(--err, #f85149);
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.sub-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  padding: 3px 0 0;
+}
+
+.sub-toggle:hover { color: var(--text); }
+
+.sub-caret { font-size: 9px; }
+
+.sub-langkah {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sub-step {
+  margin-bottom: 4px;
+  font-size: 10.5px;
+}
+
+.sub-step-label {
+  display: inline-block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 4px;
+  margin-right: 4px;
+}
+
+.sub-step-teks {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.sub-step-tool {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.sub-step.is-err .sub-step-tool { color: var(--err, #f85149); }
+
+.sub-step-args {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  margin-left: 4px;
+  word-break: break-all;
+}
+
+.sub-step-hasil {
+  margin: 2px 0 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  max-height: 90px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.sub-hasil-akhir {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  font-size: 11px;
+}
+
+.sub-ringkas {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.sub-ringkas summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.sub-ringkas pre {
+  margin: 4px 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 10.5px;
+}
+
+
+
+/* ── TODO panel (daftar tugas + progres) ─────────────────────────────── */
+.todo-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.todo-blok {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.todo-judul {
+  font-weight: 600;
+}
+
+.todo-progress {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.todo-spin {
+  color: var(--accent);
+  animation: todo-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes todo-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.todo-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.todo-bar-isi {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  padding: 1px 0;
+}
+
+.todo-ikon {
+  flex: 0 0 auto;
+  width: 12px;
+  text-align: center;
+}
+
+.todo-item.is-done .todo-ikon { color: var(--ok, #3fb950); }
+.todo-item.is-in_progress .todo-ikon { color: var(--accent); }
+.todo-item.is-pending .todo-ikon { color: var(--text-muted); }
+
+.todo-item.is-done .todo-teks {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.todo-item.is-in_progress .todo-teks {
+  font-weight: 600;
+}
+
+.todo-teks {
+  flex: 1 1 auto;
+  word-break: break-word;
 }

@@ -7,6 +7,7 @@ import { useStore } from '../../lib/store';
 import { useTerminal } from '../../lib/terminalStore';
 import * as cmd from '../../lib/commands';
 import { copySelection, pasteInto } from '../../lib/terminalClipboard';
+import { multilineSequence } from '../../lib/multilineKey';
 import { ensureHandle, fitTerm, flushQueue, getHandle, getSelection } from '../../lib/xtermRegistry';
 import type { PaneMeta } from '../../lib/types';
 
@@ -27,6 +28,8 @@ export default function XtermPane({ pane }: Props) {
     const handle = ensureHandle(pane.id, {
       fontFamily,
       fontSize,
+      // Mode hemat RAM: 2000 baris/pane, bukan 5000.
+      scrollback: useStore.getState().settings.general.lowRam ? 2000 : 5000,
       onData: (data) => {
         // Ctrl+C: hentikan program yang berjalan (bukan sekadar byte 0x03).
         if (data === '\x03') {
@@ -55,15 +58,24 @@ export default function XtermPane({ pane }: Props) {
       if (e.type !== 'keydown') return true;
       const k = e.key.toLowerCase();
       if (e.ctrlKey && e.shiftKey && k === 'c') {
+        // preventDefault wajib: tanpa itu WebView2 tetap menjalankan perintah
+        // copy bawaan dan xterm menulis ulang seleksi ke clipboard.
+        e.preventDefault();
         void copySelection(pane.id);
         return false;
       }
-      // Dukung Ctrl+V langsung (selain Ctrl+Shift+V dan Shift+Insert)
+      // Dukung Ctrl+V langsung (selain Ctrl+Shift+V dan Shift+Insert).
+      //
+      // preventDefault WAJIB di sini. Tanpa itu WebView2 tetap menjalankan
+      // paste bawaan ke textarea xterm; xterm lalu menulis isi clipboard yang
+      // SAMA ke PTY lewat handler `paste` miliknya. Hasilnya teks masuk dua
+      // kali (bug "Ctrl+V dobel").
       if (
         (e.ctrlKey && !e.shiftKey && !e.altKey && k === 'v') ||
         (e.ctrlKey && e.shiftKey && k === 'v') ||
         (e.shiftKey && e.key === 'Insert')
       ) {
+        e.preventDefault();
         void pasteInto(pane.id);
         return false;
       }
@@ -72,10 +84,16 @@ export default function XtermPane({ pane }: Props) {
         void copySelection(pane.id);
         return false;
       }
-      // Shift+Enter untuk AI CLI / Shell multi-baris:
-      // Kirim newline yang tidak memicu submit langsung (\n atau escape sequence CSI u \x1b[13;2u)
+      // Shift+Enter untuk AI CLI / Shell multi-baris.
+      // Byte-nya BEDA per CLI: Hermes pakai CSI u, opencode/Codex pakai LF,
+      // Claude Code pakai backslash. Salah pilih = tidak turun baris, jadi
+      // pemetaannya ada di lib/multilineKey.ts (bisa di-override di Settings).
       if (e.shiftKey && !e.ctrlKey && !e.altKey && e.key === 'Enter') {
-        void cmd.ptyWrite(pane.id, '\x1b[13;2u').catch(() => {
+        const seq = multilineSequence(
+          pane.agent?.name,
+          useStore.getState().settings.general.multilineKey,
+        );
+        void cmd.ptyWrite(pane.id, seq).catch(() => {
           void cmd.ptyWrite(pane.id, '\n');
         });
         return false;

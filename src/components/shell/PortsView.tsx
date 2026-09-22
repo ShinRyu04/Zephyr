@@ -9,8 +9,10 @@ import { usePorts, type ForwardedPort } from '../../lib/portsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { notifyError, notifyInfo } from '../../lib/notificationStore';
 import { clipboardWrite } from '../../lib/clipboard';
+import { useT, tx } from '../../lib/i18n';
 
 export default function PortsView() {
+  const tr = useT();
   const ports = usePorts((s) => s.ports);
   const add = usePorts((s) => s.add);
   const remove = usePorts((s) => s.remove);
@@ -25,7 +27,7 @@ export default function PortsView() {
   const tambah = () => {
     const n = Number(hostPort);
     if (!Number.isInteger(n) || n < 1 || n > 65535) {
-      notifyError('Port harus angka 1–65535', { source: 'ports' });
+      notifyError(tx('Port harus angka 1–65535'), { source: 'ports' });
       return;
     }
     add({
@@ -61,7 +63,7 @@ export default function PortsView() {
       await clipboardWrite(url);
       notifyInfo(`URL disalin: ${url}`, { source: 'ports' });
     } catch {
-      notifyError('Gagal menyalin URL', { source: 'ports' });
+      notifyError(tx('Gagal menyalin URL'), { source: 'ports' });
     }
   };
 
@@ -127,7 +129,7 @@ export default function PortsView() {
                               update(p.id, { hostPort: n });
                               setEdit(null);
                             } else {
-                              notifyError('Port harus angka 1–65535', { source: 'ports' });
+                              notifyError(tr('Port harus angka 1–65535'), { source: 'ports' });
                             }
                           } else if (e.key === 'Escape') setEdit(null);
                         }}
@@ -158,7 +160,7 @@ export default function PortsView() {
                     <button
                       className="btn btn-sm"
                       data-testid="ports-open"
-                      title="Buka di browser pane"
+                      title={tr('Buka di browser pane')}
                       onClick={() => void bukaDiBrowser(p)}
                     >
                       Buka
@@ -166,7 +168,7 @@ export default function PortsView() {
                     <button
                       className="btn btn-sm"
                       data-testid="ports-copy"
-                      title="Salin URL"
+                      title={tr('Salin URL')}
                       onClick={() => void salin(p)}
                     >
                       Salin

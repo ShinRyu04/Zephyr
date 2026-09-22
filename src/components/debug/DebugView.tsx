@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { useDebug, type Variable } from '../../lib/debugStore';
 import { useStore } from '../../lib/store';
+import { useT, tx } from '../../lib/i18n';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -108,7 +109,7 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
         )}
         <button
           className="dbg-var-copy"
-          title="Salin nilai"
+          title={tx('Salin nilai')}
           data-testid="dbg-var-copy"
           onClick={() => void navigator.clipboard?.writeText(v.value).catch(() => {})}
         >
@@ -124,6 +125,7 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
 }
 
 export default function DebugView() {
+  const tr = useT();
   const workspace = useStore((s) => s.workspace);
   const launch = useDebug((s) => s.launch);
   const adapters = useDebug((s) => s.adapters);
@@ -168,7 +170,7 @@ export default function DebugView() {
       <div className="side-section">
         <div className="side-title">Run &amp; Debug</div>
 
-        {!workspace && <p className="side-muted">Buka folder dulu untuk debug.</p>}
+        {!workspace && <p className="side-muted">{tr('Buka folder dulu untuk debug.')}</p>}
 
         <div className="dbg-bar">
           <select
@@ -260,13 +262,13 @@ export default function DebugView() {
       <div className="dbg-sections">
         <Section id="bp" judul="BREAKPOINTS" jml={breakpoints.length}>
           {breakpoints.length === 0 ? (
-            <p className="side-muted dbg-kosong">Klik gutter editor untuk memasang breakpoint.</p>
+            <p className="side-muted dbg-kosong">{tr('Klik gutter editor untuk memasang breakpoint.')}</p>
           ) : (
             breakpoints.map((b) => (
               <div className="dbg-bp" data-testid="dbg-bp" key={`${b.path}:${b.line}`}>
                 <span
                   className={`dbg-bp-dot${b.verified ? ' is-verified' : ''}`}
-                  title={b.verified ? 'diverifikasi adapter' : 'belum diverifikasi'}
+                  title={b.verified ? 'diverifikasi adapter' : tr('belum diverifikasi')}
                   data-testid="dbg-bp-dot"
                 >
                   {b.verified ? '●' : '○'}
@@ -288,7 +290,7 @@ export default function DebugView() {
                 </button>
                 <button
                   className="dbg-x"
-                  title="Hapus breakpoint"
+                  title={tr('Hapus breakpoint')}
                   data-testid="dbg-bp-hapus"
                   onClick={() => void hapusBreakpoint(b.path, b.line)}
                 >

@@ -11,6 +11,7 @@ import { useStore } from '../../lib/store';
 import { useWs } from '../../lib/workspaceStore';
 import type { WsRoot } from '../../lib/types';
 import FileTree from '../explorer/FileTree';
+import { tx } from '../../lib/i18n';
 
 function Chevron({ open }: { open: boolean }) {
   return (
@@ -58,10 +59,10 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
             <button
               className="rs-badge rs-restricted"
               data-testid="root-restricted"
-              title="Folder belum dipercaya — klik untuk mengatur trust"
+              title={tx('Folder belum dipercaya — klik untuk mengatur trust')}
               onClick={() => tanya(root.path)}
             >
-              {root.trust === 'unknown' ? 'belum dipercaya' : 'restricted'}
+              {root.trust === 'unknown' ? tx('belum dipercaya') : 'restricted'}
             </button>
           )}
         </div>
@@ -83,8 +84,8 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
           {!tunggal && (
             <button
               className="ex-btn"
-              title="Hapus folder dari workspace"
-              aria-label="Hapus folder dari workspace"
+              title={tx('Hapus folder dari workspace')}
+              aria-label={tx('Hapus folder dari workspace')}
               data-testid="root-remove"
               onClick={() => void hapusRoot(root.path)}
             >

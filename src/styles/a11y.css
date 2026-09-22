@@ -175,6 +175,17 @@
   content: '…';
 }
 
+/* B-13: jendela minimized / tidak fokus. Sama seperti reduced-motion —
+   Chromium tetap menyusun frame walau jendela tak terlihat, jadi animasi
+   yang jalan diam-diam itu biaya GPU murni. `visibilitychange` +
+   `onFocusChanged` menyetel atribut ini dari App.tsx. */
+[data-idle='1'] *,
+[data-idle='1'] *::before,
+[data-idle='1'] *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
 /* ═════════════ 4. Live region ═════════════
 
    Wadah pengumuman screen reader. Tidak boleh `display: none` —

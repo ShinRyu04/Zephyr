@@ -10,6 +10,7 @@
 
 import { useRef, useState } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
+import { useT, tx } from '../../lib/i18n';
 import BrowserPane, { shortUrl } from './BrowserPane';
 import PaneIcon from './PaneIcons';
 import XtermPane from './XtermPane';
@@ -20,19 +21,20 @@ import type { PaneMeta, TerminalTab } from '../../lib/types';
 export function PaneEmpty() {
   const addPane = useTerminal((s) => s.addPane);
   const setAgentPickerOpen = useTerminal((s) => s.setAgentPickerOpen);
+  const tr = useT();
 
   return (
     <div className="pane-empty" data-testid="pane-empty">
-      <p className="pane-empty-title">Klik untuk menambah pane</p>
+      <p className="pane-empty-title">{tr('term.addPane')}</p>
       <div className="pane-empty-actions">
         <button className="btn btn-primary" data-testid="empty-shell" onClick={() => void addPane('shell')}>
-          Shell
+          {tr('term.shell')}
         </button>
         <button className="btn" data-testid="empty-private" onClick={() => void addPane('private')}>
-          Private
+          {tr('term.private')}
         </button>
         <button className="btn" data-testid="empty-agent" onClick={() => setAgentPickerOpen(true)}>
-          AI Agent…
+          {tr('term.aiAgent')}…
         </button>
       </div>
 
@@ -115,7 +117,7 @@ function PaneHeader({
 
       <button
         className="tt-tab-close pane-close"
-        title="Tutup pane"
+        title={tx('Tutup pane')}
         aria-label={`Tutup ${pane.title}`}
         data-testid={`pane-close-${pane.id}`}
         onClick={(e) => {

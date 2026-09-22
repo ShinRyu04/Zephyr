@@ -312,12 +312,6 @@ pub fn search_grep(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .stdin(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
-
     let mut anak = cmd
         .spawn()
         .map_err(|e| ZephyrError::InvalidInput(format!("gagal menjalankan rg: {e}")))?;
@@ -462,11 +456,6 @@ pub fn search_rg_info(state: State<AppState>, rg_path: Option<String>) -> ZResul
     };
     let mut cmd = Command::new(&rg);
     cmd.arg("--version");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000);
-    }
     let out = cmd.output().ok();
     let versi = out
         .and_then(|o| String::from_utf8(o.stdout).ok())

@@ -795,14 +795,17 @@ pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> 
 /// File yang melampaui batas TIDAK masuk peta; `require`-nya nanti memberi
 /// error "tidak ditemukan" yang jelas (bukan ReferenceError membingungkan).
 #[tauri::command]
-pub fn extensions_read_files(state: State<AppState>, id: String) -> ZResult<HashMap<String, String>> {
+pub fn extensions_read_files(
+    state: State<AppState>,
+    id: String,
+) -> ZResult<HashMap<String, String>> {
     const PER_FILE: u64 = 32 * 1024 * 1024; // 32 MB per file
     const TOTAL: u64 = 128 * 1024 * 1024; // 128 MB total
     const MAX_FILES: usize = 2000;
     const MAX_DEPTH: u32 = 20;
 
-    let dir = ext_dir_of(&state, &id)
-        .ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+    let dir =
+        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
     let mut out = HashMap::new();
     let mut total: u64 = 0;
 
@@ -831,7 +834,17 @@ pub fn extensions_read_files(state: State<AppState>, id: String) -> ZResult<Hash
                 if name.starts_with('.') {
                     continue;
                 }
-                walk(root, &p, depth + 1, out, total, per_file, total_max, max_files, max_depth)?;
+                walk(
+                    root,
+                    &p,
+                    depth + 1,
+                    out,
+                    total,
+                    per_file,
+                    total_max,
+                    max_files,
+                    max_depth,
+                )?;
                 continue;
             }
             if out.len() >= max_files || *total >= total_max {
@@ -868,7 +881,9 @@ pub fn extensions_read_files(state: State<AppState>, id: String) -> ZResult<Hash
         Ok(())
     }
 
-    walk(&dir, &dir, 0, &mut out, &mut total, PER_FILE, TOTAL, MAX_FILES, MAX_DEPTH)?;
+    walk(
+        &dir, &dir, 0, &mut out, &mut total, PER_FILE, TOTAL, MAX_FILES, MAX_DEPTH,
+    )?;
     Ok(out)
 }
 
@@ -969,7 +984,7 @@ pub async fn ext_exec(
     };
 
     // 3) Spawn + baca output (dibatasi) + timeout + kill.
-    let mut child = match tokio::process::Command::new(&bin)
+    let mut child = match crate::proc::tokio_cmd(&bin)
         .args(&args)
         .current_dir(&workdir)
         .stdin(std::process::Stdio::null())
@@ -1009,22 +1024,24 @@ pub async fn ext_exec(
         (out, truncated)
     }
 
-    let (so, se) = tokio::join!(baca_capped(&mut stdout, MAX_OUT), baca_capped(&mut stderr, MAX_OUT));
+    let (so, se) = tokio::join!(
+        baca_capped(&mut stdout, MAX_OUT),
+        baca_capped(&mut stderr, MAX_OUT)
+    );
     let mut truncated = so.1 || se.1;
 
     let ms = timeout_ms.unwrap_or(60_000).max(1_000);
-    let (code, killed) =
-        match tokio::time::timeout(Duration::from_millis(ms), child.wait()).await {
-            // st = io::Result<ExitStatus> — error wait jarang; perlakukan sebagai
-            // tidak ada exit code (bukan kegagalan izin).
-            Ok(st) => (st.ok().and_then(|s| s.code()), false),
-            Err(_) => {
-                let _ = child.kill().await;
-                let _ = child.wait().await;
-                truncated = true;
-                (None, true)
-            }
-        };
+    let (code, killed) = match tokio::time::timeout(Duration::from_millis(ms), child.wait()).await {
+        // st = io::Result<ExitStatus> — error wait jarang; perlakukan sebagai
+        // tidak ada exit code (bukan kegagalan izin).
+        Ok(st) => (st.ok().and_then(|s| s.code()), false),
+        Err(_) => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            truncated = true;
+            (None, true)
+        }
+    };
 
     Ok(ExtExecResult {
         code,

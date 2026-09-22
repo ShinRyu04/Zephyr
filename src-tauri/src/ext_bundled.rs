@@ -167,8 +167,6 @@ const SNIPPET_REACT_JSON: &str = r##"{
   }
 }"##;
 
-
-
 const IKON_BULAT: &str = r##"{
   "id": "zephyr.ikon-bulat",
   "name": "Ikon Bulat",
@@ -316,171 +314,897 @@ const LANG_Z80: &str = r##"{"id":"zephyr.lang-z80","name":"Bahasa Z80 Assembly",
 // Marketplace menampilkan nama, deskripsi, logo, dan warna resmi bahasa).
 // Di-generate dari daftar mode @codemirror/legacy-modes (101 bahasa).
 const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
-    ("zephyr.lang-apl", "APL", "Sintaks APL untuk editor (CodeMirror legacy mode).", "APL", "#ff6347"),
-    ("zephyr.lang-asciiarmor", "ASCII Armor", "Sintaks ASCII Armor untuk editor (CodeMirror legacy mode).", "AS", "#6b7280"),
-    ("zephyr.lang-asterisk", "Asterisk", "Sintaks Asterisk untuk editor (CodeMirror legacy mode).", "AS", "#f47f2a"),
-    ("zephyr.lang-brainfuck", "Brainfuck", "Sintaks Brainfuck untuk editor (CodeMirror legacy mode).", "BR", "#ff6ec7"),
-    ("zephyr.lang-clike", "C / C++", "Sintaks C / C++ untuk editor (CodeMirror legacy mode).", "CC", "#659ad2"),
-    ("zephyr.lang-clojure", "Clojure", "Sintaks Clojure untuk editor (CodeMirror legacy mode).", "CL", "#5881d8"),
-    ("zephyr.lang-cmake", "CMake", "Sintaks CMake untuk editor (CodeMirror legacy mode).", "CM", "#064f8c"),
-    ("zephyr.lang-cobol", "COBOL", "Sintaks COBOL untuk editor (CodeMirror legacy mode).", "CO", "#005ca5"),
-    ("zephyr.lang-coffeescript", "CoffeeScript", "Sintaks CoffeeScript untuk editor (CodeMirror legacy mode).", "CO", "#6f4e37"),
-    ("zephyr.lang-commonlisp", "Common Lisp", "Sintaks Common Lisp untuk editor (CodeMirror legacy mode).", "CO", "#3fb68b"),
-    ("zephyr.lang-crystal", "Crystal", "Sintaks Crystal untuk editor (CodeMirror legacy mode).", "CR", "#1a1a1a"),
-    ("zephyr.lang-css", "CSS", "Sintaks CSS untuk editor (CodeMirror legacy mode).", "CSS", "#1572b6"),
-    ("zephyr.lang-cypher", "Cypher", "Sintaks Cypher untuk editor (CodeMirror legacy mode).", "CY", "#89d3c8"),
-    ("zephyr.lang-d", "D", "Sintaks D untuk editor (CodeMirror legacy mode).", "D", "#b03931"),
-    ("zephyr.lang-diff", "Diff", "Sintaks Diff untuk editor (CodeMirror legacy mode).", "DIF", "#3b82f6"),
-    ("zephyr.lang-dockerfile", "Dockerfile", "Sintaks Dockerfile untuk editor (CodeMirror legacy mode).", "DO", "#0db7ed"),
-    ("zephyr.lang-dtd", "DTD", "Sintaks DTD untuk editor (CodeMirror legacy mode).", "DTD", "#e37933"),
-    ("zephyr.lang-dylan", "Dylan", "Sintaks Dylan untuk editor (CodeMirror legacy mode).", "DY", "#6c6c6c"),
-    ("zephyr.lang-ebnf", "EBNF", "Sintaks EBNF untuk editor (CodeMirror legacy mode).", "EBN", "#a3a3a3"),
-    ("zephyr.lang-ecl", "ECL", "Sintaks ECL untuk editor (CodeMirror legacy mode).", "ECL", "#8a2be2"),
-    ("zephyr.lang-eiffel", "Eiffel", "Sintaks Eiffel untuk editor (CodeMirror legacy mode).", "EI", "#4d41b1"),
-    ("zephyr.lang-elm", "Elm", "Sintaks Elm untuk editor (CodeMirror legacy mode).", "ELM", "#60b5cc"),
-    ("zephyr.lang-erlang", "Erlang", "Sintaks Erlang untuk editor (CodeMirror legacy mode).", "ER", "#a90533"),
-    ("zephyr.lang-factor", "Factor", "Sintaks Factor untuk editor (CodeMirror legacy mode).", "FA", "#d5539a"),
-    ("zephyr.lang-fcl", "FCL", "Sintaks FCL untuk editor (CodeMirror legacy mode).", "FCL", "#3b82f6"),
-    ("zephyr.lang-forth", "Forth", "Sintaks Forth untuk editor (CodeMirror legacy mode).", "FO", "#e62b25"),
-    ("zephyr.lang-fortran", "Fortran", "Sintaks Fortran untuk editor (CodeMirror legacy mode).", "FO", "#4d41b1"),
-    ("zephyr.lang-gas", "Assembly (GAS)", "Sintaks Assembly (GAS) untuk editor (CodeMirror legacy mode).", "AS", "#6e4c13"),
-    ("zephyr.lang-gherkin", "Gherkin", "Sintaks Gherkin untuk editor (CodeMirror legacy mode).", "GH", "#4a90d9"),
-    ("zephyr.lang-go", "Go", "Sintaks Go untuk editor (CodeMirror legacy mode).", "GO", "#00add8"),
-    ("zephyr.lang-groovy", "Groovy", "Sintaks Groovy untuk editor (CodeMirror legacy mode).", "GR", "#4298b8"),
-    ("zephyr.lang-haskell", "Haskell", "Sintaks Haskell untuk editor (CodeMirror legacy mode).", "HA", "#5e5086"),
-    ("zephyr.lang-haxe", "Haxe", "Sintaks Haxe untuk editor (CodeMirror legacy mode).", "HAX", "#ea8220"),
-    ("zephyr.lang-http", "HTTP", "Sintaks HTTP untuk editor (CodeMirror legacy mode).", "HTT", "#4a90d9"),
-    ("zephyr.lang-idl", "IDL", "Sintaks IDL untuk editor (CodeMirror legacy mode).", "IDL", "#e35b2a"),
-    ("zephyr.lang-javascript", "JavaScript", "Sintaks JavaScript untuk editor (CodeMirror legacy mode).", "JA", "#f7df1e"),
-    ("zephyr.lang-jinja2", "Jinja2", "Sintaks Jinja2 untuk editor (CodeMirror legacy mode).", "JI", "#b52e31"),
-    ("zephyr.lang-julia", "Julia", "Sintaks Julia untuk editor (CodeMirror legacy mode).", "JU", "#9558b2"),
-    ("zephyr.lang-livescript", "LiveScript", "Sintaks LiveScript untuk editor (CodeMirror legacy mode).", "LI", "#4a90d9"),
-    ("zephyr.lang-lua", "Lua", "Sintaks Lua untuk editor (CodeMirror legacy mode).", "LUA", "#2c4f7c"),
-    ("zephyr.lang-mathematica", "Wolfram", "Sintaks Wolfram untuk editor (CodeMirror legacy mode).", "WO", "#dd1100"),
-    ("zephyr.lang-mbox", "Mbox", "Sintaks Mbox untuk editor (CodeMirror legacy mode).", "MBO", "#6b7280"),
-    ("zephyr.lang-mirc", "mIRC", "Sintaks mIRC untuk editor (CodeMirror legacy mode).", "MIR", "#9c4221"),
-    ("zephyr.lang-mllike", "OCaml / SML", "Sintaks OCaml / SML untuk editor (CodeMirror legacy mode).", "OC", "#e37933"),
-    ("zephyr.lang-modelica", "Modelica", "Sintaks Modelica untuk editor (CodeMirror legacy mode).", "MO", "#e35b2a"),
-    ("zephyr.lang-mscgen", "MscGen", "Sintaks MscGen untuk editor (CodeMirror legacy mode).", "MS", "#6b7280"),
-    ("zephyr.lang-mumps", "MUMPS", "Sintaks MUMPS untuk editor (CodeMirror legacy mode).", "MU", "#0aa674"),
-    ("zephyr.lang-nginx", "nginx Config", "Sintaks nginx Config untuk editor (CodeMirror legacy mode).", "NG", "#009639"),
-    ("zephyr.lang-nsis", "NSIS", "Sintaks NSIS untuk editor (CodeMirror legacy mode).", "NSI", "#0db7ed"),
-    ("zephyr.lang-ntriples", "N-Triples", "Sintaks N-Triples untuk editor (CodeMirror legacy mode).", "NT", "#0c4b33"),
-    ("zephyr.lang-octave", "MATLAB / Octave", "Sintaks MATLAB / Octave untuk editor (CodeMirror legacy mode).", "MA", "#0790c0"),
-    ("zephyr.lang-oz", "Oz", "Sintaks Oz untuk editor (CodeMirror legacy mode).", "OZ", "#f7df1e"),
-    ("zephyr.lang-pascal", "Pascal", "Sintaks Pascal untuk editor (CodeMirror legacy mode).", "PA", "#e62b25"),
-    ("zephyr.lang-pegjs", "PEG.js", "Sintaks PEG.js untuk editor (CodeMirror legacy mode).", "PE", "#3178c6"),
-    ("zephyr.lang-perl", "Perl", "Sintaks Perl untuk editor (CodeMirror legacy mode).", "PER", "#39457e"),
-    ("zephyr.lang-pig", "Pig", "Sintaks Pig untuk editor (CodeMirror legacy mode).", "PIG", "#f7df1e"),
-    ("zephyr.lang-powershell", "PowerShell", "Sintaks PowerShell untuk editor (CodeMirror legacy mode).", "PO", "#012456"),
-    ("zephyr.lang-properties", "Properties", "Sintaks Properties untuk editor (CodeMirror legacy mode).", "PR", "#8a8a8a"),
-    ("zephyr.lang-protobuf", "Protocol Buffers", "Sintaks Protocol Buffers untuk editor (CodeMirror legacy mode).", "PR", "#4285f4"),
-    ("zephyr.lang-pug", "Pug", "Sintaks Pug untuk editor (CodeMirror legacy mode).", "PUG", "#479e4a"),
-    ("zephyr.lang-puppet", "Puppet", "Sintaks Puppet untuk editor (CodeMirror legacy mode).", "PU", "#47649e"),
-    ("zephyr.lang-python", "Python", "Sintaks Python untuk editor (CodeMirror legacy mode).", "PY", "#3776ab"),
-    ("zephyr.lang-q", "q/Kdb+", "Sintaks q/Kdb+ untuk editor (CodeMirror legacy mode).", "QKD", "#519e47"),
-    ("zephyr.lang-r", "R", "Sintaks R untuk editor (CodeMirror legacy mode).", "R", "#276dc3"),
-    ("zephyr.lang-rpm", "RPM Spec", "Sintaks RPM Spec untuk editor (CodeMirror legacy mode).", "RP", "#6b9e47"),
-    ("zephyr.lang-ruby", "Ruby", "Sintaks Ruby untuk editor (CodeMirror legacy mode).", "RUB", "#cc342d"),
-    ("zephyr.lang-rust", "Rust", "Sintaks Rust untuk editor (CodeMirror legacy mode).", "RUS", "#dea584"),
-    ("zephyr.lang-sas", "sas", "Sintaks sas untuk editor (CodeMirror legacy mode).", "SAS", "#474b9e"),
-    ("zephyr.lang-sass", "Sass", "Sintaks Sass untuk editor (CodeMirror legacy mode).", "SAS", "#67479e"),
-    ("zephyr.lang-scheme", "Scheme", "Sintaks Scheme untuk editor (CodeMirror legacy mode).", "SC", "#1b5cec"),
-    ("zephyr.lang-shell", "Shell / Bash", "Sintaks Shell / Bash untuk editor (CodeMirror legacy mode).", "SH", "#89e051"),
-    ("zephyr.lang-sieve", "Sieve", "Sintaks Sieve untuk editor (CodeMirror legacy mode).", "SI", "#72479e"),
-    ("zephyr.lang-smalltalk", "Smalltalk", "Sintaks Smalltalk untuk editor (CodeMirror legacy mode).", "SM", "#9e4788"),
-    ("zephyr.lang-solr", "Solr", "Sintaks Solr untuk editor (CodeMirror legacy mode).", "SOL", "#479e9b"),
-    ("zephyr.lang-sparql", "SPARQL", "Sintaks SPARQL untuk editor (CodeMirror legacy mode).", "SP", "#749e47"),
-    ("zephyr.lang-spreadsheet", "CSV / TSV", "Sintaks CSV / TSV untuk editor (CodeMirror legacy mode).", "CS", "#476f9e"),
-    ("zephyr.lang-sql", "SQL", "Sintaks SQL untuk editor (CodeMirror legacy mode).", "SQL", "#e38c00"),
-    ("zephyr.lang-stex", "LaTeX", "Sintaks LaTeX untuk editor (CodeMirror legacy mode).", "LA", "#6f9e47"),
-    ("zephyr.lang-stylus", "Stylus", "Sintaks Stylus untuk editor (CodeMirror legacy mode).", "ST", "#ff6347"),
-    ("zephyr.lang-swift", "Swift", "Sintaks Swift untuk editor (CodeMirror legacy mode).", "SW", "#f05138"),
-    ("zephyr.lang-tcl", "Tcl", "Sintaks Tcl untuk editor (CodeMirror legacy mode).", "TCL", "#479e93"),
-    ("zephyr.lang-textile", "Textile", "Sintaks Textile untuk editor (CodeMirror legacy mode).", "TE", "#9e9347"),
-    ("zephyr.lang-tiddlywiki", "TiddlyWiki", "Sintaks TiddlyWiki untuk editor (CodeMirror legacy mode).", "TI", "#479e61"),
-    ("zephyr.lang-tiki", "Tiki", "Sintaks Tiki untuk editor (CodeMirror legacy mode).", "TIK", "#9e8547"),
-    ("zephyr.lang-toml", "TOML", "Sintaks TOML untuk editor (CodeMirror legacy mode).", "TOM", "#9c4221"),
-    ("zephyr.lang-troff", "troff", "Sintaks troff untuk editor (CodeMirror legacy mode).", "TR", "#969e47"),
-    ("zephyr.lang-ttcn", "TTCN-3", "Sintaks TTCN-3 untuk editor (CodeMirror legacy mode).", "TT", "#91479e"),
-    ("zephyr.lang-ttcn-cfg", "TTCN CFG", "Sintaks TTCN CFG untuk editor (CodeMirror legacy mode).", "TT", "#47679e"),
-    ("zephyr.lang-turtle", "Turtle", "Sintaks Turtle untuk editor (CodeMirror legacy mode).", "TU", "#9e5847"),
-    ("zephyr.lang-vb", "Visual Basic", "Sintaks Visual Basic untuk editor (CodeMirror legacy mode).", "VI", "#005a9e"),
-    ("zephyr.lang-vbscript", "VBScript", "Sintaks VBScript untuk editor (CodeMirror legacy mode).", "VB", "#8e9e47"),
-    ("zephyr.lang-velocity", "Velocity", "Sintaks Velocity untuk editor (CodeMirror legacy mode).", "VE", "#474b9e"),
-    ("zephyr.lang-verilog", "Verilog", "Sintaks Verilog untuk editor (CodeMirror legacy mode).", "VE", "#479e72"),
-    ("zephyr.lang-vhdl", "VHDL", "Sintaks VHDL untuk editor (CodeMirror legacy mode).", "VHD", "#479e55"),
-    ("zephyr.lang-wast", "WebAssembly Text", "Sintaks WebAssembly Text untuk editor (CodeMirror legacy mode).", "WE", "#6e479e"),
-    ("zephyr.lang-webidl", "Web IDL", "Sintaks Web IDL untuk editor (CodeMirror legacy mode).", "WE", "#9e479c"),
-    ("zephyr.lang-xml", "XML / HTML", "Sintaks XML / HTML untuk editor (CodeMirror legacy mode).", "XM", "#e37933"),
-    ("zephyr.lang-xquery", "XQuery", "Sintaks XQuery untuk editor (CodeMirror legacy mode).", "XQ", "#9e9847"),
-    ("zephyr.lang-yacas", "Yacas", "Sintaks Yacas untuk editor (CodeMirror legacy mode).", "YA", "#47579e"),
-    ("zephyr.lang-yaml", "YAML", "Sintaks YAML untuk editor (CodeMirror legacy mode).", "YAM", "#cb171e"),
-    ("zephyr.lang-z80", "Z80 Assembly", "Sintaks Z80 Assembly untuk editor (CodeMirror legacy mode).", "Z8", "#475b9e"),
+    (
+        "zephyr.lang-apl",
+        "APL",
+        "Sintaks APL untuk editor (CodeMirror legacy mode).",
+        "APL",
+        "#ff6347",
+    ),
+    (
+        "zephyr.lang-asciiarmor",
+        "ASCII Armor",
+        "Sintaks ASCII Armor untuk editor (CodeMirror legacy mode).",
+        "AS",
+        "#6b7280",
+    ),
+    (
+        "zephyr.lang-asterisk",
+        "Asterisk",
+        "Sintaks Asterisk untuk editor (CodeMirror legacy mode).",
+        "AS",
+        "#f47f2a",
+    ),
+    (
+        "zephyr.lang-brainfuck",
+        "Brainfuck",
+        "Sintaks Brainfuck untuk editor (CodeMirror legacy mode).",
+        "BR",
+        "#ff6ec7",
+    ),
+    (
+        "zephyr.lang-clike",
+        "C / C++",
+        "Sintaks C / C++ untuk editor (CodeMirror legacy mode).",
+        "CC",
+        "#659ad2",
+    ),
+    (
+        "zephyr.lang-clojure",
+        "Clojure",
+        "Sintaks Clojure untuk editor (CodeMirror legacy mode).",
+        "CL",
+        "#5881d8",
+    ),
+    (
+        "zephyr.lang-cmake",
+        "CMake",
+        "Sintaks CMake untuk editor (CodeMirror legacy mode).",
+        "CM",
+        "#064f8c",
+    ),
+    (
+        "zephyr.lang-cobol",
+        "COBOL",
+        "Sintaks COBOL untuk editor (CodeMirror legacy mode).",
+        "CO",
+        "#005ca5",
+    ),
+    (
+        "zephyr.lang-coffeescript",
+        "CoffeeScript",
+        "Sintaks CoffeeScript untuk editor (CodeMirror legacy mode).",
+        "CO",
+        "#6f4e37",
+    ),
+    (
+        "zephyr.lang-commonlisp",
+        "Common Lisp",
+        "Sintaks Common Lisp untuk editor (CodeMirror legacy mode).",
+        "CO",
+        "#3fb68b",
+    ),
+    (
+        "zephyr.lang-crystal",
+        "Crystal",
+        "Sintaks Crystal untuk editor (CodeMirror legacy mode).",
+        "CR",
+        "#1a1a1a",
+    ),
+    (
+        "zephyr.lang-css",
+        "CSS",
+        "Sintaks CSS untuk editor (CodeMirror legacy mode).",
+        "CSS",
+        "#1572b6",
+    ),
+    (
+        "zephyr.lang-cypher",
+        "Cypher",
+        "Sintaks Cypher untuk editor (CodeMirror legacy mode).",
+        "CY",
+        "#89d3c8",
+    ),
+    (
+        "zephyr.lang-d",
+        "D",
+        "Sintaks D untuk editor (CodeMirror legacy mode).",
+        "D",
+        "#b03931",
+    ),
+    (
+        "zephyr.lang-diff",
+        "Diff",
+        "Sintaks Diff untuk editor (CodeMirror legacy mode).",
+        "DIF",
+        "#3b82f6",
+    ),
+    (
+        "zephyr.lang-dockerfile",
+        "Dockerfile",
+        "Sintaks Dockerfile untuk editor (CodeMirror legacy mode).",
+        "DO",
+        "#0db7ed",
+    ),
+    (
+        "zephyr.lang-dtd",
+        "DTD",
+        "Sintaks DTD untuk editor (CodeMirror legacy mode).",
+        "DTD",
+        "#e37933",
+    ),
+    (
+        "zephyr.lang-dylan",
+        "Dylan",
+        "Sintaks Dylan untuk editor (CodeMirror legacy mode).",
+        "DY",
+        "#6c6c6c",
+    ),
+    (
+        "zephyr.lang-ebnf",
+        "EBNF",
+        "Sintaks EBNF untuk editor (CodeMirror legacy mode).",
+        "EBN",
+        "#a3a3a3",
+    ),
+    (
+        "zephyr.lang-ecl",
+        "ECL",
+        "Sintaks ECL untuk editor (CodeMirror legacy mode).",
+        "ECL",
+        "#8a2be2",
+    ),
+    (
+        "zephyr.lang-eiffel",
+        "Eiffel",
+        "Sintaks Eiffel untuk editor (CodeMirror legacy mode).",
+        "EI",
+        "#4d41b1",
+    ),
+    (
+        "zephyr.lang-elm",
+        "Elm",
+        "Sintaks Elm untuk editor (CodeMirror legacy mode).",
+        "ELM",
+        "#60b5cc",
+    ),
+    (
+        "zephyr.lang-erlang",
+        "Erlang",
+        "Sintaks Erlang untuk editor (CodeMirror legacy mode).",
+        "ER",
+        "#a90533",
+    ),
+    (
+        "zephyr.lang-factor",
+        "Factor",
+        "Sintaks Factor untuk editor (CodeMirror legacy mode).",
+        "FA",
+        "#d5539a",
+    ),
+    (
+        "zephyr.lang-fcl",
+        "FCL",
+        "Sintaks FCL untuk editor (CodeMirror legacy mode).",
+        "FCL",
+        "#3b82f6",
+    ),
+    (
+        "zephyr.lang-forth",
+        "Forth",
+        "Sintaks Forth untuk editor (CodeMirror legacy mode).",
+        "FO",
+        "#e62b25",
+    ),
+    (
+        "zephyr.lang-fortran",
+        "Fortran",
+        "Sintaks Fortran untuk editor (CodeMirror legacy mode).",
+        "FO",
+        "#4d41b1",
+    ),
+    (
+        "zephyr.lang-gas",
+        "Assembly (GAS)",
+        "Sintaks Assembly (GAS) untuk editor (CodeMirror legacy mode).",
+        "AS",
+        "#6e4c13",
+    ),
+    (
+        "zephyr.lang-gherkin",
+        "Gherkin",
+        "Sintaks Gherkin untuk editor (CodeMirror legacy mode).",
+        "GH",
+        "#4a90d9",
+    ),
+    (
+        "zephyr.lang-go",
+        "Go",
+        "Sintaks Go untuk editor (CodeMirror legacy mode).",
+        "GO",
+        "#00add8",
+    ),
+    (
+        "zephyr.lang-groovy",
+        "Groovy",
+        "Sintaks Groovy untuk editor (CodeMirror legacy mode).",
+        "GR",
+        "#4298b8",
+    ),
+    (
+        "zephyr.lang-haskell",
+        "Haskell",
+        "Sintaks Haskell untuk editor (CodeMirror legacy mode).",
+        "HA",
+        "#5e5086",
+    ),
+    (
+        "zephyr.lang-haxe",
+        "Haxe",
+        "Sintaks Haxe untuk editor (CodeMirror legacy mode).",
+        "HAX",
+        "#ea8220",
+    ),
+    (
+        "zephyr.lang-http",
+        "HTTP",
+        "Sintaks HTTP untuk editor (CodeMirror legacy mode).",
+        "HTT",
+        "#4a90d9",
+    ),
+    (
+        "zephyr.lang-idl",
+        "IDL",
+        "Sintaks IDL untuk editor (CodeMirror legacy mode).",
+        "IDL",
+        "#e35b2a",
+    ),
+    (
+        "zephyr.lang-javascript",
+        "JavaScript",
+        "Sintaks JavaScript untuk editor (CodeMirror legacy mode).",
+        "JA",
+        "#f7df1e",
+    ),
+    (
+        "zephyr.lang-jinja2",
+        "Jinja2",
+        "Sintaks Jinja2 untuk editor (CodeMirror legacy mode).",
+        "JI",
+        "#b52e31",
+    ),
+    (
+        "zephyr.lang-julia",
+        "Julia",
+        "Sintaks Julia untuk editor (CodeMirror legacy mode).",
+        "JU",
+        "#9558b2",
+    ),
+    (
+        "zephyr.lang-livescript",
+        "LiveScript",
+        "Sintaks LiveScript untuk editor (CodeMirror legacy mode).",
+        "LI",
+        "#4a90d9",
+    ),
+    (
+        "zephyr.lang-lua",
+        "Lua",
+        "Sintaks Lua untuk editor (CodeMirror legacy mode).",
+        "LUA",
+        "#2c4f7c",
+    ),
+    (
+        "zephyr.lang-mathematica",
+        "Wolfram",
+        "Sintaks Wolfram untuk editor (CodeMirror legacy mode).",
+        "WO",
+        "#dd1100",
+    ),
+    (
+        "zephyr.lang-mbox",
+        "Mbox",
+        "Sintaks Mbox untuk editor (CodeMirror legacy mode).",
+        "MBO",
+        "#6b7280",
+    ),
+    (
+        "zephyr.lang-mirc",
+        "mIRC",
+        "Sintaks mIRC untuk editor (CodeMirror legacy mode).",
+        "MIR",
+        "#9c4221",
+    ),
+    (
+        "zephyr.lang-mllike",
+        "OCaml / SML",
+        "Sintaks OCaml / SML untuk editor (CodeMirror legacy mode).",
+        "OC",
+        "#e37933",
+    ),
+    (
+        "zephyr.lang-modelica",
+        "Modelica",
+        "Sintaks Modelica untuk editor (CodeMirror legacy mode).",
+        "MO",
+        "#e35b2a",
+    ),
+    (
+        "zephyr.lang-mscgen",
+        "MscGen",
+        "Sintaks MscGen untuk editor (CodeMirror legacy mode).",
+        "MS",
+        "#6b7280",
+    ),
+    (
+        "zephyr.lang-mumps",
+        "MUMPS",
+        "Sintaks MUMPS untuk editor (CodeMirror legacy mode).",
+        "MU",
+        "#0aa674",
+    ),
+    (
+        "zephyr.lang-nginx",
+        "nginx Config",
+        "Sintaks nginx Config untuk editor (CodeMirror legacy mode).",
+        "NG",
+        "#009639",
+    ),
+    (
+        "zephyr.lang-nsis",
+        "NSIS",
+        "Sintaks NSIS untuk editor (CodeMirror legacy mode).",
+        "NSI",
+        "#0db7ed",
+    ),
+    (
+        "zephyr.lang-ntriples",
+        "N-Triples",
+        "Sintaks N-Triples untuk editor (CodeMirror legacy mode).",
+        "NT",
+        "#0c4b33",
+    ),
+    (
+        "zephyr.lang-octave",
+        "MATLAB / Octave",
+        "Sintaks MATLAB / Octave untuk editor (CodeMirror legacy mode).",
+        "MA",
+        "#0790c0",
+    ),
+    (
+        "zephyr.lang-oz",
+        "Oz",
+        "Sintaks Oz untuk editor (CodeMirror legacy mode).",
+        "OZ",
+        "#f7df1e",
+    ),
+    (
+        "zephyr.lang-pascal",
+        "Pascal",
+        "Sintaks Pascal untuk editor (CodeMirror legacy mode).",
+        "PA",
+        "#e62b25",
+    ),
+    (
+        "zephyr.lang-pegjs",
+        "PEG.js",
+        "Sintaks PEG.js untuk editor (CodeMirror legacy mode).",
+        "PE",
+        "#3178c6",
+    ),
+    (
+        "zephyr.lang-perl",
+        "Perl",
+        "Sintaks Perl untuk editor (CodeMirror legacy mode).",
+        "PER",
+        "#39457e",
+    ),
+    (
+        "zephyr.lang-pig",
+        "Pig",
+        "Sintaks Pig untuk editor (CodeMirror legacy mode).",
+        "PIG",
+        "#f7df1e",
+    ),
+    (
+        "zephyr.lang-powershell",
+        "PowerShell",
+        "Sintaks PowerShell untuk editor (CodeMirror legacy mode).",
+        "PO",
+        "#012456",
+    ),
+    (
+        "zephyr.lang-properties",
+        "Properties",
+        "Sintaks Properties untuk editor (CodeMirror legacy mode).",
+        "PR",
+        "#8a8a8a",
+    ),
+    (
+        "zephyr.lang-protobuf",
+        "Protocol Buffers",
+        "Sintaks Protocol Buffers untuk editor (CodeMirror legacy mode).",
+        "PR",
+        "#4285f4",
+    ),
+    (
+        "zephyr.lang-pug",
+        "Pug",
+        "Sintaks Pug untuk editor (CodeMirror legacy mode).",
+        "PUG",
+        "#479e4a",
+    ),
+    (
+        "zephyr.lang-puppet",
+        "Puppet",
+        "Sintaks Puppet untuk editor (CodeMirror legacy mode).",
+        "PU",
+        "#47649e",
+    ),
+    (
+        "zephyr.lang-python",
+        "Python",
+        "Sintaks Python untuk editor (CodeMirror legacy mode).",
+        "PY",
+        "#3776ab",
+    ),
+    (
+        "zephyr.lang-q",
+        "q/Kdb+",
+        "Sintaks q/Kdb+ untuk editor (CodeMirror legacy mode).",
+        "QKD",
+        "#519e47",
+    ),
+    (
+        "zephyr.lang-r",
+        "R",
+        "Sintaks R untuk editor (CodeMirror legacy mode).",
+        "R",
+        "#276dc3",
+    ),
+    (
+        "zephyr.lang-rpm",
+        "RPM Spec",
+        "Sintaks RPM Spec untuk editor (CodeMirror legacy mode).",
+        "RP",
+        "#6b9e47",
+    ),
+    (
+        "zephyr.lang-ruby",
+        "Ruby",
+        "Sintaks Ruby untuk editor (CodeMirror legacy mode).",
+        "RUB",
+        "#cc342d",
+    ),
+    (
+        "zephyr.lang-rust",
+        "Rust",
+        "Sintaks Rust untuk editor (CodeMirror legacy mode).",
+        "RUS",
+        "#dea584",
+    ),
+    (
+        "zephyr.lang-sas",
+        "sas",
+        "Sintaks sas untuk editor (CodeMirror legacy mode).",
+        "SAS",
+        "#474b9e",
+    ),
+    (
+        "zephyr.lang-sass",
+        "Sass",
+        "Sintaks Sass untuk editor (CodeMirror legacy mode).",
+        "SAS",
+        "#67479e",
+    ),
+    (
+        "zephyr.lang-scheme",
+        "Scheme",
+        "Sintaks Scheme untuk editor (CodeMirror legacy mode).",
+        "SC",
+        "#1b5cec",
+    ),
+    (
+        "zephyr.lang-shell",
+        "Shell / Bash",
+        "Sintaks Shell / Bash untuk editor (CodeMirror legacy mode).",
+        "SH",
+        "#89e051",
+    ),
+    (
+        "zephyr.lang-sieve",
+        "Sieve",
+        "Sintaks Sieve untuk editor (CodeMirror legacy mode).",
+        "SI",
+        "#72479e",
+    ),
+    (
+        "zephyr.lang-smalltalk",
+        "Smalltalk",
+        "Sintaks Smalltalk untuk editor (CodeMirror legacy mode).",
+        "SM",
+        "#9e4788",
+    ),
+    (
+        "zephyr.lang-solr",
+        "Solr",
+        "Sintaks Solr untuk editor (CodeMirror legacy mode).",
+        "SOL",
+        "#479e9b",
+    ),
+    (
+        "zephyr.lang-sparql",
+        "SPARQL",
+        "Sintaks SPARQL untuk editor (CodeMirror legacy mode).",
+        "SP",
+        "#749e47",
+    ),
+    (
+        "zephyr.lang-spreadsheet",
+        "CSV / TSV",
+        "Sintaks CSV / TSV untuk editor (CodeMirror legacy mode).",
+        "CS",
+        "#476f9e",
+    ),
+    (
+        "zephyr.lang-sql",
+        "SQL",
+        "Sintaks SQL untuk editor (CodeMirror legacy mode).",
+        "SQL",
+        "#e38c00",
+    ),
+    (
+        "zephyr.lang-stex",
+        "LaTeX",
+        "Sintaks LaTeX untuk editor (CodeMirror legacy mode).",
+        "LA",
+        "#6f9e47",
+    ),
+    (
+        "zephyr.lang-stylus",
+        "Stylus",
+        "Sintaks Stylus untuk editor (CodeMirror legacy mode).",
+        "ST",
+        "#ff6347",
+    ),
+    (
+        "zephyr.lang-swift",
+        "Swift",
+        "Sintaks Swift untuk editor (CodeMirror legacy mode).",
+        "SW",
+        "#f05138",
+    ),
+    (
+        "zephyr.lang-tcl",
+        "Tcl",
+        "Sintaks Tcl untuk editor (CodeMirror legacy mode).",
+        "TCL",
+        "#479e93",
+    ),
+    (
+        "zephyr.lang-textile",
+        "Textile",
+        "Sintaks Textile untuk editor (CodeMirror legacy mode).",
+        "TE",
+        "#9e9347",
+    ),
+    (
+        "zephyr.lang-tiddlywiki",
+        "TiddlyWiki",
+        "Sintaks TiddlyWiki untuk editor (CodeMirror legacy mode).",
+        "TI",
+        "#479e61",
+    ),
+    (
+        "zephyr.lang-tiki",
+        "Tiki",
+        "Sintaks Tiki untuk editor (CodeMirror legacy mode).",
+        "TIK",
+        "#9e8547",
+    ),
+    (
+        "zephyr.lang-toml",
+        "TOML",
+        "Sintaks TOML untuk editor (CodeMirror legacy mode).",
+        "TOM",
+        "#9c4221",
+    ),
+    (
+        "zephyr.lang-troff",
+        "troff",
+        "Sintaks troff untuk editor (CodeMirror legacy mode).",
+        "TR",
+        "#969e47",
+    ),
+    (
+        "zephyr.lang-ttcn",
+        "TTCN-3",
+        "Sintaks TTCN-3 untuk editor (CodeMirror legacy mode).",
+        "TT",
+        "#91479e",
+    ),
+    (
+        "zephyr.lang-ttcn-cfg",
+        "TTCN CFG",
+        "Sintaks TTCN CFG untuk editor (CodeMirror legacy mode).",
+        "TT",
+        "#47679e",
+    ),
+    (
+        "zephyr.lang-turtle",
+        "Turtle",
+        "Sintaks Turtle untuk editor (CodeMirror legacy mode).",
+        "TU",
+        "#9e5847",
+    ),
+    (
+        "zephyr.lang-vb",
+        "Visual Basic",
+        "Sintaks Visual Basic untuk editor (CodeMirror legacy mode).",
+        "VI",
+        "#005a9e",
+    ),
+    (
+        "zephyr.lang-vbscript",
+        "VBScript",
+        "Sintaks VBScript untuk editor (CodeMirror legacy mode).",
+        "VB",
+        "#8e9e47",
+    ),
+    (
+        "zephyr.lang-velocity",
+        "Velocity",
+        "Sintaks Velocity untuk editor (CodeMirror legacy mode).",
+        "VE",
+        "#474b9e",
+    ),
+    (
+        "zephyr.lang-verilog",
+        "Verilog",
+        "Sintaks Verilog untuk editor (CodeMirror legacy mode).",
+        "VE",
+        "#479e72",
+    ),
+    (
+        "zephyr.lang-vhdl",
+        "VHDL",
+        "Sintaks VHDL untuk editor (CodeMirror legacy mode).",
+        "VHD",
+        "#479e55",
+    ),
+    (
+        "zephyr.lang-wast",
+        "WebAssembly Text",
+        "Sintaks WebAssembly Text untuk editor (CodeMirror legacy mode).",
+        "WE",
+        "#6e479e",
+    ),
+    (
+        "zephyr.lang-webidl",
+        "Web IDL",
+        "Sintaks Web IDL untuk editor (CodeMirror legacy mode).",
+        "WE",
+        "#9e479c",
+    ),
+    (
+        "zephyr.lang-xml",
+        "XML / HTML",
+        "Sintaks XML / HTML untuk editor (CodeMirror legacy mode).",
+        "XM",
+        "#e37933",
+    ),
+    (
+        "zephyr.lang-xquery",
+        "XQuery",
+        "Sintaks XQuery untuk editor (CodeMirror legacy mode).",
+        "XQ",
+        "#9e9847",
+    ),
+    (
+        "zephyr.lang-yacas",
+        "Yacas",
+        "Sintaks Yacas untuk editor (CodeMirror legacy mode).",
+        "YA",
+        "#47579e",
+    ),
+    (
+        "zephyr.lang-yaml",
+        "YAML",
+        "Sintaks YAML untuk editor (CodeMirror legacy mode).",
+        "YAM",
+        "#cb171e",
+    ),
+    (
+        "zephyr.lang-z80",
+        "Z80 Assembly",
+        "Sintaks Z80 Assembly untuk editor (CodeMirror legacy mode).",
+        "Z8",
+        "#475b9e",
+    ),
 ];
 const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-apl", &[("zephyr-extension.json", LANG_APL)]),
-    ("zephyr.lang-asciiarmor", &[("zephyr-extension.json", LANG_ASCIIARMOR)]),
-    ("zephyr.lang-asterisk", &[("zephyr-extension.json", LANG_ASTERISK)]),
-    ("zephyr.lang-brainfuck", &[("zephyr-extension.json", LANG_BRAINFUCK)]),
-    ("zephyr.lang-clike", &[("zephyr-extension.json", LANG_CLIKE)]),
-    ("zephyr.lang-clojure", &[("zephyr-extension.json", LANG_CLOJURE)]),
-    ("zephyr.lang-cmake", &[("zephyr-extension.json", LANG_CMAKE)]),
-    ("zephyr.lang-cobol", &[("zephyr-extension.json", LANG_COBOL)]),
-    ("zephyr.lang-coffeescript", &[("zephyr-extension.json", LANG_COFFEESCRIPT)]),
-    ("zephyr.lang-commonlisp", &[("zephyr-extension.json", LANG_COMMONLISP)]),
-    ("zephyr.lang-crystal", &[("zephyr-extension.json", LANG_CRYSTAL)]),
+    (
+        "zephyr.lang-asciiarmor",
+        &[("zephyr-extension.json", LANG_ASCIIARMOR)],
+    ),
+    (
+        "zephyr.lang-asterisk",
+        &[("zephyr-extension.json", LANG_ASTERISK)],
+    ),
+    (
+        "zephyr.lang-brainfuck",
+        &[("zephyr-extension.json", LANG_BRAINFUCK)],
+    ),
+    (
+        "zephyr.lang-clike",
+        &[("zephyr-extension.json", LANG_CLIKE)],
+    ),
+    (
+        "zephyr.lang-clojure",
+        &[("zephyr-extension.json", LANG_CLOJURE)],
+    ),
+    (
+        "zephyr.lang-cmake",
+        &[("zephyr-extension.json", LANG_CMAKE)],
+    ),
+    (
+        "zephyr.lang-cobol",
+        &[("zephyr-extension.json", LANG_COBOL)],
+    ),
+    (
+        "zephyr.lang-coffeescript",
+        &[("zephyr-extension.json", LANG_COFFEESCRIPT)],
+    ),
+    (
+        "zephyr.lang-commonlisp",
+        &[("zephyr-extension.json", LANG_COMMONLISP)],
+    ),
+    (
+        "zephyr.lang-crystal",
+        &[("zephyr-extension.json", LANG_CRYSTAL)],
+    ),
     ("zephyr.lang-css", &[("zephyr-extension.json", LANG_CSS)]),
-    ("zephyr.lang-cypher", &[("zephyr-extension.json", LANG_CYPHER)]),
+    (
+        "zephyr.lang-cypher",
+        &[("zephyr-extension.json", LANG_CYPHER)],
+    ),
     ("zephyr.lang-d", &[("zephyr-extension.json", LANG_D)]),
     ("zephyr.lang-diff", &[("zephyr-extension.json", LANG_DIFF)]),
-    ("zephyr.lang-dockerfile", &[("zephyr-extension.json", LANG_DOCKERFILE)]),
+    (
+        "zephyr.lang-dockerfile",
+        &[("zephyr-extension.json", LANG_DOCKERFILE)],
+    ),
     ("zephyr.lang-dtd", &[("zephyr-extension.json", LANG_DTD)]),
-    ("zephyr.lang-dylan", &[("zephyr-extension.json", LANG_DYLAN)]),
+    (
+        "zephyr.lang-dylan",
+        &[("zephyr-extension.json", LANG_DYLAN)],
+    ),
     ("zephyr.lang-ebnf", &[("zephyr-extension.json", LANG_EBNF)]),
     ("zephyr.lang-ecl", &[("zephyr-extension.json", LANG_ECL)]),
-    ("zephyr.lang-eiffel", &[("zephyr-extension.json", LANG_EIFFEL)]),
+    (
+        "zephyr.lang-eiffel",
+        &[("zephyr-extension.json", LANG_EIFFEL)],
+    ),
     ("zephyr.lang-elm", &[("zephyr-extension.json", LANG_ELM)]),
-    ("zephyr.lang-erlang", &[("zephyr-extension.json", LANG_ERLANG)]),
-    ("zephyr.lang-factor", &[("zephyr-extension.json", LANG_FACTOR)]),
+    (
+        "zephyr.lang-erlang",
+        &[("zephyr-extension.json", LANG_ERLANG)],
+    ),
+    (
+        "zephyr.lang-factor",
+        &[("zephyr-extension.json", LANG_FACTOR)],
+    ),
     ("zephyr.lang-fcl", &[("zephyr-extension.json", LANG_FCL)]),
-    ("zephyr.lang-forth", &[("zephyr-extension.json", LANG_FORTH)]),
-    ("zephyr.lang-fortran", &[("zephyr-extension.json", LANG_FORTRAN)]),
+    (
+        "zephyr.lang-forth",
+        &[("zephyr-extension.json", LANG_FORTH)],
+    ),
+    (
+        "zephyr.lang-fortran",
+        &[("zephyr-extension.json", LANG_FORTRAN)],
+    ),
     ("zephyr.lang-gas", &[("zephyr-extension.json", LANG_GAS)]),
-    ("zephyr.lang-gherkin", &[("zephyr-extension.json", LANG_GHERKIN)]),
+    (
+        "zephyr.lang-gherkin",
+        &[("zephyr-extension.json", LANG_GHERKIN)],
+    ),
     ("zephyr.lang-go", &[("zephyr-extension.json", LANG_GO)]),
-    ("zephyr.lang-groovy", &[("zephyr-extension.json", LANG_GROOVY)]),
-    ("zephyr.lang-haskell", &[("zephyr-extension.json", LANG_HASKELL)]),
+    (
+        "zephyr.lang-groovy",
+        &[("zephyr-extension.json", LANG_GROOVY)],
+    ),
+    (
+        "zephyr.lang-haskell",
+        &[("zephyr-extension.json", LANG_HASKELL)],
+    ),
     ("zephyr.lang-haxe", &[("zephyr-extension.json", LANG_HAXE)]),
     ("zephyr.lang-http", &[("zephyr-extension.json", LANG_HTTP)]),
     ("zephyr.lang-idl", &[("zephyr-extension.json", LANG_IDL)]),
-    ("zephyr.lang-javascript", &[("zephyr-extension.json", LANG_JAVASCRIPT)]),
-    ("zephyr.lang-jinja2", &[("zephyr-extension.json", LANG_JINJA2)]),
-    ("zephyr.lang-julia", &[("zephyr-extension.json", LANG_JULIA)]),
-    ("zephyr.lang-livescript", &[("zephyr-extension.json", LANG_LIVESCRIPT)]),
+    (
+        "zephyr.lang-javascript",
+        &[("zephyr-extension.json", LANG_JAVASCRIPT)],
+    ),
+    (
+        "zephyr.lang-jinja2",
+        &[("zephyr-extension.json", LANG_JINJA2)],
+    ),
+    (
+        "zephyr.lang-julia",
+        &[("zephyr-extension.json", LANG_JULIA)],
+    ),
+    (
+        "zephyr.lang-livescript",
+        &[("zephyr-extension.json", LANG_LIVESCRIPT)],
+    ),
     ("zephyr.lang-lua", &[("zephyr-extension.json", LANG_LUA)]),
-    ("zephyr.lang-mathematica", &[("zephyr-extension.json", LANG_MATHEMATICA)]),
+    (
+        "zephyr.lang-mathematica",
+        &[("zephyr-extension.json", LANG_MATHEMATICA)],
+    ),
     ("zephyr.lang-mbox", &[("zephyr-extension.json", LANG_MBOX)]),
     ("zephyr.lang-mirc", &[("zephyr-extension.json", LANG_MIRC)]),
-    ("zephyr.lang-mllike", &[("zephyr-extension.json", LANG_MLLIKE)]),
-    ("zephyr.lang-modelica", &[("zephyr-extension.json", LANG_MODELICA)]),
-    ("zephyr.lang-mscgen", &[("zephyr-extension.json", LANG_MSCGEN)]),
-    ("zephyr.lang-mumps", &[("zephyr-extension.json", LANG_MUMPS)]),
-    ("zephyr.lang-nginx", &[("zephyr-extension.json", LANG_NGINX)]),
+    (
+        "zephyr.lang-mllike",
+        &[("zephyr-extension.json", LANG_MLLIKE)],
+    ),
+    (
+        "zephyr.lang-modelica",
+        &[("zephyr-extension.json", LANG_MODELICA)],
+    ),
+    (
+        "zephyr.lang-mscgen",
+        &[("zephyr-extension.json", LANG_MSCGEN)],
+    ),
+    (
+        "zephyr.lang-mumps",
+        &[("zephyr-extension.json", LANG_MUMPS)],
+    ),
+    (
+        "zephyr.lang-nginx",
+        &[("zephyr-extension.json", LANG_NGINX)],
+    ),
     ("zephyr.lang-nsis", &[("zephyr-extension.json", LANG_NSIS)]),
-    ("zephyr.lang-ntriples", &[("zephyr-extension.json", LANG_NTRIPLES)]),
-    ("zephyr.lang-octave", &[("zephyr-extension.json", LANG_OCTAVE)]),
+    (
+        "zephyr.lang-ntriples",
+        &[("zephyr-extension.json", LANG_NTRIPLES)],
+    ),
+    (
+        "zephyr.lang-octave",
+        &[("zephyr-extension.json", LANG_OCTAVE)],
+    ),
     ("zephyr.lang-oz", &[("zephyr-extension.json", LANG_OZ)]),
-    ("zephyr.lang-pascal", &[("zephyr-extension.json", LANG_PASCAL)]),
-    ("zephyr.lang-pegjs", &[("zephyr-extension.json", LANG_PEGJS)]),
+    (
+        "zephyr.lang-pascal",
+        &[("zephyr-extension.json", LANG_PASCAL)],
+    ),
+    (
+        "zephyr.lang-pegjs",
+        &[("zephyr-extension.json", LANG_PEGJS)],
+    ),
     ("zephyr.lang-perl", &[("zephyr-extension.json", LANG_PERL)]),
     ("zephyr.lang-pig", &[("zephyr-extension.json", LANG_PIG)]),
-    ("zephyr.lang-powershell", &[("zephyr-extension.json", LANG_POWERSHELL)]),
-    ("zephyr.lang-properties", &[("zephyr-extension.json", LANG_PROPERTIES)]),
-    ("zephyr.lang-protobuf", &[("zephyr-extension.json", LANG_PROTOBUF)]),
+    (
+        "zephyr.lang-powershell",
+        &[("zephyr-extension.json", LANG_POWERSHELL)],
+    ),
+    (
+        "zephyr.lang-properties",
+        &[("zephyr-extension.json", LANG_PROPERTIES)],
+    ),
+    (
+        "zephyr.lang-protobuf",
+        &[("zephyr-extension.json", LANG_PROTOBUF)],
+    ),
     ("zephyr.lang-pug", &[("zephyr-extension.json", LANG_PUG)]),
-    ("zephyr.lang-puppet", &[("zephyr-extension.json", LANG_PUPPET)]),
-    ("zephyr.lang-python", &[("zephyr-extension.json", LANG_PYTHON)]),
+    (
+        "zephyr.lang-puppet",
+        &[("zephyr-extension.json", LANG_PUPPET)],
+    ),
+    (
+        "zephyr.lang-python",
+        &[("zephyr-extension.json", LANG_PYTHON)],
+    ),
     ("zephyr.lang-q", &[("zephyr-extension.json", LANG_Q)]),
     ("zephyr.lang-r", &[("zephyr-extension.json", LANG_R)]),
     ("zephyr.lang-rpm", &[("zephyr-extension.json", LANG_RPM)]),
@@ -488,36 +1212,93 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-rust", &[("zephyr-extension.json", LANG_RUST)]),
     ("zephyr.lang-sas", &[("zephyr-extension.json", LANG_SAS)]),
     ("zephyr.lang-sass", &[("zephyr-extension.json", LANG_SASS)]),
-    ("zephyr.lang-scheme", &[("zephyr-extension.json", LANG_SCHEME)]),
-    ("zephyr.lang-shell", &[("zephyr-extension.json", LANG_SHELL)]),
-    ("zephyr.lang-sieve", &[("zephyr-extension.json", LANG_SIEVE)]),
-    ("zephyr.lang-smalltalk", &[("zephyr-extension.json", LANG_SMALLTALK)]),
+    (
+        "zephyr.lang-scheme",
+        &[("zephyr-extension.json", LANG_SCHEME)],
+    ),
+    (
+        "zephyr.lang-shell",
+        &[("zephyr-extension.json", LANG_SHELL)],
+    ),
+    (
+        "zephyr.lang-sieve",
+        &[("zephyr-extension.json", LANG_SIEVE)],
+    ),
+    (
+        "zephyr.lang-smalltalk",
+        &[("zephyr-extension.json", LANG_SMALLTALK)],
+    ),
     ("zephyr.lang-solr", &[("zephyr-extension.json", LANG_SOLR)]),
-    ("zephyr.lang-sparql", &[("zephyr-extension.json", LANG_SPARQL)]),
-    ("zephyr.lang-spreadsheet", &[("zephyr-extension.json", LANG_SPREADSHEET)]),
+    (
+        "zephyr.lang-sparql",
+        &[("zephyr-extension.json", LANG_SPARQL)],
+    ),
+    (
+        "zephyr.lang-spreadsheet",
+        &[("zephyr-extension.json", LANG_SPREADSHEET)],
+    ),
     ("zephyr.lang-sql", &[("zephyr-extension.json", LANG_SQL)]),
     ("zephyr.lang-stex", &[("zephyr-extension.json", LANG_STEX)]),
-    ("zephyr.lang-stylus", &[("zephyr-extension.json", LANG_STYLUS)]),
-    ("zephyr.lang-swift", &[("zephyr-extension.json", LANG_SWIFT)]),
+    (
+        "zephyr.lang-stylus",
+        &[("zephyr-extension.json", LANG_STYLUS)],
+    ),
+    (
+        "zephyr.lang-swift",
+        &[("zephyr-extension.json", LANG_SWIFT)],
+    ),
     ("zephyr.lang-tcl", &[("zephyr-extension.json", LANG_TCL)]),
-    ("zephyr.lang-textile", &[("zephyr-extension.json", LANG_TEXTILE)]),
-    ("zephyr.lang-tiddlywiki", &[("zephyr-extension.json", LANG_TIDDLYWIKI)]),
+    (
+        "zephyr.lang-textile",
+        &[("zephyr-extension.json", LANG_TEXTILE)],
+    ),
+    (
+        "zephyr.lang-tiddlywiki",
+        &[("zephyr-extension.json", LANG_TIDDLYWIKI)],
+    ),
     ("zephyr.lang-tiki", &[("zephyr-extension.json", LANG_TIKI)]),
     ("zephyr.lang-toml", &[("zephyr-extension.json", LANG_TOML)]),
-    ("zephyr.lang-troff", &[("zephyr-extension.json", LANG_TROFF)]),
+    (
+        "zephyr.lang-troff",
+        &[("zephyr-extension.json", LANG_TROFF)],
+    ),
     ("zephyr.lang-ttcn", &[("zephyr-extension.json", LANG_TTCN)]),
-    ("zephyr.lang-ttcn-cfg", &[("zephyr-extension.json", LANG_TTCN_CFG)]),
-    ("zephyr.lang-turtle", &[("zephyr-extension.json", LANG_TURTLE)]),
+    (
+        "zephyr.lang-ttcn-cfg",
+        &[("zephyr-extension.json", LANG_TTCN_CFG)],
+    ),
+    (
+        "zephyr.lang-turtle",
+        &[("zephyr-extension.json", LANG_TURTLE)],
+    ),
     ("zephyr.lang-vb", &[("zephyr-extension.json", LANG_VB)]),
-    ("zephyr.lang-vbscript", &[("zephyr-extension.json", LANG_VBSCRIPT)]),
-    ("zephyr.lang-velocity", &[("zephyr-extension.json", LANG_VELOCITY)]),
-    ("zephyr.lang-verilog", &[("zephyr-extension.json", LANG_VERILOG)]),
+    (
+        "zephyr.lang-vbscript",
+        &[("zephyr-extension.json", LANG_VBSCRIPT)],
+    ),
+    (
+        "zephyr.lang-velocity",
+        &[("zephyr-extension.json", LANG_VELOCITY)],
+    ),
+    (
+        "zephyr.lang-verilog",
+        &[("zephyr-extension.json", LANG_VERILOG)],
+    ),
     ("zephyr.lang-vhdl", &[("zephyr-extension.json", LANG_VHDL)]),
     ("zephyr.lang-wast", &[("zephyr-extension.json", LANG_WAST)]),
-    ("zephyr.lang-webidl", &[("zephyr-extension.json", LANG_WEBIDL)]),
+    (
+        "zephyr.lang-webidl",
+        &[("zephyr-extension.json", LANG_WEBIDL)],
+    ),
     ("zephyr.lang-xml", &[("zephyr-extension.json", LANG_XML)]),
-    ("zephyr.lang-xquery", &[("zephyr-extension.json", LANG_XQUERY)]),
-    ("zephyr.lang-yacas", &[("zephyr-extension.json", LANG_YACAS)]),
+    (
+        "zephyr.lang-xquery",
+        &[("zephyr-extension.json", LANG_XQUERY)],
+    ),
+    (
+        "zephyr.lang-yacas",
+        &[("zephyr-extension.json", LANG_YACAS)],
+    ),
     ("zephyr.lang-yaml", &[("zephyr-extension.json", LANG_YAML)]),
     ("zephyr.lang-z80", &[("zephyr-extension.json", LANG_Z80)]),
 ];
@@ -564,7 +1345,10 @@ const PAKET: &[Paket] = &[
 
 /// Cari paket bundled mana pun (asli atau bahasa) berdasarkan id.
 fn cari_paket(id: &str) -> Option<Paket> {
-    PAKET.iter().copied().find(|(pid, _)| *pid == id)
+    PAKET
+        .iter()
+        .copied()
+        .find(|(pid, _)| *pid == id)
         .or_else(|| PAKET_BAHASA.iter().copied().find(|(pid, _)| *pid == id))
 }
 
@@ -572,8 +1356,8 @@ fn cari_paket(id: &str) -> Option<Paket> {
 /// Frontend memanggil `extensions_install` dengan path ini.
 #[tauri::command]
 pub fn extensions_write_bundled(state: State<AppState>, id: String) -> ZResult<String> {
-    let paket = cari_paket(&id)
-        .ok_or_else(|| ZephyrError::NotFound(format!("paket bundled {id}")))?;
+    let paket =
+        cari_paket(&id).ok_or_else(|| ZephyrError::NotFound(format!("paket bundled {id}")))?;
 
     let dir = crate::extensions::extensions_dir(&state)
         .join(".bundled")
@@ -614,26 +1398,41 @@ pub fn extensions_bundled_ids() -> Vec<String> {
 /// Metadata katalog tiap paket asli: nama tampilan, deskripsi, 1-3 huruf
 /// logo, dan bahasa yang direkomendasikan. `id` = kunci.
 const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
-    ("zephyr.tema-kertas",
-     "Tema Kertas",
-     "Tema terang kontras rendah, cocok untuk siang di ruang terbuka.",
-     "PT", &[]),
-    ("zephyr.keymap-sublime",
-     "Keymap ala Sublime",
-     "Chord familiar Sublime Text: Ctrl+P, Ctrl+Shift+D, Ctrl+K Ctrl+B.",
-     "SB", &[]),
-    ("zephyr.snippet-python",
-     "Snippet Python",
-     "Kerangka cepat: def, class, if __main__",
-     "PY", &["python"]),
-    ("zephyr.snippet-react",
-     "Snippet React",
-     "Komponen, useState, useEffect, rfc.",
-     "RC", &["javascript", "typescript"]),
-    ("zephyr.ikon-bulat",
-     "Ikon Bulat",
-     "Tema ikon berbentuk lingkaran untuk file explorer.",
-     "IB", &[]),
+    (
+        "zephyr.tema-kertas",
+        "Tema Kertas",
+        "Tema terang kontras rendah, cocok untuk siang di ruang terbuka.",
+        "PT",
+        &[],
+    ),
+    (
+        "zephyr.keymap-sublime",
+        "Keymap ala Sublime",
+        "Chord familiar Sublime Text: Ctrl+P, Ctrl+Shift+D, Ctrl+K Ctrl+B.",
+        "SB",
+        &[],
+    ),
+    (
+        "zephyr.snippet-python",
+        "Snippet Python",
+        "Kerangka cepat: def, class, if __main__",
+        "PY",
+        &["python"],
+    ),
+    (
+        "zephyr.snippet-react",
+        "Snippet React",
+        "Komponen, useState, useEffect, rfc.",
+        "RC",
+        &["javascript", "typescript"],
+    ),
+    (
+        "zephyr.ikon-bulat",
+        "Ikon Bulat",
+        "Tema ikon berbentuk lingkaran untuk file explorer.",
+        "IB",
+        &[],
+    ),
 ];
 
 /// Index registry bundled — entri Marketplace untuk tiap paket di `PAKET`
@@ -668,22 +1467,26 @@ pub fn index_bundled() -> String {
     // nama tampilan ("Rust") rekomendasi tidak pernah cocok — detectLang
     // mengembalikan id kecil ("rust").
     let meta_bahasa = |id: &str, manifest: &str| -> serde_json::Value {
-            let (nama, desk, logo, warna) = META_BAHASA
-                .iter()
-                .find(|(mid, _, _, _, _)| *mid == id)
-                .map(|(_, n, d, l, w)| (*n, *d, *l, *w))
-                .unwrap_or((id, id, "", "#6b7280"));
-            // Logo asli (SVG data URI) dari crate::ext_lang_icons — kalau ada,
-            // `iconUrl` diisi; frontend memakai <img> dan jatuh ke inisial saat
-            // gambar gagal dimuat (tanpa ikon tetap tampil rapi berwarna brand).
-            let icon_url = crate::ext_lang_icons::LOGO_URI
-                .iter()
-                .find(|(pid, _)| *pid == id)
-                .map(|(_, uri)| *uri)
-                .unwrap_or("");
-            let bhs: Vec<String> = serde_json::from_str::<serde_json::Value>(manifest)
+        let (nama, desk, logo, warna) = META_BAHASA
+            .iter()
+            .find(|(mid, _, _, _, _)| *mid == id)
+            .map(|(_, n, d, l, w)| (*n, *d, *l, *w))
+            .unwrap_or((id, id, "", "#6b7280"));
+        // Logo asli (SVG data URI) dari crate::ext_lang_icons — kalau ada,
+        // `iconUrl` diisi; frontend memakai <img> dan jatuh ke inisial saat
+        // gambar gagal dimuat (tanpa ikon tetap tampil rapi berwarna brand).
+        let icon_url = crate::ext_lang_icons::LOGO_URI
+            .iter()
+            .find(|(pid, _)| *pid == id)
+            .map(|(_, uri)| *uri)
+            .unwrap_or("");
+        let bhs: Vec<String> = serde_json::from_str::<serde_json::Value>(manifest)
             .ok()
-            .and_then(|m| m.get("contributes").and_then(|c| c.get("languages")).cloned())
+            .and_then(|m| {
+                m.get("contributes")
+                    .and_then(|c| c.get("languages"))
+                    .cloned()
+            })
             .and_then(|l| l.as_array().cloned())
             .map(|arr| {
                 arr.iter()
@@ -744,7 +1547,6 @@ pub fn index_bundled() -> String {
     serde_json::json!({ "version": 1, "extensions": entri }).to_string()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -754,9 +1556,16 @@ mod tests {
         let s = index_bundled();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         let arr = v.get("extensions").unwrap().as_array().unwrap();
-        assert_eq!(arr.len(), PAKET.len() + PAKET_BAHASA.len(), "index harus mencakup semua paket");
+        assert_eq!(
+            arr.len(),
+            PAKET.len() + PAKET_BAHASA.len(),
+            "index harus mencakup semua paket"
+        );
         // tiap entri punya id unik (PAKET sendiri yang dijamin)
-        let mut ids: Vec<_> = arr.iter().map(|e| e["id"].as_str().unwrap().to_string()).collect();
+        let mut ids: Vec<_> = arr
+            .iter()
+            .map(|e| e["id"].as_str().unwrap().to_string())
+            .collect();
         ids.sort();
         let unik: std::collections::HashSet<_> = ids.iter().collect();
         assert_eq!(unik.len(), ids.len(), "id index bundled harus unik");

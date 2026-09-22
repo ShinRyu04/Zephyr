@@ -21,3 +21,6 @@ signing-key.txt
 
 # File lokal / sementara
 *.log
+
+# Artefak rilis (installer, sig, latest.json) — tetap lokal, jangan masuk repo
+release/

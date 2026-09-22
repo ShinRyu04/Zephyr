@@ -37,6 +37,7 @@ import { useProblems } from './problemsStore';
 import { useKb } from './keybindingStore';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { kunciPath } from './pathKey';
+import { tx } from './i18n';
 
 /** Breakpoint di sisi UI. Ada walau belum ada sesi debug. */
 export interface Breakpoint {
@@ -243,7 +244,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     const cfgNama = nama ?? s.configTerpilih;
     const cfg = s.launch?.configurations.find((c) => c.name === cfgNama);
     if (!cfg) {
-      notifyError('Tidak ada konfigurasi debug. Buat .zephyr/launch.json dulu.', {
+      notifyError(tx('Tidak ada konfigurasi debug. Buat .zephyr/launch.json dulu.'), {
         source: 'debug',
       });
       return false;
@@ -333,7 +334,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   kontrol: async (aksi) => {
     const tid = get().threadId;
     if (tid == null) {
-      notifyWarn('Belum ada thread yang berhenti', { source: 'debug' });
+      notifyWarn(tx('Belum ada thread yang berhenti'), { source: 'debug' });
       return;
     }
     try {
@@ -662,7 +663,7 @@ export const catatExceptionKeProblems = (path: string, line: number, teks: strin
       source: 'debug',
     },
   ]);
-  notifyInfo('Exception dicatat di Problems', { source: 'debug' });
+  notifyInfo(tx('Exception dicatat di Problems'), { source: 'debug' });
 };
 
 export type { DebugConfig, LaunchFile, AdapterSpec };

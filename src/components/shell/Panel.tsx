@@ -24,9 +24,18 @@ import ProblemsView from './ProblemsView';
 import OutputView from './OutputView';
 import DebugConsoleView from './DebugConsoleView';
 import PortsView from './PortsView';
+import HttpView from './HttpView';
+import ApiClientView from './ApiClientView';
+import TunnelView from './TunnelView';
+import TestView from './TestView';
+import DevEnvView from './DevEnvView';
+import DbView from './DbView';
+import SftpView from './SftpView';
 import TerminalArea from './TerminalArea';
+import { useT } from '../../lib/i18n';
 
 export default function Panel() {
+  const tr = useT();
   const visible = useTerminal((s) => s.visible);
   const height = useTerminal((s) => s.height);
   const setHeight = useTerminal((s) => s.setHeight);
@@ -69,7 +78,7 @@ export default function Panel() {
     return (
       <button
         className="term-collapsed"
-        title="Tampilkan panel bawah (Ctrl+J)"
+        title={tr('Tampilkan panel bawah (Ctrl+J)')}
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
@@ -84,7 +93,7 @@ export default function Panel() {
         className="term-resizer"
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Ubah tinggi panel bawah"
+        aria-label={tr('Ubah tinggi panel bawah')}
         onPointerDown={startResize}
       />
 
@@ -95,6 +104,13 @@ export default function Panel() {
         {activeTab === 'output' && <OutputView />}
         {activeTab === 'debug' && <DebugConsoleView />}
         {activeTab === 'ports' && <PortsView />}
+        {activeTab === 'http' && <HttpView />}
+        {activeTab === 'api' && <ApiClientView />}
+        {activeTab === 'tunnel' && <TunnelView />}
+        {activeTab === 'test' && <TestView />}
+        {activeTab === 'devenv' && <DevEnvView />}
+        {activeTab === 'db' && <DbView />}
+        {activeTab === 'sftp' && <SftpView />}
 
         {/* Terminal: tetap mounted (lihat catatan di atas), disembunyikan saat
             tab lain aktif. `hidden` HTML tidak dipakai karena xterm butuh

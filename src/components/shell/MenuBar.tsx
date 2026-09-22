@@ -15,6 +15,9 @@ import { useKb } from '../../lib/keybindingStore';
 import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
 import { useStore } from '../../lib/store';
+import WindowControls from './WindowControls';
+import ZephyrLogo from './ZephyrLogo';
+import { useT } from '../../lib/i18n';
 
 /** Item yang bisa difokus (bukan separator). */
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
@@ -28,6 +31,7 @@ const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; de
 ];
 
 export default function MenuBar() {
+  const tr = useT();
   const bindings = useKb((s) => s.bindings);
   /** index menu yang terbuka; -1 = tertutup */
   const [buka, setBuka] = useState(-1);
@@ -214,7 +218,26 @@ export default function MenuBar() {
   };
 
   return (
-    <div className="menubar" ref={rootRef} data-testid="menubar" role="menubar">
+    // C-18: title bar Windows dihapus, jadi baris menu ini yang jadi area
+    // geser jendela. `data-tauri-drag-region` hanya berlaku pada elemen itu
+    // sendiri — tombol/menu di dalamnya tetap bisa diklik.
+    <div
+      className="menubar"
+      ref={rootRef}
+      data-testid="menubar"
+      role="menubar"
+      data-tauri-drag-region
+    >
+      {/* Revisi 1.1.10: logo Z di kiri menubar, sebelah "File". Title bar
+          native sudah dimatikan, jadi ini satu-satunya penanda identitas.
+          Pakai glyphOnly: logo ber-kotak di bar 28px hanya menghasilkan
+          huruf Z ~7px (padding kotak memakan ~50% area). Ukuran 13px dipilih
+          dari pengukuran VS Code di mesin ini: logonya 19px = 1.58x tinggi
+          teks menunya. Zephyr pakai ~1.4x (sedikit lebih kalem, karena huruf
+          Z lebih lebar daripada glyph pita VS Code). */}
+      <div className="mb-brand" role="none" aria-hidden="true">
+        <ZephyrLogo size={13} glyphOnly />
+      </div>
       {MENUS.map((m, i) => {
         const mnemonicIdx = m.label.toLowerCase().indexOf(m.mnemonic);
         return (
@@ -277,7 +300,7 @@ export default function MenuBar() {
         <button
           className="mb-cc"
           data-testid="mb-command-center"
-          title="Command Palette — cari perintah & file (Ctrl+Shift+P / Ctrl+P)"
+          title={tr('Command Palette — cari perintah & file (Ctrl+Shift+P / Ctrl+P)')}
           aria-haspopup="dialog"
           onClick={() => {
             tutup();
@@ -290,7 +313,7 @@ export default function MenuBar() {
               fill="currentColor"
             />
           </svg>
-          <span className="mb-cc-label">Cari file &amp; perintah…</span>
+          <span className="mb-cc-label">{tr('Cari file & perintah…')}</span>
         </button>
       </div>
 
@@ -327,8 +350,8 @@ export default function MenuBar() {
         <button
           className="mb-layout-btn"
           data-testid="mb-layout-hide"
-          title="Sembunyikan panel"
-          aria-label="Sembunyikan panel"
+          title={tr('Sembunyikan panel')}
+          aria-label={tr('Sembunyikan panel')}
           onClick={() => {
             tutup();
             setSidebarVisible(false);
@@ -342,6 +365,9 @@ export default function MenuBar() {
           </svg>
         </button>
       </div>
+
+      {/* C-18: tombol window sendiri (title bar Windows dihapus). */}
+      <WindowControls />
     </div>
   );
 }

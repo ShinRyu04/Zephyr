@@ -137,7 +137,11 @@ fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
     // UI dengan ribuan kartu.
     let mut bersih: Vec<IndexEntry> = entri.into_iter().filter(|e| !e.id.is_empty()).collect();
     if bersih.len() > MAX_ENTRI {
-        tracing::warn!(asal, jumlah = bersih.len(), "registry: potong ke {MAX_ENTRI}");
+        tracing::warn!(
+            asal,
+            jumlah = bersih.len(),
+            "registry: potong ke {MAX_ENTRI}"
+        );
         bersih.truncate(MAX_ENTRI);
     }
     bersih
@@ -151,7 +155,11 @@ fn baca_file_terbatas(path: &std::path::Path, asal: &str) -> Vec<IndexEntry> {
         Err(_) => return vec![],
     };
     if meta.len() > MAX_INDEX_BYTES {
-        tracing::warn!(asal, ukuran = meta.len(), "registry: file lebih besar dari batas");
+        tracing::warn!(
+            asal,
+            ukuran = meta.len(),
+            "registry: file lebih besar dari batas"
+        );
         return vec![];
     }
     match std::fs::read_to_string(path) {
@@ -183,10 +191,19 @@ async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
         }
     };
     if r.status().as_u16() != 200 {
-        tracing::warn!(url, status = r.status().as_u16(), "registry remote menjawab non-200");
+        tracing::warn!(
+            url,
+            status = r.status().as_u16(),
+            "registry remote menjawab non-200"
+        );
         return vec![];
     }
-    let teks = match r.into_body().with_config().limit(MAX_INDEX_BYTES).read_to_string() {
+    let teks = match r
+        .into_body()
+        .with_config()
+        .limit(MAX_INDEX_BYTES)
+        .read_to_string()
+    {
         Ok(t) => t,
         Err(e) => {
             tracing::warn!(url, err = %e, "registry remote: body tidak terbaca");
@@ -200,7 +217,10 @@ async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
 /// Sumber lebih awal menang (id sama tidak ditimpa) supaya paket yang sudah
 /// ada di mesin tidak ditimpa versi lama dari remote.
 #[tauri::command(async)]
-pub async fn ext_registry_list(state: State<'_, AppState>, query: String) -> ZResult<Vec<IndexEntry>> {
+pub async fn ext_registry_list(
+    state: State<'_, AppState>,
+    query: String,
+) -> ZResult<Vec<IndexEntry>> {
     let mut semua: Vec<IndexEntry> = vec![];
     let mut sudah = std::collections::HashSet::new();
 
@@ -334,7 +354,11 @@ pub fn ext_registry_installed(state: State<AppState>) -> ZResult<Vec<InstalledEn
 #[tauri::command]
 pub fn ext_registry_url_diizinkan(url: String) -> ZResult<bool> {
     let host = url.split('/').nth(2).unwrap_or("").to_lowercase();
-    Ok(url.starts_with("https://") && matches!(host.as_str(), "open-vsx.org" | "www.open-vsx.org" | "github.com" | "raw.githubusercontent.com"))
+    Ok(url.starts_with("https://")
+        && matches!(
+            host.as_str(),
+            "open-vsx.org" | "www.open-vsx.org" | "github.com" | "raw.githubusercontent.com"
+        ))
 }
 
 #[cfg(test)]
@@ -343,7 +367,8 @@ mod tests {
 
     #[test]
     fn parse_index_root_dan_array_polos() {
-        let root = r#"{"version":1,"extensions":[{"id":"a.b","name":"A","publisher":"a","version":"1"}]}"#;
+        let root =
+            r#"{"version":1,"extensions":[{"id":"a.b","name":"A","publisher":"a","version":"1"}]}"#;
         assert_eq!(parse_index(root, "t").len(), 1);
 
         let arr = r#"[{"id":"a.b","name":"A","publisher":"a","version":"1"}]"#;

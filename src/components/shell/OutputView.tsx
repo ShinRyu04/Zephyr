@@ -6,11 +6,13 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
+import { useT } from '../../lib/i18n';
 
 const ROW_H = 18;
 const PAD = 8;
 
 export default function OutputView() {
+  const tr = useT();
   const channels = useOutput((s) => s.channels);
   const activeChannel = useOutput((s) => s.activeChannel);
   const autoScroll = useOutput((s) => s.autoScroll);
@@ -52,7 +54,7 @@ export default function OutputView() {
           data-testid="ov-channel"
           value={activeChannel}
           onChange={(e) => setActiveChannel(e.target.value)}
-          aria-label="Pilih channel output"
+          aria-label={tr('Pilih channel output')}
         >
           {channels.map((c) => (
             <option key={c.id} value={c.id}>
@@ -69,7 +71,7 @@ export default function OutputView() {
           className="btn btn-sm"
           data-testid="ov-wrap"
           aria-pressed={wrap}
-          title="Lipat baris panjang"
+          title={tr('Lipat baris panjang')}
           onClick={toggleWrap}
         >
           Wrap{wrap ? ' ✓' : ''}
@@ -78,7 +80,7 @@ export default function OutputView() {
           className="btn btn-sm"
           data-testid="ov-lock"
           aria-pressed={!autoScroll}
-          title="Scroll lock: hentikan auto-scroll saat baris baru masuk"
+          title={tr('Scroll lock: hentikan auto-scroll saat baris baru masuk')}
           onClick={toggleAutoScroll}
         >
           {autoScroll ? 'Auto-scroll' : 'Terkunci'}

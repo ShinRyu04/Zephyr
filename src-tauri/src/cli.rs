@@ -28,9 +28,9 @@ use serde::{Deserialize, Serialize};
 use crate::errors::{ZResult, ZephyrError};
 
 /// Warna aksen Zephyr (#4f8cff) sebagai ANSI truecolor.
-const ACCENT: &str = "\x1b[38;2;79;140;255m";
-const DIM: &str = "\x1b[2m";
-const RESET: &str = "\x1b[0m";
+pub const ACCENT_PUB: &str = "\x1b[38;2;79;140;255m";
+pub const DIM_PUB: &str = "\x1b[2m";
+pub const RESET_PUB: &str = "\x1b[0m";
 
 /// Satu target yang diminta dari command line.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -433,7 +433,7 @@ pub fn banner(warna: bool, kolom: usize) -> String {
     let versi = env!("CARGO_PKG_VERSION");
     if kolom < 46 {
         return if warna {
-            format!("{ACCENT}Zephyr{RESET} v{versi}\n")
+            format!("{ACCENT_PUB}Zephyr{RESET_PUB} v{versi}\n")
         } else {
             format!("Zephyr v{versi}\n")
         };
@@ -451,9 +451,9 @@ pub fn banner(warna: bool, kolom: usize) -> String {
     let mut s = String::new();
     for baris in seni {
         if warna {
-            s.push_str(ACCENT);
+            s.push_str(ACCENT_PUB);
             s.push_str(baris);
-            s.push_str(RESET);
+            s.push_str(RESET_PUB);
         } else {
             s.push_str(baris);
         }
@@ -461,7 +461,7 @@ pub fn banner(warna: bool, kolom: usize) -> String {
     }
     if warna {
         s.push_str(&format!(
-            "{DIM}  Zephyr v{versi} — code faster, lighter, yours{RESET}\n"
+            "{DIM_PUB}  Zephyr v{versi} — code faster, lighter, yours{RESET_PUB}\n"
         ));
     } else {
         s.push_str(&format!(
@@ -501,7 +501,7 @@ pub fn teks_help(warna: bool, kolom: usize) -> String {
 pub fn teks_version(warna: bool, kolom: usize) -> String {
     let versi = env!("CARGO_PKG_VERSION");
     if warna {
-        format!("{}\n{ACCENT}zephyr{RESET} {versi}\n", banner(true, kolom))
+        format!("{}\n{ACCENT_PUB}zephyr{RESET_PUB} {versi}\n", banner(true, kolom))
     } else {
         // Plain: satu baris yang aman untuk `| grep` / parsing skrip.
         format!("zephyr {versi}\n")
@@ -654,7 +654,7 @@ mod tests {
         assert!(b.contains("Zephyr v"));
 
         let w = banner(true, 100);
-        assert!(w.contains(ACCENT), "banner TTY harus berwarna accent");
+        assert!(w.contains(ACCENT_PUB), "banner TTY harus berwarna accent");
     }
 
     #[test]
@@ -679,4 +679,22 @@ mod tests {
         }
         assert!(h.contains("core.editor"), "help menyebut integrasi git");
     }
+}
+
+
+/// Attach ke konsol parent (dipakai subcommand CLI).
+#[cfg(windows)]
+pub fn attach_console_pub() {
+    unsafe {
+        win::AttachConsole(win::ATTACH_PARENT_PROCESS);
+    }
+}
+
+/// Attach konsol — no-op di non-Windows.
+#[cfg(not(windows))]
+pub fn attach_console_pub() {}
+
+/// Apakah stdout sebuah terminal (untuk warna).
+pub fn stdout_tty_pub() -> bool {
+    stdout_tty()
 }

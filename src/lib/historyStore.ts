@@ -25,6 +25,7 @@ import type { HistoryInfo, Snapshot, TimelineEntry } from './types';
 import { kunciPath } from './pathKey';
 import { useStore } from './store';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
+import { tx } from './i18n';
 
 interface HistoryState {
   /** file yang Timeline-nya sedang ditampilkan */
@@ -188,14 +189,14 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
         await S.openPath(file);
         const baru = useStore.getState().tabs.find((t) => cocok(t.path));
         if (!baru) {
-          notifyError('Tidak bisa membuka file untuk restore', { source: 'history' });
+          notifyError(tx('Tidak bisa membuka file untuk restore'), { source: 'history' });
           return false;
         }
         useStore.getState().updateTabContent(baru.id, isi);
       } else {
         useStore.getState().updateTabContent(tab.id, isi);
       }
-      notifyInfo('Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)', {
+      notifyInfo(tx('Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)'), {
         source: 'history',
       });
       return true;

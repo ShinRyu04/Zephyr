@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0",
   "productName": "Zephyr",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "identifier": "com.zephyr.editor",
   "build": {
     "frontendDist": "../dist",
@@ -21,11 +21,10 @@
         "minHeight": 520,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true,
+        "decorations": false,
         "center": true,
         "focus": true,
-        "dragDropEnabled": true,
-        "additionalBrowserArgs": "--remote-debugging-port=9223"
+        "dragDropEnabled": true
       }
     ],
     "security": {
@@ -57,7 +56,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4MTlDOTc2RUJBNkE5NTYKUldSV3FhYnJkc2taU0tnbDZHcThYa2NGcklNVCtnMStpV3c1clRpTWxqeHBqdUUvK2h2NmdxRHAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEzNUY5NDM0M0ZGMEFFNDYKUldSR3J2QS9OSlJmbzRmWld5bEhFTVZqUURGajVwNWp0RFRDUUFjcGg1N2FSbEIzNzhjQTFsc0wK",
       "endpoints": [
         "https://github.com/ShinRyu04/Zephyr/releases/latest/download/latest.json"
       ]

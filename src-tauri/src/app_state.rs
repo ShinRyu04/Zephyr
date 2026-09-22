@@ -20,7 +20,7 @@ use crate::errors::{ZResult, ZephyrError};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, RwLock, TryLockError};
+use std::sync::{Arc, Mutex, RwLock, TryLockError};
 use std::time::{Duration, Instant};
 
 /// Batas tunggu satu lock domain. Lebih lama dari ini = ada yang salah;
@@ -137,6 +137,10 @@ pub struct AppState {
     perf: RwLock<Vec<PerfMark>>,
     /// Penghitung ringkas untuk Diagnostics (jumlah operasi sejak start).
     counters: RwLock<HashMap<String, u64>>,
+    /// Tunnel Cloudflare yang hidup (T2.3), key = id tunnel.
+    /// Disimpan supaya app bisa mematikannya saat ditutup — tunnel yang
+    /// tertinggal berarti localhost user tetap terbuka ke internet.
+    pub tunnels: Mutex<HashMap<String, crate::tunnel::Tunnel>>,
 }
 
 /// Satu titik ukur performa (dipakai About → Diagnostics).
@@ -194,6 +198,7 @@ impl AppState {
             started: Instant::now(),
             perf: RwLock::new(Vec::new()),
             counters: RwLock::new(HashMap::new()),
+            tunnels: Mutex::new(HashMap::new()),
         }
     }
 
@@ -801,6 +806,21 @@ fn kunci_root(p: &Path) -> String {
 }
 
 fn resolve_data_dir() -> PathBuf {
+    // T4.2 PORTABLE MODE: kalau ada file bernama `portable` di sebelah exe,
+    // SEMUA data disimpan di `data/` sebelah exe. Ini yang membuat Zephyr bisa
+    // dibawa di USB tanpa meninggalkan jejak di mesin yang dipakai.
+    //
+    // Diperiksa PALING AWAL: kalau tidak, mode portable akan tetap menulis
+    // settings ke %APPDATA% dan meninggalkan jejak — justru hal yang ingin
+    // dihindari.
+    if crate::cli_ext::portable_aktif() {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(d) = exe.parent() {
+                return d.join("data");
+            }
+        }
+    }
+
     // PRD: data user di %APPDATA%\zephyr\ (bukan folder identifier).
     if let Ok(appdata) = std::env::var("APPDATA") {
         if !appdata.is_empty() {
@@ -811,4 +831,13 @@ fn resolve_data_dir() -> PathBuf {
         return PathBuf::from(home).join(".zephyr");
     }
     PathBuf::from(".zephyr")
+}
+
+/// Apakah Zephyr berjalan dalam mode portable (T4.2).
+///
+/// Dipakai UI untuk menampilkan penanda, supaya user tidak bingung kenapa
+/// pengaturannya tidak ikut pindah mesin.
+#[tauri::command]
+pub fn portable_mode() -> bool {
+    crate::cli_ext::portable_aktif()
 }

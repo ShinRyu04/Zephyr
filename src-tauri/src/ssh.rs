@@ -100,7 +100,9 @@ fn validate(c: &SshConfig) -> ZResult<()> {
         return Err(ZephyrError::InvalidInput("user wajib diisi".into()));
     }
     if c.auth != "key" && c.auth != "password" {
-        return Err(ZephyrError::InvalidInput("auth harus 'key' atau 'password'".into()));
+        return Err(ZephyrError::InvalidInput(
+            "auth harus 'key' atau 'password'".into(),
+        ));
     }
     if c.auth == "key" && c.key_path.trim().is_empty() {
         return Err(ZephyrError::InvalidInput(
@@ -137,17 +139,12 @@ fn find_ssh() -> Option<std::path::PathBuf> {
         }
     }
     // fallback: PATH (`where ssh`)
-    let out = std::process::Command::new("where")
-        .arg("ssh")
-        .output()
-        .ok()?;
+    let out = crate::proc::cmd("where").arg("ssh").output().ok()?;
     if !out.status.success() {
         return None;
     }
     let s = String::from_utf8_lossy(&out.stdout);
-    s.lines()
-        .next()
-        .map(|l| std::path::PathBuf::from(l.trim()))
+    s.lines().next().map(|l| std::path::PathBuf::from(l.trim()))
 }
 
 #[tauri::command]
@@ -221,7 +218,11 @@ pub fn ssh_delete(state: State<AppState>, id: String) -> ZResult<()> {
 /// Simpan password terenkripsi (dipanggil frontend setelah user memilih
 /// "simpan" dan konfirmasi). Kembalikan view baru.
 #[tauri::command]
-pub fn ssh_save_password(state: State<AppState>, id: String, password: String) -> ZResult<SshHostView> {
+pub fn ssh_save_password(
+    state: State<AppState>,
+    id: String,
+    password: String,
+) -> ZResult<SshHostView> {
     let mut list = read_configs(&state);
     let Some(idx) = list.iter().position(|x| x.id == id) else {
         return Err(ZephyrError::NotFound(format!("host {id}")));
@@ -281,11 +282,15 @@ pub fn ssh_connect(
 
     let ssh = find_ssh().ok_or_else(|| {
         ZephyrError::NotFound(
-            "OpenSSH Client tidak ditemukan — instal via Settings (Windows optional feature)".into(),
+            "OpenSSH Client tidak ditemukan — instal via Settings (Windows optional feature)"
+                .into(),
         )
     })?;
 
-    let pane_id = format!("ssh-{}", Uuid::new_v4().to_string().split('-').next().unwrap_or("x"));
+    let pane_id = format!(
+        "ssh-{}",
+        Uuid::new_v4().to_string().split('-').next().unwrap_or("x")
+    );
 
     let mut argv: Vec<String> = vec![
         "-p".into(),

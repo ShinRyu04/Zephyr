@@ -278,13 +278,8 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
 
     // 3) git: binary ada & bisa dijalankan.
     let (ok, detail, ms) = ukur(&|| {
-        let mut c = std::process::Command::new("git");
+        let mut c = crate::proc::cmd("git");
         c.arg("--version");
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-        }
         match c.output() {
             Ok(o) if o.status.success() => {
                 (true, String::from_utf8_lossy(&o.stdout).trim().to_string())

@@ -7,8 +7,10 @@ import { useGit } from '../../lib/gitStore';
 // fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
 // screen reader — ia TIDAK mengurung fokus keyboard.
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useT } from '../../lib/i18n';
 
 export default function ScmConfirmDialog() {
+  const tr = useT();
   const confirm = useGit((s) => s.confirm);
   const setConfirm = useGit((s) => s.setConfirm);
   const resolveConfirm = useGit((s) => s.resolveConfirm);
@@ -33,7 +35,7 @@ export default function ScmConfirmDialog() {
         return {
           title: `Buang perubahan pada ${confirm.paths[0]}?`,
           body: 'Perubahan akan hilang PERMANEN (tidak bisa undo).',
-          ok: 'Buang perubahan',
+          ok: tr('Buang perubahan'),
           danger: true,
         };
       case 'discard-all':
@@ -46,8 +48,8 @@ export default function ScmConfirmDialog() {
       case 'delete-branch':
         return {
           title: `Hapus branch ${confirm.name}?`,
-          body: 'Commit yang belum tergabung di branch lain akan hilang PERMANEN.',
-          ok: 'Hapus branch',
+          body: tr('Commit yang belum tergabung di branch lain akan hilang PERMANEN.'),
+          ok: tr('Hapus branch'),
           danger: true,
         };
       case 'set-upstream':
@@ -60,7 +62,7 @@ export default function ScmConfirmDialog() {
       case 'pull-first':
         return {
           title: `Remote punya ${confirm.behind} commit baru`,
-          body: 'Push akan ditolak git selama commit itu belum ada di lokal. Pull dulu lalu push?',
+          body: tr('Push akan ditolak git selama commit itu belum ada di lokal. Pull dulu lalu push?'),
           ok: 'Pull lalu push',
           danger: false,
         };

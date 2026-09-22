@@ -16,20 +16,17 @@ import UpdatePanel from './UpdatePanel';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export function ScmSection() {
-  const t = useT();
+  const tr = useT();
   const git = useStore((s) => s.settings.git);
   const apply = useStore((s) => s.applySettings);
 
   return (
-    <Section title={t('settings.scm')}>
-      <p className="set-note">
-        Identitas ini dipakai saat commit dari Zephyr. Dibiarkan kosong
-        = pakai konfigurasi <code>git config</code> yang sudah ada di mesin/repo.
-      </p>
+    <Section title={tr('settings.scm')}>
+      <p className="set-note">{tr('scm.identityNote')}</p>
 
-      <Row label={t('scm.userName')}>
+      <Row label={tr('scm.userName')}>
         <TextInput
-          label={t('scm.userName')}
+          label={tr('scm.userName')}
           testid="scm-name"
           value={git.userName ?? ''}
           placeholder="(pakai git config)"
@@ -37,9 +34,9 @@ export function ScmSection() {
         />
       </Row>
 
-      <Row label={t('scm.userEmail')}>
+      <Row label={tr('scm.userEmail')}>
         <TextInput
-          label={t('scm.userEmail')}
+          label={tr('scm.userEmail')}
           testid="scm-email"
           value={git.userEmail ?? ''}
           placeholder="(pakai git config)"
@@ -47,18 +44,18 @@ export function ScmSection() {
         />
       </Row>
 
-      <Row label={t('scm.defaultBranch')}>
+      <Row label={tr('scm.defaultBranch')}>
         <TextInput
-          label={t('scm.defaultBranch')}
+          label={tr('scm.defaultBranch')}
           testid="scm-branch"
           value={git.defaultBranch}
           onChange={(v) => void apply({ git: { defaultBranch: v } })}
         />
       </Row>
 
-      <Row label={t('scm.pullBeforePush')} hint="mengurangi push yang ditolak">
+      <Row label={tr('scm.pullBeforePush')} hint={tr('scm.pullBeforePushHint')}>
         <Toggle
-          label={t('scm.pullBeforePush')}
+          label={tr('scm.pullBeforePush')}
           testid="scm-pull"
           checked={git.pullBeforePush}
           onChange={(v) => void apply({ git: { pullBeforePush: v } })}
@@ -69,7 +66,7 @@ export function ScmSection() {
 }
 
 export function SshSection() {
-  const t = useT();
+  const tr = useT();
   const setStatus = useStore((s) => s.setStatus);
   const [hosts, setHosts] = useState<SshHost[]>([]);
   const [muat, setMuat] = useState(false);
@@ -169,7 +166,7 @@ export function SshSection() {
     (form.auth !== 'key' || (form.keyPath ?? '').trim() !== '');
 
   return (
-    <Section title={t('settings.ssh')}>
+    <Section title={tr('settings.ssh')}>
       <p className="set-note" data-testid="ssh-note">
         Kelola host SSH lalu buka koneksinya sebagai pane terminal. Auth key pakai
         keyPath (passphrase diketik langsung di pane); auth password diketik di pane
@@ -289,7 +286,7 @@ export function SshSection() {
               disabled={!valid || sibuk}
               onClick={() => void simpan()}
             >
-              {form.id ? 'Simpan perubahan' : 'Tambah host'}
+              {form.id ? tr('Simpan perubahan') : tr('Tambah host')}
             </button>
             <button
               className="btn btn-sm"
@@ -412,7 +409,7 @@ export function SshSection() {
 }
 
 export function AboutSection() {
-  const t = useT();
+  const tr = useT();
   const info = useStore((s) => s.appInfo);
   const dataDir = info?.dataDir ?? '';
 
@@ -428,7 +425,7 @@ export function AboutSection() {
     ['Automation', 'MCP JSON-RPC di 127.0.0.1:9222'],
   ];
   return (
-    <Section title={t('settings.about')}>
+    <Section title={tr('settings.about')}>
       <div className="about-hero">
         <span className="about-name">Zephyr</span>
         <span className="about-tag">code editor ringan, dibangun dari nol</span>
@@ -503,6 +500,7 @@ const secs = (ms: number) => {
 /** About → Diagnostics (fase 14.5). Semua nilai dari command `get_diagnostics`;
  *  tidak ada yang dihitung ulang di frontend supaya tidak ada dua sumber angka. */
 function DiagnosticsPanel() {
+  const tr = useT();
   const [d, setD] = useState<Diagnostics | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [auto, setAuto] = useState(false);
@@ -604,7 +602,7 @@ function DiagnosticsPanel() {
 
       {d && d.marks.length > 0 && (
         <>
-          <p className="set-note">Penanda waktu (ms sejak proses mulai):</p>
+          <p className="set-note">{tr('Penanda waktu (ms sejak proses mulai):')}</p>
           <ul className="diag-marks" data-testid="diag-marks">
             {d.marks.slice(-12).map((m, i) => (
               <li key={`${m.name}-${m.atMs}-${i}`} data-mark={m.name}>

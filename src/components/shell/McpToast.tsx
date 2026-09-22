@@ -7,8 +7,10 @@
 
 import { useEffect } from 'react';
 import { useMcp } from '../../lib/mcpStore';
+import { useT } from '../../lib/i18n';
 
 export default function McpToast() {
+  const tr = useT();
   const toast = useMcp((s) => s.toast);
   const setToast = useMcp((s) => s.setToast);
 
@@ -41,7 +43,7 @@ export default function McpToast() {
       <span>{toast}</span>
       <button
         className="mcp-toast-x"
-        aria-label="Tutup notifikasi"
+        aria-label={tr('Tutup notifikasi')}
         data-testid="mcp-toast-x"
         onClick={() => setToast(null)}
       >

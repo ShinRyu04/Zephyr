@@ -330,7 +330,7 @@ fn spec_python(state: &AppState) -> AdapterSpec {
     let ada_debugpy = py
         .as_ref()
         .map(|p| {
-            std::process::Command::new(p)
+            crate::proc::cmd(p)
                 .args(["-c", "import debugpy"])
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
@@ -364,7 +364,7 @@ fn spec_python(state: &AppState) -> AdapterSpec {
 
 fn cari_python(_state: &AppState) -> Option<PathBuf> {
     for nama in ["python", "python3", "py"] {
-        if let Ok(out) = std::process::Command::new(nama).arg("--version").output() {
+        if let Ok(out) = crate::proc::cmd(nama).arg("--version").output() {
             if out.status.success() {
                 return Some(PathBuf::from(nama));
             }
@@ -926,18 +926,12 @@ pub fn dap_start(
         cmd_vec.push("127.0.0.1".to_string());
     }
 
-    let mut cmd = std::process::Command::new(&cmd_vec[0]);
+    let mut cmd = crate::proc::cmd(&cmd_vec[0]);
     cmd.args(&cmd_vec[1..])
         .current_dir(&cwd)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
-
     let mut child = cmd.spawn().map_err(|e| {
         ZephyrError::Io(format!(
             "gagal menjalankan adapter {}: {e}",
@@ -1201,11 +1195,12 @@ fn stop_internal(_rt: &DapRuntime) -> ZResult<bool> {
     // Tanpa taskkill /T, `node program.js` tetap hidup setelah Stop.
     #[cfg(windows)]
     if sesi.pid != 0 {
-        let _ = std::process::Command::new("taskkill")
-            .args(["/PID", &sesi.pid.to_string(), "/T", "/F"])
+        // CREATE_NO_WINDOW: hentikan debuggee tanpa jendela konsol berkedip.
+        let mut tk = crate::proc::cmd("taskkill");
+        tk.args(["/PID", &sesi.pid.to_string(), "/T", "/F"])
             .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status();
+            .stderr(std::process::Stdio::null());
+        let _ = tk.status();
     }
     #[cfg(not(windows))]
     if sesi.pid != 0 {

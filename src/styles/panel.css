@@ -41,7 +41,7 @@
 .pts-root {
   display: flex;
   align-items: stretch;
-  height: 28px;
+  height: var(--bar-h, 28px);
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel-header-bg, var(--surface-2));
@@ -57,8 +57,8 @@
 .pts-tab {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 10px;
+  gap: var(--sp-1, 4px);
+  padding: 0 var(--sp-3, 10px);
   color: var(--text-muted);
   border-bottom: 2px solid transparent;
   white-space: nowrap;

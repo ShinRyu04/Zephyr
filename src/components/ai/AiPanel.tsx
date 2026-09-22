@@ -8,32 +8,51 @@
 // markdown streaming, action bar ("Jalankan di Terminal" untuk jawaban
 // terakhir), dan input dengan Enter kirim / Shift+Enter baris baru.
 
-import { useEffect, useRef } from 'react';
-import { useAi, extractCommand, isDestructive } from '../../lib/aiStore';
+import { useEffect, useRef, useState } from 'react';
+import {
+  useAi,
+  extractCommand,
+  isDestructive,
+  MAX_IMAGES,
+  IMAGE_MAX_BYTES,
+  type ReasoningEffort,
+} from '../../lib/aiStore';
+import type { ApprovalMode } from '../../lib/types';
 import { useStore } from '../../lib/store';
 import { useTerminal } from '../../lib/terminalStore';
+import { matchPrompts, expandPrompt } from '../../lib/promptLibrary';
+import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
 import ModelSelector from './ModelSelector';
+import SubAgentBar from './SubAgentBar';
+import SubAgentPanel from './SubAgentPanel';
+import TodoPanel from './TodoPanel';
 import { clipboardReadImage } from '../../lib/clipboard';
+import { useT } from '../../lib/i18n';
 
 export default function AiPanel() {
+  const tr = useT();
   const sessions = useAi((s) => s.sessions);
   const activeId = useAi((s) => s.activeId);
   const pending = useAi((s) => s.pending);
   const draft = useAi((s) => s.draft);
   const attachActive = useAi((s) => s.attachActive);
-  const draftImage = useAi((s) => s.draftImage);
+  const draftImages = useAi((s) => s.draftImages);
   const toast = useAi((s) => s.toast);
   const confirmCmd = useAi((s) => s.confirmCmd);
 
   const setDraft = useAi((s) => s.setDraft);
   const setAttachActive = useAi((s) => s.setAttachActive);
-  const setDraftImage = useAi((s) => s.setDraftImage);
+  const addDraftImage = useAi((s) => s.addDraftImage);
+  const removeDraftImage = useAi((s) => s.removeDraftImage);
   const setToast = useAi((s) => s.setToast);
   const setConfirmCmd = useAi((s) => s.setConfirmCmd);
   const send = useAi((s) => s.send);
   const cancel = useAi((s) => s.cancel);
   const exportChat = useAi((s) => s.exportChat);
+  const newChat = useAi((s) => s.newChat);
+  const setClearAllOpen = useAi((s) => s.setClearAllOpen);
+  const sessionCount = useAi((s) => s.sessions.length);
   const runInTerminal = useAi((s) => s.runInTerminal);
   const agentMode = useAi((s) => s.agentMode);
   const approvalMode = useAi((s) => s.approvalMode);
@@ -42,6 +61,8 @@ export default function AiPanel() {
   const agentConfirm = useAi((s) => s.agentConfirm);
   const setAgentMode = useAi((s) => s.setAgentMode);
   const setApprovalMode = useAi((s) => s.setApprovalMode);
+  const reasoningEffort = useAi((s) => s.reasoningEffort);
+  const setReasoningEffort = useAi((s) => s.setReasoningEffort);
   const agentPutuskan = useAi((s) => s.agentPutuskan);
   const sibuk = pending || agentBusy;
 
@@ -59,6 +80,16 @@ export default function AiPanel() {
   const scroller = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const photoRef = useRef<HTMLInputElement | null>(null);
+
+  // A-8: saran slash command di atas input.
+  const [idxSaran, setIdxSaran] = useState(0);
+  const { items: saran } = matchPrompts(draft);
+  useEffect(() => setIdxSaran(0), [draft]);
+
+  const pakaiPrompt = (p: { cmd: string; body: string }) => {
+    setDraft(expandPrompt(`/${p.cmd} `, activeSelection()));
+    inputRef.current?.focus();
+  };
 
   // Auto-scroll saat token baru masuk (kecuali user sedang scroll ke atas).
   useEffect(() => {
@@ -82,6 +113,19 @@ export default function AiPanel() {
     window.addEventListener('zephyr-ai-focus', onFocusReq);
     return () => window.removeEventListener('zephyr-ai-focus', onFocusReq);
   }, []);
+
+  // A-3: quick chat dari seleksi editor (klik kanan -> Jelaskan/Perbaiki/
+  // Refactor). Editor mengirim teks yang dipilih; panel yang mengubahnya jadi
+  // prompt karena promptLibrary hidup di sini.
+  useEffect(() => {
+    const onSel = (e: Event) => {
+      const { cmd, text } = (e as CustomEvent<{ cmd: string; text: string }>).detail;
+      setDraft(expandPrompt(`/${cmd} `, text));
+      inputRef.current?.focus();
+    };
+    window.addEventListener('zephyr-ai-sel', onSel);
+    return () => window.removeEventListener('zephyr-ai-sel', onSel);
+  }, [setDraft]);
 
   return (
     <div className="ai-panel" data-testid="ai-panel">
@@ -111,19 +155,62 @@ export default function AiPanel() {
             data-testid="ai-approval"
             value={approvalMode}
             aria-label="Mode persetujuan perintah agent"
-            onChange={(e) => setApprovalMode(e.target.value as 'ask' | 'auto' | 'readonly')}
+            title="Kerja langsung: perintah aman dijalankan sendiri, yang berisiko tetap minta izin"
+            onChange={(e) => setApprovalMode(e.target.value as ApprovalMode)}
           >
+            <option value="work">Kerja langsung</option>
             <option value="ask">Minta izin</option>
-            <option value="auto">Auto</option>
+            <option value="auto">Auto (tanpa tanya)</option>
             <option value="readonly">Read-only</option>
           </select>
         )}
 
+        {/* T1.1: tingkat penalaran. "Default" = jangan kirim parameter apa pun
+            supaya provider lama yang tidak mengenal field ini tetap jalan. */}
+        <select
+          className="ai-effort"
+          data-testid="ai-effort"
+          data-aktif={reasoningEffort ? 'true' : 'false'}
+          value={reasoningEffort ?? ''}
+          aria-label={tr('Tingkat penalaran')}
+          title={tr(
+            'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.',
+          )}
+          onChange={(e) =>
+            setReasoningEffort((e.target.value || null) as ReasoningEffort | null)
+          }
+        >
+          <option value="">{tr('Penalaran: default')}</option>
+          <option value="minimal">Minimal</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="ultra">Ultra</option>
+        </select>
+
         <div className="ai-head-right">
-          {/* CATATAN UI (aturan user, sudah kena di fase 08): tombol aksi
-              hidup di SATU tempat. "Chat baru" + riwayat ada di sidebar kiri
-              (AiSidebar) — header ini hanya menampilkan status, tanpa tombol
-              yang mengulang fungsi sidebar. */}
+          {/* Tombol sesi juga ADA DI SINI (panel bawah), bukan cuma di sidebar
+              kiri. Aturan fase 08 (aksi hidup di satu tempat) tetap berlaku
+              untuk NAVIGASI PANEL; yang ini aksi SESI CHAT — user memakai
+              panel AI tanpa pernah membuka sidebar, jadi keduanya harus
+              tersedia di tempat ia sedang melihat. */}
+          <button
+            className="ai-export"
+            data-testid="ai-new-chat-panel"
+            title={tr('Mulai percakapan baru')}
+            onClick={() => newChat()}
+          >
+            {tr('+ Chat baru')}
+          </button>
+          <button
+            className="ai-export"
+            data-testid="ai-clear-all-panel"
+            disabled={sessionCount === 0}
+            title={tr('Hapus semua riwayat chat')}
+            onClick={() => setClearAllOpen(true)}
+          >
+            {tr('Hapus semua')}
+          </button>
           <span className="ai-count" data-testid="ai-msg-count">
             {msgs.length} pesan
             {msgs.length > 0 && (
@@ -136,7 +223,7 @@ export default function AiPanel() {
             className="ai-export"
             data-testid="ai-export"
             disabled={msgs.length === 0 || !!pending}
-            title="Salin seluruh chat sebagai markdown ke clipboard"
+            title={tr('Salin seluruh chat sebagai markdown ke clipboard')}
             onClick={() => void exportChat()}
           >
             Ekspor
@@ -146,6 +233,8 @@ export default function AiPanel() {
           </span>
         </div>
       </div>
+
+      <SubAgentBar />
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat">
         {msgs.length === 0 ? (
@@ -165,6 +254,9 @@ export default function AiPanel() {
       {/* Log langkah agent: tool yang dipanggil + hasil singkat. */}
       {(agentBusy || agentSteps.length > 0) && (
         <div className="ai-agent" data-testid="ai-agent">
+          {/* Panel Todo ala opencode (item 24): daftar tugas yang di-update
+              agent lewat tool todo_write terlihat selama tugas berjalan. */}
+          <TodoPanel />
           {agentSteps.map((st, i) => (
             <div key={i} className={`ai-agent-step is-${st.kind}`} data-step-kind={st.kind}>
               {st.kind === 'tool' ? (
@@ -184,6 +276,9 @@ export default function AiPanel() {
           ))}
         </div>
       )}
+
+      {/* T2.1: kartu subagent paralel. */}
+      <SubAgentPanel />
 
       {/* Action bar: muncul hanya kalau jawaban terakhir memuat perintah. */}
       {lastCommand && (
@@ -208,17 +303,40 @@ export default function AiPanel() {
       )}
 
       <div className="ai-input-row">
-        {draftImage && (
-          <div className="ai-imgpreview" data-testid="ai-imgpreview">
-            <img src={draftImage} alt="Lampiran gambar" />
-            <button
-              className="ai-imgremove"
-              data-testid="ai-imgremove"
-              title="Hapus gambar"
-              onClick={() => setDraftImage(null)}
-            >
-              ✕
-            </button>
+        {draftImages.length > 0 && (
+          <div className="ai-imgstrip" data-testid="ai-imgstrip">
+            {draftImages.map((src, i) => (
+              <div className="ai-imgpreview" key={i} data-testid="ai-imgpreview">
+                <img src={src} alt={`Lampiran gambar ${i + 1}`} />
+                <button
+                  className="ai-imgremove"
+                  data-testid="ai-imgremove"
+                  title={tr('Hapus gambar')}
+                  onClick={() => removeDraftImage(i)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* A-8: saran slash command; Tab/Enter memakai yang tersorot. */}
+        {saran.length > 0 && (
+          <div className="ai-slash" data-testid="ai-slash" role="listbox" aria-label={tr('Perintah prompt')}>
+            {saran.map((p, i) => (
+              <button
+                key={p.cmd}
+                role="option"
+                aria-selected={i === idxSaran}
+                className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                data-testid={`ai-slash-${p.cmd}`}
+                onMouseEnter={() => setIdxSaran(i)}
+                onClick={() => pakaiPrompt(p)}
+              >
+                <span className="ai-slash-cmd">/{p.cmd}</span>
+                <span className="ai-slash-label">{p.label}</span>
+              </button>
+            ))}
           </div>
         )}
         <textarea
@@ -229,17 +347,34 @@ export default function AiPanel() {
           placeholder={
             sibuk
               ? agentMode === 'agent'
-                ? 'Agent sedang bekerja…'
+                ? tr('Agent sedang bekerja…')
                 : 'Menunggu jawaban…'
               : agentMode === 'agent'
                 ? 'Ketik tugas untuk agent (Enter kirim)…'
-                : 'Tulis pesan (Enter kirim, Shift+Enter baris baru)'
-          }
+                : tr('Tulis pesan (Enter kirim, Shift+Enter baris baru) — ketik @ untuk lampirkan file')
+                          }
           value={draft}
           spellCheck={false}
-          aria-label="Pesan untuk AI"
+          aria-label={tr('Pesan untuk AI')}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
+            // A-8: menu slash command ikut keyboard.
+            if (saran.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+              e.preventDefault();
+              const n = saran.length;
+              setIdxSaran((i) => (e.key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n));
+              return;
+            }
+            if (saran.length > 0 && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey))) {
+              e.preventDefault();
+              pakaiPrompt(saran[idxSaran]);
+              return;
+            }
+            if (e.key === 'Escape' && saran.length > 0) {
+              e.preventDefault();
+              setDraft('');
+              return;
+            }
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               void send();
@@ -250,8 +385,8 @@ export default function AiPanel() {
             void clipboardReadImage().then((url) => {
               if (url) {
                 e.preventDefault();
-                setDraftImage(url);
-                setToast('Screenshot ditempel sebagai lampiran');
+                addDraftImage(url);
+                setToast(tr('Screenshot ditempel sebagai lampiran'));
               }
             });
           }}
@@ -270,7 +405,7 @@ export default function AiPanel() {
             <button
               className="btn btn-sm btn-primary"
               data-testid="ai-send"
-              disabled={(!draft.trim() && !draftImage) || agentBusy}
+              disabled={(!draft.trim() && draftImages.length === 0) || agentBusy}
               onClick={() => void send()}
             >
               {agentMode === 'agent' ? 'Jalankan' : 'Kirim'}
@@ -284,7 +419,7 @@ export default function AiPanel() {
             title={
               activeTab
                 ? `Lampirkan file aktif: ${activeTab.path ?? activeTab.name} (maks 12KB)`
-                : 'Tidak ada file aktif'
+                : tr('Tidak ada file aktif')
             }
             onClick={() => setAttachActive(!attachActive)}
           >
@@ -294,7 +429,7 @@ export default function AiPanel() {
           <button
             className="ai-photo"
             data-testid="ai-photo"
-            title="Lampirkan gambar (maks 3,5 MB) — atau Win+Shift+S lalu Ctrl+V"
+            title={`Lampiran gambar (maks ${MAX_IMAGES} gambar, 3,5 MB masing-masing) — atau Win+Shift+S lalu Ctrl+V`}
             onClick={() => photoRef.current?.click()}
           >
             + gambar
@@ -303,19 +438,22 @@ export default function AiPanel() {
             ref={photoRef}
             type="file"
             accept="image/*"
+            multiple
             hidden
             data-testid="ai-photo-input"
             onChange={(e) => {
-              const f = e.target.files?.[0];
+              const files = Array.from(e.target.files ?? []);
               e.target.value = '';
-              if (!f) return;
-              if (f.size > 3_500_000) {
-                setToast('Gambar maksimal 3,5 MB');
-                return;
+              if (files.length === 0) return;
+              for (const f of files) {
+                if (f.size > IMAGE_MAX_BYTES) {
+                  setToast(`"${f.name}" lebih dari 3,5 MB — dilewati`);
+                  continue;
+                }
+                const r = new FileReader();
+                r.onload = () => addDraftImage(String(r.result));
+                r.readAsDataURL(f);
               }
-              const r = new FileReader();
-              r.onload = () => setDraftImage(String(r.result));
-              r.readAsDataURL(f);
             }}
           />
 
@@ -325,7 +463,7 @@ export default function AiPanel() {
             className="ai-attach"
             data-testid="ai-analyze-ts"
             disabled={!!pending}
-            title="Jalankan npx tsc --noEmit di terminal lalu minta AI menganalisis error"
+            title={tr('Jalankan npx tsc --noEmit di terminal lalu minta AI menganalisis error')}
             onClick={() => {
               void runInTerminal('npx tsc --noEmit', { confirmed: true }).then((ok) => {
                 if (!ok) return;
@@ -374,7 +512,7 @@ export default function AiPanel() {
 
       {confirmCmd && (
         <div className="ai-confirm" role="alertdialog" data-testid="ai-confirm">
-          <p className="ai-confirm-title">Perintah ini berpotensi merusak:</p>
+          <p className="ai-confirm-title">{tr('Perintah ini berpotensi merusak:')}</p>
           <code className="ai-confirm-cmd">{confirmCmd}</code>
           <div className="ai-confirm-btns">
             <button

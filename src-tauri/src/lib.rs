@@ -7,8 +7,13 @@ mod ai;
 mod app_state;
 mod browser;
 mod cli;
+mod cli_ext;
+mod cli_agents;
 mod credential;
+mod cron;
 mod dap;
+mod database;
+mod devenv;
 mod diagnostics;
 mod dialogs;
 mod errors;
@@ -19,23 +24,30 @@ mod ext_pkg;
 mod ext_registry;
 mod extensions;
 mod fs_utils;
+mod gambar;
 mod git;
 mod github;
 mod history;
+mod http_client;
 mod logging;
 mod lsp;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
+mod memory;
 mod paths;
-mod rag;
+mod proc;
 mod pty;
+mod rag;
 mod search;
 mod secrets;
 mod settings;
+mod skills;
 mod snippets;
 mod ssh;
+mod ssh_extra;
 mod tasks;
+mod test_explorer;
 mod tests_ai;
 mod tests_browser;
 mod tests_fs;
@@ -43,6 +55,7 @@ mod tests_git;
 mod tests_log;
 mod tests_mcp;
 mod titlebar;
+mod tunnel;
 mod workspace;
 
 use app_state::AppState;
@@ -69,7 +82,23 @@ pub fn run_credential_helper() -> bool {
 /// Sama polanya dengan credential helper: ditangani SEBELUM Tauri start supaya
 /// `zephyr --version` tidak membuka window sekadar untuk mencetak satu baris.
 pub fn run_cli_console() -> bool {
+    // Subcommand (ext/info) diperiksa LEBIH DULU: `zephyr ext list` bukan
+    // permintaan membuka file bernama "ext".
+    let argv: Vec<String> = std::env::args().skip(1).collect();
+    if cli_ext::jalankan(&argv) {
+        return true;
+    }
     cli::tangani_help_version()
+}
+
+/// Apakah Zephyr berjalan dalam mode portable (T4.2).
+pub fn portable_aktif() -> bool {
+    cli_ext::portable_aktif()
+}
+
+/// Folder data Zephyr (portable: `data/` sebelah exe).
+pub fn dir_data_zephyr() -> std::path::PathBuf {
+    cli_ext::dir_data()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -109,7 +138,18 @@ pub fn run() {
             }
             let _ = app.emit("cli-args", &args);
         }))
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Window-state: posisi/ukuran/maximized dipulihkan, tapi DECORATIONS
+        // TIDAK — file state dari versi lama menyimpan `decorated: true` dan
+        // plugin ini menimpanya saat start, jadi title bar native muncul lagi
+        // walau tauri.conf.json sudah `decorations: false`.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        & !tauri_plugin_window_state::StateFlags::DECORATIONS,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -124,6 +164,7 @@ pub fn run() {
         .manage(search::SearchRuntime::default())
         // Runtime debugger (fase 22): satu sesi DAP aktif.
         .manage(dap::DapRuntime::default())
+        .manage(ssh_extra::TunnelRegistry::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
@@ -131,6 +172,9 @@ pub fn run() {
             settings::spawn_ram_sampler(app.handle().clone(), minimized_setup);
             // Panic hook boleh memberi tahu frontend mulai dari sini (14.6).
             logging::attach_app(app.handle().clone());
+            // Timer tugas terjadwal (1.1.11). Mulai selalu — biaya saat tidak
+            // ada tugas = satu lock + baca file tiap 30 detik.
+            cron::mulai_timer(app.handle().clone());
             app.state::<AppState>()
                 .perf_mark("setup", Some(boot.elapsed().as_millis() as u64));
 
@@ -232,9 +276,9 @@ pub fn run() {
             explorer::search_files,
             explorer::list_workspace_files,
             // browser pane (fase 12)
-                        browser::browser_probe,
-                        // RAG lokal (fase 34): cari konteks project sebelum kirim ke LLM.
-                        rag::rag_search,
+            browser::browser_probe,
+            // RAG lokal (fase 34): cari konteks project sebelum kirim ke LLM.
+            rag::rag_search,
             explorer::replace_in_file,
             explorer::reveal_path,
             // terminal / pty (fase 05)
@@ -255,19 +299,45 @@ pub fn run() {
             ssh::ssh_clear_password,
             ssh::ssh_connect,
             ssh::ssh_disconnect,
+            ssh_extra::ssh_forward_start,
+            ssh_extra::ssh_forward_stop,
+            ssh_extra::ssh_forward_list,
+            ssh_extra::ssh_forward_jumlah,
+            ssh_extra::ssh_sftp_list,
+            ssh_extra::ssh_sftp_get,
+            ssh_extra::ssh_sftp_hapus,
+            ssh_extra::ssh_sftp_cek_nama,
             // agent CLI (fase 06)
             agents::list_agents,
             // settings lanjutan (fase 08)
             secrets::get_public_models,
-                        secrets::set_model_key,
-                        secrets::test_model_connection,
-                        secrets::list_models,
-                        secrets::reset_settings,
+            secrets::set_model_key,
+            secrets::test_model_connection,
+            secrets::list_models,
+            secrets::reset_settings,
             // AI panel (fase 09)
             ai::ai_chat,
             ai::ai_cancel,
+            cli_agents::cli_agents_detect,
+            cli_agents::cli_agent_run,
+            http_client::http_parse,
+            http_client::http_send,
+            gambar::baca_gambar,
+            app_state::portable_mode,
+            database::db_sqlite_query,
+            database::db_sqlite_tabel,
+            devenv::devenv_detect,
+            devenv::devenv_start,
+            devenv::devenv_status,
+            devenv::devenv_stop,
+            test_explorer::test_detect,
+            tunnel::tunnel_tersedia,
+            tunnel::tunnel_start,
+            tunnel::tunnel_stop,
+            tunnel::tunnel_list,
             // mode agent — satu langkah loop dengan tool calling
             ai::ai_tool_chat,
+            ai::ai_tool_chat_stream,
             // git (fase 10)
             git::git_init,
             git::git_status,
@@ -401,6 +471,20 @@ pub fn run() {
             dialogs::folder_dialog_open,
             // title bar Windows (nyatu dengan baris menu)
             titlebar::titlebar_theme,
+            // skill + memori + cron agent (1.1.11) — paritas Hermes
+            skills::skills_list,
+            skills::skill_read,
+            skills::skill_write,
+            skills::skill_delete,
+            skills::agent_context,
+            memory::memory_read,
+            memory::memory_write,
+            cron::cron_list,
+            cron::cron_create,
+            cron::cron_delete,
+            cron::cron_toggle,
+            cron::cron_due,
+            cron::cron_mark_run,
         ])
         .build(tauri::generate_context!());
 
@@ -411,9 +495,21 @@ pub fn run() {
             if let RunEvent::Exit = event {
                 let st = handle.state::<AppState>();
                 tracing::info!(uptime_ms = st.uptime_ms(), "application exit");
+                // Tunnel port yang tertinggal = port lokal terbuka tanpa user
+                // sadar. Matikan SEMUA sebelum proses keluar.
+                let fwd = handle.state::<ssh_extra::TunnelRegistry>();
+                let n = fwd.jumlah();
+                if n > 0 {
+                    tracing::info!(jumlah = n, "mematikan tunnel port");
+                    fwd.bunuh_semua();
+                }
                 st.pty_kill_all();
                 // Tutup socket MCP supaya port 9222 tidak tertinggal listening.
                 mcp_server::stop(handle);
+                // T2.3: matikan semua Cloudflare Tunnel. WAJIB — tunnel yang
+                // tertinggal berarti localhost user tetap terbuka ke internet
+                // tanpa ia sadari.
+                tunnel::matikan_semua(&st.tunnels);
             }
         }),
         Err(e) => {

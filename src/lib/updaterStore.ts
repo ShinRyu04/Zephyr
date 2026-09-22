@@ -13,6 +13,7 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { notifyInfo, useNotif } from './notificationStore';
+import { tf, tx } from './i18n';
 
 export type UpdateStatus =
   | 'idle'
@@ -92,7 +93,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         pubDate: null,
         notes: null,
         progress: 0,
-        message: 'Mode dev — cek update dinonaktifkan',
+        message: tx('update.devMode'),
       });
       return;
     }
@@ -101,7 +102,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       const { check } = await import('@tauri-apps/plugin-updater');
       const upd = await check();
       if (!upd) {
-        set({ status: 'up-to-date', message: 'Zephyr sudah versi terbaru', version: null });
+        set({ status: 'up-to-date', message: tx('update.upToDate'), version: null });
         return;
       }
       updateObj = upd;
@@ -128,10 +129,10 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
           .slice(0, 220);
         useNotif.getState().notify({
           severity: 'info',
-          message: `Zephyr v${upd.version} tersedia`,
+          message: tf('update.available', { v: upd.version }),
           detail: ringkas || undefined,
           source: 'update',
-          actions: [{ label: 'Lihat & pasang', command: 'help.checkUpdates' }],
+          actions: [{ label: tx('update.viewInstall'), command: 'help.checkUpdates' }],
         });
       }
     } catch (e) {
@@ -139,13 +140,13 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       if (belumDikonfigurasi(pesan)) {
         set({
           status: 'unconfigured',
-          message: 'Update belum dikonfigurasi (endpoint rilis belum diisi)',
+          message: tx('update.unconfigured'),
         });
         return;
       }
       set({
         status: opts?.senyap ? 'idle' : 'error',
-        message: opts?.senyap ? null : `Gagal memeriksa update: ${pesan}`,
+        message: opts?.senyap ? null : tf('update.checkFailed', { e: pesan }),
       });
     }
   },
@@ -155,7 +156,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       | { downloadAndInstall: (cb: (ev: unknown) => void) => Promise<void> }
       | null;
     if (!upd) {
-      set({ status: 'error', message: 'Tidak ada update yang siap diunduh' });
+      set({ status: 'error', message: tx('update.nothingToDownload') });
       return;
     }
     set({ status: 'downloading', progress: 0, dialogOpen: false, message: null });
@@ -177,16 +178,16 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       });
       set({
         status: 'ready',
-        message: 'Update terpasang — restart Zephyr untuk memakainya',
+        message: tx('update.installed'),
       });
-      notifyInfo('Update terpasang — restart Zephyr untuk memakainya', {
+      notifyInfo(tx('update.installed'), {
         source: 'update',
       });
       const notes = get().notes ?? '';
       void cmd.setSettings({ update: { pendingNotes: notes } }).catch(() => {});
     } catch (e) {
       const pesan = e instanceof Error ? e.message : String(e);
-      set({ status: 'error', message: `Gagal memasang update: ${pesan}` });
+      set({ status: 'error', message: tf('update.installFailed', { e: pesan }) });
     }
   },
 
@@ -195,7 +196,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     } catch (e) {
-      set({ message: `Tidak bisa restart otomatis: ${e}` });
+      set({ message: tf('update.restartFailed', { e: String(e) }) });
     }
   },
 
@@ -206,20 +207,20 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
 export function labelStatus(s: UpdateStatus, versi: string | null, progress: number): string {
   switch (s) {
     case 'checking':
-      return 'Memeriksa…';
+      return tx('update.checking');
     case 'available':
-      return `Update ke v${versi ?? '?'}`;
+      return tf('update.updateTo', { v: versi ?? '?' });
     case 'downloading':
-      return `Mengunduh ${progress}%`;
+      return tf('update.downloading', { p: progress });
     case 'ready':
-      return 'Restart untuk memasang';
+      return tx('update.restartToInstall');
     case 'up-to-date':
-      return 'Sudah terbaru';
+      return tx('update.upToDate');
     case 'unconfigured':
-      return 'Update belum dikonfigurasi';
+      return tx('update.unconfigured');
     case 'error':
-      return 'Coba lagi';
+      return tx('update.retry');
     default:
-      return 'Cek update';
+      return tx('update.check');
   }
 }

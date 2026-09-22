@@ -7,6 +7,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { usePalette, type PaletteItem } from '../../lib/paletteStore';
+import { useT } from '../../lib/i18n';
 
 const WINDOW = 40;
 const ROW_H = 30;
@@ -121,6 +122,7 @@ function Row({
 }
 
 export default function CommandPalette() {
+  const tr = useT();
   const open = usePalette((s) => s.open);
   const mode = usePalette((s) => s.mode);
   const query = usePalette((s) => s.query);
@@ -187,7 +189,7 @@ export default function CommandPalette() {
             placeholder={
               mode === 'file' ? 'Ketik nama file…' : 'Ketik nama perintah, mis. "git commit"'
             }
-            aria-label={mode === 'file' ? 'Cari file' : 'Cari perintah'}
+            aria-label={mode === 'file' ? tr('Cari file') : tr('Cari perintah')}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
@@ -237,8 +239,8 @@ export default function CommandPalette() {
                 ? 'Memuat daftar file…'
                 : (filesError ??
                   (mode === 'file'
-                    ? 'Tidak ada file yang cocok.'
-                    : 'Tidak ada perintah yang cocok.'))}
+                    ? tr('Tidak ada file yang cocok.')
+                    : tr('Tidak ada perintah yang cocok.')))}
             </p>
           )}
         </div>

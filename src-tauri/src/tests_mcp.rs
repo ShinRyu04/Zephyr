@@ -139,7 +139,10 @@ mod tests {
         let existing = "name: \"agent-ku\"\nskills:\n  enabled: true\nmcp_servers:\n  lain:\n    url: \"http://x\"\n";
         let out = merge_yaml_for_test(existing, "mcp_servers", 9222, TOKEN);
 
-        assert!(out.contains("name: \"agent-ku\""), "baris lain hilang: {out}");
+        assert!(
+            out.contains("name: \"agent-ku\""),
+            "baris lain hilang: {out}"
+        );
         assert!(out.contains("skills:"), "blok lain hilang");
         assert!(out.contains("  lain:"), "server lain hilang");
         assert!(out.contains("mcp_servers:"));

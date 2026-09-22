@@ -8,6 +8,9 @@ import ActivityBar from './components/shell/ActivityBar';
 import Sidebar from './components/shell/Sidebar';
 import SplitEditor from './components/shell/SplitEditor';
 import Panel from './components/shell/Panel';
+import TerminalArea from './components/shell/TerminalArea';
+import AiPanel from './components/ai/AiPanel';
+import ClearChatsDialog from './components/ai/ClearChatsDialog';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import SaveIssueDialog from './components/shell/SaveIssueDialog';
@@ -26,6 +29,7 @@ import CommandPalette from './components/shell/CommandPalette';
 import McpToast from './components/shell/McpToast';
 import CrashDialog from './components/shell/CrashDialog';
 import { useStore } from './lib/store';
+import { useTampilan } from './lib/tampilanStore';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
 import { useAi } from './lib/aiStore';
@@ -79,6 +83,7 @@ import './index.css';
 // dengan specificity yang sama (`:where()` = 0), jadi yang menang ditentukan
 // URUTAN. Ditaruh sebelum index.css berarti focus ring-nya ditimpa balik.
 import './styles/a11y.css';
+import { useT } from './lib/i18n';
 
 /** Guard: listener PTY hanya boleh didaftarkan sekali per proses.
  *  React StrictMode (dev) menjalankan effect dua kali — kalau listener
@@ -121,14 +126,31 @@ async function cekUpdateStartup() {
 }
 
 export default function App() {
+  const tr = useT();
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const sidebarHeight = useStore((s) => s.sidebarHeight);
   const pos = useStore((s) => s.settings.sidebar);
+  // Zen mode: menyembunyikan Activity Bar, sidebar, panel, dan status bar.
+  const zen = useTampilan((s) => s.mode === 'zen');
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const setSidebarHeight = useStore((s) => s.setSidebarHeight);
   const bootstrap = useStore((s) => s.bootstrap);
   const terminalMaximized = useTerminal((s) => s.maximized);
+  const dockBawah = useTerminal((s) => s.dock);
+  const panelBawahVisible = useTerminal((s) => s.visible);
+  const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'bottom');
+  const layoutTerminal = useStore((s) => s.settings.general.layout === 'terminal');
+  // A-10: panel AI di kolom kanan hanya saat user memilihnya DAN panel bawah
+  // sedang menampilkan AI — kalau tidak, dua AiPanel ter-mount sekaligus.
+  const aiKanan = aiPanelPos === 'right' && dockBawah === 'ai' && panelBawahVisible;
+
+  // C-19: di layout terminal-first terminal tidak boleh dalam keadaan
+  // "terlipat" — kalau tidak yang tampil hanya tombol "Panel".
+  useEffect(() => {
+    if (layoutTerminal && !panelBawahVisible) useTerminal.getState().setVisible(true);
+  }, [layoutTerminal, panelBawahVisible]);
+
   const dragging = useRef(false);
 
   // 1) Muat settings + restore session sekali di awal.
@@ -406,6 +428,9 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'i') return;
+      // A-4: di dalam editor, Ctrl+I membuka chat mini melayang (InlineChat),
+      // bukan panel bawah — panel bawah akan menutupi kode yang sedang diedit.
+      if ((e.target as HTMLElement | null)?.closest?.('.zephyr-cm-host')) return;
       e.preventDefault();
       const s = useStore.getState();
       const t = useTerminal.getState();
@@ -624,7 +649,37 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // 6) Watcher (fase 04): file berubah dari luar -> re-scan folder terkait.
+  // 6) B-13: hemat GPU/CPU saat jendela tidak dilihat. Animasi CSS (spinner,
+  //    shimmer, transisi panel) berhenti total saat jendela di-minimize atau
+  //    tidak fokus; Chromium tetap meng-composite frame walau tak terlihat.
+  useEffect(() => {
+    const root = document.documentElement;
+    const set = (idle: boolean) => {
+      if (idle) root.dataset.idle = '1';
+      else delete root.dataset.idle;
+    };
+    const onVis = () => set(document.hidden);
+    document.addEventListener('visibilitychange', onVis);
+    onVis();
+
+    let unlisten: (() => void) | undefined;
+    try {
+      void getCurrentWindow()
+        .onFocusChanged(({ payload: fokus }) => set(!fokus || document.hidden))
+        .then((un) => {
+          unlisten = un;
+        });
+    } catch {
+      /* non-Tauri */
+    }
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      unlisten?.();
+      delete root.dataset.idle;
+    };
+  }, []);
+
+  // 7) Watcher (fase 04): file berubah dari luar -> re-scan folder terkait.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     onFsChanged(({ dir, path, kind }) => {
@@ -910,12 +965,12 @@ export default function App() {
           }
         }}
       >
-        Lompat ke editor
+        {tr('win.skipToEditor')}
       </button>
       <MenuBar />
       <UpdateBanner />
       <DonateDialog />
-      <div className={`app-body sidebar-pos-${pos}`}>
+      <div className={`app-body sidebar-pos-${pos}${zen ? ' is-zen' : ''}`}>
         {/* ActivityBar IKUT PINDAH mengikuti posisi panel:
             - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)
             - atas/bawah : horizontal di tepi atas/bawah (CSS)
@@ -938,7 +993,7 @@ export default function App() {
                 className="resizer resizer-h"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Ubah tinggi panel"
+                aria-label={tr('Ubah tinggi panel')}
                 onPointerDown={startResize}
               />
             </>
@@ -954,16 +1009,45 @@ export default function App() {
                 className="resizer"
                 role="separator"
                 aria-orientation="vertical"
-                aria-label="Ubah lebar sidebar"
+                aria-label={tr('Ubah lebar sidebar')}
                 onPointerDown={startResize}
               />
             </>
           )}
 
           <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
-            <SplitEditor />
-            <Panel />
+            {/* C-19: layout terminal-first ala Terax — terminal jadi area
+                utama, editor menempel sebagai pane di kanan. Default tetap
+                editor-first supaya perilaku lama tidak berubah. */}
+            {layoutTerminal ? (
+              <div className="term-first" data-testid="term-first">
+                <section className="term-first-term" aria-label="Terminal utama">
+                  <TerminalArea />
+                </section>
+                <aside className="term-first-editor" aria-label="Editor">
+                  <SplitEditor />
+                </aside>
+              </div>
+            ) : (
+              <>
+                <SplitEditor />
+                <Panel />
+              </>
+            )}
           </main>
+
+          {/* A-10: panel AI sebagai kolom kanan 340px ala VS Code, bukan dock
+              bawah sejajar terminal. Dirender HANYA saat dock = 'ai' supaya
+              lebar editor tidak berkurang saat user sedang di terminal. */}
+          {aiKanan && (
+            <aside
+              className="ai-side-col"
+              data-testid="ai-side-col"
+              aria-label="Panel AI"
+            >
+              <AiPanel />
+            </aside>
+          )}
 
           {/* Posisi BAWAH: divider horizontal + panel di bawah editor. */}
           {pos === 'bottom' && sidebarVisible && (
@@ -972,7 +1056,7 @@ export default function App() {
                 className="resizer resizer-h"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Ubah tinggi panel"
+                aria-label={tr('Ubah tinggi panel')}
                 onPointerDown={startResize}
               />
               <aside
@@ -999,6 +1083,7 @@ export default function App() {
       <Toast />
       <NotificationCenter />
       <DeleteConfirmDialog />
+      <ClearChatsDialog />
       <TrustDialog />
       {/* Izin runtime eksternal ekstensi — global, bisa muncul kapan
           saja karena eksekusi bisa diminta dari worker mana pun. */}

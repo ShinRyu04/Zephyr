@@ -152,7 +152,7 @@ export function NavIcon({ id }: { id: SectionId }) {
 }
 
 export default function SettingsNav() {
-  const t = useT();
+  const tr = useT();
   const section = useSettingsUi((s) => s.section);
   const setSection = useSettingsUi((s) => s.setSection);
   const resetStage = useSettingsUi((s) => s.resetStage);
@@ -174,8 +174,8 @@ export default function SettingsNav() {
   };
 
   return (
-    <nav className="set-nav" aria-label={t('settings.title')}>
-      <div className="side-title set-nav-title">{t('settings.title')}</div>
+    <nav className="set-nav" aria-label={tr('settings.title')}>
+      <div className="side-title set-nav-title">{tr('settings.title')}</div>
 
       {SECTION_ORDER.map((id) => (
         <button
@@ -189,7 +189,7 @@ export default function SettingsNav() {
           }}
         >
           <NavIcon id={id} />
-          <span>{t(NAV_KEY[id])}</span>
+          <span>{tr(NAV_KEY[id])}</span>
         </button>
       ))}
 
@@ -200,15 +200,15 @@ export default function SettingsNav() {
             data-testid="set-reset"
             onClick={() => setResetStage(1)}
           >
-            {t('settings.resetAll')}
+            {tr('settings.resetAll')}
           </button>
         )}
         {resetStage === 1 && (
           <div className="set-confirm" data-testid="set-reset-c1">
-            <p>Semua setting kembali ke default. API key tidak dihapus. Lanjut?</p>
+            <p>{tr('Semua setting kembali ke default. API key tidak dihapus. Lanjut?')}</p>
             <div className="set-confirm-row">
               <button className="btn btn-sm" onClick={() => setResetStage(0)}>
-                {t('common.cancel')}
+                {tr('common.cancel')}
               </button>
               <button
                 className="btn btn-sm btn-danger"
@@ -225,7 +225,7 @@ export default function SettingsNav() {
             <p>Yakin? Tema, shortcut, dan semua preferensi akan hilang.</p>
             <div className="set-confirm-row">
               <button className="btn btn-sm" onClick={() => setResetStage(0)}>
-                {t('common.cancel')}
+                {tr('common.cancel')}
               </button>
               <button
                 className="btn btn-sm btn-danger"
