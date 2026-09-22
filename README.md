@@ -183,11 +183,26 @@ refused rather than hijacked.
 
 ![SFTP explorer and port tunnels](docs/screenshots/12-sftp.png)
 
+**Customize Layout** — one panel (the layout button in the title bar, or
+`View: Customize Layout`) gathers every visibility control in one place:
+**Menu Bar, Activity Bar, Primary Side Bar, Panel, Status Bar**, side bar
+position (left/right), layout density (default/compact), and Zen Mode. Each row
+shows its current state, and a reset button puts everything back. Your choices
+are saved, so the layout you set is the layout you get next time. The AI panel
+has its own hide button too — closing it from inside the panel, the way the VS
+Code chat panel works.
+
+![Customize Layout panel](docs/screenshots/14-customize-layout.png)
+
 **Zen mode, image preview** — `View: Toggle Zen Mode` (or the command palette)
 hides the Activity Bar, sidebar, panel, and status bar so only the editor is
 left. Opening a `.png/.jpg/.gif/.webp/.bmp/.ico/.avif/.svg` shows a real preview
 with zoom and a checkerboard for transparency, instead of dumping binary into
 the editor.
+
+![AI panel with its own hide button](docs/screenshots/15-panel-ai-hide.png)
+
+![Compact layout density](docs/screenshots/16-layout-compact.png)
 
 ![Zen mode: editor only](docs/screenshots/13-zen-mode.png)
 

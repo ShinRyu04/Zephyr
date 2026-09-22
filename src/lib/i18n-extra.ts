@@ -11,6 +11,22 @@
 type Dict = Record<string, string>;
 
 const ID: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'Customize Layout',
+  'Customize Layout…': 'Customize Layout…',
+  'Terlihat': 'Terlihat',
+  'Menu Bar': 'Menu Bar',
+  'Activity Bar': 'Activity Bar',
+  'Primary Side Bar': 'Primary Side Bar',
+  'Posisi Side Bar': 'Posisi Side Bar',
+  'Kiri': 'Kiri',
+  'Kanan': 'Kanan',
+  'Kerapatan': 'Kerapatan',
+  'Normal': 'Normal',
+  'Rapat': 'Rapat',
+  'Zen Mode': 'Zen Mode',
+  'Kembalikan tata letak bawaan': 'Kembalikan tata letak bawaan',
+  'Sembunyikan panel AI': 'Sembunyikan panel AI',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'Perkecil',
   'Perbesar tampilan': 'Perbesar',
@@ -339,6 +355,22 @@ const ID: Dict = {
 };
 
 const EN: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'Customize Layout',
+  'Customize Layout…': 'Customize Layout…',
+  'Terlihat': 'Visible',
+  'Menu Bar': 'Menu Bar',
+  'Activity Bar': 'Activity Bar',
+  'Primary Side Bar': 'Primary Side Bar',
+  'Posisi Side Bar': 'Side Bar Position',
+  'Kiri': 'Left',
+  'Kanan': 'Right',
+  'Kerapatan': 'Layout Density',
+  'Normal': 'Default',
+  'Rapat': 'Compact',
+  'Zen Mode': 'Zen Mode',
+  'Kembalikan tata letak bawaan': 'Reset layout to default',
+  'Sembunyikan panel AI': 'Hide AI panel',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'Zoom out',
   'Perbesar': 'Zoom in',
@@ -653,6 +685,22 @@ const EN: Dict = {
 };
 
 const JA: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'レイアウトのカスタマイズ',
+  'Customize Layout…': 'レイアウトをカスタマイズ…',
+  'Terlihat': '表示',
+  'Menu Bar': 'メニューバー',
+  'Activity Bar': 'アクティビティバー',
+  'Primary Side Bar': 'プライマリサイドバー',
+  'Posisi Side Bar': 'サイドバーの位置',
+  'Kiri': '左',
+  'Kanan': '右',
+  'Kerapatan': 'レイアウト密度',
+  'Normal': '標準',
+  'Rapat': 'コンパクト',
+  'Zen Mode': 'Zen モード',
+  'Kembalikan tata letak bawaan': 'レイアウトを既定に戻す',
+  'Sembunyikan panel AI': 'AI パネルを隠す',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': '縮小',
   'Perbesar': '拡大',
@@ -967,6 +1015,22 @@ const JA: Dict = {
 };
 
 const KO: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': '레이아웃 사용자 지정',
+  'Customize Layout…': '레이아웃 사용자 지정…',
+  'Terlihat': '표시',
+  'Menu Bar': '메뉴 표시줄',
+  'Activity Bar': '활동 표시줄',
+  'Primary Side Bar': '기본 사이드바',
+  'Posisi Side Bar': '사이드바 위치',
+  'Kiri': '왼쪽',
+  'Kanan': '오른쪽',
+  'Kerapatan': '레이아웃 밀도',
+  'Normal': '기본',
+  'Rapat': '조밀',
+  'Zen Mode': 'Zen 모드',
+  'Kembalikan tata letak bawaan': '레이아웃을 기본값으로 재설정',
+  'Sembunyikan panel AI': 'AI 패널 숨기기',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': '축소',
   'Perbesar': '확대',
@@ -1281,6 +1345,22 @@ const KO: Dict = {
 };
 
 const ZH: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': '自定义布局',
+  'Customize Layout…': '自定义布局…',
+  'Terlihat': '可见',
+  'Menu Bar': '菜单栏',
+  'Activity Bar': '活动栏',
+  'Primary Side Bar': '主侧边栏',
+  'Posisi Side Bar': '侧边栏位置',
+  'Kiri': '左',
+  'Kanan': '右',
+  'Kerapatan': '布局密度',
+  'Normal': '默认',
+  'Rapat': '紧凑',
+  'Zen Mode': 'Zen 模式',
+  'Kembalikan tata letak bawaan': '将布局重置为默认值',
+  'Sembunyikan panel AI': '隐藏 AI 面板',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': '缩小',
   'Perbesar': '放大',
@@ -1595,6 +1675,22 @@ const ZH: Dict = {
 };
 
 const ES: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'Personalizar diseno',
+  'Customize Layout…': 'Personalizar diseno…',
+  'Terlihat': 'Visible',
+  'Menu Bar': 'Barra de menus',
+  'Activity Bar': 'Barra de actividad',
+  'Primary Side Bar': 'Barra lateral principal',
+  'Posisi Side Bar': 'Posicion de la barra lateral',
+  'Kiri': 'Izquierda',
+  'Kanan': 'Derecha',
+  'Kerapatan': 'Densidad del diseno',
+  'Normal': 'Predeterminado',
+  'Rapat': 'Compacto',
+  'Zen Mode': 'Modo Zen',
+  'Kembalikan tata letak bawaan': 'Restablecer diseno predeterminado',
+  'Sembunyikan panel AI': 'Ocultar panel de IA',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'Alejar',
   'Perbesar': 'Acercar',
@@ -1909,6 +2005,22 @@ const ES: Dict = {
 };
 
 const FR: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'Personnaliser la disposition',
+  'Customize Layout…': 'Personnaliser la disposition…',
+  'Terlihat': 'Visible',
+  'Menu Bar': 'Barre de menus',
+  'Activity Bar': 'Barre d activite',
+  'Primary Side Bar': 'Barre laterale principale',
+  'Posisi Side Bar': 'Position de la barre laterale',
+  'Kiri': 'Gauche',
+  'Kanan': 'Droite',
+  'Kerapatan': 'Densite de disposition',
+  'Normal': 'Par defaut',
+  'Rapat': 'Compact',
+  'Zen Mode': 'Mode Zen',
+  'Kembalikan tata letak bawaan': 'Reinitialiser la disposition',
+  'Sembunyikan panel AI': 'Masquer le panneau IA',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'Reduire',
   'Perbesar': 'Agrandir',
@@ -2223,6 +2335,22 @@ const FR: Dict = {
 };
 
 const DE: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'Layout anpassen',
+  'Customize Layout…': 'Layout anpassen…',
+  'Terlihat': 'Sichtbar',
+  'Menu Bar': 'Menueleiste',
+  'Activity Bar': 'Aktivitaetsleiste',
+  'Primary Side Bar': 'Primaere Seitenleiste',
+  'Posisi Side Bar': 'Position der Seitenleiste',
+  'Kiri': 'Links',
+  'Kanan': 'Rechts',
+  'Kerapatan': 'Layout-Dichte',
+  'Normal': 'Standard',
+  'Rapat': 'Kompakt',
+  'Zen Mode': 'Zen-Modus',
+  'Kembalikan tata letak bawaan': 'Layout zuruecksetzen',
+  'Sembunyikan panel AI': 'KI-Panel ausblenden',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'Verkleinern',
   'Perbesar': 'Vergroessern',
@@ -2537,6 +2665,22 @@ const DE: Dict = {
 };
 
 const PT: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'Personalizar layout',
+  'Customize Layout…': 'Personalizar layout…',
+  'Terlihat': 'Visivel',
+  'Menu Bar': 'Barra de menus',
+  'Activity Bar': 'Barra de atividades',
+  'Primary Side Bar': 'Barra lateral principal',
+  'Posisi Side Bar': 'Posicao da barra lateral',
+  'Kiri': 'Esquerda',
+  'Kanan': 'Direita',
+  'Kerapatan': 'Densidade do layout',
+  'Normal': 'Padrao',
+  'Rapat': 'Compacto',
+  'Zen Mode': 'Modo Zen',
+  'Kembalikan tata letak bawaan': 'Redefinir layout padrao',
+  'Sembunyikan panel AI': 'Ocultar painel de IA',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'Diminuir',
   'Perbesar': 'Ampliar',
@@ -2851,6 +2995,22 @@ const PT: Dict = {
 };
 
 const AR: Dict = {
+  // ── T3.5: Customize Layout ──
+  'Customize Layout': 'تخصيص التخطيط',
+  'Customize Layout…': 'تخصيص التخطيط…',
+  'Terlihat': 'مرئي',
+  'Menu Bar': 'شريط القوائم',
+  'Activity Bar': 'شريط الأنشطة',
+  'Primary Side Bar': 'الشريط الجانبي الرئيسي',
+  'Posisi Side Bar': 'موضع الشريط الجانبي',
+  'Kiri': 'يسار',
+  'Kanan': 'يمين',
+  'Kerapatan': 'كثافة التخطيط',
+  'Normal': 'افتراضي',
+  'Rapat': 'مضغوط',
+  'Zen Mode': 'وضع Zen',
+  'Kembalikan tata letak bawaan': 'إعادة التخطيط الافتراضي',
+  'Sembunyikan panel AI': 'إخفاء لوحة الذكاء الاصطناعي',
   // ── T3.4: Zen + pratinjau gambar ──
   'Perkecil': 'تصغير',
   'Perbesar': 'تكبير',

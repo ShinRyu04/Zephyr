@@ -30,6 +30,7 @@ import McpToast from './components/shell/McpToast';
 import CrashDialog from './components/shell/CrashDialog';
 import { useStore } from './lib/store';
 import { useTampilan } from './lib/tampilanStore';
+import { useLayoutCustom } from './lib/layoutStore';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
 import { useAi } from './lib/aiStore';
@@ -133,6 +134,16 @@ export default function App() {
   const pos = useStore((s) => s.settings.sidebar);
   // Zen mode: menyembunyikan Activity Bar, sidebar, panel, dan status bar.
   const zen = useTampilan((s) => s.mode === 'zen');
+  // Customize Layout: visibilitas Menu Bar / Activity Bar / Sidebar / Status Bar.
+  const L = useLayoutCustom();
+  // Muat sekali saat app start. Tanpa ini, pilihan user hilang setiap restart
+  // dan tata letak selalu kembali ke default.
+  const layoutDimuat = useRef(false);
+  useEffect(() => {
+    if (layoutDimuat.current) return;
+    layoutDimuat.current = true;
+    void useLayoutCustom.getState().muat();
+  }, []);
   const setSidebarWidth = useStore((s) => s.setSidebarWidth);
   const setSidebarHeight = useStore((s) => s.setSidebarHeight);
   const bootstrap = useStore((s) => s.bootstrap);
@@ -967,20 +978,20 @@ export default function App() {
       >
         {tr('win.skipToEditor')}
       </button>
-      <MenuBar />
+      {L.menuBar && <MenuBar />}
       <UpdateBanner />
       <DonateDialog />
-      <div className={`app-body sidebar-pos-${pos}${zen ? ' is-zen' : ''}`}>
+      <div className={`app-body sidebar-pos-${pos}${zen ? ' is-zen' : ''}${L.kerapatan === 'compact' ? ' is-compact' : ''}`}>
         {/* ActivityBar IKUT PINDAH mengikuti posisi panel:
             - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)
             - atas/bawah : horizontal di tepi atas/bawah (CSS)
             Urutan DOM dibuat tetap [ActivityBar, sidebar?, main, …] supaya
             flex-direction row-reverse/column dari sidebar-pos-* bekerja. */}
         <div className="app-body-col">
-          {pos !== 'bottom' && <ActivityBar />}
+          {pos !== 'bottom' && L.activityBar && <ActivityBar />}
 
           {/* Posisi ATAS: panel di atas editor, divider horizontal. */}
-          {pos === 'top' && sidebarVisible && (
+          {pos === 'top' && sidebarVisible && L.sidebar && (
             <>
               <aside
                 className="sidebar sidebar-h"
@@ -1000,7 +1011,7 @@ export default function App() {
           )}
 
           {/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal. */}
-          {(pos === 'left' || pos === 'right') && sidebarVisible && (
+          {(pos === 'left' || pos === 'right') && sidebarVisible && L.sidebar && (
             <>
               <aside className="sidebar" style={{ width: sidebarWidth }} aria-label="Sidebar">
                 <Sidebar />
@@ -1050,7 +1061,7 @@ export default function App() {
           )}
 
           {/* Posisi BAWAH: divider horizontal + panel di bawah editor. */}
-          {pos === 'bottom' && sidebarVisible && (
+          {pos === 'bottom' && sidebarVisible && L.sidebar && (
             <>
               <div
                 className="resizer resizer-h"
@@ -1069,11 +1080,11 @@ export default function App() {
             </>
           )}
 
-          {pos === 'bottom' && <ActivityBar />}
+          {pos === 'bottom' && L.activityBar && <ActivityBar />}
         </div>
       </div>
 
-      <StatusBar />
+      {L.statusBar && <StatusBar />}
       <ConfirmDialog />
       <SaveIssueDialog />
       <ScmConfirmDialog />

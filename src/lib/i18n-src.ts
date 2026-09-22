@@ -17,6 +17,22 @@
 
 /** teks Indonesia → Inggris */
 export const EN: Record<string, string> = {
+  // T3.5: Customize Layout (ala VS Code).
+  'Customize Layout': 'Customize Layout',
+  'Customize Layout…': 'Customize Layout…',
+  'Terlihat': 'Visible',
+  'Menu Bar': 'Menu Bar',
+  'Activity Bar': 'Activity Bar',
+  'Primary Side Bar': 'Primary Side Bar',
+  'Posisi Side Bar': 'Side Bar Position',
+  'Kiri': 'Left',
+  'Kanan': 'Right',
+  'Kerapatan': 'Layout Density',
+  'Normal': 'Default',
+  'Rapat': 'Compact',
+  'Zen Mode': 'Zen Mode',
+  'Kembalikan tata letak bawaan': 'Reset layout to default',
+  'Sembunyikan panel AI': 'Hide AI panel',
   // T3.4: Zen mode + pratinjau gambar.
   // Zoom pakai kunci yang SUDAH ADA ('Perbesar/Perkecil/Reset tampilan').
   'Tutup pratinjau': 'Close preview',

@@ -71,6 +71,11 @@ export default function AiPanel() {
   // zustand v5 membandingkan hasil selector dengan === , jadi array baru tiap
   // render memicu "Maximum update depth exceeded". Ambil angka (primitif).
   const paneCount = useTerminal((s) => s.terminalTabs.reduce((n, t) => n + t.panes.length, 0));
+  // Panel AI sedang tampil di kolom kanan? Tombol sembunyikan berperilaku beda:
+  // di kanan ia mengembalikan ke panel bawah (kolom kanan tidak punya state
+  // visible sendiri), di bawah ia menutup panel.
+  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
+  const applySettings = useStore((s) => s.applySettings);
 
   const session = sessions.find((s) => s.id === activeId) ?? null;
   const msgs = session?.messages ?? [];
@@ -231,6 +236,24 @@ export default function AiPanel() {
           <span className="ai-chatname" data-testid="ai-chat-name">
             {session?.title ?? '—'}
           </span>
+          {/* Sembunyikan panel AI dari panel itu sendiri (ala VS Code).
+              Tanpa ini, satu-satunya cara menutup panel adalah Ctrl+J atau
+              tombol di menu View — tidak terlihat dari dalam panel. */}
+          <button
+            className="ai-hide"
+            data-testid="ai-hide"
+            title={tr('Sembunyikan panel AI')}
+            aria-label={tr('Sembunyikan panel AI')}
+            onClick={() => {
+              if (aiDiKanan) {
+                void applySettings({ general: { aiPanel: 'bottom' } } as never);
+              } else {
+                useTerminal.getState().setVisible(false);
+              }
+            }}
+          >
+            ✕
+          </button>
         </div>
       </div>
 

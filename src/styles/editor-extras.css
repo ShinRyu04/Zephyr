@@ -1884,3 +1884,151 @@ body.find-highlight-all .cm-searchMatch-selected {
   flex: 1;
   min-width: 0;
 }
+
+
+/* ── Customize Layout (panel mengambang ala VS Code) ───────────────────── */
+.layout-menu {
+  position: fixed;
+  top: 34px;
+  right: 118px;
+  z-index: 80;
+  width: 268px;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  padding: 6px 0;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.lm-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.lm-judul {
+  font-weight: 700;
+  font-size: 11.5px;
+}
+
+.lm-seksi {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 7px 9px 3px;
+}
+
+.lm-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 9px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11.5px;
+  text-align: left;
+}
+
+.lm-baris:hover {
+  background: var(--hover);
+}
+
+/* Baris yang aktif diberi aksen kiri — status "terlihat" terbaca sekilas. */
+.lm-baris.is-aktif {
+  border-left: 2px solid var(--accent);
+  padding-left: 7px;
+}
+
+.lm-ikon {
+  width: 15px;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.lm-label {
+  flex: 1;
+}
+
+.lm-kbd {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.lm-pil {
+  display: flex;
+  gap: 4px;
+  padding: 2px 9px 4px;
+}
+
+.lm-pil-btn {
+  flex: 1;
+  padding: 3px 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.lm-pil-btn.is-aktif {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* ── Tombol sembunyikan panel AI (ala tombol X VS Code) ─────────────────── */
+.ai-hide {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.ai-hide:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* ── Kerapatan compact: baris lebih rapat (ala Layout Density VS Code) ──── */
+.app-body.is-compact .mb-menu .mb-top,
+.app-body.is-compact .dock-tab,
+.app-body.is-compact .pts-tab,
+.app-body.is-compact .tab {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+.app-body.is-compact .statusbar {
+  height: 20px;
+  font-size: 10.5px;
+}
+
+.app-body.is-compact .activitybar {
+  gap: 2px;
+}

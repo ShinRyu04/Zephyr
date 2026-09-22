@@ -24,6 +24,7 @@ import { devenvDetect, devenvStart, devenvStatus, devenvStop } from './commands'
 import { dbSqliteTabel, dbSqliteQuery } from './commands';
 import { sshSftpList, sshSftpGet, sshSftpHapus, sshForwardStart, sshForwardStop, sshForwardList, sshList } from './commands';
 import { useTampilan, apakahGambar, mimeGambar } from './tampilanStore';
+import { useLayoutCustom, BARIS_LAYOUT } from './layoutStore';
 import { ALL_MODELS } from './modelCatalog';
 import { THEMES, systemPrefersDark, semuaTema } from './themes';
 import { useExt19, getBahasaWorkspace } from './extensionsStore19';
@@ -669,6 +670,18 @@ export function installDevBridge(): void {
     kirim: (r: unknown, vars: [string, string][]) => kirimRequest(r as never, vars),
     muat: () => useApiClient.getState().muat(),
     simpan: () => useApiClient.getState().simpan(),
+  };
+
+  // ── T3.5: bridge Customize Layout (harness uji-t3-5) ──
+  w.__ZEPHYR_LAYOUT__ = {
+    store: useLayoutCustom,
+    state: () => useLayoutCustom.getState(),
+    toggle: (k: string) => useLayoutCustom.getState().toggle(k as never),
+    set: (b: unknown) => useLayoutCustom.getState().set(b as never),
+    reset: () => useLayoutCustom.getState().reset(),
+    simpan: () => useLayoutCustom.getState().simpan(),
+    muat: () => useLayoutCustom.getState().muat(),
+    baris: () => BARIS_LAYOUT.map((b) => ({ kunci: b.kunci, label: b.label })),
   };
 
   // ── T3.4: bridge tampilan (zen + pratinjau gambar) ──
