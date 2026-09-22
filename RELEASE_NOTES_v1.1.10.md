@@ -2,6 +2,102 @@
 
 ## What's new
 
+## New in this build — agent tooling, dev services, and a lighter footprint
+
+This refresh adds fourteen features that were previously "open the terminal and
+type it yourself". Everything below was verified by running it, not by reading
+the code.
+
+### Parallel subagents
+
+Ask for several jobs in one message and they run **at the same time**, each with
+its own name (Comet, Odyssey, Nova…), a live step log, and a cancel button. Up to
+**4 run in parallel**, each capped at **15 steps**, and each is **read-only by
+design** — two agents writing the same file is a data race, not a feature. A
+combined summary is written when the batch finishes.
+
+### Reasoning effort and a visible "Reasoned" block
+
+A **Reasoning** dropdown in the AI panel header sets how hard the model thinks:
+`minimal / low / medium / high / ultra`. It maps per provider — OpenAI
+`reasoning_effort`, Anthropic `thinking.budget_tokens` (1 024–65 536, always kept
+below `max_tokens`), Gemini `thinkingConfig.thinkingBudget` (negative = dynamic,
+0 = off). The model's thinking now streams into a collapsible **Reasoned** block
+instead of being discarded.
+
+### API client
+
+A Postman-style workspace in its own panel tab: collections, saved requests,
+environments with `{{variables}}`, and a response viewer with status, timing,
+headers, and body. Collections live in Zephyr's data folder, not in your repo —
+for requests you want versioned with the code, `.http` files still work.
+
+### Dev Environment
+
+Run **PHP, Nginx, MariaDB, and Redis** from `D:\DevEnv\` without a XAMPP-style
+bundle, with **multiple versions side by side** (PHP 8.3.33 and 8.1.34 both
+work). Ports already in use are **refused, never stolen** — taking over a port
+would kill somebody else's service without warning. Services stop when Zephyr
+closes.
+
+### Database browser
+
+Open a SQLite file and browse tables and views, run `SELECT` queries, and read
+results in a grid. The connection is **read-only** unless you flip the write
+toggle, so browsing a database your app is using cannot lock or corrupt it.
+Results are capped per query, so `SELECT *` on a huge table cannot freeze the UI.
+
+### Cloudflare Tunnel
+
+Expose a local port to the internet in one click (`cloudflared` is fetched to
+`D:\DevEnv\bin`). A permanent warning banner stays up while a tunnel is live —
+a tunnel is your localhost, open to anyone who knows the URL. Every tunnel is
+killed when Zephyr exits.
+
+### Test Explorer
+
+Detects the test runner from your project files (`package.json`, `Cargo.toml`,
+`go.mod`, `pytest`, `composer.json`, `Makefile`, plus `npm run
+verify/soak/stress/lint`) and runs it from a panel tab. It offers only runners
+that actually exist: no `scripts.test` means no `npm test` button, so you never
+press a button that answers "missing script".
+
+### SFTP + SSH port forwarding
+
+Browse a remote host's files, download and delete them, and open port tunnels
+(`ssh -L` local, `-R` remote, `-D` SOCKS) from one panel. Tunnels are cleaned up
+on exit, and a port that is already taken is refused rather than hijacked.
+
+### Zen mode and image preview
+
+`View: Toggle Zen Mode` hides the Activity Bar, sidebar, panel, and status bar,
+leaving only the editor. Opening `.png / .jpg / .gif / .webp / .bmp / .ico /
+.avif / .svg` shows a real preview with zoom and a transparency checkerboard
+instead of dumping binary into the editor.
+
+### CLI subcommands and portable mode
+
+`zephyr ext list`, `zephyr ext remove <id>`, `zephyr ext registry [url]`, and
+`zephyr info` work without opening a window, so Zephyr can be driven from scripts
+and CI. Drop a file named `portable` next to `zephyr.exe` and **all** data
+(settings, keys, extensions, logs) moves into a `data/` folder beside the
+executable — Zephyr then runs from a USB stick and leaves nothing behind on the
+host machine.
+
+### Three real bugs found and fixed along the way
+
+- **Task and test output was being thrown away.** The output buffer dropped
+  every line for a channel that did not exist yet, and nothing created the
+  channel before the first line arrived. Running a task produced a spinner and
+  an empty panel. Fixed by creating the channel before the process starts.
+- **SFTP showed "empty folder" when it could not connect at all.** The exit
+  status of `sftp` was never checked, so a dead host, a refused key, and an
+  actually-empty directory all looked identical. Now the real error is shown.
+- **The SFTP listing parser read file names wrong.** It split on every space
+  instead of runs of spaces, so any listing with aligned columns returned the
+  tail of the line as the file name.
+
+
 An agent-first AI panel, a Copilot-style inline assistant, a custom title bar, 10 fully-synced UI languages, a release binary that shrank by two thirds, and a much lighter memory footprint. **This refresh adds skills, memory, and scheduled tasks to the AI panel, plus chat history controls.**
 
 ### Skills — teach the agent once, reuse it forever

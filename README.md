@@ -124,6 +124,82 @@ from the bubble, and an optional **local RAG** (Settings → Model AI → Local 
 searches the whole project through a local server (e.g. enowx-rag + Qdrant +
 Ollama) and feeds the top chunks to the model as context.
 
+**AI panel: parallel subagents, effort control, visible reasoning** — ask for
+several jobs at once and they run **in parallel**, each with its own name
+(Comet, Odyssey, Nova…), live step log, and per-agent cancel. Up to 4 run
+together; each is capped at 15 steps and is **read-only by design** (two agents
+writing the same file is a data race, not a feature). A **Reasoning** dropdown
+sets how hard the model thinks — `minimal / low / medium / high / ultra` — mapped
+per provider (OpenAI `reasoning_effort`, Anthropic `thinking.budget_tokens`,
+Gemini `thinkingConfig.thinkingBudget`), and the model's thinking streams into a
+collapsible **Reasoned** block instead of being thrown away.
+
+![Parallel subagents with live steps](docs/screenshots/06-subagent-paralel.png)
+
+**API client** — a Postman-style workspace in a panel tab: collections, saved
+requests, environments with `{{variables}}`, and a response viewer with status,
+timing, headers, and body. Collections live in Zephyr's data folder, not in your
+repo. (For requests you want versioned with the code, `.http` files still work —
+same engine.)
+
+![API client with collections and environments](docs/screenshots/07-api-client.png)
+
+**Dev Environment** — run PHP, Nginx, MariaDB, and Redis from `D:\DevEnv\`
+without installing a XAMPP-style bundle. Every service can have **multiple
+versions side by side** (PHP 8.3.33 and 8.1.34 both work), and you pick which one
+to start. Ports already in use are **refused, never stolen**; services stop when
+Zephyr closes.
+
+![Dev Environment with multiple PHP versions](docs/screenshots/08-devenv.png)
+
+**Database browser** — open a SQLite file and browse tables/views, run `SELECT`
+queries, and see results in a grid. The connection is **read-only** unless you
+explicitly flip the write toggle, so browsing a database your app is using cannot
+lock or corrupt it. Rows are capped per query so a `SELECT *` on a huge table
+cannot freeze the UI.
+
+![SQLite browser with a live query](docs/screenshots/09-database.png)
+
+**Cloudflare Tunnel** — expose a local port to the internet in one click
+(`cloudflared` is downloaded to `D:\DevEnvin`). A permanent warning banner
+stays visible while a tunnel is up, and every tunnel is killed when Zephyr exits —
+a leftover tunnel means your localhost is open to the internet with nobody
+watching.
+
+**Test Explorer** — detects the test runner from your project files
+(`package.json`, `Cargo.toml`, `go.mod`, `pytest`, `composer.json`, `Makefile`,
+plus `npm run verify/soak/stress/lint`) and runs it from a panel tab. It only
+offers runners that actually exist: if your `package.json` has no `scripts.test`,
+no `npm test` button appears.
+
+![Test Explorer detecting real runners](docs/screenshots/10-test-explorer.png)
+
+**SFTP + port forwarding** — browse a remote host's files, download and delete
+them, and open port tunnels (`ssh -L` local, `-R` remote, `-D` SOCKS) from the
+same panel. Tunnels are cleaned up on exit; a port that is already taken is
+refused rather than hijacked.
+
+![Cloudflare Tunnel with the exposure warning](docs/screenshots/11-tunnel.png)
+
+![SFTP explorer and port tunnels](docs/screenshots/12-sftp.png)
+
+**Zen mode, image preview** — `View: Toggle Zen Mode` (or the command palette)
+hides the Activity Bar, sidebar, panel, and status bar so only the editor is
+left. Opening a `.png/.jpg/.gif/.webp/.bmp/.ico/.avif/.svg` shows a real preview
+with zoom and a checkerboard for transparency, instead of dumping binary into
+the editor.
+
+![Zen mode: editor only](docs/screenshots/13-zen-mode.png)
+
+**CLI subcommands** — `zephyr ext list`, `zephyr ext remove <id>`,
+`zephyr ext registry [url]`, and `zephyr info` work without opening a window, so
+Zephyr can be driven from scripts and CI.
+
+**Portable mode** — drop a file named `portable` next to `zephyr.exe` and all
+data (settings, keys, extensions, logs) moves to a `data/` folder beside the
+executable. Zephyr then runs from a USB stick and leaves nothing on the host
+machine. `zephyr info` tells you which mode is active.
+
 **MCP Server :9222** — HTTP JSON-RPC with a Bearer token. 20+ methods to read
 panes, write to the terminal, open and change editor buffers, and run command
 palette commands. `editor_write` only touches the buffer, never the disk, so a
@@ -215,6 +291,16 @@ In-app auto-update works: the "Check update" button in Settings → Tentang
 checks GitHub Releases and installs the new version from inside the app. Update
 artifacts carry the Zephyr minisign key; old versions find new ones through
 `latest.json`.
+
+`zephyr ext install <id>` from the CLI prints what to do but does not install
+by itself — installation needs the signature check and runtime validation that
+only exist inside the app, and two install paths that can disagree is worse than
+one.
+
+Dev Environment runs the services you point it at, but it is not a managed
+stack: there is no auto-start on login, no service health dashboard, and MySQL/
+PostgreSQL browsing (as opposed to SQLite) is not in yet — only SQLite is opened
+directly, since it is a file rather than a server.
 
 API keys are stored with XOR + a BLAKE3 key from the MachineGuid. That is
 **obfuscation, not encryption**. Enough to stop a key from being read at a
