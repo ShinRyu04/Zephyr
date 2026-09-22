@@ -8,6 +8,7 @@ import { useExplorer } from '../../lib/explorerStore';
 import { detectLang } from '../../lib/lang';
 import FileIcon from '../editor/FileIcon';
 import type { DirNode } from '../../lib/types';
+import { tx } from '../../lib/i18n';
 
 interface Row {
   node: DirNode;
@@ -269,7 +270,7 @@ export default function FileTree({ root }: { root?: string }) {
         );
       })}
 
-      {rows.length === 0 && <p className="side-muted tree-empty">Folder ini kosong</p>}
+      {rows.length === 0 && <p className="side-muted tree-empty">{tx('Folder ini kosong')}</p>}
     </div>
   );
 }

@@ -6,17 +6,15 @@
 // apiKey TIDAK ADA di sini dan tidak pernah masuk store: key hidup di Rust
 // (`secrets.rs`), frontend hanya tahu `hasKey` + preview mask.
 
+import { memo } from 'react';
+
 export type LogoId =
   | 'gemini'
   | 'openai'
   | 'anthropic'
   | 'deepseek'
-  | 'groq'
   | 'xai'
-  | 'openrouter'
-  | 'mistral'
   | 'cerebras'
-  | 'ollama'
   | 'opencode'
   | 'generic';
 
@@ -65,10 +63,6 @@ export const PROVIDERS: ProviderInfo[] = [
           { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', note: 'cepat', ctx: 1_000_000, maxOut: 65536 },
           { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', note: 'hemat', ctx: 1_000_000, maxOut: 65536 },
           { id: 'gemini-2.5-flash-image', label: 'Nano Banana (gambar)', note: 'generate/edit gambar', ctx: 1_000_000, maxOut: 65536 },
-                    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', note: 'lama, ringan', ctx: 1_000_000, maxOut: 8192 },
-                    { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', note: 'lama, kuat', ctx: 2_000_000, maxOut: 8192 },
-                    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', note: 'lama, cepat', ctx: 1_000_000, maxOut: 8192 },
-                    { id: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro', note: 'paling awal', ctx: 32_768, maxOut: 2048 },
                   ],
       },
       {
@@ -85,18 +79,6 @@ export const PROVIDERS: ProviderInfo[] = [
                   { id: 'gpt-5.2', label: 'GPT-5.2', note: 'kualitas tinggi', ctx: 400_000, maxOut: 16384 },
                   { id: 'gpt-5.1-mini', label: 'GPT-5.1 mini', note: 'hemat', ctx: 400_000, maxOut: 16384 },
                   { id: 'o4-mini', label: 'o4-mini', note: 'reasoning, hemat', ctx: 200_000, maxOut: 100_000 },
-                  { id: 'gpt-4.1', label: 'GPT-4.1', note: 'lama', ctx: 1_000_000, maxOut: 32768 },
-                  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini', note: 'lama, hemat', ctx: 1_000_000, maxOut: 32768 },
-                  { id: 'gpt-4o', label: 'GPT-4o', note: 'lama', ctx: 128_000, maxOut: 16384 },
-                  { id: 'gpt-4o-mini', label: 'GPT-4o mini', note: 'lama, murah', ctx: 128_000, maxOut: 16384 },
-                                    { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', note: 'lama', ctx: 128_000, maxOut: 4096 },
-                                                      { id: 'gpt-4', label: 'GPT-4', note: 'lama', ctx: 8192, maxOut: 8192 },
-                                                      { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', note: 'paling awal', ctx: 16_385, maxOut: 4096 },
-                                                      { id: 'o1', label: 'o1', note: 'reasoning (lama)', ctx: 200_000, maxOut: 100_000 },
-                                                      { id: 'o1-mini', label: 'o1-mini', note: 'reasoning hemat', ctx: 128_000, maxOut: 65536 },
-                                                      { id: 'o1-preview', label: 'o1-preview', note: 'reasoning preview', ctx: 128_000, maxOut: 32768 },
-                                                      { id: 'o3', label: 'o3', note: 'reasoning (lama)', ctx: 200_000, maxOut: 100_000 },
-                                                      { id: 'o3-mini', label: 'o3-mini', note: 'reasoning hemat', ctx: 200_000, maxOut: 100_000 },
                                                       { id: 'gpt-5', label: 'GPT-5', note: 'lama', ctx: 400_000, maxOut: 16384 },
                                                       { id: 'gpt-5-mini', label: 'GPT-5 mini', note: 'hemat', ctx: 400_000, maxOut: 16384 },
                                                       { id: 'gpt-5-nano', label: 'GPT-5 nano', note: 'paling hemat', ctx: 400_000, maxOut: 16384 },
@@ -116,15 +98,6 @@ export const PROVIDERS: ProviderInfo[] = [
                   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', note: 'seimbang', ctx: 1_000_000, maxOut: 128000 },
                   { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', note: 'seimbang (lama)', ctx: 200_000, maxOut: 8192 },
                   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'cepat, hemat', ctx: 200_000, maxOut: 64000 },
-                  { id: 'claude-3.7-sonnet', label: 'Claude 3.7 Sonnet', note: 'lama, hybrid', ctx: 200_000, maxOut: 64000 },
-                  { id: 'claude-3.5-sonnet', label: 'Claude 3.5 Sonnet', note: 'lama', ctx: 200_000, maxOut: 8192 },
-                  { id: 'claude-3.5-haiku', label: 'Claude 3.5 Haiku', note: 'lama, cepat', ctx: 200_000, maxOut: 8192 },
-                                    { id: 'claude-3-opus', label: 'Claude 3 Opus', note: 'lama', ctx: 200_000, maxOut: 4096 },
-                                    { id: 'claude-3-sonnet', label: 'Claude 3 Sonnet', note: 'lama', ctx: 200_000, maxOut: 4096 },
-                                    { id: 'claude-3-haiku', label: 'Claude 3 Haiku', note: 'paling awal keluarga 3, cepat', ctx: 200_000, maxOut: 4096 },
-                                    { id: 'claude-2.1', label: 'Claude 2.1', note: 'lama', ctx: 200_000, maxOut: 4096 },
-                                    { id: 'claude-2', label: 'Claude 2', note: 'lama', ctx: 100_000, maxOut: 4096 },
-                                    { id: 'claude-1', label: 'Claude 1', note: 'paling awal', ctx: 9_000, maxOut: 4096 },
                                   ],
       },
       {
@@ -138,57 +111,8 @@ export const PROVIDERS: ProviderInfo[] = [
                         { id: 'deepseek-flash', label: 'DeepSeek Flash (V4.1)', note: 'terbaru, default', ctx: 1_000_000, maxOut: 65536 },
                         { id: 'deepseek-chat', label: 'DeepSeek Chat (V3.2)', note: 'umum, versi lama', ctx: 128_000, maxOut: 8192 },
                                                 { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner (R1/V3.2)', note: 'penalaran, versi lama', ctx: 128_000, maxOut: 8192 },
-                                                { id: 'deepseek-coder', label: 'DeepSeek Coder', note: 'coding, lama', ctx: 128_000, maxOut: 8192 },
-                                                { id: 'deepseek-v3', label: 'DeepSeek V3', note: 'lama', ctx: 128_000, maxOut: 8192 },
                                               ],
       },
-      {
-              id: 'groq',
-              label: 'Groq',
-              baseUrl: 'https://api.groq.com/openai/v1',
-              envKey: 'GROQ_API_KEY',
-              logo: 'groq',
-              models: [
-                { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', note: 'terbaru, serbaguna', ctx: 131_072, maxOut: 32768 },
-                { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant', note: 'ultra cepat', ctx: 131_072, maxOut: 131_072 },
-                { id: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', note: 'kuat', ctx: 131_072, maxOut: 131_072 },
-                { id: 'llama3-70b-8192', label: 'Llama 3 70B', note: 'lama', ctx: 8192, maxOut: 8192 },
-                { id: 'llama3-8b-8192', label: 'Llama 3 8B', note: 'lama', ctx: 8192, maxOut: 8192 },
-                { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B', note: 'multi-modal eksperimental', ctx: 131_072, maxOut: 131_072 },
-                { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B', note: 'ringan', ctx: 131_072, maxOut: 131_072 },
-                { id: 'qwen/qwen3-32b', label: 'Qwen3 32B', note: 'reasoning', ctx: 131_072, maxOut: 131_072 },
-                { id: 'qwen-qwq-32b', label: 'Qwen QwQ 32B', note: 'reasoning dalam', ctx: 131_072, maxOut: 131_072 },
-                { id: 'qwen/qwen3.6-27b', label: 'Qwen3.6 27B', note: 'terbaru', ctx: 131_072, maxOut: 16384 },
-                { id: 'qwen/qwen3.8-27b', label: 'Qwen3.8 27B', note: 'terbaru+', ctx: 131_042, maxOut: 16384 },
-                { id: 'openai/gpt-oss-120b', label: 'GPT OSS 120B', note: 'open weights', ctx: 131_072, maxOut: 65536 },
-                { id: 'openai/gpt-oss-20b', label: 'GPT OSS 20B', note: 'hemat, cepat', ctx: 131_072, maxOut: 65536 },
-                { id: 'openai/gpt-oss-safeguard-20b', label: 'Safety GPT OSS 20B', note: 'moderasi', ctx: 131_072, maxOut: 65536 },
-                { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2', note: 'agentik', ctx: 131_072, maxOut: 131_072 },
-                { id: 'moonshotai/kimi-k2-instruct-0905', label: 'Kimi K2 0905', note: 'agentik, konteks besar', ctx: 262_144, maxOut: 131_072 },
-                { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill', note: 'reasoning', ctx: 131_072, maxOut: 131_072 },
-                { id: 'mistral-saba-24b', label: 'Mistral Saba 24B', note: 'ringan', ctx: 32_768, maxOut: 8192 },
-                { id: 'gemma2-9b-it', label: 'Gemma 2 9B', note: 'kompak', ctx: 8192, maxOut: 8192 },
-                { id: 'allam-2-7b', label: 'ALLaM 2 7B', note: 'Arab', ctx: 4096, maxOut: 4096 },
-                { id: 'minimaxai/minimax-m2.7', label: 'MiniMax M2.7', note: 'tulisan panjang', ctx: 196_608, maxOut: 131_072 },
-                { id: 'groq/compound', label: 'Groq Compound', note: 'sistem produksi', ctx: 131_072, maxOut: 8192 },
-                { id: 'groq/compound-mini', label: 'Groq Compound Mini', note: 'sistem produksi', ctx: 131_072, maxOut: 8192 },
-                { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', note: 'MoE', ctx: 32_768, maxOut: 4096 },
-              ],
-            },
-            {
-              id: 'openrouter',
-              label: 'OpenRouter',
-              baseUrl: 'https://openrouter.ai/api/v1',
-              envKey: 'OPENROUTER_API_KEY',
-              logo: 'openrouter',
-              freeText: true,
-              models: [
-                { id: 'anthropic/claude-3.7-sonnet', label: 'Claude 3.7 Sonnet (Router)', note: 'frontier', ctx: 200_000, maxOut: 64000 },
-                { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4 (Router)', note: 'seimbang', ctx: 1_000_000, maxOut: 64000 },
-                { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B (Router)', note: 'open weights', ctx: 128_000, maxOut: 32768 },
-                { id: 'deepseek/deepseek-chat', label: 'DeepSeek V3 (Router)', note: 'ekonomis', ctx: 128_000, maxOut: 8192 },
-              ],
-            },
             {
               id: 'xai',
               label: 'xAI (Grok)',
@@ -204,37 +128,6 @@ export const PROVIDERS: ProviderInfo[] = [
                 { id: 'grok-4.20-multi-agent-0309', label: 'Grok 4.20 Multi-Agent', note: 'orkestrasi agent', ctx: 1_000_000, maxOut: 131_072 },
                 { id: 'grok-build-0.1', label: 'Grok Build 0.1', note: 'khusus coding', ctx: 256_000, maxOut: 131_072 },
                 { id: 'grok-4', label: 'Grok 4', note: 'generasi 4', ctx: 1_000_000, maxOut: 131_072 },
-                { id: 'grok-3', label: 'Grok 3', note: 'flagship lama', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-3-mini', label: 'Grok 3 Mini', note: 'hemat', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-3-fast', label: 'Grok 3 Fast', note: 'cepat', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-2', label: 'Grok 2', note: 'amatir, hemat', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-2-mini', label: 'Grok 2 Mini', note: 'ringan, cepat', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-2-1212', label: 'Grok 2 1212', note: 'versi tanggal', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-2-vision-1212', label: 'Grok 2 Vision 1212', note: 'multimodal', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-beta', label: 'Grok Beta', note: 'beta awal', ctx: 131_072, maxOut: 8192 },
-                { id: 'grok-vision-beta', label: 'Grok Vision Beta', note: 'multimodal beta', ctx: 131_072, maxOut: 8192 },
-              ],
-            },
-            {
-              id: 'mistral',
-              label: 'Mistral AI',
-              baseUrl: 'https://api.mistral.ai/v1',
-              envKey: 'MISTRAL_API_KEY',
-              logo: 'mistral',
-              models: [
-                { id: 'mistral-large-latest', label: 'Mistral Large 3', note: 'flagship', ctx: 128_000, maxOut: 32768 },
-                { id: 'mistral-medium-latest', label: 'Mistral Medium 3.5', note: 'seimbang', ctx: 128_000, maxOut: 32768 },
-                { id: 'mistral-small-latest', label: 'Mistral Small 4', note: 'hemat, cepat', ctx: 128_000, maxOut: 32768 },
-                { id: 'ministral-3b-latest', label: 'Ministral 3B', note: 'paling ringan', ctx: 128_000, maxOut: 32768 },
-                { id: 'ministral-8b-latest', label: 'Ministral 8B', note: 'ringan, cepat', ctx: 128_000, maxOut: 32768 },
-                { id: 'ministral-14b-latest', label: 'Ministral 14B', note: 'edge', ctx: 128_000, maxOut: 32768 },
-                { id: 'devstral-latest', label: 'Devstral 2', note: 'agentik coding', ctx: 128_000, maxOut: 32768 },
-                { id: 'devstral-small-latest', label: 'Devstral Small 2', note: 'coding ringan', ctx: 128_000, maxOut: 32768 },
-                { id: 'codestral-latest', label: 'Codestral', note: 'kode + FIM', ctx: 256_000, maxOut: 32768 },
-                { id: 'magistral-medium-latest', label: 'Magistral Medium 1.2', note: 'agentik', ctx: 128_000, maxOut: 32768 },
-                { id: 'magistral-small-latest', label: 'Magistral Small 1.2', note: 'agentik ringan', ctx: 128_000, maxOut: 32768 },
-                { id: 'voxtral-small-latest', label: 'Voxtral Small', note: 'audio', ctx: 128_000, maxOut: 32768 },
-                { id: 'mistral-ocr-latest', label: 'Mistral OCR', note: 'ekstraksi dokumen', ctx: 128_000, maxOut: 32768 },
               ],
             },
             {
@@ -253,19 +146,6 @@ export const PROVIDERS: ProviderInfo[] = [
                 { id: 'gemma-4-31b', label: 'Gemma 4 31B (Cerebras)', note: 'multimodal ringan', ctx: 131_072, maxOut: 32768 },
               ],
             },
-      {
-        id: 'ollama',
-        label: 'Ollama (Lokal)',
-        baseUrl: 'http://127.0.0.1:11434/v1',
-        envKey: 'OLLAMA_API_KEY',
-        logo: 'ollama',
-        freeText: true,
-        models: [
-          { id: 'qwen2.5-coder:latest', label: 'Qwen 2.5 Coder', note: 'lokal coding', ctx: 32_768, maxOut: 4096 },
-          { id: 'llama3.2:latest', label: 'Llama 3.2', note: 'lokal ringan', ctx: 128_000, maxOut: 4096 },
-          { id: 'deepseek-r1:latest', label: 'DeepSeek R1 (Lokal)', note: 'lokal reasoning', ctx: 32_768, maxOut: 4096 },
-        ],
-      },
       {
         id: 'local',
         label: 'Lokal (opencode / loopback)',
@@ -337,8 +217,9 @@ export function fmtCtx(ctx?: number): string {
 }
 
 /** Logo brand provider. Warna brand resmi (pengecualian sah dari aturan
- *  "dilarang hex hardcoded" — ini identitas pihak ketiga, bukan token tema). */
-export function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
+ *  "dilarang hex hardcoded" — ini identitas pihak ketiga, bukan token tema).
+ *  Di-memo: satu baris daftar model me-render logo yang sama berkali-kali. */
+export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
   const p = { width: size, height: size, viewBox: '0 0 16 16', role: 'img' as const };
   // Provider id maupun logo id keduanya diterima supaya pemanggil tidak
   // perlu memetakan dua kali.
@@ -425,37 +306,10 @@ export function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
           <circle cx="8" cy="8" r="1.9" fill="none" stroke="#f5a623" strokeWidth="1.3" />
         </svg>
       );
-    case 'groq':
-      return (
-        <svg {...p} aria-label="Groq">
-          <circle cx="8" cy="8" r="6" fill="none" stroke="#f55036" strokeWidth="1.5" />
-          <path d="M8 4.5v7M5.5 8h5" stroke="#f55036" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      );
     case 'xai':
       return (
         <svg {...p} aria-label="xAI">
           <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" />
-        </svg>
-      );
-    case 'openrouter':
-      return (
-        <svg {...p} aria-label="OpenRouter">
-          <rect x="3" y="3" width="10" height="10" rx="3" fill="none" stroke="#6366f1" strokeWidth="1.4" />
-          <circle cx="8" cy="8" r="2" fill="#6366f1" />
-        </svg>
-      );
-    case 'mistral':
-      return (
-        <svg {...p} aria-label="Mistral AI">
-          <rect x="3" y="3" width="3" height="3" fill="#ff7000" />
-          <rect x="7" y="3" width="3" height="3" fill="#ff7000" />
-          <rect x="11" y="3" width="3" height="3" fill="#ff7000" />
-          <rect x="3" y="7" width="3" height="3" fill="#ff7000" />
-          <rect x="11" y="7" width="3" height="3" fill="#ff7000" />
-          <rect x="3" y="11" width="3" height="3" fill="#ff7000" />
-          <rect x="7" y="11" width="3" height="3" fill="#ff7000" />
-          <rect x="11" y="11" width="3" height="3" fill="#ff7000" />
         </svg>
       );
     case 'cerebras':
@@ -463,15 +317,6 @@ export function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
         <svg {...p} aria-label="Cerebras">
           <circle cx="8" cy="8" r="5.5" fill="none" stroke="#00c853" strokeWidth="1.5" />
           <circle cx="8" cy="8" r="2.5" fill="#00c853" />
-        </svg>
-      );
-    case 'ollama':
-      return (
-        <svg {...p} aria-label="Ollama">
-          <circle cx="8" cy="8" r="6" fill="#1e293b" />
-          <circle cx="6" cy="7" r="1" fill="#ffffff" />
-          <circle cx="10" cy="7" r="1" fill="#ffffff" />
-          <path d="M6 10q2 1.5 4 0" stroke="#ffffff" strokeWidth="1" fill="none" strokeLinecap="round" />
         </svg>
       );
     default:
@@ -482,4 +327,4 @@ export function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
         </svg>
       );
   }
-}
+});

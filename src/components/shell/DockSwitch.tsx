@@ -9,21 +9,23 @@
 // Perbesar/sembunyikan panel TIDAK ada di sini: itu milik PanelTabStrip.
 
 import { useTerminal } from '../../lib/terminalStore';
+import { useT } from '../../lib/i18n';
 
 export default function DockSwitch() {
+  const tr = useT();
   const dock = useTerminal((s) => s.dock);
   const setDock = useTerminal((s) => s.setDock);
   const paneCount = useTerminal((s) => s.terminalTabs.reduce((n, t) => n + t.panes.length, 0));
 
   return (
     <div className="dock-switch" data-testid="dock-switch" data-dock={dock}>
-      <div className="dock-tabs" role="tablist" aria-label="Isi panel bawah">
+      <div className="dock-tabs" role="tablist" aria-label={tr('Isi panel bawah')}>
         <button
           role="tab"
           aria-selected={dock === 'terminal'}
           className={`dock-tab${dock === 'terminal' ? ' is-active' : ''}`}
           data-testid="dock-terminal"
-          title="Tampilkan terminal di panel bawah"
+          title={tr('Tampilkan terminal di panel bawah')}
           onClick={() => setDock('terminal')}
         >
           Terminal
@@ -34,7 +36,7 @@ export default function DockSwitch() {
           aria-selected={dock === 'ai'}
           className={`dock-tab${dock === 'ai' ? ' is-active' : ''}`}
           data-testid="dock-ai"
-          title="Tampilkan panel AI di panel bawah (Ctrl+Shift+A)"
+          title={tr('Tampilkan panel AI di panel bawah (Ctrl+Shift+A)')}
           onClick={() => setDock('ai')}
         >
           AI

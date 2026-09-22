@@ -26,6 +26,7 @@ import {
 } from '../../lib/lspCm';
 import { useProblems, kunciPath } from '../../lib/problemsStore';
 import * as cmd from '../../lib/commands';
+import { tx } from '../../lib/i18n';
 
 type Mode = null | 'rename' | 'action' | 'symbol';
 
@@ -101,7 +102,7 @@ export default function LspOverlay() {
         baru,
       );
       if (total === 0) {
-        notifyWarn('Server tidak mengembalikan perubahan apa pun', { source: 'LSP' });
+        notifyWarn(tx('Server tidak mengembalikan perubahan apa pun'), { source: 'LSP' });
         return tutup();
       }
 
@@ -131,7 +132,7 @@ export default function LspOverlay() {
       );
       tutup();
     } catch (e) {
-      notifyError('Rename gagal', { source: 'LSP', detail: String(e) });
+      notifyError(tx('Rename gagal'), { source: 'LSP', detail: String(e) });
       tutup();
     } finally {
       setSibuk(false);
@@ -162,9 +163,9 @@ export default function LspOverlay() {
           .filter((x) => x.title);
         setAksi(items);
         setIdx(0);
-        if (items.length === 0) notifyInfo('Tidak ada quick fix di posisi ini', { source: 'LSP' });
+        if (items.length === 0) notifyInfo(tx('Tidak ada quick fix di posisi ini'), { source: 'LSP' });
       } catch (e) {
-        notifyError('Quick Fix gagal', { source: 'LSP', detail: String(e) });
+        notifyError(tx('Quick Fix gagal'), { source: 'LSP', detail: String(e) });
         setMode(null);
       } finally {
         setSibuk(false);
@@ -221,7 +222,7 @@ export default function LspOverlay() {
         { source: 'LSP' },
       );
     } catch (e) {
-      notifyError('Code action gagal', { source: 'LSP', detail: String(e) });
+      notifyError(tx('Code action gagal'), { source: 'LSP', detail: String(e) });
     }
     tutup();
   };
@@ -265,9 +266,9 @@ export default function LspOverlay() {
         jelajah(res);
         setSimbol(out);
         setIdx(0);
-        if (out.length === 0) notifyInfo('Tidak ada simbol di file ini', { source: 'LSP' });
+        if (out.length === 0) notifyInfo(tx('Tidak ada simbol di file ini'), { source: 'LSP' });
       } catch (e) {
-        notifyError('Go to Symbol gagal', { source: 'LSP', detail: String(e) });
+        notifyError(tx('Go to Symbol gagal'), { source: 'LSP', detail: String(e) });
         setMode(null);
       } finally {
         setSibuk(false);

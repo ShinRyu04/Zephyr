@@ -9,7 +9,7 @@
 A desktop code editor for Windows, built from scratch with Tauri 2 + React +
 Rust. Not a VS Code fork, not Electron.
 
-`v1.1.9` · Tauri 2 · React 18 · TypeScript · Rust
+`v1.1.10` · Tauri 2 · React 18 · TypeScript · Rust
 
 </div>
 
@@ -23,8 +23,9 @@ directly. Zephyr does both: one Rust process, the WebView2 that ships with
 Windows as the renderer, and an MCP server on port 9222 so Claude Code, Codex,
 Gemini CLI, or opencode can read and change what is in the window.
 
-The NSIS installer is 6.1 MB and the MSI is 9.0 MB. For comparison, an
-Electron-based editor installer is usually 80–120 MB.
+The NSIS installer is 3.8 MB, the MSI is 5.2 MB, and the app binary itself
+is 9.5 MB. For comparison, an Electron-based editor installer is usually
+80–120 MB.
 
 ## Install
 
@@ -33,9 +34,9 @@ usually runs with nothing extra to install).
 
 ### Installing Zephyr (3 steps)
 
-1. **Download the installer** — `Zephyr_1.1.9_x64-setup.exe` (or the `.msi`)
+1. **Download the installer** — `Zephyr_1.1.10_x64-setup.exe` (or the `.msi`)
    from the [Releases](https://github.com/ShinRyu04/Zephyr/releases) page. Look
-   for the file named `Zephyr_1.1.9_x64-setup.exe`. That is the installer.
+   for the file named `Zephyr_1.1.10_x64-setup.exe`. That is the installer.
 2. **Run the installer** — if SmartScreen shows up, click **More info → Run
    anyway**. This is normal for a build without an EV certificate. It does not
    mean the file is harmful. The source is open and can be checked.
@@ -136,7 +137,8 @@ then subsequence.
 
 **GitHub login** — sign in with your GitHub account through the device flow
 (browser), show up as an avatar in the bottom-left corner, push and pull
-without credential hassle.
+without credential hassle. Clicking the avatar opens an account menu (name,
+sign out, manage token) instead of jumping straight into a login flow.
 
 **Split editor** — split the editor into two groups (View → Split Editor Right,
 `Ctrl+\`), each group with its own tab bar, merge back any time.
@@ -168,6 +170,14 @@ the bottom status bar (right side) and in **Settings → About**, opening a
 choice of **Trakteer** (`trakteer.id/ryuga-9jfin`) or **Saweria**
 (`saweria.co/ShinRyuga04`). It is also under **Help → Support** or in
 the Command Palette (type "donate").
+
+**Agent skills, memory, and scheduled tasks** — the AI panel is not just chat.
+The agent can save a reusable procedure as a `SKILL.md` and read it back in a
+later session; it keeps notes about your environment in `memory.md` and facts
+about you in `user.md`, both injected into every conversation with a hard
+character budget; and it can schedule recurring work (`cron_create`) that a
+background timer hands back to the panel when due. All three live under
+`%APPDATA%\zephyr\` as plain files you can edit by hand.
 
 **The rest** — global search through ripgrep, a tasks runner with problem
 matchers, local history + timeline, multi-root workspaces with workspace trust,

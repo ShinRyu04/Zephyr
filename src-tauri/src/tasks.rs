@@ -945,11 +945,11 @@ pub fn tasks_run(
     // Windows adalah shim .cmd — jadi ia WAJIB lewat shell.
     let shell = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".into());
     let mut cmd = if kind == "process" {
-        let mut c = Command::new(&command);
+        let mut c = crate::proc::cmd(&command);
         c.args(&args);
         c
     } else {
-        let mut c = Command::new(shell);
+        let mut c = crate::proc::cmd(shell);
         let full = if args.is_empty() {
             command.clone()
         } else {
@@ -990,12 +990,6 @@ pub fn tasks_run(
     }
     // Jangan munculkan jendela konsol (CREATE_NO_WINDOW) — task harus jalan
     // di latar, tidak boleh mengambil layar user.
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000);
-    }
-
     let mut child = cmd
         .spawn()
         .map_err(|e| ZephyrError::InvalidInput(format!("gagal menjalankan \"{command}\": {e}")))?;

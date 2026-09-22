@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
-import { useT } from '../../lib/i18n';
+import { useT, tx } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { Section, Toggle } from './SettingsControls';
 
@@ -14,7 +14,7 @@ import { Section, Toggle } from './SettingsControls';
 const MARKET_ITEMS = [
   { id: 'prettier', name: 'Prettier', desc: 'Formatter opinionated untuk JS/TS/CSS/MD', logo: 'P' },
   { id: 'eslint', name: 'ESLint', desc: 'Lint JavaScript & TypeScript di editor', logo: 'E' },
-  { id: 'gitlens', name: 'GitLens', desc: 'Blame inline, riwayat baris, dan graf commit', logo: 'G' },
+  { id: 'gitlens', name: 'GitLens', desc: tx('Blame inline, riwayat baris, dan graf commit'), logo: 'G' },
   { id: 'python', name: 'Python', desc: 'IntelliSense, debug, dan env untuk Python', logo: 'Py' },
   { id: 'rust-analyzer', name: 'rust-analyzer', desc: 'Analisis Rust: hover, goto, inlay hints', logo: 'Rs' },
   { id: 'docker', name: 'Docker', desc: 'Kelola image, container, dan compose', logo: 'D' },
@@ -128,7 +128,7 @@ function IzinRuntime() {
 }
 
 export function ExtensionsSection() {
-  const t = useT();
+  const tr = useT();
   const list = useExtensions((s) => s.list);
   const loading = useExtensions((s) => s.loading);
   const extError = useExtensions((s) => s.extError);
@@ -150,7 +150,7 @@ export function ExtensionsSection() {
   const external = list.filter((e) => !e.builtin);
 
   return (
-    <Section title={t('settings.extensions')}>
+    <Section title={tr('settings.extensions')}>
       <p className="set-note">
         Kode JS ekstensi dijalankan di <strong>sandbox Web Worker terisolasi</strong>{' '}
         (tanpa <code>window</code>/fs/IPC), jadi command dari ekstensi bisa jalan

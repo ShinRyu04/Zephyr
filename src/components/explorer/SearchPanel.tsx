@@ -17,6 +17,7 @@ import { useSearch } from '../../lib/searchStore';
 import { detectLang } from '../../lib/lang';
 import FileIcon from '../editor/FileIcon';
 import type { RgHit } from '../../lib/types';
+import { useT } from '../../lib/i18n';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 const dirOf = (p: string) => p.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]+$/, '');
@@ -64,6 +65,7 @@ function segmen(hit: RgHit) {
 }
 
 export default function SearchPanel() {
+  const tr = useT();
   const workspace = useStore((s) => s.workspace);
 
   const query = useSearch((s) => s.query);
@@ -175,7 +177,7 @@ export default function SearchPanel() {
         <div className="side-title">Search</div>
 
         {!workspace && (
-          <p className="side-muted">Buka folder dulu untuk mencari di workspace.</p>
+          <p className="side-muted">{tr('Buka folder dulu untuk mencari di workspace.')}</p>
         )}
 
         <div className="search-row">
@@ -190,8 +192,8 @@ export default function SearchPanel() {
           </button>
           <input
             className="search-input"
-            placeholder="Cari di workspace"
-            aria-label="Cari di workspace"
+            placeholder={tr('Cari di workspace')}
+            aria-label={tr('Cari di workspace')}
             data-testid="search-input"
             list="zephyr-search-riwayat"
             value={query}
@@ -242,14 +244,14 @@ export default function SearchPanel() {
             <input
               className="search-input"
               placeholder={regex ? 'Ganti dengan (boleh $1, $2)' : 'Ganti dengan'}
-              aria-label="Ganti dengan"
+              aria-label={tr('Ganti dengan')}
               data-testid="search-replace-input"
               value={replaceWith}
               onChange={(e) => setReplaceWith(e.target.value)}
             />
             <button
               className="find-btn find-btn-wide"
-              title="Ganti di semua file hasil pencarian"
+              title={tr('Ganti di semua file hasil pencarian')}
               data-testid="search-replace-all"
               disabled={total === 0}
               onClick={() => void replaceSemua()}
@@ -259,7 +261,7 @@ export default function SearchPanel() {
             {replaceTerakhir && replaceTerakhir.some((h) => h.snapshot) && (
               <button
                 className="find-btn"
-                title="Batalkan replace terakhir (dari Local History)"
+                title={tr('Batalkan replace terakhir (dari Local History)')}
                 data-testid="search-undo"
                 onClick={() => void undoReplace()}
               >
@@ -329,7 +331,7 @@ export default function SearchPanel() {
           ) : query && summary ? (
             `${total}${summary.truncated ? '+' : ''} hasil di ${jmlFile} file · ${summary.elapsedMs}ms`
           ) : rg && !rg.ada ? (
-            'ripgrep belum terpasang — memakai pencarian bawaan'
+            tr('ripgrep belum terpasang — memakai pencarian bawaan')
           ) : (
             ''
           )}
@@ -373,7 +375,7 @@ export default function SearchPanel() {
                   {replaceTerbuka && (
                     <button
                       className="sr-replace"
-                      title="Ganti semua di file ini"
+                      title={tr('Ganti semua di file ini')}
                       data-testid="sr-replace-file"
                       onClick={() => void replaceSatuFile(b.path)}
                     >

@@ -279,8 +279,13 @@ export type AiRole = 'user' | 'assistant' | 'system';
 export interface AiMessage {
   role: AiRole;
   content: string;
-  /** lampiran gambar sebagai data URL (hanya pesan user) */
+  /** lampiran gambar sebagai data URL (hanya pesan user). Dipertahankan untuk
+   *  kompatibilitas; pesan baru memakai `images`. */
   image?: string;
+  /** 1.1.10: banyak gambar per pesan (maks MAX_IMAGES di aiStore). */
+  images?: string[];
+  /** T1.1: teks penalaran model (blok Reasoned, collapsible). */
+  reasoning?: string;
 }
 
 /** Pesan di UI: AiMessage + metadata tampilan. */
@@ -296,6 +301,21 @@ export interface ChatMsg extends AiMessage {
   model?: string;
   /** file yang dilampirkan bersama pesan user */
   attached?: { path: string; bytes: number; truncated: boolean };
+  /** 1.1.10: banyak gambar lampiran (data URL). `image` = gambar pertama. */
+  images?: string[];
+  /** 1.1.10: hasil tool yang dijalankan agent selama menjawab pesan ini.
+   *  Ditampilkan sebagai blok collapsible DI DALAM bubble (item 23). */
+  tools?: AgentToolRun[];
+}
+
+/** Satu eksekusi tool yang menempel di bubble jawaban. */
+export interface AgentToolRun {
+  name: string;
+  args: string;
+  result: string;
+  ok: boolean;
+  /** epoch ms */
+  at: number;
 }
 
 /** Satu percakapan. History dibatasi 200 pesan (prompt fase 09). */
@@ -306,7 +326,20 @@ export interface ChatSession {
   provider: string;
   messages: ChatMsg[];
   createdAt: number;
+  /** Mode persetujuan yang terakhir dipakai di sesi ini (1.1.10). */
+  approval?: ApprovalMode;
 }
+
+/** Cara agent meminta izin menjalankan tool terminal. */
+export type ApprovalMode =
+  /** tanya untuk setiap terminal_exec */
+  | 'ask'
+  /** jalankan semuanya tanpa tanya */
+  | 'auto'
+  /** tolak semua terminal_exec dan editor_write */
+  | 'readonly'
+  /** kerja langsung: aman dijalankan, destruktif tetap ditanya */
+  | 'work';
 
 /** Payload event `ai-chunk` dari Rust. */
 export interface AiChunk {
@@ -314,6 +347,16 @@ export interface AiChunk {
   text?: string;
   err?: string;
   done?: boolean;
+  /** 1.1.10: akhir satu langkah agent streaming (bukan akhir seluruh tugas). */
+  toolDone?: boolean;
+  /** teks penuh langkah ini (dipakai saat toolDone) */
+  content?: string;
+  /** panggilan tool yang terkumpul di langkah ini */
+  toolCalls?: AgentToolCall[];
+  /** langkah berhenti karena dibatalkan user */
+  cancelled?: boolean;
+  /** T1.1: potongan teks penalaran (blok "Reasoned"), bukan jawaban. */
+  reasoning?: string;
 }
 
 // ── Source Control / git (fase 10) ──
@@ -371,6 +414,8 @@ export interface GhStatus {
   signedIn: boolean;
   method: GhMethod;
   user: string | null;
+  /** URL foto profil GitHub; null = belum tersimpan → UI pakai inisial. */
+  avatarUrl: string | null;
   scopes: string[];
   /** epoch detik; null = tidak kadaluarsa */
   expiresAt: number | null;
@@ -736,6 +781,15 @@ export interface GeneralSettings {
   /** fase 16.2: mode penghemat RAM — smooth scroll off, minimap dipaksa off,
    *  batas tab termuat diturunkan ke 8 (dari 12). */
   lowRam?: boolean;
+  /** 1.1.10: byte yang dikirim Shift+Enter di terminal. 'auto' = peta per
+   *  agent CLI (lihat lib/multilineKey.ts); sisanya memaksa satu bentuk. */
+  multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
+  /** 1.1.10: tempat panel AI — 'bottom' (dock sejajar terminal) atau 'right'
+   *  (kolom tetap 340px ala VS Code Copilot). */
+  aiPanel?: 'bottom' | 'right';
+  /** 1.1.10: tata letak utama — 'editor' (editor besar, terminal dock bawah)
+   *  atau 'terminal' (terminal jadi area utama, editor jadi pane samping). */
+  layout?: 'editor' | 'terminal';
 }
 
 export interface EditorSettings {
@@ -772,6 +826,9 @@ export interface EditorSettings {
    * 'top' | 'bottom' | 'inline' (bercampur, urut relevansi) | 'none' (matikan).
    */
   snippetSuggestions: 'top' | 'bottom' | 'inline' | 'none';
+  /** 1.1.10 (A-1): saran ghost text inline. Mati secara default — tiap saran
+   *  adalah satu panggilan API berbayar, jadi harus dinyalakan sadar. */
+  ghostText: boolean;
 }
 
 export interface ThemeSettings {
@@ -879,6 +936,12 @@ export const DEFAULT_SETTINGS: Settings = {
     restoreSession: true,
     checkUpdates: true,
     lowRam: false,
+    multilineKey: 'auto',
+    // Default BAWAH: satu panel bawah (Terminal | AI) supaya tidak ada
+    // container ketiga yang memakan lebar editor & RAM. User bisa pindah ke
+    // kanan lewat Settings → General kalau memang lebih cocok.
+    aiPanel: 'bottom',
+    layout: 'editor',
   },
   editor: {
     tabSize: 2,
@@ -902,6 +965,7 @@ export const DEFAULT_SETTINGS: Settings = {
     // fase 30: 'inline' = snippet bercampur dengan saran lain, diurut
     // relevansi. Default VS Code juga inline.
     snippetSuggestions: 'inline',
+    ghostText: false,
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
   sidebar: 'left',

@@ -8,6 +8,7 @@
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { Changelog } from '../settings/changelogRender';
+import { tx } from '../../lib/i18n';
 
 const waktu = (ts: number): string => {
   const d = new Date(ts);
@@ -44,8 +45,8 @@ function Baris({ n }: { n: Notif }) {
       </div>
       <button
         className="nc-x"
-        title="Hapus dari riwayat"
-        aria-label="Hapus notifikasi ini"
+        title={tx('Hapus dari riwayat')}
+        aria-label={tx('Hapus notifikasi ini')}
         onClick={() => remove(n.id)}
       >
         ✕

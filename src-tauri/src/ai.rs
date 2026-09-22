@@ -29,8 +29,25 @@ pub struct ChatMsg {
     pub role: String,
     pub content: String,
     /// Lampiran gambar sebagai data URL (`data:<mime>;base64,...`), opsional.
+    /// Dipertahankan untuk kompatibilitas; frontend 1.1.10 memakai `images`.
     #[serde(default)]
     pub image: Option<String>,
+    /// 1.1.10: banyak gambar per pesan (maks 10 di frontend).
+    #[serde(default)]
+    pub images: Option<Vec<String>>,
+}
+
+impl ChatMsg {
+    /// Semua gambar pesan ini, urut. `images` menang; `image` = fallback
+    /// supaya riwayat lama (satu gambar) tetap terkirim.
+    pub fn all_images(&self) -> Vec<&str> {
+        if let Some(list) = &self.images {
+            if !list.is_empty() {
+                return list.iter().map(|s| s.as_str()).collect();
+            }
+        }
+        self.image.as_deref().into_iter().collect()
+    }
 }
 
 /// Satu panggilan tool yang diminta model (mode agent).
@@ -88,6 +105,59 @@ pub struct Prepared {
     pub sse: bool,
 }
 
+/// Tingkat usaha penalaran yang diminta user (item T1.1).
+///
+/// Dipetakan berbeda per provider karena tiap vendor punya nama sendiri:
+///   OpenAI   : `reasoning_effort` = minimal | low | medium | high
+///   Anthropic: `thinking.budget_tokens` (angka)
+///   Gemini   : `thinkingConfig.thinkingBudget` (angka, 0 = mati)
+///
+/// `None` = jangan kirim parameter apa pun (provider lama tetap jalan).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningEffort {
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Ultra,
+}
+
+impl ReasoningEffort {
+    /// Nilai untuk field `reasoning_effort` OpenAI-compatible.
+    /// 'ultra' tidak dikenal OpenAI → pakai 'high' (plafon resminya).
+    pub fn openai(self) -> &'static str {
+        match self {
+            ReasoningEffort::Minimal => "minimal",
+            ReasoningEffort::Low => "low",
+            ReasoningEffort::Medium => "medium",
+            ReasoningEffort::High | ReasoningEffort::Ultra => "high",
+        }
+    }
+
+    /// Anggaran token berpikir Anthropic. Minimum resmi 1024.
+    pub fn anthropic_budget(self) -> u32 {
+        match self {
+            ReasoningEffort::Minimal => 1024,
+            ReasoningEffort::Low => 4096,
+            ReasoningEffort::Medium => 16384,
+            ReasoningEffort::High => 32768,
+            ReasoningEffort::Ultra => 65536,
+        }
+    }
+
+    /// Anggaran token berpikir Gemini (-1 = dinamis, 0 = mati).
+    pub fn gemini_budget(self) -> i32 {
+        match self {
+            ReasoningEffort::Minimal => 512,
+            ReasoningEffort::Low => 4096,
+            ReasoningEffort::Medium => 16384,
+            ReasoningEffort::High => 32768,
+            ReasoningEffort::Ultra => 65536,
+        }
+    }
+}
+
 fn emit_chunk(app: &AppHandle, payload: Value) {
     let _ = app.emit("ai-chunk", payload);
 }
@@ -118,6 +188,7 @@ pub fn ai_chat(
     messages: Vec<ChatMsg>,
     base_url: Option<String>,
     max_tokens: Option<u32>,
+    effort: Option<ReasoningEffort>,
 ) -> ZResult<()> {
     if id.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("id kosong".into()));
@@ -141,6 +212,7 @@ pub fn ai_chat(
         base_url.as_deref(),
         &key,
         max_tokens.unwrap_or(2048),
+        effort,
     )?;
 
     let cancel = state.ai_begin(&id);
@@ -275,6 +347,12 @@ pub fn ai_chat(
                 Ok(v) => v,
                 Err(_) => continue, // potongan tak lengkap / komentar keep-alive
             };
+            // T1.1: teks penalaran dikirim dengan kunci `reasoning` supaya
+            // frontend bisa menaruhnya di blok "Reasoned" yang bisa dilipat,
+            // terpisah dari jawaban.
+            if let Some(think) = adapters::extract_reasoning(&prov, &v) {
+                emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
+            }
             if let Some(text) = adapters::extract_delta(&prov, &v) {
                 if !text.is_empty() {
                     sent_any = true;
@@ -315,6 +393,7 @@ pub async fn ai_tool_chat(
     tools: Vec<ToolSpec>,
     base_url: Option<String>,
     max_tokens: Option<u32>,
+    effort: Option<ReasoningEffort>,
 ) -> ZResult<AiToolResult> {
     if messages.is_empty() {
         return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
@@ -335,6 +414,7 @@ pub async fn ai_tool_chat(
         base_url.as_deref(),
         &key,
         max_tokens.unwrap_or(2048),
+        effort,
     )?;
     let prov = provider.clone();
 
@@ -406,4 +486,191 @@ pub async fn ai_tool_chat(
     let v: Value = serde_json::from_str(&raw)
         .map_err(|e| ZephyrError::InvalidInput(format!("jawaban provider tidak valid: {e}")))?;
     Ok(adapters::parse_tool_response(&prov, &v))
+}
+
+/// Satu langkah loop agent yang STREAMING (item 21).
+///
+/// Bedanya dari `ai_tool_chat`: teks dikirim potongan demi potongan lewat
+/// event `ai-chunk` (id = `id`), lalu hasil akhir — teks penuh + panggilan
+/// tool — dikirim lewat event `ai-tool-done`. Frontend tetap yang memutuskan
+/// loop (jalankan tool → append hasil → ulang).
+///
+/// Dipisah dari `ai_chat` karena mode agent butuh panggilan tool, dan
+/// dipisah dari `ai_tool_chat` karena yang itu menunggu jawaban penuh
+/// sehingga tiap langkah terasa menggantung.
+#[tauri::command(async)]
+pub fn ai_tool_chat_stream(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    provider: String,
+    model: String,
+    messages: Vec<AgentMsg>,
+    tools: Vec<ToolSpec>,
+    base_url: Option<String>,
+    max_tokens: Option<u32>,
+    effort: Option<ReasoningEffort>,
+) -> ZResult<()> {
+    if id.trim().is_empty() {
+        return Err(ZephyrError::InvalidInput("id kosong".into()));
+    }
+    if messages.is_empty() {
+        return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
+    }
+    let key = crate::secrets::key_for(&state, &provider);
+    if key.is_empty() {
+        return Err(ZephyrError::InvalidInput(format!(
+            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+        )));
+    }
+
+    let prepared = adapters::prepare_tools_stream(
+        &provider,
+        &model,
+        &messages,
+        &tools,
+        base_url.as_deref(),
+        &key,
+        max_tokens.unwrap_or(2048),
+        effort,
+    )?;
+
+    let cancel = state.ai_begin(&id);
+    let handle = app.clone();
+    let req_id = id.clone();
+    let prov = provider.clone();
+
+    std::thread::spawn(move || {
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_connect(Some(std::time::Duration::from_secs(10)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(30)))
+            // Batas ini berlaku sampai header diterima, bukan sampai body
+            // selesai — streaming panjang tidak terpotong.
+            .timeout_per_call(Some(std::time::Duration::from_secs(12)))
+            .max_redirects(3)
+            .http_status_as_error(false)
+            .build()
+            .into();
+        let mut req = agent.post(&prepared.url);
+        for (k, v) in &prepared.headers {
+            req = req.header(k.as_str(), v.as_str());
+        }
+
+        let resp = match req.send_json(&prepared.body) {
+            Ok(r) => r,
+            Err(e) => {
+                emit_chunk(&handle, json!({ "id": req_id, "err": pesan_koneksi(&e) }));
+                return;
+            }
+        };
+
+        let status = resp.status().as_u16();
+        if status >= 400 {
+            let mut body = resp.into_body();
+            let raw: String = body.read_to_string().unwrap_or_default();
+            let detail = serde_json::from_str::<Value>(&raw)
+                .ok()
+                .and_then(|v| {
+                    v.pointer("/error/message")
+                        .and_then(|m| m.as_str())
+                        .map(|s| s.to_string())
+                })
+                .unwrap_or_default();
+            let msg = if detail.is_empty() {
+                friendly(status)
+            } else {
+                format!("{} — {}", friendly(status), detail)
+            };
+            emit_chunk(&handle, json!({ "id": req_id, "err": msg }));
+            return;
+        }
+
+        let mut acc = adapters::StreamAcc::new(&prov);
+        let mut reader = BufReader::new(resp.into_body().into_reader());
+        let mut buf_line = String::new();
+
+        loop {
+            if cancel.load(Ordering::Relaxed) {
+                break;
+            }
+            buf_line.clear();
+            match reader.read_line(&mut buf_line) {
+                Ok(0) => break, // EOF
+                Ok(_) => {}
+                Err(e) => {
+                    emit_chunk(
+                        &handle,
+                        json!({ "id": req_id, "err": format!("stream terputus: {e}") }),
+                    );
+                    break;
+                }
+            }
+            let line = buf_line.trim_end_matches(['\r', '\n']);
+            if line.is_empty() {
+                continue;
+            }
+            let payload = if prepared.sse {
+                match line.strip_prefix("data:") {
+                    Some(rest) => rest.trim(),
+                    None => continue,
+                }
+            } else {
+                line.trim_start_matches([',', '[']).trim_end_matches(']')
+            };
+            if payload.is_empty() || payload == "[DONE]" {
+                if payload == "[DONE]" {
+                    break;
+                }
+                continue;
+            }
+            let v: Value = match serde_json::from_str(payload) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            // T1.1: penalaran (blok "Reasoned") — jalur yang sama seperti ai_chat.
+            if let Some(think) = adapters::extract_reasoning(&prov, &v) {
+                emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
+            }
+            if let Some(text) = acc.feed(&v) {
+                emit_chunk(&handle, json!({ "id": req_id, "text": text }));
+            }
+        }
+
+        let (content, tool_calls) = acc.finish();
+        let dibatalkan = cancel.load(Ordering::Relaxed);
+        emit_chunk(
+            &handle,
+            json!({
+                "id": req_id,
+                "toolDone": true,
+                "content": content,
+                "toolCalls": tool_calls,
+                "cancelled": dibatalkan,
+            }),
+        );
+    });
+
+    let _ = state;
+    Ok(())
+}
+
+/// Pesan ramah untuk kegagalan koneksi ureq (tidak pernah memuat key).
+fn pesan_koneksi(e: &ureq::Error) -> String {
+    let teks = e.to_string();
+    let low = teks.to_lowercase();
+    if low.contains("dns")
+        || low.contains("resolve")
+        || low.contains("connect")
+        || low.contains("timed out")
+        || low.contains("timeout")
+        || low.contains("refused")
+        || low.contains("unreachable")
+    {
+        format!(
+            "Tidak bisa menghubungi provider — periksa koneksi internet \
+             atau Base URL di Settings → Model AI ({teks})"
+        )
+    } else {
+        format!("Tidak bisa menghubungi provider: {teks}")
+    }
 }

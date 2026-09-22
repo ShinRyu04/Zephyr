@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Zephyr",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 520,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "center": true,
+        "focus": true,
+        "dragDropEnabled": true,
+        "additionalBrowserArgs": "--single-process --renderer-process-limit=1 --js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces"
+      }
+    ]
+  }
+}

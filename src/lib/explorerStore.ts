@@ -7,6 +7,7 @@ import * as cmd from './commands';
 import { useStore } from './store';
 import { notifyError, notifyInfo } from './notificationStore';
 import type { DirNode, SearchHit } from './types';
+import { tx } from './i18n';
 
 /** Menu konteks yang sedang tampil (posisi viewport + target). */
 export interface CtxMenu {
@@ -270,7 +271,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     } catch (e) {
       const msg = cmd.asZephyrError(e).message;
       set({ explorerError: msg, ctxMenu: null });
-      notifyError('Gagal menghapus', { detail: msg, source: 'explorer' });
+      notifyError(tx('Gagal menghapus'), { detail: msg, source: 'explorer' });
     }
   },
 

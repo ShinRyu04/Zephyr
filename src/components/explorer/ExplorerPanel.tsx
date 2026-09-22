@@ -8,10 +8,12 @@ import FileTree from './FileTree';
 import TimelineView from './TimelineView';
 import ContextMenu from './ContextMenu';
 import RootSection from '../workspace/RootSection';
+import { useT } from '../../lib/i18n';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
 function EmptyWorkspace() {
+  const tr = useT();
   const recents = useStore((s) => s.recents);
   const openFolderDialog = useStore((s) => s.openFolderDialog);
   const openWorkspace = useStore((s) => s.openWorkspace);
@@ -21,13 +23,13 @@ function EmptyWorkspace() {
     <div className="side-panel">
       <div className="side-section">
         <div className="side-title">Workspace</div>
-        <p className="side-muted">Belum ada workspace — buka folder</p>
+        <p className="side-muted">{tr('Belum ada workspace — buka folder')}</p>
         <div className="side-actions">
           <button className="btn btn-primary" onClick={openFolderDialog}>
-            Buka Folder
+            {tr('Buka Folder')}
           </button>
           <button className="btn" onClick={openFileDialog}>
-            Buka File
+            {tr('Buka File')}
           </button>
         </div>
       </div>
@@ -35,7 +37,7 @@ function EmptyWorkspace() {
       <div className="side-section">
         <div className="side-title">Recent ({recents.length})</div>
         {recents.length === 0 ? (
-          <p className="side-muted">Belum ada folder yang pernah dibuka</p>
+          <p className="side-muted">{tr('Belum ada folder yang pernah dibuka')}</p>
         ) : (
           <ul className="side-list" data-testid="recent-list">
             {recents.map((r) => (
@@ -58,6 +60,7 @@ function EmptyWorkspace() {
 }
 
 export default function ExplorerPanel() {
+  const tr = useT();
   const workspace = useStore((s) => s.workspace);
   const closeWorkspace = useStore((s) => s.closeWorkspace);
   const collapseAll = useExplorer((s) => s.collapseAll);
@@ -131,7 +134,7 @@ export default function ExplorerPanel() {
               <path d="M3 5h10M3 8h10M3 11h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           </button>
-          <button className="ex-btn" title="Tutup workspace" aria-label="Tutup workspace" onClick={() => void closeWorkspace()}>
+          <button className="ex-btn" title={tr('Tutup workspace')} aria-label={tr('Tutup workspace')} onClick={() => void closeWorkspace()}>
             <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>

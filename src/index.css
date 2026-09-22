@@ -95,6 +95,62 @@ input {
   flex-direction: column;
 }
 
+/* A-10: panel AI sebagai kolom kanan 340px ala VS Code Copilot. Lebarnya
+   tetap (tidak bisa di-drag) supaya kode di editor tidak terpotong makin
+   sempit tiap kali panel dibuka-tutup. */
+.ai-side-col {
+  flex: 0 0 340px;
+  width: 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--surface-1);
+}
+.ai-side-col > .ai-panel {
+  height: 100%;
+  min-height: 0;
+}
+/* Pengganti di dock bawah saat AI dipindah ke kanan. */
+.ai-moved {
+  margin: 0;
+  padding: 12px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* C-19: layout terminal-first ala Terax. Terminal memenuhi sisa lebar, editor
+   jadi pane tetap di kanan. TerminalArea mode mandiri membawa tinggi sendiri
+   (style inline), jadi tingginya di-override ke 100% di sini. */
+.term-first {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.term-first-term {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+.term-first-term > .term-area {
+  flex: 1;
+  height: auto !important;
+}
+.term-first-term > .term-area > .term-resizer {
+  display: none;
+}
+.term-first-editor {
+  flex: 0 0 460px;
+  min-width: 0;
+  display: flex;
+  border-left: 1px solid var(--border);
+}
+.term-first-editor > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .app-body.sidebar-pos-right .sidebar {
   border-right: none;
   border-left: 1px solid var(--border);
@@ -222,9 +278,20 @@ body.is-narrow .ab-btn {
   justify-content: center;
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
-  background: #2da44e;
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+  border: 1px solid var(--border);
   user-select: none;
+  overflow: hidden;
+}
+/* Foto profil asli dari GitHub (avatars.githubusercontent.com). object-fit
+   supaya rasio apa pun tetap bulat penuh tanpa distorsi. */
+.ab-gh-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
 }
 
 /* ─────────── ActivityBar ikut posisi panel ───────────
@@ -2181,7 +2248,7 @@ body.is-resizing-v {
 .menubar {
   display: flex;
   align-items: stretch;
-  height: 28px;
+  height: var(--bar-h, 28px);
   flex-shrink: 0;
   background: var(--titlebar-bg, var(--surface));
   border-bottom: 1px solid var(--border);
@@ -2223,6 +2290,39 @@ body.is-resizing-v {
 .mb-layout-ic {
   width: 15px;
   height: 15px;
+}
+
+/* C-18: tombol minimize/maximize/close sendiri — title bar Windows dihapus
+   supaya chrome-nya bisa bertema gelap. Ukuran mengikuti konvensi Windows
+   (46x28) supaya terasa native, bukan tombol web. */
+.wc {
+  display: flex;
+  align-items: stretch;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.wc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.wc-btn svg {
+  width: 10px;
+  height: 10px;
+}
+.wc-btn:hover {
+  background: var(--surface-2);
+}
+.wc-btn.is-close:hover {
+  background: #e81123;
+  color: #fff;
 }
 .mb-layout-sep {
   width: 1px;
@@ -2412,3 +2512,40 @@ body.is-narrow .mb-top { padding: 0 6px; }
   font-size: 10.5px;
 }
 .kb-foot code { font-family: var(--font-mono); }
+
+/* ErrorBoundary (shell/ErrorBoundary.tsx) — kartu pemulihan saat satu bagian
+   gagal render. Tanpa ini React melepas seluruh tree dan jendela jadi blank. */
+.err-boundary {
+  margin: auto;
+  max-width: 520px;
+  padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + 2px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--bg1, var(--surface));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--danger);
+  border-radius: 6px;
+}
+.err-boundary-judul { font-weight: 600; color: var(--text); }
+.err-boundary-pesan {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.err-boundary-aksi { display: flex; gap: var(--sp-2); margin-top: var(--sp-1); }
+.err-boundary-detail { font-size: 11px; color: var(--text-muted); }
+.err-boundary-detail summary { cursor: pointer; }
+.err-boundary-detail pre {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2);
+  max-height: 200px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--bg0, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}

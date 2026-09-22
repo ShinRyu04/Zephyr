@@ -34,7 +34,7 @@ function EyeIcon({ off }: { off: boolean }) {
 }
 
 export default function McpPanel() {
-  const t = useT();
+  const tr = useT();
   const mcp = useStore((s) => s.settings.mcp);
   const status = useMcp((s) => s.status);
   const clis = useMcp((s) => s.clis);
@@ -64,11 +64,11 @@ export default function McpPanel() {
   const running = !!status?.running;
   const port = status?.port ?? mcp.port;
   const token = status?.token ?? '';
-  const masked = token ? `${token.slice(0, 4)}${'•'.repeat(20)}${token.slice(-4)}` : '(belum ada)';
+  const masked = token ? `${token.slice(0, 4)}${'•'.repeat(20)}${token.slice(-4)}` : tr('(belum ada)');
   const byId = new Map(clis.map((c) => [c.id, c]));
 
   return (
-    <Section title={t('settings.mcp')}>
+    <Section title={tr('settings.mcp')}>
       <p className="set-note" data-testid="mcp-note">
         Saat switch ini hidup, Zephyr jadi server MCP di <code>127.0.0.1:{port}</code>. AI CLI di
         luar (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) bisa membaca pane,
@@ -76,16 +76,16 @@ export default function McpPanel() {
         file, menjalankan command. Hanya loopback: tidak pernah terbuka ke jaringan.
       </p>
 
-      <Row label={t('mcp.enable')} hint={`switch besar; port ${mcp.port}`}>
+      <Row label={tr('mcp.enable')} hint={`switch besar; port ${mcp.port}`}>
         <Toggle
-          label={t('mcp.enable')}
+          label={tr('mcp.enable')}
           testid="mcp-enable"
           checked={running}
           onChange={(v) => void toggleServer(v)}
         />
       </Row>
 
-      <Row label={t('mcp.status')}>
+      <Row label={tr('mcp.status')}>
         <span
           className={`mcp-status ${running ? 'is-running' : 'is-stopped'}`}
           data-testid="mcp-status"
@@ -93,7 +93,7 @@ export default function McpPanel() {
           data-port={running ? String(port) : ''}
         >
           <span className="mcp-dot" />
-          {running ? `Running (127.0.0.1:${port})` : t('common.stopped')}
+          {running ? `Running (127.0.0.1:${port})` : tr('common.stopped')}
           {running && status && (
             <span className="mcp-uptime"> · {Math.round(status.uptimeMs / 1000)}s</span>
           )}
@@ -107,7 +107,7 @@ export default function McpPanel() {
         </p>
       )}
 
-      <Row label={t('mcp.token')} hint="dipakai sebagai Authorization: Bearer <token>">
+      <Row label={tr('mcp.token')} hint="dipakai sebagai Authorization: Bearer <token>">
         <span className="mcp-tokenrow">
           <code className="mcp-token" data-testid="mcp-token" data-full={reveal ? '1' : '0'}>
             {reveal ? token || '(belum ada)' : masked}
@@ -116,7 +116,7 @@ export default function McpPanel() {
             className="btn btn-sm btn-icon"
             data-testid="mcp-eye"
             title={reveal ? 'Sembunyikan token' : 'Tampilkan token'}
-            aria-label={reveal ? 'Sembunyikan token' : 'Tampilkan token'}
+            aria-label={reveal ? 'Sembunyikan token' : tr('Tampilkan token')}
             onClick={() => setReveal(!reveal)}
           >
             <EyeIcon off={reveal} />
@@ -135,7 +135,7 @@ export default function McpPanel() {
         </span>
       </Row>
 
-      <Row label={t('mcp.writeToCli')} hint="entri ditulis ke config; file lama disalin ke .bak">
+      <Row label={tr('mcp.writeToCli')} hint="entri ditulis ke config; file lama disalin ke .bak">
         <div className="mcp-clis" data-testid="mcp-clis">
           {ORDER.map((id) => {
             const c = byId.get(id);

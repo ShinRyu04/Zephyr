@@ -5,6 +5,7 @@
 // (onDragDropEvent) di App.tsx, bukan di sini.
 
 import { useStore, useActiveTab } from '../../lib/store';
+import { useT } from '../../lib/i18n';
 import { useGit } from '../../lib/gitStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import DebugToolbar from '../debug/DebugToolbar';
@@ -13,13 +14,25 @@ import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import ReadOnlyBanner from '../editor/ReadOnlyBanner';
 import ZephyrLogo from './ZephyrLogo';
+import { ErrorBoundary } from './ErrorBoundary';
 import SettingsPage from '../settings/SettingsPage';
 import DiffViewer from '../scm/DiffViewer';
+import ImagePreview, { PreviewGambar } from '../editor/ImagePreview';
+import { apakahGambar, useTampilan } from '../../lib/tampilanStore';
+
+/**
+ * Muat gambar tab aktif ke store tampilan.
+ *
+ * KENAPA komponen kecil terpisah: `bukaGambar` adalah efek samping (baca file
+ * lewat Rust), dan efek samping di dalam render EditorArea akan terpanggil
+ * setiap render ulang.
+ */
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
   const openFolderDialog = useStore((s) => s.openFolderDialog);
   const newUntitled = useStore((s) => s.newUntitled);
+  const tr = useT();
 
   return (
     <div className="empty-state">
@@ -29,32 +42,32 @@ function EmptyState() {
 
       <div className="empty-actions">
         <button className="btn btn-primary" onClick={openFileDialog}>
-          Buka File
+          {tr('welcome.openFile')}
         </button>
         <button className="btn" onClick={openFolderDialog}>
-          Buka Folder
+          {tr('welcome.openFolder')}
         </button>
         <button className="btn" onClick={newUntitled}>
-          File Baru
+          {tr('welcome.newFile')}
         </button>
       </div>
 
       <dl className="empty-keys">
         <div>
           <dt>Ctrl+N</dt>
-          <dd>file baru</dd>
+          <dd>{tr('welcome.kb.newFile')}</dd>
         </div>
         <div>
           <dt>Ctrl+O</dt>
-          <dd>buka file</dd>
+          <dd>{tr('welcome.kb.openFile')}</dd>
         </div>
         <div>
           <dt>Ctrl+S</dt>
-          <dd>simpan</dd>
+          <dd>{tr('welcome.kb.save')}</dd>
         </div>
         <div>
           <dt>Ctrl+,</dt>
-          <dd>pengaturan</dd>
+          <dd>{tr('welcome.kb.settings')}</dd>
         </div>
       </dl>
     </div>
@@ -64,6 +77,9 @@ function EmptyState() {
 export default function EditorArea() {
   const tabs = useStore((s) => s.tabs);
   const tab = useActiveTab();
+  // Ada gambar yang harus dipratinjau (dari tab gambar atau dari store).
+  const gambarStore = useTampilan((s) => s.gambar);
+  const gambarAktif = !!gambarStore || !!(tab && apakahGambar(tab.path ?? ''));
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   // Diff SCM (fase 10) menumpang area yang sama seperti Settings.
@@ -84,7 +100,9 @@ export default function EditorArea() {
           </button>
         </div>
         <div className="editor-host">
-          <SettingsPage />
+          <ErrorBoundary nama="Settings">
+            <SettingsPage />
+          </ErrorBoundary>
         </div>
       </section>
     );
@@ -123,7 +141,21 @@ export default function EditorArea() {
           walau tab yang aktif bukan file yang sedang di-debug. */}
       <DebugToolbar />
       <div className="editor-host">
-        {tabs.length === 0 || !tab ? <EmptyState /> : <CodeMirrorEditor key={tab.id} tab={tab} />}
+        {/* Gambar TIDAK dirender sebagai teks: membukanya di CodeMirror
+            menampilkan biner rusak. Pratinjau menggantikannya. */}
+        {gambarAktif ? (
+          // Pratinjau gambar: dipakai baik saat tab gambar dibuka maupun saat
+          // gambar dimuat langsung ke store (command / drag-drop).
+          tab && apakahGambar(tab.path ?? '') ? (
+            <PreviewGambar path={tab.path ?? ''} />
+          ) : (
+            <ImagePreview />
+          )
+        ) : tabs.length === 0 || !tab ? (
+          <EmptyState />
+        ) : (
+          <CodeMirrorEditor key={tab.id} tab={tab} />
+        )}
       </div>
     </section>
   );

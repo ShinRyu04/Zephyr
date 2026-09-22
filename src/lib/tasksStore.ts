@@ -54,6 +54,21 @@ interface TaskActions {
   buildDefault: () => TaskDef | null;
   cari: (label: string) => TaskDef | null;
   jalankan: (label: string, opts?: { lewatiDepends?: boolean }) => Promise<TaskRun | null>;
+  /**
+   * Jalankan perintah test/apa pun yang TIDAK berasal dari tasks.json
+   * (mis. runner yang dideteksi Test Explorer).
+   *
+   * KENAPA harus lewat store, bukan `tasksRun` langsung: `labelRun` (peta
+   * id->label) dan channel output `task:<label>` hanya dibuat di sini. Memanggil
+   * `tasks_run` langsung dari komponen membuat event `task-output` datang
+   * dengan id yang tidak dikenal store -> output test tidak pernah muncul.
+   */
+  jalankanAdHoc: (a: {
+    label: string;
+    command: string;
+    args: string[];
+    cwd?: string;
+  }) => Promise<TaskRun | null>;
   jalankanBuild: () => Promise<TaskRun | null>;
   hentikan: (runId: string) => Promise<boolean>;
   hentikanSemua: () => Promise<number>;
@@ -305,6 +320,43 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       set({ error: String(e) });
       return null;
     }
+  },
+
+  jalankanAdHoc: async ({ label, command, args, cwd }) => {
+    const runId = idBaru(label);
+    // Urutan PENTING: labelRun + channel output harus siap SEBELUM perintah
+    // dikirim, kalau tidak baris pertama (yang bisa datang dalam milidetik)
+    // tiba saat id belum dikenal dan baris itu hilang.
+    labelRun.set(runId, label);
+    bufferProblem.set(runId, []);
+    const ch = channelUntuk(label);
+    const O = useOutput.getState();
+    O.addChannel(ch, `Task: ${label}`);
+    O.clear(ch);
+
+    set((s) => ({
+      recent: [label, ...s.recent.filter((x) => x !== label)].slice(0, MAX_RECENT),
+      activeRun: runId,
+      error: null,
+    }));
+
+    try {
+      await tasksRun({
+        id: runId,
+        label,
+        kind: 'test',
+        command,
+        args,
+        cwd: cwd || undefined,
+        isBackground: false,
+      });
+    } catch (e) {
+      const msg = String(e);
+      useOutput.getState().append(ch, `[zephyr] gagal menjalankan: ${msg}`);
+      set({ error: msg });
+      return null;
+    }
+    return null;
   },
 
   jalankanBuild: async () => {

@@ -16,20 +16,25 @@ import { useRef } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
 import { useLayout } from '../../lib/editorLayoutStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
+import ImagePreview, { PreviewGambar } from '../editor/ImagePreview';
+import { useTampilan, apakahGambar } from '../../lib/tampilanStore';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import ReadOnlyBanner from '../editor/ReadOnlyBanner';
 import RestrictedBanner from '../workspace/RestrictedBanner';
 import DebugToolbar from '../debug/DebugToolbar';
 import ZephyrLogo from './ZephyrLogo';
+import { ErrorBoundary } from './ErrorBoundary';
 import SettingsPage from '../settings/SettingsPage';
 import DiffViewer from '../scm/DiffViewer';
 import { useGit } from '../../lib/gitStore';
+import { useT, tx } from '../../lib/i18n';
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
   const openFolderDialog = useStore((s) => s.openFolderDialog);
   const newUntitled = useStore((s) => s.newUntitled);
+  const tr = useT();
 
   return (
     <div className="empty-state">
@@ -39,32 +44,32 @@ function EmptyState() {
 
       <div className="empty-actions">
         <button className="btn btn-primary" onClick={openFileDialog}>
-          Buka File
+          {tr('Buka File')}
         </button>
         <button className="btn" onClick={openFolderDialog}>
-          Buka Folder
+          {tr('Buka Folder')}
         </button>
         <button className="btn" onClick={newUntitled}>
-          File Baru
+          {tr('File Baru')}
         </button>
       </div>
 
       <dl className="empty-keys">
         <div>
           <dt>Ctrl+N</dt>
-          <dd>file baru</dd>
+          <dd>{tr('file baru')}</dd>
         </div>
         <div>
           <dt>Ctrl+O</dt>
-          <dd>buka file</dd>
+          <dd>{tr('buka file')}</dd>
         </div>
         <div>
           <dt>Ctrl+S</dt>
-          <dd>simpan</dd>
+          <dd>{tr('simpan')}</dd>
         </div>
         <div>
           <dt>Ctrl+,</dt>
-          <dd>pengaturan</dd>
+          <dd>{tr('pengaturan')}</dd>
         </div>
       </dl>
     </div>
@@ -105,6 +110,11 @@ function EditorPane({ gid }: { gid: string }) {
   // perilaku EditorArea lama; harness F03-V0 memeriksanya).
   const kosongTotal = tabs.length === 0;
 
+  // Pratinjau gambar: tab yang aktif adalah gambar, ATAU store punya gambar
+  // (dibuka lewat command / drag-drop tanpa tab).
+  const gambarStore = useTampilan((s) => s.gambar);
+  const gambarGrup = !!gambarStore || !!(tab && apakahGambar(tab.path ?? ''));
+
   return (
     <section
       className={`editor-group${fokus === gid ? ' is-fokus' : ''}`}
@@ -118,12 +128,19 @@ function EditorPane({ gid }: { gid: string }) {
     >
       {!kosongTotal && <EditorTabBar gid={gid} />}
       <div className="editor-host">
-        {kosongTotal ? (
+        {gambarGrup ? (
+          // Gambar tidak boleh dibuka sebagai teks (biner rusak di CodeMirror).
+          tab && apakahGambar(tab.path ?? '') ? (
+            <PreviewGambar path={tab.path ?? ''} />
+          ) : (
+            <ImagePreview />
+          )
+        ) : kosongTotal ? (
           <EmptyState />
         ) : !tab ? (
           <div className="empty-group" data-testid={`empty-group-${gid}`}>
             <ZephyrLogo size={40} />
-            <span className="empty-group-label">Grup kosong — buka file di sini</span>
+            <span className="empty-group-label">{tx('Grup kosong — buka file di sini')}</span>
           </div>
         ) : (
           <CodeMirrorEditor key={tab.id} tab={tab} />
@@ -135,6 +152,7 @@ function EditorPane({ gid }: { gid: string }) {
 
 /** Divider antar grup — digeser untuk mengubah proporsi (25%..75%). */
 function GroupDivider() {
+  const tr = useT();
   const setRatio = useLayout((s) => s.setRatio);
   const dragging = useRef(false);
 
@@ -158,7 +176,7 @@ function GroupDivider() {
       onPointerCancel={() => (dragging.current = false)}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Ubah lebar grup editor"
+      aria-label={tr('Ubah lebar grup editor')}
       title="Geser untuk mengubah lebar"
     />
   );
@@ -186,7 +204,9 @@ export default function SplitEditor() {
           </button>
         </div>
         <div className="editor-host">
-          <SettingsPage />
+          <ErrorBoundary nama="Settings">
+            <SettingsPage />
+          </ErrorBoundary>
         </div>
       </section>
     );

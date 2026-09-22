@@ -1,0 +1,567 @@
+// i18n-src.ts — terjemahan dengan KUNCI = teks sumber Indonesia (gaya gettext).
+//
+// Kenapa begitu: ada ~220 teks Indonesia yang tersebar hardcoded di 53
+// komponen. Kalau tiap teks harus dikasih nama kunci baru, itu 220 keputusan
+// penamaan + risiko salah pasang. Dengan kunci = teksnya sendiri, satu codemod
+// bisa membungkus semuanya dan tabel ini satu-satunya tempat yang perlu diisi.
+//
+// Cakupan bahasa: HANYA Inggris untuk tabel ini. Alasannya jujur: menerjemahkan
+// 220 string ke 8 bahasa lain (≈1.800 baris) tanpa penutur asli yang memeriksa
+// justru menghasilkan terjemahan setengah benar. Karena rantai fallback
+// `tx()` = aktif → Inggris → teks asli, pemakai bahasa Jepang/Korea/dll melihat
+// INGGRIS, bukan sisa bahasa Indonesia — itu yang diminta. Kunci inti di
+// `i18n.ts` tetap punya 10 bahasa penuh.
+//
+// Aturan: nilai WAJIB bahasa Inggris. Jangan menaruh teks Indonesia di sini,
+// karena teks Indonesia apa pun yang tidak ada di tabel = bocor ke bahasa lain.
+
+/** teks Indonesia → Inggris */
+export const EN: Record<string, string> = {
+  // T3.4: Zen mode + pratinjau gambar.
+  // Zoom pakai kunci yang SUDAH ADA ('Perbesar/Perkecil/Reset tampilan').
+  'Tutup pratinjau': 'Close preview',
+  'Gambar gagal dimuat.': 'Failed to load image.',
+  // T3.3: SFTP + port forwarding.
+  'Belum ada host SSH': 'No SSH host yet',
+  'Tambahkan host SSH dulu di panel SSH.': 'Add an SSH host first in the SSH panel.',
+  'File': 'Files',
+  'Kosong.': 'Empty.',
+  'Muat ulang untuk membaca isi folder.': 'Reload to read the folder contents.',
+  'Hapus file remote': 'Delete remote file',
+  'Lokal (-L)': 'Local (-L)',
+  'Remote (-R)': 'Remote (-R)',
+  'Nyalakan tunnel': 'Start tunnel',
+  'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.':
+    'No tunnels yet. Ports already in use will not be taken over.',
+  'Port tidak valid.': 'Invalid port.',
+  // T3.2: Database browser.
+  'Database': 'Database',
+  'Path file SQLite (.db / .sqlite)': 'SQLite file path (.db / .sqlite)',
+  'Buka': 'Open',
+  'Mode tulis': 'Write mode',
+  'Izinkan query yang mengubah data': 'Allow queries that change data',
+  'Tabel': 'Tables',
+  'Tidak ada tabel.': 'No tables.',
+  'Buka file database dulu.': 'Open a database file first.',
+  'baris data': 'rows',
+  'terpengaruh': 'affected',
+  'dipotong — tambahkan LIMIT': 'truncated — add LIMIT',
+  // T3.1: Dev Environment.
+  'Dev Environment': 'Dev Environment',
+  'versi terdeteksi': 'versions detected',
+  'Memuat…': 'Loading…',
+  'Tidak ada layanan di folder DevEnv.':
+    'No services in the DevEnv folder.',
+  'Letakkan PHP/Nginx/MariaDB/Redis di':
+    'Place PHP/Nginx/MariaDB/Redis in',
+  'Layanan': 'Services',
+  'Versi': 'Version',
+  'Nyalakan': 'Start',
+  'Matikan': 'Stop',
+  'Berjalan': 'Running',
+  'Tidak ada layanan berjalan.': 'No services running.',
+  'menyiapkan…': 'starting…',
+  'hidup di port': 'live on port',
+  'Port': 'Port',
+  // T2.4: Test Explorer.
+  'Test Explorer': 'Test Explorer',
+  'runner': 'runners',
+  'Buka folder project untuk mendeteksi test.':
+    'Open a project folder to detect tests.',
+  'Tidak ada runner test terdeteksi di folder ini.':
+    'No test runner detected in this folder.',
+  'Didukung: package.json, Cargo.toml, go.mod, pytest, composer.json, Makefile':
+    'Supported: package.json, Cargo.toml, go.mod, pytest, composer.json, Makefile',
+  'Deteksi ulang': 'Re-detect',
+  'Mendeteksi…': 'Detecting…',
+  'Jalankan': 'Run',
+  'Riwayat': 'History',
+  'Dijalankan di terminal:': 'Running in terminal:',
+  // T2.3: Cloudflare Tunnel.
+  'cloudflared belum terpasang': 'cloudflared is not installed',
+  'Taruh cloudflared.exe di D:\\DevEnv\\bin\\ lalu buka panel ini lagi.':
+    'Place cloudflared.exe in D:\\DevEnv\\bin\\ then reopen this panel.',
+  'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.':
+    'A tunnel exposes a local port to the INTERNET. Anyone who knows the URL can reach it.',
+  'Port lokal': 'Local port',
+  'Buka tunnel': 'Open tunnel',
+  'Belum ada tunnel. Isi port lalu klik Buka tunnel.':
+    'No tunnels yet. Enter a port and click Open tunnel.',
+  'Menunggu URL dari Cloudflare…': 'Waiting for the Cloudflare URL…',
+  'Memeriksa cloudflared…': 'Checking cloudflared…',
+  'Menyiapkan…': 'Preparing…',
+  'Salin URL': 'Copy URL',
+  'Hentikan': 'Stop',
+  // T2.2: API client.
+  'Collection': 'Collection',
+  'Environment': 'Environment',
+  'Pilih atau buat request untuk mulai.': 'Select or create a request to start.',
+  'Response muncul di sini.': 'The response appears here.',
+  'Nama request': 'Request name',
+  'Kirim': 'Send',
+  'Request baru': 'New request',
+  'Hapus collection': 'Delete collection',
+  'Hapus request': 'Delete request',
+  'Tambah variabel': 'Add variable',
+  'Body': 'Body',
+  // T2.1: blok langkah subagent.
+  'Reasoned': 'Reasoned',
+  'Subagent': 'Subagent',
+  // T2.1: subagent paralel.
+  'Tugas paralel': 'Parallel tasks',
+  'Satu baris = satu subagent': 'One line = one subagent',
+  'Jalankan beberapa tugas sekaligus (paralel)':
+    'Run several tasks at once (parallel)',
+  'Belum ada subagent. Tulis beberapa tugas (satu per baris) lalu jalankan.':
+    'No subagents yet. Write several tasks (one per line) and run.',
+  'Subagent berjalan bersamaan dan hanya boleh MEMBACA — penulisan file diblokir supaya tidak bentrok.':
+    'Subagents run at the same time and may only READ — file writes are blocked to avoid conflicts.',
+  'tugas paralel': 'parallel tasks',
+  'subagent': 'subagents',
+  'Hentikan semua': 'Stop all',
+  'Bersihkan': 'Clear',
+  'Ringkasan gabungan': 'Combined summary',
+  'Batalkan subagent ini': 'Cancel this subagent',
+  'langkah': 'steps',
+  'tool': 'tools',
+  'menunggu': 'queued',
+  'jalan': 'running',
+  'selesai': 'done',
+  'gagal': 'failed',
+  'batal': 'cancelled',
+  'Berjalan…': 'Running…',
+  'Tutup': 'Close',
+  'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z':
+    'Find all usages of function X\nCheck whether module Y has bugs\nSummarise the structure of folder Z',
+  // T1.3: HTTP client (.http).
+  'Buka file .http untuk menjalankan request.':
+    'Open a .http file to run requests.',
+  'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body':
+    'Format: ### separator · METHOD URL · header: value · blank line then body',
+  'request': 'requests',
+  'Tidak ada request terbaca di file ini.':
+    'No requests found in this file.',
+  'Klik satu request untuk menjalankannya.':
+    'Click a request to run it.',
+  'Mengirim…': 'Sending…',
+  'Header': 'Headers',
+  '(body kosong)': '(empty body)',
+  'dipotong': 'truncated',
+  // T1.2/T1.5: jalur AI (Native vs CLI).
+  'Jalur AI': 'AI route',
+  'Pakai adapter API (butuh API key)': 'Use the API adapter (needs an API key)',
+  'Belum siap': 'Not ready yet',
+  'mode CLI: kirim pesan untuk menjalankan CLI':
+    'CLI mode: send a message to run the CLI',
+  // T1.4: format-on-save.
+  'Memakai formatter LSP bahasa yang aktif':
+    'Uses the LSP formatter for the active language',
+  'Diformat': 'Formatted',
+  // T1.1: blok "Reasoned" (penalaran model).
+  'Sedang berpikir…': 'Thinking…',
+  'baris': 'lines',
+  'karakter': 'chars',
+  // T1.1: kontrol tingkat penalaran.
+  'Tingkat penalaran': 'Reasoning effort',
+  'Penalaran: default': 'Reasoning: default',
+  'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
+    'How deeply the model thinks before answering. Raise it for hard tasks, lower it to save time.',
+  'Penalaran': 'Reasoning',
+  // Menu akun GitHub di Activity Bar.
+  'Belum login': 'Not signed in',
+  'Login ke GitHub': 'Sign in to GitHub',
+  'Keluar dari GitHub': 'Sign out of GitHub',
+  'Kelola token GitHub': 'Manage GitHub token',
+  'Akun GitHub': 'GitHub account',
+  'Command Palette — cari perintah & file (Ctrl+Shift+P / Ctrl+P)':
+    'Command Palette — search commands & files (Ctrl+Shift+P / Ctrl+P)',
+  'Identitas ini dipakai saat commit dari Zephyr. Dibiarkan kosong = pakai konfigurasi git config yang sudah ada di mesin/repo.':
+    'This identity is used when committing from Zephyr. Leave it empty to use the git config already on the machine/repo.',
+  'mengurangi push yang ditolak': 'reduces rejected pushes',
+  'Kembalikan ukuran': 'Restore',
+  'Perbesar': 'Maximize',
+
+  // ── Notifikasi / toast ──
+  'Belum ada replace untuk dibatalkan': 'No replace to undo',
+  'Belum ada snapshot untuk file ini': 'No snapshot for this file yet',
+  'Belum ada thread yang berhenti': 'No paused thread',
+  'Code action gagal': 'Code action failed',
+  'Definisi tidak ditemukan': 'Definition not found',
+  'Disalin ke clipboard': 'Copied to clipboard',
+  'Exception dicatat di Problems': 'Exception logged in Problems',
+  'Find References gagal': 'Find References failed',
+  'Format gagal': 'Format failed',
+  'Go to Definition gagal': 'Go to Definition failed',
+  'Go to Symbol gagal': 'Go to Symbol failed',
+  'Output disalin': 'Output copied',
+  'Port harus angka 1–65535': 'Port must be a number 1–65535',
+  'Quick Fix gagal': 'Quick Fix failed',
+  'Rename gagal': 'Rename failed',
+  'Screenshot ditempel sebagai lampiran': 'Screenshot pasted as an attachment',
+  'Semua language server dimatikan': 'All language servers stopped',
+  'Semua language server dimatikan; akan start lagi saat file dibuka': 'All language servers stopped; they restart when a file is opened',
+  'Server tidak mengembalikan perubahan apa pun': 'The server returned no changes',
+  'Snapshot dibuat': 'Snapshot created',
+  'Snapshot dilewati (isi sama / file besar / biner)': 'Snapshot skipped (same content / large file / binary)',
+  'Tidak ada konfigurasi debug. Buat .zephyr/launch.json dulu.': 'No debug configuration. Create .zephyr/launch.json first.',
+  'Tidak ada kursor di editor': 'No cursor in the editor',
+  'Tidak ada language server yang hidup': 'No language server is running',
+  'Tidak ada masalah di file ini': 'No problems in this file',
+  'Tidak ada quick fix di posisi ini': 'No quick fix at this position',
+  'Tidak ada referensi': 'No references',
+  'Tidak ada simbol di file ini': 'No symbols in this file',
+  'Tidak ada warna di dokumen ini': 'No colors in this document',
+  'Tidak bisa membuka file untuk restore': 'Could not open the file to restore',
+  'Update terpasang — restart Zephyr untuk memakainya': 'Update installed — restart Zephyr to use it',
+
+  // ── Label action (Settings → Shortcuts) ──
+  'File baru': 'New file',
+  'Simpan': 'Save',
+  'Simpan sebagai': 'Save as',
+  'Ganti di file': 'Replace in file',
+  'Cari berikutnya': 'Find next',
+  'Cari sebelumnya': 'Find previous',
+  'Ganti berikutnya': 'Replace next',
+  'Buka pengaturan': 'Open settings',
+  'Perbesar tampilan': 'Zoom in',
+  'Perkecil tampilan': 'Zoom out',
+  'Reset tampilan': 'Reset zoom',
+  'Pindah tab berikutnya': 'Next tab',
+  'Pindah tab sebelumnya': 'Previous tab',
+  'Buka command palette': 'Open command palette',
+  'Buka file cepat': 'Quick open file',
+  'Format dokumen': 'Format document',
+  'Ganti nama simbol': 'Rename symbol',
+  'Buka definisi': 'Go to definition',
+  'Cari referensi': 'Find references',
+  'Buka simbol': 'Go to symbol',
+  'Perbaikan cepat': 'Quick fix',
+  'Buka terminal': 'Open terminal',
+  'Pane terminal baru': 'New terminal pane',
+  'Mulai debug': 'Start debugging',
+  'Hentikan debug': 'Stop debugging',
+  'Buat snapshot': 'Create snapshot',
+  'Buka riwayat file': 'Open file history',
+
+  // ── Kerangka: activity bar, sidebar, panel ──
+  'Buka Explorer': 'Open Explorer',
+  'Buka Source Control': 'Open Source Control',
+  'Buka Settings': 'Open Settings',
+  'Buka panel AI': 'Open AI panel',
+  'Isi panel bawah': 'Bottom panel content',
+  'Tampilkan terminal di panel bawah': 'Show terminal in the bottom panel',
+  'Tampilkan panel AI di panel bawah (Ctrl+Shift+A)': 'Show the AI panel in the bottom panel (Ctrl+Shift+A)',
+  'Tampilkan panel bawah (Ctrl+J)': 'Show the bottom panel (Ctrl+J)',
+  'Tampilkan panel bawah (Ctrl+`)': 'Show the bottom panel (Ctrl+`)',
+  'Sembunyikan panel': 'Hide panel',
+  'Tampilkan panel': 'Show panel',
+  'Ubah tinggi panel': 'Resize panel',
+  'Ubah tinggi panel bawah': 'Resize the bottom panel',
+  'Ubah tinggi panel terminal': 'Resize the terminal panel',
+  'Ubah lebar sidebar': 'Resize sidebar',
+  'Ubah lebar grup editor': 'Resize editor group',
+  'Kembalikan ukuran panel': 'Reset panel size',
+  'Tutup panel (Ctrl+J)': 'Close panel (Ctrl+J)',
+  'Tampilkan / sembunyikan tab': 'Show / hide tabs',
+  'Pilih channel output': 'Choose output channel',
+  'Lipat baris panjang': 'Wrap long lines',
+  'Scroll lock: hentikan auto-scroll saat baris baru masuk': 'Scroll lock: stop auto-scrolling when new lines arrive',
+  'ada log baru': 'new log output',
+  'Grup kosong — buka file di sini': 'Empty group — open a file here',
+  'Penanda waktu (ms sejak proses mulai):': 'Timestamps (ms since process start):',
+
+  // ── Title bar / jendela ──
+  'Perkecil jendela': 'Minimize window',
+  'Perbesar jendela': 'Maximize window',
+  'Kembalikan ukuran jendela': 'Restore window',
+  'Tutup jendela': 'Close window',
+  'Cari file & perintah…': 'Search files & commands…',
+  'belum tersedia': 'not available yet',
+
+  'File Baru': 'New File',
+  'file baru': 'new file',
+  'buka file': 'open file',
+  'simpan': 'save',
+  'pengaturan': 'settings',
+  'Workspace': 'Workspace',
+  'Recent': 'Recent',
+
+  // ── Welcome / empty state ──
+  'Buka File': 'Open File',
+  'Buka Folder': 'Open Folder',
+  'Buka file': 'Open file',
+  'Buka folder': 'Open folder',
+  'Buka folder data': 'Open data folder',
+  'Belum ada workspace — buka folder': 'No workspace yet — open a folder',
+  'Belum ada folder yang pernah dibuka': 'No folder has been opened yet',
+  'Folder ini kosong': 'This folder is empty',
+  'buka folder workspace': 'open workspace folder',
+  'tutup folder workspace': 'close workspace folder',
+
+  // ── Terminal: pane & tab ──
+  'Klik untuk menambah pane': 'Click to add a pane',
+  'Buat pane lain: shell tertentu, private, AI agent, browser, tab baru':
+    'Create another pane: specific shell, private, AI agent, browser, new tab',
+  'Pilihan pane baru': 'New pane options',
+  'Menu tab & pane terminal': 'Terminal tab & pane menu',
+  'Nama tab terminal': 'Terminal tab name',
+  'Tutup tab terminal': 'Close terminal tab',
+  'Tutup tab': 'Close tab',
+  'Tutup pane': 'Close pane',
+  'sampai 6 pane per tab': 'up to 6 panes per tab',
+  'sudah keluar': 'exited',
+  'pane gagal dibuat': 'failed to create pane',
+  'pane tidak bisa dibuat': 'could not create pane',
+  'tidak bisa membuka pane terminal': 'could not open a terminal pane',
+  'Tidak bisa membuka pane terminal': 'Could not open a terminal pane',
+  'Maksimal pane per tab': 'Maximum panes per tab',
+  'pane melebihi batas ditolak dengan toast': 'a pane over the limit is rejected with a toast',
+  'Buka di terminal': 'Open in terminal',
+  'Jalankan di Terminal': 'Run in Terminal',
+
+  // ── Browser pane ──
+  'Muat ulang': 'Reload',
+  'Alamat URL': 'URL address',
+  'Buka URL': 'Open URL',
+  'Buka di browser sistem': 'Open in system browser',
+  'Buka di browser pane': 'Open in browser pane',
+  'Gagal menyalin URL': 'Failed to copy URL',
+  'Tidak bisa membuka': 'Could not open',
+
+  // ── Find / replace ──
+  'Cari di file': 'Find in file',
+  'Cari hanya di dalam seleksi': 'Find only within selection',
+  'Sorot semua hasil': 'Highlight all matches',
+  'Pilih semua hasil (multi-cursor)': 'Select all matches (multi-cursor)',
+  'Cari di semua file': 'Search all files',
+  'Cari di workspace': 'Search workspace',
+  'Tutup (Esc)': 'Close (Esc)',
+  'Tutup chat cepat': 'Close quick chat',
+  'Tampilkan replace': 'Show replace',
+  'Sembunyikan replace': 'Hide replace',
+  'Ganti dengan': 'Replace with',
+  'Ganti dengan (boleh $1, $2)': 'Replace with (may use $1, $2)',
+  'Ganti di workspace': 'Replace in workspace',
+  'Ganti di semua file hasil pencarian': 'Replace across all search results',
+  'Ganti semua': 'Replace all',
+  'Ganti semua di file ini': 'Replace all in this file',
+  'Batalkan replace terakhir (dari Local History)': 'Undo the last replace (from Local History)',
+  'Buka folder dulu untuk mencari di workspace.': 'Open a folder first to search the workspace.',
+  'buka folder dulu untuk mencari': 'open a folder first to search',
+  'ripgrep belum terpasang — memakai pencarian bawaan': 'ripgrep is not installed — using the built-in search',
+  'hasil di': 'results in',
+
+  // ── Explorer / file tree ──
+  'Tutup workspace': 'Close workspace',
+  'Hapus folder dari workspace': 'Remove folder from workspace',
+  'Folder belum dipercaya — klik untuk mengatur trust': 'Folder not trusted — click to set trust',
+  'belum dipercaya': 'not trusted',
+  'Percayai folder ini': 'Trust this folder',
+  'Percayai folder ini?': 'Trust this folder?',
+  'Pilih Trust': 'Choose Trust',
+  'Buka dalam Restricted Mode': 'Open in Restricted Mode',
+  'Ganti nama': 'Rename',
+  'Simpan sebagai…': 'Save as…',
+  'Simpan salinan…': 'Save a copy…',
+  'tampilkan di folder': 'reveal in folder',
+  'Hapus': 'Delete',
+  'Hapus item': 'Delete items',
+  'Gagal menghapus': 'Failed to delete',
+  'nama tidak boleh kosong': 'name cannot be empty',
+  'tidak bisa memindahkan folder ke dalam dirinya sendiri': 'cannot move a folder into itself',
+
+  // ── Timeline / history ──
+  'Muat isi snapshot ini ke editor (belum disimpan)': 'Load this snapshot into the editor (not saved yet)',
+  'Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)':
+    'Snapshot loaded into the editor — not saved yet (Ctrl+S to write)',
+  'Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.':
+    'No history yet. Save a file (Ctrl+S) to create a snapshot.',
+  'Hapus riwayat': 'Clear history',
+
+  // ── Source control ──
+  'Buka folder dulu untuk memakai git.': 'Open a folder first to use git.',
+  'Folder ini belum jadi repositori git.': 'This folder is not a git repository yet.',
+  'folder ini bukan repo git': 'this folder is not a git repo',
+  'Buang perubahan': 'Discard changes',
+  'Buang perubahan (permanen)': 'Discard changes (permanent)',
+  'Buang perubahan file ini (permanen)': 'Discard changes to this file (permanent)',
+  'Buang semua perubahan (permanen)': 'Discard all changes (permanent)',
+  'Commit yang belum tergabung di branch lain akan hilang PERMANEN.':
+    'Commits not merged into another branch will be lost PERMANENTLY.',
+  'Hapus branch': 'Delete branch',
+  'Ganti branch': 'Switch branch',
+  'Tulis pesan commit': 'Write a commit message',
+  'Tulis pesan commit dulu': 'Write a commit message first',
+  'Pesan commit masih kosong.': 'The commit message is still empty.',
+  'pesan commit masih kosong': 'the commit message is still empty',
+  'Pesan commit (Ctrl+Enter untuk commit)': 'Commit message (Ctrl+Enter to commit)',
+  'belum punya upstream': 'has no upstream yet',
+  'Push akan ditolak git selama commit itu belum ada di lokal. Pull dulu lalu push?':
+    'Git will reject the push while that commit is missing locally. Pull first, then push?',
+  'Tidak ada perbedaan untuk file ini.': 'No differences for this file.',
+
+  // ── AI panel ──
+  'Salin seluruh chat sebagai markdown ke clipboard': 'Copy the whole chat as markdown to the clipboard',
+  'Hapus gambar': 'Remove image',
+  'Agent sedang bekerja…': 'Agent is working…',
+  'Tulis pesan (Enter kirim, Shift+Enter baris baru) — ketik @ untuk lampirkan file':
+    'Write a message (Enter sends, Shift+Enter for a new line) — type @ to attach a file',
+  'Tidak ada file aktif': 'No active file',
+  'Jalankan npx tsc --noEmit di terminal lalu minta AI menganalisis error':
+    'Run npx tsc --noEmit in the terminal, then ask the AI to analyse the errors',
+  'Kirim prompt AI': 'Send AI prompt',
+  'Pesan untuk AI': 'Message for the AI',
+  'Perintah prompt': 'Prompt command',
+  'Daftar tugas': 'Task list',
+  'Baca daftar tugas yang sedang dikerjakan beserta statusnya.': 'Read the current task list with its statuses.',
+  'Riwayat chat': 'Chat history',
+  'Cari chat…': 'Search chats…',
+  'Cari riwayat chat': 'Search chat history',
+  'Hapus chat': 'Delete chat',
+  'Hapus semua': 'Delete all',
+  'Hapus semua riwayat chat': 'Delete all chat history',
+  'Mulai percakapan baru': 'Start a new conversation',
+  '+ Chat baru': '+ New chat',
+  'Riwayat chat dibersihkan': 'Chat history cleared',
+  'Belum ada percakapan. Klik “+ Chat baru”.': 'No conversations yet. Click “+ New chat”.',
+  'belum ada key': 'no key yet',
+  'API key tersimpan': 'API key saved',
+  'API key tersimpan untuk provider ini': 'API key saved for this provider',
+  'base URL belum diisi': 'base URL not set',
+  'Pilih model dari daftar': 'Choose a model from the list',
+  'Kirim ke pane terminal aktif': 'Send to the active terminal pane',
+  'Buka pane terminal di panel bawah': 'Open a terminal pane in the bottom panel',
+  'Salin isi jawaban': 'Copy the answer',
+  'Tidak ada tab editor aktif': 'No active editor tab',
+  'Isi file sudah sama dengan kode ini': 'The file already contains this code',
+  'Isi tab diganti — Ctrl+S untuk menyimpan': 'Tab content replaced — Ctrl+S to save',
+  'Tidak ada tab aktif untuk menyisipkan': 'No active tab to insert into',
+  'Ganti isi tab editor aktif dengan kode ini': 'Replace the active editor tab with this code',
+  'Sisipkan kode di posisi kursor': 'Insert the code at the cursor',
+  'Kode disalin': 'Code copied',
+  'Kode disisipkan di kursor': 'Code inserted at the cursor',
+  'Kirim file aktif ke agent': 'Send the active file to the agent',
+  'Jelaskan kode yang dipilih': 'Explain the selected code',
+  'Tulis dokumentasi': 'Write documentation',
+  'Perintah berisiko — akan minta konfirmasi': 'Risky command — will ask for confirmation',
+  'Perintah berpotensi merusak — izinkan agent?': 'Potentially destructive command — allow the agent?',
+  'Perintah ini berpotensi merusak:': 'This command may be destructive:',
+  'Perintah dikirim ke terminal': 'Command sent to the terminal',
+  'Isi lengkap teks yang akan ditulis ke file': 'The full text to write to the file',
+  'Isi baru seluruh file': 'The new content of the whole file',
+  'Perintah shell (bisa multi-baris, contoh: node script.js)':
+    'Shell command (may be multi-line, e.g. node script.js)',
+  'Maksimum baris yang dibaca (default 40)': 'Maximum lines read (default 40)',
+  'ambil N baris terakhir (default 200, maks 2000)': 'take the last N lines (default 200, max 2000)',
+  'satu baris tugas, kata kerja dulu': 'one task per line, verb first',
+  'tanpa mengulang kode yang sudah ada. Maksimal satu baris.':
+    'without repeating existing code. One line at most.',
+  'Daftar isi folder (nama file/direktori).': 'Directory listing (file/directory names).',
+  'Baca isi buffer tab editor yang AKTIF (belum tentu sama dengan isi di disk). Termasuk nama file.':
+    'Read the ACTIVE editor tab buffer (not necessarily what is on disk). Includes the file name.',
+  'Tulis langsung isi file ke disk (atau buat file baru jika belum ada). Memperbarui buffer tab bila file sedang dibuka di editor.':
+    'Write the file content straight to disk (or create the file if missing). Updates the tab buffer when the file is open in the editor.',
+  'Ubah sebagian isi file yang ada di disk dengan mencari teks lama (old_text) dan menggantinya dengan teks baru (new_text).':
+    'Edit part of an existing file on disk by finding old_text and replacing it with new_text.',
+  'Jalankan perintah shell di pane terminal Zephyr (ConPTY). Perintah dikirim apa adanya ke shell aktif. Output dibaca belakangan dengan terminal_read — jangan menganggap selesai tanpa menunggu lalu membaca.':
+    'Run a shell command in a Zephyr terminal pane (ConPTY). The command is sent verbatim to the active shell. Read the output afterwards with terminal_read — do not assume it finished without waiting and reading.',
+  'Baca baris yang sedang tampil di pane terminal (viewport terakhir yang ter-render). Panggil setelah terminal_exec dan beri waktu proses berjalan.':
+    'Read the lines currently shown in the terminal pane (last rendered viewport). Call it after terminal_exec and give the process time to run.',
+  'Baca diagnostik (Problems) yang sedang tampil di panel bawah: error & warning per file. Filter severity opsional: error | warning | info | hint.':
+    'Read the diagnostics (Problems) shown in the bottom panel: errors & warnings per file. Optional severity filter: error | warning | info | hint.',
+  'Baca isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug). Param channel wajib; tail opsional (default 200 baris terakhir).':
+    'Read one channel of the bottom Output panel (zephyr, mcp, ssh, extensions, debug). The channel param is required; tail is optional (defaults to the last 200 lines).',
+  'Tulis/ganti daftar tugas yang sedang dikerjakan (maks 20 item). Panggil ulang tiap kali status berubah — jangan menunggu tugas selesai. Status: pending | in_progress | done.':
+    'Write/replace the current task list (max 20 items). Call it again whenever a status changes — do not wait for tasks to finish. Status: pending | in_progress | done.',
+  'Daftar pane terminal/browser yang sedang terbuka (paneId, type, title, agent, pid, running). Berguna untuk mengetahui terminal mana yang hidup sebelum menjalankan perintah.':
+    'List the open terminal/browser panes (paneId, type, title, agent, pid, running). Useful to see which terminals are alive before running a command.',
+
+  // ── Debug ──
+  'Buka folder dulu untuk debug.': 'Open a folder first to debug.',
+  'Klik gutter editor untuk memasang breakpoint.': 'Click the editor gutter to set a breakpoint.',
+  'Klik untuk mengubah nilai': 'Click to edit the value',
+  'Salin nilai': 'Copy value',
+  'Hapus breakpoint': 'Remove breakpoint',
+  'Hapus Semua Breakpoint': 'Remove All Breakpoints',
+  'belum diverifikasi': 'not verified',
+  'Program berjalan — belum berhenti.': 'Program is running — not paused.',
+  'Tidak ada sesi debug aktif. Tekan F5 untuk mulai.': 'No active debug session. Press F5 to start.',
+  'Breakpoint (belum diverifikasi adapter)': 'Breakpoint (not verified by the adapter)',
+  'Debug: Hapus Semua Breakpoint': 'Debug: Remove All Breakpoints',
+
+  // ── Settings ──
+  'Simpan perubahan': 'Save changes',
+  'Tambah host': 'Add host',
+  '+ Tambah host': '+ Add host',
+  'Simpan password': 'Save password',
+  ' · pw tersimpan': ' · pw saved',
+  'Sembunyikan token': 'Hide token',
+  'Tampilkan token': 'Show token',
+  '(belum ada)': '(none yet)',
+  'config belum ada': 'no config yet',
+  'Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang.':
+    'A new token was generated. Already-registered CLIs must be re-registered.',
+  'Simpan sebagai UTF-8': 'Save as UTF-8',
+  'Tulis sebagai UTF-8': 'Write as UTF-8',
+  'Tulis ulang file ini sebagai UTF-8 supaya bisa diedit':
+    'Rewrite this file as UTF-8 so it can be edited',
+  'Simpan salinan yang bisa diedit': 'Save an editable copy',
+  'Simpan dibatalkan': 'Save cancelled',
+  'Jangan Simpan': 'Don’t Save',
+  'sudah tidak ada di disk': 'no longer exists on disk',
+  'Kembalikan ke default': 'Reset to default',
+  'Semua setting kembali ke default. API key tidak dihapus. Lanjut?':
+    'All settings go back to their defaults. API keys are not removed. Continue?',
+  'Update belum dikonfigurasi': 'Update is not configured',
+  'Update belum dikonfigurasi (endpoint rilis belum diisi)':
+    'Update is not configured (the release endpoint is empty)',
+  'Tidak ada catatan rilis.': 'No release notes.',
+  'Buka changelog lengkap': 'Open the full changelog',
+  'Zephyr sudah versi terbaru': 'Zephyr is already up to date',
+  'Pilih platform donasi favoritmu': 'Pick your favourite donation platform',
+  'Tekan kombinasi…': 'Press a combination…',
+  'sudah dipakai': 'already in use',
+  'pilih kombinasi lain': 'pick another combination',
+  'Cari command atau chord…': 'Search a command or chord…',
+  'Cari keybinding': 'Search keybindings',
+  'Hapus keybinding (command tetap ada di palette)':
+    'Remove keybinding (the command stays in the palette)',
+  'Cari ekstensi…': 'Search extensions…',
+  'Cari ekstensi': 'Search extensions',
+  'Blame inline, riwayat baris, dan graf commit': 'Inline blame, line history, and the commit graph',
+  'Salin semua perintah pasang yang belum terpasang':
+    'Copy every install command that is not installed yet',
+  'perintah pasang disalin': 'install commands copied',
+  'daftar model kosong / tidak terbaca': 'the model list is empty / unreadable',
+  '(tersimpan — isi untuk mengganti)': '(saved — fill in to replace)',
+  'Windows sudah meminta animasi dikurangi — animasi mati walau ini off':
+    'Windows already asked for reduced animation — motion stays off even with this disabled',
+  'screen reader butuh waktu membacakan; naikkan bila toast terlalu cepat hilang':
+    'a screen reader needs time to read; raise it if toasts disappear too fast',
+  'bacakan status baris kolom posisi a11y screen reader': 'announce the line/column position for a11y screen readers',
+  'axe belum disuntik': 'axe is not injected yet',
+  'Belum ada folder yang pernah diberi keputusan trust.':
+    'No folder has been given a trust decision yet.',
+  'Lupakan keputusan — folder akan ditanya lagi saat dibuka':
+    'Forget the decision — the folder will be asked again when opened',
+  'belum ada folder terbuka': 'no folder open yet',
+
+  // ── Command palette ──
+  'Cari file': 'Search files',
+  'Cari perintah': 'Search commands',
+  'Tidak ada file yang cocok.': 'No matching files.',
+  'Tidak ada perintah yang cocok.': 'No matching commands.',
+
+  // ── Notifikasi ──
+  'Tutup notifikasi': 'Dismiss notification',
+  'Hapus dari riwayat': 'Remove from history',
+  'Hapus notifikasi ini': 'Dismiss this notification',
+  'notifikasi belum dibaca': 'unread notifications',
+
+  // ── Bawaan yang sudah Inggris — dijaga supaya tidak ikut ditimpa ──
+  'New pane options': 'New pane options',
+  'New shell pane': 'New shell pane',
+  'New shell pane (Ctrl+Shift+T)': 'New shell pane (Ctrl+Shift+T)',
+  'Close pane': 'Close pane',
+  'New folder': 'New folder',
+};

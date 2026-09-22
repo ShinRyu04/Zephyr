@@ -1,7 +1,7 @@
 {
   "name": "zephyr",
   "private": true,
-  "version": "1.1.9",
+  "version": "1.1.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:build": "tauri build --config src-tauri/tauri.release.conf.json",
     "verify": "node scripts/verify.mjs",
     "verify:update": "node scripts/verify-update.mjs",
     "verify:04": "node scripts/verify04.mjs",
@@ -43,7 +43,8 @@
     "smoke:release": "node scripts/smoke-release.mjs src-tauri/target/release/zephyr.exe 9224",
     "stress": "node scripts/stress.mjs",
     "mock:ai": "node scripts/mock-ai.mjs 8098",
-    "soak": "node scripts/soak.mjs"
+    "soak": "node scripts/soak.mjs",
+    "bundle": "tauri build --config src-tauri/tauri.release.conf.json --bundles msi,nsis"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",

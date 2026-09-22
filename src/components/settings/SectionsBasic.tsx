@@ -7,7 +7,7 @@ import { semuaTema } from '../../lib/themes';
 import { NumberInput, Pills, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
 export function GeneralSection() {
-  const t = useT();
+  const tr = useT();
   const g = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
   const dataDir = useStore((s) => s.appInfo?.dataDir ?? '');
@@ -15,10 +15,10 @@ export function GeneralSection() {
   const patch = (p: Partial<typeof g>) => void apply({ general: p });
 
   return (
-    <Section title={t('settings.general')}>
-      <Row label={t('general.theme')} hint="mode terang/gelap; tema spesifik di section Tema">
+    <Section title={tr('settings.general')}>
+      <Row label={tr('general.theme')} hint="mode terang/gelap; tema spesifik di section Tema">
         <Pills
-          label={t('general.theme')}
+          label={tr('general.theme')}
           testid="general-theme"
           value={g.theme}
           onChange={(v) => patch({ theme: v as typeof g.theme })}
@@ -30,9 +30,9 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.font')} hint="dipakai editor & terminal">
+      <Row label={tr('general.font')} hint="dipakai editor & terminal">
         <TextInput
-          label={t('general.font')}
+          label={tr('general.font')}
           testid="general-font"
           mono
           value={g.fontFamily}
@@ -40,9 +40,9 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.fontSize')} testid="row-fontsize">
+      <Row label={tr('general.fontSize')} testid="row-fontsize">
         <NumberInput
-          label={t('general.fontSize')}
+          label={tr('general.fontSize')}
           testid="general-fontsize"
           min={10}
           max={24}
@@ -52,9 +52,9 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.lineHeight')}>
+      <Row label={tr('general.lineHeight')}>
         <NumberInput
-          label={t('general.lineHeight')}
+          label={tr('general.lineHeight')}
           testid="general-lineheight"
           min={1.2}
           max={2}
@@ -64,9 +64,9 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.uiLang')} hint="label utama saja, bukan seluruh teks">
+      <Row label={tr('general.uiLang')} hint="label utama saja, bukan seluruh teks">
         <Select
-          label={t('general.uiLang')}
+          label={tr('general.uiLang')}
           testid="general-lang"
           value={g.uiLang}
           onChange={(v) => patch({ uiLang: v as typeof g.uiLang })}
@@ -74,9 +74,9 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.zoom')} hint="Ctrl+= / Ctrl+- / Ctrl+0">
+      <Row label={tr('general.zoom')} hint="Ctrl+= / Ctrl+- / Ctrl+0">
         <NumberInput
-          label={t('general.zoom')}
+          label={tr('general.zoom')}
           testid="general-zoom"
           min={50}
           max={200}
@@ -87,18 +87,18 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.restoreSession')}>
+      <Row label={tr('general.restoreSession')}>
         <Toggle
-          label={t('general.restoreSession')}
+          label={tr('general.restoreSession')}
           testid="general-restore"
           checked={g.restoreSession}
           onChange={(v) => patch({ restoreSession: v })}
         />
       </Row>
 
-      <Row label={t('general.checkUpdates')} hint="tidak ada telemetri; hanya cek versi rilis">
+      <Row label={tr('general.checkUpdates')} hint="tidak ada telemetri; hanya cek versi rilis">
         <Toggle
-          label={t('general.checkUpdates')}
+          label={tr('general.checkUpdates')}
           testid="general-updates"
           checked={g.checkUpdates}
           onChange={(v) => patch({ checkUpdates: v })}
@@ -107,7 +107,7 @@ export function GeneralSection() {
 
       <Row
         label="Mode penghemat RAM"
-        hint="smooth scroll off, minimap dipaksa off, batas tab termuat 8 (dari 12)"
+        hint="smooth scroll off, minimap dipaksa off, batas tab termuat 4 (dari 12), scrollback terminal 2000 baris"
       >
         <Toggle
           label="Mode penghemat RAM"
@@ -117,13 +117,45 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={t('general.openDataFolder')} hint={dataDir || '%APPDATA%\\zephyr'}>
+      <Row
+        label="Tempat panel AI"
+        hint="bawah = sejajar terminal; kanan = kolom 340px ala VS Code"
+      >
+        <select
+          className="inp"
+          data-testid="general-ai-panel"
+          aria-label="Tempat panel AI"
+          value={g.aiPanel ?? 'bottom'}
+          onChange={(e) => patch({ aiPanel: e.target.value as 'bottom' | 'right' })}
+        >
+          <option value="bottom">Bawah (sejajar terminal)</option>
+          <option value="right">Kanan (340px)</option>
+        </select>
+      </Row>
+
+      <Row
+        label="Tata letak utama"
+        hint="editor = editor besar dengan terminal dock bawah; terminal = terminal jadi area utama, editor jadi pane samping"
+      >
+        <select
+          className="inp"
+          data-testid="general-layout"
+          aria-label="Tata letak utama"
+          value={g.layout ?? 'editor'}
+          onChange={(e) => patch({ layout: e.target.value as 'editor' | 'terminal' })}
+        >
+          <option value="editor">Editor-first</option>
+          <option value="terminal">Terminal-first</option>
+        </select>
+      </Row>
+
+      <Row label={tr('general.openDataFolder')} hint={dataDir || '%APPDATA%\\zephyr'}>
         <button
           className="btn"
           data-testid="general-open-data"
           onClick={() => void openPath(dataDir).catch(() => {})}
         >
-          {t('general.openDataFolder')}
+          {tr('general.openDataFolder')}
         </button>
       </Row>
     </Section>
@@ -131,16 +163,16 @@ export function GeneralSection() {
 }
 
 export function EditorSection() {
-  const t = useT();
+  const tr = useT();
   const e = useStore((s) => s.settings.editor);
   const apply = useStore((s) => s.applySettings);
   const patch = (p: Partial<typeof e>) => void apply({ editor: p });
 
   return (
-    <Section title={t('settings.editor')}>
-      <Row label={t('editor.tabSize')}>
+    <Section title={tr('settings.editor')}>
+      <Row label={tr('editor.tabSize')}>
         <NumberInput
-          label={t('editor.tabSize')}
+          label={tr('editor.tabSize')}
           testid="editor-tabsize"
           min={1}
           max={8}
@@ -149,36 +181,36 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={t('editor.insertSpaces')}>
+      <Row label={tr('editor.insertSpaces')}>
         <Toggle
-          label={t('editor.insertSpaces')}
+          label={tr('editor.insertSpaces')}
           testid="editor-spaces"
           checked={e.insertSpaces}
           onChange={(v) => patch({ insertSpaces: v })}
         />
       </Row>
 
-      <Row label={t('editor.wordWrap')}>
+      <Row label={tr('editor.wordWrap')}>
         <Toggle
-          label={t('editor.wordWrap')}
+          label={tr('editor.wordWrap')}
           testid="editor-wrap"
           checked={e.wordWrap}
           onChange={(v) => patch({ wordWrap: v })}
         />
       </Row>
 
-      <Row label={t('editor.minimap')} hint="mati secara default demi RAM">
+      <Row label={tr('editor.minimap')} hint="mati secara default demi RAM">
         <Toggle
-          label={t('editor.minimap')}
+          label={tr('editor.minimap')}
           testid="editor-minimap"
           checked={e.minimap}
           onChange={(v) => patch({ minimap: v })}
         />
       </Row>
 
-      <Row label={t('editor.cursorStyle')}>
+      <Row label={tr('editor.cursorStyle')}>
         <Select
-          label={t('editor.cursorStyle')}
+          label={tr('editor.cursorStyle')}
           testid="editor-cursor"
           value={e.cursorStyle}
           onChange={(v) => patch({ cursorStyle: v as typeof e.cursorStyle })}
@@ -191,11 +223,11 @@ export function EditorSection() {
       </Row>
 
       <Row
-        label={t('editor.snippetSuggestions')}
+        label={tr('editor.snippetSuggestions')}
         hint="posisi saran snippet di daftar completion"
       >
         <Select
-          label={t('editor.snippetSuggestions')}
+          label={tr('editor.snippetSuggestions')}
           testid="editor-snippet-sug"
           value={e.snippetSuggestions}
           onChange={(v) => patch({ snippetSuggestions: v as typeof e.snippetSuggestions })}
@@ -208,27 +240,39 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={t('editor.smoothScroll')} hint="lebih halus, sedikit lebih berat">
+      <Row
+        label="Ghost text (saran AI inline)"
+        hint="Alt+\ minta saran, Tab pakai, Esc buang — tiap saran = 1 panggilan API berbayar"
+      >
         <Toggle
-          label={t('editor.smoothScroll')}
+          label="Ghost text"
+          testid="editor-ghost"
+          checked={e.ghostText}
+          onChange={(v) => patch({ ghostText: v })}
+        />
+      </Row>
+
+      <Row label={tr('editor.smoothScroll')} hint="lebih halus, sedikit lebih berat">
+        <Toggle
+          label={tr('editor.smoothScroll')}
           testid="editor-smooth"
           checked={e.smoothScroll}
           onChange={(v) => patch({ smoothScroll: v })}
         />
       </Row>
 
-      <Row label={t('editor.formatOnSave')} hint="formatter per bahasa menyusul">
+      <Row label={tr('editor.formatOnSave')} hint={tr('Memakai formatter LSP bahasa yang aktif')}>
         <Toggle
-          label={t('editor.formatOnSave')}
+          label={tr('editor.formatOnSave')}
           testid="editor-format"
           checked={e.formatOnSave}
           onChange={(v) => patch({ formatOnSave: v })}
         />
       </Row>
 
-      <Row label={t('editor.showWhitespace')} hint="titik untuk spasi, panah untuk tab">
+      <Row label={tr('editor.showWhitespace')} hint="titik untuk spasi, panah untuk tab">
         <Toggle
-          label={t('editor.showWhitespace')}
+          label={tr('editor.showWhitespace')}
           testid="editor-whitespace"
           checked={e.showWhitespace}
           onChange={(v) => patch({ showWhitespace: v })}
@@ -243,27 +287,27 @@ export function EditorSection() {
         juga ada di menu View → Appearance.
       </p>
 
-      <Row label={t('editor.breadcrumbs')} hint="jalur folder + simbol dari language server">
+      <Row label={tr('editor.breadcrumbs')} hint="jalur folder + simbol dari language server">
         <Toggle
-          label={t('editor.breadcrumbs')}
+          label={tr('editor.breadcrumbs')}
           testid="editor-breadcrumbs"
           checked={e.breadcrumbs}
           onChange={(v) => patch({ breadcrumbs: v })}
         />
       </Row>
 
-      <Row label={t('editor.stickyScroll')} hint="baris function/class menempel saat scroll">
+      <Row label={tr('editor.stickyScroll')} hint="baris function/class menempel saat scroll">
         <Toggle
-          label={t('editor.stickyScroll')}
+          label={tr('editor.stickyScroll')}
           testid="editor-sticky"
           checked={e.stickyScroll}
           onChange={(v) => patch({ stickyScroll: v })}
         />
       </Row>
 
-      <Row label={t('editor.stickyScrollMaxLines')} hint="berapa baris header ditumpuk">
+      <Row label={tr('editor.stickyScrollMaxLines')} hint="berapa baris header ditumpuk">
         <NumberInput
-          label={t('editor.stickyScrollMaxLines')}
+          label={tr('editor.stickyScrollMaxLines')}
           testid="editor-sticky-max"
           min={1}
           max={10}
@@ -273,47 +317,47 @@ export function EditorSection() {
       </Row>
 
       <Row
-        label={t('editor.minimapRenderCharacters')}
+        label={tr('editor.minimapRenderCharacters')}
         hint="gambar teks asli, bukan blok warna — jauh lebih berat"
       >
         <Toggle
-          label={t('editor.minimapRenderCharacters')}
+          label={tr('editor.minimapRenderCharacters')}
           testid="editor-minimap-chars"
           checked={e.minimapRenderCharacters}
           onChange={(v) => patch({ minimapRenderCharacters: v })}
         />
       </Row>
 
-      <Row label={t('editor.indentGuides')} hint="garis indentasi + indent aktif">
+      <Row label={tr('editor.indentGuides')} hint="garis indentasi + indent aktif">
         <Toggle
-          label={t('editor.indentGuides')}
+          label={tr('editor.indentGuides')}
           testid="editor-indent-guides"
           checked={e.indentGuides}
           onChange={(v) => patch({ indentGuides: v })}
         />
       </Row>
 
-      <Row label={t('editor.colorDecorators')} hint="swatch #hex/rgb()/hsl(), klik untuk picker">
+      <Row label={tr('editor.colorDecorators')} hint="swatch #hex/rgb()/hsl(), klik untuk picker">
         <Toggle
-          label={t('editor.colorDecorators')}
+          label={tr('editor.colorDecorators')}
           testid="editor-color-dec"
           checked={e.colorDecorators}
           onChange={(v) => patch({ colorDecorators: v })}
         />
       </Row>
 
-      <Row label={t('editor.unicodeHighlight')} hint="tandai karakter ambigu & tak terlihat">
+      <Row label={tr('editor.unicodeHighlight')} hint="tandai karakter ambigu & tak terlihat">
         <Toggle
-          label={t('editor.unicodeHighlight')}
+          label={tr('editor.unicodeHighlight')}
           testid="editor-unicode"
           checked={e.unicodeHighlight}
           onChange={(v) => patch({ unicodeHighlight: v })}
         />
       </Row>
 
-      <Row label={t('editor.bracketPairColorization')} hint="warna bracket per kedalaman">
+      <Row label={tr('editor.bracketPairColorization')} hint="warna bracket per kedalaman">
         <Toggle
-          label={t('editor.bracketPairColorization')}
+          label={tr('editor.bracketPairColorization')}
           testid="editor-bracket-color"
           checked={e.bracketPairColorization}
           onChange={(v) => patch({ bracketPairColorization: v })}
@@ -324,13 +368,13 @@ export function EditorSection() {
 }
 
 export function ThemeSection() {
-  const t = useT();
+  const tr = useT();
   const theme = useStore((s) => s.settings.theme);
   const general = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
 
   return (
-    <Section title={t('settings.theme')}>
+    <Section title={tr('settings.theme')}>
       <p className="set-note">
         Tema mengubah UI, editor, dan terminal sekaligus. Mode di section Umum
         (terang/gelap) menang atas pilihan di sini — memilih tema gelap saat
@@ -388,7 +432,7 @@ export function ThemeSection() {
             data-testid="theme-accent-reset"
             onClick={() => void apply({ theme: { accent: '' } })}
           >
-            {t('common.reset')}
+            {tr('common.reset')}
           </button>
         </span>
       </Row>

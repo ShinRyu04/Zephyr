@@ -32,6 +32,9 @@ const TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 const SCOPE: &str = "repo read:user";
 const UA: &str = "Zephyr-Editor";
 
+/// Penjaga backfill avatar: satu percobaan GET /user per proses.
+static AVATAR_DICOBA: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -94,6 +97,16 @@ fn set_meta(app: &AppHandle, state: &AppState, patch: Value) -> ZResult<()> {
 pub fn stored_user(state: &AppState) -> Option<String> {
     meta(state)
         .get("user")
+        .and_then(|u| u.as_str())
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// URL foto profil GitHub yang tercatat. Login lama (sebelum field ini ada)
+/// belum menyimpannya → None, dan UI memakai inisial sebagai cadangan.
+pub fn stored_avatar(state: &AppState) -> Option<String> {
+    meta(state)
+        .get("avatarUrl")
         .and_then(|u| u.as_str())
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty())
@@ -190,6 +203,9 @@ pub struct GhStatus {
     /// "none" | "pat" | "oauth"
     pub method: String,
     pub user: Option<String>,
+    /// URL foto profil GitHub (dari GET /user). None kalau belum login atau
+    /// login lama yang belum menyimpan avatar → UI jatuh ke inisial.
+    pub avatar_url: Option<String>,
     pub scopes: Vec<String>,
     /// epoch detik; None = tidak kadaluarsa (PAT klasik)
     pub expires_at: Option<u64>,
@@ -200,7 +216,7 @@ pub struct GhStatus {
 }
 
 #[tauri::command(async)]
-pub fn gh_status(state: State<AppState>) -> ZResult<GhStatus> {
+pub fn gh_status(app: AppHandle, state: State<AppState>) -> ZResult<GhStatus> {
     let m = meta(&state);
     let method = m
         .get("method")
@@ -209,10 +225,43 @@ pub fn gh_status(state: State<AppState>) -> ZResult<GhStatus> {
         .to_string();
     let token = active_token(&state);
     let expires_at = m.get("expiresAt").and_then(|x| x.as_u64());
+    let signed_in = token.is_some() && method != "none";
+
+    // Backfill sekali-jalan: akun yang login SEBELUM field avatarUrl ada
+    // (atau yang token-nya belum pernah diuji) belum punya URL foto profil.
+    // Ambil dari GET /user, simpan, lalu tidak diulang lagi. Kegagalan
+    // jaringan TIDAK boleh menggagalkan gh_status — UI cukup pakai inisial.
+    // Guard: paling banyak SATU percobaan per proses (gh_status dipanggil
+    // tiap ActivityBar mount; tanpa ini token mati = HTTP request berulang).
+    let mut avatar_url = stored_avatar(&state);
+    if avatar_url.is_none()
+        && signed_in
+        && !matches!(expires_at, Some(t) if t <= now_secs())
+        && !AVATAR_DICOBA.swap(true, std::sync::atomic::Ordering::Relaxed)
+    {
+        if let Some(t) = token.as_deref() {
+            if let Ok(r) = http_get(API_USER, t) {
+                if r.status == 200 {
+                    if let Ok(v) = serde_json::from_str::<Value>(&r.body) {
+                        if let Some(u) = v.get("avatar_url").and_then(|x| x.as_str()) {
+                            let u = u.trim().to_string();
+                            if !u.is_empty() {
+                                // Tulis gagal pun tidak fatal.
+                                let _ = set_meta(&app, &state, json!({ "avatarUrl": u }));
+                                avatar_url = Some(u);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Ok(GhStatus {
-        signed_in: token.is_some() && method != "none",
+        signed_in,
         method,
         user: stored_user(&state),
+        avatar_url,
         scopes: m
             .get("scopes")
             .and_then(|x| x.as_array())
@@ -263,6 +312,13 @@ pub fn gh_set_pat(app: AppHandle, state: State<AppState>, token: String) -> ZRes
     if login.is_empty() {
         return Err(ZephyrError::Git("GitHub tidak mengirim username".into()));
     }
+    // Foto profil ikut disimpan supaya ActivityBar bisa menampilkan avatar
+    // asli (bukan inisial) tanpa permintaan jaringan tambahan saat render.
+    let avatar = v
+        .get("avatar_url")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string();
     let scopes: Vec<String> = v
         .get("__scopes")
         .and_then(|x| x.as_str())
@@ -279,6 +335,7 @@ pub fn gh_set_pat(app: AppHandle, state: State<AppState>, token: String) -> ZRes
         json!({
             "method": "pat",
             "user": login,
+            "avatarUrl": avatar,
             "scopes": scopes,
             // PAT: masa berlaku tidak diketahui dari API → hapus key lama.
             "expiresAt": Value::Null,
@@ -419,12 +476,17 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
                 .to_string();
             let expires_in = v.get("expires_in").and_then(|x| x.as_u64());
 
-            // Ambil username + scope dengan token baru.
-            let (login, scopes) = match http_get(API_USER, &token) {
+            // Ambil username + scope + avatar dengan token baru.
+            let (login, scopes, avatar) = match http_get(API_USER, &token) {
                 Ok(u) if u.status == 200 => {
                     let uv: Value = serde_json::from_str(&u.body).unwrap_or_else(|_| json!({}));
                     let login = uv
                         .get("login")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let av = uv
+                        .get("avatar_url")
                         .and_then(|x| x.as_str())
                         .unwrap_or("")
                         .to_string();
@@ -436,9 +498,9 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
-                    (login, sc)
+                    (login, sc, av)
                 }
-                _ => (String::new(), vec![]),
+                _ => (String::new(), vec![], String::new()),
             };
 
             let st = handle.state::<AppState>();
@@ -453,6 +515,7 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
                 json!({
                     "method": "oauth",
                     "user": login,
+                    "avatarUrl": avatar,
                     "scopes": scopes,
                     "expiresAt": expires_at.map(Value::from).unwrap_or(Value::Null),
                 }),

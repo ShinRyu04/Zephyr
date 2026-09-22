@@ -13,6 +13,7 @@ import { useKb } from '../../lib/keybindingStore';
 import { findCommand } from '../../lib/commandRegistry';
 import { chordConflicts, displayChord, normalizeChord, type KeyBinding } from '../../lib/keybindings';
 import { eventToBinding } from '../../lib/shortcuts';
+import { useT } from '../../lib/i18n';
 
 const LAYER_LABEL: Record<KeyBinding['layer'], string> = {
   app: 'App',
@@ -22,6 +23,7 @@ const LAYER_LABEL: Record<KeyBinding['layer'], string> = {
 };
 
 export default function KeybindingsEditor() {
+  const tr = useT();
   const open = useKb((s) => s.editorOpen);
   const bindings = useKb((s) => s.bindings);
   const user = useKb((s) => s.user);
@@ -114,10 +116,10 @@ export default function KeybindingsEditor() {
             ref={inputRef}
             className="kb-search"
             data-testid="kb-search"
-            placeholder="Cari command atau chord…"
+            placeholder={tr('Cari command atau chord…')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            aria-label="Cari keybinding"
+            aria-label={tr('Cari keybinding')}
           />
           <span className="kb-count" data-testid="kb-count">
             {baris.length}
@@ -199,7 +201,7 @@ export default function KeybindingsEditor() {
                     <button
                       className="btn btn-sm"
                       data-testid="kb-remove"
-                      title="Hapus keybinding (command tetap ada di palette)"
+                      title={tr('Hapus keybinding (command tetap ada di palette)')}
                       onClick={() => void removeBinding(b.command)}
                     >
                       Hapus
@@ -208,7 +210,7 @@ export default function KeybindingsEditor() {
                       <button
                         className="btn btn-sm"
                         data-testid="kb-reset"
-                        title="Kembalikan ke default"
+                        title={tr('Kembalikan ke default')}
                         onClick={() => void resetOne(b.command)}
                       >
                         Reset

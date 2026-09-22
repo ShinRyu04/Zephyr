@@ -16,8 +16,10 @@ import {
   type AccessibilitySettings,
 } from '../../lib/a11yStore';
 import { NumberInput, Row, Toggle } from './SettingsControls';
+import { useT } from '../../lib/i18n';
 
 export default function AccessibilitySection() {
+  const tr = useT();
   const settings = useStore((s) => s.settings);
   const applySettings = useStore((s) => s.applySettings);
   const a = { ...DEFAULT_A11Y, ...(settings.accessibility ?? {}) };
@@ -40,7 +42,7 @@ export default function AccessibilitySection() {
         label="Kurangi animasi"
         hint={
           osReduced
-            ? 'Windows sudah meminta animasi dikurangi — animasi mati walau ini off'
+            ? tr('Windows sudah meminta animasi dikurangi — animasi mati walau ini off')
             : 'matikan transisi & animasi di dalam Zephyr'
         }
         testid="a11y-row-motion"

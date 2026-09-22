@@ -11,13 +11,14 @@ import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
 import PaneIcon from '../terminal/PaneIcons';
 import type { PaneMeta } from '../../lib/types';
+import { tx } from '../../lib/i18n';
 
 function StatusDot({ status }: { status: PaneMeta['status'] }) {
   const label =
     status === 'live'
       ? 'hidup'
       : status === 'exited'
-        ? 'sudah keluar'
+        ? tx('sudah keluar')
         : status === 'connecting'
           ? 'menyambung'
           : 'error';
@@ -101,7 +102,7 @@ export default function TerminalPanel() {
             data-testid="tp-toggle-panel"
             onClick={() => setVisible(!visible)}
           >
-            {visible ? 'Sembunyikan panel' : 'Tampilkan panel'}
+            {visible ? 'Sembunyikan panel' : tx('Tampilkan panel')}
           </button>
         </div>
 
@@ -154,7 +155,7 @@ export default function TerminalPanel() {
                 </span>
                 <button
                   className="tp-x"
-                  title="Tutup tab"
+                  title={tx('Tutup tab')}
                   aria-label={`Tutup ${tab.title}`}
                   data-testid={`tp-close-tab-${tab.id}`}
                   onClick={() => void closeTab(tab.id)}
@@ -193,7 +194,7 @@ export default function TerminalPanel() {
                       )}
                       <button
                         className="tp-op"
-                        title="Tutup pane"
+                        title={tx('Tutup pane')}
                         data-testid={`tp-close-${p.id}`}
                         onClick={() => void closePane(p.id)}
                       >

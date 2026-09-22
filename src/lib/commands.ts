@@ -284,6 +284,8 @@ export const aiChat = (opts: {
   messages: AiMessage[];
   baseUrl?: string;
   maxTokens?: number;
+  /** T1.1: tingkat penalaran (minimal|low|medium|high|ultra). Kosong = default provider. */
+  effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
 }) => invoke<void>('ai_chat', opts);
 
 /** Batalkan streaming. false = id sudah tidak berjalan. */
@@ -297,7 +299,255 @@ export const aiToolChat = (opts: {
   tools: AgentToolSpec[];
   baseUrl?: string;
   maxTokens?: number;
+  effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
 }) => invoke<AiToolResult>('ai_tool_chat', opts);
+
+/** Satu langkah loop agent STREAMING: teks lewat `ai-chunk`, hasil akhir
+ *  lewat `ai-chunk` dengan `toolDone: true`. */
+export const aiToolChatStream = (opts: {
+  id: string;
+  provider: string;
+  model: string;
+  messages: AgentMsg[];
+  tools: AgentToolSpec[];
+  baseUrl?: string;
+  maxTokens?: number;
+  effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
+}) => invoke<void>('ai_tool_chat_stream', opts);
+
+// ── CLI AI agent (T1.2/T1.5) ──
+//
+// Jalur B: Zephyr TIDAK membaca token CLI. Ia hanya (a) mendeteksi CLI mana
+// yang terpasang + sudah login, dan (b) menjalankan prompt lewat CLI itu.
+// Konsekuensinya: kesalahan Zephyr tidak bisa merusak sesi login user.
+
+/** Satu CLI AI yang dikenal Zephyr. */
+export interface CliAgent {
+  id: string;
+  label: string;
+  bin: string;
+  path: string | null;
+  terpasang: boolean;
+  /** sesi login milik CLI ada (file kredensialnya ADA — isinya tak dibaca) */
+  login: boolean;
+  promptArgs: string[];
+  catatan: string;
+}
+
+export interface CliRunResult {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+  code: number | null;
+  timeout: boolean;
+}
+
+/** Deteksi CLI AI di PATH + status login. */
+export const cliAgentsDetect = () => invoke<CliAgent[]>('cli_agents_detect');
+
+/** Jalankan satu prompt lewat CLI non-interaktif. */
+export const cliAgentRun = (opts: { id: string; prompt: string; cwd?: string }) =>
+  invoke<CliRunResult>('cli_agent_run', opts);
+
+// ── Pratinjau gambar (T3.4) ──
+
+/** Data gambar untuk pratinjau (base64 + dimensi). */
+export interface GambarData {
+  base64: string;
+  lebar: number;
+  tinggi: number;
+  bytes: number;
+}
+
+/** Baca file gambar untuk pratinjau. */
+export const bacaGambar = (path: string) => invoke<GambarData>('baca_gambar', { path });
+
+// ── SFTP + SSH port forwarding (T3.3) ──
+
+/** Satu entri file di server remote. */
+export interface FileRemote {
+  nama: string;
+  dir: boolean;
+  ukuran: number;
+  izin: string;
+  waktu: string;
+}
+
+/** Satu tunnel port yang hidup. */
+export interface TunnelPort {
+  id: string;
+  hostId: string;
+  jenis: string;
+  portLokal: number;
+  tujuan: string;
+  pid: number;
+  label: string;
+}
+
+/** Baca isi direktori remote lewat sftp. */
+export const sshSftpList = (config: unknown, path: string) =>
+  invoke<FileRemote[]>('ssh_sftp_list', { config, path });
+
+/** Unduh satu file remote. */
+export const sshSftpGet = (config: unknown, remote: string, lokal: string) =>
+  invoke<string>('ssh_sftp_get', { config, remote, lokal });
+
+/** Hapus file remote. */
+export const sshSftpHapus = (config: unknown, remote: string) =>
+  invoke<boolean>('ssh_sftp_hapus', { config, remote });
+
+/** Nyalakan tunnel port (lokal/remote/socks). Menolak kalau port dipakai. */
+export const sshForwardStart = (
+  config: unknown,
+  jenis: string,
+  portLokal: number,
+  tujuan: string,
+) => invoke<TunnelPort>('ssh_forward_start', { config, jenis, portLokal, tujuan });
+
+/** Matikan tunnel berdasarkan id. */
+export const sshForwardStop = (id: string) => invoke<boolean>('ssh_forward_stop', { id });
+
+/** Daftar id tunnel hidup. */
+export const sshForwardList = () => invoke<string[]>('ssh_forward_list');
+
+// ── Database browser (T3.2) ──
+
+/** Satu tabel/view di file SQLite. */
+export interface TabelInfo {
+  nama: string;
+  jenis: string;
+  /** jumlah baris; -1 kalau gagal dihitung */
+  baris: number;
+}
+
+/** Hasil sebuah query. */
+export interface HasilQuery {
+  kolom: string[];
+  baris: string[][];
+  dipotong: boolean;
+  ms: number;
+  terpengaruh: number;
+}
+
+/** Daftar tabel di file SQLite (koneksi read-only). */
+export const dbSqliteTabel = (path: string) =>
+  invoke<TabelInfo[]>('db_sqlite_tabel', { path });
+
+/** Jalankan query SQLite. Query tulis butuh `bolehTulis: true`. */
+export const dbSqliteQuery = (path: string, sql: string, bolehTulis?: boolean) =>
+  invoke<HasilQuery>('db_sqlite_query', { path, sql, bolehTulis });
+
+// ── Dev Environment (T3.1) ──
+
+/** Satu versi layanan dev yang terdeteksi di folder DevEnv. */
+export interface LayananVersi {
+  layanan: string;
+  versi: string;
+  path: string;
+  exe: string;
+}
+
+/** Layanan dev yang sedang berjalan. */
+export interface LayananHidup {
+  layanan: string;
+  versi: string;
+  pid: number;
+  port: number;
+  siap: boolean;
+}
+
+/** Deteksi layanan + versi di folder DevEnv (TIDAK menyalakan apa pun). */
+export const devenvDetect = (root?: string) =>
+  invoke<LayananVersi[]>('devenv_detect', { root });
+
+/** Nyalakan layanan dari folder versi tertentu. Menolak kalau port dipakai. */
+export const devenvStart = (layanan: string, path: string) =>
+  invoke<LayananHidup>('devenv_start', { layanan, path });
+
+/** Status layanan yang hidup. */
+export const devenvStatus = () => invoke<LayananHidup[]>('devenv_status');
+
+/** Matikan layanan berdasarkan port. */
+export const devenvStop = (port: number) => invoke<boolean>('devenv_stop', { port });
+
+// ── Test Explorer (T2.4) ──
+
+/** Satu runner test yang terdeteksi dari file project. */
+export interface TestRunnerDef {
+  id: string;
+  nama: string;
+  command: string;
+  args: string[];
+  cwd: string;
+  penanda: string;
+  catatan: string;
+}
+
+/** Deteksi runner test di root workspace. */
+export const testDetect = (root: string) => invoke<TestRunnerDef[]>('test_detect', { root });
+
+// ── Cloudflare Tunnel (T2.3) ──
+//
+// PENTING: tunnel membuka localhost ke INTERNET. UI wajib menampilkan
+// peringatan + status hidup selama tunnel berjalan.
+
+export interface TunnelStatus {
+  id: string;
+  port: number;
+  url: string;
+  hidup: boolean;
+  /** true = cloudflared jalan tapi URL belum terbaca */
+  menyiapkan: boolean;
+}
+
+/** Path cloudflared kalau tersedia (null = belum dipasang). */
+export const tunnelTersedia = () => invoke<string | null>('tunnel_tersedia');
+
+export const tunnelStart = (id: string, port: number) =>
+  invoke<TunnelStatus>('tunnel_start', { id, port });
+
+export const tunnelStop = (id: string) => invoke<boolean>('tunnel_stop', { id });
+
+export const tunnelList = () => invoke<TunnelStatus[]>('tunnel_list');
+
+// ── HTTP client .http (T1.3) ──
+
+/** Satu request yang diurai dari file .http. */
+export interface HttpRequestDef {
+  nama: string;
+  method: string;
+  url: string;
+  headers: [string, string][];
+  body: string;
+  baris: number;
+}
+
+export interface HttpRunResult {
+  nama: string;
+  method: string;
+  url: string;
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: [string, string][];
+  body: string;
+  terpotong: boolean;
+  ms: number;
+  error: string | null;
+}
+
+/** Urai isi file .http jadi daftar request. */
+export const httpParse = (isi: string, variabel?: [string, string][]) =>
+  invoke<HttpRequestDef[]>('http_parse', { isi, variabel });
+
+/** Jalankan satu request. */
+export const httpSend = (opts: {
+  method: string;
+  url: string;
+  headers: [string, string][];
+  body?: string;
+  variabel?: [string, string][];
+}) => invoke<HttpRunResult>('http_send', opts);
 
 // ── Source Control / git (fase 10) ──
 
@@ -606,3 +856,67 @@ export const snippetsUserFile = (lang: string) => invoke<string>('snippets_user_
 export const snippetsUserList = () => invoke<string[]>('snippets_user_list');
 /** Bahasa yang punya snippet bawaan. */
 export const snippetsBuiltinLangs = () => invoke<string[]>('snippets_builtin_langs');
+
+// ── skill + memori + cron agent (1.1.11) ──
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  scope: 'global' | 'workspace';
+  path: string;
+  bytes: number;
+}
+
+export interface MemoryState {
+  memory: string;
+  user: string;
+  memory_limit: number;
+  user_limit: number;
+  memory_chars: number;
+  user_chars: number;
+}
+
+export interface CronJob {
+  id: string;
+  name: string;
+  command: string;
+  every_minutes: number;
+  at_hour: number | null;
+  enabled: boolean;
+  last_run: number | null;
+}
+
+export const skillsList = () => invoke<SkillInfo[]>('skills_list');
+export const skillRead = (name: string) => invoke<string>('skill_read', { name });
+export const skillWrite = (opts: {
+  name: string;
+  description: string;
+  content: string;
+  scope?: string;
+}) => invoke<string>('skill_write', opts);
+export const skillDelete = (name: string) => invoke<void>('skill_delete', { name });
+/** Daftar skill + memori + profil user untuk system prompt agent. */
+export const agentContext = () => invoke<string>('agent_context');
+
+export const memoryRead = () => invoke<MemoryState>('memory_read');
+export const memoryWrite = (opts: {
+  section: 'memory' | 'user';
+  action: 'add' | 'replace' | 'remove';
+  content?: string;
+  /** Tauri v2 mengubah nama argumen Rust `old_text` → `oldText` di JS. */
+  oldText?: string;
+}) => invoke<string>('memory_write', opts);
+
+export const cronList = () => invoke<CronJob[]>('cron_list');
+export const cronCreate = (opts: {
+  name: string;
+  command: string;
+  /** Tauri v2: `every_minutes` di Rust = `everyMinutes` di JS. */
+  everyMinutes?: number;
+  atHour?: number;
+}) => invoke<CronJob>('cron_create', opts);
+export const cronDelete = (id: string) => invoke<void>('cron_delete', { id });
+export const cronToggle = (id: string, enabled: boolean) =>
+  invoke<void>('cron_toggle', { id, enabled });
+export const cronDue = () => invoke<CronJob[]>('cron_due');
+export const cronMarkRun = (id: string) => invoke<void>('cron_mark_run', { id });

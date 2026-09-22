@@ -10,6 +10,7 @@ import { LANG_LABEL } from '../../lib/lang';
 import { NotifBell } from '../notifications/NotificationCenter';
 import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
+import { useT } from '../../lib/i18n';
 
 const ENC_LABEL: Record<string, string> = {
   utf8: 'UTF-8',
@@ -20,6 +21,7 @@ const ENC_LABEL: Record<string, string> = {
 /** Badge git (fase 10): branch + Σ perubahan + ↑↓, ikon berputar saat sibuk.
  *  Klik = buka panel Source Control. Tidak tampil bila bukan repo. */
 function GitBadge() {
+  const tr = useT();
   const isRepo = useGit((s) => s.status?.isRepo ?? false);
   const branch = useGit((s) => s.status?.branch ?? null);
   const ahead = useGit((s) => s.status?.ahead ?? 0);
@@ -36,7 +38,7 @@ function GitBadge() {
       <button
         className="sb-item sb-git"
         data-testid="sb-git"
-        title={busy ? 'git sedang berjalan…' : 'Source Control'}
+        title={busy ? tr('common.running') : tr('nav.scm')}
         onClick={() => setActivity('scm')}
       >
         <svg viewBox="0 0 16 16" className={`sb-git-ico ${busy ? 'scm-rot' : ''}`} aria-hidden="true">
@@ -112,6 +114,7 @@ export default function StatusBar() {
   const statusMessage = useStore((s) => s.statusMessage);
   const setFindOpen = useStore((s) => s.setFindOpen);
   const tab = useActiveTab();
+  const tr = useT();
 
   useEffect(() => {
     getAppInfo()
@@ -185,16 +188,11 @@ export default function StatusBar() {
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />
-      <button
-        className="sb-btn"
-        title="Format document — tersedia lewat perintah Format"
-        disabled
-        aria-disabled="true"
-      >
-        Format
+      <button className="sb-btn" title={tr('status.format')} disabled aria-disabled="true">
+        {tr('status.format')}
       </button>
-      <button className="sb-btn" title="Cari (Ctrl+F)" onClick={() => setFindOpen(true)}>
-        Cari
+      <button className="sb-btn" title={`${tr('status.find')} (Ctrl+F)`} onClick={() => setFindOpen(true)}>
+        {tr('status.find')}
       </button>
     </footer>
   );

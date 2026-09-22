@@ -56,6 +56,18 @@
   --toolbar-bg: var(--surface);
   --statusbar-bg: var(--surface);
   --titlebar-bg: var(--surface);
+
+  /* C-20: skala spasi bersama. Sebelumnya tiap panel memilih padding sendiri
+     (4/5/6/8/10px) sehingga tepi kiri-nya tidak pernah lurus satu sama lain.
+     Dipakai untuk bar, tombol kecil, dan jarak antar panel. */
+  --sp-1: 4px;
+  --sp-2: 6px;
+  --sp-3: 10px;
+  --sp-4: 14px;
+  /* Tinggi baris kontrol (menu, tab strip, toolbar). 28px = satu baris teks
+     12px + padding vertikal simetris; semua bar memakai angka ini. */
+  --bar-h: 28px;
+  --bar-h-sm: 24px;
   /* Warna judul + ikon di title bar bawaan Windows (titlebar.rs). Dipakai
      juga oleh baris menu, jadi keduanya selalu satu warna. */
   --titlebar-fg: var(--text);

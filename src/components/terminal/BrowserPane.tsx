@@ -16,6 +16,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTerminal } from '../../lib/terminalStore';
 import * as cmd from '../../lib/commands';
 import type { PaneMeta, ProbeResult } from '../../lib/types';
+import { tx } from '../../lib/i18n';
 
 /** Batas tunggu sebelum sebuah URL dianggap menolak embed. */
 const BLOCK_MS = 3500;
@@ -159,8 +160,8 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         <button
           type="button"
           className="bp-btn"
-          title="Muat ulang"
-          aria-label="Muat ulang"
+          title={tx('Muat ulang')}
+          aria-label={tx('Muat ulang')}
           data-testid="bp-reload"
           onClick={() => setNonce((n) => n + 1)}
         >
@@ -193,19 +194,19 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
           className="bp-url"
           value={draft}
           spellCheck={false}
-          aria-label="Alamat URL"
+          aria-label={tx('Alamat URL')}
           data-testid="bp-url"
           placeholder="http://localhost:5173"
           onChange={(e) => setDraft(e.target.value)}
         />
-        <button type="submit" className="bp-btn bp-go" title="Buka URL" aria-label="Buka URL">
+        <button type="submit" className="bp-btn bp-go" title={tx('Buka URL')} aria-label={tx('Buka URL')}>
           Go
         </button>
         <button
           type="button"
           className="bp-btn"
-          title="Buka di browser sistem"
-          aria-label="Buka di browser sistem"
+          title={tx('Buka di browser sistem')}
+          aria-label={tx('Buka di browser sistem')}
           data-testid="bp-external"
           onClick={() => void openUrl(pane.url ?? normalizeUrl(draft)).catch(() => {})}
         >

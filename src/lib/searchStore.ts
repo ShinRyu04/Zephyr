@@ -25,6 +25,7 @@ import type { RgHit, SearchOpts, SearchSummary, ReplaceHasil } from './types';
 import { useStore } from './store';
 import { useHistory } from './historyStore';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
+import { tx } from './i18n';
 
 /** Batas riwayat query yang disimpan (dropdown di input). */
 const MAX_RIWAYAT = 12;
@@ -312,7 +313,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
   undoReplace: async () => {
     const daftar = get().replaceTerakhir;
     if (!daftar || daftar.length === 0) {
-      notifyWarn('Belum ada replace untuk dibatalkan', { source: 'search' });
+      notifyWarn(tx('Belum ada replace untuk dibatalkan'), { source: 'search' });
       return 0;
     }
     // Undo = tulis balik snapshot yang dibuat SEBELUM replace (fase 26).

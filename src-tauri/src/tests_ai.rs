@@ -16,6 +16,7 @@ mod tests {
             role: role.into(),
             content: content.into(),
             image: None,
+            images: None,
         }
     }
 
@@ -28,6 +29,7 @@ mod tests {
             None,
             "KEY123",
             1024,
+            None,
         )
         .unwrap();
 
@@ -51,6 +53,7 @@ mod tests {
             Some("http://127.0.0.1:8098/v1/"),
             "K",
             10,
+            None,
         )
         .unwrap();
         assert_eq!(p.url, "http://127.0.0.1:8098/v1/chat/completions");
@@ -65,6 +68,7 @@ mod tests {
             None,
             "K",
             8,
+            None,
         )
         .unwrap();
         assert_eq!(p.url, "https://api.deepseek.com/v1/chat/completions");
@@ -79,6 +83,7 @@ mod tests {
             None,
             "SECRET",
             2048,
+            None,
         )
         .unwrap();
 
@@ -113,6 +118,7 @@ mod tests {
             None,
             "GKEY",
             512,
+            None,
         )
         .unwrap();
 
@@ -230,13 +236,20 @@ mod tests {
             None,
             "K",
             512,
+            None,
         )
         .unwrap();
 
         // tools masuk sebagai array function
-        assert_eq!(p.body["tools"][0]["function"]["name"], json!("terminal_exec"));
+        assert_eq!(
+            p.body["tools"][0]["function"]["name"],
+            json!("terminal_exec")
+        );
         // pesan assistant membawa tool_calls ber-args JSON-string
-        assert_eq!(p.body["messages"][0]["tool_calls"][0]["id"], json!("call_1"));
+        assert_eq!(
+            p.body["messages"][0]["tool_calls"][0]["id"],
+            json!("call_1")
+        );
         assert_eq!(
             p.body["messages"][0]["tool_calls"][0]["function"]["arguments"],
             json!("{\"cmd\":\"ls\"}")
@@ -295,6 +308,7 @@ mod tests {
             None,
             "K",
             512,
+            None,
         )
         .unwrap();
 
@@ -306,7 +320,10 @@ mod tests {
             p.body["messages"][1]["content"][0]["type"],
             json!("tool_result")
         );
-        assert_eq!(p.body["messages"][1]["content"][0]["tool_use_id"], json!("tu1"));
+        assert_eq!(
+            p.body["messages"][1]["content"][0]["tool_use_id"],
+            json!("tu1")
+        );
         assert_eq!(p.body["tools"][0]["name"], json!("terminal_exec"));
         assert!(p.body["tools"][0].get("input_schema").is_some());
     }
@@ -342,6 +359,7 @@ mod tests {
             None,
             "K",
             512,
+            None,
         )
         .unwrap();
 

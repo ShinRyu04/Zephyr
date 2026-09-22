@@ -36,8 +36,9 @@ export async function writeChunked(id: string, data: string): Promise<number> {
 }
 
 /** Tempel isi clipboard ke terminal (dikirim ke shell sebagai input).
- *  Mendukung bracketed paste jika memungkinkan agar teks panjang/multi-line
- *  di AI CLI tidak terpotong atau mengeksekusi perintah prematur. */
+ *  Bracketed paste dipakai HANYA kalau aplikasi di terminal memintanya
+ *  (mode DECSET 2004, mis. AI CLI). Kalau dipaksa, escape `[200~` ikut
+ *  tercetak sebagai teks di shell yang tidak mendukungnya. */
 export async function pasteInto(id: string): Promise<string> {
   const text = await clipboardRead();
   if (!text) return "";
@@ -46,7 +47,8 @@ export async function pasteInto(id: string): Promise<string> {
   const lines = text.split(lf).map((l) => (l.endsWith(cr) ? l.slice(0, -1) : l));
   const normalized = lines.join(cr);
   const esc = String.fromCharCode(27);
-  const payload = esc + "[200~" + normalized + esc + "[201~";
+  const bracketed = getHandle(id)?.term.modes.bracketedPasteMode === true;
+  const payload = bracketed ? esc + "[200~" + normalized + esc + "[201~" : normalized;
   await writeChunked(id, payload);
   return text;
 }

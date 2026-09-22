@@ -1,6 +1,6 @@
 [package]
 name = "zephyr"
-version = "1.1.9"
+version = "1.1.10"
 description = "Zephyr - Code editor desktop pribadi"
 authors = ["Zephyr"]
 edition = "2021"
@@ -51,7 +51,19 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 # Hanya untuk stempel waktu lokal di log & nama file harian.
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 zip = { version = "5", default-features = false, features = ["deflate"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
 
 [features]
 # Fitur custom-protocol hanya aktif saat build release (production).
 custom-protocol = ["tauri/custom-protocol"]
+
+# Ukuran binary: tanpa ini release 24 MB (Terax 9 MB). `opt-level = "s"` +
+# LTO + strip memangkas ~60%, dengan `panic = "abort"` menghapus tabel unwind.
+# `codegen-units = 1` memperlambat build tapi memberi LTO bahan penuh.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+incremental = false

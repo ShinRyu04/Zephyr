@@ -27,6 +27,14 @@ export function activeLine(): number {
   return view.state.doc.lineAt(view.state.selection.main.head).number;
 }
 
+/** Teks yang sedang dipilih di editor aktif. '' = tidak ada seleksi. */
+export function activeSelection(): string {
+  const view = activeView;
+  if (!view) return '';
+  const s = view.state.selection.main;
+  return s.empty ? '' : view.state.sliceDoc(s.from, s.to);
+}
+
 export function registerFlush(tabId: string, fn: () => void): void {
   flushers.set(tabId, fn);
 }

@@ -16,6 +16,7 @@ import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
+import { useT } from '../../lib/i18n';
 import {
   ALL_MODELS,
   fmtCtx,
@@ -44,6 +45,7 @@ function loadSaved(): Record<string, string[]> {
 }
 
 export default function ModelSelector() {
+  const tr = useT();
   const model = useAi((s) => s.model);
   const provider = useAi((s) => s.provider);
   const open = useAi((s) => s.modelMenuOpen);
@@ -70,7 +72,8 @@ export default function ModelSelector() {
     // unmount seluruh tree -> layar hitam total begitu panel AI dibuka.
     // Ambil lewat getState() di dalam function; selector di bawah hanya
     // mengambil referensi stabil (=bukan "dipakai sebagai nilai render").
-    const baseUrl = useStore.getState().settings.models.providers[provider]?.baseUrl || active.baseUrl;
+    const baseUrl =
+      (useStore.getState().settings.models.providers ?? {})[provider]?.baseUrl || active.baseUrl;
 
   // Klik di luar / Escape menutup dropdown.
   useEffect(() => {
@@ -155,7 +158,7 @@ export default function ModelSelector() {
         data-provider={active.provider}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={`${active.providerLabel} — ${baseUrl || 'base URL belum diisi'}`}
+        title={`${active.providerLabel} — ${baseUrl || tr('base URL belum diisi')}`}
         onClick={() => setOpen(!open)}
       >
         <ProviderLogo id={active.provider} size={15} />

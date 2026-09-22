@@ -57,6 +57,7 @@ import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
 import { useStore } from '../../lib/store';
+import { useTerminal } from '../../lib/terminalStore';
 import { extensiUntukFile } from '../../lib/lang';
 import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
@@ -77,6 +78,8 @@ import { colorDecorators, unicodeHighlight } from '../../lib/cmColor';
 import Minimap from './Minimap';
 import Breadcrumbs from './Breadcrumbs';
 import StickyScroll from './StickyScroll';
+import InlineChat from './InlineChat';
+import { ghostText, lepasGhost } from '../../lib/ghostText';
 import type { EditorSettings, Tab } from '../../lib/types';
 
 interface Props {
@@ -106,6 +109,9 @@ function extrasEditor(e: EditorSettings, readOnly: boolean): Extension[] {
   if (e.bracketPairColorization) out.push(bracketPairColors());
   if (e.colorDecorators) out.push(colorDecorators());
   if (e.unicodeHighlight) out.push(unicodeHighlight());
+  // 1.1.10 (A-1): ghost text. Di compartment extras supaya toggle Settings
+  // langsung berlaku tanpa rebuild view (rebuild membuang undo history).
+  out.push(...ghostText(e.ghostText));
   return out;
 }
 
@@ -341,6 +347,8 @@ export default function CodeMirrorEditor({ tab }: Props) {
       if (lspPending.current !== null) window.clearTimeout(lspPending.current);
       unregisterFlush(tab.id);
       setActiveView(null);
+      // A-1: saran yang masih di jalan tidak boleh menulis ke view yang mati.
+      lepasGhost(view);
       view.destroy();
       viewRef.current = null;
       // didClose supaya server tahu dokumen tidak dipakai lagi (dan bisa
@@ -518,6 +526,49 @@ export default function CodeMirrorEditor({ tab }: Props) {
   // tanpa ini anak-anak akan menerima `null` selamanya pada render pertama.
   const view = viewSiap > 0 ? viewRef.current : null;
 
+  // A-3: quick chat dari seleksi. Menu klik-kanan sederhana — hanya muncul
+  // saat ada teks terpilih, karena tiga aksi ini tidak masuk akal tanpa seleksi.
+  const [menu, setMenu] = useState<{ x: number; y: number; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const tutup = () => setMenu(null);
+    window.addEventListener('click', tutup);
+    window.addEventListener('blur', tutup);
+    return () => {
+      window.removeEventListener('click', tutup);
+      window.removeEventListener('blur', tutup);
+    };
+  }, [menu]);
+
+  const onContextMenu = (e: React.MouseEvent) => {
+    const v = viewRef.current;
+    if (!v || readOnly) return;
+    const sel = v.state.selection.main;
+    const text = v.state.sliceDoc(sel.from, sel.to);
+    if (!text.trim()) return;
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, text });
+  };
+
+  /** Buka panel AI dan titipkan prompt siap-pakai (diproses AiPanel). */
+  const tanya = (cmd: string) => {
+    const text = menu?.text ?? '';
+    setMenu(null);
+    const s = useStore.getState();
+    const t = useTerminal.getState();
+    s.setSettingsOpen(false);
+    t.setVisible(true);
+    t.setDock('ai');
+    window.setTimeout(
+      () =>
+        window.dispatchEvent(
+          new CustomEvent('zephyr-ai-sel', { detail: { cmd, text } }),
+        ),
+      80,
+    );
+  };
+
   return (
     <div className="cm-wrap" data-testid="cm-wrap">
       {tampilBreadcrumbs && (
@@ -532,6 +583,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
         <div
           ref={hostRef}
           className="zephyr-cm-host"
+          onContextMenu={onContextMenu}
           data-cursor-style={editorSettings.cursorStyle}
           data-smooth={editorSettings.smoothScroll && !lowRam ? '1' : '0'}
           data-lowram={lowRam ? '1' : '0'}
@@ -560,6 +612,26 @@ export default function CodeMirrorEditor({ tab }: Props) {
           />
         )}
       </div>
+      {/* A-4: chat mini melayang (Ctrl+I) — hanya ada saat dibuka. */}
+      <InlineChat />
+      {menu && (
+        <div
+          className="cm-ai-menu"
+          data-testid="cm-ai-menu"
+          style={{ left: menu.x, top: menu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button data-testid="cm-ai-explain" onClick={() => tanya('explain')}>
+            Jelaskan
+          </button>
+          <button data-testid="cm-ai-fix" onClick={() => tanya('fix')}>
+            Perbaiki
+          </button>
+          <button data-testid="cm-ai-refactor" onClick={() => tanya('refactor')}>
+            Refactor
+          </button>
+        </div>
+      )}
     </div>
   );
 }

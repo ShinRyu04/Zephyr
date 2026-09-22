@@ -28,13 +28,19 @@ fn machine_seed() -> String {
     let user = std::env::var("USERNAME").unwrap_or_else(|_| "unknown-user".into());
     // MachineGuid: identitas instalasi Windows. Kalau gagal dibaca, tetap
     // jalan dengan bahan lain (jangan sampai fitur mati total).
-    let guid = std::process::Command::new("reg")
-        .args([
-            "query",
-            r"HKLM\SOFTWARE\Microsoft\Cryptography",
-            "/v",
-            "MachineGuid",
-        ])
+    //
+    // `crate::proc::cmd` memasang CREATE_NO_WINDOW: fungsi ini dipanggil saat
+    // STARTUP (frontend meminta daftar model untuk menampilkan hasKey, yang
+    // membaca secrets.json). Tanpa flag itu setiap buka Zephyr memunculkan
+    // jendela konsol `reg` sekejap — keluhan "terminal muncul lalu hilang".
+    let mut reg = crate::proc::cmd("reg");
+    reg.args([
+        "query",
+        r"HKLM\SOFTWARE\Microsoft\Cryptography",
+        "/v",
+        "MachineGuid",
+    ]);
+    let guid = reg
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -281,7 +287,7 @@ pub fn test_model_connection(
             "x-api-key",
             key.clone(),
         ),
-        // openai / deepseek / groq / openrouter / xai / mistral / cerebras / custom: OpenAI-compatible
+        // openai / deepseek / xai / cerebras / custom: OpenAI-compatible
         other => (
             format!(
                 "{}/models",
@@ -289,12 +295,8 @@ pub fn test_model_connection(
                     .clone()
                     .unwrap_or_else(|| match other {
                         "deepseek" => "https://api.deepseek.com/v1".into(),
-                        "groq" => "https://api.groq.com/openai/v1".into(),
-                        "openrouter" => "https://openrouter.ai/api/v1".into(),
                         "xai" => "https://api.x.ai/v1".into(),
-                        "mistral" => "https://api.mistral.ai/v1".into(),
                         "cerebras" => "https://api.cerebras.ai/v1".into(),
-                        "ollama" => "http://127.0.0.1:11434/v1".into(),
                         "lmstudio" => "http://127.0.0.1:1234/v1".into(),
                         _ => "https://api.openai.com/v1".to_string(),
                     })
@@ -415,19 +417,19 @@ pub fn list_models(
     }
 
     let body = req.call().map_err(|e| match e {
-            ureq::Error::StatusCode(code) => ZephyrError::InvalidInput(format!(
-                "Server menjawab {code} — cek key & base URL"
-            )),
-            e => ZephyrError::InvalidInput(format!("Tidak bisa menghubungi server: {e}")),
-        })?;
+        ureq::Error::StatusCode(code) => {
+            ZephyrError::InvalidInput(format!("Server menjawab {code} — cek key & base URL"))
+        }
+        e => ZephyrError::InvalidInput(format!("Tidak bisa menghubungi server: {e}")),
+    })?;
 
-        let json: serde_json::Value = serde_json::from_str(
-            &body
-                .into_body()
-                .read_to_string()
-                .map_err(|e| ZephyrError::InvalidInput(format!("Gagal baca respon: {e}")))?,
-        )
-        .map_err(|e| ZephyrError::InvalidInput(format!("Respon bukan JSON: {e}")))?;
+    let json: serde_json::Value = serde_json::from_str(
+        &body
+            .into_body()
+            .read_to_string()
+            .map_err(|e| ZephyrError::InvalidInput(format!("Gagal baca respon: {e}")))?,
+    )
+    .map_err(|e| ZephyrError::InvalidInput(format!("Respon bukan JSON: {e}")))?;
 
     let ids: Vec<String> = if style == "gemini" {
         // Gemini: models[].name = "models/gemini-3.8-flash"

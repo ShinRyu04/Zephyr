@@ -512,14 +512,14 @@ pub fn reveal_path(path: String) -> ZResult<()> {
         } else {
             format!("/select,{}", p.to_string_lossy())
         };
-        std::process::Command::new("explorer")
+        crate::proc::cmd("explorer")
             .arg(arg)
             .spawn()
             .map_err(|e| ZephyrError::Io(e.to_string()))?;
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open")
+        crate::proc::cmd("open")
             .arg("-R")
             .arg(p)
             .spawn()
@@ -530,9 +530,11 @@ pub fn reveal_path(path: String) -> ZResult<()> {
         let target = if p.is_dir() {
             p.to_string_lossy().to_string()
         } else {
-            p.parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_else(|| "/".into())
+            p.parent()
+                .map(|d| d.to_string_lossy().to_string())
+                .unwrap_or_else(|| "/".into())
         };
-        std::process::Command::new("xdg-open")
+        crate::proc::cmd("xdg-open")
             .arg(target)
             .spawn()
             .map_err(|e| ZephyrError::Io(e.to_string()))?;

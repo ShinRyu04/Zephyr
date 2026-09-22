@@ -15,6 +15,7 @@ import { useHistory } from '../../lib/historyStore';
 import { useGit } from '../../lib/gitStore';
 import { kunciPath } from '../../lib/pathKey';
 import type { TimelineEntry } from '../../lib/types';
+import { useT } from '../../lib/i18n';
 
 const waktuSingkat = (ms: number) => {
   if (!ms) return '—';
@@ -96,6 +97,7 @@ function buatDiff(kiri: string, kanan: string, namaKiri: string, namaKanan: stri
 }
 
 export default function TimelineView() {
+  const tr = useT();
   const tabs = useStore((s) => s.tabs);
   const activeTabId = useStore((s) => s.activeTabId);
   // Selector WAJIB mengembalikan primitif: mengembalikan objek tab baru
@@ -232,7 +234,7 @@ export default function TimelineView() {
                   {e.kind === 'snapshot' && (
                     <button
                       className="tl-restore"
-                      title="Muat isi snapshot ini ke editor (belum disimpan)"
+                      title={tr('Muat isi snapshot ini ke editor (belum disimpan)')}
                       data-testid="timeline-restore"
                       onClick={() => void restore(e.id)}
                     >

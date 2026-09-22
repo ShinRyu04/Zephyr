@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
-import { useT } from '../../lib/i18n';
+import { useT, tx } from '../../lib/i18n';
 import {
   ACTIONS,
   ACTION_BY_ID,
@@ -18,7 +18,7 @@ import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
 export function ShortcutsSection() {
-  const t = useT();
+  const tr = useT();
   const custom = useStore((s) => s.settings.shortcuts);
   const apply = useStore((s) => s.applySettings);
   const capturing = useSettingsUi((s) => s.capturing);
@@ -62,7 +62,7 @@ export function ShortcutsSection() {
   const groups = ['File', 'Edit', 'View', 'Terminal', 'AI', 'Git'] as const;
 
   return (
-    <Section title={t('settings.shortcuts')}>
+    <Section title={tr('settings.shortcuts')}>
       <p className="set-note">
         Klik kolom shortcut lalu tekan kombinasi. Escape = batal. Kombinasi yang
         sudah dipakai action lain ditolak, jadi tidak mungkin ada dua action
@@ -85,7 +85,7 @@ export function ShortcutsSection() {
                 const isCapturing = capturing === a.id;
                 return (
                   <tr key={a.id} data-sc-row={a.id}>
-                    <td className="sc-label">{a.label}</td>
+                    <td className="sc-label">{tx(a.label)}</td>
                     <td className="sc-key">
                       <button
                         type="button"
@@ -96,7 +96,7 @@ export function ShortcutsSection() {
                         data-binding={eff}
                         onClick={() => setCapturing(isCapturing ? null : a.id)}
                       >
-                        {isCapturing ? 'Tekan kombinasi…' : displayBinding(eff)}
+                        {isCapturing ? tr('Tekan kombinasi…') : displayBinding(eff)}
                       </button>
                     </td>
                     <td className="sc-actions">
@@ -112,7 +112,7 @@ export function ShortcutsSection() {
                             void apply({ shortcuts: { [a.id]: null } });
                           }}
                         >
-                          {t('common.reset')}
+                          {tr('common.reset')}
                         </button>
                       )}
                     </td>
@@ -128,8 +128,11 @@ export function ShortcutsSection() {
 }
 
 export function ModelsSection() {
-  const t = useT();
+  const tr = useT();
   const models = useStore((s) => s.settings.models);
+  // `providers` bisa absen kalau settings di disk cacat atau ada patch parsial.
+  // Satu key yang hilang tidak boleh mematikan seluruh app (layar blank).
+  const providers = models?.providers ?? {};
   const apply = useStore((s) => s.applySettings);
   const ui = useSettingsUi();
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -155,7 +158,7 @@ export function ModelsSection() {
     const refreshModels = async (p: ProviderInfo) => {
       setFetching(p.id);
       try {
-        const ids = await cmd.listModels(p.id, models.providers[p.id]?.baseUrl || undefined);
+        const ids = await cmd.listModels(p.id, providers[p.id]?.baseUrl || undefined);
         setRemote((r) => ({ ...r, [p.id]: ids }));
         ui.setMessage(
           ids.length > 0
@@ -170,7 +173,7 @@ export function ModelsSection() {
     };
 
   return (
-    <Section title={t('settings.models')}>
+    <Section title={tr('settings.models')}>
       <p className="set-note">
         API key disimpan Rust di <code>%APPDATA%\zephyr\secrets.json</code> dalam
         bentuk terenkripsi (kunci turunan dari mesin ini), TERPISAH dari
@@ -180,9 +183,9 @@ export function ModelsSection() {
         bisa masuk akun Windows-mu.
       </p>
 
-      <Row label={t('models.active')}>
+      <Row label={tr('models.active')}>
         <Select
-          label={t('models.active')}
+          label={tr('models.active')}
           testid="models-active"
           value={models.activeProvider}
           onChange={(v) => void apply({ models: { activeProvider: v } })}
@@ -191,24 +194,24 @@ export function ModelsSection() {
       </Row>
 
       {/* Multi bahasa: instruksi bahasa jawaban dikirim ke model tiap chat. */}
-      <Row label={t('models.answerLang')} hint={t('models.answerLangHint')}>
+      <Row label={tr('models.answerLang')} hint={tr('models.answerLangHint')}>
         <Select
-          label={t('models.answerLang')}
+          label={tr('models.answerLang')}
           testid="models-answerlang"
           value={answerBuiltin ? answerLang : 'custom'}
           onChange={(v) => void apply({ models: { answerLang: v } })}
           options={[
-            { value: 'follow', label: t('models.answerFollow') },
+            { value: 'follow', label: tr('models.answerFollow') },
             { value: 'id', label: 'Indonesia' },
             { value: 'en', label: 'English' },
-            { value: 'custom', label: t('models.answerCustom') },
+            { value: 'custom', label: tr('models.answerCustom') },
           ]}
         />
         {!answerBuiltin && (
           <TextInput
-            label={t('models.answerCustom')}
+            label={tr('models.answerCustom')}
             testid="models-answerlang-custom"
-            placeholder={t('models.answerCustomPlaceholder')}
+            placeholder={tr('models.answerCustomPlaceholder')}
             value={answerLang === 'custom' ? '' : answerLang}
             onChange={(v) => void apply({ models: { answerLang: v.trim() || 'follow' } })}
           />
@@ -257,7 +260,7 @@ export function ModelsSection() {
 
             <div className="prov-list">
         {PROVIDERS.map((p) => {
-          const cfg = models.providers[p.id] ?? {};
+          const cfg = providers[p.id] ?? {};
           const has = ui.hasKey(p.id);
           const preview = ui.keyPreview(p.id);
           const res = ui.testResults[p.id];
@@ -275,18 +278,18 @@ export function ModelsSection() {
                   className={`prov-badge${has ? ' is-ok' : ''}`}
                   data-testid={`prov-badge-${p.id}`}
                 >
-                  {has ? `${t('models.saved')}: ${preview}` : t('models.noKey')}
+                  {has ? `${tr('models.saved')}: ${preview}` : tr('models.noKey')}
                 </span>
               </div>
 
               <div className="prov-body">
                 <label className="prov-field">
-                  <span className="prov-flabel">{t('models.apiKey')}</span>
+                  <span className="prov-flabel">{tr('models.apiKey')}</span>
                   <span className="prov-keyrow">
                     <input
                       className="set-text is-mono"
                       type={reveal === p.id ? 'text' : 'password'}
-                      placeholder={has ? '(tersimpan — isi untuk mengganti)' : p.envKey}
+                      placeholder={has ? tr('(tersimpan — isi untuk mengganti)') : p.envKey}
                       value={draft[p.id] ?? ''}
                       spellCheck={false}
                       aria-label={`${p.label} API key`}
@@ -296,10 +299,10 @@ export function ModelsSection() {
                     <button
                       type="button"
                       className="btn btn-sm"
-                      aria-label={reveal === p.id ? t('common.hide') : t('common.show')}
+                      aria-label={reveal === p.id ? tr('common.hide') : tr('common.show')}
                       onClick={() => setReveal(reveal === p.id ? null : p.id)}
                     >
-                      {reveal === p.id ? t('common.hide') : t('common.show')}
+                      {reveal === p.id ? tr('common.hide') : tr('common.show')}
                     </button>
                     <button
                       type="button"
@@ -311,7 +314,7 @@ export function ModelsSection() {
                         setDraft((d) => ({ ...d, [p.id]: '' }));
                       }}
                     >
-                      {t('common.save')}
+                      {tr('common.save')}
                     </button>
                     {has && (
                       <button
@@ -327,7 +330,7 @@ export function ModelsSection() {
                 </label>
 
                 <label className="prov-field">
-                  <span className="prov-flabel">{t('models.baseUrl')}</span>
+                  <span className="prov-flabel">{tr('models.baseUrl')}</span>
                   <TextInput
                     label={`${p.label} base URL`}
                     testid={`prov-url-${p.id}`}
@@ -336,14 +339,14 @@ export function ModelsSection() {
                     value={cfg.baseUrl ?? ''}
                     onChange={(v) =>
                       void apply({
-                        models: { providers: { ...models.providers, [p.id]: { ...cfg, baseUrl: v } } },
+                        models: { providers: { ...providers, [p.id]: { ...cfg, baseUrl: v } } },
                       })
                     }
                   />
                 </label>
 
                 <label className="prov-field">
-                                  <span className="prov-flabel">{t('models.model')}</span>
+                                  <span className="prov-flabel">{tr('models.model')}</span>
                                   {p.freeText ? (
                                                       <div className="prov-model-row">
                                                                                                               <TextInput
@@ -354,7 +357,7 @@ export function ModelsSection() {
                                                                                                                 value={cfg.model ?? ''}
                                                                                                                 onChange={(v) =>
                                                                                                                   void apply({
-                                                                                                                    models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v.trim() } } },
+                                                                                                                    models: { providers: { ...providers, [p.id]: { ...cfg, model: v.trim() } } },
                                                                                                                   })
                                                                                                                 }
                                                                                                               />
@@ -365,7 +368,7 @@ export function ModelsSection() {
                                                                                                                 data-testid={`prov-drop-${p.id}`}
                                                                                                                 aria-haspopup="listbox"
                                                                                                                 aria-expanded={suggestOpen === p.id}
-                                                                                                                title="Pilih model dari daftar"
+                                                                                                                title={tr('Pilih model dari daftar')}
                                                                                                                 onClick={() => setSuggestOpen(suggestOpen === p.id ? null : p.id)}
                                                                                                               >
                                                                                                                 ▾
@@ -392,7 +395,7 @@ export function ModelsSection() {
                                                                                                                         className={`prov-drop-item${cfg.model === m.id ? ' is-active' : ''}`}
                                                                                                                         onClick={() => {
                                                                                                                           void apply({
-                                                                                                                            models: { providers: { ...models.providers, [p.id]: { ...cfg, model: m.id } } },
+                                                                                                                            models: { providers: { ...providers, [p.id]: { ...cfg, model: m.id } } },
                                                                                                                           });
                                                                                                                           setSuggestOpen(null);
                                                                                                                         }}
@@ -436,7 +439,7 @@ export function ModelsSection() {
                                         value={cfg.model ?? p.models[0].id}
                                         onChange={(v) =>
                                           void apply({
-                                            models: { providers: { ...models.providers, [p.id]: { ...cfg, model: v } } },
+                                            models: { providers: { ...providers, [p.id]: { ...cfg, model: v } } },
                                           })
                                         }
                                         options={[
@@ -487,7 +490,7 @@ export function ModelsSection() {
                     disabled={ui.testing === p.id}
                     onClick={() => void ui.testConnection(p.id, cfg.baseUrl || undefined)}
                   >
-                    {ui.testing === p.id ? 'Menguji…' : t('models.test')}
+                    {ui.testing === p.id ? 'Menguji…' : tr('models.test')}
                   </button>
                   {res && (
                     <span
@@ -510,17 +513,17 @@ export function ModelsSection() {
 }
 
 export function AgentsSection() {
-  const t = useT();
+  const tr = useT();
   const a = useStore((s) => s.settings.agents);
   const apply = useStore((s) => s.applySettings);
   const agents = useTerminal((s) => s.agents);
   const loadAgents = useTerminal((s) => s.loadAgents);
 
   return (
-    <Section title={t('settings.agents')}>
-      <Row label={t('agents.maxPanes')} hint="pane melebihi batas ditolak dengan toast">
+    <Section title={tr('settings.agents')}>
+      <Row label={tr('agents.maxPanes')} hint="pane melebihi batas ditolak dengan toast">
         <NumberInput
-          label={t('agents.maxPanes')}
+          label={tr('agents.maxPanes')}
           testid="agents-maxpanes"
           min={1}
           max={6}
@@ -529,25 +532,25 @@ export function AgentsSection() {
         />
       </Row>
 
-      <Row label={t('agents.attachActiveFile')} hint="dipakai panel AI">
+      <Row label={tr('agents.attachActiveFile')} hint="dipakai panel AI">
         <Toggle
-          label={t('agents.attachActiveFile')}
+          label={tr('agents.attachActiveFile')}
           testid="agents-attach"
           checked={a.attachActiveFile}
           onChange={(v) => void apply({ agents: { attachActiveFile: v } })}
         />
       </Row>
 
-      <Row label={t('agents.rescan')} hint={`${agents.length} CLI terdeteksi di PATH`}>
+      <Row label={tr('agents.rescan')} hint={`${agents.length} CLI terdeteksi di PATH`}>
         <button className="btn" data-testid="agents-rescan" onClick={() => void loadAgents()}>
-          {t('agents.rescan')}
+          {tr('agents.rescan')}
         </button>
       </Row>
 
       {agents.length === 0 ? (
         <p className="set-note" data-testid="agents-empty">
-          {t('agents.none')} — pasang salah satu (opencode, claude, codex, gemini,
-          grok, gh copilot) lalu tekan {t('agents.rescan')}.
+          {tr('agents.none')} — pasang salah satu (opencode, claude, codex, gemini,
+          grok, gh copilot) lalu tekan {tr('agents.rescan')}.
         </p>
       ) : (
         <div className="agent-list">
@@ -563,7 +566,7 @@ export function AgentsSection() {
                   {ag.version && <span className="agent-ver">{ag.version}</span>}
                 </div>
                 <label className="prov-field">
-                  <span className="prov-flabel">{t('agents.startCommand')}</span>
+                  <span className="prov-flabel">{tr('agents.startCommand')}</span>
                   <TextInput
                     label={`${ag.label} start command`}
                     testid={`agent-cmd-${ag.id}`}
@@ -587,7 +590,7 @@ export function AgentsSection() {
                       void apply({ agents: { startCommands: { [ag.id]: null } } });
                     }}
                   >
-                    {t('common.reset')} ke default
+                    {tr('common.reset')} ke default
                   </button>
                 )}
               </div>

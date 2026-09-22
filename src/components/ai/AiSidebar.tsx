@@ -4,10 +4,12 @@
 // hidup di SATU tempat — sidebar kiri. Jadi daftar chat + tombol "Chat baru"
 // ADA DI SINI, bukan juga di header panel bawah.
 
+import { useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
+import { useT } from '../../lib/i18n';
 
 function waktu(ms: number): string {
   const d = new Date(ms);
@@ -16,6 +18,7 @@ function waktu(ms: number): string {
 }
 
 export default function AiSidebar() {
+  const tr = useT();
   const sessions = useAi((s) => s.sessions);
   const activeId = useAi((s) => s.activeId);
   const keys = useAi((s) => s.keys);
@@ -24,6 +27,7 @@ export default function AiSidebar() {
   const newChat = useAi((s) => s.newChat);
   const selectChat = useAi((s) => s.selectChat);
   const deleteChat = useAi((s) => s.deleteChat);
+  const setClearAllOpen = useAi((s) => s.setClearAllOpen);
 
   const setDock = useTerminal((s) => s.setDock);
   const setVisible = useTerminal((s) => s.setVisible);
@@ -32,6 +36,17 @@ export default function AiSidebar() {
 
   const hasKey = keys.some((k) => k.provider === provider && k.hasKey);
   const def = findModel(model, provider);
+
+  const [cari, setCari] = useState('');
+  const q = cari.trim().toLowerCase();
+  const tampil = [...sessions]
+    .reverse()
+    .filter(
+      (s) =>
+        !q ||
+        s.title.toLowerCase().includes(q) ||
+        s.messages.some((m) => m.content.toLowerCase().includes(q)),
+    );
 
   const buka = (id?: string) => {
     setSettingsOpen(false);
@@ -85,14 +100,44 @@ export default function AiSidebar() {
       </div>
 
       <div className="side-section tp-list-wrap">
-        <div className="tp-subtitle">Riwayat chat</div>
+        <div className="tp-subtitle ai-side-head-row">
+          <span>{tr('Riwayat chat')}</span>
+          {/* Hapus SEMUA: dulu hanya ada di store (clearAllChats) tanpa UI —
+              user tidak menemukannya. Tombol per-chat tetap ada di tiap baris;
+              yang ini untuk membersihkan seluruh riwayat sekaligus. */}
+          {sessions.length > 0 && (
+            <button
+              className="tp-op ai-side-clear"
+              data-testid="ai-clear-all"
+              title={tr('Hapus semua riwayat chat')}
+              onClick={() => setClearAllOpen(true)}
+            >
+              {tr('Hapus semua')}
+            </button>
+          )}
+        </div>
+        {/* A-9: cari di judul DAN isi pesan — riwayat panjang tak lagi
+            hanya bisa digulir manual. */}
+        <input
+          className="ai-side-search"
+          type="search"
+          data-testid="ai-side-search"
+          placeholder={tr('Cari chat…')}
+          aria-label={tr('Cari riwayat chat')}
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
         {sessions.length === 0 ? (
           <p className="side-muted" data-testid="ai-side-empty">
             Belum ada percakapan. Klik “+ Chat baru”.
           </p>
+        ) : tampil.length === 0 ? (
+          <p className="side-muted" data-testid="ai-side-nohit">
+            Tidak ada chat yang cocok dengan “{cari}”.
+          </p>
         ) : (
           <ul className="ai-side-list" data-testid="ai-side-list">
-            {[...sessions].reverse().map((s) => (
+            {tampil.map((s) => (
               <li key={s.id} className="ai-side-item" data-ai-session={s.id}>
                 <button
                   className={`ai-side-btn${s.id === activeId ? ' is-active' : ''}`}
@@ -107,7 +152,7 @@ export default function AiSidebar() {
                 </button>
                 <button
                   className="tp-op"
-                  title="Hapus chat"
+                  title={tr('Hapus chat')}
                   data-testid={`ai-del-${s.id}`}
                   onClick={() => deleteChat(s.id)}
                 >

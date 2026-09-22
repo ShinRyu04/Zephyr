@@ -21,8 +21,10 @@ import {
 import { getActiveView } from '../../lib/editorRegistry';
 import { useStore } from '../../lib/store';
 import { notifyInfo } from '../../lib/notificationStore';
+import { useT } from '../../lib/i18n';
 
 export default function FindBar() {
+  const tr = useT();
   const open = useStore((s) => s.findOpen);
   const setFindOpen = useStore((s) => s.setFindOpen);
   const activeTabId = useStore((s) => s.activeTabId);
@@ -201,7 +203,7 @@ export default function FindBar() {
           placeholder="Cari"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Cari di file"
+          aria-label={tr('Cari di file')}
         />
 
         <button
@@ -234,7 +236,7 @@ export default function FindBar() {
         <button
           className={`find-flag${inSelection ? ' is-on' : ''}`}
           data-testid="find-in-sel"
-          title="Cari hanya di dalam seleksi"
+          title={tr('Cari hanya di dalam seleksi')}
           aria-pressed={inSelection}
           onClick={() => setInSelection((v) => !v)}
         >
@@ -243,7 +245,7 @@ export default function FindBar() {
         <button
           className={`find-flag${highlightAll ? ' is-on' : ''}`}
           data-testid="find-hl-all"
-          title="Sorot semua hasil"
+          title={tr('Sorot semua hasil')}
           aria-pressed={highlightAll}
           onClick={() => setHighlightAll((v) => !v)}
         >
@@ -271,7 +273,7 @@ export default function FindBar() {
         <button
           className="find-btn"
           data-testid="find-select-all"
-          title="Pilih semua hasil (multi-cursor)"
+          title={tr('Pilih semua hasil (multi-cursor)')}
           onClick={() => act(selectMatches)}
         >
           ⋮
@@ -279,12 +281,12 @@ export default function FindBar() {
         <button
           className="find-btn"
           data-testid="find-in-files"
-          title="Cari di semua file"
+          title={tr('Cari di semua file')}
           onClick={cariDiSemuaFile}
         >
           ⌕
         </button>
-        <button className="find-btn" title="Tutup (Esc)" onClick={() => setFindOpen(false)}>
+        <button className="find-btn" title={tr('Tutup (Esc)')} onClick={() => setFindOpen(false)}>
           ✕
         </button>
       </div>
@@ -295,10 +297,10 @@ export default function FindBar() {
           <input
             className="find-input"
             data-testid="find-replace-input"
-            placeholder="Ganti dengan"
+            placeholder={tr('Ganti dengan')}
             value={replaceWith}
             onChange={(e) => setReplaceWith(e.target.value)}
-            aria-label="Ganti dengan"
+            aria-label={tr('Ganti dengan')}
           />
           <button className="find-btn find-btn-wide" onClick={() => act(replaceNext)}>
             Ganti

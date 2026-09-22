@@ -300,7 +300,9 @@ pub async fn lsp_start(
     let (exe, args) = resolve_cmd(&app, &spec, Path::new(&root))?;
     let cmd_line = format!("{exe} {}", args.join(" "));
 
-    let mut c = std::process::Command::new(&exe);
+    // `crate::proc::cmd` memasang CREATE_NO_WINDOW (jendela konsol LSP tidak
+    // boleh terlihat).
+    let mut c = crate::proc::cmd(&exe);
     c.args(&args)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -308,13 +310,6 @@ pub async fn lsp_start(
     if !root.is_empty() && Path::new(&root).is_dir() {
         c.current_dir(&root);
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // CREATE_NO_WINDOW — tanpa ini setiap server memunculkan jendela konsol.
-        c.creation_flags(0x0800_0000);
-    }
-
     let mut child = c
         .spawn()
         .map_err(|e| ZephyrError::Io(format!("gagal menjalankan {exe}: {e}")))?;

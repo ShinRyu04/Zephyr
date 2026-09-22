@@ -14,7 +14,7 @@ async function buka(url: string) {
 }
 
 export default function DonateDialog() {
-  const t = useT();
+  const tr = useT();
   const open = useStore((s) => s.donateOpen);
   const setOpen = useStore((s) => s.setDonateOpen);
 
@@ -34,13 +34,13 @@ export default function DonateDialog() {
           <span className="upd-dialog-ico" aria-hidden="true">☕</span>
           <div>
             <h2 className="upd-dialog-title" id="donate-title" data-testid="donate-title">
-              {t('donate.title')}
+              {tr('donate.title')}
             </h2>
-            <p className="upd-sub">{t('donate.hint')}</p>
+            <p className="upd-sub">{tr('donate.hint')}</p>
           </div>
           <button
             className="btn btn-sm upd-dialog-x"
-            aria-label={t('common.close')}
+            aria-label={tr('common.close')}
             onClick={() => setOpen(false)}
           >
             ✕

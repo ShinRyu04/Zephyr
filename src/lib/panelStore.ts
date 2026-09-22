@@ -16,7 +16,19 @@ import * as cmd from './commands';
 import { useStore } from './store';
 import { useTerminal } from './terminalStore';
 
-export type PanelTabId = 'problems' | 'output' | 'debug' | 'terminal' | 'ports';
+export type PanelTabId =
+  | 'problems'
+  | 'output'
+  | 'debug'
+  | 'terminal'
+  | 'ports'
+  | 'http'
+  | 'api'
+  | 'tunnel'
+  | 'test'
+  | 'devenv'
+  | 'db'
+  | 'sftp';
 
 export const PANEL_TABS: { id: PanelTabId; label: string; command: string }[] = [
   { id: 'problems', label: 'Problems', command: 'problemsPanel.focus' },
@@ -24,6 +36,20 @@ export const PANEL_TABS: { id: PanelTabId; label: string; command: string }[] = 
   { id: 'debug', label: 'Debug Console', command: 'debugConsolePanel.focus' },
   { id: 'terminal', label: 'Terminal', command: 'terminalPanel.focus' },
   { id: 'ports', label: 'Ports', command: 'portsPanel.focus' },
+  // T1.3: penjalan file .http (ala ekstensi REST Client).
+  { id: 'http', label: 'HTTP', command: 'httpPanel.focus' },
+  // T2.2: API client dengan collection + environment.
+  { id: 'api', label: 'API', command: 'apiPanel.focus' },
+  // T2.3: Cloudflare Tunnel.
+  { id: 'tunnel', label: 'Tunnel', command: 'tunnelPanel.focus' },
+  // T2.4: Test Explorer.
+  { id: 'test', label: 'Tests', command: 'testPanel.focus' },
+  // T3.1: Dev Environment.
+  { id: 'devenv', label: 'DevEnv', command: 'devenvPanel.focus' },
+  // T3.2: Database browser.
+  { id: 'db', label: 'DB', command: 'dbPanel.focus' },
+  // T3.3: SFTP + port forwarding.
+  { id: 'sftp', label: 'SFTP', command: 'sftpPanel.focus' },
 ];
 
 const SEMUA: PanelTabId[] = PANEL_TABS.map((t) => t.id);
@@ -121,9 +147,19 @@ export const usePanel = create<PanelState & PanelActions>((set, get) => ({
       );
       const at = SEMUA.includes(activeTab as PanelTabId) ? (activeTab as PanelTabId) : 'terminal';
       const daftar = vt.length > 0 ? vt : SEMUA.slice();
+      // Tab BARU yang belum ada saat preferensi user disimpan tidak akan
+      // pernah muncul kalau daftar lama dipakai apa adanya — user tidak tahu
+      // ada fitur baru, dan tidak punya cara menebaknya. Karena itu tab baru
+      // ditambahkan otomatis. Tab yang SENGAJA dimatikan user tetap mati
+      // (hanya berlaku untuk tab yang sudah dikenal saat itu).
+      const TAB_BARU: PanelTabId[] = ['http', 'api', 'tunnel', 'test', 'devenv', 'db', 'sftp'];
+      const lengkap = [...daftar];
+      for (const t of TAB_BARU) {
+        if (!lengkap.includes(t)) lengkap.push(t);
+      }
       return {
-        visibleTabs: daftar,
-        activeTab: daftar.includes(at) ? at : daftar[0],
+        visibleTabs: lengkap,
+        activeTab: lengkap.includes(at) ? at : lengkap[0],
         terminalMounted: true,
       };
     }),

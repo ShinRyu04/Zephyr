@@ -164,7 +164,11 @@ fn str_field(v: &Value, key: &str) -> String {
 /// `%contributes.commands.java.project.build%` di Command Palette.
 fn nls_map(dir: &Path) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
-    for fname in ["package.nls.json", "package.nls.en.json", "package.nls.id.json"] {
+    for fname in [
+        "package.nls.json",
+        "package.nls.en.json",
+        "package.nls.id.json",
+    ] {
         let p = dir.join(fname);
         let Ok(raw) = std::fs::read_to_string(&p) else {
             continue;

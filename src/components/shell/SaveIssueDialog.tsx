@@ -11,8 +11,10 @@ import { useStore } from '../../lib/store';
 // fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
 // screen reader — ia TIDAK mengurung fokus keyboard.
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useT } from '../../lib/i18n';
 
 export default function SaveIssueDialog() {
+  const tr = useT();
   const issue = useStore((s) => s.saveIssue);
   const resolve = useStore((s) => s.resolveSaveIssue);
   const okRef = useRef<HTMLButtonElement | null>(null);
@@ -37,7 +39,7 @@ export default function SaveIssueDialog() {
   const body = missing
     ? `File ini terhapus atau dipindahkan dari luar Zephyr (${issue.path}). Buat file baru di path yang sama dengan isi buffer saat ini?`
     : 'File aslinya UTF-16. Zephyr menuliskannya kembali sebagai UTF-8 — isi teks tetap sama, tetapi encoding di disk berubah dan file jadi bisa diedit.';
-  const ok = missing ? 'Buat baru' : 'Tulis sebagai UTF-8';
+  const ok = missing ? 'Buat baru' : tr('Tulis sebagai UTF-8');
 
   return (
     <div

@@ -9,6 +9,7 @@
 
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
+import { useT } from '../../lib/i18n';
 
 function Ikon({ severity }: { severity: Notif['severity'] }) {
   const p = { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none' as const };
@@ -38,6 +39,7 @@ function Ikon({ severity }: { severity: Notif['severity'] }) {
 }
 
 export default function Toast() {
+  const tr = useT();
   const items = useNotif((s) => s.items);
   const toasts = useNotif((s) => s.toasts);
   const dismiss = useNotif((s) => s.dismiss);
@@ -111,7 +113,7 @@ export default function Toast() {
             className="toast-close"
             data-testid="toast-close"
             title="Tutup"
-            aria-label="Tutup notifikasi"
+            aria-label={tr('Tutup notifikasi')}
             onClick={() => dismiss(n.id)}
           >
             ✕

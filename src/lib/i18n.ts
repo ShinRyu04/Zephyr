@@ -9,9 +9,11 @@
 // bahasa aktif → Inggris → Indonesia → kunci mentah. Jadi UI tidak pernah
 // kosong dan tidak pernah campur tanpa sengaja.
 //
-// Pemakaian:  const t = useT();  <h2>{t('settings.general')}</h2>
+// Pemakaian:  const tr = useT();  <h2>{tr('settings.general')}</h2>
 
 import { useStore } from './store';
+import { EXTRA } from './i18n-extra';
+import { EN as SRC } from './i18n-src';
 
 type Dict = Record<string, string>;
 
@@ -103,6 +105,29 @@ const ID: Dict = {
   'update.doneHint': 'Restart untuk memakai versi terbaru.',
   'update.whatsNew': 'Apa yang baru',
   'update.fullChangelog': 'Buka changelog lengkap',
+  'update.title': 'Update',
+  'update.devMode': 'Mode dev — cek update dinonaktifkan',
+  'update.upToDate': 'Zephyr sudah versi terbaru',
+  'update.unconfigured': 'Update belum dikonfigurasi (endpoint rilis belum diisi)',
+  'update.available': 'Zephyr v{v} tersedia',
+  'update.checkFailed': 'Gagal memeriksa update: {e}',
+  'update.nothingToDownload': 'Tidak ada update yang siap diunduh',
+  'update.installed': 'Update terpasang — restart Zephyr untuk memakainya',
+  'update.installFailed': 'Gagal memasang update: {e}',
+  'update.restartFailed': 'Tidak bisa restart otomatis: {e}',
+  'update.viewInstall': 'Lihat & pasang',
+  'update.checking': 'Memeriksa…',
+  'update.updateTo': 'Update ke v{v}',
+  'update.downloading': 'Mengunduh {p}%',
+  'update.restartToInstall': 'Restart untuk memasang',
+  'update.retry': 'Coba lagi',
+  'update.check': 'Cek update',
+  'update.restartNow': 'Restart sekarang',
+  'update.unconfiguredHint': 'Endpoint update belum terisi. Isi plugins.updater.endpoints di src-tauri/tauri.conf.json, lalu build ulang — tombol di atas langsung berfungsi tanpa install ulang.',
+  'update.noNotes': 'Tidak ada catatan rilis.',
+  'update.viewOnGithub': 'Lihat di GitHub',
+  'update.later': 'Nanti',
+  'update.downloadInstall': 'Unduh & pasang',
   'donate.title': 'Dukung Zephyr',
   'donate.hint': 'Pilih platform donasi favoritmu',
   'common.ok': 'OK',
@@ -210,6 +235,29 @@ const EN: Dict = {
   'update.doneHint': 'Restart to use the latest version.',
   'update.whatsNew': "What's new",
   'update.fullChangelog': 'Open full changelog',
+  'update.title': 'Update',
+  'update.devMode': 'Dev mode — update check disabled',
+  'update.upToDate': 'Zephyr is up to date',
+  'update.unconfigured': 'Updates not configured (release endpoint not set)',
+  'update.available': 'Zephyr v{v} is available',
+  'update.checkFailed': 'Update check failed: {e}',
+  'update.nothingToDownload': 'No update ready to download',
+  'update.installed': 'Update installed — restart Zephyr to use it',
+  'update.installFailed': 'Failed to install update: {e}',
+  'update.restartFailed': 'Could not restart automatically: {e}',
+  'update.viewInstall': 'View & install',
+  'update.checking': 'Checking…',
+  'update.updateTo': 'Update to v{v}',
+  'update.downloading': 'Downloading {p}%',
+  'update.restartToInstall': 'Restart to install',
+  'update.retry': 'Try again',
+  'update.check': 'Check for updates',
+  'update.restartNow': 'Restart now',
+  'update.unconfiguredHint': 'Update endpoint not set. Fill plugins.updater.endpoints in src-tauri/tauri.conf.json, then rebuild — the button above works right away with no reinstall.',
+  'update.noNotes': 'No release notes.',
+  'update.viewOnGithub': 'View on GitHub',
+  'update.later': 'Later',
+  'update.downloadInstall': 'Download & install',
   'donate.title': 'Support Zephyr',
   'donate.hint': 'Choose your preferred platform',
   'common.ok': 'OK',
@@ -321,6 +369,29 @@ const JA: Dict = {
   'update.doneHint': '再起動して最新版を使用してください。',
   'update.whatsNew': '新着情報',
   'update.fullChangelog': '完全な変更履歴を開く',
+  'update.title': 'アップデート',
+  'update.devMode': '開発モード — 更新確認は無効です',
+  'update.upToDate': 'Zephyr は最新版です',
+  'update.unconfigured': '更新が未設定です（リリース用エンドポイントが未入力）',
+  'update.available': 'Zephyr v{v} が利用可能です',
+  'update.checkFailed': '更新の確認に失敗しました: {e}',
+  'update.nothingToDownload': 'ダウンロードできる更新がありません',
+  'update.installed': '更新を適用しました — Zephyr を再起動してください',
+  'update.installFailed': '更新の適用に失敗しました: {e}',
+  'update.restartFailed': '自動再起動できませんでした: {e}',
+  'update.viewInstall': '確認してインストール',
+  'update.checking': '確認中…',
+  'update.updateTo': 'v{v} に更新',
+  'update.downloading': 'ダウンロード中 {p}%',
+  'update.restartToInstall': '再起動して適用',
+  'update.retry': '再試行',
+  'update.check': '更新を確認',
+  'update.restartNow': '今すぐ再起動',
+  'update.unconfiguredHint': '更新エンドポイントが未入力です。src-tauri/tauri.conf.json の plugins.updater.endpoints を設定して再ビルドしてください。再インストールなしで上のボタンが使えます。',
+  'update.noNotes': 'リリースノートはありません。',
+  'update.viewOnGithub': 'GitHub で見る',
+  'update.later': '後で',
+  'update.downloadInstall': 'ダウンロードしてインストール',
   'donate.title': 'Zephyrを支援',
   'donate.hint': 'お好みのプラットフォームを選択',
   'common.ok': 'OK',
@@ -419,6 +490,29 @@ const KO: Dict = {
   'update.doneHint': '최신 버전을 사용하려면 다시 시작하세요.',
   'update.whatsNew': '새로운 기능',
   'update.fullChangelog': '전체 변경 로그 열기',
+  'update.title': '업데이트',
+  'update.devMode': '개발 모드 — 업데이트 확인이 비활성화됨',
+  'update.upToDate': 'Zephyr가 최신 버전입니다',
+  'update.unconfigured': '업데이트가 구성되지 않음 (릴리스 엔드포인트 미입력)',
+  'update.available': 'Zephyr v{v} 사용 가능',
+  'update.checkFailed': '업데이트 확인 실패: {e}',
+  'update.nothingToDownload': '다운로드할 업데이트가 없습니다',
+  'update.installed': '업데이트 설치됨 — Zephyr를 다시 시작하세요',
+  'update.installFailed': '업데이트 설치 실패: {e}',
+  'update.restartFailed': '자동으로 다시 시작할 수 없음: {e}',
+  'update.viewInstall': '보기 및 설치',
+  'update.checking': '확인 중…',
+  'update.updateTo': 'v{v}(으)로 업데이트',
+  'update.downloading': '다운로드 중 {p}%',
+  'update.restartToInstall': '다시 시작하여 설치',
+  'update.retry': '다시 시도',
+  'update.check': '업데이트 확인',
+  'update.restartNow': '지금 다시 시작',
+  'update.unconfiguredHint': '업데이트 엔드포인트가 비어 있습니다. src-tauri/tauri.conf.json의 plugins.updater.endpoints를 채우고 다시 빌드하세요. 재설치 없이 위 버튼이 바로 작동합니다.',
+  'update.noNotes': '릴리스 노트가 없습니다.',
+  'update.viewOnGithub': 'GitHub에서 보기',
+  'update.later': '나중에',
+  'update.downloadInstall': '다운로드 및 설치',
   'donate.title': 'Zephyr 후원',
   'donate.hint': '원하는 플랫폼을 선택하세요',
   'common.ok': '확인',
@@ -517,6 +611,29 @@ const ZH: Dict = {
   'update.doneHint': '重新启动以使用最新版本。',
   'update.whatsNew': '新内容',
   'update.fullChangelog': '打开完整更新日志',
+  'update.title': '更新',
+  'update.devMode': '开发模式 — 已禁用更新检查',
+  'update.upToDate': 'Zephyr 已是最新版本',
+  'update.unconfigured': '更新未配置（未填写发布端点）',
+  'update.available': 'Zephyr v{v} 可用',
+  'update.checkFailed': '检查更新失败：{e}',
+  'update.nothingToDownload': '没有可下载的更新',
+  'update.installed': '更新已安装 — 重启 Zephyr 即可使用',
+  'update.installFailed': '安装更新失败：{e}',
+  'update.restartFailed': '无法自动重启：{e}',
+  'update.viewInstall': '查看并安装',
+  'update.checking': '检查中…',
+  'update.updateTo': '更新到 v{v}',
+  'update.downloading': '正在下载 {p}%',
+  'update.restartToInstall': '重启以安装',
+  'update.retry': '重试',
+  'update.check': '检查更新',
+  'update.restartNow': '立即重启',
+  'update.unconfiguredHint': '更新端点未填写。请在 src-tauri/tauri.conf.json 中设置 plugins.updater.endpoints，然后重新构建 — 无需重新安装，上方按钮即可使用。',
+  'update.noNotes': '没有发行说明。',
+  'update.viewOnGithub': '在 GitHub 上查看',
+  'update.later': '稍后',
+  'update.downloadInstall': '下载并安装',
   'donate.title': '支持 Zephyr',
   'donate.hint': '选择您偏好的平台',
   'common.ok': '确定',
@@ -615,6 +732,29 @@ const ES: Dict = {
   'update.doneHint': 'Reinicia para usar la última versión.',
   'update.whatsNew': 'Qué hay de nuevo',
   'update.fullChangelog': 'Abrir registro de cambios completo',
+  'update.title': 'Actualización',
+  'update.devMode': 'Modo dev — comprobación de actualizaciones desactivada',
+  'update.upToDate': 'Zephyr ya está en la última versión',
+  'update.unconfigured': 'Actualizaciones sin configurar (endpoint de lanzamiento vacío)',
+  'update.available': 'Zephyr v{v} disponible',
+  'update.checkFailed': 'Error al comprobar actualizaciones: {e}',
+  'update.nothingToDownload': 'No hay actualización lista para descargar',
+  'update.installed': 'Actualización instalada — reinicia Zephyr para usarla',
+  'update.installFailed': 'Error al instalar la actualización: {e}',
+  'update.restartFailed': 'No se pudo reiniciar automáticamente: {e}',
+  'update.viewInstall': 'Ver e instalar',
+  'update.checking': 'Comprobando…',
+  'update.updateTo': 'Actualizar a v{v}',
+  'update.downloading': 'Descargando {p}%',
+  'update.restartToInstall': 'Reinicia para instalar',
+  'update.retry': 'Reintentar',
+  'update.check': 'Buscar actualizaciones',
+  'update.restartNow': 'Reiniciar ahora',
+  'update.unconfiguredHint': 'El endpoint de actualizaciones está vacío. Rellena plugins.updater.endpoints en src-tauri/tauri.conf.json y vuelve a compilar — el botón de arriba funcionará sin reinstalar.',
+  'update.noNotes': 'No hay notas de la versión.',
+  'update.viewOnGithub': 'Ver en GitHub',
+  'update.later': 'Más tarde',
+  'update.downloadInstall': 'Descargar e instalar',
   'donate.title': 'Apoyar a Zephyr',
   'donate.hint': 'Elige tu plataforma preferida',
   'common.ok': 'Aceptar',
@@ -713,6 +853,29 @@ const FR: Dict = {
   'update.doneHint': 'Redémarrez pour utiliser la dernière version.',
   'update.whatsNew': 'Nouveautés',
   'update.fullChangelog': 'Ouvrir le journal complet',
+  'update.title': 'Mise à jour',
+  'update.devMode': 'Mode dev — vérification des mises à jour désactivée',
+  'update.upToDate': 'Zephyr est à jour',
+  'update.unconfigured': 'Mises à jour non configurées (endpoint de publication vide)',
+  'update.available': 'Zephyr v{v} est disponible',
+  'update.checkFailed': 'Échec de la vérification des mises à jour : {e}',
+  'update.nothingToDownload': 'Aucune mise à jour à télécharger',
+  'update.installed': 'Mise à jour installée — redémarrez Zephyr pour l’utiliser',
+  'update.installFailed': 'Échec de l’installation de la mise à jour : {e}',
+  'update.restartFailed': 'Redémarrage automatique impossible : {e}',
+  'update.viewInstall': 'Voir et installer',
+  'update.checking': 'Vérification…',
+  'update.updateTo': 'Mettre à jour vers v{v}',
+  'update.downloading': 'Téléchargement {p}%',
+  'update.restartToInstall': 'Redémarrer pour installer',
+  'update.retry': 'Réessayer',
+  'update.check': 'Rechercher des mises à jour',
+  'update.restartNow': 'Redémarrer maintenant',
+  'update.unconfiguredHint': 'L’endpoint de mise à jour est vide. Renseignez plugins.updater.endpoints dans src-tauri/tauri.conf.json, puis recompilez — le bouton ci-dessus fonctionne sans réinstallation.',
+  'update.noNotes': 'Aucune note de version.',
+  'update.viewOnGithub': 'Voir sur GitHub',
+  'update.later': 'Plus tard',
+  'update.downloadInstall': 'Télécharger et installer',
   'donate.title': 'Soutenir Zephyr',
   'donate.hint': 'Choisissez votre plateforme préférée',
   'common.ok': 'OK',
@@ -811,6 +974,29 @@ const DE: Dict = {
   'update.doneHint': 'Starten Sie neu, um die neueste Version zu verwenden.',
   'update.whatsNew': 'Neuerungen',
   'update.fullChangelog': 'Vollständiges Änderungsprotokoll öffnen',
+  'update.title': 'Update',
+  'update.devMode': 'Entwicklungsmodus — Updateprüfung deaktiviert',
+  'update.upToDate': 'Zephyr ist auf dem neuesten Stand',
+  'update.unconfigured': 'Updates nicht konfiguriert (Release-Endpunkt fehlt)',
+  'update.available': 'Zephyr v{v} ist verfügbar',
+  'update.checkFailed': 'Updateprüfung fehlgeschlagen: {e}',
+  'update.nothingToDownload': 'Kein Update zum Herunterladen verfügbar',
+  'update.installed': 'Update installiert — starten Sie Zephyr neu',
+  'update.installFailed': 'Updateinstallation fehlgeschlagen: {e}',
+  'update.restartFailed': 'Automatischer Neustart nicht möglich: {e}',
+  'update.viewInstall': 'Ansehen & installieren',
+  'update.checking': 'Prüfe…',
+  'update.updateTo': 'Auf v{v} aktualisieren',
+  'update.downloading': 'Lade {p}% herunter',
+  'update.restartToInstall': 'Zum Installieren neu starten',
+  'update.retry': 'Erneut versuchen',
+  'update.check': 'Nach Updates suchen',
+  'update.restartNow': 'Jetzt neu starten',
+  'update.unconfiguredHint': 'Der Update-Endpunkt ist leer. Tragen Sie plugins.updater.endpoints in src-tauri/tauri.conf.json ein und bauen Sie neu — die Schaltfläche oben funktioniert ohne Neuinstallation.',
+  'update.noNotes': 'Keine Versionshinweise.',
+  'update.viewOnGithub': 'Auf GitHub ansehen',
+  'update.later': 'Später',
+  'update.downloadInstall': 'Herunterladen & installieren',
   'donate.title': 'Zephyr unterstützen',
   'donate.hint': 'Wähle deine bevorzugte Plattform',
   'common.ok': 'OK',
@@ -909,6 +1095,29 @@ const PT: Dict = {
   'update.doneHint': 'Reinicie para usar a versão mais recente.',
   'update.whatsNew': 'Novidades',
   'update.fullChangelog': 'Abrir changelog completo',
+  'update.title': 'Atualização',
+  'update.devMode': 'Modo dev — verificação de atualizações desativada',
+  'update.upToDate': 'Zephyr já está na versão mais recente',
+  'update.unconfigured': 'Atualizações não configuradas (endpoint de lançamento vazio)',
+  'update.available': 'Zephyr v{v} disponível',
+  'update.checkFailed': 'Falha ao verificar atualizações: {e}',
+  'update.nothingToDownload': 'Nenhuma atualização pronta para baixar',
+  'update.installed': 'Atualização instalada — reinicie o Zephyr para usá-la',
+  'update.installFailed': 'Falha ao instalar a atualização: {e}',
+  'update.restartFailed': 'Não foi possível reiniciar automaticamente: {e}',
+  'update.viewInstall': 'Ver e instalar',
+  'update.checking': 'Verificando…',
+  'update.updateTo': 'Atualizar para v{v}',
+  'update.downloading': 'Baixando {p}%',
+  'update.restartToInstall': 'Reiniciar para instalar',
+  'update.retry': 'Tentar de novo',
+  'update.check': 'Verificar atualizações',
+  'update.restartNow': 'Reiniciar agora',
+  'update.unconfiguredHint': 'O endpoint de atualização está vazio. Preencha plugins.updater.endpoints em src-tauri/tauri.conf.json e recompile — o botão acima funciona sem reinstalar.',
+  'update.noNotes': 'Sem notas de versão.',
+  'update.viewOnGithub': 'Ver no GitHub',
+  'update.later': 'Mais tarde',
+  'update.downloadInstall': 'Baixar e instalar',
   'donate.title': 'Apoiar o Zephyr',
   'donate.hint': 'Escolha sua plataforma preferida',
   'common.ok': 'OK',
@@ -1007,6 +1216,29 @@ const AR: Dict = {
   'update.doneHint': 'أعد التشغيل لاستخدام أحدث إصدار.',
   'update.whatsNew': 'ما الجديد',
   'update.fullChangelog': 'فتح سجل التغييرات الكامل',
+  'update.title': 'التحديث',
+  'update.devMode': 'وضع التطوير — فحص التحديثات معطّل',
+  'update.upToDate': 'Zephyr محدَّث بالفعل',
+  'update.unconfigured': 'التحديثات غير مهيأة (نقطة إصدار غير مُدخلة)',
+  'update.available': 'Zephyr v{v} متاح',
+  'update.checkFailed': 'فشل فحص التحديثات: {e}',
+  'update.nothingToDownload': 'لا يوجد تحديث جاهز للتنزيل',
+  'update.installed': 'تم تثبيت التحديث — أعد تشغيل Zephyr لاستخدامه',
+  'update.installFailed': 'فشل تثبيت التحديث: {e}',
+  'update.restartFailed': 'تعذّر إعادة التشغيل تلقائيًا: {e}',
+  'update.viewInstall': 'عرض وتثبيت',
+  'update.checking': 'جارٍ الفحص…',
+  'update.updateTo': 'التحديث إلى v{v}',
+  'update.downloading': 'جارٍ التنزيل {p}%',
+  'update.restartToInstall': 'أعد التشغيل للتثبيت',
+  'update.retry': 'إعادة المحاولة',
+  'update.check': 'التحقق من التحديثات',
+  'update.restartNow': 'إعادة التشغيل الآن',
+  'update.unconfiguredHint': 'نقطة التحديث فارغة. املأ plugins.updater.endpoints في src-tauri/tauri.conf.json ثم أعد البناء — سيعمل الزر أعلاه دون إعادة تثبيت.',
+  'update.noNotes': 'لا توجد ملاحظات إصدار.',
+  'update.viewOnGithub': 'عرض على GitHub',
+  'update.later': 'لاحقًا',
+  'update.downloadInstall': 'تنزيل وتثبيت',
   'donate.title': 'ادعم Zephyr',
   'donate.hint': 'اختر منصتك المفضلة',
   'common.ok': 'موافق',
@@ -1029,13 +1261,56 @@ export const UI_LANGS: { value: string; label: string }[] = [
   { value: 'ar', label: 'العربية' },
 ];
 
-/** Terjemah tanpa hook (untuk kode di luar komponen). Jatuh berlapis: aktif → Inggris → Indonesia → kunci mentah. */
+/** Terjemah tanpa hook (untuk kode di luar komponen). Jatuh berlapis: aktif → Inggris → Indonesia → kunci mentah.
+ *  EXTRA (i18n-extra.ts) menang atas dict inti, jadi teks yang dulu hardcoded
+ *  Indonesia ikut berganti bahasa. */
 export function translate(lang: string, key: string): string {
-  return DICTS[lang]?.[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
+  // Teks sumber Indonesia (i18n-src.ts) memakai kunci = teksnya sendiri.
+  // Bahasa Indonesia = teks aslinya; bahasa lain = terjemah Inggris dari tabel.
+  // Dicek lebih dulu supaya teks Indonesia yang dulu hardcoded ikut berganti.
+  const src = SRC[key];
+  if (src) return lang === 'id' ? key : src;
+  return EXTRA[lang]?.[key] ?? DICTS[lang]?.[key] ?? EXTRA.en[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
 }
 
 /** Hook: ikut berubah saat settings.general.uiLang diganti. */
 export function useT(): (key: string) => string {
   const lang = useStore((s) => s.settings.general.uiLang);
   return (key: string) => translate(lang, key);
+}
+
+/** Terjemah tanpa hook, untuk dipakai di luar komponen (helper, store, label
+ *  yang dihitung saat render). Bahasa dibaca langsung dari store; App.tsx
+ *  berlangganan `uiLang` supaya seluruh pohon ikut render ulang saat bahasa
+ *  diganti — tanpa langganan itu teks ini tidak akan berganti sampai reload. */
+export function tx(key: string): string {
+  return translate(useStore.getState().settings.general.uiLang, key);
+}
+
+/**
+ * Isi placeholder `{nama}` pada hasil terjemahan.
+ *
+ * Dipakai string update yang punya nilai dinamis (versi, persen, pesan error):
+ * `tf('update.downloading', { p: 42 })` → "Mengunduh 42%". Sengaja terpisah
+ * dari translate() supaya kamus tetap berupa teks murni (mudah diterjemahkan)
+ * dan pemanggil tidak perlu tahu sintaks penggantiannya.
+ */
+export function tf(key: string, isi: Record<string, string | number>): string {
+  let teks = tx(key);
+  for (const [k, v] of Object.entries(isi)) {
+    teks = teks.split(`{${k}}`).join(String(v));
+  }
+  return teks;
+}
+
+/** Varian hook dari `tf` — ikut render ulang saat bahasa diganti. */
+export function useTf(): (key: string, isi: Record<string, string | number>) => string {
+  const tr = useT();
+  return (key, isi) => {
+    let teks = tr(key);
+    for (const [k, v] of Object.entries(isi)) {
+      teks = teks.split(`{${k}}`).join(String(v));
+    }
+    return teks;
+  };
 }

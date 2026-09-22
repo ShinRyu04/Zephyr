@@ -14,8 +14,10 @@ import { usePorts } from '../../lib/portsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { TerminalOps } from '../terminal/TerminalTabs';
 import { runCommand } from '../../lib/commandRegistry';
+import { useT, tx } from '../../lib/i18n';
 
 export default function PanelTabStrip() {
+  const tr = useT();
   const activeTab = usePanel((s) => s.activeTab);
   const visibleTabs = usePanel((s) => s.visibleTabs);
   const tabMenuOpen = usePanel((s) => s.tabMenuOpen);
@@ -64,7 +66,7 @@ export default function PanelTabStrip() {
       );
     }
     if (id === 'output' && outputDirty) {
-      return <span className="pts-dot" data-testid="pts-dot-output" aria-label="ada log baru" />;
+      return <span className="pts-dot" data-testid="pts-dot-output" aria-label={tx('ada log baru')} />;
     }
     if (id === 'ports' && portCount > 0) {
       return (
@@ -115,7 +117,7 @@ export default function PanelTabStrip() {
         <button
           className="pts-op"
           data-testid="pts-menu"
-          title="Tampilkan / sembunyikan tab"
+          title={tr('Tampilkan / sembunyikan tab')}
           aria-haspopup="menu"
           aria-expanded={tabMenuOpen}
           ref={btnMenu}
@@ -134,7 +136,7 @@ export default function PanelTabStrip() {
         <button
           className="pts-op"
           data-testid="pts-close"
-          title="Tutup panel (Ctrl+J)"
+          title={tr('Tutup panel (Ctrl+J)')}
           onClick={() => void runCommand('workbench.action.togglePanel')}
         >
           ✕

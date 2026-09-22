@@ -151,11 +151,15 @@ fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
 
 #[cfg(windows)]
 fn kill_tree(pid: u32) {
-    let _ = Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/T", "/F"])
+    // CREATE_NO_WINDOW: tanpa ini taskkill memunculkan jendela konsol sekejap
+    // setiap kali operasi git dibatalkan.
+    use std::os::windows::process::CommandExt;
+    let mut c = Command::new("taskkill");
+    c.args(["/PID", &pid.to_string(), "/T", "/F"])
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
+        .stderr(Stdio::null());
+    c.creation_flags(0x0800_0000);
+    let _ = c.status();
 }
 
 #[cfg(not(windows))]

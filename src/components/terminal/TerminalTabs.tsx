@@ -19,6 +19,7 @@ import { clearTerm } from '../../lib/xtermRegistry';
 import Popover from '../shell/Popover';
 import PaneIcon, { AgentLogo } from './PaneIcons';
 import type { PaneKind, TerminalTab } from '../../lib/types';
+import { useT, tx } from '../../lib/i18n';
 
 /** Ikon aksi kecil untuk tombol toolbar & item menu (ukuran seragam). */
 export function ActionIcon({
@@ -93,7 +94,7 @@ function RenameInput({ tab }: { tab: TerminalTab }) {
       ref={ref}
       className="tt-rename"
       defaultValue={tab.title}
-      aria-label="Nama tab terminal"
+      aria-label={tx('Nama tab terminal')}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key === 'Enter') rename(tab.id, (e.target as HTMLInputElement).value);
@@ -110,6 +111,7 @@ function RenameInput({ tab }: { tab: TerminalTab }) {
  * tidak menambah informasi, dan barisnya cuma memakan tempat.
  */
 export function TerminalSideTabs() {
+  const tr = useT();
   const tabs = useTerminal((s) => s.terminalTabs);
   const activeTabId = useTerminal((s) => s.activeTabId);
   const renamingId = useTerminal((s) => s.renamingId);
@@ -148,7 +150,7 @@ export function TerminalSideTabs() {
           {t.panes.length > 1 && <span className="tt-count">{t.panes.length}</span>}
           <button
             className="tt-tab-close"
-            title="Tutup tab terminal"
+            title={tr('Tutup tab terminal')}
             aria-label={`Tutup ${t.title}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -176,6 +178,7 @@ export function TerminalSideTabs() {
  * Klik utama tetap satu langkah: "+" langsung membuka pane shell.
  */
 export function TerminalOps() {
+  const tr = useT();
   const tabs = useTerminal((s) => s.terminalTabs);
   const activeTabId = useTerminal((s) => s.activeTabId);
   const shells = useTerminal((s) => s.shells);
@@ -233,8 +236,8 @@ export function TerminalOps() {
         <button
           ref={btnPicker}
           className="tt-btn tt-btn-caret"
-          title="Buat pane lain: shell tertentu, private, AI agent, browser, tab baru"
-          aria-label="Pilihan pane baru"
+          title={tr('Buat pane lain: shell tertentu, private, AI agent, browser, tab baru')}
+          aria-label={tr('Pilihan pane baru')}
           data-testid="term-picker"
           aria-haspopup="menu"
           aria-expanded={pickerOpen}
@@ -345,8 +348,8 @@ export function TerminalOps() {
         <button
           ref={btnKebab}
           className="tt-btn"
-          title="Menu tab & pane terminal"
-          aria-label="Menu tab & pane terminal"
+          title={tr('Menu tab & pane terminal')}
+          aria-label={tr('Menu tab & pane terminal')}
           data-testid="term-kebab"
           aria-haspopup="menu"
           aria-expanded={!!menuFor}

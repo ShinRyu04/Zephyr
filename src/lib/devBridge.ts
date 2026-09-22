@@ -14,6 +14,16 @@ import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useSettingsUi } from './settingsStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
+import { useCliAgent } from './cliAgentStore';
+import { useSubAgent, MAX_PARALLEL, MAX_SUB_STEPS } from './subagentStore';
+import { useApiClient, kirimRequest } from './apiClientStore';
+import { useTunnel } from './tunnelStore';
+import { testDetect, tasksRun, tasksRuns } from './commands';
+import { tunnelTersedia, tunnelStart, tunnelStop, tunnelList } from './commands';
+import { devenvDetect, devenvStart, devenvStatus, devenvStop } from './commands';
+import { dbSqliteTabel, dbSqliteQuery } from './commands';
+import { sshSftpList, sshSftpGet, sshSftpHapus, sshForwardStart, sshForwardStop, sshForwardList, sshList } from './commands';
+import { useTampilan, apakahGambar, mimeGambar } from './tampilanStore';
 import { ALL_MODELS } from './modelCatalog';
 import { THEMES, systemPrefersDark, semuaTema } from './themes';
 import { useExt19, getBahasaWorkspace } from './extensionsStore19';
@@ -198,6 +208,39 @@ export function installDevBridge(): void {
       })),
     /** simpanan localStorage mentah (bukti V9 restore) */
     persisted: () => localStorage.getItem('zephyr.ai.sessions.v1'),
+    /** T1.1: tingkat penalaran aktif (null = default provider). */
+    effort: () => useAi.getState().reasoningEffort,
+    /** T1.1: set tingkat penalaran dari harness. */
+    setEffort: (e: 'minimal' | 'low' | 'medium' | 'high' | 'ultra' | null) =>
+      useAi.getState().setReasoningEffort(e),
+    /** T1.1: teks penalaran yang menempel di pesan terakhir. */
+    reasoning: () =>
+      (useAi.getState().activeSession()?.messages ?? [])
+        .filter((m) => m.reasoning)
+        .map((m) => ({ id: m.id, teks: m.reasoning ?? '' })),
+    /** T1.1: suntik pesan assistant + penalaran ke sesi aktif.
+     *  onChunk hanya MENG-UPDATE pesan yang sudah ada (map by id), jadi
+     *  harness butuh jalan ini untuk menguji render blok Reasoned tanpa
+     *  memanggil provider sungguhan. */
+    injectAssistant: (text: string, reasoning: string) => {
+      const st = useAi.getState();
+      const sid = st.activeId ?? st.newChat();
+      const id = `uji-${Date.now().toString(36)}`;
+      useAi.setState((s0) => ({
+        sessions: s0.sessions.map((sess) =>
+          sess.id === sid
+            ? {
+                ...sess,
+                messages: [
+                  ...sess.messages,
+                  { id, role: 'assistant' as const, content: text, reasoning, at: Date.now() },
+                ],
+              }
+            : sess,
+        ),
+      }));
+      return id;
+    },
     maxMsgs: MAX_MSGS,
   };
   // Source Control (fase 10): store git + jalur command untuk harness.
@@ -620,6 +663,105 @@ export function installDevBridge(): void {
   };
 
   // ── fase 20: panel bawah ──
+  // ── T2.2: bridge API client (harness uji-t2-2) ──
+  w.__ZEPHYR_API__ = {
+    store: useApiClient,
+    kirim: (r: unknown, vars: [string, string][]) => kirimRequest(r as never, vars),
+    muat: () => useApiClient.getState().muat(),
+    simpan: () => useApiClient.getState().simpan(),
+  };
+
+  // ── T3.4: bridge tampilan (zen + pratinjau gambar) ──
+  // PENTING: harness TIDAK BOLEH `import('/src/lib/tampilanStore.ts')` sendiri.
+  // Vite menambahkan query `?t=` pada import milik aplikasi, jadi import baru
+  // tanpa query menghasilkan INSTANCE MODUL KEDUA dengan store kosong — set
+  // zen di sana tidak berpengaruh ke UI (pernah kejadian, 6 tes gagal).
+  w.__ZEPHYR_UI__ = {
+    store: useTampilan,
+    mode: () => useTampilan.getState().mode,
+    setMode: (m: 'normal' | 'zen') => useTampilan.getState().setMode(m),
+    toggleZen: () => useTampilan.getState().toggleZen(),
+    gambar: () => useTampilan.getState().gambar,
+    setGambar: (g: unknown) => useTampilan.getState().setGambar(g as never),
+    apakahGambar: (n: string) => apakahGambar(n),
+    mimeGambar: (n: string) => mimeGambar(n),
+  };
+
+  // ── T3.3: bridge SFTP + port forwarding (harness uji-t3-3) ──
+  w.__ZEPHYR_SFTP__ = {
+    list: (config: unknown, path: string) => sshSftpList(config, path),
+    get: (config: unknown, remote: string, lokal: string) => sshSftpGet(config, remote, lokal),
+    hapus: (config: unknown, remote: string) => sshSftpHapus(config, remote),
+    fwdStart: (config: unknown, jenis: string, portLokal: number, tujuan: string) =>
+      sshForwardStart(config, jenis, portLokal, tujuan),
+    fwdStop: (id: string) => sshForwardStop(id),
+    fwdList: () => sshForwardList(),
+    /** host SSH yang tersimpan (tanpa password) */
+    hosts: () => sshList(),
+  };
+
+  // ── T3.2: bridge Database browser (harness uji-t3-2) ──
+  w.__ZEPHYR_DB__ = {
+    tabel: (path: string) => dbSqliteTabel(path),
+    query: (path: string, sql: string, bolehTulis?: boolean) =>
+      dbSqliteQuery(path, sql, bolehTulis),
+  };
+
+  // ── T3.1: bridge Dev Environment (harness uji-t3-1) ──
+  w.__ZEPHYR_DEVENV__ = {
+    detect: (root?: string) => devenvDetect(root),
+    start: (layanan: string, path: string) => devenvStart(layanan, path),
+    status: () => devenvStatus(),
+    stop: (port: number) => devenvStop(port),
+  };
+
+  // ── T2.4: bridge Test Explorer (harness uji-t2-4) ──
+  // Harness perlu memanggil command Rust langsung supaya bisa memeriksa
+  // hasil deteksi tanpa bergantung pada klik UI.
+  w.__ZEPHYR_TEST__ = {
+    detect: (root: string) => testDetect(root),
+    // JALUR PRODUK: lewat tasksStore supaya channel output dibuat.
+    // `run` mentah dipertahankan untuk harness lama yang memeriksa Rust saja.
+    run: (a: unknown) => tasksRun(a as never),
+    runStore: (a: { label: string; command: string; args: string[]; cwd?: string }) =>
+      useTasks.getState().jalankanAdHoc(a),
+    runs: () => tasksRuns(),
+  };
+
+  // ── T2.3: bridge Cloudflare Tunnel (harness uji-t2-3) ──
+  w.__ZEPHYR_TUNNEL__ = {
+    store: useTunnel,
+    tersedia: () => tunnelTersedia(),
+    mulai: (id: string, port: number) => tunnelStart(id, port),
+    stop: (id: string) => tunnelStop(id),
+    daftar: () => tunnelList(),
+  };
+
+  // ── T2.1: bridge subagent paralel (harness uji-t2-1) ──
+  w.__ZEPHYR_SUB__ = {
+    store: useSubAgent,
+    MAX_PARALLEL,
+    MAX_SUB_STEPS,
+    agents: () => useSubAgent.getState().agents,
+    jalankan: (tugas: string[]) => useSubAgent.getState().jalankan(tugas),
+    batalSemua: () => useSubAgent.getState().batalSemua(),
+    bersihkan: () => useSubAgent.getState().bersihkan(),
+    ringkasan: () => useSubAgent.getState().ringkasan,
+    sibuk: () => useSubAgent.getState().sibuk,
+  };
+
+  // ── T1.2/T1.5: bridge CLI AI agent (harness uji-t1-2-5) ──
+  w.__ZEPHYR_CLIAGENT__ = {
+    store: useCliAgent,
+    detect: (paksa = true) => useCliAgent.getState().detect(paksa),
+    agents: () => useCliAgent.getState().agents,
+    aktif: () => useCliAgent.getState().aktif,
+    setAktif: (id: string | null) => useCliAgent.getState().setAktif(id),
+    runs: () => useCliAgent.getState().runs,
+    jalankan: (prompt: string, cwd?: string) => useCliAgent.getState().jalankan(prompt, cwd),
+    sibuk: () => useCliAgent.getState().sibuk,
+  };
+
   w.__ZEPHYR_PANEL__ = {
     store: usePanel,
     activeTab: () => usePanel.getState().activeTab,

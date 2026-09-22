@@ -13,10 +13,12 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
+import { useStore } from '../../lib/store';
 import AiPanel from '../ai/AiPanel';
 import DockSwitch from './DockSwitch';
 import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
 import { TerminalSideTabs } from '../terminal/TerminalTabs';
+import { tx } from '../../lib/i18n';
 
 export default function TerminalArea({ embedded = false }: { embedded?: boolean }) {
   const visible = useTerminal((s) => s.visible);
@@ -28,6 +30,7 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
   const setVisible = useTerminal((s) => s.setVisible);
   const toast = useTerminal((s) => s.toast);
   const setToast = useTerminal((s) => s.setToast);
+  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
 
   const dragging = useRef(false);
 
@@ -70,7 +73,7 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
     return (
       <button
         className="term-collapsed"
-        title="Tampilkan panel bawah (Ctrl+`)"
+        title={tx('Tampilkan panel bawah (Ctrl+`)')}
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
@@ -85,7 +88,15 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
   // Pane di kiri, daftar tab vertikal di kanan (kolomnya null kalau < 2 tab).
   const isi =
     dock === 'ai' ? (
-      <AiPanel />
+      // A-10: saat panel AI dipindah ke kolom kanan, dock bawah tidak lagi
+      // merender salinannya (dua AiPanel = dua listener + dua store subscribe).
+      aiDiKanan ? (
+        <p className="ai-moved" data-testid="ai-moved">
+          Panel AI sedang tampil di kolom kanan. Ubah di Settings → Umum → Panel AI.
+        </p>
+      ) : (
+        <AiPanel />
+      )
     ) : (
       <div className="term-split">
         <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
@@ -113,7 +124,7 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
         className="term-resizer"
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Ubah tinggi panel terminal"
+        aria-label={tx('Ubah tinggi panel terminal')}
         onPointerDown={startResize}
       />
 
