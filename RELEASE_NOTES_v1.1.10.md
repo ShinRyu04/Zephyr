@@ -75,6 +75,16 @@ leaving only the editor. Opening `.png / .jpg / .gif / .webp / .bmp / .ico /
 .avif / .svg` shows a real preview with zoom and a transparency checkerboard
 instead of dumping binary into the editor.
 
+### Customize Layout, and an AI panel you can close from inside
+
+The layout button in the title bar (or `View: Customize Layout`) opens one panel
+with every visibility control in one place: **Menu Bar, Activity Bar, Primary
+Side Bar, Panel, Status Bar**, side bar position, layout density
+(default/compact), and Zen Mode. Each row shows its current state, a reset button
+puts everything back, and your choices are saved — the layout you set is the
+layout you get next launch. The AI panel gained its own hide button, so it closes
+from inside the panel the way the VS Code chat panel does.
+
 ### CLI subcommands and portable mode
 
 `zephyr ext list`, `zephyr ext remove <id>`, `zephyr ext registry [url]`, and

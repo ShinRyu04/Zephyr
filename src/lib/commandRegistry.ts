@@ -1195,6 +1195,78 @@ export const COMMANDS: CommandDef[] = [
       useTampilan.getState().toggleZen();
     },
   },
+  {
+    id: 'view.customizeLayout',
+    title: 'View: Customize Layout',
+    group: 'View',
+    keywords: 'layout tata letak atur sembunyikan menu bar status bar',
+    run: async () => {
+      // Buka panel Customize Layout: klik tombolnya di title bar.
+      const btn = document.querySelector('[data-testid="mb-customize-layout"]') as HTMLElement | null;
+      btn?.click();
+    },
+  },
+  {
+    id: 'view.toggleMenuBar',
+    title: 'View: Toggle Menu Bar',
+    group: 'View',
+    keywords: 'menu bar sembunyikan tampilkan',
+    run: async () => {
+      const { useLayoutCustom } = await import('./layoutStore');
+      useLayoutCustom.getState().toggle('menuBar');
+      await useLayoutCustom.getState().simpan();
+    },
+  },
+  {
+    id: 'view.toggleActivityBar',
+    title: 'View: Toggle Activity Bar',
+    group: 'View',
+    keywords: 'activity bar ikon samping sembunyikan',
+    run: async () => {
+      const { useLayoutCustom } = await import('./layoutStore');
+      useLayoutCustom.getState().toggle('activityBar');
+      await useLayoutCustom.getState().simpan();
+    },
+  },
+  {
+    id: 'view.toggleStatusBar',
+    title: 'View: Toggle Status Bar',
+    group: 'View',
+    keywords: 'status bar bawah sembunyikan',
+    run: async () => {
+      const { useLayoutCustom } = await import('./layoutStore');
+      useLayoutCustom.getState().toggle('statusBar');
+      await useLayoutCustom.getState().simpan();
+    },
+  },
+  {
+    id: 'view.toggleLayoutCompact',
+    title: 'View: Toggle Layout Density',
+    group: 'View',
+    keywords: 'rapat compact kerapatan layout',
+    run: async () => {
+      const { useLayoutCustom } = await import('./layoutStore');
+      const L = useLayoutCustom.getState();
+      L.set({ kerapatan: L.kerapatan === 'compact' ? 'default' : 'compact' });
+      await useLayoutCustom.getState().simpan();
+    },
+  },
+  {
+    id: 'view.hideAiPanel',
+    title: 'View: Hide AI Panel',
+    group: 'View',
+    keywords: 'ai sembunyikan tutup panel chat',
+    run: async () => {
+      const { useTerminal } = await import('./terminalStore');
+      const { useStore } = await import('./store');
+      if (useStore.getState().settings.general.aiPanel === 'right') {
+        await useStore.getState().applySettings({ general: { aiPanel: 'bottom' } } as never);
+      } else {
+        useTerminal.getState().setVisible(false);
+      }
+    },
+  },
+
 
   {
     id: 'editor.renameSymbol',

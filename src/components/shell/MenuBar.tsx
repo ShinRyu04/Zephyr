@@ -16,6 +16,7 @@ import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
 import { useStore } from '../../lib/store';
 import WindowControls from './WindowControls';
+import LayoutMenu from './LayoutMenu';
 import ZephyrLogo from './ZephyrLogo';
 import { useT } from '../../lib/i18n';
 
@@ -35,6 +36,8 @@ export default function MenuBar() {
   const bindings = useKb((s) => s.bindings);
   /** index menu yang terbuka; -1 = tertutup */
   const [buka, setBuka] = useState(-1);
+  // Panel Customize Layout (tombol di kanan title bar).
+  const [layoutBuka, setLayoutBuka] = useState(false);
   /** index item aktif di dalam dropdown; -1 = belum ada */
   const [idx, setIdx] = useState(-1);
   /** label submenu yang terbuka (View → Appearance) */
@@ -347,6 +350,28 @@ export default function MenuBar() {
           </button>
         ))}
         <div className="mb-layout-sep" role="separator" />
+        {/* Customize Layout (ala VS Code): satu panel untuk SEMUA kontrol
+            tata letak. Tanpa ini, user harus tahu bahwa "sembunyikan status
+            bar" ada di command palette dan "zen mode" di menu View. */}
+        <button
+          className={`mb-layout-btn${layoutBuka ? ' is-aktif' : ''}`}
+          data-testid="mb-customize-layout"
+          title={tr('Customize Layout…')}
+          aria-label={tr('Customize Layout…')}
+          aria-expanded={layoutBuka}
+          onClick={() => {
+            tutup();
+            setLayoutBuka((v) => !v);
+          }}
+        >
+          <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
+            {/* ikon tata letak: dua kolom dengan pembagi */}
+            <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M6.4 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M9.6 6.2h3.4M9.6 9.4h3.4" stroke="currentColor" strokeWidth="1.1" />
+          </svg>
+        </button>
+        <div className="mb-layout-sep" role="separator" />
         <button
           className="mb-layout-btn"
           data-testid="mb-layout-hide"
@@ -365,6 +390,8 @@ export default function MenuBar() {
           </svg>
         </button>
       </div>
+
+      {layoutBuka && <LayoutMenu onTutup={() => setLayoutBuka(false)} />}
 
       {/* C-18: tombol window sendiri (title bar Windows dihapus). */}
       <WindowControls />
