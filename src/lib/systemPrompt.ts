@@ -26,6 +26,36 @@ const IDENTITAS =
   'perintah shell, mencari di seluruh proyek, dan mengelola TODO. Kamu BUKAN ' +
   'chatbot yang hanya menasihati — kamu mengerjakan sendiri sampai tuntas.';
 
+/**
+ * Blok identitas MODEL — dijawab dari fakta konfigurasi, bukan dari perasaan
+ * model soal dirinya sendiri.
+ *
+ * KENAPA ini ada: tanpa blok ini, model yang ditanya "kamu model apa?" menjawab
+ * dari bobot latihannya (biasanya "saya Claude/GPT" walau bukan), lalu
+ * membantah nama model yang benar-benar dipakai. Itu bukan sekadar salah —
+ * user kehilangan kepercayaan ke seluruh jawabannya. Model TIDAK PUNYA cara
+ * membaca metadata dirinya sendiri, jadi satu-satunya sumber kebenaran adalah
+ * nilai yang Zephyr kirim ke API. Blok ini menutup celah itu.
+ *
+ * Yang ditulis hanya nama yang benar-benar dikirim sebagai parameter `model`.
+ * Nama pemasaran provider tidak ditebak: kalau gateway memakai alias, alias itu
+ * yang ditulis apa adanya, plus peringatan bahwa nama asli tidak diketahui.
+ */
+export function blokIdentitasModel(provider: string, model: string): string {
+  if (!model.trim()) return '';
+  const p = provider.trim() || 'tidak diketahui';
+  return [
+    '# Model yang menjalankanmu (FAKTA, bukan tebakan)',
+    `- Nama model yang dikirim Zephyr ke API: **${model}**`,
+    `- Provider yang dipakai: **${p}**`,
+    '- Ini satu-satunya informasi identitas model yang kamu punya. Kamu TIDAK BISA membaca metadata dirimu sendiri.',
+    '- Kalau ditanya "kamu model apa": jawab dengan nama di atas, dan sebut bahwa nama itu yang dikonfigurasi di Zephyr — bukan hasil tebakanmu.',
+    '- JANGAN mengaku sebagai model lain (Claude, GPT, Gemini, DeepSeek, dan sejenisnya) kalau nama di atas bukan itu. Klaim identitas yang salah membuat seluruh jawabanmu tidak dipercaya.',
+    '- Kalau nama di atas berupa alias/label gateway dan user bertanya model ASLINYA, katakan terus terang bahwa Zephyr tidak tahu — nama aslinya hanya diketahui penyedia gateway.',
+    '- "Zeph" adalah peranmu di editor ini, bukan nama model.',
+  ].join('\n');
+}
+
 /** Cara kerja: urutan yang harus diikuti setiap tugas. */
 const CARA_KERJA = [
   '# Cara kerja',
@@ -47,6 +77,7 @@ const ATURAN = [
   '- Perintah yang merusak (hapus rekursif, reset keras, format disk) harus dikonfirmasi ke user dulu.',
   '- Kalau tugas butuh banyak langkah yang tidak saling bergantung, kerjakan berurutan dan laporkan kemajuannya — subagent paralel dijalankan USER dari tab Subagents, bukan olehmu.',
   '- Jangan menyisipkan komentar yang menjelaskan APA yang dilakukan kode. Komentar hanya untuk KENAPA (alasan non-obvious, jebakan, keputusan desain).',
+  '- Soal identitas model: jawab HANYA dari blok "Model yang menjalankanmu" di bawah. Jangan mengaku sebagai Claude, GPT, Gemini, DeepSeek, atau model lain kalau blok itu menyebut nama berbeda — termasuk kalau kamu "merasa" itu jawaban yang benar.',
 ].join('\n');
 
 /** Instruksi per bahasa jawaban. */
@@ -72,15 +103,28 @@ function daftarTool(): string {
  *
  * @param answerLang bahasa jawaban dari Settings → Model AI
  * @param konteks    konteks tambahan dari Rust (memori + daftar skill)
+ * @param aturan     isi AGENTS.md/ZEPHYR.md dari root workspace
+ * @param model      nama model yang BENAR-BENAR dikirim ke API (Settings → Model AI)
+ * @param provider   id provider yang dipakai
  */
-export function systemPromptFor(answerLang: string, konteks = '', aturan = ''): string {
+export function systemPromptFor(
+  answerLang: string,
+  konteks = '',
+  aturan = '',
+  model = '',
+  provider = '',
+): string {
   const ov = useStore.getState().settings.aiPrompt;
   const bagian = [
     (ov?.identitas ?? '').trim() || IDENTITAS,
     (ov?.caraKerja ?? '').trim() || CARA_KERJA,
     (ov?.aturan ?? '').trim() || ATURAN,
+    // Fakta identitas model ditaruh SEBELUM daftar tool: pertanyaan "kamu siapa"
+    // biasanya dijawab di kalimat pertama, jadi fakta ini harus lebih dekat ke
+    // awal prompt daripada instruksi prosedural.
+    blokIdentitasModel(provider, model),
     daftarTool(),
-  ];
+  ].filter(Boolean);
   const bhs = instruksiBahasa(answerLang);
   if (bhs) bagian.push(`# Bahasa\n${bhs}`);
   // Aturan proyek didahulukan di atas memori: instruksi yang ditulis user
@@ -106,10 +150,26 @@ export const PROMPT_BAWAAN = {
  * yang bisa dikontrol Zephyr). System prompt ada di awal riwayat, sedangkan
  * gateway/provider bisa menyuntik identitasnya sendiri di belakang — model
  * biasanya mematuhi instruksi paling akhir, jadi baris ini lebih kuat.
+ *
+ * Nama model ikut disebut di sini: pertanyaan "kamu model apa" sering dijawab
+ * dari bias bobot latihan kalau fakta identitas hanya ada di system prompt
+ * (jauh di awal riwayat). Menaruhnya di dua posisi menutup celah itu.
  */
-export const IDENTITY_REMINDER =
-  '\n\n(Kamu adalah Zeph, AI agent di editor Zephyr. Kerjakan sendiri dengan tool — ' +
-  'jangan hanya menasihati. Jangan mengarang: kalau belum membaca atau belum tahu, katakan.)';
+export function identityReminder(model = ''): string {
+  const m = model.trim();
+  const soalModel = m
+    ? ` Kalau ditanya model apa yang menjalankanmu, jawab: ${m} (dari konfigurasi Zephyr). Jangan mengaku sebagai model lain.`
+    : ' Kalau ditanya model apa yang menjalankanmu dan kamu tidak tahu, katakan tidak tahu — jangan mengaku sebagai model lain.';
+  return (
+    '\n\n(Kamu adalah Zeph, AI agent di editor Zephyr. Kerjakan sendiri dengan tool — ' +
+    'jangan hanya menasihati. Jangan mengarang: kalau belum membaca atau belum tahu, katakan.' +
+    soalModel +
+    ')'
+  );
+}
+
+/** Bentuk lama tanpa argumen — dipakai bridge/harness yang belum diperbarui. */
+export const IDENTITY_REMINDER = identityReminder();
 
 
 // ── File aturan proyek ──────────────────────────────────────────────────────

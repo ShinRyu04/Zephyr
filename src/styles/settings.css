@@ -1914,6 +1914,16 @@
   word-break: break-word;
 }
 
+/* Blok identitas model di Prompt AI: lebih pendek dari pratinjau penuh, dan
+   dibedakan supaya jelas ini fakta yang tidak bisa diedit (bukan area isian). */
+.sp-pre-model {
+  max-height: 220px;
+  margin: 0;
+  background: var(--surface-2);
+  border-left: 2px solid var(--accent);
+  color: var(--text-primary);
+}
+
 /* ── T4.5: daftar izin perintah ── */
 .sp-tambah {
   display: flex;

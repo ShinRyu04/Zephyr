@@ -16,7 +16,8 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
-import { PROMPT_BAWAAN, systemPromptFor } from '../../lib/systemPrompt';
+import { PROMPT_BAWAAN, systemPromptFor, blokIdentitasModel } from '../../lib/systemPrompt';
+import { useAi } from '../../lib/aiStore';
 import { AGENT_TOOLS } from '../../lib/agentTools';
 import { isDestructive } from '../../lib/aiStore';
 
@@ -78,6 +79,12 @@ export default function PromptSection() {
   const [bukaPratinjau, setBukaPratinjau] = useState(false);
   const [salin, setSalin] = useState(false);
 
+  // Model + provider aktif: dipakai untuk pratinjau yang JUJUR (blok identitas
+  // model ikut tampil) dan untuk memberi tahu user apa yang akan dijawab AI
+  // kalau ditanya model apa.
+  const modelAktif = useAi((s) => s.model);
+  const providerAktif = useAi((s) => s.provider);
+
   // Fallback: settings lama tidak punya key ini -> jangan crash (pelajaran
   // yang sama dengan settings.subagent).
   const p = aiPrompt ?? { identitas: '', caraKerja: '', aturan: '', instruksi: '' };
@@ -90,9 +97,9 @@ export default function PromptSection() {
 
   /** Prompt hasil gabungan — sama persis dengan yang dikirim ke model. */
   const pratinjau = useMemo(
-    () => systemPromptFor('follow', '', ''),
+    () => systemPromptFor('follow', '', '', modelAktif, providerAktif),
     // aiPrompt jadi dependensi supaya pratinjau ikut berubah saat diedit.
-    [p.identitas, p.caraKerja, p.aturan, p.instruksi],
+    [p.identitas, p.caraKerja, p.aturan, p.instruksi, modelAktif, providerAktif],
   );
 
   const adaPerubahan =
@@ -121,6 +128,29 @@ export default function PromptSection() {
             {tr('Kembalikan semua ke bawaan')}
           </button>
         )}
+      </div>
+
+      {/* Apa yang dijawab AI kalau ditanya "kamu model apa". Blok ini TIDAK
+          bisa diedit: isinya fakta dari konfigurasi (Settings → Model AI),
+          bukan teks yang bisa ditulis ulang. Kalau bisa diedit, user bisa
+          membuat AI mengaku sebagai model lain — dan itu justru masalah yang
+          blok ini selesaikan. */}
+      <div className="sp-bagian" data-testid="sp-model-info">
+        <div className="sp-bagian-head">
+          <span className="sp-bagian-judul">{tr('Model yang menjalankan AI')}</span>
+          <span className="sp-spacer" />
+          <span className="sp-badge" data-testid="sp-model-badge">
+            {modelAktif || tr('belum dipilih')}
+          </span>
+        </div>
+        <p className="sp-ket">
+          {tr(
+            'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.',
+          )}
+        </p>
+        <pre className="sp-pre sp-pre-model" data-testid="sp-model-pre">
+          {blokIdentitasModel(providerAktif, modelAktif) || tr('(belum ada model yang dipilih)')}
+        </pre>
       </div>
 
       <BagianPrompt

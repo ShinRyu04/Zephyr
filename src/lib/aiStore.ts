@@ -44,7 +44,7 @@ export const PERSIST_TOOL_CHARS = 4000;
  * Identitas SELALU dikirim supaya model memperkenalkan diri sebagai Zephyr AI
  * apa pun provider/key yang dipakai; instruksi bahasa menyusul bila disetel.
  */
-import { systemPromptFor, IDENTITY_REMINDER, aturanProyek } from './systemPrompt';
+import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt';
 
 
 /**
@@ -735,7 +735,14 @@ export const useAi = create<AiStore>((set, get) => ({
       // Memori + daftar skill + konteks proyek ikut di system prompt.
       // Kegagalan diabaikan: percakapan tetap jalan tanpa konteks tambahan.
       const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
-      history.unshift({ role: 'system', content: systemPromptFor(bhsJawab, ekstra, aturan) });
+      // Provider + model diteruskan supaya prompt memuat FAKTA identitas model.
+      // Tanpa ini model menjawab "kamu model apa" dari bias latihannya dan
+      // mengaku sebagai model lain (kejadian nyata: mengaku Claude).
+      const ai = get();
+      history.unshift({
+        role: 'system',
+        content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider),
+      });
     }
     // Konteks RAG disisipkan sebagai pesan "user" terpisah sebelum pertanyaan
     // asli, supaya model melihatnya tanpa dicampur ke riwayat chat (dan tanpa
@@ -743,7 +750,7 @@ export const useAi = create<AiStore>((set, get) => ({
     if (ragContext) history.push({ role: 'user', content: ragContext });
             history.push({
               role: 'user',
-              content: payloadContent + IDENTITY_REMINDER,
+              content: payloadContent + identityReminder(get().model),
               ...(imgs.length ? { images: imgs } : {}),
             });
 
@@ -890,9 +897,15 @@ export const useAi = create<AiStore>((set, get) => ({
       // user, supaya ia tahu skill apa yang bisa dibuka dan apa yang sudah
       // diketahui dari sesi sebelumnya.
       const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
-      history.unshift({ role: 'system', content: systemPromptFor(bhsJawab, ekstra, aturan) });
+      const ai = get();
+      history.unshift({
+        role: 'system',
+        content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider),
+      });
     }
-    history.push({ role: 'user', content: content + IDENTITY_REMINDER });
+    // Reminder menyebut model yang benar-benar dikirim ke API — posisi paling
+    // akhir riwayat, tempat model paling mematuhi instruksi.
+    history.push({ role: 'user', content: content + identityReminder(get().model) });
 
     let akhir = '';
     let langkah = 0;
