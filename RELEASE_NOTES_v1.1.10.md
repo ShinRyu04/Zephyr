@@ -1,5 +1,20 @@
 # Zephyr v1.1.10
 
+## Fixed
+
+**Provider API key** — Zephyr no longer tells you to fill in a key for a
+provider you do not use. It picks the provider that actually has a key, and if
+the active provider is empty while another one is filled, it switches over and
+says so in the status message.
+
+**Customize Layout — sidebar position** — the Left/Right buttons now actually
+move the sidebar. They wrote to the layout state while the renderer read
+`settings.sidebar`, so clicking them changed nothing.
+
+**Sidebar disappearing** — a settings file without a top-level `sidebar` key
+left the sidebar unrendered. It now falls back to `left`.
+
+
 ## What's new
 
 This build is mostly about **the AI panel and how it fits the window** — where
