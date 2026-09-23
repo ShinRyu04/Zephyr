@@ -61,7 +61,7 @@ async function main() {
 
   // ── V0: mock provider versi benar ──
   const ver = await (await fetch(`${MOCK}/__version`)).json();
-  R.check('V0', ver.version === 3, `V0 mock provider versi 3 (versi=${ver.version})`);
+  R.check('V0', ver.version === 5, `V0 mock provider versi 5 (versi=${ver.version})`);
 
   // ── V1: setelan diarahkan ke mock ──
   // Kunci ditulis lewat command asli (bukan menempel di state) supaya
@@ -256,6 +256,10 @@ async function main() {
   }
 
   R.selesai();
+  // WAJIB: close() mengembalikan snapshot settings (provider/baseUrl/mode) ke
+  // keadaan sebelum harness jalan. Tanpa ini app user tetap menunjuk mock mati
+  // 127.0.0.1:8098 dan chat-nya gagal tanpa sebab yang terlihat.
+  await cdp.close();
   process.exit(0);
 }
 

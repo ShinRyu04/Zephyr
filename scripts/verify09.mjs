@@ -181,7 +181,7 @@ const check = (id, ok, detail) => {
 const mockLog = async () => (await fetch(`http://127.0.0.1:${MOCK}/__log`)).json();
 const mockReset = () => fetch(`http://127.0.0.1:${MOCK}/__reset`);
 
-const MOCK_VERSION = 4;
+const MOCK_VERSION = 5;
 
 async function ensureMock() {
   try {
