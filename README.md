@@ -150,21 +150,6 @@ collapsible **Reasoned** block instead of being thrown away.
 
 ![Subagents tab with live steps](docs/screenshots/21-tab-subagents-isi.png)
 
-**Test Explorer** — detects the test runner from your project files
-(`package.json`, `Cargo.toml`, `go.mod`, `pytest`, `composer.json`, `Makefile`,
-plus `npm run verify/soak/stress/lint`) and runs it from a panel tab. It only
-offers runners that actually exist: if your `package.json` has no `scripts.test`,
-no `npm test` button appears.
-
-![Test Explorer detecting real runners](docs/screenshots/10-test-explorer.png)
-
-**SFTP + port forwarding** — browse a remote host's files, download and delete
-them, and open port tunnels (`ssh -L` local, `-R` remote, `-D` SOCKS) from the
-same panel. Tunnels are cleaned up on exit; a port that is already taken is
-refused rather than hijacked.
-
-![SFTP explorer and port tunnels](docs/screenshots/12-sftp.png)
-
 **Customize Layout** — one panel (the layout button in the title bar, or
 `View: Customize Layout`) gathers every visibility control in one place:
 **Menu Bar, Activity Bar, Primary Side Bar, Panel, Status Bar**, side bar
@@ -175,6 +160,28 @@ has its own hide button too — closing it from inside the panel, the way the VS
 Code chat panel works.
 
 ![Customize Layout panel](docs/screenshots/14-customize-layout.png)
+
+**Themes — 19 of them** — Zephyr Dark and Light, Nord, Tokyo Night, Gruvbox,
+One Dark Pro, Senja, Acrylic, High Contrast, **Dracula, Catppuccin Mocha, Rosé
+Pine, Kanagawa, Everforest, GitHub Dark, Ayu Mirage, Solarized Light, Nord
+Light, Min Light**. Each theme sets every token at once (UI, editor, syntax,
+terminal), so nothing falls through to another theme's colours, and the accent
+colour can be overridden on its own.
+
+![Theme gallery](docs/screenshots/36-tema-19.png)
+
+**Background image** — pick any PNG/JPG/GIF/WebP/BMP and use it as the editor
+backdrop, with a strength slider and three presets (faint / medium / clear), a
+fit mode (fill / whole / original), and a switch that makes the panels
+translucent so the picture shows through. It is stored **separately from the
+theme**, so changing theme never touches your wallpaper and vice versa. The
+image is read by Rust into a data URL (max 8 MB, type detected from the magic
+bytes rather than the file extension), so no extra read permissions are needed
+and no path leaks into the stylesheet.
+
+![Custom background](docs/screenshots/38-wallpaper-editor.png)
+
+![Background settings](docs/screenshots/37-latar-panel.png)
 
 **Zen mode, image preview** — `View: Toggle Zen Mode` (or the command palette)
 hides the Activity Bar, sidebar, panel, and status bar so only the editor is

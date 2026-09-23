@@ -133,7 +133,7 @@ export default function App() {
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const sidebarHeight = useStore((s) => s.sidebarHeight);
-  const pos = useStore((s) => s.settings.sidebar);
+  const pos = useStore((s) => s.settings.sidebar) ?? 'left';
   // Zen mode: menyembunyikan Activity Bar, sidebar, panel, dan status bar.
   const zen = useTampilan((s) => s.mode === 'zen');
   // Customize Layout: visibilitas Menu Bar / Activity Bar / Sidebar / Status Bar.
@@ -203,7 +203,7 @@ export default function App() {
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
       const s = useStore.getState();
-      const p = s.settings.sidebar;
+      const p = s.settings.sidebar ?? 'left';
       // Posisi atas/bawah: divider horizontal → ubah TINGGI panel.
       // 48px = tinggi ActivityBar horizontal (token --activitybar-w) yang
       // ikut pindah ke atas/bawah — panel ada DI BAWAH ActivityBar (atas)
