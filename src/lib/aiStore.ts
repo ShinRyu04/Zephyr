@@ -360,15 +360,44 @@ export const useAi = create<AiStore>((set, get) => ({
   init: async () => {
     // Model aktif mengikuti Settings → Model AI kalau sudah pernah dipilih.
     const st = useStore.getState().settings.models;
-    const prov = PROVIDER_BY_ID.get(st.activeProvider) ? st.activeProvider : 'gemini';
-    const model = st.providers[prov]?.model || (PROVIDER_BY_ID.get(prov)?.models[0].id ?? 'gemini-3.6-flash');
+    const dikenal = (id: string) => PROVIDER_BY_ID.has(id);
+
+    // Baca dulu provider mana yang PUNYA key. Tanpa ini, user yang hanya
+    // menyimpan key untuk provider lain tetap diarahkan ke 'gemini' (nilai
+    // default) dan diminta mengisi key yang tidak pernah ia pakai.
+    let adaKey: string[] = [];
+    try {
+      const pub = await cmd.getPublicModels();
+      set({ keys: pub });
+      adaKey = pub.filter((k) => k.hasKey).map((k) => k.provider);
+    } catch {
+      /* non-fatal: jatuh ke pemilihan tanpa info key */
+    }
+
+    const aktif = st.activeProvider;
+    let prov: string;
+    if (aktif && adaKey.includes(aktif)) {
+      // Pilihan user DAN punya key — pakai itu.
+      prov = aktif;
+    } else if (adaKey.length > 0) {
+      // Pilihan user tidak punya key, tapi ada provider lain yang punya.
+      // Pakai yang pertama — user sudah menyatakan niatnya dengan mengisi key.
+      prov = adaKey[0];
+    } else if (aktif && dikenal(aktif)) {
+      prov = aktif;
+    } else {
+      prov = 'gemini';
+    }
+
+    const model =
+      st.providers[prov]?.model || (PROVIDER_BY_ID.get(prov)?.models[0].id ?? 'gemini-3.6-flash');
     set({
       provider: prov,
       model,
       attachActive: useStore.getState().settings.agents.attachActiveFile,
     });
     if (get().sessions.length === 0) get().newChat();
-    await get().loadKeys();
+    // Key sudah dimuat di atas; jangan panggil dua kali.
   },
 
   loadKeys: async () => {
@@ -579,7 +608,19 @@ export const useAi = create<AiStore>((set, get) => ({
     await get().loadKeys();
     if (!get().hasKey()) {
       const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
-      set({ toast: `Isi API key ${label} di Settings → Model AI` });
+      // Kalau user SUDAH punya key di provider lain, katakan apa adanya dan
+      // pindahkan otomatis — jangan menyuruhnya mengisi key yang tidak ia pakai.
+      const lain = get().keys.filter((k) => k.hasKey && k.provider !== get().provider);
+      if (lain.length > 0) {
+        const pindah = lain[0].provider;
+        const labelPindah = PROVIDER_BY_ID.get(pindah)?.label ?? pindah;
+        set({ provider: pindah });
+        set({ toast: `${label} belum ada key — pindah ke ${labelPindah} yang sudah kamu isi` });
+        return;
+      }
+      set({
+        toast: `Isi API key ${label} di Settings → Model AI (atau pilih provider yang sudah kamu isi)`,
+      });
       return;
     }
 
@@ -783,7 +824,17 @@ export const useAi = create<AiStore>((set, get) => ({
     await get().loadKeys();
     if (!get().hasKey()) {
       const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
-      set({ toast: `Isi API key ${label} di Settings → Model AI` });
+      const lain = get().keys.filter((k) => k.hasKey && k.provider !== get().provider);
+      if (lain.length > 0) {
+        const pindah = lain[0].provider;
+        const labelPindah = PROVIDER_BY_ID.get(pindah)?.label ?? pindah;
+        set({ provider: pindah });
+        set({ toast: `${label} belum ada key — pindah ke ${labelPindah} yang sudah kamu isi` });
+        return;
+      }
+      set({
+        toast: `Isi API key ${label} di Settings → Model AI (atau pilih provider yang sudah kamu isi)`,
+      });
       return;
     }
 

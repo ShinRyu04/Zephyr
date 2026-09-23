@@ -95,6 +95,10 @@ export const useLayoutCustom = create<LayoutState>((set, get) => ({
     const s = get();
     const { useStore } = await import('./store');
     await useStore.getState().applySettings({
+      // `sidebar` top-level WAJIB ditulis: App.tsx membacanya untuk kelas
+      // `sidebar-pos-<nilai>`. Tanpa baris ini, tombol Kiri/Kanan hanya
+      // mengubah state internal dan tampilan tidak bergerak sama sekali.
+      sidebar: s.posisiSidebar,
       general: {
         layout: {
           menuBar: s.menuBar,
@@ -112,15 +116,19 @@ export const useLayoutCustom = create<LayoutState>((set, get) => ({
 
   muat: async () => {
     const { useStore } = await import('./store');
-    const g = (useStore.getState().settings.general ?? {}) as unknown as Record<string, unknown>;
+    const st = useStore.getState().settings;
+    const g = (st.general ?? {}) as unknown as Record<string, unknown>;
     const l = (g.layout ?? {}) as Partial<typeof DEFAULT>;
+    // `settings.sidebar` (top-level) adalah sumber kebenaran posisi; nilai di
+    // general.layout hanya cadangan untuk settings lama.
+    const posisi = (st.sidebar as PosisiSidebar | undefined) ?? l.posisiSidebar ?? DEFAULT.posisiSidebar;
     set({
       menuBar: l.menuBar ?? DEFAULT.menuBar,
       activityBar: l.activityBar ?? DEFAULT.activityBar,
       sidebar: l.sidebar ?? DEFAULT.sidebar,
       panel: l.panel ?? DEFAULT.panel,
       statusBar: l.statusBar ?? DEFAULT.statusBar,
-      posisiSidebar: l.posisiSidebar ?? DEFAULT.posisiSidebar,
+      posisiSidebar: posisi,
       kerapatan: l.kerapatan ?? DEFAULT.kerapatan,
       subKanan: l.subKanan ?? DEFAULT.subKanan,
     });

@@ -31,7 +31,7 @@ export default function DonateDialog() {
     >
       <div className="upd-dialog donate-dialog" role="dialog" aria-modal="true" aria-labelledby="donate-title">
         <div className="upd-dialog-head">
-          <span className="upd-dialog-ico" aria-hidden="true">☕</span>
+          <span className="upd-dialog-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true"><path d="M3 5.5h8.5v3.2a4.2 4.2 0 0 1-4.2 4.2h-.1A4.2 4.2 0 0 1 3 8.7z"/><path d="M11.5 6.6h1.2a1.9 1.9 0 0 1 0 3.8h-1.2"/><path d="M5.6 2.2c0 .9-.8 1.1-.8 2M8.2 2.2c0 .9-.8 1.1-.8 2"/></svg></span>
           <div>
             <h2 className="upd-dialog-title" id="donate-title" data-testid="donate-title">
               {tr('donate.title')}
