@@ -1,20 +1,3 @@
-// extensions.rs — fondasi ekstensi (fase 13), MANIFEST-ONLY v1.
-//
-// Keputusan keamanan (jangan diubah tanpa diskusi): kode JS ekstensi TIDAK
-// dieksekusi. Alasannya: satu-satunya cara menjalankannya di WebView2 adalah
-// `import('file://…')` atau eval — dua-duanya memberi ekstensi pihak ketiga
-// akses penuh ke `window`, artinya ke seluruh jembatan IPC Zephyr (fs, pty,
-// git, secrets). Untuk lingkup fase ini itu tidak sebanding.
-//
-// Yang dipakai v1: `contributes.commands` dari package.json didaftarkan ke
-// Command Palette. `extensions_load` tetap MEMBACA file `main` dan menyimpan
-// isinya di state (+ validasi ≤1MB) supaya jalur "muat kode" sudah terbukti
-// benar saat runtime eksekusi ditambahkan nanti.
-//
-// Folder yang dipercaya:
-//   %APPDATA%\zephyr\extensions\<id>\package.json         (bawaan tempat)
-//   path lain yang DIPILIH USER lewat dialog → dicatat di registry.json
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -22,13 +5,11 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
-/// Batas ukuran file `main` (prompt fase 13: max 1MB).
 pub const MAX_MAIN_BYTES: u64 = 20_971_520;
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtCommand {
-    /// id yang dipakai palette: selalu di-prefix `ext.<extId>.`
     pub id: String,
     pub title: String,
     pub description: String,
@@ -43,15 +24,15 @@ pub struct ExtensionInfo {
     pub description: String,
     pub enabled: bool,
     pub path: String,
-    /// true = ekstensi bawaan Zephyr (tidak bisa dihapus)
+
     pub builtin: bool,
-    /// nama file entry dari manifest (`main`), kosong bila tidak ada
+
     pub main: String,
-    /// ukuran file main; -1 = file tidak ada
+
     pub main_bytes: i64,
-    /// command yang dikontribusikan manifest
+
     pub commands: Vec<ExtCommand>,
-    /// alasan ekstensi tidak bisa dipakai (manifest rusak / main kebesaran)
+
     pub error: Option<String>,
 }
 
@@ -64,15 +45,12 @@ pub struct ExtensionLoad {
     pub main: String,
     pub main_bytes: u64,
     pub commands: Vec<ExtCommand>,
-    /// manifest apa adanya (untuk ditampilkan di Settings)
+
     pub manifest: Value,
-    /// v1 SELALU false — lihat catatan di atas file
+
     pub executed: bool,
 }
 
-/// Ekstensi bawaan (internal, dipasang Zephyr sendiri). Dipakai sebagai
-/// contoh konsep sekaligus daftar yang bisa dimatikan user.
-/// Cermin dari BUILTIN di frontend — kalau menambah, ubah keduanya.
 const BUILTIN: &[(&str, &str, &str)] = &[
     (
         "file-icon-provider",
@@ -108,7 +86,6 @@ fn registry_file(state: &AppState) -> PathBuf {
     extensions_dir(state).join("registry.json")
 }
 
-/// Path ekstensi luar yang pernah dipilih user lewat dialog.
 fn registry_paths(state: &AppState) -> Vec<PathBuf> {
     let raw = match std::fs::read_to_string(registry_file(state)) {
         Ok(r) => r,
@@ -135,8 +112,6 @@ fn write_registry(state: &AppState, list: &[PathBuf]) -> ZResult<()> {
     Ok(())
 }
 
-/// `settings.extensions.enabled`. Daftar KOSONG = semua bawaan aktif
-/// (default paling ramah), ekstensi luar TETAP harus di-enable manual.
 fn enabled_list(state: &AppState) -> Vec<String> {
     crate::settings::read_settings_value(state)
         .get("extensions")
@@ -158,10 +133,6 @@ fn str_field(v: &Value, key: &str) -> String {
         .to_string()
 }
 
-/// Baca peta lokal `package.nls.json` (+ `package.nls.<locale>.json` bila
-/// ada). VS Code memakai file ini untuk mengganti `%key%` di dalam
-/// `contributes.commands[].title` — tanpa ini title tampil mentah seperti
-/// `%contributes.commands.java.project.build%` di Command Palette.
 fn nls_map(dir: &Path) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
     for fname in [
@@ -186,9 +157,6 @@ fn nls_map(dir: &Path) -> std::collections::HashMap<String, String> {
     map
 }
 
-/// Ganti `%key%` pada string memakai peta nls. String tanpa `%` dikembalikan
-/// apa adanya. Key yang tidak ditemukan TETAP dipakai (lebih baik daripada
-/// judul kosong), tapi tanda `%` dibuang supaya tidak tampil mentah.
 fn resolve_nls(s: &str, nls: &std::collections::HashMap<String, String>) -> String {
     if !s.contains('%') {
         return s.to_string();
@@ -199,16 +167,12 @@ fn resolve_nls(s: &str, nls: &std::collections::HashMap<String, String>) -> Stri
         out.push_str(&rest[..start]);
         let after = &rest[start + 1..];
         let Some(end) = after.find('%') else {
-            // `%` tanpa pasangan: buang sisanya agar tidak mentah.
             return out;
         };
         let key = &after[..end];
         match nls.get(key) {
             Some(val) => out.push_str(val),
             None => {
-                // Key tidak dikenal: lewati (jangan tampilkan `%key%`).
-                // Nama command asli lebih informatif sebagai fallback?
-                // Tidak — biarkan kosong, caller mengganti dengan raw.
                 out.push_str(key);
             }
         }
@@ -218,9 +182,6 @@ fn resolve_nls(s: &str, nls: &std::collections::HashMap<String, String>) -> Stri
     out
 }
 
-/// Ambil `contributes.commands` dari manifest. Bentuk yang diterima:
-/// `[{ command|name, title|label, description? }]`.
-/// `dir` dipakai membaca `package.nls.json` untuk resolve `%key%` pada title.
 fn parse_commands(ext_id: &str, manifest: &Value, dir: &Path) -> Vec<ExtCommand> {
     let nls = nls_map(dir);
     let arr = manifest
@@ -255,10 +216,7 @@ fn parse_commands(ext_id: &str, manifest: &Value, dir: &Path) -> Vec<ExtCommand>
             } else {
                 t
             };
-            // VS Code: title bisa berupa kunci lokal `%...%` — resolve dari
-            // package.nls.json supaya Command Palette tidak menampilkan kunci
-            // mentah. Kalau kunci tidak dikenal, pakai nama command (short)
-            // sebagai ganti.
+
             let r = resolve_nls(&resolved, &nls);
             if r.is_empty() {
                 raw.clone()
@@ -266,7 +224,7 @@ fn parse_commands(ext_id: &str, manifest: &Value, dir: &Path) -> Vec<ExtCommand>
                 r
             }
         };
-        // Namespace WAJIB: ekstensi tidak boleh menimpa command inti.
+
         let short = raw.rsplit('.').next().unwrap_or(&raw).to_string();
         out.push(ExtCommand {
             id: format!("ext.{ext_id}.{short}"),
@@ -274,20 +232,16 @@ fn parse_commands(ext_id: &str, manifest: &Value, dir: &Path) -> Vec<ExtCommand>
             description: str_field(&c, "description"),
         });
         if out.len() >= 32 {
-            break; // batas wajar per ekstensi
+            break;
         }
     }
     out
 }
 
-/// Wrapper publik untuk `parse_commands` — dipakai `ext_pkg.rs` (fase 19)
-/// supaya aturan namespace `ext.<id>.<nama>` cuma punya SATU definisi.
-/// `dir` (bila ada) dipakai resolve `%key%` nls; kosong = tanpa nls.
 pub fn parse_commands_pub(ext_id: &str, manifest: &Value, dir: Option<&Path>) -> Vec<ExtCommand> {
     parse_commands(ext_id, manifest, dir.unwrap_or_else(|| Path::new("")))
 }
 
-/// Baca satu folder ekstensi → info. None = bukan paket ekstensi.
 fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
     let pkg = dir.join("package.json");
     if !pkg.is_file() {
@@ -352,8 +306,7 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
 
     Some(ExtensionInfo {
         id: id.clone(),
-        // Ekstensi rusak/kebesaran tidak boleh terlihat aktif walau ada di
-        // settings — kalau tidak, palette menampilkan command yang tak jalan.
+
         enabled: error.is_none() && enabled.iter().any(|x| x == &id),
         commands: parse_commands(&id, &manifest, &dir),
         name,
@@ -367,7 +320,6 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
     })
 }
 
-/// Semua ekstensi: bawaan (internal) + folder di extensions/ + registry user.
 pub fn list_all(state: &AppState) -> Vec<ExtensionInfo> {
     let enabled = enabled_list(state);
     let builtin_on = |id: &str| enabled.is_empty() || enabled.iter().any(|x| x == id);
@@ -405,7 +357,7 @@ pub fn list_all(state: &AppState) -> Vec<ExtensionInfo> {
     for d in dirs {
         if let Some(info) = read_package(&d, &enabled) {
             if out.iter().any(|x| x.id == info.id) {
-                continue; // id bentrok dengan bawaan → yang bawaan menang
+                continue;
             }
             out.push(info);
         }
@@ -413,21 +365,13 @@ pub fn list_all(state: &AppState) -> Vec<ExtensionInfo> {
     out
 }
 
-// ───────────────────────── commands ─────────────────────────
-
 #[tauri::command]
 pub fn extensions_list(state: State<AppState>) -> ZResult<Vec<ExtensionInfo>> {
     Ok(list_all(&state))
 }
 
-/// Muat manifest + file `main` satu ekstensi. Validasi: folder harus ada di
-/// whitelist (extensions/ atau registry pilihan user) dan `main` ≤ 1MB.
-/// Isi `main` disimpan di state, TIDAK dieksekusi (lihat catatan atas file).
 #[tauri::command]
 pub fn extensions_load(state: State<AppState>, id: String) -> ZResult<ExtensionLoad> {
-    // fase 29: ekstensi v1 manifest-only, tapi `contributes.commands` yang
-    // didaftarkan ke palette berasal dari folder repo/marketplace. Folder
-    // tak-tepercaya tidak boleh menyuntik command ke palette.
     crate::workspace::ensure_trusted(&state, "Memuat ekstensi")?;
 
     let info = list_all(&state)
@@ -476,7 +420,6 @@ pub fn extensions_load(state: State<AppState>, id: String) -> ZResult<ExtensionL
     })
 }
 
-/// Daftarkan folder ekstensi dari luar (user memilih package.json-nya).
 #[tauri::command]
 pub fn extensions_add(state: State<AppState>, path: String) -> ZResult<ExtensionInfo> {
     let p = PathBuf::from(&path);
@@ -505,8 +448,6 @@ pub fn extensions_add(state: State<AppState>, path: String) -> ZResult<Extension
     Ok(info)
 }
 
-/// Lepas satu id dari registry path luar. Dipakai `ext_pkg::extensions_uninstall`
-/// supaya uninstall tidak meninggalkan entri hantu di registry.json.
 pub fn registry_lepas(state: &AppState, id: &str) -> ZResult<bool> {
     let before = registry_paths(state);
     let after: Vec<PathBuf> = before
@@ -544,7 +485,6 @@ pub fn extensions_remove(state: State<AppState>, id: String) -> ZResult<bool> {
     Ok(true)
 }
 
-/// Path folder extensions/ (dipakai tombol "Buka folder ekstensi").
 #[tauri::command]
 pub fn extensions_folder(state: State<AppState>) -> ZResult<String> {
     let dir = extensions_dir(&state);

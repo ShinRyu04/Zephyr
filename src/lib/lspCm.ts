@@ -1,14 +1,3 @@
-// lspCm.ts — jembatan LSP ↔ CodeMirror 6 (fase 21).
-//
-// Semua extension CodeMirror yang butuh LSP ada di sini supaya
-// CodeMirrorEditor.tsx tetap kecil dan tidak tahu detail protokol.
-//
-// Catatan penting soal squiggle:
-//   Diagnostik dari fase 20 disimpan PER FILE di problemsStore. Squiggle
-//   dirender dengan Decoration mark + Compartment (bukan @codemirror/lint),
-//   karena lint punya panel & tooltip sendiri yang menabrak Problems panel dan
-//   membuat dua sumber kebenaran untuk diagnostik yang sama.
-
 import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { Compartment, RangeSetBuilder, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, hoverTooltip, type DecorationSet } from '@codemirror/view';
@@ -18,22 +7,17 @@ import { keCompletion, konteksDari, useSnip } from './snippetStore';
 import { useStore } from './store';
 import type { Diagnostic } from './problemsStore';
 
-/** posisi CodeMirror (offset) → posisi LSP (line/character, 0-based). */
 export function offsetToLsp(view: EditorView, pos: number) {
   const line = view.state.doc.lineAt(pos);
   return { line: line.number - 1, character: pos - line.from };
 }
 
-/** posisi LSP → offset CodeMirror. Di-clamp supaya tidak melempar saat
- *  dokumen sudah berubah sebelum balasan server datang. */
 export function lspToOffset(view: EditorView, pos: { line: number; character: number }): number {
   const doc = view.state.doc;
   const ln = Math.min(Math.max(pos.line + 1, 1), doc.lines);
   const line = doc.line(ln);
   return Math.min(line.from + Math.max(pos.character, 0), line.to);
 }
-
-// ───────────────────────── squiggle inline ─────────────────────────
 
 export const squiggleCompartment = new Compartment();
 
@@ -44,12 +28,10 @@ const MARK = {
   hint: Decoration.mark({ class: 'cm-zdiag cm-zdiag-hint' }),
 };
 
-/** Bangun DecorationSet dari daftar diagnostik (koordinat 1-based). */
 export function squiggleFor(list: Diagnostic[], view: EditorView): DecorationSet {
   const doc = view.state.doc;
   const b = new RangeSetBuilder<Decoration>();
-  // RangeSetBuilder MENUNTUT urutan `from` naik; diagnostik dari LSP tidak
-  // dijamin terurut, jadi urutkan dulu — kalau tidak `add()` melempar.
+  
   const rentang: { from: number; to: number; sev: Diagnostic['severity'] }[] = [];
   for (const d of list) {
     if (d.line < 1 || d.line > doc.lines) continue;
@@ -58,7 +40,7 @@ export function squiggleFor(list: Diagnostic[], view: EditorView): DecorationSet
     const endLine = d.endLine && d.endLine >= 1 && d.endLine <= doc.lines ? d.endLine : d.line;
     const l2 = doc.line(endLine);
     let to = Math.min(l2.from + Math.max((d.endColumn ?? d.column) - 1, 0), l2.to);
-    // Rentang kosong tidak terlihat — beri minimal satu karakter.
+    
     if (to <= from) to = Math.min(from + 1, doc.length);
     if (to > from) rentang.push({ from, to, sev: d.severity });
   }
@@ -67,9 +49,6 @@ export function squiggleFor(list: Diagnostic[], view: EditorView): DecorationSet
   return b.finish();
 }
 
-// ───────────────────────── completion ─────────────────────────
-
-/** Sumber completion CodeMirror yang bertanya ke language server. */
 export function lspCompletionSource(path: string) {
   return async (ctx: CompletionContext): Promise<CompletionResult | null> => {
     const lsp = useLsp.getState();
@@ -78,7 +57,7 @@ export function lspCompletionSource(path: string) {
     const view = ctx.view;
     if (!view) return null;
     const posLsp = offsetToLsp(view, ctx.pos);
-    // Kata yang sedang diketik menentukan `from` hasil completion.
+    
     const before = ctx.matchBefore(/[\w$]*/);
     const from = before ? before.from : ctx.pos;
 
@@ -100,7 +79,7 @@ export function lspCompletionSource(path: string) {
 
     return {
       from,
-      // Server sudah menyaring; jangan filter ulang secara agresif.
+      
       validFor: /^[\w$]*$/,
       options: items.slice(0, 500).map((raw) => {
         const it = raw as Record<string, unknown>;
@@ -122,18 +101,6 @@ export function lspCompletionSource(path: string) {
   };
 }
 
-/**
- * Sumber completion snippet untuk CodeMirror.
- *
- * DIPAKAI BERSAMA sumber lain, tidak menggantikannya: `autocompletion({
- * override: [...] })` mengganti SELURUH sumber, jadi snippet didaftarkan
- * sebagai sumber tambahan supaya completion LSP fase 21 dan kata-dari-dokumen
- * tetap jalan.
- *
- * Konteks variabel dibaca SAAT SUMBER DIPANGGIL, bukan saat ekstensi dibuat:
- * seleksi dan baris kursor berubah tiap ketikan, dan konteks yang dibekukan di
- * awal akan mengisi ${TM_SELECTED_TEXT} dengan seleksi lama.
- */
 export function snippetCompletionSource(path: string, langId: () => string) {
   return async (ctx: CompletionContext): Promise<CompletionResult | null> => {
     const mode = pengaturanSnippet();
@@ -141,7 +108,7 @@ export function snippetCompletionSource(path: string, langId: () => string) {
 
     const lang = langId();
     const S = useSnip.getState();
-    // Muat sekali per bahasa; hasilnya di-cache di store.
+    
     let daftar = S.untuk(lang);
     if (daftar.length === 0) {
       const setb = await S.muat(lang);
@@ -152,8 +119,7 @@ export function snippetCompletionSource(path: string, langId: () => string) {
     const kata = ctx.matchBefore(/[\w$-]*/);
     const from = kata ? kata.from : ctx.pos;
     const diketik = kata ? kata.text : '';
-    // Tanpa apa pun yang diketik, jangan banjiri popup — kecuali user memang
-    // meminta eksplisit (Ctrl+Space).
+    
     if (!ctx.explicit && diketik.length === 0) return null;
 
     const cocok = diketik
@@ -161,8 +127,6 @@ export function snippetCompletionSource(path: string, langId: () => string) {
       : daftar;
     if (cocok.length === 0) return null;
 
-    // ctx.view bisa undefined (completion dari state tanpa view) — tanpa view
-    // tidak ada seleksi/baris untuk dibaca, jadi snippet dilewati.
     if (!ctx.view) return null;
     const konteks = await konteksDari(ctx.view, path);
     const boostMode = mode === 'top' ? 99 : mode === 'bottom' ? -99 : 0;
@@ -178,7 +142,6 @@ export function snippetCompletionSource(path: string, langId: () => string) {
   };
 }
 
-/** Nilai `editor.snippetSuggestions` dari settings (fase 08). */
 function pengaturanSnippet(): 'top' | 'bottom' | 'inline' | 'none' {
   const m = useStore.getState().settings.editor?.snippetSuggestions ?? 'inline';
   return m === 'top' || m === 'bottom' || m === 'none' ? m : 'inline';
@@ -192,12 +155,6 @@ export function lspAutocompletion(path: string): Extension {
   });
 }
 
-/**
- * Autocompletion lengkap: snippet (fase 30) + LSP (fase 21) bila ada.
- *
- * Keduanya di SATU `autocompletion()`. Dua instance membuat dua popup bersaing
- * (pelajaran fase 21), jadi sumbernya digabung dalam satu `override`.
- */
 export function autocompletionZephyr(path: string, langId: () => string, adaLsp: boolean): Extension {
   const sumber = adaLsp
     ? [snippetCompletionSource(path, langId), lspCompletionSource(path)]
@@ -208,8 +165,6 @@ export function autocompletionZephyr(path: string, langId: () => string, adaLsp:
     maxRenderedOptions: 60,
   });
 }
-
-// ───────────────────────── hover ─────────────────────────
 
 export function lspHover(path: string): Extension {
   return hoverTooltip(async (view, pos) => {
@@ -235,16 +190,13 @@ export function lspHover(path: string): Extension {
         const dom = document.createElement('div');
         dom.className = 'cm-zhover';
         dom.setAttribute('data-testid', 'cm-hover');
-        // Markdown ringan: buang fence & tampilkan sebagai teks. Render HTML
-        // penuh dari server pihak ketiga = permukaan XSS yang tidak perlu.
+        
         dom.textContent = teks.replace(/```[a-z]*\n?/g, '').trim();
         return { dom };
       },
     };
   }, { hoverTime: 220 });
 }
-
-// ───────────────────────── navigasi & refactor ─────────────────────────
 
 export interface LspLocation {
   file: string;
@@ -255,7 +207,7 @@ export interface LspLocation {
 const asLocation = (raw: unknown): LspLocation | null => {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
-  // Location | LocationLink
+  
   const uri = (o.uri ?? o.targetUri) as string | undefined;
   const range = (o.range ?? o.targetSelectionRange ?? o.targetRange) as
     | Record<string, Record<string, number>>
@@ -268,7 +220,6 @@ const asLocation = (raw: unknown): LspLocation | null => {
   };
 };
 
-/** Ambil satu lokasi definisi (F12). */
 export async function lspDefinition(path: string, view: EditorView, pos: number) {
   const res = await useLsp.getState().req(path, 'textDocument/definition', {
     textDocument: { uri: pathToUri(path) },
@@ -282,7 +233,6 @@ export async function lspDefinition(path: string, view: EditorView, pos: number)
   return null;
 }
 
-/** Semua referensi (Shift+F12). */
 export async function lspReferences(path: string, view: EditorView, pos: number) {
   const res = await useLsp.getState().req(path, 'textDocument/references', {
     textDocument: { uri: pathToUri(path) },
@@ -293,7 +243,6 @@ export async function lspReferences(path: string, view: EditorView, pos: number)
   return arr.map(asLocation).filter((x): x is LspLocation => !!x);
 }
 
-/** Symbol dokumen (Ctrl+Shift+O, breadcrumbs fase 24). */
 export async function lspDocumentSymbols(path: string) {
   const res = await useLsp.getState().req(path, 'textDocument/documentSymbol', {
     textDocument: { uri: pathToUri(path) },
@@ -306,8 +255,6 @@ export interface TextEditLsp {
   newText: string;
 }
 
-/** Terapkan daftar TextEdit LSP ke satu view. Edit diterapkan dari BELAKANG
- *  supaya offset edit sebelumnya tidak bergeser. */
 export function applyEdits(view: EditorView, edits: TextEditLsp[]): number {
   if (edits.length === 0) return 0;
   const konversi = edits.map((e) => ({
@@ -320,7 +267,6 @@ export function applyEdits(view: EditorView, edits: TextEditLsp[]): number {
   return konversi.length;
 }
 
-/** Format seluruh dokumen (Shift+Alt+F). */
 export async function lspFormat(path: string, view: EditorView, tabSize: number, insertSpaces: boolean) {
   const res = await useLsp.getState().req(path, 'textDocument/formatting', {
     textDocument: { uri: pathToUri(path) },
@@ -330,8 +276,6 @@ export async function lspFormat(path: string, view: EditorView, tabSize: number,
   return applyEdits(view, edits);
 }
 
-/** Rename (F2). Mengembalikan peta file → jumlah edit; edit di file yang
- *  tidak terbuka dikembalikan apa adanya supaya pemanggil bisa menulisnya. */
 export async function lspRename(path: string, view: EditorView, pos: number, baru: string) {
   const res = (await useLsp.getState().req(path, 'textDocument/rename', {
     textDocument: { uri: pathToUri(path) },
@@ -361,7 +305,6 @@ export async function lspRename(path: string, view: EditorView, pos: number, bar
   return { perFile, total };
 }
 
-/** Code actions / quick fix (Ctrl+.). */
 export async function lspCodeActions(path: string, view: EditorView, from: number, to: number, diags: Diagnostic[]) {
   const res = await useLsp.getState().req(path, 'textDocument/codeAction', {
     textDocument: { uri: pathToUri(path) },
@@ -381,7 +324,6 @@ export async function lspCodeActions(path: string, view: EditorView, from: numbe
   return Array.isArray(res) ? res : [];
 }
 
-/** Signature help (auto saat mengetik dalam kurung). */
 export async function lspSignatureHelp(path: string, view: EditorView, pos: number) {
   const res = (await useLsp.getState().req(path, 'textDocument/signatureHelp', {
     textDocument: { uri: pathToUri(path) },

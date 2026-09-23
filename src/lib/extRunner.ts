@@ -1,24 +1,3 @@
-// extRunner.ts — SKRIP sandbox ekstensi Zephyr (Web Worker terisolasi).
-//
-// Dipisah dari extHost.ts supaya bisa diuji tanpa dependensi UI (zustand/
-// tauri). Fungsi `skripEkstensi(code)` menghasilkan seluruh isi worker:
-// shim CommonJS + API vscode minimal + kode ekstensi + trailer aktivasi.
-//
-// Kenapa shim CommonJS: bundle ekstensi dari marketplace (Open VSX) adalah
-// keluaran esbuild/rollup untuk Node — isinya `module.exports`, `exports`,
-// dan `require("vscode")`. Dijalankan mentah di Worker, itu meledak dengan
-// "Uncaught ReferenceError: module is not defined". Shim di bawah membuat
-// bundle itu bisa DIMUAT; modul sistem (fs/child_process/...) tidak tersedia
-// dan melempar error yang jelas kalau benar-benar dipakai.
-
-/**
- * Hasilkan skrip worker untuk satu ekstensi.
- * `code` = isi file `main` ekstensi (teks).
- * `files` = peta relpath -> isi SEMUA file JS/JSON ekstensi (dibaca backend
- *   lewat extensions_read_files) — dipakai untuk require('./file') relatif.
- * `mainRel` = path relatif file main di dalam folder ekstensi (untuk
- *   __filename/__dirname, jadi require('./x') di main menyelesaikan benar).
- */
 export function skripEkstensi(
   code: string,
   files: Record<string, string> = {},

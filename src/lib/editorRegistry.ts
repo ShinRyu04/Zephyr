@@ -1,7 +1,3 @@
-// editorRegistry.ts — jembatan non-React ke EditorView aktif.
-// Dipakai FindBar & shortcut global (Ctrl+S) untuk memaksa flush
-// konten yang masih tertahan debounce 300ms.
-
 import { EditorView } from '@codemirror/view';
 
 let activeView: EditorView | null = null;
@@ -15,19 +11,12 @@ export function getActiveView(): EditorView | null {
   return activeView;
 }
 
-/**
- * Baris kursor di editor aktif (1-based). 0 = tidak ada editor.
- *
- * Dipakai `debug.toggleBreakpoint` (F9): breakpoint harus mendarat di baris
- * tempat kursor berada, bukan baris pertama file.
- */
 export function activeLine(): number {
   const view = activeView;
   if (!view) return 0;
   return view.state.doc.lineAt(view.state.selection.main.head).number;
 }
 
-/** Teks yang sedang dipilih di editor aktif. '' = tidak ada seleksi. */
 export function activeSelection(): string {
   const view = activeView;
   if (!view) return '';
@@ -43,7 +32,6 @@ export function unregisterFlush(tabId: string): void {
   flushers.delete(tabId);
 }
 
-/** Paksa sinkron konten tab ke store sebelum disimpan ke disk. */
 export function flushTab(tabId: string | null): void {
   if (!tabId) return;
   flushers.get(tabId)?.();
@@ -53,8 +41,6 @@ export function flushAll(): void {
   for (const fn of flushers.values()) fn();
 }
 
-/** Lompat ke baris/kolom (1-based) di editor aktif dan sorot barisnya.
- *  Dipakai panel Search (fase 04). */
 export function revealPosition(line: number, col = 1): boolean {
   const view = activeView;
   if (!view) return false;

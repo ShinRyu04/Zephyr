@@ -1,13 +1,3 @@
-// DiffViewer.tsx — tampilan unified diff untuk satu file (fase 10).
-//
-// Menumpang area editor seperti halaman Settings: saat `git.diff` terisi, ia
-// menggantikan editor. Rendernya `<pre>` beranotasi, bukan CodeMirror —
-// diff read-only tidak butuh editing, dan ini jauh lebih murah untuk file
-// besar (tidak membuat state editor baru per klik file).
-//
-// PENTING untuk harness fase 02/03: panel ini menutupi empty-state editor.
-// verify10 wajib menutupnya (`closeDiff`) sebelum selesai.
-
 import { useGit } from '../../lib/gitStore';
 import { useT } from '../../lib/i18n';
 
@@ -46,10 +36,9 @@ export default function DiffViewer() {
   if (!diff) return null;
 
   const lines = diff.text.split('\n');
-  // Buang baris kosong terakhir dari trailing newline agar tidak ada baris hampa.
+  
   if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
 
-  // fase 15.3: label khusus file biner supaya tidak terlihat seperti diff kosong.
   const isBinary = lines.some((l) => l.startsWith('Binary file'));
 
   let added = 0;

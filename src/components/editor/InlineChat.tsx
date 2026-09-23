@@ -1,15 +1,3 @@
-// InlineChat.tsx — jendela chat mini melayang di dalam editor (A-4).
-//
-// Bukan salinan AiPanel: yang dibutuhkan di sini hanya satu kotak prompt +
-// jawaban streaming untuk edit cepat tanpa berpindah panel. Menyalin AiPanel
-// berarti menyalin seluruh store subscriber-nya (riwayat, lampiran gambar,
-// model selector) — berat, dan dua instance store listener sudah pernah bikin
-// masalah di fase 09.
-//
-// Alur: Ctrl+I membuka kotak ini; prompt dikirim lewat `send()` yang sama
-// dengan panel utama, jadi model, mode, dan persetujuan perintah tetap
-// dihormati. Jawaban dibaca dari pesan assistant terakhir sesi aktif.
-
 import { useEffect, useRef, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -33,8 +21,6 @@ export default function InlineChat() {
   const sesi = sessions.find((s) => s.id === activeId) ?? null;
   const terakhir = [...(sesi?.messages ?? [])].reverse().find((m) => m.role === 'assistant');
 
-  // Ctrl+I: buka/tutup kotak ini. Handler global di App.tsx sudah membuka
-  // panel bawah; di sini kita menutup panel itu supaya tidak ada dua input.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'i') return;
@@ -59,7 +45,6 @@ export default function InlineChat() {
     if (buka) taRef.current?.focus();
   }, [buka]);
 
-  // Klik di luar menutup kotak.
   useEffect(() => {
     if (!buka) return;
     const onDown = (e: MouseEvent) => {
@@ -76,7 +61,7 @@ export default function InlineChat() {
     if (!t || pending) return;
     setDraft(t);
     setTeks('');
-    // Satu tick supaya store sempat memakai draft yang baru.
+
     window.setTimeout(() => void send(t), 0);
   };
 

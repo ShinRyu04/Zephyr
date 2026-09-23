@@ -1,28 +1,3 @@
-// subagentStore.ts — subagent paralel (T2.1).
-//
-// KONSEP: satu tugas besar dipecah jadi N subagent yang berjalan BERSAMAAN.
-// Tiap subagent punya: nama, tugas, status, dan daftar langkahnya sendiri.
-// Hasil akhirnya dikumpulkan jadi satu ringkasan.
-//
-// KENAPA STORE TERPISAH, bukan menambah ke aiStore:
-//   aiStore menyimpan `agentStepResolve` dan `agentBatal` sebagai variabel
-//   MODUL (bukan per-percakapan). Dua agent yang jalan bersamaan akan saling
-//   menimpa resolver itu — agent pertama menerima hasil agent kedua. Memperbaiki
-//   itu berarti mengubah agent loop 1166 baris yang sudah terverifikasi 74 tes.
-//   Store terpisah dengan map per-agent memberi paralelisme TANPA menyentuh
-//   jalur yang sudah stabil.
-//
-// ISOLASI: tiap subagent memakai id request sendiri (`sub-<n>-<rand>`), jadi
-//   Rust membatalkannya secara independen (ai_reqs = HashMap per-id).
-//
-// PEMBATASAN yang disengaja:
-//   * Subagent berjalan dalam mode READ-ONLY terhadap file: ia boleh membaca
-//     dan menjalankan perintah, tapi `editor_write`/`file_write` ditolak.
-//     Alasannya: N agent yang menulis file yang sama secara bersamaan
-//     menghasilkan konflik yang tidak bisa diselesaikan otomatis.
-//   * Batas jumlah subagent = MAX_PARALLEL (4). Lebih dari itu: rate limit
-//     provider + RAM naik tanpa manfaat.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { agentToolSpecs } from './agentTools';
@@ -31,30 +6,24 @@ import { useStore } from './store';
 import { infoPeran, tebakPeran, peranDariPrefix, type PeranId } from './subagentRoles';
 import { useAi } from './aiStore';
 
-/** Batas subagent yang berjalan bersamaan. */
 export const MAX_PARALLEL = 4;
-/** Nilai efektif dari Settings (jatuh ke konstanta kalau settings belum siap). */
+
 export function batasParalel(): number {
   const n = useStore.getState().settings.subagent?.maxParallel;
   return typeof n === 'number' && n >= 1 ? Math.min(8, Math.floor(n)) : MAX_PARALLEL;
 }
 
-/** Batas langkah efektif dari Settings. */
 export function batasLangkah(): number {
   const n = useStore.getState().settings.subagent?.maxSteps;
   return typeof n === 'number' && n >= 3 ? Math.min(50, Math.floor(n)) : MAX_SUB_STEPS;
 }
 
-/** Apakah subagent boleh menulis file (Settings). */
 export function bolehTulis(): boolean {
   return useStore.getState().settings.subagent?.allowWrite === true;
 }
 
-/** Batas langkah per subagent (penjaga biaya & loop tak berujung). */
 export const MAX_SUB_STEPS = 15;
 
-/** Nama panggilan tiap subagent — memberi identitas supaya user bisa
- *  menyebutnya saat membaca progres ("Comet sedang apa?"). */
 const NAMA = [
   'Comet', 'Odyssey', 'Nova', 'Atlas', 'Orion', 'Vega',
   'Lyra', 'Pulsar', 'Zenith', 'Quasar', 'Helix', 'Cobalt',
@@ -62,63 +31,58 @@ const NAMA = [
 
 export type SubStatus = 'menunggu' | 'jalan' | 'selesai' | 'gagal' | 'batal';
 
-/** Satu langkah yang dikerjakan subagent. */
 export interface SubStep {
-  /** 'pikir' = teks model; 'tool' = pemanggilan tool */
+
   kind: 'pikir' | 'tool';
-  /** untuk kind='tool' */
+
   nama?: string;
   args?: string;
   hasil?: string;
   ok?: boolean;
-  /** untuk kind='pikir' */
+
   teks?: string;
   at: number;
 }
 
-/** Satu subagent. */
 export interface SubAgent {
   id: string;
   nama: string;
   tugas: string;
-  /** T4.2: peran kerja — menentukan prompt + boleh-tulis. */
+
   peran: PeranId;
   status: SubStatus;
   langkah: SubStep[];
-  /** jawaban akhir (diisi saat selesai) */
+
   hasil: string;
-  /** pesan error kalau gagal */
+
   error: string | null;
   mulai: number;
   selesai: number | null;
-  /** jumlah langkah tool yang sudah dipakai */
+
   nTool: number;
 }
 
 interface SubAgentState {
-  /** daftar subagent pada tugas paralel aktif */
+
   agents: SubAgent[];
-  /** true = ada tugas paralel berjalan */
+
   sibuk: boolean;
-  /** ringkasan gabungan setelah semua selesai */
+
   ringkasan: string | null;
-  /** id sesi chat tempat subagent menempel */
+
   sesiId: string | null;
 
-  /** Jalankan N tugas secara paralel. Mengembalikan jumlah yang diterima. */
   jalankan: (tugas: string[]) => Promise<number>;
-  /** Batalkan satu subagent. */
+
   batal: (id: string) => void;
-  /** Batalkan semua. */
+
   batalSemua: () => void;
-  /** Bersihkan daftar (setelah user menutup panelnya). */
+
   bersihkan: () => void;
 }
 
-/** Resolver per-agent: map id → resolve. Ini pengganti `agentStepResolve`
- *  global di aiStore, sehingga N agent tidak saling menimpa. */
 const resolvers = new Map<string, (r: AgentStepResult) => void>();
-/** Flag batal per-agent. */
+
 const batalSet = new Set<string>();
 
 interface AgentStepResult {
@@ -128,7 +92,6 @@ interface AgentStepResult {
   error?: string;
 }
 
-/** Sistem prompt khusus subagent: menegaskan batas peran. */
 function promptSub(tugas: string, total: number, peran: PeranId): string {
   const p = infoPeran(peran);
   const baris = [
@@ -162,8 +125,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     if (get().sibuk) return 0;
 
     const ai = useAi.getState();
-    // Model subagent bisa dipisah dari model chat (Settings → Subagent).
-    // Kalau kosong, ikut model chat seperti sebelumnya — perilaku lama tetap.
+
     const setSub = useStore.getState().settings.subagent;
     const subModel = (setSub?.model ?? '').trim();
     const def = subModel
@@ -176,8 +138,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
       id: `sub-${i}-${Math.random().toString(36).slice(2, 8)}`,
       nama: NAMA[i % NAMA.length],
       tugas: t,
-      // Peran bisa dipaksa user lewat prefix "@cari ..." / "@kerja ...";
-      // kalau tidak, ditebak dari kata kunci tugasnya.
+
       peran: peranDariPrefix(t).peran ?? tebakPeran(t),
       status: 'menunggu',
       langkah: [],
@@ -190,8 +151,6 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
 
     set({ agents, sibuk: true, ringkasan: null, sesiId });
 
-    // Jalankan SEMUA bersamaan. Promise.allSettled: satu subagent gagal tidak
-    // membatalkan yang lain — itu inti manfaat paralel.
     await Promise.allSettled(
       agents.map((a) =>
         jalankanSatu(a, {
@@ -206,7 +165,6 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
       ),
     );
 
-    // Susun ringkasan gabungan dari semua subagent.
     const akhir = get().agents;
     const bagian = akhir.map((a) => {
       const statusTeks =
@@ -218,13 +176,6 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
 
     set({ sibuk: false, ringkasan });
 
-    // TIDAK ADA injeksi ke chat.
-    //
-    // KENAPA: subagent dan chat AI adalah dua hal yang BERDIRI SENDIRI. Kalau
-    // ringkasan disuntikkan ke riwayat percakapan, model membaca pekerjaan yang
-    // tidak pernah ia minta sebagai konteks — dan user yang membuka chat lain
-    // ikut melihatnya. Ringkasan tetap ada di `ringkasan` (dipakai tab
-    // Subagents), tempat pekerjaan itu memang hidup.
     return daftar.length;
   },
 
@@ -253,7 +204,6 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
   bersihkan: () => set({ agents: [], ringkasan: null, sibuk: false, sesiId: null }),
 }));
 
-/** Jalankan satu subagent sampai selesai (loop tool). */
 async function jalankanSatu(
   agent: SubAgent,
   ctx: {
@@ -294,8 +244,6 @@ async function jalankanSatu(
         return;
       }
 
-      // Panggil satu langkah agent lewat jalur yang SAMA seperti aiStore
-      // (ai_tool_chat_stream), tapi dengan id unik milik subagent ini.
       const res = await new Promise<AgentStepResult>((resolve) => {
         resolvers.set(agent.id, resolve);
         cmd
@@ -334,7 +282,7 @@ async function jalankanSatu(
 
       history.push({ role: 'assistant', content: res.content, tool_calls: res.toolCalls });
       if (res.toolCalls.length === 0) {
-        // Tidak ada tool lagi = subagent selesai.
+
         ubah((a) => ({
           ...a,
           status: 'selesai',
@@ -351,9 +299,6 @@ async function jalankanSatu(
         }
         const argsObj = (tc.args ?? {}) as Record<string, unknown>;
 
-        // Subagent DILARANG menulis — lihat catatan di kepala file.
-        // Guard tulis: default MELARANG, bisa dinyalakan di Settings →
-        // Subagent. `file_edit` ikut dilarang karena juga mengubah disk.
         const dilarang = !bolehTulis() &&
           (tc.name === 'editor_write' || tc.name === 'file_write' || tc.name === 'file_edit');
         let hasil: string;
@@ -390,7 +335,6 @@ async function jalankanSatu(
       }
     }
 
-    // Kehabisan langkah — laporkan apa adanya, jangan mengarang.
     ubah((a) => ({
       ...a,
       status: 'gagal',
@@ -410,7 +354,6 @@ async function jalankanSatu(
   }
 }
 
-/** Handler untuk event `ai-chunk` — dipanggil dari onChunk aiStore. */
 export function subagentOnChunk(c: {
   id: string;
   toolDone?: boolean;
@@ -420,8 +363,8 @@ export function subagentOnChunk(c: {
   err?: string;
 }): boolean {
   const r = resolvers.get(c.id);
-  if (!r) return false; // bukan milik subagent
-  if (!c.toolDone) return true; // potongan teks: ditangani jalur bubble biasa
+  if (!r) return false;
+  if (!c.toolDone) return true;
   resolvers.delete(c.id);
   if (c.err) {
     r({ content: '', toolCalls: [], cancelled: false, error: c.err });

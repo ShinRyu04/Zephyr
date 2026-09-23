@@ -1,10 +1,3 @@
-// Ghost text inline (A-1): saran satu baris yang tampil pudar di depan kursor.
-//
-// Sengaja TIDAK memicu sendiri saat user berhenti mengetik — tiap saran berarti
-// satu panggilan API berbayar, dan menembakkannya di setiap jeda ketikan
-// membuat biaya tak terkendali. Pemicunya tombol: Alt+\ untuk minta, Tab untuk
-// pakai, Esc untuk buang.
-
 import { StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration,
@@ -20,7 +13,6 @@ import { useStore } from './store';
 import { findModel } from './modelCatalog';
 import type { AiChunk, AiMessage } from './types';
 
-/** Berapa baris sebelum kursor yang dikirim sebagai konteks. */
 const KONTEKS_BARIS = 40;
 
 const setGhost = StateEffect.define<string | null>();
@@ -57,8 +49,7 @@ const ghostField = StateField.define<DecorationSet>({
           ])
         : Decoration.none;
     }
-    // Ketikan apa pun membatalkan saran: teks saran dihitung dari isi baris
-    // yang sekarang sudah berubah.
+
     if (tr.docChanged && !tr.effects.some((e) => e.is(setGhost))) {
       next = Decoration.none;
     }
@@ -67,7 +58,6 @@ const ghostField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-/** id request yang sedang berjalan — hanya satu saran pada satu waktu. */
 let aktif: string | null = null;
 let akumulasi = '';
 let listenerSiap = false;
@@ -84,7 +74,7 @@ function pastikanListener() {
       return;
     }
     if (c.text) {
-      // Saran hanya satu baris: potong di baris baru pertama.
+
       akumulasi += c.text;
       const satuBaris = akumulasi.split('\n')[0];
       if (satuBaris !== akumulasi) {
@@ -109,7 +99,6 @@ function bersihkan() {
   if (viewAktif) viewAktif.dispatch({ effects: setGhost.of(null) });
 }
 
-/** Buang saran tanpa memanggil API (dipakai Tab/Esc dan saat editor ditutup). */
 export function buangGhost(view: EditorView) {
   aktif = null;
   akumulasi = '';
@@ -122,7 +111,7 @@ function konteksSekitar(view: EditorView): string {
   const mulai = Math.max(1, baris.number - KONTEKS_BARIS);
   const potongan: string[] = [];
   for (let n = mulai; n <= baris.number; n++) potongan.push(view.state.doc.line(n).text);
-  // Baris kursor dipotong di posisi kursor: teks sesudahnya bukan konteks.
+
   potongan[potongan.length - 1] = baris.text.slice(0, pos - baris.from);
   return potongan.join('\n');
 }
@@ -167,13 +156,11 @@ async function mintaSaran(view: EditorView) {
   }
 }
 
-/** Ada saran aktif di view ini? */
 function adaGhost(view: EditorView): boolean {
   const deco = view.state.field(ghostField, false);
   return !!deco && deco.size > 0;
 }
 
-/** Terima saran: sisipkan di posisi kursor. false = tidak ada saran aktif. */
 function terimaGhost(view: EditorView): boolean {
   const deco = view.state.field(ghostField, false);
   if (!deco || deco.size === 0) return false;
@@ -202,8 +189,7 @@ export const ghostTextKeymap = keymap.of([
       return true;
     },
   },
-  // Tab hanya "dipakai" kalau memang ada saran — kalau tidak, biarkan jatuh ke
-  // indent-with-tab / snippet field di bawahnya.
+
   { key: 'Tab', run: (view) => (adaGhost(view) ? terimaGhost(view) : false) },
   {
     key: 'Escape',
@@ -215,13 +201,10 @@ export const ghostTextKeymap = keymap.of([
   },
 ]);
 
-/** Ekstensi ghost text; `aktif` = user menyalakannya di Settings. */
 export function ghostText(on: boolean): Extension[] {
   return on ? [ghostField, ghostTextKeymap] : [];
 }
 
-/** Dipanggil saat editor dibongkar supaya request yang jalan tidak menulis ke
- *  view yang sudah mati. */
 export function lepasGhost(view: EditorView) {
   if (viewAktif === view) {
     viewAktif = null;

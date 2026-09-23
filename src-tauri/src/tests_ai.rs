@@ -1,10 +1,3 @@
-// tests_ai.rs — unit test adapter AI (fase 09).
-//
-// Yang diuji di sini adalah hal yang PALING mudah salah tanpa jaringan:
-// bentuk body & header per provider, pemisahan pesan `system`, dan
-// pembacaan potongan stream (`extract_delta`) untuk tiga format berbeda.
-// Streaming end-to-end diuji terpisah oleh `npm run verify:09` (app hidup).
-
 #[cfg(test)]
 mod tests {
     use crate::adapters;
@@ -89,7 +82,7 @@ mod tests {
 
         assert_eq!(p.url, "https://api.anthropic.com/v1/messages");
         assert!(p.sse);
-        // key TIDAK lewat Authorization untuk anthropic
+
         assert!(p
             .headers
             .iter()
@@ -100,7 +93,7 @@ mod tests {
             .any(|(k, v)| k == "anthropic-version" && v == "2023-06-01"));
         assert_eq!(p.body["system"], json!("jadilah singkat"));
         assert_eq!(p.body["max_tokens"], json!(2048));
-        // messages hanya memuat user/assistant — system tidak boleh ikut
+
         assert_eq!(p.body["messages"].as_array().unwrap().len(), 1);
         assert_eq!(p.body["messages"][0]["role"], json!("user"));
     }
@@ -122,8 +115,6 @@ mod tests {
         )
         .unwrap();
 
-        // alt=sse WAJIB: tanpa itu jawabannya JSON array pretty-print yang
-        // tidak bisa dipotong per baris (bug nyata fase 09).
         assert!(
             p.url.ends_with(":streamGenerateContent?alt=sse"),
             "url: {}",
@@ -140,7 +131,7 @@ mod tests {
             json!("ringkas")
         );
         assert_eq!(p.body["contents"][0]["role"], json!("user"));
-        // 'assistant' harus diterjemahkan menjadi 'model'
+
         assert_eq!(p.body["contents"][1]["role"], json!("model"));
         assert_eq!(p.body["generationConfig"]["maxOutputTokens"], json!(512));
     }
@@ -152,13 +143,13 @@ mod tests {
             adapters::extract_delta("openai", &v).as_deref(),
             Some("abc")
         );
-        // gateway yang mengabaikan stream:true mengirim message.content
+
         let v2 = json!({ "choices": [{ "message": { "content": "xy" } }] });
         assert_eq!(
             adapters::extract_delta("openai", &v2).as_deref(),
             Some("xy")
         );
-        // event tanpa teks -> None
+
         let v3 = json!({ "choices": [{ "delta": {} }] });
         assert!(adapters::extract_delta("openai", &v3).is_none());
     }
@@ -190,12 +181,9 @@ mod tests {
         });
         assert_eq!(adapters::extract_delta("gemini", &v).as_deref(), Some("ab"));
 
-        // potongan tanpa kandidat (mis. promptFeedback) -> None, bukan panic
         let v2 = json!({ "promptFeedback": { "blockReason": "SAFETY" } });
         assert!(adapters::extract_delta("gemini", &v2).is_none());
     }
-
-    // ── mode agent (tool-calling) ──────────────────────────────
 
     use crate::ai::{AgentMsg, ToolCall, ToolSpec};
 
@@ -240,12 +228,11 @@ mod tests {
         )
         .unwrap();
 
-        // tools masuk sebagai array function
         assert_eq!(
             p.body["tools"][0]["function"]["name"],
             json!("terminal_exec")
         );
-        // pesan assistant membawa tool_calls ber-args JSON-string
+
         assert_eq!(
             p.body["messages"][0]["tool_calls"][0]["id"],
             json!("call_1")
@@ -254,7 +241,7 @@ mod tests {
             p.body["messages"][0]["tool_calls"][0]["function"]["arguments"],
             json!("{\"cmd\":\"ls\"}")
         );
-        // hasil tool dikemas role=tool dengan tool_call_id
+
         assert_eq!(p.body["messages"][1]["role"], json!("tool"));
         assert_eq!(p.body["messages"][1]["tool_call_id"], json!("call_1"));
         assert_eq!(p.body["messages"][1]["content"], json!("hasil: 3 file"));
@@ -282,7 +269,6 @@ mod tests {
         assert_eq!(r.tool_calls[0].args["path"], json!("a.ts"));
         assert!(!r.done);
 
-        // tanpa tool_calls -> done
         let v2 = json!({ "choices": [{ "message": { "content": "selesai" } }] });
         let r2 = adapters::parse_tool_response("openai", &v2);
         assert!(r2.tool_calls.is_empty() && r2.done);
@@ -314,7 +300,7 @@ mod tests {
 
         assert_eq!(p.body["system"], json!("kamu agent Zephyr"));
         assert!(p.body.get("messages").is_some());
-        // tool_result dibungkus dalam user message (aturan Anthropic)
+
         assert_eq!(p.body["messages"][1]["role"], json!("user"));
         assert_eq!(
             p.body["messages"][1]["content"][0]["type"],
@@ -371,7 +357,7 @@ mod tests {
             p.body["tools"][0]["functionDeclarations"][0]["name"],
             json!("terminal_exec")
         );
-        // hasil tool jadi functionResponse
+
         assert_eq!(
             p.body["contents"][0]["parts"][0]["functionResponse"]["name"],
             json!("terminal_exec")
@@ -393,7 +379,7 @@ mod tests {
         let r = adapters::parse_tool_response("gemini", &v);
         assert_eq!(r.content, "gas");
         assert_eq!(r.tool_calls.len(), 1);
-        // Gemini gak kasih id -> disintesis dari nama + indeks
+
         assert_eq!(r.tool_calls[0].id, "editor_read-0");
         assert!(!r.done);
     }

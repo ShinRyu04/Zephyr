@@ -1,16 +1,3 @@
-// historyStore.ts — Local History / Timeline (fase 26).
-//
-// Pembagian tugas dengan Rust (history.rs):
-//   Rust  : simpan/baca/pangkas snapshot di %APPDATA%\zephyr\history\<hash>\,
-//           dedup lewat hash isi, tolak file besar/biner.
-//   Store : kapan snapshot dibuat (hook save), penggabungan Timeline dengan
-//           commit git, dan alur Restore yang TIDAK menulis ke disk.
-//
-// Keputusan penting: Restore mengisi buffer editor dan menandainya dirty.
-// Ia TIDAK menulis file. Brief 26 tegas soal ini, dan alasannya masuk akal —
-// "kembalikan ke versi lama" yang langsung menimpa disk adalah operasi
-// merusak tanpa jalan mundur, sedangkan versi dirty masih bisa di-Ctrl+Z.
-
 import { create } from 'zustand';
 import {
   historySnapshot,
@@ -28,31 +15,31 @@ import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { tx } from './i18n';
 
 interface HistoryState {
-  /** file yang Timeline-nya sedang ditampilkan */
+  
   file: string | null;
   info: HistoryInfo | null;
-  /** snapshot + commit git, urut terbaru dulu */
+  
   timeline: TimelineEntry[];
-  /** entri yang dipilih (untuk diff) */
+  
   dipilih: string | null;
-  /** isi snapshot terpilih — sisi KIRI diff */
+  
   isiSnapshot: string | null;
   loading: boolean;
   error: string | null;
-  /** statistik disk, diisi saat Settings dibuka */
+  
   stats: { root: string; folder: number; snapshot: number; byte: number } | null;
 }
 
 interface HistoryActions {
-  /** Muat Timeline sebuah file (snapshot + commit git). */
+  
   muat: (file: string) => Promise<void>;
-  /** Snapshot dipanggil dari jalur save; menghormati settings.history.enabled. */
+  
   snapshotSave: (
     file: string,
     reason?: 'save' | 'before-rename' | 'manual' | 'before-restore',
   ) => Promise<string>;
   pilih: (id: string | null) => Promise<void>;
-  /** Kembalikan isi snapshot ke buffer editor — DIRTY, tidak menulis disk. */
+  
   restore: (id: string) => Promise<boolean>;
   bersihkan: (file?: string) => Promise<void>;
   pangkas: (file?: string) => Promise<number>;
@@ -60,7 +47,6 @@ interface HistoryActions {
   reset: () => void;
 }
 
-/** Gabungkan snapshot lokal + commit git jadi satu urutan waktu. */
 const gabungTimeline = (
   snaps: Snapshot[],
   commits: { hash7: string; subject: string; author: string; date: string }[],
@@ -83,7 +69,7 @@ const gabungTimeline = (
   }));
 
   for (const c of commits) {
-    // `date` dari git berformat ISO (git_log memakai %cI).
+    
     const t = Date.parse(c.date);
     out.push({
       kind: 'commit',
@@ -111,8 +97,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
     set({ loading: true, error: null, file });
     try {
       const info = await historyList(file);
-      // Commit git ikut Timeline (integrasi fase 10). Kalau workspace bukan
-      // repo, gitLog melempar — itu normal, bukan error yang perlu ditampilkan.
+      
       let commits: Awaited<ReturnType<typeof gitLog>> = [];
       try {
         commits = await gitLog(30);
@@ -135,14 +120,13 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
     if (!cfg?.enabled) return '';
     try {
       const r = await historySnapshot(file, reason, cfg.maxPerFile, cfg.maxDays);
-      // Kalau Timeline file ini sedang terbuka, segarkan supaya entri baru
-      // langsung terlihat tanpa user menekan refresh.
+      
       if (r.id && get().file && kunciPath(get().file!) === kunciPath(file)) {
         void get().muat(file);
       }
       return r.id;
     } catch (e) {
-      // Snapshot gagal TIDAK boleh menggagalkan save. Cukup beri tahu sekali.
+      
       notifyWarn(`Local History gagal: ${String(e)}`, { source: 'history' });
       return '';
     }
@@ -157,8 +141,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
     const entri = get().timeline.find((t) => t.id === id);
     if (!file || !entri) return;
     if (entri.kind === 'commit') {
-      // Commit dibuka lewat panel Source Control (fase 10) — Timeline tidak
-      // menduplikasi diff git.
+      
       set({ dipilih: id, isiSnapshot: null });
       return;
     }
@@ -175,17 +158,15 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
     if (!file) return false;
     try {
       const isi = await historyRead(file, id);
-      // Simpan dulu keadaan SEKARANG sebagai snapshot: kalau tidak, restore
-      // menghapus satu-satunya jejak versi terakhir bila user menekan save.
+      
       await get().snapshotSave(file, 'before-restore');
 
       const S = useStore.getState();
-      // `tab.path` bisa null (tab untitled) — bandingkan hanya yang punya path,
-      // kalau tidak kunciPath(null) menabrak tipe dan menyamakan semua untitled.
+      
       const cocok = (p: string | null) => !!p && kunciPath(p) === kunciPath(file);
       const tab = S.tabs.find((t) => cocok(t.path));
       if (!tab) {
-        // File belum terbuka: buka dulu, baru isi buffer-nya.
+        
         await S.openPath(file);
         const baru = useStore.getState().tabs.find((t) => cocok(t.path));
         if (!baru) {

@@ -1,13 +1,3 @@
-// ChatMessage.tsx — satu bubble chat + render markdown (fase 09).
-//
-// Markdown: react-markdown + remark-gfm. Code block dapat tombol Salin dan
-// (untuk bahasa shell) tombol "Jalankan di Terminal" — jalur yang sama
-// dipakai action bar di bawah chat.
-//
-// Highlight code block sengaja SEDERHANA (satu warna token via CSS), bukan
-// CodeMirror penuh: satu instance EditorView per blok kode akan memakan RAM
-// jauh di atas target PRD (<400MB idle).
-
 import { memo, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -33,8 +23,6 @@ const SHELL_LANGS = new Set([
   'terminal',
 ]);
 
-/** A-7: path relatif/absolut di teks AI, opsional dengan :baris — jadi
- *  tombol yang membuka file di editor. Path Windows memakai backslash. */
 const REF_RE = /^(?:\.{0,2}\/|\.{0,2}\\)?[\w@./\\-]+(?:\.\w{1,8})(?::(\d+))?$/;
 
 function CodeBlock({ code, lang }: { code: string; lang: string }) {
@@ -42,9 +30,6 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const setToast = useAi((s) => s.setToast);
   const isShell = SHELL_LANGS.has(lang);
 
-  // A-5: Terapkan = ganti isi tab aktif; Sisipkan = tambah di posisi kursor.
-  // A-6: sebelum mengganti, tampilkan diff hijau/merah supaya user melihat apa
-  // yang berubah lebih dulu — bukan langsung menimpa isi file.
   const [pratinjau, setPratinjau] = useState<DiffRow[] | null>(null);
 
   const terapkan = () => {
@@ -227,8 +212,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
       ) : (
         <div className="ai-body" data-ai-body={msg.id}>
           {(() => {
-            // 1.1.10: pesan lama menyimpan satu gambar di `image`, pesan baru di
-            // `images`. Gabungkan supaya keduanya tampil.
+            
             const imgs = msg.images?.length ? msg.images : msg.image ? [msg.image] : [];
             if (imgs.length === 0) return null;
             return (
@@ -308,14 +292,13 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
-                // Fence -> CodeBlock; inline code tetap <code>.
+                
                 pre: ({ children }) => <>{children}</>,
                 code: ({ className, children }) => {
                   const text = String(children ?? '').replace(/\n$/, '');
                   const m = /language-([\w-]+)/.exec(className ?? '');
                   if (!m && !text.includes('\n')) {
-                    // A-7: inline code yang berbentuk path (opsional :baris)
-                    // bisa diklik untuk loncat ke file & barisnya.
+                    
                     const ref = REF_RE.exec(text);
                     if (ref) {
                       return (
@@ -355,5 +338,4 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   );
 }
 
-/** memo: saat token mengalir, hanya bubble terakhir yang perlu re-render. */
 export default memo(ChatMessageInner);

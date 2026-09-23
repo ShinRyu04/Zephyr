@@ -1,12 +1,3 @@
-// UpdatePanel.tsx — UI auto-update di Settings → Tentang (fase 17.6.d).
-//
-// Endpoint rilis AKTIF: status yang paling sering muncul di sini 'up-to-date'
-// (app sekelas dengan latest.json) atau 'available' (ada versi baru). Status
-// 'unconfigured' tinggal penjaga lama untuk kasus endpoint kosong.
-//
-// Panel harus tetap informatif dan tidak error dalam kondisi apa pun
-// (syarat 17.6.e).
-
 import { useUpdater, labelStatus } from '../../lib/updaterStore';
 import { useT, useTf, translate } from '../../lib/i18n';
 import { Changelog } from './changelogRender';
@@ -39,26 +30,15 @@ export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }
 
   const sibuk = status === 'checking' || status === 'downloading';
 
-  // Teks dev-mode versi Indonesia dipakai sebagai "sidik jari": kalau pesan di
-  // store sama dengan ini, artinya pesannya statis (bukan hasil server) dan
-  // boleh dihitung ulang dari kamus bahasa yang aktif.
   const pesanDev = translate('id', 'update.devMode');
 
-  /**
-   * Pesan yang bergantung HANYA pada status (bukan data dari server) dihitung
-   * ulang di sini, bukan dibaca dari store. Kalau disimpan saat check() jalan,
-   * teksnya ikut membeku dalam bahasa yang aktif saat itu — mengganti bahasa
-   * tidak mengubahnya sampai app di-reload.
-   * Pesan yang memuat nilai dari server (versi, persen, teks error) tetap
-   * dipakai apa adanya karena sudah diterjemahkan saat dibuat.
-   */
   const pesanTampil =
     status === 'unconfigured'
       ? tr('update.unconfigured')
       : status === 'up-to-date'
         ? tr('update.upToDate')
-        : // Mode dev: pesannya informatif murni (tidak ada nilai dari server),
-          // jadi selalu ambil dari kamus bahasa yang sedang aktif.
+        :
+
           pesanDev === message
           ? tr('update.devMode')
           : message;

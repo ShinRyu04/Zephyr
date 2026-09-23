@@ -1,8 +1,3 @@
-// explorer.rs — scan folder, watcher, dan search-in-workspace (fase 04).
-//
-// Aturan ignore (4.1) berlaku SAMA untuk scan_dir maupun search_files
-// supaya isi tree dan hasil pencarian konsisten.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use notify::{EventKind, RecursiveMode, Watcher};
@@ -13,7 +8,6 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 
-/// Folder/berkas yang tidak pernah ditampilkan maupun dicari.
 const IGNORED_DIRS: &[&str] = &[
     "node_modules",
     ".git",
@@ -33,14 +27,14 @@ const IGNORED_DIRS: &[&str] = &[
 
 const MAX_DEPTH: usize = 40;
 const MAX_SEARCH_HITS: usize = 500;
-/// File di atas ukuran ini tidak dipindai isinya (kemungkinan biner/besar).
+
 const MAX_SEARCH_FILE_BYTES: u64 = 2 * 1024 * 1024;
 
 fn is_ignored(name: &str, is_dir: bool) -> bool {
     if is_dir {
         return IGNORED_DIRS.iter().any(|d| d.eq_ignore_ascii_case(name));
     }
-    // *.lock diabaikan untuk pencarian isi, tapi tetap TAMPIL di tree.
+
     false
 }
 
@@ -54,12 +48,10 @@ pub struct DirNode {
     pub name: String,
     pub path: String,
     pub is_dir: bool,
-    /// Hanya untuk folder: apakah isinya ada (untuk menampilkan chevron).
+
     pub has_children: bool,
 }
 
-/// Baca SATU level folder (lazy loading — tree besar tetap responsif).
-/// Kedalaman dibatasi lewat jumlah komponen relatif terhadap workspace.
 #[tauri::command(async)]
 pub fn scan_dir(state: State<AppState>, path: String) -> ZResult<Vec<DirNode>> {
     let dir = PathBuf::from(&path);
@@ -68,7 +60,6 @@ pub fn scan_dir(state: State<AppState>, path: String) -> ZResult<Vec<DirNode>> {
         return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
     }
 
-    // Batas kedalaman relatif workspace (4.1: depth max 40).
     if let Some(ws) = state.workspace_path() {
         let norm = crate::app_state::normalize(&dir);
         if let Ok(rel) = norm.strip_prefix(&ws) {
@@ -83,13 +74,12 @@ pub fn scan_dir(state: State<AppState>, path: String) -> ZResult<Vec<DirNode>> {
     scan_entries(&dir)
 }
 
-/// Logika baca-direktori murni (tanpa State) supaya bisa diuji unit.
 fn scan_entries(dir: &Path) -> ZResult<Vec<DirNode>> {
     let mut out: Vec<DirNode> = Vec::new();
     for entry in std::fs::read_dir(dir)? {
         let entry = match entry {
             Ok(e) => e,
-            Err(_) => continue, // permission ditolak per-entry -> skip
+            Err(_) => continue,
         };
         let name = entry.file_name().to_string_lossy().to_string();
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
@@ -114,7 +104,6 @@ fn scan_entries(dir: &Path) -> ZResult<Vec<DirNode>> {
         });
     }
 
-    // Folder dulu, lalu file; masing-masing alfabetis (case-insensitive).
     out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
@@ -124,10 +113,6 @@ fn scan_entries(dir: &Path) -> ZResult<Vec<DirNode>> {
     Ok(out)
 }
 
-// ───────────────────────── watcher ─────────────────────────
-
-/// Pantau workspace secara rekursif; kirim `fs-changed` { path, kind }.
-/// Event digabung (debounce 250ms) agar operasi npm/git tidak membanjiri UI.
 #[tauri::command(async)]
 pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult<()> {
     let root = PathBuf::from(&path);
@@ -135,7 +120,6 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
         return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
     }
 
-    // Hentikan watcher lama (ganti workspace) sebelum memasang yang baru.
     state.stop_watcher();
     let generation = state.next_watch_generation();
     let stop_flag = state.watch_stop_flag();
@@ -163,7 +147,6 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
         let mut last_flush = Instant::now();
 
         loop {
-            // Generasi berubah = ada watcher baru / workspace ditutup -> stop.
             if stop_flag.load(std::sync::atomic::Ordering::Relaxed) != generation {
                 break;
             }
@@ -177,7 +160,6 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
                         _ => continue,
                     };
                     for p in event.paths {
-                        // Abaikan perubahan di dalam folder yang di-ignore.
                         let skip = p.components().any(|c| {
                             let s = c.as_os_str().to_string_lossy();
                             IGNORED_DIRS.iter().any(|d| d.eq_ignore_ascii_case(&s))
@@ -194,7 +176,6 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
             }
 
             if !pending.is_empty() && last_flush.elapsed() >= Duration::from_millis(250) {
-                // Kirim per-parent supaya frontend cukup re-scan node itu saja.
                 let mut seen: Vec<String> = Vec::new();
                 for (p, kind) in pending.drain(..) {
                     let parent = Path::new(&p)
@@ -213,7 +194,7 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
                         )
                         .is_err()
                     {
-                        return; // app tutup
+                        return;
                     }
                 }
                 last_flush = Instant::now();
@@ -230,16 +211,14 @@ pub fn fs_unwatch(state: State<AppState>) -> ZResult<()> {
     Ok(())
 }
 
-// ───────────────────────── search ─────────────────────────
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchHit {
     pub path: String,
     pub name: String,
-    /// 1-based
+
     pub line: u32,
-    /// 1-based kolom awal match
+
     pub col: u32,
     pub match_len: u32,
     pub preview: String,
@@ -255,13 +234,11 @@ pub struct SearchResult {
     pub truncated: bool,
 }
 
-/// Satu file untuk quick-open palette (Ctrl+P, fase 12).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickFile {
-    /// path absolut (dipakai `openPath`)
     pub path: String,
-    /// path relatif ke root workspace, separator '/'
+
     pub rel: String,
     pub name: String,
 }
@@ -301,12 +278,6 @@ fn collect_files(root: &Path, out: &mut Vec<PathBuf>, depth: usize) {
     }
 }
 
-/// Daftar path file di workspace untuk quick-open (Ctrl+P, fase 12).
-///
-/// Memakai `collect_files` yang sama dengan search (aturan ignore identik),
-/// jadi node_modules/target/.git tidak pernah ikut. Dibatasi 20.000 file oleh
-/// collect_files; di sini dipotong lagi ke `limit` (default 5.000) supaya
-/// payload ke frontend tetap ringan — palette memfilternya di memori.
 #[tauri::command(async)]
 pub fn list_workspace_files(
     state: State<AppState>,
@@ -341,13 +312,12 @@ pub fn list_workspace_files(
             }
         })
         .collect();
-    // Urut per path relatif supaya daftar stabil antar pemanggilan.
+
     out.sort_by(|a, b| a.rel.to_lowercase().cmp(&b.rel.to_lowercase()));
     let _ = truncated;
     Ok(out)
 }
 
-/// Cari teks di seluruh workspace. `glob` memfilter nama file (mis. `*.ts`).
 #[tauri::command(async)]
 pub fn search_files(
     state: State<AppState>,
@@ -415,7 +385,7 @@ pub fn search_files(
             Ok(b) => b,
             Err(_) => continue,
         };
-        // Lewati file biner: ada byte NUL di 8KB pertama.
+
         let head = &bytes[..bytes.len().min(8192)];
         if head.contains(&0) {
             continue;
@@ -436,7 +406,7 @@ pub fn search_files(
                     truncated = true;
                     break 'outer;
                 }
-                // kolom dihitung dalam karakter, bukan byte
+
                 let col = line[..m.start()].chars().count() as u32 + 1;
                 hits.push(SearchHit {
                     path: file.to_string_lossy().to_string(),
@@ -462,8 +432,6 @@ pub fn search_files(
     })
 }
 
-/// Ganti semua kemunculan di SATU file (dipakai "Replace in file" dari
-/// panel Search). Mengembalikan jumlah penggantian.
 #[tauri::command(async)]
 pub fn replace_in_file(
     state: State<AppState>,
@@ -485,7 +453,6 @@ pub fn replace_in_file(
         return Ok(0);
     }
 
-    // Mode non-regex: `$` di teks pengganti harus literal.
     let replaced = if is_regex {
         re.replace_all(&read.content, replacement.as_str())
             .into_owned()
@@ -498,7 +465,6 @@ pub fn replace_in_file(
     Ok(count)
 }
 
-/// Buka file/folder di Windows Explorer (Reveal in Explorer).
 #[tauri::command(async)]
 pub fn reveal_path(path: String) -> ZResult<()> {
     let p = PathBuf::from(&path);
@@ -541,8 +507,6 @@ pub fn reveal_path(path: String) -> ZResult<()> {
     }
     Ok(())
 }
-
-// ───────── hook unit test ─────────
 
 #[cfg(test)]
 pub fn is_ignored_for_test(name: &str, is_dir: bool) -> bool {

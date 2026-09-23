@@ -1,22 +1,3 @@
-// mcp_server.rs — server MCP Zephyr di 127.0.0.1:9222 (fase 11).
-//
-// PROTOKOL (ARCHITECTURE.md §4, prompt fase 11 §11.1):
-//   POST /        JSON-RPC 2.0  { jsonrpc, id, method, params }
-//   GET  /health  status ringan  — TIDAK butuh auth (cek cepat)
-//   GET  /mcp     daftar tool + schema (discovery) — butuh auth
-// Auth: header `Authorization: Bearer <token>`; token dari mcp.json.
-// Bind HANYA ke 127.0.0.1 (loopback) — tidak pernah 0.0.0.0.
-//
-// PEMBAGIAN KERJA:
-//   * Yang bisa dijawab Rust sendiri dijawab di sini: settings, PTY write/key,
-//     karena PTY registry memang hidup di Rust (bukti terminal_write nyata).
-//   * Yang butuh state UI (daftar pane, tab editor, buffer, run_command)
-//     dikirim ke frontend lewat event `mcp-action` {reqId,type,payload},
-//     frontend menjawab dengan command `mcp_reply`. Rust menunggu oneshot
-//     dengan timeout 8 detik supaya satu tab yang hang tidak menahan server.
-//   * Semua method dijalankan di bawah `AppState::mcp_lock` sehingga dua AI
-//     CLI yang mengemudi bersamaan diproses SATU per satu (V11).
-
 use crate::app_state::{AppState, McpRuntime};
 use crate::errors::{ZResult, ZephyrError};
 use axum::extract::State as AxState;
@@ -28,16 +9,10 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
-/// Batas tunggu jawaban frontend untuk satu method.
 const UI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 
-/// FASE 15.4: batas byte untuk `editor_write` / `editor_insert`.
-/// Buffer tab hidup di WebView; menerima payload puluhan MB lewat IPC bisa
-/// menghabiskan memori proses render. 1MB sama dengan batas ekstensi (fase 13).
 const MAX_EDITOR_WRITE: usize = 1024 * 1024;
 
-/// FASE 15.4: batas byte satu `terminal_write`. Menulis megabyte ke ConPTY
-/// dalam satu panggilan membuat shell tersedak; agent harus memecah sendiri.
 const MAX_TERMINAL_WRITE: usize = 64 * 1024;
 
 #[derive(Clone)]
@@ -46,13 +21,12 @@ struct Ctx {
     token: String,
 }
 
-/// Status server untuk UI / command `mcp_status`.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpStatus {
     pub running: bool,
     pub port: u16,
-    /// port yang diminta di settings (9222) — beda bila terpaksa fallback
+
     pub requested_port: u16,
     pub token: String,
     pub uptime_ms: u64,
@@ -77,12 +51,10 @@ fn settings_port(state: &AppState) -> u16 {
         .unwrap_or(9222)
 }
 
-/// Nyalakan server. Port dari settings; bila terpakai coba port+1 (9223).
-/// Port yang benar-benar dipakai ditulis balik ke settings.mcp.port.
 pub async fn start(app: AppHandle) -> ZResult<u16> {
     let state = app.state::<AppState>();
     if let Some(p) = state.mcp_port() {
-        return Ok(p); // sudah jalan
+        return Ok(p);
     }
     let cfg = crate::mcp_config::load_or_init(&state);
     if cfg.token.trim().is_empty() {
@@ -92,10 +64,7 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
     let want = settings_port(&state);
     let mut listener = None;
     let mut used = want;
-    // Whitelist port: hanya port yang diminta + 4 kandidat berikutnya
-    // (9222..9226 secara default). Satu fallback saja tidak cukup — di mesin
-    // dev 9223 sudah dipakai debug port WebView2, dan MCP tetap harus dapat
-    // socket alih-alih mati total.
+
     let candidates: Vec<u16> = (0..5).filter_map(|i| want.checked_add(i)).collect();
     for cand in &candidates {
         match tokio::net::TcpListener::bind(("127.0.0.1", *cand)).await {
@@ -146,7 +115,6 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
         shutdown: tx,
     });
 
-    // Port hasil bind dicatat supaya UI & config CLI menunjuk port yang benar.
     let mut cfg2 = cfg.clone();
     cfg2.port = used;
     let _ = crate::mcp_config::save(&state, &cfg2);
@@ -160,11 +128,6 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
     Ok(used)
 }
 
-/// Matikan server (socket ditutup — port tidak lagi listening).
-///
-/// FASE 15.4: permintaan yang masih menunggu jawaban UI dibatalkan dengan
-/// error terstruktur ("MCP dimatikan…") supaya agent yang terhubung menerima
-/// balasan JSON-RPC error alih-alih menggantung sampai timeout 8 detik.
 pub fn stop(app: &AppHandle) -> bool {
     let state = app.state::<AppState>();
     let dibatalkan = state.mcp_fail_pending(
@@ -182,8 +145,6 @@ pub fn stop(app: &AppHandle) -> bool {
     }
 }
 
-// ───────────────────────── handler HTTP ─────────────────────────
-
 fn unauthorized() -> axum::response::Response {
     (
         StatusCode::UNAUTHORIZED,
@@ -192,11 +153,6 @@ fn unauthorized() -> axum::response::Response {
         .into_response()
 }
 
-/// Tebak AI CLI mana yang menyapa dari User-Agent-nya.
-///
-/// Bukan identitas yang bisa dipercaya (UA gampang dipalsukan) — ini murni
-/// label agar user tahu "ada sesuatu yang menyambung", jadi tidak dipakai untuk
-/// keputusan keamanan apa pun. Auth tetap Bearer token.
 fn tebak_cli(ua: &str) -> String {
     let low = ua.to_ascii_lowercase();
     for (kunci, nama) in [
@@ -230,12 +186,6 @@ fn bearer_ok(headers: &HeaderMap, token: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// GET /health — tanpa auth. 503 bila MCP dimatikan di settings.
-///
-/// Selain status, handler ini juga MENCATAT siapa yang menyapa (fase 12):
-/// health adalah hal pertama yang di-hit setiap AI CLI saat menyambung, jadi
-/// dari sini panel MCP bisa menampilkan "MCP connected: <cli>" — bukti koneksi
-/// yang nyata, bukan klaim.
 async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::response::Response {
     let state = ctx.app.state::<AppState>();
     if !settings_enabled(&state) {
@@ -267,7 +217,6 @@ async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
     .into_response()
 }
 
-/// GET /mcp — daftar tool + schema (discovery), butuh auth.
 async fn schema(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::response::Response {
     if !bearer_ok(&headers, &ctx.token) {
         return unauthorized();
@@ -275,7 +224,6 @@ async fn schema(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
     Json(tools_schema()).into_response()
 }
 
-/// POST / — JSON-RPC 2.0. Batch (array) juga dilayani.
 async fn rpc(
     AxState(ctx): AxState<Arc<Ctx>>,
     headers: HeaderMap,
@@ -315,7 +263,6 @@ async fn rpc(
     }
 }
 
-/// Satu permintaan JSON-RPC → satu balasan.
 async fn handle_one(app: &AppHandle, req: Value) -> Value {
     let id = req.get("id").cloned().unwrap_or(Value::Null);
     let method = req.get("method").and_then(|m| m.as_str()).unwrap_or("");
@@ -328,7 +275,6 @@ async fn handle_one(app: &AppHandle, req: Value) -> Value {
         });
     }
 
-    // Serialisasi: dua agent yang mengemudi bersamaan diproses satu per satu.
     let state = app.state::<AppState>();
     let _guard = state.mcp_lock().lock().await;
 
@@ -349,10 +295,6 @@ fn rpc_code(e: &ZephyrError) -> i32 {
     }
 }
 
-// ───────────────────────── schema tools ─────────────────────────
-
-/// GET /mcp — discovery. Deskripsi tiap method + parameternya supaya agent
-/// tahu apa yang tersedia tanpa membaca dokumentasi.
 pub fn tools_schema() -> Value {
     fn tool(name: &str, desc: &str, props: Value, required: Vec<&str>) -> Value {
         json!({
@@ -409,8 +351,7 @@ pub fn tools_schema() -> Value {
                  json!({ "id": s("id command") }), vec!["id"]),
             tool("screenshot_pane", "Simpan isi buffer pane ke file teks di %TEMP% lalu kembalikan path.",
                  json!({ "paneId": s("id pane") }), vec!["paneId"]),
-            // fase 20: baca-saja, supaya AI CLI bisa melihat diagnostik & log
-            // tanpa jalur tulis baru.
+
             tool("get_problems", "Daftar diagnostik (Problems) yang sedang tampil di panel bawah.",
                  json!({ "severity": s("filter opsional: error|warning|info|hint") }), vec![]),
             tool("get_output", "Isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug).",
@@ -419,8 +360,6 @@ pub fn tools_schema() -> Value {
     })
 }
 
-/// Kirim `mcp-action` ke frontend lalu tunggu `mcp_reply` dengan reqId sama.
-/// Frontend-lah yang memegang zustand (tab editor, pane, layout).
 async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> {
     let state = app.state::<AppState>();
     let req_id = format!(
@@ -439,7 +378,6 @@ async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> 
 
     match tokio::time::timeout(UI_TIMEOUT, rx).await {
         Ok(Ok(v)) => {
-            // Frontend melaporkan error lewat { error: "..." }.
             if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
                 return Err(ZephyrError::Mcp(msg.to_string()));
             }
@@ -465,9 +403,6 @@ fn need_str(params: &Value, key: &str) -> ZResult<String> {
         .ok_or_else(|| ZephyrError::InvalidInput(format!("param '{key}' wajib ada")))
 }
 
-/// Setting yang boleh diubah lewat MCP. Sengaja SEMPIT: apa pun yang
-/// menyangkut kredensial, MCP itu sendiri, atau path tidak boleh disetel
-/// dari luar proses (nanti agent bisa mematikan auth-nya sendiri).
 const SET_WHITELIST: [&str; 10] = [
     "general.theme",
     "general.fontSize",
@@ -481,7 +416,6 @@ const SET_WHITELIST: [&str; 10] = [
     "theme.current",
 ];
 
-/// Bentuk patch bersarang dari "a.b" + nilai.
 fn nested_patch(key: &str, value: Value) -> Value {
     let mut parts: Vec<&str> = key.split('.').collect();
     let mut cur = value;
@@ -499,25 +433,20 @@ fn dotted_get(root: &Value, key: &str) -> Option<Value> {
     Some(cur.clone())
 }
 
-// ───────────────────────── dispatch method ─────────────────────────
-
 async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value> {
     let state = app.state::<AppState>();
     match method {
-        // ── discovery ──
         "tools/list" | "list_tools" => Ok(tools_schema()),
         "ping" => Ok(json!({ "pong": true })),
 
-        // ── read: state UI ──
         "list_panes" | "list_terminals" => ui_call(app, "list_panes", json!({})).await,
         "list_editors" => ui_call(app, "list_editors", json!({})).await,
         "get_window" => ui_call(app, "get_window", json!({})).await,
         "list_extensions" => ui_call(app, "list_extensions", json!({})).await,
 
-        // ── read: settings (Rust, tanpa secret) ──
         "get_settings" => {
             let mut v = crate::settings::read_settings_value(&state);
-            // Token MCP & metadata GitHub tidak ikut keluar.
+
             if let Some(m) = v.get_mut("mcp").and_then(|m| m.as_object_mut()) {
                 m.insert("token".into(), Value::String("***".into()));
             }
@@ -547,15 +476,11 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 .cloned()
                 .ok_or_else(|| ZephyrError::InvalidInput("param 'value' wajib ada".into()))?;
             crate::settings::patch_settings(app, &state, nested_patch(&key, value.clone()))?;
-            // Frontend memuat ulang supaya UI langsung ikut berubah.
+
             let _ = ui_call(app, "reload_settings", json!({})).await;
             Ok(json!({ "key": key, "value": value, "ok": true }))
         }
 
-        // ── write: terminal (jalur PTY asli di Rust) ──
-        // Serialisasi: `handle_one` sudah memegang `mcp_lock` untuk SETIAP
-        // permintaan, jadi dua `terminal_write` bersamaan diproses berurutan
-        // dan byte-nya tidak bisa saling menyelip (V dua-agent fase 15.4).
         "terminal_write" => {
             let pane = need_str(&params, "paneId")?;
             let data = params
@@ -597,7 +522,6 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             Ok(json!({ "ok": true, "paneId": pane, "key": key }))
         }
 
-        // ── write: pane & editor (butuh UI) ──
         "pane_new" => {
             let kind = params
                 .get("type")
@@ -615,7 +539,7 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             let pane = need_str(&params, "paneId")?;
             ui_call(app, "pane_close", json!({ "paneId": pane })).await
         }
-        // fase 20: baca-saja. Store-nya di frontend, jadi tetap lewat ui_call.
+
         "get_problems" => {
             ui_call(
                 app,
@@ -646,9 +570,7 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 .get("content")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| ZephyrError::InvalidInput("param 'content' wajib ada".into()))?;
-            // FASE 15.4: batas ukuran. Tanpa ini satu panggilan agent bisa
-            // mengirim buffer puluhan MB lewat IPC ke WebView dan menghabiskan
-            // memori proses render (OOM) — ditolak lebih awal, di Rust.
+
             if content.len() > MAX_EDITOR_WRITE {
                 return Err(ZephyrError::InvalidInput(format!(
                     "content {} byte melewati batas {} byte (1MB) untuk editor_write",
@@ -656,7 +578,7 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                     MAX_EDITOR_WRITE
                 )));
             }
-            // Kontrak keras: buffer saja, TIDAK menulis disk.
+
             ui_call(
                 app,
                 "editor_write",
@@ -697,8 +619,6 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
     }
 }
 
-/// Tulis ke PTY lewat registry Rust (bukan lewat UI) supaya teks benar-benar
-/// masuk ke shell walau jendela tidak fokus.
 fn pty_write_raw(state: &AppState, pane: &str, data: &str) -> ZResult<()> {
     use std::io::Write;
     state.with_pty(pane, |s| {
@@ -714,9 +634,6 @@ fn pty_write_raw(state: &AppState, pane: &str, data: &str) -> ZResult<()> {
     })
 }
 
-/// screenshot_pane v1: isi buffer terminal pane ditulis ke file di %TEMP%,
-/// agent membaca file itu. PNG asli butuh capture window (fase 16) — jangan
-/// mengaku mengembalikan PNG kalau yang ditulis teks.
 async fn screenshot(app: &AppHandle, pane: &str) -> ZResult<Value> {
     let text = ui_call(app, "pane_text", json!({ "paneId": pane })).await?;
     let body = text

@@ -1,14 +1,3 @@
-// outputStore.ts — kanal log aplikasi (fase 20).
-//
-// Buffer MELINGKAR per channel dengan cap 5000 baris. Tanpa cap, satu task
-// yang mencetak terus (mis. `npm run dev` di fase 23) akan menghabiskan RAM
-// sampai app mati — target proyek ini < 400MB.
-//
-// `lines` disimpan sebagai array string, dan `append` memecah teks masuk per
-// '\n'. Alasannya: OutputView virtualized butuh indeks baris yang stabil untuk
-// menghitung tinggi scroll; menyimpan blob lalu split saat render = O(n) tiap
-// frame.
-
 import { create } from 'zustand';
 
 export const MAX_LINES = 5000;
@@ -17,14 +6,14 @@ export interface OutputChannel {
   id: string;
   label: string;
   lines: string[];
-  /** true = ada baris baru sejak channel terakhir dilihat */
+  
   dirty: boolean;
 }
 
 interface OutputState {
   channels: OutputChannel[];
   activeChannel: string;
-  /** auto-scroll ke bawah saat baris baru masuk */
+  
   autoScroll: boolean;
   wrap: boolean;
 }
@@ -39,12 +28,11 @@ interface OutputActions {
   toggleAutoScroll: () => void;
   setWrap: (v: boolean) => void;
   toggleWrap: () => void;
-  /** daftar ringkas untuk dropdown */
+  
   list: () => { id: string; label: string; lines: number; dirty: boolean }[];
   lines: (channelId: string) => string[];
 }
 
-/** Channel bawaan. "Tasks" ditambahkan fase 23. */
 const DEFAULT_CHANNELS: OutputChannel[] = [
   { id: 'zephyr', label: 'Zephyr', lines: [], dirty: false },
   { id: 'lsp', label: 'LSP', lines: [], dirty: false },
@@ -77,8 +65,7 @@ export const useOutput = create<OutputState & OutputActions>((set, get) => ({
     set((s) => {
       const idx = s.channels.findIndex((c) => c.id === channelId);
       if (idx < 0) return {};
-      // Baris kosong di akhir (dari teks yang diakhiri '\n') dibuang supaya
-      // tidak menumpuk baris hampa setiap append.
+      
       const masuk = text.split('\n');
       if (masuk.length > 1 && masuk[masuk.length - 1] === '') masuk.pop();
       if (masuk.length === 0) return {};
@@ -125,6 +112,5 @@ export const useOutput = create<OutputState & OutputActions>((set, get) => ({
   lines: (channelId) => get().channels.find((c) => c.id === channelId)?.lines ?? [],
 }));
 
-/** Helper singkat untuk kode non-React (Rust event handler, store lain). */
 export const logOutput = (channelId: string, text: string) =>
   useOutput.getState().append(channelId, text);

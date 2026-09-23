@@ -1,14 +1,3 @@
-// rag.rs — jembatan RAG lokal (enowx-rag) ke panel AI.
-//
-// Kenapa lewat Rust, bukan fetch biasa dari webview: server enowx-rag
-// (localhost:7777) tidak mengirim header CORS, jadi fetch dari origin
-// tauri://localhost diblokir Chromium. Sama seperti browser_probe:
-// Zephyr bertanya langsung ke server lewat ureq, hasilnya dibalikin ke UI.
-//
-// Alur: panel AI mengetik pertanyaan → commands.ts memanggil rag_search →
-// Rust POST /api/search ke server RAG → chunk teratas (konten + file asal)
-// disisipkan sebagai konteks ke prompt LLM.
-
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
 
@@ -20,8 +9,6 @@ pub struct RagHit {
     pub score: f64,
 }
 
-/// Respons mentah dari enowx-rag: `{ "results": [ { "content": .., "score": ..,
-/// "meta": { "source_file": .. } }, ... ] }`. Field di luar itu diabaikan.
 #[derive(Debug, Deserialize)]
 struct RagResponse {
     #[serde(default)]
@@ -43,16 +30,6 @@ struct RagMeta {
     source_file: String,
 }
 
-/// Cari konteks RAG untuk sebuah pertanyaan.
-///
-/// `base_url`  : mis. `http://localhost:7777` (tanpa garis miring akhir).
-/// `project`   : project id di server RAG (mis. `zephyr`).
-/// `query`     : teks pertanyaan user.
-/// `k`         : jumlah chunk yang diminta.
-///
-/// Selalu `Ok` selama server menjawab; kegagalan koneksi/timeout/HTTP error
-/// dikembalikan sebagai `Err` yang bisa ditampilkan panel AI sebagai toast,
-/// supaya user tahu RAG-nya mati (bukan diam-diam dikirim tanpa konteks).
 #[tauri::command(async)]
 pub fn rag_search(
     base_url: String,
@@ -81,8 +58,6 @@ pub fn rag_search(
         "k": k,
     });
 
-    // Timeout singkat: RAG adalah pengaya, bukan penahan. Server mati / lambat
-    // tidak boleh bikin chat nunggu lama.
     let req = ureq::post(&url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(6)))

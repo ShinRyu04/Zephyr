@@ -1,9 +1,3 @@
-// EditorArea.tsx — tab bar + FindBar + editor tab aktif + empty state.
-// Halaman Settings (fase 08) menumpang area yang sama: saat settingsOpen
-// true, ia menggantikan editor supaya bisa dibuka tanpa mengganggu tab.
-// Drag-drop file dari Windows Explorer ditangani lewat event Tauri
-// (onDragDropEvent) di App.tsx, bukan di sini.
-
 import { useStore, useActiveTab } from '../../lib/store';
 import { useT } from '../../lib/i18n';
 import { useGit } from '../../lib/gitStore';
@@ -19,14 +13,6 @@ import SettingsPage from '../settings/SettingsPage';
 import DiffViewer from '../scm/DiffViewer';
 import ImagePreview, { PreviewGambar } from '../editor/ImagePreview';
 import { apakahGambar, useTampilan } from '../../lib/tampilanStore';
-
-/**
- * Muat gambar tab aktif ke store tampilan.
- *
- * KENAPA komponen kecil terpisah: `bukaGambar` adalah efek samping (baca file
- * lewat Rust), dan efek samping di dalam render EditorArea akan terpanggil
- * setiap render ulang.
- */
 
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
@@ -77,12 +63,12 @@ function EmptyState() {
 export default function EditorArea() {
   const tabs = useStore((s) => s.tabs);
   const tab = useActiveTab();
-  // Ada gambar yang harus dipratinjau (dari tab gambar atau dari store).
+
   const gambarStore = useTampilan((s) => s.gambar);
   const gambarAktif = !!gambarStore || !!(tab && apakahGambar(tab.path ?? ''));
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
-  // Diff SCM (fase 10) menumpang area yang sama seperti Settings.
+
   const hasDiff = useGit((s) => s.diff !== null);
 
   if (settingsOpen) {
@@ -144,8 +130,7 @@ export default function EditorArea() {
         {/* Gambar TIDAK dirender sebagai teks: membukanya di CodeMirror
             menampilkan biner rusak. Pratinjau menggantikannya. */}
         {gambarAktif ? (
-          // Pratinjau gambar: dipakai baik saat tab gambar dibuka maupun saat
-          // gambar dimuat langsung ke store (command / drag-drop).
+
           tab && apakahGambar(tab.path ?? '') ? (
             <PreviewGambar path={tab.path ?? ''} />
           ) : (

@@ -1,13 +1,3 @@
-// KeybindingsEditor.tsx — editor "Keyboard Shortcuts" (fase 18.4).
-//
-// Menampilkan SEMUA binding dari registry hasil merge (default ⊕ user), bisa
-// dicari, di-remap dengan merekam chord langsung, dihapus, atau direset.
-// Yang disimpan ke `keybindings.json` HANYA override user.
-//
-// Perekam chord memakai fase capture + preventDefault: kalau tidak, menekan
-// Ctrl+S saat merekam malah menyimpan file (bug yang sama dengan flag
-// `capturing` di Settings fase 08 — jangan diulang).
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useKb } from '../../lib/keybindingStore';
 import { findCommand } from '../../lib/commandRegistry';
@@ -35,9 +25,9 @@ export default function KeybindingsEditor() {
   const kbError = useKb((s) => s.kbError);
 
   const [q, setQ] = useState('');
-  /** command yang sedang merekam chord (null = tidak ada) */
+
   const [rekam, setRekam] = useState<string | null>(null);
-  /** chord yang sudah tertangkap saat merekam (untuk sequence) */
+
   const [tangkap, setTangkap] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -49,8 +39,6 @@ export default function KeybindingsEditor() {
     }
   }, [open]);
 
-  // Perekam chord. Capture + preventDefault supaya chord yang direkam tidak
-  // ikut menjalankan aksinya.
   useEffect(() => {
     if (!rekam) return;
     const onKey = (e: KeyboardEvent) => {
@@ -234,5 +222,4 @@ export default function KeybindingsEditor() {
   );
 }
 
-/** Dipakai harness: normalisasi chord dari luar komponen. */
 export { normalizeChord };

@@ -1,16 +1,3 @@
-// i18n.ts — 10 bahasa UI untuk LABEL KUNCI saja.
-//
-// Sengaja BUKAN i18n penuh: yang diterjemahkan navigasi Settings, judul
-// section, dan label kontrol utama. Teks penjelasan panjang tetap mengikuti
-// bahasa yang dipilih bila ada, kalau tidak jatuh ke Inggris lalu Indonesia.
-//
-// Aturan anti-campur: setiap bahasa WAJIB punya SEMUA kunci (dijaga test
-// `scripts/verify-i18n.mjs`). Saat runtime, `translate` jatuh berlapis:
-// bahasa aktif → Inggris → Indonesia → kunci mentah. Jadi UI tidak pernah
-// kosong dan tidak pernah campur tanpa sengaja.
-//
-// Pemakaian:  const tr = useT();  <h2>{tr('settings.general')}</h2>
-
 import { useStore } from './store';
 import { EXTRA } from './i18n-extra';
 import { EN as SRC } from './i18n-src';
@@ -18,7 +5,7 @@ import { EN as SRC } from './i18n-src';
 type Dict = Record<string, string>;
 
 const ID: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'Subagent',
   'settings.aiprompt': 'Prompt AI',
   'sub.maxParallel': 'Subagent paralel maksimum',
@@ -108,7 +95,6 @@ const ID: Dict = {
   'mcp.token': 'Token',
   'mcp.writeToCli': 'Tulis ke config CLI',
 
-
   'update.done': 'Zephyr diperbarui ke v{v}',
   'update.doneHint': 'Restart untuk memakai versi terbaru.',
   'update.whatsNew': 'Apa yang baru',
@@ -156,7 +142,7 @@ const ID: Dict = {
 };
 
 const EN: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'Subagents',
   'settings.aiprompt': 'AI Prompt',
   'sub.maxParallel': 'Maximum parallel subagents',
@@ -246,7 +232,6 @@ const EN: Dict = {
   'mcp.token': 'Token',
   'mcp.writeToCli': 'Write to CLI config',
 
-
   'update.done': 'Zephyr updated to v{v}',
   'update.doneHint': 'Restart to use the latest version.',
   'update.whatsNew': "What's new",
@@ -294,7 +279,7 @@ const EN: Dict = {
 };
 
 const JA: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'サブエージェント',
   'settings.aiprompt': 'AIプロンプト',
   'sub.maxParallel': '同時サブエージェントの上限',
@@ -423,7 +408,7 @@ const JA: Dict = {
 };
 
 const KO: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': '서브에이전트',
   'settings.aiprompt': 'AI 프롬프트',
   'sub.maxParallel': '최대 병렬 서브에이전트',
@@ -552,7 +537,7 @@ const KO: Dict = {
 };
 
 const ZH: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': '子代理',
   'settings.aiprompt': 'AI 提示词',
   'sub.maxParallel': '最大并行子代理数',
@@ -681,7 +666,7 @@ const ZH: Dict = {
 };
 
 const ES: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'Subagentes',
   'settings.aiprompt': 'Prompt de IA',
   'sub.maxParallel': 'Subagentes paralelos maximos',
@@ -810,7 +795,7 @@ const ES: Dict = {
 };
 
 const FR: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'Sous-agents',
   'settings.aiprompt': 'Prompt IA',
   'sub.maxParallel': 'Sous-agents paralleles maximum',
@@ -939,7 +924,7 @@ const FR: Dict = {
 };
 
 const DE: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'Subagenten',
   'settings.aiprompt': 'KI-Prompt',
   'sub.maxParallel': 'Maximale parallele Subagenten',
@@ -1068,7 +1053,7 @@ const DE: Dict = {
 };
 
 const PT: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'Subagentes',
   'settings.aiprompt': 'Prompt de IA',
   'sub.maxParallel': 'Subagentes paralelos maximos',
@@ -1197,7 +1182,7 @@ const PT: Dict = {
 };
 
 const AR: Dict = {
-  // ── Settings → Subagent (T3.10) ──
+
   'settings.subagent': 'الوكلاء الفرعيون',
   'settings.aiprompt': 'أمر الذكاء',
   'sub.maxParallel': 'الحد الأقصى للوكلاء الفرعيين المتوازيين',
@@ -1327,7 +1312,6 @@ const AR: Dict = {
 
 const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ar: AR };
 
-/** Bahasa yang bisa dipilih di Settings → Umum, urut tampilan. */
 export const UI_LANGS: { value: string; label: string }[] = [
   { value: 'id', label: 'Indonesia' },
   { value: 'en', label: 'English' },
@@ -1341,40 +1325,22 @@ export const UI_LANGS: { value: string; label: string }[] = [
   { value: 'ar', label: 'العربية' },
 ];
 
-/** Terjemah tanpa hook (untuk kode di luar komponen). Jatuh berlapis: aktif → Inggris → Indonesia → kunci mentah.
- *  EXTRA (i18n-extra.ts) menang atas dict inti, jadi teks yang dulu hardcoded
- *  Indonesia ikut berganti bahasa. */
 export function translate(lang: string, key: string): string {
-  // Teks sumber Indonesia (i18n-src.ts) memakai kunci = teksnya sendiri.
-  // Bahasa Indonesia = teks aslinya; bahasa lain = terjemah Inggris dari tabel.
-  // Dicek lebih dulu supaya teks Indonesia yang dulu hardcoded ikut berganti.
+
   const src = SRC[key];
   if (src) return lang === 'id' ? key : src;
   return EXTRA[lang]?.[key] ?? DICTS[lang]?.[key] ?? EXTRA.en[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
 }
 
-/** Hook: ikut berubah saat settings.general.uiLang diganti. */
 export function useT(): (key: string) => string {
   const lang = useStore((s) => s.settings.general.uiLang);
   return (key: string) => translate(lang, key);
 }
 
-/** Terjemah tanpa hook, untuk dipakai di luar komponen (helper, store, label
- *  yang dihitung saat render). Bahasa dibaca langsung dari store; App.tsx
- *  berlangganan `uiLang` supaya seluruh pohon ikut render ulang saat bahasa
- *  diganti — tanpa langganan itu teks ini tidak akan berganti sampai reload. */
 export function tx(key: string): string {
   return translate(useStore.getState().settings.general.uiLang, key);
 }
 
-/**
- * Isi placeholder `{nama}` pada hasil terjemahan.
- *
- * Dipakai string update yang punya nilai dinamis (versi, persen, pesan error):
- * `tf('update.downloading', { p: 42 })` → "Mengunduh 42%". Sengaja terpisah
- * dari translate() supaya kamus tetap berupa teks murni (mudah diterjemahkan)
- * dan pemanggil tidak perlu tahu sintaks penggantiannya.
- */
 export function tf(key: string, isi: Record<string, string | number>): string {
   let teks = tx(key);
   for (const [k, v] of Object.entries(isi)) {
@@ -1383,7 +1349,6 @@ export function tf(key: string, isi: Record<string, string | number>): string {
   return teks;
 }
 
-/** Varian hook dari `tf` — ikut render ulang saat bahasa diganti. */
 export function useTf(): (key: string, isi: Record<string, string | number>) => string {
   const tr = useT();
   return (key, isi) => {

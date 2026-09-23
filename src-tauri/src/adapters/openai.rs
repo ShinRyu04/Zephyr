@@ -1,10 +1,3 @@
-// adapters/openai.rs — format OpenAI Chat Completions (juga dipakai
-// deepseek, opencode/local loopback, dan provider custom OpenAI-compatible).
-//
-// Body : { model, messages, stream: true, max_tokens }
-// Auth : Authorization: Bearer <key>
-// Stream: SSE `data: {"choices":[{"delta":{"content":"..."}}]}`
-
 use crate::adapters::trim_base;
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ReasoningEffort, ToolCall, ToolSpec};
 use serde_json::{json, Value};
@@ -51,9 +44,6 @@ pub fn prepare(
         "max_tokens": max_tokens,
     });
 
-    // Item T1.1: reasoning_effort hanya dikirim kalau user memilih.
-    // Sebagian provider OpenAI-compatible menolak field tak dikenal (400),
-    // jadi default = tidak dikirim sama sekali.
     if let Some(e) = effort {
         body["reasoning_effort"] = json!(e.openai());
     }
@@ -71,21 +61,12 @@ pub fn prepare(
 }
 
 pub fn extract_delta(v: &Value) -> Option<String> {
-    // delta.content = potongan streaming; message.content = jawaban non-stream
-    // (beberapa gateway OpenAI-compatible mengabaikan stream:true).
     v.pointer("/choices/0/delta/content")
         .or_else(|| v.pointer("/choices/0/message/content"))
         .and_then(|x| x.as_str())
         .map(|s| s.to_string())
 }
 
-/// T1.1: potongan teks PENALARAN (bukan jawaban). Dipisah dari `extract_delta`
-/// supaya UI bisa menaruhnya di blok "Reasoned" yang bisa dilipat.
-///
-/// Nama field berbeda antar penyedia OpenAI-compatible:
-///   * `reasoning_content`  — DeepSeek, banyak gateway (termasuk modelrouter)
-///   * `reasoning`          — OpenRouter & sebagian gateway
-///   * `reasoning_text`     — OpenAI Responses-style
 pub fn extract_reasoning(v: &Value) -> Option<String> {
     for jalur in [
         "/choices/0/delta/reasoning_content",
@@ -102,7 +83,6 @@ pub fn extract_reasoning(v: &Value) -> Option<String> {
     None
 }
 
-/// Request non-streaming + tools (mode agent).
 pub fn prepare_tools(
     provider: &str,
     model: &str,
@@ -174,7 +154,6 @@ pub fn prepare_tools(
     prep
 }
 
-/// Parse jawaban non-streaming OpenAI (choices[0].message).
 pub fn parse_tool_response(v: &Value) -> AiToolResult {
     let msg = v.pointer("/choices/0/message");
     let content = msg
@@ -215,17 +194,10 @@ pub fn parse_tool_response(v: &Value) -> AiToolResult {
     }
 }
 
-/// Akumulator stream untuk mode agent (item 21).
-///
-/// Teks datang per potongan seperti biasa; panggilan tool datang BERSERKAT:
-/// `delta.tool_calls[]` hanya memuat `index` + nama di paket pertama, lalu
-/// `arguments` menempel sepotong-sepotong sebagai string JSON yang belum
-/// tentu valid sampai paket terakhir. Karena itu argumen dikumpulkan dulu
-/// per indeks, baru di-parse di `finish()`.
 #[derive(Default)]
 pub struct ToolAcc {
     text: String,
-    calls: Vec<(String, String, String)>, // (id, name, arguments)
+    calls: Vec<(String, String, String)>,
 }
 
 impl ToolAcc {
@@ -276,7 +248,6 @@ impl ToolAcc {
             .filter(|(_, name, _)| !name.is_empty())
             .enumerate()
             .map(|(i, (id, name, args))| ToolCall {
-                // Sebagian gateway tidak mengirim id di stream — sintetis.
                 id: if id.is_empty() {
                     format!("{name}-{i}")
                 } else {

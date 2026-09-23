@@ -1,18 +1,8 @@
-// tests_git.rs — unit test Source Control (fase 10) yang bisa jalan tanpa
-// jaringan dan tanpa repo git.
-//
-// Yang diuji: parsing `git status --porcelain=v2 -z` (tiga bentuk record:
-// ordinary, rename, unmerged, untracked), penyaringan kredensial dari pesan
-// error, dan kontrak credential helper (V12 versi offline).
-// Alur end-to-end (stage/commit/branch/push) dibuktikan `npm run verify:10`
-// di repo nyata.
-
 #[cfg(test)]
 mod tests {
     use crate::credential;
     use crate::git::{parse_status_v2, scrub_url_credentials};
 
-    /// Bentuk record porcelain v2 dipisah NUL, seperti yang git kirim.
     fn rec(parts: &[&str]) -> String {
         parts.join("\0")
     }
@@ -36,8 +26,6 @@ mod tests {
 
     #[test]
     fn status_modified_di_worktree_dan_index() {
-        // "1 .M" = modified di worktree saja; "1 M." = staged saja;
-        // "1 MM" = keduanya (harus muncul di dua grup).
         let raw = rec(&[
             "# branch.head main",
             "1 .M N... 100644 100644 100644 aaa bbb src/a.ts",
@@ -84,8 +72,6 @@ mod tests {
 
     #[test]
     fn status_rename_membawa_path_lama() {
-        // Record rename: path baru di field terakhir, path lama di record
-        // BERIKUTNYA (dipisah NUL) — mudah salah kalau di-split per baris.
         let raw = rec(&[
             "# branch.head main",
             "2 R. N... 100644 100644 100644 aaa bbb R100 src/new.ts",
@@ -129,8 +115,6 @@ mod tests {
         assert_eq!(scrub_url_credentials(s), s);
     }
 
-    /// V12 (bagian offline): helper hanya menjawab untuk github.com, dan
-    /// store/erase tidak melakukan apa pun.
     #[test]
     fn credential_helper_hanya_github_dan_get() {
         let github = vec![
@@ -142,15 +126,11 @@ mod tests {
             ("host".to_string(), "example.com".to_string()),
         ];
 
-        // Host lain: WAJIB kosong (GCM user yang menangani).
         assert_eq!(credential::respond("get", &lain), "");
-        // store/erase: NO-OP untuk host apa pun.
+
         assert_eq!(credential::respond("store", &github), "");
         assert_eq!(credential::respond("erase", &github), "");
 
-        // Untuk github.com hasilnya bergantung ada/tidaknya token tersimpan.
-        // Yang dijamin di sini: kalau menjawab, formatnya benar dan tidak
-        // pernah bocor ke host lain.
         let out = credential::respond("get", &github);
         if !out.is_empty() {
             assert!(out.contains("username="), "format salah: {out}");

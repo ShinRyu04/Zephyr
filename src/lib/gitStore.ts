@@ -1,15 +1,3 @@
-// gitStore.ts — state Source Control (fase 10).
-//
-// Dipisah dari store utama seperti explorerStore/terminalStore: panel SCM
-// sering refresh (setiap simpan file / operasi git) dan tidak boleh memicu
-// render editor atau terminal.
-//
-// Yang dipegang di sini: status repo (branch/ahead/behind/changes), daftar
-// branch, log, diff yang sedang dibuka, status login GitHub, dan dialog
-// konfirmasi khusus SCM (discard / delete branch / push upstream).
-//
-// Token GitHub TIDAK ADA di store ini — hanya metadata dari `gh_status`.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
@@ -23,7 +11,6 @@ import type {
   GitStatusResult,
 } from './types';
 
-/** Dialog konfirmasi khusus SCM (bahaya / butuh keputusan). */
 export type ScmConfirm =
   | { kind: 'discard'; paths: string[] }
   | { kind: 'discard-all'; paths: string[] }
@@ -36,13 +23,7 @@ export interface DiffView {
   path: string;
   staged: boolean;
   text: string;
-  /**
-   * Asal diff. `history` (fase 26) berarti isinya BUKAN dari `git diff`, jadi
-   * `refresh()` tidak boleh membuangnya: diff riwayat memakai label seperti
-   * "catatan.txt (riwayat 2 jam lalu)" yang memang tidak pernah muncul di
-   * `status.changes`, dan tanpa penanda ini setiap refresh git (yang jalan
-   * tiap kali file disimpan) langsung menutup diff yang baru dibuka user.
-   */
+  
   source?: 'git' | 'history';
 }
 
@@ -50,33 +31,30 @@ interface GitState {
   status: GitStatusResult | null;
   branches: GitBranches | null;
   log: GitCommitInfo[];
-  /** diff yang sedang dibuka di panel */
+  
   diff: DiffView | null;
-  /** pesan commit (draft) */
+  
   message: string;
-  /** operasi jaringan/berat sedang jalan → spinner + tombol disabled */
+  
   busy: boolean;
-  /** nama operasi terakhir yang sedang berjalan, untuk tooltip */
+  
   busyLabel: string;
-  /** fase 14.4: fase terakhir dari event `git-progress` (start/done/error).
-   *  Datang dari Rust, jadi UI tahu operasi jaringan benar-benar sudah mulai
-   *  — bukan menebak dari `busy` yang diset frontend sendiri. */
+  
   progress: GitProgress | null;
   scmError: string | null;
   scmInfo: string | null;
   confirm: ScmConfirm | null;
-  /** dropdown branch switcher terbuka */
+  
   branchMenuOpen: boolean;
-  /** dialog "New Branch" */
+  
   newBranchOpen: boolean;
 
-  // ── GitHub ──
   gh: GhStatus | null;
   ghTest: GhTestResult | null;
-  /** device flow sedang berjalan: kode yang harus dimasukkan user */
+  
   ghDevice: { userCode: string; verificationUri: string } | null;
   ghMessage: string | null;
-  /** form "Use a token" terbuka */
+  
   patFormOpen: boolean;
 }
 
@@ -84,7 +62,7 @@ interface GitActions {
   refresh: () => Promise<void>;
   refreshAll: () => Promise<void>;
   setMessage: (m: string) => void;
-  /** fase 14.4: dipanggil listener `git-progress` di App.tsx. */
+  
   setProgress: (p: GitProgress | null) => void;
   setError: (m: string | null) => void;
   setInfo: (m: string | null) => void;
@@ -109,10 +87,8 @@ interface GitActions {
   createBranch: (name: string) => Promise<void>;
   deleteBranch: (name: string) => Promise<void>;
 
-  /** Jalankan aksi yang sudah dikonfirmasi user. */
   resolveConfirm: () => Promise<void>;
 
-  // ── GitHub ──
   loadGh: () => Promise<void>;
   savePat: (token: string) => Promise<boolean>;
   loginDevice: () => Promise<void>;
@@ -121,7 +97,6 @@ interface GitActions {
   setClientId: (id: string) => Promise<void>;
   onGhLogin: (e: { state: string; message?: string }) => void;
 
-  // selector bantu
   staged: () => GitChange[];
   unstaged: () => GitChange[];
 }
@@ -158,17 +133,11 @@ export const useGit = create<GitStore>((set, get) => ({
   setNewBranchOpen: (v) => set({ newBranchOpen: v }),
   setPatFormOpen: (v) => set({ patFormOpen: v, ghMessage: null }),
 
-  /** Status saja — dipanggil sering (setelah simpan file, fs-changed).
-   *  TIDAK menghapus `scmError`: pull yang gagal memanggil refresh setelahnya,
-   *  dan kalau refresh mengosongkan error, pesan konflik lenyap sebelum user
-   *  melihatnya. Error dibersihkan di awal setiap operasi, bukan di sini. */
   refresh: async () => {
     try {
       const status = await cmd.gitStatus();
       set({ status });
-      // Diff yang terbuka bisa jadi basi setelah stage/commit.
-      // Diff dari Local History (fase 26) DIKECUALIKAN: pathnya label riwayat,
-      // bukan path yang pernah ada di status.changes.
+      
       const d = get().diff;
       if (d && d.source !== 'history' && status.isRepo) {
         const still = status.changes.some((c) => c.path === d.path);
@@ -179,7 +148,6 @@ export const useGit = create<GitStore>((set, get) => ({
     }
   },
 
-  /** Status + branch + log (setelah operasi yang mengubah riwayat). */
   refreshAll: async () => {
     await get().refresh();
     if (!get().status?.isRepo) {
@@ -258,10 +226,7 @@ export const useGit = create<GitStore>((set, get) => ({
   closeDiff: () => set({ diff: null }),
 
   push: async (setUpstream) => {
-    // fase 15.3: remote sudah punya commit yang belum kita punya → push pasti
-    // ditolak git (non-fast-forward). Tanya dulu alih-alih membiarkan user
-    // menebak dari pesan git. `pullBeforePush` = setting yang menentukan
-    // apakah kita menawarkan pull otomatis atau langsung menolak.
+    
     const st = get().status;
     if (!setUpstream && st?.isRepo && st.behind > 0) {
       if (useStore.getState().settings.git.pullBeforePush) {
@@ -293,7 +258,7 @@ export const useGit = create<GitStore>((set, get) => ({
       await get().refreshAll();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
-      // Konflik: statusnya tetap harus tampil supaya file bisa dibuka.
+      
       await get().refreshAll();
     } finally {
       set({ busy: false, busyLabel: '' });
@@ -312,7 +277,6 @@ export const useGit = create<GitStore>((set, get) => ({
     }
   },
 
-  /** Sync = pull lalu push. Tanpa upstream → tanya dulu (dialog). */
   sync: async () => {
     const st = get().status;
     if (!st?.isRepo) return;
@@ -335,7 +299,7 @@ export const useGit = create<GitStore>((set, get) => ({
       await cmd.gitCheckout(branch);
       set({ scmInfo: `Pindah ke ${branch}` });
       await get().refreshAll();
-      // Tab yang terbuka bisa berubah isinya setelah ganti branch.
+      
       await reloadOpenTabs();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -401,7 +365,7 @@ export const useGit = create<GitStore>((set, get) => ({
       case 'set-upstream':
         await get().push(true);
         break;
-      // fase 15.3: "pull dulu" → pull, lalu lanjut push kalau tidak konflik.
+      
       case 'pull-first':
         await get().pull(false);
         if (get().scmError) return;
@@ -409,8 +373,6 @@ export const useGit = create<GitStore>((set, get) => ({
         break;
     }
   },
-
-  // ───────────────────────── GitHub ─────────────────────────
 
   loadGh: async () => {
     try {
@@ -495,7 +457,6 @@ export const useGit = create<GitStore>((set, get) => ({
   unstaged: () => (get().status?.changes ?? []).filter((c) => !c.staged),
 }));
 
-/** Ambil baris paling berguna dari output git push/pull. */
 function ringkas(out: string): string {
   const lines = out
     .split(/\r?\n/)
@@ -507,7 +468,6 @@ function ringkas(out: string): string {
   return penting ?? lines[lines.length - 1] ?? '';
 }
 
-/** Muat ulang isi tab yang terbuka dari disk (setelah checkout/discard). */
 async function reloadOpenTabs() {
   const s = useStore.getState();
   for (const t of s.tabs) {

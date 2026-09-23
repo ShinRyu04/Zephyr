@@ -1,17 +1,3 @@
-// cron.rs — tugas terjadwal untuk agent Zephyr (1.1.11).
-//
-// Bentuknya sengaja paling sederhana yang masih berguna: satu file JSON
-// berisi daftar tugas, plus satu timer latar yang memeriksa tiap 30 detik
-// apakah ada yang jatuh tempo. TIDAK memakai cron expression penuh —
-// agent (dan user) menulis jadwal sebagai interval menit atau jam harian,
-// dan itu menutup hampir semua kebutuhan nyata ("cek build tiap 30 menit",
-// "rangkum git log tiap hari jam 8") tanpa membuat agent salah menulis
-// `*/15 3 * * 1-5`.
-//
-// Tugas TIDAK menjalankan shell sendiri. Ia menulis ke antrean, dan UI/AI
-// yang menjalankannya — supaya tidak ada eksekusi perintah diam-diam dari
-// file JSON yang bisa disunting siapa pun.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
@@ -20,28 +6,24 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager, State};
 
-/// Batas jumlah tugas — timer memeriksa semuanya tiap 30 detik, dan file
-/// ini juga tampil di UI; ratusan entri tidak masuk akal untuk editor.
 pub const MAX_JOBS: usize = 50;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CronJob {
     pub id: String,
     pub name: String,
-    /// Perintah yang dijalankan saat jatuh tempo.
+
     pub command: String,
-    /// Interval dalam menit. 0 = pakai `at_hour` (harian).
+
     pub every_minutes: u64,
-    /// Jam harian 0–23. Dipakai hanya bila `every_minutes` == 0.
+
     pub at_hour: Option<u32>,
     pub enabled: bool,
-    /// Unix epoch detik kapan terakhir dijalankan.
+
     pub last_run: Option<u64>,
 }
 
 impl CronJob {
-    /// Epoch detik kapan tugas ini berikutnya jatuh tempo.
-    /// None = tidak akan pernah (nonaktif atau jadwal tidak valid).
     pub fn jatuh_tempo(&self) -> Option<u64> {
         if !self.enabled {
             return None;
@@ -53,24 +35,21 @@ impl CronJob {
         if jam > 23 {
             return None;
         }
-        // Harian: pakai zona waktu LOKAL. Menghitung dari epoch (UTC) akan
-        // membuat "jam 8" milik user bergeser 7 jam di WIB.
+
         use chrono::{Datelike, Local, TimeZone, Timelike};
         let now = Local::now();
         let mut target = match now.date_naive().and_hms_opt(jam, 0, 0) {
             Some(naive) => match Local.from_local_datetime(&naive).single() {
                 Some(dt) => dt,
-                // Waktu lokal tidak tunggal (pergantian DST) — lewati hari ini.
+
                 None => return Some(epoch_sekarang() + 86_400),
             },
             None => return None,
         };
         let terakhir = self.last_run.unwrap_or(0) as i64;
         if terakhir >= target.timestamp() {
-            // Sudah jalan hari ini → besok.
             target += chrono::Duration::days(1);
         } else if now >= target {
-            // Jamnya sudah lewat dan belum jalan hari ini → jalankan sekarang.
             return Some(epoch_sekarang());
         }
         let _ = now.year();
@@ -89,9 +68,6 @@ fn file_cron(state: &AppState) -> PathBuf {
     state.data_dir.join("cron.json")
 }
 
-/// Baca daftar tugas. File rusak BUKAN alasan mematikan app — kalau JSON
-/// tidak bisa diparse, mulai dari daftar kosong dan biarkan file lama utuh
-/// sampai ada penulisan berikutnya (lebih baik daripada menghapus data user).
 pub fn muat(state: &AppState) -> Vec<CronJob> {
     let p = file_cron(state);
     match std::fs::read_to_string(&p) {
@@ -111,16 +87,12 @@ fn simpan(state: &AppState, daftar: &[CronJob]) -> ZResult<()> {
     Ok(())
 }
 
-/// Id pendek yang cukup unik untuk daftar maksimal 50 entri.
 fn id_baru() -> String {
     let n = epoch_sekarang();
     let jitter = std::process::id() as u64 % 1000;
     format!("job-{n}-{jitter}")
 }
 
-/// Validasi jadwal. Menolak jadwal yang tidak akan pernah jatuh tempo
-/// (mis. every_minutes=0 tanpa at_hour) — kalau diterima, tugas itu jadi
-/// zombie yang tampak aktif di UI tapi tidak pernah jalan.
 fn validasi_jadwal(every_minutes: u64, at_hour: Option<u32>) -> ZResult<()> {
     if every_minutes > 0 {
         return Ok(());
@@ -136,7 +108,6 @@ fn validasi_jadwal(every_minutes: u64, at_hour: Option<u32>) -> ZResult<()> {
     }
 }
 
-/// Tambah tugas baru. `command` tidak dijalankan di sini — hanya disimpan.
 pub fn tambah(
     state: &AppState,
     name: &str,
@@ -198,8 +169,6 @@ pub fn set_aktif(state: &AppState, id: &str, aktif: bool) -> ZResult<()> {
     simpan(state, &daftar)
 }
 
-/// Tandai sudah dijalankan. Dipanggil UI setelah perintahnya benar-benar
-/// dijalankan — kalau gagal, jangan dipanggil, supaya tugas dicoba lagi.
 pub fn tandai_jalan(state: &AppState, id: &str) -> ZResult<()> {
     let mut daftar = muat(state);
     for j in daftar.iter_mut() {
@@ -210,7 +179,6 @@ pub fn tandai_jalan(state: &AppState, id: &str) -> ZResult<()> {
     simpan(state, &daftar)
 }
 
-/// Tugas yang sudah jatuh tempo saat ini.
 pub fn jatuh_tempo(state: &AppState) -> Vec<CronJob> {
     let now = epoch_sekarang();
     muat(state)
@@ -219,12 +187,6 @@ pub fn jatuh_tempo(state: &AppState) -> Vec<CronJob> {
         .collect()
 }
 
-/// Runtime timer: memeriksa jatuh tempo tiap 30 detik dan mengirim event
-/// `cron-due` ke frontend. Frontend yang menjalankan perintahnya, karena
-/// eksekusi shell sudah punya jalur dan izin sendiri di sana.
-///
-/// Guard modul (seperti `pty-output`/`ai-chunk`): StrictMode dev memasang
-/// listener dua kali, dan tanpa guard tugas yang sama akan dijalankan dua kali.
 static TIMER_MULAI: Mutex<bool> = Mutex::new(false);
 
 pub fn mulai_timer(app: tauri::AppHandle) {
@@ -246,15 +208,11 @@ pub fn mulai_timer(app: tauri::AppHandle) {
         };
         let due = jatuh_tempo(&state);
         for job in due {
-            // Tandai DULU supaya timer tidak mengirim event yang sama lagi
-            // di putaran berikutnya walau frontend lambat memproses.
             let _ = tandai_jalan(&state, &job.id);
             let _ = app.emit("cron-due", &job);
         }
     });
 }
-
-// ───────────────────────── commands ─────────────────────────
 
 #[tauri::command]
 pub fn cron_list(state: State<AppState>) -> ZResult<Vec<CronJob>> {
@@ -319,7 +277,7 @@ mod tests {
     fn interval_dihitung_dari_jalan_terakhir() {
         let now = epoch_sekarang();
         let j = job(10, None, Some(now - 600));
-        // Sudah 10 menit sejak jalan terakhir → tepat jatuh tempo.
+
         let t = j.jatuh_tempo().unwrap();
         assert!(t <= now + 1);
     }

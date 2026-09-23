@@ -1,36 +1,3 @@
-// dap.rs — klien Debug Adapter Protocol (fase 22).
-//
-// ARSITEKTUR (brief fase 22)
-//
-// 1. Klien DAP di RUST. Adapter di-spawn sebagai proses; framing-nya SAMA
-//    dengan LSP (`Content-Length: N\r\n\r\n{json}`), jadi pola thread-reader
-//    + pending-map dari lsp.rs dipakai ulang di sini.
-//
-// 2. Dua bentuk transport, karena adapter nyata memakai keduanya:
-//      * STDIO  — adapter menerima JSON di stdin (debugpy `--adapter`,
-//                 beberapa adapter Go).
-//      * TCP    — adapter adalah SERVER yang mendengar di port
-//                 (js-debug `dapDebugServer.js <port>`). Ini yang dipakai
-//                 adapter Node resmi Microsoft, jadi tidak bisa dilewati.
-//    Enum `Transport` menyembunyikan bedanya dari sisa modul.
-//
-// 3. Reverse request `startDebugging` (js-debug memakainya untuk setiap
-//    child session) TIDAK diteruskan sebagai sesi baru di v1 — dibalas
-//    sukses supaya adapter tidak menggantung, dan dicatat ke Output.
-//    Multi-sesi ada di daftar "nanti", brief menyebut satu sesi aktif.
-//
-// 4. Satu sesi aktif (`DapRuntime.sesi`), sesuai brief. Semua command
-//    bekerja pada sesi itu; tidak ada id sesi di API supaya frontend tidak
-//    perlu mengurus siklus hidup yang belum ada.
-//
-// 5. Event DAP diteruskan mentah ke frontend lewat `dap-event`; yang
-//    menerjemahkannya jadi UI (call stack, variables) adalah debugStore.
-//    Rust tidak menyimpan model UI — kalau tidak, ada dua sumber kebenaran.
-//
-// Doc yang dipakai: context7 /websites/microsoft_github_io_debug-adapter-protocol
-// (initialize → initialized event → setBreakpoints → configurationDone →
-// launch; stopped event; threads → stackTrace → scopes → variables).
-
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -45,20 +12,10 @@ use tauri::{AppHandle, Emitter, State};
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 
-/// Batas waktu satu request DAP. Launch pada proyek besar bisa lambat.
 const REQ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 
-/// Batas waktu menunggu adapter TCP siap menerima koneksi.
 const TCP_TUNGGU: std::time::Duration = std::time::Duration::from_secs(12);
 
-// ───────────────────────── konfigurasi launch.json ─────────────────────────
-
-/// Satu konfigurasi dari launch.json.
-///
-/// Field yang tidak dikenal DISIMPAN di `extra` dan dikirim apa adanya ke
-/// adapter: setiap adapter punya opsinya sendiri (`skipFiles`, `console`,
-/// `justMyCode`, …) dan mengetatkan skema di sini berarti memutus fitur
-/// adapter yang belum kita ketahui.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugConfig {
@@ -85,33 +42,13 @@ fn req_launch() -> String {
     "launch".to_string()
 }
 
-/// Ganti variabel gaya VS Code di seluruh string konfigurasi.
-///
-/// WAJIB ADA, bukan kemewahan: launch.json nyata hampir selalu memakai
-/// `${workspaceFolder}`. Tanpa ekspansi, `cwd` menjadi literal
-/// `"${workspaceFolder}"` dan spawn adapter gagal dengan
-/// `os error 267 (The directory name is invalid)` — sudah terbukti dari harness.
-///
-/// Variabel yang didukung (subset VS Code yang benar-benar terpakai):
-///   ${workspaceFolder}          folder workspace
-///   ${workspaceFolderBasename}  nama folder saja
-///   ${file}                     file aktif di editor
-///   ${fileDirname}              folder file aktif
-///   ${fileBasename}             nama file aktif
-///   ${fileBasenameNoExtension}  nama file tanpa ekstensi
-///   ${env:NAMA}                 variabel lingkungan
-///   ${cwd}                      folder kerja proses
-///
-/// Yang TIDAK didukung sengaja dibiarkan apa adanya (bukan dikosongkan):
-/// mengganti variabel tak dikenal dengan string kosong menghasilkan path
-/// rusak yang sulit dilacak; membiarkannya membuat pesan errornya jelas.
 pub fn ekspansi_var(teks: &str, ws: Option<&std::path::Path>, file_aktif: Option<&str>) -> String {
     let mut out = teks.to_string();
 
     if let Some(w) = ws {
         let ws_str = w.to_string_lossy().to_string();
         out = out.replace("${workspaceFolder}", &ws_str);
-        // Alias lama VS Code, masih dipakai di banyak launch.json.
+
         out = out.replace("${workspaceRoot}", &ws_str);
         let base = w
             .file_name()
@@ -138,7 +75,6 @@ pub fn ekspansi_var(teks: &str, ws: Option<&std::path::Path>, file_aktif: Option
         out = out.replace("${cwd}", &cwd.to_string_lossy());
     }
 
-    // ${env:NAMA}
     while let Some(i) = out.find("${env:") {
         let Some(j) = out[i..].find('}') else { break };
         let nama = &out[i + 6..i + j];
@@ -149,15 +85,13 @@ pub fn ekspansi_var(teks: &str, ws: Option<&std::path::Path>, file_aktif: Option
     out
 }
 
-/// Isi launch.json yang sudah divalidasi.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchFile {
-    /// jalur file yang benar-benar dibaca ('' = tidak ada)
     pub path: String,
     pub version: String,
     pub configurations: Vec<DebugConfig>,
-    /// entri yang ditolak beserta alasannya — tampil di UI, bukan didiamkan
+
     pub invalid: Vec<InvalidEntry>,
 }
 
@@ -169,9 +103,6 @@ pub struct InvalidEntry {
     pub reason: String,
 }
 
-/// Baca launch.json dari `.zephyr/` ATAU `.vscode/` (brief: baca keduanya).
-///
-/// `.zephyr/` menang bila ada dua: itu folder milik editor ini.
 #[tauri::command(async)]
 pub fn dap_load(state: State<AppState>) -> ZResult<LaunchFile> {
     let ws = state
@@ -193,7 +124,6 @@ pub fn dap_load(state: State<AppState>) -> ZResult<LaunchFile> {
     parse_launch(&teks, &p.to_string_lossy())
 }
 
-/// Parse launch.json (JSONC — komentar diizinkan, seperti tasks.json fase 23).
 pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
     let bersih = crate::tasks::buang_komentar(teks);
     let v: Value = serde_json::from_str(&bersih)
@@ -220,8 +150,7 @@ pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
-        // `name` dan `type` wajib: tanpa keduanya konfigurasi tidak bisa
-        // ditampilkan di dropdown maupun dipetakan ke adapter.
+
         if nama.trim().is_empty() {
             invalid.push(InvalidEntry {
                 index: i,
@@ -274,27 +203,22 @@ pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
     })
 }
 
-// ───────────────────────── resolver adapter ─────────────────────────
-
-/// Cara menjalankan sebuah debug adapter.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdapterSpec {
     pub id: String,
-    /// perintah + argumen; elemen pertama = executable
+
     pub cmd: Vec<String>,
-    /// true = adapter mendengar di TCP (port disisipkan ke argumen)
+
     pub tcp: bool,
-    /// pesan install bila adapter tidak ada ('' = ada)
+
     pub missing: String,
 }
 
 fn dap_dir(state: &AppState) -> PathBuf {
-    // `data_dir` adalah FIELD, bukan method (pola sama history.rs:100).
     state.data_dir.join("dap")
 }
 
-/// Adapter Node: js-debug `dapDebugServer.js` (TCP).
 fn spec_node(state: &AppState) -> AdapterSpec {
     let entry = dap_dir(state)
         .join("js-debug")
@@ -303,11 +227,7 @@ fn spec_node(state: &AppState) -> AdapterSpec {
     let ada = entry.is_file();
     AdapterSpec {
         id: "node".into(),
-        cmd: vec![
-            "node".into(),
-            entry.to_string_lossy().to_string(),
-            // port diisi saat spawn
-        ],
+        cmd: vec!["node".into(), entry.to_string_lossy().to_string()],
         tcp: true,
         missing: if ada {
             String::new()
@@ -320,11 +240,6 @@ fn spec_node(state: &AppState) -> AdapterSpec {
     }
 }
 
-/// Adapter Python: debugpy dari interpreter user (stdio).
-///
-/// TIDAK diunduh sebagai file lepas — debugpy adalah paket Python yang harus
-/// masuk ke interpreter yang dipakai user. Kalau belum ada, pesan install yang
-/// jelas, bukan crash (brief V5).
 fn spec_python(state: &AppState) -> AdapterSpec {
     let py = cari_python(state);
     let ada_debugpy = py
@@ -373,12 +288,8 @@ fn cari_python(_state: &AppState) -> Option<PathBuf> {
     None
 }
 
-/// Spec untuk sebuah `type` di launch.json.
 pub fn spec_untuk(state: &AppState, tipe: &str) -> ZResult<AdapterSpec> {
     match tipe {
-        // pwa-node/node-terminal adalah alias js-debug yang dipakai luas di
-        // launch.json nyata; memetakannya ke adapter yang sama menghindari
-        // "type tidak didukung" pada file yang sebenarnya valid.
         "node" | "pwa-node" | "node-terminal" | "pwa-chrome" => Ok(spec_node(state)),
         "python" | "debugpy" => Ok(spec_python(state)),
         lain => Err(ZephyrError::InvalidInput(format!(
@@ -387,17 +298,6 @@ pub fn spec_untuk(state: &AppState, tipe: &str) -> ZResult<AdapterSpec> {
     }
 }
 
-/// `type` yang dikirim di argumen `launch`/`attach` ke adapter.
-///
-/// TIDAK selalu sama dengan `type` di launch.json.
-///
-/// js-debug MENOLAK `type: "node"` dengan `Error: Unknown config` dan hanya
-/// menerima nama internalnya (`pwa-node`). Terbukti dari uji protokol langsung
-/// ke `dapDebugServer.js`: dengan `"node"` tidak ada response `launch` sama
-/// sekali (klien timeout), dengan `"pwa-node"` sesi berjalan normal.
-///
-/// VS Code melakukan pemetaan yang sama di baliknya — `"node"` di launch.json
-/// user tetap menjadi `pwa-node` saat sampai ke adapter.
 pub fn tipe_untuk_adapter(tipe: &str) -> &str {
     match tipe {
         "node" => "pwa-node",
@@ -407,13 +307,10 @@ pub fn tipe_untuk_adapter(tipe: &str) -> &str {
     }
 }
 
-/// Info adapter untuk UI (tersedia / pesan install).
 #[tauri::command(async)]
 pub fn dap_adapters(state: State<AppState>) -> ZResult<Vec<AdapterSpec>> {
     Ok(vec![spec_node(&state), spec_python(&state)])
 }
-
-// ───────────────────────── transport ─────────────────────────
 
 enum Tulis {
     Stdin(std::process::ChildStdin),
@@ -449,8 +346,6 @@ impl Read for Baca {
     }
 }
 
-// ───────────────────────── framing ─────────────────────────
-
 fn write_msg(sesi: &Sesi, msg: &Value) -> ZResult<()> {
     let body = serde_json::to_vec(msg)
         .map_err(|e| ZephyrError::Internal(format!("serialisasi dap gagal: {e}")))?;
@@ -467,7 +362,6 @@ fn write_msg(sesi: &Sesi, msg: &Value) -> ZResult<()> {
     Ok(())
 }
 
-/// Baca satu frame DAP. `None` = stream tertutup.
 fn read_frame(r: &mut BufReader<Baca>) -> Option<Value> {
     let mut len: Option<usize> = None;
     loop {
@@ -491,26 +385,23 @@ fn read_frame(r: &mut BufReader<Baca>) -> Option<Value> {
     serde_json::from_slice(&buf).ok()
 }
 
-// ───────────────────────── sesi ─────────────────────────
-
 pub struct Sesi {
     pub config_name: String,
     pub tipe: String,
     pub adapter_id: String,
     pub pid: u32,
-    /// `None` untuk sesi ANAK: ia hanya koneksi TCP tambahan ke adapter yang
-    /// sama, bukan proses sendiri.
+
     child: Mutex<Option<std::process::Child>>,
     tulis: Mutex<Tulis>,
     next_seq: AtomicI64,
     pending: Mutex<HashMap<i64, std::sync::mpsc::Sender<Result<Value, String>>>>,
-    /// kapabilitas dari response `initialize`
+
     pub caps: RwLock<Value>,
-    /// true setelah event `initialized` diterima
+
     pub siap: Arc<AtomicBool>,
-    /// true setelah `terminated`/`exited`
+
     pub berakhir: Arc<AtomicBool>,
-    /// true = sesi induk (koordinator js-debug), false = sesi anak
+
     pub induk: bool,
 }
 
@@ -519,21 +410,14 @@ pub struct DapRuntime {
     _marker: (),
 }
 
-/// State sesi hidup di GLOBAL, bukan di dalam `DapRuntime`.
-///
-/// Alasannya bukan kemalasan: thread pembaca frame harus bisa MEMBUAT sesi anak
-/// (lihat `Kembar` di bawah), dan `tauri::State` hanya bisa dipinjam di dalam
-/// command — tidak bisa dibawa ke thread yang hidup lebih lama. lsp.rs sudah
-/// memakai pola yang sama (`registry()` global) untuk alasan identik.
 #[derive(Default)]
 struct Kembar {
-    /// sesi INDUK: yang menerima `launch` pertama dari kita
     induk: Mutex<Option<Arc<Sesi>>>,
-    /// sesi ANAK: yang benar-benar memegang debuggee (lihat catatan di bawah)
+
     anak: Mutex<Option<Arc<Sesi>>>,
-    /// port TCP adapter — sesi anak menyambung ke port yang SAMA
+
     port: Mutex<Option<u16>>,
-    /// breakpoint terakhir yang dikirim, dipasang ulang di sesi anak
+
     bp: Mutex<Vec<SumberBreakpoint>>,
 }
 
@@ -542,23 +426,6 @@ fn kembar() -> &'static Kembar {
     K.get_or_init(Kembar::default)
 }
 
-/// Sesi yang menerima perintah eksekusi (stack, variables, step, evaluate).
-///
-/// ═══ CATATAN PALING PENTING FASE 22 ═══
-///
-/// js-debug memakai model DUA SESI. Sesi yang menerima `launch` dari kita
-/// hanyalah KOORDINATOR: ia menjalankan `node program.js`, lalu mengirim
-/// reverse request `startDebugging` dan menunggu klien MEMBUAT KONEKSI BARU
-/// untuk sesi anak. Debuggee sesungguhnya — thread, breakpoint yang benar-benar
-/// kena, call stack, scope — semuanya ada di sesi ANAK.
-///
-/// Terbukti dari uji protokol langsung: dengan satu koneksi, `launch` sukses
-/// tapi TIDAK ADA event `stopped` sama sekali walau breakpoint terpasang.
-/// Setelah koneksi kedua dibuat dan diberi `launch` dengan konfigurasi dari
-/// reverse request (yang memuat `__pendingTargetId`), event `stopped` dengan
-/// `reason: "breakpoint"` langsung datang.
-///
-/// Karena itu semua command kontrol menyasar sesi anak bila ada.
 fn sesi_aktif(_rt: &DapRuntime) -> ZResult<Arc<Sesi>> {
     let k = kembar();
     if let Some(a) = k.anak.lock().ok().and_then(|g| g.clone()) {
@@ -571,7 +438,6 @@ fn sesi_aktif(_rt: &DapRuntime) -> ZResult<Arc<Sesi>> {
         .ok_or_else(|| ZephyrError::NotFound("tidak ada sesi debug aktif".into()))
 }
 
-/// Kirim request DAP dan tunggu balasannya.
 fn request(sesi: &Arc<Sesi>, command: &str, args: Value) -> ZResult<Value> {
     let seq = sesi.next_seq.fetch_add(1, Ordering::SeqCst);
     let (tx, rx) = std::sync::mpsc::channel();
@@ -599,11 +465,6 @@ fn request(sesi: &Arc<Sesi>, command: &str, args: Value) -> ZResult<Value> {
     }
 }
 
-/// Port bebas untuk adapter TCP.
-///
-/// Diminta dari OS (bind port 0) lalu dilepas: menebak port dan berharap kosong
-/// adalah sumber kegagalan acak, dan di mesin ini beberapa rentang port dipakai
-/// Hyper-V (port 8080 tidak bisa dipakai sama sekali).
 fn port_bebas() -> ZResult<u16> {
     let l = std::net::TcpListener::bind("127.0.0.1:0")
         .map_err(|e| ZephyrError::Io(format!("tidak bisa mencari port bebas: {e}")))?;
@@ -614,12 +475,7 @@ fn port_bebas() -> ZResult<u16> {
     drop(l);
     Ok(p)
 }
-// ───────────────────────── reader + sesi anak ─────────────────────────
 
-/// Pasang thread pembaca frame untuk sebuah sesi.
-///
-/// Thread OS biasa (pola lsp.rs): framing perlu baca byte-eksak dari stream,
-/// dan thread blocking tidak menahan runtime tokio.
 fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
     std::thread::spawn(move || {
         let mut r = BufReader::new(baca);
@@ -653,10 +509,6 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
                     match nama {
                         "initialized" => sesi.siap.store(true, Ordering::SeqCst),
                         "terminated" | "exited" => {
-                            // Sesi INDUK yang berakhir belum berarti program
-                            // selesai — anak bisa masih hidup, dan sebaliknya.
-                            // UI hanya boleh dianggap selesai kalau tidak ada
-                            // sesi anak yang masih jalan.
                             sesi.berakhir.store(true, Ordering::SeqCst);
                             let anak_hidup = kembar()
                                 .anak
@@ -676,7 +528,7 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
                 "request" => {
                     let seq = msg.get("seq").and_then(|x| x.as_i64()).unwrap_or(0);
                     let cmdname = msg.get("command").and_then(|x| x.as_str()).unwrap_or("");
-                    // Balas dulu, SELALU: adapter menggantung menunggu response.
+
                     let _ = write_msg(
                         &sesi,
                         &json!({
@@ -688,9 +540,6 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
                         }),
                     );
 
-                    // `startDebugging` = js-debug meminta kita MEMBUAT sesi anak.
-                    // Ini bukan opsional: tanpa sesi anak, breakpoint tidak
-                    // pernah kena dan event `stopped` tidak pernah datang.
                     if cmdname == "startDebugging" && sesi.induk {
                         let cfg = msg
                             .get("arguments")
@@ -721,7 +570,7 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
                 _ => {}
             }
         }
-        // Stream tertutup = koneksi mati.
+
         sesi.berakhir.store(true, Ordering::SeqCst);
         let anak_hidup = kembar()
             .anak
@@ -739,12 +588,6 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
     });
 }
 
-/// Buat sesi ANAK: koneksi TCP KEDUA ke adapter yang sama.
-///
-/// Konfigurasi dari reverse request dipakai APA ADANYA — ia memuat
-/// `__pendingTargetId` yang menyambungkan sesi ini ke proses debuggee yang
-/// sedang menunggu. Mengarang konfigurasi sendiri akan membuat adapter
-/// meluncurkan proses kedua.
 fn buat_sesi_anak(app: AppHandle, cfg: Value, req: &str) -> ZResult<()> {
     let port = kembar()
         .port
@@ -785,8 +628,6 @@ fn buat_sesi_anak(app: AppHandle, cfg: Value, req: &str) -> ZResult<()> {
 
     pasang_reader(app, sesi.clone(), Baca::Tcp(s2));
 
-    // Urutan DAP yang sama seperti sesi induk — sesi anak adalah sesi penuh,
-    // bukan sekadar kanal tambahan.
     let caps = request(
         &sesi,
         "initialize",
@@ -809,8 +650,6 @@ fn buat_sesi_anak(app: AppHandle, cfg: Value, req: &str) -> ZResult<()> {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
 
-    // Breakpoint HARUS dipasang ulang di sesi anak: yang dipasang di induk
-    // hanya "provisional" dan tidak pernah menghentikan program.
     let bps = kembar()
         .bp
         .lock()
@@ -830,8 +669,6 @@ fn buat_sesi_anak(app: AppHandle, cfg: Value, req: &str) -> ZResult<()> {
             "setBreakpoints",
             json!({ "source": { "path": path }, "breakpoints": list }),
         ) {
-            // Kirim hasil verifikasi ke UI: titik gutter berubah penuh di sini,
-            // bukan saat sesi induk membalas.
             let _ = app_emit_bp(&sesi, &path, &body);
         }
     }
@@ -852,23 +689,10 @@ fn buat_sesi_anak(app: AppHandle, cfg: Value, req: &str) -> ZResult<()> {
     Ok(())
 }
 
-/// Emit hasil setBreakpoints sesi anak sebagai event `breakpoint` DAP palsu,
-/// supaya debugStore memakai jalur yang sama seperti event asli.
 fn app_emit_bp(_sesi: &Arc<Sesi>, _path: &str, _body: &Value) -> ZResult<()> {
     Ok(())
 }
 
-// ───────────────────────── start / stop sesi ─────────────────────────
-
-/// Mulai sesi debug dari satu konfigurasi launch.json.
-///
-/// Urutan WAJIB menurut spesifikasi DAP:
-///   initialize → (tunggu event `initialized`) → setBreakpoints +
-///   setExceptionBreakpoints → configurationDone → launch/attach
-///
-/// Menukar urutannya adalah kesalahan paling umum: breakpoint yang dipasang
-/// SEBELUM `initialized` diabaikan adapter, dan `launch` sebelum
-/// `configurationDone` membuat program jalan sampai selesai tanpa berhenti.
 #[tauri::command(async)]
 pub fn dap_start(
     app: AppHandle,
@@ -877,11 +701,8 @@ pub fn dap_start(
     config: DebugConfig,
     breakpoints: Vec<SumberBreakpoint>,
 ) -> ZResult<Value> {
-    // fase 29: launch.json juga datang dari repo, dan adapter menjalankan
-    // program apa pun yang ditunjuknya. Folder tak-tepercaya = tidak debug.
     crate::workspace::ensure_trusted(&state, "Debug")?;
 
-    // Sesi lama dibunuh dulu: brief menetapkan satu sesi aktif.
     let _ = stop_internal(&rt);
 
     let spec = spec_untuk(&state, &config.tipe)?;
@@ -890,10 +711,8 @@ pub fn dap_start(
     }
 
     let ws = state.workspace_path();
-    let file_aktif = None; // ${file} hanya berarti bila UI mengirimnya; v1 tidak.
+    let file_aktif = None;
 
-    // Variabel ${workspaceFolder} dll DIEKSPANSI dulu. Tanpa ini `cwd` jadi
-    // literal dan spawn gagal (os error 267) — terbukti dari harness verify22.
     let cwd_teks = config
         .cwd
         .as_deref()
@@ -903,8 +722,7 @@ pub fn dap_start(
         .map(PathBuf::from)
         .or_else(|| ws.clone())
         .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
-    // Path hasil ekspansi harus benar-benar ada; kalau tidak, pesannya jelas
-    // di sini daripada muncul sebagai error spawn yang membingungkan.
+
     if !cwd.is_dir() {
         return Err(ZephyrError::InvalidInput(format!(
             "cwd \"{}\" bukan folder yang ada",
@@ -916,13 +734,7 @@ pub fn dap_start(
     let port = if spec.tcp { Some(port_bebas()?) } else { None };
     if let Some(p) = port {
         cmd_vec.push(p.to_string());
-        // HOST WAJIB DISEBUT EKSPLISIT.
-        //
-        // `dapDebugServer.js <port>` tanpa host mendengar di `::1` (IPv6
-        // localhost) — terbukti: "Debug server listening at ::1:51235".
-        // Klien kita menyambung ke 127.0.0.1 (IPv4), yang TIDAK sama, jadi
-        // koneksi tidak pernah terjadi dan sesi gagal dengan
-        // "adapter tidak mendengar di port N setelah 12s".
+
         cmd_vec.push("127.0.0.1".to_string());
     }
 
@@ -940,8 +752,6 @@ pub fn dap_start(
     })?;
     let pid = child.id();
 
-    // stderr adapter → channel Output "Debug". Tanpa ini, adapter yang gagal
-    // start hanya tampak sebagai timeout tanpa sebab.
     if let Some(err) = child.stderr.take() {
         let app2 = app.clone();
         std::thread::spawn(move || {
@@ -959,9 +769,6 @@ pub fn dap_start(
 
     let (tulis, baca) = match port {
         Some(p) => {
-            // Adapter TCP butuh waktu untuk mulai listen. Coba sambung berulang
-            // sampai TCP_TUNGGU; sekali coba lalu gagal adalah race yang pasti
-            // kalah di mesin lambat.
             let batas = std::time::Instant::now() + TCP_TUNGGU;
             let mut sock = None;
             while std::time::Instant::now() < batas {
@@ -1013,7 +820,6 @@ pub fn dap_start(
         induk: true,
     });
 
-    // Simpan port & breakpoint: sesi anak butuh keduanya.
     if let Ok(mut g) = kembar().port.lock() {
         *g = port;
     }
@@ -1027,7 +833,6 @@ pub fn dap_start(
         *g = Some(sesi.clone());
     }
 
-    // 1. initialize
     let caps = request(
         &sesi,
         "initialize",
@@ -1050,7 +855,6 @@ pub fn dap_start(
         *c = caps.clone();
     }
 
-    // 2. tunggu event `initialized` sebelum memasang breakpoint.
     let batas = std::time::Instant::now() + REQ_TIMEOUT;
     while !sesi.siap.load(Ordering::SeqCst) && std::time::Instant::now() < batas {
         if sesi.berakhir.load(Ordering::SeqCst) {
@@ -1061,8 +865,6 @@ pub fn dap_start(
         std::thread::sleep(std::time::Duration::from_millis(30));
     }
 
-    // 3. breakpoint per file (setBreakpoints MENGGANTI seluruh daftar satu
-    //    source, jadi dikirim sekali per file, bukan per breakpoint).
     let mut hasil_bp = Vec::new();
     let mut per_file: HashMap<String, Vec<Value>> = HashMap::new();
     for b in &breakpoints {
@@ -1080,8 +882,6 @@ pub fn dap_start(
         hasil_bp.push(json!({ "path": path, "body": body }));
     }
 
-    // Exception breakpoint: filter tergantung adapter, ambil dari kapabilitas
-    // supaya tidak mengirim nama filter yang tidak dikenal.
     let filters: Vec<String> = caps
         .get("exceptionBreakpointFilters")
         .and_then(|x| x.as_array())
@@ -1098,7 +898,6 @@ pub fn dap_start(
         json!({ "filters": filters }),
     );
 
-    // 4. configurationDone — hanya bila adapter mendukungnya.
     if caps
         .get("supportsConfigurationDoneRequest")
         .and_then(|x| x.as_bool())
@@ -1107,9 +906,8 @@ pub fn dap_start(
         let _ = request(&sesi, "configurationDone", json!({}));
     }
 
-    // 5. launch / attach dengan argumen dari launch.json apa adanya.
     let mut args = json!({
-        // `type` DIPETAKAN, bukan diteruskan mentah: js-debug menolak "node".
+
         "type": tipe_untuk_adapter(&config.tipe),
         "request": config.request,
         "name": config.name,
@@ -1117,9 +915,6 @@ pub fn dap_start(
         "stopOnEntry": config.stop_on_entry,
     });
     if let Some(p) = &config.program {
-        // Variabel diekspansi DULU, baru path relatif dihitung dari workspace
-        // (seperti VS Code). Urutan sebaliknya membuat "${workspaceFolder}/a.js"
-        // dianggap relatif dan digabung dua kali.
         let pe = ekspansi_var(p, ws.as_deref(), file_aktif);
         let pp = PathBuf::from(&pe);
         let abs = if pp.is_absolute() { pp } else { cwd.join(pp) };
@@ -1156,7 +951,6 @@ pub fn dap_start(
     }))
 }
 
-/// Breakpoint yang dikirim frontend.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SumberBreakpoint {
@@ -1166,7 +960,7 @@ pub struct SumberBreakpoint {
 
 fn stop_internal(_rt: &DapRuntime) -> ZResult<bool> {
     let k = kembar();
-    // ANAK ditutup dulu (koneksi TCP tambahan), lalu induk yang memegang proses.
+
     let anak = k.anak.lock().ok().and_then(|mut g| g.take());
     let induk = k.induk.lock().ok().and_then(|mut g| g.take());
     if anak.is_none() && induk.is_none() {
@@ -1180,8 +974,6 @@ fn stop_internal(_rt: &DapRuntime) -> ZResult<bool> {
 
     let Some(sesi) = induk else { return Ok(true) };
 
-    // Minta berhenti dengan sopan dulu (adapter membersihkan debuggee-nya),
-    // baru bunuh prosesnya. Langsung kill meninggalkan program debuggee hidup.
     let _ = request(&sesi, "disconnect", json!({ "terminateDebuggee": true }));
     std::thread::sleep(std::time::Duration::from_millis(150));
 
@@ -1191,11 +983,9 @@ fn stop_internal(_rt: &DapRuntime) -> ZResult<bool> {
             let _ = ch.wait();
         }
     }
-    // Pohon proses: adapter Node menjalankan program debuggee sebagai anak.
-    // Tanpa taskkill /T, `node program.js` tetap hidup setelah Stop.
+
     #[cfg(windows)]
     if sesi.pid != 0 {
-        // CREATE_NO_WINDOW: hentikan debuggee tanpa jendela konsol berkedip.
         let mut tk = crate::proc::cmd("taskkill");
         tk.args(["/PID", &sesi.pid.to_string(), "/T", "/F"])
             .stdout(std::process::Stdio::null())
@@ -1217,19 +1007,17 @@ fn stop_internal(_rt: &DapRuntime) -> ZResult<bool> {
     Ok(true)
 }
 
-/// Hentikan sesi debug + seluruh pohon prosesnya.
 #[tauri::command(async)]
 pub fn dap_stop(rt: State<DapRuntime>) -> ZResult<bool> {
     stop_internal(&rt)
 }
 
-/// Status sesi untuk UI.
 #[tauri::command(async)]
 pub fn dap_status(_rt: State<DapRuntime>) -> ZResult<Value> {
     let k = kembar();
     let induk = k.induk.lock().ok().and_then(|g| g.clone());
     let anak = k.anak.lock().ok().and_then(|g| g.clone());
-    // Sesi yang dilaporkan = yang memegang debuggee (anak bila ada).
+
     let utama = anak.clone().or_else(|| induk.clone());
     Ok(match utama {
         None => json!({ "aktif": false }),
@@ -1246,12 +1034,6 @@ pub fn dap_status(_rt: State<DapRuntime>) -> ZResult<Value> {
     })
 }
 
-// ───────────────────────── kontrol eksekusi ─────────────────────────
-
-/// Satu pintu untuk continue/next/stepIn/stepOut/pause.
-///
-/// Digabung karena bentuk argumennya identik (`threadId`) dan memisahkannya
-/// jadi lima command Tauri hanya menambah lima tempat yang harus dijaga.
 #[tauri::command(async)]
 pub fn dap_kontrol(rt: State<DapRuntime>, aksi: String, thread_id: i64) -> ZResult<Value> {
     let sesi = sesi_aktif(&rt)?;
@@ -1270,13 +1052,11 @@ pub fn dap_kontrol(rt: State<DapRuntime>, aksi: String, thread_id: i64) -> ZResu
     request(&sesi, cmd, json!({ "threadId": thread_id }))
 }
 
-/// Daftar thread debuggee.
 #[tauri::command(async)]
 pub fn dap_threads(rt: State<DapRuntime>) -> ZResult<Value> {
     request(&sesi_aktif(&rt)?, "threads", Value::Null)
 }
 
-/// Call stack satu thread.
 #[tauri::command(async)]
 pub fn dap_stack(rt: State<DapRuntime>, thread_id: i64) -> ZResult<Value> {
     request(
@@ -1286,13 +1066,11 @@ pub fn dap_stack(rt: State<DapRuntime>, thread_id: i64) -> ZResult<Value> {
     )
 }
 
-/// Scope satu frame (Local/Closure/Global).
 #[tauri::command(async)]
 pub fn dap_scopes(rt: State<DapRuntime>, frame_id: i64) -> ZResult<Value> {
     request(&sesi_aktif(&rt)?, "scopes", json!({ "frameId": frame_id }))
 }
 
-/// Variabel dalam satu scope / object (untuk expand tree).
 #[tauri::command(async)]
 pub fn dap_variables(rt: State<DapRuntime>, variables_reference: i64) -> ZResult<Value> {
     request(
@@ -1302,7 +1080,6 @@ pub fn dap_variables(rt: State<DapRuntime>, variables_reference: i64) -> ZResult
     )
 }
 
-/// Evaluasi ekspresi — dipakai Debug Console REPL, watch, dan hover.
 #[tauri::command(async)]
 pub fn dap_evaluate(
     rt: State<DapRuntime>,
@@ -1314,15 +1091,13 @@ pub fn dap_evaluate(
         "expression": expression,
         "context": context.unwrap_or_else(|| "repl".into()),
     });
-    // frameId dihilangkan (bukan null) saat tidak ada frame: beberapa adapter
-    // menolak `frameId: null` dengan error skema.
+
     if let Some(f) = frame_id {
         args["frameId"] = json!(f);
     }
     request(&sesi_aktif(&rt)?, "evaluate", args)
 }
 
-/// Ubah nilai variabel bila adapter mendukungnya (`supportsSetVariable`).
 #[tauri::command(async)]
 pub fn dap_set_variable(
     rt: State<DapRuntime>,
@@ -1349,7 +1124,6 @@ pub fn dap_set_variable(
     )
 }
 
-/// Pasang ulang breakpoint satu file saat sesi berjalan.
 #[tauri::command(async)]
 pub fn dap_set_breakpoints(rt: State<DapRuntime>, path: String, lines: Vec<u32>) -> ZResult<Value> {
     let sesi = sesi_aktif(&rt)?;
@@ -1361,7 +1135,6 @@ pub fn dap_set_breakpoints(rt: State<DapRuntime>, path: String, lines: Vec<u32>)
     )
 }
 
-/// Skrip yang sudah dimuat debuggee (view LOADED SCRIPTS).
 #[tauri::command(async)]
 pub fn dap_loaded_sources(rt: State<DapRuntime>) -> ZResult<Value> {
     let sesi = sesi_aktif(&rt)?;
@@ -1380,8 +1153,6 @@ pub fn dap_loaded_sources(rt: State<DapRuntime>) -> ZResult<Value> {
     request(&sesi, "loadedSources", json!({}))
 }
 
-// ───────────────────────── uji ─────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1389,9 +1160,9 @@ mod tests {
     #[test]
     fn launch_json_jsonc_dengan_komentar() {
         let teks = r#"{
-  // komentar baris
+  
   "version": "0.2.0",
-  /* blok */
+  
   "configurations": [
     { "name": "Node uji", "type": "node", "request": "launch", "program": "${workspaceFolder}/a.js" }
   ]
@@ -1430,8 +1201,6 @@ mod tests {
 
     #[test]
     fn field_tak_dikenal_disimpan_di_extra() {
-        // Opsi adapter yang tidak ada di skema kita HARUS diteruskan, kalau
-        // tidak fitur adapter (skipFiles, justMyCode, …) jadi tidak bisa dipakai.
         let teks = r#"{ "configurations": [
             { "name": "a", "type": "node", "skipFiles": ["<node_internals>/**"], "justMyCode": false }
         ] }"#;
@@ -1447,7 +1216,7 @@ mod tests {
     #[test]
     fn ekspansi_workspace_folder() {
         let ws = std::path::Path::new("D:/Zephyr");
-        // Kasus yang membuat spawn gagal os error 267 sebelum diperbaiki.
+
         assert_eq!(
             ekspansi_var("${workspaceFolder}", Some(ws), None),
             "D:/Zephyr"
@@ -1456,7 +1225,7 @@ mod tests {
             ekspansi_var("${workspaceFolder}/a.js", Some(ws), None),
             "D:/Zephyr/a.js"
         );
-        // Alias lama VS Code.
+
         assert_eq!(
             ekspansi_var("${workspaceRoot}", Some(ws), None),
             "D:/Zephyr"
@@ -1487,7 +1256,7 @@ mod tests {
             ekspansi_var("x/${env:ZEPHYR_UJI22}/y", Some(ws), None),
             "x/nilai-uji/y"
         );
-        // env yang tidak ada → string kosong (perilaku VS Code).
+
         assert_eq!(
             ekspansi_var("[${env:ZEPHYR_TIDAK_ADA_XYZ}]", Some(ws), None),
             "[]"
@@ -1496,8 +1265,6 @@ mod tests {
 
     #[test]
     fn variabel_tak_dikenal_dibiarkan_apa_adanya() {
-        // Sengaja TIDAK dikosongkan: path rusak lebih sulit dilacak daripada
-        // variabel yang masih terlihat di pesan error.
         let ws = std::path::Path::new("D:/Zephyr");
         assert_eq!(
             ekspansi_var("${lineNumber}", Some(ws), None),
@@ -1507,13 +1274,11 @@ mod tests {
 
     #[test]
     fn tipe_node_dipetakan_ke_pwa_node() {
-        // js-debug menolak "node" (Error: Unknown config) — pemetaan ini yang
-        // membuat launch.json bergaya VS Code tetap jalan.
         assert_eq!(tipe_untuk_adapter("node"), "pwa-node");
         assert_eq!(tipe_untuk_adapter("chrome"), "pwa-chrome");
-        // Yang sudah bernama internal dibiarkan.
+
         assert_eq!(tipe_untuk_adapter("pwa-node"), "pwa-node");
-        // python tidak dipetakan.
+
         assert_eq!(tipe_untuk_adapter("python"), "python");
     }
 
@@ -1521,14 +1286,13 @@ mod tests {
     fn port_bebas_berbeda_tiap_panggil_dan_bisa_dibind() {
         let p = port_bebas().unwrap();
         assert!(p > 1024);
-        // Port yang diberikan harus benar-benar bisa dipakai.
+
         let l = std::net::TcpListener::bind(("127.0.0.1", p));
         assert!(l.is_ok(), "port {p} hasil port_bebas tidak bisa dibind");
     }
 
     #[test]
     fn type_alias_dipetakan_ke_adapter_yang_sama() {
-        // Alias js-debug yang lazim di launch.json nyata tidak boleh ditolak.
         for t in ["node", "pwa-node", "node-terminal"] {
             assert!(
                 matches!(t, "node" | "pwa-node" | "node-terminal"),

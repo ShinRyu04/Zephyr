@@ -1,19 +1,3 @@
-// ai.rs — proxy chat AI (fase 09).
-//
-// Kenapa lewat Rust, bukan fetch dari frontend:
-//   1. API key TIDAK PERNAH sampai ke webview (AGENTS.md §4, ARCHITECTURE.md §7.2).
-//   2. WebView2 tunduk CORS; endpoint provider tidak mengirim header CORS.
-//
-// Alur:
-//   ai_chat   -> spawn thread, buka koneksi streaming, emit `ai-chunk`
-//                { id, text? } berkali-kali lalu { id, done: true }.
-//                Error -> { id, err }.
-//   ai_cancel -> set flag batal; thread berhenti membaca, emit done.
-//
-// Tiga format request berbeda ditangani modul adapter terpisah
-// (adapters/openai.rs, anthropic.rs, gemini.rs): body + header + cara
-// memotong potongan SSE tidak sama antar provider.
-
 use crate::adapters;
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
@@ -23,23 +7,19 @@ use std::io::{BufRead, BufReader};
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, State};
 
-/// Satu pesan chat. `role`: 'user' | 'assistant' | 'system'.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ChatMsg {
     pub role: String,
     pub content: String,
-    /// Lampiran gambar sebagai data URL (`data:<mime>;base64,...`), opsional.
-    /// Dipertahankan untuk kompatibilitas; frontend 1.1.10 memakai `images`.
+
     #[serde(default)]
     pub image: Option<String>,
-    /// 1.1.10: banyak gambar per pesan (maks 10 di frontend).
+
     #[serde(default)]
     pub images: Option<Vec<String>>,
 }
 
 impl ChatMsg {
-    /// Semua gambar pesan ini, urut. `images` menang; `image` = fallback
-    /// supaya riwayat lama (satu gambar) tetap terkirim.
     pub fn all_images(&self) -> Vec<&str> {
         if let Some(list) = &self.images {
             if !list.is_empty() {
@@ -50,7 +30,6 @@ impl ChatMsg {
     }
 }
 
-/// Satu panggilan tool yang diminta model (mode agent).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolCall {
     pub id: String,
@@ -59,24 +38,21 @@ pub struct ToolCall {
     pub args: Value,
 }
 
-/// Pesan untuk loop agent — role 'tool' membawa hasil eksekusi tool.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AgentMsg {
-    /// 'user' | 'assistant' | 'system' | 'tool'
     pub role: String,
     pub content: String,
-    /// role='tool' → id tool_call yang dijawab
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
-    /// role='assistant' yang berisi panggilan tool
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
-    /// role='tool' → nama tool (dipakai Gemini functionResponse)
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
-/// Skema satu tool yang dikirim ke model.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolSpec {
     pub name: String,
@@ -85,50 +61,38 @@ pub struct ToolSpec {
     pub parameters: Value,
 }
 
-/// Jawaban non-streaming mode agent: teks + panggilan tool (bila ada).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiToolResult {
     pub content: String,
     pub tool_calls: Vec<ToolCall>,
-    /// true = model selesai (tidak ada tool call lagi)
+
     pub done: bool,
 }
 
-/// Hasil siap-kirim dari adapter: URL, header, body JSON.
 pub struct Prepared {
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: Value,
-    /// true = jawaban datang sebagai SSE `data: {...}`;
-    /// false = stream JSON array (Gemini streamGenerateContent).
+
     pub sse: bool,
 }
 
-/// Satu request AI yang direkam (T4.8).
-///
-/// Header sensitif SUDAH DIBUANG saat rekaman dibuat — lihat `rekam_request`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CapturedRequest {
-    /// waktu rekam (ms sejak proses mulai)
     pub at_ms: u64,
     pub provider: String,
     pub model: String,
     pub url: String,
-    /// header TANPA authorization/api key
+
     pub headers: Vec<(String, String)>,
-    /// body yang benar-benar dikirim (sudah dalam bentuk provider)
+
     pub body: Value,
-    /// perkiraan ukuran body dalam karakter
+
     pub chars: usize,
 }
 
-/// Nama header yang tidak boleh ikut terekam.
-///
-/// KENAPA: rekaman ini akan disalin user ke laporan bug / issue publik. API key
-/// di dalamnya sama dengan membocorkannya (AGENTS.md §7: jangan pernah
-/// menampilkan API key ke log).
 fn header_sensitif(nama: &str) -> bool {
     let n = nama.to_ascii_lowercase();
     n.contains("authorization")
@@ -139,9 +103,6 @@ fn header_sensitif(nama: &str) -> bool {
         || n.contains("token")
 }
 
-/// Simpan satu request ke buffer (maks 20, yang tertua dibuang).
-///
-/// Header sensitif disaring; isi `key` di query string URL juga disamarkan.
 pub fn rekam_request(
     state: &AppState,
     provider: &str,
@@ -177,14 +138,6 @@ pub fn rekam_request(
     }
 }
 
-/// Tingkat usaha penalaran yang diminta user (item T1.1).
-///
-/// Dipetakan berbeda per provider karena tiap vendor punya nama sendiri:
-///   OpenAI   : `reasoning_effort` = minimal | low | medium | high
-///   Anthropic: `thinking.budget_tokens` (angka)
-///   Gemini   : `thinkingConfig.thinkingBudget` (angka, 0 = mati)
-///
-/// `None` = jangan kirim parameter apa pun (provider lama tetap jalan).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ReasoningEffort {
@@ -196,8 +149,6 @@ pub enum ReasoningEffort {
 }
 
 impl ReasoningEffort {
-    /// Nilai untuk field `reasoning_effort` OpenAI-compatible.
-    /// 'ultra' tidak dikenal OpenAI → pakai 'high' (plafon resminya).
     pub fn openai(self) -> &'static str {
         match self {
             ReasoningEffort::Minimal => "minimal",
@@ -207,7 +158,6 @@ impl ReasoningEffort {
         }
     }
 
-    /// Anggaran token berpikir Anthropic. Minimum resmi 1024.
     pub fn anthropic_budget(self) -> u32 {
         match self {
             ReasoningEffort::Minimal => 1024,
@@ -218,7 +168,6 @@ impl ReasoningEffort {
         }
     }
 
-    /// Anggaran token berpikir Gemini (-1 = dinamis, 0 = mati).
     pub fn gemini_budget(self) -> i32 {
         match self {
             ReasoningEffort::Minimal => 512,
@@ -234,7 +183,6 @@ fn emit_chunk(app: &AppHandle, payload: Value) {
     let _ = app.emit("ai-chunk", payload);
 }
 
-/// Pesan error yang ramah + tidak pernah memuat API key.
 fn friendly(status: u16) -> String {
     match status {
         400 => "Permintaan ditolak (400) — model atau isi pesan tidak valid".into(),
@@ -247,9 +195,6 @@ fn friendly(status: u16) -> String {
     }
 }
 
-/// Mulai satu permintaan chat streaming.
-///
-/// `id` dipilih frontend (dipakai untuk mencocokkan event & membatalkan).
 #[tauri::command(async)]
 pub fn ai_chat(
     app: AppHandle,
@@ -269,7 +214,6 @@ pub fn ai_chat(
         return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
     }
 
-    // Key dibaca DI SINI (bukan di frontend) dan tidak pernah keluar dari Rust.
     let key = crate::secrets::key_for(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
@@ -287,9 +231,14 @@ pub fn ai_chat(
         effort,
     )?;
 
-    // T4.8: rekam SEBELUM thread — `prepared` sudah final di titik ini, dan
-    // `State` tidak bisa dipakai di dalam thread.
-    rekam_request(&state, &provider, &model, &prepared.url, &prepared.headers, &prepared.body);
+    rekam_request(
+        &state,
+        &provider,
+        &model,
+        &prepared.url,
+        &prepared.headers,
+        &prepared.body,
+    );
 
     let cancel = state.ai_begin(&id);
     let handle = app.clone();
@@ -297,24 +246,10 @@ pub fn ai_chat(
     let prov = provider.clone();
 
     std::thread::spawn(move || {
-        // FASE 16.3: Agent dengan konfigurasi eksplisit + `max_retries(0)`.
-        // Tanpa ini ureq mengulang percobaan koneksi yang gagal, sehingga
-        // timeout_connect 10s berlipat jadi ~25-35s dan UI terasa menggantung.
-        // Untuk streaming AI retry otomatis juga salah secara semantik: request
-        // pertama bisa sudah sampai ke provider dan menagih token.
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(10)))
-            // Streaming bisa lama; batasi waktu MENUNGGU header saja, bukan
-            // total durasi, supaya jawaban panjang tidak terputus di tengah.
-            .timeout_recv_response(Some(std::time::Duration::from_secs(30)))
-            // FASE 16.3: `timeout_connect` SENDIRI tidak cukup di Windows —
-            // terbukti host yang men-drop paket tetap memakan ~38s karena
-            // percobaan koneksi berulang di lapisan bawah. `timeout_per_call`
-            // membatasi SELURUH fase permintaan sampai header diterima, jadi
-            // user offline mendapat pesan dalam ~12s, bukan setengah menit.
-            // Ini TIDAK memotong streaming: batasnya berlaku sampai respons
-            // header, bukan sampai body selesai dibaca.
-            .timeout_per_call(Some(std::time::Duration::from_secs(12)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(90)))
+            .timeout_per_call(Some(std::time::Duration::from_secs(120)))
             .max_redirects(3)
             .http_status_as_error(false)
             .build()
@@ -327,9 +262,6 @@ pub fn ai_chat(
         let resp = match req.send_json(&prepared.body) {
             Ok(r) => r,
             Err(e) => {
-                // Pesan ramah untuk kasus paling sering: tidak ada internet /
-                // host tidak bisa dihubungi. Teks mentah ureq ("dns error",
-                // "connection refused") tidak berarti apa-apa bagi user.
                 let teks = e.to_string();
                 let low = teks.to_lowercase();
                 let pesan = if low.contains("dns")
@@ -354,7 +286,6 @@ pub fn ai_chat(
 
         let status = resp.status().as_u16();
         if status >= 400 {
-            // Ambil detail pesan provider bila ada (aman: tidak memuat key).
             let mut body = resp.into_body();
             let raw: String = body.read_to_string().unwrap_or_default();
             let detail = serde_json::from_str::<Value>(&raw)
@@ -385,7 +316,7 @@ pub fn ai_chat(
             }
             buf_line.clear();
             match reader.read_line(&mut buf_line) {
-                Ok(0) => break, // EOF
+                Ok(0) => break,
                 Ok(_) => {}
                 Err(e) => {
                     emit_chunk(
@@ -401,15 +332,12 @@ pub fn ai_chat(
                 continue;
             }
 
-            // SSE: hanya baris "data: ..." yang berisi payload.
             let payload = if prepared.sse {
                 match line.strip_prefix("data:") {
                     Some(rest) => rest.trim(),
                     None => continue,
                 }
             } else {
-                // Gemini stream = JSON array yang dipecah per baris; buang
-                // pembungkus array dan koma pemisah.
                 line.trim_start_matches([',', '[']).trim_end_matches(']')
             };
             if payload.is_empty() || payload == "[DONE]" {
@@ -421,11 +349,9 @@ pub fn ai_chat(
 
             let v: Value = match serde_json::from_str(payload) {
                 Ok(v) => v,
-                Err(_) => continue, // potongan tak lengkap / komentar keep-alive
+                Err(_) => continue,
             };
-            // T1.1: teks penalaran dikirim dengan kunci `reasoning` supaya
-            // frontend bisa menaruhnya di blok "Reasoned" yang bisa dilipat,
-            // terpisah dari jawaban.
+
             if let Some(think) = adapters::extract_reasoning(&prov, &v) {
                 emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
             }
@@ -446,20 +372,15 @@ pub fn ai_chat(
         emit_chunk(&handle, json!({ "id": req_id, "done": true }));
     });
 
-    let _ = state; // state hanya dipakai sebelum thread (key + registry)
+    let _ = state;
     Ok(())
 }
 
-/// Batalkan permintaan yang sedang berjalan. Aman dipanggil untuk id
-/// yang sudah selesai (tidak error).
 #[tauri::command(async)]
 pub fn ai_cancel(state: State<AppState>, id: String) -> ZResult<bool> {
     Ok(state.ai_cancel(&id))
 }
 
-/// Satu langkah loop agent: kirim seluruh riwayat + tools,
-/// dapatkan jawaban NON-streaming berisi teks dan/atau panggilan tool.
-/// Frontend yang memutuskan loop (jalankan tool → append hasil → ulang).
 #[tauri::command]
 pub async fn ai_tool_chat(
     state: State<'_, AppState>,
@@ -474,7 +395,7 @@ pub async fn ai_tool_chat(
     if messages.is_empty() {
         return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
     }
-    // Key dibaca DI SINI (sama seperti ai_chat) — tidak pernah ke frontend.
+
     let key = crate::secrets::key_for(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
@@ -494,8 +415,6 @@ pub async fn ai_tool_chat(
     )?;
     let prov = provider.clone();
 
-    // Panggilan HTTP blocking di thread terpisah supaya command lain tidak
-    // ikut tertahan. Timeout per call 60s — cukup untuk reasoning model.
     let hasil = tokio::task::spawn_blocking(move || {
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(10)))
@@ -542,7 +461,6 @@ pub async fn ai_tool_chat(
 
     let (status, raw) = hasil.map_err(ZephyrError::InvalidInput)?;
     if status >= 400 {
-        // Detail pesan provider bila ada (aman: tidak memuat key).
         let detail = serde_json::from_str::<Value>(&raw)
             .ok()
             .and_then(|v| {
@@ -564,16 +482,6 @@ pub async fn ai_tool_chat(
     Ok(adapters::parse_tool_response(&prov, &v))
 }
 
-/// Satu langkah loop agent yang STREAMING (item 21).
-///
-/// Bedanya dari `ai_tool_chat`: teks dikirim potongan demi potongan lewat
-/// event `ai-chunk` (id = `id`), lalu hasil akhir — teks penuh + panggilan
-/// tool — dikirim lewat event `ai-tool-done`. Frontend tetap yang memutuskan
-/// loop (jalankan tool → append hasil → ulang).
-///
-/// Dipisah dari `ai_chat` karena mode agent butuh panggilan tool, dan
-/// dipisah dari `ai_tool_chat` karena yang itu menunggu jawaban penuh
-/// sehingga tiap langkah terasa menggantung.
 #[tauri::command(async)]
 pub fn ai_tool_chat_stream(
     app: AppHandle,
@@ -611,8 +519,14 @@ pub fn ai_tool_chat_stream(
         effort,
     )?;
 
-    // T4.8: rekam request agent (sama seperti ai_chat — sebelum thread).
-    rekam_request(&state, &provider, &model, &prepared.url, &prepared.headers, &prepared.body);
+    rekam_request(
+        &state,
+        &provider,
+        &model,
+        &prepared.url,
+        &prepared.headers,
+        &prepared.body,
+    );
 
     let cancel = state.ai_begin(&id);
     let handle = app.clone();
@@ -622,10 +536,8 @@ pub fn ai_tool_chat_stream(
     std::thread::spawn(move || {
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(10)))
-            .timeout_recv_response(Some(std::time::Duration::from_secs(30)))
-            // Batas ini berlaku sampai header diterima, bukan sampai body
-            // selesai — streaming panjang tidak terpotong.
-            .timeout_per_call(Some(std::time::Duration::from_secs(12)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(90)))
+            .timeout_per_call(Some(std::time::Duration::from_secs(120)))
             .max_redirects(3)
             .http_status_as_error(false)
             .build()
@@ -674,7 +586,7 @@ pub fn ai_tool_chat_stream(
             }
             buf_line.clear();
             match reader.read_line(&mut buf_line) {
-                Ok(0) => break, // EOF
+                Ok(0) => break,
                 Ok(_) => {}
                 Err(e) => {
                     emit_chunk(
@@ -706,7 +618,7 @@ pub fn ai_tool_chat_stream(
                 Ok(v) => v,
                 Err(_) => continue,
             };
-            // T1.1: penalaran (blok "Reasoned") — jalur yang sama seperti ai_chat.
+
             if let Some(think) = adapters::extract_reasoning(&prov, &v) {
                 emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
             }
@@ -733,7 +645,6 @@ pub fn ai_tool_chat_stream(
     Ok(())
 }
 
-/// Pesan ramah untuk kegagalan koneksi ureq (tidak pernah memuat key).
 fn pesan_koneksi(e: &ureq::Error) -> String {
     let teks = e.to_string();
     let low = teks.to_lowercase();
@@ -754,20 +665,10 @@ fn pesan_koneksi(e: &ureq::Error) -> String {
     }
 }
 
-
-// ── T4.8: capture requests ────────────────────────────────────────────────
-
-/// Nyalakan / matikan perekaman request AI.
-///
-/// Dipisah dari settings supaya bisa dinyalakan SESUATU sebelum mencoba ulang
-/// sesuatu yang gagal — menyimpan ke settings berarti satu tulis disk untuk
-/// hal yang biasanya hanya dipakai beberapa menit.
 #[tauri::command]
 pub fn ai_capture_set(state: State<AppState>, on: bool) -> ZResult<bool> {
     state.ai_capture_on.store(on, Ordering::Relaxed);
     if !on {
-        // Mematikan rekaman = membuang isinya. Rekaman lama yang tertinggal
-        // akan membingungkan saat dibaca nanti ("ini request kapan?").
         if let Ok(mut v) = state.ai_capture.write() {
             v.clear();
         }
@@ -775,15 +676,17 @@ pub fn ai_capture_set(state: State<AppState>, on: bool) -> ZResult<bool> {
     Ok(on)
 }
 
-/// Status rekaman + isinya.
 #[tauri::command]
 pub fn ai_capture_get(state: State<AppState>) -> ZResult<(bool, Vec<CapturedRequest>)> {
     let on = state.ai_capture_on.load(Ordering::Relaxed);
-    let v = state.ai_capture.read().map(|v| v.clone()).unwrap_or_default();
+    let v = state
+        .ai_capture
+        .read()
+        .map(|v| v.clone())
+        .unwrap_or_default();
     Ok((on, v))
 }
 
-/// Buang isi rekaman tanpa mematikan perekaman.
 #[tauri::command]
 pub fn ai_capture_clear(state: State<AppState>) -> ZResult<()> {
     if let Ok(mut v) = state.ai_capture.write() {

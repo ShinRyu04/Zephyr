@@ -1,24 +1,12 @@
-// shortcuts.ts — katalog action + keybinding (fase 08).
-//
-// Sumber kebenaran satu tempat: handler global di App.tsx MEMBACA katalog ini
-// (bukan daftar if/else hardcoded), sehingga shortcut yang diubah user di
-// Settings langsung berlaku tanpa restart.
-//
-// Format binding: token dipisah '+', modifier lebih dulu.
-//   "Ctrl+S", "Ctrl+Shift+F", "Ctrl+`", "Ctrl+=", "Alt+Z"
-// Normalisasi memastikan "ctrl+shift+f" == "Ctrl+Shift+F".
-
 export interface ActionDef {
   id: string;
-  /** label ditampilkan di tabel Shortcuts */
+
   label: string;
-  /** kelompok untuk pengurutan tabel */
+
   group: 'File' | 'Edit' | 'View' | 'Terminal' | 'AI' | 'Git' | 'Tasks';
   default: string;
 }
 
-/** Katalog action. Fase 09 (AI) & 10 (Git) sudah didaftarkan sejak sekarang
- *  dengan default masing-masing, sesuai instruksi fase 08. */
 export const ACTIONS: ActionDef[] = [
   { id: 'file.new', label: 'File baru', group: 'File', default: 'Ctrl+N' },
   { id: 'file.open', label: 'Buka file', group: 'File', default: 'Ctrl+O' },
@@ -29,15 +17,14 @@ export const ACTIONS: ActionDef[] = [
 
   { id: 'edit.find', label: 'Cari di file', group: 'Edit', default: 'Ctrl+F' },
   { id: 'edit.findInFiles', label: 'Cari di workspace', group: 'Edit', default: 'Ctrl+Shift+F' },
-  // fase 25: replace lintas file + navigasi hasil.
+
   { id: 'edit.replaceInFiles', label: 'Ganti di workspace', group: 'Edit', default: 'Ctrl+Shift+H' },
   { id: 'edit.nextMatch', label: 'Hasil pencarian berikutnya', group: 'Edit', default: 'F4' },
   { id: 'edit.prevMatch', label: 'Hasil pencarian sebelumnya', group: 'Edit', default: 'Shift+F4' },
 
   { id: 'view.sidebar', label: 'Toggle sidebar', group: 'View', default: 'Ctrl+B' },
   { id: 'view.panel', label: 'Toggle panel bawah', group: 'View', default: 'Ctrl+J' },
-  // T4.1: panel Subagents. Ctrl+Shift+D (D = delegasi) — Ctrl+Shift+A sudah
-  // dipakai AI panel, Ctrl+Shift+S untuk Simpan sebagai.
+
   { id: 'view.subagents', label: 'Panel Subagents', group: 'View', default: 'Ctrl+Shift+D' },
   { id: 'view.splitEditorRight', label: 'Split editor ke kanan', group: 'View', default: 'Ctrl+\\' },
   { id: 'view.explorer', label: 'Buka Explorer', group: 'View', default: 'Ctrl+Shift+E' },
@@ -54,13 +41,10 @@ export const ACTIONS: ActionDef[] = [
   { id: 'terminal.new', label: 'Pane terminal baru', group: 'Terminal', default: 'Ctrl+Shift+T' },
   { id: 'terminal.newPane', label: 'Pane terminal baru (alt)', group: 'Terminal', default: 'Ctrl+Shift+`' },
 
-  // Dipakai mulai fase 09 / 10 — didaftarkan sekarang supaya tabelnya lengkap
-  // dan user bisa me-remap lebih awal.
   { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: 'Ctrl+Shift+A' },
   { id: 'ai.send', label: 'Kirim prompt AI', group: 'AI', default: 'Ctrl+Enter' },
   { id: 'git.panel', label: 'Buka Source Control', group: 'Git', default: 'Ctrl+Shift+G' },
 
-  // Tasks (fase 23). Ctrl+Shift+B = Run Build Task, sama seperti VS Code.
   { id: 'tasks.build', label: 'Run Build Task', group: 'Tasks', default: 'Ctrl+Shift+B' },
   { id: 'tasks.run', label: 'Run Task', group: 'Tasks', default: '' },
   { id: 'tasks.terminate', label: 'Terminate Task', group: 'Tasks', default: '' },
@@ -68,7 +52,6 @@ export const ACTIONS: ActionDef[] = [
 
 export const ACTION_BY_ID = new Map(ACTIONS.map((a) => [a.id, a]));
 
-/** Urutan modifier baku supaya perbandingan string konsisten. */
 function normalizeToken(tok: string): string {
   const t = tok.trim();
   const low = t.toLowerCase();
@@ -84,7 +67,7 @@ function normalizeToken(tok: string): string {
   if (low === 'arrowdown') return 'Down';
   if (low === 'arrowleft') return 'Left';
   if (low === 'arrowright') return 'Right';
-  // huruf tunggal -> kapital; simbol dibiarkan
+
   return t.length === 1 ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1);
 }
 
@@ -95,7 +78,6 @@ export function normalizeBinding(binding: string): string {
   return [...mods, ...keys].join('+');
 }
 
-/** Ubah KeyboardEvent jadi binding string. null = hanya modifier ditekan. */
 export function eventToBinding(e: KeyboardEvent): string | null {
   const k = e.key;
   if (['Control', 'Shift', 'Alt', 'Meta', 'Dead'].includes(k)) return null;
@@ -108,14 +90,12 @@ export function eventToBinding(e: KeyboardEvent): string | null {
   return normalizeBinding(parts.join('+'));
 }
 
-/** Binding efektif: custom user menang atas default. */
 export function effectiveBinding(actionId: string, custom: Record<string, string>): string {
   const c = custom[actionId];
   if (c && c.trim()) return normalizeBinding(c);
   return normalizeBinding(ACTION_BY_ID.get(actionId)?.default ?? '');
 }
 
-/** Peta binding -> actionId untuk seluruh action (dipakai handler global). */
 export function bindingMap(custom: Record<string, string>): Map<string, string> {
   const m = new Map<string, string>();
   for (const a of ACTIONS) {
@@ -125,10 +105,6 @@ export function bindingMap(custom: Record<string, string>): Map<string, string> 
   return m;
 }
 
-/**
- * Action lain yang memakai binding sama. Dipakai untuk memvalidasi konflik
- * SEBELUM disimpan — mengembalikan daftar actionId yang bertabrakan.
- */
 export function findConflicts(
   actionId: string,
   binding: string,
@@ -141,7 +117,6 @@ export function findConflicts(
   );
 }
 
-/** Tampilan ramah untuk tabel (mis. "Ctrl+`" tetap apa adanya). */
 export function displayBinding(binding: string): string {
   return binding || '—';
 }

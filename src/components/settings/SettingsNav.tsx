@@ -1,9 +1,3 @@
-// SettingsNav.tsx — daftar 11 section + tombol Reset Semua.
-//
-// Letaknya di SIDEBAR KIRI (bukan di dalam halaman): halaman Settings
-// sempat punya nav sendiri sehingga daftar section tampil dua kali dan
-// memakan lebar area isi. Sekarang satu-satunya nav ada di sini.
-
 import { useStore } from '../../lib/store';
 import { SECTION_ORDER, useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { useT } from '../../lib/i18n';
@@ -98,7 +92,7 @@ export function NavIcon({ id }: { id: SectionId }) {
         </svg>
       );
     case 'lsp':
-      // Ikon "kode cerdas": kurung kurawal + kilat kecil.
+
       return (
         <svg {...p}>
           <path d="M6 3.2C4.2 3.6 4.6 7 3.2 8c1.4 1 1 4.4 2.8 4.8" {...st} />
@@ -123,7 +117,7 @@ export function NavIcon({ id }: { id: SectionId }) {
         </svg>
       );
     case 'security':
-      // Gembok: keamanan, bukan "shield" — shield sudah dipakai dialog Trust.
+
       return (
         <svg {...p}>
           <rect x="3.4" y="7.2" width="9.2" height="6.2" rx="1.2" {...st} />
@@ -132,9 +126,7 @@ export function NavIcon({ id }: { id: SectionId }) {
         </svg>
       );
     case 'accessibility':
-      // Ikon aksesibilitas universal: figur dengan lengan terentang di dalam
-      // lingkaran. Bentuknya LITERAL (kepala + badan + lengan + kaki), bukan
-      // garis-garis abstrak — sesuai selera ikon yang dipakai di app ini.
+
       return (
         <svg {...p}>
           <circle cx="8" cy="8" r="6.2" {...st} />

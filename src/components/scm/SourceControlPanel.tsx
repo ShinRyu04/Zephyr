@@ -1,13 +1,3 @@
-// SourceControlPanel.tsx — panel Source Control di sidebar kiri (fase 10).
-//
-// Susunan dari atas: baris GitHub (login) → kotak pesan commit + tombol
-// Commit → tombol aksi (Sync/Pull/Push + kebab) → daftar perubahan
-// (Staged Changes / Changes). Belum repo → hanya tombol Initialize.
-//
-// CATATAN UI (aturan user, sudah pernah kena di fase 08): semua navigasi &
-// aksi ada di SATU tempat — panel ini. Jangan duplikasi tombol GitHub ke
-// halaman Settings; Settings hanya menyimpan identitas commit & defaultBranch.
-
 import { useEffect, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useGit } from '../../lib/gitStore';
@@ -15,7 +5,6 @@ import { useStore } from '../../lib/store';
 import type { GitChange } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
 
-/** Warna badge status mengikuti token tema (dilarang hex di komponen). */
 const STATUS_CLASS: Record<string, string> = {
   M: 'is-modified',
   A: 'is-added',
@@ -44,8 +33,6 @@ const dirOf = (p: string) => {
   return i < 0 ? '' : p.slice(0, i);
 };
 
-// ───────────────────────── ikon kecil ─────────────────────────
-
 function Icon({ d, w = 1.3 }: { d: string; w?: number }) {
   return (
     <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
@@ -65,8 +52,6 @@ const I = {
   branch: 'M5 3.5v9M11 3.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM5 3.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM5 12.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM11 6.5c0 2-1.5 3-6 3',
   check: 'M3.5 8.5L6.5 11.5 12.5 5',
 };
-
-// ───────────────────────── baris GitHub ─────────────────────────
 
 function GitHubRow() {
   const gh = useGit((s) => s.gh);
@@ -232,8 +217,6 @@ function GitHubRow() {
   );
 }
 
-// ───────────────────────── satu baris file ─────────────────────────
-
 function ChangeRow({ c }: { c: GitChange }) {
   const stage = useGit((s) => s.stage);
   const unstage = useGit((s) => s.unstage);
@@ -346,8 +329,6 @@ function Group({
     </div>
   );
 }
-
-// ───────────────────────── branch switcher ─────────────────────────
 
 function BranchMenu() {
   const branches = useGit((s) => s.branches);
@@ -467,8 +448,6 @@ function NewBranchDialog() {
   );
 }
 
-// ───────────────────────── panel utama ─────────────────────────
-
 function GitGraphSection() {
   const log = useGit((s) => s.log);
   if (!log || log.length === 0) return null;
@@ -536,7 +515,7 @@ export default function SourceControlPanel() {
   const setBranchMenuOpen = useGit((s) => s.setBranchMenuOpen);
   const setNewBranchOpen = useGit((s) => s.setNewBranchOpen);
   const setConfirm = useGit((s) => s.setConfirm);
-  // Hindari selector yang membuat array baru (zustand v5 → max update depth).
+  
   const stagedCount = useGit((s) => s.status?.changes.filter((c) => c.staged).length ?? 0);
   const [kebab, setKebab] = useState(false);
 
@@ -545,8 +524,6 @@ export default function SourceControlPanel() {
   const unstaged = changes.filter((c) => !c.staged);
   const canCommit = stagedCount > 0 && message.trim().length > 0 && !busy;
 
-  // Bagian git butuh workspace, tapi LOGIN GITHUB tidak — panel tetap
-  // menampilkan GitHubRow (login/akun) walau belum ada folder dibuka.
   if (!workspace) {
     return (
       <div className="side-panel">

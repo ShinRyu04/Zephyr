@@ -1,15 +1,3 @@
-// LspOverlay.tsx — UI kecil untuk fitur LSP (fase 21).
-//
-// Tiga hal dalam satu komponen karena semuanya modal ringan di atas editor dan
-// dipicu lewat event window dari commandRegistry:
-//   * Rename (F2)            — input inline, BUKAN window.prompt (fase 27).
-//   * Quick Fix (Ctrl+.)     — daftar code action dari server.
-//   * Go to Symbol (Ctrl+Shift+O) — daftar simbol dokumen.
-//
-// Kenapa lewat event window, bukan store: commandRegistry tidak boleh
-// mengimport komponen (lingkaran import — pelajaran fase 13 dengan mcpStore →
-// paletteStore), dan ketiga aksi ini butuh EditorView yang hidup.
-
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
@@ -66,12 +54,11 @@ export default function LspOverlay() {
     return s.tabs.find((t) => t.id === s.activeTabId)?.path ?? null;
   };
 
-  // ── Rename ──
   useEffect(() => {
     const onRename = () => {
       const view = getActiveView();
       if (!view) return;
-      // Isi awal = kata di posisi kursor.
+      
       const pos = view.state.selection.main.head;
       const line = view.state.doc.lineAt(pos);
       const teks = line.text;
@@ -113,9 +100,7 @@ export default function LspOverlay() {
           applyEdits(view, edits);
           continue;
         }
-        // File yang tidak terbuka: baca → terapkan edit di teks → tulis.
-        // Ini SATU-SATUNYA jalur tulis di luar editor; tanpa itu rename lintas
-        // file cuma berlaku separuh dan proyek jadi tidak konsisten.
+        
         try {
           const isi = await cmd.fsRead(file);
           const teksBaru = terapkanKeTeks(isi.content, edits);
@@ -139,7 +124,6 @@ export default function LspOverlay() {
     }
   };
 
-  // ── Quick Fix ──
   useEffect(() => {
     const onAction = async () => {
       const path = pathAktif();
@@ -205,7 +189,7 @@ export default function LspOverlay() {
           }
         }
       }
-      // Action bisa berupa command server-side (mis. organizeImports).
+      
       const command = item.raw.command;
       if (command) {
         const c =
@@ -227,7 +211,6 @@ export default function LspOverlay() {
     tutup();
   };
 
-  // ── Go to Symbol ──
   useEffect(() => {
     const onSymbols = async () => {
       const path = pathAktif();
@@ -241,8 +224,7 @@ export default function LspOverlay() {
           for (const raw of arr) {
             const o = raw as Record<string, unknown>;
             const nama = String(o.name ?? '');
-            // DocumentSymbol punya `range`/`selectionRange`; SymbolInformation
-            // punya `location.range`. Tangani keduanya.
+            
             const range =
               (o.selectionRange as Record<string, Record<string, number>> | undefined) ??
               (o.range as Record<string, Record<string, number>> | undefined) ??
@@ -278,7 +260,6 @@ export default function LspOverlay() {
     return () => window.removeEventListener('zephyr-lsp-symbols', onSymbols);
   }, []);
 
-  // Navigasi keyboard daftar (action & symbol).
   useEffect(() => {
     if (mode !== 'action' && mode !== 'symbol') return;
     const daftar = mode === 'action' ? aksi : simbol;
@@ -418,8 +399,6 @@ export default function LspOverlay() {
   );
 }
 
-/** Terapkan TextEdit LSP ke string biasa (untuk file yang tidak terbuka).
- *  Edit diurutkan dari BELAKANG supaya offset tidak bergeser. */
 function terapkanKeTeks(isi: string, edits: TextEditLsp[]): string {
   const baris = isi.split('\n');
   const offsetBaris: number[] = [];
@@ -440,5 +419,4 @@ function terapkanKeTeks(isi: string, edits: TextEditLsp[]): string {
   return out;
 }
 
-/** Dipakai harness: konversi posisi tanpa membuka overlay. */
 export { pathToUri, lspToOffset };

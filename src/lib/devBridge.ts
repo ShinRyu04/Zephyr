@@ -1,10 +1,3 @@
-// devBridge.ts — jembatan verifikasi otomatis (HANYA mode dev).
-//
-// scripts/verify.mjs menempel ke WebView2 lewat CDP dan memakai objek di
-// bawah untuk membuktikan V1..V10 fase 03 benar-benar jalan.
-// Semua kode di file ini mati total di build release: pemanggilnya
-// dibungkus `if (import.meta.env.DEV)` sehingga Rollup men-tree-shake-nya.
-
 import { undo, redo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -28,8 +21,7 @@ import { useSearch } from './searchStore';
 import { useDebug } from './debugStore';
 import { useCli } from './cliStore';
 import { useWs } from './workspaceStore';
-// fase 30: mesin snippet + perintah tab-stop CM6 dipakai langsung supaya
-// harness bisa menekan Tab tanpa bergantung pada fokus dokumen.
+
 import {
   nilaiVariabel,
   sisipkanSnippet,
@@ -42,7 +34,7 @@ import {
   prevSnippetField as prevSnippetFieldCm,
   clearSnippet as clearSnippetCm,
 } from '@codemirror/autocomplete';
-// fase 31: a11y — pengumuman, setelan, dan preferensi OS.
+
 import { osMintaReducedMotion, useA11y } from './a11yStore';
 import {
   cliParse,
@@ -133,7 +125,7 @@ export function installDevBridge(): void {
   w.__ZEPHYR_FS__ = { read: fsRead, sessionLoad, scanDir, searchFiles };
   w.__ZEPHYR_REVEAL__ = (line: number, col?: number) => revealPosition(line, col);
   w.__ZEPHYR_SET_PAUSED__ = (paused: boolean) => ptySetPaused(paused);
-  // Terminal (fase 05): kirim input, baca layar, ukur grid, copy/paste.
+
   w.__ZEPHYR_PTY__ = {
     write: ptyWrite,
     interrupt: ptyInterrupt,
@@ -142,18 +134,18 @@ export function installDevBridge(): void {
     selection: (id: string) => getSelection(id),
     ids: () => activeIds(),
     size: (id: string) => termSize(id),
-    /** pilih baris berdasarkan isinya (row absolut dicari sendiri) */
+
     selectText: (id: string, text: string) => {
       const row = findRow(id, text);
       return row >= 0 && selectLine(id, row);
     },
     select: (id: string, line: number) => selectLine(id, line),
-    // Jalur yang sama dipakai UI (klik kanan / Ctrl+Shift+C / Shift+Insert).
+
     copy: (id: string) => copySelection(id),
     paste: (id: string) => pasteInto(id),
     clipRead: () => clipboardRead(),
     clipWrite: (t: string) => clipboardWrite(t),
-    /** fase 06: daftar agent CLI yang terdeteksi (untuk verifikasi). */
+
     agents: () => listAgents(),
   };
   w.__ZEPHYR_CMD__ = (name: CmdName) => {
@@ -161,13 +153,13 @@ export function installDevBridge(): void {
     if (!view) return false;
     return name === 'undo' ? undo(view) : redo(view);
   };
-  // Settings (fase 08): store UI halaman + jalur key/model lewat Rust.
+
   w.__ZEPHYR_SET__ = {
     ui: useSettingsUi,
-    /** tema yang benar-benar terpasang di <html> */
+
     activeTheme: () => document.documentElement.dataset.theme ?? '',
     themes: () => THEMES.map((t) => t.id),
-    /** binding efektif per action (default + override user) */
+
     bindings: () => {
       const custom = useStore.getState().settings.shortcuts;
       return ACTIONS.map((a) => ({
@@ -182,24 +174,24 @@ export function installDevBridge(): void {
     setKey: (provider: string, key: string) => setModelKey(provider, key),
     testKey: (provider: string, baseUrl?: string) => testModelConnection(provider, baseUrl),
     resetAll: () => resetSettings(),
-    /** baca settings.json langsung dari disk (bukan dari store) */
+
     settingsFromDisk: () => getSettings(),
-    /** terjemahan label untuk membuktikan toggle bahasa */
+
     t: (key: string) => translate(useStore.getState().settings.general.uiLang, key),
   };
-  // AI panel (fase 09): store chat + jalur streaming/terminal.
+
   w.__ZEPHYR_AI__ = {
     store: useAi,
-    /** daftar model di katalog (untuk membuktikan dropdown lengkap) */
+
     catalog: () => ALL_MODELS.map((m) => ({ id: m.id, provider: m.provider, logo: m.logo, baseUrl: m.baseUrl })),
-    /** deteksi perintah berbahaya (dipakai uji konfirmasi) */
+
     destructive: (cmdText: string) => isDestructive(cmdText),
-    /** blok perintah terakhir dari sebuah jawaban markdown */
+
     command: (md: string) => extractCommand(md),
-    /** kirim pesan langsung tanpa mengetik di textarea */
+
     send: (text: string) => useAi.getState().send(text),
     cancel: () => useAi.getState().cancel(),
-    /** isi chat sesi aktif (role + teks + status) */
+
     messages: () =>
       (useAi.getState().activeSession()?.messages ?? []).map((m) => ({
         id: m.id,
@@ -210,22 +202,19 @@ export function installDevBridge(): void {
         model: m.model ?? null,
         attached: m.attached ?? null,
       })),
-    /** simpanan localStorage mentah (bukti V9 restore) */
+
     persisted: () => localStorage.getItem('zephyr.ai.sessions.v1'),
-    /** T1.1: tingkat penalaran aktif (null = default provider). */
+
     effort: () => useAi.getState().reasoningEffort,
-    /** T1.1: set tingkat penalaran dari harness. */
+
     setEffort: (e: 'minimal' | 'low' | 'medium' | 'high' | 'ultra' | null) =>
       useAi.getState().setReasoningEffort(e),
-    /** T1.1: teks penalaran yang menempel di pesan terakhir. */
+
     reasoning: () =>
       (useAi.getState().activeSession()?.messages ?? [])
         .filter((m) => m.reasoning)
         .map((m) => ({ id: m.id, teks: m.reasoning ?? '' })),
-    /** T1.1: suntik pesan assistant + penalaran ke sesi aktif.
-     *  onChunk hanya MENG-UPDATE pesan yang sudah ada (map by id), jadi
-     *  harness butuh jalan ini untuk menguji render blok Reasoned tanpa
-     *  memanggil provider sungguhan. */
+
     injectAssistant: (text: string, reasoning: string) => {
       const st = useAi.getState();
       const sid = st.activeId ?? st.newChat();
@@ -247,12 +236,12 @@ export function installDevBridge(): void {
     },
     maxMsgs: MAX_MSGS,
   };
-  // Source Control (fase 10): store git + jalur command untuk harness.
+
   w.__ZEPHYR_GIT__ = {
     store: useGit,
     status: () => useGit.getState().status,
     refresh: () => useGit.getState().refreshAll(),
-    /** daftar perubahan ringkas (path/status/staged) */
+
     changes: () =>
       (useGit.getState().status?.changes ?? []).map((c) => ({
         path: c.path,
@@ -282,14 +271,14 @@ export function installDevBridge(): void {
     },
     diff: () => useGit.getState().diff,
     closeDiff: () => useGit.getState().closeDiff(),
-    /** dialog konfirmasi: buka & jawab (uji discard tanpa klik) */
+
     confirm: () => useGit.getState().confirm,
     setConfirm: (c: unknown) => useGit.getState().setConfirm(c as never),
     resolveConfirm: () => useGit.getState().resolveConfirm(),
     error: () => useGit.getState().scmError,
     info: () => useGit.getState().scmInfo,
     busy: () => useGit.getState().busy,
-    // GitHub
+
     gh: () => useGit.getState().gh,
     ghMessage: () => useGit.getState().ghMessage,
     loadGh: () => useGit.getState().loadGh(),
@@ -298,7 +287,7 @@ export function installDevBridge(): void {
     testGh: () => useGit.getState().testGh(),
     setClientId: (id: string) => useGit.getState().setClientId(id),
   };
-  // MCP (fase 11): store panel + jalur command untuk harness verify11.
+
   w.__ZEPHYR_MCP__ = {
     store: useMcp,
     status: () => useMcp.getState().status,
@@ -307,7 +296,7 @@ export function installDevBridge(): void {
     setToast: (m: string | null) => useMcp.getState().setToast(m),
     clearLog: () => useMcp.getState().clearLog(),
     refresh: () => useMcp.getState().refresh(),
-    /** nyalakan/matikan server lewat jalur UI yang sama */
+
     toggle: (on: boolean) => useMcp.getState().toggleServer(on),
     clis: () => useMcp.getState().clis,
     refreshClis: () => useMcp.getState().refreshClis(),
@@ -324,7 +313,7 @@ export function installDevBridge(): void {
     setError: (m: string | null) => useMcp.getState().setError(m),
     setInfo: (m: string | null) => useMcp.getState().setInfo(m),
   };
-  // Command Palette / Quick Open (fase 12).
+
   w.__ZEPHYR_CP__ = {
     store: usePalette,
     open: (mode: 'command' | 'file') => usePalette.getState().openPalette(mode),
@@ -332,7 +321,7 @@ export function installDevBridge(): void {
     setQuery: (q: string) => usePalette.getState().setQuery(q),
     move: (d: number) => usePalette.getState().move(d),
     accept: (i?: number) => usePalette.getState().accept(i),
-    /** hasil terfilter saat ini (label + detail + binding) */
+
     items: () =>
       usePalette.getState().items().map((x) => ({
         id: x.id,
@@ -346,12 +335,12 @@ export function installDevBridge(): void {
     mode: () => usePalette.getState().mode,
     lastRun: () => usePalette.getState().lastRun,
     files: () => usePalette.getState().files.length,
-    /** seluruh katalog command (untuk membuktikan registry lengkap) */
+
     commands: () => COMMANDS.map((c) => ({ id: c.id, title: c.title, group: c.group })),
-    /** command yang benar-benar tampil sekarang, TERMASUK dari ekstensi */
+
     available: () =>
       availableCommands().map((c) => ({ id: c.id, title: c.title, group: c.group })),
-    /** tabel shortcut efektif + deteksi konflik (V4) */
+
     shortcutTable: () => {
       const custom = useStore.getState().settings.shortcuts;
       const rows = ACTIONS.map((a) => ({
@@ -362,11 +351,7 @@ export function installDevBridge(): void {
       }));
       const seen = new Map<string, string[]>();
       for (const r of rows) {
-        // Binding KOSONG bukan konflik. `findConflicts()` di shortcuts.ts —
-        // yang dipakai produk saat menyimpan — mengembalikan [] untuk binding
-        // kosong, jadi bridge ini harus memakai aturan yang sama. Tanpa guard
-        // ini, tasks.run dan tasks.terminate (dua-duanya default '') dilaporkan
-        // bertabrakan padahal keduanya memang belum punya shortcut.
+
         if (!r.binding) continue;
         seen.set(r.binding, [...(seen.get(r.binding) ?? []), r.id]);
       }
@@ -376,15 +361,14 @@ export function installDevBridge(): void {
       return { rows, conflicts };
     },
   };
-  // Ekstensi + tema (fase 13): store, jalur load/toggle, dan token warna
-  // yang benar-benar terkomputasi di <html> (bukti V1/V3).
+
   w.__ZEPHYR_EXT__ = {
     store: useExtensions,
     list: () => useExtensions.getState().list,
     refresh: () => useExtensions.getState().refresh(),
     toggle: (id: string, on: boolean) => useExtensions.getState().toggle(id, on),
     load: (id: string) => useExtensions.getState().load(id),
-    /** panggil `extensions_load` LANGSUNG supaya error (mis. >1MB) terlihat */
+
     loadRaw: (id: string) => extensionsLoad(id),
     addPath: (p: string) => useExtensions.getState().addPath(p),
     remove: (id: string) => useExtensions.getState().remove(id),
@@ -393,12 +377,12 @@ export function installDevBridge(): void {
     info: () => useExtensions.getState().extInfo,
     setError: (m: string | null) => useExtensions.getState().setError(m),
     market: (open: boolean) => useExtensions.getState().setMarketOpen(open),
-    /** command yang disumbang ekstensi aktif */
+
     extCommands: () => extensionCommands().map((c) => ({ id: c.id, title: c.title, group: c.group })),
   };
   w.__ZEPHYR_THEME__ = {
     active: () => document.documentElement.dataset.theme ?? '',
-    /** id tema di store (dipakai CodeMirror) */
+
     inStore: () => useStore.getState().activeTheme,
     ids: () => THEMES.map((t) => t.id),
     set: (id: string) => {
@@ -410,17 +394,17 @@ export function installDevBridge(): void {
     },
     mode: (m: 'dark' | 'light' | 'system') =>
       useStore.getState().applySettings({ general: { theme: m } }),
-    /** nilai satu token CSS setelah komputasi */
+
     token: (name: string) =>
       getComputedStyle(document.documentElement).getPropertyValue(name).trim(),
-    /** semua token wajib fase 13 + nilainya (kosong = token hilang) */
+
     tokens: (names: string[]) => {
       const css = getComputedStyle(document.documentElement);
       const out: Record<string, string> = {};
       for (const n of names) out[n] = css.getPropertyValue(n).trim();
       return out;
     },
-    /** warna terminal xterm yang sedang dipakai (bukti V3) */
+
     termTheme: (id: string) => {
       const t = termOptionsTheme(id);
       return t ? { background: t.background, red: t.red, green: t.green, black: t.black } : null;
@@ -428,31 +412,30 @@ export function installDevBridge(): void {
     retheme: () => retheme(),
     systemDark: () => systemPrefersDark(),
   };
-  // Untuk menguji jalur onCloseRequested (V7 fase 02 / V5 fase 03).
+
   w.__ZEPHYR_WIN__ = {
     close: () => getCurrentWindow().close(),
     destroy: () => getCurrentWindow().destroy(),
   };
 
-  // ── fase 14: hardening backend. Jalur yang dipakai verify14.mjs ──
   w.__ZEPHYR_DIAG__ = {
-    /** angka nyata dari Rust: RAM, uptime, log, marks, counters */
+
     get: () => getDiagnostics(),
-    /** tulis satu baris ke file log Rust */
+
     log: (level: 'error' | 'warn' | 'info', msg: string) => logFrontend(level, msg),
     mark: (name: string, durMs?: number) => perfMark(name, durMs),
-    /** HANYA debug build: memicu panic di Rust (uji panic hook + dialog) */
+
     panic: () => debugPanic(),
-    /** fs_write MENTAH — untuk membuktikan penolakan WorkspaceOutside (V2) */
+
     write: (path: string, content: string) => fsWrite(path, content),
-    /** fs_read MENTAH — pesan NotFound yang dilihat user (V1) */
+
     read: (path: string) => fsRead(path),
-    /** pty_spawn MENTAH dengan cwd bebas (uji validasi cwd 14.2) */
+
     spawn: (id: string, cwd: string) => ptySpawn({ id, kind: 'shell', cwd }),
     kill: (id: string) => ptyKill(id),
-    /** batas tab yang isinya boleh tinggal di memori (14.5) */
+
     maxLoadedTabs: MAX_LOADED_TABS,
-    /** ringkasan tab: mana yang masih memegang konten */
+
     tabs: () =>
       useStore.getState().tabs.map((t) => ({
         id: t.id,
@@ -461,11 +444,11 @@ export function installDevBridge(): void {
         bytes: t.content.length,
         unsaved: t.unsaved,
       })),
-    /** total karakter konten yang ditahan seluruh tab */
+
     heldChars: () => useStore.getState().tabs.reduce((n, t) => n + t.content.length, 0),
     unload: () => useStore.getState().unloadColdTabs(),
     ensure: (id: string) => useStore.getState().ensureTabLoaded(id),
-    /** git: jalur mentah untuk uji semaphore (V3) */
+
     git: {
       status: () => gitStatus(),
       stage: (paths: string[]) => gitStage(paths),
@@ -473,23 +456,22 @@ export function installDevBridge(): void {
       log: (n?: number) => gitLog(n ?? 5),
       progress: () => useGit.getState().progress,
     },
-    /** dialog crash sedang tampil? (V7) */
+
     crashVisible: () => !!document.querySelector('[data-testid="crash-dialog"]'),
     crashMessage: () =>
       document.querySelector('[data-testid="crash-message"]')?.textContent ?? null,
   };
 
-  // ── fase 15: bugfix vol 1. Jalur yang dipakai verify15.mjs ──
   w.__ZEPHYR_BUG__ = {
-    /** fs_read mentah — untuk melihat readOnly/note/bytes/encoding */
+
     read: (path: string) => fsRead(path),
-    /** fs_write dengan opsi wasExisting/allowMissing (uji "file hilang") */
+
     write: (
       path: string,
       content: string,
       opts?: { wasExisting?: boolean; allowMissing?: boolean },
     ) => fsWrite(path, content, undefined, undefined, opts),
-    /** ringkasan tab: read-only? note? encoding? existed? */
+
     tabs: () =>
       useStore.getState().tabs.map((t) => ({
         id: t.id,
@@ -499,26 +481,24 @@ export function installDevBridge(): void {
         readOnly: t.readOnly === true,
         note: t.note ?? '',
         bytes: t.bytes ?? 0,
-        /** panjang konten yang BENAR-BENAR ditahan di memori (0 = dilepas).
-         *  Beda dari `bytes` yang merupakan ukuran file di disk — memakai
-         *  `bytes` untuk menilai "tab dilepas" selalu salah (fase 16). */
+
         held: t.content.length,
         loaded: t.loaded !== false,
         unsaved: t.unsaved,
         existed: t.existed === true,
       })),
-    /** dialog simpan (file hilang / UTF-16) */
+
     saveIssue: () => useStore.getState().saveIssue,
     resolveSave: (choice: 'ok' | 'cancel') => useStore.getState().resolveSaveIssue(choice),
     save: (id: string) => useStore.getState().saveTab(id),
-    /** editor read-only benar-benar menolak edit? */
+
     cmEditable: () => {
       const v = getActiveView();
       return v ? { editable: v.state.facet(EditorView.editable), lines: v.state.doc.lines } : null;
     },
-    /** paste ke terminal lewat jalur chunk 4KB (fase 15.2) */
+
     writeChunked: (id: string, data: string) => writeChunked(id, data),
-    /** pane + exit code (fase 15.2) */
+
     panes: () =>
       useTerminal.getState().allPanes().map((p) => ({
         id: p.id,
@@ -526,33 +506,32 @@ export function installDevBridge(): void {
         status: p.status,
         exitCode: p.exitCode ?? null,
       })),
-    /** git: diff mentah (uji label binary) */
+
     diffRaw: (path: string, staged = false) => gitDiff(path, staged),
-    /** commit mentah — bukti Rust menolak pesan kosong walau UI dilewati */
+
     commitRaw: (msg: string) => gitCommit(msg),
     branchRaw: (name: string) => gitCreateBranch(name),
-    /** batas AI (fase 15.5) */
+
     aiLimits: () => ({ msg: MSG_LIMIT, attach: ATTACH_LIMIT, maxMsgs: MAX_MSGS }),
-    /** laporan pemotongan pesan terakhir (fase 15.5) */
+
     aiTruncated: () => useAi.getState().lastTruncated,
-    /** layout sempit aktif? (fase 15.6) */
+
     narrow: () => document.body.classList.contains('is-narrow'),
-    /** teks RAM di status bar — bukti tidak NaN (fase 15.6) */
+
     ramText: () =>
       document.querySelector('[data-testid="sb-ram"]')?.textContent?.trim() ?? null,
-    /** jumlah baris palette yang BENAR-BENAR dirender (virtual scroll) */
+
     cpRendered: () => document.querySelectorAll('[data-testid="cp-row"]').length,
-    /** ubah ukuran jendela lewat command Rust (uji layout sempit 15.6) */
+
     resize: (w: number, h: number) => setWindowSize(w, h),
-    /** laporan config rusak terakhir yang di-backup Rust (fase 16.3) */
+
     brokenConfig: () => takeBrokenConfig(),
-    /** batas tab termuat yang BERLAKU sekarang (ikut mode penghemat RAM) */
+
     maxTabs: () => maxLoadedTabs(),
-    /** workspace_open MENTAH — untuk membuktikan penolakan root drive (16.3) */
+
     openWs: (p: string) => workspaceOpen(p),
   };
 
-  // ── fase 27: notifikasi terpusat ──
   w.__ZEPHYR_NOTIF__ = {
     store: useNotif,
     notify: (n: Parameters<ReturnType<typeof useNotif.getState>['notify']>[0]) =>
@@ -562,7 +541,7 @@ export function installDevBridge(): void {
     progress: (id: string, v: number | 'indeterminate') => useNotif.getState().progress(id, v),
     dismiss: (id: string) => useNotif.getState().dismiss(id),
     clear: () => useNotif.getState().clear(),
-    /** riwayat ringkas (tanpa fungsi) */
+
     items: () =>
       useNotif.getState().items.map((x) => ({
         id: x.id,
@@ -575,7 +554,7 @@ export function installDevBridge(): void {
         read: x.read,
         actions: x.actions.map((a) => a.command),
       })),
-    /** id yang sedang tampil sebagai toast */
+
     toasts: () => useNotif.getState().toasts,
     unread: () => useNotif.getState().items.filter((x) => !x.read).length,
     dnd: () => useNotif.getState().dnd,
@@ -583,19 +562,18 @@ export function installDevBridge(): void {
     center: (open: boolean) => useNotif.getState().setCenterOpen(open),
     centerOpen: () => useNotif.getState().centerOpen,
     markAllRead: () => useNotif.getState().markAllRead(),
-    /** jalankan command by id (jalur yang dipakai tombol aksi notifikasi) */
+
     run: (id: string) => runCommand(id),
-    /** dialog hapus Explorer (pengganti window.confirm, fase 27) */
+
     askDelete: (paths: string[]) => useExplorer.getState().askDelete(paths),
     pendingDelete: () => useExplorer.getState().pendingDelete,
     confirmDelete: () => useExplorer.getState().confirmDelete(),
     cancelDelete: () => useExplorer.getState().cancelDelete(),
   };
 
-  // ── fase 18: menu bar + keybinding registry ──
   w.__ZEPHYR_KB__ = {
     store: useKb,
-    /** semua binding efektif (default ⊕ user), tanpa fungsi */
+
     bindings: () =>
       useKb.getState().bindings.map((b) => ({
         chord: b.chord,
@@ -604,32 +582,32 @@ export function installDevBridge(): void {
         layer: b.layer,
         label: b.label ?? null,
       })),
-    /** chord efektif untuk satu command ('' = tidak ada) */
+
     chordFor: (command: string) => chordFor(command, useKb.getState().bindings),
     user: () => useKb.getState().user,
-    /** simpan override chord baru */
+
     remap: (command: string, chord: string, when?: string) =>
       useKb.getState().remap(command, chord, when as never),
     removeBinding: (command: string) => useKb.getState().removeBinding(command),
     resetOne: (command: string) => useKb.getState().resetOne(command),
     resetAll: () => useKb.getState().resetAll(),
-    /** resolusi sequence -> binding (null = tidak ada) */
+
     resolve: (seq: string) => useKb.getState().resolve(seq),
     isPrefix: (seq: string) => useKb.getState().isPrefix(seq),
     pending: () => useKb.getState().pending,
     setPending: (c: string) => useKb.getState().setPending(c),
     ctx: () => useKb.getState().ctx,
     setCtx: (key: string, on: boolean) => useKb.getState().setCtx(key as never, on),
-    /** command terakhir yang dijalankan resolver — bukti V4/V5/V6 */
+
     lastRun: () => useKb.getState().lastRun,
     setLastRun: (v: string | null) => useKb.getState().setLastRun(v),
-    /** editor Keyboard Shortcuts (18.4) */
+
     editor: (open: boolean) => useKb.getState().setEditorOpen(open),
     editorOpen: () => useKb.getState().editorOpen,
-    /** konflik chord untuk sebuah command */
+
     conflicts: (command: string, chord: string, when = 'global') =>
       chordConflicts(command, chord, when as never, useKb.getState().bindings),
-    /** struktur menu bar; command yang tidak terdaftar ditandai */
+
     menu: () =>
       MENUS.map((m) => ({
         label: m.label,
@@ -647,7 +625,7 @@ export function installDevBridge(): void {
             })) ?? null,
         })),
       })),
-    /** kirim chord sintetis ke window (jalur yang sama dengan tombol nyata) */
+
     press: (chord: string) => {
       const parts = chord.split('+');
       const key = parts[parts.length - 1];
@@ -666,8 +644,6 @@ export function installDevBridge(): void {
     },
   };
 
-  // ── fase 20: panel bawah ──
-  // ── T3.5: bridge Customize Layout (harness uji-t3-5) ──
   w.__ZEPHYR_LAYOUT__ = {
     store: useLayoutCustom,
     state: () => useLayoutCustom.getState(),
@@ -681,7 +657,6 @@ export function installDevBridge(): void {
     baris: () => BARIS_LAYOUT.map((b) => ({ kunci: b.kunci, label: b.label })),
   };
 
-  // ── T2.1: bridge subagent paralel (harness uji-t2-1) ──
   w.__ZEPHYR_SUB__ = {
     store: useSubAgent,
     MAX_PARALLEL,
@@ -694,7 +669,6 @@ export function installDevBridge(): void {
     sibuk: () => useSubAgent.getState().sibuk,
   };
 
-  // ── T4.3/T4.6: state halaman Settings (harness uji-t4-3-8) ──
   w.__ZEPHYR_SETUI__ = {
     store: useSettingsUi,
     section: () => useSettingsUi.getState().section,
@@ -702,14 +676,12 @@ export function installDevBridge(): void {
     sections: () => SECTION_ORDER.slice(),
   };
 
-  // ── T4.1: shortcut (harness uji-t4) ──
   w.__ZEPHYR_SHORTCUTS__ = {
     ACTIONS: ACTIONS,
     byId: (id: string) => ACTION_BY_ID.get(id as never),
     bindings: () => useStore.getState().settings.shortcuts,
   };
 
-  // ── T4.2: peran subagent (harness uji-t4-2) ──
   w.__ZEPHYR_PERAN__ = {
     daftar: () => PERAN.map((p) => ({ id: p.id, label: p.label, butuhTulis: p.butuhTulis })),
     tebak: (tugas: string) => tebakPeran(tugas),
@@ -717,7 +689,6 @@ export function installDevBridge(): void {
     info: (id: string) => infoPeran(id),
   };
 
-  // ── T3.10: halaman Settings (harness uji-t3-10) ──
   w.__ZEPHYR_SETTINGS__ = {
     buka: (section: string) => {
       useStore.getState().setSettingsOpen(true);
@@ -727,16 +698,15 @@ export function installDevBridge(): void {
     section: () => useSettingsUi.getState().section,
   };
 
-  // ── T3.10: settings subagent (harness uji-t3-10) ──
   w.__ZEPHYR_SUBSET__ = {
     baca: () => useStore.getState().settings.subagent,
-    /** Terapkan sebagian settings subagent (deep-merge di Rust). */
+
     set: (patch: Record<string, unknown>) =>
       useStore.getState().applySettings({ subagent: patch }),
-    /** Batas efektif (dari Settings user, bukan konstanta). */
+
     batasParalel: () => batasParalel(),
     batasLangkah: () => batasLangkah(),
-    /** Nilai efektif yang dipakai store saat ini. */
+
     efektif: () => ({
       maxParallel: batasParalel(),
       maxSteps: batasLangkah(),
@@ -744,16 +714,14 @@ export function installDevBridge(): void {
     }),
   };
 
-  // ── T3.9: prompt library slash command (harness uji-t3-9) ──
   w.__ZEPHYR_PROMPT_LIB__ = {
     semua: () => allPrompts(),
     simpan: (items: PromptItem[]) => saveUserPrompts(items),
     cocok: (draft: string) => matchPrompts(draft),
   };
 
-  // ── T3.8: TODO agent (harness uji-t3-8) ──
   w.__ZEPHYR_TODO__ = {
-    /** Tulis daftar tugas lewat TOOL ASLI agent (bukan set state langsung). */
+
     tulis: async (todos: { content: string; status: string }[]) => {
       const { jalankanAgentTool } = await import('./agentTools');
       return jalankanAgentTool('todo_write', { todos });
@@ -762,10 +730,8 @@ export function installDevBridge(): void {
     bersih: () => useAi.getState().setAgentTodos([]),
   };
 
-  // ── T3.7: system prompt (harness uji-t3-7) ──
   w.__ZEPHYR_PROMPT__ = {
-    // Model + provider opsional: harness lama memanggil dengan 3 argumen dan
-    // tetap harus jalan. Yang baru bisa memverifikasi blok identitas model.
+
     system: (lang: string, konteks: string, aturan: string, model?: string, provider?: string) =>
       systemPromptFor(
         lang,
@@ -782,7 +748,6 @@ export function installDevBridge(): void {
     modelAktif: () => ({ provider: useAi.getState().provider, model: useAi.getState().model }),
   };
 
-  // ── T1.2/T1.5: bridge CLI AI agent (harness uji-t1-2-5) ──
   w.__ZEPHYR_CLIAGENT__ = {
     store: useCliAgent,
     detect: (paksa = true) => useCliAgent.getState().detect(paksa),
@@ -804,7 +769,7 @@ export function installDevBridge(): void {
     cycleTab: (d: 1 | -1) => usePanel.getState().cycleTab(d),
     menuOpen: (v: boolean) => usePanel.getState().setTabMenuOpen(v),
     hydrate: (vt?: string[], at?: string) => usePanel.getState().hydrate(vt, at),
-    /** state panel dari terminalStore (satu sumber visible/height/maximized) */
+
     visible: () => useTerminal.getState().visible,
     height: () => useTerminal.getState().height,
     maximized: () => useTerminal.getState().maximized,
@@ -846,18 +811,16 @@ export function installDevBridge(): void {
       clear: () => usePorts.getState().clear(),
     },
 
-    /** REPL Debug Console (fase 20 = no-op yang menulis ke Output "debug") */
     debugEval: (expr: string) => evaluateDebugExpr(expr),
   };
 
-  // ── fase 21: language server ──
   w.__ZEPHYR_LSP__ = {
     store: useLsp,
-    /** server yang hidup menurut store frontend */
+
     aktif: () => Object.keys(useLsp.getState().aktif),
-    /** status dari Rust (pid, idle, dokumen terbuka) */
+
     status: () => useLsp.getState().status(),
-    /** dokumen yang sudah didOpen */
+
     docs: () =>
       Object.entries(useLsp.getState().docs).map(([path, d]) => ({
         path,
@@ -878,7 +841,7 @@ export function installDevBridge(): void {
     probeAll: () => useLsp.getState().probeAll(),
     probe: () => useLsp.getState().probe,
     error: () => useLsp.getState().lspError,
-    /** katalog + spesifikasi efektif (untuk membuktikan override Settings) */
+
     katalog: () =>
       LSP_SERVERS.map((d) => ({
         id: d.id,
@@ -888,7 +851,6 @@ export function installDevBridge(): void {
       })),
     serverForPath: (p: string) => serverForPathLsp(p)?.id ?? null,
 
-    // Fitur editor lewat jalur nyata (bukan meniru logikanya di harness).
     definition: async (path: string) => {
       const { lspDefinition } = await import('./lspCm');
       const view = getActiveView();
@@ -944,7 +906,7 @@ export function installDevBridge(): void {
       if (!view) return null;
       return lspRename(path, view, view.state.selection.main.head, baru);
     },
-    /** pindahkan kursor ke line/col (1-based) sebelum memanggil fitur di atas */
+
     goto: (line: number, col: number) => {
       const view = getActiveView();
       if (!view) return false;
@@ -953,7 +915,7 @@ export function installDevBridge(): void {
       view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
       return true;
     },
-    /** jumlah node squiggle yang benar-benar dirender */
+
     squiggles: () => ({
       total: document.querySelectorAll('.cm-zdiag').length,
       error: document.querySelectorAll('.cm-zdiag-error').length,
@@ -961,16 +923,15 @@ export function installDevBridge(): void {
     }),
   };
 
-  // ── fase 24: editor extras ──
   w.__ZEPHYR_EXTRAS__ = {
-    /** apakah komponen benar-benar dirender (bukan hanya setting-nya true) */
+
     ada: () => ({
       breadcrumbs: !!document.querySelector('[data-testid="breadcrumbs"]'),
       minimap: !!document.querySelector('[data-testid="minimap"]'),
       sticky: !!document.querySelector('[data-testid="sticky-scroll"]'),
       findBar: !!document.querySelector('[data-testid="find-bar"]'),
     }),
-    /** jumlah node yang benar-benar dirender — bukti "ringan" bisa diukur */
+
     hitung: () => ({
       indentGuide: document.querySelectorAll('.cm-zig').length,
       bracket: document.querySelectorAll('.cm-zbr').length,
@@ -982,13 +943,13 @@ export function installDevBridge(): void {
       minimapCanvas: document.querySelectorAll('[data-testid="minimap-canvas"]').length,
       cmLine: document.querySelectorAll('.cm-line').length,
     }),
-    /** warna kelas bracket per kedalaman, untuk membuktikan warnanya beda */
+
     warnaBracket: () =>
       [0, 1, 2, 3, 4, 5].map((i) => {
         const el = document.querySelector(`.cm-zbr-${i}`);
         return el ? getComputedStyle(el).color : null;
       }),
-    /** nilai swatch pertama + apakah <input type=color> asli ada */
+
     swatchPertama: () => {
       const el = document.querySelector('[data-testid="color-swatch"]');
       if (!el) return null;
@@ -1000,7 +961,7 @@ export function installDevBridge(): void {
         nilaiInput: inp?.value ?? null,
       };
     },
-    /** ubah warna lewat <input> asli (memicu jalur onChange yang sama) */
+
     ubahWarna: (hex: string) => {
       const el = document.querySelector('[data-testid="color-swatch"]');
       const inp = el?.querySelector('[data-testid="color-input"]') as HTMLInputElement | null;
@@ -1010,13 +971,13 @@ export function installDevBridge(): void {
       inp.dispatchEvent(new Event('input', { bubbles: true }));
       return true;
     },
-    /** teks baris sticky yang sedang menempel */
+
     stickyTeks: () =>
       [...document.querySelectorAll('[data-testid="sticky-row"]')].map((el) => ({
         line: el.getAttribute('data-line'),
         teks: (el.textContent ?? '').trim().slice(0, 60),
       })),
-    /** segmen breadcrumbs: path + simbol */
+
     breadcrumbs: () => ({
       path: [...document.querySelectorAll('[data-testid="bc-path-seg"]')].map((e) =>
         (e.textContent ?? '').replace(/›/g, '').trim(),
@@ -1026,7 +987,7 @@ export function installDevBridge(): void {
       ),
       perkiraan: !!document.querySelector('[data-testid="bc-approx"]'),
     }),
-    /** klik segmen breadcrumb ke-n lalu buka dropdown */
+
     bukaDropdown: (n = 0) => {
       const el = document.querySelectorAll('[data-testid="bc-sym-seg"]')[n] as
         | HTMLButtonElement
@@ -1039,16 +1000,16 @@ export function installDevBridge(): void {
       [...document.querySelectorAll('[data-testid="bc-dropdown-item"]')].map((e) =>
         (e.textContent ?? '').trim(),
       ),
-    /** posisi & tinggi kotak viewport minimap (px) */
+
     minimapViewport: () => {
       const el = document.querySelector('[data-testid="minimap-viewport"]') as HTMLElement | null;
       if (!el) return null;
       const s = getComputedStyle(el);
       return { transform: s.transform, height: s.height };
     },
-    /** catatan render minimap: berapa kali gambar() dipanggil & alasan gagal */
+
     minimapDebug: () => ({ ...minimapDebug }),
-    /** pohon simbol mentah (LSP atau fallback indentasi) */
+
     simbol: async () => {
       const { pohonSimbol } = await import('./symbolTree');
       const view = getActiveView();
@@ -1065,12 +1026,11 @@ export function installDevBridge(): void {
     },
   };
 
-  // ── fase 19: bridge Extensions native (harness verify19) ──
   w.__ZEPHYR_EXT19__ = {
     store: () => useExt19,
     state: () => useExt19.getState(),
     refresh: () => useExt19.getState().refresh(),
-    /** ekstensi yang benar-benar terpasang (manifest valid) */
+
     terpasang: () =>
       useExt19
         .getState()
@@ -1112,7 +1072,7 @@ export function installDevBridge(): void {
     setDetail: (id: string | null) => useExt19.getState().setDetail(id),
     setRemoteUrl: (url: string) => useExt19.setState({ remoteUrl: url }),
     muatRemote: () => useExt19.getState().muatRemote(),
-    /** ringkasan kontribusi yang BENAR-BENAR disuplai loader */
+
     ringkasan: () => ringkasanLoader(),
     muatSemua: () => muatSemuaEkstensi(),
     themesEkstensi: () =>
@@ -1123,36 +1083,35 @@ export function installDevBridge(): void {
     adaSnippet: (l: string) => adaSnippet(l),
     adaIconTheme: () => adaIconTheme(),
     ikonUntukExt: (e: string) => ikonUntukExt(e),
-    /** command ekstensi yang benar-benar terdaftar di palette */
+
     commandsDiPalette: () =>
       availableCommands()
         .filter((c) => c.id.startsWith('ext.'))
         .map((c) => c.id),
     bahasaWorkspace: () => getBahasaWorkspace(),
-    /** semua tema yang bisa dipilih user (bawaan + ekstensi) */
+
     semuaTema: () => semuaTema().map((t) => t.id),
-    /** token warna efektif di <html> — bukti tema ekstensi benar-benar dipakai */
+
     tokenAktif: (nama: string) =>
       getComputedStyle(document.documentElement).getPropertyValue(nama).trim(),
     extTheme: () => document.documentElement.dataset.extTheme ?? null,
-    /** bahasa + parser untuk sebuah nama file (lewat jalur produk) */
+
     bahasaUntukFile: async (nama: string) => {
       const r = await extensiUntukFile(nama);
       return { langId: r.langId, dariEkstensi: r.dariEkstensi, jmlExt: r.ext.length };
     },
     labelBahasa: (nama: string) => labelBahasa(nama),
-    /** chord efektif untuk sebuah command (bukti keymap ekstensi aktif) */
+
     chord: (command: string) => chordFor(command, useKb.getState().bindings),
     sumberChord: (command: string) =>
       useKb.getState().bindings.find((b) => b.command === command)?.source ?? null,
   };
 
-  // ── fase 23: bridge Tasks (harness verify23) ──
   w.__ZEPHYR_TASK__ = {
     store: () => useTasks,
     state: () => useTasks.getState(),
     muat: (root?: string) => useTasks.getState().muat(root),
-    /** task yang berhasil divalidasi Rust */
+
     daftar: () =>
       useTasks
         .getState()
@@ -1170,7 +1129,7 @@ export function installDevBridge(): void {
           reveal: t.reveal,
           cwd: t.cwd,
         })),
-    /** error skema dari tasks.json (bukti task rusak tidak menjatuhkan sisanya) */
+
     errors: () => useTasks.getState().file?.errors ?? [],
     path: () => useTasks.getState().file?.path ?? '',
     buildDefault: () => useTasks.getState().buildDefault()?.label ?? null,
@@ -1189,12 +1148,12 @@ export function installDevBridge(): void {
       })),
     runsAktif: () => useTasks.getState().runsAktif().length,
     recent: () => useTasks.getState().recent,
-    /** true kalau task background sudah kena endsPattern (siap untuk fase 22) */
+
     siap: (runId: string) => useTasks.getState().ready[runId] === true,
-    /** baris output yang benar-benar masuk channel Output fase 20 */
+
     output: (label: string) => useOutput.getState().lines(`task:${label}`),
     channels: () => useOutput.getState().list().map((c) => c.id),
-    /** diagnostik yang dihasilkan problem matcher, dari problemsStore nyata */
+
     problems: (label?: string) =>
       useProblems
         .getState()
@@ -1209,7 +1168,7 @@ export function installDevBridge(): void {
           code: d.code ?? '',
           source: d.source,
         })),
-    /** port yang terdeteksi otomatis dari output task (integrasi fase 20) */
+
     ports: () =>
       usePorts
         .getState()
@@ -1222,27 +1181,26 @@ export function installDevBridge(): void {
           status: p.status,
         })),
     hapusPorts: () => usePorts.getState().clear(),
-    /** uji matcher tanpa menjalankan proses */
+
     matchLine: (matcher: string, line: string, root?: string) =>
       tasksMatchLineCmd(matcher, line, root),
     detectPort: (line: string) => tasksDetectPortCmd(line),
     matchers: () => tasksMatchersCmd(),
-    /** command task yang benar-benar terdaftar di palette */
+
     commandsDiPalette: () =>
       availableCommands()
         .filter((c) => c.id.startsWith('task.') || c.id.startsWith('tasks.'))
         .map((c) => c.id),
   };
 
-  // ── fase 26: bridge Timeline / Local History (harness verify26) ──
   w.__ZEPHYR_HIST__ = {
     store: () => useHistory,
     state: () => useHistory.getState(),
     muat: (f: string) => useHistory.getState().muat(f),
-    /** snapshot lewat jalur PRODUK (menghormati settings.history) */
+
     snapshot: (f: string, reason?: 'save' | 'manual' | 'before-rename' | 'before-restore') =>
       useHistory.getState().snapshotSave(f, reason ?? 'manual'),
-    /** snapshot langsung ke Rust — untuk menguji batas/dedup tanpa setting */
+
     snapshotRaw: (f: string, reason: string, maks?: number, hari?: number) =>
       cmdHistorySnapshot(
         f,
@@ -1255,7 +1213,7 @@ export function installDevBridge(): void {
     prune: (f: string, maks: number, hari: number) => cmdHistoryPrune(f, maks, hari),
     clear: (f: string) => useHistory.getState().bersihkan(f),
     stats: () => cmdHistoryStats(),
-    /** entri Timeline yang benar-benar dirender store (snapshot + commit git) */
+
     timeline: () =>
       useHistory.getState().timeline.map((t) => ({
         kind: t.kind,
@@ -1272,24 +1230,23 @@ export function installDevBridge(): void {
     pilih: (id: string | null) => useHistory.getState().pilih(id),
     isiSnapshot: () => useHistory.getState().isiSnapshot,
     restore: (id: string) => useHistory.getState().restore(id),
-    /** diff yang terpasang di DiffViewer (bukti kiri=riwayat kanan=kini) */
+
     diff: () => {
       const d = useGit.getState().diff;
       return d ? { path: d.path, teks: d.text } : null;
     },
     tutupDiff: () => useGit.getState().closeDiff(),
-    /** command Timeline yang benar-benar terdaftar di palette */
+
     commandsDiPalette: () =>
       availableCommands()
         .filter((c) => c.id.startsWith('timeline.'))
         .map((c) => c.id),
   };
 
-  // ── fase 25: bridge Global Search (harness verify25) ──
   w.__ZEPHYR_SRC__ = {
     store: () => useSearch,
     state: () => useSearch.getState(),
-    /** info binary rg yang benar-benar dipakai */
+
     rg: () => useSearch.getState().rg,
     cekRg: () => useSearch.getState().cekRg(),
     setQuery: (q: string) => useSearch.getState().setQuery(q),
@@ -1297,9 +1254,9 @@ export function installDevBridge(): void {
     setInclude: (g: string) => useSearch.getState().setInclude(g),
     setExclude: (g: string) => useSearch.getState().setExclude(g),
     setMaxResults: (n: number) => useSearch.getState().setMaxResults(n),
-    /** batasi pencarian ke satu folder ('' = seluruh workspace) */
+
     setRoot: (p: string) => useSearch.getState().setRoot(p),
-    /** setel semua flag sekaligus supaya harness tidak perlu banyak toggle */
+
     setFlag: (f: {
       caseSensitive?: boolean;
       wholeWord?: boolean;
@@ -1310,12 +1267,12 @@ export function installDevBridge(): void {
     jalankan: () => useSearch.getState().jalankan(),
     batalkan: () => useSearch.getState().batalkan(),
     bersihkan: () => useSearch.getState().bersihkan(),
-    /** ringkasan hasil: jumlah, file, waktu, truncated */
+
     summary: () => useSearch.getState().summary,
     total: () => useSearch.getState().total,
     error: () => useSearch.getState().error,
     running: () => useSearch.getState().running,
-    /** hasil terkelompok per file (path relatif dipendekkan) */
+
     grup: () =>
       useSearch.getState().grup.map((g) => ({
         path: g.path,
@@ -1323,7 +1280,7 @@ export function installDevBridge(): void {
         terbuka: g.terbuka,
         baris: g.hits.slice(0, 3).map((h) => h.line),
       })),
-    /** satu hit lengkap, untuk memeriksa kolom & ranges */
+
     hit: (i: number) => useSearch.getState().semuaHit()[i] ?? null,
     jumlahHit: () => useSearch.getState().semuaHit().length,
     bukaHit: (i: number) => {
@@ -1344,14 +1301,14 @@ export function installDevBridge(): void {
         error: h.error,
       })),
     setReplaceTerbuka: (v: boolean) => useSearch.getState().setReplaceTerbuka(v),
-    /** jumlah node DOM yang BENAR-BENAR dirender (bukti virtualisasi) */
+
     domHit: () => document.querySelectorAll('[data-testid="sr-hit"]').length,
     domFile: () => document.querySelectorAll('[data-testid="sr-file"]').length,
     tinggiSpacer: () => {
       const el = document.querySelector<HTMLElement>('[data-testid="sr-spacer"]');
       return el ? Math.round(el.getBoundingClientRect().height) : 0;
     },
-    /** gulirkan daftar hasil (untuk menguji virtualisasi) */
+
     gulir: (y: number) => {
       const el = document.querySelector<HTMLElement>('[data-testid="sr-results"]')
         ?? document.querySelector<HTMLElement>('.search-results');
@@ -1360,7 +1317,7 @@ export function installDevBridge(): void {
       el.dispatchEvent(new Event('scroll', { bubbles: true }));
       return el.scrollTop;
     },
-    /** teks yang tersorot <mark> di baris hasil ke-i */
+
     sorotan: (i: number) => {
       const baris = document.querySelectorAll('[data-testid="sr-hit"]')[i];
       if (!baris) return [];
@@ -1368,11 +1325,10 @@ export function installDevBridge(): void {
     },
   };
 
-  // ── fase 22: bridge Run & Debug (harness verify22) ──
   w.__ZEPHYR_DBG__ = {
     store: () => useDebug,
     state: () => useDebug.getState(),
-    /** status sesi: inactive | starting | running | stopped */
+
     status: () => useDebug.getState().state,
     alasanStop: () => useDebug.getState().alasanStop,
     error: () => useDebug.getState().error,
@@ -1413,12 +1369,12 @@ export function installDevBridge(): void {
     frameTerpilih: () => useDebug.getState().frameTerpilih,
     pilihFrame: (id: number) => useDebug.getState().pilihFrame(id),
     scopes: () => useDebug.getState().scopes,
-    /** variabel satu scope/objek; [] kalau belum dimuat */
+
     vars: (ref: number) => useDebug.getState().variables[ref] ?? [],
     expandVariable: (ref: number) => useDebug.getState().expandVariable(ref),
     setVariable: (ref: number, n: string, v: string) =>
       useDebug.getState().setVariable(ref, n, v),
-    /** cari variabel bernama X di semua scope yang sudah dimuat */
+
     cariVar: (nama: string) => {
       const st = useDebug.getState();
       for (const ref of Object.keys(st.variables)) {
@@ -1438,34 +1394,28 @@ export function installDevBridge(): void {
 
     barisAktif: () => useDebug.getState().barisAktif,
     loadedSources: () => useDebug.getState().loadedSources,
-    /** jumlah marker breakpoint yang benar-benar dirender di gutter editor */
+
     domBp: () => document.querySelectorAll('.cm-bp-marker').length,
     domBpVerified: () => document.querySelectorAll('.cm-bp-marker.is-verified').length,
-    /** true = ada baris yang di-highlight kuning (paused) */
+
     domBarisAktif: () => document.querySelectorAll('.cm-baris-aktif').length,
-    /** context key debugActive aktif atau tidak (yang mengatur F10/F11) */
+
     ctxDebugActive: () => useKb.getState().ctx.includes('debugActive'),
   };
 
-  // ── fase 28: bridge CLI launcher (harness verify28) ──
   w.__ZEPHYR_CLI__ = {
     store: () => useCli,
     state: () => useCli.getState(),
-    /** argumen CLI terakhir yang dijalankan */
+
     terakhir: () => useCli.getState().terakhir,
     jumlahJalan: () => useCli.getState().jumlahJalan,
     menunggu: () => useCli.getState().menunggu,
     bersihkan: () => useCli.getState().bersihkan(),
 
-    /**
-     * Parse argv lewat JALUR PRODUK (Rust `cli::parse`), bukan salinan JS.
-     * Ini yang membuat uji sintaks `file.ts:10:5` benar-benar menguji parser
-     * yang dipakai app, bukan implementasi kedua di harness.
-     */
     parse: (argv: string[], cwd: string) => cliParse(argv, cwd),
-    /** jalankan argumen seolah datang dari instance kedua */
+
     jalankan: (args: CliArgs) => useCli.getState().jalankan(args),
-    /** teks --help/--version dari Rust; warna=false = jalur pipe */
+
     teks: (mode: 'help' | 'version' | 'banner', warna: boolean, kolom?: number) =>
       cliTeks(mode, warna, kolom),
 
@@ -1474,7 +1424,6 @@ export function installDevBridge(): void {
     waitSelesai: (token: string) => cliWaitSelesai(token),
     lepasWait: (path: string) => useCli.getState().lepasWait(path),
 
-    /** diff yang terpasang di DiffViewer (bukti V4) */
     diff: () => {
       const d = useGit.getState().diff;
       return d ? { path: d.path, source: d.source, panjang: d.text.length, teks: d.text } : null;
@@ -1482,12 +1431,11 @@ export function installDevBridge(): void {
     tutupDiff: () => useGit.getState().closeDiff(),
   };
 
-  // ── fase 29: bridge multi-root + Workspace Trust (harness verify29) ──
   w.__ZEPHYR_WS__ = {
     store: () => useWs,
     state: () => useWs.getState(),
     muat: () => useWs.getState().muat(),
-    /** daftar root: path, nama, isRepo, trust */
+
     roots: () => useWs.getState().roots,
     activeRoot: () => useWs.getState().activeRoot,
     file: () => useWs.getState().file,
@@ -1508,20 +1456,18 @@ export function installDevBridge(): void {
     tanya: (p: string | null) => useWs.getState().tanya(p),
     tanyaUntuk: () => useWs.getState().tanyaUntuk,
 
-    /** settings efektif + asal nilai (uji urutan scope) */
     settingsEfektif: (root?: string) => useWs.getState().settingsEfektif(root),
     asalNilai: (key: string, root?: string) => useWs.getState().asalNilai(key, root),
     setSettingsWorkspace: (patch: Record<string, unknown>) =>
       useWs.getState().setSettingsWorkspace(patch),
     bolehEksekusi: () => workspaceBolehEksekusiCmd(),
 
-    /** jumlah section root yang benar-benar dirender di DOM */
     domRoots: () => document.querySelectorAll('[data-testid="root-head"]').length,
     domRootPaths: () =>
       [...document.querySelectorAll('.root-section')].map((el) =>
         el.getAttribute('data-root') || '',
       ),
-    /** jumlah tree yang dirender, per root */
+
     domTrees: () =>
       [...document.querySelectorAll('.tree[data-root]')].map((el) => ({
         root: el.getAttribute('data-root') || '',
@@ -1557,14 +1503,6 @@ export function installDevBridge(): void {
       return !!b;
     },
 
-    /**
-     * Panggil KEEMPAT jalur eksekusi langsung lewat command Rust.
-     *
-     * Ini inti V5: yang harus menolak adalah COMMAND-nya, bukan tombol yang
-     * disembunyikan UI. Store dilewati sengaja — store menangkap error dan
-     * mengubahnya jadi notifikasi, jadi harness tidak bisa membedakan
-     * "ditolak" dari "tidak dijalankan".
-     */
     mentahTask: (id: string) =>
       tasksRunCmd({
         id,
@@ -1577,10 +1515,7 @@ export function installDevBridge(): void {
       dapStartCmd(
         {
           name: 'uji-trust',
-          // WAJIB `type`, bukan `tipe`: DebugConfig di Rust memakai
-          // #[serde(rename = "type")], jadi payload dengan `tipe` gagal
-          // DESERIALISASI sebelum ensure_trusted dipanggil — errornya
-          // "missing field type", bukan "diblokir", dan uji trust jadi bohong.
+
           type: 'node',
           request: 'launch',
           program: 'a.js',
@@ -1590,27 +1525,20 @@ export function installDevBridge(): void {
     mentahLsp: (root: string) =>
       lspStartCmd({ id: 'typescript', cmd: ['node', '--version'], lang: 'typescript' }, root, null),
     mentahExt: (id: string) => extensionsLoadCmd(id),
-    /** matikan run uji supaya tidak menggantung (tasks_kill) */
+
     matikanTask: (id: string) => tasksKillCmd(id),
   };
 
-  // ── FASE 30: snippets ──
   w.__ZEPHYR_SNIP__ = {
     store: () => useSnip,
     state: () => useSnip.getState(),
     muat: (lang: string, paksa = true) => useSnip.getState().muat(lang, paksa),
-    /** snippet yang tersedia untuk sebuah bahasa (dari cache) */
+
     untuk: (lang: string) => useSnip.getState().untuk(lang),
     bersihkanCache: () => useSnip.getState().bersihkanCache(),
     bukaFileUser: (lang: string) => useSnip.getState().bukaFileUser(lang),
     daftarUser: () => useSnip.getState().bahasaUser,
-    /**
-     * Terjemahkan body VS Code → template CM6 tanpa menyentuh editor.
-     *
-     * Dipakai harness untuk memeriksa penerjemah secara terpisah dari
-     * completion: kalau uji end-to-end gagal, ini yang membedakan "parser
-     * salah" dari "integrasi CM salah".
-     */
+
     terjemah: (body: string, konteks?: Partial<KonteksVar>) =>
       terjemahBody(body, {
         seleksi: '',
@@ -1621,7 +1549,7 @@ export function installDevBridge(): void {
         indent: '',
         ...(konteks ?? {}),
       }),
-    /** nilai variabel yang dipakai penerjemah (untuk memeriksa CURRENT_YEAR dll) */
+
     variabel: (konteks?: Partial<KonteksVar>) =>
       nilaiVariabel({
         seleksi: '',
@@ -1632,7 +1560,7 @@ export function installDevBridge(): void {
         indent: '',
         ...(konteks ?? {}),
       }),
-    /** sisipkan snippet ke editor aktif, mengaktifkan mode tab stop */
+
     sisip: async (lang: string, prefix: string) => {
       const v = getActiveView();
       if (!v) return 'tidak ada editor aktif';
@@ -1644,13 +1572,7 @@ export function installDevBridge(): void {
       await sisipkanSnippet(v, s, tab?.path ?? '');
       return 'ok';
     },
-    /**
-     * Tekan Tab / Shift+Tab lewat perintah CM6 langsung.
-     *
-     * TIDAK memakai Input.dispatchKeyEvent: keymap snippet hidup di dalam
-     * EditorView, dan event CDP yang dikirim saat dokumen tidak fokus tidak
-     * pernah sampai ke sana (pelajaran fase 05 soal fokus WebView2).
-     */
+
     tabStop: (maju = true) => {
       const v = getActiveView();
       if (!v) return false;
@@ -1660,12 +1582,11 @@ export function installDevBridge(): void {
       const v = getActiveView();
       return v ? clearSnippetCm(v) : false;
     },
-    /** apakah mode tab stop sedang aktif (ada field yang bisa dituju) */
+
     modeAktif: () => {
       const v = getActiveView();
       if (!v) return false;
-      // CM6 tidak mengekspos state snippet; keberadaan field dideteksi dari
-      // dekorasi `.cm-snippetField` yang dirender mesin snippet-nya.
+
       return v.dom.querySelectorAll('.cm-snippetField').length > 0;
     },
     jumlahField: () => {
@@ -1674,16 +1595,15 @@ export function installDevBridge(): void {
     },
   };
 
-  // ── FASE 31: aksesibilitas ──
   w.__ZEPHYR_A11Y__ = {
     store: () => useA11y,
     state: () => useA11y.getState(),
-    /** kirim pengumuman lewat jalur produk (bukan menulis DOM langsung) */
+
     umumkan: (teks: string, kesopanan?: 'polite' | 'assertive') =>
       useA11y.getState().umumkan(teks, kesopanan),
     riwayat: () => useA11y.getState().riwayat,
     bersihkan: () => useA11y.getState().bersihkan(),
-    /** isi live region yang SEBENARNYA dirender (bukti V3) */
+
     isiLive: () => ({
       polite: document.querySelector('[data-testid="a11y-live-polite"]')?.textContent ?? null,
       assertive:
@@ -1695,17 +1615,16 @@ export function installDevBridge(): void {
         .querySelector('[data-testid="a11y-live-assertive"]')
         ?.getAttribute('aria-live'),
     }),
-    /** atribut a11y di <html> — bukti setelan benar-benar diterapkan */
+
     atribut: () => ({
       reducedMotion: document.documentElement.dataset.reducedMotion ?? null,
       screenReader: document.documentElement.dataset.screenReader ?? null,
       theme: document.documentElement.dataset.theme ?? null,
     }),
     osReducedMotion: () => osMintaReducedMotion(),
-    /** setelan efektif dari store utama */
+
     setelan: () => useStore.getState().settings.accessibility ?? null,
 
-    /** Hitung rasio kontras dua warna CSS var yang SEDANG dipakai. */
     kontras: (varFg: string, varBg: string) => {
       const cs = getComputedStyle(document.documentElement);
       const parse = (v: string): [number, number, number] | null => {
@@ -1737,7 +1656,6 @@ export function installDevBridge(): void {
       return +((Math.max(a, b2) + 0.05) / (Math.min(a, b2) + 0.05)).toFixed(2);
     },
 
-    /** Jumlah dialog modal yang terlihat + apakah punya focus trap terpasang. */
     dialogAktif: () =>
       [...document.querySelectorAll('[role="dialog"]')]
         .filter((el) => (el as HTMLElement).offsetParent !== null || el.clientHeight > 0)
@@ -1749,7 +1667,6 @@ export function installDevBridge(): void {
           ).length,
         })),
 
-    /** Elemen yang sedang fokus — dipakai membuktikan trap & skip link. */
     fokus: () => {
       const el = document.activeElement as HTMLElement | null;
       if (!el) return null;
@@ -1763,7 +1680,6 @@ export function installDevBridge(): void {
       };
     },
 
-    /** Fokuskan elemen berdasarkan selector (untuk memulai uji Tab). */
     fokuskan: (sel: string) => {
       const el = document.querySelector<HTMLElement>(sel);
       if (!el) return false;
@@ -1771,13 +1687,6 @@ export function installDevBridge(): void {
       return document.activeElement === el;
     },
 
-    /**
-     * Kirim Tab / Shift+Tab sebagai KeyboardEvent asli.
-     *
-     * TIDAK memakai Input.dispatchKeyEvent CDP: focus trap fase 31 memasang
-     * listener di `document` dengan capture, dan event CDP yang dikirim saat
-     * dokumen tidak fokus tidak selalu sampai (pelajaran fase 05 WebView2).
-     */
     tekanTab: (shift = false) => {
       const ev = new KeyboardEvent('keydown', {
         key: 'Tab',
@@ -1798,7 +1707,6 @@ export function installDevBridge(): void {
         }),
       ),
 
-    /** Jalankan axe-core pada dokumen hidup (V6). Kode axe disuntik harness. */
     axe: async (opsi?: Record<string, unknown>) => {
       const g = window as unknown as { axe?: { run: (ctx: unknown, o?: unknown) => Promise<unknown> } };
       if (!g.axe) return { err: 'axe belum disuntik' };
@@ -1806,7 +1714,6 @@ export function installDevBridge(): void {
     },
   };
 
-  // Kumpulkan error konsol & promise rejection untuk V10.
   const errors: string[] = [];
   w.__ZEPHYR_ERRORS__ = errors;
 

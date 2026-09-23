@@ -1,10 +1,3 @@
-// McpToast.tsx — notifikasi kecil saat AI CLI melakukan sesuatu yang perlu
-// disadari user (fase 12).
-//
-// Alasan ada: MCP membuat proses lain bisa mengemudikan jendela ini. Kalau
-// agent mengambil screenshot pane, user harus melihatnya — bukan mengetahuinya
-// nanti dari file di %TEMP%. Toast tampil 4 detik lalu hilang sendiri.
-
 import { useEffect } from 'react';
 import { useMcp } from '../../lib/mcpStore';
 import { useT } from '../../lib/i18n';

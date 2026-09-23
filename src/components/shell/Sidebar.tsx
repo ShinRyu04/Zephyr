@@ -1,9 +1,3 @@
-// Sidebar.tsx — panel kiri per ikon ActivityBar.
-//
-// CATATAN (jangan diulang): daftar 11 section Settings hidup di SINI
-// (SettingsNav), bukan di dalam halaman. Sempat ada di dua tempat dan
-// hasilnya daftar dobel + Reset Semua muncul dua kali di layar.
-
 import { useStore } from '../../lib/store';
 import AiSidebar from '../ai/AiSidebar';
 import DebugView from '../debug/DebugView';

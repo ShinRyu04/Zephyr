@@ -1,22 +1,3 @@
-// ext_pkg.rs — model manifest ekstensi native fase 19 + siklus hidup install.
-//
-// HUBUNGAN DENGAN extensions.rs (fase 13): file itu tetap sumber daftar
-// (`list_all`) dan pembaca `package.json` gaya VS Code. Fase 19 MENAMBAH:
-//   * manifest native `zephyr-extension.json` (bentuk di prompt 19.2),
-//   * `contributes` lengkap: themes/keymaps/snippets/languages/commands/
-//     iconThemes — dibaca sebagai DATA, tetap tidak mengeksekusi JS,
-//   * install dari folder & arsip `.zext` (zip),
-//   * `installed.json` sebagai catatan resmi apa yang terpasang + enabled.
-//
-// Keputusan keamanan (lanjutan 19.6, konsisten dengan fase 13):
-//   - Kode JS ekstensi TIDAK dieksekusi. `contributes.commands[].handler`
-//     dicatat tapi tidak dijalankan; command-nya tetap muncul di palette dan
-//     menampilkan pesan jujur kalau dipanggil.
-//   - Semua path yang dibaca WAJIB berada di dalam folder ekstensi itu
-//     sendiri (lihat `resolve_in_ext`). Tanpa ini `"path": "../../../id_rsa"`
-//     di manifest bisa membaca file mana pun milik user.
-//   - Unzip `.zext` menolak entri dengan `..` atau path absolut (zip slip).
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
@@ -26,19 +7,13 @@ use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 use tauri::State;
 
-/// Batas ukuran arsip yang mau di-unzip. Dinaikkan dari 16 MB karena
-/// ekstensi marketplace (mis. ms-python) bisa puluhan MB.
-const MAX_ZEXT_BYTES: u64 = 1024 * 1024 * 1024; // 1 GB
-/// Batas total byte hasil unzip — penjaga zip bomb (tetap jauh di atas
-/// ukuran arsip supaya ekstensi besar yang mengembang wajar tidak kena).
-const MAX_UNZIP_TOTAL: u64 = 2 * 1024 * 1024 * 1024; // 2 GB
-/// Batas file yang dibaca sebagai kontribusi (tema/keymap/snippet JSON).
+const MAX_ZEXT_BYTES: u64 = 1024 * 1024 * 1024;
+
+const MAX_UNZIP_TOTAL: u64 = 2 * 1024 * 1024 * 1024;
+
 const MAX_CONTRIB_BYTES: u64 = 512 * 1024;
 
-/// Nama manifest native fase 19. `package.json` tetap didukung (fase 13).
 pub const MANIFEST_NATIVE: &str = "zephyr-extension.json";
-
-// ───────────────────────── manifest ─────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -47,7 +22,7 @@ pub struct ContribTheme {
     pub label: String,
     #[serde(default)]
     pub path: String,
-    /// dark | light — menentukan basis token saat tema dipakai
+
     #[serde(default)]
     pub kind: String,
 }
@@ -77,10 +52,10 @@ pub struct ContribLanguage {
     pub id: String,
     #[serde(default)]
     pub extensions: Vec<String>,
-    /// paket CodeMirror yang di-lazy-import frontend (mis. @codemirror/lang-toml)
+
     #[serde(default)]
     pub cm_lang: String,
-    /// alternatif tanpa paket: mode legacy dari @codemirror/legacy-modes
+
     #[serde(default)]
     pub legacy_mode: String,
     #[serde(default)]
@@ -104,7 +79,7 @@ pub struct Contributes {
     pub snippets: Vec<ContribSnippet>,
     pub languages: Vec<ContribLanguage>,
     pub icon_themes: Vec<ContribIconTheme>,
-    /// command: id sudah di-prefix `ext.<extId>.`
+
     pub commands: Vec<super::extensions::ExtCommand>,
 }
 
@@ -118,15 +93,15 @@ pub struct ExtManifest {
     pub description: String,
     pub icon: String,
     pub categories: Vec<String>,
-    /// `engines.zephyr` apa adanya, kosong = tidak dibatasi
+
     pub engine: String,
-    /// false = engine minta versi Zephyr yang lebih baru
+
     pub engine_ok: bool,
     pub main: String,
     pub contributes: Contributes,
-    /// manifest mentah (ditampilkan di panel Details)
+
     pub raw: Value,
-    /// `zephyr-extension.json` atau `package.json`
+
     pub manifest_file: String,
 }
 
@@ -146,9 +121,6 @@ fn arr<'a>(v: &'a Value, a: &str, b: &str) -> Vec<&'a Value> {
         .unwrap_or_default()
 }
 
-/// Bandingkan `engines.zephyr` (bentuk `>=1.0`, `^1.2`, `1.0`) dengan versi app.
-/// Sengaja sederhana: hanya major.minor, dan bentuk tak dikenal dianggap LOLOS
-/// supaya ekstensi tidak diblokir oleh parser kita yang terbatas.
 fn engine_cocok(spec: &str) -> bool {
     let app = env!("CARGO_PKG_VERSION");
     let num = |s: &str| -> (u32, u32) {
@@ -248,7 +220,6 @@ fn parse_contributes(ext_id: &str, v: &Value, dir: &Path) -> Contributes {
                 .map(|a| {
                     a.iter()
                         .filter_map(|x| x.as_str())
-                        // simpan tanpa titik supaya cocok dengan lang.ts
                         .map(|x| x.trim_start_matches('.').to_lowercase())
                         .filter(|x| !x.is_empty())
                         .collect()
@@ -283,8 +254,6 @@ fn parse_contributes(ext_id: &str, v: &Value, dir: &Path) -> Contributes {
     c
 }
 
-/// Baca manifest satu folder ekstensi. Mengutamakan `zephyr-extension.json`,
-/// jatuh ke `package.json` supaya paket fase 13 tetap terbaca.
 pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
     let (file, path) = if dir.join(MANIFEST_NATIVE).is_file() {
         (MANIFEST_NATIVE.to_string(), dir.join(MANIFEST_NATIVE))
@@ -300,7 +269,6 @@ pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
     let v: Value = serde_json::from_str(&raw_text)
         .map_err(|e| ZephyrError::InvalidInput(format!("{file} tidak valid: {e}")))?;
 
-    // id: dari manifest kalau ada, kalau tidak nama folder (kompat fase 13).
     let id_manifest = sf(&v, "id");
     let id = if id_manifest.is_empty() {
         let pub_ = sf(&v, "publisher");
@@ -360,13 +328,6 @@ pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
     })
 }
 
-// ───────────────────── keamanan path kontribusi ─────────────────────
-
-/// Selesaikan path relatif dari manifest DI DALAM folder ekstensi.
-///
-/// Menolak: path absolut, `..`, dan hasil canonicalize yang keluar dari `root`.
-/// Tanpa ini `"path": "../../../../Users/x/.ssh/id_rsa"` di manifest membuat
-/// `extensions_read_contrib` jadi pembaca file sembarang.
 pub fn resolve_in_ext(root: &Path, rel: &str) -> ZResult<PathBuf> {
     let r = rel.trim().replace('\\', "/");
     let r = r.trim_start_matches("./").to_string();
@@ -384,7 +345,7 @@ pub fn resolve_in_ext(root: &Path, rel: &str) -> ZResult<PathBuf> {
         }
     }
     let gabung = root.join(p);
-    // canonicalize hanya bisa untuk file yang ada; itu justru yang kita mau.
+
     let real = std::fs::canonicalize(&gabung)
         .map_err(|_| ZephyrError::NotFound(format!("file kontribusi {rel}")))?;
     let real_root = std::fs::canonicalize(root)
@@ -397,8 +358,6 @@ pub fn resolve_in_ext(root: &Path, rel: &str) -> ZResult<PathBuf> {
     Ok(real)
 }
 
-// ───────────────────────── installed.json ─────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledEntry {
@@ -407,7 +366,7 @@ pub struct InstalledEntry {
     pub version: String,
     #[serde(default = "yes")]
     pub enabled: bool,
-    /// path folder; kosong = di dalam extensions/<id>
+
     #[serde(default)]
     pub path: String,
 }
@@ -444,16 +403,13 @@ fn upsert_installed(state: &AppState, e: InstalledEntry) -> ZResult<()> {
     write_installed(state, &list)
 }
 
-// ───────────────────────── install / uninstall ─────────────────────────
-
-/// Salin folder secara rekursif dengan batas total byte (anti folder raksasa).
 fn copy_dir(src: &Path, dst: &Path, terpakai: &mut u64) -> ZResult<()> {
     std::fs::create_dir_all(dst)?;
     for e in std::fs::read_dir(src)? {
         let e = e?;
         let ft = e.file_type()?;
         let nama = e.file_name();
-        // Jangan ikut menyalin folder kontrol/berat.
+
         let n = nama.to_string_lossy().to_lowercase();
         if n == ".git" || n == "node_modules" || n == "target" {
             continue;
@@ -475,11 +431,6 @@ fn copy_dir(src: &Path, dst: &Path, terpakai: &mut u64) -> ZResult<()> {
     Ok(())
 }
 
-/// Ekstrak `.zext` (zip) ke folder tujuan.
-///
-/// ZIP SLIP: setiap entri diperiksa — `..` dan path absolut ditolak, dan hasil
-/// gabungnya wajib tetap di bawah `dst`. Tanpa ini arsip berisi
-/// `../../../../Windows/System32/x.dll` bisa menulis di luar folder ekstensi.
 fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
     let sz = std::fs::metadata(arsip)?.len();
     if sz > MAX_ZEXT_BYTES {
@@ -501,8 +452,6 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
             .by_index(i)
             .map_err(|e| ZephyrError::InvalidInput(format!("entri zip rusak: {e}")))?;
 
-        // `enclosed_name()` sudah menolak `..` dan path absolut; kita periksa
-        // ulang sendiri supaya alasannya bisa dilaporkan ke user.
         let rel = match item.enclosed_name() {
             Some(p) => p.to_path_buf(),
             None => {
@@ -539,8 +488,6 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
     Ok(())
 }
 
-/// Kalau zip berisi SATU folder pembungkus (bentuk paling umum), pakai folder
-/// itu sebagai akar paket.
 fn turun_ke_akar(dir: &Path) -> PathBuf {
     if dir.join(MANIFEST_NATIVE).is_file() || dir.join("package.json").is_file() {
         return dir.to_path_buf();
@@ -569,15 +516,11 @@ pub struct InstallHasil {
     pub name: String,
     pub version: String,
     pub path: String,
-    /// true = perlu Reload Window supaya kontribusi berlaku
+
     pub perlu_reload: bool,
     pub manifest: ExtManifest,
 }
 
-/// Pasang ekstensi dari folder ATAU arsip `.zext`.
-///
-/// Sumber disalin ke `%APPDATA%\zephyr\extensions\<id>\` supaya app tidak
-/// bergantung pada folder milik user yang bisa hilang/berpindah.
 #[tauri::command]
 pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<InstallHasil> {
     let asal = PathBuf::from(&path);
@@ -588,8 +531,6 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
     let dir_ext = crate::extensions::extensions_dir(&state);
     std::fs::create_dir_all(&dir_ext)?;
 
-    // Staging dulu, baru pindah ke nama final setelah id diketahui — kalau
-    // manifest ternyata rusak, folder tujuan tidak pernah dikotori.
     let staging = dir_ext.join(format!(".staging-{}", std::process::id()));
     if staging.exists() {
         let _ = std::fs::remove_dir_all(&staging);
@@ -608,7 +549,6 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
                 .map(|n| n == MANIFEST_NATIVE || n == "package.json")
                 .unwrap_or(false)
             {
-                // User memilih manifest-nya langsung → pasang folder induknya.
                 let induk = asal.parent().ok_or_else(|| {
                     ZephyrError::InvalidInput("folder ekstensi tidak ketemu".into())
                 })?;
@@ -637,7 +577,6 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
             )));
         }
 
-        // id dipakai sebagai nama folder → tidak boleh mengandung separator.
         if man.id.contains('/') || man.id.contains('\\') || man.id.contains("..") {
             return Err(ZephyrError::InvalidInput(format!(
                 "id ekstensi tidak valid: {}",
@@ -649,7 +588,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
         if final_dir.exists() {
             std::fs::remove_dir_all(&final_dir)?;
         }
-        // Kalau akar ada di dalam subfolder staging, pindahkan subfolder itu.
+
         std::fs::rename(&akar, &final_dir).or_else(|_| -> ZResult<()> {
             let mut n = 0u64;
             copy_dir(&akar, &final_dir, &mut n)?;
@@ -672,7 +611,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
             name: man.name.clone(),
             version: man.version.clone(),
             path: final_dir.to_string_lossy().to_string(),
-            // Tema/keymap/bahasa baru berlaku penuh setelah reload (19.4).
+
             perlu_reload: !man.contributes.themes.is_empty()
                 || !man.contributes.keymaps.is_empty()
                 || !man.contributes.languages.is_empty()
@@ -685,8 +624,6 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
     hasil
 }
 
-/// Hapus folder ekstensi + entri installed.json. Hanya boleh untuk folder yang
-/// benar-benar berada DI DALAM extensions/ (bukan path luar pilihan user).
 #[tauri::command]
 pub fn extensions_uninstall(state: State<AppState>, id: String) -> ZResult<bool> {
     let dir_ext = crate::extensions::extensions_dir(&state);
@@ -717,12 +654,10 @@ pub fn extensions_uninstall(state: State<AppState>, id: String) -> ZResult<bool>
         kena = true;
     }
 
-    // Lepas juga dari registry path luar (fase 13) supaya tidak jadi hantu.
     let _ = crate::extensions::registry_lepas(&state, &id);
     Ok(kena)
 }
 
-/// Enable/disable tanpa menghapus file (19.4).
 #[tauri::command]
 pub fn extensions_set_enabled(state: State<AppState>, id: String, on: bool) -> ZResult<bool> {
     let mut list = read_installed(&state);
@@ -740,10 +675,6 @@ pub fn extensions_set_enabled(state: State<AppState>, id: String, on: bool) -> Z
     Ok(on)
 }
 
-// ───────────────────────── baca kontribusi ─────────────────────────
-
-/// Baca satu file kontribusi (tema/keymap/snippet/icon theme) sebagai JSON.
-/// Path WAJIB relatif dan tetap di dalam folder ekstensi (`resolve_in_ext`).
 #[tauri::command]
 pub fn extensions_read_contrib(state: State<AppState>, id: String, rel: String) -> ZResult<Value> {
     let dir =
@@ -785,22 +716,13 @@ pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> 
     std::fs::read_to_string(&file).map_err(ZephyrError::from)
 }
 
-/// Baca SEMUA file JS/JSON sebuah ekstensi sebagai peta relpath -> isi.
-///
-/// Dipakai sandbox untuk mendukung `require('./file')` relatif antar file
-/// ekstensi (mis. main yang memuat `./dist/extension.bundle`). File biner
-/// (.wasm/.node/dll/...) dilewati — mustahil dijalankan di Web Worker.
-///
-/// Batas: 32MB per file, 128MB total, maks 2000 file, kedalaman 20 folder.
-/// File yang melampaui batas TIDAK masuk peta; `require`-nya nanti memberi
-/// error "tidak ditemukan" yang jelas (bukan ReferenceError membingungkan).
 #[tauri::command]
 pub fn extensions_read_files(
     state: State<AppState>,
     id: String,
 ) -> ZResult<HashMap<String, String>> {
-    const PER_FILE: u64 = 32 * 1024 * 1024; // 32 MB per file
-    const TOTAL: u64 = 128 * 1024 * 1024; // 128 MB total
+    const PER_FILE: u64 = 32 * 1024 * 1024;
+    const TOTAL: u64 = 128 * 1024 * 1024;
     const MAX_FILES: usize = 2000;
     const MAX_DEPTH: u32 = 20;
 
@@ -887,7 +809,6 @@ pub fn extensions_read_files(
     Ok(out)
 }
 
-/// Folder sebuah ekstensi: extensions/<id> atau path dari installed.json.
 pub fn ext_dir_of(state: &AppState, id: &str) -> Option<PathBuf> {
     let d = crate::extensions::extensions_dir(state).join(id);
     if d.is_dir() {
@@ -900,8 +821,6 @@ pub fn ext_dir_of(state: &AppState, id: &str) -> Option<PathBuf> {
         .filter(|p| p.is_dir())
 }
 
-/// Resolve path absolut sebuah runtime lewat PATH.
-/// null = tidak ketemu (ekstensi akan ditolak dengan pesan jelas).
 #[tauri::command]
 pub fn ext_which(runtime: String) -> ZResult<Option<String>> {
     match which::which(&runtime) {
@@ -910,27 +829,18 @@ pub fn ext_which(runtime: String) -> ZResult<Option<String>> {
     }
 }
 
-/// Hasil satu eksekusi runtime eksternal.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtExecResult {
-    /// null = proses dibunuh karena timeout
     pub code: Option<i32>,
     pub stdout: String,
     pub stderr: String,
-    /// true = output dipotong karena melebihi batas (atau timeout)
+
     pub truncated: bool,
     pub duration_ms: u64,
     pub killed: bool,
 }
 
-/// Jalankan binary runtime yang SUDAH di-whitelist untuk ekstensi ini.
-///
-/// Rust memegang otoritas izin: `settings.extensions.trust[extId].runtimes[runtime]`
-/// HARUS sama dengan `bin` yang dikirim frontend — kalau tidak cocok ditolak,
-/// apa pun yang diklaim frontend. cwd divalidasi (di dalam workspace, atau
-/// lewat whitelist writable). Proses diberi timeout lalu dibunuh, output
-/// dibatasi 512 KB per stream.
 #[tauri::command]
 pub async fn ext_exec(
     state: State<'_, AppState>,
@@ -945,7 +855,6 @@ pub async fn ext_exec(
 
     const MAX_OUT: usize = 512 * 1024;
 
-    // 1) Whitelist dari settings — satu-satunya sumber kebenaran.
     let settings = crate::settings::read_settings_value(&state);
     let granted = settings
         .get("extensions")
@@ -966,7 +875,6 @@ pub async fn ext_exec(
         )));
     }
 
-    // 2) cwd divalidasi — harus ada & di dalam workspace (atau whitelist writable).
     let workdir = match cwd.filter(|c| !c.trim().is_empty()) {
         Some(raw) => {
             let dir = crate::paths::validate_cwd(std::path::Path::new(&raw))?;
@@ -983,7 +891,6 @@ pub async fn ext_exec(
             .unwrap_or_else(|| std::path::PathBuf::from(".")),
     };
 
-    // 3) Spawn + baca output (dibatasi) + timeout + kill.
     let mut child = match crate::proc::tokio_cmd(&bin)
         .args(&args)
         .current_dir(&workdir)
@@ -1016,7 +923,7 @@ pub async fn ext_exec(
                         truncated = true;
                         break;
                     }
-                    // Byte biner tidak boleh merusak pesan → placeholder.
+
                     out.push_str(&String::from_utf8_lossy(&buf[..n]));
                 }
             }
@@ -1032,8 +939,6 @@ pub async fn ext_exec(
 
     let ms = timeout_ms.unwrap_or(60_000).max(1_000);
     let (code, killed) = match tokio::time::timeout(Duration::from_millis(ms), child.wait()).await {
-        // st = io::Result<ExitStatus> — error wait jarang; perlakukan sebagai
-        // tidak ada exit code (bukan kegagalan izin).
         Ok(st) => (st.ok().and_then(|s| s.code()), false),
         Err(_) => {
             let _ = child.kill().await;
@@ -1053,7 +958,6 @@ pub async fn ext_exec(
     })
 }
 
-/// Manifest lengkap semua ekstensi terpasang (dipakai loader frontend 19.5).
 #[tauri::command]
 pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestStatus>> {
     let installed = read_installed(&state);
@@ -1086,10 +990,7 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
         match read_manifest(&d) {
             Ok(m) => {
                 let ent = installed.iter().find(|x| x.id == m.id);
-                // Icon asli ekstensi (fase 33): baca `icon` dari manifest atau
-                // icon.png/svg/gif di akar, kirim sebagai DATA URL biar bisa
-                // langsung dipakai <img> (WebView2 tidak bisa memuat path
-                // file lokal mentah, dan asset protocol tidak diaktifkan).
+
                 let icon_bytes: Option<Vec<u8>> = if m.icon.is_empty() {
                     ["icon.png", "icon.svg", "icon.gif"]
                         .iter()
@@ -1108,7 +1009,7 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
                         "image/png"
                     };
                     if b.len() > 256 * 1024 {
-                        None // icon raksasa → jangan bebani IPC
+                        None
                     } else {
                         Some(format!(
                             "data:{mime};base64,{}",
@@ -1117,9 +1018,6 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
                     }
                 });
                 out.push(ExtManifestStatus {
-                    // Belum tercatat di installed.json (mis. folder ditaruh
-                    // manual) → dianggap TERPASANG TAPI MATI, biar user yang
-                    // memutuskan; folder liar tidak boleh langsung aktif.
                     enabled: ent.map(|x| x.enabled).unwrap_or(false),
                     tercatat: ent.is_some(),
                     path: d.to_string_lossy().to_string(),
@@ -1146,29 +1044,17 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
 pub struct ExtManifestStatus {
     pub manifest: Option<ExtManifest>,
     pub enabled: bool,
-    /// true = ada di installed.json
+
     pub tercatat: bool,
     pub path: String,
     pub error: Option<String>,
-    /// path absolut icon ekstensi (kalau ada) — daftar Installed
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_path: Option<String>,
 }
 
-// ───────────────────── unduh .vsix dari registry ─────────────────────
+const MAX_VSIX_BYTES: u64 = 1024 * 1024 * 1024;
 
-/// Batas ukuran unduhan .vsix (arsip ekstensi). VSIX bahasa besar (mis.
-/// Flutter ~80MB) TIDAK cocok untuk model manifest-only; batas ini menjaga
-/// folder temp tidak penuh oleh unduhan raksasa.
-/// Batas unduhan .vsix — VSIX bahasa besar bisa 50+ MB.
-const MAX_VSIX_BYTES: u64 = 1024 * 1024 * 1024; // 1 GB
-
-/// Unduh file `.vsix` dari URL registry (Open VSX) ke folder temp Zephyr,
-/// lalu kembalikan path-nya untuk `extensions_install`.
-///
-/// KEAMANAN (SSRF): URL wajib https + host yang diizinkan. Tanpa ini
-/// manifest ekstensi bisa memancing app mengunduh dari `http://localhost`
-/// atau `file://` internal — membuka pintu ke jaringan internal user.
 #[tauri::command(async)]
 pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
     const IZIN: &[&str] = &["open-vsx.org", "www.open-vsx.org"];
@@ -1179,7 +1065,6 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
         ));
     }
 
-    // id tidak boleh mengandung separator — dipakai nama file.
     if id.contains('/') || id.contains('\\') || id.contains("..") {
         return Err(ZephyrError::InvalidInput(format!("id tidak valid: {id}")));
     }
@@ -1205,8 +1090,6 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
         )));
     }
 
-    // Baca binary dgn batas eksplisit 64MB (default ureq hanya 10MB — VSIX
-    // bahasa besar sering 20-40MB, kena "larger than request limit").
     let bytes = r
         .into_body()
         .with_config()

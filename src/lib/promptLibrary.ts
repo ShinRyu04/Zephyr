@@ -1,15 +1,8 @@
-// promptLibrary.ts — slash command + snippet prompt (A-8).
-//
-// Perintah bawaan hidup di kode; snippet user disimpan di localStorage supaya
-// ikut pindah mesin lewat profil tanpa menyentuh settings.json (yang dipakai
-// Rust). Ekspansi terjadi di sisi panel: draft diganti teks penuh sebelum
-// dikirim, jadi provider tidak pernah melihat token "/".
-
 export interface PromptItem {
-  /** tanpa garis miring, huruf kecil */
+
   cmd: string;
   label: string;
-  /** isi yang menggantikan draft; {sel} = penanda tempat kursor berhenti */
+
   body: string;
 }
 
@@ -53,7 +46,6 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
 
 const LS_KEY = 'zephyr.ai.prompts.v1';
 
-/** Snippet user; rusak/tak terbaca diperlakukan sebagai kosong. */
 export function loadUserPrompts(): PromptItem[] {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -79,14 +71,12 @@ export function saveUserPrompts(items: PromptItem[]): void {
   }
 }
 
-/** Semua perintah; snippet user menimpa bawaan dengan cmd yang sama. */
 export function allPrompts(): PromptItem[] {
   const user = loadUserPrompts();
   const userCmd = new Set(user.map((u) => u.cmd));
   return [...user, ...BUILTIN_PROMPTS.filter((b) => !userCmd.has(b.cmd))];
 }
 
-/** Cocokkan draft "/exp" -> [explain]. Kosong bila bukan bentuk perintah. */
 export function matchPrompts(draft: string): { query: string; items: PromptItem[] } {
   const m = /^\/([\w-]*)$/.exec(draft);
   if (!m) return { query: '', items: [] };
@@ -94,26 +84,14 @@ export function matchPrompts(draft: string): { query: string; items: PromptItem[
   return { query: q, items: allPrompts().filter((p) => p.cmd.startsWith(q)) };
 }
 
-/**
- * Snippet yang dipanggil dengan ">" (T4.4).
- *
- * BEDA dengan "/": "/" MENGGANTI draft (memulai pertanyaan baru), ">" MENYISIPKAN
- * teks pada posisi kursor (menempelkan potongan ke pertanyaan yang sedang
- * ditulis). Karena itu snippet tidak punya {sel} — ia hanya ditempel.
- */
 export function matchSnippets(draft: string): { query: string; items: PromptItem[] } {
-  // Hanya cocok kalau token ">" ada di AWAL draft atau setelah spasi, dan belum
-  // ada spasi sesudahnya (supaya "a > b" sebagai teks biasa tidak memicu menu).
+
   const m = /(^|\s)>([\w-]*)$/.exec(draft);
   if (!m) return { query: '', items: [] };
   const q = m[2].toLowerCase();
   return { query: q, items: allPrompts().filter((p) => p.cmd.startsWith(q)) };
 }
 
-/**
- * Sisipkan snippet ">cmd" pada posisi token-nya. Sisa teks setelah token
- * dipertahankan — snippet ditempel, bukan menggantikan baris.
- */
 export function expandSnippet(draft: string, sel: string): string {
   const m = /(^|\s)>([\w-]+)/.exec(draft);
   if (!m) return draft;
@@ -124,10 +102,6 @@ export function expandSnippet(draft: string, sel: string): string {
   return `${sebelum}${item.body}${sesudah || (sel ? '' : '')}`;
 }
 
-/**
- * Ganti token "/cmd sisa" dengan isi perintah. Teks setelah perintah
- * disisipkan pada penanda {sel}, jadi "/fix baris 12" tetap membawa "baris 12".
- */
 export function expandPrompt(draft: string, sel: string): string {
   const m = /^\/([\w-]+)\s*([\s\S]*)$/.exec(draft);
   if (!m) return draft;

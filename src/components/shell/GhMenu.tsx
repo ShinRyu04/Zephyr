@@ -1,10 +1,3 @@
-// GhMenu.tsx — dropdown akun GitHub, muncul saat avatar di Activity Bar diklik.
-// Pola sama seperti VS Code: identitas akun di atas, aksi akun di bawah.
-//
-// Kenapa dipisah dari ActivityBar: ActivityBar sudah panjang (ikon + state
-// avatar), dan menu ini butuh Popover (portal ke <body>) supaya tidak
-// terpotong rantai `overflow: hidden` Activity Bar.
-
 import Popover from './Popover';
 import { tx } from '../../lib/i18n';
 import type { GhStatus } from '../../lib/types';
@@ -15,7 +8,7 @@ interface Props {
   onClose: () => void;
   onLogout: () => void;
   onLogin: () => void;
-  /** buka halaman pengaturan token GitHub di browser */
+
   onBukaToken: () => void;
 }
 
@@ -23,7 +16,6 @@ export default function GhMenu({ anchor, gh, onClose, onLogout, onLogin, onBukaT
   const user = gh?.user ?? null;
   const signedIn = !!gh?.signedIn;
 
-  /** Jalankan aksi lalu tutup menu — supaya menu tidak menggantung. */
   const jalankan = (fn: () => void) => () => {
     onClose();
     fn();

@@ -1,14 +1,3 @@
-// CliAgentBar.tsx — pemilih jalur AI: Native (adapter API) vs CLI (akun
-// langganan) + status login tiap CLI (T1.2/T1.5).
-//
-// KENAPA ada di header panel AI, bukan di Settings: pilihan ini diubah
-// PER PERCAKAPAN (kadang mau pakai API key, kadang mau pakai akun Codex).
-// Menaruhnya di Settings membuat user harus keluar dari chat untuk berganti.
-//
-// TAMPILAN: deretan chip. Chip aktif = jalur yang dipakai. CLI yang belum
-// login tetap terlihat tapi nonaktif + alasan singkat, supaya user tahu apa
-// yang harus dijalankan alih-alih menebak kenapa tidak muncul.
-
 import { useEffect } from 'react';
 import { useCliAgent } from '../../lib/cliAgentStore';
 import { useAi } from '../../lib/aiStore';
@@ -23,14 +12,10 @@ export default function CliAgentBar() {
   const setAktif = useCliAgent((s) => s.setAktif);
   const agentMode = useAi((s) => s.agentMode);
 
-  // Deteksi sekali saat panel dibuka. Bukan di setiap render: panggilan ini
-  // menelusuri PATH dan membaca metadata file.
   useEffect(() => {
     void detect();
   }, [detect]);
 
-  // Tidak ada CLI terpasang sama sekali -> sembunyikan seluruh baris supaya
-  // header tidak penuh chip yang tidak berguna.
   const adaYangTerpasang = agents.some((a) => a.terpasang);
   if (!adaYangTerpasang) return null;
 

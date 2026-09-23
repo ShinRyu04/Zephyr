@@ -1,13 +1,3 @@
-// MenuBar.tsx — menu bar atas ala VS Code (fase 18.1).
-//
-// Aturan yang dipegang:
-//   * Item HANYA memanggil commandId dari commandRegistry. Command yang tidak
-//     ada = item DISABLED, bukan disembunyikan (18.1/V8).
-//   * Accelerator DIAMBIL dari keybindingStore, bukan string literal — jadi
-//     remap user langsung terlihat di menu (V7).
-//   * Keyboard penuh: Alt menyorot, Alt+huruf membuka menu, panah pindah,
-//     Enter memilih, Esc menutup (V2, aksesibilitas wajib).
-
 import { useEffect, useRef, useState } from 'react';
 import { MENUS, type MenuItem } from '../../lib/menu';
 import { findCommand, runCommand } from '../../lib/commandRegistry';
@@ -20,10 +10,8 @@ import { useLayoutCustom } from '../../lib/layoutStore';
 import ZephyrLogo from './ZephyrLogo';
 import { useT } from '../../lib/i18n';
 
-/** Item yang bisa difokus (bukan separator). */
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
 
-/** Posisi panel ala VS Code + label menu (Layout di kanan atas). */
 const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; desc: string }[] = [
   { id: 'left', label: 'Kiri', desc: 'panel di samping kiri editor' },
   { id: 'right', label: 'Kanan', desc: 'panel di samping kanan editor' },
@@ -34,18 +22,16 @@ const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; de
 export default function MenuBar() {
   const tr = useT();
   const bindings = useKb((s) => s.bindings);
-  /** index menu yang terbuka; -1 = tertutup */
+
   const [buka, setBuka] = useState(-1);
-  // Panel Customize Layout: state-nya di layoutStore, BUKAN lokal di sini.
-  // Kalau lokal, mematikan Menu Bar akan menghilangkan satu-satunya tombol
-  // untuk menyalakannya lagi — user terjebak tanpa Menu Bar selamanya.
+
   const layoutBuka = useLayoutCustom((s) => s.menuBuka);
   const setLayoutBuka = useLayoutCustom((s) => s.setMenuBuka);
-  /** index item aktif di dalam dropdown; -1 = belum ada */
+
   const [idx, setIdx] = useState(-1);
-  /** label submenu yang terbuka (View → Appearance) */
+
   const [sub, setSub] = useState<string | null>(null);
-  /** Alt ditekan = mnemonic digarisbawahi */
+
   const [altAktif, setAltAktif] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const posPanel = useStore((s) => s.settings.sidebar);
@@ -58,7 +44,6 @@ export default function MenuBar() {
     setSub(null);
   };
 
-  // Klik di luar menutup dropdown.
   useEffect(() => {
     if (buka < 0) return;
     const onDown = (e: MouseEvent) => {
@@ -68,8 +53,6 @@ export default function MenuBar() {
     return () => window.removeEventListener('mousedown', onDown);
   }, [buka]);
 
-  // Alt & mnemonic. Ditangkap di fase CAPTURE supaya resolver chord global
-  // tidak lebih dulu menelannya; Alt+huruf bukan chord app mana pun.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Alt' && !e.ctrlKey && !e.shiftKey) {
@@ -98,7 +81,6 @@ export default function MenuBar() {
     };
   }, []);
 
-  // Navigasi keyboard saat dropdown terbuka.
   useEffect(() => {
     if (buka < 0) return;
     const items = MENUS[buka].items;
@@ -160,8 +142,7 @@ export default function MenuBar() {
     if (it.kind === 'sep') return <div className="mb-sep" key={`sep-${i}`} role="separator" />;
 
     const def = it.command ? findCommand(it.command) : undefined;
-    // "Ada tapi belum boleh dipakai" (enabled() false) DAN "belum ada sama
-    // sekali" dua-duanya jadi disabled — user tetap melihat itemnya (18.1).
+
     const adaCommand = !!def;
     const bolehJalan = adaCommand && (def!.enabled ? def!.enabled() : true);
     const nonaktif = !!it.command && !bolehJalan;
@@ -224,9 +205,7 @@ export default function MenuBar() {
   };
 
   return (
-    // C-18: title bar Windows dihapus, jadi baris menu ini yang jadi area
-    // geser jendela. `data-tauri-drag-region` hanya berlaku pada elemen itu
-    // sendiri — tombol/menu di dalamnya tetap bisa diklik.
+
     <div
       className="menubar"
       ref={rootRef}
@@ -247,11 +226,7 @@ export default function MenuBar() {
       {MENUS.map((m, i) => {
         const mnemonicIdx = m.label.toLowerCase().indexOf(m.mnemonic);
         return (
-          // FASE 31: role="none" WAJIB di wrapper.
-          //
-          // Spesifikasi ARIA: anak langsung `menubar` harus `menuitem` (atau
-          // group/none). div pembungkus biasa membuat struktur menu rusak di
-          // screen reader — axe menandainya `aria-required-children` critical.
+
           <div className="mb-menu" key={m.label} role="none">
             <button
               className={`mb-top${buka === i ? ' is-open' : ''}`}
@@ -269,8 +244,7 @@ export default function MenuBar() {
                 }
               }}
               onMouseEnter={() => {
-                // Hover memindah antar menu HANYA saat sudah ada yang terbuka
-                // (perilaku VS Code / Windows).
+
                 if (buka >= 0 && buka !== i) {
                   setBuka(i);
                   setIdx(m.items.findIndex(bisaFokus));
@@ -297,8 +271,6 @@ export default function MenuBar() {
           </div>
         );
       })}
-
-
 
       {/* Command center ala VS Code: kotak di baris menu sejajar
           File/Edit/dll. Klik = buka Command Palette (mode command). */}

@@ -1,29 +1,3 @@
-// ModelSelector.tsx — pemilih model DUA TINGKAT: provider dulu, lalu modelnya.
-//
-// KENAPA diubah: bentuk lama menumpuk SEMUA model dari SEMUA provider dalam
-// satu dropdown datar — puluhan baris, jadi mencari satu model berarti
-// menggulir jauh. Lebih buruk lagi, model dari provider yang API key-nya belum
-// diisi ikut tampil; user bisa memilih model yang pasti gagal dipakai.
-//
-// Bentuk baru:
-//   1. Tingkat PROVIDER — hanya provider yang API key-nya sudah terpasang
-//      (ditambah provider bebas: custom & lokal, yang memang tidak butuh key
-//      tetap). Setiap baris menyebut jumlah model + status key-nya, jadi
-//      terlihat mana yang benar-benar siap dipakai.
-//   2. Tingkat MODEL — hanya model milik provider yang dipilih, plus input
-//      untuk mengetik nama model lain pada provider bebas (custom/lokal).
-//
-// Ada juga kotak CARI yang bekerja di tingkat mana pun: mengetik langsung
-// menyaring seluruh model dari provider ber-key. Jalan pintas ini dipakai saat
-// user sudah tahu nama modelnya dan tidak mau menelusuri dua tingkat.
-//
-// Komponen ini juga dipakai untuk MEMILIH MODEL SUBAGENT (`target="subagent"`):
-// daftar provider/modelnya sama persis, yang berbeda hanya ke mana nilainya
-// disimpan. Dua pemilih terpisah akan menyimpang satu sama lain seiring waktu.
-//
-// Data katalog tetap dari lib/modelCatalog (satu sumber kebenaran, dipakai juga
-// oleh Settings → Model AI).
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
@@ -41,7 +15,6 @@ import {
   type ProviderInfo,
 } from '../../lib/modelCatalog';
 
-/** Nama model yang pernah diketik user per provider (custom/local). */
 const LS_SAVED = 'zephyr.ai.custommodels.v1';
 
 function loadSaved(): Record<string, string[]> {
@@ -59,7 +32,6 @@ function loadSaved(): Record<string, string[]> {
   }
 }
 
-/** Ke mana pilihan model disimpan. */
 export type TargetModel = 'chat' | 'subagent';
 
 export default function ModelSelector({ target = 'chat' }: { target?: TargetModel } = {}) {
@@ -78,61 +50,46 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
 
   const sub = target === 'subagent';
   const pfx = sub ? 'sub' : 'ai';
-  // Pemilih subagent punya state buka/tutup sendiri: keduanya bisa ter-mount
-  // bersamaan (tab Subagents + panel AI), dan satu flag bersama membuat
-  // membuka yang satu ikut membuka yang lain.
+
   const [openSub, setOpenSub] = useState(false);
   const open = sub ? openSub : openAi;
   const setOpen = sub ? setOpenSub : setOpenAi;
-  /** Model yang berlaku sekarang untuk target ini. */
+
   const model = sub ? (subCfg?.model ?? '') : aiModel;
   const provider = sub ? (subCfg?.provider ?? '') : aiProvider;
-  /** Subagent tanpa model sendiri = ikut model chat. */
+
   const ikutChat = sub && !model.trim();
 
-  /** Tingkat menu: daftar provider, atau model milik satu provider. */
   const [tahap, setTahap] = useState<'provider' | 'model'>('provider');
-  /** Provider yang sedang dibuka di tingkat model. */
+
   const [dipilih, setDipilih] = useState<string>('');
   const [cari, setCari] = useState('');
   const [typed, setTyped] = useState('');
   const [saved, setSaved] = useState<Record<string, string[]>>(loadSaved);
-  // Model hasil fetch langsung dari provider (list_models).
+
   const [remote, setRemote] = useState<Record<string, string[]>>({});
   const [fetching, setFetching] = useState(false);
 
   const efektif = ikutChat ? findModel(aiModel, aiProvider) : findModel(model, provider || undefined);
   const hasKey = keys.some((k) => k.provider === efektif.provider && k.hasKey);
-  // JANGAN memakai selector yang mengembalikan objek/array baru di sini
-  // (zustand v5 membandingkan hasil selector dengan ===): mis.
-  //   useStore((s) => s.settings.models.providers[provider])   // objek baru
-  //   useSettingsUi((s) => s.remoteModels[provider] ?? [])     // array baru
-  // Keduanya memicu render loop -> "Maximum update depth exceeded" -> React
-  // unmount seluruh tree -> layar hitam total begitu panel AI dibuka.
+
   const baseUrl =
     (useStore.getState().settings.models.providers ?? {})[efektif.provider]?.baseUrl ||
     efektif.baseUrl;
 
-  /** true kalau provider ini punya API key terpasang. */
   const adaKey = (id: string) => keys.some((k) => k.provider === id && k.hasKey);
 
-  // Provider yang ditawarkan: yang key-nya SUDAH terpasang, ditambah provider
-  // bebas (custom/lokal) yang memang tidak bergantung pada key tetap. Provider
-  // tanpa key disembunyikan supaya user tidak memilih model yang pasti gagal.
-  // `keys` jadi dependensi supaya daftar ikut segar setelah key disimpan.
   const providerSiap: ProviderInfo[] = useMemo(
     () => PROVIDERS.filter((p) => keys.some((k) => k.provider === p.id && k.hasKey) || p.freeText),
     [keys],
   );
   const providerTersembunyi = PROVIDERS.length - providerSiap.length;
 
-  /** Simpan pilihan model sesuai target. */
   const pakai = (m: string) => {
     if (sub) void applySettings({ subagent: { model: m } } as never);
     else void setAiModel(m);
   };
 
-  // Klik di luar / Escape menutup dropdown.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -149,8 +106,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     };
   }, [open, setOpen]);
 
-  // Setiap kali menu dibuka, mulai dari tingkat provider (titik awal yang
-  // paling masuk akal) dan kosongkan pencarian.
   useEffect(() => {
     if (open) {
       setTahap('provider');
@@ -166,7 +121,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, tahap, dipilih]);
 
-  /** Tarik daftar model langsung dari provider (list_models, Rust). */
   const loadRemote = async (p: string) => {
     if (fetching) return;
     setFetching(true);
@@ -184,8 +138,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     }
   };
 
-  // Saat tingkat model dibuka dan provider punya key, ambil model terbaru dari
-  // provider — berlaku untuk SEMUA provider (bukan cuma freeText).
   useEffect(() => {
     if (open && tahap === 'model' && adaKey(dipilih)) void loadRemote(dipilih);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,7 +147,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     const v = typed.trim();
     if (!v) return;
     pakai(v);
-    // Simpan ke daftar model custom provider ini (tanpa duplikat).
+
     setSaved((s) => {
       const list = s[p] ?? [];
       const next = list.includes(v) ? list : [...list, v];
@@ -219,11 +171,9 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     );
   };
 
-  /** Model yang ditampilkan di tingkat model untuk provider `p`. */
   const modelUntuk = (p: string) => {
     const info = PROVIDER_BY_ID.get(p);
-    // `remoteModels` dibaca lewat getState (referensi stabil) — jangan pakai
-    // selector `?? []`: itu membuat ARRAY BARU tiap render (aturan zustand v5).
+
     const uiRemote = useSettingsUi.getState().remoteModels[p] ?? [];
     const live = [...(remote[p] ?? []), ...uiRemote].filter(
       (id, i, a) => id && a.indexOf(id) === i,
@@ -242,7 +192,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     return [...dariApi, ...tersimpan, ...katalog];
   };
 
-  /** Hasil pencarian lintas provider (hanya provider ber-key). */
   const hasilCari = useMemo(() => {
     const q = cari.trim().toLowerCase();
     if (!q) return [];

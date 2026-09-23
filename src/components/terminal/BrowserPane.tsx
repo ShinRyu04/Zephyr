@@ -1,16 +1,3 @@
-// BrowserPane.tsx — pane 'browser' (Split With Browser). Final di fase 12.
-//
-// Implementasi = <iframe> di dalam webview Tauri. Konsekuensi jujur: situs yang
-// mengirim X-Frame-Options / CSP frame-ancestors MENOLAK dimuat (google.com,
-// github.com, dsb). Header respons tidak bisa dibaca dari dalam webview, jadi
-// setiap navigasi ditanyakan dulu ke Rust (`browser_probe`) yang memeriksa
-// header sungguhan — bukan menebak dari timeout. Untuk dev server lokal, kasus
-// pemakaian utamanya, iframe bekerja.
-//
-// Riwayat back/forward dipegang sendiri (array url + kursor): history iframe
-// lintas-origin tidak bisa diakses dari sini, jadi kita mencatat navigasi yang
-// kita lakukan sendiri, bukan mengintip milik halaman.
-
 import { useEffect, useRef, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTerminal } from '../../lib/terminalStore';
@@ -18,10 +5,8 @@ import * as cmd from '../../lib/commands';
 import type { PaneMeta, ProbeResult } from '../../lib/types';
 import { tx } from '../../lib/i18n';
 
-/** Batas tunggu sebelum sebuah URL dianggap menolak embed. */
 const BLOCK_MS = 3500;
 
-/** Lengkapi input user jadi URL yang bisa dimuat. */
 export function normalizeUrl(input: string): string {
   const t = input.trim();
   if (!t) return '';
@@ -32,7 +17,6 @@ export function normalizeUrl(input: string): string {
   return `https://${t}`;
 }
 
-/** Tampilan ringkas untuk label tab pane: host + path pendek. */
 export function shortUrl(url: string): string {
   try {
     const u = new URL(url);
@@ -57,28 +41,25 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
   const setPaneUrl = useTerminal((s) => s.setPaneUrl);
   const [draft, setDraft] = useState(pane.url ?? '');
   const [nonce, setNonce] = useState(0);
-  /** jumlah event `load` — bukti nyata halaman terambil (isi DOM lintas-origin
-   *  tidak bisa dibaca, jadi ini + log server adalah bukti yang sah). */
+  
   const [loads, setLoads] = useState(0);
   const [blocked, setBlocked] = useState(false);
   const [probe, setProbe] = useState<ProbeResult | null>(null);
   const [busy, setBusy] = useState(false);
-  /** riwayat navigasi pane ini + posisi kursor */
+  
   const [hist, setHist] = useState<string[]>(pane.url ? [pane.url] : []);
   const [at, setAt] = useState(pane.url ? 0 : -1);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => setDraft(pane.url ?? ''), [pane.url]);
 
-  // Setiap navigasi: tanya Rust apakah URL ini boleh di-embed. Ini yang
-  // menentukan tampil-tidaknya panel "menolak embed" — bukan timeout.
   useEffect(() => {
     if (!pane.url) return;
     let batal = false;
     setBlocked(false);
     setProbe(null);
     setBusy(true);
-    // Fallback bila probe sendiri menggantung: jangan biarkan "memuat…" abadi.
+    
     const timer = window.setTimeout(() => {
       if (!batal) setBusy(false);
     }, BLOCK_MS);
@@ -92,8 +73,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         if (!r.embeddable) setBlocked(true);
       })
       .catch(() => {
-        // Probe gagal bukan alasan menuduh situsnya memblokir; biarkan iframe
-        // mencoba sendiri.
+        
         if (!batal) setBusy(false);
       });
 
@@ -103,7 +83,6 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
     };
   }, [pane.url, nonce]);
 
-  /** Navigasi baru (memotong riwayat di depan kursor, seperti browser). */
   const go = (raw: string) => {
     const url = normalizeUrl(raw);
     if (!url) return;
@@ -113,7 +92,6 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
     setNonce((n) => n + 1);
   };
 
-  /** Pindah di riwayat tanpa menambah entri baru. */
   const jump = (delta: number) => {
     const next = at + delta;
     if (next < 0 || next >= hist.length) return;

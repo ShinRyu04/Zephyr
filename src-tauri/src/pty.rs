@@ -1,19 +1,3 @@
-// pty.rs — terminal nyata lewat ConPTY (crate portable-pty).
-//
-// KEPUTUSAN IMPLEMENTASI (fase 05, JANGAN diganti di fase berikutnya):
-// memakai `portable-pty` 0.8 — di Windows ia memakai ConPTY sehingga
-// warna/ANSI, resize, dan Ctrl+C bekerja seperti terminal sungguhan.
-// Tidak ada fallback ke pipa: ConPTY tersedia di Windows 10 1809+.
-//
-// Alur data:
-//   pty_spawn  -> buka pty, spawn shell, jalankan 2 thread:
-//                 (1) reader: baca 4KB, kirim ke channel
-//                 (2) pengirim: gabung potongan tiap 16ms -> emit `pty-output`
-//   pty_write  -> tulis ke master (termasuk \x03 untuk Ctrl+C)
-//   pty_resize -> master.resize()
-//   pty_kill   -> ChildKiller.kill() + bersihkan sesi
-//   Saat proses berakhir sendiri -> emit `pty-exit` { id, code }.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
@@ -26,27 +10,22 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 
-/// Jendela batching emit `pty-output` (fase 14.4). 16ms ≈ satu frame 60fps:
-/// lebih kecil hanya membuang IPC, lebih besar membuat ketikan terasa lambat.
 const BATCH: Duration = Duration::from_millis(16);
-/// Batas satu batch. Output raksasa (`type file_besar`) dipecah agar satu
-/// pesan IPC tidak menahan event loop WebView.
+
 const MAX_BATCH_BYTES: usize = 256 * 1024;
-/// Saat window minimized, output ditahan sampai sebesar ini lalu tetap dikirim
-/// (mencegah pemakaian memori tak terbatas kalau user minimize berjam-jam).
+
 const HOLD_CAP: usize = 512 * 1024;
 
-/// Satu sesi terminal hidup.
 pub struct PtySession {
     pub id: String,
     pub kind: String,
     pub shell: String,
     pub pid: Option<u32>,
-    /// Penulis ke master pty (pemakaian di-serialisasi lewat Mutex).
+
     pub writer: Mutex<Box<dyn Write + Send>>,
     master: Mutex<Box<dyn portable_pty::MasterPty + Send>>,
     killer: Mutex<Box<dyn portable_pty::ChildKiller + Send + Sync>>,
-    /// Penanda supaya thread reader berhenti saat sesi ditutup.
+
     alive: Arc<AtomicBool>,
 }
 
@@ -61,7 +40,6 @@ impl PtySession {
         }
     }
 
-    /// Hentikan proses anak (dipakai pty_kill dan saat app ditutup).
     pub fn terminate(&self) {
         self.alive.store(false, Ordering::Relaxed);
         if let Ok(mut k) = self.killer.lock() {
@@ -88,10 +66,8 @@ pub struct ShellInfo {
     pub path: String,
 }
 
-/// Cari shell yang benar-benar ada di mesin ini (dipakai UI "+" dropdown).
 #[tauri::command(async)]
 pub fn list_shells() -> ZResult<Vec<ShellInfo>> {
-    // fungsi bebas (bukan closure) supaya tidak menahan borrow `out`
     fn push(out: &mut Vec<ShellInfo>, id: &str, label: &str, path: std::path::PathBuf) {
         if path.exists() && !out.iter().any(|s| s.id == id) {
             out.push(ShellInfo {
@@ -113,7 +89,6 @@ pub fn list_shells() -> ZResult<Vec<ShellInfo>> {
         sys32.join(r"WindowsPowerShell\v1.0\powershell.exe"),
     );
 
-    // PowerShell 7 (pwsh) bila terpasang.
     for base in [
         std::env::var("ProgramFiles").unwrap_or_default(),
         std::env::var("LOCALAPPDATA").unwrap_or_default(),
@@ -152,8 +127,6 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
     let find = |id: &str| shells.iter().find(|s| s.id == id).map(|s| s.path.clone());
 
     match kind {
-        // Private: PowerShell -NoProfile + PSReadLine SaveNothing supaya
-        // perintah TIDAK masuk ConsoleHost_history.txt milik user.
         "private" => {
             let ps = find("pwsh")
                 .or_else(|| find("powershell"))
@@ -165,7 +138,7 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
                     "-NoProfile".into(),
                     "-NoExit".into(),
                     "-Command".into(),
-                    // SaveNothing = riwayat sesi ini tidak ditulis ke disk.
+                    
                     "Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue; \
                      Write-Host 'Zephyr Private Terminal — riwayat tidak disimpan ke disk' \
                      -ForegroundColor DarkGray"
@@ -189,13 +162,11 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
             find("pwsh").ok_or_else(|| ZephyrError::Pty("pwsh tidak ditemukan".into()))?,
             vec!["-NoLogo".into()],
         )),
-        // Agent CLI (fase 06): program datang dari Settings.startCommands
-        // lewat parameter `command`/`args`. Kalau sampai ke sini berarti
-        // frontend tidak mengirimnya — itu bug, bukan kondisi normal.
+
         "agent" => Err(ZephyrError::InvalidInput(
             "kind 'agent' wajib menyertakan command".into(),
         )),
-        // default: PowerShell biasa (profil user tetap dipakai)
+
         _ => Ok((
             find("powershell")
                 .or_else(|| find("pwsh"))
@@ -205,7 +176,6 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
     }
 }
 
-/// Akses `resolve_shell` untuk unit test (tests_fs.rs) tanpa membuka pty.
 #[cfg(test)]
 pub fn resolve_shell_for_test(
     kind: &str,
@@ -241,15 +211,10 @@ pub fn pty_spawn(
         _ => default_args,
     };
 
-    // cwd: workspace bila ada, kalau tidak %USERPROFILE%.
-    // FASE 14.2: cwd yang datang dari frontend/MCP DIVALIDASI — harus folder
-    // yang benar-benar ada, dan bila di luar workspace harus sudah lolos
-    // `ensure_writable` (whitelist dialog). Tanpa ini `pane_new` dari agent
-    // MCP bisa menjalankan shell di folder mana pun di disk.
     let workdir = match cwd.filter(|c| !c.trim().is_empty()) {
         Some(raw) => {
             let dir = crate::paths::validate_cwd(std::path::Path::new(&raw))?;
-            // Di luar workspace hanya boleh kalau memang di-whitelist user.
+
             if let Some(ws) = state.workspace_path() {
                 if !crate::paths::is_inside(&ws, &dir) {
                     state.ensure_writable(&dir)?;
@@ -285,14 +250,11 @@ pub fn pty_spawn(
     cmd.env("ZEPHYR_TERMINAL", "1");
     if kind == "private" {
         cmd.env("ZEPHYR_PRIVATE", "1");
-        // FASE 15.2: kalau user menjalankan bash/sh DI DALAM pane private,
-        // riwayatnya juga tidak boleh menyentuh disk. PowerShell diurus lewat
-        // `-HistorySaveStyle SaveNothing` di resolve_shell; ini menutup jalur
-        // shell POSIX (git-bash, WSL, sh) yang membaca HISTFILE/HISTSIZE.
+
         cmd.env("HISTFILE", "");
         cmd.env("HISTSIZE", "0");
         cmd.env("HISTFILESIZE", "0");
-        // bash membaca ini untuk memutuskan apa yang TIDAK dicatat.
+
         cmd.env("HISTCONTROL", "ignoreboth");
     }
 
@@ -325,10 +287,8 @@ pub fn pty_spawn(
         alive: alive.clone(),
     });
 
-    // ── thread 1: baca byte mentah dari pty ──
     let (tx, rx) = mpsc::channel::<Vec<u8>>();
-    // FASE 15.2: slot exit code + pengirim kedua untuk membangunkan thread emit.
-    // `exit_slot` diisi thread `wait` (thread 3) lalu dibaca thread emit.
+
     let exit_slot: Arc<Mutex<Option<u32>>> = Arc::new(Mutex::new(None));
     let exit_emit = exit_slot.clone();
     let tx_exit = tx.clone();
@@ -338,7 +298,7 @@ pub fn pty_spawn(
         let mut buf = [0u8; 4096];
         loop {
             match reader.read(&mut buf) {
-                Ok(0) => break, // EOF: shell keluar
+                Ok(0) => break,
                 Ok(n) => {
                     if tx.send(buf[..n].to_vec()).is_err() {
                         break;
@@ -353,12 +313,6 @@ pub fn pty_spawn(
         alive_reader.store(false, Ordering::Relaxed);
     });
 
-    // ── thread 2: gabung potongan per FRAME lalu emit ke frontend ──
-    // FASE 14.4: batching dipertegas. Sebelumnya `recv_timeout(16ms)` bisa
-    // mengirim satu emit per potongan kecil saat data datang beruntun; sekarang
-    // loop MENGURAS channel (`try_recv`) sampai kosong lalu mengirim SATU emit
-    // per BATCH_MS. Untuk `ping -t` di 2 pane ini memotong jumlah pesan IPC
-    // dari ratusan/detik menjadi ≤62/detik per pane (V4).
     let app_emit = app.clone();
     let emit_id = id.clone();
     let alive_emit = alive.clone();
@@ -372,7 +326,7 @@ pub fn pty_spawn(
             match rx.recv_timeout(BATCH) {
                 Ok(chunk) => {
                     pending.extend_from_slice(&chunk);
-                    // Kuras sisa channel: semua yang sudah tiba ikut satu emit.
+
                     loop {
                         match rx.try_recv() {
                             Ok(more) => {
@@ -393,8 +347,6 @@ pub fn pty_spawn(
                 Err(mpsc::RecvTimeoutError::Disconnected) => closed = true,
             }
 
-            // Saat window minimized, output TETAP dikumpulkan (tidak hilang),
-            // hanya pengirimannya ditunda supaya tidak membuang CPU render.
             let hold = paused.load(Ordering::Relaxed) && pending.len() < HOLD_CAP;
 
             if !pending.is_empty() && !hold && last.elapsed() >= BATCH {
@@ -405,38 +357,25 @@ pub fn pty_spawn(
                     .emit("pty-output", json!({ "id": emit_id, "data": data }))
                     .is_err()
                 {
-                    return; // app tutup
+                    return;
                 }
             }
 
             if closed {
                 break;
             }
-            // FASE 15.2: ConPTY tidak selalu meng-EOF pipe master saat shell
-            // keluar, jadi `closed` bisa tidak pernah true. Thread `wait`
-            // menyetel `alive=false` begitu proses mati — itu sinyal kedua
-            // untuk keluar dari loop ini setelah buffer terakhir dikirim.
+
             if !alive_emit.load(Ordering::Relaxed) && pending.is_empty() {
                 break;
             }
         }
 
-        // Sisa buffer sebelum memberi tahu proses berakhir.
         if !pending.is_empty() {
             let data = String::from_utf8_lossy(&pending).to_string();
             let _ = app_emit.emit("pty-output", json!({ "id": emit_id, "data": data }));
         }
         alive_emit.store(false, Ordering::Relaxed);
-        // FASE 15.2: exit code diambil oleh thread `wait` terpisah (lihat
-        // bawah) dan disimpan di `exit_slot`. Di sini kita hanya menunggu
-        // sebentar agar nilainya sudah tersedia, lalu mengirimnya.
-        //
-        // KENAPA TIDAK `child.wait()` DI SINI (sudah kena): thread ini baru
-        // keluar dari loop setelah channel reader terputus. Untuk ConPTY di
-        // Windows, pipe master TIDAK ikut EOF hanya karena shell keluar —
-        // conhost menahannya. Jadi `wait()` di thread ini tidak pernah
-        // tercapai, `pty-exit` tak pernah dikirim, dan pane terlihat "live"
-        // selamanya walau `exit 3` sudah dijalankan.
+
         for _ in 0..20 {
             if exit_emit.lock().map(|s| s.is_some()).unwrap_or(false) {
                 break;
@@ -447,10 +386,6 @@ pub fn pty_spawn(
         let _ = app_emit.emit("pty-exit", json!({ "id": emit_id, "code": code }));
     });
 
-    // ── thread 3: tunggu proses anak berakhir, catat exit code ──
-    // Terpisah dari thread emit karena `wait()` memblokir sampai proses mati,
-    // sementara thread emit harus tetap mengalirkan output. Thread ini yang
-    // MEMBUAT `alive=false` untuk kasus ConPTY (pipe tidak EOF).
     let exit_wait = exit_slot.clone();
     let alive_wait = alive.clone();
     let tx_wake = tx_exit;
@@ -461,8 +396,7 @@ pub fn pty_spawn(
             *slot = Some(code.unwrap_or(0));
         }
         alive_wait.store(false, Ordering::Relaxed);
-        // Bangunkan thread emit: kirim byte kosong supaya `recv_timeout`
-        // kembali dan loop-nya melihat `alive == false`.
+
         let _ = tx_wake.send(Vec::new());
     });
 
@@ -503,7 +437,6 @@ pub fn pty_resize(state: State<AppState>, id: String, cols: u16, rows: u16) -> Z
 
 #[tauri::command(async)]
 pub fn pty_kill(state: State<AppState>, id: String) -> ZResult<()> {
-    // Kill dulu (butuh &self), baru hapus dari registry.
     state.with_pty(&id, |s| {
         s.terminate();
         Ok(())
@@ -517,32 +450,15 @@ pub fn pty_list(state: State<AppState>) -> ZResult<Vec<PtyInfo>> {
     Ok(state.pty_list())
 }
 
-/// Dipanggil frontend saat window minimize/restore: menunda emit output
-/// (bukan menghentikan pembacaan) agar tidak ada desync.
 #[tauri::command(async)]
 pub fn pty_set_paused(state: State<AppState>, paused: bool) -> ZResult<()> {
     state.set_render_paused(paused);
     Ok(())
 }
 
-/// Ctrl+C: hentikan program yang sedang berjalan di terminal, shell tetap hidup.
-///
-/// CATATAN JUJUR (jangan diubah tanpa uji ulang):
-/// 1. Menulis byte `0x03` ke pty saja TIDAK cukup di ConPTY. Program yang
-///    tidak membaca stdin (`ping -t`, loop PowerShell) tidak pernah
-///    melihatnya dan terus berjalan.
-/// 2. Cara "resmi" (AttachConsole ke konsol child + GenerateConsoleCtrlEvent)
-///    SUDAH DICOBA dan membuat proses Zephyr sendiri mati — event Ctrl+C
-///    ikut mengenai proses kita walau `SetConsoleCtrlHandler(NULL, TRUE)`
-///    sudah dipasang. JANGAN pakai jalur itu.
-/// 3. Yang dipakai sekarang: `0x03` (agar PSReadLine membatalkan baris yang
-///    sedang diketik) + terminasi proses turunan shell. Efek yang dilihat
-///    user sama seperti Ctrl+C: program berhenti, prompt kembali.
-///    Bedanya: program tidak dapat kesempatan cleanup seperti SIGINT asli.
 #[tauri::command(async)]
 pub fn pty_interrupt(state: State<AppState>, id: String) -> ZResult<u32> {
     let shell_pid = state.with_pty(&id, |s| {
-        // 0x03 dulu: shell interaktif membatalkan input yang sedang diketik.
         if let Ok(mut w) = s.writer.lock() {
             let _ = w.write_all(b"\x03");
             let _ = w.flush();
@@ -551,8 +467,6 @@ pub fn pty_interrupt(state: State<AppState>, id: String) -> ZResult<u32> {
             .ok_or_else(|| ZephyrError::Pty("pid tidak diketahui".into()))
     })?;
 
-    // Cari seluruh turunan shell (anak, cucu, ...) lalu hentikan yang
-    // terdalam lebih dulu supaya program utama tidak sempat re-spawn.
     let mut sys = sysinfo::System::new();
     sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
@@ -563,7 +477,7 @@ pub fn pty_interrupt(state: State<AppState>, id: String) -> ZResult<u32> {
         if *pid == target {
             continue;
         }
-        // Telusuri rantai parent maksimum 12 tingkat.
+
         let mut cur = proc_.parent();
         let mut depth = 1usize;
         while let Some(p) = cur {
@@ -579,7 +493,6 @@ pub fn pty_interrupt(state: State<AppState>, id: String) -> ZResult<u32> {
         }
     }
 
-    // Terdalam dulu.
     descendants.sort_by(|a, b| b.0.cmp(&a.0));
 
     let mut killed = 0u32;

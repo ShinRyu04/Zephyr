@@ -1,10 +1,3 @@
-// PanelTabStrip.tsx — tab strip panel bawah (fase 20).
-//
-// Menggantikan DockSwitch sebagai baris pemilih isi panel. DockSwitch (fase 09)
-// tetap dipakai DI DALAM header terminal/AI untuk memilih Terminal vs AI —
-// jadi tidak ada dua baris tab bertumpuk (pelajaran fase 09: baris tambahan
-// di atas panel menutupi toolbar kanan terminal).
-
 import { useRef } from 'react';
 import { PANEL_TABS, usePanel, type PanelTabId } from '../../lib/panelStore';
 import { useStore } from '../../lib/store';
@@ -20,7 +13,7 @@ import { useT, tx } from '../../lib/i18n';
 export default function PanelTabStrip() {
   const tr = useT();
   const activeTab = usePanel((s) => s.activeTab);
-  // Saat chat di kolom kanan, tab AI di sini tidak perlu ada.
+
   const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
   const visibleTabs = usePanel((s) => s.visibleTabs);
   const tabMenuOpen = usePanel((s) => s.tabMenuOpen);
@@ -28,7 +21,6 @@ export default function PanelTabStrip() {
   const toggleTabVisible = usePanel((s) => s.toggleTabVisible);
   const setTabMenuOpen = usePanel((s) => s.setTabMenuOpen);
 
-  // Badge: ambil PRIMITIF, jangan objek/array baru (zustand v5 pakai ===).
   const errors = useProblems((s) => {
     let n = 0;
     for (const list of s.byFile.values()) for (const d of list) if (d.severity === 'error') n++;
@@ -45,11 +37,8 @@ export default function PanelTabStrip() {
   const maximized = useTerminal((s) => s.maximized);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
-  /** anchor tombol "…" — menunya dirender lewat portal (lihat Popover). */
-  const btnMenu = useRef<HTMLButtonElement | null>(null);
 
-  // Klik-di-luar diurus Popover sendiri; efek lama dihapus supaya tidak ada dua
-  // penutup yang saling balap.
+  const btnMenu = useRef<HTMLButtonElement | null>(null);
 
   const badge = (id: PanelTabId) => {
     if (id === 'problems' && (errors > 0 || warnings > 0)) {

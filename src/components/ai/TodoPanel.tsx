@@ -1,14 +1,7 @@
-// TodoPanel.tsx — panel TODO agent (ala TEDI/opencode) + daftar subagent.
-//
-// KENAPA dipisah dari AiPanel: daftar tugas dan subagent adalah SATU-SATUNYA
-// bagian panel AI yang berubah saat agent bekerja. Memisahkannya membuat
-// AiPanel tidak perlu render ulang seluruh riwayat chat tiap langkah.
-
 import { useAi } from '../../lib/aiStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
 
-/** Satu baris tugas. */
 function BarisTodo({
   teks,
   status,

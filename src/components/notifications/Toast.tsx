@@ -1,12 +1,3 @@
-// Toast.tsx — tumpukan toast kanan-bawah (fase 27).
-//
-// Satu-satunya tempat toast dirender. Notifikasi datang dari
-// notificationStore; komponen ini tidak punya state sendiri supaya tidak ada
-// dua sumber kebenaran (masalah yang mau diselesaikan fase 27).
-//
-// aria-live="polite" supaya screen reader membacakannya tanpa memotong
-// pekerjaan user (syarat a11y fase 31).
-
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { useT } from '../../lib/i18n';
@@ -44,8 +35,6 @@ export default function Toast() {
   const toasts = useNotif((s) => s.toasts);
   const dismiss = useNotif((s) => s.dismiss);
 
-  // Selector zustand v5 tidak boleh mengembalikan array baru (pelajaran fase
-  // 09), jadi keduanya diambil mentah lalu dipetakan di sini.
   const tampil = toasts
     .map((id) => items.find((x) => x.id === id))
     .filter((x): x is Notif => !!x)

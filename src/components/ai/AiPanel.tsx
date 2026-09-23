@@ -1,13 +1,3 @@
-// AiPanel.tsx — panel AI di area bawah (tab "AI"), sejajar Terminal.
-//
-// Keputusan tempat (prompt fase 09 §9.2): pakai DOCK BAWAH, bukan panel kanan
-// 340px — supaya hanya ada satu panel bawah (Terminal | AI) dan tidak ada
-// container ketiga yang ikut memakan RAM & lebar editor.
-//
-// Isi: header (dropdown model + status key + [+] chat baru), area chat
-// markdown streaming, action bar ("Jalankan di Terminal" untuk jawaban
-// terakhir), dan input dengan Enter kirim / Shift+Enter baris baru.
-
 import { useEffect, useRef, useState } from 'react';
 import {
   useAi,
@@ -62,13 +52,9 @@ export default function AiPanel() {
   const sibuk = pending || agentBusy;
 
   const activeTab = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null);
-  // JANGAN memakai selector yang membuat array/objek baru (mis. flatMap):
-  // zustand v5 membandingkan hasil selector dengan === , jadi array baru tiap
-  // render memicu "Maximum update depth exceeded". Ambil angka (primitif).
+
   const paneCount = useTerminal((s) => s.terminalTabs.reduce((n, t) => n + t.panes.length, 0));
-  // Panel AI sedang tampil di kolom kanan? Tombol sembunyikan berperilaku beda:
-  // di kanan ia mengembalikan ke panel bawah (kolom kanan tidak punya state
-  // visible sendiri), di bawah ia menutup panel.
+
   const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
   const aiMax = useStore((s) => s.aiMax);
   const setAiMax = useStore((s) => s.setAiMax);
@@ -83,15 +69,9 @@ export default function AiPanel() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const photoRef = useRef<HTMLInputElement | null>(null);
 
-  // A-8: saran slash command di atas input.
-  // Ref dipakai untuk auto-scroll: daftar prompt bisa lebih panjang dari
-  // max-height CSS, dan tanpa scroll-ikut-sorotan item yang dipilih keyboard
-  // bisa berada di luar pandangan — user menekan Enter tanpa melihat pilihannya.
   const slashRef = useRef<HTMLDivElement | null>(null);
   const [idxSaran, setIdxSaran] = useState(0);
-  // Dua pemicu: "/" memulai pertanyaan (mengganti draft), ">" menyisipkan
-  // potongan ke draft yang sedang ditulis (T4.4). Hanya satu yang aktif pada
-  // satu waktu — pola regex-nya saling eksklusif.
+
   const { items: saranSlash } = matchPrompts(draft);
   const { items: saranSnippet } = matchSnippets(draft);
   const modeSnippet = saranSnippet.length > 0;
@@ -106,7 +86,7 @@ export default function AiPanel() {
   useEffect(() => setIdxSaran(0), [draft]);
 
   const pakaiPrompt = (p: { cmd: string; body: string }) => {
-    // Snippet (">") MENYISIPKAN ke draft; slash ("/") MENGGANTI draft.
+
     setDraft(
       modeSnippet
         ? expandSnippet(draft, activeSelection())
@@ -115,7 +95,6 @@ export default function AiPanel() {
     inputRef.current?.focus();
   };
 
-  // Auto-scroll saat token baru masuk (kecuali user sedang scroll ke atas).
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
@@ -123,24 +102,18 @@ export default function AiPanel() {
     if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [msgs, pending]);
 
-  // Toast hilang sendiri (pola sama dengan TerminalArea).
   useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast(null), 3200);
     return () => window.clearTimeout(t);
   }, [toast, setToast]);
 
-  // Ctrl+I dari mana pun -> fokus input AI (§9.4). Panel sudah dibuka oleh
-  // handler global; di sini cukup memindahkan fokus saat panel ter-mount.
   useEffect(() => {
     const onFocusReq = () => inputRef.current?.focus();
     window.addEventListener('zephyr-ai-focus', onFocusReq);
     return () => window.removeEventListener('zephyr-ai-focus', onFocusReq);
   }, []);
 
-  // A-3: quick chat dari seleksi editor (klik kanan -> Jelaskan/Perbaiki/
-  // Refactor). Editor mengirim teks yang dipilih; panel yang mengubahnya jadi
-  // prompt karena promptLibrary hidup di sini.
   useEffect(() => {
     const onSel = (e: Event) => {
       const { cmd, text } = (e as CustomEvent<{ cmd: string; text: string }>).detail;
@@ -290,8 +263,7 @@ export default function AiPanel() {
       {(agentBusy || agentSteps.length > 0) && (
         <div className="ai-agent" data-testid="ai-agent">
           {agentSteps.map((st, i) => {
-            // Label manusiawi + ikon berwarna per jenis aksi (ala TEDI):
-            // `file_read` -> "Read path/file.ts", bukan nama tool mentah.
+
             const info = infoAksi(st.name);
             const sasaran = sasaranAksi(st.args);
             const namaFile = sasaran.replace(/^.*[\/]/, '') || sasaran;
@@ -424,7 +396,7 @@ export default function AiPanel() {
           aria-label={tr('Pesan untuk AI')}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            // A-8: menu slash command ikut keyboard.
+
             if (saran.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
               e.preventDefault();
               const n = saran.length;
@@ -447,7 +419,7 @@ export default function AiPanel() {
             }
           }}
           onPaste={(e) => {
-            // Win+Shift+S lalu Ctrl+V: tempel screenshot jadi lampiran gambar.
+
             void clipboardReadImage().then((url) => {
               if (url) {
                 e.preventDefault();

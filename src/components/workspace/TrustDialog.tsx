@@ -1,16 +1,5 @@
-// TrustDialog.tsx — dialog Workspace Trust (fase 29).
-//
-// Muncul saat folder belum pernah ditanya. Dua pilihan yang sama besar dan
-// TIDAK ada tombol "X": brief menuntut keputusan, dan dialog yang bisa
-// ditutup tanpa memilih akan meninggalkan folder di keadaan Unknown — yang
-// artinya semua fitur eksekusi mati tanpa user tahu kenapa.
-//
-// Yang dijelaskan di sini adalah AKIBATNYA, bukan istilahnya: "tasks tidak
-// akan jalan" lebih berguna daripada "restricted mode aktif".
-
 import { useWs } from '../../lib/workspaceStore';
-// fase 31: kurung fokus. `aria-modal` hanya memberi tahu screen reader —
-// ia TIDAK mengurung fokus keyboard.
+
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function TrustDialog() {
@@ -19,12 +8,6 @@ export default function TrustDialog() {
   const tanya = useWs((s) => s.tanya);
   const roots = useWs((s) => s.roots);
 
-  // Hook WAJIB di atas early return (Rules of Hooks).
-  //
-  // TANPA onEscape: saat status masih `unknown`, dialog Trust memang TIDAK
-  // boleh ditutup tanpa memilih (keputusan fase 29) — memberi Escape jalan
-  // keluar akan meninggalkan folder di keadaan yang mematikan semua eksekusi
-  // tanpa user tahu kenapa.
   const trapRef = useFocusTrap<HTMLDivElement>({ aktif: !!tanyaUntuk });
 
   if (!tanyaUntuk) return null;
@@ -93,8 +76,7 @@ export default function TrustDialog() {
         </div>
 
         {sudahRestricted && (
-          // Dialog yang dibuka lagi dari banner boleh ditutup: keputusan sudah
-          // ada, jadi menutupnya tidak meninggalkan keadaan Unknown.
+          
           <button className="trust-nanti" onClick={() => tanya(null)} data-testid="trust-close">
             Nanti saja
           </button>

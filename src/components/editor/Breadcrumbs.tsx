@@ -1,14 +1,3 @@
-// Breadcrumbs.tsx — jalur folder/file + simbol di atas editor (fase 24).
-//
-// Klik segmen -> dropdown sebaya (sibling), pilih -> lompat.
-// Segmen folder memakai path relatif terhadap workspace supaya tidak
-// menampilkan "D:\...\..." panjang; kalau file di luar workspace, path penuh
-// dipakai apa adanya.
-//
-// Sumber simbol: symbolTree.ts (LSP fase 21, fallback indentasi). Perhitungan
-// di-debounce dan hanya jalan saat file/kursor benar-benar pindah baris —
-// documentSymbol adalah request IPC, tidak boleh ikut setiap ketikan.
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorView } from '@codemirror/view';
 import { useStore } from '../../lib/store';
@@ -21,15 +10,14 @@ import {
   type SimpulSimbol,
 } from '../../lib/symbolTree';
 
-/** Jeda sebelum menghitung ulang simbol setelah dokumen berubah. */
 const DEBOUNCE_MS = 400;
 
 interface Props {
   view: EditorView | null;
   path?: string;
-  /** naik setiap dokumen berubah */
+  
   docVersion: number;
-  /** baris kursor 1-based */
+  
   barisKursor: number;
 }
 
@@ -41,7 +29,6 @@ export default function Breadcrumbs({ view, path, docVersion, barisKursor }: Pro
   const timer = useRef<number | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
 
-  // Hitung ulang pohon simbol (debounce).
   useEffect(() => {
     if (!view) return;
     if (timer.current !== null) window.clearTimeout(timer.current);
@@ -61,7 +48,6 @@ export default function Breadcrumbs({ view, path, docVersion, barisKursor }: Pro
     };
   }, [view, path, docVersion]);
 
-  // Klik di luar menutup dropdown.
   useEffect(() => {
     if (buka === null) return;
     const onDown = (e: MouseEvent) => {

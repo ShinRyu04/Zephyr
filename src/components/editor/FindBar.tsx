@@ -1,11 +1,3 @@
-// FindBar.tsx — panel Find & Replace di dalam editor (bukan dialog browser).
-// Query -> highlight semua, hitung match, next/prev, replace 1/semua, regex.
-//
-// FASE 24 menambah: whole word, find in selection, highlight all (toggle), dan
-// tombol "cari di semua file" yang menyerahkan query ke panel Search (fase 25).
-// Semua flag disimpan di state komponen — bukan settings — karena ini pilihan
-// per-pencarian, bukan preferensi jangka panjang.
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SearchQuery,
@@ -34,18 +26,17 @@ export default function FindBar() {
   const [regex, setRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [wholeWord, setWholeWord] = useState(false);
-  /** batasi pencarian ke teks yang sedang diseleksi */
+
   const [inSelection, setInSelection] = useState(false);
-  /** highlight semua hasil (bukan hanya yang aktif) */
+
   const [highlightAll, setHighlightAll] = useState(true);
   const [showReplace, setShowReplace] = useState(false);
   const [count, setCount] = useState(0);
   const [invalid, setInvalid] = useState(false);
-  /** fase 15.1: pencarian dihentikan karena melewati batas langkah. */
+
   const [tooMany, setTooMany] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Hitung jumlah match langsung dari dokumen (independen dari panel CM).
   const docText = () => getActiveView()?.state.doc.toString() ?? '';
 
   const recount = useMemo(
@@ -57,8 +48,7 @@ export default function FindBar() {
         return;
       }
       const view = getActiveView();
-      // "Find in selection": hanya hitung di dalam rentang terpilih, supaya
-      // angka yang ditampilkan cocok dengan apa yang benar-benar akan diganti.
+
       let text = docText();
       if (inSelection && view) {
         const sel = view.state.selection.main;
@@ -67,20 +57,14 @@ export default function FindBar() {
       try {
         const flags = caseSensitive ? 'g' : 'gi';
         let pattern = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Whole word: \b tidak berfungsi kalau query diawali/diakhiri simbol,
-        // jadi dipasang hanya ketika ujungnya karakter kata — persis seperti
-        // yang dilakukan CodeMirror sendiri.
+
         if (wholeWord) {
           const kiri = /^\w/.test(query) ? '\\b' : '';
           const kanan = /\w$/.test(query) ? '\\b' : '';
           pattern = `${kiri}(?:${pattern})${kanan}`;
         }
         const re = new RegExp(pattern, flags);
-        // fase 15.1: `String.match(/g/)` pada regex seperti `a+` di file besar
-        // bisa menghasilkan ratusan ribu match dan menggantung UI beberapa
-        // detik. Iterasi manual dengan BATAS LANGKAH: berhenti di 20.000 dan
-        // beri tahu user, bukan diam-diam membeku. Match kosong (mis. `a*`)
-        // juga harus memajukan lastIndex sendiri — kalau tidak loop-nya abadi.
+
         const LIMIT = 20000;
         let n = 0;
         let stopped = false;
@@ -108,7 +92,6 @@ export default function FindBar() {
     [query, regex, caseSensitive, wholeWord, inSelection],
   );
 
-  // Terapkan query ke CodeMirror agar highlight & next/prev sinkron.
   useEffect(() => {
     const view = getActiveView();
     if (!view || !open) return;
@@ -133,8 +116,6 @@ export default function FindBar() {
     recount();
   }, [query, replaceWith, regex, caseSensitive, wholeWord, open, activeTabId, recount]);
 
-  // Highlight all: kelas di <body> mengaktifkan aturan CSS untuk
-  // .cm-searchMatch (default CodeMirror hanya menonjolkan match aktif).
   useEffect(() => {
     document.body.classList.toggle('find-highlight-all', open && highlightAll);
     return () => document.body.classList.remove('find-highlight-all');
@@ -152,9 +133,7 @@ export default function FindBar() {
 
   const cariDiSemuaFile = useCallback(() => {
     if (!query) return;
-    // Panel Search adalah fase 25. Sampai ada, query diserahkan lewat event
-    // window + notifikasi, BUKAN tombol mati: jalurnya sudah benar, yang
-    // menangkap event tinggal dipasang nanti.
+
     const ev = new CustomEvent('zephyr-search-in-files', {
       detail: { query, regex, caseSensitive, wholeWord },
     });

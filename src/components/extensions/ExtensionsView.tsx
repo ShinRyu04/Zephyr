@@ -1,13 +1,3 @@
-// ExtensionsView.tsx — panel Extensions di SIDEBAR KIRI (fase 19.1).
-//
-// LOKASI (prompt 19.1, jangan dipindah): ikon di ActivityBar tepi kiri →
-// panel ini di Sidebar. Menu atas & Ctrl+Shift+X cuma pintasan ke sini.
-// Settings → Extensions (fase 13) TETAP ada dan mengurus daftar bawaan; panel
-// ini yang mengurus paket native: cari, install, enable, uninstall, details.
-//
-// Tiga grup sesuai 19.1: INSTALLED, RECOMMENDED (dari bahasa di workspace),
-// MARKETPLACE (registry remote; kosong = "tidak tersedia", BUKAN error).
-
 import { useEffect, useMemo } from 'react';
 import { useExt19, setBahasaWorkspace, type ExtTab } from '../../lib/extensionsStore19';
 import { KATALOG_BUNDLED, type KatalogItem } from '../../lib/extCatalog';
@@ -31,7 +21,6 @@ function formatUnduhan(n: number): string {
   return String(n);
 }
 
-/** Kartu satu ekstensi (19.1 ExtensionCard). */
 function ExtensionCard({
   item,
   onUninstall,
@@ -71,15 +60,14 @@ function ExtensionCard({
             loading="lazy"
             className="xc-logo-img"
             data-logo-src={item.id}
-            // Logo gagal dimuat / diblokir → jatuh ke inisial (tidak ada
-            // kotak kosong di daftar).
+            
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const parent = e.currentTarget.closest('.xc-logo');
               if (parent && parent.textContent === '') parent.textContent = item.logo;
             }}
             onLoad={(e) => {
-              // naturalWidth 0 = gambar kosong/rusak walau "complete"
+              
               if (e.currentTarget.naturalWidth === 0) {
                 e.currentTarget.style.display = 'none';
                 const parent = e.currentTarget.closest('.xc-logo');
@@ -223,7 +211,6 @@ function ExtensionCard({
   );
 }
 
-/** Panel kanan: readme + daftar kontribusi (19.1 Show Details). */
 function Details({ id }: { id: string }) {
   const st = useExt19((s) => s.manifests.find((m) => m.manifest?.id === id) ?? null);
   const setDetail = useExt19((s) => s.setDetail);
@@ -325,11 +312,7 @@ export default function ExtensionsView() {
   const detailFor = useExt19((s) => s.detailFor);
   const remoteUrl = useExt19((s) => s.remoteUrl);
   const remoteErr = useExt19((s) => s.remoteErr);
-  // Subscribe ke `remote` — TANPA ini daftar Marketplace tidak pernah muncul:
-  // `daftar` dihitung dari getState().hasil() di bawah, dan render baru hanya
-  // terjadi kalau ada state yang di-subscribe berubah. `muatRemote()` mengubah
-  // `remote` secara async; tanpa subscribe, komponen diam walau data sudah
-  // datang (bug: tab Marketplace tampak kosong).
+  
   const remote = useExt19((s) => s.remote);
   const jmlManifest = useExt19((s) => s.manifests.length);
 
@@ -343,10 +326,6 @@ export default function ExtensionsView() {
   const [menuAksi, setMenuAksi] = useState(false);
   const btnAksi = useRef<HTMLButtonElement | null>(null);
 
-  // Konfirmasi Uninstall memakai dialog React (bukan window.confirm yang
-  // diblokir WebView Tauri). State lokal cukup karena dialognya hanya hidup di
-  // dalam panel ini — pola yang sama dipakai ScmConfirmDialog / DeleteConfirmDialog
-  // lewat store domain, tapi di sini menambah store baru tidak perlu.
   const [uninstallTarget, setUninstallTarget] = useState<KatalogItem | null>(null);
   const [sibukUninstall, setSibukUninstall] = useState(false);
   const uninstallTrapRef = useFocusTrap<HTMLDivElement>({
@@ -354,7 +333,6 @@ export default function ExtensionsView() {
     onEscape: () => setUninstallTarget(null),
   });
 
-  // Bahasa di workspace → dasar tab RECOMMENDED (19.1).
   const workspace = useStore((s) => s.workspace);
   const anakRoot = useExplorer((s) => (workspace ? s.children[workspace] : undefined));
   const bahasa = useMemo(() => {
@@ -376,8 +354,6 @@ export default function ExtensionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Marketplace: muat registry remote setiap kali tabnya dibuka (dan saat
-  // pencarian berubah) supaya daftar tidak basi.
   useEffect(() => {
     if (tab === 'marketplace') {
       void useExt19.getState().muatRemote();
@@ -385,14 +361,11 @@ export default function ExtensionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, q, remoteUrl]);
 
-  // `hasil()` FUNGSI, bukan selector — selector yang mengembalikan array baru
-  // memicu "Maximum update depth exceeded" di zustand v5 (pelajaran fase 09).
   const daftar = useExt19.getState().hasil();
-  // Item marketplace yang lolos filter manifest-only, plus hitungan yang
-  // disembunyikan karena butuh runtime eksternal (dipakai pesan + dropdown).
+  
   const remoteBersih = (remote ?? []).filter((it) => !it.perluRuntime);
   const tersembunyiRuntime = (remote ?? []).filter((it) => it.perluRuntime).length;
-  // Dipaksa ikut render ulang saat state yang relevan berubah.
+  
   void q;
   void tab;
   void jmlManifest;

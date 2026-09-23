@@ -1,9 +1,3 @@
-// xtermRegistry.ts — pemegang instance xterm per sesi (di luar React/store).
-//
-// Alasan: Terminal xterm bukan data serializable dan mahal dibuat ulang.
-// Instance dibuat sekali per sesi lalu container DOM-nya dipindah saat tab
-// berganti, sehingga scrollback TIDAK hilang ketika berpindah tab.
-
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -11,17 +5,14 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 export interface TermHandle {
   term: Terminal;
   fit: FitAddon;
-  /** elemen yang di-append ke pane; dipindah antar tab tanpa reset */
+  
   holder: HTMLDivElement;
-  /** data yang datang sebelum term siap dipasang */
+  
   queue: string[];
 }
 
 const handles = new Map<string, TermHandle>();
 
-/** Ambil token warna dari theme.css supaya terminal ikut tema Zephyr.
- *  16 warna ANSI datang dari `--terminal-ansi-0..15` (tokens.css, fase 13) —
- *  jangan kembali ke hex hardcoded: tema terang butuh ANSI-0 gelap. */
 function themeFromCss(): Record<string, string> {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
@@ -51,22 +42,12 @@ function themeFromCss(): Record<string, string> {
   };
 }
 
-/** Terapkan tema aktif ke SEMUA terminal hidup (fase 13 V3).
- *  Dipanggil dari store setelah `applyTheme()`; token CSS sudah berganti
- *  saat ini, jadi cukup baca ulang. */
 export function retheme(): number {
   const theme = themeFromCss();
   for (const h of handles.values()) h.term.options.theme = theme;
   return handles.size;
 }
 
-/**
- * Apakah mode screen reader aktif (dibaca dari atribut <html>).
- *
- * Atribut, bukan import store: xtermRegistry dipakai dari mana saja termasuk
- * sebelum store siap, dan mengimport store di sini membentuk lingkaran
- * (store.ts sudah mengimport xtermRegistry untuk retheme()).
- */
 function srModeAktif(): boolean {
   try {
     return document.documentElement.dataset.screenReader === 'true';
@@ -75,13 +56,6 @@ function srModeAktif(): boolean {
   }
 }
 
-/**
- * Terapkan mode screen reader ke SEMUA terminal hidup (fase 31).
- *
- * Terpisah dari `retheme()` walau dipanggil bersamaan: xterm menyimpan salinan
- * opsi sendiri, dan terminal yang sudah dibuat tidak ikut berubah hanya karena
- * atribut <html> berubah — sama seperti masalah warna di fase 13.
- */
 export function reSrMode(): number {
   const aktif = srModeAktif();
   for (const h of handles.values()) h.term.options.screenReaderMode = aktif;
@@ -92,7 +66,6 @@ export function getHandle(id: string): TermHandle | undefined {
   return handles.get(id);
 }
 
-/** Buat (atau ambil) instance untuk sesi tertentu. */
 export function ensureHandle(
   id: string,
   opts: { fontFamily: string; fontSize: number; scrollback?: number; onData: (d: string) => void; onResize: (c: number, r: number) => void },
@@ -110,18 +83,14 @@ export function ensureHandle(
     lineHeight: 1.2,
     cursorBlink: true,
     cursorStyle: 'bar',
-    // Baris scrollback per pane; pemanggil memangkasnya di mode hemat RAM.
+    
     scrollback: opts.scrollback ?? 5000,
     allowProposedApi: true,
     convertEol: false,
     theme: themeFromCss(),
-    // FASE 31: xterm menggambar terminal ke canvas/DOM yang TIDAK bisa dibaca
-    // screen reader. `screenReaderMode` membuatnya memelihara live region
-    // tersembunyi berisi teks baris — satu-satunya cara Narrator tahu isi
-    // terminal. Mahal (DOM per baris), jadi hanya saat user memintanya.
+    
     screenReaderMode: srModeAktif(),
-    // Windows: baris terakhir sering ditulis ulang; mode ini menghindari
-    // artefak wrap di ConPTY.
+    
     windowsPty: { backend: 'conpty' },
   });
 
@@ -137,7 +106,6 @@ export function ensureHandle(
   return handle;
 }
 
-/** Tulis data ke terminal; ditahan di queue bila belum ter-attach. */
 export function writeTo(id: string, data: string): void {
   const h = handles.get(id);
   if (!h) return;
@@ -158,11 +126,10 @@ export function clearTerm(id: string): void {
   const h = handles.get(id);
   if (!h) return;
   h.term.clear();
-  // clear() menyisakan baris aktif; reset penuh untuk benar-benar bersih.
+  
   h.term.write('\x1b[2J\x1b[3J\x1b[H');
 }
 
-/** Hapus instance + scrollback (dipakai saat tab ditutup / private). */
 export function disposeHandle(id: string): void {
   const h = handles.get(id);
   if (!h) return;
@@ -187,7 +154,6 @@ export function fitTerm(id: string): { cols: number; rows: number } | null {
   }
 }
 
-/** Untuk verifikasi & Copy: ambil isi buffer yang terlihat. */
 export function readBuffer(id: string, maxLines = 200): string {
   const h = handles.get(id);
   if (!h) return '';
@@ -200,7 +166,6 @@ export function readBuffer(id: string, maxLines = 200): string {
   return lines.join('\n');
 }
 
-/** Cari baris (absolut, termasuk scrollback) yang isinya sama dengan `text`. */
 export function findRow(id: string, text: string): number {
   const h = handles.get(id);
   if (!h) return -1;
@@ -215,7 +180,6 @@ export function getSelection(id: string): string {
   return handles.get(id)?.term.getSelection() ?? '';
 }
 
-/** Pilih satu baris buffer (dipakai UI "select line" & verifikasi copy). */
 export function selectLine(id: string, row: number): boolean {
   const h = handles.get(id);
   if (!h || row < 0) return false;
@@ -223,18 +187,16 @@ export function selectLine(id: string, row: number): boolean {
   const line = buf.getLine(row);
   if (!line) return false;
   const text = line.translateToString(true);
-  // Konversi index buffer absolut -> baris relatif viewport untuk select().
+  
   h.term.select(0, row, text.length);
   return true;
 }
 
-/** Ukuran grid saat ini (cols/rows) — dipakai verifikasi resize. */
 export function termSize(id: string): { cols: number; rows: number } | null {
   const h = handles.get(id);
   return h ? { cols: h.term.cols, rows: h.term.rows } : null;
 }
 
-/** Warna xterm yang SEDANG dipakai satu pane (bukti tema terminal, fase 13). */
 export function termOptionsTheme(id: string): Record<string, string> | null {
   const h = handles.get(id);
   return h ? ({ ...(h.term.options.theme ?? {}) } as Record<string, string>) : null;

@@ -1,21 +1,3 @@
-// Panel.tsx — kontainer panel bawah (fase 20).
-//
-// Menggantikan TerminalArea sebagai anak langsung `.main-area`. TerminalArea
-// TIDAK dihapus atau disalin: ia dirender di dalam tab "terminal" apa adanya,
-// jadi split/grid/PTY fase 05/06 tetap milik komponen itu.
-//
-// KEPUTUSAN PENTING — kenapa tab terminal disembunyikan dengan CSS, bukan
-// di-unmount seperti tab lain:
-//   Melepas holder xterm dari DOM mematikan viewport-nya; saat dipasang lagi
-//   xterm harus di-attach ulang dan scrollback yang belum ditulis ke buffer
-//   hilang (masalah yang sama dengan xtermRegistry queue di fase 13). PTY-nya
-//   sendiri hidup di Rust, tapi UI-nya rusak. Karena itu:
-//     - tab non-terminal  : unmount penuh saat tidak aktif (hemat RAM, V8)
-//     - tab terminal      : tetap mounted setelah pertama dibuka, disembunyikan
-//                           dengan display:none
-//   Ini yang membuat V3 lulus (jalankan node -v, tutup panel, buka lagi →
-//   riwayat utuh) tanpa mengorbankan V8 untuk empat tab lainnya.
-
 import { useCallback, useEffect, useRef } from 'react';
 import { usePanel } from '../../lib/panelStore';
 import { useTerminal } from '../../lib/terminalStore';
@@ -30,15 +12,6 @@ import AiPanel from '../ai/AiPanel';
 import TerminalArea from './TerminalArea';
 import { useT } from '../../lib/i18n';
 
-/**
- * Isi tab AI di panel bawah.
- *
- * KENAPA tidak langsung `<AiPanel />`: panel AI bisa dipindah ke kolom kanan
- * (Settings → Umum → Panel AI). Kalau tab ini tetap merender AiPanel, akan ada
- * DUA AiPanel ter-mount sekaligus — dua listener `ai-chunk` = setiap token
- * tampil dobel, dan dua store subscription. Jadi tab ini mengikuti aturan yang
- * sama dengan dock bawah: satu tempat saja.
- */
 function AiTabView() {
   const tr = useT();
   const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
@@ -64,13 +37,10 @@ export default function Panel() {
 
   const dragging = useRef(false);
 
-  // Drag splitter (tinggi panel). Tinggi disimpan ke settings saat drag
-  // SELESAI, bukan setiap pointermove — menulis file tiap pixel akan
-  // menghabiskan I/O.
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
-      // 24px = --statusbar-h
+
       setHeight(window.innerHeight - e.clientY - 24);
     };
     const onUp = () => {

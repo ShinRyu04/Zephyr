@@ -1,6 +1,3 @@
-// lib.rs — entry point Zephyr: register plugin, state, dan semua command.
-// Kontrak nama command: ARCHITECTURE.md §2.
-
 mod adapters;
 mod agents;
 mod ai;
@@ -8,8 +5,8 @@ mod app_state;
 mod bg_image;
 mod browser;
 mod cli;
-mod cli_ext;
 mod cli_agents;
+mod cli_ext;
 mod credential;
 mod cron;
 mod dap;
@@ -59,26 +56,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
-/// Mode `zephyr git-credential <op>`: dipanggil git, bukan user.
-/// true = argumen memang untuk helper dan sudah dijawab (proses harus keluar
-/// tanpa membuka window). Lihat credential.rs untuk kontraknya.
 pub fn run_credential_helper() -> bool {
     credential::handle_cli()
 }
 
-// ───────────────────────── command CLI (fase 28) ─────────────────────────
-//
-// Command DIDEFINISIKAN di cli.rs, bukan di sini: `generate_handler!` mengimpor
-// nama command ke modul tempat ia dipanggil, jadi command yang tinggal di lib.rs
-// bertabrakan dengan dirinya sendiri (E0255 "defined multiple times").
-
-/// Mode konsol `--help` / `--version` (fase 28).
-///
-/// Sama polanya dengan credential helper: ditangani SEBELUM Tauri start supaya
-/// `zephyr --version` tidak membuka window sekadar untuk mencetak satu baris.
 pub fn run_cli_console() -> bool {
-    // Subcommand (ext/info) diperiksa LEBIH DULU: `zephyr ext list` bukan
-    // permintaan membuka file bernama "ext".
     let argv: Vec<String> = std::env::args().skip(1).collect();
     if cli_ext::jalankan(&argv) {
         return true;
@@ -86,46 +68,30 @@ pub fn run_cli_console() -> bool {
     cli::tangani_help_version()
 }
 
-/// Apakah Zephyr berjalan dalam mode portable (T4.2).
 pub fn portable_aktif() -> bool {
     cli_ext::portable_aktif()
 }
 
-/// Folder data Zephyr (portable: `data/` sebelah exe).
 pub fn dir_data_zephyr() -> std::path::PathBuf {
     cli_ext::dir_data()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Status minimized dipegang di sini (bukan dibaca dari thread lain):
-    // memanggil API window dari thread non-main mematikan proses di Windows.
     let minimized = Arc::new(AtomicBool::new(false));
     let minimized_setup = minimized.clone();
 
-    // Logging dipasang PALING AWAL (fase 14.6) supaya error saat membangun
-    // window pun tercatat. AppState dibuat di sini karena ia yang tahu lokasi
-    // %APPDATA%\zephyr\logs.
     let state = AppState::new();
     logging::init(&state.data_dir.join("logs"));
     let boot = std::time::Instant::now();
 
     let app = tauri::Builder::default()
-        // ═══ fase 28: single instance HARUS plugin PERTAMA ═══
-        //
-        // Plugin dijalankan sesuai urutan penambahan (catatan resmi
-        // plugins-workspace). Kalau ini bukan yang pertama, instance kedua
-        // sudah membangun window/state sebelum sadar harus keluar.
-        //
-        // argv yang diterima di sini SUDAH memuat argv[0] (path exe), jadi
-        // di-skip sebelum di-parse.
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             let args = cli::parse(
                 &argv.iter().skip(1).cloned().collect::<Vec<String>>(),
                 std::path::Path::new(&cwd),
             );
-            // Fokus jendela dulu: user menjalankan `zephyr x` untuk MELIHAT
-            // hasilnya, jadi jendela harus muncul walau argumennya kosong.
+
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
                 let _ = w.show();
@@ -133,10 +99,6 @@ pub fn run() {
             }
             let _ = app.emit("cli-args", &args);
         }))
-        // Window-state: posisi/ukuran/maximized dipulihkan, tapi DECORATIONS
-        // TIDAK — file state dari versi lama menyimpan `decorated: true` dan
-        // plugin ini menimpanya saat start, jadi title bar native muncul lagi
-        // walau tauri.conf.json sudah `decorations: false`.
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(
@@ -148,33 +110,22 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        // Clipboard lewat Rust: navigator.clipboard di WebView2 menolak
-        // saat dokumen tidak fokus, sedangkan copy/paste terminal harus
-        // selalu bisa (klik kanan, Ctrl+Shift+C, Shift+Insert).
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(state)
-        // Runtime task (fase 23): daftar run + peta proses anak.
         .manage(tasks::TasksRuntime::default())
-        // Runtime pencarian (fase 25): flag batal untuk query yang sedang jalan.
         .manage(search::SearchRuntime::default())
-        // Runtime debugger (fase 22): satu sesi DAP aktif.
         .manage(dap::DapRuntime::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
-            // Sampler RAM untuk StatusBar (fase 02 V6).
             settings::spawn_ram_sampler(app.handle().clone(), minimized_setup);
-            // Panic hook boleh memberi tahu frontend mulai dari sini (14.6).
+
             logging::attach_app(app.handle().clone());
-            // Timer tugas terjadwal (1.1.11). Mulai selalu — biaya saat tidak
-            // ada tugas = satu lock + baca file tiap 30 detik.
+
             cron::mulai_timer(app.handle().clone());
             app.state::<AppState>()
                 .perf_mark("setup", Some(boot.elapsed().as_millis() as u64));
 
-            // MCP (fase 11): LAZY (fase 14.5) — socket, task axum, dan token
-            // generator TIDAK pernah dibuat kalau switch-nya mati. Yang dibaca
-            // saat startup cuma satu key di settings.json.
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let enabled = {
@@ -202,24 +153,19 @@ pub fn run() {
                 return;
             }
             match event {
-                // Update flag minimized dari main thread; sekaligus tunda emit
-                // output PTY supaya CPU tidak terbuang saat window disembunyikan.
                 WindowEvent::Resized(size) => {
                     let m = window.is_minimized().unwrap_or(false);
                     if m != minimized.swap(m, Ordering::Relaxed) {
                         window.state::<AppState>().set_render_paused(m);
                         tracing::debug!(minimized = m, "render pause diubah");
                     }
-                    // fase 14.4: `window-resized` kanonik. Payload kecil (2 angka)
-                    // dan idempoten — frontend cukup menyimpan nilai terakhir.
+
                     let _ = window.emit(
                         "window-resized",
                         json!({ "width": size.width, "height": size.height }),
                     );
                 }
-                // fase 14.4: `file-dropped`. Frontend punya onDragDropEvent
-                // sendiri untuk membuka tab; event ini melengkapi kontrak §3
-                // dan mencatat drop ke log.
+
                 WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
                     let list: Vec<String> = paths
                         .iter()
@@ -232,9 +178,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            // latar belakang kustom (gambar -> data URL)
             bg_image::bg_image_read,
-            // app / settings
             settings::get_app_info,
             settings::get_settings,
             settings::set_settings,
@@ -254,7 +198,6 @@ pub fn run() {
             settings::list_recents,
             settings::workspace_open,
             settings::workspace_close,
-            // fs / editor
             fs_utils::fs_read,
             fs_utils::fs_write,
             fs_utils::fs_exists,
@@ -265,19 +208,15 @@ pub fn run() {
             fs_utils::fs_rename,
             fs_utils::session_load,
             fs_utils::session_save,
-            // explorer / search (fase 04)
             explorer::scan_dir,
             explorer::fs_watch,
             explorer::fs_unwatch,
             explorer::search_files,
             explorer::list_workspace_files,
-            // browser pane (fase 12)
             browser::browser_probe,
-            // RAG lokal (fase 34): cari konteks project sebelum kirim ke LLM.
             rag::rag_search,
             explorer::replace_in_file,
             explorer::reveal_path,
-            // terminal / pty (fase 05)
             pty::list_shells,
             pty::pty_spawn,
             pty::pty_write,
@@ -286,7 +225,6 @@ pub fn run() {
             pty::pty_list,
             pty::pty_set_paused,
             pty::pty_interrupt,
-            // SSH
             ssh::ssh_list,
             ssh::ssh_add,
             ssh::ssh_update,
@@ -295,15 +233,12 @@ pub fn run() {
             ssh::ssh_clear_password,
             ssh::ssh_connect,
             ssh::ssh_disconnect,
-            // agent CLI (fase 06)
             agents::list_agents,
-            // settings lanjutan (fase 08)
             secrets::get_public_models,
             secrets::set_model_key,
             secrets::test_model_connection,
             secrets::list_models,
             secrets::reset_settings,
-            // AI panel (fase 09)
             ai::ai_chat,
             ai::ai_capture_set,
             ai::ai_capture_get,
@@ -313,10 +248,8 @@ pub fn run() {
             cli_agents::cli_agent_run,
             gambar::baca_gambar,
             app_state::portable_mode,
-            // mode agent — satu langkah loop dengan tool calling
             ai::ai_tool_chat,
             ai::ai_tool_chat_stream,
-            // git (fase 10)
             git::git_init,
             git::git_status,
             git::git_stage,
@@ -333,13 +266,11 @@ pub fn run() {
             git::git_discard,
             git::git_log,
             git::git_config_get_user,
-            // GitHub auth (fase 10)
             github::gh_status,
             github::gh_set_pat,
             github::gh_login_device,
             github::gh_logout,
             github::gh_test,
-            // MCP server 9222 (fase 11)
             mcp_commands::mcp_status,
             mcp_commands::mcp_start,
             mcp_commands::mcp_stop,
@@ -348,33 +279,28 @@ pub fn run() {
             mcp_commands::mcp_write_cli,
             mcp_commands::mcp_remove_cli,
             mcp_commands::mcp_cli_status,
-            // extensions (fase 13)
             extensions::extensions_list,
             extensions::extensions_load,
             extensions::extensions_add,
             extensions::extensions_remove,
             extensions::extensions_folder,
-            // fase 19: manifest native, install/uninstall, kontribusi
             ext_pkg::extensions_install,
             ext_pkg::extensions_uninstall,
             ext_pkg::extensions_set_enabled,
             ext_pkg::extensions_read_contrib,
             ext_pkg::extensions_read_main,
             ext_pkg::extensions_read_files,
-            // izin runtime eksternal ekstensi (whitelist + exec)
             ext_pkg::ext_which,
             ext_pkg::ext_exec,
             ext_pkg::extensions_manifests,
             ext_pkg::extensions_download_vsix,
             ext_bundled::extensions_write_bundled,
             ext_bundled::extensions_bundled_ids,
-            // Registry native (menggantikan proxy Open VSX di frontend)
             ext_registry::ext_registry_list,
             ext_registry::ext_registry_save,
             ext_registry::ext_registry_read,
             ext_registry::ext_registry_installed,
             ext_registry::ext_registry_url_diizinkan,
-            // tasks (fase 23)
             tasks::tasks_load,
             tasks::tasks_matchers,
             tasks::tasks_match_line,
@@ -384,26 +310,22 @@ pub fn run() {
             tasks::tasks_runs,
             tasks::tasks_clear_runs,
             tasks::tasks_detect_port,
-            // local history / timeline (fase 26)
             history::history_snapshot,
             history::history_list,
             history::history_read,
             history::history_clear,
             history::history_prune,
             history::history_stats,
-            // global search & replace (fase 25)
             search::search_grep,
             search::search_cancel,
             search::search_rg_info,
             search::search_replace,
-            // CLI launcher (fase 28)
             cli::cli_args_awal,
             cli::cli_wait_selesai,
             cli::cli_wait_buat,
             cli::cli_wait_aktif,
             cli::cli_teks,
             cli::cli_parse,
-            // multi-root + workspace trust (fase 29)
             workspace::workspace_info,
             workspace::workspace_set_trust,
             workspace::workspace_forget_trust,
@@ -417,12 +339,10 @@ pub fn run() {
             workspace::workspace_settings_asal,
             workspace::workspace_set_settings,
             workspace::workspace_boleh_eksekusi,
-            // snippets (fase 30)
             snippets::snippets_load,
             snippets::snippets_user_file,
             snippets::snippets_user_list,
             snippets::snippets_builtin_langs,
-            // debugger DAP (fase 22)
             dap::dap_load,
             dap::dap_adapters,
             dap::dap_start,
@@ -437,19 +357,15 @@ pub fn run() {
             dap::dap_set_variable,
             dap::dap_set_breakpoints,
             dap::dap_loaded_sources,
-            // diagnostics / logging (fase 14)
             diagnostics::get_diagnostics,
             diagnostics::self_test,
             diagnostics::log_frontend,
             diagnostics::perf_mark,
             diagnostics::debug_panic,
-            // dialog
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
             dialogs::folder_dialog_open,
-            // title bar Windows (nyatu dengan baris menu)
             titlebar::titlebar_theme,
-            // skill + memori + cron agent (1.1.11) — paritas Hermes
             skills::skills_list,
             skills::skill_read,
             skills::skill_write,
@@ -468,17 +384,12 @@ pub fn run() {
 
     match app {
         Ok(app) => app.run(|handle, event| {
-            // Saat app benar-benar keluar, matikan semua shell anak supaya
-            // tidak ada proses tertinggal di Task Manager (V7 fase 05).
             if let RunEvent::Exit = event {
                 let st = handle.state::<AppState>();
                 tracing::info!(uptime_ms = st.uptime_ms(), "application exit");
                 st.pty_kill_all();
-                // Tutup socket MCP supaya port 9222 tidak tertinggal listening.
+
                 mcp_server::stop(handle);
-                // T2.3: matikan semua Cloudflare Tunnel. WAJIB — tunnel yang
-                // tertinggal berarti localhost user tetap terbuka ke internet
-                // tanpa ia sadari.
             }
         }),
         Err(e) => {

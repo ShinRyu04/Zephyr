@@ -1,14 +1,6 @@
-// DeleteConfirmDialog.tsx — konfirmasi hapus file/folder (fase 27).
-//
-// Menggantikan `window.confirm()` yang dulu dipakai Explorer. Alasannya bukan
-// kosmetik: dialog native memblokir seluruh event loop WebView, tidak bisa
-// di-tema, tidak bisa dibaca screen reader dengan konteks, dan TIDAK BISA
-// diotomasi oleh harness verifikasi — jadi jalur hapus tidak pernah terbukti.
-
 import { useEffect, useRef } from 'react';
 import { useExplorer } from '../../lib/explorerStore';
-// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
-// screen reader — ia TIDAK mengurung fokus keyboard.
+
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 const nama = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
@@ -16,9 +8,7 @@ const nama = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 export default function DeleteConfirmDialog() {
   const pending = useExplorer((s) => s.pendingDelete);
   const cancel = useExplorer((s) => s.cancelDelete);
-  // Dinamai `jalankanHapus`, BUKAN `confirm` — nama `confirm` di scope komponen
-  // menyerupai `window.confirm` dan bikin audit "tidak ada confirm() native"
-  // (V5 fase 27) menandainya sebagai temuan palsu.
+  
   const jalankanHapus = useExplorer((s) => s.confirmDelete);
   const okRef = useRef<HTMLButtonElement | null>(null);
 
@@ -26,8 +16,6 @@ export default function DeleteConfirmDialog() {
     if (pending) okRef.current?.focus();
   }, [pending]);
 
-  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
-  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
   const trapRef = useFocusTrap<HTMLDivElement>({
     aktif: !!pending && pending.length > 0,
     onEscape: () => cancel(),

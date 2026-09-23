@@ -1,8 +1,3 @@
-// tests_browser.rs — unit test keputusan embed pane browser (fase 12).
-//
-// Yang diuji: `browser::decide` — pemetaan header respons ke "boleh di-embed
-// atau tidak". Jalan tanpa jaringan, jadi cepat dan tidak flaky.
-
 #![cfg(test)]
 
 use crate::browser::decide;
@@ -71,14 +66,12 @@ fn csp_frame_ancestors_bintang_boleh() {
 
 #[test]
 fn csp_tanpa_frame_ancestors_tidak_relevan() {
-    // Direktif lain (mis. script-src) tidak boleh dianggap melarang embed.
     let (ok, _, _) = decide(None, Some("default-src 'self'; script-src 'unsafe-inline'"));
     assert!(ok);
 }
 
 #[test]
 fn xfo_menang_atas_csp_permisif() {
-    // Kalau XFO melarang, CSP yang permisif tidak menyelamatkan.
     let (ok, alasan, _) = decide(Some("DENY"), Some("frame-ancestors *"));
     assert!(!ok);
     assert!(alasan.contains("DENY"));
@@ -86,8 +79,6 @@ fn xfo_menang_atas_csp_permisif() {
 
 #[test]
 fn dev_server_lokal_khas_boleh() {
-    // Vite/webpack dev server tidak mengirim header pembatas → harus lolos,
-    // karena ini justru kasus pemakaian utama pane browser.
     let (ok, _, _) = decide(None, Some("connect-src 'self' ws:"));
     assert!(ok);
 }

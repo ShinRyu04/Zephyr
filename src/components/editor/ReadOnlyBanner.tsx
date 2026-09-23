@@ -1,9 +1,3 @@
-// ReadOnlyBanner.tsx — pita penjelas di atas editor saat tab dibuka
-// baca-saja (fase 15.1): file >4MB ("mode ringan") atau encoding UTF-16.
-//
-// Tanpa banner ini user cuma merasa "editor rusak, nggak bisa diketik".
-// Alasannya datang dari Rust (`ReadResult.note`), bukan ditebak di UI.
-
 import { useStore, useActiveTab } from '../../lib/store';
 import { useT } from '../../lib/i18n';
 

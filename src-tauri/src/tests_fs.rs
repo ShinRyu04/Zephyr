@@ -1,8 +1,3 @@
-// tests_fs.rs — unit test murni untuk logika encoding & line ending
-// (V4 fase 03: file BOM + ANSI harus dibaca/ditulis tanpa rusak).
-// Fungsi decode/encode diuji lewat command fs_read/fs_write pada file
-// temporer, tanpa perlu menjalankan GUI.
-
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -13,7 +8,6 @@ mod tests {
         p
     }
 
-    // ── decode: UTF-8 tanpa BOM ──
     #[test]
     fn utf8_plain_roundtrip() {
         let p = tmp("utf8.txt");
@@ -28,7 +22,6 @@ mod tests {
         std::fs::remove_file(&p).ok();
     }
 
-    // ── decode: UTF-8 dengan BOM, BOM dibuang dari konten ──
     #[test]
     fn utf8_bom_detected_and_preserved() {
         let p = tmp("bom.txt");
@@ -45,17 +38,15 @@ mod tests {
             "BOM tidak boleh ikut ke konten"
         );
 
-        // Simpan balik: BOM harus kembali, byte identik.
         let out = crate::fs_utils::encode_for_test(&text, "utf8-bom", "lf").unwrap();
         assert_eq!(out, raw);
         std::fs::remove_file(&p).ok();
     }
 
-    // ── decode: byte ANSI (Windows-1252) yang bukan UTF-8 valid ──
     #[test]
     fn ansi_fallback_no_replacement_char() {
         let p = tmp("ansi.txt");
-        // 0xE9 = 'é' di Windows-1252, tapi UTF-8 tidak valid berdiri sendiri.
+
         let raw = vec![b'c', b'a', b'f', 0xE9, b' ', b'n', b'a', b'i', b'f'];
         std::fs::write(&p, &raw).unwrap();
 
@@ -73,7 +64,6 @@ mod tests {
         std::fs::remove_file(&p).ok();
     }
 
-    // ── line ending: CRLF asal dipertahankan ──
     #[test]
     fn crlf_preserved_on_write() {
         let text = "satu\ndua\ntiga";
@@ -91,14 +81,12 @@ mod tests {
         assert_eq!(crate::fs_utils::detect_le_for_test("tanpa newline"), "lf");
     }
 
-    // ── ANSI gagal bila konten punya karakter di luar Windows-1252 ──
     #[test]
     fn ansi_rejects_unmappable_char() {
         let res = crate::fs_utils::encode_for_test("emoji 🚀", "ansi", "lf");
         assert!(res.is_err(), "harus menolak, bukan menulis byte rusak");
     }
 
-    // ── deep_merge settings: patch parsial tidak menghapus key lain ──
     #[test]
     fn settings_deep_merge_partial() {
         let mut base = serde_json::json!({
@@ -113,7 +101,6 @@ mod tests {
         assert_eq!(base["editor"]["tabSize"], 2);
     }
 
-    // ── default settings punya semua seksi yang dijanjikan ARCHITECTURE.md ──
     #[test]
     fn default_settings_has_all_sections() {
         let d = crate::settings::default_settings();
@@ -135,8 +122,6 @@ mod tests {
         assert_eq!(d["editor"]["tabSize"], 2);
     }
 
-    // ───────── fase 04: explorer & search ─────────
-
     #[test]
     fn ignore_list_menutup_folder_berat() {
         for d in ["node_modules", ".git", "target", "dist", "venv", ".next"] {
@@ -145,23 +130,21 @@ mod tests {
                 "{d} harus di-ignore"
             );
         }
-        // Case-insensitive (Windows).
+
         assert!(crate::explorer::is_ignored_for_test("Node_Modules", true));
-        // File biasa & folder src tidak boleh di-ignore.
+
         assert!(!crate::explorer::is_ignored_for_test("src", true));
         assert!(!crate::explorer::is_ignored_for_test("package.json", false));
-        // Nama file yang kebetulan sama dengan folder ignore tetap tampil.
+
         assert!(!crate::explorer::is_ignored_for_test("target", false));
     }
 
     #[test]
     fn search_literal_memperlakukan_titik_sebagai_teks() {
-        // Non-regex: "a.c" tidak boleh cocok dengan "abc".
         let re = crate::explorer::build_regex_for_test("a.c", false, true).unwrap();
         assert!(re.is_match("xxa.cxx"));
         assert!(!re.is_match("xxabcxx"));
 
-        // Regex: titik jadi wildcard.
         let re2 = crate::explorer::build_regex_for_test("a.c", true, true).unwrap();
         assert!(re2.is_match("xxabcxx"));
     }
@@ -184,7 +167,6 @@ mod tests {
 
     #[test]
     fn scan_dir_mengurutkan_folder_dulu() {
-        // Siapkan struktur: b.txt, a.txt, folder zz, folder aa, node_modules
         let mut root = std::env::temp_dir();
         root.push(format!("zephyr-scan-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
@@ -206,13 +188,10 @@ mod tests {
 
     #[test]
     fn replace_literal_tidak_menafsirkan_dollar() {
-        // NoExpand: "$1" di teks pengganti harus tertulis apa adanya.
         let re = crate::explorer::build_regex_for_test("foo", false, true).unwrap();
         let out = re.replace_all("foo bar", regex::NoExpand("$1x"));
         assert_eq!(out, "$1x bar");
     }
-
-    // ───────── fase 05: terminal / pty ─────────
 
     #[test]
     fn list_shells_menemukan_powershell_dan_path_nyata() {
@@ -226,7 +205,7 @@ mod tests {
             "path shell harus benar-benar ada: {}",
             ps.path
         );
-        // Tidak boleh ada id ganda (dropdown "+" akan dobel).
+
         let mut ids: Vec<_> = shells.iter().map(|s| s.id.clone()).collect();
         ids.sort();
         let jumlah = ids.len();
@@ -244,7 +223,7 @@ mod tests {
             joined.contains("HistorySaveStyle SaveNothing"),
             "riwayat harus dimatikan: {joined}"
         );
-        // -NoExit wajib, kalau tidak shell langsung tertutup setelah -Command.
+
         assert!(args.iter().any(|a| a == "-NoExit"), "args: {joined}");
     }
 
@@ -274,16 +253,12 @@ mod tests {
 
     #[test]
     fn kind_agent_tanpa_command_ditolak() {
-        // Pane agent WAJIB mengirim start command dari Settings; kalau tidak,
-        // ini bug frontend dan harus gagal keras, bukan diam-diam jadi shell.
         assert!(crate::pty::resolve_shell_for_test("agent", None).is_err());
         let (prog, _) =
             crate::pty::resolve_shell_for_test("agent", Some(r"C:\Windows\System32\cmd.exe"))
                 .unwrap();
         assert!(prog.to_lowercase().ends_with("cmd.exe"));
     }
-
-    // ───────── fase 06: deteksi agent CLI ─────────
 
     #[test]
     fn list_agents_hanya_mengembalikan_path_yang_ada() {
@@ -297,7 +272,7 @@ mod tests {
             );
             assert!(!a.label.is_empty());
         }
-        // id unik (popover tidak boleh dobel)
+
         let mut ids: Vec<_> = found.iter().map(|a| a.id.clone()).collect();
         let n = ids.len();
         ids.sort();
@@ -307,7 +282,6 @@ mod tests {
 
     #[test]
     fn settings_null_menghapus_key() {
-        // Dipakai tombol "Reset ke default" per item (shortcut/start command).
         let mut base = serde_json::json!({
             "shortcuts": { "view.explorer": "Ctrl+Alt+E", "file.save": "Ctrl+S" },
             "agents": { "startCommands": { "opencode": ["a", "b"] }, "maxPanes": 6 }
@@ -327,8 +301,6 @@ mod tests {
         assert_eq!(base["agents"]["maxPanes"], 6);
     }
 
-    // ───────── fase 08: secrets & API key ─────────
-
     #[test]
     fn secret_roundtrip_dan_tidak_plaintext() {
         let key = "sk-test-1234567890abcdefXYZ";
@@ -347,22 +319,19 @@ mod tests {
         assert!(p.starts_with("sk-a"), "{p}");
         assert!(p.ends_with("4f2a"), "{p}");
         assert!(!p.contains("efghij"), "bagian tengah harus tertutup: {p}");
-        // key pendek: seluruhnya ditutup
+
         assert!(crate::secrets::preview_for_test("abc")
             .chars()
             .all(|c| c == '•'));
     }
 
-    // ── FASE 16.3: path panjang & root drive ──
-
     #[test]
     fn long_path_menambah_prefix_untuk_path_panjang() {
         use std::path::Path;
-        // Path pendek TIDAK diubah — prefix hanya menambah kerumitan.
+
         let pendek = Path::new(r"C:\Users\a\proyek\file.txt");
         assert_eq!(crate::paths::long_path(pendek), pendek.to_path_buf());
 
-        // Path >240 karakter dapat prefix `\\?\`.
         let dalam = format!(r"C:\Users\a\{}\file.txt", "folder-panjang\\".repeat(20));
         let hasil = crate::paths::long_path(Path::new(&dalam));
         assert!(
@@ -371,12 +340,10 @@ mod tests {
             hasil.display()
         );
 
-        // Yang sudah punya prefix tidak ditumpuk dua kali.
         let sudah = format!(r"\\?\C:\{}", "x".repeat(300));
         let hasil2 = crate::paths::long_path(Path::new(&sudah));
         assert!(!hasil2.to_string_lossy().starts_with(r"\\?\\\?\"));
 
-        // UNC panjang memakai bentuk \\?\UNC\server\share
         let unc = format!(r"\\server\share\{}", "y".repeat(300));
         let hasil3 = crate::paths::long_path(Path::new(&unc));
         assert!(

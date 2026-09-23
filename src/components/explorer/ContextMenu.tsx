@@ -1,6 +1,3 @@
-// ContextMenu.tsx — menu konteks kustom untuk FileTree (bukan menu native).
-// Ditutup oleh klik di luar, Escape, atau scroll.
-
 import { useEffect, useRef } from 'react';
 import { useExplorer } from '../../lib/explorerStore';
 
@@ -38,16 +35,14 @@ export default function ContextMenu() {
 
   if (!menu) return null;
 
-  // Folder tujuan untuk item baru: folder yang diklik, atau induk file.
   const parentDir = menu.isDir ? menu.path : dirOfPath(menu.path);
   const targets = selected.includes(menu.path) ? selected : [menu.path];
 
-  // Jaga menu tetap di dalam viewport.
   const x = Math.min(menu.x, window.innerWidth - 210);
   const y = Math.min(menu.y, window.innerHeight - 240);
 
   const newItem = async (kind: 'new-file' | 'new-folder') => {
-    // Pastikan folder tujuan terbuka supaya input inline-nya terlihat.
+    
     if (menu.isDir && !expanded[menu.path]) await toggleExpand(menu.path);
     startInline({
       kind,
@@ -56,9 +51,6 @@ export default function ContextMenu() {
     });
   };
 
-  // FASE 27: `window.confirm()` DILARANG (native, memblokir, tidak bisa
-  // di-tema, tidak bisa diuji harness). Konfirmasi hapus lewat store Explorer
-  // yang sudah punya dialog sendiri.
   const confirmDelete = () => {
     close();
     askDelete(targets);

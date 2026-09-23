@@ -1,13 +1,3 @@
-// paletteStore.ts — state Command Palette & Quick Open (fase 12).
-//
-// Dua mode dalam satu modal:
-//   'command' (Ctrl+Shift+P) — cari action dari commandRegistry
-//   'file'    (Ctrl+P)        — cari file di workspace (list dari Rust)
-//
-// Skoring sengaja sederhana & deterministik supaya urutannya bisa diuji:
-//   prefix cocok  > kata cocok  > substring  > subsequence (fuzzy)
-// Bonus kecil untuk command yang baru dipakai (recent) dan penalti panjang.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { availableCommands, findCommand, type CommandDef } from './commandRegistry';
@@ -17,11 +7,6 @@ import { useStore } from './store';
 import { effectiveBinding } from './shortcuts';
 import type { QuickFile } from './types';
 
-/**
- * Cache daftar command (mode command). Di-reset tiap palette dibuka —
- * extension/snippet yang berubah antar bukaan ikut. Filter per ketikan
- * hanya bekerja di memori, tanpa membangun ulang command ekstensi.
- */
 let daftarCommandCache: CommandDef[] | null = null;
 function cacheCommands(): void {
   daftarCommandCache = availableCommands();
@@ -29,17 +14,16 @@ function cacheCommands(): void {
 
 export type PaletteMode = 'command' | 'file';
 
-/** Satu baris hasil di daftar. */
 export interface PaletteItem {
-  /** id unik: command id atau path file */
+  
   id: string;
   label: string;
-  /** teks kecil di kanan/bawah: grup atau path relatif */
+  
   detail: string;
-  /** keybinding yang ditampilkan (command saja) */
+  
   binding?: string;
   score: number;
-  /** posisi karakter yang cocok (untuk highlight) */
+  
   hits: number[];
   group?: string;
 }
@@ -65,17 +49,6 @@ function saveRecent(ids: string[]) {
   }
 }
 
-/**
- * Cocokkan `query` ke `text`. null = tidak cocok.
- * Mengembalikan skor + indeks karakter yang cocok untuk highlight.
- *
- * `ketatSubsequence` menonaktifkan lapisan 4 (subsequence). Dipakai untuk
- * mencocokkan ke `keywords`: query 3 huruf seperti "git" hampir selalu bisa
- * dipungut sebagai subsequence dari gabungan title+keywords yang panjang
- * (mis. "notifikasi lonceng riwayat pemberitahuan" → g?…i?…t?), jadi
- * separuh isi palette lolos dan daftar hasil kehilangan arti. Untuk judul
- * lapisan subsequence tetap berguna ("gtd" → "Go to Definition").
- */
 export function fuzzyMatch(
   text: string,
   query: string,
@@ -85,27 +58,26 @@ export function fuzzyMatch(
   const t = text.toLowerCase();
   const q = query.toLowerCase();
 
-  // 1) prefix — paling relevan
   if (t.startsWith(q)) {
     return { score: 1000 - t.length, hits: range(0, q.length) };
   }
-  // 2) awal kata (setelah spasi, ':', '/', '-', '_', '.')
+  
   const wordIdx = wordStartIndex(t, q);
   if (wordIdx >= 0) {
     return { score: 800 - t.length + (wordIdx === 0 ? 10 : 0), hits: range(wordIdx, q.length) };
   }
-  // 3) substring biasa
+  
   const sub = t.indexOf(q);
   if (sub >= 0) {
     return { score: 600 - sub - t.length / 2, hits: range(sub, q.length) };
   }
   if (ketatSubsequence) return null;
-  // 4) subsequence (fuzzy): huruf berurutan tapi tidak berdampingan
+  
   const hits: number[] = [];
   let ti = 0;
   let gaps = 0;
   for (const ch of q) {
-    if (ch === ' ') continue; // spasi di query tidak wajib cocok
+    if (ch === ' ') continue; 
     const found = t.indexOf(ch, ti);
     if (found < 0) return null;
     if (hits.length > 0) gaps += found - (hits[hits.length - 1] + 1);
@@ -133,14 +105,14 @@ interface PaletteState {
   open: boolean;
   mode: PaletteMode;
   query: string;
-  /** index item yang sedang disorot */
+  
   index: number;
-  /** daftar file workspace (di-cache; dimuat saat mode file dibuka) */
+  
   files: QuickFile[];
   loadingFiles: boolean;
   filesError: string | null;
   recent: string[];
-  /** command terakhir yang dijalankan (bukti untuk verifikasi) */
+  
   lastRun: { id: string; at: number } | null;
 }
 
@@ -150,9 +122,9 @@ interface PaletteActions {
   setQuery: (q: string) => void;
   move: (delta: number) => void;
   setIndex: (i: number) => void;
-  /** Jalankan item yang sedang disorot (atau index tertentu). */
+  
   accept: (i?: number) => Promise<void>;
-  /** Hasil terfilter untuk mode aktif. */
+  
   items: () => PaletteItem[];
   runCommandById: (id: string) => Promise<void>;
 }
@@ -173,16 +145,11 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   openPalette: async (mode) => {
     set({ open: true, mode, query: '', index: 0, filesError: null });
     if (mode === 'command') {
-      // Hitung daftar command SEKALI saat palette dibuka, bukan tiap
-      // ketikan. availableCommands() membangun ulang command ekstensi +
-      // snippet (bisa 500+ objek) — menjalankannya per karakter query
-      // membuat palette terasa lambat. Hasilnya di-cache; item() hanya
-      // mem-filter di memori.
+      
       cacheCommands();
     }
     if (mode !== 'file') return;
-    // Mode file butuh daftar dari Rust. Workspace belum dibuka = katakan
-    // apa adanya, jangan tampilkan daftar kosong tanpa alasan.
+    
     if (!useStore.getState().workspace) {
       set({ files: [], filesError: 'Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka).' });
       return;
@@ -212,10 +179,10 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     if (mode === 'file') {
       const list: PaletteItem[] = [];
       for (const f of files) {
-        // Cocokkan ke path relatif supaya "src/li store" tetap ketemu.
+        
         const m = fuzzyMatch(f.rel, q);
         if (!m) continue;
-        // Nama file yang cocok lebih relevan daripada folder.
+        
         const nameBonus = q && f.name.toLowerCase().startsWith(q.toLowerCase()) ? 300 : 0;
         list.push({
           id: f.path,
@@ -234,10 +201,7 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     const sumber = daftarCommandCache ?? availableCommands();
     for (const c of sumber) {
       const hay = `${c.title} ${c.keywords ?? ''}`;
-      // Judul: keempat lapisan (subsequence berguna — "gtd" → Go to Definition).
-      // Keywords: subsequence DIMATIKAN. Tanpa itu query "git" memungut 22 dari
-      // 38 command lewat huruf yang tersebar di keywords panjang, dan daftar
-      // hasil berhenti berarti. Dibuktikan dari CP.items() di app hidup.
+      
       const m = fuzzyMatch(c.title, q) ?? fuzzyMatch(hay, q, true);
       if (!m) continue;
       const r = recent.indexOf(c.id);
@@ -247,9 +211,7 @@ export const usePalette = create<PaletteStore>((set, get) => ({
         label: c.title,
         detail: c.group,
         group: c.group,
-        // FASE 18: accelerator diambil dari registry keybinding (default ⊕
-        // user) supaya SEMUA command menampilkan chord-nya, bukan hanya yang
-        // punya `action` lama dari fase 08 (syarat V3).
+        
         binding:
           chordFor(c.id, useKb.getState().bindings) ||
           (c.action ? effectiveBinding(c.action, custom) : undefined),

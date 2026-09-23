@@ -1,11 +1,3 @@
-// TerminalPanel.tsx — panel sidebar "Terminal" (isi ikon ActivityBar yang
-// sebelumnya cuma placeholder).
-//
-// Gunanya BUKAN menggantikan panel terminal di bawah: ini daftar sesi.
-// Kalau sudah ada beberapa tab × beberapa pane, mencari satu pane lewat
-// header jadi repot — di sini semuanya kelihatan sekaligus (jenis, PID,
-// status, cwd) dan bisa langsung difokuskan atau dimatikan.
-
 import { useEffect } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
@@ -41,8 +33,6 @@ export default function TerminalPanel() {
   const refreshFromBackend = useTerminal((s) => s.refreshFromBackend);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
 
-  // Samakan dengan kenyataan di Rust saat panel dibuka: pane yang prosesnya
-  // sudah mati di luar sepengetahuan UI akan ditandai "exited".
   useEffect(() => {
     void refreshFromBackend();
   }, [refreshFromBackend]);
@@ -55,7 +45,7 @@ export default function TerminalPanel() {
     if (!visible) setVisible(true);
     setActiveTab(tabId);
     setActivePane(tabId, paneId);
-    // Beri fokus keyboard ke pane-nya supaya bisa langsung mengetik.
+
     window.setTimeout(() => {
       document
         .querySelector<HTMLElement>(`[data-pane-body="${paneId}"] .xterm-helper-textarea`)

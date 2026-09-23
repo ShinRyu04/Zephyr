@@ -1,13 +1,3 @@
-// editor-themes.ts — tema CodeMirror 6 per tema Zephyr (fase 13).
-//
-// Nilai warna TIDAK diduplikasi di sini: setiap properti memakai
-// `var(--token)` sehingga CM ikut berubah begitu `[data-theme]` di <html>
-// berganti — satu sumber warna, yaitu src/styles/*.css.
-//
-// Yang benar-benar per tema hanyalah flag `dark` CM6 (memengaruhi default
-// internal CM seperti warna panel & scrollbar). Karena itu ada satu
-// EditorView.theme per id tema, di-cache supaya reconfigure murah.
-
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
@@ -16,7 +6,6 @@ import { THEMES } from '../lib/themes';
 
 const v = (name: string) => `var(${name})`;
 
-/** Spec tampilan editor — sama untuk semua tema (warnanya dari CSS var). */
 function themeSpec(): Record<string, Record<string, string>> {
   return {
     '&': {
@@ -63,7 +52,6 @@ function themeSpec(): Record<string, Record<string, string>> {
   };
 }
 
-/** Highlight syntax memakai token `--syntax-*` (nama kontrak fase 13). */
 export const zephyrHighlight: Extension = syntaxHighlighting(
   HighlightStyle.define([
     { tag: [t.keyword, t.modifier, t.controlKeyword], color: v('--syntax-keyword') },
@@ -100,7 +88,6 @@ export const zephyrHighlight: Extension = syntaxHighlighting(
 
 const cache = new Map<string, Extension>();
 
-/** Tema editor untuk satu id tema Zephyr (mis. 'nord'). */
 export function editorTheme(themeId: string): Extension {
   const hit = cache.get(themeId);
   if (hit) return hit;
@@ -110,5 +97,4 @@ export function editorTheme(themeId: string): Extension {
   return ext;
 }
 
-/** Daftar id tema editor yang tersedia (cermin THEMES). */
 export const EDITOR_THEME_IDS = THEMES.map((x) => x.id);

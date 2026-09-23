@@ -1,16 +1,3 @@
-// tasksStore.ts — state task runner (fase 23).
-//
-// Pembagian tugas dengan Rust (tasks.rs):
-//   Rust  : baca+validasi tasks.json, spawn proses, stream output PER BARIS,
-//           jalankan problem matcher, deteksi port.
-//   Store : rantai dependsOn, menyalurkan hasil ke outputStore/problemsStore/
-//           portsStore, riwayat "recent", dan status siap untuk task background.
-//
-// Kenapa rantai dependsOn di sini, bukan di Rust: `dependsOn` menyebut LABEL
-// task lain, jadi resolusinya butuh seluruh daftar task + kebijakan UI
-// (batalkan sisa rantai kalau satu gagal, tampilkan yang mana yang jalan).
-// Rust hanya perlu tahu "jalankan satu perintah ini".
-
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import {
@@ -26,43 +13,33 @@ import { useProblems, type Diagnostic } from './problemsStore';
 import { usePorts } from './portsStore';
 import { useNotif } from './notificationStore';
 
-/** Batas baris yang ditahan per channel output task. */
 const MAX_BARIS = 5_000;
 
-/** Riwayat task yang pernah dijalankan (label saja) — untuk urutan palette. */
 const MAX_RECENT = 8;
 
 export interface TaskState {
-  /** hasil tasks_load terakhir */
+
   file: TasksFile | null;
-  /** semua run yang tercatat, terbaru di belakang */
+
   runs: TaskRun[];
-  /** label yang baru saja dijalankan, terbaru di depan */
+
   recent: string[];
-  /** run yang sedang dilihat panelnya */
+
   activeRun: string | null;
   loading: boolean;
   error: string | null;
-  /** id run background yang sudah "siap" (endsPattern kena) */
+
   ready: Record<string, boolean>;
 }
 
 interface TaskActions {
   muat: (root?: string) => Promise<TasksFile | null>;
   daftar: () => TaskDef[];
-  /** task default grup build (Ctrl+Shift+B) */
+
   buildDefault: () => TaskDef | null;
   cari: (label: string) => TaskDef | null;
   jalankan: (label: string, opts?: { lewatiDepends?: boolean }) => Promise<TaskRun | null>;
-  /**
-   * Jalankan perintah test/apa pun yang TIDAK berasal dari tasks.json
-   * (mis. runner yang dideteksi Test Explorer).
-   *
-   * KENAPA harus lewat store, bukan `tasksRun` langsung: `labelRun` (peta
-   * id->label) dan channel output `task:<label>` hanya dibuat di sini. Memanggil
-   * `tasks_run` langsung dari komponen membuat event `task-output` datang
-   * dengan id yang tidak dikenal store -> output test tidak pernah muncul.
-   */
+
   jalankanAdHoc: (a: {
     label: string;
     command: string;
@@ -75,7 +52,7 @@ interface TaskActions {
   bersihkanRiwayat: () => Promise<void>;
   setActiveRun: (id: string | null) => void;
   runsAktif: () => TaskRun[];
-  /** dipakai listener event dari Rust */
+
   _onOutput: (id: string, line: string, stderr: boolean) => void;
   _onProblem: (id: string, p: TaskProblem) => void;
   _onExit: (id: string, killed: boolean, lines: number) => void;
@@ -84,24 +61,16 @@ interface TaskActions {
   _upsertRun: (r: TaskRun) => void;
 }
 
-/** id channel output untuk sebuah label task. */
 export const channelUntuk = (label: string) => `task:${label}`;
-/** sumber problemsStore untuk sebuah label task. */
+
 export const sumberUntuk = (label: string) => `task:${label}`;
 
 let seq = 0;
 const idBaru = (label: string) =>
   `run-${++seq}-${label.replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 24)}`;
 
-/**
- * Kumpulkan problem per run supaya bisa ditulis ke problemsStore sekaligus
- * per file. Menulis satu per satu tidak bisa: `setDiagnostics` MENGGANTI
- * seluruh daftar sebuah file, jadi problem kedua di file yang sama akan
- * menghapus yang pertama.
- */
 const bufferProblem = new Map<string, TaskProblem[]>();
 
-/** label per run id — dibutuhkan listener yang hanya menerima id. */
 const labelRun = new Map<string, string>();
 
 const tulisProblems = (runId: string, label: string) => {
@@ -122,11 +91,10 @@ const tulisProblems = (runId: string, label: string) => {
     perFile.set(p.file, arr);
   }
   const P = useProblems.getState();
-  // Bersihkan sumber ini dulu supaya ronde sebelumnya tidak menumpuk.
+
   P.clearSource(sumberUntuk(label));
   for (const [file, arr] of perFile) {
-    // Gabung dengan diagnostik sumber LAIN pada file yang sama (mis. LSP),
-    // kalau tidak diagnostik LSP hilang setiap task selesai.
+
     const lain = P.forFile(file).filter((d) => d.source !== sumberUntuk(label));
     P.setDiagnostics(file, [...lain, ...arr]);
   }
@@ -146,7 +114,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     try {
       const f = await tasksLoad(root);
       set({ file: f, loading: false });
-      // Error skema → Notification (integrasi fase 27), bukan console.
+
       if (f.errors.length > 0) {
         useNotif.getState().notify({
             severity: 'warn',
@@ -195,9 +163,6 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       return null;
     }
 
-    // dependsOn: jalankan lebih dulu. `sequence` menunggu satu per satu dan
-    // BERHENTI kalau ada yang gagal — kalau tidak, "build lalu test" akan
-    // menjalankan test di atas build yang rusak.
     if (!opts?.lewatiDepends && def.dependsOn.length > 0) {
       if (def.dependsOrder === 'parallel') {
         const hasil = await Promise.all(
@@ -228,7 +193,6 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       }
     }
 
-    // Task composite (hanya pembungkus dependsOn) tidak punya perintah.
     if (!def.command.trim()) {
       set((s) => ({
         recent: [label, ...s.recent.filter((x) => x !== label)].slice(0, MAX_RECENT),
@@ -252,7 +216,6 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     labelRun.set(runId, label);
     bufferProblem.set(runId, []);
 
-    // Channel output "Task:<label>" (integrasi fase 20).
     const ch = channelUntuk(label);
     const O = useOutput.getState();
     O.addChannel(ch, `Task: ${label}`);
@@ -292,7 +255,6 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       return null;
     }
 
-    // Task background TIDAK ditunggu sampai exit — ia memang tidak berhenti.
     if (def.isBackground) {
       const r: TaskRun = {
         id: runId,
@@ -324,9 +286,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
 
   jalankanAdHoc: async ({ label, command, args, cwd }) => {
     const runId = idBaru(label);
-    // Urutan PENTING: labelRun + channel output harus siap SEBELUM perintah
-    // dikirim, kalau tidak baris pertama (yang bisa datang dalam milidetik)
-    // tiba saat id belum dikenal dan baris itu hilang.
+
     labelRun.set(runId, label);
     bufferProblem.set(runId, []);
     const ch = channelUntuk(label);
@@ -415,8 +375,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     const ch = channelUntuk(label);
     useOutput.getState().append(ch, stderr ? line : line);
     const st = useOutput.getState();
-    // Batas ring buffer: outputStore menyimpan array, jadi pemangkasan
-    // dilakukan di sini supaya build panjang tidak memakan RAM tanpa batas.
+
     const n = st.lines(ch).length;
     if (n > MAX_BARIS + 500) {
       const sisa = st.lines(ch).slice(-MAX_BARIS);
@@ -449,8 +408,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
 
   _onPort: (id, port, https) => {
     const label = labelRun.get(id) ?? 'task';
-    // Integrasi fase 20: port yang terdeteksi masuk tabel Ports dengan
-    // source "task" supaya jelas siapa yang membukanya.
+
     usePorts.getState().add({
       hostPort: port,
       privatePort: port,
@@ -468,21 +426,13 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       bufferProblem.set(id, []);
       set((s) => ({ ready: { ...s.ready, [id]: false } }));
     } else if (phase === 'end') {
-      // endsPattern kena = task background dianggap SIAP (dipakai
-      // preLaunchTask debugger fase 22).
+
       set((s) => ({ ready: { ...s.ready, [id]: true } }));
       if (label) tulisProblems(id, label);
     }
   },
 }));
 
-/**
- * Pasang listener event Rust SEKALI per proses.
- *
- * Guard modul, bukan cleanup effect: StrictMode dev memasang effect dua kali
- * dan setiap baris output akan tampil dobel — pelajaran yang sama dari
- * `pty-output` (fase 05), `ai-chunk` (fase 09), dan `mcp-action` (fase 11).
- */
 let taskListenerBound = false;
 
 export const bindTaskListeners = () => {

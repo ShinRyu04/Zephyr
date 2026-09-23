@@ -1,13 +1,8 @@
-// changelogRender.tsx — render changelog markdown ringan untuk update notes.
-// Mendukung: heading (##/###), list (- / 1.), bold (**x**), inline code (`x`),
-// paragraf, dan tabel markdown (| a | b |) dengan header + baris.
-// Aman: input dari latest.json / release notes — TIDAK pakai dangerouslySetInnerHTML.
-
 import React from 'react';
 
 function inline(teks: string, keyBase: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // bold **x** dulu, lalu inline code `x`
+  
   const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
   let last = 0;
   let m: RegExpExecArray | null;
@@ -46,7 +41,6 @@ function barisTabel(baris: string, keyBase: string, isHeader: boolean): React.Re
   );
 }
 
-/** Render teks changelog (markdown ringan) jadi elemen React. */
 export function Changelog({ teks }: { teks: string }) {
   const baris = teks.replace(/\r\n/g, '\n').split('\n');
 
@@ -83,7 +77,7 @@ export function Changelog({ teks }: { teks: string }) {
     const b = baris[i].trimEnd();
     if (/^\|/.test(b)) {
       const sel = b.split('|').map((s) => s.trim());
-      // baris pemisah (|---|) → lewati
+      
       if (/^:?-{2,}:?$/.test(sel.filter((x) => x !== '').join(''))) {
         i++;
         continue;

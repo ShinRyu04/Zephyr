@@ -1,18 +1,3 @@
-// TerminalTabs.tsx — kontrol terminal, dipecah mengikuti tata letak VS Code
-// (fase 24.1, permintaan user):
-//
-//   <TerminalOps />       [+ ▾] dan [⋮] — dirender DI BARIS TAB PANEL
-//                         (sejajar Problems/Output/Debug/Terminal/Ports),
-//                         dan HANYA saat tab Terminal yang aktif. Jadi tidak
-//                         ada baris toolbar tambahan yang memakan tempat.
-//   <TerminalSideTabs />  daftar tab VERTIKAL di sisi kanan area terminal.
-//                         Muncul hanya kalau tab terminal ≥ 2 — dengan satu
-//                         terminal, daftarnya tidak memberi informasi apa pun.
-//   ActionIcon            ikon bersama untuk tombol & item menu.
-//
-// Perbesar / sembunyikan panel TIDAK ada di sini: itu milik PanelTabStrip.
-// Satu aksi satu tempat.
-
 import { useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import { clearTerm } from '../../lib/xtermRegistry';
@@ -21,7 +6,6 @@ import PaneIcon, { AgentLogo } from './PaneIcons';
 import type { PaneKind, TerminalTab } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
 
-/** Ikon aksi kecil untuk tombol toolbar & item menu (ukuran seragam). */
 export function ActionIcon({
   name,
 }: {
@@ -105,11 +89,6 @@ function RenameInput({ tab }: { tab: TerminalTab }) {
   );
 }
 
-/**
- * Daftar tab terminal — kolom vertikal di SISI KANAN area terminal, seperti
- * VS Code. Sengaja mengembalikan null saat hanya ada satu tab: nama tab tunggal
- * tidak menambah informasi, dan barisnya cuma memakan tempat.
- */
 export function TerminalSideTabs() {
   const tr = useT();
   const tabs = useTerminal((s) => s.terminalTabs);
@@ -165,18 +144,6 @@ export function TerminalSideTabs() {
   );
 }
 
-/**
- * Dua kontrol terminal, dirender di baris tab panel (PanelTabStrip).
- *
- * Dulu ada 6 ikon sejajar (+, pilih shell, agent, split, browser, kebab) di
- * baris toolbar tersendiri. Terlalu padat, tiga di antaranya sama-sama berarti
- * "buat sesuatu yang baru", dan barisnya menghabiskan tinggi panel.
- *
- *   [+ ▾]  buat baru      — pane shell (klik), jenis lain (dropdown)
- *   [⋮]    urus yang ada  — clear / kill / close / layout / rename
- *
- * Klik utama tetap satu langkah: "+" langsung membuka pane shell.
- */
 export function TerminalOps() {
   const tr = useT();
   const tabs = useTerminal((s) => s.terminalTabs);
@@ -198,14 +165,9 @@ export function TerminalOps() {
   const setRenaming = useTerminal((s) => s.setRenaming);
   const setPaneMenuFor = useTerminal((s) => s.setPaneMenuFor);
 
-  // Anchor tiap dropdown. Menu dirender lewat <Popover> (portal ke body) karena
-  // panel bawah punya rantai `overflow: hidden` yang MEMOTONG menu absolut —
-  // itu sebabnya "Pilih terminal" / "+ Agent" / kebab dulu terlihat tertimpa.
   const btnPicker = useRef<HTMLButtonElement | null>(null);
   const btnKebab = useRef<HTMLButtonElement | null>(null);
 
-  // Popover mengurus klik-di-luar & Escape-nya sendiri. Yang tersisa di sini:
-  // Escape juga menutup menu pane (paneMenuFor) yang bukan milik Popover.
   useEffect(() => {
     if (!pickerOpen && !menuFor) return;
     const onKey = (e: KeyboardEvent) => {
@@ -319,8 +281,7 @@ export function TerminalOps() {
               data-testid="term-browser"
               onClick={async () => {
                 setPickerOpen(false);
-                // Belum ada pane sama sekali? buat shell dulu supaya benar-benar
-                // jadi split, bukan cuma browser sendirian.
+
                 if ((activeTab?.panes.length ?? 0) === 0) await addPane('shell');
                 await addPane('browser');
               }}

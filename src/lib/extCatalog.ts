@@ -1,15 +1,3 @@
-// extCatalog.ts — katalog BUNDLED fase 19.3.
-//
-// Kenapa bundled, bukan unduhan: prompt 19.3 minta katalog yang bisa dicari &
-// dipasang OFFLINE sebagai default. Jadi setiap item di sini punya paket nyata
-// yang DITULIS Zephyr sendiri ke %APPDATA%\zephyr\extensions\<id>\ lewat
-// `extensions_write_bundled` — bukan kartu mati seperti marketplace fase 13.
-//
-// Isinya sengaja hal yang benar-benar bisa dikerjakan model manifest-only:
-// tema, keymap, snippet, bahasa (paket CM yang sudah ada / mode legacy), dan
-// icon theme. TIDAK ada item yang butuh eksekusi JS — kalau ada, itu bohong ke
-// user, karena v1 memang tidak menjalankan kode ekstensi (19.6).
-
 export interface KatalogItem {
   id: string;
   name: string;
@@ -17,23 +5,21 @@ export interface KatalogItem {
   version: string;
   description: string;
   categories: string[];
-  /** 1-3 karakter untuk kotak logo (bundled / fallback) */
+  
   logo: string;
-  /** khusus remote: URL logo asli dari registry (dipakai <img>, bukan inisial) */
+  
   logoUrl?: string;
-  /** warna merek → lingkaran logo berwarna (mis. #00add8 untuk Go) */
+  
   logoColor?: string;
-  /** true = paketnya ada di dalam app (bisa dipasang offline) */
+  
   bundled: boolean;
-  /** bahasa yang membuat item ini direkomendasikan (19.1 RECOMMENDED) */
+  
   untukBahasa?: string[];
-  /** khusus remote: URL unduhan .zext */
+  
   url?: string;
   unduhan?: number;
   rating?: number;
-  /** true = item marketplace butuh runtime eksternal / eksekusi JS penuh.
-   *  Zephyr v1 manifest-only TIDAK bisa menjalankannya, jadi item begini
-   *  disembunyikan dari tab Marketplace (atau ditandai bila masih tampil). */
+  
   perluRuntime?: boolean;
 }
 

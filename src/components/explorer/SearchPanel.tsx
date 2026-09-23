@@ -1,16 +1,3 @@
-// SearchPanel.tsx — Global Search & Replace lewat ripgrep (fase 25).
-//
-// Menggantikan panel pencarian fase 04. Yang berubah secara mendasar:
-//  * hasil MENGALIR (event `search-hit`) — daftar bertambah selagi rg jalan,
-//    jadi tidak ada layar kosong menunggu repo besar selesai;
-//  * hasil dikelompokkan per file dan bisa dilipat;
-//  * daftar di-VIRTUALKAN: hanya baris yang terlihat dirender. Tanpa itu,
-//    5000 hit = 5000 node DOM dan panel langsung tersendat.
-//
-// Virtualisasi ditulis sendiri (bukan react-window): daftarnya satu dimensi
-// dengan tinggi baris seragam, jadi hitungannya sepele dan menambah
-// dependensi hanya untuk ini tidak sebanding.
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useSearch } from '../../lib/searchStore';
@@ -22,28 +9,20 @@ import { useT } from '../../lib/i18n';
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 const dirOf = (p: string) => p.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]+$/, '');
 
-/** Tinggi satu baris hasil (px) — harus cocok dengan .sr-hit di CSS. */
 const TINGGI_BARIS = 22;
-/** Tinggi header file (px) — .sr-file-head. */
+
 const TINGGI_HEAD = 24;
-/** Baris ekstra yang dirender di luar viewport supaya scroll tidak berkedip. */
+
 const BUFFER = 8;
 
-/** Satu baris datar untuk virtualisasi: header file ATAU satu match. */
 type Baris =
   | { t: 'head'; path: string; jml: number; terbuka: boolean }
   | { t: 'hit'; path: string; hit: RgHit; idx: number };
 
-/**
- * Potong preview supaya match terlihat, lalu bagi jadi segmen bertanda.
- *
- * `ranges` bisa memuat BEBERAPA match di satu baris — kalau hanya match
- * pertama yang disorot, baris seperti `foo foo foo` tampak salah.
- */
 function segmen(hit: RgHit) {
   const teks = hit.preview;
   const mulai = Math.max(0, hit.col - 1);
-  // Geser jendela bila match jauh di kanan.
+
   const awal = mulai > 60 ? mulai - 30 : 0;
   const potong = teks.slice(awal, awal + 200);
 
@@ -113,14 +92,12 @@ export default function SearchPanel() {
     void cekRg();
   }, [cekRg]);
 
-  // Debounce saat mengetik. Toggle (case/word/regex/glob) memicu ulang juga.
   useEffect(() => {
     if (!query.trim()) return;
     const t = window.setTimeout(() => void jalankan(), 350);
     return () => window.clearTimeout(t);
   }, [query, include, exclude, caseSensitive, wholeWord, regex, respectGitignore, jalankan]);
 
-  // Ukur viewport untuk virtualisasi.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
@@ -131,7 +108,6 @@ export default function SearchPanel() {
     return () => ro.disconnect();
   }, []);
 
-  /** Ratakan grup jadi daftar baris — dasar virtualisasi. */
   const baris = useMemo<Baris[]>(() => {
     const out: Baris[] = [];
     for (const g of grup) {
@@ -143,8 +119,6 @@ export default function SearchPanel() {
     return out;
   }, [grup]);
 
-  // Tinggi kumulatif: header dan hit beda tinggi, jadi offset dihitung sekali
-  // per perubahan daftar (bukan per frame scroll).
   const { offsets, totalTinggi } = useMemo(() => {
     const o = new Array<number>(baris.length + 1);
     o[0] = 0;

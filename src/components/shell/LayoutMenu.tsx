@@ -1,14 +1,3 @@
-// LayoutMenu.tsx — panel "Customize Layout" (ala VS Code).
-//
-// KENAPA ada: Zephyr sudah punya semua kemampuan ini (sembunyikan sidebar,
-// panel, zen mode) TAPI tersebar di menu View, command palette, dan Settings.
-// User yang ingin "atur tata letak" harus tahu di mana masing-masing berada.
-// Panel ini mengumpulkan semuanya dalam satu tempat, persis seperti VS Code —
-// termasuk tombol reset.
-//
-// YANG DITAMPILKAN: setiap baris punya ikon mata (terlihat/sembunyi) supaya
-// status saat ini terbaca tanpa membuka menu lain.
-
 import { useEffect, useRef } from 'react';
 import { useLayoutCustom, BARIS_LAYOUT } from '../../lib/layoutStore';
 import { useTampilan } from '../../lib/tampilanStore';
@@ -19,14 +8,11 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
   const tr = useT();
   const L = useLayoutCustom();
   const zen = useTampilan((s) => s.mode === 'zen');
-  // Posisi panel AI dibaca dari settings (bukan layoutStore) karena di sanalah
-  // ia disimpan — Settings → Umum memakai key yang sama.
+
   const aiPos = useStore((s) => s.settings.general.aiPanel ?? 'bottom');
   const setZen = useTampilan((s) => s.setMode);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Tutup saat klik di luar atau Escape — tanpa ini panel mengambang menutupi
-  // title bar dan user harus mengklik tombolnya lagi untuk menutup.
   useEffect(() => {
     const luar = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onTutup();
@@ -34,8 +20,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
     const esc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onTutup();
     };
-    // `setTimeout 0`: klik yang MEMBUKA panel ini juga terdeteksi sebagai klik
-    // di luar kalau listener dipasang langsung.
+
     const t = setTimeout(() => document.addEventListener('mousedown', luar), 0);
     document.addEventListener('keydown', esc);
     return () => {
@@ -127,8 +112,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
             data-testid={`lm-ai-${pos}`}
             onClick={async () => {
               await useStore.getState().applySettings({ general: { aiPanel: pos } } as never);
-              // Sama seperti di Settings: pindah ke kanan = panel bawah tidak
-              // perlu ikut terbuka (permintaan user: terminal jangan ngikut).
+
               if (pos === 'right') {
                 const { useTerminal } = await import('../../lib/terminalStore');
                 useTerminal.getState().setVisible(false);
@@ -171,7 +155,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
               void useLayoutCustom.getState().simpan();
             }}
           >
-            {k === 'default' ? tr('Normal') : tr('Rapat')}
+            {k === 'default' ? tr('Normal') : tr('Padat')}
           </button>
         ))}
       </div>

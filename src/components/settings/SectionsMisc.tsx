@@ -1,9 +1,3 @@
-// SectionsMisc.tsx — Extensions, Source Control, SSH, Tentang (fase 08).
-//
-// MCP tidak di sini: panelnya `McpPanel.tsx` (fase 11). Switch server, token,
-// dan tabel "Dikontrol oleh" cukup ada di SATU tempat — pelajaran fase 08,
-// kontrol yang dibuat dua kali muncul dobel di layar.
-
 import { useEffect, useState } from 'react';
 import { openPath, openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
@@ -71,7 +65,7 @@ export function SshSection() {
   const setStatus = useStore((s) => s.setStatus);
   const [hosts, setHosts] = useState<SshHost[]>([]);
   const [muat, setMuat] = useState(false);
-  const [form, setForm] = useState<SshConfigInput | null>(null); // null = form tertutup
+  const [form, setForm] = useState<SshConfigInput | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sibuk, setSibuk] = useState(false);
   const [hapusTarget, setHapusTarget] = useState<SshHost | null>(null);
@@ -130,14 +124,14 @@ export function SshSection() {
     setErr(null);
     try {
       const paneId = await cmd.sshConnect(h.id);
-      // Buka panel terminal & tampilkan pane ssh.
+
       const st = useStore.getState();
       st.setActivity('terminal');
       if (!st.sidebarVisible) st.toggleSidebar();
-      // Pane dikelola store terminal lewat event pty (id = paneId).
+
       setStatus(`SSH: ${h.user}@${h.host} — pane ${paneId.slice(0, 12)}`);
       setForm(null);
-      // Beri tahu store terminal supaya pane diregistrasi.
+
       const ts = (await import('../../lib/terminalStore')).useTerminal.getState();
       await ts.daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
     } catch (e) {
@@ -416,8 +410,6 @@ export function AboutSection() {
 
   const [salin, setSalin] = useState(false);
 
-  // Detail penting saja. Sisanya (WebView2, frontend, editor, terminal)
-  // dipindah ke Diagnostics supaya kartu ini tidak jadi dinding teks.
   const baris: Array<[string, string]> = [
     ['Versi', `${info?.version ?? '-'} · ${info?.profile ?? '-'}`],
     ['Arsitektur', info?.arch ?? '-'],
@@ -425,7 +417,6 @@ export function AboutSection() {
     ['Lisensi', 'MIT'],
   ];
 
-  /** Teks laporan bug — disalin apa adanya ke issue. */
   const infoSistem = [
     `Zephyr ${info?.version ?? '?'} (${info?.profile ?? '?'})`,
     `Arsitektur: ${info?.arch ?? '?'}`,
@@ -578,8 +569,6 @@ const secs = (ms: number) => {
   return h > 0 ? `${h}j ${m}m` : m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
 };
 
-/** About → Diagnostics (fase 14.5). Semua nilai dari command `get_diagnostics`;
- *  tidak ada yang dihitung ulang di frontend supaya tidak ada dua sumber angka. */
 function DiagnosticsPanel() {
   const tr = useT();
   const [d, setD] = useState<Diagnostics | null>(null);

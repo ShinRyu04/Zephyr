@@ -1,13 +1,3 @@
-// DebugToolbar.tsx — toolbar mengambang saat sesi debug hidup (fase 22).
-//
-// Muncul HANYA saat ada sesi (state !== 'inactive'): toolbar permanen yang
-// selalu ada hanya menutupi editor tanpa guna.
-//
-// Tombol: Continue(F5) Pause(F6) StepOver(F10) StepIn(F11) StepOut(Shift+F11)
-// Restart(Ctrl+Shift+F5) Stop(Shift+F5) — sesuai brief.
-// Semua tombol IKON + title saja; label teks pernah menutupi tombol sebelahnya
-// di toolbar terminal (pelajaran fase 13).
-
 import { useDebug } from '../../lib/debugStore';
 
 export default function DebugToolbar() {

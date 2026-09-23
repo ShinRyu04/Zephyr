@@ -1,7 +1,3 @@
-// errors.rs — ZephyrError kanonik (ARCHITECTURE.md §8).
-// Semua command mengembalikan Result<T, ZephyrError> dan frontend
-// menerima objek { code, message }.
-
 use serde::Serialize;
 
 #[derive(Debug, thiserror::Error)]
@@ -37,7 +33,6 @@ pub enum ZephyrError {
 }
 
 impl ZephyrError {
-    /// Kode stabil yang dibaca frontend (jangan diubah tanpa update types.ts).
     pub fn code(&self) -> &'static str {
         match self {
             ZephyrError::NotFound(_) => "NotFound",
@@ -78,7 +73,6 @@ impl From<tauri::Error> for ZephyrError {
     }
 }
 
-/// Bentuk yang di-serialize ke frontend: { code, message }.
 impl Serialize for ZephyrError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

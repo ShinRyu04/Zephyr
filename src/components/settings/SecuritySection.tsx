@@ -1,10 +1,3 @@
-// SecuritySection.tsx — Settings → Keamanan (fase 29).
-//
-// Isinya keputusan Workspace Trust yang sudah tersimpan di trust.json.
-// Yang ditampilkan STATUS NYATA dari Rust, bukan salinan frontend: daftar ini
-// yang menentukan apakah tasks/debug/LSP/ekstensi boleh jalan, jadi kalau UI
-// dan Rust berbeda, user akan mengira sudah percaya padahal ditolak.
-
 import { useEffect } from 'react';
 
 import { useWs } from '../../lib/workspaceStore';

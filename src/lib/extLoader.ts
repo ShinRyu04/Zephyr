@@ -1,19 +1,3 @@
-// extLoader.ts — fase 19.5: MENYUPLAI registri yang sudah ada.
-//
-// Aturan inti prompt 19.5: "Jangan bikin jalur paralel." Ekstensi tidak
-// menciptakan sistem tema/keymap/bahasa/snippet sendiri — ia menambah entri ke
-// registri yang sudah dipakai app:
-//   themes[]    -> THEMES (themes.ts, fase 08/13) + blok CSS var
-//   keymaps[]   -> binding tambahan (keybindingStore, fase 18)
-//   snippets[]  -> completion source CodeMirror (fase 03)
-//   languages[] -> peta ekstensi->bahasa + lazy import paket CM (lang.ts)
-//   commands[]  -> COMMANDS (commandRegistry, fase 12/18) -> palette
-//   iconThemes[]-> ikon file tree (fase 04)
-//
-// Urutan merge (19.5): Default -> User -> Extension. Ekstensi boleh MENAMBAH,
-// tidak boleh menghapus bawaan; karena itu setiap fungsi di sini menolak entri
-// yang id-nya sudah dipakai inti.
-//
 import { snippetCompletion } from '@codemirror/autocomplete';
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
@@ -27,18 +11,16 @@ import type {
 import { THEMES, type ThemeInfo } from './themes';
 import { petakanTemaVscode } from './vscodeThemeMap';
 
-/** Tema dari ekstensi yang sudah didaftarkan (id -> token warna). */
 const themeTokens = new Map<string, Record<string, string>>();
-/** Bahasa dari ekstensi: ekstensi file (tanpa titik) -> definisi. */
+
 const langByExt = new Map<string, ContribLanguage>();
-/** Snippet per bahasa: langId -> daftar Completion siap pakai. */
+
 const snippetsByLang = new Map<string, Completion[]>();
-/** Keymap dari ekstensi: chord -> command id. */
+
 const extKeymap: Array<{ key: string; command: string; source: string }> = [];
-/** Ikon tema aktif dari ekstensi: ekstensi file -> glyph/warna. */
+
 const iconTheme = new Map<string, { glyph: string; color: string }>();
 
-/** Ringkasan hasil muat — dipakai UI & harness (bukan console.log). */
 export interface LoaderRingkasan {
   themes: string[];
   keymaps: number;
@@ -46,7 +28,7 @@ export interface LoaderRingkasan {
   languages: string[];
   commands: number;
   iconThemes: number;
-  /** id ekstensi yang gagal, beserta alasannya */
+  
   gagal: Array<{ id: string; alasan: string }>;
 }
 
@@ -62,22 +44,13 @@ let ringkasanTerakhir: LoaderRingkasan = {
 
 export const ringkasanLoader = () => ringkasanTerakhir;
 
-// ───────────────────────────── tema ─────────────────────────────
-
-/** Prefix id tema ekstensi supaya tidak bisa menimpa tema bawaan. */
 const themeId = (extId: string, label: string) =>
   `ext.${extId}.${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
-/**
- * Terapkan token tema ekstensi sebagai CSS variable di <html>.
- * Dipanggil `applyTheme()` (themes.ts) ketika tema aktif milik ekstensi;
- * `id` kosong = hanya bersihkan (tema kembali ke bawaan).
- */
 export function terapkanTokenEkstensi(id: string): boolean {
   const tok = id ? themeTokens.get(id) : undefined;
   const root = document.documentElement;
-  // Bersihkan token ekstensi sebelumnya, kalau tidak sisa warna tema lama
-  // menempel saat pindah antar tema ekstensi (atau balik ke tema bawaan).
+  
   for (const nama of Array.from(tokenTerpakai)) {
     if (!tok || !(nama in tok)) {
       root.style.removeProperty(nama);
@@ -95,7 +68,6 @@ export function terapkanTokenEkstensi(id: string): boolean {
 
 const tokenTerpakai = new Set<string>();
 
-/** Tema ekstensi yang terdaftar (dipakai Settings → Theme + command). */
 export const themesEkstensi = (): ThemeInfo[] => daftarThemeInfo.slice();
 const daftarThemeInfo: ThemeInfo[] = [];
 
@@ -103,14 +75,13 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
   const out: string[] = [];
   for (const t of m.contributes.themes) {
     const id = themeId(m.id, t.label || 'tema');
-    // Ekstensi TIDAK boleh menimpa tema bawaan (aturan merge 19.5).
+    
     if (THEMES.some((x) => x.id === id)) continue;
     try {
       const raw = (await cmd.extensionsReadContrib(m.id, t.path)) as Record<string, unknown>;
-      // Bentuk yang diterima: { colors: {...} } (ala VS Code) atau objek datar.
+      
       const colors = (raw.colors ?? raw.tokens ?? raw) as Record<string, unknown>;
-      // Terjemahkan warna VS Code (camelCase) → token CSS Zephyr (kebab).
-      // Dulu kunci mentah disuntik apa adanya (0/42 cocok) → tema tidak berefek.
+      
       const tok: Record<string, string> = petakanTemaVscode(colors);
       if (Object.keys(tok).length === 0) continue;
       themeTokens.set(id, tok);
@@ -128,9 +99,6 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
   return out;
 }
 
-// ───────────────────────────── keymap ─────────────────────────────
-
-/** Binding tambahan dari ekstensi (dibaca keybindingStore saat merge). */
 export const keymapEkstensi = () => extKeymap.slice();
 
 async function muatKeymap(m: ExtManifest): Promise<number> {
@@ -138,7 +106,7 @@ async function muatKeymap(m: ExtManifest): Promise<number> {
   for (const k of m.contributes.keymaps) {
     try {
       const raw = await cmd.extensionsReadContrib(m.id, k.path);
-      // Bentuk: [{ key, command, when? }] — sama seperti keybindings.json user.
+      
       const arr = Array.isArray(raw) ? raw : (raw as { keybindings?: unknown }).keybindings;
       if (!Array.isArray(arr)) continue;
       for (const b of arr) {
@@ -156,8 +124,6 @@ async function muatKeymap(m: ExtManifest): Promise<number> {
   return n;
 }
 
-// ───────────────────────────── snippet ─────────────────────────────
-
 async function muatSnippet(m: ExtManifest): Promise<number> {
   let n = 0;
   for (const s of m.contributes.snippets as ContribSnippet[]) {
@@ -165,7 +131,7 @@ async function muatSnippet(m: ExtManifest): Promise<number> {
       const raw = (await cmd.extensionsReadContrib(m.id, s.path)) as Record<string, unknown>;
       const lang = (s.language || 'plain').toLowerCase();
       const list = snippetsByLang.get(lang) ?? [];
-      // Bentuk VS Code: { "nama": { prefix, body, description } }
+      
       for (const [nama, isi] of Object.entries(raw)) {
         const o = isi as { prefix?: unknown; body?: unknown; description?: unknown };
         const prefix = String(o.prefix ?? nama);
@@ -190,11 +156,6 @@ async function muatSnippet(m: ExtManifest): Promise<number> {
   return n;
 }
 
-/**
- * Completion source snippet untuk satu bahasa. Dipasang CodeMirror lewat
- * `languageData`/override; mengembalikan null kalau bahasa itu tidak punya
- * snippet supaya autocomplete inti tidak terganggu.
- */
 export function snippetSource(lang: string) {
   return (ctx: CompletionContext): CompletionResult | null => {
     const list = snippetsByLang.get(lang.toLowerCase());
@@ -216,25 +177,12 @@ export const jumlahSnippet = () => {
   return n;
 };
 
-// ───────────────────────────── bahasa ─────────────────────────────
-
 export const bahasaEkstensi = () => Array.from(langByExt.values());
 
-/** Deteksi bahasa dari ekstensi file — dipakai lang.ts SETELAH peta bawaan. */
 export function bahasaUntukExt(ext: string): ContribLanguage | null {
   return langByExt.get(ext.toLowerCase().replace(/^\./, '')) ?? null;
 }
 
-/**
- * Muat ekstensi CodeMirror untuk bahasa dari ekstensi.
- *
- * Dua jalur, dan dua-duanya TIDAK mengeksekusi kode ekstensi:
- *   1. `cmLang` = nama paket @codemirror/lang-* yang SUDAH ada di node_modules
- *      (whitelist di bawah). Ekstensi hanya memilih dari yang tersedia —
- *      import dinamis dengan string arbitrer dari manifest sama saja dengan
- *      memberi ekstensi hak memuat modul apa pun.
- *   2. `legacyMode` = nama mode @codemirror/legacy-modes (StreamLanguage).
- */
 const PAKET_DIIZINKAN: Record<string, () => Promise<Extension[]>> = {
   '@codemirror/lang-css': async () => [(await import('@codemirror/lang-css')).css()],
   '@codemirror/lang-html': async () => [(await import('@codemirror/lang-html')).html()],
@@ -245,13 +193,6 @@ const PAKET_DIIZINKAN: Record<string, () => Promise<Extension[]>> = {
   '@codemirror/lang-yaml': async () => [(await import('@codemirror/lang-yaml')).yaml()],
 };
 
-/** Mode legacy yang boleh dipakai (nama file di @codemirror/legacy-modes). */
-/**
- * Semua mode @codemirror/legacy-modes yang terdaftar sebagai paket bundled
- * (ext_bundled.rs PAKET_BAHASA). Daftar di-generate — tiap mode sudah
- * diverifikasi bisa di-import di runtime, jadi tidak ada mode yang terdaftar
- * tapi gagal dimuat (itu sumber error "ekstensi tidak bisa di-enable").
- */
 const MODE_LEGACY = new Set([
   'apl',
   'asciiarmor',
@@ -368,10 +309,9 @@ export async function muatCmBahasa(l: ContribLanguage): Promise<Extension[]> {
     try {
       const { StreamLanguage } = await import('@codemirror/language');
       const mod = (await import(
-        /* @vite-ignore */ `@codemirror/legacy-modes/mode/${l.legacyMode}`
+         `@codemirror/legacy-modes/mode/${l.legacyMode}`
       )) as Record<string, unknown>;
-      // Nama ekspor tiap mode beda (toml, shell, dockerFile, …) — ambil yang
-      // bentuknya StreamParser (punya `token`).
+      
       const parser = Object.values(mod).find(
         (v) => v && typeof v === 'object' && 'token' in (v as object),
       );
@@ -400,8 +340,6 @@ function muatBahasa(m: ExtManifest): string[] {
   return out;
 }
 
-// ───────────────────────────── icon theme ─────────────────────────────
-
 export const ikonUntukExt = (ext: string) =>
   iconTheme.get(ext.toLowerCase().replace(/^\./, '')) ?? null;
 export const adaIconTheme = () => iconTheme.size > 0;
@@ -411,7 +349,7 @@ async function muatIconTheme(m: ExtManifest): Promise<number> {
   for (const it of m.contributes.iconThemes) {
     try {
       const raw = (await cmd.extensionsReadContrib(m.id, it.path)) as Record<string, unknown>;
-      // Bentuk: { "ts": { "glyph": "TS", "color": "#3178c6" }, ... }
+      
       const peta = (raw.icons ?? raw) as Record<string, unknown>;
       for (const [ext, def] of Object.entries(peta)) {
         const d = def as { glyph?: unknown; color?: unknown };
@@ -430,19 +368,11 @@ async function muatIconTheme(m: ExtManifest): Promise<number> {
   return n;
 }
 
-// ───────────────────────────── entry point ─────────────────────────────
-
-/** Command dari ekstensi aktif (dibaca commandRegistry). */
 const extCommands: Array<{ id: string; title: string; description: string; extId: string }> = [];
 export const commandsEkstensi = () => extCommands.slice();
 
-/**
- * Muat semua kontribusi ekstensi AKTIF. Dipanggil sekali dari App.tsx saat
- * window load, dan lagi setelah install/enable (yang butuh reload penuh
- * tetap diberitahu lewat `perluReload`).
- */
 export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
-  // Reset: loader ini idempoten, harus aman dipanggil ulang.
+  
   themeTokens.clear();
   daftarThemeInfo.length = 0;
   langByExt.clear();
@@ -478,7 +408,7 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
       });
       continue;
     }
-    // HANYA yang enabled disuplai (aturan 19.5).
+    
     if (!st.enabled) continue;
     const m = st.manifest;
     if (!m.engineOk) {
@@ -500,13 +430,9 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
 
   ringkasanTerakhir = hasil;
 
-  // Daftarkan tema ke themes.ts (registri yang SUDAH ada, aturan 19.5).
-  // Dilakukan di akhir supaya daftar tema sudah lengkap saat applyTheme jalan.
   const { daftarkanTemaEkstensi } = await import('./themes');
   daftarkanTemaEkstensi(daftarThemeInfo.slice(), terapkanTokenEkstensi);
 
-  // Keymap: minta keybindingStore merge ulang supaya chord dari ekstensi
-  // langsung aktif (tanpa ini binding baru hanya terpasang setelah reload).
   try {
     const { useKb } = await import('./keybindingStore');
     const { mergeBindings } = await import('./keybindings');
@@ -515,7 +441,6 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
     /* keybindingStore belum siap saat boot paling awal — load() akan merge */
   }
 
-  // Bahasa/snippet: beri tahu editor supaya parser dipasang ulang.
   try {
     const { naikkanExtVersi } = await import('../components/editor/CodeMirrorEditor');
     naikkanExtVersi();
@@ -523,7 +448,6 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
     /* di luar UI (harness/node) tidak ada editor */
   }
 
-  // Sandbox: jalankan kode `main` ekstensi di Web Worker terisolasi.
   try {
     const { muatEkstensiRuntime } = await import('./extHost');
     await muatEkstensiRuntime(daftar);

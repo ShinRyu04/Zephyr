@@ -1,11 +1,3 @@
-// tests_mcp.rs — unit test MCP (fase 11) yang jalan tanpa jaringan & tanpa
-// menyentuh config user.
-//
-// Yang diuji di sini: merge/unmerge config CLI (JSON & TOML) — bagian yang
-// paling berbahaya karena menyentuh file milik AI CLI lain, jadi harus terbukti
-// TIDAK merusak key lain. Alur end-to-end (server, auth, semua method) diuji
-// `npm run verify:11` lewat HTTP + CDP di app hidup.
-
 #[cfg(test)]
 mod tests {
     use crate::mcp_config::{
@@ -25,14 +17,13 @@ mod tests {
         let out = merge_json_for_test(existing, "mcp", 9222, TOKEN).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
 
-        // entri baru benar
         assert_eq!(v["mcp"]["zephyr"]["type"], "http");
         assert_eq!(v["mcp"]["zephyr"]["url"], "http://127.0.0.1:9222");
         assert_eq!(
             v["mcp"]["zephyr"]["headers"]["Authorization"],
             format!("Bearer {TOKEN}")
         );
-        // key lain UTUH
+
         assert_eq!(v["theme"], "tokyonight");
         assert_eq!(v["$schema"], "https://opencode.ai/config.json");
         assert_eq!(v["mcp"]["lain"]["type"], "local");
@@ -40,12 +31,10 @@ mod tests {
 
     #[test]
     fn merge_json_pada_file_kosong_dan_key_bukan_object() {
-        // file belum ada (string kosong)
         let out = merge_json_for_test("", "mcpServers", 9224, TOKEN).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["mcpServers"]["zephyr"]["url"], "http://127.0.0.1:9224");
 
-        // key induk bertipe salah -> diganti object, tidak panik
         let out2 =
             merge_json_for_test(r#"{"mcpServers": "rusak"}"#, "mcpServers", 9222, TOKEN).unwrap();
         let v2: Value = serde_json::from_str(&out2).unwrap();
@@ -108,7 +97,7 @@ mod tests {
     fn merge_toml_idempoten_dan_ganti_port() {
         let a = merge_toml_for_test("model = \"x\"\n", "mcp_servers", 9222, TOKEN);
         let b = merge_toml_for_test(&a, "mcp_servers", 9224, TOKEN);
-        // Hanya SATU blok zephyr, dan portnya yang baru.
+
         assert_eq!(b.matches("[mcp_servers.zephyr]").count(), 1);
         assert!(b.contains("127.0.0.1:9224"));
         assert!(!b.contains("127.0.0.1:9222"));
@@ -129,8 +118,6 @@ mod tests {
         assert!(out.contains("command = \"y\""));
         assert!(out.contains("model = \"x\""));
     }
-
-    // ── Hermes Agent (YAML, ~/.hermes/config.yaml) ────────────────
 
     use crate::mcp_config::{merge_yaml_for_test, strip_yaml_for_test};
 
@@ -155,7 +142,7 @@ mod tests {
     fn merge_yaml_idempoten_dan_ganti_port() {
         let a = merge_yaml_for_test("model: x\n", "mcp_servers", 9222, TOKEN);
         let b = merge_yaml_for_test(&a, "mcp_servers", 9224, TOKEN);
-        // Hanya SATU blok zephyr, dan portnya yang baru.
+
         assert_eq!(b.matches("  zephyr:").count(), 1);
         assert!(b.contains("127.0.0.1:9224"));
         assert!(!b.contains("127.0.0.1:9222"));

@@ -1,33 +1,12 @@
-// memory.rs — memori lintas sesi untuk agent Zephyr (1.1.11).
-//
-// Dua bagian, mengikuti pola Hermes:
-//   * MEMORY  — catatan agent tentang LINGKUNGAN & pelajaran teknis.
-//   * USER    — siapa user-nya: preferensi, gaya, kebiasaan.
-//
-// Kenapa dipisah: keduanya punya masa hidup berbeda. Fakta tentang mesin
-// (mis. "port 8080 diblokir Hyper-V") berguna selamanya; preferensi user
-// (mis. "selalu jawab bahasa Indonesia") berubah saat user berubah pikiran.
-// Menyatukannya membuat satu daftar yang tidak bisa dibersihkan sebagian.
-//
-// Format file: markdown biasa, entri dipisah baris kosong. TIDAK memakai
-// JSON — file ini dibaca DAN diedit manusia; JSON penuh escape membuatnya
-// tidak nyaman dibaca dan rusak total kalau satu koma salah.
-//
-// Ada batas karakter per bagian (seperti Hermes) supaya memori tidak tumbuh
-// tanpa henti lalu membanjiri system prompt setiap sesi.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
 use std::path::PathBuf;
 use tauri::State;
 
-/// Batas per bagian. Angka ini masuk ke system prompt SETIAP percakapan,
-/// jadi ia dibayar ulang tiap request — bukan sekadar soal disk.
 pub const MEMORY_LIMIT: usize = 2200;
 pub const USER_LIMIT: usize = 1375;
 
-/// Pemisah antar entri: satu baris kosong.
 const PEMISAH: &str = "\n\n";
 
 #[derive(Debug, Clone, Serialize)]
@@ -74,8 +53,6 @@ fn limit_bagian(bagian: &str) -> usize {
     }
 }
 
-/// Baca isi satu bagian. File yang belum ada = string kosong, bukan error:
-/// user baru belum punya memori apa pun, dan itu keadaan normal.
 pub fn baca(state: &AppState, bagian: &str) -> ZResult<String> {
     let p = path_bagian(state, bagian)?;
     match std::fs::read_to_string(&p) {
@@ -85,7 +62,6 @@ pub fn baca(state: &AppState, bagian: &str) -> ZResult<String> {
     }
 }
 
-/// Pecah isi file menjadi entri (dipisah baris kosong), buang yang kosong.
 pub fn entri(teks: &str) -> Vec<String> {
     teks.split(PEMISAH)
         .map(|s| s.trim().to_string())
@@ -102,8 +78,6 @@ fn tulis_mentah(state: &AppState, bagian: &str, teks: &str) -> ZResult<()> {
     Ok(())
 }
 
-/// Tambah satu entri. Menolak bila hasilnya melewati batas — LEBIH BAIK
-/// daripada memotong diam-diam: agent perlu tahu ia harus merapikan dulu.
 pub fn tambah(state: &AppState, bagian: &str, isi: &str) -> ZResult<String> {
     let baru = isi.trim();
     if baru.is_empty() {
@@ -127,9 +101,6 @@ pub fn tambah(state: &AppState, bagian: &str, isi: &str) -> ZResult<String> {
     Ok(gabung)
 }
 
-/// Ganti entri yang MENGANDUNG `cari` dengan `baru`.
-/// Sengaja substring, bukan kecocokan persis: agent biasanya hanya mengingat
-/// potongan kalimat, dan menolak karena beda satu huruf membuatnya menyerah.
 pub fn ganti(state: &AppState, bagian: &str, cari: &str, baru: &str) -> ZResult<String> {
     let kunci = cari.trim();
     if kunci.is_empty() {
@@ -167,7 +138,6 @@ pub fn ganti(state: &AppState, bagian: &str, cari: &str, baru: &str) -> ZResult<
     Ok(teks)
 }
 
-/// Hapus entri yang mengandung `cari`. Mengembalikan jumlah yang terhapus.
 pub fn hapus(state: &AppState, bagian: &str, cari: &str) -> ZResult<usize> {
     let kunci = cari.trim();
     if kunci.is_empty() {
@@ -186,8 +156,6 @@ pub fn hapus(state: &AppState, bagian: &str, cari: &str) -> ZResult<usize> {
     Ok(terhapus)
 }
 
-/// Ringkasan untuk system prompt. Dikirim SETIAP percakapan, jadi kosong
-/// berarti tidak ada satu byte pun yang ditambahkan.
 pub fn ringkasan_untuk_prompt(state: &AppState) -> String {
     let mem = baca(state, "memory").unwrap_or_default();
     let usr = baca(state, "user").unwrap_or_default();
@@ -206,8 +174,6 @@ pub fn ringkasan_untuk_prompt(state: &AppState) -> String {
     s
 }
 
-// ───────────────────────── commands ─────────────────────────
-
 #[tauri::command]
 pub fn memory_read(state: State<AppState>) -> ZResult<MemoryState> {
     let mem = baca(&state, "memory")?;
@@ -222,7 +188,6 @@ pub fn memory_read(state: State<AppState>) -> ZResult<MemoryState> {
     })
 }
 
-/// `action`: "add" | "replace" | "remove".
 #[tauri::command]
 pub fn memory_write(
     state: State<AppState>,

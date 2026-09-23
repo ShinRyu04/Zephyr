@@ -1,20 +1,10 @@
-// ProblemsView.tsx — tabel diagnostik (fase 20).
-//
-// Diagnostik ASLI datang dari fase 21 (LSP), 23 (tasks), dan 22 (debug).
-// Fase ini menyediakan tampilan + jalur klik-ke-lokasi supaya fase-fase itu
-// tinggal memanggil `setDiagnostics()`.
-//
-// Daftar di-virtualisasi manual (windowing) — brief fase 20 mewajibkannya.
-// Tanpa itu satu proyek TypeScript besar bisa mengirim ribuan diagnostik dan
-// React akan me-render semuanya.
-
 import { useMemo, useRef, useState } from 'react';
 import { useProblems, kunciPath, type Diagnostic, type Severity } from '../../lib/problemsStore';
 import { useStore } from '../../lib/store';
 import { revealPosition } from '../../lib/editorRegistry';
 
 const ROW_H = 22;
-/** baris ekstra di atas & bawah viewport supaya scroll tidak berkedip */
+
 const PAD = 6;
 
 const IKON: Record<Severity, string> = {
@@ -42,9 +32,6 @@ export default function ProblemsView() {
 
   const filePathAktif = tabs.find((t) => t.id === activeTabId)?.path ?? null;
 
-  // byFile dipakai sebagai dependency (Map baru setiap set) — `all()` sendiri
-  // bukan selector supaya tidak mengembalikan array baru tiap render
-  // (pelajaran fase 09: zustand v5 membandingkan hasil selector dengan ===).
   const baris = useMemo(() => {
     const semua = useProblems.getState().all();
     const q = filter.trim().toLowerCase();
@@ -71,7 +58,7 @@ export default function ProblemsView() {
   const buka = async (d: Diagnostic) => {
     try {
       await openPath(d.file);
-      // Beri satu frame supaya CodeMirror sudah ter-mount sebelum reveal.
+      
       window.setTimeout(() => revealPosition(d.line, d.column), 90);
     } catch {
       /* file mungkin sudah dihapus — diamkan, tabel tetap menampilkannya */

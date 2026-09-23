@@ -1,24 +1,3 @@
-// SubAgentInfo.tsx — panel INFO subagent di sebelah KANAN chat AI (T4.1b).
-//
-// PERMINTAAN USER (verbatim): "klo bisa sih tarok di terminal ,tpi di sebelah
-// kanan chat AI gtu info jga itu…" dan "bisa dipindahkan ke sebelah kanan AI
-// di terminal ga ?"
-//
-// KENAPA panel terpisah dari tab Subagents: tab ada di panel BAWAH, dan panel
-// bawah hanya terlihat saat dibuka. Kalau user sedang mengetik di chat, progres
-// subagent hilang dari pandangan. Kolom sempit di kanan membuat chat dan
-// progres terlihat BERDAMPINGAN tanpa memakan lebar editor.
-//
-// KENAPA ringkas, bukan kartu penuh: ini panel INFO (260px), bukan ruang kerja.
-// Isinya sengaja hanya nama + peran + status + langkah terakhir + hitungan.
-// Detail penuh (timeline langkah, hasil, ringkasan) tetap di tab Subagents —
-// menampilkan semuanya di sini justru mengulang masalah "menumpuk" yang baru
-// saja diperbaiki.
-//
-// KENAPA bisa ditutup: informasi tambahan tidak boleh memaksa hadir. Tombol
-// tutup menyimpan pilihannya (layoutStore -> settings), jadi tidak muncul lagi
-// sampai user membukanya sendiri.
-
 import { useSubAgent } from '../../lib/subagentStore';
 import { infoPeran } from '../../lib/subagentRoles';
 import { useLayoutCustom } from '../../lib/layoutStore';
@@ -41,12 +20,11 @@ export default function SubAgentInfo() {
     void simpan();
   };
 
-  /** Langkah terakhir — yang sedang/baru dikerjakan subagent ini. */
   const langkahTerakhir = (a: (typeof agents)[number]) => {
     const l = a.langkah[a.langkah.length - 1];
     if (!l) return a.status === 'menunggu' ? tr('menunggu') : '…';
     if (l.kind === 'tool') return l.nama || '…';
-    // kind='pikir': teks model bisa panjang — ambil baris pertama saja.
+
     return (l.teks ?? '').split(/[\r\n]+/)[0].slice(0, 90) || '…';
   };
 
@@ -85,8 +63,7 @@ export default function SubAgentInfo() {
           </p>
         ) : (
           agents.map((a) => {
-            // infoPeran bisa null (peran tak dikenal) — jangan akses .label
-            // langsung, itu bikin panel ini blank saat data lama termuat.
+
             const p = infoPeran(a.peran);
             return (
               <div

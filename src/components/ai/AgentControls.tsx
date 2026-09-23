@@ -1,21 +1,8 @@
-// AgentControls.tsx — popover kustom untuk mode persetujuan + tingkat
-// penalaran (T3.11).
-//
-// KENAPA bukan <select> native: daftar <option> dirender oleh OS, jadi di
-// tema gelap daftarnya putih dan teksnya nyaris tidak terbaca. Itu keluhan
-// user ("ini msih ga kliatan bnget"). Popover ini memakai token tema yang
-// sama dengan sisa aplikasi, jadi warnanya selalu ikut tema.
-//
-// Isinya juga mengikuti pola dari editor lain: label singkat + keterangan
-// satu baris + tanda centang untuk yang aktif — supaya user tahu bedanya
-// tanpa harus mencoba satu per satu.
-
 import { useEffect, useRef, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import type { ApprovalMode } from '../../lib/types';
 import { useT } from '../../lib/i18n';
 
-/** Opsi mode persetujuan, urut dari paling ketat ke paling bebas. */
 const APPROVAL: { id: ApprovalMode; label: string; hint: string; kelas: string }[] = [
   {
     id: 'readonly',
@@ -52,7 +39,6 @@ const EFFORT: { id: string; label: string; hint: string; kelas: string }[] = [
   { id: 'ultra', label: 'Ultra', hint: 'Penalaran maksimal — paling lambat', kelas: 'is-ultra' },
 ];
 
-/** Tutup popover saat klik di luar. */
 function useKlikLuar(onTutup: () => void) {
   const ref = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {

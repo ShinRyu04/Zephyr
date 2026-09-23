@@ -1,12 +1,3 @@
-// WindowControls.tsx — tombol minimize/maximize/close sendiri (C-18).
-//
-// Title bar Windows asli dihapus (`decorations: false` di tauri.conf.json)
-// supaya chrome-nya bisa bertema gelap seperti Terax/VS Code. Konsekuensinya
-// tombol window harus dirender sendiri di webview.
-//
-// Di luar Tauri (browser dev) `getCurrentWindow()` melempar sinkron — semua
-// pemanggilan dibungkus try/catch supaya komponen tidak menjatuhkan React.
-
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useT } from '../../lib/i18n';

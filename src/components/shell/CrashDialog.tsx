@@ -1,10 +1,3 @@
-// CrashDialog.tsx — fase 14.6: panic Rust / error frontend yang tidak
-// tertangkap ditampilkan sekali, dengan lokasi file log-nya.
-//
-// Kenapa dialog, bukan toast: panic berarti ada state yang mungkin sudah tidak
-// konsisten. User harus tahu, bukan melihat notifikasi 3 detik lalu lupa.
-// Toast tetap dipakai untuk unhandledRejection biasa (di App.tsx).
-
 import { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { openPath } from '@tauri-apps/plugin-opener';
@@ -15,8 +8,6 @@ interface PanicPayload {
   logFile: string | null;
 }
 
-/** Guard modul: listener `app-panic` hanya boleh terpasang sekali
- *  (StrictMode dev menjalankan effect dua kali → dialog dobel). */
 let panicListenerBound = false;
 
 export default function CrashDialog() {

@@ -1,17 +1,3 @@
-// SubAgentPanel.tsx — panel subagent paralel (T2.1), tampilan ala TEDI (T3.6).
-//
-// YANG MEMBUAT TAMPILAN TEDI TERASA BEDA (dan ditiru di sini):
-//   1. Judul batch menyebut JUMLAH: "3 tugas paralel" — bukan daftar kartu
-//      tanpa konteks. User langsung tahu skala pekerjaannya.
-//   2. Tiap kartu punya NAMA (Comet, Odyssey) sebagai identitas — bukan
-//      "Subagent 1". Nama membuat progres bisa dibicarakan ("Comet selesai").
-//   3. Langkah ditampilkan sebagai TIMELINE dengan ikon + label manusiawi
-//      ("Read", "Edit", "Run") berwarna per jenis aksi — bukan nama tool
-//      mentah (`file_read`). Ini yang paling kelihatan bedanya.
-//   4. Penalaran ditandai blok "Reasoned" yang bisa dilipat.
-//   5. Baris status hidup ala TEDI: "Read agent.ts · 13s" dengan timer jalan.
-//   6. Grid 2 kolom di panel lebar: 4 subagent terbaca tanpa scroll.
-
 import { useEffect, useState } from 'react';
 import { useSubAgent, batasParalel, type SubAgent, type SubStep } from '../../lib/subagentStore';
 import { useStore } from '../../lib/store';
@@ -19,7 +5,6 @@ import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
 import { infoPeran } from '../../lib/subagentRoles';
 import { useT } from '../../lib/i18n';
 
-/** Ikon status per subagent. */
 const IKON: Record<SubAgent['status'], string> = {
   menunggu: '○',
   jalan: '◔',
@@ -28,7 +13,6 @@ const IKON: Record<SubAgent['status'], string> = {
   batal: '⊘',
 };
 
-/** Durasi format TEDI: "16.8s" lalu "2m 18s" kalau sudah lewat semenit. */
 function durasi(ms: number): string {
   const s = ms / 1000;
   if (s < 60) return `${s.toFixed(1)}s`;
@@ -36,15 +20,13 @@ function durasi(ms: number): string {
   return `${m}m ${Math.round(s - m * 60)}s`;
 }
 
-/** Satu langkah dalam timeline: penalaran = blok "Reasoned" yang dilipat. */
 function Langkah({ l }: { l: SubStep }) {
   const tr = useT();
   const [buka, setBuka] = useState(false);
 
   if (l.kind === 'pikir') {
     const teks = l.teks ?? '';
-    // Penalaran panjang dilipat; yang pendek ditampilkan langsung supaya
-    // timeline tidak penuh blok tertutup yang tidak informatif.
+
     const panjang = teks.length > 180;
     return (
       <li className="sub-step is-pikir" data-step="pikir">
@@ -98,14 +80,11 @@ function Langkah({ l }: { l: SubStep }) {
 function Kartu({ a }: { a: SubAgent }) {
   const tr = useT();
   const batal = useSubAgent((s) => s.batal);
-  // autoCollapse dari Settings: saat aktif (default), daftar langkah TIDAK
-  // pernah terbuka sendiri — panel tetap ringkas kecuali user membukanya.
+
   const autoCollapse = useStore((s) => s.settings.subagent?.autoCollapse !== false);
-  // Saat autoCollapse aktif, kartu yang SELESAI tidak membuka langkahnya
-  // sendiri; yang masih jalan tetap terbuka supaya progresnya terlihat.
+
   const [buka, setBuka] = useState(!autoCollapse);
-  // Detak 1 detik: durasi subagent yang masih jalan ikut naik. Tanpa ini
-  // angkanya beku dan panel terasa mati.
+
   const [, detak] = useState(0);
 
   useEffect(() => {
@@ -117,12 +96,9 @@ function Kartu({ a }: { a: SubAgent }) {
   const ms = (a.selesai ?? Date.now()) - a.mulai;
   const hidup = a.status === 'jalan' || a.status === 'menunggu';
   const langkahTerakhir = a.langkah[a.langkah.length - 1];
-  // Hitung SEMUA langkah (tool + penalaran) supaya angkanya sama dengan yang
-  // ditampilkan tombol expand. Menghitung tool saja membuat kartu menulis
-  // "0 langkah" padahal isinya 1 langkah — terlihat seperti bug.
+
   const nLangkah = a.langkah.length;
 
-  // Baris status hidup ala TEDI: "Read agent.ts".
   const statusHidup = (() => {
     if (!langkahTerakhir) return tr('Menyiapkan…');
     if (langkahTerakhir.kind === 'pikir') return tr('Berpikir…');
@@ -241,8 +217,6 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
   const batalSemua = useSubAgent((s) => s.batalSemua);
   const bersihkan = useSubAgent((s) => s.bersihkan);
 
-  // Settings → Subagent: kartu bisa disembunyikan sepenuhnya (hanya ringkasan
-  // yang tampil di chat). Berguna kalau panel terasa terlalu ramai.
   const showPanel = useStore((s) => s.settings.subagent?.showPanel !== false);
   if (!showPanel || agents.length === 0) return null;
 
@@ -250,7 +224,6 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
   const beres = agents.filter((a) => a.status === 'selesai').length;
   const gagal = agents.filter((a) => a.status === 'gagal').length;
 
-  // Judul batch ala TEDI: jumlah saat bekerja, rekap saat selesai.
   const judul = sibuk
     ? `${jalan} ${tr('tugas paralel')}`
     : `${agents.length} ${tr('subagent')} · ${beres} ${tr('selesai')}${gagal ? ` · ${gagal} ${tr('gagal')}` : ''}`;

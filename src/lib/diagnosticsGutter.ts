@@ -1,14 +1,3 @@
-// diagnosticsGutter.ts — gutter marker error/warning di editor (fase 20).
-//
-// SCOPE SENGAJA SEMPIT: hanya ikon di gutter. Squiggle inline (garis
-// bergelombang di bawah teks) adalah pekerjaan fase 21 (LSP) — brief fase 20
-// menyebutnya eksplisit. Membuatnya sekarang berarti fase 21 harus membongkar
-// dua tempat.
-//
-// Diimplementasikan sebagai GutterMarker + Compartment supaya bisa di-update
-// tanpa membangun ulang EditorView (pelajaran fase 13: rebuild membuang undo
-// history dan posisi kursor).
-
 import { gutter, GutterMarker } from '@codemirror/view';
 import { Compartment, RangeSet, type Extension } from '@codemirror/state';
 import type { Diagnostic } from './problemsStore';
@@ -34,20 +23,13 @@ const MARKERS = {
   hint: new DiagMarker('hint'),
 };
 
-/** Prioritas: satu baris hanya menampilkan satu ikon (yang terparah). */
 const RANK: Record<Diagnostic['severity'], number> = { error: 0, warning: 1, info: 2, hint: 3 };
 
 export const diagCompartment = new Compartment();
 
-/**
- * Bangun extension gutter dari daftar diagnostik satu file.
- * `docLines` = jumlah baris dokumen; diagnostik di luar rentang diabaikan
- * (bisa terjadi kalau file berubah tapi LSP belum mengirim ulang).
- */
 export function diagnosticsGutter(list: Diagnostic[], docLines: number): Extension {
   if (list.length === 0) return [];
 
-  // Satu marker per baris, ambil severity terparah.
   const perLine = new Map<number, Diagnostic['severity']>();
   for (const d of list) {
     if (d.line < 1 || d.line > docLines) continue;

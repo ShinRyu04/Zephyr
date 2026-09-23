@@ -1,16 +1,3 @@
-// extensionStore.ts — state ekstensi (fase 13).
-//
-// Ekstensi v1 = MANIFEST-ONLY: kode JS-nya tidak pernah dieksekusi (alasan
-// keamanan ada di src-tauri/src/extensions.rs). Yang nyata dari sisi UI:
-//   - daftar ekstensi bawaan + ekstensi folder di %APPDATA%\zephyr\extensions
-//   - toggle enable/disable yang tersimpan di settings.extensions.enabled
-//   - `contributes.commands` dari manifest ekstensi AKTIF didaftarkan ke
-//     Command Palette (lihat extensionCommands() di commandRegistry.ts)
-//
-// Catatan zustand v5 (pelajaran fase 09/12): selector DILARANG membuat
-// array/objek baru. Karena itu daftar command hasil turunan dihitung lewat
-// fungsi `commands()`, bukan selector.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
@@ -21,9 +8,9 @@ interface ExtState {
   loading: boolean;
   extError: string | null;
   extInfo: string | null;
-  /** manifest yang sudah dimuat lewat `extensions_load`, key = id */
+  
   loaded: Record<string, ExtensionLoad>;
-  /** halaman marketplace (placeholder) sedang dibuka */
+  
   marketOpen: boolean;
 }
 
@@ -38,13 +25,12 @@ interface ExtActions {
   setMarketOpen: (open: boolean) => void;
   setError: (m: string | null) => void;
   setInfo: (m: string | null) => void;
-  /** Command dari manifest ekstensi yang AKTIF (untuk palette). */
+  
   commands: () => Array<ExtCommand & { extId: string; extName: string }>;
 }
 
 export type ExtStore = ExtState & ExtActions;
 
-/** Ekstensi bawaan yang selalu ada (cermin BUILTIN di extensions.rs). */
 export const BUILTIN_IDS = [
   'file-icon-provider',
   'git-provider',
@@ -69,8 +55,7 @@ export const useExtensions = create<ExtStore>((set, get) => ({
     try {
       const list = await cmd.extensionsList();
       set({ list, loading: false, extError: null });
-      // Manifest ekstensi aktif dimuat sekaligus supaya command-nya siap di
-      // palette tanpa user harus mengklik apa pun.
+      
       for (const e of list) {
         if (!e.builtin && e.enabled && !get().loaded[e.id]) {
           try {
@@ -89,9 +74,7 @@ export const useExtensions = create<ExtStore>((set, get) => ({
   toggle: async (id, on) => {
     const s = useStore.getState();
     const cur = s.settings.extensions.enabled;
-    // Daftar kosong = semua bawaan aktif. Begitu user menyentuh toggle,
-    // daftar harus jadi eksplisit, kalau tidak mematikan satu item terbaca
-    // sebagai "semua mati".
+    
     const base = cur.length === 0 ? [...BUILTIN_IDS] : cur;
     const next = on ? [...new Set([...base, id])] : base.filter((x) => x !== id);
     await s.applySettings({ extensions: { enabled: next } });
@@ -134,7 +117,7 @@ export const useExtensions = create<ExtStore>((set, get) => ({
   remove: async (id) => {
     try {
       await cmd.extensionsRemove(id);
-      // Hapus juga dari daftar enabled supaya tidak jadi entri hantu.
+      
       const s = useStore.getState();
       const cur = s.settings.extensions.enabled;
       if (cur.includes(id)) {

@@ -1,6 +1,3 @@
-// settings.rs — app info, settings.json, recent.json, window, sampler RAM.
-// Kontrak nama mengikuti ARCHITECTURE.md §2.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -16,15 +13,15 @@ pub struct AppInfo {
     pub version: String,
     pub identifier: String,
     pub data_dir: String,
-    /// Arsitektur target (mis. "x86_64-pc-windows-msvc"). Berguna saat lapor bug.
+
     pub arch: String,
-    /// Versi runtime WebView2 yang benar-benar dipakai (Windows).
+
     pub webview: String,
-    /// true kalau app berjalan dalam mode portable (data di sebelah exe).
+
     pub portable: bool,
-    /// Folder executable — beda dari data_dir pada mode portable.
+
     pub exe_dir: String,
-    /// Profil build: "debug" atau "release".
+
     pub profile: String,
 }
 
@@ -35,9 +32,6 @@ pub struct RecentEntry {
     pub last_opened: u64,
 }
 
-/// Nilai default seluruh Settings (ARCHITECTURE.md §5).
-/// File settings.json user di-merge DI ATAS default ini, jadi key baru
-/// otomatis terisi tanpa migrasi.
 pub fn default_settings() -> Value {
     json!({
         "general": {
@@ -50,24 +44,15 @@ pub fn default_settings() -> Value {
             "restoreSession": true,
             "checkUpdates": true,
             "lowRam": false,
-            // WAJIB ADA: frontend membaca `settings.general.aiPanel` untuk
-            // memutuskan panel AI dirender di kolom kanan atau di bawah, dan
-            // `general.layout` untuk mode terminal-first. Tanpa key ini,
-            // setelah reset_settings (file dihapus) nilainya undefined dan
-            // panel AI hilang dari layar.
+
             "aiPanel": "bottom",
             "layout": "default"
         },
-        // WAJIB ADA di level atas: `settings.sidebar` menentukan kelas
-        // `sidebar-pos-<nilai>` di App.tsx. Tanpa key ini setelah reset,
-        // kelasnya jadi `sidebar-pos-undefined`, tidak match CSS mana pun, dan
-        // SELURUH sidebar (Explorer, Search, SCM, Settings nav) HILANG.
+
         "sidebar": "left",
-        // Latar belakang kustom — key TERPISAH dari `theme` (permintaan user:
-        // jangan satu combo). Kalau digabung, ganti tema ikut mereset background.
+
         "background": { "image": "", "opacity": 55, "size": "fill", "transparan": true },
-        // Dipakai App.tsx saat startup (applyLayout). Tanpa key ini setelah
-        // reset, layout tersimpan tidak pernah diterapkan.
+
         "layout": "default",
         "editor": {
             "tabSize": 2,
@@ -92,17 +77,14 @@ pub fn default_settings() -> Value {
         "shortcuts": {},
         "models": { "activeProvider": "gemini", "providers": {}, "answerLang": "follow", "ragEnabled": false, "ragUrl": "http://localhost:7777", "ragProject": "", "ragK": 4 },
         "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
-        // `trust` = whitelist runtime eksternal per ekstensi
-        // (ext_exec membaca dari sini; kosong = semua ditolak).
+
         "extensions": {
             "enabled": [],
             "trust": {},
-            // URL registry Zephyr (https). Kosong = hanya bundled +
-            // registry.json user yang dipakai.
+
             "registryUrl": ""
         },
-        // fase 31: aksesibilitas. Nama kunci mengikuti VS Code
-        // (accessibility.*) supaya settings terasa familier.
+
         "accessibility": {
             "reducedMotion": false,
             "screenReader": false,
@@ -110,18 +92,10 @@ pub fn default_settings() -> Value {
             "toastDurasiMin": 3200
         },
         "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
-        // T4.3/T4.5: prompt AI yang bisa diedit + daftar izin perintah.
-        //
-        // WAJIB ada di default: frontend membaca `settings.aiPrompt.identitas`
-        // langsung (bukan opsional). Tanpa key ini, settings.json lama membuat
-        // propertinya `undefined` dan halaman Settings jatuh dengan
-        // "Cannot read properties of undefined (reading 'trim')".
+
         "aiPrompt": { "identitas": "", "caraKerja": "", "aturan": "", "instruksi": "" },
         "allowCommands": [],
-        // WAJIB ADA: T4.10 (pemilih model subagent) + T3.10 (batas paralel).
-        // Frontend membaca settings.subagent langsung; tanpa key ini setelah
-        // reset_settings, `settings.subagent` undefined dan halaman Subagent
-        // crash. Nilainya harus SAMA dengan default TS di lib/types.ts.
+
         "subagent": {
             "maxParallel": 4,
             "maxSteps": 15,
@@ -133,18 +107,15 @@ pub fn default_settings() -> Value {
         },
         "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
         "ssh": { "recentHosts": [] },
-        // fase 20: preferensi panel bawah
+
         "panel": {
             "visibleTabs": ["problems", "output", "debug", "terminal", "ports", "ai", "subagents"],
             "activeTab": "terminal",
             "height": 260
         },
-        // fase 21: language server. `servers` kosong = pakai default katalog
-        // di src/lib/lsp.ts; user boleh menimpa cmd/enabled per bahasa.
+
         "lsp": { "enabled": true, "idleSeconds": 300, "servers": {} },
-        // fase 26: Local History. Dinyalakan default karena ini safety-net —
-        // gunanya justru sebelum user sadar membutuhkannya. Retensi menjaga
-        // disk: 50 snapshot/file, buang yang lebih tua dari 30 hari.
+
         "history": { "enabled": true, "maxPerFile": 50, "maxDays": 30 },
         "update": {
             "lastSeenVersion": "",
@@ -154,13 +125,6 @@ pub fn default_settings() -> Value {
     })
 }
 
-/// Merge rekursif: `patch` menimpa `base` per-key (object di-merge dalam).
-///
-/// `null` di patch = HAPUS key (semantik JSON Merge Patch / RFC 7386).
-/// Ini bukan hiasan: tanpa itu tombol "Reset ke default" per item —
-/// `agents.startCommands[x]`, `shortcuts[x]` — tidak akan pernah bisa
-/// membuang entri dari settings.json, karena merge biasa cuma menambah.
-/// Konsekuensinya: tidak ada setting yang boleh bernilai null secara sah.
 pub fn deep_merge_um(base: &mut Value, patch: &Value) {
     match (base, patch) {
         (Value::Object(b), Value::Object(p)) => {
@@ -181,11 +145,6 @@ pub fn deep_merge_um(base: &mut Value, patch: &Value) {
     }
 }
 
-/// Baca JSON dari disk. File yang RUSAK (syntax error) tidak boleh membuat
-/// Zephyr membuang settings user secara diam-diam: fase 16.3 memindahkannya ke
-/// `<nama>.broken` (dengan timestamp) lalu mengembalikan None supaya default
-/// yang dipakai. Nama file backup dicatat di `LAST_BROKEN` agar UI bisa
-/// memberi tahu user lewat toast.
 pub fn read_json_um(path: &PathBuf) -> Option<Value> {
     let raw = std::fs::read_to_string(path).ok()?;
     match serde_json::from_str(&raw) {
@@ -222,11 +181,8 @@ pub fn read_json_um(path: &PathBuf) -> Option<Value> {
     }
 }
 
-/// Path file config rusak terakhir yang di-backup (fase 16.3). Dibaca sekali
-/// oleh frontend lewat `take_broken_config` lalu dikosongkan.
 static LAST_BROKEN: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
-/// Ambil (dan kosongkan) laporan config rusak terakhir. `""` = tidak ada.
 #[tauri::command(async)]
 pub fn take_broken_config() -> ZResult<String> {
     let mut slot = LAST_BROKEN
@@ -235,17 +191,6 @@ pub fn take_broken_config() -> ZResult<String> {
     Ok(std::mem::take(&mut *slot))
 }
 
-// ── FASE 18: keybindings.json (override user untuk chord) ──
-//
-// File TERPISAH dari settings.json — sengaja, sesuai 18.4. Alasannya praktis:
-// user boleh menyuntingnya dengan tangan (VS Code-style), dan formatnya array
-// bukan object, jadi tidak cocok masuk deep_merge settings yang memakai
-// semantik JSON Merge Patch (null = hapus key).
-//
-// Bentuk: [{ "key": "ctrl+alt+s", "command": "file.save", "when": "global" }]
-
-/// Baca `keybindings.json`. Array kosong bila belum ada / rusak (file rusak
-/// tetap di-backup lewat `read_json`).
 #[tauri::command(async)]
 pub fn get_keybindings(state: State<AppState>) -> ZResult<Value> {
     let p = state.file("keybindings.json");
@@ -255,7 +200,6 @@ pub fn get_keybindings(state: State<AppState>) -> ZResult<Value> {
     }
 }
 
-/// Tulis seluruh daftar override. `bindings` HARUS array.
 #[tauri::command(async)]
 pub fn set_keybindings(app: AppHandle, state: State<AppState>, bindings: Value) -> ZResult<()> {
     if !bindings.is_array() {
@@ -278,23 +222,17 @@ fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
     Ok(())
 }
 
-// ───────────────────────── commands ─────────────────────────
-
 #[tauri::command]
 pub fn get_app_info(app: AppHandle, state: State<AppState>) -> ZResult<AppInfo> {
-    // Versi WebView2 diambil dari runtime, bukan ditebak: masalah rendering
-    // hampir selalu berujung pada versi WebView2, dan user tidak punya cara
-    // mencarinya sendiri.
     let webview = webview_version();
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
         .map(|d| d.to_string_lossy().to_string())
         .unwrap_or_default();
-    // Mode portable: data disimpan di sebelah exe (bukan %APPDATA%). Dikenali
-    // dari folder `zephyr-data` di samping exe.
-    let portable = !exe_dir.is_empty()
-        && std::path::Path::new(&exe_dir).join("zephyr-data").is_dir();
+
+    let portable =
+        !exe_dir.is_empty() && std::path::Path::new(&exe_dir).join("zephyr-data").is_dir();
     Ok(AppInfo {
         version: app.package_info().version.to_string(),
         identifier: app.config().identifier.clone(),
@@ -303,17 +241,18 @@ pub fn get_app_info(app: AppHandle, state: State<AppState>) -> ZResult<AppInfo> 
         webview,
         portable,
         exe_dir,
-        profile: if cfg!(debug_assertions) { "debug".into() } else { "release".into() },
+        profile: if cfg!(debug_assertions) {
+            "debug".into()
+        } else {
+            "release".into()
+        },
     })
 }
 
-/// Versi runtime WebView2 di Windows. Kosong di platform lain / kalau gagal.
 #[cfg(windows)]
 fn webview_version() -> String {
-    // Jalur registry: nilai `pv` pada kunci WebView2 Runtime.
     let kunci = r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
-    // WAJIB lewat proc::cmd supaya tidak memunculkan jendela konsol sekejap
-    // (aturan anti-flash proyek ini).
+
     let out = crate::proc::cmd("reg")
         .args(["query", kunci, "/v", "pv"])
         .output();
@@ -354,7 +293,6 @@ pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZRe
     deep_merge_um(&mut current, &patch);
     write_json(&path, &current)?;
 
-    // Beritahu frontend key mana yang berubah (ARCHITECTURE.md §3).
     if let Value::Object(map) = &patch {
         for k in map.keys() {
             let _ = app.emit("settings-changed", json!({ "key": k }));
@@ -396,11 +334,10 @@ pub fn list_recents(state: State<AppState>) -> ZResult<Vec<RecentEntry>> {
         .filter(|e| std::path::Path::new(&e.path).exists())
         .collect();
     out.sort_by(|a, b| b.last_opened.cmp(&a.last_opened));
-    out.truncate(4); // PRD B2: ingat 4 workspace terakhir
+    out.truncate(4);
     Ok(out)
 }
 
-/// Catat workspace ke recent.json (dipakai `workspace_open`).
 pub fn push_recent(state: &AppState, path: &str) -> ZResult<()> {
     let file = state.file("recent.json");
     let now = std::time::SystemTime::now()
@@ -426,24 +363,15 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
     let canon = crate::app_state::normalize(&p);
     let as_string = canon.to_string_lossy().to_string();
 
-    // FASE 16.3: root drive (C:\, D:\) sebagai workspace berarti scan seluruh
-    // disk — Explorer akan menelusuri Windows\WinSxS, node_modules global, dan
-    // folder sistem yang tidak boleh dibaca. Ditolak dengan pesan yang
-    // menjelaskan apa yang harus dilakukan, bukan dibiarkan membekukan app.
     if crate::paths::is_drive_root(&canon) {
         return Err(ZephyrError::InvalidInput(format!(
             "{as_string} adalah root drive — buka folder proyek di dalamnya, bukan seluruh disk (scan root bisa memakan puluhan menit dan menyentuh folder sistem)"
         )));
     }
 
-    // fase 29: `workspace_open` = buka SATU folder, jadi daftar root tambahan
-    // harus dikosongkan. Tanpa ini root dari workspace sebelumnya menempel
-    // terus dan V3 melihat "Zephyr, Root B" alih-alih "Root A, Root B".
-    // clear_roots() juga membersihkan nama root & file .code-workspace.
     state.clear_roots();
     state.set_workspace(canon.clone())?;
-    // allow_exact, BUKAN allow(): allow() ikut mem-whitelist folder INDUK
-    // workspace, sehingga fs_write ke folder sebelahnya lolos (bug V2 fase 14).
+
     state.allow_exact(&canon);
     push_recent(&state, &as_string)?;
     state.perf_mark("workspace_open", None);
@@ -455,15 +383,12 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
 
 #[tauri::command]
 pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
-    // Hentikan watcher fase 04 agar tidak ada thread menggantung.
     state.stop_watcher();
     state.clear_workspace();
     tracing::info!("workspace ditutup");
     Ok(())
 }
 
-/// Baca settings efektif (default + settings.json) sebagai Value.
-/// Dipakai modul lain (github.rs) tanpa perlu State/command.
 pub fn read_settings_value(state: &AppState) -> Value {
     let mut merged = default_settings();
     if let Some(user) = read_json_um(&state.file("settings.json")) {
@@ -472,8 +397,6 @@ pub fn read_settings_value(state: &AppState) -> Value {
     merged
 }
 
-/// Terapkan patch ke settings.json lalu beri tahu frontend.
-/// Sama seperti command `set_settings`, tapi bisa dipanggil dari Rust.
 pub fn patch_settings(app: &AppHandle, state: &AppState, patch: Value) -> ZResult<()> {
     patch_settings_no_emit(state, patch.clone())?;
     if let Value::Object(map) = &patch {
@@ -484,7 +407,6 @@ pub fn patch_settings(app: &AppHandle, state: &AppState, patch: Value) -> ZResul
     Ok(())
 }
 
-/// Versi tanpa event (dipakai thread yang tidak memegang AppHandle).
 pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
     if !patch.is_object() {
         return Err(ZephyrError::InvalidInput("patch harus object".into()));
@@ -495,7 +417,6 @@ pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
     write_json(&path, &current)
 }
 
-/// `settings.git.defaultBranch` (fase 10: dipakai `git init -b`).
 pub fn git_default_branch(state: &AppState) -> String {
     read_settings_value(state)
         .get("git")
@@ -506,8 +427,6 @@ pub fn git_default_branch(state: &AppState) -> String {
         .unwrap_or_else(|| "main".to_string())
 }
 
-/// Identitas commit dari Settings → Source Control (fase 08).
-/// Dipakai hanya bila `git config user.*` belum diisi di mesin ini.
 pub fn git_identity(state: &AppState) -> (Option<String>, Option<String>) {
     let v = read_settings_value(state);
     let g = v.get("git");
@@ -520,41 +439,22 @@ pub fn git_identity(state: &AppState) -> (Option<String>, Option<String>) {
     (pick("userName"), pick("userEmail"))
 }
 
-// ───────────────────── sampler RAM (fase 02 V6) ─────────────────────
-
-/// RAM tertinggi yang pernah tercatat (byte) — dibaca Diagnostics.
 static RAM_PEAK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-/// Sampel RAM TERAKHIR (byte). Diagnostics membaca ini, BUKAN memanggil
-/// sysinfo sendiri.
-///
-/// KENAPA (fase 14, sudah kena): `get_diagnostics` awalnya membuat
-/// `sysinfo::System::new()` + `refresh_processes_specifics` sendiri tiap
-/// dipanggil. Saat harness V8 memanggilnya tiap 30 detik, proses Zephyr
-/// KELUAR SENDIRI (`RunEvent::Exit`, exit code 0) setelah ~1 menit — gejala
-/// sama seperti catatan fase 02 tentang sysinfo 0.39 di Windows. Aturan
-/// sekarang: HANYA thread sampler ini yang menyentuh sysinfo untuk pid sendiri.
+
 static RAM_LAST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-/// RAM TOTAL = proses ini + seluruh turunannya (`msedgewebview2.exe`).
-///
-/// KENAPA ADA (fase 14, tertangkap saat V8): WebView2 jalan sebagai PROSES
-/// TERPISAH (browser + renderer + GPU). `zephyr.exe` sendiri cuma ~37MB,
-/// sementara total yang dilihat user di Task Manager bisa 300MB+. Melaporkan
-/// angka proses sendiri saja = mengaku hemat padahal bukan.
+
 static RAM_TOTAL_LAST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static RAM_TOTAL_PEAK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// Puncak RAM proses ini saja (dipakai unit test & debugging).
 #[allow(dead_code)]
 pub fn ram_peak() -> u64 {
     RAM_PEAK.load(Ordering::Relaxed)
 }
 
-/// Sampel RAM terakhir dari sampler (0 = belum ada sampel).
 pub fn ram_last() -> u64 {
     RAM_LAST.load(Ordering::Relaxed)
 }
 
-/// RAM total (proses + turunan WebView2) terakhir & puncaknya.
 pub fn ram_total_last() -> u64 {
     RAM_TOTAL_LAST.load(Ordering::Relaxed)
 }
@@ -563,11 +463,6 @@ pub fn ram_total_peak() -> u64 {
     RAM_TOTAL_PEAK.load(Ordering::Relaxed)
 }
 
-// ── FASE 16.5: info host (statis, diisi sekali saat sampler start) ──
-//
-// Nilai-nilai ini TIDAK berubah selama proses hidup, jadi diambil satu kali di
-// thread sampler lalu disimpan. `get_diagnostics` HANYA membaca — larangan
-// membuat `sysinfo::System` di command tetap berlaku (pelajaran V8 fase 14).
 static HOST_RAM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static HOST_CPU: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 static HOST_OS: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
@@ -584,7 +479,6 @@ pub fn host_os() -> String {
     HOST_OS.lock().map(|s| s.clone()).unwrap_or_default()
 }
 
-/// Isi info host sekali. Dipanggil dari thread sampler.
 fn isi_info_host(sys: &mut sysinfo::System) {
     sys.refresh_memory();
     HOST_RAM.store(sys.total_memory(), Ordering::Relaxed);
@@ -602,8 +496,6 @@ fn isi_info_host(sys: &mut sysinfo::System) {
     }
 }
 
-/// Jumlahkan memori proses ini + semua turunannya (maks 6 tingkat).
-/// HANYA dipanggil dari thread sampler — lihat catatan RAM_LAST.
 fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
     sys.refresh_processes_specifics(
         sysinfo::ProcessesToUpdate::All,
@@ -632,22 +524,14 @@ fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
     total
 }
 
-/// Thread ringan: tiap 3 detik emit `ram-usage`.
-/// Berhenti mengukur saat window minimized (hemat CPU, sesuai catatan fase 02).
-///
-/// PENTING: status minimized dibaca dari AtomicBool yang di-update oleh
-/// window event di main thread. Memanggil API window (`is_minimized()`)
-/// langsung dari thread ini membuat proses mati di Windows.
 pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let pid = sysinfo::Pid::from_u32(std::process::id());
         let mut sys = sysinfo::System::new();
-        // Sampler total (WebView2) memakai instance sysinfo SENDIRI karena ia
-        // menyegarkan SEMUA proses; jangan dicampur dengan yang pid-spesifik.
+
         let mut sys_all = sysinfo::System::new();
         let mut putaran: u64 = 0;
-        // FASE 16.5: info host (OS, RAM fisik, CPU) diambil SEKALI di sini
-        // supaya `get_diagnostics` tidak perlu menyentuh sysinfo sama sekali.
+
         isi_info_host(&mut sys_all);
         loop {
             std::thread::sleep(std::time::Duration::from_secs(3));
@@ -656,12 +540,6 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
                 continue;
             }
 
-            // CATATAN (jangan diubah tanpa uji ulang): argumen kedua
-            // `remove_dead_processes` HARUS false. Dengan `true` + daftar pid
-            // terbatas, sysinfo 0.39 di Windows membuat proses Zephyr keluar
-            // sendiri (event loop berhenti, exit code 0) beberapa saat setelah
-            // sampel pertama. Kita hanya memantau pid sendiri, jadi `false`
-            // juga benar secara semantik.
             sys.refresh_processes_specifics(
                 sysinfo::ProcessesToUpdate::Some(&[pid]),
                 false,
@@ -671,8 +549,6 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
             RAM_LAST.store(bytes, Ordering::Relaxed);
             RAM_PEAK.fetch_max(bytes, Ordering::Relaxed);
 
-            // Total (termasuk WebView2) lebih mahal karena men-scan semua
-            // proses → cukup tiap 4 putaran (12 detik).
             putaran += 1;
             if putaran % 4 == 1 {
                 let total = hitung_total(&mut sys_all, pid);
@@ -682,8 +558,6 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
                 }
             }
 
-            // `bytes` = proses ini saja (dipakai StatusBar sejak fase 02);
-            // `total` ikut dikirim supaya UI bisa menampilkan angka jujur.
             if app
                 .emit(
                     "ram-usage",
@@ -691,13 +565,11 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
                 )
                 .is_err()
             {
-                break; // app sudah tutup
+                break;
             }
         }
     });
 }
-
-// ───────── hook untuk unit test (tests_fs.rs) ─────────
 
 #[cfg(test)]
 pub fn merge_for_test(base: &mut Value, patch: &Value) {

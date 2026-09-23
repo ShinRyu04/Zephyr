@@ -1,18 +1,3 @@
-// fs_utils.rs — I/O file aman + deteksi encoding & line ending (fase 03).
-//
-// Kontrak encoding:
-//   * Coba UTF-8 strict. Ada BOM  -> "utf8-bom" (BOM dibuang dari content).
-//                         Tanpa BOM -> "utf8".
-//   * Gagal UTF-8         -> decode Windows-1252 -> "ansi".
-//   * Simpan kembali PAKAI encoding asal; BOM hanya ditulis bila file
-//     aslinya memang punya BOM.
-//
-// Kontrak line ending:
-//   * Saat baca, konten dinormalkan ke "\n" dan line ending asal
-//     dilaporkan ("crlf" | "lf"). Frontend selalu bekerja dengan "\n".
-//   * Saat tulis, "\n" dikembalikan ke line ending target
-//     (file lama = punyanya sendiri, file baru = "crlf" di Windows).
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
@@ -20,18 +5,12 @@ use std::path::{Path, PathBuf};
 use tauri::State;
 
 const BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
-/// BOM UTF-16 (fase 15): FF FE = little endian, FE FF = big endian.
+
 const BOM_UTF16LE: [u8; 2] = [0xFF, 0xFE];
 const BOM_UTF16BE: [u8; 2] = [0xFE, 0xFF];
 
-/// Di atas ini file dibuka READ-ONLY ringan (fase 15.1): CodeMirror tidak
-/// diberi ekstensi berat dan UI menandainya, supaya 5MB JSON tidak membekukan
-/// editor. Batas keras tetap 32MB.
 pub const BIG_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
-/// Terjemahkan error I/O menjadi ZephyrError yang menyebut PATH-nya.
-/// `From<io::Error>` bawaan tidak tahu path apa yang gagal, jadi pesan yang
-/// dilihat user cuma "os error 2" — V1 fase 14 minta pesan yang jelas.
 pub fn map_fs_err(e: std::io::Error, path: &str) -> ZephyrError {
     match e.kind() {
         std::io::ErrorKind::NotFound => ZephyrError::NotFound(format!(
@@ -50,12 +29,11 @@ pub struct ReadResult {
     pub content: String,
     pub detected_encoding: String,
     pub line_ending: String,
-    /// fase 15.1: true = file terlalu besar (>4MB) atau encoding yang belum
-    /// bisa ditulis balik (UTF-16). Frontend membuka tab sebagai read-only.
+
     pub read_only: bool,
-    /// ukuran file di disk (byte); 0 untuk pembacaan non-file.
+
     pub bytes: u64,
-    /// alasan read_only untuk ditampilkan ke user ("" = tidak read-only).
+
     pub note: String,
 }
 
@@ -64,7 +42,7 @@ pub struct ReadResult {
 pub struct StatResult {
     pub size: u64,
     pub is_dir: bool,
-    /// epoch milidetik
+
     pub mtime: u64,
 }
 
@@ -89,7 +67,6 @@ fn detect_line_ending(s: &str) -> &'static str {
 }
 
 fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)> {
-    // forced: caller memaksa encoding tertentu (mis. reload sebagai ansi).
     if let Some(enc) = forced {
         match enc {
             "ansi" => {
@@ -97,7 +74,7 @@ fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)>
                 return Ok((cow.into_owned(), "ansi".into()));
             }
             "utf8" | "utf8-bom" => {}
-            // Reload paksa sebagai UTF-16 (dipakai tombol "buka sebagai …").
+
             "utf16le" => {
                 let body = if bytes.len() >= 2 && bytes[0..2] == BOM_UTF16LE {
                     &bytes[2..]
@@ -124,9 +101,6 @@ fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)>
         }
     }
 
-    // UTF-16 (fase 15.1). Dicek SEBELUM UTF-8: byte FF FE bukan UTF-8 valid,
-    // jadi tanpa cabang ini file UTF-16 jatuh ke fallback ANSI dan tampil
-    // sebagai teks berlubang "h.a.l.o." — itu bug yang dilaporkan user.
     if bytes.len() >= 2 {
         if bytes[0..2] == BOM_UTF16LE {
             let (cow, _, _) = encoding_rs::UTF_16LE.decode(&bytes[2..]);
@@ -151,7 +125,6 @@ fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)>
             },
         )),
         Err(_) => {
-            // Fallback ANSI (Windows-1252) — tidak pernah gagal.
             let (cow, _, _) = encoding_rs::WINDOWS_1252.decode(bytes);
             Ok((cow.into_owned(), "ansi".into()))
         }
@@ -159,7 +132,6 @@ fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)>
 }
 
 fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Vec<u8>> {
-    // Normalkan dulu ke \n, lalu terapkan target line ending.
     let normalized = content.replace("\r\n", "\n");
     let text = if line_ending == "crlf" {
         normalized.replace('\n', "\r\n")
@@ -185,10 +157,7 @@ fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Ve
             }
             Ok(cow.into_owned())
         }
-        // KEPUTUSAN v1 (fase 15.1): file UTF-16 dibaca dan ditampilkan benar,
-        // tapi TIDAK ditulis balik sebagai UTF-16. Menulis ulang UTF-16 butuh
-        // menjaga BOM + endianness + surrogate pair; salah sedikit = file user
-        // rusak. Frontend menawarkan "simpan sebagai UTF-8" secara eksplisit.
+
         "utf16le" | "utf16be" => Err(ZephyrError::Encoding(
             "file UTF-16 dibuka read-only — pakai \"Simpan sebagai UTF-8\" untuk mengeditnya"
                 .into(),
@@ -207,9 +176,6 @@ fn mtime_ms(meta: &std::fs::Metadata) -> u64 {
         .unwrap_or(0)
 }
 
-// ───────── helper internal untuk modul lain (explorer.rs) ─────────
-
-/// Baca file + deteksi encoding/line ending. Konten dinormalkan ke `\n`.
 pub fn read_file_detect(path: &Path) -> ZResult<ReadResult> {
     let bytes = std::fs::read(path)?;
     let (raw, detected) = decode_bytes(&bytes, None)?;
@@ -225,7 +191,6 @@ pub fn read_file_detect(path: &Path) -> ZResult<ReadResult> {
     })
 }
 
-/// Tentukan apakah file harus dibuka read-only + alasannya (fase 15.1).
 fn read_only_reason(len: u64, encoding: &str) -> (bool, String) {
     if encoding == "utf16le" || encoding == "utf16be" {
         return (
@@ -245,7 +210,6 @@ fn read_only_reason(len: u64, encoding: &str) -> (bool, String) {
     (false, String::new())
 }
 
-/// Tulis konten dengan encoding + line ending eksplisit.
 pub fn write_file_encoded(
     path: &Path,
     content: &str,
@@ -253,12 +217,10 @@ pub fn write_file_encoded(
     line_ending: &str,
 ) -> ZResult<()> {
     let bytes = encode_string(content, encoding, line_ending)?;
-    // FASE 16.3: prefix `\\?\` untuk path panjang (>260 char).
+
     std::fs::write(crate::paths::long_path(path), bytes)?;
     Ok(())
 }
-
-// ───────────────────────── commands ─────────────────────────
 
 #[tauri::command(async)]
 pub fn fs_read(
@@ -268,18 +230,14 @@ pub fn fs_read(
 ) -> ZResult<ReadResult> {
     let p = PathBuf::from(&path);
     state.ensure_readable(&p)?;
-    // FASE 16.3: path >260 karakter butuh prefix `\\?\` di Windows, kalau tidak
-    // `metadata`/`read` gagal dengan "The system cannot find the path specified"
-    // walau filenya ada.
+
     let p = crate::paths::long_path(&p);
 
-    // FASE 14 V1: file yang sudah dihapus harus memberi pesan yang jelas
-    // (nama filenya), bukan "os error 2" mentah dari Windows.
     let meta = std::fs::metadata(&p).map_err(|e| map_fs_err(e, &path))?;
     if meta.is_dir() {
         return Err(ZephyrError::InvalidInput(format!("{path} adalah folder")));
     }
-    // Batas aman 32MB agar tidak membekukan UI (R3 di PRD).
+
     if meta.len() > 32 * 1024 * 1024 {
         return Err(ZephyrError::InvalidInput(
             "file lebih besar dari 32MB — belum didukung".into(),
@@ -291,10 +249,6 @@ pub fn fs_read(
     let line_ending = detect_line_ending(&raw).to_string();
     let (read_only, note) = read_only_reason(meta.len(), &detected);
 
-    // File yang dibaca user boleh ditulis balik (Ctrl+S) walau di luar
-    // workspace — TAPI hanya file itu sendiri. `allow()` juga mengizinkan
-    // folder induknya, dan itu terlalu longgar untuk jalur baca: membuka satu
-    // file di C:\Windows tidak boleh membuat seluruh C:\Windows bisa ditulis.
     state.allow_exact(&p);
     state.bump("fs_read");
 
@@ -308,10 +262,6 @@ pub fn fs_read(
     })
 }
 
-/// Tulis file. `was_existing`/`allow_missing` = jaring pengaman fase 15.1:
-/// tab yang dibaca dari disk mengirim `was_existing:true`; kalau file-nya
-/// sudah lenyap, Rust menolak dengan NotFound supaya UI bisa bertanya
-/// "file hilang — buat baru?" alih-alih diam-diam membuatnya kembali.
 #[allow(clippy::too_many_arguments)]
 #[tauri::command(async)]
 pub fn fs_write(
@@ -326,13 +276,8 @@ pub fn fs_write(
     let p = PathBuf::from(&path);
     state.ensure_writable(&p)?;
 
-    // Tentukan encoding & line ending target: pakai yang diminta, kalau
-    // tidak ada ambil dari file yang sudah ada, kalau file baru -> utf8+crlf.
     let existing = std::fs::read(&p).ok();
-    // fase 15.1: file yang tadinya ada lalu dihapus dari luar. `allow_missing`
-    // false = tolak dengan NotFound supaya UI bisa bertanya "buat baru?".
-    // Tanpa ini Ctrl+S diam-diam membuat file baru dan user tidak tahu bahwa
-    // file aslinya sudah lenyap (mis. karena git checkout / hapus manual).
+
     if existing.is_none() && !allow_missing.unwrap_or(false) && was_existing.unwrap_or(false) {
         return Err(ZephyrError::NotFound(format!(
             "{path} sudah tidak ada di disk"
@@ -365,7 +310,6 @@ pub fn fs_write(
 
 #[tauri::command(async)]
 pub fn fs_exists(path: String) -> ZResult<bool> {
-    // FASE 16.3: path panjang butuh prefix `\\?\`.
     Ok(crate::paths::long_path(Path::new(&path)).exists())
 }
 
@@ -398,7 +342,7 @@ pub fn fs_create_file(
             std::fs::create_dir_all(crate::paths::long_path(parent))?;
         }
     }
-    // File baru: UTF-8 tanpa BOM, line ending Windows.
+
     let bytes = encode_string(&content.unwrap_or_default(), "utf8", "crlf")?;
     std::fs::write(&lp, bytes)?;
     Ok(())
@@ -408,7 +352,7 @@ pub fn fs_create_file(
 pub fn fs_create_dir(state: State<AppState>, path: String) -> ZResult<()> {
     let p = PathBuf::from(&path);
     state.ensure_writable(&p)?;
-    // FASE 16.3: prefix `\\?\` untuk path panjang.
+
     std::fs::create_dir_all(crate::paths::long_path(&p))?;
     Ok(())
 }
@@ -423,7 +367,7 @@ pub fn fs_delete(state: State<AppState>, paths: Vec<String>, recursive: bool) ->
         state.ensure_writable(&p)?;
         let meta = match std::fs::metadata(&p) {
             Ok(m) => m,
-            Err(_) => continue, // sudah tidak ada -> anggap sukses
+            Err(_) => continue,
         };
         if meta.is_dir() {
             if recursive {
@@ -446,7 +390,7 @@ pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()
     let b = PathBuf::from(&to);
     state.ensure_writable(&a)?;
     state.ensure_writable(&b)?;
-    // FASE 16.3: prefix `\\?\` untuk path panjang.
+
     let la = crate::paths::long_path(&a);
     let lb = crate::paths::long_path(&b);
     if !la.exists() {
@@ -460,8 +404,6 @@ pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()
     Ok(())
 }
 
-// ───────────────────── session (restore tabs) ─────────────────────
-
 #[tauri::command(async)]
 pub fn session_load(state: State<AppState>) -> ZResult<Vec<SessionTab>> {
     let p = state.file("session.json");
@@ -470,7 +412,7 @@ pub fn session_load(state: State<AppState>) -> ZResult<Vec<SessionTab>> {
     }
     let raw = std::fs::read_to_string(&p)?;
     let tabs: Vec<SessionTab> = serde_json::from_str(&raw).unwrap_or_default();
-    // Skip file yang sudah hilang; frontend melapor di status bar.
+
     Ok(tabs
         .into_iter()
         .filter(|t| Path::new(&t.path).exists())
@@ -486,8 +428,6 @@ pub fn session_save(state: State<AppState>, tabs: Vec<SessionTab>) -> ZResult<()
     std::fs::write(&p, serde_json::to_vec_pretty(&tabs)?)?;
     Ok(())
 }
-
-// ───────── hook untuk unit test (tests_fs.rs) ─────────
 
 #[cfg(test)]
 pub fn decode_for_test(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)> {

@@ -1,30 +1,19 @@
-// lsp.ts — registry bahasa + katalog language server (fase 21).
-//
-// TABEL MURNI + fungsi bebas efek samping. State runtime ada di lspStore.ts
-// (pola yang sama dengan keybindings.ts vs keybindingStore.ts di fase 18).
-//
-// Keputusan yang perlu diingat:
-//   * Binary language server TIDAK dibundel installer. Urutan pencarian:
-//     override Settings → %APPDATA%\zephyr\lsp\<id>\ → PATH → (dev)
-//     node_modules. Ini yang membuat installer tetap 7 MB.
-//   * `cmd` selalu berisi executable + argumen; Rust yang me-resolve-nya.
-
 export interface LspServerDef {
-  /** id server (kunci settings + folder %APPDATA%\zephyr\lsp\<id>) */
+  
   id: string;
-  /** nama untuk UI */
+  
   label: string;
-  /** languageId LSP yang dikirim di didOpen */
+  
   languageId: string;
-  /** LangId internal Zephyr yang ditangani server ini (untuk display). */
+  
   langs: string[];
-  /** ekstensi file (dengan titik) */
+  
   extensions: string[];
-  /** perintah default; elemen 0 = executable */
+  
   cmd: string[];
-  /** initializationOptions bawaan */
+  
   initOptions?: Record<string, unknown>;
-  /** cara memasang, ditampilkan di UI kalau binary tidak ditemukan */
+  
   install: string;
 }
 
@@ -35,7 +24,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     languageId: 'typescript',
     langs: ['typescript', 'javascript', 'tsx', 'jsx'],
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs'],
-    // typescript-language-server adalah wrapper LSP resmi di atas tsserver.
+    
     cmd: ['typescript-language-server', '--stdio'],
     install: 'npm i -g typescript-language-server typescript',
   },
@@ -126,7 +115,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     languageId: 'dart',
     langs: ['dart'],
     extensions: ['.dart'],
-    // Dart SDK menyertakan analysis server. Flutter menaruhnya di PATH.
+    
     cmd: ['dart', 'language-server', '--protocol=lsp'],
     install: 'Pasang Dart SDK (atau Flutter) — dart harus ada di PATH',
   },
@@ -224,7 +213,6 @@ export const LSP_SERVERS: LspServerDef[] = [
 
 export const SERVER_BY_ID = new Map(LSP_SERVERS.map((s) => [s.id, s]));
 
-/** Ekstensi file → definisi server ('' kalau tidak ada). */
 export function serverForPath(path: string): LspServerDef | null {
   const m = /\.[^.\\/]+$/.exec(path.toLowerCase());
   if (!m) return null;
@@ -232,7 +220,6 @@ export function serverForPath(path: string): LspServerDef | null {
   return LSP_SERVERS.find((s) => s.extensions.includes(ext)) ?? null;
 }
 
-/** Override user dari settings.lsp.servers[id]. */
 export interface LspOverride {
   enabled?: boolean;
   cmd?: string[];
@@ -240,9 +227,9 @@ export interface LspOverride {
 }
 
 export interface LspSettings {
-  /** matikan seluruh fitur LSP */
+  
   enabled: boolean;
-  /** detik idle sebelum server dimatikan */
+  
   idleSeconds: number;
   servers: Record<string, LspOverride>;
 }
@@ -253,7 +240,6 @@ export const DEFAULT_LSP_SETTINGS: LspSettings = {
   servers: {},
 };
 
-/** Spesifikasi efektif setelah override user. */
 export function effectiveSpec(
   def: LspServerDef,
   settings: LspSettings | undefined,
@@ -268,9 +254,6 @@ export function effectiveSpec(
   };
 }
 
-// ───────────────────────── konversi LSP ↔ Zephyr ─────────────────────────
-
-/** severity LSP (1..4) → severity problemsStore. */
 export function severityFromLsp(n: number | undefined): 'error' | 'warning' | 'info' | 'hint' {
   switch (n) {
     case 1:
@@ -284,16 +267,14 @@ export function severityFromLsp(n: number | undefined): 'error' | 'warning' | 'i
   }
 }
 
-/** file:// URI → path Windows. */
 export function uriToPath(uri: string): string {
   if (!uri.startsWith('file://')) return uri;
   let p = decodeURIComponent(uri.slice('file://'.length));
-  // file:///D:/x → /D:/x → D:/x
+  
   if (/^\/[A-Za-z]:/.test(p)) p = p.slice(1);
   return p.replace(/\//g, '\\');
 }
 
-/** path → file:// URI (harus sama dengan path_to_uri di lsp.rs). */
 export function pathToUri(path: string): string {
   const s = path.replace(/\\/g, '/');
   const withSlash = s.startsWith('/') ? s : `/${s}`;
@@ -310,7 +291,6 @@ export function pathToUri(path: string): string {
   return out;
 }
 
-/** CompletionItemKind LSP → label pendek untuk ikon. */
 export const COMPLETION_KIND: Record<number, string> = {
   1: 'text',
   2: 'method',
@@ -339,7 +319,6 @@ export const COMPLETION_KIND: Record<number, string> = {
   25: 'typeParam',
 };
 
-/** SymbolKind LSP → label (dipakai Go to Symbol + breadcrumbs fase 24). */
 export const SYMBOL_KIND: Record<number, string> = {
   1: 'file',
   2: 'module',
@@ -369,7 +348,6 @@ export const SYMBOL_KIND: Record<number, string> = {
   26: 'typeParameter',
 };
 
-/** Ambil teks dari `Hover.contents` yang bentuknya bermacam-macam. */
 export function hoverText(contents: unknown): string {
   if (!contents) return '';
   if (typeof contents === 'string') return contents;

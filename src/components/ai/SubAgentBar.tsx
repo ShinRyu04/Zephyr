@@ -1,11 +1,3 @@
-// SubAgentBar.tsx — tombol + form tugas paralel (T2.1), compact sejak T3.10.
-//
-// KENAPA diubah: form ini dulu SELALU membuka panel besar (judul + hint +
-// textarea 3 baris + footer) yang menumpuk di atas chat. Sekarang:
-//   * tertutup = satu baris tipis (ikon + label + maks), tidak menutupi chat
-//   * terbuka  = form ringkas dengan textarea 2 baris + hitungan
-//   * batasnya mengikuti Settings → Subagent, bukan konstanta
-
 import { useState } from 'react';
 import { useSubAgent, batasParalel } from '../../lib/subagentStore';
 import { useAi } from '../../lib/aiStore';
@@ -13,8 +5,7 @@ import { useT } from '../../lib/i18n';
 
 export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?: boolean }) {
   const tr = useT();
-  // Di tab SUBAGENTS form selalu terbuka (itu tempatnya); di panel AI ia
-  // tertutup secara default supaya tidak menumpuk di atas chat.
+
   const [buka, setBuka] = useState(selaluTerbuka);
   const [teks, setTeks] = useState('');
   const jalankan = useSubAgent((s) => s.jalankan);
@@ -80,10 +71,7 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
         title={tr('Enter mengirim · Shift+Enter baris baru')}
         onChange={(e) => setTeks(e.target.value)}
         onKeyDown={(e) => {
-          // Enter = kirim, Shift+Enter = baris baru (sama seperti kotak chat AI).
-          // KENAPA bukan Ctrl+Enter seperti sebelumnya: user menulis satu tugas
-          // per baris, jadi Enter terasa seperti "kirim" — dan Ctrl+Enter tidak
-          // terlihat di layar sehingga tidak pernah tertebak.
+
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             void go();
