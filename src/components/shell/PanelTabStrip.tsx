@@ -7,6 +7,7 @@
 
 import { useRef } from 'react';
 import { PANEL_TABS, usePanel, type PanelTabId } from '../../lib/panelStore';
+import { useStore } from '../../lib/store';
 import Popover from './Popover';
 import { useProblems } from '../../lib/problemsStore';
 import { useOutput } from '../../lib/outputStore';
@@ -19,6 +20,8 @@ import { useT, tx } from '../../lib/i18n';
 export default function PanelTabStrip() {
   const tr = useT();
   const activeTab = usePanel((s) => s.activeTab);
+  // Saat chat di kolom kanan, tab AI di sini tidak perlu ada.
+  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
   const visibleTabs = usePanel((s) => s.visibleTabs);
   const tabMenuOpen = usePanel((s) => s.tabMenuOpen);
   const focusTab = usePanel((s) => s.focusTab);
@@ -88,7 +91,11 @@ export default function PanelTabStrip() {
   return (
     <div className="pts-root" data-testid="panel-tabstrip">
       <div className="pts-tabs" role="tablist" aria-label="Tab panel bawah">
-        {PANEL_TABS.filter((t) => visibleTabs.includes(t.id)).map((t) => (
+        {PANEL_TABS.filter((t) => visibleTabs.includes(t.id))
+          // Tab AI disembunyikan saat chat sudah tampil di kolom kanan: isinya
+          // hanya keterangan pemindahan, jadi slot tabnya terbuang.
+          .filter((t) => !(t.id === 'ai' && aiDiKanan))
+          .map((t) => (
           <button
             key={t.id}
             role="tab"

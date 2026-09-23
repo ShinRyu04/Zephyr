@@ -12,18 +12,12 @@ import { useStore } from './store';
 import { MAX_LOADED_TABS, maxLoadedTabs } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
-import { useSettingsUi } from './settingsStore';
+import { useSettingsUi, SECTION_ORDER } from './settingsStore';
+import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
+import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
 import { useCliAgent } from './cliAgentStore';
 import { useSubAgent, MAX_PARALLEL, MAX_SUB_STEPS } from './subagentStore';
-import { useApiClient, kirimRequest } from './apiClientStore';
-import { useTunnel } from './tunnelStore';
-import { testDetect, tasksRun, tasksRuns } from './commands';
-import { tunnelTersedia, tunnelStart, tunnelStop, tunnelList } from './commands';
-import { devenvDetect, devenvStart, devenvStatus, devenvStop } from './commands';
-import { dbSqliteTabel, dbSqliteQuery } from './commands';
-import { sshSftpList, sshSftpGet, sshSftpHapus, sshForwardStart, sshForwardStop, sshForwardList, sshList } from './commands';
-import { useTampilan, apakahGambar, mimeGambar } from './tampilanStore';
 import { useLayoutCustom, BARIS_LAYOUT } from './layoutStore';
 import { ALL_MODELS } from './modelCatalog';
 import { THEMES, systemPrefersDark, semuaTema } from './themes';
@@ -87,8 +81,11 @@ import {
   ikonUntukExt,
 } from './extLoader';
 import { extensiUntukFile, labelBahasa } from './lang';
-import { ACTIONS, effectiveBinding, findConflicts } from './shortcuts';
+import { ACTIONS, ACTION_BY_ID, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
+import { systemPromptFor, aturanProyek, resetAturanProyek, IDENTITY_REMINDER } from './systemPrompt';
+import { allPrompts, saveUserPrompts, matchPrompts, type PromptItem } from './promptLibrary';
+import { batasParalel, batasLangkah, bolehTulis } from './subagentStore';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
 import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch, setWindowSize, takeBrokenConfig, workspaceOpen } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
@@ -664,14 +661,6 @@ export function installDevBridge(): void {
   };
 
   // ── fase 20: panel bawah ──
-  // ── T2.2: bridge API client (harness uji-t2-2) ──
-  w.__ZEPHYR_API__ = {
-    store: useApiClient,
-    kirim: (r: unknown, vars: [string, string][]) => kirimRequest(r as never, vars),
-    muat: () => useApiClient.getState().muat(),
-    simpan: () => useApiClient.getState().simpan(),
-  };
-
   // ── T3.5: bridge Customize Layout (harness uji-t3-5) ──
   w.__ZEPHYR_LAYOUT__ = {
     store: useLayoutCustom,
@@ -679,75 +668,11 @@ export function installDevBridge(): void {
     toggle: (k: string) => useLayoutCustom.getState().toggle(k as never),
     set: (b: unknown) => useLayoutCustom.getState().set(b as never),
     reset: () => useLayoutCustom.getState().reset(),
+    menuBuka: () => useLayoutCustom.getState().menuBuka,
+    setMenuBuka: (v: boolean) => useLayoutCustom.getState().setMenuBuka(v),
     simpan: () => useLayoutCustom.getState().simpan(),
     muat: () => useLayoutCustom.getState().muat(),
     baris: () => BARIS_LAYOUT.map((b) => ({ kunci: b.kunci, label: b.label })),
-  };
-
-  // ── T3.4: bridge tampilan (zen + pratinjau gambar) ──
-  // PENTING: harness TIDAK BOLEH `import('/src/lib/tampilanStore.ts')` sendiri.
-  // Vite menambahkan query `?t=` pada import milik aplikasi, jadi import baru
-  // tanpa query menghasilkan INSTANCE MODUL KEDUA dengan store kosong — set
-  // zen di sana tidak berpengaruh ke UI (pernah kejadian, 6 tes gagal).
-  w.__ZEPHYR_UI__ = {
-    store: useTampilan,
-    mode: () => useTampilan.getState().mode,
-    setMode: (m: 'normal' | 'zen') => useTampilan.getState().setMode(m),
-    toggleZen: () => useTampilan.getState().toggleZen(),
-    gambar: () => useTampilan.getState().gambar,
-    setGambar: (g: unknown) => useTampilan.getState().setGambar(g as never),
-    apakahGambar: (n: string) => apakahGambar(n),
-    mimeGambar: (n: string) => mimeGambar(n),
-  };
-
-  // ── T3.3: bridge SFTP + port forwarding (harness uji-t3-3) ──
-  w.__ZEPHYR_SFTP__ = {
-    list: (config: unknown, path: string) => sshSftpList(config, path),
-    get: (config: unknown, remote: string, lokal: string) => sshSftpGet(config, remote, lokal),
-    hapus: (config: unknown, remote: string) => sshSftpHapus(config, remote),
-    fwdStart: (config: unknown, jenis: string, portLokal: number, tujuan: string) =>
-      sshForwardStart(config, jenis, portLokal, tujuan),
-    fwdStop: (id: string) => sshForwardStop(id),
-    fwdList: () => sshForwardList(),
-    /** host SSH yang tersimpan (tanpa password) */
-    hosts: () => sshList(),
-  };
-
-  // ── T3.2: bridge Database browser (harness uji-t3-2) ──
-  w.__ZEPHYR_DB__ = {
-    tabel: (path: string) => dbSqliteTabel(path),
-    query: (path: string, sql: string, bolehTulis?: boolean) =>
-      dbSqliteQuery(path, sql, bolehTulis),
-  };
-
-  // ── T3.1: bridge Dev Environment (harness uji-t3-1) ──
-  w.__ZEPHYR_DEVENV__ = {
-    detect: (root?: string) => devenvDetect(root),
-    start: (layanan: string, path: string) => devenvStart(layanan, path),
-    status: () => devenvStatus(),
-    stop: (port: number) => devenvStop(port),
-  };
-
-  // ── T2.4: bridge Test Explorer (harness uji-t2-4) ──
-  // Harness perlu memanggil command Rust langsung supaya bisa memeriksa
-  // hasil deteksi tanpa bergantung pada klik UI.
-  w.__ZEPHYR_TEST__ = {
-    detect: (root: string) => testDetect(root),
-    // JALUR PRODUK: lewat tasksStore supaya channel output dibuat.
-    // `run` mentah dipertahankan untuk harness lama yang memeriksa Rust saja.
-    run: (a: unknown) => tasksRun(a as never),
-    runStore: (a: { label: string; command: string; args: string[]; cwd?: string }) =>
-      useTasks.getState().jalankanAdHoc(a),
-    runs: () => tasksRuns(),
-  };
-
-  // ── T2.3: bridge Cloudflare Tunnel (harness uji-t2-3) ──
-  w.__ZEPHYR_TUNNEL__ = {
-    store: useTunnel,
-    tersedia: () => tunnelTersedia(),
-    mulai: (id: string, port: number) => tunnelStart(id, port),
-    stop: (id: string) => tunnelStop(id),
-    daftar: () => tunnelList(),
   };
 
   // ── T2.1: bridge subagent paralel (harness uji-t2-1) ──
@@ -761,6 +686,83 @@ export function installDevBridge(): void {
     bersihkan: () => useSubAgent.getState().bersihkan(),
     ringkasan: () => useSubAgent.getState().ringkasan,
     sibuk: () => useSubAgent.getState().sibuk,
+  };
+
+  // ── T4.3/T4.6: state halaman Settings (harness uji-t4-3-8) ──
+  w.__ZEPHYR_SETUI__ = {
+    store: useSettingsUi,
+    section: () => useSettingsUi.getState().section,
+    setSection: (id: string) => useSettingsUi.getState().setSection(id as never),
+    sections: () => SECTION_ORDER.slice(),
+  };
+
+  // ── T4.1: shortcut (harness uji-t4) ──
+  w.__ZEPHYR_SHORTCUTS__ = {
+    ACTIONS: ACTIONS,
+    byId: (id: string) => ACTION_BY_ID.get(id as never),
+    bindings: () => useStore.getState().settings.shortcuts,
+  };
+
+  // ── T4.2: peran subagent (harness uji-t4-2) ──
+  w.__ZEPHYR_PERAN__ = {
+    daftar: () => PERAN.map((p) => ({ id: p.id, label: p.label, butuhTulis: p.butuhTulis })),
+    tebak: (tugas: string) => tebakPeran(tugas),
+    prefix: (tugas: string) => peranDariPrefix(tugas),
+    info: (id: string) => infoPeran(id),
+  };
+
+  // ── T3.10: halaman Settings (harness uji-t3-10) ──
+  w.__ZEPHYR_SETTINGS__ = {
+    buka: (section: string) => {
+      useStore.getState().setSettingsOpen(true);
+      useSettingsUi.getState().setSection(section as never);
+    },
+    tutup: () => useStore.getState().setSettingsOpen(false),
+    section: () => useSettingsUi.getState().section,
+  };
+
+  // ── T3.10: settings subagent (harness uji-t3-10) ──
+  w.__ZEPHYR_SUBSET__ = {
+    baca: () => useStore.getState().settings.subagent,
+    /** Terapkan sebagian settings subagent (deep-merge di Rust). */
+    set: (patch: Record<string, unknown>) =>
+      useStore.getState().applySettings({ subagent: patch }),
+    /** Batas efektif (dari Settings user, bukan konstanta). */
+    batasParalel: () => batasParalel(),
+    batasLangkah: () => batasLangkah(),
+    /** Nilai efektif yang dipakai store saat ini. */
+    efektif: () => ({
+      maxParallel: batasParalel(),
+      maxSteps: batasLangkah(),
+      allowWrite: bolehTulis(),
+    }),
+  };
+
+  // ── T3.9: prompt library slash command (harness uji-t3-9) ──
+  w.__ZEPHYR_PROMPT_LIB__ = {
+    semua: () => allPrompts(),
+    simpan: (items: PromptItem[]) => saveUserPrompts(items),
+    cocok: (draft: string) => matchPrompts(draft),
+  };
+
+  // ── T3.8: TODO agent (harness uji-t3-8) ──
+  w.__ZEPHYR_TODO__ = {
+    /** Tulis daftar tugas lewat TOOL ASLI agent (bukan set state langsung). */
+    tulis: async (todos: { content: string; status: string }[]) => {
+      const { jalankanAgentTool } = await import('./agentTools');
+      return jalankanAgentTool('todo_write', { todos });
+    },
+    baca: () => useAi.getState().agentTodos,
+    bersih: () => useAi.getState().setAgentTodos([]),
+  };
+
+  // ── T3.7: system prompt (harness uji-t3-7) ──
+  w.__ZEPHYR_PROMPT__ = {
+    system: (lang: string, konteks: string, aturan: string) =>
+      systemPromptFor(lang, konteks, aturan),
+    aturanProyek: () => aturanProyek(),
+    resetAturan: () => resetAturanProyek(),
+    reminder: () => IDENTITY_REMINDER,
   };
 
   // ── T1.2/T1.5: bridge CLI AI agent (harness uji-t1-2-5) ──
@@ -777,6 +779,7 @@ export function installDevBridge(): void {
 
   w.__ZEPHYR_PANEL__ = {
     store: usePanel,
+    PANEL_TABS: PANEL_TABS,
     activeTab: () => usePanel.getState().activeTab,
     visibleTabs: () => usePanel.getState().visibleTabs.slice(),
     focusTab: (id: string) => usePanel.getState().focusTab(id as never),

@@ -16,7 +16,7 @@ import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
 import { useStore } from '../../lib/store';
 import WindowControls from './WindowControls';
-import LayoutMenu from './LayoutMenu';
+import { useLayoutCustom } from '../../lib/layoutStore';
 import ZephyrLogo from './ZephyrLogo';
 import { useT } from '../../lib/i18n';
 
@@ -36,8 +36,11 @@ export default function MenuBar() {
   const bindings = useKb((s) => s.bindings);
   /** index menu yang terbuka; -1 = tertutup */
   const [buka, setBuka] = useState(-1);
-  // Panel Customize Layout (tombol di kanan title bar).
-  const [layoutBuka, setLayoutBuka] = useState(false);
+  // Panel Customize Layout: state-nya di layoutStore, BUKAN lokal di sini.
+  // Kalau lokal, mematikan Menu Bar akan menghilangkan satu-satunya tombol
+  // untuk menyalakannya lagi — user terjebak tanpa Menu Bar selamanya.
+  const layoutBuka = useLayoutCustom((s) => s.menuBuka);
+  const setLayoutBuka = useLayoutCustom((s) => s.setMenuBuka);
   /** index item aktif di dalam dropdown; -1 = belum ada */
   const [idx, setIdx] = useState(-1);
   /** label submenu yang terbuka (View → Appearance) */
@@ -361,7 +364,7 @@ export default function MenuBar() {
           aria-expanded={layoutBuka}
           onClick={() => {
             tutup();
-            setLayoutBuka((v) => !v);
+            setLayoutBuka(!layoutBuka);
           }}
         >
           <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
@@ -390,8 +393,6 @@ export default function MenuBar() {
           </svg>
         </button>
       </div>
-
-      {layoutBuka && <LayoutMenu onTutup={() => setLayoutBuka(false)} />}
 
       {/* C-18: tombol window sendiri (title bar Windows dihapus). */}
       <WindowControls />

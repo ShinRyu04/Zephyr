@@ -126,7 +126,7 @@ cek('reset mengembalikan semua kontrol',
 // ── V7: panel AI punya tombol sembunyikan ──
 const ai = await cdp.json(`return JSON.stringify(await (async () => {
   TS().setVisible(true);
-  TS().setDock('ai');
+  TS().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
   await new Promise((r) => setTimeout(r, 700));
   const b = document.querySelector('[data-testid="ai-hide"]');
   if (!b) return { ada: false };

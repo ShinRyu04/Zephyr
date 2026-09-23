@@ -10,6 +10,7 @@ import SplitEditor from './components/shell/SplitEditor';
 import Panel from './components/shell/Panel';
 import TerminalArea from './components/shell/TerminalArea';
 import AiPanel from './components/ai/AiPanel';
+import SubAgentInfo from './components/ai/SubAgentInfo';
 import ClearChatsDialog from './components/ai/ClearChatsDialog';
 import StatusBar from './components/shell/StatusBar';
 import ConfirmDialog from './components/shell/ConfirmDialog';
@@ -31,6 +32,7 @@ import CrashDialog from './components/shell/CrashDialog';
 import { useStore } from './lib/store';
 import { useTampilan } from './lib/tampilanStore';
 import { useLayoutCustom } from './lib/layoutStore';
+import LayoutMenu from './components/shell/LayoutMenu';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
 import { useAi } from './lib/aiStore';
@@ -148,13 +150,21 @@ export default function App() {
   const setSidebarHeight = useStore((s) => s.setSidebarHeight);
   const bootstrap = useStore((s) => s.bootstrap);
   const terminalMaximized = useTerminal((s) => s.maximized);
-  const dockBawah = useTerminal((s) => s.dock);
   const panelBawahVisible = useTerminal((s) => s.visible);
   const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'bottom');
+  const subKanan = useLayoutCustom((s) => s.subKanan);
+  const aiWidth = useStore((s) => s.aiWidth);
+  const aiMax = useStore((s) => s.aiMax);
+  const setAiWidth = useStore((s) => s.setAiWidth);
   const layoutTerminal = useStore((s) => s.settings.general.layout === 'terminal');
-  // A-10: panel AI di kolom kanan hanya saat user memilihnya DAN panel bawah
-  // sedang menampilkan AI — kalau tidak, dua AiPanel ter-mount sekaligus.
-  const aiKanan = aiPanelPos === 'right' && dockBawah === 'ai' && panelBawahVisible;
+  // A-10 + T4.14 + T5: panel AI di kolom kanan.
+  //
+  // JANGAN syaratkan `tabPanel === 'ai'` (tab AI disembunyikan saat di kanan)
+  // dan JANGAN syaratkan `panelBawahVisible` — user minta panel bawah TIDAK
+  // ikut muncul saat chat di kanan ("biar terminalnya ga ngikut"). AiPanel
+  // tetap SATU instance karena AiTabView hanya merender <AiPanel /> saat
+  // aiPanel !== 'right'.
+  const aiKanan = aiPanelPos === 'right';
 
   // C-19: di layout terminal-first terminal tidak boleh dalam keadaan
   // "terlipat" — kalau tidak yang tampil hanya tombol "Panel".
@@ -225,6 +235,32 @@ export default function App() {
 
   const startResize = useCallback(() => {
     dragging.current = true;
+    document.body.classList.add('is-resizing');
+  }, []);
+
+  // Drag kolom AI: menggeser batas KIRI kolom ke kiri = kolom melebar.
+  // Dihitung dari sisi kanan jendela supaya tidak terpengaruh elemen lain.
+  const dragAi = useRef(false);
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!dragAi.current) return;
+      setAiWidth(window.innerWidth - e.clientX);
+    };
+    const onUp = () => {
+      if (!dragAi.current) return;
+      dragAi.current = false;
+      document.body.classList.remove('is-resizing');
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [setAiWidth]);
+
+  const startDragAi = useCallback(() => {
+    dragAi.current = true;
     document.body.classList.add('is-resizing');
   }, []);
 
@@ -337,6 +373,13 @@ export default function App() {
           if (t.allPanes().length === 0 && !t.visible) void t.addPane('shell');
           else t.toggleVisible();
           break;
+        case 'view.subagents':
+          // Ctrl+Shift+D: buka panel bawah di tab Subagents. Kalau panelnya
+          // sedang tertutup, dibuka — bukan toggle, karena tujuannya MEMBUKA
+          // tab itu, bukan menyembunyikan panel yang sedang dilihat.
+          usePanel.getState().focusTab('subagents');
+          if (!t.visible) t.setVisible(true);
+          break;
         case 'view.palette':
           void usePalette.getState().openPalette('command');
           break;
@@ -383,10 +426,13 @@ export default function App() {
           s.setSettingsOpen(false);
           s.setActivity('ai');
           if (!s.sidebarVisible) s.toggleSidebar();
-          if (t.visible && t.dock === 'ai') t.setVisible(false);
+          // T4.11: AI sekarang TAB di panel bawah, bukan dock terpisah.
+          // Toggle: kalau tab AI sedang aktif & panel terbuka, tutup panel.
+          const P = usePanel.getState();
+          if (t.visible && P.activeTab === 'ai') t.setVisible(false);
           else {
             t.setVisible(true);
-            t.setDock('ai');
+            P.focusTab('ai');
           }
           break;
         }
@@ -447,7 +493,7 @@ export default function App() {
       const t = useTerminal.getState();
       s.setSettingsOpen(false);
       t.setVisible(true);
-      t.setDock('ai');
+      usePanel.getState().focusTab('ai');
       // Panel mungkin baru ter-mount; beri satu frame sebelum fokus.
       window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 80);
     };
@@ -846,7 +892,7 @@ export default function App() {
     // ekstensi, `applyTheme` pertama (di bootstrap) belum mengenalnya.
     void muatSemuaEkstensi().then(() => {
       const s = useStore.getState();
-      useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
+      useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme, s.settings.background) });
       terapkanA11y(s.settings.accessibility); // fase 31
     });
 
@@ -884,7 +930,7 @@ export default function App() {
       const s = useStore.getState();
       if (s.settings.general.theme !== 'system') return;
       // applyTheme membaca ulang preferensi OS; cukup panggil lagi.
-      useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme) });
+      useStore.setState({ activeTheme: applyTheme(s.settings.general, s.settings.theme, s.settings.background) });
       terapkanA11y(s.settings.accessibility); // fase 31
       retheme();
     });
@@ -1050,13 +1096,46 @@ export default function App() {
           {/* A-10: panel AI sebagai kolom kanan 340px ala VS Code, bukan dock
               bawah sejajar terminal. Dirender HANYA saat dock = 'ai' supaya
               lebar editor tidak berkurang saat user sedang di terminal. */}
+          {/* Resizer kolom AI: bisa di-drag seperti sidebar. Sebelumnya lebar
+              340px MATI — user minta "bisa di lebarkan". */}
+          {aiKanan && !aiMax && (
+            <div
+              className="resizer"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={tr('Ubah lebar panel AI')}
+              data-testid="ai-resizer"
+              onPointerDown={startDragAi}
+            />
+          )}
           {aiKanan && (
             <aside
-              className="ai-side-col"
+              className={`ai-side-col${aiMax ? ' is-max' : ''}`}
               data-testid="ai-side-col"
+              data-lebar={aiMax ? 'max' : String(aiWidth)}
+              style={
+                aiMax
+                  ? undefined
+                  : ({
+                      flex: `0 0 ${aiWidth}px`,
+                      width: aiWidth,
+                      // Dipakai :has(.sai-root) untuk menghitung lebar total
+                      // (chat + panel info) tanpa menimpa pilihan drag user.
+                      '--ai-w': `${aiWidth}px`,
+                    } as React.CSSProperties)
+              }
               aria-label="Panel AI"
             >
-              <AiPanel />
+              {/* Baris: chat di kiri, panel info subagent di kanan. Wrapper ini
+                  WAJIB — tanpa-nya .ai-side-col (flex column) menaruh panel
+                  info di BAWAH chat, bukan di sampingnya. */}
+              <div className="ai-side-row">
+                <AiPanel />
+                {/* T4.1b: panel INFO subagent di sebelah kanan chat. Ditaruh
+                    di dalam kolom AI supaya hanya muncul saat chat memang
+                    sedang tampil — kalau tidak, ia menggantung tanpa konteks. */}
+                {subKanan && <SubAgentInfo />}
+              </div>
             </aside>
           )}
 
@@ -1085,6 +1164,11 @@ export default function App() {
       </div>
 
       {L.statusBar && <StatusBar />}
+
+      {/* Panel Customize Layout dirender di SINI (bukan di dalam MenuBar).
+          Kalau di dalam MenuBar, mematikan Menu Bar akan menghilangkan
+          satu-satunya tombol untuk menyalakannya kembali. */}
+      {L.menuBuka && <LayoutMenu onTutup={() => L.setMenuBuka(false)} />}
       <ConfirmDialog />
       <SaveIssueDialog />
       <ScmConfirmDialog />

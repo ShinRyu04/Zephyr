@@ -143,7 +143,7 @@ const main = async () => {
     s.setSettingsOpen(false);
     window.__ZEPHYR_ERRORS__.length = 0;
     T.getState().setVisible(true);
-    T.getState().setDock('terminal');
+    window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
     T.getState().setHeight(520);
     return 'reset';
   `);

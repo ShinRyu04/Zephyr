@@ -259,6 +259,17 @@ export function mergeBindings(
     }
     const chord = normalizeChord(u.key ?? '');
     if (!chord) continue;
+    // BUG NYATA yang diperbaiki: sebelum menulis chord baru, LEPAS chord lama
+    // milik command yang sama. Tanpa ini, setelah user meremap (mis. Explorer
+    // Ctrl+Shift+E -> Ctrl+Alt+E) binding lama TETAP ada di tabel — dua entri
+    // dengan command sama, dan `resolveBinding` mengembalikan yang pertama
+    // ketemu, jadi shortcut lama masih jalan. Bukti: verify08 V4b gagal
+    // (tekan Ctrl+Shift+E setelah remap tetap pindah ke explorer).
+    for (const b of out) {
+      if (b.command === u.command && b.chord === chord && b !== out[idx]) b.chord = '';
+    }
+    const lama = out.filter((b) => b.command === u.command && b !== out[idx] && b.chord);
+    for (const l of lama) l.chord = '';
     if (idx >= 0) {
       // `source` dilepas: begitu user meremap, sumbernya user, bukan ekstensi.
       out[idx] = { ...out[idx], chord, when: u.when ?? out[idx].when, source: undefined };
@@ -268,6 +279,10 @@ export function mergeBindings(
       out.push({ chord, command: u.command, when: u.when ?? 'global', layer: 'app' });
     }
   }
+  // Buang entri yang chord-nya sudah dilepas (kosong).
+  const akhir = out.filter((b) => b.chord !== '');
+  out.length = 0;
+  out.push(...akhir);
   return out;
 }
 

@@ -36,6 +36,9 @@ export const ACTIONS: ActionDef[] = [
 
   { id: 'view.sidebar', label: 'Toggle sidebar', group: 'View', default: 'Ctrl+B' },
   { id: 'view.panel', label: 'Toggle panel bawah', group: 'View', default: 'Ctrl+J' },
+  // T4.1: panel Subagents. Ctrl+Shift+D (D = delegasi) — Ctrl+Shift+A sudah
+  // dipakai AI panel, Ctrl+Shift+S untuk Simpan sebagai.
+  { id: 'view.subagents', label: 'Panel Subagents', group: 'View', default: 'Ctrl+Shift+D' },
   { id: 'view.splitEditorRight', label: 'Split editor ke kanan', group: 'View', default: 'Ctrl+\\' },
   { id: 'view.explorer', label: 'Buka Explorer', group: 'View', default: 'Ctrl+Shift+E' },
   { id: 'view.palette', label: 'Command Palette', group: 'View', default: 'Ctrl+Shift+P' },

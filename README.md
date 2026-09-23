@@ -124,47 +124,31 @@ from the bubble, and an optional **local RAG** (Settings → Model AI → Local 
 searches the whole project through a local server (e.g. enowx-rag + Qdrant +
 Ollama) and feeds the top chunks to the model as context.
 
-**AI panel: parallel subagents, effort control, visible reasoning** — ask for
+**AI panel: dock it right, widen it, full-screen it** — the chat panel can sit
+in the bottom dock (next to the terminal) or as its own column on the right. In
+right mode the bottom panel does **not** follow it — moving the chat over closes
+the dock instead of dragging the terminal along. Drag the divider to resize it,
+or hit the expand button to let it take the full window, VS Code style. The AI
+tab in the bottom strip disappears while the chat lives on the right, and the
+subagent info panel can sit beside the chat (toggle it in Customize Layout).
+
+![AI panel docked right, bottom panel closed](docs/screenshots/39-ai-kanan-tanpa-panel.png)
+
+**Subagents — a tab of their own** — subagents are started **by you**, from the
+Subagents tab, and are deliberately **not** callable by the chat model. Ask for
 several jobs at once and they run **in parallel**, each with its own name
-(Comet, Odyssey, Nova…), live step log, and per-agent cancel. Up to 4 run
-together; each is capped at 15 steps and is **read-only by design** (two agents
-writing the same file is a data race, not a feature). A **Reasoning** dropdown
-sets how hard the model thinks — `minimal / low / medium / high / ultra` — mapped
-per provider (OpenAI `reasoning_effort`, Anthropic `thinking.budget_tokens`,
-Gemini `thinkingConfig.thinkingBudget`), and the model's thinking streams into a
+(Comet, Odyssey, Nova…), a role badge, live step log, and per-agent cancel. Up
+to 4 run together; each is capped at 15 steps. Only the **⚒ Kerja** role may
+write files — the other five (⌕ Cari, ◈ Telaah, ≡ Rencana, ✓ Audit, ⊕ Jelajah)
+are read-only, because two agents writing the same file is a data race, not a
+feature. Type `@kerja perbaiki bug ini` to pick a role, or let Zephyr guess it
+from the task text. A **Reasoning** dropdown sets how hard the chat model thinks
+— `minimal / low / medium / high / ultra` — mapped per provider (OpenAI
+`reasoning_effort`, Anthropic `thinking.budget_tokens`, Gemini
+`thinkingConfig.thinkingBudget`), and the model's thinking streams into a
 collapsible **Reasoned** block instead of being thrown away.
 
-![Parallel subagents with live steps](docs/screenshots/06-subagent-paralel.png)
-
-**API client** — a Postman-style workspace in a panel tab: collections, saved
-requests, environments with `{{variables}}`, and a response viewer with status,
-timing, headers, and body. Collections live in Zephyr's data folder, not in your
-repo. (For requests you want versioned with the code, `.http` files still work —
-same engine.)
-
-![API client with collections and environments](docs/screenshots/07-api-client.png)
-
-**Dev Environment** — run PHP, Nginx, MariaDB, and Redis from `D:\DevEnv\`
-without installing a XAMPP-style bundle. Every service can have **multiple
-versions side by side** (PHP 8.3.33 and 8.1.34 both work), and you pick which one
-to start. Ports already in use are **refused, never stolen**; services stop when
-Zephyr closes.
-
-![Dev Environment with multiple PHP versions](docs/screenshots/08-devenv.png)
-
-**Database browser** — open a SQLite file and browse tables/views, run `SELECT`
-queries, and see results in a grid. The connection is **read-only** unless you
-explicitly flip the write toggle, so browsing a database your app is using cannot
-lock or corrupt it. Rows are capped per query so a `SELECT *` on a huge table
-cannot freeze the UI.
-
-![SQLite browser with a live query](docs/screenshots/09-database.png)
-
-**Cloudflare Tunnel** — expose a local port to the internet in one click
-(`cloudflared` is downloaded to `D:\DevEnvin`). A permanent warning banner
-stays visible while a tunnel is up, and every tunnel is killed when Zephyr exits —
-a leftover tunnel means your localhost is open to the internet with nobody
-watching.
+![Subagents tab with live steps](docs/screenshots/21-tab-subagents-isi.png)
 
 **Test Explorer** — detects the test runner from your project files
 (`package.json`, `Cargo.toml`, `go.mod`, `pytest`, `composer.json`, `Makefile`,
@@ -178,8 +162,6 @@ no `npm test` button appears.
 them, and open port tunnels (`ssh -L` local, `-R` remote, `-D` SOCKS) from the
 same panel. Tunnels are cleaned up on exit; a port that is already taken is
 refused rather than hijacked.
-
-![Cloudflare Tunnel with the exposure warning](docs/screenshots/11-tunnel.png)
 
 ![SFTP explorer and port tunnels](docs/screenshots/12-sftp.png)
 
@@ -205,6 +187,23 @@ the editor.
 ![Compact layout density](docs/screenshots/16-layout-compact.png)
 
 ![Zen mode: editor only](docs/screenshots/13-zen-mode.png)
+
+**Command palette** — `Ctrl+Shift+P` for commands, `Ctrl+P` for files, one modal
+with two modes. Every entry shows its current shortcut, taken from the same
+keybinding registry the editor actually runs, so the hint cannot drift from the
+behaviour. Fuzzy matching runs over titles first; keywords use subsequence
+matching only as a fallback, because a loose pass over long keyword strings made
+"git" match 22 of 38 commands and the list stopped meaning anything.
+
+![Command palette](docs/screenshots/40-palette.png)
+
+**About page** — one identity card, one build card (platform, identifier,
+licence, source repo), then the row of things you actually click: check for
+updates, view on GitHub, report an issue, join the WhatsApp group, support the
+project. Rarely-used utilities (copy system info, open log folder, open data
+folder, releases page) sit below as quiet links instead of five large buttons.
+
+![About page](docs/screenshots/41-about-ringkas.png)
 
 **CLI subcommands** — `zephyr ext list`, `zephyr ext remove <id>`,
 `zephyr ext registry [url]`, and `zephyr info` work without opening a window, so
@@ -312,10 +311,13 @@ by itself — installation needs the signature check and runtime validation that
 only exist inside the app, and two install paths that can disagree is worse than
 one.
 
-Dev Environment runs the services you point it at, but it is not a managed
-stack: there is no auto-start on login, no service health dashboard, and MySQL/
-PostgreSQL browsing (as opposed to SQLite) is not in yet — only SQLite is opened
-directly, since it is a file rather than a server.
+Some things other editors have are simply not here, and were removed on
+purpose rather than left half-working: the bundled dev-environment manager
+(PHP/Nginx/MariaDB/Redis), the Postman-style API client, the SQLite browser, and
+the Cloudflare tunnel panel. Each was a second app bolted onto the editor; none
+was reachable without its own panel, and keeping them meant carrying their
+maintenance cost. `.http` files still run, so request files you version with the
+code keep working.
 
 API keys are stored with XOR + a BLAKE3 key from the MachineGuid. That is
 **obfuscation, not encryption**. Enough to stop a key from being read at a

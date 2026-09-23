@@ -15,20 +15,19 @@ import {
   isDestructive,
   MAX_IMAGES,
   IMAGE_MAX_BYTES,
-  type ReasoningEffort,
 } from '../../lib/aiStore';
-import type { ApprovalMode } from '../../lib/types';
 import { useStore } from '../../lib/store';
 import { useTerminal } from '../../lib/terminalStore';
-import { matchPrompts, expandPrompt } from '../../lib/promptLibrary';
+import { matchPrompts, expandPrompt, matchSnippets, expandSnippet } from '../../lib/promptLibrary';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
 import ModelSelector from './ModelSelector';
-import SubAgentBar from './SubAgentBar';
-import SubAgentPanel from './SubAgentPanel';
 import TodoPanel from './TodoPanel';
+import ContextMeter from './ContextMeter';
+import { ApprovalPicker, EffortPicker } from './AgentControls';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { useT } from '../../lib/i18n';
+import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
 
 export default function AiPanel() {
   const tr = useT();
@@ -55,14 +54,10 @@ export default function AiPanel() {
   const sessionCount = useAi((s) => s.sessions.length);
   const runInTerminal = useAi((s) => s.runInTerminal);
   const agentMode = useAi((s) => s.agentMode);
-  const approvalMode = useAi((s) => s.approvalMode);
   const agentBusy = useAi((s) => s.agentBusy);
   const agentSteps = useAi((s) => s.agentSteps);
   const agentConfirm = useAi((s) => s.agentConfirm);
   const setAgentMode = useAi((s) => s.setAgentMode);
-  const setApprovalMode = useAi((s) => s.setApprovalMode);
-  const reasoningEffort = useAi((s) => s.reasoningEffort);
-  const setReasoningEffort = useAi((s) => s.setReasoningEffort);
   const agentPutuskan = useAi((s) => s.agentPutuskan);
   const sibuk = pending || agentBusy;
 
@@ -75,6 +70,8 @@ export default function AiPanel() {
   // di kanan ia mengembalikan ke panel bawah (kolom kanan tidak punya state
   // visible sendiri), di bawah ia menutup panel.
   const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
+  const aiMax = useStore((s) => s.aiMax);
+  const setAiMax = useStore((s) => s.setAiMax);
   const applySettings = useStore((s) => s.applySettings);
 
   const session = sessions.find((s) => s.id === activeId) ?? null;
@@ -87,12 +84,34 @@ export default function AiPanel() {
   const photoRef = useRef<HTMLInputElement | null>(null);
 
   // A-8: saran slash command di atas input.
+  // Ref dipakai untuk auto-scroll: daftar prompt bisa lebih panjang dari
+  // max-height CSS, dan tanpa scroll-ikut-sorotan item yang dipilih keyboard
+  // bisa berada di luar pandangan — user menekan Enter tanpa melihat pilihannya.
+  const slashRef = useRef<HTMLDivElement | null>(null);
   const [idxSaran, setIdxSaran] = useState(0);
-  const { items: saran } = matchPrompts(draft);
+  // Dua pemicu: "/" memulai pertanyaan (mengganti draft), ">" menyisipkan
+  // potongan ke draft yang sedang ditulis (T4.4). Hanya satu yang aktif pada
+  // satu waktu — pola regex-nya saling eksklusif.
+  const { items: saranSlash } = matchPrompts(draft);
+  const { items: saranSnippet } = matchSnippets(draft);
+  const modeSnippet = saranSnippet.length > 0;
+  const saran = modeSnippet ? saranSnippet : saranSlash;
+
+  useEffect(() => {
+    const box = slashRef.current;
+    if (!box) return;
+    const aktif = box.querySelector<HTMLElement>('.ai-slash-item.is-on');
+    aktif?.scrollIntoView({ block: 'nearest' });
+  }, [idxSaran, saran.length]);
   useEffect(() => setIdxSaran(0), [draft]);
 
   const pakaiPrompt = (p: { cmd: string; body: string }) => {
-    setDraft(expandPrompt(`/${p.cmd} `, activeSelection()));
+    // Snippet (">") MENYISIPKAN ke draft; slash ("/") MENGGANTI draft.
+    setDraft(
+      modeSnippet
+        ? expandSnippet(draft, activeSelection())
+        : expandPrompt(`/${p.cmd} `, activeSelection()),
+    );
     inputRef.current?.focus();
   };
 
@@ -133,7 +152,11 @@ export default function AiPanel() {
   }, [setDraft]);
 
   return (
-    <div className="ai-panel" data-testid="ai-panel">
+    <div
+      className={`ai-panel${aiDiKanan ? ' is-kanan' : ''}`}
+      data-testid="ai-panel"
+      data-pos={aiDiKanan ? 'kanan' : 'bawah'}
+    >
       <div className="ai-head">
         <ModelSelector />
 
@@ -154,44 +177,12 @@ export default function AiPanel() {
             Agent
           </button>
         </div>
-        {agentMode === 'agent' && (
-          <select
-            className="ai-approval"
-            data-testid="ai-approval"
-            value={approvalMode}
-            aria-label="Mode persetujuan perintah agent"
-            title="Kerja langsung: perintah aman dijalankan sendiri, yang berisiko tetap minta izin"
-            onChange={(e) => setApprovalMode(e.target.value as ApprovalMode)}
-          >
-            <option value="work">Kerja langsung</option>
-            <option value="ask">Minta izin</option>
-            <option value="auto">Auto (tanpa tanya)</option>
-            <option value="readonly">Read-only</option>
-          </select>
-        )}
+        {agentMode === 'agent' && <ApprovalPicker />}
 
-        {/* T1.1: tingkat penalaran. "Default" = jangan kirim parameter apa pun
-            supaya provider lama yang tidak mengenal field ini tetap jalan. */}
-        <select
-          className="ai-effort"
-          data-testid="ai-effort"
-          data-aktif={reasoningEffort ? 'true' : 'false'}
-          value={reasoningEffort ?? ''}
-          aria-label={tr('Tingkat penalaran')}
-          title={tr(
-            'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.',
-          )}
-          onChange={(e) =>
-            setReasoningEffort((e.target.value || null) as ReasoningEffort | null)
-          }
-        >
-          <option value="">{tr('Penalaran: default')}</option>
-          <option value="minimal">Minimal</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="ultra">Ultra</option>
-        </select>
+        {/* T3.11: tingkat penalaran lewat popover kustom, bukan <select>.
+            <select> native merender daftar <option> dengan gaya OS (putih di
+            tema gelap) dan tidak bisa distyle — itu keluhan "ga kliatan bnget". */}
+        <EffortPicker />
 
         <div className="ai-head-right">
           {/* Tombol sesi juga ADA DI SINI (panel bawah), bukan cuma di sidebar
@@ -219,9 +210,12 @@ export default function AiPanel() {
           <span className="ai-count" data-testid="ai-msg-count">
             {msgs.length} pesan
             {msgs.length > 0 && (
-              <span className="ai-tokens" data-testid="ai-token-count" title="Perkiraan token (jumlah karakter ÷ 4)">
-                · ≈{Math.round(msgs.reduce((n, m) => n + m.content.length, 0) / 4)} token
-              </span>
+              <>
+                <span className="ai-tokens" data-testid="ai-token-count" title="Perkiraan token (jumlah karakter ÷ 4)">
+                  · ≈{Math.round(msgs.reduce((n, m) => n + m.content.length, 0) / 4)} token
+                </span>
+                <ContextMeter />
+              </>
             )}
           </span>
           <button
@@ -239,6 +233,20 @@ export default function AiPanel() {
           {/* Sembunyikan panel AI dari panel itu sendiri (ala VS Code).
               Tanpa ini, satu-satunya cara menutup panel adalah Ctrl+J atau
               tombol di menu View — tidak terlihat dari dalam panel. */}
+          {/* Maximize: kolom kanan memenuhi lebar (ala VS Code). Hanya
+              berguna saat chat memang di kolom kanan — di dock bawah ia tidak
+              punya arti, jadi tidak ditampilkan. */}
+          {aiDiKanan && (
+            <button
+              className="ai-export"
+              data-testid="ai-max"
+              title={aiMax ? tr('Kembalikan ukuran') : tr('Lebarkan penuh')}
+              aria-label={aiMax ? tr('Kembalikan ukuran') : tr('Lebarkan penuh')}
+              onClick={() => setAiMax(!aiMax)}
+            >
+              {aiMax ? '⇥' : '⤢'}
+            </button>
+          )}
           <button
             className="ai-hide"
             data-testid="ai-hide"
@@ -257,8 +265,6 @@ export default function AiPanel() {
         </div>
       </div>
 
-      <SubAgentBar />
-
       <div className="ai-chat" ref={scroller} data-testid="ai-chat">
         {msgs.length === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
@@ -274,34 +280,59 @@ export default function AiPanel() {
         )}
       </div>
 
+      {/* Panel TODO: HARUS di luar kondisi agent-busy. Daftar tugas ditulis
+          agent di tengah tugas, tapi setelah tugas selesai user masih perlu
+          melihat apa yang sudah dikerjakan — kalau panelnya ikut hilang,
+          TODO-nya tidak bisa dipantau sama sekali. */}
+      <TodoPanel />
+
       {/* Log langkah agent: tool yang dipanggil + hasil singkat. */}
       {(agentBusy || agentSteps.length > 0) && (
         <div className="ai-agent" data-testid="ai-agent">
-          {/* Panel Todo ala opencode (item 24): daftar tugas yang di-update
-              agent lewat tool todo_write terlihat selama tugas berjalan. */}
-          <TodoPanel />
-          {agentSteps.map((st, i) => (
-            <div key={i} className={`ai-agent-step is-${st.kind}`} data-step-kind={st.kind}>
-              {st.kind === 'tool' ? (
-                <>
-                  <span className="ai-agent-tool">{st.name}</span>
-                  <code className="ai-agent-args">{st.args}</code>
-                  {st.result !== undefined && (
-                    <pre className={`ai-agent-result${st.ok ? '' : ' is-err'}`}>{st.result}</pre>
-                  )}
-                </>
-              ) : st.kind === 'mulai' ? (
-                <span className="ai-agent-note">Memikirkan langkah…</span>
-              ) : (
-                <span className="ai-agent-note">Tugas selesai.</span>
-              )}
-            </div>
-          ))}
+          {agentSteps.map((st, i) => {
+            // Label manusiawi + ikon berwarna per jenis aksi (ala TEDI):
+            // `file_read` -> "Read path/file.ts", bukan nama tool mentah.
+            const info = infoAksi(st.name);
+            const sasaran = sasaranAksi(st.args);
+            const namaFile = sasaran.replace(/^.*[\/]/, '') || sasaran;
+            return (
+              <div
+                key={i}
+                className={`ai-agent-step is-${st.kind} ${KELAS_JENIS[info.jenis]}`}
+                data-step-kind={st.kind}
+                data-aksi={info.label}
+                data-jenis={info.jenis}
+              >
+                {st.kind === 'tool' ? (
+                  <>
+                    <span className="ai-agent-ikon" aria-hidden="true">
+                      {info.ikon}
+                    </span>
+                    <span className="ai-agent-tool">{info.label}</span>
+                    {sasaran && (
+                      <span className="ai-agent-sasaran" title={sasaran}>
+                        {namaFile}
+                      </span>
+                    )}
+                    {st.result !== undefined && (
+                      <details className="ai-agent-hasil">
+                        <summary>{tr('hasil')}</summary>
+                        <pre className={`ai-agent-result${st.ok ? '' : ' is-err'}`}>{st.result}</pre>
+                      </details>
+                    )}
+                  </>
+                ) : st.kind === 'mulai' ? (
+                  <span className="ai-agent-note">{tr('Memikirkan langkah…')}</span>
+                ) : (
+                  <span className="ai-agent-note">{tr('Tugas selesai.')}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* T2.1: kartu subagent paralel. */}
-      <SubAgentPanel />
 
       {/* Action bar: muncul hanya kalau jawaban terakhir memuat perintah. */}
       {lastCommand && (
@@ -343,20 +374,32 @@ export default function AiPanel() {
             ))}
           </div>
         )}
-        {/* A-8: saran slash command; Tab/Enter memakai yang tersorot. */}
+        {/* A-8: saran slash command; Tab/Enter memakai yang tersorot.
+            T4.4: ">" menampilkan SNIPPET — teks yang disisipkan, bukan
+            pertanyaan baru. Pemicunya ditandai di baris pertama daftar supaya
+            user tahu mana yang sedang aktif. */}
         {saran.length > 0 && (
-          <div className="ai-slash" data-testid="ai-slash" role="listbox" aria-label={tr('Perintah prompt')}>
+          <div
+            className="ai-slash"
+            data-testid="ai-slash"
+            data-pemicu={modeSnippet ? 'snippet' : 'slash'}
+            role="listbox"
+            ref={slashRef}
+            aria-label={tr('Perintah prompt')}
+          >
             {saran.map((p, i) => (
               <button
                 key={p.cmd}
                 role="option"
                 aria-selected={i === idxSaran}
                 className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
-                data-testid={`ai-slash-${p.cmd}`}
+                data-testid={`${modeSnippet ? 'ai-snippet' : 'ai-slash'}-${p.cmd}`}
                 onMouseEnter={() => setIdxSaran(i)}
                 onClick={() => pakaiPrompt(p)}
               >
-                <span className="ai-slash-cmd">/{p.cmd}</span>
+                <span className="ai-slash-cmd">
+                  {modeSnippet ? `>${p.cmd}` : `/${p.cmd}`}
+                </span>
                 <span className="ai-slash-label">{p.label}</span>
               </button>
             ))}
@@ -457,6 +500,7 @@ export default function AiPanel() {
           >
             + gambar
           </button>
+
           <input
             ref={photoRef}
             type="file"

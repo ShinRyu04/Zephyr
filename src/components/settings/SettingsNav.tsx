@@ -16,6 +16,8 @@ const NAV_KEY: Record<SectionId, string> = {
   shortcuts: 'settings.shortcuts',
   models: 'settings.models',
   agents: 'settings.agents',
+  subagent: 'settings.subagent',
+  aiprompt: 'settings.aiprompt',
   extensions: 'settings.extensions',
   lsp: 'settings.lsp',
   scm: 'settings.scm',
@@ -69,6 +71,14 @@ export function NavIcon({ id }: { id: SectionId }) {
             {...st}
           />
           <circle cx="12.2" cy="12.4" r="1.4" {...st} />
+        </svg>
+      );
+    case 'subagent':
+      return (
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <circle cx="5.2" cy="5" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="11" cy="5" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="8.1" cy="11.4" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
         </svg>
       );
     case 'agents':

@@ -13,9 +13,6 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
-import { useStore } from '../../lib/store';
-import AiPanel from '../ai/AiPanel';
-import DockSwitch from './DockSwitch';
 import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
 import { TerminalSideTabs } from '../terminal/TerminalTabs';
 import { tx } from '../../lib/i18n';
@@ -24,13 +21,11 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
   const visible = useTerminal((s) => s.visible);
   const height = useTerminal((s) => s.height);
   const setHeight = useTerminal((s) => s.setHeight);
-  const dock = useTerminal((s) => s.dock);
   const tabs = useTerminal((s) => s.terminalTabs);
   const activeTabId = useTerminal((s) => s.activeTabId);
   const setVisible = useTerminal((s) => s.setVisible);
   const toast = useTerminal((s) => s.toast);
   const setToast = useTerminal((s) => s.setToast);
-  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
 
   const dragging = useRef(false);
 
@@ -77,8 +72,7 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
-        {dock === 'ai' ? 'AI' : 'Terminal'}{' '}
-        {dock === 'terminal' && paneCount > 0 && <span className="term-badge">{paneCount}</span>}
+        Terminal{paneCount > 0 && <span className="term-badge">{paneCount}</span>}
       </button>
     );
   }
@@ -86,28 +80,21 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
   const active = tabs.find((t) => t.id === activeTabId) ?? null;
 
   // Pane di kiri, daftar tab vertikal di kanan (kolomnya null kalau < 2 tab).
-  const isi =
-    dock === 'ai' ? (
-      // A-10: saat panel AI dipindah ke kolom kanan, dock bawah tidak lagi
-      // merender salinannya (dua AiPanel = dua listener + dua store subscribe).
-      aiDiKanan ? (
-        <p className="ai-moved" data-testid="ai-moved">
-          Panel AI sedang tampil di kolom kanan. Ubah di Settings → Umum → Panel AI.
-        </p>
-      ) : (
-        <AiPanel />
-      )
-    ) : (
-      <div className="term-split">
-        <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
-        <TerminalSideTabs />
-      </div>
-    );
+  //
+  // T4.11: AI tidak lagi hidup di dalam tab Terminal. Sebelumnya ada pemilih
+  // Terminal|AI (DockSwitch) di sini, dan itu membuat tab AI tersembunyi satu
+  // tingkat — user harus membuka Terminal dulu untuk menemukannya. Sekarang AI
+  // adalah tab tersendiri di strip panel, jadi isi komponen ini murni terminal.
+  const isi = (
+    <div className="term-split">
+      <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>
+      <TerminalSideTabs />
+    </div>
+  );
 
   if (embedded) {
     return (
       <div className="term-embedded" aria-label="Terminal">
-        <DockSwitch />
         {isi}
         {toast && (
           <div className="term-toast" role="status" data-testid="term-toast">
@@ -128,7 +115,6 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
         onPointerDown={startResize}
       />
 
-      <DockSwitch />
       {isi}
 
       {toast && (

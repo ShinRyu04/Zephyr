@@ -58,6 +58,7 @@ import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
 import { useStore } from '../../lib/store';
 import { useTerminal } from '../../lib/terminalStore';
+import { usePanel } from '../../lib/panelStore';
 import { extensiUntukFile } from '../../lib/lang';
 import { zephyrHighlight, editorTheme } from '../../lib/cmTheme';
 import { registerFlush, setActiveView, unregisterFlush } from '../../lib/editorRegistry';
@@ -559,7 +560,8 @@ export default function CodeMirrorEditor({ tab }: Props) {
     const t = useTerminal.getState();
     s.setSettingsOpen(false);
     t.setVisible(true);
-    t.setDock('ai');
+    // T4.11: AI = tab panel, bukan dock terpisah.
+    usePanel.getState().focusTab('ai');
     window.setTimeout(
       () =>
         window.dispatchEvent(

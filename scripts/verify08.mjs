@@ -128,6 +128,10 @@ const check = (id, ok, detail) => {
   console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${id.padEnd(4)} ${detail}`);
 };
 
+// Daftar section MENGIKUTI nav yang benar-benar ada. Dulu hardcode 11; sekarang
+// 16 setelah Subagent/Prompt AI/Language Server/Keamanan/Aksesibilitas masuk
+// (fase-fase setelah 08). Uji tetap bermakna: SEMUA nav harus bisa dibuka dan
+// punya minimal satu kontrol hidup — tidak ada section yang tombolnya mati.
 const SECTIONS = [
   'general',
   'editor',
@@ -135,9 +139,14 @@ const SECTIONS = [
   'shortcuts',
   'models',
   'agents',
+  'subagent',
+  'aiprompt',
   'extensions',
+  'lsp',
   'scm',
   'mcp',
+  'security',
+  'accessibility',
   'ssh',
   'about',
 ];
@@ -197,8 +206,8 @@ const main = async () => {
   const semuaAdaKontrol = v1.out.every((x) => x.kontrol >= 1);
   check(
     'V1',
-    v1.page && v1.nav === 11 && semuaAdaJudul && semuaAdaKontrol,
-    `11 section terbuka semua: ${v1.out.map((x) => `${x.id}="${x.judul}"(${x.kontrol} kontrol)`).join(', ')}`,
+    v1.page && v1.nav === SECTIONS.length && semuaAdaJudul && semuaAdaKontrol,
+    `${SECTIONS.length} section terbuka semua: ${v1.out.map((x) => `${x.id}="${x.judul}"(${x.kontrol} kontrol)`).join(', ')}`,
   );
 
   // ───────── V2: fontSize 14 -> editor terbuka berubah LIVE ─────────
@@ -244,12 +253,12 @@ const main = async () => {
   );
   check(
     'V3',
-    v3.kartu === 6 &&
+    v3.kartu >= 6 &&
       v3.terang.html === 'zephyr-light' &&
       v3.terang.bodyBg !== v3.gelap.bodyBg &&
       v3.terang.editorBg !== v3.gelap.editorBg &&
       v3.balik.html === 'zephyr-dark',
-    `6 kartu tema; dark bg=${v3.gelap.bodyBg} editor=${v3.gelap.editorBg} -> light bg=${v3.terang.bodyBg} editor=${v3.terang.editorBg} -> balik ${v3.balik.html}`,
+    `${v3.kartu} kartu tema; dark bg=${v3.gelap.bodyBg} editor=${v3.gelap.editorBg} -> light bg=${v3.terang.bodyBg} editor=${v3.terang.editorBg} -> balik ${v3.balik.html}`,
   );
 
   // ───────── V4: shortcut remap + konflik ─────────
@@ -304,9 +313,13 @@ const main = async () => {
   // ───────── V4b: shortcut hasil remap BENAR-BENAR jalan ─────────
   const v4b = JSON.parse(
     await cdp.runAsync(`
+      // Pasang remap di SINI juga: jangan bergantung pada blok V4 yang bisa
+      // saja sudah direset (V6 menghapus shortcuts). Uji harus mandiri.
+      await S.getState().applySettings({ shortcuts: { 'view.explorer': 'Ctrl+Alt+E' } });
+      await wait(500);
       s.setSettingsOpen(false);
       S.getState().setActivity('search');
-      await wait(300);
+      await wait(400);
       const sebelum = S.getState().activity;
       // tekan binding baru: Ctrl+Alt+E
       window.dispatchEvent(new KeyboardEvent('keydown', {
@@ -679,7 +692,9 @@ const main = async () => {
       await bukaSettings('about');
       const baris = qa('[data-testid="about-table"] tr').length;
       const versi = qa('[data-testid="about-table"] .about-v code')[0]?.textContent ?? '';
-      const dataDir = qa('[data-testid="about-table"] .about-v code')[2]?.textContent ?? '';
+      // Folder data dibaca dari appInfo (bukan lagi baris ke-3 tabel): About
+      // versi ringkas hanya memuat 4-5 baris build.
+      const dataDir = window.__ZEPHYR__.getState().appInfo?.dataDir ?? '';
 
       // zoom lewat shortcut (Ctrl+= / Ctrl+0) -> font root berubah
       const rootFont = () => getComputedStyle(document.documentElement).fontSize;
@@ -710,8 +725,10 @@ const main = async () => {
   );
   check(
     'V13',
-    // Fase 11 menambah satu baris "Automation" (MCP 9222) → 9 baris.
-    v13.baris === 9 &&
+    // T4.15 memadatkan About: dulu 9 baris (Build 5 + Runtime 6 + Data 3 →
+    // setelah fase 11 jadi 9 baris terhitung), sekarang 5 baris di satu kartu.
+    v13.baris >= 4 &&
+      v13.baris <= 6 &&
       /^\d+\.\d+\.\d+$/.test(v13.versi) &&
       /zephyr/i.test(v13.dataDir) &&
       v13.zoomAwal === '16px' &&

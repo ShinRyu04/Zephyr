@@ -193,28 +193,22 @@ export default function ActivityBar() {
             aria-label={LABEL[id]}
             aria-pressed={isActive}
             data-activity={id}
+            data-testid={`ab-${id}`}
             onClick={() => {
-              // Settings punya halaman di area utama + nav di sidebar, tapi
-              // perilaku tombolnya sama seperti ikon lain: klik = buka,
-              // klik lagi (saat sedang aktif) = tutup.
-              if (id === 'settings') {
-                if (activity === 'settings' && sidebarVisible) {
-                  toggleSidebar();
-                  setSettingsOpen(false);
-                } else {
-                  setActivity('settings');
-                  setSettingsOpen(true);
-                  if (!sidebarVisible) toggleSidebar();
-                }
-                return;
-              }
+              // Semua ikon (termasuk Settings) pakai aturan yang SAMA:
+              // klik = buka, klik lagi saat aktif = tutup. Tidak ada cabang
+              // khusus untuk Settings — cabang itu yang dulu bikin bug: ia
+              // membaca `activity === 'settings'` padahal activity bisa
+              // nyangkut 'settings' walau halamannya sudah ditutup, sehingga
+              // klik malah menutup sidebar dan Settings tidak mau kebuka.
               setSettingsOpen(false);
-              // klik ikon aktif = toggle sidebar (perilaku VS Code)
               if (activity === id) toggleSidebar();
               else {
                 setActivity(id);
                 if (!sidebarVisible) toggleSidebar();
               }
+              // Settings: buka halamannya setelah sidebar dipastikan hidup.
+              if (id === 'settings' && activity !== id) setSettingsOpen(true);
             }}
           >
             <Icon />

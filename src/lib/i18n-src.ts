@@ -17,6 +17,11 @@
 
 /** teks Indonesia → Inggris */
 export const EN: Record<string, string> = {
+  // T3.6: timeline langkah agent berlabel.
+  'hasil': 'result',
+  'Berpikir…': 'Thinking…',
+  'Memikirkan langkah…': 'Thinking about the next step…',
+  'Tugas selesai.': 'Task complete.',
   // T3.5: Customize Layout (ala VS Code).
   'Customize Layout': 'Customize Layout',
   'Customize Layout…': 'Customize Layout…',

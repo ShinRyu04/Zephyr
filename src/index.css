@@ -27,6 +27,72 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Latar belakang kustom (permintaan user: "bisa edit background jga ntah
+   pasang foto"). Gambar dipasang sebagai lapisan ::before di belakang UI,
+   dengan kekuatan `--bg-opacity` — UI-nya sendiri TIDAK dibuat transparan,
+   kalau tidak teks jadi sulit dibaca. Panel tetap punya warna permukaan
+   sendiri sehingga konten selalu terbaca di atas gambar apa pun. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--bg-image, none);
+  background-size: var(--bg-size, cover);
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--bg-opacity, 0);
+  pointer-events: none;
+}
+/* Saat background aktif, permukaan panel dibuat sedikit tembus pandang supaya
+   gambar terlihat — tapi teks tetap di atas warna solid yang cukup kontras. */
+/* Semua permukaan shell dibuat tembus pandang. Daftar ini WAJIB memuat
+   .main-area dan .activitybar — dulu keduanya terlewat, dan karena keduanya
+   memakai warna SOLID, wallpaper hanya terlihat di sidebar sementara area
+   editor (yang paling luas) tetap gelap total. */
+[data-bg='on'] .sidebar,
+[data-bg='on'] .main-area,
+[data-bg='on'] .activitybar,
+[data-bg='on'] .statusbar,
+[data-bg='on'] .menubar,
+[data-bg='on'] .panel,
+[data-bg='on'] .ai-side-col,
+[data-bg='on'] .terminal-area,
+[data-bg='on'] .secondary-sidebar {
+  background-color: color-mix(in srgb, var(--surface) 68%, transparent);
+}
+/* Area EDITOR tetap lebih solid daripada chrome di sekelilingnya: kode harus
+   terbaca. Ini kompromi yang sama dipakai tema wallpaper di editor lain —
+   gambar terlihat jelas di sekitar, konten tetap nyaman dibaca. */
+/* Layar sambutan (tanpa kode) boleh sangat tembus — tidak ada teks panjang
+   yang perlu dibaca di sana, jadi wallpaper bisa terlihat penuh. */
+[data-bg='on'] .editor-host,
+[data-bg='on'] .welcome,
+[data-bg='on'] .empty-state {
+  background-color: color-mix(in srgb, var(--editor-bg) 22%, transparent);
+}
+/* Area yang memuat KONTEN PADAT (terminal, chat, panel) tetap lebih solid —
+   teks di atas foto harus nyaman dibaca. */
+[data-bg='on'] .term-area,
+[data-bg='on'] .pane,
+[data-bg='on'] .panel-body,
+[data-bg='on'] .ai-panel {
+  background-color: color-mix(in srgb, var(--editor-bg) 72%, transparent);
+}
+/* Saat user mematikan "panel tembus pandang", semuanya kembali solid —
+   data-bg='solid' dipasang applyTheme saat opsi itu dimatikan. */
+[data-bg='solid'] .sidebar,
+[data-bg='solid'] .main-area,
+[data-bg='solid'] .activitybar,
+[data-bg='solid'] .statusbar,
+[data-bg='solid'] .menubar,
+[data-bg='solid'] .panel,
+[data-bg='solid'] .ai-side-col,
+[data-bg='solid'] .terminal-area,
+[data-bg='solid'] .editor-host {
+  background-color: unset;
+}
+
 body.is-resizing {
   cursor: ew-resize;
   user-select: none;
@@ -107,9 +173,64 @@ input {
   border-left: 1px solid var(--border);
   background: var(--surface-1);
 }
-.ai-side-col > .ai-panel {
-  height: 100%;
+
+/* Kolom AI: flex COLUMN berisi chat, lalu (opsional) panel info di BAWAHNYA —
+   itu SALAH. Chat dan panel info harus BERDAMPINGAN. Karena itu isinya dibungkus
+   satu baris (.ai-side-row) yang flex-row; kolomnya sendiri hanya menyediakan
+   lebar. Tanpa wrapper ini panel info jatuh ke bawah chat dengan lebar penuh.
+   (pernah kejadian: chat 559px + info 559px bertumpuk). */
+.ai-side-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-side-row {
+  flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.ai-side-row > .ai-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* Saat panel info terbuka, kolom AI melebar supaya chat tidak terhimpit.
+   Ini menambah lebar DI ATAS lebar drag user (bukan menimpanya): `+ 218px` =
+   lebar panel info, jadi chat tetap selebar yang user pilih. */
+.ai-side-col:has(.sai-root) {
+  flex-basis: calc(var(--ai-w, 340px) + 218px);
+  width: calc(var(--ai-w, 340px) + 218px);
+}
+
+/* T4.14 "lebarkan / fullscreen ala VS Code": saat tombol maximize ditekan,
+   panel AI mengambil SELURUH lebar area kerja dan editor disembunyikan —
+   persis perilaku maximize panel di VS Code. Tanpa aturan ini kelas is-max
+   hanya nama kosong dan lebarnya tetap 340px (bug yang sempat terjadi). */
+.ai-side-col.is-max {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.app-body-col:has(.ai-side-col.is-max) .main-area {
+  display: none;
+}
+
+/* Panel info subagent: kolom sempit di KANAN chat. Sengaja ringkas — ini
+   informasi, bukan ruang kerja; detail penuh ada di tab Subagents. */
+.sai-root {
+  flex: 0 0 218px;
+  width: 218px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--surface-2);
 }
 /* Pengganti di dock bawah saat AI dipindah ke kanan. */
 .ai-moved {
@@ -604,6 +725,14 @@ body.is-narrow .ab-btn {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* background diatur oleh aturan [data-bg] di atas: warna solid di sini akan
+     menutupi wallpaper kustom (dulu inilah sebab editor tetap gelap). */
+  background: var(--bg);
+}
+[data-bg='on'] .main-area {
+  background: transparent;
+}
+[data-bg='solid'] .main-area {
   background: var(--bg);
 }
 
@@ -624,6 +753,20 @@ body.is-narrow .ab-btn {
 .zephyr-cm-host,
 .zephyr-cm-host .cm-editor {
   height: 100%;
+}
+
+/* Saat latar kustom aktif, editor dibuat tembus pandang. Token
+   `--editor-background` dipakai CodeMirror sebagai backgroundColor inline,
+   jadi harus ditimpa di sini — mengubah tokennya akan ikut mengubah tema. */
+[data-bg='on'] .zephyr-cm-host .cm-editor,
+[data-bg='on'] .zephyr-cm-host .cm-scroller,
+[data-bg='on'] .zephyr-cm-host .cm-content,
+[data-bg='on'] .zephyr-cm-host .cm-gutters {
+  background-color: transparent;
+}
+/* Gutter tetap sedikit gelap supaya nomor baris terbaca di atas foto. */
+[data-bg='on'] .zephyr-cm-host .cm-gutters {
+  background-color: color-mix(in srgb, var(--editor-bg) 45%, transparent);
 }
 
 /* Panel search bawaan CodeMirror disembunyikan — Zephyr punya FindBar sendiri. */

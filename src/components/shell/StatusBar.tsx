@@ -11,6 +11,7 @@ import { NotifBell } from '../notifications/NotificationCenter';
 import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { useT } from '../../lib/i18n';
+import { useLayoutCustom } from '../../lib/layoutStore';
 
 const ENC_LABEL: Record<string, string> = {
   utf8: 'UTF-8',
@@ -188,6 +189,22 @@ export default function StatusBar() {
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />
+      {/* Tombol Customize Layout di status bar: jalan keluar kalau Menu Bar
+          dimatikan. Tanpa ini, mematikan Menu Bar = tidak ada cara
+          menyalakannya lagi selain mengedit settings.json manual. */}
+      <button
+        className="sb-btn"
+        data-testid="sb-layout"
+        title={tr('Customize Layout…')}
+        aria-label={tr('Customize Layout…')}
+        onClick={() => useLayoutCustom.getState().setMenuBuka(!useLayoutCustom.getState().menuBuka)}
+      >
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+          <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M6.4 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M9.6 6.2h3.4M9.6 9.4h3.4" stroke="currentColor" strokeWidth="1.1" />
+        </svg>
+      </button>
       <button className="sb-btn" title={tr('status.format')} disabled aria-disabled="true">
         {tr('status.format')}
       </button>

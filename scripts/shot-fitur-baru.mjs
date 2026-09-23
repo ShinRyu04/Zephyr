@@ -85,7 +85,7 @@ console.log(
   TS().setHeight(320);
   window.__ZEPHYR_PANEL__.store.getState().setActiveTab('terminal');
   // Buka panel AI (dock bawah).
-  TS().setDock('ai');
+  TS().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
   await wait(500);
 
   // Isi store subagent dengan data NYATA supaya kartunya terlihat seperti
@@ -277,7 +277,7 @@ console.log(
   'pulih:',
   await cdp.json(`
   TS().setVisible(false);
-  TS().setDock('terminal');
+  window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
   window.__ZEPHYR_PANEL__.store.getState().setActiveTab('terminal');
   await S.getState().openWorkspace('D:/Zephyr');
   await wait(900);

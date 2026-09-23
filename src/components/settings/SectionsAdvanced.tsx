@@ -16,6 +16,7 @@ import { PROVIDERS, ProviderLogo, type ProviderInfo } from '../../lib/modelCatal
 import * as cmd from '../../lib/commands';
 import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
+import { useSubAgent } from '../../lib/subagentStore';
 
 export function ShortcutsSection() {
   const tr = useT();
@@ -598,6 +599,123 @@ export function AgentsSection() {
           })}
         </div>
       )}
+    </Section>
+  );
+}
+
+/**
+ * Settings → Subagent (T3.10).
+ *
+ * KENAPA section terpisah: batas paralel, batas langkah, dan izin menulis file
+ * sebelumnya HARDCODE di subagentStore — user tidak bisa menyesuaikan tanpa
+ * rebuild, padahal biaya API dan risiko tabrakan file sangat tergantung
+ * ketiganya. Default tetap sama seperti konstanta lama.
+ */
+export function SubagentSection() {
+  const tr = useT();
+  // Fallback wajib: settings.json yang ditulis versi sebelum T3.10 tidak
+  // punya key `subagent`. Tanpa ini, akses propertinya melempar TypeError dan
+  // seluruh halaman Settings blank.
+  // Fallback DIPISAH dari selector: `?? { ... }` di dalam selector membuat
+  // objek baru tiap render -> render loop (aturan zustand v5).
+  const sbRaw = useStore((s) => s.settings.subagent);
+  const sb = sbRaw ?? {
+    maxParallel: 4,
+    maxSteps: 15,
+    allowWrite: false,
+    showPanel: true,
+    autoCollapse: true,
+    model: '',
+    provider: '',
+  };
+  const apply = useStore((s) => s.applySettings);
+  const [jalan, setJalan] = useState<number | null>(null);
+  const sibuk = useSubAgent((s) => s.sibuk);
+  const agents = useSubAgent((s) => s.agents);
+
+  // Jumlah subagent yang benar-benar berjalan — supaya user melihat efek
+  // setting-nya, bukan hanya angkanya.
+  useEffect(() => {
+    const t = setInterval(() => {
+      const n = useSubAgent.getState().agents.filter(
+        (a) => a.status === 'jalan' || a.status === 'menunggu',
+      ).length;
+      setJalan(n);
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <Section title={tr('settings.subagent')}>
+      <Row
+        label={tr('sub.maxParallel')}
+        hint="tiap subagent memanggil provider sendiri — makin banyak, makin cepat habis kuota"
+      >
+        <NumberInput
+          label={tr('sub.maxParallel')}
+          testid="sub-maxparallel"
+          min={1}
+          max={8}
+          value={sb.maxParallel}
+          onChange={(v) => void apply({ subagent: { maxParallel: v } })}
+        />
+      </Row>
+
+      <Row
+        label={tr('sub.maxSteps')}
+        hint="subagent berhenti kalau melewati batas ini — penjaga biaya loop tak berujung"
+      >
+        <NumberInput
+          label={tr('sub.maxSteps')}
+          testid="sub-maxsteps"
+          min={3}
+          max={50}
+          value={sb.maxSteps}
+          onChange={(v) => void apply({ subagent: { maxSteps: v } })}
+        />
+      </Row>
+
+      <Row
+        label={tr('sub.allowWrite')}
+        hint="default TIDAK. Beberapa subagent yang menulis file sama bisa saling menimpa"
+      >
+        <Toggle
+          label={tr('sub.allowWrite')}
+          testid="sub-allowwrite"
+          checked={sb.allowWrite}
+          onChange={(v) => void apply({ subagent: { allowWrite: v } })}
+        />
+      </Row>
+
+      <Row label={tr('sub.showPanel')} hint="kalau dimatikan, hanya ringkasan yang muncul">
+        <Toggle
+          label={tr('sub.showPanel')}
+          testid="sub-showpanel"
+          checked={sb.showPanel}
+          onChange={(v) => void apply({ subagent: { showPanel: v } })}
+        />
+      </Row>
+
+      <Row label={tr('sub.autoCollapse')} hint="langkah langsung terlipat setelah selesai">
+        <Toggle
+          label={tr('sub.autoCollapse')}
+          testid="sub-autocollapse"
+          checked={sb.autoCollapse}
+          onChange={(v) => void apply({ subagent: { autoCollapse: v } })}
+        />
+      </Row>
+
+      <Row label={tr('Status')} hint={`${agents.length} subagent di panel`}>
+        <span className="set-note" data-testid="sub-status">
+          {sibuk ? `${jalan ?? 0} sedang jalan` : tr('tidak ada yang jalan')}
+        </span>
+      </Row>
+
+      <p className="set-note" data-testid="sub-note">
+        {tr(
+          'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.',
+        )}
+      </p>
     </Section>
   );
 }

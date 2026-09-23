@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useTerminal } from '../../lib/terminalStore';
+import { usePanel } from '../../lib/panelStore';
 import { useStore } from '../../lib/store';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import { useT } from '../../lib/i18n';
@@ -29,7 +30,7 @@ export default function AiSidebar() {
   const deleteChat = useAi((s) => s.deleteChat);
   const setClearAllOpen = useAi((s) => s.setClearAllOpen);
 
-  const setDock = useTerminal((s) => s.setDock);
+
   const setVisible = useTerminal((s) => s.setVisible);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setActivity = useStore((s) => s.setActivity);
@@ -51,7 +52,8 @@ export default function AiSidebar() {
   const buka = (id?: string) => {
     setSettingsOpen(false);
     setVisible(true);
-    setDock('ai');
+    // T4.11: AI = tab panel, bukan dock terpisah.
+    usePanel.getState().focusTab('ai');
     if (id) selectChat(id);
   };
 

@@ -113,6 +113,10 @@ pub struct AppState {
     /// Generasi watcher aktif (fase 04). Thread watcher berhenti sendiri
     /// begitu nilai ini melewati generasinya — dipakai saat ganti workspace.
     watch_generation: Arc<AtomicU64>,
+    /// T4.8: rekaman request AI terakhir (maks 20). Di memori saja.
+    pub ai_capture: RwLock<Vec<crate::ai::CapturedRequest>>,
+    /// T4.8: true = rekam request AI berikutnya.
+    pub ai_capture_on: std::sync::atomic::AtomicBool,
     /// Sesi terminal hidup (fase 05), key = id pane.
     ptys: RwLock<HashMap<String, Arc<crate::pty::PtySession>>>,
     /// true saat window minimized: emit output PTY ditunda (output tetap
@@ -137,10 +141,6 @@ pub struct AppState {
     perf: RwLock<Vec<PerfMark>>,
     /// Penghitung ringkas untuk Diagnostics (jumlah operasi sejak start).
     counters: RwLock<HashMap<String, u64>>,
-    /// Tunnel Cloudflare yang hidup (T2.3), key = id tunnel.
-    /// Disimpan supaya app bisa mematikannya saat ditutup — tunnel yang
-    /// tertinggal berarti localhost user tetap terbuka ke internet.
-    pub tunnels: Mutex<HashMap<String, crate::tunnel::Tunnel>>,
 }
 
 /// Satu titik ukur performa (dipakai About → Diagnostics).
@@ -198,7 +198,8 @@ impl AppState {
             started: Instant::now(),
             perf: RwLock::new(Vec::new()),
             counters: RwLock::new(HashMap::new()),
-            tunnels: Mutex::new(HashMap::new()),
+            ai_capture: RwLock::new(Vec::new()),
+            ai_capture_on: std::sync::atomic::AtomicBool::new(false),
         }
     }
 

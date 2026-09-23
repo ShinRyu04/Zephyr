@@ -1,6 +1,7 @@
 // SectionsBasic.tsx — section General, Code Editor, Theme (fase 08).
 
 import { openPath } from '@tauri-apps/plugin-opener';
+import * as cmd from '../../lib/commands';
 import { useStore } from '../../lib/store';
 import { useT, UI_LANGS } from '../../lib/i18n';
 import { semuaTema } from '../../lib/themes';
@@ -126,7 +127,18 @@ export function GeneralSection() {
           data-testid="general-ai-panel"
           aria-label="Tempat panel AI"
           value={g.aiPanel ?? 'bottom'}
-          onChange={(e) => patch({ aiPanel: e.target.value as 'bottom' | 'right' })}
+          onChange={async (e) => {
+            const nilai = e.target.value as 'bottom' | 'right';
+            patch({ aiPanel: nilai });
+            // Permintaan user: "saat AI ke kanan kok masih harus ada terminal
+            // nya? tolong diatur ya biar terminalnya ga ngikut". Panel bawah
+            // (yang berisi terminal + tab lain) TIDAK perlu ikut terbuka saat
+            // chat pindah ke kolom kanan — ia hanya memakan ruang editor.
+            if (nilai === 'right') {
+              const { useTerminal } = await import('../../lib/terminalStore');
+              useTerminal.getState().setVisible(false);
+            }
+          }}
         >
           <option value="bottom">Bawah (sejajar terminal)</option>
           <option value="right">Kanan (340px)</option>
@@ -370,6 +382,8 @@ export function EditorSection() {
 export function ThemeSection() {
   const tr = useT();
   const theme = useStore((s) => s.settings.theme);
+  // Background = settings TERSENDIRI (bukan bagian tema). User: "jgn nyatu ya".
+  const bg = useStore((s) => s.settings.background ?? {});
   const general = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
 
@@ -436,6 +450,115 @@ export function ThemeSection() {
           </button>
         </span>
       </Row>
+
+      {/* Latar belakang kustom (permintaan user: "bisa edit background jga
+          ntah pasang foto, apakah bisa?"). Gambar TIDAK disalin ke folder
+          data — path-nya dipakai langsung lewat convertFileSrc supaya tidak
+          ada duplikasi file besar dan user tetap bisa memindahkan fotonya. */}
+      <Row label="Latar belakang" hint="pasang foto jadi background editor">
+        <span className="set-bg">
+          <button
+            className="btn"
+            data-testid="theme-bg-pick"
+            onClick={async () => {
+              try {
+                // Dialog native Zephyr (file_dialog_open), lalu file dibaca
+                // Rust jadi data URL. Data URL dipilih daripada asset protocol
+                // karena tidak butuh izin baca folder user dan pasti tampil
+                // (CSS url(file://...) diblokir WebView2).
+                const f = await cmd.fileDialogOpen(false);
+                const path = Array.isArray(f) ? f[0] : f;
+                if (!path) return;
+                const img = await cmd.bgImageRead(path);
+                await apply({ background: { image: img.data_url } });
+              } catch {
+                /* dialog dibatalkan / izin ditolak — bukan error */
+              }
+            }}
+          >
+            Pilih gambar…
+          </button>
+          <button
+            className="btn"
+            data-testid="theme-bg-clear"
+            disabled={!bg.image}
+            onClick={() => void apply({ background: { image: '' } })}
+          >
+            {tr('common.reset')}
+          </button>
+        </span>
+      </Row>
+
+      {bg.image && (
+        <>
+          <Row label="Kekuatan" hint="seberapa jelas gambar terlihat">
+            <span className="set-bg-kekuatan">
+              <span className="set-pills" role="radiogroup" aria-label="Preset kekuatan" data-testid="theme-bg-preset">
+                {([
+                  ['Samar', 25],
+                  ['Sedang', 55],
+                  ['Jelas', 85],
+                ] as const).map(([label, val]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="radio"
+                    aria-checked={(bg.opacity ?? 55) === val}
+                    className={`set-pill${(bg.opacity ?? 55) === val ? ' is-active' : ''}`}
+                    data-preset={val}
+                    onClick={() => void apply({ background: { opacity: val } })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </span>
+              <span className="set-num">
+                <input
+                  type="range"
+                  className="set-range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  aria-label="Kekuatan latar"
+                  data-testid="theme-bg-opacity"
+                  value={bg.opacity ?? 55}
+                  onChange={(e) => void apply({ background: { opacity: Number(e.target.value) } })}
+                />
+                <span className="set-num-val">{bg.opacity ?? 55}%</span>
+              </span>
+            </span>
+          </Row>
+          <Row label="Cara pasang" hint="fill menutupi penuh, fit utuh, center asli">
+            <span className="set-pills" role="radiogroup" aria-label="Cara pasang latar" data-testid="theme-bg-size">
+              {(['fill', 'fit', 'center'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={(bg.size ?? 'fill') === m}
+                  className={`set-pill${(bg.size ?? 'fill') === m ? ' is-active' : ''}`}
+                  data-pill={m}
+                  onClick={() => void apply({ background: { size: m } })}
+                >
+                  {m === 'fill' ? 'Penuh' : m === 'fit' ? 'Utuh' : 'Asli'}
+                </button>
+              ))}
+            </span>
+          </Row>
+          <Row label="Panel tembus pandang" hint="matikan bila teks terasa kurang jelas">
+            <Toggle
+              checked={bg.transparan !== false}
+              onChange={(v) => void apply({ background: { transparan: v } })}
+              testid="theme-bg-transparan"
+              label="Panel tembus pandang"
+            />
+          </Row>
+          <p className="set-note" data-testid="theme-bg-info">
+            Latar aktif. Panel dibuat sedikit tembus pandang supaya gambar terlihat —
+            teks tetap di atas warna yang cukup kontras.
+          </p>
+        </>
+      )}
 
       <p className="set-note" data-testid="theme-active">
         Tema aktif: <code>{document.documentElement.dataset.theme ?? '-'}</code> · mode{' '}

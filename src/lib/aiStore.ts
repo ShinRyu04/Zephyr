@@ -44,28 +44,8 @@ export const PERSIST_TOOL_CHARS = 4000;
  * Identitas SELALU dikirim supaya model memperkenalkan diri sebagai Zephyr AI
  * apa pun provider/key yang dipakai; instruksi bahasa menyusul bila disetel.
  */
-export function systemPromptFor(answerLang: string): string {
-  const id =
-    'Kamu adalah Zeph, asisten AI bawaan editor Zephyr. ' +
-    'Jawab dengan ramah, jelas, dan ringkas. ' +
-    'Jika terdapat file ZEPHYR.md atau TERAX.md di root workspace, jadikan itu aturan dan memori proyek utama.';
-  if (!answerLang || answerLang === 'follow') return id;
-  if (answerLang === 'id') return `${id} Selalu jawab dalam bahasa Indonesia.`;
-  if (answerLang === 'en') return `${id} Always answer in English.`;
-  // Bahasa bebas (custom): dipakai apa adanya — model modern mengerti nama
-  // bahasa dalam konteks ini.
-  return `${id} Selalu jawab dalam bahasa ${answerLang}.`;
-}
+import { systemPromptFor, IDENTITY_REMINDER, aturanProyek } from './systemPrompt';
 
-/**
- * Pengingat identitas yang ditempel di AKHIR pesan user (posisi paling akhir
- * yang bisa dikontrol Zephyr). System prompt dari Zephyr ada di awal riwayat,
- * sedangkan gateway/provider bisa menyuntik identitasnya sendiri di belakang
- * — model biasanya mematuhi instruksi paling akhir, jadi baris ini lebih
- * kuat daripada system prompt saja.
- */
-const IDENTITY_REMINDER =
-  '\n\n(Kamu adalah Zeph, asisten AI bawaan editor Zephyr.)';
 
 /**
  * Konteks tambahan dari Rust (memori + daftar skill) yang ditempel ke system
@@ -709,12 +689,12 @@ export const useAi = create<AiStore>((set, get) => ({
     // Bahasa jawaban AI (Settings → Model AI): instruksi dikirim sebagai pesan
     // system di awal tiap percakapan supaya model konsisten menjawab dalam
     // bahasa pilihan. 'follow' = biarkan model mengikuti bahasa pertanyaan.
-    const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
-    if (sys) {
-      // Memori + daftar skill ikut di system prompt (1.1.11). Kegagalan
-      // diabaikan: percakapan tetap jalan tanpa konteks tambahan.
-      const ekstra = await konteksAgent();
-      history.unshift({ role: 'system', content: sys + ekstra });
+    const bhsJawab = useStore.getState().settings.models.answerLang ?? 'follow';
+    {
+      // Memori + daftar skill + konteks proyek ikut di system prompt.
+      // Kegagalan diabaikan: percakapan tetap jalan tanpa konteks tambahan.
+      const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
+      history.unshift({ role: 'system', content: systemPromptFor(bhsJawab, ekstra, aturan) });
     }
     // Konteks RAG disisipkan sebagai pesan "user" terpisah sebelum pertanyaan
     // asli, supaya model melihatnya tanpa dicampur ke riwayat chat (dan tanpa
@@ -853,13 +833,13 @@ export const useAi = create<AiStore>((set, get) => ({
         history.push({ role: m.role, content: m.content });
       }
     }
-    const sys = systemPromptFor(useStore.getState().settings.models.answerLang ?? 'follow');
-    if (sys) {
+    const bhsJawab = useStore.getState().settings.models.answerLang ?? 'follow';
+    {
       // Mode agent dapat konteks lebih kaya: daftar skill + memori + profil
       // user, supaya ia tahu skill apa yang bisa dibuka dan apa yang sudah
       // diketahui dari sesi sebelumnya.
-      const ekstra = await konteksAgent();
-      history.unshift({ role: 'system', content: sys + ekstra });
+      const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
+      history.unshift({ role: 'system', content: systemPromptFor(bhsJawab, ekstra, aturan) });
     }
     history.push({ role: 'user', content: content + IDENTITY_REMINDER });
 
@@ -931,8 +911,16 @@ export const useAi = create<AiStore>((set, get) => ({
             (tc.name === 'terminal_exec' || tc.name === 'editor_write');
           // 'ask' menahan semua terminal_exec; 'work' (kerja langsung) hanya
           // menahan yang destruktif; 'auto' tidak menahan apa pun.
+          //
+          // T4.5: daftar izin permanen (Settings → Prompt AI → Izin perintah)
+          // melewati pertanyaan untuk perintah yang sudah disetujui user.
+          // Perintah DESTRUKTIF tetap ditanya walau ada di daftar — pengaman
+          // terakhir tidak boleh bisa dimatikan lewat daftar izin.
+          const diizinkan =
+            !isDestructive(perintah) && useStore.getState().izinPerintah(perintah);
           const perluSetuju =
             tc.name === 'terminal_exec' &&
+            !diizinkan &&
             (get().approvalMode === 'ask' ||
               (get().approvalMode !== 'auto' && isDestructive(perintah)));
 

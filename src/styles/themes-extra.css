@@ -221,3 +221,383 @@
   --syn-attr: #fb923c;
   --syn-invalid: #f87171;
 }
+
+/* Dracula — ungu-merah, klasik */
+[data-theme='dracula'] {
+  --bg: #282a36;
+  --surface: #343746;
+  --surface-2: #3d4055;
+  --surface-3: #4a4d63;
+  --border: #44475a;
+  --border-strong: #6272a4;
+
+  --text: #f8f8f2;
+  --text-secondary: #d8d8d2;
+  --text-muted: #9aa0b5;
+  --text-inverse: #282a36;
+
+  --accent: #bd93f9;
+  --accent-hover: #caa9fa;
+  --accent-subtle: rgba(189, 147, 249, 0.18);
+  --danger: #ff5555;
+  --warning: #f1fa8c;
+  --success: #50fa7b;
+  --modified: #f1fa8c;
+  --added: #50fa7b;
+  --deleted: #ff5555;
+
+  --editor-bg: #282a36;
+  --editor-gutter: #7f8bb0;
+  --editor-active-line: rgba(255, 255, 255, 0.045);
+  --editor-selection: rgba(189, 147, 249, 0.28);
+  --editor-cursor: #f8f8f2;
+  --editor-match: rgba(241, 250, 140, 0.30);
+
+  --syn-keyword: #ff79c6;
+  --syn-string: #f1fa8c;
+  --syn-number: #bd93f9;
+  --syn-comment: #8290b3;
+  --syn-function: #50fa7b;
+}
+
+/* Catppuccin Mocha — pastel lembut, populer */
+[data-theme='catppuccin-mocha'] {
+  --bg: #1e1e2e;
+  --surface: #252537;
+  --surface-2: #2d2d44;
+  --surface-3: #363650;
+  --border: #313244;
+  --border-strong: #585b70;
+
+  --text: #cdd6f4;
+  --text-secondary: #bac2de;
+  --text-muted: #8f95b2;
+  --text-inverse: #1e1e2e;
+
+  --accent: #cba6f7;
+  --accent-hover: #d7bdfa;
+  --accent-subtle: rgba(203, 166, 247, 0.18);
+  --danger: #f38ba8;
+  --warning: #f9e2af;
+  --success: #a6e3a1;
+  --modified: #f9e2af;
+  --added: #a6e3a1;
+  --deleted: #f38ba8;
+
+  --editor-bg: #1e1e2e;
+  --editor-gutter: #7f849c;
+  --editor-active-line: rgba(255, 255, 255, 0.045);
+  --editor-selection: rgba(203, 166, 247, 0.26);
+  --editor-cursor: #f5e0dc;
+  --editor-match: rgba(249, 226, 175, 0.30);
+
+  --syn-keyword: #cba6f7;
+  --syn-string: #a6e3a1;
+  --syn-number: #fab387;
+  --syn-comment: #7f849c;
+  --syn-function: #89b4fa;
+}
+
+/* Rosé Pine — mawar tua, tenang */
+[data-theme='rose-pine'] {
+  --bg: #191724;
+  --surface: #1f1d2e;
+  --surface-2: #26233a;
+  --surface-3: #2f2b45;
+  --border: #26233a;
+  --border-strong: #524f67;
+
+  --text: #e0def4;
+  --text-secondary: #c9c6dd;
+  --text-muted: #908caa;
+  --text-inverse: #191724;
+
+  --accent: #ebbcba;
+  --accent-hover: #f0c9c7;
+  --accent-subtle: rgba(235, 188, 186, 0.18);
+  --danger: #eb6f92;
+  --warning: #f6c177;
+  --success: #9ccfd8;
+  --modified: #f6c177;
+  --added: #9ccfd8;
+  --deleted: #eb6f92;
+
+  --editor-bg: #191724;
+  --editor-gutter: #6e6a86;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(235, 188, 186, 0.26);
+  --editor-cursor: #e0def4;
+  --editor-match: rgba(246, 193, 119, 0.30);
+
+  --syn-keyword: #c4a7e7;
+  --syn-string: #f6c177;
+  --syn-number: #ebbcba;
+  --syn-comment: #6e6a86;
+  --syn-function: #9ccfd8;
+}
+
+/* Kanagawa — sumi-e, gelap kehijauan */
+[data-theme='kanagawa'] {
+  --bg: #1f1f28;
+  --surface: #2a2a37;
+  --surface-2: #31313e;
+  --surface-3: #3b3b4d;
+  --border: #2d2d3b;
+  --border-strong: #54546d;
+
+  --text: #dcd7ba;
+  --text-secondary: #c8c093;
+  --text-muted: #9c9a84;
+  --text-inverse: #1f1f28;
+
+  --accent: #7e9cd8;
+  --accent-hover: #93aee0;
+  --accent-subtle: rgba(126, 156, 216, 0.18);
+  --danger: #e82424;
+  --warning: #e6c384;
+  --success: #98bb6c;
+  --modified: #e6c384;
+  --added: #98bb6c;
+  --deleted: #e82424;
+
+  --editor-bg: #1f1f28;
+  --editor-gutter: #727169;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(126, 156, 216, 0.26);
+  --editor-cursor: #dcd7ba;
+  --editor-match: rgba(230, 195, 132, 0.30);
+
+  --syn-keyword: #957fb8;
+  --syn-string: #98bb6c;
+  --syn-number: #d27e99;
+  --syn-comment: #727169;
+  --syn-function: #7e9cd8;
+}
+
+/* Everforest — hijau hutan, mata nyaman */
+[data-theme='everforest-dark'] {
+  --bg: #2b3339;
+  --surface: #323c41;
+  --surface-2: #3a454a;
+  --surface-3: #445055;
+  --border: #3a454a;
+  --border-strong: #5c6a72;
+
+  --text: #d3c6aa;
+  --text-secondary: #c0b595;
+  --text-muted: #9aa79d;
+  --text-inverse: #2b3339;
+
+  --accent: #a7c080;
+  --accent-hover: #b6cd93;
+  --accent-subtle: rgba(167, 192, 128, 0.18);
+  --danger: #e67e80;
+  --warning: #dbbc7f;
+  --success: #a7c080;
+  --modified: #dbbc7f;
+  --added: #a7c080;
+  --deleted: #e67e80;
+
+  --editor-bg: #2b3339;
+  --editor-gutter: #7a8471;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(167, 192, 128, 0.26);
+  --editor-cursor: #d3c6aa;
+  --editor-match: rgba(219, 188, 127, 0.30);
+
+  --syn-keyword: #e67e80;
+  --syn-string: #a7c080;
+  --syn-number: #d699b6;
+  --syn-comment: #7a8471;
+  --syn-function: #83c092;
+}
+
+/* GitHub Dark — ala GitHub, netral */
+[data-theme='github-dark'] {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c2128;
+  --surface-3: #21262d;
+  --border: #30363d;
+  --border-strong: #484f58;
+
+  --text: #e6edf3;
+  --text-secondary: #c9d1d9;
+  --text-muted: #8b949e;
+  --text-inverse: #0d1117;
+
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  --accent-subtle: rgba(88, 166, 255, 0.18);
+  --danger: #f85149;
+  --warning: #d29922;
+  --success: #3fb950;
+  --modified: #d29922;
+  --added: #3fb950;
+  --deleted: #f85149;
+
+  --editor-bg: #0d1117;
+  --editor-gutter: #6e7681;
+  --editor-active-line: rgba(255, 255, 255, 0.045);
+  --editor-selection: rgba(88, 166, 255, 0.24);
+  --editor-cursor: #e6edf3;
+  --editor-match: rgba(210, 153, 34, 0.32);
+
+  --syn-keyword: #ff7b72;
+  --syn-string: #a5d6ff;
+  --syn-number: #79c0ff;
+  --syn-comment: #8b949e;
+  --syn-function: #d2a8ff;
+}
+
+/* Ayu Mirage — biru malam, aksen jingga */
+[data-theme='ayu-mirage'] {
+  --bg: #1f2430;
+  --surface: #232834;
+  --surface-2: #2a2f3d;
+  --surface-3: #343a4a;
+  --border: #2a2f3d;
+  --border-strong: #5c6773;
+
+  --text: #cbccc6;
+  --text-secondary: #b8b9b3;
+  --text-muted: #8a9199;
+  --text-inverse: #1f2430;
+
+  --accent: #ffcc66;
+  --accent-hover: #ffd780;
+  --accent-subtle: rgba(255, 204, 102, 0.18);
+  --danger: #f28779;
+  --warning: #ffcc66;
+  --success: #bae67e;
+  --modified: #ffcc66;
+  --added: #bae67e;
+  --deleted: #f28779;
+
+  --editor-bg: #1f2430;
+  --editor-gutter: #6c7680;
+  --editor-active-line: rgba(255, 255, 255, 0.04);
+  --editor-selection: rgba(255, 204, 102, 0.24);
+  --editor-cursor: #cbccc6;
+  --editor-match: rgba(255, 204, 102, 0.30);
+
+  --syn-keyword: #ffa759;
+  --syn-string: #bae67e;
+  --syn-number: #d4bfff;
+  --syn-comment: #6c7680;
+  --syn-function: #73d0ff;
+}
+
+/* Solarized Light — krem hangat, terang */
+[data-theme='solarized-light'] {
+  --bg: #fdf6e3;
+  --surface: #f5efdc;
+  --surface-2: #eee8d5;
+  --surface-3: #e4ddc8;
+  --border: #d9d2bd;
+  --border-strong: #b8b09a;
+
+  --text: #073642;
+  --text-secondary: #586e75;
+  --text-muted: #7d8b8f;
+  --text-inverse: #fdf6e3;
+
+  --accent: #268bd2;
+  --accent-hover: #3a9de0;
+  --accent-subtle: rgba(38, 139, 210, 0.14);
+  --danger: #dc322f;
+  --warning: #b58900;
+  --success: #859900;
+  --modified: #b58900;
+  --added: #859900;
+  --deleted: #dc322f;
+
+  --editor-bg: #fdf6e3;
+  --editor-gutter: #93a1a1;
+  --editor-active-line: rgba(0, 0, 0, 0.04);
+  --editor-selection: rgba(38, 139, 210, 0.20);
+  --editor-cursor: #073642;
+  --editor-match: rgba(181, 137, 0, 0.24);
+
+  --syn-keyword: #859900;
+  --syn-string: #2aa198;
+  --syn-number: #d33682;
+  --syn-comment: #93a1a1;
+  --syn-function: #268bd2;
+}
+
+/* Nord Light — biru dingin, terang */
+[data-theme='nord-light'] {
+  --bg: #eceff4;
+  --surface: #e5e9f0;
+  --surface-2: #dde2ec;
+  --surface-3: #d0d7e5;
+  --border: #c8d0e0;
+  --border-strong: #9aa5bd;
+
+  --text: #2e3440;
+  --text-secondary: #4c566a;
+  --text-muted: #6d788f;
+  --text-inverse: #eceff4;
+
+  --accent: #5e81ac;
+  --accent-hover: #7395bd;
+  --accent-subtle: rgba(94, 129, 172, 0.14);
+  --danger: #bf616a;
+  --warning: #d08770;
+  --success: #a3be8c;
+  --modified: #d08770;
+  --added: #a3be8c;
+  --deleted: #bf616a;
+
+  --editor-bg: #eceff4;
+  --editor-gutter: #8b95a9;
+  --editor-active-line: rgba(0, 0, 0, 0.04);
+  --editor-selection: rgba(94, 129, 172, 0.20);
+  --editor-cursor: #2e3440;
+  --editor-match: rgba(208, 135, 112, 0.26);
+
+  --syn-keyword: #5e81ac;
+  --syn-string: #a3be8c;
+  --syn-number: #b48ead;
+  --syn-comment: #8b95a9;
+  --syn-function: #81a1c1;
+}
+
+/* Min Light — putih bersih minimalis */
+[data-theme='min-light'] {
+  --bg: #ffffff;
+  --surface: #f7f8fa;
+  --surface-2: #eef0f4;
+  --surface-3: #e3e6ec;
+  --border: #e1e4e8;
+  --border-strong: #b9bfca;
+
+  --text: #24292f;
+  --text-secondary: #57606a;
+  --text-muted: #7d8590;
+  --text-inverse: #ffffff;
+
+  --accent: #0969da;
+  --accent-hover: #1f7ae8;
+  --accent-subtle: rgba(9, 105, 218, 0.12);
+  --danger: #cf222e;
+  --warning: #9a6700;
+  --success: #1a7f37;
+  --modified: #9a6700;
+  --added: #1a7f37;
+  --deleted: #cf222e;
+
+  --editor-bg: #ffffff;
+  --editor-gutter: #8c959f;
+  --editor-active-line: rgba(0, 0, 0, 0.035);
+  --editor-selection: rgba(9, 105, 218, 0.18);
+  --editor-cursor: #24292f;
+  --editor-match: rgba(154, 103, 0, 0.22);
+
+  --syn-keyword: #cf222e;
+  --syn-string: #0a3069;
+  --syn-number: #0550ae;
+  --syn-comment: #6e7781;
+  --syn-function: #8250df;
+}

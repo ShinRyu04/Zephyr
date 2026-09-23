@@ -32,6 +32,27 @@ interface LayoutState {
   posisiSidebar: PosisiSidebar;
   kerapatan: KerapatanLayout;
 
+  /**
+   * Panel Customize Layout sedang terbuka.
+   *
+   * KENAPA di store, bukan state lokal komponen: panel ini yang dipakai untuk
+   * MENYALAKAN KEMBALI elemen yang dimatikan. Kalau state-nya lokal di MenuBar,
+   * mematikan Menu Bar menghilangkan satu-satunya tombol pembukanya — user
+   * terjebak tanpa Menu Bar dan harus menghapus settings.json manual.
+   */
+  menuBuka: boolean;
+  setMenuBuka: (v: boolean) => void;
+
+  /**
+   * Panel info Subagent di sebelah KANAN chat AI.
+   *
+   * KENAPA di store, bukan state lokal: posisinya bagian dari tata letak yang
+   * disimpan. Kalau lokal, tiap kali app dibuka ulang user harus membukanya
+   * lagi — dan panel yang tidak diminta muncul sendiri juga mengganggu.
+   */
+  subKanan: boolean;
+  setSubKanan: (v: boolean) => void;
+
   // ── Aksi ──
   set: (bagian: Partial<LayoutState>) => void;
   toggle: (kunci: 'menuBar' | 'activityBar' | 'sidebar' | 'panel' | 'statusBar') => void;
@@ -51,12 +72,20 @@ const DEFAULT = {
   statusBar: true,
   posisiSidebar: 'left' as PosisiSidebar,
   kerapatan: 'default' as KerapatanLayout,
+  menuBuka: false,
+  // Default TERTUTUP: panel ini informasi tambahan, bukan kebutuhan semua
+  // orang. Yang mau, buka sekali lewat Customize Layout atau Settings.
+  subKanan: false,
 };
 
 export const useLayoutCustom = create<LayoutState>((set, get) => ({
   ...DEFAULT,
 
   set: (bagian) => set(bagian as never),
+
+  setMenuBuka: (v) => set({ menuBuka: v }),
+
+  setSubKanan: (v) => set({ subKanan: v }),
 
   toggle: (kunci) => set({ [kunci]: !get()[kunci] } as never),
 
@@ -75,6 +104,7 @@ export const useLayoutCustom = create<LayoutState>((set, get) => ({
           statusBar: s.statusBar,
           posisiSidebar: s.posisiSidebar,
           kerapatan: s.kerapatan,
+          subKanan: s.subKanan,
         },
       },
     } as never);
@@ -92,6 +122,7 @@ export const useLayoutCustom = create<LayoutState>((set, get) => ({
       statusBar: l.statusBar ?? DEFAULT.statusBar,
       posisiSidebar: l.posisiSidebar ?? DEFAULT.posisiSidebar,
       kerapatan: l.kerapatan ?? DEFAULT.kerapatan,
+      subKanan: l.subKanan ?? DEFAULT.subKanan,
     });
   },
 }));

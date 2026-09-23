@@ -287,7 +287,7 @@ pub fn test_model_connection(
             "x-api-key",
             key.clone(),
         ),
-        // openai / deepseek / xai / cerebras / custom: OpenAI-compatible
+        // openai / deepseek / xai / custom: OpenAI-compatible
         other => (
             format!(
                 "{}/models",
@@ -296,7 +296,6 @@ pub fn test_model_connection(
                     .unwrap_or_else(|| match other {
                         "deepseek" => "https://api.deepseek.com/v1".into(),
                         "xai" => "https://api.x.ai/v1".into(),
-                        "cerebras" => "https://api.cerebras.ai/v1".into(),
                         "lmstudio" => "http://127.0.0.1:1234/v1".into(),
                         _ => "https://api.openai.com/v1".to_string(),
                     })

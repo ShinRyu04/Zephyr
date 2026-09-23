@@ -170,6 +170,10 @@ export const fileDialogSave = (defaultPath?: string) =>
   invoke<string | null>('file_dialog_save', { defaultPath });
 export const folderDialogOpen = () => invoke<string | null>('folder_dialog_open');
 
+/** Baca gambar dari disk sebagai data URL untuk latar belakang kustom. */
+export const bgImageRead = (path: string) =>
+  invoke<{ data_url: string; bytes: number; kind: string }>('bg_image_read', { path });
+
 // ── explorer / search (fase 04) ──
 
 export const scanDir = (path: string) => invoke<DirNode[]>('scan_dir', { path });
@@ -362,193 +366,6 @@ export interface GambarData {
 /** Baca file gambar untuk pratinjau. */
 export const bacaGambar = (path: string) => invoke<GambarData>('baca_gambar', { path });
 
-// ── SFTP + SSH port forwarding (T3.3) ──
-
-/** Satu entri file di server remote. */
-export interface FileRemote {
-  nama: string;
-  dir: boolean;
-  ukuran: number;
-  izin: string;
-  waktu: string;
-}
-
-/** Satu tunnel port yang hidup. */
-export interface TunnelPort {
-  id: string;
-  hostId: string;
-  jenis: string;
-  portLokal: number;
-  tujuan: string;
-  pid: number;
-  label: string;
-}
-
-/** Baca isi direktori remote lewat sftp. */
-export const sshSftpList = (config: unknown, path: string) =>
-  invoke<FileRemote[]>('ssh_sftp_list', { config, path });
-
-/** Unduh satu file remote. */
-export const sshSftpGet = (config: unknown, remote: string, lokal: string) =>
-  invoke<string>('ssh_sftp_get', { config, remote, lokal });
-
-/** Hapus file remote. */
-export const sshSftpHapus = (config: unknown, remote: string) =>
-  invoke<boolean>('ssh_sftp_hapus', { config, remote });
-
-/** Nyalakan tunnel port (lokal/remote/socks). Menolak kalau port dipakai. */
-export const sshForwardStart = (
-  config: unknown,
-  jenis: string,
-  portLokal: number,
-  tujuan: string,
-) => invoke<TunnelPort>('ssh_forward_start', { config, jenis, portLokal, tujuan });
-
-/** Matikan tunnel berdasarkan id. */
-export const sshForwardStop = (id: string) => invoke<boolean>('ssh_forward_stop', { id });
-
-/** Daftar id tunnel hidup. */
-export const sshForwardList = () => invoke<string[]>('ssh_forward_list');
-
-// ── Database browser (T3.2) ──
-
-/** Satu tabel/view di file SQLite. */
-export interface TabelInfo {
-  nama: string;
-  jenis: string;
-  /** jumlah baris; -1 kalau gagal dihitung */
-  baris: number;
-}
-
-/** Hasil sebuah query. */
-export interface HasilQuery {
-  kolom: string[];
-  baris: string[][];
-  dipotong: boolean;
-  ms: number;
-  terpengaruh: number;
-}
-
-/** Daftar tabel di file SQLite (koneksi read-only). */
-export const dbSqliteTabel = (path: string) =>
-  invoke<TabelInfo[]>('db_sqlite_tabel', { path });
-
-/** Jalankan query SQLite. Query tulis butuh `bolehTulis: true`. */
-export const dbSqliteQuery = (path: string, sql: string, bolehTulis?: boolean) =>
-  invoke<HasilQuery>('db_sqlite_query', { path, sql, bolehTulis });
-
-// ── Dev Environment (T3.1) ──
-
-/** Satu versi layanan dev yang terdeteksi di folder DevEnv. */
-export interface LayananVersi {
-  layanan: string;
-  versi: string;
-  path: string;
-  exe: string;
-}
-
-/** Layanan dev yang sedang berjalan. */
-export interface LayananHidup {
-  layanan: string;
-  versi: string;
-  pid: number;
-  port: number;
-  siap: boolean;
-}
-
-/** Deteksi layanan + versi di folder DevEnv (TIDAK menyalakan apa pun). */
-export const devenvDetect = (root?: string) =>
-  invoke<LayananVersi[]>('devenv_detect', { root });
-
-/** Nyalakan layanan dari folder versi tertentu. Menolak kalau port dipakai. */
-export const devenvStart = (layanan: string, path: string) =>
-  invoke<LayananHidup>('devenv_start', { layanan, path });
-
-/** Status layanan yang hidup. */
-export const devenvStatus = () => invoke<LayananHidup[]>('devenv_status');
-
-/** Matikan layanan berdasarkan port. */
-export const devenvStop = (port: number) => invoke<boolean>('devenv_stop', { port });
-
-// ── Test Explorer (T2.4) ──
-
-/** Satu runner test yang terdeteksi dari file project. */
-export interface TestRunnerDef {
-  id: string;
-  nama: string;
-  command: string;
-  args: string[];
-  cwd: string;
-  penanda: string;
-  catatan: string;
-}
-
-/** Deteksi runner test di root workspace. */
-export const testDetect = (root: string) => invoke<TestRunnerDef[]>('test_detect', { root });
-
-// ── Cloudflare Tunnel (T2.3) ──
-//
-// PENTING: tunnel membuka localhost ke INTERNET. UI wajib menampilkan
-// peringatan + status hidup selama tunnel berjalan.
-
-export interface TunnelStatus {
-  id: string;
-  port: number;
-  url: string;
-  hidup: boolean;
-  /** true = cloudflared jalan tapi URL belum terbaca */
-  menyiapkan: boolean;
-}
-
-/** Path cloudflared kalau tersedia (null = belum dipasang). */
-export const tunnelTersedia = () => invoke<string | null>('tunnel_tersedia');
-
-export const tunnelStart = (id: string, port: number) =>
-  invoke<TunnelStatus>('tunnel_start', { id, port });
-
-export const tunnelStop = (id: string) => invoke<boolean>('tunnel_stop', { id });
-
-export const tunnelList = () => invoke<TunnelStatus[]>('tunnel_list');
-
-// ── HTTP client .http (T1.3) ──
-
-/** Satu request yang diurai dari file .http. */
-export interface HttpRequestDef {
-  nama: string;
-  method: string;
-  url: string;
-  headers: [string, string][];
-  body: string;
-  baris: number;
-}
-
-export interface HttpRunResult {
-  nama: string;
-  method: string;
-  url: string;
-  ok: boolean;
-  status: number;
-  statusText: string;
-  headers: [string, string][];
-  body: string;
-  terpotong: boolean;
-  ms: number;
-  error: string | null;
-}
-
-/** Urai isi file .http jadi daftar request. */
-export const httpParse = (isi: string, variabel?: [string, string][]) =>
-  invoke<HttpRequestDef[]>('http_parse', { isi, variabel });
-
-/** Jalankan satu request. */
-export const httpSend = (opts: {
-  method: string;
-  url: string;
-  headers: [string, string][];
-  body?: string;
-  variabel?: [string, string][];
-}) => invoke<HttpRunResult>('http_send', opts);
-
 // ── Source Control / git (fase 10) ──
 
 export const gitInit = (path?: string) => invoke<void>('git_init', { path });
@@ -658,6 +475,22 @@ export const extExec = (opts: {
 
 /** Angka yang benar-benar diukur di proses Rust (RAM, uptime, log, marks). */
 export const getDiagnostics = () => invoke<Diagnostics>('get_diagnostics');
+/** T4.8: rekam request AI (nyalakan, ambil, bersihkan). */
+export const aiCaptureSet = (on: boolean) => invoke<boolean>('ai_capture_set', { on });
+export const aiCaptureGet = () =>
+  invoke<[
+    boolean,
+    {
+      atMs: number;
+      provider: string;
+      model: string;
+      url: string;
+      headers: [string, string][];
+      body: unknown;
+      chars: number;
+    }[],
+  ]>('ai_capture_get');
+export const aiCaptureClear = () => invoke<void>('ai_capture_clear');
 /** fase 16.5: mini-test nyata per domain (fs/pty/git/mcp/log). */
 export const selfTest = () => invoke<SelfTestItem[]>('self_test');
 /** Kirim error frontend ke file log yang sama dengan Rust. */

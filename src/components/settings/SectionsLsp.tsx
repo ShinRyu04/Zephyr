@@ -49,7 +49,7 @@ export default function SectionsLsp() {
 
   return (
     <section className="set-section" data-testid="set-lsp">
-      <h3 className="set-h3">Language Server</h3>
+      <h2 className="set-h2">{tr('settings.lsp')}</h2>
       <p className="set-note">
         Zephyr TIDAK membundel binary language server (installer tetap ~7 MB). Server dicari
         di <code>%APPDATA%\zephyr\lsp\&lt;id&gt;\</code> lalu di PATH. Server hanya start saat

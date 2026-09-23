@@ -7,7 +7,8 @@
 import { useEffect } from 'react';
 import { useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
-import { AgentsSection, ModelsSection, ShortcutsSection } from './SectionsAdvanced';
+import { AgentsSection, ModelsSection, ShortcutsSection, SubagentSection } from './SectionsAdvanced';
+import PromptSection from './PromptSection';
 import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
 import { ExtensionsSection } from './SectionsExtensions';
 import SectionsLsp from './SectionsLsp';
@@ -29,6 +30,10 @@ function SectionBody({ id }: { id: SectionId }) {
       return <ModelsSection />;
     case 'agents':
       return <AgentsSection />;
+    case 'subagent':
+      return <SubagentSection />;
+    case 'aiprompt':
+      return <PromptSection />;
     case 'extensions':
       return <ExtensionsSection />;
     case 'lsp':

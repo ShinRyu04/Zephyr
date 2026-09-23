@@ -37,12 +37,38 @@ export class Cdp {
     return c;
   }
 
-  /** Sambung ke tab Zephyr lewat /json/list. */
+  /**
+   * Sambung ke tab Zephyr lewat /json/list.
+   *
+   * PENTING — harness MENGUBAH settings user. Semua uji AI menulis baseUrl
+   * provider ke mock (127.0.0.1:8098) supaya tidak memakai kuota; kalau nilai
+   * itu tidak dikembalikan, app user mengirim request ke mock dan jawabannya
+   * palsu tanpa ia tahu. Karena itu setiap attach mengambil SNAPSHOT dulu, dan
+   * close() mengembalikannya otomatis — tidak bergantung pada disiplin tiap
+   * harness.
+   */
   static async attach(port = '9223', judul = 'Zephyr') {
     const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
     const page = targets.find((t) => t.type === 'page' && (t.title ?? '').includes(judul));
     if (!page) throw new Error(`target ${judul} tidak ditemukan di :${port}`);
     const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
+    try {
+      cdp.snapshot = await cdp.json(
+        `return JSON.stringify(await (async () => {
+  const s = window.__ZEPHYR__?.getState?.();
+  if (!s) return null;
+  // SELURUH settings disimpan (bukan sebagian): harness ada yang memanggil
+  // reset_settings yang MENGHAPUS file, dan key yang tidak disimpan di sini
+  // hilang permanen — pernah kejadian: key sidebar hilang sampai menu kiri
+  // tidak ter-render (kelas sidebar-pos-undefined).
+  return { penuh: s.settings ?? null };
+})())`,
+        30000,
+      );
+    } catch {
+      // Halaman belum siap / bukan app Zephyr — lewati pemulihan.
+      cdp.snapshot = null;
+    }
     return { cdp, page };
   }
 
@@ -157,7 +183,57 @@ export class Cdp {
     return JSON.parse(await this.runAsync(body, timeoutMs));
   }
 
-  close() {
+  /**
+   * Tutup koneksi, tapi KEMBALIKAN dulu settings yang diubah harness.
+   *
+   * KENAPA di sini: harness ditulis cepat dan sering lupa membersihkan; akibatnya
+   * settings user perlahan menunjuk ke mock. Memulihkan di satu tempat
+   * (close) jauh lebih andal daripada mengandalkan tiap harness.
+   */
+  async close() {
+    if (this.snapshot) {
+      try {
+        await this.json(
+          `return JSON.stringify(await (async () => {
+  const snap = ${JSON.stringify(this.snapshot)};
+  const S = window.__ZEPHYR__;
+  const asli = snap.penuh ?? snap;
+  const kini = S.getState().settings ?? {};
+
+  // 1. Provider yang menunjuk mock DIPULIHKAN ke nilai aslinya. Snapshot yang
+  //    sendiri sudah tercemar mock tidak dipakai (menulisnya kembali akan
+  //    memperburuk keadaan).
+  const patch = {};
+  const kiniProv = kini.models?.providers ?? {};
+  const asliProv = asli.models?.providers ?? {};
+  const pulihProv = {};
+  for (const [k, v] of Object.entries(asliProv)) {
+    const sekarang = kiniProv[k]?.baseUrl ?? '';
+    const benar = v?.baseUrl ?? '';
+    if (sekarang.includes('127.0.0.1:8098') && !benar.includes('127.0.0.1:8098')) {
+      pulihProv[k] = { baseUrl: benar, model: v?.model ?? '' };
+    }
+  }
+  if (Object.keys(pulihProv).length) patch.models = { providers: pulihProv };
+
+  // 2. Key yang HILANG dikembalikan. Ini yang dulu bocor: harness memanggil
+  //    reset_settings (menghapus file), lalu key seperti sidebar tidak
+  //    pernah kembali -> sidebar tidak ter-render sama sekali.
+  for (const [k, v] of Object.entries(asli)) {
+    if (k === 'models') continue; // sudah ditangani di atas
+    if (kini[k] === undefined) patch[k] = v;
+  }
+
+  if (Object.keys(patch).length) await S.getState().applySettings(patch);
+  await new Promise((r) => setTimeout(r, 400));
+  return Object.keys(patch);
+})())`,
+          60000,
+        );
+      } catch {
+        // Koneksi mungkin sudah tidak sehat — pemulihan best-effort.
+      }
+    }
     this.#ws.close();
   }
 }

@@ -8,6 +8,7 @@
 // berarti scroll editor vs scroll buffer terminal (syarat 18.2/V5).
 
 import { create } from 'zustand';
+import { useStore } from './store';
 import { keymapEkstensi } from './extLoader';
 import * as cmd from './commands';
 import {
@@ -74,7 +75,17 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
   load: async () => {
     try {
       const raw = await cmd.getKeybindings();
-      const user = Array.isArray(raw) ? (raw as UserBinding[]) : [];
+      const dariKb = Array.isArray(raw) ? (raw as UserBinding[]) : [];
+      // settings.shortcuts (ditulis Settings → Shortcut) DIGABUNG dan menang:
+      // sebelum ini ia diabaikan total oleh resolver, sehingga remap dari UI
+      // tidak pernah berlaku dan shortcut lama tetap jalan.
+      const dariSettings = Object.entries(useStore.getState().settings.shortcuts ?? {})
+        .filter(([, v]) => typeof v === 'string' && v)
+        .map(([command, key]) => ({ command, key: String(key) }));
+      const peta = new Map<string, UserBinding>();
+      for (const u of dariKb) peta.set(u.command, u);
+      for (const u of dariSettings) peta.set(u.command, u);
+      const user = [...peta.values()];
       set({ user, bindings: mergeBindings(user, keymapEkstensi()), kbError: null });
     } catch (e) {
       // Gagal baca bukan alasan mematikan seluruh shortcut — pakai default.

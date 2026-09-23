@@ -4,7 +4,7 @@ const set = await cdp.eval(`(() => {
   const S = window.__ZEPHYR__;
   const g = S?.getState?.().settings?.general ?? {};
   const T = window.__ZEPHYR_TERM__;
-  if (T) { T.getState().setVisible(true); T.getState().setDock('ai'); }
+  if (T) { T.getState().setVisible(true); T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai'); }
   return { aiPanel: g.aiPanel ?? '(default)' };
 })()`);
 await new Promise(x => setTimeout(x, 1000));

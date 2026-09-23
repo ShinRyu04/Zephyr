@@ -13,11 +13,15 @@ import { useEffect, useRef } from 'react';
 import { useLayoutCustom, BARIS_LAYOUT } from '../../lib/layoutStore';
 import { useTampilan } from '../../lib/tampilanStore';
 import { useT } from '../../lib/i18n';
+import { useStore } from '../../lib/store';
 
 export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
   const tr = useT();
   const L = useLayoutCustom();
   const zen = useTampilan((s) => s.mode === 'zen');
+  // Posisi panel AI dibaca dari settings (bukan layoutStore) karena di sanalah
+  // ia disimpan — Settings → Umum memakai key yang sama.
+  const aiPos = useStore((s) => s.settings.general.aiPanel ?? 'bottom');
   const setZen = useTampilan((s) => s.setMode);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -87,6 +91,54 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
           </button>
         );
       })}
+
+      {/* ── Panel info subagent (T4.1b) ──
+          Terpisah dari BARIS_LAYOUT karena hanya relevan saat panel AI tampil
+          di kolom kanan; kalau digabung, tombol reset tata letak akan ikut
+          mematikannya padahal itu pilihan yang disengaja user. */}
+      <div className="lm-seksi">{tr('Panel AI')}</div>
+      <button
+        className={`lm-baris${L.subKanan ? ' is-aktif' : ''}`}
+        data-testid="lm-subKanan"
+        aria-pressed={L.subKanan}
+        onClick={() => {
+          L.setSubKanan(!L.subKanan);
+          void useLayoutCustom.getState().simpan();
+        }}
+      >
+        <span className="lm-ikon" aria-hidden="true">
+          {L.subKanan ? '👁' : '⊘'}
+        </span>
+        <span className="lm-label">{tr('Info subagent di kanan chat')}</span>
+      </button>
+
+      {/* ── Posisi panel AI ── */}
+      <div className="lm-seksi">{tr('Panel AI')}</div>
+      <div className="lm-pil" data-testid="lm-posisi-ai">
+        {(
+          [
+            ['bottom', tr('Bawah')],
+            ['right', tr('Kanan')],
+          ] as const
+        ).map(([pos, label]) => (
+          <button
+            key={pos}
+            className={`lm-pil-btn${aiPos === pos ? ' is-aktif' : ''}`}
+            data-testid={`lm-ai-${pos}`}
+            onClick={async () => {
+              await useStore.getState().applySettings({ general: { aiPanel: pos } } as never);
+              // Sama seperti di Settings: pindah ke kanan = panel bawah tidak
+              // perlu ikut terbuka (permintaan user: terminal jangan ngikut).
+              if (pos === 'right') {
+                const { useTerminal } = await import('../../lib/terminalStore');
+                useTerminal.getState().setVisible(false);
+              }
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Posisi side bar ── */}
       <div className="lm-seksi">{tr('Posisi Side Bar')}</div>

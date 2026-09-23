@@ -95,6 +95,36 @@ export function matchPrompts(draft: string): { query: string; items: PromptItem[
 }
 
 /**
+ * Snippet yang dipanggil dengan ">" (T4.4).
+ *
+ * BEDA dengan "/": "/" MENGGANTI draft (memulai pertanyaan baru), ">" MENYISIPKAN
+ * teks pada posisi kursor (menempelkan potongan ke pertanyaan yang sedang
+ * ditulis). Karena itu snippet tidak punya {sel} — ia hanya ditempel.
+ */
+export function matchSnippets(draft: string): { query: string; items: PromptItem[] } {
+  // Hanya cocok kalau token ">" ada di AWAL draft atau setelah spasi, dan belum
+  // ada spasi sesudahnya (supaya "a > b" sebagai teks biasa tidak memicu menu).
+  const m = /(^|\s)>([\w-]*)$/.exec(draft);
+  if (!m) return { query: '', items: [] };
+  const q = m[2].toLowerCase();
+  return { query: q, items: allPrompts().filter((p) => p.cmd.startsWith(q)) };
+}
+
+/**
+ * Sisipkan snippet ">cmd" pada posisi token-nya. Sisa teks setelah token
+ * dipertahankan — snippet ditempel, bukan menggantikan baris.
+ */
+export function expandSnippet(draft: string, sel: string): string {
+  const m = /(^|\s)>([\w-]+)/.exec(draft);
+  if (!m) return draft;
+  const item = allPrompts().find((p) => p.cmd === m[2].toLowerCase());
+  if (!item) return draft;
+  const sebelum = draft.slice(0, m.index + m[1].length);
+  const sesudah = draft.slice(m.index + m[0].length);
+  return `${sebelum}${item.body}${sesudah || (sel ? '' : '')}`;
+}
+
+/**
  * Ganti token "/cmd sisa" dengan isi perintah. Teks setelah perintah
  * disisipkan pada penanda {sel}, jadi "/fix baris 12" tetap membawa "baris 12".
  */

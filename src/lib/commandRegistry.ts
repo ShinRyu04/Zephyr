@@ -152,16 +152,7 @@ export const COMMANDS: CommandDef[] = [
     action: 'file.open',
     keywords: 'buka',
     run: () => S().openFileDialog(),
-  },
-  {
-    id: 'explorer.openFolder',
-    title: 'Explorer: Open Folder…',
-    group: 'File',
-    action: 'file.openFolder',
-    keywords: 'workspace buka folder',
-    run: () => S().openFolderDialog(),
-  },
-  {
+  },  {
     id: 'file.save',
     title: 'File: Save',
     group: 'File',
@@ -218,21 +209,7 @@ export const COMMANDS: CommandDef[] = [
     action: 'view.explorer',
     keywords: 'file tree',
     run: () => openSide('explorer'),
-  },
-  {
-    id: 'view.search',
-    title: 'View: Search in Files',
-    group: 'View',
-    action: 'edit.findInFiles',
-    keywords: 'cari grep',
-    run: () => {
-      openSide('search');
-      window.setTimeout(() => {
-        document.querySelector<HTMLInputElement>('.search-input')?.focus();
-      }, 60);
-    },
-  },
-  {
+  },  {
     id: 'view.sidebar',
     title: 'View: Toggle Sidebar',
     group: 'View',
@@ -279,16 +256,7 @@ export const COMMANDS: CommandDef[] = [
       S().applySettings({ sidebar: 'bottom' });
       S().setSidebarVisible(true);
     },
-  },
-  {
-    id: 'view.panel',
-    title: 'View: Toggle Bottom Panel',
-    group: 'View',
-    action: 'view.panel',
-    keywords: 'terminal ai bawah',
-    run: () => T().toggleVisible(),
-  },
-  {
+  },  {
     id: 'view.zoomIn',
     title: 'View: Zoom In',
     group: 'View',
@@ -494,22 +462,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => useGit.getState().sync(),
   },
 
-  
-  {
-    id: 'ai.focus',
-    title: 'AI: Focus Chat Panel',
-    group: 'AI',
-    action: 'ai.panel',
-    keywords: 'chat prompt',
-    run: () => {
-      const s = S();
-      s.setSettingsOpen(false);
-      T().setVisible(true);
-      T().setDock('ai');
-      window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 60);
-    },
-  },
-  {
+    {
     id: 'ai.newChat',
     title: 'AI: New Chat',
     group: 'AI',
@@ -517,7 +470,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => {
       useAi.getState().newChat();
       T().setVisible(true);
-      T().setDock('ai');
+      usePanel.getState().focusTab('ai');
     },
   },
   {
@@ -774,10 +727,11 @@ export const COMMANDS: CommandDef[] = [
       s.setSettingsOpen(false);
       s.setActivity('ai');
       if (!s.sidebarVisible) s.toggleSidebar();
-      if (t.visible && t.dock === 'ai') t.setVisible(false);
+      const P = usePanel.getState();
+      if (t.visible && P.activeTab === 'ai') t.setVisible(false);
       else {
         t.setVisible(true);
-        t.setDock('ai');
+        P.focusTab('ai');
       }
     },
   },
@@ -1062,6 +1016,23 @@ export const COMMANDS: CommandDef[] = [
     run: () => usePanel.getState().focusTab('ports'),
   },
   {
+    id: 'aiPanel.focus',
+    title: 'View: Show AI',
+    group: 'View',
+    keywords: 'chat panel bawah',
+    run: () => {
+      T().setVisible(true);
+      usePanel.getState().focusTab('ai');
+    },
+  },
+  {
+    id: 'subagentsPanel.focus',
+    title: 'View: Show Subagents',
+    group: 'View',
+    keywords: 'subagent paralel agent worker tugas',
+    run: () => usePanel.getState().focusTab('subagents'),
+  },
+  {
     id: 'panel.clearOutput',
     title: 'Output: Clear Active Channel',
     group: 'View',
@@ -1201,9 +1172,14 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'layout tata letak atur sembunyikan menu bar status bar',
     run: async () => {
-      // Buka panel Customize Layout: klik tombolnya di title bar.
-      const btn = document.querySelector('[data-testid="mb-customize-layout"]') as HTMLElement | null;
-      btn?.click();
+      // Buka lewat STORE, bukan klik tombolnya — tombolnya bisa tidak ada
+      // (Menu Bar dimatikan), dan command palette harus tetap bekerja.
+      const { useLayoutCustom } = await import('./layoutStore');
+      // SELALU membuka (bukan toggle): command ini namanya "View: Customize
+      // Layout", jadi perilaku yang diharapkan user adalah panelnya muncul.
+      // Kalau toggle, user yang panelnya sudah terbuka malah melihatnya
+      // menutup — dan menyimpulkan command-nya rusak.
+      useLayoutCustom.getState().setMenuBuka(true);
     },
   },
   {
@@ -2146,98 +2122,6 @@ export const COMMANDS: CommandDef[] = [
     },
   },
   {
-    id: 'editor.breadcrumbs.toggle',
-    title: 'View: Toggle Breadcrumbs',
-    group: 'View',
-    keywords: 'breadcrumbs toggle',
-    run: () => S().applySettings({ editor: { breadcrumbs: !S().settings.editor.breadcrumbs } }),
-  },
-  {
-    id: 'editor.stickyScroll.toggle',
-    title: 'View: Toggle Sticky Scroll',
-    group: 'View',
-    keywords: 'sticky scroll toggle',
-    run: () => S().applySettings({ editor: { stickyScroll: !S().settings.editor.stickyScroll } }),
-  },
-  {
-    id: 'editor.minimap.toggle',
-    title: 'View: Toggle Minimap',
-    group: 'View',
-    keywords: 'minimap toggle',
-    run: () => S().applySettings({ editor: { minimap: !S().settings.editor.minimap } }),
-  },
-  {
-    id: 'editor.indentGuides.toggle',
-    title: 'View: Toggle Indent Guides',
-    group: 'View',
-    keywords: 'indent guides toggle',
-    run: () => S().applySettings({ editor: { indentGuides: !S().settings.editor.indentGuides } }),
-  },
-  {
-    id: 'editor.colorDecorators.toggle',
-    title: 'View: Toggle Color Decorators',
-    group: 'View',
-    keywords: 'color decorators toggle',
-    run: () => S().applySettings({ editor: { colorDecorators: !S().settings.editor.colorDecorators } }),
-  },
-  {
-    id: 'editor.unicodeHighlight.toggle',
-    title: 'View: Toggle Unicode Highlight',
-    group: 'View',
-    keywords: 'unicode highlight toggle',
-    run: () => S().applySettings({ editor: { unicodeHighlight: !S().settings.editor.unicodeHighlight } }),
-  },
-  {
-    id: 'editor.bracketPairColorization.toggle',
-    title: 'View: Toggle Bracket Pair Colorization',
-    group: 'View',
-    keywords: 'bracket pair colorization toggle',
-    run: () =>
-      S().applySettings({ editor: { bracketPairColorization: !S().settings.editor.bracketPairColorization } }),
-  },
-  {
-    id: 'theme.zephyr-dark',
-    title: 'Theme: Zephyr Dark',
-    group: 'View',
-    keywords: 'tema gelap zephyr dark',
-    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'zephyr-dark' } }),
-  },
-  {
-    id: 'theme.zephyr-light',
-    title: 'Theme: Zephyr Light',
-    group: 'View',
-    keywords: 'tema terang zephyr light',
-    run: () => S().applySettings({ general: { theme: 'light' }, theme: { current: 'zephyr-light' } }),
-  },
-  {
-    id: 'theme.nord',
-    title: 'Theme: Nord',
-    group: 'View',
-    keywords: 'tema nord',
-    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'nord' } }),
-  },
-  {
-    id: 'theme.tokyo-night',
-    title: 'Theme: Tokyo Night',
-    group: 'View',
-    keywords: 'tema tokyo night',
-    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'tokyo-night' } }),
-  },
-  {
-    id: 'theme.gruvbox',
-    title: 'Theme: Gruvbox',
-    group: 'View',
-    keywords: 'tema gruvbox',
-    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'gruvbox-dark' } }),
-  },
-  {
-    id: 'theme.one-dark-pro',
-    title: 'Theme: One Dark Pro',
-    group: 'View',
-    keywords: 'tema one dark pro',
-    run: () => S().applySettings({ general: { theme: 'dark' }, theme: { current: 'one-dark' } }),
-  },
-  {
     id: 'window.close',
     title: 'File: Exit',
     group: 'File',
@@ -2251,16 +2135,35 @@ export const COMMANDS: CommandDef[] = [
     id: 'window.new',
     title: 'File: New Window',
     group: 'File',
-    keywords: 'jendela baru window new',
+    keywords: 'jendela baru window new instance',
     run: async () => {
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-      new WebviewWindow(`zephyr-${Date.now()}`, {
+      const label = `zephyr-${Date.now()}`;
+      // Jendela baru WAJIB menyamai jendela utama: tanpa `decorations: false`
+      // title bar native muncul dan tampilan jadi beda dari jendela pertama.
+      // Izin `core:webview:allow-create-webview-window` harus ada di
+      // capabilities/default.json, kalau tidak pembuatan jendela ditolak
+      // tanpa pesan yang jelas.
+      const w = new WebviewWindow(label, {
         url: 'index.html',
         title: 'Zephyr',
         width: 1440,
         height: 900,
         minWidth: 800,
         minHeight: 520,
+        decorations: false,
+        center: true,
+        focus: true,
+      });
+      // Laporkan kegagalan: tanpa ini jendela yang gagal dibuat hanya terlihat
+      // sebagai "tidak terjadi apa-apa".
+      void w.once('tauri://error', (e) => {
+        useNotif.getState().notify({
+          severity: 'error',
+          message: 'Gagal membuka jendela baru',
+          detail: String((e as { payload?: unknown }).payload ?? e).slice(0, 200),
+          source: 'Window',
+        });
       });
     },
   },
