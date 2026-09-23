@@ -83,7 +83,13 @@ import {
 import { extensiUntukFile, labelBahasa } from './lang';
 import { ACTIONS, ACTION_BY_ID, effectiveBinding, findConflicts } from './shortcuts';
 import { translate } from './i18n';
-import { systemPromptFor, aturanProyek, resetAturanProyek, IDENTITY_REMINDER } from './systemPrompt';
+import {
+  systemPromptFor,
+  aturanProyek,
+  resetAturanProyek,
+  identityReminder,
+  blokIdentitasModel,
+} from './systemPrompt';
 import { allPrompts, saveUserPrompts, matchPrompts, type PromptItem } from './promptLibrary';
 import { batasParalel, batasLangkah, bolehTulis } from './subagentStore';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
@@ -758,11 +764,22 @@ export function installDevBridge(): void {
 
   // ── T3.7: system prompt (harness uji-t3-7) ──
   w.__ZEPHYR_PROMPT__ = {
-    system: (lang: string, konteks: string, aturan: string) =>
-      systemPromptFor(lang, konteks, aturan),
+    // Model + provider opsional: harness lama memanggil dengan 3 argumen dan
+    // tetap harus jalan. Yang baru bisa memverifikasi blok identitas model.
+    system: (lang: string, konteks: string, aturan: string, model?: string, provider?: string) =>
+      systemPromptFor(
+        lang,
+        konteks,
+        aturan,
+        model ?? useAi.getState().model,
+        provider ?? useAi.getState().provider,
+      ),
     aturanProyek: () => aturanProyek(),
     resetAturan: () => resetAturanProyek(),
-    reminder: () => IDENTITY_REMINDER,
+    reminder: () => identityReminder(useAi.getState().model),
+    blokModel: (provider?: string, model?: string) =>
+      blokIdentitasModel(provider ?? useAi.getState().provider, model ?? useAi.getState().model),
+    modelAktif: () => ({ provider: useAi.getState().provider, model: useAi.getState().model }),
   };
 
   // ── T1.2/T1.5: bridge CLI AI agent (harness uji-t1-2-5) ──

@@ -507,6 +507,12 @@ const ID: Dict = {
   'win.resizeSidebar': 'Ubah lebar sidebar',
   'win.resizePanel': 'Ubah tinggi panel',
   'win.skipToEditor': 'Lompat ke editor',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'Model yang menjalankan AI',
+  'belum dipilih': 'belum dipilih',
+  '(belum ada model yang dipilih)': '(belum ada model yang dipilih)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.',
+
 };
 
 const EN: Dict = {
@@ -1009,6 +1015,12 @@ const EN: Dict = {
   'win.resizeSidebar': 'Resize sidebar',
   'win.resizePanel': 'Resize panel',
   'win.skipToEditor': 'Skip to editor',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'Model running the AI',
+  'belum dipilih': 'not selected yet',
+  '(belum ada model yang dipilih)': '(no model selected yet)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'When you ask "what model are you", Zeph answers from this fact — not a guess. Change it in Settings → Model AI. This block is deliberately not editable so the AI never claims to be a different model.',
+
 };
 
 const JA: Dict = {
@@ -1511,6 +1523,12 @@ const JA: Dict = {
   'win.resizeSidebar': 'サイドバーの幅を変更',
   'win.resizePanel': 'パネルの高さを変更',
   'win.skipToEditor': 'エディターへ移動',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'AI を動かしているモデル',
+  'belum dipilih': '未選択',
+  '(belum ada model yang dipilih)': '（モデルが未選択です）',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': '「あなたはどのモデル？」と聞かれたとき、Zeph はこの事実から答えます（推測ではありません）。変更は Settings → Model AI で。このブロックは意図的に編集できません — AI が別のモデルを名乗らないようにするためです。',
+
 };
 
 const KO: Dict = {
@@ -2013,6 +2031,12 @@ const KO: Dict = {
   'win.resizeSidebar': '사이드바 너비 조절',
   'win.resizePanel': '패널 높이 조절',
   'win.skipToEditor': '편집기로 이동',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'AI를 실행하는 모델',
+  'belum dipilih': '아직 선택 안 됨',
+  '(belum ada model yang dipilih)': '(아직 선택된 모델이 없습니다)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': '"너는 무슨 모델이야"라고 물으면 Zeph는 이 사실에서 답합니다 — 추측이 아닙니다. Settings → Model AI에서 바꾸세요. 이 블록은 의도적으로 편집할 수 없습니다 — AI가 다른 모델이라고 주장하지 않게 하기 위해서입니다.',
+
 };
 
 const ZH: Dict = {
@@ -2515,6 +2539,12 @@ const ZH: Dict = {
   'win.resizeSidebar': '调整侧边栏宽度',
   'win.resizePanel': '调整面板高度',
   'win.skipToEditor': '跳到编辑器',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': '运行 AI 的模型',
+  'belum dipilih': '尚未选择',
+  '(belum ada model yang dipilih)': '（尚未选择模型）',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': '当你问"你是什么模型"时，Zeph 依据这个事实回答，而不是猜测。可在 Settings → Model AI 中修改。此区块故意不可编辑，以免 AI 自称是其他模型。',
+
 };
 
 const ES: Dict = {
@@ -3017,6 +3047,12 @@ const ES: Dict = {
   'win.resizeSidebar': 'Redimensionar barra lateral',
   'win.resizePanel': 'Redimensionar panel',
   'win.skipToEditor': 'Ir al editor',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'Modelo que ejecuta la IA',
+  'belum dipilih': 'sin seleccionar',
+  '(belum ada model yang dipilih)': '(ningún modelo seleccionado)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'Cuando preguntas "¿qué modelo eres", Zeph responde con este dato, no con una suposición. Cámbialo en Settings → Model AI. Este bloque no es editable a propósito para que la IA nunca afirme ser otro modelo.',
+
 };
 
 const FR: Dict = {
@@ -3519,6 +3555,12 @@ const FR: Dict = {
   'win.resizeSidebar': 'Redimensionner la barre latérale',
   'win.resizePanel': 'Redimensionner le panneau',
   'win.skipToEditor': 'Aller à l’éditeur',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'Modèle qui exécute l’IA',
+  'belum dipilih': 'non sélectionné',
+  '(belum ada model yang dipilih)': '(aucun modèle sélectionné)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'Quand tu demandes « quel modèle es-tu », Zeph répond à partir de ce fait, pas d’une supposition. Modifie-le dans Settings → Model AI. Ce bloc n’est volontairement pas modifiable pour que l’IA ne prétende jamais être un autre modèle.',
+
 };
 
 const DE: Dict = {
@@ -4021,6 +4063,12 @@ const DE: Dict = {
   'win.resizeSidebar': 'Seitenleiste skalieren',
   'win.resizePanel': 'Panel skalieren',
   'win.skipToEditor': 'Zum Editor springen',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'Modell, das die KI ausführt',
+  'belum dipilih': 'noch nicht gewählt',
+  '(belum ada model yang dipilih)': '(noch kein Modell gewählt)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'Auf die Frage "welches Modell bist du" antwortet Zeph mit dieser Tatsache — nicht mit einer Vermutung. Ändern unter Settings → Model AI. Dieser Block ist absichtlich nicht editierbar, damit die KI sich nie als anderes Modell ausgibt.',
+
 };
 
 const PT: Dict = {
@@ -4523,6 +4571,12 @@ const PT: Dict = {
   'win.resizeSidebar': 'Redimensionar barra lateral',
   'win.resizePanel': 'Redimensionar painel',
   'win.skipToEditor': 'Ir para o editor',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'Modelo que executa a IA',
+  'belum dipilih': 'ainda não escolhido',
+  '(belum ada model yang dipilih)': '(nenhum modelo escolhido ainda)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'Quando perguntas "que modelo és", o Zeph responde com este facto — não com um palpite. Muda em Settings → Model AI. Este bloco não é editável de propósito, para a IA nunca afirmar ser outro modelo.',
+
 };
 
 const AR: Dict = {
@@ -5025,6 +5079,12 @@ const AR: Dict = {
   'win.resizeSidebar': 'تغيير عرض الشريط الجانبي',
   'win.resizePanel': 'تغيير ارتفاع اللوحة',
   'win.skipToEditor': 'الانتقال إلى المحرر',
+  // ── identitas model (Prompt AI) ──
+  'Model yang menjalankan AI': 'النموذج الذي يشغّل الذكاء الاصطناعي',
+  'belum dipilih': 'لم يتم الاختيار',
+  '(belum ada model yang dipilih)': '(لم يتم اختيار نموذج بعد)',
+  'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.': 'عند سؤالك "ما هو النموذج الذي تعمل به"، يجيب Zeph من هذه الحقيقة لا من تخمين. غيّره في Settings → Model AI. هذا القسم غير قابل للتعديل عمدًا حتى لا يدّعي الذكاء الاصطناعي أنه نموذج آخر.',
+
 };
 
 export const EXTRA: Record<string, Dict> = {
