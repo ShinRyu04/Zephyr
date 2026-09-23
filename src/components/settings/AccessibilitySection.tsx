@@ -1,13 +1,3 @@
-// AccessibilitySection.tsx — Settings → Aksesibilitas (fase 31).
-//
-// Penamaan kunci mengikuti VS Code (`accessibility.*`) supaya user yang datang
-// dari sana menemukan hal yang sama di tempat yang sama.
-//
-// Yang ditampilkan di sini adalah SETELAN APP. Preferensi OS
-// (`prefers-reduced-motion`) tetap dihormati lewat media query di a11y.css —
-// baris statusnya menyebut itu supaya user tidak bingung kenapa animasi sudah
-// mati padahal toggle-nya off.
-
 import { useStore } from '../../lib/store';
 import {
   DEFAULT_A11Y,

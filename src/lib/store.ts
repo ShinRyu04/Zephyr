@@ -1,7 +1,3 @@
-
-
-
-
 import { create } from 'zustand';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import * as cmd from './commands';
@@ -10,12 +6,8 @@ import { kunciPath, pathSama } from './pathKey';
 import { revealPosition } from './editorRegistry';
 import { applyTheme } from './themes';
 
-
-
 import { terapkanA11y } from './a11yStore';
 import { retheme, reSrMode } from './xtermRegistry';
-
-
 
 import { useLayout } from './editorLayoutStore';
 import {
@@ -29,15 +21,13 @@ import {
   type Tab,
 } from './types';
 
- 
 export interface ConfirmState {
-   
+
   tabIds: string[];
-   
+
   intent: 'close-tab' | 'close-window';
 }
 
- 
 export interface SaveIssue {
   kind: 'missing' | 'utf16';
   tabId: string;
@@ -52,21 +42,20 @@ export interface NavLoc {
 }
 
 interface StoreState {
-  
+
   activity: ActivityId;
   sidebarVisible: boolean;
   sidebarWidth: number;
-  /** Lebar kolom AI saat dipindah ke kanan (bisa di-drag). */
+
   aiWidth: number;
-  /** Kolom AI memenuhi lebar (ala VS Code maximize). */
+
   aiMax: boolean;
-  /** tinggi panel saat posisi sidebar = top/bottom (ala VS Code). */
+
   sidebarHeight: number;
   ramBytes: number;
   statusMessage: string;
   cursor: { line: number; col: number };
 
-  
   workspace: string | null;
   recents: RecentEntry[];
   tabs: Tab[];
@@ -74,28 +63,27 @@ interface StoreState {
   untitledSeq: number;
   findOpen: boolean;
   confirm: ConfirmState | null;
-   
+
   saveIssue: SaveIssue | null;
 
-  
   terminalTabs: never[];
   ai: { model: string; messages: never[] };
   mcp: { enabled: boolean; running: boolean; port: number };
 
   settings: Settings;
   settingsLoaded: boolean;
-   
+
   appInfo: AppInfo | null;
   updateBanner: { version: string; notes: string } | null;
-  /** dialog pilihan donasi (Trakteer / Saweria) terbuka */
+
   donateOpen: boolean;
   navBack: NavLoc[];
   navForward: NavLoc[];
   navSuppress: boolean;
   lastClosed: { path: string } | null;
-   
+
   settingsOpen: boolean;
-   
+
   activeTheme: string;
 }
 
@@ -104,16 +92,16 @@ interface StoreActions {
   toggleSidebar: () => void;
   setSidebarVisible: (v: boolean) => void;
   setSidebarWidth: (w: number) => void;
-  /** Lebar kolom AI di kanan (240..900). */
+
   setAiWidth: (w: number) => void;
-  /** Kolom AI memenuhi lebar. */
+
   setAiMax: (v: boolean) => void;
   setSidebarHeight: (h: number) => void;
   setRamBytes: (b: number) => void;
   setStatus: (m: string) => void;
   setCursor: (line: number, col: number) => void;
   setFindOpen: (open: boolean) => void;
-   
+
   setSettingsOpen: (open: boolean) => void;
   setUpdateBanner: (b: { version: string; notes: string } | null) => void;
   setDonateOpen: (v: boolean) => void;
@@ -125,7 +113,7 @@ interface StoreActions {
   bootstrap: () => Promise<void>;
   openFolderDialog: () => Promise<void>;
   openWorkspace: (dir: string) => Promise<void>;
-   
+
   syncWorkspaceLokal: (dir: string) => Promise<void>;
   closeWorkspace: () => Promise<void>;
   refreshRecents: () => Promise<void>;
@@ -137,44 +125,35 @@ interface StoreActions {
   updateTabContent: (id: string, content: string) => void;
   saveTab: (id: string) => Promise<boolean>;
   saveTabAs: (id: string) => Promise<boolean>;
-  /** T1.4: format satu tab lewat LSP. Balikannya = jumlah edit diterapkan
-   *  (0 = tidak ada perubahan atau formatter tidak tersedia). */
+
   formatTab: (id: string) => Promise<number>;
-   
+
   requestCloseTab: (id: string) => void;
   forceCloseTab: (id: string) => void;
   reorderTab: (from: number, to: number) => void;
 
-  
-   
   openPathAt: (path: string, line: number, col?: number) => Promise<void>;
-   
+
   renamePathInTabs: (from: string, to: string) => void;
-   
+
   closeTabsUnder: (paths: string[]) => void;
-   
+
   reloadTabFromDisk: (path: string) => Promise<void>;
 
-   
   cycleTab: (delta: number) => void;
 
-   
   ensureTabLoaded: (id: string) => Promise<void>;
-   
+
   unloadColdTabs: () => void;
 
   resolveConfirm: (choice: 'save' | 'discard' | 'cancel') => Promise<void>;
   requestCloseWindow: () => boolean;
 
-   
   setSaveIssue: (i: SaveIssue | null) => void;
   resolveSaveIssue: (choice: 'ok' | 'cancel') => Promise<void>;
 
   persistSession: () => Promise<void>;
-  /**
-   * true kalau perintah ini cocok dengan daftar izin permanen (T4.5).
-   * Dipakai agent loop untuk melewati dialog persetujuan.
-   */
+
   izinPerintah: (command: string) => boolean;
   applySettings: (patch: Record<string, unknown>) => Promise<void>;
   applyLayout: (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => Promise<void>;
@@ -188,21 +167,16 @@ const nextId = () => `t${++idSeq}`;
 
 const baseName = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
- 
 let bootstrapStarted = false;
 
- 
 const opening = new Set<string>();
 
- 
 export const MAX_LOADED_TABS = 12;
 
- 
 export function maxLoadedTabs(): number {
   return useStore.getState().settings.general.lowRam ? 4 : MAX_LOADED_TABS;
 }
 
- 
 const touchOrder: string[] = [];
 
 function touchTab(id: string): void {
@@ -211,17 +185,6 @@ function touchTab(id: string): void {
   touchOrder.push(id);
 }
 
- 
-
-/**
- * Merge dalam (RFC 7386) yang meniru `deep_merge_um` di `settings.rs`.
- *
- * Sebelumnya `applySettings` hanya shallow-merge, jadi patch seperti
- * `{ models: { answerLang: 'id' } }` MENGHAPUS seluruh `models.providers`
- * di state optimistis → `models.providers[p.id]` undefined → crash render
- * (layar blank) sampai app di-reload. Rust sendiri sudah merge dalam, jadi
- * state frontend harus mengikuti semantik yang sama: `null` = hapus key.
- */
 function mergeDalam(base: unknown, patch: unknown): unknown {
   if (
     base !== null && typeof base === 'object' && !Array.isArray(base) &&
@@ -273,13 +236,11 @@ export const useStore = create<Store>((set, get) => ({
   settingsOpen: false,
   activeTheme: 'zephyr-dark',
 
-  
   setActivity: (a) => set({ activity: a }),
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
-  // Batas 240..900: di bawah 240 chat jadi sempit sekali; di atas 900 editor
-  // tidak tersisa apa-apa di layar 1280.
+
   setAiWidth: (w) => set({ aiWidth: Math.max(240, Math.min(900, w)) }),
   setAiMax: (v) => set({ aiMax: v }),
   setSidebarHeight: (h) => set({ sidebarHeight: Math.max(120, Math.min(480, h)) }),
@@ -290,13 +251,7 @@ export const useStore = create<Store>((set, get) => ({
   setSettingsOpen: (open) =>
     set((s) => ({
       settingsOpen: open,
-      // BUG NYATA yang diperbaiki di sini: menutup halaman Settings (Escape,
-      // tombol Tutup, pindah ke editor) TIDAK mereset `activity`. Akibatnya
-      // `activity` tetap 'settings' padahal halamannya sudah tutup, dan klik
-      // ikon gear berikutnya mengira "sudah aktif" → malah MENUTUP sidebar.
-      // Gejalanya: Settings tidak mau kebuka sama sekali. Reset di sini supaya
-      // semua pemanggil (Escape, tutup, shortcut) ikut benar — bukan tambalan
-      // di satu tombol saja.
+
       activity: open ? 'settings' : s.activity === 'settings' ? 'explorer' : s.activity,
     })),
   setUpdateBanner: (b) => set({ updateBanner: b }),
@@ -306,9 +261,8 @@ export const useStore = create<Store>((set, get) => ({
   setNavSuppress: (v) => set({ navSuppress: v }),
   setLastClosed: (v) => set({ lastClosed: v }),
 
-  
   bootstrap: async () => {
-    
+
     if (bootstrapStarted) return;
     bootstrapStarted = true;
 
@@ -316,12 +270,10 @@ export const useStore = create<Store>((set, get) => ({
       const s = await cmd.getSettings();
       set({ settings: s, settingsLoaded: true });
       set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
-      retheme(); 
-      terapkanA11y(s.accessibility); 
-      reSrMode(); 
-      
-      
-      
+      retheme();
+      terapkanA11y(s.accessibility);
+      reSrMode();
+
       if (s.panel) {
         const { usePanel } = await import('./panelStore');
         usePanel.getState().hydrate(s.panel.visibleTabs, s.panel.activeTab);
@@ -334,7 +286,6 @@ export const useStore = create<Store>((set, get) => ({
       set({ settingsLoaded: true, statusMessage: cmd.asZephyrError(e).message });
     }
 
-    
     try {
       const info = await cmd.getAppInfo();
       set({ appInfo: info });
@@ -356,10 +307,9 @@ export const useStore = create<Store>((set, get) => ({
         });
       }
     } catch {
-       
+
     }
 
-    
     await get().refreshRecents();
 
     if (!get().settings.general.restoreSession) return;
@@ -373,7 +323,7 @@ export const useStore = create<Store>((set, get) => ({
           await get().openPath(t.path);
           restored++;
         } catch {
-          
+
         }
       }
       set({ navSuppress: false });
@@ -387,7 +337,7 @@ export const useStore = create<Store>((set, get) => ({
         });
       }
     } catch {
-       
+
     }
   },
 
@@ -401,7 +351,6 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-   
   openWorkspace: async (dir) => {
     try {
       await cmd.workspaceOpen(dir);
@@ -411,11 +360,9 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-   
   syncWorkspaceLokal: async (dir) => {
     set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
 
-    
     const { useExplorer } = await import('./explorerStore');
     const ex = useExplorer.getState();
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
@@ -423,7 +370,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       await cmd.fsWatch(dir);
     } catch {
-       
+
     }
     await get().refreshRecents();
   },
@@ -433,7 +380,7 @@ export const useStore = create<Store>((set, get) => ({
       await cmd.fsUnwatch();
       await cmd.workspaceClose();
     } catch {
-       
+
     }
     const { useExplorer } = await import('./explorerStore');
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
@@ -445,7 +392,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       set({ recents: await cmd.listRecents() });
     } catch {
-       
+
     }
   },
 
@@ -474,8 +421,7 @@ export const useStore = create<Store>((set, get) => ({
     const existing = get().tabs.find((t) => t.path && pathSama(t.path, path));
     if (existing) {
       set({ activeTabId: existing.id });
-      
-      
+
       const fokus = useLayout.getState().fokus;
       set((s) => ({
         tabs: s.tabs.map((t) => (t.id === existing.id ? { ...t, groupId: fokus } : t)),
@@ -484,21 +430,20 @@ export const useStore = create<Store>((set, get) => ({
       void get().ensureTabLoaded(existing.id);
       return;
     }
-    
+
     const kunci = kunciPath(path);
     if (opening.has(kunci)) return;
     opening.add(kunci);
 
     try {
       const res = await cmd.fsRead(path);
-      
+
       const again = get().tabs.find((t) => t.path && pathSama(t.path, path));
       if (again) {
         set({ activeTabId: again.id });
         return;
       }
-      
-      
+
       if (get().tabs.length === 0) useLayout.getState().reset();
       const tab: Tab = {
         id: nextId(),
@@ -518,7 +463,7 @@ export const useStore = create<Store>((set, get) => ({
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
       touchTab(tab.id);
-      
+
       get().unloadColdTabs();
       void get().persistSession();
     } finally {
@@ -559,15 +504,13 @@ export const useStore = create<Store>((set, get) => ({
     }
     set({ activeTabId: id });
     touchTab(id);
-    
-    
+
     const gid = get().tabs.find((t) => t.id === id)?.groupId;
     if (gid) useLayout.getState().fokusGroup(gid);
-    
+
     void get().ensureTabLoaded(id);
   },
 
-   
   ensureTabLoaded: async (id) => {
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab || tab.loaded !== false || !tab.path) return;
@@ -591,12 +534,11 @@ export const useStore = create<Store>((set, get) => ({
         ),
       }));
     } catch (e) {
-      
+
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
   },
 
-   
   unloadColdTabs: () => {
     const { tabs, activeTabId } = get();
     const batas = maxLoadedTabs();
@@ -613,8 +555,7 @@ export const useStore = create<Store>((set, get) => ({
       lepas.add(id);
       target--;
     }
-    
-    
+
     if (target > 0) {
       for (const t of tabs) {
         if (target <= 0) break;
@@ -638,10 +579,7 @@ export const useStore = create<Store>((set, get) => ({
   updateTabContent: (id, content) =>
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        
-        
-        
-        
+
         t.id === id && t.loaded !== false && !t.readOnly
           ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved }
           : t,
@@ -652,8 +590,7 @@ export const useStore = create<Store>((set, get) => ({
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab) return false;
     if (!tab.path) return get().saveTabAs(id);
-    
-    
+
     if (tab.loaded === false) {
       await get().ensureTabLoaded(id);
       const again = get().tabs.find((t) => t.id === id);
@@ -663,8 +600,7 @@ export const useStore = create<Store>((set, get) => ({
       }
     }
     const cur = get().tabs.find((t) => t.id === id) as Tab;
-    
-    
+
     if (cur.encoding === 'utf16le' || cur.encoding === 'utf16be') {
       set({
         saveIssue: {
@@ -677,11 +613,7 @@ export const useStore = create<Store>((set, get) => ({
       return false;
     }
     try {
-      // T1.4: format-on-save. Dijalankan SEBELUM snapshot & tulis supaya
-      // hasil format ikut tersimpan dan masih bisa di-undo (edit masuk
-      // riwayat CodeMirror). Kalau formatter tidak ada atau gagal, save
-      // TETAP lanjut — memblokir save karena formatter bermasalah jauh
-      // lebih buruk daripada menyimpan file yang belum rapi.
+
       if (get().settings.editor.formatOnSave) {
         const diformat = await get().formatTab(id);
         if (diformat > 0) {
@@ -704,8 +636,7 @@ export const useStore = create<Store>((set, get) => ({
       return true;
     } catch (e) {
       const err = cmd.asZephyrError(e);
-      
-      
+
       if (err.code === 'NotFound' && cur.existed) {
         set({
           saveIssue: {
@@ -722,13 +653,10 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  /** T1.4: format dokumen lewat LSP. Aman dipanggil walau LSP tidak siap —
-   *  balikannya 0 dan save tetap jalan. */
   formatTab: async (id) => {
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab?.path) return 0;
-    // Hanya tab yang sedang tampil punya EditorView hidup; tab lain di-skip
-    // (formatter butuh view untuk menerapkan edit).
+
     if (get().activeTabId !== id) return 0;
     const { getActiveView } = await import('./editorRegistry');
     const view = getActiveView();
@@ -737,15 +665,14 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const { lspFormat } = await import('./lspCm');
       const n = await lspFormat(tab.path, view, ed.tabSize, ed.insertSpaces);
-      // Edit sudah masuk view; tarik ulang isi dokumen ke store supaya yang
-      // ditulis ke disk adalah versi TERFORMAT, bukan versi lama.
+
       if (n > 0) {
         const teks = view.state.doc.toString();
         get().updateTabContent(id, teks);
       }
       return n;
     } catch {
-      // Formatter tidak tersedia / server menolak — bukan alasan gagal save.
+
       return 0;
     }
   },
@@ -756,8 +683,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const target = await cmd.fileDialogSave(tab.path ?? tab.name);
       if (!target) return false;
-      
-      
+
       const enc = tab.encoding === 'utf16le' || tab.encoding === 'utf16be' ? 'utf8' : tab.encoding;
       await cmd.fsWrite(target, tab.content, enc, tab.lineEnding);
       set((s) => ({
@@ -797,10 +723,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   forceCloseTab: (id) => {
-    
-    
-    
-    
+
     const tabTutup = get().tabs.find((t) => t.id === id);
     if (tabTutup?.path) {
       void import('./cliStore').then((m) => m.useCli.getState().lepasWait(tabTutup.path as string));
@@ -814,13 +737,10 @@ export const useStore = create<Store>((set, get) => ({
         const neighbour = tabs[Math.min(idx, tabs.length - 1)];
         activeTabId = neighbour ? neighbour.id : null;
       }
-      
-      
+
       const gid = s.tabs.find((t) => t.id === id)?.groupId;
       if (gid) useLayout.getState().setGroupTab(gid, null);
-      
-      
-      
+
       if (tabs.length === 0) useLayout.getState().reset();
       return { tabs, activeTabId };
     });
@@ -838,11 +758,9 @@ export const useStore = create<Store>((set, get) => ({
       return { tabs };
     }),
 
-  
-
   openPathAt: async (path, line, col = 1) => {
     await get().openPath(path);
-    
+
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     revealPosition(line, col);
   },
@@ -880,7 +798,6 @@ export const useStore = create<Store>((set, get) => ({
     for (const id of doomed) get().forceCloseTab(id);
   },
 
-   
   cycleTab: (delta) => {
     const { tabs, activeTabId } = get();
     if (tabs.length < 2) return;
@@ -929,7 +846,7 @@ export const useStore = create<Store>((set, get) => ({
     if (choice === 'save') {
       const ok = await get().saveTab(current);
       if (!ok) {
-        set({ confirm: null }); 
+        set({ confirm: null });
         return;
       }
     }
@@ -946,7 +863,6 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-   
   requestCloseWindow: () => {
     const dirty = get().tabs.filter((t) => t.unsaved);
     if (dirty.length === 0) return true;
@@ -956,7 +872,6 @@ export const useStore = create<Store>((set, get) => ({
 
   setSaveIssue: (i) => set({ saveIssue: i }),
 
-   
   resolveSaveIssue: async (choice) => {
     const issue = get().saveIssue;
     if (!issue) return;
@@ -1001,18 +916,10 @@ export const useStore = create<Store>((set, get) => ({
         .map((t) => ({ path: t.path as string, encoding: t.encoding }));
       await cmd.sessionSave(tabs);
     } catch {
-       
+
     }
   },
 
-  /**
-   * T4.5: cocokkan perintah dengan daftar izin permanen.
-   *
-   * Pencocokan PREFIX dengan pembatas kata: "npm run" cocok untuk
-   * "npm run build" tapi TIDAK untuk "npm runbuild" atau "npm runner".
-   * Tanpa pembatas, izin "git" akan ikut mengizinkan "gitk" dan sejenisnya —
-   * terlalu longgar untuk daftar izin.
-   */
   izinPerintah: (command) => {
     const daftar = get().settings.allowCommands ?? [];
     const cmd = command.trim().replace(/\s+/g, ' ');
@@ -1021,35 +928,31 @@ export const useStore = create<Store>((set, get) => ({
       const p = izin.trim().replace(/\s+/g, ' ');
       if (!p) return false;
       if (!cmd.startsWith(p)) return false;
-      // Batas kata: setelah prefix harus habis atau spasi.
+
       return cmd.length === p.length || cmd[p.length] === ' ';
     });
   },
 
   applySettings: async (patch) => {
-    // Optimistis: terapkan patch ke state lokal dulu supaya kontrol UI respons
-    // tanpa jeda IPC (bug: checkbox terasa "tidak bisa diganti" karena re-render
-    // menunggu dua kali IPC bolak-balik). File tetap ditulis setelahnya.
+
     try {
       const sebelumnya = get().settings;
-      // Merge DALAM — bukan spread dangkal — supaya patch `{ models: { x } }`
-      // tidak menghapus `models.providers` (penyebab layar blank).
+
       const gabungan = mergeDalam(sebelumnya, patch);
       set({ settings: gabungan as typeof sebelumnya });
       await cmd.setSettings(patch);
       const s = await cmd.getSettings();
       set({ settings: s });
-      
+
       set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
-      retheme(); 
-      terapkanA11y(s.accessibility); 
-      reSrMode(); 
+      retheme();
+      terapkanA11y(s.accessibility);
+      reSrMode();
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
   },
 
-  /** Terapkan mode layout: kombinasi sidebar + panel bawah. */
   applyLayout: async (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => {
     const st = useStore.getState();
     const { useTerminal } = await import('./terminalStore');
@@ -1075,16 +978,15 @@ export const useStore = create<Store>((set, get) => ({
       const s = await cmd.getSettings();
       set({ settings: s });
       set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
-      retheme(); 
-      terapkanA11y(s.accessibility); 
-      reSrMode(); 
+      retheme();
+      terapkanA11y(s.accessibility);
+      reSrMode();
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
   },
 }));
 
- 
 export const useActiveTab = (): Tab | null => {
   const id = useStore((s) => s.activeTabId);
   const tabs = useStore((s) => s.tabs);

@@ -1,8 +1,3 @@
-// McpPanel.tsx — Settings → MCP (fase 11). Switch server, token, tabel CLI.
-//
-// Ini SATU-SATUNYA tempat kontrol MCP (tidak diduplikasi ke panel lain):
-// pelajaran fase 08, nav & tombol aksi cukup di satu tempat.
-
 import { useEffect } from 'react';
 import { useStore } from '../../lib/store';
 import { useMcp } from '../../lib/mcpStore';
@@ -10,10 +5,8 @@ import { useT } from '../../lib/i18n';
 import { Row, Section, Toggle } from './SettingsControls';
 import CapturePanel from './CapturePanel';
 
-/** Daftar CLI ditampilkan urut seperti prompt fase 11 §11.4. */
 const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'hermes', 'copilot', 'cursor', 'startup'];
 
-/** Path panjang dipendekkan jadi `~\.config\opencode\opencode.json`. */
 function shortPath(p: string): string {
   if (!p) return '—';
   const home = /^([A-Za-z]:\\Users\\[^\\]+)\\/.exec(p);
@@ -67,9 +60,9 @@ export default function McpPanel() {
   const token = status?.token ?? '';
   const masked = token ? `${token.slice(0, 4)}${'•'.repeat(20)}${token.slice(-4)}` : tr('(belum ada)');
   const byId = new Map(clis.map((c) => [c.id, c]));
-  /** CLI yang config-nya benar-benar ada di mesin ini (bukan yang belum terpasang). */
+
   const terdeteksi = clis.filter((c) => c.exists).map((c) => c.id);
-  /** CLI yang sudah memuat entri Zephyr. */
+
   const terdaftar = clis.filter((c) => c.registered).map((c) => c.id);
   const setChecked = useMcp((s) => s.setChecked);
 
@@ -194,8 +187,7 @@ export default function McpPanel() {
           title={tr('Tulis konfigurasi MCP ke semua CLI yang terpasang di mesin ini')}
           onClick={() => {
             setChecked(terdeteksi);
-            // writeToCli membaca `checked` dari store; beri satu tick supaya
-            // nilai barunya sudah tersimpan saat ia membaca.
+
             window.setTimeout(() => void writeToCli(), 30);
           }}
         >

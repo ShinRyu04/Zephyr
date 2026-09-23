@@ -1,28 +1,10 @@
-// i18n-src.ts — terjemahan dengan KUNCI = teks sumber Indonesia (gaya gettext).
-//
-// Kenapa begitu: ada ~220 teks Indonesia yang tersebar hardcoded di 53
-// komponen. Kalau tiap teks harus dikasih nama kunci baru, itu 220 keputusan
-// penamaan + risiko salah pasang. Dengan kunci = teksnya sendiri, satu codemod
-// bisa membungkus semuanya dan tabel ini satu-satunya tempat yang perlu diisi.
-//
-// Cakupan bahasa: HANYA Inggris untuk tabel ini. Alasannya jujur: menerjemahkan
-// 220 string ke 8 bahasa lain (≈1.800 baris) tanpa penutur asli yang memeriksa
-// justru menghasilkan terjemahan setengah benar. Karena rantai fallback
-// `tx()` = aktif → Inggris → teks asli, pemakai bahasa Jepang/Korea/dll melihat
-// INGGRIS, bukan sisa bahasa Indonesia — itu yang diminta. Kunci inti di
-// `i18n.ts` tetap punya 10 bahasa penuh.
-//
-// Aturan: nilai WAJIB bahasa Inggris. Jangan menaruh teks Indonesia di sini,
-// karena teks Indonesia apa pun yang tidak ada di tabel = bocor ke bahasa lain.
-
-/** teks Indonesia → Inggris */
 export const EN: Record<string, string> = {
-  // T3.6: timeline langkah agent berlabel.
+
   'hasil': 'result',
   'Berpikir…': 'Thinking…',
   'Memikirkan langkah…': 'Thinking about the next step…',
   'Tugas selesai.': 'Task complete.',
-  // T3.5: Customize Layout (ala VS Code).
+
   'Customize Layout': 'Customize Layout',
   'Customize Layout…': 'Customize Layout…',
   'Terlihat': 'Visible',
@@ -34,15 +16,14 @@ export const EN: Record<string, string> = {
   'Kanan': 'Right',
   'Kerapatan': 'Layout Density',
   'Normal': 'Default',
-  'Rapat': 'Compact',
+  'Padat': 'Compact',
   'Zen Mode': 'Zen Mode',
   'Kembalikan tata letak bawaan': 'Reset layout to default',
   'Sembunyikan panel AI': 'Hide AI panel',
-  // T3.4: Zen mode + pratinjau gambar.
-  // Zoom pakai kunci yang SUDAH ADA ('Perbesar/Perkecil/Reset tampilan').
+
   'Tutup pratinjau': 'Close preview',
   'Gambar gagal dimuat.': 'Failed to load image.',
-  // T3.3: SFTP + port forwarding.
+
   'Belum ada host SSH': 'No SSH host yet',
   'Tambahkan host SSH dulu di panel SSH.': 'Add an SSH host first in the SSH panel.',
   'File': 'Files',
@@ -55,7 +36,7 @@ export const EN: Record<string, string> = {
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.':
     'No tunnels yet. Ports already in use will not be taken over.',
   'Port tidak valid.': 'Invalid port.',
-  // T3.2: Database browser.
+
   'Database': 'Database',
   'Path file SQLite (.db / .sqlite)': 'SQLite file path (.db / .sqlite)',
   'Buka': 'Open',
@@ -67,7 +48,7 @@ export const EN: Record<string, string> = {
   'baris data': 'rows',
   'terpengaruh': 'affected',
   'dipotong — tambahkan LIMIT': 'truncated — add LIMIT',
-  // T3.1: Dev Environment.
+
   'Dev Environment': 'Dev Environment',
   'versi terdeteksi': 'versions detected',
   'Memuat…': 'Loading…',
@@ -84,7 +65,7 @@ export const EN: Record<string, string> = {
   'menyiapkan…': 'starting…',
   'hidup di port': 'live on port',
   'Port': 'Port',
-  // T2.4: Test Explorer.
+
   'Test Explorer': 'Test Explorer',
   'runner': 'runners',
   'Buka folder project untuk mendeteksi test.':
@@ -98,7 +79,7 @@ export const EN: Record<string, string> = {
   'Jalankan': 'Run',
   'Riwayat': 'History',
   'Dijalankan di terminal:': 'Running in terminal:',
-  // T2.3: Cloudflare Tunnel.
+
   'cloudflared belum terpasang': 'cloudflared is not installed',
   'Taruh cloudflared.exe di D:\\DevEnv\\bin\\ lalu buka panel ini lagi.':
     'Place cloudflared.exe in D:\\DevEnv\\bin\\ then reopen this panel.',
@@ -113,7 +94,7 @@ export const EN: Record<string, string> = {
   'Menyiapkan…': 'Preparing…',
   'Salin URL': 'Copy URL',
   'Hentikan': 'Stop',
-  // T2.2: API client.
+
   'Collection': 'Collection',
   'Environment': 'Environment',
   'Pilih atau buat request untuk mulai.': 'Select or create a request to start.',
@@ -125,10 +106,10 @@ export const EN: Record<string, string> = {
   'Hapus request': 'Delete request',
   'Tambah variabel': 'Add variable',
   'Body': 'Body',
-  // T2.1: blok langkah subagent.
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Subagent',
-  // T2.1: subagent paralel.
+
   'Tugas paralel': 'Parallel tasks',
   'Satu baris = satu subagent': 'One line = one subagent',
   'Jalankan beberapa tugas sekaligus (paralel)':
@@ -154,7 +135,7 @@ export const EN: Record<string, string> = {
   'Tutup': 'Close',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z':
     'Find all usages of function X\nCheck whether module Y has bugs\nSummarise the structure of folder Z',
-  // T1.3: HTTP client (.http).
+
   'Buka file .http untuk menjalankan request.':
     'Open a .http file to run requests.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body':
@@ -168,27 +149,27 @@ export const EN: Record<string, string> = {
   'Header': 'Headers',
   '(body kosong)': '(empty body)',
   'dipotong': 'truncated',
-  // T1.2/T1.5: jalur AI (Native vs CLI).
+
   'Jalur AI': 'AI route',
   'Pakai adapter API (butuh API key)': 'Use the API adapter (needs an API key)',
   'Belum siap': 'Not ready yet',
   'mode CLI: kirim pesan untuk menjalankan CLI':
     'CLI mode: send a message to run the CLI',
-  // T1.4: format-on-save.
+
   'Memakai formatter LSP bahasa yang aktif':
     'Uses the LSP formatter for the active language',
   'Diformat': 'Formatted',
-  // T1.1: blok "Reasoned" (penalaran model).
+
   'Sedang berpikir…': 'Thinking…',
   'baris': 'lines',
   'karakter': 'chars',
-  // T1.1: kontrol tingkat penalaran.
+
   'Tingkat penalaran': 'Reasoning effort',
   'Penalaran: default': 'Reasoning: default',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
     'How deeply the model thinks before answering. Raise it for hard tasks, lower it to save time.',
   'Penalaran': 'Reasoning',
-  // Menu akun GitHub di Activity Bar.
+
   'Belum login': 'Not signed in',
   'Login ke GitHub': 'Sign in to GitHub',
   'Keluar dari GitHub': 'Sign out of GitHub',
@@ -202,7 +183,6 @@ export const EN: Record<string, string> = {
   'Kembalikan ukuran': 'Restore',
   'Perbesar': 'Maximize',
 
-  // ── Notifikasi / toast ──
   'Belum ada replace untuk dibatalkan': 'No replace to undo',
   'Belum ada snapshot untuk file ini': 'No snapshot for this file yet',
   'Belum ada thread yang berhenti': 'No paused thread',
@@ -235,7 +215,6 @@ export const EN: Record<string, string> = {
   'Tidak bisa membuka file untuk restore': 'Could not open the file to restore',
   'Update terpasang — restart Zephyr untuk memakainya': 'Update installed — restart Zephyr to use it',
 
-  // ── Label action (Settings → Shortcuts) ──
   'File baru': 'New file',
   'Simpan': 'Save',
   'Simpan sebagai': 'Save as',
@@ -264,7 +243,6 @@ export const EN: Record<string, string> = {
   'Buat snapshot': 'Create snapshot',
   'Buka riwayat file': 'Open file history',
 
-  // ── Kerangka: activity bar, sidebar, panel ──
   'Buka Explorer': 'Open Explorer',
   'Buka Source Control': 'Open Source Control',
   'Buka Settings': 'Open Settings',
@@ -291,7 +269,6 @@ export const EN: Record<string, string> = {
   'Grup kosong — buka file di sini': 'Empty group — open a file here',
   'Penanda waktu (ms sejak proses mulai):': 'Timestamps (ms since process start):',
 
-  // ── Title bar / jendela ──
   'Perkecil jendela': 'Minimize window',
   'Perbesar jendela': 'Maximize window',
   'Kembalikan ukuran jendela': 'Restore window',
@@ -307,7 +284,6 @@ export const EN: Record<string, string> = {
   'Workspace': 'Workspace',
   'Recent': 'Recent',
 
-  // ── Welcome / empty state ──
   'Buka File': 'Open File',
   'Buka Folder': 'Open Folder',
   'Buka file': 'Open file',
@@ -319,7 +295,6 @@ export const EN: Record<string, string> = {
   'buka folder workspace': 'open workspace folder',
   'tutup folder workspace': 'close workspace folder',
 
-  // ── Terminal: pane & tab ──
   'Klik untuk menambah pane': 'Click to add a pane',
   'Buat pane lain: shell tertentu, private, AI agent, browser, tab baru':
     'Create another pane: specific shell, private, AI agent, browser, new tab',
@@ -340,7 +315,6 @@ export const EN: Record<string, string> = {
   'Buka di terminal': 'Open in terminal',
   'Jalankan di Terminal': 'Run in Terminal',
 
-  // ── Browser pane ──
   'Muat ulang': 'Reload',
   'Alamat URL': 'URL address',
   'Buka URL': 'Open URL',
@@ -349,7 +323,6 @@ export const EN: Record<string, string> = {
   'Gagal menyalin URL': 'Failed to copy URL',
   'Tidak bisa membuka': 'Could not open',
 
-  // ── Find / replace ──
   'Cari di file': 'Find in file',
   'Cari hanya di dalam seleksi': 'Find only within selection',
   'Sorot semua hasil': 'Highlight all matches',
@@ -372,7 +345,6 @@ export const EN: Record<string, string> = {
   'ripgrep belum terpasang — memakai pencarian bawaan': 'ripgrep is not installed — using the built-in search',
   'hasil di': 'results in',
 
-  // ── Explorer / file tree ──
   'Tutup workspace': 'Close workspace',
   'Hapus folder dari workspace': 'Remove folder from workspace',
   'Folder belum dipercaya — klik untuk mengatur trust': 'Folder not trusted — click to set trust',
@@ -391,7 +363,6 @@ export const EN: Record<string, string> = {
   'nama tidak boleh kosong': 'name cannot be empty',
   'tidak bisa memindahkan folder ke dalam dirinya sendiri': 'cannot move a folder into itself',
 
-  // ── Timeline / history ──
   'Muat isi snapshot ini ke editor (belum disimpan)': 'Load this snapshot into the editor (not saved yet)',
   'Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)':
     'Snapshot loaded into the editor — not saved yet (Ctrl+S to write)',
@@ -399,7 +370,6 @@ export const EN: Record<string, string> = {
     'No history yet. Save a file (Ctrl+S) to create a snapshot.',
   'Hapus riwayat': 'Clear history',
 
-  // ── Source control ──
   'Buka folder dulu untuk memakai git.': 'Open a folder first to use git.',
   'Folder ini belum jadi repositori git.': 'This folder is not a git repository yet.',
   'folder ini bukan repo git': 'this folder is not a git repo',
@@ -421,7 +391,6 @@ export const EN: Record<string, string> = {
     'Git will reject the push while that commit is missing locally. Pull first, then push?',
   'Tidak ada perbedaan untuk file ini.': 'No differences for this file.',
 
-  // ── AI panel ──
   'Salin seluruh chat sebagai markdown ke clipboard': 'Copy the whole chat as markdown to the clipboard',
   'Hapus gambar': 'Remove image',
   'Agent sedang bekerja…': 'Agent is working…',
@@ -497,7 +466,6 @@ export const EN: Record<string, string> = {
   'Daftar pane terminal/browser yang sedang terbuka (paneId, type, title, agent, pid, running). Berguna untuk mengetahui terminal mana yang hidup sebelum menjalankan perintah.':
     'List the open terminal/browser panes (paneId, type, title, agent, pid, running). Useful to see which terminals are alive before running a command.',
 
-  // ── Debug ──
   'Buka folder dulu untuk debug.': 'Open a folder first to debug.',
   'Klik gutter editor untuk memasang breakpoint.': 'Click the editor gutter to set a breakpoint.',
   'Klik untuk mengubah nilai': 'Click to edit the value',
@@ -510,7 +478,6 @@ export const EN: Record<string, string> = {
   'Breakpoint (belum diverifikasi adapter)': 'Breakpoint (not verified by the adapter)',
   'Debug: Hapus Semua Breakpoint': 'Debug: Remove All Breakpoints',
 
-  // ── Settings ──
   'Simpan perubahan': 'Save changes',
   'Tambah host': 'Add host',
   '+ Tambah host': '+ Add host',
@@ -567,19 +534,16 @@ export const EN: Record<string, string> = {
     'Forget the decision — the folder will be asked again when opened',
   'belum ada folder terbuka': 'no folder open yet',
 
-  // ── Command palette ──
   'Cari file': 'Search files',
   'Cari perintah': 'Search commands',
   'Tidak ada file yang cocok.': 'No matching files.',
   'Tidak ada perintah yang cocok.': 'No matching commands.',
 
-  // ── Notifikasi ──
   'Tutup notifikasi': 'Dismiss notification',
   'Hapus dari riwayat': 'Remove from history',
   'Hapus notifikasi ini': 'Dismiss this notification',
   'notifikasi belum dibaca': 'unread notifications',
 
-  // ── Bawaan yang sudah Inggris — dijaga supaya tidak ikut ditimpa ──
   'New pane options': 'New pane options',
   'New shell pane': 'New shell pane',
   'New shell pane (Ctrl+Shift+T)': 'New shell pane (Ctrl+Shift+T)',

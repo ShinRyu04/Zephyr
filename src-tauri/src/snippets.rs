@@ -1,30 +1,3 @@
-// snippets.rs — sumber snippet: bawaan, user, dan kontribusi ekstensi (fase 30).
-//
-// ══════════════════ KEPUTUSAN ARSITEKTUR ══════════════════
-//
-// 1. Rust hanya MEMUAT dan MENGGABUNG snippet. Ekspansi (placeholder, tab stop,
-//    variabel) dikerjakan frontend karena ia butuh keadaan editor: teks yang
-//    diseleksi, baris kursor, clipboard. Kalau Rust yang mengekspansi, ia harus
-//    diberi salinan keadaan editor tiap pemanggilan — dan salinan itu pasti
-//    basi begitu user menggeser kursor.
-//
-// 2. Format file user = format VS Code apa adanya:
-//      { "Nama Snippet": { "prefix": "log", "body": [...], "description": "..." } }
-//    Bukan format sendiri. Alasannya praktis: snippet yang beredar di internet
-//    bisa ditempel langsung, dan itu satu-satunya alasan orang memakai format
-//    yang kompatibel.
-//
-// 3. `body` boleh STRING atau ARRAY of string. VS Code menerima keduanya, dan
-//    menolak salah satunya berarti menolak file yang sah.
-//
-// 4. Urutan prioritas saat prefix bertabrakan: user > ekstensi > bawaan.
-//    Yang ditulis user sendiri harus menang — kalau bawaan menang, user tidak
-//    punya cara menimpanya selain mengedit binary.
-//
-// 5. Snippet ekstensi dibaca dari manifest `contributes.snippets`, dan itu
-//    MEMBACA FILE JSON, bukan menjalankan kode. Konsisten dengan keputusan
-//    fase 19 (ekstensi manifest-only).
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -35,33 +8,30 @@ use tauri::State;
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 
-/// Satu snippet siap dipakai frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snippet {
-    /// nama entri di file JSON (dipakai sebagai label bila prefix kosong)
     pub name: String,
-    /// yang diketik user untuk memunculkannya
+
     pub prefix: String,
-    /// body dalam bentuk SATU string (array sudah digabung dengan '\n')
+
     pub body: String,
     pub description: String,
-    /// bahasa: 'javascript', 'rust', … atau 'global'
+
     pub lang: String,
-    /// asal: 'builtin' | 'user' | 'ext:<id>'
+
     pub sumber: String,
 }
 
-/// Hasil pemuatan untuk satu bahasa.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnippetSet {
     pub lang: String,
     pub snippets: Vec<Snippet>,
-    /// path file user untuk bahasa ini (ada atau belum)
+
     pub user_path: String,
     pub user_ada: bool,
-    /// file yang gagal diparse, dengan alasannya — dilaporkan, tidak didiamkan
+
     pub rusak: Vec<FileRusak>,
 }
 
@@ -72,15 +42,8 @@ pub struct FileRusak {
     pub alasan: String,
 }
 
-// ───────────────────────── snippet bawaan ─────────────────────────
-
-/// Snippet bawaan: (lang, name, prefix, body, description).
-///
-/// Sengaja sedikit dan generik. Ini contoh konsep + isi awal supaya fitur
-/// terasa hidup sebelum user menulis snippet sendiri, bukan usaha menyaingi
-/// paket snippet komunitas.
 const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
-    // ── JavaScript / TypeScript ──
+    
     (
         "javascript",
         "Console log",
@@ -130,7 +93,7 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "type ${1:Nama} = ${0};",
         "type alias",
     ),
-    // ── React ──
+    
     (
         "tsx",
         "Function component",
@@ -145,7 +108,7 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "const [${1:nilai}, set${2:Nilai}] = useState(${3:null});",
         "hook useState",
     ),
-    // ── Rust ──
+    
     (
         "rust",
         "Println",
@@ -174,7 +137,7 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "#[derive(Debug, Clone)]",
         "atribut derive umum",
     ),
-    // ── Python ──
+    
     (
         "python",
         "Main guard",
@@ -189,7 +152,7 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "def ${1:nama}(${2}):\n\t${0}",
         "deklarasi def",
     ),
-    // ── HTML / CSS ──
+    
     (
         "html",
         "HTML5 skeleton",
@@ -204,7 +167,7 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "display: flex;\nalign-items: center;\njustify-content: center;",
         "flexbox rata tengah",
     ),
-    // ── global (semua bahasa) ──
+    
     (
         "global",
         "TODO",
@@ -221,16 +184,6 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
     ),
 ];
 
-/// Bahasa yang mewarisi snippet dari bahasa lain.
-///
-/// Nama bahasa memakai `LangId` FRONTEND (`tsx`, `jsx`), bukan nama VS Code
-/// (`typescriptreact`). Alasannya: `detectLang()` di `src/lib/lang.ts` yang
-/// menentukan bahasa sebuah tab, dan dialah yang memanggil `snippets_load`.
-/// Memakai dua kosakata berarti snippet tsx tidak akan pernah cocok.
-///
-/// TypeScript adalah superset JavaScript, jadi snippet JS berguna di TS. Ini
-/// perilaku VS Code juga. Tanpa ini user harus menyalin snippet yang sama dua
-/// kali.
 fn induk_bahasa(lang: &str) -> Vec<&'static str> {
     match lang {
         "typescript" => vec!["javascript"],
@@ -240,16 +193,10 @@ fn induk_bahasa(lang: &str) -> Vec<&'static str> {
     }
 }
 
-// ───────────────────────── file user ─────────────────────────
-
 fn dir_snippet(state: &AppState) -> PathBuf {
     state.data_dir.join("snippets")
 }
 
-/// Path file snippet user untuk sebuah bahasa.
-///
-/// Nama file dibersihkan: `lang` berasal dari deteksi bahasa dan tidak boleh
-/// dipakai menjelajah folder lain.
 pub fn path_user(state: &AppState, lang: &str) -> PathBuf {
     let bersih: String = lang
         .chars()
@@ -264,12 +211,7 @@ pub fn path_user(state: &AppState, lang: &str) -> PathBuf {
     dir_snippet(state).join(format!("{nama}.json"))
 }
 
-/// Parse satu file snippet format VS Code.
-///
-/// Mengembalikan (snippets, alasan_rusak). File rusak TIDAK dianggap kosong
-/// secara diam-diam: alasannya dikembalikan supaya UI bisa memberitahu.
 fn parse_file(teks: &str, lang: &str, sumber: &str) -> (Vec<Snippet>, Option<String>) {
-    // JSONC: file snippet VS Code lazim memuat komentar.
     let bersih = crate::tasks::buang_komentar(teks);
     let v: Value = match serde_json::from_str(&bersih) {
         Ok(v) => v,
@@ -290,7 +232,6 @@ fn parse_file(teks: &str, lang: &str, sumber: &str) -> (Vec<Snippet>, Option<Str
             continue;
         };
 
-        // `body` boleh string ATAU array of string — VS Code menerima keduanya.
         let body = match obj.get("body") {
             Some(Value::String(s)) => s.clone(),
             Some(Value::Array(arr)) => arr
@@ -308,17 +249,13 @@ fn parse_file(teks: &str, lang: &str, sumber: &str) -> (Vec<Snippet>, Option<Str
             continue;
         }
 
-        // `prefix` boleh string atau array (VS Code mengizinkan beberapa
-        // prefix untuk satu snippet). Tiap prefix jadi entri sendiri supaya
-        // pencocokan completion tetap sederhana.
         let prefixes: Vec<String> = match obj.get("prefix") {
             Some(Value::String(s)) => vec![s.clone()],
             Some(Value::Array(arr)) => arr
                 .iter()
                 .filter_map(|x| x.as_str().map(|s| s.to_string()))
                 .collect(),
-            // Tanpa prefix: nama entri dipakai. Snippet begitu masih berguna
-            // lewat "Insert Snippet" di palette.
+
             _ => vec![nama.clone()],
         };
 
@@ -355,7 +292,6 @@ fn parse_file(teks: &str, lang: &str, sumber: &str) -> (Vec<Snippet>, Option<Str
     (out, catatan)
 }
 
-/// Baca file snippet user untuk sebuah bahasa.
 fn muat_user(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Snippet> {
     let p = path_user(state, lang);
     let Ok(teks) = std::fs::read_to_string(&p) else {
@@ -371,10 +307,6 @@ fn muat_user(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Sn
     s
 }
 
-/// Baca `contributes.snippets` dari semua ekstensi yang AKTIF.
-///
-/// Bentuk manifest (sama VS Code):
-///   "contributes": { "snippets": [{ "language": "rust", "path": "./s.json" }] }
 fn muat_ekstensi(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Snippet> {
     let mut out = Vec::new();
     for info in crate::extensions::list_all(state) {
@@ -412,8 +344,7 @@ fn muat_ekstensi(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Ve
             if rel.is_empty() {
                 continue;
             }
-            // Path relatif TERHADAP FOLDER EKSTENSI, dan tidak boleh keluar
-            // dari situ: manifest datang dari pihak ketiga.
+
             let target = dir.join(rel.trim_start_matches("./"));
             let target_kanonik = crate::paths::canonical_or_parent(&target);
             let dir_kanonik = crate::paths::canonical_or_parent(&dir);
@@ -463,9 +394,7 @@ fn bawaan_untuk(lang: &str) -> Vec<Snippet> {
         .collect()
 }
 
-/// Gabungkan semua sumber untuk satu bahasa, dengan prioritas user > ext > bawaan.
 fn kumpulkan(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Snippet> {
-    // Bahasa yang diminta + induknya + global.
     let mut bahasa: Vec<String> = vec![lang.to_string()];
     for i in induk_bahasa(lang) {
         bahasa.push(i.to_string());
@@ -475,8 +404,7 @@ fn kumpulkan(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Sn
     }
 
     let mut hasil: Vec<Snippet> = Vec::new();
-    // Urutan penyisipan menentukan siapa yang menang: yang MASUK DULU menang,
-    // karena dedup di bawah menyimpan kemunculan pertama.
+
     for b in &bahasa {
         hasil.extend(muat_user(state, b, rusak));
     }
@@ -487,8 +415,6 @@ fn kumpulkan(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Sn
         hasil.extend(bawaan_untuk(b));
     }
 
-    // Dedup per (prefix, bahasa-efektif): prefix yang sama dari sumber
-    // berprioritas lebih rendah dibuang.
     let mut terlihat: HashMap<String, ()> = HashMap::new();
     let mut out = Vec::new();
     for s in hasil {
@@ -502,9 +428,6 @@ fn kumpulkan(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Vec<Sn
     out
 }
 
-// ───────────────────────── command ─────────────────────────
-
-/// Muat snippet untuk sebuah bahasa (termasuk induk + global).
 #[tauri::command(async)]
 pub fn snippets_load(state: State<AppState>, lang: String) -> ZResult<SnippetSet> {
     let l = if lang.trim().is_empty() {
@@ -524,11 +447,6 @@ pub fn snippets_load(state: State<AppState>, lang: String) -> ZResult<SnippetSet
     })
 }
 
-/// Path file snippet user untuk sebuah bahasa; dibuat bila belum ada.
-///
-/// Command "Configure User Snippets" memakai ini: membuka file yang belum ada
-/// akan menampilkan editor kosong tanpa petunjuk, jadi file dibuat berisi
-/// TEMPLATE berkomentar.
 #[tauri::command(async)]
 pub fn snippets_user_file(state: State<AppState>, lang: String) -> ZResult<String> {
     let l = if lang.trim().is_empty() {
@@ -559,8 +477,7 @@ pub fn snippets_user_file(state: State<AppState>, lang: String) -> ZResult<Strin
         );
         std::fs::write(&p, contoh)
             .map_err(|e| ZephyrError::Io(format!("gagal menulis {}: {e}", p.display())))?;
-        // File baru ada di %APPDATA%, di luar workspace — harus di-whitelist
-        // supaya `fs_write` dari editor tidak ditolak penjaga path fase 14.
+
         state.allow(&p);
     } else {
         state.allow(&p);
@@ -568,7 +485,6 @@ pub fn snippets_user_file(state: State<AppState>, lang: String) -> ZResult<Strin
     Ok(p.to_string_lossy().replace('\\', "/"))
 }
 
-/// Daftar bahasa yang punya file snippet user (untuk UI "Configure").
 #[tauri::command(async)]
 pub fn snippets_user_list(state: State<AppState>) -> ZResult<Vec<String>> {
     let dir = dir_snippet(&state);
@@ -587,7 +503,6 @@ pub fn snippets_user_list(state: State<AppState>) -> ZResult<Vec<String>> {
     Ok(out)
 }
 
-/// Daftar bahasa yang punya snippet BAWAAN (untuk UI).
 #[tauri::command(async)]
 pub fn snippets_builtin_langs() -> Vec<String> {
     let mut v: Vec<String> = BAWAAN.iter().map(|(l, ..)| (*l).to_string()).collect();
@@ -627,7 +542,7 @@ mod tests {
         assert_eq!(s.len(), 2);
         assert_eq!(s[0].prefix, "a");
         assert_eq!(s[1].prefix, "b");
-        // Nama entri tetap sama untuk keduanya.
+
         assert_eq!(s[0].name, "X");
         assert_eq!(s[1].name, "X");
     }
@@ -677,10 +592,10 @@ mod tests {
     fn typescript_mewarisi_javascript_dan_global() {
         let induk = induk_bahasa("typescript");
         assert!(induk.contains(&"javascript"));
-        // tsx mewarisi keduanya.
+
         let tsx = induk_bahasa("tsx");
         assert!(tsx.contains(&"javascript") && tsx.contains(&"typescript"));
-        // Bahasa biasa tidak mewarisi apa pun.
+
         assert!(induk_bahasa("rust").is_empty());
     }
 
@@ -712,8 +627,6 @@ mod tests {
 
     #[test]
     fn prefix_bawaan_unik_per_bahasa() {
-        // Prefix ganda dalam satu bahasa berarti salah satu tidak akan pernah
-        // muncul (dedup memilih yang pertama) — itu bug yang sulit dilihat.
         let mut pasangan: Vec<(String, String)> = BAWAAN
             .iter()
             .map(|(l, _, p, ..)| (l.to_string(), p.to_lowercase()))

@@ -1,16 +1,3 @@
-// adapters/gemini.rs — Google Generative Language API.
-//
-// Beda dari OpenAI:
-//   * key lewat header x-goog-api-key (bukan Authorization)
-//   * URL memuat nama model: /v1beta/models/<model>:streamGenerateContent
-//   * role 'assistant' bernama 'model'; system -> systemInstruction
-//   * isi pesan = contents[].parts[].text
-//   * respons stream: dipakai `?alt=sse` supaya formatnya SSE `data: {...}`
-//     per baris. TANPA alt=sse server membalas JSON array yang di-pretty-print
-//     dan dipecah sembarang antar-paket — satu objek bisa tersebar di banyak
-//     baris dengan koma menempel, sehingga parsing per baris pasti gagal.
-//     (Sudah dibuktikan di verify09: 0 token terbaca.)
-
 use crate::adapters::{split_data_url, trim_base};
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ReasoningEffort, ToolCall, ToolSpec};
 use serde_json::{json, Value};
@@ -62,8 +49,6 @@ pub fn prepare(
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
     }
 
-    // Item T1.1: thinkingConfig. Gemini 2.5/3.x memakai `thinkingBudget`
-    // (angka token); nilai negatif = dinamis, 0 = mati.
     if let Some(e) = effort {
         body["generationConfig"]["thinkingConfig"] = json!({ "thinkingBudget": e.gemini_budget() });
     }
@@ -80,8 +65,6 @@ pub fn prepare(
     }
 }
 
-/// Request non-streaming + tools. Fungsi dipanggil lewat
-/// functionDeclarations; hasil tool dikirim sebagai functionResponse.
 pub fn prepare_tools(
     model: &str,
     messages: &[AgentMsg],
@@ -152,7 +135,6 @@ pub fn prepare_tools(
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
     }
 
-    // Item T1.1: thinkingConfig (mode agent).
     if let Some(e) = effort {
         body["generationConfig"]["thinkingConfig"] = json!({ "thinkingBudget": e.gemini_budget() });
     }
@@ -168,7 +150,6 @@ pub fn prepare_tools(
     }
 }
 
-/// Parse jawaban non-streaming Gemini (candidates[0].content.parts).
 pub fn parse_tool_response(v: &Value) -> AiToolResult {
     let mut content = String::new();
     let mut tool_calls = Vec::new();
@@ -187,7 +168,7 @@ pub fn parse_tool_response(v: &Value) -> AiToolResult {
                     .unwrap_or_default()
                     .to_string();
                 let args = fc.get("args").cloned().unwrap_or_else(|| json!({}));
-                // Gemini tidak memberi id tool_call — sintetis per indeks.
+
                 tool_calls.push(ToolCall {
                     id: format!("{name}-{}", tool_calls.len()),
                     name,
@@ -204,8 +185,6 @@ pub fn parse_tool_response(v: &Value) -> AiToolResult {
     }
 }
 
-/// T1.1: potongan teks berpikir Gemini. Part dengan `thought: true`
-/// adalah penalaran; part biasa adalah jawaban.
 pub fn extract_reasoning(v: &Value) -> Option<String> {
     let parts = v.pointer("/candidates/0/content/parts")?.as_array()?;
     let mut out = String::new();
@@ -224,7 +203,6 @@ pub fn extract_reasoning(v: &Value) -> Option<String> {
 }
 
 pub fn extract_delta(v: &Value) -> Option<String> {
-    // Satu potongan bisa memuat beberapa part; gabungkan semuanya.
     let parts = v.pointer("/candidates/0/content/parts")?.as_array()?;
     let text: String = parts
         .iter()
@@ -237,11 +215,6 @@ pub fn extract_delta(v: &Value) -> Option<String> {
     }
 }
 
-/// Akumulator stream mode agent (item 21).
-///
-/// Gemini mengirim functionCall utuh dalam satu part (tidak menempel
-/// argumen sepotong-sepotong seperti OpenAI), jadi yang perlu dikumpulkan
-/// hanya teks dan daftar functionCall yang lewat.
 #[derive(Default)]
 pub struct ToolAcc {
     text: String,
@@ -270,7 +243,6 @@ impl ToolAcc {
                     .to_string();
                 if !name.is_empty() {
                     self.calls.push(ToolCall {
-                        // Gemini tidak memberi id tool_call — sintetis per indeks.
                         id: format!("{name}-{}", self.calls.len()),
                         name,
                         args: fc.get("args").cloned().unwrap_or_else(|| json!({})),

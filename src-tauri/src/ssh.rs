@@ -1,20 +1,3 @@
-// ssh.rs — koneksi SSH: manajemen host + sesi sebagai pane terminal.
-//
-// Kontrak (ARCHITECTURE.md):
-//   ssh_list      -> SshHost[] (password TIDAK pernah serial; hanya hasPassword)
-//   ssh_add       { config } -> void
-//   ssh_update    { config } -> void
-//   ssh_delete    { id } -> void
-//   ssh_connect   { configId } -> paneId (emit `ssh-status`)
-//   ssh_disconnect{ paneId } -> void
-//
-// Config disimpan di %APPDATA%\zephyr\ssh.json:
-//   [ { id, name, host, port:22, user,
-//       auth: 'key'|'password', keyPath?, savePassword: false,
-//       passwordSaved?: bool, passwordEnc?: string } ]
-// Password (bila user MEMILIH simpan) dienkripsi XOR+BLAKE3 (sama dengan
-// secrets.rs) — BUKAN plaintext. Frontend hanya melihat `hasPassword`.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
@@ -33,7 +16,7 @@ pub struct SshConfig {
     pub port: u16,
     pub user: String,
     #[serde(default = "default_auth")]
-    pub auth: String, // 'key' | 'password'
+    pub auth: String,
     #[serde(default)]
     pub key_path: String,
     #[serde(default)]
@@ -51,7 +34,6 @@ fn default_auth() -> String {
     "key".into()
 }
 
-/// Bentuk yang dikirim ke frontend — password TIDAK pernah keluar.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshHostView {
@@ -126,7 +108,6 @@ fn to_view(c: &SshConfig) -> SshHostView {
     }
 }
 
-/// Deteksi ssh.exe (Windows OpenSSH bawaan; default ada di Windows 10+).
 fn find_ssh() -> Option<std::path::PathBuf> {
     let sysroot = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
     let cand = [
@@ -138,7 +119,7 @@ fn find_ssh() -> Option<std::path::PathBuf> {
             return Some(p.clone());
         }
     }
-    // fallback: PATH (`where ssh`)
+
     let out = crate::proc::cmd("where").arg("ssh").output().ok()?;
     if !out.status.success() {
         return None;
@@ -154,7 +135,6 @@ pub fn ssh_list(state: State<AppState>) -> ZResult<Vec<SshHostView>> {
 
 #[tauri::command]
 pub fn ssh_add(state: State<AppState>, config: Value) -> ZResult<()> {
-    // id WAJIB di-generate di sini — frontend tidak boleh pilih id sendiri.
     let mut c: SshConfig = serde_json::from_value(config)
         .map_err(|e| ZephyrError::InvalidInput(format!("config tidak valid: {e}")))?;
     c.id = Uuid::new_v4().to_string();
@@ -163,7 +143,7 @@ pub fn ssh_add(state: State<AppState>, config: Value) -> ZResult<()> {
     validate(&c)?;
 
     let mut list = read_configs(&state);
-    // name harus unik (kontrak).
+
     if list.iter().any(|x| x.name == c.name) {
         return Err(ZephyrError::InvalidInput(format!(
             "nama host '{}' sudah ada",
@@ -187,13 +167,13 @@ pub fn ssh_update(state: State<AppState>, config: Value) -> ZResult<()> {
     let Some(idx) = list.iter().position(|x| x.id == c.id) else {
         return Err(ZephyrError::NotFound(format!("host {}", c.id)));
     };
-    // Kalau password tidak dikirim ulang (kosong), pertahankan yang lama.
+
     let lama = &list[idx];
     if c.password_enc.is_none() {
         c.password_enc = lama.password_enc.clone();
         c.password_saved = lama.password_saved;
     }
-    // name unik, kecuali dirinya sendiri.
+
     if list.iter().any(|x| x.id != c.id && x.name == c.name) {
         return Err(ZephyrError::InvalidInput(format!(
             "nama host '{}' sudah ada",
@@ -215,8 +195,6 @@ pub fn ssh_delete(state: State<AppState>, id: String) -> ZResult<()> {
     write_configs(&state, &list)
 }
 
-/// Simpan password terenkripsi (dipanggil frontend setelah user memilih
-/// "simpan" dan konfirmasi). Kembalikan view baru.
 #[tauri::command]
 pub fn ssh_save_password(
     state: State<AppState>,
@@ -237,7 +215,6 @@ pub fn ssh_save_password(
     Ok(to_view(&c))
 }
 
-/// Hapus password tersimpan (user memilih "jangan simpan" / edit).
 #[tauri::command]
 pub fn ssh_clear_password(state: State<AppState>, id: String) -> ZResult<SshHostView> {
     let mut list = read_configs(&state);
@@ -251,20 +228,14 @@ pub fn ssh_clear_password(state: State<AppState>, id: String) -> ZResult<SshHost
     Ok(to_view(&c))
 }
 
-/// Status koneksi untuk event `ssh-status`.
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct SshStatus {
     pane_id: String,
-    state: String, // connecting | connected | disconnected | error
+    state: String,
     message: String,
 }
 
-/// Spawn `ssh.exe` sebagai pty (kind 'ssh') — alur yang sama dengan
-/// pty_spawn biasa, tapi command/args dibangun dari config host.
-/// Password AUTH: bila keyPath kosong dan savePassword=false, OpenSSH
-/// meminta password INTERAKTIF di pane — UX yang diinginkan (user ketik
-/// langsung di terminal, tidak lewat app).
 #[tauri::command(async)]
 pub fn ssh_connect(
     app: AppHandle,
@@ -301,9 +272,6 @@ pub fn ssh_connect(
         argv.insert(0, "-i".into());
         argv.insert(1, cfg.key_path.trim().to_string());
     }
-    // savePassword + auth password: OpenSSH tidak menerima password lewat
-    // stdin (butuh askpass/expect). V1: biarkan interaktif di pane — user
-    // ketik langsung di terminal.
 
     let _ = app.emit(
         "ssh-status",
@@ -314,9 +282,6 @@ pub fn ssh_connect(
         },
     );
 
-    // Spawn lewat pty_spawn: resolve_shell memakai `explicit` command bila
-    // ada, jadi ssh.exe jalan sebagai pane biasa — thread relay output,
-    // exit code, write/resize/kill semuanya otomatis.
     crate::pty::pty_spawn(
         app.clone(),
         state,
@@ -340,7 +305,6 @@ pub fn ssh_connect(
     Ok(pane_id)
 }
 
-/// Kirim Ctrl+D / "exit" untuk menutup sesi SSH.
 #[tauri::command]
 pub fn ssh_disconnect(state: State<AppState>, pane_id: String) -> ZResult<()> {
     crate::pty::pty_kill(state, pane_id)

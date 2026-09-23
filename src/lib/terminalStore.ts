@@ -1,51 +1,34 @@
-// terminalStore.ts — state terminal multi-pane (fase 06).
-//
-// Bentuk mengikuti ARCHITECTURE.md §5 (kontrak nama menang):
-//   terminalTabs: TerminalTab[]
-//   TerminalTab { id, title, panes: PaneMeta[], layout }
-//   PaneMeta  { id, kind, agent?, title, sessionId?, status, cwd }
-//
-// Satu pane = satu sesi PTY (kecuali pane 'browser' yang tidak punya PTY).
-// `pane.id` dipakai langsung sebagai id sesi PTY supaya tidak ada tabel
-// pemetaan kedua yang bisa desinkron.
-//
-// Instance xterm TIDAK disimpan di sini (bukan data serializable) —
-// dipegang xtermRegistry.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
 import { disposeHandle } from './xtermRegistry';
 import type { AgentInfo, PaneKind, PaneMeta, ShellInfo, TerminalTab } from './types';
 
-/** fase 15.2: pane yang sedang dalam proses ditutup. Di luar store supaya
- *  tidak memicu render; hanya untuk mencegah `closePane` ganda saat user
- *  menutup 6 pane bertubi-tubi (double dispose xterm + pty_kill kedua gagal). */
 const closing = new Set<string>();
 
 interface TerminalState {
   visible: boolean;
-  /** tinggi panel terminal dalam px */
+  
   height: number;
-  /** panel diperbesar menutupi area editor (fase 06) */
+  
   maximized: boolean;
-  /** isi panel bawah: terminal atau panel AI (fase 09) */
+  
   dock: 'terminal' | 'ai';
   terminalTabs: TerminalTab[];
   activeTabId: string | null;
   shells: ShellInfo[];
   agents: AgentInfo[];
-  /** dropdown pilih shell di tombol "+" */
+  
   pickerOpen: boolean;
-  /** popover daftar agent CLI */
+  
   agentPickerOpen: boolean;
-  /** kebab menu untuk tab tertentu */
+  
   menuFor: string | null;
   renamingId: string | null;
-  /** menu konteks pane (klik kanan header pane) */
+  
   paneMenuFor: string | null;
   terminalError: string | null;
-  /** pesan sementara (batas pane, dll) */
+  
   toast: string | null;
 }
 
@@ -54,7 +37,7 @@ interface TerminalActions {
   toggleVisible: () => void;
   toggleMaximized: () => void;
   setHeight: (h: number) => void;
-  /** Pilih isi panel bawah (fase 09). */
+  
   setDock: (d: 'terminal' | 'ai') => void;
   loadShells: () => Promise<void>;
   loadAgents: () => Promise<void>;
@@ -65,17 +48,14 @@ interface TerminalActions {
   setRenaming: (id: string | null) => void;
   setToast: (msg: string | null) => void;
 
-  // ── tab ──
   newTab: () => string;
   setActiveTab: (id: string) => void;
   renameTab: (id: string, title: string) => void;
   closeTab: (id: string) => Promise<void>;
   setLayout: (id: string, layout: TerminalTab['layout']) => void;
 
-  // ── pane ──
-  /** Tambah pane ke tab aktif. null = ditolak (batas / error spawn). */
   addPane: (kind: PaneKind, opts?: { agentId?: string; url?: string }) => Promise<string | null>;
-  /** Daftarkan pane yang sudah di-spawn Rust (sesi SSH dll). */
+  
   daftarkanPaneEksternal: (paneId: string, kind: string, title: string) => Promise<string>;
   setActivePane: (tabId: string, paneId: string) => void;
   closePane: (paneId: string) => Promise<void>;
@@ -85,7 +65,6 @@ interface TerminalActions {
   markExited: (paneId: string, code?: number | null) => void;
   refreshFromBackend: () => Promise<void>;
 
-  // ── selector bantu ──
   allPanes: () => PaneMeta[];
   activeTab: () => TerminalTab | null;
   findPane: (paneId: string) => PaneMeta | undefined;
@@ -108,7 +87,6 @@ const LABEL: Record<string, string> = {
   ssh: 'SSH',
 };
 
-/** Tab kosong baru (belum punya pane). */
 function makeTab(n: number): TerminalTab {
   return { id: nextId('tterm'), title: `Terminal ${n}`, panes: [], layout: 'grid', activePaneId: null };
 }
@@ -159,8 +137,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     }
   },
 
-  // ───────────────────────── tab ─────────────────────────
-
   newTab: () => {
     const tab = makeTab(get().terminalTabs.length + 1);
     set((s) => ({ terminalTabs: [...s.terminalTabs, tab], activeTabId: tab.id, visible: true }));
@@ -178,7 +154,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   closeTab: async (id) => {
     const tab = get().terminalTabs.find((t) => t.id === id);
     if (tab) {
-      // Matikan semua pane dulu supaya tidak ada proses menggantung.
+      
       for (const p of tab.panes) {
         if (p.kind !== 'browser') {
           try {
@@ -207,10 +183,8 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       terminalTabs: s.terminalTabs.map((t) => (t.id === id ? { ...t, layout } : t)),
     })),
 
-  // ───────────────────────── pane ─────────────────────────
-
   addPane: async (kind, opts) => {
-    // Pastikan ada tab tujuan.
+    
     let tabId = get().activeTabId;
     if (!tabId || !get().terminalTabs.some((t) => t.id === tabId)) tabId = get().newTab();
     const tab = get().terminalTabs.find((t) => t.id === tabId)!;
@@ -228,7 +202,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     const paneId = nextId('pane');
     const workspace = useStore.getState().workspace;
 
-    // Pane browser tidak punya PTY.
     if (kind === 'browser') {
       const pane: PaneMeta = {
         id: paneId,
@@ -250,7 +223,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       return paneId;
     }
 
-    // Agent: program & argumen dari Settings → agents.startCommands.
     let command: string | undefined;
     let args: string[] | undefined;
     let title = LABEL[kind] ?? kind;
@@ -271,7 +243,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       title = info.label;
       agent = { name: agentId, label: info.label };
 
-      // Hitung salinan ke-N supaya judul jelas: "opencode 2".
       const copies = tab.panes.filter((p) => p.agent?.name === agentId).length;
       if (copies > 0) title = `${info.label} ${copies + 1}`;
     }
@@ -298,7 +269,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
         terminalError: null,
       }));
 
-      // Opsional: beri tahu agent file apa yang sedang dibuka.
       if (kind === 'agent' && useStore.getState().settings.agents.attachActiveFile) {
         const active = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
         if (active?.path) {
@@ -316,11 +286,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     }
   },
 
-  /**
-   * Daftarkan pane EKSTERNAL yang sudah di-spawn Rust (mis. sesi SSH —
-   * ssh_connect membuat pty sendiri dan mengembalikan paneId). Pane ini
-   * mengikuti semua alur terminal: tab bar, close, output event pty.
-   */
   daftarkanPaneEksternal: async (paneId, kind, title) => {
     let tabId = get().activeTabId;
     if (!tabId || !get().terminalTabs.some((t) => t.id === tabId)) tabId = get().newTab();
@@ -353,17 +318,13 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     })),
 
   closePane: async (paneId) => {
-    // fase 15.2: menutup 6 pane dengan cepat memanggil ini berkali-kali
-    // sebelum `ptyKill` yang pertama selesai. Tanpa guard, pane yang sama
-    // bisa masuk dua kali → `disposeHandle` dipanggil dua kali (xterm
-    // double-dispose) dan `pty_kill` kedua mengembalikan error "sesi tidak
-    // ditemukan" yang muncul sebagai toast palsu.
+    
     if (closing.has(paneId)) return;
     closing.add(paneId);
     const pane = get().findPane(paneId);
     if (pane && pane.kind !== 'browser') {
       try {
-        // Agent CLI: beri Ctrl+C dulu supaya sesi berhenti rapi.
+        
         if (pane.kind === 'agent') {
           await cmd.ptyInterrupt(paneId).catch(() => {});
           await new Promise((r) => setTimeout(r, 120));
@@ -372,7 +333,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       } catch {
         /* mungkin sudah mati — lanjut tutup pane */
       }
-      // Buang instance xterm + scrollback (wajib untuk private).
+      
       disposeHandle(paneId);
     }
     set((s) => ({
@@ -450,8 +411,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     }
   },
 
-  // ───────────────────── selector bantu ─────────────────────
-
   allPanes: () => get().terminalTabs.flatMap((t) => t.panes),
   activeTab: () => get().terminalTabs.find((t) => t.id === get().activeTabId) ?? null,
   findPane: (paneId) => get().allPanes().find((p) => p.id === paneId),
@@ -461,10 +420,8 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   },
 }));
 
-/** Start command bawaan bila Settings belum diubah user.
- *  Diekspor karena Settings → Agents menampilkannya sebagai placeholder. */
 export function defaultStartCommand(agentId: string, path: string): string[] {
-  // GitHub Copilot CLI dijalankan sebagai subcommand `gh copilot`.
+  
   if (agentId === 'gh') return [path, 'copilot'];
   return [path];
 }

@@ -1,6 +1,3 @@
-// tests_log.rs — unit test fase 14: rotate log, keamanan path, error mapping.
-// Jalan dengan `cargo test --lib` (tanpa membuka window Tauri).
-
 #![cfg(test)]
 
 use std::path::{Path, PathBuf};
@@ -11,8 +8,6 @@ fn tmpdir(name: &str) -> PathBuf {
     std::fs::create_dir_all(&d).expect("buat folder temp");
     d
 }
-
-// ───────────────────────── logging ─────────────────────────
 
 #[test]
 fn log_menulis_baris() {
@@ -38,7 +33,6 @@ fn log_rotate_saat_lewat_2mb() {
     let sink = crate::logging::sink_for_test(&dir);
     let max = crate::logging::max_bytes_for_test();
 
-    // Tulis sedikit di atas batas: satu rotate harus terjadi.
     let baris = "x".repeat(64 * 1024);
     let mut ditulis = 0u64;
     while ditulis <= max + 128 * 1024 {
@@ -60,14 +54,11 @@ fn log_rotate_saat_lewat_2mb() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-// ───────────────────────── paths ─────────────────────────
-
 #[test]
 fn lexical_clean_membuang_dotdot() {
     let out = crate::paths::lexical_clean_for_test(Path::new(r"C:\ws\sub\..\file.txt"));
     assert_eq!(out, PathBuf::from(r"C:\ws\file.txt"));
 
-    // `..` tidak boleh naik melewati root.
     let root = crate::paths::lexical_clean_for_test(Path::new(r"C:\..\..\x"));
     assert_eq!(root, PathBuf::from(r"C:\x"));
 }
@@ -95,7 +86,6 @@ fn normalize_workspace_path_memberi_relatif() {
     assert!(n.inside, "file di dalam workspace harus inside");
     assert_eq!(n.relative.as_deref(), Some("sub/a.txt"));
 
-    // Path dengan `..` yang menunjuk KELUAR harus terdeteksi di luar.
     let keluar = dir.join("..").join("zephyr-t14-luar.txt");
     let n2 = crate::paths::normalize_workspace_path(Some(&dir), &keluar).expect("normalize luar");
     assert!(!n2.inside, "path .. keluar harus dilaporkan di luar");
@@ -123,8 +113,6 @@ fn validate_cwd_menolak_file_dan_folder_hilang() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-// ───────────────────── AppState: lock & permit ─────────────────────
-
 #[test]
 fn ensure_writable_menolak_luar_workspace() {
     let dir = tmpdir("ws");
@@ -133,22 +121,18 @@ fn ensure_writable_menolak_luar_workspace() {
     st.set_workspace(crate::paths::canonical_or_parent(&dir))
         .unwrap();
 
-    // Di dalam workspace: boleh (walau file belum ada).
     assert!(st.ensure_writable(&dir.join("in").join("baru.txt")).is_ok());
 
-    // Di luar: WorkspaceOutside.
     let luar = std::env::temp_dir().join("zephyr-t14-luar-tulis.txt");
     let e = st.ensure_writable(&luar).expect_err("harus ditolak");
     assert_eq!(e.code(), "WorkspaceOutside");
 
-    // Trik `..` juga ditolak karena perbandingan pakai path kanonik.
     let trik = dir.join("in").join("..").join("..").join("kabur.txt");
     let e2 = st
         .ensure_writable(&trik)
         .expect_err("path .. harus ditolak");
     assert_eq!(e2.code(), "WorkspaceOutside");
 
-    // Setelah user memilihnya di dialog (allow), file itu boleh ditulis.
     st.allow_exact(&luar);
     assert!(st.ensure_writable(&luar).is_ok());
 
@@ -162,7 +146,7 @@ fn allow_exact_tidak_membuka_folder_induk() {
     std::fs::write(&f, b"x").unwrap();
 
     let st = crate::app_state::AppState::new();
-    // Workspace lain supaya `dir` benar-benar di luar.
+
     let ws = tmpdir("allowfile-ws");
     st.set_workspace(crate::paths::canonical_or_parent(&ws))
         .unwrap();
@@ -186,9 +170,7 @@ fn allow_exact_tidak_membuka_folder_induk() {
 fn git_permit_serialisasi_satu_proses() {
     let st = crate::app_state::AppState::new();
     let a = st.git_permit().expect("permit pertama");
-    // Permit kedua tidak boleh didapat selama yang pertama hidup.
-    // `git_permit` menunggu sampai 90s, jadi cukup buktikan lewat semaphore:
-    // drop dulu lalu ambil lagi harus sukses.
+
     drop(a);
     let b = st.git_permit().expect("permit setelah dilepas");
     drop(b);

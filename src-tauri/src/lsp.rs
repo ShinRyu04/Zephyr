@@ -1,19 +1,3 @@
-// lsp.rs — klien Language Server Protocol (fase 21).
-//
-// ARSITEKTUR (brief fase 21):
-//   * Proses language server di-spawn dari Rust, JSON-RPC lewat stdio.
-//   * Satu server per (bahasa, root workspace) — bukan satu per file.
-//   * LAZY: server hanya start saat file bertipe itu dibuka.
-//   * IDLE-SHUTDOWN: mati sendiri setelah N menit tanpa aktivitas (hemat RAM).
-//   * Binary TIDAK dibundel installer: dicari di setting user → %APPDATA%\
-//     zephyr\lsp\ → PATH → node_modules (khusus dev).
-//
-// Kenapa reader-nya OS thread biasa, bukan tokio task:
-//   Framing LSP (`Content-Length: N\r\n\r\n{json}`) perlu baca byte-eksak dari
-//   stdout. `std::process` + thread blocking jauh lebih sederhana dan tidak
-//   menahan runtime tokio; balasan diantar ke pemanggil async lewat oneshot.
-//   Pola yang sama dipakai git.rs (std::process, bukan tokio::process).
-
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -28,11 +12,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 
-/// Batas waktu satu request LSP. tsserver pada proyek besar bisa lambat saat
-/// indexing pertama, jadi jangan terlalu pendek.
 const REQ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
-/// Server yang tidak dipakai selama ini akan dimatikan (V5).
 const IDLE_SECS_DEFAULT: u64 = 300;
 
 fn now_secs() -> u64 {
@@ -41,8 +22,6 @@ fn now_secs() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
-
-// ───────────────────────── state proses ─────────────────────────
 
 struct Server {
     id: String,
@@ -54,11 +33,11 @@ struct Server {
     stdin: Mutex<std::process::ChildStdin>,
     next_id: AtomicI64,
     pending: Mutex<HashMap<i64, std::sync::mpsc::Sender<Result<Value, String>>>>,
-    /// kapabilitas dari hasil `initialize`
+
     caps: RwLock<Value>,
     last_activity: AtomicU64,
     started_at: u64,
-    /// file yang sedang dibuka (didOpen) — dipakai untuk tahu kapan boleh idle
+
     open_docs: Mutex<Vec<String>>,
     idle_secs: AtomicU64,
 }
@@ -79,8 +58,6 @@ fn get(id: &str) -> ZResult<Arc<Server>> {
         .ok_or_else(|| ZephyrError::NotFound(format!("language server {id} tidak hidup")))
 }
 
-// ───────────────────────── framing JSON-RPC ─────────────────────────
-
 fn write_msg(srv: &Server, msg: &Value) -> ZResult<()> {
     let body = serde_json::to_vec(msg)
         .map_err(|e| ZephyrError::Internal(format!("serialisasi lsp gagal: {e}")))?;
@@ -88,7 +65,7 @@ fn write_msg(srv: &Server, msg: &Value) -> ZResult<()> {
         .stdin
         .lock()
         .map_err(|_| ZephyrError::Internal("stdin lsp terkunci".into()))?;
-    // Header WAJIB \r\n — banyak server menolak \n saja.
+
     out.write_all(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes())
         .map_err(|e| ZephyrError::Io(format!("tulis header lsp: {e}")))?;
     out.write_all(&body)
@@ -99,7 +76,6 @@ fn write_msg(srv: &Server, msg: &Value) -> ZResult<()> {
     Ok(())
 }
 
-/// Baca satu frame LSP. `None` = stream tertutup (server mati).
 fn read_frame(r: &mut BufReader<std::process::ChildStdout>) -> Option<Value> {
     let mut len: Option<usize> = None;
     loop {
@@ -111,7 +87,7 @@ fn read_frame(r: &mut BufReader<std::process::ChildStdout>) -> Option<Value> {
         }
         let t = line.trim_end();
         if t.is_empty() {
-            break; // akhir header
+            break;
         }
         if let Some(v) = t.strip_prefix("Content-Length:") {
             len = v.trim().parse::<usize>().ok();
@@ -123,22 +99,15 @@ fn read_frame(r: &mut BufReader<std::process::ChildStdout>) -> Option<Value> {
     serde_json::from_slice(&buf).ok()
 }
 
-// ───────────────────────── resolver binary ─────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerSpec {
-    /// id server, mis. "typescript"
     pub id: String,
-    /// perintah + argumen. Elemen pertama = executable.
+
     pub cmd: Vec<String>,
-    /// languageId LSP, mis. "typescript"
+
     pub lang: String,
 }
 
-/// Cari entry-point Node untuk sebuah bin name di `node_modules`.
-/// Membaca field `bin` di package.json paket yang namanya sama dengan bin-nya
-/// (kasus umum: `typescript-language-server`), jadi tidak ada path yang
-/// di-hardcode.
 fn script_node(node_modules: &Path, bin_name: &str) -> Option<PathBuf> {
     let pkg_dir = node_modules.join(bin_name);
     let pkg_json = pkg_dir.join("package.json");
@@ -146,9 +115,8 @@ fn script_node(node_modules: &Path, bin_name: &str) -> Option<PathBuf> {
     let v: Value = serde_json::from_str(&teks).ok()?;
 
     let rel = match v.get("bin") {
-        // "bin": "./lib/cli.mjs"
         Some(Value::String(s)) => s.clone(),
-        // "bin": { "<nama>": "./lib/cli.mjs" }
+
         Some(Value::Object(map)) => map
             .get(bin_name)
             .and_then(|x| x.as_str())
@@ -165,13 +133,6 @@ fn script_node(node_modules: &Path, bin_name: &str) -> Option<PathBuf> {
     }
 }
 
-/// Cari executable dengan urutan: absolut → %APPDATA%\zephyr\lsp\<id>\ →
-/// node_modules\.bin milik workspace → PATH.
-///
-/// node_modules workspace ADA DI DAFTAR dengan sengaja: proyek Node biasanya
-/// sudah memasang language server-nya sendiri (typescript-language-server,
-/// yaml-language-server, dll), dan memakai versi proyek lebih benar daripada
-/// memaksa versi global — perilaku yang sama dengan VS Code untuk TypeScript.
 fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(String, Vec<String>)> {
     if spec.cmd.is_empty() {
         return Err(ZephyrError::InvalidInput(
@@ -181,13 +142,11 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
     let exe = spec.cmd[0].clone();
     let args: Vec<String> = spec.cmd[1..].to_vec();
 
-    // Path absolut yang benar-benar ada dipakai apa adanya.
     let p = Path::new(&exe);
     if p.is_absolute() && p.exists() {
         return Ok((exe, args));
     }
 
-    // %APPDATA%\zephyr\lsp\<id>\<exe>
     let state = app.state::<AppState>();
     let kandidat = state.data_dir.join("lsp").join(&spec.id).join(&exe);
     if kandidat.exists() {
@@ -200,13 +159,6 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
         }
     }
 
-    // <workspace>\node_modules\.bin\<exe>[.cmd]
-    //
-    // Yang dikembalikan BUKAN shim `.cmd`-nya, tapi `node <script.mjs>`.
-    // Alasannya penting: shim .cmd dijalankan lewat cmd.exe, jadi PID yang
-    // kita pegang adalah cmd.exe — membunuhnya meninggalkan proses node
-    // menggantung dan idle-shutdown (V5) tidak benar-benar melepas RAM.
-    // Dengan memanggil node langsung, PID di `lsp_status` = proses server asli.
     if !root.as_os_str().is_empty() {
         let nm = root.join("node_modules");
         if let Some(script) = script_node(&nm, &exe) {
@@ -216,7 +168,7 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
                 return Ok((node.to_string_lossy().to_string(), a));
             }
         }
-        // Tidak ketemu paketnya → pakai shim Windows (.cmd) sebagai cadangan.
+
         let bin = nm.join(".bin");
         for nama in [
             format!("{exe}.cmd"),
@@ -230,7 +182,6 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
         }
     }
 
-    // PATH.
     if let Ok(found) = which::which(&exe) {
         return Ok((found.to_string_lossy().to_string(), args));
     }
@@ -242,17 +193,12 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
     )))
 }
 
-// ───────────────────────── start / stop ─────────────────────────
-
 fn emit(app: &AppHandle, payload: Value) {
     let _ = app.emit("lsp-event", payload);
 }
 
-/// Balas request server→klien yang wajib dijawab, kalau tidak server menggantung.
 fn reply_server_request(srv: &Server, id: &Value, method: &str) {
     let result = match method {
-        // Kita tidak menyediakan konfigurasi per-scope: kirim array null
-        // sepanjang jumlah item yang diminta agar server tidak menunggu.
         "workspace/configuration" => json!([Value::Null]),
         "client/registerCapability" | "client/unregisterCapability" => Value::Null,
         "window/workDoneProgress/create" => Value::Null,
@@ -274,10 +220,6 @@ pub async fn lsp_start(
     init_options: Option<Value>,
     idle_secs: Option<u64>,
 ) -> ZResult<Value> {
-    // fase 29: language server adalah PROSES yang bisa menjalankan kode dari
-    // konfigurasi repo (plugin eslint, tsserver dengan custom transformer).
-    // Root yang diminta yang diperiksa, bukan root aktif — LSP dipanggil per
-    // root di workspace multi-root.
     if !root.is_empty() {
         crate::workspace::ensure_trusted_path(&state, Path::new(&root), "Language server")?;
     } else {
@@ -286,7 +228,6 @@ pub async fn lsp_start(
 
     let key = format!("{}::{}", spec.id, root.to_lowercase());
 
-    // Sudah hidup? pakai yang ada (satu server per bahasa+root).
     if let Ok(reg) = registry().read() {
         if let Some(s) = reg.get(&key) {
             s.last_activity.store(now_secs(), Ordering::Relaxed);
@@ -300,8 +241,6 @@ pub async fn lsp_start(
     let (exe, args) = resolve_cmd(&app, &spec, Path::new(&root))?;
     let cmd_line = format!("{exe} {}", args.join(" "));
 
-    // `crate::proc::cmd` memasang CREATE_NO_WINDOW (jendela konsol LSP tidak
-    // boleh terlihat).
     let mut c = crate::proc::cmd(&exe);
     c.args(&args)
         .stdin(std::process::Stdio::piped())
@@ -341,7 +280,6 @@ pub async fn lsp_start(
         idle_secs: AtomicU64::new(idle_secs.unwrap_or(IDLE_SECS_DEFAULT)),
     });
 
-    // Reader stdout: balasan → pending, notifikasi → frontend.
     {
         let srv2 = srv.clone();
         let app2 = app.clone();
@@ -354,7 +292,6 @@ pub async fn lsp_start(
                 let punya_method = msg.get("method").is_some();
 
                 if punya_id && !punya_method {
-                    // Balasan untuk request kita.
                     let id = msg.get("id").and_then(|v| v.as_i64()).unwrap_or(-1);
                     let hasil = if let Some(err) = msg.get("error") {
                         Err(err
@@ -381,14 +318,12 @@ pub async fn lsp_start(
                         .to_string();
 
                     if punya_id {
-                        // Request dari server → wajib dibalas.
                         if let Some(id) = msg.get("id") {
                             reply_server_request(&srv2, id, &method);
                         }
                         continue;
                     }
 
-                    // Notifikasi → frontend (diagnostics, log, dll).
                     emit(
                         &app2,
                         json!({
@@ -402,7 +337,6 @@ pub async fn lsp_start(
                 }
             }
 
-            // Stream tertutup = proses mati.
             emit(
                 &app2,
                 json!({ "server": srv2.id, "lang": srv2.lang, "kind": "exit" }),
@@ -413,7 +347,6 @@ pub async fn lsp_start(
         });
     }
 
-    // Reader stderr: masuk Output channel "LSP" lewat event yang sama.
     if let Some(errout) = stderr {
         let app3 = app.clone();
         let id3 = key.clone();
@@ -436,7 +369,6 @@ pub async fn lsp_start(
         .map_err(|_| ZephyrError::Internal("registry lsp terkunci".into()))?
         .insert(key.clone(), srv.clone());
 
-    // initialize + initialized (wajib sebelum request apa pun).
     let root_uri = if root.is_empty() {
         Value::Null
     } else {
@@ -478,7 +410,6 @@ pub async fn lsp_start(
             }))
         }
         Err(e) => {
-            // initialize gagal = server tidak berguna; jangan tinggalkan zombie.
             let _ = stop_server(&srv);
             if let Ok(mut reg) = registry().write() {
                 reg.remove(&key);
@@ -535,7 +466,6 @@ fn client_capabilities() -> Value {
     })
 }
 
-/// Konversi path Windows → file:// URI yang diterima language server.
 pub fn path_to_uri(p: &Path) -> String {
     let s = crate::paths::strip_unc(p)
         .to_string_lossy()
@@ -545,7 +475,7 @@ pub fn path_to_uri(p: &Path) -> String {
     } else {
         format!("/{s}")
     };
-    // Encode karakter yang bermasalah; biarkan '/' , ':' dan alfanumerik.
+
     let mut out = String::from("file://");
     for ch in s.chars() {
         match ch {
@@ -591,8 +521,6 @@ fn request_blocking(srv: &Arc<Server>, method: &str, params: Value) -> ZResult<V
 }
 
 fn stop_server(srv: &Arc<Server>) -> ZResult<()> {
-    // shutdown → exit adalah urutan yang benar; kalau server sudah tidak
-    // responsif, kill langsung supaya tidak menggantung UI.
     let _ = write_msg(
         srv,
         &json!({ "jsonrpc": "2.0", "id": 999_999, "method": "shutdown", "params": Value::Null }),
@@ -614,12 +542,10 @@ fn stop_server(srv: &Arc<Server>) -> ZResult<()> {
     Ok(())
 }
 
-// ───────────────────────── command Tauri ─────────────────────────
-
 #[tauri::command(async)]
 pub async fn lsp_request(server: String, method: String, params: Value) -> ZResult<Value> {
     let srv = get(&server)?;
-    // Jalankan di blocking pool: recv_timeout memblokir thread.
+
     tokio::task::spawn_blocking(move || request_blocking(&srv, &method, params))
         .await
         .map_err(|e| ZephyrError::Internal(format!("join lsp: {e}")))?
@@ -628,7 +554,7 @@ pub async fn lsp_request(server: String, method: String, params: Value) -> ZResu
 #[tauri::command(async)]
 pub async fn lsp_notify(server: String, method: String, params: Value) -> ZResult<()> {
     let srv = get(&server)?;
-    // didOpen/didClose ikut mencatat dokumen terbuka untuk idle-shutdown.
+
     if method == "textDocument/didOpen" {
         if let Some(uri) = params.pointer("/textDocument/uri").and_then(|v| v.as_str()) {
             if let Ok(mut d) = srv.open_docs.lock() {
@@ -731,14 +657,6 @@ pub fn lsp_status() -> ZResult<Vec<LspInfo>> {
         .collect())
 }
 
-/// Matikan server yang sudah idle & tidak punya dokumen terbuka (V5).
-/// Dipanggil berkala dari frontend supaya kebijakannya satu tempat (UI tahu
-/// file mana yang masih dibuka user), bukan timer tersembunyi di Rust.
-///
-/// Semua pekerjaan yang memegang lock dikurung di fungsi sync `take_idle()`:
-/// `RwLockReadGuard`/`MutexGuard` std TIDAK `Send`, jadi kalau guard-nya masih
-/// hidup saat `.await` seluruh future berhenti jadi `Send` dan Tauri menolak
-/// command-nya ("future cannot be sent between threads safely").
 fn take_idle() -> ZResult<(Vec<String>, Vec<Arc<Server>>)> {
     let t = now_secs();
     let mati: Vec<Arc<Server>> = {
@@ -783,7 +701,6 @@ pub async fn lsp_reap() -> ZResult<Vec<String>> {
     Ok(ids)
 }
 
-/// Ubah batas idle satu server (dipakai harness untuk memaksa reap cepat).
 #[tauri::command(async)]
 pub fn lsp_set_idle(server: String, secs: u64) -> ZResult<()> {
     let srv = get(&server)?;
@@ -791,8 +708,6 @@ pub fn lsp_set_idle(server: String, secs: u64) -> ZResult<()> {
     Ok(())
 }
 
-/// Cek apakah sebuah executable bisa ditemukan (untuk UI Settings).
-/// `root` opsional supaya probe juga melihat node_modules\.bin workspace.
 #[tauri::command(async)]
 pub fn lsp_probe(app: AppHandle, spec: ServerSpec, root: Option<String>) -> ZResult<Value> {
     let r = root.unwrap_or_default();

@@ -1,13 +1,3 @@
-// breakpointGutter.ts — gutter breakpoint + highlight baris aktif (fase 22).
-//
-// Dipisah dari `diagnosticsGutter.ts` (fase 20) karena sumber datanya berbeda
-// (debugStore vs problemsStore) dan keduanya harus bisa di-update independen:
-// breakpoint berubah saat diklik, diagnostik berubah saat LSP/task selesai.
-// Menggabungkannya berarti satu update memaksa yang lain ikut dibangun ulang.
-//
-// Pola sama seperti fase 20: GutterMarker + Compartment, BUKAN rebuild
-// EditorView (rebuild membuang undo history + posisi kursor — pelajaran 13).
-
 import { gutter, GutterMarker, EditorView, Decoration, type DecorationSet } from '@codemirror/view';
 import { Compartment, RangeSet, StateField, type Extension } from '@codemirror/state';
 import type { Breakpoint } from './debugStore';
@@ -23,9 +13,7 @@ class BpMarker extends GutterMarker {
 
   override toDOM() {
     const el = document.createElement('span');
-    // Titik penuh = diverifikasi adapter; lingkaran kosong = belum (sesi mati
-    // atau baris tidak bisa dipasangi). Bedanya penting: user perlu tahu
-    // breakpoint-nya benar-benar akan kena.
+    
     el.className =
       'cm-bp-marker' +
       (this.verified ? ' is-verified' : '') +
@@ -44,13 +32,6 @@ class BpMarker extends GutterMarker {
 export const bpCompartment = new Compartment();
 export const barisAktifCompartment = new Compartment();
 
-/**
- * Gutter breakpoint. `onToggle(line)` dipanggil saat gutter diklik.
- *
- * Gutter dipasang SELALU (walau daftar breakpoint kosong) supaya area klik
- * tersedia — kalau hanya dipasang saat ada breakpoint, breakpoint pertama
- * tidak akan pernah bisa dibuat.
- */
 export function breakpointGutter(list: Breakpoint[], onToggle: (line: number) => void): Extension {
   const perLine = new Map<number, Breakpoint>();
   for (const b of list) perLine.set(b.line, b);
@@ -80,13 +61,6 @@ export function breakpointGutter(list: Breakpoint[], onToggle: (line: number) =>
   });
 }
 
-/**
- * Highlight baris yang sedang dieksekusi (kuning, brief fase 22).
- *
- * StateField dipakai (bukan decorations.of langsung) supaya dekorasi ikut
- * dipetakan saat dokumen berubah — tanpa itu, mengedit file saat paused
- * membuat highlight melompat ke baris yang salah.
- */
 const barisAktifDeco = Decoration.line({ class: 'cm-baris-aktif' });
 
 export function barisAktifExt(line: number | null): Extension {

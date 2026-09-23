@@ -1,14 +1,3 @@
-// problemsStore.ts — diagnostik terpusat (fase 20).
-//
-// KONTRAK: fase 21 (LSP), 22 (debug), dan 23 (tasks) yang MENGISI store ini.
-// Fase 20 hanya menampilkannya. Karena itu bentuk `Diagnostic` di sini adalah
-// kontrak publik — jangan diubah tanpa menyesuaikan fase-fase itu.
-//
-// Diagnostik disimpan PER FILE (`Map<file, Diagnostic[]>`), bukan satu array
-// datar: LSP mengirim ulang seluruh daftar untuk satu file setiap kali file
-// berubah, jadi `setDiagnostics(file, [...])` harus MENGGANTI, bukan menambah.
-// Array datar akan membuat entri lama menumpuk.
-
 import { create } from 'zustand';
 import { kunciPath } from './pathKey';
 
@@ -22,47 +11,35 @@ export interface Diagnostic {
   endColumn?: number;
   severity: Severity;
   message: string;
-  /** "LSP" | "eslint" | "task:<label>" | "debug" */
+  
   source: string;
   code?: string;
 }
 
-/** Urutan tampil: error dulu, lalu warning, dst. */
 const RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2, hint: 3 };
 
-/**
- * Kunci Map untuk sebuah path — didefinisikan di `pathKey.ts` dan
- * di-re-export di sini supaya pemakai lama tetap jalan.
- *
- * WAJIB dinormalisasi: sumber diagnostik memberi bentuk path yang berbeda —
- * LSP mengirim `file:///d%3A/x/y.ts` (jadi `d:\x\y.ts`, drive HURUF KECIL),
- * sedangkan tab editor bisa memegang `D:/x/y.ts`. Tanpa normalisasi,
- * `setDiagnostics()` dan `forFile()` memakai kunci berbeda untuk file yang
- * SAMA: badge status bar naik tapi tabel & squiggle kosong.
- */
 export { kunciPath };
 
 interface ProblemsState {
-  /** file → diagnostik. Map, bukan objek, supaya path Windows dengan titik
-   *  tidak bertabrakan dengan properti bawaan objek. */
+  
   byFile: Map<string, Diagnostic[]>;
-  /** filter teks di ProblemsView */
+  
   filter: string;
-  /** hanya tampilkan diagnostik file yang sedang dibuka */
+  
   activeOnly: boolean;
 }
 
 interface ProblemsActions {
-  /** Ganti seluruh diagnostik satu file (dipanggil LSP/task/debug). */
+  
   setDiagnostics: (file: string, list: Diagnostic[]) => void;
   removeFile: (file: string) => void;
   clearAll: () => void;
   clearSource: (source: string) => void;
   setFilter: (q: string) => void;
   setActiveOnly: (v: boolean) => void;
-  /** Semua diagnostik, datar & terurut (severity → file → line). */
+  
   all: () => Diagnostic[];
-  /** Diagnostik satu file (untuk gutter marker editor). */
+  
   forFile: (file: string) => Diagnostic[];
   counts: () => { errors: number; warnings: number };
 }

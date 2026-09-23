@@ -1,11 +1,3 @@
-// clipboard.ts — clipboard lewat plugin Tauri (Rust), bukan navigator.clipboard.
-//
-// Alasan: di WebView2, navigator.clipboard.readText/writeText melempar
-// NotAllowedError "Document is not focused" — copy/paste terminal jadi gagal
-// saat window tidak fokus (mis. dipanggil dari otomasi/CDP) dan kadang saat
-// fokus pindah ke pane lain. Plugin clipboard-manager memakai API Windows
-// langsung sehingga selalu bekerja.
-
 import { readImage, readText, writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 export async function clipboardWrite(text: string): Promise<void> {
@@ -13,7 +5,7 @@ export async function clipboardWrite(text: string): Promise<void> {
   try {
     await writeText(text);
   } catch {
-    // Fallback terakhir bila plugin tidak tersedia.
+    
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -34,12 +26,6 @@ export async function clipboardRead(): Promise<string> {
   }
 }
 
-/**
- * Baca gambar dari clipboard (Win+Shift+S lalu Ctrl+V) sebagai data URL PNG.
- * Mengembalikan null kalau clipboard tidak berisi gambar. Gambar lebar
- * diturunkan skalanya (maks 1600px) supaya data URL-nya tidak membengkak
- * saat disimpan ke localStorage.
- */
 export async function clipboardReadImage(): Promise<string | null> {
   try {
     const img = await readImage();

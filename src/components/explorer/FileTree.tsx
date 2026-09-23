@@ -1,7 +1,3 @@
-// FileTree.tsx — tree Explorer: expand/collapse, multi-select, context menu,
-// rename inline, drag-drop pindah file. Node dirender flat (hasil traverse)
-// supaya jumlah elemen DOM sebanding dengan yang benar-benar terlihat.
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
@@ -17,7 +13,6 @@ interface Row {
 
 const INDENT = 12;
 
-/** Susun daftar baris yang terlihat dari peta children + status expanded. */
 function buildRows(
   root: string,
   children: Record<string, DirNode[]>,
@@ -59,7 +54,6 @@ function FolderIcon({ open }: { open: boolean }) {
   );
 }
 
-/** Input inline untuk New File / New Folder / Rename. */
 function InlineInput({
   initial,
   depth,
@@ -76,7 +70,7 @@ function InlineInput({
     const el = ref.current;
     if (!el) return;
     el.focus();
-    // Pilih nama tanpa ekstensi (perilaku VS Code).
+    
     const dot = initial.lastIndexOf('.');
     if (dot > 0) el.setSelectionRange(0, dot);
     else el.select();
@@ -106,8 +100,7 @@ function InlineInput({
 
 export default function FileTree({ root }: { root?: string }) {
   const workspace = useStore((s) => s.workspace);
-  // fase 29: satu FileTree per ROOT. `root` yang dikirim ExplorerPanel menang;
-  // tanpa prop ia jatuh ke workspace aktif supaya pemakaian lama tidak berubah.
+  
   const akar = root ?? workspace;
   const openPath = useStore((s) => s.openPath);
   const activeTabPath = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.path ?? null);
@@ -150,7 +143,7 @@ export default function FileTree({ root }: { root?: string }) {
     } else if (e.key === 'Delete') {
       e.preventDefault();
       const targets = selected.includes(node.path) ? selected : [node.path];
-      // FASE 27: dialog dalam-app, bukan `window.confirm` yang memblokir.
+      
       askDelete(targets);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -210,7 +203,7 @@ export default function FileTree({ root }: { root?: string }) {
               onDragOver={(e) => {
                 if (!dragSrc.current) return;
                 e.preventDefault();
-                // Folder = target langsung; file = folder induknya.
+                
                 const target = node.isDir ? node.path : node.path.replace(/[\\/][^\\/]+$/, '');
                 setDragOver(target === node.path ? node.path : null);
               }}

@@ -1,12 +1,3 @@
-// keybindingStore.ts — state runtime keybinding (fase 18).
-//
-// Memisahkan DATA (keybindings.ts: tabel default + fungsi murni) dari STATE
-// (file ini: override user, context key aktif, chord yang sedang pending).
-//
-// Context key di-update oleh komponen yang menerima fokus (editor, terminal),
-// bukan ditebak dari `document.activeElement` — ini yang membuat Ctrl+Up
-// berarti scroll editor vs scroll buffer terminal (syarat 18.2/V5).
-
 import { create } from 'zustand';
 import { useStore } from './store';
 import { keymapEkstensi } from './extLoader';
@@ -22,42 +13,41 @@ import {
   type WhenCtx,
 } from './keybindings';
 
-/** Batas waktu menunggu chord kedua dari sebuah sequence (ms). */
 export const CHORD_TIMEOUT_MS = 1500;
 
 interface KbState {
-  /** override dari keybindings.json */
+
   user: UserBinding[];
-  /** hasil merge default ⊕ user (yang dipakai semua UI) */
+
   bindings: KeyBinding[];
-  /** context key yang AKTIF sekarang */
+
   ctx: WhenCtx[];
-  /** chord pertama dari sequence yang sedang ditunggu ('' = tidak ada) */
+
   pending: string;
-  /** panel editor Keyboard Shortcuts terbuka (18.4) */
+
   editorOpen: boolean;
-  /** command terakhir yang dijalankan resolver (bukti untuk harness) */
+
   lastRun: string | null;
-  /** pesan error terakhir (mis. gagal simpan) */
+
   kbError: string | null;
 }
 
 interface KbActions {
   load: () => Promise<void>;
-  /** Simpan satu override (chord baru untuk sebuah command). */
+
   remap: (command: string, chord: string, when?: WhenCtx) => Promise<void>;
-  /** Hapus binding (command jadi tanpa chord). */
+
   removeBinding: (command: string) => Promise<void>;
-  /** Kembalikan satu command ke chord default. */
+
   resetOne: (command: string) => Promise<void>;
   resetAll: () => Promise<void>;
   setCtx: (key: WhenCtx, on: boolean) => void;
   setPending: (chord: string) => void;
   setEditorOpen: (open: boolean) => void;
   setLastRun: (id: string | null) => void;
-  /** Selesaikan chord/sequence → binding yang cocok (null = tidak ada). */
+
   resolve: (sequence: string) => KeyBinding | null;
-  /** true = sequence ini prefix dari binding lain (jangan fire dulu). */
+
   isPrefix: (sequence: string) => boolean;
 }
 
@@ -76,9 +66,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
     try {
       const raw = await cmd.getKeybindings();
       const dariKb = Array.isArray(raw) ? (raw as UserBinding[]) : [];
-      // settings.shortcuts (ditulis Settings → Shortcut) DIGABUNG dan menang:
-      // sebelum ini ia diabaikan total oleh resolver, sehingga remap dari UI
-      // tidak pernah berlaku dan shortcut lama tetap jalan.
+
       const dariSettings = Object.entries(useStore.getState().settings.shortcuts ?? {})
         .filter(([, v]) => typeof v === 'string' && v)
         .map(([command, key]) => ({ command, key: String(key) }));
@@ -88,7 +76,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
       const user = [...peta.values()];
       set({ user, bindings: mergeBindings(user, keymapEkstensi()), kbError: null });
     } catch (e) {
-      // Gagal baca bukan alasan mematikan seluruh shortcut — pakai default.
+
       set({ user: [], bindings: DEFAULT_BINDINGS, kbError: cmd.asZephyrError(e).message });
     }
   },
@@ -147,8 +135,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
     window.clearTimeout(timer);
     set({ pending: chord });
     if (chord) {
-      // Pending yang tidak dilanjutkan HARUS kedaluwarsa sendiri, kalau tidak
-      // chord berikutnya (mis. Ctrl+S biasa) akan dianggap bagian sequence.
+
       timer = window.setTimeout(() => set({ pending: '' }), CHORD_TIMEOUT_MS);
     }
   },

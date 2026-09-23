@@ -1,16 +1,11 @@
-// PaneIcons.tsx — ikon jenis pane + logo CLI agent (inline SVG, tanpa lib).
-// Warna dari token tema (AGENTS.md §4: dilarang hex hardcoded di komponen),
-// kecuali logo brand yang memang punya warna resmi sendiri.
-
 import type { PaneKind } from '../../lib/types';
 
-/** Logo per CLI agent. Bentuk sederhana yang mudah dikenali di ukuran 14px. */
 export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
   const p = { width: size, height: size, viewBox: '0 0 16 16', role: 'img' as const };
 
   switch (id) {
     case 'opencode':
-      // kurung kurawal + titik (brand opencode: monospace/terminal)
+      
       return (
         <svg {...p} aria-label="opencode">
           <path
@@ -23,7 +18,7 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
         </svg>
       );
     case 'claude':
-      // percikan / asterisk khas Anthropic
+      
       return (
         <svg {...p} aria-label="Claude">
           <path
@@ -36,7 +31,7 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
         </svg>
       );
     case 'codex':
-      // lingkaran OpenAI-ish + inti
+      
       return (
         <svg {...p} aria-label="Codex">
           <circle cx="8" cy="8" r="5.4" fill="none" stroke="#10a37f" strokeWidth="1.4" />
@@ -44,28 +39,28 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
         </svg>
       );
     case 'gemini':
-      // bintang empat sudut (Gemini)
+      
       return (
         <svg {...p} aria-label="Gemini">
           <path d="M8 1.6c.7 3.5 2.9 5.7 6.4 6.4-3.5.7-5.7 2.9-6.4 6.4-.7-3.5-2.9-5.7-6.4-6.4C5.1 7.3 7.3 5.1 8 1.6z" fill="#4285f4" />
         </svg>
       );
     case 'grok':
-      // garis silang tajam (X/Grok)
+      
       return (
         <svg {...p} aria-label="Grok">
           <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="var(--text)" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       );
     case 'pi':
-      // huruf pi
+      
       return (
         <svg {...p} aria-label="Pi">
           <path d="M3.2 5h9.6M5.8 5v6.4M10.4 5v6.4" fill="none" stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       );
     case 'gh':
-      // octocat disederhanakan: kepala + telinga
+      
       return (
         <svg {...p} aria-label="GitHub Copilot">
           <circle cx="8" cy="8.6" r="4.6" fill="none" stroke="var(--text)" strokeWidth="1.3" />
@@ -74,14 +69,14 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
         </svg>
       );
     case 'cursor':
-      // kursor panah
+      
       return (
         <svg {...p} aria-label="Cursor">
           <path d="M4 2.6l8.2 5.1-3.6.8L10 12l-1.6.8-1.6-3.4-2.8 1.9z" fill="var(--accent)" />
         </svg>
       );
     default:
-      // agent tak dikenal (ditambah user di Settings)
+      
       return (
         <svg {...p} aria-label={id}>
           <rect x="2.6" y="2.6" width="10.8" height="10.8" rx="2.4" fill="none" stroke="var(--accent)" strokeWidth="1.3" />
@@ -91,7 +86,6 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
   }
 }
 
-/** Ikon jenis pane: shell/private/cmd/bash/wsl/browser/ssh/agent. */
 export default function PaneIcon({
   kind,
   agentId,
@@ -156,7 +150,7 @@ export default function PaneIcon({
       </svg>
     );
   }
-  // PowerShell (default)
+  
   return (
     <svg {...p} aria-hidden="true">
       <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" {...box} stroke="var(--accent)" />

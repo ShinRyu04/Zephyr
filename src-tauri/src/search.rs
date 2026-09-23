@@ -1,33 +1,3 @@
-// search.rs — Global Search & Replace lewat ripgrep (fase 25).
-//
-// KEPUTUSAN ARSITEKTUR
-//
-// 1. ripgrep dijalankan sebagai PROSES dengan `--json`, bukan lewat crate
-//    `grep-*`. Alasannya: parsing `--json` adalah kontrak stabil yang
-//    didokumentasikan (Begin/Match/End/Summary), sementara memakai crate berarti
-//    menyalin ulang logika .gitignore, binary detection, encoding, dan glob
-//    yang sudah benar di rg. Brief 25 juga memang meminta binary rg.
-//
-// 2. rg TIDAK dibundel. Urutan pencarian: `settings.search.rgPath` → `rg` di
-//    PATH → `%APPDATA%\zephyr\bin\rg.exe`. Kalau tidak ada, fitur ini
-//    memberi pesan jelas + jalur fallback ke `search_files` bawaan fase 04
-//    (scan Rust sendiri), bukan diam-diam gagal.
-//
-// 3. Hasil di-STREAM lewat event `search-hit` per file, bukan dikumpulkan lalu
-//    dikirim sekali. Pencarian di repo besar bisa memakan detik; UI harus mulai
-//    menampilkan hasil sebelum selesai. Batas `max_results` menghentikan proses
-//    lebih awal (rg dibunuh) supaya query seperti "e" tidak membanjiri UI.
-//
-// 4. Replace TIDAK memakai `rg --replace`: rg hanya MENCETAK hasil pengganti,
-//    ia tidak pernah menulis file. Penulisan dilakukan di sini, per file, dan
-//    setiap file di-snapshot ke Local History (fase 26) LEBIH DULU supaya
-//    Replace All bisa dibatalkan.
-//
-// KEAMANAN
-// - Pencarian & replace hanya di dalam workspace (ensure_writable untuk tulis).
-// - Argumen ke rg selalu lewat `Command::arg` (bukan string shell), jadi query
-//   seperti `"; rm -rf /"` tidak pernah diinterpretasi shell.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
@@ -39,10 +9,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
-/// Batas hasil bawaan bila frontend tidak menyebut.
 const MAX_HASIL_DEFAULT: usize = 5_000;
 
-/// Batas panjang preview satu baris (baris minified bisa megabyte).
 const MAX_PREVIEW: usize = 400;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,20 +23,20 @@ pub struct SearchOpts {
     pub whole_word: bool,
     #[serde(default)]
     pub regex: bool,
-    /// glob "files to include", dipisah koma
+
     #[serde(default)]
     pub include: String,
-    /// glob "files to exclude", dipisah koma
+
     #[serde(default)]
     pub exclude: String,
-    /// false = tambahkan --no-ignore (abaikan .gitignore)
+
     #[serde(default = "benar")]
     pub respect_gitignore: bool,
     #[serde(default)]
     pub include_hidden: bool,
     #[serde(default)]
     pub max_results: Option<usize>,
-    /// folder awal; default = workspace
+
     #[serde(default)]
     pub root: Option<String>,
 }
@@ -77,17 +45,16 @@ fn benar() -> bool {
     true
 }
 
-/// Satu match dari rg.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RgHit {
     pub path: String,
     pub line: u32,
-    /// 1-based, dihitung dalam KARAKTER (bukan byte)
+
     pub col: u32,
     pub match_len: u32,
     pub preview: String,
-    /// semua rentang match di baris ini (untuk highlight ganda)
+
     pub ranges: Vec<(u32, u32)>,
 }
 
@@ -98,18 +65,16 @@ pub struct SearchSummary {
     pub files: usize,
     pub truncated: bool,
     pub elapsed_ms: u64,
-    /// jalur rg yang benar-benar dipakai
+
     pub rg: String,
     pub error: String,
 }
 
 #[derive(Default)]
 pub struct SearchRuntime {
-    /// flag batal untuk pencarian yang sedang jalan
     batal: Mutex<Option<Arc<AtomicBool>>>,
 }
 
-/// Cari binary rg: setting → PATH → %APPDATA%\zephyr\bin.
 pub fn cari_rg(state: &AppState, dari_setting: Option<&str>) -> Option<PathBuf> {
     if let Some(p) = dari_setting.filter(|s| !s.trim().is_empty()) {
         let pb = PathBuf::from(p);
@@ -117,7 +82,7 @@ pub fn cari_rg(state: &AppState, dari_setting: Option<&str>) -> Option<PathBuf> 
             return Some(pb);
         }
     }
-    // PATH: `rg --version` adalah cara paling jujur memastikan ia bisa dipanggil.
+
     let nama = if cfg!(windows) { "rg.exe" } else { "rg" };
     if let Ok(path) = std::env::var("PATH") {
         let pemisah = if cfg!(windows) { ';' } else { ':' };
@@ -138,15 +103,9 @@ pub fn cari_rg(state: &AppState, dari_setting: Option<&str>) -> Option<PathBuf> 
     None
 }
 
-/// Susun argumen rg dari opsi UI.
-///
-/// Dipisah jadi fungsi sendiri supaya bisa diuji tanpa menjalankan proses —
-/// urutan & bentuk flag inilah yang paling mudah salah.
 pub fn bangun_args(o: &SearchOpts, root: &Path) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "--json".into(),
-        // Baris sangat panjang (bundle minified) dipangkas rg sendiri supaya
-        // tidak mengirim megabyte per hit.
         "--max-columns".into(),
         "1000".into(),
         "--max-columns-preview".into(),
@@ -155,15 +114,12 @@ pub fn bangun_args(o: &SearchOpts, root: &Path) -> Vec<String> {
     if o.case_sensitive {
         a.push("--case-sensitive".into());
     } else {
-        // smart-case bukan pilihan di sini: toggle "Match Case" di UI harus
-        // deterministik, jadi mati = benar-benar case-insensitive.
         a.push("--ignore-case".into());
     }
     if o.whole_word {
         a.push("--word-regexp".into());
     }
     if !o.regex {
-        // Teks literal: --fixed-strings membuat karakter seperti ( . * aman.
         a.push("--fixed-strings".into());
     }
     if !o.respect_gitignore {
@@ -189,7 +145,7 @@ pub fn bangun_args(o: &SearchOpts, root: &Path) -> Vec<String> {
         .filter(|s| !s.is_empty())
     {
         a.push("--glob".into());
-        // '!' di depan = exclude (konvensi rg).
+
         a.push(if g.starts_with('!') {
             g.to_string()
         } else {
@@ -197,50 +153,31 @@ pub fn bangun_args(o: &SearchOpts, root: &Path) -> Vec<String> {
         });
     }
 
-    // `--` memisahkan pola dari path: tanpa itu query yang mulai dengan '-'
-    // (mis. "-foo") dianggap flag.
     a.push("--".into());
     a.push(o.query.clone());
     a.push(root.to_string_lossy().to_string());
     a
 }
 
-/// Ubah offset BYTE dari ripgrep menjadi kolom yang dipakai editor.
-///
-/// PENTING: satuannya UTF-16 code unit, bukan `char`.
-///
-/// rg memberi offset byte; CodeMirror (dan seluruh DOM/JS) mengalamatkan posisi
-/// dalam UTF-16 code unit. Untuk karakter BMP (é, ü, 中) `chars().count()` dan
-/// jumlah unit UTF-16 sama, jadi bug ini tidak terlihat. Untuk karakter di luar
-/// BMP — emoji, beberapa aksara kuno — satu `char` = DUA unit UTF-16, sehingga
-/// menghitung `char` membuat kursor mendarat terlalu ke kiri.
-///
-/// Terbukti dari harness: baris `🙂🙂 TARGETUTF8` (byte-offset 9) menghasilkan
-/// kolom 4 dengan `chars().count()`, padahal editor melihatnya di kolom 6.
 fn byte_ke_kolom(baris: &str, byte_off: usize) -> u32 {
     let mut batas = byte_off.min(baris.len());
-    // Offset bisa jatuh di tengah karakter multi-byte kalau rg dan file tidak
-    // sepakat; geser ke batas karakter terdekat supaya slicing tidak panik.
+
     while batas > 0 && !baris.is_char_boundary(batas) {
         batas -= 1;
     }
     baris[..batas].encode_utf16().count() as u32 + 1
 }
 
-/// Ambil teks dari objek Data ripgrep: { "text": "..." } atau { "bytes": ".." }.
 fn data_teks(v: &Value) -> String {
     if let Some(t) = v.get("text").and_then(|x| x.as_str()) {
         return t.to_string();
     }
     if let Some(b64) = v.get("bytes").and_then(|x| x.as_str()) {
-        // File non-UTF8: rg mengirim base64. Tidak didekode di sini — kembalikan
-        // penanda, bukan sampah biner ke UI.
         return format!("<{} byte non-UTF8>", b64.len());
     }
     String::new()
 }
 
-/// Jalankan pencarian; hasil di-emit lewat event `search-hit`.
 #[tauri::command(async)]
 pub fn search_grep(
     app: AppHandle,
@@ -264,7 +201,7 @@ pub fn search_grep(
     let root = match opts.root.as_deref().filter(|r| !r.trim().is_empty()) {
         Some(r) => {
             let p = PathBuf::from(r);
-            // Root di luar workspace harus lolos whitelist dialog.
+
             let ws = state.workspace_path();
             let di_dalam = ws
                 .as_ref()
@@ -293,8 +230,6 @@ pub fn search_grep(
         });
     };
 
-    // Batalkan pencarian sebelumnya: user yang mengetik cepat memicu banyak
-    // query, dan yang lama tidak ada gunanya lagi.
     let batal = Arc::new(AtomicBool::new(false));
     {
         let mut slot = rt.batal.lock().unwrap();
@@ -411,8 +346,6 @@ pub fn search_grep(
     }
     kirim(&app, &file_kini, &mut buffer);
 
-    // Batas tercapai / dibatalkan → hentikan rg, jangan biarkan ia menyisir
-    // seluruh disk sia-sia.
     if truncated {
         let _ = anak.kill();
     }
@@ -437,7 +370,6 @@ pub fn search_grep(
     })
 }
 
-/// Batalkan pencarian yang sedang jalan.
 #[tauri::command]
 pub fn search_cancel(rt: State<SearchRuntime>) -> bool {
     let mut slot = rt.batal.lock().unwrap();
@@ -448,7 +380,6 @@ pub fn search_cancel(rt: State<SearchRuntime>) -> bool {
     false
 }
 
-/// Info rg untuk UI (versi + jalur), supaya Settings bisa menampilkannya.
 #[tauri::command]
 pub fn search_rg_info(state: State<AppState>, rg_path: Option<String>) -> ZResult<Value> {
     let Some(rg) = cari_rg(&state, rg_path.as_deref()) else {
@@ -468,21 +399,16 @@ pub fn search_rg_info(state: State<AppState>, rg_path: Option<String>) -> ZResul
     }))
 }
 
-/// Hasil replace satu file.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReplaceHasil {
     pub path: String,
     pub jumlah: usize,
-    /// snapshot Local History sebelum tulis ('' = tidak ada)
+
     pub snapshot: String,
     pub error: String,
 }
 
-/// Replace di banyak file sekaligus.
-///
-/// `regex` + `$1` capture group didukung karena penggantinya dijalankan lewat
-/// `regex::Regex::replace_all`, bukan penggantian teks biasa.
 #[tauri::command(async)]
 pub fn search_replace(
     state: State<AppState>,
@@ -493,8 +419,7 @@ pub fn search_replace(
     if opts.query.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("query kosong".into()));
     }
-    // Pola yang sama dengan yang dipakai rg, tapi dikompilasi di sini karena
-    // penulisan file dilakukan Rust (rg --replace hanya MENCETAK).
+
     let pola = if opts.regex {
         opts.query.clone()
     } else {
@@ -516,7 +441,7 @@ pub fn search_replace(
         let hasil = (|| -> ZResult<ReplaceHasil> {
             state.ensure_writable(&p)?;
             let isi = std::fs::read(&p)?;
-            // File biner tidak boleh disentuh replace.
+
             if crate::history::tampak_biner(&isi) {
                 return Ok(ReplaceHasil {
                     path: f.clone(),
@@ -537,8 +462,6 @@ pub fn search_replace(
             }
             let baru = re.replace_all(&teks, replacement.as_str()).to_string();
 
-            // Snapshot Local History SEBELUM tulis — itu yang membuat
-            // Replace All bisa dibatalkan (brief 25 V4).
             let snap =
                 crate::history::snapshot_internal(&state, &p, "before-replace").unwrap_or_default();
 
@@ -585,7 +508,7 @@ mod tests {
         assert!(a.contains(&"--json".to_string()));
         assert!(a.contains(&"--ignore-case".to_string()));
         assert!(a.contains(&"--fixed-strings".to_string()));
-        // Pola harus SETELAH `--`, kalau tidak query "-foo" dianggap flag.
+
         let i = a.iter().position(|x| x == "--").expect("ada --");
         assert_eq!(a[i + 1], "halo");
         assert_eq!(a[i + 2], "D:/proj");
@@ -618,7 +541,7 @@ mod tests {
             .collect();
         assert!(glob.iter().any(|g| *g == "*.ts"));
         assert!(glob.iter().any(|g| *g == "*.tsx"));
-        // exclude tanpa '!' harus diberi '!'; yang sudah punya tidak dobel.
+
         assert!(glob.iter().any(|g| *g == "!node_modules/**"));
         assert!(glob.iter().any(|g| *g == "!*.min.js"));
         assert!(!glob.iter().any(|g| *g == "!!*.min.js"));
@@ -637,28 +560,21 @@ mod tests {
 
     #[test]
     fn kolom_dihitung_dalam_utf16_bukan_char() {
-        // "héllo" — é dua byte, satu unit UTF-16.
         let baris = "héllo dunia";
         assert_eq!(byte_ke_kolom(baris, 0), 1);
         assert_eq!(byte_ke_kolom(baris, 1), 2);
         assert_eq!(byte_ke_kolom(baris, 3), 3);
 
-        // Emoji di luar BMP: 4 byte, DUA unit UTF-16. Inilah yang membedakan
-        // `chars().count()` (salah) dari `encode_utf16().count()` (benar) —
-        // editor mengalamatkan posisi dalam unit UTF-16.
         let e = "ab😀cd";
         assert_eq!(byte_ke_kolom(e, 2), 3);
-        // offset 6 = setelah emoji: 'a','b' (2) + emoji (2 unit) = kolom 5.
+
         assert_eq!(byte_ke_kolom(e, 6), 5);
 
-        // Kasus nyata dari harness verify25: '🙂🙂 TARGETUTF8'.
-        // 2 emoji × 4 byte + spasi = byte-offset 9 → kolom 6 (2+2+1 unit + 1).
         let u = "🙂🙂 TARGETUTF8 ekor";
         assert_eq!(byte_ke_kolom(u, 9), 6);
 
-        // Offset di luar batas tidak boleh panik.
         assert_eq!(byte_ke_kolom("ab", 99), 3);
-        // Offset di TENGAH karakter multi-byte juga tidak boleh panik.
+
         assert_eq!(byte_ke_kolom("é", 1), 1);
     }
 

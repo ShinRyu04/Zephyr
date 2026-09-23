@@ -1,13 +1,7 @@
-// EditorTabBar.tsx — bar tab: ikon tipe file, nama, titik dirty, tombol x,
-// scroll horizontal, drag-swap urutan, tombol tab baru (+).
-
 import { useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import FileIcon from './FileIcon';
 
-/** Tab bar SATU group editor.
- *  `gid` diberikan saat mode split (fase 33): hanya tab milik group itu yang
- *  tampil. Tanpa `gid` (mode tunggal / halaman lain) = semua tab. */
 export default function EditorTabBar({ gid }: { gid?: string }) {
   const tabsAll = useStore((s) => s.tabs);
   const activeTabId = useStore((s) => s.activeTabId);
@@ -24,13 +18,7 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
   if (tabs.length === 0) return null;
 
   return (
-    // FASE 31: `role="tablist"` DIPINDAH ke .tabbar-scroll.
-    //
-    // ARIA: anak langsung tablist harus `tab`. Sebelumnya .tabbar memegang
-    // tablist sementara tombol "Tab baru" (+) juga anak langsungnya — axe
-    // menandainya aria-required-children CRITICAL, dan screen reader membaca
-    // strukturnya rusak. Sekarang tablist hanya membungkus tab-tabnya, dan
-    // tombol + berada di luar.
+    
     <div className="tabbar">
       <div className="tabbar-scroll" role="tablist" aria-label="Tab editor">
         {tabs.map((t, i) => (
@@ -67,18 +55,13 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
                 e.preventDefault();
                 setActiveTab(t.id);
               } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                // FASE 31: tutup tab dari keyboard.
-                //
-                // Wajib ada karena tombol ✕ dikeluarkan dari urutan Tab
-                // (tabIndex -1, lihat di bawah): tanpa handler ini pengguna
-                // keyboard kehilangan satu-satunya cara menutup tab dari
-                // tab strip.
+                
                 e.preventDefault();
                 requestCloseTab(t.id);
               }
             }}
             onAuxClick={(e) => {
-              // klik tengah = tutup (PRD A2)
+              
               if (e.button === 1) {
                 e.preventDefault();
                 requestCloseTab(t.id);

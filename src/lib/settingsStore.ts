@@ -1,7 +1,3 @@
-// settingsStore.ts — state khusus halaman Settings (fase 08).
-// Dipisah dari store utama supaya membuka Settings tidak menyentuh state
-// editor/terminal, dan supaya section aktif tidak ikut tersimpan ke disk.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import type { ModelTestResult, PublicModel } from './types';
@@ -37,11 +33,9 @@ export const SECTION_ORDER: SectionId[] = [
   'lsp',
   'scm',
   'mcp',
-  // fase 29: Workspace Trust. Ditempatkan sebelum 'ssh' karena keduanya
-  // section keamanan, dan 'about' harus tetap terakhir.
+
   'security',
-  // fase 31: Accessibility. Setelah 'security' karena keduanya "kebijakan
-  // app", bukan konfigurasi fitur.
+
   'accessibility',
   'ssh',
   'about',
@@ -49,21 +43,21 @@ export const SECTION_ORDER: SectionId[] = [
 
 interface SettingsUiState {
   section: SectionId;
-  /** status API key per provider (dari Rust, tanpa key asli) */
+
   keys: PublicModel[];
-  /** hasil test connection terakhir per provider */
+
   testResults: Record<string, ModelTestResult>;
   testing: string | null;
-  /** action yang sedang menunggu tombol ditekan (Shortcuts) */
+
   capturing: string | null;
-  /** peringatan konflik shortcut: actionId -> pesan */
+
   conflictWarning: string | null;
-  /** tahap konfirmasi Reset Semua: 0 = tidak aktif, 1 = tanya, 2 = tanya lagi */
+
   resetStage: 0 | 1 | 2;
   message: string | null;
-  /** Daftar model live per provider (id → daftar model API). */
+
   remoteModels: Record<string, string[]>;
-  /** provider yang sedang di-fetch daftar modelnya */
+
   fetchingModels: string | null;
 }
 
@@ -90,9 +84,7 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   conflictWarning: null,
   resetStage: 0,
   message: null,
-  /** Daftar model live per provider (id → daftar model API), diisi otomatis
-   *  saat key disimpan atau tombol Refresh ditekan. Dipakai dropdown
-   *  Settings + AI panel supaya tidak ketinggalan zaman. */
+
   remoteModels: {},
   fetchingModels: null,
 
@@ -110,8 +102,7 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
     try {
       await cmd.setModelKey(provider, key);
       set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key tersimpan' : 'API key dihapus' });
-      // Begitu key OpenRouter (atau provider OpenAI-compatible lain) masuk,
-      // langsung tarik daftar model live-nya supaya user tinggal pilih.
+
       if (key.trim()) void get().refreshRemoteModels(provider);
       else set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: [] } }));
     } catch (e) {
@@ -119,7 +110,6 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
     }
   },
 
-  /** Ambil daftar model live dari provider (lewat Rust list_models). */
   refreshRemoteModels: async (provider) => {
     set({ fetchingModels: provider });
     try {

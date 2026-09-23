@@ -1,5 +1,3 @@
-// SectionsBasic.tsx — section General, Code Editor, Theme (fase 08).
-
 import { openPath } from '@tauri-apps/plugin-opener';
 import * as cmd from '../../lib/commands';
 import { useStore } from '../../lib/store';
@@ -130,10 +128,7 @@ export function GeneralSection() {
           onChange={async (e) => {
             const nilai = e.target.value as 'bottom' | 'right';
             patch({ aiPanel: nilai });
-            // Permintaan user: "saat AI ke kanan kok masih harus ada terminal
-            // nya? tolong diatur ya biar terminalnya ga ngikut". Panel bawah
-            // (yang berisi terminal + tab lain) TIDAK perlu ikut terbuka saat
-            // chat pindah ke kolom kanan — ia hanya memakan ruang editor.
+
             if (nilai === 'right') {
               const { useTerminal } = await import('../../lib/terminalStore');
               useTerminal.getState().setVisible(false);
@@ -382,7 +377,7 @@ export function EditorSection() {
 export function ThemeSection() {
   const tr = useT();
   const theme = useStore((s) => s.settings.theme);
-  // Background = settings TERSENDIRI (bukan bagian tema). User: "jgn nyatu ya".
+
   const bg = useStore((s) => s.settings.background ?? {});
   const general = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
@@ -408,7 +403,7 @@ export function ThemeSection() {
               onClick={() =>
                 void apply({
                   theme: { current: th.id },
-                  // Sinkronkan mode supaya tidak saling menimpa.
+
                   general: { theme: th.kind === 'light' ? 'light' : 'dark' },
                 })
               }
@@ -462,10 +457,7 @@ export function ThemeSection() {
             data-testid="theme-bg-pick"
             onClick={async () => {
               try {
-                // Dialog native Zephyr (file_dialog_open), lalu file dibaca
-                // Rust jadi data URL. Data URL dipilih daripada asset protocol
-                // karena tidak butuh izin baca folder user dan pasti tampil
-                // (CSS url(file://...) diblokir WebView2).
+
                 const f = await cmd.fileDialogOpen(false);
                 const path = Array.isArray(f) ? f[0] : f;
                 if (!path) return;

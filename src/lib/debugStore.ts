@@ -1,17 +1,3 @@
-// debugStore.ts — state Run & Debug (fase 22).
-//
-// PEMBAGIAN KERJA dengan dap.rs
-//
-// Rust  : proses adapter, framing DAP, request/response, urutan startup
-//         (initialize → initialized → setBreakpoints → configurationDone →
-//         launch), kill pohon proses.
-// Store : model UI. Breakpoint yang BELUM ada sesi (bisa dipasang kapan saja),
-//         call stack, scope tree, watch, riwayat REPL, frame terpilih, dan
-//         penerjemahan event DAP mentah jadi state yang bisa dirender.
-//
-// Rust sengaja tidak menyimpan model UI: kalau keduanya menyimpan, ada dua
-// sumber kebenaran dan salah satunya pasti basi.
-
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import {
@@ -39,14 +25,13 @@ import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { kunciPath } from './pathKey';
 import { tx } from './i18n';
 
-/** Breakpoint di sisi UI. Ada walau belum ada sesi debug. */
 export interface Breakpoint {
   path: string;
   line: number;
   enabled: boolean;
-  /** diverifikasi adapter (titik penuh vs kosong) */
+  
   verified: boolean;
-  /** pesan adapter bila tidak bisa dipasang */
+  
   message?: string;
 }
 
@@ -69,7 +54,7 @@ export interface Variable {
   value: string;
   type?: string;
   variablesReference: number;
-  /** anak yang sudah dimuat (lazy expand) */
+  
   anak?: Variable[];
   terbuka?: boolean;
 }
@@ -85,16 +70,15 @@ export interface ReplLine {
   text: string;
 }
 
-/** Status sesi, dipakai untuk mengaktifkan/menonaktifkan toolbar. */
 export type DebugState = 'inactive' | 'starting' | 'running' | 'stopped';
 
 interface DebugStoreState {
   launch: LaunchFile | null;
   adapters: AdapterSpec[];
-  /** nama konfigurasi terpilih di dropdown */
+  
   configTerpilih: string;
   state: DebugState;
-  /** alasan berhenti terakhir (breakpoint / step / exception) */
+  
   alasanStop: string;
   error: string | null;
 
@@ -108,9 +92,9 @@ interface DebugStoreState {
   watch: WatchItem[];
   repl: ReplLine[];
   loadedSources: { name: string; path: string }[];
-  /** baris yang sedang dieksekusi — dipakai highlight editor */
+  
   barisAktif: { path: string; line: number } | null;
-  /** kapabilitas adapter (menentukan tombol Set Value tampil atau tidak) */
+  
   caps: Record<string, unknown>;
 }
 
@@ -178,8 +162,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       const f = await dapLoad();
       set((s) => ({
         launch: f,
-        // Pilihan lama dipertahankan bila masih ada; kalau tidak, ambil yang
-        // pertama supaya tombol Start langsung berguna.
+        
         configTerpilih:
           f.configurations.some((c) => c.name === s.configTerpilih) && s.configTerpilih
             ? s.configTerpilih
@@ -259,7 +242,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       barisAktif: null,
       alasanStop: '',
     });
-    // Debug Console dibuka: kalau adapter gagal, pesannya di situ.
+    
     usePanel.getState().focusTab('debug');
     log(`— start "${cfg.name}" (${cfg.type}) —`);
 
@@ -272,7 +255,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       log(
         `adapter ${hasil.adapter} (${hasil.transport}${hasil.port ? ' :' + hasil.port : ''}) pid ${hasil.pid}`,
       );
-      // Tandai breakpoint yang diverifikasi adapter.
+      
       for (const grup of hasil.breakpoints ?? []) {
         const bps = (grup.body?.breakpoints ?? []) as {
           verified?: boolean;
@@ -293,8 +276,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     } catch (e) {
       const m = pesan(e);
       set({ state: 'inactive', error: m });
-      // Adapter belum terpasang adalah kasus yang WAJAR (brief V5): tampilkan
-      // instruksi install, jangan crash dan jangan diam.
+      
       notifyError(m, { source: 'debug' });
       log(`GAGAL: ${m}`);
       return false;
@@ -319,7 +301,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       loadedSources: [],
       alasanStop: '',
     });
-    // Breakpoint TIDAK dihapus: user memasangnya untuk sesi berikutnya juga.
+    
     set((s) => ({ breakpoints: s.breakpoints.map((b) => ({ ...b, verified: false })) }));
     log('— sesi debug dihentikan —');
   },
@@ -340,7 +322,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     try {
       await dapKontrol(aksi, tid);
       if (aksi !== 'pause') {
-        // Setelah continue/step, state kembali running sampai `stopped` datang.
+        
         set({ state: 'running', barisAktif: null, frames: [], scopes: [] });
       }
     } catch (e) {
@@ -352,7 +334,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     const f = get().frames.find((x) => x.id === frameId);
     set({ frameTerpilih: frameId, variables: {} });
     if (f && f.path) {
-      // Klik frame → editor lompat ke lokasi frame (brief fase 22).
+      
       await useStore.getState().openPath(f.path);
       const { revealPosition } = await import('./editorRegistry');
       revealPosition(f.line, f.column || 1);
@@ -366,8 +348,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
         expensive: Boolean(s.expensive),
       }));
       set({ scopes });
-      // Scope pertama (biasanya Local) langsung dimuat — itu yang dilihat user
-      // lebih dulu; scope "expensive" (Global) dibiarkan sampai diklik.
+      
       const pertama = scopes.find((s) => !s.expensive) ?? scopes[0];
       if (pertama) await get().expandVariable(pertama.variablesReference);
       await get().refreshWatch();
@@ -378,7 +359,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
 
   expandVariable: async (ref) => {
     if (ref <= 0) return;
-    if (get().variables[ref]) return; // sudah dimuat
+    if (get().variables[ref]) return; 
     try {
       const body = await dapVariables(ref);
       const vars = ((body.variables ?? []) as Record<string, unknown>[]).map((v) => ({
@@ -396,8 +377,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   setVariable: async (ref, nama, nilai) => {
     try {
       await dapSetVariable(ref, nama, nilai);
-      // Muat ulang scope itu: nilai baru bisa berbeda dari yang dikirim
-      // (adapter melakukan coercion).
+      
       set((s) => {
         const v = { ...s.variables };
         delete v[ref];
@@ -447,8 +427,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       const body = await dapEvaluate(expr, get().frameTerpilih ?? undefined, 'repl');
       const teks = String(body.result ?? '');
       set((s) => ({ repl: [...s.repl, { kind: 'output', text: teks }] }));
-      // Hasil dengan variablesReference > 0 adalah objek yang bisa di-expand;
-      // di REPL cukup teksnya, tree-nya ada di panel VARIABLES.
+      
       return teks;
     } catch (e) {
       const m = pesan(e);
@@ -469,14 +448,12 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
 
     switch (ev) {
       case 'stopped': {
-        // threadId 0 ADALAH id yang sah — js-debug memakainya untuk thread
-        // pertama. `Number(x ?? 0) || null` mengubah 0 menjadi null, sehingga
-        // call stack tidak pernah dimuat padahal breakpoint sudah kena.
+        
         const tid = body.threadId != null ? Number(body.threadId) : null;
         const alasan = String(body.reason ?? 'stop');
         set({ state: 'stopped', threadId: tid, alasanStop: alasan });
         void muatStack(tid);
-        // Exception juga masuk Problems (brief: sumber "debug").
+        
         if (alasan === 'exception') {
           const teks = String(body.text ?? body.description ?? 'exception');
           log(`EXCEPTION: ${teks}`);
@@ -503,8 +480,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       case 'output': {
         const kategori = String(body.category ?? 'console');
         const teks = String(body.output ?? '');
-        // stdout/stderr program → Debug Console (itu yang dilihat user saat
-        // debug), bukan hanya channel Output.
+        
         set((s) => ({
           repl: [
             ...s.repl,
@@ -515,7 +491,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
         break;
       }
       case 'breakpoint': {
-        // Adapter memverifikasi/menggeser breakpoint setelah source dimuat.
+        
         const bp = (body.breakpoint ?? {}) as Record<string, unknown>;
         const src = (bp.source ?? {}) as Record<string, unknown>;
         const p = String(src.path ?? '');
@@ -548,13 +524,11 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   },
 }));
 
-/** Ambil pesan error dari ZephyrError ({ code, message }) atau apa pun. */
 const pesan = (e: unknown): string =>
   e && typeof e === 'object' && 'message' in e
     ? String((e as { message: unknown }).message)
     : String(e);
 
-/** Kirim ulang seluruh breakpoint satu file ke adapter (kalau sesi hidup). */
 const kirimBreakpoints = async (path: string) => {
   const st = useDebug.getState();
   if (st.state === 'inactive') return;
@@ -562,8 +536,7 @@ const kirimBreakpoints = async (path: string) => {
     .filter((b) => kunciPath(b.path) === kunciPath(path) && b.enabled)
     .map((b) => b.line);
   try {
-    // setBreakpoints MENGGANTI seluruh daftar satu source — jadi kirim semua
-    // baris file itu, bukan hanya yang baru.
+    
     const body = await dapSetBreakpoints(path, lines);
     const bps = (body.breakpoints ?? []) as { verified?: boolean; line?: number }[];
     useDebug.setState((s) => ({
@@ -578,7 +551,6 @@ const kirimBreakpoints = async (path: string) => {
   }
 };
 
-/** Setelah `stopped`: threads → stackTrace → scopes (urutan wajib DAP). */
 const muatStack = async (tid: number | null) => {
   if (tid == null) return;
   try {
@@ -603,7 +575,6 @@ const muatStack = async (tid: number | null) => {
     });
     useDebug.setState({ frames });
 
-    // Frame teratas dipilih otomatis: itu tempat eksekusi berhenti.
     if (frames[0]) await useDebug.getState().pilihFrame(frames[0].id);
 
     const ls = await dapLoadedSources().catch(() => ({ sources: [] }));
@@ -618,13 +589,6 @@ const muatStack = async (tid: number | null) => {
   }
 };
 
-/**
- * Pasang listener `dap-event` + `dap-output` SEKALI per proses.
- *
- * Guard modul, bukan cleanup effect: StrictMode dev memasang effect dua kali
- * dan setiap event akan diproses dobel — pelajaran yang sama dari `pty-output`,
- * `ai-chunk`, `mcp-action`, `task-output`, dan `search-hit`.
- */
 let debugListenerBound = false;
 
 export const bindDebugListeners = () => {
@@ -635,10 +599,6 @@ export const bindDebugListeners = () => {
     log(`[adapter ${e.payload.category}] ${e.payload.output}`);
   });
 
-  // Context key `debugActive` menentukan F10/F11/Shift+F5 berlaku atau tidak
-  // (keybindings.ts: F11 = step-into saat debug, fullscreen di luar itu).
-  // Disinkronkan dari state store, bukan disetel manual di setiap tempat yang
-  // mengubah sesi — kalau manual, satu jalur yang lupa membuat shortcut mati.
   let aktifTerakhir = false;
   useDebug.subscribe((s) => {
     const aktif = s.state !== 'inactive';
@@ -649,10 +609,8 @@ export const bindDebugListeners = () => {
   });
 };
 
-/** Dipakai Problems: exception debug boleh menambah entri (brief integrasi). */
 export const catatExceptionKeProblems = (path: string, line: number, teks: string) => {
-  // Bentuk Diagnostic memakai `file`/`column` (problemsStore.ts:17), bukan
-  // `path`/`col` — tsc yang memberi tahu, bukan asumsi.
+  
   useProblems.getState().setDiagnostics(path, [
     {
       file: path,

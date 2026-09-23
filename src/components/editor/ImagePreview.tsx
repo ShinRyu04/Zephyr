@@ -1,12 +1,3 @@
-// ImagePreview.tsx — pratinjau gambar (T3.4).
-//
-// KENAPA: membuka .png di editor teks menampilkan biner rusak. Sebelum ini
-// Zephyr menyerahkan file gambar ke editor yang sama seperti file kode.
-//
-// CARA MEMBACA: Rust mengembalikan isi file sebagai base64 (bukan frontend
-// yang membaca lewat fs API) supaya jalur yang dipakai sama dengan editor —
-// termasuk batas ukuran dan pengecekan di luar workspace.
-
 import { useEffect, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useTampilan, mimeGambar } from '../../lib/tampilanStore';
@@ -18,9 +9,6 @@ export default function ImagePreview() {
   const setGambar = useTampilan((s) => s.setGambar);
   const setTerpasang = useTampilan((s) => s.setTerpasang);
 
-  // `terpasang` menandai bahwa EditorArea sudah menyediakan tempat untuk
-  // pratinjau. Tanpa penanda ini, komponen yang dirender di tempat lain
-  // (mis. overlay) akan tampil dobel.
   useEffect(() => {
     setTerpasang(true);
     return () => setTerpasang(false);
@@ -29,8 +17,7 @@ export default function ImagePreview() {
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
-    // Reset zoom setiap gambar berganti — zoom 3× dari gambar sebelumnya
-    // membuat gambar baru tampak rusak.
+
     setZoom(1);
     setGalat(null);
   }, [gambar?.path]);
@@ -103,13 +90,6 @@ export default function ImagePreview() {
   );
 }
 
-/**
- * Muat gambar tab aktif ke store, lalu tampilkan pratinjaunya.
- *
- * KENAPA komponen terpisah: memuat gambar adalah efek samping (baca file lewat
- * Rust), dan efek samping di dalam render akan terpanggil setiap render ulang.
- * Dipakai bersama oleh EditorArea dan SplitEditor.
- */
 export function PreviewGambar({ path }: { path: string }) {
   const setGambar = useTampilan((s) => s.setGambar);
   useEffect(() => {
@@ -136,7 +116,6 @@ export function PreviewGambar({ path }: { path: string }) {
   return <ImagePreview />;
 }
 
-/** Helper: muat gambar dari Rust lalu pasang ke store. */
 export async function bukaGambar(path: string): Promise<void> {
   const r = await cmd.bacaGambar(path);
   useTampilan.getState().setGambar({

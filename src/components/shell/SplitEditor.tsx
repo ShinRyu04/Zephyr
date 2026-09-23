@@ -1,17 +1,3 @@
-// SplitEditor.tsx — area editor dengan dukungan grup (fase 33).
-//
-// Saat `split=false` (default) render PERSIS seperti EditorArea lama: tab bar
-// + empty-state + satu editor. Saat `split=true` area dibagi 2 kolom; tiap
-// kolom punya tab bar sendiri dan menampilkan tab aktif group-nya. Divider
-// bisa digeser.
-//
-// Keamanan arsitektur:
-//   * Tab global TETAP satu daftar; group hanya "jendela" ke daftar itu.
-//   * Tab aktif store global = tab di group fokus. Klik di kolom kanan
-//     memindahkan fokus + activeTabId, jadi konsumen lama (LSP, FindBar,
-//     MCP) bekerja di kolom yang benar.
-//   * Settings & Diff menumpang area yang sama persis seperti EditorArea.
-
 import { useRef } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
 import { useLayout } from '../../lib/editorLayoutStore';
@@ -76,7 +62,6 @@ function EmptyState() {
   );
 }
 
-/** Satu group editor: tab bar + host editor. */
 function EditorPane({ gid }: { gid: string }) {
   const tabs = useStore((s) => s.tabs);
   const tabGlobalAktif = useActiveTab();
@@ -86,14 +71,6 @@ function EditorPane({ gid }: { gid: string }) {
   const setGroupTab = useLayout((s) => s.setGroupTab);
   const fokusGroup = useLayout((s) => s.fokusGroup);
 
-  // Tab yang tampil di group ini:
-  //  * NON-SPLIT (default): tab aktif global — persis perilaku EditorArea
-  //    lama. group.tabId sengaja TIDAK dipakai: tidak pernah di-set saat
-  //    buka file biasa, dan fallback `find(groupId)` menjebak ke file
-  //    PERTAMA group (bug: isi editor tidak pernah ganti saat pindah tab).
-  //  * SPLIT: group.tabId milik group itu; fallback tab pertama yang
-  //    menandai groupId === gid (pemulihan); group fokus kosong → tab
-  //    aktif global biar tidak kosong.
   let tabId: string | null = null;
   if (!split) {
     tabId = tabGlobalAktif?.id ?? null;
@@ -106,12 +83,8 @@ function EditorPane({ gid }: { gid: string }) {
   }
   const tab = tabs.find((t) => t.id === tabId) ?? null;
 
-  // Non-split & tidak ada tab sama sekali → empty state hero (persis
-  // perilaku EditorArea lama; harness F03-V0 memeriksanya).
   const kosongTotal = tabs.length === 0;
 
-  // Pratinjau gambar: tab yang aktif adalah gambar, ATAU store punya gambar
-  // (dibuka lewat command / drag-drop tanpa tab).
   const gambarStore = useTampilan((s) => s.gambar);
   const gambarGrup = !!gambarStore || !!(tab && apakahGambar(tab.path ?? ''));
 
@@ -129,7 +102,7 @@ function EditorPane({ gid }: { gid: string }) {
       {!kosongTotal && <EditorTabBar gid={gid} />}
       <div className="editor-host">
         {gambarGrup ? (
-          // Gambar tidak boleh dibuka sebagai teks (biner rusak di CodeMirror).
+
           tab && apakahGambar(tab.path ?? '') ? (
             <PreviewGambar path={tab.path ?? ''} />
           ) : (
@@ -150,7 +123,6 @@ function EditorPane({ gid }: { gid: string }) {
   );
 }
 
-/** Divider antar grup — digeser untuk mengubah proporsi (25%..75%). */
 function GroupDivider() {
   const tr = useT();
   const setRatio = useLayout((s) => s.setRatio);
@@ -224,8 +196,6 @@ export default function SplitEditor() {
     );
   }
 
-  // Mode non-split: perilaku identik EditorArea fase lama — satu pane penuh
-  // (tab bar + empty state + editor). EditorPane merender semuanya.
   if (!split || groups.length < 2) {
     return (
       <section className="editor-area">
@@ -238,7 +208,6 @@ export default function SplitEditor() {
     );
   }
 
-  // Mode split: dua kolom, masing-masing group punya pane sendiri.
   return (
     <section className={`editor-area is-split`}>
       <RestrictedBanner />

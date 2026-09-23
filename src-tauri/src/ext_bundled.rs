@@ -1,20 +1,7 @@
-// ext_bundled.rs — paket ekstensi BUNDLED fase 19.3.
-//
-// Kenapa isinya ditulis di Rust, bukan file di folder resource: paketnya harus
-// bisa dipasang OFFLINE dan tetap ada setelah app di-install lewat MSI/NSIS
-// tanpa menambah aturan bundling baru. `include_str!` akan memaksa file dummy
-// masuk repo; string di sini lebih jujur — ini memang contoh kecil.
-//
-// `extensions_write_bundled` menulis satu paket ke
-// %APPDATA%\zephyr\extensions\.bundled\<id>\ lalu mengembalikan path-nya.
-// Frontend kemudian memanggil `extensions_install` dengan path itu, jadi jalur
-// pemasangannya SAMA dengan paket pihak ketiga — tidak ada pintu belakang.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use tauri::State;
 
-/// (id, nama file, isi) — file pertama selalu `zephyr-extension.json`.
 type Paket = (&'static str, &'static [(&'static str, &'static str)]);
 
 const TEMA_KERTAS: &str = r##"{
@@ -197,16 +184,6 @@ const IKON_BULAT_JSON: &str = r##"{
   }
 }"##;
 
-// ── fase 19.4: paket bahasa dari @codemirror/legacy-modes ──────────────
-//
-// Semua mode di bawah SUDAH ada di node_modules (@codemirror/legacy-modes,
-// dependency app, bukan unduhan). Tiap paket hanya mendaftarkan informasi
-// bahasa (id, ekstensi file, mode) — TIDAK ada kode JS yang dijalankan,
-// sehingga aman dipasang & di-enable tanpa runtime eksternal.
-//
-// Daftar ini di-generate dari daftar mode yang diverifikasi bisa di-import
-// di runtime (lihat catatan commit). `MODE_LEGACY` di extLoader.ts SUDAH
-// menerima semua nama ini.
 const LANG_APL: &str = r##"{"id":"zephyr.lang-apl","name":"Bahasa APL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight APL (.apl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"apl","label":"APL","extensions":[".apl"],"legacyMode":"apl"}]}}"##;
 const LANG_ASCIIARMOR: &str = r##"{"id":"zephyr.lang-asciiarmor","name":"Bahasa ASCII Armor","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight ASCII Armor (.asc).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"asciiarmor","label":"ASCII Armor","extensions":[".asc", ".pgp"],"legacyMode":"asciiarmor"}]}}"##;
 const LANG_ASTERISK: &str = r##"{"id":"zephyr.lang-asterisk","name":"Bahasa Asterisk","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Asterisk (.conf).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"asterisk","label":"Asterisk","extensions":[".conf"],"legacyMode":"asterisk"}]}}"##;
@@ -309,10 +286,6 @@ const LANG_YACAS: &str = r##"{"id":"zephyr.lang-yacas","name":"Bahasa Yacas","pu
 const LANG_YAML: &str = r##"{"id":"zephyr.lang-yaml","name":"Bahasa YAML","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight YAML (.yaml).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"yaml","label":"YAML","extensions":[".yaml", ".yml"],"legacyMode":"yaml"}]}}"##;
 const LANG_Z80: &str = r##"{"id":"zephyr.lang-z80","name":"Bahasa Z80 Assembly","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Z80 Assembly (.z80).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"z80","label":"Z80 Assembly","extensions":[".z80", ".asm"],"legacyMode":"z80"}]}}"##;
 
-/// Semua paket bahasa (di-generate). Dipakai PAKET_BAHASA di bawah.
-// Metadata tampilan untuk paket bahasa (dipakai index_bundled supaya
-// Marketplace menampilkan nama, deskripsi, logo, dan warna resmi bahasa).
-// Di-generate dari daftar mode @codemirror/legacy-modes (101 bahasa).
 const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
     (
         "zephyr.lang-apl",
@@ -1303,8 +1276,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-z80", &[("zephyr-extension.json", LANG_Z80)]),
 ];
 
-/// Semua paket bundled. Id WAJIB sama dengan `KATALOG_BUNDLED` di
-/// src/lib/extCatalog.ts — kalau menambah, ubah keduanya.
 const PAKET: &[Paket] = &[
     (
         "zephyr.tema-kertas",
@@ -1343,7 +1314,6 @@ const PAKET: &[Paket] = &[
     ),
 ];
 
-/// Cari paket bundled mana pun (asli atau bahasa) berdasarkan id.
 fn cari_paket(id: &str) -> Option<Paket> {
     PAKET
         .iter()
@@ -1352,8 +1322,6 @@ fn cari_paket(id: &str) -> Option<Paket> {
         .or_else(|| PAKET_BAHASA.iter().copied().find(|(pid, _)| *pid == id))
 }
 
-/// Tulis paket bundled ke folder staging lalu kembalikan path-nya.
-/// Frontend memanggil `extensions_install` dengan path ini.
 #[tauri::command]
 pub fn extensions_write_bundled(state: State<AppState>, id: String) -> ZResult<String> {
     let paket =
@@ -1377,8 +1345,6 @@ pub fn extensions_write_bundled(state: State<AppState>, id: String) -> ZResult<S
     Ok(dir.to_string_lossy().to_string())
 }
 
-/// Daftar id paket bundled (dipakai UI untuk menandai "tersedia offline
-/// / terpasang"). Id di sini = id di `PAKET`, dicek oleh test di bawah.
 #[tauri::command]
 pub fn extensions_bundled_ids() -> Vec<String> {
     PAKET
@@ -1388,15 +1354,6 @@ pub fn extensions_bundled_ids() -> Vec<String> {
         .collect()
 }
 
-/// Index registry bundled — entri Marketplace untuk tiap paket di `PAKET`.
-///
-/// Dipakai `ext_registry_list` (folder `.registry/zephyr.json`) supaya tab
-/// Marketplace tidak kosong di instalasi baru: paket bundled muncul sebagai
-/// entri yang bisa dipasang offline, tanpa menunggu registry remote user.
-/// Hanya field yang relevan untuk UI; `url` kosong karena paketnya ditulis
-/// oleh `extensions_write_bundled`, bukan diunduh.
-/// Metadata katalog tiap paket asli: nama tampilan, deskripsi, 1-3 huruf
-/// logo, dan bahasa yang direkomendasikan. `id` = kunci.
 const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
     (
         "zephyr.tema-kertas",
@@ -1435,16 +1392,7 @@ const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
     ),
 ];
 
-/// Index registry bundled — entri Marketplace untuk tiap paket di `PAKET`
-/// dan `PAKET_BAHASA`.
-///
-/// Dipakai `ext_registry_list` (folder `.registry/zephyr.json`) supaya tab
-/// Marketplace tidak kosong di instalasi baru: paket bundled muncul sebagai
-/// entri yang bisa dipasang offline, tanpa menunggu registry remote user.
-/// `url` sengaja dikosongkan — frontend menandai entri tanpa url sebagai
-/// "tersedia offline" (install lewat extensions_write_bundled, bukan unduh).
 pub fn index_bundled() -> String {
-    // Metadata paket asli (PAKET) — id, nama, deskripsi, logo, bahasa.
     let meta_asli = |id: &str| -> serde_json::Value {
         let (nama, desk, logo, bhs) = META_PAKET
             .iter()
@@ -1461,20 +1409,14 @@ pub fn index_bundled() -> String {
             "languages": bhs,
         })
     };
-    // Metadata paket bahasa (PAKET_BAHASA) — id berakhiran .lang-<mode>.
-    // `languages` diambil langsung dari manifest (contributes.languages[].id)
-    // karena id itulah yang dipakai detectLang di frontend. Kalau memakai
-    // nama tampilan ("Rust") rekomendasi tidak pernah cocok — detectLang
-    // mengembalikan id kecil ("rust").
+
     let meta_bahasa = |id: &str, manifest: &str| -> serde_json::Value {
         let (nama, desk, logo, warna) = META_BAHASA
             .iter()
             .find(|(mid, _, _, _, _)| *mid == id)
             .map(|(_, n, d, l, w)| (*n, *d, *l, *w))
             .unwrap_or((id, id, "", "#6b7280"));
-        // Logo asli (SVG data URI) dari crate::ext_lang_icons — kalau ada,
-        // `iconUrl` diisi; frontend memakai <img> dan jatuh ke inisial saat
-        // gambar gagal dimuat (tanpa ikon tetap tampil rapi berwarna brand).
+
         let icon_url = crate::ext_lang_icons::LOGO_URI
             .iter()
             .find(|(pid, _)| *pid == id)
@@ -1506,10 +1448,7 @@ pub fn index_bundled() -> String {
             "languages": bhs,
         })
     };
-    // Kategori dari folder kontribusi pertama (themes/keymaps/…); paket
-    // bahasa hanya punya manifest → "Languages". WAJIB array — IndexEntry
-    // menyimpan categories sebagai Vec<String>, string polos ditolak serde
-    // dan membuat seluruh index bundled dibuang (penyebab Marketplace kosong).
+
     let kategori = |file: &[(&str, &str)]| -> serde_json::Value {
         let kat = file
             .iter()
@@ -1532,8 +1471,6 @@ pub fn index_bundled() -> String {
             e
         })
         .chain(PAKET_BAHASA.iter().map(|(id, file)| {
-            // file = [("zephyr-extension.json", <manifest>)] — kirim manifest
-            // ke meta_bahasa supaya `languages` berisi id bahasa asli.
             let manifest = file
                 .iter()
                 .find(|(rel, _)| *rel == "zephyr-extension.json")
@@ -1561,7 +1498,7 @@ mod tests {
             PAKET.len() + PAKET_BAHASA.len(),
             "index harus mencakup semua paket"
         );
-        // tiap entri punya id unik (PAKET sendiri yang dijamin)
+
         let mut ids: Vec<_> = arr
             .iter()
             .map(|e| e["id"].as_str().unwrap().to_string())
@@ -1571,10 +1508,6 @@ mod tests {
         assert_eq!(unik.len(), ids.len(), "id index bundled harus unik");
     }
 
-    /// Round-trip index_bundled() lewat parse_index persis seperti
-    /// ext_registry_list. Penyebab Marketplace pernah kosong diam-diam:
-    /// `categories` tertulis string, bukan array, jadi serde menolak
-    /// seluruh index bundled. Uji ini memastikan itu tidak terulang.
     #[test]
     fn index_bundled_lolos_parse_index() {
         let s = index_bundled();
@@ -1584,15 +1517,12 @@ mod tests {
             PAKET.len() + PAKET_BAHASA.len(),
             "index bundled harus bisa di-parse utuh oleh registry"
         );
-        // setiap entri punya categories array (bukan string)
+
         for e in &entri {
             assert!(!e.categories.is_empty(), "{} butuh categories", e.id);
         }
     }
 
-    /// Setiap paket bundled WAJIB punya manifest valid dan path kontribusi yang
-    /// benar-benar ada di daftar file paket itu. Tanpa uji ini, salah tulis path
-    /// baru ketahuan saat user mengklik Install.
     #[test]
     fn paket_bundled_konsisten() {
         for (id, files) in PAKET {
@@ -1632,7 +1562,6 @@ mod tests {
                 }
             }
 
-            // Semua isi JSON harus parse — termasuk file kontribusinya.
             for (nama, isi) in files.iter() {
                 if nama.ends_with(".json") {
                     serde_json::from_str::<serde_json::Value>(isi)

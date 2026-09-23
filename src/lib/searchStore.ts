@@ -1,17 +1,3 @@
-// searchStore.ts — Global Search & Replace via ripgrep (fase 25).
-//
-// KENAPA STORE BARU, BUKAN MEMPERLUAS explorerStore
-//
-// Fase 04 sudah punya pencarian sederhana di `explorerStore` (scan Rust
-// sendiri, sekali jalan, hasil dikirim utuh). Fase 25 punya bentuk yang
-// berbeda secara mendasar: hasil MENGALIR lewat event, ada pembatalan,
-// pengelompokan per file, riwayat query, dan replace yang bisa dibatalkan.
-// Menumpuk semua itu ke explorerStore membuat satu store mengurus dua model
-// data sekaligus — dan explorerStore sudah dipakai file tree.
-//
-// Jalur lama TIDAK dihapus: ia menjadi FALLBACK saat rg tidak ada di mesin
-// user, dan itu memang perilaku yang diminta brief (rg tidak dibundel).
-
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import {
@@ -27,14 +13,12 @@ import { useHistory } from './historyStore';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { tx } from './i18n';
 
-/** Batas riwayat query yang disimpan (dropdown di input). */
 const MAX_RIWAYAT = 12;
 
-/** Satu file beserta match-nya. */
 export interface GrupFile {
   path: string;
   hits: RgHit[];
-  /** false = daftar match file ini dilipat */
+  
   terbuka: boolean;
 }
 
@@ -49,32 +33,24 @@ interface SearchState {
   respectGitignore: boolean;
   includeHidden: boolean;
   maxResults: number;
-  /**
-   * Folder awal pencarian. '' = seluruh workspace.
-   *
-   * Ada karena "Search in Folder" (klik kanan di file tree) dan leg SSH
-   * dua-duanya perlu mempersempit root; search.rs sudah menerimanya dan
-   * menolak root di luar workspace.
-   */
+  
   root: string;
 
-  /** hasil terkelompok per file, urut sesuai kedatangan dari rg */
   grup: GrupFile[];
-  /** total match (bisa > jumlah yang ditampilkan bila truncated) */
+  
   total: number;
   running: boolean;
   summary: SearchSummary | null;
   error: string | null;
-  /** info binary rg: ada/tidak + versi */
+  
   rg: { ada: boolean; path: string; versi: string } | null;
 
-  /** riwayat query untuk dropdown */
   riwayat: string[];
-  /** hit yang sedang disorot (untuk F4 / Shift+F4) */
+  
   indeksAktif: number;
-  /** panel replace terbuka (Ctrl+Shift+H) */
+  
   replaceTerbuka: boolean;
-  /** hasil replace terakhir — dasar tombol Undo */
+  
   replaceTerakhir: ReplaceHasil[] | null;
 }
 
@@ -98,7 +74,6 @@ interface SearchActions {
   batalkan: () => Promise<void>;
   bersihkan: () => void;
 
-  /** semua hit datar, urut file lalu baris — dasar F4 / Shift+F4 */
   semuaHit: () => RgHit[];
   bukaHit: (hit: RgHit) => Promise<void>;
   lompat: (delta: number) => Promise<void>;
@@ -120,8 +95,7 @@ const opsiDari = (s: SearchState): SearchOpts => ({
   respectGitignore: s.respectGitignore,
   includeHidden: s.includeHidden,
   maxResults: s.maxResults,
-  // '' harus dikirim sebagai undefined: Rust memakai `Option<String>` dan
-  // string kosong akan lolos filter lalu dianggap path.
+  
   root: s.root.trim() === '' ? undefined : s.root,
 });
 
@@ -202,8 +176,6 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
       const sum = await searchGrep(opsiDari(get()));
       set({ running: false, summary: sum });
 
-      // rg tidak ada → JATUH ke pencarian bawaan fase 04 supaya fitur tetap
-      // berguna, dan katakan apa adanya di UI.
       if (sum.error) {
         const bawaan = await searchFilesBawaan(get().query, {
           glob: get().include || undefined,
@@ -242,9 +214,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
     try {
       await searchCancel();
     } finally {
-      // `running` di-set false di sini DAN di akhir jalankan(). Tanpa ini,
-      // jalankan() yang masih menunggu invoke akan menimpanya kembali ke true
-      // sesaat setelah cancel — harness melihat running tetap true.
+      
       set({ running: false });
     }
   },
@@ -257,10 +227,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
   bukaHit: async (hit) => {
     const S = useStore.getState();
     await S.openPath(hit.path);
-    // Sorot & scroll ke match. `revealPosition(line, col)` menerima 1-based,
-    // sama dengan yang dikirim rg setelah konversi byte→karakter di Rust.
-    // (Ia hanya menerima 2 argumen — panjang match tidak dipakai untuk
-    // seleksi, cukup posisi kursor.)
+    
     const { revealPosition } = await import('./editorRegistry');
     revealPosition(hit.line, hit.col);
   },
@@ -281,7 +248,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
     set({ replaceTerakhir: hasil });
     if (n > 0) {
       notifyInfo(`${n} penggantian di 1 file`, { source: 'search' });
-      // Tab yang terbuka harus ikut berubah: isinya sudah lain di disk.
+      
       await muatUlangTab([path]);
       await get().jalankan();
     }
@@ -316,9 +283,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
       notifyWarn(tx('Belum ada replace untuk dibatalkan'), { source: 'search' });
       return 0;
     }
-    // Undo = tulis balik snapshot yang dibuat SEBELUM replace (fase 26).
-    // Tanpa snapshot itu tidak ada yang bisa dipulihkan — karena itu
-    // search_replace di Rust selalu membuatnya lebih dulu.
+    
     let n = 0;
     const H = useHistory.getState();
     for (const h of daftar) {
@@ -351,27 +316,18 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
     }),
 }));
 
-/** Muat ulang isi tab yang filenya diubah replace. */
 const muatUlangTab = async (paths: string[]) => {
   const S = useStore.getState();
   const kunci = (p: string) => p.replace(/\\/g, '/').toLowerCase();
   const daftar = new Set(paths.map(kunci));
   for (const t of S.tabs) {
-    // Tab dirty TIDAK ditimpa: menimpanya diam-diam membuang pekerjaan user.
-    // `reloadTabFromDisk` menerima PATH, bukan id tab.
+    
     if (t.path && daftar.has(kunci(t.path)) && !t.unsaved) {
       await S.reloadTabFromDisk(t.path);
     }
   }
 };
 
-/**
- * Pasang listener `search-hit` SEKALI per proses.
- *
- * Guard modul, bukan cleanup effect: StrictMode dev memasang effect dua kali
- * dan setiap hit akan tampil dobel — pelajaran yang sama dari `pty-output`,
- * `ai-chunk`, `mcp-action`, dan `task-output`.
- */
 let searchListenerBound = false;
 
 export const bindSearchListeners = () => {

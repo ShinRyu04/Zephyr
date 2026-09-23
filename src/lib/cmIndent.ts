@@ -1,24 +1,7 @@
-// cmIndent.ts — garis panduan indentasi + pewarnaan pasangan bracket (fase 24).
-//
-// Dua-duanya ditulis sendiri, BUKAN memakai paket pihak ketiga, karena:
-//   * @replit/codemirror-indentation-markers menambah ~40KB dan menggambar satu
-//     widget DOM per level per baris — pada file 5000 baris itu puluhan ribu
-//     node. Versi di sini memakai SATU line-decoration per baris terlihat dan
-//     menggambar guide-nya lewat background-image, jadi 0 node tambahan.
-//   * Bracket colorization butuh syntax tree untuk membedakan bracket asli dari
-//     bracket di dalam string/komentar; itu hanya beberapa baris dengan
-//     `syntaxTree`, tidak perlu dependensi.
-//
-// Keduanya hanya memproses `view.visibleRanges` — biaya tidak tumbuh dengan
-// ukuran file (pelajaran fase 15: apa pun yang berjalan per dokumen membekukan
-// editor pada JSON 5MB).
-
 import { syntaxTree } from '@codemirror/language';
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 
-/** Kedalaman indentasi sebuah baris; baris kosong mewarisi dari baris berisi
- *  terdekat supaya guide tidak putus di tengah blok. */
 const depthOf = (text: string, tabSize: number): number => {
   let kolom = 0;
   for (const ch of text) {
@@ -29,11 +12,6 @@ const depthOf = (text: string, tabSize: number): number => {
   return -1; // baris kosong / hanya whitespace
 };
 
-/**
- * Garis indentasi. Satu `Decoration.line` per baris terlihat; jumlah guide
- * disampaikan ke CSS lewat custom property `--zig-n` dan `--zig-step`
- * (lihat `.cm-zig` di editor-extras.css).
- */
 const indentPlugin = ViewPlugin.fromClass(
   class {
     deco: DecorationSet;
@@ -49,11 +27,10 @@ const indentPlugin = ViewPlugin.fromClass(
       const step = view.defaultCharacterWidth * tabSize;
       const doc = view.state.doc;
 
-      // Kedalaman baris kursor menentukan guide mana yang disorot.
       const barisKursor = doc.lineAt(view.state.selection.main.head);
       let depthAktif = depthOf(barisKursor.text, tabSize);
       if (depthAktif < 0) {
-        // Baris kosong: cari baris berisi terdekat di atas.
+        
         for (let n = barisKursor.number - 1; n >= 1; n--) {
           const d = depthOf(doc.line(n).text, tabSize);
           if (d >= 0) {
@@ -69,9 +46,7 @@ const indentPlugin = ViewPlugin.fromClass(
           const line = doc.lineAt(pos);
           let d = depthOf(line.text, tabSize);
           if (d < 0) {
-            // Baris kosong mewarisi kedalaman tetangga terdalam supaya guide
-            // menyambung — ini yang membedakan indent guide dari sekadar
-            // menghitung spasi.
+            
             const atas = line.number > 1 ? depthOf(doc.line(line.number - 1).text, tabSize) : 0;
             const bawah =
               line.number < doc.lines ? depthOf(doc.line(line.number + 1).text, tabSize) : 0;
@@ -102,11 +77,9 @@ const indentPlugin = ViewPlugin.fromClass(
 
 export const indentGuides = (): import('@codemirror/state').Extension => indentPlugin;
 
-/* ══════════════ Bracket pair colorization ══════════════ */
-
 const PASANGAN: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
 const BUKA = new Set(['(', '[', '{']);
-/** 6 tingkat warna lalu berulang — sama seperti VS Code. */
+
 const TINGKAT = 6;
 
 const kelasKedalaman = Array.from({ length: TINGKAT }, (_, i) =>
@@ -114,14 +87,6 @@ const kelasKedalaman = Array.from({ length: TINGKAT }, (_, i) =>
 );
 const kelasSalah = Decoration.mark({ class: 'cm-zbr cm-zbr-bad' });
 
-/**
- * Warnai bracket menurut kedalaman.
- *
- * Bracket di dalam string/komentar DILEWATI lewat syntax tree — tanpa itu
- * `"emoji :)"` menggeser semua warna sesudahnya. Kedalaman dihitung dari awal
- * baris pertama yang terlihat, jadi warna di viewport bisa bergeser relatif
- * terhadap file penuh; itu kompromi sadar supaya biayanya tetap O(viewport).
- */
 const bracketPlugin = ViewPlugin.fromClass(
   class {
     deco: DecorationSet;

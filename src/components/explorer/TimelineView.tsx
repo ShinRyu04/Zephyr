@@ -1,14 +1,3 @@
-// TimelineView.tsx — Local History / Timeline (fase 26).
-//
-// Hidup di BAWAH file tree di panel Explorer, sama seperti VS Code: Timeline
-// selalu tentang file yang sedang aktif, jadi menaruhnya di panel lain berarti
-// user harus bolak-balik. Bisa dilipat karena tidak semua orang memerlukannya
-// setiap saat.
-//
-// Diff snapshot memakai DiffViewer yang sudah ada (fase 10) lewat gitStore.diff:
-// bentuk datanya unified diff, dan membuat penampil kedua hanya untuk history
-// berarti dua tempat yang harus dijaga saat pewarnaan diff berubah.
-
 import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useHistory } from '../../lib/historyStore';
@@ -33,14 +22,6 @@ const waktuSingkat = (ms: number) => {
   });
 };
 
-/**
- * Susun unified diff dari dua teks.
- *
- * Ditulis sendiri (LCS sederhana) alih-alih memanggil `git diff`: snapshot
- * TIDAK ada di dalam repo git, jadi git tidak punya objek untuk dibandingkan.
- * Batas 4000 baris menjaga LCS tetap murah — file lebih besar dari itu jatuh
- * ke perbandingan per baris tanpa penyelarasan.
- */
 function buatDiff(kiri: string, kanan: string, namaKiri: string, namaKanan: string): string {
   const a = kiri.split('\n');
   const b = kanan.split('\n');
@@ -63,7 +44,6 @@ function buatDiff(kiri: string, kanan: string, namaKiri: string, namaKanan: stri
     return out.join('\n');
   }
 
-  // LCS panjang (tabel penuh; aman untuk <=4000 baris).
   const m = a.length;
   const n = b.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
@@ -100,8 +80,7 @@ export default function TimelineView() {
   const tr = useT();
   const tabs = useStore((s) => s.tabs);
   const activeTabId = useStore((s) => s.activeTabId);
-  // Selector WAJIB mengembalikan primitif: mengembalikan objek tab baru
-  // memicu render tak berujung di zustand v5 (pelajaran fase 09).
+  
   const pathAktif = tabs.find((t) => t.id === activeTabId)?.path ?? null;
 
   const timeline = useHistory((s) => s.timeline);
@@ -117,7 +96,6 @@ export default function TimelineView() {
 
   const [terbuka, setTerbuka] = useState(true);
 
-  // Timeline mengikuti tab aktif.
   useEffect(() => {
     if (!terbuka || !pathAktif) return;
     if (fileTimeline && kunciPath(fileTimeline) === kunciPath(pathAktif)) return;
@@ -127,9 +105,7 @@ export default function TimelineView() {
   const bukaDiff = async (e: TimelineEntry) => {
     if (!pathAktif) return;
     if (e.kind === 'commit') {
-      // Commit git bukan urusan Timeline: buka panel Source Control yang sudah
-      // punya seluruh alur commit/diff-nya. Menduplikasi tampilan commit di
-      // sini berarti dua tempat yang harus dijaga.
+      
       const S = useStore.getState();
       S.setSettingsOpen(false);
       S.setActivity('scm');
@@ -142,15 +118,13 @@ export default function TimelineView() {
     const tab = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
     const kini = tab?.content ?? '';
     const nama = pathAktif.split(/[\\/]/).pop() ?? pathAktif;
-    // Kiri = riwayat, kanan = kini (urutan yang diminta brief 26).
+    
     useGit.setState({
       diff: {
         path: `${nama} (riwayat ${waktuSingkat(e.timestampMs)})`,
         staged: false,
         text: buatDiff(isi, kini, `${nama}@${e.reason}`, nama),
-        // WAJIB: tanpa penanda ini, refresh git berikutnya (jalan setiap file
-        // disimpan) langsung menutup diff karena path label riwayat tidak ada
-        // di status.changes.
+        
         source: 'history',
       },
     });

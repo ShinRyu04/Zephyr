@@ -1,9 +1,3 @@
-// AiSidebar.tsx — panel kiri untuk ikon ActivityBar "AI".
-//
-// ATURAN UI (jangan diulang, sudah kena di fase 08): navigasi & tombol aksi
-// hidup di SATU tempat — sidebar kiri. Jadi daftar chat + tombol "Chat baru"
-// ADA DI SINI, bukan juga di header panel bawah.
-
 import { useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useTerminal } from '../../lib/terminalStore';
@@ -30,7 +24,6 @@ export default function AiSidebar() {
   const deleteChat = useAi((s) => s.deleteChat);
   const setClearAllOpen = useAi((s) => s.setClearAllOpen);
 
-
   const setVisible = useTerminal((s) => s.setVisible);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setActivity = useStore((s) => s.setActivity);
@@ -52,7 +45,7 @@ export default function AiSidebar() {
   const buka = (id?: string) => {
     setSettingsOpen(false);
     setVisible(true);
-    // T4.11: AI = tab panel, bukan dock terpisah.
+
     usePanel.getState().focusTab('ai');
     if (id) selectChat(id);
   };

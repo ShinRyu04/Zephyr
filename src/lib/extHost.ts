@@ -8,9 +8,9 @@ import type { ExtManifestStatus } from './types';
 type RegisterMsg = { type: 'register'; id: string; title: string };
 type InvokeReq = { type: 'invoke'; id: string; seq: number; args: unknown[] };
 type ResultMsg = { type: 'result'; seq: number; ok: boolean; value?: unknown; error?: string };
-/** Pesan dari worker yang diteruskan ke notifikasi Zephyr (fase 19.7). */
+
 type NotifyMsg = { type: 'notify'; severity: 'info' | 'warn' | 'error'; message: string };
-/** Permintaan eksekusi runtime eksternal (zephyr.exec). */
+
 type ExecReq = {
   type: 'exec-req';
   seq: number;
@@ -22,9 +22,6 @@ type ExecReq = {
 type ExecResp = { type: 'exec-resp'; seq: number; ok: boolean; value?: unknown; error?: string };
 type WorkerMsg = RegisterMsg | ResultMsg | NotifyMsg | ExecReq;
 
-/** Runner worker + shim CommonJS/vscode dihasilkan extRunner.ts (bisa diuji).
- *  Bagian invoke (panggil command) didefinisikan di sini supaya skrip utuh
- *  tetap satu sumber: PREAMBLE + kode ekstensi + TRAILER + handler invoke. */
 const INVOKE = `
 self.onmessage = (e) => {
   const m = e.data;
@@ -100,16 +97,14 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     }
     return;
   }
-  // Eksekusi runtime eksternal — cek izin → (dialog) → ext_exec.
+  
   if (m.type === 'exec-req') {
     void prosesExecReq(extId, m, rt);
     return;
   }
-  // Pesan dari ekstensi (mis. vscode.window.showErrorMessage) → notifikasi app.
+  
   if (m.type === 'notify') {
-    // Aktivasi GAGAL → matikan ekstensi otomatis supaya error tidak muncul
-    // terus di tiap pembukaan app. User bisa aktifkan lagi kalau mau coba
-    // ulang (mis. setelah konfigurasi berubah).
+    
     const gagalAktivasi =
       m.severity === 'warn' &&
       (m.message.startsWith('aktivasi') || m.message.startsWith('tidak bisa dimuat'));
@@ -119,9 +114,7 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     useNotif.getState().notify({
       severity: m.severity,
       message: `Ekstensi ${extId}: ${m.message}`,
-      // v1 manifest-only: penyebab paling umum adalah ekstensi VS Code penuh
-      // yang butuh runtime eksternal / host API lengkap. Sampaikan alasan
-      // konkret supaya user paham kenapa ekstensi dinonaktifkan.
+      
       detail: gagalAktivasi
         ? 'Ekstensi VS Code penuh biasanya butuh runtime eksternal (Python/Java/Docker/Node) atau API host yang tidak tersedia di sandbox Zephyr v1 (manifest-only).'
         : undefined,
@@ -136,11 +129,6 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
   else p.reject(new Error(m.error || 'gagal'));
 }
 
-/**
- * Satu permintaan zephyr.exec: whitelist ada? jalankan langsung. Belum?
- * resolve path binary lalu minta persetujuan user lewat modal; setelah
- * disetujui (grant ditulis ke settings) jalankan via Rust ext_exec.
- */
 async function prosesExecReq(extId: string, m: ExecReq, rt: ExtRuntime): Promise<void> {
   const jawab = (ok: boolean, value?: unknown, error?: string) =>
     rt.worker.postMessage({ type: 'exec-resp', seq: m.seq, ok, value, error } as ExecResp);
@@ -191,9 +179,7 @@ function bukaRuntime(
   manifest: Record<string, unknown>,
   envPath = '',
 ): void {
-  // Skrip utuh = shim CommonJS/vscode + peta file ekstensi (untuk require
-  // relatif) + kode ekstensi + aktivasi + handler invoke. Dihasilkan
-  // extRunner.ts supaya bisa diuji tanpa Worker sungguhan.
+  
   const blob = new Blob([skripEkstensi(code, files, mainRel, manifest, envPath), '\n', INVOKE], {
     type: 'application/javascript',
   });
@@ -207,9 +193,6 @@ function bukaRuntime(
   runtimes.set(extId, rt);
 }
 
-
-/** PATH untuk sandbox ekstensi: deteksi go.exe di lokasi umum supaya pesan
- *  ekstensi Go tidak membingungkan; fallback: string PATH standar Windows. */
 async function envPathUntukEkstensi(): Promise<string> {
   const dasar = [
     "C:\\Windows\\System32",
@@ -237,8 +220,7 @@ export async function muatEkstensiRuntime(daftar: ExtManifestStatus[]): Promise<
       const files = await cmd.extensionsReadFiles(st.manifest.id);
       bukaRuntime(st.manifest.id, code, files, main, st.manifest.raw ?? {}, await envPathUntukEkstensi());
     } catch (e) {
-      // Gagal dimuat di sandbox → matikan otomatis supaya error tidak
-      // berulang di tiap pembukaan app; pesan menjelaskan alasannya.
+      
       void cmd.extensionsSetEnabled(st.manifest.id, false).catch(() => {});
       useNotif.getState().notify({
         severity: 'error',

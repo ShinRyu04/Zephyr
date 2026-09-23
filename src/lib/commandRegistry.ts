@@ -1,15 +1,5 @@
-
-
-
-
-
-
-
-
-
-
-
 import { useStore } from './store';
+import { useLayoutCustom } from './layoutStore';
 import { useTerminal } from './terminalStore';
 import { useAi } from './aiStore';
 import { useGit } from './gitStore';
@@ -28,7 +18,6 @@ import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
 import { useWs } from './workspaceStore';
 import { sisipkanSnippet, useSnip } from './snippetStore';
-
 
 import { umumkan as umumkanA11y } from './a11yStore';
 import {
@@ -66,14 +55,14 @@ export type CmdGroup =
 
 export interface CommandDef {
   id: string;
-   
+
   title: string;
   group: CmdGroup;
-   
+
   keywords?: string;
-   
+
   action?: string;
-   
+
   enabled?: () => boolean;
   run: () => void | Promise<void>;
 }
@@ -81,7 +70,6 @@ export interface CommandDef {
 const S = () => useStore.getState();
 const T = () => useTerminal.getState();
 
- 
 const konteksLsp = () => {
   const s = S();
   const tab = s.tabs.find((t) => t.id === s.activeTabId);
@@ -111,13 +99,11 @@ const lompatMasalah = (arah: 1 | -1) => {
   v?.focus();
 };
 
- 
 const lspSiap = () => {
   const { path } = konteksLsp();
   return !!path && !!serverForPath(path) && useLsp.getState().settings().enabled;
 };
 
- 
 function openSide(
   activity: 'explorer' | 'search' | 'scm' | 'ai' | 'terminal' | 'extensions',
 ) {
@@ -136,7 +122,7 @@ function openSettingsSection(section: Parameters<ReturnType<typeof useSettingsUi
 }
 
 export const COMMANDS: CommandDef[] = [
-  
+
   {
     id: 'file.new',
     title: 'File: New Untitled',
@@ -201,7 +187,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => S().closeWorkspace(),
   },
 
-  
   {
     id: 'view.explorer',
     title: 'View: Focus Explorer',
@@ -306,7 +291,7 @@ export const COMMANDS: CommandDef[] = [
       t.toggleMaximized();
     },
   },
-  
+
   {
     id: 'view.splitEditorRight',
     title: 'View: Split Editor Right',
@@ -330,7 +315,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSettingsSection('shortcuts'),
   },
 
-  
   {
     id: 'terminal.new',
     title: 'Terminal: New Shell',
@@ -366,7 +350,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'Terminal',
     keywords: 'browser preview iframe localhost',
     run: async () => {
-      
+
       const t = T();
       if ((t.activeTab()?.panes.length ?? 0) === 0) await t.addPane('shell');
       await t.addPane('browser');
@@ -411,7 +395,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSide('terminal'),
   },
 
-  
   {
     id: 'git.panel',
     title: 'Git: Open Source Control',
@@ -431,7 +414,7 @@ export const COMMANDS: CommandDef[] = [
       const g = useGit.getState();
       const staged = (g.status?.changes ?? []).filter((c) => c.staged).length;
       if (staged === 0 || !g.message.trim()) {
-        
+
         useGit.setState({
           scmError:
             staged === 0
@@ -481,7 +464,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSettingsSection('models'),
   },
 
-  
   {
     id: 'mcp.panel',
     title: 'MCP: Control Zephyr from your AI CLI',
@@ -508,7 +490,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => useMcp.getState().copyToken(),
   },
 
-  
   {
     id: 'view.settings',
     title: 'Settings: Open',
@@ -531,7 +512,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'ekstensi',
     run: () => openSettingsSection('extensions'),
   },
-  
+
   {
     id: 'theme.next',
     title: 'Preferences: Color Theme (siklus berikutnya)',
@@ -540,7 +521,7 @@ export const COMMANDS: CommandDef[] = [
     run: async () => {
       const s = S();
       const cur = s.settings.theme.current;
-      
+
       const daftar = semuaTema();
       const i = daftar.findIndex((t) => t.id === cur);
       const next = daftar[(i + 1 + daftar.length) % daftar.length];
@@ -601,7 +582,6 @@ export const COMMANDS: CommandDef[] = [
     },
   },
 
-  
   {
     id: 'notifications.show',
     title: 'Notifications: Show Notifications',
@@ -624,11 +604,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => useNotif.getState().toggleDnd(),
   },
 
-  
-  
-  
-  
-  
   {
     id: 'file.openFolder',
     title: 'File: Open Folder…',
@@ -676,8 +651,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'ganti replace',
     run: () => {
       S().setFindOpen(true);
-      
-      
+
       window.setTimeout(() => {
         document.querySelector<HTMLButtonElement>('.find-toggle')?.click();
       }, 80);
@@ -702,9 +676,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     action: 'view.palette',
     keywords: 'palette perintah',
-    
-    
-    
+
     run: () => window.dispatchEvent(new Event('zephyr-palette-open')),
   },
   {
@@ -740,9 +712,7 @@ export const COMMANDS: CommandDef[] = [
     title: 'Extensions: Show Installed',
     group: 'Extensions',
     keywords: 'ekstensi buka installed marketplace',
-    
-    
-    
+
     run: () => openSide('extensions'),
   },
   {
@@ -830,10 +800,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'wrap lipat baris',
     run: () => S().applySettings({ editor: { wordWrap: !S().settings.editor.wordWrap } }),
   },
-  
-  
-  
-  
+
   ...(
     [
       ['editor.breadcrumbs.toggle', 'View: Toggle Breadcrumbs', 'breadcrumbs', 'jalur simbol path'],
@@ -883,8 +850,7 @@ export const COMMANDS: CommandDef[] = [
     run: () => {
       const view = getActiveView();
       if (!view) return;
-      
-      
+
       const teks = view.state.doc.toString();
       const hitung = new Map<string, number>();
       const re =
@@ -953,7 +919,7 @@ export const COMMANDS: CommandDef[] = [
       openSettingsSection('about');
     },
   },
-  
+
   {
     id: 'workbench.action.togglePanel',
     title: 'View: Toggle Panel',
@@ -1067,7 +1033,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'tab panel sebelumnya',
     run: () => usePanel.getState().cycleTab(-1),
   },
-  
+
   {
     id: 'editor.gotoDefinition',
     title: 'Go: Go to Definition',
@@ -1107,9 +1073,7 @@ export const COMMANDS: CommandDef[] = [
           notifyWarn(tx('Tidak ada referensi'), { source: 'LSP' });
           return;
         }
-        
-        
-        
+
         const byFile = new Map<string, typeof refs>();
         for (const r of refs) {
           byFile.set(r.file, [...(byFile.get(r.file) ?? []), r]);
@@ -1155,7 +1119,7 @@ export const COMMANDS: CommandDef[] = [
       }
     },
   },
-  // ── T3.4: Zen mode ──
+
   {
     id: 'view.zenMode',
     title: 'View: Toggle Zen Mode',
@@ -1172,13 +1136,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'layout tata letak atur sembunyikan menu bar status bar',
     run: async () => {
-      // Buka lewat STORE, bukan klik tombolnya — tombolnya bisa tidak ada
-      // (Menu Bar dimatikan), dan command palette harus tetap bekerja.
-      const { useLayoutCustom } = await import('./layoutStore');
-      // SELALU membuka (bukan toggle): command ini namanya "View: Customize
-      // Layout", jadi perilaku yang diharapkan user adalah panelnya muncul.
-      // Kalau toggle, user yang panelnya sudah terbuka malah melihatnya
-      // menutup — dan menyimpulkan command-nya rusak.
+
       useLayoutCustom.getState().setMenuBuka(true);
     },
   },
@@ -1188,7 +1146,6 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'menu bar sembunyikan tampilkan',
     run: async () => {
-      const { useLayoutCustom } = await import('./layoutStore');
       useLayoutCustom.getState().toggle('menuBar');
       await useLayoutCustom.getState().simpan();
     },
@@ -1199,7 +1156,6 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'activity bar ikon samping sembunyikan',
     run: async () => {
-      const { useLayoutCustom } = await import('./layoutStore');
       useLayoutCustom.getState().toggle('activityBar');
       await useLayoutCustom.getState().simpan();
     },
@@ -1210,7 +1166,6 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'status bar bawah sembunyikan',
     run: async () => {
-      const { useLayoutCustom } = await import('./layoutStore');
       useLayoutCustom.getState().toggle('statusBar');
       await useLayoutCustom.getState().simpan();
     },
@@ -1221,7 +1176,6 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'rapat compact kerapatan layout',
     run: async () => {
-      const { useLayoutCustom } = await import('./layoutStore');
       const L = useLayoutCustom.getState();
       L.set({ kerapatan: L.kerapatan === 'compact' ? 'default' : 'compact' });
       await useLayoutCustom.getState().simpan();
@@ -1243,7 +1197,6 @@ export const COMMANDS: CommandDef[] = [
     },
   },
 
-
   {
     id: 'editor.renameSymbol',
     title: 'Edit: Rename Symbol',
@@ -1251,8 +1204,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'rename ganti nama f2 lsp',
     enabled: () => lspSiap(),
     run: () => {
-      
-      
+
       window.dispatchEvent(new Event('zephyr-lsp-rename'));
     },
   },
@@ -1323,8 +1275,7 @@ export const COMMANDS: CommandDef[] = [
       usePanel.getState().focusTab('output');
     },
   },
-  
-  
+
   ...THEMES.map((t) => ({
     id: `theme.${t.id}`,
     title: `Theme: ${t.label}`,
@@ -1336,10 +1287,7 @@ export const COMMANDS: CommandDef[] = [
         general: { theme: t.kind === 'light' ? ('light' as const) : ('dark' as const) },
       }),
   })),
-  
-  
-  
-  
+
   {
     id: 'tasks.runBuild',
     title: 'Tasks: Run Build Task',
@@ -1358,8 +1306,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'task jalankan run',
     enabled: () => useTasks.getState().daftar().length > 0,
     run: async () => {
-      
-      
+
       window.dispatchEvent(
         new CustomEvent('zephyr-palette-open', { detail: { query: 'Task: ' } }),
       );
@@ -1399,7 +1346,7 @@ export const COMMANDS: CommandDef[] = [
       if (terakhir) useOutput.getState().setActiveChannel(channelUntuk(terakhir.label));
     },
   },
-  
+
   {
     id: 'timeline.focus',
     title: 'Timeline: Focus',
@@ -1458,7 +1405,7 @@ export const COMMANDS: CommandDef[] = [
       await useHistory.getState().bersihkan();
     },
   },
-  
+
   {
     id: 'debug.focus',
     title: 'Debug: Fokus Run & Debug',
@@ -1480,8 +1427,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'debug jalankan f5 launch',
     run: async () => {
       const D = useDebug.getState();
-      
-      
+
       if (D.state === 'stopped') {
         await D.kontrol('continue');
         return;
@@ -1564,8 +1510,7 @@ export const COMMANDS: CommandDef[] = [
       const s = S();
       const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
       if (!p) return;
-      
-      
+
       const { activeLine } = await import('./editorRegistry');
       const line = activeLine();
       if (line < 1) {
@@ -1585,7 +1530,7 @@ export const COMMANDS: CommandDef[] = [
       await useDebug.getState().hapusSemuaBreakpoint();
     },
   },
-  
+
   {
     id: 'a11y.toggleScreenReaderMode',
     title: 'Accessibility: Toggle Screen Reader Mode',
@@ -1637,7 +1582,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'aksesibilitas kontras tinggi tema low vision aaa a11y',
     run: async () => {
       const s = S();
-      
+
       const kembali = s.settings.theme.current === 'high-contrast';
       await s.applySettings({
         theme: { current: kembali ? 'zephyr-dark' : 'high-contrast' },
@@ -1682,20 +1627,18 @@ export const COMMANDS: CommandDef[] = [
       );
     },
   },
-  
+
   {
     id: 'snippets.insert',
     title: 'Snippets: Insert Snippet',
     group: 'Snippets',
     keywords: 'snippet sisip template potongan kode',
-    
+
     enabled: () => !!S().activeTabId,
     run: async () => {
       const tab = S().tabs.find((t) => t.id === S().activeTabId);
       if (!tab) return;
-      
-      
-      
+
       await useSnip.getState().muat(tab.lang);
       window.dispatchEvent(
         new CustomEvent('zephyr-palette-open', { detail: { query: 'Snippet: ' } }),
@@ -1710,9 +1653,7 @@ export const COMMANDS: CommandDef[] = [
     run: async () => {
       const s = S();
       const tab = s.tabs.find((t) => t.id === s.activeTabId);
-      
-      
-      
+
       const lang = tab?.lang && tab.lang !== 'plain' ? tab.lang : 'global';
       const p = await useSnip.getState().bukaFileUser(lang);
       if (p) await s.openPath(p);
@@ -1731,7 +1672,7 @@ export const COMMANDS: CommandDef[] = [
       await useSnip.getState().muatDaftar();
     },
   },
-  
+
   {
     id: 'workspace.addFolder',
     title: 'Workspace: Tambah Folder ke Workspace',
@@ -1748,8 +1689,7 @@ export const COMMANDS: CommandDef[] = [
     title: 'Workspace: Hapus Folder Aktif dari Workspace',
     group: 'File',
     keywords: 'workspace root folder hapus remove',
-    
-    
+
     enabled: () => useWs.getState().roots.length > 1,
     run: async () => {
       const aktif = useWs.getState().activeRoot;
@@ -2139,11 +2079,7 @@ export const COMMANDS: CommandDef[] = [
     run: async () => {
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
       const label = `zephyr-${Date.now()}`;
-      // Jendela baru WAJIB menyamai jendela utama: tanpa `decorations: false`
-      // title bar native muncul dan tampilan jadi beda dari jendela pertama.
-      // Izin `core:webview:allow-create-webview-window` harus ada di
-      // capabilities/default.json, kalau tidak pembuatan jendela ditolak
-      // tanpa pesan yang jelas.
+
       const w = new WebviewWindow(label, {
         url: 'index.html',
         title: 'Zephyr',
@@ -2155,8 +2091,7 @@ export const COMMANDS: CommandDef[] = [
         center: true,
         focus: true,
       });
-      // Laporkan kegagalan: tanpa ini jendela yang gagal dibuat hanya terlihat
-      // sebagai "tidak terjadi apa-apa".
+
       void w.once('tauri://error', (e) => {
         useNotif.getState().notify({
           severity: 'error',
@@ -2169,7 +2104,6 @@ export const COMMANDS: CommandDef[] = [
   },
 ];
 
- 
 export function taskCommands(): CommandDef[] {
   const T = useTasks.getState();
   const recent = T.recent;
@@ -2194,13 +2128,8 @@ export function taskCommands(): CommandDef[] {
   }));
 }
 
- 
 export function extensionCommands(): CommandDef[] {
-  
-  
-  
-  
-  
+
   const out = new Map<string, CommandDef>();
 
   const buat = (
@@ -2248,8 +2177,6 @@ export function extensionCommands(): CommandDef[] {
   return Array.from(out.values());
 }
 
- 
- 
 export function snippetCommands(): CommandDef[] {
   const view = getActiveView();
   if (!view) return [];
@@ -2278,7 +2205,6 @@ export function availableCommands(): CommandDef[] {
 
 export const COMMAND_BY_ID = new Map(COMMANDS.map((c) => [c.id, c]));
 
- 
 export function findCommand(id: string): CommandDef | undefined {
   return (
     COMMAND_BY_ID.get(id) ??
@@ -2287,7 +2213,6 @@ export function findCommand(id: string): CommandDef | undefined {
   );
 }
 
- 
 export async function runCommand(id: string): Promise<boolean> {
   const c = findCommand(id);
   if (!c) return false;

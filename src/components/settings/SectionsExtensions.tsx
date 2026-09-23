@@ -1,16 +1,9 @@
-// SectionsExtensions.tsx — Settings → Extensions + Marketplace (fase 13).
-//
-// Yang nyata di sini: daftar bawaan + ekstensi folder, toggle yang tersimpan
-// ke settings, manifest yang dibaca dari disk, command manifest di Command
-// Palette, dan whitelist izin runtime eksternal per ekstensi.
-
 import { useEffect } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
 import { useT, tx } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { Section, Toggle } from './SettingsControls';
 
-/** Kartu marketplace — placeholder, tombol Install memang mati. */
 const MARKET_ITEMS = [
   { id: 'prettier', name: 'Prettier', desc: 'Formatter opinionated untuk JS/TS/CSS/MD', logo: 'P' },
   { id: 'eslint', name: 'ESLint', desc: 'Lint JavaScript & TypeScript di editor', logo: 'E' },
@@ -55,7 +48,7 @@ function Marketplace() {
               className="btn btn-sm"
               data-testid={`market-install-${m.id}`}
               onClick={() => {
-                // Tutup Settings, buka panel Extensions (marketplace nyata).
+
                 setMarketOpen(false);
                 import('../../lib/commandRegistry').then(({ runCommand }) =>
                   runCommand('extensions.focus'),
@@ -71,12 +64,8 @@ function Marketplace() {
   );
 }
 
-/** Whitelist runtime eksternal per ekstensi (yang sudah diizinkan).
- *  Cabut = hapus grant; eksekusi berikutnya minta persetujuan lagi. */
 function IzinRuntime() {
-  // `?? {}` di DALAM selector membuat OBJEK BARU tiap render saat key-nya
-  // belum ada; zustand v5 membandingkan dengan === sehingga memicu render loop
-  // dan ErrorBoundary menutup halaman Settings. Fallback dipindah ke luar.
+
   const trust = useStore((s) => s.settings.extensions.trust) ?? {};
   const list = useExtensions((s) => s.list);
   const applySettings = useStore((s) => s.applySettings);

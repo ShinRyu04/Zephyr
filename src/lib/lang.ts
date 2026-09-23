@@ -1,9 +1,3 @@
-// lang.ts — deteksi bahasa dari nama file + loader ekstensi CodeMirror.
-//
-// PENTING (target RAM/startup di PRD): paket bahasa di-import DINAMIS
-// supaya bundle awal kecil dan parser hanya dimuat saat file bahasa itu
-// benar-benar dibuka. detectLang/LANG_LABEL tetap sinkron (map string).
-
 import { EditorState } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import type { ContribLanguage, LangId } from './types';
@@ -59,7 +53,7 @@ const BY_EXT: Record<string, LangId> = {
   conf: 'ini',
   env: 'ini',
   properties: 'ini',
-  // Bahasa tambahan (fase 32): highlight lewat legacy-modes, tanpa LSP.
+  
   dart: 'dart',
   rb: 'ruby',
   lua: 'lua',
@@ -74,7 +68,6 @@ const BY_EXT: Record<string, LangId> = {
   log: 'plain',
 };
 
-/** Nama file khusus tanpa ekstensi. */
 const BY_NAME: Record<string, LangId> = {
   dockerfile: 'shell',
   makefile: 'shell',
@@ -84,7 +77,6 @@ const BY_NAME: Record<string, LangId> = {
   'cargo.lock': 'toml',
 };
 
-/** Deteksi bahasa dari ekstensi file. */
 export function detectLang(nameOrPath: string | null): LangId {
   if (!nameOrPath) return 'plain';
   const base = nameOrPath.replace(/\\/g, '/').split('/').pop() ?? '';
@@ -95,14 +87,6 @@ export function detectLang(nameOrPath: string | null): LangId {
   return BY_EXT[lower.slice(dot + 1)] ?? 'plain';
 }
 
-/**
- * Bahasa dari EKSTENSI (fase 19) untuk file ini, kalau peta bawaan tidak tahu.
- *
- * Sengaja fungsi terpisah, bukan menyuntik BY_EXT: `detectLang` mengembalikan
- * `LangId` (union tertutup) yang dipakai StatusBar & LANG_LABEL, sedangkan
- * bahasa ekstensi id-nya bebas. Urutan 19.5 (Default → Extension) juga jadi
- * eksplisit: bawaan diperiksa lebih dulu, ekstensi tidak bisa membajak `.ts`.
- */
 export function extLangUntuk(nameOrPath: string | null): ContribLanguage | null {
   if (!nameOrPath) return null;
   const base = nameOrPath.replace(/\\/g, '/').split('/').pop() ?? '';
@@ -110,12 +94,11 @@ export function extLangUntuk(nameOrPath: string | null): ContribLanguage | null 
   const dot = lower.lastIndexOf('.');
   if (dot < 0) return null;
   const ext = lower.slice(dot + 1);
-  // Bawaan menang.
+  
   if (BY_EXT[ext]) return null;
   return bahasaUntukExt(ext);
 }
 
-/** Label untuk StatusBar: bawaan, atau nama bahasa dari ekstensi. */
 export function labelBahasa(nameOrPath: string | null): string {
   const l = detectLang(nameOrPath);
   if (l !== 'plain') return LANG_LABEL[l];
@@ -123,7 +106,6 @@ export function labelBahasa(nameOrPath: string | null): string {
   return e ? e.label : LANG_LABEL.plain;
 }
 
-/** Label yang tampil di StatusBar. */
 export const LANG_LABEL: Record<LangId, string> = {
   javascript: 'JavaScript',
   typescript: 'TypeScript',
@@ -156,10 +138,9 @@ export const LANG_LABEL: Record<LangId, string> = {
 };
 
 const cache = new Map<LangId, Extension[]>();
-/** Cache bahasa dari ekstensi, key = id bahasa ekstensi. */
+
 const cacheExt = new Map<string, Extension[]>();
 
-/** Muat ekstensi bahasa (dynamic import + cache). Plain text -> []. */
 export async function loadLangExtension(lang: LangId): Promise<Extension[]> {
   const hit = cache.get(lang);
   if (hit) return hit;
@@ -169,13 +150,6 @@ export async function loadLangExtension(lang: LangId): Promise<Extension[]> {
   return ext;
 }
 
-/**
- * Semua ekstensi CodeMirror untuk sebuah FILE: parser bawaan atau parser dari
- * ekstensi (fase 19), plus completion snippet kalau ada.
- *
- * Ini pintu tunggal yang dipakai CodeMirrorEditor — supaya urutan
- * Default → Extension cuma ditulis satu kali.
- */
 export async function extensiUntukFile(
   nameOrPath: string | null,
 ): Promise<{ ext: Extension[]; langId: string; dariEkstensi: boolean }> {
@@ -198,12 +172,8 @@ export async function extensiUntukFile(
   return { ext: [...ext, ...snip], langId: e.id, dariEkstensi: true };
 }
 
-/** Completion snippet dari ekstensi sebagai sumber tambahan CodeMirror. */
 function snippetTambahan(lang: string): Extension[] {
-  // `autocompletion` di CodeMirrorEditor sudah punya source bawaan; memakai
-  // `override` akan MEMBUANG semuanya (kata di dokumen, LSP). Cara yang benar
-  // adalah menambah source lewat facet `autocompletion({ override })` milik
-  // bahasa — yaitu `languageData.autocomplete`, yang digabung CodeMirror.
+  
   return [
     EditorState.languageData.of(() => [{ autocomplete: snippetSource(lang) }]),
   ];
@@ -281,8 +251,7 @@ async function build(lang: LangId): Promise<Extension[]> {
       const { swift } = await import('@codemirror/legacy-modes/mode/swift');
       return [StreamLanguage.define(swift)];
     }
-    // dart/kotlin/scala: tidak punya file mode sendiri — semuanya ada di
-    // `clike` (CodeMirror legacy) sebagai objek parser terpisah.
+    
     case 'dart': {
       const { StreamLanguage } = await import('@codemirror/language');
       const clike = (await import('@codemirror/legacy-modes/mode/clike')) as unknown as Record<

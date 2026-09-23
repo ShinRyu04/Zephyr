@@ -1,19 +1,7 @@
-// notificationStore.ts — satu sumber notifikasi untuk seluruh app (fase 27).
-//
-// KENAPA TERPUSAT: sebelum ini setiap domain punya jalur sendiri —
-// `statusMessage` di store utama, `toast` di aiStore/mcpStore/terminalStore,
-// `window.confirm()` di Explorer. Akibatnya pesan penting bisa tertimpa dalam
-// milidetik dan tidak ada riwayatnya. Store ini menggantikan semuanya:
-// toast untuk yang sementara, Notification Center untuk riwayat.
-//
-// Yang TIDAK dilakukan di sini (batas fase 27): tidak ada email, tidak ada
-// push OS-level. Hanya di dalam jendela Zephyr.
-
 import { create } from 'zustand';
 
 export type Severity = 'info' | 'warn' | 'error';
 
-/** Aksi pada notifikasi. `command` = id di commandRegistry (fase 12). */
 export interface NotifAction {
   label: string;
   command: string;
@@ -24,41 +12,39 @@ export interface Notif {
   severity: Severity;
   message: string;
   detail?: string;
-  /** domain asal: 'git' | 'ai' | 'mcp' | 'terminal' | 'update' | ... */
+  
   source?: string;
   actions: NotifAction[];
-  /** 0..100, atau 'indeterminate' untuk operasi tanpa persen */
+  
   progress?: number | 'indeterminate';
-  /** true = tidak auto-hide (error selalu sticky) */
+  
   sticky?: boolean;
   timestamp: number;
   read: boolean;
 }
 
-/** Lama toast hidup sebelum hilang sendiri (ms). Error & progress tidak. */
 const AUTO_HIDE_MS = 4200;
-/** Batas riwayat — di atas ini yang paling tua dibuang. */
+
 const MAX_RIWAYAT = 200;
 
 let seq = 0;
 const nextId = () => `n-${Date.now().toString(36)}-${++seq}`;
 
-/** Timer auto-hide per id. Di luar store supaya tidak memicu render. */
 const timers = new Map<string, number>();
 
 interface NotifState {
-  /** riwayat lengkap, terbaru di depan */
+  
   items: Notif[];
-  /** id yang sedang tampil sebagai toast */
+  
   toasts: string[];
-  /** panel Notification Center terbuka */
+  
   centerOpen: boolean;
-  /** Do Not Disturb: toast diredam, riwayat TETAP dicatat */
+  
   dnd: boolean;
 }
 
 interface NotifActions {
-  /** Tampilkan notifikasi baru; mengembalikan id-nya. */
+  
   notify: (n: {
     severity?: Severity;
     message: string;
@@ -68,13 +54,13 @@ interface NotifActions {
     progress?: number | 'indeterminate';
     sticky?: boolean;
   }) => string;
-  /** Ubah notifikasi yang sudah ada (mis. pesan progres berubah). */
+  
   update: (id: string, patch: Partial<Omit<Notif, 'id' | 'timestamp'>>) => void;
-  /** Setel persen progres; 100 = selesai lalu toast hilang sendiri. */
+  
   progress: (id: string, val: number | 'indeterminate') => void;
-  /** Buang dari toast (riwayat tetap ada). */
+  
   dismiss: (id: string) => void;
-  /** Buang dari riwayat juga. */
+  
   remove: (id: string) => void;
   clear: () => void;
   markRead: (id: string) => void;
@@ -83,7 +69,7 @@ interface NotifActions {
   toggleCenter: () => void;
   setDnd: (v: boolean) => void;
   toggleDnd: () => void;
-  /** jumlah yang belum dibaca (untuk badge lonceng) */
+  
   unread: () => number;
 }
 
@@ -96,8 +82,7 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
   notify: (n) => {
     const id = nextId();
     const severity = n.severity ?? 'info';
-    // Error SELALU sticky: pesan kegagalan tidak boleh hilang sebelum dibaca.
-    // Notifikasi ber-progress juga tidak auto-hide (dihapus saat selesai).
+    
     const sticky = n.sticky ?? (severity === 'error' || n.progress !== undefined);
     const item: Notif = {
       id,
@@ -113,7 +98,7 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
     };
     set((s) => ({
       items: [item, ...s.items].slice(0, MAX_RIWAYAT),
-      // DND meredam TOAST saja — riwayat tetap terisi (syarat 27).
+      
       toasts: s.dnd ? s.toasts : [id, ...s.toasts],
     }));
     if (!sticky && !get().dnd) {
@@ -135,7 +120,7 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
 
   progress: (id, val) => {
     get().update(id, { progress: val });
-    // Selesai: biarkan terlihat sebentar lalu lepas dari toast.
+    
     if (val === 100) {
       window.setTimeout(() => get().dismiss(id), 900);
     }
@@ -174,7 +159,7 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
 
   setDnd: (v) => {
     set({ dnd: v });
-    // Menyalakan DND langsung membersihkan toast yang sedang tampil.
+    
     if (v) set({ toasts: [] });
   },
   toggleDnd: () => get().setDnd(!get().dnd),
@@ -182,7 +167,6 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
   unread: () => get().items.filter((x) => !x.read).length,
 }));
 
-/** Pintasan yang dipakai di seluruh app supaya call site-nya pendek. */
 export const notifyInfo = (message: string, opts?: { detail?: string; source?: string }) =>
   useNotif.getState().notify({ severity: 'info', message, ...opts });
 

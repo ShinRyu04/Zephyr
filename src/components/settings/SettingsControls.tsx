@@ -1,6 +1,3 @@
-// SettingsControls.tsx — kontrol dasar yang dipakai berulang di SettingsPage.
-// Semua warna dari token tema (AGENTS.md §4).
-
 import type { ReactNode } from 'react';
 
 export function Row({
@@ -158,7 +155,7 @@ export function TextInput({
   testid?: string;
   mono?: boolean;
   password?: boolean;
-  /** id <datalist> — tampilkan saran sambil tetap bisa ketik bebas. */
+  
   list?: string;
 }) {
   return (

@@ -1,9 +1,3 @@
-// SettingsPage.tsx — isi halaman Settings (fase 08).
-//
-// Nav 11 section + tombol "Reset Semua ke Default" TIDAK ada di sini:
-// keduanya hidup di sidebar kiri (components/settings/SettingsNav.tsx).
-// Halaman ini murni isi section yang sedang dipilih, jadi lebarnya penuh.
-
 import { useEffect } from 'react';
 import { useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
@@ -58,7 +52,6 @@ export default function SettingsPage() {
   const message = useSettingsUi((s) => s.message);
   const setMessage = useSettingsUi((s) => s.setMessage);
 
-  // Pesan status hilang sendiri supaya tidak menumpuk.
   useEffect(() => {
     if (!message) return;
     const id = window.setTimeout(() => setMessage(null), 4000);

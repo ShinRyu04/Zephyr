@@ -1,5 +1,3 @@
-// ActivityBar.tsx — ikon vertikal kiri (48px). State aktif di Zustand.
-
 import { useEffect, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
@@ -33,8 +31,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   debug: () => (
-    // Tombol play di dalam bug: bentuk LITERAL (Run & Debug), bukan garis
-    // abstrak — ikon harus bisa dikenali dari bentuknya.
+
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
       <circle cx="8" cy="8.4" r="4.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
       {/* kaki-kaki bug */}
@@ -56,7 +53,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   extensions: () => (
-    // Empat kotak, satu terpisah — sama seperti VS Code (prompt 19.1).
+
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
       <rect x="1.8" y="1.8" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
       <rect x="1.8" y="9" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
@@ -76,8 +73,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   settings: () => (
-    // Gerigi (gear) 8 gigi — geometri dihitung dari lingkaran R=7/r=5.15,
-    // bukan pola "matahari" (garis lurus memancar) seperti sebelumnya.
+
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
       <path
         d="M6.72 1.12L9.28 1.12L8.94 2.94L10.92 3.76L11.96 2.23L13.77 4.04L12.24 5.08L13.06 7.06L14.88 6.72L14.88 9.28L13.06 8.94L12.24 10.92L13.77 11.96L11.96 13.77L10.92 12.24L8.94 13.06L9.28 14.88L6.72 14.88L7.06 13.06L5.08 12.24L4.04 13.77L2.23 11.96L3.76 10.92L2.94 8.94L1.12 9.28L1.12 6.72L2.94 7.06L3.76 5.08L2.23 4.04L4.04 2.23L5.08 3.76L7.06 2.94Z"
@@ -102,8 +98,6 @@ const LABEL: Record<ActivityId, string> = {
   settings: 'Settings',
 };
 
-// Extensions di BAWAH daftar (prompt 19.1), tepat sebelum Settings.
-// Run & Debug tepat setelah Source Control, seperti VS Code.
 const ORDER: ActivityId[] = [
   'explorer',
   'search',
@@ -135,16 +129,12 @@ export default function ActivityBar() {
   const user = gh?.user ?? null;
   const oauthSiap = !!gh?.oauthConfigured;
   const avatarUrl = gh?.avatarUrl ?? null;
-  // Kalau gambar gagal dimuat (offline / URL mati), jatuh ke inisial.
+
   const [avatarGagal, setAvatarGagal] = useState(false);
   useEffect(() => {
     setAvatarGagal(false);
   }, [avatarUrl]);
 
-  // Klik ikon GitHub: buka dropdown akun (ala VS Code), BUKAN langsung
-  // menjalankan aksi. Sebelumnya klik langsung memicu device-flow/OAuth —
-  // sekarang konsekuensinya terlihat dulu di menu, dan user bisa memilih.
-  // Saat belum login, aksi login tetap satu klik di dalam menu itu.
   const [menuGhTerbuka, setMenuGhTerbuka] = useState(false);
   const [anchorGh, setAnchorGh] = useState<HTMLElement | null>(null);
 
@@ -154,7 +144,6 @@ export default function ActivityBar() {
     setSettingsOpen(false);
   };
 
-  /** Login: device flow kalau OAuth siap, kalau tidak buka panduan OAuth App. */
   const loginGh = () => {
     if (oauthSiap) {
       void loginDevice();
@@ -195,19 +184,14 @@ export default function ActivityBar() {
             data-activity={id}
             data-testid={`ab-${id}`}
             onClick={() => {
-              // Semua ikon (termasuk Settings) pakai aturan yang SAMA:
-              // klik = buka, klik lagi saat aktif = tutup. Tidak ada cabang
-              // khusus untuk Settings — cabang itu yang dulu bikin bug: ia
-              // membaca `activity === 'settings'` padahal activity bisa
-              // nyangkut 'settings' walau halamannya sudah ditutup, sehingga
-              // klik malah menutup sidebar dan Settings tidak mau kebuka.
+
               setSettingsOpen(false);
               if (activity === id) toggleSidebar();
               else {
                 setActivity(id);
                 if (!sidebarVisible) toggleSidebar();
               }
-              // Settings: buka halamannya setelah sidebar dipastikan hidup.
+
               if (id === 'settings' && activity !== id) setSettingsOpen(true);
             }}
           >

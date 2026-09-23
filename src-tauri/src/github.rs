@@ -1,23 +1,3 @@
-// github.rs — autentikasi GitHub untuk push/pull HTTPS (fase 10).
-//
-// Dua metode:
-//   1. PAT  — user menempel Personal Access Token; divalidasi ke
-//      GET /user sebelum disimpan (401 = tidak menyimpan apa pun).
-//   2. OAuth Device Flow — tidak butuh client secret, jadi tidak ada
-//      rahasia yang dibundel ke aplikasi. Hanya aktif bila
-//      `settings.git.github.clientId` diisi user (buat OAuth App sendiri +
-//      aktifkan Device Flow).
-//
-// PEMISAHAN DATA (invariant §10.3):
-//   settings.json → git.github { method, user, scopes, expiresAt, clientId }
-//                   (metadata, tidak rahasia)
-//   secrets.json  → github { token, refresh }   ← RAHASIA, Rust-only.
-// Token TIDAK PERNAH menyeberang IPC ke frontend, tidak masuk argv git,
-// tidak masuk remote URL / .git/config, dan tidak ditulis ke log.
-//
-// Jalur ke git: subcommand `zephyr git-credential` (lihat credential.rs),
-// disisipkan per-invocation oleh git.rs — bukan lewat `git config --global`.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -28,11 +8,10 @@ use tauri::{AppHandle, Emitter, Manager, State};
 const API_USER: &str = "https://api.github.com/user";
 const DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 const TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
-/// Scope minimum agar bisa push ke repo privat.
+
 const SCOPE: &str = "repo read:user";
 const UA: &str = "Zephyr-Editor";
 
-/// Penjaga backfill avatar: satu percobaan GET /user per proses.
 static AVATAR_DICOBA: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 fn now_secs() -> u64 {
@@ -42,15 +21,12 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-// ───────────────────────── penyimpanan ─────────────────────────
-
-/// Token aktif (RUST-ONLY). None = belum login.
 pub fn active_token(state: &AppState) -> Option<String> {
     let raw = crate::secrets::key_for(state, "github");
     if raw.is_empty() {
         return None;
     }
-    // Format lama (hanya token) maupun JSON { token, refresh } didukung.
+
     match serde_json::from_str::<Value>(&raw) {
         Ok(v) => v
             .get("token")
@@ -80,7 +56,6 @@ fn clear_tokens(state: &AppState) -> ZResult<()> {
     crate::secrets::set_secret(state, "github", "")
 }
 
-/// Metadata non-rahasia di settings.json → git.github.
 fn meta(state: &AppState) -> Value {
     crate::settings::read_settings_value(state)
         .get("git")
@@ -93,7 +68,6 @@ fn set_meta(app: &AppHandle, state: &AppState, patch: Value) -> ZResult<()> {
     crate::settings::patch_settings(app, state, json!({ "git": { "github": patch } }))
 }
 
-/// Username GitHub yang tercatat (dipakai credential helper).
 pub fn stored_user(state: &AppState) -> Option<String> {
     meta(state)
         .get("user")
@@ -102,8 +76,6 @@ pub fn stored_user(state: &AppState) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-/// URL foto profil GitHub yang tercatat. Login lama (sebelum field ini ada)
-/// belum menyimpannya → None, dan UI memakai inisial sebagai cadangan.
 pub fn stored_avatar(state: &AppState) -> Option<String> {
     meta(state)
         .get("avatarUrl")
@@ -112,12 +84,6 @@ pub fn stored_avatar(state: &AppState) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-/// client_id OAuth App publik Zephyr ("Zephyr Editor", milik ShinRyu04).
-/// Client ID BUKAN rahasia (lihat saja di halaman OAuth App siapa pun yang
-/// punya akses repo) — token user-lah yang privat, dan itu tetap lokal.
-/// Dengan default ini user TIDAK perlu membuat OAuth App sendiri: cukup
-/// "Sign in with GitHub" → device flow → authorize. (Bisa ditimpa lewat
-/// settings git.github.clientId — mis. fork yang mau pakai app sendiri.)
 const DEFAULT_CLIENT_ID: &str = "Iv23lisC4fTKXZOoVeIX";
 
 fn client_id(state: &AppState) -> Option<String> {
@@ -131,8 +97,6 @@ fn client_id(state: &AppState) -> Option<String> {
         None => Some(DEFAULT_CLIENT_ID.to_string()),
     }
 }
-
-// ───────────────────────── HTTP kecil ─────────────────────────
 
 struct Resp {
     status: u16,
@@ -151,7 +115,7 @@ fn http_get(url: &str, token: &str) -> ZResult<Resp> {
         .call()
         .map_err(|e| ZephyrError::Git(format!("tidak bisa menghubungi GitHub: {e}")))?;
     let status = r.status().as_u16();
-    // Scope dikirim GitHub di header, bukan body.
+
     let scopes = r
         .headers()
         .get("x-oauth-scopes")
@@ -160,7 +124,7 @@ fn http_get(url: &str, token: &str) -> ZResult<Resp> {
         .to_string();
     let mut body = r.into_body();
     let text = body.read_to_string().unwrap_or_default();
-    // Sisipkan scope ke body supaya pemanggil tidak perlu tahu soal header.
+
     let merged = match serde_json::from_str::<Value>(&text) {
         Ok(mut v) => {
             if v.is_object() {
@@ -194,24 +158,21 @@ fn http_post_form(url: &str, form: &[(&str, &str)]) -> ZResult<Resp> {
     })
 }
 
-// ───────────────────────── commands ─────────────────────────
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GhStatus {
     pub signed_in: bool,
-    /// "none" | "pat" | "oauth"
+
     pub method: String,
     pub user: Option<String>,
-    /// URL foto profil GitHub (dari GET /user). None kalau belum login atau
-    /// login lama yang belum menyimpan avatar → UI jatuh ke inisial.
+
     pub avatar_url: Option<String>,
     pub scopes: Vec<String>,
-    /// epoch detik; None = tidak kadaluarsa (PAT klasik)
+
     pub expires_at: Option<u64>,
-    /// true = clientId terisi, tombol OAuth boleh aktif
+
     pub oauth_configured: bool,
-    /// true = token ada tapi sudah lewat expiresAt
+
     pub expired: bool,
 }
 
@@ -227,12 +188,6 @@ pub fn gh_status(app: AppHandle, state: State<AppState>) -> ZResult<GhStatus> {
     let expires_at = m.get("expiresAt").and_then(|x| x.as_u64());
     let signed_in = token.is_some() && method != "none";
 
-    // Backfill sekali-jalan: akun yang login SEBELUM field avatarUrl ada
-    // (atau yang token-nya belum pernah diuji) belum punya URL foto profil.
-    // Ambil dari GET /user, simpan, lalu tidak diulang lagi. Kegagalan
-    // jaringan TIDAK boleh menggagalkan gh_status — UI cukup pakai inisial.
-    // Guard: paling banyak SATU percobaan per proses (gh_status dipanggil
-    // tiap ActivityBar mount; tanpa ini token mati = HTTP request berulang).
     let mut avatar_url = stored_avatar(&state);
     if avatar_url.is_none()
         && signed_in
@@ -246,7 +201,6 @@ pub fn gh_status(app: AppHandle, state: State<AppState>) -> ZResult<GhStatus> {
                         if let Some(u) = v.get("avatar_url").and_then(|x| x.as_str()) {
                             let u = u.trim().to_string();
                             if !u.is_empty() {
-                                // Tulis gagal pun tidak fatal.
                                 let _ = set_meta(&app, &state, json!({ "avatarUrl": u }));
                                 avatar_url = Some(u);
                             }
@@ -284,7 +238,6 @@ pub struct GhUser {
     pub scopes: Vec<String>,
 }
 
-/// Simpan PAT setelah divalidasi ke GitHub. Token salah → tidak menyimpan.
 #[tauri::command(async)]
 pub fn gh_set_pat(app: AppHandle, state: State<AppState>, token: String) -> ZResult<GhUser> {
     let t = token.trim().to_string();
@@ -312,8 +265,7 @@ pub fn gh_set_pat(app: AppHandle, state: State<AppState>, token: String) -> ZRes
     if login.is_empty() {
         return Err(ZephyrError::Git("GitHub tidak mengirim username".into()));
     }
-    // Foto profil ikut disimpan supaya ActivityBar bisa menampilkan avatar
-    // asli (bukan inisial) tanpa permintaan jaringan tambahan saat render.
+
     let avatar = v
         .get("avatar_url")
         .and_then(|x| x.as_str())
@@ -337,7 +289,7 @@ pub fn gh_set_pat(app: AppHandle, state: State<AppState>, token: String) -> ZRes
             "user": login,
             "avatarUrl": avatar,
             "scopes": scopes,
-            // PAT: masa berlaku tidak diketahui dari API → hapus key lama.
+
             "expiresAt": Value::Null,
         }),
     )?;
@@ -356,8 +308,6 @@ pub struct DeviceLogin {
     pub interval: u64,
 }
 
-/// Mulai OAuth Device Flow; polling jalan di thread dan mengabarkan hasil
-/// lewat event `gh-login`.
 #[tauri::command(async)]
 pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<DeviceLogin> {
     let cid = client_id(&state).ok_or_else(|| {
@@ -440,7 +390,6 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
             let v: Value = serde_json::from_str(&body).unwrap_or_else(|_| json!({}));
             if let Some(err) = v.get("error").and_then(|e| e.as_str()) {
                 match err {
-                    // Belum di-approve / diminta melambat: lanjut polling.
                     "authorization_pending" => continue,
                     "slow_down" => {
                         std::thread::sleep(Duration::from_secs(interval + 5));
@@ -476,7 +425,6 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
                 .to_string();
             let expires_in = v.get("expires_in").and_then(|x| x.as_u64());
 
-            // Ambil username + scope + avatar dengan token baru.
             let (login, scopes, avatar) = match http_get(API_USER, &token) {
                 Ok(u) if u.status == 200 => {
                     let uv: Value = serde_json::from_str(&u.body).unwrap_or_else(|_| json!({}));
@@ -596,8 +544,6 @@ pub fn gh_test(state: State<AppState>) -> ZResult<GhTest> {
     })
 }
 
-/// Refresh token OAuth saat operasi git kena 401. true = token diperbarui.
-/// PAT tidak bisa di-refresh (selalu false).
 pub fn try_refresh(state: &AppState) -> bool {
     let m = meta(state);
     if m.get("method").and_then(|x| x.as_str()) != Some("oauth") {
@@ -631,8 +577,7 @@ pub fn try_refresh(state: &AppState) -> bool {
     if save_tokens(state, token, Some(&refresh)).is_err() {
         return false;
     }
-    // expiresAt diperbarui lewat file settings langsung (tanpa AppHandle di
-    // jalur ini) — cukup metadata, bukan rahasia.
+
     if let Some(exp) = v.get("expires_in").and_then(|x| x.as_u64()) {
         let _ = crate::settings::patch_settings_no_emit(
             state,

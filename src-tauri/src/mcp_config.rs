@@ -1,25 +1,14 @@
-// mcp_config.rs — mcp.json (%APPDATA%\zephyr\mcp.json) + penulisan config CLI.
-//
-// mcp.json memegang token yang di-generate SEKALI saat pertama dipakai, jadi
-// AI CLI yang sudah didaftari tidak kehilangan akses tiap restart. Token
-// TIDAK ditaruh di settings.json karena file itu wajar di-share/di-backup.
-//
-// writeToCli: menambah entri server ke config AI CLI milik user. Aturan
-// keras: JSON existing di-parse lalu di-merge (key lain tidak boleh rusak),
-// dan file lama selalu disalin ke <nama>.bak sebelum ditulis.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
-/// Isi mcp.json.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpConfig {
     pub token: String,
-    /// Port yang benar-benar dipakai terakhir kali (9222, atau fallback).
+
     pub port: u16,
 }
 
@@ -27,11 +16,7 @@ fn path(state: &AppState) -> PathBuf {
     state.file("mcp.json")
 }
 
-/// Token acak 32 hex (16 byte) — cukup untuk penjaga loopback.
 fn random_token() -> String {
-    // Sumber acak tanpa dependensi baru: waktu nano + alamat stack + pid,
-    // di-hash BLAKE3. Bukan CSPRNG OS, tapi tidak bisa ditebak dari luar
-    // proses dan token ini hanya menjaga port loopback.
     let mut h = blake3::Hasher::new();
     h.update(b"zephyr/mcp/token/v1");
     h.update(&std::process::id().to_le_bytes());
@@ -45,7 +30,6 @@ fn random_token() -> String {
     h.finalize().to_hex()[..32].to_string()
 }
 
-/// Baca mcp.json; buat + tulis bila belum ada (token di-generate sekali).
 pub fn load_or_init(state: &AppState) -> McpConfig {
     let p = path(state);
     let existing: Option<Value> = std::fs::read_to_string(&p)
@@ -85,7 +69,6 @@ pub fn save(state: &AppState, cfg: &McpConfig) -> ZResult<()> {
     Ok(())
 }
 
-/// Token baru (tombol "Regenerate" di panel MCP).
 pub fn rotate_token(state: &AppState) -> ZResult<McpConfig> {
     let mut cfg = load_or_init(state);
     cfg.token = random_token();
@@ -93,17 +76,14 @@ pub fn rotate_token(state: &AppState) -> ZResult<McpConfig> {
     Ok(cfg)
 }
 
-// ───────────────────── config AI CLI ─────────────────────
-
-/// Satu target penulisan config.
 pub struct CliTarget {
     pub id: &'static str,
     pub label: &'static str,
-    /// Path relatif dari %USERPROFILE% (atau absolut bila diawali drive).
+
     pub rel: &'static str,
-    /// Format file: json | toml | yaml
+
     pub format: Format,
-    /// Key induk tempat server MCP didaftarkan.
+
     pub key: &'static str,
 }
 
@@ -111,12 +91,10 @@ pub struct CliTarget {
 pub enum Format {
     Json,
     Toml,
-    /// Hermes Agent (Nous Research) memakai ~/.hermes/config.yaml
-    /// dengan blok `mcp_servers:` (YAML).
+
     Yaml,
 }
 
-/// Daftar CLI yang didukung (ARCHITECTURE.md §4 / prompt fase 11 §11.4).
 pub const TARGETS: [CliTarget; 8] = [
     CliTarget {
         id: "claude",
@@ -191,7 +169,6 @@ pub fn target_path(t: &CliTarget) -> ZResult<PathBuf> {
     Ok(home()?.join(t.rel.replace('/', std::path::MAIN_SEPARATOR_STR)))
 }
 
-/// Entri server yang ditulis ke config CLI.
 fn server_entry(port: u16, token: &str) -> Value {
     json!({
         "type": "http",
@@ -200,7 +177,6 @@ fn server_entry(port: u16, token: &str) -> Value {
     })
 }
 
-/// Hasil satu operasi tulis/hapus config CLI (dilaporkan ke UI).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CliWriteResult {
@@ -208,7 +184,7 @@ pub struct CliWriteResult {
     pub label: String,
     pub path: String,
     pub ok: bool,
-    /// true = file lama disalin ke <nama>.bak
+
     pub backup: bool,
     pub message: String,
 }
@@ -226,7 +202,6 @@ fn backup_file(p: &std::path::Path) -> bool {
     std::fs::copy(p, bak).is_ok()
 }
 
-/// Sisipkan `zephyr` ke dalam key induk TANPA merusak key lain.
 fn merge_json(existing: &str, key: &str, entry: Value) -> ZResult<String> {
     let mut root: Value = if existing.trim().is_empty() {
         json!({})
@@ -248,7 +223,6 @@ fn merge_json(existing: &str, key: &str, entry: Value) -> ZResult<String> {
     Ok(serde_json::to_string_pretty(&root)? + "\n")
 }
 
-/// Buang key `zephyr` dari config; key lain dibiarkan utuh.
 fn unmerge_json(existing: &str, key: &str) -> ZResult<String> {
     let mut root: Value = serde_json::from_str(existing)
         .map_err(|e| ZephyrError::InvalidInput(format!("config bukan JSON valid: {e}")))?;
@@ -260,8 +234,6 @@ fn unmerge_json(existing: &str, key: &str) -> ZResult<String> {
     Ok(serde_json::to_string_pretty(&root)? + "\n")
 }
 
-/// Codex memakai TOML. Tanpa dependensi toml: tabel `[mcp_servers.zephyr]`
-/// ditulis/diganti sebagai blok teks — cukup dan tidak menyentuh baris lain.
 fn merge_toml(existing: &str, key: &str, port: u16, token: &str) -> String {
     let header = format!("[{key}.zephyr]");
     let block = format!(
@@ -276,9 +248,6 @@ fn merge_toml(existing: &str, key: &str, port: u16, token: &str) -> String {
     }
 }
 
-/// Hermes Agent memakai YAML (~/.hermes/config.yaml). Tanpa dependensi yaml:
-/// blok `mcp_servers.zephyr:` ditulis/diganti sebagai teks ber-indent — cukup
-/// dan tidak menyentuh baris lain (sama prinsipnya seperti TOML di atas).
 fn merge_yaml(existing: &str, key: &str, port: u16, token: &str) -> String {
     let block = format!(
         "{key}:\n  zephyr:\n    type: http\n    url: \"http://127.0.0.1:{port}\"\n    headers:\n      Authorization: \"Bearer {token}\"\n",
@@ -291,14 +260,10 @@ fn merge_yaml(existing: &str, key: &str, port: u16, token: &str) -> String {
     }
 }
 
-/// Hapus blok `<key>` → `zephyr:` dari YAML (indent 2 di bawah key induk).
-/// YAML pakai indent, jadi dicari: baris `key:` di kolom 0, lalu anak
-/// `zephyr:` di indent 2 — baris setelahnya ikut dihapus sampai indent
-/// kembali <= 2 atau keluar dari blok induk.
 fn strip_yaml_block(existing: &str, key: &str) -> String {
     let mut out: Vec<&str> = Vec::new();
-    let mut in_parent = false; // sedang di dalam blok `key:`
-    let mut skipping = false; // sedang melewati blok `zephyr:`
+    let mut in_parent = false;
+    let mut skipping = false;
     for line in existing.lines() {
         let indent = line.len() - line.trim_start().len();
         let t = line.trim_start();
@@ -308,7 +273,7 @@ fn strip_yaml_block(existing: &str, key: &str) -> String {
             }
             continue;
         }
-        // Top-level: cari `key:` di kolom 0.
+
         if indent == 0 {
             in_parent = t == format!("{key}:") || t.starts_with(&format!("{key}: "));
             skipping = false;
@@ -319,7 +284,7 @@ fn strip_yaml_block(existing: &str, key: &str) -> String {
             out.push(line);
             continue;
         }
-        // Di dalam `key:` — anak level-1 (indent 2) menentukan blok mana.
+
         if indent <= 2 {
             skipping = t.starts_with("zephyr:") || t.starts_with("zephyr: ");
             if !skipping {
@@ -327,7 +292,7 @@ fn strip_yaml_block(existing: &str, key: &str) -> String {
             }
             continue;
         }
-        // Anak level > 2 (isi blok) — ikut dihapus bila sedang skip.
+
         if !skipping {
             out.push(line);
         }
@@ -340,7 +305,6 @@ fn strip_yaml_block(existing: &str, key: &str) -> String {
     }
 }
 
-/// Hapus blok `[<key>.zephyr]` (termasuk sub-tabel headers) dari TOML.
 fn strip_toml_block(existing: &str, key: &str) -> String {
     let mine = format!("[{key}.zephyr");
     let mut out: Vec<&str> = Vec::new();
@@ -362,7 +326,6 @@ fn strip_toml_block(existing: &str, key: &str) -> String {
     }
 }
 
-/// Tulis entri `zephyr` ke config satu CLI. Backup dulu, merge, lalu simpan.
 pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
     let Some(t) = target(id) else {
         return CliWriteResult {
@@ -444,7 +407,6 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
     }
 }
 
-/// Buang entri `zephyr` dari config satu CLI (config lain tetap utuh).
 pub fn remove_cli(id: &str) -> CliWriteResult {
     let Some(t) = target(id) else {
         return CliWriteResult {
@@ -518,7 +480,6 @@ pub fn remove_cli(id: &str) -> CliWriteResult {
     }
 }
 
-/// Status pendaftaran: apakah config CLI sudah memuat entri zephyr.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CliStatus {
@@ -553,8 +514,6 @@ pub fn cli_status() -> Vec<CliStatus> {
         })
         .collect()
 }
-
-// ───────────────────── unit test hook ─────────────────────
 
 #[cfg(test)]
 pub fn merge_json_for_test(existing: &str, key: &str, port: u16, token: &str) -> ZResult<String> {

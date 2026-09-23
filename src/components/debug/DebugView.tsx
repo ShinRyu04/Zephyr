@@ -1,11 +1,3 @@
-// DebugView.tsx — sidebar Run & Debug (fase 22).
-//
-// Lima section yang bisa dilipat (BREAKPOINTS, CALL STACK, VARIABLES, WATCH,
-// LOADED SCRIPTS) + dropdown konfigurasi & tombol Start/Restart/Stop di atas.
-//
-// Semua warna dari CSS variable (AGENTS.md §4). Ikon = bentuk literal, bukan
-// garis memancar (preferensi user: gear = gerigi sungguhan).
-
 import { useEffect, useState } from 'react';
 import { useDebug, type Variable } from '../../lib/debugStore';
 import { useStore } from '../../lib/store';
@@ -13,7 +5,6 @@ import { useT, tx } from '../../lib/i18n';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
-/** Section yang bisa dilipat. */
 function Section({
   id,
   judul,
@@ -45,7 +36,6 @@ function Section({
   );
 }
 
-/** Satu baris variabel; bisa di-expand kalau punya variablesReference. */
 function BarisVar({ v, depth }: { v: Variable; depth: number }) {
   const [terbuka, setTerbuka] = useState(false);
   const anak = useDebug((s) => s.variables[v.variablesReference]);

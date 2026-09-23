@@ -1,13 +1,3 @@
-// PaneGrid.tsx — grid pane dalam satu tab terminal (fase 06).
-//
-// 1 pane  -> penuh
-// 2 pane  -> dua kolom (layout 'split' = atas-bawah)
-// >2 pane -> grid 2 kolom, wrap; 5-6 pane jadi 3 kolom supaya tetap terbaca
-//
-// Setiap pane punya header: ikon jenis + judul + pid + tombol close.
-// Header bisa di-drag untuk menukar urutan pane (HTML5 DnD), dan klik kanan
-// header membuka menu konteks (Reconnect/Kill/Close).
-
 import { useRef, useState } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import { useT, tx } from '../../lib/i18n';
@@ -16,8 +6,6 @@ import PaneIcon from './PaneIcons';
 import XtermPane from './XtermPane';
 import type { PaneMeta, TerminalTab } from '../../lib/types';
 
-/** Placeholder tab kosong (V1): tombol untuk menambah pane pertama.
- *  Dipakai juga saat belum ada tab sama sekali — `addPane` membuat tabnya. */
 export function PaneEmpty() {
   const addPane = useTerminal((s) => s.addPane);
   const setAgentPickerOpen = useTerminal((s) => s.setAgentPickerOpen);
@@ -44,7 +32,7 @@ export function PaneEmpty() {
         className="pane-split-browser"
         data-testid="empty-split-browser"
         onClick={async () => {
-          // Shell dulu (kalau belum ada) supaya benar-benar jadi split 50/50.
+          
           await addPane('shell');
           await addPane('browser');
         }}

@@ -1,9 +1,3 @@
-// OutputView.tsx — log per channel, virtualized (fase 20).
-//
-// 10.000 baris harus tetap mulus (V5), jadi hanya jendela yang terlihat yang
-// di-render. Auto-scroll dimatikan otomatis saat user menggulir ke atas —
-// kalau tidak, membaca log yang sedang mengalir jadi mustahil.
-
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
 import { useT } from '../../lib/i18n';
@@ -30,14 +24,12 @@ export default function OutputView() {
   const lines = ch?.lines ?? [];
   const total = lines.length;
 
-  // Auto-scroll: dijalankan di layout effect supaya tidak terlihat berkedip.
   useLayoutEffect(() => {
     if (!autoScroll) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [total, autoScroll, activeChannel]);
 
-  // Ganti channel = mulai dari bawah.
   useEffect(() => {
     setScrollTop(0);
   }, [activeChannel]);
@@ -110,7 +102,7 @@ export default function OutputView() {
         onScroll={(e) => {
           const el = e.target as HTMLDivElement;
           setScrollTop(el.scrollTop);
-          // User menggulir ke atas → matikan auto-scroll sendiri.
+
           const diBawah = el.scrollHeight - el.scrollTop - el.clientHeight < ROW_H * 2;
           if (!diBawah && autoScroll) toggleAutoScroll();
         }}

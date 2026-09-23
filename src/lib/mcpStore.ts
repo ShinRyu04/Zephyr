@@ -1,15 +1,3 @@
-// mcpStore.ts — state panel MCP + PELAKSANA permintaan `mcp-action` (fase 11).
-//
-// Alur satu method MCP yang butuh UI:
-//   AI CLI --HTTP--> Rust (mcp_server) --event mcp-action--> handleAction()
-//   handleAction() menyentuh zustand (tab/pane/settings) lalu menjawab
-//   lewat cmd.mcpReply(reqId, result). Rust menunggu maksimal 8 detik.
-//
-// CATATAN: listener `mcp-action` WAJIB dipasang sekali per proses (guard modul
-// di App.tsx) — sama seperti pty-output & ai-chunk. StrictMode dev memasang
-// effect dua kali; kalau ikut, setiap permintaan dieksekusi dobel (dua tab
-// terbuka untuk satu editor_open) dan `mcp_reply` kedua ditolak.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
@@ -29,24 +17,23 @@ interface McpState {
   status: McpStatus | null;
   clis: CliStatus[];
   busy: boolean;
-  /** true = token ditampilkan apa adanya (ikon mata) */
+
   reveal: boolean;
   mcpError: string | null;
   mcpInfo: string | null;
-  /** CLI yang dicentang di tabel "Dikontrol oleh" */
+
   checked: string[];
-  /** hasil terakhir tombol [Tulis ke CLI] */
+
   lastWrite: CliWriteResult[];
-  /** aksi MCP terakhir yang dieksekusi (ditampilkan di panel + verifikasi) */
+
   lastAction: { type: string; at: number; detail: string } | null;
-  /** jumlah permintaan MCP yang sudah dilayani sesi ini */
+
   served: number;
-  /** path screenshot terakhir dari `screenshot_pane` */
+
   lastShot: string | null;
-  /** log koneksi/aktivitas MCP terbaru (paling baru di depan, maks 20).
-   *  Ini bukti nyata "MCP connected" yang diminta fase 12 — bukan klaim. */
+
   log: { at: number; text: string; kind: 'connect' | 'action' | 'server' }[];
-  /** toast singkat: user harus sadar saat agent mengambil screenshot */
+
   toast: string | null;
 }
 
@@ -65,10 +52,10 @@ interface McpActions {
   setError: (m: string | null) => void;
   setInfo: (m: string | null) => void;
   setToast: (m: string | null) => void;
-  /** Tambah satu baris log aktivitas (dipakai handleAction & toggleServer). */
+
   pushLog: (text: string, kind: 'connect' | 'action' | 'server') => void;
   clearLog: () => void;
-  /** Dipanggil listener event: jalankan permintaan lalu jawab ke Rust. */
+
   handleAction: (a: McpAction) => Promise<void>;
 }
 
@@ -92,7 +79,7 @@ export const useMcp = create<McpStore>((set, get) => ({
   init: async () => {
     await get().refresh();
     await get().refreshClis();
-    // Centang awal mengikuti settings.mcp.writeToCli (fase 08).
+
     const saved = useStore.getState().settings.mcp.writeToCli ?? [];
     if (saved.length > 0) set({ checked: [...saved] });
   },
@@ -131,7 +118,7 @@ export const useMcp = create<McpStore>((set, get) => ({
         set({ mcpInfo: 'Server MCP dimatikan; port tidak lagi listening' });
         get().pushLog('server dimatikan', 'server');
       }
-      // settings.mcp.enabled diubah di Rust → tarik ulang ke store.
+
       await useStore.getState().reloadSettings();
       await get().refresh();
     } catch (e) {
@@ -159,8 +146,7 @@ export const useMcp = create<McpStore>((set, get) => ({
 
   setReveal: (v) => set({ reveal: v }),
   setChecked: (ids) => set({ checked: ids }),
-  /** Centang/lepas satu CLI. Pilihan langsung disimpan ke settings.mcp.writeToCli
-   *  supaya panel ingat setelah restart (bukan hanya saat [Tulis ke CLI]). */
+
   toggleChecked: (id) => {
     const next = get().checked.includes(id)
       ? get().checked.filter((x) => x !== id)
@@ -179,7 +165,7 @@ export const useMcp = create<McpStore>((set, get) => ({
     try {
       const res = await cmd.mcpWriteCli(ids);
       set({ lastWrite: res });
-      // Simpan pilihan supaya panel ingat setelah restart.
+
       await useStore.getState().applySettings({ mcp: { writeToCli: ids } });
       await get().refreshClis();
       const gagal = res.filter((r) => !r.ok);
@@ -237,7 +223,7 @@ export const useMcp = create<McpStore>((set, get) => ({
   clearLog: () => set({ log: [] }),
 
   handleAction: async (a) => {
-    // Notifikasi satu arah (mis. port-fallback) tidak punya reqId.
+
     if (!a.reqId) {
       if (a.type === 'port-fallback') {
         const p = a.payload as { requested?: number; port?: number } | undefined;
@@ -256,15 +242,14 @@ export const useMcp = create<McpStore>((set, get) => ({
         served: s.served + 1,
         lastAction: { type: a.type, at: Date.now(), detail },
       }));
-      // Health check pertama dari sebuah agent = bukti "MCP connected".
-      // `counts` hanya dipanggil oleh GET /health, jadi itu penandanya.
+
       if (a.type === 'counts') {
         const sudah = get().log.some((l) => l.kind === 'connect');
         get().pushLog(sudah ? 'health check dari AI CLI' : 'MCP connected: AI CLI menyapa /health', 'connect');
       } else {
         get().pushLog(detail, 'action');
       }
-      // Agent mengambil screenshot pane: user WAJIB tahu.
+
       if (a.type === 'pane_text') {
         const pid = String((a.payload as { paneId?: string } | undefined)?.paneId ?? '');
         set({ toast: `AI CLI mengambil screenshot pane ${pid.slice(0, 18)}…` });
@@ -292,19 +277,12 @@ function describe(type: string, payload?: Record<string, unknown>): string {
 
 const str = (p: Record<string, unknown>, k: string): string => String(p[k] ?? '');
 
-/** Ekstensi (fase 13): daftar nyata dari Rust lewat extensionStore. */
-
-/**
- * Pelaksana satu permintaan MCP di sisi UI. Melempar Error = jawaban error
- * JSON-RPC ke agent (bukan crash). Di-export supaya tool agent (agentTools.ts)
- * bisa memakai jalur yang sama tanpa lewat HTTP.
- */
 export async function runAction(type: string, p: Record<string, unknown>): Promise<unknown> {
   const s = () => useStore.getState();
   const t = () => useTerminal.getState();
 
   switch (type) {
-    // dipakai /health
+
     case 'counts':
       return {
         panes: t().terminalTabs.reduce((n, tab) => n + tab.panes.length, 0),
@@ -336,7 +314,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
           dirty: tab.unsaved,
           active,
           lang: tab.lang,
-          // Posisi kursor hanya diketahui untuk tab yang aktif.
+
           line: active ? s().cursor.line : 1,
           col: active ? s().cursor.col : 1,
           bytes: tab.content.length,
@@ -364,7 +342,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
     }
 
     case 'list_extensions': {
-      // fase 13: daftar nyata dari Rust (bawaan + folder), bukan konstanta.
+
       const ex = useExtensions.getState();
       if (ex.list.length === 0) await ex.refresh();
       return useExtensions.getState().list.map((e) => ({
@@ -405,10 +383,6 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       return { paneId, text: readBuffer(paneId, 500) };
     }
 
-    // ── fase 20: panel bawah, BACA-SAJA ──
-    // Sengaja tidak ada set_problems/append_output dari MCP: menulis
-    // diagnostik dari luar akan membuat Problems tidak lagi mencerminkan
-    // keadaan nyata language server (fase 21).
     case 'get_problems': {
       const sev = typeof p.severity === 'string' ? p.severity : null;
       const semua = useProblems.getState().all();
@@ -450,7 +424,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       await s().openPath(path);
       const tab = s().tabs.find((x) => x.path?.toLowerCase() === path.toLowerCase());
       if (!tab) throw new Error(s().statusMessage || `tidak bisa membuka ${path}`);
-      // Fokuskan tab + pastikan halaman Settings tidak menutupi editor.
+
       s().setSettingsOpen(false);
       s().setActiveTab(tab.id);
       return { tabId: tab.id, path: tab.path, name: tab.name, lang: tab.lang };
@@ -468,7 +442,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       const content = String(p.content ?? '');
       const tab = s().tabs.find((x) => x.id === tabId);
       if (!tab) throw new Error(`tab ${tabId} tidak ada`);
-      // KONTRAK: buffer saja. Disk TIDAK disentuh — user yang menyimpan.
+
       s().updateTabContent(tabId, content);
       const after = s().tabs.find((x) => x.id === tabId);
       return {
@@ -482,8 +456,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
     case 'editor_insert': {
       const tabId = str(p, 'tabId');
       const text = String(p.text ?? '');
-      // Ambil isi TERBARU dari CodeMirror dulu; store bisa tertinggal
-      // beberapa ketikan karena update-nya di-debounce.
+
       flushTab(tabId);
       const tab = s().tabs.find((x) => x.id === tabId);
       if (!tab) throw new Error(`tab ${tabId} tidak ada`);
@@ -505,16 +478,13 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
   }
 }
 
-/** id command yang bisa dipanggil `run_command`. */
 async function runEditorCommand(id: string): Promise<unknown> {
   const s = useStore.getState();
   const t = useTerminal.getState();
 
   switch (id) {
     case 'commandPalette.open':
-      // Palette penuh ada sejak fase 12, tapi mcpStore TIDAK boleh import
-      // paletteStore: paletteStore → commandRegistry → mcpStore = lingkaran.
-      // Jalur yang dipakai: event window, ditangkap App.tsx.
+
       window.dispatchEvent(new Event('zephyr-palette-open'));
       return { ok: true, id };
 
@@ -560,7 +530,7 @@ async function runEditorCommand(id: string): Promise<unknown> {
       return { ok: true, id };
 
     case 'explorer.openFolder':
-      // Dialog native menunggu klik user; MCP tidak boleh menggantung 8 detik.
+
       void s.openFolderDialog();
       return { ok: true, id, note: 'dialog pilih folder dibuka untuk user' };
 
@@ -597,4 +567,3 @@ async function runEditorCommand(id: string): Promise<unknown> {
       );
   }
 }
-

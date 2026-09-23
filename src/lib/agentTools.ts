@@ -1,13 +1,3 @@
-// agentTools.ts — tool yang bisa dipanggil model di mode agent.
-//
-// Prinsip sama seperti MCP: eksekusi lewat jalur yang SUDAH ada dan aman.
-//   * terminal_exec/read → pane ConPTY Zephyr (bukan spawn bebas)
-//   * editor_read/write   → buffer tab (TIDAK menulis disk)
-//   * file_read/list      → read-only lewat Rust
-//
-// Mode persetujuan & command berbahaya DITANGANI loop di aiStore, bukan di
-// sini — tool ini murni eksekusi setelah keputusan dibuat.
-
 import * as cmd from './commands';
 import { useStore } from './store';
 import { useTerminal } from './terminalStore';
@@ -20,11 +10,10 @@ export interface AgentTool {
   run: (args: Record<string, unknown>) => Promise<string>;
 }
 
-/** Batas baca file/buffer per tool (biar konteks model tidak meledak). */
 export const AGENT_READ_LIMIT = 100 * 1024;
 
-/** Cari pane shell yang hidup; buat baru kalau belum ada (sama seperti
- *  runInTerminal di aiStore — dipakai bersama). */
+export const FILE_LIST_MAX = 300;
+
 async function cariPaneTerminal(): Promise<string | null> {
   const t = useTerminal.getState();
   let pane = t
@@ -33,7 +22,7 @@ async function cariPaneTerminal(): Promise<string | null> {
   if (!pane) {
     const id = await t.addPane('shell');
     if (!id) return null;
-    // Beri shell waktu menampilkan prompt sebelum perintah dikirim.
+    
     await new Promise((r) => setTimeout(r, 700));
     pane = t.findPane(id);
   }
@@ -141,7 +130,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       const content = String(args.content ?? '');
       if (!filePath) throw new Error('file_write: path kosong');
       await cmd.fsWrite(filePath, content);
-      // Sinkronkan ke tab editor bila sedang terbuka
+      
       const st = useStore.getState();
       const tab = st.tabs.find((t) => t.path === filePath);
       if (tab) {
@@ -214,7 +203,11 @@ export const AGENT_TOOLS: AgentTool[] = [
     },
     run: async (args) => {
       const nodes = await cmd.scanDir(String(args.path));
-      return nodes.map((n) => (n.isDir ? `${n.name}/` : n.name)).join('\n') || '(kosong)';
+      if (nodes.length === 0) return '(kosong)';
+      const potong = nodes.slice(0, FILE_LIST_MAX);
+      const teks = potong.map((n) => (n.isDir ? `${n.name}/` : n.name)).join('\n');
+      if (nodes.length <= FILE_LIST_MAX) return teks;
+      return `${teks}\n\n[... dan ${nodes.length - FILE_LIST_MAX} entri lain tidak ditampilkan. Sebut sub-folder spesifik kalau butuh daftar lengkapnya.]`;
     },
   },
   {
@@ -321,7 +314,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       return todos.map((t, i) => `${i + 1}. [${t.status}] ${t.content}`).join('\n');
     },
   },
-  // ── skill (1.1.11) ──
+  
   {
     spec: {
       name: 'skill_list',
@@ -382,8 +375,7 @@ export const AGENT_TOOLS: AgentTool[] = [
         content: String(args.content ?? ''),
         scope: args.scope ? String(args.scope) : undefined,
       });
-      // Cache konteks memuat daftar skill lama — buang supaya langkah
-      // berikutnya di percakapan ini sudah melihat skill yang baru.
+      
       const { resetKonteksAgent } = await import('./aiStore');
       resetKonteksAgent();
       return `Skill disimpan: ${path}`;
@@ -406,7 +398,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       return `Skill '${nama}' dihapus.`;
     },
   },
-  // ── memori (1.1.11) ──
+  
   {
     spec: {
       name: 'memory_read',
@@ -459,7 +451,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       return `Memori '${section}' diperbarui (${action}). ${hasil.length} karakter total.`;
     },
   },
-  // ── tugas terjadwal (1.1.11) ──
+  
   {
     spec: {
       name: 'cron_create',

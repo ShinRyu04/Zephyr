@@ -1,15 +1,3 @@
-// SubAgentView.tsx — tab panel SUBAGENTS (T4.1).
-//
-// KENAPA dipindah dari panel AI ke tab sendiri: sebelumnya chat + TODO + kartu
-// subagent + form tugas paralel semuanya hidup di satu panel AI, dan hasilnya
-// menumpuk — keluhan user. Di tab sendiri:
-//   * chat tetap bersih (hanya percakapan + langkah agent)
-//   * subagent dapat ruang lebar: grid 3-4 kolom, bukan 2
-//   * bisa ditutup tanpa menutup AI panel
-//
-// Isinya tetap memakai SubAgentPanel + SubAgentBar yang sudah ada, jadi tidak
-// ada logika yang diduplikasi — hanya tata letaknya yang berubah.
-
 import SubAgentPanel from '../ai/SubAgentPanel';
 import SubAgentBar from '../ai/SubAgentBar';
 import ModelSelector from '../ai/ModelSelector';

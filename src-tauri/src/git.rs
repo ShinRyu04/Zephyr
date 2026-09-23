@@ -1,22 +1,3 @@
-// git.rs — Source Control (fase 10).
-//
-// KEPUTUSAN IMPLEMENTASI (final, jangan diganti tanpa uji ulang):
-// memakai **git CLI** (`git.exe` yang sudah ada di PATH), bukan gix/git2.
-// Alasan: perilakunya identik dengan yang user lihat di terminal, mendukung
-// credential helper, rename detection, dan konflik merge tanpa kita
-// implementasikan ulang. Output dibaca dari `--porcelain=v2 -z` supaya
-// stabil antar versi git dan aman untuk path berspasi/unicode.
-//
-// Aturan lintas fase yang dipegang di sini:
-//   * SEMUA operasi git diserialisasi (satu proses git sekaligus) lewat
-//     `AppState.git_lock` — dua agent MCP tidak boleh saling menimpa index.
-//   * timeout 30s per perintah; proses yang menggantung dibunuh (pohonnya).
-//   * `GIT_TERMINAL_PROMPT=0`: git TIDAK boleh menunggu input user di stdin
-//     (tanpa ini push ke remote berkredensial menggantung selamanya).
-//   * `git push --force` tidak tersedia — tidak ada jalurnya sama sekali.
-//   * error git dikembalikan sebagai ZephyrError::Git dengan stderr apa
-//     adanya (sudah cukup ramah), bukan panic.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -28,20 +9,17 @@ use tauri::{AppHandle, Emitter, State};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 
-// ───────────────────────── bentuk data ─────────────────────────
-
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GitChange {
-    /// path relatif ke root repo, separator '/'
     pub path: String,
-    /// M A D R C U T ? — satu huruf, sudut pandang grup ini
+
     pub status: String,
-    /// true = entri ini ada di index (Staged Changes)
+
     pub staged: bool,
     pub is_new: bool,
     pub is_deleted: bool,
-    /// nama lama saat rename (status R)
+
     pub orig_path: Option<String>,
 }
 
@@ -51,14 +29,14 @@ pub struct GitStatus {
     pub is_repo: bool,
     pub repo_root: Option<String>,
     pub branch: Option<String>,
-    /// nama upstream (mis. "origin/main"); None = belum di-set
+
     pub upstream: Option<String>,
     pub ahead: u32,
     pub behind: u32,
     pub changes: Vec<GitChange>,
-    /// true bila repo punya remote bernama origin
+
     pub has_remote: bool,
-    /// ada file dalam kondisi konflik merge
+
     pub conflicted: bool,
 }
 
@@ -88,16 +66,12 @@ pub struct GitUser {
     pub email: Option<String>,
 }
 
-// ───────────────────────── eksekusi git ─────────────────────────
-
 struct GitOut {
     ok: bool,
     stdout: String,
     stderr: String,
 }
 
-/// Jalankan git di `cwd`. `extra` = argumen `-c ...` yang disisipkan sebelum
-/// subcommand (dipakai untuk credential helper saat push/pull ke GitHub).
 fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd);
@@ -106,14 +80,13 @@ fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
     }
     cmd.args(args);
     cmd.env("GIT_TERMINAL_PROMPT", "0");
-    // Pesan git harus stabil untuk di-parse & ditampilkan.
+
     cmd.env("LC_ALL", "C");
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     #[cfg(windows)]
     {
-        // CREATE_NO_WINDOW: jangan memunculkan jendela konsol hitam.
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x0800_0000);
     }
@@ -151,8 +124,6 @@ fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
 
 #[cfg(windows)]
 fn kill_tree(pid: u32) {
-    // CREATE_NO_WINDOW: tanpa ini taskkill memunculkan jendela konsol sekejap
-    // setiap kali operasi git dibatalkan.
     use std::os::windows::process::CommandExt;
     let mut c = Command::new("taskkill");
     c.args(["/PID", &pid.to_string(), "/T", "/F"])
@@ -167,9 +138,6 @@ fn kill_tree(pid: u32) {
     let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
 }
 
-/// Emit `git-progress` { op, phase } — fase 14.4. Payload kecil & idempoten:
-/// frontend hanya perlu tahu operasi apa yang mulai/selesai supaya bisa
-/// menampilkan spinner tanpa menebak dari `busy` sendiri.
 fn progress(app: &AppHandle, op: &str, phase: &str) {
     let _ = app.emit(
         "git-progress",
@@ -177,7 +145,6 @@ fn progress(app: &AppHandle, op: &str, phase: &str) {
     );
 }
 
-/// Bungkus satu operasi jaringan: emit start/end + catat durasi ke log.
 fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -> ZResult<T> {
     progress(app, op, "start");
     let t0 = std::time::Instant::now();
@@ -196,14 +163,12 @@ fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -
     out
 }
 
-/// Workspace aktif; semua command git bekerja relatif ke sini.
 fn ws(state: &AppState) -> ZResult<PathBuf> {
     state
         .workspace_path()
         .ok_or_else(|| ZephyrError::Git("belum ada workspace terbuka".into()))
 }
 
-/// Jalankan git di workspace dengan lock (satu proses git sekaligus).
 fn git(state: &AppState, args: &[&str]) -> ZResult<String> {
     git_extra(state, args, &[])
 }
@@ -218,15 +183,12 @@ fn git_extra(state: &AppState, args: &[&str], extra: &[String]) -> ZResult<Strin
     Ok(out.stdout)
 }
 
-/// Versi yang mengembalikan stderr walau exit code != 0 (dipakai untuk
-/// operasi yang "gagal wajar", mis. pull dengan konflik).
 fn git_soft(state: &AppState, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
     let dir = ws(state)?;
     let _guard = state.git_permit()?;
     run_git_in(&dir, args, extra)
 }
 
-/// Rapikan pesan error git supaya bisa dibaca user, tanpa membocorkan token.
 fn clean_err(stderr: &str, stdout: &str) -> String {
     let raw = if stderr.trim().is_empty() {
         stdout
@@ -245,18 +207,17 @@ fn clean_err(stderr: &str, stdout: &str) -> String {
     } else {
         msg
     };
-    // Jaring pengaman: kalau ada URL berkredensial, buang bagian rahasianya.
+
     scrub_url_credentials(&msg)
 }
 
-/// `https://user:token@host/...` → `https://host/...`
 pub fn scrub_url_credentials(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(pos) = rest.find("://") {
         let (head, tail) = rest.split_at(pos + 3);
         out.push_str(head);
-        // batas host = spasi/'/' pertama
+
         let end = tail
             .find(|c: char| c.is_whitespace() || c == '/')
             .unwrap_or(tail.len());
@@ -270,8 +231,6 @@ pub fn scrub_url_credentials(s: &str) -> String {
     out.push_str(rest);
     out
 }
-
-// ───────────────────────── parsing status ─────────────────────────
 
 fn push_change(
     changes: &mut Vec<GitChange>,
@@ -293,8 +252,6 @@ fn push_change(
     });
 }
 
-/// Parse `git status --porcelain=v2 --branch -z`.
-/// Dipisah dari command supaya bisa diuji tanpa repo (tests_git.rs).
 pub fn parse_status_v2(raw: &str) -> (Option<String>, Option<String>, u32, u32, Vec<GitChange>) {
     let mut branch = None;
     let mut upstream = None;
@@ -317,7 +274,6 @@ pub fn parse_status_v2(raw: &str) -> (Option<String>, Option<String>, u32, u32, 
             } else if let Some(v) = h.strip_prefix("branch.upstream ") {
                 upstream = Some(v.to_string());
             } else if let Some(v) = h.strip_prefix("branch.ab ") {
-                // "+2 -1"
                 for tok in v.split_whitespace() {
                     if let Some(n) = tok.strip_prefix('+') {
                         ahead = n.parse().unwrap_or(0);
@@ -329,7 +285,6 @@ pub fn parse_status_v2(raw: &str) -> (Option<String>, Option<String>, u32, u32, 
             continue;
         }
 
-        // ordinary: 1 XY sub mH mI mW hH hI path
         if let Some(body) = rec.strip_prefix("1 ") {
             let f: Vec<&str> = body.splitn(8, ' ').collect();
             if f.len() < 8 {
@@ -344,7 +299,6 @@ pub fn parse_status_v2(raw: &str) -> (Option<String>, Option<String>, u32, u32, 
             continue;
         }
 
-        // renamed/copied: 2 XY sub mH mI mW hH hI Xscore path \0 origPath
         if let Some(body) = rec.strip_prefix("2 ") {
             let f: Vec<&str> = body.splitn(9, ' ').collect();
             if f.len() < 9 {
@@ -360,7 +314,6 @@ pub fn parse_status_v2(raw: &str) -> (Option<String>, Option<String>, u32, u32, 
             continue;
         }
 
-        // unmerged: u XY sub m1 m2 m3 mW h1 h2 h3 path
         if let Some(body) = rec.strip_prefix("u ") {
             let f: Vec<&str> = body.splitn(10, ' ').collect();
             if f.len() < 10 {
@@ -370,18 +323,14 @@ pub fn parse_status_v2(raw: &str) -> (Option<String>, Option<String>, u32, u32, 
             continue;
         }
 
-        // untracked: ? path
         if let Some(path) = rec.strip_prefix("? ") {
             push_change(&mut changes, path, '?', false, None);
             continue;
         }
-        // '!' (ignored) tidak diminta — dilewati.
     }
 
     (branch, upstream, ahead, behind, changes)
 }
-
-// ───────────────────────── commands ─────────────────────────
 
 #[tauri::command(async)]
 pub fn git_init(state: State<AppState>, path: Option<String>) -> ZResult<()> {
@@ -397,11 +346,10 @@ pub fn git_init(state: State<AppState>, path: Option<String>) -> ZResult<()> {
     }
     state.ensure_writable(&dir)?;
     let _guard = state.git_permit()?;
-    // Branch awal mengikuti settings.git.defaultBranch bila ada.
+
     let default_branch = crate::settings::git_default_branch(&state);
     let out = run_git_in(&dir, &["init", "-b", &default_branch], &[])?;
     if !out.ok {
-        // git < 2.28 tidak punya -b; ulangi tanpa flag itu.
         let retry = run_git_in(&dir, &["init"], &[])?;
         if !retry.ok {
             return Err(ZephyrError::Git(clean_err(&retry.stderr, &retry.stdout)));
@@ -433,7 +381,6 @@ pub fn git_status(state: State<AppState>) -> ZResult<GitStatus> {
 
     let root = run_git_in(&dir, &["rev-parse", "--show-toplevel"], &[])?;
     if !root.ok {
-        // Bukan repo — ini kondisi normal (empty state UI), bukan error.
         return Ok(GitStatus {
             is_repo: false,
             repo_root: None,
@@ -494,7 +441,7 @@ fn non_empty(paths: &[String]) -> ZResult<Vec<&str>> {
     if v.is_empty() {
         return Err(ZephyrError::InvalidInput("tidak ada path".into()));
     }
-    // '--' sudah dipasang pemanggil; path tidak boleh dimulai '-'.
+
     if v.iter().any(|p| p.starts_with('-')) {
         return Err(ZephyrError::InvalidInput("path tidak valid".into()));
     }
@@ -515,8 +462,7 @@ pub fn git_unstage(state: State<AppState>, paths: Vec<String>) -> ZResult<()> {
     let p = non_empty(&paths)?;
     let mut args = vec!["restore", "--staged", "--"];
     args.extend(p);
-    // `restore --staged` gagal di repo tanpa commit (belum ada HEAD) →
-    // pakai `rm --cached` sebagai jalur kedua.
+
     match git(&state, &args) {
         Ok(_) => Ok(()),
         Err(_) => {
@@ -535,7 +481,7 @@ pub fn git_commit(state: State<AppState>, message: String) -> ZResult<String> {
     if msg.is_empty() {
         return Err(ZephyrError::InvalidInput("pesan commit kosong".into()));
     }
-    // Identitas: kalau repo/global belum diisi, pakai settings.git (fase 08).
+
     let mut extra: Vec<String> = Vec::new();
     let user = read_user(&state)?;
     if user.name.is_none() || user.email.is_none() {
@@ -558,12 +504,6 @@ pub fn git_commit(state: State<AppState>, message: String) -> ZResult<String> {
     Ok(head.trim().to_string())
 }
 
-/// Argumen `-c credential.helper=...` untuk operasi jaringan.
-///
-/// Hanya disisipkan bila remote-nya github.com DAN Zephyr punya token.
-/// Di luar itu tidak ada yang diinjeksi sama sekali, sehingga credential
-/// manager milik user (GCM) tetap menangani host lain seperti biasa
-/// (invariant V15: `git push` dari terminal tidak boleh berubah perilaku).
 fn credential_args(state: &AppState) -> Vec<String> {
     let url = remote_url(state).unwrap_or_default();
     if !is_github_https(&url) {
@@ -577,8 +517,6 @@ fn credential_args(state: &AppState) -> Vec<String> {
         Err(_) => return vec![],
     };
     vec![
-        // kosongkan daftar helper lalu pasang milik Zephyr saja: hasilnya
-        // deterministik (tidak tergantung urutan helper global user).
         "credential.helper=".to_string(),
         format!("credential.helper=!\"{exe}\" git-credential"),
     ]
@@ -616,8 +554,6 @@ fn push_inner(state: &AppState, set_upstream: Option<bool>) -> ZResult<String> {
         git_soft(state, &["push"], &extra)?
     };
     if !out.ok {
-        // 401 di tengah operasi & token OAuth kadaluarsa → refresh lalu
-        // coba SEKALI lagi (bukan loop).
         if looks_like_auth_error(&out.stderr) && crate::github::try_refresh(state) {
             let retry = if set_upstream.unwrap_or(false) {
                 git_soft(state, &["push", "-u", "origin", &branch], &extra)?
@@ -739,10 +675,7 @@ fn valid_branch_name(name: &str) -> ZResult<String> {
     if n.is_empty() {
         return Err(ZephyrError::InvalidInput("nama branch kosong".into()));
     }
-    // Tolak yang jelas berbahaya sebelum git menolaknya sendiri.
-    // CATATAN fase 15.3: '/' TETAP DIIZINKAN — "feat/ui" adalah nama branch
-    // yang sah dan dropdown/checkout harus bekerja untuknya. Yang dilarang
-    // hanya bentuk yang membuat git bingung atau bisa dibaca sebagai flag.
+
     if n.starts_with('-')
         || n.contains("..")
         || n.contains(' ')
@@ -769,7 +702,7 @@ fn valid_branch_name(name: &str) -> ZResult<String> {
 #[tauri::command(async)]
 pub fn git_checkout(state: State<AppState>, branch: String) -> ZResult<()> {
     let b = valid_branch_name(&branch)?;
-    // Branch remote: buat local tracking-nya sekalian.
+
     if let Some(short) = b.strip_prefix("origin/") {
         let exists = git(&state, &["branch", "--list", short])
             .map(|s| !s.trim().is_empty())
@@ -824,19 +757,14 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
         vec!["diff", "--no-color", "--", p]
     };
     let out = git(&state, &args)?;
-    // FASE 15.3: file biner. `git diff` untuk PNG membalas satu baris
-    // "Binary files a/x.png and b/x.png differ" — kalau itu dilempar apa adanya
-    // ke viewer, `kindOf()` menandainya sebagai baris konteks dan tidak jelas
-    // bagi user. Ganti dengan blok berlabel + ukuran supaya jelas dan tidak
-    // ada byte mentah yang pernah masuk DOM.
+
     if out.contains("Binary files ") || out.contains("GIT binary patch") {
         return Ok(binary_diff_note(&state, p, &out));
     }
     if !out.trim().is_empty() {
         return Ok(out);
     }
-    // File untracked tidak punya diff. Buat unified diff sintetis supaya
-    // viewer tetap bisa menampilkan isinya sebagai baris '+'.
+
     if !staged {
         if let Some(root) = state.workspace_path() {
             let full = root.join(p.replace('/', std::path::MAIN_SEPARATOR_STR));
@@ -851,8 +779,6 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
     Ok(out)
 }
 
-/// Blok pengganti diff untuk file biner (fase 15.3). Menyertakan ukuran file
-/// di worktree bila masih ada, supaya user tetap dapat informasi berguna.
 fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
     let size = state
         .workspace_path()
@@ -865,7 +791,7 @@ fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
         Some(n) => format!("{n} B"),
         None => "ukuran tidak diketahui".to_string(),
     };
-    // Baris "index ..." dari git tetap dibawa (berguna), sisanya dibuang.
+
     let index_line = raw
         .lines()
         .find(|l| l.starts_with("index "))
@@ -882,11 +808,10 @@ fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
     s
 }
 
-/// Diff buatan untuk file baru (belum dilacak git).
 fn synth_new_file_diff(rel: &str, full: &Path) -> String {
     const MAX_LINES: usize = 2000;
     let content = std::fs::read(full).unwrap_or_default();
-    // File biner: jangan tampilkan isinya.
+
     if content.iter().take(8192).any(|b| *b == 0) {
         return format!("diff --git a/{rel} b/{rel}\nnew file\nBinary file (tidak ditampilkan)\n");
     }
@@ -914,12 +839,11 @@ fn synth_new_file_diff(rel: &str, full: &Path) -> String {
 #[tauri::command(async)]
 pub fn git_discard(state: State<AppState>, paths: Vec<String>) -> ZResult<()> {
     let p = non_empty(&paths)?;
-    // File terlacak: kembalikan ke HEAD (worktree + index).
+
     let mut args = vec!["checkout", "--"];
     args.extend(p.clone());
     let tracked_err = git(&state, &args).err();
 
-    // File untracked: `checkout --` gagal untuk mereka; hapus filenya.
     let mut removed_any = false;
     for rel in &p {
         let is_untracked = git(&state, &["ls-files", "--error-unmatch", "--", rel]).is_err();
@@ -950,12 +874,11 @@ pub fn git_discard(state: State<AppState>, paths: Vec<String>) -> ZResult<()> {
 #[tauri::command(async)]
 pub fn git_log(state: State<AppState>, n: Option<u32>) -> ZResult<Vec<GitCommitInfo>> {
     let count = n.unwrap_or(30).clamp(1, 200).to_string();
-    // %x1f = unit separator, %x1e = record separator → aman untuk subject
-    // yang memuat tab/pipe. %p = parent hashes
+
     let fmt = "--pretty=format:%h%x1f%s%x1f%an%x1f%ad%x1f%D%x1f%p%x1e";
     let raw = match git(&state, &["log", &format!("-n{count}"), "--date=short", fmt]) {
         Ok(r) => r,
-        // Repo baru tanpa commit: `git log` gagal — itu bukan error UI.
+
         Err(_) => return Ok(vec![]),
     };
     let mut out = Vec::new();

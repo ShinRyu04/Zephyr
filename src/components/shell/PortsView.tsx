@@ -1,9 +1,3 @@
-// PortsView.tsx — tabel port forward (fase 20).
-//
-// Sumber otomatis (SSH, task fase 23) memanggil `usePorts.add()`.
-// Di fase ini hanya "Add Port" manual yang bisa membuat entri, dan itu memang
-// scope-nya — tabel + aksinya yang harus benar sekarang.
-
 import { useState } from 'react';
 import { usePorts, type ForwardedPort } from '../../lib/portsStore';
 import { useTerminal } from '../../lib/terminalStore';
@@ -20,7 +14,7 @@ export default function PortsView() {
   const addPane = useTerminal((s) => s.addPane);
 
   const [hostPort, setHostPort] = useState('');
-  /** id baris yang port lokalnya sedang diedit */
+  
   const [edit, setEdit] = useState<string | null>(null);
   const [nilaiEdit, setNilaiEdit] = useState('');
 
@@ -44,8 +38,7 @@ export default function PortsView() {
   };
 
   const bukaDiBrowser = async (p: ForwardedPort) => {
-    // Pakai browser pane fase 12 — bukan browser sistem. Itu gunanya pane
-    // browser ada: preview tanpa keluar dari editor.
+    
     const url = `${p.protocol}://localhost:${p.hostPort}`;
     try {
       await addPane('browser', { url });

@@ -1,17 +1,11 @@
-// simpleDiff.ts — diff baris sederhana untuk pratinjau "Terapkan" (A-6).
-//
-// Bukan unified diff lengkap: yang dibutuhkan hanya daftar baris ber-tanda
-// (sama / tambah / hapus) untuk diwarnai hijau-merah di UI. LCS penuh mahal,
-// jadi di atas ambang baris dipakai pembandingan posisi-per-posisi.
-
 export type DiffKind = 'same' | 'add' | 'del';
 
 export interface DiffRow {
   kind: DiffKind;
   text: string;
-  /** nomor baris di sisi lama (null untuk baris tambahan) */
+
   a: number | null;
-  /** nomor baris di sisi baru (null untuk baris yang dihapus) */
+
   b: number | null;
 }
 
@@ -62,7 +56,6 @@ export function barisDiff(lama: string, baru: string): DiffRow[] {
   return out;
 }
 
-/** Ringkasan jumlah baris berubah; dipakai untuk label tombol pratinjau. */
 export function ringkasDiff(rows: DiffRow[]): { tambah: number; hapus: number } {
   let tambah = 0;
   let hapus = 0;

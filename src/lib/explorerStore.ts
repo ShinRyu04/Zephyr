@@ -1,7 +1,3 @@
-// explorerStore.ts — state Explorer & Search (fase 04).
-// Dipisah dari store.ts supaya store editor tetap ramping; keduanya
-// saling memanggil lewat import biasa (bukan lewat komponen).
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
@@ -9,7 +5,6 @@ import { notifyError, notifyInfo } from './notificationStore';
 import type { DirNode, SearchHit } from './types';
 import { tx } from './i18n';
 
-/** Menu konteks yang sedang tampil (posisi viewport + target). */
 export interface CtxMenu {
   x: number;
   y: number;
@@ -17,32 +12,30 @@ export interface CtxMenu {
   isDir: boolean;
 }
 
-/** Input inline untuk New File / New Folder / Rename. */
 export interface InlineEdit {
   kind: 'new-file' | 'new-folder' | 'rename';
-  /** folder tempat item dibuat, atau path item yang di-rename */
+  
   target: string;
   initial: string;
 }
 
 interface ExplorerState {
-  /** children per folder; key = path folder */
+  
   children: Record<string, DirNode[]>;
-  /** folder yang terbuka */
+  
   expanded: Record<string, boolean>;
-  /** path yang dipilih (multi-select) */
+  
   selected: string[];
-  /** anchor untuk Shift+klik */
+  
   anchor: string | null;
   loading: Record<string, boolean>;
   ctxMenu: CtxMenu | null;
   inlineEdit: InlineEdit | null;
-  /** pesan error terakhir dari operasi file */
+  
   explorerError: string | null;
-  /** FASE 27: path yang menunggu konfirmasi hapus (null = tidak ada dialog) */
+  
   pendingDelete: string[] | null;
 
-  // search
   query: string;
   glob: string;
   caseSensitive: boolean;
@@ -60,7 +53,7 @@ interface ExplorerActions {
   toggleExpand: (path: string) => Promise<void>;
   collapseAll: () => void;
   refreshAll: () => Promise<void>;
-  /** re-scan hanya folder yang berubah (dipakai watcher) */
+  
   refreshDir: (dir: string) => Promise<void>;
 
   select: (path: string, mode: 'single' | 'ctrl' | 'shift', visibleOrder: string[]) => void;
@@ -71,8 +64,7 @@ interface ExplorerActions {
   commitInline: (value: string) => Promise<void>;
 
   deletePaths: (paths: string[]) => Promise<void>;
-  /** FASE 27: minta konfirmasi hapus lewat dialog dalam-app (bukan
-   *  `window.confirm` yang memblokir dan tidak bisa di-tema/diuji). */
+  
   askDelete: (paths: string[]) => void;
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;
@@ -80,7 +72,6 @@ interface ExplorerActions {
   reveal: (path: string) => Promise<void>;
   copyPath: (path: string) => Promise<void>;
 
-  // search
   setQuery: (q: string) => void;
   setGlob: (g: string) => void;
   setReplaceWith: (r: string) => void;
@@ -118,7 +109,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   ctxMenu: null,
   inlineEdit: null,
   explorerError: null,
-  /** FASE 27: path yang menunggu konfirmasi hapus (null = tidak ada). */
+  
   pendingDelete: null,
 
   query: '',
@@ -132,7 +123,6 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   truncated: false,
   searchError: null,
 
-  // ── tree ──
   loadDir: async (path, force = false) => {
     if (!force && get().children[path]) return;
     set((s) => ({ loading: { ...s.loading, [path]: true } }));
@@ -174,14 +164,13 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   },
 
   refreshDir: async (dir) => {
-    // Hanya re-scan bila folder itu sedang ditampilkan.
+    
     const ws = useStore.getState().workspace;
     const isVisible = dir === ws || get().expanded[dir];
     if (!isVisible) return;
     await get().loadDir(dir, true);
   },
 
-  // ── seleksi ──
   select: (path, mode, visibleOrder) => {
     const { selected, anchor } = get();
     if (mode === 'ctrl') {
@@ -258,10 +247,9 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
         ctxMenu: null,
         explorerError: null,
       }));
-      // Tutup tab file yang dihapus (termasuk yang ada di dalam folder).
+      
       useStore.getState().closeTabsUnder(paths);
-      // FASE 27: laporkan lewat notifikasi terpusat, bukan hanya status bar
-      // yang gampang tertimpa. Riwayatnya tersimpan di Notification Center.
+      
       notifyInfo(
         paths.length === 1
           ? `Dihapus: ${baseOf(paths[0])}`
@@ -275,7 +263,6 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     }
   },
 
-  /** FASE 27: buka dialog konfirmasi hapus (menggantikan `window.confirm`). */
   askDelete: (paths) => {
     if (paths.length === 0) return;
     set({ pendingDelete: paths, ctxMenu: null });
@@ -292,8 +279,8 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   movePath: async (from, toDir) => {
     const src = from.replace(/[\\/]+$/, '');
     const dest = toDir.replace(/[\\/]+$/, '');
-    if (dirOf(src) === dest) return; // sudah di folder itu
-    // Jangan pindahkan folder ke dalam dirinya sendiri / turunannya.
+    if (dirOf(src) === dest) return; 
+    
     if (dest === src || dest.toLowerCase().startsWith(`${src.toLowerCase()}\\`)) {
       set({ explorerError: 'tidak bisa memindahkan folder ke dalam dirinya sendiri' });
       return;
@@ -333,7 +320,6 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     set({ ctxMenu: null });
   },
 
-  // ── search ──
   setQuery: (q) => set({ query: q }),
   setGlob: (g) => set({ glob: g }),
   setReplaceWith: (r) => set({ replaceWith: r }),

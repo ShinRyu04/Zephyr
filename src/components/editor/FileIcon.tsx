@@ -1,6 +1,3 @@
-// FileIcon.tsx — ikon jenis file inline SVG (tanpa library ikon berat).
-// Warna dari token tema; huruf inisial dipakai untuk membedakan bahasa.
-
 import type { LangId } from '../../lib/types';
 import { adaIconTheme, ikonUntukExt } from '../../lib/extLoader';
 
@@ -59,12 +56,10 @@ export default function FileIcon({
 }: {
   lang: LangId;
   size?: number;
-  /** nama file — dipakai icon theme dari ekstensi (fase 19) */
+  
   name?: string;
 }) {
-  // Icon theme ekstensi MENIMPA glyph/warna bawaan kalau ada entri untuk
-  // ekstensi file ini (aturan 19.5: ekstensi menambah/menimpa tampilan, dan
-  // icon theme memang gunanya begitu). Tanpa nama file, pakai bawaan.
+  
   const dariExt = (() => {
     if (!name || !adaIconTheme()) return null;
     const dot = name.lastIndexOf('.');

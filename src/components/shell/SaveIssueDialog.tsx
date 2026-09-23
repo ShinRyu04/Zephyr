@@ -1,15 +1,6 @@
-// SaveIssueDialog.tsx — dialog dua kasus simpan (fase 15.1):
-//   missing : file tab sudah tidak ada di disk saat Ctrl+S → "buat baru?"
-//   utf16   : tab UTF-16 read-only → "tulis ulang sebagai UTF-8?"
-//
-// Kenapa dialog terpisah dari ConfirmDialog: yang itu soal "buang perubahan",
-// ini soal "menulis file yang tidak seperti yang kamu kira" — teks bahayanya
-// harus spesifik.
-
 import { useEffect, useRef } from 'react';
 import { useStore } from '../../lib/store';
-// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
-// screen reader — ia TIDAK mengurung fokus keyboard.
+
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useT } from '../../lib/i18n';
 
@@ -23,8 +14,6 @@ export default function SaveIssueDialog() {
     if (issue) okRef.current?.focus();
   }, [issue]);
 
-  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
-  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
   const trapRef = useFocusTrap<HTMLDivElement>({
     aktif: !!issue,
     onEscape: () => void resolve('cancel'),

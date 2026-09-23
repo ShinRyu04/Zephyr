@@ -1,26 +1,16 @@
-// menu.ts — struktur menu bar (fase 18.1).
-//
-// Menu HANYA menunjuk commandId. Kalau command-nya tidak ada di
-// commandRegistry, item tetap TAMPIL tapi DISABLED — itu keputusan sadar dari
-// 18.1: user melihat fitur apa yang direncanakan, bukan menu yang berubah-ubah
-// isinya. Tidak ada jalur aksi kedua di luar COMMANDS (18.5).
-//
-// Accelerator TIDAK ditulis di sini. Menu bar mengambilnya dari
-// keybindingStore, jadi remap user langsung terlihat di label menu (V7).
-
 export interface MenuItem {
-  /** '-' = pemisah */
+  
   kind?: 'sep';
   label?: string;
   command?: string;
-  /** submenu (mis. View → Appearance) */
+  
   children?: MenuItem[];
 }
 
 export interface MenuDef {
-  /** label menu; huruf setelah '&' jadi mnemonic (Alt+huruf) */
+  
   label: string;
-  /** huruf mnemonic tanpa '&' */
+  
   mnemonic: string;
   items: MenuItem[];
 }
@@ -37,8 +27,7 @@ export const MENUS: MenuDef[] = [
       { label: 'Open File…', command: 'file.open' },
       { label: 'Open Folder…', command: 'file.openFolder' },
       SEP,
-      // fase 29: multi-root workspace. Ditempatkan di menu File karena itu
-      // tempat semua operasi "buka/simpan sesuatu" berada.
+      
       { label: 'Add Folder to Workspace…', command: 'workspace.addFolder' },
       { label: 'Remove Folder from Workspace', command: 'workspace.removeFolder' },
       { label: 'Open Workspace from File…', command: 'workspace.openFile' },
@@ -108,7 +97,7 @@ export const MENUS: MenuDef[] = [
           { label: 'Reset Zoom', command: 'view.zoomReset' },
           { label: 'Toggle Word Wrap', command: 'editor.wordWrap.toggle' },
           SEP,
-          // fase 24: editor extras — semuanya toggle yang tersimpan ke settings.
+          
           { label: 'Show Breadcrumbs', command: 'editor.breadcrumbs.toggle' },
           { label: 'Show Sticky Scroll', command: 'editor.stickyScroll.toggle' },
           { label: 'Show Minimap', command: 'editor.minimap.toggle' },
@@ -147,7 +136,7 @@ export const MENUS: MenuDef[] = [
       { label: 'Toggle Maximized Panel', command: 'workbench.action.toggleMaximizedPanel' },
       { label: 'Toggle Terminal', command: 'terminalPanel.focus' },
       SEP,
-      // fase 33: layout editor
+      
       { label: 'Split Editor Right', command: 'view.splitEditorRight' },
       { label: 'Join Editor Groups', command: 'view.joinEditorGroups' },
       SEP,
@@ -211,7 +200,7 @@ export const MENUS: MenuDef[] = [
       { label: 'Kill Active Pane', command: 'terminal.kill' },
       { label: 'Clear Terminal', command: 'terminal.clear' },
       SEP,
-      // Tasks (fase 23) — di menu Terminal, sama seperti VS Code.
+      
       { label: 'Run Build Task', command: 'tasks.runBuild' },
       { label: 'Run Task…', command: 'tasks.runTask' },
       { label: 'Terminate Task', command: 'tasks.terminate' },

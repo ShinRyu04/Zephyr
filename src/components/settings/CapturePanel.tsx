@@ -1,18 +1,3 @@
-// CapturePanel.tsx — Settings → MCP → Capture requests (T4.8).
-//
-// KENAPA ada: saat AI menjawab aneh (atau tidak menjawab), yang menentukan
-// adalah BODY yang benar-benar dikirim ke provider — bukan pesan yang diniatkan
-// user. Adapter menerjemahkan pesan ke bentuk provider, dan di situlah bug
-// biasanya bersembunyi (mis. Gemini butuh ?alt=sse, Anthropic butuh max_tokens).
-//
-// KENAPA ditampilkan mentah: ini alat debugging. Merapikan tampilannya berarti
-// menyembunyikan bagian yang justru dicari (header mana yang terkirim, field
-// apa yang ada di body).
-//
-// KEAMANAN: header Authorization / api-key / token sudah dibuang di Rust
-// sebelum disimpan. Panel ini TIDAK menerima apa pun yang sensitif — jadi
-// aman disalin ke laporan bug.
-
 import { useEffect, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useT } from '../../lib/i18n';
@@ -47,8 +32,7 @@ export default function CapturePanel() {
 
   useEffect(() => {
     void muat();
-    // Polling ringan: rekaman berubah karena aksi di panel lain (chat), bukan
-    // di sini — tanpa polling, user harus menutup-buka Settings untuk melihat.
+
     const t = window.setInterval(() => void muat(), 2500);
     return () => window.clearInterval(t);
   }, []);

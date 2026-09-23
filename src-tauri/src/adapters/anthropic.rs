@@ -1,12 +1,3 @@
-// adapters/anthropic.rs — Anthropic Messages API.
-//
-// Beda dari OpenAI:
-//   * header  : x-api-key + anthropic-version (bukan Bearer)
-//   * system  : field terpisah, TIDAK boleh jadi anggota messages
-//   * body    : max_tokens WAJIB
-//   * stream  : SSE dengan beberapa tipe event; teks ada di
-//               content_block_delta.delta.text
-
 use crate::adapters::{split_data_url, trim_base};
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ReasoningEffort, ToolCall, ToolSpec};
 use serde_json::{json, Value};
@@ -24,7 +15,6 @@ pub fn prepare(
         .filter(|b| !b.is_empty())
         .unwrap_or_else(|| "https://api.anthropic.com".to_string());
 
-    // Pesan system dipisahkan; sisanya harus berselang user/assistant.
     let mut system = String::new();
     let mut turns: Vec<Value> = Vec::new();
     for m in messages {
@@ -62,8 +52,6 @@ pub fn prepare(
         body["system"] = Value::String(system);
     }
 
-    // Item T1.1: extended thinking. Anthropic menolak `thinking` kalau
-    // max_tokens <= budget_tokens, jadi anggaran dibatasi di bawah max_tokens.
     if let Some(e) = effort {
         let budget = e.anthropic_budget().min(max_tokens.saturating_sub(1));
         if budget >= 1024 {
@@ -84,8 +72,6 @@ pub fn prepare(
     }
 }
 
-/// Request non-streaming + tools. Tool result dikemas sebagai
-/// user message dengan content block `tool_result` (aturan Anthropic).
 pub fn prepare_tools(
     model: &str,
     messages: &[AgentMsg],
@@ -150,7 +136,6 @@ pub fn prepare_tools(
         body["system"] = Value::String(system);
     }
 
-    // Item T1.1: extended thinking (mode agent).
     if let Some(e) = effort {
         let budget = e.anthropic_budget().min(max_tokens.saturating_sub(1));
         if budget >= 1024 {
@@ -170,7 +155,6 @@ pub fn prepare_tools(
     }
 }
 
-/// Parse jawaban non-streaming Anthropic (content blocks).
 pub fn parse_tool_response(v: &Value) -> AiToolResult {
     let mut content = String::new();
     let mut tool_calls = Vec::new();
@@ -205,9 +189,6 @@ pub fn parse_tool_response(v: &Value) -> AiToolResult {
     }
 }
 
-/// T1.1: potongan teks berpikir Anthropic (extended thinking).
-/// Bentuk event: content_block_delta dengan delta.type = "thinking_delta"
-/// dan teksnya di delta.thinking.
 pub fn extract_reasoning(v: &Value) -> Option<String> {
     if v.get("type").and_then(|t| t.as_str()) != Some("content_block_delta") {
         return None;
@@ -220,31 +201,25 @@ pub fn extract_reasoning(v: &Value) -> Option<String> {
 
 pub fn extract_delta(v: &Value) -> Option<String> {
     match v.get("type").and_then(|t| t.as_str()) {
-        // potongan teks streaming
         Some("content_block_delta") => v
             .pointer("/delta/text")
             .and_then(|x| x.as_str())
             .map(|s| s.to_string()),
-        // blok pertama kadang sudah membawa teks awal
+
         Some("content_block_start") => v
             .pointer("/content_block/text")
             .and_then(|x| x.as_str())
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string()),
-        // message_start / ping / message_delta / message_stop -> bukan teks
+
         _ => None,
     }
 }
 
-/// Akumulator stream mode agent (item 21).
-///
-/// Tool call Anthropic dikirim sebagai blok: `content_block_start` membawa
-/// id + nama, lalu `input_json_delta` menempel potongan JSON argumen. Blok
-/// teks dan blok tool bisa berselang, jadi keduanya dilacak per indeks blok.
 #[derive(Default)]
 pub struct ToolAcc {
     text: String,
-    /// (index blok, id, nama, argumen terkumpul)
+
     blocks: Vec<(u64, String, String, String)>,
 }
 
@@ -265,7 +240,7 @@ impl ToolAcc {
                         .and_then(|x| x.as_str())
                         .unwrap_or_default()
                         .to_string();
-                    // Sebagian gateway mengirim argumen awal di sini.
+
                     let awal = v
                         .pointer("/content_block/input")
                         .map(|i| i.to_string())

@@ -1,76 +1,50 @@
-// cli_ext.rs — subcommand CLI: `zephyr ext ...` + portable mode (T4.1, T4.2).
-//
-// KENAPA subcommand: memasang ekstensi lewat CLI membuat Zephyr bisa dipakai
-// dari skrip (CI, setup mesin baru, ansible). Tanpa ini, satu-satunya cara
-// memasang ekstensi adalah membuka window dan mengklik.
-//
-// MODE KONSOL: sama seperti `zephyr --help`, subcommand harus menangani
-// dirinya SENDIRI sebelum Tauri start — mencetak satu baris lalu membuka
-// window membuat editor berkedip di setiap pemanggilan skrip.
-//
-// PORTABLE MODE (T4.2): kalau ada file `portable` di sebelah exe, semua data
-// (settings, secrets, ssh, logs) disimpan di `data/` sebelah exe, bukan di
-// %APPDATA%. Ini membuat Zephyr bisa jalan dari USB tanpa meninggalkan jejak
-// di mesin yang dipakai.
-
 use std::path::{Path, PathBuf};
 
 use crate::errors::{ZResult, ZephyrError};
 
-/// Subcommand yang dikenali.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Sub {
-    /// `zephyr ext list` — daftar ekstensi terpasang
     ExtList,
-    /// `zephyr ext install <id|url>` — pasang ekstensi
+
     ExtInstall(String),
-    /// `zephyr ext remove <id>` — lepas ekstensi
+
     ExtRemove(String),
-    /// `zephyr ext registry [<url>]` — lihat/set URL registry
+
     ExtRegistry(Option<String>),
-    /// `zephyr info` — info instalasi (portable atau tidak)
+
     Info,
-    /// `zephyr ext` tanpa subcommand — tampilkan bantuan
+
     ExtHelp,
 }
 
-/// Deteksi apakah argv meminta subcommand.
-///
-/// Mengembalikan `None` kalau bukan subcommand (biar alur normal jalan).
 pub fn parse_sub(argv: &[String]) -> Option<Sub> {
     if argv.is_empty() {
         return None;
     }
-    // Subcommand hanya dikenali sebagai argumen PERTAMA. `zephyr file.ts ext`
-    // berarti membuka file bernama "ext", bukan subcommand.
+
     if argv[0] != "ext" && argv[0] != "info" {
         return None;
     }
     if argv[0] == "info" {
         return Some(Sub::Info);
     }
-    // argv[0] == "ext"
+
     match argv.get(1).map(|s| s.as_str()) {
         Some("list") | Some("ls") => Some(Sub::ExtList),
         Some("install") | Some("i") | Some("add") => match argv.get(2) {
             Some(x) if !x.starts_with('-') => Some(Sub::ExtInstall(x.clone())),
-            _ => Some(Sub::ExtInstall(String::new())), // kosong -> pesan cara pakai
+            _ => Some(Sub::ExtInstall(String::new())),
         },
         Some("remove") | Some("rm") | Some("uninstall") => match argv.get(2) {
             Some(x) if !x.starts_with('-') => Some(Sub::ExtRemove(x.clone())),
             _ => Some(Sub::ExtRemove(String::new())),
         },
         Some("registry") => Some(Sub::ExtRegistry(argv.get(2).cloned())),
-        // `zephyr ext` tanpa argumen = BANTUAN, bukan daftar. Kalau daftar,
-        // user yang salah ketik akan melihat "belum ada ekstensi" dan
-        // mengira tidak ada yang terpasang.
+
         _ => Some(Sub::ExtHelp),
     }
 }
 
-/// Apakah Zephyr berjalan dalam mode portable.
-///
-/// Penanda: file bernama `portable` (tanpa ekstensi) di folder exe.
 pub fn portable_aktif() -> bool {
     match std::env::current_exe() {
         Ok(exe) => exe
@@ -81,7 +55,6 @@ pub fn portable_aktif() -> bool {
     }
 }
 
-/// Folder data Zephyr: `data/` sebelah exe (portable) atau `%APPDATA%\zephyr`.
 pub fn dir_data() -> PathBuf {
     if portable_aktif() {
         if let Ok(exe) = std::env::current_exe() {
@@ -94,7 +67,6 @@ pub fn dir_data() -> PathBuf {
     PathBuf::from(appdata).join("zephyr")
 }
 
-/// Teks bantuan subcommand `ext`.
 pub fn teks_ext_help(warna: bool) -> String {
     let (a, d) = if warna {
         (crate::cli::ACCENT_PUB, crate::cli::DIM_PUB)
@@ -117,10 +89,6 @@ pub fn teks_ext_help(warna: bool) -> String {
     )
 }
 
-/// Baca daftar ekstensi terpasang dari registry user.
-///
-/// Format baris: `<id> <versi> <nama>` — cukup untuk CLI, dan tidak butuh
-/// parser JSON penuh di sini (registry.json sudah divalidasi saat ditulis).
 pub fn daftar_terpasang(dir: &Path) -> ZResult<Vec<(String, String, String)>> {
     let file = dir.join("extensions").join("installed.json");
     if !file.is_file() {
@@ -128,8 +96,7 @@ pub fn daftar_terpasang(dir: &Path) -> ZResult<Vec<(String, String, String)>> {
     }
     let teks = std::fs::read_to_string(&file)
         .map_err(|e| ZephyrError::Io(format!("gagal membaca {}: {e}", file.display())))?;
-    // Cari pola {"id":"x","versi":"y","nama":"z"} — tahan terhadap field
-    // tambahan yang ditulis versi Zephyr lain.
+
     let mut hasil = Vec::new();
     for blok in teks.split('{').skip(1) {
         let ambil = |kunci: &str| -> Option<String> {
@@ -147,15 +114,15 @@ pub fn daftar_terpasang(dir: &Path) -> ZResult<Vec<(String, String, String)>> {
         }
         hasil.push((
             id,
-            ambil("versi").or_else(|| ambil("version")).unwrap_or_default(),
+            ambil("versi")
+                .or_else(|| ambil("version"))
+                .unwrap_or_default(),
             ambil("nama").or_else(|| ambil("name")).unwrap_or_default(),
         ));
     }
     Ok(hasil)
 }
 
-/// Jalankan subcommand. Mengembalikan `true` kalau sudah ditangani (proses
-/// boleh keluar tanpa membuka window).
 pub fn jalankan(argv: &[String]) -> bool {
     let Some(sub) = parse_sub(argv) else {
         return false;
@@ -196,10 +163,6 @@ pub fn jalankan(argv: &[String]) -> bool {
         Sub::ExtHelp => teks_ext_help(warna),
         Sub::ExtInstall(x) if x.is_empty() => teks_ext_help(warna),
         Sub::ExtInstall(x) => {
-            // Pemasangan sebenarnya butuh state aplikasi (registry, unduhan,
-            // validasi). CLI hanya MEMANDU: mencetak perintah yang harus
-            // dijalankan di dalam app, supaya tidak ada dua jalur pemasangan
-            // yang bisa berbeda perilaku.
             format!(
                 "Untuk memasang \"{x}\":\n  \
                  1. buka Zephyr\n  \
@@ -272,25 +235,24 @@ mod tests {
             Some(Sub::ExtRegistry(Some("https://a/b.json".into())))
         );
         assert_eq!(parse_sub(&a(&["info"])), Some(Sub::Info));
-        // `zephyr ext` tanpa subcommand = bantuan.
+
         assert_eq!(parse_sub(&a(&["ext"])), Some(Sub::ExtHelp));
     }
 
     #[test]
     fn parse_sub_tidak_menyerobot_nama_file() {
-        // File bernama "ext" bukan subcommand.
         let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         assert_eq!(parse_sub(&a(&["main.ts"])), None);
         assert_eq!(parse_sub(&a(&["src/ext.rs"])), None);
         assert_eq!(parse_sub(&[]), None);
-        // "ext" harus argumen PERTAMA.
+
         assert_eq!(parse_sub(&a(&["--help", "ext"])), None);
     }
 
     #[test]
     fn parse_sub_install_tanpa_argumen_aman() {
         let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // Tidak boleh panik, dan flag tidak dianggap nama ekstensi.
+
         assert_eq!(
             parse_sub(&a(&["ext", "install"])),
             Some(Sub::ExtInstall(String::new()))
@@ -303,10 +265,12 @@ mod tests {
 
     #[test]
     fn dir_data_portable_mengikuti_exe() {
-        // Di mesin uji ini tidak ada file `portable` di folder exe test, jadi
-        // mode terpasang (APPDATA). Yang penting: hasilnya BUKAN kosong.
         let d = dir_data();
-        assert!(d.to_string_lossy().len() > 3, "dir data aneh: {}", d.display());
+        assert!(
+            d.to_string_lossy().len() > 3,
+            "dir data aneh: {}",
+            d.display()
+        );
         assert!(d.to_string_lossy().contains("zephyr") || portable_aktif());
     }
 

@@ -1,13 +1,3 @@
-// cmColor.ts — swatch warna inline + sorot unicode ambigu (fase 24).
-//
-// Color decorator: setiap #hex / rgb() / hsl() / nama CSS di viewport dapat
-// kotak kecil sebelum teksnya. Klik kotak = buka <input type="color"> asli;
-// perubahan MENULIS ULANG teks di dokumen (jadi terlihat di undo history).
-//
-// Dipakai MatchDecorator dari @codemirror/view supaya pencocokan regex hanya
-// jalan di viewport dan di-update inkremental — bukan memindai seluruh dokumen
-// tiap ketikan.
-
 import {
   Decoration,
   EditorView,
@@ -19,10 +9,6 @@ import {
 } from '@codemirror/view';
 import { RangeSetBuilder, type Extension } from '@codemirror/state';
 
-/* ══════════════ Color decorators ══════════════ */
-
-/** Nama warna CSS yang sering muncul di kode. Daftar penuh CSS ada 148 nama;
- *  yang jarang dipakai sengaja tidak dimuat agar regex tetap pendek. */
 const NAMA_WARNA: Record<string, string> = {
   black: '#000000',
   white: '#ffffff',
@@ -49,13 +35,13 @@ const NAMA_WARNA: Record<string, string> = {
 
 const RE_WARNA = new RegExp(
   [
-    // #rgb #rgba #rrggbb #rrggbbaa
+    
     String.raw`#[0-9a-fA-F]{3,8}\b`,
-    // rgb(…) / rgba(…)
+    
     String.raw`\brgba?\(\s*[^)\n]{1,60}\)`,
-    // hsl(…) / hsla(…)
+    
     String.raw`\bhsla?\(\s*[^)\n]{1,60}\)`,
-    // nama warna sebagai kata utuh
+    
     String.raw`\b(?:${Object.keys(NAMA_WARNA).join('|')})\b`,
   ].join('|'),
   'g',
@@ -64,7 +50,6 @@ const RE_WARNA = new RegExp(
 const clamp255 = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
 const dua = (n: number) => clamp255(n).toString(16).padStart(2, '0');
 
-/** hsl → rgb (h derajat, s/l persen 0..1). */
 const hslKeRgb = (h: number, s: number, l: number): [number, number, number] => {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = (((h % 360) + 360) % 360) / 60;
@@ -85,11 +70,6 @@ const hslKeRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255];
 };
 
-/**
- * Teks warna → `#rrggbb` untuk dipasang ke `<input type="color">`.
- * Mengembalikan null kalau tidak bisa diurai (mis. `rgb(var(--x))`) — swatch
- * tidak ditampilkan daripada menampilkan warna yang salah.
- */
 export const keHex6 = (raw: string): string | null => {
   const s = raw.trim().toLowerCase();
 
@@ -120,7 +100,7 @@ export const keHex6 = (raw: string): string | null => {
   if (s.startsWith('rgb')) {
     const v = angka(s);
     if (!v || v.length < 3) return null;
-    // Nilai persen sudah dibagi 100 di atas; kalikan balik ke 0..255.
+    
     const conv = (x: number) => (x <= 1 && !Number.isInteger(x) ? x * 255 : x);
     return `#${dua(conv(v[0]))}${dua(conv(v[1]))}${dua(conv(v[2]))}`;
   }
@@ -144,7 +124,6 @@ class SwatchWidget extends WidgetType {
     super();
   }
 
-  // Widget dengan nilai sama tidak dibuat ulang saat scroll.
   eq(other: SwatchWidget) {
     return other.warna === this.warna && other.from === this.from && other.to === this.to;
   }
@@ -157,8 +136,6 @@ class SwatchWidget extends WidgetType {
     el.title = `${this.warna} — klik untuk mengubah`;
     el.style.backgroundColor = this.warna;
 
-    // <input type="color"> asli disembunyikan di dalam swatch: dialog picker
-    // OS-nya gratis, tidak perlu menulis color picker sendiri.
     const inp = document.createElement('input');
     inp.type = 'color';
     inp.value = this.warna;
@@ -167,8 +144,7 @@ class SwatchWidget extends WidgetType {
     inp.setAttribute('aria-label', `Ubah warna ${this.warna}`);
 
     const terapkan = (nilai: string) => {
-      // Posisi dibaca ulang dari widget: dokumen bisa berubah sejak widget
-      // dibuat, dan menulis ke offset basi akan merusak teks lain.
+      
       const panjang = this.to - this.from;
       if (this.to > view.state.doc.length) return;
       const sekarang = view.state.doc.sliceString(this.from, this.to);
@@ -213,16 +189,6 @@ export const colorDecorators = (): Extension =>
     { decorations: (v) => v.deco },
   );
 
-/* ══════════════ Unicode highlight ══════════════ */
-
-/**
- * Karakter yang MIRIP ASCII tapi bukan ASCII — sumber bug yang sangat sulit
- * dilihat mata (mis. tanda kutip cerdas hasil copy dari Word, atau titik dua
- * Yunani di nama variabel). Plus karakter tak terlihat (zero-width, NBSP).
- *
- * Pasangan `char → yang disangka` dipakai untuk pesan tooltip, karena
- * "karakter ambigu" saja tidak memberi tahu user apa yang harus diperbaiki.
- */
 const AMBIGU: Record<string, string> = {
   '\u2018': "'",
   '\u2019': "'",

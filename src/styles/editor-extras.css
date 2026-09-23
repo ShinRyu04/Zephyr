@@ -2019,19 +2019,49 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 /* ── Kerapatan compact: baris lebih rapat (ala Layout Density VS Code) ──── */
+.app-body.is-compact {
+  --tabbar-h: 28px;
+  --statusbar-h: 20px;
+  --activitybar-w: 40px;
+}
+
+.app-body.is-compact .tab {
+  padding: 0 6px 0 8px;
+  font-size: 11.5px;
+  gap: 4px;
+}
+
+.app-body.is-compact .tabbar-new {
+  width: 24px;
+}
+
+.app-body.is-compact .statusbar {
+  font-size: 10.5px;
+  padding: 0 8px;
+}
+
+.app-body.is-compact .activitybar {
+  gap: 1px;
+  padding-top: 4px;
+}
+
+.app-body.is-compact .ab-btn {
+  height: 34px;
+}
+
+.app-body.is-compact .tree-row {
+  height: 20px;
+  font-size: 12px;
+}
+
 .app-body.is-compact .mb-menu .mb-top,
 .app-body.is-compact .dock-tab,
-.app-body.is-compact .pts-tab,
-.app-body.is-compact .tab {
+.app-body.is-compact .pts-tab {
   padding-top: 1px;
   padding-bottom: 1px;
 }
 
-.app-body.is-compact .statusbar {
-  height: 20px;
-  font-size: 10.5px;
-}
-
-.app-body.is-compact .activitybar {
-  gap: 2px;
+.app-body.is-compact .ai-msg {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }

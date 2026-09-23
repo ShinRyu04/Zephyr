@@ -1,6 +1,3 @@
-// StatusBar.tsx — baris bawah: versi, RAM, workspace, bahasa, encoding,
-// line ending, Ln/Col, pesan status. Tinggi 24px (token --statusbar-h).
-
 import { useEffect, useState } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
@@ -19,15 +16,13 @@ const ENC_LABEL: Record<string, string> = {
   ansi: 'Windows-1252',
 };
 
-/** Badge git (fase 10): branch + Σ perubahan + ↑↓, ikon berputar saat sibuk.
- *  Klik = buka panel Source Control. Tidak tampil bila bukan repo. */
 function GitBadge() {
   const tr = useT();
   const isRepo = useGit((s) => s.status?.isRepo ?? false);
   const branch = useGit((s) => s.status?.branch ?? null);
   const ahead = useGit((s) => s.status?.ahead ?? 0);
   const behind = useGit((s) => s.status?.behind ?? 0);
-  // Primitif, bukan array — selector zustand v5 tidak boleh bikin objek baru.
+
   const changes = useGit((s) => s.status?.changes.length ?? 0);
   const busy = useGit((s) => s.busy);
   const setActivity = useStore((s) => s.setActivity);
@@ -69,10 +64,8 @@ function GitBadge() {
   );
 }
 
-/** Ringkasan diagnostik (fase 20). Tetap tampil walau panel tertutup —
- *  itu gunanya: tahu ada error tanpa membuka panel. Klik = buka Problems. */
 function ProblemsBadge() {
-  // Primitif, bukan objek: selector zustand v5 dibandingkan dengan ===.
+
   const errors = useProblems((s) => {
     let n = 0;
     for (const list of s.byFile.values()) for (const d of list) if (d.severity === 'error') n++;
@@ -104,9 +97,6 @@ function ProblemsBadge() {
   );
 }
 
-/** Badge akun GitHub TIDAK di sini — pindah ke bawah ActivityBar (
- *  ala VS Code). StatusBar cukup GitBadge + ProblemsBadge. */
-
 export default function StatusBar() {
   const [version, setVersion] = useState('0.5.0');
   const ramBytes = useStore((s) => s.ramBytes);
@@ -133,9 +123,6 @@ export default function StatusBar() {
         /* event RAM tidak tersedia (mis. mode browser) */
       });
 
-    // fase 15.6: event `ram-usage` baru datang beberapa detik setelah start,
-    // jadi status bar sempat menampilkan '--'. Baca sekali dari Rust setelah
-    // 300ms supaya angkanya langsung ada dan tidak pernah NaN.
     const t = window.setTimeout(() => {
       void getDiagnostics()
         .then((d) => {
@@ -153,7 +140,6 @@ export default function StatusBar() {
     };
   }, [setRamBytes]);
 
-  // Number.isFinite menjaga terhadap NaN/Infinity dari sumber apa pun (15.6).
   const ramText =
     Number.isFinite(ramBytes) && ramBytes > 0 ? `${Math.round(ramBytes / 1024 / 1024)} MB` : '--';
 

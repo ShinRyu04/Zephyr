@@ -1,6 +1,3 @@
-// dialogs.rs — dialog native (open/save file, pilih folder).
-// Memakai tauri-plugin-dialog secara blocking di thread command.
-
 use crate::app_state::AppState;
 use crate::errors::ZResult;
 use tauri::{AppHandle, State};
@@ -25,7 +22,6 @@ pub fn file_dialog_open(
         builder.blocking_pick_file().map(|p| vec![p.to_string()])
     };
 
-    // Whitelist supaya file di luar workspace tetap bisa disimpan (ARCHITECTURE.md §7.1).
     if let Some(list) = &picked {
         for p in list {
             state.allow(std::path::Path::new(p));
@@ -76,8 +72,6 @@ pub fn folder_dialog_open(app: AppHandle, state: State<AppState>) -> ZResult<Opt
         .blocking_pick_folder()
         .map(|p| p.to_string());
     if let Some(p) = &picked {
-        // Folder yang dipilih user: hanya folder ITU yang di-whitelist.
-        // `allow()` akan ikut mengizinkan INDUK-nya (bug V2 fase 14).
         state.allow_exact(std::path::Path::new(p));
     }
     Ok(picked)

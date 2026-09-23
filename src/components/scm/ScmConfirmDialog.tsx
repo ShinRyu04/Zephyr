@@ -1,11 +1,6 @@
-// ScmConfirmDialog.tsx — konfirmasi operasi git yang tidak bisa di-undo
-// (fase 10 §10.3). Dipisah dari ConfirmDialog editor supaya teks bahayanya
-// spesifik: jumlah file + kata "PERMANEN".
-
 import { useEffect, useRef } from 'react';
 import { useGit } from '../../lib/gitStore';
-// fase 31: kurung fokus di dalam dialog. `aria-modal` hanya memberi tahu
-// screen reader — ia TIDAK mengurung fokus keyboard.
+
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useT } from '../../lib/i18n';
 
@@ -20,8 +15,6 @@ export default function ScmConfirmDialog() {
     if (confirm) okRef.current?.focus();
   }, [confirm]);
 
-  // Hook WAJIB di atas early return: dipanggil bersyarat membuat React
-  // melempar "Rendered fewer hooks than expected" saat dialog dibuka.
   const trapRef = useFocusTrap<HTMLDivElement>({
     aktif: !!confirm,
     onEscape: () => setConfirm(null),

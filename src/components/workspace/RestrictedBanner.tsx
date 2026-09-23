@@ -1,9 +1,3 @@
-// RestrictedBanner.tsx — banner "Restricted Mode" (fase 29).
-//
-// Dipasang di atas area editor, bukan di sidebar: sidebar bisa disembunyikan
-// dan banner keamanan tidak boleh ikut hilang. Selalu ada tombol Manage Trust
-// supaya keadaan ini bisa diubah dari tempat ia diberitakan.
-
 import { useWs } from '../../lib/workspaceStore';
 
 export default function RestrictedBanner() {

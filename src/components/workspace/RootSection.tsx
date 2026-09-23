@@ -1,10 +1,3 @@
-// RootSection.tsx — satu root di Explorer multi-root (fase 29).
-//
-// Satu komponen per root: header bisa dilipat, badge git/trust, dan aksi
-// per-root (jadikan aktif, hapus dari workspace). FileTree menerima prop
-// `root` supaya isinya benar-benar milik root itu — bukan tree global yang
-// difilter, karena `children` di explorerStore memang berkunci path.
-
 import { useState } from 'react';
 
 import { useStore } from '../../lib/store';

@@ -1,15 +1,3 @@
-// updaterStore.ts — auto-update dalam app (fase 17.6).
-//
-// Endpoint rilis AKTIF (GitHub Releases → latest.json, lihat tauri.conf.json),
-// jadi alur lengkap bisa diuji langsung dari app:
-//   idle → checking → available(versi) → downloading(%) → ready → (restart)
-//   idle → checking → up-to-date
-//   idle → checking → error (jaringan / endpoint mati)
-//
-// Status 'unconfigured' masih ada sebagai penjaga lama: kalau endpoint kosong
-// suatu saat, `check()` gagal dan diterjemahkan jadi pesan jelas, BUKAN crash
-// atau toast error berulang (syarat 17.6.e).
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { notifyInfo, useNotif } from './notificationStore';
@@ -27,17 +15,17 @@ export type UpdateStatus =
 
 interface UpdaterState {
   status: UpdateStatus;
-  /** versi yang tersedia (kalau ada) */
+
   version: string | null;
-  /** tanggal rilis (pub_date dari latest.json, opsional ala TEDI) */
+
   pubDate: string | null;
-  /** catatan rilis dari latest.json */
+
   notes: string | null;
-  /** persen unduhan 0..100 (hanya saat downloading) */
+
   progress: number;
-  /** pesan untuk ditampilkan (error / info) */
+
   message: string | null;
-  /** dialog "versi baru tersedia" terbuka */
+
   dialogOpen: boolean;
 }
 
@@ -49,14 +37,10 @@ interface UpdaterActions {
   reset: () => void;
 }
 
-/** Objek Update dari plugin, disimpan di luar store (bukan data serializable). */
 let updateObj: unknown = null;
 
 let lastNotified = '';
 
-/** true = pesan kegagalan ini berarti "endpoint belum dikonfigurasi", bukan
- *  masalah jaringan. Plugin melaporkannya sebagai error biasa, jadi kita
- *  kenali dari isinya. */
 function belumDikonfigurasi(pesan: string): boolean {
   const p = pesan.toLowerCase();
   return (
@@ -78,14 +62,9 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   message: null,
   dialogOpen: false,
 
-  /** `senyap` = dipanggil otomatis saat startup: kegagalan TIDAK ditampilkan
-   *  sebagai error (syarat 17.6.e — jangan spam toast saat offline). */
   check: async (opts) => {
     if (get().status === 'checking' || get().status === 'downloading') return;
-    // Cek update cuma untuk build RELEASE. Di mode dev (`tauri dev` /
-    // `npm run dev`) plugin updater ikut jalan, tapi installernya untuk
-    // build release — dipasang di atas build dev cuma bikin kacau. Skip
-    // penuh; panel Tetap kasih tahu kenapa.
+
     if (import.meta.env.DEV) {
       set({
         status: 'idle',
@@ -117,8 +96,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       });
       if (upd.version !== lastNotified) {
         lastNotified = upd.version;
-        // Lonceng cukup menampilkan ringkasan 1 baris — changelog lengkap
-        // ada di dialog (klik "Lihat & pasang"), bukan wall-of-text di toast.
+
         const ringkas = (upd.body ?? '')
           .split('\n')
           .map((l) => l.trim())

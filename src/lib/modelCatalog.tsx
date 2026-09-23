@@ -1,11 +1,3 @@
-// modelCatalog.tsx — katalog provider AI + model + logo brand.
-//
-// Dipakai bersama oleh: dropdown model di AI panel (fase 09),
-// Settings → Model AI (fase 08), dan StatusBar.
-//
-// apiKey TIDAK ADA di sini dan tidak pernah masuk store: key hidup di Rust
-// (`secrets.rs`), frontend hanya tahu `hasKey` + preview mask.
-
 import { memo } from 'react';
 
 export type LogoId =
@@ -20,25 +12,25 @@ export type LogoId =
 export interface ProviderModel {
   id: string;
   label: string;
-  /** keterangan kecil di dropdown (konteks/harga kasar) */
+
   note?: string;
-  /** jendela konteks (token) — ditampilkan di dropdown */
+
   ctx?: number;
-  /** batas token keluaran yang dikirim ke provider */
+
   maxOut?: number;
 }
 
 export interface ProviderInfo {
   id: string;
   label: string;
-  /** base URL resmi (bisa ditimpa user di Settings) */
+
   baseUrl: string;
-  /** nama env var yang lazim dipakai CLI provider ini */
+
   envKey: string;
-  /** logo brand yang dipakai untuk seluruh model provider ini */
+
   logo: LogoId;
   models: ProviderModel[];
-  /** true = user boleh mengetik nama model bebas (custom/local). */
+
   freeText?: boolean;
 }
 
@@ -151,7 +143,6 @@ export const PROVIDERS: ProviderInfo[] = [
 
 export const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
 
-/** Satu baris pilihan di dropdown AI panel: model + provider asalnya. */
 export interface ModelDef extends ProviderModel {
   provider: string;
   providerLabel: string;
@@ -160,7 +151,6 @@ export interface ModelDef extends ProviderModel {
   envKey: string;
 }
 
-/** Semua model dari semua provider, urut sesuai katalog. */
 export const ALL_MODELS: ModelDef[] = PROVIDERS.flatMap((p) =>
   p.models.map((m) => ({
     ...m,
@@ -174,8 +164,6 @@ export const ALL_MODELS: ModelDef[] = PROVIDERS.flatMap((p) =>
 
 export const MODEL_BY_ID = new Map(ALL_MODELS.map((m) => [m.id, m]));
 
-/** Cari model; kalau id tak dikenal (mis. model custom yang diketik user),
- *  kembalikan entri sintetis milik provider aktif supaya UI tidak kosong. */
 export function findModel(modelId: string, providerId?: string): ModelDef {
   const hit = MODEL_BY_ID.get(modelId);
   if (hit) return hit;
@@ -192,25 +180,20 @@ export function findModel(modelId: string, providerId?: string): ModelDef {
   };
 }
 
-/** Format ctx untuk label dropdown: 1_000_000 -> "1M", 128_000 -> "128K". */
 export function fmtCtx(ctx?: number): string {
   if (!ctx) return '';
   if (ctx >= 1_000_000) return `${ctx / 1_000_000}M ctx`;
   return `${Math.round(ctx / 1000)}K ctx`;
 }
 
-/** Logo brand provider. Warna brand resmi (pengecualian sah dari aturan
- *  "dilarang hex hardcoded" — ini identitas pihak ketiga, bukan token tema).
- *  Di-memo: satu baris daftar model me-render logo yang sama berkali-kali. */
 export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: string; size?: number }) {
   const p = { width: size, height: size, viewBox: '0 0 16 16', role: 'img' as const };
-  // Provider id maupun logo id keduanya diterima supaya pemanggil tidak
-  // perlu memetakan dua kali.
+
   const logo = PROVIDER_BY_ID.get(id)?.logo ?? (id as LogoId);
 
   switch (logo) {
     case 'gemini':
-      // Bintang 4-jari dengan gradien biru→magenta (identitas Gemini).
+
       return (
         <svg {...p} aria-label="Google Gemini">
           <defs>
@@ -227,7 +210,7 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
         </svg>
       );
     case 'openai':
-      // Bunga hexagon (6 kelopak) — outline, warna brand OpenAI.
+
       return (
         <svg {...p} aria-label="OpenAI">
           <path
@@ -248,7 +231,7 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
         </svg>
       );
     case 'anthropic':
-      // Huruf "A" berkaki lebar ala mark Anthropic (bukan bintang).
+
       return (
         <svg {...p} aria-label="Anthropic">
           <path
@@ -262,7 +245,7 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
         </svg>
       );
     case 'deepseek':
-      // Paus biru bergaya: lengkung badan + mata.
+
       return (
         <svg {...p} aria-label="DeepSeek">
           <path
@@ -276,7 +259,7 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
         </svg>
       );
     case 'opencode':
-      // Huruf 'o' dalam kurung kurawal — CLI lokal.
+
       return (
         <svg {...p} aria-label="opencode">
           <path

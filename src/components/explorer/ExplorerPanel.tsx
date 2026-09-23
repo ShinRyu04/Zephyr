@@ -1,6 +1,3 @@
-// ExplorerPanel.tsx — panel Explorer lengkap: header (nama workspace +
-// aksi), tree, dan empty state berisi daftar recent workspace.
-
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
 import { useWs } from '../../lib/workspaceStore';
@@ -67,9 +64,6 @@ export default function ExplorerPanel() {
   const refreshAll = useExplorer((s) => s.refreshAll);
   const startInline = useExplorer((s) => s.startInline);
 
-  // fase 29: multi-root. Selector mengembalikan PRIMITIF (panjang + gabungan
-  // path), bukan array baru — selector yang membuat array baru memicu
-  // "Maximum update depth exceeded" di zustand v5 (pelajaran fase 09).
   const jumlahRoot = useWs((s) => s.roots.length);
   const kunciRoots = useWs((s) => s.roots.map((r) => r.path).join('|'));
   const wsFile = useWs((s) => s.file);

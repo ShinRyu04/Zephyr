@@ -1,10 +1,3 @@
-// SectionsLsp.tsx — Settings → Language Server (fase 21).
-//
-// Yang bisa diatur user: master switch, batas idle, dan per bahasa
-// (aktif/mati + perintah). Kolom "Binary" memakai `lsp_probe` sehingga user
-// langsung tahu server mana yang belum dipasang — brief fase 21 menuntut
-// binary TIDAK dibundel installer, jadi UI wajib jujur soal ini.
-
 import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
@@ -29,7 +22,6 @@ export default function SectionsLsp() {
     void probeAll();
   }, [probeAll]);
 
-  // Daftar server hidup di-refresh berkala supaya kolom "Proses" nyata.
   useEffect(() => {
     let batal = false;
     const tarik = async () => {

@@ -1,8 +1,3 @@
-// ExtApprovalModal.tsx — dialog izin runtime eksternal ekstensi.
-// Muncul ketika worker ekstensi memanggil zephyr.exec() untuk runtime yang
-// belum di-whitelist. Ini SATU-SATUNYA pintu persetujuan: tanpa klik
-// "Izinkan", Rust menolak eksekusi apa pun.
-
 import { useState } from 'react';
 import { useExtApproval } from '../../lib/extApprovalStore';
 

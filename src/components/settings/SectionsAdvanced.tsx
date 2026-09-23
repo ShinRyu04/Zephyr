@@ -1,5 +1,3 @@
-// SectionsAdvanced.tsx — Shortcuts, Models, Agents (fase 08).
-
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
@@ -27,7 +25,6 @@ export function ShortcutsSection() {
   const conflict = useSettingsUi((s) => s.conflictWarning);
   const setConflict = useSettingsUi((s) => s.setConflictWarning);
 
-  // Capture keydown saat satu baris sedang menunggu input.
   useEffect(() => {
     if (!capturing) return;
     const onKey = (e: KeyboardEvent) => {
@@ -38,7 +35,7 @@ export function ShortcutsSection() {
         return;
       }
       const binding = eventToBinding(e);
-      if (!binding) return; // hanya modifier
+      if (!binding) return;
 
       const clash = findConflicts(capturing, binding, custom);
       if (clash.length > 0) {
@@ -49,15 +46,11 @@ export function ShortcutsSection() {
       void apply({ shortcuts: { ...custom, [capturing]: binding } });
       setCapturing(null);
     };
-    // capture:true supaya tidak keduluan handler global App.tsx
+
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [capturing, custom, apply, setCapturing, setConflict]);
 
-  // WAJIB: `capturing` mematikan SELURUH shortcut global (App.tsx sengaja
-  // berhenti agar tombol tidak dieksekusi saat direkam). Kalau section ini
-  // dilepas sementara masih merekam — mis. Settings ditutup setelah mencoba
-  // kombinasi yang bentrok — flag itu nyangkut dan semua shortcut app mati.
   useEffect(() => () => setCapturing(null), [setCapturing]);
 
   const groups = ['File', 'Edit', 'View', 'Terminal', 'AI', 'Git'] as const;
@@ -107,9 +100,7 @@ export function ShortcutsSection() {
                           className="btn btn-sm"
                           data-testid={`sc-reset-${a.id}`}
                           onClick={() => {
-                            // Kirim null, BUKAN objek tanpa key itu: settings.rs
-                            // memakai deep-merge, jadi menghilangkan key dari
-                            // objek yang dikirim tidak menghapus apa pun.
+
                             void apply({ shortcuts: { [a.id]: null } });
                           }}
                         >
@@ -131,20 +122,18 @@ export function ShortcutsSection() {
 export function ModelsSection() {
   const tr = useT();
   const models = useStore((s) => s.settings.models);
-  // `providers` bisa absen kalau settings di disk cacat atau ada patch parsial.
-  // Satu key yang hilang tidak boleh mematikan seluruh app (layar blank).
+
   const providers = models?.providers ?? {};
   const apply = useStore((s) => s.applySettings);
   const ui = useSettingsUi();
   const [draft, setDraft] = useState<Record<string, string>>({});
     const [suggestOpen, setSuggestOpen] = useState<string | null>(null);
       const [reveal, setReveal] = useState<string | null>(null);
-    // Model hasil "Refresh" dari provider (id → daftar model API), di-merge
-    // ke dropdown supaya katalog tidak ketinggalan zaman.
+
     const [remote, setRemote] = useState<Record<string, string[]>>({});
     const [fetching, setFetching] = useState<string | null>(null);
     const loaded = useRef(false);
-  // Bahasa jawaban AI: 'follow' | 'id' | 'en' | nama bahasa bebas.
+
   const answerLang = models.answerLang ?? 'follow';
   const answerBuiltin =
     answerLang === 'follow' || answerLang === 'id' || answerLang === 'en';
@@ -155,7 +144,6 @@ export function ModelsSection() {
       void ui.loadKeys();
     }, [ui]);
 
-    /** Muat daftar model langsung dari provider (tombol Refresh). */
     const refreshModels = async (p: ProviderInfo) => {
       setFetching(p.id);
       try {
@@ -448,9 +436,7 @@ export function ModelsSection() {
                                             value: m.id,
                                             label: m.note ? `${m.label} — ${m.note}` : m.label,
                                           })),
-                                          // Model hasil fetch dari provider (otomatis saat key
-                                          // disimpan + tombol Refresh): tanpa duplikat dengan
-                                          // katalog, ditandai "(API)".
+
                                           ...[...(remote[p.id] ?? []), ...(ui.remoteModels[p.id] ?? [])]
                                             .filter((id, i, a) => id && a.indexOf(id) === i)
                                             .filter((id) => !p.models.some((m) => m.id === id))
@@ -587,7 +573,7 @@ export function AgentsSection() {
                     className="btn btn-sm"
                     data-testid={`agent-cmd-reset-${ag.id}`}
                     onClick={() => {
-                      // null = hapus override (deep-merge di settings.rs).
+
                       void apply({ agents: { startCommands: { [ag.id]: null } } });
                     }}
                   >
@@ -603,21 +589,9 @@ export function AgentsSection() {
   );
 }
 
-/**
- * Settings → Subagent (T3.10).
- *
- * KENAPA section terpisah: batas paralel, batas langkah, dan izin menulis file
- * sebelumnya HARDCODE di subagentStore — user tidak bisa menyesuaikan tanpa
- * rebuild, padahal biaya API dan risiko tabrakan file sangat tergantung
- * ketiganya. Default tetap sama seperti konstanta lama.
- */
 export function SubagentSection() {
   const tr = useT();
-  // Fallback wajib: settings.json yang ditulis versi sebelum T3.10 tidak
-  // punya key `subagent`. Tanpa ini, akses propertinya melempar TypeError dan
-  // seluruh halaman Settings blank.
-  // Fallback DIPISAH dari selector: `?? { ... }` di dalam selector membuat
-  // objek baru tiap render -> render loop (aturan zustand v5).
+
   const sbRaw = useStore((s) => s.settings.subagent);
   const sb = sbRaw ?? {
     maxParallel: 4,
@@ -633,8 +607,6 @@ export function SubagentSection() {
   const sibuk = useSubAgent((s) => s.sibuk);
   const agents = useSubAgent((s) => s.agents);
 
-  // Jumlah subagent yang benar-benar berjalan — supaya user melihat efek
-  // setting-nya, bukan hanya angkanya.
   useEffect(() => {
     const t = setInterval(() => {
       const n = useSubAgent.getState().agents.filter(

@@ -1,23 +1,17 @@
-// portsStore.ts — daftar port yang di-forward (fase 20).
-//
-// Fase 07 (SSH) dan fase 23 (Tasks) yang memanggil `add()` saat mereka
-// benar-benar membuka forward. Fase 20 hanya menyediakan tabel + aksi manual,
-// jadi entri "manual" adalah satu-satunya yang bisa dibuat dari UI sekarang.
-
 import { create } from 'zustand';
 
 export type PortProtocol = 'http' | 'https';
 export type PortSource = 'ssh' | 'task' | 'debug' | 'manual';
 
 export interface ForwardedPort {
-  /** id internal supaya baris tetap stabil saat hostPort diubah */
+  
   id: string;
   hostPort: number;
   privatePort: number;
   protocol: PortProtocol;
   process: string;
   source: PortSource;
-  /** mis. nama sesi SSH */
+  
   forwarder: string;
   status: 'running' | 'stopped';
 }
@@ -32,7 +26,7 @@ interface PortsActions {
   remove: (id: string) => void;
   update: (id: string, patch: Partial<Omit<ForwardedPort, 'id'>>) => void;
   list: () => ForwardedPort[];
-  /** URL yang dipakai tombol "buka di browser" / "salin URL" */
+  
   urlFor: (id: string) => string;
   setError: (m: string | null) => void;
   clear: () => void;
@@ -47,7 +41,7 @@ export const usePorts = create<PortsState & PortsActions>((set, get) => ({
   add: (p) => {
     const id = p.id ?? `port-${++seq}`;
     set((s) => {
-      // Port host yang sama tidak boleh dobel — kalau ada, perbarui saja.
+      
       const idx = s.ports.findIndex((x) => x.hostPort === p.hostPort);
       const entri: ForwardedPort = { ...p, id };
       if (idx >= 0) {

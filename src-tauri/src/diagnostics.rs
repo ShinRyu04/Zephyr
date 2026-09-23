@@ -1,9 +1,3 @@
-// diagnostics.rs — command untuk About → Diagnostics (fase 14.5/14.6).
-//
-// Isinya angka yang benar-benar diukur di proses ini: RAM, uptime, jumlah
-// pane/lock, path file log, penanda perf, dan status panic. Tidak ada data
-// yang dikirim ke luar mesin (larangan telemetri di AGENTS.md §7).
-
 use crate::app_state::{AppState, PerfMark};
 use crate::errors::ZResult;
 use serde::Serialize;
@@ -13,56 +7,52 @@ use tauri::State;
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostics {
-    /// versi paket (Cargo.toml)
     pub version: String,
-    /// umur proses (ms)
+
     pub uptime_ms: u64,
-    /// RAM proses ini saja (byte) — angka yang dipakai StatusBar
+
     pub ram_bytes: u64,
-    /// RAM TOTAL: proses ini + turunan WebView2 (byte). Ini yang cocok dengan
-    /// Task Manager; `ram_bytes` sendiri hanya ~1/5 dari kenyataan.
+
     pub ram_total_bytes: u64,
-    /// RAM total tertinggi yang tercatat sejak start (byte)
+
     pub ram_peak_bytes: u64,
-    /// jumlah sesi PTY hidup
+
     pub pty_count: usize,
-    /// port MCP yang listening (0 = mati)
+
     pub mcp_port: u16,
-    /// file log hari ini
+
     pub log_file: String,
-    /// ukuran file log (byte)
+
     pub log_bytes: u64,
-    /// build debug (true) atau release (false)
+
     pub debug: bool,
-    /// sudah pernah panic di sesi ini?
+
     pub panicked: bool,
-    /// pesan panic terakhir ("" = belum ada)
+
     pub last_panic: String,
-    /// penanda perf (startup, workspace_open, ...)
+
     pub marks: Vec<PerfMark>,
-    /// penghitung operasi (fs_write, git, pty_spawn, ...)
+
     pub counters: HashMap<String, u64>,
-    /// FASE 16.5: nama + versi OS
+
     pub os: String,
-    /// FASE 16.5: RAM fisik mesin (byte)
+
     pub host_ram_bytes: u64,
-    /// FASE 16.5: jumlah CPU logis
+
     pub cpu_count: usize,
-    /// FASE 16.5: status ringkas per domain (fs/pty/git/mcp/ai/extensions/log)
+
     pub domains: Vec<DomainStatus>,
 }
 
-/// Satu baris tabel status domain (fase 16.5).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DomainStatus {
     pub id: String,
-    /// "ok" | "warn" | "off"
+
     pub level: String,
     pub detail: String,
 }
 
-/// Hasil satu mini-test `self_test` (fase 16.5).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelfTestItem {
@@ -72,12 +62,6 @@ pub struct SelfTestItem {
     pub detail: String,
 }
 
-/// RAM proses sendiri — dibaca dari sampel thread sampler (settings.rs).
-///
-/// JANGAN memanggil sysinfo di sini. `get_diagnostics` yang membuat
-/// `sysinfo::System::new()` sendiri membuat proses Zephyr KELUAR SENDIRI saat
-/// command ini dipanggil berulang (terbukti di V8 fase 14: app mati setelah
-/// ~1 menit polling tiap 30s). Sampler sudah menyegarkan angkanya tiap 3 detik.
 fn self_ram() -> u64 {
     crate::settings::ram_last()
 }
@@ -109,9 +93,7 @@ pub fn get_diagnostics(state: State<AppState>) -> ZResult<Diagnostics> {
         last_panic: crate::logging::last_panic(),
         marks: state.perf_marks(),
         counters: state.counters(),
-        // FASE 16.5: info host dibaca dari sampler (sysinfo statis), BUKAN dengan
-        // membuat `sysinfo::System` baru di sini — itu yang membuat app keluar
-        // sendiri saat command ini dipolling (pelajaran V8 fase 14).
+
         os: crate::settings::host_os(),
         host_ram_bytes: crate::settings::host_ram_total(),
         cpu_count: crate::settings::host_cpu_count(),
@@ -119,11 +101,6 @@ pub fn get_diagnostics(state: State<AppState>) -> ZResult<Diagnostics> {
     })
 }
 
-/// FASE 16.5: status ringkas tiap domain untuk tabel Diagnostics.
-///
-/// Semua nilai dibaca dari state/PATH yang sudah ada — tidak ada operasi berat
-/// (tidak menjalankan git, tidak menyentuh jaringan), supaya panel ini aman
-/// di-refresh tiap 3 detik.
 fn domain_status(state: &AppState) -> Vec<DomainStatus> {
     let baris = |id: &str, level: &str, detail: String| DomainStatus {
         id: id.to_string(),
@@ -132,13 +109,11 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
     };
     let mut out = Vec::new();
 
-    // fs / workspace
     match state.workspace_path() {
         Some(p) => out.push(baris("fs", "ok", format!("workspace {}", p.display()))),
         None => out.push(baris("fs", "warn", "belum ada workspace terbuka".into())),
     }
 
-    // pty
     let n = state.pty_count();
     out.push(baris(
         "pty",
@@ -150,7 +125,6 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         },
     ));
 
-    // git — hanya cek keberadaan folder .git (murah).
     let git_ok = state
         .workspace_path()
         .map(|p| p.join(".git").exists())
@@ -165,13 +139,11 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         },
     ));
 
-    // mcp
     match state.mcp_port() {
         Some(p) => out.push(baris("mcp", "ok", format!("listening :{p}"))),
         None => out.push(baris("mcp", "off", "server mati".into())),
     }
 
-    // ai — provider aktif + apakah ada key (tanpa membuka key-nya)
     let cfg = crate::settings::read_settings_value(state);
     let prov = cfg
         .get("models")
@@ -189,7 +161,6 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         ),
     ));
 
-    // extensions
     let ext_n = cfg
         .get("extensions")
         .and_then(|e| e.get("enabled"))
@@ -198,7 +169,6 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         .unwrap_or(0);
     out.push(baris("extensions", "ok", format!("{ext_n} aktif")));
 
-    // log
     let lf = crate::logging::log_file_path();
     match lf {
         Some(p) if p.exists() => {
@@ -211,12 +181,6 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
     out
 }
 
-/// FASE 16.5: self-test cepat. Menjalankan mini-test nyata untuk tiap domain
-/// dan mengembalikan hasilnya — bukan klaim "OK" dari konfigurasi.
-///
-/// Sengaja SEMUANYA murah dan tidak menyentuh jaringan: fs tulis+baca+hapus di
-/// data dir, pty spawn+kill, `git --version` (bukan operasi repo), dan cek
-/// socket MCP dari dalam proses. Aman dijalankan user kapan pun.
 #[tauri::command(async)]
 pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
     let mut out: Vec<SelfTestItem> = Vec::new();
@@ -226,7 +190,6 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
         (ok, detail, t0.elapsed().as_millis() as u64)
     };
 
-    // 1) fs: tulis → baca → hapus di data dir (selalu boleh ditulis).
     let (ok, detail, ms) = ukur(&|| {
         let p = state.data_dir.join("selftest.tmp");
         let isi = "zephyr-selftest";
@@ -252,8 +215,6 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
         detail,
     });
 
-    // 2) pty: shell benar-benar bisa di-resolve (tanpa spawn, supaya tidak
-    //    meninggalkan proses kalau kill gagal).
     let (ok, detail, ms) = ukur(&|| match crate::pty::list_shells() {
         Ok(v) if !v.is_empty() => (
             true,
@@ -276,7 +237,6 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
         detail,
     });
 
-    // 3) git: binary ada & bisa dijalankan.
     let (ok, detail, ms) = ukur(&|| {
         let mut c = crate::proc::cmd("git");
         c.arg("--version");
@@ -295,7 +255,6 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
         detail,
     });
 
-    // 4) mcp: kalau menyala, socket-nya harus benar-benar menerima koneksi.
     let (ok, detail, ms) = ukur(&|| match state.mcp_port() {
         Some(p) => match std::net::TcpStream::connect_timeout(
             &std::net::SocketAddr::from(([127, 0, 0, 1], p)),
@@ -313,7 +272,6 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
         detail,
     });
 
-    // 5) log: file log bisa ditulis (baris uji benar-benar masuk).
     let (ok, detail, ms) = ukur(&|| {
         tracing::info!(target: "selftest", "self-test menulis satu baris");
         match crate::logging::log_file_path() {
@@ -336,12 +294,8 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
     Ok(out)
 }
 
-/// Frontend melaporkan error yang tidak tertangkap (`window.onerror` /
-/// `unhandledrejection`) supaya jejaknya ada di file log yang sama —
-/// tanpa ini masalah di WebView hilang begitu app ditutup.
 #[tauri::command(async)]
 pub fn log_frontend(level: String, message: String) -> ZResult<()> {
-    // Batasi panjang: pesan dari WebView bisa memuat stack raksasa.
     let msg: String = message.chars().take(4000).collect();
     match level.as_str() {
         "error" => tracing::error!(target: "webview", "{msg}"),
@@ -351,7 +305,6 @@ pub fn log_frontend(level: String, message: String) -> ZResult<()> {
     Ok(())
 }
 
-/// Catat satu penanda perf dari frontend (mis. "ui-ready", "tab-mount").
 #[tauri::command(async)]
 pub fn perf_mark(state: State<AppState>, name: String, dur_ms: Option<u64>) -> ZResult<()> {
     let n: String = name.chars().take(64).collect();
@@ -359,8 +312,6 @@ pub fn perf_mark(state: State<AppState>, name: String, dur_ms: Option<u64>) -> Z
     Ok(())
 }
 
-/// Sengaja panik — HANYA build debug (V7 fase 14). Di release command ini
-/// mengembalikan error, jadi tidak ada jalur untuk mematikan app dari UI.
 #[tauri::command(async)]
 pub fn debug_panic() -> ZResult<()> {
     #[cfg(debug_assertions)]

@@ -1,16 +1,3 @@
-// TerminalArea.tsx — isi panel bawah untuk dock Terminal/AI.
-//
-// FASE 20: dirender DI DALAM Panel.tsx (`embedded`), jadi resizer + tinggi panel
-// dipegang Panel. Mode non-embedded dipertahankan supaya komponen ini masih bisa
-// dipakai berdiri sendiri.
-//
-// FASE 24.1 (tata letak ala VS Code, permintaan user):
-//   * Tombol [+ ▾] / [⋮] pindah ke baris tab panel (PanelTabStrip) — lihat
-//     TerminalOps. Tidak ada lagi baris `.term-header` di sini.
-//   * Daftar tab terminal jadi kolom VERTIKAL di sisi kanan (TerminalSideTabs),
-//     dan hanya tampil kalau tab terminal ≥ 2.
-//   * DockSwitch (Terminal | AI) tetap satu baris tipis di atas isi.
-
 import { useCallback, useEffect, useRef } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import PaneGrid, { PaneEmpty } from '../terminal/PaneGrid';
@@ -29,11 +16,10 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
 
   const dragging = useRef(false);
 
-  // Drag divider horizontal (tinggi panel).
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
-      // 24px = tinggi StatusBar (token --statusbar-h)
+
       setHeight(window.innerHeight - e.clientY - 24);
     };
     const onUp = () => {
@@ -49,7 +35,6 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
     };
   }, [setHeight]);
 
-  // Toast hilang sendiri setelah 3.5s.
   useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast(null), 3500);
@@ -63,7 +48,6 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
 
   const paneCount = tabs.reduce((n, t) => n + t.panes.length, 0);
 
-  // Dalam mode embedded, visibilitas & tinggi diurus Panel.tsx.
   if (!visible && !embedded) {
     return (
       <button
@@ -79,12 +63,6 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
 
   const active = tabs.find((t) => t.id === activeTabId) ?? null;
 
-  // Pane di kiri, daftar tab vertikal di kanan (kolomnya null kalau < 2 tab).
-  //
-  // T4.11: AI tidak lagi hidup di dalam tab Terminal. Sebelumnya ada pemilih
-  // Terminal|AI (DockSwitch) di sini, dan itu membuat tab AI tersembunyi satu
-  // tingkat — user harus membuka Terminal dulu untuk menemukannya. Sekarang AI
-  // adalah tab tersendiri di strip panel, jadi isi komponen ini murni terminal.
   const isi = (
     <div className="term-split">
       <div className="term-body">{active ? <PaneGrid tab={active} /> : <PaneEmpty />}</div>

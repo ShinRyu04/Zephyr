@@ -1,49 +1,33 @@
-// extensionsStore19.ts — state ExtensionsView (fase 19).
-//
-// Beda dengan extensionStore.ts (fase 13): file itu mengurus daftar bawaan +
-// toggle `settings.extensions.enabled` untuk paket gaya `package.json`. Fase 19
-// mengurus paket NATIVE (`zephyr-extension.json`): katalog bundled, install /
-// uninstall / enable, pencarian, dan panel Details.
-//
-// Keduanya sengaja hidup berdampingan: fase 13 sudah dipakai Settings dan
-// harness verify13, dan menggabungkannya berarti mengubah kontrak yang sudah
-// terbukti. Yang dibagi cuma Rust-nya (folder extensions/ yang sama).
-//
-// Catatan zustand v5 (pelajaran fase 09/12): selector DILARANG membuat
-// array/objek baru. Semua daftar turunan dihitung lewat FUNGSI (`hasil()`,
-// `terpasang()`), bukan selector.
-
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { KATALOG_BUNDLED, type KatalogItem } from './extCatalog';
 import { muatSemuaEkstensi, ringkasanLoader, type LoaderRingkasan } from './extLoader';
 import type { ExtManifestStatus } from './types';
 
-/** Tab di ExtensionsView. */
 export type ExtTab = 'installed' | 'recommended' | 'marketplace';
 
 interface Ext19State {
-  /** hasil `extensions_manifests` — sumber kebenaran apa yang terpasang */
+  
   manifests: ExtManifestStatus[];
   loading: boolean;
   q: string;
   tab: ExtTab;
-  /** id yang panel Details-nya terbuka */
+  
   detailFor: string | null;
-  /** id yang menu roda-giginya terbuka */
+  
   menuFor: string | null;
   err: string | null;
   info: string | null;
-  /** true = ada perubahan yang butuh Reload Window (19.4) */
+  
   perluReload: boolean;
-  /** ringkasan kontribusi hasil loader */
+  
   ringkasan: LoaderRingkasan;
-  /** URL registry remote; kosong = marketplace nonaktif (19.3) */
+  
   remoteUrl: string;
-  /** hasil fetch remote; null = belum/ tidak tersedia */
+  
   remote: KatalogItem[] | null;
   remoteErr: string | null;
-  /** filter kategori tab Marketplace; '' = semua */
+  
   kategori: string;
 }
 
@@ -64,21 +48,18 @@ interface Ext19Actions {
   reloadWindow: () => void;
   muatRemote: () => Promise<void>;
 
-  // ── turunan (FUNGSI, bukan selector) ──
-  /** Ekstensi terpasang (punya manifest valid). */
   terpasang: () => ExtManifestStatus[];
-  /** Yang rusak / manifest tidak terbaca. */
+  
   rusak: () => ExtManifestStatus[];
-  /** Hasil filter pencarian untuk tab aktif. */
+  
   hasil: () => KatalogItem[];
-  /** Rekomendasi berdasar bahasa yang ada di workspace. */
+  
   rekomendasi: () => KatalogItem[];
   sudahTerpasang: (id: string) => ExtManifestStatus | null;
 }
 
 export type Ext19Store = Ext19State & Ext19Actions;
 
-/** Bahasa yang terdeteksi di workspace — diisi ExtensionsView dari explorer. */
 let bahasaWorkspace: string[] = [];
 export const setBahasaWorkspace = (l: string[]) => {
   bahasaWorkspace = l;
@@ -97,7 +78,6 @@ const cocok = (it: KatalogItem, q: string) => {
   );
 };
 
-/** Tebak apakah sebuah item registry (Open VSX) butuh runtime eksternal. */
 export const useExt19 = create<Ext19Store>((set, get) => ({
   manifests: [],
   loading: false,
@@ -109,8 +89,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   info: null,
   perluReload: false,
   ringkasan: ringkasanLoader(),
-  // Registry native Zephyr. URL remote (kalau ada) dibaca backend dari
-  // settings.extensions.registryUrl — bukan hardcode open-vsx.org lagi.
+  
   remoteUrl: '',
   remote: null,
   remoteErr: null,
@@ -120,8 +99,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
     set({ loading: true });
     try {
       const manifests = await cmd.extensionsManifests();
-      // Loader dijalankan ulang supaya kontribusi (command/snippet) langsung
-      // ikut berubah tanpa reload untuk hal-hal yang memang bisa panas.
+      
       const ringkasan = await muatSemuaEkstensi();
       set({ manifests, ringkasan, loading: false, err: null });
     } catch (e) {
@@ -154,10 +132,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   },
 
   installKatalog: async (item) => {
-    // Dua sumber: paket bundled (ditulis Zephyr sendiri, offline) ATAU
-    // unduhan .vsix dari registry remote (Open VSX). Untuk remote:
-    // 1. unduh file ke temp, 2. serahkan ke `extensions_install` yang sudah
-    //    handle .zip/.vsix lewat unzip_zext (zip-slip aman, fase 19).
+    
     try {
       if (item.bundled || !item.url) {
         const path = await cmd.extensionsWriteBundled(item.id);
@@ -208,7 +183,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
       await cmd.extensionsSetEnabled(id, on);
       await get().refresh();
       const m = get().sudahTerpasang(id)?.manifest;
-      // Tema/keymap/bahasa butuh reload; command & snippet tidak.
+      
       const berat =
         !!m &&
         (m.contributes.themes.length > 0 ||
@@ -232,17 +207,11 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   },
 
   muatRemote: async () => {
-    // Registry sekarang dibaca di BACKEND (ext_registry_list) — format index
-    // Zephyr sendiri, bukan Open VSX. Frontend cuma meneruskan pencarian;
-    // validasi, batas, dan penggabungan bundled+user+remote semua di Rust.
+    
     try {
       const arr = await cmd.extRegistryList(get().q);
       set({
-        // Petakan RegistryEntry (backend) ke KatalogItem (UI) — satu-satunya
-        // tempat bentuknya berbeda. `perluRuntime` tidak perlu lagi: registry
-        // Zephyr hanya berisi paket yang memang bisa dipasang.
-        // Entri tanpa `url` = paket bundled (ditulis extensions_write_bundled,
-        // bukan diunduh) → `bundled: true` supaya tombol Install aktif.
+        
         remote: arr.map((e) => ({
           id: e.id,
           name: e.name || e.id,
@@ -253,16 +222,14 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
           logo: e.logo || (e.name || e.id).slice(0, 2).toUpperCase(),
           logoUrl: e.iconUrl || undefined,
           logoColor: e.logoColor || undefined,
-          // Bahasa yang membuat paket ini direkomendasikan (tab Recommended
-          // membandingkan ini dengan bahasa file di workspace).
+          
           untukBahasa: e.languages.length > 0 ? e.languages : undefined,
           bundled: !e.url,
           url: e.url || undefined,
           unduhan: e.downloadCount || undefined,
           rating: e.rating || undefined,
         })),
-        // Registry backend selalu "tersedia" (bundled index selalu ada),
-        // jadi tab Marketplace tidak boleh lagi menulis "belum dikonfigurasi".
+        
         remoteUrl: 'native',
         remoteErr: null,
       });
@@ -281,9 +248,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
     if (bahasa.length === 0) return [];
     const cocokBahasa = (k: KatalogItem) =>
       k.untukBahasa && k.untukBahasa.some((b) => bahasa.includes(b));
-    // Gabung katalog bundled + marketplace (paket bahasa ada di marketplace,
-    // bukan katalog) — pasang yang belum terpasang dulu, sisanya sebagai
-    // saran kedua. Tanpa duplikat id.
+    
     const dariMarket = (get().remote ?? []).filter(cocokBahasa);
     const dariKatalog = KATALOG_BUNDLED.filter(cocokBahasa);
     const sudah = new Set(get().terpasang().map((s) => s.manifest!.id));
@@ -296,7 +261,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   hasil: () => {
     const { q, tab, remote, kategori } = get();
     if (tab === 'marketplace') {
-      // Hanya tampilkan item manifest-only (tidak butuh runtime eksternal).
+      
       const daftarRemote = (remote ?? []).filter((it) => !it.perluRuntime);
       return daftarRemote.filter(
         (it) => cocok(it, q) && (!kategori || it.categories.includes(kategori)),
@@ -305,7 +270,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
     if (tab === 'recommended') {
       return get().rekomendasi().filter((it) => cocok(it, q));
     }
-    // installed: katalog + yang benar-benar terpasang (termasuk non-katalog)
+    
     const dariKatalog = KATALOG_BUNDLED.filter((it) => cocok(it, q));
     const idKatalog = new Set(dariKatalog.map((x) => x.id));
     const tambahan: KatalogItem[] = [];
@@ -321,8 +286,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
         categories: m.categories.length > 0 ? m.categories : ['Other'],
         logo: (m.name || m.id).slice(0, 2).toUpperCase(),
         bundled: false,
-        // fase 33: icon asli ekstensi terpasang (file lokal) — daftar
-        // Installed ikut menampilkan logo seperti Marketplace.
+        
         logoUrl: st.iconPath || undefined,
       };
       if (cocok(it, q)) tambahan.push(it);

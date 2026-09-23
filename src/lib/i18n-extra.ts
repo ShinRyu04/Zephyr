@@ -1,13 +1,3 @@
-// i18n-extra.ts — terjemahan untuk teks yang sebelumnya hardcoded Indonesia.
-//
-// Dipisah dari i18n.ts supaya file 1000-baris itu tidak perlu ditulis ulang
-// (risiko besar: satu tulis ulang yang salah menghapus seluruh bahasa).
-// `translate()` menggabung DICTS[lang] dengan EXTRA[lang], jadi kunci di sini
-// menang dan bahasa lain tidak lagi menampilkan sisa bahasa Indonesia.
-//
-// Aturan: SETIAP bahasa wajib punya kunci yang sama. scripts/verify-i18n.mjs
-// memeriksa matriks ini juga.
-
 type Dict = Record<string, string>;
 
 const ID: Dict = {
@@ -22,14 +12,13 @@ const ID: Dict = {
   'Dukung Zephyr': 'Dukung Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': 'Auto-update memeriksa GitHub Releases berkala.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'Ubah lebar panel AI',
   'Lebarkan penuh': 'Lebarkan penuh',
   'Kembalikan ukuran': 'Kembalikan ukuran',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'Bawah',
   'Enter mengirim · Shift+Enter baris baru': 'Enter mengirim · Shift+Enter baris baru',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'code editor ringan, dibangun dari nol',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.',
   'Build': 'Build',
@@ -67,9 +56,9 @@ const ID: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'Header (tanpa kredensial)',
   'Salin request ini': 'Salin request ini',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Selalu ditempel di akhir prompt. Pakai ini untuk kebiasaan proyek kamu (mis. \'selalu pakai pnpm\', \'komentar dalam bahasa Indonesia\'). Bagian ini TIDAK menggantikan apa pun — ia ditambahkan.': 'Selalu ditempel di akhir prompt. Pakai ini untuk kebiasaan proyek kamu (mis. \'selalu pakai pnpm\', \'komentar dalam bahasa Indonesia\'). Bagian ini TIDAK menggantikan apa pun — ia ditambahkan.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'Prompt AI',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.',
   'Tool yang dikenalkan ke model': 'Tool yang dikenalkan ke model',
@@ -100,13 +89,13 @@ const ID: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").',
   'Sudah ada di daftar.': 'Sudah ada di daftar.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.',
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'belum ada',
   'Sembunyikan panel info subagent': 'Sembunyikan panel info subagent',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.',
   'Panel info — detail penuh ada di tab Subagents.': 'Panel info — detail penuh ada di tab Subagents.',
   'Info subagent di kanan chat': 'Info subagent di kanan chat',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'Pilih provider',
   'model': 'model',
   'bisa ketik bebas': 'bisa ketik bebas',
@@ -129,12 +118,12 @@ const ID: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'Ikut model chat — klik untuk memilih model khusus subagent',
   'Model subagent': 'Model subagent',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'total',
   'Belum ada subagent.': 'Belum ada subagent.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'Mode persetujuan',
   'Tidak boleh mengubah apa pun — hanya membaca': 'Tidak boleh mengubah apa pun — hanya membaca',
   'Minta izin': 'Minta izin',
@@ -156,17 +145,17 @@ const ID: Dict = {
   'Konteks terpakai': 'Konteks terpakai',
   'Jendela konteks': 'Jendela konteks',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'Perkiraan dari isi chat yang terlihat dan payload tool.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'Cari pemakaian fungsi X\nPeriksa bug di modul Y',
   'Status': 'Status',
   'tidak ada yang jalan': 'tidak ada yang jalan',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'hasil',
   'Berpikir…': 'Berpikir…',
   'Memikirkan langkah…': 'Memikirkan langkah…',
   'Tugas selesai.': 'Tugas selesai.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'Customize Layout',
   'Customize Layout…': 'Customize Layout…',
   'Terlihat': 'Terlihat',
@@ -178,17 +167,17 @@ const ID: Dict = {
   'Kanan': 'Kanan',
   'Kerapatan': 'Kerapatan',
   'Normal': 'Normal',
-  'Rapat': 'Rapat',
+  'Padat': 'Padat',
   'Zen Mode': 'Zen Mode',
   'Kembalikan tata letak bawaan': 'Kembalikan tata letak bawaan',
   'Sembunyikan panel AI': 'Sembunyikan panel AI',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'Perkecil',
   'Perbesar tampilan': 'Perbesar',
   'Tutup pratinjau': 'Tutup pratinjau',
   'Gambar gagal dimuat.': 'Gambar gagal dimuat.',
   'Gambar terlalu besar': 'Gambar terlalu besar',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'Belum ada host SSH',
   'Tambahkan host SSH dulu di panel SSH.': 'Tambahkan host SSH dulu di panel SSH.',
   'File': 'File',
@@ -200,7 +189,7 @@ const ID: Dict = {
   'Nyalakan tunnel': 'Nyalakan tunnel',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.',
   'Port tidak valid.': 'Port tidak valid.',
-  // ── T3.2: Database browser ──
+
   'Database': 'Database',
   'Path file SQLite (.db / .sqlite)': 'Path file SQLite (.db / .sqlite)',
   'Buka': 'Buka',
@@ -212,7 +201,7 @@ const ID: Dict = {
   'baris data': 'baris',
   'terpengaruh': 'terpengaruh',
   'dipotong — tambahkan LIMIT': 'dipotong — tambahkan LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'Dev Environment',
   'versi terdeteksi': 'versi terdeteksi',
   'Muat ulang': 'Muat ulang',
@@ -228,7 +217,7 @@ const ID: Dict = {
   'menyiapkan…': 'menyiapkan…',
   'hidup di port': 'hidup di port',
   'Port': 'Port',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'Test Explorer',
   'runner': 'runner',
   'Buka folder project untuk mendeteksi test.': 'Buka folder project untuk mendeteksi test.',
@@ -239,10 +228,10 @@ const ID: Dict = {
   'Jalankan': 'Jalankan',
   'Riwayat': 'Riwayat',
   'Dijalankan di terminal:': 'Dijalankan di terminal:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'langkah',
   'tool': 'tool',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared belum terpasang',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.',
   'Port lokal': 'Port lokal',
@@ -252,10 +241,10 @@ const ID: Dict = {
   'Memeriksa cloudflared…': 'Memeriksa cloudflared…',
   'Menyiapkan…': 'Menyiapkan…',
   'Hentikan': 'Hentikan',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Subagent',
-  // ── T2.2: API client ──
+
   'Collection': 'Collection',
   'Environment': 'Environment',
   'Pilih atau buat request untuk mulai.': 'Pilih atau buat request untuk mulai.',
@@ -267,7 +256,7 @@ const ID: Dict = {
   'Hapus request': 'Hapus request',
   'Tambah variabel': 'Tambah variabel',
   'Body': 'Body',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'Tugas paralel',
   'Satu baris = satu subagent': 'Satu baris = satu subagent',
   'Jalankan beberapa tugas sekaligus (paralel)': 'Jalankan beberapa tugas sekaligus (paralel)',
@@ -286,7 +275,7 @@ const ID: Dict = {
   'batal': 'batal',
   'Berjalan…': 'Berjalan…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'Buka file .http untuk menjalankan request.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body',
   'request': 'request',
@@ -296,26 +285,25 @@ const ID: Dict = {
   'Header': 'Header',
   '(body kosong)': '(body kosong)',
   'dipotong': 'dipotong',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'Jalur AI',
   'Pakai adapter API (butuh API key)': 'Pakai adapter API (butuh API key)',
   'Belum siap': 'Belum siap',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'mode CLI: kirim pesan untuk menjalankan CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'Memakai formatter LSP bahasa yang aktif',
   'Diformat': 'Diformat',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'Sedang berpikir…',
   'baris': 'baris',
   'karakter': 'karakter',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'Tingkat penalaran',
   'Penalaran: default': 'Penalaran: default',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
     'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.',
   'Penalaran': 'Penalaran',
 
-  // ── Welcome / empty state ──
   'welcome.openFile': 'Buka File',
   'welcome.openFolder': 'Buka Folder',
   'welcome.newFile': 'File Baru',
@@ -324,11 +312,9 @@ const ID: Dict = {
   'welcome.kb.save': 'simpan',
   'welcome.kb.settings': 'pengaturan',
 
-  // ── Status bar ──
   'status.format': 'Format',
   'status.find': 'Cari',
 
-  // ── Umum ──
   'common.reload': 'Muat ulang',
   'common.delete': 'Hapus',
   'common.run': 'Jalankan',
@@ -355,7 +341,6 @@ const ID: Dict = {
   'common.url': 'URL',
   'common.port': 'Port',
 
-  // ── Panel bawah ──
   'panel.problems': 'Problems',
   'panel.output': 'Output',
   'panel.debugConsole': 'Debug Console',
@@ -369,7 +354,6 @@ const ID: Dict = {
   'panel.scrollLock': 'Scroll lock: hentikan auto-scroll saat baris baru masuk',
   'panel.clearChannel': 'Bersihkan channel ini',
 
-  // ── Terminal ──
   'term.addPane': 'Klik untuk menambah pane',
   'term.shell': 'Shell',
   'term.private': 'Private (tanpa riwayat)',
@@ -394,7 +378,6 @@ const ID: Dict = {
   'term.refused': 'Situs ini menolak ditampilkan di dalam Zephyr',
   'term.enterUrl': 'Masukkan URL lalu tekan Enter.',
 
-  // ── Explorer ──
   'explorer.newFile': 'File baru',
   'explorer.newFolder': 'Folder baru',
   'explorer.closeWorkspace': 'Tutup workspace',
@@ -411,7 +394,6 @@ const ID: Dict = {
   'explorer.loadSnapshot': 'Muat isi snapshot ini ke editor (belum disimpan)',
   'explorer.noHistory': 'Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.',
 
-  // ── Editor ──
   'editor.newTab': 'Tab baru',
   'editor.newTabKey': 'Tab baru (Ctrl+N)',
   'editor.findInFile': 'Cari di file',
@@ -433,7 +415,6 @@ const ID: Dict = {
   'editor.inlineChatPlaceholder': 'Tanya atau minta ubah kode… (Enter kirim, Esc tutup)',
   'editor.quickAsk': 'Tanya apa saja soal kode ini.',
 
-  // ── AI panel ──
   'ai.askPlaceholder': 'Pesan untuk AI',
   'ai.chatHistory': 'Riwayat chat',
   'ai.searchChat': 'Cari chat…',
@@ -456,14 +437,12 @@ const ID: Dict = {
   'ai.taskDone': 'Tugas selesai.',
   'ai.analyzeErrors': 'Jalankan npx tsc --noEmit di terminal lalu minta AI menganalisis error',
 
-  // ── Notifikasi ──
   'notif.close': 'Tutup notifikasi',
   'notif.deleteOne': 'Hapus notifikasi ini',
   'notif.deleteHistory': 'Hapus dari riwayat',
   'notif.empty': 'Belum ada notifikasi.',
   'notif.dnd': 'Do Not Disturb: toast diredam, riwayat tetap dicatat',
 
-  // ── Source control ──
   'scm.changeBranch': 'Ganti branch',
   'scm.newBranch': 'Branch baru',
   'scm.createSwitch': 'Buat & pindah',
@@ -475,13 +454,11 @@ const ID: Dict = {
   'scm.openFolderFirst': 'Buka folder dulu untuk memakai git.',
   'scm.noDiff': 'Tidak ada perbedaan untuk file ini.',
 
-  // ── Debug ──
   'debug.copyValue': 'Salin nilai',
   'debug.removeBreakpoint': 'Hapus breakpoint',
   'debug.openFolderFirst': 'Buka folder dulu untuk debug.',
   'debug.clickGutter': 'Klik gutter editor untuk memasang breakpoint.',
 
-  // ── Keybinding ──
   'kb.searchCommand': 'Cari command atau chord…',
   'kb.searchAria': 'Cari keybinding',
   'kb.record': 'Rekam chord baru',
@@ -492,7 +469,6 @@ const ID: Dict = {
   'kb.enterSaveEscCancel': 'Enter = simpan · Esc = batal',
   'kb.savedAt': 'Tersimpan di',
 
-  // ── Workspace / trust ──
   'ws.trustTitle': 'Percayai folder ini?',
   'ws.trustBody': 'Folder ini bisa memuat konfigurasi yang',
   'ws.trustOk': 'Percayai folder ini',
@@ -501,13 +477,12 @@ const ID: Dict = {
   'ws.untrusted': 'Folder belum dipercaya — klik untuk mengatur trust',
   'ws.removeFolder': 'Hapus folder dari workspace',
 
-  // ── Jendela ──
   'win.minimize': 'Perkecil jendela',
   'win.close': 'Tutup jendela',
   'win.resizeSidebar': 'Ubah lebar sidebar',
   'win.resizePanel': 'Ubah tinggi panel',
   'win.skipToEditor': 'Lompat ke editor',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'Model yang menjalankan AI',
   'belum dipilih': 'belum dipilih',
   '(belum ada model yang dipilih)': '(belum ada model yang dipilih)',
@@ -544,14 +519,13 @@ const EN: Dict = {
   'Dukung Zephyr': 'Support Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': 'Auto-update checks GitHub Releases periodically.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'Resize the AI panel',
   'Lebarkan penuh': 'Expand to full width',
   'Kembalikan ukuran': 'Restore size',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'Bottom',
   'Enter mengirim · Shift+Enter baris baru': 'Enter sends · Shift+Enter for a new line',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'a lightweight code editor, built from scratch',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'Made by ShinRyu04. MIT licensed — free to use and modify.',
   'Build': 'Build',
@@ -589,7 +563,7 @@ const EN: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'Headers (no credentials)',
   'Salin request ini': 'Copy this request',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'AI prompt',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'This prompt is sent to the model in every conversation. Leave blank to use the Zephyr default — the default is tuned to work well across models.',
   'Tool yang dikenalkan ke model': 'Tools introduced to the model',
@@ -621,14 +595,13 @@ const EN: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'That command is too short — be more specific (e.g. "npm run build", not "n").',
   'Sudah ada di daftar.': 'Already in the list.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'Destructive commands cannot be added to the allow list.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'none yet',
   'Sembunyikan panel info subagent': 'Hide the subagent info panel',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'No subagent running. Open the Subagents tab in the bottom panel to run parallel tasks.',
   'Panel info — detail penuh ada di tab Subagents.': 'Info panel — full detail lives in the Subagents tab.',
   'Info subagent di kanan chat': 'Subagent info beside the chat',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'Choose provider',
   'model': 'models',
   'bisa ketik bebas': 'free typing',
@@ -651,12 +624,12 @@ const EN: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'Following the chat model — click to pick a subagent-only model',
   'Model subagent': 'Subagent model',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'Model used by subagents. Follow chat = same as the conversation.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'total',
   'Belum ada subagent.': 'No subagents yet.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'Write one task per line above, then Run. Each line becomes one subagent working in parallel.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'Subagents stand alone — run from here, separate from the AI conversation. Results do not go into the chat history.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'Approval mode',
   'Tidak boleh mengubah apa pun — hanya membaca': 'Cannot change anything — read only',
   'Minta izin': 'Ask',
@@ -678,17 +651,17 @@ const EN: Dict = {
   'Konteks terpakai': 'Current context',
   'Jendela konteks': 'Context window',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'Estimate is based on visible chat content and tool payloads.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'Find usages of function X\nCheck module Y for bugs',
   'Status': 'Status',
   'tidak ada yang jalan': 'none running',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'Subagents are invoked by the main agent via the "Parallel tasks" button in the AI panel, or automatically when a task can be split.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'result',
   'Berpikir…': 'Thinking…',
   'Memikirkan langkah…': 'Thinking about the next step…',
   'Tugas selesai.': 'Task complete.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'Customize Layout',
   'Customize Layout…': 'Customize Layout…',
   'Terlihat': 'Visible',
@@ -700,17 +673,17 @@ const EN: Dict = {
   'Kanan': 'Right',
   'Kerapatan': 'Layout Density',
   'Normal': 'Default',
-  'Rapat': 'Compact',
+  'Padat': 'Compact',
   'Zen Mode': 'Zen Mode',
   'Kembalikan tata letak bawaan': 'Reset layout to default',
   'Sembunyikan panel AI': 'Hide AI panel',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'Zoom out',
   'Perbesar': 'Zoom in',
   'Tutup pratinjau': 'Close preview',
   'Gambar gagal dimuat.': 'Failed to load image.',
   'Gambar terlalu besar': 'Image too large',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'No SSH host yet',
   'Tambahkan host SSH dulu di panel SSH.': 'Add an SSH host first in the SSH panel.',
   'File': 'Files',
@@ -722,7 +695,7 @@ const EN: Dict = {
   'Nyalakan tunnel': 'Start tunnel',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'No tunnels yet. Ports already in use will not be taken over.',
   'Port tidak valid.': 'Invalid port.',
-  // ── T3.2: Database browser ──
+
   'Database': 'Database',
   'Path file SQLite (.db / .sqlite)': 'SQLite file path (.db / .sqlite)',
   'Buka': 'Open',
@@ -734,7 +707,7 @@ const EN: Dict = {
   'baris data': 'rows',
   'terpengaruh': 'affected',
   'dipotong — tambahkan LIMIT': 'truncated — add LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'Dev Environment',
   'versi terdeteksi': 'versions detected',
   'Muat ulang': 'Reload',
@@ -750,7 +723,7 @@ const EN: Dict = {
   'menyiapkan…': 'starting…',
   'hidup di port': 'live on port',
   'Port': 'Port',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'Test Explorer',
   'runner': 'runners',
   'Buka folder project untuk mendeteksi test.': 'Open a project folder to detect tests.',
@@ -761,10 +734,10 @@ const EN: Dict = {
   'Jalankan': 'Run',
   'Riwayat': 'History',
   'Dijalankan di terminal:': 'Running in terminal:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'steps',
   'tool': 'tools',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared is not installed',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'A tunnel exposes a local port to the INTERNET. Anyone who knows the URL can reach it.',
   'Port lokal': 'Local port',
@@ -774,10 +747,10 @@ const EN: Dict = {
   'Memeriksa cloudflared…': 'Checking cloudflared…',
   'Menyiapkan…': 'Preparing…',
   'Hentikan': 'Stop',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Subagent',
-  // ── T2.2: API client ──
+
   'Collection': 'Collection',
   'Environment': 'Environment',
   'Pilih atau buat request untuk mulai.': 'Select or create a request to start.',
@@ -789,7 +762,7 @@ const EN: Dict = {
   'Hapus request': 'Delete request',
   'Tambah variabel': 'Add variable',
   'Body': 'Body',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'Parallel tasks',
   'Satu baris = satu subagent': 'One line = one subagent',
   'Jalankan beberapa tugas sekaligus (paralel)': 'Run several tasks at once (parallel)',
@@ -808,7 +781,7 @@ const EN: Dict = {
   'batal': 'cancelled',
   'Berjalan…': 'Running…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'Find all usages of function X\nCheck whether module Y has bugs\nSummarise the structure of folder Z',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'Open a .http file to run requests.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'Format: ### separator · METHOD URL · header: value · blank line then body',
   'request': 'requests',
@@ -818,19 +791,19 @@ const EN: Dict = {
   'Header': 'Headers',
   '(body kosong)': '(empty body)',
   'dipotong': 'truncated',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'AI route',
   'Pakai adapter API (butuh API key)': 'Use the API adapter (needs an API key)',
   'Belum siap': 'Not ready yet',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'CLI mode: send a message to run the CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'Uses the LSP formatter for the active language',
   'Diformat': 'Formatted',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'Thinking…',
   'baris': 'lines',
   'karakter': 'chars',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'Reasoning effort',
   'Penalaran: default': 'Reasoning: default',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -1015,7 +988,7 @@ const EN: Dict = {
   'win.resizeSidebar': 'Resize sidebar',
   'win.resizePanel': 'Resize panel',
   'win.skipToEditor': 'Skip to editor',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'Model running the AI',
   'belum dipilih': 'not selected yet',
   '(belum ada model yang dipilih)': '(no model selected yet)',
@@ -1052,14 +1025,13 @@ const JA: Dict = {
   'Dukung Zephyr': 'Zephyr を支援',
   'Auto-update memeriksa GitHub Releases berkala.': '自動更新は GitHub Releases を定期的に確認します。',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'AI パネルの幅を変更',
   'Lebarkan penuh': '全幅に拡大',
   'Kembalikan ukuran': 'サイズを戻す',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': '下',
   'Enter mengirim · Shift+Enter baris baru': 'Enter で送信 · Shift+Enter で改行',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'ゼロから作った軽量コードエディタ',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': '制作: ShinRyu04。MIT ライセンス — 自由に使用・改変できます。',
   'Build': 'ビルド',
@@ -1097,7 +1069,7 @@ const JA: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'ヘッダー（認証情報なし）',
   'Salin request ini': 'このリクエストをコピー',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'AIプロンプト',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'このプロンプトは毎回の会話でモデルに送信されます。空欄なら Zephyr の既定値を使用します（既定値はどのモデルでも機能するよう調整済み）。',
   'Tool yang dikenalkan ke model': 'モデルに提示するツール',
@@ -1129,14 +1101,13 @@ const JA: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'コマンドが短すぎます — より具体的に（例："npm run build"、"n" ではない）。',
   'Sudah ada di daftar.': 'すでにリストにあります。',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': '破壊的コマンドは許可リストに追加できません。',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'まだなし',
   'Sembunyikan panel info subagent': 'サブエージェント情報パネルを隠す',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': '実行中のサブエージェントはありません。下部パネルの Subagents タブで並列タスクを実行してください。',
   'Panel info — detail penuh ada di tab Subagents.': '情報パネル — 詳細は Subagents タブにあります。',
   'Info subagent di kanan chat': 'チャット右側のサブエージェント情報',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'プロバイダーを選択',
   'model': 'モデル',
   'bisa ketik bebas': '自由入力可',
@@ -1159,12 +1130,12 @@ const JA: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'チャットモデルに追従中 — クリックでサブエージェント専用モデルを選択',
   'Model subagent': 'サブエージェントのモデル',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'サブエージェントが使うモデル。追従 = 会話と同じ。',
-  // ── T4.1: tab Subagents ──
+
   'total': '合計',
   'Belum ada subagent.': 'サブエージェントはまだありません。',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': '上に 1 行につき 1 タスクを書いて「実行」を押してください。各行が並行して動くサブエージェントになります。',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'サブエージェントは独立しています — ここから実行し、AI の会話とは分離されています。結果はチャット履歴に入りません。',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': '承認モード',
   'Tidak boleh mengubah apa pun — hanya membaca': '何も変更できません — 読み取りのみ',
   'Minta izin': '確認する',
@@ -1186,17 +1157,17 @@ const JA: Dict = {
   'Konteks terpakai': '現在のコンテキスト',
   'Jendela konteks': 'コンテキストウィンドウ',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': '表示されているチャット内容とツールのペイロードに基づく推定です。',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': '関数 X の使用箇所を検索\nモジュール Y のバグを確認',
   'Status': '状態',
   'tidak ada yang jalan': '実行中なし',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'サブエージェントは AI パネルの「並列タスク」ボタンから、またはタスクを分割できるときに自動で呼び出されます。',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': '結果',
   'Berpikir…': '考え中…',
   'Memikirkan langkah…': '次のステップを検討中…',
   'Tugas selesai.': 'タスク完了。',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'レイアウトのカスタマイズ',
   'Customize Layout…': 'レイアウトをカスタマイズ…',
   'Terlihat': '表示',
@@ -1208,17 +1179,17 @@ const JA: Dict = {
   'Kanan': '右',
   'Kerapatan': 'レイアウト密度',
   'Normal': '標準',
-  'Rapat': 'コンパクト',
+  'Padat': 'コンパクト',
   'Zen Mode': 'Zen モード',
   'Kembalikan tata letak bawaan': 'レイアウトを既定に戻す',
   'Sembunyikan panel AI': 'AI パネルを隠す',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': '縮小',
   'Perbesar': '拡大',
   'Tutup pratinjau': 'プレビューを閉じる',
   'Gambar gagal dimuat.': '画像の読み込みに失敗しました。',
   'Gambar terlalu besar': '画像が大きすぎます',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'SSH ホストがまだありません',
   'Tambahkan host SSH dulu di panel SSH.': '先に SSH パネルでホストを追加してください。',
   'File': 'ファイル',
@@ -1230,7 +1201,7 @@ const JA: Dict = {
   'Nyalakan tunnel': 'トンネルを開始',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'トンネルはまだありません。使用中のポートは奪いません。',
   'Port tidak valid.': 'ポートが無効です。',
-  // ── T3.2: Database browser ──
+
   'Database': 'データベース',
   'Path file SQLite (.db / .sqlite)': 'SQLite ファイルパス (.db / .sqlite)',
   'Buka': '開く',
@@ -1242,7 +1213,7 @@ const JA: Dict = {
   'baris data': '行',
   'terpengaruh': '影響',
   'dipotong — tambahkan LIMIT': '切り捨て — LIMIT を追加',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': '開発環境',
   'versi terdeteksi': 'バージョン検出',
   'Muat ulang': '再読み込み',
@@ -1258,7 +1229,7 @@ const JA: Dict = {
   'menyiapkan…': '起動中…',
   'hidup di port': 'ポートで稼働中',
   'Port': 'ポート',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'テストエクスプローラー',
   'runner': 'ランナー',
   'Buka folder project untuk mendeteksi test.': 'テストを検出するにはプロジェクトフォルダを開いてください。',
@@ -1269,10 +1240,10 @@ const JA: Dict = {
   'Jalankan': '実行',
   'Riwayat': '履歴',
   'Dijalankan di terminal:': 'ターミナルで実行中:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'ステップ',
   'tool': 'ツール',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared がインストールされていません',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'トンネルはローカルポートをインターネットに公開します。URL を知っている人は誰でもアクセスできます。',
   'Port lokal': 'ローカルポート',
@@ -1282,10 +1253,10 @@ const JA: Dict = {
   'Memeriksa cloudflared…': 'cloudflared を確認中…',
   'Menyiapkan…': '準備中…',
   'Hentikan': '停止',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'サブエージェント',
-  // ── T2.2: API client ──
+
   'Collection': 'コレクション',
   'Environment': '環境',
   'Pilih atau buat request untuk mulai.': '開始するにはリクエストを選択または作成してください。',
@@ -1297,7 +1268,7 @@ const JA: Dict = {
   'Hapus request': 'リクエストを削除',
   'Tambah variabel': '変数を追加',
   'Body': '本文',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': '並列タスク',
   'Satu baris = satu subagent': '1 行 = 1 サブエージェント',
   'Jalankan beberapa tugas sekaligus (paralel)': '複数のタスクを同時に実行（並列）',
@@ -1316,7 +1287,7 @@ const JA: Dict = {
   'batal': '中止',
   'Berjalan…': '実行中…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': '関数 X の使用箇所をすべて検索\nモジュール Y にバグがないか確認\nフォルダ Z の構造を要約',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': '.http ファイルを開いてリクエストを実行します。',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': '形式: ### 区切り · METHOD URL · ヘッダー: 値 · 空行の後に本文',
   'request': 'リクエスト',
@@ -1326,19 +1297,19 @@ const JA: Dict = {
   'Header': 'ヘッダー',
   '(body kosong)': '(本文なし)',
   'dipotong': '切り詰め',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'AI 経路',
   'Pakai adapter API (butuh API key)': 'API アダプターを使用（API キーが必要）',
   'Belum siap': '未準備',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'CLI モード: メッセージを送信して CLI を実行',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': '使用中の言語の LSP フォーマッターを使用',
   'Diformat': '整形済み',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': '考え中…',
   'baris': '行',
   'karakter': '文字',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': '推論の強度',
   'Penalaran: default': '推論: デフォルト',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -1523,7 +1494,7 @@ const JA: Dict = {
   'win.resizeSidebar': 'サイドバーの幅を変更',
   'win.resizePanel': 'パネルの高さを変更',
   'win.skipToEditor': 'エディターへ移動',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'AI を動かしているモデル',
   'belum dipilih': '未選択',
   '(belum ada model yang dipilih)': '（モデルが未選択です）',
@@ -1560,14 +1531,13 @@ const KO: Dict = {
   'Dukung Zephyr': 'Zephyr 후원',
   'Auto-update memeriksa GitHub Releases berkala.': '자동 업데이트는 GitHub Releases를 주기적으로 확인합니다.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'AI 패널 너비 조절',
   'Lebarkan penuh': '전체 너비로 확장',
   'Kembalikan ukuran': '크기 복원',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': '아래',
   'Enter mengirim · Shift+Enter baris baru': 'Enter 전송 · Shift+Enter 줄바꿈',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': '처음부터 만든 가벼운 코드 에디터',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': '제작: ShinRyu04. MIT 라이선스 — 자유롭게 사용·수정 가능.',
   'Build': '빌드',
@@ -1605,7 +1575,7 @@ const KO: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': '헤더(자격 증명 제외)',
   'Salin request ini': '이 요청 복사',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'AI 프롬프트',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': '이 프롬프트는 모든 대화에서 모델로 전송됩니다. 비워 두면 Zephyr 기본값이 사용됩니다(기본값은 모든 모델에서 잘 작동하도록 조정됨).',
   'Tool yang dikenalkan ke model': '모델에 소개되는 도구',
@@ -1637,14 +1607,13 @@ const KO: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': '명령이 너무 짧습니다 — 더 구체적으로 쓰세요(예: "npm run build", "n" 아님).',
   'Sudah ada di daftar.': '이미 목록에 있습니다.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': '파괴적 명령은 허용 목록에 추가할 수 없습니다.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': '아직 없음',
   'Sembunyikan panel info subagent': '서브에이전트 정보 패널 숨기기',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': '실행 중인 서브에이전트가 없습니다. 하단 패널의 Subagents 탭에서 병렬 작업을 실행하세요.',
   'Panel info — detail penuh ada di tab Subagents.': '정보 패널 — 전체 내용은 Subagents 탭에 있습니다.',
   'Info subagent di kanan chat': '채팅 오른쪽의 서브에이전트 정보',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': '제공자 선택',
   'model': '모델',
   'bisa ketik bebas': '자유 입력 가능',
@@ -1667,12 +1636,12 @@ const KO: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': '채팅 모델을 따르는 중 — 클릭해 서브에이전트 전용 모델 선택',
   'Model subagent': '서브에이전트 모델',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': '서브에이전트가 쓰는 모델. 따르기 = 대화와 동일.',
-  // ── T4.1: tab Subagents ──
+
   'total': '전체',
   'Belum ada subagent.': '아직 서브에이전트가 없습니다.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': '위에 한 줄에 하나의 작업을 적고 실행을 누르세요. 각 줄이 병렬로 동작하는 서브에이전트가 됩니다.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': '서브에이전트는 독립적입니다 — 여기서 실행하며 AI 대화와 분리되어 있습니다. 결과는 채팅 기록에 들어가지 않습니다.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': '승인 모드',
   'Tidak boleh mengubah apa pun — hanya membaca': '아무것도 변경할 수 없음 — 읽기만',
   'Minta izin': '승인 요청',
@@ -1694,17 +1663,17 @@ const KO: Dict = {
   'Konteks terpakai': '현재 컨텍스트',
   'Jendela konteks': '컨텍스트 창',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': '표시된 채팅 내용과 도구 페이로드에 기반한 추정입니다.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': '함수 X의 사용처 검색\n모듈 Y의 버그 확인',
   'Status': '상태',
   'tidak ada yang jalan': '실행 중 없음',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': '서브에이전트는 AI 패널의 "병렬 작업" 버튼으로 호출되거나 작업을 분할할 수 있을 때 자동으로 호출됩니다.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': '결과',
   'Berpikir…': '생각 중…',
   'Memikirkan langkah…': '다음 단계 고민 중…',
   'Tugas selesai.': '작업 완료.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': '레이아웃 사용자 지정',
   'Customize Layout…': '레이아웃 사용자 지정…',
   'Terlihat': '표시',
@@ -1716,17 +1685,17 @@ const KO: Dict = {
   'Kanan': '오른쪽',
   'Kerapatan': '레이아웃 밀도',
   'Normal': '기본',
-  'Rapat': '조밀',
+  'Padat': '조밀',
   'Zen Mode': 'Zen 모드',
   'Kembalikan tata letak bawaan': '레이아웃을 기본값으로 재설정',
   'Sembunyikan panel AI': 'AI 패널 숨기기',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': '축소',
   'Perbesar': '확대',
   'Tutup pratinjau': '미리보기 닫기',
   'Gambar gagal dimuat.': '이미지를 불러오지 못했습니다.',
   'Gambar terlalu besar': '이미지가 너무 큽니다',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'SSH 호스트 없음',
   'Tambahkan host SSH dulu di panel SSH.': '먼저 SSH 패널에서 호스트를 추가하세요.',
   'File': '파일',
@@ -1738,7 +1707,7 @@ const KO: Dict = {
   'Nyalakan tunnel': '터널 시작',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': '터널이 없습니다. 사용 중인 포트는 빼앗지 않습니다.',
   'Port tidak valid.': '포트가 잘못되었습니다.',
-  // ── T3.2: Database browser ──
+
   'Database': '데이터베이스',
   'Path file SQLite (.db / .sqlite)': 'SQLite 파일 경로 (.db / .sqlite)',
   'Buka': '열기',
@@ -1750,7 +1719,7 @@ const KO: Dict = {
   'baris data': '행',
   'terpengaruh': '영향',
   'dipotong — tambahkan LIMIT': '잘림 — LIMIT 추가',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': '개발 환경',
   'versi terdeteksi': '버전 감지됨',
   'Muat ulang': '새로 고침',
@@ -1766,7 +1735,7 @@ const KO: Dict = {
   'menyiapkan…': '시작 중…',
   'hidup di port': '포트에서 실행 중',
   'Port': '포트',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': '테스트 탐색기',
   'runner': '러너',
   'Buka folder project untuk mendeteksi test.': '테스트를 감지하려면 프로젝트 폴더를 여세요.',
@@ -1777,10 +1746,10 @@ const KO: Dict = {
   'Jalankan': '실행',
   'Riwayat': '기록',
   'Dijalankan di terminal:': '터미널에서 실행 중:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': '단계',
   'tool': '도구',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared가 설치되지 않았습니다',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': '터널은 로컬 포트를 인터넷에 노출합니다. URL을 아는 사람은 누구나 접속할 수 있습니다.',
   'Port lokal': '로컬 포트',
@@ -1790,10 +1759,10 @@ const KO: Dict = {
   'Memeriksa cloudflared…': 'cloudflared 확인 중…',
   'Menyiapkan…': '준비 중…',
   'Hentikan': '중지',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': '하위 에이전트',
-  // ── T2.2: API client ──
+
   'Collection': '컬렉션',
   'Environment': '환경',
   'Pilih atau buat request untuk mulai.': '시작하려면 요청을 선택하거나 만드세요.',
@@ -1805,7 +1774,7 @@ const KO: Dict = {
   'Hapus request': '요청 삭제',
   'Tambah variabel': '변수 추가',
   'Body': '본문',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': '병렬 작업',
   'Satu baris = satu subagent': '한 줄 = 하위 에이전트 하나',
   'Jalankan beberapa tugas sekaligus (paralel)': '여러 작업을 동시에 실행(병렬)',
@@ -1824,7 +1793,7 @@ const KO: Dict = {
   'batal': '취소됨',
   'Berjalan…': '실행 중…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': '함수 X의 모든 사용처 검색\n모듈 Y에 버그가 있는지 확인\n폴더 Z 구조 요약',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': '.http 파일을 열어 요청을 실행하세요.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': '형식: ### 구분 · METHOD URL · 헤더: 값 · 빈 줄 후 본문',
   'request': '요청',
@@ -1834,19 +1803,19 @@ const KO: Dict = {
   'Header': '헤더',
   '(body kosong)': '(본문 없음)',
   'dipotong': '잘림',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'AI 경로',
   'Pakai adapter API (butuh API key)': 'API 어댑터 사용(API 키 필요)',
   'Belum siap': '준비되지 않음',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'CLI 모드: 메시지를 보내 CLI 실행',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': '현재 언어의 LSP 포매터 사용',
   'Diformat': '서식 지정됨',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': '생각 중…',
   'baris': '줄',
   'karakter': '자',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': '추론 강도',
   'Penalaran: default': '추론: 기본',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -2031,7 +2000,7 @@ const KO: Dict = {
   'win.resizeSidebar': '사이드바 너비 조절',
   'win.resizePanel': '패널 높이 조절',
   'win.skipToEditor': '편집기로 이동',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'AI를 실행하는 모델',
   'belum dipilih': '아직 선택 안 됨',
   '(belum ada model yang dipilih)': '(아직 선택된 모델이 없습니다)',
@@ -2068,14 +2037,13 @@ const ZH: Dict = {
   'Dukung Zephyr': '支持 Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': '自动更新会定期检查 GitHub Releases。',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': '调整 AI 面板宽度',
   'Lebarkan penuh': '展开为全宽',
   'Kembalikan ukuran': '恢复大小',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': '下方',
   'Enter mengirim · Shift+Enter baris baru': 'Enter 发送 · Shift+Enter 换行',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': '从零打造的轻量代码编辑器',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': '作者 ShinRyu04。MIT 许可 —— 可自由使用与修改。',
   'Build': '构建',
@@ -2113,7 +2081,7 @@ const ZH: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': '请求头（无凭据）',
   'Salin request ini': '复制此请求',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'AI 提示词',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': '此提示词会在每次对话中发送给模型。留空则使用 Zephyr 默认值（默认值已调校为在各模型上都能良好工作）。',
   'Tool yang dikenalkan ke model': '向模型介绍的可用工具',
@@ -2145,14 +2113,13 @@ const ZH: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': '命令太短 —— 请更具体（如 "npm run build"，而非 "n"）。',
   'Sudah ada di daftar.': '已在列表中。',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': '破坏性命令不能加入允许列表。',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': '暂无',
   'Sembunyikan panel info subagent': '隐藏子代理信息面板',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': '没有正在运行的子代理。打开底部面板的 Subagents 标签以运行并行任务。',
   'Panel info — detail penuh ada di tab Subagents.': '信息面板 — 完整详情在 Subagents 标签中。',
   'Info subagent di kanan chat': '对话右侧的子代理信息',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': '选择服务商',
   'model': '个模型',
   'bisa ketik bebas': '可自由输入',
@@ -2175,12 +2142,12 @@ const ZH: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': '正在跟随对话模型 — 点击可选择子代理专用模型',
   'Model subagent': '子代理模型',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': '子代理使用的模型。跟随 = 与对话相同。',
-  // ── T4.1: tab Subagents ──
+
   'total': '总计',
   'Belum ada subagent.': '还没有子代理。',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': '在上方每行写一个任务，然后点运行。每一行都会成为一个并行工作的子代理。',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': '子代理独立运行 —— 从这里启动，与 AI 对话分离。结果不会进入聊天记录。',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': '批准模式',
   'Tidak boleh mengubah apa pun — hanya membaca': '不能修改任何内容 — 仅读取',
   'Minta izin': '请求批准',
@@ -2202,17 +2169,17 @@ const ZH: Dict = {
   'Konteks terpakai': '当前上下文',
   'Jendela konteks': '上下文窗口',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': '估算基于可见的聊天内容和工具负载。',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': '查找函数 X 的用法\n检查模块 Y 是否有 bug',
   'Status': '状态',
   'tidak ada yang jalan': '没有正在运行的',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': '子代理由主代理通过 AI 面板中的"并行任务"按钮调用，或在任务可拆分时自动调用。',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': '结果',
   'Berpikir…': '思考中…',
   'Memikirkan langkah…': '正在思考下一步…',
   'Tugas selesai.': '任务完成。',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': '自定义布局',
   'Customize Layout…': '自定义布局…',
   'Terlihat': '可见',
@@ -2224,17 +2191,17 @@ const ZH: Dict = {
   'Kanan': '右',
   'Kerapatan': '布局密度',
   'Normal': '默认',
-  'Rapat': '紧凑',
+  'Padat': '紧凑',
   'Zen Mode': 'Zen 模式',
   'Kembalikan tata letak bawaan': '将布局重置为默认值',
   'Sembunyikan panel AI': '隐藏 AI 面板',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': '缩小',
   'Perbesar': '放大',
   'Tutup pratinjau': '关闭预览',
   'Gambar gagal dimuat.': '图片加载失败。',
   'Gambar terlalu besar': '图片太大',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': '还没有 SSH 主机',
   'Tambahkan host SSH dulu di panel SSH.': '请先在 SSH 面板中添加主机。',
   'File': '文件',
@@ -2246,7 +2213,7 @@ const ZH: Dict = {
   'Nyalakan tunnel': '启动隧道',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': '还没有隧道。已占用的端口不会被抢占。',
   'Port tidak valid.': '端口无效。',
-  // ── T3.2: Database browser ──
+
   'Database': '数据库',
   'Path file SQLite (.db / .sqlite)': 'SQLite 文件路径 (.db / .sqlite)',
   'Buka': '打开',
@@ -2258,7 +2225,7 @@ const ZH: Dict = {
   'baris data': '行',
   'terpengaruh': '受影响',
   'dipotong — tambahkan LIMIT': '已截断 — 添加 LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': '开发环境',
   'versi terdeteksi': '个版本已检测',
   'Muat ulang': '重新加载',
@@ -2274,7 +2241,7 @@ const ZH: Dict = {
   'menyiapkan…': '正在启动…',
   'hidup di port': '运行于端口',
   'Port': '端口',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': '测试资源管理器',
   'runner': '运行器',
   'Buka folder project untuk mendeteksi test.': '打开项目文件夹以检测测试。',
@@ -2285,10 +2252,10 @@ const ZH: Dict = {
   'Jalankan': '运行',
   'Riwayat': '历史',
   'Dijalankan di terminal:': '正在终端中运行：',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': '步骤',
   'tool': '工具',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared 尚未安装',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': '隧道会将本地端口暴露到互联网。任何知道 URL 的人都可以访问。',
   'Port lokal': '本地端口',
@@ -2298,10 +2265,10 @@ const ZH: Dict = {
   'Memeriksa cloudflared…': '正在检查 cloudflared…',
   'Menyiapkan…': '准备中…',
   'Hentikan': '停止',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': '子代理',
-  // ── T2.2: API client ──
+
   'Collection': '集合',
   'Environment': '环境',
   'Pilih atau buat request untuk mulai.': '选择或创建请求以开始。',
@@ -2313,7 +2280,7 @@ const ZH: Dict = {
   'Hapus request': '删除请求',
   'Tambah variabel': '添加变量',
   'Body': '正文',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': '并行任务',
   'Satu baris = satu subagent': '一行 = 一个子代理',
   'Jalankan beberapa tugas sekaligus (paralel)': '同时运行多个任务（并行）',
@@ -2332,7 +2299,7 @@ const ZH: Dict = {
   'batal': '已取消',
   'Berjalan…': '运行中…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': '查找函数 X 的所有用法\n检查模块 Y 是否有缺陷\n总结文件夹 Z 的结构',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': '打开 .http 文件以运行请求。',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': '格式：### 分隔 · METHOD URL · 标头: 值 · 空行后为正文',
   'request': '请求',
@@ -2342,19 +2309,19 @@ const ZH: Dict = {
   'Header': '标头',
   '(body kosong)': '(空正文)',
   'dipotong': '已截断',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'AI 通道',
   'Pakai adapter API (butuh API key)': '使用 API 适配器（需要 API 密钥）',
   'Belum siap': '尚未就绪',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'CLI 模式：发送消息以运行 CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': '使用当前语言的 LSP 格式化程序',
   'Diformat': '已格式化',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': '思考中…',
   'baris': '行',
   'karakter': '字符',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': '推理强度',
   'Penalaran: default': '推理：默认',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -2539,7 +2506,7 @@ const ZH: Dict = {
   'win.resizeSidebar': '调整侧边栏宽度',
   'win.resizePanel': '调整面板高度',
   'win.skipToEditor': '跳到编辑器',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': '运行 AI 的模型',
   'belum dipilih': '尚未选择',
   '(belum ada model yang dipilih)': '（尚未选择模型）',
@@ -2576,14 +2543,13 @@ const ES: Dict = {
   'Dukung Zephyr': 'Apoyar Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': 'La actualización automática revisa GitHub Releases periódicamente.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'Ajustar el ancho del panel de IA',
   'Lebarkan penuh': 'Expandir a ancho completo',
   'Kembalikan ukuran': 'Restaurar tamaño',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'Abajo',
   'Enter mengirim · Shift+Enter baris baru': 'Enter envía · Shift+Enter nueva línea',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'un editor de código ligero, hecho desde cero',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'Hecho por ShinRyu04. Licencia MIT — libre para usar y modificar.',
   'Build': 'Compilación',
@@ -2621,7 +2587,7 @@ const ES: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'Cabeceras (sin credenciales)',
   'Salin request ini': 'Copiar esta petición',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'Prompt de IA',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'Este prompt se envía al modelo en cada conversación. Déjalo vacío para usar el predeterminado de Zephyr (ajustado para funcionar bien en todos los modelos).',
   'Tool yang dikenalkan ke model': 'Herramientas presentadas al modelo',
@@ -2653,14 +2619,13 @@ const ES: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'Ese comando es demasiado corto: sé más específico (p. ej. "npm run build", no "n").',
   'Sudah ada di daftar.': 'Ya está en la lista.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'Los comandos destructivos no pueden añadirse a la lista de permitidos.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'ninguno aún',
   'Sembunyikan panel info subagent': 'Ocultar el panel de información de subagentes',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'No hay subagentes en ejecución. Abre la pestaña Subagents del panel inferior para ejecutar tareas en paralelo.',
   'Panel info — detail penuh ada di tab Subagents.': 'Panel de información — el detalle completo está en la pestaña Subagents.',
   'Info subagent di kanan chat': 'Información de subagentes junto al chat',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'Elegir proveedor',
   'model': 'modelos',
   'bisa ketik bebas': 'escritura libre',
@@ -2683,12 +2648,12 @@ const ES: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'Siguiendo el modelo del chat — clic para elegir un modelo solo para subagentes',
   'Model subagent': 'Modelo de subagente',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'Modelo que usan los subagentes. Seguir = igual que la conversación.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'total',
   'Belum ada subagent.': 'Aun no hay subagentes.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'Escribe una tarea por linea arriba y pulsa Ejecutar. Cada linea se convierte en un subagente que trabaja en paralelo.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'Los subagentes son independientes: se ejecutan aquí, separados de la conversación de IA. Los resultados no entran en el historial del chat.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'Modo de aprobacion',
   'Tidak boleh mengubah apa pun — hanya membaca': 'No puede cambiar nada — solo lectura',
   'Minta izin': 'Pedir permiso',
@@ -2710,17 +2675,17 @@ const ES: Dict = {
   'Konteks terpakai': 'Contexto actual',
   'Jendela konteks': 'Ventana de contexto',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'Estimacion basada en el contenido visible del chat y las cargas de herramientas.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'Buscar usos de la funcion X\nRevisar el modulo Y por errores',
   'Status': 'Estado',
   'tidak ada yang jalan': 'ninguno en ejecucion',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'Los subagentes los invoca el agente principal con el boton "Tareas paralelas" del panel AI, o automaticamente cuando una tarea se puede dividir.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'resultado',
   'Berpikir…': 'Pensando…',
   'Memikirkan langkah…': 'Pensando el siguiente paso…',
   'Tugas selesai.': 'Tarea completada.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'Personalizar diseno',
   'Customize Layout…': 'Personalizar diseno…',
   'Terlihat': 'Visible',
@@ -2732,17 +2697,17 @@ const ES: Dict = {
   'Kanan': 'Derecha',
   'Kerapatan': 'Densidad del diseno',
   'Normal': 'Predeterminado',
-  'Rapat': 'Compacto',
+  'Padat': 'Compacto',
   'Zen Mode': 'Modo Zen',
   'Kembalikan tata letak bawaan': 'Restablecer diseno predeterminado',
   'Sembunyikan panel AI': 'Ocultar panel de IA',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'Alejar',
   'Perbesar': 'Acercar',
   'Tutup pratinjau': 'Cerrar vista previa',
   'Gambar gagal dimuat.': 'No se pudo cargar la imagen.',
   'Gambar terlalu besar': 'Imagen demasiado grande',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'Aun no hay host SSH',
   'Tambahkan host SSH dulu di panel SSH.': 'Agrega un host SSH primero en el panel SSH.',
   'File': 'Archivos',
@@ -2754,7 +2719,7 @@ const ES: Dict = {
   'Nyalakan tunnel': 'Iniciar tunel',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'Aun no hay tuneles. Los puertos en uso no se tomaran.',
   'Port tidak valid.': 'Puerto no valido.',
-  // ── T3.2: Database browser ──
+
   'Database': 'Base de datos',
   'Path file SQLite (.db / .sqlite)': 'Ruta del archivo SQLite (.db / .sqlite)',
   'Buka': 'Abrir',
@@ -2766,7 +2731,7 @@ const ES: Dict = {
   'baris data': 'filas',
   'terpengaruh': 'afectadas',
   'dipotong — tambahkan LIMIT': 'truncado — agrega LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'Entorno de desarrollo',
   'versi terdeteksi': 'versiones detectadas',
   'Muat ulang': 'Recargar',
@@ -2782,7 +2747,7 @@ const ES: Dict = {
   'menyiapkan…': 'iniciando…',
   'hidup di port': 'activo en el puerto',
   'Port': 'Puerto',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'Explorador de pruebas',
   'runner': 'ejecutores',
   'Buka folder project untuk mendeteksi test.': 'Abre una carpeta de proyecto para detectar pruebas.',
@@ -2793,10 +2758,10 @@ const ES: Dict = {
   'Jalankan': 'Ejecutar',
   'Riwayat': 'Historial',
   'Dijalankan di terminal:': 'Ejecutando en la terminal:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'pasos',
   'tool': 'herramientas',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared no esta instalado',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'El tunel expone un puerto local a INTERNET. Cualquiera que conozca la URL puede acceder.',
   'Port lokal': 'Puerto local',
@@ -2806,10 +2771,10 @@ const ES: Dict = {
   'Memeriksa cloudflared…': 'Comprobando cloudflared…',
   'Menyiapkan…': 'Preparando…',
   'Hentikan': 'Detener',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Subagente',
-  // ── T2.2: API client ──
+
   'Collection': 'Coleccion',
   'Environment': 'Entorno',
   'Pilih atau buat request untuk mulai.': 'Selecciona o crea una solicitud para empezar.',
@@ -2821,7 +2786,7 @@ const ES: Dict = {
   'Hapus request': 'Eliminar solicitud',
   'Tambah variabel': 'Anadir variable',
   'Body': 'Cuerpo',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'Tareas en paralelo',
   'Satu baris = satu subagent': 'Una línea = un subagente',
   'Jalankan beberapa tugas sekaligus (paralel)': 'Ejecutar varias tareas a la vez (en paralelo)',
@@ -2840,7 +2805,7 @@ const ES: Dict = {
   'batal': 'cancelado',
   'Berjalan…': 'Ejecutando…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'Busca todos los usos de la función X\nComprueba si el módulo Y tiene errores\nResume la estructura de la carpeta Z',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'Abre un archivo .http para ejecutar solicitudes.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'Formato: ### separador · METHOD URL · encabezado: valor · línea vacía y luego cuerpo',
   'request': 'solicitudes',
@@ -2850,19 +2815,19 @@ const ES: Dict = {
   'Header': 'Encabezados',
   '(body kosong)': '(cuerpo vacío)',
   'dipotong': 'truncado',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'Ruta de IA',
   'Pakai adapter API (butuh API key)': 'Usar el adaptador API (requiere clave API)',
   'Belum siap': 'Aún no disponible',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'Modo CLI: envía un mensaje para ejecutar el CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'Usa el formateador LSP del idioma activo',
   'Diformat': 'Formateado',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'Pensando…',
   'baris': 'líneas',
   'karakter': 'caracteres',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'Intensidad de razonamiento',
   'Penalaran: default': 'Razonamiento: predeterminado',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -3047,7 +3012,7 @@ const ES: Dict = {
   'win.resizeSidebar': 'Redimensionar barra lateral',
   'win.resizePanel': 'Redimensionar panel',
   'win.skipToEditor': 'Ir al editor',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'Modelo que ejecuta la IA',
   'belum dipilih': 'sin seleccionar',
   '(belum ada model yang dipilih)': '(ningún modelo seleccionado)',
@@ -3084,14 +3049,13 @@ const FR: Dict = {
   'Dukung Zephyr': 'Soutenir Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': 'La mise à jour automatique vérifie GitHub Releases périodiquement.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'Redimensionner le panneau IA',
   'Lebarkan penuh': 'Étendre sur toute la largeur',
   'Kembalikan ukuran': 'Rétablir la taille',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'Bas',
   'Enter mengirim · Shift+Enter baris baru': 'Entrée envoie · Maj+Entrée nouvelle ligne',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'un éditeur de code léger, construit de zéro',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'Réalisé par ShinRyu04. Licence MIT — libre d’usage et de modification.',
   'Build': 'Build',
@@ -3129,7 +3093,7 @@ const FR: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'En-têtes (sans identifiants)',
   'Salin request ini': 'Copier cette requête',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'Prompt IA',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'Ce prompt est envoyé au modèle à chaque conversation. Laissez vide pour utiliser celui de Zephyr (réglé pour bien fonctionner sur tous les modèles).',
   'Tool yang dikenalkan ke model': 'Outils présentés au modèle',
@@ -3161,14 +3125,13 @@ const FR: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'Cette commande est trop courte : soyez plus précis (ex. « npm run build », pas « n »).',
   'Sudah ada di daftar.': 'Déjà dans la liste.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'Les commandes destructrices ne peuvent pas être ajoutées à la liste.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'aucun pour l’instant',
   'Sembunyikan panel info subagent': 'Masquer le panneau d’info des sous-agents',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'Aucun sous-agent en cours. Ouvrez l’onglet Subagents du panneau inférieur pour lancer des tâches parallèles.',
   'Panel info — detail penuh ada di tab Subagents.': 'Panneau d’info — le détail complet est dans l’onglet Subagents.',
   'Info subagent di kanan chat': 'Infos sous-agents à droite du chat',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'Choisir le fournisseur',
   'model': 'modèles',
   'bisa ketik bebas': 'saisie libre',
@@ -3191,12 +3154,12 @@ const FR: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'Suit le modèle du chat — cliquez pour choisir un modèle dédié aux sous-agents',
   'Model subagent': 'Modèle des sous-agents',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'Modèle utilisé par les sous-agents. Suivre = identique à la conversation.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'total',
   'Belum ada subagent.': 'Aucun sous-agent pour le moment.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'Ecrivez une tache par ligne ci-dessus puis cliquez Executer. Chaque ligne devient un sous-agent qui travaille en parallele.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'Les sous-agents sont autonomes : lancés ici, séparés de la conversation IA. Les résultats n’entrent pas dans l’historique du chat.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'Mode d approbation',
   'Tidak boleh mengubah apa pun — hanya membaca': 'Ne peut rien modifier — lecture seule',
   'Minta izin': 'Demander',
@@ -3218,17 +3181,17 @@ const FR: Dict = {
   'Konteks terpakai': 'Contexte actuel',
   'Jendela konteks': 'Fenetre de contexte',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'Estimation basee sur le contenu visible du chat et les charges des outils.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'Trouver les usages de la fonction X\nVerifier le module Y',
   'Status': 'Etat',
   'tidak ada yang jalan': 'aucun en cours',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'Les sous-agents sont invoques par l agent principal via le bouton "Taches paralleles" du panneau AI, ou automatiquement quand une tache peut etre divisee.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'resultat',
   'Berpikir…': 'Reflexion…',
   'Memikirkan langkah…': 'Reflexion a l etape suivante…',
   'Tugas selesai.': 'Tache terminee.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'Personnaliser la disposition',
   'Customize Layout…': 'Personnaliser la disposition…',
   'Terlihat': 'Visible',
@@ -3240,17 +3203,17 @@ const FR: Dict = {
   'Kanan': 'Droite',
   'Kerapatan': 'Densite de disposition',
   'Normal': 'Par defaut',
-  'Rapat': 'Compact',
+  'Padat': 'Compact',
   'Zen Mode': 'Mode Zen',
   'Kembalikan tata letak bawaan': 'Reinitialiser la disposition',
   'Sembunyikan panel AI': 'Masquer le panneau IA',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'Reduire',
   'Perbesar': 'Agrandir',
   'Tutup pratinjau': 'Fermer l apercu',
   'Gambar gagal dimuat.': 'Echec du chargement de l image.',
   'Gambar terlalu besar': 'Image trop grande',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'Aucun hote SSH',
   'Tambahkan host SSH dulu di panel SSH.': 'Ajoutez d abord un hote SSH dans le panneau SSH.',
   'File': 'Fichiers',
@@ -3262,7 +3225,7 @@ const FR: Dict = {
   'Nyalakan tunnel': 'Demarrer le tunnel',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'Aucun tunnel. Les ports deja utilises ne seront pas pris.',
   'Port tidak valid.': 'Port non valide.',
-  // ── T3.2: Database browser ──
+
   'Database': 'Base de donnees',
   'Path file SQLite (.db / .sqlite)': 'Chemin du fichier SQLite (.db / .sqlite)',
   'Buka': 'Ouvrir',
@@ -3274,7 +3237,7 @@ const FR: Dict = {
   'baris data': 'lignes',
   'terpengaruh': 'affectees',
   'dipotong — tambahkan LIMIT': 'tronque — ajoutez LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'Environnement de dev',
   'versi terdeteksi': 'versions detectees',
   'Muat ulang': 'Recharger',
@@ -3290,7 +3253,7 @@ const FR: Dict = {
   'menyiapkan…': 'demarrage…',
   'hidup di port': 'actif sur le port',
   'Port': 'Port',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'Explorateur de tests',
   'runner': 'executeurs',
   'Buka folder project untuk mendeteksi test.': 'Ouvrez un dossier de projet pour detecter les tests.',
@@ -3301,10 +3264,10 @@ const FR: Dict = {
   'Jalankan': 'Executer',
   'Riwayat': 'Historique',
   'Dijalankan di terminal:': 'Execution dans le terminal :',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'etapes',
   'tool': 'outils',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared n est pas installe',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'Le tunnel expose un port local sur INTERNET. Toute personne connaissant l URL peut y acceder.',
   'Port lokal': 'Port local',
@@ -3314,10 +3277,10 @@ const FR: Dict = {
   'Memeriksa cloudflared…': 'Verification de cloudflared…',
   'Menyiapkan…': 'Preparation…',
   'Hentikan': 'Arreter',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Sous-agent',
-  // ── T2.2: API client ──
+
   'Collection': 'Collection',
   'Environment': 'Environnement',
   'Pilih atau buat request untuk mulai.': 'Selectionnez ou creez une requete pour commencer.',
@@ -3329,7 +3292,7 @@ const FR: Dict = {
   'Hapus request': 'Supprimer la requete',
   'Tambah variabel': 'Ajouter une variable',
   'Body': 'Corps',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'Taches en parallele',
   'Satu baris = satu subagent': 'Une ligne = un sous-agent',
   'Jalankan beberapa tugas sekaligus (paralel)': 'Executer plusieurs taches en meme temps (parallele)',
@@ -3348,7 +3311,7 @@ const FR: Dict = {
   'batal': 'annule',
   'Berjalan…': 'Execution…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'Trouve toutes les utilisations de la fonction X\nVerifie si le module Y contient des bugs\nResume la structure du dossier Z',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'Ouvrez un fichier .http pour executer des requetes.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'Format : ### separateur · METHOD URL · en-tete : valeur · ligne vide puis corps',
   'request': 'requetes',
@@ -3358,19 +3321,19 @@ const FR: Dict = {
   'Header': 'En-tetes',
   '(body kosong)': '(corps vide)',
   'dipotong': 'tronque',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'Voie IA',
   'Pakai adapter API (butuh API key)': "Utiliser l'adaptateur API (clé API requise)",
   'Belum siap': 'Pas encore prêt',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'Mode CLI : envoyez un message pour lancer le CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'Utilise le formateur LSP de la langue active',
   'Diformat': 'Formaté',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'Réflexion…',
   'baris': 'lignes',
   'karakter': 'caractères',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'Intensité de raisonnement',
   'Penalaran: default': 'Raisonnement : par défaut',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -3555,7 +3518,7 @@ const FR: Dict = {
   'win.resizeSidebar': 'Redimensionner la barre latérale',
   'win.resizePanel': 'Redimensionner le panneau',
   'win.skipToEditor': 'Aller à l’éditeur',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'Modèle qui exécute l’IA',
   'belum dipilih': 'non sélectionné',
   '(belum ada model yang dipilih)': '(aucun modèle sélectionné)',
@@ -3592,14 +3555,13 @@ const DE: Dict = {
   'Dukung Zephyr': 'Zephyr unterstützen',
   'Auto-update memeriksa GitHub Releases berkala.': 'Die automatische Aktualisierung prüft GitHub Releases regelmäßig.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'Breite des KI-Bereichs ändern',
   'Lebarkan penuh': 'Auf volle Breite erweitern',
   'Kembalikan ukuran': 'Größe wiederherstellen',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'Unten',
   'Enter mengirim · Shift+Enter baris baru': 'Enter sendet · Umschalt+Enter neue Zeile',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'ein leichter Code-Editor, von Grund auf gebaut',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'Von ShinRyu04. MIT-Lizenz — frei nutzbar und veränderbar.',
   'Build': 'Build',
@@ -3637,7 +3599,7 @@ const DE: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'Header (ohne Anmeldedaten)',
   'Salin request ini': 'Diese Anfrage kopieren',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'KI-Prompt',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'Dieser Prompt wird in jeder Unterhaltung an das Modell gesendet. Leer lassen für den Zephyr-Standard (auf alle Modelle abgestimmt).',
   'Tool yang dikenalkan ke model': 'Dem Modell vorgestellte Werkzeuge',
@@ -3669,14 +3631,13 @@ const DE: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'Dieser Befehl ist zu kurz — sei genauer (z. B. „npm run build“, nicht „n“).',
   'Sudah ada di daftar.': 'Bereits in der Liste.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'Destruktive Befehle können nicht hinzugefügt werden.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'noch keine',
   'Sembunyikan panel info subagent': 'Subagenten-Infobereich ausblenden',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'Kein Subagent läuft. Öffne den Subagents-Tab im unteren Bereich, um parallele Aufgaben zu starten.',
   'Panel info — detail penuh ada di tab Subagents.': 'Infobereich — alle Details im Subagents-Tab.',
   'Info subagent di kanan chat': 'Subagenten-Info neben dem Chat',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'Anbieter wählen',
   'model': 'Modelle',
   'bisa ketik bebas': 'freie Eingabe',
@@ -3699,12 +3660,12 @@ const DE: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'Folgt dem Chat-Modell — klicken, um ein eigenes Subagenten-Modell zu wählen',
   'Model subagent': 'Subagenten-Modell',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'Modell für Subagenten. Folgen = wie das Gespräch.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'gesamt',
   'Belum ada subagent.': 'Noch keine Subagenten.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'Schreibe oben eine Aufgabe pro Zeile und druecke Ausfuehren. Jede Zeile wird ein Subagent, der parallel arbeitet.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'Subagenten stehen für sich — hier gestartet, getrennt vom KI-Gespräch. Ergebnisse landen nicht im Chatverlauf.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'Genehmigungsmodus',
   'Tidak boleh mengubah apa pun — hanya membaca': 'Kann nichts aendern — nur lesen',
   'Minta izin': 'Nachfragen',
@@ -3726,17 +3687,17 @@ const DE: Dict = {
   'Konteks terpakai': 'Aktueller Kontext',
   'Jendela konteks': 'Kontextfenster',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'Schaetzung basiert auf sichtbarem Chat-Inhalt und Tool-Nutzlast.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'Verwendungen von Funktion X finden\nModul Y auf Fehler pruefen',
   'Status': 'Status',
   'tidak ada yang jalan': 'keine laufen',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'Subagenten werden vom Hauptagenten ueber die Schaltflaeche "Parallele Aufgaben" im AI-Panel aufgerufen, oder automatisch wenn eine Aufgabe teilbar ist.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'Ergebnis',
   'Berpikir…': 'Denke nach…',
   'Memikirkan langkah…': 'Denke ueber den naechsten Schritt nach…',
   'Tugas selesai.': 'Aufgabe erledigt.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'Layout anpassen',
   'Customize Layout…': 'Layout anpassen…',
   'Terlihat': 'Sichtbar',
@@ -3748,17 +3709,17 @@ const DE: Dict = {
   'Kanan': 'Rechts',
   'Kerapatan': 'Layout-Dichte',
   'Normal': 'Standard',
-  'Rapat': 'Kompakt',
+  'Padat': 'Kompakt',
   'Zen Mode': 'Zen-Modus',
   'Kembalikan tata letak bawaan': 'Layout zuruecksetzen',
   'Sembunyikan panel AI': 'KI-Panel ausblenden',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'Verkleinern',
   'Perbesar': 'Vergroessern',
   'Tutup pratinjau': 'Vorschau schliessen',
   'Gambar gagal dimuat.': 'Bild konnte nicht geladen werden.',
   'Gambar terlalu besar': 'Bild zu gross',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'Noch kein SSH-Host',
   'Tambahkan host SSH dulu di panel SSH.': 'Fuege zuerst einen SSH-Host im SSH-Panel hinzu.',
   'File': 'Dateien',
@@ -3770,7 +3731,7 @@ const DE: Dict = {
   'Nyalakan tunnel': 'Tunnel starten',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'Noch keine Tunnel. Bereits belegte Ports werden nicht uebernommen.',
   'Port tidak valid.': 'Ungueltiger Port.',
-  // ── T3.2: Database browser ──
+
   'Database': 'Datenbank',
   'Path file SQLite (.db / .sqlite)': 'SQLite-Dateipfad (.db / .sqlite)',
   'Buka': 'Oeffnen',
@@ -3782,7 +3743,7 @@ const DE: Dict = {
   'baris data': 'Zeilen',
   'terpengaruh': 'betroffen',
   'dipotong — tambahkan LIMIT': 'abgeschnitten — LIMIT hinzufuegen',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'Entwicklungsumgebung',
   'versi terdeteksi': 'Versionen erkannt',
   'Muat ulang': 'Neu laden',
@@ -3798,7 +3759,7 @@ const DE: Dict = {
   'menyiapkan…': 'startet…',
   'hidup di port': 'aktiv auf Port',
   'Port': 'Port',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'Test-Explorer',
   'runner': 'Runner',
   'Buka folder project untuk mendeteksi test.': 'Oeffne einen Projektordner, um Tests zu erkennen.',
@@ -3809,10 +3770,10 @@ const DE: Dict = {
   'Jalankan': 'Ausfuehren',
   'Riwayat': 'Verlauf',
   'Dijalankan di terminal:': 'Laeuft im Terminal:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'Schritte',
   'tool': 'Tools',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared ist nicht installiert',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'Ein Tunnel stellt einen lokalen Port im INTERNET bereit. Jeder, der die URL kennt, kann zugreifen.',
   'Port lokal': 'Lokaler Port',
@@ -3822,10 +3783,10 @@ const DE: Dict = {
   'Memeriksa cloudflared…': 'cloudflared wird geprueft…',
   'Menyiapkan…': 'Vorbereitung…',
   'Hentikan': 'Stoppen',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Subagent',
-  // ── T2.2: API client ──
+
   'Collection': 'Sammlung',
   'Environment': 'Umgebung',
   'Pilih atau buat request untuk mulai.': 'Waehle oder erstelle eine Anfrage zum Starten.',
@@ -3837,7 +3798,7 @@ const DE: Dict = {
   'Hapus request': 'Anfrage loeschen',
   'Tambah variabel': 'Variable hinzufuegen',
   'Body': 'Body',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'Parallele Aufgaben',
   'Satu baris = satu subagent': 'Eine Zeile = ein Subagent',
   'Jalankan beberapa tugas sekaligus (paralel)': 'Mehrere Aufgaben gleichzeitig ausfuehren (parallel)',
@@ -3856,7 +3817,7 @@ const DE: Dict = {
   'batal': 'abgebrochen',
   'Berjalan…': 'Laeuft…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'Finde alle Verwendungen der Funktion X\nPruefe, ob Modul Y Fehler hat\nFasse die Struktur von Ordner Z zusammen',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'Öffne eine .http-Datei, um Anfragen auszuführen.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'Format: ### Trenner · METHOD URL · Header: Wert · Leerzeile dann Body',
   'request': 'Anfragen',
@@ -3866,19 +3827,19 @@ const DE: Dict = {
   'Header': 'Header',
   '(body kosong)': '(leerer Body)',
   'dipotong': 'abgeschnitten',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'KI-Pfad',
   'Pakai adapter API (butuh API key)': 'API-Adapter verwenden (API-Schlüssel nötig)',
   'Belum siap': 'Noch nicht bereit',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'CLI-Modus: Nachricht senden, um das CLI auszuführen',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'Verwendet den LSP-Formatierer der aktiven Sprache',
   'Diformat': 'Formatiert',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'Denkt nach…',
   'baris': 'Zeilen',
   'karakter': 'Zeichen',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'Denkintensität',
   'Penalaran: default': 'Denken: Standard',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -4063,7 +4024,7 @@ const DE: Dict = {
   'win.resizeSidebar': 'Seitenleiste skalieren',
   'win.resizePanel': 'Panel skalieren',
   'win.skipToEditor': 'Zum Editor springen',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'Modell, das die KI ausführt',
   'belum dipilih': 'noch nicht gewählt',
   '(belum ada model yang dipilih)': '(noch kein Modell gewählt)',
@@ -4100,14 +4061,13 @@ const PT: Dict = {
   'Dukung Zephyr': 'Apoiar o Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': 'A atualização automática verifica o GitHub Releases periodicamente.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'Ajustar a largura do painel de IA',
   'Lebarkan penuh': 'Expandir para largura total',
   'Kembalikan ukuran': 'Restaurar tamanho',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'Abaixo',
   'Enter mengirim · Shift+Enter baris baru': 'Enter envia · Shift+Enter nova linha',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'um editor de código leve, feito do zero',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'Feito por ShinRyu04. Licença MIT — livre para usar e modificar.',
   'Build': 'Build',
@@ -4145,7 +4105,7 @@ const PT: Dict = {
   'URL': 'URL',
   'Header (tanpa kredensial)': 'Cabeçalhos (sem credenciais)',
   'Salin request ini': 'Copiar esta requisição',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'Prompt de IA',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'Este prompt é enviado ao modelo em cada conversa. Deixe em branco para usar o padrão do Zephyr (ajustado para funcionar bem em todos os modelos).',
   'Tool yang dikenalkan ke model': 'Ferramentas apresentadas ao modelo',
@@ -4177,14 +4137,13 @@ const PT: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'Esse comando é curto demais — seja mais específico (ex.: "npm run build", não "n").',
   'Sudah ada di daftar.': 'Já está na lista.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'Comandos destrutivos não podem ser adicionados à lista.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'nenhum ainda',
   'Sembunyikan panel info subagent': 'Ocultar o painel de informações dos subagentes',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'Nenhum subagente em execução. Abra a aba Subagents no painel inferior para rodar tarefas em paralelo.',
   'Panel info — detail penuh ada di tab Subagents.': 'Painel de informações — o detalhe completo está na aba Subagents.',
   'Info subagent di kanan chat': 'Informações dos subagentes ao lado do chat',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'Escolher provedor',
   'model': 'modelos',
   'bisa ketik bebas': 'digitação livre',
@@ -4207,12 +4166,12 @@ const PT: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'Seguindo o modelo do chat — clique para escolher um modelo só para subagentes',
   'Model subagent': 'Modelo do subagente',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'Modelo usado pelos subagentes. Seguir = igual à conversa.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'total',
   'Belum ada subagent.': 'Ainda nao ha subagentes.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'Escreva uma tarefa por linha acima e clique em Executar. Cada linha vira um subagente trabalhando em paralelo.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'Os subagentes são independentes — rodam daqui, separados da conversa de IA. Os resultados não entram no histórico do chat.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'Modo de aprovacao',
   'Tidak boleh mengubah apa pun — hanya membaca': 'Nao pode alterar nada — somente leitura',
   'Minta izin': 'Pedir permissao',
@@ -4234,17 +4193,17 @@ const PT: Dict = {
   'Konteks terpakai': 'Contexto atual',
   'Jendela konteks': 'Janela de contexto',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'Estimativa baseada no conteudo visivel do chat e nas cargas das ferramentas.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'Procurar usos da funcao X\nVerificar o modulo Y',
   'Status': 'Status',
   'tidak ada yang jalan': 'nenhum em execucao',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'Os subagentes sao chamados pelo agente principal pelo botao "Tarefas paralelas" no painel AI, ou automaticamente quando uma tarefa pode ser dividida.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'resultado',
   'Berpikir…': 'Pensando…',
   'Memikirkan langkah…': 'Pensando no proximo passo…',
   'Tugas selesai.': 'Tarefa concluida.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'Personalizar layout',
   'Customize Layout…': 'Personalizar layout…',
   'Terlihat': 'Visivel',
@@ -4256,17 +4215,17 @@ const PT: Dict = {
   'Kanan': 'Direita',
   'Kerapatan': 'Densidade do layout',
   'Normal': 'Padrao',
-  'Rapat': 'Compacto',
+  'Padat': 'Compacto',
   'Zen Mode': 'Modo Zen',
   'Kembalikan tata letak bawaan': 'Redefinir layout padrao',
   'Sembunyikan panel AI': 'Ocultar painel de IA',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'Diminuir',
   'Perbesar': 'Ampliar',
   'Tutup pratinjau': 'Fechar previa',
   'Gambar gagal dimuat.': 'Falha ao carregar a imagem.',
   'Gambar terlalu besar': 'Imagem muito grande',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'Nenhum host SSH ainda',
   'Tambahkan host SSH dulu di panel SSH.': 'Adicione um host SSH primeiro no painel SSH.',
   'File': 'Arquivos',
@@ -4278,7 +4237,7 @@ const PT: Dict = {
   'Nyalakan tunnel': 'Iniciar tunel',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'Nenhum tunel ainda. Portas em uso nao serao tomadas.',
   'Port tidak valid.': 'Porta invalida.',
-  // ── T3.2: Database browser ──
+
   'Database': 'Banco de dados',
   'Path file SQLite (.db / .sqlite)': 'Caminho do arquivo SQLite (.db / .sqlite)',
   'Buka': 'Abrir',
@@ -4290,7 +4249,7 @@ const PT: Dict = {
   'baris data': 'linhas',
   'terpengaruh': 'afetadas',
   'dipotong — tambahkan LIMIT': 'truncado — adicione LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'Ambiente de desenvolvimento',
   'versi terdeteksi': 'versoes detectadas',
   'Muat ulang': 'Recarregar',
@@ -4306,7 +4265,7 @@ const PT: Dict = {
   'menyiapkan…': 'iniciando…',
   'hidup di port': 'ativo na porta',
   'Port': 'Porta',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'Explorador de testes',
   'runner': 'executores',
   'Buka folder project untuk mendeteksi test.': 'Abra uma pasta de projeto para detectar testes.',
@@ -4317,10 +4276,10 @@ const PT: Dict = {
   'Jalankan': 'Executar',
   'Riwayat': 'Historico',
   'Dijalankan di terminal:': 'Executando no terminal:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'passos',
   'tool': 'ferramentas',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'cloudflared nao esta instalado',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'O tunel expoe uma porta local para a INTERNET. Qualquer pessoa que saiba a URL pode acessar.',
   'Port lokal': 'Porta local',
@@ -4330,10 +4289,10 @@ const PT: Dict = {
   'Memeriksa cloudflared…': 'Verificando cloudflared…',
   'Menyiapkan…': 'Preparando…',
   'Hentikan': 'Parar',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'Subagente',
-  // ── T2.2: API client ──
+
   'Collection': 'Colecao',
   'Environment': 'Ambiente',
   'Pilih atau buat request untuk mulai.': 'Selecione ou crie uma requisicao para comecar.',
@@ -4345,7 +4304,7 @@ const PT: Dict = {
   'Hapus request': 'Excluir requisicao',
   'Tambah variabel': 'Adicionar variavel',
   'Body': 'Corpo',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'Tarefas em paralelo',
   'Satu baris = satu subagent': 'Uma linha = um subagente',
   'Jalankan beberapa tugas sekaligus (paralel)': 'Executar varias tarefas ao mesmo tempo (paralelo)',
@@ -4364,7 +4323,7 @@ const PT: Dict = {
   'batal': 'cancelado',
   'Berjalan…': 'Executando…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'Encontre todos os usos da funcao X\nVerifique se o modulo Y tem bugs\nResuma a estrutura da pasta Z',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'Abra um arquivo .http para executar requisicoes.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'Formato: ### separador · METHOD URL · cabecalho: valor · linha vazia e depois corpo',
   'request': 'requisicoes',
@@ -4374,19 +4333,19 @@ const PT: Dict = {
   'Header': 'Cabecalhos',
   '(body kosong)': '(corpo vazio)',
   'dipotong': 'truncado',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'Rota de IA',
   'Pakai adapter API (butuh API key)': 'Usar o adaptador de API (requer chave de API)',
   'Belum siap': 'Ainda não pronto',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'Modo CLI: envie uma mensagem para executar o CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'Usa o formatador LSP do idioma ativo',
   'Diformat': 'Formatado',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'Pensando…',
   'baris': 'linhas',
   'karakter': 'caracteres',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'Intensidade de raciocínio',
   'Penalaran: default': 'Raciocínio: padrão',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -4571,7 +4530,7 @@ const PT: Dict = {
   'win.resizeSidebar': 'Redimensionar barra lateral',
   'win.resizePanel': 'Redimensionar painel',
   'win.skipToEditor': 'Ir para o editor',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'Modelo que executa a IA',
   'belum dipilih': 'ainda não escolhido',
   '(belum ada model yang dipilih)': '(nenhum modelo escolhido ainda)',
@@ -4608,14 +4567,13 @@ const AR: Dict = {
   'Dukung Zephyr': 'دعم Zephyr',
   'Auto-update memeriksa GitHub Releases berkala.': 'يتحقق التحديث التلقائي من GitHub Releases دوريًا.',
 
-  // ── T4.14: lebar kolom AI ──
   'Ubah lebar panel AI': 'تغيير عرض لوحة الذكاء',
   'Lebarkan penuh': 'توسيع للعرض الكامل',
   'Kembalikan ukuran': 'استعادة الحجم',
-  // ── posisi panel AI + Enter kirim ──
+
   'Bawah': 'أسفل',
   'Enter mengirim · Shift+Enter baris baru': 'Enter للإرسال · Shift+Enter لسطر جديد',
-  // ── T4.6/T4.7/T4.8: About + MCP + Capture ──
+
   'code editor ringan, dibangun dari nol': 'محرّر أكواد خفيف، مبني من الصفر',
   'Dibuat oleh ShinRyu04. Lisensi MIT — bebas dipakai dan dimodifikasi.': 'من إنشاء ShinRyu04. رخصة MIT — حرّ للاستخدام والتعديل.',
   'Build': 'البناء',
@@ -4653,7 +4611,7 @@ const AR: Dict = {
   'URL': 'الرابط',
   'Header (tanpa kredensial)': 'الترويسات (بدون بيانات اعتماد)',
   'Salin request ini': 'نسخ هذا الطلب',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
+
   'Prompt AI': 'أمر الذكاء الاصطناعي',
   'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.': 'يُرسل هذا الأمر إلى الموديل في كل محادثة. اتركه فارغًا لاستخدام الافتراضي (مضبوط ليعمل جيدًا على كل الموديلات).',
   'Tool yang dikenalkan ke model': 'الأدوات المعروضة على الموديل',
@@ -4685,14 +4643,13 @@ const AR: Dict = {
   'Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").': 'هذا الأمر قصير جدًا — كن أكثر تحديدًا (مثل "npm run build" وليس "n").',
   'Sudah ada di daftar.': 'موجود في القائمة بالفعل.',
   'Perintah yang merusak tidak bisa dimasukkan ke daftar izin.': 'لا يمكن إضافة الأوامر المدمّرة إلى القائمة.',
-  // ── T4.3/T4.5: prompt AI + izin perintah ──
-  // ── T4.1b: panel info subagent di kanan chat ──
+
   'belum ada': 'لا شيء بعد',
   'Sembunyikan panel info subagent': 'إخفاء لوحة معلومات الوكلاء الفرعيين',
   'Belum ada subagent berjalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.': 'لا يوجد وكيل فرعي قيد التشغيل. افتح تبويب Subagents في اللوحة السفلية لتشغيل مهام متوازية.',
   'Panel info — detail penuh ada di tab Subagents.': 'لوحة المعلومات — التفاصيل الكاملة في تبويب Subagents.',
   'Info subagent di kanan chat': 'معلومات الوكلاء الفرعيين بجانب المحادثة',
-  // ── T4.10: pemilih model dua tingkat + model subagent ──
+
   'Pilih provider': 'اختر المزوّد',
   'model': 'موديل',
   'bisa ketik bebas': 'كتابة حرة',
@@ -4715,12 +4672,12 @@ const AR: Dict = {
   'Ikut model chat — klik untuk memilih model khusus subagent': 'يتّبع موديل المحادثة — انقر لاختيار موديل خاص بالوكلاء الفرعيين',
   'Model subagent': 'موديل الوكيل الفرعي',
   'Model yang dipakai subagent. Ikut chat = sama dengan percakapan.': 'الموديل الذي يستخدمه الوكلاء الفرعيون. الاتّباع = نفس المحادثة.',
-  // ── T4.1: tab Subagents ──
+
   'total': 'الإجمالي',
   'Belum ada subagent.': 'لا يوجد وكلاء فرعيون بعد.',
   'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.': 'اكتب مهمة واحدة في كل سطر أعلاه ثم اضغط تشغيل. كل سطر يصبح وكيلا فرعيا يعمل بالتوازي.',
   'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.': 'الوكلاء الفرعيون مستقلّون — يُشغَّلون من هنا، منفصلين عن محادثة الذكاء. النتائج لا تدخل سجل المحادثة.',
-  // ── T3.11: pemilih mode + konteks + dikte suara ──
+
   'Mode persetujuan': 'وضع الموافقة',
   'Tidak boleh mengubah apa pun — hanya membaca': 'لا يمكنه تغيير أي شيء — قراءة فقط',
   'Minta izin': 'اطلب الإذن',
@@ -4742,17 +4699,17 @@ const AR: Dict = {
   'Konteks terpakai': 'السياق الحالي',
   'Jendela konteks': 'نافذة السياق',
   'Perkiraan dari isi chat yang terlihat dan payload tool.': 'التقدير مبني على محتوى المحادثة الظاهر وحمولات الأدوات.',
-  // ── T3.10: placeholder + label subagent ──
+
   'Cari pemakaian fungsi X\nPeriksa bug di modul Y': 'ابحث عن استخدامات الدالة X\nتحقق من الوحدة Y',
   'Status': 'الحالة',
   'tidak ada yang jalan': 'لا شيء قيد التشغيل',
   'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.': 'يتم استدعاء الوكلاء الفرعيين من الوكيل الرئيسي عبر زر "المهام المتوازية" في لوحة الذكاء الاصطناعي، أو تلقائيا عند إمكانية تقسيم المهمة.',
-  // ── T3.6: timeline langkah agent ──
+
   'hasil': 'النتيجة',
   'Berpikir…': 'يفكر…',
   'Memikirkan langkah…': 'يفكر في الخطوة التالية…',
   'Tugas selesai.': 'اكتملت المهمة.',
-  // ── T3.5: Customize Layout ──
+
   'Customize Layout': 'تخصيص التخطيط',
   'Customize Layout…': 'تخصيص التخطيط…',
   'Terlihat': 'مرئي',
@@ -4764,17 +4721,17 @@ const AR: Dict = {
   'Kanan': 'يمين',
   'Kerapatan': 'كثافة التخطيط',
   'Normal': 'افتراضي',
-  'Rapat': 'مضغوط',
+  'Padat': 'مضغوط',
   'Zen Mode': 'وضع Zen',
   'Kembalikan tata letak bawaan': 'إعادة التخطيط الافتراضي',
   'Sembunyikan panel AI': 'إخفاء لوحة الذكاء الاصطناعي',
-  // ── T3.4: Zen + pratinjau gambar ──
+
   'Perkecil': 'تصغير',
   'Perbesar': 'تكبير',
   'Tutup pratinjau': 'إغلاق المعاينة',
   'Gambar gagal dimuat.': 'فشل تحميل الصورة.',
   'Gambar terlalu besar': 'الصورة كبيرة جدًا',
-  // ── T3.3: SFTP + port forwarding ──
+
   'Belum ada host SSH': 'لا يوجد مضيف SSH بعد',
   'Tambahkan host SSH dulu di panel SSH.': 'أضف مضيف SSH أولاً في لوحة SSH.',
   'File': 'ملفات',
@@ -4786,7 +4743,7 @@ const AR: Dict = {
   'Nyalakan tunnel': 'بدء النفق',
   'Belum ada tunnel. Port yang sudah dipakai tidak akan direbut.': 'لا توجد أنفاق بعد. المنافذ المستخدمة لن تُنتزع.',
   'Port tidak valid.': 'منفذ غير صالح.',
-  // ── T3.2: Database browser ──
+
   'Database': 'قاعدة البيانات',
   'Path file SQLite (.db / .sqlite)': 'مسار ملف SQLite (.db / .sqlite)',
   'Buka': 'فتح',
@@ -4798,7 +4755,7 @@ const AR: Dict = {
   'baris data': 'صفوف',
   'terpengaruh': 'متأثرة',
   'dipotong — tambahkan LIMIT': 'مقتطع — أضف LIMIT',
-  // ── T3.1: Dev Environment ──
+
   'Dev Environment': 'بيئة التطوير',
   'versi terdeteksi': 'إصدارات مكتشفة',
   'Muat ulang': 'إعادة التحميل',
@@ -4814,7 +4771,7 @@ const AR: Dict = {
   'menyiapkan…': 'جارٍ التشغيل…',
   'hidup di port': 'يعمل على المنفذ',
   'Port': 'المنفذ',
-  // ── T2.4: Test Explorer ──
+
   'Test Explorer': 'مستكشف الاختبارات',
   'runner': 'مشغّلات',
   'Buka folder project untuk mendeteksi test.': 'افتح مجلد مشروع لاكتشاف الاختبارات.',
@@ -4825,10 +4782,10 @@ const AR: Dict = {
   'Jalankan': 'تشغيل',
   'Riwayat': 'السجل',
   'Dijalankan di terminal:': 'يتم التشغيل في الطرفية:',
-  // ── T2.1: satuan langkah/tool ──
+
   'langkah': 'خطوات',
   'tool': 'أدوات',
-  // ── T2.3: Cloudflare Tunnel ──
+
   'cloudflared belum terpasang': 'لم يتم تثبيت cloudflared',
   'Tunnel membuka port lokal ke INTERNET. Siapa pun yang tahu URL-nya bisa mengaksesnya.': 'النفق يعرض منفذًا محليًا على الإنترنت. أي شخص يعرف الرابط يمكنه الوصول.',
   'Port lokal': 'المنفذ المحلي',
@@ -4838,10 +4795,10 @@ const AR: Dict = {
   'Memeriksa cloudflared…': 'جارٍ التحقق من cloudflared…',
   'Menyiapkan…': 'جارٍ التحضير…',
   'Hentikan': 'إيقاف',
-  // ── T2.1: label langkah subagent ──
+
   'Reasoned': 'Reasoned',
   'Subagent': 'وكيل فرعي',
-  // ── T2.2: API client ──
+
   'Collection': 'المجموعة',
   'Environment': 'البيئة',
   'Pilih atau buat request untuk mulai.': 'اختر طلبًا أو أنشئ واحدًا للبدء.',
@@ -4853,7 +4810,7 @@ const AR: Dict = {
   'Hapus request': 'حذف الطلب',
   'Tambah variabel': 'إضافة متغير',
   'Body': 'النص',
-  // ── T2.1: subagent paralel ──
+
   'Tugas paralel': 'المهام المتوازية',
   'Satu baris = satu subagent': 'سطر واحد = وكيل فرعي واحد',
   'Jalankan beberapa tugas sekaligus (paralel)': 'تشغيل عدة مهام في وقت واحد (بالتوازي)',
@@ -4872,7 +4829,7 @@ const AR: Dict = {
   'batal': 'ملغى',
   'Berjalan…': 'جارٍ التشغيل…',
   'Cari semua pemakaian fungsi X\nPeriksa apakah ada bug di modul Y\nRingkas struktur folder Z': 'ابحث عن كل استخدامات الدالة X\nتحقق مما إذا كانت الوحدة Y بها أخطاء\nلخّص بنية المجلد Z',
-  // ── T1.3: HTTP client ──
+
   'Buka file .http untuk menjalankan request.': 'افتح ملف .http لتشغيل الطلبات.',
   'Format: ### pemisah · METHOD URL · header: nilai · baris kosong lalu body': 'الصيغة: ### فاصل · METHOD URL · ترويسة: قيمة · سطر فارغ ثم النص',
   'request': 'طلبات',
@@ -4882,19 +4839,19 @@ const AR: Dict = {
   'Header': 'الترويسات',
   '(body kosong)': '(نص فارغ)',
   'dipotong': 'مقطوع',
-  // ── T1.2/T1.5: jalur AI ──
+
   'Jalur AI': 'مسار الذكاء الاصطناعي',
   'Pakai adapter API (butuh API key)': 'استخدم محوّل API (يتطلب مفتاح API)',
   'Belum siap': 'غير جاهز بعد',
   'mode CLI: kirim pesan untuk menjalankan CLI': 'وضع CLI: أرسل رسالة لتشغيل CLI',
-  // ── T1.4: format-on-save ──
+
   'Memakai formatter LSP bahasa yang aktif': 'يستخدم منسّق LSP للغة النشطة',
   'Diformat': 'تم التنسيق',
-  // ── T1.1: blok Reasoned ──
+
   'Sedang berpikir…': 'يفكر…',
   'baris': 'سطر',
   'karakter': 'حرف',
-  // ── T1.1: tingkat penalaran ──
+
   'Tingkat penalaran': 'قوة الاستدلال',
   'Penalaran: default': 'الاستدلال: افتراضي',
   'Seberapa dalam model berpikir sebelum menjawab. Naikkan untuk tugas sulit, turunkan untuk hemat waktu.':
@@ -5079,7 +5036,7 @@ const AR: Dict = {
   'win.resizeSidebar': 'تغيير عرض الشريط الجانبي',
   'win.resizePanel': 'تغيير ارتفاع اللوحة',
   'win.skipToEditor': 'الانتقال إلى المحرر',
-  // ── identitas model (Prompt AI) ──
+
   'Model yang menjalankan AI': 'النموذج الذي يشغّل الذكاء الاصطناعي',
   'belum dipilih': 'لم يتم الاختيار',
   '(belum ada model yang dipilih)': '(لم يتم اختيار نموذج بعد)',

@@ -1,10 +1,3 @@
-// CommandPalette.tsx — modal Command Palette (Ctrl+Shift+P) & Quick Open
-// (Ctrl+P), fase 12.
-//
-// Daftar hasil di-virtualisasi sederhana: hanya jendela ~40 baris di sekitar
-// item aktif yang dirender. Untuk 5.000 file itu bedanya terasa — tanpa ini
-// setiap ketikan me-mount ribuan node.
-
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { usePalette, type PaletteItem } from '../../lib/paletteStore';
 import { useT } from '../../lib/i18n';
@@ -69,7 +62,6 @@ function GroupIcon({ group }: { group?: string }) {
   }
 }
 
-/** Label dengan karakter yang cocok ditebalkan. */
 function Highlighted({ text, hits }: { text: string; hits: number[] }) {
   if (hits.length === 0) return <>{text}</>;
   const set = new Set(hits);
@@ -134,8 +126,7 @@ export default function CommandPalette() {
   const move = usePalette((s) => s.move);
   const accept = usePalette((s) => s.accept);
   const close = usePalette((s) => s.close);
-  // items() dihitung dari state lain; ambil lewat getState supaya selector
-  // tidak mengembalikan array baru tiap render (aturan zustand v5, fase 09).
+  
   const items = open ? usePalette.getState().items() : [];
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -145,7 +136,6 @@ export default function CommandPalette() {
     if (open) inputRef.current?.focus();
   }, [open, mode]);
 
-  // Jaga item aktif tetap terlihat.
   useLayoutEffect(() => {
     if (!open) return;
     listRef.current
@@ -155,7 +145,6 @@ export default function CommandPalette() {
 
   if (!open) return null;
 
-  // Jendela render di sekitar index (virtualisasi sederhana).
   const start = Math.max(0, Math.min(index - Math.floor(WINDOW / 2), Math.max(0, items.length - WINDOW)));
   const visible = items.slice(start, start + WINDOW);
 

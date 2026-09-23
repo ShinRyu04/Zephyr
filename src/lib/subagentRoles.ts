@@ -1,37 +1,17 @@
-// subagentRoles.ts — peran subagent (T4.2).
-//
-// KENAPA peran, bukan sekadar nama: "Comet" tidak memberi tahu apa pun tentang
-// pekerjaannya. Dengan peran, user tahu SIAPA yang dipanggil untuk APA, dan
-// agent utama bisa merutekan tugas ke peran yang tepat.
-//
-// PERBEDAAN DENGAN TEDI: TEDI memakai 10 nama (comet, nebula, nova, ...) yang
-// masing-masing adalah agen terpisah dengan prompt sendiri. Di Zephyr, peran
-// adalah KATEGORI kerja yang bisa dipakai berulang — jumlah agen tetap dibatasi
-// Settings, dan nama (Comet/Odyssey/...) tetap dipakai sebagai identitas
-// instance. Jadi "Comet dengan peran Cari" — bukan "agen bernama Comet".
-//
-// ROLES:
-//   cari    — baca kode, cari pemakaian, petakan struktur
-//   telaah  — analisis mendalam: bug sulit, arsitektur, trade-off
-//   rencana — susun rencana yang bisa dieksekusi
-//   audit   — periksa apakah perubahan/rencana benar-benar jalan
-//   kerja   — kerjakan satu tugas nyata sampai selesai (butuh izin tulis)
-//   jelajah — riset pustaka/dokumentasi eksternal
-
 export type PeranId = 'cari' | 'telaah' | 'rencana' | 'audit' | 'kerja' | 'jelajah';
 
 export interface Peran {
   id: PeranId;
   label: string;
-  /** penjelasan satu baris untuk UI */
+
   hint: string;
-  /** ikon teks (SVG per-peran terlalu berat untuk daftar) */
+
   ikon: string;
-  /** apakah peran ini butuh menulis file */
+
   butuhTulis: boolean;
-  /** arahan yang disisipkan ke prompt subagent */
+
   arahan: string;
-  /** kata kunci untuk menebak peran dari teks tugas */
+
   kunci: string[];
 }
 
@@ -113,22 +93,14 @@ export const PERAN: Peran[] = [
 
 export const PERAN_BY_ID = new Map(PERAN.map((p) => [p.id, p]));
 
-/** Label peran untuk ditampilkan; peran tak dikenal ditampilkan apa adanya. */
 export function infoPeran(id: string | undefined): Peran | null {
   if (!id) return null;
   return PERAN_BY_ID.get(id as PeranId) ?? null;
 }
 
-/**
- * Tebak peran yang cocok dari teks tugas.
- *
- * Ini HEURISTIK, bukan penentu: user tetap bisa memilih peran sendiri (atau
- * memaksa lewat prefix). Tujuannya hanya supaya tugas yang jelas-jelas
- * penelusuran tidak dijalankan oleh pekerja yang mencoba menulis file.
- */
 export function tebakPeran(tugas: string): PeranId {
   const t = tugas.toLowerCase();
-  // Skor: jumlah kata kunci yang cocok, diutamakan yang lebih spesifik.
+
   let terbaik: PeranId = 'cari';
   let skorTerbaik = -1;
   for (const p of PERAN) {
@@ -144,7 +116,6 @@ export function tebakPeran(tugas: string): PeranId {
   return terbaik;
 }
 
-/** Prefix yang bisa dipakai user untuk memaksa peran: "@cari ...", "@kerja ...". */
 export function peranDariPrefix(tugas: string): { peran: PeranId | null; sisa: string } {
   const m = tugas.match(/^\s*@(cari|telaah|rencana|audit|kerja|jelajah)\b\s*(.*)$/is);
   if (!m) return { peran: null, sisa: tugas };

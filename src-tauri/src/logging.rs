@@ -1,42 +1,19 @@
-// logging.rs — tracing ke %APPDATA%\zephyr\logs\zephyr-YYYY-MM-DD.log (fase 14).
-//
-// KEPUTUSAN IMPLEMENTASI (jangan diganti tanpa uji ulang):
-//   * Penulis file dibuat sendiri, BUKAN `tracing-appender`. Appender itu
-//     hanya bisa rotate per waktu (harian/jam), sedangkan kontrak fase 14
-//     minta rotate saat file mencapai 2MB. Writer di bawah memeriksa ukuran
-//     tiap kali menulis lalu memindahkan file ke `...-1.log`, `...-2.log`.
-//   * `MakeWriter` mengembalikan handle yang berbagi satu `Mutex<Inner>`
-//     supaya baris dari banyak thread tidak saling menyisip.
-//   * `tracing_subscriber` dipakai tanpa fitur `env-filter` (default-features
-//     = false) — filter level cukup dari `LevelFilter`: debug di dev, info di
-//     release. Menambah env-filter menarik `regex` versi lain ke build.
-//   * Level bisa ditimpa lewat env `ZEPHYR_LOG` (trace|debug|info|warn|error)
-//     untuk menelusuri masalah di mesin user tanpa build ulang.
-//   * Panic hook menulis pesan + backtrace ke log SEBELUM proses keluar, lalu
-//     menandai `PANICKED` supaya frontend bisa menampilkan dialog crash.
-//
-// Rahasia TIDAK boleh masuk ke sini: pemanggil yang memegang token/API key
-// wajib memask sendiri (lihat secrets.rs / mcp_server.rs).
-
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-/// Ukuran maksimum satu file log sebelum dirotasi (kontrak fase 14: 2MB).
 const MAX_BYTES: u64 = 2 * 1024 * 1024;
-/// Jumlah file lama yang disimpan (`zephyr-...-1.log` .. `-3.log`).
+
 const KEEP: usize = 3;
 
-/// Diisi sekali oleh `init()`; dipakai panic hook & `log_file_path()`.
 static SINK: OnceLock<LogSink> = OnceLock::new();
-/// AppHandle untuk memberi tahu frontend saat panic (dialog crash, 14.6).
-/// Dipasang di `setup()` — panic sebelum itu hanya masuk file log.
+
 static EMIT: OnceLock<tauri::AppHandle> = OnceLock::new();
-/// true setelah panic pertama tercatat (dibaca command `crash_info`).
+
 static PANICKED: AtomicBool = AtomicBool::new(false);
-/// Pesan panic terakhir (baris pertama) untuk dialog crash.
+
 static LAST_PANIC: OnceLock<Mutex<String>> = OnceLock::new();
 
 struct Inner {
@@ -45,7 +22,6 @@ struct Inner {
     written: u64,
 }
 
-/// Penulis log bersama: satu file, banyak thread.
 #[derive(Clone)]
 pub struct LogSink(std::sync::Arc<Mutex<Inner>>);
 
@@ -70,7 +46,6 @@ impl LogSink {
         })))
     }
 
-    /// Tulis satu baris apa adanya (dipakai panic hook, di luar tracing).
     pub fn write_line(&self, line: &str) {
         if let Ok(mut inner) = self.0.lock() {
             let mut buf = line.as_bytes().to_vec();
@@ -87,7 +62,6 @@ impl LogSink {
     }
 }
 
-/// Tulis + rotate. Dipisah dari `LogSink` supaya bisa dipakai dari `io::Write`.
 fn write_locked(inner: &mut Inner, buf: &[u8]) {
     if inner.written + buf.len() as u64 > MAX_BYTES {
         rotate(inner);
@@ -99,9 +73,8 @@ fn write_locked(inner: &mut Inner, buf: &[u8]) {
     }
 }
 
-/// Geser `x.log` → `x-1.log` → … → `x-KEEP.log` (yang tertua dibuang).
 fn rotate(inner: &mut Inner) {
-    inner.file = None; // tutup handle dulu: Windows menolak rename file terbuka
+    inner.file = None;
 
     let stem = inner
         .path
@@ -131,7 +104,6 @@ fn rotate(inner: &mut Inner) {
     inner.written = 0;
 }
 
-/// Handle per-event yang dikembalikan `MakeWriter`.
 pub struct LogWriter(LogSink);
 
 impl Write for LogWriter {
@@ -159,10 +131,6 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogSink {
     }
 }
 
-/// Pasang subscriber global + panic hook. Aman dipanggil dua kali (no-op).
-///
-/// `dir` = `%APPDATA%\zephyr\logs`. Dipanggil sekali dari `run()` sebelum
-/// Tauri dibangun, jadi error startup ikut tercatat.
 pub fn init(dir: &Path) {
     if SINK.get().is_some() {
         return;
@@ -178,10 +146,9 @@ pub fn init(dir: &Path) {
         }
     });
 
-    // `try_init` (bukan `init`): dua kali pasang subscriber tidak boleh panik.
     let _ = tracing_subscriber::fmt()
         .with_writer(sink.clone())
-        .with_ansi(false) // file log, bukan terminal
+        .with_ansi(false)
         .with_target(true)
         .with_max_level(level)
         .try_init();
@@ -208,7 +175,6 @@ fn level_from_env() -> Option<tracing::Level> {
     }
 }
 
-/// Panic hook: stack ke log dulu, baru proses lanjut unwind/abort.
 fn install_panic_hook() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -226,7 +192,7 @@ fn install_panic_hook() {
             ));
             sink.write_line(&format!("{bt}"));
         }
-        // tracing juga, supaya formatnya sama dengan entri lain bila subscriber hidup.
+
         tracing::error!(location = %loc, "panic: {msg}");
 
         PANICKED.store(true, Ordering::SeqCst);
@@ -234,9 +200,6 @@ fn install_panic_hook() {
             *slot = format!("{msg} ({loc})");
         }
 
-        // Beri tahu frontend supaya dialog crash muncul SEBELUM proses hilang.
-        // Panic di command Tauri hanya membunuh thread command-nya, jadi window
-        // biasanya masih hidup dan bisa menampilkan pesan.
         if let Some(app) = EMIT.get() {
             use tauri::Emitter;
             let _ = app.emit(
@@ -253,7 +216,6 @@ fn install_panic_hook() {
     }));
 }
 
-/// Daftarkan AppHandle agar panic bisa diberitahukan ke frontend (14.6).
 pub fn attach_app(app: tauri::AppHandle) {
     let _ = EMIT.set(app);
 }
@@ -268,25 +230,20 @@ fn panic_message(info: &std::panic::PanicHookInfo<'_>) -> String {
     }
 }
 
-/// Path file log hari ini (dipakai About → Diagnostics).
 pub fn log_file_path() -> Option<PathBuf> {
     SINK.get().map(|s| s.path())
 }
 
-/// true bila sudah pernah panic di sesi ini (dialog crash frontend).
 pub fn panicked() -> bool {
     PANICKED.load(Ordering::SeqCst)
 }
 
-/// Pesan panic terakhir (kosong = belum pernah).
 pub fn last_panic() -> String {
     LAST_PANIC
         .get()
         .and_then(|m| m.lock().ok().map(|s| s.clone()))
         .unwrap_or_default()
 }
-
-// ───────── hook untuk unit test (tests_log.rs) ─────────
 
 #[cfg(test)]
 pub fn sink_for_test(dir: &Path) -> LogSink {

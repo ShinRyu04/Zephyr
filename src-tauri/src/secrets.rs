@@ -1,18 +1,3 @@
-// secrets.rs — penyimpanan API key provider AI (fase 08).
-//
-// ATURAN KEAMANAN (AGENTS.md §4 & §7):
-//   * apiKey TIDAK PERNAH dikirim utuh ke frontend. Frontend hanya melihat
-//     `hasKey` + `preview` (mis. "sk-…4f2a").
-//   * key TIDAK ditulis ke settings.json (file itu ikut dibaca/di-share);
-//     disimpan terpisah di %APPDATA%\zephyr\secrets.json.
-//   * key TIDAK pernah masuk log / pesan error.
-//
-// Enkripsi: XOR stream dengan kunci turunan BLAKE3 dari (machine GUID +
-// nama komputer + salt aplikasi). Ini OBFUSKASI, bukan proteksi terhadap
-// penyerang yang sudah memegang akun Windows-mu — dan itu memang batas
-// yang realistis untuk app desktop tanpa credential store OS. Disebutkan
-// apa adanya di UI Settings.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -22,17 +7,10 @@ use tauri::State;
 
 const SALT: &str = "zephyr/secrets/v1";
 
-/// Bahan kunci yang stabil di satu mesin.
 fn machine_seed() -> String {
     let name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "unknown-host".into());
     let user = std::env::var("USERNAME").unwrap_or_else(|_| "unknown-user".into());
-    // MachineGuid: identitas instalasi Windows. Kalau gagal dibaca, tetap
-    // jalan dengan bahan lain (jangan sampai fitur mati total).
-    //
-    // `crate::proc::cmd` memasang CREATE_NO_WINDOW: fungsi ini dipanggil saat
-    // STARTUP (frontend meminta daftar model untuk menampilkan hasKey, yang
-    // membaca secrets.json). Tanpa flag itu setiap buka Zephyr memunculkan
-    // jendela konsol `reg` sekejap — keluhan "terminal muncul lalu hilang".
+
     let mut reg = crate::proc::cmd("reg");
     reg.args([
         "query",
@@ -56,7 +34,6 @@ fn machine_seed() -> String {
 }
 
 fn keystream(len: usize) -> Vec<u8> {
-    // BLAKE3 XOF: hasilkan byte sebanyak yang dibutuhkan.
     let mut out = vec![0u8; len];
     blake3::Hasher::new()
         .update(machine_seed().as_bytes())
@@ -81,14 +58,10 @@ fn decrypt(enc: &str) -> Option<String> {
     String::from_utf8(xor_crypt(&raw)).ok()
 }
 
-/// Enkripsi XOR+BLAKE3 untuk data non-kunci (dipakai ssh.rs — password host
-/// SSH disimpan terenkripsi di ssh.json, bukan plaintext.
 pub fn encrypt_string(plain: &str) -> String {
     encrypt(plain)
 }
 
-/// Kebalikan `encrypt_string`; None bila tidak bisa didekripsi.
-/// (Dipakai nanti oleh koneksi non-interaktif berbasis libssh.)
 #[allow(dead_code)]
 pub fn decrypt_string(enc: &str) -> Option<String> {
     decrypt(enc)
@@ -118,7 +91,6 @@ fn write_secrets(state: &AppState, map: &Map<String, Value>) -> ZResult<()> {
     Ok(())
 }
 
-/// Mask key untuk ditampilkan: 4 karakter awal + 4 akhir.
 fn preview(key: &str) -> String {
     let n = key.chars().count();
     if n <= 8 {
@@ -134,13 +106,10 @@ fn preview(key: &str) -> String {
 pub struct PublicModel {
     pub provider: String,
     pub has_key: bool,
-    /// masked, mis. "sk-a…4f2a". Kosong bila belum ada key.
+
     pub preview: String,
 }
 
-/// Provider yang selalu dilaporkan walau belum punya key, supaya frontend
-/// mendapat jawaban pasti (`hasKey: false`) alih-alih entri yang hilang.
-/// Harus sinkron dengan katalog di src/lib/modelCatalog.tsx.
 const KNOWN_PROVIDERS: [&str; 6] = [
     "gemini",
     "openai",
@@ -150,12 +119,10 @@ const KNOWN_PROVIDERS: [&str; 6] = [
     "custom",
 ];
 
-/// Daftar provider + status key (TANPA key asli).
 #[tauri::command(async)]
 pub fn get_public_models(state: State<AppState>) -> ZResult<Vec<PublicModel>> {
     let secrets = read_secrets(&state);
 
-    // Gabungkan katalog bawaan dengan provider tambahan yang ada di file.
     let mut names: Vec<String> = KNOWN_PROVIDERS.iter().map(|s| s.to_string()).collect();
     for k in secrets.keys() {
         if !names.iter().any(|n| n == k) {
@@ -186,9 +153,6 @@ pub fn get_public_models(state: State<AppState>) -> ZResult<Vec<PublicModel>> {
     Ok(out)
 }
 
-/// Ambil key satu provider untuk dipakai DI DALAM Rust (fase 09: ai.rs).
-/// Sengaja tidak `pub` sebagai command: nilainya tidak boleh keluar ke
-/// frontend. Kosong = belum ada key.
 pub fn key_for(state: &AppState, provider: &str) -> String {
     read_secrets(state)
         .get(provider.trim())
@@ -197,9 +161,6 @@ pub fn key_for(state: &AppState, provider: &str) -> String {
         .unwrap_or_default()
 }
 
-/// Simpan/ganti satu secret dari dalam Rust (fase 10: token GitHub).
-/// Nilai kosong = hapus. TIDAK ada command Tauri yang membaca kembali
-/// nilainya — hanya `key_for` di dalam proses.
 pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
     let n = name.trim();
     if n.is_empty() {
@@ -214,7 +175,6 @@ pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
     write_secrets(state, &map)
 }
 
-/// Simpan/ganti key satu provider. `key` kosong = hapus.
 #[tauri::command(async)]
 pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> ZResult<()> {
     let p = provider.trim();
@@ -239,8 +199,6 @@ pub struct TestResult {
     pub ms: u64,
 }
 
-/// Uji koneksi ke provider: panggil endpoint daftar model dengan key
-/// tersimpan. TIDAK pernah menyertakan key di pesan hasil.
 #[tauri::command(async)]
 pub fn test_model_connection(
     state: State<AppState>,
@@ -263,7 +221,6 @@ pub fn test_model_connection(
         });
     }
 
-    // Endpoint "list models" tiap provider + cara mengirim key.
     let (url, header, value) = match provider.trim() {
         "gemini" => (
             format!(
@@ -287,7 +244,7 @@ pub fn test_model_connection(
             "x-api-key",
             key.clone(),
         ),
-        // openai / deepseek / xai / custom: OpenAI-compatible
+
         other => (
             format!(
                 "{}/models",
@@ -308,8 +265,6 @@ pub fn test_model_connection(
 
     let started = std::time::Instant::now();
 
-    // ureq 3: header() chainable, call() -> Result<Response, Error>;
-    // status 4xx/5xx datang sebagai Error::StatusCode (default behaviour).
     let mut req = ureq::get(&url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(8)))
@@ -331,12 +286,7 @@ pub fn test_model_connection(
                 c => format!("Server menjawab {c}"),
             },
         ),
-        Err(e) => (
-            false,
-            None,
-            // Pesan transport aman ditampilkan: tidak memuat key.
-            format!("Tidak bisa menghubungi server: {e}"),
-        ),
+        Err(e) => (false, None, format!("Tidak bisa menghubungi server: {e}")),
     };
 
     Ok(TestResult {
@@ -347,10 +297,6 @@ pub fn test_model_connection(
     })
 }
 
-/// Ambil daftar model yang tersedia dari provider (untuk tombol "Refresh"
-/// di Settings → Model AI). Logika endpoint sama dengan test_model_connection:
-/// gemini pakai /v1beta/models, anthropic /v1/models, sisanya (openai/
-/// deepseek/custom) /models. Key tidak pernah ikut keluar.
 #[tauri::command(async)]
 pub fn list_models(
     state: State<AppState>,
@@ -431,7 +377,6 @@ pub fn list_models(
     .map_err(|e| ZephyrError::InvalidInput(format!("Respon bukan JSON: {e}")))?;
 
     let ids: Vec<String> = if style == "gemini" {
-        // Gemini: models[].name = "models/gemini-3.8-flash"
         json.get("models")
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -442,7 +387,6 @@ pub fn list_models(
             })
             .unwrap_or_default()
     } else {
-        // OpenAI/Anthropic: data[].id
         json.get("data")
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -457,8 +401,6 @@ pub fn list_models(
     Ok(ids)
 }
 
-/// Hapus settings.json (Reset Semua ke Default). secrets.json TIDAK
-/// disentuh: API key bukan "setting" dan menghapusnya diam-diam berbahaya.
 #[tauri::command(async)]
 pub fn reset_settings(app: tauri::AppHandle, state: State<AppState>) -> ZResult<()> {
     use tauri::Emitter;

@@ -1,18 +1,3 @@
-// PromptSection.tsx — Settings → Prompt AI (T4.3).
-//
-// KENAPA halaman sendiri, bukan di dalam Subagent: prompt berlaku untuk SEMUA
-// interaksi AI (chat, agent, subagent), sedangkan Subagent hanya salah satu
-// pemakainya. Menaruhnya di sana membuat user mengira itu hanya untuk subagent.
-//
-// KENAPA tiap bagian terpisah (identitas / cara kerja / aturan / instruksi):
-// prompt bawaan sudah panjang dan seimbang. Menggantinya sebagai satu blok
-// besar berarti user harus menulis ulang semuanya hanya untuk mengubah satu
-// paragraf. Per bagian, yang tidak diubah tetap memakai bawaan.
-//
-// KENAPA ada pratinjau: user perlu tahu apa yang BENAR-BENAR dikirim ke model.
-// Tanpa itu ia menebak-nebak apakah tulisannya terpakai — dan prompt yang
-// "kelihatannya tidak berpengaruh" membuat fitur ini ditinggalkan.
-
 import { useMemo, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
@@ -21,7 +6,6 @@ import { useAi } from '../../lib/aiStore';
 import { AGENT_TOOLS } from '../../lib/agentTools';
 import { isDestructive } from '../../lib/aiStore';
 
-/** Kotak teks besar dengan tombol kembalikan-bawaan. */
 function BagianPrompt({
   judul,
   keterangan,
@@ -79,14 +63,9 @@ export default function PromptSection() {
   const [bukaPratinjau, setBukaPratinjau] = useState(false);
   const [salin, setSalin] = useState(false);
 
-  // Model + provider aktif: dipakai untuk pratinjau yang JUJUR (blok identitas
-  // model ikut tampil) dan untuk memberi tahu user apa yang akan dijawab AI
-  // kalau ditanya model apa.
   const modelAktif = useAi((s) => s.model);
   const providerAktif = useAi((s) => s.provider);
 
-  // Fallback: settings lama tidak punya key ini -> jangan crash (pelajaran
-  // yang sama dengan settings.subagent).
   const p = aiPrompt ?? { identitas: '', caraKerja: '', aturan: '', instruksi: '' };
 
   const ubah = (kunci: 'identitas' | 'caraKerja' | 'aturan' | 'instruksi') => (v: string) =>
@@ -95,10 +74,9 @@ export default function PromptSection() {
   const resetSemua = () =>
     void applySettings({ aiPrompt: { identitas: '', caraKerja: '', aturan: '', instruksi: '' } } as never);
 
-  /** Prompt hasil gabungan — sama persis dengan yang dikirim ke model. */
   const pratinjau = useMemo(
     () => systemPromptFor('follow', '', '', modelAktif, providerAktif),
-    // aiPrompt jadi dependensi supaya pratinjau ikut berubah saat diedit.
+
     [p.identitas, p.caraKerja, p.aturan, p.instruksi, modelAktif, providerAktif],
   );
 
@@ -227,19 +205,9 @@ export default function PromptSection() {
   );
 }
 
-/**
- * Daftar perintah yang selalu diizinkan (T4.5).
- *
- * KENAPA perintah destruktif tidak bisa ditambahkan ke sini: itu pengaman
- * terakhir. Kalau daftar izin bisa memuat perintah penghapus, dialog
- * konfirmasi yang melindungi user jadi tidak ada artinya.
- */
 function IzinPerintah() {
   const tr = useT();
-  // JANGAN `s.settings.allowCommands ?? []` di dalam selector: itu membuat
-  // ARRAY BARU tiap render saat key-nya belum ada (settings.json lama), dan
-  // zustand v5 membandingkan hasil selector dengan === -> render loop ->
-  // ErrorBoundary menutup seluruh halaman Settings.
+
   const daftar = useStore((s) => s.settings.allowCommands) ?? [];
   const applySettings = useStore((s) => s.applySettings);
   const [draft, setDraft] = useState('');

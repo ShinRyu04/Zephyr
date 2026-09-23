@@ -1,12 +1,3 @@
-// browser.rs — dukungan pane browser (fase 12).
-//
-// Satu tugas: memeriksa apakah sebuah URL boleh ditampilkan di dalam iframe.
-// Kenapa harus dari Rust: header respons TIDAK bisa dibaca dari dalam webview
-// (CORS), dan menebak lewat timeout event `load` tidak bisa dipercaya —
-// Chromium tetap mem-fire `load` untuk halaman error X-Frame-Options. Jadi
-// Zephyr menanyakannya langsung ke server, lalu UI menampilkan alasan yang
-// sebenarnya, bukan dugaan.
-
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
 
@@ -14,26 +5,18 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct ProbeResult {
     pub url: String,
-    /// true = server menjawab (bukan berarti boleh di-embed)
+
     pub reachable: bool,
     pub status: Option<u16>,
-    /// false = header melarang embed → UI menawarkan browser eksternal
+
     pub embeddable: bool,
-    /// alasan singkat yang ditampilkan apa adanya ke user
+
     pub reason: String,
-    /// isi header yang menjadi dasar keputusan (untuk transparansi)
+
     pub header: Option<String>,
     pub ms: u64,
 }
 
-/// Periksa satu URL: bisa dijangkau? boleh di-embed?
-///
-/// Aturan penolakan yang dikenali:
-///   * `X-Frame-Options: DENY | SAMEORIGIN | ALLOW-FROM …`
-///   * `Content-Security-Policy: frame-ancestors …` yang tidak memuat `*`
-///     (Zephyr memuat halaman dari origin tauri/localhost, jadi apa pun selain
-///     `*` dianggap menolak — lebih baik salah di sisi hati-hati daripada
-///     menampilkan frame putih tanpa penjelasan).
 #[tauri::command(async)]
 pub fn browser_probe(url: String) -> ZResult<ProbeResult> {
     let u = url.trim().to_string();
@@ -44,8 +27,6 @@ pub fn browser_probe(url: String) -> ZResult<ProbeResult> {
     }
     let started = std::time::Instant::now();
 
-    // GET, bukan HEAD: banyak dev server (Vite) tidak melayani HEAD dengan
-    // benar. Body-nya diabaikan.
     let req = ureq::get(&u)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(6)))
@@ -67,7 +48,7 @@ pub fn browser_probe(url: String) -> ZResult<ProbeResult> {
                 .map(|s| s.to_string());
             (true, Some(st), (xfo, csp))
         }
-        // 4xx/5xx tetap informasi berguna: server hidup, halamannya tidak ada.
+
         Err(ureq::Error::StatusCode(code)) => (true, Some(code), (None, None)),
         Err(e) => {
             return Ok(ProbeResult {
@@ -96,7 +77,6 @@ pub fn browser_probe(url: String) -> ZResult<ProbeResult> {
     })
 }
 
-/// Keputusan embed dari dua header. Dipisah agar bisa diuji tanpa jaringan.
 pub fn decide(xfo: Option<&str>, csp: Option<&str>) -> (bool, String, Option<String>) {
     if let Some(v) = xfo {
         let low = v.to_ascii_lowercase();

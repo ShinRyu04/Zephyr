@@ -1,25 +1,3 @@
-// cliStore.ts — jalankan argumen CLI di dalam app (fase 28).
-//
-// KEPUTUSAN ARSITEKTUR
-//
-// 1. Argumen datang dari DUA arah dan keduanya wajib ditangani:
-//    - instance PERTAMA: `cli_args_awal` dipanggil saat bootstrap (tidak ada
-//      pengirim event, jadi harus ditarik);
-//    - instance KEDUA: event `cli-args` dari plugin single-instance.
-//    Satu fungsi `jalankan()` melayani keduanya supaya perilakunya identik —
-//    kalau dipisah, salah satu jalur pasti tertinggal saat fitur berubah.
-//
-// 2. Target dieksekusi BERURUTAN, bukan Promise.all. `zephyr a.ts b.ts` harus
-//    berakhir dengan b.ts sebagai tab aktif; paralel membuat urutan tab acak.
-//
-// 3. Diff memakai `useGit.diff` dengan `source: 'history'` (bukan penampil
-//    baru): DiffViewer fase 10 sudah menampilkan unified diff, dan penanda
-//    source itu yang mencegah refresh git berikutnya menutup diff kita —
-//    label path kita tidak ada di `status.changes`. Pelajaran fase 26.
-//
-// 4. Error argumen → notifikasi fase 27, BUKAN exit atau alert. Brief: "error
-//    argumen -> notifikasi, bukan exit kaku".
-
 import { create } from 'zustand';
 
 import * as cmd from './commands';
@@ -28,7 +6,6 @@ import { notifyError, notifyInfo } from './notificationStore';
 import { useStore } from './store';
 import type { CliArgs, CliTarget } from './types';
 
-/** Susun unified diff dua teks (LCS sederhana, sama pola TimelineView 26). */
 function buatDiff(kiri: string, kanan: string, namaKiri: string, namaKanan: string): string {
   const a = kiri.split('\n');
   const b = kanan.split('\n');
@@ -38,7 +15,6 @@ function buatDiff(kiri: string, kanan: string, namaKiri: string, namaKanan: stri
     `+++ b/${namaKanan}`,
   ];
 
-  // Batas 4000 baris: LCS tabel penuh jadi mahal di atas itu (pelajaran 26).
   if (a.length > 4000 || b.length > 4000) {
     const n = Math.max(a.length, b.length);
     out.push(`@@ -1,${a.length} +1,${b.length} @@`);
@@ -87,17 +63,17 @@ function buatDiff(kiri: string, kanan: string, namaKiri: string, namaKanan: stri
 const namaFile = (p: string) => p.split(/[\\/]/).pop() || p;
 
 interface CliState {
-  /** argumen terakhir yang dijalankan (bukti untuk harness & debug) */
+  
   terakhir: CliArgs | null;
-  /** jumlah kali argumen CLI dijalankan (instance pertama + tiap instance kedua) */
+  
   jumlahJalan: number;
-  /** token --wait yang sedang ditunggu, per path file */
+  
   menunggu: Record<string, string>;
 }
 
 interface CliActions {
   jalankan: (args: CliArgs) => Promise<void>;
-  /** dipanggil saat tab ditutup: lepaskan proses CLI yang menunggu */
+  
   lepasWait: (path: string) => Promise<boolean>;
   bersihkan: () => void;
 }
@@ -110,9 +86,6 @@ export const useCli = create<CliState & CliActions>((set, get) => ({
   jalankan: async (args) => {
     set((s) => ({ terakhir: args, jumlahJalan: s.jumlahJalan + 1 }));
 
-    // Error argumen → notifikasi, lalu TETAP jalankan target yang valid.
-    // Menolak seluruh perintah karena satu flag salah ketik lebih menyakitkan
-    // daripada membuka file yang memang diminta.
     for (const e of args.errors || []) {
       notifyError(`Argumen CLI: ${e}`, {
         detail: 'Jalankan `zephyr --help` untuk daftar opsi.',
@@ -122,7 +95,6 @@ export const useCli = create<CliState & CliActions>((set, get) => ({
 
     const S = useStore.getState();
 
-    // Tanpa target: buka daftar recent (brief INTEGRASI fase 04).
     if (args.kosong) {
       S.setSettingsOpen(false);
       S.setActivity('explorer');
@@ -167,8 +139,7 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
           path: `${namaFile(kiri)} ↔ ${namaFile(kanan)}`,
           staged: false,
           text: buatDiff(a.content, b.content, namaFile(kiri), namaFile(kanan)),
-          // Penanda 'history' = "diff ini bukan milik status git", supaya
-          // refresh git berikutnya tidak menutupnya (pelajaran fase 26).
+          
           source: 'history',
         },
       });
@@ -179,12 +150,9 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
     return;
   }
 
-  // File biasa.
   const { path, line, col } = t.file;
   try {
-    // `openPathAt` sudah menunggu satu frame sebelum memindahkan kursor
-    // (fase 04) — memanggil openPath + revealPosition sendiri di sini berarti
-    // menduplikasi jeda itu dan salah satu pasti basi saat editor berubah.
+    
     if (line) await S.openPathAt(path, line, col || 1);
     else await S.openPath(path);
 
@@ -202,7 +170,6 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
   }
 }
 
-/** Guard modul: StrictMode dev memasang effect dua kali (pelajaran fase 09/22). */
 let cliListenerBound = false;
 
 export async function bindCliListeners(): Promise<void> {
@@ -214,11 +181,9 @@ export async function bindCliListeners(): Promise<void> {
     void useCli.getState().jalankan(ev.payload);
   });
 
-  // Instance PERTAMA: tidak ada yang mengirim event, argumennya harus ditarik.
   try {
     const awal = await cmd.cliArgsAwal();
-    // `kosong` saat start normal (dobel-klik ikon) tidak perlu diapa-apakan:
-    // window-state + workspace terakhir sudah ditangani bootstrap store.
+    
     if (!awal.kosong) await useCli.getState().jalankan(awal);
     else useCli.setState({ terakhir: awal });
   } catch {

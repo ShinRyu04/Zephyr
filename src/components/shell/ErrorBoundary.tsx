@@ -1,16 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { tx } from '../../lib/i18n';
 
-/**
- * Penjaring error render (React error boundary).
- *
- * Sebelum ini Zephyr tidak punya boundary sama sekali: satu exception di
- * komponen mana pun membuat React melepas SELURUH tree → jendela jadi kosong
- * putih/hitam permanen sampai user me-reload. Sudah kejadian nyata di
- * Settings → Model AI (`models.providers` undefined). Dengan boundary ini,
- * hanya bagian yang error yang diganti kartu pemulihan; sisa app tetap hidup
- * dan user bisa lanjut kerja tanpa kehilangan sesi.
- */
 export class ErrorBoundary extends Component<
   { children: ReactNode; nama?: string },
   { error: Error | null }
@@ -22,7 +12,7 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Jejak ke console supaya masih bisa dilacak di devtools / CDP.
+
     console.error('[Zephyr] render error:', error, info?.componentStack ?? '');
   }
 

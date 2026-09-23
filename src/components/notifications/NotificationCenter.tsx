@@ -1,10 +1,3 @@
-// NotificationCenter.tsx — lonceng di status bar + panel riwayat (fase 27).
-//
-// Lonceng menampilkan badge jumlah yang belum dibaca. Klik = buka panel;
-// membuka panel otomatis menandai semuanya terbaca (kalau tidak, badge-nya
-// tidak pernah hilang dan jadi noise). Ikon berubah saat Do Not Disturb aktif
-// supaya user tahu toast sedang diredam — bukan app-nya diam.
-
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { Changelog } from '../settings/changelogRender';
@@ -55,7 +48,6 @@ function Baris({ n }: { n: Notif }) {
   );
 }
 
-/** Tombol lonceng — dipasang di StatusBar. */
 export function NotifBell() {
   const unread = useNotif((s) => s.items.filter((x) => !x.read).length);
   const dnd = useNotif((s) => s.dnd);
@@ -98,7 +90,6 @@ export function NotifBell() {
   );
 }
 
-/** Panel riwayat — dipasang sekali di App.tsx. */
 export default function NotificationCenter() {
   const open = useNotif((s) => s.centerOpen);
   const items = useNotif((s) => s.items);

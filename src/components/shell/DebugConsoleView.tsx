@@ -1,29 +1,12 @@
-// DebugConsoleView.tsx — kontrak Debug Console (fase 20).
-//
-// SENGAJA belum tersambung ke DAP. Brief fase 20 menetapkan: input REPL
-// no-op yang menulis ke channel Output "Debug"; fase 22 (Debugger) yang
-// menyambungkannya ke adapter sungguhan lewat `evaluate()`.
-//
-// Yang penting di fase ini adalah BENTUKNYA benar (area output read-only +
-// satu baris input), supaya fase 22 tinggal mengganti isi `evaluate()` tanpa
-// menyentuh UI.
-
 import { useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
 import { useDebug } from '../../lib/debugStore';
 
-/** Placeholder tipe; fase 22 akan memindahkannya ke debugConsoleStore.ts. */
 export interface DebugEvalResult {
   ok: boolean;
   text: string;
 }
 
-/**
- * Evaluasi ekspresi REPL lewat DAP `evaluate` (context: "repl").
- *
- * Fase 20 menyisakan ini sebagai no-op; fase 22 menyambungkannya ke sesi
- * sungguhan. Bentuk UI tidak berubah — itu memang tujuan kontrak fase 20.
- */
 export const evaluateDebugExpr = async (expr: string): Promise<DebugEvalResult> => {
   const teks = await useDebug.getState().evalRepl(expr);
   const ok = useDebug.getState().state !== 'inactive';
@@ -32,14 +15,12 @@ export const evaluateDebugExpr = async (expr: string): Promise<DebugEvalResult> 
 };
 
 export default function DebugConsoleView() {
-  // fase 22: isi console = riwayat REPL dari debugStore (input + hasil +
-  // stdout/stderr program), bukan lagi channel Output "Debug". Channel Output
-  // tetap diisi sebagai log teknis adapter.
+  
   const repl = useDebug((s) => s.repl);
   const state = useDebug((s) => s.state);
   const bersihkanRepl = useDebug((s) => s.bersihkanRepl);
   const [expr, setExpr] = useState('');
-  /** riwayat input supaya panah atas/bawah berguna seperti REPL sungguhan */
+  
   const riwayat = useRef<string[]>([]);
   const posisi = useRef(-1);
   const bodyRef = useRef<HTMLDivElement | null>(null);

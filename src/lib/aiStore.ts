@@ -1,19 +1,3 @@
-// aiStore.ts — state panel AI (fase 09).
-//
-// Dipisah dari store utama (seperti explorerStore/terminalStore) supaya chat
-// yang ramai tidak memicu render editor/terminal.
-//
-// Yang dipegang di sini:
-//   * daftar sesi chat + sesi aktif (history persist di localStorage,
-//     max 200 pesan per sesi — batas dari prompt fase 09)
-//   * model aktif (disimpan juga ke settings.models supaya konsisten dengan
-//     Settings → Model AI)
-//   * streaming: satu request aktif; potongan `ai-chunk` di-append ke pesan
-//     assistant terakhir
-//   * status key per provider (dari Rust, hanya hasKey/preview)
-//
-// API key TIDAK PERNAH ada di store ini.
-
 import { create } from 'zustand';
 import { subagentOnChunk } from './subagentStore';
 import * as cmd from './commands';
@@ -23,39 +7,27 @@ import { agentToolSpecs, jalankanAgentTool } from './agentTools';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
 
 const LS_KEY = 'zephyr.ai.sessions.v1';
-/** Batas history per sesi (prompt fase 09: max 200 msg). */
+
 export const MAX_MSGS = 200;
-/** Batas isi file yang dilampirkan (12KB, prompt fase 09). */
+
 export const ATTACH_LIMIT = 12 * 1024;
-/** fase 15.5: batas panjang satu pesan user. Di atas ini pesan DIPOTONG
- *  dengan catatan — provider akan menolak / memotong sendiri secara diam-diam,
- *  dan itu lebih membingungkan daripada pemberitahuan jujur. */
+
 export const MSG_LIMIT = 8 * 1024;
-/** 1.1.10: batas gambar lampiran per pesan. Lebih dari ini bikin request
- *  ke provider membengkak dan sering ditolak (payload base64 besar). */
+
 export const MAX_IMAGES = 10;
-/** Batas ukuran satu gambar (3,5 MB) — sama seperti tombol "+ gambar". */
+
 export const IMAGE_MAX_BYTES = 3_500_000;
-/** Batas hasil tool yang ditulis ke localStorage (bukan batas tampilan). */
+
 export const PERSIST_TOOL_CHARS = 4000;
 
-/**
- * Identitas + instruksi bahasa jawaban AI (Settings → Model AI).
- * Identitas SELALU dikirim supaya model memperkenalkan diri sebagai Zephyr AI
- * apa pun provider/key yang dipakai; instruksi bahasa menyusul bila disetel.
- */
+export const HISTORY_KEEP_STEPS = 8;
+
+export const HISTORY_TOOL_CHARS = 1200;
+
 import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt';
 
-
-/**
- * Konteks tambahan dari Rust (memori + daftar skill) yang ditempel ke system
- * prompt. Di-cache singkat: satu percakapan biasanya memanggil ini berkali-kali
- * (tiap langkah agent) padahal isinya jarang berubah dalam hitungan detik.
- * Cache juga membuat kegagalan IPC tidak mematikan percakapan — kalau Rust
- * tidak bisa dihubungi, percakapan jalan tanpa konteks tambahan.
- */
 let ctxCache: { at: number; teks: string } | null = null;
-const CTX_TTL_MS = 5000;
+const CTX_TTL_MS = 60_000;
 
 export async function konteksAgent(): Promise<string> {
   const now = Date.now();
@@ -65,25 +37,66 @@ export async function konteksAgent(): Promise<string> {
     ctxCache = { at: now, teks };
     return teks;
   } catch {
-    // Jangan cache kegagalan — percobaan berikutnya boleh berhasil.
+
     return ctxCache?.teks ?? '';
   }
 }
 
-/** Paksa muat ulang konteks (dipakai setelah skill/memori ditulis agent). */
 export function resetKonteksAgent() {
   ctxCache = null;
+}
+
+export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
+  const system = history.filter((m) => m.role === 'system');
+  const sisanya = history.filter((m) => m.role !== 'system');
+  if (sisanya.length === 0) return history;
+
+  const batas = Math.max(0, sisanya.length - HISTORY_KEEP_STEPS * 2);
+  const lama = sisanya.slice(0, batas);
+  const baru = sisanya.slice(batas);
+
+  const ringkas = lama.map((m) => {
+    if (m.role === 'tool') {
+      const isi = String(m.content ?? '');
+      return {
+        ...m,
+        content:
+          isi.length > HISTORY_TOOL_CHARS
+            ? `${isi.slice(0, HISTORY_TOOL_CHARS)}\n[… hasil dipotong, ${isi.length - HISTORY_TOOL_CHARS} karakter lagi tidak dikirim]`
+            : isi,
+      };
+    }
+    if (m.role === 'assistant') {
+      const teks = String(m.content ?? '');
+      return {
+        ...m,
+        content: teks.length > 800 ? `${teks.slice(0, 800)}…` : teks,
+        toolCalls: undefined,
+      };
+    }
+    return m;
+  });
+
+  const jumlahTool = lama.filter((m) => m.role === 'tool').length;
+  const catatan =
+    jumlahTool > 0
+      ? `[${jumlahTool} langkah sebelumnya diringkas agar percakapan tetap cepat. ` +
+        `Kalau butuh detailnya, jalankan ulang tool yang relevan — jangan mengarang isinya.]`
+      : '';
+
+  return [
+    ...system,
+    ...(catatan ? [{ role: 'user' as const, content: catatan }] : []),
+    ...ringkas,
+    ...baru,
+  ];
 }
 
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 
-// ── mode agent ──
-
-/** Maks langkah tool per tugas agent — penjaga biaya & loop tak berujung. */
 export const MAX_AGENT_STEPS = 25;
 
-/** Satu baris log aktivitas agent untuk task aktif (UI, bukan persisted). */
 export interface AgentStep {
   kind: 'mulai' | 'tool' | 'selesai';
   name?: string;
@@ -93,7 +106,6 @@ export interface AgentStep {
   at: number;
 }
 
-/** Hasil satu langkah agent streaming (item 21). */
 interface AgentStepResult {
   content: string;
   toolCalls: AgentToolCall[];
@@ -101,28 +113,21 @@ interface AgentStepResult {
   error?: string;
 }
 
-/** Satu tugas yang ditampilkan di panel Todo (item 24). */
 export interface AgentTodo {
   content: string;
   status: 'pending' | 'in_progress' | 'done';
 }
 
-/** Batas jumlah tugas — lebih dari ini panelnya jadi tidak terbaca. */
 export const MAX_TODOS = 20;
 
-/** Resolver persetujuan tool yang menunggu keputusan user (di luar state). */
 let agentConfirmResolve: ((ok: boolean) => void) | null = null;
-/** Resolver langkah agent yang sedang streaming — dipanggil dari onChunk. */
+
 let agentStepResolve: ((r: AgentStepResult) => void) | null = null;
-/** Flag batal — loop agent memeriksa tiap langkah. */
+
 let agentBatal = false;
 
-/** Request yang sudah dibatalkan user. Chunk yang masih tiba untuk id ini
- *  diabaikan — Rust bisa sudah mengirim beberapa potongan sebelum flag batal
- *  terbaca thread streaming. */
 const cancelled = new Set<string>();
 
-/** Perintah yang tidak boleh dikirim ke terminal tanpa konfirmasi. */
 const DESTRUCTIVE = [
   /\brm\s+-[a-z]*[rf]/i,
   /\bdel\s+\/[sq]/i,
@@ -138,13 +143,10 @@ const DESTRUCTIVE = [
   /\bDROP\s+(TABLE|DATABASE)\b/i,
 ];
 
-/** true = perintah berpotensi merusak, minta konfirmasi dulu. */
 export function isDestructive(command: string): boolean {
   return DESTRUCTIVE.some((re) => re.test(command));
 }
 
-/** Ambil blok kode shell terakhir dari teks markdown.
- *  Hanya bahasa yang memang perintah: bash/sh/shell/ps1/powershell/cmd/bat. */
 export function extractCommand(markdown: string): string | null {
   const re = /```(bash|sh|shell|zsh|ps1|powershell|pwsh|cmd|bat|console|terminal)?\s*\n([\s\S]*?)```/gi;
   let last: string | null = null;
@@ -152,8 +154,7 @@ export function extractCommand(markdown: string): string | null {
     const m = re.exec(markdown);
     if (!m) break;
     const lang = (m[1] ?? '').toLowerCase();
-    // Fence tanpa bahasa dianggap perintah HANYA kalau isinya satu baris
-    // pendek — kalau tidak, itu biasanya cuplikan kode biasa.
+
     const body = m[2].trim();
     if (!body) continue;
     const isCmdLang = lang !== '' && lang !== 'console' ? true : body.split('\n').length <= 3;
@@ -162,10 +163,6 @@ export function extractCommand(markdown: string): string | null {
   return last;
 }
 
-/**
- * Judul sesi dari pesan pertama user (A-9): baris pertama saja, buang
- * penanda markdown di depan, potong di batas kata — bukan di tengah kata.
- */
 function judulDari(pesan: string): string {
   const baris = pesan.trim().split('\n')[0].replace(/^[#>*\-\s]+/, '').trim();
   if (!baris) return 'Chat baru';
@@ -195,8 +192,7 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null } {
       .filter((s) => s && Array.isArray(s.messages))
       .map((s) => ({
         ...s,
-        // Pesan yang tersimpan saat streaming belum selesai tidak boleh
-        // kembali sebagai "sedang mengalir" setelah restart.
+
         messages: s.messages.slice(-MAX_MSGS).map((m) => ({ ...m, streaming: false })),
       }));
     const activeId = sessions.some((s) => s.id === parsed.activeId)
@@ -208,52 +204,45 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null } {
   }
 }
 
-/** T1.1: tingkat usaha penalaran yang bisa dipilih user. */
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
 
 interface AiState {
   sessions: ChatSession[];
   activeId: string | null;
-  /** model aktif (id dari katalog atau nama bebas untuk provider custom) */
+
   model: string;
   provider: string;
-  /** id request yang sedang streaming; null = idle */
+
   pending: string | null;
-  /** draft input (di store supaya Ctrl+I & "Analisis error TS" bisa mengisi) */
+
   draft: string;
-  /** lampirkan file aktif ke pesan berikutnya */
+
     attachActive: boolean;
-    /** gambar (data URL) menunggu dikirim bersama pesan berikutnya.
-     *  1.1.10: array, maks MAX_IMAGES. Urutan = urutan tampil di strip. */
+
     draftImages: string[];
-  /** fase 15.5: laporan pemotongan pesan terakhir (null = tidak ada).
-   *  Dipisah dari `toast` karena toast bisa tertimpa pesan lain (mis. guard
-   *  API key) sebelum user/harness membacanya. */
+
   lastTruncated: { from: number; to: number } | null;
   keys: PublicModel[];
-  /** dropdown model terbuka */
+
   modelMenuOpen: boolean;
-  /** konfirmasi kirim perintah berbahaya ke terminal */
+
   confirmCmd: string | null;
   toast: string | null;
 
-  // ── mode agent ──
-
-  /** 'chat' = streaming biasa; 'agent' = tool loop. */
   agentMode: 'chat' | 'agent';
-  /** persetujuan perintah agent: ask | work (kerja langsung) | auto | readonly */
+
   approvalMode: ApprovalMode;
-  /** loop agent sedang berjalan */
+
   agentBusy: boolean;
-  /** log langkah task aktif */
+
   agentSteps: AgentStep[];
-  /** tool yang menunggu persetujuan user (modal di AiPanel) */
+
   agentConfirm: { tool: string; argsText: string; isDestructive: boolean } | null;
-  /** 1.1.10 (item 24): daftar tugas yang di-update agent selama bekerja. */
+
   agentTodos: AgentTodo[];
-  /** T1.1: tingkat penalaran yang diminta (null = default provider). */
+
   reasoningEffort: ReasoningEffort | null;
-  /** T1.1: teks penalaran terakhir yang dikirim provider (null = tidak ada). */
+
   reasoningText: string | null;
 }
 
@@ -266,7 +255,7 @@ interface AiActions {
   setModelMenuOpen: (v: boolean) => void;
   setDraft: (v: string) => void;
     setAttachActive: (v: boolean) => void;
-    /** Tambah gambar lampiran; mengembalikan false kalau sudah penuh. */
+
     addDraftImage: (dataUrl: string) => boolean;
     removeDraftImage: (index: number) => void;
     clearDraftImages: () => void;
@@ -275,49 +264,46 @@ interface AiActions {
 
   setAgentMode: (m: 'chat' | 'agent') => void;
   setApprovalMode: (m: ApprovalMode) => void;
-  /** Jawaban modal persetujuan tool agent. */
+
   agentPutuskan: (setujui: boolean) => void;
-  /** 1.1.10 (item 24): ganti daftar tugas agent. Balikannya = jumlah diterima. */
+
   setAgentTodos: (list: unknown[]) => number;
-  /** T1.1: set tingkat penalaran (null = default provider). */
+
   setReasoningEffort: (e: ReasoningEffort | null) => void;
-  /** Loop agent (dipanggil send() saat agentMode='agent'). */
+
   sendAgent: (text: string) => Promise<void>;
 
   newChat: () => string;
     selectChat: (id: string) => void;
     deleteChat: (id: string) => void;
-    /** 1.1.10: hapus semua riwayat chat, mulai dari sesi kosong. */
+
     clearAllChats: () => void;
-    /** Dialog "hapus semua" sedang terbuka (dipakai ClearChatsDialog). */
+
     clearAllOpen: boolean;
     setClearAllOpen: (v: boolean) => void;
-    /** Ulangi jawaban AI terakhir (tombol ↻). */
+
     regenerate: () => Promise<void>;
     activeSession: () => ChatSession | null;
-    /** Salin seluruh sesi aktif ke clipboard sebagai markdown. */
+
     exportChat: () => Promise<void>;
 
-  /** Kirim draft (atau teks tertentu) ke provider. */
   send: (text?: string) => Promise<void>;
   cancel: () => Promise<void>;
-  /** Handler event `ai-chunk` — dipasang sekali di App.tsx. */
+
   onChunk: (c: AiChunk) => void;
-  /** Kirim perintah ke pane terminal aktif (buat pane bila belum ada). */
+
   runInTerminal: (command: string, opts?: { confirmed?: boolean }) => Promise<boolean>;
 }
 
 export type AiStore = AiState & AiActions;
 
-/** Simpan ke localStorage (dibatasi supaya tidak membengkak). */
 function persist(state: AiState) {
   try {
     const sessions = state.sessions.slice(-20).map((s) => ({
       ...s,
       messages: s.messages.slice(-MAX_MSGS).map((m) => ({
         ...m,
-        // Hasil tool bisa puluhan KB per perintah; yang disimpan cukup
-        // potongannya — blok collapsible di UI tetap berfungsi.
+
         tools: m.tools?.map((t) => ({ ...t, result: t.result.slice(0, PERSIST_TOOL_CHARS) })),
       })),
     }));
@@ -346,9 +332,7 @@ export const useAi = create<AiStore>((set, get) => ({
   clearAllOpen: false,
 
   agentMode: 'chat',
-  // 1.1.10 (item 22): "kerja langsung" jadi default — perintah aman jalan
-  // sendiri, yang destruktif tetap minta izin. Dulu default 'ask' membuat
-  // setiap terminal_exec menggantung menunggu klik.
+
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'work',
   agentBusy: false,
   agentSteps: [],
@@ -358,13 +342,10 @@ export const useAi = create<AiStore>((set, get) => ({
   reasoningText: null,
 
   init: async () => {
-    // Model aktif mengikuti Settings → Model AI kalau sudah pernah dipilih.
+
     const st = useStore.getState().settings.models;
     const dikenal = (id: string) => PROVIDER_BY_ID.has(id);
 
-    // Baca dulu provider mana yang PUNYA key. Tanpa ini, user yang hanya
-    // menyimpan key untuk provider lain tetap diarahkan ke 'gemini' (nilai
-    // default) dan diminta mengisi key yang tidak pernah ia pakai.
     let adaKey: string[] = [];
     try {
       const pub = await cmd.getPublicModels();
@@ -377,11 +358,10 @@ export const useAi = create<AiStore>((set, get) => ({
     const aktif = st.activeProvider;
     let prov: string;
     if (aktif && adaKey.includes(aktif)) {
-      // Pilihan user DAN punya key — pakai itu.
+
       prov = aktif;
     } else if (adaKey.length > 0) {
-      // Pilihan user tidak punya key, tapi ada provider lain yang punya.
-      // Pakai yang pertama — user sudah menyatakan niatnya dengan mengisi key.
+
       prov = adaKey[0];
     } else if (aktif && dikenal(aktif)) {
       prov = aktif;
@@ -416,14 +396,14 @@ export const useAi = create<AiStore>((set, get) => ({
   setModel: async (modelId) => {
     const def = findModel(modelId, get().provider);
     set({ model: def.id, provider: def.provider, modelMenuOpen: false });
-    // Sesi aktif mencatat model terakhir yang dipakai.
+
     set((s) => ({
       sessions: s.sessions.map((x) =>
         x.id === s.activeId ? { ...x, model: def.id, provider: def.provider } : x,
       ),
     }));
     persist(get());
-    // Simpan ke settings supaya Settings → Model AI ikut berubah.
+
     const models = useStore.getState().settings.models;
     const providers = models?.providers ?? {};
     await useStore.getState().applySettings({
@@ -456,8 +436,7 @@ export const useAi = create<AiStore>((set, get) => ({
   setConfirmCmd: (v) => set({ confirmCmd: v }),
   setAgentMode: (m) => set({ agentMode: m }),
   setApprovalMode: (m) => {
-    // Simpan pilihan terakhir di sesi aktif supaya berpindah sesi tidak
-    // mengembalikan mode ke default (item 22).
+
     set((s) => ({
       approvalMode: m,
       sessions: s.sessions.map((x) => (x.id === s.activeId ? { ...x, approval: m } : x)),
@@ -465,9 +444,7 @@ export const useAi = create<AiStore>((set, get) => ({
     persist(get());
   },
   setAgentTodos: (list) => {
-    // Bentuk dari model tidak bisa dipercaya: item tanpa teks dibuang, status
-    // tak dikenal dianggap pending. Daftar kosong = tugas baru, jadi panelnya
-    // ikut kosong alih-alih menyisakan daftar lama.
+
     const bersih: AgentTodo[] = [];
     for (const raw of Array.isArray(list) ? list : []) {
       if (bersih.length >= MAX_TODOS) break;
@@ -484,7 +461,6 @@ export const useAi = create<AiStore>((set, get) => ({
     return bersih.length;
   },
 
-  /** T1.1: tingkat penalaran. null = jangan kirim parameter apa pun. */
   setReasoningEffort: (e) => set({ reasoningEffort: e }),
   agentPutuskan: (setujui) => {
     if (agentConfirmResolve) {
@@ -498,7 +474,7 @@ export const useAi = create<AiStore>((set, get) => ({
   newChat: () => {
     const st = get();
     const s = makeSession(st.model, st.provider);
-    // Sesi baru mewarisi mode persetujuan yang sedang dipakai.
+
     s.approval = st.approvalMode;
     set((x) => ({ sessions: [...x.sessions, s], activeId: s.id, draft: '' }));
     persist(get());
@@ -514,9 +490,7 @@ export const useAi = create<AiStore>((set, get) => ({
   deleteChat: (id) => {
     set((s) => {
       const sessions = s.sessions.filter((x) => x.id !== id);
-      // 1.1.10: kalau yang dihapus adalah sesi AKTIF, buka sesi BARU kosong
-      // (dulu: lompat ke sesi terakhir — user mengeluh "chat numpuk" dan
-      // menghapus tidak terasa seperti mulai dari awal).
+
       const activeId = s.activeId === id ? null : s.activeId;
       return { sessions, activeId };
     });
@@ -524,7 +498,6 @@ export const useAi = create<AiStore>((set, get) => ({
     persist(get());
   },
 
-  /** 1.1.10: hapus SEMUA riwayat dan mulai dari satu sesi kosong. */
   clearAllChats: () => {
     set({ sessions: [], activeId: null, clearAllOpen: false });
     get().newChat();
@@ -533,15 +506,13 @@ export const useAi = create<AiStore>((set, get) => ({
 
   setClearAllOpen: (v) => set({ clearAllOpen: v }),
 
-  /** Ulangi jawaban terakhir: hapus balasan AI terakhir lalu kirim ulang
-   *  pertanyaan user terakhir. Dipakai tombol ↻ di bubble. */
   regenerate: async () => {
     if (get().pending) return;
     const s = get().activeSession();
     if (!s) return;
     const last = [...s.messages].reverse().find((m) => m.role === 'user' && !m.error);
     if (!last) return;
-    // Buang pesan setelah pertanyaan terakhir (biasanya jawaban AI yang mau diganti).
+
     const idx = s.messages.findIndex((m) => m.id === last.id);
     const keep = s.messages.slice(0, idx + 1);
     set((st) => ({
@@ -578,7 +549,7 @@ export const useAi = create<AiStore>((set, get) => ({
     const raw = (text ?? get().draft).trim();
     const imgs = get().draftImages;
     if (!raw && imgs.length === 0) return;
-    // Mode agent: jalankan tool loop, bukan streaming chat biasa.
+
     if (get().agentMode === 'agent') {
       if (!raw) return;
       await get().sendAgent(raw);
@@ -589,8 +560,6 @@ export const useAi = create<AiStore>((set, get) => ({
       return;
     }
 
-    // fase 15.5: pesan raksasa dipotong DI SINI dengan catatan yang terlihat,
-    // bukan dibiarkan ditolak provider dengan error 400 yang tidak jelas.
     let content = raw;
     if (raw.length > MSG_LIMIT) {
       content =
@@ -604,12 +573,10 @@ export const useAi = create<AiStore>((set, get) => ({
       set({ lastTruncated: null });
     }
 
-    // V2: tanpa API key jangan kirim apa pun, jangan crash.
     await get().loadKeys();
     if (!get().hasKey()) {
       const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
-      // Kalau user SUDAH punya key di provider lain, katakan apa adanya dan
-      // pindahkan otomatis — jangan menyuruhnya mengisi key yang tidak ia pakai.
+
       const lain = get().keys.filter((k) => k.hasKey && k.provider !== get().provider);
       if (lain.length > 0) {
         const pindah = lain[0].provider;
@@ -627,8 +594,6 @@ export const useAi = create<AiStore>((set, get) => ({
     let sessionId = get().activeId;
     if (!sessionId) sessionId = get().newChat();
 
-    // Lampiran file aktif (opsional) + at-mention @file (A-2). Keduanya
-    // menempelkan isi file ke prompt sebagai konteks.
     let attached: ChatMsg['attached'];
     let payloadContent = content;
     const st = useStore.getState();
@@ -646,7 +611,7 @@ export const useAi = create<AiStore>((set, get) => ({
         body +
         '\n```';
     }
-    // Parsing @file — ganti penyebutan file dengan isi sebenarnya (A-2).
+
     for (const m of content.matchAll(/@file\s+([^\s,.;:!?]+)/g)) {
       const nama = m[1];
       const kandidat = st.tabs.find(
@@ -690,7 +655,7 @@ export const useAi = create<AiStore>((set, get) => ({
               .join('\n\n---\n\n');
         }
       } catch (e) {
-        // RAG mati / salah config: jangan blokir chat, beri tahu saja.
+
         set({ toast: cmd.asZephyrError(e).message });
       }
     }
@@ -700,13 +665,12 @@ export const useAi = create<AiStore>((set, get) => ({
           content,
           at: Date.now(),
           attached,
-          // 1.1.10: banyak gambar. `image` diisi gambar pertama supaya
-          // kode lama (ekspor, render) tetap jalan.
+
           images: imgs.length > 0 ? imgs : undefined,
           image: imgs[0],
         };
     const botMsg: ChatMsg = {
-      id: reqId, // id pesan assistant = id request supaya chunk mudah dicocokkan
+      id: reqId,
       role: 'assistant',
       content: '',
       at: Date.now(),
@@ -714,8 +678,6 @@ export const useAi = create<AiStore>((set, get) => ({
       model: get().model,
     };
 
-    // Riwayat yang dikirim: seluruh pesan sebelumnya + pesan baru (versi
-    // payload dengan lampiran), tanpa pesan yang error.
     const prev = get().activeSession()?.messages ?? [];
         const history: AiMessage[] = prev
               .filter((m) => !m.error && (m.content.trim() || m.images?.length || m.image))
@@ -727,26 +689,19 @@ export const useAi = create<AiStore>((set, get) => ({
                   ...(banyak.length ? { images: banyak } : {}),
                 };
               });
-    // Bahasa jawaban AI (Settings → Model AI): instruksi dikirim sebagai pesan
-    // system di awal tiap percakapan supaya model konsisten menjawab dalam
-    // bahasa pilihan. 'follow' = biarkan model mengikuti bahasa pertanyaan.
+
     const bhsJawab = useStore.getState().settings.models.answerLang ?? 'follow';
     {
-      // Memori + daftar skill + konteks proyek ikut di system prompt.
-      // Kegagalan diabaikan: percakapan tetap jalan tanpa konteks tambahan.
+
       const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
-      // Provider + model diteruskan supaya prompt memuat FAKTA identitas model.
-      // Tanpa ini model menjawab "kamu model apa" dari bias latihannya dan
-      // mengaku sebagai model lain (kejadian nyata: mengaku Claude).
+
       const ai = get();
       history.unshift({
         role: 'system',
         content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider),
       });
     }
-    // Konteks RAG disisipkan sebagai pesan "user" terpisah sebelum pertanyaan
-    // asli, supaya model melihatnya tanpa dicampur ke riwayat chat (dan tanpa
-    // membebani payload bila RAG kosong).
+
     if (ragContext) history.push({ role: 'user', content: ragContext });
             history.push({
               role: 'user',
@@ -759,7 +714,7 @@ export const useAi = create<AiStore>((set, get) => ({
         x.id === sessionId
           ? {
               ...x,
-              // Judul sesi = baris pertama pesan user, dipotong rapi (A-9).
+
               title: x.messages.length === 0 ? judulDari(content) : x.title,
               messages: [...x.messages, userMsg, botMsg].slice(-MAX_MSGS),
             }
@@ -772,9 +727,6 @@ export const useAi = create<AiStore>((set, get) => ({
     }));
     persist(get());
 
-    // T1.2/T1.5: jalur CLI. Kalau user memilih CLI (akun langganan), prompt
-    // dikirim ke CLI itu alih-alih ke adapter API. Zephyr tidak menyentuh
-    // token CLI — ia hanya menjalankan prosesnya.
     const { useCliAgent } = await import('./cliAgentStore');
     const cliAktif = useCliAgent.getState().aktif;
     if (cliAktif) {
@@ -783,8 +735,7 @@ export const useAi = create<AiStore>((set, get) => ({
       const runs = useCliAgent.getState().runs;
       const terakhir = runs[runs.length - 1];
       const teks = terakhir?.output ?? '(tidak ada output)';
-      // Hasil CLI menggantikan bubble bot yang tadi dibuat (bubble itu sudah
-      // menampilkan status streaming).
+
       get().onChunk({ id: reqId, text: teks });
       get().onChunk({ id: reqId, done: true });
       return;
@@ -814,7 +765,7 @@ export const useAi = create<AiStore>((set, get) => ({
       set({ toast: 'Masih ada tugas agent berjalan — Stop dulu' });
       return;
     }
-    // Sama seperti send(): pesan raksasa dipotong dengan catatan jelas.
+
     let content = raw;
     if (raw.length > MSG_LIMIT) {
       content =
@@ -880,8 +831,6 @@ export const useAi = create<AiStore>((set, get) => ({
     const def = findModel(get().model, get().provider);
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
 
-    // Riwayat untuk model: user/assistant dari sesi (tool context per tugas,
-    // tidak dipersist — lihat catatan di header file).
     const history: AgentMsg[] = [];
     const prev = (get().activeSession()?.messages ?? []).filter(
       (m) => !m.error && m.content.trim() && m.id !== botMsg.id,
@@ -893,9 +842,7 @@ export const useAi = create<AiStore>((set, get) => ({
     }
     const bhsJawab = useStore.getState().settings.models.answerLang ?? 'follow';
     {
-      // Mode agent dapat konteks lebih kaya: daftar skill + memori + profil
-      // user, supaya ia tahu skill apa yang bisa dibuka dan apa yang sudah
-      // diketahui dari sesi sebelumnya.
+
       const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
       const ai = get();
       history.unshift({
@@ -903,8 +850,7 @@ export const useAi = create<AiStore>((set, get) => ({
         content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider),
       });
     }
-    // Reminder menyebut model yang benar-benar dikirim ke API — posisi paling
-    // akhir riwayat, tempat model paling mematuhi instruksi.
+
     history.push({ role: 'user', content: content + identityReminder(get().model) });
 
     let akhir = '';
@@ -914,8 +860,7 @@ export const useAi = create<AiStore>((set, get) => ({
         if (agentBatal) break;
         set((s) => ({
           agentSteps: [...s.agentSteps, { kind: 'mulai', at: Date.now() }],
-          // Langkah kedua dan seterusnya menempel di bubble yang sama —
-          // beri pemisah supaya narasi antar langkah tidak menyambung.
+
           sessions: s.sessions.map((x) =>
             x.id === sessionId
               ? {
@@ -930,9 +875,6 @@ export const useAi = create<AiStore>((set, get) => ({
           ),
         }));
 
-        // 1.1.10 (item 21): langkah ini STREAMING. Teks yang tumbuh di-append
-        // ke bubble bot lewat onChunk; hasil akhir (teks penuh + tool call)
-        // datang lewat ai-chunk bertanda toolDone.
         const res = await new Promise<AgentStepResult>((resolve) => {
           agentStepResolve = resolve;
           cmd
@@ -940,7 +882,7 @@ export const useAi = create<AiStore>((set, get) => ({
               id: botMsg.id,
               provider: def.provider,
               model: def.id,
-              messages: history,
+              messages: ringkasRiwayat(history),
               tools: agentToolSpecs(),
               baseUrl: cfg.baseUrl || undefined,
               maxTokens: def.maxOut ?? 2048,
@@ -973,13 +915,7 @@ export const useAi = create<AiStore>((set, get) => ({
           const readOnlyBlok =
             get().approvalMode === 'readonly' &&
             (tc.name === 'terminal_exec' || tc.name === 'editor_write');
-          // 'ask' menahan semua terminal_exec; 'work' (kerja langsung) hanya
-          // menahan yang destruktif; 'auto' tidak menahan apa pun.
-          //
-          // T4.5: daftar izin permanen (Settings → Prompt AI → Izin perintah)
-          // melewati pertanyaan untuk perintah yang sudah disetujui user.
-          // Perintah DESTRUKTIF tetap ditanya walau ada di daftar — pengaman
-          // terakhir tidak boleh bisa dimatikan lewat daftar izin.
+
           const diizinkan =
             !isDestructive(perintah) && useStore.getState().izinPerintah(perintah);
           const perluSetuju =
@@ -1030,8 +966,7 @@ export const useAi = create<AiStore>((set, get) => ({
           const run = {
             name: tc.name,
             args: JSON.stringify(argsObj),
-            // 1.1.10 (item 23): hasil tool TIDAK lagi dipotong 400 karakter —
-            // blok collapsible di bubble butuh isi utuh supaya bisa dibaca.
+
             result: hasil,
             ok,
             at: Date.now(),
@@ -1041,7 +976,7 @@ export const useAi = create<AiStore>((set, get) => ({
               ...s.agentSteps,
               { kind: 'tool', name: run.name, args: run.args, result: hasil.slice(0, 400), ok, at: run.at },
             ],
-            // Salinan lengkap menempel di bubble jawaban (item 23).
+
             sessions: s.sessions.map((x) =>
               x.id === sessionId
                 ? {
@@ -1077,9 +1012,7 @@ export const useAi = create<AiStore>((set, get) => ({
               ...x,
               messages: x.messages.map((m) => {
                 if (m.id !== botMsg.id) return m;
-                // Teks yang sudah tumbuh di bubble selama streaming dipertahankan;
-                // `akhir` = teks langkah terakhir saja, jadi hanya dipakai kalau
-                // tidak ada satu pun potongan yang sampai ke UI.
+
                 const tampil = m.content.trim() ? m.content : akhir;
                 return { ...m, content: tampil || '(tidak ada jawaban)', streaming: false };
               }),
@@ -1091,7 +1024,7 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   cancel: async () => {
-    // Loop agent: tandai batal; modal persetujuan yang terbuka ikut ditutup.
+
     if (get().agentBusy) {
       agentBatal = true;
       if (agentConfirmResolve) {
@@ -1099,8 +1032,7 @@ export const useAi = create<AiStore>((set, get) => ({
         agentConfirmResolve = null;
         r(false);
       }
-      // Hentikan langkah yang sedang streaming di Rust juga — kalau tidak,
-      // thread-nya terus membaca sampai provider menutup koneksi.
+
       const aktif = get().activeSession()?.messages.slice(-1)[0]?.id;
       if (aktif) {
         try {
@@ -1114,9 +1046,7 @@ export const useAi = create<AiStore>((set, get) => ({
     }
     const id = get().pending;
     if (!id) return;
-    // Tandai dulu supaya chunk yang MASIH DI JALAN (sudah dikirim Rust
-    // sebelum flag batal terbaca) tidak ikut di-append. Tanpa ini teks
-    // sempat bertambah beberapa token setelah user menekan Stop.
+
     cancelled.add(id);
     try {
       await cmd.aiCancel(id);
@@ -1138,13 +1068,9 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   onChunk: (c) => {
-    // T2.1: subagent paralel memakai jalur event yang SAMA (`ai-chunk`) tapi
-    // id unik per subagent. Diteruskan lebih dulu supaya resolver milik
-    // subagent yang mengambil, bukan resolver agent utama.
+
     if (subagentOnChunk(c)) return;
 
-    // 1.1.10 (item 21): akhir satu langkah agent. Teks yang sudah menempel di
-    // bubble tetap dipakai; di sini hanya diteruskan ke loop agent.
     if (c.toolDone) {
       const r = agentStepResolve;
       agentStepResolve = null;
@@ -1159,7 +1085,7 @@ export const useAi = create<AiStore>((set, get) => ({
       });
       return;
     }
-    // Request yang sudah dibatalkan: buang teksnya, cukup tutup statusnya.
+
     if (cancelled.has(c.id)) {
       if (c.done || c.err) cancelled.delete(c.id);
       return;
@@ -1170,7 +1096,7 @@ export const useAi = create<AiStore>((set, get) => ({
         messages: sess.messages.map((m) => {
           if (m.id !== c.id) return m;
           if (c.err) return { ...m, error: c.err, streaming: false };
-          // T1.1: penalaran menempel di pesan yang sama, terpisah dari jawaban.
+
           if (c.reasoning)
             return { ...m, reasoning: (m.reasoning ?? '') + c.reasoning };
           if (c.text) return { ...m, content: m.content + c.text };
@@ -1179,7 +1105,7 @@ export const useAi = create<AiStore>((set, get) => ({
         }),
       })),
       pending: c.done || c.err ? (s.pending === c.id ? null : s.pending) : s.pending,
-      // Blok "Reasoned" hidup: tampilkan selama potongan penalaran mengalir.
+
       reasoningText: c.reasoning ? (s.reasoningText ?? '') + c.reasoning : s.reasoningText,
     }));
     if (c.done || c.err) persist(get());
@@ -1192,7 +1118,7 @@ export const useAi = create<AiStore>((set, get) => ({
     }
     const { useTerminal } = await import('./terminalStore');
     const t = useTerminal.getState();
-    // Cari pane shell yang masih hidup; kalau tidak ada, buat baru.
+
     let pane = t
       .allPanes()
       .find((p) => p.status === 'live' && p.kind !== 'browser' && p.kind !== 'agent');
@@ -1202,16 +1128,14 @@ export const useAi = create<AiStore>((set, get) => ({
         set({ toast: 'Tidak bisa membuka pane terminal', confirmCmd: null });
         return false;
       }
-      // Beri shell waktu menampilkan prompt sebelum perintah dikirim.
+
       await new Promise((r) => setTimeout(r, 700));
       pane = useTerminal.getState().findPane(id);
     }
     if (!pane) return false;
     useTerminal.getState().setVisible(true);
     try {
-      // '\r' = Enter di ConPTY. Perintah multi-baris dikirim baris per baris.
-      // fase 15.2: lewat writeChunked supaya blok kode panjang tidak korup
-      // di ConPTY (sama seperti paste).
+
       const { writeChunked } = await import('./terminalClipboard');
       await writeChunked(pane.id, `${command.replace(/\r?\n/g, '\r')}\r`);
       set({ toast: 'Perintah dikirim ke terminal', confirmCmd: null });

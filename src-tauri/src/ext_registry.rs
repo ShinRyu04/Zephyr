@@ -1,26 +1,3 @@
-// ext_registry.rs — REGISTRY ekstensi native Zephyr (menggantikan Open VSX).
-//
-// Kenapa diganti: fase 19 mengambil daftar dari `https://open-vsx.org/api` —
-// format VS Code — lalu menerjemahkannya jadi token Zephyr di frontend.
-// Konsekuensinya: yang muncul di Marketplace mayoritas ekstensi VS Code penuh
-// (butuh runtime eksternal / host API), jadi hampir semua disembunyikan atau
-// gagal saat dipasang. Teman user benar: backend Zephyr Rust, jadi registry
-// seharusnya dibaca dari sumber format Zephyr sendiri, bukan proxy VS Code.
-//
-// Sumber index (berurutan, yang pertama menang):
-//   1. folder bundled        — %APPDATA%\zephyr\extensions\.registry\
-//        index.json + paket .zext, ditulis saat instalasi/update.
-//   2. file user             — %APPDATA%\zephyr\registry.json (bisa diedit /
-//        dibagikan; pemilik bisa menambah registry pribadi tanpa menyentuh
-//        kode app).
-//   3. URL remote            — settings.extensions.registryUrl (HARUS https,
-//        host boleh apa pun karena murni membaca index; unduhan tetap
-//        lewat extensions_download_vsix yang punya allowlist sendiri).
-//
-// Format index (sama untuk ketiganya) — lihat `IndexEntry` + contoh di
-// `index_contoh()`. Bahasa manifest yang sama dengan `ext_pkg.rs`, jadi
-// entri index = apa yang dipasang, tidak ada lapisan terjemahan.
-
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use crate::ext_pkg::InstalledEntry;
@@ -28,24 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
 
-/// Batas ukuran file index (jauh di atas kebutuhan; pencegah file raksasa).
 const MAX_INDEX_BYTES: u64 = 8 * 1024 * 1024;
-/// Batas jumlah entri yang dipakai (sisanya dibuang).
+
 const MAX_ENTRI: usize = 500;
 
-/// Satu entri di registry Zephyr.
-///
-/// Hanya `id` yang wajib (dipakai nama folder saat dipasang). Field lain
-/// dibawa default serde supaya registry minimal tetap valid.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexEntry {
-    /// wajib — id paket, dipakai nama folder saat dipasang.
-    ///
-    /// PAKAI `#[serde(default)]` juga: serde menolak field tanpa nilai meski
-    /// di-`filter` nanti (error "missing field"), jadi default string kosong
-    /// + filter `!id.is_empty()` di parse_index adalah satu-satunya cara
-    /// membuang entri tanpa id tanpa membatalkan seluruh index.
     #[serde(default)]
     pub id: String,
     #[serde(default)]
@@ -58,29 +24,27 @@ pub struct IndexEntry {
     pub description: String,
     #[serde(default)]
     pub categories: Vec<String>,
-    /// 1-3 karakter logo (fallback kalau iconUrl tak bisa dimuat)
+
     #[serde(default)]
     pub logo: String,
-    /// URL logo PNG/SVG (opsional)
+
     #[serde(default)]
     pub icon_url: String,
-    /// Warna merek (untuk lingkaran logo generik, opsional)
+
     #[serde(default)]
     pub logo_color: String,
-    /// URL unduh paket .zext — wajib kalau tidak bundled
+
     #[serde(default)]
     pub url: String,
     #[serde(default)]
     pub download_count: u64,
     #[serde(default)]
     pub rating: f64,
-    /// bahasa yang membuat entri direkomendasikan (mis. ["rust","toml"])
+
     #[serde(default)]
     pub languages: Vec<String>,
 }
 
-/// Bentuk akar index: `{ "version": 1, "extensions": [...] }`.
-/// `extensions` juga boleh array polos (tanpa pembungkus) untuk kemudahan.
 #[derive(Debug, Deserialize)]
 struct IndexRoot {
     #[serde(default)]
@@ -89,17 +53,14 @@ struct IndexRoot {
     extensions: Vec<IndexEntry>,
 }
 
-/// Lokasi file registry user (%APPDATA%\zephyr\registry.json).
 pub fn registry_file(state: &AppState) -> PathBuf {
     state.file("registry.json")
 }
 
-/// Folder registry bundled (dipasang bersama app / ekstensi lain).
 pub fn registry_dir(state: &AppState) -> PathBuf {
     state.data_dir.join("extensions").join(".registry")
 }
 
-/// Baca satu file index → daftar entri (validasi + batas di sini).
 fn parse_index(teks: &str, asal: &str) -> Vec<IndexEntry> {
     let mut out = parse_index_inner(teks, asal);
     out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -107,13 +68,11 @@ fn parse_index(teks: &str, asal: &str) -> Vec<IndexEntry> {
     out
 }
 
-/// Versi publik untuk uji di luar modul (mis. ext_bundled).
 pub fn parse_index_pub(teks: &str) -> Vec<IndexEntry> {
     parse_index(teks, "bundled")
 }
 
 fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
-    // Bentuk array polos diterima tanpa pembungkus.
     let entri: Vec<IndexEntry> = if teks.trim_start().starts_with('[') {
         match serde_json::from_str::<Vec<IndexEntry>>(teks) {
             Ok(v) => v,
@@ -132,9 +91,6 @@ fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
         }
     };
 
-    // Filter entri yang tidak punya id — tidak bisa dipasang & mengacaukan
-    // peta terpasang. Sisanya dibatasi supaya registry rusak tidak membanjiri
-    // UI dengan ribuan kartu.
     let mut bersih: Vec<IndexEntry> = entri.into_iter().filter(|e| !e.id.is_empty()).collect();
     if bersih.len() > MAX_ENTRI {
         tracing::warn!(
@@ -147,8 +103,6 @@ fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
     bersih
 }
 
-/// Baca satu file dengan batas ukuran. Gagal/terlalu besar = daftar kosong
-/// (registry hilang BUKAN error app — lihat command di bawah).
 fn baca_file_terbatas(path: &std::path::Path, asal: &str) -> Vec<IndexEntry> {
     let meta = match std::fs::metadata(path) {
         Ok(m) => m,
@@ -171,9 +125,6 @@ fn baca_file_terbatas(path: &std::path::Path, asal: &str) -> Vec<IndexEntry> {
     }
 }
 
-/// Ambil registry remote (format Zephyr). Murni pembaca index; unduhan paket
-/// tetap lewat `extensions_download_vsix` yang punya allowlist host sendiri,
-/// jadi registry URL boleh di-host di mana pun asal https.
 async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
     let r = ureq::get(url)
         .config()
@@ -213,9 +164,6 @@ async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
     parse_index(&teks, "remote")
 }
 
-/// Gabungan semua sumber registry: bundled → user → remote.
-/// Sumber lebih awal menang (id sama tidak ditimpa) supaya paket yang sudah
-/// ada di mesin tidak ditimpa versi lama dari remote.
 #[tauri::command(async)]
 pub async fn ext_registry_list(
     state: State<'_, AppState>,
@@ -232,9 +180,6 @@ pub async fn ext_registry_list(
         }
     };
 
-    // 1) bundled: index yang dihasilkan dari PAKET di ext_bundled (selalu
-    //    ada — supaya Marketplace tidak kosong di instalasi baru), plus
-    //    file *.json lain di folder .registry (index per-paket).
     tambah(parse_index(&crate::ext_bundled::index_bundled(), "bundled"));
     let dir = registry_dir(&state);
     if dir.is_dir() {
@@ -247,12 +192,12 @@ pub async fn ext_registry_list(
             }
         }
     }
-    // 2) user: registry.json tunggal.
+
     let pf = registry_file(&state);
     if pf.is_file() {
         tambah(baca_file_terbatas(&pf, "user"));
     }
-    // 3) remote: settings.extensions.registryUrl.
+
     let url = crate::settings::read_settings_value(&state)
         .get("extensions")
         .and_then(|e| e.get("registryUrl"))
@@ -261,8 +206,6 @@ pub async fn ext_registry_list(
         .trim()
         .to_string();
     if !url.is_empty() {
-        // Hanya https — http ditolak supaya index tidak diambil dari jalur
-        // terbuka (index bisa memuat URL unduhan yang dipercaya user).
         if url.starts_with("https://") {
             tambah(ambil_remote(&url).await);
         } else {
@@ -270,8 +213,6 @@ pub async fn ext_registry_list(
         }
     }
 
-    // Filter pencarian: cocok di id/nama/penerbit/deskripsi/kategori.
-    // Pencarian kosong = semua (urutan asli, tidak ada sort default).
     let q = query.trim().to_lowercase();
     if q.is_empty() {
         return Ok(semua);
@@ -288,11 +229,8 @@ pub async fn ext_registry_list(
         .collect())
 }
 
-/// Tulis registry user (dipakai Settings → Ekstensi untuk menambah registry
-/// pribadi, atau untuk berbagi konfigurasi antar mesin).
 #[tauri::command]
 pub fn ext_registry_save(state: State<AppState>, teks: String) -> ZResult<()> {
-    // Wajib valid dulu — tulis file rusak membuat registry mati diam-diam.
     let entri = parse_index(&teks, "user-save");
     let root = serde_json::json!({ "version": 1, "extensions": entri });
     let path = registry_file(&state);
@@ -305,19 +243,15 @@ pub fn ext_registry_save(state: State<AppState>, teks: String) -> ZResult<()> {
     Ok(())
 }
 
-/// Baca registry user sebagai teks (dipakai editor di Settings).
 #[tauri::command]
 pub fn ext_registry_read(state: State<AppState>) -> ZResult<String> {
     let path = registry_file(&state);
     if !path.is_file() {
-        // Belum ada → kembalikan template supaya user tahu formatnya.
         return Ok(index_contoh());
     }
     Ok(std::fs::read_to_string(&path)?)
 }
 
-/// Contoh index + dokumentasi format. Dipakai template saat registry user
-/// masih kosong (biar user tahu persis apa yang harus diisi).
 fn index_contoh() -> String {
     r##"{
   "version": 1,
@@ -341,16 +275,11 @@ fn index_contoh() -> String {
     .to_string()
 }
 
-/// Daftar entri yang sudah terinstal (dipakai UI membedakan pasang/terpasang).
-/// Pemetaan id → versi, jadi frontend tidak perlu baca installed.json sendiri.
 #[tauri::command]
 pub fn ext_registry_installed(state: State<AppState>) -> ZResult<Vec<InstalledEntry>> {
     Ok(crate::ext_pkg::read_installed(&state))
 }
 
-/// Cek apakah sebuah URL unduh .zext diizinkan. Allowlist sama dengan
-/// `extensions_download_vsix` — tidak diperluas di sini, supaya registry
-/// tidak bisa mengarahkan unduhan ke host yang belum disetujui.
 #[tauri::command]
 pub fn ext_registry_url_diizinkan(url: String) -> ZResult<bool> {
     let host = url.split('/').nth(2).unwrap_or("").to_lowercase();

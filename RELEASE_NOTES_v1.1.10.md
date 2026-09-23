@@ -1,5 +1,43 @@
 # Zephyr v1.1.10
 
+## Fixed — performance & layout
+
+**Agent mode was slow.** Every step re-sent the entire conversation to the
+provider, so step 10 carried ten times the tokens of step 1 and each step got
+slower than the last. The history is now trimmed to the last 8 steps; older
+tool results are capped at 1,200 characters and older assistant messages at
+800, with a one-line note in their place so the model knows detail was
+dropped instead of inventing it. Measured on a 61-message history: **363 KB →
+144 KB, 60% smaller**.
+
+**`file_list` had no output limit.** Listing a large folder returned every
+name, and that text was then re-sent on every following step. Capped at 300
+entries with an explicit "and N more" line.
+
+**Provider timeout was too short.** Streaming calls gave up after 30 seconds;
+a slow gateway made long agent steps fail mid-answer. Raised to 90 seconds
+(per-call 12 → 120 s).
+
+**Commands from the palette changed nothing.** `commandRegistry` reached the
+layout store through a dynamic `import()`, which Vite serves as a *separate
+module instance* from the static import `App.tsx` uses. The command mutated a
+store the UI never read, so "Toggle Status Bar", layout density and the other
+view commands looked broken. Five call sites now use a static import.
+
+**Layout density did nothing visible.** "Compact" changed 1px of padding on
+four elements. It now drives real layout metrics — tab bar 34 → 28px, status
+bar 24 → 20px, activity bar 48 → 40px, plus tighter tree rows and chat
+messages.
+
+**"Rapat" was the wrong word.** In Indonesian *rapat* means "meeting"; the
+setting is about visual density. Renamed to **"Padat"** across all ten
+languages.
+
+**Background images: more formats.** SVG, AVIF and ICO are accepted now.
+SVG has no magic bytes, so it is detected from its XML content — never from
+the file extension, which can lie. Loaded through `<img src="data:...">`, where
+browsers do not execute embedded scripts.
+
 ## Fixed
 
 **Provider API key** — Zephyr no longer tells you to fill in a key for a

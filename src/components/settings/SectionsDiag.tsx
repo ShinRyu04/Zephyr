@@ -1,10 +1,3 @@
-// SectionsDiag.tsx — panel Self-test & Export report untuk About → Diagnostics
-// (fase 16.5). Dipisah dari SectionsMisc.tsx supaya file itu tidak makin panjang.
-//
-// Kedua panel HANYA menampilkan apa yang dikembalikan Rust: `self_test`
-// benar-benar menulis file, memanggil `git --version`, dan menyambung ke socket
-// MCP — bukan membaca konfigurasi lalu mengaku "OK".
-
 import { useState } from 'react';
 import { openPath } from '@tauri-apps/plugin-opener';
 import { selfTest } from '../../lib/commands';
@@ -71,8 +64,6 @@ export function SelfTestPanel() {
 export function ExportPanel({ d }: { d: Diagnostics | null }) {
   const [pesan, setPesan] = useState<string | null>(null);
 
-  /** Laporan JSON. Tidak memuat rahasia: `domains.ai` hanya menyebut
-   *  "terpasang/belum ada", bukan key-nya. */
   const laporan = () =>
     JSON.stringify(
       {
@@ -134,7 +125,6 @@ export function ExportPanel({ d }: { d: Diagnostics | null }) {
   );
 }
 
-/** Dipakai harness: bentuk laporan tanpa menyentuh clipboard. */
 export function laporanUntukUji(d: Diagnostics | null): string {
   return JSON.stringify({ versi: d?.version ?? '?', domains: d?.domains ?? [] });
 }

@@ -1,19 +1,5 @@
-// vscodeThemeMap.ts — penerjemah warna tema VS Code → token CSS Zephyr.
-//
-// Latar (terukur): muatTema() dulu menyuntik kunci mentah tema VS Code
-// (--activityBar.background) sebagai CSS variables, padahal UI Zephyr memakai
-// token sendiri (--bg, --accent, ... di theme.css). Kecocokan langsung: 0/42 —
-// tema "sukses" dimuat tapi tidak mengubah apa pun. Modul ini memetakan nama
-// warna VS Code yang umum ke token Zephyr supaya tema marketplace benar-benar
-// berlaku.
-//
-// MURNI: tanpa import apapun, agar bisa dimuat `node --experimental-strip-types`.
-
 type Warna = Record<string, unknown>;
 
-// ── util warna (murni) ─────────────────────────────────────────────
-
-/** Parse warna → [r, g, b, a] (0-255, 0-255, 0-255, 0-1). null bila gagal. */
 export function parseWarna(v: unknown): [number, number, number, number] | null {
   if (typeof v !== 'string') return null;
   const s = v.trim().toLowerCase();
@@ -47,7 +33,6 @@ export function parseWarna(v: unknown): [number, number, number, number] | null 
   return null;
 }
 
-/** [r,g,b,a] → string `rgb(...)` / `rgba(...)` yang valid untuk CSS var. */
 export function keCss(c: [number, number, number, number]): string {
   const [r, g, b, a] = c;
   const ri = Math.round(r);
@@ -58,7 +43,6 @@ export function keCss(c: [number, number, number, number]): string {
   return `rgba(${ri}, ${gi}, ${bi}, ${aa})`;
 }
 
-/** Campur dua warna (t=0 → a, t=1 → b). */
 export function mix(a: [number, number, number, number], b: [number, number, number, number], t: number): [number, number, number, number] {
   const k = Math.max(0, Math.min(1, t));
   return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k];
@@ -74,7 +58,6 @@ export function lebihGelap(c: [number, number, number, number], t = 0.1): [numbe
   return mix(c, HITAM, t);
 }
 
-/** Luminance relatif (0-1) untuk keputusan kontras teks. */
 export function luminance(c: [number, number, number, number]): number {
   const lin = (x: number) => {
     const v = x / 255;
@@ -83,7 +66,6 @@ export function luminance(c: [number, number, number, number]): number {
   return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
 }
 
-/** Ambil warna pertama yang ter-parse dari daftar kandidat kunci. */
 function ambil(colors: Warna, kunci: string[]): [number, number, number, number] | null {
   for (const k of kunci) {
     if (k in colors) {
@@ -94,11 +76,6 @@ function ambil(colors: Warna, kunci: string[]): [number, number, number, number]
   return null;
 }
 
-// ── fallback token inti Zephyr (dari theme.css tema dark bawaan) ───
-// Dipakai hanya untuk token turunan (mis. accentSubtle dari accent) kalau
-// sumbernya tidak ada di tema VS Code — token yang benar-benar tidak
-// terpetakan TIDAK dikirim, supaya mewarisi tema dasar Zephyr.
-
 const FALLBACK: Record<string, [number, number, number, number]> = {
   bg: parseWarna('#0d1117') as [number, number, number, number],
   text: parseWarna('#e6edf3') as [number, number, number, number],
@@ -108,12 +85,6 @@ const FALLBACK: Record<string, [number, number, number, number]> = {
   success: parseWarna('#3fb950') as [number, number, number, number],
 };
 
-// ── peta utama ─────────────────────────────────────────────────────
-
-/**
- * Peta tema VS Code (objek `colors`) → token Zephyr tanpa prefix `--`.
- * TerapkanTokenEkstensi() menambahkan prefix `--` sendiri.
- */
 export function petakanTemaVscode(colors: Warna): Record<string, string> {
   const out: Record<string, string> = {};
 
@@ -121,17 +92,15 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
     if (c) out[tok] = keCss(c);
   };
 
-  // Dasar
   const bg = ambil(colors, ['editor.background', 'panel.background', 'sideBar.background']);
   const text = ambil(colors, ['editor.foreground', 'foreground', 'sideBar.foreground']);
   set('bg', bg);
   set('text', text);
   if (bg && text) {
-    // Teks inverse: gelap di tema terang, terang di tema gelap.
+    
     out['text-inverse'] = keCss(luminance(bg) > 0.5 ? HITAM : PUTIH);
   }
 
-  // Permukaan (harus sedikit beda dari bg agar hierarki terlihat)
   const surface = ambil(colors, ['sideBar.background', 'panel.background']) ?? (bg ? lebihTerang(bg, 0.03) : null);
   set('surface', surface);
   const surface2 = ambil(colors, ['activityBar.background', 'panel.background']) ?? (surface ? lebihTerang(surface, 0.04) : null);
@@ -139,12 +108,10 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
   const surface3 = ambil(colors, ['input.background', 'dropdown.background', 'editorWidget.background']) ?? (surface2 ? lebihTerang(surface2, 0.05) : null);
   set('surface3', surface3);
 
-  // Garis tepi
   const border = ambil(colors, ['panel.border', 'editorWidget.border', 'contrastBorder', 'sideBar.border']) ?? (bg ? mix(bg, text ?? PUTIH, 0.14) : null);
   set('border', border);
   set('border-strong', border ? mix(border, text ?? PUTIH, 0.25) : null);
 
-  // Teks sekunder
   let sec: [number, number, number, number] | null = ambil(colors, ['descriptionForeground', 'sideBar.foreground']);
   if (!sec && text && bg) sec = mix(text, bg, 0.35);
   set('text-secondary', sec);
@@ -153,7 +120,6 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
   else if (sec && bg) muted = mix(sec, bg, 0.3);
   set('text-muted', muted);
 
-  // Aksen
   const accent = ambil(colors, ['focusBorder', 'button.background', 'statusBarItem.remoteBackground', 'activityBarBadge.background']) ?? FALLBACK.accent;
   set('accent', accent);
   if (accent) {
@@ -161,7 +127,6 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
     set('accent-subtle', [accent[0], accent[1], accent[2], 0.16]);
   }
 
-  // Status
   set('danger', ambil(colors, ['editorError.foreground', 'inputValidation.errorForeground', 'editorOverviewRuler.errorForeground']) ?? FALLBACK.danger);
   set('warning', ambil(colors, ['editorWarning.foreground', 'inputValidation.warningForeground']) ?? FALLBACK.warning);
   set('success', ambil(colors, ['gitDecoration.addedResourceForeground', 'editorGutter.addedBackground']) ?? FALLBACK.success);
@@ -169,7 +134,6 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
   set('deleted', ambil(colors, ['gitDecoration.deletedResourceForeground', 'editorGutter.deletedBackground']) ?? ambil(colors, ['editorError.foreground']) ?? FALLBACK.danger);
   set('modified', ambil(colors, ['gitDecoration.modifiedResourceForeground', 'editorGutter.modifiedBackground']) ?? FALLBACK.warning);
 
-  // Editor
   set('editor-bg', bg);
   set('editor-gutter', ambil(colors, ['editorLineNumber.foreground']) ?? (text && bg ? mix(text, bg, 0.5) : null));
   set('editor-active-line', ambil(colors, ['editor.lineHighlightBackground']) ?? (bg ? [bg[0], bg[1], bg[2], 0.035] : null));
@@ -177,7 +141,6 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
   set('editor-cursor', ambil(colors, ['editorCursor.foreground']) ?? text);
   set('editor-match', ambil(colors, ['editor.findMatchHighlightBackground']) ?? (accent ? [accent[0], accent[1], accent[2], 0.35] : null));
 
-  // Chrome aplikasi (semua optional — tidak ada sumber = tidak dikirim)
   set('titlebar-bg', ambil(colors, ['titleBar.activeBackground', 'editorGroupHeader.noTabsBackground']) ?? surface);
   set('titlebar-fg', ambil(colors, ['titleBar.activeForeground']) ?? text);
   set('statusbar-bg', ambil(colors, ['statusBar.background']) ?? surface2);
