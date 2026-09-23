@@ -18,6 +18,14 @@ import { EN as SRC } from './i18n-src';
 type Dict = Record<string, string>;
 
 const ID: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'Subagent',
+  'settings.aiprompt': 'Prompt AI',
+  'sub.maxParallel': 'Subagent paralel maksimum',
+  'sub.maxSteps': 'Batas langkah per subagent',
+  'sub.allowWrite': 'Izinkan subagent menulis file',
+  'sub.showPanel': 'Tampilkan kartu subagent di panel',
+  'sub.autoCollapse': 'Lipat langkah otomatis saat selesai',
   'nav.explorer': 'Explorer',
   'nav.search': 'Pencarian',
   'nav.scm': 'Source Control',
@@ -148,6 +156,14 @@ const ID: Dict = {
 };
 
 const EN: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'Subagents',
+  'settings.aiprompt': 'AI Prompt',
+  'sub.maxParallel': 'Maximum parallel subagents',
+  'sub.maxSteps': 'Step limit per subagent',
+  'sub.allowWrite': 'Allow subagents to write files',
+  'sub.showPanel': 'Show subagent cards in panel',
+  'sub.autoCollapse': 'Auto-collapse steps when finished',
   'nav.explorer': 'Explorer',
   'nav.search': 'Search',
   'nav.scm': 'Source Control',
@@ -278,6 +294,14 @@ const EN: Dict = {
 };
 
 const JA: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'サブエージェント',
+  'settings.aiprompt': 'AIプロンプト',
+  'sub.maxParallel': '同時サブエージェントの上限',
+  'sub.maxSteps': 'サブエージェントごとのステップ上限',
+  'sub.allowWrite': 'サブエージェントのファイル書き込みを許可',
+  'sub.showPanel': 'パネルにサブエージェントカードを表示',
+  'sub.autoCollapse': '完了時にステップを自動折りたたみ',
   'nav.explorer': 'エクスプローラー',
   'nav.search': '検索',
   'nav.scm': 'ソース管理',
@@ -399,6 +423,14 @@ const JA: Dict = {
 };
 
 const KO: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': '서브에이전트',
+  'settings.aiprompt': 'AI 프롬프트',
+  'sub.maxParallel': '최대 병렬 서브에이전트',
+  'sub.maxSteps': '서브에이전트당 단계 제한',
+  'sub.allowWrite': '서브에이전트 파일 쓰기 허용',
+  'sub.showPanel': '패널에 서브에이전트 카드 표시',
+  'sub.autoCollapse': '완료 시 단계 자동 접기',
   'nav.explorer': '탐색기',
   'nav.search': '검색',
   'nav.scm': '소스 제어',
@@ -520,6 +552,14 @@ const KO: Dict = {
 };
 
 const ZH: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': '子代理',
+  'settings.aiprompt': 'AI 提示词',
+  'sub.maxParallel': '最大并行子代理数',
+  'sub.maxSteps': '每个子代理的步骤上限',
+  'sub.allowWrite': '允许子代理写入文件',
+  'sub.showPanel': '在面板中显示子代理卡片',
+  'sub.autoCollapse': '完成后自动折叠步骤',
   'nav.explorer': '资源管理器',
   'nav.search': '搜索',
   'nav.scm': '源代码管理',
@@ -641,6 +681,14 @@ const ZH: Dict = {
 };
 
 const ES: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'Subagentes',
+  'settings.aiprompt': 'Prompt de IA',
+  'sub.maxParallel': 'Subagentes paralelos maximos',
+  'sub.maxSteps': 'Limite de pasos por subagente',
+  'sub.allowWrite': 'Permitir que los subagentes escriban archivos',
+  'sub.showPanel': 'Mostrar tarjetas de subagente en el panel',
+  'sub.autoCollapse': 'Contraer pasos al terminar',
   'nav.explorer': 'Explorador',
   'nav.search': 'Búsqueda',
   'nav.scm': 'Control de código fuente',
@@ -762,6 +810,14 @@ const ES: Dict = {
 };
 
 const FR: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'Sous-agents',
+  'settings.aiprompt': 'Prompt IA',
+  'sub.maxParallel': 'Sous-agents paralleles maximum',
+  'sub.maxSteps': 'Limite d etapes par sous-agent',
+  'sub.allowWrite': 'Autoriser les sous-agents a ecrire des fichiers',
+  'sub.showPanel': 'Afficher les cartes de sous-agent dans le panneau',
+  'sub.autoCollapse': 'Replier les etapes a la fin',
   'nav.explorer': 'Explorateur',
   'nav.search': 'Recherche',
   'nav.scm': 'Contrôle de code source',
@@ -883,6 +939,14 @@ const FR: Dict = {
 };
 
 const DE: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'Subagenten',
+  'settings.aiprompt': 'KI-Prompt',
+  'sub.maxParallel': 'Maximale parallele Subagenten',
+  'sub.maxSteps': 'Schrittlimit pro Subagent',
+  'sub.allowWrite': 'Subagenten duerfen Dateien schreiben',
+  'sub.showPanel': 'Subagent-Karten im Panel anzeigen',
+  'sub.autoCollapse': 'Schritte nach Abschluss einklappen',
   'nav.explorer': 'Explorer',
   'nav.search': 'Suche',
   'nav.scm': 'Quellcodeverwaltung',
@@ -1004,6 +1068,14 @@ const DE: Dict = {
 };
 
 const PT: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'Subagentes',
+  'settings.aiprompt': 'Prompt de IA',
+  'sub.maxParallel': 'Subagentes paralelos maximos',
+  'sub.maxSteps': 'Limite de passos por subagente',
+  'sub.allowWrite': 'Permitir que subagentes gravem arquivos',
+  'sub.showPanel': 'Mostrar cartoes de subagente no painel',
+  'sub.autoCollapse': 'Recolher passos ao terminar',
   'nav.explorer': 'Explorador',
   'nav.search': 'Pesquisa',
   'nav.scm': 'Controle de código-fonte',
@@ -1125,6 +1197,14 @@ const PT: Dict = {
 };
 
 const AR: Dict = {
+  // ── Settings → Subagent (T3.10) ──
+  'settings.subagent': 'الوكلاء الفرعيون',
+  'settings.aiprompt': 'أمر الذكاء',
+  'sub.maxParallel': 'الحد الأقصى للوكلاء الفرعيين المتوازيين',
+  'sub.maxSteps': 'حد الخطوات لكل وكيل فرعي',
+  'sub.allowWrite': 'السماح للوكلاء الفرعيين بكتابة الملفات',
+  'sub.showPanel': 'إظهار بطاقات الوكلاء الفرعيين في اللوحة',
+  'sub.autoCollapse': 'طي الخطوات تلقائيا عند الانتهاء',
   'nav.explorer': 'المستكشف',
   'nav.search': 'البحث',
   'nav.scm': 'التحكم بالمصدر',

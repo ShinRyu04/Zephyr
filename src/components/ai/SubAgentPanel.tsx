@@ -1,17 +1,22 @@
-// SubAgentPanel.tsx — panel subagent paralel (T2.1), tampilan ala TEDI.
+// SubAgentPanel.tsx — panel subagent paralel (T2.1), tampilan ala TEDI (T3.6).
 //
 // YANG MEMBUAT TAMPILAN TEDI TERASA BEDA (dan ditiru di sini):
 //   1. Judul batch menyebut JUMLAH: "3 tugas paralel" — bukan daftar kartu
 //      tanpa konteks. User langsung tahu skala pekerjaannya.
 //   2. Tiap kartu punya NAMA (Comet, Odyssey) sebagai identitas — bukan
 //      "Subagent 1". Nama membuat progres bisa dibicarakan ("Comet selesai").
-//   3. Langkah terakhir SELALU terlihat saat bekerja, jadi panel terasa hidup
-//      tanpa user harus mengklik.
-//   4. Langkah bisa dibuka: penalaran ditandai "Reasoned", aksi ditandai tool.
-//   5. Grid 2 kolom di panel lebar: 4 subagent terbaca tanpa scroll.
+//   3. Langkah ditampilkan sebagai TIMELINE dengan ikon + label manusiawi
+//      ("Read", "Edit", "Run") berwarna per jenis aksi — bukan nama tool
+//      mentah (`file_read`). Ini yang paling kelihatan bedanya.
+//   4. Penalaran ditandai blok "Reasoned" yang bisa dilipat.
+//   5. Baris status hidup ala TEDI: "Read agent.ts · 13s" dengan timer jalan.
+//   6. Grid 2 kolom di panel lebar: 4 subagent terbaca tanpa scroll.
 
 import { useEffect, useState } from 'react';
-import { useSubAgent, MAX_PARALLEL, type SubAgent, type SubStep } from '../../lib/subagentStore';
+import { useSubAgent, batasParalel, type SubAgent, type SubStep } from '../../lib/subagentStore';
+import { useStore } from '../../lib/store';
+import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
+import { infoPeran } from '../../lib/subagentRoles';
 import { useT } from '../../lib/i18n';
 
 /** Ikon status per subagent. */
@@ -23,22 +28,69 @@ const IKON: Record<SubAgent['status'], string> = {
   batal: '⊘',
 };
 
-/** Satu langkah: penalaran ditampilkan sebagai blok "Reasoned". */
+/** Durasi format TEDI: "16.8s" lalu "2m 18s" kalau sudah lewat semenit. */
+function durasi(ms: number): string {
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${Math.round(s - m * 60)}s`;
+}
+
+/** Satu langkah dalam timeline: penalaran = blok "Reasoned" yang dilipat. */
 function Langkah({ l }: { l: SubStep }) {
   const tr = useT();
+  const [buka, setBuka] = useState(false);
+
   if (l.kind === 'pikir') {
+    const teks = l.teks ?? '';
+    // Penalaran panjang dilipat; yang pendek ditampilkan langsung supaya
+    // timeline tidak penuh blok tertutup yang tidak informatif.
+    const panjang = teks.length > 180;
     return (
       <li className="sub-step is-pikir" data-step="pikir">
-        <span className="sub-step-label">{tr('Reasoned')}</span>
-        <span className="sub-step-teks">{l.teks}</span>
+        <button
+          className="sub-pikir-toggle"
+          data-testid="sub-reasoned-toggle"
+          aria-expanded={panjang ? buka : true}
+          onClick={() => panjang && setBuka((v) => !v)}
+        >
+          <span className="sub-step-label">{tr('Reasoned')}</span>
+          {panjang && <span className="sub-caret">{buka ? '▾' : '▸'}</span>}
+        </button>
+        {(!panjang || buka) && <p className="sub-step-teks">{teks}</p>}
+        {panjang && !buka && <p className="sub-step-teks is-ringkas">{teks.slice(0, 150)}…</p>}
       </li>
     );
   }
+
+  const info = infoAksi(l.nama);
+  const sasaran = sasaranAksi(l.args);
+
   return (
-    <li className={`sub-step is-tool${l.ok === false ? ' is-err' : ''}`} data-step="tool">
-      <span className="sub-step-tool">{l.nama}</span>
-      {l.args && <code className="sub-step-args">{l.args}</code>}
-      {l.hasil && <pre className="sub-step-hasil">{l.hasil}</pre>}
+    <li
+      className={`sub-step is-tool ${KELAS_JENIS[info.jenis]}${l.ok === false ? ' is-err' : ''}`}
+      data-step="tool"
+      data-aksi={info.label}
+      data-jenis={info.jenis}
+    >
+      <span className="sub-aksi-ikon" aria-hidden="true">
+        {info.ikon}
+      </span>
+      <span className="sub-aksi-label">{info.label}</span>
+      {sasaran && (
+        <span className="sub-aksi-sasaran" title={sasaran}>
+          {sasaran}
+        </span>
+      )}
+      {l.ok === false && <span className="sub-aksi-gagal">{tr('gagal')}</span>}
+      {/* Hasil lengkap tetap bisa diperiksa lewat <details> — timeline rapi,
+          tapi buktinya tidak disembunyikan. */}
+      {l.hasil && (
+        <details className="sub-aksi-hasil">
+          <summary>{tr('hasil')}</summary>
+          <pre>{l.hasil}</pre>
+        </details>
+      )}
     </li>
   );
 }
@@ -46,7 +98,12 @@ function Langkah({ l }: { l: SubStep }) {
 function Kartu({ a }: { a: SubAgent }) {
   const tr = useT();
   const batal = useSubAgent((s) => s.batal);
-  const [buka, setBuka] = useState(false);
+  // autoCollapse dari Settings: saat aktif (default), daftar langkah TIDAK
+  // pernah terbuka sendiri — panel tetap ringkas kecuali user membukanya.
+  const autoCollapse = useStore((s) => s.settings.subagent?.autoCollapse !== false);
+  // Saat autoCollapse aktif, kartu yang SELESAI tidak membuka langkahnya
+  // sendiri; yang masih jalan tetap terbuka supaya progresnya terlihat.
+  const [buka, setBuka] = useState(!autoCollapse);
   // Detak 1 detik: durasi subagent yang masih jalan ikut naik. Tanpa ini
   // angkanya beku dan panel terasa mati.
   const [, detak] = useState(0);
@@ -57,11 +114,23 @@ function Kartu({ a }: { a: SubAgent }) {
     return () => clearInterval(t);
   }, [a.status]);
 
-  const durasi = ((a.selesai ?? Date.now()) - a.mulai) / 1000;
+  const ms = (a.selesai ?? Date.now()) - a.mulai;
   const hidup = a.status === 'jalan' || a.status === 'menunggu';
   const langkahTerakhir = a.langkah[a.langkah.length - 1];
-  // Hitung pemanggilan tool saja (langkah 'pikir' bukan aksi).
-  const nTool = a.langkah.filter((l) => l.kind === 'tool').length;
+  // Hitung SEMUA langkah (tool + penalaran) supaya angkanya sama dengan yang
+  // ditampilkan tombol expand. Menghitung tool saja membuat kartu menulis
+  // "0 langkah" padahal isinya 1 langkah — terlihat seperti bug.
+  const nLangkah = a.langkah.length;
+
+  // Baris status hidup ala TEDI: "Read agent.ts".
+  const statusHidup = (() => {
+    if (!langkahTerakhir) return tr('Menyiapkan…');
+    if (langkahTerakhir.kind === 'pikir') return tr('Berpikir…');
+    const info = infoAksi(langkahTerakhir.nama);
+    const sasaran = sasaranAksi(langkahTerakhir.args);
+    const namaFile = sasaran.split(/[/\\]/).pop() || sasaran;
+    return `${info.label} ${namaFile}`.trim();
+  })();
 
   return (
     <div
@@ -77,11 +146,25 @@ function Kartu({ a }: { a: SubAgent }) {
         <span className="sub-nama" data-testid={`sub-nama-${a.id}`}>
           {a.nama}
         </span>
+        {(() => {
+          const pr = infoPeran(a.peran);
+          if (!pr) return null;
+          return (
+            <span
+              className={`sub-peran${pr.butuhTulis ? ' is-tulis' : ''}`}
+              data-testid={`sub-peran-${a.id}`}
+              data-peran={a.peran}
+              title={tr(pr.hint)}
+            >
+              {pr.ikon} {tr(pr.label)}
+            </span>
+          );
+        })()}
         <span className="sub-badge" data-testid={`sub-status-${a.id}`}>
           {tr(a.status)}
         </span>
-        <span className="sub-meta">
-          {nTool} {tr('tool')} · {durasi.toFixed(1)}s
+        <span className="sub-meta" data-testid={`sub-meta-${a.id}`}>
+          {nLangkah} {tr('langkah')} · {durasi(ms)}
         </span>
         {hidup && (
           <button
@@ -99,21 +182,14 @@ function Kartu({ a }: { a: SubAgent }) {
         {a.tugas}
       </div>
 
-      {/* Langkah terakhir SELALU tampil saat berjalan — user harus bisa
-          melihat "sedang apa" tanpa mengklik apa pun. */}
-      {hidup && langkahTerakhir && (
+      {/* Baris status hidup ala TEDI: "Read agent.ts · 13s". */}
+      {hidup && (
         <div className="sub-now" data-testid={`sub-now-${a.id}`}>
           <span className="sub-spin" aria-hidden="true">
             ◔
           </span>
-          {langkahTerakhir.kind === 'tool' ? (
-            <>
-              <code>{langkahTerakhir.nama}</code>
-              <span className="sub-now-args">{langkahTerakhir.args}</span>
-            </>
-          ) : (
-            <span className="sub-now-pikir">{langkahTerakhir.teks?.slice(0, 140)}</span>
-          )}
+          <span className="sub-now-teks">{statusHidup}</span>
+          <span className="sub-now-timer">{durasi(ms)}</span>
         </div>
       )}
 
@@ -132,7 +208,7 @@ function Kartu({ a }: { a: SubAgent }) {
             onClick={() => setBuka((v) => !v)}
           >
             <span className="sub-caret">{buka ? '▾' : '▸'}</span>
-            {a.langkah.length} {tr('langkah')}
+            {nLangkah} {tr('langkah')}
           </button>
           {buka && (
             <ol className="sub-langkah" data-testid={`sub-langkah-${a.id}`}>
@@ -144,16 +220,20 @@ function Kartu({ a }: { a: SubAgent }) {
         </>
       )}
 
+      {/* Hasil TIDAK diulang di sini. Isinya sudah ada di pesan ringkasan
+          chat, dan mengulangnya membuat panel terasa menumpuk — inilah yang
+          dikeluhkan user. Yang tersisa hanya pratinjau satu baris supaya
+          kartu tetap informatif tanpa mengulang paragraf. */}
       {a.hasil && a.status === 'selesai' && (
-        <div className="sub-hasil-akhir" data-testid={`sub-hasil-${a.id}`}>
-          {a.hasil}
+        <div className="sub-hasil-1baris" data-testid={`sub-hasil-${a.id}`} title={a.hasil}>
+          {a.hasil.split(/\r?\n/).find((l) => l.trim()) || ''}
         </div>
       )}
     </div>
   );
 }
 
-export default function SubAgentPanel() {
+export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {}) {
   const tr = useT();
   const agents = useSubAgent((s) => s.agents);
   const sibuk = useSubAgent((s) => s.sibuk);
@@ -161,7 +241,10 @@ export default function SubAgentPanel() {
   const batalSemua = useSubAgent((s) => s.batalSemua);
   const bersihkan = useSubAgent((s) => s.bersihkan);
 
-  if (agents.length === 0) return null;
+  // Settings → Subagent: kartu bisa disembunyikan sepenuhnya (hanya ringkasan
+  // yang tampil di chat). Berguna kalau panel terasa terlalu ramai.
+  const showPanel = useStore((s) => s.settings.subagent?.showPanel !== false);
+  if (!showPanel || agents.length === 0) return null;
 
   const jalan = agents.filter((a) => a.status === 'jalan' || a.status === 'menunggu').length;
   const beres = agents.filter((a) => a.status === 'selesai').length;
@@ -174,11 +257,14 @@ export default function SubAgentPanel() {
 
   return (
     <div className="sub-panel" data-testid="sub-panel">
+      {/* Bar disembunyikan saat `polos`: di tab Subagents kepalanya sudah ada
+          di SubAgentView, dan menampilkan dua tombol Bersihkan membingungkan. */}
+      {!polos && (
       <div className="sub-bar">
         <span className="sub-judul" data-testid="sub-title">
           {judul}
         </span>
-        <span className="sub-maks">maks {MAX_PARALLEL}</span>
+        <span className="sub-maks">maks {batasParalel()}</span>
         <span className="sub-spacer" />
         {sibuk ? (
           <button className="btn btn-sm" data-testid="sub-stop-all" onClick={batalSemua}>
@@ -190,6 +276,7 @@ export default function SubAgentPanel() {
           </button>
         )}
       </div>
+      )}
 
       <div className="sub-daftar" data-testid="sub-grid">
         {agents.map((a) => (
@@ -197,7 +284,7 @@ export default function SubAgentPanel() {
         ))}
       </div>
 
-      {ringkasan && !sibuk && (
+      {!polos && ringkasan && !sibuk && (
         <details className="sub-ringkas" data-testid="sub-summary">
           <summary>{tr('Ringkasan gabungan')}</summary>
           <pre>{ringkasan}</pre>

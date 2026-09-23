@@ -94,7 +94,7 @@ class Cdp {
           st.setActivity('ai');
           if (!S.getState().sidebarVisible) st.toggleSidebar();
           T.getState().setVisible(true);
-          T.getState().setDock('ai');
+          T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
           await wait(260);
         };
         /** Tunggu sampai streaming selesai (pending null). */
@@ -181,7 +181,7 @@ const check = (id, ok, detail) => {
 const mockLog = async () => (await fetch(`http://127.0.0.1:${MOCK}/__log`)).json();
 const mockReset = () => fetch(`http://127.0.0.1:${MOCK}/__reset`);
 
-const MOCK_VERSION = 2;
+const MOCK_VERSION = 4;
 
 async function ensureMock() {
   try {
@@ -253,8 +253,17 @@ const main = async () => {
     await cdp.runAsync(`
       await bukaAi();
       await klik('[data-testid="ai-model-btn"]');
-      await wait(260);
+      await wait(320);
       const menu = q('[data-testid="ai-model-menu"]');
+      // Tingkat PROVIDER: hanya provider ber-key yang ditawarkan.
+      const providerRows = qa('[data-provider-item]').map(el => ({
+        provider: el.dataset.provider,
+        nama: el.querySelector('.ai-mi-name')?.textContent ?? '',
+        logo: el.querySelector('svg[aria-label]')?.getAttribute('aria-label') ?? null,
+      }));
+      // Masuk ke tingkat MODEL: OpenAI -> gpt-5.2.
+      await klik('[data-provider-item="openai"]');
+      await wait(300);
       const items = qa('[data-model-item]').map(el => ({
         model: el.dataset.modelItem,
         provider: el.dataset.provider,
@@ -263,13 +272,12 @@ const main = async () => {
         logo: el.querySelector('svg[aria-label]')?.getAttribute('aria-label') ?? null,
         nama: el.querySelector('.ai-mi-name')?.textContent ?? '',
       }));
-      // ganti ke model OpenAI -> tombol & baseUrl efektif harus ikut berubah
       const sebelum = {
         model: q('[data-testid="ai-model-btn"]').dataset.model,
         provider: q('[data-testid="ai-model-btn"]').dataset.provider,
       };
       await klik('[data-model-item="gpt-5.2"]');
-      await wait(500);
+      await wait(600);
       const sesudah = {
         model: q('[data-testid="ai-model-btn"]').dataset.model,
         provider: q('[data-testid="ai-model-btn"]').dataset.provider,
@@ -278,29 +286,40 @@ const main = async () => {
       };
       // kembalikan ke gemini untuk uji berikutnya
       await klik('[data-testid="ai-model-btn"]');
-      await wait(200);
+      await wait(250);
+      await klik('[data-provider-item="gemini"]');
+      await wait(280);
       await klik('[data-model-item="gemini-3.6-flash"]');
-      await wait(400);
+      await wait(450);
       return JSON.stringify({
-        adaMenu: !!menu, items, sebelum, sesudah,
+        adaMenu: !!menu, providerRows, items, sebelum, sesudah,
         katalog: A.catalog().length,
+        jumlahProviderKatalog: P && P.PROVIDER_COUNT ? P.PROVIDER_COUNT : null,
         akhir: q('[data-testid="ai-model-btn"]').dataset.model,
       });
     `),
   );
   const semuaAdaLogo = v1.items.every((x) => x.logo && x.nama.length > 0);
+  const providerAdaLogo = v1.providerRows.every((x) => x.logo && x.nama.length > 0);
   check(
     'V1',
     v1.adaMenu &&
+      // Tingkat provider: hanya provider ber-key (mock memasang key untuk
+      // gemini + openai), ditambah provider bebas (custom/lokal).
+      v1.providerRows.length > 0 &&
+      v1.providerRows.length < 6 &&
+      providerAdaLogo &&
+      // Tingkat model: hanya model MILIK provider yang dibuka.
       v1.items.length === v1.katalog &&
       v1.items.length >= 9 &&
       semuaAdaLogo &&
+      v1.items.every((x) => x.provider === 'openai') &&
       v1.sebelum.provider === 'gemini' &&
       v1.sesudah.provider === 'openai' &&
       v1.sesudah.disk === 'openai' &&
       v1.sesudah.judul.includes(`127.0.0.1:${MOCK}/v1`) &&
       v1.akhir === 'gemini-3.6-flash',
-    `dropdown ${v1.items.length} model, semua punya logo brand (${[...new Set(v1.items.map((x) => x.logo))].join(', ')}); ganti gemini → openai: provider disk=${v1.sesudah.disk}, baseUrl efektif "${v1.sesudah.judul.split('— ')[1]}"`,
+    `dua tingkat: ${v1.providerRows.length} provider ber-key (${v1.providerRows.map((x) => x.provider).join(', ')}) → ${v1.items.length} model ${v1.items[0]?.provider ?? '?'}, semua berlogo; ganti gemini → openai: provider disk=${v1.sesudah.disk}, baseUrl efektif "${v1.sesudah.judul.split('— ')[1]}"`,
   );
 
   // ───────── V2: tanpa key → status oranye + kirim diblokir, tidak crash ─────────
@@ -440,9 +459,11 @@ const main = async () => {
     await cdp.runAsync(`
       // 1) tanpa key anthropic -> penolakan ramah, bukan crash
       await klik('[data-testid="ai-model-btn"]');
-      await wait(200);
+      await wait(250);
+      await klik('[data-provider-item="anthropic"]');
+      await wait(280);
       await klik('[data-model-item="claude-sonnet-4.5"]');
-      await wait(500);
+      await wait(550);
       await AS().loadKeys();
       const badgeTanpaKey = q('[data-testid="ai-keystate"]').dataset.haskey;
       await kirim('halo claude');
@@ -495,9 +516,11 @@ const main = async () => {
     await cdp.runAsync(`
       // kembali ke gemini (punya key mock)
       await klik('[data-testid="ai-model-btn"]');
-      await wait(200);
+      await wait(250);
+      await klik('[data-provider-item="gemini"]');
+      await wait(280);
       await klik('[data-model-item="gemini-3.6-flash"]');
-      await wait(400);
+      await wait(450);
 
       // 1) jawaban dengan fenced bash -> tombol muncul
       await kirim('kasih perintah BASHCMD');
@@ -507,10 +530,10 @@ const main = async () => {
       const cmdBar = q('.ai-action-cmd')?.textContent ?? '';
 
       // siapkan pane shell dulu supaya perintah punya tujuan yang jelas
-      T.getState().setDock('terminal');
+      window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
       const paneId = await T.getState().addPane('shell');
       await wait(2500);
-      T.getState().setDock('ai');
+      T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
       await wait(200);
 
       await klik('[data-testid="ai-run-last"]');
@@ -714,7 +737,7 @@ const main = async () => {
       AS().sessions.slice().forEach(x => AS().deleteChat(x.id));
       localStorage.removeItem('zephyr.ai.sessions.v1');
       S.getState().tabs.slice().forEach(t => S.getState().forceCloseTab(t.id));
-      T.getState().setDock('terminal');
+      window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
       T.getState().setVisible(true);
       S.getState().setSettingsOpen(false);
       S.getState().setActivity('explorer');

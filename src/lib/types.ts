@@ -28,6 +28,16 @@ export interface AppInfo {
   version: string;
   identifier: string;
   dataDir: string;
+  /** arsitektur target (mis. "x86_64-windows") — untuk laporan bug */
+  arch?: string;
+  /** versi runtime WebView2 yang benar-benar dipakai */
+  webview?: string;
+  /** true kalau data disimpan di samping exe, bukan di %APPDATA% */
+  portable?: boolean;
+  /** folder executable */
+  exeDir?: string;
+  /** "debug" atau "release" */
+  profile?: string;
 }
 
 /** Satu titik ukur performa dari Rust (fase 14.5). */
@@ -836,10 +846,28 @@ export interface ThemeSettings {
   accent?: string;
 }
 
+/**
+ * Latar belakang kustom — settings TERSENDIRI, sengaja TIDAK digabung ke
+ * `theme`. User minta jelas: "jgn nyatu ya, jdi gini, ga brengan combo ny sama
+ * tema nya gtu". Kalau digabung, mengganti tema ikut menimpa/mereset
+ * background, dan mengubah background terlihat seperti mengganti tema.
+ */
+export interface BackgroundSettings {
+  /** data URL gambar (dibaca Rust lewat bg_image_read). Kosong = warna tema. */
+  image?: string;
+  /** 0..100 — seberapa kuat gambar terlihat di belakang UI. */
+  opacity?: number;
+  /** 'fill' | 'fit' | 'center' — cara gambar dipasang. */
+  size?: 'fill' | 'fit' | 'center';
+  /** true = panel dibuat tembus pandang supaya gambar terlihat. */
+  transparan?: boolean;
+}
+
 export interface Settings {
   general: GeneralSettings;
   editor: EditorSettings;
   theme: ThemeSettings;
+  background?: BackgroundSettings;
   /** Posisi panel samping ala VS Code: kiri, kanan, atas, atau bawah. */
   sidebar: 'left' | 'right' | 'top' | 'bottom';
   layout: 'default' | 'focus' | 'term' | 'quad';
@@ -858,11 +886,62 @@ export interface Settings {
       /** jumlah chunk yang diambil per pencarian */
       ragK: number;
     };
+  /**
+   * Izin permanen untuk perintah terminal (T4.5).
+   *
+   * Berisi PREFIX perintah yang selalu diizinkan (mis. "npm run build").
+   * KENAPA prefix, bukan daftar perintah persis: user mengetik perintah dengan
+   * argumen yang berbeda-beda; mencocokkan persis berarti izinnya tidak pernah
+   * terpakai. Perintah destruktif TETAP ditanya walau prefix-nya cocok.
+   */
+  allowCommands: string[];
+  /**
+   * Prompt AI yang bisa diedit (T4.3).
+   *
+   * Kosong = pakai prompt bawaan. Disimpan sebagai string, BUKAN objek
+   * bersarang, supaya `deep_merge` settings tidak menghapus bagian lain saat
+   * user hanya mengubah satu bagian.
+   */
+  aiPrompt: {
+    /** identitas inti (siapa Zeph) */
+    identitas: string;
+    /** urutan cara kerja */
+    caraKerja: string;
+    /** aturan keras */
+    aturan: string;
+    /** instruksi tambahan dari user — selalu ditempel di akhir prompt */
+    instruksi: string;
+  };
   agents: {
     maxPanes: number;
     order: string[];
     startCommands: Record<string, string[]>;
     attachActiveFile: boolean;
+  };
+  /**
+   * Subagent paralel (T2.1) — dipindah dari konstanta ke settings supaya user
+   * bisa menyesuaikan tanpa rebuild. Default-nya SAMA dengan konstanta lama,
+   * jadi perilaku tidak berubah bagi yang tidak menyentuhnya.
+   */
+  subagent: {
+    /** jumlah subagent yang boleh jalan bersamaan (1..8) */
+    maxParallel: number;
+    /** batas langkah per subagent sebelum dihentikan (3..50) */
+    maxSteps: number;
+    /** izinkan subagent MENULIS file (default: tidak — lebih aman) */
+    allowWrite: boolean;
+    /** tampilkan kartu subagent di panel (kalau tidak, hanya ringkasan) */
+    showPanel: boolean;
+    /** lipat otomatis daftar langkah saat subagent selesai */
+    autoCollapse: boolean;
+    /**
+     * Model yang dipakai subagent. Kosong = ikut model chat.
+     * Subagent biasanya kerja mekanis (baca file, cari, rangkum) sementara
+     * model chat dipilih untuk tugas berat — jadi memisahkannya menghemat
+     * biaya/TPS tanpa menurunkan kualitas jawaban utama.
+     */
+    model: string;
+    provider: string;
   };
   extensions: {
     enabled: string[];
@@ -968,11 +1047,19 @@ export const DEFAULT_SETTINGS: Settings = {
     ghostText: false,
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
+  background: { image: '', opacity: 100, size: 'fill', transparan: true },
   sidebar: 'left',
   layout: 'default',
   shortcuts: {},
   models: { activeProvider: 'gemini', providers: {}, answerLang: 'follow', ragEnabled: false, ragUrl: 'http://localhost:7777', ragProject: '', ragK: 4 },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
+  // Default subagent: 4 paralel, 15 langkah, TIDAK boleh menulis file.
+  // Larangan menulis bukan kehati-hatian berlebihan: beberapa subagent yang
+  // menulis file yang sama bisa saling menimpa, dan hasil akhirnya sulit
+  // dilacak. User yang butuh menulis bisa menyalakannya di Settings.
+  subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '' },
+  aiPrompt: { identitas: '', caraKerja: '', aturan: '', instruksi: '' },
+  allowCommands: [],
   extensions: { enabled: [], trust: {} },
   // fase 31: default a11y = tidak mengubah perilaku. Reduced motion tetap
   // dihormati lewat preferensi OS (media query di a11y.css) walau ini false.

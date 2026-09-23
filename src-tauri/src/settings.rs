@@ -16,6 +16,16 @@ pub struct AppInfo {
     pub version: String,
     pub identifier: String,
     pub data_dir: String,
+    /// Arsitektur target (mis. "x86_64-pc-windows-msvc"). Berguna saat lapor bug.
+    pub arch: String,
+    /// Versi runtime WebView2 yang benar-benar dipakai (Windows).
+    pub webview: String,
+    /// true kalau app berjalan dalam mode portable (data di sebelah exe).
+    pub portable: bool,
+    /// Folder executable — beda dari data_dir pada mode portable.
+    pub exe_dir: String,
+    /// Profil build: "debug" atau "release".
+    pub profile: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -39,8 +49,26 @@ pub fn default_settings() -> Value {
             "zoom": 100,
             "restoreSession": true,
             "checkUpdates": true,
-            "lowRam": false
+            "lowRam": false,
+            // WAJIB ADA: frontend membaca `settings.general.aiPanel` untuk
+            // memutuskan panel AI dirender di kolom kanan atau di bawah, dan
+            // `general.layout` untuk mode terminal-first. Tanpa key ini,
+            // setelah reset_settings (file dihapus) nilainya undefined dan
+            // panel AI hilang dari layar.
+            "aiPanel": "bottom",
+            "layout": "default"
         },
+        // WAJIB ADA di level atas: `settings.sidebar` menentukan kelas
+        // `sidebar-pos-<nilai>` di App.tsx. Tanpa key ini setelah reset,
+        // kelasnya jadi `sidebar-pos-undefined`, tidak match CSS mana pun, dan
+        // SELURUH sidebar (Explorer, Search, SCM, Settings nav) HILANG.
+        "sidebar": "left",
+        // Latar belakang kustom — key TERPISAH dari `theme` (permintaan user:
+        // jangan satu combo). Kalau digabung, ganti tema ikut mereset background.
+        "background": { "image": "", "opacity": 55, "size": "fill", "transparan": true },
+        // Dipakai App.tsx saat startup (applyLayout). Tanpa key ini setelah
+        // reset, layout tersimpan tidak pernah diterapkan.
+        "layout": "default",
         "editor": {
             "tabSize": 2,
             "insertSpaces": true,
@@ -82,11 +110,32 @@ pub fn default_settings() -> Value {
             "toastDurasiMin": 3200
         },
         "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
+        // T4.3/T4.5: prompt AI yang bisa diedit + daftar izin perintah.
+        //
+        // WAJIB ada di default: frontend membaca `settings.aiPrompt.identitas`
+        // langsung (bukan opsional). Tanpa key ini, settings.json lama membuat
+        // propertinya `undefined` dan halaman Settings jatuh dengan
+        // "Cannot read properties of undefined (reading 'trim')".
+        "aiPrompt": { "identitas": "", "caraKerja": "", "aturan": "", "instruksi": "" },
+        "allowCommands": [],
+        // WAJIB ADA: T4.10 (pemilih model subagent) + T3.10 (batas paralel).
+        // Frontend membaca settings.subagent langsung; tanpa key ini setelah
+        // reset_settings, `settings.subagent` undefined dan halaman Subagent
+        // crash. Nilainya harus SAMA dengan default TS di lib/types.ts.
+        "subagent": {
+            "maxParallel": 4,
+            "maxSteps": 15,
+            "allowWrite": false,
+            "showPanel": true,
+            "autoCollapse": true,
+            "model": "",
+            "provider": ""
+        },
         "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
         "ssh": { "recentHosts": [] },
         // fase 20: preferensi panel bawah
         "panel": {
-            "visibleTabs": ["problems", "output", "debug", "terminal", "ports"],
+            "visibleTabs": ["problems", "output", "debug", "terminal", "ports", "ai", "subagents"],
             "activeTab": "terminal",
             "height": 260
         },
@@ -233,11 +282,57 @@ fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
 
 #[tauri::command]
 pub fn get_app_info(app: AppHandle, state: State<AppState>) -> ZResult<AppInfo> {
+    // Versi WebView2 diambil dari runtime, bukan ditebak: masalah rendering
+    // hampir selalu berujung pada versi WebView2, dan user tidak punya cara
+    // mencarinya sendiri.
+    let webview = webview_version();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .map(|d| d.to_string_lossy().to_string())
+        .unwrap_or_default();
+    // Mode portable: data disimpan di sebelah exe (bukan %APPDATA%). Dikenali
+    // dari folder `zephyr-data` di samping exe.
+    let portable = !exe_dir.is_empty()
+        && std::path::Path::new(&exe_dir).join("zephyr-data").is_dir();
     Ok(AppInfo {
         version: app.package_info().version.to_string(),
         identifier: app.config().identifier.clone(),
         data_dir: state.data_dir.to_string_lossy().to_string(),
+        arch: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
+        webview,
+        portable,
+        exe_dir,
+        profile: if cfg!(debug_assertions) { "debug".into() } else { "release".into() },
     })
+}
+
+/// Versi runtime WebView2 di Windows. Kosong di platform lain / kalau gagal.
+#[cfg(windows)]
+fn webview_version() -> String {
+    // Jalur registry: nilai `pv` pada kunci WebView2 Runtime.
+    let kunci = r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
+    // WAJIB lewat proc::cmd supaya tidak memunculkan jendela konsol sekejap
+    // (aturan anti-flash proyek ini).
+    let out = crate::proc::cmd("reg")
+        .args(["query", kunci, "/v", "pv"])
+        .output();
+    match out {
+        Ok(o) if o.status.success() => {
+            let teks = String::from_utf8_lossy(&o.stdout);
+            teks.split_whitespace()
+                .last()
+                .unwrap_or_default()
+                .trim()
+                .to_string()
+        }
+        _ => String::new(),
+    }
+}
+
+#[cfg(not(windows))]
+fn webview_version() -> String {
+    String::new()
 }
 
 #[tauri::command]

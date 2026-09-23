@@ -57,7 +57,7 @@ await cdp.json(`
   await wait(800);
   TS().setVisible(true);
   TS().setHeight(300);
-  TS().setDock('ai');
+  TS().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
   window.__ZEPHYR_PANEL__.store.getState().setActiveTab('terminal');
   await wait(600);
   ${BERSIH}
@@ -96,7 +96,7 @@ console.log(
   ${BERSIH}
   TS().setVisible(true);
   TS().setHeight(340);
-  TS().setDock('ai');
+  TS().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
   await wait(900);
   ${BERSIH}
   return JSON.stringify({
@@ -139,7 +139,7 @@ await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
 console.log(
   'pulih:',
   await cdp.json(`
-  TS().setDock('terminal');
+  window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
   window.__ZEPHYR_PANEL__.store.getState().setActiveTab('terminal');
   await S.getState().openWorkspace('D:/Zephyr');
   await wait(800);

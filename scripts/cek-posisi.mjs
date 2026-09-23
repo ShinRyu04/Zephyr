@@ -7,7 +7,7 @@ const r = await cdp.json(`return JSON.stringify(await (async () => {
   // Pastikan tidak maximized, lalu buka panel AI.
   if (T.getState().maximized) T.getState().toggleMaximized();
   T.getState().setVisible(true);
-  T.getState().setDock('ai');
+  T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
   await new Promise(r => setTimeout(r, 900));
   const p = document.querySelector('[data-testid="ai-panel"]');
   const rr = p?.getBoundingClientRect();

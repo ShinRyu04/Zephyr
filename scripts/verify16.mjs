@@ -276,7 +276,7 @@ const main = async () => {
   // ═════════ V6: settings.json rusak → default + backup ═════════
   const settingsPath = path.join(DATA_DIR, 'settings.json');
   const asli = fs.existsSync(settingsPath) ? fs.readFileSync(settingsPath, 'utf8') : null;
-  fs.writeFileSync(settingsPath, '{ "general": { "fontSize": 13,,, RUSAK');
+  fs.writeFileSync(settingsPath, '{ "general": { "fontSize": 13,, RUSAK');
   const v6 = await cdp.json(
     `
     const cfg = await SET.settingsFromDisk();
@@ -323,7 +323,7 @@ const main = async () => {
     // Panel AI harus TAMPIL supaya bubble error benar-benar ada di DOM
     // (bukti "muncul di chat area, bukan console" — syarat 16.3).
     TS().setVisible(true);
-    TS().setDock('ai');
+    TS().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
     await wait(400);
     const t0 = performance.now();
     await X.send('halo offline');

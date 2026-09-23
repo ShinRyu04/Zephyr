@@ -53,6 +53,45 @@
   align-items: stretch;
   min-width: 0;
   overflow-x: auto;
+  /* Scrollbar yang selalu terlihat saat overflow -- scrollbar auto-hide
+     adalah alasan tab DEVENV/DB/SFTP tidak pernah ditemukan user. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* WebView2/Chromium: scrollbar tipis yang tidak memakan tinggi baris tab. */
+.pts-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.pts-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pts-tabs::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.pts-tabs::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Gradien tepi kanan: isyarat "masih ada tab di luar layar".
+   Dipasang di container, bukan di .pts-tabs (yang ikut scroll). */
+.pts-root {
+  position: relative;
+}
+
+.pts-root.is-overflow-kanan::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--bg-panel) 78%);
 }
 .pts-tab {
   display: flex;
@@ -437,4 +476,128 @@
 .cm-diag-marker.is-info,
 .cm-diag-marker.is-hint {
   color: var(--accent);
+}
+
+
+/* ── T4.1: tab SUBAGENTS ────────────────────────────────────────────────
+   Subagent dapat tab sendiri supaya panel AI tidak menumpuk. Di sini ada
+   ruang lebar, jadi kartunya grid 3-4 kolom (di panel AI dulu hanya 2). */
+.sav-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 8px 10px;
+  overflow: auto;
+}
+
+.sav-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.sav-judul {
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.sav-angka {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sav-angka b {
+  font-weight: 600;
+}
+
+.sav-angka b.is-jalan { color: var(--accent); }
+.sav-angka b.is-beres { color: var(--ok, #3fb950); }
+.sav-angka b.is-gagal { color: var(--err, #f85149); }
+
+.sav-spacer {
+  flex: 1;
+}
+
+.sav-kosong {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--text-muted);
+  padding: 20px;
+}
+
+.sav-kosong-judul {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sav-kosong-note {
+  margin: 0;
+  font-size: 11.5px;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.sav-ringkas {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--surface-1);
+}
+
+.sav-ringkas summary {
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.sav-ringkas pre {
+  margin: 6px 0 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow: auto;
+  color: var(--text-muted);
+}
+
+/* Grid lebih lebar di tab: 3 kolom saat sempit, 4 saat lebar. */
+.sav-root .sub-daftar {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 1400px) {
+  .sav-root .sub-daftar {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+.sav-root .sub-card {
+  min-width: 0;
+}
+
+/* Pemilih model subagent di kepala tab Subagents. Dibatasi lebarnya supaya
+   nama model panjang tidak mendorong tombol Hentikan/Bersihkan keluar layar. */
+.sav-model {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.sav-model .ai-model-wrap {
+  min-width: 0;
+}
+
+.sav-model .ai-model-btn {
+  max-width: 200px;
 }

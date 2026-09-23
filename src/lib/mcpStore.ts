@@ -14,6 +14,7 @@ import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
 import { useTerminal } from './terminalStore';
+import { usePanel } from './panelStore';
 import { useAi } from './aiStore';
 import { useGit } from './gitStore';
 import { useSettingsUi } from './settingsStore';
@@ -354,7 +355,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
           sidebarVisible: s().sidebarVisible,
           terminalVisible: t().visible,
           terminalMaximized: t().maximized,
-          dock: t().dock,
+          tab: usePanel.getState().activeTab,
           settingsOpen: s().settingsOpen,
           paneLayout: tab?.layout ?? null,
         },
@@ -532,9 +533,9 @@ async function runEditorCommand(id: string): Promise<unknown> {
       s.setActivity('ai');
       if (!s.sidebarVisible) s.toggleSidebar();
       t.setVisible(true);
-      t.setDock('ai');
+      usePanel.getState().focusTab('ai');
       window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 60);
-      return { ok: true, id, dock: 'ai' };
+      return { ok: true, id, tab: 'ai' };
 
     case 'ai.send':
       await useAi.getState().send();

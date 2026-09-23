@@ -32,6 +32,19 @@ export const THEMES: ThemeInfo[] = [
     kind: 'dark',
     hint: 'AAA, untuk low-vision',
   },
+  // Tema tambahan (permintaan user: "tambahkan banyak tema nya ya, bebas tema
+  // gimna pun"). Semua token ditulis LENGKAP di themes-extra.css — token yang
+  // tidak ditulis akan jatuh ke tema lain dan bikin warna campur.
+  { id: 'dracula', label: 'Dracula', kind: 'dark', hint: 'ungu-merah, klasik' },
+  { id: 'catppuccin-mocha', label: 'Catppuccin Mocha', kind: 'dark', hint: 'pastel lembut, populer' },
+  { id: 'rose-pine', label: 'Rosé Pine', kind: 'dark', hint: 'mawar tua, tenang' },
+  { id: 'kanagawa', label: 'Kanagawa', kind: 'dark', hint: 'sumi-e, gelap kehijauan' },
+  { id: 'everforest-dark', label: 'Everforest', kind: 'dark', hint: 'hijau hutan, mata nyaman' },
+  { id: 'github-dark', label: 'GitHub Dark', kind: 'dark', hint: 'ala GitHub, netral' },
+  { id: 'ayu-mirage', label: 'Ayu Mirage', kind: 'dark', hint: 'biru malam, aksen jingga' },
+  { id: 'solarized-light', label: 'Solarized Light', kind: 'light', hint: 'krem hangat, terang' },
+  { id: 'nord-light', label: 'Nord Light', kind: 'light', hint: 'biru dingin, terang' },
+  { id: 'min-light', label: 'Min Light', kind: 'light', hint: 'putih bersih minimalis' },
 ];
 
 export const isKnownTheme = (id: string) =>
@@ -100,9 +113,36 @@ export function resolveTheme(general: { theme: string }, theme: { current: strin
 export function applyTheme(
   general: { theme: string; zoom?: number },
   theme: { current: string; accent?: string },
+  /** Background TERPISAH dari tema (permintaan user: jangan satu combo). */
+  background?: { image?: string; opacity?: number; size?: 'fill' | 'fit' | 'center'; transparan?: boolean },
 ): string {
   const id = resolveTheme(general, theme);
   const root = document.documentElement;
+
+  // Latar belakang kustom — parameter sendiri, BUKAN bagian dari `theme`.
+  // Dipisah supaya mengganti tema tidak menyentuh background (dan sebaliknya).
+  // `--bg-opacity` dipakai sebagai kekuatan gambar, bukan opacity UI — kalau
+  // seluruh UI dibuat transparan, teks jadi sulit dibaca.
+  const bg = background?.image ?? '';
+  if (bg) {
+    // Buang karakter yang bisa memutus url("...") — path Windows aman karena
+    // hanya huruf, angka, :, /, \\, dan . yang dipakai.
+    let aman = '';
+    for (const ch of bg) {
+      if (ch === '"' || ch === "'" || ch === '(' || ch === ')' || ch === '\\') continue;
+      aman += ch;
+    }
+    root.style.setProperty('--bg-image', 'url("' + aman + '")');
+    const op = typeof background?.opacity === 'number' ? Math.max(0, Math.min(100, background.opacity)) : 100;
+    root.style.setProperty('--bg-opacity', String(op / 100));
+    root.style.setProperty('--bg-size', background?.size === 'fit' ? 'contain' : background?.size === 'center' ? 'auto' : 'cover');
+    root.dataset.bg = background?.transparan === false ? 'solid' : 'on';
+  } else {
+    root.style.removeProperty('--bg-image');
+    root.style.removeProperty('--bg-opacity');
+    root.style.removeProperty('--bg-size');
+    delete root.dataset.bg;
+  }
 
   // Aksen kustom: hapus dulu supaya kembali ke nilai tema saat dikosongkan.
   // WAJIB sebelum token ekstensi diterapkan — dulu urutannya kebalik, jadi

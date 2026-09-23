@@ -64,7 +64,7 @@ const main = async () => {
     P.menuOpen(false);
     if (TS().maximized) TS().toggleMaximized();
     TS().setVisible(true);
-    TS().setDock('terminal');
+    window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
     window.__ZEPHYR_NOTIF__.clear();
     await wait(500);
     return 'siap';

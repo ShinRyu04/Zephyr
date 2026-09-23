@@ -105,6 +105,78 @@ pub struct Prepared {
     pub sse: bool,
 }
 
+/// Satu request AI yang direkam (T4.8).
+///
+/// Header sensitif SUDAH DIBUANG saat rekaman dibuat — lihat `rekam_request`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapturedRequest {
+    /// waktu rekam (ms sejak proses mulai)
+    pub at_ms: u64,
+    pub provider: String,
+    pub model: String,
+    pub url: String,
+    /// header TANPA authorization/api key
+    pub headers: Vec<(String, String)>,
+    /// body yang benar-benar dikirim (sudah dalam bentuk provider)
+    pub body: Value,
+    /// perkiraan ukuran body dalam karakter
+    pub chars: usize,
+}
+
+/// Nama header yang tidak boleh ikut terekam.
+///
+/// KENAPA: rekaman ini akan disalin user ke laporan bug / issue publik. API key
+/// di dalamnya sama dengan membocorkannya (AGENTS.md §7: jangan pernah
+/// menampilkan API key ke log).
+fn header_sensitif(nama: &str) -> bool {
+    let n = nama.to_ascii_lowercase();
+    n.contains("authorization")
+        || n.contains("api-key")
+        || n.contains("apikey")
+        || n == "x-goog-api-key"
+        || n.contains("cookie")
+        || n.contains("token")
+}
+
+/// Simpan satu request ke buffer (maks 20, yang tertua dibuang).
+///
+/// Header sensitif disaring; isi `key` di query string URL juga disamarkan.
+pub fn rekam_request(
+    state: &AppState,
+    provider: &str,
+    model: &str,
+    url: &str,
+    headers: &[(String, String)],
+    body: &Value,
+) {
+    use std::sync::atomic::Ordering;
+    if !state.ai_capture_on.load(Ordering::Relaxed) {
+        return;
+    }
+    let headers: Vec<(String, String)> = headers
+        .iter()
+        .filter(|(k, _)| !header_sensitif(k))
+        .cloned()
+        .collect();
+    let chars = body.to_string().len();
+    let rec = CapturedRequest {
+        at_ms: state.uptime_ms(),
+        provider: provider.to_string(),
+        model: model.to_string(),
+        url: url.to_string(),
+        headers,
+        body: body.clone(),
+        chars,
+    };
+    if let Ok(mut v) = state.ai_capture.write() {
+        if v.len() >= 20 {
+            v.remove(0);
+        }
+        v.push(rec);
+    }
+}
+
 /// Tingkat usaha penalaran yang diminta user (item T1.1).
 ///
 /// Dipetakan berbeda per provider karena tiap vendor punya nama sendiri:
@@ -214,6 +286,10 @@ pub fn ai_chat(
         max_tokens.unwrap_or(2048),
         effort,
     )?;
+
+    // T4.8: rekam SEBELUM thread — `prepared` sudah final di titik ini, dan
+    // `State` tidak bisa dipakai di dalam thread.
+    rekam_request(&state, &provider, &model, &prepared.url, &prepared.headers, &prepared.body);
 
     let cancel = state.ai_begin(&id);
     let handle = app.clone();
@@ -535,6 +611,9 @@ pub fn ai_tool_chat_stream(
         effort,
     )?;
 
+    // T4.8: rekam request agent (sama seperti ai_chat — sebelum thread).
+    rekam_request(&state, &provider, &model, &prepared.url, &prepared.headers, &prepared.body);
+
     let cancel = state.ai_begin(&id);
     let handle = app.clone();
     let req_id = id.clone();
@@ -673,4 +752,42 @@ fn pesan_koneksi(e: &ureq::Error) -> String {
     } else {
         format!("Tidak bisa menghubungi provider: {teks}")
     }
+}
+
+
+// ── T4.8: capture requests ────────────────────────────────────────────────
+
+/// Nyalakan / matikan perekaman request AI.
+///
+/// Dipisah dari settings supaya bisa dinyalakan SESUATU sebelum mencoba ulang
+/// sesuatu yang gagal — menyimpan ke settings berarti satu tulis disk untuk
+/// hal yang biasanya hanya dipakai beberapa menit.
+#[tauri::command]
+pub fn ai_capture_set(state: State<AppState>, on: bool) -> ZResult<bool> {
+    state.ai_capture_on.store(on, Ordering::Relaxed);
+    if !on {
+        // Mematikan rekaman = membuang isinya. Rekaman lama yang tertinggal
+        // akan membingungkan saat dibaca nanti ("ini request kapan?").
+        if let Ok(mut v) = state.ai_capture.write() {
+            v.clear();
+        }
+    }
+    Ok(on)
+}
+
+/// Status rekaman + isinya.
+#[tauri::command]
+pub fn ai_capture_get(state: State<AppState>) -> ZResult<(bool, Vec<CapturedRequest>)> {
+    let on = state.ai_capture_on.load(Ordering::Relaxed);
+    let v = state.ai_capture.read().map(|v| v.clone()).unwrap_or_default();
+    Ok((on, v))
+}
+
+/// Buang isi rekaman tanpa mematikan perekaman.
+#[tauri::command]
+pub fn ai_capture_clear(state: State<AppState>) -> ZResult<()> {
+    if let Ok(mut v) = state.ai_capture.write() {
+        v.clear();
+    }
+    Ok(())
 }

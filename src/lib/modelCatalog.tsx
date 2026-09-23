@@ -14,7 +14,6 @@ export type LogoId =
   | 'anthropic'
   | 'deepseek'
   | 'xai'
-  | 'cerebras'
   | 'opencode'
   | 'generic';
 
@@ -128,22 +127,6 @@ export const PROVIDERS: ProviderInfo[] = [
                 { id: 'grok-4.20-multi-agent-0309', label: 'Grok 4.20 Multi-Agent', note: 'orkestrasi agent', ctx: 1_000_000, maxOut: 131_072 },
                 { id: 'grok-build-0.1', label: 'Grok Build 0.1', note: 'khusus coding', ctx: 256_000, maxOut: 131_072 },
                 { id: 'grok-4', label: 'Grok 4', note: 'generasi 4', ctx: 1_000_000, maxOut: 131_072 },
-              ],
-            },
-            {
-              id: 'cerebras',
-              label: 'Cerebras',
-              baseUrl: 'https://api.cerebras.ai/v1',
-              envKey: 'CEREBRAS_API_KEY',
-              logo: 'cerebras',
-              models: [
-                { id: 'gpt-oss-120b', label: 'GPT OSS 120B (Cerebras)', note: '~3000 tok/s', ctx: 131_072, maxOut: 32768 },
-                { id: 'llama3.1-8b', label: 'Llama 3.1 8B (Cerebras)', note: '~2200 tok/s', ctx: 131_072, maxOut: 8192 },
-                { id: 'llama-3.3-70b', label: 'Llama 3.3 70B (Cerebras)', note: '~2100 tok/s', ctx: 131_072, maxOut: 8192 },
-                { id: 'qwen-3-32b', label: 'Qwen 3 32B (Cerebras)', note: 'hybrid reasoning', ctx: 131_072, maxOut: 32768 },
-                { id: 'qwen-3-235b-a22b-instruct-2507', label: 'Qwen 3 235B A22B (Cerebras)', note: 'multibahasa', ctx: 131_072, maxOut: 32768 },
-                { id: 'zai-glm-4.7', label: 'Z.ai GLM 4.7 (Cerebras)', note: 'tool use superior', ctx: 131_072, maxOut: 32768 },
-                { id: 'gemma-4-31b', label: 'Gemma 4 31B (Cerebras)', note: 'multimodal ringan', ctx: 131_072, maxOut: 32768 },
               ],
             },
       {
@@ -310,13 +293,6 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
       return (
         <svg {...p} aria-label="xAI">
           <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" />
-        </svg>
-      );
-    case 'cerebras':
-      return (
-        <svg {...p} aria-label="Cerebras">
-          <circle cx="8" cy="8" r="5.5" fill="none" stroke="#00c853" strokeWidth="1.5" />
-          <circle cx="8" cy="8" r="2.5" fill="#00c853" />
         </svg>
       );
     default:

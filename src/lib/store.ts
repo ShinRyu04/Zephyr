@@ -56,6 +56,10 @@ interface StoreState {
   activity: ActivityId;
   sidebarVisible: boolean;
   sidebarWidth: number;
+  /** Lebar kolom AI saat dipindah ke kanan (bisa di-drag). */
+  aiWidth: number;
+  /** Kolom AI memenuhi lebar (ala VS Code maximize). */
+  aiMax: boolean;
   /** tinggi panel saat posisi sidebar = top/bottom (ala VS Code). */
   sidebarHeight: number;
   ramBytes: number;
@@ -100,6 +104,10 @@ interface StoreActions {
   toggleSidebar: () => void;
   setSidebarVisible: (v: boolean) => void;
   setSidebarWidth: (w: number) => void;
+  /** Lebar kolom AI di kanan (240..900). */
+  setAiWidth: (w: number) => void;
+  /** Kolom AI memenuhi lebar. */
+  setAiMax: (v: boolean) => void;
   setSidebarHeight: (h: number) => void;
   setRamBytes: (b: number) => void;
   setStatus: (m: string) => void;
@@ -163,6 +171,11 @@ interface StoreActions {
   resolveSaveIssue: (choice: 'ok' | 'cancel') => Promise<void>;
 
   persistSession: () => Promise<void>;
+  /**
+   * true kalau perintah ini cocok dengan daftar izin permanen (T4.5).
+   * Dipakai agent loop untuk melewati dialog persetujuan.
+   */
+  izinPerintah: (command: string) => boolean;
   applySettings: (patch: Record<string, unknown>) => Promise<void>;
   applyLayout: (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => Promise<void>;
   reloadSettings: () => Promise<void>;
@@ -228,6 +241,8 @@ export const useStore = create<Store>((set, get) => ({
   activity: 'explorer',
   sidebarVisible: true,
   sidebarWidth: 260,
+  aiWidth: 340,
+  aiMax: false,
   sidebarHeight: 200,
   ramBytes: 0,
   statusMessage: '',
@@ -263,12 +278,27 @@ export const useStore = create<Store>((set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
+  // Batas 240..900: di bawah 240 chat jadi sempit sekali; di atas 900 editor
+  // tidak tersisa apa-apa di layar 1280.
+  setAiWidth: (w) => set({ aiWidth: Math.max(240, Math.min(900, w)) }),
+  setAiMax: (v) => set({ aiMax: v }),
   setSidebarHeight: (h) => set({ sidebarHeight: Math.max(120, Math.min(480, h)) }),
   setRamBytes: (b) => set({ ramBytes: b }),
   setStatus: (m) => set({ statusMessage: m }),
   setCursor: (line, col) => set({ cursor: { line, col } }),
   setFindOpen: (open) => set({ findOpen: open }),
-  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setSettingsOpen: (open) =>
+    set((s) => ({
+      settingsOpen: open,
+      // BUG NYATA yang diperbaiki di sini: menutup halaman Settings (Escape,
+      // tombol Tutup, pindah ke editor) TIDAK mereset `activity`. Akibatnya
+      // `activity` tetap 'settings' padahal halamannya sudah tutup, dan klik
+      // ikon gear berikutnya mengira "sudah aktif" → malah MENUTUP sidebar.
+      // Gejalanya: Settings tidak mau kebuka sama sekali. Reset di sini supaya
+      // semua pemanggil (Escape, tutup, shortcut) ikut benar — bukan tambalan
+      // di satu tombol saja.
+      activity: open ? 'settings' : s.activity === 'settings' ? 'explorer' : s.activity,
+    })),
   setUpdateBanner: (b) => set({ updateBanner: b }),
   setDonateOpen: (v) => set({ donateOpen: v }),
   setNavBack: (v) => set({ navBack: v }),
@@ -285,7 +315,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const s = await cmd.getSettings();
       set({ settings: s, settingsLoaded: true });
-      set({ activeTheme: applyTheme(s.general, s.theme) });
+      set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
       retheme(); 
       terapkanA11y(s.accessibility); 
       reSrMode(); 
@@ -975,6 +1005,27 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  /**
+   * T4.5: cocokkan perintah dengan daftar izin permanen.
+   *
+   * Pencocokan PREFIX dengan pembatas kata: "npm run" cocok untuk
+   * "npm run build" tapi TIDAK untuk "npm runbuild" atau "npm runner".
+   * Tanpa pembatas, izin "git" akan ikut mengizinkan "gitk" dan sejenisnya —
+   * terlalu longgar untuk daftar izin.
+   */
+  izinPerintah: (command) => {
+    const daftar = get().settings.allowCommands ?? [];
+    const cmd = command.trim().replace(/\s+/g, ' ');
+    if (!cmd || daftar.length === 0) return false;
+    return daftar.some((izin) => {
+      const p = izin.trim().replace(/\s+/g, ' ');
+      if (!p) return false;
+      if (!cmd.startsWith(p)) return false;
+      // Batas kata: setelah prefix harus habis atau spasi.
+      return cmd.length === p.length || cmd[p.length] === ' ';
+    });
+  },
+
   applySettings: async (patch) => {
     // Optimistis: terapkan patch ke state lokal dulu supaya kontrol UI respons
     // tanpa jeda IPC (bug: checkbox terasa "tidak bisa diganti" karena re-render
@@ -989,7 +1040,7 @@ export const useStore = create<Store>((set, get) => ({
       const s = await cmd.getSettings();
       set({ settings: s });
       
-      set({ activeTheme: applyTheme(s.general, s.theme) });
+      set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
       retheme(); 
       terapkanA11y(s.accessibility); 
       reSrMode(); 
@@ -1023,7 +1074,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const s = await cmd.getSettings();
       set({ settings: s });
-      set({ activeTheme: applyTheme(s.general, s.theme) });
+      set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
       retheme(); 
       terapkanA11y(s.accessibility); 
       reSrMode(); 

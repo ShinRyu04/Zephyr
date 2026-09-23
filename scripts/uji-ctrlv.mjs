@@ -18,7 +18,7 @@ async function paneBaru() {
   return cdp.json(`
     S.getState().setSettingsOpen(false);
     await wait(300);
-    TS().setDock('terminal');
+    window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
     TS().setVisible(true);
     const paneId = await TS().addPane('shell');
     await wait(3800);

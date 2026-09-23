@@ -9,7 +9,7 @@ const set = await cdp.eval(`(() => {
   const T = window.__ZEPHYR_TERM__;
   if (T) {
     T.getState().setVisible(true);
-    T.getState().setDock('ai');
+    T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
   }
   return { aiPanel: g.aiPanel ?? '(default)', adaT: !!T };
 })()`);

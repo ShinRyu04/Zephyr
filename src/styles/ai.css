@@ -5,43 +5,8 @@
 /* ── pemilih isi panel bawah: Terminal | AI ──
    Satu baris tipis berisi pemilih SAJA (fase 24.1). Tab terminal pindah ke kolom
    kanan, tombol [+ ▾]/[⋮] pindah ke baris tab panel. */
-.dock-switch {
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  height: 28px;
-  padding: 0 6px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex: 0 0 auto;
-  min-width: 0;
-}
 
-.dock-tabs {
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  flex: 0 0 auto;
-}
 
-.dock-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
-}
-.dock-tab:hover {
-  color: var(--text);
-  background: var(--surface-2);
-}
-.dock-tab.is-active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-}
 
 /* ── kerangka panel ── */
 .ai-panel {
@@ -916,12 +881,41 @@
 .ai-slash {
   display: flex;
   flex-direction: column;
-  max-height: 168px;
+  /* 9 prompt bawaan + prompt user bisa lewat batas ini. Daftarnya digulir
+     (bukan dipotong) supaya semua pilihan tetap terjangkau; panah keyboard
+     mengikuti sorotan lewat scrollIntoView di AiPanel. */
+  max-height: 220px;
   margin-bottom: 4px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-1);
+  /* Scrollbar tipis: daftar ini muncul di atas input, scrollbar tebal
+     membuat panel terasa sesak. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.ai-slash::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ai-slash::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-slash::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.ai-slash::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.ai-slash-item {
+  flex: 0 0 auto;
 }
 .ai-slash-item {
   display: flex;
@@ -1865,4 +1859,1053 @@
 .todo-teks {
   flex: 1 1 auto;
   word-break: break-word;
+}
+
+
+/* ── T3.6: Timeline langkah agent berlabel (ala TEDI) ─────────────────────
+   Ikon + label manusiawi ("Read", "Edit", "Run") berwarna per jenis aksi.
+   Warna diambil dari token tema; tidak ada hex hardcoded kecuali fallback. */
+.ai-agent-ikon {
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+
+.ai-agent-sasaran {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.ai-agent-hasil {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.ai-agent-hasil summary {
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  list-style: none;
+}
+
+.ai-agent-hasil summary::-webkit-details-marker {
+  display: none;
+}
+
+.ai-agent-hasil[open] summary {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Warna per jenis aksi — konsisten antara timeline agent dan panel subagent. */
+.is-baca .ai-agent-ikon,
+.sub-step.is-baca .sub-aksi-ikon {
+  color: var(--err, #f85149);
+}
+
+.is-tulis .ai-agent-ikon,
+.sub-step.is-tulis .sub-aksi-ikon {
+  color: var(--ok, #3fb950);
+}
+
+.is-jalan .ai-agent-ikon,
+.sub-step.is-jalan .sub-aksi-ikon {
+  color: var(--accent);
+}
+
+.is-cari .ai-agent-ikon,
+.sub-step.is-cari .sub-aksi-ikon {
+  color: var(--warn, #d29922);
+}
+
+.is-ingat .ai-agent-ikon,
+.sub-step.is-ingat .sub-aksi-ikon {
+  color: var(--text-muted);
+}
+
+/* ── Subagent: langkah sebagai timeline ─────────────────────────────────── */
+.sub-step {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.sub-step:last-child {
+  border-bottom: none;
+}
+
+.sub-aksi-ikon {
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+
+.sub-aksi-label {
+  font-weight: 600;
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+
+.sub-aksi-sasaran {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 62%;
+}
+
+.sub-aksi-gagal {
+  font-size: 9.5px;
+  color: var(--err, #f85149);
+  border: 1px solid var(--err, #f85149);
+  border-radius: 3px;
+  padding: 0 3px;
+  flex: 0 0 auto;
+}
+
+.sub-aksi-hasil {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.sub-aksi-hasil summary {
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  list-style: none;
+}
+
+.sub-aksi-hasil summary::-webkit-details-marker {
+  display: none;
+}
+
+.sub-aksi-hasil pre {
+  flex: 1 0 100%;
+  margin: 4px 0 0;
+  padding: 5px 7px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10.5px;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+}
+
+/* Blok "Reasoned" yang bisa dilipat. */
+.sub-pikir-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sub-step.is-pikir {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.sub-step-teks {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.sub-step-teks.is-ringkas {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+/* Baris status hidup: "Read agent.ts · 13s" */
+.sub-now-teks {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.sub-now-timer {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+
+/* ── T3.10: panel subagent COMPACT ───────────────────────────────────────
+   Keluhan user: panelnya "numpuk bnget". Penyebabnya tiga lapis informasi
+   yang isinya sama (form input + pesan ringkasan chat + kartu subagent yang
+   mengulang hasil). Perbaikannya: form jadi satu baris, kartu jadi ringkas,
+   dan hasil panjang tidak diulang di kartu. */
+.sub-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 3px 10px;
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sub-open:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.sub-open-maks {
+  font-size: 10px;
+  opacity: 0.65;
+}
+
+.sub-form {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--surface-1);
+}
+
+.sub-form-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sub-form-judul {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.sub-form-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.sub-form-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.sub-form-close:hover {
+  color: var(--text);
+}
+
+.sub-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  max-height: 140px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.sub-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sub-form-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.sub-count {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sub-count.is-err {
+  color: var(--err, #f85149);
+}
+
+/* Pratinjau hasil satu baris (pengganti blok paragraf yang mengulang chat). */
+.sub-hasil-1baris {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 3px 0 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Kartu lebih rapat: 4 kartu sejajar tetap terbaca tanpa mendominasi panel. */
+.sub-card {
+  padding: 7px 9px;
+}
+
+.sub-daftar {
+  gap: 8px;
+}
+
+.sub-tugas {
+  font-size: 11px;
+  margin: 3px 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* ── T3.11: pemilih mode (persetujuan + penalaran) ───────────────────────
+   Mengganti <select> native. Daftar <option> dirender OS, jadi di tema gelap
+   tampil putih dengan teks nyaris tak terbaca — keluhan user "ga kliatan".
+   Popover ini memakai token tema yang sama dengan sisa aplikasi. */
+.pick-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pick-btn:hover {
+  border-color: var(--accent);
+}
+
+.pick-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.pick-caret {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+/* Warna per tingkat: hijau = aman, kuning = hati-hati, merah = bebas penuh.
+   Tujuannya supaya user tahu tingkat otonomi TANPA membuka menunya. */
+.pick-wrap.is-aman .pick-dot { background: var(--ok, #3fb950); }
+.pick-wrap.is-tanya .pick-dot { background: var(--warn, #d29922); }
+.pick-wrap.is-kerja .pick-dot { background: var(--accent); }
+.pick-wrap.is-auto .pick-dot { background: var(--err, #f85149); }
+
+.pick-wrap.is-auto .pick-btn { border-color: var(--err, #f85149); }
+
+.pick-pop {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 60;
+  min-width: 260px;
+  max-width: 320px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.pick-seksi {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 5px 7px 3px;
+}
+
+.pick-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 7px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pick-item:hover {
+  background: var(--surface-2);
+}
+
+.pick-item.is-on {
+  background: var(--surface-2);
+}
+
+.pick-item-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex: 0 0 auto;
+  background: var(--text-muted);
+}
+
+.pick-item.is-aman .pick-item-dot { background: var(--ok, #3fb950); }
+.pick-item.is-tanya .pick-item-dot { background: var(--warn, #d29922); }
+.pick-item.is-kerja .pick-item-dot { background: var(--accent); }
+.pick-item.is-auto .pick-item-dot { background: var(--err, #f85149); }
+.pick-item.is-minimal .pick-item-dot { background: var(--text-muted); }
+.pick-item.is-low .pick-item-dot { background: var(--accent); }
+.pick-item.is-medium .pick-item-dot { background: var(--ok, #3fb950); }
+.pick-item.is-high .pick-item-dot { background: var(--warn, #d29922); }
+.pick-item.is-ultra .pick-item-dot { background: var(--err, #f85149); }
+
+.pick-item-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pick-item-teks b {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.pick-item-teks i {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.pick-check {
+  color: var(--accent);
+  font-size: 11px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.pick-kaki {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  padding: 5px 7px 3px;
+  border-top: 1px solid var(--border);
+  margin-top: 3px;
+}
+
+/* ── T3.11: indikator pemakaian konteks ─────────────────────────────────── */
+.ctx-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.ctx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ctx-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ctx-btn.is-sedang {
+  color: var(--warn, #d29922);
+}
+
+.ctx-btn.is-penuh {
+  color: var(--err, #f85149);
+}
+
+.ctx-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 250px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.ctx-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.ctx-besar {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ctx-kecil {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ctx-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ctx-bar-isi {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
+
+.ctx-bar-isi.is-sedang {
+  background: var(--warn, #d29922);
+}
+
+.ctx-bar-isi.is-penuh {
+  background: var(--err, #f85149);
+}
+
+.ctx-baris {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10.5px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ctx-baris:last-of-type {
+  border-bottom: none;
+}
+
+.ctx-baris span {
+  color: var(--text-muted);
+}
+
+.ctx-baris b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+.ctx-note {
+  margin: 7px 0 0;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+
+
+/* ── T4.2: badge peran subagent ─────────────────────────────────────────── */
+.sub-peran {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* Peran yang boleh menulis dibedakan: user perlu tahu subagent mana yang
+   bisa mengubah file, karena itu yang berisiko. */
+.sub-peran.is-tulis {
+  border-color: var(--warn, #d29922);
+  color: var(--warn, #d29922);
+}
+
+/* ── T4.10: pemilih model DUA TINGKAT ──────────────────────────────────────
+   Sebelumnya semua model dari semua provider ada di satu daftar datar —
+   puluhan baris, menggulir jauh, dan model tanpa API key ikut tampil sehingga
+   bisa dipilih padahal pasti gagal. Sekarang: tingkat provider dulu (hanya
+   yang ber-key), lalu modelnya. Kelas di bawah menata kepala tingkat model,
+   tombol kembali, kotak cari, dan baris provider yang punya chevron. */
+
+/* Kotak cari di atas menu: jalan pintas saat user sudah tahu nama modelnya. */
+.ai-mp-cari {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  position: sticky;
+  top: 0;
+  background: var(--surface-1);
+  z-index: 2;
+}
+
+.ai-mp-cari .ai-model-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Baris provider: chevron di kanan menandakan "masuk ke dalam". */
+.ai-mp-item {
+  gap: 8px;
+}
+
+.ai-mp-item .ai-chev {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+/* Kepala tingkat model: tombol kembali + logo + nama provider + badge key. */
+.ai-mp-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  position: sticky;
+  top: 0;
+  background: var(--surface-1);
+  z-index: 2;
+}
+
+.ai-mp-back {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ai-mp-back:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.ai-mp-back svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ai-mp-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* Catatan kecil di bawah daftar provider (mis. berapa yang disembunyikan). */
+.ai-mp-note {
+  padding: 6px 8px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* Tombol pemilih model subagent duduk di baris kontrol agent — beri lebar
+   wajar supaya nama model panjang tidak mendorong kontrol lain. */
+.ai-sub-model .ai-model-name {
+  max-width: 132px;
+}
+
+/* ── T4.1b: panel INFO subagent di kanan chat ─────────────────────────────
+   Ringkas dengan sengaja: satu baris per subagent (nama + peran + status),
+   langkah terakhir dipotong satu baris. Kartu penuh sudah ada di tab
+   Subagents; menampilkan hal yang sama di sini akan mengulang masalah
+   "menumpuk" yang baru saja diperbaiki. */
+.sai-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.sai-judul {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sai-angka {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sai-angka .is-jalan {
+  color: var(--accent);
+}
+.sai-angka .is-beres {
+  color: var(--success);
+}
+.sai-angka .is-gagal {
+  color: var(--danger);
+}
+
+.sai-sepi {
+  opacity: 0.7;
+}
+
+.sai-x {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.sai-x:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sai-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sai-kosong {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.sai-item {
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.sai-item.is-jalan {
+  border-left-color: var(--accent);
+}
+.sai-item.is-selesai {
+  border-left-color: var(--success);
+}
+.sai-item.is-gagal {
+  border-left-color: var(--danger);
+}
+.sai-item.is-menunggu {
+  border-left-color: var(--border-strong);
+}
+
+.sai-baris {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.sai-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.sai-dot.is-jalan {
+  background: var(--accent);
+  animation: sai-pulse 1.1s ease-in-out infinite;
+}
+.sai-dot.is-selesai {
+  background: var(--success);
+}
+.sai-dot.is-gagal {
+  background: var(--danger);
+}
+
+@keyframes sai-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.sai-nama {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sai-peran {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.sai-langkah {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sai-meta {
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.sai-live {
+  color: var(--accent);
+}
+
+.sai-foot {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.sai-hint {
+  font-size: 9.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* ── T4.12: panel AI di KOLOM KANAN ────────────────────────────────────────
+   Kepala panel berisi 8+ kontrol dan dirancang untuk dock BAWAH (lebar penuh).
+   Di kolom 340px semuanya berjejal dan terpotong — keluhan user: "dia jelek
+   bnget tampilannya klo ke kanan, soalny ga dbikin ver kecil nya untuk di
+   kanan gtu".
+
+   Yang diubah di kolom kanan:
+     * kepala jadi DUA BARIS — baris 1: model + tombol sesi; baris 2: mode +
+       penalaran. Di bawah, semua cukup satu baris.
+     * tombol teks ("+ Chat baru", "Hapus semua", "Ekspor") jadi ikon: teks
+       yang dipotong lebih buruk daripada ikon yang utuh.
+     * nama sesi & hitungan pesan disembunyikan — itu informasi sekunder yang
+       di kolom sempit hanya menambah kebisingan.
+     * padding & gap dirapatkan supaya isi chat dapat ruang lebih. */
+
+.ai-panel.is-kanan .ai-head {
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 7px;
+  row-gap: 5px;
+}
+
+/* Baris 1: pemilih model + tombol sesi (ikon). */
+.ai-panel.is-kanan .ai-model-wrap {
+  order: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ai-panel.is-kanan .ai-model-btn {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ai-panel.is-kanan .ai-model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sembunyikan badge key di kolom kanan: pemilih model sudah punya indikator
+   sendiri di dalam menunya, dan di sini ia memakan lebar. */
+.ai-panel.is-kanan .ai-keystate {
+  display: none;
+}
+
+.ai-panel.is-kanan .ai-head-right {
+  order: 2;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+/* Tombol teks -> ikon. Pakai ::before untuk glyph, dan sembunyikan teksnya. */
+.ai-panel.is-kanan .ai-export,
+.ai-panel.is-kanan .ai-hide {
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0; /* sembunyikan teks tanpa menghapusnya dari a11y tree */
+  overflow: hidden;
+}
+
+.ai-panel.is-kanan .ai-export::before,
+.ai-panel.is-kanan .ai-hide::before {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.ai-panel.is-kanan [data-testid='ai-new-chat-panel']::before {
+  content: '＋';
+}
+.ai-panel.is-kanan [data-testid='ai-clear-all-panel']::before {
+  content: '🗑';
+}
+.ai-panel.is-kanan [data-testid='ai-export']::before {
+  content: '⤓';
+}
+.ai-panel.is-kanan .ai-hide::before {
+  content: '✕';
+}
+
+/* Baris 2: mode (Chat/Agent) + pemilih penalaran. */
+.ai-panel.is-kanan .ai-mode {
+  order: 3;
+  flex: 0 0 auto;
+}
+
+.ai-panel.is-kanan .pick-wrap {
+  order: 4;
+  flex: 0 0 auto;
+}
+
+/* Informasi sekunder: di kolom sempit ini hanya menambah kebisingan. */
+.ai-panel.is-kanan .ai-chatname,
+.ai-panel.is-kanan .ai-count {
+  display: none;
+}
+
+/* Isi chat: padding lebih rapat supaya teks dapat lebar maksimal. */
+.ai-panel.is-kanan .ai-chat {
+  padding: 8px 9px;
+}
+
+.ai-panel.is-kanan .ai-msg {
+  max-width: 100%;
+}
+
+/* Kotak input: tombol kirim jangan sampai terpotong. */
+.ai-panel.is-kanan .ai-input-row {
+  padding: 6px 7px;
+  gap: 6px;
+}
+
+/* Panel TODO & langkah agent: di kolom kanan keduanya panjang ke bawah, jadi
+   dibatasi tingginya — kalau tidak, kotak input terdorong keluar layar. */
+.ai-panel.is-kanan .todo-panel {
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.ai-panel.is-kanan .ai-agent {
+  max-height: 132px;
+  overflow-y: auto;
 }

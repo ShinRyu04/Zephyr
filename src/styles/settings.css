@@ -1199,22 +1199,61 @@
   align-items: center;
 }
 
-/* ─────────── about ─────────── */
+/* ─────────── about (ringkas ala TEDI) ───────────
+   Perubahan: teksnya dipadatkan atas permintaan user ("teksnya kebanyakan").
+   Dulu: header + 3 tabel penuh + catatan panjang + 5 tombol. Sekarang:
+   2 kartu identitas, 1 baris tautan, utilitas langka disembunyikan ke
+   tautan kecil. Warna tetap dari CSS variable (aturan konvensi fase 08). */
 
-.about-hero {
+.about-kartu {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
   margin: 16px 0 12px;
+  background: var(--surface-raised, var(--card, transparent));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.about-logo {
+  flex: none;
+  width: 40px;
+  height: 40px;
+}
+.about-id {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 .about-name {
-  font-size: 26px;
-  font-weight: 300;
-  letter-spacing: 0.02em;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
 }
 .about-tag {
-  font-size: 12px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.about-ver {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-muted);
+}
+/* Kartu detail: satu kolom penuh, label-atas-nilai di bawah di layar sempit. */
+.about-kartu-detail {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.about-judul {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.about-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
 }
 .about-table {
   border-collapse: collapse;
@@ -1223,6 +1262,9 @@
 }
 .about-table tr {
   border-bottom: 1px solid var(--border);
+}
+.about-table tr:last-child {
+  border-bottom: none;
 }
 .about-k {
   padding: 7px 14px 7px 0;
@@ -1234,17 +1276,63 @@
 .about-v {
   padding: 7px 0;
 }
+.about-v code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+  word-break: break-all;
+}
+/* Tautan dalam tabel: bergaya teks, bukan tombol tebal. */
+.about-tautan-inline {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent, #6ea8fe);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.about-tautan-inline:hover {
+  color: var(--text);
+}
+.about-catatan {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 10px 0 0;
+}
 .about-links {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
   margin: 14px 0 4px;
 }
-.about-v code {
-  font-family: var(--font-mono);
+/* Utilitas langka: tautan kecil yang rapat — tidak lagi tombol besar. */
+.about-util {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 10px 0 4px;
+}
+.about-util-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
   font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.about-util-btn:hover {
   color: var(--text);
-  word-break: break-all;
+}
+.about-util-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .ssh-toolbar {
@@ -1708,4 +1796,341 @@
   text-decoration: underline;
   cursor: pointer;
   padding: 2px 4px;
+}
+
+/* ── T4.3: Settings → Prompt AI ────────────────────────────────────────────
+   Setiap bagian prompt punya kotak sendiri dengan badge status (bawaan /
+   diubah). Badge penting: tanpa itu user tidak tahu apakah tulisannya benar-
+   benar terpakai atau masih memakai bawaan. */
+.sp-root {
+  max-width: 880px;
+}
+
+.sp-ringkas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px 9px;
+  margin: 8px 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.sp-spacer {
+  flex: 1;
+}
+
+.sp-bagian {
+  margin-bottom: 18px;
+}
+
+.sp-bagian-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.sp-bagian-judul {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sp-badge {
+  font-size: 9.5px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.sp-badge.is-ubah {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.sp-ket {
+  margin: 0 0 6px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.sp-area {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.sp-area:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sp-area::placeholder {
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.sp-pratinjau {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.sp-catatan {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.sp-pre {
+  max-height: 340px;
+  overflow: auto;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── T4.5: daftar izin perintah ── */
+.sp-tambah {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 6px;
+}
+
+.sp-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+}
+
+.sp-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sp-pesan {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--warn, var(--text-secondary));
+}
+
+.sp-kosong {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sp-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.sp-item-kode {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.sp-item-x {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.sp-item-x:hover {
+  background: var(--surface-3);
+  color: var(--danger);
+}
+
+/* ── T4.6: About berkelompok ───────────────────────────────────────────────
+   Tabel lama satu blok panjang (9 baris) sehingga "versi" dan "folder data"
+   tercampur. Sekarang tiga kelompok: Build · Runtime · Data. */
+
+/* ── T4.7: ringkasan CLI terdaftar ── */
+.mcp-ringkas {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  align-self: center;
+}
+
+/* ── T4.8: Capture requests ────────────────────────────────────────────────
+   Ditampilkan MENTAH dengan sengaja: ini alat debugging, dan bagian yang
+   biasanya dicari (header mana yang terkirim, field apa di body) justru yang
+   hilang kalau tampilannya "dirapikan". */
+.cp-root {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.cp-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+
+.cp-judul {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cp-spacer {
+  flex: 1;
+}
+
+.cp-jumlah {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.cp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.cp-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.cp-baris {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-baris:hover {
+  background: var(--surface-3);
+}
+
+.cp-prov {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cp-model {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.cp-metrik,
+.cp-waktu {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.cp-isi {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.cp-seksi {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 6px 0 3px;
+}
+
+.cp-url {
+  display: block;
+  font-size: 10.5px;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.cp-pre {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.55;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cp-aksi {
+  margin-top: 7px;
 }

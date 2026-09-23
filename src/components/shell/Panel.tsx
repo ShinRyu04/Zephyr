@@ -19,20 +19,38 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { usePanel } from '../../lib/panelStore';
 import { useTerminal } from '../../lib/terminalStore';
+import { useStore } from '../../lib/store';
 import PanelTabStrip from './PanelTabStrip';
 import ProblemsView from './ProblemsView';
 import OutputView from './OutputView';
 import DebugConsoleView from './DebugConsoleView';
 import PortsView from './PortsView';
-import HttpView from './HttpView';
-import ApiClientView from './ApiClientView';
-import TunnelView from './TunnelView';
-import TestView from './TestView';
-import DevEnvView from './DevEnvView';
-import DbView from './DbView';
-import SftpView from './SftpView';
+import SubAgentView from './SubAgentView';
+import AiPanel from '../ai/AiPanel';
 import TerminalArea from './TerminalArea';
 import { useT } from '../../lib/i18n';
+
+/**
+ * Isi tab AI di panel bawah.
+ *
+ * KENAPA tidak langsung `<AiPanel />`: panel AI bisa dipindah ke kolom kanan
+ * (Settings → Umum → Panel AI). Kalau tab ini tetap merender AiPanel, akan ada
+ * DUA AiPanel ter-mount sekaligus — dua listener `ai-chunk` = setiap token
+ * tampil dobel, dan dua store subscription. Jadi tab ini mengikuti aturan yang
+ * sama dengan dock bawah: satu tempat saja.
+ */
+function AiTabView() {
+  const tr = useT();
+  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
+  if (aiDiKanan) {
+    return (
+      <p className="ai-moved" data-testid="ai-tab-moved">
+        {tr('Panel AI sedang tampil di kolom kanan. Ubah di Settings → Umum → Panel AI.')}
+      </p>
+    );
+  }
+  return <AiPanel />;
+}
 
 export default function Panel() {
   const tr = useT();
@@ -104,13 +122,13 @@ export default function Panel() {
         {activeTab === 'output' && <OutputView />}
         {activeTab === 'debug' && <DebugConsoleView />}
         {activeTab === 'ports' && <PortsView />}
-        {activeTab === 'http' && <HttpView />}
-        {activeTab === 'api' && <ApiClientView />}
-        {activeTab === 'tunnel' && <TunnelView />}
-        {activeTab === 'test' && <TestView />}
-        {activeTab === 'devenv' && <DevEnvView />}
-        {activeTab === 'db' && <DbView />}
-        {activeTab === 'sftp' && <SftpView />}
+        {activeTab === 'subagents' && <SubAgentView />}
+
+        {/* T4.11: tab AI. AiPanel tetap SATU instance: kalau panel AI dipindah
+            ke kolom kanan (Settings → Umum → Panel AI), tab ini menampilkan
+            keterangan pemindahan — bukan salinan kedua panel (dua listener
+            streaming = setiap token tampil dobel). */}
+        {activeTab === 'ai' && <AiTabView />}
 
         {/* Terminal: tetap mounted (lihat catatan di atas), disembunyikan saat
             tab lain aktif. `hidden` HTML tidak dipakai karena xterm butuh

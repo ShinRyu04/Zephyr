@@ -13,6 +13,7 @@ import type { Diagnostics, SshConfigInput, SshHost } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
 import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 import UpdatePanel from './UpdatePanel';
+import { useUpdater } from '../../lib/updaterStore';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export function ScmSection() {
@@ -413,75 +414,155 @@ export function AboutSection() {
   const info = useStore((s) => s.appInfo);
   const dataDir = info?.dataDir ?? '';
 
-  const rows: Array<[string, string]> = [
-    ['Versi', info?.version ?? '-'],
+  const [salin, setSalin] = useState(false);
+
+  // Detail penting saja. Sisanya (WebView2, frontend, editor, terminal)
+  // dipindah ke Diagnostics supaya kartu ini tidak jadi dinding teks.
+  const baris: Array<[string, string]> = [
+    ['Versi', `${info?.version ?? '-'} · ${info?.profile ?? '-'}`],
+    ['Arsitektur', info?.arch ?? '-'],
     ['Identifier', info?.identifier ?? '-'],
-    ['Folder data', dataDir || '-'],
     ['Lisensi', 'MIT'],
-    ['Engine', 'Tauri 2 + WebView2'],
-    ['Frontend', 'React 18 + TypeScript + Vite 6'],
-    ['Editor', 'CodeMirror 6'],
-    ['Terminal', '@xterm/xterm 5.5 + portable-pty (ConPTY)'],
-    ['Automation', 'MCP JSON-RPC di 127.0.0.1:9222'],
   ];
+
+  /** Teks laporan bug — disalin apa adanya ke issue. */
+  const infoSistem = [
+    `Zephyr ${info?.version ?? '?'} (${info?.profile ?? '?'})`,
+    `Arsitektur: ${info?.arch ?? '?'}`,
+    `WebView2: ${info?.webview || 'tidak terdeteksi'}`,
+    `Identifier: ${info?.identifier ?? '?'}`,
+    `Folder data: ${dataDir || '?'}`,
+    `Portable: ${info?.portable ? 'ya' : 'tidak'}`,
+  ].join('\n');
+
   return (
     <Section title={tr('settings.about')}>
-      <div className="about-hero">
-        <span className="about-name">Zephyr</span>
-        <span className="about-tag">code editor ringan, dibangun dari nol</span>
+      {/* Kartu identitas ala TEDI: logo + nama + tagline + versi. */}
+      <div className="about-kartu" data-testid="about-kartu">
+        <img className="about-logo" src="/zephyr.svg" alt="" width={40} height={40} />
+        <div className="about-id">
+          <span className="about-name">Zephyr</span>
+          <span className="about-tag">{tr('code editor ringan, dibangun dari nol')}</span>
+          <span className="about-ver" data-testid="about-ver">
+            v{info?.version ?? '?'}
+          </span>
+        </div>
       </div>
-      <p className="set-note">Dibuat oleh ShinRyu04.</p>
 
-      <table className="about-table" data-testid="about-table">
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k}>
-              <td className="about-k">{k}</td>
+      {/* Kartu detail: label kiri, nilai kanan — 4 baris saja. */}
+      <div className="about-kartu about-kartu-detail">
+        <div className="about-judul">{tr('Detail build')}</div>
+        <div className="about-sub">
+          {tr('Platform, identifier, lisensi, dan repositori sumber.')}
+        </div>
+        <table className="about-table" data-testid="about-table">
+          <tbody>
+            {baris.map(([k, v]) => (
+              <tr key={k}>
+                <td className="about-k">{tr(k)}</td>
+                <td className="about-v">
+                  <code>{v}</code>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td className="about-k">{tr('Kode sumber')}</td>
               <td className="about-v">
-                <code>{v}</code>
+                <button
+                  className="about-tautan-inline"
+                  data-testid="about-source"
+                  onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {})}
+                >
+                  ShinRyu04/Zephyr
+                </button>
               </td>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
+      <p className="about-catatan">
+        {tr('Auto-update memeriksa GitHub Releases berkala.')}
+      </p>
+
+      {/* Baris tautan utama — yang paling sering dipakai user. */}
       <div className="about-links">
         <button
+          className="btn btn-primary"
+          data-testid="about-update"
+          onClick={() => void useUpdater.getState().check()}
+        >
+          ⟳ {tr('Cek update')}
+        </button>
+        <button
           className="btn"
+          data-testid="about-github"
+          onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {})}
+        >
+          {tr('Lihat di GitHub')}
+        </button>
+        <button
+          className="btn"
+          data-testid="about-issue"
+          onClick={() =>
+            void openUrl('https://github.com/ShinRyu04/Zephyr/issues/new').catch(() => {})
+          }
+        >
+          {tr('Laporkan masalah')}
+        </button>
+        <button
+          className="btn"
+          data-testid="about-wa"
+          onClick={() => void openUrl('https://chat.whatsapp.com/LNp12sKUWFFGH1RRSyHQkb').catch(() => {})}
+        >
+          {tr('Grup WhatsApp')}
+        </button>
+        <button
+          className="btn btn-donate"
+          data-testid="about-donate"
+          onClick={() => useStore.getState().setDonateOpen(true)}
+        >
+          ☕ {tr('Dukung Zephyr')}
+        </button>
+      </div>
+
+      {/* Utilitas langka — tetap ada, tapi tidak lagi jadi tombol besar. */}
+      <div className="about-util">
+        <button
+          className="about-util-btn"
+          data-testid="about-copy"
+          onClick={() => {
+            void navigator.clipboard?.writeText(infoSistem).catch(() => {});
+            setSalin(true);
+            window.setTimeout(() => setSalin(false), 1600);
+          }}
+        >
+          {salin ? tr('Tersalin') : tr('Salin info sistem')}
+        </button>
+        <button
+          className="about-util-btn"
           data-testid="about-logs"
           disabled={!dataDir}
           onClick={() => void openPath(`${dataDir}\\logs`).catch(() => {})}
         >
-          Buka folder log
+          {tr('Buka folder log')}
         </button>
         <button
-          className="btn"
+          className="about-util-btn"
           data-testid="about-data"
           disabled={!dataDir}
           onClick={() => void openPath(dataDir).catch(() => {})}
         >
-          Buka folder data
+          {tr('Buka folder data')}
         </button>
         <button
-                  className="btn"
-                  data-testid="about-releases"
-                  onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr/releases').catch(() => {})}
-                >
-                  Halaman rilis
-                </button>
-                <button
-                  className="btn btn-donate"
-                  data-testid="about-donate"
-                  onClick={() => useStore.getState().setDonateOpen(true)}
-                >
-                  ☕ Support Zephyr
-                </button>
-              </div>
-
-      <p className="set-note">
-        Angka di Diagnostics di bawah diukur langsung dari proses ini —
-        bukan perkiraan.
-      </p>
+          className="about-util-btn"
+          data-testid="about-releases"
+          onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr/releases').catch(() => {})}
+        >
+          {tr('Halaman rilis')}
+        </button>
+      </div>
 
       <UpdatePanel versiSekarang={info?.version ?? '0.0.0'} />
       <DiagnosticsPanel />

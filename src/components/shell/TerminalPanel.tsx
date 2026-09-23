@@ -106,9 +106,21 @@ export default function TerminalPanel() {
           </button>
         </div>
 
-        {agents.length > 0 && (
-          <div className="tp-agents" data-testid="tp-agents">
-            <div className="tp-subtitle">Agent CLI terdeteksi</div>
+        <div className="tp-agents" data-testid="tp-agents">
+          <div className="tp-subtitle">
+            {agents.length > 0 ? 'Agent CLI terdeteksi' : 'Agent CLI'}
+          </div>
+          {agents.length === 0 ? (
+            <p className="side-muted" data-testid="tp-agents-kosong">
+              Belum ada CLI agent terpasang. Pasang salah satu (opencode, Claude
+              Code, Codex, Gemini, Copilot) lalu muat ulang daftar.
+            </p>
+          ) : (
+            <>
+              <p className="side-muted tp-agents-hint">
+                Klik = buka agent di panel terminal bawah.
+                {!visible && ' Panel belum tampil — panel akan ikut dibuka.'}
+              </p>
             {agents.map((a) => (
               <button
                 key={a.id}
@@ -126,8 +138,9 @@ export default function TerminalPanel() {
                 <span className="tp-agent-plus">+</span>
               </button>
             ))}
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="side-section tp-list-wrap">

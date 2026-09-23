@@ -306,7 +306,7 @@ const main = async () => {
     // (HOLD_CAP fase 14.4) — buffer xterm akan kosong dan uji paste gagal
     // padahal PTY-nya benar. Harness wajib menyetel ini seperti verify05.
     await window.__ZEPHYR_SET_PAUSED__(false);
-    TS().setDock('terminal');
+    window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
     TS().setVisible(true);
     // Pane 'cmd', BUKAN 'shell': PSReadLine me-render ulang baris input dan
     // hanya menampilkan sebagian saat inputnya 10.000 karakter, jadi buffer

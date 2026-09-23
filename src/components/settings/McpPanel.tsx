@@ -8,6 +8,7 @@ import { useStore } from '../../lib/store';
 import { useMcp } from '../../lib/mcpStore';
 import { useT } from '../../lib/i18n';
 import { Row, Section, Toggle } from './SettingsControls';
+import CapturePanel from './CapturePanel';
 
 /** Daftar CLI ditampilkan urut seperti prompt fase 11 §11.4. */
 const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'hermes', 'copilot', 'cursor', 'startup'];
@@ -66,6 +67,11 @@ export default function McpPanel() {
   const token = status?.token ?? '';
   const masked = token ? `${token.slice(0, 4)}${'•'.repeat(20)}${token.slice(-4)}` : tr('(belum ada)');
   const byId = new Map(clis.map((c) => [c.id, c]));
+  /** CLI yang config-nya benar-benar ada di mesin ini (bukan yang belum terpasang). */
+  const terdeteksi = clis.filter((c) => c.exists).map((c) => c.id);
+  /** CLI yang sudah memuat entri Zephyr. */
+  const terdaftar = clis.filter((c) => c.registered).map((c) => c.id);
+  const setChecked = useMcp((s) => s.setChecked);
 
   return (
     <Section title={tr('settings.mcp')}>
@@ -176,7 +182,24 @@ export default function McpPanel() {
           disabled={busy || checked.length === 0}
           onClick={() => void writeToCli()}
         >
-          Tulis ke CLI
+          {tr('Tulis ke CLI')}
+        </button>
+        {/* Satu klik untuk semua CLI yang config-nya ADA di mesin ini.
+            CLI yang belum terpasang dilewati — menulis config untuk aplikasi
+            yang tidak ada hanya membuat folder sampah. */}
+        <button
+          className="btn"
+          data-testid="mcp-install-all"
+          disabled={busy || terdeteksi.length === 0}
+          title={tr('Tulis konfigurasi MCP ke semua CLI yang terpasang di mesin ini')}
+          onClick={() => {
+            setChecked(terdeteksi);
+            // writeToCli membaca `checked` dari store; beri satu tick supaya
+            // nilai barunya sudah tersimpan saat ia membaca.
+            window.setTimeout(() => void writeToCli(), 30);
+          }}
+        >
+          {tr('Pasang ke semua')} ({terdeteksi.length})
         </button>
         <button
           className="btn"
@@ -184,9 +207,27 @@ export default function McpPanel() {
           disabled={busy || checked.length === 0}
           onClick={() => void removeFromCli()}
         >
-          Lepas dari CLI
+          {tr('Lepas dari CLI')}
         </button>
+        <span className="mcp-ringkas" data-testid="mcp-ringkas">
+          {terdaftar.length} {tr('dari')} {ORDER.length} {tr('CLI terdaftar')}
+        </span>
       </div>
+
+      {/* Toggle ekspos: memutus akses AI luar TANPA mencabut konfigurasi.
+          KENAPA terpisah dari tombol lepas: user sering hanya ingin "matikan
+          dulu sebentar", bukan membongkar semua yang sudah dipasang. */}
+      <Row
+        label={tr('Izinkan AI luar mengontrol Zephyr')}
+        hint={tr('Kalau dimatikan, server MCP berhenti menerima perintah — konfigurasi di CLI tidak diubah.')}
+      >
+        <Toggle
+          checked={running}
+          label={tr('Izinkan AI luar mengontrol Zephyr')}
+          testid="mcp-ekspos"
+          onChange={(v) => void toggleServer(v)}
+        />
+      </Row>
 
       {err && (
         <p className="set-note is-error" data-testid="mcp-error">
@@ -273,6 +314,8 @@ export default function McpPanel() {
           </span>
         </div>
       </div>
+
+      <CapturePanel />
 
       <p className="set-note">
         Terbuka di port {port}: apa pun yang berjalan sebagai user-mu bisa mengemudikan jendela ini

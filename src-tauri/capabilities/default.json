@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Izin dasar Zephyr: window utama, event, store, opener, dialog file.",
-  "windows": ["main"],
+  "description": "Izin dasar Zephyr: SEMUA jendela (termasuk jendela baru dari File > New Window), event, store, opener, dialog file.",
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "core:event:default",
@@ -24,6 +26,8 @@
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-image",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-create"
   ]
 }

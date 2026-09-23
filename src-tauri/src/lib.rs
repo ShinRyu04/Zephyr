@@ -5,6 +5,7 @@ mod adapters;
 mod agents;
 mod ai;
 mod app_state;
+mod bg_image;
 mod browser;
 mod cli;
 mod cli_ext;
@@ -12,8 +13,6 @@ mod cli_agents;
 mod credential;
 mod cron;
 mod dap;
-mod database;
-mod devenv;
 mod diagnostics;
 mod dialogs;
 mod errors;
@@ -28,7 +27,6 @@ mod gambar;
 mod git;
 mod github;
 mod history;
-mod http_client;
 mod logging;
 mod lsp;
 mod mcp_commands;
@@ -45,9 +43,7 @@ mod settings;
 mod skills;
 mod snippets;
 mod ssh;
-mod ssh_extra;
 mod tasks;
-mod test_explorer;
 mod tests_ai;
 mod tests_browser;
 mod tests_fs;
@@ -55,7 +51,6 @@ mod tests_git;
 mod tests_log;
 mod tests_mcp;
 mod titlebar;
-mod tunnel;
 mod workspace;
 
 use app_state::AppState;
@@ -164,7 +159,6 @@ pub fn run() {
         .manage(search::SearchRuntime::default())
         // Runtime debugger (fase 22): satu sesi DAP aktif.
         .manage(dap::DapRuntime::default())
-        .manage(ssh_extra::TunnelRegistry::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
@@ -238,6 +232,8 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            // latar belakang kustom (gambar -> data URL)
+            bg_image::bg_image_read,
             // app / settings
             settings::get_app_info,
             settings::get_settings,
@@ -299,14 +295,6 @@ pub fn run() {
             ssh::ssh_clear_password,
             ssh::ssh_connect,
             ssh::ssh_disconnect,
-            ssh_extra::ssh_forward_start,
-            ssh_extra::ssh_forward_stop,
-            ssh_extra::ssh_forward_list,
-            ssh_extra::ssh_forward_jumlah,
-            ssh_extra::ssh_sftp_list,
-            ssh_extra::ssh_sftp_get,
-            ssh_extra::ssh_sftp_hapus,
-            ssh_extra::ssh_sftp_cek_nama,
             // agent CLI (fase 06)
             agents::list_agents,
             // settings lanjutan (fase 08)
@@ -317,24 +305,14 @@ pub fn run() {
             secrets::reset_settings,
             // AI panel (fase 09)
             ai::ai_chat,
+            ai::ai_capture_set,
+            ai::ai_capture_get,
+            ai::ai_capture_clear,
             ai::ai_cancel,
             cli_agents::cli_agents_detect,
             cli_agents::cli_agent_run,
-            http_client::http_parse,
-            http_client::http_send,
             gambar::baca_gambar,
             app_state::portable_mode,
-            database::db_sqlite_query,
-            database::db_sqlite_tabel,
-            devenv::devenv_detect,
-            devenv::devenv_start,
-            devenv::devenv_status,
-            devenv::devenv_stop,
-            test_explorer::test_detect,
-            tunnel::tunnel_tersedia,
-            tunnel::tunnel_start,
-            tunnel::tunnel_stop,
-            tunnel::tunnel_list,
             // mode agent — satu langkah loop dengan tool calling
             ai::ai_tool_chat,
             ai::ai_tool_chat_stream,
@@ -495,21 +473,12 @@ pub fn run() {
             if let RunEvent::Exit = event {
                 let st = handle.state::<AppState>();
                 tracing::info!(uptime_ms = st.uptime_ms(), "application exit");
-                // Tunnel port yang tertinggal = port lokal terbuka tanpa user
-                // sadar. Matikan SEMUA sebelum proses keluar.
-                let fwd = handle.state::<ssh_extra::TunnelRegistry>();
-                let n = fwd.jumlah();
-                if n > 0 {
-                    tracing::info!(jumlah = n, "mematikan tunnel port");
-                    fwd.bunuh_semua();
-                }
                 st.pty_kill_all();
                 // Tutup socket MCP supaya port 9222 tidak tertinggal listening.
                 mcp_server::stop(handle);
                 // T2.3: matikan semua Cloudflare Tunnel. WAJIB — tunnel yang
                 // tertinggal berarti localhost user tetap terbuka ke internet
                 // tanpa ia sadari.
-                tunnel::matikan_semua(&st.tunnels);
             }
         }),
         Err(e) => {

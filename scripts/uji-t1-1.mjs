@@ -33,7 +33,7 @@ try {
     const T = window.__ZEPHYR_TERM__;
     if (!T) return 'tidak ada bridge terminal';
     T.getState().setVisible(true);
-    T.getState().setDock('ai');
+    T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
     return 'ok';
   })()`);
   await new Promise((r) => setTimeout(r, 900));

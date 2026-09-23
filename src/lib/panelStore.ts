@@ -22,13 +22,21 @@ export type PanelTabId =
   | 'debug'
   | 'terminal'
   | 'ports'
-  | 'http'
-  | 'api'
-  | 'tunnel'
-  | 'test'
-  | 'devenv'
-  | 'db'
-  | 'sftp';
+  | 'ai'
+  | 'subagents';
+
+// HANYA 5 tab inti. Tab HTTP / API / Tunnel / DevEnv / Tests / DB / SFTP
+// DIHAPUS atas permintaan user: panel bawah jadi menumpuk dan tab yang penting
+// terdorong keluar layar. Yang tersisa adalah alur kerja sehari-hari —
+// masalah, log, konsol debug, terminal, dan port.
+/**
+ * Tab yang SUDAH dikenal saat preferensi user disimpan. Tab di luar daftar ini
+ * dianggap BARU dan ditambahkan otomatis ke visibleTabs (lihat hydrate).
+ * Aturan: saat menambah tab baru, JANGAN masukkan id-nya ke sini pada rilis
+ * yang sama — user lama harus mendapatkannya otomatis; masukkan pada rilis
+ * berikutnya supaya pilihan "sengaja dimatikan" tetap dihormati.
+ */
+const TAB_LAMA: PanelTabId[] = ['problems', 'output', 'debug', 'terminal', 'ports'];
 
 export const PANEL_TABS: { id: PanelTabId; label: string; command: string }[] = [
   { id: 'problems', label: 'Problems', command: 'problemsPanel.focus' },
@@ -36,20 +44,14 @@ export const PANEL_TABS: { id: PanelTabId; label: string; command: string }[] = 
   { id: 'debug', label: 'Debug Console', command: 'debugConsolePanel.focus' },
   { id: 'terminal', label: 'Terminal', command: 'terminalPanel.focus' },
   { id: 'ports', label: 'Ports', command: 'portsPanel.focus' },
-  // T1.3: penjalan file .http (ala ekstensi REST Client).
-  { id: 'http', label: 'HTTP', command: 'httpPanel.focus' },
-  // T2.2: API client dengan collection + environment.
-  { id: 'api', label: 'API', command: 'apiPanel.focus' },
-  // T2.3: Cloudflare Tunnel.
-  { id: 'tunnel', label: 'Tunnel', command: 'tunnelPanel.focus' },
-  // T2.4: Test Explorer.
-  { id: 'test', label: 'Tests', command: 'testPanel.focus' },
-  // T3.1: Dev Environment.
-  { id: 'devenv', label: 'DevEnv', command: 'devenvPanel.focus' },
-  // T3.2: Database browser.
-  { id: 'db', label: 'DB', command: 'dbPanel.focus' },
-  // T3.3: SFTP + port forwarding.
-  { id: 'sftp', label: 'SFTP', command: 'sftpPanel.focus' },
+  // T4.11: AI jadi tab SENDIRI, tepat setelah Ports. Sebelumnya AI adalah
+  // sub-tab di dalam Terminal (DockSwitch) sehingga tersembunyi satu tingkat.
+  { id: 'ai', label: 'AI', command: 'aiPanel.focus' },
+  // T4.1: subagent dipindah ke tab SENDIRI. Sebelumnya kartu subagent hidup di
+  // dalam panel AI, menumpuk dengan chat + TODO + form tugas paralel — itu
+  // keluhan user ("numpuk bnget"). Di sini mereka dapat ruang lebar (grid
+  // 3-4 kolom) tanpa mengganggu percakapan.
+  { id: 'subagents', label: 'Subagents', command: 'subagentsPanel.focus' },
 ];
 
 const SEMUA: PanelTabId[] = PANEL_TABS.map((t) => t.id);
@@ -99,7 +101,6 @@ export const usePanel = create<PanelState & PanelActions>((set, get) => ({
     if (!t.visible) t.setVisible(true);
     // Tab terminal ikut memilih dock 'terminal' — panel bawah dipakai bersama
     // AI panel (fase 09), jadi tanpa ini tab Terminal bisa menampilkan AI.
-    if (id === 'terminal') t.setDock('terminal');
     get().setActiveTab(id);
     void get().persist();
   },
@@ -149,16 +150,24 @@ export const usePanel = create<PanelState & PanelActions>((set, get) => ({
       const daftar = vt.length > 0 ? vt : SEMUA.slice();
       // Tab BARU yang belum ada saat preferensi user disimpan tidak akan
       // pernah muncul kalau daftar lama dipakai apa adanya — user tidak tahu
-      // ada fitur baru, dan tidak punya cara menebaknya. Karena itu tab baru
-      // ditambahkan otomatis. Tab yang SENGAJA dimatikan user tetap mati
-      // (hanya berlaku untuk tab yang sudah dikenal saat itu).
-      const TAB_BARU: PanelTabId[] = ['http', 'api', 'tunnel', 'test', 'devenv', 'db', 'sftp'];
+      // ada fitur baru, dan tidak punya cara menebaknya. Inilah yang membuat
+      // tab SUBAGENTS tidak ketemu: tab-nya ada di kode, tapi preferensi lama
+      // user tidak menyebutnya sehingga tidak pernah dirender.
+      //
+      // Bedakan dua kondisi:
+      //   - User BARU / belum punya preferensi (visibleTabs kosong) → tampilkan
+      //     semua tab, termasuk yang baru.
+      //   - User LAMA (punya daftar pilihan sendiri) → hormati pilihannya
+      //     (tab yang sengaja dimatikan tetap mati), TAPI tab yang belum
+      //     dikenal saat preferensi disimpan ditambahkan supaya fitur baru
+      //     benar-benar ketemu tanpa user harus menebak.
+      const TAB_BARU: PanelTabId[] = SEMUA.filter((t) => !TAB_LAMA.includes(t));
       const lengkap = [...daftar];
       for (const t of TAB_BARU) {
         if (!lengkap.includes(t)) lengkap.push(t);
       }
       return {
-        visibleTabs: lengkap,
+        visibleTabs: SEMUA.filter((t) => lengkap.includes(t)),
         activeTab: lengkap.includes(at) ? at : lengkap[0],
         terminalMounted: true,
       };

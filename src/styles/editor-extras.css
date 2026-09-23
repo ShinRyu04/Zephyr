@@ -1889,6 +1889,9 @@ body.find-highlight-all .cm-searchMatch-selected {
 /* ── Customize Layout (panel mengambang ala VS Code) ───────────────────── */
 .layout-menu {
   position: fixed;
+  /* Posisi TIDAK bergantung pada MenuBar: kalau Menu Bar dimatikan, panel ini
+     tetap harus muncul di tempat yang masuk akal. `top: 8px` dipakai saat
+     Menu Bar tidak ada (lihat .tanpa-menubar di bawah). */
   top: 34px;
   right: 118px;
   z-index: 80;

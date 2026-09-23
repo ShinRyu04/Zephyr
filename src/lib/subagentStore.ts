@@ -28,10 +28,27 @@ import * as cmd from './commands';
 import { agentToolSpecs } from './agentTools';
 import { findModel } from './modelCatalog';
 import { useStore } from './store';
+import { infoPeran, tebakPeran, peranDariPrefix, type PeranId } from './subagentRoles';
 import { useAi } from './aiStore';
 
 /** Batas subagent yang berjalan bersamaan. */
 export const MAX_PARALLEL = 4;
+/** Nilai efektif dari Settings (jatuh ke konstanta kalau settings belum siap). */
+export function batasParalel(): number {
+  const n = useStore.getState().settings.subagent?.maxParallel;
+  return typeof n === 'number' && n >= 1 ? Math.min(8, Math.floor(n)) : MAX_PARALLEL;
+}
+
+/** Batas langkah efektif dari Settings. */
+export function batasLangkah(): number {
+  const n = useStore.getState().settings.subagent?.maxSteps;
+  return typeof n === 'number' && n >= 3 ? Math.min(50, Math.floor(n)) : MAX_SUB_STEPS;
+}
+
+/** Apakah subagent boleh menulis file (Settings). */
+export function bolehTulis(): boolean {
+  return useStore.getState().settings.subagent?.allowWrite === true;
+}
 
 /** Batas langkah per subagent (penjaga biaya & loop tak berujung). */
 export const MAX_SUB_STEPS = 15;
@@ -64,6 +81,8 @@ export interface SubAgent {
   id: string;
   nama: string;
   tugas: string;
+  /** T4.2: peran kerja — menentukan prompt + boleh-tulis. */
+  peran: PeranId;
   status: SubStatus;
   langkah: SubStep[];
   /** jawaban akhir (diisi saat selesai) */
@@ -110,18 +129,25 @@ interface AgentStepResult {
 }
 
 /** Sistem prompt khusus subagent: menegaskan batas peran. */
-function promptSub(tugas: string, total: number): string {
-  return [
+function promptSub(tugas: string, total: number, peran: PeranId): string {
+  const p = infoPeran(peran);
+  const baris = [
     'Kamu adalah SUBAGENT dari sebuah tugas paralel.',
+    p ? `PERANMU: ${p.label} — ${p.hint}` : '',
+    p ? p.arahan : '',
+    '',
     `Tugasmu (${total} subagent berjalan bersamaan): ${tugas}`,
     '',
     'ATURAN:',
     '- Kerjakan HANYA tugas di atas. Jangan mengerjakan tugas subagent lain.',
-    '- Jangan menulis file apa pun (editor_write/file_write ditolak).',
+    p?.butuhTulis
+      ? '- Kamu boleh mengubah file sebatas lingkup tugasmu.'
+      : '- Jangan menulis file apa pun (editor_write/file_write ditolak).',
     '- Laporkan temuan sejelas mungkin di jawaban AKHIR: apa yang kamu temukan,',
     '  di file mana, dan kesimpulan singkatnya.',
     '- Kalau tugas tidak bisa diselesaikan, katakan alasannya — jangan mengarang.',
-  ].join('\n');
+  ];
+  return baris.filter(Boolean).join('\n');
 }
 
 export const useSubAgent = create<SubAgentState>((set, get) => ({
@@ -131,12 +157,18 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
   sesiId: null,
 
   jalankan: async (tugas) => {
-    const daftar = tugas.map((t) => t.trim()).filter(Boolean).slice(0, MAX_PARALLEL);
+    const daftar = tugas.map((t) => t.trim()).filter(Boolean).slice(0, batasParalel());
     if (daftar.length === 0) return 0;
     if (get().sibuk) return 0;
 
     const ai = useAi.getState();
-    const def = findModel(ai.model, ai.provider);
+    // Model subagent bisa dipisah dari model chat (Settings → Subagent).
+    // Kalau kosong, ikut model chat seperti sebelumnya — perilaku lama tetap.
+    const setSub = useStore.getState().settings.subagent;
+    const subModel = (setSub?.model ?? '').trim();
+    const def = subModel
+      ? findModel(subModel, (setSub?.provider ?? '').trim() || undefined)
+      : findModel(ai.model, ai.provider);
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
     const sesiId = ai.activeId ?? ai.newChat();
 
@@ -144,6 +176,9 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
       id: `sub-${i}-${Math.random().toString(36).slice(2, 8)}`,
       nama: NAMA[i % NAMA.length],
       tugas: t,
+      // Peran bisa dipaksa user lewat prefix "@cari ..." / "@kerja ...";
+      // kalau tidak, ditebak dari kata kunci tugasnya.
+      peran: peranDariPrefix(t).peran ?? tebakPeran(t),
       status: 'menunggu',
       langkah: [],
       hasil: '',
@@ -183,35 +218,13 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
 
     set({ sibuk: false, ringkasan });
 
-    // Ringkasan masuk ke chat sebagai pesan assistant supaya bisa dibaca
-    // ulang & diekspor seperti jawaban biasa.
-    try {
-      const X = useAi.getState();
-      X.onChunk({ id: `sub-ringkas-${Date.now()}`, text: '' });
-      // Buat bubble baru lewat helper injeksi yang sudah ada di devBridge?
-      // Tidak — itu hanya dev. Pakai jalur resmi: tambah pesan ke sesi.
-      useAi.setState((s0) => ({
-        sessions: s0.sessions.map((sess) =>
-          sess.id === sesiId
-            ? {
-                ...sess,
-                messages: [
-                  ...sess.messages,
-                  {
-                    id: `sub-ringkas-${Date.now()}`,
-                    role: 'assistant' as const,
-                    content: `### ${daftar.length} subagent selesai\n\n${ringkasan}`,
-                    at: Date.now(),
-                  },
-                ],
-              }
-            : sess,
-        ),
-      }));
-    } catch {
-      /* ringkasan tetap tersedia di store walau injeksi ke chat gagal */
-    }
-
+    // TIDAK ADA injeksi ke chat.
+    //
+    // KENAPA: subagent dan chat AI adalah dua hal yang BERDIRI SENDIRI. Kalau
+    // ringkasan disuntikkan ke riwayat percakapan, model membaca pekerjaan yang
+    // tidak pernah ia minta sebagai konteks — dan user yang membuka chat lain
+    // ikut melihatnya. Ringkasan tetap ada di `ringkasan` (dipakai tab
+    // Subagents), tempat pekerjaan itu memang hidup.
     return daftar.length;
   },
 
@@ -269,12 +282,13 @@ async function jalankanSatu(
     tool_calls?: unknown;
     name?: string;
   }[] = [
-    { role: 'system', content: promptSub(agent.tugas, get().agents.length) },
+    { role: 'system', content: promptSub(agent.tugas, get().agents.length, agent.peran) },
     { role: 'user', content: agent.tugas },
   ];
 
   try {
-    for (let langkah = 0; langkah < MAX_SUB_STEPS; langkah++) {
+    const maksLangkah = batasLangkah();
+    for (let langkah = 0; langkah < maksLangkah; langkah++) {
       if (batalSet.has(agent.id)) {
         ubah((a) => ({ ...a, status: 'batal', selesai: Date.now() }));
         return;
@@ -338,7 +352,10 @@ async function jalankanSatu(
         const argsObj = (tc.args ?? {}) as Record<string, unknown>;
 
         // Subagent DILARANG menulis — lihat catatan di kepala file.
-        const dilarang = tc.name === 'editor_write' || tc.name === 'file_write';
+        // Guard tulis: default MELARANG, bisa dinyalakan di Settings →
+        // Subagent. `file_edit` ikut dilarang karena juga mengubah disk.
+        const dilarang = !bolehTulis() &&
+          (tc.name === 'editor_write' || tc.name === 'file_write' || tc.name === 'file_edit');
         let hasil: string;
         let ok = true;
         if (dilarang) {
@@ -377,7 +394,7 @@ async function jalankanSatu(
     ubah((a) => ({
       ...a,
       status: 'gagal',
-      error: `melewati batas ${MAX_SUB_STEPS} langkah`,
+      error: `melewati batas ${maksLangkah} langkah`,
       selesai: Date.now(),
     }));
   } catch (e) {

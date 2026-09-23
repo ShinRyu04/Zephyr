@@ -74,7 +74,10 @@ function Marketplace() {
 /** Whitelist runtime eksternal per ekstensi (yang sudah diizinkan).
  *  Cabut = hapus grant; eksekusi berikutnya minta persetujuan lagi. */
 function IzinRuntime() {
-  const trust = useStore((s) => s.settings.extensions.trust ?? {});
+  // `?? {}` di DALAM selector membuat OBJEK BARU tiap render saat key-nya
+  // belum ada; zustand v5 membandingkan dengan === sehingga memicu render loop
+  // dan ErrorBoundary menutup halaman Settings. Fallback dipindah ke luar.
+  const trust = useStore((s) => s.settings.extensions.trust) ?? {};
   const list = useExtensions((s) => s.list);
   const applySettings = useStore((s) => s.applySettings);
   const nama = (id: string) => list.find((e) => e.id === id)?.name ?? id;

@@ -63,7 +63,7 @@ try {
   await cdp.eval(`(() => {
     const T = window.__ZEPHYR_TERM__;
     T.getState().setVisible(true);
-    T.getState().setDock('ai');
+    T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
     return 'ok';
   })()`);
   await new Promise((r) => setTimeout(r, 900));

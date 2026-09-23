@@ -27,7 +27,7 @@ const PORT = Number(process.argv[2] ?? 8098);
 /** Dinaikkan tiap kali protokol/perilaku mock berubah. Harness menolak
  *  server versi lama yang masih nyangkut di port (sudah kena sekali:
  *  mock lama tanpa alt=sse membuat V3..V5 gagal padahal app benar). */
-const VERSION = 3;
+const VERSION = 5;
 const log = [];
 
 /** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
@@ -117,9 +117,21 @@ const server = http.createServer(async (req, res) => {
   // Sudah ada hasil tool di riwayat? Berarti tool SUDAH dijalankan sekali;
   // balas teks biasa, bukan tool call lagi. Tanpa ini agent loop berputar
   // sampai MAX_AGENT_STEPS karena mock selalu meminta tool yang sama.
-  const hasilTool = Array.isArray(body.messages)
-    ? [...body.messages].reverse().find((m) => m.role === 'tool')
-    : null;
+  // Dua bentuk riwayat: OpenAI/Anthropic pakai `messages`, Gemini pakai
+  // `contents` dengan peran 'function' + part `functionResponse`. Keduanya
+  // harus dikenali — kalau hanya `messages`, Gemini berputar sampai batas
+  // langkah karena mock terus meminta tool yang sama.
+  const riwayat = Array.isArray(body.messages)
+    ? body.messages
+    : Array.isArray(body.contents)
+      ? body.contents
+      : [];
+  const hasilTool = [...riwayat].reverse().find((m) => {
+    if (!m || typeof m !== 'object') return false;
+    if (m.role === 'tool' || m.role === 'function') return true;
+    const parts = m.parts;
+    return Array.isArray(parts) && parts.some((p) => p && p.functionResponse);
+  });
   const sudahPakaiTool = Boolean(hasilTool);
 
   const entry = {
@@ -185,6 +197,28 @@ const server = http.createServer(async (req, res) => {
   // Hanya minta tool SEKALI: kalau hasil tool sudah ada di riwayat, balas
   // teks biasa supaya loop agent berhenti (bukan berputar sampai batas).
   const toolCall = sudahPakaiTool ? null : toolCallDariPrompt(prompt);
+  // Mode agent/subagent: request membawa daftar tool, jadi provider SUNGGUHAN
+  // akan memanggil salah satunya. Mock harus meniru itu — kalau tidak, subagent
+  // menunggu tool call yang tidak pernah datang dan nyangkut di 'jalan'.
+  //
+  // Tool yang dipilih: `todo_write` (aman, tidak mengubah file). Argumennya
+  // dibuat dari tugas user supaya hasilnya bisa dibedakan antar subagent.
+  const adaTools = Array.isArray(entry.body?.tools) && entry.body.tools.length > 0;
+  // PENTING: `sudahPakaiTool` mengalahkan segalanya. Kalau hasil tool sudah ada
+  // di riwayat, balas TEKS — bukan tool call lagi. Tanpa penjagaan ini agent
+  // loop berputar sampai batas langkah karena mock terus meminta tool yang sama
+  // (gejala: subagent "melewati batas 6 langkah" lalu gagal).
+  const toolCallAkhir = sudahPakaiTool
+    ? null
+    : (toolCall ??
+      (adaTools
+        ? {
+            nama: 'todo_write',
+            args: {
+              todos: [{ content: `(mock) ${prompt.slice(0, 60) || 'tugas'}`, status: 'done' }],
+            },
+          }
+        : null));
   // Saat sudah ada hasil tool: kutip hasilnya di jawaban supaya harness bisa
   // membuktikan tool benar-benar dijalankan DAN hasilnya sampai ke model.
   const replyFinal = sudahPakaiTool
@@ -193,6 +227,28 @@ const server = http.createServer(async (req, res) => {
 
   // ── Gemini: alt=sse -> SSE seperti OpenAI; tanpa alt=sse -> JSON array ──
   if (entry.kind === 'gemini') {
+    // Mode TOOLCALL untuk Gemini: kirim functionCall (BUKAN tool_calls gaya
+    // OpenAI). Tanpa ini subagent/agent loop menunggu tool call yang tidak
+    // pernah datang dan statusnya nyangkut di 'jalan' selamanya.
+    if (toolCallAkhir) {
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      });
+      res.write(
+        `data: ${JSON.stringify({
+          candidates: [
+            { content: { role: 'model', parts: [{ functionCall: { name: toolCallAkhir.nama, args: toolCallAkhir.args } }] } },
+          ],
+        })}
+
+`,
+      );
+      await sleep(gap);
+      res.end();
+      return;
+    }
     const toks = tokenize(replyFinal);
     if (entry.altSse) {
       res.writeHead(200, {
@@ -253,7 +309,7 @@ const server = http.createServer(async (req, res) => {
     'cache-control': 'no-cache',
     connection: 'keep-alive',
   });
-  if (toolCall) {
+  if (toolCallAkhir) {
     // Potongan pertama: id + nama. Potongan kedua: argumen JSON.
     // Dua potongan sengaja — itu bentuk nyata dari provider dan menguji
     // akumulator `ToolAcc` (argumen menempel sepotong-sepotong).
@@ -263,7 +319,7 @@ const server = http.createServer(async (req, res) => {
           {
             delta: {
               tool_calls: [
-                { index: 0, id: 'call_mock_1', type: 'function', function: { name: toolCall.nama, arguments: '' } },
+                { index: 0, id: 'call_mock_1', type: 'function', function: { name: toolCallAkhir.nama, arguments: '' } },
               ],
             },
           },
@@ -271,7 +327,7 @@ const server = http.createServer(async (req, res) => {
       })}\n\n`,
     );
     await sleep(gap);
-    const argsStr = JSON.stringify(toolCall.args);
+    const argsStr = JSON.stringify(toolCallAkhir.args);
     for (let i = 0; i < argsStr.length; i += 24) {
       if (res.destroyed) return;
       res.write(

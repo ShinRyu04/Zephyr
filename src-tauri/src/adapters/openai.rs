@@ -13,7 +13,6 @@ fn default_base(provider: &str) -> &'static str {
     match provider {
         "deepseek" => "https://api.deepseek.com/v1",
         "xai" => "https://api.x.ai/v1",
-        "cerebras" => "https://api.cerebras.ai/v1",
         "local" => "http://127.0.0.1:4096/v1",
         "lmstudio" => "http://127.0.0.1:1234/v1",
         _ => "https://api.openai.com/v1",

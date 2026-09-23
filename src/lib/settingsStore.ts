@@ -13,6 +13,8 @@ export type SectionId =
   | 'shortcuts'
   | 'models'
   | 'agents'
+  | 'subagent'
+  | 'aiprompt'
   | 'extensions'
   | 'lsp'
   | 'scm'
@@ -29,6 +31,8 @@ export const SECTION_ORDER: SectionId[] = [
   'shortcuts',
   'models',
   'agents',
+  'subagent',
+  'aiprompt',
   'extensions',
   'lsp',
   'scm',
