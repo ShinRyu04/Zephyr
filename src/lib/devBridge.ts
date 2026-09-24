@@ -47,7 +47,7 @@ import {
   lspStart as lspStartCmd,
   tasksRun as tasksRunCmd,
   tasksKill as tasksKillCmd,
-  workspaceBolehEksekusi as workspaceBolehEksekusiCmd,
+  workspaceBolehEksekusi as workspaceBolehEksekusiCmd, asZephyrError,
 } from './commands';
 import type { CliArgs } from './types';
 import {
@@ -364,6 +364,7 @@ export function installDevBridge(): void {
 
   w.__ZEPHYR_EXT__ = {
     store: useExtensions,
+    asErr: (e: unknown) => asZephyrError(e),
     list: () => useExtensions.getState().list,
     refresh: () => useExtensions.getState().refresh(),
     toggle: (id: string, on: boolean) => useExtensions.getState().toggle(id, on),
@@ -1027,6 +1028,7 @@ export function installDevBridge(): void {
   };
 
   w.__ZEPHYR_EXT19__ = {
+    asErr: (e: unknown) => asZephyrError(e),
     store: () => useExt19,
     state: () => useExt19.getState(),
     refresh: () => useExt19.getState().refresh(),

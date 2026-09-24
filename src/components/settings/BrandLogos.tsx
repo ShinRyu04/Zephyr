@@ -43,3 +43,43 @@ export function WhatsAppLogo({ size = 13 }: LogoProps) {
     </svg>
   );
 }
+
+/**
+ * Trakteer mark: a cup with a heart, drawn as a single filled path so it
+ * inherits the button colour like the other brand marks.
+ */
+export function TrakteerLogo({ size = 14 }: LogoProps) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M2.4 4.2h9.1a.6.6 0 0 1 .6.6v3.4a4.3 4.3 0 0 1-4.3 4.3h-1.6a4.3 4.3 0 0 1-4.3-4.3V4.8a.6.6 0 0 1 .5-.6zm9.7 1.9h.7a1.9 1.9 0 0 1 0 3.8h-.7a5.6 5.6 0 0 1-1 2.3 3 3 0 0 0 1.9-2.9 3 3 0 0 0-.9-2.1zM4.6 1.6c0 .9-.7 1.1-.7 1.9 0 .5.3.8.3.8a.55.55 0 0 1-.8.7S2.7 4.4 2.7 3.5c0-1.4 1.1-1.7 1.1-2.5 0-.3-.2-.5-.2-.5a.55.55 0 0 1 .8-.7s.2.4.2 1.3zm2.6 0c0 .9-.7 1.1-.7 1.9 0 .5.3.8.3.8a.55.55 0 0 1-.8.7s-.7-.6-.7-1.5c0-1.4 1.1-1.7 1.1-2.5 0-.3-.2-.5-.2-.5a.55.55 0 0 1 .8-.7s.2.4.2 1.3z" />
+      <path d="M7 6.4c.9-1 2.3-.4 2.3.7 0 .9-1.2 1.7-2.3 2.6-1.1-.9-2.3-1.7-2.3-2.6 0-1.1 1.4-1.7 2.3-.7z" opacity=".55" />
+    </svg>
+  );
+}
+
+/**
+ * Saweria mark: a simple speech-bubble heart, matching the service's logo
+ * shape without copying the full-colour artwork.
+ */
+export function SaweriaLogo({ size = 14 }: LogoProps) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M8 1.3c-3.6 0-6.5 2.4-6.5 5.4 0 1.7.9 3.2 2.4 4.2v3.1a.5.5 0 0 0 .8.4l2.5-1.7c.3 0 .5.1.8.1 3.6 0 6.5-2.4 6.5-5.4S11.6 1.3 8 1.3zm0 8.9c-.9 0-1.7-.2-2.4-.6l-.4-.2-1.6 1.1v-2l-.4-.3C2.2 7.4 1.6 6.3 1.6 5.1c0-2.2 2.3-4 5.4-4s5.4 1.8 5.4 4-2.3 4-5.4 4z" />
+      <path d="M8 4.4c.7-.8 1.8-.3 1.8.5 0 .7-.9 1.3-1.8 2-.9-.7-1.8-1.3-1.8-2 0-.8 1.1-1.3 1.8-.5z" />
+    </svg>
+  );
+}

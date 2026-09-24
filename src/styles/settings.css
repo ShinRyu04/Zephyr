@@ -1643,30 +1643,57 @@
 }
 
 /* ── Dialog pilihan donasi ── */
-.donate-dialog {
-  width: min(420px, calc(100vw - 48px));
+/* Ikon header memakai warna aksen supaya sejalan dengan tombol donasi. */
+.donate-ico {
+  color: var(--brand-donate);
 }
 .donate-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px 18px;
+  gap: 8px;
+  padding: 4px 18px 18px;
 }
 .donate-opt {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
+  gap: 3px;
+  padding: 11px 14px;
   text-align: left;
+  border-radius: 8px;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+/* Baris pertama tiap tombol: logo + nama layanan. */
+.donate-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.donate-brand > svg {
+  flex: 0 0 auto;
+  color: var(--brand-donate);
 }
 .donate-opt strong {
-  font-size: 14px;
+  font-size: 13.5px;
+  font-weight: 600;
 }
 .donate-url {
   font-size: 11.5px;
   opacity: 0.7;
   font-family: var(--font-mono);
+  /* URL sejajar dengan teks nama, bukan dengan logonya. */
+  padding-left: 22px;
+}
+.donate-opt:hover:not(:disabled) {
+  border-color: var(--brand-donate);
+  background-color: color-mix(in srgb, var(--brand-donate) 10%, transparent);
+}
+/* Tombol utama sudah punya latar aksen; hover-nya cukup ditegaskan. */
+.donate-opt.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* Changelog update (render markdown ringan + tabel) */
@@ -1750,6 +1777,16 @@
   background: var(--bg, var(--surface-1));
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+}
+
+/* Dialog donasi jauh lebih sempit dari dialog update.
+   Aturan ini WAJIB setelah .upd-dialog: kedua kelas dipakai bersama
+   (.upd-dialog.donate-dialog) dan pada specificity yang sama yang menang
+   adalah yang terakhir di berkas. Sebelumnya .donate-dialog ditulis di atas
+   .upd-dialog, jadi lebarnya kalah dan dialog melar selebar 960px dengan
+   tombol 922px — tampak seperti kotak kosong raksasa. */
+.upd-dialog.donate-dialog {
+  width: min(440px, calc(100vw - 48px));
 }
 .upd-dialog-head {
   display: flex;

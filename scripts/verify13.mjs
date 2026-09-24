@@ -96,6 +96,9 @@ class Cdp {
         const CP = window.__ZEPHYR_CP__;
         const CPS = () => window.__ZEPHYR_CP__.store.getState();
         const X = window.__ZEPHYR_EXT__;
+        // Bridge bisa saja belum memuat helper konversi (mis. setelah
+        // HMR); fallback membaca .message langsung supaya uji tidak mati.
+        const errMsg = (e) => (X.asErr ? X.asErr(e).message : (e && e.message) || String(e));
         const XS = () => window.__ZEPHYR_EXT__.store.getState();
         const TH = window.__ZEPHYR_THEME__;
         const SET = window.__ZEPHYR_SET__;
@@ -594,8 +597,8 @@ const main = async () => {
       // Konversi lewat helper app: error dari invoke Tauri bukan Error
       // biasa, jadi e.message undefined dan pesannya tercetak "null".
       try { await X.loadRaw('zephyr-kebesaran-test'); } catch (e) {
-        window.__V7_ERR__ = String(e).slice(0, 120);
-        pesan = X.asErr(e)?.message ?? String(e);
+        window.__V7_ERR__ = errMsg(e).slice(0, 120);
+        pesan = errMsg(e);
       }
       // Coba aktifkan: command-nya TIDAK boleh masuk palette.
       await X.toggle('zephyr-kebesaran-test', true);
@@ -653,6 +656,7 @@ const main = async () => {
         tampil: !!grid,
         kartu: kartu.length,
         semuaDisabled: tombol.every(b => b?.disabled === true),
+        semuaAktif: tombol.every(b => b && b.disabled !== true),
         adaLogo: kartu.every(k => (k.querySelector('.market-logo')?.textContent ?? '').length > 0),
         adaDesc: kartu.every(k => (k.querySelector('.market-desc')?.textContent ?? '').length > 10),
         kolom,
@@ -671,16 +675,20 @@ const main = async () => {
     'V8',
     v8.tampil &&
       v8.kartu === 8 &&
-      v8.semuaDisabled &&
+      // Marketplace sekarang pintasan ke registry Open VSX, jadi tombolnya
+      // aktif ("Buka") — bukan lagi placeholder dengan tombol disabled.
+      v8.semuaAktif &&
       v8.adaLogo &&
       v8.adaDesc &&
       v8.kolom >= 2 &&
       v8.lebar > 150 &&
       v8.tinggi > 40 &&
       v8.overflow === false &&
-      v8.judul.includes('segera') &&
+      v8.judul.includes('Marketplace') &&
       v8.tertutup,
-    `Marketplace placeholder: ${v8.kartu} kartu (logo + nama + deskripsi) dalam grid ${v8.kolom} kolom, kartu ${v8.lebar}×${v8.tinggi}px tanpa overflow, semua tombol Install disabled, judul "${v8.judul}"; tombol Tutup benar-benar menutup`,
+    `Marketplace: ${v8.kartu} kartu (logo + nama + deskripsi) dalam grid ${v8.kolom} kolom, kartu ${v8.lebar}×${v8.tinggi}px tanpa overflow, semua tombol aktif (pintasan ke Open VSX), judul "${v8.judul}"; tombol Tutup benar-benar menutup` +
+      `
+         kondisi: tampil=${v8.tampil} kartu=${v8.kartu} aktif=${v8.semuaAktif} logo=${v8.adaLogo} desc=${v8.adaDesc} kolom=${v8.kolom} lebar=${v8.lebar} tinggi=${v8.tinggi} overflow=${v8.overflow} judulOk=${v8.judul.includes('Marketplace')} tertutup=${v8.tertutup}`,
   );
 
   // ───────── V9: tsc 0 error, tanpa console error, state bersih ─────────
@@ -736,6 +744,29 @@ const main = async () => {
   );
 
   // ───────── tutup ─────────
+  /*
+   * Tutup workspace SEBELUM foldernya dihapus.
+   *
+   * Sandbox ini dibuka sebagai workspace di V1, dan kalau foldernya hilang
+   * sementara workspace-nya masih terbuka, explorer membaca folder yang sudah
+   * tidak ada dan menampilkan "input tidak valid: ... bukan folder" ke user —
+   * persis yang terlihat di sidebar setelah harness selesai.
+   */
+  await cdp
+    .runAsync(
+      `
+      const S = window.__ZEPHYR__;
+      S.getState().setSettingsOpen(false);
+      S.getState().tabs.slice().forEach((t) => S.getState().forceCloseTab(t.id));
+      await S.getState().closeWorkspace();
+      S.getState().setActivity('explorer');
+      await new Promise((r) => setTimeout(r, 500));
+      return 'tutup';
+    `,
+      30000,
+    )
+    .catch(() => {});
+
   fs.rmSync(dummyDir, { recursive: true, force: true });
   fs.rmSync(bigDir, { recursive: true, force: true });
   fs.rmSync(SANDBOX, { recursive: true, force: true });

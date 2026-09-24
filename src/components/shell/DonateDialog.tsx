@@ -1,5 +1,6 @@
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
+import { TrakteerLogo, SaweriaLogo } from '../settings/BrandLogos';
 
 const TRAKTEER = 'https://trakteer.id/ryuga-9jfin';
 const SAWERIA = 'https://saweria.co/ShinRyuga04';
@@ -31,7 +32,9 @@ export default function DonateDialog() {
     >
       <div className="upd-dialog donate-dialog" role="dialog" aria-modal="true" aria-labelledby="donate-title">
         <div className="upd-dialog-head">
-          <span className="upd-dialog-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true"><path d="M3 5.5h8.5v3.2a4.2 4.2 0 0 1-4.2 4.2h-.1A4.2 4.2 0 0 1 3 8.7z"/><path d="M11.5 6.6h1.2a1.9 1.9 0 0 1 0 3.8h-1.2"/><path d="M5.6 2.2c0 .9-.8 1.1-.8 2M8.2 2.2c0 .9-.8 1.1-.8 2"/></svg></span>
+          <span className="upd-dialog-ico donate-ico" aria-hidden="true">
+            <TrakteerLogo size={14} />
+          </span>
           <div>
             <h2 className="upd-dialog-title" id="donate-title" data-testid="donate-title">
               {tr('donate.title')}
@@ -55,7 +58,10 @@ export default function DonateDialog() {
               void buka(TRAKTEER);
             }}
           >
-            <strong>Trakteer</strong>
+            <span className="donate-brand">
+              <TrakteerLogo size={15} />
+              <strong>Trakteer</strong>
+            </span>
             <span className="donate-url">trakteer.id/ryuga-9jfin</span>
           </button>
           <button
@@ -66,7 +72,10 @@ export default function DonateDialog() {
               void buka(SAWERIA);
             }}
           >
-            <strong>Saweria</strong>
+            <span className="donate-brand">
+              <SaweriaLogo size={15} />
+              <strong>Saweria</strong>
+            </span>
             <span className="donate-url">saweria.co/ShinRyuga04</span>
           </button>
         </div>
