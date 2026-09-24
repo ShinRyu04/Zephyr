@@ -165,9 +165,27 @@ export const ALL_MODELS: ModelDef[] = PROVIDERS.flatMap((p) =>
 export const MODEL_BY_ID = new Map(ALL_MODELS.map((m) => [m.id, m]));
 
 export function findModel(modelId: string, providerId?: string): ModelDef {
-  const hit = MODEL_BY_ID.get(modelId);
-  if (hit) return hit;
   const p = PROVIDER_BY_ID.get(providerId ?? 'custom') ?? PROVIDERS[PROVIDERS.length - 1];
+
+  const hit = MODEL_BY_ID.get(modelId);
+
+  if (hit && hit.provider === p.id) return hit;
+
+  if (p.freeText) {
+    return {
+      id: modelId,
+      label: modelId || p.models[0].label,
+      provider: p.id,
+      providerLabel: p.label,
+      logo: p.logo,
+      baseUrl: p.baseUrl,
+      envKey: p.envKey,
+      maxOut: p.models[0].maxOut,
+    };
+  }
+
+  if (hit) return hit;
+
   return {
     id: modelId,
     label: modelId || p.models[0].label,
