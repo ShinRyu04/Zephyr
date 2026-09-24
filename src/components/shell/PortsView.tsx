@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePorts, type ForwardedPort } from '../../lib/portsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { notifyError, notifyInfo } from '../../lib/notificationStore';
 import { clipboardWrite } from '../../lib/clipboard';
 import { useT, tx } from '../../lib/i18n';
+
+/**
+ * Selang antar pemindaian otomatis saat panel Ports terlihat.
+ *
+ * 5 seconds: fast enough to catch a dev server that just came up, rare enough
+ * that it does not hammer the system socket table.
+ */
+const JEDA_PINDAI = 5000;
 
 export default function PortsView() {
   const tr = useT();
@@ -11,12 +19,22 @@ export default function PortsView() {
   const add = usePorts((s) => s.add);
   const remove = usePorts((s) => s.remove);
   const update = usePorts((s) => s.update);
+  const scan = usePorts((s) => s.scan);
+  const kill = usePorts((s) => s.kill);
+  const memindai = usePorts((s) => s.memindai);
   const addPane = useTerminal((s) => s.addPane);
 
   const [hostPort, setHostPort] = useState('');
-  
   const [edit, setEdit] = useState<string | null>(null);
   const [nilaiEdit, setNilaiEdit] = useState('');
+
+  useEffect(() => {
+    void scan();
+    const t = window.setInterval(() => {
+      if (!document.hidden) void scan();
+    }, JEDA_PINDAI);
+    return () => window.clearInterval(t);
+  }, [scan]);
 
   const tambah = () => {
     const n = Number(hostPort);
@@ -38,7 +56,6 @@ export default function PortsView() {
   };
 
   const bukaDiBrowser = async (p: ForwardedPort) => {
-    
     const url = `${p.protocol}://localhost:${p.hostPort}`;
     try {
       await addPane('browser', { url });
@@ -60,6 +77,12 @@ export default function PortsView() {
     }
   };
 
+  const matikan = async (p: ForwardedPort) => {
+    const ok = await kill(p.id);
+    if (ok) notifyInfo(`Proses di port ${p.hostPort} dihentikan`, { source: 'ports' });
+    else notifyError(`Tidak bisa menghentikan proses di port ${p.hostPort}`, { source: 'ports' });
+  };
+
   return (
     <div className="ports-root" data-testid="ports-view">
       <div className="ports-toolbar">
@@ -75,6 +98,14 @@ export default function PortsView() {
         <button className="btn btn-sm" data-testid="ports-add" onClick={tambah}>
           Add Port
         </button>
+        <button
+          className="btn btn-sm"
+          data-testid="ports-rescan"
+          title={tr('Pindai ulang port yang mendengarkan')}
+          onClick={() => void scan()}
+        >
+          {memindai ? '…' : 'Scan'}
+        </button>
         <span className="ports-spacer" />
         <span className="ports-count" data-testid="ports-count">
           {ports.length}
@@ -83,20 +114,19 @@ export default function PortsView() {
 
       {ports.length === 0 ? (
         <p className="ports-empty" data-testid="ports-empty">
-          Belum ada port yang diteruskan. Sesi SSH dan task yang membuka
-          port akan otomatis muncul di sini.
+          Tidak ada port yang mendengarkan. Jalankan dev server, lalu daftar ini
+          terisi sendiri.
         </p>
       ) : (
         <div className="ports-table-wrap">
           <table className="ports-table" data-testid="ports-table">
             <thead>
               <tr>
-                <th>Forwarded</th>
-                <th>Local</th>
-                <th>Protokol</th>
+                <th>URL</th>
+                <th>Port</th>
+                <th>Alamat</th>
                 <th>Proses</th>
-                <th>Sumber</th>
-                <th>Forwarder</th>
+                <th>PID</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -142,10 +172,9 @@ export default function PortsView() {
                       </button>
                     )}
                   </td>
-                  <td>{p.protocol}</td>
+                  <td className="ports-mono">{p.alamat ?? '—'}</td>
                   <td className="ports-proc">{p.process}</td>
-                  <td>{p.source}</td>
-                  <td>{p.forwarder}</td>
+                  <td className="ports-mono">{p.pid || '—'}</td>
                   <td className="ports-status" data-status={p.status}>
                     {p.status}
                   </td>
@@ -166,24 +195,25 @@ export default function PortsView() {
                     >
                       Salin
                     </button>
-                    <button
-                      className="btn btn-sm"
-                      data-testid="ports-toggle"
-                      title={p.status === 'running' ? 'Hentikan forward' : 'Mulai forward'}
-                      onClick={() =>
-                        update(p.id, { status: p.status === 'running' ? 'stopped' : 'running' })
-                      }
-                    >
-                      {p.status === 'running' ? 'Stop' : 'Start'}
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      data-testid="ports-remove"
-                      title="Hapus dari daftar"
-                      onClick={() => remove(p.id)}
-                    >
-                      Hapus
-                    </button>
+                    {p.pid ? (
+                      <button
+                        className="btn btn-sm"
+                        data-testid="ports-kill"
+                        title={`Hentikan proses ${p.process} (pid ${p.pid})`}
+                        onClick={() => void matikan(p)}
+                      >
+                        Matikan
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-sm"
+                        data-testid="ports-remove"
+                        title="Hapus dari daftar"
+                        onClick={() => remove(p.id)}
+                      >
+                        Hapus
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

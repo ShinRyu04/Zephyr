@@ -53,51 +53,40 @@ function kumpulkan(dir, hasil = []) {
 }
 
 /**
- * Buang komentar dari satu file TypeScript/TSX.
- * Mengembalikan { teks, jumlah } — teks baru + berapa komentar dibuang.
+ * Scan SELURUH isi file dengan scanner TypeScript.
+ *
+ * KENAPA bukan per-node seperti versi pertama: `ts.forEachChild` tidak
+ * menelusuri isi JSX text dan JsxExpression, sehingga `{/* komentar *\/}` di
+ * dalam JSX tidak pernah tercatat — 150 komentar lolos dari pembersihan
+ * pertama. Scanner penuh melihat setiap token dari byte pertama sampai
+ * terakhir, jadi tidak ada komentar yang bisa lolos.
+ *
+ * LanguageVariant.JSX WAJIB untuk file .tsx: tanpa itu scanner membaca `<div>`
+ * sebagai operator pembanding lalu salah menganggap sisanya komentar.
  */
-function bersihkanTs(isi) {
-  const sf = ts.createSourceFile('x.tsx', isi, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function bersihkanTs(isi, jsx) {
   const buang = [];
-
-  /** Telusuri semua node, catat rentang komentar di depan tiap token. */
-  function telusuri(node) {
-    // getFullStart() mencakup trivia (komentar + spasi) sebelum node.
-    const trivia = isi.slice(node.getFullStart(), node.getStart(sf));
-    if (trivia.includes('//') || trivia.includes('/*')) {
-      // Tandai komentar di dalam trivia ini satu per satu lewat scanner.
-      catatKomentar(node.getFullStart(), node.getStart(sf));
-    }
-    ts.forEachChild(node, telusuri);
-  }
-
-  /**
-   * Catat rentang komentar di dalam satu potongan trivia.
-   * Memakai scanner supaya tahu posisi persis tiap komentar.
-   */
-  function catatKomentar(dari, sampai) {
-    const potongan = isi.slice(dari, sampai);
-    const sc = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, potongan);
-    let tok = sc.scan();
-    while (tok !== ts.SyntaxKind.EndOfFileToken) {
+  const sc = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    jsx ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard,
+    isi,
+  );
+  let tok = sc.scan();
+  while (tok !== ts.SyntaxKind.EndOfFileToken) {
+    if (
+      tok === ts.SyntaxKind.SingleLineCommentTrivia ||
+      tok === ts.SyntaxKind.MultiLineCommentTrivia
+    ) {
       const mulai = sc.getTokenPos();
       const akhir = sc.getTextPos();
-      const jenis = sc.getTokenText();
-      if (
-        tok === ts.SyntaxKind.SingleLineCommentTrivia ||
-        tok === ts.SyntaxKind.MultiLineCommentTrivia
-      ) {
-        const teksKomentar = isi.slice(dari + mulai, dari + akhir);
-        if (!SIMPAN.some((re) => re.test(teksKomentar))) {
-          buang.push([dari + mulai, dari + akhir]);
-        }
+      const teksKomentar = isi.slice(mulai, akhir);
+      if (!SIMPAN.some((re) => re.test(teksKomentar))) {
+        buang.push([mulai, akhir]);
       }
-      void jenis;
-      tok = sc.scan();
     }
+    tok = sc.scan();
   }
-
-  telusuri(sf);
   return { buang };
 }
 

@@ -177,7 +177,7 @@ export default function McpPanel() {
         >
           {tr('Tulis ke CLI')}
         </button>
-        {/* Satu klik untuk semua CLI yang config-nya ADA di mesin ini.
+        {/* One click for every CLI whose config EXISTS on this machine.
             CLI yang belum terpasang dilewati — menulis config untuk aplikasi
             yang tidak ada hanya membuat folder sampah. */}
         <button

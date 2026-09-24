@@ -2,7 +2,7 @@ use crate::errors::{ZResult, ZephyrError};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, RwLock, TryLockError};
+use std::sync::{Arc, RwLock, TryLockError};
 use std::time::{Duration, Instant};
 
 const LOCK_BUDGET: Duration = Duration::from_millis(500);

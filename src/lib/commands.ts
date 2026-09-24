@@ -640,3 +640,66 @@ export const cronToggle = (id: string, enabled: boolean) =>
   invoke<void>('cron_toggle', { id, enabled });
 export const cronDue = () => invoke<CronJob[]>('cron_due');
 export const cronMarkRun = (id: string) => invoke<void>('cron_mark_run', { id });
+
+export interface PaneInfo {
+  paneId: string;
+  label: string;
+  url: string;
+  title: string;
+}
+
+export const browserPaneOpen = (opts: {
+  paneId: string;
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => invoke<PaneInfo>('browser_pane_open', opts);
+
+export const browserPaneBounds = (opts: {
+  paneId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => invoke<boolean>('browser_pane_bounds', opts);
+
+export const browserPaneVisible = (paneId: string, visible: boolean) =>
+  invoke<boolean>('browser_pane_visible', { paneId, visible });
+
+export const browserPaneClose = (paneId: string) =>
+  invoke<boolean>('browser_pane_close', { paneId });
+
+export const browserPaneNav = (paneId: string, aksi: string) =>
+  invoke<string>('browser_pane_nav', { paneId, aksi });
+
+export const browserPaneEval = (paneId: string, js: string) =>
+  invoke<string>('browser_pane_eval', { paneId, js });
+
+export const browserPaneInfo = (paneId: string) =>
+  invoke<PaneInfo>('browser_pane_info', { paneId });
+
+export interface HasilCari {
+  judul: string;
+  url: string;
+  cuplikan: string;
+}
+
+export const webFetch = (url: string, maxChars?: number) =>
+  invoke<string>('web_fetch', { url, maxChars });
+
+export const webSearch = (query: string, maxResults?: number) =>
+  invoke<HasilCari[]>('web_search', { query, maxResults });
+
+export interface PortSistem {
+  port: number;
+  alamat: string;
+  proses: string;
+  pid: number;
+}
+
+export const portsList = () => invoke<PortSistem[]>('ports_list');
+export const portsKill = (pid: number) => invoke<boolean>('ports_kill', { pid });
+export const browserPaneCursor = (paneId: string, selector: string) =>
+  invoke<string>('browser_pane_cursor', { paneId, selector });

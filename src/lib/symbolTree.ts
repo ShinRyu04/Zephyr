@@ -165,7 +165,7 @@ export async function pohonSimbol(
       const raw = await lspDocumentSymbols(path);
       if (raw.length > 0) return { pohon: dariLsp(raw), punyaLsp: true };
     } catch {
-      // Server mati / belum siap — fallback saja, jangan ganggu user.
+      // Server down or not ready yet, fall back quietly without bothering the user.
     }
   }
   return { pohon: dariIndentasi(state), punyaLsp: false };

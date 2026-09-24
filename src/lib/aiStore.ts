@@ -377,7 +377,7 @@ export const useAi = create<AiStore>((set, get) => ({
       attachActive: useStore.getState().settings.agents.attachActiveFile,
     });
     if (get().sessions.length === 0) get().newChat();
-    // Key sudah dimuat di atas; jangan panggil dua kali.
+    // The key was already loaded above; do not call twice.
   },
 
   loadKeys: async () => {
@@ -1051,7 +1051,7 @@ export const useAi = create<AiStore>((set, get) => ({
     try {
       await cmd.aiCancel(id);
     } catch {
-      /* sudah selesai */
+      /* done */
     }
     set((s) => ({
       pending: null,

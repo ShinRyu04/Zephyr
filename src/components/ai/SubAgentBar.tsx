@@ -26,7 +26,7 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
     if (!bisaJalan) return;
     await jalankan(tugas);
     setTeks('');
-    // Form tetap terbuka supaya user bisa langsung menyusun batch berikutnya —
+    // The form stays open so the next batch can be queued right away,
     // menutupnya memaksa satu klik tambahan tiap kali.
   };
 

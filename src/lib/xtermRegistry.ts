@@ -137,7 +137,7 @@ export function disposeHandle(id: string): void {
   try {
     h.term.dispose();
   } catch {
-    /* sudah ter-dispose */
+    /* already disposed */
   }
   h.holder.remove();
   handles.delete(id);

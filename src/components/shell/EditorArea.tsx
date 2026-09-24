@@ -113,7 +113,7 @@ export default function EditorArea() {
           ikut hilang. */}
       <RestrictedBanner />
       <EditorTabBar />
-      {/* fase 24.1: <Breadcrumbs /> versi shell DIHAPUS dari sini.
+      {/* The shell version of <Breadcrumbs /> was REMOVED from here:
           Ada DUA komponen bernama Breadcrumbs: yang lama (shell/, hanya path)
           dan yang fase 24 (editor/, path + simbol LSP + dropdown navigasi).
           Keduanya terender sekaligus, jadi jalur file tampil dua kali dan

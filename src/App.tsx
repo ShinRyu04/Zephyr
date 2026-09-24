@@ -827,7 +827,7 @@ export default function App() {
 
     const lapor = (level: 'error' | 'warn', text: string) => {
       void logFrontend(level, text).catch(() => {
-        /* Rust tidak tersedia (mode browser) — biarkan */
+        /* Rust not available (browser mode), leave it */
       });
       useStore.getState().setStatus('Terjadi kesalahan; lihat log');
     };
@@ -944,7 +944,7 @@ export default function App() {
           {/* A-10: panel AI sebagai kolom kanan 340px ala VS Code, bukan dock
               bawah sejajar terminal. Dirender HANYA saat dock = 'ai' supaya
               lebar editor tidak berkurang saat user sedang di terminal. */}
-          {/* Resizer kolom AI: bisa di-drag seperti sidebar. Sebelumnya lebar
+          {/* AI column resizer: draggable like the sidebar. Previously the width
               340px MATI — user minta "bisa di lebarkan". */}
           {aiKanan && !aiMax && (
             <div

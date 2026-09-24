@@ -162,7 +162,7 @@ class SwatchWidget extends WidgetType {
   }
 
   ignoreEvent() {
-    return false; // klik harus sampai ke <input>
+    return false; // the click must reach the <input>
   }
 }
 

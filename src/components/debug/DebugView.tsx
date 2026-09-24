@@ -227,7 +227,7 @@ export default function DebugView() {
           </p>
         )}
 
-        {/* Adapter yang belum terpasang: instruksi install, bukan diam (brief V5). */}
+        {/* Adapter not installed: show install instructions instead of silence. */}
         {adapterKurang.length > 0 && (
           <div className="dbg-hint" data-testid="dbg-adapter-hint">
             {adapterKurang.map((a) => (

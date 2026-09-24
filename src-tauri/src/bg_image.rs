@@ -38,9 +38,9 @@ fn tebak_kind(head: &[u8]) -> Option<&'static str> {
     None
 }
 
-/// SVG tidak punya magic bytes: isinya teks XML. Deteksi lewat awalan teks
+/// SVG has no magic bytes: it is XML text. Detect it by matching a text prefix
 /// setelah BOM/spasi — TIDAK lewat ekstensi, karena ekstensi bisa berbohong
-/// dan seluruh fungsi ini memang sengaja memeriksa isi, bukan nama.
+/// and this whole function deliberately inspects content, not the name.
 ///
 /// SVG dimuat lewat `<img src="data:image/svg+xml;base64,...">`. Dalam mode itu
 /// browser TIDAK menjalankan script di dalam SVG — jadi memuat SVG lokal user

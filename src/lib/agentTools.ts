@@ -29,6 +29,50 @@ async function cariPaneTerminal(): Promise<string | null> {
   return pane ? pane.id : null;
 }
 
+/**
+ * Cari pane browser yang hidup, atau buat satu kalau belum ada.
+ *
+ * Pane browser WAJIB ada sebelum tool browser dipakai: webview anak dibuat di
+ * dalam pane, jadi tanpa pane tidak ada tempat menempel. Pane dibuat lewat
+ * store the UI button uses, not a separate path, so the layout stays
+ * tetap diurus grid.
+ */
+async function paneBrowserId(minta: string): Promise<string> {
+  const t = useTerminal.getState();
+  if (minta && t.findPane(minta)) return minta;
+  const ada = t.allPanes().find((p) => p.kind === 'browser');
+  if (ada) return ada.id;
+  const id = await t.addPane('browser');
+  if (!id) throw new Error('tidak bisa membuat pane browser');
+  await new Promise((r) => setTimeout(r, 900));
+  return id;
+}
+
+/**
+ * Page summary for the agent: title, URL, visible text.
+ *
+ * The text is capped at 4000 characters: a large page (news, long docs) would
+ * flood the conversation history, and that history is resent on every
+ * following agent step.
+ *
+ * The `\\n` in the regex below is doubled on purpose. This is a string sent to
+ * the page as source code, so a single `\n` would become a real newline and
+ * break the regex literal into two lines.
+ */
+async function bacaHalaman(paneId: string): Promise<string> {
+  const info = await cmd.browserPaneInfo(paneId);
+  const teks = await cmd.browserPaneEval(
+    paneId,
+    "document.body ? document.body.innerText.replace(/\\n{3,}/g,'\\n\\n').slice(0,4000) : '(halaman belum dimuat)'",
+  );
+  return [
+    `URL: ${info.url || '(belum dimuat)'}`,
+    `Judul: ${info.title || '(tanpa judul)'}`,
+    '',
+    String(teks || '(halaman kosong)'),
+  ].join('\n');
+}
+
 export const AGENT_TOOLS: AgentTool[] = [
   {
     spec: {
@@ -319,7 +363,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'skill_list',
       description:
-        'Daftar skill yang tersedia (nama + deskripsi + asal: workspace/global). Panggil ini dulu kalau tugasnya terdengar seperti sesuatu yang punya prosedur tetap.',
+        'List available skills (name + description + origin: workspace/global/hermes). Call this first when a task sounds like something with a fixed procedure. Skills marked hermes are shared with the Hermes Agent install on this machine and are read-only.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
@@ -334,7 +378,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'skill_view',
       description:
-        'Baca isi SKILL.md satu skill. Panggil SEBELUM mengerjakan tugas yang cocok dengan deskripsinya, lalu ikuti langkah di dalamnya.',
+        'Read the full SKILL.md of one skill. Call it BEFORE starting a task that matches its description, then follow the steps inside. The content is authoritative for that task: do not improvise around it.',
       parameters: {
         type: 'object',
         properties: {
@@ -356,7 +400,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'skill_write',
       description:
-        'Buat atau perbarui satu skill. Pakai SETELAH menyelesaikan prosedur yang berulang dan layak diulang lain kali. Tulis langkah konkret (perintah, path, jebakan) — bukan ringkasan naratif. scope default workspace (khusus proyek ini); pakai "global" hanya untuk hal yang berlaku di semua proyek.',
+        'Create or update a skill. Use it AFTER finishing a repeatable procedure worth doing again. Write concrete steps (commands, paths, pitfalls), not a narrative summary. Default scope is workspace (this project only); use "global" only for things that apply to every project. Skills that came from the Hermes folder cannot be overwritten here.',
       parameters: {
         type: 'object',
         properties: {
@@ -512,6 +556,230 @@ export const AGENT_TOOLS: AgentTool[] = [
       if (!id) throw new Error('cron_delete: id kosong');
       await cmd.cronDelete(id);
       return `Tugas '${id}' dihapus.`;
+    },
+  },
+  {
+    spec: {
+      name: 'browser_open',
+      description:
+        'Buka URL di pane browser dan kembalikan isi halamannya (judul + teks). Pakai ini untuk MELIHAT halaman web, bukan sekadar memuatnya. Kalau pane browser belum ada, satu dibuat otomatis. Halaman yang menolak ditampilkan di dalam jendela (X-Frame-Options) akan gagal — laporkan apa adanya, jangan mengarang isinya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'URL lengkap, harus http:// atau https://' },
+          paneId: {
+            type: 'string',
+            description: 'id pane browser yang sudah ada (opsional; lihat browser_list)',
+          },
+        },
+        required: ['url'],
+      },
+    },
+    run: async (args) => {
+      const url = String(args.url ?? '').trim();
+      if (!url) throw new Error('browser_open: url kosong');
+      const paneId = await paneBrowserId(String(args.paneId ?? ''));
+      await cmd.browserPaneOpen({
+        paneId,
+        url,
+        x: 0,
+        y: 0,
+        width: 800,
+        height: 600,
+      });
+      return bacaHalaman(paneId);
+    },
+  },
+  {
+    spec: {
+      name: 'browser_read',
+      description:
+        'Baca isi halaman yang sedang terbuka di pane browser: judul, URL, teks yang terlihat, dan daftar link. Panggil ini setelah browser_open atau setelah user berpindah halaman.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+          mode: {
+            type: 'string',
+            description: "'teks' (default) = teks halaman; 'link' = daftar link; 'html' = HTML mentah",
+          },
+        },
+      },
+    },
+    run: async (args) => {
+      const paneId = await paneBrowserId(String(args.paneId ?? ''));
+      const mode = String(args.mode ?? 'teks');
+      if (mode === 'link') {
+        const js = `JSON.stringify(Array.from(document.querySelectorAll('a[href]')).slice(0,80).map(a=>a.innerText.trim().slice(0,80)+' -> '+a.href).filter(s=>s.length>6))`;
+        return await cmd.browserPaneEval(paneId, js);
+      }
+      if (mode === 'html') {
+        return (await cmd.browserPaneEval(paneId, 'document.documentElement.outerHTML.slice(0,20000)')) || '(kosong)';
+      }
+      return bacaHalaman(paneId);
+    },
+  },
+  {
+    spec: {
+      name: 'browser_click',
+      description:
+        'Klik elemen di pane browser. Pilih elemen lewat selector CSS atau teks yang terlihat. Kembalikan isi halaman sesudah klik, jadi kamu langsung tahu hasilnya tanpa perlu memanggil browser_read lagi.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: { type: 'string', description: 'selector CSS, mis. "button.login" atau "#submit"' },
+          teks: { type: 'string', description: 'teks tombol/link (dipakai kalau selector tidak diberikan)' },
+          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+        },
+      },
+    },
+    run: async (args) => {
+      const paneId = await paneBrowserId(String(args.paneId ?? ''));
+      const sel = String(args.selector ?? '').trim();
+      const teks = String(args.teks ?? '').trim();
+      if (!sel && !teks) throw new Error('browser_click: berikan selector atau teks');
+      // Show what is about to be clicked. Without it the page changes with no
+      // visible cause, which reads as a glitch to anyone watching the pane.
+      if (sel) {
+        try {
+          await cmd.browserPaneCursor(paneId, sel);
+        } catch {
+          /* the ring is cosmetic; a failure must not block the click */
+        }
+      }
+      const js = sel
+        ? `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return 'TIDAK ADA elemen: '+${JSON.stringify(sel)};e.scrollIntoView({block:'center'});e.click();return 'klik: '+(e.innerText||e.value||e.tagName).slice(0,60);})()`
+        : `(function(){var t=${JSON.stringify(teks)};var k=Array.from(document.querySelectorAll('a,button,input[type=submit],[role=button]'));var e=k.find(function(x){return (x.innerText||x.value||'').trim().toLowerCase().indexOf(t.toLowerCase())>=0;});if(!e)return 'TIDAK ADA elemen dengan teks: '+t;e.scrollIntoView({block:'center'});e.click();return 'klik: '+(e.innerText||e.value||'').slice(0,60);})()`;
+      const hasil = await cmd.browserPaneEval(paneId, js);
+      if (String(hasil).startsWith('TIDAK ADA')) return String(hasil);
+      await new Promise((r) => setTimeout(r, 1200));
+      return `aksi: ${hasil}\n\n${await bacaHalaman(paneId)}`;
+    },
+  },
+  {
+    spec: {
+      name: 'browser_type',
+      description:
+        'Isi sebuah input di pane browser lalu kirim Enter. Kembalikan isi halaman sesudahnya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: { type: 'string', description: 'selector CSS input/textarea' },
+          teks: { type: 'string', description: 'teks yang diketik' },
+          enter: { type: 'boolean', description: 'kirim Enter sesudah mengetik (default true)' },
+          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+        },
+        required: ['selector', 'teks'],
+      },
+    },
+    run: async (args) => {
+      const paneId = await paneBrowserId(String(args.paneId ?? ''));
+      const sel = String(args.selector ?? '');
+      const teks = String(args.teks ?? '');
+      const enter = args.enter !== false;
+      const js = `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return 'TIDAK ADA: '+${JSON.stringify(sel)};e.focus();var d=Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value');if(d&&d.set)d.set.call(e,${JSON.stringify(teks)});else e.value=${JSON.stringify(teks)};e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));${enter ? "e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));var f=e.form;if(f&&f.requestSubmit)f.requestSubmit();" : ''}return 'diisi: '+${JSON.stringify(sel)};})()`;
+      const hasil = await cmd.browserPaneEval(paneId, js);
+      if (String(hasil).startsWith('TIDAK ADA')) return String(hasil);
+      await new Promise((r) => setTimeout(r, 1500));
+      return `aksi: ${hasil}\n\n${await bacaHalaman(paneId)}`;
+    },
+  },
+  {
+    spec: {
+      name: 'browser_nav',
+      description: 'Navigasi pane browser: kembali, maju, muat ulang, atau pindah ke URL lain.',
+      parameters: {
+        type: 'object',
+        properties: {
+          aksi: {
+            type: 'string',
+            description: "'back' | 'forward' | 'reload' | URL lengkap",
+          },
+          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+        },
+        required: ['aksi'],
+      },
+    },
+    run: async (args) => {
+      const paneId = await paneBrowserId(String(args.paneId ?? ''));
+      const aksi = String(args.aksi ?? '').trim();
+      if (!aksi) throw new Error('browser_nav: aksi kosong');
+      await cmd.browserPaneNav(paneId, aksi);
+      await new Promise((r) => setTimeout(r, 1200));
+      return bacaHalaman(paneId);
+    },
+  },
+  {
+    spec: {
+      name: 'web_search',
+      description:
+        'Cari di internet. Pakai ini untuk hal yang berubah sepanjang waktu atau di luar pengetahuanmu: berita terbaru, harga, versi rilis, dokumentasi, kejadian terkini. Kembalikan judul + URL + cuplikan; panggil web_fetch untuk membaca halaman yang menarik.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'kata kunci pencarian' },
+          maxResults: { type: 'number', description: 'jumlah hasil, 1-20 (default 8)' },
+        },
+        required: ['query'],
+      },
+    },
+    run: async (args) => {
+      const q = String(args.query ?? '').trim();
+      if (!q) throw new Error('web_search: query kosong');
+      const n = Number(args.maxResults ?? 8);
+      const hasil = await cmd.webSearch(q, Number.isFinite(n) ? n : 8);
+      if (hasil.length === 0) return `Tidak ada hasil untuk: ${q}`;
+      return hasil
+        .map(
+          (h, i) =>
+            `${i + 1}. ${h.judul}\n   ${h.url}${h.cuplikan ? `\n   ${h.cuplikan}` : ''}`,
+        )
+        .join('\n\n');
+    },
+  },
+  {
+    spec: {
+      name: 'web_fetch',
+      description:
+        'Ambil satu halaman web dan kembalikan teksnya (tag HTML dibuang). Pakai setelah web_search untuk membaca sumber lengkapnya, atau langsung kalau URL-nya sudah diketahui.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'URL lengkap, harus http:// atau https://' },
+          maxChars: { type: 'number', description: 'batas karakter, 500-60000 (default 12000)' },
+        },
+        required: ['url'],
+      },
+    },
+    run: async (args) => {
+      const url = String(args.url ?? '').trim();
+      if (!url) throw new Error('web_fetch: url kosong');
+      const n = Number(args.maxChars ?? 12000);
+      return await cmd.webFetch(url, Number.isFinite(n) ? n : 12000);
+    },
+  },
+  {
+    spec: {
+      name: 'browser_list',
+      description: 'Daftar pane browser yang sedang terbuka beserta URL dan judulnya.',
+      parameters: { type: 'object', properties: {} },
+    },
+    run: async () => {
+      const t = useTerminal.getState();
+      const panes = t.allPanes().filter((p) => p.kind === 'browser');
+      if (panes.length === 0) return 'Belum ada pane browser yang terbuka.';
+      const baris: string[] = [];
+      for (const p of panes) {
+        let info = '';
+        try {
+          const i = await cmd.browserPaneInfo(p.id);
+          info = `${i.title || '(tanpa judul)'} | ${i.url}`;
+        } catch {
+          info = '(webview belum siap)';
+        }
+        baris.push(`- ${p.id}: ${info}`);
+      }
+      return baris.join('\n');
     },
   },
 ];

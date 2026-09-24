@@ -38,8 +38,8 @@ var zephyr = {
     self.postMessage({ type: 'register', id: String(id), title: String(title || id) });
   },
   // Jalankan runtime eksternal DENGAN IZIN. Eksekusi terjadi di
-  // sisi Rust dari binary yang di-whitelist (settings.extensions.trust);
-  // worker cuma dapat stdout/stderr/exit — tidak pernah pegang akses exec
+  // Rust side of the allow-listed binary (settings.extensions.trust);
+  // the worker only gets stdout/stderr/exit, never exec access
   // langsung. Belum diizinkan? Main thread akan meminta persetujuan user
   // dulu, promise ini menunggu sampai user memutuskan.
   exec: function (runtime, args, opts) {
@@ -67,7 +67,7 @@ var global = self;
 var process = {
   env: (function () {
     // Env minimal tapi nyata: ekstensi (mis. vscode-go) membaca PATH/GOROOT
-    // untuk mencari binary runtime. Nilai diambil dari proses utama.
+    // to find runtime binaries. The values come from the main process.
     var e = {};
     try {
       e.PATH = __zhEnvPath || "";
@@ -436,7 +436,7 @@ var eventsMod = {
     return new Promise(function (resolve) { em.once(ev, resolve); });
   },
 };
-// Node: process adalah EventEmitter — ekstensi memanggil process.on/dll.
+// Node: process is an EventEmitter, so extensions call process.on etc.
 process._events = {};
 process.on = EventEmitter.prototype.on;
 process.once = EventEmitter.prototype.once;
@@ -1468,7 +1468,7 @@ function __zhCrypto() {
     },
     randomUUID: function () { return w.randomUUID(); },
     createHash: function () {
-      // Hash asli tidak ada di WebCrypto — stub jelas yang TIDAK crash saat load
+      // The real hash is not in WebCrypto, so an explicit stub that does NOT crash on load
       return { update: function () { return this; }, digest: function () { return ""; } };
     },
     webcrypto: w,

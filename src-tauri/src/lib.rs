@@ -4,6 +4,7 @@ mod ai;
 mod app_state;
 mod bg_image;
 mod browser;
+mod browser_pane;
 mod cli;
 mod cli_agents;
 mod cli_ext;
@@ -31,6 +32,7 @@ mod mcp_config;
 mod mcp_server;
 mod memory;
 mod paths;
+mod ports;
 mod proc;
 mod pty;
 mod rag;
@@ -48,6 +50,7 @@ mod tests_git;
 mod tests_log;
 mod tests_mcp;
 mod titlebar;
+mod web;
 mod workspace;
 
 use app_state::AppState;
@@ -214,6 +217,18 @@ pub fn run() {
             explorer::search_files,
             explorer::list_workspace_files,
             browser::browser_probe,
+            browser_pane::browser_pane_open,
+            browser_pane::browser_pane_bounds,
+            browser_pane::browser_pane_visible,
+            browser_pane::browser_pane_close,
+            browser_pane::browser_pane_nav,
+            browser_pane::browser_pane_eval,
+            browser_pane::browser_pane_info,
+            browser_pane::browser_pane_cursor,
+            web::web_fetch,
+            web::web_search,
+            ports::ports_list,
+            ports::ports_kill,
             rag::rag_search,
             explorer::replace_in_file,
             explorer::reveal_path,

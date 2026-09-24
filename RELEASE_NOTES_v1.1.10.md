@@ -1,229 +1,227 @@
 # Zephyr v1.1.10
 
-Dikerjakan 23 September pagi sampai 24 September dini hari. Nomor versi **tetap
-1.1.10** — isi rilis diperbarui, bukan versinya.
-
-Semua yang tertulis di sini diuji dengan menjalankannya di aplikasi lewat CDP,
-bukan dengan membaca kode.
+Version number stays **1.1.10**. This update changes the release contents, not
+the version.
 
 ---
 
-## Yang paling penting dulu
+## The important ones
 
-**Update otomatis dari v1.1.9 diperbaiki.** Kunci tanda tangan rilis sempat
-diganti pada 22 September, sehingga v1.1.10 ditandatangani dengan kunci berbeda
-dari yang tertanam di v1.1.9 — updater menolak dengan *"The signature was
-created with a different key than the one provided"*. Kunci lama dipasang
-kembali, v1.1.10 dibangun ulang, dan sekarang **v1.1.9 bisa update langsung dari
-dalam aplikasi**. Pengaman ditambahkan supaya tidak terulang:
-`scripts/cek-kunci.sh` membatalkan rilis kalau kunci berubah.
+**Automatic update from v1.1.9 works again.** The release signing key was
+replaced on 22 September, so v1.1.10 was signed with a different key than the
+one embedded in v1.1.9, and the updater rejected it with *"The signature was
+created with a different key than the one provided"*. The old key is back,
+v1.1.10 was rebuilt, and **v1.1.9 can now update from inside the app**. A guard
+was added so this cannot happen again: `scripts/cek-kunci.sh` aborts the release
+if the key changes.
 
-**Model dari provider lain bisa dipakai lewat gateway custom.** Sebelumnya
-mengetik `gemini-3.8-flash` di provider *Custom (OpenAI-compatible)* membuat
-Zephyr mengalihkannya ke provider Gemini dan meminta API key Gemini — padahal
-gateway custom-nya sendiri menyediakan model itu. Hasilnya error 401. Sekarang
-nama model yang kamu ketik dihormati apa adanya.
+**Models from other providers work through a custom gateway.** Typing
+`gemini-3.8-flash` under *Custom (OpenAI-compatible)* used to make Zephyr
+redirect the request to the Gemini provider and ask for a Gemini API key, even
+though the custom gateway served that model itself. The result was a 401. The
+model name you type is now used exactly as written.
 
-**Mode Agent jauh lebih cepat.** Tiap langkah dulu mengirim ulang seluruh
-percakapan, jadi langkah ke-10 membawa sepuluh kali token langkah pertama dan
-makin lambat. Riwayat kini dipotong ke 8 langkah terakhir dengan catatan
-pengganti. Terukur pada riwayat 61 pesan: **363 KB → 144 KB, 60% lebih kecil**.
+**Agent mode is much faster.** Every step used to resend the whole
+conversation, so step ten carried ten times the tokens of step one. History is
+now trimmed to the last 8 steps with a placeholder note. Measured on a 61-message
+history: **363 KB to 144 KB, 60% smaller**.
 
 ---
 
-## Fitur baru
+## New features
 
-**Panel AI di kolom kanan.** Bisa dipindah ke kanan tanpa ikut membuka panel
-terminal di bawah, dilebarkan dengan drag, dan dimaksimalkan ala VS Code. Tab
-AI di panel bawah otomatis disembunyikan saat chat dipindah ke kanan. Panel AI
-juga punya tombol sembunyikan sendiri, seperti panel chat VS Code.
+**AI panel in the right column.** The chat can move to the right side without
+opening the bottom terminal panel, can be widened by dragging, and can be
+maximized like in VS Code. The AI tab in the bottom panel hides automatically
+once the chat moves right. The panel also has its own hide button, the way the
+VS Code chat panel does.
 
-**Subagent jadi tab sendiri.** Enam peran — `cari`, `telaah`, `rencana`,
-`audit`, `kerja`, `jelajah` — maksimal 4 berjalan bersamaan, tiap agen maksimal
-15 langkah, dengan log langkah hidup dan tombol batal per agen. Hanya peran
-**kerja** yang boleh menulis file; dua agen menulis file yang sama itu data
-race, bukan fitur. Subagent dijalankan **oleh kamu** dari tab Subagents — bukan
-dipanggil AI sendiri.
+**Subagents have their own tab.** Six roles: `cari`, `telaah`, `rencana`,
+`audit`, `kerja`, `jelajah`. Up to 4 run at once, each agent runs at most 15
+steps, with a live step log and a cancel button per agent. Only the **kerja**
+role may write files; two agents writing the same file is a data race, not a
+feature. You start subagents yourself from the Subagents tab. The AI does not
+call them on its own.
 
-**Pemilih model dua tingkat.** Provider dulu, lalu model. Hanya provider yang
-sudah punya API key yang ditampilkan, plus kotak pencarian.
+**Two-level model picker.** Provider first, then model. Only providers that
+already have an API key are listed, with a search box.
 
-**19 tema.** Zephyr Dark dan Light, Nord, Tokyo Night, Gruvbox, One Dark Pro,
+**19 themes.** Zephyr Dark and Light, Nord, Tokyo Night, Gruvbox, One Dark Pro,
 Senja, Acrylic, High Contrast, Dracula, Catppuccin Mocha, Rosé Pine, Kanagawa,
 Everforest, GitHub Dark, Ayu Mirage, Solarized Light, Nord Light, Min Light.
-Setiap tema mengatur seluruh token sekaligus (UI, editor, sintaks, terminal),
-jadi tidak ada warna yang bocor dari tema lain.
+Each theme sets every token at once (UI, editor, syntax, terminal), so no color
+leaks in from another theme.
 
-**Latar belakang kustom.** Pasang fotomu sebagai latar editor: slider kekuatan
-plus preset **Samar / Sedang / Jelas**, cara pemasangan (isi / utuh / asli), dan
-opsi panel tembus pandang. Latar disimpan **terpisah dari tema** — ganti tema
-tidak menyentuh wallpaper, dan sebaliknya. Format didukung: PNG, JPG, GIF,
-WebP, BMP, AVIF, ICO, dan SVG. Tipe gambar dideteksi dari isi file, bukan
-ekstensi, jadi file `.png` yang sebenarnya JPEG tetap tampil benar.
+**Custom background.** Set a photo as the editor background: a strength slider
+plus **Samar / Sedang / Jelas** presets, a fit mode (fill, fit, original), and
+a translucent panel option. The background is stored **separately from the
+theme**, so switching themes leaves the wallpaper alone and the other way
+around. Supported formats: PNG, JPG, GIF, WebP, BMP, AVIF, ICO, and SVG. Image
+type is detected from file contents, not the extension, so a `.png` that is
+really a JPEG still renders correctly.
 
-**Halaman Tentang dirombak.** Satu kartu identitas, satu kartu build, dan satu
-baris tombol: cek update, **View on GitHub**, **Report an issue**, **Join the
+**Reworked About page.** One identity card, one build card, and one row of
+buttons: check for updates, **View on GitHub**, **Report an issue**, **Join the
 WhatsApp group**, **Support Zephyr**.
 
-**Prompt AI bisa kamu edit.** Settings → Prompt AI punya empat bagian terpisah
-(Identitas, Cara kerja, Aturan, Instruksi tambahan) plus daftar izin perintah.
-Yang tidak diubah tetap memakai bawaan. Ada pratinjau yang menunjukkan persis
-apa yang dikirim ke model.
+**The AI prompt is editable.** Settings, Prompt AI has four separate sections
+(Identity, How it works, Rules, Additional instructions) plus the command
+permission list. Anything you leave alone keeps its default. A preview shows
+exactly what gets sent to the model.
 
 ---
 
-## Perbaikan bug
+## Bug fixes
 
-**Perintah Command Palette tidak mengubah apa pun.** `commandRegistry`
-mengakses store layout lewat `import()` dinamis, yang di Vite menjadi *instance
-modul terpisah* dari static import yang dipakai `App.tsx`. Perintah seperti
-"Toggle Status Bar" mengubah store yang tidak pernah dibaca UI. Lima titik
-diperbaiki menjadi static import.
+**Command Palette entries changed nothing.** `commandRegistry` reached the
+layout store through a dynamic `import()`, which Vite turns into a *separate
+module instance* from the static import `App.tsx` uses. Commands like "Toggle
+Status Bar" were changing a store the UI never reads. Five call sites were
+switched to static imports.
 
-**Kerapatan "Padat" tidak mengubah apa pun.** Dulu hanya mengubah 1px padding di
-empat elemen. Sekarang mengubah metrik nyata: tab bar 34→28px, status bar
-24→20px, activity bar 48→40px, plus baris pohon file dan pesan chat lebih rapat.
-Labelnya juga diperbaiki dari **"Rapat"** (arti: meeting) menjadi **"Padat"** di
-sepuluh bahasa.
+**The "Padat" density setting changed nothing.** It used to shift 1px of
+padding on four elements. It now changes real metrics: tab bar 34 to 28px,
+status bar 24 to 20px, activity bar 48 to 40px, plus tighter file tree rows and
+chat messages. The label was also fixed from **"Rapat"** (which means meeting)
+to **"Padat"** across ten languages.
 
-**Posisi sidebar dari Customize Layout tidak bekerja.** Tombol Kiri/Kanan
-menulis ke `general.layout.posisiSidebar`, sementara renderer membaca
-`settings.sidebar`. Dua tempat berbeda sehingga klik tidak berpengaruh.
+**Sidebar position from Customize Layout did nothing.** The Left/Right buttons
+wrote to `general.layout.posisiSidebar` while the renderer read
+`settings.sidebar`. Two different places, so the click had no effect.
 
-**Sidebar bisa hilang total.** Kalau settings tidak punya key `sidebar`,
-posisinya `undefined` dan semua cabang render gagal — sidebar tidak muncul sama
-sekali. Sekarang ada fallback ke `left`.
+**The sidebar could disappear entirely.** If settings had no `sidebar` key, the
+position came back `undefined` and every render branch failed, so no sidebar
+appeared at all. It now falls back to `left`.
 
-**Reset settings menghilangkan sidebar.** `reset_settings` menghapus seluruh
-file, dan default Rust tidak punya key `sidebar`, `layout`, `subagent`, maupun
-`general.aiPanel`. Semua sudah ditambahkan.
+**Reset settings removed the sidebar.** `reset_settings` deletes the whole file,
+and the Rust defaults had no `sidebar`, `layout`, `subagent`, or
+`general.aiPanel` key. All are present now.
 
-**Zeph mengaku sebagai model lain.** Ditanya "kamu model apa", Zeph menjawab
-"saya Claude buatan Anthropic" — mengarang dari bias bobot latihan, lalu
-membantah nama model yang benar-benar dikonfigurasi. Model tidak punya cara
-membaca metadata dirinya sendiri, jadi identitasnya kini dituliskan sebagai
-fakta di system prompt **dan** di akhir pesan user, dari nilai yang benar-benar
-dikirim ke API. Settings → Prompt AI menampilkan blok ini, sengaja tidak bisa
-diedit — kalau bisa, user justru bisa membuat AI mengaku model lain.
+**Zeph claimed to be a different model.** Asked "what model are you", Zeph
+answered "I'm Claude by Anthropic", inventing from training bias, then
+contradicted the model that was actually configured. A model has no way to read
+its own metadata, so its identity is now written as fact in the system prompt
+**and** at the end of the user message, from the values actually sent to the
+API. Settings, Prompt AI shows this block and deliberately keeps it read-only;
+if it were editable, a user could make the AI claim to be a different model.
 
-**Zeph disuruh mengisi API key Gemini padahal pakai key sendiri.** `init()`
-memilih provider aktif dari settings tanpa memeriksa apakah provider itu punya
-key. Sekarang ia memilih provider yang benar-benar punya key; kalau provider
-aktif kosong sedangkan provider lain terisi, ia pindah otomatis sambil
-menjelaskannya.
+**Zeph asked for a Gemini API key while using its own.** `init()` picked the
+active provider from settings without checking whether that provider had a key.
+It now picks a provider that actually has one; if the active provider is empty
+while another is filled, it switches automatically and says so.
 
-**`file_list` tanpa batas.** Mendaftar folder besar mengembalikan semua nama,
-dan teks itu ikut dikirim ulang tiap langkah berikutnya. Sekarang dibatasi 300
-entri dengan baris "dan N entri lain".
+**`file_list` had no limit.** Listing a large folder returned every name, and
+that text was resent on every following step. It is now capped at 300 entries
+with a "and N more" line.
 
-**Timeout provider terlalu pendek.** Panggilan streaming menyerah setelah 30
-detik, sehingga langkah agent yang panjang gagal di tengah jawaban. Dinaikkan
-ke 90 detik (per-call 12→120 detik).
+**Provider timeout was too short.** Streaming calls gave up after 30 seconds,
+so long agent steps failed mid-answer. Raised to 90 seconds (per-call 12 to 120
+seconds).
 
-**Perintah palette duplikat.** Dua sistem command sempat hidup bersamaan
-sehingga 12 label muncul dua kali.
+**Duplicate palette entries.** Two command systems were live at the same time,
+so 12 labels appeared twice.
 
-**Remap shortcut tidak berlaku.** `mergeBindings` mengubah chord user tapi tidak
-melepas chord lama, dan ada dua sumber shortcut (`settings.shortcuts` vs
-`keybindings.json`). Disatukan: settings jadi sumber kebenaran tunggal.
+**Shortcut remap did not take effect.** `mergeBindings` changed the user chord
+but never released the old one, and there were two shortcut sources
+(`settings.shortcuts` vs `keybindings.json`). Unified: settings is now the
+single source of truth.
 
-**Ikon gear tidak membuka Settings.** Menutup halaman Settings meninggalkan
-`activity` bernilai `settings`, jadi klik berikutnya dianggap "sudah aktif" dan
-malah menutup sidebar.
+**The gear icon did not open Settings.** Closing the Settings page left
+`activity` set to `settings`, so the next click counted as "already active" and
+closed the sidebar instead.
 
-**Panel AI hilang saat dipindah ke kanan**, dan **tombol maximize tidak
-berfungsi** — aturan CSS untuk keadaan maximize tidak ada, jadi class-nya tidak
-berpengaruh dan kolom tetap 340px.
+**The AI panel vanished when moved right**, and **the maximize button did
+nothing** because the CSS rule for the maximized state did not exist. The class
+had no effect and the column stayed 340px.
 
-**`Ctrl+Shift+O` bentrok** — "Explorer: Open Folder…" menduplikasi "File: Open
-Folder…" (handler sama, shortcut sama, dua entri).
+**`Ctrl+Shift+O` collided.** "Explorer: Open Folder…" duplicated "File: Open
+Folder…" (same handler, same shortcut, two entries).
 
-**Judul section Language Server kosong** — memakai `h3` sementara section lain
+**Empty Language Server section title** used `h3` while other sections used
 `h2`.
 
-**Hasil subagent bocor ke chat.** Batch yang selesai dulu menyuntikkan
-ringkasannya ke percakapan; sekarang subagent berdiri sendiri.
+**Subagent results leaked into chat.** A finished batch used to inject its
+summary into the conversation. Subagents now stand alone.
 
 ---
 
-## Kualitas
+## Quality
 
-| Pemeriksaan | Hasil |
+| Check | Result |
 |---|---|
-| `tsc --noEmit` | **0 error** |
-| i18n | **581 kunci × 10 bahasa** (ID, EN, JA, KO, ZH, ES, FR, DE, PT, AR) |
-| `cargo test --lib` | lulus, termasuk 3 tes baru deteksi format gambar |
-| `uji-t7-performa.mjs` (performa + kerapatan) | 10/10 |
-| `uji-t6-identitas.mjs` (identitas model) | 8/8 |
-| `uji-t5-tema.mjs` (tema + latar) | 32/32 |
-| `uji-t4-16.mjs` (reset tidak merusak UI) | 19/19 |
-| `uji-t4-11.mjs` (tab AI, kolom kanan, maximize) | 20/20 |
-| `uji-t4-15.mjs` (halaman About) | 25/25 |
-| `uji-t4-13.mjs` (subagent berdiri sendiri) | 11/11 |
-| `uji-t4-10.mjs` (pemilih model dua tingkat) | 23/23 |
+| `tsc --noEmit` | **0 errors** |
+| i18n | **581 keys x 10 languages** (ID, EN, JA, KO, ZH, ES, FR, DE, PT, AR) |
+| `cargo test --lib` | pass, including 3 new image-format detection tests |
+| `uji-t7-performa.mjs` (performance + density) | 10/10 |
+| `uji-t6-identitas.mjs` (model identity) | 8/8 |
+| `uji-t5-tema.mjs` (themes + background) | 32/32 |
+| `uji-t4-16.mjs` (reset does not break UI) | 19/19 |
+| `uji-t4-11.mjs` (AI tab, right column, maximize) | 20/20 |
+| `uji-t4-15.mjs` (About page) | 25/25 |
+| `uji-t4-13.mjs` (subagents stand alone) | 11/11 |
+| `uji-t4-10.mjs` (two-level model picker) | 23/23 |
 | `uji-subagent-nyata.mjs` | 13/13 |
-| `sweep-bug.mjs` (semua ikon, tab, section) | 31/31 |
+| `sweep-bug.mjs` (all icons, tabs, sections) | 31/31 |
 
-Signature rilis diverifikasi secara kriptografis dengan crate `minisign-verify`
-terhadap installer yang **diunduh dari GitHub**, bukan file lokal.
-
----
-
-## Yang dibawa dari build sebelumnya
-
-**Panel agent** — streaming per langkah, mode persetujuan "kerja langsung",
-output terminal di dalam bubble chat, panel todo, 22 tool agent, sampai 10
-lampiran gambar per pesan.
-
-**Skill, memori, tugas terjadwal** — folder `SKILL.md` yang dimuat hanya saat
-relevan (global dan per-workspace), `memory.md` / `user.md` yang disuntik ke
-setiap percakapan dengan batas karakter, dan `cron_create` / `cron_list` /
-`cron_delete` berbasis JSON biasa.
-
-**Asisten inline** — ghost-text completion (`Alt+\`), inline chat (`Ctrl+I`),
-apply sebagai pengganti/sisipan/diff, referensi `file:baris` yang bisa diklik,
-konteks `@file` / `@folder` / `@symbol` / `@terminal` / `@problems`, dan prompt
-library yang bisa dicari.
-
-**Title bar sendiri** — chrome jendela digambar Zephyr, dengan menu bar yang
-sejajar dengan kolom activity bar 48px.
-
-**Ringan** — binary rilis 9,4 MB, ~118 MB saat idle (sekitar 104 MB di antaranya
-lantai dasar WebView2 yang tidak bisa dihilangkan flag apa pun). Setiap proses
-anak dijalankan dengan `CREATE_NO_WINDOW`, jadi tidak ada console yang berkedip
-saat start.
-
-**Build Linux** — `.deb` dan `.AppImage` untuk x86_64, ditandatangani dengan
-kunci minisign yang sama dengan installer Windows.
+The release signature is verified cryptographically with the `minisign-verify`
+crate against the installer **downloaded from GitHub**, not the local file.
 
 ---
 
-## Yang dihapus
+## Carried over from the previous build
 
-Fitur yang jadi aplikasi kedua di dalam editor, dibuang daripada dibiarkan
-setengah jalan:
+**Agent panel**: per-step streaming, a "work directly" approval mode, terminal
+output inside the chat bubble, a todo panel, 22 agent tools, and up to 10 image
+attachments per message.
 
-- **Dev Environment** (manajer PHP/Nginx/MariaDB/Redis)
-- **API client** (koleksi ala Postman)
+**Skills, memory, scheduled tasks**: a `SKILL.md` folder loaded only when
+relevant (global and per-workspace), `memory.md` / `user.md` injected into every
+conversation with a character cap, and `cron_create` / `cron_list` /
+`cron_delete` backed by plain JSON.
+
+**Inline assistant**: ghost-text completion (`Alt+\`), inline chat (`Ctrl+I`),
+apply as replace/insert/diff, clickable `file:line` references, `@file` /
+`@folder` / `@symbol` / `@terminal` / `@problems` context, and a searchable
+prompt library.
+
+**Custom title bar**: Zephyr draws its own window chrome, with a menu bar
+aligned to the 48px activity bar column.
+
+**Light**: release binary is 9.4 MB, around 118 MB idle (about 104 MB of that
+is the WebView2 baseline that no flag removes). Every child process runs with
+`CREATE_NO_WINDOW`, so no console flashes at startup.
+
+**Linux build**: `.deb` and `.AppImage` for x86_64, signed with the same
+minisign key as the Windows installer.
+
+---
+
+## Removed
+
+Features that turned into a second application inside the editor were dropped
+rather than left half-finished:
+
+- **Dev Environment** (PHP/Nginx/MariaDB/Redis manager)
+- **API client** (Postman-style collections)
 - **SQLite browser**
 - **Cloudflare Tunnel**
 - **Test Explorer**
 - **SFTP + port forwarding**
 
-File `.http` masih bisa dijalankan. API key tidak tersentuh — `reset_settings`
-tidak pernah menghapus `secrets.json`.
+`.http` files still run. API keys are untouched: `reset_settings` never deletes
+`secrets.json`.
 
 ---
 
-## Cara update
+## How to update
 
-- **Pertama kali:** unduh `Zephyr_1.1.10_x64-setup.exe` atau `.msi` dari
+- **First time:** download `Zephyr_1.1.10_x64-setup.exe` or `.msi` from
   Releases.
-- **Sudah punya:** buka Zephyr, dialog update muncul otomatis. Atau
-  Settings → About → Check for updates.
-- **Masih di v1.1.9 atau lebih lama:** kalau tombol update gagal, install manual
-  sekali dari halaman ini — setelah itu update otomatis bekerja normal.
+- **Already installed:** open Zephyr and the update dialog appears on its own.
+  Or go to Settings, About, Check for updates.
+- **Still on v1.1.9 or older:** if the update button fails, install manually
+  once from this page. Automatic updates work normally after that.
 
-Aplikasi memverifikasi signature installer sebelum memasang. SmartScreen masih
-bisa memperingatkan karena ini bukan sertifikat EV: klik **More info → Run
-anyway**.
+The app verifies the installer signature before installing. SmartScreen may
+still warn because this is not an EV certificate: click **More info**, then
+**Run anyway**.

@@ -109,9 +109,9 @@ export default function FindBar() {
         ),
       });
       // Panel bawaan CM disembunyikan lewat CSS (kita pakai UI sendiri),
-      // tapi harus terbuka supaya state pencarian aktif.
+      // but it must stay open for the search state to be active.
     } catch {
-      /* query regex tidak valid — ditandai lewat `invalid` */
+      /* invalid regex query, flagged through `invalid` */
     }
     recount();
   }, [query, replaceWith, regex, caseSensitive, wholeWord, open, activeTabId, recount]);

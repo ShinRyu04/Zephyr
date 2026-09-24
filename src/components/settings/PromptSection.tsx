@@ -108,7 +108,7 @@ export default function PromptSection() {
         )}
       </div>
 
-      {/* Apa yang dijawab AI kalau ditanya "kamu model apa". Blok ini TIDAK
+      {/* What the AI answers when asked "what model are you". This block is NOT
           bisa diedit: isinya fakta dari konfigurasi (Settings → Model AI),
           bukan teks yang bisa ditulis ulang. Kalau bisa diedit, user bisa
           membuat AI mengaku sebagai model lain — dan itu justru masalah yang

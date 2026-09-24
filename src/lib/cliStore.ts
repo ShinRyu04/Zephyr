@@ -187,6 +187,6 @@ export async function bindCliListeners(): Promise<void> {
     if (!awal.kosong) await useCli.getState().jalankan(awal);
     else useCli.setState({ terakhir: awal });
   } catch {
-    // App tetap harus jalan walau pembacaan argumen gagal.
+    // The app must still start even if argument parsing fails.
   }
 }

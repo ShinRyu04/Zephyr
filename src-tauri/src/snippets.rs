@@ -461,17 +461,17 @@ pub fn snippets_user_file(state: State<AppState>, lang: String) -> ZResult<Strin
     if !p.exists() {
         let contoh = format!(
             "{{\n\
-             \x20 // Snippet user untuk bahasa: {l}\n\
-             \x20 // Format sama dengan VS Code, jadi snippet dari internet bisa ditempel di sini.\n\
+             \x20 // User snippet for language: {l}\n\
+             \x20 // Same format as VS Code, so snippets from the internet paste in as-is.\n\
              \x20 //\n\
-             \x20 // \"$1\", \"${{1:default}}\"  = tab stop (Tab / Shift+Tab untuk pindah)\n\
-             \x20 // \"${{1|a,b,c|}}\"        = pilihan\n\
-             \x20 // \"$0\"                  = posisi kursor terakhir\n\
-             \x20 // Variabel: $TM_SELECTED_TEXT $TM_FILENAME $CLIPBOARD $CURRENT_YEAR $LINE_NUMBER\n\
-             \x20 \"Contoh\": {{\n\
-             \x20   \"prefix\": \"contoh\",\n\
-             \x20   \"body\": [\"// {l}: ${{1:tulis di sini}}\", \"$0\"],\n\
-             \x20   \"description\": \"Snippet contoh — silakan diubah atau dihapus\"\n\
+             \x20 // \"$1\", \"${{1:default}}\"  = tab stop (Tab / Shift+Tab to move)\n\
+             \x20 // \"${{1|a,b,c|}}\"        = choice\n\
+             \x20 // \"$0\"                  = final cursor position\n\
+             \x20 // Variables: $TM_SELECTED_TEXT $TM_FILENAME $CLIPBOARD $CURRENT_YEAR $LINE_NUMBER\n\
+             \x20 \"Example\": {{\n\
+             \x20   \"prefix\": \"example\",\n\
+             \x20   \"body\": [\"// {l}: ${{1:type here}}\", \"$0\"],\n\
+             \x20   \"description\": \"Example snippet - edit or delete as you like\"\n\
              \x20 }}\n\
              }}\n"
         );

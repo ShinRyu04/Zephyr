@@ -262,7 +262,7 @@ export const useMcp = create<McpStore>((set, get) => ({
     try {
       await cmd.mcpReply(a.reqId, result);
     } catch {
-      /* Rust sudah timeout — tidak ada yang bisa dilakukan */
+      /* Rust already timed out, nothing left to do */
     }
   },
 }));

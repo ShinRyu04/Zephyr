@@ -127,7 +127,7 @@ export async function aturanProyek(): Promise<string> {
         break;
       }
     } catch {
-      // File tidak ada: lanjut ke kandidat berikutnya.
+      // File missing: move on to the next candidate.
     }
   }
   const hasil = bagian.join('\n\n');

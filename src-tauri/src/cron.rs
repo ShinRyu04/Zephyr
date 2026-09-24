@@ -36,7 +36,7 @@ impl CronJob {
             return None;
         }
 
-        use chrono::{Datelike, Local, TimeZone, Timelike};
+        use chrono::{Datelike, Local, TimeZone};
         let now = Local::now();
         let mut target = match now.date_naive().and_hms_opt(jam, 0, 0) {
             Some(naive) => match Local.from_local_datetime(&naive).single() {
