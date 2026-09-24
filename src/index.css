@@ -2155,8 +2155,9 @@ body.is-resizing-v {
 }
 
 /* Tombol brand di About: logo resmi + label.
-   Ikonnya memakai fill currentColor, jadi warnanya ikut teks tombol dan
-   tetap benar di semua tema tanpa override per tema. */
+   Ikonnya memakai fill currentColor supaya tetap ikut tema, dan warna merek
+   diberikan lewat token supaya WhatsApp hijau dan GitHub tetap kontras di
+   tema terang maupun gelap. */
 .btn.btn-brand {
   display: inline-flex;
   align-items: center;
@@ -2164,10 +2165,17 @@ body.is-resizing-v {
 }
 .btn.btn-brand > svg {
   flex: 0 0 auto;
-  opacity: 0.9;
+  color: var(--brand-github);
+  transition: color 0.15s ease;
 }
 .btn.btn-brand:hover:not(:disabled) > svg {
-  opacity: 1;
+  color: var(--accent);
+}
+.btn.btn-brand-wa > svg {
+  color: var(--brand-whatsapp);
+}
+.btn.btn-brand-wa:hover:not(:disabled) > svg {
+  color: var(--brand-whatsapp);
 }
 .btn.btn-brand-wa:hover:not(:disabled) {
   border-color: var(--brand-whatsapp);

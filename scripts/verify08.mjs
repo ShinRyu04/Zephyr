@@ -738,7 +738,9 @@ const main = async () => {
     // setelah fase 11 jadi 9 baris terhitung), sekarang 5 baris di satu kartu.
     v13.baris >= 3 &&
       v13.baris <= 8 &&
-      /^\d+\.\d+\.\d+$/.test(v13.versi) &&
+      // About menampilkan "1.1.10 · debug" di build debug, jadi versinya
+      // dicocokkan di awal string, bukan sebagai satu-satunya isi.
+      /^\d+\.\d+\.\d+/.test(v13.versi) &&
       /zephyr/i.test(v13.dataDir) &&
       v13.zoomAwal === '16px' &&
       v13.zoomNaik === '18px' &&

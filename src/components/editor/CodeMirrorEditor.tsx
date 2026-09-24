@@ -320,22 +320,44 @@ export default function CodeMirrorEditor({ tab }: Props) {
   }, [tab.content]);
 
   useEffect(() => {
-    if (readOnly) {
-      viewRef.current?.dispatch({ effects: langComp.current.reconfigure([]) });
-      return;
-    }
+    /*
+     * Configure the language as soon as a view exists.
+     *
+     * React runs the effect that creates the view (keyed on tab.id) before
+     * this one, so on a fresh mount viewRef is already set. On a re-run caused
+     * by a dependency change the view is also there. The guard below covers
+     * the remaining case: the effect running before the view effect, where
+     * nothing can be dispatched yet and the work is deferred one tick.
+     */
     let alive = true;
+    let timer: number | null = null;
 
-    void extensiUntukFile(tab.path ?? tab.name).then(({ ext }) => {
-      if (!alive) return;
-      viewRef.current?.dispatch({
-        effects: langComp.current.reconfigure(ext),
+    const pasang = () => {
+      const view = viewRef.current;
+      if (!alive || !view) return;
+      if (readOnly) {
+        view.dispatch({ effects: langComp.current.reconfigure([]) });
+        return;
+      }
+      void extensiUntukFile(tab.path ?? tab.name).then(({ ext }) => {
+        // Dispatch into the view this pass started with: the loader is a
+        // dynamic import, so a tab switch can replace the view in between.
+        if (!alive || viewRef.current !== view) return;
+        view.dispatch({ effects: langComp.current.reconfigure(ext) });
       });
-    });
+    };
+
+    if (viewRef.current) {
+      pasang();
+    } else {
+      timer = window.setTimeout(pasang, 0);
+    }
+
     return () => {
       alive = false;
+      if (timer !== null) window.clearTimeout(timer);
     };
-  }, [tab.lang, tab.id, tab.path, tab.name, readOnly, extVersi]);
+  }, [tab.lang, tab.id, tab.path, tab.name, readOnly, extVersi, viewSiap]);
 
   useEffect(() => {
     viewRef.current?.dispatch({

@@ -234,10 +234,22 @@ const main = async () => {
     await X.resetAll();
     await X.setKey('gemini', '');
     await X.setKey('anthropic', '');
+    // Provider aktif harus salah satu yang TIDAK punya key, kalau tidak badge
+    // key hijau karena provider lain (mis. custom) masih menyimpan key user.
+    // Katalog sekarang punya 7 provider, bukan 3, jadi provider aktif dibaca
+    // dari daftar key alih-alih diasumsikan.
+    await AS().loadKeys();
+    const tanpaKey = AS().keys.find((k) => !k.hasKey)?.provider ?? 'gemini';
+    await s.applySettings({ models: { activeProvider: tanpaKey } });
     await s.reloadSettings();
     localStorage.removeItem('zephyr.ai.sessions.v1');
     AS().sessions.slice().forEach(x => AS().deleteChat(x.id));
     await AS().loadKeys();
+    // Simpan baseUrl asli SEBELUM ditimpa mock. Harness ini pernah menulis
+    // http://127.0.0.1:8098 ke settings.json dan tidak pernah mengembalikannya,
+    // sehingga provider user menunjuk ke server uji dan chat gagal 401.
+    window.__ZV9_ORIG_PROVIDERS__ = JSON.parse(JSON.stringify(
+      s.settings.models?.providers ?? {}));
     await s.applySettings({ models: { providers: {
       gemini:    { baseUrl: 'http://127.0.0.1:${MOCK}' },
       openai:    { baseUrl: 'http://127.0.0.1:${MOCK}/v1' },
@@ -742,6 +754,16 @@ const main = async () => {
       // bersih-bersih: hapus key uji, kosongkan chat, kembalikan settings & panel
       await X.setKey('gemini', '');
       await X.setKey('anthropic', '');
+      // Kembalikan baseUrl provider ke nilai asli. Nilai null menghapus
+      // key (RFC 7386), jadi provider yang tadinya tidak punya baseUrl
+      // kembali tanpa baseUrl, bukan tetap menunjuk mock.
+      const origProv = window.__ZV9_ORIG_PROVIDERS__ ?? {};
+      const balik = {};
+      for (const k of ['gemini', 'openai', 'anthropic']) {
+        const v = origProv[k]?.baseUrl;
+        balik[k] = { baseUrl: v ? v : null };
+      }
+      await s.applySettings({ models: { providers: balik } });
       await X.resetAll();
       await s.reloadSettings();
       for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);

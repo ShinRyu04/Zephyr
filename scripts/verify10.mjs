@@ -670,6 +670,10 @@ const main = async () => {
     GS().setError(null);
     GS().setMessage('');
     s.tabs.slice().forEach((t) => s.forceCloseTab(t.id));
+    // Lepaskan trust sandbox SEBELUM foldernya dihapus. Entri trust yang
+    // menunjuk folder yang sudah tidak ada membuat setiap pembacaan daftar
+    // trust melempar "bukan folder", dan pesan itu muncul ke user.
+    await s.lupakanTrust(${JSON.stringify(SANDBOX)}).catch(() => {});
     await s.closeWorkspace();
     await wait(400);
     S.getState().setActivity('explorer');

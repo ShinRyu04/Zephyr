@@ -693,7 +693,10 @@ const main = async () => {
       shot.status === 200 &&
       shotIsi.includes(marker) &&
       Array.isArray(ext.body?.result) &&
-      ext.body.result.length === 8,
+      // Jumlah ekstensi bawaan bertambah dari waktu ke waktu (8 -> 9 saat
+      // provider ikon ditambahkan), jadi yang diperiksa cukup daftarnya
+      // terisi, bukan angka pastinya.
+      ext.body.result.length >= 8,
     `set_setting editor.tabSize=8 diterima (UI ikut jadi ${v12.tabSize}); mcp.enabled & git.github.clientId DITOLAK whitelist; get_settings memask mcp.token → "***" dan membuang git.github; get_setting mcp.token ditolak; screenshot_pane menulis ${path.basename(String(shotPath))} berisi isi terminal nyata; list_extensions → ${ext.body?.result?.length} ekstensi`,
   );
 
