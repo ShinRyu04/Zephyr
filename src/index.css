@@ -2148,10 +2148,9 @@ body.is-resizing-v {
   background: var(--surface-3);
   color: var(--accent, #e0a458);
 }
-/* Tombol donasi di About: warna hangat supaya menonjol dari tombol lain.
-   Ikonnya emoji kopi, jadi warnanya dibiarkan asli dari font emoji — bukan
-   diwarnai token, karena emoji berwarna justru yang membuat tombol ini
-   terbaca sebagai tombol donasi. */
+/* Tombol donasi di About: memakai warna aksen tema supaya seragam dengan
+   tombol utama lain, bukan warna kuning sendiri. Ikonnya emoji kopi, jadi
+   warnanya dibiarkan asli dari font emoji. */
 .btn.btn-donate {
   border-color: var(--brand-donate);
   color: var(--brand-donate);
