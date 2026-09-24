@@ -2148,18 +2148,20 @@ body.is-resizing-v {
   background: var(--surface-3);
   color: var(--accent, #e0a458);
 }
-/* Tombol donasi di About: warna hangat supaya menonjol dari tombol lain, dan
-   ikonnya memakai warna yang sama supaya terbaca sebagai satu tombol. */
+/* Tombol donasi di About: warna hangat supaya menonjol dari tombol lain.
+   Ikonnya emoji kopi, jadi warnanya dibiarkan asli dari font emoji — bukan
+   diwarnai token, karena emoji berwarna justru yang membuat tombol ini
+   terbaca sebagai tombol donasi. */
 .btn.btn-donate {
   border-color: var(--brand-donate);
   color: var(--brand-donate);
 }
-.btn.btn-donate > span {
-  display: inline-flex;
-  align-items: center;
-}
-.btn.btn-donate > span > svg {
-  color: var(--brand-donate);
+.btn.btn-donate .about-donate-emoji {
+  font-size: 1.05em;
+  line-height: 1;
+  /* Emoji tetap berwarna walau tema memaksa warna teks. */
+  color: initial;
+  font-family: 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
 }
 .btn.btn-donate:hover:not(:disabled) {
   border-color: var(--brand-donate);
