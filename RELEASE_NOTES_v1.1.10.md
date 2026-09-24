@@ -5,6 +5,48 @@ the version.
 
 ---
 
+## New in this revision
+
+**The AI can use the browser pane.** The pane used to be an `<iframe>`, and an
+iframe's contents cannot be read from outside it, so the agent could see that a
+browser pane existed but not a single word inside. The pane is now a real child
+WebView2 owned by the same process, which means the agent can read the page
+(title, visible text, link list) and act on it (click, type, navigate). Six new
+tools: `browser_open`, `browser_read`, `browser_click`, `browser_type`,
+`browser_nav`, `browser_list`.
+
+**Pages that refuse to be embedded now load.** Google, YouTube, and anything
+else sending `X-Frame-Options` used to be blocked outright, because an iframe
+is exactly what that header forbids. With a real webview there is no iframe, so
+the header no longer applies.
+
+**A visible cursor.** Before a click, a ring and a dot mark the element being
+targeted, then fade out. A page that changes on its own with no visible cause
+reads as a glitch; this makes the cause visible.
+
+**The AI can search the web.** Two new tools, `web_search` and `web_fetch`.
+Search runs through DuckDuckGo and Brave, no API key needed, and page text is
+extracted with `<script>` and `<style>` contents removed so code does not leak
+into answers. This is what lets Zeph answer questions about things that changed
+after its training data.
+
+**Skills from Hermes Agent are available.** Zephyr reads `~/.hermes/skills`
+alongside its own folders, including skills nested one level deep. 81 skills
+show up on this machine. They are read-only from Zephyr: deleting or
+overwriting one is refused, with the folder path in the error, so a Zephyr
+action cannot quietly change how Hermes behaves.
+
+**Ports scans by itself.** The Ports panel used to show only what you typed in.
+It now reads the system TCP table every 5 seconds and lists what is actually
+listening, with the process name and pid, plus a button to kill the process.
+Entries you added by hand are kept, not overwritten.
+
+**Every code comment is English now**, and so are the release notes and the
+README. A cleanup pass earlier had missed 51 comments that sat inside JSX
+expressions and template strings.
+
+---
+
 ## The important ones
 
 **Automatic update from v1.1.9 works again.** The release signing key was
