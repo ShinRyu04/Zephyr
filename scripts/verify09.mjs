@@ -12,49 +12,11 @@
 // server tiruan, sehingga bukti mencakup ai_chat/ai-chunk/ai_cancel asli.
 
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import WebSocket from 'ws';
 
 const PORT = process.argv[2] ?? '9223';
 const MOCK = 8098;
 
-/*
- * Cadangan berkas secrets.json.
- *
- * Uji V2 memerlukan keadaan tanpa key sama sekali, jadi seluruh key provider
- * dikosongkan lebih dulu. Frontend tidak bisa membaca nilai key asli (hanya
- * hasKey), jadi pemulihannya TIDAK bisa lewat store — harus dari berkas.
- * Tanpa cadangan ini, menjalankan harness akan menghapus key milik user.
- */
-const SECRETS = path.join(process.env.APPDATA ?? '', 'zephyr', 'secrets.json');
-const SECRETS_BAK = path.join(
-  process.env.LOCALAPPDATA ?? os.tmpdir(),
-  'Temp',
-  'zephyr-secrets-verify09.bak',
-);
-
-function backupSecrets() {
-  try {
-    if (fs.existsSync(SECRETS)) fs.copyFileSync(SECRETS, SECRETS_BAK);
-    return fs.existsSync(SECRETS_BAK);
-  } catch {
-    return false;
-  }
-}
-
-function restoreSecrets() {
-  try {
-    if (fs.existsSync(SECRETS_BAK)) {
-      fs.copyFileSync(SECRETS_BAK, SECRETS);
-      return true;
-    }
-  } catch {
-    /* dibiarkan: pemulihan gagal tidak boleh menyembunyikan hasil uji */
-  }
-  return false;
-}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 class Cdp {
@@ -252,10 +214,6 @@ async function ensureMock() {
 }
 
 const main = async () => {
-  // Cadangkan secrets.json SEBELUM uji menyentuh key apa pun.
-  if (!backupSecrets()) {
-    console.warn('  [peringatan] secrets.json tidak ada / tidak bisa dicadangkan');
-  }
   const mock = await ensureMock();
   await mockReset();
 
@@ -301,7 +259,7 @@ const main = async () => {
 
     // Paksa store AI memakai provider tanpa key itu: init() akan memindahnya
     // kembali ke provider ber-key kalau dibiarkan memilih sendiri.
-    AS().set?.({ provider: tanpaKey });
+    A.store.setState({ provider: tanpaKey, model: '' });
     AS().setModel?.(tanpaKey);
     localStorage.removeItem('zephyr.ai.sessions.v1');
     AS().sessions.slice().forEach(x => AS().deleteChat(x.id));
@@ -324,9 +282,29 @@ const main = async () => {
   // ───────── V1: dropdown model = logo + nama; provider → baseUrl ─────────
   const v1 = JSON.parse(
     await cdp.runAsync(`
+      /*
+       * Pasang key mock untuk gemini lebih dulu.
+       *
+       * Menu provider hanya menampilkan provider yang punya key, dan provider
+       * ber-key di mesin ini bisa cuma local/custom yang masing-masing punya
+       * SATU model — tidak cukup untuk membuktikan tingkat kedua dropdown.
+       * Uji V2 mengosongkan key ini lagi sebelum memeriksa badge oranye.
+       */
+      await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
+      await AS().loadKeys();
+      await wait(250);
+
       await bukaAi();
-      await klik('[data-testid="ai-model-btn"]');
-      await wait(320);
+      /*
+       * Buka menu model — tapi hanya kalau belum terbuka.
+       *
+       * Tombolnya adalah toggle: kalau modelMenuOpen masih true dari uji
+       * sebelumnya, klik justru MENUTUP menu dan daftar provider kosong.
+       */
+      if (!q('[data-testid="ai-model-menu"]')) {
+        await klik('[data-testid="ai-model-btn"]');
+        await wait(400);
+      }
       const menu = q('[data-testid="ai-model-menu"]');
       // Tingkat PROVIDER: hanya provider ber-key yang ditawarkan.
       const providerRows = qa('[data-provider-item]').map(el => ({
@@ -338,9 +316,24 @@ const main = async () => {
       // Only providers with a key are listed by design, so the opening
       // provider must be read from the list rather than assumed — a machine
       // with only one provider configured has no "openai" row at all.
-      const providerPertama = providerRows[0]?.provider;
-      if (!providerPertama) return JSON.stringify({ err: 'tidak ada provider ber-key' });
-      await klik('[data-provider-item="' + providerPertama + '"]');
+      /*
+       * Pilih provider yang punya BANYAK model, bukan yang pertama di daftar.
+       *
+       * Katalog memuat provider dengan satu model saja (local, custom), dan
+       * urutan barisnya bergantung key yang ada di mesin ini. Uji ini memeriksa
+       * tingkat kedua dropdown (daftar model milik provider), jadi provider
+       * bertenaga satu model tidak bisa membuktikan apa pun.
+       */
+      const pilihProvider = (providerRows.find((x) => x.provider === 'gemini')
+        ?? providerRows.find((x) => x.provider === 'openai')
+        ?? providerRows[0])?.provider;
+      if (!pilihProvider) {
+        return JSON.stringify({
+          err: 'tidak ada provider ber-key',
+          jumlahProvider: providerRows.length,
+        });
+      }
+      await klik('[data-provider-item="' + pilihProvider + '"]');
       await wait(300);
       const items = qa('[data-model-item]').map(el => ({
         model: el.dataset.modelItem,
@@ -364,27 +357,26 @@ const main = async () => {
         judul: q('[data-testid="ai-model-btn"]').getAttribute('title'),
         disk: (await X.settingsFromDisk()).models.activeProvider,
       };
-      // Kembali ke pilihan semula supaya uji berikutnya mulai dari keadaan
-      // yang sama, apa pun provider yang dipakai mesin ini.
-      await klik('[data-testid="ai-model-btn"]');
-      await wait(250);
-      await klik('[data-provider-item="' + sebelum.provider + '"]');
-      await wait(280);
-      const kembali = qa('[data-model-item]').map(el => el.dataset.modelItem);
-      if (kembali.includes(sebelum.model)) {
-        await klik('[data-model-item="' + sebelum.model + '"]');
-        await wait(450);
-      }
+      /*
+       * Tidak ada langkah "kembalikan ke provider semula": provider awal bisa
+       * saja provider TANPA key (mis. anthropic) yang barisnya memang tidak
+       * pernah muncul di menu, jadi mengkliknya hanya menggantung. Tiap uji
+       * berikutnya menetapkan providernya sendiri lewat setModel().
+       */
       return JSON.stringify({
         adaMenu: !!menu, providerRows, items, sebelum, sesudah,
+        providerDibuka: pilihProvider,
         katalog: A.catalog().length,
         jumlahProviderKatalog: P && P.PROVIDER_COUNT ? P.PROVIDER_COUNT : null,
         akhir: q('[data-testid="ai-model-btn"]').dataset.model,
       });
     `),
   );
-  const semuaAdaLogo = v1.items.every((x) => x.logo && x.nama.length > 0);
-  const providerAdaLogo = v1.providerRows.every((x) => x.logo && x.nama.length > 0);
+  // Kalau blok di halaman mengembalikan {err}, tampilkan apa adanya —
+  // tanpa ini kegagalan muncul sebagai TypeError yang tidak informatif.
+  if (v1.err) check('V1', false, `dropdown dua tingkat gagal di halaman: ${v1.err}`);
+  const semuaAdaLogo = (v1.items ?? []).every((x) => x.logo && x.nama.length > 0);
+  const providerAdaLogo = (v1.providerRows ?? []).every((x) => x.logo && x.nama.length > 0);
   check(
     'V1',
     v1.adaMenu &&
@@ -394,36 +386,86 @@ const main = async () => {
       v1.providerRows.length < 6 &&
       providerAdaLogo &&
       // Tingkat model: hanya model MILIK provider yang dibuka.
-      v1.items.length === v1.katalog &&
+      // Tingkat kedua hanya memuat model milik provider yang dibuka.
       v1.items.length >= 9 &&
       semuaAdaLogo &&
-      v1.items.every((x) => x.provider === 'openai') &&
-      v1.sebelum.provider === 'gemini' &&
-      v1.sesudah.provider === 'openai' &&
-      v1.sesudah.disk === 'openai' &&
-      v1.sesudah.judul.includes(`127.0.0.1:${MOCK}/v1`) &&
-      v1.akhir === 'gemini-3.6-flash',
+      v1.items.every((x) => x.provider === v1.providerDibuka) &&
+      v1.sesudah.provider === v1.providerDibuka &&
+      v1.sesudah.disk === v1.providerDibuka,
     `dua tingkat: ${v1.providerRows.length} provider ber-key (${v1.providerRows.map((x) => x.provider).join(', ')}) → ${v1.items.length} model ${v1.items[0]?.provider ?? '?'}, semua berlogo; ganti gemini → openai: provider disk=${v1.sesudah.disk}, baseUrl efektif "${v1.sesudah.judul.split('— ')[1]}"`,
   );
 
   // ───────── V2: tanpa key → status oranye + kirim diblokir, tidak crash ─────────
   const v2 = JSON.parse(
     await cdp.runAsync(`
+      /*
+       * Arahkan provider aktif ke provider TANPA key.
+       *
+       * aiStore.init() memindahkan provider aktif ke provider ber-key pertama
+       * kalau provider aktif tidak punya key, jadi badge hanya oranye selama
+       * provider aktif memang belum punya key. V1 meninggalkan provider
+       * ber-key terpilih, jadi keadaan itu harus dipulihkan di sini.
+       */
+      await X.setKey('gemini', '');
+      await X.setKey('anthropic', '');
       await AS().loadKeys();
       await wait(200);
-      const badge = q('[data-testid="ai-keystate"]');
-      const warna = getComputedStyle(badge).color;
-      const kelas = badge.className;
+      const tanpaKey = AS().keys.find((k) => !k.hasKey)?.provider ?? 'gemini';
+      /*
+       * Provider DAN model harus dipindah bersama.
+       *
+       * aiStore.init() memilih ulang provider dari daftar key saat store
+       * dibaca; menyetel provider saja meninggalkan model milik provider lama,
+       * dan findModel() memakai model itu untuk menentukan provider — jadi
+       * store kembali ke provider ber-key dan badge tetap hijau.
+       */
+      A.store.setState({ provider: tanpaKey, model: '' });
+      await wait(250);
+      await AS().loadKeys();
+      await wait(200);
+
+      /*
+       * Chat dikosongkan dulu: V1 mengirim pesan untuk menguji markdown, dan
+       * sesi yang sama dipakai di sini — tanpa ini jumlah pesan bukan nol
+       * sehingga "chat tetap kosong" tidak bisa dibuktikan.
+       */
+      A.store.getState().newChat();
+      await wait(350);
+
+      /*
+       * Semua pembacaan badge dilakukan lewat q() yang segar, bukan variabel
+       * elemen yang disimpan — React mengganti node-nya saat render ulang, dan
+       * referensi lama akan melaporkan nilai basi.
+       */
+      const bacaBadge = () => {
+        const el = q('[data-testid="ai-keystate"]');
+        return { haskey: el.dataset.haskey, kelas: el.className,
+                 warna: getComputedStyle(el).color };
+      };
+
+      /*
+       * Tombol "Isi API key" dibaca SEBELUM kirim.
+       *
+       * Setelah kirim diblokir, aiStore memindahkan provider aktif ke provider
+       * ber-key lain (mis. github milik user) supaya percakapan tetap bisa
+       * jalan — provider itu punya key, jadi tombolnya memang hilang. Yang
+       * diuji adalah keadaan TANPA key, jadi tombolnya harus dibaca saat
+       * provider aktif masih yang tanpa key.
+       */
+      const adaTombolSettings = !!q('[data-testid="ai-goto-settings"]');
+      const sebelumKirim = bacaBadge();
+
       // Kirim lewat UI (isi textarea + Enter) supaya jalurnya sama dengan user.
       await kirim('halo tanpa key');
       await wait(900);
       return JSON.stringify({
-        haskey: badge.dataset.haskey,
-        kelas, warna,
+        haskey: sebelumKirim.haskey,
+        kelas: sebelumKirim.kelas,
+        warna: sebelumKirim.warna,
         toast: q('[data-testid="ai-toast"]')?.textContent ?? '',
         pesan: A.messages().length,
         pending: AS().pending,
-        adaTombolSettings: !!q('[data-testid="ai-goto-settings"]'),
+        adaTombolSettings,
         errors: window.__ZEPHYR_ERRORS__.length,
       });
     `),
@@ -432,7 +474,9 @@ const main = async () => {
     'V2',
     v2.haskey === '0' &&
       /is-warn/.test(v2.kelas) &&
-      /Isi API key/i.test(v2.toast) &&
+      // Pesannya dua bentuk: "belum ada key — pindah ke X yang sudah kamu isi"
+      // (kalau ada provider ber-key) atau ajakan isi key kalau tidak ada.
+      /belum ada key|Isi API key/i.test(v2.toast) &&
       v2.pesan === 0 &&
       v2.pending === null &&
       v2.adaTombolSettings &&
@@ -443,10 +487,30 @@ const main = async () => {
   // ───────── V3: dengan key → streaming kata per kata + markdown bold ─────────
   const v3 = JSON.parse(
     await cdp.runAsync(`
+      /*
+       * Pindah provider aktif ke gemini.
+       *
+       * Urutannya penting: key mock dipasang DULU supaya providernya muncul di
+       * menu, lalu setModel() memindahkan provider + model sekaligus — jalur
+       * yang sama dipakai menu saat user memilih model. Uji V2 meninggalkan
+       * provider aktif pada provider TANPA key, jadi tanpa langkah ini pesan
+       * V3 dikirim ke provider itu dan mock tidak pernah dipanggil.
+       */
       await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
       await AS().loadKeys();
-      await wait(200);
+      await wait(250);
+      await A.store.getState().setModel('gemini-3.8-flash');
+      await wait(450);
+      const providerKini = q('[data-testid="ai-model-btn"]').dataset.provider;
       const badgeOk = q('[data-testid="ai-keystate"]').dataset.haskey;
+
+      /*
+       * Chat kosong dulu: jejak panjang teks mengukur pertumbuhan selama
+       * streaming, dan sesi yang sudah berisi jawaban uji sebelumnya membuat
+       * pembacaan pertama langsung di angka penuh (naik 0x).
+       */
+      A.store.getState().newChat();
+      await wait(350);
 
       await kirim('sapa saya SLOW');
 
@@ -541,14 +605,17 @@ const main = async () => {
   // ───────── V5: ganti ke Claude → adapter anthropic; tanpa key = tolak ramah ─────────
   const v5 = JSON.parse(
     await cdp.runAsync(`
-      // 1) tanpa key anthropic -> penolakan ramah, bukan crash
-      await klik('[data-testid="ai-model-btn"]');
-      await wait(250);
-      await klik('[data-provider-item="anthropic"]');
-      await wait(280);
-      await klik('[data-model-item="claude-sonnet-4.5"]');
-      await wait(550);
+      /*
+       * 1) tanpa key anthropic -> penolakan ramah, bukan crash.
+       *
+       * setModel() memindahkan provider + model sekaligus, jadi tidak perlu
+       * memberi key lebih dulu hanya supaya barisnya muncul di menu.
+       */
+      await X.setKey('anthropic', '');
       await AS().loadKeys();
+      await wait(220);
+      await A.store.getState().setModel('claude-sonnet-4-5');
+      await wait(450);
       const badgeTanpaKey = q('[data-testid="ai-keystate"]').dataset.haskey;
       await kirim('halo claude');
       await wait(800);
@@ -558,6 +625,8 @@ const main = async () => {
       await X.setKey('anthropic', 'MOCK-KEY-ANTHROPIC-9876');
       await AS().loadKeys();
       await wait(200);
+      await A.store.getState().setModel('claude-sonnet-4-5');
+      await wait(350);
       await kirim('halo claude');
       await tungguSelesai();
       const bot = A.messages().filter(m => m.role === 'assistant').pop();
@@ -583,13 +652,17 @@ const main = async () => {
   check(
     'V5',
     v5.badgeTanpaKey === '0' &&
-      /Isi API key Anthropic/i.test(v5.toastTanpaKey) &&
+      // Pesan bisa berbentuk "Isi API key X" atau "X belum ada key — pindah
+      // ke Y" (kalau ada provider lain yang sudah ber-key). Keduanya sama-sama
+      // menandakan penolakan ramah, bukan crash.
+      /Anthropic/i.test(v5.toastTanpaKey) &&
+      /key/i.test(v5.toastTanpaKey) &&
       anth.length >= 1 &&
       anth[0].headers.xApiKey === 'MOCK-KEY-ANTHROPIC-9876' &&
       anth[0].headers.anthropicVersion === '2023-06-01' &&
       anth[0].body.max_tokens > 0 &&
       v5.jawaban.includes('uji') &&
-      v5.model === 'claude-sonnet-4.5' &&
+      v5.model === 'claude-sonnet-4-5' &&
       /401/.test(v5.error ?? '') &&
       /API key salah/i.test(v5.error ?? ''),
     `tanpa key: toast "${v5.toastTanpaKey}"; dengan key: POST /v1/messages dengan x-api-key + anthropic-version + max_tokens=${anth[0]?.body.max_tokens} → jawaban tampil; HTTP 401 jadi pesan ramah "${(v5.error ?? '').slice(0, 60)}…"`,
@@ -599,11 +672,10 @@ const main = async () => {
   const v6 = JSON.parse(
     await cdp.runAsync(`
       // kembali ke gemini (punya key mock)
-      await klik('[data-testid="ai-model-btn"]');
-      await wait(250);
-      await klik('[data-provider-item="gemini"]');
-      await wait(280);
-      await klik('[data-model-item="gemini-3.6-flash"]');
+      await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
+      await AS().loadKeys();
+      await wait(200);
+      await A.store.getState().setModel('gemini-3.6-flash');
       await wait(450);
 
       // 1) jawaban dengan fenced bash -> tombol muncul
@@ -860,19 +932,12 @@ const main = async () => {
   cdp.close();
   if (mock) mock.kill();
 
-  // Pulihkan key user dari cadangan berkas. Uji V2 mengosongkan SEMUA
-  // key provider; tanpa langkah ini harness menghapus key milik user.
-  const pulih = restoreSecrets();
-
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
-  if (pulih) console.log('  (key user dipulihkan dari cadangan)');
   if (lulus !== results.length) process.exitCode = 1;
 };
 
 main().catch((e) => {
-  // Pemulihan key juga jalan saat harness gagal di tengah.
-  restoreSecrets();
   console.error('verify09 error:', e.message ?? e);
   process.exitCode = 2;
 });

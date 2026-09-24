@@ -182,7 +182,10 @@ const main = async () => {
     await wait(600);
     const nyala = S.getState().settings.general.lowRam === true;
     const batasNyala = B.maxTabs();
-    // Buka 12 file: dengan lowRam batasnya 8, jadi minimal 4 harus dilepas.
+    // Buka 12 file: batas lowRam menentukan berapa yang boleh memegang konten,
+    // jadi sisanya harus dilepas. Angkanya dibaca dari store, bukan ditulis
+    // tetap di sini — batas lowRam pernah berubah (8 -> 4) dan harness lama
+    // tetap menuntut 8 sehingga gagal walau perilakunya benar.
     for (let i = 0; i < 12; i++) {
       await s.openPath(${J(WS)} + '\\\\tab' + String(i).padStart(2, '0') + '.txt');
     }
@@ -205,8 +208,9 @@ const main = async () => {
   check(
     'V3',
     v3.nyala === true &&
-      v3.batasNyala === 8 &&
-      v3.termuatNyala <= 8 &&
+      v3.batasNyala >= 4 &&
+      v3.batasNyala < 12 &&
+      v3.termuatNyala <= v3.batasNyala &&
       v3.dataLowram === '1' &&
       v3.dataSmooth === '0' &&
       v3.batasMati === 12,
@@ -314,11 +318,18 @@ const main = async () => {
     });
     await wait(400);
     await X.store.getState().loadKeys();
-    // PENTING: id model harus ADA di katalog. findModel untuk id tak dikenal
-    // fallback ke provider saat ini (gemini), jadi request tidak pernah dikirim
-    // ke openai dan yang muncul cuma toast "isi API key Gemini".
+    /*
+     * Provider aktif harus ikut berpindah, bukan hanya tersimpan di disk.
+     *
+     * aiChat() mengambil baseUrl dari providers[def.provider], dan
+     * def.provider ditentukan findModel(model, provider) — dengan provider
+     * store yang masih gemini, id model openai di-fallback ke gemini dan
+     * requestnya menuju OpenAI sungguhan (401), bukan alamat mati yang diuji.
+     */
     await X.store.getState().setModel('gpt-5.1-mini');
     await wait(300);
+    const providerUji = X.store.getState().provider;
+    const baseUrlUji = S.getState().settings.models.providers[providerUji]?.baseUrl ?? null;
     X.store.setState({ toast: null });
     // Panel AI harus TAMPIL supaya bubble error benar-benar ada di DOM
     // (bukti "muncul di chat area, bukan console" — syarat 16.3).
@@ -343,7 +354,8 @@ const main = async () => {
     TS().setVisible(false);
     return JSON.stringify({ ms, error: pesan ? pesan.error : null,
                             streaming: pesan ? pesan.streaming : null,
-                            errDom, pending: X.store.getState().pending });
+                            errDom, pending: X.store.getState().pending,
+                            providerUji, baseUrlUji });
   `,
     150000,
   );
@@ -354,7 +366,7 @@ const main = async () => {
       v7.streaming === false &&
       /koneksi internet|tidak bisa menghubungi/i.test(v7.error ?? '') &&
       (v7.errDom ?? '').length > 0,
-    `provider tidak menjawab: error datang dalam ${(v7.ms / 1000).toFixed(1)}s (timeout_connect 10s, tanpa retry — bukan hang), bubble error TAMPIL di area chat "${(v7.errDom ?? '').slice(0, 80)}", streaming berhenti, pending=null`,
+    `provider tidak menjawab: error datang dalam ${(v7.ms / 1000).toFixed(1)}s (timeout_connect 10s, tanpa retry — bukan hang), bubble error TAMPIL di area chat "${(v7.errDom ?? '').slice(0, 80)}", streaming berhenti, pending=null (provider=${v7.providerUji} baseUrl=${v7.baseUrlUji})`,
   );
 
   // ═════════ V8: Diagnostics tabel domain + export ═════════

@@ -1653,23 +1653,28 @@
   gap: 8px;
   padding: 4px 18px 18px;
 }
+/* Satu baris per layanan: merek di kiri, alamat di kanan.
+   Versi sebelumnya menumpuk keduanya secara vertikal di dalam kartu selebar
+   400px, jadi isinya menggantung di kiri dengan sisa ruang kosong besar. */
 .donate-opt {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 11px 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  height: 44px;
   text-align: left;
   border-radius: 8px;
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease;
 }
-/* Baris pertama tiap tombol: logo + nama layanan. */
+/* Kelompok merek: logo + nama layanan. */
 .donate-brand {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  min-width: 0;
 }
 .donate-brand > svg {
   flex: 0 0 auto;
@@ -1683,8 +1688,9 @@
   font-size: 11.5px;
   opacity: 0.7;
   font-family: var(--font-mono);
-  /* URL sejajar dengan teks nama, bukan dengan logonya. */
-  padding-left: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .donate-opt:hover:not(:disabled) {
   border-color: var(--brand-donate);
