@@ -12,10 +12,49 @@
 // server tiruan, sehingga bukti mencakup ai_chat/ai-chunk/ai_cancel asli.
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import WebSocket from 'ws';
 
 const PORT = process.argv[2] ?? '9223';
 const MOCK = 8098;
+
+/*
+ * Cadangan berkas secrets.json.
+ *
+ * Uji V2 memerlukan keadaan tanpa key sama sekali, jadi seluruh key provider
+ * dikosongkan lebih dulu. Frontend tidak bisa membaca nilai key asli (hanya
+ * hasKey), jadi pemulihannya TIDAK bisa lewat store — harus dari berkas.
+ * Tanpa cadangan ini, menjalankan harness akan menghapus key milik user.
+ */
+const SECRETS = path.join(process.env.APPDATA ?? '', 'zephyr', 'secrets.json');
+const SECRETS_BAK = path.join(
+  process.env.LOCALAPPDATA ?? os.tmpdir(),
+  'Temp',
+  'zephyr-secrets-verify09.bak',
+);
+
+function backupSecrets() {
+  try {
+    if (fs.existsSync(SECRETS)) fs.copyFileSync(SECRETS, SECRETS_BAK);
+    return fs.existsSync(SECRETS_BAK);
+  } catch {
+    return false;
+  }
+}
+
+function restoreSecrets() {
+  try {
+    if (fs.existsSync(SECRETS_BAK)) {
+      fs.copyFileSync(SECRETS_BAK, SECRETS);
+      return true;
+    }
+  } catch {
+    /* dibiarkan: pemulihan gagal tidak boleh menyembunyikan hasil uji */
+  }
+  return false;
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 class Cdp {
@@ -213,6 +252,10 @@ async function ensureMock() {
 }
 
 const main = async () => {
+  // Cadangkan secrets.json SEBELUM uji menyentuh key apa pun.
+  if (!backupSecrets()) {
+    console.warn('  [peringatan] secrets.json tidak ada / tidak bisa dicadangkan');
+  }
   const mock = await ensureMock();
   await mockReset();
 
@@ -232,16 +275,34 @@ const main = async () => {
     for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);
     s.tabs.slice().forEach((tab) => s.forceCloseTab(tab.id));
     await X.resetAll();
+
+    /*
+     * Uji V2 memerlukan keadaan TANPA key pada provider yang aktif.
+     *
+     * aiStore.init() memilih provider aktif hanya kalau provider itu punya
+     * key; kalau tidak, ia pindah ke provider ber-key pertama. Jadi provider
+     * aktif harus diarahkan ke provider yang memang belum punya key — bukan
+     * dengan menghapus key user.
+     *
+     * PENTING: key milik user (custom, github, provider lain) TIDAK BOLEH
+     * disentuh. Versi sebelumnya mengosongkan SETIAP provider yang punya key
+     * lewat setKey(id, ''), dan itu menghapus key user secara permanen.
+     */
     await X.setKey('gemini', '');
     await X.setKey('anthropic', '');
-    // Provider aktif harus salah satu yang TIDAK punya key, kalau tidak badge
-    // key hijau karena provider lain (mis. custom) masih menyimpan key user.
-    // Katalog sekarang punya 7 provider, bukan 3, jadi provider aktif dibaca
-    // dari daftar key alih-alih diasumsikan.
     await AS().loadKeys();
+
+    // Provider aktif = yang tidak punya key. Fallback ke 'gemini' kalau
+    // semua provider ternyata punya key (keadaan tanpa-key tidak mungkin).
     const tanpaKey = AS().keys.find((k) => !k.hasKey)?.provider ?? 'gemini';
     await s.applySettings({ models: { activeProvider: tanpaKey } });
     await s.reloadSettings();
+    await AS().loadKeys();
+
+    // Paksa store AI memakai provider tanpa key itu: init() akan memindahnya
+    // kembali ke provider ber-key kalau dibiarkan memilih sendiri.
+    AS().set?.({ provider: tanpaKey });
+    AS().setModel?.(tanpaKey);
     localStorage.removeItem('zephyr.ai.sessions.v1');
     AS().sessions.slice().forEach(x => AS().deleteChat(x.id));
     await AS().loadKeys();
@@ -751,7 +812,9 @@ const main = async () => {
       await bukaAi();
       await wait(3500);
       const ram = S.getState().ramBytes;
-      // bersih-bersih: hapus key uji, kosongkan chat, kembalikan settings & panel
+      // bersih-bersih: hapus key uji, kosongkan chat, kembalikan settings &
+      // panel. Key user dipulihkan dari cadangan berkas oleh sisi Node
+      // (lihat backupSecrets/restoreSecrets di main()).
       await X.setKey('gemini', '');
       await X.setKey('anthropic', '');
       // Kembalikan baseUrl provider ke nilai asli. Nilai null menghapus
@@ -797,12 +860,19 @@ const main = async () => {
   cdp.close();
   if (mock) mock.kill();
 
+  // Pulihkan key user dari cadangan berkas. Uji V2 mengosongkan SEMUA
+  // key provider; tanpa langkah ini harness menghapus key milik user.
+  const pulih = restoreSecrets();
+
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
+  if (pulih) console.log('  (key user dipulihkan dari cadangan)');
   if (lulus !== results.length) process.exitCode = 1;
 };
 
 main().catch((e) => {
+  // Pemulihan key juga jalan saat harness gagal di tengah.
+  restoreSecrets();
   console.error('verify09 error:', e.message ?? e);
   process.exitCode = 2;
 });

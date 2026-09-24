@@ -51,7 +51,7 @@ export default function DonateDialog() {
         </div>
         <div className="donate-body" data-testid="donate-options">
           <button
-            className="btn btn-primary donate-opt"
+            className="btn donate-opt"
             data-testid="donate-trakteer"
             onClick={() => {
               setOpen(false);

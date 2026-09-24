@@ -1690,10 +1690,29 @@
   border-color: var(--brand-donate);
   background-color: color-mix(in srgb, var(--brand-donate) 10%, transparent);
 }
-/* Tombol utama sudah punya latar aksen; hover-nya cukup ditegaskan. */
-.donate-opt.btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-hover);
-  border-color: var(--accent-hover);
+/* Kedua opsi memakai gaya kartu yang sama; pembedanya hanya warna merek,
+   supaya tidak ada satu kartu yang terlihat seperti tombol utama dan satu
+   seperti tombol sekunder padahal keduanya pilihan setara. */
+.donate-opt[data-testid='donate-trakteer'] .donate-brand > svg {
+  color: var(--brand-trakteer);
+}
+.donate-opt[data-testid='donate-saweria'] .donate-brand > svg {
+  color: var(--brand-saweria);
+}
+.donate-opt[data-testid='donate-trakteer']:hover:not(:disabled) {
+  border-color: var(--brand-trakteer);
+  background-color: color-mix(in srgb, var(--brand-trakteer) 10%, transparent);
+}
+.donate-opt[data-testid='donate-saweria']:hover:not(:disabled) {
+  border-color: var(--brand-saweria);
+  background-color: color-mix(in srgb, var(--brand-saweria) 10%, transparent);
+}
+/* Nama layanan ikut warna mereknya saat kartu disorot. */
+.donate-opt[data-testid='donate-trakteer']:hover:not(:disabled) strong {
+  color: var(--brand-trakteer);
+}
+.donate-opt[data-testid='donate-saweria']:hover:not(:disabled) strong {
+  color: var(--brand-saweria);
 }
 
 /* Changelog update (render markdown ringan + tabel) */
@@ -1809,6 +1828,17 @@
   margin: 3px 0 0;
   font-size: 12px;
   color: var(--text-muted);
+}
+/* Tombol tutup: beri ruang dari tepi supaya tidak menempel di sudut, dan
+   pastikan ukurannya tetap persegi walau di dalam dialog sempit. */
+.upd-dialog.donate-dialog .upd-dialog-x {
+  margin-left: auto;
+  flex: 0 0 auto;
+  min-width: 28px;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .upd-dialog-x {
   margin-left: auto;

@@ -103,6 +103,8 @@
   --brand-whatsapp: #25d366;
   --brand-github: var(--fg0);
   --brand-donate: var(--accent);
+  --brand-trakteer: #be1e2d;
+  --brand-saweria: #faa51a;
 }
 
 /* Tema terang: ANSI 0 harus benar-benar gelap (di tema gelap ia permukaan),
