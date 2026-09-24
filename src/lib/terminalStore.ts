@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
+import { usePanel } from './panelStore';
 import { disposeHandle } from './xtermRegistry';
 import type { AgentInfo, PaneKind, PaneMeta, ShellInfo, TerminalTab } from './types';
 
@@ -185,6 +186,17 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
 
   addPane: async (kind, opts) => {
     
+    /*
+     * Show the pane we are about to create.
+     *
+     * The bottom panel keeps its own active tab, and a pane whose tab is not
+     * the active one renders nothing at all — no .pane-grid, no xterm, no
+     * DOM. Creating a terminal pane while the panel sat on Problems or Output
+     * therefore produced a live process the user could not see. Switching to
+     * the terminal tab first is the same path the UI buttons take.
+     */
+    usePanel.getState().focusTab('terminal');
+
     let tabId = get().activeTabId;
     if (!tabId || !get().terminalTabs.some((t) => t.id === tabId)) tabId = get().newTab();
     const tab = get().terminalTabs.find((t) => t.id === tabId)!;
