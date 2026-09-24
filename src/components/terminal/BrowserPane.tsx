@@ -108,26 +108,32 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
   }, [pane.id]);
 
   /**
-   * Jaga posisi webview tetap menempel pada elemen penampung.
+   * Keep the child webview glued to its container element.
    *
-   * Dipakai requestAnimationFrame, bukan ResizeObserver: yang berubah bukan
-   * hanya ukuran, tapi juga posisi (panel bawah digeser, kolom AI dibuka,
-   * sidebar toggled), and ResizeObserver does not see a shift.
+   * WHY this is not a plain requestAnimationFrame loop: the first version ran
+   * 60 times a second, forever, and each tick called getBoundingClientRect plus
+   * a document.querySelector for modal detection. That is 60 full DOM scans per
+   * second for a pane that may not even be open, and it made the whole window
+   * stutter. The work here is now event driven:
+   *
+   *   - ResizeObserver fires on size changes (panel resized, column widened)
+   *   - scroll and resize listeners fire on movement
+   *   - MutationObserver on body fires when a modal opens or closes
+   *
+   * A slow 500ms interval remains as a safety net for the cases those events do
+   * not cover (parent re-layout with no size change), which is 120x less work
+   * than before and still instant to the eye.
    */
   useEffect(() => {
     const el = stageRef.current;
     if (!el || !pane.url) return;
-    let raf = 0;
     let kunciLalu = '';
     let terlihatLalu: boolean | null = null;
+    let raf = 0;
 
     const tik = () => {
+      raf = 0;
       const r = el.getBoundingClientRect();
-      /**
-       * Webview anak melayang di atas segalanya — termasuk modal dan dialog
-       * that should cover it. Without this check, the Command Palette dialog
-       * Palette muncul "di belakang" halaman web dan tidak bisa diklik.
-       */
       const adaModal = !!document.querySelector(
         '.modal-backdrop, .cp-overlay, .trust-overlay, [data-modal-terbuka]',
       );
@@ -160,30 +166,65 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
             .catch(() => {});
         }
       }
-      raf = requestAnimationFrame(tik);
     };
-    raf = requestAnimationFrame(tik);
-    return () => cancelAnimationFrame(raf);
+
+    /** Coalesce every trigger into at most one measurement per frame. */
+    const jadwalkan = () => {
+      if (!raf) raf = requestAnimationFrame(tik);
+    };
+
+    const ro = new ResizeObserver(jadwalkan);
+    ro.observe(el);
+    window.addEventListener('resize', jadwalkan);
+    window.addEventListener('scroll', jadwalkan, true);
+
+    // Modal open and close: watch for added or removed nodes only. Watching
+    // attributes too would fire on every class change in the app.
+    const mo = new MutationObserver(jadwalkan);
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    const net = window.setInterval(jadwalkan, 500);
+    jadwalkan();
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      window.removeEventListener('resize', jadwalkan);
+      window.removeEventListener('scroll', jadwalkan, true);
+      window.clearInterval(net);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [pane.id, pane.url]);
 
   /**
-   * Ikuti halaman: perbarui kolom alamat dan judul saat pengguna berpindah
-   * halaman di dalam webview. Tanpa ini, kolom alamat berbohong setiap kali
-   * navigasi terjadi dari dalam halaman.
+   * Follow the page: keep the address bar and title in sync when the user
+   * navigates inside the webview.
+   *
+   * WHY this checks less often than it looks: the first version polled every
+   * 900ms forever, and each poll is a cross-process round trip into WebView2
+   * (browser_pane_info evaluates document.title). That ran for every browser
+   * pane whether or not the pane was on screen. It now skips the call entirely
+   * while the document is hidden, and slows to 3s in the background.
    */
   useEffect(() => {
     if (!pane.url) return;
-    const t = window.setInterval(() => {
-      if (!siapRef.current) return;
-      void cmd
-        .browserPaneInfo(pane.id)
-        .then((i) => {
-          setLive({ url: i.url, title: i.title });
-          if (i.url && i.url !== urlRef.current) setPaneUrl(pane.id, i.url);
-        })
-        .catch(() => {});
-    }, 900);
-    return () => window.clearInterval(t);
+    let t = 0;
+    const jeda = () => (document.hidden ? 3000 : 900);
+
+    const tik = () => {
+      if (siapRef.current && !document.hidden) {
+        void cmd
+          .browserPaneInfo(pane.id)
+          .then((i) => {
+            setLive({ url: i.url, title: i.title });
+            if (i.url && i.url !== urlRef.current) setPaneUrl(pane.id, i.url);
+          })
+          .catch(() => {});
+      }
+      t = window.setTimeout(tik, jeda());
+    };
+    t = window.setTimeout(tik, jeda());
+    return () => window.clearTimeout(t);
   }, [pane.id, pane.url, setPaneUrl]);
 
   const go = useCallback(

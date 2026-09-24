@@ -14,6 +14,10 @@ import {
   dapSetVariable,
   dapSetBreakpoints,
   dapLoadedSources,
+  scanDir,
+  fsExists,
+  fsCreateDir,
+  fsWrite,
 } from './commands';
 import type { AdapterSpec, DebugConfig, LaunchFile } from './types';
 import { useStore } from './store';
@@ -101,6 +105,15 @@ interface DebugStoreState {
 interface DebugActions {
   muatLaunch: () => Promise<void>;
   muatAdapters: () => Promise<void>;
+  /**
+   * Write a starter .zephyr/launch.json for the open workspace.
+   *
+   * WHY this exists: without a launch.json, pressing Run does nothing but show
+   * "create launch.json first", and there was no way to create it from inside
+   * the editor. The user had to know the file name, the folder, and the schema
+   * by heart. This detects the project type and writes a config that works.
+   */
+  buatLaunch: () => Promise<boolean>;
   pilihConfig: (nama: string) => void;
 
   toggleBreakpoint: (path: string, line: number) => Promise<void>;
@@ -188,6 +201,153 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     }
   },
 
+  /**
+   * Write a starter .zephyr/launch.json for the open workspace.
+   *
+   * WHY detection instead of one fixed template: a launch.json that points at
+   * a file the project does not have fails the moment the user presses Run,
+   * which is the same dead end as having no file at all. The config is chosen
+   * from what is actually in the workspace.
+   */
+  buatLaunch: async () => {
+    const ws = useStore.getState().workspace;
+    if (!ws) {
+      notifyError(tx('Buka folder dulu sebelum membuat konfigurasi debug'), {
+        source: 'debug',
+      });
+      return false;
+    }
+
+    let nama: string[] = [];
+    try {
+      nama = (await scanDir(ws)).map((n) => n.name);
+    } catch {
+      /* an unreadable folder falls through to the generic config below */
+    }
+    const ada = (f: string) => nama.some((n) => n.toLowerCase() === f.toLowerCase());
+
+    const konfigurasi: Record<string, unknown>[] = [];
+
+    if (ada('package.json')) {
+      konfigurasi.push({
+        type: 'node',
+        request: 'launch',
+        name: 'Node: Debug Program',
+        program: '${workspaceFolder}/index.js',
+        skipFiles: ['<node_internals>/**'],
+      });
+      konfigurasi.push({
+        type: 'node',
+        request: 'launch',
+        name: 'Node: npm start',
+        runtimeExecutable: 'npm',
+        runtimeArgs: ['start'],
+        console: 'integratedTerminal',
+        skipFiles: ['<node_internals>/**'],
+      });
+      konfigurasi.push({
+        type: 'node',
+        request: 'attach',
+        name: 'Node: Attach to Process',
+        port: 9229,
+      });
+    }
+
+    if (ada('manage.py')) {
+      konfigurasi.push({
+        type: 'debugpy',
+        request: 'launch',
+        name: 'Python: Django',
+        program: '${workspaceFolder}/manage.py',
+        args: ['runserver'],
+        django: true,
+      });
+    }
+
+    if (ada('pyproject.toml') || ada('requirements.txt') || ada('setup.py')) {
+      konfigurasi.push({
+        type: 'debugpy',
+        request: 'launch',
+        name: 'Python: Current File',
+        program: '${file}',
+        console: 'integratedTerminal',
+      });
+    }
+
+    if (ada('cargo.toml')) {
+      konfigurasi.push({
+        type: 'lldb',
+        request: 'launch',
+        name: 'Rust: Debug Binary',
+        cargo: { args: ['build'] },
+      });
+    }
+
+    if (ada('go.mod')) {
+      konfigurasi.push({
+        type: 'go',
+        request: 'launch',
+        name: 'Go: Debug Package',
+        mode: 'auto',
+        program: '${fileDirname}',
+      });
+    }
+
+    if (ada('pom.xml')) {
+      konfigurasi.push({
+        type: 'java',
+        request: 'launch',
+        name: 'Java: Main Class',
+        mainClass: '${file}',
+      });
+    }
+
+    /*
+     * No recognised marker: still write a config, because an empty list leaves
+     * the user exactly where they started. The generic entry runs the file that
+     * is open, which is the most common thing anyone wants from F5.
+     */
+    if (konfigurasi.length === 0) {
+      konfigurasi.push({
+        type: 'node',
+        request: 'launch',
+        name: 'Debug Current File',
+        program: '${file}',
+        console: 'integratedTerminal',
+      });
+    }
+
+    const isi =
+      JSON.stringify(
+        {
+          version: '0.2.0',
+          configurations: konfigurasi,
+        },
+        null,
+        2,
+      ) + '\n';
+
+    const folder = `${ws}\\.zephyr`;
+    const file = `${folder}\\launch.json`;
+    try {
+      if (!(await fsExists(folder))) await fsCreateDir(folder);
+      await fsWrite(file, isi);
+    } catch (e) {
+      notifyError(tx('Gagal membuat launch.json'), {
+        source: 'debug',
+        detail: pesan(e),
+      });
+      return false;
+    }
+
+    notifyInfo(`launch.json dibuat dengan ${konfigurasi.length} konfigurasi`, {
+      source: 'debug',
+      detail: file,
+    });
+    await get().muatLaunch();
+    return true;
+  },
+
   pilihConfig: (nama) => set({ configTerpilih: nama }),
 
   breakpointsUntuk: (path) =>
@@ -225,12 +385,22 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   start: async (nama) => {
     const s = get();
     const cfgNama = nama ?? s.configTerpilih;
-    const cfg = s.launch?.configurations.find((c) => c.name === cfgNama);
+    let cfg = s.launch?.configurations.find((c) => c.name === cfgNama);
+
+    /*
+     * No config yet: create one instead of stopping at an error.
+     *
+     * The old behaviour showed "create .zephyr/launch.json first" and left it
+     * there, so pressing Run on a fresh project always ended in a dead end
+     * unless the user already knew the file name, the folder, and the schema.
+     * Writing a detected config and continuing is what the Run button is for.
+     */
     if (!cfg) {
-      notifyError(tx('Tidak ada konfigurasi debug. Buat .zephyr/launch.json dulu.'), {
-        source: 'debug',
-      });
-      return false;
+      const dibuat = await get().buatLaunch();
+      if (!dibuat) return false;
+      const s2 = get();
+      cfg = s2.launch?.configurations.find((c) => c.name === s2.configTerpilih);
+      if (!cfg) return false;
     }
 
     set({

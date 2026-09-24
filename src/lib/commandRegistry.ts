@@ -1421,6 +1421,15 @@ export const COMMANDS: CommandDef[] = [
     },
   },
   {
+    id: 'debug.createLaunch',
+    title: 'Debug: Create launch.json',
+    group: 'Debug',
+    keywords: 'debug konfigurasi launch buat baru config',
+    run: async () => {
+      await useDebug.getState().buatLaunch();
+    },
+  },
+  {
     id: 'debug.start',
     title: 'Debug: Start Debugging',
     group: 'Debug',

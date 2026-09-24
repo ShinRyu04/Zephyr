@@ -120,11 +120,14 @@ mod sys {
         Ok(hasil)
     }
 
-    /// Process name from a pid, via Toolhelp32 (no cmd, no WMI).
-    fn nama_proses(pid: u32) -> String {
-        if pid == 0 {
-            return String::new();
-        }
+    /// Build a pid-to-process-name map from ONE system snapshot.
+    ///
+    /// WHY the map and not a lookup per pid: CreateToolhelp32Snapshot walks the
+    /// entire process table, and the first version called it once per listening
+    /// port. On a machine with 25 listening ports that is 25 full process
+    /// enumerations per scan, every 5 seconds, which is visible as stutter in
+    /// the whole window. One snapshot serves every port.
+    fn peta_pid_ke_nama() -> HashMap<u32, String> {
         #[repr(C)]
         struct ProcessEntry32 {
             dw_size: u32,
@@ -148,37 +151,36 @@ mod sys {
         const TH32CS_SNAPPROCESS: u32 = 0x2;
         const INVALID: isize = -1;
 
+        let mut peta = HashMap::new();
         unsafe {
             let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
             if snap == INVALID {
-                return String::new();
+                return peta;
             }
             let mut e: ProcessEntry32 = std::mem::zeroed();
             e.dw_size = std::mem::size_of::<ProcessEntry32>() as u32;
-            let mut nama = String::new();
             if Process32First(snap, &mut e) != 0 {
                 loop {
-                    if e.th32_process_id == pid {
-                        let akhir = e
-                            .sz_exe_file
-                            .iter()
-                            .position(|&c| c == 0)
-                            .unwrap_or(e.sz_exe_file.len());
-                        nama = String::from_utf8_lossy(&e.sz_exe_file[..akhir]).to_string();
-                        break;
-                    }
+                    let akhir = e
+                        .sz_exe_file
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(e.sz_exe_file.len());
+                    let nama = String::from_utf8_lossy(&e.sz_exe_file[..akhir]).to_string();
+                    peta.insert(e.th32_process_id, nama);
                     if Process32Next(snap, &mut e) == 0 {
                         break;
                     }
                 }
             }
             CloseHandle(snap);
-            nama
         }
+        peta
     }
 
     pub fn daftar() -> ZResult<Vec<PortInfo>> {
         let mut peta: HashMap<u16, PortInfo> = HashMap::new();
+        let nama_pid = peta_pid_ke_nama();
         for r in baris()? {
             if r.state != MIB_TCP_STATE_LISTEN {
                 continue;
@@ -199,7 +201,7 @@ mod sys {
             peta.entry(port).or_insert(PortInfo {
                 port,
                 alamat,
-                proses: nama_proses(r.owning_pid),
+                proses: nama_pid.get(&r.owning_pid).cloned().unwrap_or_default(),
                 pid: r.owning_pid,
             });
         }
