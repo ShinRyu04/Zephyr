@@ -107,7 +107,7 @@ export default function LspOverlay() {
           await cmd.fsWrite(file, teksBaru);
           fileLain++;
         } catch (e) {
-          notifyError(`Gagal menulis ${file}`, { source: 'LSP', detail: String(e) });
+          notifyError(`Gagal menulis ${file}`, { source: 'LSP', detail: cmd.asZephyrError(e).message });
         }
       }
       notifyInfo(
@@ -117,7 +117,7 @@ export default function LspOverlay() {
       );
       tutup();
     } catch (e) {
-      notifyError(tx('Rename gagal'), { source: 'LSP', detail: String(e) });
+      notifyError(tx('Rename gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
       tutup();
     } finally {
       setSibuk(false);
@@ -149,7 +149,7 @@ export default function LspOverlay() {
         setIdx(0);
         if (items.length === 0) notifyInfo(tx('Tidak ada quick fix di posisi ini'), { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Quick Fix gagal'), { source: 'LSP', detail: String(e) });
+        notifyError(tx('Quick Fix gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
         setMode(null);
       } finally {
         setSibuk(false);
@@ -206,7 +206,7 @@ export default function LspOverlay() {
         { source: 'LSP' },
       );
     } catch (e) {
-      notifyError(tx('Code action gagal'), { source: 'LSP', detail: String(e) });
+      notifyError(tx('Code action gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
     }
     tutup();
   };
@@ -250,7 +250,7 @@ export default function LspOverlay() {
         setIdx(0);
         if (out.length === 0) notifyInfo(tx('Tidak ada simbol di file ini'), { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Go to Symbol gagal'), { source: 'LSP', detail: String(e) });
+        notifyError(tx('Go to Symbol gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
         setMode(null);
       } finally {
         setSibuk(false);

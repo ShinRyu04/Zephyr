@@ -18,6 +18,7 @@ import {
   fsExists,
   fsCreateDir,
   fsWrite,
+  asZephyrError,
 } from './commands';
 import type { AdapterSpec, DebugConfig, LaunchFile } from './types';
 import { useStore } from './store';
@@ -697,7 +698,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
 const pesan = (e: unknown): string =>
   e && typeof e === 'object' && 'message' in e
     ? String((e as { message: unknown }).message)
-    : String(e);
+    : asZephyrError(e).message;
 
 const kirimBreakpoints = async (path: string) => {
   const st = useDebug.getState();

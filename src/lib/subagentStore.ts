@@ -311,7 +311,7 @@ async function jalankanSatu(
             const { jalankanAgentTool } = await import('./agentTools');
             hasil = await jalankanAgentTool(tc.name, argsObj);
           } catch (e) {
-            hasil = `ERROR: ${(e as Error).message ?? String(e)}`;
+            hasil = `ERROR: ${cmd.asZephyrError(e).message}`;
             ok = false;
           }
         }
@@ -345,7 +345,7 @@ async function jalankanSatu(
     ubah((a) => ({
       ...a,
       status: 'gagal',
-      error: (e as Error).message ?? String(e),
+      error: cmd.asZephyrError(e).message,
       selesai: Date.now(),
     }));
   } finally {

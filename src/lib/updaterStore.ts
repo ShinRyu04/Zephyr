@@ -114,7 +114,8 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         });
       }
     } catch (e) {
-      const pesan = e instanceof Error ? e.message : String(e);
+      // Error dari invoke Tauri berbentuk { code, message }, bukan Error.
+      const pesan = cmd.asZephyrError(e).message;
       if (belumDikonfigurasi(pesan)) {
         set({
           status: 'unconfigured',
@@ -164,7 +165,8 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       const notes = get().notes ?? '';
       void cmd.setSettings({ update: { pendingNotes: notes } }).catch(() => {});
     } catch (e) {
-      const pesan = e instanceof Error ? e.message : String(e);
+      // Error dari invoke Tauri berbentuk { code, message }, bukan Error.
+      const pesan = cmd.asZephyrError(e).message;
       set({ status: 'error', message: tf('update.installFailed', { e: pesan }) });
     }
   },
@@ -174,7 +176,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     } catch (e) {
-      set({ message: tf('update.restartFailed', { e: String(e) }) });
+      set({ message: tf('update.restartFailed', { e: cmd.asZephyrError(e).message }) });
     }
   },
 

@@ -6,6 +6,7 @@ import {
   tasksWait,
   tasksKill,
   tasksClearRuns,
+  asZephyrError,
 } from './commands';
 import type { TaskDef, TaskRun, TaskProblem, TasksFile } from './types';
 import { useOutput } from './outputStore';
@@ -125,7 +126,9 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       }
       return f;
     } catch (e) {
-      const msg = String(e);
+      // Error dari invoke Tauri berbentuk { code, message }, bukan Error
+      // biasa; asZephyrError(e).message mencetak "[object Object]" ke toast user.
+      const msg = asZephyrError(e).message;
       set({ loading: false, error: msg, file: null });
       useNotif.getState().notify({
         severity: 'error',
@@ -243,7 +246,9 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
         endsPattern: def.background?.endsPattern || undefined,
       });
     } catch (e) {
-      const msg = String(e);
+      // Error dari invoke Tauri berbentuk { code, message }, bukan Error
+      // biasa; asZephyrError(e).message mencetak "[object Object]" ke toast user.
+      const msg = asZephyrError(e).message;
       useOutput.getState().append(ch, `[zephyr] gagal menjalankan: ${msg}`);
       useNotif.getState().notify({
         severity: 'error',
@@ -279,7 +284,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       tulisProblems(runId, label);
       return r;
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: asZephyrError(e).message });
       return null;
     }
   },
@@ -311,7 +316,9 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
         isBackground: false,
       });
     } catch (e) {
-      const msg = String(e);
+      // Error dari invoke Tauri berbentuk { code, message }, bukan Error
+      // biasa; asZephyrError(e).message mencetak "[object Object]" ke toast user.
+      const msg = asZephyrError(e).message;
       useOutput.getState().append(ch, `[zephyr] gagal menjalankan: ${msg}`);
       set({ error: msg });
       return null;

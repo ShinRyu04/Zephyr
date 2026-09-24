@@ -951,7 +951,7 @@ export const useAi = create<AiStore>((set, get) => ({
               try {
                 hasil = await jalankanAgentTool(tc.name, argsObj);
               } catch (e) {
-                hasil = `ERROR: ${(e as Error).message ?? String(e)}`;
+                hasil = `ERROR: ${cmd.asZephyrError(e).message}`;
                 ok = false;
               }
             }
@@ -959,7 +959,7 @@ export const useAi = create<AiStore>((set, get) => ({
             try {
               hasil = await jalankanAgentTool(tc.name, argsObj);
             } catch (e) {
-              hasil = `ERROR: ${(e as Error).message ?? String(e)}`;
+              hasil = `ERROR: ${cmd.asZephyrError(e).message}`;
               ok = false;
             }
           }

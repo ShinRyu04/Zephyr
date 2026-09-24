@@ -71,7 +71,7 @@ v1 extensions only have their `package.json` read, registering
 This is deliberate and will not change without a proper sandbox. Running
 extension JS in the same WebView would give third-party extensions full access
 to `window`, and through it to all of IPC — filesystem, PTY, git, and secrets.
-Extensions with a broken manifest or a `main` over 1 MB are forced to
+Extensions with a broken manifest or a `main` over 20 MB are forced to
 `enabled: false`.
 
 ### File writes are limited to the workspace

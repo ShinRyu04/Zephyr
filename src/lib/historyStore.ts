@@ -7,6 +7,7 @@ import {
   historyPrune,
   historyStats,
   gitLog,
+  asZephyrError,
 } from './commands';
 import type { HistoryInfo, Snapshot, TimelineEntry } from './types';
 import { kunciPath } from './pathKey';
@@ -110,7 +111,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
         loading: false,
       });
     } catch (e) {
-      set({ loading: false, error: String(e), info: null, timeline: [] });
+      set({ loading: false, error: asZephyrError(e).message, info: null, timeline: [] });
     }
   },
 
@@ -127,7 +128,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
       return r.id;
     } catch (e) {
       
-      notifyWarn(`Local History gagal: ${String(e)}`, { source: 'history' });
+      notifyWarn(`Local History gagal: ${asZephyrError(e).message}`, { source: 'history' });
       return '';
     }
   },
@@ -149,7 +150,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
       const isi = await historyRead(file, id);
       set({ dipilih: id, isiSnapshot: isi });
     } catch (e) {
-      set({ error: String(e), isiSnapshot: null });
+      set({ error: asZephyrError(e).message, isiSnapshot: null });
     }
   },
 
@@ -182,7 +183,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
       });
       return true;
     } catch (e) {
-      notifyError(`Restore gagal: ${String(e)}`, { source: 'history' });
+      notifyError(`Restore gagal: ${asZephyrError(e).message}`, { source: 'history' });
       return false;
     }
   },
@@ -195,7 +196,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
       notifyInfo(`${n} snapshot dihapus`, { source: 'history' });
       await get().muat(f);
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: asZephyrError(e).message });
     }
   },
 

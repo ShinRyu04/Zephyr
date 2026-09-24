@@ -6,6 +6,7 @@ import {
   searchRgInfo,
   searchReplace,
   searchFiles as searchFilesBawaan,
+  asZephyrError,
 } from './commands';
 import type { RgHit, SearchOpts, SearchSummary, ReplaceHasil } from './types';
 import { useStore } from './store';
@@ -204,7 +205,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
       }
       return sum;
     } catch (e) {
-      const z = e && typeof e === 'object' && 'message' in e ? (e as { message: string }).message : String(e);
+      const z = e && typeof e === 'object' && 'message' in e ? (e as { message: string }).message : asZephyrError(e).message;
       set({ running: false, error: z });
       return null;
     }
@@ -293,7 +294,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
         const ok = await H.restore(h.snapshot);
         if (ok) n++;
       } catch (e) {
-        notifyError(`Undo gagal untuk ${h.path}: ${String(e)}`, { source: 'search' });
+        notifyError(`Undo gagal untuk ${h.path}: ${asZephyrError(e).message}`, { source: 'search' });
       }
     }
     if (n > 0) {

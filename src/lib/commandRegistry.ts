@@ -24,6 +24,7 @@ import {
   fileDialogOpen as fileDialogOpenCmd,
   fileDialogSave as fileDialogSaveCmd,
   folderDialogOpen as folderDialogOpenCmd,
+  asZephyrError,
 } from './commands';
 import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
@@ -1055,7 +1056,7 @@ export const COMMANDS: CommandDef[] = [
         await S().openPath(loc.file);
         window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
       } catch (e) {
-        notifyError(tx('Go to Definition gagal'), { source: 'LSP', detail: String(e) });
+        notifyError(tx('Go to Definition gagal'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1098,7 +1099,7 @@ export const COMMANDS: CommandDef[] = [
         usePanel.getState().focusTab('problems');
         notifyInfo(`${refs.length} referensi di ${byFile.size} file`, { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Find References gagal'), { source: 'LSP', detail: String(e) });
+        notifyError(tx('Find References gagal'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1117,7 +1118,7 @@ export const COMMANDS: CommandDef[] = [
         const n = await lspFormat(path, view, ed.tabSize, ed.insertSpaces);
         notifyInfo(n > 0 ? `Dokumen diformat (${n} perubahan)` : 'Sudah rapi', { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Format gagal'), { source: 'LSP', detail: String(e) });
+        notifyError(tx('Format gagal'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },

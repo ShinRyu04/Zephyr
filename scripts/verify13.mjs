@@ -9,7 +9,7 @@
 // getComputedStyle SUNGGUHAN (token + warna span syntax CodeMirror + tema
 // xterm yang sedang dipakai instance), dan ekstensi dibuktikan dengan folder
 // paket NYATA yang ditulis harness ke %APPDATA%\zephyr\extensions\ lalu
-// dibaca Rust — termasuk satu paket dengan index.js >1MB untuk V7.
+// dibaca Rust — termasuk satu paket dengan index.js >20MB untuk V7.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -197,7 +197,7 @@ function writeDummy(root) {
   return dir;
 }
 
-/** Paket dengan index.js >1MB (V7). */
+/** Paket dengan index.js >20MB (V7). */
 function writeBig(root) {
   const dir = path.join(root, 'zephyr-kebesaran-test');
   fs.rmSync(dir, { recursive: true, force: true });
@@ -209,7 +209,7 @@ function writeBig(root) {
         name: 'zephyr-kebesaran-test',
         displayName: 'Kebesaran Test',
         version: '0.1.0',
-        description: 'index.js lebih dari 1MB — harus ditolak',
+        description: 'index.js lebih dari 20MB — harus ditolak',
         main: 'index.js',
         contributes: { commands: [{ command: 'jangan', title: 'Zephyr: Jangan Muncul' }] },
       },
@@ -217,8 +217,11 @@ function writeBig(root) {
       2,
     ),
   );
-  // 1.3 MB
-  fs.writeFileSync(path.join(dir, 'index.js'), 'x'.repeat(1_300_000));
+  // Di atas batas 20 MB. Dulu fixture-nya 1.3 MB karena batasnya masih
+  // 1 MB; batas itu dinaikkan ke 20 MB di v1.1.7 dan uji ini tidak ikut
+  // berubah, jadi file 1.3 MB lolos (memang seharusnya lolos) dan ujinya
+  // gagal padahal aplikasinya benar.
+  fs.writeFileSync(path.join(dir, 'index.js'), 'x'.repeat(21 * 1024 * 1024));
   return dir;
 }
 
@@ -270,7 +273,7 @@ const main = async () => {
     // (ensure_trusted di Rust), sedangkan harness ini ditulis di fase 13 dan
     // tidak pernah membuka folder. Kalau verify12 dijalankan lebih dulu — ia
     // MENGOSONGKAN workspace di pembersihan V11 — V7 gagal dengan "Memuat
-    // ekstensi butuh workspace terbuka", bukan dengan pesan batas 1MB yang
+    // ekstensi butuh workspace terbuka", bukan dengan pesan batas ukuran yang
     // sedang diuji.
     // window.__ZEPHYR_WS__ langsung: prelude verify13 dibuat di fase 13 dan
     // tidak punya alias 'WS' (bridge trust baru ada di fase 29).
@@ -579,7 +582,7 @@ const main = async () => {
     `Folder ekstensi nyata terdeteksi (${v6.path}); selama mati 0 command manifest bocor ke palette; setelah toggle → settings.json memuat id-nya, "Zephyr: Halo" jadi baris teratas palette (grup Extensions, DOM: ${JSON.stringify(v6.barisDom[0])}) dan bisa dijalankan (status: ${JSON.stringify(String(v6.status).slice(0, 60))})`,
   );
 
-  // ───────── V7: ekstensi >1MB ditolak dengan pesan ─────────
+  // ───────── V7: ekstensi >20MB ditolak dengan pesan ─────────
   const bigBytes = fs.statSync(path.join(bigDir, 'index.js')).size;
   const v7 = JSON.parse(
     await cdp.runAsync(`
@@ -588,7 +591,12 @@ const main = async () => {
       const info = X.list().find(e => e.id === 'zephyr-kebesaran-test');
       // Muat lewat jalur Rust langsung supaya errornya terlihat apa adanya.
       let pesan = null;
-      try { await X.loadRaw('zephyr-kebesaran-test'); } catch (e) { pesan = e?.message ?? String(e); }
+      // Konversi lewat helper app: error dari invoke Tauri bukan Error
+      // biasa, jadi e.message undefined dan pesannya tercetak "null".
+      try { await X.loadRaw('zephyr-kebesaran-test'); } catch (e) {
+        window.__V7_ERR__ = String(e).slice(0, 120);
+        pesan = X.asErr(e)?.message ?? String(e);
+      }
       // Coba aktifkan: command-nya TIDAK boleh masuk palette.
       await X.toggle('zephyr-kebesaran-test', true);
       await wait(600);
@@ -601,19 +609,26 @@ const main = async () => {
         info, pesan, enabledSetelah: setelah?.enabled ?? null,
         errorSetelah: setelah?.error ?? null, cmdIds, errDom, kartuRusak,
         bytes: setelah?.mainBytes ?? null,
+        // Bukti diagnosa: nilai mentah supaya kegagalan bisa dibaca.
+        adaAsErr: typeof X.asErr,
+        adaLoadRaw: typeof X.loadRaw,
+        errStringMentah: window.__V7_ERR__ ?? null,
+        infoError: info?.error ?? null,
       });
     `),
   );
   check(
     'V7',
-    v7.info?.error?.includes('1MB') &&
-      String(v7.pesan).includes('1MB') &&
+    v7.info?.error?.includes('20 MB') &&
+      String(v7.pesan).includes('20 MB') &&
       v7.enabledSetelah === false &&
       v7.cmdIds.every((x) => !x.startsWith('ext.zephyr-kebesaran-test')) &&
-      String(v7.errDom).includes('1MB') &&
+      String(v7.errDom).includes('20 MB') &&
       v7.kartuRusak === '1' &&
       v7.bytes === bigBytes,
-    `index.js ${Math.round(bigBytes / 1024)} KB ditolak: extensions_load melempar "${String(v7.pesan).slice(0, 70)}…", kartunya ditandai rusak di UI dengan pesan yang sama, dan walau di-toggle ia tetap enabled=false sehingga command-nya tidak pernah masuk palette`,
+    `index.js ${Math.round(bigBytes / 1024)} KB ditolak: extensions_load melempar "${String(v7.pesan).slice(0, 70)}…", kartunya ditandai rusak di UI dengan pesan yang sama, dan walau di-toggle ia tetap enabled=false sehingga command-nya tidak pernah masuk palette` +
+      `
+         kondisi: infoErr=${JSON.stringify(v7.infoError)} pesanMB=${String(v7.pesan).includes('20 MB')} enabled=${v7.enabledSetelah} errDomMB=${String(v7.errDom).includes('20 MB')} kartuRusak=${JSON.stringify(v7.kartuRusak)} bytesCocok=${v7.bytes === bigBytes} adaAsErr=${v7.adaAsErr} errMentah=${JSON.stringify(v7.errStringMentah)}`,
   );
 
   // ───────── V8: marketplace placeholder tampil rapi ─────────

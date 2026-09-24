@@ -585,7 +585,7 @@ function DiagnosticsPanel() {
         setD(x);
         setErr(null);
       })
-      .catch((e) => setErr(String(e)));
+      .catch((e) => setErr(cmd.asZephyrError(e).message));
   };
 
   useEffect(() => {

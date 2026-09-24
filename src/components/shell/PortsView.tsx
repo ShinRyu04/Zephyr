@@ -4,6 +4,7 @@ import { useTerminal } from '../../lib/terminalStore';
 import { notifyError, notifyInfo } from '../../lib/notificationStore';
 import { clipboardWrite } from '../../lib/clipboard';
 import { useT, tx } from '../../lib/i18n';
+import * as cmd from '../../lib/commands';
 
 export default function PortsView() {
   const tr = useT();
@@ -43,7 +44,9 @@ export default function PortsView() {
     } catch (e) {
       notifyError(`Tidak bisa membuka ${url}`, {
         source: 'ports',
-        detail: e instanceof Error ? e.message : String(e),
+        // Error dari invoke Tauri berbentuk { code, message }, bukan Error,
+        // jadi cabang String(e) mencetak "[object Object]".
+        detail: cmd.asZephyrError(e).message,
       });
     }
   };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { openPath } from '@tauri-apps/plugin-opener';
-import { selfTest } from '../../lib/commands';
+import { selfTest, asZephyrError} from '../../lib/commands';
 import { clipboardWrite } from '../../lib/clipboard';
 import type { Diagnostics, SelfTestItem } from '../../lib/types';
 
@@ -14,7 +14,7 @@ export function SelfTestPanel() {
     setErr(null);
     selfTest()
       .then((x) => setItems(x))
-      .catch((e) => setErr(String(e)))
+      .catch((e) => setErr(asZephyrError(e).message))
       .finally(() => setJalan(false));
   };
 
@@ -111,7 +111,7 @@ export function ExportPanel({ d }: { d: Diagnostics | null }) {
         disabled={!d?.logFile}
         onClick={() => {
           const dir = (d?.logFile ?? '').replace(/[\\/][^\\/]+$/, '');
-          if (dir) void openPath(dir).catch((e) => setPesan(String(e)));
+          if (dir) void openPath(dir).catch((e) => setPesan(asZephyrError(e).message));
         }}
       >
         Buka folder log

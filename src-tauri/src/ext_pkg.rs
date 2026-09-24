@@ -694,6 +694,9 @@ pub fn extensions_read_contrib(state: State<AppState>, id: String, rel: String) 
 
 #[tauri::command]
 pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> ZResult<String> {
+    // Batas file main ekstensi. Dinaikkan dari 1 MB ke 20 MB di v1.1.7 supaya
+    // ekstensi besar tetap bisa dimuat; pesan errornya dulu tidak ikut berubah
+    // sehingga laporan ke user menyebut angka yang salah.
     const MAX_MAIN_BYTES: u64 = 20 * 1024 * 1024;
     let dir =
         ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
@@ -709,8 +712,9 @@ pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> 
     let sz = std::fs::metadata(&file)?.len();
     if sz > MAX_MAIN_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            "{rel} berukuran {} KB — batas 1MB",
-            sz / 1024
+            "{rel} berukuran {} KB — batas {} MB",
+            sz / 1024,
+            MAX_MAIN_BYTES / 1024 / 1024
         )));
     }
     std::fs::read_to_string(&file).map_err(ZephyrError::from)
