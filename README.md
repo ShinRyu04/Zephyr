@@ -13,8 +13,6 @@ Rust. Not a VS Code fork, not Electron.
 
 </div>
 
-![Zephyr — editor, explorer, and terminal](docs/screenshots/01-editor.png)
-
 ## Why this exists
 
 I wanted an editor that feels like VS Code but does not drag along its own
@@ -84,8 +82,6 @@ installer. Data and settings live in `%APPDATA%\zephyr\`.
 Data and settings sit in `%APPDATA%\zephyr\`. Delete that folder for a full
 reset.
 
-![Settings → SSH: manage hosts and open sessions as terminal panes](docs/screenshots/04-ssh.png)
-
 ## What is inside
 
 **Editor** — CodeMirror 6. Multi-file tabs, encoding detection (UTF-8, BOM,
@@ -105,8 +101,6 @@ are stored only if you pick "save", and even then encrypted (XOR+BLAKE3) in
 **Source Control** — status, diff, stage, commit, branch, push/pull/sync, log.
 Binary file diffs get a label instead of dumping raw bytes. Pushing when the
 remote moved ahead offers a pull first instead of failing quietly.
-
-![Source Control with real changes](docs/screenshots/02-source-control.png)
 
 **Language intelligence** — per-language LSP: completion, hover,
 go-to-definition, diagnostics, rename. Debugging through DAP (js-debug) with
@@ -132,8 +126,6 @@ or hit the expand button to let it take the full window, VS Code style. The AI
 tab in the bottom strip disappears while the chat lives on the right, and the
 subagent info panel can sit beside the chat (toggle it in Customize Layout).
 
-![AI panel docked right, bottom panel closed](docs/screenshots/39-ai-kanan-tanpa-panel.png)
-
 **Subagents — a tab of their own** — subagents are started **by you**, from the
 Subagents tab, and are deliberately **not** callable by the chat model. Ask for
 several jobs at once and they run **in parallel**, each with its own name
@@ -148,8 +140,6 @@ from the task text. A **Reasoning** dropdown sets how hard the chat model thinks
 `thinkingConfig.thinkingBudget`), and the model's thinking streams into a
 collapsible **Reasoned** block instead of being thrown away.
 
-![Subagents tab with live steps](docs/screenshots/21-tab-subagents-isi.png)
-
 **Customize Layout** — one panel (the layout button in the title bar, or
 `View: Customize Layout`) gathers every visibility control in one place:
 **Menu Bar, Activity Bar, Primary Side Bar, Panel, Status Bar**, side bar
@@ -159,16 +149,12 @@ are saved, so the layout you set is the layout you get next time. The AI panel
 has its own hide button too — closing it from inside the panel, the way the VS
 Code chat panel works.
 
-![Customize Layout panel](docs/screenshots/14-customize-layout.png)
-
 **Themes — 19 of them** — Zephyr Dark and Light, Nord, Tokyo Night, Gruvbox,
 One Dark Pro, Senja, Acrylic, High Contrast, **Dracula, Catppuccin Mocha, Rosé
 Pine, Kanagawa, Everforest, GitHub Dark, Ayu Mirage, Solarized Light, Nord
 Light, Min Light**. Each theme sets every token at once (UI, editor, syntax,
 terminal), so nothing falls through to another theme's colours, and the accent
 colour can be overridden on its own.
-
-![Theme gallery](docs/screenshots/36-tema-19.png)
 
 **Background image** — pick any PNG/JPG/GIF/WebP/BMP and use it as the editor
 backdrop, with a strength slider and three presets (faint / medium / clear), a
@@ -179,21 +165,11 @@ image is read by Rust into a data URL (max 8 MB, type detected from the magic
 bytes rather than the file extension), so no extra read permissions are needed
 and no path leaks into the stylesheet.
 
-![Custom background](docs/screenshots/38-wallpaper-editor.png)
-
-![Background settings](docs/screenshots/37-latar-panel.png)
-
 **Zen mode, image preview** — `View: Toggle Zen Mode` (or the command palette)
 hides the Activity Bar, sidebar, panel, and status bar so only the editor is
 left. Opening a `.png/.jpg/.gif/.webp/.bmp/.ico/.avif/.svg` shows a real preview
 with zoom and a checkerboard for transparency, instead of dumping binary into
 the editor.
-
-![AI panel with its own hide button](docs/screenshots/15-panel-ai-hide.png)
-
-![Compact layout density](docs/screenshots/16-layout-compact.png)
-
-![Zen mode: editor only](docs/screenshots/13-zen-mode.png)
 
 **Command palette** — `Ctrl+Shift+P` for commands, `Ctrl+P` for files, one modal
 with two modes. Every entry shows its current shortcut, taken from the same
@@ -202,15 +178,11 @@ behaviour. Fuzzy matching runs over titles first; keywords use subsequence
 matching only as a fallback, because a loose pass over long keyword strings made
 "git" match 22 of 38 commands and the list stopped meaning anything.
 
-![Command palette](docs/screenshots/40-palette.png)
-
 **About page** — one identity card, one build card (platform, identifier,
 licence, source repo), then the row of things you actually click: check for
 updates, view on GitHub, report an issue, join the WhatsApp group, support the
 project. Rarely-used utilities (copy system info, open log folder, open data
 folder, releases page) sit below as quiet links instead of five large buttons.
-
-![About page](docs/screenshots/41-about-ringkas.png)
 
 **CLI subcommands** — `zephyr ext list`, `zephyr ext remove <id>`,
 `zephyr ext registry [url]`, and `zephyr info` work without opening a window, so
@@ -230,8 +202,6 @@ misbehaving AI cannot wreck a file without you saving it.
 `Ctrl+P` for files. Matching runs in layers: prefix, word start, substring,
 then subsequence.
 
-![Command palette](docs/screenshots/03-palette.png)
-
 **GitHub login** — sign in with your GitHub account through the device flow
 (browser), show up as an avatar in the bottom-left corner, push and pull
 without credential hassle. Clicking the avatar opens an account menu (name,
@@ -243,8 +213,6 @@ sign out, manage token) instead of jumping straight into a login flow.
 **Extensions & Marketplace** — find and install extensions from Open VSX right
 in the Extensions panel, with real logos, download counts, ratings, and
 category filters; or install a manual `.vsix` from a folder.
-
-![Extension marketplace with real logos](docs/screenshots/05-market.png)
 
 **Update notifications** — Zephyr can check for new releases from inside the
 app (Settings → Tentang → Check update) and install them itself. Turn on
@@ -358,8 +326,7 @@ npm run verify:31          # terminal 3
 ```
 
 Harnesses live in `scripts/verify*.mjs`. Rust unit tests: `cd src-tauri &&
-cargo test --lib` (148 tests). The screenshots in this README also come from
-the live app through `scripts/shot.mjs`, not mockups.
+cargo test --lib` (148 tests).
 
 ## License
 
