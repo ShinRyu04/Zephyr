@@ -32,7 +32,6 @@ mod mcp_config;
 mod mcp_server;
 mod memory;
 mod paths;
-mod ports;
 mod proc;
 mod pty;
 mod rag;
@@ -227,8 +226,6 @@ pub fn run() {
             browser_pane::browser_pane_cursor,
             web::web_fetch,
             web::web_search,
-            ports::ports_list,
-            ports::ports_kill,
             rag::rag_search,
             explorer::replace_in_file,
             explorer::reveal_path,

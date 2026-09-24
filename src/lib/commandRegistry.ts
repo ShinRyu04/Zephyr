@@ -39,6 +39,8 @@ import { selectSelectionMatches, gotoLine } from '@codemirror/search';
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
 import { tx } from './i18n';
 
+import { useTampilan } from './tampilanStore';
+import { useUpdater } from './updaterStore';
 export type CmdGroup =
   | 'File'
   | 'Edit'
@@ -904,7 +906,7 @@ export const COMMANDS: CommandDef[] = [
       group: 'Settings',
       keywords: 'donasi dukung support trakteer saweria traktir',
       run: async () => {
-        const { useStore } = await import('./store');
+
         useStore.getState().setDonateOpen(true);
       },
     },
@@ -914,7 +916,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'Settings',
     keywords: 'update pembaruan versi baru',
     run: async () => {
-      const { useUpdater } = await import('./updaterStore');
+
       await useUpdater.getState().check();
       openSettingsSection('about');
     },
@@ -1126,7 +1128,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'zen fokus fokusmode distraksi',
     run: async () => {
-      const { useTampilan } = await import('./tampilanStore');
+
       useTampilan.getState().toggleZen();
     },
   },
@@ -1187,8 +1189,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'View',
     keywords: 'ai sembunyikan tutup panel chat',
     run: async () => {
-      const { useTerminal } = await import('./terminalStore');
-      const { useStore } = await import('./store');
+
       if (useStore.getState().settings.general.aiPanel === 'right') {
         await useStore.getState().applySettings({ general: { aiPanel: 'bottom' } } as never);
       } else {

@@ -26,6 +26,8 @@ export const HISTORY_TOOL_CHARS = 1200;
 
 import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt';
 
+import { useCliAgent } from './cliAgentStore';
+import { useTerminal } from './terminalStore';
 let ctxCache: { at: number; teks: string } | null = null;
 const CTX_TTL_MS = 60_000;
 
@@ -727,7 +729,7 @@ export const useAi = create<AiStore>((set, get) => ({
     }));
     persist(get());
 
-    const { useCliAgent } = await import('./cliAgentStore');
+
     const cliAktif = useCliAgent.getState().aktif;
     if (cliAktif) {
       const cwd = useStore.getState().workspace ?? undefined;
@@ -1116,7 +1118,7 @@ export const useAi = create<AiStore>((set, get) => ({
       set({ confirmCmd: command });
       return false;
     }
-    const { useTerminal } = await import('./terminalStore');
+
     const t = useTerminal.getState();
 
     let pane = t

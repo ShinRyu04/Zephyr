@@ -456,7 +456,8 @@ const ID: Dict = {
 
   'debug.copyValue': 'Salin nilai',
   'debug.removeBreakpoint': 'Hapus breakpoint',
-  'debug.openFolderFirst': 'Buka folder dulu untuk debug.',
+  'debug.createFailed': 'Gagal membuat konfigurasi debug',
+  'debug.createdCount': 'launch.json: {n} konfigurasi',
   'debug.clickGutter': 'Klik gutter editor untuk memasang breakpoint.',
 
   'kb.searchCommand': 'Cari command atau chord…',
@@ -962,7 +963,8 @@ const EN: Dict = {
 
   'debug.copyValue': 'Copy value',
   'debug.removeBreakpoint': 'Remove breakpoint',
-  'debug.openFolderFirst': 'Open a folder first to debug.',
+  'debug.createFailed': 'Could not create the debug configuration',
+  'debug.createdCount': 'launch.json: {n} configurations',
   'debug.clickGutter': 'Click the editor gutter to set a breakpoint.',
 
   'kb.searchCommand': 'Search command or chord…',
@@ -1468,7 +1470,8 @@ const JA: Dict = {
 
   'debug.copyValue': '値をコピー',
   'debug.removeBreakpoint': 'ブレークポイントを削除',
-  'debug.openFolderFirst': 'デバッグするにはフォルダーを開いてください。',
+  'debug.createFailed': 'デバッグ構成を作成できませんでした',
+  'debug.createdCount': 'launch.json: {n} 個の構成',
   'debug.clickGutter': 'エディターのガターをクリックしてブレークポイントを設定します。',
 
   'kb.searchCommand': 'コマンドまたはコードを検索…',
@@ -1974,7 +1977,8 @@ const KO: Dict = {
 
   'debug.copyValue': '값 복사',
   'debug.removeBreakpoint': '중단점 제거',
-  'debug.openFolderFirst': '디버그하려면 먼저 폴더를 여세요.',
+  'debug.createFailed': '디버그 구성을 만들지 못했습니다',
+  'debug.createdCount': 'launch.json: 구성 {n}개',
   'debug.clickGutter': '편집기 여백을 클릭하여 중단점을 설정하세요.',
 
   'kb.searchCommand': '명령 또는 코드 검색…',
@@ -2480,7 +2484,8 @@ const ZH: Dict = {
 
   'debug.copyValue': '复制值',
   'debug.removeBreakpoint': '移除断点',
-  'debug.openFolderFirst': '请先打开文件夹以调试。',
+  'debug.createFailed': '无法创建调试配置',
+  'debug.createdCount': 'launch.json：{n} 个配置',
   'debug.clickGutter': '点击编辑器装订线设置断点。',
 
   'kb.searchCommand': '搜索命令或组合键…',
@@ -2986,7 +2991,8 @@ const ES: Dict = {
 
   'debug.copyValue': 'Copiar valor',
   'debug.removeBreakpoint': 'Quitar punto de interrupción',
-  'debug.openFolderFirst': 'Abre una carpeta primero para depurar.',
+  'debug.createFailed': 'No se pudo crear la configuración de depuración',
+  'debug.createdCount': 'launch.json: {n} configuraciones',
   'debug.clickGutter': 'Haz clic en el margen del editor para poner un punto de interrupción.',
 
   'kb.searchCommand': 'Buscar comando o atajo…',
@@ -3492,7 +3498,8 @@ const FR: Dict = {
 
   'debug.copyValue': 'Copier la valeur',
   'debug.removeBreakpoint': 'Retirer le point d’arrêt',
-  'debug.openFolderFirst': 'Ouvrez d’abord un dossier pour déboguer.',
+  'debug.createFailed': 'Impossible de créer la configuration de débogage',
+  'debug.createdCount': 'launch.json : {n} configurations',
   'debug.clickGutter': 'Cliquez dans la marge de l’éditeur pour définir un point d’arrêt.',
 
   'kb.searchCommand': 'Rechercher une commande ou un raccourci…',
@@ -3998,7 +4005,8 @@ const DE: Dict = {
 
   'debug.copyValue': 'Wert kopieren',
   'debug.removeBreakpoint': 'Haltepunkt entfernen',
-  'debug.openFolderFirst': 'Öffnen Sie zuerst einen Ordner zum Debuggen.',
+  'debug.createFailed': 'Debug-Konfiguration konnte nicht erstellt werden',
+  'debug.createdCount': 'launch.json: {n} Konfigurationen',
   'debug.clickGutter': 'Klicken Sie in den Editorrand, um einen Haltepunkt zu setzen.',
 
   'kb.searchCommand': 'Befehl oder Tastenkürzel suchen…',
@@ -4504,7 +4512,8 @@ const PT: Dict = {
 
   'debug.copyValue': 'Copiar valor',
   'debug.removeBreakpoint': 'Remover ponto de interrupção',
-  'debug.openFolderFirst': 'Abra uma pasta primeiro para depurar.',
+  'debug.createFailed': 'Não foi possível criar a configuração de depuração',
+  'debug.createdCount': 'launch.json: {n} configurações',
   'debug.clickGutter': 'Clique na margem do editor para definir um ponto de interrupção.',
 
   'kb.searchCommand': 'Pesquisar comando ou atalho…',
@@ -5010,7 +5019,8 @@ const AR: Dict = {
 
   'debug.copyValue': 'نسخ القيمة',
   'debug.removeBreakpoint': 'إزالة نقطة التوقف',
-  'debug.openFolderFirst': 'افتح مجلدًا أولًا للتصحيح.',
+  'debug.createFailed': 'تعذّر إنشاء تكوين التصحيح',
+  'debug.createdCount': 'launch.json: {n} تكوينات',
   'debug.clickGutter': 'انقر على هامش المحرر لتعيين نقطة توقف.',
 
   'kb.searchCommand': 'بحث عن أمر أو اختصار…',

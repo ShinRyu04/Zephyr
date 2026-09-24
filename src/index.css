@@ -2154,6 +2154,26 @@ body.is-resizing-v {
   color: var(--accent, #e0a458);
 }
 
+/* Tombol brand di About: logo resmi + label.
+   Ikonnya memakai fill currentColor, jadi warnanya ikut teks tombol dan
+   tetap benar di semua tema tanpa override per tema. */
+.btn.btn-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn.btn-brand > svg {
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+.btn.btn-brand:hover:not(:disabled) > svg {
+  opacity: 1;
+}
+.btn.btn-brand-wa:hover:not(:disabled) {
+  border-color: var(--brand-whatsapp);
+  color: var(--brand-whatsapp);
+}
+
 /* ─────────── modal ─────────── */
 
 .modal-backdrop {

@@ -6,8 +6,8 @@
 // read the DOM and run clicks inside it.
 //
 // The remaining limit: a page that sends X-Frame-Options cannot be
-// dimuat di sini karena kita menaruhnya di dalam jendela utama. Untuk halaman
-// seperti itu, buka di browser eksternal.
+// loaded here because it sits inside the main window. For pages like that,
+// open them in an external browser.
 
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;

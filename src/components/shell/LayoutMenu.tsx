@@ -4,6 +4,7 @@ import { useTampilan } from '../../lib/tampilanStore';
 import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 
+import { useTerminal } from '../../lib/terminalStore';
 export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
   const tr = useT();
   const L = useLayoutCustom();
@@ -114,7 +115,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
               await useStore.getState().applySettings({ general: { aiPanel: pos } } as never);
 
               if (pos === 'right') {
-                const { useTerminal } = await import('../../lib/terminalStore');
+
                 useTerminal.getState().setVisible(false);
               }
             }}

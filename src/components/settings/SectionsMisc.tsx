@@ -9,7 +9,9 @@ import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 import UpdatePanel from './UpdatePanel';
 import { useUpdater } from '../../lib/updaterStore';
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { GitHubLogo, WhatsAppLogo } from './BrandLogos';
 
+import { useTerminal } from '../../lib/terminalStore';
 export function ScmSection() {
   const tr = useT();
   const git = useStore((s) => s.settings.git);
@@ -132,8 +134,7 @@ export function SshSection() {
       setStatus(`SSH: ${h.user}@${h.host} — pane ${paneId.slice(0, 12)}`);
       setForm(null);
 
-      const ts = (await import('../../lib/terminalStore')).useTerminal.getState();
-      await ts.daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
+      await useTerminal.getState().daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
     } catch (e) {
       setErr(cmd.asZephyrError(e).message);
     } finally {
@@ -486,27 +487,27 @@ export function AboutSection() {
           ⟳ {tr('Cek update')}
         </button>
         <button
-          className="btn"
+          className="btn btn-brand"
           data-testid="about-github"
           onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {})}
         >
-          {tr('Lihat di GitHub')}
+          <GitHubLogo /> {tr('Lihat di GitHub')}
         </button>
         <button
-          className="btn"
+          className="btn btn-brand"
           data-testid="about-issue"
           onClick={() =>
             void openUrl('https://github.com/ShinRyu04/Zephyr/issues/new').catch(() => {})
           }
         >
-          {tr('Laporkan masalah')}
+          <GitHubLogo /> {tr('Laporkan masalah')}
         </button>
         <button
-          className="btn"
+          className="btn btn-brand btn-brand-wa"
           data-testid="about-wa"
           onClick={() => void openUrl('https://chat.whatsapp.com/LNp12sKUWFFGH1RRSyHQkb').catch(() => {})}
         >
-          {tr('Grup WhatsApp')}
+          <WhatsAppLogo /> {tr('Grup WhatsApp')}
         </button>
         <button
           className="btn btn-donate"

@@ -96,6 +96,11 @@
   --terminal-ansi-13: var(--syn-variable);
   --terminal-ansi-14: var(--syn-number);
   --terminal-ansi-15: var(--text);
+
+  /* Warna merek untuk tombol About. Dipakai hanya pada hover tombol, jadi
+     nilainya tetap walau tema berganti; teksnya sendiri tetap pakai token
+     tema supaya kontras terbaca di tema terang maupun gelap. */
+  --brand-whatsapp: #25d366;
 }
 
 /* Tema terang: ANSI 0 harus benar-benar gelap (di tema gelap ia permukaan),

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { useStore } from './store';
 export type PosisiSidebar = 'left' | 'right';
 
 export type KerapatanLayout = 'default' | 'compact';
@@ -59,7 +60,7 @@ export const useLayoutCustom = create<LayoutState>((set, get) => ({
 
   simpan: async () => {
     const s = get();
-    const { useStore } = await import('./store');
+
     await useStore.getState().applySettings({
 
       sidebar: s.posisiSidebar,
@@ -79,7 +80,7 @@ export const useLayoutCustom = create<LayoutState>((set, get) => ({
   },
 
   muat: async () => {
-    const { useStore } = await import('./store');
+
     const st = useStore.getState().settings;
     const g = (st.general ?? {}) as unknown as Record<string, unknown>;
     const l = (g.layout ?? {}) as Partial<typeof DEFAULT>;

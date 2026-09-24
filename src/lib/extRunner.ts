@@ -37,11 +37,11 @@ var zephyr = {
     __zh[String(id)] = fn;
     self.postMessage({ type: 'register', id: String(id), title: String(title || id) });
   },
-  // Jalankan runtime eksternal DENGAN IZIN. Eksekusi terjadi di
+  // Run the external runtime WITH PERMISSION. Execution happens on the
   // Rust side of the allow-listed binary (settings.extensions.trust);
-  // the worker only gets stdout/stderr/exit, never exec access
-  // langsung. Belum diizinkan? Main thread akan meminta persetujuan user
-  // dulu, promise ini menunggu sampai user memutuskan.
+  // the worker only gets stdout/stderr/exit, never exec access.
+  // Not allowed yet? The main thread asks the user first, and this
+  // promise waits for their decision.
   exec: function (runtime, args, opts) {
     return new Promise(function (resolve, reject) {
       var seq = ++__zhExecSeq;

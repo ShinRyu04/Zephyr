@@ -691,15 +691,5 @@ export const webFetch = (url: string, maxChars?: number) =>
 
 export const webSearch = (query: string, maxResults?: number) =>
   invoke<HasilCari[]>('web_search', { query, maxResults });
-
-export interface PortSistem {
-  port: number;
-  alamat: string;
-  proses: string;
-  pid: number;
-}
-
-export const portsList = () => invoke<PortSistem[]>('ports_list');
-export const portsKill = (pid: number) => invoke<boolean>('ports_kill', { pid });
 export const browserPaneCursor = (paneId: string, selector: string) =>
   invoke<string>('browser_pane_cursor', { paneId, selector });

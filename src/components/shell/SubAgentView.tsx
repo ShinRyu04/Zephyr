@@ -48,8 +48,8 @@ export default function SubAgentView() {
         )}
       </div>
 
-      {/* Form tugas paralel — di tab ini selalu terbuka, karena di sinilah
-          tempatnya. Tidak ada lagi tombol buka/tutup yang menumpuk di chat. */}
+      {/* The parallel-task form always stays open on this tab: this is its home.
+          No more open/close buttons piling up in the chat. */}
       <SubAgentBar selaluTerbuka />
 
       {agents.length === 0 ? (

@@ -39,12 +39,12 @@ fn tebak_kind(head: &[u8]) -> Option<&'static str> {
 }
 
 /// SVG has no magic bytes: it is XML text. Detect it by matching a text prefix
-/// setelah BOM/spasi — TIDAK lewat ekstensi, karena ekstensi bisa berbohong
+/// after a BOM/whitespace, NOT via the file extension, which can lie
 /// and this whole function deliberately inspects content, not the name.
 ///
-/// SVG dimuat lewat `<img src="data:image/svg+xml;base64,...">`. Dalam mode itu
-/// browser TIDAK menjalankan script di dalam SVG — jadi memuat SVG lokal user
-/// sendiri aman, dan itu tetap file yang ia pilih sendiri dari dialog.
+/// SVG is loaded through `<img src="data:image/svg+xml;base64,...">`. In that
+/// mode the browser does NOT run scripts inside the SVG, so loading a local
+/// SVG is safe, and it is still a file the user picked from a dialog.
 fn tebak_svg(isi: &[u8]) -> bool {
     let teks = match std::str::from_utf8(&isi[..isi.len().min(512)]) {
         Ok(t) => t,

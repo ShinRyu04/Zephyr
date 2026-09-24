@@ -10,6 +10,9 @@ import { terapkanA11y } from './a11yStore';
 import { retheme, reSrMode } from './xtermRegistry';
 
 import { useLayout } from './editorLayoutStore';
+import { useExplorer } from './explorerStore';
+import { usePanel } from './panelStore';
+import { useTerminal } from './terminalStore';
 import {
   DEFAULT_SETTINGS,
   type ActivityId,
@@ -275,10 +278,10 @@ export const useStore = create<Store>((set, get) => ({
       reSrMode();
 
       if (s.panel) {
-        const { usePanel } = await import('./panelStore');
+
         usePanel.getState().hydrate(s.panel.visibleTabs, s.panel.activeTab);
         if (typeof s.panel.height === 'number' && s.panel.height > 0) {
-          const { useTerminal } = await import('./terminalStore');
+
           useTerminal.getState().setHeight(s.panel.height);
         }
       }
@@ -363,7 +366,7 @@ export const useStore = create<Store>((set, get) => ({
   syncWorkspaceLokal: async (dir) => {
     set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
 
-    const { useExplorer } = await import('./explorerStore');
+
     const ex = useExplorer.getState();
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
     await ex.loadDir(dir, true);
@@ -382,7 +385,7 @@ export const useStore = create<Store>((set, get) => ({
     } catch {
 
     }
-    const { useExplorer } = await import('./explorerStore');
+
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
     set({ workspace: null, statusMessage: 'Workspace ditutup' });
     await get().refreshRecents();
@@ -955,7 +958,7 @@ export const useStore = create<Store>((set, get) => ({
 
   applyLayout: async (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => {
     const st = useStore.getState();
-    const { useTerminal } = await import('./terminalStore');
+
     const term = useTerminal.getState();
     let sidebar: 'left' | 'right' | undefined;
     let sbVisible = st.sidebarVisible;

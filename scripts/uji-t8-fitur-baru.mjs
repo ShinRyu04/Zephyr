@@ -32,12 +32,6 @@ const hasil = await cdp.runAsync(`
   } catch (e) { out.bacaErr = String(e).slice(0, 160); }
 
   try {
-    const ports = await cmd.portsList();
-    out.jumlahPort = ports.length;
-    out.contohPort = ports.slice(0, 8).map(p => p.port + '/' + p.proses);
-  } catch (e) { out.portErr = String(e).slice(0, 160); }
-
-  try {
     const cari = await cmd.webSearch('tauri v2 release notes', 3);
     out.jumlahHasil = cari.length;
     out.contohHasil = cari.slice(0, 2).map(h => h.judul + ' | ' + h.url.slice(0, 60));

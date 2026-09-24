@@ -1717,6 +1717,18 @@ export function installDevBridge(): void {
   const errors: string[] = [];
   w.__ZEPHYR_ERRORS__ = errors;
 
+  // Expose the agent tool list so a harness can drive a tool exactly the way
+  // the agent does. Reading it through a dynamic import inside an evaluated
+  // snippet would resolve to a second copy of the module and the pane store
+  // it touches would be a different instance than the one on screen.
+  //
+  // The module is imported lazily: agentTools pulls in aiStore, which pulls the
+  // store back in, and evaluating it eagerly at bridge install time hits the
+  // circular edge before agentTools has finished initialising.
+  void import('./agentTools').then((m) => {
+    w.__ZEPHYR_TOOLS__ = m.AGENT_TOOLS;
+  });
+
   const origError = console.error.bind(console);
   console.error = (...args: unknown[]) => {
     errors.push(args.map(String).join(' '));

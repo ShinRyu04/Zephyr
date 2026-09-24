@@ -5,6 +5,7 @@ import { notifyError, notifyInfo } from './notificationStore';
 import { useStore } from './store';
 import type { WorkspaceInfo, WsRoot } from './types';
 
+import { useExplorer } from './explorerStore';
 interface WsState {
   roots: WorkspaceInfo['roots'];
   activeRoot: string;
@@ -82,7 +83,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       const info = await cmd.workspaceAddRoot(path);
       terapkan(set, info);
       
-      const { useExplorer } = await import('./explorerStore');
+
       await useExplorer.getState().loadDir(path, true);
       notifyInfo(`Root ditambahkan: ${namaAkhir(path)}`, { source: 'Workspace' });
       return true;
@@ -131,7 +132,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       
       if (info.activeRoot) await useStore.getState().syncWorkspaceLokal(info.activeRoot);
       
-      const { useExplorer } = await import('./explorerStore');
+
       for (const r of info.roots.slice(1)) await useExplorer.getState().loadDir(r.path, true);
       
       await useStore.getState().reloadSettings();

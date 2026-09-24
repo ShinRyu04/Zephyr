@@ -27,7 +27,7 @@ import { useProblems } from './problemsStore';
 import { useKb } from './keybindingStore';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { kunciPath } from './pathKey';
-import { tx } from './i18n';
+import { tf, tx } from './i18n';
 
 export interface Breakpoint {
   path: string;
@@ -212,7 +212,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   buatLaunch: async () => {
     const ws = useStore.getState().workspace;
     if (!ws) {
-      notifyError(tx('Buka folder dulu sebelum membuat konfigurasi debug'), {
+      notifyError(tx('Buka folder dulu untuk debug.'), {
         source: 'debug',
       });
       return false;
@@ -333,14 +333,14 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       if (!(await fsExists(folder))) await fsCreateDir(folder);
       await fsWrite(file, isi);
     } catch (e) {
-      notifyError(tx('Gagal membuat launch.json'), {
+      notifyError(tx('debug.createFailed'), {
         source: 'debug',
         detail: pesan(e),
       });
       return false;
     }
 
-    notifyInfo(`launch.json dibuat dengan ${konfigurasi.length} konfigurasi`, {
+    notifyInfo(tf('debug.createdCount', { n: konfigurasi.length }), {
       source: 'debug',
       detail: file,
     });

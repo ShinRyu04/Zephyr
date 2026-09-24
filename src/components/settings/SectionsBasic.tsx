@@ -5,6 +5,7 @@ import { useT, UI_LANGS } from '../../lib/i18n';
 import { semuaTema } from '../../lib/themes';
 import { NumberInput, Pills, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
+import { useTerminal } from '../../lib/terminalStore';
 export function GeneralSection() {
   const tr = useT();
   const g = useStore((s) => s.settings.general);
@@ -130,7 +131,7 @@ export function GeneralSection() {
             patch({ aiPanel: nilai });
 
             if (nilai === 'right') {
-              const { useTerminal } = await import('../../lib/terminalStore');
+
               useTerminal.getState().setVisible(false);
             }
           }}

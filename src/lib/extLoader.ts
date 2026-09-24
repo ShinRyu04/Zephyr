@@ -11,6 +11,7 @@ import type {
 import { THEMES, type ThemeInfo } from './themes';
 import { petakanTemaVscode } from './vscodeThemeMap';
 
+import { useKb } from './keybindingStore';
 const themeTokens = new Map<string, Record<string, string>>();
 
 const langByExt = new Map<string, ContribLanguage>();
@@ -434,7 +435,7 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
   daftarkanTemaEkstensi(daftarThemeInfo.slice(), terapkanTokenEkstensi);
 
   try {
-    const { useKb } = await import('./keybindingStore');
+
     const { mergeBindings } = await import('./keybindings');
     useKb.setState({ bindings: mergeBindings(useKb.getState().user, extKeymap.slice()) });
   } catch {

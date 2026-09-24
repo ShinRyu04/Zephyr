@@ -5,6 +5,34 @@ the version.
 
 ---
 
+## Performance and debug fixes in this build
+
+**The window no longer stutters when a browser pane is open.** The position
+sync for the child webview ran a `requestAnimationFrame` loop at 60 frames per
+second, forever, and every frame called `getBoundingClientRect` plus a
+`document.querySelector` for modal detection. That is 60 full DOM scans per
+second for a pane that may not even be open. The work is now event driven
+(ResizeObserver, scroll, resize, MutationObserver) with a 500ms safety net,
+which is about 120x less work for the same result.
+
+**The address bar poll no longer runs in the background.** It hit WebView2
+every 900ms per pane, and each hit is a cross-process round trip that evaluates
+`document.title`. It now skips entirely while the window is hidden and slows to
+3 seconds otherwise.
+
+**The port scan no longer enumerates every process once per port.** The process
+name lookup built a full Toolhelp32 snapshot for each listening port, so 25
+ports meant 25 walks of the entire process table every 5 seconds. One snapshot
+now serves every port.
+
+**Pressing Run with no launch.json now works.** It used to show "create
+.zephyr/launch.json first" and stop, with no way to create the file from inside
+the editor. Zephyr now writes a config detected from the workspace (Node,
+Python, Rust, Go, Java, or a generic current-file entry) and continues into the
+debug session. There is also a `Debug: Create launch.json` command.
+
+---
+
 ## New in this revision
 
 **The AI can use the browser pane.** The pane used to be an `<iframe>`, and an

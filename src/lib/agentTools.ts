@@ -1,10 +1,12 @@
 import * as cmd from './commands';
 import { useStore } from './store';
 import { useTerminal } from './terminalStore';
+import { usePanel } from './panelStore';
 import { writeChunked } from './terminalClipboard';
 import { runAction } from './mcpStore';
 import type { AgentToolSpec } from './types';
 
+import { resetKonteksAgent, useAi } from './aiStore';
 export interface AgentTool {
   spec: AgentToolSpec;
   run: (args: Record<string, unknown>) => Promise<string>;
@@ -38,12 +40,26 @@ async function cariPaneTerminal(): Promise<string | null> {
  * tetap diurus grid.
  */
 async function paneBrowserId(minta: string): Promise<string> {
+  /*
+   * Make sure the pane will actually be on screen before measuring it.
+   *
+   * A pane that lives in the store but sits in a hidden panel lays out at
+   * 0x0, and a child webview is positioned in native window coordinates, so
+   * measuring a hidden pane put it in the corner of the window over the
+   * editor. The panel is opened and switched to the terminal tab first, and
+   * the same steps the UI uses are reused rather than a parallel path.
+   */
+  const panel = usePanel.getState();
+  panel.focusTab('terminal');
+  await new Promise((r) => setTimeout(r, 250));
+
   const t = useTerminal.getState();
   if (minta && t.findPane(minta)) return minta;
   const ada = t.allPanes().find((p) => p.kind === 'browser');
   if (ada) return ada.id;
   const id = await t.addPane('browser');
   if (!id) throw new Error('tidak bisa membuat pane browser');
+  // Wait for React to lay the new pane out before anything measures it.
   await new Promise((r) => setTimeout(r, 900));
   return id;
 }
@@ -340,7 +356,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     },
     run: async (args) => {
       const list = Array.isArray(args.todos) ? args.todos : [];
-      const { useAi } = await import('./aiStore');
+
       const n = useAi.getState().setAgentTodos(list);
       return `Daftar tugas disimpan (${n} item).`;
     },
@@ -352,7 +368,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
-      const { useAi } = await import('./aiStore');
+
       const todos = useAi.getState().agentTodos;
       if (todos.length === 0) return '(daftar tugas kosong)';
       return todos.map((t, i) => `${i + 1}. [${t.status}] ${t.content}`).join('\n');
@@ -420,7 +436,7 @@ export const AGENT_TOOLS: AgentTool[] = [
         scope: args.scope ? String(args.scope) : undefined,
       });
       
-      const { resetKonteksAgent } = await import('./aiStore');
+
       resetKonteksAgent();
       return `Skill disimpan: ${path}`;
     },
@@ -490,7 +506,7 @@ export const AGENT_TOOLS: AgentTool[] = [
         content: args.content ? String(args.content) : undefined,
         oldText: args.old_text ? String(args.old_text) : undefined,
       });
-      const { resetKonteksAgent } = await import('./aiStore');
+
       resetKonteksAgent();
       return `Memori '${section}' diperbarui (${action}). ${hasil.length} karakter total.`;
     },
@@ -579,14 +595,45 @@ export const AGENT_TOOLS: AgentTool[] = [
       const url = String(args.url ?? '').trim();
       if (!url) throw new Error('browser_open: url kosong');
       const paneId = await paneBrowserId(String(args.paneId ?? ''));
+
+      /*
+       * Take the position from the pane's own container element.
+       *
+       * Hardcoding x:0, y:0 put the webview in the top-left corner of the
+       * window, floating over the editor and the sidebar, because a child
+       * webview is placed in native window coordinates rather than being part
+       * of the page flow. The container already knows where it is, so ask it.
+       *
+       * `.pane-body` is the wrapper that owns the pane's box; the element
+       * carrying data-pane-body is the inner component. If the pane was just
+       * created it may not be laid out yet, so fall back to a centred
+       * rectangle rather than the corner.
+       */
+      const rect = document
+        .querySelector(`.pane-body:has([data-pane-body="${paneId}"])`)
+        ?.getBoundingClientRect();
+
       await cmd.browserPaneOpen({
         paneId,
         url,
-        x: 0,
-        y: 0,
-        width: 800,
-        height: 600,
+        x: rect?.left ?? 120,
+        y: rect?.top ?? 120,
+        width: rect?.width ?? 800,
+        height: rect?.height ?? 600,
       });
+
+      /*
+       * Record the URL in the pane store as well.
+       *
+       * The BrowserPane component only runs its position-sync loop when the
+       * pane has a URL, and it reads that URL from the store. Opening the
+       * webview straight through the command leaves the store empty, so the
+       * component never syncs and the webview stays wherever the command put
+       * it. Writing the URL here starts the normal path.
+       */
+      useTerminal.getState().setPaneUrl(paneId, url);
+      await new Promise((r) => setTimeout(r, 600));
+
       return bacaHalaman(paneId);
     },
   },

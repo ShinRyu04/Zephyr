@@ -79,7 +79,7 @@ class Cdp {
       })().then(
         (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
         (e) => { window[${JSON.stringify(slot)}] = { done: true, value: null,
-                  error: (e && (e.message || e.code)) ? JSON.stringify(e) : String(e) }; },
+                  error: (e && (e.message || e.code)) ? JSON.stringify({ message: e.message, code: e.code, stack: e.stack }) : String(e) }; },
       );
       return 'started';
     })()`);
@@ -202,8 +202,8 @@ const main = async () => {
   // ───────── V3: agent picker + logo ─────────
   const v3 = JSON.parse(
     await cdp.runAsync(`
-      q('[data-testid="term-agent"]').click();
-      await wait(400);
+      q('[data-testid="term-picker"]').click();
+      await wait(500);
       const picker = q('[data-testid="agent-picker"]');
       const items = [...picker.querySelectorAll('.tt-drop-item')].map(b => ({
         id: b.dataset.agent, label: b.textContent.trim(), logo: !!b.querySelector('svg'),
@@ -261,7 +261,7 @@ const main = async () => {
   const v5 = JSON.parse(
     await cdp.runAsync(
       `
-      q('[data-testid="term-agent"]').click();
+      q('[data-testid="term-picker"]').click();
       await wait(350);
       q('[data-agent=${JSON.stringify(agentId)}]').click();
       await wait(1200);
@@ -328,36 +328,76 @@ const main = async () => {
       `
       for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);
       await wait(700);
-      q('[data-testid="empty-shell"]').click();
-      await wait(2000);
-      q('[data-testid="term-browser"]').click();
-      await wait(900);
+      // The split button creates BOTH panes itself (shell + browser), so it
+      // must be clicked straight from the empty state. Clicking "empty-shell"
+      // first used to remove the placeholder and the split button with it.
+      q('[data-testid="empty-split-browser"]').click();
+      await wait(2500);
 
       const setV = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
       const inp = q('[data-testid="bp-url"]');
       setV.call(inp, '127.0.0.1:${TEST_PORT}');
       inp.dispatchEvent(new Event('input', { bubbles: true }));
       inp.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      await wait(2500);
-      const loads1 = Number(q('[data-testid="bp-frame"]')?.dataset.loads ?? 0);
+      await wait(1000);
+
+      // Drive the pane through the agent tool as well: the form submit can
+      // race the pane's first render, and this is the path the agent uses.
+      // agentTools is reached through the page module registry, never through
+      // a dynamic import in this evaluated snippet, because a dynamic import
+      // here would resolve to a second copy of the module.
+      const nav = window.__ZEPHYR_TOOLS__?.find(t => t.spec.name === 'browser_nav');
+      if (!nav) {
+        window.__v7navErr = 'tool browser_nav tidak tersedia di window';
+      } else {
+        await nav.run({ paneId: T.getState().allPanes().find(p => p.kind === 'browser').id, aksi: 'http://127.0.0.1:${TEST_PORT}/' });
+      }
+      await wait(3500);
+
+      // The pane is a real child WebView2, not an iframe, so there is no
+      // load event to count and no src attribute to read. The evidence that
+      // the page really loaded is that the agent tools can read its text,
+      // which is exactly what the iframe could never do.
+      const tab0 = T.getState().terminalTabs[0];
+      const bp0 = tab0.panes.find(p => p.kind === 'browser');
+
+      // Read the page through the agent's own browser_read tool. That is the
+      // path the agent uses, and reading a child WebView2 is exactly what the
+      // old iframe could never do. Calling the raw command here used to hang,
+      // because a module imported from the CDP context gets its own copy and
+      // the eval never settled.
+      const read = window.__ZEPHYR_TOOLS__?.find(t => t.spec.name === 'browser_read');
+      let bacaan = '';
+      try {
+        if (!read) throw new Error('tool browser_read tidak tersedia di window');
+        bacaan = String(await read.run({ paneId: bp0.id }));
+        window.__v7ok = true;
+      } catch (e) {
+        window.__v7err = String(e.message || e).slice(0, 200);
+      }
 
       q('[data-testid="bp-reload"]').click();
-      await wait(2000);
-      const fr = q('[data-testid="bp-frame"]');
+      await wait(3000);
 
-      // URL yang belum dibuka -> pane tetap hidup, tidak crash
+      let bacaanReload = '';
+      try {
+        if (read) bacaanReload = String(await read.run({ paneId: bp0.id }));
+      } catch { /* dicek di bawah */ }
+
       const tab = T.getState().terminalTabs[0];
       const bp = tab.panes.find(p => p.kind === 'browser');
       return JSON.stringify({
         panes: tab.panes.map(p => p.kind),
         url: bp.url,
-        src: fr?.getAttribute('src'),
-        loads1, loads2: Number(fr?.dataset.loads ?? 0),
+        bacaan: bacaan.slice(0, 150),
+        bacaanReload: bacaanReload.slice(0, 80),
+        errWebview: window.__v7err ?? '',
         adaUrlBar: !!q('[data-testid="bp-url"]'),
         adaReload: !!q('[data-testid="bp-reload"]'),
+        adaStage: !!q('[data-testid="bp-stage"]'),
       });
     `,
-      70000,
+      80000,
     ),
   );
   const hits = server.hits();
@@ -365,15 +405,15 @@ const main = async () => {
   check(
     'V7',
     v7.panes.includes('browser') &&
-      v7.src === `http://127.0.0.1:${TEST_PORT}` &&
-      v7.loads1 > 0 &&
-      v7.loads2 > v7.loads1 &&
-      hits >= 2 &&
+      String(v7.bacaan).includes(MARKER) &&
+      String(v7.bacaanReload).includes(MARKER) &&
       v7.adaUrlBar &&
-      v7.adaReload,
-    `pane [${v7.panes.join(' + ')}]; iframe src=${v7.src} memuat ${v7.loads1}x lalu ${v7.loads2}x setelah reload; ` +
-      `server uji menerima ${hits} request (bukti halaman benar-benar diambil); URL bar & reload ada. ` +
-      `Isi DOM iframe tidak dibaca: sandbox = origin lain`,
+      v7.adaReload &&
+      v7.adaStage,
+    `pane [${v7.panes.join(' + ')}]; halaman dibaca lewat tool browser_read: ` +
+      `"${String(v7.bacaan).slice(0, 70)}…"; setelah reload masih terbaca; ` +
+      `server uji menerima ${hits} request; URL bar & reload ada. ` +
+      `Dulu ini iframe dan isinya TIDAK bisa dibaca — sekarang bisa.`,
   );
 
   // ───────── V8: drag header -> tukar posisi ─────────
@@ -403,7 +443,7 @@ const main = async () => {
   const v9 = JSON.parse(
     await cdp.runAsync(
       `
-      q('[data-testid="term-agent"]').click();
+      q('[data-testid="term-picker"]').click();
       await wait(350);
       q('[data-agent=${JSON.stringify(agentId)}]').click();
       await wait(3500);
@@ -474,7 +514,7 @@ const main = async () => {
       const custom = ['cmd.exe', '/c', 'echo ZEPHYR-START-CMD-KUSTOM && pause'];
       await S.getState().applySettings({ agents: { startCommands: { ${JSON.stringify(agentId)}: custom } } });
       await wait(900);
-      q('[data-testid="term-agent"]').click();
+      q('[data-testid="term-picker"]').click();
       await wait(350);
       q('[data-agent=${JSON.stringify(agentId)}]').click();
       await wait(2500);
@@ -543,6 +583,10 @@ const main = async () => {
 };
 
 main().catch((e) => {
-  console.error('verify06 error:', e.message);
+  // Print the whole error, not just the message: a bare `{}` gives nothing to
+  // act on, and the stack is what says which step died.
+  console.error('verify06 error:', e?.message ?? e);
+  console.error('stack:', e?.stack ?? '(tidak ada stack)');
+  if (e?.cause) console.error('cause:', e.cause);
   process.exit(2);
 });
