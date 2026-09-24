@@ -6,6 +6,7 @@ import type {
   CliArgs,
   CliStatus,
   CliWriteResult,
+  ErrorCode,
   SnippetSet,
   WorkspaceInfo,
   DeviceLogin,
@@ -58,11 +59,50 @@ import type {
   ZephyrError,
 } from './types';
 
+/**
+ * Ubah apa pun yang dilempar menjadi ZephyrError yang aman ditampilkan.
+ *
+ * Tauri melempar objek { code, message }, tetapi message-nya bisa null atau
+ * kosong — dan String(null) menghasilkan teks "null" yang bocor ke UI.
+ * Objek yang tidak punya pesan berguna dianggap error internal, dan pesannya
+ * diambil dari sumber lain yang masih ada supaya pengguna melihat keterangan
+ * yang benar-benar menjelaskan masalahnya.
+ */
+/** Kode error yang dikenali backend; di luar ini dianggap Internal. */
+const KODE_SAH = new Set<ErrorCode>([
+  'NotFound', 'InvalidInput', 'Permission', 'WorkspaceOutside', 'Git',
+  'Pty', 'Ssh', 'Mcp', 'Encoding', 'Io', 'Internal',
+]);
+
 export function asZephyrError(e: unknown): ZephyrError {
-  if (typeof e === 'object' && e !== null && 'code' in e && 'message' in e) {
-    return e as ZephyrError;
+  if (typeof e === 'object' && e !== null) {
+    const o = e as Record<string, unknown>;
+    const pesan = typeof o.message === 'string' ? o.message.trim() : '';
+    const kode: ErrorCode =
+      typeof o.code === 'string' && KODE_SAH.has(o.code as ErrorCode)
+        ? (o.code as ErrorCode)
+        : 'Internal';
+    if (pesan) return { code: kode, message: pesan };
+
+    // Tidak ada message: pakai kolom lain yang biasanya ikut dikirim.
+    const cadangan =
+      (typeof o.error === 'string' && o.error.trim()) ||
+      (typeof o.detail === 'string' && o.detail.trim()) ||
+      (typeof o.kind === 'string' && o.kind.trim()) ||
+      '';
+    if (cadangan) return { code: kode, message: cadangan };
+
+    // Masih kosong: sebut jenis error-nya alih-alih menampilkan "null".
+    const nama = e.constructor?.name;
+    if (nama && nama !== 'Object') {
+      return { code: kode, message: `${nama}: tidak ada keterangan dari backend` };
+    }
+    return { code: kode, message: `Error ${kode} tanpa keterangan` };
   }
-  return { code: 'Internal', message: String(e) };
+
+  // String kosong / null / undefined juga tidak boleh jadi teks "null".
+  const teks = typeof e === 'string' ? e.trim() : e == null ? '' : String(e);
+  return { code: 'Internal', message: teks || 'Terjadi kesalahan yang tidak dijelaskan' };
 }
 
 export const getAppInfo = () => invoke<AppInfo>('get_app_info');

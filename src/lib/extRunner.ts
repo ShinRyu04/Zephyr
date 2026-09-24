@@ -32,6 +32,25 @@ const PREAMBLE = `// Sandbox ekstensi Zephyr: Web Worker terisolasi (tanpa windo
 // Shim CommonJS + API vscode minimal supaya bundle marketplace bisa dimuat.
 
 var __zh = {};
+
+/*
+ * Ubah nilai apa pun menjadi teks yang bisa ditampilkan.
+ *
+ * Ekstensi bisa memanggil notify() tanpa argumen, atau melempar null /
+ * undefined. String(null) menghasilkan teks "null" yang bocor ke notifikasi
+ * pengguna, jadi nilainya diperiksa dulu dan diganti keterangan yang jelas.
+ */
+function teksAman(nilai) {
+  if (nilai === null || nilai === undefined) return 'tanpa keterangan';
+  if (typeof nilai === 'string') return nilai.trim() || 'tanpa keterangan';
+  if (typeof nilai === 'object') {
+    var m = nilai.message || nilai.error || nilai.detail;
+    if (typeof m === 'string' && m.trim()) return m;
+    try { return JSON.stringify(nilai).slice(0, 200); } catch (e) { return 'objek tanpa keterangan'; }
+  }
+  return String(nilai);
+}
+
 var zephyr = {
   registerCommand: function (id, title, fn) {
     __zh[String(id)] = fn;
@@ -1039,15 +1058,15 @@ function __zhVscode() {
     },
     window: {
       showInformationMessage: function (m) {
-        self.postMessage({ type: 'notify', severity: 'info', message: String(m) });
+        self.postMessage({ type: 'notify', severity: 'info', message: teksAman(m) });
         return Promise.resolve(undefined);
       },
       showWarningMessage: function (m) {
-        self.postMessage({ type: 'notify', severity: 'warn', message: String(m) });
+        self.postMessage({ type: 'notify', severity: 'warn', message: teksAman(m) });
         return Promise.resolve(undefined);
       },
       showErrorMessage: function (m) {
-        self.postMessage({ type: 'notify', severity: 'error', message: String(m) });
+        self.postMessage({ type: 'notify', severity: 'error', message: teksAman(m) });
         return Promise.resolve(undefined);
       },
       // OutputChannel tiruan: append/appendLine aman, show/hide no-op.
@@ -1599,7 +1618,7 @@ const TRAILER = `
   self.postMessage({
     type: 'notify',
     severity: 'warn',
-    message: 'tidak bisa dimuat: ' + ((err && err.message) || err),
+    message: 'tidak bisa dimuat: ' + teksAman(err),
   });
 }
 
