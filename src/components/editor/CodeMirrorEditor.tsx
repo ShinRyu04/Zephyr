@@ -334,6 +334,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
 
     const pasang = () => {
       const view = viewRef.current;
+      // eslint-disable-next-line no-console
       if (!alive || !view) return;
       if (readOnly) {
         view.dispatch({ effects: langComp.current.reconfigure([]) });
@@ -342,8 +343,10 @@ export default function CodeMirrorEditor({ tab }: Props) {
       void extensiUntukFile(tab.path ?? tab.name).then(({ ext }) => {
         // Dispatch into the view this pass started with: the loader is a
         // dynamic import, so a tab switch can replace the view in between.
+        // eslint-disable-next-line no-console
         if (!alive || viewRef.current !== view) return;
         view.dispatch({ effects: langComp.current.reconfigure(ext) });
+        // eslint-disable-next-line no-console
       });
     };
 
