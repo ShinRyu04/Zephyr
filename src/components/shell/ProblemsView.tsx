@@ -1,3 +1,4 @@
+import { useT } from '../../lib/i18n';
 import { useMemo, useRef, useState } from 'react';
 import { useProblems, kunciPath, type Diagnostic, type Severity } from '../../lib/problemsStore';
 import { useStore } from '../../lib/store';
@@ -17,6 +18,7 @@ const IKON: Record<Severity, string> = {
 const namaFile = (p: string) => p.split(/[\\/]/).pop() ?? p;
 
 export default function ProblemsView() {
+  const tr = useT();
   const byFile = useProblems((s) => s.byFile);
   const filter = useProblems((s) => s.filter);
   const activeOnly = useProblems((s) => s.activeOnly);
@@ -83,7 +85,7 @@ export default function ProblemsView() {
             checked={activeOnly}
             onChange={(e) => setActiveOnly(e.target.checked)}
           />
-          Hanya file aktif
+          {tr('Hanya file aktif')}
         </label>
         <span className="pv-count" data-testid="pv-count">
           {total}

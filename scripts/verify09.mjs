@@ -117,7 +117,16 @@ class Cdp {
           // pengiriman BERIKUTNYA salah dibaca sebagai "diblokir" dan
           // harness lanjut sebelum jawaban datang (V5 pernah gagal begini).
           AS().setToast(null);
-          await wait(80);
+          /*
+           * Tunggu toast benar-benar lepas dari DOM.
+           *
+           * setToast(null) hanya mengubah state; React baru menghapus
+           * elemennya pada render berikutnya. Kalau pengiriman berikutnya
+           * dimulai sebelum itu, sisa toast dari uji sebelumnya terbaca
+           * sebagai "diblokir" dan harness lanjut tanpa pesan terkirim —
+           * itulah sebabnya V3 melaporkan jejak 0→0→0.
+           */
+          for (let i = 0; i < 12 && q('[data-testid="ai-toast"]'); i++) await wait(80);
           setNativeValue(q('[data-testid="ai-input"]'), teks);
           await wait(140);
           const btn = q('[data-testid="ai-send"]');
@@ -512,6 +521,18 @@ const main = async () => {
       A.store.getState().newChat();
       await wait(350);
 
+      /*
+       * Paksa provider tepat SEBELUM kirim.
+       *
+       * newChat() dan langkah sebelumnya bisa membuat aiStore memilih ulang
+       * provider dari daftar key (perilaku auto-switch aplikasi), jadi
+       * provider yang disetel di awal blok belum tentu masih berlaku saat
+       * tombol Kirim ditekan.
+       */
+      await A.store.getState().setModel('gemini-3.8-flash');
+      await wait(400);
+      const providerSaatKirim = A.store.getState().provider;
+
       await kirim('sapa saya SLOW');
 
       // Ambil panjang teks beberapa kali selagi streaming (bukti bertahap).
@@ -532,7 +553,7 @@ const main = async () => {
       const last = msgs[msgs.length - 1];
       const bodyEl = q('[data-ai-body="' + last.id + '"]');
       return JSON.stringify({
-        badgeOk, jejak,
+        badgeOk, jejak, providerKini, providerSaatKirim,
         akhirTeks: akhir?.content ?? '',
         akhirStreaming: !!akhir?.streaming,
         bold: bodyEl?.querySelector('strong')?.textContent ?? null,

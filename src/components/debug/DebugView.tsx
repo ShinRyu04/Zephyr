@@ -172,7 +172,7 @@ export default function DebugView() {
             onChange={(e) => pilihConfig(e.target.value)}
           >
             {(launch?.configurations ?? []).length === 0 ? (
-              <option value="">(tidak ada launch.json)</option>
+              <option value="">{tr('(tidak ada launch.json)')}</option>
             ) : (
               (launch?.configurations ?? []).map((c) => (
                 <option key={c.name} value={c.name}>
@@ -326,7 +326,7 @@ export default function DebugView() {
 
         <Section id="vars" judul="VARIABLES" jml={scopes.length}>
           {scopes.length === 0 ? (
-            <p className="side-muted dbg-kosong">Tersedia saat program berhenti.</p>
+            <p className="side-muted dbg-kosong">{tr('Tersedia saat program berhenti.')}</p>
           ) : (
             scopes.map((sc) => (
               <div className="dbg-scope" key={sc.variablesReference} data-testid="dbg-scope">

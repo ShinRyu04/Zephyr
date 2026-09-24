@@ -154,7 +154,7 @@ export function ExtensionsSection() {
 
       <div className="ext-actions">
         <button className="btn" data-testid="ext-add" onClick={() => void addFromDialog()}>
-          Tambah dari file…
+          {tr('Tambah dari file…')}
         </button>
         <button className="btn" data-testid="ext-folder" onClick={() => void openFolder()}>
           Buka folder ekstensi

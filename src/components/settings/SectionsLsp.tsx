@@ -92,7 +92,7 @@ export default function SectionsLsp() {
             notifyInfo('Semua language server dimatikan', { source: 'LSP' });
           }}
         >
-          Matikan semua server
+          {tr('Matikan semua server')}
         </button>
         <span className="side-muted" data-testid="lsp-live-count">
           {live.length} proses hidup
@@ -177,7 +177,7 @@ export default function SectionsLsp() {
                   notifyInfo(`${belum.length} perintah pasang disalin`, { source: 'LSP' });
                 }}
               >
-                Salin semua perintah
+                {tr('Salin semua perintah')}
               </button>
             </>
           );

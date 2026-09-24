@@ -106,7 +106,7 @@ export default function AccessibilitySection() {
             data-testid="a11y-uji-umumkan"
             onClick={() => umumkan('Pengumuman uji dari Zephyr. Jalur screen reader berfungsi.')}
           >
-            Kirim pengumuman uji
+            {tr('Kirim pengumuman uji')}
           </button>
         </div>
       </div>

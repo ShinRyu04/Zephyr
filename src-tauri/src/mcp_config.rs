@@ -169,12 +169,24 @@ pub fn target_path(t: &CliTarget) -> ZResult<PathBuf> {
     Ok(home()?.join(t.rel.replace('/', std::path::MAIN_SEPARATOR_STR)))
 }
 
-fn server_entry(port: u16, token: &str) -> Value {
-    json!({
-        "type": "http",
-        "url": format!("http://127.0.0.1:{port}"),
-        "headers": { "Authorization": format!("Bearer {token}") }
-    })
+fn server_entry(t: &CliTarget, port: u16, token: &str) -> Value {
+    let url = format!("http://127.0.0.1:{port}");
+    let headers = json!({ "Authorization": format!("Bearer {token}") });
+    if t.id == "opencode" {
+        json!({
+            "type": "remote",
+            "url": url,
+            "enabled": true,
+            "oauth": false,
+            "headers": headers
+        })
+    } else {
+        json!({
+            "type": "http",
+            "url": url,
+            "headers": headers
+        })
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -354,7 +366,7 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
     let backup = backup_file(&p);
 
     let next = match t.format {
-        Format::Json => match merge_json(&existing, t.key, server_entry(port, token)) {
+        Format::Json => match merge_json(&existing, t.key, server_entry(t, port, token)) {
             Ok(s) => s,
             Err(e) => {
                 return CliWriteResult {
@@ -517,7 +529,12 @@ pub fn cli_status() -> Vec<CliStatus> {
 
 #[cfg(test)]
 pub fn merge_json_for_test(existing: &str, key: &str, port: u16, token: &str) -> ZResult<String> {
-    merge_json(existing, key, server_entry(port, token))
+    let t = if key == "mcp" {
+        target("opencode").expect("target opencode")
+    } else {
+        target("claude").expect("target claude")
+    };
+    merge_json(existing, key, server_entry(t, port, token))
 }
 
 #[cfg(test)]

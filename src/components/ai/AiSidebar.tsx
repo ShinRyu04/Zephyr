@@ -124,7 +124,7 @@ export default function AiSidebar() {
         />
         {sessions.length === 0 ? (
           <p className="side-muted" data-testid="ai-side-empty">
-            Belum ada percakapan. Klik “+ Chat baru”.
+            {tr('Belum ada percakapan. Klik “+ Chat baru”.')}
           </p>
         ) : tampil.length === 0 ? (
           <p className="side-muted" data-testid="ai-side-nohit">

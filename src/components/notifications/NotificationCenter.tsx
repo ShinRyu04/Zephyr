@@ -1,3 +1,4 @@
+import { useT } from '../../lib/i18n';
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { Changelog } from '../settings/changelogRender';
@@ -91,6 +92,7 @@ export function NotifBell() {
 }
 
 export default function NotificationCenter() {
+  const tr = useT();
   const open = useNotif((s) => s.centerOpen);
   const items = useNotif((s) => s.items);
   const dnd = useNotif((s) => s.dnd);
@@ -138,7 +140,7 @@ export default function NotificationCenter() {
 
         {items.length === 0 ? (
           <p className="side-muted nc-empty" data-testid="nc-empty">
-            Belum ada notifikasi.
+            {tr('Belum ada notifikasi.')}
           </p>
         ) : (
           <ul className="nc-list" data-testid="nc-list">

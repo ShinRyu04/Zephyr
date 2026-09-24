@@ -1,3 +1,4 @@
+import { useT } from '../../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
@@ -32,6 +33,7 @@ interface SymbolItem {
 }
 
 export default function LspOverlay() {
+  const tr = useT();
   const [mode, setMode] = useState<Mode>(null);
   const [nilai, setNilai] = useState('');
   const [aksi, setAksi] = useState<ActionItem[]>([]);
@@ -342,7 +344,7 @@ export default function LspOverlay() {
             <p className="lsp-empty">Menanyakan server…</p>
           ) : aksi.length === 0 ? (
             <p className="lsp-empty" data-testid="lsp-action-empty">
-              Tidak ada aksi di posisi ini.
+              {tr('Tidak ada aksi di posisi ini.')}
             </p>
           ) : (
             <div className="lsp-items">
@@ -371,7 +373,7 @@ export default function LspOverlay() {
             <p className="lsp-empty">Mengambil simbol…</p>
           ) : simbol.length === 0 ? (
             <p className="lsp-empty" data-testid="lsp-symbol-empty">
-              Tidak ada simbol.
+              {tr('Tidak ada simbol.')}
             </p>
           ) : (
             <div className="lsp-items">

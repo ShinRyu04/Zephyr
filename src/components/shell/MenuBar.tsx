@@ -9,6 +9,7 @@ import WindowControls from './WindowControls';
 import { useLayoutCustom } from '../../lib/layoutStore';
 import ZephyrLogo from './ZephyrLogo';
 import { useT } from '../../lib/i18n';
+import { useLabel } from '../../lib/labelI18n';
 
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
 
@@ -21,6 +22,7 @@ const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; de
 
 export default function MenuBar() {
   const tr = useT();
+  const lbl = useLabel();
   const bindings = useKb((s) => s.bindings);
 
   const [buka, setBuka] = useState(-1);
@@ -165,7 +167,7 @@ export default function MenuBar() {
             }}
             onClick={() => setSub(terbuka ? null : (it.label ?? null))}
           >
-            <span className="mb-label">{it.label}</span>
+            <span className="mb-label">{lbl(it.label)}</span>
             <span className="mb-arrow" aria-hidden="true">
               ›
             </span>
@@ -190,11 +192,11 @@ export default function MenuBar() {
         role="menuitem"
         disabled={nonaktif}
         aria-disabled={nonaktif}
-        title={nonaktif ? `${it.label} — belum tersedia` : it.label}
+        title={nonaktif ? `${lbl(it.label)} — ${tr('belum tersedia')}` : lbl(it.label)}
         onMouseEnter={() => !dalamSub && setIdx(i)}
         onClick={() => it.command && pilih(it.command)}
       >
-        <span className="mb-label">{it.label}</span>
+        <span className="mb-label">{lbl(it.label)}</span>
         {chord && (
           <span className="mb-chord" data-testid="mb-chord">
             {displayChord(chord)}
@@ -224,7 +226,15 @@ export default function MenuBar() {
         <ZephyrLogo size={13} glyphOnly />
       </div>
       {MENUS.map((m, i) => {
-        const mnemonicIdx = m.label.toLowerCase().indexOf(m.mnemonic);
+        /*
+         * Label menu diterjemahkan saat render. Mnemonic (huruf bergaris
+         * bawah saat Alt ditekan) dihitung dari label TERJEMAHAN: huruf yang
+         * sama belum tentu ada di bahasa lain, jadi kalau tidak ketemu
+         * indeksnya -1 dan tidak ada huruf yang digarisbawahi — lebih baik
+         * daripada menandai huruf yang salah.
+         */
+        const labelMenu = lbl(m.label);
+        const mnemonicIdx = labelMenu.toLowerCase().indexOf(m.mnemonic);
         return (
 
           <div className="mb-menu" key={m.label} role="none">
@@ -254,12 +264,12 @@ export default function MenuBar() {
             >
               {altAktif && mnemonicIdx >= 0 ? (
                 <>
-                  {m.label.slice(0, mnemonicIdx)}
-                  <u>{m.label[mnemonicIdx]}</u>
-                  {m.label.slice(mnemonicIdx + 1)}
+                  {labelMenu.slice(0, mnemonicIdx)}
+                  <u>{labelMenu[mnemonicIdx]}</u>
+                  {labelMenu.slice(mnemonicIdx + 1)}
                 </>
               ) : (
-                m.label
+                labelMenu
               )}
             </button>
 

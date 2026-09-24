@@ -2141,12 +2141,26 @@ body.is-resizing-v {
 }
 /* Tombol donasi status bar — sedikit menonjol tapi tetap subtle. */
 .sb-btn.sb-donate {
-  color: var(--accent, #e0a458);
+  color: var(--text);
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .sb-btn.sb-donate:hover:not(:disabled) {
   background: var(--surface-3);
-  color: var(--accent, #e0a458);
+  color: var(--text);
+}
+/* Dua tanda layanan donasi memakai warna mereknya sendiri, jadi tombolnya
+   terbaca sebagai pintu donasi tanpa perlu teks tambahan. */
+.sb-donate-tk {
+  display: inline-flex;
+  color: var(--brand-trakteer);
+}
+.sb-donate-sw {
+  display: inline-flex;
+  color: var(--brand-saweria);
+  margin-left: -2px;
 }
 /* Tombol donasi di About: memakai warna aksen tema supaya seragam dengan
    tombol utama lain, bukan warna kuning sendiri. Ikonnya emoji kopi, jadi

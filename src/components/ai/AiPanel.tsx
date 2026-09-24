@@ -241,7 +241,7 @@ export default function AiPanel() {
       <div className="ai-chat" ref={scroller} data-testid="ai-chat">
         {msgs.length === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
-            <p className="ai-empty-title">Tanya apa saja soal kode ini.</p>
+            <p className="ai-empty-title">{tr('Tanya apa saja soal kode ini.')}</p>
             <p className="ai-empty-sub">
               Enter kirim · Shift+Enter baris baru · Ctrl+I fokus ke sini.
               Jawaban berisi blok <code>bash</code> bisa langsung dijalankan di
@@ -318,7 +318,7 @@ export default function AiPanel() {
             data-testid="ai-run-last"
             onClick={() => void runInTerminal(lastCommand)}
           >
-            Jalankan di Terminal
+            {tr('Jalankan di Terminal')}
           </button>
           {isDestructive(lastCommand) && (
             <span className="ai-risk" data-testid="ai-risk">

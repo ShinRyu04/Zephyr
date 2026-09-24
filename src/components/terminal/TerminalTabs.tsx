@@ -249,7 +249,7 @@ export function TerminalOps() {
             <div className="tt-drop-label">AI agent</div>
             {agents.length === 0 ? (
               <div className="tt-drop-empty" data-testid="agent-picker">
-                Tidak ada CLI agent terdeteksi.
+                {tr('Tidak ada CLI agent terdeteksi.')}
                 <br />
                 Pasang opencode / claude / codex / gemini.
               </div>
@@ -365,7 +365,7 @@ export function TerminalOps() {
             {/* Layout: dulu tombol toolbar tetap, padahal hanya berguna saat ada
                 ≥2 pane. Sebagai item menu, status disabled-nya jelas alasannya. */}
             <div className="tt-drop-sep" />
-            <div className="tt-drop-label">Tab ini</div>
+            <div className="tt-drop-label">{tr('Tab ini')}</div>
             <button
               className="tt-drop-item"
               role="menuitem"

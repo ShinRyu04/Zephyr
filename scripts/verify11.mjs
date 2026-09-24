@@ -523,7 +523,8 @@ const main = async () => {
 
   check(
     'V8',
-    tulis.mcp?.zephyr?.type === 'http' &&
+    tulis.mcp?.zephyr?.type === 'remote' &&
+      tulis.mcp?.zephyr?.enabled === true &&
       tulis.mcp?.zephyr?.url === `http://127.0.0.1:${livePort}` &&
       tulis.mcp?.zephyr?.headers?.Authorization === `Bearer ${TOKEN}` &&
       tulis.mcp?.lain?.type === 'local' &&

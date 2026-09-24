@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { usePalette, type PaletteItem } from '../../lib/paletteStore';
 import { useT } from '../../lib/i18n';
+import { useLabel } from '../../lib/labelI18n';
 
 const WINDOW = 40;
 const ROW_H = 30;
@@ -91,6 +92,7 @@ function Row({
   onPick: () => void;
   onHover: () => void;
 }) {
+  const lbl = useLabel();
   return (
     <button
       className={`cp-row${active ? ' is-active' : ''}`}
@@ -105,7 +107,7 @@ function Row({
     >
       <GroupIcon group={item.group} />
       <span className="cp-label">
-        <Highlighted text={item.label} hits={item.hits} />
+        <Highlighted text={lbl(item.label)} hits={item.hits} />
       </span>
       <span className="cp-detail">{item.detail}</span>
       {item.binding ? <kbd className="cp-kbd">{item.binding}</kbd> : null}

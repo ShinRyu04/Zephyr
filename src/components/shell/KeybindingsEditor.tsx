@@ -113,7 +113,7 @@ export default function KeybindingsEditor() {
             {baris.length}
           </span>
           <button className="btn btn-sm" data-testid="kb-reset-all" onClick={() => void resetAll()}>
-            Reset semua
+            {tr('Reset semua')}
           </button>
           <button className="btn btn-sm" data-testid="kb-close" onClick={() => setOpen(false)}>
             Tutup
@@ -129,7 +129,7 @@ export default function KeybindingsEditor() {
         {rekam && (
           <div className="kb-rekam" data-testid="kb-recording">
             <span>
-              Merekam chord untuk <code>{rekam}</code> —{' '}
+              {tr('Merekam chord untuk')} <code>{rekam}</code> —{' '}
               {chordRekam ? (
                 <code data-testid="kb-recorded">{chordRekam}</code>
               ) : (
@@ -213,7 +213,7 @@ export default function KeybindingsEditor() {
 
         <footer className="kb-foot">
           <span className="side-muted">
-            Tersimpan di <code>%APPDATA%\zephyr\keybindings.json</code>. Layer “Editor” ditangani
+            {tr('Tersimpan di')} <code>%APPDATA%\zephyr\keybindings.json</code>. Layer “Editor” ditangani
             CodeMirror, “Terminal” oleh xterm — resolver global tidak mencegatnya.
           </span>
         </footer>

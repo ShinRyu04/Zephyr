@@ -224,7 +224,7 @@ export default function SettingsNav() {
         )}
         {resetStage === 2 && (
           <div className="set-confirm" data-testid="set-reset-c2">
-            <p>Yakin? Tema, shortcut, dan semua preferensi akan hilang.</p>
+            <p>{tr('Yakin? Tema, shortcut, dan semua preferensi akan hilang.')}</p>
             <div className="set-confirm-row">
               <button className="btn btn-sm" onClick={() => setResetStage(0)}>
                 {tr('common.cancel')}

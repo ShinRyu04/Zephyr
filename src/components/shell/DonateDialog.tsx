@@ -33,7 +33,7 @@ export default function DonateDialog() {
       <div className="upd-dialog donate-dialog" role="dialog" aria-modal="true" aria-labelledby="donate-title">
         <div className="upd-dialog-head">
           <span className="upd-dialog-ico donate-ico" aria-hidden="true">
-            <TrakteerLogo size={14} />
+            ☕
           </span>
           <div>
             <h2 className="upd-dialog-title" id="donate-title" data-testid="donate-title">

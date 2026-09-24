@@ -1,14 +1,24 @@
 /**
- * Brand logos for the About buttons.
+ * Brand logos for the About buttons and the donate dialog.
  *
  * These are the real marks, drawn as inline SVG so they inherit the theme
  * colour and stay sharp at any size. Keeping them here means the buttons do
  * not depend on an icon font or a network fetch.
  *
  * Path data:
- *   GitHub  — the official Octocat mark, 16x16 viewBox.
+ *   GitHub   — the official Octocat mark, 16x16 viewBox.
  *   WhatsApp — the handset inside the speech bubble, 16x16 viewBox.
+ *   Trakteer — the jar with two coins and a heart cut out, 16x16 viewBox.
+ *   Saweria  — the long-eared mascot face, 16x16 viewBox.
+ *   Support  — a faceted gem used for the donate button.
+ *
+ * Marks with cut-outs (Trakteer's heart, Saweria's eyes, the gem's facets)
+ * use a mask whose id comes from React's useId, because the same logo can be
+ * mounted more than once at a time and duplicate ids would make every copy
+ * read the first mask in the document.
  */
+
+import { useId } from 'react';
 
 interface LogoProps {
   size?: number;
@@ -45,10 +55,13 @@ export function WhatsAppLogo({ size = 13 }: LogoProps) {
 }
 
 /**
- * Trakteer mark: a cup with a heart, drawn as a single filled path so it
- * inherits the button colour like the other brand marks.
+ * Trakteer mark: a jar with a flat lid, two coins resting on the lid and a
+ * heart cut out of the jar body — the shape of the official icon.
  */
 export function TrakteerLogo({ size = 14 }: LogoProps) {
+  const uid = useId().replace(/:/g, '');
+  const heartMask = `tk-heart-${uid}`;
+
   return (
     <svg
       viewBox="0 0 16 16"
@@ -58,17 +71,37 @@ export function TrakteerLogo({ size = 14 }: LogoProps) {
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M2.4 4.2h9.1a.6.6 0 0 1 .6.6v3.4a4.3 4.3 0 0 1-4.3 4.3h-1.6a4.3 4.3 0 0 1-4.3-4.3V4.8a.6.6 0 0 1 .5-.6zm9.7 1.9h.7a1.9 1.9 0 0 1 0 3.8h-.7a5.6 5.6 0 0 1-1 2.3 3 3 0 0 0 1.9-2.9 3 3 0 0 0-.9-2.1zM4.6 1.6c0 .9-.7 1.1-.7 1.9 0 .5.3.8.3.8a.55.55 0 0 1-.8.7S2.7 4.4 2.7 3.5c0-1.4 1.1-1.7 1.1-2.5 0-.3-.2-.5-.2-.5a.55.55 0 0 1 .8-.7s.2.4.2 1.3zm2.6 0c0 .9-.7 1.1-.7 1.9 0 .5.3.8.3.8a.55.55 0 0 1-.8.7s-.7-.6-.7-1.5c0-1.4 1.1-1.7 1.1-2.5 0-.3-.2-.5-.2-.5a.55.55 0 0 1 .8-.7s.2.4.2 1.3z" />
-      <path d="M7 6.4c.9-1 2.3-.4 2.3.7 0 .9-1.2 1.7-2.3 2.6-1.1-.9-2.3-1.7-2.3-2.6 0-1.1 1.4-1.7 2.3-.7z" opacity=".55" />
+      <mask id={heartMask}>
+        <rect width="16" height="16" fill="#fff" />
+        {/* Hati di badan toples, dilubangi dari siluet. */}
+        <path
+          d="M8 13.3s-3.1-1.9-3.1-3.8c0-1.1.9-1.9 1.9-1.9.6 0 1 .3 1.2.7.2-.4.6-.7 1.2-.7 1 0 1.9.8 1.9 1.9 0 1.9-3.1 3.8-3.1 3.8z"
+          fill="#000"
+        />
+      </mask>
+
+      {/* Badan toples: sisi lurus, sudut bawah membulat. */}
+      <path
+        d="M4.2 6.4h7.6v5.1c0 1.6-1.3 2.9-2.9 2.9H7.1c-1.6 0-2.9-1.3-2.9-2.9z"
+        mask={`url(#${heartMask})`}
+      />
+      {/* Tutup datar, sedikit lebih lebar dari badan. */}
+      <rect x="3.3" y="4.9" width="9.4" height="1.5" rx="0.5" />
+      {/* Dua koin bertumpuk miring di atas tutup. */}
+      <circle cx="10.5" cy="2.9" r="1.9" />
+      <circle cx="6.3" cy="3.3" r="2.1" />
     </svg>
   );
 }
 
 /**
- * Saweria mark: a simple speech-bubble heart, matching the service's logo
- * shape without copying the full-colour artwork.
+ * Saweria mark: the mascot's head — long upright ears, round face and two
+ * big eyes — with the eyes and nose cut out of the silhouette.
  */
 export function SaweriaLogo({ size = 14 }: LogoProps) {
+  const uid = useId().replace(/:/g, '');
+  const faceMask = `sw-face-${uid}`;
+
   return (
     <svg
       viewBox="0 0 16 16"
@@ -78,8 +111,51 @@ export function SaweriaLogo({ size = 14 }: LogoProps) {
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M8 1.3c-3.6 0-6.5 2.4-6.5 5.4 0 1.7.9 3.2 2.4 4.2v3.1a.5.5 0 0 0 .8.4l2.5-1.7c.3 0 .5.1.8.1 3.6 0 6.5-2.4 6.5-5.4S11.6 1.3 8 1.3zm0 8.9c-.9 0-1.7-.2-2.4-.6l-.4-.2-1.6 1.1v-2l-.4-.3C2.2 7.4 1.6 6.3 1.6 5.1c0-2.2 2.3-4 5.4-4s5.4 1.8 5.4 4-2.3 4-5.4 4z" />
-      <path d="M8 4.4c.7-.8 1.8-.3 1.8.5 0 .7-.9 1.3-1.8 2-.9-.7-1.8-1.3-1.8-2 0-.8 1.1-1.3 1.8-.5z" />
+      <mask id={faceMask}>
+        <rect width="16" height="16" fill="#fff" />
+        <circle cx="6" cy="9.4" r="1.4" fill="#000" />
+        <circle cx="10" cy="9.4" r="1.4" fill="#000" />
+        <ellipse cx="8" cy="11.9" rx="1" ry="0.8" fill="#000" />
+      </mask>
+
+      {/* Telinga panjang tegak, lalu kepala bulat — satu siluet. */}
+      <g mask={`url(#${faceMask})`}>
+        <rect x="4.3" y="0.7" width="2.7" height="6.4" rx="1.35" />
+        <rect x="9" y="0.7" width="2.7" height="6.4" rx="1.35" />
+        <path d="M8 4.1c3.1 0 5.7 2.4 5.7 5.5S11.1 15.3 8 15.3 2.3 12.7 2.3 9.6 4.9 4.1 8 4.1z" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Donate mark: a faceted gem, used for the "Dukung Zephyr" button and the
+ * donate dialog header.
+ */
+export function SupportLogo({ size = 14 }: LogoProps) {
+  const uid = useId().replace(/:/g, '');
+  const facetMask = `sp-facet-${uid}`;
+
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <mask id={facetMask}>
+        <rect width="16" height="16" fill="#fff" />
+        {/* Sisi atas dan dua garis potong yang membentuk facet. */}
+        <path d="M2.6 5.3h10.8v1.1H2.6z" fill="#000" />
+        <path d="M5.5 1.3 8 6.4 10.5 1.3 8 15.4z" fill="#000" />
+      </mask>
+
+      <path d="M5.5 1.3h5l3.4 4-5.9 9.9-5.9-9.9z" mask={`url(#${facetMask})`} />
+      {/* Sisi kiri-kanan digambar utuh supaya facet atas tetap terbaca. */}
+      <path d="M2.6 5.3h10.8v1.1H2.6z" />
+      <path d="M5.5 1.3 2.6 5.3h2.6zM10.5 1.3l2.9 4h-2.6z" />
     </svg>
   );
 }

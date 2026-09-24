@@ -379,7 +379,7 @@ export function SshSection() {
               Hapus host SSH "{hapusTarget.name}"?
             </h2>
             <p className="modal-body" data-testid="ssh-del-body">
-              Koneksi host ini akan dihapus dari daftar.
+              {tr('Koneksi host ini akan dihapus dari daftar.')}
             </p>
             <div className="modal-actions">
               <button

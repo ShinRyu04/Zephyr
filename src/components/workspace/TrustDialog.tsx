@@ -1,8 +1,10 @@
+import { useT } from '../../lib/i18n';
 import { useWs } from '../../lib/workspaceStore';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function TrustDialog() {
+  const tr = useT();
   const tanyaUntuk = useWs((s) => s.tanyaUntuk);
   const setTrust = useWs((s) => s.setTrust);
   const tanya = useWs((s) => s.tanya);
@@ -37,7 +39,7 @@ export default function TrustDialog() {
         </div>
 
         <h2 id="trust-title" className="trust-title">
-          Percayai folder ini?
+          {tr('Percayai folder ini?')}
         </h2>
         <p className="trust-path" title={tanyaUntuk} data-testid="trust-path">
           {tanyaUntuk}
@@ -64,21 +66,21 @@ export default function TrustDialog() {
             data-testid="trust-yes"
             onClick={() => void setTrust(tanyaUntuk, true)}
           >
-            Percayai folder ini
+            {tr('Percayai folder ini')}
           </button>
           <button
             className="btn"
             data-testid="trust-no"
             onClick={() => void setTrust(tanyaUntuk, false)}
           >
-            Buka dalam Restricted Mode
+            {tr('Buka dalam Restricted Mode')}
           </button>
         </div>
 
         {sudahRestricted && (
           
           <button className="trust-nanti" onClick={() => tanya(null)} data-testid="trust-close">
-            Nanti saja
+            {tr('Nanti saja')}
           </button>
         )}
       </div>

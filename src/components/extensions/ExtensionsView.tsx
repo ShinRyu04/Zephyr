@@ -482,7 +482,7 @@ export default function ExtensionsView() {
       )}
       {tab === 'recommended' && bahasa.length === 0 && (
         <p className="xv-note" data-testid="ext-rec-empty">
-          Buka folder proyek dulu — rekomendasi dihitung dari bahasa file di workspace.
+          {tr('Buka folder proyek dulu — rekomendasi dihitung dari bahasa file di workspace.')}
         </p>
       )}
 
@@ -546,7 +546,7 @@ export default function ExtensionsView() {
               Hapus {uninstallTarget.name}?
             </h2>
             <p className="modal-body" data-testid="ext-uninstall-body">
-              Folder ekstensi akan dihapus PERMANEN (tidak bisa di-undo).
+              {tr('Folder ekstensi akan dihapus PERMANEN (tidak bisa di-undo).')}
             </p>
             <div className="modal-actions">
               <button

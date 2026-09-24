@@ -103,7 +103,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
             title={isDestructive(code) ? 'Perintah berisiko — akan minta konfirmasi' : 'Kirim ke pane terminal aktif'}
             onClick={() => void runInTerminal(code)}
           >
-            Jalankan di Terminal
+            {tx('Jalankan di Terminal')}
           </button>
         )}
       </div>
@@ -269,7 +269,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                             });
                           }}
                         >
-                          Buka di terminal
+                          {tx('Buka di terminal')}
                         </button>
                       </div>
                     </>

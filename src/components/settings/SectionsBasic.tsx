@@ -16,7 +16,7 @@ export function GeneralSection() {
 
   return (
     <Section title={tr('settings.general')}>
-      <Row label={tr('general.theme')} hint="mode terang/gelap; tema spesifik di section Tema">
+      <Row label={tr('general.theme')} hint={tr('mode terang/gelap; tema spesifik di section Tema')}>
         <Pills
           label={tr('general.theme')}
           testid="general-theme"
@@ -385,11 +385,7 @@ export function ThemeSection() {
 
   return (
     <Section title={tr('settings.theme')}>
-      <p className="set-note">
-        Tema mengubah UI, editor, dan terminal sekaligus. Mode di section Umum
-        (terang/gelap) menang atas pilihan di sini — memilih tema gelap saat
-        mode terang akan mengembalikannya ke Zephyr Light.
-      </p>
+      <p className="set-note">{tr('Tema mengubah UI, editor, dan terminal sekaligus. Mode di section Umum (terang/gelap) menang atas pilihan di sini — memilih tema gelap saat mode terang akan mengembalikannya ke Zephyr Light.')}</p>
 
       <div className="theme-grid" data-testid="theme-grid">
         {/* semuaTema() = bawaan + tema dari ekstensi aktif (fase 19.5). */}

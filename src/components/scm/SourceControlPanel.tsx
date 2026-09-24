@@ -735,7 +735,7 @@ export default function SourceControlPanel() {
         <Group title="Changes" items={unstaged} staged={false} />
         {changes.length === 0 && (
           <p className="side-muted scm-clean" data-testid="scm-clean">
-            Tidak ada perubahan — working tree bersih.
+            {tr('Tidak ada perubahan — working tree bersih.')}
           </p>
         )}
         <GitGraphSection />

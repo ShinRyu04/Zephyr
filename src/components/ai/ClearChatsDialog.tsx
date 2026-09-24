@@ -1,9 +1,11 @@
+import { useT } from '../../lib/i18n';
 import { useEffect, useRef } from 'react';
 import { useAi } from '../../lib/aiStore';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 export default function ClearChatsDialog() {
+  const tr = useT();
   const open = useAi((s) => s.clearAllOpen);
   const jumlah = useAi((s) => s.sessions.length);
   const setOpen = useAi((s) => s.setClearAllOpen);
@@ -31,7 +33,7 @@ export default function ClearChatsDialog() {
     >
       <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="clr-title">
         <h2 className="modal-title" id="clr-title" data-testid="clr-title">
-          Hapus semua riwayat chat?
+          {tr('Hapus semua riwayat chat?')}
         </h2>
         <p className="modal-body" data-testid="clr-body">
           {jumlah} percakapan akan dihapus PERMANEN dan tidak bisa dikembalikan.
@@ -51,7 +53,7 @@ export default function ClearChatsDialog() {
             data-testid="clr-ok"
             onClick={() => clearAll()}
           >
-            Hapus semua
+            {tr('Hapus semua')}
           </button>
         </div>
       </div>

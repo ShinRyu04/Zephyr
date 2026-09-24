@@ -17,8 +17,9 @@ mod tests {
         let out = merge_json_for_test(existing, "mcp", 9222, TOKEN).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
 
-        assert_eq!(v["mcp"]["zephyr"]["type"], "http");
+        assert_eq!(v["mcp"]["zephyr"]["type"], "remote");
         assert_eq!(v["mcp"]["zephyr"]["url"], "http://127.0.0.1:9222");
+        assert_eq!(v["mcp"]["zephyr"]["enabled"], true);
         assert_eq!(
             v["mcp"]["zephyr"]["headers"]["Authorization"],
             format!("Bearer {TOKEN}")

@@ -1,3 +1,4 @@
+import { useT } from '../../lib/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTerminal } from '../../lib/terminalStore';
@@ -50,6 +51,7 @@ function Icon({ d, size = 13 }: { d: string; size?: number }) {
  * begitu elemen penampungnya keluar dari layar.
  */
 export default function BrowserPane({ pane }: { pane: PaneMeta }) {
+  const tr = useT();
   const setPaneUrl = useTerminal((s) => s.setPaneUrl);
   const [draft, setDraft] = useState(pane.url ?? '');
   const [live, setLive] = useState({ url: pane.url ?? '', title: '' });
@@ -338,7 +340,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         <div className="bp-stage" ref={stageRef} data-testid="bp-stage">
           {galat && (
             <div className="bp-blocked" data-testid="bp-error" role="alert">
-              <p className="bp-blocked-title">Halaman tidak bisa dimuat</p>
+              <p className="bp-blocked-title">{tr('Halaman tidak bisa dimuat')}</p>
               <p className="bp-blocked-body">
                 <code>{shortUrl(pane.url)}</code> — {galat}
               </p>
@@ -348,7 +350,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
                   data-testid="bp-open-external"
                   onClick={() => void openUrl(pane.url as string).catch(() => {})}
                 >
-                  Buka di browser eksternal
+                  {tr('Buka di browser eksternal')}
                 </button>
                 <button className="btn btn-sm" data-testid="bp-goto-local" onClick={() => go(HOME)}>
                   Ke localhost:5173

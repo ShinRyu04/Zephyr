@@ -186,7 +186,7 @@ export default function TimelineView() {
             <p className="side-muted">Memuat…</p>
           ) : timeline.length === 0 ? (
             <p className="side-muted" data-testid="timeline-empty">
-              Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.
+              {tr('Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.')}
             </p>
           ) : (
             <ul className="timeline-list" data-testid="timeline-list">

@@ -739,7 +739,8 @@ const main = async () => {
     // minimum with every row carrying a real path rather than a fixed count.
     v9a.rows.length >= 7 &&
       v9a.rows.every((r) => (r.path ?? '').length > 3) &&
-      entri?.type === 'http' &&
+      entri?.type === 'remote' &&
+      entri?.enabled === true &&
       entri?.url === `http://127.0.0.1:${PORT}` &&
       /^Bearer /.test(entri?.headers?.Authorization ?? '') &&
       cfgSetelah.theme === 'zephyr-dark' &&

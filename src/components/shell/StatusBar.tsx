@@ -168,10 +168,13 @@ export default function StatusBar() {
             <button
               className="sb-btn sb-donate"
               data-testid="sb-donate"
-              title="Support Zephyr — Trakteer / Saweria"
+              title={tr('Dukung Zephyr')}
               onClick={() => useStore.getState().setDonateOpen(true)}
             >
-              <span dangerouslySetInnerHTML={{ __html: '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><path d="M3 5.5h8.5v3.2a4.2 4.2 0 0 1-4.2 4.2h-.1A4.2 4.2 0 0 1 3 8.7z"/><path d="M11.5 6.6h1.2a1.9 1.9 0 0 1 0 3.8h-1.2"/><path d="M5.6 2.2c0 .9-.8 1.1-.8 2M8.2 2.2c0 .9-.8 1.1-.8 2"/></svg>' }} /> Support
+              <span aria-hidden="true" className="sb-donate-emoji">
+                ☕
+              </span>{' '}
+              {tr('Dukung Zephyr')}
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />
