@@ -261,8 +261,13 @@ const main = async () => {
         nama: el.querySelector('.ai-mi-name')?.textContent ?? '',
         logo: el.querySelector('svg[aria-label]')?.getAttribute('aria-label') ?? null,
       }));
-      // Masuk ke tingkat MODEL: OpenAI -> gpt-5.2.
-      await klik('[data-provider-item="openai"]');
+      // Masuk ke tingkat MODEL: pilih provider pertama yang punya key.
+      // Only providers with a key are listed by design, so the opening
+      // provider must be read from the list rather than assumed — a machine
+      // with only one provider configured has no "openai" row at all.
+      const providerPertama = providerRows[0]?.provider;
+      if (!providerPertama) return JSON.stringify({ err: 'tidak ada provider ber-key' });
+      await klik('[data-provider-item="' + providerPertama + '"]');
       await wait(300);
       const items = qa('[data-model-item]').map(el => ({
         model: el.dataset.modelItem,
@@ -276,7 +281,9 @@ const main = async () => {
         model: q('[data-testid="ai-model-btn"]').dataset.model,
         provider: q('[data-testid="ai-model-btn"]').dataset.provider,
       };
-      await klik('[data-model-item="gpt-5.2"]');
+      const modelPertama = items[0]?.model;
+      if (!modelPertama) return JSON.stringify({ err: 'provider tanpa model' });
+      await klik('[data-model-item="' + modelPertama + '"]');
       await wait(600);
       const sesudah = {
         model: q('[data-testid="ai-model-btn"]').dataset.model,
@@ -284,13 +291,17 @@ const main = async () => {
         judul: q('[data-testid="ai-model-btn"]').getAttribute('title'),
         disk: (await X.settingsFromDisk()).models.activeProvider,
       };
-      // kembalikan ke gemini untuk uji berikutnya
+      // Kembali ke pilihan semula supaya uji berikutnya mulai dari keadaan
+      // yang sama, apa pun provider yang dipakai mesin ini.
       await klik('[data-testid="ai-model-btn"]');
       await wait(250);
-      await klik('[data-provider-item="gemini"]');
+      await klik('[data-provider-item="' + sebelum.provider + '"]');
       await wait(280);
-      await klik('[data-model-item="gemini-3.6-flash"]');
-      await wait(450);
+      const kembali = qa('[data-model-item]').map(el => el.dataset.modelItem);
+      if (kembali.includes(sebelum.model)) {
+        await klik('[data-model-item="' + sebelum.model + '"]');
+        await wait(450);
+      }
       return JSON.stringify({
         adaMenu: !!menu, providerRows, items, sebelum, sesudah,
         katalog: A.catalog().length,

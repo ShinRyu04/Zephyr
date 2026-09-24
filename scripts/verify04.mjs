@@ -198,7 +198,7 @@ const main = async () => {
       const active = st.tabs.find(t => t.id === st.activeTabId);
       return JSON.stringify({ before, after: st.tabs.length, activeName: active?.name,
         activeLang: active?.lang,
-        domActive: document.querySelector('.tab.is-active .tab-name')?.textContent,
+        domActive: document.querySelector('.tabbar-scroll .tab.is-active .tab-name')?.textContent,
         rowActive: !!document.querySelector('.tree-row.is-active') });
     `),
   );

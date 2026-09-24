@@ -182,7 +182,7 @@ const main = async () => {
 
   const dom = JSON.parse(
     await cdp.eval(`JSON.stringify({
-      area: !!document.querySelector('.term-area'),
+      area: !!document.querySelector('.pane-grid'),
       tabs: document.querySelectorAll('.pane').length,
       xtermMounted: !!document.querySelector('.xterm-pane .xterm-screen'),
       title: document.querySelector('.pane-head .pane-title')?.textContent,

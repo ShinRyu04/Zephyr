@@ -30,10 +30,19 @@ interface KbState {
   lastRun: string | null;
 
   kbError: string | null;
+
+  /* Raw keybindings.json entries, before settings.shortcuts is merged in. */
+  kbRaw: UserBinding[];
 }
 
 interface KbActions {
   load: () => Promise<void>;
+
+  /* Re-read settings.shortcuts after that side changes. */
+  syncDariSettings: () => void;
+
+  /* The raw keybindings.json entries, kept so a settings sync never drops them. */
+  rawKb: () => UserBinding[];
 
   remap: (command: string, chord: string, when?: WhenCtx) => Promise<void>;
 
@@ -53,6 +62,24 @@ interface KbActions {
 
 let timer: number | undefined;
 
+/*
+ * Merge the two chord sources, with settings.json winning.
+ *
+ * Settings is the page users actually remap from, so it has to be the source
+ * that takes effect; keybindings.json only adds chords that are not set
+ * there. Keeping the merge in one place is what stops the old chord from
+ * staying live after a remap.
+ */
+function gabungSumber(dariKb: UserBinding[]): UserBinding[] {
+  const dariSettings = Object.entries(useStore.getState().settings.shortcuts ?? {})
+    .filter(([, v]) => typeof v === 'string' && v)
+    .map(([command, key]) => ({ command, key: String(key) }));
+  const peta = new Map<string, UserBinding>();
+  for (const u of dariKb) peta.set(u.command, u);
+  for (const u of dariSettings) peta.set(u.command, u);
+  return [...peta.values()];
+}
+
 export const useKb = create<KbState & KbActions>((set, get) => ({
   user: [],
   bindings: DEFAULT_BINDINGS,
@@ -61,24 +88,34 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
   editorOpen: false,
   lastRun: null,
   kbError: null,
+  kbRaw: [],
+  rawKb: () => get().kbRaw,
 
   load: async () => {
     try {
       const raw = await cmd.getKeybindings();
       const dariKb = Array.isArray(raw) ? (raw as UserBinding[]) : [];
-
-      const dariSettings = Object.entries(useStore.getState().settings.shortcuts ?? {})
-        .filter(([, v]) => typeof v === 'string' && v)
-        .map(([command, key]) => ({ command, key: String(key) }));
-      const peta = new Map<string, UserBinding>();
-      for (const u of dariKb) peta.set(u.command, u);
-      for (const u of dariSettings) peta.set(u.command, u);
-      const user = [...peta.values()];
-      set({ user, bindings: mergeBindings(user, keymapEkstensi()), kbError: null });
+      const user = gabungSumber(dariKb);
+      set({ kbRaw: dariKb, user, bindings: mergeBindings(user, keymapEkstensi()), kbError: null });
     } catch (e) {
-
-      set({ user: [], bindings: DEFAULT_BINDINGS, kbError: cmd.asZephyrError(e).message });
+      const user = gabungSumber([]);
+      set({ kbRaw: [], user, bindings: mergeBindings(user, keymapEkstensi()), kbError: cmd.asZephyrError(e).message });
     }
+  },
+
+  /*
+   * Re-read the shortcuts that live in settings.json.
+   *
+   * There are two places a chord can be set: settings.shortcuts (what the
+   * Settings page writes) and keybindings.json (what the keybindings editor
+   * writes). load() merged both once at startup, so a remap made from
+   * Settings afterwards left the old chord live in `bindings` — the old
+   * shortcut kept firing and the new one did nothing until a reload. Every
+   * write path calls this so the two stay in step.
+   */
+  syncDariSettings: () => {
+    const user = gabungSumber(get().rawKb());
+    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
   },
 
   remap: async (command, chord, when) => {
@@ -86,7 +123,9 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
     if (!c) return;
     const user = get().user.filter((u) => u.command !== command);
     user.push({ key: c, command, when: when ?? 'global' });
-    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
+    const kbRaw = get().kbRaw.filter((u) => u.command !== command);
+    kbRaw.push({ key: c, command, when: when ?? 'global' });
+    set({ kbRaw, user, bindings: mergeBindings(user, keymapEkstensi()) });
     try {
       await cmd.setKeybindings(user);
     } catch (e) {
@@ -97,7 +136,9 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
   removeBinding: async (command) => {
     const user = get().user.filter((u) => u.command !== command);
     user.push({ key: '', command, remove: true });
-    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
+    const kbRaw = get().kbRaw.filter((u) => u.command !== command);
+    kbRaw.push({ key: '', command, remove: true });
+    set({ kbRaw, user, bindings: mergeBindings(user, keymapEkstensi()) });
     try {
       await cmd.setKeybindings(user);
     } catch (e) {

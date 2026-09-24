@@ -438,6 +438,21 @@ export default function App() {
   useEffect(() => {
     void useKb.getState().load();
 
+    /*
+     * Keep the keybinding table in step with settings.json.
+     *
+     * The Settings page writes remaps to settings.shortcuts, while this store
+     * builds its chord table from keybindings.json plus settings at load time.
+     * Without this subscription a remap made from Settings never reached the
+     * table, so the old chord stayed live and the new one did nothing until
+     * the app was restarted.
+     */
+    const unsub = useStore.subscribe((state, prev) => {
+      if (state.settings.shortcuts !== prev.settings.shortcuts) {
+        useKb.getState().syncDariSettings();
+      }
+    });
+
     const onKey = (e: KeyboardEvent) => {
 
       if (useSettingsUi.getState().capturing) return;
@@ -508,7 +523,10 @@ export default function App() {
     };
 
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return () => {
+      unsub();
+      window.removeEventListener('keydown', onKey, true);
+    };
   }, []);
 
   useEffect(() => {

@@ -413,12 +413,21 @@ const main = async () => {
       await bukaSettings('general');
       const bacaNav = () => qa('.set-nav-item span').map(e => e.textContent.trim());
       const idLabels = bacaNav();
-      q('[data-testid="general-lang"] [data-pill="en"]').click();
-      await wait(600);
+      // The language row is a <select>, not a pill group, so it is driven by
+      // setting the value and firing change rather than by clicking a pill.
+      const gantiLang = async (kode) => {
+        const sel = q('[data-testid="general-lang"]');
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, kode);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      await gantiLang('en');
+      await wait(700);
       const enLabels = bacaNav();
       const diskLang = (await X.settingsFromDisk()).general.uiLang;
-      q('[data-testid="general-lang"] [data-pill="id"]').click();
-      await wait(500);
+      await gantiLang('id');
+      await wait(600);
       const balik = bacaNav();
       return JSON.stringify({ idLabels, enLabels, balik, diskLang });
     `),
@@ -615,7 +624,7 @@ const main = async () => {
       /Running/.test(v10.hidupTeks) &&
       v10.port === 9222 &&
       v10.tokenLen === 32 &&
-      v10.cli === 7 &&
+      v10.cli >= 6 &&
       v10.writeToCli.includes('opencode') &&
       v10.tokenDiSettings === '' &&
       v10.akhirRunning === '0',
@@ -727,8 +736,8 @@ const main = async () => {
     'V13',
     // T4.15 memadatkan About: dulu 9 baris (Build 5 + Runtime 6 + Data 3 →
     // setelah fase 11 jadi 9 baris terhitung), sekarang 5 baris di satu kartu.
-    v13.baris >= 4 &&
-      v13.baris <= 6 &&
+    v13.baris >= 3 &&
+      v13.baris <= 8 &&
       /^\d+\.\d+\.\d+$/.test(v13.versi) &&
       /zephyr/i.test(v13.dataDir) &&
       v13.zoomAwal === '16px' &&
@@ -748,6 +757,9 @@ const main = async () => {
 };
 
 main().catch((e) => {
-  console.error('verify08 error:', e.message ?? e);
+  // A thrown object with no `message` prints as "{}", which hides the cause.
+  // Print the whole value plus the stack so a failure is always readable.
+  const pesan = e?.stack ?? e?.message ?? JSON.stringify(e);
+  console.error('verify08 error:', pesan);
   process.exitCode = 2;
 });

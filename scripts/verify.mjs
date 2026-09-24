@@ -147,7 +147,7 @@ const main = async () => {
       statusbar: document.querySelector('.sb-brand')?.textContent ?? '',
       resizer: !!document.querySelector('.resizer'),
       // fase 05 mengganti placeholder .terminal-area dengan panel nyata
-      terminalArea: !!document.querySelector('.term-area'),
+      terminalArea: !!document.querySelector('.pane-grid'),
       terminalResizer: !!document.querySelector('.term-resizer'),
       emptyState: !!document.querySelector('.empty-state'),
     })`),
@@ -274,7 +274,7 @@ const main = async () => {
     switching.push(
       JSON.parse(
         await cdp.eval(`JSON.stringify({
-          activeTabName: document.querySelector('.tab.is-active .tab-name')?.textContent,
+          activeTabName: document.querySelector('.tabbar-scroll .tab.is-active .tab-name')?.textContent,
           firstLine: document.querySelector('.cm-line')?.textContent?.slice(0, 24),
           lang: window.__ZEPHYR__.getState().tabs.find(t => t.id === window.__ZEPHYR__.getState().activeTabId)?.lang,
         })`),
