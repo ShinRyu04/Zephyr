@@ -68,6 +68,16 @@ done
 grep -q "^version = \"$VERSI\"" src-tauri/Cargo.toml || { echo "GAGAL: Cargo.toml bukan $VERSI"; exit 1; }
 echo "  ok: versi $VERSI konsisten di 3 file"
 
+# Kunci signing TIDAK boleh berubah antar rilis: sekali berganti, semua
+# instalasi lama kehilangan update otomatis dan user harus install manual.
+if ! bash scripts/cek-kunci.sh; then
+  echo ""
+  echo "GAGAL: kunci signing berbeda dari acuan — rilis dibatalkan."
+  echo "       Lihat pesan di atas. Kalau memang sengaja ganti kunci,"
+  echo "       jalankan: bash scripts/cek-kunci.sh --catat"
+  exit 1
+fi
+
 # README juga harus menyebut versi ini. README sempat ketinggalan di v1.1.9
 # saat 1.1.10 sudah siap rilis — halaman depan menunjuk installer yang salah.
 grep -q "v$VERSI" README.md || {
