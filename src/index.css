@@ -2148,10 +2148,22 @@ body.is-resizing-v {
   background: var(--surface-3);
   color: var(--accent, #e0a458);
 }
-/* Tombol donasi di About. */
+/* Tombol donasi di About: warna hangat supaya menonjol dari tombol lain, dan
+   ikonnya memakai warna yang sama supaya terbaca sebagai satu tombol. */
 .btn.btn-donate {
-  border-color: var(--accent, #e0a458);
-  color: var(--accent, #e0a458);
+  border-color: var(--brand-donate);
+  color: var(--brand-donate);
+}
+.btn.btn-donate > span {
+  display: inline-flex;
+  align-items: center;
+}
+.btn.btn-donate > span > svg {
+  color: var(--brand-donate);
+}
+.btn.btn-donate:hover:not(:disabled) {
+  border-color: var(--brand-donate);
+  background-color: color-mix(in srgb, var(--brand-donate) 12%, transparent);
 }
 
 /* Tombol brand di About: logo resmi + label.

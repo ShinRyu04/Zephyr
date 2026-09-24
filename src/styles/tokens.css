@@ -102,6 +102,7 @@
      tema supaya kontras terbaca di tema terang maupun gelap. */
   --brand-whatsapp: #25d366;
   --brand-github: var(--fg0);
+  --brand-donate: #e0a458;
 }
 
 /* Tema terang: ANSI 0 harus benar-benar gelap (di tema gelap ia permukaan),
