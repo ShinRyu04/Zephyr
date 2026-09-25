@@ -1,15 +1,15 @@
 {
-  "version": "1.1.10",
-  "notes": "Zephyr 1.1.10 - RAM turun drastis (208 MB -> ~92 MB idle), binary lebih kecil (23.8 MB -> 9.4 MB), tanpa kedip console window, i18n lengkap 10 bahasa. Refresh ini menambah skill & memory ala Hermes untuk AI panel (SKILL.md + ingatan lintas sesi), tugas terjadwal (cron), tombol Hapus semua riwayat chat & Chat baru. 22 tool agent. Perbaikan penting: halaman Settings -> Model AI tidak lagi membuat jendela kosong, error render tidak lagi mematikan seluruh app (kartu pemulihan), Ctrl+V di terminal tidak lagi menempel dua kali, notifikasi update ikut bahasa yang dipilih, dan avatar GitHub kini memakai foto profil asli. Katalog model dirapikan jadi 8 provider / 50 model (Groq, OpenRouter, Mistral, Ollama dihapus beserta generasi lama). Build Windows (MSI + NSIS) dan Linux (.deb + .AppImage), keduanya signed.",
-  "pub_date": "2026-09-22T18:10:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSR3J2QS9OSlJmbzhRN0pLbW1SbUF6eTJvOW1EWjBkb28zUVk3ZlRxczBjdE1xam1xZm4xSHp4S3hob0NubW9sNlAycUkyRExXRForaWJJOEJkeFVMaytCY21vRGhDSlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDc0MTk2CWZpbGU6WmVwaHlyXzEuMS4xMF94NjQtc2V0dXAuZXhlCm94TEhJWlhhQW1VYlpsU3NEbHNYV2FpdXVIblFvUVRzQjQwRXFkVVQ5eHdxcjVwdUk4R283T3hMbWdTQ2p2V09vMHRuVktXUi8yVmtQWjYrcERvQkRnPT0K",
-      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.10/Zephyr_1.1.10_x64-setup.exe"
-    },
-    "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSR3J2QS9OSlJmbzFjZFNCN0I5aUNtV2cwSDRTbEJBWDR3dmRiemJuWHJzUzM1aEg1b3NXaXR2clhxSnNWQTVNNlpHTk9aUm5yMjQ1V2d3eCs4aG9xN2VrVFRCa2o1NWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDc1Mzk1CWZpbGU6WmVwaHlyXzEuMS4xMF9hbWQ2NC5BcHBJbWFnZQprcXFseEt4N2t6VEFrK0xnUHlIYmx2TUtkcy8vQmNEVzZuYVk4b3NXenlGS1ZWNUtvK0ZGWVhrUVZwOGVQSExjQjFJRWFXL3lySG9vVnZwS2xsSnlCdz09Cg==",
-      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.10/Zephyr_1.1.10_amd64.AppImage"
-    }
-  }
+    "version":  "1.1.10",
+    "notes":  "Zephyr 1.1.10. Agent fixes (subagents no longer stuck, Stop works, terminal commands run) and new AI features: nested subagents, context compaction, token and cost per session, thinking effort in the chat header. Plus full UI translation with English default, all menu items enabled, and the Apache-2.0 license.",
+    "pub_date":  "2026-09-25T12:48:21Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSV3FhYnJkc2taU0l3NWhoNmlkcnZSSDBWcko4dE5xRWpOUDN2TitvSFZucU1DWm13cU9EY2RQN1BnZDhLdUZsRkVGbTdrclRlL2hZWE1yWTFqbFJlUEt3SkJCT0tRdndVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMzM5OTk0CWZpbGU6WmVwaHlyXzEuMS4xMF94NjQtc2V0dXAuZXhlClVGcVNtbDIwTjJYNXIzOFNCR0VmVFdjSWwwUU5nclJKQ3o5Z3h0a1NmYVVaM2tZQWsydU1FeUZhSFl4ZUVGQjlMUTNMWWwrSm1CMnN4K2g5WnJHNUFBPT0K",
+                                             "url":  "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.10/Zephyr_1.1.10_x64-setup.exe"
+                                         },
+                      "linux-x86_64":  {
+                                           "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSV3FhYnJkc2taU0tBUlJVTzhMcG1TSjUxVWlxaytscys3Z0tVdkdhWmRNUGtNaGRDQnFoQnV5RHpwd21TeGsyNHloU1VZNWlIVW1tR2tabkthTFgwbU1KeURzQm5GRkFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMzQwNDUxCWZpbGU6WmVwaHlyXzEuMS4xMF9hbWQ2NC5BcHBJbWFnZQpqR0xTQzBsRW5NVk1lYzVia1dsQWlkMFhoSDFYT1B3bUFGWVNBckVUY3o5Y2pabXJ1Qyt3NEIydXBEVXcwQW01N1J5ZldZMzhITm1yVWIwREE1OEpDQT09Cg==",
+                                           "url":  "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.10/Zephyr_1.1.10_amd64.AppImage"
+                                       }
+                  }
 }
