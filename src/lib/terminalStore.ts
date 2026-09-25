@@ -221,7 +221,10 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
         title: LABEL.browser,
         status: 'live',
         cwd: workspace,
-        url: opts?.url ?? 'http://localhost:8080',
+        // Jangan pakai 8080: di beberapa mesin port itu masuk excluded range
+        // Windows (WinError 10013) sehingga halaman tidak pernah termuat dan
+        // pane tampak hitam. 3000 adalah default dev server yang umum.
+        url: opts?.url ?? 'http://localhost:3000',
       };
       set((s) => ({
         terminalTabs: s.terminalTabs.map((t) =>
