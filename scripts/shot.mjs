@@ -1,4 +1,4 @@
-// shot.mjs — screenshot ASLI dari app hidup lewat CDP, untuk README.
+// shot.mjs 窶・screenshot ASLI dari app hidup lewat CDP, untuk README.
 //
 // Kenapa CDP dan bukan alat screenshot OS: user memakai layarnya, dan
 // Page.bringToFront dilarang di proyek ini. Page.captureScreenshot membaca
@@ -9,11 +9,11 @@
 // seperti folder sampah. D:/zephyr-demo proyek kecil yang wajar dilihat.
 //
 // PELAJARAN yang sudah dibayar (jangan diulang):
-//   * Folder demo WAJIB dipercaya dulu (fase 29) — kalau tidak, dialog trust
+//   * Folder demo WAJIB dipercaya dulu (fase 29) 窶・kalau tidak, dialog trust
 //     modal + backdrop blur membuat SELURUH frame redup dan buram.
 //   * Path anak di explorer store memakai BACKSLASH ('D:/zephyr-demo\\src')
 //     sementara root memakai slash. Jangan susun path sendiri; baca node.path.
-//   * toggleExpand tidak memuat isi direktori — loadDir dulu, kalau tidak
+//   * toggleExpand tidak memuat isi direktori 窶・loadDir dulu, kalau tidak
 //     folder terbuka tapi kosong.
 //   * Tab panel wajib disetel eksplisit ke 'terminal'; kalau tab 'output'
 //     tertinggal aktif, isinya cuma "Channel Zephyr masih kosong".
@@ -74,6 +74,9 @@ const LIPAT_TIMELINE = `
 /** Buka folder demo + seluruh subfolder, lalu percayai. Dipakai semua adegan. */
 const SIAP = `
   ${BERSIH}
+  // Matikan wallpaper selama memotret supaya frame bersih dan teks terbaca.
+  await S.getState().applySettings({ background: { image: '', transparan: false } });
+  await wait(150);
   await WS.setTrust(${JSON.stringify(DEMO)}, true);
   await wait(250);
   const st = S.getState();
@@ -104,7 +107,7 @@ const SIAP = `
   ${LIPAT_TIMELINE}
 `;
 
-// ── 1. Editor + explorer + terminal ───────────────────────────────────────
+// 笏笏 1. Editor + explorer + terminal 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 console.log(
   '1:',
   await cdp.json(`
@@ -137,11 +140,11 @@ console.log(
   if (p1) {
     // Jebakan yang sudah kena di sini:
     //   * npx tanpa typescript lokal mencetak dua baris saran instalasi.
-    //   * '; echo "tsc: 0 error"' itu BOHONG — ';' di PowerShell bukan gerbang
+    //   * '; echo "tsc: 0 error"' itu BOHONG 窶・';' di PowerShell bukan gerbang
     //     sukses, teks tercetak walau tsc gagal.
     //   * 'git log' tanpa --no-pager berhenti di pager less.
     //   * Beberapa PTY.write berurutan memicu bracketed-paste PSReadLine
-    //     ("Accept pasted input") — kirim SATU perintah saja per pane baru.
+    //     ("Accept pasted input") 窶・kirim SATU perintah saja per pane baru.
     PTY.write(p1, 'npm run typecheck; git --no-pager log --oneline -3\\r');
     await wait(8000);
   }
@@ -180,7 +183,7 @@ const ADEGAN = [
       ${SIAP}
       TS().setVisible(false);
       S.getState().setActivity('explorer');
-      // CP.open dipanggil SETELAH SIAP (yang memuat BERSIH → CP.close()).
+      // CP.open dipanggil SETELAH SIAP (yang memuat BERSIH 竊・CP.close()).
       CP.open('command');
       await wait(500);
       CP.setQuery('git');
@@ -195,6 +198,46 @@ const ADEGAN = [
       });
     `,
   },
+  {
+    nama: '04-ai-panel',
+    kode: `
+      ${SIAP}
+      // Buka panel AI di kolom kanan dengan isi contoh, supaya context meter
+      // (token + estimasi biaya) dan tombol Padatkan terlihat.
+      await S.getState().openPath(${JSON.stringify(DEMO + '/src/lib/router.ts')});
+      await wait(500);
+      await S.getState().applySettings({ general: { aiPanel: 'right' } });
+      window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
+      TS().setVisible(false);
+      await wait(600);
+      const AI = window.__ZEPHYR_AI__;
+      AI.store.getState().newChat();
+      await wait(200);
+      AI.store.setState({ draft: 'Jelaskan fungsi router ini' });
+      await wait(400);
+      ${BERSIH}
+      return JSON.stringify({ ai: !!q('[data-testid="ai-input"]'), msgs: AI.store.getState().activeSession()?.messages.length ?? 0 });
+    `,
+  },
+  {
+    nama: '05-subagents',
+    kode: `
+      ${SIAP}
+      // Tab Subagents: form tugas paralel + kartu contoh.
+      window.__ZEPHYR_PANEL__.store.getState().focusTab('subagents');
+      TS().setVisible(true);
+      TS().setHeight(340);
+      const SUB = window.__ZEPHYR_SUB__;
+      SUB.store.setState({ agents: [
+        { id: 'demo-1', nama: 'Comet', tugas: 'Audit modul auth', peran: 'audit', status: 'selesai', langkah: [], hasil: 'Tidak ada celah ditemukan.', error: null, mulai: Date.now()-4000, selesai: Date.now(), nTool: 3 },
+        { id: 'demo-2', nama: 'Nova', tugas: 'Cari pemakaian fungsi X', peran: 'cari', status: 'jalan', langkah: [], hasil: '', error: null, mulai: Date.now()-2000, selesai: null, nTool: 1 },
+      ] });
+      await wait(600);
+      window.__ZEPHYR_NOTIF__.clear();
+      S.getState().setStatus('');
+      return JSON.stringify({ view: !!q('[data-testid="subagents-view"]') });
+    `,
+  },
 ];
 
 for (const a of ADEGAN) {
@@ -205,7 +248,7 @@ for (const a of ADEGAN) {
 // WAJIB: cabut override emulasi.
 //
 // setDeviceMetricsOverride MENEMPEL di page sampai dicabut atau app di-restart.
-// Kalau ditinggalkan, harness verifikasi berikutnya membaca viewport palsu —
+// Kalau ditinggalkan, harness verifikasi berikutnya membaca viewport palsu 窶・
 // verify12 V5 mengukur lebar pane 0px dan gagal, padahal produknya benar.
 await cdp.send('Emulation.clearDeviceMetricsOverride');
 await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });

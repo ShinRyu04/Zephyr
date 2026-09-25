@@ -2,6 +2,31 @@
 
 Version stays **1.1.10**: this refreshes the release contents, not the version.
 
+## Agent fixes and new AI features
+
+### Fixed
+
+- **Subagents no longer get stuck.** A provider that stalls without closing the
+  stream used to leave the agent busy forever, which blocked sending new
+  messages and made Stop do nothing. An idle watchdog now releases the step and
+  resets the state, and agent state is cleared on startup.
+- **The AI can run commands in the terminal again.** The tool that picks a
+  terminal pane read a stale store snapshot, so `terminal_exec` failed with
+  "cannot open terminal pane". Starting a dev server from chat works now.
+- **Menu clicks no longer raise stray errors.** Commands invoked without their
+  context are caught and reported instead of surfacing as a global error.
+
+### New
+
+- **Nested subagents:** an agent can split a job into parallel subagents through
+  a `subagent_run` tool, with a depth guard against endless nesting.
+- **Context compaction:** a Compact button in the AI panel and an
+  `AI: Compact Context` command turn a long session into a short summary plus
+  the most recent messages.
+- **Token and cost per session:** the context meter now shows input and output
+  tokens and an estimated cost for the active model.
+- **Thinking effort** is adjustable right from the chat header.
+
 ## Language, menus, and license
 
 - **Language switching now covers the whole app.** The translator used to check

@@ -28,6 +28,10 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
     <td align="center"><img src="docs/screenshots/02-source-control.png" alt="Source control" /><br/><sub>Source control with unstaged changes and inline diff</sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="docs/screenshots/04-ai-panel.png" alt="AI panel" /><br/><sub>AI panel with context meter, token count, and estimated cost</sub></td>
+    <td align="center"><img src="docs/screenshots/05-subagents.png" alt="Subagents" /><br/><sub>Parallel subagents with roles, live steps, and cancel</sub></td>
+  </tr>
+  <tr>
     <td colspan="2" align="center"><img src="docs/screenshots/03-palette.png" alt="Command palette" /><br/><sub>Command palette filtering the command list</sub></td>
   </tr>
 </table>
