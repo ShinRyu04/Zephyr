@@ -32,6 +32,7 @@ export default function AiPanel() {
   const confirmCmd = useAi((s) => s.confirmCmd);
 
   const setDraft = useAi((s) => s.setDraft);
+  const compactContext = useAi((s) => s.compactContext);
   const setAttachActive = useAi((s) => s.setAttachActive);
   const addDraftImage = useAi((s) => s.addDraftImage);
   const removeDraftImage = useAi((s) => s.removeDraftImage);
@@ -192,6 +193,16 @@ export default function AiPanel() {
               </>
             )}
           </span>
+          {/* Padatkan konteks manual: sesi panjang bisa melebihi jendela. */}
+          <button
+            className="ai-export"
+            data-testid="ai-compact"
+            disabled={msgs.length <= 6}
+            title={tr('Padatkan konteks sesi ini')}
+            onClick={() => compactContext()}
+          >
+            {tr('Padatkan')}
+          </button>
           <button
             className="ai-export"
             data-testid="ai-export"

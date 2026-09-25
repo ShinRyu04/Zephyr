@@ -466,6 +466,18 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'api key provider',
     run: () => openSettingsSection('models'),
   },
+  {
+    id: 'ai.compact',
+    title: 'AI: Compact Context',
+    group: 'AI',
+    keywords: 'padatkan ringkas konteks riwayat',
+    run: () => {
+      const n = useAi.getState().compactContext();
+      T().setVisible(true);
+      usePanel.getState().focusTab('ai');
+      S().setStatus(n > 0 ? `${n} pesan dipadatkan` : 'Konteks sudah pendek');
+    },
+  },
 
   {
     id: 'mcp.panel',
@@ -2254,6 +2266,16 @@ export function findCommand(id: string): CommandDef | undefined {
 export async function runCommand(id: string): Promise<boolean> {
   const c = findCommand(id);
   if (!c) return false;
-  await c.run();
-  return true;
+  try {
+    await c.run();
+    return true;
+  } catch (e) {
+    // Menu kini selalu aktif, jadi sebuah command bisa dipanggil saat
+    // konteksnya belum siap (belum ada tab, bukan repo git, dst). Dulu item
+    // seperti itu di-disable; sekarang jangan biarkan error-nya naik ke
+    // handler global (yang memunculkan toast/kartu error untuk setiap klik).
+    const pesan = e instanceof Error ? e.message : String(e);
+    S().setStatus(pesan);
+    return false;
+  }
 }

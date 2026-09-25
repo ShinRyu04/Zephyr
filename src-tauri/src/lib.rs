@@ -139,7 +139,7 @@ pub fn run() {
                         .unwrap_or(false)
                 };
                 if !enabled {
-                    tracing::debug!("MCP tidak aktif — server tidak dijalankan (lazy)");
+                    tracing::debug!("MCP tidak aktif  Eserver tidak dijalankan (lazy)");
                     return;
                 }
                 match mcp_server::start(handle.clone()).await {

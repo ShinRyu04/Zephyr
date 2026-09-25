@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type PortProtocol = 'http' | 'https';
-export type PortSource = 'ssh' | 'task' | 'debug' | 'manual';
+export type PortSource = 'ssh' | 'task' | 'debug' | 'manual' | 'sistem';
 
 export interface ForwardedPort {
   id: string;

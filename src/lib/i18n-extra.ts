@@ -1052,6 +1052,14 @@ const ID: Dict = {
   'Lokal (opencode / loopback)': 'Lokal (opencode / loopback)',
   'Ketik nama model lokal': 'Ketik nama model lokal',
   'Ketik nama model': 'Ketik nama model',
+  'Padatkan': 'Padatkan',
+  'Padatkan konteks sesi ini': 'Padatkan konteks sesi ini',
+  'Token sesi': 'Token sesi',
+  'Perkiraan biaya': 'Perkiraan biaya',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'Biaya adalah estimasi, bukan tagihan resmi provider.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).',
+  'Tampilkan port sistem': 'Tampilkan port sistem',
+  'Tampilkan juga port milik proses sistem Windows': 'Tampilkan juga port milik proses sistem Windows',
 };
 
 const EN: Dict = {
@@ -1639,7 +1647,7 @@ const EN: Dict = {
   'matikan bila teks terasa kurang jelas': 'turn off if the text looks unclear',
   'Kenyamanan editor di bawah ini bisa dimatikan satu per satu. Semuanya juga ada di menu View → Appearance.': 'The editor comforts below can be turned off one by one. They are all also in the View → Appearance menu.',
   'Klik kolom shortcut lalu tekan kombinasi. Escape = batal. Kombinasi yang sudah dipakai action lain ditolak, jadi tidak mungkin ada dua action dengan shortcut sama.': 'Click the shortcut column then press a combination. Escape = cancel. Combinations already used by another action are rejected, so two actions can never share the same shortcut.',
-  'Perkiraan token (jumlah karakter ÷ 4)': 'Estimated tokens (characters ÷ 4)',
+  'Perkiraan token (jumlah karakter ÷ 4)': 'Estimated tokens (characters / 4)',
   'Salin isi jawaban': 'Copy reply text',
   'Mode AI': 'AI mode',
   'API key tersimpan untuk provider ini': 'API key saved for this provider',
@@ -1987,6 +1995,14 @@ const EN: Dict = {
   'Lokal (opencode / loopback)': 'Local (opencode / loopback)',
   'Ketik nama model lokal': 'Type the local model name',
   'Ketik nama model': 'Type the model name',
+  'Padatkan': 'Compact',
+  'Padatkan konteks sesi ini': 'Compact this session\'s context',
+  'Token sesi': 'Session tokens',
+  'Perkiraan biaya': 'Estimated cost',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'Cost is an estimate, not an official provider invoice.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'Run several tasks as parallel subagents (one task per line). Use it to split large work into parts that run at once. Nesting depth is limited (a subagent cannot call subagents without end).',
+  'Tampilkan port sistem': 'Show system ports',
+  'Tampilkan juga port milik proses sistem Windows': 'Also show ports owned by Windows system processes',
 };
 
 const JA: Dict = {
@@ -3040,6 +3056,14 @@ const JA: Dict = {
   'Lokal (opencode / loopback)': 'ローカル (opencode / loopback)',
   'Ketik nama model lokal': 'ローカルモデル名を入力',
   'Ketik nama model': 'モデル名を入力',
+  'Padatkan': '圧縮',
+  'Padatkan konteks sesi ini': 'このセッションのコンテキストを圧縮',
+  'Token sesi': 'セッショントークン',
+  'Perkiraan biaya': '推定コスト',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'コストは推定値であり、プロバイダーの正式な請求ではありません。',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': '複数のタスクを並列サブエージェントとして実行します（1行に1タスク）。大きな作業を同時実行の部分に分割するのに使います。ネストの深さは制限されます（サブエージェントが無限にサブエージェントを呼ぶことはできません）。',
+  'Tampilkan port sistem': 'システムポートを表示',
+  'Tampilkan juga port milik proses sistem Windows': 'Windowsシステムプロセスのポートも表示',
 };
 
 const KO: Dict = {
@@ -4093,6 +4117,14 @@ const KO: Dict = {
   'Lokal (opencode / loopback)': '로컬 (opencode / loopback)',
   'Ketik nama model lokal': '로컬 모델 이름 입력',
   'Ketik nama model': '모델 이름 입력',
+  'Padatkan': '압축',
+  'Padatkan konteks sesi ini': '이 세션의 컨텍스트 압축',
+  'Token sesi': '세션 토큰',
+  'Perkiraan biaya': '예상 비용',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': '비용은 추정치이며 공급자의 공식 청구가 아닙니다.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': '여러 작업을 병렬 서브에이전트로 실행합니다(한 줄에 하나). 큰 작업을 동시 실행 부분으로 나눌 때 사용합니다. 중첩 깊이가 제한됩니다(서브에이전트가 무한히 서브에이전트를 호출할 수 없음).',
+  'Tampilkan port sistem': '시스템 포트 표시',
+  'Tampilkan juga port milik proses sistem Windows': 'Windows 시스템 프로세스 포트도 표시',
 };
 
 const ZH: Dict = {
@@ -5146,6 +5178,14 @@ const ZH: Dict = {
   'Lokal (opencode / loopback)': '本地（opencode / loopback）',
   'Ketik nama model lokal': '输入本地模型名称',
   'Ketik nama model': '输入模型名称',
+  'Padatkan': '压缩',
+  'Padatkan konteks sesi ini': '压缩此会话的上下文',
+  'Token sesi': '会话 token',
+  'Perkiraan biaya': '预估费用',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': '费用为估算值，并非提供商的正式账单。',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': '将多个任务作为并行子代理运行（每行一个任务）。用于把大工作拆成同时运行的部分。嵌套深度受限（子代理不能无限调用子代理）。',
+  'Tampilkan port sistem': '显示系统端口',
+  'Tampilkan juga port milik proses sistem Windows': '同时显示 Windows 系统进程的端口',
 };
 
 const ES: Dict = {
@@ -6199,6 +6239,14 @@ const ES: Dict = {
   'Lokal (opencode / loopback)': 'Local (opencode / loopback)',
   'Ketik nama model lokal': 'Escribe el nombre del modelo local',
   'Ketik nama model': 'Escribe el nombre del modelo',
+  'Padatkan': 'Compactar',
+  'Padatkan konteks sesi ini': 'Compactar el contexto de esta sesion',
+  'Token sesi': 'Tokens de la sesion',
+  'Perkiraan biaya': 'Costo estimado',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'El costo es una estimacion, no una factura oficial del proveedor.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'Ejecuta varias tareas como subagentes en paralelo (una por linea). Usalo para dividir trabajo grande en partes simultaneas. La profundidad de anidamiento esta limitada.',
+  'Tampilkan port sistem': 'Mostrar puertos del sistema',
+  'Tampilkan juga port milik proses sistem Windows': 'Mostrar tambien los puertos de procesos del sistema Windows',
 };
 
 const FR: Dict = {
@@ -7252,6 +7300,14 @@ const FR: Dict = {
   'Lokal (opencode / loopback)': 'Local (opencode / loopback)',
   'Ketik nama model lokal': 'Saisir le nom du modele local',
   'Ketik nama model': 'Saisir le nom du modele',
+  'Padatkan': 'Compacter',
+  'Padatkan konteks sesi ini': 'Compacter le contexte de cette session',
+  'Token sesi': 'Jetons de la session',
+  'Perkiraan biaya': 'Cout estime',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'Le cout est une estimation, pas une facture officielle du fournisseur.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'Execute plusieurs taches en sous-agents paralleles (une par ligne). Utile pour decouper un gros travail en parties simultanees. La profondeur d\'imbrication est limitee.',
+  'Tampilkan port sistem': 'Afficher les ports systeme',
+  'Tampilkan juga port milik proses sistem Windows': 'Afficher aussi les ports des processus systeme Windows',
 };
 
 const DE: Dict = {
@@ -8305,6 +8361,14 @@ const DE: Dict = {
   'Lokal (opencode / loopback)': 'Lokal (opencode / loopback)',
   'Ketik nama model lokal': 'Namen des lokalen Modells eingeben',
   'Ketik nama model': 'Modellnamen eingeben',
+  'Padatkan': 'Verdichten',
+  'Padatkan konteks sesi ini': 'Kontext dieser Sitzung verdichten',
+  'Token sesi': 'Sitzungs-Token',
+  'Perkiraan biaya': 'Geschatzte Kosten',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'Die Kosten sind eine Schatzung, keine offizielle Abrechnung des Anbieters.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'Fuhrt mehrere Aufgaben als parallele Subagenten aus (eine pro Zeile). Nutze es, um grosse Arbeit in gleichzeitige Teile zu zerlegen. Die Verschachtelungstiefe ist begrenzt.',
+  'Tampilkan port sistem': 'Systemports anzeigen',
+  'Tampilkan juga port milik proses sistem Windows': 'Auch Ports von Windows-Systemprozessen anzeigen',
 };
 
 const PT: Dict = {
@@ -9358,6 +9422,14 @@ const PT: Dict = {
   'Lokal (opencode / loopback)': 'Local (opencode / loopback)',
   'Ketik nama model lokal': 'Digite o nome do modelo local',
   'Ketik nama model': 'Digite o nome do modelo',
+  'Padatkan': 'Compactar',
+  'Padatkan konteks sesi ini': 'Compactar o contexto desta sessao',
+  'Token sesi': 'Tokens da sessao',
+  'Perkiraan biaya': 'Custo estimado',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'O custo e uma estimativa, nao uma cobranca oficial do provedor.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'Executa varias tarefas como subagentes paralelos (uma por linha). Use para dividir trabalho grande em partes simultaneas. A profundidade de aninhamento e limitada.',
+  'Tampilkan port sistem': 'Mostrar portas do sistema',
+  'Tampilkan juga port milik proses sistem Windows': 'Mostrar tambem portas de processos do sistema Windows',
 };
 
 const AR: Dict = {
@@ -10411,6 +10483,14 @@ const AR: Dict = {
   'Lokal (opencode / loopback)': 'محلي (opencode / loopback)',
   'Ketik nama model lokal': 'اكتب اسم النموذج المحلي',
   'Ketik nama model': 'اكتب اسم النموذج',
+  'Padatkan': 'ضغط',
+  'Padatkan konteks sesi ini': 'ضغط سياق هذه الجلسة',
+  'Token sesi': 'رموز الجلسة',
+  'Perkiraan biaya': 'التكلفة المقدرة',
+  'Biaya adalah estimasi, bukan tagihan resmi provider.': 'التكلفة تقديرية وليست فاتورة رسمية من المزوّد.',
+  'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).': 'يشغّل عدة مهام كوكلاء فرعيين متوازيين (مهمة في كل سطر). استخدمه لتقسيم العمل الكبير إلى أجزاء متزامنة. عمق التداخل محدود.',
+  'Tampilkan port sistem': 'إظهار منافذ النظام',
+  'Tampilkan juga port milik proses sistem Windows': 'إظهار منافذ عمليات نظام Windows أيضًا',
 };
 
 export const EXTRA: Record<string, Dict> = {

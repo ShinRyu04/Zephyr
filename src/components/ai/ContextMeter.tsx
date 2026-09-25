@@ -12,6 +12,43 @@ export function jendelaKonteks(modelId: string): number {
   return m?.ctx && m.ctx > 0 ? m.ctx : 128_000;
 }
 
+/**
+ * Harga indikatif (USD per 1 juta token: masuk/keluar) per model.
+ *
+ * Angka ini perkiraan untuk memberi gambaran biaya, BUKAN tagihan resmi.
+ * Kalau model tidak ada di peta, biaya tidak ditampilkan (lebih baik kosong
+ * daripada menampilkan angka palsu).
+ */
+const HARGA: Record<string, { masuk: number; keluar: number }> = {
+  'gemini-3.8-flash': { masuk: 0.3, keluar: 2.5 },
+  'gemini-3.7-flash': { masuk: 0.3, keluar: 2.5 },
+  'gemini-3.6-flash': { masuk: 0.1, keluar: 0.4 },
+  'gemini-3.1-pro-preview': { masuk: 1.25, keluar: 10 },
+  'gemini-2.5-pro': { masuk: 1.25, keluar: 10 },
+  'gemini-2.5-flash': { masuk: 0.3, keluar: 2.5 },
+  'gpt-6-astra': { masuk: 2.5, keluar: 10 },
+  'gpt-5.6-sol': { masuk: 1.25, keluar: 10 },
+  'gpt-5.6-terra': { masuk: 0.5, keluar: 2 },
+  'gpt-5.1-mini': { masuk: 0.25, keluar: 2 },
+  'claude-opus-5': { masuk: 5, keluar: 25 },
+  'claude-sonnet-5': { masuk: 3, keluar: 15 },
+  'claude-haiku-4.5': { masuk: 1, keluar: 5 },
+  'deepseek-v4-pro': { masuk: 0.28, keluar: 0.42 },
+  'deepseek-chat': { masuk: 0.27, keluar: 1.1 },
+  'grok-4.6': { masuk: 3, keluar: 15 },
+  'grok-4': { masuk: 3, keluar: 15 },
+};
+
+export function perkiraanBiaya(
+  modelId: string,
+  tokenMasuk: number,
+  tokenKeluar: number,
+): number | null {
+  const h = HARGA[modelId];
+  if (!h) return null;
+  return (tokenMasuk / 1_000_000) * h.masuk + (tokenKeluar / 1_000_000) * h.keluar;
+}
+
 export default function ContextMeter() {
   const tr = useT();
   const [buka, setBuka] = useState(false);
@@ -21,6 +58,15 @@ export default function ContextMeter() {
   const dipakai = msgs.reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
   const total = jendelaKonteks(model);
   const persen = Math.min(100, Math.round((dipakai / total) * 100));
+
+  // Token masuk (user) vs keluar (asisten) untuk estimasi biaya sesi.
+  const tokMasuk = msgs
+    .filter((m) => m.role === 'user')
+    .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
+  const tokKeluar = msgs
+    .filter((m) => m.role === 'assistant')
+    .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
+  const biaya = perkiraanBiaya(model, tokMasuk, tokKeluar);
 
   const tingkat = persen >= 85 ? 'penuh' : persen >= 60 ? 'sedang' : 'aman';
 
@@ -75,7 +121,22 @@ export default function ContextMeter() {
             <span>{tr('Jendela konteks')}</span>
             <b>{total.toLocaleString('id-ID')}</b>
           </div>
+          <div className="ctx-baris">
+            <span>{tr('Token sesi')}</span>
+            <b data-testid="ctx-token-sesi">
+              {tokMasuk.toLocaleString('id-ID')} ↓ / {tokKeluar.toLocaleString('id-ID')} ↑
+            </b>
+          </div>
+          {biaya !== null && (
+            <div className="ctx-baris">
+              <span>{tr('Perkiraan biaya')}</span>
+              <b data-testid="ctx-biaya">
+                {biaya < 0.01 ? `<$0.01` : `$${biaya.toFixed(biaya < 1 ? 3 : 2)}`}
+              </b>
+            </div>
+          )}
           <p className="ctx-note">{tr('Perkiraan dari isi chat yang terlihat dan payload tool.')}</p>
+          {biaya !== null && <p className="ctx-note">{tr('Biaya adalah estimasi, bukan tagihan resmi provider.')}</p>}
         </div>
       )}
     </span>

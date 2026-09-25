@@ -24,9 +24,11 @@ async function cariPaneTerminal(): Promise<string | null> {
   if (!pane) {
     const id = await t.addPane('shell');
     if (!id) return null;
-    
+
     await new Promise((r) => setTimeout(r, 700));
-    pane = t.findPane(id);
+    // Ambil state SEGAR: snapshot lama tidak memuat pane yang baru dibuat, jadi
+    // findPane() di atasnya gagal dan tool melaporkan "tidak bisa membuka pane".
+    pane = useTerminal.getState().findPane(id);
   }
   return pane ? pane.id : null;
 }
@@ -829,7 +831,53 @@ export const AGENT_TOOLS: AgentTool[] = [
       return baris.join('\n');
     },
   },
+  {
+    spec: {
+      name: 'subagent_run',
+      description:
+        'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).',
+      parameters: {
+        type: 'object',
+        properties: {
+          tasks: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'daftar tugas; tiap item jadi satu subagent',
+          },
+        },
+        required: ['tasks'],
+      },
+    },
+    run: async (args) => {
+      const tasks = Array.isArray(args.tasks)
+        ? (args.tasks as unknown[]).map((t) => String(t)).filter((t) => t.trim())
+        : [];
+      if (tasks.length === 0) throw new Error('subagent_run: tasks kosong');
+      if (subDepth >= MAX_SUB_DEPTH) {
+        return `(ditolak: kedalaman subagent maksimum ${MAX_SUB_DEPTH} tercapai)`;
+      }
+      subDepth += 1;
+      try {
+        // Impor malas: hindari siklus modul (subagent memakai agentTools).
+        const { useSubAgent } = await import('./subagentStore');
+        await useSubAgent.getState().jalankan(tasks, { bersarang: true });
+        const agents = useSubAgent.getState().agents;
+        return (
+          `Selesai menjalankan ${agents.length} subagent.\n` +
+          agents
+            .map((a) => `## ${a.nama} [${a.status}]\n${a.hasil || a.error || '(tidak ada hasil)'}`)
+            .join('\n\n')
+        );
+      } finally {
+        subDepth -= 1;
+      }
+    },
+  },
 ];
+
+/** Kedalaman subagent bersarang, untuk mencegah rekursi tanpa batas. */
+let subDepth = 0;
+export const MAX_SUB_DEPTH = 2;
 
 export function agentToolSpecs(): AgentToolSpec[] {
   return AGENT_TOOLS.map((t) => t.spec);

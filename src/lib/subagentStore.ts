@@ -72,7 +72,7 @@ interface SubAgentState {
 
   sesiId: string | null;
 
-  jalankan: (tugas: string[]) => Promise<number>;
+  jalankan: (tugas: string[], opts?: { bersarang?: boolean }) => Promise<number>;
 
   batal: (id: string) => void;
 
@@ -119,10 +119,12 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
   ringkasan: null,
   sesiId: null,
 
-  jalankan: async (tugas) => {
+  jalankan: async (tugas, opts) => {
     const daftar = tugas.map((t) => t.trim()).filter(Boolean).slice(0, batasParalel());
     if (daftar.length === 0) return 0;
-    if (get().sibuk) return 0;
+    // `bersarang` dipakai subagent yang memanggil subagent: ia tidak boleh
+    // diblokir oleh sibuk global (yang justru diset oleh pemanggilnya).
+    if (get().sibuk && !opts?.bersarang) return 0;
 
     const ai = useAi.getState();
 

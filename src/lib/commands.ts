@@ -63,7 +63,7 @@ import type {
  * Ubah apa pun yang dilempar menjadi ZephyrError yang aman ditampilkan.
  *
  * Tauri melempar objek { code, message }, tetapi message-nya bisa null atau
- * kosong — dan String(null) menghasilkan teks "null" yang bocor ke UI.
+ * kosong  Edan String(null) menghasilkan teks "null" yang bocor ke UI.
  * Objek yang tidak punya pesan berguna dianggap error internal, dan pesannya
  * diambil dari sumber lain yang masih ada supaya pengguna melihat keterangan
  * yang benar-benar menjelaskan masalahnya.
@@ -439,6 +439,7 @@ export const extExec = (opts: {
 }) => invoke<ExtExecResult>('ext_exec', opts);
 
 export const getDiagnostics = () => invoke<Diagnostics>('get_diagnostics');
+
 
 export const aiCaptureSet = (on: boolean) => invoke<boolean>('ai_capture_set', { on });
 export const aiCaptureGet = () =>

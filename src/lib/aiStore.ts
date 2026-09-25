@@ -130,6 +130,48 @@ let agentBatal = false;
 
 const cancelled = new Set<string>();
 
+/**
+ * Watchdog langkah agent.
+ *
+ * Provider bisa menggantung: koneksi terbuka, header terkirim, lalu tidak ada
+ * byte lagi dan tidak ada penutup stream. Saat itu Rust tidak pernah mengirim
+ * "toolDone", jadi promise langkah di frontend menunggu selamanya dan
+ * `agentBusy` tetap true. Efeknya luas: tombol Stop tidak mengembalikan UI,
+ * dan subagent tidak bisa dijalankan karena form menolak saat agentBusy true.
+ *
+ * Watchdog menyetel ulang timer tiap kali ada chunk. Kalau benar-benar sepi
+ * lebih dari AGENT_IDLE_MS, langkah dianggap gagal dan status agent dilepas.
+ */
+const AGENT_IDLE_MS = 90_000;
+let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+function agentWatchdogArm() {
+  if (agentWatchdog) clearTimeout(agentWatchdog);
+  agentWatchdog = setTimeout(() => {
+    agentWatchdog = null;
+    agentBatal = true;
+    const r = agentStepResolve;
+    agentStepResolve = null;
+    agentConfirmResolve = null;
+    r?.({
+      content: '',
+      toolCalls: [],
+      cancelled: true,
+      error: 'Provider berhenti menjawab (timeout). Langkah dihentikan.',
+    });
+    // Kalau tidak ada langkah yang menunggu (mis. menggantung di luar loop),
+    // paksa status agent lepas supaya UI dan subagent tidak terkunci.
+    if (!r) {
+      useAi.setState({ agentBusy: false, pending: null, agentConfirm: null });
+    }
+  }, AGENT_IDLE_MS);
+}
+
+function agentWatchdogDisarm() {
+  if (agentWatchdog) clearTimeout(agentWatchdog);
+  agentWatchdog = null;
+}
+
 const DESTRUCTIVE = [
   /\brm\s+-[a-z]*[rf]/i,
   /\bdel\s+\/[sq]/i,
@@ -284,6 +326,15 @@ interface AiActions {
 
   sendAgent: (text: string) => Promise<void>;
 
+  /**
+   * Padatkan konteks sesi aktif secara manual.
+   *
+   * Menyimpan sejumlah pesan terakhir dan mengganti sisanya dengan satu pesan
+   * ringkasan, supaya sesi panjang tidak membanjiri jendela konteks. Mengembalikan
+   * jumlah pesan yang dipadatkan.
+   */
+  compactContext: (keep?: number) => number;
+
   newChat: () => string;
     selectChat: (id: string) => void;
     deleteChat: (id: string) => void;
@@ -353,6 +404,15 @@ export const useAi = create<AiStore>((set, get) => ({
   reasoningText: null,
 
   init: async () => {
+
+    // Status agent tidak pernah boleh nyangkut dari sesi sebelumnya. Kalau
+    // app ditutup saat agent berjalan, atau provider menggantung, nilai ini
+    // bisa tersisa true dan memblokir kirim chat maupun subagent.
+    agentWatchdogDisarm();
+    agentBatal = false;
+    agentStepResolve = null;
+    agentConfirmResolve = null;
+    set({ pending: null, agentBusy: false, agentConfirm: null });
 
     const st = useStore.getState().settings.models;
     const dikenal = (id: string) => PROVIDER_BY_ID.has(id);
@@ -502,6 +562,35 @@ export const useAi = create<AiStore>((set, get) => ({
       r(setujui);
     }
     set({ agentConfirm: null });
+  },
+
+  compactContext: (keep = 6) => {
+    const id = get().activeId;
+    if (!id) return 0;
+    const sesi = get().activeSession();
+    if (!sesi) return 0;
+    const msgs = sesi.messages;
+    if (msgs.length <= keep) return 0;
+
+    const lama = msgs.slice(0, msgs.length - keep);
+    const baru = msgs.slice(msgs.length - keep);
+    const ringkas: ChatMsg = {
+      id: nextId('m'),
+      role: 'assistant',
+      content:
+        `[Konteks dipadatkan: ${lama.length} pesan sebelumnya diringkas.]\n` +
+        lama
+          .slice(-4)
+          .map((m) => `${m.role === 'user' ? 'Pengguna' : 'Asisten'}: ${(m.content ?? '').slice(0, 160)}`)
+          .join('\n'),
+      at: Date.now(),
+    };
+    set((s) => ({
+      sessions: s.sessions.map((x) => (x.id === id ? { ...x, messages: [ringkas, ...baru] } : x)),
+      toast: `${lama.length} pesan dipadatkan`,
+    }));
+    persist(get());
+    return lama.length;
   },
 
   newChat: () => {
@@ -908,6 +997,7 @@ export const useAi = create<AiStore>((set, get) => ({
           ),
         }));
 
+        agentWatchdogArm();
         const res = await new Promise<AgentStepResult>((resolve) => {
           agentStepResolve = resolve;
           cmd
@@ -933,6 +1023,7 @@ export const useAi = create<AiStore>((set, get) => ({
               }
             });
         });
+        agentWatchdogDisarm();
         if (res.error) throw new Error(res.error);
         if (res.cancelled || agentBatal) break;
 
@@ -1060,6 +1151,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
     if (get().agentBusy) {
       agentBatal = true;
+      agentWatchdogDisarm();
       if (agentConfirmResolve) {
         const r = agentConfirmResolve;
         agentConfirmResolve = null;
@@ -1133,7 +1225,11 @@ export const useAi = create<AiStore>((set, get) => ({
 
     if (subagentOnChunk(c)) return;
 
+    // Ada aktivitas dari provider: tunda watchdog idle.
+    if (agentWatchdog) agentWatchdogArm();
+
     if (c.toolDone) {
+      agentWatchdogDisarm();
       cancelled.delete(c.id);
       const r = agentStepResolve;
       agentStepResolve = null;
