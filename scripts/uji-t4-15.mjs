@@ -1,7 +1,7 @@
-// uji-t4-15.mjs — About ringkas ala TEDI + tautan komunitas/donasi.
+// uji-t4-15.mjs — compact About + community/donation links.
 //
 // Permintaan user (verbatim): "UI untuk about atau tentang zephyr teks nya
-// kebanyakan, dan jga buatkan kek sih TEDI dan ada view on github, report an
+// kebanyakan, dan ada view on github, report an
 // issue ke github, untuk link wa itu group wa, dan donasi dll deh".
 //
 // Yang diuji:
@@ -21,7 +21,7 @@ const cek = (nama, syarat, info = '') => {
 };
 
 const { cdp } = await Cdp.attach(9223, 'Zephyr');
-console.log('=== About ringkas ala TEDI ===\n');
+console.log('=== Compact About ===\n');
 
 // ── V1..V3: struktur kartu ────────────────────────────────────────────────
 const r1 = await cdp.json(

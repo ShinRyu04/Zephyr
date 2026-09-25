@@ -301,7 +301,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
 
         <span
           className={`bp-lock is-${secure ? 'https' : 'http'}`}
-          title={secure ? 'Koneksi HTTPS' : 'HTTP biasa (tanpa enkripsi)'}
+          title={secure ? tr('Koneksi HTTPS') : tr('HTTP biasa (tanpa enkripsi)')}
           data-testid="bp-lock"
         >
           {secure ? (

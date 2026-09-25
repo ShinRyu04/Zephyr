@@ -79,7 +79,7 @@ export default function PanelTabStrip() {
 
   return (
     <div className="pts-root" data-testid="panel-tabstrip">
-      <div className="pts-tabs" role="tablist" aria-label="Tab panel bawah">
+      <div className="pts-tabs" role="tablist" aria-label={tr('Tab panel bawah')}>
         {PANEL_TABS.filter((t) => visibleTabs.includes(t.id))
           // Tab AI disembunyikan saat chat sudah tampil di kolom kanan: isinya
           // hanya keterangan pemindahan, jadi slot tabnya terbuang.
@@ -124,7 +124,7 @@ export default function PanelTabStrip() {
         <button
           className="pts-op"
           data-testid="pts-maximize"
-          title={maximized ? 'Kembalikan ukuran panel' : 'Perbesar panel'}
+          title={maximized ? tr('panel.restore') : tr('panel.maximize')}
           onClick={() => void runCommand('workbench.action.toggleMaximizedPanel')}
         >
           {maximized ? '⌄' : '⌃'}
@@ -132,7 +132,7 @@ export default function PanelTabStrip() {
         <button
           className="pts-op"
           data-testid="pts-close"
-          title={tr('Tutup panel (Ctrl+J)')}
+          title={tr('panel.close')}
           onClick={() => void runCommand('workbench.action.togglePanel')}
         >
           ✕

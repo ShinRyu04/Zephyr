@@ -96,8 +96,8 @@ export default function ExplorerPanel() {
           </button>
           <button
             className="ex-btn"
-            title="Folder baru"
-            aria-label="Folder baru"
+            title={tr('Folder baru')}
+            aria-label={tr('Folder baru')}
             onClick={() =>
               startInline({ kind: 'new-folder', target: workspace, initial: 'folder-baru' })
             }

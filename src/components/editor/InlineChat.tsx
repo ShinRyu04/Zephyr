@@ -91,7 +91,7 @@ export default function InlineChat() {
         className="ic-input"
         data-testid="ic-input"
         rows={3}
-        placeholder="Tanya atau minta ubah kode… (Enter kirim, Esc tutup)"
+        placeholder={tr('Tanya atau minta ubah kode… (Enter kirim, Esc tutup)')}
         value={teks}
         onChange={(e) => setTeks(e.target.value)}
         onKeyDown={(e) => {

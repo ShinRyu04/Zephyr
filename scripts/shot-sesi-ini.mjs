@@ -6,7 +6,7 @@
 //   38  wallpaper terpasang (editor)
 //   39  AI di kanan TANPA panel bawah
 //   40  command palette bersih
-//   41  About ringkas (TEDI-style)
+//   41  Compact About
 import { Cdp } from './lib-cdp.mjs';
 import { writeFileSync } from 'node:fs';
 

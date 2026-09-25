@@ -1,4 +1,4 @@
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 import { useNotif, type Notif } from '../../lib/notificationStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { Changelog } from '../settings/changelogRender';
@@ -50,6 +50,8 @@ function Baris({ n }: { n: Notif }) {
 }
 
 export function NotifBell() {
+  const tr = useT();
+  const tf = useTf();
   const unread = useNotif((s) => s.items.filter((x) => !x.read).length);
   const dnd = useNotif((s) => s.dnd);
   const open = useNotif((s) => s.centerOpen);
@@ -63,12 +65,12 @@ export function NotifBell() {
       data-dnd={dnd ? '1' : '0'}
       title={
         dnd
-          ? 'Notifikasi diredam (Do Not Disturb) — klik untuk melihat riwayat'
+          ? tr('Notifikasi diredam (Do Not Disturb) — klik untuk melihat riwayat')
           : unread > 0
-            ? `${unread} notifikasi belum dibaca`
-            : 'Notifikasi'
+            ? tf('{n} notifikasi belum dibaca', { n: unread })
+            : tr('Notifikasi')
       }
-      aria-label="Notifikasi"
+      aria-label={tr('Notifikasi')}
       onClick={toggle}
     >
       <svg viewBox="0 0 16 16" className="sb-bell-ico" aria-hidden="true">
@@ -111,9 +113,9 @@ export default function NotificationCenter() {
         if (e.target === e.currentTarget) setOpen(false);
       }}
     >
-      <aside className="nc-panel" data-testid="nc-panel" aria-label="Notifikasi">
+      <aside className="nc-panel" data-testid="nc-panel" aria-label={tr('Notifikasi')}>
         <header className="nc-head">
-          <span className="nc-title">Notifikasi</span>
+          <span className="nc-title">{tr('Notifikasi')}</span>
           <span className="nc-count" data-testid="nc-total">
             {items.length}
           </span>
@@ -122,19 +124,19 @@ export default function NotificationCenter() {
             className={`btn btn-sm${dnd ? ' btn-primary' : ''}`}
             data-testid="nc-dnd"
             aria-pressed={dnd}
-            title="Do Not Disturb: toast diredam, riwayat tetap dicatat"
+            title={tr('Do Not Disturb: toast diredam, riwayat tetap dicatat')}
             onClick={toggleDnd}
           >
-            {dnd ? 'DND aktif' : 'Do Not Disturb'}
+            {dnd ? tr('DND aktif') : tr('Do Not Disturb')}
           </button>
           <button className="btn btn-sm" data-testid="nc-read-all" onClick={markAllRead}>
-            Tandai terbaca
+            {tr('Tandai terbaca')}
           </button>
           <button className="btn btn-sm" data-testid="nc-clear" onClick={clear}>
-            Bersihkan
+            {tr('Bersihkan')}
           </button>
           <button className="btn btn-sm" data-testid="nc-close" onClick={() => setOpen(false)}>
-            Tutup
+            {tr('Tutup')}
           </button>
         </header>
 

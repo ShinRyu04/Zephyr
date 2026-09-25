@@ -1,6 +1,7 @@
 import { gutter, GutterMarker, EditorView, Decoration, type DecorationSet } from '@codemirror/view';
 import { Compartment, RangeSet, StateField, type Extension } from '@codemirror/state';
 import type { Breakpoint } from './debugStore';
+import { tx } from './i18n';
 
 class BpMarker extends GutterMarker {
   constructor(
@@ -20,10 +21,10 @@ class BpMarker extends GutterMarker {
       (this.enabled ? '' : ' is-disabled');
     el.textContent = this.verified ? '●' : '○';
     el.title = this.pesan
-      ? `Breakpoint: ${this.pesan}`
+      ? `${tx('Breakpoint')}: ${this.pesan}`
       : this.verified
-        ? 'Breakpoint aktif'
-        : 'Breakpoint (belum diverifikasi adapter)';
+        ? tx('Breakpoint aktif')
+        : tx('Breakpoint (belum diverifikasi adapter)');
     el.setAttribute('data-bp', this.verified ? 'verified' : 'pending');
     return el;
   }

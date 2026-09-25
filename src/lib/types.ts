@@ -892,7 +892,7 @@ export const DEFAULT_SETTINGS: Settings = {
     fontFamily: "Consolas, 'Cascadia Mono', 'Segoe UI Mono', monospace",
     fontSize: 13,
     lineHeight: 1.5,
-    uiLang: 'id',
+    uiLang: 'en',
     zoom: 100,
     restoreSession: true,
     checkUpdates: true,

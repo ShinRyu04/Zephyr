@@ -16,11 +16,12 @@ import TodoPanel from './TodoPanel';
 import ContextMeter from './ContextMeter';
 import { ApprovalPicker, EffortPicker } from './AgentControls';
 import { clipboardReadImage } from '../../lib/clipboard';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
 
 export default function AiPanel() {
   const tr = useT();
+  const tf = useTf();
   const sessions = useAi((s) => s.sessions);
   const activeId = useAi((s) => s.activeId);
   const pending = useAi((s) => s.pending);
@@ -134,7 +135,7 @@ export default function AiPanel() {
         <ModelSelector />
 
         {/* Mode: chat streaming biasa vs agent (tool loop). */}
-        <div className="ai-mode" role="group" aria-label="Mode AI">
+        <div className="ai-mode" role="group" aria-label={tr('Mode AI')}>
           <button
             className={`ai-mode-btn${agentMode === 'chat' ? ' is-on' : ''}`}
             data-testid="ai-mode-chat"
@@ -181,10 +182,10 @@ export default function AiPanel() {
             {tr('Hapus semua')}
           </button>
           <span className="ai-count" data-testid="ai-msg-count">
-            {msgs.length} pesan
+            {tf('{n} pesan', { n: msgs.length })}
             {msgs.length > 0 && (
               <>
-                <span className="ai-tokens" data-testid="ai-token-count" title="Perkiraan token (jumlah karakter ÷ 4)">
+                <span className="ai-tokens" data-testid="ai-token-count" title={tr('Perkiraan token (jumlah karakter ÷ 4)')}>
                   · ≈{Math.round(msgs.reduce((n, m) => n + m.content.length, 0) / 4)} token
                 </span>
                 <ContextMeter />
@@ -243,9 +244,9 @@ export default function AiPanel() {
           <div className="ai-empty" data-testid="ai-empty">
             <p className="ai-empty-title">{tr('Tanya apa saja soal kode ini.')}</p>
             <p className="ai-empty-sub">
-              Enter kirim · Shift+Enter baris baru · Ctrl+I fokus ke sini.
-              Jawaban berisi blok <code>bash</code> bisa langsung dijalankan di
-              terminal.
+              {tr('Enter kirim · Shift+Enter baris baru · Ctrl+I fokus ke sini.')}{' '}
+              {tr('Jawaban berisi blok')} <code>bash</code>{' '}
+              {tr('bisa langsung dijalankan di terminal.')}
             </p>
           </div>
         ) : (
@@ -386,9 +387,9 @@ export default function AiPanel() {
             sibuk
               ? agentMode === 'agent'
                 ? tr('Agent sedang bekerja…')
-                : 'Menunggu jawaban…'
+                : tr('Menunggu jawaban…')
               : agentMode === 'agent'
-                ? 'Ketik tugas untuk agent (Enter kirim)…'
+                ? tr('Ketik tugas untuk agent (Enter kirim)…')
                 : tr('Tulis pesan (Enter kirim, Shift+Enter baris baru) — ketik @ untuk lampirkan file')
                           }
           value={draft}
@@ -446,7 +447,7 @@ export default function AiPanel() {
               disabled={(!draft.trim() && draftImages.length === 0) || agentBusy}
               onClick={() => void send()}
             >
-              {agentMode === 'agent' ? 'Jalankan' : 'Kirim'}
+              {agentMode === 'agent' ? tr('Jalankan') : tr('Kirim')}
             </button>
           )}
 
@@ -456,21 +457,21 @@ export default function AiPanel() {
             aria-pressed={attachActive}
             title={
               activeTab
-                ? `Lampirkan file aktif: ${activeTab.path ?? activeTab.name} (maks 12KB)`
+                ? tf('Lampirkan file aktif: {name} (maks 12KB)', { name: activeTab.path ?? activeTab.name })
                 : tr('Tidak ada file aktif')
             }
             onClick={() => setAttachActive(!attachActive)}
           >
-            {attachActive ? '✓' : '+'} file aktif
+            {attachActive ? '✓' : '+'} {tr('file aktif')}
           </button>
 
           <button
             className="ai-photo"
             data-testid="ai-photo"
-            title={`Lampiran gambar (maks ${MAX_IMAGES} gambar, 3,5 MB masing-masing) — atau Win+Shift+S lalu Ctrl+V`}
+            title={tf('Lampiran gambar (maks {n} gambar, 3,5 MB masing-masing) — atau Win+Shift+S lalu Ctrl+V', { n: MAX_IMAGES })}
             onClick={() => photoRef.current?.click()}
           >
-            + gambar
+            + {tr('gambar')}
           </button>
 
           <input
@@ -486,7 +487,7 @@ export default function AiPanel() {
               if (files.length === 0) return;
               for (const f of files) {
                 if (f.size > IMAGE_MAX_BYTES) {
-                  setToast(`"${f.name}" lebih dari 3,5 MB — dilewati`);
+                  setToast(tf('"{name}" lebih dari 3,5 MB — dilewati', { name: f.name }));
                   continue;
                 }
                 const r = new FileReader();
@@ -506,18 +507,14 @@ export default function AiPanel() {
             onClick={() => {
               void runInTerminal('npx tsc --noEmit', { confirmed: true }).then((ok) => {
                 if (!ok) return;
-                setDraft(
-                  'Saya baru menjalankan `npx tsc --noEmit` di terminal Zephyr. ' +
-                    'Jelaskan penyebab error TypeScript yang muncul dan cara ' +
-                    'memperbaikinya. Kalau perlu, minta saya menempelkan outputnya.',
-                );
+                setDraft(tr('Saya baru menjalankan `npx tsc --noEmit` di terminal Zephyr. Jelaskan penyebab error TypeScript yang muncul dan cara memperbaikinya. Kalau perlu, minta saya menempelkan outputnya.'));
                 inputRef.current?.focus();
               });
             }}
           >
-            Analisis error TS
+            {tr('Analisis error TS')}
           </button>
-          <span className="ai-panehint">{paneCount} pane terminal</span>
+          <span className="ai-panehint">{tf('{n} pane terminal', { n: paneCount })}</span>
         </div>
       </div>
 
@@ -526,8 +523,8 @@ export default function AiPanel() {
         <div className="ai-confirm" role="alertdialog" data-testid="ai-agent-confirm">
           <p className="ai-confirm-title">
             {agentConfirm.isDestructive
-              ? 'Perintah berpotensi merusak — izinkan agent?'
-              : `Agent minta izin menjalankan ${agentConfirm.tool}:`}
+              ? tr('Perintah berpotensi merusak — izinkan agent?')
+              : tf('Agent minta izin menjalankan {tool}:', { tool: agentConfirm.tool })}
           </p>
           <code className="ai-confirm-cmd">{agentConfirm.argsText}</code>
           <div className="ai-confirm-btns">
@@ -536,14 +533,14 @@ export default function AiPanel() {
               data-testid="ai-agent-confirm-yes"
               onClick={() => agentPutuskan(true)}
             >
-              Izinkan
+              {tr('Izinkan')}
             </button>
             <button
               className="btn btn-sm"
               data-testid="ai-agent-confirm-no"
               onClick={() => agentPutuskan(false)}
             >
-              Tolak
+              {tr('Tolak')}
             </button>
           </div>
         </div>
@@ -559,14 +556,14 @@ export default function AiPanel() {
               data-testid="ai-confirm-yes"
               onClick={() => void runInTerminal(confirmCmd, { confirmed: true })}
             >
-              Jalankan
+              {tr('Jalankan')}
             </button>
             <button
               className="btn btn-sm"
               data-testid="ai-confirm-no"
               onClick={() => setConfirmCmd(null)}
             >
-              Batal
+              {tr('Batal')}
             </button>
           </div>
         </div>

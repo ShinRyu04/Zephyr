@@ -74,8 +74,8 @@ function GitHubRow() {
   useEffect(() => setCid(clientIdSaved), [clientIdSaved]);
 
   const label = (() => {
-    if (!gh?.signedIn) return 'Belum login';
-    const who = gh.user ? `@${gh.user}` : 'akun GitHub';
+    if (!gh?.signedIn) return tx('Belum login');
+    const who = gh.user ? `@${gh.user}` : tx('akun GitHub');
     if (gh.method === 'pat') return `Login as ${who} · PAT`;
     const exp = gh.expiresAt
       ? ` (exp ${new Date(gh.expiresAt * 1000).toLocaleString()})`
@@ -285,6 +285,7 @@ function Group({
   items: GitChange[];
   staged: boolean;
 }) {
+  const tr = useT();
   const stage = useGit((s) => s.stage);
   const unstage = useGit((s) => s.unstage);
   const setConfirm = useGit((s) => s.setConfirm);
@@ -312,8 +313,8 @@ function Group({
           )}
           <button
             className="ex-btn scm-mini"
-            title={staged ? 'Unstage semua' : 'Stage semua'}
-            aria-label={staged ? 'Unstage all' : 'Stage all'}
+            title={staged ? tr('Unstage semua') : tr('Stage semua')}
+            aria-label={staged ? tr('Unstage semua') : tr('Stage semua')}
             data-testid={staged ? 'scm-unstage-all' : 'scm-stage-all'}
             onClick={() => void (staged ? unstage(paths) : stage(paths))}
           >

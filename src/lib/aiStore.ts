@@ -254,6 +254,15 @@ interface AiActions {
   hasKey: (provider?: string) => boolean;
 
   setModel: (modelId: string) => Promise<void>;
+  /**
+   * Samakan provider/model panel AI dengan settings.models.activeProvider.
+   *
+   * Dropdown "Model aktif" di Settings cuma menulis ke settings, sedangkan
+   * panel AI punya salinan sendiri (aiStore.provider). Tanpa penyelarasan,
+   * memilih provider baru baru terasa setelah app di-restart — jadi aksi ini
+   * dipanggil applySettings setiap kali models.activeProvider berubah.
+   */
+  sinkronProvider: () => void;
   setModelMenuOpen: (v: boolean) => void;
   setDraft: (v: string) => void;
     setAttachActive: (v: boolean) => void;
@@ -393,6 +402,28 @@ export const useAi = create<AiStore>((set, get) => ({
   hasKey: (provider) => {
     const p = provider ?? get().provider;
     return get().keys.some((k) => k.provider === p && k.hasKey);
+  },
+
+  sinkronProvider: () => {
+    const models = useStore.getState().settings.models;
+    const target = models?.activeProvider;
+    if (!target || target === get().provider) return;
+
+    // Provider yang belum dikenal biarkan apa adanya: menormalkan sekarang
+    // justru bisa memindahkan panel ke provider yang salah.
+    if (!PROVIDER_BY_ID.has(target)) return;
+
+    const model =
+      models.providers?.[target]?.model ||
+      PROVIDER_BY_ID.get(target)?.models[0].id ||
+      get().model;
+    set({ provider: target, model });
+    const sid = get().activeId;
+    if (sid) {
+      set((s) => ({
+        sessions: s.sessions.map((x) => (x.id === sid ? { ...x, provider: target, model } : x)),
+      }));
+    }
   },
 
   setModel: async (modelId) => {
@@ -1037,12 +1068,41 @@ export const useAi = create<AiStore>((set, get) => ({
 
       const aktif = get().activeSession()?.messages.slice(-1)[0]?.id;
       if (aktif) {
+        /*
+         * Saring potongan yang masih di jalan.
+         *
+         * Menyetel flag di Rust tidak menghentikan paket yang sudah dikirim;
+         * beberapa potongan teks bisa tiba setelah tombol Stop ditekan dan —
+         * tanpa penyaringan ini — terus menempel ke bubble yang sudah
+         * dibatalkan. Id dihapus lagi saat chunk penutup tiba.
+         */
+        cancelled.add(aktif);
         try {
           await cmd.aiCancel(aktif);
         } catch {
           /* langkah sudah selesai */
         }
       }
+
+      /*
+       * Lepaskan langkah yang sedang menunggu.
+       *
+       * Loop agent menunggu satu promise yang hanya diselesaikan oleh chunk
+       * "toolDone" dari Rust. Chunk itu baru datang setelah permintaan HTTP
+       * selesai — dan saat provider menggantung, itu berarti menunggu sampai
+       * timeout baca (90 detik). Tanpa pelepasan di sini, tombol Stop hanya
+       * menyetel flag: UI tetap menampilkan Stop dan agent tidak berhenti
+       * sampai provider menjawab sendiri.
+       *
+       * Hasil "cancelled" membuat loop keluar lewat jalur `res.cancelled`
+       * biasa, jadi pesan akhir dan penyimpanan sesi tetap berjalan.
+       */
+      const tunggu = agentStepResolve;
+      agentStepResolve = null;
+      if (tunggu) {
+        tunggu({ content: '', toolCalls: [], cancelled: true });
+      }
+
       set({ agentConfirm: null });
       return;
     }
@@ -1074,6 +1134,7 @@ export const useAi = create<AiStore>((set, get) => ({
     if (subagentOnChunk(c)) return;
 
     if (c.toolDone) {
+      cancelled.delete(c.id);
       const r = agentStepResolve;
       agentStepResolve = null;
       if (c.err) {

@@ -61,6 +61,7 @@ function EmptyState() {
 }
 
 export default function EditorArea() {
+  const tr = useT();
   const tabs = useStore((s) => s.tabs);
   const tab = useActiveTab();
 
@@ -76,13 +77,13 @@ export default function EditorArea() {
       <section className="editor-area">
         <RestrictedBanner />
         <div className="set-topbar">
-          <span className="set-topbar-title">Pengaturan</span>
+          <span className="set-topbar-title">{tr('Pengaturan')}</span>
           <button
             className="btn btn-sm"
             data-testid="set-close"
             onClick={() => setSettingsOpen(false)}
           >
-            Tutup
+            {tr('Tutup')}
           </button>
         </div>
         <div className="editor-host">

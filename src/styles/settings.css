@@ -1199,7 +1199,7 @@
   align-items: center;
 }
 
-/* ─────────── about (ringkas ala TEDI) ───────────
+/* ─────────── about (compact) ───────────
    Perubahan: teksnya dipadatkan atas permintaan user ("teksnya kebanyakan").
    Dulu: header + 3 tabel penuh + catatan panjang + 5 tombol. Sekarang:
    2 kartu identitas, 1 baris tautan, utilitas langka disembunyikan ke

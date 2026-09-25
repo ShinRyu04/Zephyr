@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorView } from '@codemirror/view';
 import { useStore } from '../../lib/store';
+import { tx } from '../../lib/i18n';
 import {
   ikonKind,
   jalurKe,
@@ -146,7 +147,7 @@ export default function Breadcrumbs({ view, path, docVersion, barisKursor }: Pro
       {/* Tanda sumber: kalau dari indentasi, jalurnya perkiraan — user berhak
           tahu supaya tidak menyalahkan breadcrumbs saat namanya kasar. */}
       {pohon.length > 0 && !punyaLsp && (
-        <span className="bc-perkiraan" data-testid="bc-approx" title="tanpa language server: jalur diperkirakan dari indentasi">
+        <span className="bc-perkiraan" data-testid="bc-approx" title={tx('tanpa language server: jalur diperkirakan dari indentasi')}>
           ~
         </span>
       )}

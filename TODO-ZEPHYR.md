@@ -1,7 +1,7 @@
 # TODO Zephyr — Pekerjaan Fitur Baru
 
 > Diperbarui otomatis oleh Hermes. Versi target tetap **1.1.10**.
-> Lokasi runtime dev: `D:\DevEnv\` · Repo: `D:\Zephyr`
+> Repo: `D:\Zephyr`
 
 ## 🔨 SEDANG DIKERJAKAN
 
@@ -61,7 +61,7 @@
 
 | Kategori | Jumlah |
 |----------|--------|
-| A. Fitur TEDI belum ada | 8 |
+| A. Missing features | 8 |
 | B. Fitur IDE standar belum ada | 16 + 1 belum fungsional |
 | C. Platform belum ada | 5 (32, 33, 35, 36; 34 sengaja tidak ada) |
 | **TOTAL GAP** | **29** |

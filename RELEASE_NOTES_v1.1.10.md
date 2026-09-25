@@ -5,6 +5,32 @@ the version.
 
 ---
 
+## Language, menu, and license changes in this build
+
+**Language switching now covers the whole app.** The translator checked the
+English source dictionary before the target-language dictionary, so keys that
+already had a translation still rendered in English, and keys missing from a
+language fell through to Indonesian. The lookup order is fixed, the missing keys
+were added, and every visible string now routes through the translator. An
+automated audit reports zero leftover Indonesian across nine languages. The
+default UI language is now English.
+
+**Every menu item is enabled.** The six View > Theme entries were labels with no
+command, so they could never be clicked, and items whose context was missing
+were disabled instead of handling it. Every theme entry is now a real command
+and a menu item is only disabled when its command does not exist.
+
+**Announcements and release notes are per-language.** A title or detail can be a
+per-language object, and the app picks the active language.
+
+**Stronger RAM saver mode.** It now also disables color decorators and unicode
+highlight, lowers the loaded-tab limit to 3, and cuts terminal scrollback to
+1000 lines, with a status-bar badge showing when it is on.
+
+**Apache-2.0 license.** Zephyr is now licensed under the Apache-2.0 License.
+
+---
+
 ## Performance and debug fixes in this build
 
 **The window no longer stutters when a browser pane is open.** The position

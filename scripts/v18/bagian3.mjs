@@ -132,9 +132,18 @@ export const bagian3 = async (cdp, check) => {
     .every((i) => i.disabled);
   check(
     'V8',
-    v8.jmlBelumAda >= 15 &&
-      stubSemuaDisabled &&
-      v8.itemRun.some((i) => i.ariaDisabled === 'true') &&
+    /*
+     * Sejak fase 22 SELURUH command di menu sudah punya implementasi, jadi
+     * "jumlah command tanpa implementasi >= 15" tidak mungkin lagi terpenuhi
+     * (dan bukan itu yang masih berharga untuk diuji). Mekanisme yang tetap
+     * diuji di sini:
+     *   1. item yang TIDAK bisa dijalankan (enabled() false — mis. debug.stop
+     *      tanpa sesi debug) wajib disabled + aria-disabled;
+     *   2. klik item disabled tidak menjalankan apa pun (lastRun tetap null);
+     *   3. chord stub dikonsumsi dan tidak memunculkan error console.
+     */
+    (v8.jmlBelumAda === 0 || stubSemuaDisabled) &&
+      v8.itemRun.some((i) => i.disabled && i.ariaDisabled === 'true') &&
       v8.lastRun === null &&
       v8.dicegat &&
       // Notifikasi TIDAK lagi wajib. F9 sejak fase 22 = debug.toggleBreakpoint
@@ -147,8 +156,10 @@ export const bagian3 = async (cdp, check) => {
         v8.notifSeverity === 'warn' ||
         v8.notifSeverity === 'error') &&
       v8.errBaru === 0,
-    `${v8.jmlBelumAda} item menu menunjuk command yang fiturnya belum ada (${v8.contoh.join(', ')}…) → ` +
-      `semuanya disabled + aria-disabled; klik tidak menjalankan apa pun (lastRun=${v8.lastRun}); ` +
+    `${v8.jmlBelumAda} item menu menunjuk command yang fiturnya belum ada ` +
+      `(${v8.jmlBelumAda === 0 ? 'sejak fase 22 semua command sudah nyata' : v8.contoh.join(', ') + '…'}); ` +
+      `item yang tidak bisa dijalankan tetap disabled + aria-disabled; ` +
+      `klik tidak menjalankan apa pun (lastRun=${v8.lastRun}); ` +
       `chord stub F9 dikonsumsi (${v8.dicegat}) dan hanya memberi notif ${v8.notifSeverity} ` +
       `"${v8.notifMsg}" tanpa error console (${v8.errBaru} baru)`,
   );

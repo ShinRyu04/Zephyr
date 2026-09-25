@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useExplorer } from '../../lib/explorerStore';
+import { useT, useTf } from '../../lib/i18n';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
 const nama = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
 export default function DeleteConfirmDialog() {
+  const tr = useT();
+  const tf = useTf();
   const pending = useExplorer((s) => s.pendingDelete);
   const cancel = useExplorer((s) => s.cancelDelete);
   
@@ -59,10 +62,10 @@ export default function DeleteConfirmDialog() {
             data-testid="del-ok"
             onClick={() => void jalankanHapus()}
           >
-            {satu ? 'Hapus' : `Hapus ${pending.length} item`}
+            {satu ? tr('Hapus') : tf('Hapus {n} item', { n: pending.length })}
           </button>
           <button className="btn" data-testid="del-cancel" onClick={cancel}>
-            Batal
+            {tr('Batal')}
           </button>
         </div>
       </div>

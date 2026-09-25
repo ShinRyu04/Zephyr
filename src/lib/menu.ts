@@ -21,6 +21,7 @@ export const MENUS: MenuDef[] = [
   {
     label: 'File',
     mnemonic: 'f',
+    // Catatan: label ini salah satu dari delapan judul menu; kuncinya 'File'.
     items: [
       { label: 'New File', command: 'file.new' },
       { label: 'New Window', command: 'window.new' },
@@ -186,7 +187,7 @@ export const MENUS: MenuDef[] = [
       { label: 'Step Out', command: 'debug.stepOut' },
       SEP,
       { label: 'Toggle Breakpoint', command: 'debug.toggleBreakpoint' },
-      { label: 'Hapus Semua Breakpoint', command: 'debug.clearBreakpoints' },
+      { label: 'Remove All Breakpoints', command: 'debug.clearBreakpoints' },
     ],
   },
   {
@@ -217,7 +218,7 @@ export const MENUS: MenuDef[] = [
           { label: 'Keyboard Shortcuts', command: 'workbench.openGlobalKeybindings' },
           { label: 'Check for Updates…', command: 'help.checkUpdates' },
           SEP,
-          { label: 'Donasi: Dukung Zephyr (Saweria)', command: 'help.donate' },
+          { label: 'Donate: Support Zephyr (Saweria)', command: 'help.donate' },
           SEP,
           { label: 'Diagnostics & Self-test', command: 'help.about' },
           { label: 'About Zephyr', command: 'help.about' },

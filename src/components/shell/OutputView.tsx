@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 
 const ROW_H = 18;
 const PAD = 8;
 
 export default function OutputView() {
   const tr = useT();
+  const tf = useTf();
   const channels = useOutput((s) => s.channels);
   const activeChannel = useOutput((s) => s.activeChannel);
   const autoScroll = useOutput((s) => s.autoScroll);
@@ -109,7 +110,7 @@ export default function OutputView() {
       >
         {total === 0 ? (
           <p className="ov-empty" data-testid="ov-empty">
-            Channel “{ch?.label ?? activeChannel}” masih kosong.
+            {tf('Channel "{name}" masih kosong.', { name: ch?.label ?? activeChannel })}
           </p>
         ) : (
           <div className="ov-spacer" style={{ height: total * ROW_H }}>

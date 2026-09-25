@@ -157,7 +157,7 @@ export default function SearchPanel() {
         <div className="search-row">
           <button
             className="find-toggle"
-            title={replaceTerbuka ? 'Sembunyikan replace' : 'Tampilkan replace'}
+            title={replaceTerbuka ? tr('Sembunyikan replace') : tr('Tampilkan replace')}
             aria-expanded={replaceTerbuka}
             data-testid="search-toggle-replace"
             onClick={() => setReplaceTerbuka(!replaceTerbuka)}
@@ -217,7 +217,7 @@ export default function SearchPanel() {
             <span className="find-toggle" aria-hidden="true" />
             <input
               className="search-input"
-              placeholder={regex ? 'Ganti dengan (boleh $1, $2)' : 'Ganti dengan'}
+              placeholder={regex ? tr('Ganti dengan (boleh $1, $2)') : tr('Ganti dengan')}
               aria-label={tr('Ganti dengan')}
               data-testid="search-replace-input"
               value={replaceWith}
@@ -337,7 +337,7 @@ export default function SearchPanel() {
                   <button
                     className="sr-fold"
                     aria-expanded={b.terbuka}
-                    title={b.terbuka ? 'Lipat' : 'Buka'}
+                    title={b.terbuka ? tr('Lipat') : tr('Buka')}
                     onClick={() => toggleGrup(b.path)}
                   >
                     {b.terbuka ? '▾' : '▸'}

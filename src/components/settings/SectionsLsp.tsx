@@ -43,9 +43,9 @@ export default function SectionsLsp() {
     <section className="set-section" data-testid="set-lsp">
       <h2 className="set-h2">{tr('settings.lsp')}</h2>
       <p className="set-note">
-        Zephyr TIDAK membundel binary language server (installer tetap ~7 MB). Server dicari
-        di <code>%APPDATA%\zephyr\lsp\&lt;id&gt;\</code> lalu di PATH. Server hanya start saat
-        file bertipe itu dibuka, dan mati sendiri setelah idle.
+        {tr('Zephyr TIDAK membundel binary language server (installer tetap ~7 MB). Server dicari di')}{' '}
+        <code>%APPDATA%\zephyr\lsp\&lt;id&gt;\</code>{' '}
+        {tr('lalu di PATH. Server hanya start saat file bertipe itu dibuka, dan mati sendiri setelah idle.')}
       </p>
 
       <label className="set-row">
@@ -55,11 +55,11 @@ export default function SectionsLsp() {
           checked={cfg.enabled !== false}
           onChange={(e) => void applySettings({ lsp: { enabled: e.target.checked } })}
         />
-        <span>Aktifkan IntelliSense (LSP)</span>
+        <span>{tr('Aktifkan IntelliSense (LSP)')}</span>
       </label>
 
       <label className="set-row">
-        <span className="set-label">Matikan server setelah idle (detik)</span>
+        <span className="set-label">{tr('Matikan server setelah idle (detik)')}</span>
         <input
           className="set-input set-input-num"
           type="number"
@@ -126,15 +126,15 @@ export default function SectionsLsp() {
                   const bagian = e.target.value.trim().split(/\s+/).filter(Boolean);
                   ubahServer(def.id, { cmd: bagian.length > 0 ? bagian : null });
                 }}
-                aria-label={`Perintah ${def.label}`}
+                aria-label={`${tr('Perintah')} ${def.label}`}
               />
               <span
                 className="lsp-srv-state"
                 data-testid={`lsp-srv-probe-${def.id}`}
                 data-ok={p?.ok ? '1' : '0'}
-                title={p?.ok ? p.exe : (p?.error ?? `Pasang: ${def.install}`)}
+                title={p?.ok ? p.exe : (p?.error ?? `${tr('Pasang')}: ${def.install}`)}
               >
-                {p?.ok ? 'terpasang' : 'tidak ada'}
+                {p?.ok ? tr('terpasang') : tr('tidak ada')}
               </span>
               <span className="lsp-srv-live" data-testid={`lsp-srv-live-${def.id}`}>
                 {hidup.length > 0 ? `pid ${hidup[0].pid}` : ''}
@@ -143,13 +143,13 @@ export default function SectionsLsp() {
                 <button
                   className="btn btn-xs"
                   data-testid={`lsp-srv-copy-${def.id}`}
-                  title={`Salin perintah pasang: ${def.install}`}
+                  title={`${tr('Salin perintah pasang')}: ${def.install}`}
                   onClick={async () => {
                     await clipboardWrite(def.install);
-                    notifyInfo(`Perintah pasang ${def.label} disalin`, { source: 'LSP' });
+                    notifyInfo(`${tr('Perintah pasang')} ${def.label} ${tr('disalin')}`, { source: 'LSP' });
                   }}
                 >
-                  salin
+                  {tr('salin')}
                 </button>
               )}
             </div>
@@ -160,12 +160,12 @@ export default function SectionsLsp() {
       <div className="set-note lsp-belum" data-testid="lsp-belum">
         {(() => {
           const belum = LSP_SERVERS.filter((d) => !probe[d.id]?.ok);
-          if (belum.length === 0) return 'Semua language server terpasang.';
+          if (belum.length === 0) return tr('Semua language server terpasang.');
           return (
             <>
               <span>
-                <strong>{belum.length} belum terpasang.</strong> Klik <em>salin</em> untuk
-                perintah pasangnya, lalu jalankan di terminal.
+                <strong>{belum.length} {tr('belum terpasang.')}</strong>{' '}
+                {tr('Klik salin untuk perintah pasangnya, lalu jalankan di terminal.')}
               </span>
               <button
                 className="btn btn-sm"
@@ -174,7 +174,7 @@ export default function SectionsLsp() {
                 onClick={async () => {
                   const teks = belum.map((d) => `# ${d.label}\n${d.install}`).join('\n\n');
                   await clipboardWrite(teks);
-                  notifyInfo(`${belum.length} perintah pasang disalin`, { source: 'LSP' });
+                  notifyInfo(`${belum.length} ${tr('perintah pasang disalin')}`, { source: 'LSP' });
                 }}
               >
                 {tr('Salin semua perintah')}

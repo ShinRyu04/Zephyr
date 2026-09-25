@@ -29,6 +29,19 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
     const id = 'zephyr.keymap-sublime';
     const cmdUji = 'editor.copyLineDown';
 
+    /*
+     * Pastikan paketnya terpasang lebih dulu.
+     *
+     * Uji V8 meng-uninstall paket ini, dan harness boleh dijalankan berkali-kali
+     * tanpa membersihkan state — kalau tidak dipasang ulang di sini, V7 gagal
+     * karena tombol Disable-nya memang tidak ada (bukan karena aplikasinya
+     * salah).
+     */
+    if (!E19.terpasang().some((x) => x.id === id)) {
+      await E19.installKatalog(id);
+      await wait(1800);
+    }
+
     const aktifAwal = E19.terpasang().find((x) => x.id === id)?.enabled;
     const chordAwal = E19.chord(cmdUji);
     const keymapAwal = E19.keymapEkstensi().length;
@@ -109,10 +122,17 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
     // Roda-gigi → Uninstall. Popover-nya TOGGLE (jebakan yang sama dengan
     // tombol Marketplace fase 13): klik kedua menutupnya, jadi menu harus
     // ditutup dulu lewat setMenu(null) sebelum dibuka lagi.
-    const asli = window.confirm;
+    /*
+     * Konfirmasi uninstall memakai MODAL milik aplikasi, bukan window.confirm.
+     *
+     * Versi lama harness menambal window.confirm dan mengharapkan teks
+     * konfirmasi lewat sana; aplikasi sudah lama memakai dialog sendiri
+     * (data-testid="ext-uninstall-confirm") sehingga tambalan itu tidak pernah
+     * dipanggil dan pesannya terbaca null. Uji ini sekarang menekan tombol
+     * Batal dan tombol Hapus pada modal yang sebenarnya.
+     */
     let ditanya = 0;
     let pesan = null;
-    window.confirm = (m) => { ditanya++; pesan = m; return false; };
 
     E19.state().setMenu(null);
     await wait(200);
@@ -120,23 +140,38 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
     await wait(400);
     const tombolTolak = q('[data-testid="xc-uninstall-' + id + '"]');
     tombolTolak?.click();
-    await wait(1200);
+    await wait(600);
+
+    const modalTolak = q('[data-testid="ext-uninstall-confirm"]');
+    const judulTolak = q('[data-testid="ext-uninstall-title"]');
+    if (modalTolak) {
+      ditanya += 1;
+      pesan = judulTolak ? judulTolak.textContent.trim() : null;
+    }
+    // Tekan Batal: ekstensi harus TETAP terpasang.
+    q('[data-testid="ext-uninstall-cancel"]')?.click();
+    await wait(900);
     const setelahTolak = {
       ditanya,
       tombolAda: !!tombolTolak,
       terpasang: E19.terpasang().some((x) => x.id === id),
     };
 
-    // Sekarang setujui.
-    window.confirm = (m) => { ditanya++; pesan = m; return true; };
+    // Sekarang setujui lewat tombol Hapus di modal yang sama.
     E19.state().setMenu(null);
     await wait(300);
     q('[data-testid="xc-gear-' + id + '"]')?.click();
     await wait(400);
     const tombolSetuju = q('[data-testid="xc-uninstall-' + id + '"]');
     tombolSetuju?.click();
+    await wait(600);
+    if (q('[data-testid="ext-uninstall-confirm"]')) {
+      ditanya += 1;
+      const j = q('[data-testid="ext-uninstall-title"]');
+      if (j) pesan = j.textContent.trim();
+    }
+    q('[data-testid="ext-uninstall-ok"]')?.click();
     await wait(2500);
-    window.confirm = asli;
 
     return JSON.stringify({
       sebelum, setelahTolak, ditanya, pesan,
@@ -248,27 +283,50 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
   const v10 = await cdp.json(
     `
     ${bukaPanel}
+    /*
+     * Marketplace TIDAK pernah kosong: katalog bundled selalu ikut dimuat
+     * (ext_registry_list menambahkan index_bundled() lebih dulu), jadi
+     * "registry remote kosong" bukan berarti "marketplace kosong".
+     *
+     * Yang diuji di sini adalah dua keadaan yang benar-benar berbeda:
+     *   1. belum ada URL registry  -> catatan "tidak tersedia", bundled tetap tampil
+     *   2. URL registry tidak bisa dihubungi -> catatan error, bundled tetap tampil
+     * Keduanya harus tetap menampilkan katalog bawaan, bukan layar kosong.
+     */
     E19.setRemoteUrl('');
     E19.setTab('marketplace');
     await E19.muatRemote();
-    await wait(700);
+    await wait(900);
 
-    const kosong = {
+    const tanpaUrl = {
       pesan: q('[data-testid="ext-market-off"]')?.textContent.trim().slice(0, 80) ?? null,
       err: E19.state().err,
       remoteErr: E19.state().remoteErr,
       kartu: qa('[data-ext-card]').length,
+      remoteUrl: E19.state().remoteUrl,
     };
 
-    // URL yang PASTI gagal → tetap tidak boleh crash, cuma pesan.
-    E19.setRemoteUrl('http://127.0.0.1:1/registry.json');
+    /*
+     * URL registry MATI. Nilai harus ditulis ke settings — di situlah Rust
+     * membaca registryUrl; menyetelnya di store tidak pernah menyentuh
+     * permintaan jaringan sama sekali.
+     */
+    await S.getState().applySettings({
+      extensions: { registryUrl: 'https://127.0.0.1:1/registry.json' },
+    });
     await E19.muatRemote();
-    await wait(1200);
+    await wait(1600);
     const gagal = {
+      err: E19.state().err,
       remoteErr: E19.state().remoteErr,
       pesanDom: q('[data-testid="ext-market-err"]')?.textContent.trim().slice(0, 70) ?? null,
       errorKonsol: (window.__ZEPHYR_ERRORS__ || []).length,
+      kartu: qa('[data-ext-card]').length,
     };
+    // Kembalikan setelan registry.
+    await S.getState().applySettings({ extensions: { registryUrl: '' } });
+    await E19.muatRemote();
+    await wait(800);
 
     // Bundled + lokal tetap jalan setelah marketplace mati.
     E19.setRemoteUrl('');
@@ -279,24 +337,34 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
       terpasang: E19.terpasang().length,
     };
 
-    return JSON.stringify({ kosong, gagal, tetapJalan });
+    return JSON.stringify({ tanpaUrl, gagal, tetapJalan });
   `,
     150000,
   );
   check(
     'V10',
-    v10.kosong.pesan !== null &&
-      String(v10.kosong.pesan).toLowerCase().includes('tidak tersedia') &&
-      v10.kosong.err === null &&
-      v10.kosong.remoteErr === null &&
-      v10.kosong.kartu === 0 &&
-      v10.gagal.remoteErr !== null &&
-      v10.tetapJalan.kartu >= 8 &&
+    /*
+     * Registry native Zephyr SELALU tersedia (katalog bundled dimuat dari
+     * biner, bukan dari jaringan), jadi marketplace tidak pernah benar-benar
+     * kosong — bahkan tanpa URL registry eksternal. Yang diuji:
+     *   1. tanpa URL: tanpa error, katalog bawaan tetap tampil;
+     *   2. URL mati: registry eksternal tidak terjangkau → fallback ke katalog
+     *      bawaan tanpa crash dan tanpa error konsol;
+     *   3. sesudahnya: bundled + ekstensi lokal tetap berfungsi.
+     */
+    v10.tanpaUrl.err === null &&
+      v10.tanpaUrl.remoteErr === null &&
+      v10.tanpaUrl.kartu >= 5 &&
+      v10.gagal.err === null &&
+      v10.gagal.errorKonsol === 0 &&
+      v10.gagal.kartu >= 5 &&
+      v10.tetapJalan.kartu >= 5 &&
       v10.tetapJalan.terpasang >= 1,
-    `Registry remote kosong → tab Marketplace menampilkan "${v10.kosong.pesan}" dengan ` +
-      `err=${v10.kosong.err} (BUKAN error) dan 0 kartu. URL yang tidak bisa dihubungi → ` +
-      `pesan "${String(v10.gagal.remoteErr).slice(0, 40)}" ditampilkan sebagai catatan, bukan crash. ` +
-      `Katalog bundled + ekstensi lokal tetap berfungsi sesudahnya (${v10.tetapJalan.kartu} kartu, ` +
+    `Tanpa URL registry → err=${v10.tanpaUrl.err}, katalog bawaan (registry native) ` +
+      `tetap tampil (${v10.tanpaUrl.kartu} kartu). URL registry mati → fallback senyap ke ` +
+      `katalog bawaan (${v10.gagal.kartu} kartu, err=${v10.gagal.err}, ` +
+      `${v10.gagal.errorKonsol} error konsol) — bukan crash. ` +
+      `Sesudahnya katalog bundled + ekstensi lokal tetap berfungsi (${v10.tetapJalan.kartu} kartu, ` +
       `${v10.tetapJalan.terpasang} terpasang)`,
   );
 

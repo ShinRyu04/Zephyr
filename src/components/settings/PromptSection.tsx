@@ -272,7 +272,6 @@ function IzinPerintah() {
         <button
           className="btn btn-sm"
           data-testid="sp-izin-tambah"
-          disabled={!draft.trim()}
           onClick={tambah}
         >
           {tr('Tambah')}

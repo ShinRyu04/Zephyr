@@ -44,7 +44,7 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
 
         <div className="rs-badges">
           {root.isRepo && (
-            <span className="rs-badge rs-git" title="Folder ini repo git">
+            <span className="rs-badge rs-git" title={tx('Folder ini repo git')}>
               git
             </span>
           )}
@@ -64,8 +64,8 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
           {!isAktif && (
             <button
               className="ex-btn"
-              title="Jadikan root aktif"
-              aria-label="Jadikan root aktif"
+              title={tx('Jadikan root aktif')}
+              aria-label={tx('Jadikan root aktif')}
               data-testid="root-activate"
               onClick={() => void jadikanAktif(root.path)}
             >

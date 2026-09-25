@@ -8,7 +8,9 @@ const expr = process.argv[3] ?? '1+1';
 const doReload = process.argv.includes('--reload');
 
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-const page = list.find((t) => t.type === 'page');
+const page =
+  list.find((t) => t.type === 'page' && t.title.includes('Zephyr')) ??
+  list.find((t) => t.type === 'page');
 if (!page) {
   console.error('tidak ada target page');
   process.exit(2);

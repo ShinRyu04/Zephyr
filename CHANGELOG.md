@@ -1,109 +1,109 @@
-# Changelog — Zephyr
+# Changelog - Zephyr
 
-Semua perubahan penting per rilis. Format mengikuti semangat
-[Keep a Changelog](https://keepachangelog.com/); versi memakai SemVer.
+All notable changes per release. Format follows the spirit of
+[Keep a Changelog](https://keepachangelog.com/); versions use SemVer.
 
-## [1.0.0] — 2026-09-03
+## [1.0.0] - 2026-09-03
 
-Rilis pertama. Editor kode desktop Windows yang dibangun dari nol (bukan fork
-VS Code): Tauri 2 + React 18 + TypeScript, CodeMirror 6 untuk editor, xterm.js
-+ ConPTY untuk terminal, dan backend Rust untuk semua operasi berat.
+First release. A Windows desktop code editor built from scratch (not a VS Code
+fork): Tauri 2 + React 18 + TypeScript, CodeMirror 6 for the editor, xterm.js +
+ConPTY for the terminal, and a Rust backend for all heavy operations.
 
 ### Editor
-- Tab multi-file, buka/simpan, Save As, drag-reorder tab, restore sesi.
-- Deteksi encoding otomatis: UTF-8, UTF-8 BOM, Windows-1252, UTF-16 LE/BE.
-  File UTF-16 dibuka baca-saja dengan tombol "Simpan sebagai UTF-8".
-- File >4MB masuk mode ringan baca-saja (tanpa parser & ekstensi berat) supaya
-  tidak membekukan UI.
-- Find & Replace di dalam editor: regex, case-sensitive, hitung hasil, dengan
-  batas 20.000 langkah agar pola seperti `a*` tidak menggantung UI.
-- Ctrl+S saat file sudah lenyap dari disk menanyakan "buat baru?" alih-alih
-  membuatnya kembali diam-diam.
-- Deteksi bahasa 21 tipe file, breadcrumbs, indikator Ln/Col & encoding.
+- Multi-file tabs, open/save, Save As, drag-reorder tabs, session restore.
+- Automatic encoding detection: UTF-8, UTF-8 BOM, Windows-1252, UTF-16 LE/BE.
+  UTF-16 files open read-only with a "Save as UTF-8" button.
+- Files >4MB drop into a lightweight read-only mode (no parser or heavy
+  extensions) so the UI does not freeze.
+- Find & Replace inside the editor: regex, case-sensitive, match count, capped
+  at 20,000 steps so patterns like `a*` do not hang the UI.
+- Ctrl+S on a file that vanished from disk asks "create new?" instead of
+  silently recreating it.
+- Language detection for 21 file types, breadcrumbs, Ln/Col & encoding
+  indicators.
 
 ### Explorer & Search
-- File tree dengan lazy-load, rename/hapus/buat, multi-select, context menu.
-- Watcher perubahan dari luar app: tree ikut ter-refresh, tab yang tidak dirty
-  dibaca ulang.
-- Search lintas file dengan glob, regex, dan replace-in-file.
-- Quick Open (Ctrl+P) dengan pencarian fuzzy.
+- File tree with lazy-load, rename/delete/create, multi-select, context menu.
+- External-change watcher: the tree refreshes, non-dirty tabs reload.
+- Cross-file search with glob, regex, and replace-in-file.
+- Quick Open (Ctrl+P) with fuzzy search.
 
 ### Terminal
-- Multi-pane sampai 6 pane per tab: shell, cmd, PowerShell 7, bash, WSL.
-- Private Terminal: PSReadLine `SaveNothing` + `HISTFILE`/`HISTSIZE` dikosongkan
-  untuk shell POSIX; scrollback dibuang saat pane ditutup.
-- Terminal AI Agent: opencode, Claude Code, Codex CLI, Gemini CLI, GitHub
-  Copilot CLI, Grok, Pi — perintah start bisa diatur di Settings.
-- Browser pane + "Split With Browser", dengan pemeriksaan header
-  X-Frame-Options di Rust sehingga alasan gagal embed ditampilkan sebenarnya.
-- Copy/paste lewat plugin clipboard (paste dipecah 4KB agar tidak korup),
-  Ctrl+C yang menghentikan program tanpa mematikan Zephyr, exit code proses
-  ditampilkan sebagai `[process exited code N]`.
+- Multi-pane up to 6 panes per tab: shell, cmd, PowerShell 7, bash, WSL.
+- Private Terminal: PSReadLine `SaveNothing` + cleared `HISTFILE`/`HISTSIZE`
+  for POSIX shells; scrollback discarded when the pane closes.
+- AI Agent Terminal: opencode, Claude Code, Codex CLI, Gemini CLI, GitHub
+  Copilot CLI, Grok, Pi - the start command is configurable in Settings.
+- Browser pane + "Split With Browser", with an X-Frame-Options header check in
+  Rust so the real embed failure reason is shown.
+- Copy/paste through the clipboard plugin (paste split into 4KB chunks to avoid
+  corruption), Ctrl+C that stops the program without killing Zephyr, and the
+  process exit code shown as `[process exited code N]`.
 
 ### Source Control
-- Status, diff, stage/unstage, commit, discard, branch (buat/checkout/hapus),
+- Status, diff, stage/unstage, commit, discard, branch (create/checkout/delete),
   push/pull/fetch/sync, log.
-- Diff file biner dilabeli beserta ukurannya, bukan byte mentah.
-- Push saat remote lebih baru menawarkan "pull dulu" alih-alih error git mentah.
-- Login GitHub: OAuth device flow atau PAT; token disimpan terenkripsi.
+- Binary file diffs labeled with their size, not raw bytes.
+- Pushing when the remote is ahead offers "pull first" instead of a raw git
+  error.
+- GitHub login: OAuth device flow or PAT; the token is stored encrypted.
 
 ### AI Panel
-- Chat streaming dengan tiga format adapter: OpenAI, Anthropic, Gemini.
-- Katalog model berlogo (Gemini, Claude, GPT, DeepSeek, Grok, dll), API key
-  per provider disimpan di Rust dan tidak pernah dikirim ke frontend.
-- Lampirkan file aktif (maks 12KB), jalankan blok kode ke terminal dengan
-  konfirmasi untuk perintah berisiko, cancel streaming yang bersih.
-- Pesan >8KB dipotong dengan catatan yang terlihat.
+- Streaming chat with three adapter formats: OpenAI, Anthropic, Gemini.
+- Model catalog with logos (Gemini, Claude, GPT, DeepSeek, Grok, etc.); the API
+  key per provider is stored in Rust and never sent to the frontend.
+- Attach the active file (max 12KB), run code blocks in the terminal with
+  confirmation for risky commands, clean streaming cancel.
+- Messages >8KB are truncated with a visible note.
 
 ### MCP Server (port 9222)
-- Server HTTP JSON-RPC dengan auth Bearer token; AI CLI luar bisa membaca dan
-  mengendalikan jendela Zephyr.
-- 20+ method: list_panes, terminal_write/key, editor_open/write/insert/close,
-  pane_new/close, run_command, get_settings, set_setting, screenshot_pane, dll.
-- `editor_write` HANYA mengubah buffer, tidak menulis ke disk.
-- Batas payload: 1MB untuk editor, 64KB untuk terminal.
-- Menulis konfigurasi otomatis ke Claude Code, Codex, Gemini CLI, opencode,
-  Copilot CLI, Cursor, dan `.mcp.json` startup.
+- HTTP JSON-RPC server with Bearer token auth; external AI CLIs can read and
+  drive the Zephyr window.
+- 20+ methods: list_panes, terminal_write/key, editor_open/write/insert/close,
+  pane_new/close, run_command, get_settings, set_setting, screenshot_pane, etc.
+- `editor_write` ONLY changes the buffer, never writes to disk.
+- Payload limits: 1MB for the editor, 64KB for the terminal.
+- Writes configuration automatically to Claude Code, Codex, Gemini CLI,
+  opencode, Copilot CLI, Cursor, and `.mcp.json` startup.
 
 ### Settings
-- 11 section: General, Code Editor, Theme, Shortcuts, Models, Agents,
-  Extensions, Source Control, MCP, SSH, Tentang.
-- Shortcut bisa di-remap dengan perekam tombol dan deteksi konflik.
-- Mode penghemat RAM: smooth scroll off, minimap dipaksa off, batas tab
-  termuat 8.
-- Bahasa UI Indonesia/Inggris, zoom 50–200%, tema mengikuti sistem.
+- 11 sections: General, Code Editor, Theme, Shortcuts, Models, Agents,
+  Extensions, Source Control, MCP, SSH, About.
+- Shortcuts can be remapped with a key recorder and conflict detection.
+- RAM saver mode: smooth scroll off, minimap forced off, loaded tab limit 8.
+- UI language Indonesian/English, zoom 50–200%, theme follows the system.
 
-### Tema & Ekstensi
-- 6 tema: Zephyr Dark, Zephyr Light, Nord, Tokyo Night, Gruvbox, One Dark Pro.
-  Seluruh UI + editor + terminal ANSI ikut satu sumber token CSS.
-- Ekstensi v1 manifest-only: `contributes.commands` didaftarkan ke Command
-  Palette. Kode JS ekstensi TIDAK dieksekusi — keputusan keamanan, bukan
-  keterbatasan.
+### Themes & Extensions
+- 6 themes: Zephyr Dark, Zephyr Light, Nord, Tokyo Night, Gruvbox, One Dark Pro.
+  The whole UI + editor + ANSI terminal share a single CSS token source.
+- Extensions v1 are manifest-only: `contributes.commands` is registered in the
+  Command Palette. Extension JS code is NOT executed - a security decision, not
+  a limitation.
 
 ### Command Palette
-- Ctrl+Shift+P untuk perintah, Ctrl+P untuk file; hasil ter-virtualisasi
-  sehingga 5.000 file tetap ringan.
+- Ctrl+Shift+P for commands, Ctrl+P for files; results are virtualized so 5,000
+  files stay light.
 
-### Diagnostics & keandalan
-- Panel Diagnostics: OS, CPU, RAM mesin, RAM proses + WebView2, uptime, port
-  MCP, file log, status per domain, penanda perf, penghitung operasi.
-- Self-test cepat: tulis/baca file, resolve shell, `git --version`, socket MCP,
-  tulis log — semuanya dijalankan sungguhan.
-- Export report JSON (tanpa secret) dan buka folder log.
-- Logging `tracing` ke `%APPDATA%\zephyr\logs` dengan rotasi 2MB, panic hook +
-  dialog crash, error frontend ikut tercatat.
-- `settings.json` yang rusak dipindahkan ke `.broken-<timestamp>` lalu default
-  dipakai — settings user tidak hilang diam-diam.
-- Path Windows >260 karakter didukung lewat prefix `\\?\`.
-- Membuka root drive (`C:\`) sebagai workspace ditolak dengan penjelasan.
+### Diagnostics & reliability
+- Diagnostics panel: OS, CPU, machine RAM, process RAM + WebView2, uptime, MCP
+  port, log file, per-domain status, perf markers, operation counters.
+- Quick self-test: write/read a file, resolve the shell, `git --version`, MCP
+  socket, write a log - all actually executed.
+- Export a JSON report (no secrets) and open the log folder.
+- `tracing` logging to `%APPDATA%\zephyr\logs` with 2MB rotation, a panic hook +
+  crash dialog, and frontend errors recorded too.
+- A corrupt `settings.json` is moved to `.broken-<timestamp>` and defaults are
+  used - user settings are never silently lost.
+- Windows paths >260 characters supported via the `\\?\` prefix.
+- Opening a drive root (`C:\`) as a workspace is rejected with an explanation.
 
 ### Auto-update
-- Kerangka lengkap (plugin updater, artefak `.msi.zip` + `.sig`, UI di
-  Settings → Tentang). Endpoint rilis belum diisi; tombolnya menampilkan
-  "Update belum dikonfigurasi" dan app tetap berjalan normal.
+- Full scaffolding (updater plugin, `.msi.zip` + `.sig` artifacts, UI in
+  Settings → About). The release endpoint is not filled in yet; the button
+  shows "Update not configured" and the app keeps running normally.
 
-### Belum ada di 1.0.0
-- SSH remote (fase 07) — ditunda menunggu host uji.
-- IntelliSense/LSP, debugger, tasks, minimap, global search ripgrep,
-  local history, notification center, menu bar, panel bawah. Semuanya
-  direncanakan masuk lewat auto-update.
+### Not yet in 1.0.0
+- SSH remote (phase 07) - postponed pending a test host.
+- IntelliSense/LSP, debugger, tasks, minimap, ripgrep global search, local
+  history, notification center, menu bar, bottom panel. All are planned to
+  arrive through auto-update.

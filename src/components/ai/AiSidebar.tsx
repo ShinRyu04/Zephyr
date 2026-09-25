@@ -4,7 +4,7 @@ import { useTerminal } from '../../lib/terminalStore';
 import { usePanel } from '../../lib/panelStore';
 import { useStore } from '../../lib/store';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 
 function waktu(ms: number): string {
   const d = new Date(ms);
@@ -14,6 +14,7 @@ function waktu(ms: number): string {
 
 export default function AiSidebar() {
   const tr = useT();
+  const tf = useTf();
   const sessions = useAi((s) => s.sessions);
   const activeId = useAi((s) => s.activeId);
   const keys = useAi((s) => s.keys);
@@ -62,7 +63,7 @@ export default function AiSidebar() {
             className={`ai-side-key${hasKey ? ' is-ok' : ' is-warn'}`}
             data-testid="ai-side-key"
           >
-            {hasKey ? 'key siap' : 'belum ada key'}
+            {hasKey ? tr('key siap') : tr('belum ada key')}
           </span>
         </div>
 
@@ -71,10 +72,10 @@ export default function AiSidebar() {
             buka();
             newChat();
           }}>
-            + Chat baru
+            + {tr('Chat baru')}
           </button>
           <button className="btn btn-sm" data-testid="ai-open-panel" onClick={() => buka()}>
-            Buka panel AI
+            {tr('Buka panel AI')}
           </button>
           {!hasKey && (
             <button
@@ -88,7 +89,7 @@ export default function AiSidebar() {
                 );
               }}
             >
-              Isi API key
+              {tr('Isi API key')}
             </button>
           )}
         </div>
@@ -128,7 +129,7 @@ export default function AiSidebar() {
           </p>
         ) : tampil.length === 0 ? (
           <p className="side-muted" data-testid="ai-side-nohit">
-            Tidak ada chat yang cocok dengan “{cari}”.
+            {tf('Tidak ada chat yang cocok dengan "{cari}".', { cari })}
           </p>
         ) : (
           <ul className="ai-side-list" data-testid="ai-side-list">
@@ -136,7 +137,7 @@ export default function AiSidebar() {
               <li key={s.id} className="ai-side-item" data-ai-session={s.id}>
                 <button
                   className={`ai-side-btn${s.id === activeId ? ' is-active' : ''}`}
-                  title={`${s.messages.length} pesan · ${findModel(s.model, s.provider).label}`}
+                  title={`${tf('{n} pesan', { n: s.messages.length })} · ${findModel(s.model, s.provider).label}`}
                   onClick={() => buka(s.id)}
                 >
                   <ProviderLogo id={s.provider} size={13} />
@@ -151,7 +152,7 @@ export default function AiSidebar() {
                   data-testid={`ai-del-${s.id}`}
                   onClick={() => deleteChat(s.id)}
                 >
-                  hapus
+                  {tr('hapus')}
                 </button>
               </li>
             ))}

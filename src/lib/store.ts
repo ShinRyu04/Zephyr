@@ -5,6 +5,7 @@ import { detectLang } from './lang';
 import { kunciPath, pathSama } from './pathKey';
 import { revealPosition } from './editorRegistry';
 import { applyTheme } from './themes';
+import { catatanUntukBahasa } from './i18n';
 
 import { terapkanA11y } from './a11yStore';
 import { retheme, reSrMode } from './xtermRegistry';
@@ -177,7 +178,8 @@ const opening = new Set<string>();
 export const MAX_LOADED_TABS = 12;
 
 export function maxLoadedTabs(): number {
-  return useStore.getState().settings.general.lowRam ? 4 : MAX_LOADED_TABS;
+  // Mode penghemat RAM: simpan konten 3 tab saja di memori (dari 12).
+  return useStore.getState().settings.general.lowRam ? 3 : MAX_LOADED_TABS;
 }
 
 const touchOrder: string[] = [];
@@ -294,7 +296,12 @@ export const useStore = create<Store>((set, get) => ({
       set({ appInfo: info });
       const upd = get().settings.update;
       if (upd && upd.lastSeenVersion && upd.lastSeenVersion !== info.version) {
-        set({ updateBanner: { version: info.version, notes: upd.pendingNotes || '' } });
+        set({
+          updateBanner: {
+            version: info.version,
+            notes: catatanUntukBahasa(upd.pendingNotes, get().settings.general.uiLang),
+          },
+        });
       }
       if (upd && upd.lastSeenVersion !== info.version) {
         await cmd
@@ -951,6 +958,19 @@ export const useStore = create<Store>((set, get) => ({
       retheme();
       terapkanA11y(s.accessibility);
       reSrMode();
+      /*
+       * Panel AI menyimpan salinan provider-nya sendiri, jadi perubahan
+       * "Model aktif" dari Settings harus diteruskan — kalau tidak, pilihan
+       * baru baru terpakai setelah app di-restart.
+       *
+       * Import dinamis: aiStore sudah mengimpor store di tingkat modul,
+       * memanggilnya langsung di sini akan membuat siklus.
+       */
+      void import('./aiStore')
+        .then((m) => m.useAi.getState().sinkronProvider())
+        .catch(() => {
+          /* non-fatal: pemilihan provider tetap tersimpan di settings */
+        });
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }

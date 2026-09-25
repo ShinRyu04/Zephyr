@@ -3,7 +3,7 @@ import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
 import PaneIcon from '../terminal/PaneIcons';
 import type { PaneMeta } from '../../lib/types';
-import { tx } from '../../lib/i18n';
+import { tx, tf } from '../../lib/i18n';
 
 function StatusDot({ status }: { status: PaneMeta['status'] }) {
   const label =
@@ -56,12 +56,12 @@ export default function TerminalPanel() {
   return (
     <div className="side-panel">
       <div className="side-section">
-        <div className="side-title">Terminal</div>
+        <div className="side-title">{tx('Terminal')}</div>
 
         <div className="tp-summary" data-testid="tp-summary">
           {semuaPane.length === 0
-            ? 'Belum ada sesi.'
-            : `${tabs.length} tab · ${semuaPane.length} pane · ${hidup} hidup`}
+            ? tx('Belum ada sesi.')
+            : tf('{a} tab · {b} pane · {c} hidup', { a: tabs.length, b: semuaPane.length, c: hidup })}
         </div>
 
         <div className="tp-actions">
@@ -92,24 +92,23 @@ export default function TerminalPanel() {
             data-testid="tp-toggle-panel"
             onClick={() => setVisible(!visible)}
           >
-            {visible ? 'Sembunyikan panel' : tx('Tampilkan panel')}
+            {visible ? tx('Sembunyikan panel') : tx('Tampilkan panel')}
           </button>
         </div>
 
         <div className="tp-agents" data-testid="tp-agents">
           <div className="tp-subtitle">
-            {agents.length > 0 ? 'Agent CLI terdeteksi' : 'Agent CLI'}
+            {agents.length > 0 ? tx('Agent CLI terdeteksi') : tx('Agent CLI')}
           </div>
           {agents.length === 0 ? (
             <p className="side-muted" data-testid="tp-agents-kosong">
-              Belum ada CLI agent terpasang. Pasang salah satu (opencode, Claude
-              Code, Codex, Gemini, Copilot) lalu muat ulang daftar.
+              {tx('Belum ada CLI agent terpasang. Pasang salah satu (opencode, Claude Code, Codex, Gemini, Copilot) lalu muat ulang daftar.')}
             </p>
           ) : (
             <>
               <p className="side-muted tp-agents-hint">
-                Klik = buka agent di panel terminal bawah.
-                {!visible && ' Panel belum tampil — panel akan ikut dibuka.'}
+                {tx('Klik = buka agent di panel terminal bawah.')}
+                {!visible && tx(' Panel belum tampil — panel akan ikut dibuka.')}
               </p>
             {agents.map((a) => (
               <button
@@ -136,8 +135,7 @@ export default function TerminalPanel() {
       <div className="side-section tp-list-wrap">
         {tabs.length === 0 ? (
           <p className="side-muted" data-testid="tp-empty">
-            Panel terminal ada di bawah (Ctrl+`). Sesi yang berjalan akan muncul
-            di sini beserta PID-nya.
+            {tx('Panel terminal ada di bawah (Ctrl+`). Sesi yang berjalan akan muncul di sini beserta PID-nya.')}
           </p>
         ) : (
           tabs.map((tab) => (
@@ -188,7 +186,7 @@ export default function TerminalPanel() {
                       {p.status === 'live' && p.kind !== 'browser' && (
                         <button
                           className="tp-op"
-                          title="Matikan proses (kill)"
+                          title={tx('Matikan proses (kill)')}
                           data-testid={`tp-kill-${p.id}`}
                           onClick={() => void killPane(p.id)}
                         >

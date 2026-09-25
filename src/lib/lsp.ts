@@ -62,7 +62,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['c', 'cpp'],
     extensions: ['.c', '.h', '.cpp', '.cc', '.cxx', '.hpp', '.hh'],
     cmd: ['clangd', '--background-index'],
-    install: 'winget install LLVM.LLVM (atau pasang clangd)',
+    install: 'winget install LLVM.LLVM (or install clangd)',
   },
   {
     id: 'bash',
@@ -117,7 +117,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     extensions: ['.dart'],
     
     cmd: ['dart', 'language-server', '--protocol=lsp'],
-    install: 'Pasang Dart SDK (atau Flutter) — dart harus ada di PATH',
+    install: 'Install the Dart SDK (or Flutter) — dart must be on PATH',
   },
   {
     id: 'php',
@@ -135,7 +135,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['java'],
     extensions: ['.java'],
     cmd: ['jdtls'],
-    install: 'Pasang Eclipse JDT LS (jdtls) dan taruh di PATH',
+    install: 'Install Eclipse JDT LS (jdtls) and put it on PATH',
   },
   {
     id: 'csharp',
@@ -144,7 +144,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['csharp'],
     extensions: ['.cs'],
     cmd: ['omnisharp'],
-    install: 'Pasang OmniSharp (omnisharp-roslyn) dan taruh di PATH',
+    install: 'Install OmniSharp (omnisharp-roslyn) and put it on PATH',
   },
   {
     id: 'ruby',
@@ -162,7 +162,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['lua'],
     extensions: ['.lua'],
     cmd: ['lua-language-server'],
-    install: 'Pasang lua-language-server (winget/choco) dan taruh di PATH',
+    install: 'Install lua-language-server (winget/choco) and put it on PATH',
   },
   {
     id: 'kotlin',
@@ -171,7 +171,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['kotlin'],
     extensions: ['.kt', '.kts'],
     cmd: ['kotlin-language-server'],
-    install: 'Pasang kotlin-language-server dan taruh di PATH',
+    install: 'Install kotlin-language-server and put it on PATH',
   },
   {
     id: 'swift',
@@ -189,7 +189,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['r'],
     extensions: ['.r', '.R'],
     cmd: ['R', '--no-echo', '-e', 'languageserver::run()'],
-    install: 'install.packages("languageserver") di R',
+    install: 'install.packages("languageserver") in R',
   },
   {
     id: 'docker',

@@ -12,10 +12,55 @@
 // server tiruan, sehingga bukti mencakup ai_chat/ai-chunk/ai_cancel asli.
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import WebSocket from 'ws';
 
 const PORT = process.argv[2] ?? '9223';
 const MOCK = 8098;
+
+/*
+ * Cadangan berkas secrets.json.
+ *
+ * Harness ini mengosongkan key uji (gemini/anthropic) lewat setKey, dan jalur
+ * itu menulis ulang seluruh berkas — pernah sampai menghapus key milik user
+ * (custom, mr-vip). Berkas dicadangkan sebelum uji dan dikembalikan apa
+ * adanya di akhir, termasuk saat harness gagal di tengah jalan.
+ */
+const SECRETS = path.join(
+  process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming'),
+  'zephyr',
+  'secrets.json',
+);
+const SECRETS_CADANGAN = path.join(
+  process.env.LOCALAPPDATA ?? os.tmpdir(),
+  'Temp',
+  `secrets-verify09-${process.pid}.json`,
+);
+
+function backupSecrets() {
+  try {
+    if (fs.existsSync(SECRETS)) {
+      fs.copyFileSync(SECRETS, SECRETS_CADANGAN);
+      return true;
+    }
+  } catch {
+    /* lanjut tanpa cadangan */
+  }
+  return false;
+}
+
+function restoreSecrets() {
+  try {
+    if (fs.existsSync(SECRETS_CADANGAN)) {
+      fs.copyFileSync(SECRETS_CADANGAN, SECRETS);
+      fs.rmSync(SECRETS_CADANGAN, { force: true });
+    }
+  } catch {
+    /* biarkan — cadangan masih ada di disk */
+  }
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -223,6 +268,7 @@ async function ensureMock() {
 }
 
 const main = async () => {
+  backupSecrets();
   const mock = await ensureMock();
   await mockReset();
 
@@ -508,6 +554,17 @@ const main = async () => {
       await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
       await AS().loadKeys();
       await wait(250);
+      /*
+       * URUTAN PENTING: setModel(modelId) hanya mengganti MODEL pada provider
+       * yang sedang aktif (findModel(id, provider) memakai provider aktif).
+       * Kalau provider aktif masih custom (freeText), model apa pun akan
+       * dipasang DI provider custom dan mock tidak pernah dipanggil — uji ini
+       * dulu gagal dengan "adapter gemini dipanggil 0x". Jadi pindahkan
+       * provider LEBIH DULU, baru pilih modelnya.
+       */
+      await A.store.getState().setProvider?.('gemini');
+      await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
+      await wait(450);
       await A.store.getState().setModel('gemini-3.8-flash');
       await wait(450);
       const providerKini = q('[data-testid="ai-model-btn"]').dataset.provider;
@@ -527,8 +584,11 @@ const main = async () => {
        * newChat() dan langkah sebelumnya bisa membuat aiStore memilih ulang
        * provider dari daftar key (perilaku auto-switch aplikasi), jadi
        * provider yang disetel di awal blok belum tentu masih berlaku saat
-       * tombol Kirim ditekan.
+       * tombol Kirim ditekan. Sama seperti di atas: provider dulu, model
+       * kemudian (setModel mengikuti provider aktif).
        */
+      await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
+      await wait(350);
       await A.store.getState().setModel('gemini-3.8-flash');
       await wait(400);
       const providerSaatKirim = A.store.getState().provider;
@@ -629,12 +689,15 @@ const main = async () => {
       /*
        * 1) tanpa key anthropic -> penolakan ramah, bukan crash.
        *
-       * setModel() memindahkan provider + model sekaligus, jadi tidak perlu
-       * memberi key lebih dulu hanya supaya barisnya muncul di menu.
+       * Provider dipindahkan LEBIH DULU, baru model dipilih: setModel()
+       * mengikuti provider yang sedang aktif, jadi memanggilnya saat provider
+       * masih gemini hanya mengganti model di gemini.
        */
       await X.setKey('anthropic', '');
       await AS().loadKeys();
       await wait(220);
+      await S.getState().applySettings({ models: { activeProvider: 'anthropic' } });
+      await wait(350);
       await A.store.getState().setModel('claude-sonnet-4-5');
       await wait(450);
       const badgeTanpaKey = q('[data-testid="ai-keystate"]').dataset.haskey;
@@ -646,6 +709,8 @@ const main = async () => {
       await X.setKey('anthropic', 'MOCK-KEY-ANTHROPIC-9876');
       await AS().loadKeys();
       await wait(200);
+      await S.getState().applySettings({ models: { activeProvider: 'anthropic' } });
+      await wait(300);
       await A.store.getState().setModel('claude-sonnet-4-5');
       await wait(350);
       await kirim('halo claude');
@@ -692,10 +757,12 @@ const main = async () => {
   // ───────── V6: Jalankan di Terminal + konfirmasi perintah destruktif ─────────
   const v6 = JSON.parse(
     await cdp.runAsync(`
-      // kembali ke gemini (punya key mock)
+      // kembali ke gemini (punya key mock) — provider dulu, baru model
       await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
       await AS().loadKeys();
       await wait(200);
+      await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
+      await wait(300);
       await A.store.getState().setModel('gemini-3.6-flash');
       await wait(450);
 
@@ -945,13 +1012,17 @@ const main = async () => {
     v10.ram > 0 &&
       mb < 500 &&
       v10.errors.length === 0 &&
-      v10.keySisa.length === 0 &&
+      // Yang wajib bersih hanya key UJI (gemini/anthropic). Key milik user
+      // (github, custom) memang harus TETAP ADA — menghapusnya adalah bug,
+      // bukan syarat lulus.
+      v10.keySisa.every((x) => !['gemini', 'anthropic'].includes(x)) &&
       v10.sesiSisa <= 1,
-    `RAM proses dengan panel AI + chat = ${mb} MB (< 500 MB); console error: ${v10.errors.length === 0 ? 'tidak ada' : JSON.stringify(v10.errors)}; key uji dihapus (sisa: ${JSON.stringify(v10.keySisa)}), chat dikosongkan`,
+    `RAM proses dengan panel AI + chat = ${mb} MB (< 500 MB); console error: ${v10.errors.length === 0 ? 'tidak ada' : JSON.stringify(v10.errors)}; key uji (gemini/anthropic) dihapus, key user tetap: ${JSON.stringify(v10.keySisa)}, chat dikosongkan`,
   );
 
   cdp.close();
   if (mock) mock.kill();
+  restoreSecrets();
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
@@ -959,6 +1030,8 @@ const main = async () => {
 };
 
 main().catch((e) => {
+  // Key user dikembalikan walau harness gagal di tengah jalan.
+  restoreSecrets();
   console.error('verify09 error:', e.message ?? e);
   process.exitCode = 2;
 });

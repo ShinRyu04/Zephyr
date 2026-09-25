@@ -118,7 +118,19 @@ function startTestServer() {
   return new Promise((resolve, reject) => {
     srv.once('error', reject);
     srv.listen(TEST_PORT, '127.0.0.1', () =>
-      resolve({ srv, hits: () => hits, close: () => new Promise((r) => srv.close(r)) }),
+      // srv.close() menunggu SEMUA koneksi tutup, termasuk keep-alive dari
+      // child WebView2 pane browser yang masih membuka halaman ini. Tanpa
+      // closeAllConnections() promise-nya menggantung dan harness berhenti
+      // setelah V7 padahal V7 sendiri sudah lulus.
+      resolve({
+        srv,
+        hits: () => hits,
+        close: () =>
+          new Promise((r) => {
+            srv.closeAllConnections?.();
+            srv.close(() => r());
+          }),
+      }),
     );
   });
 }
@@ -142,6 +154,9 @@ const main = async () => {
     s.tabs.slice().forEach((tab) => s.forceCloseTab(tab.id));
     s.setSettingsOpen(false);
     window.__ZEPHYR_ERRORS__.length = 0;
+    // Bahasa UI dipatok ke Inggris: uji ini memeriksa teks (mis. "6 panes"),
+    // jadi hasilnya harus deterministik, bukan tergantung bahasa terakhir.
+    await s.applySettings({ general: { uiLang: 'en' } });
     T.getState().setVisible(true);
     window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
     T.getState().setHeight(520);
@@ -261,11 +276,23 @@ const main = async () => {
   const v5 = JSON.parse(
     await cdp.runAsync(
       `
-      q('[data-testid="term-picker"]').click();
-      await wait(350);
-      q('[data-agent=${JSON.stringify(agentId)}]').click();
-      await wait(1200);
       const ops = () => T.getState().terminalTabs[0].panes.filter(p => p.agent?.name === ${JSON.stringify(agentId)});
+      // Buka picker lalu klik agent. Menunggu tetap 350 ms bisa kalah balapan
+      // dengan render picker (StrictMode/dev), jadi klik diulang sampai pane
+      // kedua benar-benar lahir — bukan menambah wait tetap yang rapuh.
+      const klikAgent = async () => {
+        for (let i = 0; i < 10; i++) {
+          if (!q('[data-testid="agent-picker"]')) {
+            q('[data-testid="term-picker"]').click();
+            await wait(400);
+          }
+          const item = q('[data-agent=${JSON.stringify(agentId)}]');
+          if (item) item.click();
+          await wait(1200);
+          if (ops().length >= 2) return;
+        }
+      };
+      await klikAgent();
       // tunggu pane kedua ikut menggambar
       for (let i = 0; i < 40; i++) {
         await wait(500);
@@ -294,21 +321,46 @@ const main = async () => {
   const v6 = JSON.parse(
     await cdp.runAsync(
       `
-      while (T.getState().terminalTabs[0].panes.length < 6) {
-        q('[data-testid="term-new"]').click();
+      /*
+       * Selalu buka tab terminal BARU dulu.
+       *
+       * Pane ditambahkan ke tab AKTIF (terminalStore.addPane memakai
+       * activeTabId), sedangkan uji ini menghitung pane dari terminalTabs[0].
+       * Kalau app sudah punya tab lain dari verifikasi sebelumnya, pane-nya
+       * masuk ke tab itu dan hitungan terminalTabs[0] tidak pernah bergerak —
+       * dulu muncul sebagai "pane ke-7 DITOLAK (tetap 7)".
+       */
+      T.getState().newTab();
+      await wait(1200);
+      // Tab bar (dan tombol term-new) hanya ter-render saat panel fokus ke
+      // tab terminal; uji sebelumnya bisa meninggalkan panel di tab lain.
+      window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
+      for (let i = 0; i < 20; i++) {
+        if (q('[data-testid="term-new"]')) break;
+        await wait(300);
+      }
+      const tabId = T.getState().activeTabId;
+      const klikNew = () => {
+        const b = q('[data-testid="term-new"]');
+        if (!b) throw new Error('tombol term-new tidak ada di DOM');
+        b.click();
+      };
+      while (T.getState().terminalTabs.find((t) => t.id === tabId).panes.length < 6) {
+        klikNew();
         await wait(1900);
       }
-      const enam = T.getState().terminalTabs[0].panes.length;
+      const tab0 = () => T.getState().terminalTabs.find((t) => t.id === tabId);
+      const enam = tab0().panes.length;
       const kolom6 = getComputedStyle(q('.pane-grid')).gridTemplateColumns.split(' ').length;
-      q('[data-testid="term-new"]').click();
+      klikNew();
       await wait(900);
       const st = T.getState();
       return JSON.stringify({
         enam, kolom6,
-        setelahCoba7: st.terminalTabs[0].panes.length,
+        setelahCoba7: tab0().panes.length,
         toast: q('[data-testid="term-toast"]')?.textContent ?? null,
         max: st.maxPanes(),
-        kinds: st.terminalTabs[0].panes.map(p => p.kind),
+        kinds: tab0().panes.map(p => p.kind),
       });
     `,
       70000,
@@ -331,11 +383,29 @@ const main = async () => {
       // The split button creates BOTH panes itself (shell + browser), so it
       // must be clicked straight from the empty state. Clicking "empty-shell"
       // first used to remove the placeholder and the split button with it.
-      q('[data-testid="empty-split-browser"]').click();
-      await wait(2500);
+      // Panel harus fokus ke tab terminal agar placeholder ter-render; kalau
+      // tidak, tombolnya tidak ada di DOM dan klik melempar / melewat.
+      window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
+      await wait(400);
+      let splitBtn = q('[data-testid="empty-split-browser"]');
+      for (let i = 0; i < 20 && !splitBtn; i++) {
+        await wait(300);
+        splitBtn = q('[data-testid="empty-split-browser"]');
+      }
+      splitBtn.click();
+      // Tunggu sampai panes benar-benar ada, bukan sekadar wait tetap: pane
+      // browser membuat child WebView2 yang butuh waktu render.
+      for (let i = 0; i < 30; i++) {
+        await wait(300);
+        if (T.getState().terminalTabs[0]?.panes.some(p => p.kind === 'browser')) break;
+      }
 
       const setV = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      const inp = q('[data-testid="bp-url"]');
+      let inp = q('[data-testid="bp-url"]');
+      for (let i = 0; i < 20 && !inp; i++) {
+        await wait(300);
+        inp = q('[data-testid="bp-url"]');
+      }
       setV.call(inp, '127.0.0.1:${TEST_PORT}');
       inp.dispatchEvent(new Event('input', { bubbles: true }));
       inp.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));

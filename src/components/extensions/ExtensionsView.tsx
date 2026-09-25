@@ -7,7 +7,7 @@ import { detectLang } from '../../lib/lang';
 import Popover from '../shell/Popover';
 import { useRef, useState } from 'react';
 import { useFocusTrap } from '../../lib/useFocusTrap';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 
 const TAB_LABEL: Record<ExtTab, string> = {
   installed: 'Installed',
@@ -28,6 +28,8 @@ function ExtensionCard({
   item: KatalogItem;
   onUninstall: (item: KatalogItem) => void;
 }) {
+  const tr = useT();
+  const tf = useTf();
   const sudah = useExt19((s) => s.manifests.find((m) => m.manifest?.id === item.id) ?? null);
   const menuFor = useExt19((s) => s.menuFor);
   const setMenu = useExt19((s) => s.setMenu);
@@ -82,7 +84,7 @@ function ExtensionCard({
 
       <div className="xc-body">
         <span className="xc-nama">
-          <span className="xc-nama-txt">{item.name}</span>
+          <span className="xc-nama-txt">{tr(item.name)}</span>
           {item.bundled && <span className="xc-tag">offline</span>}
           {item.perluRuntime && <span className="xc-tag is-err">butuh runtime</span>}
           {rusak && <span className="xc-tag is-err">rusak</span>}
@@ -101,7 +103,7 @@ function ExtensionCard({
             )}
           </span>
         </span>
-        <span className="xc-desc">{item.description}</span>
+          <span className="xc-desc">{tr(item.description)}</span>
         {rusak && (
           <span className="xc-err" data-testid={`xc-err-${item.id}`}>
             {sudah?.error}
@@ -117,10 +119,10 @@ function ExtensionCard({
             disabled={sibuk || (!item.bundled && !item.url)}
             title={
               item.bundled
-                ? 'Pasang dari katalog bundled'
+                ? tr('Pasang dari katalog bundled')
                 : item.url
-                  ? `Unduh & pasang v${item.version}`
-                  : 'Belum tersedia offline'
+                  ? tf('Unduh & pasang v{version}', { version: item.version })
+                  : tr('Belum tersedia offline')
             }
             onClick={async () => {
               setSibuk(true);
@@ -150,7 +152,7 @@ function ExtensionCard({
             ref={btnGear}
             className="xc-gear"
             data-testid={`xc-gear-${item.id}`}
-            title="Opsi ekstensi"
+            title={tr('Opsi ekstensi')}
             aria-haspopup="menu"
             aria-expanded={menuFor === item.id}
             onClick={() => setMenu(menuFor === item.id ? null : item.id)}
@@ -212,6 +214,7 @@ function ExtensionCard({
 }
 
 function Details({ id }: { id: string }) {
+  const tr = useT();
   const st = useExt19((s) => s.manifests.find((m) => m.manifest?.id === id) ?? null);
   const setDetail = useExt19((s) => s.setDetail);
   const katalog = KATALOG_BUNDLED.find((k) => k.id === id);
@@ -238,12 +241,12 @@ function Details({ id }: { id: string }) {
 
       {!m ? (
         <p className="xd-note">
-          Belum terpasang. {katalog?.description ?? ''} Pasang dulu untuk melihat kontribusi
-          sebenarnya dari manifest.
+          {tr('Belum terpasang.')} {katalog ? tr(katalog.description) : ''}{' '}
+          {tr('Pasang dulu untuk melihat kontribusi sebenarnya dari manifest.')}
         </p>
       ) : (
         <>
-          <p className="xd-note">{m.description || '(tanpa deskripsi)'}</p>
+          <p className="xd-note">{m.description ? tr(m.description) : tr('(tanpa deskripsi)')}</p>
           <dl className="xd-list">
             <div>
               <dt>id</dt>
@@ -387,7 +390,7 @@ export default function ExtensionsView() {
             ref={btnAksi}
             className="xv-actions-btn"
             data-testid="ext-actions-btn"
-            title="Tindakan ekstensi"
+            title={tr('Tindakan ekstensi')}
             aria-haspopup="menu"
             aria-expanded={menuAksi}
             onClick={() => setMenuAksi(!menuAksi)}
@@ -434,7 +437,7 @@ export default function ExtensionsView() {
         </div>
       </div>
 
-      <div className="xv-tabs" role="tablist" aria-label="Kelompok ekstensi">
+      <div className="xv-tabs" role="tablist" aria-label={tr('Kelompok ekstensi')}>
         {(Object.keys(TAB_LABEL) as ExtTab[]).map((t) => (
           <button
             key={t}
@@ -451,7 +454,7 @@ export default function ExtensionsView() {
 
     {perluReload && (
         <div className="xv-reload" data-testid="ext-reload-bar" role="status">
-          <span>Perubahan tema/keymap/bahasa berlaku setelah reload.</span>
+          <span>{tr('Perubahan tema/keymap/bahasa berlaku setelah reload.')}</span>
           <button className="btn btn-sm btn-primary" data-testid="ext-reload" onClick={reloadWindow}>
             Reload
           </button>
@@ -560,7 +563,7 @@ export default function ExtensionsView() {
                   setUninstallTarget(null);
                 }}
               >
-                {sibukUninstall ? '…' : 'Hapus'}
+                {sibukUninstall ? '…' : tr('Hapus')}
               </button>
               <button
                 className="btn"

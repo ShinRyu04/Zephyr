@@ -145,9 +145,12 @@ export default function MenuBar() {
 
     const def = it.command ? findCommand(it.command) : undefined;
 
+    // Menu selalu aktif: item hanya "nonaktif" kalau command-nya memang tidak
+    // terdaftar sama sekali (item mati). Gating konteks (enabled()) sengaja
+    // TIDAK dipakai di sini — kalau konteksnya belum ada, command-nya sendiri
+    // yang menangani (no-op / pesan lembut), bukan mengunci menunya.
     const adaCommand = !!def;
-    const bolehJalan = adaCommand && (def!.enabled ? def!.enabled() : true);
-    const nonaktif = !!it.command && !bolehJalan;
+    const nonaktif = !!it.command && !adaCommand;
     const chord = it.command ? chordFor(it.command, bindings) : '';
 
     if (it.children) {
@@ -308,14 +311,14 @@ export default function MenuBar() {
       {/* Layout panel — 4 tombol posisi SELALU TERLIHAT di kanan atas menu
           bar (bukan popover): klik langsung pindah, tanpa buka menu dulu.
           Posisi aktif ditandai; tombol mata di ujung = sembunyikan panel. */}
-      <div className="mb-layout" role="radiogroup" aria-label="Posisi panel">
+      <div className="mb-layout" role="radiogroup" aria-label={tr('Posisi panel')}>
         {POSISI_PANEL.map((p) => (
           <button
             key={p.id}
             className={`mb-layout-btn${posPanel === p.id ? ' is-on' : ''}`}
             data-testid={`mb-layout-${p.id}`}
-            title={`Panel ${p.label} — ${p.desc}`}
-            aria-label={`Panel ${p.label}`}
+            title={`${tr('Panel')} ${tr(p.label)} — ${tr(p.desc)}`}
+            aria-label={`${tr('Panel')} ${tr(p.label)}`}
             role="radio"
             aria-checked={posPanel === p.id}
             onClick={() => {

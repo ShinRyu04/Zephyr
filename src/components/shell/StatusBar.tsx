@@ -7,7 +7,7 @@ import { LANG_LABEL } from '../../lib/lang';
 import { NotifBell } from '../notifications/NotificationCenter';
 import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 import { useLayoutCustom } from '../../lib/layoutStore';
 
 const ENC_LABEL: Record<string, string> = {
@@ -65,7 +65,7 @@ function GitBadge() {
 }
 
 function ProblemsBadge() {
-
+  const tf = useTf();
   const errors = useProblems((s) => {
     let n = 0;
     for (const list of s.byFile.values()) for (const d of list) if (d.severity === 'error') n++;
@@ -82,7 +82,7 @@ function ProblemsBadge() {
       <button
         className="sb-item sb-problems"
         data-testid="sb-problems"
-        title={`${errors} error, ${warnings} warning — buka Problems`}
+        title={tf('{n} error, {m} warning — buka Problems', { n: errors, m: warnings })}
         onClick={() => void runCommand('problemsPanel.focus')}
       >
         <span className="sb-prob-err" data-testid="sb-prob-errors">
@@ -101,6 +101,7 @@ export default function StatusBar() {
   const [version, setVersion] = useState('0.5.0');
   const ramBytes = useStore((s) => s.ramBytes);
   const setRamBytes = useStore((s) => s.setRamBytes);
+  const lowRam = useStore((s) => s.settings.general.lowRam === true);
   const cursor = useStore((s) => s.cursor);
   const statusMessage = useStore((s) => s.statusMessage);
   const setFindOpen = useStore((s) => s.setFindOpen);
@@ -152,6 +153,17 @@ export default function StatusBar() {
       <span className="sb-item" title="Memori proses Zephyr" data-testid="sb-ram">
         RAM: {ramText}
       </span>
+      {lowRam && (
+        <span
+          className="sb-item sb-lowram"
+          data-testid="sb-lowram"
+          title={tr(
+            'Mode penghemat RAM aktif: minimap/sticky/indent/dekorator warna off, batas tab termuat 3, scrollback terminal 1000 baris',
+          )}
+        >
+          RAM saver
+        </span>
+      )}
       <span className="sb-sep">|</span>
       <span className="sb-item">{tab ? ENC_LABEL[tab.encoding] ?? tab.encoding : 'UTF-8'}</span>
       <span className="sb-sep">|</span>

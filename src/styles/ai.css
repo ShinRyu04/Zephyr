@@ -1397,7 +1397,7 @@
 }
 
 
-/* ── T2.1: subagent paralel (tampilan kartu ala TEDI) ─────────────────── */
+/* ── T2.1: parallel subagents (card layout) ───────────────────────────── */
 .sub-open {
   align-self: flex-start;
   margin: 4px 10px;
@@ -1518,7 +1518,7 @@
 
 .sub-daftar {
   display: grid;
-  /* 2 kolom di panel lebar (>= 420px), 1 kolom di panel sempit. TEDI
+  /* 2 columns on wide panels (>= 420px), 1 column on narrow panels.
      menampilkan beberapa kartu berdampingan supaya 4 subagent terbaca
      tanpa scroll. */
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1862,7 +1862,7 @@
 }
 
 
-/* ── T3.6: Timeline langkah agent berlabel (ala TEDI) ─────────────────────
+/* ── T3.6: labelled agent step timeline ───────────────────────────────────
    Ikon + label manusiawi ("Read", "Edit", "Run") berwarna per jenis aksi.
    Warna diambil dari token tema; tidak ada hex hardcoded kecuali fallback. */
 .ai-agent-ikon {

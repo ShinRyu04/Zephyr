@@ -165,5 +165,21 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
   set('warn-fg', ambil(colors, ['editorWarning.foreground']) ?? FALLBACK.warning);
   set('minimap-bg', ambil(colors, ['minimap.background']) ?? bg);
 
+  /*
+   * Kunci yang sudah memakai nama token Zephyr (--bg0, --fg0, --accent, ...)
+   * diteruskan apa adanya — DIJALANKAN TERAKHIR supaya menang atas pemetaan
+   * VS Code.
+   *
+   * Tema bawaan paket Zephyr memakai kunci native ini dan nilainya sudah CSS
+   * siap pakai. Pemetaan VS Code di atas juga menghasilkan token bernama sama
+   * (mis. `accent` → `--accent` dengan warna fallback), jadi kalau pass-through
+   * dijalankan lebih dulu, nilai fallback itulah yang menang dan tema tampak
+   * tidak berubah. Untuk tema VS Code asli (editor.background, ...) blok ini
+   * tidak menemukan apa pun, sehingga pemetaan tetap berjalan seperti semula.
+   */
+  for (const [k, v] of Object.entries(colors)) {
+    if (k.startsWith('--') && typeof v === 'string' && v.trim()) out[k] = v.trim();
+  }
+
   return out;
 }

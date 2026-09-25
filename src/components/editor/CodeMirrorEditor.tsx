@@ -88,13 +88,16 @@ const LSP_DEBOUNCE_MS = 350;
 
 const EMPTY_DIAG: Diagnostic[] = [];
 
-function extrasEditor(e: EditorSettings, readOnly: boolean): Extension[] {
+function extrasEditor(e: EditorSettings, readOnly: boolean, lowRam = false): Extension[] {
   if (readOnly) return [];
+  // Mode penghemat RAM mematikan ekstra yang paling berat: dekorator warna
+  // (memindai seluruh dokumen untuk #hex/rgb) dan highlight unicode di samping
+  // minimap/sticky yang sudah dimatikan di level render.
   const out: Extension[] = [];
-  if (e.indentGuides) out.push(indentGuides());
-  if (e.bracketPairColorization) out.push(bracketPairColors());
-  if (e.colorDecorators) out.push(colorDecorators());
-  if (e.unicodeHighlight) out.push(unicodeHighlight());
+  if (e.indentGuides && !lowRam) out.push(indentGuides());
+  if (e.bracketPairColorization && !lowRam) out.push(bracketPairColors());
+  if (e.colorDecorators && !lowRam) out.push(colorDecorators());
+  if (e.unicodeHighlight && !lowRam) out.push(unicodeHighlight());
 
   out.push(...ghostText(e.ghostText));
   return out;
@@ -218,7 +221,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
       barisAktifCompartment.of([]),
       squiggleCompartment.of([]),
 
-      extrasComp.current.of(extrasEditor(editorSettings, readOnly)),
+      extrasComp.current.of(extrasEditor(editorSettings, readOnly, lowRam)),
       baseKeymap,
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
@@ -442,7 +445,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: extrasComp.current.reconfigure(extrasEditor(editorSettings, readOnly)),
+      effects: extrasComp.current.reconfigure(extrasEditor(editorSettings, readOnly, lowRam)),
     });
   }, [
     editorSettings.indentGuides,
@@ -450,6 +453,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
     editorSettings.colorDecorators,
     editorSettings.unicodeHighlight,
     readOnly,
+    lowRam,
   ]);
 
   const extrasAktif = !readOnly && !lowRam;

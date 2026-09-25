@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
+import { tx } from '../../lib/i18n';
 import FileIcon from './FileIcon';
 
 export default function EditorTabBar({ gid }: { gid?: string }) {
@@ -70,7 +71,7 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
           >
             <FileIcon lang={t.lang} name={t.name} />
             <span className="tab-name">{t.name}</span>
-            {t.unsaved && <span className="tab-dot" title="Belum disimpan" aria-hidden="true" />}
+            {t.unsaved && <span className="tab-dot" title={tx('Belum disimpan')} aria-hidden="true" />}
             {/* FASE 31: tombol ✕ diganti <span>.
                 ARIA melarang `role="tab"` punya keturunan interaktif, dan
                 `tabIndex={-1}` TIDAK cukup — axe: "a negative tabindex on an
@@ -81,7 +82,7 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
                 Delete/Backspace di tab-nya (lihat onKeyDown). */}
             <span
               className="tab-close"
-              title="Tutup"
+              title={tx('common.close')}
               aria-hidden="true"
               onClick={(e) => {
                 e.stopPropagation();

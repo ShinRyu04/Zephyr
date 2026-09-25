@@ -73,6 +73,17 @@ struct GitOut {
 }
 
 fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
+    /*
+     * current_dir() dengan path kosong/putus membuat CreateProcess gagal
+     * "The directory name is invalid. (os error 267)". Cek di sini supaya
+     * semua pemanggil dapat pesan yang sama, bukan error sistem mentah.
+     */
+    if !cwd.is_dir() {
+        return Err(ZephyrError::Git(format!(
+            "folder tidak ditemukan: {}",
+            cwd.display()
+        )));
+    }
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd);
     for e in extra {
@@ -164,9 +175,24 @@ fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -
 }
 
 fn ws(state: &AppState) -> ZResult<PathBuf> {
-    state
+    let dir = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::Git("belum ada workspace terbuka".into()))
+        .ok_or_else(|| ZephyrError::Git("belum ada workspace terbuka".into()))?;
+
+    /*
+     * Workspace bisa saja sudah tidak ada di disk — folder dipindah/dihapus
+     * atau drive eksternal dicabut. Command::current_dir() dengan path yang
+     * hilang gagal dengan "The directory name is invalid. (os error 267)"
+     * yang tidak berarti apa-apa bagi user, jadi periksa di sini dan beri
+     * pesan yang bisa ditindaklanjuti.
+     */
+    if !dir.is_dir() {
+        return Err(ZephyrError::Git(format!(
+            "folder workspace tidak ditemukan: {} — buka ulang folder proyek",
+            dir.display()
+        )));
+    }
+    Ok(dir)
 }
 
 fn git(state: &AppState, args: &[&str]) -> ZResult<String> {

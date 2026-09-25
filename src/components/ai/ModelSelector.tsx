@@ -181,7 +181,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     const katalog = (info?.models ?? []).map((m) => ({
       id: m.id,
       label: m.label,
-      sub: [info?.label, m.ctx ? fmtCtx(m.ctx) : '', m.note ?? ''].filter(Boolean).join(' · '),
+      sub: [info?.label, m.ctx ? fmtCtx(m.ctx) : '', tr(m.note ?? '')].filter(Boolean).join(' · '),
     }));
     const dariApi = live
       .filter((id) => !MODEL_BY_ID.has(id))
@@ -202,7 +202,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       id: m.id,
       label: m.label,
       provider: m.provider,
-      sub: [PROVIDER_BY_ID.get(m.provider)?.label, m.ctx ? fmtCtx(m.ctx) : '', m.note ?? '']
+      sub: [PROVIDER_BY_ID.get(m.provider)?.label, m.ctx ? fmtCtx(m.ctx) : '', tr(m.note ?? '')]
         .filter(Boolean)
         .join(' · '),
     }));
@@ -256,8 +256,8 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           data-haskey={hasKey ? '1' : '0'}
           title={
             hasKey
-              ? 'API key tersimpan untuk provider ini'
-              : 'Belum ada API key — klik untuk membuka Settings → Model AI'
+              ? tr('API key tersimpan untuk provider ini')
+              : tr('Belum ada API key — klik untuk membuka Settings → Model AI')
           }
           onClick={() => {
             if (hasKey) return;
@@ -265,7 +265,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           }}
         >
           <span className="ai-dot" aria-hidden="true" />
-          {hasKey ? 'key siap' : 'isi key'}
+          {hasKey ? tr('key siap') : tr('isi key')}
         </button>
       )}
 
@@ -330,7 +330,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 >
                   <ProviderLogo id={m.provider} size={16} />
                   <span className="ai-mi-main">
-                    <span className="ai-mi-name">{m.label}</span>
+                    <span className="ai-mi-name">{tr(m.label)}</span>
                     <span className="ai-mi-sub">{m.sub}</span>
                   </span>
                 </button>
@@ -495,7 +495,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 >
                   <ProviderLogo id={dipilih} size={16} />
                   <span className="ai-mi-main">
-                    <span className="ai-mi-name">{m.label}</span>
+                    <span className="ai-mi-name">{tr(m.label)}</span>
                     <span className="ai-mi-sub">{m.sub}</span>
                   </span>
                 </button>

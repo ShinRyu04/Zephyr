@@ -1062,9 +1062,27 @@ export function installDevBridge(): void {
         .map((m) => ({ path: m.path, error: m.error })),
     hasil: () => useExt19.getState().hasil().map((x) => x.id),
     install: (p: string) => useExt19.getState().install(p),
-    installKatalog: (id: string) => {
-      const it = KATALOG_BUNDLED.find((x) => x.id === id);
-      if (!it) return Promise.resolve(false);
+    installKatalog: async (id: string) => {
+      /*
+       * Cari di katalog lengkap, bukan hanya KATALOG_BUNDLED.
+       *
+       * KATALOG_BUNDLED berisi paket yang ditampilkan tanpa registry (5 entri),
+       * sedangkan paket bawaan lain — termasuk seluruh paket bahasa seperti
+       * zephyr.lang-toml — datang dari registry native Rust dan masuk ke
+       * state.remote. Kalau daftar registry belum pernah dimuat (tab
+       * Marketplace belum dibuka), paketnya belum terlihat di state mana pun;
+       * muat dulu baru cari lagi.
+       */
+      const cari = () =>
+        KATALOG_BUNDLED.find((x) => x.id === id) ??
+        useExt19.getState().remote?.find((x) => x.id === id) ??
+        useExt19.getState().hasil().find((x) => x.id === id);
+      let it = cari();
+      if (!it) {
+        await useExt19.getState().muatRemote();
+        it = cari();
+      }
+      if (!it) return false;
       return useExt19.getState().installKatalog(it);
     },
     uninstall: (id: string) => useExt19.getState().uninstall(id),
@@ -1093,6 +1111,7 @@ export function installDevBridge(): void {
     bahasaWorkspace: () => getBahasaWorkspace(),
 
     semuaTema: () => semuaTema().map((t) => t.id),
+    infoTema: (id: string) => semuaTema().find((t) => t.id === id) ?? null,
 
     tokenAktif: (nama: string) =>
       getComputedStyle(document.documentElement).getPropertyValue(nama).trim(),

@@ -412,8 +412,8 @@ const main = async () => {
   const nav = JSON.parse(
     await cdp.eval(`(() => {
       const v = window.__ZEPHYR_CM__();
-      const btns = [...document.querySelectorAll('.find-btn')];
-      const next = btns.find(b => b.title.includes('Berikutnya'));
+      // Cari lewat data-testid (title berubah mengikuti bahasa UI).
+      const next = document.querySelector('[data-testid="find-next"]');
       const posBefore = v.state.selection.main.from;
       next.click(); const p1 = window.__ZEPHYR_CM__().state.selection.main.from;
       next.click(); const p2 = window.__ZEPHYR_CM__().state.selection.main.from;

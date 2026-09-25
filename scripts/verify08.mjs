@@ -412,7 +412,6 @@ const main = async () => {
     await cdp.runAsync(`
       await bukaSettings('general');
       const bacaNav = () => qa('.set-nav-item span').map(e => e.textContent.trim());
-      const idLabels = bacaNav();
       // The language row is a <select>, not a pill group, so it is driven by
       // setting the value and firing change rather than by clicking a pill.
       const gantiLang = async (kode) => {
@@ -422,6 +421,11 @@ const main = async () => {
         setter.call(sel, kode);
         sel.dispatchEvent(new Event('change', { bubbles: true }));
       };
+      // Default bawaan app sekarang INGGRIS, jadi baseline diukur setelah
+      // dipaksa ke Indonesia dulu — bukan dari keadaan awal yang tak tentu.
+      await gantiLang('id');
+      await wait(700);
+      const idLabels = bacaNav();
       await gantiLang('en');
       await wait(700);
       const enLabels = bacaNav();
@@ -429,6 +433,9 @@ const main = async () => {
       await gantiLang('id');
       await wait(600);
       const balik = bacaNav();
+      // Kembalikan ke default (en) supaya sisa uji berbahasa Inggris.
+      await gantiLang('en');
+      await wait(400);
       return JSON.stringify({ idLabels, enLabels, balik, diskLang });
     `),
   );

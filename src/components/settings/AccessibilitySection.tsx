@@ -21,11 +21,12 @@ export default function AccessibilitySection() {
 
   return (
     <div className="set-section" data-testid="set-accessibility">
-      <h2 className="set-h2">Aksesibilitas</h2>
+      <h2 className="set-h2">{tr('Aksesibilitas')}</h2>
       <p className="set-note">
-        Zephyr bisa dipakai sepenuhnya dengan keyboard. Tekan <code>Tab</code> dari awal untuk
-        melompat langsung ke editor, <code>Ctrl+Shift+P</code> untuk semua perintah. Kontras semua
-        tema sudah memenuhi WCAG AA; tema <strong>High Contrast</strong> memenuhi AAA.
+        {tr('Zephyr bisa dipakai sepenuhnya dengan keyboard. Tekan')} <code>Tab</code>{' '}
+        {tr('dari awal untuk melompat langsung ke editor,')} <code>Ctrl+Shift+P</code>{' '}
+        {tr('untuk semua perintah. Kontras semua tema sudah memenuhi WCAG AA; tema')}{' '}
+        <strong>High Contrast</strong> {tr('memenuhi AAA.')}
       </p>
 
       <Row
@@ -33,12 +34,12 @@ export default function AccessibilitySection() {
         hint={
           osReduced
             ? tr('Windows sudah meminta animasi dikurangi — animasi mati walau ini off')
-            : 'matikan transisi & animasi di dalam Zephyr'
+            : tr('matikan transisi & animasi di dalam Zephyr')
         }
         testid="a11y-row-motion"
       >
         <Toggle
-          label="Kurangi animasi"
+          label={tr('Kurangi animasi')}
           testid="a11y-reduced-motion"
           checked={a.reducedMotion}
           onChange={(v) => {
@@ -49,12 +50,12 @@ export default function AccessibilitySection() {
       </Row>
 
       <Row
-        label="Mode screen reader"
-        hint="terminal & editor dioptimalkan untuk Narrator/NVDA (lebih berat)"
+        label={tr('Mode screen reader')}
+        hint={tr('terminal & editor dioptimalkan untuk Narrator/NVDA (lebih berat)')}
         testid="a11y-row-sr"
       >
         <Toggle
-          label="Mode screen reader"
+          label={tr('Mode screen reader')}
           testid="a11y-screen-reader"
           checked={a.screenReader}
           onChange={(v) => {
@@ -66,7 +67,7 @@ export default function AccessibilitySection() {
 
       <Row
         label="Fokus otomatis di dialog"
-        hint="pindahkan fokus ke dialog saat dibuka (matikan bila mengganggu)"
+        hint={tr('pindahkan fokus ke dialog saat dibuka (matikan bila mengganggu)')}
         testid="a11y-row-focus"
       >
         <Toggle
@@ -79,7 +80,7 @@ export default function AccessibilitySection() {
 
       <Row
         label="Durasi minimum notifikasi"
-        hint="screen reader butuh waktu membacakan; naikkan bila toast terlalu cepat hilang"
+        hint={tr('screen reader butuh waktu membacakan; naikkan bila toast terlalu cepat hilang')}
         testid="a11y-row-toast"
       >
         <NumberInput
@@ -94,17 +95,16 @@ export default function AccessibilitySection() {
         />
       </Row>
 
-      <h3 className="set-h2 set-h2-sub">Uji cepat</h3>
+      <h3 className="set-h2 set-h2-sub">{tr('Uji cepat')}</h3>
       <p className="set-note">
-        Tombol ini mengirim pengumuman ke screen reader lewat jalur yang sama dengan notifikasi
-        app — kalau Narrator membacakannya, jalur a11y-nya hidup.
+        {tr('Tombol ini mengirim pengumuman ke screen reader lewat jalur yang sama dengan notifikasi app — kalau Narrator membacakannya, jalur a11y-nya hidup.')}
       </p>
       <div className="set-row">
         <div className="set-row-control">
           <button
             className="btn btn-sm"
             data-testid="a11y-uji-umumkan"
-            onClick={() => umumkan('Pengumuman uji dari Zephyr. Jalur screen reader berfungsi.')}
+            onClick={() => umumkan(tr('Pengumuman uji dari Zephyr. Jalur screen reader berfungsi.'))}
           >
             {tr('Kirim pengumuman uji')}
           </button>

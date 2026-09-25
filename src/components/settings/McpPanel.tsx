@@ -69,13 +69,11 @@ export default function McpPanel() {
   return (
     <Section title={tr('settings.mcp')}>
       <p className="set-note" data-testid="mcp-note">
-        Saat switch ini hidup, Zephyr jadi server MCP di <code>127.0.0.1:{port}</code>. AI CLI di
-        luar (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) bisa membaca pane,
-        tab editor, dan settings — juga mengemudikan jendela ini: mengetik di terminal, membuka
-        file, menjalankan command. Hanya loopback: tidak pernah terbuka ke jaringan.
+        {tr('Saat switch ini hidup, Zephyr jadi server MCP di')} <code>127.0.0.1:{port}</code>{' '}
+        {tr('AI CLI di luar (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) bisa membaca pane, tab editor, dan settings — juga mengemudikan jendela ini: mengetik di terminal, membuka file, menjalankan command. Hanya loopback: tidak pernah terbuka ke jaringan.')}
       </p>
 
-      <Row label={tr('mcp.enable')} hint={`switch besar; port ${mcp.port}`}>
+      <Row label={tr('mcp.enable')} hint={`${tr('switch besar; port')} ${mcp.port}`}>
         <Toggle
           label={tr('mcp.enable')}
           testid="mcp-enable"
@@ -106,7 +104,7 @@ export default function McpPanel() {
         </p>
       )}
 
-      <Row label={tr('mcp.token')} hint="dipakai sebagai Authorization: Bearer <token>">
+      <Row label={tr('mcp.token')} hint={tr('dipakai sebagai Authorization: Bearer ***')}>
         <span className="mcp-tokenrow">
           <code className="mcp-token" data-testid="mcp-token" data-full={reveal ? '1' : '0'}>
             {reveal ? token || '(belum ada)' : masked}
@@ -114,8 +112,8 @@ export default function McpPanel() {
           <button
             className="btn btn-sm btn-icon"
             data-testid="mcp-eye"
-            title={reveal ? 'Sembunyikan token' : 'Tampilkan token'}
-            aria-label={reveal ? 'Sembunyikan token' : tr('Tampilkan token')}
+          title={reveal ? tr('Sembunyikan token') : tr('Tampilkan token')}
+          aria-label={reveal ? tr('Sembunyikan token') : tr('Tampilkan token')}
             onClick={() => setReveal(!reveal)}
           >
             <EyeIcon off={reveal} />
@@ -134,7 +132,7 @@ export default function McpPanel() {
         </span>
       </Row>
 
-      <Row label={tr('mcp.writeToCli')} hint="entri ditulis ke config; file lama disalin ke .bak">
+      <Row label={tr('mcp.writeToCli')} hint={tr('entri ditulis ke config; file lama disalin ke .bak')}>
         <div className="mcp-clis" data-testid="mcp-clis">
           {ORDER.map((id) => {
             const c = byId.get(id);
@@ -160,7 +158,7 @@ export default function McpPanel() {
                   className={`mcp-cli-badge${c?.registered ? ' is-on' : ''}`}
                   data-testid={`mcp-reg-${id}`}
                 >
-                  {c?.registered ? 'terdaftar' : c?.exists ? 'belum' : 'config belum ada'}
+                  {c?.registered ? tr('terdaftar') : c?.exists ? tr('belum') : tr('config belum ada')}
                 </span>
               </label>
             );
@@ -172,7 +170,7 @@ export default function McpPanel() {
         <button
           className="btn btn-primary"
           data-testid="mcp-write"
-          disabled={busy || checked.length === 0}
+          disabled={busy}
           onClick={() => void writeToCli()}
         >
           {tr('Tulis ke CLI')}
@@ -183,7 +181,7 @@ export default function McpPanel() {
         <button
           className="btn"
           data-testid="mcp-install-all"
-          disabled={busy || terdeteksi.length === 0}
+          disabled={busy}
           title={tr('Tulis konfigurasi MCP ke semua CLI yang terpasang di mesin ini')}
           onClick={() => {
             setChecked(terdeteksi);
@@ -196,7 +194,7 @@ export default function McpPanel() {
         <button
           className="btn"
           data-testid="mcp-unwrite"
-          disabled={busy || checked.length === 0}
+          disabled={busy}
           onClick={() => void removeFromCli()}
         >
           {tr('Lepas dari CLI')}
@@ -262,8 +260,8 @@ export default function McpPanel() {
         <ul className="mcp-log" data-testid="mcp-log">
           {log.length === 0 ? (
             <li className="mcp-log-empty">
-              Belum ada koneksi. Begitu sebuah AI CLI menyapa <code>/health</code> atau memanggil
-              tool, barisnya muncul di sini — bukti nyata, bukan klaim.
+              {tr('Belum ada koneksi. Begitu sebuah AI CLI menyapa')} <code>/health</code>{' '}
+              {tr('atau memanggil tool, barisnya muncul di sini — bukti nyata, bukan klaim.')}
             </li>
           ) : (
             log.map((l, i) => (
@@ -290,7 +288,7 @@ export default function McpPanel() {
         </div>
         <div className="mcp-info-card">
           <span className="mcp-info-k">Beban per request</span>
-          <span className="mcp-info-v">≈3.0k token untuk daftar tool penuh</span>
+            <span className="mcp-info-v">{tr('≈3.0k token untuk daftar tool penuh')}</span>
         </div>
         <div className="mcp-info-card">
           <span className="mcp-info-k">Discovery</span>
@@ -310,10 +308,9 @@ export default function McpPanel() {
       <CapturePanel />
 
       <p className="set-note">
-        Terbuka di port {port}: apa pun yang berjalan sebagai user-mu bisa mengemudikan jendela ini
-        selama tahu tokennya. <code>editor_write</code> hanya mengubah buffer tab, TIDAK menulis ke
-        disk — penyimpanan tetap keputusanmu. <code>set_setting</code> dibatasi whitelist tampilan
-        (tema, font, tab size); kredensial dan setting MCP sendiri tidak bisa diubah dari luar.
+        {tr('Terbuka di port')} {port}{tr(': apa pun yang berjalan sebagai user-mu bisa mengemudikan jendela ini selama tahu tokennya.')}{' '}
+        <code>editor_write</code> {tr('hanya mengubah buffer tab, TIDAK menulis ke disk — penyimpanan tetap keputusanmu.')}{' '}
+        <code>set_setting</code> {tr('dibatasi whitelist tampilan (tema, font, tab size); kredensial dan setting MCP sendiri tidak bisa diubah dari luar.')}
       </p>
     </Section>
   );

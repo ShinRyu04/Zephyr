@@ -1,7 +1,7 @@
-// shot-about.mjs — screenshot halaman About baru (ringkas ala TEDI).
+// shot-about.mjs — screenshot the new About page (compact layout).
 //
 // Bukti visual untuk permintaan user: "UI untuk about atau tentang zephyr
-// teks nya kebanyakan, dan jga buatkan kek sih TEDI".
+// teks nya kebanyakan".
 import { Cdp } from './lib-cdp.mjs';
 import { writeFileSync } from 'node:fs';
 

@@ -1,153 +1,157 @@
-# BUILD REPORT — Zephyr v1.0.0
+# BUILD REPORT - Zephyr v1.0.0
 
-Ringkasan eksekusi build rilis pertama. Semua angka di sini hasil pengukuran
-nyata pada mesin build, bukan estimasi.
+Summary of the first release build execution. Every number here comes from an
+actual measurement on the build machine, not an estimate.
 
-Tanggal: 2026-09-03
-Mesin build: Windows 11 (build 26200), 12 CPU logis, 15.2 GB RAM
+Date: 2026-09-03
+Build machine: Windows 11 (build 26200), 12 logical CPUs, 15.2 GB RAM
 
 ---
 
-## Artefak
+## Artifacts
 
-| Berkas | Ukuran |
+| File | Size |
 |---|---|
 | `Zephyr_1.0.0_x64_en-US.msi` | 7.3 MB |
 | `Zephyr_1.0.0_x64_en-US.msi.sig` | 416 B (minisign updater) |
 | `Zephyr_1.0.0_x64-setup.exe` (NSIS) | 5.2 MB |
 | `Zephyr_1.0.0_x64-setup.exe.sig` | 416 B |
 
-Lokasi: `src-tauri/target/release/bundle/{msi,nsis}/`
+Location: `src-tauri/target/release/bundle/{msi,nsis}/`
 
-Jauh di bawah batas evaluasi 30 MB dari prompt fase 17.2 — sebagai
-pembanding, installer editor berbasis Electron biasanya 80–120 MB.
+Far below the 30 MB evaluation limit from the phase 17.2 prompt - for comparison,
+an Electron-based editor installer is usually 80–120 MB.
 
-## Stack terpasang
+## Installed stack
 
 Tauri 2 · React 18 · TypeScript 5 · Vite 6 · CodeMirror 6 · xterm.js 5.5 ·
 portable-pty 0.8 (ConPTY) · axum 0.8 (MCP) · Zustand 5 · Rust 2021
 
-Bundle frontend setelah minify+gzip: CodeMirror 136 KB, xterm 74 KB,
-vendor 83 KB, kode Zephyr sendiri ~142 KB.
+Frontend bundle after minify+gzip: CodeMirror 136 KB, xterm 74 KB, vendor
+83 KB, Zephyr's own code ~142 KB.
 
 ---
 
-## Verifikasi yang LULUS
+## Verifications that PASSED
 
-### Fase 15 — Bugfix Vol 1: `npm run verify:15` → **17/17**
+### Phase 15 - Bugfix Vol 1: `npm run verify:15` - **17/17**
 
-V1 UTF-16 BOM · V1b simpan-sebagai-UTF-8 · V2 file 5 MB mode ringan ·
-V3 Ctrl+S file hilang · V4 batas langkah regex · V4b undo setelah reload ·
-V5 paste 10 KB · V5b exit code pane · V5c 6 pane ditutup bersamaan ·
-V6 diff biner · V7 branch slash · V7b push saat behind · V8 batas MCP ·
-V8b stop MCP saat request berjalan · V9 potong pesan AI · V10 layout 800×520 ·
-V11 tsc + cargo test + 0 console error
+V1 UTF-16 BOM · V1b save-as-UTF-8 · V2 5 MB file lightweight mode ·
+V3 Ctrl+S on a missing file · V4 regex step limit · V4b undo after reload ·
+V5 10 KB paste · V5b pane exit code · V5c 6 panes closed together ·
+V6 binary diff · V7 slash branch · V7b push while behind · V8 MCP limit ·
+V8b stop MCP mid-request · V9 truncate AI message · V10 800→520 layout ·
+V11 tsc + cargo test + 0 console errors
 
-### Fase 16 — Bugfix Vol 2: `npm run verify:16` → **10/10**
+### Phase 16 - Bugfix Vol 2: `npm run verify:16` - **10/10**
 
-V1 perf mark startup · V2 20 tab + 4 pane · V3 mode penghemat RAM ·
-V4 path 349 karakter + nama unicode · V5 tolak root drive · V6 settings rusak
-di-backup · V7 AI offline 10,3 s · V8 tabel domain + export · V9 self-test 5/5 ·
+V1 startup perf mark · V2 20 tabs + 4 panes · V3 RAM saver mode ·
+V4 349-char path + unicode name · V5 reject drive root · V6 corrupt settings
+backed up · V7 AI offline 10.3 s · V8 domain table + export · V9 self-test 5/5 ·
 V10 tsc + cargo test
 
-### Fase 16.4 — Stress: `npm run stress` → **LULUS**
+### Phase 16.4 - Stress: `npm run stress` - **PASSED**
 
-20 putaran: 200× buka/tutup file, 100× spawn/kill pane, 20 git commit,
-60 panggilan MCP HTTP.
+20 rounds: 200× open/close file, 100× spawn/kill pane, 20 git commits,
+60 MCP HTTP calls.
 
 ```
-JS heap (GC)   : 33.8 MB → 17.0 MB  (-16.8 MB, batas +25 MB)  ← penentu kebocoran
-instance xterm : 0
-pty terdaftar  : 0
-pty ghost      : 0 putaran
-tab nyangkut   : 0 putaran
-panic di log   : tidak ada
-git commit     : 20/20 berhasil
-MCP            : 60/60 menjawab
+JS heap (GC)   : 33.8 MB -> 17.0 MB  (-16.8 MB, limit +25 MB)  <- leak indicator
+xterm instances: 0
+pty registered : 0
+pty ghosts     : 0 rounds
+stuck tabs     : 0 rounds
+panic in log   : none
+git commits    : 20/20 succeeded
+MCP            : 60/60 answered
 ```
 
-RSS pohon proses naik 1194 → 2098 MB selama stress. Itu allocator WebView2 yang
-menahan halaman untuk dipakai ulang, bukan kebocoran — dibuktikan oleh JS heap
-yang justru TURUN setelah GC dan oleh 0 instance xterm/pty tersisa. Pelajaran
-ini sama dengan V5 fase 14 dan sudah dikodekan sebagai kriteria di
+Process-tree RSS rose 1194 -> 2098 MB during the stress. That is the WebView2
+allocator holding the page for reuse, not a leak - proven by the JS heap
+actually DROPPING after GC and by 0 leftover xterm/pty instances. This lesson
+matches phase 14 V5 and is already encoded as a criterion in
 `scripts/stress.mjs`.
 
-### Fase 17.5 — Smoke release: `node scripts/smoke-release.mjs` → **7/7**
+### Phase 17.5 - Release smoke: `node scripts/smoke-release.mjs` - **7/7**
 
-Dijalankan terhadap `zephyr.exe` **release** (bukan dev):
+Run against the **release** `zephyr.exe` (not dev):
 
-| # | Hasil |
+| # | Result |
 |---|---|
-| S1 | exe jalan, window "Zephyr — Code Editor" siap **586 ms**; `typeof __ZEPHYR__ === 'undefined'` → devBridge benar-benar ter-tree-shake dari release |
-| S2 | shell ter-render: empty state, 6 tombol ActivityBar, status bar |
-| S3 | Ctrl+Shift+T → 1 pane + 1 instance xterm, prompt `PS C:\Users\home>` muncul |
-| S5 | MCP :9222 `/health` 200 (v1.0.0), `get_window` dengan Bearer token → 200 |
-| S8 | Ctrl+Shift+P → palette mode `command` dengan 35 command; tema `zephyr-dark` |
+| S1 | exe runs, window "Zephyr - Code Editor" ready in **586 ms**; `typeof __ZEPHYR__ === 'undefined'` - the devBridge is genuinely tree-shaken out of the release build |
+| S2 | shell renders: empty state, 6 ActivityBar buttons, status bar |
+| S3 | Ctrl+Shift+T -> 1 pane + 1 xterm instance, prompt `PS C:\Users\home>` appears |
+| S5 | MCP :9222 `/health` 200 (v1.0.0), `get_window` with Bearer token -> 200 |
+| S8 | Ctrl+Shift+P -> palette in `command` mode with 35 commands; theme `zephyr-dark` |
 | S10a | startup **586 ms** (target <3000 ms) |
-| S10b | RAM idle pohon proses **273.3 MB** dengan 1 pane terminal hidup (target <400 MB) |
+| S10b | idle process-tree RAM **273.3 MB** with 1 live terminal pane (target <400 MB) |
 
-**Target PRD R3 (<400 MB idle) TERCAPAI di release build.** Di dev build angkanya
-430–450 MB karena React DEV + HMR + source map + StrictMode; itu sebabnya gate
-ini memang milik fase 17.
+**PRD target R3 (<400 MB idle) is MET in the release build.** In the dev build
+the number is 430–450 MB because of React DEV + HMR + source maps + StrictMode;
+that is why this gate belongs to phase 17.
 
 ### Rust & TypeScript
 
-- `npx tsc --noEmit` → 0 error, 0 output
-- `cargo test --lib` → **74 test lulus**
-- `cargo build --release` → selesai 1 m 21 s, 0 error
+- `npx tsc --noEmit` -> 0 errors, no output
+- `cargo test --lib` -> **74 tests passed**
+- `cargo build --release` -> finished in 1 m 21 s, 0 errors
 
 ---
 
-## Auto-update (fase 17.6)
+## Auto-update (phase 17.6)
 
 | Item | Status |
 |---|---|
-| U1 keypair minisign | **LULUS** — `src-tauri/zephyr.key` digenerate, pubkey masuk `tauri.conf.json`, private key masuk `.gitignore` dan terbukti tidak ter-track (`git status` bersih) |
-| U2 artefak updater | **LULUS** — `.msi.sig` + `.exe.sig` (416 B) dihasilkan build |
-| U3 endpoint kosong tidak crash | **LULUS by design** — `updaterStore` menerjemahkan kegagalan `check()` menjadi status `unconfigured` dengan pesan "Update belum dikonfigurasi"; tombol tetap hidup, app tidak crash |
-| U4 simulasi update end-to-end | **PENDING** — butuh endpoint/hosting. Perlakuannya sama dengan fase 07 (SSH): kerangka lengkap, aktivasi menyusul. Langkah persisnya ada di `PUBLISH.md` |
-| U5 startup offline tanpa toast error | **LULUS by design** — `check({ senyap: true })` menelan kegagalan; `checkUpdates` default OFF |
+| U1 minisign keypair | **PASSED** - `src-tauri/zephyr.key` generated, pubkey in `tauri.conf.json`, private key in `.gitignore` and proven untracked (`git status` clean) |
+| U2 updater artifacts | **PASSED** - `.msi.sig` + `.exe.sig` (416 B) produced by the build |
+| U3 empty endpoint does not crash | **PASSED by design** - `updaterStore` translates a `check()` failure into the `unconfigured` status with the message "Update not configured"; the button stays alive, the app does not crash |
+| U4 end-to-end update simulation | **PENDING** - needs an endpoint/host. Same behavior as phase 07 (SSH): complete scaffolding, activation later. The exact steps are in `PUBLISH.md` |
+| U5 offline startup with no error toast | **PASSED by design** - `check({ senyap: true })` swallows failures; `checkUpdates` defaults to OFF |
 
-UI-nya ada di Settings → Tentang (`UpdatePanel`), dengan status idle / checking /
-available / downloading(%) / ready / up-to-date / unconfigured / error. MenuBar
-Help → Check for Updates menyusul di fase 18 sesuai catatan ketergantungan 17.6.
-
----
-
-## Keterbatasan yang diketahui
-
-1. **Installer tidak ditandatangani code-signing.** SmartScreen akan
-   memperingatkan "Publisher: Unknown". Sertifikat berbayar dan belum dibeli.
-   Ini BEDA dari tanda tangan updater (minisign) yang sudah terpasang.
-2. **Install MSI/NSIS tidak bisa diverifikasi otomatis dari sesi ini.** Keduanya
-   butuh elevasi Administrator (`Error 1925` / `1303` untuk MSI, `Access is
-   denied` untuk NSIS) yang tidak tersedia bagi proses agen. Artefaknya sendiri
-   valid — S1..S10 dijalankan terhadap `zephyr.exe` release yang sama isinya
-   dengan yang dibungkus installer. **S1 (install dari MSI) dan S11 (uninstall
-   bersih) harus dijalankan manual oleh user dengan hak admin.**
-3. **Fase 07 (SSH) ditunda** — menunggu host uji.
-4. **Fitur besar yang belum ada**: LSP/IntelliSense, debugger DAP, tasks runner,
-   minimap, global search ripgrep, local history, notification center, menu bar,
-   panel bawah. Semuanya direncanakan masuk lewat auto-update, bukan install
-   ulang. Daftar lengkap di `CHANGELOG.md` bagian "Belum ada di 1.0.0".
-5. **Fase 15/16 dijalankan sebelum fitur 18–31 ada** (konsekuensi keputusan
-   "rilis dulu, fitur nyusul" di `00-BACA-DULU`). Mitigasinya: tiap fase punya
-   verifikasi V1..Vn sendiri, dan bugfix pass diulang sebelum v2.0.
+The UI lives in Settings → About (`UpdatePanel`), with statuses idle / checking /
+available / downloading(%) / ready / up-to-date / unconfigured / error. The
+MenuBar Help → Check for Updates entry follows in phase 18 per the 17.6
+dependency note.
 
 ---
 
-## Data user
+## Known limitations
 
-`%APPDATA%\zephyr\` — `settings.json`, `secrets.json` (API key, XOR +
-kunci turunan mesin: obfuskasi, BUKAN enkripsi kuat), `session.json`,
-`recent.json`, `mcp.json`, `extensions\`, `logs\` (rotasi 2 MB).
+1. **The installer is not code-signed.** SmartScreen will warn
+   "Publisher: Unknown". A paid certificate has not been purchased. This is
+   DIFFERENT from the updater signature (minisign) which is already in place.
+2. **MSI/NSIS install cannot be automatically verified from this session.**
+   Both need Administrator elevation (`Error 1925` / `1303` for MSI,
+   `Access is denied` for NSIS) that is not available to the agent process. The
+   artifacts themselves are valid - S1..S10 ran against the same release
+   `zephyr.exe` that gets wrapped in the installer. **S1 (install from the MSI)
+   and S11 (clean uninstall) must be run manually by the user with admin
+   rights.**
+3. **Phase 07 (SSH) is postponed** - waiting for a test host.
+4. **Major features not yet present**: LSP/IntelliSense, DAP debugger, tasks
+   runner, minimap, ripgrep global search, local history, notification center,
+   menu bar, bottom panel. All are planned to arrive through auto-update, not a
+   reinstall. The full list is in the "Not yet in 1.0.0" section of
+   `CHANGELOG.md`.
+5. **Phases 15/16 ran before features 18–31 existed** (a consequence of the
+   "release first, features later" decision in `00-BACA-DULU`). Mitigation: each
+   phase has its own V1..Vn verification, and a bugfix pass is repeated before
+   v2.0.
 
-Uninstall tidak menghapus folder ini. Disengaja: settings dan key user tidak
-boleh hilang karena install ulang.
+---
 
-## Tidak ada telemetri
+## User data
 
-Tidak ada analytics, tidak ada crash reporting otomatis, tidak ada permintaan
-jaringan selain: API AI yang key-nya diisi user sendiri, operasi git ke remote
-yang user tentukan, dan `browser_probe` untuk pane browser. Server MCP hanya
-listening di `127.0.0.1` dengan Bearer token dan bisa dimatikan.
+`%APPDATA%\zephyr\` - `settings.json`, `secrets.json` (API keys, XOR + a
+machine-derived key: obfuscation, NOT strong encryption), `session.json`,
+`recent.json`, `mcp.json`, `extensions\`, `logs\` (2 MB rotation).
+
+Uninstall does not delete this folder. On purpose: user settings and keys must
+not disappear because of a reinstall.
+
+## No telemetry
+
+No analytics, no automatic crash reporting, no network requests other than: the
+AI APIs whose keys the user supplies themselves, git operations to a remote
+the user chooses, and `browser_probe` for the browser pane. The MCP server only
+listens on `127.0.0.1` with a Bearer token and can be turned off.

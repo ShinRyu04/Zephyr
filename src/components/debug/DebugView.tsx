@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDebug, type Variable } from '../../lib/debugStore';
 import { useStore } from '../../lib/store';
-import { useT, tx } from '../../lib/i18n';
+import { useT, useTf, tx } from '../../lib/i18n';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -37,6 +37,7 @@ function Section({
 }
 
 function BarisVar({ v, depth }: { v: Variable; depth: number }) {
+  const tr = useT();
   const [terbuka, setTerbuka] = useState(false);
   const anak = useDebug((s) => s.variables[v.variablesReference]);
   const expandVariable = useDebug((s) => s.expandVariable);
@@ -53,7 +54,7 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
           <button
             className="dbg-caret-btn"
             aria-expanded={terbuka}
-            title={terbuka ? 'Lipat' : 'Buka'}
+            title={terbuka ? tr('Lipat') : tr('Buka')}
             onClick={() => {
               const next = !terbuka;
               setTerbuka(next);
@@ -116,6 +117,7 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
 
 export default function DebugView() {
   const tr = useT();
+  const tf = useTf();
   const workspace = useStore((s) => s.workspace);
   const launch = useDebug((s) => s.launch);
   const adapters = useDebug((s) => s.adapters);
@@ -215,10 +217,10 @@ export default function DebugView() {
         </div>
 
         <div className="dbg-status" data-testid="dbg-status" data-state={state}>
-          {state === 'inactive' && 'tidak aktif'}
-          {state === 'starting' && 'menyiapkan adapter…'}
-          {state === 'running' && 'berjalan'}
-          {paused && `berhenti (${alasanStop})`}
+          {state === 'inactive' && tr('tidak aktif')}
+          {state === 'starting' && tr('menyiapkan adapter…')}
+          {state === 'running' && tr('berjalan')}
+          {paused && tf('berhenti ({alasan})', { alasan: alasanStop })}
         </div>
 
         {error && (
@@ -303,7 +305,7 @@ export default function DebugView() {
         <Section id="stack" judul="CALL STACK" jml={frames.length}>
           {frames.length === 0 ? (
             <p className="side-muted dbg-kosong">
-              {aktif ? 'Program berjalan — belum berhenti.' : 'Belum ada sesi.'}
+              {aktif ? tr('Program berjalan — belum berhenti.') : tr('Belum ada sesi.')}
             </p>
           ) : (
             frames.map((f) => (
@@ -366,7 +368,7 @@ export default function DebugView() {
             <div className="dbg-watch" data-testid="dbg-watch" key={w.expr}>
               <span className="dbg-watch-expr">{w.expr}</span>
               <span className={`dbg-watch-nilai${w.error ? ' is-error' : ''}`}>{w.value}</span>
-              <button className="dbg-x" title="Hapus" onClick={() => hapusWatch(w.expr)}>
+              <button className="dbg-x" title={tr('Hapus')} onClick={() => hapusWatch(w.expr)}>
                 ×
               </button>
             </div>

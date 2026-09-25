@@ -7,7 +7,7 @@ import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { ChatMsg } from '../../lib/types';
 import ReasonedBlock from './ReasonedBlock';
-import { tx } from '../../lib/i18n';
+import { tx, useT } from '../../lib/i18n';
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -91,7 +91,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
           className="ai-code-btn"
           data-testid="ai-copy-code"
           onClick={() => {
-            void clipboardWrite(code).then(() => setToast('Kode disalin'));
+            void clipboardWrite(code).then(() => setToast(tx('Kode disalin')));
           }}
         >
           Salin
@@ -100,7 +100,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
           <button
             className="ai-code-btn is-run"
             data-testid="ai-run-code"
-            title={isDestructive(code) ? 'Perintah berisiko — akan minta konfirmasi' : 'Kirim ke pane terminal aktif'}
+            title={isDestructive(code) ? tx('Perintah berisiko — akan minta konfirmasi') : tx('Kirim ke pane terminal aktif')}
             onClick={() => void runInTerminal(code)}
           >
             {tx('Jalankan di Terminal')}
@@ -147,6 +147,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
 }
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
+  const tr = useT();
   const isUser = msg.role === 'user';
   const def = msg.model ? findModel(msg.model) : null;
   const regenerate = useAi((s) => s.regenerate);
@@ -161,7 +162,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
     >
       <div className="ai-msg-head">
         {isUser ? (
-          <span className="ai-who">Kamu</span>
+          <span className="ai-who">{tr('Kamu')}</span>
         ) : (
           <>
             <ProviderLogo id={def?.provider ?? 'generic'} size={14} />
@@ -173,7 +174,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             <button
               className="ai-msg-act"
               data-testid="ai-regenerate"
-              title="Buat ulang jawaban ini"
+              title={tr('Buat ulang jawaban ini')}
               onClick={() => void regenerate()}
             >
               ↻
@@ -185,7 +186,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               data-testid="ai-copy-msg"
               title={tx('Salin isi jawaban')}
               onClick={() => {
-                void clipboardWrite(msg.content).then(() => setToast('Disalin'));
+                void clipboardWrite(msg.content).then(() => setToast(tx('Disalin')));
               }}
             >
               ⧉
@@ -242,12 +243,12 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                     <span className="ai-toolrun-caret">{buka[i] ? '▾' : '▸'}</span>
                     <span className="ai-toolrun-name">{t.name}</span>
                     <code className="ai-toolrun-args">{t.args}</code>
-                    {!t.ok && <span className="ai-toolrun-fail">gagal</span>}
+                    {!t.ok && <span className="ai-toolrun-fail">{tr('gagal')}</span>}
                   </button>
                   {buka[i] && (
                     <>
                       <pre className={`ai-toolrun-out${t.ok ? '' : ' is-err'}`} data-testid="ai-toolrun-out">
-                        {t.result || '(tanpa output)'}
+                        {t.result || tr('(tanpa output)')}
                       </pre>
                       <div className="ai-toolrun-act">
                         <button

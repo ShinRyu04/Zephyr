@@ -38,8 +38,8 @@ export default function WindowControls() {
       <button
         className="wc-btn"
         data-testid="wc-min"
-        title="Perkecil"
-        aria-label={tr('Perkecil jendela')}
+        title={tr('win.minimize')}
+        aria-label={tr('win.minimize')}
         onClick={() => aksi((w) => w.minimize())}
       >
         <svg viewBox="0 0 10 10" aria-hidden="true">
@@ -49,8 +49,8 @@ export default function WindowControls() {
       <button
         className="wc-btn"
         data-testid="wc-max"
-        title={maks ? tr('Kembalikan ukuran') : tr('Perbesar')}
-        aria-label={maks ? tr('Kembalikan ukuran jendela') : tr('Perbesar jendela')}
+        title={maks ? tr('win.restore') : tr('win.maximize')}
+        aria-label={maks ? tr('win.restore') : tr('win.maximize')}
         onClick={() => aksi((w) => w.toggleMaximize())}
       >
         <svg viewBox="0 0 10 10" aria-hidden="true">
@@ -67,8 +67,8 @@ export default function WindowControls() {
       <button
         className="wc-btn is-close"
         data-testid="wc-close"
-        title={tr('Tutup')}
-        aria-label={tr('Tutup jendela')}
+        title={tr('win.close')}
+        aria-label={tr('win.close')}
         onClick={() => aksi((w) => w.close())}
       >
         <svg viewBox="0 0 10 10" aria-hidden="true">

@@ -9,8 +9,8 @@ Include your Zephyr version, Windows version, reproduction steps, and the impact
 you observed. Attach a proof-of-concept if you have one.
 
 This is a one-person project, so I cannot promise an SLA. What I can promise:
-every report gets read, and if it is valid it will either be patched or — if it
-genuinely cannot be patched — recorded openly in this document.
+every report gets read, and if it is valid it will either be patched, or, if it
+genuinely cannot be patched, recorded openly in this document.
 
 ## Supported versions
 
@@ -39,7 +39,7 @@ The server only listens on localhost and requires a Bearer token. The token
 lives in `%APPDATA%\zephyr\` and can be viewed from Settings.
 
 What to be aware of: **any local process** that can read that token file can
-drive the Zephyr window — reading editor buffer contents, writing to the
+drive the Zephyr window, reading editor buffer contents, writing to the
 terminal, and running command palette commands. The trust boundary is your
 Windows account, not the process.
 
@@ -63,14 +63,17 @@ Why this matters: `tasks.json` and `launch.json` can run anything. Cloning a
 foreign repo and opening it without this gate is the same as running someone
 else's code.
 
-### Extensions do not run JavaScript
+### Extensions run inside a sandbox Web Worker
 
-v1 extensions only have their `package.json` read, registering
-`contributes.commands` into the palette. Their JS code is **never executed**.
+Extension JavaScript runs in an isolated Web Worker. It cannot reach `window`,
+system modules (`fs`, `child_process`, and the rest), or Zephyr's IPC. It can
+register `contributes.commands` into the palette. Extensions that need an
+outside runtime (Python, Java, Docker) cannot run fully, because the sandbox is
+cut off from the system on purpose.
 
-This is deliberate and will not change without a proper sandbox. Running
+This is deliberate and will not change without a stronger sandbox. Running
 extension JS in the same WebView would give third-party extensions full access
-to `window`, and through it to all of IPC — filesystem, PTY, git, and secrets.
+to `window`, and through it to all of IPC: filesystem, PTY, git, and secrets.
 Extensions with a broken manifest or a `main` over 20 MB are forced to
 `enabled: false`.
 
@@ -89,16 +92,20 @@ The updater private key is not in this repository and will never be committed.
 
 ### Browser pane
 
-The browser pane uses a sandboxed `<iframe>`, so its contents cannot read the
-Zephyr DOM or call IPC. Sites that send `X-Frame-Options: DENY` genuinely
-cannot load — that is correct behavior, and the reason is shown along with the
-original header, not a generic failure message.
+The browser pane uses a sandboxed WebView, so its contents cannot read the
+Zephyr DOM or call IPC. Some sites refuse to be embedded with
+`X-Frame-Options: DENY` or a `frame-ancestors` policy; when that happens the
+real header is shown as the reason, not a generic failure message.
 
 ## Out of scope
 
 - An attacker already executing code as your Windows user. All local storage
-  — secrets, the MCP token, the trust list — falls in this case.
+  (secrets, the MCP token, the trust list) falls in this case.
 - Modification of Zephyr files on disk by other processes.
 - Vulnerabilities in the WebView2 Runtime itself; those are patched via Windows
   Update.
 - Behavior of third-party AI providers toward data you send them.
+
+## License
+
+Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).

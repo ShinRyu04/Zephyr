@@ -158,7 +158,7 @@ function Kartu({ a }: { a: SubAgent }) {
         {a.tugas}
       </div>
 
-      {/* Baris status hidup ala TEDI: "Read agent.ts · 13s". */}
+      {/* Live status line: "Read agent.ts · 13s". */}
       {hidup && (
         <div className="sub-now" data-testid={`sub-now-${a.id}`}>
           <span className="sub-spin" aria-hidden="true">

@@ -141,7 +141,7 @@ export default function KeybindingsEditor() {
                 bertabrakan dengan: {konflik.join(', ')}
               </span>
             )}
-            <span className="side-muted">Enter = simpan · Esc = batal</span>
+            <span className="side-muted">{tr('Enter = simpan · Esc = batal')}</span>
           </div>
         )}
 

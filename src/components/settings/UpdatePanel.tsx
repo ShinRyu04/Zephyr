@@ -1,5 +1,6 @@
 import { useUpdater, labelStatus } from '../../lib/updaterStore';
-import { useT, useTf, translate } from '../../lib/i18n';
+import { useT, useTf, translate, catatanUntukBahasa } from '../../lib/i18n';
+import { useStore } from '../../lib/store';
 import { Changelog } from './changelogRender';
 
 const URL_RILIS = 'https://github.com/ShinRyu04/Zephyr/releases';
@@ -19,7 +20,9 @@ export default function UpdatePanel({ versiSekarang }: { versiSekarang: string }
   const status = useUpdater((s) => s.status);
   const versi = useUpdater((s) => s.version);
   const pubDate = useUpdater((s) => s.pubDate);
-  const notes = useUpdater((s) => s.notes);
+  const notesRaw = useUpdater((s) => s.notes);
+  const uiLang = useStore((s) => s.settings.general.uiLang);
+  const notes = catatanUntukBahasa(notesRaw, uiLang);
   const progress = useUpdater((s) => s.progress);
   const message = useUpdater((s) => s.message);
   const dialogOpen = useUpdater((s) => s.dialogOpen);

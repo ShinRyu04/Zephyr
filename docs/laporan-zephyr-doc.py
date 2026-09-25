@@ -69,7 +69,7 @@ B.append(('P', 'Total verifikasi: 235 unit test Rust lulus + 134 tes harness CDP
 
 B.append(('H2', 'Fitur yang Ditambahkan'))
 f = [
-    ('Subagent paralel (ala TEDI)', 'Sampai 4 agen jalan bersamaan, masing-masing punya nama '
+    ('Subagent paralel', 'Sampai 4 agen jalan bersamaan, masing-masing punya nama '
      '(Comet, Odyssey, Nova...), log langkah hidup, dan tombol batal. Setiap agen maksimal 15 '
      'langkah dan DILARANG menulis file — dua agen menulis file yang sama itu race condition, '
      'bukan fitur. Diuji: 2 agen paralel selesai 367ms.'),
@@ -127,7 +127,7 @@ B.append(('P', 'Memecah pada SETIAP spasi, bukan pada rentetan spasi, jadi listi
 B.append(('H2', 'Perubahan Tampilan Sesuai Permintaan'))
 B.append(('P', 'Panel AI: chip CLI (Native/Codex/Claude/Gemini/opencode) DIHAPUS — fokus ke AI '
                'Zephyr sendiri. Panel TODO dipercantik dengan progres bar dan status per item. '
-               'Panel subagent dibuat seperti TEDI: grid 2 kolom, judul batch menyebut jumlah, '
+               'Panel subagent dibuat: grid 2 kolom, judul batch menyebut jumlah, '
                'langkah terakhir selalu terlihat saat bekerja.'))
 B.append(('P', 'Lokasi panel AI: awalnya diminta ke kanan, lalu dikoreksi balik ke BAWAH. '
                'Sekarang aiPanel = "bottom" di settings maupun default kode, terverifikasi '

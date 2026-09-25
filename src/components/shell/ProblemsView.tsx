@@ -73,7 +73,7 @@ export default function ProblemsView() {
         <input
           className="pv-filter"
           data-testid="pv-filter"
-          placeholder="Filter (teks, source, kode, file)…"
+          placeholder={tr('Filter (teks, source, kode, file)…')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           aria-label="Filter diagnostik"
@@ -94,8 +94,7 @@ export default function ProblemsView() {
 
       {total === 0 ? (
         <p className="pv-empty" data-testid="pv-empty">
-          Belum ada masalah terdeteksi. Diagnostik akan muncul di sini setelah language
-          server atau task berjalan.
+          {tr('Belum ada masalah terdeteksi. Diagnostik akan muncul di sini setelah language server atau task berjalan.')}
         </p>
       ) : (
         <div

@@ -3,8 +3,30 @@
     {
       "id": "2026-09-07-v1.1.2",
       "severity": "info",
-      "title": "Zephyr v1.1.2 — pemberitahuan update di dalam app",
-      "detail": "Rilis ini menambah: toast saat update selesai dipasang, banner \"Zephyr diperbarui ke vX\" setelah restart, dan pengumuman info bug/berita yang tampil di sini. Aktifkan \"Cek pembaruan otomatis\" di Settings → General untuk menerima info ini.",
+      "title": {
+        "en": "Zephyr v1.1.2 — in-app update notifications",
+        "id": "Zephyr v1.1.2 — pemberitahuan update di dalam app",
+        "ja": "Zephyr v1.1.2 — アプリ内アップデート通知",
+        "ko": "Zephyr v1.1.2 — 앱 내 업데이트 알림",
+        "zh": "Zephyr v1.1.2 — 应用内更新通知",
+        "es": "Zephyr v1.1.2 — notificaciones de actualizacion dentro de la app",
+        "fr": "Zephyr v1.1.2 — notifications de mise a jour dans l'app",
+        "de": "Zephyr v1.1.2 — Update-Hinweise in der App",
+        "pt": "Zephyr v1.1.2 — notificacoes de atualizacao no app",
+        "ar": "Zephyr v1.1.2 — إشعارات التحديث داخل التطبيق"
+      },
+      "detail": {
+        "en": "This release adds: a toast when an update finishes installing, a \"Zephyr updated to vX\" banner after restart, and informational bug/news announcements shown here. Enable \"Check for updates automatically\" in Settings → General to receive these.",
+        "id": "Rilis ini menambah: toast saat update selesai dipasang, banner \"Zephyr diperbarui ke vX\" setelah restart, dan pengumuman info bug/berita yang tampil di sini. Aktifkan \"Cek pembaruan otomatis\" di Settings → General untuk menerima info ini.",
+        "ja": "このリリースでは、更新のインストール完了時のトースト、再起動後の「Zephyr が vX に更新されました」バナー、ここに表示されるバグ/ニュースの情報アナウンスを追加しました。これらを受け取るには Settings → General で「自動的に更新を確認」を有効にしてください。",
+        "ko": "이 릴리스는 업데이트 설치 완료 토스트, 재시작 후 \"Zephyr가 vX(으)로 업데이트됨\" 배너, 여기에 표시되는 버그/뉴스 정보 공지를 추가합니다. 이를 받으려면 Settings → General에서 \"자동으로 업데이트 확인\"을 켜세요.",
+        "zh": "此版本新增：更新安装完成时的提示，重启后的“Zephyr 已更新至 vX”横幅，以及在此处显示的缺陷/新闻信息公告。要接收这些，请在 Settings → General 中启用“自动检查更新”。",
+        "es": "Esta version anade: un aviso cuando termina de instalarse una actualizacion, un banner \"Zephyr actualizado a vX\" tras reiniciar, y anuncios informativos de errores/novedades mostrados aqui. Activa \"Buscar actualizaciones automaticamente\" en Settings → General para recibirlos.",
+        "fr": "Cette version ajoute : un toast a la fin de l'installation d'une mise a jour, une banniere \"Zephyr mis a jour vers vX\" apres redemarrage, et des annonces d'infos bugs/nouveautes affichees ici. Activez \"Rechercher les mises a jour automatiquement\" dans Settings → General pour les recevoir.",
+        "de": "Dieses Release erganzt: einen Toast, wenn ein Update fertig installiert ist, ein Banner \"Zephyr auf vX aktualisiert\" nach dem Neustart und hier angezeigte Info-Ankundigungen zu Bugs/Neuigkeiten. Aktiviere \"Automatisch nach Updates suchen\" unter Settings → General, um sie zu erhalten.",
+        "pt": "Esta versao adiciona: um toast quando uma atualizacao termina de instalar, um banner \"Zephyr atualizado para vX\" apos reiniciar, e anuncios informativos de bugs/novidades mostrados aqui. Ative \"Verificar atualizacoes automaticamente\" em Settings → General para recebe-los.",
+        "ar": "يضيف هذا الإصدار: تنبيهًا عند اكتمال تثبيت التحديث، وشريط \"تم تحديث Zephyr إلى vX\" بعد إعادة التشغيل، وإعلانات معلومات الأخطاء/الأخبار المعروضة هنا. فعّل \"التحقق التلقائي من التحديثات\" في Settings → General لاستلامها."
+      },
       "date": "2026-09-07"
     }
   ]

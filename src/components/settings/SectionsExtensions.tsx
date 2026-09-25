@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
-import { useT, tx } from '../../lib/i18n';
+import { useT, useTf, tx } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { Section, Toggle } from './SettingsControls';
 
@@ -65,6 +65,7 @@ function Marketplace() {
 }
 
 function IzinRuntime() {
+  const tr = useT();
 
   const trust = useStore((s) => s.settings.extensions.trust) ?? {};
   const list = useExtensions((s) => s.list);
@@ -77,10 +78,9 @@ function IzinRuntime() {
       <>
         <h3 className="ext-h3">Izin runtime eksternal (0)</h3>
         <p className="set-note" data-testid="ext-trust-empty">
-          Belum ada. Ekstensi yang butuh runtime eksternal (Python, Java, Node,
-          dll.) akan minta izin lewat dialog saat pertama kali memanggil{' '}
-          <code>zephyr.exec()</code> — eksekusi selalu di sisi Rust dari binary
-          yang kamu setujui, dan bisa dicabut di sini.
+          {tr('Belum ada. Ekstensi yang butuh runtime eksternal (Python, Java, Node, dll.) akan minta izin lewat dialog saat pertama kali memanggil')}{' '}
+          <code>zephyr.exec()</code>{' '}
+          {tr('— eksekusi selalu di sisi Rust dari binary yang kamu setujui, dan bisa dicabut di sini.')}
         </p>
       </>
     );
@@ -121,6 +121,7 @@ function IzinRuntime() {
 
 export function ExtensionsSection() {
   const tr = useT();
+  const tf = useTf();
   const list = useExtensions((s) => s.list);
   const loading = useExtensions((s) => s.loading);
   const extError = useExtensions((s) => s.extError);
@@ -144,12 +145,11 @@ export function ExtensionsSection() {
   return (
     <Section title={tr('settings.extensions')}>
       <p className="set-note">
-        Kode JS ekstensi dijalankan di <strong>sandbox Web Worker terisolasi</strong>{' '}
-        (tanpa <code>window</code>/fs/IPC), jadi command dari ekstensi bisa jalan
-        tanpa memberi akses sistem. Ekstensi yang butuh{' '}
-        <strong>runtime eksternal</strong> (Python, Java, Node, dll.) bisa minta izin
-        lewat <code>zephyr.exec()</code> — eksekusi selalu di sisi Rust dari binary
-        yang kamu setujui, dan izinnya bisa dicabut di bawah.
+        {tr('Kode JS ekstensi dijalankan di')} <strong>{tr('sandbox Web Worker terisolasi')}</strong>{' '}
+        {tr('(tanpa')} <code>window</code>{tr('/fs/IPC), jadi command dari ekstensi bisa jalan tanpa memberi akses sistem. Ekstensi yang butuh')}{' '}
+        <strong>{tr('runtime eksternal')}</strong>{' '}
+        {tr('(Python, Java, Node, dll.) bisa minta izin lewat')} <code>zephyr.exec()</code>{' '}
+        {tr('— eksekusi selalu di sisi Rust dari binary yang kamu setujui, dan izinnya bisa dicabut di bawah.')}
       </p>
 
       <div className="ext-actions">
@@ -157,10 +157,10 @@ export function ExtensionsSection() {
           {tr('Tambah dari file…')}
         </button>
         <button className="btn" data-testid="ext-folder" onClick={() => void openFolder()}>
-          Buka folder ekstensi
+          {tr('Buka folder ekstensi')}
         </button>
         <button className="btn" data-testid="ext-refresh" onClick={() => void refresh()}>
-          Muat ulang
+          {tr('Muat ulang')}
         </button>
         <button
           className="btn"
@@ -192,16 +192,16 @@ export function ExtensionsSection() {
           <div key={e.id} className="ext-card" data-ext={e.id}>
             <div className="ext-info">
               <span className="ext-name">
-                {e.name}
-                <span className="ext-badge">bawaan</span>
+                {tr(e.name)}
+                <span className="ext-badge">{tr('bawaan')}</span>
               </span>
-              <span className="ext-desc">{e.description}</span>
+              <span className="ext-desc">{tr(e.description)}</span>
               <span className="ext-meta">
                 <code>{e.id}</code> · v{e.version}
               </span>
             </div>
             <Toggle
-              label={e.name}
+              label={tr(e.name)}
               testid={`ext-${e.id}`}
               checked={e.enabled}
               onChange={(v) => void toggle(e.id, v)}
@@ -210,11 +210,11 @@ export function ExtensionsSection() {
         ))}
       </div>
 
-      <h3 className="ext-h3">Terpasang dari folder ({external.length})</h3>
+        <h3 className="ext-h3">{tf('Terpasang dari folder ({n})', { n: external.length })}</h3>
       {external.length === 0 && !loading && (
         <p className="set-note" data-testid="ext-empty">
-          Belum ada. Taruh folder berisi <code>package.json</code> di folder ekstensi,
-          atau pakai tombol “Tambah dari file…”.
+          {tr('Belum ada. Taruh folder berisi')} <code>package.json</code>{' '}
+          {tr('di folder ekstensi, atau pakai tombol "Tambah dari file…".')}
         </p>
       )}
       <div className="ext-list" data-testid="ext-list-external">
@@ -226,8 +226,8 @@ export function ExtensionsSection() {
             data-ext-error={e.error ? '1' : '0'}
           >
             <div className="ext-info">
-              <span className="ext-name">{e.name}</span>
-              <span className="ext-desc">{e.description || '(tanpa deskripsi)'}</span>
+              <span className="ext-name">{tr(e.name)}</span>
+              <span className="ext-desc">{e.description ? tr(e.description) : tr('(tanpa deskripsi)')}</span>
               <span className="ext-meta" title={e.path}>
                 <code>{e.id}</code> · v{e.version || '-'} ·{' '}
                 {e.mainBytes >= 0 ? `${e.main} ${Math.round(e.mainBytes / 1024)} KB` : `${e.main} (tidak ada)`}
@@ -249,7 +249,7 @@ export function ExtensionsSection() {
             </div>
             <div className="ext-ctl">
               <Toggle
-                label={e.name}
+                label={tr(e.name)}
                 testid={`ext-${e.id}`}
                 checked={e.enabled}
                 onChange={(v) => void toggle(e.id, v)}
@@ -259,7 +259,7 @@ export function ExtensionsSection() {
                 data-testid={`ext-remove-${e.id}`}
                 onClick={() => void remove(e.id)}
               >
-                lepas
+                {tr('lepas')}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useT } from '../../lib/i18n';
 
 export function Row({
   label,
@@ -11,11 +12,14 @@ export function Row({
   children: ReactNode;
   testid?: string;
 }) {
+  // label/hint boleh berupa kunci mentah maupun string; tr() mengembalikan
+  // kunci apa adanya kalau tidak ada terjemahan, jadi aman untuk keduanya.
+  const tr = useT();
   return (
     <div className="set-row" data-testid={testid}>
       <div className="set-row-label">
-        <span className="set-label">{label}</span>
-        {hint && <span className="set-hint">{hint}</span>}
+        <span className="set-label">{tr(label)}</span>
+        {hint && <span className="set-hint">{tr(hint)}</span>}
       </div>
       <div className="set-row-control">{children}</div>
     </div>
@@ -23,9 +27,10 @@ export function Row({
 }
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
+  const tr = useT();
   return (
     <section className="set-section">
-      <h2 className="set-h2">{title}</h2>
+      <h2 className="set-h2">{tr(title)}</h2>
       {children}
     </section>
   );
@@ -42,12 +47,13 @@ export function Toggle({
   label: string;
   testid?: string;
 }) {
+  const tr = useT();
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
-      aria-label={label}
+      aria-label={tr(label)}
       className={`set-toggle${checked ? ' is-on' : ''}`}
       data-testid={testid}
       onClick={() => onChange(!checked)}
@@ -76,6 +82,7 @@ export function NumberInput({
   testid?: string;
   suffix?: string;
 }) {
+  const tr = useT();
   return (
     <span className="set-num">
       <input
@@ -85,7 +92,7 @@ export function NumberInput({
         max={max}
         step={step}
         value={value}
-        aria-label={label}
+        aria-label={tr(label)}
         data-testid={testid}
         onChange={(e) => onChange(Number(e.target.value))}
       />
@@ -96,7 +103,7 @@ export function NumberInput({
         max={max}
         step={step}
         value={value}
-        aria-label={`${label} (angka)`}
+        aria-label={`${tr(label)} ${tr('(angka)')}`}
         data-testid={testid ? `${testid}-box` : undefined}
         onChange={(e) => {
           const n = Number(e.target.value);

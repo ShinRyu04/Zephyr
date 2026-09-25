@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { openPath, openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 import * as cmd from '../../lib/commands';
 import type { Diagnostics, SshConfigInput, SshHost } from '../../lib/types';
 import { Row, Section, TextInput, Toggle } from './SettingsControls';
@@ -64,6 +64,7 @@ export function ScmSection() {
 
 export function SshSection() {
   const tr = useT();
+  const tf = useTf();
   const setStatus = useStore((s) => s.setStatus);
   const [hosts, setHosts] = useState<SshHost[]>([]);
   const [muat, setMuat] = useState(false);
@@ -164,10 +165,7 @@ export function SshSection() {
   return (
     <Section title={tr('settings.ssh')}>
       <p className="set-note" data-testid="ssh-note">
-        Kelola host SSH lalu buka koneksinya sebagai pane terminal. Auth key pakai
-        keyPath (passphrase diketik langsung di pane); auth password diketik di pane
-        saat connect — Zephyr tidak menyimpan password kecuali kamu memilih simpan
-        (terenkripsi).
+        {tr('Kelola host SSH lalu buka koneksinya sebagai pane terminal. Auth key pakai keyPath (passphrase diketik langsung di pane); auth password diketik di pane saat connect — Zephyr tidak menyimpan password kecuali kamu memilih simpan (terenkripsi).')}
       </p>
 
       {err && (
@@ -186,7 +184,7 @@ export function SshSection() {
               setForm({ ...kosong });
             }}
           >
-            + Tambah host
+            {tr('+ Tambah host')}
           </button>
           <button className="btn btn-sm" data-testid="ssh-refresh" onClick={() => void tarik()}>
             Muat ulang
@@ -255,7 +253,7 @@ export function SshSection() {
             </span>
           </Row>
           {form.auth === 'key' && (
-            <Row label="Path kunci" hint="passphrase diketik saat connect">
+            <Row label={tr('Path kunci')} hint={tr('passphrase diketik saat connect')}>
               <TextInput
                 label="KeyPath"
                 testid="ssh-f-keypath"
@@ -266,9 +264,9 @@ export function SshSection() {
               />
             </Row>
           )}
-          <Row label="Simpan password" hint="dienkripsi (XOR+BLAKE3) di ssh.json">
+          <Row label={tr('Simpan password')} hint="dienkripsi (XOR+BLAKE3) di ssh.json">
             <Toggle
-              label="Simpan password"
+              label={tr('Simpan password')}
               testid="ssh-f-savepw"
               checked={form.savePassword ?? false}
               onChange={(v) => setForm({ ...form, savePassword: v })}
@@ -344,14 +342,14 @@ export function SshSection() {
                     });
                   }}
                 >
-                  Edit
+                  {tr('Edit')}
                 </button>
                 <button
                   className="btn btn-xs"
                   data-testid={`ssh-del-${h.id}`}
                   onClick={() => setHapusTarget(h)}
                 >
-                  Hapus
+                  {tr('Hapus')}
                 </button>
               </span>
             </li>
@@ -376,7 +374,7 @@ export function SshSection() {
             aria-labelledby="ssh-del-title"
           >
             <h2 className="modal-title" id="ssh-del-title" data-testid="ssh-del-title">
-              Hapus host SSH "{hapusTarget.name}"?
+              {tf('Hapus host SSH "{name}"?', { name: hapusTarget.name })}
             </h2>
             <p className="modal-body" data-testid="ssh-del-body">
               {tr('Koneksi host ini akan dihapus dari daftar.')}
@@ -387,14 +385,14 @@ export function SshSection() {
                 data-testid="ssh-del-ok"
                 onClick={() => void hapus(hapusTarget)}
               >
-                Hapus
+                {tr('Hapus')}
               </button>
               <button
                 className="btn"
                 data-testid="ssh-del-cancel"
                 onClick={() => setHapusTarget(null)}
               >
-                Batal
+                {tr('Batal')}
               </button>
             </div>
           </div>
@@ -429,7 +427,7 @@ export function AboutSection() {
 
   return (
     <Section title={tr('settings.about')}>
-      {/* Kartu identitas ala TEDI: logo + nama + tagline + versi. */}
+      {/* Identity card: logo + name + tagline + version. */}
       <div className="about-kartu" data-testid="about-kartu">
         <img className="about-logo" src="/zephyr.svg" alt="" width={40} height={40} />
         <div className="about-id">
@@ -600,19 +598,19 @@ function DiagnosticsPanel() {
 
   const rows: Array<[string, string]> = d
     ? [
-        ['OS', d.os || '-'],
-        ['CPU logis', d.cpuCount > 0 ? String(d.cpuCount) : '-'],
-        ['RAM mesin', d.hostRamBytes > 0 ? mb(d.hostRamBytes) : '-'],
-        ['Uptime', secs(d.uptimeMs)],
-        ['RAM total (dengan WebView2)', mb(d.ramTotalBytes)],
-        ['RAM proses inti', mb(d.ramBytes)],
-        ['RAM total puncak', mb(d.ramPeakBytes)],
-        ['Pane terminal hidup', String(d.ptyCount)],
-        ['MCP', d.mcpPort > 0 ? `listening :${d.mcpPort}` : 'mati'],
-        ['Build', d.debug ? 'debug' : 'release'],
-        ['File log', d.logFile || '-'],
-        ['Ukuran log', `${(d.logBytes / 1024).toFixed(1)} KB (rotate 2 MB)`],
-        ['Panic sesi ini', d.panicked ? d.lastPanic || 'ya' : 'tidak ada'],
+        [tr('OS'), d.os || '-'],
+        [tr('CPU logis'), d.cpuCount > 0 ? String(d.cpuCount) : '-'],
+        [tr('RAM mesin'), d.hostRamBytes > 0 ? mb(d.hostRamBytes) : '-'],
+        [tr('Uptime'), secs(d.uptimeMs)],
+        [tr('RAM total (dengan WebView2)'), mb(d.ramTotalBytes)],
+        [tr('RAM proses inti'), mb(d.ramBytes)],
+        [tr('RAM total puncak'), mb(d.ramPeakBytes)],
+        [tr('Pane terminal hidup'), String(d.ptyCount)],
+        ['MCP', d.mcpPort > 0 ? `listening :${d.mcpPort}` : tr('mati')],
+        [tr('Build'), d.debug ? 'debug' : 'release'],
+        [tr('File log'), d.logFile || '-'],
+        [tr('Ukuran log'), `${(d.logBytes / 1024).toFixed(1)} KB (rotate 2 MB)`],
+        [tr('Panic sesi ini'), d.panicked ? d.lastPanic || tr('ya') : tr('tidak ada')],
       ]
     : [];
 
@@ -621,7 +619,7 @@ function DiagnosticsPanel() {
       <div className="diag-head">
         <span className="diag-title">Diagnostics</span>
         <button className="btn btn-sm" data-testid="diag-refresh" onClick={load}>
-          Muat ulang
+          {tr('Muat ulang')}
         </button>
         <label className="diag-auto">
           <input
@@ -630,7 +628,7 @@ function DiagnosticsPanel() {
             checked={auto}
             onChange={(e) => setAuto(e.target.checked)}
           />
-          <span>tiap 3s</span>
+          <span>{tr('tiap 3s')}</span>
         </label>
       </div>
 
@@ -692,7 +690,7 @@ function DiagnosticsPanel() {
 
       {d && Object.keys(d.counters).length > 0 && (
         <p className="set-note" data-testid="diag-counters">
-          Operasi sejak start:{' '}
+          {tr('Operasi sejak start:')}{' '}
           {Object.entries(d.counters)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([k, v]) => `${k}=${v}`)
@@ -705,14 +703,13 @@ function DiagnosticsPanel() {
           <button
             className="btn btn-sm"
             data-testid="diag-panic"
-            title="Hanya build debug: memicu panic di Rust untuk menguji panic hook + dialog crash"
+            title={tr('Hanya build debug: memicu panic di Rust untuk menguji panic hook + dialog crash')}
             onClick={() => void cmd.debugPanic().catch(() => {})}
           >
-            Uji panic (debug)
+            {tr('Uji panic (debug)')}
           </button>
           <span className="set-note">
-            Menulis stack ke log lalu memunculkan dialog crash. Tombol ini tidak
-            ada di build release.
+            {tr('Menulis stack ke log lalu memunculkan dialog crash. Tombol ini tidak ada di build release.')}
           </span>
         </div>
       )}

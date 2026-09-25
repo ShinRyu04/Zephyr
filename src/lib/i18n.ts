@@ -1327,9 +1327,36 @@ export const UI_LANGS: { value: string; label: string }[] = [
 
 export function translate(lang: string, key: string): string {
 
+  // Kamus bahasa tujuan SELALU menang. SRC cuma kamus Inggris untuk kunci
+  // yang teks aslinya Indonesia; dulu SRC dicek lebih dulu sehingga kunci
+  // apa pun yang ada di SRC selalu tampil Inggris walau terjemahan JA/KO/
+  // ES/… sudah tersedia — itu penyebab "ganti bahasa masih ada Indonesia/
+  // Inggris".
+  const own = EXTRA[lang]?.[key] ?? DICTS[lang]?.[key];
+  if (own !== undefined) return own;
   const src = SRC[key];
-  if (src) return lang === 'id' ? key : src;
-  return EXTRA[lang]?.[key] ?? DICTS[lang]?.[key] ?? EXTRA.en[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
+  if (src !== undefined) return lang === 'id' ? key : src;
+  return EXTRA.en[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
+}
+
+/**
+ * Teks catatan rilis / changelog bisa multi-bahasa: kalau `notes` berupa JSON
+ * objek { en, id, ja, ... } pilih sesuai bahasa aktif (fallback ke en). Kalau
+ * bukan JSON, kembalikan apa adanya (perilaku lama).
+ */
+export function catatanUntukBahasa(notes: string | null | undefined, lang: string): string {
+  if (!notes) return '';
+  const s = notes.trim();
+  if (!s.startsWith('{')) return notes;
+  try {
+    const obj = JSON.parse(s) as Record<string, string>;
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      return obj[lang] ?? obj.en ?? Object.values(obj)[0] ?? notes;
+    }
+  } catch {
+    /* bukan JSON — pakai apa adanya */
+  }
+  return notes;
 }
 
 export function useT(): (key: string) => string {

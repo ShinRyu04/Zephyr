@@ -149,12 +149,13 @@ function GroupDivider() {
       role="separator"
       aria-orientation="vertical"
       aria-label={tr('Ubah lebar grup editor')}
-      title="Geser untuk mengubah lebar"
+      title={tr('Geser untuk mengubah lebar')}
     />
   );
 }
 
 export default function SplitEditor() {
+  const tr = useT();
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const hasDiff = useGit((s) => s.diff !== null);
@@ -166,13 +167,13 @@ export default function SplitEditor() {
       <section className="editor-area">
         <RestrictedBanner />
         <div className="set-topbar">
-          <span className="set-topbar-title">Pengaturan</span>
+          <span className="set-topbar-title">{tr('Pengaturan')}</span>
           <button
             className="btn btn-sm"
             data-testid="set-close"
             onClick={() => setSettingsOpen(false)}
           >
-            Tutup
+            {tr('Tutup')}
           </button>
         </div>
         <div className="editor-host">

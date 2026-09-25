@@ -6,14 +6,18 @@
 // elemennya supaya bisa diperbaiki — bukan sekadar bilang "masih ada sisa".
 import { Cdp, sleep } from 'file:///D:/Zephyr/scripts/lib-cdp.mjs';
 
+// Hanya kata yang benar-benar Indonesia dan TIDAK dipakai sebagai kata Inggris
+// di UI. Kata seperti "pane", "tab", "new", "open", "file", "format" dulu
+// membuat hampir semua tooltip Inggris ditandai "Indonesia" (false positive).
 const KATA_ID = [
   'Lompat', 'Buka', 'Simpan', 'Hapus', 'Tutup', 'Cari', 'Ubah', 'Tambah', 'Buang',
   'Kirim', 'Jalankan', 'Muat', 'Salin', 'Tempel', 'Ganti', 'Pilih', 'Terapkan',
   'Sisipkan', 'Izinkan', 'Batalkan', 'Lanjut', 'Kembali', 'Selesai', 'Gagal',
   'Berhasil', 'Klik', 'Tekan', 'sedang', 'belum', 'sudah', 'perintah', 'berkas',
-  'folder', 'jendela', 'pengaturan', 'kesalahan', 'peringatan', 'kosong',
-  'riwayat', 'tugas', 'berikut', 'yang', 'dengan', 'untuk', 'dari', 'tidak',
-  'semua', 'ini', 'itu', 'apa', 'bisa', 'harus', 'wajib', 'pane', 'baris',
+  'jendela', 'pengaturan', 'kesalahan', 'peringatan', 'kosong',
+  'riwayat', 'tugas', 'yang', 'dengan', 'untuk', 'dari', 'tidak',
+  'semua', 'harus', 'wajib', 'sebelumnya', 'berikutnya', 'dokumen', 'tampilan',
+  'perbesar', 'perkecil', 'menyimpan', 'membuka', 'pemberitahuan', 'diperbarui',
 ];
 
 const { cdp } = await Cdp.attach('9223');
@@ -22,11 +26,19 @@ await sleep(400);
 // pastikan bahasa aktif bukan Indonesia
 const lang = await cdp.send('Runtime.evaluate', {
   expression: `(() => {
-    try { return JSON.parse(localStorage.getItem('zephyr-settings') || '{}')?.state?.settings?.general?.uiLang || '(?)'; }
+    try { return window.__ZEPHYR__.getState().settings.general.uiLang; }
     catch { return '(?)'; }
   })()`,
   returnByValue: true,
 });
+// Uji ini hanya bermakna saat bahasa BUKAN Indonesia; kalau masih 'id',
+// penanda Indonesia memang wajar. Pastikan dulu bahasa aktifnya.
+const bahasa = lang?.result?.result?.value ?? '(?)';
+if (bahasa === 'id') {
+  console.log('bahasa aktif : id');
+  console.log('SKIP: bahasa masih Indonesia; set bahasa non-id dulu untuk menguji.');
+  process.exit(0);
+}
 
 const expr = `(() => {
   const hasil = [];
@@ -64,7 +76,7 @@ const KATA = KATA_ID;
 const re = new RegExp('\\b(' + KATA.join('|') + ')\\b');
 const kena = semua.filter((s) => re.test(s.teks));
 
-console.log('bahasa aktif :', lang?.result?.result?.value);
+console.log('bahasa aktif :', bahasa);
 console.log('simpul teks  :', semua.length);
 console.log('teks Indonesia:', kena.length);
 console.log('');

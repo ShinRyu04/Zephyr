@@ -169,7 +169,7 @@ export default function FindBar() {
       <div className="find-row">
         <button
           className="find-toggle"
-          title={showReplace ? 'Sembunyikan replace' : 'Tampilkan replace'}
+          title={showReplace ? tr('Sembunyikan replace') : tr('Tampilkan replace')}
           onClick={() => setShowReplace((v) => !v)}
         >
           {showReplace ? '▾' : '▸'}
@@ -179,8 +179,8 @@ export default function FindBar() {
           ref={inputRef}
           className={`find-input${invalid ? ' is-invalid' : ''}`}
           data-testid="find-input"
-          placeholder="Cari"
-          value={query}
+           placeholder={tr('Cari')}
+           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label={tr('Cari di file')}
         />
@@ -243,10 +243,10 @@ export default function FindBar() {
                   : ''}
         </span>
 
-        <button className="find-btn" title="Sebelumnya (Shift+Enter)" onClick={() => act(findPrevious)}>
+        <button className="find-btn" data-testid="find-prev" title={tr('Sebelumnya (Shift+Enter)')} onClick={() => act(findPrevious)}>
           ↑
         </button>
-        <button className="find-btn" title="Berikutnya (Enter)" onClick={() => act(findNext)}>
+        <button className="find-btn" data-testid="find-next" title={tr('Berikutnya (Enter)')} onClick={() => act(findNext)}>
           ↓
         </button>
         <button

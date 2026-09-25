@@ -79,6 +79,7 @@ class Cdp {
         const s = window.__ZEPHYR__.getState();
         const G = window.__ZEPHYR_GIT__;
         const GS = () => window.__ZEPHYR_GIT__.store.getState();
+        const WS = window.__ZEPHYR_WS__;
         const EX = window.__ZEPHYR_EX__;
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];
@@ -673,7 +674,7 @@ const main = async () => {
     // Lepaskan trust sandbox SEBELUM foldernya dihapus. Entri trust yang
     // menunjuk folder yang sudah tidak ada membuat setiap pembacaan daftar
     // trust melempar "bukan folder", dan pesan itu muncul ke user.
-    await s.lupakanTrust(${JSON.stringify(SANDBOX)}).catch(() => {});
+    await WS.lupakanTrust(${JSON.stringify(SANDBOX)}).catch(() => {});
     await s.closeWorkspace();
     await wait(400);
     S.getState().setActivity('explorer');

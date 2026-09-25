@@ -3,6 +3,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
 import GhMenu from './GhMenu';
+import { useT, useTf } from '../../lib/i18n';
 import type { ActivityId } from '../../lib/types';
 
 const Icons: Record<ActivityId, () => JSX.Element> = {
@@ -110,6 +111,8 @@ const ORDER: ActivityId[] = [
 ];
 
 export default function ActivityBar() {
+  const tr = useT();
+  const tf = useTf();
   const activity = useStore((s) => s.activity);
   const sidebarVisible = useStore((s) => s.sidebarVisible);
   const setActivity = useStore((s) => s.setActivity);
@@ -178,8 +181,8 @@ export default function ActivityBar() {
           <button
             key={id}
             className={`ab-btn${isActive ? ' is-active' : ''}`}
-            title={LABEL[id]}
-            aria-label={LABEL[id]}
+            title={tr(LABEL[id])}
+            aria-label={tr(LABEL[id])}
             aria-pressed={isActive}
             data-activity={id}
             data-testid={`ab-${id}`}
@@ -210,12 +213,12 @@ export default function ActivityBar() {
         data-testid="ab-gh"
         title={
           signedIn
-            ? `@${user} — akun GitHub (klik: Source Control)`
+            ? tf('@{user} — akun GitHub (klik: Source Control)', { user: user ?? '' })
             : oauthSiap
-              ? 'Login GitHub (buka browser)'
-              : 'Login GitHub — buka Source Control'
+              ? tr('Login GitHub (buka browser)')
+              : tr('Login GitHub — buka Source Control')
         }
-        aria-label={signedIn ? `Akun GitHub: @${user}` : 'Login GitHub'}
+        aria-label={signedIn ? tf('Akun GitHub: @{user}', { user: user ?? '' }) : tr('Login GitHub')}
         onClick={klikGh}
       >
         {signedIn ? (

@@ -1,20 +1,19 @@
-# Cara publish rilis Zephyr
+# How to publish a Zephyr release
 
-Ringkas, untuk dipakai tiap rilis. Aturan yang tidak boleh dilanggar ada di
-bagian paling bawah.
+Concise, for use on every release. The hard rules are at the very bottom.
 
-## Repo & visibilitas
+## Repo & visibility
 
-| Repo | Isi | Visibilitas |
+| Repo | Contents | Visibility |
 |---|---|---|
-| `ShinRyu04/Zephyr` | seluruh source code + GitHub Release artefak | publik |
+| `ShinRyu04/Zephyr` | all source code + GitHub Release artifacts | public |
 
-Release dibuat langsung di repo utama. Endpoint updater di
-`tauri.conf.json` menunjuk ke
+Releases are created directly in the main repo. The updater endpoint in
+`tauri.conf.json` points to
 `https://github.com/ShinRyu04/Zephyr/releases/latest/download/latest.json`,
-jadi `latest.json` dan artefak harus ada di release repo ini.
+so `latest.json` and the artifacts must live in this repo's release.
 
-## 1. Naikkan versi (3 file)
+## 1. Bump the version (3 files)
 
 ```
 package.json            "version": "1.1.1"
@@ -22,7 +21,7 @@ src-tauri/Cargo.toml    version = "1.1.1"
 src-tauri/tauri.conf.json  "version": "1.1.1"
 ```
 
-## 2. Build rilis (wajib dengan kunci signing)
+## 2. Build the release (signing key required)
 
 ```bash
 export TAURI_SIGNING_PRIVATE_KEY_PATH="C:/Users/home/AppData/Roaming/zephyr/zephyr.key"
@@ -30,17 +29,17 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat "$APPDATA/zephyr/signing-key.tx
 npm run tauri:build
 ```
 
-Hasil di `src-tauri/target/release/bundle/` (Tauri v2: updater Windows memakai
-installer NSIS/MSI langsung + `.sig`, BUKAN zip):
+Output in `src-tauri/target/release/bundle/` (Tauri v2: the Windows updater
+uses the NSIS/MSI installer directly + `.sig`, NOT a zip):
 
 ```
-msi/Zephyr_1.1.1_x64_en-US.msi         <- installer MSI
-msi/Zephyr_1.1.1_x64_en-US.msi.sig     <- tanda tangan minisign
-nsis/Zephyr_1.1.1_x64-setup.exe        <- installer NSIS (artefak updater)
-nsis/Zephyr_1.1.1_x64-setup.exe.sig    <- tanda tangannya
+msi/Zephyr_1.1.1_x64_en-US.msi         <- MSI installer
+msi/Zephyr_1.1.1_x64_en-US.msi.sig     <- minisign signature
+nsis/Zephyr_1.1.1_x64-setup.exe        <- NSIS installer (updater artifact)
+nsis/Zephyr_1.1.1_x64-setup.exe.sig    <- its signature
 ```
 
-## 3. Buat GitHub Release
+## 3. Create the GitHub Release
 
 ```bash
 gh release create v1.1.1 \
@@ -53,46 +52,47 @@ gh release create v1.1.1 \
   "src-tauri/target/release/bundle/nsis/Zephyr_1.1.1_x64-setup.exe.sig"
 ```
 
-## 4. Tulis `latest.json` + upload sebagai aset
+## 4. Write `latest.json` + upload it as an asset
 
-`signature` = **seluruh isi file `.exe.sig`** (satu baris base64). `url`
-menunjuk ke setup.exe, bukan zip:
+`signature` = **the entire contents of the `.exe.sig` file** (one base64 line).
+`url` points to setup.exe, not a zip:
 
 ```json
 {
   "version": "1.1.1",
-  "notes": "Ringkasan rilis.",
+  "notes": "Release summary.",
   "pub_date": "2026-09-07T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "<isi file Zephyr_1.1.1_x64-setup.exe.sig>",
+      "signature": "<contents of Zephyr_1.1.1_x64-setup.exe.sig>",
       "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.1/Zephyr_1.1.1_x64-setup.exe"
     }
   }
 }
 ```
 
-Upload `latest.json` sebagai aset release juga. Karena v1.1.1 jadi
-"latest", URL `.../releases/latest/download/latest.json` otomatis
-menyajikannya.
+Upload `latest.json` as a release asset too. Since v1.1.1 becomes "latest", the
+URL `.../releases/latest/download/latest.json` serves it automatically.
 
-## 5. Verifikasi updater
+## 5. Verify the updater
 
-Turunkan versi lokal sementara (3 file) ke angka lama, build, install, klik
-"Cek update" — harus menemukan versi baru, mengunduh, memasang. Atau minimal:
+Temporarily lower the local version (3 files) to an older number, build,
+install, click "Check for updates" - it should find the new version, download,
+and install. Or at minimum:
 `curl -s https://github.com/ShinRyu04/Zephyr/releases/latest/download/latest.json`
-harus menampilkan versi terbaru.
+should show the newest version.
 
-## Aturan keras
+## Hard rules
 
-1. **Kunci signing `%APPDATA%\zephyr\zephyr.key` JANGAN pernah di-commit
-   atau di-upload.** Sudah masuk `.gitignore` (`*.key`). Kalau hilang, semua
-   user lama tidak bisa update lagi dan harus install manual. Simpan salinan
-   di password manager.
-2. **Cek `git status` sebelum push** — pastikan tidak ada `.key`, `.env`,
-   `secrets.json`, atau token yang ikut.
-3. Installer tidak ditandatangani code-signing (sertifikat belum dibeli),
-   jadi SmartScreen akan memperingatkan. Ini beda dari tanda tangan updater
-   di atas dan sudah dijelaskan di `RELEASE_NOTES.md`.
-4. Jangan upload aset duplikat `latest.json` lama ke release baru — versi
-   lama otomatis tertimpa karena yang diunduh selalu dari release "latest".
+1. **The signing key `%APPDATA%\zephyr\zephyr.key` must NEVER be committed or
+   uploaded.** It is already in `.gitignore` (`*.key`). If it is lost, all
+   existing users can no longer update and must install manually. Keep a copy
+   in a password manager.
+2. **Check `git status` before pushing** - make sure no `.key`, `.env`,
+   `secrets.json`, or token is included.
+3. The installer is not code-signed (no certificate purchased yet), so
+   SmartScreen will warn. This is different from the updater signature above
+   and is explained in `RELEASE_NOTES.md`.
+4. Do not upload a stale duplicate `latest.json` to a new release - the old
+   version is automatically superseded because downloads always come from the
+   "latest" release.

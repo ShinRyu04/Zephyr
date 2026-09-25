@@ -1,4 +1,5 @@
 import type { PaneKind } from '../../lib/types';
+import { tx } from '../../lib/i18n';
 
 export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
   const p = { width: size, height: size, viewBox: '0 0 16 16', role: 'img' as const };
@@ -102,7 +103,7 @@ export default function PaneIcon({
 
   if (kind === 'private') {
     return (
-      <svg {...p} role="img" aria-label="Private (tanpa riwayat)">
+      <svg {...p} role="img" aria-label={tx('Private (tanpa riwayat)')}>
         <path d="M1.6 8s2.4-4 6.4-4 6.4 4 6.4 4-2.4 4-6.4 4S1.6 8 1.6 8z" {...box} stroke="var(--warning)" />
         <circle cx="8" cy="8" r="1.7" fill="var(--warning)" />
         <path d="M3 13L13 3" stroke="var(--warning)" strokeWidth="1.3" strokeLinecap="round" />

@@ -502,16 +502,42 @@ fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
         false,
         sysinfo::ProcessRefreshKind::nothing().with_memory(),
     );
+
+    /*
+     * Jumlahkan proses ZEPHYR saja (diri sendiri + keturunannya).
+     *
+     * Penelusuran rantai induk harus berhenti pada Keyakinan bahwa proses itu
+     * benar-benar milik kita. DI WINDOWS, PID induk dipakai ulang setelah
+     * proses mati: PID milik proses yang sudah selesai bisa dipegang proses
+     * LAIN, sehingga penelusuran "sampai ketemu Zephyr" tanpa batas bisa
+     * menyambung ke proses sistem dan menjumlahkan seluruh mesin (pernah
+     * terbaca 13,9 GB padahal Zephyr hanya ~110 MB).
+     *
+     * Batas 6 tingkat tetap dipakai, TAPI jumlah proses yang ditelusuri juga
+     * dibatasi supaya satu rantai panjang tidak menyeret proses asing.
+     */
     let mut total = sys.process(own).map(|p| p.memory()).unwrap_or(0);
+
     for (pid, proc_) in sys.processes() {
         if *pid == own {
             continue;
         }
-        let mut cur = proc_.parent();
+
+        let mulai = match proc_.parent() {
+            Some(p) => p,
+            None => continue,
+        };
+
+        // Rantai induk harus BENAR-BENAR sampai ke PID kita.
+        let mut cur = Some(mulai);
         let mut depth = 0usize;
+        let mut milik_kita = false;
         while let Some(p) = cur {
             if p == own {
-                total += proc_.memory();
+                milik_kita = true;
+                break;
+            }
+            if p.as_u32() == 0 {
                 break;
             }
             cur = sys.process(p).and_then(|x| x.parent());
@@ -519,6 +545,10 @@ fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
             if depth > 6 {
                 break;
             }
+        }
+
+        if milik_kita {
+            total += proc_.memory();
         }
     }
     total

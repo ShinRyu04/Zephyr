@@ -426,12 +426,16 @@ const main = async () => {
   );
   const domainWajib = ['fs', 'pty', 'git', 'mcp', 'ai', 'extensions', 'log'];
   const adaSemua = domainWajib.every((d) => v8.rows.some((r) => r.id === d));
+  // Label tabel ikut bahasa UI. Sejak i18n, "RAM mesin" → "Machine RAM" saat
+  // UI berbahasa Inggris; terima keduanya supaya harness tidak rapuh terhadap
+  // bahasa yang sedang aktif.
+  const tabelAda = (...nama) => nama.some((n) => v8.tabel.includes(n));
   check(
     'V8',
     adaSemua &&
       v8.rows.every((r) => ['ok', 'warn', 'off'].includes(r.level)) &&
-      v8.tabel.includes('OS') &&
-      v8.tabel.includes('RAM mesin') &&
+      tabelAda('OS') &&
+      tabelAda('RAM mesin', 'Machine RAM') &&
       v8.adaExport &&
       v8.adaLogs &&
       v8.clipValid &&

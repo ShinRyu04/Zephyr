@@ -25,7 +25,7 @@ export default function XtermPane({ pane }: Props) {
       fontFamily,
       fontSize,
       
-      scrollback: useStore.getState().settings.general.lowRam ? 2000 : 5000,
+      scrollback: useStore.getState().settings.general.lowRam ? 1000 : 5000,
       onData: (data) => {
         
         if (data === '\x03') {

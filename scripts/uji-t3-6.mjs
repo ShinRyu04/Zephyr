@@ -1,4 +1,4 @@
-// uji-t3-6.mjs — verifikasi tampilan timeline berlabel (T3.6, ala TEDI).
+// uji-t3-6.mjs — verify the labelled timeline view (T3.6).
 //
 // YANG DIUJI: langkah agent tidak lagi menampilkan nama tool mentah
 // (`file_read`), tapi label manusiawi berwarna per jenis aksi:

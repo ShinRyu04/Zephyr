@@ -43,12 +43,12 @@ export function PaneEmpty() {
           <path d="M9.6 5.6h3.2M9.6 8h3.2M9.6 10.4h2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
         <span>
-          <strong>Split With Browser</strong>
-          <em>shell + preview dev server berdampingan</em>
+          <strong>{tr('Split With Browser')}</strong>
+          <em>{tr('shell + preview dev server berdampingan')}</em>
         </span>
       </button>
 
-      <p className="pane-empty-sub">up to 6 panes per tab</p>
+      <p className="pane-empty-sub">{tr('up to 6 panes per tab')}</p>
     </div>
   );
 }

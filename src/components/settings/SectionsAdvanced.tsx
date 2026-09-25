@@ -58,9 +58,7 @@ export function ShortcutsSection() {
   return (
     <Section title={tr('settings.shortcuts')}>
       <p className="set-note">
-        Klik kolom shortcut lalu tekan kombinasi. Escape = batal. Kombinasi yang
-        sudah dipakai action lain ditolak, jadi tidak mungkin ada dua action
-        dengan shortcut sama.
+        {tr('Klik kolom shortcut lalu tekan kombinasi. Escape = batal. Kombinasi yang sudah dipakai action lain ditolak, jadi tidak mungkin ada dua action dengan shortcut sama.')}
       </p>
       {conflict && (
         <p className="set-warning" data-testid="sc-conflict" role="alert">
@@ -164,12 +162,8 @@ export function ModelsSection() {
   return (
     <Section title={tr('settings.models')}>
       <p className="set-note">
-        API key disimpan Rust di <code>%APPDATA%\zephyr\secrets.json</code> dalam
-        bentuk terenkripsi (kunci turunan dari mesin ini), TERPISAH dari
-        settings.json. Frontend hanya menerima mask — key asli tidak pernah
-        dikirim ke UI dan tidak pernah masuk log. Catatan jujur: enkripsi ini
-        melindungi dari orang yang membaca file, bukan dari orang yang sudah
-        bisa masuk akun Windows-mu.
+        {tr('API key disimpan Rust di')} <code>%APPDATA%\zephyr\secrets.json</code>{' '}
+        {tr('bentuk terenkripsi (kunci turunan dari mesin ini), TERPISAH dari settings.json. Frontend hanya menerima mask — key asli tidak pernah dikirim ke UI dan tidak pernah masuk log. Catatan jujur: enkripsi ini melindungi dari orang yang membaca file, bukan dari orang yang sudah bisa masuk akun Windows-mu.')}
       </p>
 
       <Row label={tr('models.active')}>
@@ -208,7 +202,7 @@ export function ModelsSection() {
       </Row>
 
             {/* RAG lokal: cari konteks project sebelum kirim ke LLM. (fase 34) */}
-            <Row label="RAG lokal" hint="Pakai server RAG (mis. enowx-rag di localhost:7777) untuk mencari konteks project sebelum menjawab. Mati = chat biasa.">
+            <Row label="RAG lokal" hint={tr('Pakai server RAG (mis. enowx-rag di localhost:7777) untuk mencari konteks project sebelum menjawab. Mati = chat biasa.')}>
               <div className="prov-rag">
                 <Toggle
                   label="Aktifkan RAG"
@@ -235,7 +229,7 @@ export function ModelsSection() {
                       onChange={(v) => void apply({ models: { ragProject: v } })}
                     />
                     <NumberInput
-                      label="Jumlah chunk"
+                      label={tr('Jumlah chunk')}
                       testid="models-rag-k"
                       min={1}
                       max={20}
@@ -297,7 +291,6 @@ export function ModelsSection() {
                       type="button"
                       className="btn btn-sm btn-primary"
                       data-testid={`prov-save-${p.id}`}
-                      disabled={!(draft[p.id] ?? '').trim()}
                       onClick={() => {
                         void ui.saveKey(p.id, draft[p.id] ?? '');
                         setDraft((d) => ({ ...d, [p.id]: '' }));
@@ -339,9 +332,9 @@ export function ModelsSection() {
                                   {p.freeText ? (
                                                       <div className="prov-model-row">
                                                                                                               <TextInput
-                                                                                                                label={`${p.label} model`}
+                                                                                                                label={`${p.label} ${tr('model')}`}
                                                                                                                 testid={`prov-model-${p.id}`}
-                                                                                                                placeholder={p.models[0].note}
+                                                                                                                placeholder={tr(p.models[0].note ?? '')}
                                                                                                                 list={`prov-models-${p.id}`}
                                                                                                                 value={cfg.model ?? ''}
                                                                                                                 onChange={(v) =>
@@ -413,8 +406,8 @@ export function ModelsSection() {
                                                           type="button"
                                                           className="btn btn-sm"
                                                           data-testid={`prov-refresh-${p.id}`}
-                                                          disabled={fetching === p.id || !has}
-                                                          title="Ambil daftar model langsung dari provider"
+                                                          disabled={fetching === p.id}
+                                                          title={tr('Ambil daftar model langsung dari provider')}
                                                           onClick={() => void refreshModels(p)}
                                                         >
                                                           {fetching === p.id ? 'Memuat…' : 'Refresh'}
@@ -434,7 +427,7 @@ export function ModelsSection() {
                                         options={[
                                           ...p.models.map((m) => ({
                                             value: m.id,
-                                            label: m.note ? `${m.label} — ${m.note}` : m.label,
+                                            label: m.note ? `${m.label} — ${tr(m.note)}` : m.label,
                                           })),
 
                                           ...[...(remote[p.id] ?? []), ...(ui.remoteModels[p.id] ?? [])]
@@ -447,8 +440,8 @@ export function ModelsSection() {
                                         type="button"
                                         className="btn btn-sm"
                                         data-testid={`prov-refresh-${p.id}`}
-                                        disabled={fetching === p.id || ui.fetchingModels === p.id || !has}
-                                        title="Ambil daftar model langsung dari provider"
+                                        disabled={fetching === p.id || ui.fetchingModels === p.id}
+                                        title={tr('Ambil daftar model langsung dari provider')}
                                         onClick={() => void refreshModels(p)}
                                       >
                                         {fetching === p.id || ui.fetchingModels === p.id ? 'Memuat…' : 'Refresh'}
@@ -459,13 +452,12 @@ export function ModelsSection() {
 
                                                   {p.freeText && (
                                                     <p className="set-note prov-hint" data-testid={`prov-hint-${p.id}`}>
-                                                      <strong>Cara pakai:</strong> isi <em>base URL</em> (mis.
-                                                      <code> http://127.0.0.1:11434/v1</code> buat Ollama) kalau
-                                                      lokal, lalu ketik <em>nama model</em> di kolom atau pilih
-                                                      dari <strong>▾</strong>. Klik <strong>Refresh</strong> buat
-                                                      narik daftar model langsung dari provider. Model ini muncul
-                                                      di dropdown panel AI (kiri bawah) — bukan hanya di terminal
-                                                      AI.
+                                                      <strong>{tr('Cara pakai:')}</strong> {tr('isi')} <em>base URL</em>{' '}
+                                                      {tr('(mis.')} <code> http://127.0.0.1:11434/v1</code>{' '}
+                                                      {tr('buat Ollama) kalau lokal, lalu ketik')} <em>{tr('nama model')}</em>{' '}
+                                                      {tr('di kolom atau pilih dari')} <strong>▾</strong>.{' '}
+                                                      {tr('Klik')} <strong>Refresh</strong>{' '}
+                                                      {tr('buat narik daftar model langsung dari provider. Model ini muncul di dropdown panel AI (kiri bawah) — bukan hanya di terminal AI.')}
                                                     </p>
                                                   )}
 
@@ -477,7 +469,7 @@ export function ModelsSection() {
                     disabled={ui.testing === p.id}
                     onClick={() => void ui.testConnection(p.id, cfg.baseUrl || undefined)}
                   >
-                    {ui.testing === p.id ? 'Menguji…' : tr('models.test')}
+                    {ui.testing === p.id ? tr('Menguji…') : tr('models.test')}
                   </button>
                   {res && (
                     <span
@@ -508,7 +500,7 @@ export function AgentsSection() {
 
   return (
     <Section title={tr('settings.agents')}>
-      <Row label={tr('agents.maxPanes')} hint="pane melebihi batas ditolak dengan toast">
+      <Row label={tr('agents.maxPanes')} hint={tr('pane melebihi batas ditolak dengan toast')}>
         <NumberInput
           label={tr('agents.maxPanes')}
           testid="agents-maxpanes"
@@ -519,7 +511,7 @@ export function AgentsSection() {
         />
       </Row>
 
-      <Row label={tr('agents.attachActiveFile')} hint="dipakai panel AI">
+      <Row label={tr('agents.attachActiveFile')} hint={tr('dipakai panel AI')}>
         <Toggle
           label={tr('agents.attachActiveFile')}
           testid="agents-attach"
@@ -621,7 +613,7 @@ export function SubagentSection() {
     <Section title={tr('settings.subagent')}>
       <Row
         label={tr('sub.maxParallel')}
-        hint="tiap subagent memanggil provider sendiri — makin banyak, makin cepat habis kuota"
+        hint={tr('tiap subagent memanggil provider sendiri — makin banyak, makin cepat habis kuota')}
       >
         <NumberInput
           label={tr('sub.maxParallel')}
@@ -635,7 +627,7 @@ export function SubagentSection() {
 
       <Row
         label={tr('sub.maxSteps')}
-        hint="subagent berhenti kalau melewati batas ini — penjaga biaya loop tak berujung"
+        hint={tr('subagent berhenti kalau melewati batas ini — penjaga biaya loop tak berujung')}
       >
         <NumberInput
           label={tr('sub.maxSteps')}
@@ -649,7 +641,7 @@ export function SubagentSection() {
 
       <Row
         label={tr('sub.allowWrite')}
-        hint="default TIDAK. Beberapa subagent yang menulis file sama bisa saling menimpa"
+        hint={tr('default TIDAK. Beberapa subagent yang menulis file sama bisa saling menimpa')}
       >
         <Toggle
           label={tr('sub.allowWrite')}
@@ -659,7 +651,7 @@ export function SubagentSection() {
         />
       </Row>
 
-      <Row label={tr('sub.showPanel')} hint="kalau dimatikan, hanya ringkasan yang muncul">
+      <Row label={tr('sub.showPanel')} hint={tr('kalau dimatikan, hanya ringkasan yang muncul')}>
         <Toggle
           label={tr('sub.showPanel')}
           testid="sub-showpanel"
@@ -668,7 +660,7 @@ export function SubagentSection() {
         />
       </Row>
 
-      <Row label={tr('sub.autoCollapse')} hint="langkah langsung terlipat setelah selesai">
+      <Row label={tr('sub.autoCollapse')} hint={tr('langkah langsung terlipat setelah selesai')}>
         <Toggle
           label={tr('sub.autoCollapse')}
           testid="sub-autocollapse"

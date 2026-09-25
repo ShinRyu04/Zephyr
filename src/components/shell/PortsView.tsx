@@ -71,7 +71,7 @@ export default function PortsView() {
           value={hostPort}
           onChange={(e) => setHostPort(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && tambah()}
-          aria-label="Nomor port untuk diteruskan"
+          aria-label={tr('Nomor port untuk diteruskan')}
         />
         <button className="btn btn-sm" data-testid="ports-add" onClick={tambah}>
           Add Port
@@ -84,8 +84,7 @@ export default function PortsView() {
 
       {ports.length === 0 ? (
         <p className="ports-empty" data-testid="ports-empty">
-          Belum ada port yang diteruskan. Sesi SSH dan task yang membuka port akan
-          otomatis muncul di sini.
+          {tr('Belum ada port yang diteruskan. Sesi SSH dan task yang membuka port akan otomatis muncul di sini.')}
         </p>
       ) : (
         <div className="ports-table-wrap">
@@ -133,7 +132,7 @@ export default function PortsView() {
                       <button
                         className="ports-link"
                         data-testid="ports-edit"
-                        title="Ubah port lokal"
+                        title={tr('Ubah port lokal')}
                         onClick={() => {
                           setEdit(p.id);
                           setNilaiEdit(String(p.hostPort));
@@ -170,7 +169,7 @@ export default function PortsView() {
                     <button
                       className="btn btn-sm"
                       data-testid="ports-toggle"
-                      title={p.status === 'running' ? 'Hentikan forward' : 'Mulai forward'}
+                      title={p.status === 'running' ? tr('Hentikan forward') : tr('Mulai forward')}
                       onClick={() =>
                         update(p.id, { status: p.status === 'running' ? 'stopped' : 'running' })
                       }
@@ -180,7 +179,7 @@ export default function PortsView() {
                     <button
                       className="btn btn-sm"
                       data-testid="ports-remove"
-                      title="Hapus dari daftar"
+                      title={tr('Hapus dari daftar')}
                       onClick={() => remove(p.id)}
                     >
                       Hapus

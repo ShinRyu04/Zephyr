@@ -280,7 +280,13 @@ pub fn workspace_set_trust(
     trust: bool,
 ) -> ZResult<WorkspaceInfo> {
     let p = PathBuf::from(&path);
-    if !p.is_dir() {
+    // Folder yang sudah dihapus TETAP boleh di-trust: keputusan trust disimpan
+    // per path, dan folder bisa dibuat lagi nanti. Menolak di sini membuat
+    // pemanggil (mis. harness yang membersihkan temp, atau user lewat dialog)
+    // melihat toast error padahal tidak ada yang gagal.
+    if !p.exists() {
+        tracing::debug!(path = %path, "trust disimpan untuk path yang belum ada");
+    } else if !p.is_dir() {
         return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
     }
     let mut map = baca_trust(&state);

@@ -84,7 +84,7 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
   }
 
   return (
-    <section className="term-area" style={{ height }} aria-label="Panel bawah">
+    <section className="term-area" style={{ height }} aria-label={tx('Panel bawah')}>
       <div
         className="term-resizer"
         role="separator"

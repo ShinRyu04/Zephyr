@@ -188,8 +188,8 @@ export function TerminalOps() {
       <div className="tt-split-btn">
         <button
           className="tt-btn"
-          title="Pane shell baru (Ctrl+Shift+T)"
-          aria-label="Pane shell baru"
+          title={tx('term.newPaneKey')}
+          aria-label={tx('term.newPane')}
           data-testid="term-new"
           onClick={() => void addPane('shell')}
         >

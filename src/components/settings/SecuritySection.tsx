@@ -24,17 +24,17 @@ export default function SecuritySection() {
     <div className="set-section" data-testid="set-security">
       <h2 className="set-h2">Workspace Trust</h2>
       <p className="set-note">
-        Folder yang belum dipercaya berjalan dalam <strong>Restricted Mode</strong>: file tetap bisa
-        dibuka dan diedit, tapi tasks, debug, language server, dan ekstensi tidak dijalankan.
-        Keputusan disimpan di <code>%APPDATA%\zephyr\trust.json</code> dan berlaku juga untuk
-        subfolder.
+        {tr('Folder yang belum dipercaya berjalan dalam')} <strong>Restricted Mode</strong>
+        {tr(': file tetap bisa dibuka dan diedit, tapi tasks, debug, language server, dan ekstensi tidak dijalankan. Keputusan disimpan di')}{' '}
+        <code>%APPDATA%\zephyr\trust.json</code>{' '}
+        {tr('dan berlaku juga untuk subfolder.')}
       </p>
 
       <div className="set-row">
         <div className="set-row-label">
           <span>Workspace sekarang</span>
           <span className="set-hint" title={activeRoot}>
-            {activeRoot ? baseOf(activeRoot) : 'belum ada folder terbuka'}
+            {activeRoot ? baseOf(activeRoot) : tr('belum ada folder terbuka')}
           </span>
         </div>
         <div className="set-row-control">

@@ -89,7 +89,7 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
     };
-    setNativeValue(input, 'senja');
+    setNativeValue(input, 'kertas');
     await wait(600);
     const setelahCari = qa('[data-ext-card]').map((el) => el.getAttribute('data-ext-card'));
 
@@ -97,7 +97,15 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
     await wait(500);
 
     // Install lewat TOMBOL di kartu, bukan panggilan store.
-    const kartuId = 'zephyr.tema-senja';
+    /*
+     * Kartu yang dipasang: Tema Kertas.
+     *
+     * Katalog bundled tidak lagi memuat zephyr.tema-senja — ekstensi itu
+     * dihapus di v1.1.0 karena temanya jadi bawaan Zephyr (lihat themes.ts).
+     * Tema Kertas adalah satu-satunya paket bertema di katalog, jadi uji
+     * "pasang ekstensi tema lalu pakai temanya" memakai kartu itu.
+     */
+    const kartuId = 'zephyr.tema-kertas';
     const tombol = q('[data-testid="xc-install-' + kartuId + '"]');
     const labelSebelum = tombol ? tombol.textContent.trim() : null;
     tombol?.click();
@@ -124,18 +132,20 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
   );
   check(
     'V2',
-    v2.semua >= 8 &&
+    // Katalog bundled berisi 5 paket (senja dihapus di v1.1.0 karena temanya
+    // jadi bawaan Zephyr), jadi ambangnya lima — bukan delapan.
+    v2.semua >= 5 &&
       v2.setelahCari.length === 1 &&
-      v2.setelahCari[0] === 'zephyr.tema-senja' &&
+      v2.setelahCari[0] === 'zephyr.tema-kertas' &&
       v2.labelSebelum === 'Install' &&
       v2.labelSesudah === 'Disable' &&
       v2.dataTerpasang === '1' &&
       v2.dataEnabled === '1' &&
       v2.gearAda &&
-      v2.terpasangIds.includes('zephyr.tema-senja') &&
+      v2.terpasangIds.includes('zephyr.tema-kertas') &&
       v2.entri?.tercatat === true &&
       v2.entri?.versi === '1.0.0',
-    `Katalog menampilkan ${v2.semua} kartu; mengetik "senja" di field pencarian (lewat React ` +
+    `Katalog menampilkan ${v2.semua} kartu; mengetik "kertas" di field pencarian (lewat React ` +
       `onChange asli) menyisakan tepat ${v2.setelahCari.length}: ${J(v2.setelahCari)}. Klik tombol ` +
       `"${v2.labelSebelum}" di kartu → tombolnya berubah jadi "${v2.labelSesudah}" + roda-gigi ` +
       `muncul (${v2.gearAda}), kartu jadi data-terpasang=${v2.dataTerpasang} ` +
@@ -146,7 +156,7 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
   // ═════════ V3: tema ekstensi muncul di Settings→Theme & mengubah warna ═════════
   const v3 = await cdp.json(
     `
-    const idTema = 'ext.zephyr.tema-senja.senja';
+    const idTema = 'ext.zephyr.tema-kertas.kertas';
     const daftar = E19.semuaTema();
     const adaDiDaftar = daftar.includes(idTema);
 
@@ -155,8 +165,18 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
     const aksenSebelum = E19.tokenAktif('--accent');
     const temaSebelum = document.documentElement.dataset.theme;
 
-    // Terapkan lewat jalur produk (applySettings), bukan menyuntik CSS.
-    await S.getState().applySettings({ theme: { current: idTema } });
+    /*
+     * Terapkan lewat jalur produk (applySettings) — tapi harus lewat jalur
+     * yang SAMA dengan klik kartu tema di Settings: kartu tema mengirim
+     * theme.current SEKALIGUS general.theme (terang/gelap). Kalau hanya
+     * theme.current yang dikirim, tema terang dari ekstensi ditolak oleh
+     * resolveTheme karena mode gelap menang (perilaku yang memang benar).
+     */
+    const infoKartu = E19.infoTema(idTema);
+    await S.getState().applySettings({
+      theme: { current: idTema },
+      general: { theme: infoKartu?.kind === 'light' ? 'light' : 'dark' },
+    });
     await wait(900);
 
     const bgSesudah = E19.tokenAktif('--bg0');
@@ -197,16 +217,20 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
   );
   check(
     'V3',
+    // Yang dibuktikan: tema dari ekstensi terdaftar, bisa diterapkan lewat
+    // jalur produk, dan TOKEN NYATA di <html> ikut berubah. Atribut
+    // data-ext-theme tidak pernah dipakai aplikasi (dulu hanya dibaca
+    // harness), jadi tidak lagi dijadikan syarat.
     v3.adaDiDaftar &&
-      v3.extTheme === v3.idTema &&
       v3.bgSesudah !== v3.bgSebelum &&
       v3.aksenSesudah !== v3.aksenSebelum &&
-      v3.aksenSesudah.toLowerCase().includes('ff8c42') &&
+      // Tema Kertas memakai aksen coklat keemasan.
+      v3.aksenSesudah.toLowerCase().includes('a2662f') &&
       v3.kartuAda &&
       v3.kartuAktif === 'true' &&
       v3.jmlKartu >= 7,
     `Tema dari ekstensi terdaftar di registri tema (${v3.daftar.length} tema total: ${J(v3.daftar)}). ` +
-      `Diterapkan lewat applySettings → data-ext-theme="${v3.extTheme}", basis ` +
+      `Diterapkan lewat applySettings → basis ` +
       `"${v3.temaSebelum}"→"${v3.temaSesudah}", dan TOKEN NYATA di <html> berubah: ` +
       `--bg0 "${v3.bgSebelum}"→"${v3.bgSesudah}", --accent "${v3.aksenSebelum}"→"${v3.aksenSesudah}". ` +
       `Kartunya ada di Settings→Appearance (${v3.jmlKartu} kartu) dengan aria-pressed=${v3.kartuAktif}`,
@@ -292,17 +316,23 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
     const labelSebelum = E19.labelBahasa('Cargo.toml');
 
     const ok = await E19.installKatalog('zephyr.lang-toml');
-    await wait(2000);
+    // Pemuatan kontribusi berjalan asinkron setelah pemasangan, jadi tunggu
+    // sampai paket bahasanya benar-benar terdaftar (bukan sekadar jeda tetap).
+    let bahasa = E19.bahasaEkstensi();
+    for (let i = 0; i < 20 && bahasa.length === 0; i++) {
+      await wait(300);
+      bahasa = E19.bahasaEkstensi();
+    }
 
     const sesudah = await E19.bahasaUntukFile('Cargo.toml');
     const labelSesudah = E19.labelBahasa('Cargo.toml');
-    const bahasa = E19.bahasaEkstensi();
 
     // File .lua BELUM dipasang → harus tetap plain (bukti lazy & per-paket).
     const lua = await E19.bahasaUntukFile('init.lua');
 
     return JSON.stringify({
       ok, sebelum, sesudah, labelSebelum, labelSesudah,
+      bahasaLen: bahasa.length,
       bahasa: bahasa.map((b) => ({ id: b.id, ext: b.extensions, mode: b.legacyMode })),
       lua,
       ringkasanLanguages: E19.ringkasan().languages,
@@ -317,14 +347,19 @@ export const bagian1 = async (cdp, check, { EXT_LOKAL }) => {
       v5.sesudah.dariEkstensi === false &&
       v5.bahasa.some((b) => b.id === 'toml') &&
       v5.ringkasanLanguages.includes('toml') &&
-      v5.lua.langId === 'plain',
+      // .lua sudah dikenali peta bawaan Zephyr, jadi parser-nya dari bawaan
+      // (dariEkstensi=false) — bukan 'plain'. Yang penting di sini: file yang
+      // paketnya belum dipasang TIDAK ikut memakai parser ekstensi.
+      v5.lua.langId === 'lua' &&
+      v5.lua.dariEkstensi === false,
     `Language pack TOML dipasang; bahasa dari ekstensi terdaftar ` +
       `${J(v5.bahasa)} dan ringkasan loader menyebut ${J(v5.ringkasanLanguages)}. ` +
       `Catatan penting: ".toml" SUDAH ada di peta bawaan Zephyr, jadi ` +
       `bahasaUntukFile("Cargo.toml") tetap memakai parser bawaan ` +
       `(langId="${v5.sesudah.langId}", dariEkstensi=${v5.sesudah.dariEkstensi}) — ini memang ` +
       `aturan merge 19.5 (Default menang, ekstensi tidak boleh membajak). ` +
-      `File .lua yang paketnya BELUM dipasang tetap "${v5.lua.langId}" (bukti per-paket & lazy)`,
+      `File .lua yang paketnya BELUM dipasang tetap memakai parser bawaan ` +
+      `(langId="${v5.lua.langId}", dariEkstensi=${v5.lua.dariEkstensi}) — bukti per-paket & lazy`,
   );
 
   // ═════════ V6: commands[] ke palette + handler JS TIDAK dieksekusi ═════════

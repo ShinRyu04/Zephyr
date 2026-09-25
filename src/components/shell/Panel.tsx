@@ -76,7 +76,7 @@ export default function Panel() {
   }
 
   return (
-    <section className="panel-area" style={{ height }} aria-label="Panel bawah">
+    <section className="panel-area" style={{ height }} aria-label={tr('Panel bawah')}>
       <div
         className="term-resizer"
         role="separator"

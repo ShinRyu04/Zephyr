@@ -80,7 +80,7 @@ import '@xterm/xterm/css/xterm.css';
 import './index.css';
 
 import './styles/a11y.css';
-import { useT } from './lib/i18n';
+import { useT, tx } from './lib/i18n';
 
 let ptyListenersBound = false;
 
@@ -989,7 +989,7 @@ export default function App() {
                       '--ai-w': `${aiWidth}px`,
                     } as React.CSSProperties)
               }
-              aria-label="Panel AI"
+              aria-label={tx('Panel AI')}
             >
               {/* Baris: chat di kiri, panel info subagent di kanan. Wrapper ini
                   WAJIB — tanpa-nya .ai-side-col (flex column) menaruh panel
