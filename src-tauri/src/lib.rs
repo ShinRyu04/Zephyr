@@ -1,4 +1,6 @@
 mod adapters;
+mod agent_exec;
+mod agent_patch;
 mod agents;
 mod ai;
 mod app_state;
@@ -58,6 +60,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
+const RAM_ARGS: &str = "--single-process --renderer-process-limit=1 --js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
+
+fn pasang_arg_webview2() {
+    let ada = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
+    if ada.contains("--single-process") {
+        return;
+    }
+    let gabung = if ada.trim().is_empty() {
+        RAM_ARGS.to_string()
+    } else {
+        format!("{RAM_ARGS} {}", ada.trim())
+    };
+    std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", gabung);
+}
+
 pub fn run_credential_helper() -> bool {
     credential::handle_cli()
 }
@@ -82,6 +99,8 @@ pub fn dir_data_zephyr() -> std::path::PathBuf {
 pub fn run() {
     let minimized = Arc::new(AtomicBool::new(false));
     let minimized_setup = minimized.clone();
+
+    pasang_arg_webview2();
 
     let state = AppState::new();
     logging::init(&state.data_dir.join("logs"));
@@ -235,6 +254,7 @@ pub fn run() {
             pty::pty_resize,
             pty::pty_kill,
             pty::pty_list,
+    pty::pty_tail,
             pty::pty_set_paused,
             pty::pty_interrupt,
             ssh::ssh_list,
@@ -329,6 +349,8 @@ pub fn run() {
             tasks::tasks_kill,
             tasks::tasks_runs,
             tasks::tasks_clear_runs,
+            agent_exec::agent_exec,
+            agent_patch::file_patch,
             tasks::tasks_detect_port,
             history::history_snapshot,
             history::history_list,

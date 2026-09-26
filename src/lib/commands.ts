@@ -159,6 +159,28 @@ export const workspaceClose = () => invoke<void>('workspace_close');
 export const fsRead = (path: string, encoding?: Encoding) =>
   invoke<ReadResult>('fs_read', { path, encoding });
 
+export interface AgentExecResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+  ms: number;
+  timedOut: boolean;
+}
+
+export const agentExec = (command: string, timeoutMs?: number) =>
+  invoke<AgentExecResult>('agent_exec', { command, timeoutMs: timeoutMs ?? null });
+
+export interface PatchResult {
+  applied: boolean;
+  added: number;
+  removed: number;
+  conflict: string;
+}
+
+export const filePatch = (path: string, patch: string) =>
+  invoke<PatchResult>('file_patch', { path, patch });
+
 export const fsWrite = (
   path: string,
   content: string,
@@ -253,6 +275,8 @@ export const ptyResize = (id: string, cols: number, rows: number) =>
   invoke<void>('pty_resize', { id, cols, rows });
 export const ptyKill = (id: string) => invoke<void>('pty_kill', { id });
 export const ptyList = () => invoke<PtyInfo[]>('pty_list');
+export const ptyTail = (id: string, maxLines?: number) =>
+  invoke<string>('pty_tail', { id, maxLines: maxLines ?? null });
 export const ptySetPaused = (paused: boolean) => invoke<void>('pty_set_paused', { paused });
 
 export const ptyInterrupt = (id: string) => invoke<number>('pty_interrupt', { id });

@@ -228,7 +228,7 @@ pub fn fs_read(
     path: String,
     encoding: Option<String>,
 ) -> ZResult<ReadResult> {
-    let p = PathBuf::from(&path);
+    let p = state.resolve_ws(&PathBuf::from(&path));
     state.ensure_readable(&p)?;
 
     let p = crate::paths::long_path(&p);
@@ -273,7 +273,7 @@ pub fn fs_write(
     was_existing: Option<bool>,
     allow_missing: Option<bool>,
 ) -> ZResult<()> {
-    let p = PathBuf::from(&path);
+    let p = state.resolve_ws(&PathBuf::from(&path));
     state.ensure_writable(&p)?;
 
     let existing = std::fs::read(&p).ok();
@@ -315,7 +315,7 @@ pub fn fs_exists(path: String) -> ZResult<bool> {
 
 #[tauri::command(async)]
 pub fn fs_stat(state: State<AppState>, path: String) -> ZResult<StatResult> {
-    let p = PathBuf::from(&path);
+    let p = state.resolve_ws(&PathBuf::from(&path));
     state.ensure_readable(&p)?;
     let meta = std::fs::metadata(crate::paths::long_path(&p)).map_err(|e| map_fs_err(e, &path))?;
     Ok(StatResult {
@@ -331,7 +331,7 @@ pub fn fs_create_file(
     path: String,
     content: Option<String>,
 ) -> ZResult<()> {
-    let p = PathBuf::from(&path);
+    let p = state.resolve_ws(&PathBuf::from(&path));
     state.ensure_writable(&p)?;
     let lp = crate::paths::long_path(&p);
     if lp.exists() {
@@ -350,7 +350,7 @@ pub fn fs_create_file(
 
 #[tauri::command(async)]
 pub fn fs_create_dir(state: State<AppState>, path: String) -> ZResult<()> {
-    let p = PathBuf::from(&path);
+    let p = state.resolve_ws(&PathBuf::from(&path));
     state.ensure_writable(&p)?;
 
     std::fs::create_dir_all(crate::paths::long_path(&p))?;
@@ -363,7 +363,7 @@ pub fn fs_delete(state: State<AppState>, paths: Vec<String>, recursive: bool) ->
         return Err(ZephyrError::InvalidInput("daftar path kosong".into()));
     }
     for path in &paths {
-        let p = PathBuf::from(path);
+        let p = state.resolve_ws(&PathBuf::from(path));
         state.ensure_writable(&p)?;
         let meta = match std::fs::metadata(&p) {
             Ok(m) => m,
@@ -386,8 +386,8 @@ pub fn fs_delete(state: State<AppState>, paths: Vec<String>, recursive: bool) ->
 
 #[tauri::command(async)]
 pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()> {
-    let a = PathBuf::from(&from);
-    let b = PathBuf::from(&to);
+    let a = state.resolve_ws(&PathBuf::from(&from));
+    let b = state.resolve_ws(&PathBuf::from(&to));
     state.ensure_writable(&a)?;
     state.ensure_writable(&b)?;
 

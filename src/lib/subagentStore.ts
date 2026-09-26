@@ -4,7 +4,7 @@ import { agentToolSpecs } from './agentTools';
 import { findModel } from './modelCatalog';
 import { useStore } from './store';
 import { infoPeran, tebakPeran, peranDariPrefix, type PeranId } from './subagentRoles';
-import { useAi } from './aiStore';
+import { useAi, isDestructive } from './aiStore';
 
 export const MAX_PARALLEL = 4;
 
@@ -133,11 +133,13 @@ function promptSub(tugas: string, total: number, peran: PeranId): string {
     '',
     'ATURAN:',
     '- Kerjakan HANYA tugas di atas. Jangan mengerjakan tugas subagent lain.',
+    '- KERJAKAN DENGAN TOOL, bukan cuma menjelaskan. Pakai file_read/file_list untuk melihat, search untuk mencari, dan shell_exec untuk menjalankan perintah. Jangan menjawab dari ingatan kalau bisa memeriksa.',
     p?.butuhTulis
       ? '- Kamu boleh mengubah file sebatas lingkup tugasmu.'
-      : '- Jangan menulis file apa pun (editor_write/file_write ditolak).',
+      : '- Jangan menulis file apa pun (editor_write/file_write/file_edit/file_patch ditolak).',
+    '- BEKERJA SAMPAI SELESAI lalu berhenti. Jangan memanggil tool setelah kamu punya jawabannya.',
     '- Laporkan temuan sejelas mungkin di jawaban AKHIR: apa yang kamu temukan,',
-    '  di file mana, dan kesimpulan singkatnya.',
+    '  di file mana, dan kesimpulan singkatnya. Sebutkan path dan nomor baris bila ada.',
     '- Kalau tugas tidak bisa diselesaikan, katakan alasannya — jangan mengarang.',
   ];
   return baris.filter(Boolean).join('\n');
@@ -334,13 +336,22 @@ async function jalankanSatu(
           return;
         }
         const argsObj = (tc.args ?? {}) as Record<string, unknown>;
+        const perintahSub = String(argsObj.command ?? '');
+        const toolShell = tc.name === 'shell_exec' || tc.name === 'terminal_exec';
 
-        const dilarang = !bolehTulis() &&
-          (tc.name === 'editor_write' || tc.name === 'file_write' || tc.name === 'file_edit');
+        const tulisTool =
+          tc.name === 'editor_write' ||
+          tc.name === 'file_write' ||
+          tc.name === 'file_edit' ||
+          tc.name === 'file_patch';
+        const shellBahaya = toolShell && isDestructive(perintahSub);
+        const dilarang = !bolehTulis() && (tulisTool || shellBahaya);
         let hasil: string;
         let ok = true;
         if (dilarang) {
-          hasil = '(ditolak: subagent paralel tidak boleh menulis file)';
+          hasil = tulisTool
+            ? '(ditolak: subagent paralel tidak boleh menulis file; aktifkan allowWrite di Settings → Subagents kalau memang perlu)'
+            : '(ditolak: perintah merusak tidak diizinkan untuk subagent paralel)';
           ok = false;
         } else {
           try {

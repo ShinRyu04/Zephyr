@@ -436,7 +436,7 @@ const main = async () => {
   await cdp.eval(setInput(1, 'CONSTX'));
   await sleep(450);
   await cdp.eval(`(() => {
-    [...document.querySelectorAll('.find-btn-wide')].find(b => b.textContent.includes('semua')).click();
+    [...document.querySelectorAll('.find-btn-wide')].find(b => /replace all|ganti semua/i.test(b.textContent)).click();
     return 'replaced';
   })()`);
   await sleep(700);
@@ -487,13 +487,13 @@ const main = async () => {
   );
   check(
     'F03-V5a',
-    dlg.modal && dlg.btns.length === 3 && dlg.btns.includes('Batal'),
+    dlg.modal && dlg.btns.length === 3 && dlg.btns.some((b) => /cancel|batal/i.test(b)),
     `"${dlg.title}" tombol=[${dlg.btns.join(', ')}]`,
   );
 
   // Batal -> tab tetap terbuka & tetap kotor
   await cdp.eval(`(() => {
-    [...document.querySelectorAll('.modal-actions .btn')].find(b => b.textContent.includes('Batal')).click();
+    [...document.querySelectorAll('.modal-actions .btn')].find(b => /cancel|batal/i.test(b.textContent)).click();
     return 'cancel';
   })()`);
   await sleep(500);
@@ -523,7 +523,7 @@ const main = async () => {
   })()`);
   await sleep(450);
   await cdp.eval(`(() => {
-    [...document.querySelectorAll('.modal-actions .btn')].find(b => b.textContent.includes('Jangan')).click();
+    [...document.querySelectorAll('.modal-actions .btn')].find(b => /don'?t save|jangan/i.test(b.textContent)).click();
     return 'discard';
   })()`);
   await sleep(600);

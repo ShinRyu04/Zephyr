@@ -355,6 +355,12 @@ impl AppState {
             .unwrap_or(false)
     }
 
+    pub fn pty_get(&self, id: &str) -> Option<Arc<crate::pty::PtySession>> {
+        read_lock(&self.ptys, "ptys")
+            .ok()
+            .and_then(|m| m.get(id).cloned())
+    }
+
     pub fn pty_remove(&self, id: &str) {
         if let Ok(mut map) = write_lock(&self.ptys, "ptys") {
             map.remove(id);
@@ -599,15 +605,26 @@ impl AppState {
         }
     }
 
+    pub fn resolve_ws(&self, p: &Path) -> PathBuf {
+        if p.is_absolute() {
+            return p.to_path_buf();
+        }
+        match self.workspace_path() {
+            Some(ws) => ws.join(p),
+            None => p.to_path_buf(),
+        }
+    }
+
     pub fn ensure_writable(&self, p: &Path) -> ZResult<()> {
         if p.as_os_str().is_empty() {
             return Err(ZephyrError::InvalidInput("path kosong".into()));
         }
         let ws = self.workspace_path();
-        let norm = crate::paths::normalize_workspace_path(ws.as_deref(), p)?;
+        let resolv = self.resolve_ws(p);
+        let norm = crate::paths::normalize_workspace_path(ws.as_deref(), &resolv)?;
 
         if norm.inside {
-            crate::paths::warn_if_symlink_escapes(ws.as_deref(), p);
+            crate::paths::warn_if_symlink_escapes(ws.as_deref(), &resolv);
             return Ok(());
         }
 

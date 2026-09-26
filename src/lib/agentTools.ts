@@ -16,6 +16,31 @@ export const AGENT_READ_LIMIT = 100 * 1024;
 
 export const FILE_LIST_MAX = 300;
 
+function contextTerdekat(isi: string, cari: string): string {
+  const probe = cari.trim().split('\n')[0]?.slice(0, 40) ?? '';
+  if (!probe) return 'Coba file_read dulu untuk melihat isi file.';
+  const baris = isi.split('\n');
+  let best = -1;
+  let bestSkor = 0;
+  for (let i = 0; i < baris.length; i++) {
+    let skor = 0;
+    for (const w of probe.split(/\s+/)) {
+      if (w.length > 2 && baris[i].includes(w)) skor += w.length;
+    }
+    if (skor > bestSkor) {
+      bestSkor = skor;
+      best = i;
+    }
+  }
+  if (best < 0 || bestSkor === 0) return 'Tidak ada baris mirip. Panggil file_read untuk isi file.';
+  const a = Math.max(0, best - 2);
+  const b = Math.min(baris.length, best + 3);
+  return `Baris terdekat:\n${baris
+    .slice(a, b)
+    .map((l, k) => `${a + k + 1}: ${l}`)
+    .join('\n')}`;
+}
+
 async function cariPaneTerminal(): Promise<string | null> {
   const t = useTerminal.getState();
   let pane = t
@@ -94,9 +119,38 @@ async function bacaHalaman(paneId: string): Promise<string> {
 export const AGENT_TOOLS: AgentTool[] = [
   {
     spec: {
+      name: 'shell_exec',
+      description:
+        'Jalankan perintah sampai SELESAI dan kembalikan exit code plus output. Pakai ini untuk perintah non-interaktif: test, build, typecheck, git, ls. Output dibaca dari proses, bukan dari layar terminal, jadi tidak terpotong scroll. Jangan pakai untuk server atau apa pun yang jalan terus; untuk itu pakai terminal_exec.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Perintah shell, boleh multi-baris. Contoh: cd src-tauri && cargo test --lib' },
+          timeoutMs: { type: 'number', description: 'Batas tunggu ms (default 120000, maks 600000)' },
+        },
+        required: ['command'],
+      },
+    },
+    run: async (args) => {
+      const perintah = String(args.command ?? '').trim();
+      if (!perintah) throw new Error('shell_exec: command kosong');
+      const timeoutMs = args.timeoutMs === undefined ? undefined : Number(args.timeoutMs);
+      const r = await cmd.agentExec(perintah, timeoutMs);
+      const bagian: string[] = [];
+      bagian.push(`exit code: ${r.exitCode}`);
+      bagian.push(`waktu: ${r.ms} ms${r.timedOut ? ' (TIMEOUT, proses dibunuh)' : ''}`);
+      if (r.stdout.trim()) bagian.push(`stdout:\n${r.stdout}`);
+      if (r.stderr.trim()) bagian.push(`stderr:\n${r.stderr}`);
+      if (r.truncated) bagian.push('[output dipotong, bagian awal tidak ditampilkan]');
+      if (!r.stdout.trim() && !r.stderr.trim()) bagian.push('(tidak ada output)');
+      return bagian.join('\n\n');
+    },
+  },
+  {
+    spec: {
       name: 'terminal_exec',
       description:
-        'Jalankan perintah shell di pane terminal Zephyr (ConPTY). Perintah dikirim apa adanya ke shell aktif. Output dibaca belakangan dengan terminal_read — jangan menganggap selesai tanpa menunggu lalu membaca.',
+        'Kirim perintah ke pane terminal interaktif (ConPTY) dan langsung kembali tanpa menunggu. Output TIDAK termasuk di hasil; baca sendiri dengan terminal_read. Pakai hanya untuk yang harus jalan terus atau butuh interaksi (server dev, REPL, watch). Untuk test/build/git yang sekali jalan, pakai shell_exec yang menunggu sampai selesai.',
       parameters: {
         type: 'object',
         properties: {
@@ -112,14 +166,14 @@ export const AGENT_TOOLS: AgentTool[] = [
       if (!paneId) throw new Error('tidak bisa membuka pane terminal');
       useTerminal.getState().setVisible(true);
       await writeChunked(paneId, `${perintah.replace(/\r?\n/g, '\r')}\r`);
-      return `Perintah dikirim ke terminal. Tunggu sebentar, lalu panggil terminal_read untuk melihat output.`;
+      return `Perintah dikirim ke terminal (tidak menunggu). Untuk melihat output, panggil terminal_read.`;
     },
   },
   {
     spec: {
       name: 'terminal_read',
       description:
-        'Baca baris yang sedang tampil di pane terminal (viewport terakhir yang ter-render). Panggil setelah terminal_exec dan beri waktu proses berjalan.',
+        'Baca N baris terakhir output scrollback pane terminal. Output diambil dari buffer proses, jadi tetap terbaca walau sudah ter-scroll jauh atau pane tidak terlihat. Dipakai setelah terminal_exec (perintah interaktif). Untuk perintah sekali jalan, shell_exec sudah mengembalikan outputnya.',
       parameters: {
         type: 'object',
         properties: {
@@ -128,9 +182,18 @@ export const AGENT_TOOLS: AgentTool[] = [
       },
     },
     run: async (args) => {
-      const maxLines = Math.max(1, Math.min(200, Number(args.maxLines ?? 40) || 40));
+      const maxLines = Math.max(1, Math.min(2000, Number(args.maxLines ?? 40) || 40));
+      const panes = useTerminal.getState().allPanes();
+      const target = panes.find((p) => p.kind === 'agent') ?? panes.find((p) => p.kind !== 'browser');
+      if (!target) return '(tidak ada pane terminal)';
+      try {
+        const teks = await cmd.ptyTail(target.id, maxLines);
+        if (teks.trim()) return teks;
+      } catch {
+        /* jatuh ke pembacaan DOM */
+      }
       const el = document.querySelector('.xterm-rows');
-      if (!el) return '(pane terminal tidak terlihat — buka panel Terminal dulu)';
+      if (!el) return '(pane terminal tidak terlihat - buka panel Terminal dulu)';
       const baris = Array.from(el.querySelectorAll('div'))
         .map((d) => d.textContent ?? '')
         .filter((t) => t.trim() !== '');
@@ -225,7 +288,9 @@ export const AGENT_TOOLS: AgentTool[] = [
       const r = await cmd.fsRead(filePath);
       const original = r.content ?? '';
       if (!original.includes(oldText)) {
-        throw new Error(`file_edit: old_text tidak ditemukan di dalam ${filePath}`);
+        throw new Error(
+          `file_edit: old_text tidak ditemukan di ${filePath}. ${contextTerdekat(original, oldText)}`,
+        );
       }
       const jumlah = original.split(oldText).length - 1;
       const updated = original.split(oldText).join(newText);
@@ -236,6 +301,38 @@ export const AGENT_TOOLS: AgentTool[] = [
         st.updateTabContent(tab.id, updated);
       }
       return `File ${filePath} berhasil diedit dan disimpan ke disk (${jumlah} kemunculan diganti).`;
+    },
+  },
+  {
+    spec: {
+      name: 'file_patch',
+      description:
+        'Terapkan unified diff ke satu file, seperti output git diff. Pakai ini untuk perubahan multi-baris; lebih andal daripada file_edit karena tidak perlu menyalin teks lama persis satu blok. Format: header ---/+++ dan hunk @@. Baris konteks dipakai untuk menemukan lokasi.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Path file yang dipatch' },
+          patch: { type: 'string', description: 'Unified diff. Sertakan header a/ b/ dan hunk @@.' },
+        },
+        required: ['path', 'patch'],
+      },
+    },
+    run: async (args) => {
+      const filePath = String(args.path ?? '').trim();
+      const isiPatch = String(args.patch ?? '');
+      if (!filePath) throw new Error('file_patch: path kosong');
+      if (!isiPatch.trim()) throw new Error('file_patch: patch kosong');
+      const r = await cmd.filePatch(filePath, isiPatch);
+      const st = useStore.getState();
+      const segar = await cmd.fsRead(filePath).catch(() => null);
+      if (segar) {
+        const tab = st.tabs.find((t) => t.path === filePath);
+        if (tab) st.updateTabContent(tab.id, segar.content ?? '');
+      }
+      if (!r.applied) {
+        throw new Error(`file_patch: patch tidak diterapkan. ${r.conflict}`);
+      }
+      return `Patch diterapkan ke ${filePath} (+${r.added} -${r.removed}).`;
     },
   },
   {

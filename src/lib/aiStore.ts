@@ -1144,16 +1144,16 @@ export const useAi = create<AiStore>((set, get) => ({
         for (const tc of res.toolCalls) {
           if (agentBatal) break;
           const argsObj = (tc.args ?? {}) as Record<string, unknown>;
-          const perintah =
-            tc.name === 'terminal_exec' ? String(argsObj.command ?? '') : '';
+          const namaShell = tc.name === 'terminal_exec' || tc.name === 'shell_exec';
+          const perintah = namaShell ? String(argsObj.command ?? '') : '';
           const readOnlyBlok =
             get().approvalMode === 'readonly' &&
-            (tc.name === 'terminal_exec' || tc.name === 'editor_write');
+            (namaShell || tc.name === 'editor_write');
 
           const diizinkan =
             !isDestructive(perintah) && useStore.getState().izinPerintah(perintah);
           const perluSetuju =
-            tc.name === 'terminal_exec' &&
+            namaShell &&
             !diizinkan &&
             (get().approvalMode === 'ask' ||
               (get().approvalMode !== 'auto' && isDestructive(perintah)));
@@ -1168,7 +1168,7 @@ export const useAi = create<AiStore>((set, get) => ({
               agentConfirm: {
                 tool: tc.name,
                 argsText: JSON.stringify(argsObj),
-                isDestructive: tc.name === 'terminal_exec' && isDestructive(perintah),
+                isDestructive: namaShell && isDestructive(perintah),
               },
             });
             const disetujui = await new Promise<boolean>((resolve) => {

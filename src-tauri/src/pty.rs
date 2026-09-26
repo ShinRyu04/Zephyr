@@ -16,6 +16,33 @@ const MAX_BATCH_BYTES: usize = 256 * 1024;
 
 const HOLD_CAP: usize = 512 * 1024;
 
+const TAIL_CAP: usize = 64 * 1024;
+
+pub struct TailBuf {
+    data: Vec<u8>,
+}
+
+impl TailBuf {
+    fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    fn push(&mut self, chunk: &[u8]) {
+        self.data.extend_from_slice(chunk);
+        if self.data.len() > TAIL_CAP {
+            let skip = self.data.len() - TAIL_CAP;
+            self.data.drain(..skip);
+        }
+    }
+
+    fn tail_lines(&self, max_lines: usize) -> String {
+        let teks = String::from_utf8_lossy(&self.data);
+        let baris: Vec<&str> = teks.lines().filter(|l| !l.trim().is_empty()).collect();
+        let mulai = baris.len().saturating_sub(max_lines);
+        baris[mulai..].join("\n")
+    }
+}
+
 pub struct PtySession {
     pub id: String,
     pub kind: String,
@@ -25,6 +52,8 @@ pub struct PtySession {
     pub writer: Mutex<Box<dyn Write + Send>>,
     master: Mutex<Box<dyn portable_pty::MasterPty + Send>>,
     killer: Mutex<Box<dyn portable_pty::ChildKiller + Send + Sync>>,
+
+    tail: Arc<Mutex<TailBuf>>,
 
     alive: Arc<AtomicBool>,
 }
@@ -44,6 +73,13 @@ impl PtySession {
         self.alive.store(false, Ordering::Relaxed);
         if let Ok(mut k) = self.killer.lock() {
             let _ = k.kill();
+        }
+    }
+
+    pub fn tail_lines(&self, max_lines: usize) -> String {
+        match self.tail.lock() {
+            Ok(t) => t.tail_lines(max_lines.max(1)),
+            Err(_) => String::new(),
         }
     }
 }
@@ -276,6 +312,8 @@ pub fn pty_spawn(
 
     let alive = Arc::new(AtomicBool::new(true));
 
+    let tail_buf = Arc::new(Mutex::new(TailBuf::new()));
+
     state.pty_insert(PtySession {
         id: id.clone(),
         kind: kind.clone(),
@@ -284,6 +322,7 @@ pub fn pty_spawn(
         writer: Mutex::new(writer),
         master: Mutex::new(pair.master),
         killer: Mutex::new(killer),
+        tail: tail_buf.clone(),
         alive: alive.clone(),
     });
 
@@ -345,6 +384,12 @@ pub fn pty_spawn(
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => closed = true,
+            }
+
+            if !pending.is_empty() {
+                if let Ok(mut t) = tail_buf.lock() {
+                    t.push(&pending);
+                }
             }
 
             let hold = paused.load(Ordering::Relaxed) && pending.len() < HOLD_CAP;
@@ -448,6 +493,15 @@ pub fn pty_kill(state: State<AppState>, id: String) -> ZResult<()> {
 #[tauri::command(async)]
 pub fn pty_list(state: State<AppState>) -> ZResult<Vec<PtyInfo>> {
     Ok(state.pty_list())
+}
+
+#[tauri::command(async)]
+pub fn pty_tail(state: State<AppState>, id: String, max_lines: Option<usize>) -> ZResult<String> {
+    let n = max_lines.unwrap_or(200).clamp(1, 2000);
+    let Some(s) = state.pty_get(&id) else {
+        return Ok(String::new());
+    };
+    Ok(s.tail_lines(n))
 }
 
 #[tauri::command(async)]
