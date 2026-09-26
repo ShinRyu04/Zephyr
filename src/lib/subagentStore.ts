@@ -124,24 +124,47 @@ interface AgentStepResult {
 
 function promptSub(tugas: string, total: number, peran: PeranId): string {
   const p = infoPeran(peran);
-  const baris = [
-    'Kamu adalah SUBAGENT dari sebuah tugas paralel.',
-    p ? `PERANMU: ${p.label} — ${p.hint}` : '',
-    p ? p.arahan : '',
-    '',
-    `Tugasmu (${total} subagent berjalan bersamaan): ${tugas}`,
-    '',
-    'ATURAN:',
-    '- Kerjakan HANYA tugas di atas. Jangan mengerjakan tugas subagent lain.',
-    '- KERJAKAN DENGAN TOOL, bukan cuma menjelaskan. Pakai file_read/file_list untuk melihat, search untuk mencari, dan shell_exec untuk menjalankan perintah. Jangan menjawab dari ingatan kalau bisa memeriksa.',
-    p?.butuhTulis
-      ? '- Kamu boleh mengubah file sebatas lingkup tugasmu.'
-      : '- Jangan menulis file apa pun (editor_write/file_write/file_edit/file_patch ditolak).',
-    '- BEKERJA SAMPAI SELESAI lalu berhenti. Jangan memanggil tool setelah kamu punya jawabannya.',
-    '- Laporkan temuan sejelas mungkin di jawaban AKHIR: apa yang kamu temukan,',
-    '  di file mana, dan kesimpulan singkatnya. Sebutkan path dan nomor baris bila ada.',
-    '- Kalau tugas tidak bisa diselesaikan, katakan alasannya — jangan mengarang.',
-  ];
+  const inggris = (useStore.getState().settings.general.uiLang || 'en') !== 'id';
+  const tulis = p?.butuhTulis
+    ? inggris
+      ? 'You may change files within the scope of your task only.'
+      : 'Kamu boleh mengubah file sebatas lingkup tugasmu.'
+    : inggris
+      ? 'Do not write any file (editor_write/file_write/file_edit/file_patch are rejected).'
+      : 'Jangan menulis file apa pun (editor_write/file_write/file_edit/file_patch ditolak).';
+  const baris = inggris
+    ? [
+        'You are a SUBAGENT in a parallel task.',
+        p ? `YOUR ROLE: ${p.label}` : '',
+        p ? p.arahan : '',
+        '',
+        `Your task (${total} subagents run at the same time): ${tugas}`,
+        '',
+        'RULES:',
+        '- Do only the task above. Do not do another subagent task.',
+        '- WORK WITH TOOLS, do not just explain. Use file_read/file_list to look, search to find, and shell_exec to run commands. Do not answer from memory when you can check.',
+        tulis,
+        '- WORK UNTIL DONE, then stop. Do not call tools after you have the answer.',
+        '- Report findings clearly in your FINAL answer: what you found, in which file,',
+        '  and a short conclusion. Give paths and line numbers where relevant.',
+        '- If the task cannot be done, say why. Do not make things up.',
+      ]
+    : [
+        'Kamu adalah SUBAGENT dari sebuah tugas paralel.',
+        p ? `PERANMU: ${p.label}` : '',
+        p ? p.arahan : '',
+        '',
+        `Tugasmu (${total} subagent berjalan bersamaan): ${tugas}`,
+        '',
+        'ATURAN:',
+        '- Kerjakan HANYA tugas di atas. Jangan mengerjakan tugas subagent lain.',
+        '- KERJAKAN DENGAN TOOL, bukan cuma menjelaskan. Pakai file_read/file_list untuk melihat, search untuk mencari, dan shell_exec untuk menjalankan perintah. Jangan menjawab dari ingatan kalau bisa memeriksa.',
+        tulis,
+        '- BEKERJA SAMPAI SELESAI lalu berhenti. Jangan memanggil tool setelah kamu punya jawabannya.',
+        '- Laporkan temuan sejelas mungkin di jawaban AKHIR: apa yang kamu temukan,',
+        '  di file mana, dan kesimpulan singkatnya. Sebutkan path dan nomor baris bila ada.',
+        '- Kalau tugas tidak bisa diselesaikan, katakan alasannya. Jangan mengarang.',
+      ];
   return baris.filter(Boolean).join('\n');
 }
 

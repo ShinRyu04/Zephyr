@@ -4,6 +4,7 @@ const AiSidebar = lazy(() => import('../ai/AiSidebar'));
 const DebugView = lazy(() => import('../debug/DebugView'));
 const ExplorerPanel = lazy(() => import('../explorer/ExplorerPanel'));
 const ExtensionsView = lazy(() => import('../extensions/ExtensionsView'));
+const OutlinePanel = lazy(() => import('../explorer/OutlinePanel'));
 const SearchPanel = lazy(() => import('../explorer/SearchPanel'));
 const SourceControlPanel = lazy(() => import('../scm/SourceControlPanel'));
 const SettingsNav = lazy(() => import('../settings/SettingsNav'));
@@ -18,6 +19,8 @@ export default function Sidebar() {
         return <ExplorerPanel />;
       case 'search':
         return <SearchPanel />;
+      case 'outline':
+        return <OutlinePanel />;
       case 'scm':
         return <SourceControlPanel />;
       case 'debug':

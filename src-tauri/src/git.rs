@@ -1074,3 +1074,90 @@ pub fn git_conflict_take(state: State<AppState>, path: String, side: String) -> 
     git(&state, &["add", "--", &rel])?;
     Ok(true)
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictHunk {
+    pub ours: String,
+    pub theirs: String,
+    pub base: String,
+}
+
+#[tauri::command(async)]
+pub fn git_conflict_read(state: State<AppState>, path: String) -> ZResult<Vec<ConflictHunk>> {
+    let rel = path.replace('\\', "/");
+    let isi = {
+        let ws = state
+            .workspace_path()
+            .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        let full = ws.join(&rel);
+        std::fs::read_to_string(crate::paths::long_path(&full))
+            .map_err(|e| ZephyrError::NotFound(format!("baca {rel}: {e}")))?
+    };
+
+    let mut out = Vec::new();
+    let mut mode = 0u8;
+    let mut ours = String::new();
+    let mut theirs = String::new();
+    let mut base = String::new();
+    for l in isi.lines() {
+        if l.starts_with("<<<<<<<") {
+            mode = 1;
+            ours.clear();
+            base.clear();
+            theirs.clear();
+        } else if l.starts_with("|||||||") {
+            mode = 2;
+        } else if l.starts_with("=======") {
+            mode = 3;
+        } else if l.starts_with(">>>>>>>") {
+            out.push(ConflictHunk {
+                ours: ours.clone(),
+                theirs: theirs.clone(),
+                base: base.clone(),
+            });
+            mode = 0;
+        } else {
+            match mode {
+                1 => {
+                    ours.push_str(l);
+                    ours.push('\n');
+                }
+                2 => {
+                    base.push_str(l);
+                    base.push('\n');
+                }
+                3 => {
+                    theirs.push_str(l);
+                    theirs.push('\n');
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(out)
+}
+
+#[tauri::command(async)]
+pub fn git_rebase_interactive(state: State<AppState>, onto: String) -> ZResult<String> {
+    git_rebase(state, onto)
+}
+
+#[tauri::command(async)]
+pub fn git_rebase_continue(state: State<AppState>) -> ZResult<String> {
+    git(&state, &["rebase", "--continue"])
+}
+
+#[tauri::command(async)]
+pub fn git_rebase_abort(state: State<AppState>) -> ZResult<String> {
+    git(&state, &["rebase", "--abort"])
+}
+
+#[tauri::command(async)]
+pub fn git_rebase_status(state: State<AppState>) -> ZResult<bool> {
+    let ws = state
+        .workspace_path()
+        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+    let git_dir = ws.join(".git");
+    Ok(git_dir.join("rebase-merge").exists() || git_dir.join("rebase-apply").exists())
+}

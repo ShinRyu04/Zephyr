@@ -68,7 +68,7 @@ import {
 import { useDebug } from '../../lib/debugStore';
 import { useLsp } from '../../lib/lspStore';
 import { serverForPath } from '../../lib/lsp';
-import { autocompletionZephyr, lspHover, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
+import { autocompletionZephyr, lspHover, lspPeekExtension, squiggleCompartment, squiggleFor } from '../../lib/lspCm';
 import { bracketPairColors, indentGuides } from '../../lib/cmIndent';
 import { colorDecorators, unicodeHighlight } from '../../lib/cmColor';
 import Minimap from './Minimap';
@@ -206,7 +206,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
               { key: 'Escape', run: clearSnippet },
             ]),
             highlightSelectionMatches(),
-            ...(adaLsp ? [lspHover(tab.path ?? '')] : []),
+            ...(adaLsp ? [lspHover(tab.path ?? ''), lspPeekExtension()] : []),
           ]),
       rectangularSelection(),
       crosshairCursor(),

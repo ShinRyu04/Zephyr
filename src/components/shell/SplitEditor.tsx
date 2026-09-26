@@ -4,6 +4,7 @@ import { useLayout } from '../../lib/editorLayoutStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
 import ImagePreview, { PreviewGambar } from '../editor/ImagePreview';
 import { useTampilan, apakahGambar } from '../../lib/tampilanStore';
+import NotebookView from '../editor/NotebookView';
 import EditorTabBar from '../editor/EditorTabBar';
 import FindBar from '../editor/FindBar';
 import ReadOnlyBanner from '../editor/ReadOnlyBanner';
@@ -114,6 +115,8 @@ function EditorPane({ gid }: { gid: string }) {
             <ZephyrLogo size={40} />
             <span className="empty-group-label">{tx('Empty group - open a file here')}</span>
           </div>
+        ) : tab && (tab.path ?? '').toLowerCase().endsWith('.ipynb') ? (
+          <NotebookView />
         ) : (
           <CodeMirrorEditor key={tab.id} tab={tab} />
         )}

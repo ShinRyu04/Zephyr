@@ -18,6 +18,14 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
       <path d="M10.2 10.2l3.6 3.6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
     </svg>
   ),
+  outline: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <path d="M3 4h7M5.4 8h7M7.8 12h5.4" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+      <circle cx="2" cy="4" r="0.9" fill="currentColor" />
+      <circle cx="4.4" cy="8" r="0.9" fill="currentColor" />
+      <circle cx="6.8" cy="12" r="0.9" fill="currentColor" />
+    </svg>
+  ),
   scm: () => (
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
       <circle cx="4" cy="3.5" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
@@ -91,6 +99,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
 const LABEL: Record<ActivityId, string> = {
   explorer: 'Explorer',
   search: 'Search',
+  outline: 'Outline',
   scm: 'Source Control',
   debug: 'Run & Debug (Ctrl+Shift+D)',
   ai: 'AI / MCP',
@@ -102,6 +111,7 @@ const LABEL: Record<ActivityId, string> = {
 const ORDER: ActivityId[] = [
   'explorer',
   'search',
+  'outline',
   'scm',
   'debug',
   'ai',

@@ -601,3 +601,119 @@
 .sav-model .ai-model-btn {
   max-width: 200px;
 }
+
+/* ─────────── Tests ─────────── */
+.tests-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tests-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tests-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tests-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: tests-spin 0.7s linear infinite;
+}
+@keyframes tests-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tests-framework {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+.tests-spacer {
+  flex: 1;
+}
+.tests-time {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.tests-empty,
+.tests-error {
+  padding: 14px 12px;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.tests-error {
+  color: var(--danger);
+}
+.tests-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  flex-shrink: 0;
+}
+.tests-pill {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.tests-pill.is-pass {
+  color: var(--success, var(--accent));
+}
+.tests-pill.is-fail {
+  color: var(--danger);
+}
+.tests-status {
+  padding: 4px 12px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.tests-status.is-pass {
+  color: var(--success, var(--accent));
+}
+.tests-status.is-fail {
+  color: var(--danger);
+}
+.tests-trunc {
+  padding: 2px 12px;
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--warning);
+}
+.tests-output {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 9px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.tests-output:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+

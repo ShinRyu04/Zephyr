@@ -433,6 +433,34 @@ export const AGENT_TOOLS: AgentTool[] = [
   },
   {
     spec: {
+      name: 'mcp_call',
+      description:
+        'Panggil satu tool pada server MCP eksternal yang terdaftar di Settings → MCP → External MCP servers. Isi "server" dengan id atau label server (lihat daftar di Settings), "tool" dengan nama tool dari server itu, dan "args" dengan argumen sesuai schema tool. Kembalikan jawaban mentah server.',
+      parameters: {
+        type: 'object',
+        properties: {
+          server: { type: 'string', description: 'id atau label server MCP eksternal' },
+          tool: { type: 'string', description: 'nama tool yang dipanggil di server itu' },
+          args: { type: 'object', description: 'argumen tool sesuai schema-nya (opsional)' },
+        },
+        required: ['server', 'tool'],
+      },
+    },
+    run: async (args) => {
+      const server = String(args.server ?? '').trim();
+      const tool = String(args.tool ?? '').trim();
+      if (!server) throw new Error('mcp_call: server kosong');
+      if (!tool) throw new Error('mcp_call: tool kosong');
+      const isi = (args.args ?? {}) as Record<string, unknown>;
+      const hasil = await cmd.mcpClientCall(server, tool, isi);
+      const teks = typeof hasil === 'string' ? hasil : JSON.stringify(hasil, null, 2);
+      return teks.length > AGENT_READ_LIMIT
+        ? `${teks.slice(0, AGENT_READ_LIMIT)}\n\n[... dipotong di ${AGENT_READ_LIMIT} karakter]`
+        : teks;
+    },
+  },
+  {
+    spec: {
       name: 'todo_write',
       description:
         'Tulis/ganti daftar tugas yang sedang dikerjakan (maks 20 item). Panggil ulang tiap kali status berubah — jangan menunggu tugas selesai. Status: pending | in_progress | done.',

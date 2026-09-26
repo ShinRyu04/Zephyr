@@ -1,8 +1,16 @@
 import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
-import { Compartment, RangeSetBuilder, type Extension } from '@codemirror/state';
-import { Decoration, EditorView, hoverTooltip, type DecorationSet } from '@codemirror/view';
+import { Compartment, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
+import {
+  Decoration,
+  EditorView,
+  hoverTooltip,
+  showPanel,
+  type DecorationSet,
+  type Panel,
+} from '@codemirror/view';
 import { useLsp } from './lspStore';
-import { COMPLETION_KIND, hoverText, pathToUri, uriToPath } from './lsp';
+import { fsRead } from './commands';
+import { COMPLETION_KIND, SYMBOL_KIND, hoverText, pathToUri, uriToPath } from './lsp';
 import { keCompletion, konteksDari, useSnip } from './snippetStore';
 import { useStore } from './store';
 import type { Diagnostic } from './problemsStore';
@@ -339,4 +347,192 @@ export async function lspSignatureHelp(path: string, view: EditorView, pos: numb
     activeParameter: typeof res.activeParameter === 'number' ? res.activeParameter : 0,
     count: sigs.length,
   };
+}
+
+export interface SymbolOutline {
+  name: string;
+  kind: string;
+  line: number;
+  column: number;
+  detail?: string;
+  children: SymbolOutline[];
+}
+
+const asRangeStart = (raw: Record<string, unknown>) => {
+  const range =
+    (raw.selectionRange as Record<string, Record<string, number>> | undefined) ??
+    (raw.range as Record<string, Record<string, number>> | undefined) ??
+    ((raw.location as Record<string, unknown> | undefined)?.range as
+      | Record<string, Record<string, number>>
+      | undefined);
+  return range?.start;
+};
+
+export async function lspSymbolTree(path: string): Promise<SymbolOutline[]> {
+  const res = await lspDocumentSymbols(path);
+  const susun = (arr: unknown[]): SymbolOutline[] => {
+    const out: SymbolOutline[] = [];
+    for (const raw of arr) {
+      if (!raw || typeof raw !== 'object') continue;
+      const o = raw as Record<string, unknown>;
+      const nama = String(o.name ?? '');
+      const start = asRangeStart(o);
+      if (!nama || !start) continue;
+      const anak = Array.isArray(o.children) ? susun(o.children) : [];
+      out.push({
+        name: nama,
+        kind: SYMBOL_KIND[Number(o.kind ?? 0)] ?? '',
+        line: (start.line ?? 0) + 1,
+        column: (start.character ?? 0) + 1,
+        detail: typeof o.detail === 'string' ? o.detail : undefined,
+        children: anak,
+      });
+    }
+    return out;
+  };
+  return susun(res);
+}
+
+interface PeekData {
+  file: string;
+  line: number;
+  column: number;
+  startLine: number;
+  endLine: number;
+  lines: string[];
+}
+
+const setPeek = StateEffect.define<PeekData | null>();
+
+const peekField = StateField.define<PeekData | null>({
+  create: () => null,
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setPeek)) return e.value;
+    }
+    return value;
+  },
+});
+
+const PEEK_WINDOW = 5;
+
+class PeekPanel implements Panel {
+  dom: HTMLElement;
+  top = true;
+  private view: EditorView;
+  private onDocDown: (e: MouseEvent) => void;
+  private onKeyDown: (e: KeyboardEvent) => void;
+
+  constructor(view: EditorView) {
+    this.view = view;
+    this.dom = document.createElement('div');
+    this.dom.setAttribute('data-testid', 'cm-peek-wrap');
+    this.render();
+
+    this.onDocDown = (e: MouseEvent) => {
+      const data = view.state.field(peekField, false);
+      if (!data) return;
+      const t = e.target as Node | null;
+      if (t && this.dom.contains(t)) return;
+      view.dispatch({ effects: setPeek.of(null) });
+    };
+    this.onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const data = view.state.field(peekField, false);
+      if (!data) return;
+      e.preventDefault();
+      view.dispatch({ effects: setPeek.of(null) });
+    };
+
+    this.dom.addEventListener('mousedown', (e) => e.stopPropagation());
+    window.addEventListener('mousedown', this.onDocDown, true);
+    window.addEventListener('keydown', this.onKeyDown, true);
+  }
+
+  update() {
+    this.render();
+  }
+
+  private render() {
+    const data = this.view.state.field(peekField, false);
+    this.dom.textContent = '';
+    if (!data) {
+      this.dom.style.display = 'none';
+      return;
+    }
+    this.dom.style.display = '';
+    this.dom.className = 'cm-zpeek';
+    this.dom.setAttribute('data-testid', 'cm-peek');
+
+    const head = document.createElement('div');
+    head.className = 'cm-zpeek-head';
+    const judul = document.createElement('span');
+    judul.className = 'cm-zpeek-path';
+    judul.textContent = data.file;
+    judul.title = data.file;
+    const tutup = document.createElement('button');
+    tutup.className = 'cm-zpeek-close';
+    tutup.setAttribute('data-testid', 'cm-peek-close');
+    tutup.setAttribute('aria-label', 'Close peek');
+    tutup.textContent = '\u00d7';
+    tutup.addEventListener('click', () => {
+      this.view.dispatch({ effects: setPeek.of(null) });
+    });
+    head.append(judul, tutup);
+
+    const body = document.createElement('div');
+    body.className = 'cm-zpeek-body';
+    data.lines.forEach((teks, i) => {
+      const no = data.startLine + i;
+      const row = document.createElement('div');
+      row.className = 'cm-zpeek-row';
+      if (no === data.line) {
+        row.classList.add('is-target');
+        row.setAttribute('data-testid', 'cm-peek-target');
+      }
+      const ln = document.createElement('span');
+      ln.className = 'cm-zpeek-ln';
+      ln.textContent = String(no);
+      const code = document.createElement('span');
+      code.className = 'cm-zpeek-code';
+      code.textContent = teks;
+      row.append(ln, code);
+      body.append(row);
+    });
+
+    this.dom.append(head, body);
+  }
+
+  destroy() {
+    window.removeEventListener('mousedown', this.onDocDown, true);
+    window.removeEventListener('keydown', this.onKeyDown, true);
+  }
+}
+
+export function lspPeekExtension(): Extension {
+  return [peekField, showPanel.of((view) => new PeekPanel(view))];
+}
+
+export function tutupPeek(view: EditorView): void {
+  view.dispatch({ effects: setPeek.of(null) });
+}
+
+export async function peekDefinition(path: string, view: EditorView, pos: number): Promise<boolean> {
+  const loc = await lspDefinition(path, view, pos);
+  if (!loc) return false;
+
+  const isi = await fsRead(loc.file);
+  const baris = isi.content.split(/\r?\n/);
+  const dari = Math.max(1, loc.line - PEEK_WINDOW);
+  const sampai = Math.min(baris.length, loc.line + PEEK_WINDOW);
+  const data: PeekData = {
+    file: loc.file,
+    line: loc.line,
+    column: loc.column,
+    startLine: dari,
+    endLine: sampai,
+    lines: baris.slice(dari - 1, sampai),
+  };
+  view.dispatch({ effects: setPeek.of(data) });
+  return true;
 }

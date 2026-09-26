@@ -277,8 +277,8 @@ const main = async () => {
   const noAuth = await rpc(livePort, 'get_window');
   const badAuth = await rpc(livePort, 'get_window', {}, 'token-salah');
   const okAuth = await rpc(livePort, 'get_window', {}, TOKEN);
-  const schemaNoAuth = await getJson(`http://127.0.0.1:${livePort}/mcp`);
-  const schemaAuth = await getJson(`http://127.0.0.1:${livePort}/mcp`, TOKEN);
+  const schemaNoAuth = await getJson(`http://127.0.0.1:${livePort}/schema`);
+  const schemaAuth = await getJson(`http://127.0.0.1:${livePort}/schema`, TOKEN);
   check(
     'V2',
     h1.status === 200 &&
@@ -289,7 +289,7 @@ const main = async () => {
       okAuth.body?.result?.workspace !== undefined &&
       schemaNoAuth.status === 401 &&
       Array.isArray(schemaAuth.body?.tools),
-    `switch ON → /health {ok:true, version ${h1.body?.version}, uptime ${h1.body?.uptimeMs}ms}; tanpa Bearer 401, token salah 401, token benar 200; GET /mcp butuh auth & memuat ${schemaAuth.body?.tools?.length} tool; UI "${v2ui.teks}"`,
+    `switch ON → /health {ok:true, version ${h1.body?.version}, uptime ${h1.body?.uptimeMs}ms}; tanpa Bearer 401, token salah 401, token benar 200; GET /schema butuh auth & memuat ${schemaAuth.body?.tools?.length} tool; UI "${v2ui.teks}"`,
   );
 
   // ───────── V3: list_panes = pane yang benar-benar terbuka ─────────

@@ -11,11 +11,12 @@ import { useProblems } from './problemsStore';
 import { useOutput } from './outputStore';
 import { flushTab } from './editorRegistry';
 import { readBuffer } from './xtermRegistry';
-import type { CliStatus, CliWriteResult, McpAction, McpStatus, PaneKind } from './types';
+import type { CliStatus, CliWriteResult, McpAction, McpServer, McpStatus, PaneKind } from './types';
 
 interface McpState {
   status: McpStatus | null;
   clis: CliStatus[];
+  servers: McpServer[];
   busy: boolean;
 
   reveal: boolean;
@@ -48,6 +49,10 @@ interface McpActions {
   toggleChecked: (id: string) => void;
   writeToCli: () => Promise<void>;
   removeFromCli: () => Promise<void>;
+  refreshServers: () => Promise<void>;
+  saveServer: (s: { id: string; label: string; url: string; token: string }) => Promise<boolean>;
+  removeServer: (id: string) => Promise<void>;
+  testServer: (url: string, token: string) => Promise<number | null>;
   copyToken: () => Promise<void>;
   setError: (m: string | null) => void;
   setInfo: (m: string | null) => void;
@@ -64,6 +69,7 @@ export type McpStore = McpState & McpActions;
 export const useMcp = create<McpStore>((set, get) => ({
   status: null,
   clis: [],
+  servers: [],
   busy: false,
   reveal: false,
   mcpError: null,
@@ -197,6 +203,66 @@ export const useMcp = create<McpStore>((set, get) => ({
       set({ mcpInfo: `Entri zephyr dilepas dari ${res.filter((r) => r.ok).length} config` });
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
+    } finally {
+      set({ busy: false });
+    }
+  },
+
+  refreshServers: async () => {
+    try {
+      set({ servers: await cmd.mcpClientList() });
+    } catch (e) {
+      set({ mcpError: cmd.asZephyrError(e).message });
+    }
+  },
+
+  saveServer: async (s) => {
+    const url = s.url.trim();
+    if (!url) {
+      set({ mcpError: 'URL server MCP wajib diisi' });
+      return false;
+    }
+    set({ busy: true, mcpError: null, mcpInfo: null });
+    try {
+      await cmd.mcpClientSave({ id: s.id, label: s.label, url, token: s.token });
+      await get().refreshServers();
+      set({ mcpInfo: `Server MCP eksternal disimpan (${url})` });
+      return true;
+    } catch (e) {
+      set({ mcpError: cmd.asZephyrError(e).message });
+      return false;
+    } finally {
+      set({ busy: false });
+    }
+  },
+
+  removeServer: async (id) => {
+    set({ busy: true, mcpError: null });
+    try {
+      const ok = await cmd.mcpClientRemove(id);
+      await get().refreshServers();
+      set({ mcpInfo: ok ? 'Server MCP eksternal dihapus' : 'Server tidak ditemukan' });
+    } catch (e) {
+      set({ mcpError: cmd.asZephyrError(e).message });
+    } finally {
+      set({ busy: false });
+    }
+  },
+
+  testServer: async (url, token) => {
+    set({ busy: true, mcpError: null, mcpInfo: null });
+    try {
+      const tools = await cmd.mcpClientTools(url.trim(), token.trim());
+      set({
+        mcpInfo: `Terhubung — ${tools.length} tool tersedia: ${tools
+          .slice(0, 8)
+          .map((t) => t.name)
+          .join(', ')}${tools.length > 8 ? ', …' : ''}`,
+      });
+      return tools.length;
+    } catch (e) {
+      set({ mcpError: cmd.asZephyrError(e).message });
+      return null;
     } finally {
       set({ busy: false });
     }

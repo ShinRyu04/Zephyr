@@ -4,6 +4,7 @@ import { useGit } from '../../lib/gitStore';
 import { useStore } from '../../lib/store';
 import type { GitChange } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
+import ConflictEditor from './ConflictEditor';
 
 const STATUS_CLASS: Record<string, string> = {
   M: 'is-modified',
@@ -397,6 +398,69 @@ function BranchMenu() {
   );
 }
 
+function RebaseDialog() {
+  const open = useGit((s) => s.rebaseOpen);
+  const setOpen = useGit((s) => s.setRebaseOpen);
+  const branches = useGit((s) => s.branches);
+  const busy = useGit((s) => s.busy);
+  const [onto, setOnto] = useState('');
+  if (!open) return null;
+  const daftar = [...(branches?.locals ?? []), ...(branches?.remotes ?? [])].filter(
+    (b) => b !== branches?.current,
+  );
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={() => setOpen(false)}>
+      <div className="modal" role="dialog" aria-modal="true" data-testid="scm-rebase-dialog" onClick={(e) => e.stopPropagation()}>
+        <h2 className="modal-title">Rebase onto</h2>
+        <p className="side-muted">Current branch {branches?.current} will be replayed onto the branch you pick.</p>
+        <select
+          className="input"
+          data-testid="scm-rebase-select"
+          value={onto}
+          onChange={(e) => setOnto(e.target.value)}
+        >
+          <option value="">Pick a branch…</option>
+          {daftar.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <div className="modal-actions">
+          <button
+            className="btn btn-primary"
+            type="button"
+            data-testid="scm-rebase-go"
+            disabled={!onto || busy}
+            onClick={() => {
+              void (async () => {
+                const { gitRebaseInteractive } = await import('../../lib/commands');
+                try {
+                  await gitRebaseInteractive(onto);
+                  useGit.setState({ scmInfo: `Rebase onto ${onto} selesai` });
+                } catch (e) {
+                  useGit.setState({
+                    scmError: String((e as Error)?.message ?? e),
+                    rebaseAktif: true,
+                  });
+                }
+                setOpen(false);
+                setOnto('');
+                await useGit.getState().refreshAll();
+              })();
+            }}
+          >
+            Rebase
+          </button>
+          <button className="btn" type="button" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NewBranchDialog() {
   const open = useGit((s) => s.newBranchOpen);
   const setOpen = useGit((s) => s.setNewBranchOpen);
@@ -519,6 +583,8 @@ export default function SourceControlPanel() {
   
   const stagedCount = useGit((s) => s.status?.changes.filter((c) => c.staged).length ?? 0);
   const [kebab, setKebab] = useState(false);
+  const [resolvePath, setResolvePath] = useState<string | null>(null);
+  const rebaseAktif = useGit((s) => s.rebaseAktif);
 
   const changes = status?.changes ?? [];
   const staged = changes.filter((c) => c.staged);
@@ -626,6 +692,17 @@ export default function SourceControlPanel() {
             }}
           >
             Pull with rebase
+          </button>
+          <button
+            className="scm-menu-item"
+            role="menuitem"
+            data-testid="scm-rebase-open"
+            onClick={() => {
+              setKebab(false);
+              useGit.getState().setRebaseOpen(true);
+            }}
+          >
+            Rebase onto…
           </button>
           <button
             className="scm-menu-item"
@@ -753,6 +830,14 @@ export default function SourceControlPanel() {
                   >
                     theirs
                   </button>
+                  <button
+                    className="ex-btn"
+                    data-testid={`scm-resolve-${c.path}`}
+                    title="Open 3-panel conflict editor"
+                    onClick={() => setResolvePath(c.path)}
+                  >
+                    resolve…
+                  </button>
                 </div>
               ))}
           </div>
@@ -825,6 +910,55 @@ export default function SourceControlPanel() {
 
       <GitHubRow />
       <NewBranchDialog />
+      <RebaseDialog />
+      {rebaseAktif && (
+        <div className="scm-rebase-banner" data-testid="scm-rebase-banner">
+          <span>Rebase in progress. Resolve conflicts, then continue or abort.</span>
+          <button
+            className="btn btn-sm btn-primary"
+            data-testid="scm-rebase-continue"
+            onClick={() =>
+              void (async () => {
+                const { gitRebaseContinue } = await import('../../lib/commands');
+                try {
+                  await gitRebaseContinue();
+                  useGit.setState({ rebaseAktif: false, scmInfo: 'Rebase dilanjutkan' });
+                } catch (e) {
+                  useGit.setState({ scmError: String((e as Error)?.message ?? e) });
+                }
+                await init();
+              })()
+            }
+          >
+            Continue
+          </button>
+          <button
+            className="btn btn-sm"
+            data-testid="scm-rebase-abort"
+            onClick={() =>
+              void (async () => {
+                const { gitRebaseAbort } = await import('../../lib/commands');
+                try {
+                  await gitRebaseAbort();
+                  useGit.setState({ rebaseAktif: false, scmInfo: 'Rebase dibatalkan' });
+                } catch (e) {
+                  useGit.setState({ scmError: String((e as Error)?.message ?? e) });
+                }
+                await init();
+              })()
+            }
+          >
+            Abort
+          </button>
+        </div>
+      )}
+      {resolvePath && (
+        <ConflictEditor
+          path={resolvePath}
+          onClose={() => setResolvePath(null)}
+          onResolved={() => void init()}
+        />
+      )}
     </div>
   );
 }

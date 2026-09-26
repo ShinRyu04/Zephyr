@@ -453,6 +453,19 @@ export interface CliStatus {
   registered: boolean;
 }
 
+export interface McpServer {
+  id: string;
+  label: string;
+  url: string;
+  token: string;
+}
+
+export interface McpToolSpec {
+  name: string;
+  description: string;
+  schema: Record<string, unknown>;
+}
+
 export interface ExtCommand {
 
   id: string;
@@ -697,6 +710,7 @@ export type LangId =
 export type ActivityId =
   | 'explorer'
   | 'search'
+  | 'outline'
   | 'scm'
   // fase 22: Run & Debug
   | 'debug'
@@ -716,7 +730,8 @@ export interface GeneralSettings {
   restoreSession: boolean;
   checkUpdates: boolean;
 
-  lowRam?: boolean;
+    lowRam?: boolean;
+    ramEkstrem?: boolean;
 
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
 
@@ -899,6 +914,7 @@ export const DEFAULT_SETTINGS: Settings = {
     restoreSession: true,
     checkUpdates: true,
     lowRam: false,
+  ramEkstrem: false,
     multilineKey: 'auto',
 
     aiPanel: 'bottom',

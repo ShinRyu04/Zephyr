@@ -7,6 +7,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{json, Value};
 use std::sync::Arc;
+use tokio_stream::StreamExt as _;
 use tauri::{AppHandle, Emitter, Manager};
 
 const UI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
@@ -19,6 +20,7 @@ const MAX_TERMINAL_WRITE: usize = 64 * 1024;
 struct Ctx {
     app: AppHandle,
     token: String,
+    sse: Arc<std::sync::Mutex<std::collections::HashMap<String, tokio::sync::mpsc::Sender<String>>>>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -91,10 +93,14 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
     let ctx = Ctx {
         app: app.clone(),
         token: cfg.token.clone(),
+        sse: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
     let router = Router::new()
         .route("/health", get(health))
-        .route("/mcp", get(schema))
+        .route("/schema", get(schema))
+        .route("/mcp", get(mcp_get).post(rpc))
+        .route("/sse", get(mcp_get))
+        .route("/messages", post(messages))
         .route("/", post(rpc))
         .route("/rpc", post(rpc))
         .with_state(Arc::new(ctx));
@@ -219,6 +225,109 @@ async fn schema(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
         return unauthorized();
     }
     Json(tools_schema()).into_response()
+}
+
+async fn mcp_get(
+    AxState(ctx): AxState<Arc<Ctx>>,
+    headers: HeaderMap,
+) -> axum::response::Response {
+    let state = ctx.app.state::<AppState>();
+    use axum::body::Body;
+    use axum::response::Response;
+    if !settings_enabled(&state) {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "ok": false, "error": "MCP dimatikan di Settings" })),
+        )
+            .into_response();
+    }
+    if !bearer_ok(&headers, &ctx.token) {
+        return unauthorized();
+    }
+
+    let port = state.mcp_port().unwrap_or(9222);
+    let sid = format!(
+        "s{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+    let endpoint = format!("http://127.0.0.1:{port}/messages?sessionId={sid}");
+    let body_awal = format!("event: endpoint\ndata: {endpoint}\n\n");
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<String>(32);
+    {
+        if let Ok(mut m) = ctx.sse.lock() {
+            m.insert(sid.clone(), tx.clone());
+        }
+    }
+
+    let ctx2 = ctx.clone();
+    let sid2 = sid.clone();
+    tokio::spawn(async move {
+        let _ = tx.send(body_awal).await;
+        let mut tik = tokio::time::interval(std::time::Duration::from_secs(15));
+        tik.tick().await;
+        loop {
+            tokio::select! {
+                _ = tik.tick() => {
+                    if tx.send(": ping\n\n".to_string()).await.is_err() {
+                        break;
+                    }
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_secs(3600)) => break,
+            }
+        }
+        if let Ok(mut m) = ctx2.sse.lock() {
+            m.remove(&sid2);
+        }
+    });
+
+    let stream = tokio_stream::wrappers::ReceiverStream::new(rx)
+        .map(|s| Ok::<axum::body::Bytes, std::io::Error>(axum::body::Bytes::from(s)));
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/event-stream")
+        .header("Cache-Control", "no-cache")
+        .header("Connection", "keep-alive")
+        .body(Body::from_stream(stream))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+}
+
+async fn messages(
+    AxState(ctx): AxState<Arc<Ctx>>,
+    headers: HeaderMap,
+    body: String,
+) -> axum::response::Response {
+    let sid = headers
+        .get("x-session-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let sid = match sid {
+        Some(s) => Some(s),
+        None => ctx.sse.lock().ok().and_then(|m| m.keys().next().cloned()),
+    };
+    let resp = rpc(AxState(ctx.clone()), headers, body).await;
+    if let Some(sid) = sid {
+        let (parts, bytes) = {
+            use axum::body::to_bytes;
+            let (p, b) = resp.into_parts();
+            let b = to_bytes(b, 4 * 1024 * 1024).await.unwrap_or_default();
+            (p, b)
+        };
+        if let Ok(txt) = String::from_utf8(bytes.to_vec()) {
+            if let Ok(m) = ctx.sse.lock() {
+                if let Some(tx) = m.get(&sid) {
+                    let ev = format!("event: message\ndata: {txt}\n\n");
+                    let _ = tx.try_send(ev);
+                }
+            }
+        }
+        let _ = parts;
+        return StatusCode::ACCEPTED.into_response();
+    }
+    resp
 }
 
 async fn rpc(
@@ -462,8 +571,38 @@ fn dotted_get(root: &Value, key: &str) -> Option<Value> {
 async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value> {
     let state = app.state::<AppState>();
     match method {
+        "initialize" => Ok(json!({
+            "protocolVersion": "2024-11-05",
+            "capabilities": { "tools": { "listChanged": false } },
+            "serverInfo": { "name": "zephyr", "version": app.package_info().version.to_string() }
+        })),
+        "notifications/initialized" | "initialized" => Ok(json!({})),
         "tools/list" | "list_tools" => Ok(tools_schema()),
         "ping" => Ok(json!({ "pong": true })),
+        "tools/call" => {
+            let name = need_str(&params, "name")?;
+            let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+            let hasil = match name.as_str() {
+                "list_panes" | "list_terminals" => ui_call(app, "list_panes", json!({})).await?,
+                "list_editors" => ui_call(app, "list_editors", json!({})).await?,
+                "get_window" => ui_call(app, "get_window", json!({})).await?,
+                "list_extensions" => ui_call(app, "list_extensions", json!({})).await?,
+                "get_settings" => {
+                    let mut v = crate::settings::read_settings_value(&state);
+                    if let Some(m) = v.get_mut("mcp").and_then(|m| m.as_object_mut()) {
+                        m.insert("token".into(), Value::String("***".into()));
+                    }
+                    if let Some(g) = v.get_mut("git").and_then(|g| g.as_object_mut()) {
+                        g.remove("github");
+                    }
+                    v
+                }
+                other => Box::pin(dispatch(app, other, args)).await?,
+            };
+            return Ok(json!({
+                "content": [{ "type": "text", "text": serde_json::to_string_pretty(&hasil).unwrap_or_default() }]
+            }));
+        }
 
         "list_panes" | "list_terminals" => ui_call(app, "list_panes", json!({})).await,
         "list_editors" => ui_call(app, "list_editors", json!({})).await,

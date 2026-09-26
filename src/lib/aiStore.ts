@@ -116,7 +116,7 @@ export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 
-export const MAX_AGENT_STEPS = 25;
+export const MAX_AGENT_STEPS = 60;
 
 export interface AgentStep {
   kind: 'mulai' | 'tool' | 'selesai';

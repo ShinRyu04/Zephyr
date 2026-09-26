@@ -49,6 +49,8 @@ interface GitState {
   branchMenuOpen: boolean;
   
   newBranchOpen: boolean;
+  rebaseOpen: boolean;
+  rebaseAktif: boolean;
 
   gh: GhStatus | null;
   ghTest: GhTestResult | null;
@@ -70,6 +72,8 @@ interface GitActions {
   setConfirm: (c: ScmConfirm | null) => void;
   setBranchMenuOpen: (v: boolean) => void;
   setNewBranchOpen: (v: boolean) => void;
+  setRebaseOpen: (v: boolean) => void;
+  setRebaseAktif: (v: boolean) => void;
   setPatFormOpen: (v: boolean) => void;
 
   init: () => Promise<void>;
@@ -124,6 +128,8 @@ export const useGit = create<GitStore>((set, get) => ({
   confirm: null,
   branchMenuOpen: false,
   newBranchOpen: false,
+  rebaseOpen: false,
+  rebaseAktif: false,
 
   gh: null,
   ghTest: null,
@@ -138,6 +144,8 @@ export const useGit = create<GitStore>((set, get) => ({
   setConfirm: (c) => set({ confirm: c }),
   setBranchMenuOpen: (v) => set({ branchMenuOpen: v }),
   setNewBranchOpen: (v) => set({ newBranchOpen: v }),
+  setRebaseOpen: (v) => set({ rebaseOpen: v }),
+  setRebaseAktif: (v) => set({ rebaseAktif: v }),
   setPatFormOpen: (v) => set({ patFormOpen: v, ghMessage: null }),
 
   refresh: async () => {

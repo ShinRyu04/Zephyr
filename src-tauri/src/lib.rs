@@ -29,6 +29,7 @@ mod github;
 mod history;
 mod logging;
 mod lsp;
+mod mcp_client;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
@@ -60,18 +61,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
-const RAM_ARGS: &str = "--single-process --renderer-process-limit=1 --js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
+const RAM_ARGS_BASE: &str = "--renderer-process-limit=1 --js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
 
 fn pasang_arg_webview2() {
     let ada = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
-    if ada.contains("--single-process") {
+    if ada.contains("--renderer-process-limit") {
         return;
     }
-    let gabung = if ada.trim().is_empty() {
-        RAM_ARGS.to_string()
-    } else {
-        format!("{RAM_ARGS} {}", ada.trim())
-    };
+    let mut gabung = RAM_ARGS_BASE.to_string();
+    if crate::settings::ram_ekstrem_aktif() {
+        gabung.push_str(" --single-process");
+    }
+    if !ada.trim().is_empty() {
+        gabung.push(' ');
+        gabung.push_str(ada.trim());
+    }
     std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", gabung);
 }
 
@@ -305,6 +309,11 @@ pub fn run() {
             git::git_stash_drop,
             git::git_rebase,
             git::git_conflict_take,
+            git::git_conflict_read,
+            git::git_rebase_interactive,
+            git::git_rebase_continue,
+            git::git_rebase_abort,
+            git::git_rebase_status,
             github::gh_status,
             github::gh_set_pat,
             github::gh_login_device,
@@ -319,6 +328,12 @@ pub fn run() {
             mcp_commands::mcp_write_cli,
             mcp_commands::mcp_remove_cli,
             mcp_commands::mcp_cli_status,
+            mcp_commands::mcp_write_custom_cli,
+            mcp_commands::mcp_client_list,
+            mcp_commands::mcp_client_tools,
+            mcp_commands::mcp_client_call,
+            mcp_commands::mcp_client_save,
+            mcp_commands::mcp_client_remove,
             extensions::extensions_list,
             extensions::extensions_load,
             extensions::extensions_add,

@@ -651,17 +651,21 @@ pub fn ai_tool_chat_stream(
 fn pesan_koneksi(e: &ureq::Error) -> String {
     let teks = e.to_string();
     let low = teks.to_lowercase();
-    if low.contains("dns")
-        || low.contains("resolve")
-        || low.contains("connect")
-        || low.contains("timed out")
-        || low.contains("timeout")
-        || low.contains("refused")
-        || low.contains("unreachable")
-    {
+    let timeout = low.contains("timed out") || low.contains("timeout") || low.contains("receive");
+    let dns = low.contains("dns") || low.contains("resolve");
+    let refused = low.contains("refused") || low.contains("unreachable");
+    if timeout {
         format!(
-            "Tidak bisa menghubungi provider — periksa koneksi internet \
-             atau Base URL di Settings → Model AI ({teks})"
+            "Provider tidak menjawab sampai batas waktu. Koneksi internet kamu kemungkinan baik; \
+             yang lambat atau sedang bermasalah adalah server provider (Base URL di Settings - Model AI). ({teks})"
+        )
+    } else if dns {
+        format!(
+            "Nama host provider tidak bisa di-resolve. Periksa Base URL di Settings - Model AI. ({teks})"
+        )
+    } else if refused {
+        format!(
+            "Provider menolak koneksi. Periksa Base URL dan apakah servernya hidup. ({teks})"
         )
     } else {
         format!("Tidak bisa menghubungi provider: {teks}")

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useMcp } from '../../lib/mcpStore';
 import { useT } from '../../lib/i18n';
@@ -50,6 +50,13 @@ export default function McpPanel() {
   const rotateToken = useMcp((s) => s.rotateToken);
   const copyToken = useMcp((s) => s.copyToken);
   const setReveal = useMcp((s) => s.setReveal);
+  const servers = useMcp((s) => s.servers);
+  const saveServer = useMcp((s) => s.saveServer);
+  const removeServer = useMcp((s) => s.removeServer);
+  const testServer = useMcp((s) => s.testServer);
+  const [extLabel, setExtLabel] = useState('');
+  const [extUrl, setExtUrl] = useState('');
+  const [extToken, setExtToken] = useState('');
 
   useEffect(() => {
     void init();
@@ -203,6 +210,91 @@ export default function McpPanel() {
           {terdaftar.length} {tr('of')} {ORDER.length} {tr('CLIs registered')}
         </span>
       </div>
+
+      <Row
+        label={tr('External MCP servers')}
+        hint={tr('Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.')}
+      >
+        <div className="mcp-servers" data-testid="mcp-servers">
+          {servers.length === 0 && (
+            <span className="set-note" data-testid="mcp-servers-empty">
+              {tr('No external MCP server yet.')}
+            </span>
+          )}
+          {servers.map((s) => (
+            <div className="mcp-cli" key={s.id} data-server-id={s.id} data-testid="mcp-server-row">
+              <span className="mcp-cli-name">{s.label}</span>
+              <code className="mcp-cli-path" title={s.url} data-testid="mcp-server-url">
+                {s.url}
+              </code>
+              <button
+                className="btn btn-sm"
+                disabled={busy}
+                data-testid={`mcp-server-test-${s.id}`}
+                onClick={() => void testServer(s.url, s.token)}
+              >
+                {tr('Test')}
+              </button>
+              <button
+                className="btn btn-sm"
+                disabled={busy}
+                data-testid={`mcp-server-remove-${s.id}`}
+                onClick={() => void removeServer(s.id)}
+              >
+                {tr('Remove')}
+              </button>
+            </div>
+          ))}
+        </div>
+      </Row>
+
+      <Row label={tr('Add external MCP server')}>
+        <div className="mcp-servers">
+          <input
+            className="set-text"
+            placeholder={tr('Label')}
+            value={extLabel}
+            spellCheck={false}
+            data-testid="mcp-server-label"
+            onChange={(e) => setExtLabel(e.target.value)}
+          />
+          <input
+            className="set-text is-mono"
+            placeholder={tr('URL (http://host/mcp)')}
+            value={extUrl}
+            spellCheck={false}
+            data-testid="mcp-server-url-input"
+            onChange={(e) => setExtUrl(e.target.value)}
+          />
+          <input
+            className="set-text is-mono"
+            placeholder={tr('Bearer token (optional)')}
+            value={extToken}
+            spellCheck={false}
+            type="password"
+            data-testid="mcp-server-token"
+            onChange={(e) => setExtToken(e.target.value)}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={busy || !extUrl.trim()}
+            data-testid="mcp-server-add"
+            onClick={() => {
+              void saveServer({ id: '', label: extLabel, url: extUrl, token: extToken }).then(
+                (ok) => {
+                  if (ok) {
+                    setExtLabel('');
+                    setExtUrl('');
+                    setExtToken('');
+                  }
+                },
+              );
+            }}
+          >
+            {tr('Add')}
+          </button>
+        </div>
+      </Row>
 
       {/* Toggle ekspos: memutus akses AI luar TANPA mencabut konfigurasi.
           KENAPA terpisah dari tombol lepas: user sering hanya ingin "matikan

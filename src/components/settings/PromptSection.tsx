@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
-import { PROMPT_BAWAAN, systemPromptFor, blokIdentitasModel } from '../../lib/systemPrompt';
+import { promptBawaan, systemPromptFor, blokIdentitasModel } from '../../lib/systemPrompt';
 import { useAi } from '../../lib/aiStore';
 import { AGENT_TOOLS } from '../../lib/agentTools';
 import { isDestructive } from '../../lib/aiStore';
@@ -67,6 +67,7 @@ export default function PromptSection() {
   const providerAktif = useAi((s) => s.provider);
 
   const p = aiPrompt ?? { identitas: '', caraKerja: '', aturan: '', instruksi: '' };
+  const bawaan = promptBawaan();
 
   const ubah = (kunci: 'identitas' | 'caraKerja' | 'aturan' | 'instruksi') => (v: string) =>
     void applySettings({ aiPrompt: { [kunci]: v } } as never);
@@ -135,7 +136,7 @@ export default function PromptSection() {
         judul="Identity"
         keterangan="Who this AI is and the environment it works in. Change it if you use Zephyr for something special (e.g. data analysis only, not code editing)."
         nilai={p.identitas}
-        bawaan={PROMPT_BAWAAN.identitas}
+        bawaan={bawaan.identitas}
         onUbah={ubah('identitas')}
         testid="sp-identitas"
       />
@@ -144,7 +145,7 @@ export default function PromptSection() {
         judul="Workflow"
         keterangan="The sequence of steps to follow. Removing steps here gives the AI more freedom, but also makes it easier to lose track on long tasks."
         nilai={p.caraKerja}
-        bawaan={PROMPT_BAWAAN.caraKerja}
+        bawaan={bawaan.caraKerja}
         onUbah={ubah('caraKerja')}
         testid="sp-carakerja"
       />
@@ -153,7 +154,7 @@ export default function PromptSection() {
         judul="Rules"
         keterangan="Hard limits. It is best not to remove them entirely - some rules (do not show API keys, confirm destructive commands) protect you."
         nilai={p.aturan}
-        bawaan={PROMPT_BAWAAN.aturan}
+        bawaan={bawaan.aturan}
         onUbah={ubah('aturan')}
         testid="sp-aturan"
       />

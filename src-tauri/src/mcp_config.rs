@@ -170,22 +170,26 @@ pub fn target_path(t: &CliTarget) -> ZResult<PathBuf> {
 }
 
 fn server_entry(t: &CliTarget, port: u16, token: &str) -> Value {
-    let url = format!("http://127.0.0.1:{port}");
+    let url = format!("http://127.0.0.1:{port}/mcp");
     let headers = json!({ "Authorization": format!("Bearer {token}") });
-    if t.id == "opencode" {
-        json!({
+    match t.id {
+        "opencode" => json!({
             "type": "remote",
             "url": url,
             "enabled": true,
             "oauth": false,
             "headers": headers
-        })
-    } else {
-        json!({
+        }),
+        "vscode" => json!({
             "type": "http",
             "url": url,
             "headers": headers
-        })
+        }),
+        _ => json!({
+            "type": "http",
+            "url": url,
+            "headers": headers
+        }),
     }
 }
 
@@ -249,7 +253,7 @@ fn unmerge_json(existing: &str, key: &str) -> ZResult<String> {
 fn merge_toml(existing: &str, key: &str, port: u16, token: &str) -> String {
     let header = format!("[{key}.zephyr]");
     let block = format!(
-        "{header}\ntype = \"http\"\nurl = \"http://127.0.0.1:{port}\"\n\
+        "{header}\ntype = \"http\"\nurl = \"http://127.0.0.1:{port}/mcp\"\n\
          [{key}.zephyr.headers]\nAuthorization = \"Bearer {token}\"\n",
     );
     let cleaned = strip_toml_block(existing, key);
@@ -262,7 +266,7 @@ fn merge_toml(existing: &str, key: &str, port: u16, token: &str) -> String {
 
 fn merge_yaml(existing: &str, key: &str, port: u16, token: &str) -> String {
     let block = format!(
-        "{key}:\n  zephyr:\n    type: http\n    url: \"http://127.0.0.1:{port}\"\n    headers:\n      Authorization: \"Bearer {token}\"\n",
+        "{key}:\n  zephyr:\n    type: http\n    url: \"http://127.0.0.1:{port}/mcp\"\n    headers:\n      Authorization: \"Bearer {token}\"\n",
     );
     let cleaned = strip_yaml_block(existing, key);
     if cleaned.trim().is_empty() {
@@ -500,6 +504,78 @@ pub struct CliStatus {
     pub path: String,
     pub exists: bool,
     pub registered: bool,
+}
+
+pub fn write_custom_cli(
+    path: String,
+    format: String,
+    key: String,
+    port: u16,
+    token: &str,
+) -> CliWriteResult {
+    let p = PathBuf::from(path.trim());
+    if p.as_os_str().is_empty() {
+        return CliWriteResult {
+            id: "custom".into(),
+            label: "Custom".into(),
+            path: String::new(),
+            ok: false,
+            backup: false,
+            message: "path kosong".into(),
+        };
+    }
+    let kunci = if key.trim().is_empty() {
+        "mcpServers".to_string()
+    } else {
+        key.trim().to_string()
+    };
+    let existing = std::fs::read_to_string(&p).unwrap_or_default();
+    let backup = backup_file(&p);
+    let fmt = format.trim().to_lowercase();
+
+    let url = format!("http://127.0.0.1:{port}/mcp");
+    let next = match fmt.as_str() {
+        "toml" => Ok(merge_toml(&existing, &kunci, port, token)),
+        "yaml" | "yml" => Ok(merge_yaml(&existing, &kunci, port, token)),
+        _ => {
+            let entry = json!({ "type": "http", "url": url, "headers": { "Authorization": format!("Bearer {token}") } });
+            merge_json(&existing, &kunci, entry)
+        }
+    };
+
+    match next {
+        Ok(isi) => {
+            if let Some(dir) = p.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            match std::fs::write(&p, isi) {
+                Ok(()) => CliWriteResult {
+                    id: "custom".into(),
+                    label: "Custom".into(),
+                    path: p.to_string_lossy().into(),
+                    ok: true,
+                    backup,
+                    message: "config ditulis".into(),
+                },
+                Err(e) => CliWriteResult {
+                    id: "custom".into(),
+                    label: "Custom".into(),
+                    path: p.to_string_lossy().into(),
+                    ok: false,
+                    backup,
+                    message: format!("gagal menulis: {e}"),
+                },
+            }
+        }
+        Err(e) => CliWriteResult {
+            id: "custom".into(),
+            label: "Custom".into(),
+            path: p.to_string_lossy().into(),
+            ok: false,
+            backup,
+            message: e.to_string(),
+        },
+    }
 }
 
 pub fn cli_status() -> Vec<CliStatus> {

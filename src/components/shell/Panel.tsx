@@ -8,6 +8,7 @@ import OutputView from './OutputView';
 import DebugConsoleView from './DebugConsoleView';
 import PortsView from './PortsView';
 import SubAgentView from './SubAgentView';
+import TestsView from './TestsView';
 import AiPanel from '../ai/AiPanel';
 import TerminalArea from './TerminalArea';
 import { useT } from '../../lib/i18n';
@@ -93,6 +94,7 @@ export default function Panel() {
         {activeTab === 'debug' && <DebugConsoleView />}
         {activeTab === 'ports' && <PortsView />}
         {activeTab === 'subagents' && <SubAgentView />}
+        {activeTab === 'tests' && <TestsView />}
 
         {/* T4.11: tab AI. AiPanel tetap SATU instance: kalau panel AI dipindah
             ke kolom kanan (Settings → Umum → Panel AI), tab ini menampilkan

@@ -14,6 +14,7 @@ import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
 import { useLayout } from './editorLayoutStore';
 import { useTasks, channelUntuk } from './tasksStore';
+import { useTests } from './testsStore';
 import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
 import { useWs } from './workspaceStore';
@@ -197,6 +198,23 @@ export const COMMANDS: CommandDef[] = [
     action: 'view.explorer',
     keywords: 'file tree',
     run: () => openSide('explorer'),
+  },
+  {
+    id: 'view.outline',
+    title: 'View: Focus Outline',
+    group: 'View',
+    keywords: 'outline simbol struktur dokumen',
+    enabled: () => {
+      const s = S();
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      return !!tab?.path && !!serverForPath(tab.path);
+    },
+    run: () => {
+      const s = S();
+      s.setSettingsOpen(false);
+      s.setActivity('outline');
+      if (!s.sidebarVisible) s.toggleSidebar();
+    },
   },  {
     id: 'view.sidebar',
     title: 'View: Toggle Sidebar',
@@ -1101,6 +1119,16 @@ export const COMMANDS: CommandDef[] = [
     run: () => usePanel.getState().focusTab('subagents'),
   },
   {
+    id: 'test.focus',
+    title: 'View: Focus Tests Panel',
+    group: 'View',
+    keywords: 'test tests pengujian panel jalankan',
+    run: () => {
+      T().setVisible(true);
+      usePanel.getState().focusTab('tests');
+    },
+  },
+  {
     id: 'panel.clearOutput',
     title: 'Output: Clear Active Channel',
     group: 'View',
@@ -1156,6 +1184,24 @@ export const COMMANDS: CommandDef[] = [
         window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
       } catch (e) {
         notifyError(tx('Go to Definition gagal'), { source: 'LSP', detail: asZephyrError(e).message });
+      }
+    },
+  },
+  {
+    id: 'editor.peekDefinition',
+    title: 'Go to Definition (Peek)',
+    group: 'Edit',
+    keywords: 'peek intip definisi inline lsp',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const { path, view } = konteksLsp();
+      if (!path || !view) return;
+      const { peekDefinition } = await import('./lspCm');
+      try {
+        const ok = await peekDefinition(path, view, view.state.selection.main.head);
+        if (!ok) notifyWarn(tx('Definisi tidak ditemukan'), { source: 'LSP' });
+      } catch (e) {
+        notifyError(tx('Peek Definition gagal'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1445,6 +1491,17 @@ export const COMMANDS: CommandDef[] = [
       const terakhir = T.runs[T.runs.length - 1];
       usePanel.getState().focusTab('output');
       if (terakhir) useOutput.getState().setActiveChannel(channelUntuk(terakhir.label));
+    },
+  },
+  {
+    id: 'test.runAll',
+    title: 'Test: Run All',
+    group: 'Tasks',
+    keywords: 'test tests vitest jest pytest cargo go pengujian jalankan',
+    run: async () => {
+      T().setVisible(true);
+      usePanel.getState().focusTab('tests');
+      await useTests.getState().jalankanSemua();
     },
   },
 

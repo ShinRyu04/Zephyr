@@ -18,7 +18,7 @@ mod tests {
         let v: Value = serde_json::from_str(&out).unwrap();
 
         assert_eq!(v["mcp"]["zephyr"]["type"], "remote");
-        assert_eq!(v["mcp"]["zephyr"]["url"], "http://127.0.0.1:9222");
+        assert_eq!(v["mcp"]["zephyr"]["url"], "http://127.0.0.1:9222/mcp");
         assert_eq!(v["mcp"]["zephyr"]["enabled"], true);
         assert_eq!(
             v["mcp"]["zephyr"]["headers"]["Authorization"],
@@ -34,7 +34,7 @@ mod tests {
     fn merge_json_pada_file_kosong_dan_key_bukan_object() {
         let out = merge_json_for_test("", "mcpServers", 9224, TOKEN).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(v["mcpServers"]["zephyr"]["url"], "http://127.0.0.1:9224");
+        assert_eq!(v["mcpServers"]["zephyr"]["url"], "http://127.0.0.1:9224/mcp");
 
         let out2 =
             merge_json_for_test(r#"{"mcpServers": "rusak"}"#, "mcpServers", 9222, TOKEN).unwrap();
@@ -89,7 +89,7 @@ mod tests {
         );
         assert!(out.contains("[mcp_servers.lain]"), "server lain hilang");
         assert!(out.contains("[mcp_servers.zephyr]"));
-        assert!(out.contains("url = \"http://127.0.0.1:9222\""));
+        assert!(out.contains("url = \"http://127.0.0.1:9222/mcp\""));
         assert!(out.contains("[mcp_servers.zephyr.headers]"));
         assert!(out.contains(&format!("Authorization = \"Bearer {TOKEN}\"")));
     }
@@ -100,8 +100,8 @@ mod tests {
         let b = merge_toml_for_test(&a, "mcp_servers", 9224, TOKEN);
 
         assert_eq!(b.matches("[mcp_servers.zephyr]").count(), 1);
-        assert!(b.contains("127.0.0.1:9224"));
-        assert!(!b.contains("127.0.0.1:9222"));
+        assert!(b.contains("127.0.0.1:9224/mcp"));
+        assert!(!b.contains("127.0.0.1:9222/mcp"));
         assert!(b.contains("model = \"x\""));
     }
 
@@ -135,7 +135,7 @@ mod tests {
         assert!(out.contains("  lain:"), "server lain hilang");
         assert!(out.contains("mcp_servers:"));
         assert!(out.contains("  zephyr:"));
-        assert!(out.contains("    url: \"http://127.0.0.1:9222\""));
+        assert!(out.contains("    url: \"http://127.0.0.1:9222/mcp\""));
         assert!(out.contains(&format!("Authorization: \"Bearer {TOKEN}\"")));
     }
 
@@ -145,8 +145,8 @@ mod tests {
         let b = merge_yaml_for_test(&a, "mcp_servers", 9224, TOKEN);
 
         assert_eq!(b.matches("  zephyr:").count(), 1);
-        assert!(b.contains("127.0.0.1:9224"));
-        assert!(!b.contains("127.0.0.1:9222"));
+        assert!(b.contains("127.0.0.1:9224/mcp"));
+        assert!(!b.contains("127.0.0.1:9222/mcp"));
         assert!(b.contains("model: x"));
     }
 

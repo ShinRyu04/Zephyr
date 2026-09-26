@@ -152,7 +152,7 @@ const main = async () => {
       emptyState: !!document.querySelector('.empty-state'),
     })`),
   );
-  check('F02-V4a', sh.activityButtons === 8, `ActivityBar ${sh.activityButtons} ikon`);
+  check('F02-V4a', sh.activityButtons === 9, `ActivityBar ${sh.activityButtons} ikon`);
   check('F02-V6a', /Zephyr v\d+\.\d+\.\d+/.test(sh.statusbar), `StatusBar "${sh.statusbar}"`);
   check(
     'F02-V5a',

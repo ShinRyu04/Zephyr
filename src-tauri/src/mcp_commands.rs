@@ -1,5 +1,6 @@
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
+use crate::mcp_client::{McpServer, McpToolSpec};
 use crate::mcp_config::{CliStatus, CliWriteResult};
 use crate::mcp_server::McpStatus;
 use serde_json::{json, Value};
@@ -94,4 +95,64 @@ pub fn mcp_remove_cli(ids: Vec<String>) -> ZResult<Vec<CliWriteResult>> {
 #[tauri::command(async)]
 pub fn mcp_cli_status() -> ZResult<Vec<CliStatus>> {
     Ok(crate::mcp_config::cli_status())
+}
+
+#[tauri::command(async)]
+pub fn mcp_write_custom_cli(
+    state: State<AppState>,
+    path: String,
+    format: String,
+    key: String,
+) -> ZResult<CliWriteResult> {
+    let cfg = crate::mcp_config::load_or_init(&state);
+    let port = state.mcp_port().unwrap_or(cfg.port);
+    Ok(crate::mcp_config::write_custom_cli(
+        path,
+        format,
+        key,
+        port,
+        &cfg.token,
+    ))
+}
+
+#[tauri::command(async)]
+pub fn mcp_client_list(state: State<AppState>) -> ZResult<Vec<McpServer>> {
+    Ok(crate::mcp_client::list_servers(&state))
+}
+
+#[tauri::command(async)]
+pub fn mcp_client_tools(url: String, token: String) -> ZResult<Vec<McpToolSpec>> {
+    crate::mcp_client::list_tools(&url, &token)
+}
+
+#[tauri::command(async)]
+pub fn mcp_client_call(
+    state: State<AppState>,
+    server: String,
+    tool: String,
+    args: Option<Value>,
+) -> ZResult<Value> {
+    let arguments = args.unwrap_or_else(|| json!({}));
+    crate::mcp_client::call_by_server(&state, &server, &tool, arguments)
+}
+
+#[tauri::command(async)]
+pub fn mcp_client_save(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    label: String,
+    url: String,
+    token: String,
+) -> ZResult<McpServer> {
+    crate::mcp_client::save_server(&app, &state, id, label, url, token)
+}
+
+#[tauri::command(async)]
+pub fn mcp_client_remove(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+) -> ZResult<bool> {
+    crate::mcp_client::remove_server(&app, &state, &id)
 }

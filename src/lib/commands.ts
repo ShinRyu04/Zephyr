@@ -22,6 +22,8 @@ import type {
   GitStatusResult,
   GitUser,
   LineEnding,
+  McpServer,
+  McpToolSpec,
   McpStatus,
   PtyInfo,
   ProbeResult,
@@ -418,6 +420,19 @@ export const gitRebase = (onto: string) => invoke<string>('git_rebase', { onto }
 export const gitConflictTake = (path: string, side: 'ours' | 'theirs') =>
   invoke<boolean>('git_conflict_take', { path, side });
 
+export interface ConflictHunk {
+  ours: string;
+  theirs: string;
+  base: string;
+}
+export const gitConflictRead = (path: string) =>
+  invoke<ConflictHunk[]>('git_conflict_read', { path });
+export const gitRebaseInteractive = (onto: string) =>
+  invoke<string>('git_rebase_interactive', { onto });
+export const gitRebaseContinue = () => invoke<string>('git_rebase_continue');
+export const gitRebaseAbort = () => invoke<string>('git_rebase_abort');
+export const gitRebaseStatus = () => invoke<boolean>('git_rebase_status');
+
 export const ghStatus = () => invoke<GhStatus>('gh_status');
 
 export const ghSetPat = (token: string) => invoke<GhUser>('gh_set_pat', { token });
@@ -439,6 +454,23 @@ export const mcpRotateToken = () => invoke<string>('mcp_rotate_token');
 export const mcpWriteCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_write_cli', { ids });
 export const mcpRemoveCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_remove_cli', { ids });
 export const mcpCliStatus = () => invoke<CliStatus[]>('mcp_cli_status');
+
+export const mcpClientList = () => invoke<McpServer[]>('mcp_client_list');
+
+export const mcpClientTools = (url: string, token: string) =>
+  invoke<McpToolSpec[]>('mcp_client_tools', { url, token });
+
+export const mcpClientCall = (server: string, tool: string, args?: Record<string, unknown>) =>
+  invoke<unknown>('mcp_client_call', { server, tool, args: args ?? {} });
+
+export const mcpClientSave = (opts: {
+  id: string;
+  label: string;
+  url: string;
+  token: string;
+}) => invoke<McpServer>('mcp_client_save', opts);
+
+export const mcpClientRemove = (id: string) => invoke<boolean>('mcp_client_remove', { id });
 
 export const extensionsList = () => invoke<ExtensionInfo[]>('extensions_list');
 export const extensionsLoad = (id: string) => invoke<ExtensionLoad>('extensions_load', { id });

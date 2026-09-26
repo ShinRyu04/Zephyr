@@ -118,6 +118,30 @@ export function GeneralSection() {
       </Row>
 
       <Row
+        label={tr('Extreme RAM mode')}
+        hint={tr('Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.')}
+      >
+        <Toggle
+          label={tr('Extreme RAM mode')}
+          testid="general-ramekstrem"
+          checked={g.ramEkstrem === true}
+          onChange={(v) => patch({ ramEkstrem: v })}
+        />
+      </Row>
+      {g.ramEkstrem === true && (
+        <p className="side-muted" data-testid="ramekstrem-warn">
+          {tr('Restart Zephyr to apply. While this is on, the browser pane will not render.')}{' '}
+          <button
+            className="btn btn-sm"
+            data-testid="ramekstrem-restart"
+            onClick={() => void import('@tauri-apps/plugin-process').then((m) => m.relaunch()).catch(() => {})}
+          >
+            {tr('Restart now')}
+          </button>
+        </p>
+      )}
+
+      <Row
         label={tr('AI panel position')}
         hint={tr('bottom = flush with the terminal; right = a 340px column like VS Code')}
       >

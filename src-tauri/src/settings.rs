@@ -444,6 +444,29 @@ pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
     Ok(())
 }
 
+pub fn ram_ekstrem_aktif() -> bool {
+    let dir = match std::env::var("APPDATA") {
+        Ok(a) if !a.is_empty() => std::path::PathBuf::from(a).join("zephyr"),
+        _ => match std::env::var("USERPROFILE") {
+            Ok(h) => std::path::PathBuf::from(h).join(".zephyr"),
+            Err(_) => return false,
+        },
+    };
+    let path = dir.join("settings.json");
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(r) => r,
+        Err(_) => return false,
+    };
+    let bersih = raw.trim_start_matches('\u{feff}');
+    let v: Value = match serde_json::from_str(bersih) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    v.pointer("/general/ramEkstrem")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false)
+}
+
 pub fn read_settings_value(state: &AppState) -> Value {
     let mut merged = default_settings();
     if let Some(user) = read_json_um(&state.file("settings.json")) {
