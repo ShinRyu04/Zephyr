@@ -617,6 +617,8 @@ export interface AgentMsg {
   toolCalls?: AgentToolCall[];
 
   name?: string;
+
+  images?: string[];
 }
 
 export interface AgentToolSpec {
