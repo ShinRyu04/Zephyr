@@ -18,6 +18,11 @@ src-tauri/gen/
 *.key
 *.key.pub
 signing-key.txt
+secrets.json
+secrets.json.bak-*
+key-backup-/
+key-baru-*/
+.build-hold/
 
 # File lokal / sementara
 *.log

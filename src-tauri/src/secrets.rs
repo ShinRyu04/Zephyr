@@ -71,12 +71,52 @@ fn secrets_path(state: &AppState) -> PathBuf {
     state.file("secrets.json")
 }
 
+fn baca_mentah(state: &AppState) -> Option<(String, Map<String, Value>)> {
+    let path = secrets_path(state);
+    let raw = std::fs::read_to_string(&path).ok()?;
+    if raw.trim().is_empty() {
+        return Some((raw, Map::new()));
+    }
+    match serde_json::from_str::<Value>(&raw) {
+        Ok(Value::Object(o)) => Some((raw, o)),
+        _ => None,
+    }
+}
+
 fn read_secrets(state: &AppState) -> Map<String, Value> {
-    std::fs::read_to_string(secrets_path(state))
-        .ok()
-        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-        .and_then(|v| v.as_object().cloned())
-        .unwrap_or_default()
+    baca_mentah(state).map(|(_, m)| m).unwrap_or_default()
+}
+
+fn map_untuk_tulis(state: &AppState) -> ZResult<Map<String, Value>> {
+    let path = secrets_path(state);
+    if !path.exists() {
+        return Ok(Map::new());
+    }
+    match baca_mentah(state) {
+        Some((_, m)) => Ok(m),
+        None => {
+            if let Ok(raw) = std::fs::read_to_string(&path) {
+                backup_sekali(state, &raw);
+            }
+            Err(ZephyrError::Internal(
+                "secrets.json ada tapi tidak terbaca (kunci mesin mungkin berubah). \
+                 File lama dibiarkan utuh dan dicadangkan ke secrets.json.bak-*. \
+                 Isi ulang API key untuk melanjutkan."
+                    .into(),
+            ))
+        }
+    }
+}
+
+fn backup_sekali(state: &AppState, raw: &str) {
+    let path = secrets_path(state);
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let mut b = path.clone();
+    b.set_file_name(format!("secrets.json.bak-{stamp}"));
+    let _ = std::fs::write(&b, raw);
 }
 
 fn write_secrets(state: &AppState, map: &Map<String, Value>) -> ZResult<()> {
@@ -84,11 +124,21 @@ fn write_secrets(state: &AppState, map: &Map<String, Value>) -> ZResult<()> {
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;
     }
-    std::fs::write(
-        path,
-        serde_json::to_vec_pretty(&Value::Object(map.clone()))?,
-    )?;
-    Ok(())
+    let bytes = serde_json::to_vec_pretty(&Value::Object(map.clone()))?;
+    let mut tmp = path.clone();
+    let nama = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "secrets.json".into());
+    tmp.set_file_name(format!("{nama}.tmp-{}", std::process::id()));
+    std::fs::write(&tmp, &bytes)?;
+    match std::fs::rename(&tmp, &path) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp);
+            Err(ZephyrError::Internal(format!("gagal menyimpan secrets: {e}")))
+        }
+    }
 }
 
 fn preview(key: &str) -> String {
@@ -166,7 +216,7 @@ pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
     if n.is_empty() {
         return Err(ZephyrError::InvalidInput("nama secret kosong".into()));
     }
-    let mut map = read_secrets(state);
+    let mut map = map_untuk_tulis(state)?;
     if value.trim().is_empty() {
         map.remove(n);
     } else {
@@ -181,7 +231,7 @@ pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> Z
     if p.is_empty() {
         return Err(ZephyrError::InvalidInput("provider kosong".into()));
     }
-    let mut map = read_secrets(&state);
+    let mut map = map_untuk_tulis(&state)?;
     if key.trim().is_empty() {
         map.remove(p);
     } else {
