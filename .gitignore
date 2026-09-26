@@ -29,3 +29,5 @@ key-baru-*/
 
 # Artefak rilis (installer, sig, latest.json) — tetap lokal, jangan masuk repo
 release/
+# Skrip probe lokal
+scripts/zz-*.mjs
