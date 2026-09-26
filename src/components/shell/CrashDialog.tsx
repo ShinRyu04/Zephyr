@@ -26,10 +26,10 @@ export default function CrashDialog() {
   return (
     <div className="crash-backdrop" role="alertdialog" aria-modal="true" data-testid="crash-dialog">
       <div className="crash-card">
-        <h2 className="crash-title">Zephyr mengalami masalah</h2>
+        <h2 className="crash-title">Zephyr ran into a problem</h2>
         <p className="crash-sub">
-          Log sudah tersimpan. Tab yang belum disimpan sebaiknya disimpan sekarang,
-          lalu tutup dan buka Zephyr lagi.
+          The log has been saved. Any unsaved tabs should be saved now,
+          then close and reopen Zephyr.
         </p>
 
         <div className="crash-detail">
@@ -44,7 +44,7 @@ export default function CrashDialog() {
               data-testid="crash-log"
               onClick={() => void openPath(info.logFile as string).catch(() => {})}
             >
-              Buka file log
+              Open log file
             </button>
           )}
           <button
@@ -52,7 +52,7 @@ export default function CrashDialog() {
             data-testid="crash-close"
             onClick={() => setInfo(null)}
           >
-            Tutup
+            Close
           </button>
         </div>
       </div>

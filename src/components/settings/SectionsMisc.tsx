@@ -26,7 +26,7 @@ export function ScmSection() {
           label={tr('scm.userName')}
           testid="scm-name"
           value={git.userName ?? ''}
-          placeholder="(pakai git config)"
+          placeholder="(uses git config)"
           onChange={(v) => void apply({ git: { userName: v } })}
         />
       </Row>
@@ -36,7 +36,7 @@ export function ScmSection() {
           label={tr('scm.userEmail')}
           testid="scm-email"
           value={git.userEmail ?? ''}
-          placeholder="(pakai git config)"
+          placeholder="(uses git config)"
           onChange={(v) => void apply({ git: { userEmail: v } })}
         />
       </Row>
@@ -102,7 +102,7 @@ export function SshSection() {
       else await cmd.sshAdd(form);
       setForm(null);
       await tarik();
-      setStatus(form.id ? 'Host SSH diperbarui' : 'Host SSH ditambahkan');
+      setStatus(form.id ? 'SSH host updated' : 'SSH host added');
     } catch (e) {
       setErr(cmd.asZephyrError(e).message);
     } finally {
@@ -114,7 +114,7 @@ export function SshSection() {
     try {
       await cmd.sshDelete(h.id);
       await tarik();
-      setStatus(`Host SSH ${h.name} dihapus`);
+      setStatus(`SSH host ${h.name} deleted`);
     } catch (e) {
       setErr(cmd.asZephyrError(e).message);
     } finally {
@@ -132,7 +132,7 @@ export function SshSection() {
       st.setActivity('terminal');
       if (!st.sidebarVisible) st.toggleSidebar();
 
-      setStatus(`SSH: ${h.user}@${h.host} — pane ${paneId.slice(0, 12)}`);
+      setStatus(`SSH: ${h.user}@${h.host} - pane ${paneId.slice(0, 12)}`);
       setForm(null);
 
       await useTerminal.getState().daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
@@ -165,7 +165,7 @@ export function SshSection() {
   return (
     <Section title={tr('settings.ssh')}>
       <p className="set-note" data-testid="ssh-note">
-        {tr('Kelola host SSH lalu buka koneksinya sebagai pane terminal. Auth key pakai keyPath (passphrase diketik langsung di pane); auth password diketik di pane saat connect — Zephyr tidak menyimpan password kecuali kamu memilih simpan (terenkripsi).')}
+        {tr('Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted).')}
       </p>
 
       {err && (
@@ -184,20 +184,20 @@ export function SshSection() {
               setForm({ ...kosong });
             }}
           >
-            {tr('+ Tambah host')}
+            {tr('+ Add host')}
           </button>
           <button className="btn btn-sm" data-testid="ssh-refresh" onClick={() => void tarik()}>
-            Muat ulang
+            Reload
           </button>
         </div>
       ) : (
         <div className="ssh-form" data-testid="ssh-form">
-          <Row label="Nama">
+          <Row label="Name">
             <TextInput
-              label="Nama"
+              label="Name"
               testid="ssh-f-name"
               value={form.name}
-              placeholder="mis. server produksi"
+              placeholder="e.g. production server"
               onChange={(v) => setForm({ ...form, name: v })}
             />
           </Row>
@@ -207,7 +207,7 @@ export function SshSection() {
               testid="ssh-f-host"
               mono
               value={form.host}
-              placeholder="192.168.1.10 atau host.example.com"
+              placeholder="192.168.1.10 or host.example.com"
               onChange={(v) => setForm({ ...form, host: v })}
             />
           </Row>
@@ -239,7 +239,7 @@ export function SshSection() {
                   checked={form.auth === 'key'}
                   onChange={() => setForm({ ...form, auth: 'key' })}
                 />
-                Kunci (key)
+                Key (key)
               </label>
               <label className="set-row-inline">
                 <input
@@ -253,7 +253,7 @@ export function SshSection() {
             </span>
           </Row>
           {form.auth === 'key' && (
-            <Row label={tr('Path kunci')} hint={tr('passphrase diketik saat connect')}>
+            <Row label={tr('Key path')} hint={tr('passphrase is typed on connect')}>
               <TextInput
                 label="KeyPath"
                 testid="ssh-f-keypath"
@@ -264,9 +264,9 @@ export function SshSection() {
               />
             </Row>
           )}
-          <Row label={tr('Simpan password')} hint="dienkripsi (XOR+BLAKE3) di ssh.json">
+          <Row label={tr('Save password')} hint="encrypted (XOR+BLAKE3) in ssh.json">
             <Toggle
-              label={tr('Simpan password')}
+              label={tr('Save password')}
               testid="ssh-f-savepw"
               checked={form.savePassword ?? false}
               onChange={(v) => setForm({ ...form, savePassword: v })}
@@ -280,7 +280,7 @@ export function SshSection() {
               disabled={!valid || sibuk}
               onClick={() => void simpan()}
             >
-              {form.id ? tr('Simpan perubahan') : tr('Tambah host')}
+              {form.id ? tr('Save changes') : tr('Add host')}
             </button>
             <button
               className="btn btn-sm"
@@ -290,16 +290,16 @@ export function SshSection() {
                 setErr(null);
               }}
             >
-              Batal
+              Cancel
             </button>
           </div>
         </div>
       )}
 
-      {muat && hosts.length === 0 && <p className="set-note">Memuat…</p>}
+      {muat && hosts.length === 0 && <p className="set-note">Loading…</p>}
       {!muat && hosts.length === 0 && !form && (
         <p className="set-note" data-testid="ssh-kosong">
-          Belum ada host. Klik "+ Tambah host" untuk mulai.
+          No hosts yet. Click "+ Add host" to start.
         </p>
       )}
 
@@ -313,7 +313,7 @@ export function SshSection() {
                 </span>
                 <span className="ssh-item-meta">
                   {h.user}@{h.host}:{h.port} · {h.auth}
-                  {h.hasPassword ? ' · pw tersimpan' : ''}
+                  {h.hasPassword ? ' · pw saved' : ''}
                 </span>
               </span>
               <span className="ssh-item-actions">
@@ -349,7 +349,7 @@ export function SshSection() {
                   data-testid={`ssh-del-${h.id}`}
                   onClick={() => setHapusTarget(h)}
                 >
-                  {tr('Hapus')}
+                  {tr('Delete')}
                 </button>
               </span>
             </li>
@@ -374,10 +374,10 @@ export function SshSection() {
             aria-labelledby="ssh-del-title"
           >
             <h2 className="modal-title" id="ssh-del-title" data-testid="ssh-del-title">
-              {tf('Hapus host SSH "{name}"?', { name: hapusTarget.name })}
+              {tf('Delete SSH host "{name}"?', { name: hapusTarget.name })}
             </h2>
             <p className="modal-body" data-testid="ssh-del-body">
-              {tr('Koneksi host ini akan dihapus dari daftar.')}
+              {tr('This host connection will be removed from the list.')}
             </p>
             <div className="modal-actions">
               <button
@@ -385,14 +385,14 @@ export function SshSection() {
                 data-testid="ssh-del-ok"
                 onClick={() => void hapus(hapusTarget)}
               >
-                {tr('Hapus')}
+                {tr('Delete')}
               </button>
               <button
                 className="btn"
                 data-testid="ssh-del-cancel"
                 onClick={() => setHapusTarget(null)}
               >
-                {tr('Batal')}
+                {tr('Cancel')}
               </button>
             </div>
           </div>
@@ -410,19 +410,19 @@ export function AboutSection() {
   const [salin, setSalin] = useState(false);
 
   const baris: Array<[string, string]> = [
-    ['Versi', `${info?.version ?? '-'} · ${info?.profile ?? '-'}`],
-    ['Arsitektur', info?.arch ?? '-'],
+    ['Version', `${info?.version ?? '-'} · ${info?.profile ?? '-'}`],
+    ['Architecture', info?.arch ?? '-'],
     ['Identifier', info?.identifier ?? '-'],
-    ['Lisensi', 'MIT'],
+    ['License', 'MIT'],
   ];
 
   const infoSistem = [
     `Zephyr ${info?.version ?? '?'} (${info?.profile ?? '?'})`,
-    `Arsitektur: ${info?.arch ?? '?'}`,
-    `WebView2: ${info?.webview || 'tidak terdeteksi'}`,
+    `Architecture: ${info?.arch ?? '?'}`,
+    `WebView2: ${info?.webview || 'not detected'}`,
     `Identifier: ${info?.identifier ?? '?'}`,
-    `Folder data: ${dataDir || '?'}`,
-    `Portable: ${info?.portable ? 'ya' : 'tidak'}`,
+    `Data folder: ${dataDir || '?'}`,
+    `Portable: ${info?.portable ? 'yes' : 'no'}`,
   ].join('\n');
 
   return (
@@ -432,18 +432,18 @@ export function AboutSection() {
         <img className="about-logo" src="/zephyr.svg" alt="" width={40} height={40} />
         <div className="about-id">
           <span className="about-name">Zephyr</span>
-          <span className="about-tag">{tr('code editor ringan, dibangun dari nol')}</span>
+          <span className="about-tag">{tr('lightweight code editor, built from scratch')}</span>
           <span className="about-ver" data-testid="about-ver">
             v{info?.version ?? '?'}
           </span>
         </div>
       </div>
 
-      {/* Kartu detail: label kiri, nilai kanan — 4 baris saja. */}
+      {/* Kartu detail: label kiri, nilai kanan - 4 baris saja. */}
       <div className="about-kartu about-kartu-detail">
-        <div className="about-judul">{tr('Detail build')}</div>
+        <div className="about-judul">{tr('Build details')}</div>
         <div className="about-sub">
-          {tr('Platform, identifier, lisensi, dan repositori sumber.')}
+          {tr('Platform, identifier, license, and source repository.')}
         </div>
         <table className="about-table" data-testid="about-table">
           <tbody>
@@ -456,7 +456,7 @@ export function AboutSection() {
               </tr>
             ))}
             <tr>
-              <td className="about-k">{tr('Kode sumber')}</td>
+              <td className="about-k">{tr('Source code')}</td>
               <td className="about-v">
                 <button
                   className="about-tautan-inline"
@@ -472,24 +472,24 @@ export function AboutSection() {
       </div>
 
       <p className="about-catatan">
-        {tr('Auto-update memeriksa GitHub Releases berkala.')}
+        {tr('Auto-update checks GitHub Releases periodically.')}
       </p>
 
-      {/* Baris tautan utama — yang paling sering dipakai user. */}
+      {/* Baris tautan utama - yang paling sering dipakai user. */}
       <div className="about-links">
         <button
           className="btn btn-primary"
           data-testid="about-update"
           onClick={() => void useUpdater.getState().check()}
         >
-          ⟳ {tr('Cek update')}
+          ⟳ {tr('Check for updates')}
         </button>
         <button
           className="btn btn-brand"
           data-testid="about-github"
           onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr').catch(() => {})}
         >
-          <GitHubLogo /> {tr('Lihat di GitHub')}
+          <GitHubLogo /> {tr('View on GitHub')}
         </button>
         <button
           className="btn btn-brand"
@@ -498,14 +498,14 @@ export function AboutSection() {
             void openUrl('https://github.com/ShinRyu04/Zephyr/issues/new').catch(() => {})
           }
         >
-          <GitHubLogo /> {tr('Laporkan masalah')}
+          <GitHubLogo /> {tr('Report an issue')}
         </button>
         <button
           className="btn btn-brand btn-brand-wa"
           data-testid="about-wa"
           onClick={() => void openUrl('https://chat.whatsapp.com/LNp12sKUWFFGH1RRSyHQkb').catch(() => {})}
         >
-          <WhatsAppLogo /> {tr('Grup WhatsApp')}
+          <WhatsAppLogo /> {tr('WhatsApp group')}
         </button>
         <button
           className="btn btn-donate"
@@ -515,11 +515,11 @@ export function AboutSection() {
           <span aria-hidden="true" className="about-donate-emoji">
             ☕
           </span>{' '}
-          {tr('Dukung Zephyr')}
+          {tr('Support Zephyr')}
         </button>
       </div>
 
-      {/* Utilitas langka — tetap ada, tapi tidak lagi jadi tombol besar. */}
+      {/* Utilitas langka - tetap ada, tapi tidak lagi jadi tombol besar. */}
       <div className="about-util">
         <button
           className="about-util-btn"
@@ -530,7 +530,7 @@ export function AboutSection() {
             window.setTimeout(() => setSalin(false), 1600);
           }}
         >
-          {salin ? tr('Tersalin') : tr('Salin info sistem')}
+          {salin ? tr('Copied') : tr('Copy system info')}
         </button>
         <button
           className="about-util-btn"
@@ -538,7 +538,7 @@ export function AboutSection() {
           disabled={!dataDir}
           onClick={() => void openPath(`${dataDir}\\logs`).catch(() => {})}
         >
-          {tr('Buka folder log')}
+          {tr('Open log folder')}
         </button>
         <button
           className="about-util-btn"
@@ -546,14 +546,14 @@ export function AboutSection() {
           disabled={!dataDir}
           onClick={() => void openPath(dataDir).catch(() => {})}
         >
-          {tr('Buka folder data')}
+          {tr('Open data folder')}
         </button>
         <button
           className="about-util-btn"
           data-testid="about-releases"
           onClick={() => void openUrl('https://github.com/ShinRyu04/Zephyr/releases').catch(() => {})}
         >
-          {tr('Halaman rilis')}
+          {tr('Releases page')}
         </button>
       </div>
 
@@ -568,7 +568,7 @@ const secs = (ms: number) => {
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}j ${m}m` : m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
+  return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
 };
 
 function DiagnosticsPanel() {
@@ -599,18 +599,18 @@ function DiagnosticsPanel() {
   const rows: Array<[string, string]> = d
     ? [
         [tr('OS'), d.os || '-'],
-        [tr('CPU logis'), d.cpuCount > 0 ? String(d.cpuCount) : '-'],
-        [tr('RAM mesin'), d.hostRamBytes > 0 ? mb(d.hostRamBytes) : '-'],
+        [tr('Logical CPUs'), d.cpuCount > 0 ? String(d.cpuCount) : '-'],
+        [tr('Host RAM'), d.hostRamBytes > 0 ? mb(d.hostRamBytes) : '-'],
         [tr('Uptime'), secs(d.uptimeMs)],
-        [tr('RAM total (dengan WebView2)'), mb(d.ramTotalBytes)],
-        [tr('RAM proses inti'), mb(d.ramBytes)],
-        [tr('RAM total puncak'), mb(d.ramPeakBytes)],
-        [tr('Pane terminal hidup'), String(d.ptyCount)],
-        ['MCP', d.mcpPort > 0 ? `listening :${d.mcpPort}` : tr('mati')],
+        [tr('Total RAM (with WebView2)'), mb(d.ramTotalBytes)],
+        [tr('Core process RAM'), mb(d.ramBytes)],
+        [tr('Peak total RAM'), mb(d.ramPeakBytes)],
+        [tr('Live terminal panes'), String(d.ptyCount)],
+        ['MCP', d.mcpPort > 0 ? `listening :${d.mcpPort}` : tr('off')],
         [tr('Build'), d.debug ? 'debug' : 'release'],
-        [tr('File log'), d.logFile || '-'],
-        [tr('Ukuran log'), `${(d.logBytes / 1024).toFixed(1)} KB (rotate 2 MB)`],
-        [tr('Panic sesi ini'), d.panicked ? d.lastPanic || tr('ya') : tr('tidak ada')],
+        [tr('Log file'), d.logFile || '-'],
+        [tr('Log size'), `${(d.logBytes / 1024).toFixed(1)} KB (rotate 2 MB)`],
+        [tr('Panic this session'), d.panicked ? d.lastPanic || tr('yes') : tr('none')],
       ]
     : [];
 
@@ -619,7 +619,7 @@ function DiagnosticsPanel() {
       <div className="diag-head">
         <span className="diag-title">Diagnostics</span>
         <button className="btn btn-sm" data-testid="diag-refresh" onClick={load}>
-          {tr('Muat ulang')}
+          {tr('Reload')}
         </button>
         <label className="diag-auto">
           <input
@@ -628,7 +628,7 @@ function DiagnosticsPanel() {
             checked={auto}
             onChange={(e) => setAuto(e.target.checked)}
           />
-          <span>{tr('tiap 3s')}</span>
+          <span>{tr('every 3s')}</span>
         </label>
       </div>
 
@@ -651,7 +651,7 @@ function DiagnosticsPanel() {
         </tbody>
       </table>
 
-      {/* fase 16.5: status per domain — nilainya dari Rust, bukan tebakan UI. */}
+      {/* fase 16.5: status per domain - nilainya dari Rust, bukan tebakan UI. */}
       {d && d.domains.length > 0 && (
         <table className="about-table diag-domains" data-testid="diag-domains">
           <tbody>
@@ -674,7 +674,7 @@ function DiagnosticsPanel() {
 
       {d && d.marks.length > 0 && (
         <>
-          <p className="set-note">{tr('Penanda waktu (ms sejak proses mulai):')}</p>
+          <p className="set-note">{tr('Timestamps (ms since process start):')}</p>
           <ul className="diag-marks" data-testid="diag-marks">
             {d.marks.slice(-12).map((m, i) => (
               <li key={`${m.name}-${m.atMs}-${i}`} data-mark={m.name}>
@@ -690,7 +690,7 @@ function DiagnosticsPanel() {
 
       {d && Object.keys(d.counters).length > 0 && (
         <p className="set-note" data-testid="diag-counters">
-          {tr('Operasi sejak start:')}{' '}
+          {tr('Operations since start:')}{' '}
           {Object.entries(d.counters)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([k, v]) => `${k}=${v}`)
@@ -703,13 +703,13 @@ function DiagnosticsPanel() {
           <button
             className="btn btn-sm"
             data-testid="diag-panic"
-            title={tr('Hanya build debug: memicu panic di Rust untuk menguji panic hook + dialog crash')}
+            title={tr('Debug build only: triggers a panic in Rust to test the panic hook + crash dialog')}
             onClick={() => void cmd.debugPanic().catch(() => {})}
           >
-            {tr('Uji panic (debug)')}
+            {tr('Test panic (debug)')}
           </button>
           <span className="set-note">
-            {tr('Menulis stack ke log lalu memunculkan dialog crash. Tombol ini tidak ada di build release.')}
+            {tr('Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.')}
           </span>
         </div>
       )}

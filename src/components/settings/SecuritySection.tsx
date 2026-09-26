@@ -24,17 +24,17 @@ export default function SecuritySection() {
     <div className="set-section" data-testid="set-security">
       <h2 className="set-h2">Workspace Trust</h2>
       <p className="set-note">
-        {tr('Folder yang belum dipercaya berjalan dalam')} <strong>Restricted Mode</strong>
-        {tr(': file tetap bisa dibuka dan diedit, tapi tasks, debug, language server, dan ekstensi tidak dijalankan. Keputusan disimpan di')}{' '}
+        {tr('Untrusted folders run in')} <strong>Restricted Mode</strong>
+        {tr(': files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in')}{' '}
         <code>%APPDATA%\zephyr\trust.json</code>{' '}
-        {tr('dan berlaku juga untuk subfolder.')}
+        {tr('and also applies to subfolders.')}
       </p>
 
       <div className="set-row">
         <div className="set-row-label">
-          <span>Workspace sekarang</span>
+          <span>Current workspace</span>
           <span className="set-hint" title={activeRoot}>
-            {activeRoot ? baseOf(activeRoot) : tr('belum ada folder terbuka')}
+            {activeRoot ? baseOf(activeRoot) : tr('no folder open yet')}
           </span>
         </div>
         <div className="set-row-control">
@@ -54,7 +54,7 @@ export default function SecuritySection() {
 
       {roots.length > 1 && (
         <>
-          <h3 className="set-h2 set-h2-sub">Root di workspace ini ({roots.length})</h3>
+          <h3 className="set-h2 set-h2-sub">Roots in this workspace ({roots.length})</h3>
           <div className="trust-rows" data-testid="sec-roots">
             {roots.map((r) => (
               <div className="trust-row" key={r.path}>
@@ -72,7 +72,7 @@ export default function SecuritySection() {
                   className="btn btn-sm"
                   onClick={() => void setTrust(r.path, r.trust !== 'trusted')}
                 >
-                  {r.trust === 'trusted' ? 'Jadikan Restricted' : 'Percayai'}
+                  {r.trust === 'trusted' ? 'Make Restricted' : 'Trust'}
                 </button>
               </div>
             ))}
@@ -80,9 +80,9 @@ export default function SecuritySection() {
         </>
       )}
 
-      <h3 className="set-h2 set-h2-sub">Keputusan tersimpan ({daftar.length})</h3>
+      <h3 className="set-h2 set-h2-sub">Saved decisions ({daftar.length})</h3>
       {daftar.length === 0 ? (
-        <p className="set-note">{tr('Belum ada folder yang pernah diberi keputusan trust.')}</p>
+        <p className="set-note">{tr('No folder has ever been given a trust decision.')}</p>
       ) : (
         <div className="trust-rows" data-testid="sec-trust-list">
           {daftar.map((d) => (
@@ -99,10 +99,10 @@ export default function SecuritySection() {
               </span>
               <button
                 className="btn btn-sm"
-                title={tr('Lupakan keputusan — folder akan ditanya lagi saat dibuka')}
+                title={tr('Forget the decision - the folder will be asked again when opened')}
                 onClick={() => void lupakanTrust(d.path)}
               >
-                Lupakan
+                Forget
               </button>
             </div>
           ))}

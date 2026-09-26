@@ -26,37 +26,37 @@ export default function ScmConfirmDialog() {
     switch (confirm.kind) {
       case 'discard':
         return {
-          title: `Buang perubahan pada ${confirm.paths[0]}?`,
-          body: 'Perubahan akan hilang PERMANEN (tidak bisa undo).',
-          ok: tr('Buang perubahan'),
+          title: `Discard changes to ${confirm.paths[0]}?`,
+          body: 'The changes will be lost PERMANENTLY (cannot be undone).',
+          ok: tr('Discard changes'),
           danger: true,
         };
       case 'discard-all':
         return {
-          title: `Buang perubahan pada ${confirm.paths.length} file?`,
-          body: 'Perubahan akan hilang PERMANEN (tidak bisa undo).',
-          ok: `Buang ${confirm.paths.length} file`,
+          title: `Discard changes to ${confirm.paths.length} files?`,
+          body: 'The changes will be lost PERMANENTLY (cannot be undone).',
+          ok: `Discard ${confirm.paths.length} files`,
           danger: true,
         };
       case 'delete-branch':
         return {
-          title: `Hapus branch ${confirm.name}?`,
-          body: tr('Commit yang belum tergabung di branch lain akan hilang PERMANEN.'),
-          ok: tr('Hapus branch'),
+          title: `Delete branch ${confirm.name}?`,
+          body: tr('Commits not merged into another branch will be lost PERMANENTLY.'),
+          ok: tr('Delete branch'),
           danger: true,
         };
       case 'set-upstream':
         return {
-          title: `Branch ${confirm.branch} belum punya upstream`,
-          body: `Push sekaligus menyetel upstream ke origin/${confirm.branch}?`,
+          title: `Branch ${confirm.branch} has no upstream yet`,
+          body: `Push and set the upstream to origin/${confirm.branch} at the same time?`,
           ok: 'Push & set upstream',
           danger: false,
         };
       case 'pull-first':
         return {
-          title: `Remote punya ${confirm.behind} commit baru`,
-          body: tr('Push akan ditolak git selama commit itu belum ada di lokal. Pull dulu lalu push?'),
-          ok: 'Pull lalu push',
+          title: `The remote has ${confirm.behind} new commits`,
+          body: tr('Git will reject the push while those commits are not local. Pull first, then push?'),
+          ok: 'Pull then push',
           danger: false,
         };
     }
@@ -87,7 +87,7 @@ export default function ScmConfirmDialog() {
             {ok}
           </button>
           <button className="btn" data-testid="scm-confirm-cancel" onClick={() => setConfirm(null)}>
-            Batal
+            Cancel
           </button>
         </div>
       </div>

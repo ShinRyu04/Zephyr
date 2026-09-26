@@ -91,14 +91,14 @@ export default function DebugConsoleView() {
               }
             }
           }}
-          aria-label="Ekspresi debug"
+          aria-label="Debug expression"
         />
         <button className="btn btn-sm" data-testid="dc-send" onClick={kirim}>
-          Kirim
+          Send
         </button>
         <button
           className="btn btn-sm"
-          title="Bersihkan console"
+          title="Clear console"
           data-testid="dc-clear"
           onClick={bersihkanRepl}
         >

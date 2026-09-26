@@ -139,7 +139,7 @@ export default function FindBar() {
     });
     const tertangkap = !window.dispatchEvent(ev) || false;
     if (!tertangkap) {
-      notifyInfo(`Cari "${query}" di semua file — panel Search ada di sidebar`);
+      notifyInfo(`Search "${query}" in all files - the Search panel is in the sidebar`);
     }
   }, [query, regex, caseSensitive, wholeWord]);
 
@@ -169,7 +169,7 @@ export default function FindBar() {
       <div className="find-row">
         <button
           className="find-toggle"
-          title={showReplace ? tr('Sembunyikan replace') : tr('Tampilkan replace')}
+          title={showReplace ? tr('Hide replace') : tr('Show replace')}
           onClick={() => setShowReplace((v) => !v)}
         >
           {showReplace ? '▾' : '▸'}
@@ -179,10 +179,10 @@ export default function FindBar() {
           ref={inputRef}
           className={`find-input${invalid ? ' is-invalid' : ''}`}
           data-testid="find-input"
-           placeholder={tr('Cari')}
+           placeholder={tr('Search')}
            value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label={tr('Cari di file')}
+          aria-label={tr('Search in file')}
         />
 
         <button
@@ -215,7 +215,7 @@ export default function FindBar() {
         <button
           className={`find-flag${inSelection ? ' is-on' : ''}`}
           data-testid="find-in-sel"
-          title={tr('Cari hanya di dalam seleksi')}
+          title={tr('Search only within the selection')}
           aria-pressed={inSelection}
           onClick={() => setInSelection((v) => !v)}
         >
@@ -224,7 +224,7 @@ export default function FindBar() {
         <button
           className={`find-flag${highlightAll ? ' is-on' : ''}`}
           data-testid="find-hl-all"
-          title={tr('Sorot semua hasil')}
+          title={tr('Highlight all results')}
           aria-pressed={highlightAll}
           onClick={() => setHighlightAll((v) => !v)}
         >
@@ -233,26 +233,26 @@ export default function FindBar() {
 
         <span className="find-count" data-testid="find-count">
           {invalid
-            ? 'regex tidak valid'
+            ? 'invalid regex'
             : tooMany
-              ? `20.000+ hasil (dihentikan)`
+              ? `20,000+ results (stopped)`
               : count > 0
-                ? `${count} hasil${inSelection ? ' (seleksi)' : ''}`
+                ? `${count} results${inSelection ? ' (selection)' : ''}`
                 : query
-                  ? 'tidak ada'
+                  ? 'none'
                   : ''}
         </span>
 
-        <button className="find-btn" data-testid="find-prev" title={tr('Sebelumnya (Shift+Enter)')} onClick={() => act(findPrevious)}>
+        <button className="find-btn" data-testid="find-prev" title={tr('Previous (Shift+Enter)')} onClick={() => act(findPrevious)}>
           ↑
         </button>
-        <button className="find-btn" data-testid="find-next" title={tr('Berikutnya (Enter)')} onClick={() => act(findNext)}>
+        <button className="find-btn" data-testid="find-next" title={tr('Next (Enter)')} onClick={() => act(findNext)}>
           ↓
         </button>
         <button
           className="find-btn"
           data-testid="find-select-all"
-          title={tr('Pilih semua hasil (multi-cursor)')}
+          title={tr('Select all results (multi-cursor)')}
           onClick={() => act(selectMatches)}
         >
           ⋮
@@ -260,12 +260,12 @@ export default function FindBar() {
         <button
           className="find-btn"
           data-testid="find-in-files"
-          title={tr('Cari di semua file')}
+          title={tr('Search in all files')}
           onClick={cariDiSemuaFile}
         >
           ⌕
         </button>
-        <button className="find-btn" title={tr('Tutup (Esc)')} onClick={() => setFindOpen(false)}>
+        <button className="find-btn" title={tr('Close (Esc)')} onClick={() => setFindOpen(false)}>
           ✕
         </button>
       </div>
@@ -276,20 +276,20 @@ export default function FindBar() {
           <input
             className="find-input"
             data-testid="find-replace-input"
-            placeholder={tr('Ganti dengan')}
+            placeholder={tr('Replace with')}
             value={replaceWith}
             onChange={(e) => setReplaceWith(e.target.value)}
-            aria-label={tr('Ganti dengan')}
+            aria-label={tr('Replace with')}
           />
           <button className="find-btn find-btn-wide" onClick={() => act(replaceNext)}>
-            Ganti
+            Replace
           </button>
           <button
             className="find-btn find-btn-wide"
             data-testid="find-replace-all"
             onClick={() => act(replaceAll)}
           >
-            Ganti semua
+            Replace all
           </button>
         </div>
       )}

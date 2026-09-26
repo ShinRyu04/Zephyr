@@ -547,7 +547,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
           />
         )}
       </div>
-      {/* A-4: chat mini melayang (Ctrl+I) — hanya ada saat dibuka. */}
+      {/* A-4: chat mini melayang (Ctrl+I) - hanya ada saat dibuka. */}
       <InlineChat />
       {menu && (
         <div

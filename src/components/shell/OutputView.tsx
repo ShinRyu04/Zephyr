@@ -47,7 +47,7 @@ export default function OutputView() {
           data-testid="ov-channel"
           value={activeChannel}
           onChange={(e) => setActiveChannel(e.target.value)}
-          aria-label={tr('Pilih channel output')}
+          aria-label={tr('Select output channel')}
         >
           {channels.map((c) => (
             <option key={c.id} value={c.id}>
@@ -64,7 +64,7 @@ export default function OutputView() {
           className="btn btn-sm"
           data-testid="ov-wrap"
           aria-pressed={wrap}
-          title={tr('Lipat baris panjang')}
+          title={tr('Wrap long lines')}
           onClick={toggleWrap}
         >
           Wrap{wrap ? ' ✓' : ''}
@@ -73,15 +73,15 @@ export default function OutputView() {
           className="btn btn-sm"
           data-testid="ov-lock"
           aria-pressed={!autoScroll}
-          title={tr('Scroll lock: hentikan auto-scroll saat baris baru masuk')}
+          title={tr('Scroll lock: stop auto-scroll when new lines arrive')}
           onClick={toggleAutoScroll}
         >
-          {autoScroll ? 'Auto-scroll' : 'Terkunci'}
+          {autoScroll ? 'Auto-scroll' : 'Locked'}
         </button>
         <button
           className="btn btn-sm"
           data-testid="ov-clear"
-          title="Bersihkan channel ini"
+          title="Clear this channel"
           onClick={() => clear(activeChannel)}
         >
           Clear
@@ -110,7 +110,7 @@ export default function OutputView() {
       >
         {total === 0 ? (
           <p className="ov-empty" data-testid="ov-empty">
-            {tf('Channel "{name}" masih kosong.', { name: ch?.label ?? activeChannel })}
+            {tf('Channel "{name}" is still empty.', { name: ch?.label ?? activeChannel })}
           </p>
         ) : (
           <div className="ov-spacer" style={{ height: total * ROW_H }}>

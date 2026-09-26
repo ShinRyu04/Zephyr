@@ -75,7 +75,7 @@ export default function StickyScroll({ view, path, docVersion, maxLines }: Props
             data-testid="sticky-row"
             data-line={s.dari}
             style={{ paddingLeft: `${8 + i * 12}px` }}
-            title={`baris ${s.dari}`}
+            title={`line ${s.dari}`}
             onClick={() => {
               const line = doc.line(Math.min(s.dari, doc.lines));
               view.dispatch({

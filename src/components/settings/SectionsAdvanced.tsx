@@ -40,7 +40,7 @@ export function ShortcutsSection() {
       const clash = findConflicts(capturing, binding, custom);
       if (clash.length > 0) {
         const names = clash.map((id) => ACTION_BY_ID.get(id)?.label ?? id).join(', ');
-        setConflict(`"${binding}" sudah dipakai: ${names} — pilih kombinasi lain`);
+        setConflict(`"${binding}" is already used: ${names} - pick another combination`);
         return; // TIDAK disimpan
       }
       void apply({ shortcuts: { ...custom, [capturing]: binding } });
@@ -58,7 +58,7 @@ export function ShortcutsSection() {
   return (
     <Section title={tr('settings.shortcuts')}>
       <p className="set-note">
-        {tr('Klik kolom shortcut lalu tekan kombinasi. Escape = batal. Kombinasi yang sudah dipakai action lain ditolak, jadi tidak mungkin ada dua action dengan shortcut sama.')}
+        {tr('Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.')}
       </p>
       {conflict && (
         <p className="set-warning" data-testid="sc-conflict" role="alert">
@@ -88,7 +88,7 @@ export function ShortcutsSection() {
                         data-binding={eff}
                         onClick={() => setCapturing(isCapturing ? null : a.id)}
                       >
-                        {isCapturing ? tr('Tekan kombinasi…') : displayBinding(eff)}
+                        {isCapturing ? tr('Press a combination…') : displayBinding(eff)}
                       </button>
                     </td>
                     <td className="sc-actions">
@@ -149,8 +149,8 @@ export function ModelsSection() {
         setRemote((r) => ({ ...r, [p.id]: ids }));
         ui.setMessage(
           ids.length > 0
-            ? `${p.label}: ${ids.length} model dimuat dari provider`
-            : `${p.label}: daftar model kosong / tidak terbaca`,
+            ? `${p.label}: ${ids.length} models loaded from the provider`
+            : `${p.label}: model list empty / unreadable`,
         );
       } catch (e) {
         ui.setMessage(cmd.asZephyrError(e).message);
@@ -162,8 +162,8 @@ export function ModelsSection() {
   return (
     <Section title={tr('settings.models')}>
       <p className="set-note">
-        {tr('API key disimpan Rust di')} <code>%APPDATA%\zephyr\secrets.json</code>{' '}
-        {tr('bentuk terenkripsi (kunci turunan dari mesin ini), TERPISAH dari settings.json. Frontend hanya menerima mask — key asli tidak pernah dikirim ke UI dan tidak pernah masuk log. Catatan jujur: enkripsi ini melindungi dari orang yang membaca file, bukan dari orang yang sudah bisa masuk akun Windows-mu.')}
+        {tr('API keys are stored by Rust in')} <code>%APPDATA%\zephyr\secrets.json</code>{' '}
+        {tr('in encrypted form (key derived from this machine), SEPARATE from settings.json. The frontend only receives a mask - the real key is never sent to the UI and never logged. Honest note: this encryption protects against someone reading the file, not against someone who already has access to your Windows account.')}
       </p>
 
       <Row label={tr('models.active')}>
@@ -202,10 +202,10 @@ export function ModelsSection() {
       </Row>
 
             {/* RAG lokal: cari konteks project sebelum kirim ke LLM. (fase 34) */}
-            <Row label="RAG lokal" hint={tr('Pakai server RAG (mis. enowx-rag di localhost:7777) untuk mencari konteks project sebelum menjawab. Mati = chat biasa.')}>
+            <Row label="Local RAG" hint={tr('Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.')}>
               <div className="prov-rag">
                 <Toggle
-                  label="Aktifkan RAG"
+                  label="Enable RAG"
                   testid="models-rag-toggle"
                   checked={models.ragEnabled}
                   onChange={(v) => void apply({ models: { ragEnabled: v } })}
@@ -229,7 +229,7 @@ export function ModelsSection() {
                       onChange={(v) => void apply({ models: { ragProject: v } })}
                     />
                     <NumberInput
-                      label={tr('Jumlah chunk')}
+                      label={tr('Chunk count')}
                       testid="models-rag-k"
                       min={1}
                       max={20}
@@ -272,7 +272,7 @@ export function ModelsSection() {
                     <input
                       className="set-text is-mono"
                       type={reveal === p.id ? 'text' : 'password'}
-                      placeholder={has ? tr('(tersimpan — isi untuk mengganti)') : p.envKey}
+                      placeholder={has ? tr('(saved - type to replace)') : p.envKey}
                       value={draft[p.id] ?? ''}
                       spellCheck={false}
                       aria-label={`${p.label} API key`}
@@ -305,7 +305,7 @@ export function ModelsSection() {
                         data-testid={`prov-del-${p.id}`}
                         onClick={() => void ui.saveKey(p.id, '')}
                       >
-                        Hapus
+                        Delete
                       </button>
                     )}
                   </span>
@@ -350,7 +350,7 @@ export function ModelsSection() {
                                                                                                                 data-testid={`prov-drop-${p.id}`}
                                                                                                                 aria-haspopup="listbox"
                                                                                                                 aria-expanded={suggestOpen === p.id}
-                                                                                                                title={tr('Pilih model dari daftar')}
+                                                                                                                title={tr('Pick a model from the list')}
                                                                                                                 onClick={() => setSuggestOpen(suggestOpen === p.id ? null : p.id)}
                                                                                                               >
                                                                                                                 ▾
@@ -387,8 +387,8 @@ export function ModelsSection() {
                                                                                                                     ))}
                                                                                                                   {(!p.models.length && !(remote[p.id] ?? []).length) && (
                                                                                                                     <div className="ai-model-empty">
-                                                                                                                      Ketik nama model di kolom, atau klik Refresh buat
-                                                                                                                      ambil dari provider.
+                                                                                                                      Type a model name in the field, or click Refresh to
+                                                                                                                      fetch from the provider.
                                                                                                                     </div>
                                                                                                                   )}
                                                                                                                 </div>
@@ -407,10 +407,10 @@ export function ModelsSection() {
                                                           className="btn btn-sm"
                                                           data-testid={`prov-refresh-${p.id}`}
                                                           disabled={fetching === p.id}
-                                                          title={tr('Ambil daftar model langsung dari provider')}
+                                                          title={tr('Fetch the model list directly from the provider')}
                                                           onClick={() => void refreshModels(p)}
                                                         >
-                                                          {fetching === p.id ? 'Memuat…' : 'Refresh'}
+                                                          {fetching === p.id ? 'Loading…' : 'Refresh'}
                                                         </button>
                                                       </div>
                                                     ) : (
@@ -427,7 +427,7 @@ export function ModelsSection() {
                                         options={[
                                           ...p.models.map((m) => ({
                                             value: m.id,
-                                            label: m.note ? `${m.label} — ${tr(m.note)}` : m.label,
+                                            label: m.note ? `${m.label} - ${tr(m.note)}` : m.label,
                                           })),
 
                                           ...[...(remote[p.id] ?? []), ...(ui.remoteModels[p.id] ?? [])]
@@ -441,10 +441,10 @@ export function ModelsSection() {
                                         className="btn btn-sm"
                                         data-testid={`prov-refresh-${p.id}`}
                                         disabled={fetching === p.id || ui.fetchingModels === p.id}
-                                        title={tr('Ambil daftar model langsung dari provider')}
+                                        title={tr('Fetch the model list directly from the provider')}
                                         onClick={() => void refreshModels(p)}
                                       >
-                                        {fetching === p.id || ui.fetchingModels === p.id ? 'Memuat…' : 'Refresh'}
+                                        {fetching === p.id || ui.fetchingModels === p.id ? 'Loading…' : 'Refresh'}
                                       </button>
                                     </div>
                                   )}
@@ -452,12 +452,12 @@ export function ModelsSection() {
 
                                                   {p.freeText && (
                                                     <p className="set-note prov-hint" data-testid={`prov-hint-${p.id}`}>
-                                                      <strong>{tr('Cara pakai:')}</strong> {tr('isi')} <em>base URL</em>{' '}
-                                                      {tr('(mis.')} <code> http://127.0.0.1:11434/v1</code>{' '}
-                                                      {tr('buat Ollama) kalau lokal, lalu ketik')} <em>{tr('nama model')}</em>{' '}
-                                                      {tr('di kolom atau pilih dari')} <strong>▾</strong>.{' '}
-                                                      {tr('Klik')} <strong>Refresh</strong>{' '}
-                                                      {tr('buat narik daftar model langsung dari provider. Model ini muncul di dropdown panel AI (kiri bawah) — bukan hanya di terminal AI.')}
+                                                      <strong>{tr('How to use:')}</strong> {tr('fill in')} <em>base URL</em>{' '}
+                                                      {tr('(e.g.')} <code> http://127.0.0.1:11434/v1</code>{' '}
+                                                      {tr('for Ollama) if local, then type')} <em>{tr('the model name')}</em>{' '}
+                                                      {tr('in the field or pick from')} <strong>▾</strong>.{' '}
+                                                      {tr('Click')} <strong>Refresh</strong>{' '}
+                                                      {tr('to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.')}
                                                     </p>
                                                   )}
 
@@ -469,7 +469,7 @@ export function ModelsSection() {
                     disabled={ui.testing === p.id}
                     onClick={() => void ui.testConnection(p.id, cfg.baseUrl || undefined)}
                   >
-                    {ui.testing === p.id ? tr('Menguji…') : tr('models.test')}
+                    {ui.testing === p.id ? tr('Testing…') : tr('models.test')}
                   </button>
                   {res && (
                     <span
@@ -500,7 +500,7 @@ export function AgentsSection() {
 
   return (
     <Section title={tr('settings.agents')}>
-      <Row label={tr('agents.maxPanes')} hint={tr('pane melebihi batas ditolak dengan toast')}>
+      <Row label={tr('agents.maxPanes')} hint={tr('panes exceeding the limit are rejected with a toast')}>
         <NumberInput
           label={tr('agents.maxPanes')}
           testid="agents-maxpanes"
@@ -511,7 +511,7 @@ export function AgentsSection() {
         />
       </Row>
 
-      <Row label={tr('agents.attachActiveFile')} hint={tr('dipakai panel AI')}>
+      <Row label={tr('agents.attachActiveFile')} hint={tr('used by the AI panel')}>
         <Toggle
           label={tr('agents.attachActiveFile')}
           testid="agents-attach"
@@ -520,7 +520,7 @@ export function AgentsSection() {
         />
       </Row>
 
-      <Row label={tr('agents.rescan')} hint={`${agents.length} CLI terdeteksi di PATH`}>
+      <Row label={tr('agents.rescan')} hint={`${agents.length} CLIs detected on PATH`}>
         <button className="btn" data-testid="agents-rescan" onClick={() => void loadAgents()}>
           {tr('agents.rescan')}
         </button>
@@ -528,8 +528,8 @@ export function AgentsSection() {
 
       {agents.length === 0 ? (
         <p className="set-note" data-testid="agents-empty">
-          {tr('agents.none')} — pasang salah satu (opencode, claude, codex, gemini,
-          grok, gh copilot) lalu tekan {tr('agents.rescan')}.
+          {tr('agents.none')} - install one of them (opencode, claude, codex, gemini,
+          grok, gh copilot) then press {tr('agents.rescan')}.
         </p>
       ) : (
         <div className="agent-list">
@@ -569,7 +569,7 @@ export function AgentsSection() {
                       void apply({ agents: { startCommands: { [ag.id]: null } } });
                     }}
                   >
-                    {tr('common.reset')} ke default
+                    {tr('common.reset')} to default
                   </button>
                 )}
               </div>
@@ -613,7 +613,7 @@ export function SubagentSection() {
     <Section title={tr('settings.subagent')}>
       <Row
         label={tr('sub.maxParallel')}
-        hint={tr('tiap subagent memanggil provider sendiri — makin banyak, makin cepat habis kuota')}
+        hint={tr('each subagent calls the provider itself - more subagents means the quota is used up faster')}
       >
         <NumberInput
           label={tr('sub.maxParallel')}
@@ -627,7 +627,7 @@ export function SubagentSection() {
 
       <Row
         label={tr('sub.maxSteps')}
-        hint={tr('subagent berhenti kalau melewati batas ini — penjaga biaya loop tak berujung')}
+        hint={tr('a subagent stops if it exceeds this limit - a guard against endless loops that burn cost')}
       >
         <NumberInput
           label={tr('sub.maxSteps')}
@@ -641,7 +641,7 @@ export function SubagentSection() {
 
       <Row
         label={tr('sub.allowWrite')}
-        hint={tr('default TIDAK. Beberapa subagent yang menulis file sama bisa saling menimpa')}
+        hint={tr('default NO. Several subagents writing the same file can overwrite each other')}
       >
         <Toggle
           label={tr('sub.allowWrite')}
@@ -651,7 +651,7 @@ export function SubagentSection() {
         />
       </Row>
 
-      <Row label={tr('sub.showPanel')} hint={tr('kalau dimatikan, hanya ringkasan yang muncul')}>
+      <Row label={tr('sub.showPanel')} hint={tr('if turned off, only the summary appears')}>
         <Toggle
           label={tr('sub.showPanel')}
           testid="sub-showpanel"
@@ -660,7 +660,7 @@ export function SubagentSection() {
         />
       </Row>
 
-      <Row label={tr('sub.autoCollapse')} hint={tr('langkah langsung terlipat setelah selesai')}>
+      <Row label={tr('sub.autoCollapse')} hint={tr('steps are collapsed right after they finish')}>
         <Toggle
           label={tr('sub.autoCollapse')}
           testid="sub-autocollapse"
@@ -669,15 +669,15 @@ export function SubagentSection() {
         />
       </Row>
 
-      <Row label={tr('Status')} hint={`${agents.length} subagent di panel`}>
+      <Row label={tr('Status')} hint={`${agents.length} subagents in the panel`}>
         <span className="set-note" data-testid="sub-status">
-          {sibuk ? `${jalan ?? 0} sedang jalan` : tr('tidak ada yang jalan')}
+          {sibuk ? `${jalan ?? 0} running` : tr('nothing is running')}
         </span>
       </Row>
 
       <p className="set-note" data-testid="sub-note">
         {tr(
-          'Subagent dipanggil agent utama lewat tombol "Tugas paralel" di panel AI, atau otomatis saat tugasnya bisa dipecah.',
+          'Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up.',
         )}
       </p>
     </Section>

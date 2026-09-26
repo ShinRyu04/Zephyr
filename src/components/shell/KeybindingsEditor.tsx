@@ -9,7 +9,7 @@ const LAYER_LABEL: Record<KeyBinding['layer'], string> = {
   app: 'App',
   editor: 'Editor',
   terminal: 'Terminal',
-  stub: 'Belum ada',
+  stub: 'Not available',
 };
 
 export default function KeybindingsEditor() {
@@ -104,19 +104,19 @@ export default function KeybindingsEditor() {
             ref={inputRef}
             className="kb-search"
             data-testid="kb-search"
-            placeholder={tr('Cari command atau chord…')}
+            placeholder={tr('Search command or chord…')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            aria-label={tr('Cari keybinding')}
+            aria-label={tr('Search keybinding')}
           />
           <span className="kb-count" data-testid="kb-count">
             {baris.length}
           </span>
           <button className="btn btn-sm" data-testid="kb-reset-all" onClick={() => void resetAll()}>
-            {tr('Reset semua')}
+            {tr('Reset all')}
           </button>
           <button className="btn btn-sm" data-testid="kb-close" onClick={() => setOpen(false)}>
-            Tutup
+            Close
           </button>
         </header>
 
@@ -129,19 +129,19 @@ export default function KeybindingsEditor() {
         {rekam && (
           <div className="kb-rekam" data-testid="kb-recording">
             <span>
-              {tr('Merekam chord untuk')} <code>{rekam}</code> —{' '}
+              {tr('Recording a chord for')} <code>{rekam}</code> -{' '}
               {chordRekam ? (
                 <code data-testid="kb-recorded">{chordRekam}</code>
               ) : (
-                'tekan kombinasi tombol'
+                'press a key combination'
               )}
             </span>
             {konflik.length > 0 && (
               <span className="kb-konflik" data-testid="kb-conflict">
-                bertabrakan dengan: {konflik.join(', ')}
+                conflicts with: {konflik.join(', ')}
               </span>
             )}
-            <span className="side-muted">{tr('Enter = simpan · Esc = batal')}</span>
+            <span className="side-muted">{tr('Enter = save · Esc = cancel')}</span>
           </div>
         )}
 
@@ -153,7 +153,7 @@ export default function KeybindingsEditor() {
                 <th>Keybinding</th>
                 <th>When</th>
                 <th>Layer</th>
-                <th>Sumber</th>
+                <th>Source</th>
                 <th />
               </tr>
             </thead>
@@ -172,33 +172,33 @@ export default function KeybindingsEditor() {
                     {LAYER_LABEL[b.layer]}
                   </td>
                   <td className="kb-src" data-user={b.isUser ? '1' : '0'} data-src={b.source ?? ''}>
-                    {b.isUser ? 'User' : b.source ? `Ekstensi: ${b.source}` : 'Default'}
+                    {b.isUser ? 'User' : b.source ? `Extension: ${b.source}` : 'Default'}
                   </td>
                   <td className="kb-aksi">
                     <button
                       className="btn btn-sm"
                       data-testid="kb-edit"
-                      title="Rekam chord baru"
+                      title="Record a new chord"
                       onClick={() => {
                         setRekam(b.command);
                         setTangkap([]);
                       }}
                     >
-                      Ubah
+                      Change
                     </button>
                     <button
                       className="btn btn-sm"
                       data-testid="kb-remove"
-                      title={tr('Hapus keybinding (command tetap ada di palette)')}
+                      title={tr('Remove keybinding (the command stays in the palette)')}
                       onClick={() => void removeBinding(b.command)}
                     >
-                      Hapus
+                      Delete
                     </button>
                     {b.isUser && (
                       <button
                         className="btn btn-sm"
                         data-testid="kb-reset"
-                        title={tr('Kembalikan ke default')}
+                        title={tr('Reset to default')}
                         onClick={() => void resetOne(b.command)}
                       >
                         Reset
@@ -213,8 +213,8 @@ export default function KeybindingsEditor() {
 
         <footer className="kb-foot">
           <span className="side-muted">
-            {tr('Tersimpan di')} <code>%APPDATA%\zephyr\keybindings.json</code>. Layer “Editor” ditangani
-            CodeMirror, “Terminal” oleh xterm — resolver global tidak mencegatnya.
+            {tr('Saved in')} <code>%APPDATA%\zephyr\keybindings.json</code>. The “Editor” layer is handled
+            by CodeMirror, “Terminal” by xterm - the global resolver does not intercept them.
           </span>
         </footer>
       </div>

@@ -23,12 +23,12 @@ export default function SaveIssueDialog() {
 
   const missing = issue.kind === 'missing';
   const title = missing
-    ? `${issue.name} sudah tidak ada di disk`
-    : `Simpan ${issue.name} sebagai UTF-8?`;
+    ? `${issue.name} no longer exists on disk`
+    : `Save ${issue.name} as UTF-8?`;
   const body = missing
-    ? `File ini terhapus atau dipindahkan dari luar Zephyr (${issue.path}). Buat file baru di path yang sama dengan isi buffer saat ini?`
-    : 'File aslinya UTF-16. Zephyr menuliskannya kembali sebagai UTF-8 — isi teks tetap sama, tetapi encoding di disk berubah dan file jadi bisa diedit.';
-  const ok = missing ? 'Buat baru' : tr('Tulis sebagai UTF-8');
+    ? `This file was deleted or moved outside Zephyr (${issue.path}). Create a new file at the same path with the current buffer contents?`
+    : 'The original file is UTF-16. Zephyr will rewrite it as UTF-8 - the text contents stay the same, but the encoding on disk changes and the file becomes editable.';
+  const ok = missing ? 'Create new' : tr('Write as UTF-8');
 
   return (
     <div
@@ -59,7 +59,7 @@ export default function SaveIssueDialog() {
             data-testid="save-issue-cancel"
             onClick={() => void resolve('cancel')}
           >
-            Batal
+            Cancel
           </button>
         </div>
       </div>

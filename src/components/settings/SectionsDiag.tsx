@@ -23,18 +23,18 @@ export function SelfTestPanel() {
   return (
     <div className="diag-self" data-testid="diag-self">
       <div className="diag-head">
-        <span className="diag-title">Self-test cepat</span>
+        <span className="diag-title">Quick self-test</span>
         <button
           className="btn btn-sm"
           data-testid="diag-self-run"
           disabled={jalan}
           onClick={run}
         >
-          {jalan ? 'Menjalankan…' : 'Jalankan'}
+          {jalan ? 'Running…' : 'Run'}
         </button>
         {items && (
           <span className="set-note" data-testid="diag-self-summary">
-            {items.length - gagal}/{items.length} hijau
+            {items.length - gagal}/{items.length} green
           </span>
         )}
       </div>
@@ -99,8 +99,8 @@ export function ExportPanel({ d }: { d: Diagnostics | null }) {
         disabled={!d}
         onClick={() => {
           void clipboardWrite(laporan())
-            .then(() => setPesan('Laporan JSON disalin ke clipboard'))
-            .catch((e) => setPesan(`Gagal menyalin: ${e}`));
+            .then(() => setPesan('JSON report copied to clipboard'))
+            .catch((e) => setPesan(`Copy failed: ${e}`));
         }}
       >
         Export report (JSON)
@@ -114,7 +114,7 @@ export function ExportPanel({ d }: { d: Diagnostics | null }) {
           if (dir) void openPath(dir).catch((e) => setPesan(asZephyrError(e).message));
         }}
       >
-        Buka folder log
+        Open log folder
       </button>
       {pesan && (
         <span className="set-note" data-testid="diag-export-msg">

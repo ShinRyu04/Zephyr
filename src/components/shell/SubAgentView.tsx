@@ -18,18 +18,18 @@ export default function SubAgentView() {
 
   return (
     <div className="sav-root" data-testid="subagents-view">
-      {/* Kepala: ringkasan angka + aksi batch. Angka dulu, aksi di kanan —
+      {/* Kepala: ringkasan angka + aksi batch. Angka dulu, aksi di kanan -
           supaya mata mendarat di status sebelum tombol. */}
       <div className="sav-head">
         <span className="sav-judul">{tr('Subagent')}</span>
         <span className="sav-angka" data-testid="sav-angka">
           {agents.length} {tr('total')}
-          {jalan > 0 && <> · <b className="is-jalan">{jalan} {tr('jalan')}</b></>}
-          {beres > 0 && <> · <b className="is-beres">{beres} {tr('selesai')}</b></>}
-          {gagal > 0 && <> · <b className="is-gagal">{gagal} {tr('gagal')}</b></>}
+          {jalan > 0 && <> · <b className="is-jalan">{jalan} {tr('running')}</b></>}
+          {beres > 0 && <> · <b className="is-beres">{beres} {tr('done')}</b></>}
+          {gagal > 0 && <> · <b className="is-gagal">{gagal} {tr('failed')}</b></>}
         </span>
         {/* Pemilih MODEL subagent. Ditaruh di kepala tab (bukan di Settings)
-            supaya bisa diganti saat sedang memantau hasil — sama seperti
+            supaya bisa diganti saat sedang memantau hasil - sama seperti
             pemilih model chat yang duduk di kepala panel AI. */}
         <span className="sav-model" data-testid="sav-model">
           <ModelSelector target="subagent" />
@@ -37,12 +37,12 @@ export default function SubAgentView() {
         <span className="sav-spacer" />
         {sibuk ? (
           <button className="btn btn-sm" data-testid="sav-stop" onClick={batalSemua}>
-            {tr('Hentikan semua')}
+            {tr('Stop all')}
           </button>
         ) : (
           agents.length > 0 && (
             <button className="btn btn-sm" data-testid="sav-clear" onClick={bersihkan}>
-              {tr('Bersihkan')}
+              {tr('Clear')}
             </button>
           )
         )}
@@ -54,15 +54,15 @@ export default function SubAgentView() {
 
       {agents.length === 0 ? (
         <div className="sav-kosong" data-testid="sav-kosong">
-          <p className="sav-kosong-judul">{tr('Belum ada subagent.')}</p>
+          <p className="sav-kosong-judul">{tr('No subagents yet.')}</p>
           <p className="sav-kosong-note">
             {tr(
-              'Tulis satu tugas per baris di atas, lalu Jalankan. Setiap baris menjadi satu subagent yang bekerja bersamaan.',
+              'Write one task per line above, then Run. Each line becomes one subagent that works concurrently.',
             )}
           </p>
           <p className="sav-kosong-note">
             {tr(
-              'Subagent berdiri sendiri — dijalankan dari sini, terpisah dari percakapan AI. Hasilnya tidak masuk ke riwayat chat.',
+              'Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.',
             )}
           </p>
         </div>
@@ -72,7 +72,7 @@ export default function SubAgentView() {
 
       {ringkasan && !sibuk && (
         <details className="sav-ringkas" data-testid="sav-ringkas">
-          <summary>{tr('Ringkasan gabungan')}</summary>
+          <summary>{tr('Combined summary')}</summary>
           <pre>{ringkasan}</pre>
         </details>
       )}

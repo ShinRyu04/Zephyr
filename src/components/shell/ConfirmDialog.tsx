@@ -34,21 +34,21 @@ export default function ConfirmDialog() {
     >
       <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="cf-title">
         <h2 className="modal-title" id="cf-title">
-          Simpan perubahan pada {tab?.name ?? 'file ini'}?
+          Save changes to {tab?.name ?? 'this file'}?
         </h2>
         <p className="modal-body">
-          Perubahan akan hilang bila tidak disimpan.
-          {remaining > 1 && ` (${remaining} file belum disimpan)`}
+          Changes will be lost if you do not save.
+          {remaining > 1 && ` (${remaining} unsaved files)`}
         </p>
         <div className="modal-actions">
           <button ref={saveRef} className="btn btn-primary" onClick={() => void resolveConfirm('save')}>
-            Simpan
+            Save
           </button>
           <button className="btn btn-danger" onClick={() => void resolveConfirm('discard')}>
-            Jangan Simpan
+            Don't Save
           </button>
           <button className="btn" onClick={() => void resolveConfirm('cancel')}>
-            Batal
+            Cancel
           </button>
         </div>
       </div>

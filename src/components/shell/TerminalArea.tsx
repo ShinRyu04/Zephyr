@@ -52,7 +52,7 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
     return (
       <button
         className="term-collapsed"
-        title={tx('Tampilkan panel bawah (Ctrl+`)')}
+        title={tx('Show the bottom panel (Ctrl+`)')}
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
@@ -84,12 +84,12 @@ export default function TerminalArea({ embedded = false }: { embedded?: boolean 
   }
 
   return (
-    <section className="term-area" style={{ height }} aria-label={tx('Panel bawah')}>
+    <section className="term-area" style={{ height }} aria-label={tx('Bottom panel')}>
       <div
         className="term-resizer"
         role="separator"
         aria-orientation="horizontal"
-        aria-label={tx('Ubah tinggi panel terminal')}
+        aria-label={tx('Resize the terminal panel height')}
         onPointerDown={startResize}
       />
 

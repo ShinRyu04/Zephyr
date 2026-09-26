@@ -101,8 +101,8 @@ export default function Toast() {
           <button
             className="toast-close"
             data-testid="toast-close"
-            title={tr('Tutup')}
-            aria-label={tr('Tutup notifikasi')}
+            title={tr('Close')}
+            aria-label={tr('Close notification')}
             onClick={() => dismiss(n.id)}
           >
             ✕

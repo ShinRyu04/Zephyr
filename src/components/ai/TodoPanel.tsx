@@ -41,7 +41,7 @@ export default function TodoPanel() {
       {adaTodo && (
         <div className="todo-blok">
           <div className="todo-head">
-            <span className="todo-judul">{tr('Daftar tugas')}</span>
+            <span className="todo-judul">{tr('Task list')}</span>
             <span className="todo-progress">
               {selesai}/{todos.length}
             </span>

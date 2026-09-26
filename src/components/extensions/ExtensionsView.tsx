@@ -16,8 +16,8 @@ const TAB_LABEL: Record<ExtTab, string> = {
 };
 
 function formatUnduhan(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}jt`;
-  if (n >= 1000) return `${(n / 1000).toFixed(0)}rb`;
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
   return String(n);
 }
 
@@ -86,14 +86,14 @@ function ExtensionCard({
         <span className="xc-nama">
           <span className="xc-nama-txt">{tr(item.name)}</span>
           {item.bundled && <span className="xc-tag">offline</span>}
-          {item.perluRuntime && <span className="xc-tag is-err">butuh runtime</span>}
-          {rusak && <span className="xc-tag is-err">rusak</span>}
+          {item.perluRuntime && <span className="xc-tag is-err">needs runtime</span>}
+          {rusak && <span className="xc-tag is-err">broken</span>}
           <span className="xc-meta">
             {item.publisher} · v{sudah?.manifest?.version || item.version} ·{' '}
             {item.categories.join(', ')}
             {typeof item.unduhan === 'number' && item.unduhan > 0 && (
               <span className="xc-stat" data-testid={`xc-unduhan-${item.id}`}>
-                {' '}· {formatUnduhan(item.unduhan)} unduhan
+                {' '}· {formatUnduhan(item.unduhan)} downloads
               </span>
             )}
             {typeof item.rating === 'number' && item.rating > 0 && (
@@ -119,10 +119,10 @@ function ExtensionCard({
             disabled={sibuk || (!item.bundled && !item.url)}
             title={
               item.bundled
-                ? tr('Pasang dari katalog bundled')
+                ? tr('Install from the bundled catalog')
                 : item.url
-                  ? tf('Unduh & pasang v{version}', { version: item.version })
-                  : tr('Belum tersedia offline')
+                  ? tf('Download & install v{version}', { version: item.version })
+                  : tr('Not available offline')
             }
             onClick={async () => {
               setSibuk(true);
@@ -152,7 +152,7 @@ function ExtensionCard({
             ref={btnGear}
             className="xc-gear"
             data-testid={`xc-gear-${item.id}`}
-            title={tr('Opsi ekstensi')}
+            title={tr('Extension options')}
             aria-haspopup="menu"
             aria-expanded={menuFor === item.id}
             onClick={() => setMenu(menuFor === item.id ? null : item.id)}
@@ -235,18 +235,18 @@ function Details({ id }: { id: string }) {
       <div className="xd-head">
         <strong className="xd-title">{m?.name ?? katalog?.name ?? id}</strong>
         <button className="btn btn-sm" data-testid="ext-details-close" onClick={() => setDetail(null)}>
-          Tutup
+          Close
         </button>
       </div>
 
       {!m ? (
         <p className="xd-note">
-          {tr('Belum terpasang.')} {katalog ? tr(katalog.description) : ''}{' '}
-          {tr('Pasang dulu untuk melihat kontribusi sebenarnya dari manifest.')}
+          {tr('Not installed yet.')} {katalog ? tr(katalog.description) : ''}{' '}
+          {tr('Install first to see the actual contributions from the manifest.')}
         </p>
       ) : (
         <>
-          <p className="xd-note">{m.description ? tr(m.description) : tr('(tanpa deskripsi)')}</p>
+          <p className="xd-note">{m.description ? tr(m.description) : tr('(no description)')}</p>
           <dl className="xd-list">
             <div>
               <dt>id</dt>
@@ -255,17 +255,17 @@ function Details({ id }: { id: string }) {
               </dd>
             </div>
             <div>
-              <dt>versi</dt>
+              <dt>version</dt>
               <dd>{m.version || '-'}</dd>
             </div>
             <div>
-              <dt>penerbit</dt>
+              <dt>publisher</dt>
               <dd>{m.publisher || '-'}</dd>
             </div>
             <div>
               <dt>engine</dt>
               <dd>
-                {m.engine || '(bebas)'} {m.engineOk ? '✓' : '✗ tidak cocok'}
+                {m.engine || '(any)'} {m.engineOk ? '✓' : '✗ does not match'}
               </dd>
             </div>
             <div>
@@ -282,21 +282,21 @@ function Details({ id }: { id: string }) {
             </div>
           </dl>
 
-          <h4 className="xd-h4">Kontribusi</h4>
+          <h4 className="xd-h4">Contributions</h4>
           <div className="xd-contribs" data-testid="ext-contribs">
             {baris.map(([nama, isi]) => (
               <div key={nama} className="xd-contrib" data-contrib={nama}>
                 <span className="xd-contrib-nama">{nama}</span>
                 <span className="xd-contrib-isi">
-                  {isi.length === 0 ? <em>—</em> : isi.join(' · ')}
+                  {isi.length === 0 ? <em>-</em> : isi.join(' · ')}
                 </span>
               </div>
             ))}
           </div>
 
           <p className="xd-warn">
-            Kode JS ekstensi tidak dijalankan (v1 manifest-only). Command yang terdaftar
-            memakai handler bawaan Zephyr; handler milik ekstensi diabaikan.
+            The extension JS code is not executed (v1 manifest-only). Registered commands
+            use Zephyr's built-in handlers; the extension's own handlers are ignored.
           </p>
         </>
       )}
@@ -380,8 +380,8 @@ export default function ExtensionsView() {
         <input
           className="xv-search"
           data-testid="ext-search"
-          placeholder={tr('Cari ekstensi…')}
-          aria-label={tr('Cari ekstensi')}
+          placeholder={tr('Search extensions…')}
+          aria-label={tr('Search extensions')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -390,7 +390,7 @@ export default function ExtensionsView() {
             ref={btnAksi}
             className="xv-actions-btn"
             data-testid="ext-actions-btn"
-            title={tr('Tindakan ekstensi')}
+            title={tr('Extension actions')}
             aria-haspopup="menu"
             aria-expanded={menuAksi}
             onClick={() => setMenuAksi(!menuAksi)}
@@ -430,14 +430,14 @@ export default function ExtensionsView() {
               </button>
               <div className="xc-menu-sep" />
               <button data-testid="ext-reload-list" onClick={() => void refresh()}>
-                Muat ulang
+                Reload
               </button>
             </Popover>
           )}
         </div>
       </div>
 
-      <div className="xv-tabs" role="tablist" aria-label={tr('Kelompok ekstensi')}>
+      <div className="xv-tabs" role="tablist" aria-label={tr('Extension groups')}>
         {(Object.keys(TAB_LABEL) as ExtTab[]).map((t) => (
           <button
             key={t}
@@ -454,7 +454,7 @@ export default function ExtensionsView() {
 
     {perluReload && (
         <div className="xv-reload" data-testid="ext-reload-bar" role="status">
-          <span>{tr('Perubahan tema/keymap/bahasa berlaku setelah reload.')}</span>
+          <span>{tr('Theme/keymap/language changes take effect after reload.')}</span>
           <button className="btn btn-sm btn-primary" data-testid="ext-reload" onClick={reloadWindow}>
             Reload
           </button>
@@ -474,31 +474,31 @@ export default function ExtensionsView() {
 
       {tab === 'marketplace' && !remoteUrl && (
         <p className="xv-note" data-testid="ext-market-off">
-          Marketplace tidak tersedia — belum ada URL registry yang dikonfigurasi. Katalog
-          bundled dan install dari folder/.zext tetap berfungsi.
+          Marketplace is not available - no registry URL is configured. The bundled
+          catalog and install from folder/.zext still work.
         </p>
       )}
       {tab === 'marketplace' && remoteUrl && remoteErr && (
         <p className="xv-note" data-testid="ext-market-err">
-          Registry tidak bisa dibaca: {remoteErr}
+          Registry could not be read: {remoteErr}
         </p>
       )}
       {tab === 'recommended' && bahasa.length === 0 && (
         <p className="xv-note" data-testid="ext-rec-empty">
-          {tr('Buka folder proyek dulu — rekomendasi dihitung dari bahasa file di workspace.')}
+          {tr('Open a project folder first - recommendations are computed from the file languages in the workspace.')}
         </p>
       )}
 
       {tab === 'marketplace' && remoteBersih.length > 0 && (
         <div className="xv-filter" data-testid="ext-filter">
-          <label htmlFor="ext-filter-kat">Kategori</label>
+          <label htmlFor="ext-filter-kat">Category</label>
           <select
             id="ext-filter-kat"
             value={kategori}
             onChange={(e) => setKategori(e.target.value)}
             data-testid="ext-filter-select"
           >
-            <option value="">Semua</option>
+            <option value="">All</option>
             {Array.from(new Set(remoteBersih.flatMap((it) => it.categories)))
               .sort()
               .map((k) => (
@@ -511,20 +511,20 @@ export default function ExtensionsView() {
       )}
 
       <div className="xv-list" data-testid="ext-cards">
-        {loading && daftar.length === 0 && <p className="xv-note">Memuat…</p>}
+        {loading && daftar.length === 0 && <p className="xv-note">Loading…</p>}
         {daftar.map((it) => (
           <ExtensionCard key={it.id} item={it} onUninstall={setUninstallTarget} />
         ))}
         {!loading && daftar.length === 0 && tab !== 'marketplace' && (
           <p className="xv-note" data-testid="ext-kosong">
-            Tidak ada yang cocok dengan “{q}”.
+            Nothing matches “{q}”.
           </p>
         )}
         {!loading && daftar.length === 0 && tab === 'marketplace' && remote && (
           <p className="xv-note" data-testid="ext-market-empty">
             {tersembunyiRuntime > 0
-              ? `Menampilkan ekstensi manifest-only. ${tersembunyiRuntime} ekstensi disembunyikan karena butuh runtime eksternal (Python/Java/Node/Docker) yang tidak didukung Zephyr v1.`
-              : `Tidak ada ekstensi manifest-only yang cocok dengan “${q}”. Gunakan katalog bundled atau Install from .vsix/folder.`}
+              ? `Showing manifest-only extensions. ${tersembunyiRuntime} extensions are hidden because they need an external runtime (Python/Java/Node/Docker) that Zephyr v1 does not support.`
+              : `No manifest-only extension matches “${q}”. Use the bundled catalog or Install from .vsix/folder.`}
           </p>
         )}
       </div>
@@ -546,10 +546,10 @@ export default function ExtensionsView() {
             aria-labelledby="ext-uninstall-title"
           >
             <h2 className="modal-title" id="ext-uninstall-title" data-testid="ext-uninstall-title">
-              Hapus {uninstallTarget.name}?
+              Delete {uninstallTarget.name}?
             </h2>
             <p className="modal-body" data-testid="ext-uninstall-body">
-              {tr('Folder ekstensi akan dihapus PERMANEN (tidak bisa di-undo).')}
+              {tr('The extension folder will be deleted PERMANENTLY (cannot be undone).')}
             </p>
             <div className="modal-actions">
               <button
@@ -563,14 +563,14 @@ export default function ExtensionsView() {
                   setUninstallTarget(null);
                 }}
               >
-                {sibukUninstall ? '…' : tr('Hapus')}
+                {sibukUninstall ? '…' : tr('Delete')}
               </button>
               <button
                 className="btn"
                 data-testid="ext-uninstall-cancel"
                 onClick={() => setUninstallTarget(null)}
               >
-                Batal
+                Cancel
               </button>
             </div>
           </div>

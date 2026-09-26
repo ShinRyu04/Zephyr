@@ -37,7 +37,7 @@ export default function ImagePreview() {
         <button
           className="btn btn-sm"
           data-testid="img-zoom-out"
-          title={tr('Perkecil tampilan')}
+          title={tr('Zoom out')}
           onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))}
         >
           −
@@ -48,7 +48,7 @@ export default function ImagePreview() {
         <button
           className="btn btn-sm"
           data-testid="img-zoom-in"
-          title={tr('Perbesar tampilan')}
+          title={tr('Zoom in')}
           onClick={() => setZoom((z) => Math.min(8, +(z + 0.25).toFixed(2)))}
         >
           +
@@ -63,7 +63,7 @@ export default function ImagePreview() {
         <button
           className="api-mini"
           data-testid="img-close"
-          title={tr('Tutup pratinjau')}
+          title={tr('Close preview')}
           onClick={() => setGambar(null)}
         >
           ✕
@@ -83,7 +83,7 @@ export default function ImagePreview() {
           src={gambar.dataUrl}
           alt={gambar.path}
           style={{ transform: `scale(${zoom})` }}
-          onError={() => setGalat(tr('Gambar gagal dimuat.'))}
+          onError={() => setGalat(tr('Failed to load image.'))}
         />
       </div>
     </div>

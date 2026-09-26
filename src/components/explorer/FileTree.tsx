@@ -82,7 +82,7 @@ function InlineInput({
         ref={ref}
         className="tree-input"
         defaultValue={initial}
-        aria-label="Nama"
+        aria-label="Name"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -263,7 +263,7 @@ export default function FileTree({ root }: { root?: string }) {
         );
       })}
 
-      {rows.length === 0 && <p className="side-muted tree-empty">{tx('Folder ini kosong')}</p>}
+      {rows.length === 0 && <p className="side-muted tree-empty">{tx('This folder is empty')}</p>}
     </div>
   );
 }

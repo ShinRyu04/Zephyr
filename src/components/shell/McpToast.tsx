@@ -36,7 +36,7 @@ export default function McpToast() {
       <span>{toast}</span>
       <button
         className="mcp-toast-x"
-        aria-label={tr('Tutup notifikasi')}
+        aria-label={tr('Close notification')}
         data-testid="mcp-toast-x"
         onClick={() => setToast(null)}
       >

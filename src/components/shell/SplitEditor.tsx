@@ -29,32 +29,32 @@ function EmptyState() {
 
       <div className="empty-actions">
         <button className="btn btn-primary" onClick={openFileDialog}>
-          {tr('Buka File')}
+          {tr('Open File')}
         </button>
         <button className="btn" onClick={openFolderDialog}>
-          {tr('Buka Folder')}
+          {tr('Open Folder')}
         </button>
         <button className="btn" onClick={newUntitled}>
-          {tr('File Baru')}
+          {tr('New File')}
         </button>
       </div>
 
       <dl className="empty-keys">
         <div>
           <dt>Ctrl+N</dt>
-          <dd>{tr('file baru')}</dd>
+          <dd>{tr('new file')}</dd>
         </div>
         <div>
           <dt>Ctrl+O</dt>
-          <dd>{tr('buka file')}</dd>
+          <dd>{tr('open file')}</dd>
         </div>
         <div>
           <dt>Ctrl+S</dt>
-          <dd>{tr('simpan')}</dd>
+          <dd>{tr('save')}</dd>
         </div>
         <div>
           <dt>Ctrl+,</dt>
-          <dd>{tr('pengaturan')}</dd>
+          <dd>{tr('settings')}</dd>
         </div>
       </dl>
     </div>
@@ -112,7 +112,7 @@ function EditorPane({ gid }: { gid: string }) {
         ) : !tab ? (
           <div className="empty-group" data-testid={`empty-group-${gid}`}>
             <ZephyrLogo size={40} />
-            <span className="empty-group-label">{tx('Grup kosong — buka file di sini')}</span>
+            <span className="empty-group-label">{tx('Empty group - open a file here')}</span>
           </div>
         ) : (
           <CodeMirrorEditor key={tab.id} tab={tab} />
@@ -147,8 +147,8 @@ function GroupDivider() {
       onPointerCancel={() => (dragging.current = false)}
       role="separator"
       aria-orientation="vertical"
-      aria-label={tr('Ubah lebar grup editor')}
-      title={tr('Geser untuk mengubah lebar')}
+      aria-label={tr('Resize editor group width')}
+      title={tr('Drag to change the width')}
     />
   );
 }
@@ -166,13 +166,13 @@ export default function SplitEditor() {
       <section className="editor-area">
         <RestrictedBanner />
         <div className="set-topbar">
-          <span className="set-topbar-title">{tr('Pengaturan')}</span>
+          <span className="set-topbar-title">{tr('Settings')}</span>
           <button
             className="btn btn-sm"
             data-testid="set-close"
             onClick={() => setSettingsOpen(false)}
           >
-            {tr('Tutup')}
+            {tr('Close')}
           </button>
         </div>
         <div className="editor-host">

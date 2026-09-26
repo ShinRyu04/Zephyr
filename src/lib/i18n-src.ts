@@ -47,7 +47,7 @@ export const EN: Record<string, string> = {
   'Buka file database dulu.': 'Open a database file first.',
   'baris data': 'rows',
   'terpengaruh': 'affected',
-  'dipotong — tambahkan LIMIT': 'truncated — add LIMIT',
+  'dipotong - tambahkan LIMIT': 'truncated - add LIMIT',
 
   'Dev Environment': 'Dev Environment',
   'versi terdeteksi': 'versions detected',
@@ -116,8 +116,8 @@ export const EN: Record<string, string> = {
     'Run several tasks at once (parallel)',
   'Belum ada subagent. Tulis beberapa tugas (satu per baris) lalu jalankan.':
     'No subagents yet. Write several tasks (one per line) and run.',
-  'Subagent berjalan bersamaan dan hanya boleh MEMBACA — penulisan file diblokir supaya tidak bentrok.':
-    'Subagents run at the same time and may only READ — file writes are blocked to avoid conflicts.',
+  'Subagent berjalan bersamaan dan hanya boleh MEMBACA - penulisan file diblokir supaya tidak bentrok.':
+    'Subagents run at the same time and may only READ - file writes are blocked to avoid conflicts.',
   'tugas paralel': 'parallel tasks',
   'subagent': 'subagents',
   'Hentikan semua': 'Stop all',
@@ -175,8 +175,8 @@ export const EN: Record<string, string> = {
   'Keluar dari GitHub': 'Sign out of GitHub',
   'Kelola token GitHub': 'Manage GitHub token',
   'Akun GitHub': 'GitHub account',
-  'Command Palette — cari perintah & file (Ctrl+Shift+P / Ctrl+P)':
-    'Command Palette — search commands & files (Ctrl+Shift+P / Ctrl+P)',
+  'Command Palette - cari perintah & file (Ctrl+Shift+P / Ctrl+P)':
+    'Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)',
   'Identitas ini dipakai saat commit dari Zephyr. Dibiarkan kosong = pakai konfigurasi git config yang sudah ada di mesin/repo.':
     'This identity is used when committing from Zephyr. Leave it empty to use the git config already on the machine/repo.',
   'mengurangi push yang ditolak': 'reduces rejected pushes',
@@ -213,7 +213,7 @@ export const EN: Record<string, string> = {
   'Tidak ada simbol di file ini': 'No symbols in this file',
   'Tidak ada warna di dokumen ini': 'No colors in this document',
   'Tidak bisa membuka file untuk restore': 'Could not open the file to restore',
-  'Update terpasang — restart Zephyr untuk memakainya': 'Update installed — restart Zephyr to use it',
+  'Update terpasang - restart Zephyr untuk memakainya': 'Update installed - restart Zephyr to use it',
 
   'File baru': 'New file',
   'Simpan': 'Save',
@@ -266,7 +266,7 @@ export const EN: Record<string, string> = {
   'Lipat baris panjang': 'Wrap long lines',
   'Scroll lock: hentikan auto-scroll saat baris baru masuk': 'Scroll lock: stop auto-scrolling when new lines arrive',
   'ada log baru': 'new log output',
-  'Grup kosong — buka file di sini': 'Empty group — open a file here',
+  'Grup kosong - buka file di sini': 'Empty group - open a file here',
   'Penanda waktu (ms sejak proses mulai):': 'Timestamps (ms since process start):',
 
   'Perkecil jendela': 'Minimize window',
@@ -289,7 +289,7 @@ export const EN: Record<string, string> = {
   'Buka file': 'Open file',
   'Buka folder': 'Open folder',
   'Buka folder data': 'Open data folder',
-  'Belum ada workspace — buka folder': 'No workspace yet — open a folder',
+  'Belum ada workspace - buka folder': 'No workspace yet - open a folder',
   'Belum ada folder yang pernah dibuka': 'No folder has been opened yet',
   'Folder ini kosong': 'This folder is empty',
   'buka folder workspace': 'open workspace folder',
@@ -342,12 +342,12 @@ export const EN: Record<string, string> = {
   'Batalkan replace terakhir (dari Local History)': 'Undo the last replace (from Local History)',
   'Buka folder dulu untuk mencari di workspace.': 'Open a folder first to search the workspace.',
   'buka folder dulu untuk mencari': 'open a folder first to search',
-  'ripgrep belum terpasang — memakai pencarian bawaan': 'ripgrep is not installed — using the built-in search',
+  'ripgrep belum terpasang - memakai pencarian bawaan': 'ripgrep is not installed - using the built-in search',
   'hasil di': 'results in',
 
   'Tutup workspace': 'Close workspace',
   'Hapus folder dari workspace': 'Remove folder from workspace',
-  'Folder belum dipercaya — klik untuk mengatur trust': 'Folder not trusted — click to set trust',
+  'Folder belum dipercaya - klik untuk mengatur trust': 'Folder not trusted - click to set trust',
   'belum dipercaya': 'not trusted',
   'Percayai folder ini': 'Trust this folder',
   'Percayai folder ini?': 'Trust this folder?',
@@ -364,8 +364,8 @@ export const EN: Record<string, string> = {
   'tidak bisa memindahkan folder ke dalam dirinya sendiri': 'cannot move a folder into itself',
 
   'Muat isi snapshot ini ke editor (belum disimpan)': 'Load this snapshot into the editor (not saved yet)',
-  'Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)':
-    'Snapshot loaded into the editor — not saved yet (Ctrl+S to write)',
+  'Isi snapshot dimuat ke editor - belum disimpan (Ctrl+S untuk menulis)':
+    'Snapshot loaded into the editor - not saved yet (Ctrl+S to write)',
   'Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.':
     'No history yet. Save a file (Ctrl+S) to create a snapshot.',
   'Hapus riwayat': 'Clear history',
@@ -394,8 +394,8 @@ export const EN: Record<string, string> = {
   'Salin seluruh chat sebagai markdown ke clipboard': 'Copy the whole chat as markdown to the clipboard',
   'Hapus gambar': 'Remove image',
   'Agent sedang bekerja…': 'Agent is working…',
-  'Tulis pesan (Enter kirim, Shift+Enter baris baru) — ketik @ untuk lampirkan file':
-    'Write a message (Enter sends, Shift+Enter for a new line) — type @ to attach a file',
+  'Tulis pesan (Enter kirim, Shift+Enter baris baru) - ketik @ untuk lampirkan file':
+    'Write a message (Enter sends, Shift+Enter for a new line) - type @ to attach a file',
   'Tidak ada file aktif': 'No active file',
   'Jalankan npx tsc --noEmit di terminal lalu minta AI menganalisis error':
     'Run npx tsc --noEmit in the terminal, then ask the AI to analyse the errors',
@@ -424,7 +424,7 @@ export const EN: Record<string, string> = {
   'Salin isi jawaban': 'Copy the answer',
   'Tidak ada tab editor aktif': 'No active editor tab',
   'Isi file sudah sama dengan kode ini': 'The file already contains this code',
-  'Isi tab diganti — Ctrl+S untuk menyimpan': 'Tab content replaced — Ctrl+S to save',
+  'Isi tab diganti - Ctrl+S untuk menyimpan': 'Tab content replaced - Ctrl+S to save',
   'Tidak ada tab aktif untuk menyisipkan': 'No active tab to insert into',
   'Ganti isi tab editor aktif dengan kode ini': 'Replace the active editor tab with this code',
   'Sisipkan kode di posisi kursor': 'Insert the code at the cursor',
@@ -433,8 +433,8 @@ export const EN: Record<string, string> = {
   'Kirim file aktif ke agent': 'Send the active file to the agent',
   'Jelaskan kode yang dipilih': 'Explain the selected code',
   'Tulis dokumentasi': 'Write documentation',
-  'Perintah berisiko — akan minta konfirmasi': 'Risky command — will ask for confirmation',
-  'Perintah berpotensi merusak — izinkan agent?': 'Potentially destructive command — allow the agent?',
+  'Perintah berisiko - akan minta konfirmasi': 'Risky command - will ask for confirmation',
+  'Perintah berpotensi merusak - izinkan agent?': 'Potentially destructive command - allow the agent?',
   'Perintah ini berpotensi merusak:': 'This command may be destructive:',
   'Perintah dikirim ke terminal': 'Command sent to the terminal',
   'Isi lengkap teks yang akan ditulis ke file': 'The full text to write to the file',
@@ -453,16 +453,16 @@ export const EN: Record<string, string> = {
     'Write the file content straight to disk (or create the file if missing). Updates the tab buffer when the file is open in the editor.',
   'Ubah sebagian isi file yang ada di disk dengan mencari teks lama (old_text) dan menggantinya dengan teks baru (new_text).':
     'Edit part of an existing file on disk by finding old_text and replacing it with new_text.',
-  'Jalankan perintah shell di pane terminal Zephyr (ConPTY). Perintah dikirim apa adanya ke shell aktif. Output dibaca belakangan dengan terminal_read — jangan menganggap selesai tanpa menunggu lalu membaca.':
-    'Run a shell command in a Zephyr terminal pane (ConPTY). The command is sent verbatim to the active shell. Read the output afterwards with terminal_read — do not assume it finished without waiting and reading.',
+  'Jalankan perintah shell di pane terminal Zephyr (ConPTY). Perintah dikirim apa adanya ke shell aktif. Output dibaca belakangan dengan terminal_read - jangan menganggap selesai tanpa menunggu lalu membaca.':
+    'Run a shell command in a Zephyr terminal pane (ConPTY). The command is sent verbatim to the active shell. Read the output afterwards with terminal_read - do not assume it finished without waiting and reading.',
   'Baca baris yang sedang tampil di pane terminal (viewport terakhir yang ter-render). Panggil setelah terminal_exec dan beri waktu proses berjalan.':
     'Read the lines currently shown in the terminal pane (last rendered viewport). Call it after terminal_exec and give the process time to run.',
   'Baca diagnostik (Problems) yang sedang tampil di panel bawah: error & warning per file. Filter severity opsional: error | warning | info | hint.':
     'Read the diagnostics (Problems) shown in the bottom panel: errors & warnings per file. Optional severity filter: error | warning | info | hint.',
   'Baca isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug). Param channel wajib; tail opsional (default 200 baris terakhir).':
     'Read one channel of the bottom Output panel (zephyr, mcp, ssh, extensions, debug). The channel param is required; tail is optional (defaults to the last 200 lines).',
-  'Tulis/ganti daftar tugas yang sedang dikerjakan (maks 20 item). Panggil ulang tiap kali status berubah — jangan menunggu tugas selesai. Status: pending | in_progress | done.':
-    'Write/replace the current task list (max 20 items). Call it again whenever a status changes — do not wait for tasks to finish. Status: pending | in_progress | done.',
+  'Tulis/ganti daftar tugas yang sedang dikerjakan (maks 20 item). Panggil ulang tiap kali status berubah - jangan menunggu tugas selesai. Status: pending | in_progress | done.':
+    'Write/replace the current task list (max 20 items). Call it again whenever a status changes - do not wait for tasks to finish. Status: pending | in_progress | done.',
   'Daftar pane terminal/browser yang sedang terbuka (paneId, type, title, agent, pid, running). Berguna untuk mengetahui terminal mana yang hidup sebelum menjalankan perintah.':
     'List the open terminal/browser panes (paneId, type, title, agent, pid, running). Useful to see which terminals are alive before running a command.',
 
@@ -473,7 +473,7 @@ export const EN: Record<string, string> = {
   'Hapus breakpoint': 'Remove breakpoint',
   'Hapus Semua Breakpoint': 'Remove All Breakpoints',
   'belum diverifikasi': 'not verified',
-  'Program berjalan — belum berhenti.': 'Program is running — not paused.',
+  'Program berjalan - belum berhenti.': 'Program is running - not paused.',
   'Tidak ada sesi debug aktif. Tekan F5 untuk mulai.': 'No active debug session. Press F5 to start.',
   'Breakpoint (belum diverifikasi adapter)': 'Breakpoint (not verified by the adapter)',
   'Debug: Hapus Semua Breakpoint': 'Debug: Remove All Breakpoints',
@@ -521,17 +521,17 @@ export const EN: Record<string, string> = {
     'Copy every install command that is not installed yet',
   'perintah pasang disalin': 'install commands copied',
   'daftar model kosong / tidak terbaca': 'the model list is empty / unreadable',
-  '(tersimpan — isi untuk mengganti)': '(saved — fill in to replace)',
-  'Windows sudah meminta animasi dikurangi — animasi mati walau ini off':
-    'Windows already asked for reduced animation — motion stays off even with this disabled',
+  '(tersimpan - isi untuk mengganti)': '(saved - fill in to replace)',
+  'Windows sudah meminta animasi dikurangi - animasi mati walau ini off':
+    'Windows already asked for reduced animation - motion stays off even with this disabled',
   'screen reader butuh waktu membacakan; naikkan bila toast terlalu cepat hilang':
     'a screen reader needs time to read; raise it if toasts disappear too fast',
   'bacakan status baris kolom posisi a11y screen reader': 'announce the line/column position for a11y screen readers',
   'axe belum disuntik': 'axe is not injected yet',
   'Belum ada folder yang pernah diberi keputusan trust.':
     'No folder has been given a trust decision yet.',
-  'Lupakan keputusan — folder akan ditanya lagi saat dibuka':
-    'Forget the decision — the folder will be asked again when opened',
+  'Lupakan keputusan - folder akan ditanya lagi saat dibuka':
+    'Forget the decision - the folder will be asked again when opened',
   'belum ada folder terbuka': 'no folder open yet',
 
   'Cari file': 'Search files',

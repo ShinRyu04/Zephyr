@@ -36,10 +36,10 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
     void import('../../lib/store').then(({ useStore }) => {
       const s = useStore.getState();
       const id = s.activeTabId;
-      if (!id) return setToast(tx('Tidak ada tab editor aktif'));
+      if (!id) return setToast(tx('No active editor tab'));
       const tab = s.tabs.find((t) => t.id === id);
       const lama = tab?.content ?? '';
-      if (lama === code) return setToast(tx('Isi file sudah sama dengan kode ini'));
+      if (lama === code) return setToast(tx('The file contents are already the same as this code'));
       setPratinjau(barisDiff(lama, code));
     });
   };
@@ -49,16 +49,16 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
     void import('../../lib/store').then(({ useStore }) => {
       const s = useStore.getState();
       const id = s.activeTabId;
-      if (!id) return setToast(tx('Tidak ada tab editor aktif'));
+      if (!id) return setToast(tx('No active editor tab'));
       s.updateTabContent(id, code);
-      setToast(tx('Isi tab diganti — Ctrl+S untuk menyimpan'));
+      setToast(tx('Tab contents replaced - Ctrl+S to save'));
     });
   };
   const sisipkan = () => {
     void import('../../lib/mcpStore').then(({ runAction }) => {
       void runAction('editor_insert', { text: code }).then((r) => {
         const rr = r as { tabId?: string } | null;
-        setToast(rr?.tabId ? tx('Kode disisipkan di kursor') : tx('Tidak ada tab aktif untuk menyisipkan'));
+        setToast(rr?.tabId ? tx('Code inserted at the cursor') : tx('No active tab to insert into'));
       });
     });
   };
@@ -72,18 +72,18 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
             <button
               className="ai-code-btn"
               data-testid="ai-apply-code"
-              title={tx('Ganti isi tab editor aktif dengan kode ini')}
+              title={tx('Replace the active editor tab contents with this code')}
               onClick={terapkan}
             >
-              Terapkan
+              Apply
             </button>
             <button
               className="ai-code-btn"
               data-testid="ai-insert-code"
-              title={tx('Sisipkan kode di posisi kursor')}
+              title={tx('Insert the code at the cursor position')}
               onClick={sisipkan}
             >
-              Sisipkan
+              Insert
             </button>
           </>
         )}
@@ -91,19 +91,19 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
           className="ai-code-btn"
           data-testid="ai-copy-code"
           onClick={() => {
-            void clipboardWrite(code).then(() => setToast(tx('Kode disalin')));
+            void clipboardWrite(code).then(() => setToast(tx('Code copied')));
           }}
         >
-          Salin
+          Copy
         </button>
         {isShell && (
           <button
             className="ai-code-btn is-run"
             data-testid="ai-run-code"
-            title={isDestructive(code) ? tx('Perintah berisiko — akan minta konfirmasi') : tx('Kirim ke pane terminal aktif')}
+            title={isDestructive(code) ? tx('Risky command - will ask for confirmation') : tx('Send to the active terminal pane')}
             onClick={() => void runInTerminal(code)}
           >
-            {tx('Jalankan di Terminal')}
+            {tx('Run in Terminal')}
           </button>
         )}
       </div>
@@ -114,18 +114,18 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
         <div className="ai-diff" data-testid="ai-diff">
           <div className="ai-diff-head">
             <span className="ai-diff-sum">
-              {ringkasDiff(pratinjau).tambah} baris ditambah ·{' '}
-              {ringkasDiff(pratinjau).hapus} baris dihapus
+              {ringkasDiff(pratinjau).tambah} lines added ·{' '}
+              {ringkasDiff(pratinjau).hapus} lines removed
             </span>
             <button className="ai-code-btn is-run" data-testid="ai-diff-ok" onClick={konfirmasiTerapkan}>
-              Terapkan
+              Apply
             </button>
             <button
               className="ai-code-btn"
               data-testid="ai-diff-cancel"
               onClick={() => setPratinjau(null)}
             >
-              Batal
+              Cancel
             </button>
           </div>
           <div className="ai-diff-body">
@@ -184,9 +184,9 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             <button
               className="ai-msg-act"
               data-testid="ai-copy-msg"
-              title={tx('Salin isi jawaban')}
+              title={tx('Copy the answer contents')}
               onClick={() => {
-                void clipboardWrite(msg.content).then(() => setToast(tx('Disalin')));
+                void clipboardWrite(msg.content).then(() => setToast(tx('Copied')));
               }}
             >
               ⧉
@@ -201,7 +201,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
         )}
         {msg.streaming && (
           <span className="ai-typing" data-testid="ai-typing" role="status">
-            mengetik<span className="ai-dots">…</span>
+            typing<span className="ai-dots">…</span>
           </span>
         )}
       </div>
@@ -223,7 +223,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                     className="ai-msg-img"
                     key={i}
                     src={src}
-                    alt={`Lampiran ${i + 1}`}
+                    alt={`Attachment ${i + 1}`}
                     data-testid="ai-msg-img"
                   />
                 ))}
@@ -243,34 +243,34 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                     <span className="ai-toolrun-caret">{buka[i] ? '▾' : '▸'}</span>
                     <span className="ai-toolrun-name">{t.name}</span>
                     <code className="ai-toolrun-args">{t.args}</code>
-                    {!t.ok && <span className="ai-toolrun-fail">{tr('gagal')}</span>}
+                    {!t.ok && <span className="ai-toolrun-fail">{tr('failed')}</span>}
                   </button>
                   {buka[i] && (
                     <>
                       <pre className={`ai-toolrun-out${t.ok ? '' : ' is-err'}`} data-testid="ai-toolrun-out">
-                        {t.result || tr('(tanpa output)')}
+                        {t.result || tr('(no output)')}
                       </pre>
                       <div className="ai-toolrun-act">
                         <button
                           className="ai-code-btn"
                           data-testid="ai-toolrun-copy"
                           onClick={() => {
-                            void clipboardWrite(t.result).then(() => setToast(tx('Output disalin')));
+                            void clipboardWrite(t.result).then(() => setToast(tx('Output copied')));
                           }}
                         >
-                          Salin
+                          Copy
                         </button>
                         <button
                           className="ai-code-btn"
                           data-testid="ai-toolrun-open"
-                          title={tx('Buka pane terminal di panel bawah')}
+                          title={tx('Open a terminal pane in the bottom panel')}
                           onClick={() => {
                             void import('../../lib/panelStore').then((m) => {
                               m.usePanel.getState().focusTab('terminal');
                             });
                           }}
                         >
-                          {tx('Buka di terminal')}
+                          {tx('Open in terminal')}
                         </button>
                       </div>
                     </>
@@ -283,7 +283,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             <p className="ai-plain">{msg.content}</p>
           ) : (
             <>
-              {/* T1.1: blok "Reasoned" — penalaran model, bisa dilipat.
+              {/* T1.1: blok "Reasoned" - penalaran model, bisa dilipat.
                   Terlipat secara default supaya jawaban tetap jadi fokus;
                   dibuka otomatis saat masih mengalir supaya user melihat
                   model benar-benar berpikir (bukan menggantung). */}
@@ -306,7 +306,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                         <button
                           className="ai-file-ref"
                           data-testid="ai-file-ref"
-                          title={`Buka ${ref[1]}${ref[2] ? `:${ref[2]}` : ''}`}
+                          title={`Open ${ref[1]}${ref[2] ? `:${ref[2]}` : ''}`}
                           onClick={() => {
                             void import('../../lib/store').then(({ useStore }) => {
                               const line = ref[2] ? Number(ref[2]) : 1;

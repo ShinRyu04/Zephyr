@@ -7,36 +7,36 @@ const APPROVAL: { id: ApprovalMode; label: string; hint: string; kelas: string }
   {
     id: 'readonly',
     label: 'Read-only',
-    hint: 'Tidak boleh mengubah apa pun — hanya membaca',
+    hint: 'Cannot change anything - only reads',
     kelas: 'is-aman',
   },
   {
     id: 'ask',
-    label: 'Minta izin',
-    hint: 'Setiap perintah yang mengubah sesuatu harus kamu setujui',
+    label: 'Ask permission',
+    hint: 'Every command that changes something must be approved by you',
     kelas: 'is-tanya',
   },
   {
     id: 'work',
-    label: 'Kerja langsung',
-    hint: 'Perintah aman jalan sendiri, yang berisiko tetap minta izin',
+    label: 'Work directly',
+    hint: 'Safe commands run on their own, risky ones still ask permission',
     kelas: 'is-kerja',
   },
   {
     id: 'auto',
-    label: 'Auto (tanpa tanya)',
-    hint: 'Semua perintah dijalankan tanpa interupsi',
+    label: 'Auto (no asking)',
+    hint: 'All commands run without interruption',
     kelas: 'is-auto',
   },
 ];
 
 const EFFORT: { id: string; label: string; hint: string; kelas: string }[] = [
-  { id: '', label: 'Auto', hint: 'Ikut default provider — tidak mengirim parameter apa pun', kelas: 'is-auto' },
-  { id: 'minimal', label: 'Minimal', hint: 'Nyaris tanpa penalaran — paling cepat', kelas: 'is-minimal' },
-  { id: 'low', label: 'Low', hint: 'Penalaran singkat', kelas: 'is-low' },
-  { id: 'medium', label: 'Medium', hint: 'Seimbang', kelas: 'is-medium' },
-  { id: 'high', label: 'High', hint: 'Untuk tugas yang lebih sulit', kelas: 'is-high' },
-  { id: 'ultra', label: 'Ultra', hint: 'Penalaran maksimal — paling lambat', kelas: 'is-ultra' },
+  { id: '', label: 'Auto', hint: 'Follow the provider default - no parameters sent', kelas: 'is-auto' },
+  { id: 'minimal', label: 'Minimal', hint: 'Almost no reasoning - fastest', kelas: 'is-minimal' },
+  { id: 'low', label: 'Low', hint: 'Brief reasoning', kelas: 'is-low' },
+  { id: 'medium', label: 'Medium', hint: 'Balanced', kelas: 'is-medium' },
+  { id: 'high', label: 'High', hint: 'For harder tasks', kelas: 'is-high' },
+  { id: 'ultra', label: 'Ultra', hint: 'Maximum reasoning - slowest', kelas: 'is-ultra' },
 ];
 
 function useKlikLuar(onTutup: () => void) {
@@ -75,7 +75,7 @@ export function ApprovalPicker() {
       </button>
       {buka && (
         <div className="pick-pop" data-testid="approval-pop" role="listbox">
-          <div className="pick-seksi">{tr('Mode persetujuan')}</div>
+          <div className="pick-seksi">{tr('Approval mode')}</div>
           {APPROVAL.map((a) => (
             <button
               key={a.id}
@@ -118,7 +118,7 @@ export function EffortPicker() {
         data-aktif={effort ? 'true' : 'false'}
         data-effort={effort ?? ''}
         aria-expanded={buka}
-        title={tr('Seberapa dalam model berpikir sebelum menjawab')}
+        title={tr('How deeply the model thinks before answering')}
         onClick={() => setBuka((v) => !v)}
       >
         <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
@@ -133,7 +133,7 @@ export function EffortPicker() {
       </button>
       {buka && (
         <div className="pick-pop" data-testid="effort-pop" role="listbox">
-          <div className="pick-seksi">{tr('Tingkat penalaran')}</div>
+          <div className="pick-seksi">{tr('Reasoning level')}</div>
           {EFFORT.map((e) => (
             <button
               key={e.id || 'auto'}
@@ -154,7 +154,7 @@ export function EffortPicker() {
               {e.id === (effort ?? '') && <span className="pick-check">✓</span>}
             </button>
           ))}
-          <div className="pick-kaki">{tr('Mengirim reasoning.effort ke provider')}</div>
+          <div className="pick-kaki">{tr('Sends reasoning.effort to the provider')}</div>
         </div>
       )}
     </span>

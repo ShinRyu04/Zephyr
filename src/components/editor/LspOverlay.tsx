@@ -91,7 +91,7 @@ export default function LspOverlay() {
         baru,
       );
       if (total === 0) {
-        notifyWarn(tx('Server tidak mengembalikan perubahan apa pun'), { source: 'LSP' });
+        notifyWarn(tx('The server returned no changes'), { source: 'LSP' });
         return tutup();
       }
 
@@ -109,17 +109,17 @@ export default function LspOverlay() {
           await cmd.fsWrite(file, teksBaru);
           fileLain++;
         } catch (e) {
-          notifyError(`Gagal menulis ${file}`, { source: 'LSP', detail: cmd.asZephyrError(e).message });
+          notifyError(`Failed to write ${file}`, { source: 'LSP', detail: cmd.asZephyrError(e).message });
         }
       }
       notifyInfo(
-        `Rename → "${baru}": ${total} perubahan di ${Object.keys(perFile).length} file` +
-          (fileLain > 0 ? ` (${fileLain} file ditulis langsung ke disk)` : ''),
+        `Rename → "${baru}": ${total} changes in ${Object.keys(perFile).length} files` +
+          (fileLain > 0 ? ` (${fileLain} files written directly to disk)` : ''),
         { source: 'LSP' },
       );
       tutup();
     } catch (e) {
-      notifyError(tx('Rename gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
+      notifyError(tx('Rename failed'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
       tutup();
     } finally {
       setSibuk(false);
@@ -149,9 +149,9 @@ export default function LspOverlay() {
           .filter((x) => x.title);
         setAksi(items);
         setIdx(0);
-        if (items.length === 0) notifyInfo(tx('Tidak ada quick fix di posisi ini'), { source: 'LSP' });
+        if (items.length === 0) notifyInfo(tx('No quick fix at this position'), { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Quick Fix gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
+        notifyError(tx('Quick Fix failed'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
         setMode(null);
       } finally {
         setSibuk(false);
@@ -204,11 +204,11 @@ export default function LspOverlay() {
         });
       }
       notifyInfo(
-        diterapkan > 0 ? `"${item.title}" — ${diterapkan} perubahan` : `"${item.title}" dijalankan`,
+        diterapkan > 0 ? `"${item.title}" - ${diterapkan} changes` : `"${item.title}" executed`,
         { source: 'LSP' },
       );
     } catch (e) {
-      notifyError(tx('Code action gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
+      notifyError(tx('Code action failed'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
     }
     tutup();
   };
@@ -250,9 +250,9 @@ export default function LspOverlay() {
         jelajah(res);
         setSimbol(out);
         setIdx(0);
-        if (out.length === 0) notifyInfo(tx('Tidak ada simbol di file ini'), { source: 'LSP' });
+        if (out.length === 0) notifyInfo(tx('No symbols in this file'), { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Go to Symbol gagal'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
+        notifyError(tx('Go to Symbol failed'), { source: 'LSP', detail: cmd.asZephyrError(e).message });
         setMode(null);
       } finally {
         setSibuk(false);
@@ -300,7 +300,7 @@ export default function LspOverlay() {
       {mode === 'rename' && (
         <div className="lsp-rename" role="dialog" aria-modal="true" aria-label="Rename Symbol">
           <label className="lsp-label" htmlFor="lsp-rename-input">
-            Nama baru
+            New name
           </label>
           <input
             id="lsp-rename-input"
@@ -328,10 +328,10 @@ export default function LspOverlay() {
               disabled={sibuk || !nilai.trim()}
               onClick={() => void jalankanRename()}
             >
-              {sibuk ? 'Memproses…' : 'Rename'}
+              {sibuk ? 'Processing…' : 'Rename'}
             </button>
             <button className="btn btn-sm" data-testid="lsp-rename-cancel" onClick={tutup}>
-              Batal
+              Cancel
             </button>
           </div>
         </div>
@@ -341,10 +341,10 @@ export default function LspOverlay() {
         <div className="lsp-list" role="dialog" aria-modal="true" aria-label="Quick Fix">
           <div className="lsp-list-head">Quick Fix / Code Action</div>
           {sibuk ? (
-            <p className="lsp-empty">Menanyakan server…</p>
+            <p className="lsp-empty">Asking the server…</p>
           ) : aksi.length === 0 ? (
             <p className="lsp-empty" data-testid="lsp-action-empty">
-              {tr('Tidak ada aksi di posisi ini.')}
+              {tr('No actions at this position.')}
             </p>
           ) : (
             <div className="lsp-items">
@@ -370,10 +370,10 @@ export default function LspOverlay() {
             Go to Symbol{simbol.length > 0 ? ` (${simbol.length})` : ''}
           </div>
           {sibuk ? (
-            <p className="lsp-empty">Mengambil simbol…</p>
+            <p className="lsp-empty">Fetching symbols…</p>
           ) : simbol.length === 0 ? (
             <p className="lsp-empty" data-testid="lsp-symbol-empty">
-              {tr('Tidak ada simbol.')}
+              {tr('No symbols.')}
             </p>
           ) : (
             <div className="lsp-items">

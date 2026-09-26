@@ -479,7 +479,7 @@ export default function App() {
 
         e.stopImmediatePropagation();
         kb.setPending(chord);
-        useStore.getState().setStatus(`${chord} — menunggu tombol berikutnya…`);
+        useStore.getState().setStatus(`${chord} - waiting for the next key…`);
         return;
       }
 
@@ -507,7 +507,7 @@ export default function App() {
 
       if (hit.layer === 'stub') {
 
-        notifyWarn(`${hit.label ?? hit.command} belum tersedia di versi ini`, {
+        notifyWarn(`${hit.label ?? hit.command} is not available in this version`, {
           source: 'keybinding',
         });
         useStore.getState().setStatus('');
@@ -517,7 +517,7 @@ export default function App() {
       useStore.getState().setStatus('');
       void runCommand(hit.command).then((ok) => {
         if (!ok) {
-          notifyWarn(`Command ${hit.command} tidak terdaftar`, { source: 'keybinding' });
+          notifyWarn(`Command ${hit.command} is not registered`, { source: 'keybinding' });
         }
       });
     };
@@ -555,7 +555,7 @@ export default function App() {
         un = u;
       })
       .catch(() => {
-        /* mode browser tanpa Tauri — biarkan */
+        /* mode browser tanpa Tauri - biarkan */
       });
 
     const timer = window.setInterval(() => {
@@ -581,7 +581,7 @@ export default function App() {
             try {
               await s.openPath(p);
             } catch {
-              s.setStatus(`Tidak bisa membuka: ${p}`);
+              s.setStatus(`Could not open: ${p}`);
             }
           }
         })
@@ -761,7 +761,7 @@ export default function App() {
     });
     void onMcpScreenshot(({ paneId, path }) => {
       const m = useMcp.getState();
-      m.setToast(`AI CLI mengambil screenshot pane ${paneId.slice(-6)}`);
+      m.setToast(`AI CLI captured a screenshot of pane ${paneId.slice(-6)}`);
       m.pushLog(`screenshot_pane ${paneId.slice(-6)} → ${path.split(/[\\/]/).pop()}`, 'action');
       useMcp.setState({ lastShot: path, mcpInfo: `Screenshot pane ${paneId} → ${path}` });
     });
@@ -849,7 +849,7 @@ export default function App() {
       void logFrontend(level, text).catch(() => {
         /* Rust not available (browser mode), leave it */
       });
-      useStore.getState().setStatus('Terjadi kesalahan; lihat log');
+      useStore.getState().setStatus('An error occurred; see the log');
     };
 
     const onErr = (e: ErrorEvent) => {
@@ -872,7 +872,7 @@ export default function App() {
 
   return (
     <div className="app-root">
-      {/* FASE 31: skip link — elemen fokusabel PERTAMA di app.
+      {/* FASE 31: skip link - elemen fokusabel PERTAMA di app.
           Tanpa ini pengguna keyboard harus melewati ~20 tombol ActivityBar +
           Sidebar sebelum sampai ke editor, setiap kali. Dibuat <button> bukan
           <a href="#..."> karena editor bukan anchor target dan CodeMirror
@@ -884,9 +884,9 @@ export default function App() {
           const v = getActiveView();
           if (v) {
             v.focus();
-            umumkanA11y('Fokus di editor.');
+            umumkanA11y('Focus in editor.');
           } else {
-            umumkanA11y('Belum ada file yang terbuka.', 'assertive');
+            umumkanA11y('No file is open.', 'assertive');
           }
         }}
       >
@@ -920,7 +920,7 @@ export default function App() {
                 className="resizer resizer-h"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label={tr('Ubah tinggi panel')}
+                aria-label={tr('Resize panel height')}
                 onPointerDown={startResize}
               />
             </>
@@ -936,19 +936,19 @@ export default function App() {
                 className="resizer"
                 role="separator"
                 aria-orientation="vertical"
-                aria-label={tr('Ubah lebar sidebar')}
+                aria-label={tr('Resize sidebar width')}
                 onPointerDown={startResize}
               />
             </>
           )}
 
           <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
-            {/* C-19: layout terminal-first ala Terax — terminal jadi area
+            {/* C-19: layout terminal-first ala Terax - terminal jadi area
                 utama, editor menempel sebagai pane di kanan. Default tetap
                 editor-first supaya perilaku lama tidak berubah. */}
             {layoutTerminal ? (
               <div className="term-first" data-testid="term-first">
-                <section className="term-first-term" aria-label="Terminal utama">
+                <section className="term-first-term" aria-label="Main terminal">
                   <TerminalArea />
                 </section>
                 <aside className="term-first-editor" aria-label="Editor">
@@ -967,13 +967,13 @@ export default function App() {
               bawah sejajar terminal. Dirender HANYA saat dock = 'ai' supaya
               lebar editor tidak berkurang saat user sedang di terminal. */}
           {/* AI column resizer: draggable like the sidebar. Previously the width
-              340px MATI — user minta "bisa di lebarkan". */}
+              340px MATI - user minta "bisa di lebarkan". */}
           {aiKanan && !aiMax && (
             <div
               className="resizer"
               role="separator"
               aria-orientation="vertical"
-              aria-label={tr('Ubah lebar panel AI')}
+              aria-label={tr('Resize AI panel width')}
               data-testid="ai-resizer"
               onPointerDown={startDragAi}
             />
@@ -993,16 +993,16 @@ export default function App() {
                       '--ai-w': `${aiWidth}px`,
                     } as React.CSSProperties)
               }
-              aria-label={tx('Panel AI')}
+              aria-label={tx('AI panel')}
             >
               {/* Baris: chat di kiri, panel info subagent di kanan. Wrapper ini
-                  WAJIB — tanpa-nya .ai-side-col (flex column) menaruh panel
+                  WAJIB - tanpa-nya .ai-side-col (flex column) menaruh panel
                   info di BAWAH chat, bukan di sampingnya. */}
               <div className="ai-side-row">
                 <AiPanel />
                 {/* T4.1b: panel INFO subagent di sebelah kanan chat. Ditaruh
                     di dalam kolom AI supaya hanya muncul saat chat memang
-                    sedang tampil — kalau tidak, ia menggantung tanpa konteks. */}
+                    sedang tampil - kalau tidak, ia menggantung tanpa konteks. */}
                 {subKanan && <SubAgentInfo />}
               </div>
             </aside>
@@ -1015,7 +1015,7 @@ export default function App() {
                 className="resizer resizer-h"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label={tr('Ubah tinggi panel')}
+                aria-label={tr('Resize panel height')}
                 onPointerDown={startResize}
               />
               <aside
@@ -1049,7 +1049,7 @@ export default function App() {
         <DeleteConfirmDialog />
         <ClearChatsDialog />
         <TrustDialog />
-        {/* Izin runtime eksternal ekstensi — global, bisa muncul kapan
+        {/* Izin runtime eksternal ekstensi - global, bisa muncul kapan
             saja karena eksekusi bisa diminta dari worker mana pun. */}
         <ExtApprovalModal />
         <KeybindingsEditor />

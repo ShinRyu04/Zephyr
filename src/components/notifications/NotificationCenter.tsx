@@ -39,8 +39,8 @@ function Baris({ n }: { n: Notif }) {
       </div>
       <button
         className="nc-x"
-        title={tx('Hapus dari riwayat')}
-        aria-label={tx('Hapus notifikasi ini')}
+        title={tx('Remove from history')}
+        aria-label={tx('Remove this notification')}
         onClick={() => remove(n.id)}
       >
         ✕
@@ -65,12 +65,12 @@ export function NotifBell() {
       data-dnd={dnd ? '1' : '0'}
       title={
         dnd
-          ? tr('Notifikasi diredam (Do Not Disturb) — klik untuk melihat riwayat')
+          ? tr('Notifications muted (Do Not Disturb) - click to view history')
           : unread > 0
-            ? tf('{n} notifikasi belum dibaca', { n: unread })
-            : tr('Notifikasi')
+            ? tf('{n} unread notifications', { n: unread })
+            : tr('Notifications')
       }
-      aria-label={tr('Notifikasi')}
+      aria-label={tr('Notifications')}
       onClick={toggle}
     >
       <svg viewBox="0 0 16 16" className="sb-bell-ico" aria-hidden="true">
@@ -113,9 +113,9 @@ export default function NotificationCenter() {
         if (e.target === e.currentTarget) setOpen(false);
       }}
     >
-      <aside className="nc-panel" data-testid="nc-panel" aria-label={tr('Notifikasi')}>
+      <aside className="nc-panel" data-testid="nc-panel" aria-label={tr('Notifications')}>
         <header className="nc-head">
-          <span className="nc-title">{tr('Notifikasi')}</span>
+          <span className="nc-title">{tr('Notifications')}</span>
           <span className="nc-count" data-testid="nc-total">
             {items.length}
           </span>
@@ -124,25 +124,25 @@ export default function NotificationCenter() {
             className={`btn btn-sm${dnd ? ' btn-primary' : ''}`}
             data-testid="nc-dnd"
             aria-pressed={dnd}
-            title={tr('Do Not Disturb: toast diredam, riwayat tetap dicatat')}
+            title={tr('Do Not Disturb: toasts are muted, history is still recorded')}
             onClick={toggleDnd}
           >
-            {dnd ? tr('DND aktif') : tr('Do Not Disturb')}
+            {dnd ? tr('DND active') : tr('Do Not Disturb')}
           </button>
           <button className="btn btn-sm" data-testid="nc-read-all" onClick={markAllRead}>
-            {tr('Tandai terbaca')}
+            {tr('Mark all read')}
           </button>
           <button className="btn btn-sm" data-testid="nc-clear" onClick={clear}>
-            {tr('Bersihkan')}
+            {tr('Clear')}
           </button>
           <button className="btn btn-sm" data-testid="nc-close" onClick={() => setOpen(false)}>
-            {tr('Tutup')}
+            {tr('Close')}
           </button>
         </header>
 
         {items.length === 0 ? (
           <p className="side-muted nc-empty" data-testid="nc-empty">
-            {tr('Belum ada notifikasi.')}
+            {tr('No notifications yet.')}
           </p>
         ) : (
           <ul className="nc-list" data-testid="nc-list">

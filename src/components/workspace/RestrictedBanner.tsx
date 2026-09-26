@@ -26,7 +26,7 @@ export default function RestrictedBanner() {
         data-testid="rb-manage"
         onClick={() => tanya(activeRoot || null)}
       >
-        {perluTanya ? 'Pilih Trust' : 'Manage Trust'}
+        {perluTanya ? 'Choose Trust' : 'Manage Trust'}
       </button>
     </div>
   );

@@ -33,11 +33,11 @@ export default function ClearChatsDialog() {
     >
       <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="clr-title">
         <h2 className="modal-title" id="clr-title" data-testid="clr-title">
-          {tr('Hapus semua riwayat chat?')}
+          {tr('Delete all chat history?')}
         </h2>
         <p className="modal-body" data-testid="clr-body">
-          {jumlah} percakapan akan dihapus PERMANEN dan tidak bisa dikembalikan.
-          Satu sesi kosong akan dibuka setelahnya.
+          {jumlah} conversations will be deleted PERMANENTLY and cannot be recovered.
+          One empty session will be opened afterward.
         </p>
         <div className="modal-actions">
           <button
@@ -46,14 +46,14 @@ export default function ClearChatsDialog() {
             data-testid="clr-cancel"
             onClick={() => setOpen(false)}
           >
-            Batal
+            Cancel
           </button>
           <button
             className="btn btn-danger"
             data-testid="clr-ok"
             onClick={() => clearAll()}
           >
-            {tr('Hapus semua')}
+            {tr('Delete all')}
           </button>
         </div>
       </div>

@@ -64,12 +64,12 @@ function Langkah({ l }: { l: SubStep }) {
           {sasaran}
         </span>
       )}
-      {l.ok === false && <span className="sub-aksi-gagal">{tr('gagal')}</span>}
-      {/* Hasil lengkap tetap bisa diperiksa lewat <details> — timeline rapi,
+      {l.ok === false && <span className="sub-aksi-gagal">{tr('failed')}</span>}
+      {/* Hasil lengkap tetap bisa diperiksa lewat <details> - timeline rapi,
           tapi buktinya tidak disembunyikan. */}
       {l.hasil && (
         <details className="sub-aksi-hasil">
-          <summary>{tr('hasil')}</summary>
+          <summary>{tr('result')}</summary>
           <pre>{l.hasil}</pre>
         </details>
       )}
@@ -100,8 +100,8 @@ function Kartu({ a }: { a: SubAgent }) {
   const nLangkah = a.langkah.length;
 
   const statusHidup = (() => {
-    if (!langkahTerakhir) return tr('Menyiapkan…');
-    if (langkahTerakhir.kind === 'pikir') return tr('Berpikir…');
+    if (!langkahTerakhir) return tr('Preparing…');
+    if (langkahTerakhir.kind === 'pikir') return tr('Thinking…');
     const info = infoAksi(langkahTerakhir.nama);
     const sasaran = sasaranAksi(langkahTerakhir.args);
     const namaFile = sasaran.split(/[/\\]/).pop() || sasaran;
@@ -140,13 +140,13 @@ function Kartu({ a }: { a: SubAgent }) {
           {tr(a.status)}
         </span>
         <span className="sub-meta" data-testid={`sub-meta-${a.id}`}>
-          {nLangkah} {tr('langkah')} · {durasi(ms)}
+          {nLangkah} {tr('steps')} · {durasi(ms)}
         </span>
         {hidup && (
           <button
             className="sub-batal"
             data-testid={`sub-batal-${a.id}`}
-            title={tr('Batalkan subagent ini')}
+            title={tr('Cancel this subagent')}
             onClick={() => batal(a.id)}
           >
             ✕
@@ -184,7 +184,7 @@ function Kartu({ a }: { a: SubAgent }) {
             onClick={() => setBuka((v) => !v)}
           >
             <span className="sub-caret">{buka ? '▾' : '▸'}</span>
-            {nLangkah} {tr('langkah')}
+            {nLangkah} {tr('steps')}
           </button>
           {buka && (
             <ol className="sub-langkah" data-testid={`sub-langkah-${a.id}`}>
@@ -197,7 +197,7 @@ function Kartu({ a }: { a: SubAgent }) {
       )}
 
       {/* Hasil TIDAK diulang di sini. Isinya sudah ada di pesan ringkasan
-          chat, dan mengulangnya membuat panel terasa menumpuk — inilah yang
+          chat, dan mengulangnya membuat panel terasa menumpuk - inilah yang
           dikeluhkan user. Yang tersisa hanya pratinjau satu baris supaya
           kartu tetap informatif tanpa mengulang paragraf. */}
       {a.hasil && a.status === 'selesai' && (
@@ -225,8 +225,8 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
   const gagal = agents.filter((a) => a.status === 'gagal').length;
 
   const judul = sibuk
-    ? `${jalan} ${tr('tugas paralel')}`
-    : `${agents.length} ${tr('subagent')} · ${beres} ${tr('selesai')}${gagal ? ` · ${gagal} ${tr('gagal')}` : ''}`;
+    ? `${jalan} ${tr('parallel tasks')}`
+    : `${agents.length} ${tr('subagent')} · ${beres} ${tr('done')}${gagal ? ` · ${gagal} ${tr('failed')}` : ''}`;
 
   const total = agents.length;
   const persen = total > 0 ? Math.round((beres / total) * 100) : 0;
@@ -244,11 +244,11 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
         <span className="sub-spacer" />
         {sibuk ? (
           <button className="btn btn-sm" data-testid="sub-stop-all" onClick={batalSemua}>
-            {tr('Hentikan semua')}
+            {tr('Stop all')}
           </button>
         ) : (
           <button className="btn btn-sm" data-testid="sub-clear" onClick={bersihkan}>
-            {tr('Bersihkan')}
+            {tr('Clear')}
           </button>
         )}
       </div>
@@ -271,7 +271,7 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
 
       {!polos && ringkasan && !sibuk && (
         <details className="sub-ringkas" data-testid="sub-summary">
-          <summary>{tr('Ringkasan gabungan')}</summary>
+          <summary>{tr('Combined summary')}</summary>
           <pre>{ringkasan}</pre>
         </details>
       )}

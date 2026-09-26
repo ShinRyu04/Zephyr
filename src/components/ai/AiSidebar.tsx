@@ -63,7 +63,7 @@ export default function AiSidebar() {
             className={`ai-side-key${hasKey ? ' is-ok' : ' is-warn'}`}
             data-testid="ai-side-key"
           >
-            {hasKey ? tr('key siap') : tr('belum ada key')}
+            {hasKey ? tr('key ready') : tr('no key yet')}
           </span>
         </div>
 
@@ -72,10 +72,10 @@ export default function AiSidebar() {
             buka();
             newChat();
           }}>
-            + {tr('Chat baru')}
+            + {tr('New chat')}
           </button>
           <button className="btn btn-sm" data-testid="ai-open-panel" onClick={() => buka()}>
-            {tr('Buka panel AI')}
+            {tr('Open AI panel')}
           </button>
           {!hasKey && (
             <button
@@ -89,7 +89,7 @@ export default function AiSidebar() {
                 );
               }}
             >
-              {tr('Isi API key')}
+              {tr('Enter API key')}
             </button>
           )}
         </div>
@@ -97,39 +97,39 @@ export default function AiSidebar() {
 
       <div className="side-section tp-list-wrap">
         <div className="tp-subtitle ai-side-head-row">
-          <span>{tr('Riwayat chat')}</span>
-          {/* Hapus SEMUA: dulu hanya ada di store (clearAllChats) tanpa UI —
+          <span>{tr('Chat history')}</span>
+          {/* Hapus SEMUA: dulu hanya ada di store (clearAllChats) tanpa UI -
               user tidak menemukannya. Tombol per-chat tetap ada di tiap baris;
               yang ini untuk membersihkan seluruh riwayat sekaligus. */}
           {sessions.length > 0 && (
             <button
               className="tp-op ai-side-clear"
               data-testid="ai-clear-all"
-              title={tr('Hapus semua riwayat chat')}
+              title={tr('Delete all chat history')}
               onClick={() => setClearAllOpen(true)}
             >
-              {tr('Hapus semua')}
+              {tr('Delete all')}
             </button>
           )}
         </div>
-        {/* A-9: cari di judul DAN isi pesan — riwayat panjang tak lagi
+        {/* A-9: cari di judul DAN isi pesan - riwayat panjang tak lagi
             hanya bisa digulir manual. */}
         <input
           className="ai-side-search"
           type="search"
           data-testid="ai-side-search"
-          placeholder={tr('Cari chat…')}
-          aria-label={tr('Cari riwayat chat')}
+          placeholder={tr('Search chats…')}
+          aria-label={tr('Search chat history')}
           value={cari}
           onChange={(e) => setCari(e.target.value)}
         />
         {sessions.length === 0 ? (
           <p className="side-muted" data-testid="ai-side-empty">
-            {tr('Belum ada percakapan. Klik “+ Chat baru”.')}
+            {tr('No conversations yet. Click "+ New chat".')}
           </p>
         ) : tampil.length === 0 ? (
           <p className="side-muted" data-testid="ai-side-nohit">
-            {tf('Tidak ada chat yang cocok dengan "{cari}".', { cari })}
+            {tf('No chats match "{cari}".', { cari })}
           </p>
         ) : (
           <ul className="ai-side-list" data-testid="ai-side-list">
@@ -137,7 +137,7 @@ export default function AiSidebar() {
               <li key={s.id} className="ai-side-item" data-ai-session={s.id}>
                 <button
                   className={`ai-side-btn${s.id === activeId ? ' is-active' : ''}`}
-                  title={`${tf('{n} pesan', { n: s.messages.length })} · ${findModel(s.model, s.provider).label}`}
+                  title={`${tf('{n} messages', { n: s.messages.length })} · ${findModel(s.model, s.provider).label}`}
                   onClick={() => buka(s.id)}
                 >
                   <ProviderLogo id={s.provider} size={13} />
@@ -148,11 +148,11 @@ export default function AiSidebar() {
                 </button>
                 <button
                   className="tp-op"
-                  title={tr('Hapus chat')}
+                  title={tr('Delete chat')}
                   data-testid={`ai-del-${s.id}`}
                   onClick={() => deleteChat(s.id)}
                 >
-                  {tr('hapus')}
+                  {tr('delete')}
                 </button>
               </li>
             ))}

@@ -44,7 +44,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
         <button
           className="api-mini"
           data-testid="lm-reset"
-          title={tr('Kembalikan tata letak bawaan')}
+          title={tr('Reset layout to default')}
           onClick={() => {
             L.reset();
             void useLayoutCustom.getState().simpan();
@@ -58,7 +58,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
       </div>
 
       {/* ── Visibilitas ── */}
-      <div className="lm-seksi">{tr('Terlihat')}</div>
+      <div className="lm-seksi">{tr('Visible')}</div>
       {BARIS_LAYOUT.map((b) => {
         const aktif = L[b.kunci];
         return (
@@ -82,7 +82,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
           Terpisah dari BARIS_LAYOUT karena hanya relevan saat panel AI tampil
           di kolom kanan; kalau digabung, tombol reset tata letak akan ikut
           mematikannya padahal itu pilihan yang disengaja user. */}
-      <div className="lm-seksi">{tr('Panel AI')}</div>
+      <div className="lm-seksi">{tr('AI panel')}</div>
       <button
         className={`lm-baris${L.subKanan ? ' is-aktif' : ''}`}
         data-testid="lm-subKanan"
@@ -95,16 +95,16 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
         <span className="lm-ikon" aria-hidden="true">
           {L.subKanan ? '👁' : '⊘'}
         </span>
-        <span className="lm-label">{tr('Info subagent di kanan chat')}</span>
+        <span className="lm-label">{tr('Subagent info to the right of chat')}</span>
       </button>
 
       {/* ── Posisi panel AI ── */}
-      <div className="lm-seksi">{tr('Panel AI')}</div>
+      <div className="lm-seksi">{tr('AI panel')}</div>
       <div className="lm-pil" data-testid="lm-posisi-ai">
         {(
           [
-            ['bottom', tr('Bawah')],
-            ['right', tr('Kanan')],
+            ['bottom', tr('Bottom')],
+            ['right', tr('Right')],
           ] as const
         ).map(([pos, label]) => (
           <button
@@ -126,7 +126,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
       </div>
 
       {/* ── Posisi side bar ── */}
-      <div className="lm-seksi">{tr('Posisi Side Bar')}</div>
+      <div className="lm-seksi">{tr('Side Bar Position')}</div>
       <div className="lm-pil" data-testid="lm-posisi">
         {(['left', 'right'] as const).map((p) => (
           <button
@@ -138,13 +138,13 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
               void useLayoutCustom.getState().simpan();
             }}
           >
-            {p === 'left' ? tr('Kiri') : tr('Kanan')}
+            {p === 'left' ? tr('Left') : tr('Right')}
           </button>
         ))}
       </div>
 
       {/* ── Kerapatan ── */}
-      <div className="lm-seksi">{tr('Kerapatan')}</div>
+      <div className="lm-seksi">{tr('Layout Density')}</div>
       <div className="lm-pil" data-testid="lm-kerapatan">
         {(['default', 'compact'] as const).map((k) => (
           <button
@@ -156,7 +156,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
               void useLayoutCustom.getState().simpan();
             }}
           >
-            {k === 'default' ? tr('Normal') : tr('Padat')}
+            {k === 'default' ? tr('Default') : tr('Compact')}
           </button>
         ))}
       </div>

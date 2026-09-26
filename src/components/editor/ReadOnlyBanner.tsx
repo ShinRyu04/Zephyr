@@ -26,14 +26,14 @@ export default function ReadOnlyBanner() {
         />
       </svg>
       <span className="ro-text" data-testid="ro-note">
-        {tab.note || 'File dibuka baca-saja'}
+        {tab.note || 'File opened read-only'}
         {tab.bytes ? ` (${fmt(tab.bytes)})` : ''}
       </span>
       {isUtf16 ? (
         <button
           className="btn btn-sm"
           data-testid="ro-save-utf8"
-          title={tr('Tulis ulang file ini sebagai UTF-8 supaya bisa diedit')}
+          title={tr('Rewrite this file as UTF-8 so it can be edited')}
           onClick={() =>
             setSaveIssue({
               kind: 'utf16',
@@ -43,16 +43,16 @@ export default function ReadOnlyBanner() {
             })
           }
         >
-          Simpan sebagai UTF-8
+          Save as UTF-8
         </button>
       ) : (
         <button
           className="btn btn-sm"
           data-testid="ro-save-copy"
-          title={tr('Simpan salinan yang bisa diedit')}
+          title={tr('Save an editable copy')}
           onClick={() => void saveTabAs(tab.id)}
         >
-          Simpan salinan…
+          Save a copy…
         </button>
       )}
     </div>

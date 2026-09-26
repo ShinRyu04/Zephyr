@@ -24,19 +24,19 @@ export class ErrorBoundary extends Component<
     return (
       <div className="err-boundary" role="alert">
         <div className="err-boundary-judul">
-          {tx('Bagian ini gagal ditampilkan')} — {bagian}
+          {tx('This section failed to render')} - {bagian}
         </div>
         <div className="err-boundary-pesan">{error.message}</div>
         <div className="err-boundary-aksi">
           <button className="btn" onClick={() => this.setState({ error: null })}>
-            {tx('Coba lagi')}
+            {tx('Try again')}
           </button>
           <button className="btn" onClick={() => window.location.reload()}>
-            {tx('Muat ulang Zephyr')}
+            {tx('Reload Zephyr')}
           </button>
         </div>
         <details className="err-boundary-detail">
-          <summary>{tx('Detail teknis')}</summary>
+          <summary>{tx('Technical details')}</summary>
           <pre>{String(error.stack ?? error.message).slice(0, 2000)}</pre>
         </details>
       </div>

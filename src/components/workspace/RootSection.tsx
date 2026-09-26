@@ -44,7 +44,7 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
 
         <div className="rs-badges">
           {root.isRepo && (
-            <span className="rs-badge rs-git" title={tx('Folder ini repo git')}>
+            <span className="rs-badge rs-git" title={tx('This folder is a git repo')}>
               git
             </span>
           )}
@@ -52,10 +52,10 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
             <button
               className="rs-badge rs-restricted"
               data-testid="root-restricted"
-              title={tx('Folder belum dipercaya — klik untuk mengatur trust')}
+              title={tx('Folder is not trusted - click to manage trust')}
               onClick={() => tanya(root.path)}
             >
-              {root.trust === 'unknown' ? tx('belum dipercaya') : 'restricted'}
+              {root.trust === 'unknown' ? tx('not trusted') : 'restricted'}
             </button>
           )}
         </div>
@@ -64,8 +64,8 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
           {!isAktif && (
             <button
               className="ex-btn"
-              title={tx('Jadikan root aktif')}
-              aria-label={tx('Jadikan root aktif')}
+              title={tx('Make this the active root')}
+              aria-label={tx('Make this the active root')}
               data-testid="root-activate"
               onClick={() => void jadikanAktif(root.path)}
             >
@@ -77,8 +77,8 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
           {!tunggal && (
             <button
               className="ex-btn"
-              title={tx('Hapus folder dari workspace')}
-              aria-label={tx('Hapus folder dari workspace')}
+              title={tx('Remove folder from workspace')}
+              aria-label={tx('Remove folder from workspace')}
               data-testid="root-remove"
               onClick={() => void hapusRoot(root.path)}
             >

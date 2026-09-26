@@ -7,13 +7,13 @@ import type { TimelineEntry } from '../../lib/types';
 import { useT } from '../../lib/i18n';
 
 const waktuSingkat = (ms: number) => {
-  if (!ms) return '—';
+  if (!ms) return '-';
   const d = new Date(ms);
   const kini = Date.now();
   const selisih = kini - ms;
-  if (selisih < 60_000) return 'baru saja';
-  if (selisih < 3_600_000) return `${Math.floor(selisih / 60_000)} menit lalu`;
-  if (selisih < 86_400_000) return `${Math.floor(selisih / 3_600_000)} jam lalu`;
+  if (selisih < 60_000) return 'just now';
+  if (selisih < 3_600_000) return `${Math.floor(selisih / 60_000)} minutes ago`;
+  if (selisih < 86_400_000) return `${Math.floor(selisih / 3_600_000)} hours ago`;
   return d.toLocaleString('id-ID', {
     day: '2-digit',
     month: 'short',
@@ -121,7 +121,7 @@ export default function TimelineView() {
     
     useGit.setState({
       diff: {
-        path: `${nama} (riwayat ${waktuSingkat(e.timestampMs)})`,
+        path: `${nama} (history ${waktuSingkat(e.timestampMs)})`,
         staged: false,
         text: buatDiff(isi, kini, `${nama}@${e.reason}`, nama),
         
@@ -164,7 +164,7 @@ export default function TimelineView() {
               data-testid="timeline-refresh"
               onClick={() => void muat(pathAktif)}
             >
-              Muat ulang
+              Reload
             </button>
             <button
               className="btn btn-sm btn-danger"
@@ -172,21 +172,21 @@ export default function TimelineView() {
               disabled={(info?.snapshots.length ?? 0) === 0}
               onClick={() => void bersihkan(pathAktif)}
             >
-              Hapus riwayat
+              Delete history
             </button>
           </div>
 
           {info?.skip ? (
             <p className="timeline-skip" data-testid="timeline-skip">
-              Tidak disnapshot: {info.skip}
+              Not snapshotted: {info.skip}
             </p>
           ) : null}
 
           {loading ? (
-            <p className="side-muted">Memuat…</p>
+            <p className="side-muted">Loading…</p>
           ) : timeline.length === 0 ? (
             <p className="side-muted" data-testid="timeline-empty">
-              {tr('Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.')}
+              {tr('No history yet. Save the file (Ctrl+S) to create a snapshot.')}
             </p>
           ) : (
             <ul className="timeline-list" data-testid="timeline-list">
@@ -200,7 +200,7 @@ export default function TimelineView() {
                 >
                   <button className="tl-main" onClick={() => void bukaDiff(e)} title={e.detail}>
                     <span className="tl-badge" data-kind={e.kind}>
-                      {e.kind === 'commit' ? 'git' : 'lokal'}
+                      {e.kind === 'commit' ? 'git' : 'local'}
                     </span>
                     <span className="tl-label">{e.label}</span>
                     <span className="tl-time">{waktuSingkat(e.timestampMs)}</span>
@@ -208,7 +208,7 @@ export default function TimelineView() {
                   {e.kind === 'snapshot' && (
                     <button
                       className="tl-restore"
-                      title={tr('Muat isi snapshot ini ke editor (belum disimpan)')}
+                      title={tr('Load this snapshot contents into the editor (not saved)')}
                       data-testid="timeline-restore"
                       onClick={() => void restore(e.id)}
                     >

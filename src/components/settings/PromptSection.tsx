@@ -28,17 +28,17 @@ function BagianPrompt({
       <div className="sp-bagian-head">
         <span className="sp-bagian-judul">{tr(judul)}</span>
         <span className={`sp-badge${pakaiBawaan ? '' : ' is-ubah'}`} data-testid={`${testid}-status`}>
-          {pakaiBawaan ? tr('bawaan') : tr('diubah')}
+          {pakaiBawaan ? tr('default') : tr('modified')}
         </span>
         <span className="sp-spacer" />
         {!pakaiBawaan && (
           <button
             className="btn btn-sm"
             data-testid={`${testid}-reset`}
-            title={tr('Kembalikan bagian ini ke bawaan')}
+            title={tr('Reset this section to default')}
             onClick={() => onUbah('')}
           >
-            {tr('Kembalikan bawaan')}
+            {tr('Reset to default')}
           </button>
         )}
       </div>
@@ -88,22 +88,22 @@ export default function PromptSection() {
       <h2 className="set-h2">{tr('Prompt AI')}</h2>
       <p className="set-note">
         {tr(
-          'Prompt ini dikirim ke model di setiap percakapan. Biarkan kosong untuk memakai bawaan Zephyr — bawaan sudah disusun supaya bekerja baik di semua model.',
+          'This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.',
         )}
       </p>
 
       <div className="sp-ringkas" data-testid="sp-ringkas">
         <span>
-          {tr('Tool yang dikenalkan ke model')}: <b>{AGENT_TOOLS.length}</b>
+          {tr('Tools introduced to the model')}: <b>{AGENT_TOOLS.length}</b>
         </span>
         <span className="sp-spacer" />
         <span>
-          {tr('Panjang prompt sekarang')}: <b>{pratinjau.length.toLocaleString('id-ID')}</b>{' '}
-          {tr('karakter')}
+          {tr('Current prompt length')}: <b>{pratinjau.length.toLocaleString('id-ID')}</b>{' '}
+          {tr('characters')}
         </span>
         {adaPerubahan && (
           <button className="btn btn-sm" data-testid="sp-reset-semua" onClick={resetSemua}>
-            {tr('Kembalikan semua ke bawaan')}
+            {tr('Reset everything to default')}
           </button>
         )}
       </div>
@@ -111,29 +111,29 @@ export default function PromptSection() {
       {/* What the AI answers when asked "what model are you". This block is NOT
           bisa diedit: isinya fakta dari konfigurasi (Settings → Model AI),
           bukan teks yang bisa ditulis ulang. Kalau bisa diedit, user bisa
-          membuat AI mengaku sebagai model lain — dan itu justru masalah yang
+          membuat AI mengaku sebagai model lain - dan itu justru masalah yang
           blok ini selesaikan. */}
       <div className="sp-bagian" data-testid="sp-model-info">
         <div className="sp-bagian-head">
-          <span className="sp-bagian-judul">{tr('Model yang menjalankan AI')}</span>
+          <span className="sp-bagian-judul">{tr('Model that runs the AI')}</span>
           <span className="sp-spacer" />
           <span className="sp-badge" data-testid="sp-model-badge">
-            {modelAktif || tr('belum dipilih')}
+            {modelAktif || tr('not selected yet')}
           </span>
         </div>
         <p className="sp-ket">
           {tr(
-            'Kalau kamu bertanya "kamu model apa", Zeph menjawab dari fakta ini — bukan menebak. Ubah di Settings → Model AI. Blok ini sengaja tidak bisa diedit supaya AI tidak pernah mengaku sebagai model lain.',
+            'If you ask "what model are you", Zeph answers from these facts - not by guessing. Change it in Settings → AI Models. This block is intentionally not editable so the AI never claims to be another model.',
           )}
         </p>
         <pre className="sp-pre sp-pre-model" data-testid="sp-model-pre">
-          {blokIdentitasModel(providerAktif, modelAktif) || tr('(belum ada model yang dipilih)')}
+          {blokIdentitasModel(providerAktif, modelAktif) || tr('(no model selected yet)')}
         </pre>
       </div>
 
       <BagianPrompt
-        judul="Identitas"
-        keterangan="Siapa AI ini dan di lingkungan apa ia bekerja. Ubah kalau kamu memakai Zephyr untuk hal khusus (mis. hanya analisis data, bukan mengedit kode)."
+        judul="Identity"
+        keterangan="Who this AI is and the environment it works in. Change it if you use Zephyr for something special (e.g. data analysis only, not code editing)."
         nilai={p.identitas}
         bawaan={PROMPT_BAWAAN.identitas}
         onUbah={ubah('identitas')}
@@ -141,8 +141,8 @@ export default function PromptSection() {
       />
 
       <BagianPrompt
-        judul="Cara kerja"
-        keterangan="Urutan langkah yang harus diikuti. Menghapus langkah di sini membuat AI lebih bebas, tapi juga lebih mudah kehilangan arah pada tugas panjang."
+        judul="Workflow"
+        keterangan="The sequence of steps to follow. Removing steps here gives the AI more freedom, but also makes it easier to lose track on long tasks."
         nilai={p.caraKerja}
         bawaan={PROMPT_BAWAAN.caraKerja}
         onUbah={ubah('caraKerja')}
@@ -150,8 +150,8 @@ export default function PromptSection() {
       />
 
       <BagianPrompt
-        judul="Aturan"
-        keterangan="Batas keras. Sebaiknya jangan dihapus seluruhnya — beberapa aturan (jangan menampilkan API key, konfirmasi perintah merusak) melindungi kamu."
+        judul="Rules"
+        keterangan="Hard limits. It is best not to remove them entirely - some rules (do not show API keys, confirm destructive commands) protect you."
         nilai={p.aturan}
         bawaan={PROMPT_BAWAAN.aturan}
         onUbah={ubah('aturan')}
@@ -159,8 +159,8 @@ export default function PromptSection() {
       />
 
       <BagianPrompt
-        judul="Instruksi tambahan"
-        keterangan="Selalu ditempel di akhir prompt. Pakai ini untuk kebiasaan proyek kamu (mis. 'selalu pakai pnpm', 'komentar dalam bahasa Indonesia'). Bagian ini TIDAK menggantikan apa pun — ia ditambahkan."
+        judul="Additional instructions"
+        keterangan="Always appended at the end of the prompt. Use this for your project habits (e.g. 'always use pnpm', 'comments in Indonesian'). This section does NOT replace anything - it is added."
         nilai={p.instruksi}
         bawaan=""
         onUbah={ubah('instruksi')}
@@ -174,7 +174,7 @@ export default function PromptSection() {
           aria-expanded={bukaPratinjau}
           onClick={() => setBukaPratinjau((v) => !v)}
         >
-          {bukaPratinjau ? tr('Sembunyikan pratinjau') : tr('Lihat prompt lengkap')}
+          {bukaPratinjau ? tr('Hide preview') : tr('View full prompt')}
         </button>
         {bukaPratinjau && (
           <button
@@ -186,11 +186,11 @@ export default function PromptSection() {
               window.setTimeout(() => setSalin(false), 1600);
             }}
           >
-            {salin ? tr('Tersalin') : tr('Salin')}
+            {salin ? tr('Copied') : tr('Copy')}
           </button>
         )}
         <span className="sp-catatan">
-          {tr('Ini yang benar-benar dikirim ke model (tanpa aturan proyek & konteks).')}
+          {tr('This is what is actually sent to the model (without project rules & context).')}
         </span>
       </div>
 
@@ -218,16 +218,16 @@ function IzinPerintah() {
     if (!v) return;
     if (v.length < 3) {
       setPesan(
-        tr('Perintah ini terlalu pendek — tulis lebih spesifik (mis. "npm run build", bukan "n").'),
+        tr('This command is too short - write something more specific (e.g. "npm run build", not "n").'),
       );
       return;
     }
     if (isDestructive(v)) {
-      setPesan(tr('Perintah yang merusak tidak bisa dimasukkan ke daftar izin.'));
+      setPesan(tr('Destructive commands cannot be added to the allow list.'));
       return;
     }
     if (daftar.includes(v)) {
-      setPesan(tr('Sudah ada di daftar.'));
+      setPesan(tr('Already in the list.'));
       return;
     }
     setPesan(null);
@@ -241,7 +241,7 @@ function IzinPerintah() {
   return (
     <div className="sp-bagian" data-testid="sp-izin">
       <div className="sp-bagian-head">
-        <span className="sp-bagian-judul">{tr('Izin perintah')}</span>
+        <span className="sp-bagian-judul">{tr('Command permissions')}</span>
         <span className="sp-spacer" />
         <span className="sp-badge" data-testid="sp-izin-jumlah">
           {daftar.length}
@@ -249,7 +249,7 @@ function IzinPerintah() {
       </div>
       <p className="sp-ket">
         {tr(
-          'Perintah yang selalu diizinkan tanpa bertanya lagi. Perintah yang merusak (hapus rekursif, reset keras) TETAP ditanya — pengaman itu tidak bisa dimatikan dari sini.',
+          'Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.',
         )}
       </p>
 
@@ -258,7 +258,7 @@ function IzinPerintah() {
           type="text"
           className="sp-input"
           data-testid="sp-izin-input"
-          placeholder={tr('Tambah perintah…')}
+          placeholder={tr('Add a command…')}
           value={draft}
           spellCheck={false}
           onChange={(e) => {
@@ -274,7 +274,7 @@ function IzinPerintah() {
           data-testid="sp-izin-tambah"
           onClick={tambah}
         >
-          {tr('Tambah')}
+          {tr('Add')}
         </button>
       </div>
       {pesan && (
@@ -285,7 +285,7 @@ function IzinPerintah() {
 
       {daftar.length === 0 ? (
         <p className="sp-kosong" data-testid="sp-izin-kosong">
-          {tr('Belum ada perintah yang diizinkan.')}
+          {tr('No allowed commands yet.')}
         </p>
       ) : (
         <div className="sp-daftar" data-testid="sp-izin-daftar">
@@ -295,8 +295,8 @@ function IzinPerintah() {
               <button
                 className="sp-item-x"
                 data-testid="sp-izin-hapus"
-                title={tr('Hapus izin')}
-                aria-label={tr('Hapus izin')}
+                title={tr('Remove permission')}
+                aria-label={tr('Remove permission')}
                 onClick={() => hapus(v)}
               >
                 ✕

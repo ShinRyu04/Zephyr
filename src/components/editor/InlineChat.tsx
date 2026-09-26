@@ -68,12 +68,12 @@ export default function InlineChat() {
   return (
     <div className="ic" data-testid="inline-chat" ref={boxRef}>
       <div className="ic-head">
-        <span className="ic-title">Chat cepat</span>
+        <span className="ic-title">Quick chat</span>
         <button
           className="ic-close"
           data-testid="ic-close"
-          title={tr('Tutup (Esc)')}
-          aria-label={tr('Tutup chat cepat')}
+          title={tr('Close (Esc)')}
+          aria-label={tr('Close quick chat')}
           onClick={() => setBuka(false)}
         >
           ✕
@@ -82,7 +82,7 @@ export default function InlineChat() {
 
       {draft && !teks && (
         <p className="ic-hint" data-testid="ic-draft">
-          Draf panel AI: {draft.slice(0, 80)}
+          AI panel draft: {draft.slice(0, 80)}
         </p>
       )}
 
@@ -91,7 +91,7 @@ export default function InlineChat() {
         className="ic-input"
         data-testid="ic-input"
         rows={3}
-        placeholder={tr('Tanya atau minta ubah kode… (Enter kirim, Esc tutup)')}
+        placeholder={tr('Ask or request a code change… (Enter sends, Esc closes)')}
         value={teks}
         onChange={(e) => setTeks(e.target.value)}
         onKeyDown={(e) => {
@@ -119,7 +119,7 @@ export default function InlineChat() {
           disabled={!teks.trim() || !!pending}
           onClick={kirim}
         >
-          {pending ? 'Mengirim…' : 'Kirim'}
+          {pending ? 'Sending…' : 'Send'}
         </button>
       </div>
     </div>

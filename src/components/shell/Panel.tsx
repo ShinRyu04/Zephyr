@@ -18,7 +18,7 @@ function AiTabView() {
   if (aiDiKanan) {
     return (
       <p className="ai-moved" data-testid="ai-tab-moved">
-        {tr('Panel AI sedang tampil di kolom kanan. Ubah di Settings → Umum → Panel AI.')}
+        {tr('The AI panel is showing in the right column. Change it in Settings → General → AI panel.')}
       </p>
     );
   }
@@ -66,7 +66,7 @@ export default function Panel() {
     return (
       <button
         className="term-collapsed"
-        title={tr('Tampilkan panel bawah (Ctrl+J)')}
+        title={tr('Show the bottom panel (Ctrl+J)')}
         data-testid="term-show"
         onClick={() => setVisible(true)}
       >
@@ -76,12 +76,12 @@ export default function Panel() {
   }
 
   return (
-    <section className="panel-area" style={{ height }} aria-label={tr('Panel bawah')}>
+    <section className="panel-area" style={{ height }} aria-label={tr('Bottom panel')}>
       <div
         className="term-resizer"
         role="separator"
         aria-orientation="horizontal"
-        aria-label={tr('Ubah tinggi panel bawah')}
+        aria-label={tr('Resize the bottom panel height')}
         onPointerDown={startResize}
       />
 
@@ -96,7 +96,7 @@ export default function Panel() {
 
         {/* T4.11: tab AI. AiPanel tetap SATU instance: kalau panel AI dipindah
             ke kolom kanan (Settings → Umum → Panel AI), tab ini menampilkan
-            keterangan pemindahan — bukan salinan kedua panel (dua listener
+            keterangan pemindahan - bukan salinan kedua panel (dua listener
             streaming = setiap token tampil dobel). */}
         {activeTab === 'ai' && <AiTabView />}
 

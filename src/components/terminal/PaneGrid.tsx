@@ -26,7 +26,7 @@ export function PaneEmpty() {
         </button>
       </div>
 
-      {/* Tombol besar tersendiri: ini fitur yang dicari orang saat develop web —
+      {/* Tombol besar tersendiri: ini fitur yang dicari orang saat develop web -
           shell di kiri, preview dev server di kanan. */}
       <button
         className="pane-split-browser"
@@ -94,7 +94,7 @@ function PaneHeader({
         e.stopPropagation();
         setPaneMenuFor(paneMenuFor === pane.id ? null : pane.id);
       }}
-      title={`${pane.title}${pane.pid ? ` — pid ${pane.pid}` : ''}`}
+      title={`${pane.title}${pane.pid ? ` - pid ${pane.pid}` : ''}`}
     >
       <PaneIcon kind={pane.kind} agentId={pane.agent?.name} />
       <span className="pane-title">
@@ -105,8 +105,8 @@ function PaneHeader({
 
       <button
         className="tt-tab-close pane-close"
-        title={tx('Tutup pane')}
-        aria-label={`Tutup ${pane.title}`}
+        title={tx('Close pane')}
+        aria-label={`Close ${pane.title}`}
         data-testid={`pane-close-${pane.id}`}
         onClick={(e) => {
           e.stopPropagation();

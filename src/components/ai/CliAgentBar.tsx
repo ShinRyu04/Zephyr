@@ -21,11 +21,11 @@ export default function CliAgentBar() {
 
   return (
     <div className="ai-cli-bar" data-testid="ai-cli-bar" role="group"
-      aria-label={tr('Jalur AI')}>
+      aria-label={tr('AI path')}>
       <button
         className={`ai-cli-chip${aktif === null ? ' is-on' : ''}`}
         data-testid="ai-cli-native"
-        title={tr('Pakai adapter API (butuh API key)')}
+        title={tr('Use the API adapter (requires an API key)')}
         onClick={() => setAktif(null)}
       >
         {tr('Native')}
@@ -42,8 +42,8 @@ export default function CliAgentBar() {
             disabled={!bisa || sibuk}
             title={
               bisa
-                ? `${a.label} — ${a.path ?? a.bin}`
-                : a.catatan || tr('Belum siap')
+                ? `${a.label} - ${a.path ?? a.bin}`
+                : a.catatan || tr('Not ready')
             }
             onClick={() => setAktif(a.id)}
           >
@@ -56,7 +56,7 @@ export default function CliAgentBar() {
       })}
       {aktif !== null && agentMode === 'chat' && (
         <span className="ai-cli-hint" data-testid="ai-cli-hint">
-          {tr('mode CLI: kirim pesan untuk menjalankan CLI')}
+          {tr('CLI mode: send a message to run the CLI')}
         </span>
       )}
     </div>

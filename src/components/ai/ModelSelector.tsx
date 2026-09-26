@@ -132,7 +132,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       const ids = await cmd.listModels(p, b);
       setRemote((r) => ({ ...r, [p]: ids }));
     } catch {
-      /* tanpa key / offline — daftar tersimpan tetap tampil */
+      /* tanpa key / offline - daftar tersimpan tetap tampil */
     } finally {
       setFetching(false);
     }
@@ -155,7 +155,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       try {
         localStorage.setItem(LS_SAVED, JSON.stringify(out));
       } catch {
-        /* kuota penuh — daftar tetap di memori */
+        /* kuota penuh - daftar tetap di memori */
       }
       return out;
     });
@@ -185,10 +185,10 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     }));
     const dariApi = live
       .filter((id) => !MODEL_BY_ID.has(id))
-      .map((id) => ({ id, label: id, sub: `${tr('dari provider')} · API` }));
+      .map((id) => ({ id, label: id, sub: `${tr('from provider')} · API` }));
     const tersimpan = (saved[p] ?? [])
       .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id))
-      .map((id) => ({ id, label: id, sub: tr('tersimpan untuk provider ini') }));
+      .map((id) => ({ id, label: id, sub: tr('saved for this provider') }));
     return [...dariApi, ...tersimpan, ...katalog];
   };
 
@@ -211,7 +211,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       .flatMap(([p, ids]) =>
         ids
           .filter((id) => !MODEL_BY_ID.has(id) && id.toLowerCase().includes(q))
-          .map((id) => ({ id, label: id, provider: p, sub: `${tr('dari provider')} · API` })),
+          .map((id) => ({ id, label: id, provider: p, sub: `${tr('from provider')} · API` })),
       );
     return [...katalog, ...live].slice(0, 40);
   }, [cari, providerSiap, remote, tr]);
@@ -230,17 +230,17 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
         title={
           sub
             ? ikutChat
-              ? tr('Ikut model chat — klik untuk memilih model khusus subagent')
-              : `${efektif.providerLabel} — ${baseUrl || tr('base URL belum diisi')}`
-            : `${efektif.providerLabel} — ${baseUrl || tr('base URL belum diisi')}`
+              ? tr('Follow the chat model - click to pick a dedicated subagent model')
+              : `${efektif.providerLabel} - ${baseUrl || tr('base URL not set')}`
+            : `${efektif.providerLabel} - ${baseUrl || tr('base URL not set')}`
         }
         onClick={() => setOpen(!open)}
       >
         <ProviderLogo id={efektif.provider} size={15} />
         <span className="ai-model-name">
-          {ikutChat ? tr('Ikut chat') : efektif.label}
+          {ikutChat ? tr('Follow chat') : efektif.label}
         </span>
-        {ikutChat && <span className="ai-mi-key is-ok">{tr('ikut')}</span>}
+        {ikutChat && <span className="ai-mi-key is-ok">{tr('follow')}</span>}
         <svg viewBox="0 0 16 16" className="ai-chev" aria-hidden="true">
           <path d="M4 6.5l4 3.5 4-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
@@ -248,7 +248,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
 
       {/* Status key provider aktif: hijau = siap, oranye = belum ada key.
           Untuk target subagent, "ikut chat" berarti statusnya ikut provider
-          chat — jadi tombol ini tetap relevan. */}
+          chat - jadi tombol ini tetap relevan. */}
       {!sub && (
         <button
           className={`ai-keystate${hasKey ? ' is-ok' : ' is-warn'}`}
@@ -256,8 +256,8 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           data-haskey={hasKey ? '1' : '0'}
           title={
             hasKey
-              ? tr('API key tersimpan untuk provider ini')
-              : tr('Belum ada API key — klik untuk membuka Settings → Model AI')
+              ? tr('API key saved for this provider')
+              : tr('No API key yet - click to open Settings → AI Models')
           }
           onClick={() => {
             if (hasKey) return;
@@ -265,7 +265,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           }}
         >
           <span className="ai-dot" aria-hidden="true" />
-          {hasKey ? tr('key siap') : tr('isi key')}
+          {hasKey ? tr('key ready') : tr('enter key')}
         </button>
       )}
 
@@ -283,7 +283,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               type="text"
               className="ai-model-input"
               data-testid={`${pfx}-model-cari`}
-              placeholder={tr('Cari model…')}
+              placeholder={tr('Search models…')}
               value={cari}
               spellCheck={false}
               onChange={(e) => setCari(e.target.value)}
@@ -299,7 +299,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 type="button"
                 className="ai-model-refresh"
                 data-testid={`${pfx}-model-cari-bersih`}
-                title={tr('Bersihkan pencarian')}
+                title={tr('Clear search')}
                 onClick={() => setCari('')}
               >
                 ×
@@ -311,7 +311,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           {modeCari &&
             (hasilCari.length === 0 ? (
               <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
-                {tr('Tidak ada model yang cocok')}
+                {tr('No matching model')}
               </div>
             ) : (
               hasilCari.map((m) => (
@@ -353,23 +353,23 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   }}
                 >
                   <span className="ai-mi-main">
-                    <span className="ai-mi-name">{tr('Ikut model chat')}</span>
+                    <span className="ai-mi-name">{tr('Follow the chat model')}</span>
                     <span className="ai-mi-sub">
-                      {tr('Subagent memakai model yang sama dengan percakapan')}
+                      {tr('The subagent uses the same model as the conversation')}
                     </span>
                   </span>
                 </button>
               )}
               {providerSiap.length === 0 ? (
                 <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
-                  {tr('Belum ada API key terpasang. Isi satu key dulu untuk memilih model.')}
+                  {tr('No API key installed yet. Add a key first to pick a model.')}
                   <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={bukaSettings}>
-                    {tr('Buka Settings → Model AI')}
+                    {tr('Open Settings → AI Models')}
                   </button>
                 </div>
               ) : (
                 <>
-                  <div className="ai-model-group">{tr('Pilih provider')}</div>
+                  <div className="ai-model-group">{tr('Pick a provider')}</div>
                   {providerSiap.map((p) => {
                     const jml = p.freeText
                       ? (saved[p.id]?.length ?? 0) + p.models.length
@@ -392,12 +392,12 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                         <span className="ai-mi-main">
                           <span className="ai-mi-name">{p.label}</span>
                           <span className="ai-mi-sub">
-                            {jml} {tr('model')}
-                            {p.freeText ? ` · ${tr('bisa ketik bebas')}` : ''}
+                            {jml} {tr('models')}
+                            {p.freeText ? ` · ${tr('free-text entry allowed')}` : ''}
                           </span>
                         </span>
                         <span className={`ai-mi-key${adaKey(p.id) ? ' is-ok' : ''}`}>
-                          {adaKey(p.id) ? 'key' : tr('bebas')}
+                          {adaKey(p.id) ? 'key' : tr('free')}
                         </span>
                         <svg viewBox="0 0 16 16" className="ai-chev" aria-hidden="true">
                           <path d="M6.5 4l3.5 4-3.5 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -407,7 +407,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   })}
                   {providerTersembunyi > 0 && (
                     <div className="ai-mp-note" data-testid={`${pfx}-mp-note`}>
-                      {providerTersembunyi} {tr('provider disembunyikan karena belum ada API key.')}
+                      {providerTersembunyi} {tr('providers hidden because there is no API key yet.')}
                     </div>
                   )}
                 </>
@@ -423,7 +423,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   type="button"
                   className="ai-mp-back"
                   data-testid={`${pfx}-mp-back`}
-                  title={tr('Kembali ke daftar provider')}
+                  title={tr('Back to the provider list')}
                   onClick={() => {
                     setTahap('provider');
                     setCari('');
@@ -436,7 +436,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 <ProviderLogo id={dipilih} size={14} />
                 <span className="ai-mp-title">{PROVIDER_BY_ID.get(dipilih)?.label}</span>
                 <span className={`ai-mi-key${adaKey(dipilih) ? ' is-ok' : ''}`}>
-                  {adaKey(dipilih) ? 'key' : tr('bebas')}
+                  {adaKey(dipilih) ? 'key' : tr('free')}
                 </span>
                 {adaKey(dipilih) && (
                   <button
@@ -444,7 +444,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                     className="ai-model-refresh"
                     data-testid={`${pfx}-model-refresh`}
                     disabled={fetching}
-                    title={tr('Ambil daftar model terbaru dari provider')}
+                    title={tr('Fetch the latest model list from the provider')}
                     onClick={() => void loadRemote(dipilih)}
                   >
                     {fetching ? '…' : '↻'}
@@ -458,7 +458,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                     type="text"
                     className="ai-model-input"
                     data-testid={`${pfx}-model-input`}
-                    placeholder={tr('Ketik nama model… (Enter)')}
+                    placeholder={tr('Type a model name… (Enter)')}
                     value={typed}
                     spellCheck={false}
                     autoFocus
@@ -474,7 +474,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                     disabled={!typed.trim()}
                     onClick={() => commitTyped(dipilih, true)}
                   >
-                    {tr('Pakai')}
+                    {tr('Use')}
                   </button>
                 </div>
               )}

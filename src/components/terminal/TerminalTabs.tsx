@@ -78,7 +78,7 @@ function RenameInput({ tab }: { tab: TerminalTab }) {
       ref={ref}
       className="tt-rename"
       defaultValue={tab.title}
-      aria-label={tx('Nama tab terminal')}
+      aria-label={tx('Terminal tab name')}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key === 'Enter') rename(tab.id, (e.target as HTMLInputElement).value);
@@ -101,14 +101,14 @@ export function TerminalSideTabs() {
   if (tabs.length < 2) return null;
 
   return (
-    <div className="tt-side" role="tablist" aria-label="Tab terminal" data-testid="term-side-tabs">
+    <div className="tt-side" role="tablist" aria-label="Terminal tabs" data-testid="term-side-tabs">
       {tabs.map((t) => (
         <div
           key={t.id}
           role="tab"
           aria-selected={t.id === activeTabId}
           tabIndex={0}
-          title={`${t.title} — ${t.panes.length} pane`}
+          title={`${t.title} - ${t.panes.length} pane`}
           className={`tt-tab${t.id === activeTabId ? ' is-active' : ''}`}
           data-term-tab={t.id}
           onClick={() => setActiveTab(t.id)}
@@ -129,8 +129,8 @@ export function TerminalSideTabs() {
           {t.panes.length > 1 && <span className="tt-count">{t.panes.length}</span>}
           <button
             className="tt-tab-close"
-            title={tr('Tutup tab terminal')}
-            aria-label={`Tutup ${t.title}`}
+            title={tr('Close terminal tab')}
+            aria-label={`Close ${t.title}`}
             onClick={(e) => {
               e.stopPropagation();
               void closeTab(t.id);
@@ -198,8 +198,8 @@ export function TerminalOps() {
         <button
           ref={btnPicker}
           className="tt-btn tt-btn-caret"
-          title={tr('Buat pane lain: shell tertentu, private, AI agent, browser, tab baru')}
-          aria-label={tr('Pilihan pane baru')}
+          title={tr('Create another pane: a specific shell, private, AI agent, browser, new tab')}
+          aria-label={tr('New pane options')}
           data-testid="term-picker"
           aria-haspopup="menu"
           aria-expanded={pickerOpen}
@@ -249,9 +249,9 @@ export function TerminalOps() {
             <div className="tt-drop-label">AI agent</div>
             {agents.length === 0 ? (
               <div className="tt-drop-empty" data-testid="agent-picker">
-                {tr('Tidak ada CLI agent terdeteksi.')}
+                {tr('No agent CLI detected.')}
                 <br />
-                Pasang opencode / claude / codex / gemini.
+                Install opencode / claude / codex / gemini.
               </div>
             ) : (
               <div data-testid="agent-picker" className="tt-drop-group">
@@ -260,7 +260,7 @@ export function TerminalOps() {
                     key={a.id}
                     className="tt-drop-item"
                     role="menuitem"
-                    title={`${a.path} — klik lagi untuk pane kedua`}
+                    title={`${a.path} - click again for a second pane`}
                     data-agent={a.id}
                     onClick={() => {
                       void addPane('agent', { agentId: a.id });
@@ -299,7 +299,7 @@ export function TerminalOps() {
               }}
             >
               <ActionIcon name="plus" />
-              Tab terminal baru
+              New terminal tab
             </button>
           </Popover>
         )}
@@ -309,8 +309,8 @@ export function TerminalOps() {
         <button
           ref={btnKebab}
           className="tt-btn"
-          title={tr('Menu tab & pane terminal')}
-          aria-label={tr('Menu tab & pane terminal')}
+          title={tr('Terminal tab & pane menu')}
+          aria-label={tr('Terminal tab & pane menu')}
           data-testid="term-kebab"
           aria-haspopup="menu"
           aria-expanded={!!menuFor}
@@ -327,7 +327,7 @@ export function TerminalOps() {
             className="tt-dropdown"
             onClose={() => setMenuFor(null)}
           >
-            <div className="tt-drop-label">Pane aktif</div>
+            <div className="tt-drop-label">Active pane</div>
             <button
               className="tt-drop-item"
               role="menuitem"
@@ -365,7 +365,7 @@ export function TerminalOps() {
             {/* Layout: dulu tombol toolbar tetap, padahal hanya berguna saat ada
                 ≥2 pane. Sebagai item menu, status disabled-nya jelas alasannya. */}
             <div className="tt-drop-sep" />
-            <div className="tt-drop-label">{tr('Tab ini')}</div>
+            <div className="tt-drop-label">{tr('This tab')}</div>
             <button
               className="tt-drop-item"
               role="menuitem"

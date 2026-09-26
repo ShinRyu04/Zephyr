@@ -82,7 +82,7 @@ function ProblemsBadge() {
       <button
         className="sb-item sb-problems"
         data-testid="sb-problems"
-        title={tf('{n} error, {m} warning — buka Problems', { n: errors, m: warnings })}
+        title={tf('{n} errors, {m} warnings - open Problems', { n: errors, m: warnings })}
         onClick={() => void runCommand('problemsPanel.focus')}
       >
         <span className="sb-prob-err" data-testid="sb-prob-errors">
@@ -150,7 +150,7 @@ export default function StatusBar() {
       <span className="sb-sep">|</span>
       <GitBadge />
       <ProblemsBadge />
-      <span className="sb-item" title="Memori proses Zephyr" data-testid="sb-ram">
+      <span className="sb-item" title="Zephyr process memory" data-testid="sb-ram">
         RAM: {ramText}
       </span>
       {lowRam && (
@@ -158,7 +158,7 @@ export default function StatusBar() {
           className="sb-item sb-lowram"
           data-testid="sb-lowram"
           title={tr(
-            'Mode penghemat RAM aktif: minimap/sticky/indent/dekorator warna off, batas tab termuat 3, scrollback terminal 1000 baris',
+            'RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines',
           )}
         >
           RAM saver
@@ -180,13 +180,13 @@ export default function StatusBar() {
             <button
               className="sb-btn sb-donate"
               data-testid="sb-donate"
-              title={tr('Dukung Zephyr')}
+              title={tr('Support Zephyr')}
               onClick={() => useStore.getState().setDonateOpen(true)}
             >
               <span aria-hidden="true" className="sb-donate-emoji">
                 ☕
               </span>{' '}
-              {tr('Dukung Zephyr')}
+              {tr('Support Zephyr')}
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />

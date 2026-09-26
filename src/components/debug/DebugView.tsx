@@ -54,7 +54,7 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
           <button
             className="dbg-caret-btn"
             aria-expanded={terbuka}
-            title={terbuka ? tr('Lipat') : tr('Buka')}
+            title={terbuka ? tr('Collapse') : tr('Expand')}
             onClick={() => {
               const next = !terbuka;
               setTerbuka(next);
@@ -74,8 +74,8 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
             className="dbg-var-nilai"
             title={
               bisaSet
-                ? 'Klik untuk mengubah nilai'
-                : 'Adapter ini tidak mendukung Set Value'
+                ? 'Click to change the value'
+                : 'This adapter does not support Set Value'
             }
             data-testid="dbg-var-nilai"
             onClick={() => bisaSet && setEdit(v.value)}
@@ -100,7 +100,7 @@ function BarisVar({ v, depth }: { v: Variable; depth: number }) {
         )}
         <button
           className="dbg-var-copy"
-          title={tx('Salin nilai')}
+          title={tx('Copy value')}
           data-testid="dbg-var-copy"
           onClick={() => void navigator.clipboard?.writeText(v.value).catch(() => {})}
         >
@@ -162,19 +162,19 @@ export default function DebugView() {
       <div className="side-section">
         <div className="side-title">Run &amp; Debug</div>
 
-        {!workspace && <p className="side-muted">{tr('Buka folder dulu untuk debug.')}</p>}
+        {!workspace && <p className="side-muted">{tr('Open a folder first to debug.')}</p>}
 
         <div className="dbg-bar">
           <select
             className="dbg-select"
-            aria-label="Konfigurasi debug"
+            aria-label="Debug configuration"
             data-testid="dbg-config"
             value={configTerpilih}
             disabled={aktif}
             onChange={(e) => pilihConfig(e.target.value)}
           >
             {(launch?.configurations ?? []).length === 0 ? (
-              <option value="">{tr('(tidak ada launch.json)')}</option>
+              <option value="">{tr('(no launch.json)')}</option>
             ) : (
               (launch?.configurations ?? []).map((c) => (
                 <option key={c.name} value={c.name}>
@@ -217,10 +217,10 @@ export default function DebugView() {
         </div>
 
         <div className="dbg-status" data-testid="dbg-status" data-state={state}>
-          {state === 'inactive' && tr('tidak aktif')}
-          {state === 'starting' && tr('menyiapkan adapter…')}
-          {state === 'running' && tr('berjalan')}
-          {paused && tf('berhenti ({alasan})', { alasan: alasanStop })}
+          {state === 'inactive' && tr('inactive')}
+          {state === 'starting' && tr('preparing adapter…')}
+          {state === 'running' && tr('running')}
+          {paused && tf('paused ({alasan})', { alasan: alasanStop })}
         </div>
 
         {error && (
@@ -244,7 +244,7 @@ export default function DebugView() {
           <div className="dbg-hint" data-testid="dbg-invalid">
             {launch.invalid.map((i) => (
               <p key={i.index}>
-                #{i.index} {i.name || '(tanpa nama)'}: {i.reason}
+                #{i.index} {i.name || '(unnamed)'}: {i.reason}
               </p>
             ))}
           </div>
@@ -254,13 +254,13 @@ export default function DebugView() {
       <div className="dbg-sections">
         <Section id="bp" judul="BREAKPOINTS" jml={breakpoints.length}>
           {breakpoints.length === 0 ? (
-            <p className="side-muted dbg-kosong">{tr('Klik gutter editor untuk memasang breakpoint.')}</p>
+            <p className="side-muted dbg-kosong">{tr('Click the editor gutter to set a breakpoint.')}</p>
           ) : (
             breakpoints.map((b) => (
               <div className="dbg-bp" data-testid="dbg-bp" key={`${b.path}:${b.line}`}>
                 <span
                   className={`dbg-bp-dot${b.verified ? ' is-verified' : ''}`}
-                  title={b.verified ? 'diverifikasi adapter' : tr('belum diverifikasi')}
+                  title={b.verified ? 'verified by adapter' : tr('not verified')}
                   data-testid="dbg-bp-dot"
                 >
                   {b.verified ? '●' : '○'}
@@ -282,7 +282,7 @@ export default function DebugView() {
                 </button>
                 <button
                   className="dbg-x"
-                  title={tr('Hapus breakpoint')}
+                  title={tr('Remove breakpoint')}
                   data-testid="dbg-bp-hapus"
                   onClick={() => void hapusBreakpoint(b.path, b.line)}
                 >
@@ -297,7 +297,7 @@ export default function DebugView() {
               data-testid="dbg-bp-hapus-semua"
               onClick={() => void hapusSemuaBreakpoint()}
             >
-              hapus semua
+              remove all
             </button>
           )}
         </Section>
@@ -305,7 +305,7 @@ export default function DebugView() {
         <Section id="stack" judul="CALL STACK" jml={frames.length}>
           {frames.length === 0 ? (
             <p className="side-muted dbg-kosong">
-              {aktif ? tr('Program berjalan — belum berhenti.') : tr('Belum ada sesi.')}
+              {aktif ? tr('Program is running - not paused.') : tr('No session yet.')}
             </p>
           ) : (
             frames.map((f) => (
@@ -328,7 +328,7 @@ export default function DebugView() {
 
         <Section id="vars" judul="VARIABLES" jml={scopes.length}>
           {scopes.length === 0 ? (
-            <p className="side-muted dbg-kosong">{tr('Tersedia saat program berhenti.')}</p>
+            <p className="side-muted dbg-kosong">{tr('Available while the program is paused.')}</p>
           ) : (
             scopes.map((sc) => (
               <div className="dbg-scope" key={sc.variablesReference} data-testid="dbg-scope">
@@ -338,7 +338,7 @@ export default function DebugView() {
                   onClick={() => void expandVariable(sc.variablesReference)}
                 >
                   {sc.name}
-                  {sc.expensive && <span className="dbg-mahal">(besar)</span>}
+                  {sc.expensive && <span className="dbg-mahal">(large)</span>}
                 </button>
                 {(variables[sc.variablesReference] ?? []).map((v, i) => (
                   <BarisVar key={`${v.name}-${i}`} v={v} depth={1} />
@@ -353,7 +353,7 @@ export default function DebugView() {
             <input
               className="dbg-watch-input"
               data-testid="dbg-watch-input"
-              placeholder="Ekspresi watch…"
+              placeholder="Watch expression…"
               value={watchBaru}
               onChange={(e) => setWatchBaru(e.target.value)}
               onKeyDown={(e) => {
@@ -368,7 +368,7 @@ export default function DebugView() {
             <div className="dbg-watch" data-testid="dbg-watch" key={w.expr}>
               <span className="dbg-watch-expr">{w.expr}</span>
               <span className={`dbg-watch-nilai${w.error ? ' is-error' : ''}`}>{w.value}</span>
-              <button className="dbg-x" title={tr('Hapus')} onClick={() => hapusWatch(w.expr)}>
+              <button className="dbg-x" title={tr('Delete')} onClick={() => hapusWatch(w.expr)}>
                 ×
               </button>
             </div>
@@ -378,7 +378,7 @@ export default function DebugView() {
         <Section id="scripts" judul="LOADED SCRIPTS" jml={loadedSources.length} awalTerbuka={false}>
           {loadedSources.length === 0 ? (
             <p className="side-muted dbg-kosong">
-              Tersedia bila adapter mendukung loadedSources.
+              Available when the adapter supports loadedSources.
             </p>
           ) : (
             loadedSources.map((s) => (

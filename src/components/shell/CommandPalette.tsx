@@ -178,9 +178,9 @@ export default function CommandPalette() {
             spellCheck={false}
             autoComplete="off"
             placeholder={
-              mode === 'file' ? 'Ketik nama file…' : 'Ketik nama perintah, mis. "git commit"'
+              mode === 'file' ? 'Type a file name…' : 'Type a command name, e.g. "git commit"'
             }
-            aria-label={mode === 'file' ? tr('Cari file') : tr('Cari perintah')}
+            aria-label={mode === 'file' ? tr('Search files') : tr('Search commands')}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
@@ -227,11 +227,11 @@ export default function CommandPalette() {
           {items.length === 0 && (
             <p className="cp-empty" data-testid="cp-empty">
               {loading
-                ? 'Memuat daftar file…'
+                ? 'Loading file list…'
                 : (filesError ??
                   (mode === 'file'
-                    ? tr('Tidak ada file yang cocok.')
-                    : tr('Tidak ada perintah yang cocok.')))}
+                    ? tr('No matching files.')
+                    : tr('No matching commands.')))}
             </p>
           )}
         </div>
@@ -239,16 +239,16 @@ export default function CommandPalette() {
         <div className="cp-foot">
           <span>
             <kbd>↑</kbd>
-            <kbd>↓</kbd> pilih
+            <kbd>↓</kbd> select
           </span>
           <span>
-            <kbd>Enter</kbd> jalankan
+            <kbd>Enter</kbd> run
           </span>
           <span>
-            <kbd>Esc</kbd> tutup
+            <kbd>Esc</kbd> close
           </span>
           <span className="cp-foot-mode">
-            {mode === 'file' ? 'Ctrl+Shift+P untuk perintah' : 'Ctrl+P untuk cari file'}
+            {mode === 'file' ? 'Ctrl+Shift+P for commands' : 'Ctrl+P to search files'}
           </span>
         </div>
       </div>

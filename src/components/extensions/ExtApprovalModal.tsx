@@ -8,25 +8,25 @@ export default function ExtApprovalModal() {
 
   if (!kepala) return null;
 
-  const argsTeks = kepala.args.length > 0 ? kepala.args.join(' ') : '(tanpa argumen)';
+  const argsTeks = kepala.args.length > 0 ? kepala.args.join(' ') : '(no arguments)';
 
   return (
     <div className="modal-backdrop" role="presentation" data-testid="ext-approval">
       <div className="modal" role="alertdialog" aria-modal="true" aria-labelledby="ext-approval-title">
         <h2 className="modal-title" id="ext-approval-title">
-          Izin runtime eksternal
+          External runtime permission
         </h2>
 
         <p className="set-note">
-          Ekstensi <strong>{kepala.extId}</strong> minta menjalankan{' '}
-          <code>{kepala.runtime}</code> — <code>{kepala.binPath}</code> — dengan
-          argumen <code>{argsTeks}</code>.
+          Extension <strong>{kepala.extId}</strong> is asking to run{' '}
+          <code>{kepala.runtime}</code> - <code>{kepala.binPath}</code> - with
+          arguments <code>{argsTeks}</code>.
         </p>
 
         <p className="set-note">
-          Eksekusi dilakukan Zephyr di sisi Rust, hanya lewat binary ini, dengan
-          timeout otomatis. Ekstensi tidak mendapat akses sistem lain. Izin
-          tersimpan di Settings → Ekstensi dan bisa dicabut kapan saja.
+          Execution is performed by Zephyr on the Rust side, only through this binary, with
+          an automatic timeout. The extension gets no other system access. The permission
+          is stored in Settings → Extensions and can be revoked at any time.
         </p>
 
         <div className="modal-actions">
@@ -36,7 +36,7 @@ export default function ExtApprovalModal() {
             disabled={sibuk}
             onClick={() => void putuskan(false)}
           >
-            Tolak
+            Deny
           </button>
           <button
             className="btn btn-primary"
@@ -48,7 +48,7 @@ export default function ExtApprovalModal() {
               setSibuk(false);
             }}
           >
-            Izinkan &amp; jalankan
+            Allow &amp; run
           </button>
         </div>
       </div>

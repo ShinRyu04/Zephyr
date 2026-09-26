@@ -103,7 +103,7 @@ export function NumberInput({
         max={max}
         step={step}
         value={value}
-        aria-label={`${tr(label)} ${tr('(angka)')}`}
+        aria-label={`${tr(label)} ${tr('(number)')}`}
         data-testid={testid ? `${testid}-box` : undefined}
         onChange={(e) => {
           const n = Number(e.target.value);

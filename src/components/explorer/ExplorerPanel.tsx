@@ -20,13 +20,13 @@ function EmptyWorkspace() {
     <div className="side-panel">
       <div className="side-section">
         <div className="side-title">Workspace</div>
-        <p className="side-muted">{tr('Belum ada workspace — buka folder')}</p>
+        <p className="side-muted">{tr('No workspace yet - open a folder')}</p>
         <div className="side-actions">
           <button className="btn btn-primary" onClick={openFolderDialog}>
-            {tr('Buka Folder')}
+            {tr('Open Folder')}
           </button>
           <button className="btn" onClick={openFileDialog}>
-            {tr('Buka File')}
+            {tr('Open File')}
           </button>
         </div>
       </div>
@@ -34,7 +34,7 @@ function EmptyWorkspace() {
       <div className="side-section">
         <div className="side-title">Recent ({recents.length})</div>
         {recents.length === 0 ? (
-          <p className="side-muted">{tr('Belum ada folder yang pernah dibuka')}</p>
+          <p className="side-muted">{tr('No folder has been opened yet')}</p>
         ) : (
           <ul className="side-list" data-testid="recent-list">
             {recents.map((r) => (
@@ -78,15 +78,15 @@ export default function ExplorerPanel() {
       <div className="explorer-header">
         <span className="explorer-title" title={wsFile || workspace}>
           {wsFile ? baseOf(wsFile).replace(/\.code-workspace$/, '') : baseOf(workspace)}
-          {multi && <span className="explorer-count"> ({jumlahRoot} folder)</span>}
+          {multi && <span className="explorer-count"> ({jumlahRoot} folders)</span>}
         </span>
         <div className="explorer-actions">
           <button
             className="ex-btn"
-            title="File baru"
-            aria-label="File baru"
+            title="New file"
+            aria-label="New file"
             onClick={() =>
-              startInline({ kind: 'new-file', target: workspace, initial: 'file-baru.txt' })
+              startInline({ kind: 'new-file', target: workspace, initial: 'new-file.txt' })
             }
           >
             <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
@@ -96,10 +96,10 @@ export default function ExplorerPanel() {
           </button>
           <button
             className="ex-btn"
-            title={tr('Folder baru')}
-            aria-label={tr('Folder baru')}
+            title={tr('New folder')}
+            aria-label={tr('New folder')}
             onClick={() =>
-              startInline({ kind: 'new-folder', target: workspace, initial: 'folder-baru' })
+              startInline({ kind: 'new-folder', target: workspace, initial: 'new-folder' })
             }
           >
             <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
@@ -128,7 +128,7 @@ export default function ExplorerPanel() {
               <path d="M3 5h10M3 8h10M3 11h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           </button>
-          <button className="ex-btn" title={tr('Tutup workspace')} aria-label={tr('Tutup workspace')} onClick={() => void closeWorkspace()}>
+          <button className="ex-btn" title={tr('Close workspace')} aria-label={tr('Close workspace')} onClick={() => void closeWorkspace()}>
             <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>

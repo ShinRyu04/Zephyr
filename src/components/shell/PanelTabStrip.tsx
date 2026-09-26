@@ -58,7 +58,7 @@ export default function PanelTabStrip() {
       );
     }
     if (id === 'output' && outputDirty) {
-      return <span className="pts-dot" data-testid="pts-dot-output" aria-label={tx('ada log baru')} />;
+      return <span className="pts-dot" data-testid="pts-dot-output" aria-label={tx('new log')} />;
     }
     if (id === 'ports' && portCount > 0) {
       return (
@@ -79,7 +79,7 @@ export default function PanelTabStrip() {
 
   return (
     <div className="pts-root" data-testid="panel-tabstrip">
-      <div className="pts-tabs" role="tablist" aria-label={tr('Tab panel bawah')}>
+      <div className="pts-tabs" role="tablist" aria-label={tr('Bottom panel tabs')}>
         {PANEL_TABS.filter((t) => visibleTabs.includes(t.id))
           // Tab AI disembunyikan saat chat sudah tampil di kolom kanan: isinya
           // hanya keterangan pemindahan, jadi slot tabnya terbuang.
@@ -104,7 +104,7 @@ export default function PanelTabStrip() {
 
       {/* fase 24.1: kontrol khusus terminal ([+ ▾] dan [⋮]) numpang di baris ini,
           sejajar Problems/Output/…, dan HANYA saat tab Terminal aktif. Dulu
-          mereka punya baris toolbar sendiri di bawah — dua baris chrome untuk
+          mereka punya baris toolbar sendiri di bawah - dua baris chrome untuk
           satu tingkat kendali. Waktu tab lain aktif, tombol ini dilepas dari DOM
           (bukan disembunyikan) supaya tidak bisa di-fokus lewat Tab. */}
       {activeTab === 'terminal' && <TerminalOps />}
@@ -113,7 +113,7 @@ export default function PanelTabStrip() {
         <button
           className="pts-op"
           data-testid="pts-menu"
-          title={tr('Tampilkan / sembunyikan tab')}
+          title={tr('Show / hide tabs')}
           aria-haspopup="menu"
           aria-expanded={tabMenuOpen}
           ref={btnMenu}

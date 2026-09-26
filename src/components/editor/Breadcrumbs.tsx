@@ -109,7 +109,7 @@ export default function Breadcrumbs({ view, path, docVersion, barisKursor }: Pro
               className="bc-seg bc-sym"
               data-testid="bc-sym-seg"
               data-sym-name={s.nama}
-              title={`${labelKind(s.kind)} — baris ${s.dari}`}
+              title={`${labelKind(s.kind)} - line ${s.dari}`}
               aria-haspopup="menu"
               aria-expanded={buka === i}
               onClick={() => setBuka(buka === i ? null : i)}
@@ -144,10 +144,10 @@ export default function Breadcrumbs({ view, path, docVersion, barisKursor }: Pro
         );
       })}
 
-      {/* Tanda sumber: kalau dari indentasi, jalurnya perkiraan — user berhak
+      {/* Tanda sumber: kalau dari indentasi, jalurnya perkiraan - user berhak
           tahu supaya tidak menyalahkan breadcrumbs saat namanya kasar. */}
       {pohon.length > 0 && !punyaLsp && (
-        <span className="bc-perkiraan" data-testid="bc-approx" title={tx('tanpa language server: jalur diperkirakan dari indentasi')}>
+        <span className="bc-perkiraan" data-testid="bc-approx" title={tx('without a language server: path estimated from indentation')}>
           ~
         </span>
       )}

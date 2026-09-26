@@ -36,11 +36,11 @@ export default function ReasonedBlock({
       >
         <span className="ai-reasoned-caret">{terbuka ? '▾' : '▸'}</span>
         <span className="ai-reasoned-label">
-          {streaming ? tx('Sedang berpikir…') : tx('Penalaran')}
+          {streaming ? tx('Thinking…') : tx('Reasoning')}
         </span>
         <span className="ai-reasoned-meta">
-          {baris > 1 ? `${baris} ${tx('baris')} · ` : ''}
-          {karakter} {tx('karakter')}
+          {baris > 1 ? `${baris} ${tx('lines')} · ` : ''}
+          {karakter} {tx('characters')}
         </span>
       </button>
       {terbuka && (

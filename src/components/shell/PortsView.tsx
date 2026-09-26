@@ -21,20 +21,20 @@ export default function PortsView() {
   const tambah = () => {
     const n = Number(hostPort);
     if (!Number.isInteger(n) || n < 1 || n > 65535) {
-      notifyError(tx('Port harus angka 1–65535'), { source: 'ports' });
+      notifyError(tx('Port must be a number from 1 to 65535'), { source: 'ports' });
       return;
     }
     add({
       hostPort: n,
       privatePort: n,
       protocol: 'http',
-      process: '—',
+      process: '-',
       source: 'manual',
-      forwarder: 'lokal',
+      forwarder: 'local',
       status: 'running',
     });
     setHostPort('');
-    notifyInfo(`Port ${n} ditambahkan`, { source: 'ports' });
+    notifyInfo(`Port ${n} added`, { source: 'ports' });
   };
 
   const bukaDiBrowser = async (p: ForwardedPort) => {
@@ -42,7 +42,7 @@ export default function PortsView() {
     try {
       await addPane('browser', { url });
     } catch (e) {
-      notifyError(`Tidak bisa membuka ${url}`, {
+      notifyError(`Could not open ${url}`, {
         source: 'ports',
         // Error dari invoke Tauri berbentuk { code, message }, bukan Error,
         // jadi cabang String(e) mencetak "[object Object]".
@@ -55,9 +55,9 @@ export default function PortsView() {
     const url = `${p.protocol}://localhost:${p.hostPort}`;
     try {
       await clipboardWrite(url);
-      notifyInfo(`URL disalin: ${url}`, { source: 'ports' });
+      notifyInfo(`URL copied: ${url}`, { source: 'ports' });
     } catch {
-      notifyError(tx('Gagal menyalin URL'), { source: 'ports' });
+      notifyError(tx('Failed to copy the URL'), { source: 'ports' });
     }
   };
 
@@ -67,11 +67,11 @@ export default function PortsView() {
         <input
           className="ports-input"
           data-testid="ports-add-input"
-          placeholder="Port lokal (mis. 3000)"
+          placeholder="Local port (e.g. 3000)"
           value={hostPort}
           onChange={(e) => setHostPort(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && tambah()}
-          aria-label={tr('Nomor port untuk diteruskan')}
+          aria-label={tr('Port number to forward')}
         />
         <button className="btn btn-sm" data-testid="ports-add" onClick={tambah}>
           Add Port
@@ -84,7 +84,7 @@ export default function PortsView() {
 
       {ports.length === 0 ? (
         <p className="ports-empty" data-testid="ports-empty">
-          {tr('Belum ada port yang diteruskan. Sesi SSH dan task yang membuka port akan otomatis muncul di sini.')}
+          {tr('No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.')}
         </p>
       ) : (
         <div className="ports-table-wrap">
@@ -93,9 +93,9 @@ export default function PortsView() {
               <tr>
                 <th>Forwarded</th>
                 <th>Local</th>
-                <th>Protokol</th>
-                <th>Proses</th>
-                <th>Sumber</th>
+                <th>Protocol</th>
+                <th>Process</th>
+                <th>Source</th>
                 <th>Forwarder</th>
                 <th>Status</th>
                 <th />
@@ -122,7 +122,7 @@ export default function PortsView() {
                               update(p.id, { hostPort: n });
                               setEdit(null);
                             } else {
-                              notifyError(tr('Port harus angka 1–65535'), { source: 'ports' });
+                              notifyError(tr('Port must be a number from 1 to 65535'), { source: 'ports' });
                             }
                           } else if (e.key === 'Escape') setEdit(null);
                         }}
@@ -132,7 +132,7 @@ export default function PortsView() {
                       <button
                         className="ports-link"
                         data-testid="ports-edit"
-                        title={tr('Ubah port lokal')}
+                        title={tr('Change the local port')}
                         onClick={() => {
                           setEdit(p.id);
                           setNilaiEdit(String(p.hostPort));
@@ -153,23 +153,23 @@ export default function PortsView() {
                     <button
                       className="btn btn-sm"
                       data-testid="ports-open"
-                      title={tr('Buka di browser pane')}
+                      title={tr('Open in a browser pane')}
                       onClick={() => void bukaDiBrowser(p)}
                     >
-                      Buka
+                      Open
                     </button>
                     <button
                       className="btn btn-sm"
                       data-testid="ports-copy"
-                      title={tr('Salin URL')}
+                      title={tr('Copy URL')}
                       onClick={() => void salin(p)}
                     >
-                      Salin
+                      Copy
                     </button>
                     <button
                       className="btn btn-sm"
                       data-testid="ports-toggle"
-                      title={p.status === 'running' ? tr('Hentikan forward') : tr('Mulai forward')}
+                      title={p.status === 'running' ? tr('Stop forward') : tr('Start forward')}
                       onClick={() =>
                         update(p.id, { status: p.status === 'running' ? 'stopped' : 'running' })
                       }
@@ -179,10 +179,10 @@ export default function PortsView() {
                     <button
                       className="btn btn-sm"
                       data-testid="ports-remove"
-                      title={tr('Hapus dari daftar')}
+                      title={tr('Remove from list')}
                       onClick={() => remove(p.id)}
                     >
-                      Hapus
+                      Delete
                     </button>
                   </td>
                 </tr>

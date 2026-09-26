@@ -76,7 +76,7 @@ export default function ContextMeter() {
         className={`ctx-btn is-${tingkat}`}
         data-testid="ctx-meter"
         data-persen={persen}
-        title={tr('Pemakaian konteks (perkiraan)')}
+        title={tr('Context usage (estimate)')}
         aria-expanded={buka}
         onClick={() => setBuka((v) => !v)}
       >
@@ -99,7 +99,7 @@ export default function ContextMeter() {
       </button>
 
       {buka && (
-        <div className="ctx-pop" data-testid="ctx-pop" role="dialog" aria-label={tr('Pemakaian konteks')}>
+        <div className="ctx-pop" data-testid="ctx-pop" role="dialog" aria-label={tr('Context usage')}>
           <div className="ctx-head">
             <span className="ctx-besar">{persen}%</span>
             <span className="ctx-kecil" data-testid="ctx-angka">
@@ -111,32 +111,32 @@ export default function ContextMeter() {
           </div>
           <div className="ctx-baris">
             <span>{tr('Model')}</span>
-            <b>{model || '—'}</b>
+            <b>{model || '-'}</b>
           </div>
           <div className="ctx-baris">
-            <span>{tr('Konteks terpakai')}</span>
+            <span>{tr('Context used')}</span>
             <b>{dipakai.toLocaleString('id-ID')}</b>
           </div>
           <div className="ctx-baris">
-            <span>{tr('Jendela konteks')}</span>
+            <span>{tr('Context window')}</span>
             <b>{total.toLocaleString('id-ID')}</b>
           </div>
           <div className="ctx-baris">
-            <span>{tr('Token sesi')}</span>
+            <span>{tr('Session tokens')}</span>
             <b data-testid="ctx-token-sesi">
               {tokMasuk.toLocaleString('id-ID')} ↓ / {tokKeluar.toLocaleString('id-ID')} ↑
             </b>
           </div>
           {biaya !== null && (
             <div className="ctx-baris">
-              <span>{tr('Perkiraan biaya')}</span>
+              <span>{tr('Estimated cost')}</span>
               <b data-testid="ctx-biaya">
                 {biaya < 0.01 ? `<$0.01` : `$${biaya.toFixed(biaya < 1 ? 3 : 2)}`}
               </b>
             </div>
           )}
-          <p className="ctx-note">{tr('Perkiraan dari isi chat yang terlihat dan payload tool.')}</p>
-          {biaya !== null && <p className="ctx-note">{tr('Biaya adalah estimasi, bukan tagihan resmi provider.')}</p>}
+          <p className="ctx-note">{tr('Estimated from the visible chat contents and tool payloads.')}</p>
+          {biaya !== null && <p className="ctx-note">{tr('The cost is an estimate, not an official provider bill.')}</p>}
         </div>
       )}
     </span>

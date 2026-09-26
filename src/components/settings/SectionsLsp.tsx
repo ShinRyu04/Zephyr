@@ -43,9 +43,9 @@ export default function SectionsLsp() {
     <section className="set-section" data-testid="set-lsp">
       <h2 className="set-h2">{tr('settings.lsp')}</h2>
       <p className="set-note">
-        {tr('Zephyr TIDAK membundel binary language server (installer tetap ~7 MB). Server dicari di')}{' '}
+        {tr('Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in')}{' '}
         <code>%APPDATA%\zephyr\lsp\&lt;id&gt;\</code>{' '}
-        {tr('lalu di PATH. Server hanya start saat file bertipe itu dibuka, dan mati sendiri setelah idle.')}
+        {tr('then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.')}
       </p>
 
       <label className="set-row">
@@ -55,11 +55,11 @@ export default function SectionsLsp() {
           checked={cfg.enabled !== false}
           onChange={(e) => void applySettings({ lsp: { enabled: e.target.checked } })}
         />
-        <span>{tr('Aktifkan IntelliSense (LSP)')}</span>
+        <span>{tr('Enable IntelliSense (LSP)')}</span>
       </label>
 
       <label className="set-row">
-        <span className="set-label">{tr('Matikan server setelah idle (detik)')}</span>
+        <span className="set-label">{tr('Stop the server after idle (seconds)')}</span>
         <input
           className="set-input set-input-num"
           type="number"
@@ -82,24 +82,24 @@ export default function SectionsLsp() {
           data-testid="lsp-refresh-probe"
           onClick={() => void probeAll()}
         >
-          Periksa binary
+          Check binaries
         </button>
         <button
           className="btn btn-sm"
           data-testid="lsp-stop-all"
           onClick={async () => {
             await stopAll();
-            notifyInfo('Semua language server dimatikan', { source: 'LSP' });
+            notifyInfo('All language servers stopped', { source: 'LSP' });
           }}
         >
-          {tr('Matikan semua server')}
+          {tr('Stop all servers')}
         </button>
         <span className="side-muted" data-testid="lsp-live-count">
-          {live.length} proses hidup
+          {live.length} live processes
         </span>
       </div>
 
-      <h4 className="set-h4">Per bahasa</h4>
+      <h4 className="set-h4">Per language</h4>
       <div className="set-list" data-testid="lsp-server-list">
         {LSP_SERVERS.map((def) => {
           const spec = effectiveSpec(def, cfg);
@@ -112,7 +112,7 @@ export default function SectionsLsp() {
                 data-testid={`lsp-srv-enabled-${def.id}`}
                 checked={spec.enabled}
                 onChange={(e) => ubahServer(def.id, { enabled: e.target.checked })}
-                aria-label={`Aktifkan ${def.label}`}
+                aria-label={`Enable ${def.label}`}
               />
               <span className="lsp-srv-name" title={def.extensions.join(' ')}>
                 {def.label}
@@ -126,15 +126,15 @@ export default function SectionsLsp() {
                   const bagian = e.target.value.trim().split(/\s+/).filter(Boolean);
                   ubahServer(def.id, { cmd: bagian.length > 0 ? bagian : null });
                 }}
-                aria-label={`${tr('Perintah')} ${def.label}`}
+                aria-label={`${tr('Command')} ${def.label}`}
               />
               <span
                 className="lsp-srv-state"
                 data-testid={`lsp-srv-probe-${def.id}`}
                 data-ok={p?.ok ? '1' : '0'}
-                title={p?.ok ? p.exe : (p?.error ?? `${tr('Pasang')}: ${def.install}`)}
+                title={p?.ok ? p.exe : (p?.error ?? `${tr('Install')}: ${def.install}`)}
               >
-                {p?.ok ? tr('terpasang') : tr('tidak ada')}
+                {p?.ok ? tr('installed') : tr('not found')}
               </span>
               <span className="lsp-srv-live" data-testid={`lsp-srv-live-${def.id}`}>
                 {hidup.length > 0 ? `pid ${hidup[0].pid}` : ''}
@@ -143,13 +143,13 @@ export default function SectionsLsp() {
                 <button
                   className="btn btn-xs"
                   data-testid={`lsp-srv-copy-${def.id}`}
-                  title={`${tr('Salin perintah pasang')}: ${def.install}`}
+                  title={`${tr('Copy install command')}: ${def.install}`}
                   onClick={async () => {
                     await clipboardWrite(def.install);
-                    notifyInfo(`${tr('Perintah pasang')} ${def.label} ${tr('disalin')}`, { source: 'LSP' });
+                    notifyInfo(`${tr('Install command')} ${def.label} ${tr('copied')}`, { source: 'LSP' });
                   }}
                 >
-                  {tr('salin')}
+                  {tr('copy')}
                 </button>
               )}
             </div>
@@ -160,24 +160,24 @@ export default function SectionsLsp() {
       <div className="set-note lsp-belum" data-testid="lsp-belum">
         {(() => {
           const belum = LSP_SERVERS.filter((d) => !probe[d.id]?.ok);
-          if (belum.length === 0) return tr('Semua language server terpasang.');
+          if (belum.length === 0) return tr('All language servers are installed.');
           return (
             <>
               <span>
-                <strong>{belum.length} {tr('belum terpasang.')}</strong>{' '}
-                {tr('Klik salin untuk perintah pasangnya, lalu jalankan di terminal.')}
+                <strong>{belum.length} {tr('not installed yet.')}</strong>{' '}
+                {tr('Click copy for its install command, then run it in the terminal.')}
               </span>
               <button
                 className="btn btn-sm"
                 data-testid="lsp-copy-semua"
-                title={tr('Salin semua perintah pasang yang belum terpasang')}
+                title={tr('Copy all install commands that are not installed yet')}
                 onClick={async () => {
                   const teks = belum.map((d) => `# ${d.label}\n${d.install}`).join('\n\n');
                   await clipboardWrite(teks);
-                  notifyInfo(`${belum.length} ${tr('perintah pasang disalin')}`, { source: 'LSP' });
+                  notifyInfo(`${belum.length} ${tr('install commands copied')}`, { source: 'LSP' });
                 }}
               >
-                {tr('Salin semua perintah')}
+                {tr('Copy all commands')}
               </button>
             </>
           );

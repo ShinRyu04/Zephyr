@@ -47,7 +47,7 @@ export default function ContextMenu() {
     startInline({
       kind,
       target: parentDir,
-      initial: kind === 'new-file' ? 'file-baru.txt' : 'folder-baru',
+      initial: kind === 'new-file' ? 'new-file.txt' : 'new-folder',
     });
   };
 

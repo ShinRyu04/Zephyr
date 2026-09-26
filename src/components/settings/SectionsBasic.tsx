@@ -16,7 +16,7 @@ export function GeneralSection() {
 
   return (
     <Section title={tr('settings.general')}>
-      <Row label={tr('general.theme')} hint={tr('mode terang/gelap; tema spesifik di section Tema')}>
+      <Row label={tr('general.theme')} hint={tr('light/dark mode; specific themes are in the Theme section')}>
         <Pills
           label={tr('general.theme')}
           testid="general-theme"
@@ -30,7 +30,7 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={tr('general.font')} hint={tr('dipakai editor & terminal')}>
+      <Row label={tr('general.font')} hint={tr('used by the editor & terminal')}>
         <TextInput
           label={tr('general.font')}
           testid="general-font"
@@ -64,7 +64,7 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={tr('general.uiLang')} hint={tr('label utama saja, bukan seluruh teks')}>
+      <Row label={tr('general.uiLang')} hint={tr('main labels only, not all text')}>
         <Select
           label={tr('general.uiLang')}
           testid="general-lang"
@@ -96,7 +96,7 @@ export function GeneralSection() {
         />
       </Row>
 
-      <Row label={tr('general.checkUpdates')} hint={tr('tidak ada telemetri; hanya cek versi rilis')}>
+      <Row label={tr('general.checkUpdates')} hint={tr('no telemetry; only checks the release version')}>
         <Toggle
           label={tr('general.checkUpdates')}
           testid="general-updates"
@@ -106,11 +106,11 @@ export function GeneralSection() {
       </Row>
 
       <Row
-        label={tr('Mode penghemat RAM')}
-        hint={tr('smooth scroll off, minimap/sticky/indent/dekorator warna off, batas tab termuat 3 (dari 12), scrollback terminal 1000 baris')}
+        label={tr('RAM saver mode')}
+        hint={tr('smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines')}
       >
         <Toggle
-          label={tr('Mode penghemat RAM')}
+          label={tr('RAM saver mode')}
           testid="general-lowram"
           checked={g.lowRam === true}
           onChange={(v) => patch({ lowRam: v })}
@@ -118,13 +118,13 @@ export function GeneralSection() {
       </Row>
 
       <Row
-        label={tr('Tempat panel AI')}
-        hint={tr('bawah = sejajar terminal; kanan = kolom 340px ala VS Code')}
+        label={tr('AI panel position')}
+        hint={tr('bottom = flush with the terminal; right = a 340px column like VS Code')}
       >
         <select
           className="inp"
           data-testid="general-ai-panel"
-          aria-label={tr('Tempat panel AI')}
+          aria-label={tr('AI panel position')}
           value={g.aiPanel ?? 'bottom'}
           onChange={async (e) => {
             const nilai = e.target.value as 'bottom' | 'right';
@@ -136,19 +136,19 @@ export function GeneralSection() {
             }
           }}
         >
-          <option value="bottom">{tr('Bawah (sejajar terminal)')}</option>
-          <option value="right">{tr('Kanan (340px)')}</option>
+          <option value="bottom">{tr('Bottom (flush with terminal)')}</option>
+          <option value="right">{tr('Right (340px)')}</option>
         </select>
       </Row>
 
       <Row
-        label="Tata letak utama"
-        hint={tr('editor = editor besar dengan terminal dock bawah; terminal = terminal jadi area utama, editor jadi pane samping')}
+        label="Main layout"
+        hint={tr('editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane')}
       >
         <select
           className="inp"
         data-testid="general-layout"
-        aria-label={tr('Tata letak utama')}
+        aria-label={tr('Main layout')}
           value={g.layout ?? 'editor'}
           onChange={(e) => patch({ layout: e.target.value as 'editor' | 'terminal' })}
         >
@@ -207,7 +207,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.minimap')} hint={tr('mati secara default demi RAM')}>
+      <Row label={tr('editor.minimap')} hint={tr('off by default to save RAM')}>
         <Toggle
           label={tr('editor.minimap')}
           testid="editor-minimap"
@@ -232,7 +232,7 @@ export function EditorSection() {
 
       <Row
         label={tr('editor.snippetSuggestions')}
-        hint={tr('posisi saran snippet di daftar completion')}
+        hint={tr('position of snippet suggestions in the completion list')}
       >
         <Select
           label={tr('editor.snippetSuggestions')}
@@ -240,17 +240,17 @@ export function EditorSection() {
           value={e.snippetSuggestions}
           onChange={(v) => patch({ snippetSuggestions: v as typeof e.snippetSuggestions })}
           options={[
-            { value: 'inline', label: 'Inline (campur, urut relevansi)' },
-            { value: 'top', label: 'Atas' },
-            { value: 'bottom', label: 'Bawah' },
-            { value: 'none', label: 'Matikan' },
+            { value: 'inline', label: 'Inline (mixed, sorted by relevance)' },
+            { value: 'top', label: 'Top' },
+            { value: 'bottom', label: 'Bottom' },
+            { value: 'none', label: 'Disable' },
           ]}
         />
       </Row>
 
       <Row
-        label="Ghost text (saran AI inline)"
-        hint="Alt+\ minta saran, Tab pakai, Esc buang — tiap saran = 1 panggilan API berbayar"
+        label="Ghost text (inline AI suggestions)"
+        hint="Alt+\ requests a suggestion, Tab accepts, Esc dismisses - each suggestion = 1 paid API call"
       >
         <Toggle
           label="Ghost text"
@@ -260,7 +260,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.smoothScroll')} hint={tr('lebih halus, sedikit lebih berat')}>
+      <Row label={tr('editor.smoothScroll')} hint={tr('smoother, slightly heavier')}>
         <Toggle
           label={tr('editor.smoothScroll')}
           testid="editor-smooth"
@@ -269,7 +269,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.formatOnSave')} hint={tr('Memakai formatter LSP bahasa yang aktif')}>
+      <Row label={tr('editor.formatOnSave')} hint={tr('Uses the active language LSP formatter')}>
         <Toggle
           label={tr('editor.formatOnSave')}
           testid="editor-format"
@@ -278,7 +278,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.showWhitespace')} hint={tr('titik untuk spasi, panah untuk tab')}>
+      <Row label={tr('editor.showWhitespace')} hint={tr('dot for spaces, arrow for tabs')}>
         <Toggle
           label={tr('editor.showWhitespace')}
           testid="editor-whitespace"
@@ -291,11 +291,11 @@ export function EditorSection() {
           Nama kunci sengaja sama dengan VS Code supaya user yang pindah tidak
           perlu belajar nama baru. Yang berat diberi peringatan di hint. */}
       <p className="set-note">
-        Kenyamanan editor di bawah ini bisa dimatikan satu per satu. Semuanya
-        juga ada di menu View → Appearance.
+        The editor conveniences below can be turned off one by one. They are all
+        also available in the View → Appearance menu.
       </p>
 
-      <Row label={tr('editor.breadcrumbs')} hint={tr('jalur folder + simbol dari language server')}>
+      <Row label={tr('editor.breadcrumbs')} hint={tr('folder path + symbols from the language server')}>
         <Toggle
           label={tr('editor.breadcrumbs')}
           testid="editor-breadcrumbs"
@@ -304,7 +304,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.stickyScroll')} hint={tr('baris function/class menempel saat scroll')}>
+      <Row label={tr('editor.stickyScroll')} hint={tr('function/class lines stick while scrolling')}>
         <Toggle
           label={tr('editor.stickyScroll')}
           testid="editor-sticky"
@@ -313,7 +313,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.stickyScrollMaxLines')} hint={tr('berapa baris header ditumpuk')}>
+      <Row label={tr('editor.stickyScrollMaxLines')} hint={tr('how many header lines are stacked')}>
         <NumberInput
           label={tr('editor.stickyScrollMaxLines')}
           testid="editor-sticky-max"
@@ -326,7 +326,7 @@ export function EditorSection() {
 
       <Row
         label={tr('editor.minimapRenderCharacters')}
-        hint={tr('gambar teks asli, bukan blok warna — jauh lebih berat')}
+        hint={tr('draws the actual text, not color blocks - much heavier')}
       >
         <Toggle
           label={tr('editor.minimapRenderCharacters')}
@@ -336,7 +336,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.indentGuides')} hint={tr('garis indentasi + indent aktif')}>
+      <Row label={tr('editor.indentGuides')} hint={tr('indent guides + active indent')}>
         <Toggle
           label={tr('editor.indentGuides')}
           testid="editor-indent-guides"
@@ -345,7 +345,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.colorDecorators')} hint={tr('swatch #hex/rgb()/hsl(), klik untuk picker')}>
+      <Row label={tr('editor.colorDecorators')} hint={tr('swatch for #hex/rgb()/hsl(), click for a picker')}>
         <Toggle
           label={tr('editor.colorDecorators')}
           testid="editor-color-dec"
@@ -354,7 +354,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.unicodeHighlight')} hint={tr('tandai karakter ambigu & tak terlihat')}>
+      <Row label={tr('editor.unicodeHighlight')} hint={tr('flag ambiguous & invisible characters')}>
         <Toggle
           label={tr('editor.unicodeHighlight')}
           testid="editor-unicode"
@@ -363,7 +363,7 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.bracketPairColorization')} hint={tr('warna bracket per kedalaman')}>
+      <Row label={tr('editor.bracketPairColorization')} hint={tr('color brackets by depth')}>
         <Toggle
           label={tr('editor.bracketPairColorization')}
           testid="editor-bracket-color"
@@ -385,7 +385,7 @@ export function ThemeSection() {
 
   return (
     <Section title={tr('settings.theme')}>
-      <p className="set-note">{tr('Tema mengubah UI, editor, dan terminal sekaligus. Mode di section Umum (terang/gelap) menang atas pilihan di sini — memilih tema gelap saat mode terang akan mengembalikannya ke Zephyr Light.')}</p>
+      <p className="set-note">{tr('A theme changes the UI, editor, and terminal at once. The mode in the General section (light/dark) wins over the choice here - picking a dark theme while in light mode will switch it back to Zephyr Light.')}</p>
 
       <div className="theme-grid" data-testid="theme-grid">
         {/* semuaTema() = bawaan + tema dari ekstensi aktif (fase 19.5). */}
@@ -423,12 +423,12 @@ export function ThemeSection() {
         })}
       </div>
 
-      <Row label={tr('Warna aksen')} hint={tr('kosongkan untuk memakai warna tema')}>
+      <Row label={tr('Accent color')} hint={tr('leave empty to use the theme color')}>
         <span className="set-accent">
           <input
             type="color"
             className="set-color"
-            aria-label={tr('Warna aksen')}
+            aria-label={tr('Accent color')}
             data-testid="theme-accent"
             value={theme.accent && /^#[0-9a-f]{6}$/i.test(theme.accent) ? theme.accent : '#3884ff'}
             onChange={(e) => void apply({ theme: { accent: e.target.value } })}
@@ -445,9 +445,9 @@ export function ThemeSection() {
 
       {/* Latar belakang kustom (permintaan user: "bisa edit background jga
           ntah pasang foto, apakah bisa?"). Gambar TIDAK disalin ke folder
-          data — path-nya dipakai langsung lewat convertFileSrc supaya tidak
+          data - path-nya dipakai langsung lewat convertFileSrc supaya tidak
           ada duplikasi file besar dan user tetap bisa memindahkan fotonya. */}
-      <Row label={tr('Latar belakang')} hint={tr('pasang foto jadi background editor')}>
+      <Row label={tr('Background')} hint={tr('set a photo as the editor background')}>
         <span className="set-bg">
           <button
             className="btn"
@@ -461,11 +461,11 @@ export function ThemeSection() {
                 const img = await cmd.bgImageRead(path);
                 await apply({ background: { image: img.data_url } });
               } catch {
-                /* dialog dibatalkan / izin ditolak — bukan error */
+                /* dialog dibatalkan / izin ditolak - bukan error */
               }
             }}
           >
-            {tr('Pilih gambar…')}
+            {tr('Choose an image…')}
           </button>
           <button
             className="btn"
@@ -479,13 +479,13 @@ export function ThemeSection() {
 
       {bg.image && (
         <>
-          <Row label={tr('Kekuatan')} hint={tr('seberapa jelas gambar terlihat')}>
+          <Row label={tr('Strength')} hint={tr('how clearly the image shows through')}>
             <span className="set-bg-kekuatan">
-              <span className="set-pills" role="radiogroup" aria-label="Preset kekuatan" data-testid="theme-bg-preset">
+              <span className="set-pills" role="radiogroup" aria-label="Strength preset" data-testid="theme-bg-preset">
                 {([
-                  ['Samar', 25],
-                  ['Sedang', 55],
-                  ['Jelas', 85],
+                  ['Faint', 25],
+                  ['Medium', 55],
+                  ['Clear', 85],
                 ] as const).map(([label, val]) => (
                   <button
                     key={label}
@@ -507,7 +507,7 @@ export function ThemeSection() {
                   min={0}
                   max={100}
                   step={1}
-                  aria-label="Kekuatan latar"
+                  aria-label="Background strength"
                   data-testid="theme-bg-opacity"
                   value={bg.opacity ?? 55}
                   onChange={(e) => void apply({ background: { opacity: Number(e.target.value) } })}
@@ -516,8 +516,8 @@ export function ThemeSection() {
               </span>
             </span>
           </Row>
-          <Row label={tr('Cara pasang')} hint={tr('fill menutupi penuh, fit utuh, center asli')}>
-            <span className="set-pills" role="radiogroup" aria-label={tr('Cara pasang latar')} data-testid="theme-bg-size">
+          <Row label={tr('Fit mode')} hint={tr('fill covers fully, fit shows it whole, center is original size')}>
+            <span className="set-pills" role="radiogroup" aria-label={tr('Background fit mode')} data-testid="theme-bg-size">
               {(['fill', 'fit', 'center'] as const).map((m) => (
                 <button
                   key={m}
@@ -528,28 +528,28 @@ export function ThemeSection() {
                   data-pill={m}
                   onClick={() => void apply({ background: { size: m } })}
                 >
-                  {m === 'fill' ? 'Penuh' : m === 'fit' ? 'Utuh' : 'Asli'}
+                  {m === 'fill' ? 'Full' : m === 'fit' ? 'Whole' : 'Original'}
                 </button>
               ))}
             </span>
           </Row>
-          <Row label={tr('Panel tembus pandang')} hint={tr('matikan bila teks terasa kurang jelas')}>
+          <Row label={tr('Translucent panels')} hint={tr('turn off if the text feels hard to read')}>
             <Toggle
               checked={bg.transparan !== false}
               onChange={(v) => void apply({ background: { transparan: v } })}
               testid="theme-bg-transparan"
-              label={tr('Panel tembus pandang')}
+              label={tr('Translucent panels')}
             />
           </Row>
           <p className="set-note" data-testid="theme-bg-info">
-            Latar aktif. Panel dibuat sedikit tembus pandang supaya gambar terlihat —
-            teks tetap di atas warna yang cukup kontras.
+            Background active. Panels are made slightly translucent so the image shows through -
+            the text stays over a sufficiently contrasting color.
           </p>
         </>
       )}
 
       <p className="set-note" data-testid="theme-active">
-        {tr('Tema aktif:')} <code>{document.documentElement.dataset.theme ?? '-'}</code> · {tr('mode')}{' '}
+        {tr('Active theme:')} <code>{document.documentElement.dataset.theme ?? '-'}</code> · {tr('mode')}{' '}
         <code>{general.theme}</code>
       </p>
     </Section>

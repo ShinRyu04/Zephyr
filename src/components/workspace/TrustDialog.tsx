@@ -39,24 +39,24 @@ export default function TrustDialog() {
         </div>
 
         <h2 id="trust-title" className="trust-title">
-          {tr('Percayai folder ini?')}
+          {tr('Trust this folder?')}
         </h2>
         <p className="trust-path" title={tanyaUntuk} data-testid="trust-path">
           {tanyaUntuk}
         </p>
 
         <p className="trust-text">
-          Folder ini bisa memuat konfigurasi yang <strong>menjalankan program</strong> di komputer
-          kamu — <code>tasks.json</code>, <code>launch.json</code>, language server, dan ekstensi.
+          This folder can contain configuration that <strong>runs programs</strong> on your
+          computer - <code>tasks.json</code>, <code>launch.json</code>, language servers, and extensions.
         </p>
 
         <ul className="trust-list">
           <li>
-            <strong>Percayai</strong> — tasks, debug, LSP, dan ekstensi berjalan normal.
+            <strong>Trust</strong> - tasks, debug, LSP, and extensions run normally.
           </li>
           <li>
-            <strong>Restricted Mode</strong> — file tetap bisa dibuka dan diedit, tapi tidak ada
-            yang dijalankan.
+            <strong>Restricted Mode</strong> - files can still be opened and edited, but nothing
+            is run.
           </li>
         </ul>
 
@@ -66,21 +66,21 @@ export default function TrustDialog() {
             data-testid="trust-yes"
             onClick={() => void setTrust(tanyaUntuk, true)}
           >
-            {tr('Percayai folder ini')}
+            {tr('Trust this folder')}
           </button>
           <button
             className="btn"
             data-testid="trust-no"
             onClick={() => void setTrust(tanyaUntuk, false)}
           >
-            {tr('Buka dalam Restricted Mode')}
+            {tr('Open in Restricted Mode')}
           </button>
         </div>
 
         {sudahRestricted && (
           
           <button className="trust-nanti" onClick={() => tanya(null)} data-testid="trust-close">
-            {tr('Nanti saja')}
+            {tr('Later')}
           </button>
         )}
       </div>

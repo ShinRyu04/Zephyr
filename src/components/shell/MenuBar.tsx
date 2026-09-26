@@ -14,10 +14,10 @@ import { useLabel } from '../../lib/labelI18n';
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
 
 const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; desc: string }[] = [
-  { id: 'left', label: 'Kiri', desc: 'panel di samping kiri editor' },
-  { id: 'right', label: 'Kanan', desc: 'panel di samping kanan editor' },
-  { id: 'top', label: 'Atas', desc: 'panel di atas editor' },
-  { id: 'bottom', label: 'Bawah', desc: 'panel di bawah editor' },
+  { id: 'left', label: 'Left', desc: 'panel on the left of the editor' },
+  { id: 'right', label: 'Right', desc: 'panel on the right of the editor' },
+  { id: 'top', label: 'Top', desc: 'panel above the editor' },
+  { id: 'bottom', label: 'Bottom', desc: 'panel below the editor' },
 ];
 
 export default function MenuBar() {
@@ -147,7 +147,7 @@ export default function MenuBar() {
 
     // Menu selalu aktif: item hanya "nonaktif" kalau command-nya memang tidak
     // terdaftar sama sekali (item mati). Gating konteks (enabled()) sengaja
-    // TIDAK dipakai di sini — kalau konteksnya belum ada, command-nya sendiri
+    // TIDAK dipakai di sini - kalau konteksnya belum ada, command-nya sendiri
     // yang menangani (no-op / pesan lembut), bukan mengunci menunya.
     const adaCommand = !!def;
     const nonaktif = !!it.command && !adaCommand;
@@ -195,7 +195,7 @@ export default function MenuBar() {
         role="menuitem"
         disabled={nonaktif}
         aria-disabled={nonaktif}
-        title={nonaktif ? `${lbl(it.label)} — ${tr('belum tersedia')}` : lbl(it.label)}
+        title={nonaktif ? `${lbl(it.label)} - ${tr('not available yet')}` : lbl(it.label)}
         onMouseEnter={() => !dalamSub && setIdx(i)}
         onClick={() => it.command && pilih(it.command)}
       >
@@ -233,7 +233,7 @@ export default function MenuBar() {
          * Label menu diterjemahkan saat render. Mnemonic (huruf bergaris
          * bawah saat Alt ditekan) dihitung dari label TERJEMAHAN: huruf yang
          * sama belum tentu ada di bahasa lain, jadi kalau tidak ketemu
-         * indeksnya -1 dan tidak ada huruf yang digarisbawahi — lebih baik
+         * indeksnya -1 dan tidak ada huruf yang digarisbawahi - lebih baik
          * daripada menandai huruf yang salah.
          */
         const labelMenu = lbl(m.label);
@@ -291,7 +291,7 @@ export default function MenuBar() {
         <button
           className="mb-cc"
           data-testid="mb-command-center"
-          title={tr('Command Palette — cari perintah & file (Ctrl+Shift+P / Ctrl+P)')}
+          title={tr('Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)')}
           aria-haspopup="dialog"
           onClick={() => {
             tutup();
@@ -304,20 +304,20 @@ export default function MenuBar() {
               fill="currentColor"
             />
           </svg>
-          <span className="mb-cc-label">{tr('Cari file & perintah…')}</span>
+          <span className="mb-cc-label">{tr('Search files & commands…')}</span>
         </button>
       </div>
 
-      {/* Layout panel — 4 tombol posisi SELALU TERLIHAT di kanan atas menu
+      {/* Layout panel - 4 tombol posisi SELALU TERLIHAT di kanan atas menu
           bar (bukan popover): klik langsung pindah, tanpa buka menu dulu.
           Posisi aktif ditandai; tombol mata di ujung = sembunyikan panel. */}
-      <div className="mb-layout" role="radiogroup" aria-label={tr('Posisi panel')}>
+      <div className="mb-layout" role="radiogroup" aria-label={tr('Panel position')}>
         {POSISI_PANEL.map((p) => (
           <button
             key={p.id}
             className={`mb-layout-btn${posPanel === p.id ? ' is-on' : ''}`}
             data-testid={`mb-layout-${p.id}`}
-            title={`${tr('Panel')} ${tr(p.label)} — ${tr(p.desc)}`}
+            title={`${tr('Panel')} ${tr(p.label)} - ${tr(p.desc)}`}
             aria-label={`${tr('Panel')} ${tr(p.label)}`}
             role="radio"
             aria-checked={posPanel === p.id}
@@ -363,8 +363,8 @@ export default function MenuBar() {
         <button
           className="mb-layout-btn"
           data-testid="mb-layout-hide"
-          title={tr('Sembunyikan panel')}
-          aria-label={tr('Sembunyikan panel')}
+          title={tr('Hide panel')}
+          aria-label={tr('Hide panel')}
           onClick={() => {
             tutup();
             setSidebarVisible(false);

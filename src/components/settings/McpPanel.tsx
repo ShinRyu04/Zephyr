@@ -8,7 +8,7 @@ import CapturePanel from './CapturePanel';
 const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'hermes', 'copilot', 'cursor', 'startup'];
 
 function shortPath(p: string): string {
-  if (!p) return '—';
+  if (!p) return '-';
   const home = /^([A-Za-z]:\\Users\\[^\\]+)\\/.exec(p);
   return home ? `~\\${p.slice(home[1].length + 1)}` : p;
 }
@@ -58,7 +58,7 @@ export default function McpPanel() {
   const running = !!status?.running;
   const port = status?.port ?? mcp.port;
   const token = status?.token ?? '';
-  const masked = token ? `${token.slice(0, 4)}${'•'.repeat(20)}${token.slice(-4)}` : tr('(belum ada)');
+  const masked = token ? `${token.slice(0, 4)}${'•'.repeat(20)}${token.slice(-4)}` : tr('(none yet)');
   const byId = new Map(clis.map((c) => [c.id, c]));
 
   const terdeteksi = clis.filter((c) => c.exists).map((c) => c.id);
@@ -69,11 +69,11 @@ export default function McpPanel() {
   return (
     <Section title={tr('settings.mcp')}>
       <p className="set-note" data-testid="mcp-note">
-        {tr('Saat switch ini hidup, Zephyr jadi server MCP di')} <code>127.0.0.1:{port}</code>{' '}
-        {tr('AI CLI di luar (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) bisa membaca pane, tab editor, dan settings — juga mengemudikan jendela ini: mengetik di terminal, membuka file, menjalankan command. Hanya loopback: tidak pernah terbuka ke jaringan.')}
+        {tr('When this switch is on, Zephyr becomes an MCP server at')} <code>127.0.0.1:{port}</code>{' '}
+        {tr('External AI CLIs (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) can read panes, editor tabs, and settings - and also drive this window: type in the terminal, open files, run commands. Loopback only: never exposed to the network.')}
       </p>
 
-      <Row label={tr('mcp.enable')} hint={`${tr('switch besar; port')} ${mcp.port}`}>
+      <Row label={tr('mcp.enable')} hint={`${tr('main switch; port')} ${mcp.port}`}>
         <Toggle
           label={tr('mcp.enable')}
           testid="mcp-enable"
@@ -99,21 +99,21 @@ export default function McpPanel() {
 
       {running && status && status.port !== status.requestedPort && (
         <p className="set-note is-warn" data-testid="mcp-fallback">
-          Port {status.requestedPort} dipakai program lain, jadi server pindah ke {status.port}.
-          Config CLI yang ditulis dari sini sudah memakai port {status.port}.
+          Port {status.requestedPort} is used by another program, so the server moved to {status.port}.
+          The CLI config written from here already uses port {status.port}.
         </p>
       )}
 
-      <Row label={tr('mcp.token')} hint={tr('dipakai sebagai Authorization: Bearer ***')}>
+      <Row label={tr('mcp.token')} hint={tr('used as Authorization: Bearer ***')}>
         <span className="mcp-tokenrow">
           <code className="mcp-token" data-testid="mcp-token" data-full={reveal ? '1' : '0'}>
-            {reveal ? token || '(belum ada)' : masked}
+            {reveal ? token || '(none yet)' : masked}
           </code>
           <button
             className="btn btn-sm btn-icon"
             data-testid="mcp-eye"
-          title={reveal ? tr('Sembunyikan token') : tr('Tampilkan token')}
-          aria-label={reveal ? tr('Sembunyikan token') : tr('Tampilkan token')}
+          title={reveal ? tr('Hide token') : tr('Show token')}
+          aria-label={reveal ? tr('Hide token') : tr('Show token')}
             onClick={() => setReveal(!reveal)}
           >
             <EyeIcon off={reveal} />
@@ -127,12 +127,12 @@ export default function McpPanel() {
             disabled={busy}
             onClick={() => void rotateToken()}
           >
-            Token baru
+            New token
           </button>
         </span>
       </Row>
 
-      <Row label={tr('mcp.writeToCli')} hint={tr('entri ditulis ke config; file lama disalin ke .bak')}>
+      <Row label={tr('mcp.writeToCli')} hint={tr('entries are written to the config; the old file is copied to .bak')}>
         <div className="mcp-clis" data-testid="mcp-clis">
           {ORDER.map((id) => {
             const c = byId.get(id);
@@ -158,7 +158,7 @@ export default function McpPanel() {
                   className={`mcp-cli-badge${c?.registered ? ' is-on' : ''}`}
                   data-testid={`mcp-reg-${id}`}
                 >
-                  {c?.registered ? tr('terdaftar') : c?.exists ? tr('belum') : tr('config belum ada')}
+                  {c?.registered ? tr('registered') : c?.exists ? tr('not yet') : tr('no config yet')}
                 </span>
               </label>
             );
@@ -173,23 +173,23 @@ export default function McpPanel() {
           disabled={busy}
           onClick={() => void writeToCli()}
         >
-          {tr('Tulis ke CLI')}
+          {tr('Write to CLI')}
         </button>
         {/* One click for every CLI whose config EXISTS on this machine.
-            CLI yang belum terpasang dilewati — menulis config untuk aplikasi
+            CLI yang belum terpasang dilewati - menulis config untuk aplikasi
             yang tidak ada hanya membuat folder sampah. */}
         <button
           className="btn"
           data-testid="mcp-install-all"
           disabled={busy}
-          title={tr('Tulis konfigurasi MCP ke semua CLI yang terpasang di mesin ini')}
+          title={tr('Write the MCP configuration to every CLI installed on this machine')}
           onClick={() => {
             setChecked(terdeteksi);
 
             window.setTimeout(() => void writeToCli(), 30);
           }}
         >
-          {tr('Pasang ke semua')} ({terdeteksi.length})
+          {tr('Install to all')} ({terdeteksi.length})
         </button>
         <button
           className="btn"
@@ -197,10 +197,10 @@ export default function McpPanel() {
           disabled={busy}
           onClick={() => void removeFromCli()}
         >
-          {tr('Lepas dari CLI')}
+          {tr('Remove from CLI')}
         </button>
         <span className="mcp-ringkas" data-testid="mcp-ringkas">
-          {terdaftar.length} {tr('dari')} {ORDER.length} {tr('CLI terdaftar')}
+          {terdaftar.length} {tr('of')} {ORDER.length} {tr('CLIs registered')}
         </span>
       </div>
 
@@ -208,12 +208,12 @@ export default function McpPanel() {
           KENAPA terpisah dari tombol lepas: user sering hanya ingin "matikan
           dulu sebentar", bukan membongkar semua yang sudah dipasang. */}
       <Row
-        label={tr('Izinkan AI luar mengontrol Zephyr')}
-        hint={tr('Kalau dimatikan, server MCP berhenti menerima perintah — konfigurasi di CLI tidak diubah.')}
+        label={tr('Allow external AI to control Zephyr')}
+        hint={tr('When off, the MCP server stops accepting commands - the CLI configuration is not changed.')}
       >
         <Toggle
           checked={running}
-          label={tr('Izinkan AI luar mengontrol Zephyr')}
+          label={tr('Allow external AI to control Zephyr')}
           testid="mcp-ekspos"
           onChange={(v) => void toggleServer(v)}
         />
@@ -242,26 +242,26 @@ export default function McpPanel() {
             ))}
           </ul>
           <p className="set-note" data-testid="mcp-hint-restart">
-            Restart CLI-nya agar MCP terbaca. Setelah itu agent bisa: membaca pane &amp; tab editor,
-            mengetik di terminal, membuka file, dan menjalankan command editor.
+            Restart the CLI so MCP is picked up. After that the agent can: read panes &amp; editor
+            tabs, type in the terminal, open files, and run editor commands.
           </p>
         </>
       )}
 
       <div className="mcp-logwrap">
         <div className="mcp-log-head">
-          <span>Aktivitas MCP</span>
+          <span>MCP activity</span>
           {log.length > 0 && (
             <button className="tp-op" data-testid="mcp-log-clear" onClick={() => clearLog()}>
-              bersihkan
+              clear
             </button>
           )}
         </div>
         <ul className="mcp-log" data-testid="mcp-log">
           {log.length === 0 ? (
             <li className="mcp-log-empty">
-              {tr('Belum ada koneksi. Begitu sebuah AI CLI menyapa')} <code>/health</code>{' '}
-              {tr('atau memanggil tool, barisnya muncul di sini — bukti nyata, bukan klaim.')}
+              {tr('No connection yet. Once an external AI CLI greets')} <code>/health</code>{' '}
+              {tr('or calls a tool, its line appears here - real proof, not a claim.')}
             </li>
           ) : (
             log.map((l, i) => (
@@ -284,23 +284,23 @@ export default function McpPanel() {
       <div className="mcp-info-grid" data-testid="mcp-infogrid">
         <div className="mcp-info-card">
           <span className="mcp-info-k">Automation channel</span>
-          <span className="mcp-info-v">JSON-RPC 2.0 di atas HTTP, POST /</span>
+          <span className="mcp-info-v">JSON-RPC 2.0 over HTTP, POST /</span>
         </div>
         <div className="mcp-info-card">
-          <span className="mcp-info-k">Beban per request</span>
-            <span className="mcp-info-v">{tr('≈3.0k token untuk daftar tool penuh')}</span>
+          <span className="mcp-info-k">Load per request</span>
+            <span className="mcp-info-v">{tr('≈3.0k tokens for the full tool list')}</span>
         </div>
         <div className="mcp-info-card">
           <span className="mcp-info-k">Discovery</span>
           <span className="mcp-info-v">
-            GET /mcp (schema) · GET /health (tanpa auth)
+            GET /mcp (schema) · GET /health (no auth)
           </span>
         </div>
         <div className="mcp-info-card">
-          <span className="mcp-info-k">Permintaan dilayani</span>
+          <span className="mcp-info-k">Requests served</span>
           <span className="mcp-info-v" data-testid="mcp-served">
-            {served} sesi ini
-            {lastAction ? ` · terakhir: ${lastAction.detail}` : ''}
+            {served} this session
+            {lastAction ? ` · last: ${lastAction.detail}` : ''}
           </span>
         </div>
       </div>
@@ -308,9 +308,9 @@ export default function McpPanel() {
       <CapturePanel />
 
       <p className="set-note">
-        {tr('Terbuka di port')} {port}{tr(': apa pun yang berjalan sebagai user-mu bisa mengemudikan jendela ini selama tahu tokennya.')}{' '}
-        <code>editor_write</code> {tr('hanya mengubah buffer tab, TIDAK menulis ke disk — penyimpanan tetap keputusanmu.')}{' '}
-        <code>set_setting</code> {tr('dibatasi whitelist tampilan (tema, font, tab size); kredensial dan setting MCP sendiri tidak bisa diubah dari luar.')}
+        {tr('Exposed on port')} {port}{tr(': anything running as your user can drive this window as long as it knows the token.')}{' '}
+        <code>editor_write</code> {tr('only changes the tab buffer, it does NOT write to disk - saving remains your decision.')}{' '}
+        <code>set_setting</code> {tr('is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.')}
       </p>
     </Section>
   );

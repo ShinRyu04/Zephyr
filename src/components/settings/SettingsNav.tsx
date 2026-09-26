@@ -207,7 +207,7 @@ export default function SettingsNav() {
         )}
         {resetStage === 1 && (
           <div className="set-confirm" data-testid="set-reset-c1">
-            <p>{tr('Semua setting kembali ke default. API key tidak dihapus. Lanjut?')}</p>
+            <p>{tr('All settings return to default. API keys are not deleted. Continue?')}</p>
             <div className="set-confirm-row">
               <button className="btn btn-sm" onClick={() => setResetStage(0)}>
                 {tr('common.cancel')}
@@ -217,14 +217,14 @@ export default function SettingsNav() {
                 data-testid="set-reset-yes1"
                 onClick={() => setResetStage(2)}
               >
-                Lanjut
+                Continue
               </button>
             </div>
           </div>
         )}
         {resetStage === 2 && (
           <div className="set-confirm" data-testid="set-reset-c2">
-            <p>{tr('Yakin? Tema, shortcut, dan semua preferensi akan hilang.')}</p>
+            <p>{tr('Are you sure? The theme, shortcuts, and all preferences will be lost.')}</p>
             <div className="set-confirm-row">
               <button className="btn btn-sm" onClick={() => setResetStage(0)}>
                 {tr('common.cancel')}
@@ -234,7 +234,7 @@ export default function SettingsNav() {
                 data-testid="set-reset-yes2"
                 onClick={() => void doReset()}
               >
-                Reset sekarang
+                Reset now
               </button>
             </div>
           </div>

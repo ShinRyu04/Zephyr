@@ -77,13 +77,13 @@ export default function EditorArea() {
       <section className="editor-area">
         <RestrictedBanner />
         <div className="set-topbar">
-          <span className="set-topbar-title">{tr('Pengaturan')}</span>
+          <span className="set-topbar-title">{tr('Settings')}</span>
           <button
             className="btn btn-sm"
             data-testid="set-close"
             onClick={() => setSettingsOpen(false)}
           >
-            {tr('Tutup')}
+            {tr('Close')}
           </button>
         </div>
         <div className="editor-host">
@@ -109,7 +109,7 @@ export default function EditorArea() {
 
   return (
     <section className="editor-area">
-      {/* fase 29: banner Restricted di ATAS area editor, bukan sidebar —
+      {/* fase 29: banner Restricted di ATAS area editor, bukan sidebar -
           sidebar bisa disembunyikan dan peringatan keamanan tidak boleh
           ikut hilang. */}
       <RestrictedBanner />

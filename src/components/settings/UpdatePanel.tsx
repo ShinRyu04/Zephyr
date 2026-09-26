@@ -10,7 +10,7 @@ async function bukaRilis() {
     const { openUrl } = await import('@tauri-apps/plugin-opener');
     await openUrl(URL_RILIS);
   } catch {
-    /* diam — link hanya pelengkap */
+    /* diam - link hanya pelengkap */
   }
 }
 

@@ -22,7 +22,7 @@ const STATUS_TITLE: Record<string, string> = {
   D: 'Deleted',
   R: 'Renamed',
   C: 'Copied',
-  U: 'Conflict — selesaikan lalu stage',
+  U: 'Conflict - resolve then stage',
   T: 'Type changed',
   '?': 'Untracked',
 };
@@ -74,8 +74,8 @@ function GitHubRow() {
   useEffect(() => setCid(clientIdSaved), [clientIdSaved]);
 
   const label = (() => {
-    if (!gh?.signedIn) return tx('Belum login');
-    const who = gh.user ? `@${gh.user}` : tx('akun GitHub');
+    if (!gh?.signedIn) return tx('Not signed in');
+    const who = gh.user ? `@${gh.user}` : tx('GitHub account');
     if (gh.method === 'pat') return `Login as ${who} · PAT`;
     const exp = gh.expiresAt
       ? ` (exp ${new Date(gh.expiresAt * 1000).toLocaleString()})`
@@ -103,8 +103,8 @@ function GitHubRow() {
               data-testid="scm-gh-signin"
               title={
                 gh?.oauthConfigured
-                  ? 'Login lewat GitHub Device Flow'
-                  : 'Belum ada client_id — klik untuk membuka halaman OAuth App GitHub'
+                  ? 'Sign in via GitHub Device Flow'
+                  : 'No client_id yet - click to open the GitHub OAuth App page'
               }
               onClick={() => {
                 if (gh?.oauthConfigured) void loginDevice();
@@ -142,7 +142,7 @@ function GitHubRow() {
         )}
         <button
           className="btn btn-sm btn-ghost"
-          title="Client ID OAuth App (opsional)"
+          title="OAuth App Client ID (optional)"
           onClick={() => setCidOpen(!cidOpen)}
         >
           client_id
@@ -165,7 +165,7 @@ function GitHubRow() {
               setCidOpen(false);
             }}
           >
-            Simpan
+            Save
           </button>
         </div>
       )}
@@ -202,7 +202,7 @@ function GitHubRow() {
             className="btn btn-sm"
             onClick={() => void openUrl(ghDevice.verificationUri)}
           >
-            Buka github.com/login/device
+            Open github.com/login/device
           </button>
           <span className="scm-spin" aria-hidden="true" />
         </div>
@@ -236,7 +236,7 @@ function ChangeRow({ c }: { c: GitChange }) {
       >
         <button
           className="scm-row-main"
-          title={`${c.path}${c.origPath ? ` (dulu ${c.origPath})` : ''}`}
+          title={`${c.path}${c.origPath ? ` (was ${c.origPath})` : ''}`}
           onClick={() => void openDiff(c)}
         >
           <span className="scm-name">{baseOf(c.path)}</span>
@@ -247,7 +247,7 @@ function ChangeRow({ c }: { c: GitChange }) {
           {!c.staged && (
             <button
               className="ex-btn scm-mini"
-              title={tx('Buang perubahan (permanen)')}
+              title={tx('Discard changes (permanent)')}
               aria-label={`Discard ${c.path}`}
               data-testid="scm-discard"
               onClick={() => setConfirm({ kind: 'discard', paths: [c.path] })}
@@ -303,7 +303,7 @@ function Group({
           {!staged && (
             <button
               className="ex-btn scm-mini"
-              title={tx('Buang semua perubahan (permanen)')}
+              title={tx('Discard all changes (permanent)')}
               aria-label="Discard all"
               data-testid="scm-discard-all"
               onClick={() => setConfirm({ kind: 'discard-all', paths })}
@@ -313,8 +313,8 @@ function Group({
           )}
           <button
             className="ex-btn scm-mini"
-            title={staged ? tr('Unstage semua') : tr('Stage semua')}
-            aria-label={staged ? tr('Unstage semua') : tr('Stage semua')}
+            title={staged ? tr('Unstage all') : tr('Stage all')}
+            aria-label={staged ? tr('Unstage all') : tr('Stage all')}
             data-testid={staged ? 'scm-unstage-all' : 'scm-stage-all'}
             onClick={() => void (staged ? unstage(paths) : stage(paths))}
           >
@@ -359,8 +359,8 @@ function BranchMenu() {
           {b !== branches.current && (
             <button
               className="ex-btn scm-mini"
-              title={`Hapus branch ${b}`}
-              aria-label={`Hapus branch ${b}`}
+              title={`Delete branch ${b}`}
+              aria-label={`Delete branch ${b}`}
               data-testid="scm-branch-del"
               data-branch={b}
               onClick={() => {
@@ -384,7 +384,7 @@ function BranchMenu() {
               key={r}
               data-testid="scm-branch-item"
               data-branch={r}
-              title={`Checkout ${r} sebagai branch lokal`}
+              title={`Checkout ${r} as a local branch`}
               onClick={() => void checkout(shortRemote(r))}
             >
               <span className="scm-menu-ico" />
@@ -408,7 +408,7 @@ function NewBranchDialog() {
     <div className="modal-backdrop" role="presentation">
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="nb-title">
         <h2 className="modal-title" id="nb-title">
-          Branch baru
+          New branch
         </h2>
         <form
           onSubmit={(e) => {
@@ -430,7 +430,7 @@ function NewBranchDialog() {
           />
           <div className="modal-actions">
             <button className="btn btn-primary" type="submit" disabled={!name.trim()}>
-              Buat &amp; pindah
+              Create &amp; switch
             </button>
             <button
               className="btn"
@@ -440,7 +440,7 @@ function NewBranchDialog() {
                 setName('');
               }}
             >
-              Batal
+              Cancel
             </button>
           </div>
         </form>
@@ -530,7 +530,7 @@ export default function SourceControlPanel() {
       <div className="side-panel">
         <div className="side-section">
           <div className="side-title">Source Control</div>
-          <p className="side-muted">{tr('Buka folder dulu untuk memakai git.')}</p>
+          <p className="side-muted">{tr('Open a folder first to use git.')}</p>
         </div>
         <GitHubRow />
       </div>
@@ -542,7 +542,7 @@ export default function SourceControlPanel() {
       <div className="side-panel" data-testid="scm-empty">
         <div className="side-section">
           <div className="side-title">Source Control</div>
-          <p className="side-muted">{tr('Folder ini belum jadi repositori git.')}</p>
+          <p className="side-muted">{tr('This folder is not a git repository yet.')}</p>
           <div className="side-actions">
             <button
               className="btn btn-primary"
@@ -572,7 +572,7 @@ export default function SourceControlPanel() {
         <div className="scm-head-actions">
           <button
             className="ex-btn"
-            title={busy ? `Menjalankan git…` : 'Sync (pull lalu push)'}
+            title={busy ? `Running git…` : 'Sync (pull then push)'}
             aria-label="Sync"
             data-testid="scm-sync"
             disabled={busy}
@@ -604,8 +604,8 @@ export default function SourceControlPanel() {
           </button>
           <button
             className="ex-btn"
-            title="Menu lain"
-            aria-label="Menu lain"
+            title="More"
+            aria-label="More"
             data-testid="scm-kebab"
             onClick={() => setKebab(!kebab)}
           >
@@ -671,7 +671,7 @@ export default function SourceControlPanel() {
               void (async () => {
                 const list = await useGit.getState().stashList();
                 if (list.length === 0) {
-                  useGit.setState({ scmInfo: 'Tidak ada stash' });
+                  useGit.setState({ scmInfo: 'No stash' });
                   return;
                 }
                 await useGit.getState().stashPop(0);
@@ -699,7 +699,7 @@ export default function SourceControlPanel() {
         <button
           className="scm-branch-btn"
           data-testid="scm-branch"
-          title={tr('Ganti branch')}
+          title={tr('Switch branch')}
           onClick={() => setBranchMenuOpen(!branchMenuOpen)}
         >
           <Icon d={I.branch} />
@@ -713,7 +713,7 @@ export default function SourceControlPanel() {
         </button>
         {status?.conflicted && (
           <span className="scm-conflict" data-testid="scm-conflict">
-            konflik — selesaikan lalu stage
+            conflict - resolve then stage
           </span>
         )}
         {status?.conflicted && changes.filter((c) => c.status === 'U' || c.status === 'UU').length > 0 && (
@@ -728,7 +728,7 @@ export default function SourceControlPanel() {
                   <button
                     className="ex-btn"
                     data-testid={`scm-ours-${c.path}`}
-                    title="Ambil versi kita (ours)"
+                    title="Take our version (ours)"
                     onClick={() =>
                       void (async () => {
                         const { gitConflictTake } = await import('../../lib/commands');
@@ -742,7 +742,7 @@ export default function SourceControlPanel() {
                   <button
                     className="ex-btn"
                     data-testid={`scm-theirs-${c.path}`}
-                    title="Ambil versi mereka (theirs)"
+                    title="Take their version (theirs)"
                     onClick={() =>
                       void (async () => {
                         const { gitConflictTake } = await import('../../lib/commands');
@@ -765,7 +765,7 @@ export default function SourceControlPanel() {
           className="scm-msg"
           data-testid="scm-message"
           rows={2}
-          placeholder={tr('Pesan commit (Ctrl+Enter untuk commit)')}
+          placeholder={tr('Commit message (Ctrl+Enter to commit)')}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => {
@@ -781,10 +781,10 @@ export default function SourceControlPanel() {
           disabled={!canCommit}
           title={
             stagedCount === 0
-              ? 'Stage dulu (klik + di file)'
+              ? 'Stage first (click + on a file)'
               : message.trim()
-                ? 'Commit perubahan yang di-stage'
-                : tr('Tulis pesan commit dulu')
+                ? 'Commit the staged changes'
+                : tr('Type a commit message first')
           }
           onClick={() => void commit()}
         >
@@ -794,7 +794,7 @@ export default function SourceControlPanel() {
           className="btn btn-block"
           data-testid="scm-ai-commit"
           disabled={busy || changes.length === 0}
-          title="Isi pesan commit dari diff memakai AI"
+          title="Fill the commit message from the diff using AI"
           onClick={() => void useGit.getState().commitWithAi()}
         >
           AI commit message
@@ -817,7 +817,7 @@ export default function SourceControlPanel() {
         <Group title="Changes" items={unstaged} staged={false} />
         {changes.length === 0 && (
           <p className="side-muted scm-clean" data-testid="scm-clean">
-            {tr('Tidak ada perubahan — working tree bersih.')}
+            {tr('No changes - the working tree is clean.')}
           </p>
         )}
         <GitGraphSection />

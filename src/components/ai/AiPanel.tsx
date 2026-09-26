@@ -145,7 +145,7 @@ export default function AiPanel() {
           <button
             className={`ai-mode-btn${agentMode === 'chat' ? ' is-on' : ''}`}
             data-testid="ai-mode-chat"
-            title={tr('Chat: tanya jawab biasa, tanpa menjalankan tool')}
+            title={tr('Chat: ordinary Q&A, without running tools')}
             onClick={() => setAgentMode('chat')}
           >
             Chat
@@ -153,7 +153,7 @@ export default function AiPanel() {
           <button
             className={`ai-mode-btn${agentMode === 'agent' ? ' is-on' : ''}`}
             data-testid="ai-mode-agent"
-            title={tr('Agent: AI membaca file, menjalankan perintah, dan mengerjakan tugas sampai selesai')}
+            title={tr('Agent: AI reads files, runs commands, and works on the task until done')}
             onClick={() => setAgentMode('agent')}
           >
             Agent
@@ -163,34 +163,34 @@ export default function AiPanel() {
 
         {/* T3.11: tingkat penalaran lewat popover kustom, bukan <select>.
             <select> native merender daftar <option> dengan gaya OS (putih di
-            tema gelap) dan tidak bisa distyle — itu keluhan "ga kliatan bnget". */}
+            tema gelap) dan tidak bisa distyle - itu keluhan "ga kliatan bnget". */}
         <EffortPicker />
 
         <div className="ai-head-right">
           {/* Tombol sesi juga ADA DI SINI (panel bawah), bukan cuma di sidebar
               kiri. Aturan fase 08 (aksi hidup di satu tempat) tetap berlaku
-              untuk NAVIGASI PANEL; yang ini aksi SESI CHAT — user memakai
+              untuk NAVIGASI PANEL; yang ini aksi SESI CHAT - user memakai
               panel AI tanpa pernah membuka sidebar, jadi keduanya harus
               tersedia di tempat ia sedang melihat. */}
           <button
             className="ai-export"
             data-testid="ai-new-chat-panel"
-            title={tr('Mulai percakapan baru')}
+            title={tr('Start a new conversation')}
             onClick={() => newChat()}
           >
-            {tr('+ Chat baru')}
+            {tr('+ New chat')}
           </button>
           <button
             className="ai-export"
             data-testid="ai-clear-all-panel"
             disabled={sessionCount === 0}
-            title={tr('Hapus semua riwayat chat')}
+            title={tr('Delete all chat history')}
             onClick={() => setClearAllOpen(true)}
           >
-            {tr('Hapus semua')}
+            {tr('Delete all')}
           </button>
           <span className="ai-count" data-testid="ai-msg-count">
-            {tf('{n} pesan', { n: msgs.length })}
+            {tf('{n} messages', { n: msgs.length })}
             {msgs.length > 0 && (
               <>
                 <span className="ai-tokens" data-testid="ai-token-count" title={tr('Perkiraan token (jumlah karakter ÷ 4)')}>
@@ -214,19 +214,19 @@ export default function AiPanel() {
             className="ai-export"
             data-testid="ai-export"
             disabled={msgs.length === 0 || !!pending}
-            title={tr('Salin seluruh chat sebagai markdown ke clipboard')}
+            title={tr('Copy the entire chat as markdown to the clipboard')}
             onClick={() => void exportChat()}
           >
             Ekspor
           </button>
           <span className="ai-chatname" data-testid="ai-chat-name">
-            {session?.title ?? '—'}
+            {session?.title ?? '-'}
           </span>
           {/* Sembunyikan panel AI dari panel itu sendiri (ala VS Code).
               Tanpa ini, satu-satunya cara menutup panel adalah Ctrl+J atau
-              tombol di menu View — tidak terlihat dari dalam panel. */}
+              tombol di menu View - tidak terlihat dari dalam panel. */}
           {/* Maximize: kolom kanan memenuhi lebar (ala VS Code). Hanya
-              berguna saat chat memang di kolom kanan — di dock bawah ia tidak
+              berguna saat chat memang di kolom kanan - di dock bawah ia tidak
               punya arti, jadi tidak ditampilkan. */}
           {aiDiKanan && (
             <button
@@ -242,8 +242,8 @@ export default function AiPanel() {
           <button
             className="ai-hide"
             data-testid="ai-hide"
-            title={tr('Sembunyikan panel AI')}
-            aria-label={tr('Sembunyikan panel AI')}
+            title={tr('Hide AI panel')}
+            aria-label={tr('Hide AI panel')}
             onClick={() => {
               if (aiDiKanan) {
                 void applySettings({ general: { aiPanel: 'bottom' } } as never);
@@ -260,27 +260,27 @@ export default function AiPanel() {
       <div className="ai-chat" ref={scroller} data-testid="ai-chat">
         {providerTanpaKey && (
           <div className="ai-nokey" data-testid="ai-nokey" role="alert">
-            <p className="ai-nokey-title">{tr('Provider ini belum punya API key')}</p>
+            <p className="ai-nokey-title">{tr('This provider does not have an API key yet')}</p>
             <p className="ai-nokey-body">
-              {tr('Tambahkan API key untuk')} <strong>{provider}</strong>{' '}
-              {tr('supaya AI bisa menjawab. Tanpa key, setiap permintaan akan gagal dengan 401.')}
+              {tr('Add an API key for')} <strong>{provider}</strong>{' '}
+              {tr('so the AI can answer. Without a key, every request will fail with 401.')}
             </p>
             <button
               className="btn btn-primary btn-sm"
               data-testid="ai-nokey-open"
               onClick={() => bukaSettings(true)}
             >
-              {tr('Buka Settings → Model AI')}
+              {tr('Open Settings → AI Models')}
             </button>
           </div>
         )}
         {msgs.length === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
-            <p className="ai-empty-title">{tr('Tanya apa saja soal kode ini.')}</p>
+            <p className="ai-empty-title">{tr('Ask anything about this code.')}</p>
             <p className="ai-empty-sub">
-              {tr('Enter kirim · Shift+Enter baris baru · Ctrl+I fokus ke sini.')}{' '}
-              {tr('Jawaban berisi blok')} <code>bash</code>{' '}
-              {tr('bisa langsung dijalankan di terminal.')}
+              {tr('Enter sends · Shift+Enter new line · Ctrl+I focuses here.')}{' '}
+              {tr('Answers containing a block')} <code>bash</code>{' '}
+              {tr('can be run directly in the terminal.')}
             </p>
           </div>
         ) : (
@@ -290,7 +290,7 @@ export default function AiPanel() {
 
       {/* Panel TODO: HARUS di luar kondisi agent-busy. Daftar tugas ditulis
           agent di tengah tugas, tapi setelah tugas selesai user masih perlu
-          melihat apa yang sudah dikerjakan — kalau panelnya ikut hilang,
+          melihat apa yang sudah dikerjakan - kalau panelnya ikut hilang,
           TODO-nya tidak bisa dipantau sama sekali. */}
       <TodoPanel />
 
@@ -323,15 +323,15 @@ export default function AiPanel() {
                     )}
                     {st.result !== undefined && (
                       <details className="ai-agent-hasil">
-                        <summary>{tr('hasil')}</summary>
+                        <summary>{tr('result')}</summary>
                         <pre className={`ai-agent-result${st.ok ? '' : ' is-err'}`}>{st.result}</pre>
                       </details>
                     )}
                   </>
                 ) : st.kind === 'mulai' ? (
-                  <span className="ai-agent-note">{tr('Memikirkan langkah…')}</span>
+                  <span className="ai-agent-note">{tr('Thinking about the next step…')}</span>
                 ) : (
-                  <span className="ai-agent-note">{tr('Tugas selesai.')}</span>
+                  <span className="ai-agent-note">{tr('Task complete.')}</span>
                 )}
               </div>
             );
@@ -353,11 +353,11 @@ export default function AiPanel() {
             data-testid="ai-run-last"
             onClick={() => void runInTerminal(lastCommand)}
           >
-            {tr('Jalankan di Terminal')}
+            {tr('Run in Terminal')}
           </button>
           {isDestructive(lastCommand) && (
             <span className="ai-risk" data-testid="ai-risk">
-              berisiko
+              risky
             </span>
           )}
         </div>
@@ -368,11 +368,11 @@ export default function AiPanel() {
           <div className="ai-imgstrip" data-testid="ai-imgstrip">
             {draftImages.map((src, i) => (
               <div className="ai-imgpreview" key={i} data-testid="ai-imgpreview">
-                <img src={src} alt={`Lampiran gambar ${i + 1}`} />
+                <img src={src} alt={`Image attachment ${i + 1}`} />
                 <button
                   className="ai-imgremove"
                   data-testid="ai-imgremove"
-                  title={tr('Hapus gambar')}
+                  title={tr('Remove image')}
                   onClick={() => removeDraftImage(i)}
                 >
                   ✕
@@ -382,7 +382,7 @@ export default function AiPanel() {
           </div>
         )}
         {/* A-8: saran slash command; Tab/Enter memakai yang tersorot.
-            T4.4: ">" menampilkan SNIPPET — teks yang disisipkan, bukan
+            T4.4: ">" menampilkan SNIPPET - teks yang disisipkan, bukan
             pertanyaan baru. Pemicunya ditandai di baris pertama daftar supaya
             user tahu mana yang sedang aktif. */}
         {saran.length > 0 && (
@@ -392,7 +392,7 @@ export default function AiPanel() {
             data-pemicu={modeSnippet ? 'snippet' : 'slash'}
             role="listbox"
             ref={slashRef}
-            aria-label={tr('Perintah prompt')}
+            aria-label={tr('Prompt commands')}
           >
             {saran.map((p, i) => (
               <button
@@ -420,15 +420,15 @@ export default function AiPanel() {
           placeholder={
             sibuk
               ? agentMode === 'agent'
-                ? tr('Agent sedang bekerja…')
-                : tr('Menunggu jawaban…')
+                ? tr('Agent is working…')
+                : tr('Waiting for an answer…')
               : agentMode === 'agent'
-                ? tr('Ketik tugas untuk agent (Enter kirim)…')
-                : tr('Tulis pesan (Enter kirim, Shift+Enter baris baru) — ketik @ untuk lampirkan file')
+                ? tr('Type a task for the agent (Enter to send)…')
+                : tr('Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file')
                           }
           value={draft}
           spellCheck={false}
-          aria-label={tr('Pesan untuk AI')}
+          aria-label={tr('Message for the AI')}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
 
@@ -459,7 +459,7 @@ export default function AiPanel() {
               if (url) {
                 e.preventDefault();
                 addDraftImage(url);
-                setToast(tr('Screenshot ditempel sebagai lampiran'));
+                setToast(tr('Screenshot pasted as an attachment'));
               }
             });
           }}
@@ -481,7 +481,7 @@ export default function AiPanel() {
               disabled={(!draft.trim() && draftImages.length === 0) || agentBusy}
               onClick={() => void send()}
             >
-              {agentMode === 'agent' ? tr('Jalankan') : tr('Kirim')}
+              {agentMode === 'agent' ? tr('Run') : tr('Send')}
             </button>
           )}
 
@@ -491,21 +491,21 @@ export default function AiPanel() {
             aria-pressed={attachActive}
             title={
               activeTab
-                ? tf('Lampirkan file aktif: {name} (maks 12KB)', { name: activeTab.path ?? activeTab.name })
-                : tr('Tidak ada file aktif')
+                ? tf('Attach the active file: {name} (max 12KB)', { name: activeTab.path ?? activeTab.name })
+                : tr('No active file')
             }
             onClick={() => setAttachActive(!attachActive)}
           >
-            {attachActive ? '✓' : '+'} {tr('file aktif')}
+            {attachActive ? '✓' : '+'} {tr('active file')}
           </button>
 
           <button
             className="ai-photo"
             data-testid="ai-photo"
-            title={tf('Lampiran gambar (maks {n} gambar, 3,5 MB masing-masing) — atau Win+Shift+S lalu Ctrl+V', { n: MAX_IMAGES })}
+            title={tf('Image attachment (max {n} images, 3.5 MB each) - or Win+Shift+S then Ctrl+V', { n: MAX_IMAGES })}
             onClick={() => photoRef.current?.click()}
           >
-            + {tr('gambar')}
+            + {tr('image')}
           </button>
 
           <input
@@ -521,7 +521,7 @@ export default function AiPanel() {
               if (files.length === 0) return;
               for (const f of files) {
                 if (f.size > IMAGE_MAX_BYTES) {
-                  setToast(tf('"{name}" lebih dari 3,5 MB — dilewati', { name: f.name }));
+                  setToast(tf('"{name}" is larger than 3.5 MB - skipped', { name: f.name }));
                   continue;
                 }
                 const r = new FileReader();
@@ -537,16 +537,16 @@ export default function AiPanel() {
             className="ai-attach"
             data-testid="ai-analyze-ts"
             disabled={!!pending}
-            title={tr('Jalankan npx tsc --noEmit di terminal lalu minta AI menganalisis error')}
+            title={tr('Run npx tsc --noEmit in the terminal, then ask the AI to analyze the errors')}
             onClick={() => {
               void runInTerminal('npx tsc --noEmit', { confirmed: true }).then((ok) => {
                 if (!ok) return;
-                setDraft(tr('Saya baru menjalankan `npx tsc --noEmit` di terminal Zephyr. Jelaskan penyebab error TypeScript yang muncul dan cara memperbaikinya. Kalau perlu, minta saya menempelkan outputnya.'));
+                setDraft(tr('I just ran `npx tsc --noEmit` in the Zephyr terminal. Explain the cause of the TypeScript errors that appeared and how to fix them. If needed, ask me to paste the output.'));
                 inputRef.current?.focus();
               });
             }}
           >
-            {tr('Analisis error TS')}
+            {tr('Analyze TS errors')}
           </button>
           <span className="ai-panehint">{tf('{n} pane terminal', { n: paneCount })}</span>
         </div>
@@ -557,8 +557,8 @@ export default function AiPanel() {
         <div className="ai-confirm" role="alertdialog" data-testid="ai-agent-confirm">
           <p className="ai-confirm-title">
             {agentConfirm.isDestructive
-              ? tr('Perintah berpotensi merusak — izinkan agent?')
-              : tf('Agent minta izin menjalankan {tool}:', { tool: agentConfirm.tool })}
+              ? tr('This command is potentially destructive - allow the agent?')
+              : tf('The agent is asking permission to run {tool}:', { tool: agentConfirm.tool })}
           </p>
           <code className="ai-confirm-cmd">{agentConfirm.argsText}</code>
           <div className="ai-confirm-btns">
@@ -567,14 +567,14 @@ export default function AiPanel() {
               data-testid="ai-agent-confirm-yes"
               onClick={() => agentPutuskan(true)}
             >
-              {tr('Izinkan')}
+              {tr('Allow')}
             </button>
             <button
               className="btn btn-sm"
               data-testid="ai-agent-confirm-no"
               onClick={() => agentPutuskan(false)}
             >
-              {tr('Tolak')}
+              {tr('Deny')}
             </button>
           </div>
         </div>
@@ -582,7 +582,7 @@ export default function AiPanel() {
 
       {confirmCmd && (
         <div className="ai-confirm" role="alertdialog" data-testid="ai-confirm">
-          <p className="ai-confirm-title">{tr('Perintah ini berpotensi merusak:')}</p>
+          <p className="ai-confirm-title">{tr('This command is potentially destructive:')}</p>
           <code className="ai-confirm-cmd">{confirmCmd}</code>
           <div className="ai-confirm-btns">
             <button
@@ -590,14 +590,14 @@ export default function AiPanel() {
               data-testid="ai-confirm-yes"
               onClick={() => void runInTerminal(confirmCmd, { confirmed: true })}
             >
-              {tr('Jalankan')}
+              {tr('Run')}
             </button>
             <button
               className="btn btn-sm"
               data-testid="ai-confirm-no"
               onClick={() => setConfirmCmd(null)}
             >
-              {tr('Batal')}
+              {tr('Cancel')}
             </button>
           </div>
         </div>

@@ -63,7 +63,7 @@ export default function ProblemsView() {
       
       window.setTimeout(() => revealPosition(d.line, d.column), 90);
     } catch {
-      /* file mungkin sudah dihapus — diamkan, tabel tetap menampilkannya */
+      /* file mungkin sudah dihapus - diamkan, tabel tetap menampilkannya */
     }
   };
 
@@ -73,10 +73,10 @@ export default function ProblemsView() {
         <input
           className="pv-filter"
           data-testid="pv-filter"
-          placeholder={tr('Filter (teks, source, kode, file)…')}
+          placeholder={tr('Filter (text, source, code, file)…')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          aria-label="Filter diagnostik"
+          aria-label="Diagnostics filter"
         />
         <label className="pv-check">
           <input
@@ -85,7 +85,7 @@ export default function ProblemsView() {
             checked={activeOnly}
             onChange={(e) => setActiveOnly(e.target.checked)}
           />
-          {tr('Hanya file aktif')}
+          {tr('Active file only')}
         </label>
         <span className="pv-count" data-testid="pv-count">
           {total}
@@ -94,7 +94,7 @@ export default function ProblemsView() {
 
       {total === 0 ? (
         <p className="pv-empty" data-testid="pv-empty">
-          {tr('Belum ada masalah terdeteksi. Diagnostik akan muncul di sini setelah language server atau task berjalan.')}
+          {tr('No problems detected yet. Diagnostics will appear here after a language server or task runs.')}
         </p>
       ) : (
         <div

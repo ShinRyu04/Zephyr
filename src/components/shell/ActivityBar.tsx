@@ -213,12 +213,12 @@ export default function ActivityBar() {
         data-testid="ab-gh"
         title={
           signedIn
-            ? tf('@{user} — akun GitHub (klik: Source Control)', { user: user ?? '' })
+            ? tf('@{user} - GitHub account (click: Source Control)', { user: user ?? '' })
             : oauthSiap
-              ? tr('Login GitHub (buka browser)')
-              : tr('Login GitHub — buka Source Control')
+              ? tr('Sign in to GitHub (opens browser)')
+              : tr('Sign in to GitHub - open Source Control')
         }
-        aria-label={signedIn ? tf('Akun GitHub: @{user}', { user: user ?? '' }) : tr('Login GitHub')}
+        aria-label={signedIn ? tf('GitHub account: @{user}', { user: user ?? '' }) : tr('Sign in to GitHub')}
         onClick={klikGh}
       >
         {signedIn ? (

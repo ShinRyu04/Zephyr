@@ -5,14 +5,14 @@ import { useStore } from '../../lib/store';
 import { Section, Toggle } from './SettingsControls';
 
 const MARKET_ITEMS = [
-  { id: 'prettier', name: 'Prettier', desc: 'Formatter opinionated untuk JS/TS/CSS/MD', logo: 'P' },
-  { id: 'eslint', name: 'ESLint', desc: 'Lint JavaScript & TypeScript di editor', logo: 'E' },
-  { id: 'gitlens', name: 'GitLens', desc: tx('Blame inline, riwayat baris, dan graf commit'), logo: 'G' },
-  { id: 'python', name: 'Python', desc: 'IntelliSense, debug, dan env untuk Python', logo: 'Py' },
-  { id: 'rust-analyzer', name: 'rust-analyzer', desc: 'Analisis Rust: hover, goto, inlay hints', logo: 'Rs' },
-  { id: 'docker', name: 'Docker', desc: 'Kelola image, container, dan compose', logo: 'D' },
-  { id: 'vim', name: 'Vim', desc: 'Emulasi modal editing di CodeMirror', logo: 'V' },
-  { id: 'tailwind', name: 'Tailwind CSS', desc: 'Autocomplete kelas utility', logo: 'T' },
+  { id: 'prettier', name: 'Prettier', desc: 'Opinionated formatter for JS/TS/CSS/MD', logo: 'P' },
+  { id: 'eslint', name: 'ESLint', desc: 'Lint JavaScript & TypeScript in the editor', logo: 'E' },
+  { id: 'gitlens', name: 'GitLens', desc: tx('Inline blame, line history, and commit graph'), logo: 'G' },
+  { id: 'python', name: 'Python', desc: 'IntelliSense, debug, and env for Python', logo: 'Py' },
+  { id: 'rust-analyzer', name: 'rust-analyzer', desc: 'Rust analysis: hover, goto, inlay hints', logo: 'Rs' },
+  { id: 'docker', name: 'Docker', desc: 'Manage images, containers, and compose', logo: 'D' },
+  { id: 'vim', name: 'Vim', desc: 'Modal editing emulation in CodeMirror', logo: 'V' },
+  { id: 'tailwind', name: 'Tailwind CSS', desc: 'Utility class autocomplete', logo: 'T' },
 ];
 
 function Marketplace() {
@@ -24,13 +24,13 @@ function Marketplace() {
         <div>
           <h3 className="market-title">Zephyr Marketplace</h3>
           <p className="market-sub">
-            Buka ActivityBar → Extensions (Ctrl+Shift+X) untuk marketplace Open VSX
-            yang bisa dicari & dipasang langsung. Daftar di bawah ini pintasan ke
-            ekstensi populer di registry tersebut.
+            Open ActivityBar → Extensions (Ctrl+Shift+X) for the Open VSX marketplace,
+            where you can search & install directly. The list below is a shortcut to
+            popular extensions in that registry.
           </p>
         </div>
         <button className="btn" data-testid="market-close" onClick={() => setMarketOpen(false)}>
-          Tutup
+          Close
         </button>
       </div>
 
@@ -55,7 +55,7 @@ function Marketplace() {
                 );
               }}
             >
-              Buka
+              Open
             </button>
           </article>
         ))}
@@ -76,11 +76,11 @@ function IzinRuntime() {
   if (entries.length === 0) {
     return (
       <>
-        <h3 className="ext-h3">Izin runtime eksternal (0)</h3>
+        <h3 className="ext-h3">External runtime permissions (0)</h3>
         <p className="set-note" data-testid="ext-trust-empty">
-          {tr('Belum ada. Ekstensi yang butuh runtime eksternal (Python, Java, Node, dll.) akan minta izin lewat dialog saat pertama kali memanggil')}{' '}
+          {tr('None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call')}{' '}
           <code>zephyr.exec()</code>{' '}
-          {tr('— eksekusi selalu di sisi Rust dari binary yang kamu setujui, dan bisa dicabut di sini.')}
+          {tr('- execution always happens on the Rust side from a binary you approve, and can be revoked here.')}
         </p>
       </>
     );
@@ -89,7 +89,7 @@ function IzinRuntime() {
   return (
     <>
       <h3 className="ext-h3" data-testid="ext-trust-head">
-        Izin runtime eksternal ({entries.length})
+        External runtime permissions ({entries.length})
       </h3>
       <div className="ext-list" data-testid="ext-trust-list">
         {entries.map(([id, t]) => (
@@ -103,14 +103,14 @@ function IzinRuntime() {
                   <code>{rt}</code> → {bin}
                 </span>
               ))}
-              <span className="ext-meta">diberi izin {t.grantedAt ? new Date(t.grantedAt).toLocaleDateString('id-ID') : '—'}</span>
+              <span className="ext-meta">granted {t.grantedAt ? new Date(t.grantedAt).toLocaleDateString('id-ID') : '-'}</span>
             </div>
             <button
               className="tp-op"
               data-testid={`ext-revoke-${id}`}
               onClick={() => void applySettings({ extensions: { trust: { [id]: null } } })}
             >
-              cabut izin
+              revoke permission
             </button>
           </div>
         ))}
@@ -145,22 +145,22 @@ export function ExtensionsSection() {
   return (
     <Section title={tr('settings.extensions')}>
       <p className="set-note">
-        {tr('Kode JS ekstensi dijalankan di')} <strong>{tr('sandbox Web Worker terisolasi')}</strong>{' '}
-        {tr('(tanpa')} <code>window</code>{tr('/fs/IPC), jadi command dari ekstensi bisa jalan tanpa memberi akses sistem. Ekstensi yang butuh')}{' '}
-        <strong>{tr('runtime eksternal')}</strong>{' '}
-        {tr('(Python, Java, Node, dll.) bisa minta izin lewat')} <code>zephyr.exec()</code>{' '}
-        {tr('— eksekusi selalu di sisi Rust dari binary yang kamu setujui, dan izinnya bisa dicabut di bawah.')}
+        {tr('Extension JS code runs in')} <strong>{tr('an isolated Web Worker sandbox')}</strong>{' '}
+        {tr('(without')} <code>window</code>{tr('/fs/IPC), so commands from extensions can run without giving system access. Extensions that need')}{' '}
+        <strong>{tr('an external runtime')}</strong>{' '}
+        {tr('(Python, Java, Node, etc.) can ask for permission through')} <code>zephyr.exec()</code>{' '}
+        {tr('- execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.')}
       </p>
 
       <div className="ext-actions">
         <button className="btn" data-testid="ext-add" onClick={() => void addFromDialog()}>
-          {tr('Tambah dari file…')}
+          {tr('Add from file…')}
         </button>
         <button className="btn" data-testid="ext-folder" onClick={() => void openFolder()}>
-          {tr('Buka folder ekstensi')}
+          {tr('Open extensions folder')}
         </button>
         <button className="btn" data-testid="ext-refresh" onClick={() => void refresh()}>
-          {tr('Muat ulang')}
+          {tr('Reload')}
         </button>
         <button
           className="btn"
@@ -184,7 +184,7 @@ export function ExtensionsSection() {
 
       {marketOpen && <Marketplace />}
 
-      <h3 className="ext-h3">Bawaan Zephyr ({builtin.length})</h3>
+      <h3 className="ext-h3">Built into Zephyr ({builtin.length})</h3>
 
       <IzinRuntime />
       <div className="ext-list" data-testid="ext-list">
@@ -193,7 +193,7 @@ export function ExtensionsSection() {
             <div className="ext-info">
               <span className="ext-name">
                 {tr(e.name)}
-                <span className="ext-badge">{tr('bawaan')}</span>
+                <span className="ext-badge">{tr('built-in')}</span>
               </span>
               <span className="ext-desc">{tr(e.description)}</span>
               <span className="ext-meta">
@@ -210,11 +210,11 @@ export function ExtensionsSection() {
         ))}
       </div>
 
-        <h3 className="ext-h3">{tf('Terpasang dari folder ({n})', { n: external.length })}</h3>
+        <h3 className="ext-h3">{tf('Installed from folder ({n})', { n: external.length })}</h3>
       {external.length === 0 && !loading && (
         <p className="set-note" data-testid="ext-empty">
-          {tr('Belum ada. Taruh folder berisi')} <code>package.json</code>{' '}
-          {tr('di folder ekstensi, atau pakai tombol "Tambah dari file…".')}
+          {tr('None yet. Put a folder containing')} <code>package.json</code>{' '}
+          {tr('in the extensions folder, or use the "Add from file…" button.')}
         </p>
       )}
       <div className="ext-list" data-testid="ext-list-external">
@@ -227,10 +227,10 @@ export function ExtensionsSection() {
           >
             <div className="ext-info">
               <span className="ext-name">{tr(e.name)}</span>
-              <span className="ext-desc">{e.description ? tr(e.description) : tr('(tanpa deskripsi)')}</span>
+              <span className="ext-desc">{e.description ? tr(e.description) : tr('(no description)')}</span>
               <span className="ext-meta" title={e.path}>
                 <code>{e.id}</code> · v{e.version || '-'} ·{' '}
-                {e.mainBytes >= 0 ? `${e.main} ${Math.round(e.mainBytes / 1024)} KB` : `${e.main} (tidak ada)`}
+                {e.mainBytes >= 0 ? `${e.main} ${Math.round(e.mainBytes / 1024)} KB` : `${e.main} (missing)`}
               </span>
               {e.commands.length > 0 && (
                 <span className="ext-cmds" data-testid={`ext-cmds-${e.id}`}>
@@ -259,7 +259,7 @@ export function ExtensionsSection() {
                 data-testid={`ext-remove-${e.id}`}
                 onClick={() => void remove(e.id)}
               >
-                {tr('lepas')}
+                {tr('remove')}
               </button>
             </div>
           </div>

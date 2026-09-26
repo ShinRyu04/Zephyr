@@ -151,13 +151,13 @@ export default function SearchPanel() {
         <div className="side-title">Search</div>
 
         {!workspace && (
-          <p className="side-muted">{tr('Buka folder dulu untuk mencari di workspace.')}</p>
+          <p className="side-muted">{tr('Open a folder first to search the workspace.')}</p>
         )}
 
         <div className="search-row">
           <button
             className="find-toggle"
-            title={replaceTerbuka ? tr('Sembunyikan replace') : tr('Tampilkan replace')}
+            title={replaceTerbuka ? tr('Hide replace') : tr('Show replace')}
             aria-expanded={replaceTerbuka}
             data-testid="search-toggle-replace"
             onClick={() => setReplaceTerbuka(!replaceTerbuka)}
@@ -166,8 +166,8 @@ export default function SearchPanel() {
           </button>
           <input
             className="search-input"
-            placeholder={tr('Cari di workspace')}
-            aria-label={tr('Cari di workspace')}
+            placeholder={tr('Search in workspace')}
+            aria-label={tr('Search in workspace')}
             data-testid="search-input"
             list="zephyr-search-riwayat"
             value={query}
@@ -217,25 +217,25 @@ export default function SearchPanel() {
             <span className="find-toggle" aria-hidden="true" />
             <input
               className="search-input"
-              placeholder={regex ? tr('Ganti dengan (boleh $1, $2)') : tr('Ganti dengan')}
-              aria-label={tr('Ganti dengan')}
+              placeholder={regex ? tr('Replace with (may use $1, $2)') : tr('Replace with')}
+              aria-label={tr('Replace with')}
               data-testid="search-replace-input"
               value={replaceWith}
               onChange={(e) => setReplaceWith(e.target.value)}
             />
             <button
               className="find-btn find-btn-wide"
-              title={tr('Ganti di semua file hasil pencarian')}
+              title={tr('Replace in all files in the search results')}
               data-testid="search-replace-all"
               disabled={total === 0}
               onClick={() => void replaceSemua()}
             >
-              Semua
+              All
             </button>
             {replaceTerakhir && replaceTerakhir.some((h) => h.snapshot) && (
               <button
                 className="find-btn"
-                title={tr('Batalkan replace terakhir (dari Local History)')}
+                title={tr('Undo the last replace (from Local History)')}
                 data-testid="search-undo"
                 onClick={() => void undoReplace()}
               >
@@ -293,9 +293,9 @@ export default function SearchPanel() {
         <div className="search-meta" data-testid="search-meta">
           {running ? (
             <>
-              mencari…{' '}
+              searching…{' '}
               <button className="find-btn" data-testid="search-cancel" onClick={() => void batalkan()}>
-                batal
+                cancel
               </button>
             </>
           ) : error ? (
@@ -303,9 +303,9 @@ export default function SearchPanel() {
               {error}
             </span>
           ) : query && summary ? (
-            `${total}${summary.truncated ? '+' : ''} hasil di ${jmlFile} file · ${summary.elapsedMs}ms`
+            `${total}${summary.truncated ? '+' : ''} results in ${jmlFile} files · ${summary.elapsedMs}ms`
           ) : rg && !rg.ada ? (
-            tr('ripgrep belum terpasang — memakai pencarian bawaan')
+            tr('ripgrep is not installed - using the built-in search')
           ) : (
             ''
           )}
@@ -337,7 +337,7 @@ export default function SearchPanel() {
                   <button
                     className="sr-fold"
                     aria-expanded={b.terbuka}
-                    title={b.terbuka ? tr('Lipat') : tr('Buka')}
+                    title={b.terbuka ? tr('Collapse') : tr('Expand')}
                     onClick={() => toggleGrup(b.path)}
                   >
                     {b.terbuka ? '▾' : '▸'}
@@ -349,11 +349,11 @@ export default function SearchPanel() {
                   {replaceTerbuka && (
                     <button
                       className="sr-replace"
-                      title={tr('Ganti semua di file ini')}
+                      title={tr('Replace all in this file')}
                       data-testid="sr-replace-file"
                       onClick={() => void replaceSatuFile(b.path)}
                     >
-                      ganti
+                      replace
                     </button>
                   )}
                 </div>

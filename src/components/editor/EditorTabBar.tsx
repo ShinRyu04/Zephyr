@@ -71,10 +71,10 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
           >
             <FileIcon lang={t.lang} name={t.name} />
             <span className="tab-name">{t.name}</span>
-            {t.unsaved && <span className="tab-dot" title={tx('Belum disimpan')} aria-hidden="true" />}
+            {t.unsaved && <span className="tab-dot" title={tx('Not saved')} aria-hidden="true" />}
             {/* FASE 31: tombol ✕ diganti <span>.
                 ARIA melarang `role="tab"` punya keturunan interaktif, dan
-                `tabIndex={-1}` TIDAK cukup — axe: "a negative tabindex on an
+                `tabIndex={-1}` TIDAK cukup - axe: "a negative tabindex on an
                 element inside an interactive control does not prevent
                 assistive technologies from focusing the element". Jadi
                 elemennya memang tidak boleh interaktif: <span> + aria-hidden,
@@ -95,7 +95,7 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
         ))}
       </div>
 
-      <button className="tabbar-new" title="Tab baru (Ctrl+N)" aria-label="Tab baru" onClick={newUntitled}>
+      <button className="tabbar-new" title="New tab (Ctrl+N)" aria-label="New tab" onClick={newUntitled}>
         ＋
       </button>
     </div>

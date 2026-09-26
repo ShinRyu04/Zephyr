@@ -6,11 +6,11 @@
  * not depend on an icon font or a network fetch.
  *
  * Path data:
- *   GitHub   — the official Octocat mark, 16x16 viewBox.
- *   WhatsApp — the handset inside the speech bubble, 16x16 viewBox.
- *   Trakteer — the jar with two coins and a heart cut out, 16x16 viewBox.
- *   Saweria  — the long-eared mascot face, 16x16 viewBox.
- *   Support  — a faceted gem used for the donate button.
+ *   GitHub   - the official Octocat mark, 16x16 viewBox.
+ *   WhatsApp - the handset inside the speech bubble, 16x16 viewBox.
+ *   Trakteer - the jar with two coins and a heart cut out, 16x16 viewBox.
+ *   Saweria  - the long-eared mascot face, 16x16 viewBox.
+ *   Support  - a faceted gem used for the donate button.
  *
  * Marks with cut-outs (Trakteer's heart, Saweria's eyes, the gem's facets)
  * use a mask whose id comes from React's useId, because the same logo can be
@@ -56,7 +56,7 @@ export function WhatsAppLogo({ size = 13 }: LogoProps) {
 
 /**
  * Trakteer mark: a jar with a flat lid, two coins resting on the lid and a
- * heart cut out of the jar body — the shape of the official icon.
+ * heart cut out of the jar body - the shape of the official icon.
  */
 export function TrakteerLogo({ size = 14 }: LogoProps) {
   const uid = useId().replace(/:/g, '');
@@ -95,8 +95,8 @@ export function TrakteerLogo({ size = 14 }: LogoProps) {
 }
 
 /**
- * Saweria mark: the mascot's head — long upright ears, round face and two
- * big eyes — with the eyes and nose cut out of the silhouette.
+ * Saweria mark: the mascot's head - long upright ears, round face and two
+ * big eyes - with the eyes and nose cut out of the silhouette.
  */
 export function SaweriaLogo({ size = 14 }: LogoProps) {
   const uid = useId().replace(/:/g, '');
@@ -118,7 +118,7 @@ export function SaweriaLogo({ size = 14 }: LogoProps) {
         <ellipse cx="8" cy="11.9" rx="1" ry="0.8" fill="#000" />
       </mask>
 
-      {/* Telinga panjang tegak, lalu kepala bulat — satu siluet. */}
+      {/* Telinga panjang tegak, lalu kepala bulat - satu siluet. */}
       <g mask={`url(#${faceMask})`}>
         <rect x="4.3" y="0.7" width="2.7" height="6.4" rx="1.35" />
         <rect x="9" y="0.7" width="2.7" height="6.4" rx="1.35" />

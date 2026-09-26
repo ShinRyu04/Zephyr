@@ -83,21 +83,21 @@ export default function DiffViewer() {
           disabled={busy || diff.staged}
           title={
             diff.staged
-              ? 'Unstage dulu sebelum membuang perubahan'
-              : tr('Buang perubahan file ini (permanen)')
+              ? 'Unstage first before discarding changes'
+              : tr('Discard changes to this file (permanent)')
           }
           onClick={() => setConfirm({ kind: 'discard', paths: [diff.path] })}
         >
           Revert file
         </button>
         <button className="btn btn-sm" data-testid="diff-close" onClick={closeDiff}>
-          Tutup
+          Close
         </button>
       </div>
 
       <div className="diff-body">
         {lines.length === 0 ? (
-          <p className="side-muted diff-empty">{tr('Tidak ada perbedaan untuk file ini.')}</p>
+          <p className="side-muted diff-empty">{tr('No differences for this file.')}</p>
         ) : (
           <pre className="diff-pre" data-testid="diff-pre">
             {lines.map((l, i) => {

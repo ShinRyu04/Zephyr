@@ -35,11 +35,11 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
       <button
         className="sub-open"
         data-testid="sub-open"
-        title={tr('Jalankan beberapa tugas sekaligus (paralel)')}
+        title={tr('Run several tasks at once (in parallel)')}
         onClick={() => setBuka(true)}
       >
-        ⚡ {tr('Tugas paralel')}
-        <span className="sub-open-maks">maks {maks}</span>
+        ⚡ {tr('Parallel tasks')}
+        <span className="sub-open-maks">max {maks}</span>
       </button>
     );
   }
@@ -47,15 +47,15 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
   return (
     <div className="sub-form" data-testid="sub-form">
       <div className="sub-form-head">
-        <span className="sub-form-judul">⚡ {tr('Tugas paralel')}</span>
+        <span className="sub-form-judul">⚡ {tr('Parallel tasks')}</span>
         <span className="sub-form-hint">
-          {tr('Satu baris = satu subagent')} · maks {maks}
+          {tr('One line = one subagent')} · max {maks}
         </span>
         {!selaluTerbuka && (
           <button
             className="sub-form-close"
             data-testid="sub-close"
-            title={tr('Tutup')}
+            title={tr('Close')}
             onClick={() => setBuka(false)}
           >
             ✕
@@ -67,8 +67,8 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
         data-testid="sub-input"
         rows={2}
         value={teks}
-        placeholder={tr('Cari pemakaian fungsi X\nPeriksa bug di modul Y')}
-        title={tr('Enter mengirim · Shift+Enter baris baru')}
+        placeholder={tr('Find usages of function X\nCheck for bugs in module Y')}
+        title={tr('Enter sends · Shift+Enter for a new line')}
         onChange={(e) => setTeks(e.target.value)}
         onKeyDown={(e) => {
 
@@ -87,10 +87,10 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
           className="btn btn-sm btn-primary"
           data-testid="sub-run"
           disabled={!bisaJalan}
-          title={tr('Enter mengirim · Shift+Enter baris baru')}
+          title={tr('Enter sends · Shift+Enter for a new line')}
           onClick={() => void go()}
         >
-          {sibuk ? tr('Berjalan…') : tr('Jalankan')}
+          {sibuk ? tr('Running…') : tr('Run')}
         </button>
       </div>
     </div>

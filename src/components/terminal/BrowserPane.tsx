@@ -261,8 +261,8 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         <button
           type="button"
           className="bp-btn"
-          title={tx('Kembali')}
-          aria-label={tx('Kembali')}
+          title={tx('Back')}
+          aria-label={tx('Back')}
           data-testid="bp-back"
           onClick={() => nav('back')}
         >
@@ -271,8 +271,8 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         <button
           type="button"
           className="bp-btn"
-          title={tx('Maju')}
-          aria-label={tx('Maju')}
+          title={tx('Forward')}
+          aria-label={tx('Forward')}
           data-testid="bp-fwd"
           onClick={() => nav('forward')}
         >
@@ -281,8 +281,8 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         <button
           type="button"
           className="bp-btn"
-          title={tx('Muat ulang')}
-          aria-label={tx('Muat ulang')}
+          title={tx('Reload')}
+          aria-label={tx('Reload')}
           data-testid="bp-reload"
           onClick={() => nav('reload')}
         >
@@ -301,7 +301,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
 
         <span
           className={`bp-lock is-${secure ? 'https' : 'http'}`}
-          title={secure ? tr('Koneksi HTTPS') : tr('HTTP biasa (tanpa enkripsi)')}
+          title={secure ? tr('HTTPS connection') : tr('Plain HTTP (no encryption)')}
           data-testid="bp-lock"
         >
           {secure ? (
@@ -315,20 +315,20 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
           className="bp-url"
           value={draft}
           spellCheck={false}
-          aria-label={tx('Alamat URL')}
+          aria-label={tx('URL address')}
           data-testid="bp-url"
           placeholder="http://localhost:5173"
           onChange={(e) => setDraft(e.target.value)}
         />
 
-        <button type="submit" className="bp-btn bp-go" title={tx('Buka URL')} aria-label={tx('Buka URL')}>
+        <button type="submit" className="bp-btn bp-go" title={tx('Open URL')} aria-label={tx('Open URL')}>
           Go
         </button>
         <button
           type="button"
           className="bp-btn"
-          title={tx('Buka di browser sistem')}
-          aria-label={tx('Buka di browser sistem')}
+          title={tx('Open in the system browser')}
+          aria-label={tx('Open in the system browser')}
           data-testid="bp-external"
           onClick={() => void openUrl(live.url || normalizeUrl(draft)).catch(() => {})}
         >
@@ -340,9 +340,9 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         <div className="bp-stage" ref={stageRef} data-testid="bp-stage">
           {galat && (
             <div className="bp-blocked" data-testid="bp-error" role="alert">
-              <p className="bp-blocked-title">{tr('Halaman tidak bisa dimuat')}</p>
+              <p className="bp-blocked-title">{tr('Page could not be loaded')}</p>
               <p className="bp-blocked-body">
-                <code>{shortUrl(pane.url)}</code> — {galat}
+                <code>{shortUrl(pane.url)}</code> - {galat}
               </p>
               <div className="bp-blocked-actions">
                 <button
@@ -350,10 +350,10 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
                   data-testid="bp-open-external"
                   onClick={() => void openUrl(pane.url as string).catch(() => {})}
                 >
-                  {tr('Buka di browser eksternal')}
+                  {tr('Open in an external browser')}
                 </button>
                 <button className="btn btn-sm" data-testid="bp-goto-local" onClick={() => go(HOME)}>
-                  Ke localhost:5173
+                  Go to localhost:5173
                 </button>
               </div>
             </div>
@@ -366,9 +366,9 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
         </div>
       ) : (
         <div className="bp-blank" data-testid="bp-blank">
-          <p>Masukkan URL lalu tekan Enter.</p>
+          <p>Enter a URL then press Enter.</p>
           <button className="btn btn-sm" data-testid="bp-blank-home" onClick={() => go(HOME)}>
-            Buka {HOME}
+            Open {HOME}
           </button>
         </div>
       )}
