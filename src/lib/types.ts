@@ -929,7 +929,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebar: 'left',
   layout: 'default',
   shortcuts: {},
-  models: { activeProvider: 'gemini', providers: {}, answerLang: 'follow', ragEnabled: false, ragUrl: 'http://localhost:7777', ragProject: '', ragK: 4 },
+  models: { activeProvider: 'custom', providers: {}, answerLang: 'follow', ragEnabled: false, ragUrl: 'http://localhost:7777', ragProject: '', ragK: 4 },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
 
   subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '' },

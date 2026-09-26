@@ -446,8 +446,8 @@ function bootAgentMode(): 'chat' | 'agent' {
 export const useAi = create<AiStore>((set, get) => ({
   sessions: boot.sessions,
   activeId: boot.activeId,
-  model: 'gemini-3.6-flash',
-  provider: 'gemini',
+  model: 'custom-model',
+  provider: 'custom',
   pending: null,
   draft: '',
     attachActive: false,
@@ -503,11 +503,11 @@ export const useAi = create<AiStore>((set, get) => ({
     } else if (aktif && dikenal(aktif)) {
       prov = aktif;
     } else {
-      prov = 'gemini';
+      prov = 'custom';
     }
 
     const model =
-      st.providers[prov]?.model || (PROVIDER_BY_ID.get(prov)?.models[0].id ?? 'gemini-3.6-flash');
+      st.providers[prov]?.model || (PROVIDER_BY_ID.get(prov)?.models[0].id ?? 'custom-model');
     set({
       provider: prov,
       model,

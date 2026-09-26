@@ -1,13 +1,13 @@
-# TODO Zephyr — Pekerjaan Fitur Baru
+﻿# TODO Zephyr 窶・Pekerjaan Fitur Baru
 
 > Diperbarui otomatis oleh Hermes. Versi target **1.1.11**.
 > Repo: `D:\Zephyr`
 
-## ✅ SELESAI v1.1.11
+## 笨・SELESAI v1.1.11
 
 | Item | Catatan |
 |------|---------|
-| Parser tool-call XML/DSML | Model gateway (mr-vip) yang kirim tool call sebagai teks XML kini dijalankan |
+| Parser tool-call XML/DSML | Model gateway yang kirim tool call sebagai teks XML kini dijalankan |
 | Auto-konteks workspace | AI tahu folder, teknologi, entry point, contoh file tanpa tool-call |
 | Semua file aturan | AGENTS.md + CLAUDE.md + ZEPHYR.md + .cursorrules dibaca |
 | Status pekerjaan agent | Rencana, progres langkah, error dikirim ke model tiap giliran |
@@ -22,7 +22,7 @@
 | AI commit message | Isi pesan commit dari diff |
 | Subagent progress bar | UI |
 
-## ⏳ BELUM DIKERJAKAN
+## 竢ｳ BELUM DIKERJAKAN
 
 | ID | Task | Catatan |
 |----|------|---------|
@@ -40,7 +40,7 @@
 | - | Peek definition inline | Parsial |
 | - | MCP client (server luar) | Config saja |
 
-## ✅ SKIP (keputusan user)
+## 笨・SKIP (keputusan user)
 
 | No | Fitur | Alasan |
 |----|-------|--------|
@@ -51,4 +51,5 @@
 ---
 
 *File ini diperbarui agen. Jangan hapus.*
+
 

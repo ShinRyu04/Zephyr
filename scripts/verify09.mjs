@@ -1,14 +1,14 @@
-// verify09.mjs — verifikasi V1..V10 fase 09 (AI panel) lewat CDP di app hidup.
+﻿// verify09.mjs 窶・verifikasi V1..V10 fase 09 (AI panel) lewat CDP di app hidup.
 //
 // Pakai:  node scripts/verify09.mjs [port]
 // Syarat: 1) zephyr.exe berjalan dengan
 //            WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223"
 //         2) `npm run dev` (vite) hidup
-//         3) scripts/mock-ai.mjs berjalan di 127.0.0.1:8098 — harness ini
+//         3) scripts/mock-ai.mjs berjalan di 127.0.0.1:8098 窶・harness ini
 //            menyalakannya sendiri kalau belum ada.
 //
 // Prinsip: streaming, adapter per provider, dan cancel dibuktikan lewat jalur
-// Rust yang SAMA dengan produksi. Yang ditukar hanya base URL provider →
+// Rust yang SAMA dengan produksi. Yang ditukar hanya base URL provider 竊・
 // server tiruan, sehingga bukti mencakup ai_chat/ai-chunk/ai_cancel asli.
 
 import { spawn } from 'node:child_process';
@@ -24,8 +24,8 @@ const MOCK = 8098;
  * Cadangan berkas secrets.json.
  *
  * Harness ini mengosongkan key uji (gemini/anthropic) lewat setKey, dan jalur
- * itu menulis ulang seluruh berkas — pernah sampai menghapus key milik user
- * (custom, mr-vip). Berkas dicadangkan sebelum uji dan dikembalikan apa
+ * itu menulis ulang seluruh berkas 窶・pernah sampai menghapus key milik user
+ * (provider custom user). Berkas dicadangkan sebelum uji dan dikembalikan apa
  * adanya di akhir, termasuk saat harness gagal di tengah jalan.
  */
 const SECRETS = path.join(
@@ -58,7 +58,7 @@ function restoreSecrets() {
       fs.rmSync(SECRETS_CADANGAN, { force: true });
     }
   } catch {
-    /* biarkan — cadangan masih ada di disk */
+    /* biarkan 窶・cadangan masih ada di disk */
   }
 }
 
@@ -154,7 +154,7 @@ class Cdp {
          *  Kalau masih ada request menggantung, batalkan dulu supaya tombol
          *  Kirim benar-benar ada (saat pending yang tampil adalah Stop).
          *  PENTING: send() menyetel pending SETELAH await loadKeys(), jadi
-         *  fungsi ini harus menunggu pending terpasang — kalau tidak,
+         *  fungsi ini harus menunggu pending terpasang 窶・kalau tidak,
          *  tungguSelesai() langsung lolos dan kita membaca jawaban separuh. */
         const kirim = async (teks) => {
           if (AS().pending) { await AS().cancel(); await wait(300); }
@@ -168,8 +168,8 @@ class Cdp {
            * setToast(null) hanya mengubah state; React baru menghapus
            * elemennya pada render berikutnya. Kalau pengiriman berikutnya
            * dimulai sebelum itu, sisa toast dari uji sebelumnya terbaca
-           * sebagai "diblokir" dan harness lanjut tanpa pesan terkirim —
-           * itulah sebabnya V3 melaporkan jejak 0→0→0.
+           * sebagai "diblokir" dan harness lanjut tanpa pesan terkirim 窶・
+           * itulah sebabnya V3 melaporkan jejak 0竊・竊・.
            */
           for (let i = 0; i < 12 && q('[data-testid="ai-toast"]'); i++) await wait(80);
           setNativeValue(q('[data-testid="ai-input"]'), teks);
@@ -189,7 +189,7 @@ class Cdp {
           }
           return false;
         };
-        /** Klik elemen setelah menunggu ia muncul — panel AI baru ter-mount
+        /** Klik elemen setelah menunggu ia muncul 窶・panel AI baru ter-mount
          *  saat dock berpindah, jadi query langsung bisa mengenai null. */
         const klik = async (sel, ms = 4000) => {
           const batas = Date.now() + ms;
@@ -218,7 +218,7 @@ class Cdp {
         if (st.error) throw new Error(st.error);
         return st.value;
       }
-      if (Date.now() > deadline) throw new Error(`timeout: ${body.slice(0, 70)}…`);
+      if (Date.now() > deadline) throw new Error(`timeout: ${body.slice(0, 70)}窶ｦ`);
     }
   }
 
@@ -243,7 +243,7 @@ async function ensureMock() {
     const v = await (await fetch(`http://127.0.0.1:${MOCK}/__version`)).json();
     if (v.version === MOCK_VERSION) return null; // sudah jalan & versinya benar
     throw new Error(
-      `mock-ai di :${MOCK} versi ${v.version}, harness butuh ${MOCK_VERSION} — matikan proses itu dulu`,
+      `mock-ai di :${MOCK} versi ${v.version}, harness butuh ${MOCK_VERSION} 窶・matikan proses itu dulu`,
     );
   } catch (e) {
     if (String(e.message).includes('harness butuh')) throw e;
@@ -279,7 +279,7 @@ const main = async () => {
   console.log(`# target: ${page.title}\n`);
 
   if ((await cdp.eval('typeof window.__ZEPHYR_AI__')) === 'undefined') {
-    throw new Error('__ZEPHYR_AI__ tidak ada — reload halaman (devBridge fase 09)');
+    throw new Error('__ZEPHYR_AI__ tidak ada 窶・reload halaman (devBridge fase 09)');
   }
 
   // Kondisi awal bersih: tutup terminal/tab, settings default, chat kosong,
@@ -294,7 +294,7 @@ const main = async () => {
      *
      * aiStore.init() memilih provider aktif hanya kalau provider itu punya
      * key; kalau tidak, ia pindah ke provider ber-key pertama. Jadi provider
-     * aktif harus diarahkan ke provider yang memang belum punya key — bukan
+     * aktif harus diarahkan ke provider yang memang belum punya key 窶・bukan
      * dengan menghapus key user.
      *
      * PENTING: key milik user (custom, github, provider lain) TIDAK BOLEH
@@ -334,7 +334,7 @@ const main = async () => {
   `);
   await sleep(500);
 
-  // ───────── V1: dropdown model = logo + nama; provider → baseUrl ─────────
+  // 笏笏笏笏笏笏笏笏笏 V1: dropdown model = logo + nama; provider 竊・baseUrl 笏笏笏笏笏笏笏笏笏
   const v1 = JSON.parse(
     await cdp.runAsync(`
       /*
@@ -342,7 +342,7 @@ const main = async () => {
        *
        * Menu provider hanya menampilkan provider yang punya key, dan provider
        * ber-key di mesin ini bisa cuma local/custom yang masing-masing punya
-       * SATU model — tidak cukup untuk membuktikan tingkat kedua dropdown.
+       * SATU model 窶・tidak cukup untuk membuktikan tingkat kedua dropdown.
        * Uji V2 mengosongkan key ini lagi sebelum memeriksa badge oranye.
        */
       await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
@@ -351,7 +351,7 @@ const main = async () => {
 
       await bukaAi();
       /*
-       * Buka menu model — tapi hanya kalau belum terbuka.
+       * Buka menu model 窶・tapi hanya kalau belum terbuka.
        *
        * Tombolnya adalah toggle: kalau modelMenuOpen masih true dari uji
        * sebelumnya, klik justru MENUTUP menu dan daftar provider kosong.
@@ -369,7 +369,7 @@ const main = async () => {
       }));
       // Masuk ke tingkat MODEL: pilih provider pertama yang punya key.
       // Only providers with a key are listed by design, so the opening
-      // provider must be read from the list rather than assumed — a machine
+      // provider must be read from the list rather than assumed 窶・a machine
       // with only one provider configured has no "openai" row at all.
       /*
        * Pilih provider yang punya BANYAK model, bukan yang pertama di daftar.
@@ -427,7 +427,7 @@ const main = async () => {
       });
     `),
   );
-  // Kalau blok di halaman mengembalikan {err}, tampilkan apa adanya —
+  // Kalau blok di halaman mengembalikan {err}, tampilkan apa adanya 窶・
   // tanpa ini kegagalan muncul sebagai TypeError yang tidak informatif.
   if (v1.err) check('V1', false, `dropdown dua tingkat gagal di halaman: ${v1.err}`);
   const semuaAdaLogo = (v1.items ?? []).every((x) => x.logo && x.nama.length > 0);
@@ -447,10 +447,10 @@ const main = async () => {
       v1.items.every((x) => x.provider === v1.providerDibuka) &&
       v1.sesudah.provider === v1.providerDibuka &&
       v1.sesudah.disk === v1.providerDibuka,
-    `dua tingkat: ${v1.providerRows.length} provider ber-key (${v1.providerRows.map((x) => x.provider).join(', ')}) → ${v1.items.length} model ${v1.items[0]?.provider ?? '?'}, semua berlogo; ganti gemini → openai: provider disk=${v1.sesudah.disk}, baseUrl efektif "${v1.sesudah.judul.split('— ')[1]}"`,
+    `dua tingkat: ${v1.providerRows.length} provider ber-key (${v1.providerRows.map((x) => x.provider).join(', ')}) 竊・${v1.items.length} model ${v1.items[0]?.provider ?? '?'}, semua berlogo; ganti gemini 竊・openai: provider disk=${v1.sesudah.disk}, baseUrl efektif "${v1.sesudah.judul.split('窶・')[1]}"`,
   );
 
-  // ───────── V2: tanpa key → status oranye + kirim diblokir, tidak crash ─────────
+  // 笏笏笏笏笏笏笏笏笏 V2: tanpa key 竊・status oranye + kirim diblokir, tidak crash 笏笏笏笏笏笏笏笏笏
   const v2 = JSON.parse(
     await cdp.runAsync(`
       /*
@@ -471,7 +471,7 @@ const main = async () => {
        *
        * aiStore.init() memilih ulang provider dari daftar key saat store
        * dibaca; menyetel provider saja meninggalkan model milik provider lama,
-       * dan findModel() memakai model itu untuk menentukan provider — jadi
+       * dan findModel() memakai model itu untuk menentukan provider 窶・jadi
        * store kembali ke provider ber-key dan badge tetap hijau.
        */
       A.store.setState({ provider: tanpaKey, model: '' });
@@ -481,7 +481,7 @@ const main = async () => {
 
       /*
        * Chat dikosongkan dulu: V1 mengirim pesan untuk menguji markdown, dan
-       * sesi yang sama dipakai di sini — tanpa ini jumlah pesan bukan nol
+       * sesi yang sama dipakai di sini 窶・tanpa ini jumlah pesan bukan nol
        * sehingga "chat tetap kosong" tidak bisa dibuktikan.
        */
       A.store.getState().newChat();
@@ -489,7 +489,7 @@ const main = async () => {
 
       /*
        * Semua pembacaan badge dilakukan lewat q() yang segar, bukan variabel
-       * elemen yang disimpan — React mengganti node-nya saat render ulang, dan
+       * elemen yang disimpan 窶・React mengganti node-nya saat render ulang, dan
        * referensi lama akan melaporkan nilai basi.
        */
       const bacaBadge = () => {
@@ -503,7 +503,7 @@ const main = async () => {
        *
        * Setelah kirim diblokir, aiStore memindahkan provider aktif ke provider
        * ber-key lain (mis. github milik user) supaya percakapan tetap bisa
-       * jalan — provider itu punya key, jadi tombolnya memang hilang. Yang
+       * jalan 窶・provider itu punya key, jadi tombolnya memang hilang. Yang
        * diuji adalah keadaan TANPA key, jadi tombolnya harus dibaca saat
        * provider aktif masih yang tanpa key.
        */
@@ -529,7 +529,7 @@ const main = async () => {
     'V2',
     v2.haskey === '0' &&
       /is-warn/.test(v2.kelas) &&
-      // Pesannya dua bentuk: "belum ada key — pindah ke X yang sudah kamu isi"
+      // Pesannya dua bentuk: "belum ada key 窶・pindah ke X yang sudah kamu isi"
       // (kalau ada provider ber-key) atau ajakan isi key kalau tidak ada.
       /belum ada key|Isi API key/i.test(v2.toast) &&
       v2.pesan === 0 &&
@@ -539,14 +539,14 @@ const main = async () => {
     `tanpa key: badge oranye (${v2.warna}, ${v2.kelas.trim()}), tombol "Isi API key" ada, kirim diblokir toast "${v2.toast}", chat tetap 0 pesan, 0 console error`,
   );
 
-  // ───────── V3: dengan key → streaming kata per kata + markdown bold ─────────
+  // 笏笏笏笏笏笏笏笏笏 V3: dengan key 竊・streaming kata per kata + markdown bold 笏笏笏笏笏笏笏笏笏
   const v3 = JSON.parse(
     await cdp.runAsync(`
       /*
        * Pindah provider aktif ke gemini.
        *
        * Urutannya penting: key mock dipasang DULU supaya providernya muncul di
-       * menu, lalu setModel() memindahkan provider + model sekaligus — jalur
+       * menu, lalu setModel() memindahkan provider + model sekaligus 窶・jalur
        * yang sama dipakai menu saat user memilih model. Uji V2 meninggalkan
        * provider aktif pada provider TANPA key, jadi tanpa langkah ini pesan
        * V3 dikirim ke provider itu dan mock tidak pernah dipanggil.
@@ -558,7 +558,7 @@ const main = async () => {
        * URUTAN PENTING: setModel(modelId) hanya mengganti MODEL pada provider
        * yang sedang aktif (findModel(id, provider) memakai provider aktif).
        * Kalau provider aktif masih custom (freeText), model apa pun akan
-       * dipasang DI provider custom dan mock tidak pernah dipanggil — uji ini
+       * dipasang DI provider custom dan mock tidak pernah dipanggil 窶・uji ini
        * dulu gagal dengan "adapter gemini dipanggil 0x". Jadi pindahkan
        * provider LEBIH DULU, baru pilih modelnya.
        */
@@ -638,10 +638,10 @@ const main = async () => {
       gemReq.length >= 2 &&
       gemReq[0].headers.xGoog === 'MOCK-KEY-GEMINI-1234' &&
       v3.errors === 0,
-    `streaming bertahap: panjang teks naik ${naik}x (${v3.jejak.map((x) => x.n).join('→')}), indikator "mengetik…" tampil; markdown <strong>=${JSON.stringify(v3.bold)}; adapter gemini dipanggil ${gemReq.length}x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)`,
+    `streaming bertahap: panjang teks naik ${naik}x (${v3.jejak.map((x) => x.n).join('竊・)}), indikator "mengetik窶ｦ" tampil; markdown <strong>=${JSON.stringify(v3.bold)}; adapter gemini dipanggil ${gemReq.length}x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)`,
   );
 
-  // ───────── V4: attach file aktif → jawaban mengutip isinya ─────────
+  // 笏笏笏笏笏笏笏笏笏 V4: attach file aktif 竊・jawaban mengutip isinya 笏笏笏笏笏笏笏笏笏
   const v4 = JSON.parse(
     await cdp.runAsync(`
       // Buat file aktif berisi penanda yang mudah dicek.
@@ -680,10 +680,10 @@ const main = async () => {
       reqAttach.promptHead.includes('konteks kerja aktif') &&
       reqAttach.promptHead.includes(v4.namaTab) &&
       v4.chip.includes(v4.namaTab),
-    `lampiran terkirim: prompt memuat path "${v4.attached.path}" + instruksi konteks; jawaban mengutip isi file ("…${v4.jawaban.slice(-30).trim()}"); chip di bubble = "${v4.chip}"`,
+    `lampiran terkirim: prompt memuat path "${v4.attached.path}" + instruksi konteks; jawaban mengutip isi file ("窶ｦ${v4.jawaban.slice(-30).trim()}"); chip di bubble = "${v4.chip}"`,
   );
 
-  // ───────── V5: ganti ke Claude → adapter anthropic; tanpa key = tolak ramah ─────────
+  // 笏笏笏笏笏笏笏笏笏 V5: ganti ke Claude 竊・adapter anthropic; tanpa key = tolak ramah 笏笏笏笏笏笏笏笏笏
   const v5 = JSON.parse(
     await cdp.runAsync(`
       /*
@@ -738,7 +738,7 @@ const main = async () => {
   check(
     'V5',
     v5.badgeTanpaKey === '0' &&
-      // Pesan bisa berbentuk "Isi API key X" atau "X belum ada key — pindah
+      // Pesan bisa berbentuk "Isi API key X" atau "X belum ada key 窶・pindah
       // ke Y" (kalau ada provider lain yang sudah ber-key). Keduanya sama-sama
       // menandakan penolakan ramah, bukan crash.
       /Anthropic/i.test(v5.toastTanpaKey) &&
@@ -751,13 +751,13 @@ const main = async () => {
       v5.model === 'claude-sonnet-4-5' &&
       /401/.test(v5.error ?? '') &&
       /API key salah/i.test(v5.error ?? ''),
-    `tanpa key: toast "${v5.toastTanpaKey}"; dengan key: POST /v1/messages dengan x-api-key + anthropic-version + max_tokens=${anth[0]?.body.max_tokens} → jawaban tampil; HTTP 401 jadi pesan ramah "${(v5.error ?? '').slice(0, 60)}…"`,
+    `tanpa key: toast "${v5.toastTanpaKey}"; dengan key: POST /v1/messages dengan x-api-key + anthropic-version + max_tokens=${anth[0]?.body.max_tokens} 竊・jawaban tampil; HTTP 401 jadi pesan ramah "${(v5.error ?? '').slice(0, 60)}窶ｦ"`,
   );
 
-  // ───────── V6: Jalankan di Terminal + konfirmasi perintah destruktif ─────────
+  // 笏笏笏笏笏笏笏笏笏 V6: Jalankan di Terminal + konfirmasi perintah destruktif 笏笏笏笏笏笏笏笏笏
   const v6 = JSON.parse(
     await cdp.runAsync(`
-      // kembali ke gemini (punya key mock) — provider dulu, baru model
+      // kembali ke gemini (punya key mock) 窶・provider dulu, baru model
       await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
       await AS().loadKeys();
       await wait(200);
@@ -822,10 +822,10 @@ const main = async () => {
       v6.rmTidakJalan &&
       v6.destruktifTerdeteksi === true &&
       v6.amanTidakTerdeteksi === false,
-    `tombol "Jalankan di Terminal" muncul (action bar + blok kode); klik → shell menjalankan perintah, layar: ${JSON.stringify(v6.layarEkor)}; perintah destruktif "${v6.cmdDestruktif}" DITAHAN dialog konfirmasi & batal = tidak dieksekusi`,
+    `tombol "Jalankan di Terminal" muncul (action bar + blok kode); klik 竊・shell menjalankan perintah, layar: ${JSON.stringify(v6.layarEkor)}; perintah destruktif "${v6.cmdDestruktif}" DITAHAN dialog konfirmasi & batal = tidak dieksekusi`,
   );
 
-  // ───────── V7: cancel streaming benar-benar berhenti ─────────
+  // 笏笏笏笏笏笏笏笏笏 V7: cancel streaming benar-benar berhenti 笏笏笏笏笏笏笏笏笏
   const v7 = JSON.parse(
     await cdp.runAsync(`
       await kirim('hitung SLOW');
@@ -858,10 +858,10 @@ const main = async () => {
       v7.pendingSesudah === null &&
       !v7.streaming &&
       v7.adaTombolKirim,
-    `Stop: panjang teks ${v7.sebelum} → ${v7.tepatSetelah} saat dibatalkan → tetap ${v7.jauhSetelah} setelah 3.5s (stream mati, bukan cuma UI); pending kembali null, tombol Kirim balik`,
+    `Stop: panjang teks ${v7.sebelum} 竊・${v7.tepatSetelah} saat dibatalkan 竊・tetap ${v7.jauhSetelah} setelah 3.5s (stream mati, bukan cuma UI); pending kembali null, tombol Kirim balik`,
   );
 
-  // ───────── V8: batas 200 pesan + chat baru bersih ─────────
+  // 笏笏笏笏笏笏笏笏笏 V8: batas 200 pesan + chat baru bersih 笏笏笏笏笏笏笏笏笏
   const v8 = JSON.parse(
     await cdp.runAsync(`
       const idAwal = AS().activeId;
@@ -904,10 +904,10 @@ const main = async () => {
       v8.kosongUi &&
       v8.idBeda &&
       v8.sesiLamaMasihAda,
-    `batas history: 260 pesan → tersisa ${v8.setelahIsi} (mulai dari "${v8.pertama}", yang tertua dibuang); chat baru = ${v8.bersih} pesan + empty-state tampil, sesi lama tetap tersimpan (${v8.jumlahSesi} sesi)`,
+    `batas history: 260 pesan 竊・tersisa ${v8.setelahIsi} (mulai dari "${v8.pertama}", yang tertua dibuang); chat baru = ${v8.bersih} pesan + empty-state tampil, sesi lama tetap tersimpan (${v8.jumlahSesi} sesi)`,
   );
 
-  // ───────── V9: sesi terakhir direstore setelah reload ─────────
+  // 笏笏笏笏笏笏笏笏笏 V9: sesi terakhir direstore setelah reload 笏笏笏笏笏笏笏笏笏
   const tandaRestore = `RESTORE-${Date.now().toString(36)}`;
   await cdp.runAsync(`
     // Tulis satu chat nyata (lewat provider mock) sebagai bahan restore.
@@ -929,7 +929,7 @@ const main = async () => {
   await cdp.send('Page.enable');
   await cdp.send('Page.reload', { ignoreCache: false });
   await sleep(6000);
-  // Reload memutus konteks CDP lama → sambung ulang.
+  // Reload memutus konteks CDP lama 竊・sambung ulang.
   cdp.close();
   const targets2 = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
   const page2 = targets2.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
@@ -965,7 +965,7 @@ const main = async () => {
     `setelah reload halaman: ${v9.sesi} sesi & ${v9.pesan} pesan kembali dari localStorage (judul "${v9.judul}", penanda ${tandaRestore} ada), ${v9.bubbleDom} bubble ter-render, tidak ada pesan yang nyangkut status "streaming"`,
   );
 
-  // ───────── V10: RAM + tanpa console error + bersih ─────────
+  // 笏笏笏笏笏笏笏笏笏 V10: RAM + tanpa console error + bersih 笏笏笏笏笏笏笏笏笏
   const v10 = JSON.parse(
     await cdp.runAsync(`
       // Panel AI dibuka dengan chat terisi, lalu ukur RAM proses (event ram-usage).
@@ -1013,7 +1013,7 @@ const main = async () => {
       mb < 500 &&
       v10.errors.length === 0 &&
       // Yang wajib bersih hanya key UJI (gemini/anthropic). Key milik user
-      // (github, custom) memang harus TETAP ADA — menghapusnya adalah bug,
+      // (github, custom) memang harus TETAP ADA 窶・menghapusnya adalah bug,
       // bukan syarat lulus.
       v10.keySisa.every((x) => !['gemini', 'anthropic'].includes(x)) &&
       v10.sesiSisa <= 1,
@@ -1035,3 +1035,4 @@ main().catch((e) => {
   console.error('verify09 error:', e.message ?? e);
   process.exitCode = 2;
 });
+

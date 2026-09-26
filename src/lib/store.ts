@@ -226,7 +226,7 @@ export const useStore = create<Store>((set, get) => ({
   saveIssue: null,
 
   terminalTabs: [],
-  ai: { model: 'gemini-3.6-flash', messages: [] },
+  ai: { model: 'custom-model', messages: [] },
   mcp: { enabled: false, running: false, port: 9222 },
 
   settings: DEFAULT_SETTINGS,
