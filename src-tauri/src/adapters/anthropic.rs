@@ -117,7 +117,21 @@ pub fn prepare_tools(
             }
             turns.push(json!({ "role": "assistant", "content": blocks }));
         } else {
-            turns.push(json!({ "role": m.role, "content": m.content }));
+            let imgs = m.images.as_deref().unwrap_or(&[]);
+            if imgs.is_empty() {
+                turns.push(json!({ "role": m.role, "content": m.content }));
+            } else {
+                let mut blocks = vec![json!({ "type": "text", "text": m.content })];
+                for img in imgs {
+                    if let Some((mime, data)) = crate::adapters::split_data_url(img) {
+                        blocks.push(json!({
+                            "type": "image",
+                            "source": { "type": "base64", "media_type": mime, "data": data }
+                        }));
+                    }
+                }
+                turns.push(json!({ "role": m.role, "content": blocks }));
+            }
         }
     }
 

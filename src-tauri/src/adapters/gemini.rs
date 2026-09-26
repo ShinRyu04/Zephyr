@@ -112,9 +112,18 @@ pub fn prepare_tools(
                 contents.push(json!({ "role": "model", "parts": parts }));
             }
             _ => {
+                let imgs = m.images.as_deref().unwrap_or(&[]);
+                let mut parts = vec![json!({ "text": m.content })];
+                for img in imgs {
+                    if let Some((mime, data)) = crate::adapters::split_data_url(img) {
+                        parts.push(json!({
+                            "inlineData": { "mimeType": mime, "data": data }
+                        }));
+                    }
+                }
                 contents.push(json!({
                     "role": if m.role == "user" { "user" } else { "model" },
-                    "parts": [{ "text": m.content }],
+                    "parts": parts,
                 }));
             }
         }

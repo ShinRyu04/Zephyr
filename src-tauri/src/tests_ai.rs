@@ -194,6 +194,7 @@ mod tests {
             tool_call_id: None,
             tool_calls: None,
             name: None,
+            images: None,
         }
     }
 

@@ -454,10 +454,32 @@ export default function AiPanel() {
             }
           }}
           onPaste={(e) => {
-
+            const items = e.clipboardData?.items;
+            let file: File | null = null;
+            if (items) {
+              for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                  file = items[i].getAsFile();
+                  break;
+                }
+              }
+            }
+            if (file) {
+              e.preventDefault();
+              const f = file;
+              const reader = new FileReader();
+              reader.onload = () => {
+                const url = typeof reader.result === 'string' ? reader.result : null;
+                if (url) {
+                  addDraftImage(url);
+                  setToast(tr('Screenshot pasted as an attachment'));
+                }
+              };
+              reader.readAsDataURL(f);
+              return;
+            }
             void clipboardReadImage().then((url) => {
               if (url) {
-                e.preventDefault();
                 addDraftImage(url);
                 setToast(tr('Screenshot pasted as an attachment'));
               }

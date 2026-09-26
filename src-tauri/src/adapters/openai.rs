@@ -121,7 +121,16 @@ pub fn prepare_tools(
                     })).collect::<Vec<_>>(),
                 })
             } else {
-                json!({ "role": m.role, "content": m.content })
+                let imgs = m.images.as_deref().unwrap_or(&[]);
+                if !imgs.is_empty() {
+                    let mut content = vec![json!({ "type": "text", "text": m.content })];
+                    for img in imgs {
+                        content.push(json!({ "type": "image_url", "image_url": { "url": img } }));
+                    }
+                    json!({ "role": m.role, "content": content })
+                } else {
+                    json!({ "role": m.role, "content": m.content })
+                }
             }
         })
         .collect::<Vec<_>>();

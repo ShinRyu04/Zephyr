@@ -968,6 +968,7 @@ export const useAi = create<AiStore>((set, get) => ({
       return;
     }
 
+    const agentImages = get().draftImages;
     let content = raw;
     if (raw.length > MSG_LIMIT) {
       content =
@@ -1021,6 +1022,7 @@ export const useAi = create<AiStore>((set, get) => ({
           : x,
       ),
       draft: '',
+      draftImages: [],
       toast: null,
       agentSteps: [],
       agentBusy: true,
@@ -1053,7 +1055,11 @@ export const useAi = create<AiStore>((set, get) => ({
       });
     }
 
-    history.push({ role: 'user', content: content + identityReminder(get().model) });
+    history.push({
+      role: 'user',
+      content: content + identityReminder(get().model),
+      ...(agentImages.length ? { images: agentImages } : {}),
+    });
 
     {
       const st2 = useStore.getState();
