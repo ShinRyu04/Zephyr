@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
+import type { GitBlameLine, GitStashEntry } from './commands';
 import { useStore } from './store';
 import type {
   GhStatus,
@@ -75,6 +76,12 @@ interface GitActions {
   stage: (paths: string[]) => Promise<void>;
   unstage: (paths: string[]) => Promise<void>;
   commit: () => Promise<boolean>;
+  commitWithAi: () => Promise<boolean>;
+  stashSave: (message?: string) => Promise<boolean>;
+  stashList: () => Promise<GitStashEntry[]>;
+  stashPop: (index: number) => Promise<void>;
+  stashDrop: (index: number) => Promise<void>;
+  blameFile: (path: string) => Promise<GitBlameLine[]>;
   openDiff: (change: GitChange) => Promise<void>;
   closeDiff: () => void;
 
@@ -208,6 +215,104 @@ export const useGit = create<GitStore>((set, get) => ({
       return false;
     } finally {
       set({ busy: false, busyLabel: '' });
+    }
+  },
+
+  commitWithAi: async () => {
+    set({ busy: true, busyLabel: 'ai-commit', scmError: null, scmInfo: null });
+    try {
+      const diffs: string[] = [];
+      for (const c of [...get().staged(), ...get().unstaged()].slice(0, 8)) {
+        try {
+          const d = await cmd.gitDiff(c.path, c.staged);
+          diffs.push(`# ${c.status} ${c.path}\n${d}`);
+        } catch {
+          diffs.push(`# ${c.status} ${c.path} (diff tidak tersedia)`);
+        }
+      }
+      if (diffs.length === 0) {
+        set({ scmError: 'Tidak ada perubahan untuk diringkas' });
+        return false;
+      }
+      const prompt =
+        'Write ONE git commit message in English, conventional commits style ' +
+        '(e.g. "fix: ...", "feat: ..."), max 72 characters, no quotes, no extra ' +
+        'explanation. Reply with ONLY the message. Diff:\n\n' +
+        diffs.join('\n\n').slice(0, 12000);
+      const ai = await import('./aiStore');
+      const hasil = await ai.oneShot(prompt);
+      const bersih = hasil
+        .trim()
+        .split('\n')[0]
+        .replace(/^["'`]|["'`]$/g, '')
+        .slice(0, 100);
+      if (!bersih) {
+        set({ scmError: 'AI tidak mengembalikan pesan commit' });
+        return false;
+      }
+      set({ message: bersih, scmInfo: 'Pesan commit diisi AI, periksa lalu commit' });
+      return true;
+    } catch (e) {
+      set({ scmError: cmd.asZephyrError(e).message });
+      return false;
+    } finally {
+      set({ busy: false, busyLabel: '' });
+    }
+  },
+
+  stashSave: async (message) => {
+    set({ busy: true, busyLabel: 'stash', scmError: null });
+    try {
+      const ok = await cmd.gitStashSave(message);
+      await get().refreshAll();
+      set({ scmInfo: ok ? 'Perubahan disimpan ke stash' : 'Tidak ada perubahan untuk di-stash' });
+      return ok;
+    } catch (e) {
+      set({ scmError: cmd.asZephyrError(e).message });
+      return false;
+    } finally {
+      set({ busy: false, busyLabel: '' });
+    }
+  },
+
+  stashList: async () => {
+    try {
+      return await cmd.gitStashList();
+    } catch {
+      return [];
+    }
+  },
+
+  stashPop: async (index) => {
+    set({ busy: true, busyLabel: 'stash', scmError: null });
+    try {
+      await cmd.gitStashPop(index);
+      await get().refreshAll();
+      set({ scmInfo: 'Stash dipulihkan' });
+    } catch (e) {
+      set({ scmError: cmd.asZephyrError(e).message });
+    } finally {
+      set({ busy: false, busyLabel: '' });
+    }
+  },
+
+  stashDrop: async (index) => {
+    set({ busy: true, busyLabel: 'stash', scmError: null });
+    try {
+      await cmd.gitStashDrop(index);
+      set({ scmInfo: 'Stash dihapus' });
+    } catch (e) {
+      set({ scmError: cmd.asZephyrError(e).message });
+    } finally {
+      set({ busy: false, busyLabel: '' });
+    }
+  },
+
+  blameFile: async (path) => {
+    try {
+      return await cmd.gitBlame(path);
+    } catch {
+      return [];
     }
   },
 

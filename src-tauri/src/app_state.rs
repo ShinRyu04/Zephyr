@@ -92,6 +92,8 @@ pub struct AppState {
 
     mcp_pending: RwLock<HashMap<String, tokio::sync::oneshot::Sender<serde_json::Value>>>,
 
+    mcp_ui_ready: std::sync::atomic::AtomicBool,
+
     mcp_lock: tokio::sync::Mutex<()>,
 
     ext_code: RwLock<HashMap<String, String>>,
@@ -146,6 +148,7 @@ impl AppState {
             ai_reqs: RwLock::new(HashMap::new()),
             mcp_rt: RwLock::new(None),
             mcp_pending: RwLock::new(HashMap::new()),
+            mcp_ui_ready: std::sync::atomic::AtomicBool::new(false),
             mcp_lock: tokio::sync::Mutex::new(()),
             ext_code: RwLock::new(HashMap::new()),
             started: Instant::now(),
@@ -273,6 +276,15 @@ impl AppState {
             m.insert(id.to_string(), tx);
         }
         rx
+    }
+
+    pub fn mcp_set_ui_ready(&self, ready: bool) {
+        self.mcp_ui_ready
+            .store(ready, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn mcp_ui_ready(&self) -> bool {
+        self.mcp_ui_ready.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn mcp_resolve(&self, id: &str, value: serde_json::Value) -> bool {

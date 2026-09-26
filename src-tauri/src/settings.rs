@@ -146,49 +146,87 @@ pub fn deep_merge_um(base: &mut Value, patch: &Value) {
 }
 
 pub fn read_json_um(path: &PathBuf) -> Option<Value> {
-    let raw = std::fs::read_to_string(path).ok()?;
-    match serde_json::from_str(&raw) {
-        Ok(v) => Some(v),
-        Err(e) => {
-            let stamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            let mut backup = path.clone();
-            let nama = path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| "settings.json".into());
-            backup.set_file_name(format!("{nama}.broken-{stamp}"));
-            let ok = std::fs::rename(path, &backup).is_ok();
-            tracing::error!(
-                "{} rusak ({e}) — {} ke {}",
-                path.display(),
-                if ok {
-                    "dipindahkan"
-                } else {
-                    "GAGAL memindahkan"
-                },
-                backup.display()
-            );
-            if ok {
-                if let Ok(mut slot) = LAST_BROKEN.lock() {
-                    *slot = backup.to_string_lossy().to_string();
+    let mut err_terakhir: Option<serde_json::Error> = None;
+
+    for percobaan in 0..4 {
+        let raw = match std::fs::read_to_string(path) {
+            Ok(r) => r,
+            Err(_) => return None,
+        };
+        if raw.trim().is_empty() {
+            if percobaan == 3 {
+                return None;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(60));
+            continue;
+        }
+        // Buang BOM UTF-8 bila ada: serde_json menolaknya dan menganggap file
+        // "rusak", padahal isinya valid. Ini penyebab file dipindah ke
+        // .broken-* berulang kali.
+        let bersih = raw.trim_start_matches('\u{feff}');
+        match serde_json::from_str(bersih) {
+            Ok(v) => return Some(v),
+            Err(e) => {
+                err_terakhir = Some(e);
+                if percobaan < 3 {
+                    std::thread::sleep(std::time::Duration::from_millis(60));
                 }
             }
-            None
         }
     }
+
+    let e = err_terakhir?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let mut backup = path.clone();
+    let nama = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "settings.json".into());
+    backup.set_file_name(format!("{nama}.broken-{stamp}"));
+    let ok = std::fs::rename(path, &backup).is_ok();
+    tracing::error!(
+        "{} rusak ({e}) — {} ke {}",
+        path.display(),
+        if ok {
+            "dipindahkan"
+        } else {
+            "GAGAL memindahkan"
+        },
+        backup.display()
+    );
+    if ok {
+        if let Ok(mut slot) = LAST_BROKEN.lock() {
+            *slot = backup.to_string_lossy().to_string();
+        }
+    }
+    None
 }
 
 static LAST_BROKEN: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
-
 #[tauri::command(async)]
 pub fn take_broken_config() -> ZResult<String> {
     let mut slot = LAST_BROKEN
         .lock()
         .map_err(|_| ZephyrError::Internal("lock LAST_BROKEN".into()))?;
     Ok(std::mem::take(&mut *slot))
+}
+
+fn baca_untuk_patch(path: &PathBuf) -> Option<Value> {
+    match std::fs::read_to_string(path) {
+        Ok(_) => read_json_um(path),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Some(json!({})),
+        Err(_) => {
+            std::thread::sleep(std::time::Duration::from_millis(120));
+            match std::fs::read_to_string(path) {
+                Ok(_) => read_json_um(path),
+                Err(e2) if e2.kind() == std::io::ErrorKind::NotFound => Some(json!({})),
+                Err(_) => None,
+            }
+        }
+    }
 }
 
 #[tauri::command(async)]
@@ -218,8 +256,23 @@ fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(path, serde_json::to_vec_pretty(v)?)?;
-    Ok(())
+    let bytes = serde_json::to_vec_pretty(v)?;
+
+    let tmp = {
+        let mut n = path.file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_else(|| "settings.json".into());
+        n.push_str(&format!(".tmp-{}", std::process::id()));
+        path.with_file_name(n)
+    };
+    std::fs::write(&tmp, &bytes)?;
+    match std::fs::rename(&tmp, path) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp);
+            Err(ZephyrError::Internal(format!("gagal menyimpan {}: {e}", path.display())))
+        }
+    }
 }
 
 #[tauri::command]
@@ -284,12 +337,14 @@ pub fn get_settings(state: State<AppState>) -> ZResult<Value> {
 }
 
 #[tauri::command]
-pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZResult<()> {
-    if !patch.is_object() {
+pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZResult<()> {    if !patch.is_object() {
         return Err(ZephyrError::InvalidInput("patch harus object".into()));
     }
     let path = state.file("settings.json");
-    let mut current = read_json_um(&path).unwrap_or_else(|| json!({}));
+    let mut current = match baca_untuk_patch(&path) {
+        Some(v) => v,
+        None => return Err(ZephyrError::Internal("settings.json tidak terbaca; patch dibatalkan agar tidak menimpa data".into())),
+    };
     deep_merge_um(&mut current, &patch);
     write_json(&path, &current)?;
 
@@ -412,7 +467,10 @@ pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
         return Err(ZephyrError::InvalidInput("patch harus object".into()));
     }
     let path = state.file("settings.json");
-    let mut current = read_json_um(&path).unwrap_or_else(|| json!({}));
+    let mut current = match baca_untuk_patch(&path) {
+        Some(v) => v,
+        None => return Err(ZephyrError::Internal("settings.json tidak terbaca; patch dibatalkan agar tidak menimpa data".into())),
+    };
     deep_merge_um(&mut current, &patch);
     write_json(&path, &current)
 }

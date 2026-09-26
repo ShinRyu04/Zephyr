@@ -221,19 +221,21 @@ export const AGENT_TOOLS: AgentTool[] = [
       const oldText = String(args.old_text ?? '');
       const newText = String(args.new_text ?? '');
       if (!filePath) throw new Error('file_edit: path kosong');
+      if (!oldText) throw new Error('file_edit: old_text kosong');
       const r = await cmd.fsRead(filePath);
       const original = r.content ?? '';
       if (!original.includes(oldText)) {
         throw new Error(`file_edit: old_text tidak ditemukan di dalam ${filePath}`);
       }
-      const updated = original.replace(oldText, newText);
+      const jumlah = original.split(oldText).length - 1;
+      const updated = original.split(oldText).join(newText);
       await cmd.fsWrite(filePath, updated);
       const st = useStore.getState();
       const tab = st.tabs.find((t) => t.path === filePath);
       if (tab) {
         st.updateTabContent(tab.id, updated);
       }
-      return `File ${filePath} berhasil diedit dan disimpan ke disk.`;
+      return `File ${filePath} berhasil diedit dan disimpan ke disk (${jumlah} kemunculan diganti).`;
     },
   },
   {
@@ -381,7 +383,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'skill_list',
       description:
-        'List available skills (name + description + origin: workspace/global/hermes). Call this first when a task sounds like something with a fixed procedure. Skills marked hermes are shared with the Hermes Agent install on this machine and are read-only.',
+        'List available skills (name + description + origin: workspace/global). Call this first when a task sounds like something with a fixed procedure.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
@@ -418,7 +420,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'skill_write',
       description:
-        'Create or update a skill. Use it AFTER finishing a repeatable procedure worth doing again. Write concrete steps (commands, paths, pitfalls), not a narrative summary. Default scope is workspace (this project only); use "global" only for things that apply to every project. Skills that came from the Hermes folder cannot be overwritten here.',
+        'Create or update a skill. Use it AFTER finishing a repeatable procedure worth doing again. Write concrete steps (commands, paths, pitfalls), not a narrative summary. Default scope is workspace (this project only); use "global" only for things that apply to every project.',
       parameters: {
         type: 'object',
         properties: {

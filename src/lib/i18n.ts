@@ -1,5 +1,4 @@
 import { useStore } from './store';
-import { EXTRA } from './i18n-extra';
 import { EN as SRC } from './i18n-src';
 
 type Dict = Record<string, string>;
@@ -1325,6 +1324,17 @@ export const UI_LANGS: { value: string; label: string }[] = [
   { value: 'ar', label: 'العربية' },
 ];
 
+let EXTRA: Record<string, Record<string, string>> = {};
+
+export async function muatKamusTambahan(): Promise<void> {
+  try {
+    const m = await import('./i18n-extra');
+    EXTRA = m.EXTRA as unknown as Record<string, Record<string, string>>;
+  } catch {
+    EXTRA = {};
+  }
+}
+
 export function translate(lang: string, key: string): string {
 
   // Kamus bahasa tujuan SELALU menang. SRC cuma kamus Inggris untuk kunci
@@ -1336,7 +1346,7 @@ export function translate(lang: string, key: string): string {
   if (own !== undefined) return own;
   const src = SRC[key];
   if (src !== undefined) return lang === 'id' ? key : src;
-  return EXTRA.en[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
+  return EXTRA.en?.[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
 }
 
 /**

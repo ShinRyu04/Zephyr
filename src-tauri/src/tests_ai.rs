@@ -275,6 +275,30 @@ mod tests {
     }
 
     #[test]
+    fn stream_dsml_di_dalam_teks_dipulihkan_jadi_tool_call() {
+        let mut acc = adapters::StreamAcc::new("custom");
+        let potongan = [
+            "Saya cek dulu.\n\n",
+            "<|DSML| calls>\n",
+            "<|DSML| invoke name=\"file_list\">\n",
+            "<|DSML| parameter name=\"path\" string=\"true\">.</|DSML| parameter>\n",
+            "</|DSML| invoke>\n",
+            "</|DSML| calls>",
+        ];
+        for p in potongan {
+            let v = json!({ "choices": [{ "delta": { "content": p } }] });
+            acc.feed(&v);
+        }
+        let (content, calls) = acc.finish();
+        assert_eq!(calls.len(), 1, "tool call XML harus dipulihkan");
+        assert_eq!(calls[0].name, "file_list");
+        assert_eq!(calls[0].args["path"], json!("."));
+        // Tag mentah tidak boleh ikut ke bubble/disk.
+        assert!(!content.contains("DSML"));
+        assert!(content.contains("Saya cek dulu."));
+    }
+
+    #[test]
     fn prepare_tools_anthropic_system_dipisah_dan_tool_result_dibungkus() {
         let sys = agent_msg("system", "kamu agent Zephyr");
         let mut asst = agent_msg("assistant", "");

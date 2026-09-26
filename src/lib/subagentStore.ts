@@ -85,6 +85,36 @@ const resolvers = new Map<string, (r: AgentStepResult) => void>();
 
 const batalSet = new Set<string>();
 
+const AGENT_IDLE_MS = 90_000;
+const watchdogs = new Map<string, ReturnType<typeof setTimeout>>();
+
+function armWatchdog(id: string) {
+  const lama = watchdogs.get(id);
+  if (lama) clearTimeout(lama);
+  watchdogs.set(
+    id,
+    setTimeout(() => {
+      watchdogs.delete(id);
+      const r = resolvers.get(id);
+      if (r) {
+        resolvers.delete(id);
+        r({
+          content: '',
+          toolCalls: [],
+          cancelled: false,
+          error: 'Provider tidak menjawab dalam 90 detik (timeout idle)',
+        });
+      }
+    }, AGENT_IDLE_MS),
+  );
+}
+
+function disarmWatchdog(id: string) {
+  const t = watchdogs.get(id);
+  if (t) clearTimeout(t);
+  watchdogs.delete(id);
+}
+
 interface AgentStepResult {
   content: string;
   toolCalls: { id: string; name: string; args: unknown }[];
@@ -183,6 +213,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
 
   batal: (id) => {
     batalSet.add(id);
+    disarmWatchdog(id);
     const a = get().agents.find((x) => x.id === id);
     if (a) {
       const r = resolvers.get(id);
@@ -248,6 +279,7 @@ async function jalankanSatu(
 
       const res = await new Promise<AgentStepResult>((resolve) => {
         resolvers.set(agent.id, resolve);
+        armWatchdog(agent.id);
         cmd
           .aiToolChatStream({
             id: agent.id,
@@ -262,6 +294,7 @@ async function jalankanSatu(
           .catch((e) => {
             if (resolvers.get(agent.id) === resolve) {
               resolvers.delete(agent.id);
+              disarmWatchdog(agent.id);
               resolve({
                 content: '',
                 toolCalls: [],
@@ -271,6 +304,7 @@ async function jalankanSatu(
             }
           });
       });
+      disarmWatchdog(agent.id);
 
       if (res.error) throw new Error(res.error);
       if (res.cancelled) {
@@ -351,6 +385,7 @@ async function jalankanSatu(
       selesai: Date.now(),
     }));
   } finally {
+    disarmWatchdog(agent.id);
     resolvers.delete(agent.id);
     batalSet.delete(agent.id);
   }
@@ -366,7 +401,11 @@ export function subagentOnChunk(c: {
 }): boolean {
   const r = resolvers.get(c.id);
   if (!r) return false;
-  if (!c.toolDone) return true;
+  if (!c.toolDone) {
+    armWatchdog(c.id);
+    return true;
+  }
+  disarmWatchdog(c.id);
   resolvers.delete(c.id);
   if (c.err) {
     r({ content: '', toolCalls: [], cancelled: false, error: c.err });

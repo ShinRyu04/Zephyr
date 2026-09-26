@@ -1,6 +1,7 @@
 pub mod anthropic;
 pub mod gemini;
 pub mod openai;
+pub mod xml_tools;
 
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ReasoningEffort, ToolCall, ToolSpec};
 use crate::errors::ZResult;
@@ -83,11 +84,20 @@ pub fn prepare_tools(
 }
 
 pub fn parse_tool_response(provider: &str, v: &Value) -> AiToolResult {
-    match provider {
+    let mut hasil = match provider {
         "anthropic" => anthropic::parse_tool_response(v),
         "gemini" => gemini::parse_tool_response(v),
         _ => openai::parse_tool_response(v),
+    };
+    if hasil.tool_calls.is_empty() {
+        let xml = xml_tools::parse_teks(&hasil.content);
+        if !xml.is_empty() {
+            hasil.content = xml_tools::bersihkan_teks(&hasil.content);
+            hasil.tool_calls = xml;
+            hasil.done = false;
+        }
     }
+    hasil
 }
 
 pub fn prepare_tools_stream(
@@ -138,10 +148,17 @@ impl StreamAcc {
     }
 
     pub fn finish(self) -> (String, Vec<ToolCall>) {
-        match self {
+        let (content, calls) = match self {
             StreamAcc::Anthropic(a) => a.finish(),
             StreamAcc::Gemini(a) => a.finish(),
             StreamAcc::Openai(a) => a.finish(),
+        };
+        if calls.is_empty() {
+            let xml = xml_tools::parse_teks(&content);
+            if !xml.is_empty() {
+                return (xml_tools::bersihkan_teks(&content), xml);
+            }
         }
+        (content, calls)
     }
 }

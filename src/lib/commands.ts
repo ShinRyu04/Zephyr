@@ -372,6 +372,28 @@ export const gitDiscard = (paths: string[]) => invoke<void>('git_discard', { pat
 export const gitLog = (n = 20) => invoke<GitCommitInfo[]>('git_log', { n });
 export const gitConfigGetUser = () => invoke<GitUser>('git_config_get_user');
 
+export interface GitBlameLine {
+  line: number;
+  hash: string;
+  author: string;
+  date: string;
+  summary: string;
+}
+export interface GitStashEntry {
+  index: number;
+  message: string;
+}
+
+export const gitBlame = (path: string) => invoke<GitBlameLine[]>('git_blame', { path });
+export const gitStashSave = (message?: string) =>
+  invoke<boolean>('git_stash_save', { message });
+export const gitStashList = () => invoke<GitStashEntry[]>('git_stash_list');
+export const gitStashPop = (index: number) => invoke<boolean>('git_stash_pop', { index });
+export const gitStashDrop = (index: number) => invoke<boolean>('git_stash_drop', { index });
+export const gitRebase = (onto: string) => invoke<string>('git_rebase', { onto });
+export const gitConflictTake = (path: string, side: 'ours' | 'theirs') =>
+  invoke<boolean>('git_conflict_take', { path, side });
+
 export const ghStatus = () => invoke<GhStatus>('gh_status');
 
 export const ghSetPat = (token: string) => invoke<GhUser>('gh_set_pat', { token });
@@ -387,6 +409,8 @@ export const mcpStop = () => invoke<boolean>('mcp_stop');
 
 export const mcpReply = (reqId: string, result: unknown) =>
   invoke<boolean>('mcp_reply', { reqId, result });
+
+export const mcpUiReady = () => invoke<boolean>('mcp_ui_ready');
 export const mcpRotateToken = () => invoke<string>('mcp_rotate_token');
 export const mcpWriteCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_write_cli', { ids });
 export const mcpRemoveCli = (ids: string[]) => invoke<CliWriteResult[]>('mcp_remove_cli', { ids });

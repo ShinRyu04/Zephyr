@@ -228,6 +228,9 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
     ? `${jalan} ${tr('tugas paralel')}`
     : `${agents.length} ${tr('subagent')} · ${beres} ${tr('selesai')}${gagal ? ` · ${gagal} ${tr('gagal')}` : ''}`;
 
+  const total = agents.length;
+  const persen = total > 0 ? Math.round((beres / total) * 100) : 0;
+
   return (
     <div className="sub-panel" data-testid="sub-panel">
       {/* Bar disembunyikan saat `polos`: di tab Subagents kepalanya sudah ada
@@ -249,6 +252,15 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
           </button>
         )}
       </div>
+      )}
+
+      {total > 0 && (
+        <div className="sub-progress" data-testid="sub-progress" title={`${beres}/${total}`}>
+          <div className="sub-progress-fill" style={{ width: `${persen}%` }} />
+          <span className="sub-progress-label">
+            {beres}/{total}
+          </span>
+        </div>
       )}
 
       <div className="sub-daftar" data-testid="sub-grid">

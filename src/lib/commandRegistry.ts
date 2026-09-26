@@ -447,6 +447,66 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => !!useGit.getState().status?.hasRemote,
     run: () => useGit.getState().sync(),
   },
+  {
+    id: 'git.blame',
+    title: 'Git: Blame Active File',
+    group: 'Git',
+    keywords: 'blame annotate author',
+    enabled: () => !!useGit.getState().status?.isRepo,
+    run: async () => {
+      const st = S();
+      const tab = st.tabs.find((t) => t.id === st.activeTabId);
+      if (!tab?.path) {
+        notifyWarn(tx('Buka file dulu'), { source: 'Git' });
+        return;
+      }
+      const lines = await useGit.getState().blameFile(tab.path);
+      if (lines.length === 0) {
+        notifyWarn(tx('Blame tidak tersedia untuk file ini'), { source: 'Git' });
+        return;
+      }
+      await useOutput.getState().append(
+        'zephyr',
+        `\n[Blame] ${tab.name}\n` +
+          lines
+            .map((l) => `${String(l.line).padStart(4)}  ${l.hash}  ${l.author}  ${l.summary}`)
+            .join('\n') +
+          '\n',
+      );
+      usePanel.getState().focusTab('output');
+      notifyInfo(`${lines.length} baris blame ditampilkan di Output`, { source: 'Git' });
+    },
+  },
+  {
+    id: 'git.stash',
+    title: 'Git: Stash Changes',
+    group: 'Git',
+    keywords: 'stash simpan tunda',
+    enabled: () => !!useGit.getState().status?.isRepo,
+    run: () => {
+      void useGit.getState().stashSave();
+    },
+  },
+  {
+    id: 'git.stash-pop',
+    title: 'Git: Pop Stash',
+    group: 'Git',
+    keywords: 'stash pulih restore',
+    enabled: () => !!useGit.getState().status?.isRepo,
+    run: () => {
+      void useGit.getState().stashPop(0);
+    },
+  },
+  {
+    id: 'git.aiCommit',
+    title: 'Git: Write Commit Message with AI',
+    group: 'Git',
+    keywords: 'ai commit message diff',
+    enabled: () => !!useGit.getState().status?.isRepo,
+    run: async () => {
+      await useGit.getState().commitWithAi();
+    },
+  },
 
     {
     id: 'ai.newChat',

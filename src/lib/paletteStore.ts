@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
-import { availableCommands, findCommand, type CommandDef } from './commandRegistry';
+import type { CommandDef } from './commandRegistry';
 import { useKb } from './keybindingStore';
 import { chordFor } from './keybindings';
 import { useStore } from './store';
@@ -8,8 +8,11 @@ import { effectiveBinding } from './shortcuts';
 import type { QuickFile } from './types';
 
 let daftarCommandCache: CommandDef[] | null = null;
-function cacheCommands(): void {
-  daftarCommandCache = availableCommands();
+
+async function muatRegistry() {
+  const m = await import('./commandRegistry');
+  if (!daftarCommandCache) daftarCommandCache = m.availableCommands();
+  return m;
 }
 
 export type PaletteMode = 'command' | 'file';
@@ -145,8 +148,8 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   openPalette: async (mode) => {
     set({ open: true, mode, query: '', index: 0, filesError: null });
     if (mode === 'command') {
-      
-      cacheCommands();
+      await muatRegistry();
+      set({ index: 0 });
     }
     if (mode !== 'file') return;
     
@@ -198,7 +201,7 @@ export const usePalette = create<PaletteStore>((set, get) => ({
 
     const custom = useStore.getState().settings.shortcuts;
     const list: PaletteItem[] = [];
-    const sumber = daftarCommandCache ?? availableCommands();
+    const sumber = daftarCommandCache ?? [];
     for (const c of sumber) {
       const hay = `${c.title} ${c.keywords ?? ''}`;
       
@@ -240,7 +243,8 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   },
 
   runCommandById: async (id) => {
-    const c: CommandDef | undefined = findCommand(id);
+    const m = await muatRegistry();
+    const c: CommandDef | undefined = m.findCommand(id);
     if (!c) return;
     const recent = [id, ...get().recent.filter((x) => x !== id)].slice(0, MAX_RECENT);
     set({ recent, lastRun: { id, at: Date.now() } });

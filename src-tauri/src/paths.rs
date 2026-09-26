@@ -140,11 +140,35 @@ fn pathdiff(root: &Path, child: &Path) -> Option<String> {
     if c.len() <= r {
         return None;
     }
-    let rest = c[r..].trim_start_matches(['\\', '/']).replace('\\', "/");
+    let rest = match c.get(r..) {
+        Some(sisa) => sisa.trim_start_matches(['\\', '/']).replace('\\', "/"),
+        None => beda_komponen(root, child)?,
+    };
     if rest.is_empty() {
         None
     } else {
         Some(rest)
+    }
+}
+
+fn beda_komponen(root: &Path, child: &Path) -> Option<String> {
+    use std::path::Component;
+    let normalize = |p: &Path| -> Vec<String> {
+        p.components()
+            .filter_map(|c| match c {
+                Component::Normal(s) => Some(s.to_string_lossy().to_string()),
+                _ => None,
+            })
+            .collect()
+    };
+    let a = normalize(root);
+    let b = normalize(child);
+    let sama = a.iter().zip(b.iter()).take_while(|(x, y)| x == y).count();
+    let sisa: Vec<String> = b[sama..].to_vec();
+    if sisa.is_empty() {
+        None
+    } else {
+        Some(sisa.join("/"))
     }
 }
 
@@ -185,4 +209,34 @@ pub fn lexical_clean_for_test(p: &Path) -> PathBuf {
 #[cfg(test)]
 pub fn pathdiff_for_test(root: &Path, child: &Path) -> Option<String> {
     pathdiff(root, child)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn pathdiff_ascii_normal() {
+        assert_eq!(
+            pathdiff(Path::new(r"D:\ws"), Path::new(r"D:\ws\src\main.rs")).as_deref(),
+            Some("src/main.rs")
+        );
+    }
+
+    #[test]
+    fn pathdiff_tidak_panik_unicode() {
+        // Root dan child berisi karakter multi-byte dengan panjang byte berbeda;
+        // versi lama slice byte dan akan panic.
+        let root = Path::new("D:\\日");
+        let child = Path::new("D:\\日本語\\файл\\emoji😀.rs");
+        let hasil = pathdiff(root, child);
+        assert!(hasil.is_some());
+        assert!(hasil.unwrap().contains("emoji😀.rs"));
+    }
+
+    #[test]
+    fn pathdiff_root_lebin_panjang_dari_child() {
+        assert_eq!(pathdiff(Path::new("D:\\aaaa\\bbbb"), Path::new("D:\\a")), None);
+    }
 }

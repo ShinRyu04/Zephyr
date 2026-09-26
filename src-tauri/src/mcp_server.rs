@@ -203,16 +203,13 @@ async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
         "mcp-connect",
         json!({ "client": tebak_cli(ua), "userAgent": ua }),
     );
-    let counts = ui_call(&ctx.app, "counts", json!({}))
-        .await
-        .unwrap_or_else(|_| json!({ "panes": 0, "editors": 0 }));
     Json(json!({
         "ok": true,
         "version": ctx.app.package_info().version.to_string(),
         "uptimeMs": state.mcp_uptime_ms(),
         "port": state.mcp_port(),
-        "panes": counts.get("panes").and_then(|v| v.as_u64()).unwrap_or(0),
-        "editors": counts.get("editors").and_then(|v| v.as_u64()).unwrap_or(0),
+        "panes": 0,
+        "editors": 0,
     }))
     .into_response()
 }
@@ -362,36 +359,65 @@ pub fn tools_schema() -> Value {
 
 async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> {
     let state = app.state::<AppState>();
-    let req_id = format!(
-        "mcp{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
-    let rx = state.mcp_register(&req_id);
-    app.emit(
-        "mcp-action",
-        json!({ "reqId": req_id, "type": kind, "payload": payload }),
-    )
-    .map_err(|e| ZephyrError::Mcp(format!("emit gagal: {e}")))?;
 
-    match tokio::time::timeout(UI_TIMEOUT, rx).await {
-        Ok(Ok(v)) => {
-            if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
-                return Err(ZephyrError::Mcp(msg.to_string()));
-            }
-            Ok(v.get("result").cloned().unwrap_or(v))
-        }
-        Ok(Err(_)) => Err(ZephyrError::Mcp("jawaban UI dibatalkan".into())),
-        Err(_) => {
+    let mut tunggu_ready = 0;
+    while !state.mcp_ui_ready() && tunggu_ready < 60 {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tunggu_ready += 1;
+    }
+
+    async fn sekali(
+        state: &AppState,
+        app: &AppHandle,
+        kind: &str,
+        payload: Value,
+    ) -> ZResult<Value> {
+        let req_id = format!(
+            "mcp{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        let rx = state.mcp_register(&req_id);
+        if let Err(e) = app.emit(
+            "mcp-action",
+            json!({ "reqId": req_id, "type": kind, "payload": payload }),
+        ) {
             state.mcp_forget(&req_id);
-            Err(ZephyrError::Mcp(format!(
-                "UI tidak menjawab dalam {}s untuk '{kind}'",
-                UI_TIMEOUT.as_secs()
-            )))
+            return Err(ZephyrError::Mcp(format!("emit gagal: {e}")));
+        }
+        match tokio::time::timeout(UI_TIMEOUT, rx).await {
+            Ok(Ok(v)) => {
+                if let Some(msg) = v.get("error").and_then(|e| e.as_str()) {
+                    return Err(ZephyrError::Mcp(msg.to_string()));
+                }
+                Ok(v.get("result").cloned().unwrap_or(v))
+            }
+            Ok(Err(_)) => Err(ZephyrError::Mcp("jawaban UI dibatalkan".into())),
+            Err(_) => {
+                state.mcp_forget(&req_id);
+                Err(ZephyrError::Mcp("timeout".into()))
+            }
         }
     }
+
+    const PERCOBAAN: u32 = 3;
+    let mut terakhir = ZephyrError::Mcp("tidak ada percobaan".into());
+    for n in 0..PERCOBAAN {
+        match sekali(&state, app, kind, payload.clone()).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                terakhir = e;
+                if n + 1 < PERCOBAAN {
+                    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                }
+            }
+        }
+    }
+    Err(ZephyrError::Mcp(format!(
+        "UI tidak menjawab untuk '{kind}' setelah {PERCOBAAN} percobaan: {terakhir}"
+    )))
 }
 
 fn need_str(params: &Value, key: &str) -> ZResult<String> {

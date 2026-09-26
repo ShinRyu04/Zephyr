@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, lazy, Suspense } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
 import { useLayout } from '../../lib/editorLayoutStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
@@ -11,11 +11,10 @@ import RestrictedBanner from '../workspace/RestrictedBanner';
 import DebugToolbar from '../debug/DebugToolbar';
 import ZephyrLogo from './ZephyrLogo';
 import { ErrorBoundary } from './ErrorBoundary';
-import SettingsPage from '../settings/SettingsPage';
 import DiffViewer from '../scm/DiffViewer';
+const SettingsPage = lazy(() => import('../settings/SettingsPage'));
 import { useGit } from '../../lib/gitStore';
 import { useT, tx } from '../../lib/i18n';
-
 function EmptyState() {
   const openFileDialog = useStore((s) => s.openFileDialog);
   const openFolderDialog = useStore((s) => s.openFolderDialog);
@@ -178,7 +177,9 @@ export default function SplitEditor() {
         </div>
         <div className="editor-host">
           <ErrorBoundary nama="Settings">
-            <SettingsPage />
+            <Suspense fallback={null}>
+              <SettingsPage />
+            </Suspense>
           </ErrorBoundary>
         </div>
       </section>

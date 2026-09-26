@@ -274,6 +274,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const s = await cmd.getSettings();
       set({ settings: s, settingsLoaded: true });
+      void import('./aiStore').then((m) => m.useAi.getState().sinkronProvider());
       set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
       retheme();
       terapkanA11y(s.accessibility);
@@ -373,6 +374,10 @@ export const useStore = create<Store>((set, get) => ({
   syncWorkspaceLokal: async (dir) => {
     set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
 
+    void import('./aiStore').then((m) => m.resetKonteksAgent());
+    void import('./systemPrompt').then((m) => m.resetAturanProyek());
+    void import('./projectContext').then((m) => m.resetRingkasanProyek());
+
 
     const ex = useExplorer.getState();
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
@@ -395,6 +400,9 @@ export const useStore = create<Store>((set, get) => ({
 
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
     set({ workspace: null, statusMessage: 'Workspace ditutup' });
+    void import('./aiStore').then((m) => m.resetKonteksAgent());
+    void import('./systemPrompt').then((m) => m.resetAturanProyek());
+    void import('./projectContext').then((m) => m.resetRingkasanProyek());
     await get().refreshRecents();
   },
 

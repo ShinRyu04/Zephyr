@@ -15,6 +15,28 @@ const MAX_CONTRIB_BYTES: u64 = 512 * 1024;
 
 pub const MANIFEST_NATIVE: &str = "zephyr-extension.json";
 
+pub fn id_aman(id: &str) -> bool {
+    let t = id.trim();
+    if t.is_empty() || t.len() > 128 {
+        return false;
+    }
+    if t.starts_with('.') || t.contains("..") {
+        return false;
+    }
+    t.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
+}
+
+pub fn pastikan_id_aman(id: &str) -> ZResult<()> {
+    if id_aman(id) {
+        Ok(())
+    } else {
+        Err(ZephyrError::InvalidInput(format!(
+            "id ekstensi tidak valid: '{id}' (hanya huruf, angka, '.', '-' dan '_')"
+        )))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ContribTheme {
@@ -577,7 +599,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
             )));
         }
 
-        if man.id.contains('/') || man.id.contains('\\') || man.id.contains("..") {
+        if !id_aman(&man.id) {
             return Err(ZephyrError::InvalidInput(format!(
                 "id ekstensi tidak valid: {}",
                 man.id
@@ -626,12 +648,9 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
 
 #[tauri::command]
 pub fn extensions_uninstall(state: State<AppState>, id: String) -> ZResult<bool> {
+    pastikan_id_aman(&id)?;
     let dir_ext = crate::extensions::extensions_dir(&state);
     let target = dir_ext.join(&id);
-
-    if id.contains('/') || id.contains('\\') || id.contains("..") {
-        return Err(ZephyrError::InvalidInput(format!("id tidak valid: {id}")));
-    }
 
     let mut kena = false;
     if target.is_dir() {
@@ -1069,7 +1088,7 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
         ));
     }
 
-    if id.contains('/') || id.contains('\\') || id.contains("..") {
+    if !id_aman(&id) {
         return Err(ZephyrError::InvalidInput(format!("id tidak valid: {id}")));
     }
 
@@ -1112,4 +1131,29 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
     std::fs::write(&tujuan, &bytes)?;
 
     Ok(tujuan.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn id_aman_menolak_escape() {
+        assert!(!id_aman("C:evil"));
+        assert!(!id_aman("foo/bar"));
+        assert!(!id_aman("foo\\bar"));
+        assert!(!id_aman(".."));
+        assert!(!id_aman("a..b"));
+        assert!(!id_aman(".hidden"));
+        assert!(!id_aman(""));
+        assert!(!id_aman("nama dengan spasi"));
+        assert!(!id_aman("weird:name"));
+    }
+
+    #[test]
+    fn id_aman_menerima_bentuk_wajar() {
+        assert!(id_aman("my-extension"));
+        assert!(id_aman("publisher.ext_name"));
+        assert!(id_aman("Ext123"));
+    }
 }

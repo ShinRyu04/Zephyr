@@ -3,7 +3,7 @@ import { subagentOnChunk } from './subagentStore';
 import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, PROVIDER_BY_ID } from './modelCatalog';
-import { agentToolSpecs, jalankanAgentTool } from './agentTools';
+import { agentToolSpecs, jalankanAgentTool, AGENT_TOOLS } from './agentTools';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
 
 const LS_KEY = 'zephyr.ai.sessions.v1';
@@ -35,17 +35,36 @@ export async function konteksAgent(): Promise<string> {
   const now = Date.now();
   if (ctxCache && now - ctxCache.at < CTX_TTL_MS) return ctxCache.teks;
   try {
-    const teks = await cmd.agentContext();
+    const [dariRust, proyek] = await Promise.all([
+      cmd.agentContext(),
+      import('./projectContext').then((m) => m.ringkasanProyek()),
+    ]);
+    const teks = [dariRust, proyek].filter((s) => s && s.trim()).join('\n\n');
     ctxCache = { at: now, teks };
     return teks;
   } catch {
-
     return ctxCache?.teks ?? '';
   }
 }
 
 export function resetKonteksAgent() {
   ctxCache = null;
+}
+
+export async function oneShot(prompt: string): Promise<string> {
+  const st = useAi.getState();
+  const def = findModel(st.model, st.provider);
+  const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
+  const res = await cmd.aiToolChat({
+    provider: def.provider,
+    model: def.id,
+    messages: [{ role: 'user', content: prompt }],
+    tools: [],
+    baseUrl: cfg.baseUrl || undefined,
+    maxTokens: def.maxOut ?? 512,
+    effort: st.reasoningEffort ?? undefined,
+  });
+  return (res.content ?? '').trim();
 }
 
 export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
@@ -121,6 +140,43 @@ export interface AgentTodo {
 }
 
 export const MAX_TODOS = 20;
+
+export function statusPekerjaan(
+  todos: AgentTodo[],
+  steps: AgentStep[],
+  langkahKe: number,
+  maksLangkah: number,
+): string {
+  const baris: string[] = [`# Status pekerjaanmu (langkah ${langkahKe}/${maksLangkah})`];
+
+  if (todos.length) {
+    const simbol = (s: AgentTodo['status']) =>
+      s === 'done' ? '[x]' : s === 'in_progress' ? '[~]' : '[ ]';
+    baris.push('## Rencana (todo_write)');
+    for (const t of todos) baris.push(`- ${simbol(t.status)} ${t.content}`);
+  } else {
+    baris.push('## Rencana: belum ada. Kalau tugas butuh 3+ langkah, tulis rencananya ke todo_write.');
+  }
+
+  // Hanya langkah tool yang relevan; ambil 8 terakhir supaya prompt ringkas.
+  const tool = steps.filter((s) => s.kind === 'tool').slice(-8);
+  if (tool.length) {
+    baris.push('## Langkah tool terakhir (terbaru di bawah)');
+    for (const s of tool) {
+      const tanda = s.ok === false ? 'GAGAL' : 'ok';
+      baris.push(`- ${s.name} [${tanda}]${s.ok === false && s.result ? `: ${s.result.slice(0, 160)}` : ''}`);
+    }
+    const gagal = tool.filter((s) => s.ok === false);
+    if (gagal.length) {
+      baris.push(
+        `## Perhatian: ${gagal.length} langkah terakhir GAGAL. ` +
+          'Jangan ulangi dengan cara yang sama — pakai pendekatan berbeda atau jelaskan penghambatnya.',
+      );
+    }
+  }
+
+  return baris.join('\n');
+}
 
 let agentConfirmResolve: ((ok: boolean) => void) | null = null;
 
@@ -377,6 +433,16 @@ function persist(state: AiState) {
 
 const boot = loadSessions();
 
+/** Mode agent terakhir yang dipilih user, dipertahankan antar sesi. */
+function bootAgentMode(): 'chat' | 'agent' {
+  try {
+    return localStorage.getItem('zephyr.ai.mode') === 'agent' ? 'agent' : 'chat';
+  } catch {
+    return 'chat';
+  }
+}
+
+
 export const useAi = create<AiStore>((set, get) => ({
   sessions: boot.sessions,
   activeId: boot.activeId,
@@ -393,7 +459,7 @@ export const useAi = create<AiStore>((set, get) => ({
   toast: null,
   clearAllOpen: false,
 
-  agentMode: 'chat',
+  agentMode: bootAgentMode(),
 
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'work',
   agentBusy: false,
@@ -448,7 +514,7 @@ export const useAi = create<AiStore>((set, get) => ({
       attachActive: useStore.getState().settings.agents.attachActiveFile,
     });
     if (get().sessions.length === 0) get().newChat();
-    // The key was already loaded above; do not call twice.
+    get().sinkronProvider();
   },
 
   loadKeys: async () => {
@@ -467,16 +533,21 @@ export const useAi = create<AiStore>((set, get) => ({
   sinkronProvider: () => {
     const models = useStore.getState().settings.models;
     const target = models?.activeProvider;
-    if (!target || target === get().provider) return;
+    if (!target) return;
 
     // Provider yang belum dikenal biarkan apa adanya: menormalkan sekarang
     // justru bisa memindahkan panel ke provider yang salah.
     if (!PROVIDER_BY_ID.has(target)) return;
 
+    const dariSettings = models.providers?.[target]?.model;
+    const providerSama = target === get().provider;
+    const modelSama = !dariSettings || dariSettings === get().model;
+
+    // Kalau provider DAN model sudah sama, tidak ada yang perlu diubah.
+    if (providerSama && modelSama) return;
+
     const model =
-      models.providers?.[target]?.model ||
-      PROVIDER_BY_ID.get(target)?.models[0].id ||
-      get().model;
+      dariSettings || PROVIDER_BY_ID.get(target)?.models[0].id || get().model;
     set({ provider: target, model });
     const sid = get().activeId;
     if (sid) {
@@ -527,7 +598,14 @@ export const useAi = create<AiStore>((set, get) => ({
     clearDraftImages: () => set({ draftImages: [] }),
     setToast: (v) => set({ toast: v }),
   setConfirmCmd: (v) => set({ confirmCmd: v }),
-  setAgentMode: (m) => set({ agentMode: m }),
+  setAgentMode: (m) => {
+    set({ agentMode: m });
+    try {
+      localStorage.setItem('zephyr.ai.mode', m);
+    } catch {
+      /* diabaikan */
+    }
+  },
   setApprovalMode: (m) => {
 
     set((s) => ({
@@ -668,6 +746,7 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   send: async (text) => {
+    get().sinkronProvider();
     const raw = (text ?? get().draft).trim();
     const imgs = get().draftImages;
     if (!raw && imgs.length === 0) return;
@@ -883,6 +962,7 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   sendAgent: async (raw) => {
+    get().sinkronProvider();
     if (get().pending || get().agentBusy) {
       set({ toast: 'Masih ada tugas agent berjalan — Stop dulu' });
       return;
@@ -975,6 +1055,21 @@ export const useAi = create<AiStore>((set, get) => ({
 
     history.push({ role: 'user', content: content + identityReminder(get().model) });
 
+    {
+      const st2 = useStore.getState();
+      const tabAktif = st2.tabs.find((t) => t.id === st2.activeTabId);
+      if (tabAktif && tabAktif.path) {
+        history.push({
+          role: 'user',
+          content:
+            `[KONTEKS EDITOR] File yang sedang dibuka user: ${tabAktif.path}` +
+            `${tabAktif.unsaved ? ' (ada perubahan belum disimpan di buffer)' : ''}. ` +
+            'Kalau instruksi menyebut "file ini", "fungsi ini", atau "di sini", ' +
+            'maksudnya file tersebut. Pakai tool editor_read/editor_write untuk isinya.',
+        });
+      }
+    }
+
     let akhir = '';
     let langkah = 0;
     try {
@@ -998,6 +1093,15 @@ export const useAi = create<AiStore>((set, get) => ({
         }));
 
         agentWatchdogArm();
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i].role === 'user' && history[i].content.startsWith('# Status pekerjaanmu')) {
+            history.splice(i, 1);
+          }
+        }
+        history.push({
+          role: 'user',
+          content: statusPekerjaan(get().agentTodos, get().agentSteps, langkah + 1, MAX_AGENT_STEPS),
+        });
         const res = await new Promise<AgentStepResult>((resolve) => {
           agentStepResolve = resolve;
           cmd
@@ -1086,6 +1190,17 @@ export const useAi = create<AiStore>((set, get) => ({
             }
           }
 
+          if (!ok && !hasil.startsWith('(ditolak')) {
+            const namaTool = AGENT_TOOLS.some((t) => t.spec.name === tc.name)
+              ? tc.name
+              : `'${tc.name}' (nama tool tidak dikenal — periksa daftar tool)`;
+            hasil +=
+              `\n\n[PETUNJUK] Tool ${namaTool} gagal. Jangan ulangi dengan argumen yang sama.` +
+              ` Periksa pesan error di atas, lalu coba pendekatan lain: baca file dulu,` +
+              ` perbaiki argumen, atau pakai tool berbeda. Kalau memang tidak mungkin,` +
+              ` jelaskan ke user apa yang menghambat.`;
+          }
+
           if (agentBatal) break;
           const run = {
             name: tc.name,
@@ -1137,7 +1252,16 @@ export const useAi = create<AiStore>((set, get) => ({
               messages: x.messages.map((m) => {
                 if (m.id !== botMsg.id) return m;
 
-                const tampil = m.content.trim() ? m.content : akhir;
+                /*
+                 * `akhir` berasal dari `toolDone` Rust dan sudah dibersihkan
+                 * dari blok tool-call XML (lihat adapters/xml_tools.rs).
+                 * `m.content` adalah akumulasi potongan streaming mentah yang
+                 * masih memuat tag XML itu, jadi untuk pesan yang memakai tool
+                 * jawaban final harus menang; kalau tidak, tag mentah ikut
+                 * tersimpan ke disk. Untuk narasi biasa (tanpa tool) `akhir`
+                 * sama dengan teksnya, jadi tidak ada yang hilang.
+                 */
+                const tampil = akhir.trim() ? akhir : m.content;
                 return { ...m, content: tampil || '(tidak ada jawaban)', streaming: false };
               }),
             }

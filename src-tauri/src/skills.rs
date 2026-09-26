@@ -77,26 +77,6 @@ fn root_global(state: &AppState) -> PathBuf {
     state.data_dir.join("skills")
 }
 
-/**
- * Folder skill milik Hermes Agent, kalau ada di mesin ini.
- *
- * KENAPA dibaca juga: banyak skill di folder itu berlaku umum (cara pakai
- * Hermes, penulisan skill, konvensi Tauri) dan menyalinnya ke folder Zephyr
- * berarti dua salinan yang akan berbeda begitu salah satunya diperbarui.
- * Membacanya langsung membuat keduanya selalu sinkron.
- */
-fn root_hermes() -> Option<PathBuf> {
-    let home = std::env::var_os("USERPROFILE")
-        .or_else(|| std::env::var_os("HOME"))
-        .map(PathBuf::from)?;
-    let p = home.join(".hermes").join("skills");
-    if p.is_dir() {
-        Some(p)
-    } else {
-        None
-    }
-}
-
 fn root_workspace(state: &AppState) -> Option<PathBuf> {
     state
         .workspace_path()
@@ -126,11 +106,10 @@ fn baca_satu(dir: &Path, scope: &str) -> Option<SkillInfo> {
 /**
  * Telusuri satu folder skill, termasuk subfolder.
  *
- * KENAPA rekursif: skill Hermes disusun bertingkat (mis. `ad/ad-adcs/SKILL.md`,
- * `web/web-xss/SKILL.md`), sementara skill Zephyr rata. Versi pertama hanya
- * melihat satu tingkat, jadi hampir semua skill Hermes tidak ditemukan.
- * Kedalaman dibatasi 4 supaya folder yang salah tempat tidak membuat
- * penelusuran berputar.
+ * KENAPA rekursif: skill bisa disusun bertingkat (mis. `web/xss/SKILL.md`),
+ * dan versi pertama hanya melihat satu tingkat sehingga skill bertingkat tidak
+ * ditemukan. Kedalaman dibatasi 4 supaya folder yang salah tempat tidak
+ * membuat penelusuran berputar.
  */
 fn kumpulkan_skill(root: &Path, scope: &str, kedalaman: u8, hasil: &mut Vec<SkillInfo>) {
     if kedalaman > 4 {
@@ -166,9 +145,6 @@ pub fn daftar_skills(state: &AppState) -> Vec<SkillInfo> {
         roots.push((w, "workspace"));
     }
     roots.push((root_global(state), "global"));
-    if let Some(h) = root_hermes() {
-        roots.push((h, "hermes"));
-    }
 
     for (root, scope) in roots {
         let mut ditemukan = Vec::new();
@@ -187,9 +163,7 @@ pub fn daftar_skills(state: &AppState) -> Vec<SkillInfo> {
 /**
  * Cari folder skill berdasarkan nama.
  *
- * Urutan pencarian: workspace, lalu global, lalu folder Hermes. Skill Hermes
- * ditemukan dengan menelusuri bertingkat, karena di sana skill disusun
- * berkelompok (`ad/ad-adcs/`, `web/web-xss/`). Yang bertingkat dicari dengan
+ * Urutan pencarian: workspace, lalu global. Skill bertingkat dicari dengan
  * mencocokkan nama folder paling dalam, dan juga `name:` dari frontmatter
  * when the folder name differs.
  */
@@ -205,9 +179,6 @@ fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)
         kandidat.push((w, "workspace"));
     }
     kandidat.push((root_global(state), "global"));
-    if let Some(h) = root_hermes() {
-        kandidat.push((h, "hermes"));
-    }
 
     for (root, scope) in &kandidat {
         let entries = match std::fs::read_dir(root) {
@@ -230,7 +201,7 @@ fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)
         }
     }
 
-    // Penelusuran bertingkat untuk struktur seperti milik Hermes.
+    // Penelusuran bertingkat untuk skill yang disusun berkelompok.
     for (root, scope) in &kandidat {
         let mut ditemukan: Vec<PathBuf> = Vec::new();
         cari_folder_nama(root, nama, 0, &mut ditemukan);
@@ -247,10 +218,10 @@ fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)
 /**
  * Telusuri bertingkat, cocokkan nama folder ATAU `name:` di frontmatter.
  *
- * KENAPA dua cara: di folder Hermes, nama folder kadang beda dari `name:` di
- * SKILL.md (`antislop-code/` berisi `name: antislop-code`, tapi
- * `hermes-agent/` bisa berisi nama lain). Mencocokkan keduanya menghindari
- * "skill not found" when it does exist.
+ * KENAPA dua cara: nama folder kadang beda dari `name:` di SKILL.md
+ * (`antislop-code/` berisi `name: antislop-code`, tapi folder lain bisa
+ * memakai nama berbeda). Mencocokkan keduanya menghindari "skill not found"
+ * when it does exist.
  */
 fn cari_folder_nama(root: &Path, nama: &str, kedalaman: u8, hasil: &mut Vec<PathBuf>) {
     if kedalaman > 4 || hasil.len() >= 1 {
@@ -324,20 +295,6 @@ pub fn tulis_skill(
             "nama skill tidak valid: '{nama}' (hanya huruf, angka, '-' dan '_')"
         )));
     }
-    /*
-     * A skill that came from the Hermes folder must not be overwritten here.
-     * Menulisnya akan mengubah perilaku Hermes milik user, dan perubahan itu
-     * is invisible from Zephyr. To change it, edit it directly in the Hermes
-     * Hermes.
-     */
-    if let Ok((dir, asal)) = folder_skill(state, nama) {
-        if asal == "hermes" {
-            return Err(ZephyrError::InvalidInput(format!(
-                "skill '{nama}' berasal dari folder Hermes dan tidak bisa ditimpa dari sini: {}",
-                dir.to_string_lossy()
-            )));
-        }
-    }
     let root = match scope {
         "global" => root_global(state),
         "workspace" => match root_workspace(state) {
@@ -382,18 +339,7 @@ fn buang_frontmatter(isi: &str) -> String {
 }
 
 pub fn hapus_skill(state: &AppState, nama: &str) -> ZResult<()> {
-    let (dir, scope) = folder_skill(state, nama)?;
-    /*
-     * Skill Hermes hanya dipinjam, bukan milik Zephyr. Menghapusnya dari sini
-     * akan merusak sesi Hermes milik user, jadi ditolak dengan pesan yang
-     * menjelaskan di mana filenya.
-     */
-    if scope == "hermes" {
-        return Err(ZephyrError::InvalidInput(format!(
-            "skill '{nama}' berasal dari folder Hermes dan tidak bisa dihapus dari sini: {}",
-            dir.to_string_lossy()
-        )));
-    }
+    let (dir, _scope) = folder_skill(state, nama)?;
     std::fs::remove_dir_all(&dir)?;
     Ok(())
 }

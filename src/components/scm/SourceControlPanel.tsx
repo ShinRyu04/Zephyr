@@ -650,7 +650,38 @@ export default function SourceControlPanel() {
             Branch switcher
           </button>
           <button
-            className="scm-menu-item is-danger"
+            className="scm-menu-item"
+            role="menuitem"
+            data-testid="scm-stash"
+            disabled={busy || changes.length === 0}
+            onClick={() => {
+              setKebab(false);
+              void useGit.getState().stashSave();
+            }}
+          >
+            Stash changes
+          </button>
+          <button
+            className="scm-menu-item"
+            role="menuitem"
+            data-testid="scm-stash-pop"
+            disabled={busy}
+            onClick={() => {
+              setKebab(false);
+              void (async () => {
+                const list = await useGit.getState().stashList();
+                if (list.length === 0) {
+                  useGit.setState({ scmInfo: 'Tidak ada stash' });
+                  return;
+                }
+                await useGit.getState().stashPop(0);
+              })();
+            }}
+          >
+            Pop latest stash
+          </button>
+          <button
+            className="scm-menu-item"
             role="menuitem"
             data-testid="scm-discard-all-menu"
             disabled={unstaged.length === 0}
@@ -685,6 +716,47 @@ export default function SourceControlPanel() {
             konflik — selesaikan lalu stage
           </span>
         )}
+        {status?.conflicted && changes.filter((c) => c.status === 'U' || c.status === 'UU').length > 0 && (
+          <div className="scm-conflict-actions" data-testid="scm-conflict-actions">
+            {changes
+              .filter((c) => c.status === 'U' || c.status === 'UU')
+              .map((c) => (
+                <div key={c.path} className="scm-conflict-row">
+                  <span className="scm-conflict-path" title={c.path}>
+                    {c.path}
+                  </span>
+                  <button
+                    className="ex-btn"
+                    data-testid={`scm-ours-${c.path}`}
+                    title="Ambil versi kita (ours)"
+                    onClick={() =>
+                      void (async () => {
+                        const { gitConflictTake } = await import('../../lib/commands');
+                        await gitConflictTake(c.path, 'ours');
+                        await init();
+                      })()
+                    }
+                  >
+                    ours
+                  </button>
+                  <button
+                    className="ex-btn"
+                    data-testid={`scm-theirs-${c.path}`}
+                    title="Ambil versi mereka (theirs)"
+                    onClick={() =>
+                      void (async () => {
+                        const { gitConflictTake } = await import('../../lib/commands');
+                        await gitConflictTake(c.path, 'theirs');
+                        await init();
+                      })()
+                    }
+                  >
+                    theirs
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
       </div>
       <BranchMenu />
 
@@ -717,6 +789,15 @@ export default function SourceControlPanel() {
           onClick={() => void commit()}
         >
           Commit{stagedCount > 0 ? ` (${stagedCount})` : ''}
+        </button>
+        <button
+          className="btn btn-block"
+          data-testid="scm-ai-commit"
+          disabled={busy || changes.length === 0}
+          title="Isi pesan commit dari diff memakai AI"
+          onClick={() => void useGit.getState().commitWithAi()}
+        >
+          AI commit message
         </button>
       </div>
 

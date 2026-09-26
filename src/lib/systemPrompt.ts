@@ -25,12 +25,14 @@ export function blokIdentitasModel(provider: string, model: string): string {
 
 const CARA_KERJA = [
   '# Cara kerja',
-  '1. PAHAMI dulu. Baca file yang relevan sebelum mengubah apa pun. Kalau soal itu tentang kode, cari dulu dengan pencarian teks — jangan menebak isi file.',
+  '1. PAHAMI dulu. Kamu sudah diberi ringkasan struktur proyek dan aturan proyek di bawah — pakai itu. Baca file yang relevan sebelum mengubah apa pun. Kalau soal kode, cari dulu dengan pencarian teks; jangan menebak isi file.',
   '2. RENCANAKAN singkat (2-5 langkah) untuk tugas yang lebih dari sekadar pertanyaan. Tulis rencana di balasan, lalu langsung kerjakan — jangan minta izin untuk langkah yang sudah jelas.',
   '3. TULIS RENCANA ITU KE todo_write. Tugas yang butuh 3 langkah atau lebih WAJIB masuk todo_write, dan statusnya diperbarui setiap kali berubah (pending -> in_progress -> done). Ini bukan formalitas: user memantau pekerjaanmu dari panel TODO, dan tanpa itu ia tidak tahu kamu sedang di mana.',
   '4. KERJAKAN dengan tool. Satu langkah = satu tool. Jangan menyatakan sudah selesai sebelum benar-benar memanggil tool-nya.',
-  '5. VERIFIKASI hasilnya: jalankan test/typecheck/build, atau baca ulang file yang kamu tulis. Perbaiki sendiri kalau gagal, jangan lapor gagal begitu saja.',
-  '6. LAPOR hasil akhir: apa yang berubah, di file mana, dan apa yang sudah diverifikasi. Ringkas — tanpa mengulang isi seluruh file.',
+  '5. KALAU TOOL GAGAL, JANGAN MENYERAH. Baca pesan error aslinya, lalu coba pendekatan lain — baca file dulu, perbaiki argumen, pakai tool berbeda. Mengulang perintah yang sama persis tidak akan berhasil.',
+  '6. VERIFIKASI hasilnya: jalankan test/typecheck/build, atau baca ulang file yang kamu tulis. Perbaiki sendiri kalau gagal, jangan lapor gagal begitu saja.',
+  '7. LAPOR hasil akhir: apa yang berubah, di file mana, dan apa yang sudah diverifikasi. Ringkas — tanpa mengulang isi seluruh file.',
+  '8. KALAU USER MENYEBUT FOLDER/PROYEK, kerjakan DI DALAM folder itu. Semua path relatif terhadap workspace aktif yang disebut di blok konteks proyek.',
 ].join('\n');
 
 const ATURAN = [
@@ -105,8 +107,9 @@ export function identityReminder(model = ''): string {
 
 export const IDENTITY_REMINDER = identityReminder();
 
-const FILE_ATURAN = ['AGENTS.md', 'ZEPHYR.md', 'CLAUDE.md', 'TERAX.md', '.cursorrules'];
-const ATURAN_MAX_CHARS = 6000;
+const FILE_ATURAN = ['AGENTS.md', 'CLAUDE.md', 'ZEPHYR.md', 'TERAX.md', '.cursorrules'];
+const ATURAN_MAX_CHARS = 4000;
+const ATURAN_TOTAL_MAX = 12000;
 let cacheAturan: { at: number; teks: string } | null = null;
 const ATURAN_TTL_MS = 30000;
 
@@ -116,18 +119,19 @@ export async function aturanProyek(): Promise<string> {
   const ws = useStore.getState().workspace;
   if (!ws) return '';
   const bagian: string[] = [];
+  let total = 0;
   for (const nama of FILE_ATURAN) {
+    if (total >= ATURAN_TOTAL_MAX) break;
     const path = `${ws}/${nama}`.replace(/\\/g, '/');
     try {
       const isi = await fsRead(path, 'utf8');
       const teks = typeof isi === 'string' ? isi : ((isi as { content?: string })?.content ?? '');
       if (teks.trim()) {
-        bagian.push('## ' + nama + '\n' + teks.slice(0, ATURAN_MAX_CHARS));
-
-        break;
+        const potong = teks.slice(0, ATURAN_MAX_CHARS);
+        bagian.push('## ' + nama + '\n' + potong);
+        total += potong.length;
       }
     } catch {
-      // File missing: move on to the next candidate.
     }
   }
   const hasil = bagian.join('\n\n');

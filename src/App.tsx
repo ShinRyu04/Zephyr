@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import ActivityBar from './components/shell/ActivityBar';
 import Sidebar from './components/shell/Sidebar';
@@ -7,28 +7,30 @@ import Panel from './components/shell/Panel';
 import TerminalArea from './components/shell/TerminalArea';
 import AiPanel from './components/ai/AiPanel';
 import SubAgentInfo from './components/ai/SubAgentInfo';
-import ClearChatsDialog from './components/ai/ClearChatsDialog';
 import StatusBar from './components/shell/StatusBar';
-import ConfirmDialog from './components/shell/ConfirmDialog';
-import SaveIssueDialog from './components/shell/SaveIssueDialog';
 import Toast from './components/notifications/Toast';
-import NotificationCenter from './components/notifications/NotificationCenter';
-import DeleteConfirmDialog from './components/explorer/DeleteConfirmDialog';
-import TrustDialog from './components/workspace/TrustDialog';
 import MenuBar from './components/shell/MenuBar';
-import UpdateBanner from './components/shell/UpdateBanner';
-import DonateDialog from './components/shell/DonateDialog';
-import ExtApprovalModal from './components/extensions/ExtApprovalModal';
-import KeybindingsEditor from './components/shell/KeybindingsEditor';
-import LspOverlay from './components/editor/LspOverlay';
-import ScmConfirmDialog from './components/scm/ScmConfirmDialog';
-import CommandPalette from './components/shell/CommandPalette';
-import McpToast from './components/shell/McpToast';
-import CrashDialog from './components/shell/CrashDialog';
+import LiveRegion from './components/a11y/LiveRegion';
+
+const ClearChatsDialog = lazy(() => import('./components/ai/ClearChatsDialog'));
+const ConfirmDialog = lazy(() => import('./components/shell/ConfirmDialog'));
+const SaveIssueDialog = lazy(() => import('./components/shell/SaveIssueDialog'));
+const NotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
+const DeleteConfirmDialog = lazy(() => import('./components/explorer/DeleteConfirmDialog'));
+const TrustDialog = lazy(() => import('./components/workspace/TrustDialog'));
+const UpdateBanner = lazy(() => import('./components/shell/UpdateBanner'));
+const DonateDialog = lazy(() => import('./components/shell/DonateDialog'));
+const ExtApprovalModal = lazy(() => import('./components/extensions/ExtApprovalModal'));
+const KeybindingsEditor = lazy(() => import('./components/shell/KeybindingsEditor'));
+const LspOverlay = lazy(() => import('./components/editor/LspOverlay'));
+const ScmConfirmDialog = lazy(() => import('./components/scm/ScmConfirmDialog'));
+const CommandPalette = lazy(() => import('./components/shell/CommandPalette'));
+const McpToast = lazy(() => import('./components/shell/McpToast'));
+const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
+const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
 import { useStore } from './lib/store';
 import { useTampilan } from './lib/tampilanStore';
 import { useLayoutCustom } from './lib/layoutStore';
-import LayoutMenu from './components/shell/LayoutMenu';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
 import { useAi } from './lib/aiStore';
@@ -39,9 +41,7 @@ import { useExtensions } from './lib/extensionStore';
 import { useSettingsUi } from './lib/settingsStore';
 import { useUpdater } from './lib/updaterStore';
 import { applyTheme, watchSystemTheme } from './lib/themes';
-
 import { terapkanA11y, umumkan as umumkanA11y } from './lib/a11yStore';
-import LiveRegion from './components/a11y/LiveRegion';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindTaskListeners, useTasks } from './lib/tasksStore';
 import { useHistory } from './lib/historyStore';
@@ -756,7 +756,9 @@ export default function App() {
     void useMcp.getState().init();
     if (mcpListenerBound) return;
     mcpListenerBound = true;
-    void onMcpAction((a) => void useMcp.getState().handleAction(a));
+    void onMcpAction((a) => void useMcp.getState().handleAction(a)).then(() => {
+      void import('./lib/commands').then((c) => c.mcpUiReady().catch(() => {}));
+    });
     void onMcpScreenshot(({ paneId, path }) => {
       const m = useMcp.getState();
       m.setToast(`AI CLI mengambil screenshot pane ${paneId.slice(-6)}`);
@@ -891,8 +893,10 @@ export default function App() {
         {tr('win.skipToEditor')}
       </button>
       {L.menuBar && <MenuBar />}
-      <UpdateBanner />
-      <DonateDialog />
+      <Suspense fallback={null}>
+        <UpdateBanner />
+        <DonateDialog />
+      </Suspense>
       <div className={`app-body sidebar-pos-${pos}${zen ? ' is-zen' : ''}${L.kerapatan === 'compact' ? ' is-compact' : ''}`}>
         {/* ActivityBar IKUT PINDAH mengikuti posisi panel:
             - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)
@@ -1034,22 +1038,24 @@ export default function App() {
           Kalau di dalam MenuBar, mematikan Menu Bar akan menghilangkan
           satu-satunya tombol untuk menyalakannya kembali. */}
       {L.menuBuka && <LayoutMenu onTutup={() => L.setMenuBuka(false)} />}
-      <ConfirmDialog />
-      <SaveIssueDialog />
-      <ScmConfirmDialog />
-      <CommandPalette />
-      <McpToast />
-      <CrashDialog />
+      <Suspense fallback={null}>
+        <ConfirmDialog />
+        <SaveIssueDialog />
+        <ScmConfirmDialog />
+        <CommandPalette />
+        <McpToast />
+        <CrashDialog />
+        <NotificationCenter />
+        <DeleteConfirmDialog />
+        <ClearChatsDialog />
+        <TrustDialog />
+        {/* Izin runtime eksternal ekstensi — global, bisa muncul kapan
+            saja karena eksekusi bisa diminta dari worker mana pun. */}
+        <ExtApprovalModal />
+        <KeybindingsEditor />
+        <LspOverlay />
+      </Suspense>
       <Toast />
-      <NotificationCenter />
-      <DeleteConfirmDialog />
-      <ClearChatsDialog />
-      <TrustDialog />
-      {/* Izin runtime eksternal ekstensi — global, bisa muncul kapan
-          saja karena eksekusi bisa diminta dari worker mana pun. */}
-      <ExtApprovalModal />
-      <KeybindingsEditor />
-      <LspOverlay />
       {/* fase 31: live region a11y. Dirender TERAKHIR supaya tidak menyisip
           di antara landmark dan tidak mengganggu urutan Tab (ia tak fokusabel). */}
       <LiveRegion />

@@ -53,12 +53,17 @@ export default function AiPanel() {
   const agentPutuskan = useAi((s) => s.agentPutuskan);
   const sibuk = pending || agentBusy;
 
+  const provider = useAi((s) => s.provider);
+  const keys = useAi((s) => s.keys);
+  const bukaSettings = useStore((s) => s.setSettingsOpen);
+  const providerTanpaKey =
+    keys.length > 0 && !keys.some((k) => k.provider === provider && k.hasKey);
+
   const activeTab = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null);
 
   const paneCount = useTerminal((s) => s.terminalTabs.reduce((n, t) => n + t.panes.length, 0));
 
-  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
-  const aiMax = useStore((s) => s.aiMax);
+  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');  const aiMax = useStore((s) => s.aiMax);
   const setAiMax = useStore((s) => s.setAiMax);
   const applySettings = useStore((s) => s.applySettings);
 
@@ -140,6 +145,7 @@ export default function AiPanel() {
           <button
             className={`ai-mode-btn${agentMode === 'chat' ? ' is-on' : ''}`}
             data-testid="ai-mode-chat"
+            title={tr('Chat: tanya jawab biasa, tanpa menjalankan tool')}
             onClick={() => setAgentMode('chat')}
           >
             Chat
@@ -147,6 +153,7 @@ export default function AiPanel() {
           <button
             className={`ai-mode-btn${agentMode === 'agent' ? ' is-on' : ''}`}
             data-testid="ai-mode-agent"
+            title={tr('Agent: AI membaca file, menjalankan perintah, dan mengerjakan tugas sampai selesai')}
             onClick={() => setAgentMode('agent')}
           >
             Agent
@@ -251,6 +258,22 @@ export default function AiPanel() {
       </div>
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat">
+        {providerTanpaKey && (
+          <div className="ai-nokey" data-testid="ai-nokey" role="alert">
+            <p className="ai-nokey-title">{tr('Provider ini belum punya API key')}</p>
+            <p className="ai-nokey-body">
+              {tr('Tambahkan API key untuk')} <strong>{provider}</strong>{' '}
+              {tr('supaya AI bisa menjawab. Tanpa key, setiap permintaan akan gagal dengan 401.')}
+            </p>
+            <button
+              className="btn btn-primary btn-sm"
+              data-testid="ai-nokey-open"
+              onClick={() => bukaSettings(true)}
+            >
+              {tr('Buka Settings → Model AI')}
+            </button>
+          </div>
+        )}
         {msgs.length === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
             <p className="ai-empty-title">{tr('Tanya apa saja soal kode ini.')}</p>

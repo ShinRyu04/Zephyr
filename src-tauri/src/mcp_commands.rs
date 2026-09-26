@@ -54,6 +54,14 @@ pub fn mcp_reply(state: State<AppState>, req_id: String, result: Value) -> ZResu
     Ok(state.mcp_resolve(&req_id, result))
 }
 
+/// Frontend memanggil ini setelah listener `mcp-action` terpasang, sehingga
+/// MCP server tidak perlu membuang percobaan pada jendela boot.
+#[tauri::command(async)]
+pub fn mcp_ui_ready(state: State<AppState>) -> ZResult<bool> {
+    state.mcp_set_ui_ready(true);
+    Ok(true)
+}
+
 #[tauri::command(async)]
 pub fn mcp_rotate_token(state: State<AppState>) -> ZResult<String> {
     Ok(crate::mcp_config::rotate_token(&state)?.token)

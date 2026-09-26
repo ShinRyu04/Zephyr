@@ -59,12 +59,20 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 
 - Status, diff, stage, unstage, commit, discard, branch, and log
 - Push, pull, fetch, and sync, with a pull-first prompt when the remote is ahead
+- Inline blame for the active file, written to the Output panel
+- Stash save, list, pop, and drop
+- Conflict resolver with take-ours and take-theirs actions
+- Write a commit message from the staged diff with one click
 - Binary diffs labeled with their size, not raw bytes
 - GitHub login through the OAuth device flow or a PAT
 
 ### AI
 
-- Streaming chat with three adapter formats: OpenAI, Anthropic, and Gemini
+- Two modes: plain streaming chat, or an agent that reads files, runs commands, and works a task to the end
+- Three adapter formats: OpenAI, Anthropic, and Gemini
+- Tool calls sent as inline XML (DSML, tool_calls, antml) are parsed too, so gateway models that do not use the native field still run tools
+- The workspace is summarized up front: detected stack, entry points, and file map, plus every AGENTS.md, CLAUDE.md, and .cursorrules file
+- Each agent turn is told its own plan, step progress, and past failures, so it does not repeat a failed call
 - Model catalog with logos; keys stay on the Rust side, the UI only sees a masked preview
 - Local and custom providers, including Ollama and any OpenAI-compatible endpoint
 - Subagents run in parallel from their own tab, each with a role, step log, and cancel
@@ -75,6 +83,8 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 - HTTP JSON-RPC with a Bearer token, loopback only, and can be turned off
 - More than 20 methods to read panes, write the terminal, and edit buffers
 - `editor_write` changes the buffer only and never writes to disk
+- Requests wait for the UI to be ready and retry, so a call made during startup is not lost
+- `/health` needs no token and does no UI work, so it cannot stall agent calls
 - One click to register Zephyr with Claude Code, Codex, Gemini CLI, opencode, and more
 
 ### Customization

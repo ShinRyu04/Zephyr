@@ -1,6 +1,6 @@
 [package]
 name = "zephyr"
-version = "1.1.10"
+version = "1.1.11"
 description = "A lightweight Windows code editor that AI CLIs can drive"
 authors = ["Zephyr"]
 license = "Apache-2.0"
@@ -36,14 +36,14 @@ blake3 = "1.8.7"
 base64 = "0.23.1"
 ureq = { version = "3", features = ["json"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
-# Auto-update dalam app (fase 17.6). Endpoint masih kosong — plugin tetap
+# Auto-update dalam app (fase 17.6). Endpoint masih kosong  Eplugin tetap
 # dipasang supaya UI "Check for Updates" punya jalur nyata; kalau endpoints
 # kosong, `check()` mengembalikan error yang ditangkap dan ditampilkan sebagai
 # "Update belum dikonfigurasi" (17.6.e).
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 # fase 28: instance kedua meneruskan argv ke jendela pertama (ala `code`).
-# WAJIB plugin PERTAMA yang didaftarkan — plugin jalan sesuai urutan
+# WAJIB plugin PERTAMA yang didaftarkan  Eplugin jalan sesuai urutan
 # penambahan, dan pengecekan instance harus terjadi sebelum apa pun dimulai.
 tauri-plugin-single-instance = "2"
 # Logging (fase 14): tracing + penulis file sendiri (rotate 2MB) di logging.rs.

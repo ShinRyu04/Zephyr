@@ -3,6 +3,55 @@
 All notable changes per release. Format follows the spirit of
 [Keep a Changelog](https://keepachangelog.com/); versions use SemVer.
 
+## [1.1.11] - 2026-09-26
+
+### AI
+- Parse tool calls that arrive as inline XML (DSML, `<tool_calls>`,
+  `<antml:invoke>`), not just the native `tool_calls` field, so gateway and
+  DeepSeek-style models run tools instead of printing raw tags.
+- Summarize the workspace before the first turn: detected stack, entry points,
+  top-level layout, and a short source file list. Build and cache directories
+  are excluded.
+- Read every project rules file (`AGENTS.md`, `CLAUDE.md`, `ZEPHYR.md`,
+  `.cursorrules`) instead of only the first one found.
+- Give each agent turn a status block with plan, step number, recent results,
+  and failed calls, so the model does not repeat a failed call.
+- On a failed tool call, return guidance to try a different approach.
+- Include the active editor file as agent context.
+- Show a banner, with a link to settings, when the provider has no API key.
+- Remember the Chat/Agent choice across restarts.
+- Add a 90-second idle watchdog to the subagent runner.
+- Fix `file_edit` so it replaces every occurrence and treats `$` sequences in
+  the replacement as literal text.
+
+### Interface
+- Add a startup splash that shows immediately, closing when React mounts.
+- Start the browser pane with no URL, showing a prompt instead of a likely
+  refused `localhost:3000` that looked like a black, broken pane.
+- Add tooltips that explain the Chat and Agent buttons.
+
+### Git
+- Blame the active file into the Output panel (hash, author, summary per line).
+- Stash save, list, pop, and drop.
+- Conflict resolver with take-ours and take-theirs.
+- Rebase onto a branch.
+- Write a commit message from the diff with one click.
+
+### MCP server
+- Wait for the front end to attach its listener and retry, instead of losing a
+  call made during startup.
+- Remove UI work from `/health`, so an unauthenticated local caller cannot stall
+  agent calls.
+- Clear pending requests on every failure path.
+
+### Fixed
+- Write settings files atomically to prevent truncated JSON after an interrupted
+  write.
+- Stop a panic on paths that contain non-ASCII characters.
+- Reject an extension id such as `C:evil` that could resolve outside the
+  extensions directory.
+- Fail a subagent with a clear timeout instead of hanging forever.
+
 ## [1.0.0] - 2026-09-03
 
 First release. A Windows desktop code editor built from scratch (not a VS Code

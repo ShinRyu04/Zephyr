@@ -950,3 +950,127 @@ fn read_user(state: &AppState) -> ZResult<GitUser> {
 pub fn git_config_get_user(state: State<AppState>) -> ZResult<GitUser> {
     read_user(&state)
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitBlameLine {
+    pub line: u32,
+    pub hash: String,
+    pub author: String,
+    pub date: String,
+    pub summary: String,
+}
+
+#[tauri::command(async)]
+pub fn git_blame(state: State<AppState>, path: String) -> ZResult<Vec<GitBlameLine>> {
+    let rel = path.replace('\\', "/");
+    let raw = git(
+        &state,
+        &["blame", "--line-porcelain", "--", &rel],
+    )?;
+
+    let mut out: Vec<GitBlameLine> = Vec::new();
+    let mut line_no: u32 = 0;
+    let mut hash = String::new();
+    let mut author = String::new();
+    let mut date = String::new();
+    let mut summary = String::new();
+
+    for l in raw.lines() {
+        if let Some(rest) = l.strip_prefix("author ") {
+            author = rest.to_string();
+        } else if let Some(rest) = l.strip_prefix("author-time ") {
+            date = rest.to_string();
+        } else if let Some(rest) = l.strip_prefix("summary ") {
+            summary = rest.to_string();
+        } else if let Some(rest) = l.strip_prefix('\t') {
+            let _ = rest;
+            line_no += 1;
+            out.push(GitBlameLine {
+                line: line_no,
+                hash: hash.chars().take(8).collect(),
+                author: author.clone(),
+                date: date.clone(),
+                summary: summary.clone(),
+            });
+        } else if !l.starts_with(' ') {
+            let mut it = l.split(' ');
+            if let Some(h) = it.next() {
+                if h.len() >= 8 && h.chars().all(|c| c.is_ascii_hexdigit()) {
+                    hash = h.to_string();
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStashEntry {
+    pub index: u32,
+    pub message: String,
+}
+
+#[tauri::command(async)]
+pub fn git_stash_save(state: State<AppState>, message: Option<String>) -> ZResult<bool> {
+    let msg = message.unwrap_or_else(|| "zephyr-stash".to_string());
+    match git(&state, &["stash", "push", "-u", "-m", &msg]) {
+        Ok(out) => Ok(!out.contains("No local changes")),
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command(async)]
+pub fn git_stash_list(state: State<AppState>) -> ZResult<Vec<GitStashEntry>> {
+    let raw = match git(&state, &["stash", "list", "--pretty=format:%gd%x1f%s"]) {
+        Ok(r) => r,
+        Err(_) => return Ok(vec![]),
+    };
+    let mut out = Vec::new();
+    for (i, l) in raw.lines().enumerate() {
+        let mut it = l.split('\u{1f}');
+        let _gd = it.next();
+        let msg = it.next().unwrap_or("").to_string();
+        out.push(GitStashEntry {
+            index: i as u32,
+            message: msg,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command(async)]
+pub fn git_stash_pop(state: State<AppState>, index: u32) -> ZResult<bool> {
+    let refspec = format!("stash@{{{index}}}");
+    git(&state, &["stash", "pop", &refspec])?;
+    Ok(true)
+}
+
+#[tauri::command(async)]
+pub fn git_stash_drop(state: State<AppState>, index: u32) -> ZResult<bool> {
+    let refspec = format!("stash@{{{index}}}");
+    git(&state, &["stash", "drop", &refspec])?;
+    Ok(true)
+}
+
+#[tauri::command(async)]
+pub fn git_rebase(state: State<AppState>, onto: String) -> ZResult<String> {
+    if onto.trim().is_empty() || onto.starts_with('-') {
+        return Err(ZephyrError::InvalidInput("nama branch tidak valid".into()));
+    }
+    git(&state, &["rebase", &onto])
+}
+
+#[tauri::command(async)]
+pub fn git_conflict_take(state: State<AppState>, path: String, side: String) -> ZResult<bool> {
+    let rel = path.replace('\\', "/");
+    let flag = match side.as_str() {
+        "ours" => "--ours",
+        "theirs" => "--theirs",
+        _ => return Err(ZephyrError::InvalidInput("side harus 'ours' atau 'theirs'".into())),
+    };
+    git(&state, &["checkout", flag, "--", &rel])?;
+    git(&state, &["add", "--", &rel])?;
+    Ok(true)
+}
