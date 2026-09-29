@@ -15,6 +15,7 @@ mod cron;
 mod dap;
 mod diagnostics;
 mod dialogs;
+mod discord_rpc;
 mod errors;
 mod explorer;
 mod ext_bundled;
@@ -148,6 +149,7 @@ pub fn run() {
             logging::attach_app(app.handle().clone());
 
             cron::mulai_timer(app.handle().clone());
+            discord_rpc::start(app.handle().clone());
             app.state::<AppState>()
                 .perf_mark("setup", Some(boot.elapsed().as_millis() as u64));
 
@@ -446,6 +448,7 @@ pub fn run() {
                 tracing::info!(uptime_ms = st.uptime_ms(), "application exit");
                 st.pty_kill_all();
 
+                discord_rpc::stop();
                 mcp_server::stop(handle);
             }
         }),

@@ -3,6 +3,15 @@
 All notable changes per release. Format follows the spirit of
 [Keep a Changelog](https://keepachangelog.com/); versions use SemVer.
 
+## [Unreleased]
+
+### Integrations
+- Discord Rich Presence built into the app: on launch Zephyr connects to the
+  local Discord IPC pipe and publishes "Zephyr" as the current activity with
+  the custom application icon, the active workspace folder as state, and an
+  elapsed-time counter. Presence clears on exit, so the game-activity slot no
+  longer shows Discord's generic question-mark placeholder.
+
 ## [1.1.11] - 2026-09-26
 
 ### AI

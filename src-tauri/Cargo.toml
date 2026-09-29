@@ -1,6 +1,6 @@
 [package]
 name = "zephyr"
-version = "1.1.11"
+version = "1.1.12"
 description = "A lightweight Windows code editor that AI CLIs can drive"
 authors = ["Zephyr"]
 license = "Apache-2.0"
@@ -55,6 +55,7 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 zip = { version = "5", default-features = false, features = ["deflate"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+discord-rich-presence = "1.1.0"
 
 [features]
 # Fitur custom-protocol hanya aktif saat build release (production).
