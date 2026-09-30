@@ -32,3 +32,19 @@ key-baru-*/
 release/
 # Skrip probe lokal
 scripts/zz-*.mjs
+
+# Screenshot & capture pengujian — dokumentasi, bukan bagian dari aplikasi
+shot-*.png
+side-*.png
+status-*.png
+final*.png
+cek-ui.jpg
+gh-menu.png
+vscode-menu.png
+
+# Berkas kerja audit/terjemahan sekali pakai (root)
+_*.json
+_*.txt
+
+# Salinan catatan rilis lama — catatan resmi hidup di release/<versi>/
+RELEASE_NOTES_v*.md

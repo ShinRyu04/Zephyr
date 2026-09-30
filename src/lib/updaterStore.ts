@@ -1,7 +1,28 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { notifyInfo, useNotif } from './notificationStore';
-import { tf, tx } from './i18n';
+import { tf, tx, translate } from './i18n';
+import { useStore } from './store';
+
+// The updater hands us one `notes` string, but the release is published in
+// every UI language. The Tauri plugin also passes the parsed latest.json entry
+// as `rawJson`, so when that entry carries a per-language `notes` object we
+// pick the one matching uiLang. Falls back to the plugin's plain body, then to
+// English, then to the first language present.
+function notesUntukBahasa(
+  body: string | null | undefined,
+  raw: Record<string, unknown> | null | undefined,
+): string | null {
+  const lang = useStore.getState().settings?.general?.uiLang ?? 'en';
+  const n = raw?.notes;
+  if (n && typeof n === 'object') {
+    const t = n as Record<string, string>;
+    const pilih = t[lang] ?? t.en ?? Object.values(t)[0];
+    if (pilih) return pilih;
+  }
+  if (typeof n === 'string' && n) return translate(lang, n);
+  return body ? translate(lang, body) : null;
+}
 
 export type UpdateStatus =
   | 'idle'
@@ -85,19 +106,19 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         return;
       }
       updateObj = upd;
-      const updAny = upd as { date?: string | null };
+      const updAny = upd as { date?: string | null; rawJson?: string | null };
       set({
         status: 'available',
         version: upd.version,
         pubDate: updAny.date ?? null,
-        notes: upd.body ?? null,
+        notes: notesUntukBahasa(upd.body, updAny.rawJson),
         dialogOpen: !opts?.senyap,
         message: null,
       });
       if (upd.version !== lastNotified) {
         lastNotified = upd.version;
 
-        const ringkas = (upd.body ?? '')
+        const ringkas = (notesUntukBahasa(upd.body, updAny.rawJson) ?? '')
           .split('\n')
           .map((l) => l.trim())
           .filter((l) => l && !/^#/.test(l))
