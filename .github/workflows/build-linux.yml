@@ -15,6 +15,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    # The last step attaches the Linux bundles to the release, and the default
+    # GITHUB_TOKEN is read-only for contents. Without this the upload step ends
+    # with "HTTP 403: Resource not accessible by integration" while the build
+    # itself succeeded.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
