@@ -1,0 +1,79 @@
+name: rebuild-old-releases
+
+# Satu kali pakai: membangun ulang installer untuk tag lama yang halaman
+# rilisnya hilang, langsung di runner GitHub. Tidak ada proses build yang
+# berjalan di mesin pengembang.
+#
+# Dipicu manual dan menyebut satu tag saja, supaya tiap versi dapat runner
+# sendiri dan waktu build tidak menumpuk jadi satu job yang panjang.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag yang dibangun ulang (mis. v1.1.9)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: win-old-${{ inputs.tag }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Build Windows bundle
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx --yes @tauri-apps/cli@^2 build --bundles nsis msi
+
+      # Halaman rilis hanya dibuat kalau belum ada, supaya versi yang sudah
+      # punya rilis (1.1.10 ke atas) tidak tertimpa.
+      - name: Create release when missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG sudah ada, berkas saja yang ditambahkan"
+          else
+            gh release create "$TAG" --title "Zephyr ${TAG#v}" --notes "Release ${TAG#v}"
+          fi
+
+      - name: Upload installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          gh release upload "$TAG" \
+            src-tauri/target/release/bundle/nsis/*.exe \
+            src-tauri/target/release/bundle/nsis/*.exe.sig \
+            src-tauri/target/release/bundle/msi/*.msi \
+            src-tauri/target/release/bundle/msi/*.msi.sig \
+            --clobber
