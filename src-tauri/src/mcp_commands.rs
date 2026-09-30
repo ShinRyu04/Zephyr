@@ -71,7 +71,7 @@ pub fn mcp_rotate_token(state: State<AppState>) -> ZResult<String> {
 #[tauri::command(async)]
 pub fn mcp_write_cli(state: State<AppState>, ids: Vec<String>) -> ZResult<Vec<CliWriteResult>> {
     if ids.is_empty() {
-        return Err(ZephyrError::InvalidInput("tidak ada CLI dipilih".into()));
+        return Err(ZephyrError::InvalidInput("no CLI selected".into()));
     }
     let cfg = crate::mcp_config::load_or_init(&state);
     let port = state.mcp_port().unwrap_or(cfg.port);
@@ -84,7 +84,7 @@ pub fn mcp_write_cli(state: State<AppState>, ids: Vec<String>) -> ZResult<Vec<Cl
 #[tauri::command(async)]
 pub fn mcp_remove_cli(ids: Vec<String>) -> ZResult<Vec<CliWriteResult>> {
     if ids.is_empty() {
-        return Err(ZephyrError::InvalidInput("tidak ada CLI dipilih".into()));
+        return Err(ZephyrError::InvalidInput("no CLI selected".into()));
     }
     Ok(ids
         .iter()

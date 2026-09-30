@@ -166,7 +166,7 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
         "private" => {
             let ps = find("pwsh")
                 .or_else(|| find("powershell"))
-                .ok_or_else(|| ZephyrError::Pty("PowerShell tidak ditemukan".into()))?;
+                .ok_or_else(|| ZephyrError::Pty("PowerShell was not found".into()))?;
             Ok((
                 ps,
                 vec![
@@ -206,7 +206,7 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
         _ => Ok((
             find("powershell")
                 .or_else(|| find("pwsh"))
-                .ok_or_else(|| ZephyrError::Pty("PowerShell tidak ditemukan".into()))?,
+                .ok_or_else(|| ZephyrError::Pty("PowerShell was not found".into()))?,
             vec!["-NoLogo".into()],
         )),
     }

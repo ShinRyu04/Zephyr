@@ -9,6 +9,8 @@ import SectionsLsp from './SectionsLsp';
 import McpPanel from './McpPanel';
 import SecuritySection from './SecuritySection';
 import AccessibilitySection from './AccessibilitySection';
+import TestsSection from './TestsSection';
+import DevEnvSettingsSection from './DevEnvSettingsSection';
 
 function SectionBody({ id }: { id: SectionId }) {
   switch (id) {
@@ -36,6 +38,10 @@ function SectionBody({ id }: { id: SectionId }) {
       return <ScmSection />;
     case 'mcp':
       return <McpPanel />;
+    case 'tests':
+      return <TestsSection />;
+    case 'devenv':
+      return <DevEnvSettingsSection />;
     case 'security':
       return <SecuritySection />;
     case 'accessibility':

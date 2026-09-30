@@ -1,0 +1,413 @@
+13	belum ada workspace
+5	 tidak dikenal
+4	Belum ada API key untuk {provider} — isi di Settings → Model AI
+4	URL harus diawali http:// atau https://
+4	path kosong
+4	pane browser tidak ditemukan
+3	tidak ada pesan
+3	Tidak bisa menghubungi provider: {teks}
+3	tidak dikenal
+3	URL tidak valid: {e}
+3	gagal menulis: {e}
+3	patch harus object
+2	command kosong
+2	file tidak ada: {path}
+2	gagal menjalankan git: {e}
+2	permintaan gagal: {e}
+2	gagal membaca badan: {e}
+2	state '{name}' sedang sibuk, coba lagi
+2	tidak bisa membaca {path}: {e}
+2	gagal menjalankan skrip: {e}
+2	tugas '{id}' tidak ada
+2	belum ada workspace terbuka
+2	regex tidak valid: {e}
+2	folder ekstensi tidak ketemu
+2	package.json tidak valid: {e}
+2	encoding tidak dikenal: {other}
+2	git gagal: {e}
+2	path tidak valid
+2	tidak bisa menghubungi GitHub: {e}
+2	tidak ada CLI dipilih
+2	CLI '{id}' tidak dikenal
+2	tulis gagal: {e}
+2	flush gagal: {e}
+2	teks yang dicari kosong
+2	tidak ada entri '{bagian}' yang memuat: {kunci}
+2	PowerShell tidak ditemukan
+2	Tidak bisa menghubungi server: {e}
+2	settings.json tidak terbaca; patch dibatalkan agar tidak menimpa data
+2	window main tidak ada
+2	nama skill tidak valid: '{nama}' (hanya huruf, angka, '-' dan '_')
+2	config tidak valid: {e}
+2	nama host '{}' sudah ada
+2	halo dari uji
+1	Gunakan <invoke> di kode Anda, tapi ini cuma contoh.
+1	tag lebar harus ikut terhapus, dapat: {bersih:?}
+1	tool call dari tag lebar harus terbaca
+1	pakai tag html <div> ya
+1	harus satu tool call
+1	gagal menjalankan perintah: {e}
+1	gagal menunggu perintah: {e}
+1	perintah harus dibungkus shell
+1	patch kosong
+1	Permintaan ditolak (400) — model atau isi pesan tidak valid
+1	Model tidak ditemukan (404) — periksa nama model & base URL
+1	Provider tidak mengirim teks apa pun
+1	jawaban provider tidak valid: {e}
+1	Nama host provider tidak bisa di-resolve. Periksa Base URL di Settings - Model AI. ({teks})
+1	app state belum siap
+1	 tidak ada atau kosong
+1	 tidak membawa body
+1	menunggu proses git lain selesai
+1	permit git tidak didapat dalam 90s
+1	root terakhir tidak bisa dihapus — pakai Close Folder
+1	gagal membaca {path}: {e}
+1	format gambar tidak dikenali (png/jpg/gif/webp/bmp/avif/ico/svg)
+1	Tidak bisa dihubungi: {e}
+1	Server mengirim X-Frame-Options: SAMEORIGIN — hanya boleh di-embed oleh dirinya sendiri.
+1	jendela utama tidak ditemukan
+1	gagal membuat webview: {e}
+1	gagal mengubah ukuran: {e}
+1	gagal mengubah visibilitas: {e}
+1	halaman tidak menjawab dalam 8 detik
+1	halaman tidak menjawab dalam 6 detik
+1	opsi tidak dikenal: {lain}
+1	gagal menghapus penanda wait: {e}
+1	gagal membuat folder wait: {e}
+1	 tidak dikenal (help|version|banner)
+1	--tidak-ada
+1	D:/dari-env
+1	D:/dari-env/x.ts
+1	banner plain tidak boleh punya ANSI
+1	banner TTY harus berwarna accent
+1	terminal sempit → satu baris saja
+1	help harus menyebut {opsi}
+1	{} belum terpasang
+1	jalankan `{}` sekali untuk login
+1	prompt kosong
+1	CLI tidak dikenal: {id}
+1	{} tidak ada di PATH — pasang dulu CLI-nya
+1	gagal menjalankan {}: {e}
+1	thread CLI gagal: {e}
+1	id CLI tidak boleh duplikat
+1	deteksi harus jalan
+1	shim harus dikenali
+1	file js harus ada: {}
+1	prompt kosong harus ditolak
+1	harus InvalidInput, dapat {lain:?}
+1	gagal membaca {}: {e}
+1	D:/tidak-ada-xyz
+1	bantuan tidak memuat {k}
+1	ciphertext harus beda dari plaintext
+1	gagal menyusun JSON cron: {e}
+1	jam harian harus 0-23, bukan {h}
+1	nama tugas kosong
+1	perintah kosong
+1	batas {MAX_JOBS} tugas tercapai — hapus yang tidak dipakai dulu
+1	launch.json tidak valid: {e}
+1	 tidak dikenal (launch|attach)
+1	bentuk tidak dikenal: {e}
+1	Adapter Node (js-debug) belum ada di {}. Jalankan: node scripts/unduh-dap.mjs
+1	Python tidak ditemukan di PATH. Install Python lalu: pip install debugpy
+1	Paket debugpy belum terpasang. Jalankan: {exe} -m pip install debugpy
+1	 belum didukung (v1: node, python)
+1	serialisasi dap gagal: {e}
+1	tidak ada sesi debug aktif
+1	tidak bisa mencari port bebas: {e}
+1	local_addr gagal: {e}
+1	request gagal
+1	port adapter tidak diketahui
+1	 bukan folder yang ada
+1	gagal menjalankan adapter {}: {e}
+1	adapter tidak mendengar di port {p} setelah {}s
+1	stdin adapter tidak ada
+1	stdout adapter tidak ada
+1	adapter ini tidak mendukung Set Value
+1	hanya satu yang valid
+1	port {p} hasil port_bebas tidak bisa dibind
+1	alias {t} harus dikenal
+1	tidak ada pane aktif
+1	file log belum dibuat
+1	tulis+baca+hapus {}
+1	isi file tidak sama setelah dibaca
+1	gagal baca: {e}
+1	gagal tulis: {e}
+1	tidak ada shell terdeteksi
+1	git tidak ditemukan: {e}
+1	port {p} tidak bisa dihubungi: {e}
+1	server mati (tidak diuji)
+1	file log tidak ada
+1	self_test: {} item, {gagal} gagal
+1	debug_panic hanya tersedia di build debug
+1	Simpan File
+1	Buka Folder
+1	Discord RPC: thread selesai
+1	tidak ditemukan: {0}
+1	input tidak valid: {0}
+1	glob tidak valid: {e}
+1	definisi fungsi dengan anotasi
+1	hook efek dengan cleanup
+1	Icon theme file tree: inisial bahasa dengan warna resminya.
+1	index harus mencakup semua paket
+1	id index bundled harus unik
+1	index bundled harus bisa di-parse utuh oleh registry
+1	{id}: tidak punya zephyr-extension.json
+1	{id}: field id di manifest tidak sama dengan id paket
+1	{id}: kontribusi {grup} menunjuk {p} yang tidak ada di paket
+1	ada id paket bundled yang kembar
+1	id ekstensi tidak valid: '{id}' (hanya huruf, angka, '.', '-' dan '_')
+1	folder tidak punya {MANIFEST_NATIVE} maupun package.json
+1	{file} tidak valid: {e}
+1	path kontribusi harus relatif: {rel}
+1	path kontribusi tidak boleh memuat '..': {rel}
+1	path kontribusi keluar dari folder ekstensi: {rel}
+1	bukan arsip zip yang valid: {e}
+1	entri zip tidak aman ditolak: {}
+1	entri zip keluar dari folder tujuan: {}
+1	pilih folder ekstensi, file .zext, atau manifest-nya
+1	id ekstensi tidak valid: {}
+1	folder ekstensi di luar direktori data — tidak dihapus
+1	ekstensi {ext_id} belum diberi izin runtime '{runtime}'
+1	path runtime '{runtime}' untuk ekstensi {ext_id} tidak cocok dengan izin — minta izin ulang
+1	gagal menjalankan {bin}: {e}
+1	unduhan ekstensi hanya dari registry tepercaya (open-vsx.org)
+1	id tidak valid: {id}
+1	gagal mengunduh .zext: {e}
+1	gagal membaca unduhan: {e}
+1	.zext kosong
+1	nama dengan spasi
+1	registry: format array tidak valid
+1	registry: format index tidak valid
+1	registry: file lebih besar dari batas
+1	registry: tidak bisa dibaca
+1	registry remote tidak terjangkau
+1	registry remote: body tidak terbaca
+1	registryUrl harus https://, diabaikan
+1	registry tidak bisa diserialisasi: {e}
+1	Contoh entri registry. Hapus dan ganti dengan punyamu.
+1	entri tanpa id harus dibuang: {out:?}
+1	Adapter OpenAI/Anthropic/Gemini untuk panel AI
+1	ekstensi bawaan tidak punya manifest di disk
+1	folder itu tidak punya package.json
+1	{path} tidak ada (mungkin sudah dihapus atau dipindah)
+1	{path} tidak boleh diakses
+1	 untuk mengeditnya
+1	file UTF-16 — dibuka baca-saja; simpan sebagai UTF-8 untuk mengedit
+1	file besar ({:.1} MB) — mode baca-saja ringan
+1	file lebih besar dari 32MB — belum didukung
+1	{path} sudah tidak ada di disk
+1	{path} sudah ada
+1	daftar path kosong
+1	{to} sudah ada
+1	tidak bisa membaca info file: {e}
+1	gagal membaca file: {e}
+1	D:/tidak-ada-xyz.png
+1	base64 kosong
+1	folder tidak ditemukan: {}
+1	git tidak ditemukan di PATH — pasang Git for Windows
+1	git tidak selesai dalam {}s (dihentikan)
+1	git selesai
+1	folder workspace tidak ditemukan: {} — buka ulang folder proyek
+1	perintah git gagal tanpa pesan
+1	tidak ada path
+1	pesan commit kosong
+1	identitas git belum diatur — isi Nama & Email di Settings → Source Control
+1	HEAD tidak menunjuk branch (detached)
+1	nama branch kosong
+1	nama branch tidak valid: {n}
+1	 sedang aktif — pindah dulu sebelum menghapus
+1	ukuran tidak diketahui
+1	nama branch tidak valid
+1	side harus 'ours' atau 'theirs'
+1	token kosong
+1	GitHub tidak mengirim username
+1	OAuth belum dikonfigurasi — isi Client ID (GitHub OAuth App dengan Device Flow aktif)
+1	GitHub tidak mengirim device code
+1	GitHub tidak mengirim access token
+1	Gagal menyimpan token
+1	Belum login GitHub
+1	id snapshot tidak valid: {id}
+1	snapshot {id} tidak terbaca: {e}
+1	snapshot terakhir tidak boleh ikut terhapus
+1	MCP tidak aktif  Eserver tidak dijalankan (lazy)
+1	MCP tidak bisa start: {e}
+1	setup selesai
+1	gagal start: {e:?}
+1	[zephyr] gagal start: {e:?}
+1	language server {id} tidak hidup
+1	serialisasi lsp gagal: {e}
+1	cmd language server kosong
+1	{exe} tidak ditemukan. Pasang language server '{}' ke PATH atau {}
+1	gagal menjalankan {exe}: {e}
+1	stdin language server tidak ada
+1	stdout language server tidak ada
+1	lsp {method} tidak menjawab dalam {}s
+1	unicode harus di-encode: {u}
+1	url server MCP kosong
+1	tidak bisa menghubungi server MCP '{alamat}': {e}
+1	tool kosong
+1	server MCP '{id}' tidak terdaftar
+1	id server kosong
+1	USERPROFILE tidak ada
+1	gagal membuat folder: {e}
+1	config tidak ada — tidak ada yang dihapus
+1	token MCP kosong
+1	bind {cand} gagal: {e}
+1	mcp_stop membatalkan {dibatalkan} permintaan yang menggantung
+1	Bearer token salah atau tidak ada
+1	Authorization: Bearer <token dari Settings → MCP>
+1	editor_write & editor_insert HANYA mengubah buffer tab — TIDAK menulis ke disk.
+1	Semua method diserialisasi: dua agent yang mengemudi bersamaan diproses satu per satu.
+1	Tab editor yang terbuka: tabId, path, name, dirty, line, col.
+1	Ambil satu setting dengan key bertitik, mis. 'editor.tabSize'.
+1	Ubah satu setting (hanya whitelist tampilan/editor).
+1	Kirim teks mentah ke pane terminal (tidak menambah Enter).
+1	id pane dari list_panes
+1	teks yang dikirim
+1	Tutup pane dan matikan prosesnya.
+1	Buka file di tab editor baru lalu fokuskan.
+1	Tutup tab editor (perubahan belum tersimpan dibuang).
+1	id tab dari list_editors
+1	Ganti SELURUH isi buffer tab. Tidak menulis ke disk (unsaved=true).
+1	Jalankan command editor: commandPalette.open, terminal.new, ai.focus, git.commit, explorer.openFolder, view.settings, view.explorer, git.panel, terminal.toggle, editor.save.
+1	Simpan isi buffer pane ke file teks di %TEMP% lalu kembalikan path.
+1	Daftar diagnostik (Problems) yang sedang tampil di panel bawah.
+1	emit gagal: {e}
+1	tidak ada percobaan
+1	UI tidak menjawab untuk '{kind}' setelah {PERCOBAAN} percobaan: {terakhir}
+1	mcp.token tidak dibagikan
+1	setting '{key}' tidak boleh diubah lewat MCP (whitelist: {})
+1	data {} byte melewati batas {} byte (64KB) untuk terminal_write
+1	key '{other}' tidak dikenal
+1	content {} byte melewati batas {} byte (1MB) untuk editor_write
+1	text {} byte melewati batas {} byte (1MB) untuk editor_insert
+1	bagian tidak dikenal: '{other}' (pakai 'memory' atau 'user')
+1	entri kosong
+1	memori '{bagian}' penuh: {} dari {} karakter. Hapus atau ringkas entri lama dulu (memory_write dengan action 'replace' atau 'remove'), baru tambahkan yang baru.
+1	 => hapus(&state, &section, &lama).map(|n| format!(
+1	action tidak dikenal: '{other}' (pakai add/replace/remove)
+1	cmd harus jalan
+1	sesi {id} sudah ada
+1	openpty gagal: {e}
+1	spawn {program} gagal: {e}
+1	clone reader gagal: {e}
+1	take writer gagal: {e}
+1	resize gagal: {e}
+1	pid tidak diketahui
+1	RAG base URL harus diawali http:// atau https://
+1	RAG project belum diisi
+1	Pertanyaan kosong
+1	Respons RAG tidak terbaca: {e}
+1	Server RAG di {base} tidak bisa dihubungi: {other}
+1	gagal menjalankan rg: {e}
+1	stdout rg tidak bisa dibaca
+1	query kosong
+1	gagal menyimpan secrets: {e}
+1	nama secret kosong
+1	provider kosong
+1	Belum ada API key untuk provider ini
+1	Endpoint tidak ditemukan (404) — periksa base URL
+1	Rate limit (429) — key valid tapi sedang dibatasi
+1	Gagal baca respon: {e}
+1	GAGAL memindahkan
+1	keybindings harus array
+1	gagal menyimpan {}: {e}
+1	{as_string} adalah root drive — buka folder proyek di dalamnya, bukan seluruh disk (scan root bisa memakan puluhan menit dan menyentuh folder sistem)
+1	ssh.exe tidak ditemukan. Pasang OpenSSH Client lewat Settings > Apps > Optional features.
+1	gagal menjalankan sftp: {e}
+1	sftp gagal: {e}
+1	berkas lokal tidak ada: {lokal}
+1	gagal menjalankan ssh: {e}
+1	ssh.exe tidak ditemukan
+1	harus empat entri
+1	berkas ada
+1	ukuran harus 42, bukan link count
+1	nama berspasi harus utuh
+1	skill '{nama}' tidak ditemukan
+1	skill '{nama}' tidak punya SKILL.md
+1	gagal membaca metadata skill '{nama}'
+1	scope tidak dikenal: '{other}' (pakai 'workspace' atau 'global')
+1	console.log dengan satu argumen
+1	bungkus teks yang diseleksi
+1	JSON tidak valid: {e}
+1	{lewat} entri dilewati (body/prefix tidak sah)
+1	file snippet ekstensi {} tidak terbaca
+1	gagal membuat folder snippets: {e}
+1	gagal menulis {}: {e}
+1	komentar tidak boleh dianggap rusak: {err:?}
+1	harus ada alasan
+1	JSON tidak valid
+1	bahasa {l} harus punya snippet bawaan
+1	{lang}/{nama} prefix kosong
+1	{lang}/{nama} body kosong
+1	ada prefix bawaan yang ganda
+1	port harus 1-65535
+1	auth harus 'key' atau 'password'
+1	password kosong
+1	OpenSSH Client tidak ditemukan — instal via Settings (Windows optional feature)
+1	 tidak dikenal, diabaikan
+1	 dobel — yang kedua dibuang
+1	matcher tidak dikenal: {}
+1	id run kosong
+1	run {id} sudah jalan
+1	cwd tidak ada: {raw}
+1	run {id} tidak ada
+1	harus JSON valid
+1	harus cocok
+1	anchor harus cocok
+1	a/b.txt|7|ada yang salah
+1	tidak boleh ada error: {errors:?}
+1	alias {nama} harus punya pola
+1	event {t} tidak boleh dianggap teks
+1	tool call XML harus dipulihkan
+1	tanpa header pembatas harus boleh di-embed
+1	alasan harus menyebut DENY: {alasan}
+1	{v} harus ditolak
+1	alasan harus menyebut daftar origin-nya: {alasan}
+1	BOM tidak boleh ikut ke konten
+1	tidak boleh ada karakter pengganti
+1	harus menolak, bukan menulis byte rusak
+1	key lain harus tetap ada
+1	seksi {k} hilang dari default settings
+1	{d} harus di-ignore
+1	regex rusak harus mengembalikan InvalidInput
+1	path shell harus benar-benar ada: {}
+1	riwayat harus dimatikan: {joined}
+1	terminal biasa harus memuat profil user
+1	{} menunjuk path yang tidak ada: {}
+1	null harus MENGHAPUS key, bukan menyimpan null: {base}
+1	harus bisa dibaca kembali
+1	bentuk tersimpan TIDAK boleh memuat key plaintext: {enc}
+1	bagian tengah harus tertutup: {p}
+1	harus dapat prefix: {}
+1	MM harus muncul di staged DAN unstaged
+1	nama file harus zephyr-YYYY-MM-DD.log, dapat {path:?}
+1	file rotasi -1.log harus ada
+1	file aktif harus < 2MB setelah rotate, dapat {len_aktif}
+1	file di dalam workspace harus inside
+1	path .. keluar harus dilaporkan di luar
+1	path kosong harus error
+1	harus ditolak
+1	path .. harus ditolak
+1	file yang dibaca boleh disimpan balik
+1	allow_exact TIDAK boleh membuka folder induk
+1	uptime baru dibuat harus kecil
+1	pesan harus menyebut file: {msg}
+1	menulis dua kali tidak boleh menggandakan entri
+1	warna title bar tidak valid: {bg}
+1	(halaman tidak berisi teks yang bisa dibaca)
+1	kata kunci kosong
+1	{url}: tidak ada hasil yang bisa dibaca
+1	semua mesin pencari gagal — {galat}
+1	tulis trust.json gagal: {e}
+1	folder ini belum dipercaya
+1	 lalu pilih Trust untuk mengaktifkan.
+1	{apa} diblokir untuk {}: folder belum dipercaya
+1	{} bukan .code-workspace yang sah: {e}
+1	Folder ini belum dipercaya — tasks, debug, LSP, dan ekstensi dinonaktifkan.
+1	trust disimpan untuk path yang belum ada
+1	{path} adalah root drive — buka folder proyek di dalamnya
+1	file .code-workspace tidak memuat folder
+1	tidak ada folder yang bisa dibuka dari {path} (dilewati: {})
+1	tidak ada root untuk disimpan
+1	null harus MENGHAPUS key (RFC 7386)

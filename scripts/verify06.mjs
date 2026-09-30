@@ -184,11 +184,26 @@ const main = async () => {
   // ───────── V2: Shell + Private lewat klik DOM ─────────
   const v2 = JSON.parse(
     await cdp.runAsync(`
-      q('[data-testid="empty-shell"]').click();
+      // The placeholder has to exist before its buttons can be clicked. A
+      // previous step can leave the panel in a state where it has not rendered
+      // yet, and a bare .click() on null killed the whole run.
+      for (let i = 0; i < 40; i++) {
+        if (q('[data-testid="empty-shell"]')) break;
+        T.getState().setVisible(true);
+        window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
+        await wait(250);
+      }
+      const tombolShell = q('[data-testid="empty-shell"]');
+      if (!tombolShell) return JSON.stringify({ err: 'tombol empty-shell tidak muncul' });
+      tombolShell.click();
       await wait(2200);
-      q('[data-testid="term-picker"]').click();
+      const picker = q('[data-testid="term-picker"]');
+      if (!picker) return JSON.stringify({ err: 'tombol term-picker tidak muncul' });
+      picker.click();
       await wait(320);
-      q('[data-testid="term-new-private"]').click();
+      const priv = q('[data-testid="term-new-private"]');
+      if (!priv) return JSON.stringify({ err: 'menu term-new-private tidak muncul' });
+      priv.click();
       await wait(2600);
       const tab = T.getState().terminalTabs[0];
       return JSON.stringify({
@@ -243,7 +258,18 @@ const main = async () => {
   const v4 = JSON.parse(
     await cdp.runAsync(
       `
-      q('[data-agent=${JSON.stringify(agentId)}]').click();
+      // The picker has to be open before its item exists; clicking a null node
+      // killed the run instead of reporting a failed check.
+      for (let i = 0; i < 12; i++) {
+        if (q('[data-agent=${JSON.stringify(agentId)}]')) break;
+        if (!q('[data-testid="agent-picker"]') && q('[data-testid="term-picker"]')) {
+          q('[data-testid="term-picker"]').click();
+        }
+        await wait(400);
+      }
+      const itemAgent = q('[data-agent=${JSON.stringify(agentId)}]');
+      if (!itemAgent) return JSON.stringify({ err: 'item agent tidak muncul di picker' });
+      itemAgent.click();
       await wait(1500);
       const tab = T.getState().terminalTabs[0];
       const ap = tab.panes.find(p => p.kind === 'agent');
@@ -282,8 +308,9 @@ const main = async () => {
       // kedua benar-benar lahir — bukan menambah wait tetap yang rapuh.
       const klikAgent = async () => {
         for (let i = 0; i < 10; i++) {
-          if (!q('[data-testid="agent-picker"]')) {
-            q('[data-testid="term-picker"]').click();
+          const bukaPicker = q('[data-testid="term-picker"]');
+          if (!q('[data-testid="agent-picker"]') && bukaPicker) {
+            bukaPicker.click();
             await wait(400);
           }
           const item = q('[data-agent=${JSON.stringify(agentId)}]');
@@ -624,8 +651,15 @@ const main = async () => {
       for (let i = 0; i < 3; i++) { await T.getState().addPane('shell'); await wait(1900); }
       await wait(4000);
       const ram = document.querySelector('.statusbar')?.textContent?.match(/RAM: ([\\d.]+) (MB|GB)/);
+      // Read the pane count from the tab that actually holds them: addPane
+      // opens a fresh tab when none exists and adds to the last one otherwise,
+      // so index 0 is not guaranteed to be the tab under test. Asserting on
+      // terminalTabs[0] made this check fail whenever a previous step had left
+      // an empty tab behind.
+      const tabs = T.getState().terminalTabs;
+      const tab = tabs.find((x) => x.panes.length > 0) ?? tabs[0];
       return JSON.stringify({
-        panes: T.getState().terminalTabs[0].panes.length,
+        panes: tab ? tab.panes.length : 0,
         ramMb: ram ? (ram[2] === 'GB' ? Number(ram[1]) * 1024 : Number(ram[1])) : null,
         errors: window.__ZEPHYR_ERRORS__.slice(0, 3),
       });

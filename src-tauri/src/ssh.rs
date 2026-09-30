@@ -136,7 +136,7 @@ pub fn ssh_list(state: State<AppState>) -> ZResult<Vec<SshHostView>> {
 #[tauri::command]
 pub fn ssh_add(state: State<AppState>, config: Value) -> ZResult<()> {
     let mut c: SshConfig = serde_json::from_value(config)
-        .map_err(|e| ZephyrError::InvalidInput(format!("config tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid config: {e}")))?;
     c.id = Uuid::new_v4().to_string();
     c.password_enc = None;
     c.password_saved = None;
@@ -146,7 +146,7 @@ pub fn ssh_add(state: State<AppState>, config: Value) -> ZResult<()> {
 
     if list.iter().any(|x| x.name == c.name) {
         return Err(ZephyrError::InvalidInput(format!(
-            "nama host '{}' sudah ada",
+            "the host name '{}' already exists",
             c.name
         )));
     }
@@ -157,9 +157,9 @@ pub fn ssh_add(state: State<AppState>, config: Value) -> ZResult<()> {
 #[tauri::command]
 pub fn ssh_update(state: State<AppState>, config: Value) -> ZResult<()> {
     let mut c: SshConfig = serde_json::from_value(config)
-        .map_err(|e| ZephyrError::InvalidInput(format!("config tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid config: {e}")))?;
     if c.id.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("id kosong".into()));
+        return Err(ZephyrError::InvalidInput("id empty".into()));
     }
     validate(&c)?;
 
@@ -176,7 +176,7 @@ pub fn ssh_update(state: State<AppState>, config: Value) -> ZResult<()> {
 
     if list.iter().any(|x| x.id != c.id && x.name == c.name) {
         return Err(ZephyrError::InvalidInput(format!(
-            "nama host '{}' sudah ada",
+            "the host name '{}' already exists",
             c.name
         )));
     }
@@ -206,7 +206,7 @@ pub fn ssh_save_password(
         return Err(ZephyrError::NotFound(format!("host {id}")));
     };
     if password.is_empty() {
-        return Err(ZephyrError::InvalidInput("password kosong".into()));
+        return Err(ZephyrError::InvalidInput("password empty".into()));
     }
     list[idx].password_enc = Some(crate::secrets::encrypt_string(&password));
     list[idx].password_saved = Some(true);

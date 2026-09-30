@@ -82,7 +82,7 @@ fn simpan(state: &AppState, daftar: &[CronJob]) -> ZResult<()> {
         std::fs::create_dir_all(dir)?;
     }
     let teks = serde_json::to_string_pretty(daftar)
-        .map_err(|e| ZephyrError::Internal(format!("gagal menyusun JSON cron: {e}")))?;
+        .map_err(|e| ZephyrError::Internal(format!("building the cron JSON failed: {e}")))?;
     std::fs::write(&p, teks)?;
     Ok(())
 }
@@ -100,7 +100,7 @@ fn validasi_jadwal(every_minutes: u64, at_hour: Option<u32>) -> ZResult<()> {
     match at_hour {
         Some(h) if h <= 23 => Ok(()),
         Some(h) => Err(ZephyrError::InvalidInput(format!(
-            "jam harian harus 0-23, bukan {h}"
+            "the daily hour must be 0-23, not {h}"
         ))),
         None => Err(ZephyrError::InvalidInput(
             "isi every_minutes (>0) ATAU at_hour (0-23)".into(),
@@ -118,10 +118,10 @@ pub fn tambah(
     let nm = name.trim();
     let cmd = command.trim();
     if nm.is_empty() {
-        return Err(ZephyrError::InvalidInput("nama tugas kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty task name".into()));
     }
     if cmd.is_empty() {
-        return Err(ZephyrError::InvalidInput("perintah kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty command".into()));
     }
     validasi_jadwal(every_minutes, at_hour)?;
     let mut daftar = muat(state);
@@ -149,7 +149,7 @@ pub fn hapus(state: &AppState, id: &str) -> ZResult<()> {
     let sebelum = daftar.len();
     daftar.retain(|j| j.id != id);
     if daftar.len() == sebelum {
-        return Err(ZephyrError::NotFound(format!("tugas '{id}' tidak ada")));
+        return Err(ZephyrError::NotFound(format!("task '{id}' does not exist")));
     }
     simpan(state, &daftar)
 }
@@ -164,7 +164,7 @@ pub fn set_aktif(state: &AppState, id: &str, aktif: bool) -> ZResult<()> {
         }
     }
     if !kena {
-        return Err(ZephyrError::NotFound(format!("tugas '{id}' tidak ada")));
+        return Err(ZephyrError::NotFound(format!("task '{id}' does not exist")));
     }
     simpan(state, &daftar)
 }

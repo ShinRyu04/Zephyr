@@ -36,14 +36,26 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
   ),
   ai: () => (
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
-      <path d="M8 1.8l1.6 3.4 3.6.5-2.6 2.6.6 3.7L8 10.3l-3.2 1.7.6-3.7L2.8 5.7l3.6-.5L8 1.8z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      {/*
+       * A robot head, not a sparkle.
+       *
+       * The four-point star is the generic "AI" glyph and says nothing about
+       * this product; the robot is already the face of the subagent panel, so
+       * the two now read as one feature instead of two.
+       */}
+      <path d="M8 3.6V2.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+      <circle cx="8" cy="1.6" r="0.8" fill="currentColor" />
+      <rect x="2.6" y="3.8" width="10.8" height="8.4" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="6" cy="7.6" r="1.1" fill="currentColor" />
+      <circle cx="10" cy="7.6" r="1.1" fill="currentColor" />
+      <path d="M6.4 10.2h3.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none" />
     </svg>
   ),
   debug: () => (
 
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
       <circle cx="8" cy="8.4" r="4.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      {/* kaki-kaki bug */}
+      {/* the bug's legs */}
       <path
         d="M3.6 8.4H1.7M12.4 8.4h1.9M4.6 5.4L3.2 4M11.4 5.4L12.8 4M4.6 11.4L3.2 12.8M11.4 11.4l1.4 1.4"
         stroke="currentColor"
@@ -51,7 +63,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
         strokeLinecap="round"
         fill="none"
       />
-      {/* play di tengah */}
+      {/* the play triangle in the middle */}
       <path d="M6.9 6.6l3 1.8-3 1.8z" fill="currentColor" />
     </svg>
   ),
@@ -67,7 +79,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
       <rect x="1.8" y="1.8" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
       <rect x="1.8" y="9" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
       <rect x="9" y="9" width="5.2" height="5.2" rx="0.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      {/* kotak keempat "lepas": digeser + garis putus-putus */}
+      {/* the fourth box is "detached": shifted over + dashed outline */}
       <rect
         x="9.6"
         y="1.2"
@@ -94,6 +106,63 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
       <circle cx="8" cy="8" r="2.3" fill="none" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   ),
+  // One entry for the four workspace tools. They used to be four separate
+  // icons; the mark is a toolbox so the rail reads as "the local machine's
+  // tooling" rather than as any one of the four views inside.
+  tools: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <path
+        d="M1.8 5.4a1.2 1.2 0 0 1 1.2-1.2h10a1.2 1.2 0 0 1 1.2 1.2v7.4a1.2 1.2 0 0 1-1.2 1.2h-10a1.2 1.2 0 0 1-1.2-1.2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path d="M1.8 7.6h12.4" stroke="currentColor" strokeWidth="1.1" />
+      <path
+        d="M5.6 4.2V3a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v1.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <path d="M6.4 9.4h3.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  ),
+  /*
+   * The four single views no longer have a rail button, but they still exist as
+   * activities: the command palette jumps straight to one of them (e.g. "Run
+   * tests" opens Tests, not the Tools tab strip). These entries keep that path
+   * type-safe, and the palette renders them.
+   */
+  devenv: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <rect x="1.8" y="1.8" width="12.4" height="3.6" rx="1.1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="1.8" y="6.2" width="12.4" height="3.6" rx="1.1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="1.8" y="10.6" width="12.4" height="3.6" rx="1.1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="4.1" cy="3.6" r="0.85" fill="currentColor" />
+      <circle cx="4.1" cy="8" r="0.85" fill="currentColor" />
+      <circle cx="4.1" cy="12.4" r="0.85" fill="currentColor" />
+    </svg>
+  ),
+  api: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <path d="M1.8 7.4 14.4 1.9 9.4 14.2 7.1 9.1 1.8 7.4Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M7.1 9.1 14.4 1.9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  ),
+  sftp: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <path d="M3 5.6h8.4M9.2 3.2l2.4 2.4-2.4 2.4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M13 10.4H4.6M6.8 8l-2.4 2.4L6.8 12.8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  tests: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <path d="M6.2 2.4h3.6v2.4H6.2z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M6.2 3.6H4.4v10h7.2v-10H9.8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M6 9.2l1.4 1.4 2.8-2.8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 const LABEL: Record<ActivityId, string> = {
@@ -105,6 +174,11 @@ const LABEL: Record<ActivityId, string> = {
   ai: 'AI / MCP',
   terminal: 'Terminal',
   extensions: 'Extensions (Ctrl+Shift+X)',
+  devenv: 'Dev Environment',
+  api: 'API Client',
+  sftp: 'SFTP',
+  tests: 'Tests',
+  tools: 'Tools — Dev Environment, API Client, SFTP, Tests',
   settings: 'Settings',
 };
 
@@ -117,6 +191,7 @@ const ORDER: ActivityId[] = [
   'ai',
   'terminal',
   'extensions',
+  'tools',
   'settings',
 ];
 
@@ -214,9 +289,10 @@ export default function ActivityBar() {
         );
       })}
 
-      {/* Akun GitHub di BAWAH activity bar (pojok kiri bawah, ala VS Code).
-          Belum login: tombol avatar "…" → buka Source Control (login di sana).
-          Sudah login: avatar bulat berisi inisial user; klik tetap ke SCM. */}
+      {/* The GitHub account goes BELOW the activity bar (bottom-left corner,
+          like VS Code). Not logged in: the "…" avatar button opens Source
+          Control (log in there). Logged in: a round avatar with the user's
+          initials; the click still goes to SCM. */}
       <span className="ab-spacer" aria-hidden="true" />
       <button
         className={`ab-btn ab-gh${signedIn ? ' is-in' : ''}`}
@@ -248,7 +324,7 @@ export default function ActivityBar() {
           </span>
         ) : (
           <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
-            {/* mark-github resmi (Octocat, GitHub Primer) */}
+            {/* the official github mark (Octocat, GitHub Primer) */}
             <path
               d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
               fill="currentColor"

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
 import PaneIcon from '../terminal/PaneIcons';
+import { ActionIcon } from '../terminal/TerminalTabs';
 import type { PaneMeta } from '../../lib/types';
 import { tx, tf } from '../../lib/i18n';
 
@@ -74,7 +75,8 @@ export default function TerminalPanel() {
               void addPane('shell');
             }}
           >
-            + Shell
+            <ActionIcon name="plus" />
+            {tx('Shell')}
           </button>
           <button
             className="btn btn-sm"
@@ -85,20 +87,22 @@ export default function TerminalPanel() {
               void addPane('private');
             }}
           >
-            + Private
+            <ActionIcon name="plus" />
+            {tx('Private')}
           </button>
           <button
             className="btn btn-sm"
             data-testid="tp-toggle-panel"
             onClick={() => setVisible(!visible)}
           >
+            <ActionIcon name={visible ? 'hide' : 'chevron'} />
             {visible ? tx('Hide panel') : tx('Show panel')}
           </button>
         </div>
 
         <div className="tp-agents" data-testid="tp-agents">
           <div className="tp-subtitle">
-            {agents.length > 0 ? tx('Agent CLIs detected') : tx('Agent CLI')}
+            {agents.length > 0 ? tx('AGENT CLIS DETECTED') : tx('AGENT CLI')}
           </div>
           {agents.length === 0 ? (
             <p className="side-muted" data-testid="tp-agents-kosong">
@@ -122,9 +126,11 @@ export default function TerminalPanel() {
                   void addPane('agent', { agentId: a.id });
                 }}
               >
-                <PaneIcon kind="agent" agentId={a.id} size={13} />
+                <PaneIcon kind="agent" agentId={a.id} size={14} />
                 <span className="tp-agent-name">{a.label}</span>
-                <span className="tp-agent-plus">+</span>
+                <span className="tp-agent-plus">
+                  <ActionIcon name="plus" />
+                </span>
               </button>
             ))}
             </>
@@ -161,7 +167,7 @@ export default function TerminalPanel() {
                   data-testid={`tp-close-tab-${tab.id}`}
                   onClick={() => void closeTab(tab.id)}
                 >
-                  ✕
+                  <ActionIcon name="close" />
                 </button>
               </div>
 
@@ -187,19 +193,21 @@ export default function TerminalPanel() {
                         <button
                           className="tp-op"
                           title={tx('Kill process')}
+                          aria-label={tx('Kill process')}
                           data-testid={`tp-kill-${p.id}`}
                           onClick={() => void killPane(p.id)}
                         >
-                          kill
+                          <ActionIcon name="kill" />
                         </button>
                       )}
                       <button
                         className="tp-op"
                         title={tx('Close pane')}
+                        aria-label={tx('Close pane')}
                         data-testid={`tp-close-${p.id}`}
                         onClick={() => void closePane(p.id)}
                       >
-                        close
+                        <ActionIcon name="close" />
                       </button>
                     </span>
                   </li>

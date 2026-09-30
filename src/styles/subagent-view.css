@@ -1,0 +1,464 @@
+/*
+ * Subagents tab, laid out like the AI panel.
+ *
+ * The tab used to read as a full page: a centred empty state floating in the
+ * middle of the viewport, three different left edges (header at 4px, card at
+ * 16px, textarea at 30px), and a header with two separate "Follow chat"
+ * controls. The content was ~190px tall inside a ~1120px panel.
+ *
+ * The rules below bring it onto the same grid as the chat:
+ *   - one content column with one left edge,
+ *   - a single padding scale (4 / 8 / 12 / 16),
+ *   - type sizes that step (13 / 12 / 11) instead of clustering at 11-12,
+ *   - the empty state sits where the first row of results would, not centred
+ *     in whatever height the panel happens to have.
+ *
+ * Loaded after panel.css, which styles the same classes as a full page.
+ */
+
+/* ── Shell ────────────────────────────────────────────────────────────── */
+
+/*
+ * The tab's outer shell, and the ONLY scrolling region in the tab.
+ *
+ * This was a nested-scroller bug: the shell clipped while the timeline inside
+ * scrolled. In a 231px panel the fixed children (header 33px, form 150px,
+ * summary 30px) left the timeline ~10px of room, and since a flex child
+ * shrinks to zero before its parent overflows, the agent rows were laid out at
+ * y=972 — below the panel, invisible, with no way to scroll to them.
+ *
+ * One scroller on the shell instead: the timeline takes its natural height and
+ * the whole tab scrolls. A tall panel shows everything without scrolling.
+ */
+.sav-root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  padding: 8px 12px 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Header: one line, actions right ──────────────────────────────────── */
+
+/*
+ * One header, one rule.
+ *
+ * Every element starts at the same left edge and the whole tab uses a single
+ * padding scale, so the panel has one vertical line down the left instead of
+ * the four staggered gutters it had (title at 14px, section at 20px, card at
+ * 27px, card content at 40px). The staggered edges were what made the top of
+ * the tab look unaligned.
+ */
+.sav-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* "max 4": a quiet cap next to the counts, where the numbers already are. */
+.sav-maks {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sav-judul {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Counters are one quiet string, not three separate readings. */
+.sav-angka {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sav-angka b {
+  font-weight: 600;
+}
+
+.sav-angka b.is-jalan {
+  color: var(--accent);
+}
+
+.sav-angka b.is-beres {
+  color: var(--success);
+}
+
+.sav-angka b.is-gagal {
+  color: var(--danger);
+}
+
+/* The model picker is a chip in the header, matching the chat's. */
+/*
+ * The picker is the anchor for its own menu. Without `position: relative` the
+ * absolutely-positioned menu resolves against the nearest positioned ancestor
+ * further up the tree, so `top: 100%` measured from the wrong box.
+ */
+.sav-model {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.sav-spacer {
+  display: none;
+}
+
+/* Header actions are icon-sized, like the AI panel's. */
+.sav-head .btn {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  border-radius: 6px;
+}
+
+/* ── Batch form: compact in the tab ───────────────────────────────────── */
+
+/*
+ * The tab's form is a permanent fixture (this IS its home), so it is sized to
+ * leave room for the results: one-row input, tight header and footer. The
+ * popover version in the chat keeps its roomier styling, because there it is
+ * the only thing on screen.
+ */
+.sav-root .sub-form {
+  flex: 0 0 auto;
+}
+
+.sav-root .sub-form-head {
+  padding: 0 0 5px;
+  border-bottom: 0;
+  gap: 6px;
+}
+
+.sav-root .sub-form-judul {
+  font-size: 11.5px;
+}
+
+.sav-root .sub-form-hint,
+.sav-root .sub-form-maks {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* The cap belongs next to the hint, not pushed to the far edge. */
+.sav-root .sub-form-maks {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/*
+ * The textarea fixes three things ai.css gets wrong for this tab:
+ *   - `resize: vertical` drew a native grip in the corner, which reads as a
+ *     stray mark in a panel where every other edge is deliberate;
+ *   - `font-family: var(--font-mono)` names a token that does not exist, so the
+ *     field silently fell back to the UI font;
+ *   - the padding left the last line sitting on the bottom border.
+ */
+.sav-root .sub-input {
+  min-height: 0;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  resize: none;
+  overflow-y: auto;
+}
+
+.sav-root .sub-input:focus {
+  border-color: var(--accent);
+}
+
+.sav-root .sub-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.sav-root .sub-form-foot {
+  padding-top: 5px;
+  gap: 6px;
+}
+
+/* ── Model picker menu: opens downward here ───────────────────────────── */
+
+/*
+ * The AI panel's picker opens UPWARD because its composer is pinned to the
+ * bottom edge, so there is no room below it.
+ *
+ * This header sits at the TOP of the panel, where the space is underneath.
+ * Opening upward from here would push the menu over the title bar and off the
+ * window. Same control, opposite anchor — the direction follows the space.
+ */
+.sav-head .ai-model-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
+  right: 0;
+  left: auto;
+  /* The header is only ~26px tall, so the menu's own offset is measured from
+     the picker, not the panel: this keeps it flush under the trigger. */
+  max-height: min(50vh, 380px);
+}
+
+/*
+ * The header is narrow, but the menu is not: it needs room for a provider name,
+ * a model id and a context badge on one line.
+ *
+ * This used to clamp the width to 320px with `min-width: 0`, which made the
+ * list cramped — model ids were clipped mid-word and the row's meta column was
+ * pushed out of view. The menu now takes the panel width (less its margins) up
+ * to a readable maximum, so a narrow panel still gets a full-width menu rather
+ * than a column of cut-off names.
+ */
+@container panel (max-width: 640px) {
+  .sav-head .ai-model-menu {
+    right: 0;
+    left: auto;
+    width: min(520px, calc(100cqw - 16px));
+    min-width: min(340px, calc(100cqw - 16px));
+  }
+}
+
+/* Rows get more air too: 26px was tight for a two-line entry. */
+.sav-head .ai-model-menu .ai-model-item {
+  min-height: 30px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+/*
+ * Left-aligned and pinned near the top, where the first result row would land.
+ * Centring it in the panel meant the text moved every time the panel was
+ * resized, and left ~300px of dead space above and below.
+ *
+ * `flex: 1` from panel.css is overridden: it made the block stretch to fill the
+ * panel, which is what pushed the text into the middle of the empty space.
+ */
+.sav-kosong {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  text-align: left;
+  color: var(--text-muted);
+  padding: 10px 2px;
+  max-width: 620px;
+}
+
+.sav-kosong-judul {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sav-kosong-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* ── Combined summary ─────────────────────────────────────────────────── */
+
+/*
+ * The summary is markdown, so it is styled as a document: sans-serif prose,
+ * monospace only for code, headings that step down, and a readable measure.
+ *
+ * It used to render inside a <pre>, which printed the source — `##` before the
+ * agent name, `-` where a bullet belonged, and one monospace weight for every
+ * line. The report is the payload of the whole tab, so it reads as prose.
+ */
+.sav-ringkas {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.sav-ringkas > summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sav-ringkas > summary:hover {
+  color: var(--text);
+}
+
+.sav-ringkas[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+/*
+ * The report scrolls inside its own box. Open, it is as long as the batch was
+ * talkative — a three-agent report measured 280px in a 231px panel, and being
+ * `flex: 0 0 auto` it took that space from the timeline above it. Capped, it
+ * stays a window onto the report instead of competing with the agent rows.
+ */
+.sub-ringkas[open] .sub-ringkas-isi {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* ── Summary body: markdown as a document ─────────────────────────────── */
+
+/*
+ * The report body: one block per agent in a grid.
+ *
+ * The panel is often 800-1400px wide, so a single column of text sat in the
+ * left half with dead space beside it. A CSS multi-column flow filled the width
+ * but split the file list across two columns mid-list and stranded the section
+ * rule in a column of its own — the reading order broke. A grid keeps each
+ * agent's report whole: narrow panels get one column, wide panels get two, and
+ * no list is ever cut in half.
+ */
+.sub-ringkas-isi {
+  padding: 8px 10px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 10px 20px;
+  align-items: start;
+}
+
+/* One agent's report. Bounded so a short section does not stretch a full row. */
+.sub-ringkas-bagian {
+  min-width: 0;
+}
+
+.sub-ringkas-isi > :first-child {
+  margin-top: 0;
+}
+
+.sub-ringkas-isi > :last-child {
+  margin-bottom: 0;
+}
+
+/* Agent name in the report: a section heading, one step below the summary
+   title, so a multi-agent report scans as sections. */
+.sub-ringkas-isi h1,
+.sub-ringkas-isi h2,
+.sub-ringkas-isi h3 {
+  margin: 10px 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sub-ringkas-isi h1 {
+  font-size: 13px;
+}
+
+.sub-ringkas-isi p {
+  margin: 4px 0;
+}
+
+.sub-ringkas-isi ul,
+.sub-ringkas-isi ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.sub-ringkas-isi li {
+  margin: 1px 0;
+}
+
+.sub-ringkas-isi strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sub-ringkas-isi a {
+  color: var(--accent);
+}
+
+/* The rule between agent sections. */
+.sub-ringkas-pisah {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Code keeps the monospace face; prose does not. */
+.sub-ringkas-inline {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sub-ringkas-kode {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.sub-ringkas-kode code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* ── Result cards ─────────────────────────────────────────────────────── */
+
+/*
+ * Results stay a grid: each card is a small self-contained report, and a grid
+ * lets several be compared at once. The minimum width is lowered so the cards
+ * also work in the side column, not only in the full-width bottom panel.
+ */
+.sav-root .sub-daftar {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+
+.sav-root .sub-daftar-baris {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  font-size: 11.5px;
+}
+
+/* ── Narrow panel ─────────────────────────────────────────────────────── */
+
+@container panel (max-width: 640px) {
+  .sav-root {
+    padding: 6px 8px 8px;
+  }
+
+  .sav-head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .sav-root .sub-daftar {
+    grid-template-columns: 1fr;
+  }
+}

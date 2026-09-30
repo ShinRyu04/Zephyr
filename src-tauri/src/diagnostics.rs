@@ -111,7 +111,7 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
 
     match state.workspace_path() {
         Some(p) => out.push(baris("fs", "ok", format!("workspace {}", p.display()))),
-        None => out.push(baris("fs", "warn", "belum ada workspace terbuka".into())),
+        None => out.push(baris("fs", "warn", "no workspace is open".into())),
     }
 
     let n = state.pty_count();
@@ -119,7 +119,7 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         "pty",
         "ok",
         if n == 0 {
-            "tidak ada pane aktif".into()
+            "no active pane".into()
         } else {
             format!("{n} pane aktif")
         },
@@ -175,7 +175,7 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
             let kb = std::fs::metadata(&p).map(|m| m.len() / 1024).unwrap_or(0);
             out.push(baris("log", "ok", format!("{kb} KB (rotate 2 MB)")));
         }
-        _ => out.push(baris("log", "warn", "file log belum dibuat".into())),
+        _ => out.push(baris("log", "warn", "the log file has not been created yet".into())),
     }
 
     out
@@ -198,14 +198,14 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
                 Ok(baca) => {
                     let _ = std::fs::remove_file(&p);
                     if baca == isi {
-                        (true, format!("tulis+baca+hapus {}", p.display()))
+                        (true, format!("write+read+delete {}", p.display()))
                     } else {
-                        (false, "isi file tidak sama setelah dibaca".into())
+                        (false, "the file contents differ after reading".into())
                     }
                 }
-                Err(e) => (false, format!("gagal baca: {e}")),
+                Err(e) => (false, format!("failed baca: {e}")),
             },
-            Err(e) => (false, format!("gagal tulis: {e}")),
+            Err(e) => (false, format!("failed tulis: {e}")),
         }
     });
     out.push(SelfTestItem {
@@ -227,7 +227,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
                     .join(", ")
             ),
         ),
-        Ok(_) => (false, "tidak ada shell terdeteksi".into()),
+        Ok(_) => (false, "is missing shell terdeteksi".into()),
         Err(e) => (false, format!("{e}")),
     });
     out.push(SelfTestItem {
@@ -263,7 +263,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
             Ok(_) => (true, format!("socket :{p} menerima koneksi")),
             Err(e) => (false, format!("port {p} tidak bisa dihubungi: {e}")),
         },
-        None => (true, "server mati (tidak diuji)".into()),
+        None => (true, "server down (not tested)".into()),
     });
     out.push(SelfTestItem {
         name: "mcp socket".into(),
@@ -279,7 +279,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
                 let n = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
                 (true, format!("{} ({} byte)", p.display(), n))
             }
-            _ => (false, "file log tidak ada".into()),
+            _ => (false, "file log is missing".into()),
         }
     });
     out.push(SelfTestItem {
@@ -290,7 +290,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
     });
 
     let gagal = out.iter().filter(|x| !x.ok).count();
-    tracing::info!("self_test: {} item, {gagal} gagal", out.len());
+    tracing::info!("self_test: {} item, {gagal} failed", out.len());
     Ok(out)
 }
 

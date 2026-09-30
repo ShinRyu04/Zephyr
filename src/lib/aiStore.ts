@@ -3,6 +3,7 @@ import { subagentOnChunk } from './subagentStore';
 import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, PROVIDER_BY_ID } from './modelCatalog';
+import { useAiDebug } from './aiDebugStore';
 import { agentToolSpecs, jalankanAgentTool, AGENT_TOOLS } from './agentTools';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
 
@@ -28,6 +29,7 @@ import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt'
 
 import { useCliAgent } from './cliAgentStore';
 import { useTerminal } from './terminalStore';
+import { tx, tf } from './i18n';
 let ctxCache: { at: number; teks: string } | null = null;
 const CTX_TTL_MS = 60_000;
 
@@ -315,6 +317,16 @@ interface AiState {
 
   pending: string | null;
 
+  /*
+   * Messages the user sent while the assistant was still answering.
+   *
+   * Sending used to be blocked outright while a request was in flight, so a
+   * second thought had to be held in the user's head and retyped later. Instead
+   * of dropping the text or refusing it, the composer accepts it and parks it
+   * here; each entry goes out on its own once the current answer finishes.
+   */
+  antrian: { teks: string; images: string[] }[];
+
   draft: string;
 
     attachActive: boolean;
@@ -406,6 +418,10 @@ interface AiActions {
     exportChat: () => Promise<void>;
 
   send: (text?: string) => Promise<void>;
+
+  /* Drop one queued message, or clear the whole queue. */
+  buangAntrian: (idx: number) => void;
+  kosongkanAntrian: () => void;
   cancel: () => Promise<void>;
 
   onChunk: (c: AiChunk) => void;
@@ -449,6 +465,7 @@ export const useAi = create<AiStore>((set, get) => ({
   model: 'custom-model',
   provider: 'custom',
   pending: null,
+  antrian: [],
   draft: '',
     attachActive: false,
     draftImages: [],
@@ -583,11 +600,14 @@ export const useAi = create<AiStore>((set, get) => ({
 
   setModelMenuOpen: (v) => set({ modelMenuOpen: v }),
   setDraft: (v) => set({ draft: v }),
+
+  buangAntrian: (idx) => set((s) => ({ antrian: s.antrian.filter((_, i) => i !== idx) })),
+  kosongkanAntrian: () => set({ antrian: [] }),
     setAttachActive: (v) => set({ attachActive: v }),
     addDraftImage: (dataUrl) => {
       const now = get().draftImages;
       if (now.length >= MAX_IMAGES) {
-        set({ toast: `Maksimal ${MAX_IMAGES} gambar per pesan` });
+        set({ toast: tf('Too many images - the limit is {n} per message', { n: MAX_IMAGES }) });
         return false;
       }
       set({ draftImages: [...now, dataUrl] });
@@ -665,7 +685,7 @@ export const useAi = create<AiStore>((set, get) => ({
     };
     set((s) => ({
       sessions: s.sessions.map((x) => (x.id === id ? { ...x, messages: [ringkas, ...baru] } : x)),
-      toast: `${lama.length} pesan dipadatkan`,
+      toast: tf('{n} messages compacted', { n: lama.length }),
     }));
     persist(get());
     return lama.length;
@@ -701,7 +721,7 @@ export const useAi = create<AiStore>((set, get) => ({
   clearAllChats: () => {
     set({ sessions: [], activeId: null, clearAllOpen: false });
     get().newChat();
-    set({ toast: 'Riwayat chat dibersihkan' });
+    set({ toast: tx('Chat history cleared') });
   },
 
   setClearAllOpen: (v) => set({ clearAllOpen: v }),
@@ -728,7 +748,7 @@ export const useAi = create<AiStore>((set, get) => ({
   exportChat: async () => {
     const s = get().activeSession();
     if (!s || s.messages.length === 0) {
-      set({ toast: 'Tidak ada pesan untuk diekspor' });
+      set({ toast: tx('Nothing to export yet') });
       return;
     }
     const def = findModel(s.model, s.provider);
@@ -742,7 +762,7 @@ export const useAi = create<AiStore>((set, get) => ({
     const md = lines.join('\n');
     const { clipboardWrite } = await import('./clipboard');
     await clipboardWrite(md);
-    set({ toast: `Chat diekspor (${md.length} karakter) — disalin ke clipboard` });
+    set({ toast: tf('Chat exported ({n} characters) - copied to the clipboard', { n: md.length }) });
   },
 
   send: async (text) => {
@@ -753,11 +773,20 @@ export const useAi = create<AiStore>((set, get) => ({
 
     if (get().agentMode === 'agent') {
       if (!raw) return;
+      if (get().agentBusy) {
+        // Park it instead of refusing: the composer accepts the message and it
+        // goes out as soon as the running task finishes.
+        set((s) => ({ antrian: [...s.antrian, { teks: raw, images: imgs }] }));
+        set({ draft: '', draftImages: [], toast: tx('Added to the queue') });
+        return;
+      }
       await get().sendAgent(raw);
       return;
     }
     if (get().pending) {
-      set({ toast: 'Masih menunggu jawaban — batalkan dulu' });
+      // Same rule in chat mode: queue it rather than dropping the text.
+      set((s) => ({ antrian: [...s.antrian, { teks: raw, images: imgs }] }));
+      set({ draft: '', draftImages: [], toast: tx('Added to the queue') });
       return;
     }
 
@@ -767,7 +796,7 @@ export const useAi = create<AiStore>((set, get) => ({
         `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
         `dikirim ${MSG_LIMIT} karakter pertama]`;
       set({
-        toast: `Pesan ${raw.length} karakter dipotong ke ${MSG_LIMIT}`,
+        toast: tf('Message trimmed from {from} to {to} characters', { from: raw.length, to: MSG_LIMIT }),
         lastTruncated: { from: raw.length, to: MSG_LIMIT },
       });
     } else {
@@ -783,11 +812,11 @@ export const useAi = create<AiStore>((set, get) => ({
         const pindah = lain[0].provider;
         const labelPindah = PROVIDER_BY_ID.get(pindah)?.label ?? pindah;
         set({ provider: pindah });
-        set({ toast: `${label} belum ada key — pindah ke ${labelPindah} yang sudah kamu isi` });
+        set({ toast: tf('No key for {from} - switched to {to}, which has one', { from: label, to: labelPindah }) });
         return;
       }
       set({
-        toast: `Isi API key ${label} di Settings → Model AI (atau pilih provider yang sudah kamu isi)`,
+        toast: tf('Add an API key for {name} in Settings, or pick a provider that already has one', { name: label }),
       });
       return;
     }
@@ -823,7 +852,7 @@ export const useAi = create<AiStore>((set, get) => ({
       const truncated = isi.length > ATTACH_LIMIT;
       if (truncated) isi = isi.slice(0, ATTACH_LIMIT);
       if (!isi.trim()) {
-        set({ toast: `File "${nama}" tidak terbuka di editor` });
+        set({ toast: tf('"{name}" is not open in the editor', { name: nama }) });
         continue;
       }
       payloadContent =
@@ -910,6 +939,25 @@ export const useAi = create<AiStore>((set, get) => ({
               ...(imgs.length ? { images: imgs } : {}),
             });
 
+    /*
+     * Open the debug row once the payload is final.
+     *
+     * Placed after the history is assembled so the counts describe what actually
+     * goes out — the system turn, RAG context and attachments all shift those
+     * numbers, and a row logged before them would understate the request.
+     */
+    {
+      const d = findModel(get().model, get().provider);
+      useAiDebug.getState().mulai({
+        id: reqId,
+        provider: d.provider,
+        model: d.id,
+        kind: 'chat',
+        pesan: history.length,
+        chars: history.reduce((n, m) => n + (m.content?.length ?? 0), 0),
+      });
+    }
+
     set((s) => ({
       sessions: s.sessions.map((x) =>
         x.id === sessionId
@@ -964,7 +1012,7 @@ export const useAi = create<AiStore>((set, get) => ({
   sendAgent: async (raw) => {
     get().sinkronProvider();
     if (get().pending || get().agentBusy) {
-      set({ toast: 'Masih ada tugas agent berjalan — Stop dulu' });
+      set({ toast: tx('An agent task is still running - stop it first') });
       return;
     }
 
@@ -975,7 +1023,7 @@ export const useAi = create<AiStore>((set, get) => ({
         `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
         `dikirim ${MSG_LIMIT} karakter pertama]`;
       set({
-        toast: `Pesan ${raw.length} karakter dipotong ke ${MSG_LIMIT}`,
+        toast: tf('Message trimmed from {from} to {to} characters', { from: raw.length, to: MSG_LIMIT }),
         lastTruncated: { from: raw.length, to: MSG_LIMIT },
       });
     } else {
@@ -990,11 +1038,11 @@ export const useAi = create<AiStore>((set, get) => ({
         const pindah = lain[0].provider;
         const labelPindah = PROVIDER_BY_ID.get(pindah)?.label ?? pindah;
         set({ provider: pindah });
-        set({ toast: `${label} belum ada key — pindah ke ${labelPindah} yang sudah kamu isi` });
+        set({ toast: tf('No key for {from} - switched to {to}, which has one', { from: label, to: labelPindah }) });
         return;
       }
       set({
-        toast: `Isi API key ${label} di Settings → Model AI (atau pilih provider yang sudah kamu isi)`,
+        toast: tf('Add an API key for {name} in Settings, or pick a provider that already has one', { name: label }),
       });
       return;
     }
@@ -1143,6 +1191,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
         for (const tc of res.toolCalls) {
           if (agentBatal) break;
+          const mulaiTool = Date.now();
           const argsObj = (tc.args ?? {}) as Record<string, unknown>;
           const namaShell = tc.name === 'terminal_exec' || tc.name === 'shell_exec';
           const perintah = namaShell ? String(argsObj.command ?? '') : '';
@@ -1208,13 +1257,17 @@ export const useAi = create<AiStore>((set, get) => ({
           }
 
           if (agentBatal) break;
+          const selesaiPada = Date.now();
           const run = {
             name: tc.name,
             args: JSON.stringify(argsObj),
 
             result: hasil,
             ok,
-            at: Date.now(),
+            at: selesaiPada,
+            /* Time spent inside the tool, measured from before the dispatch
+               above, so the badge reports the call and not the queue. */
+            ms: selesaiPada - mulaiTool,
           };
           set((s) => ({
             agentSteps: [
@@ -1379,6 +1432,13 @@ export const useAi = create<AiStore>((set, get) => ({
       if (c.done || c.err) cancelled.delete(c.id);
       return;
     }
+
+    /* Feed the debug log. Counted before the state write so a chunk that is
+       dropped by a later guard still shows up as traffic. */
+    if (c.text || c.reasoning) useAiDebug.getState().potong(c.id, (c.text?.length ?? 0) + (c.reasoning?.length ?? 0));
+    if (c.done || c.err) {
+      useAiDebug.getState().selesai(c.id, c.err ? 'error' : 'ok', 0, c.err ?? undefined);
+    }
     set((s) => ({
       sessions: s.sessions.map((sess) => ({
         ...sess,
@@ -1398,6 +1458,20 @@ export const useAi = create<AiStore>((set, get) => ({
       reasoningText: c.reasoning ? (s.reasoningText ?? '') + c.reasoning : s.reasoningText,
     }));
     if (c.done || c.err) persist(get());
+
+    /*
+     * Drain the queue. Runs after the state settles, so the queued message is
+     * sent the moment the previous answer ends — the user does not have to
+     * press anything, and the composer stays empty until it goes.
+     */
+    if (c.done || c.err) {
+      const s2 = get();
+      const next = s2.antrian[0];
+      if (next && !s2.pending && !s2.agentBusy) {
+        set((s3) => ({ antrian: s3.antrian.slice(1) }));
+        void get().send(next.teks);
+      }
+    }
   },
 
   runInTerminal: async (command, opts) => {
@@ -1414,7 +1488,7 @@ export const useAi = create<AiStore>((set, get) => ({
     if (!pane) {
       const id = await t.addPane('shell');
       if (!id) {
-        set({ toast: 'Tidak bisa membuka pane terminal', confirmCmd: null });
+        set({ toast: tx('Could not open a terminal pane'), confirmCmd: null });
         return false;
       }
 
@@ -1427,7 +1501,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
       const { writeChunked } = await import('./terminalClipboard');
       await writeChunked(pane.id, `${command.replace(/\r?\n/g, '\r')}\r`);
-      set({ toast: 'Perintah dikirim ke terminal', confirmCmd: null });
+      set({ toast: tx('Command sent to the terminal'), confirmCmd: null });
       return true;
     } catch (e) {
       set({ toast: cmd.asZephyrError(e).message, confirmCmd: null });

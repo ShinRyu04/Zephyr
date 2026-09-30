@@ -462,7 +462,19 @@ body.is-narrow .ab-btn {
 .sidebar {
   flex-shrink: 0;
   background: var(--surface);
-  overflow: hidden;
+  /*
+   * Only the vertical axis is clipped.
+   *
+   * `overflow: hidden` on both axes meant a long file tree, a long chat list or
+   * a long settings nav simply ended at the panel edge: no scrollbar appeared,
+   * the last rows were unreachable, and switching workspace left the panel
+   * showing the middle of the previous tree because nothing had been scrolled
+   * back. `visible` is not an option here (the panel would bleed over the
+   * editor), so the axis that needs a scrollbar gets one.
+   */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   min-width: 200px;
@@ -1746,14 +1758,106 @@ body.is-resizing-v {
   flex-shrink: 0;
 }
 
+/*
+ * Folder disclosure, animated.
+ *
+ * The chevron snapped between two rotations in 100ms, which read as an
+ * instant swap — no sense that the row you clicked is the one that opened.
+ * A slightly longer, eased turn plus a fade-in on the children gives the
+ * expansion a direction: the arrow leads, the rows follow.
+ */
 .tree-chevron {
   width: 12px;
   height: 12px;
   color: var(--text-muted);
-  transition: transform 0.1s ease;
+  transition: transform 160ms cubic-bezier(0.4, 0, 0.2, 1), color 160ms ease;
 }
+
 .tree-chevron.is-open {
   transform: rotate(90deg);
+}
+
+.tree-row:hover .tree-chevron {
+  color: var(--text);
+}
+
+/*
+ * A row that has just been revealed.
+ *
+ * The chevron turned but the children arrived all at once, so opening a folder
+ * looked like a repaint. Each row now enters slightly after the one above it,
+ * with the delay capped so a directory with a hundred entries still finishes
+ * in a fraction of a second. The slide is 3px rather than a full-height move:
+ * enough to read as direction, short enough not to feel like loading.
+ */
+.tree-slot {
+  animation: tree-row-masuk 140ms ease-out both;
+  animation-delay: var(--tree-delay, 0ms);
+}
+
+@keyframes tree-row-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-slot,
+  .tree-row,
+  .tree-folder-ikon,
+  .tree-folder-ikon .tree-fikon {
+    animation: none;
+  }
+}
+
+/*
+ * The folder lid.
+ *
+ * A closed folder and an open one are two different drawings in the icon theme,
+ * so there is no shape to tween — what can be animated is the handover. The
+ * mark is remounted when the state flips, and the new one scales up from
+ * slightly small while the row itself does not move, which reads as the lid
+ * lifting rather than as the tree repainting. The open variant leans back
+ * instead of just sitting lower, so a screenshot alone shows which is which.
+ */
+.tree-folder-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  animation: folder-lid-buka 180ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  transform-origin: 50% 90%;
+}
+
+.tree-folder-ikon[data-buka='0'] {
+  animation-name: folder-lid-tutup;
+}
+
+@keyframes folder-lid-buka {
+  from {
+    transform: scale(0.82) rotate(-8deg);
+    opacity: 0.55;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes folder-lid-tutup {
+  from {
+    transform: scale(1.1) rotate(6deg);
+    opacity: 0.5;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 .tree-name {
@@ -2220,6 +2324,20 @@ body.is-resizing-v {
   color: var(--brand-whatsapp);
 }
 
+/* Tombol Discord memakai pola yang sama dengan WhatsApp: ikonnya tetap
+   berwarna merek walau tombolnya di-hover, karena bluring di latar gelap
+   membuat ikon ikut berubah jadi aksen dan warnanya jadi tidak dikenali. */
+.btn.btn-brand-dc > svg {
+  color: var(--brand-discord);
+}
+.btn.btn-brand-dc:hover:not(:disabled) > svg {
+  color: var(--brand-discord);
+}
+.btn.btn-brand-dc:hover:not(:disabled) {
+  border-color: var(--brand-discord);
+  color: var(--brand-discord);
+}
+
 /* ─────────── modal ─────────── */
 
 .modal-backdrop {
@@ -2229,7 +2347,17 @@ body.is-resizing-v {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  /*
+   * Above every floating surface in the app, not just the panes.
+   *
+   * At 100 this sat under the AI panel's own popovers (`.sub-daftar-menu` on
+   * 900, the model menu on 950), so opening the custom-sub-agent editor while
+   * the AI panel was up left those menus drawn straight through the dialog —
+   * the form was behind a dropdown that had nothing to do with it. A modal is
+   * the topmost thing by definition, so it takes the top of the range rather
+   * than a value that has to be re-checked every time a popover is added.
+   */
+  z-index: 1000;
 }
 
 .modal {

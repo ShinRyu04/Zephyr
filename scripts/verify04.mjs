@@ -67,12 +67,13 @@ class Cdp {
       window[${JSON.stringify(slot)}] = { done: false, value: null, error: null };
       (async () => {
         const s = window.__ZEPHYR__.getState();
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         const ex = window.__ZEPHYR_EX__.getState();
         ${body}
       })().then(
         (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
         (e) => { window[${JSON.stringify(slot)}] = { done: true, value: null,
-                  error: (e && (e.message || e.code)) ? JSON.stringify(e) : String(e) }; },
+                  error: (e && (e.stack || e.message || e.code)) ? String(e.stack || e.message || e.code).slice(0, 600) : String(e) }; },
       );
       return 'started';
     })()`);
@@ -123,8 +124,27 @@ const main = async () => {
   await sleep(300);
 
   // ───────── V1: Open Folder -> tree muncul, node_modules disembunyikan ─────────
-  await cdp.runAsync(`await s.openWorkspace(${JSON.stringify(ROOT)}); return 'ok';`);
-  await sleep(1200);
+  /*
+   * The explorer view has to be on screen before the tree exists in the DOM.
+   * Another harness may have left the sidebar on a different activity (or
+   * hidden), and openWorkspace alone does not switch back — so the checks below
+   * read an empty tree and report a failure that is really just panel state.
+   */
+  /*
+   * Wait for the tree to actually render rather than guessing a sleep. The
+   * workspace scan is asynchronous and its cost depends on what the previous
+   * harness left running, so a fixed delay is either flaky or slow.
+   */
+  await cdp.runAsync(`
+    s.setActivity('explorer');
+    s.setSidebarVisible(true);
+    await s.openWorkspace(${JSON.stringify(ROOT)});
+    for (let i = 0; i < 60; i++) {
+      await wait(250);
+      if (document.querySelectorAll('.tree-row').length > 0) break;
+    }
+    return document.querySelectorAll('.tree-row').length;
+  `);
 
   const treeInfo = JSON.parse(
     await cdp.eval(`(() => {

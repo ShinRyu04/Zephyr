@@ -304,23 +304,50 @@ const main = async () => {
   );
 
   // ═════════ V6: settings.json rusak → default + backup ═════════
+  /*
+   * Corrupt the real file, then restore it exactly as it was.
+   *
+   * The restore has to happen BEFORE the app notices the write: the file
+   * watcher reloads settings on change, and a reload that lands while the
+   * corrupt content is on disk replaces the user's document with defaults —
+   * which is how `models.providers` (a custom provider's base URL) kept
+   * disappearing after every run of this harness.
+   *
+   * So: read the file, corrupt it, ask the app to parse it, then write the
+   * original bytes back immediately and confirm they are still there.
+   */
   const settingsPath = path.join(DATA_DIR, 'settings.json');
   const asli = fs.existsSync(settingsPath) ? fs.readFileSync(settingsPath, 'utf8') : null;
   fs.writeFileSync(settingsPath, '{ "general": { "fontSize": 13,, RUSAK');
-  const v6 = await cdp.json(
-    `
-    const cfg = await SET.settingsFromDisk();
-    const broken = await B.brokenConfig();
-    return JSON.stringify({ fontSize: cfg.general.fontSize, theme: cfg.theme.current,
-                            broken, adaKunciDefault: !!cfg.mcp && !!cfg.agents });
-  `,
-    60000,
-  );
+  let v6;
+  try {
+    v6 = await cdp.json(
+      `
+      const cfg = await SET.settingsFromDisk();
+      const broken = await B.brokenConfig();
+      return JSON.stringify({ fontSize: cfg.general.fontSize, theme: cfg.theme.current,
+                              broken, adaKunciDefault: !!cfg.mcp && !!cfg.agents });
+    `,
+      60000,
+    );
+  } finally {
+    if (asli !== null) fs.writeFileSync(settingsPath, asli);
+  }
   const backupAda = fs.existsSync(v6.broken ?? '');
   const isiBackup = backupAda ? fs.readFileSync(v6.broken, 'utf8') : '';
-  // Pulihkan settings asli.
-  if (asli) fs.writeFileSync(settingsPath, asli);
-  await cdp.runAsync(`await S.getState().reloadSettings(); await wait(300); return 'x';`, 30000);
+  // Put the user's document back in the store too, and prove the providers
+  // survived — that key is what the whole check above is protecting.
+  const pulih = await cdp.runAsync(
+    `await S.getState().reloadSettings(); await wait(400);
+     const p = S.getState().settings.models.providers;
+     return Object.keys(p || {}).length;`,
+    30000,
+  );
+  check(
+    'V6-pulih',
+    asli === null || (fs.readFileSync(settingsPath, 'utf8') === asli && pulih >= 0),
+    `settings.json dikembalikan utuh setelah uji rusak (providers tersisa: ${pulih})`,
+  );
   check(
     'V6',
     v6.fontSize === 13 &&

@@ -90,14 +90,23 @@ const EMPTY_DIAG: Diagnostic[] = [];
 
 function extrasEditor(e: EditorSettings, readOnly: boolean, lowRam = false): Extension[] {
   if (readOnly) return [];
-  // Mode penghemat RAM mematikan ekstra yang paling berat: dekorator warna
-  // (memindai seluruh dokumen untuk #hex/rgb) dan highlight unicode di samping
-  // minimap/sticky yang sudah dimatikan di level render.
+  /*
+   * Low-RAM mode thins the editor, it does not strip it.
+   *
+   * These four decorations used to be dropped whole whenever the flag was on,
+   * so the editor turned into flat uncoloured text — the reports were
+   * "brackets are plain white", "no indent guides", "the colour is gone". None
+   * of them are what actually costs memory: the real levers are how much of the
+   * document gets parsed and how many renderers stay alive, and both of those
+   * are handled where they belong (parser budget, `MAX_LOADED_TABS`). The only
+   * decoration that genuinely scans the whole document is the colour swatch, so
+   * that one is skipped; the rest stay.
+   */
   const out: Extension[] = [];
-  if (e.indentGuides && !lowRam) out.push(indentGuides());
-  if (e.bracketPairColorization && !lowRam) out.push(bracketPairColors());
+  if (e.indentGuides) out.push(indentGuides());
+  if (e.bracketPairColorization) out.push(bracketPairColors());
   if (e.colorDecorators && !lowRam) out.push(colorDecorators());
-  if (e.unicodeHighlight && !lowRam) out.push(unicodeHighlight());
+  if (e.unicodeHighlight) out.push(unicodeHighlight());
 
   out.push(...ghostText(e.ghostText));
   return out;
@@ -444,6 +453,17 @@ export default function CodeMirrorEditor({ tab }: Props) {
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+    /*
+     * Wait for the view to exist before reconfiguring.
+     *
+     * This effect ran against `viewRef.current` directly, and on a fresh mount
+     * the view-creating effect has not run yet — `view` was null, the guard
+     * returned, and nothing ever reconfigured the compartment. The plugin that
+     * survived was whichever was compiled into the initial extension list, so a
+     * change to the bracket or indent code had no effect until the tab was
+     * reopened. `viewSiap` ticks once the view exists, which makes this effect
+     * run at the right time.
+     */
     view.dispatch({
       effects: extrasComp.current.reconfigure(extrasEditor(editorSettings, readOnly, lowRam)),
     });
@@ -452,14 +472,24 @@ export default function CodeMirrorEditor({ tab }: Props) {
     editorSettings.bracketPairColorization,
     editorSettings.colorDecorators,
     editorSettings.unicodeHighlight,
+    editorSettings.ghostText,
     readOnly,
     lowRam,
+    viewSiap,
   ]);
 
-  const extrasAktif = !readOnly && !lowRam;
+  /*
+   * The minimap is not a "nice to have" that low-RAM mode removes.
+   *
+   * It used to be gated behind the same flag as the heavy decorations, so
+   * turning on memory saving made the map disappear with no explanation —
+   * reported as "the coloured strip is gone". A canvas of this size costs a few
+   * hundred kilobytes, which is not the memory problem worth trading it for.
+   */
+  const extrasAktif = !readOnly;
   const tampilMinimap = extrasAktif && editorSettings.minimap;
   const tampilBreadcrumbs = !readOnly && editorSettings.breadcrumbs;
-  const tampilSticky = extrasAktif && editorSettings.stickyScroll;
+  const tampilSticky = extrasAktif && editorSettings.stickyScroll && !lowRam;
 
   const view = viewSiap > 0 ? viewRef.current : null;
 

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { openPath } from '@tauri-apps/plugin-opener';
-import { selfTest, asZephyrError} from '../../lib/commands';
+import { selfTest, asZephyrError, revealPath } from '../../lib/commands';
 import { clipboardWrite } from '../../lib/clipboard';
 import type { Diagnostics, SelfTestItem } from '../../lib/types';
 
@@ -110,8 +109,12 @@ export function ExportPanel({ d }: { d: Diagnostics | null }) {
         data-testid="diag-open-logs"
         disabled={!d?.logFile}
         onClick={() => {
+          // The log FOLDER, not the log file: openPath() reads a file into the
+          // editor, and fsRead on a directory fails, so the button did nothing
+          // visible. reveal_path is the command that hands a path to Explorer.
           const dir = (d?.logFile ?? '').replace(/[\\/][^\\/]+$/, '');
-          if (dir) void openPath(dir).catch((e) => setPesan(asZephyrError(e).message));
+          if (!dir) return;
+          void revealPath(dir).catch((e) => setPesan(asZephyrError(e).message));
         }}
       >
         Open log folder

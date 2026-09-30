@@ -48,7 +48,7 @@ pub fn browser_pane_open(
     let u = url.trim();
     if !(u.starts_with("http://") || u.starts_with("https://")) {
         return Err(ZephyrError::InvalidInput(
-            "URL harus diawali http:// atau https://".into(),
+            "the URL must start with http:// or https://".into(),
         ));
     }
     let label = label_untuk(&pane_id);
@@ -60,7 +60,7 @@ pub fn browser_pane_open(
         });
         let _ = w.navigate(
             u.parse()
-                .map_err(|e| ZephyrError::InvalidInput(format!("URL tidak valid: {e}")))?,
+                .map_err(|e| ZephyrError::InvalidInput(format!("invalid URL: {e}")))?,
         );
         return Ok(PaneInfo {
             pane_id,
@@ -72,13 +72,13 @@ pub fn browser_pane_open(
 
     let jendela = app
         .get_window("main")
-        .ok_or_else(|| ZephyrError::InvalidInput("jendela utama tidak ditemukan".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("main window not found".into()))?;
 
     let builder = tauri::webview::WebviewBuilder::new(
         &label,
         WebviewUrl::External(
             u.parse()
-                .map_err(|e| ZephyrError::InvalidInput(format!("URL tidak valid: {e}")))?,
+                .map_err(|e| ZephyrError::InvalidInput(format!("invalid URL: {e}")))?,
         ),
     )
     .auto_resize();
@@ -89,7 +89,7 @@ pub fn browser_pane_open(
             LogicalPosition::new(x, y),
             LogicalSize::new(width, height),
         )
-        .map_err(|e| ZephyrError::InvalidInput(format!("gagal membuat webview: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("creating the webview failed: {e}")))?;
 
     daftar()
         .get_or_insert_with(HashMap::new)
@@ -121,7 +121,7 @@ pub fn browser_pane_bounds(
         position: LogicalPosition::new(x, y).into(),
         size: LogicalSize::new(width, height).into(),
     })
-    .map_err(|e| ZephyrError::InvalidInput(format!("gagal mengubah ukuran: {e}")))?;
+    .map_err(|e| ZephyrError::InvalidInput(format!("resizing failed: {e}")))?;
     Ok(true)
 }
 
@@ -133,7 +133,7 @@ pub fn browser_pane_visible(app: AppHandle, pane_id: String, visible: bool) -> Z
         return Ok(false);
     };
     if visible { w.show() } else { w.hide() }
-        .map_err(|e| ZephyrError::InvalidInput(format!("gagal mengubah visibilitas: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("changing visibility failed: {e}")))?;
     Ok(true)
 }
 
@@ -157,7 +157,7 @@ pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResul
     let label = label_untuk(&pane_id);
     let w = app
         .get_webview(&label)
-        .ok_or_else(|| ZephyrError::InvalidInput("pane browser tidak ditemukan".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("browser pane not found".into()))?;
     match aksi.as_str() {
         "back" => w
             .eval("history.back()")
@@ -171,7 +171,7 @@ pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResul
         lain => {
             let u: tauri::Url = lain
                 .parse()
-                .map_err(|e| ZephyrError::InvalidInput(format!("URL tidak valid: {e}")))?;
+                .map_err(|e| ZephyrError::InvalidInput(format!("invalid URL: {e}")))?;
             w.navigate(u)
                 .map_err(|e| ZephyrError::InvalidInput(format!("{e}")))?;
         }
@@ -204,7 +204,7 @@ pub fn browser_pane_eval(app: AppHandle, pane_id: String, js: String) -> ZResult
     let label = label_untuk(&pane_id);
     let w = app
         .get_webview(&label)
-        .ok_or_else(|| ZephyrError::InvalidInput("pane browser tidak ditemukan".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("browser pane not found".into()))?;
 
     let skrip = format!(
         "(function(){{try{{var __r=eval({js:?});return JSON.stringify(__r===undefined?null:__r);}}catch(e){{return JSON.stringify({{error:String(e&&e.message||e)}});}}}})()"
@@ -214,13 +214,13 @@ pub fn browser_pane_eval(app: AppHandle, pane_id: String, js: String) -> ZResult
     w.eval_with_callback(skrip, move |hasil| {
         let _ = tx.send(hasil);
     })
-    .map_err(|e| ZephyrError::InvalidInput(format!("gagal menjalankan skrip: {e}")))?;
+    .map_err(|e| ZephyrError::InvalidInput(format!("running the script failed: {e}")))?;
 
     let mentah = match rx.recv_timeout(std::time::Duration::from_secs(8)) {
         Ok(h) => h,
         Err(_) => {
             return Err(ZephyrError::InvalidInput(
-                "halaman tidak menjawab dalam 8 detik".into(),
+                "the page did not answer within 8 seconds".into(),
             ))
         }
     };
@@ -246,7 +246,7 @@ pub fn browser_pane_info(app: AppHandle, pane_id: String) -> ZResult<PaneInfo> {
     let label = label_untuk(&pane_id);
     let w = app
         .get_webview(&label)
-        .ok_or_else(|| ZephyrError::InvalidInput("pane browser tidak ditemukan".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("browser pane not found".into()))?;
     let url = w.url().map(|u| u.to_string()).unwrap_or_default();
 
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -291,7 +291,7 @@ pub fn browser_pane_cursor(app: AppHandle, pane_id: String, selector: String) ->
     let label = label_untuk(&pane_id);
     let w = app
         .get_webview(&label)
-        .ok_or_else(|| ZephyrError::InvalidInput("pane browser tidak ditemukan".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("browser pane not found".into()))?;
 
     let skrip = format!(
         r#"(function(){{
@@ -342,13 +342,13 @@ pub fn browser_pane_cursor(app: AppHandle, pane_id: String, selector: String) ->
     w.eval_with_callback(skrip, move |h| {
         let _ = tx.send(h);
     })
-    .map_err(|e| ZephyrError::InvalidInput(format!("gagal menjalankan skrip: {e}")))?;
+    .map_err(|e| ZephyrError::InvalidInput(format!("running the script failed: {e}")))?;
 
     let mentah = match rx.recv_timeout(std::time::Duration::from_secs(6)) {
         Ok(h) => h,
         Err(_) => {
             return Err(ZephyrError::InvalidInput(
-                "halaman tidak menjawab dalam 6 detik".into(),
+                "the page did not answer within 6 seconds".into(),
             ))
         }
     };

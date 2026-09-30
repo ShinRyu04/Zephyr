@@ -60,7 +60,7 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
     }
     let cfg = crate::mcp_config::load_or_init(&state);
     if cfg.token.trim().is_empty() {
-        return Err(ZephyrError::Mcp("token MCP kosong".into()));
+        return Err(ZephyrError::Mcp("empty MCP token".into()));
     }
 
     let want = settings_port(&state);
@@ -76,7 +76,7 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
                 break;
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => continue,
-            Err(e) => return Err(ZephyrError::Mcp(format!("bind {cand} gagal: {e}"))),
+            Err(e) => return Err(ZephyrError::Mcp(format!("binding {cand} failed: {e}"))),
         }
     }
     let listener = listener.ok_or_else(|| {
@@ -154,7 +154,7 @@ pub fn stop(app: &AppHandle) -> bool {
 fn unauthorized() -> axum::response::Response {
     (
         StatusCode::UNAUTHORIZED,
-        Json(json!({ "error": "Bearer token salah atau tidak ada" })),
+        Json(json!({ "error": "Bearer token salah atau is missing" })),
     )
         .into_response()
 }
@@ -494,7 +494,7 @@ async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> 
             json!({ "reqId": req_id, "type": kind, "payload": payload }),
         ) {
             state.mcp_forget(&req_id);
-            return Err(ZephyrError::Mcp(format!("emit gagal: {e}")));
+            return Err(ZephyrError::Mcp(format!("emit failed: {e}")));
         }
         match tokio::time::timeout(UI_TIMEOUT, rx).await {
             Ok(Ok(v)) => {
@@ -512,7 +512,7 @@ async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> 
     }
 
     const PERCOBAAN: u32 = 3;
-    let mut terakhir = ZephyrError::Mcp("tidak ada percobaan".into());
+    let mut terakhir = ZephyrError::Mcp("is missing percobaan".into());
     for n in 0..PERCOBAAN {
         match sekali(&state, app, kind, payload.clone()).await {
             Ok(v) => return Ok(v),
@@ -525,7 +525,7 @@ async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> 
         }
     }
     Err(ZephyrError::Mcp(format!(
-        "UI tidak menjawab untuk '{kind}' setelah {PERCOBAAN} percobaan: {terakhir}"
+        "the UI did not answer for '{kind}' after {PERCOBAAN} attempts: {terakhir}"
     )))
 }
 
@@ -679,7 +679,7 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
                 "Backspace" => "\x7f",
                 other => {
                     return Err(ZephyrError::InvalidInput(format!(
-                        "key '{other}' tidak dikenal"
+                        "key '{other}' not recognised"
                     )))
                 }
             };
@@ -792,9 +792,9 @@ fn pty_write_raw(state: &AppState, pane: &str, data: &str) -> ZResult<()> {
             .lock()
             .map_err(|_| ZephyrError::Pty("writer terkunci".into()))?;
         w.write_all(data.as_bytes())
-            .map_err(|e| ZephyrError::Pty(format!("tulis gagal: {e}")))?;
+            .map_err(|e| ZephyrError::Pty(format!("write failed: {e}")))?;
         w.flush()
-            .map_err(|e| ZephyrError::Pty(format!("flush gagal: {e}")))?;
+            .map_err(|e| ZephyrError::Pty(format!("flush failed: {e}")))?;
         Ok(())
     })
 }

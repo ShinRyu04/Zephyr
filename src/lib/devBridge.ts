@@ -104,6 +104,8 @@ import { useOutput } from './outputStore';
 import { usePorts } from './portsStore';
 import { evaluateDebugExpr } from '../components/shell/DebugConsoleView';
 import { useLsp } from './lspStore';
+import { useSubagentCustom, customAktif, daftarPekerja } from './subagentCustom';
+import { pathIkonPeran } from './peranIcons';
 import { minimapDebug } from '../components/editor/Minimap';
 import {
   LSP_SERVERS,
@@ -1128,6 +1130,29 @@ export function installDevBridge(): void {
       useKb.getState().bindings.find((b) => b.command === command)?.source ?? null,
   };
 
+  /*
+   * Custom sub-agents, so a harness can drive the editor without importing the
+   * module.
+   *
+   * `import()` inside `Runtime.evaluate` builds a second module instance with
+   * its own zustand store, so calling `bukaSunting` on it flipped a flag the
+   * mounted component never reads — the dialog stayed shut and the test read a
+   * null backdrop. Everything here goes through the single live store.
+   */
+  w.__ZEPHYR_SUB__ = {
+    store: () => useSubagentCustom,
+    state: () => useSubagentCustom.getState(),
+    muat: () => useSubagentCustom.getState().muat(),
+    daftar: () => useSubagentCustom.getState().daftar,
+    pekerja: () => daftarPekerja(),
+    aktif: () => customAktif(),
+    bukaBaru: () => useSubagentCustom.getState().bukaBaru(),
+    bukaSunting: (id: string) => useSubagentCustom.getState().bukaSunting(id),
+    tutup: () => useSubagentCustom.getState().tutup(),
+    sunting: () => useSubagentCustom.getState().sunting,
+    ikonPeran: (id: string | undefined) => pathIkonPeran(id),
+  };
+
   w.__ZEPHYR_TASK__ = {
     store: () => useTasks,
     state: () => useTasks.getState(),
@@ -1748,6 +1773,14 @@ export function installDevBridge(): void {
   // circular edge before agentTools has finished initialising.
   void import('./agentTools').then((m) => {
     w.__ZEPHYR_TOOLS__ = m.AGENT_TOOLS;
+  });
+
+  // Dev Environment store, exposed so a harness can drive a real scan and read
+  // detection results. Imported lazily for the same circular-edge reason as
+  // agentTools: devenvStore imports store, which is this module's own root.
+  void import('./devenvStore').then((m) => {
+    w.__ZEPHYR_DEVENV__ = m.useDevenv;
+    w.__ZEPHYR_RINGKAS_DEVENV__ = m.ringkasDevenv;
   });
 
   const origError = console.error.bind(console);

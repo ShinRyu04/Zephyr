@@ -1,0 +1,4 @@
+OMEGA satu
+beta OMEGA
+gamma
+OMEGA akhir

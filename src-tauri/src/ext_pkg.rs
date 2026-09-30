@@ -32,7 +32,7 @@ pub fn pastikan_id_aman(id: &str) -> ZResult<()> {
         Ok(())
     } else {
         Err(ZephyrError::InvalidInput(format!(
-            "id ekstensi tidak valid: '{id}' (hanya huruf, angka, '.', '-' dan '_')"
+            "invalid extension id: '{id}' (letters, digits, '.', '-' and '_' only)"
         )))
     }
 }
@@ -283,13 +283,13 @@ pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
         ("package.json".to_string(), dir.join("package.json"))
     } else {
         return Err(ZephyrError::InvalidInput(format!(
-            "folder tidak punya {MANIFEST_NATIVE} maupun package.json"
+            "the folder has neither {MANIFEST_NATIVE} maupun package.json"
         )));
     };
 
     let raw_text = std::fs::read_to_string(&path)?;
     let v: Value = serde_json::from_str(&raw_text)
-        .map_err(|e| ZephyrError::InvalidInput(format!("{file} tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("{file} is not valid: {e}")))?;
 
     let id_manifest = sf(&v, "id");
     let id = if id_manifest.is_empty() {
@@ -356,7 +356,7 @@ pub fn resolve_in_ext(root: &Path, rel: &str) -> ZResult<PathBuf> {
     let p = Path::new(&r);
     if p.is_absolute() || r.contains(':') {
         return Err(ZephyrError::Permission(format!(
-            "path kontribusi harus relatif: {rel}"
+            "the contribution path must be relative: {rel}"
         )));
     }
     for c in p.components() {
@@ -564,7 +564,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
                 .extension()
                 .map(|x| x.to_string_lossy().to_lowercase())
                 .unwrap_or_default();
-            if ext == "zext" || ext == "zip" || ext == "vsix" {
+            if ext == "zext" || ext == "zip" {
                 unzip_zext(&asal, &staging)?;
             } else if asal
                 .file_name()
@@ -572,13 +572,13 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
                 .unwrap_or(false)
             {
                 let induk = asal.parent().ok_or_else(|| {
-                    ZephyrError::InvalidInput("folder ekstensi tidak ketemu".into())
+                    ZephyrError::InvalidInput("extension folder not found".into())
                 })?;
                 let mut n = 0u64;
                 copy_dir(induk, &staging, &mut n)?;
             } else {
                 return Err(ZephyrError::InvalidInput(
-                    "pilih folder ekstensi, file .zext/.vsix, atau manifest-nya".into(),
+                    "pilih folder ekstensi, file .zext, atau manifest-nya".into(),
                 ));
             }
         } else {
@@ -601,7 +601,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
 
         if !id_aman(&man.id) {
             return Err(ZephyrError::InvalidInput(format!(
-                "id ekstensi tidak valid: {}",
+                "invalid extension id: {}",
                 man.id
             )));
         }
@@ -925,7 +925,7 @@ pub async fn ext_exec(
         Ok(c) => c,
         Err(e) => {
             return Err(ZephyrError::InvalidInput(format!(
-                "gagal menjalankan {bin}: {e}"
+                "failed menjalankan {bin}: {e}"
             )));
         }
     };
@@ -1009,9 +1009,25 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
     dirs.dedup();
 
     let mut out = Vec::new();
+    let mut id_terlihat: std::collections::HashSet<String> = std::collections::HashSet::new();
     for d in dirs {
         match read_manifest(&d) {
             Ok(m) => {
+                /*
+                 * One manifest per id.
+                 *
+                 * A bundled package lives twice on disk: the source copy under
+                 * `extensions/.bundled/<id>` and the installed copy under
+                 * `extensions/<id>`. Both are readable, and when an entry in
+                 * installed.json pointed at the `.bundled` path the loader
+                 * returned two manifests with the same id — which is how a
+                 * single theme showed up twice in the picker. First one wins,
+                 * and `dirs` is sorted so the installed copy (no leading dot)
+                 * is the one kept.
+                 */
+                if !id_terlihat.insert(m.id.clone()) {
+                    continue;
+                }
                 let ent = installed.iter().find(|x| x.id == m.id);
 
                 let icon_bytes: Option<Vec<u8>> = if m.icon.is_empty() {
@@ -1076,10 +1092,8 @@ pub struct ExtManifestStatus {
     pub icon_path: Option<String>,
 }
 
-const MAX_VSIX_BYTES: u64 = 1024 * 1024 * 1024;
-
 #[tauri::command(async)]
-pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
+pub fn extensions_download_zext(url: String, id: String) -> ZResult<String> {
     const IZIN: &[&str] = &["open-vsx.org", "www.open-vsx.org"];
     let host = url.split('/').nth(2).unwrap_or("").to_lowercase();
     if !url.starts_with("https://") || !IZIN.contains(&host.as_str()) {
@@ -1089,12 +1103,15 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
     }
 
     if !id_aman(&id) {
-        return Err(ZephyrError::InvalidInput(format!("id tidak valid: {id}")));
+        return Err(ZephyrError::InvalidInput(format!("invalid id: {id}")));
     }
 
     let dir_tmp = std::env::temp_dir().join("zephyr-ext");
     std::fs::create_dir_all(&dir_tmp)?;
-    let tujuan = dir_tmp.join(format!("{id}.vsix"));
+    // Named `.zext` whatever the registry calls it. A registry may still serve
+    // the VS Code package format, and that is fine — it is the same zip — but
+    // the file on disk is ours, so nothing downstream has to know which it was.
+    let tujuan = dir_tmp.join(format!("{id}.zext"));
 
     let r = ureq::get(&url)
         .config()
@@ -1104,11 +1121,11 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
         .header("Accept", "application/octet-stream")
         .header("User-Agent", "Zephyr-Editor/1.0")
         .call()
-        .map_err(|e| ZephyrError::Git(format!("gagal mengunduh .vsix: {e}")))?;
+        .map_err(|e| ZephyrError::Git(format!("failed mengunduh .zext: {e}")))?;
 
     if r.status().as_u16() != 200 {
         return Err(ZephyrError::Git(format!(
-            "registry menjawab {} saat mengunduh .vsix",
+            "registry menjawab {} saat mengunduh .zext",
             r.status().as_u16()
         )));
     }
@@ -1116,17 +1133,17 @@ pub fn extensions_download_vsix(url: String, id: String) -> ZResult<String> {
     let bytes = r
         .into_body()
         .with_config()
-        .limit(MAX_VSIX_BYTES)
+        .limit(MAX_ZEXT_BYTES)
         .read_to_vec()
-        .map_err(|e| ZephyrError::Git(format!("gagal membaca unduhan: {e}")))?;
-    if bytes.len() as u64 > MAX_VSIX_BYTES {
+        .map_err(|e| ZephyrError::Git(format!("failed membaca unduhan: {e}")))?;
+    if bytes.len() as u64 > MAX_ZEXT_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            ".vsix melebihi batas {} MB",
-            MAX_VSIX_BYTES / 1024 / 1024
+            ".zext melebihi batas {} MB",
+            MAX_ZEXT_BYTES / 1024 / 1024
         )));
     }
     if bytes.is_empty() {
-        return Err(ZephyrError::InvalidInput(".vsix kosong".into()));
+        return Err(ZephyrError::InvalidInput(".zext empty".into()));
     }
     std::fs::write(&tujuan, &bytes)?;
 

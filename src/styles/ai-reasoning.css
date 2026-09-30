@@ -1,0 +1,144 @@
+/*
+ * Reasoning ("Thinking") block — one folded row.
+ *
+ * Loaded after ai.css, which styles the same classes for the older shape (an
+ * auto-opened italic block with a caret glyph). This file replaces that with a
+ * single row: a chevron, the model mark, the label, a live shimmer while tokens
+ * arrive, and a count or timer on the right.
+ *
+ * The row is deliberately quiet. Reasoning is context, not content: it should
+ * be findable at a glance and ignorable the rest of the time.
+ */
+
+.ai-reasoned {
+  margin: 4px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color 120ms ease;
+}
+
+/* While the model is still reasoning the border carries the accent, which is
+   the only signal that this row is live. */
+.ai-reasoned.is-jalan {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.ai-reasoned-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 9px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.ai-reasoned-head:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ai-reasoned-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ai-reasoned-caret {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ai-reasoned-ikon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.ai-reasoned-label {
+  font-weight: 500;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/*
+ * Three bars that rise and fall in sequence. A CSS animation rather than a
+ * component: there is nothing to compute, and this way it costs no renders
+ * while tokens stream in.
+ */
+.ai-reasoned-shimmer {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.ai-reasoned-shimmer i {
+  width: 2px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: reasoned-bar 1.05s ease-in-out infinite;
+}
+
+.ai-reasoned-shimmer i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.ai-reasoned-shimmer i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes reasoned-bar {
+  0%,
+  100% {
+    height: 4px;
+    opacity: 0.45;
+  }
+  50% {
+    height: 10px;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-reasoned-shimmer i {
+    animation: none;
+    height: 6px;
+    opacity: 0.7;
+  }
+}
+
+.ai-reasoned-meta {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.ai-reasoned-body {
+  margin: 0;
+  padding: 9px 11px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+}

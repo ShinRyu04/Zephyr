@@ -44,6 +44,15 @@
   /* bracket pair colorization (fase 24) — 6 tingkat lalu berulang.
      Turunan dari palet syntax yang sudah ada, jadi tiap tema ikut otomatis
      tanpa menambah daftar warna kedua (pelajaran fase 13). */
+  /*
+   * A stripe for the indentation guides.
+   *
+   * Deliberately brighter than `--border`: the guides are 1px lines on the
+   * editor background, and at that weight the border colour reads as a smudge
+   * rather than as a line.
+   */
+  --indent-guide: #3d444d;
+  --indent-guide-active: #6e7681;
   --bracket-1: var(--syn-keyword);
   --bracket-2: var(--syn-string);
   --bracket-3: var(--syn-number);
@@ -101,6 +110,7 @@
      nilainya tetap walau tema berganti; teksnya sendiri tetap pakai token
      tema supaya kontras terbaca di tema terang maupun gelap. */
   --brand-whatsapp: #25d366;
+  --brand-discord: #5865f2;
   --brand-github: var(--fg0);
   --brand-donate: var(--accent);
   --brand-trakteer: #be1e2d;

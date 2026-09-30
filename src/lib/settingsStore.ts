@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import type { ModelTestResult, PublicModel } from './types';
+import { useStore } from './store';
 
 export type SectionId =
   | 'general'
@@ -15,6 +16,8 @@ export type SectionId =
   | 'lsp'
   | 'scm'
   | 'mcp'
+  | 'tests'
+  | 'devenv'
   | 'security'
   | 'accessibility'
   | 'ssh'
@@ -33,6 +36,8 @@ export const SECTION_ORDER: SectionId[] = [
   'lsp',
   'scm',
   'mcp',
+  'tests',
+  'devenv',
 
   'security',
 
@@ -101,7 +106,7 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   saveKey: async (provider, key) => {
     try {
       await cmd.setModelKey(provider, key);
-      set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key tersimpan' : 'API key dihapus' });
+      set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key saved' : 'API key dihapus' });
 
       if (key.trim()) void get().refreshRemoteModels(provider);
       else set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: [] } }));
@@ -113,7 +118,18 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   refreshRemoteModels: async (provider) => {
     set({ fetchingModels: provider });
     try {
-      const ids = await cmd.listModels(provider);
+      /*
+       * The base URL has to come along.
+       *
+       * `list_models` builds its request from the provider plus an optional
+       * override; for a custom gateway the provider id alone resolves to
+       * nothing, so the call returned an empty list and the pickers that read
+       * `remoteModels` showed only the static catalogue. The override lives in
+       * settings, which is what this store is for.
+       */
+      const baseUrl =
+        (useStore.getState().settings.models.providers ?? {})[provider]?.baseUrl || undefined;
+      const ids = await cmd.listModels(provider, baseUrl);
       set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: ids }, fetchingModels: null }));
       return ids;
     } catch (e) {

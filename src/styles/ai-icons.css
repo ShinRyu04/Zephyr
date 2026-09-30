@@ -1,0 +1,544 @@
+/*
+ * File-type icons and the subagent robot mark.
+ *
+ * Two things live here: the tint per file type used by the composer's "@"
+ * picker, and the robot badge the subagents panel shows per agent. Both are
+ * colour-coded, and the colours come from the same family so a file row and an
+ * agent row read as parts of one interface.
+ */
+
+/* ── File-type icons ──────────────────────────────────────────────────── */
+
+.ai-fikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* The two-letter badge (TS, JS): a rounded square with the mark inside. */
+.ai-fikon.is-badge {
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ai-fikon.is-badge .ai-fikon-teks {
+  line-height: 1;
+}
+
+/*
+ * One tint per type family. The colours are the conventional ones (blue for
+ * TypeScript, yellow for JavaScript, orange for HTML) because those pairings
+ * are already learned — an unconventional palette would make the icons
+ * decorative rather than informative.
+ */
+.ai-fikon.is-ts {
+  color: #4a9eff;
+}
+.ai-fikon.is-ts.is-badge {
+  background: color-mix(in srgb, #4a9eff 22%, transparent);
+}
+.ai-fikon.is-js {
+  color: #e8c547;
+}
+.ai-fikon.is-js.is-badge {
+  background: color-mix(in srgb, #e8c547 22%, transparent);
+}
+.ai-fikon.is-json {
+  color: #e8a33d;
+}
+.ai-fikon.is-web {
+  color: #e56b4a;
+}
+.ai-fikon.is-style {
+  color: #56b6ff;
+}
+.ai-fikon.is-doc {
+  color: #6f9fe8;
+}
+.ai-fikon.is-image {
+  color: #57c98a;
+}
+.ai-fikon.is-data {
+  color: #b58fe8;
+}
+.ai-fikon.is-config {
+  color: #9aa4b2;
+}
+.ai-fikon.is-shell {
+  color: #7fd18c;
+}
+.ai-fikon.is-lock {
+  color: #d4a04a;
+}
+.ai-fikon.is-folder {
+  color: #7f9fd8;
+}
+.ai-fikon.is-generic {
+  color: var(--text-muted);
+}
+
+/* ── Subagent robot mark ──────────────────────────────────────────────── */
+
+/*
+ * The robot head that marks an agent row.
+ *
+ * It is drawn in the row's own status colour rather than a fixed one, so the
+ * mark doubles as the status light: a green head is a finished agent, a blue
+ * one is working. That is one element carrying two facts, which is why the
+ * rows stay readable at 58px tall.
+ */
+.sub-robot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * 16px, sized to sit with the row's text rather than above it.
+   *
+   * The history here is 18 -> 30 -> 22, and every step was judged by "can I see
+   * it" rather than "does it belong". 16px matches the icon grid the rest of
+   * the app draws on, so the head reads as a mark in the row, not as a badge
+   * with a row attached. The status colour still carries the state.
+   */
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+
+  /* No disc behind the head. It was added to lift the mark off the panel
+     background, but `currentColor` is the status colour, so a running agent
+     got a coloured blob twice the size of its own glyph. The stroke is enough
+     against the row background. */
+  border-radius: 50%;
+}
+
+.sub-robot svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Antenna dot: the only part that moves, and only while the agent runs. */
+.sub-robot .robot-antenna {
+  transform-origin: 12px 3px;
+}
+
+/*
+ * Every agent cycles through the same four hues.
+ *
+ * The cycle was running-only, and finished rows were pinned to a single colour
+ * to look "settled". In practice the panel is glanced at, not read: a still
+ * head read as a stopped one, and the one row still moving was the only one
+ * that looked alive. The hue cycle now runs on every status so the panel has a
+ * consistent pulse, and the status is carried by the badge text and the row's
+ * own colour rather than by whether the head animates.
+ *
+ * Failed rows keep their own accent so the cycle cannot hide a failure: the
+ * hue keyframes are skipped for them, and a slow red pulse stands in its place.
+ */
+.sub-baris.is-jalan .sub-robot,
+.sub-baris.is-selesai .sub-robot,
+.sub-baris.is-menunggu .sub-robot {
+  animation: robot-hue 4.8s linear infinite;
+}
+
+/*
+ * A failed agent pulses red instead of cycling.
+ *
+ * Cycling through four hues would let a failure look like any other row for
+ * three quarters of the loop, which is the one thing a failed row must never
+ * do.
+ */
+.sub-baris.is-gagal .sub-robot {
+  color: var(--danger);
+  animation: robot-fail 2.4s ease-in-out infinite;
+}
+
+@keyframes robot-fail {
+  0%,
+  100% {
+    color: var(--danger);
+    opacity: 1;
+  }
+  50% {
+    color: var(--danger);
+    opacity: 0.45;
+  }
+}
+
+/*
+ * A cancelled agent keeps the head but stops the cycle.
+ *
+ * Cancelled is the one status where the user stopped the work, so a head that
+ * keeps cycling would claim activity that is not happening. It stays visible
+ * and inert: the base colour, dimmed.
+ */
+.sub-baris.is-batal .sub-robot {
+  color: var(--text-secondary);
+  opacity: 0.62;
+}
+
+/* The disc is the head's glow; a cancelled agent should not glow. */
+.sub-baris.is-batal .sub-robot {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+@keyframes robot-hue {
+  0%,
+  100% {
+    color: var(--accent);
+  }
+  25% {
+    color: var(--syn-type);
+  }
+  50% {
+    color: var(--syn-function);
+  }
+  75% {
+    color: var(--syn-variable);
+  }
+}
+
+/* Eyes blink and the antenna pings on every status except cancelled: the face
+   stays alive so a finished row does not read as a broken one. */
+.sub-baris:not(.is-batal) .sub-robot .robot-eye {
+  animation: robot-blink 2.6s ease-in-out infinite;
+}
+
+.sub-baris:not(.is-batal) .sub-robot .robot-antenna {
+  animation: robot-ping 1.8s ease-in-out infinite;
+}
+
+/* The head itself breathes, a touch out of phase with the hue so the two
+   never read as one mechanical loop. */
+.sub-baris:not(.is-batal) .sub-robot svg {
+  animation: robot-breathe 2.2s ease-in-out infinite;
+}
+
+@keyframes robot-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* The settle pop is gone with the still state: a finished agent now keeps
+   breathing with the rest, so a one-shot scale would fight the loop. */
+
+@keyframes robot-blink {
+  0%,
+  92%,
+  100% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes robot-ping {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sub-robot,
+  .sub-robot .robot-eye,
+  .sub-robot .robot-antenna,
+  .sub-robot svg {
+    animation: none;
+  }
+}
+
+/* ── Thinking indicator ───────────────────────────────────────────────── */
+
+/*
+ * The 2x4 dot matrix from the reference: eight small squares that light up in
+ * sequence. It reads as "working" without a spinner's urgency, and unlike three
+ * bouncing dots it keeps a fixed footprint so the line does not reflow as the
+ * animation runs.
+ */
+.ai-dots {
+  display: inline-grid;
+  grid-template-columns: repeat(4, 3px);
+  grid-template-rows: repeat(2, 3px);
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/*
+ * The thinking indicator is a row of bars, not a grid of dots.
+ *
+ * Eight round dots in a 4x2 grid read as a spinner bolted onto the message —
+ * and the roundness is the first thing people notice, before the colour. Four
+ * vertical bars that rise and fall give the strip a wave to read, keep every
+ * cell the same width so the row does not shift, and leave the colour to do the
+ * work: each bar carries its own hue, so the strip is never one flat blue.
+ */
+.ai-dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 11px;
+  animation: ai-dots-breathe 2.4s ease-in-out infinite;
+}
+
+.ai-dots span {
+  width: 2.6px;
+  height: 100%;
+  border-radius: 1.4px;
+  background: var(--dot, currentColor);
+  opacity: 0.3;
+  transform-origin: bottom center;
+  animation: dot-wave 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/*
+ * Colour per bar, in spectrum order.
+ *
+ * The palette is the editor's own syntax colours, so the indicator belongs to
+ * the theme instead of sitting beside it, and no theme ships a blue-only
+ * thinking state.
+ */
+.ai-dots span:nth-child(1) { --dot: var(--syn-type); animation-delay: 0s; }
+.ai-dots span:nth-child(2) { --dot: var(--syn-string); animation-delay: 0.12s; }
+.ai-dots span:nth-child(3) { --dot: var(--syn-number); animation-delay: 0.24s; }
+.ai-dots span:nth-child(4) { --dot: var(--syn-function); animation-delay: 0.36s; }
+.ai-dots span:nth-child(5) { --dot: var(--syn-keyword); animation-delay: 0.48s; }
+.ai-dots span:nth-child(6) { --dot: var(--syn-type); animation-delay: 0.6s; }
+.ai-dots span:nth-child(7) { --dot: var(--syn-string); animation-delay: 0.72s; }
+.ai-dots span:nth-child(8) { --dot: var(--syn-number); animation-delay: 0.84s; }
+
+/*
+ * The bar stretches and lifts instead of only fading.
+ *
+ * Opacity alone makes the strip blink; growing from the baseline makes the wave
+ * legible at any size and gives the row a "reading" rhythm.
+ */
+@keyframes dot-wave {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: scaleY(0.42);
+  }
+  30% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* The strip breathes as a whole, so a stalled model still looks alive. */
+@keyframes ai-dots-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-dots,
+  .ai-dots span {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
+  }
+}
+
+/* ── Slash-command icon ───────────────────────────────────────────────── */
+
+/*
+ * One column, same 16px footprint as the file icon, so the "/" and "@" popups
+ * line up when the user switches between them. The tint is the accent: a slash
+ * row is a command, and commands are the thing the panel wants you to notice.
+ */
+.ai-slash-item {
+  /* Pinned so the popup's max-height can be an exact multiple. */
+  height: var(--row, 30px);
+}
+
+.ai-cikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.ai-slash-item.is-on .ai-cikon {
+  opacity: 1;
+}
+
+/* ── "@" and "/" popup: sizing and edges ──────────────────────────────── */
+
+/*
+ * Taller, and scrolled cleanly.
+ *
+ * At 220px the popup showed eight rows of a two-hundred row list, and the first
+ * row was clipped mid-glyph because the scroll container had no padding to
+ * absorb the highlight. 320px fits eleven rows, and the inset keeps the first
+ * and last rows whole.
+ */
+.ai-slash {
+  /*
+   * Height is a whole number of rows, so the last visible command is never
+   * sliced in half — a half-row reads as a rendering bug and hides the fact
+   * that the list scrolls at all.
+   *
+   * 30px per row, ten rows, plus 6px padding and a 1px border on each side:
+   * 10 * 30 + 6 + 2 = 308. If the row height ever changes, this follows.
+   */
+  --row: 30px;
+  max-height: calc(10 * var(--row) + 8px);
+  padding: 3px;
+  /* The list can be long; a thin themed bar beats the native one. */
+  scrollbar-width: thin;
+}
+
+.ai-slash-item {
+  /* Rows are a fixed height so the scroll position stays predictable when the
+     filter changes and the list is rebuilt. */
+  min-height: 30px;
+}
+
+/* The icon column is fixed, so names line up down the list. */
+.ai-slash-item .ai-fikon,
+.ai-slash-item .ai-cikon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* material-icon-theme ships 16px art; a touch smaller sits better on a 30px row. */
+.ai-slash-item .ai-fikon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The second column is a folder, so it can be quiet and truncate from the left
+   (the deepest part matters least). */
+.ai-slash-item .ai-slash-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+/* ── Explorer / tab file icon ─────────────────────────────────────────── */
+
+/*
+ * Same generated icon set as the "@" picker, sized to the tree's row height.
+ * The theme's colours are baked into the SVGs, so no tint is applied — a PHP
+ * elephant is purple here for the same reason it is purple everywhere.
+ */
+.tree-fikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.tree-fikon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The tab bar reuses the same component; keep its icons from inheriting the
+   dimmed colour of an inactive tab. */
+.tab .tree-fikon,
+.breadcrumb .tree-fikon {
+  opacity: 0.95;
+}
+
+/* ── Per-row model picker ──────────────────────────────────────────────── */
+
+/*
+ * The badge was read-only, so it carried no affordance; now that it opens a
+ * menu it gets a caret and a hover, and the menu is positioned under it.
+ */
+.sub-model-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sub-model-wrap .sub-model-badge {
+  cursor: pointer;
+}
+
+.sub-model-wrap .sub-model-badge:hover {
+  border-color: var(--accent);
+  color: var(--fg0);
+}
+
+.sub-model-menu {
+  /*
+   * Fixed, not absolute.
+   *
+   * The row sits inside a grid cell inside a scrolling panel, and every
+   * ancestor with `overflow` clips an absolutely positioned child — the menu
+   * opened into the row below and lost its bottom half. `position: fixed`
+   * takes it out of that chain entirely; the coordinates come from the badge's
+   * own rect, measured when the menu opens.
+   */
+  position: fixed;
+  z-index: 900;
+  width: 260px;
+  max-height: min(280px, 46vh);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+}
+
+.sub-model-menu-item {
+  display: block;
+  width: 100%;
+  min-height: 26px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sub-model-menu-item:hover {
+  background: var(--surface-3);
+}
+
+.sub-model-menu-item.is-on {
+  color: var(--accent);
+  font-weight: 600;
+}

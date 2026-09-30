@@ -1,0 +1,202 @@
+[
+  {
+    "nama": "verify",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 19218,
+    "tally": "== 26/26 lulus =="
+  },
+  {
+    "nama": "verify:04",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 20021,
+    "tally": "== 17/17 lulus =="
+  },
+  {
+    "nama": "verify:05",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 65632,
+    "tally": "== 12/12 lulus =="
+  },
+  {
+    "nama": "verify:06",
+    "status": "FAIL",
+    "exit": 2,
+    "ms": 61445,
+    "tally": null
+  },
+  {
+    "nama": "verify:08",
+    "status": "FAIL",
+    "exit": 2,
+    "ms": 84406,
+    "tally": null
+  },
+  {
+    "nama": "verify:09",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 205,
+    "tally": null
+  },
+  {
+    "nama": "verify:10",
+    "status": "FAIL",
+    "exit": 2,
+    "ms": 1687,
+    "tally": null
+  },
+  {
+    "nama": "verify:11",
+    "status": "FAIL",
+    "exit": 2,
+    "ms": 169,
+    "tally": null
+  },
+  {
+    "nama": "verify:12",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 183,
+    "tally": null
+  },
+  {
+    "nama": "verify:13",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 179,
+    "tally": null
+  },
+  {
+    "nama": "verify:14",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 189,
+    "tally": null
+  },
+  {
+    "nama": "verify:15",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 2712,
+    "tally": null
+  },
+  {
+    "nama": "verify:16",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 186,
+    "tally": null
+  },
+  {
+    "nama": "verify:18",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 175,
+    "tally": null
+  },
+  {
+    "nama": "verify:19",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 219,
+    "tally": null
+  },
+  {
+    "nama": "verify:20",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 210,
+    "tally": null
+  },
+  {
+    "nama": "verify:21",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 191,
+    "tally": null
+  },
+  {
+    "nama": "verify:22",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 16821,
+    "tally": null
+  },
+  {
+    "nama": "verify:23",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 34425,
+    "tally": "== 5/5 lulus =="
+  },
+  {
+    "nama": "verify:24",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 76287,
+    "tally": "== 5/6 lulus =="
+  },
+  {
+    "nama": "verify:25",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 37364,
+    "tally": "== 4/7 lulus =="
+  },
+  {
+    "nama": "verify:26",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 38967,
+    "tally": "== 3/5 lulus =="
+  },
+  {
+    "nama": "verify:27",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 29026,
+    "tally": "== 6/6 lulus =="
+  },
+  {
+    "nama": "verify:28",
+    "status": "SKIP"
+  },
+  {
+    "nama": "verify:29",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 36258,
+    "tally": "== 4/5 lulus =="
+  },
+  {
+    "nama": "verify:30",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 22469,
+    "tally": "== 4/5 lulus =="
+  },
+  {
+    "nama": "verify:31",
+    "status": "FAIL",
+    "exit": 1,
+    "ms": 36220,
+    "tally": "== 2/6 lulus =="
+  },
+  {
+    "nama": "verify:32",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 524,
+    "tally": null
+  },
+  {
+    "nama": "verify:update",
+    "status": "PASS",
+    "exit": 0,
+    "ms": 98,
+    "tally": null
+  }
+]

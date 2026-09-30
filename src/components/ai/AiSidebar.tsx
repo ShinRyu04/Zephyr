@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAi } from '../../lib/aiStore';
+import AiIkon from './AiIkon';
 import { useTerminal } from '../../lib/terminalStore';
 import { usePanel } from '../../lib/panelStore';
 import { useStore } from '../../lib/store';
@@ -72,7 +73,8 @@ export default function AiSidebar() {
             buka();
             newChat();
           }}>
-            + {tr('New chat')}
+            <AiIkon name="plus" size={12} />
+            {tr('New chat')}
           </button>
           <button className="btn btn-sm" data-testid="ai-open-panel" onClick={() => buka()}>
             {tr('Open AI panel')}
@@ -140,19 +142,25 @@ export default function AiSidebar() {
                   title={`${tf('{n} messages', { n: s.messages.length })} · ${findModel(s.model, s.provider).label}`}
                   onClick={() => buka(s.id)}
                 >
-                  <ProviderLogo id={s.provider} size={13} />
+                  <ProviderLogo id={s.provider} size={15} />
                   <span className="ai-side-title">{s.title}</span>
+                  {/*
+                    * "1 · 02:40" read as two bare numbers. The count gets the
+                    * word it is counting so the row says what it means.
+                    */}
                   <span className="ai-side-meta">
-                    {s.messages.length} · {waktu(s.createdAt)}
+                    {tf('{n} messages', { n: s.messages.length })} · {waktu(s.createdAt)}
                   </span>
                 </button>
                 <button
-                  className="tp-op"
+                  type="button"
+                  className="ai-side-del"
                   title={tr('Delete chat')}
+                  aria-label={tr('Delete chat')}
                   data-testid={`ai-del-${s.id}`}
                   onClick={() => deleteChat(s.id)}
                 >
-                  {tr('delete')}
+                  <AiIkon name="trash" size={12} />
                 </button>
               </li>
             ))}

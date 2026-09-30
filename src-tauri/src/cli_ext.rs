@@ -95,7 +95,7 @@ pub fn daftar_terpasang(dir: &Path) -> ZResult<Vec<(String, String, String)>> {
         return Ok(Vec::new());
     }
     let teks = std::fs::read_to_string(&file)
-        .map_err(|e| ZephyrError::Io(format!("gagal membaca {}: {e}", file.display())))?;
+        .map_err(|e| ZephyrError::Io(format!("failed membaca {}: {e}", file.display())))?;
 
     let mut hasil = Vec::new();
     for blok in teks.split('{').skip(1) {

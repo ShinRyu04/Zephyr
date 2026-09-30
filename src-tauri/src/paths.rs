@@ -112,7 +112,7 @@ fn normalize_cmp(p: &Path) -> PathBuf {
 
 pub fn normalize_workspace_path(workspace: Option<&Path>, input: &Path) -> ZResult<Normalized> {
     if input.as_os_str().is_empty() {
-        return Err(ZephyrError::InvalidInput("path kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty path".into()));
     }
     let absolute = canonical_or_parent(input);
     let (relative, inside) = match workspace {

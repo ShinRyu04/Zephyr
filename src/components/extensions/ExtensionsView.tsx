@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useExt19, setBahasaWorkspace, type ExtTab } from '../../lib/extensionsStore19';
 import { KATALOG_BUNDLED, type KatalogItem } from '../../lib/extCatalog';
+import { ikonEkstensi, inlineIkonDataUri } from '../../lib/extIkon';
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
 import { detectLang } from '../../lib/lang';
@@ -19,6 +20,160 @@ function formatUnduhan(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
   return String(n);
+}
+
+/*
+ * The mark inside the card's logo box.
+ *
+ * A language pack borrows the file icon the editor already draws for that
+ * language, so it comes out in the theme's own colours rather than in a flat
+ * grey. The four non-language kinds get a drawn mark instead of initials.
+ */
+function IkonExt({ item, logoUrl }: { item: KatalogItem; logoUrl?: string }) {
+  const { svg, id, warna, tinta, inisial } = ikonEkstensi(item.id, item.categories);
+
+  /*
+   * The icon the catalogue itself shipped wins over anything drawn here.
+   *
+   * It is decoded and inlined rather than handed to an `<img>`, because the
+   * bundled language marks are base64 SVGs and an `<img>` of an SVG cannot be
+   * tinted from the outside — SVG's initial fill is black. Inlined, the real
+   * artwork survives and still gets a colour pushed into it.
+   */
+  if (logoUrl) {
+    /*
+     * Resolve the colour off `item.id`, not off `id` from `ikonEkstensi`.
+     *
+     * That `id` is a mark name, already rewritten by the time we get here —
+     * `inisial-asterisk`, `inisial-cobol` — so stripping a `zephyr.lang-`
+     * prefix off it does nothing and every lookup missed, falling to the hash.
+     */
+    const nama = item.id.startsWith('zephyr.lang-')
+      ? item.id.slice('zephyr.lang-'.length)
+      : item.id;
+    const asli = inlineIkonDataUri(logoUrl, nama);
+    if (asli) {
+      return (
+        <span
+          className="xc-gambar xc-gambar-asli"
+          data-ikon={id}
+          data-dari="katalog"
+          style={asli.tint ? { color: tinta } : undefined}
+          dangerouslySetInnerHTML={{ __html: asli.svg }}
+        />
+      );
+    }
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        loading="lazy"
+        className="xc-logo-img"
+        data-logo-src={item.id}
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+    );
+  }
+
+  if (inisial) {
+    return (
+      <span
+        className="xc-inisial"
+        data-ikon={id}
+        style={{ background: tinta }}
+        aria-hidden="true"
+      >
+        {inisial}
+      </span>
+    );
+  }
+
+  if (svg) {
+    return (
+      <span
+        className="xc-gambar"
+        data-ikon={id}
+        // The theme leaves most marks on `currentColor`; on a card that reads as
+        // a black blob, so the language's own colour is set on the wrapper and
+        // the mark inherits it. Marks that already carry a `fill` ignore this.
+        style={tinta ? { color: tinta } : undefined}
+        // From the generated material-icon-theme table, not user input.
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    );
+  }
+
+  /*
+   * The drawn marks: key, snippets, and the fallback. They stroke and fill with
+   * `currentColor`, so the group colour has to reach the wrapper for them to be
+   * anything but grey.
+   */
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="xc-gambar"
+      data-ikon={id}
+      style={tinta ? { color: tinta } : undefined}
+      aria-hidden="true"
+    >
+      {warna === 'theme' && (
+        <>
+          <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor" />
+        </>
+      )}
+      {warna === 'ikon' && (
+        <>
+          <rect x="2.6" y="2.6" width="4.6" height="4.6" rx="1.2" fill="#e06c75" />
+          <rect x="8.8" y="2.6" width="4.6" height="4.6" rx="1.2" fill="#98c379" />
+          <rect x="2.6" y="8.8" width="4.6" height="4.6" rx="1.2" fill="#61afef" />
+          <rect x="8.8" y="8.8" width="4.6" height="4.6" rx="1.2" fill="#c678dd" />
+        </>
+      )}
+      {warna === 'keymap' && (
+        <rect
+          x="1.4"
+          y="4"
+          width="13.2"
+          height="8"
+          rx="1.4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.3"
+        />
+      )}
+      {warna === 'keymap' &&
+        [4.4, 7.1, 9.8].map((y) =>
+          [3.6, 6.3, 9, 11.7].map((x) => (
+            <rect key={`${x}-${y}`} x={x} y={y} width="1.9" height="1.9" rx="0.4" fill="currentColor" />
+          )),
+        )}
+      {warna === 'snippet' && (
+        <path
+          d="M5.6 3.4L2.2 8l3.4 4.6M10.4 3.4L13.8 8l-3.4 4.6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {warna === 'lain' && (
+        <rect
+          x="2.8"
+          y="2.8"
+          width="10.4"
+          height="10.4"
+          rx="2.2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.3"
+        />
+      )}
+    </svg>
+  );
 }
 
 function ExtensionCard({
@@ -55,55 +210,23 @@ function ExtensionCard({
         aria-hidden="true"
         style={item.logoColor && !item.logoUrl ? { background: item.logoColor } : undefined}
       >
-        {item.logoUrl ? (
-          <img
-            src={item.logoUrl}
-            alt=""
-            loading="lazy"
-            className="xc-logo-img"
-            data-logo-src={item.id}
-            
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const parent = e.currentTarget.closest('.xc-logo');
-              if (parent && parent.textContent === '') parent.textContent = item.logo;
-            }}
-            onLoad={(e) => {
-              
-              if (e.currentTarget.naturalWidth === 0) {
-                e.currentTarget.style.display = 'none';
-                const parent = e.currentTarget.closest('.xc-logo');
-                if (parent && parent.textContent === '') parent.textContent = item.logo;
-              }
-            }}
-          />
-        ) : (
-          item.logo
-        )}
+        <IkonExt item={item} logoUrl={item.logoUrl} />
       </span>
 
       <div className="xc-body">
         <span className="xc-nama">
           <span className="xc-nama-txt">{tr(item.name)}</span>
-          {item.bundled && <span className="xc-tag">offline</span>}
+          {item.bundled && <span className="xc-tag">OFFLINE</span>}
           {item.perluRuntime && <span className="xc-tag is-err">needs runtime</span>}
           {rusak && <span className="xc-tag is-err">broken</span>}
-          <span className="xc-meta">
-            {item.publisher} · v{sudah?.manifest?.version || item.version} ·{' '}
-            {item.categories.join(', ')}
-            {typeof item.unduhan === 'number' && item.unduhan > 0 && (
-              <span className="xc-stat" data-testid={`xc-unduhan-${item.id}`}>
-                {' '}· {formatUnduhan(item.unduhan)} downloads
-              </span>
-            )}
-            {typeof item.rating === 'number' && item.rating > 0 && (
-              <span className="xc-stat" data-testid={`xc-rating-${item.id}`}>
-                {' '}· {item.rating.toFixed(1)}★
-              </span>
-            )}
-          </span>
+          <span className="xc-pub-badge">{item.publisher}</span>
+          <span className="xc-ver-badge">• v{sudah?.manifest?.version || item.version}</span>
+          {item.categories[0] && <span className="xc-cat-badge">{item.categories[0]}</span>}
+          {typeof item.unduhan === 'number' && item.unduhan > 0 && (
+            <span className="xc-ver-badge">• {formatUnduhan(item.unduhan)}↓</span>
+          )}
         </span>
-          <span className="xc-desc">{tr(item.description)}</span>
+        <span className="xc-desc">{tr(item.description)}</span>
         {rusak && (
           <span className="xc-err" data-testid={`xc-err-${item.id}`}>
             {sudah?.error}
@@ -357,18 +480,45 @@ export default function ExtensionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /*
+   * Load the catalogue on mount, not only when the marketplace tab is open.
+   *
+   * The fetch was gated on `tab === 'marketplace'`, so the Installed and
+   * Recommended tabs rendered empty until the user happened to visit the third
+   * tab first: `hasil()` reads the remote list, which was still unset. One
+   * request on mount — and again whenever the search text or a category filter
+   * changes, since the backend filters — makes all three tabs answer
+   * immediately. The guard keeps a keystroke from queueing a request per letter
+   * when the list is already filtered by the same query.
+   */
   useEffect(() => {
-    if (tab === 'marketplace') {
-      void useExt19.getState().muatRemote();
-    }
+    const st = useExt19.getState();
+    if (st.remoteErr) return;
+    if (st.remote && st.remote.length > 0 && st.remoteUrl === 'native' && !q) return;
+    void st.muatRemote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, q, remoteUrl]);
+  }, [q, kategori]);
 
   const daftar = useExt19.getState().hasil();
-  
+
   const remoteBersih = (remote ?? []).filter((it) => !it.perluRuntime);
   const tersembunyiRuntime = (remote ?? []).filter((it) => it.perluRuntime).length;
-  
+
+  /*
+   * A count on each tab.
+   *
+   * Without one, "Installed" and "Recommended" were indistinguishable from
+   * "Marketplace" until opened, and a tab that turns out to be empty reads as a
+   * broken panel rather than an empty one. These are the unfiltered totals —
+   * the count should not move as the user types in the search box, otherwise
+   * the badge becomes a second, noisier search result.
+   */
+  const JUMLAH: Record<ExtTab, number> = {
+    installed: jmlManifest,
+    recommended: useExt19.getState().rekomendasi.length,
+    marketplace: remoteBersih.length,
+  };
+
   void q;
   void tab;
   void jmlManifest;
@@ -426,7 +576,7 @@ export default function ExtensionsView() {
                   void installDariDialog(false);
                 }}
               >
-                Install from .vsix…
+                Install from .zext…
               </button>
               <div className="xc-menu-sep" />
               <button data-testid="ext-reload-list" onClick={() => void refresh()}>
@@ -448,6 +598,7 @@ export default function ExtensionsView() {
             onClick={() => setTab(t)}
           >
             {TAB_LABEL[t]}
+            <span className="xv-tab-jumlah">{JUMLAH[t]}</span>
           </button>
         ))}
       </div>
@@ -472,10 +623,14 @@ export default function ExtensionsView() {
         </p>
       )}
 
+      {/*
+        * The bundled catalog lives in this tab, so an empty registry is no
+        * longer an error state — it just means the list is bundled-only. The
+        * note stays because the user should know why the list is short.
+        */}
       {tab === 'marketplace' && !remoteUrl && (
         <p className="xv-note" data-testid="ext-market-off">
-          Marketplace is not available - no registry URL is configured. The bundled
-          catalog and install from folder/.zext still work.
+          {tr('No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.')}
         </p>
       )}
       {tab === 'marketplace' && remoteUrl && remoteErr && (
@@ -524,7 +679,7 @@ export default function ExtensionsView() {
           <p className="xv-note" data-testid="ext-market-empty">
             {tersembunyiRuntime > 0
               ? `Showing manifest-only extensions. ${tersembunyiRuntime} extensions are hidden because they need an external runtime (Python/Java/Node/Docker) that Zephyr v1 does not support.`
-              : `No manifest-only extension matches “${q}”. Use the bundled catalog or Install from .vsix/folder.`}
+              : `No manifest-only extension matches “${q}”. Use the bundled catalog or Install from .zext/folder.`}
           </p>
         )}
       </div>

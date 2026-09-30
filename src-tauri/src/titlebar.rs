@@ -42,13 +42,13 @@ fn gelap(hex: &str) -> bool {
 #[tauri::command]
 pub fn titlebar_theme(app: AppHandle, bg: String, fg: String, border: String) -> ZResult<()> {
     let caption = colorref(&bg)
-        .ok_or_else(|| ZephyrError::InvalidInput(format!("warna title bar tidak valid: {bg}")))?;
+        .ok_or_else(|| ZephyrError::InvalidInput(format!("warna title bar is not valid: {bg}")))?;
     let text = colorref(&fg).unwrap_or(caption);
     let edge = colorref(&border).unwrap_or(caption);
 
     let jendela = app
         .get_webview_window("main")
-        .ok_or_else(|| ZephyrError::Internal("window main tidak ada".into()))?;
+        .ok_or_else(|| ZephyrError::Internal("there is no main window".into()))?;
 
     #[cfg(windows)]
     {

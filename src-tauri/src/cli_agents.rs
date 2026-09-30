@@ -141,9 +141,9 @@ pub fn cli_agents_detect() -> ZResult<Vec<CliAgent>> {
             let terpasang = path.is_some();
             let login = punya_login(r);
             let catatan = if !terpasang {
-                format!("{} belum terpasang", r.bin)
+                format!("{} is not installed yet", r.bin)
             } else if !login {
-                format!("jalankan `{}` sekali untuk login", r.bin)
+                format!("run `{}` once to sign in", r.bin)
             } else {
                 String::new()
             };
@@ -180,16 +180,16 @@ pub async fn cli_agent_run(
     cwd: Option<String>,
 ) -> ZResult<CliRunResult> {
     if prompt.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("prompt kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty prompt".into()));
     }
     let resep = RESEP
         .iter()
         .find(|r| r.id == id)
-        .ok_or_else(|| ZephyrError::InvalidInput(format!("CLI tidak dikenal: {id}")))?;
+        .ok_or_else(|| ZephyrError::InvalidInput(format!("CLI not recognised: {id}")))?;
 
     let bin = cari_di_path(resep.bin).ok_or_else(|| {
         ZephyrError::NotFound(format!(
-            "{} tidak ada di PATH — pasang dulu CLI-nya",
+            "{} is not on PATH — install the CLI first",
             resep.bin
         ))
     })?;
@@ -255,10 +255,10 @@ pub async fn cli_agent_run(
             timeout: false,
         }),
         Ok(Ok(Err(e))) => Err(ZephyrError::InvalidInput(format!(
-            "gagal menjalankan {}: {e}",
+            "running {} failed: {e}",
             resep.bin
         ))),
-        Ok(Err(e)) => Err(ZephyrError::InvalidInput(format!("thread CLI gagal: {e}"))),
+        Ok(Err(e)) => Err(ZephyrError::InvalidInput(format!("thread CLI failed: {e}"))),
         Err(_) => Ok(CliRunResult {
             ok: false,
             stdout: String::new(),

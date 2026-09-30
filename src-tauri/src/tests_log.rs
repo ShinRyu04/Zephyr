@@ -13,10 +13,10 @@ fn tmpdir(name: &str) -> PathBuf {
 fn log_menulis_baris() {
     let dir = tmpdir("write");
     let sink = crate::logging::sink_for_test(&dir);
-    sink.write_line("halo dari uji");
+    sink.write_line("hello from the test");
     let path = sink.path();
     let isi = std::fs::read_to_string(&path).expect("baca log");
-    assert!(isi.contains("halo dari uji"), "isi = {isi}");
+    assert!(isi.contains("hello from the test"), "isi = {isi}");
     assert!(
         path.file_name()
             .unwrap()
@@ -96,7 +96,7 @@ fn normalize_workspace_path_memberi_relatif() {
 #[test]
 fn normalize_menolak_path_kosong() {
     let e = crate::paths::normalize_workspace_path(None, Path::new(""));
-    assert!(e.is_err(), "path kosong harus error");
+    assert!(e.is_err(), "empty path harus error");
     assert_eq!(e.err().unwrap().code(), "InvalidInput");
 }
 

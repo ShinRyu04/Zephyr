@@ -293,6 +293,15 @@ export interface AgentToolRun {
   ok: boolean;
 
   at: number;
+
+  /*
+   * How long the call took, in milliseconds.
+   *
+   * Optional: runs written before this field existed are rehydrated from disk
+   * without it, and a missing value has to render as "no badge" rather than as
+   * "0ms", which would read as a tool that did nothing.
+   */
+  ms?: number;
 }
 
 export interface ChatSession {
@@ -309,11 +318,11 @@ export interface ChatSession {
 export type ApprovalMode =
 
   | 'ask'
-  /** jalankan semuanya tanpa tanya */
+  /** run everything without asking */
   | 'auto'
-  /** tolak semua terminal_exec dan editor_write */
+  /** reject all terminal_exec and editor_write */
   | 'readonly'
-  /** kerja langsung: aman dijalankan, destruktif tetap ditanya */
+  /** work straight away: safe to run, destructive still asks */
   | 'work';
 
 export interface AiChunk {
@@ -321,6 +330,8 @@ export interface AiChunk {
   text?: string;
   err?: string;
   done?: boolean;
+  /** Token counts the provider reported for this call. */
+  usage?: { input: number; output: number };
 
   toolDone?: boolean;
 
@@ -712,12 +723,65 @@ export type ActivityId =
   | 'search'
   | 'outline'
   | 'scm'
-  // fase 22: Run & Debug
+  // phase 22: Run & Debug
   | 'debug'
   | 'ai'
   | 'terminal'
   | 'extensions'
+  | 'devenv'
+  | 'api'
+  | 'sftp'
+  | 'tests'
+  // One rail entry for the four workspace tools. They were four separate
+  // icons, which crowded the rail for views that share a purpose: they all
+  // act on the local machine rather than on the open file.
+  | 'tools'
   | 'settings';
+
+export type DevenvServer = 'nginx' | 'apache' | 'none';
+export type DevenvServiceId = 'nginx' | 'apache' | 'mysql' | 'postgres' | 'redis' | 'cron';
+
+export interface DevenvRuntime {
+  /** Version currently selected for this runtime. Empty means "global". */
+  aktif: string;
+  /** Every version detected on the machine. */
+  daftar: string[];
+  /** Absolute path of the binary, when the user pointed at one manually. */
+  path?: string;
+}
+
+export interface DevenvService {
+  autoStart: boolean;
+  versi: string;
+  port: number;
+  /** Every version found next to the active one, so the row can switch. */
+  versions?: string[];
+  /** Executable the row resolved to, shown in the tooltip. */
+  path?: string;
+  /** Windows service name when the tool runs under the service manager. */
+  windowsService?: string;
+}
+
+export interface DevenvProject {
+  nama: string;
+  path: string;
+  php: string;
+  node: string;
+  /** Built by the Rust scan from the configured domain. */
+  url?: string;
+  /** composer.json / package.json found in the project folder. */
+  composer?: boolean;
+  package?: boolean;
+}
+
+export interface DevenvSettings {
+  rootFolder: string;
+  domain: string;
+  server: DevenvServer;
+  runtimes: Partial<Record<'node' | 'php' | 'python' | 'rust' | 'git', DevenvRuntime>>;
+  services: Partial<Record<DevenvServiceId, DevenvService>>;
+  projects: DevenvProject[];
+}
 
 export interface GeneralSettings {
   theme: 'dark' | 'light' | 'system';
@@ -844,6 +908,8 @@ export interface Settings {
 
     model: string;
     provider: string;
+    /** Seconds a subagent may sit idle before its step is abandoned. */
+    idleSecs: number;
   };
   extensions: {
     enabled: string[];
@@ -888,6 +954,19 @@ export interface Settings {
     idleSeconds: number;
     servers: Record<string, { enabled?: boolean; cmd?: string[]; initOptions?: Record<string, unknown> }>;
   };
+
+  tests: {
+    /** 'auto' detects the framework from the project; anything else pins it. */
+    framework: 'auto' | 'vitest' | 'jest' | 'pytest' | 'cargo' | 'go';
+    /** Run the suite as soon as the workspace is opened. */
+    autoRunOnOpen: boolean;
+    /** Run a single test file when it is saved. */
+    runOnSave: boolean;
+    /** Kill a run that takes longer than this many seconds. */
+    timeoutSeconds: number;
+  };
+
+  devenv: DevenvSettings;
 
   history: {
     enabled: boolean;
@@ -950,7 +1029,7 @@ export const DEFAULT_SETTINGS: Settings = {
   models: { activeProvider: 'custom', providers: {}, answerLang: 'follow', ragEnabled: false, ragUrl: 'http://localhost:7777', ragProject: '', ragK: 4 },
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
 
-  subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '' },
+  subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '', idleSecs: 90 },
   aiPrompt: { identitas: '', caraKerja: '', aturan: '', instruksi: '' },
   allowCommands: [],
   extensions: { enabled: [], trust: {} },
@@ -965,6 +1044,9 @@ export const DEFAULT_SETTINGS: Settings = {
   mcp: { enabled: false, port: 9222, token: '', writeToCli: [] },
   ssh: { recentHosts: [] },
   panel: {
+    // `tests` is deliberately absent: the Test Explorer panel is opt-in and
+    // stays hidden until the user shows it from the panel tab menu, so a fresh
+    // install opens with the everyday tabs only.
     visibleTabs: ['problems', 'output', 'debug', 'terminal', 'ports'],
     activeTab: 'terminal',
     height: 260,
@@ -972,6 +1054,15 @@ export const DEFAULT_SETTINGS: Settings = {
   lsp: { enabled: true, idleSeconds: 300, servers: {} },
 
   history: { enabled: true, maxPerFile: 50, maxDays: 30 },
+  tests: { framework: 'auto', autoRunOnOpen: false, runOnSave: false, timeoutSeconds: 300 },
+  devenv: {
+    rootFolder: 'D:\\DevEnv',
+    domain: '.test',
+    server: 'nginx',
+    runtimes: {},
+    services: {},
+    projects: [],
+  },
   update: { lastSeenVersion: '', pendingNotes: '', seenAnnouncements: [] },
 };
 

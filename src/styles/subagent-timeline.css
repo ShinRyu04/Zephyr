@@ -1,0 +1,782 @@
+/*
+ * Subagent timeline.
+ *
+ * One agent per row: a numbered node on a vertical rail, then a grid of
+ * name / status / time that lines up down the column so four agents can be
+ * compared by scanning instead of reading each one.
+ *
+ * Rows are compact (~56px) and expand in place for the step list. The previous
+ * card-per-agent layout was ~270px tall each, so a bottom panel at its normal
+ * height showed a single agent and the rest were below the fold.
+ *
+ * Status is carried on four channels at once — node colour, node glyph, badge
+ * text, and row rail — so the state survives both greyscale and colour
+ * blindness.
+ *
+ * Loaded after ai.css, which styles the same classes as stacked cards.
+ */
+
+/* ── Shell ────────────────────────────────────────────────────────────── */
+
+/*
+ * NOT a scroller. It used to carry `overflow-y: auto` with `flex: 1 0 auto`,
+ * which let it grow to its content height (314px inside a 231px panel) and
+ * scroll internally — so .sav-root's own scrollbar measured a 231px box while
+ * the rows sat at y=972, below the panel and out of reach.
+ *
+ * It is a plain flex column now: natural height, no overflow, and the shell
+ * above it is the only thing that scrolls.
+ */
+.sub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  flex: 1 0 auto;
+  overflow: visible;
+  /* ai.css caps this at 52vh with its own scrollbar; the shell scrolls here. */
+  max-height: none;
+  padding: 0;
+  border-top: 0;
+}
+
+.sub-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 8px;
+  flex: 0 0 auto;
+}
+
+.sub-judul {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sub-maks {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.sub-spacer {
+  flex: 1;
+}
+
+/* ── Segmented progress ───────────────────────────────────────────────── */
+
+/*
+ * One block per agent instead of a single bar. A bar filled to done/total says
+ * "25%" when one of four finished, which hides the fact that two are still
+ * running and one failed. The blocks show every state at a glance.
+ */
+/*
+ * A row of segments plus a counter. ai.css styles this as a 14px filled bar
+ * with the label absolutely positioned across the whole track (inset: 0),
+ * which put "1/3" on top of the blocks and made both unreadable. Here it is a
+ * flex row: blocks take the width, the counter sits beside them.
+ */
+.sub-progress {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: auto;
+  margin: 0;
+  padding: 0 0 8px;
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+
+.sub-segmen {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+}
+
+.sub-segmen-blok {
+  flex: 1;
+  min-width: 8px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  transition: background 0.25s ease;
+}
+
+.sub-segmen-blok.is-selesai {
+  background: var(--success);
+}
+
+.sub-segmen-blok.is-jalan {
+  background: var(--accent);
+  animation: segmen-denyut 1.6s ease-in-out infinite;
+}
+
+.sub-segmen-blok.is-gagal {
+  background: var(--danger);
+}
+
+.sub-segmen-blok.is-batal {
+  background: var(--text-muted);
+}
+
+@keyframes segmen-denyut {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sub-segmen-blok.is-jalan {
+    animation: none;
+  }
+}
+
+.sub-progress-label {
+  position: static;
+  inset: auto;
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+/* ── Column headings ──────────────────────────────────────────────────── */
+
+/*
+ * Says what the fields below mean, so the rows read as a table rather than a
+ * list of cards. Hidden from assistive tech: the rows carry their own labels
+ * via data attributes, and a screen reader would only read four stray words.
+ */
+.sub-tabel-head {
+  display: grid;
+  grid-template-columns: 26px 1fr 92px 76px 24px;
+  gap: 8px;
+  padding: 0 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.sub-th-nomor {
+  text-align: center;
+}
+
+.sub-th-waktu {
+  text-align: right;
+}
+
+/* ── Timeline ─────────────────────────────────────────────────────────── */
+
+/*
+ * The rows, at their natural height. The shell scrolls, not this — see the
+ * note on .sav-root. `flex: 1 0 auto` lets a short list still fill a tall panel
+ * while a long one grows and hands the overflow to the shell.
+ */
+.sub-timeline {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  flex: 1 0 auto;
+}
+
+.sub-baris {
+  display: grid;
+  grid-template-columns: 21px 1fr;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* ── Node column: number + the rail that links agents ─────────────────── */
+
+.sub-node-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 7px;
+  position: relative;
+}
+
+.sub-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * 17px, down from 22.
+   *
+   * The number is an index, not a status: the row already says which agent it
+   * is by name, and a 22px disc made the counter compete with the head beside
+   * it. It still has to stay legible and centred on the rail, hence 17 rather
+   * than something smaller.
+   */
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  font-size: 10px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  z-index: 1;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+/* The rail runs from below the node to the bottom of the row, so consecutive
+   agents read as one sequence. */
+.sub-rail {
+  flex: 1;
+  width: 1px;
+  min-height: 12px;
+  margin-top: 2px;
+  background: var(--border);
+}
+
+.sub-baris.is-selesai .sub-node {
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+  border-color: color-mix(in srgb, var(--success) 55%, transparent);
+  color: var(--success);
+}
+
+.sub-baris.is-jalan .sub-node {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+}
+
+.sub-baris.is-gagal .sub-node {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  color: var(--danger);
+}
+
+.sub-baris.is-batal .sub-node {
+  opacity: 0.6;
+}
+
+/* ── Row content ──────────────────────────────────────────────────────── */
+
+.sub-isi {
+  min-width: 0;
+  padding: 7px 0 9px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.sub-baris.is-akhir .sub-isi {
+  border-bottom: 0;
+}
+
+/*
+ * Nine explicit columns, one per element, assigned below by grid-column.
+ *
+ * The row used to be a seven-column grid holding ten elements, so the extras
+ * spilled into implicit columns and the status badge rendered 56px past the
+ * panel edge. Explicit placement also means a missing element (a row with no
+ * model chip, no role, no verdict) leaves its column empty instead of shifting
+ * everything after it one slot to the left.
+ */
+.sub-head {
+  display: grid;
+  /*
+   * One column per element, in the order they appear.
+   *
+   * This grid is explicit, so a child whose column is not declared lands in
+   * whatever cell is left over and can be pushed out of the row entirely — that
+   * is what buried the model picker under the next agent's header. The model
+   * column is `max-content` so the badge sizes to its own label, and the picker
+   * wrapper (not the badge inside it) is the grid child, because the menu is
+   * absolutely positioned against it.
+   */
+  grid-template-columns:
+    14px              /* status head */
+    auto              /* agent name */
+    minmax(0, 1fr)    /* task */
+    auto              /* role chip */
+    max-content       /* model picker */
+    auto              /* verdict */
+    auto              /* status badge */
+    92px              /* elapsed */
+    76px              /* steps */
+    24px;             /* action */
+  align-items: center;
+  gap: 8px;
+}
+
+.sub-ikon {
+  grid-column: 1;
+}
+
+.sub-agent-chip {
+  grid-column: 2;
+}
+
+.sub-tugas {
+  grid-column: 3;
+}
+
+.sub-peran {
+  grid-column: 4;
+}
+
+.sub-model-wrap {
+  grid-column: 5;
+  min-width: 0;
+}
+
+.sub-verdict {
+  grid-column: 6;
+}
+
+.sub-badge {
+  grid-column: 7;
+}
+
+.sub-waktu {
+  grid-column: 8;
+}
+
+.sub-aksi-btn {
+  grid-column: 9;
+}
+
+/* Left over from the flex layout this row used to be; inside the grid it would
+   take a column of its own. Scoped to .sub-head — the bar and the form still
+   use it as a flex spacer. */
+.sub-head .sub-spacer {
+  display: none;
+}
+
+.sub-ikon {
+  width: auto;
+  flex: none;
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.sub-baris.is-selesai .sub-ikon {
+  color: var(--success);
+}
+
+.sub-baris.is-jalan .sub-ikon {
+  color: var(--accent);
+}
+
+.sub-baris.is-gagal .sub-ikon {
+  color: var(--danger);
+}
+
+/*
+ * The agent name as a monospace chip: it is an identifier, not prose, so it
+ * gets the same treatment a tool name gets. Several agents running at once are
+ * told apart by this chip before anything else on the row.
+ */
+.sub-agent-chip {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/*
+ * The task is the row's headline: the one thing a reader looks for when
+ * several agents run at once. It takes the flexible column and truncates.
+ */
+.sub-tugas {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Role chip: quiet, because it is context and not status. */
+.sub-peran {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sub-peran.is-tulis {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+/* The model chip and verdict sit in the flexible middle: they are extra
+   detail, and they give way before the name or the status do. */
+.sub-model-badge {
+  justify-self: end;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.sub-verdict {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sub-verdict.is-terbukti {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.sub-verdict.is-sebagian {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+
+.sub-verdict.is-tanpa-bukti {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+/* ── Status badge: fixed width so the column never shifts ─────────────── */
+
+/*
+ * Plain text plus a dot, not a pill. ai.css draws this as a bordered capsule
+ * with 7px radius; in a column of four rows that reads as four loose chips and
+ * the status word stops lining up. The dot carries the colour, the word carries
+ * the state, and the fixed width keeps the column straight.
+ */
+.sub-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: flex-start;
+  width: 92px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sub-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.sub-badge.is-selesai {
+  color: var(--success);
+}
+
+.sub-badge.is-jalan {
+  color: var(--accent);
+}
+
+.sub-badge.is-gagal {
+  color: var(--danger);
+}
+
+/* ── Time: right-aligned, tabular ─────────────────────────────────────── */
+
+/*
+ * Steps and duration, right-aligned with tabular figures so the column lines
+ * up down the panel and durations can be compared without reading them.
+ */
+.sub-waktu {
+  justify-self: end;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Per-row action ───────────────────────────────────────────────────── */
+
+.sub-aksi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.sub-baris:hover .sub-aksi-btn,
+.sub-aksi-btn:focus-visible {
+  opacity: 1;
+}
+
+.sub-aksi-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sub-aksi-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Always reachable from the keyboard, even when not hovered. */
+@media (hover: none) {
+  .sub-aksi-btn {
+    opacity: 1;
+  }
+}
+
+/* ── Second line: what it is doing, or what it produced ───────────────── */
+
+.sub-ket {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+  padding-left: 22px;
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.sub-ket-mark {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.sub-ket.is-jalan .sub-ket-mark {
+  color: var(--accent);
+}
+
+.sub-ket.is-gagal .sub-ket-mark,
+.sub-ket.is-gagal .sub-ket-teks {
+  color: var(--danger);
+}
+
+.sub-ket.is-selesai .sub-ket-mark {
+  color: var(--success);
+}
+
+.sub-ket-teks {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+/* ── Steps toggle + list ──────────────────────────────────────────────── */
+
+.sub-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 0 22px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 10.5px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sub-toggle:hover {
+  background: var(--surface-3);
+  color: var(--text-secondary);
+}
+
+.sub-langkah {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* ── Follow-up box ────────────────────────────────────────────────────── */
+
+.sub-lanjut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0 22px;
+}
+
+.sub-lanjut-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  outline: none;
+}
+
+.sub-lanjut-input:focus {
+  border-color: var(--accent);
+}
+
+/* ── Combined summary ─────────────────────────────────────────────────── */
+
+/*
+ * Markdown report, so the body is styled as a document (see subagent-view.css
+ * for the element rules). This block only positions the box inside the panel.
+ */
+.sub-ringkas {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.sub-ringkas > summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sub-ringkas > summary:hover {
+  color: var(--text);
+}
+
+.sub-ringkas[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Batch send button ────────────────────────────────────────────────── */
+
+/*
+ * The same round send button as the chat composer, re-declared here because the
+ * chat's rule is scoped to `.ai-input-side` and does not reach this panel.
+ * Same 28px circle, same accent fill, same disabled treatment — one action,
+ * one appearance across both panels.
+ */
+.sub-run-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.sub-run-btn.is-send {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sub-run-btn.is-send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 86%, #fff);
+}
+
+.sub-run-btn.is-send:disabled {
+  background: var(--surface-3);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.sub-run-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Narrow panel ─────────────────────────────────────────────────────── */
+
+/*
+ * The side column is ~340px. The five-column grid cannot hold a name, a status
+ * word and a time there, so the badge and the time drop to the second line and
+ * the name gets the full width.
+ */
+@container panel (max-width: 560px) {
+  .sub-tabel-head {
+    display: none;
+  }
+
+  .sub-head {
+    grid-template-columns: 14px 1fr auto 20px;
+  }
+
+  .sub-badge,
+  .sub-waktu {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    justify-self: start;
+    width: auto;
+  }
+
+  .sub-waktu {
+    justify-self: end;
+  }
+
+  .sub-model-badge {
+    display: none;
+  }
+}

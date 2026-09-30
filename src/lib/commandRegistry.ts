@@ -625,33 +625,15 @@ export const COMMANDS: CommandDef[] = [
       s.setStatus(`Tema: ${next.label}`);
     },
   },
-  // Enam tema yang ditawarkan di menu View → Theme. Didaftarkan sebagai
-  // command nyata supaya item menunya tidak mati (dulu hanya label tanpa
-  // command, sehingga selalu abu-abu).
-  ...(
-    [
-      ['theme.zephyr-dark', 'Zephyr Dark', 'zephyr-dark'],
-      ['theme.zephyr-light', 'Zephyr Light', 'zephyr-light'],
-      ['theme.nord', 'Nord', 'nord'],
-      ['theme.tokyo-night', 'Tokyo Night', 'tokyo-night'],
-      ['theme.gruvbox', 'Gruvbox', 'gruvbox-dark'],
-      ['theme.one-dark-pro', 'One Dark Pro', 'one-dark'],
-    ] as const
-  ).map(([id, title, themeId]): CommandDef => ({
-    id,
-    title: `Theme: ${title}`,
-    group: 'Settings',
-    keywords: `tema warna ${title.toLowerCase()}`,
-    run: async () => {
-      const s = S();
-      const info = semuaTema().find((t) => t.id === themeId);
-      await s.applySettings({
-        theme: { current: themeId },
-        general: { theme: info?.kind === 'light' ? 'light' : 'dark' },
-      });
-      s.setStatus(`Theme: ${info?.label ?? title}`);
-    },
-  })),
+  /*
+   * The per-theme commands are generated from THEMES below (see the
+   * `THEMES.map(...)` entry). A second hardcoded list of six themes used to
+   * live here and overlapped with it on four ids (zephyr-dark, zephyr-light,
+   * nord, tokyo-night) — the palette rendered those four twice and React warned
+   * about duplicate keys.
+   *
+   * One source of truth: THEMES. A theme added there gets its command for free.
+   */
   {
     id: 'theme.toggleDarkLight',
     title: 'Preferences: Toggle Dark/Light',
@@ -1009,6 +991,13 @@ export const COMMANDS: CommandDef[] = [
     run: () => openSettingsSection('about'),
   },
   {
+    id: 'help.shortcuts',
+    title: 'Help: Keyboard Shortcuts',
+    group: 'Settings',
+    keywords: 'pintasan keyboard cheatsheet bantuan keybinding',
+    run: () => useKb.getState().setEditorOpen(true),
+  },
+  {
       id: 'help.docs',
       title: 'Help: Documentation',
       group: 'Settings',
@@ -1120,12 +1109,52 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'test.focus',
-    title: 'View: Focus Tests Panel',
+    title: 'View: Focus Tests',
     group: 'View',
     keywords: 'test tests pengujian panel jalankan',
     run: () => {
-      T().setVisible(true);
-      usePanel.getState().focusTab('tests');
+      // Opens the Tools entry with the Tests tab selected, rather than the
+      // bare 'tests' activity: the rail has one entry now, and jumping to a
+      // hidden activity would leave the tab strip showing the wrong tab.
+      useStore.getState().setToolsTab('tests');
+      useStore.getState().setActivity('tools');
+    },
+  },
+  {
+    id: 'tools.focus',
+    title: 'View: Focus Tools',
+    group: 'View',
+    keywords: 'tools alat dev environment api client sftp tests',
+    run: () => useStore.getState().setActivity('tools'),
+  },
+  {
+    id: 'tools.devenv',
+    title: 'Tools: Dev Environment',
+    group: 'View',
+    keywords: 'tools dev environment runtime service laragon php node',
+    run: () => {
+      useStore.getState().setToolsTab('devenv');
+      useStore.getState().setActivity('tools');
+    },
+  },
+  {
+    id: 'tools.api',
+    title: 'Tools: API Client',
+    group: 'View',
+    keywords: 'tools api client http request rest',
+    run: () => {
+      useStore.getState().setToolsTab('api');
+      useStore.getState().setActivity('tools');
+    },
+  },
+  {
+    id: 'tools.sftp',
+    title: 'Tools: SFTP',
+    group: 'View',
+    keywords: 'tools sftp ssh transfer berkas file',
+    run: () => {
+      useStore.getState().setToolsTab('sftp');
+      useStore.getState().setActivity('tools');
     },
   },
   {
@@ -1499,8 +1528,8 @@ export const COMMANDS: CommandDef[] = [
     group: 'Tasks',
     keywords: 'test tests vitest jest pytest cargo go pengujian jalankan',
     run: async () => {
-      T().setVisible(true);
-      usePanel.getState().focusTab('tests');
+      useStore.getState().setToolsTab('tests');
+      useStore.getState().setActivity('tools');
       await useTests.getState().jalankanSemua();
     },
   },

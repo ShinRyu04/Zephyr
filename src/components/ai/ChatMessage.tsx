@@ -7,6 +7,8 @@ import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { ChatMsg } from '../../lib/types';
 import ReasonedBlock from './ReasonedBlock';
+import AiIkon from './AiIkon';
+import { infoAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, useT } from '../../lib/i18n';
 
 const SHELL_LANGS = new Set([
@@ -201,7 +203,23 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
         )}
         {msg.streaming && (
           <span className="ai-typing" data-testid="ai-typing" role="status">
-            typing<span className="ai-dots">…</span>
+            {/*
+             * Eight cells, because .ai-dots is a 4x2 grid with a staggered
+             * delay per child — one <i> rendered a single square and the wave
+             * had nothing to travel across, which is why "thinking" looked
+             * static. The count is fixed by the CSS; change both together.
+             */}
+            <span className="ai-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+            {tx('Thinking')}
           </span>
         )}
       </div>
@@ -241,27 +259,109 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                     onClick={() => setBuka((b) => ({ ...b, [i]: !b[i] }))}
                   >
                     <span className="ai-toolrun-caret">{buka[i] ? '▾' : '▸'}</span>
-                    <span className="ai-toolrun-name">{t.name}</span>
-                    <code className="ai-toolrun-args">{t.args}</code>
+                    {/*
+                      * A file-editing call gets a chip that names the file, not
+                      * a tool name and a JSON blob: "Write src/lib/types.ts" is
+                      * the fact the reader wants, and the raw args are one click
+                      * away in the expanded body.
+                      */}
+                    {(() => {
+                      const info = infoAksi(t.name);
+                      const target = sasaranAksi(t.args);
+                      const fileChip = info.jenis === 'tulis' && target;
+                      /*
+                       * A shell call leads with the command itself, not the
+                       * JSON envelope around it: `{"command":"git status"}`
+                       * printed twice (header and INPUT) told the reader
+                       * nothing the INPUT block did not already say. The
+                       * command is what identifies the row.
+                       */
+                      const label = info.jenis === 'jalan' && target ? target : t.args;
+                      return (
+                        <>
+                          <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
+                            {info.ikon}
+                          </span>
+                          <span className="ai-toolrun-name">{info.label}</span>
+                          {fileChip ? (
+                            <span className="ai-file-chip" data-testid="ai-file-chip" title={target}>
+                              <span className="ai-file-chip-grip" aria-hidden="true">
+                                ⠿
+                              </span>
+                              {target}
+                            </span>
+                          ) : (
+                            <code className="ai-toolrun-args">{label}</code>
+                          )}
+                        </>
+                      );
+                    })()}
                     {!t.ok && <span className="ai-toolrun-fail">{tr('failed')}</span>}
+                    {/*
+                      * Elapsed time, right-aligned and quiet.
+                      *
+                      * Runs restored from an older transcript carry no `ms`, and
+                      * a missing value has to print nothing: "0ms" would read as
+                      * a tool that did no work.
+                      */}
+                    {typeof t.ms === 'number' && (
+                      <span className="ai-toolrun-ms" data-testid="ai-toolrun-ms">
+                        {t.ms < 1000 ? `${t.ms}ms` : `${(t.ms / 1000).toFixed(1)}s`}
+                      </span>
+                    )}
                   </button>
                   {buka[i] && (
-                    <>
-                      <pre className={`ai-toolrun-out${t.ok ? '' : ' is-err'}`} data-testid="ai-toolrun-out">
-                        {t.result || tr('(no output)')}
-                      </pre>
+                    <div className="ai-toolrun-body">
+                      {/*
+                        * Input and Output get their own labelled sections.
+                        *
+                        * The old body was one flat <pre> of the result, so the
+                        * command that produced it was only visible in the
+                        * collapsed header's JSON blob — and on a shell call the
+                        * command is exactly what the reader wants to check.
+                        */}
+                      <div className="ai-toolrun-sec">
+                        <span className="ai-toolrun-sec-label">{tx('Input')}</span>
+                        <pre className="ai-toolrun-code" data-testid="ai-toolrun-in">
+                          {t.args}
+                        </pre>
+                      </div>
+
+                      <div className="ai-toolrun-sec">
+                        <span className="ai-toolrun-sec-label">{tx('Output')}</span>
+                        <pre
+                          className={`ai-toolrun-code ai-toolrun-out${t.ok ? '' : ' is-err'}`}
+                          data-testid="ai-toolrun-out"
+                        >
+                          {t.result || tr('(no output)')}
+                        </pre>
+                      </div>
+
                       <div className="ai-toolrun-act">
                         <button
-                          className="ai-code-btn"
+                          className="ai-toolrun-btn"
                           data-testid="ai-toolrun-copy"
+                          title={tx('Copy the output')}
                           onClick={() => {
                             void clipboardWrite(t.result).then(() => setToast(tx('Output copied')));
                           }}
                         >
-                          Copy
+                          <AiIkon name="clipboard" size={12} />
+                          {tx('Copy')}
                         </button>
                         <button
-                          className="ai-code-btn"
+                          className="ai-toolrun-btn"
+                          data-testid="ai-toolrun-copy-in"
+                          title={tx('Copy the input')}
+                          onClick={() => {
+                            void clipboardWrite(t.args).then(() => setToast(tx('Input copied')));
+                          }}
+                        >
+                          <AiIkon name="clipboard" size={12} />
+                          {tx('Copy input')}
+                        </button>
+                        <button
+                          className="ai-toolrun-btn"
                           data-testid="ai-toolrun-open"
                           title={tx('Open a terminal pane in the bottom panel')}
                           onClick={() => {
@@ -270,10 +370,11 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                             });
                           }}
                         >
+                          <AiIkon name="chev-right" size={12} />
                           {tx('Open in terminal')}
                         </button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               ))}
@@ -332,6 +433,30 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               {msg.content}
             </Markdown>
             </>
+          )}
+
+          {/*
+            * Thinking state, in the middle of the transcript.
+            *
+            * It used to live only in the header row, which sits at the top of
+            * the bubble — on a long conversation that is off-screen while the
+            * user waits, so the panel looked frozen. It belongs where the
+            * answer will appear: the eye is already there.
+            *
+            * Only shown when there is nothing yet to read. Once tokens start
+            * arriving the text itself is the progress indicator, and two
+            * signals at once is noise.
+            */}
+          {!isUser && msg.streaming && !msg.content && !msg.reasoning && (
+            <div className="ai-think" data-testid="ai-think-body" role="status">
+              <span className="ai-think-orb" aria-hidden="true" />
+              <span className="ai-think-text">{tx('Thinking')}</span>
+              <span className="ai-dots" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+            </div>
           )}
         </div>
       )}

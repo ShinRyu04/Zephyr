@@ -136,7 +136,7 @@ fn write_secrets(state: &AppState, map: &Map<String, Value>) -> ZResult<()> {
         Ok(()) => Ok(()),
         Err(e) => {
             let _ = std::fs::remove_file(&tmp);
-            Err(ZephyrError::Internal(format!("gagal menyimpan secrets: {e}")))
+            Err(ZephyrError::Internal(format!("failed menyimpan secrets: {e}")))
         }
     }
 }
@@ -214,7 +214,7 @@ pub fn key_for(state: &AppState, provider: &str) -> String {
 pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
     let n = name.trim();
     if n.is_empty() {
-        return Err(ZephyrError::InvalidInput("nama secret kosong".into()));
+        return Err(ZephyrError::InvalidInput("nama secret empty".into()));
     }
     let mut map = map_untuk_tulis(state)?;
     if value.trim().is_empty() {
@@ -229,7 +229,7 @@ pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
 pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> ZResult<()> {
     let p = provider.trim();
     if p.is_empty() {
-        return Err(ZephyrError::InvalidInput("provider kosong".into()));
+        return Err(ZephyrError::InvalidInput("provider empty".into()));
     }
     let mut map = map_untuk_tulis(&state)?;
     if key.trim().is_empty() {
@@ -336,7 +336,7 @@ pub fn test_model_connection(
                 c => format!("Server menjawab {c}"),
             },
         ),
-        Err(e) => (false, None, format!("Tidak bisa menghubungi server: {e}")),
+        Err(e) => (false, None, format!("Cannot reach the server: {e}")),
     };
 
     Ok(TestResult {
@@ -356,7 +356,7 @@ pub fn list_models(
     let key = key_for(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
-            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+            "No API key for {provider} yet — add one in Settings → AI Models"
         )));
     }
 
@@ -415,7 +415,7 @@ pub fn list_models(
         ureq::Error::StatusCode(code) => {
             ZephyrError::InvalidInput(format!("Server menjawab {code} — cek key & base URL"))
         }
-        e => ZephyrError::InvalidInput(format!("Tidak bisa menghubungi server: {e}")),
+        e => ZephyrError::InvalidInput(format!("Cannot reach the server: {e}")),
     })?;
 
     let json: serde_json::Value = serde_json::from_str(

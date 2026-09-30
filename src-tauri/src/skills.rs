@@ -170,7 +170,7 @@ pub fn daftar_skills(state: &AppState) -> Vec<SkillInfo> {
 fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)> {
     if !nama_valid(nama) {
         return Err(ZephyrError::InvalidInput(format!(
-            "nama skill tidak valid: '{nama}' (hanya huruf, angka, '-' dan '_')"
+            "invalid skill name: '{nama}' (letters, digits, '-' and '_' only)"
         )));
     }
 
@@ -279,7 +279,7 @@ pub fn baca_skill(state: &AppState, nama: &str) -> ZResult<(SkillInfo, String)> 
     }
     let teks = std::fs::read_to_string(&file)?;
     let info = baca_satu(&dir, scope)
-        .ok_or_else(|| ZephyrError::Internal(format!("gagal membaca metadata skill '{nama}'")))?;
+        .ok_or_else(|| ZephyrError::Internal(format!("failed membaca metadata skill '{nama}'")))?;
     Ok((info, teks))
 }
 
@@ -292,7 +292,7 @@ pub fn tulis_skill(
 ) -> ZResult<String> {
     if !nama_valid(nama) {
         return Err(ZephyrError::InvalidInput(format!(
-            "nama skill tidak valid: '{nama}' (hanya huruf, angka, '-' dan '_')"
+            "invalid skill name: '{nama}' (letters, digits, '-' and '_' only)"
         )));
     }
     let root = match scope {
@@ -304,7 +304,7 @@ pub fn tulis_skill(
         },
         other => {
             return Err(ZephyrError::InvalidInput(format!(
-                "scope tidak dikenal: '{other}' (pakai 'workspace' atau 'global')"
+                "scope not recognised: '{other}' (pakai 'workspace' atau 'global')"
             )))
         }
     };

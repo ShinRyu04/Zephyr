@@ -264,7 +264,7 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
                 main: String::new(),
                 main_bytes: -1,
                 commands: vec![],
-                error: Some(format!("package.json tidak valid: {e}")),
+                error: Some(format!("invalid package.json: {e}")),
             })
         }
     };
@@ -391,7 +391,7 @@ pub fn extensions_load(state: State<AppState>, id: String) -> ZResult<ExtensionL
     let dir = PathBuf::from(&info.path);
     let pkg = dir.join("package.json");
     let manifest: Value = serde_json::from_str(&std::fs::read_to_string(&pkg)?)
-        .map_err(|e| ZephyrError::InvalidInput(format!("package.json tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid package.json: {e}")))?;
 
     let main_path = dir.join(&info.main);
     let size = std::fs::metadata(&main_path)
@@ -426,7 +426,7 @@ pub fn extensions_add(state: State<AppState>, path: String) -> ZResult<Extension
     let dir = if p.is_file() {
         p.parent()
             .map(|x| x.to_path_buf())
-            .ok_or_else(|| ZephyrError::InvalidInput("folder ekstensi tidak ketemu".into()))?
+            .ok_or_else(|| ZephyrError::InvalidInput("extension folder not found".into()))?
     } else {
         p
     };

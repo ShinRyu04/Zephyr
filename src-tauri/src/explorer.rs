@@ -252,7 +252,7 @@ fn build_regex(query: &str, regex: bool, case_sensitive: bool) -> ZResult<regex:
     regex::RegexBuilder::new(&pattern)
         .case_insensitive(!case_sensitive)
         .build()
-        .map_err(|e| ZephyrError::InvalidInput(format!("regex tidak valid: {e}")))
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid regex: {e}")))
 }
 
 fn collect_files(root: &Path, out: &mut Vec<PathBuf>, depth: usize) {
@@ -285,7 +285,7 @@ pub fn list_workspace_files(
 ) -> ZResult<Vec<QuickFile>> {
     let ws = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
 
     let mut files: Vec<PathBuf> = Vec::new();
     collect_files(&ws, &mut files, 0);
@@ -335,7 +335,7 @@ pub fn search_files(
     }
     let ws = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
 
     let re = build_regex(
         &query,
@@ -349,7 +349,7 @@ pub fn search_files(
                 .case_insensitive(true)
                 .literal_separator(false)
                 .build()
-                .map_err(|e| ZephyrError::InvalidInput(format!("glob tidak valid: {e}")))?
+                .map_err(|e| ZephyrError::InvalidInput(format!("invalid glob: {e}")))?
                 .compile_matcher(),
         ),
         None => None,

@@ -27,7 +27,7 @@ fn ambil(url: &str) -> ZResult<String> {
     let u = url.trim();
     if !(u.starts_with("http://") || u.starts_with("https://")) {
         return Err(ZephyrError::InvalidInput(
-            "URL harus diawali http:// atau https://".into(),
+            "the URL must start with http:// or https://".into(),
         ));
     }
     let resp = ureq::get(u)
@@ -41,7 +41,7 @@ fn ambil(url: &str) -> ZResult<String> {
         )
         .header("Accept-Language", "en-US,en;q=0.9,id;q=0.8")
         .call()
-        .map_err(|e| ZephyrError::InvalidInput(format!("permintaan gagal: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("the request failed: {e}")))?;
 
     let status = resp.status().as_u16();
     if !(200..400).contains(&status) {
@@ -52,7 +52,7 @@ fn ambil(url: &str) -> ZResult<String> {
     let mut resp = resp;
     resp.body_mut()
         .read_to_string()
-        .map_err(|e| ZephyrError::InvalidInput(format!("gagal membaca badan: {e}")))
+        .map_err(|e| ZephyrError::InvalidInput(format!("reading the body failed: {e}")))
 }
 
 /**
@@ -188,7 +188,7 @@ pub fn web_fetch(url: String, max_chars: Option<usize>) -> ZResult<String> {
 pub fn web_search(query: String, max_results: Option<usize>) -> ZResult<Vec<HasilCari>> {
     let q = query.trim();
     if q.is_empty() {
-        return Err(ZephyrError::InvalidInput("kata kunci kosong".into()));
+        return Err(ZephyrError::InvalidInput("kata kunci empty".into()));
     }
     let batas = max_results.unwrap_or(8).clamp(1, 20);
     let param = urlencode(q);
@@ -207,13 +207,13 @@ pub fn web_search(query: String, max_results: Option<usize>) -> ZResult<Vec<Hasi
                 if !hasil.is_empty() {
                     return Ok(hasil);
                 }
-                galat = format!("{url}: tidak ada hasil yang bisa dibaca");
+                galat = format!("{url}: is missing hasil yang bisa dibaca");
             }
             Err(e) => galat = format!("{url}: {e}"),
         }
     }
     Err(ZephyrError::InvalidInput(format!(
-        "semua mesin pencari gagal — {galat}"
+        "semua mesin pencari failed — {galat}"
     )))
 }
 

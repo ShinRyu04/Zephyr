@@ -104,11 +104,11 @@ pub async fn agent_exec(
 
     let perintah = command.trim();
     if perintah.is_empty() {
-        return Err(ZephyrError::InvalidInput("command kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty command".into()));
     }
     let cwd = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
 
     let ms_cap = timeout_ms
         .unwrap_or(DEFAULT_TIMEOUT_MS)
@@ -118,7 +118,7 @@ pub async fn agent_exec(
     let mut c = build(perintah, cwd)?;
     let mut child = c
         .spawn()
-        .map_err(|e| ZephyrError::Internal(format!("gagal menjalankan perintah: {e}")))?;
+        .map_err(|e| ZephyrError::Internal(format!("running the command failed: {e}")))?;
 
     let mut out_pipe = child.stdout.take();
     let mut err_pipe = child.stderr.take();
@@ -127,7 +127,7 @@ pub async fn agent_exec(
         match tokio::time::timeout(Duration::from_millis(ms_cap), jalan(&mut child, &mut out_pipe, &mut err_pipe)).await {
             Ok(Ok((code, so, se))) => (code, false, so, se),
             Ok(Err(e)) => {
-                return Err(ZephyrError::Internal(format!("gagal menunggu perintah: {e}")));
+                return Err(ZephyrError::Internal(format!("waiting for the command failed: {e}")));
             }
             Err(_) => {
                 let _ = child.start_kill();

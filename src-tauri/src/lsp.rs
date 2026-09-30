@@ -60,7 +60,7 @@ fn get(id: &str) -> ZResult<Arc<Server>> {
 
 fn write_msg(srv: &Server, msg: &Value) -> ZResult<()> {
     let body = serde_json::to_vec(msg)
-        .map_err(|e| ZephyrError::Internal(format!("serialisasi lsp gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Internal(format!("serialisasi lsp failed: {e}")))?;
     let mut out = srv
         .stdin
         .lock()
@@ -136,7 +136,7 @@ fn script_node(node_modules: &Path, bin_name: &str) -> Option<PathBuf> {
 fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(String, Vec<String>)> {
     if spec.cmd.is_empty() {
         return Err(ZephyrError::InvalidInput(
-            "cmd language server kosong".into(),
+            "cmd language server empty".into(),
         ));
     }
     let exe = spec.cmd[0].clone();
@@ -251,16 +251,16 @@ pub async fn lsp_start(
     }
     let mut child = c
         .spawn()
-        .map_err(|e| ZephyrError::Io(format!("gagal menjalankan {exe}: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("failed menjalankan {exe}: {e}")))?;
     let pid = child.id();
     let stdin = child
         .stdin
         .take()
-        .ok_or_else(|| ZephyrError::Internal("stdin language server tidak ada".into()))?;
+        .ok_or_else(|| ZephyrError::Internal("stdin language server is missing".into()))?;
     let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| ZephyrError::Internal("stdout language server tidak ada".into()))?;
+        .ok_or_else(|| ZephyrError::Internal("stdout language server is missing".into()))?;
     let stderr = child.stderr.take();
 
     let srv = Arc::new(Server {

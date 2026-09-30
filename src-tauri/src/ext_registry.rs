@@ -77,7 +77,7 @@ fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
         match serde_json::from_str::<Vec<IndexEntry>>(teks) {
             Ok(v) => v,
             Err(e) => {
-                tracing::warn!(asal, err = %e, "registry: format array tidak valid");
+                tracing::warn!(asal, err = %e, "registry: invalid array format");
                 return vec![];
             }
         }
@@ -85,7 +85,7 @@ fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
         match serde_json::from_str::<IndexRoot>(teks) {
             Ok(r) => r.extensions,
             Err(e) => {
-                tracing::warn!(asal, err = %e, "registry: format index tidak valid");
+                tracing::warn!(asal, err = %e, "registry: format index is not valid");
                 return vec![];
             }
         }
@@ -209,7 +209,7 @@ pub async fn ext_registry_list(
         if url.starts_with("https://") {
             tambah(ambil_remote(&url).await);
         } else {
-            tracing::warn!(%url, "registryUrl harus https://, diabaikan");
+            tracing::warn!(%url, "registryUrl harus https://, ignored");
         }
     }
 
