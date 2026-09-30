@@ -183,7 +183,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
             : (f.configurations[0]?.name ?? ''),
       }));
       if (f.invalid.length > 0) {
-        notifyWarn(`${f.invalid.length} konfigurasi launch.json dilewati`, {
+        notifyWarn(`${f.invalid.length} launch.json configuration(s) skipped`, {
           source: 'debug',
           detail: f.invalid.map((i) => `#${i.index} ${i.name}: ${i.reason}`).join('\n'),
         });
@@ -449,7 +449,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       set({ state: 'inactive', error: m });
       
       notifyError(m, { source: 'debug' });
-      log(`GAGAL: ${m}`);
+      log(`FAILED: ${m}`);
       return false;
     }
   },

@@ -266,7 +266,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
     const gagal = hasil.filter((h) => h.error);
     set({ replaceTerakhir: hasil });
     if (gagal.length > 0) {
-      notifyWarn(`${gagal.length} files skipped: ${gagal[0].error}`, { source: 'search' });
+      notifyWarn(`${gagal.length} file(s) skipped: ${gagal[0].error}`, { source: 'search' });
     }
     if (n > 0) {
       notifyInfo(`${n} penggantian di ${hasil.filter((h) => h.jumlah > 0).length} file`, {

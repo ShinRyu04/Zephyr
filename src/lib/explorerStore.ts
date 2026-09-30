@@ -252,8 +252,8 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
       
       notifyInfo(
         paths.length === 1
-          ? `Dihapus: ${baseOf(paths[0])}`
-          : `${paths.length} item dihapus`,
+          ? `Deleted: ${baseOf(paths[0])}`
+          : `${paths.length} items deleted`,
         { source: 'explorer' },
       );
     } catch (e) {
@@ -288,7 +288,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     const target = joinPath(dest, baseOf(src));
     try {
       if (await cmd.fsExists(target)) {
-        set({ explorerError: `"${baseOf(src)}" sudah ada di folder tujuan` });
+        set({ explorerError: `"${baseOf(src)}" already exists in the destination folder` });
         return;
       }
       await cmd.fsRename(src, target);

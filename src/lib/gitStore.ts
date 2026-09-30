@@ -215,7 +215,7 @@ export const useGit = create<GitStore>((set, get) => ({
     set({ busy: true, busyLabel: 'commit', scmError: null });
     try {
       const hash = await cmd.gitCommit(msg);
-      set({ message: '', scmInfo: `Commit ${hash} dibuat` });
+      set({ message: '', scmInfo: `Commit ${hash} created` });
       await get().refreshAll();
       return true;
     } catch (e) {
@@ -425,7 +425,7 @@ export const useGit = create<GitStore>((set, get) => ({
     set({ busy: true, busyLabel: 'branch', scmError: null, newBranchOpen: false });
     try {
       await cmd.gitCreateBranch(name);
-      set({ scmInfo: `Branch ${name} dibuat & aktif` });
+      set({ scmInfo: `Branch ${name} created and checked out` });
       await get().refreshAll();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -438,7 +438,7 @@ export const useGit = create<GitStore>((set, get) => ({
     set({ busy: true, busyLabel: 'branch', scmError: null });
     try {
       await cmd.gitDeleteBranch(name);
-      set({ scmInfo: `Branch ${name} dihapus` });
+      set({ scmInfo: `Branch ${name} deleted` });
       await get().refreshAll();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -555,7 +555,7 @@ export const useGit = create<GitStore>((set, get) => ({
 
   onGhLogin: (e) => {
     if (e.state === 'success') {
-      set({ ghDevice: null, ghMessage: `Login berhasil — @${e.message ?? ''}` });
+      set({ ghDevice: null, ghMessage: `Signed in — @${e.message ?? ''}` });
       void get().loadGh();
       return;
     }

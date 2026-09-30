@@ -107,7 +107,7 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
     
     const gagalAktivasi =
       m.severity === 'warn' &&
-      (m.message.startsWith('aktivasi') || m.message.startsWith('tidak bisa dimuat'));
+      (m.message.startsWith('aktivasi') || m.message.startsWith('could not load'));
     if (gagalAktivasi) {
       void cmd.extensionsSetEnabled(extId, false).catch(() => {});
     }

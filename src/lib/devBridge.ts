@@ -1613,7 +1613,7 @@ export function installDevBridge(): void {
       const S = useSnip.getState();
       if (S.untuk(lang).length === 0) await S.muat(lang);
       const s = S.untuk(lang).find((x) => x.prefix === prefix);
-      if (!s) return `snippet '${prefix}' tidak is available for ${lang}`;
+      if (!s) return `snippet '${prefix}' is not available for ${lang}`;
       const tab = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
       await sisipkanSnippet(v, s, tab?.path ?? '');
       return 'ok';

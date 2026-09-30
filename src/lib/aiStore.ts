@@ -926,7 +926,7 @@ export const useAi = create<AiStore>((set, get) => ({
       attached = { path: tab.path ?? tab.name, bytes: body.length, truncated };
       payloadContent =
         `${content}\n\n---\n` +
-        `Anggap file ini konteks kerja aktif.\n` +
+        `Treat this file as the active working context.\n` +
         `File: ${tab.path ?? tab.name}${truncated ? ' (first 12KB truncated)' : ''}\n` +
         '```\n' +
         body +
@@ -1385,7 +1385,7 @@ export const useAi = create<AiStore>((set, get) => ({
     }
 
     if (agentBatal) {
-      if (!akhir) akhir = '(dibatalkan user)';
+      if (!akhir) akhir = '(cancelled by the user)';
       agentBatal = false;
     }
     if (langkah >= MAX_AGENT_STEPS) {
@@ -1487,7 +1487,7 @@ export const useAi = create<AiStore>((set, get) => ({
         ...x,
         messages: x.messages.map((m) =>
           m.id === id
-            ? { ...m, streaming: false, content: m.content || '(dibatalkan sebelum ada jawaban)' }
+            ? { ...m, streaming: false, content: m.content || '(cancelled before any answer)' }
             : m,
         ),
       })),

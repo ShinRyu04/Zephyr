@@ -1506,7 +1506,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'refresh muat ulang task',
     run: async () => {
       const f = await useTasks.getState().muat();
-      if (f) notifyInfo(`${f.tasks.length} task dimuat`, { source: 'Tasks' });
+      if (f) notifyInfo(`${f.tasks.length} task(s) loaded`, { source: 'Tasks' });
     },
   },
   {
@@ -1562,8 +1562,8 @@ export const COMMANDS: CommandDef[] = [
       const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
       if (!p) return;
       const id = await useHistory.getState().snapshotSave(p, 'manual');
-      if (id) notifyInfo(tx('Snapshot dibuat'), { source: 'history' });
-      else notifyWarn(tx('Snapshot dilewati (isi sama / file besar / biner)'), { source: 'history' });
+      if (id) notifyInfo(tx('Snapshot created'), { source: 'history' });
+      else notifyWarn(tx('Snapshot skipped (identical content / large file / binary)'), { source: 'history' });
     },
   },
   {
@@ -2342,7 +2342,7 @@ export function extensionCommands(): CommandDef[] {
     run: () => {
       S().setStatus(`${title} — from extension ${extName} (manifest v1)`);
       useExtensions.setState({
-        extInfo: `Command "${title}" dijalankan from extension ${extName}`,
+        extInfo: `Command "${title}" ran from extension ${extName}`,
       });
     },
   });
