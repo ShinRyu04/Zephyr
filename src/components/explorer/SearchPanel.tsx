@@ -176,8 +176,8 @@ export default function SearchPanel() {
               if (e.key === 'Enter') void jalankan();
             }}
           />
-          {/* Riwayat query: <datalist> memberi dropdown native tanpa
-              menambah widget yang harus diurus fokus & keyboard-nya. */}
+          {/* Query history: <datalist> gives a native dropdown without
+              adding a widget whose focus & keyboard need managing. */}
           <datalist id="zephyr-search-riwayat">
             {riwayat.map((r) => (
               <option key={r} value={r} />
@@ -318,8 +318,8 @@ export default function SearchPanel() {
         ref={scroller}
         onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
       >
-        {/* Spacer setinggi seluruh daftar; baris diposisikan absolut di dalamnya.
-            Ini yang membuat scrollbar tetap benar walau isinya sedikit. */}
+        {/* Spacer as tall as the whole list; the rows are positioned absolutely inside it.
+            This is what keeps the scrollbar correct even when the content is short. */}
         <div className="sr-spacer" style={{ height: totalTinggi }} data-testid="sr-spacer">
           {terlihat.map((b, i) => {
             const idx = mulai + i;

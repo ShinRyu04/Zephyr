@@ -1,0 +1,1738 @@
+{
+ "UI": {
+  "src/App.tsx": [
+   [
+    1034,
+    "bisa di lebarkan"
+   ]
+  ],
+  "src/components/ai/AiPanel.tsx": [
+   [
+    357,
+    "Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah jalan."
+   ],
+   [
+    360,
+    "Tulis rencana langkah-langkah untuk tugas ini, lalu kerjakan satu per satu."
+   ]
+  ],
+  "src/components/ai/SubAgentInfo.tsx": [
+   [
+    43,
+    ">{gagal} {tr("
+   ]
+  ],
+  "src/components/ai/SubAgentPanel.tsx": [
+   [
+    435,
+    "Kirim pesan lanjutan…"
+   ],
+   [
+    452,
+    "Subagent: kirim lanjutan"
+   ]
+  ],
+  "src/components/editor/Breadcrumbs.tsx": [
+   [
+    112,
+    "${labelKind(s.kind)} - line ${s.dari}"
+   ],
+   [
+    129,
+    "bc-item${sib.dari === s.dari ? "
+   ]
+  ],
+  "src/components/settings/PersonaCard.tsx": [
+   [
+    102,
+    "Subagent: ubah"
+   ],
+   [
+    118,
+    "Subagent: hapus"
+   ],
+   [
+    187,
+    "Ubah persona"
+   ],
+   [
+    189,
+    "Subagent: tutup"
+   ],
+   [
+    207,
+    "Nama itu sudah dipakai persona lain."
+   ],
+   [
+    281,
+    "Subagent: simpan"
+   ]
+  ],
+  "src/components/settings/SectionsAdvanced.tsx": [
+   [
+    731,
+    "Pekerja baca-saja buatanmu sendiri. AI bisa mendelegasikan ke yang aktif berdasarkan nama, di samping peran bawaan (Cari, Telaah, Rencana, Audit, Kerja, Jelajah)."
+   ],
+   [
+    746,
+    "Belum ada sub-agent kustom. Buat satu untuk memberi AI pekerja khusus."
+   ]
+  ],
+  "src/components/settings/SettingsNav.tsx": [
+   [
+    191,
+    "Semua setting dikembalikan ke default (API key TIDAK dihapus)"
+   ]
+  ],
+  "src/components/settings/SubagentCustomModal.tsx": [
+   [
+    253,
+    "Ubah sub-agent"
+   ],
+   [
+    258,
+    "Subagent: tutup"
+   ],
+   [
+    278,
+    "Nama itu sudah dipakai sub-agent lain."
+   ],
+   [
+    289,
+    "Satu baris — AI membacanya untuk memutuskan kapan mendelegasikan ke sini"
+   ],
+   [
+    330,
+    "Hanya baca. Pilih minimal satu."
+   ],
+   [
+    380,
+    "Persona dan aturan untuk pekerja ini. Ia berjalan dengan riwayat bersih dan hanya alat di atas."
+   ],
+   [
+    415,
+    "Belum ada provider dengan API key. Isi di Settings → AI Models."
+   ],
+   [
+    438,
+    "Jalankan pekerja ini di model sendiri (mis. yang lebih murah untuk pencarian besar). Bawaan = sama seperti chat."
+   ],
+   [
+    450,
+    "Subagent: hapus"
+   ],
+   [
+    463,
+    "Subagent: simpan"
+   ]
+  ],
+  "src/components/settings/TestsSection.tsx": [
+   [
+    46,
+    "Tidak bisa menjalankan: tidak ada framework tes di workspace ini."
+   ],
+   [
+    95,
+    "Jalankan tes saat workspace dibuka"
+   ],
+   [
+    105,
+    "Jalankan ulang file tes saat disimpan"
+   ],
+   [
+    133,
+    "Jalankan semua tes"
+   ]
+  ],
+  "src/components/shell/SubAgentView.tsx": [
+   [
+    47,
+    ">{gagal} {tr("
+   ]
+  ],
+  "src/lib/breakpointGutter.ts": [
+   [
+    27,
+    "Breakpoint (belum diverifikasi adapter)"
+   ]
+  ],
+  "src/lib/cliAgentStore.ts": [
+   [
+    94,
+    "(tidak ada output)"
+   ],
+   [
+    94,
+    "(gagal tanpa pesan)"
+   ]
+  ],
+  "src/lib/cliStore.ts": [
+   [
+    148,
+    "Gagal membuka diff: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    167,
+    "Gagal membuka ${namaFile(path)}: ${cmd.asZephyrError(e).message}"
+   ]
+  ],
+  "src/lib/cmColor.ts": [
+   [
+    136,
+    "${this.warna} — klik untuk mengubah"
+   ]
+  ],
+  "src/lib/commandRegistry.ts": [
+   [
+    95,
+    "Tidak ada masalah di file ini"
+   ],
+   [
+    164,
+    "simpan sebagai"
+   ],
+   [
+    189,
+    "tutup workspace"
+   ],
+   [
+    442,
+    "Tidak ada perubahan ter-stage — stage dulu lalu ulangi."
+   ],
+   [
+    443,
+    "Pesan commit masih kosong."
+   ],
+   [
+    478,
+    "Buka file dulu"
+   ],
+   [
+    483,
+    "Blame tidak tersedia untuk file ini"
+   ],
+   [
+    495,
+    "${lines.length} baris blame ditampilkan di Output"
+   ],
+   [
+    502,
+    "stash simpan tunda"
+   ],
+   [
+    556,
+    "Konteks sudah pendek"
+   ],
+   [
+    698,
+    "notifikasi bersihkan hapus riwayat"
+   ],
+   [
+    705,
+    "notifikasi dnd redam senyap jangan ganggu"
+   ],
+   [
+    714,
+    "buka folder workspace"
+   ],
+   [
+    721,
+    "simpan semua"
+   ],
+   [
+    735,
+    "tutup semua tab editor"
+   ],
+   [
+    746,
+    "cari temukan"
+   ],
+   [
+    767,
+    "cari workspace global search"
+   ],
+   [
+    789,
+    "buka cepat file"
+   ],
+   [
+    816,
+    "ekstensi buka installed marketplace"
+   ],
+   [
+    967,
+    "Tidak ada warna di dokumen ini"
+   ],
+   [
+    1037,
+    "panel bawah buka tutup"
+   ],
+   [
+    1114,
+    "test tests pengujian panel jalankan"
+   ],
+   [
+    1154,
+    "tools sftp ssh transfer berkas file"
+   ],
+   [
+    1209,
+    "Definisi tidak ditemukan"
+   ],
+   [
+    1215,
+    "Go to Definition gagal"
+   ],
+   [
+    1231,
+    "Definisi tidak ditemukan"
+   ],
+   [
+    1233,
+    "Peek Definition gagal"
+   ],
+   [
+    1250,
+    "Tidak ada referensi"
+   ],
+   [
+    1276,
+    "Find References gagal"
+   ],
+   [
+    1295,
+    "Format gagal"
+   ],
+   [
+    1365,
+    "ai sembunyikan tutup panel chat"
+   ],
+   [
+    1410,
+    "Semua language server dimatikan; akan start lagi saat file dibuka"
+   ],
+   [
+    1439,
+    "Tidak ada language server yang hidup"
+   ],
+   [
+    1471,
+    "build compile jalankan ctrl+shift+b"
+   ],
+   [
+    1482,
+    "task jalankan run"
+   ],
+   [
+    1529,
+    "test tests vitest jest pytest cargo go pengujian jalankan"
+   ],
+   [
+    1555,
+    "history simpan versi manual"
+   ],
+   [
+    1579,
+    "Belum ada snapshot untuk file ini"
+   ],
+   [
+    1587,
+    "Timeline: Hapus Riwayat File Ini"
+   ],
+   [
+    1589,
+    "history bersihkan hapus snapshot"
+   ],
+   [
+    1623,
+    "debug jalankan f5 launch"
+   ],
+   [
+    1713,
+    "Tidak ada kursor di editor"
+   ],
+   [
+    1721,
+    "Debug: Hapus Semua Breakpoint"
+   ],
+   [
+    1749,
+    "Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar."
+   ],
+   [
+    1812,
+    "Tidak ada file yang terbuka."
+   ],
+   [
+    1818,
+    ", belum disimpan"
+   ],
+   [
+    1874,
+    "Workspace: Tambah Folder ke Workspace"
+   ],
+   [
+    1876,
+    "workspace root folder multi tambah add"
+   ],
+   [
+    1885,
+    "Workspace: Hapus Folder Aktif dari Workspace"
+   ],
+   [
+    1887,
+    "workspace root folder hapus remove"
+   ],
+   [
+    1897,
+    "Workspace: Buka File .code-workspace"
+   ],
+   [
+    2040,
+    "pilih semua select all"
+   ],
+   [
+    2082,
+    "kursor tambah atas"
+   ],
+   [
+    2105,
+    "kursor tambah bawah"
+   ],
+   [
+    2161,
+    "pilih semua kemunculan"
+   ],
+   [
+    2199,
+    "buka kembali tab ditutup reopen"
+   ],
+   [
+    2210,
+    "tutup folder workspace"
+   ],
+   [
+    2264,
+    "keluar tutup exit window"
+   ],
+   [
+    2294,
+    "Gagal membuka jendela baru"
+   ],
+   [
+    2343,
+    "${title} — dari ekstensi ${extName} (manifest v1)"
+   ],
+   [
+    2345,
+    " dijalankan dari ekstensi ${extName}"
+   ]
+  ],
+  "src/lib/debugStore.ts": [
+   [
+    216,
+    "Buka folder dulu untuk debug."
+   ],
+   [
+    490,
+    "Belum ada thread yang berhenti"
+   ],
+   [
+    593,
+    "Tidak ada sesi debug aktif. Tekan F5 untuk mulai."
+   ]
+  ],
+  "src/lib/devBridge.ts": [
+   [
+    1612,
+    "tidak ada editor aktif"
+   ],
+   [
+    1758,
+    "axe belum disuntik"
+   ]
+  ],
+  "src/lib/explorerStore.ts": [
+   [
+    96,
+    "nama tidak boleh kosong"
+   ],
+   [
+    97,
+    "nama memuat karakter yang tidak diizinkan"
+   ],
+   [
+    98,
+    "nama tidak valid"
+   ],
+   [
+    99,
+    "nama tidak boleh diakhiri titik atau spasi"
+   ],
+   [
+    262,
+    "Gagal menghapus"
+   ],
+   [
+    285,
+    "tidak bisa memindahkan folder ke dalam dirinya sendiri"
+   ],
+   [
+    318,
+    "Gagal menyalin path"
+   ],
+   [
+    336,
+    "buka folder dulu untuk mencari"
+   ]
+  ],
+  "src/lib/extHost.ts": [
+   [
+    35,
+    "eksekusi runtime gagal"
+   ],
+   [
+    76,
+    "ekstensi tidak dimuat"
+   ],
+   [
+    119,
+    "Ekstensi VS Code penuh biasanya butuh runtime eksternal (Python/Java/Docker/Node) atau API host yang tidak tersedia di sandbox Zephyr v1 (manifest-only)."
+   ],
+   [
+    227,
+    "Ekstensi ${st.manifest.id} dinonaktifkan: gagal dimuat di sandbox Zephyr v1"
+   ]
+  ],
+  "src/lib/extLoader.ts": [
+   [
+    413,
+    "manifest tidak terbaca"
+   ]
+  ],
+  "src/lib/extRunner.ts": [
+   [
+    1317,
+    "tasks tidak didukung di sandbox Zephyr"
+   ],
+   [
+    1374,
+    " tidak didukung di sandbox ekstensi Zephyr"
+   ],
+   [
+    1379,
+    "fs.realpath.native tidak didukung di sandbox ekstensi Zephyr"
+   ],
+   [
+    1382,
+    "fs.Stream tidak didukung di sandbox ekstensi Zephyr"
+   ],
+   [
+    1395,
+    " tidak didukung di sandbox ekstensi Zephyr"
+   ],
+   [
+    1411,
+    " tidak didukung di sandbox ekstensi Zephyr"
+   ],
+   [
+    1440,
+    " tidak ditemukan di dalam ekstensi (dicari: "
+   ],
+   [
+    1447,
+    " tidak ditemukan di dalam ekstensi Zephyr"
+   ],
+   [
+    1532,
+    "fs/promises tidak didukung di sandbox Zephyr"
+   ],
+   [
+    1533,
+    "fs/promises tidak didukung di sandbox Zephyr"
+   ],
+   [
+    1534,
+    "fs/promises tidak didukung di sandbox Zephyr"
+   ],
+   [
+    1535,
+    "fs/promises tidak didukung di sandbox Zephyr"
+   ],
+   [
+    1582,
+    "assertion gagal"
+   ],
+   [
+    1583,
+    "assertion gagal"
+   ],
+   [
+    1621,
+    "tidak bisa dimuat: "
+   ],
+   [
+    1682,
+    "aktivasi gagal: "
+   ]
+  ],
+  "src/lib/ghostText.ts": [
+   [
+    194,
+    "Belum ada API key untuk ${def.label}"
+   ],
+   [
+    208,
+    "Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang "
+   ],
+   [
+    209,
+    "harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown, "
+   ],
+   [
+    210,
+    "tanpa mengulang kode yang sudah ada. Maksimal satu baris."
+   ]
+  ],
+  "src/lib/gitStore.ts": [
+   [
+    212,
+    "Belum ada perubahan yang di-stage (klik + di file)"
+   ],
+   [
+    238,
+    "# ${c.status} ${c.path} (diff tidak tersedia)"
+   ],
+   [
+    242,
+    "Tidak ada perubahan untuk diringkas"
+   ],
+   [
+    258,
+    "AI tidak mengembalikan pesan commit"
+   ],
+   [
+    276,
+    "Tidak ada perubahan untuk di-stash"
+   ],
+   [
+    350,
+    "Remote punya ${st.behind} commit yang belum ada di lokal — pull dulu sebelum push"
+   ],
+   [
+    357,
+    "Push selesai"
+   ],
+   [
+    370,
+    "Pull selesai"
+   ],
+   [
+    532,
+    "Sudah logout"
+   ]
+  ],
+  "src/lib/historyStore.ts": [
+   [
+    131,
+    "Local History gagal: ${asZephyrError(e).message}"
+   ],
+   [
+    174,
+    "Tidak bisa membuka file untuk restore"
+   ],
+   [
+    181,
+    "Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)"
+   ],
+   [
+    186,
+    "Restore gagal: ${asZephyrError(e).message}"
+   ]
+  ],
+  "src/lib/lspStore.ts": [
+   [
+    119,
+    "[${def.id}] GAGAL start: ${msg}"
+   ],
+   [
+    179,
+    "language server tidak aktif untuk file ini"
+   ]
+  ],
+  "src/lib/mcpStore.ts": [
+   [
+    124,
+    "Server MCP dimatikan; port tidak lagi listening"
+   ],
+   [
+    144,
+    "Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang."
+   ],
+   [
+    167,
+    "Centang dulu CLI yang mau didaftari"
+   ],
+   [
+    182,
+    "${res.length - gagal.length} berhasil, ${gagal.length} gagal"
+   ],
+   [
+    195,
+    "Centang dulu CLI yang mau dilepas"
+   ],
+   [
+    203,
+    "Entri zephyr dilepas dari ${res.filter((r) => r.ok).length} config"
+   ],
+   [
+    244,
+    "Server tidak ditemukan"
+   ],
+   [
+    314,
+    "health check dari AI CLI"
+   ],
+   [
+    431,
+    " tidak dikenal"
+   ],
+   [
+    435,
+    "pane tidak bisa dibuat"
+   ],
+   [
+    477,
+    "channel ${id} tidak ada (tersedia: ${o.channels.map((c) => c.id).join("
+   ],
+   [
+    543,
+    " tidak dikenal"
+   ],
+   [
+    559,
+    "pane gagal dibuat"
+   ],
+   [
+    585,
+    "pesan commit masih kosong"
+   ],
+   [
+    601,
+    "dialog pilih folder dibuka untuk user"
+   ],
+   [
+    623,
+    "tidak ada tab aktif"
+   ],
+   [
+    626,
+    "gagal menyimpan"
+   ],
+   [
+    632,
+    " tidak dikenal (tersedia: commandPalette.open, terminal.new, terminal.toggle, ai.focus, ai.send, git.commit, git.panel, explorer.openFolder, view.explorer, view.settings, view.mcp, editor.save)"
+   ]
+  ],
+  "src/lib/paletteStore.ts": [
+   [
+    157,
+    "Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka)."
+   ],
+   [
+    255,
+    " gagal: ${cmd.asZephyrError(e).message}"
+   ]
+  ],
+  "src/lib/projectContext.ts": [
+   [
+    118,
+    "tidak ada penanda teknologi umum"
+   ],
+   [
+    124,
+    "- Titik masuk yang lazim: ${entry.join("
+   ]
+  ],
+  "src/lib/searchStore.ts": [
+   [
+    162,
+    "buka folder dulu untuk mencari"
+   ],
+   [
+    269,
+    "${gagal.length} file dilewati: ${gagal[0].error}"
+   ],
+   [
+    284,
+    "Belum ada replace untuk dibatalkan"
+   ],
+   [
+    297,
+    "Undo gagal untuk ${h.path}: ${asZephyrError(e).message}"
+   ],
+   [
+    302,
+    "${n} file dikembalikan ke editor sebagai perubahan belum disimpan — tekan Ctrl+S untuk menulis"
+   ]
+  ],
+  "src/lib/shortcuts.ts": [
+   [
+    15,
+    "Simpan sebagai"
+   ],
+   [
+    18,
+    "Cari di file"
+   ],
+   [
+    19,
+    "Cari di workspace"
+   ],
+   [
+    32,
+    "Buka Explorer"
+   ],
+   [
+    37,
+    "Buka Settings"
+   ],
+   [
+    47,
+    "Kirim prompt AI"
+   ],
+   [
+    48,
+    "Buka Source Control"
+   ]
+  ],
+  "src/lib/store.ts": [
+   [
+    357,
+    "Restore ${restored} tab, ${missing} file tidak ditemukan"
+   ],
+   [
+    603,
+    "Tab terlalu banyak — ${lepas.size} tab dilepas dari memori (isi dibaca ulang saat dibuka)"
+   ],
+   [
+    627,
+    "Tab belum dimuat ulang — buka dulu sebelum menyimpan"
+   ],
+   [
+    739,
+    "Gagal simpan: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    909,
+    "Simpan dibatalkan"
+   ],
+   [
+    937,
+    "Gagal simpan: ${cmd.asZephyrError(e).message}"
+   ]
+  ],
+  "src/lib/tasksStore.ts": [
+   [
+    162,
+    "Task tidak ditemukan"
+   ],
+   [
+    177,
+    "Rantai task gagal"
+   ],
+   [
+    178,
+    " ada yang gagal"
+   ],
+   [
+    252,
+    "[zephyr] gagal menjalankan: ${msg}"
+   ],
+   [
+    255,
+    " gagal dijalankan"
+   ],
+   [
+    322,
+    "[zephyr] gagal menjalankan: ${msg}"
+   ],
+   [
+    334,
+    "Tidak ada build task"
+   ]
+  ],
+  "src/lib/terminalStore.ts": [
+   [
+    247,
+    "} tidak terdeteksi"
+   ]
+  ],
+  "src/lib/testsStore.ts": [
+   [
+    158,
+    "tidak ada test framework yang terdeteksi"
+   ],
+   [
+    161,
+    "Tidak ada test framework"
+   ],
+   [
+    162,
+    "package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod tidak ditemukan."
+   ],
+   [
+    177,
+    "Gagal menjalankan test"
+   ]
+  ],
+  "src/lib/themes.ts": [
+   [
+    11,
+    "terang, untuk siang"
+   ],
+   [
+    23,
+    "AAA, untuk low-vision"
+   ]
+  ],
+  "src/lib/workspaceStore.ts": [
+   [
+    91,
+    "Gagal menambah root: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    108,
+    "Gagal menghapus root: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    121,
+    "Gagal mengganti root aktif: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    144,
+    "Gagal membuka workspace: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    158,
+    "Gagal menyimpan workspace: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    180,
+    "Gagal menyimpan trust: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    192,
+    "Gagal melupakan trust: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    230,
+    "Gagal menulis settings workspace: ${cmd.asZephyrError(e).message}"
+   ]
+  ]
+ },
+ "PROMPT": {
+  "src/lib/aiStore.ts": [
+   [
+    88,
+    "${isi.slice(0, HISTORY_TOOL_CHARS)}\\n[… hasil dipotong, ${isi.length - HISTORY_TOOL_CHARS} karakter lagi tidak dikirim]"
+   ],
+   [
+    107,
+    "Kalau butuh detailnya, jalankan ulang tool yang relevan — jangan mengarang isinya.]"
+   ],
+   [
+    160,
+    "## Rencana: belum ada. Kalau tugas butuh 3+ langkah, tulis rencananya ke todo_write."
+   ],
+   [
+    174,
+    "## Perhatian: ${gagal.length} langkah terakhir GAGAL. "
+   ],
+   [
+    175,
+    "Jangan ulangi dengan cara yang sama — pakai pendekatan berbeda atau jelaskan penghambatnya."
+   ],
+   [
+    759,
+    "_[lampiran gambar — tidak ikut diekspor]_"
+   ],
+   [
+    879,
+    "Konteks RAG dari project ini (jawab berdasarkan ini kalau relevan):\\n\\n"
+   ],
+   [
+    986,
+    "(tidak ada output)"
+   ],
+   [
+    1119,
+    "[KONTEKS EDITOR] File yang sedang dibuka user: ${tabAktif.path}"
+   ],
+   [
+    1121,
+    "Kalau instruksi menyebut "
+   ],
+   [
+    1122,
+    "maksudnya file tersebut. Pakai tool editor_read/editor_write untuk isinya."
+   ],
+   [
+    1213,
+    "(ditolak: mode read-only tidak mengizinkan ${tc.name})"
+   ],
+   [
+    1251,
+    " (nama tool tidak dikenal — periksa daftar tool)"
+   ],
+   [
+    1253,
+    "\\n\\n[PETUNJUK] Tool ${namaTool} gagal. Jangan ulangi dengan argumen yang sama."
+   ],
+   [
+    1255,
+    " perbaiki argumen, atau pakai tool berbeda. Kalau memang tidak mungkin,"
+   ],
+   [
+    1256,
+    " jelaskan ke user apa yang menghambat."
+   ],
+   [
+    1293,
+    "Gagal menjalankan agent: ${cmd.asZephyrError(e).message}"
+   ],
+   [
+    1324,
+    "(tidak ada jawaban)"
+   ]
+  ],
+  "src/lib/personaStore.ts": [
+   [
+    52,
+    "Kamu asisten yang sangat ringkas. Jawab sesingkat mungkin tanpa kehilangan ketepatan."
+   ],
+   [
+    54,
+    "Jawab langsung ke inti. Tidak ada pembuka, tidak ada ringkasan ulang, tidak ada penjelasan yang tidak diminta. Kalau jawabannya satu baris, tulis satu baris."
+   ],
+   [
+    55,
+    "Jangan pernah mengulang pertanyaan pengguna. Jangan menawarkan langkah lanjutan kecuali diminta."
+   ],
+   [
+    63,
+    "Kamu asisten yang teliti. Setiap klaim harus punya dasar yang bisa diperiksa."
+   ],
+   [
+    65,
+    "Sebelum menjawab, baca berkas yang relevan. Sebutkan berkas dan baris saat mengklaim sesuatu tentang kode. Kalau belum yakin, katakan belum yakin dan sebutkan apa yang perlu diperiksa."
+   ],
+   [
+    66,
+    "Jangan menebak nama berkas, fungsi, atau API. Kalau tidak ada di repo, katakan tidak ada."
+   ],
+   [
+    74,
+    "Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat pengguna paham caranya."
+   ],
+   [
+    76,
+    "Kerjakan tugasnya, lalu jelaskan singkat alasan di balik pilihan yang diambil. Pakai istilah yang tepat dan jelaskan sekali saat istilah itu muncul pertama kali."
+   ],
+   [
+    77,
+    "Jangan merendahkan. Jangan bertele-tele. Satu penjelasan singkat lebih baik daripada tiga paragraf."
+   ]
+  ],
+  "src/lib/promptLibrary.ts": [
+   [
+    76,
+    "Hapus semua riwayat chat"
+   ],
+   [
+    97,
+    "Jelaskan kode yang dipilih"
+   ],
+   [
+    98,
+    "Jelaskan kode berikut baris per baris: apa yang dilakukannya, alur datanya, dan bagian yang mudah disalahpahami.\\n\\n{sel}"
+   ],
+   [
+    104,
+    "Cari dan perbaiki bug pada kode berikut. Sebutkan akar masalahnya dulu, lalu berikan versi perbaikannya.\\n\\n{sel}"
+   ],
+   [
+    109,
+    "Refactor tanpa ubah perilaku"
+   ],
+   [
+    116,
+    "Tulis dokumentasi untuk kode berikut: ringkasan satu paragraf, parameter, nilai balik, dan contoh pemakaian.\\n\\n{sel}"
+   ],
+   [
+    122,
+    "Buat unit test untuk kode berikut. Pakai framework yang sudah dipakai proyek ini dan tutup kasus tepi yang penting.\\n\\n{sel}"
+   ],
+   [
+    128,
+    "Review kode berikut: bug, masalah keamanan, masalah performa, dan pelanggaran konvensi. Urutkan temuan dari yang paling penting.\\n\\n{sel}"
+   ],
+   [
+    134,
+    "Tulis pesan commit (judul + isi) untuk perubahan berikut, mengikuti konvensi repo ini.\\n\\n{sel}"
+   ],
+   [
+    145,
+    "Ulangi tugas ini sampai selesai"
+   ],
+   [
+    152,
+    "Buka server MCP (port 9222)"
+   ]
+  ],
+  "src/lib/subagentCustom.ts": [
+   [
+    40,
+    "Buka isi satu berkas"
+   ],
+   [
+    41,
+    "Lihat isi sebuah folder"
+   ],
+   [
+    42,
+    "Jalankan perintah"
+   ],
+   [
+    42,
+    "Cari lewat rg / git / find"
+   ],
+   [
+    43,
+    "Lihat keluaran terminal pane"
+   ],
+   [
+    46,
+    "Skill yang tersedia"
+   ],
+   [
+    181,
+    "Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang diminta."
+   ],
+   [
+    189,
+    "(belum ada system prompt untuk worker ini — diisi di halaman Pengaturan)"
+   ],
+   [
+    195,
+    "Kamu HANYA boleh memakai tool ini: ${alat}. Selain itu ditolak."
+   ],
+   [
+    198,
+    "Kamu tidak boleh menulis atau mengubah file. Laporkan temuan di jawaban akhir."
+   ]
+  ],
+  "src/lib/subagentRoles.ts": [
+   [
+    33,
+    "Telusuri kode: cari pemakaian, petakan struktur, temukan definisi"
+   ],
+   [
+    37,
+    "Kamu pekerja PENELUSURAN. Tugasmu memetakan kode: cari pemakaian, temukan definisi, "
+   ],
+   [
+    38,
+    "jelaskan struktur. Jangan mengubah apa pun. Laporkan: berkas mana, baris berapa, dan apa "
+   ],
+   [
+    39,
+    "yang kamu temukan — dengan kutipan singkat sebagai bukti."
+   ],
+   [
+    49,
+    "Kamu PENELAAH. Tugasmu menganalisis: mengapa sesuatu gagal, apa risiko desainnya, apa "
+   ],
+   [
+    50,
+    "trade-off-nya. Jangan mengubah apa pun. Berikan analisis yang menyebut bukti konkret "
+   ],
+   [
+    51,
+    "(berkas, baris, perilaku), bukan dugaan. Kalau kamu tidak yakin, katakan bagian mana yang "
+   ],
+   [
+    52,
+    "belum terbukti."
+   ],
+   [
+    58,
+    "Susun rencana langkah yang bisa langsung dieksekusi"
+   ],
+   [
+    62,
+    "Kamu PERENCANA. Tugasmu menyusun rencana yang bisa dieksekusi orang lain tanpa bertanya "
+   ],
+   [
+    63,
+    "lagi: langkah berurutan, berkas yang disentuh, dan cara memverifikasi tiap langkah. "
+   ],
+   [
+    64,
+    "Jangan mengubah apa pun. Rencana yang masih menyisakan pertanyaan desain belum selesai."
+   ],
+   [
+    74,
+    "Kamu AUDITOR. Tugasmu memeriksa: apakah rencana atau perubahan ini benar-benar bisa jalan? "
+   ],
+   [
+    75,
+    "Cari kasus yang terlewat, asumsi yang salah, dan langkah yang belum lengkap. Jangan mengubah "
+   ],
+   [
+    82,
+    "Kerjakan satu tugas nyata sampai selesai (perlu izin tulis)"
+   ],
+   [
+    86,
+    "Kamu PEKERJA. Tugasmu mengerjakan satu perubahan nyata sampai selesai dan terverifikasi. "
+   ],
+   [
+    87,
+    "Kerjakan sebatas lingkup tugasmu — jangan melebar. Setelah selesai, jalankan pemeriksaan "
+   ],
+   [
+    88,
+    "(typecheck/test) lalu laporkan apa yang berubah dan apa hasil pemeriksaannya."
+   ],
+   [
+    99,
+    "praktik umum. Sebut sumbernya. Kalau tidak menemukan bukti, katakan tidak menemukan — "
+   ],
+   [
+    100,
+    "jangan mengarang perilaku pustaka."
+   ]
+  ],
+  "src/lib/subagentStore.ts": [
+   [
+    278,
+    "Jangan menulis file apa pun (editor_write/file_write/file_edit/file_patch ditolak)."
+   ],
+   [
+    297,
+    "Kamu adalah SUBAGENT dari sebuah tugas paralel."
+   ],
+   [
+    304,
+    "- Kerjakan HANYA tugas di atas. Jangan mengerjakan tugas subagent lain."
+   ],
+   [
+    305,
+    "- KERJAKAN DENGAN TOOL, bukan cuma menjelaskan. Pakai file_read/file_list untuk melihat, search untuk mencari, dan shell_exec untuk menjalankan perintah. Jangan menjawab dari ingatan kalau bisa memeriksa."
+   ],
+   [
+    307,
+    "- BEKERJA SAMPAI SELESAI lalu berhenti. Jangan memanggil tool setelah kamu punya jawabannya."
+   ],
+   [
+    308,
+    "- Laporkan temuan sejelas mungkin di jawaban AKHIR: apa yang kamu temukan,"
+   ],
+   [
+    309,
+    "  di file mana, dan kesimpulan singkatnya. Sebutkan path dan nomor baris bila ada."
+   ],
+   [
+    310,
+    "- Kalau tugas tidak bisa diselesaikan, katakan alasannya. Jangan mengarang."
+   ],
+   [
+    439,
+    "(tidak ada hasil)"
+   ],
+   [
+    444,
+    "${a.nTool} langkah tool, semua berhasil"
+   ],
+   [
+    446,
+    "${a.nTool} langkah tool, ada yang gagal — periksa"
+   ],
+   [
+    447,
+    "TIDAK ADA langkah tool yang berhasil — hasil belum terbukti"
+   ],
+   [
+    683,
+    "(ditolak: subagent paralel tidak boleh menulis file; aktifkan allowWrite di Settings → Subagents kalau memang perlu)"
+   ],
+   [
+    684,
+    "(ditolak: perintah merusak tidak diizinkan untuk subagent paralel)"
+   ],
+   [
+    689,
+    "(ditolak: ${fileTarget} sedang dikerjakan subagent "
+   ],
+   [
+    690,
+    "Kerjakan file lain atau tunggu subagent itu selesai.)"
+   ],
+   [
+    817,
+    "${agent.tugas}\\n\\nHasil langkah sebelumnya (pakai ini, jangan mengerjakan ulang):\\n${ctx.konteks}"
+   ],
+   [
+    912,
+    "(ditolak: subagent paralel tidak boleh menulis file; aktifkan allowWrite di Settings → Subagents kalau memang perlu)"
+   ],
+   [
+    913,
+    "(ditolak: perintah merusak tidak diizinkan untuk subagent paralel)"
+   ],
+   [
+    918,
+    "(ditolak: ${fileTarget} sedang dikerjakan subagent "
+   ],
+   [
+    919,
+    "Kerjakan file lain atau tunggu subagent itu selesai.)"
+   ],
+   [
+    977,
+    " : gagal > 0 ? "
+   ]
+  ],
+  "src/lib/systemPrompt.ts": [
+   [
+    93,
+    "- Sebut error apa adanya. Kalau perintah gagal, tampilkan pesan error aslinya, jangan diringkas jadi "
+   ],
+   [
+    94,
+    "- Jangan hapus atau timpa file di luar workspace. Operasi tulis di luar workspace ditolak sistem, jadi jangan coba menembusnya."
+   ],
+   [
+    95,
+    "- Jangan pernah menampilkan API key, token, atau isi file kredensial, bahkan kalau diminta."
+   ],
+   [
+    96,
+    "- Perintah merusak (hapus rekursif, reset keras, format disk) perlu konfirmasi user dulu."
+   ],
+   [
+    104,
+    "- Jangan tebalkan label di awal poin ("
+   ],
+   [
+    109,
+    "# Instruksi dari saya"
+   ],
+   [
+    113,
+    "- Nama model yang dikirim Zephyr ke API: **${model}**"
+   ],
+   [
+    114,
+    "- Provider yang dipakai: **${provider}**"
+   ],
+   [
+    123,
+    " Kalau ditanya model apa yang menjalankanmu, jawab: ${model} (dari konfigurasi Zephyr). Jangan mengaku model lain."
+   ],
+   [
+    124,
+    " Kalau ditanya model apa yang menjalankanmu dan kamu tidak tahu, bilang tidak tahu. Jangan mengaku model lain."
+   ],
+   [
+    126,
+    "\\n\\n(Kamu Zeph, AI agent di editor Zephyr. Kerjakan sendiri pakai tool, "
+   ],
+   [
+    127,
+    "jangan cuma menasihati. Jangan mengarang: kalau belum membaca atau belum tahu, bilang."
+   ]
+  ]
+ },
+ "CSS": {
+  "src/components/ai/AiPanel.tsx": [
+   [
+    451,
+    "ai-sesi-cari"
+   ],
+   [
+    455,
+    "ai-sesi-cari"
+   ],
+   [
+    463,
+    "ai-sesi-kosong"
+   ],
+   [
+    463,
+    "ai-sesi-kosong"
+   ],
+   [
+    475,
+    "ai-sesi-pilih"
+   ],
+   [
+    486,
+    "ai-sesi-hapus"
+   ],
+   [
+    487,
+    "ai-sesi-hapus-${s.id}"
+   ],
+   [
+    1181,
+    "ai-antrian-hapus-${i}"
+   ]
+  ],
+  "src/components/ai/ModelMenu.tsx": [
+   [
+    219,
+    "${pfx}-pilih-${m.id}"
+   ]
+  ],
+  "src/components/ai/ModelSelector.tsx": [
+   [
+    301,
+    "${pfx}-model-cari"
+   ],
+   [
+    317,
+    "${pfx}-model-cari-bersih"
+   ],
+   [
+    328,
+    "${pfx}-model-kosong"
+   ],
+   [
+    355,
+    "${pfx}-model-kosong"
+   ],
+   [
+    450,
+    "${pfx}-model-pakai"
+   ]
+  ],
+  "src/components/ai/NotesPanel.tsx": [
+   [
+    65,
+    "nt-row${it.selesai ? "
+   ],
+   [
+    73,
+    "nt-cek${it.selesai ? "
+   ],
+   [
+    129,
+    "nt-hapus-${it.id}"
+   ],
+   [
+    348,
+    "sched-${j.id}-hapus"
+   ],
+   [
+    415,
+    "sched-tambah"
+   ]
+  ],
+  "src/components/ai/SubAgentPanel.tsx": [
+   [
+    98,
+    "sub-aksi-gagal"
+   ],
+   [
+    448,
+    "sub-lanjut-kirim-${a.id}"
+   ],
+   [
+    510,
+    ")}${gagal ? "
+   ]
+  ],
+  "src/components/ai/ToolGatePanel.tsx": [
+   [
+    113,
+    "toolgate-cari"
+   ],
+   [
+    121,
+    "toolgate-tutup"
+   ]
+  ],
+  "src/components/debug/DebugView.tsx": [
+   [
+    257,
+    "side-muted dbg-kosong"
+   ],
+   [
+    286,
+    "dbg-bp-hapus"
+   ],
+   [
+    297,
+    "dbg-bp-hapus-semua"
+   ],
+   [
+    307,
+    "side-muted dbg-kosong"
+   ],
+   [
+    331,
+    "side-muted dbg-kosong"
+   ],
+   [
+    380,
+    "side-muted dbg-kosong"
+   ]
+  ],
+  "src/components/devenv/DevEnvView.tsx": [
+   [
+    288,
+    "dv-pilih-item"
+   ],
+   [
+    303,
+    "dv-pilih-item"
+   ]
+  ],
+  "src/components/editor/Breadcrumbs.tsx": [
+   [
+    107,
+    "s-${i}-${s.dari}"
+   ],
+   [
+    128,
+    "${sib.nama}-${sib.dari}"
+   ]
+  ],
+  "src/components/editor/StickyScroll.tsx": [
+   [
+    73,
+    "${s.dari}-${i}"
+   ],
+   [
+    78,
+    "line ${s.dari}"
+   ]
+  ],
+  "src/components/scm/SourceControlPanel.tsx": [
+   [
+    440,
+    "Rebase onto ${onto} selesai"
+   ]
+  ],
+  "src/components/settings/PersonaCard.tsx": [
+   [
+    78,
+    "persona-pilih"
+   ],
+   [
+    79,
+    "persona-${p.id}-pilih"
+   ],
+   [
+    99,
+    "persona-${p.id}-ubah"
+   ],
+   [
+    115,
+    "persona-${p.id}-hapus"
+   ],
+   [
+    189,
+    "persona-tutup"
+   ],
+   [
+    267,
+    "persona-simpan"
+   ]
+  ],
+  "src/components/settings/PromptSection.tsx": [
+   [
+    275,
+    "sp-izin-tambah"
+   ],
+   [
+    298,
+    "sp-izin-hapus"
+   ]
+  ],
+  "src/components/settings/SectionsAdvanced.tsx": [
+   [
+    745,
+    "subagent-kosong"
+   ],
+   [
+    745,
+    "sub-custom-kosong"
+   ],
+   [
+    814,
+    "sub-custom-${x.id}-ubah"
+   ],
+   [
+    821,
+    "sub-custom-${x.id}-hapus"
+   ]
+  ],
+  "src/components/settings/SectionsLsp.tsx": [
+   [
+    160,
+    "set-note lsp-belum"
+   ],
+   [
+    172,
+    "lsp-copy-semua"
+   ],
+   [
+    177,
+    "${belum.length} ${tr("
+   ]
+  ],
+  "src/components/settings/SubagentCustomModal.tsx": [
+   [
+    335,
+    "subagent-ikon-pilih"
+   ],
+   [
+    415,
+    "sc-model-kosong"
+   ]
+  ],
+  "src/components/sftp/SftpView.tsx": [
+   [
+    144,
+    "sftp-tidak-ada"
+   ]
+  ],
+  "src/components/shell/MenuBar.tsx": [
+   [
+    247,
+    "mb-top${buka === i ? "
+   ]
+  ],
+  "src/components/shell/SubAgentView.tsx": [
+   [
+    82,
+    "sav-kosong-judul"
+   ],
+   [
+    83,
+    "sav-kosong-note"
+   ],
+   [
+    88,
+    "sav-kosong-note"
+   ]
+  ],
+  "src/lib/cmColor.ts": [
+   [
+    144,
+    "Ubah warna ${this.warna}"
+   ]
+  ],
+  "src/lib/commandRegistry.ts": [
+   [
+    1899,
+    "workspace code-workspace buka open multi root"
+   ],
+   [
+    1911,
+    "workspace simpan save as code-workspace"
+   ]
+  ],
+  "src/lib/debugStore.ts": [
+   [
+    560,
+    "Set Value gagal: ${pesan(e)}"
+   ]
+  ],
+  "src/lib/devBridge.ts": [
+   [
+    1616,
+    " tidak ada untuk ${lang}"
+   ]
+  ],
+  "src/lib/extensionsStore19.ts": [
+   [
+    168,
+    "${id} tidak ditemukan"
+   ]
+  ],
+  "src/lib/extensionStore.ts": [
+   [
+    129,
+    "${id} dilepas dari daftar"
+   ]
+  ],
+  "src/lib/extLoader.ts": [
+   [
+    98,
+    "dari ekstensi ${m.id}"
+   ]
+  ],
+  "src/lib/gitStore.ts": [
+   [
+    503,
+    "Tersimpan — @${u.user}"
+   ]
+  ],
+  "src/lib/lspStore.ts": [
+   [
+    291,
+    "[${id}] dimatikan karena idle"
+   ]
+  ],
+  "src/lib/mcpStore.ts": [
+   [
+    326,
+    "${a.type} gagal: ${msg}"
+   ],
+   [
+    441,
+    "pane ${paneId} tidak ada"
+   ],
+   [
+    448,
+    "pane ${paneId} tidak ada"
+   ],
+   [
+    492,
+    "tidak bisa membuka ${path}"
+   ],
+   [
+    501,
+    "tab ${tabId} tidak ada"
+   ],
+   [
+    510,
+    "tab ${tabId} tidak ada"
+   ],
+   [
+    528,
+    "tab ${tabId} tidak ada"
+   ],
+   [
+    584,
+    "tidak ada perubahan ter-stage"
+   ]
+  ],
+  "src/lib/store.ts": [
+   [
+    680,
+    "Gagal simpan: ${err.message}"
+   ]
+  ],
+  "src/lib/tasksStore.ts": [
+   [
+    135,
+    "Gagal membaca tasks.json"
+   ]
+  ]
+ }
+}

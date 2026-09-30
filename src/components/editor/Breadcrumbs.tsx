@@ -144,8 +144,8 @@ export default function Breadcrumbs({ view, path, docVersion, barisKursor }: Pro
         );
       })}
 
-      {/* Tanda sumber: kalau dari indentasi, jalurnya perkiraan - user berhak
-          tahu supaya tidak menyalahkan breadcrumbs saat namanya kasar. */}
+      {/* Source marker: if it came from indentation, the path is an estimate - the
+          user deserves to know so they do not blame the breadcrumbs when the name is rough. */}
       {pohon.length > 0 && !punyaLsp && (
         <span className="bc-perkiraan" data-testid="bc-approx" title={tx('without a language server: path estimated from indentation')}>
           ~

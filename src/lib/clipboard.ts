@@ -9,7 +9,7 @@ export async function clipboardWrite(text: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      /* diamkan: copy gagal bukan alasan mematikan terminal */
+      /* stay silent: a failed copy is no reason to kill the terminal */
     }
   }
 }

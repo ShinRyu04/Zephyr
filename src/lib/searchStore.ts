@@ -159,7 +159,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
       return null;
     }
     if (!useStore.getState().workspace) {
-      set({ error: 'buka folder dulu untuk mencari' });
+      set({ error: 'open a folder before searching' });
       return null;
     }
 
@@ -266,7 +266,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
     const gagal = hasil.filter((h) => h.error);
     set({ replaceTerakhir: hasil });
     if (gagal.length > 0) {
-      notifyWarn(`${gagal.length} file dilewati: ${gagal[0].error}`, { source: 'search' });
+      notifyWarn(`${gagal.length} files skipped: ${gagal[0].error}`, { source: 'search' });
     }
     if (n > 0) {
       notifyInfo(`${n} penggantian di ${hasil.filter((h) => h.jumlah > 0).length} file`, {
@@ -281,7 +281,7 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
   undoReplace: async () => {
     const daftar = get().replaceTerakhir;
     if (!daftar || daftar.length === 0) {
-      notifyWarn(tx('Belum ada replace untuk dibatalkan'), { source: 'search' });
+      notifyWarn(tx('There is no replace to undo'), { source: 'search' });
       return 0;
     }
     
@@ -294,12 +294,12 @@ export const useSearch = create<SearchState & SearchActions>((set, get) => ({
         const ok = await H.restore(h.snapshot);
         if (ok) n++;
       } catch (e) {
-        notifyError(`Undo gagal untuk ${h.path}: ${asZephyrError(e).message}`, { source: 'search' });
+        notifyError(`Undo failed for ${h.path}: ${asZephyrError(e).message}`, { source: 'search' });
       }
     }
     if (n > 0) {
       notifyInfo(
-        `${n} file dikembalikan ke editor sebagai perubahan belum disimpan — tekan Ctrl+S untuk menulis`,
+        `${n} files returned to the editor as unsaved changes — press Ctrl+S to write them`,
         { source: 'search' },
       );
     }

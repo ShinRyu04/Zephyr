@@ -201,12 +201,12 @@ pub fn read_json_um(path: &PathBuf) -> Option<Value> {
     backup.set_file_name(format!("{nama}.broken-{stamp}"));
     let ok = std::fs::rename(path, &backup).is_ok();
     tracing::error!(
-        "{} rusak ({e}) — {} ke {}",
+        "{} is corrupt ({e}) — {} to {}",
         path.display(),
         if ok {
-            "dipindahkan"
+            "moved"
         } else {
-            "GAGAL memindahkan"
+            "MOVE FAILED"
         },
         backup.display()
     );
@@ -254,13 +254,13 @@ pub fn get_keybindings(state: State<AppState>) -> ZResult<Value> {
 #[tauri::command(async)]
 pub fn set_keybindings(app: AppHandle, state: State<AppState>, bindings: Value) -> ZResult<()> {
     if !bindings.is_array() {
-        return Err(ZephyrError::InvalidInput("keybindings harus array".into()));
+        return Err(ZephyrError::InvalidInput("keybindings must be an array".into()));
     }
     write_json(&state.file("keybindings.json"), &bindings)?;
     let _ = app.emit("settings-changed", json!({ "key": "keybindings" }));
     tracing::info!(
         n = bindings.as_array().map(|a| a.len()).unwrap_or(0),
-        "keybindings.json ditulis"
+        "keybindings.json written"
     );
     Ok(())
 }
@@ -283,7 +283,7 @@ fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
         Ok(()) => Ok(()),
         Err(e) => {
             let _ = std::fs::remove_file(&tmp);
-            Err(ZephyrError::Internal(format!("failed menyimpan {}: {e}", path.display())))
+            Err(ZephyrError::Internal(format!("failed to save {}: {e}", path.display())))
         }
     }
 }
@@ -372,7 +372,7 @@ pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZRe
 #[tauri::command]
 pub fn set_window_size(app: AppHandle, width: f64, height: f64) -> ZResult<()> {
     if width < 400.0 || height < 300.0 {
-        return Err(ZephyrError::InvalidInput("ukuran terlalu kecil".into()));
+        return Err(ZephyrError::InvalidInput("size too small".into()));
     }
     let win = app
         .get_webview_window("main")
@@ -426,14 +426,14 @@ pub fn push_recent(state: &AppState, path: &str) -> ZResult<()> {
 pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> ZResult<()> {
     let p = PathBuf::from(&path);
     if !p.is_dir() {
-        return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
+        return Err(ZephyrError::InvalidInput(format!("{path} is not a folder")));
     }
     let canon = crate::app_state::normalize(&p);
     let as_string = canon.to_string_lossy().to_string();
 
     if crate::paths::is_drive_root(&canon) {
         return Err(ZephyrError::InvalidInput(format!(
-            "{as_string} adalah root drive — buka folder proyek di dalamnya, bukan seluruh disk (scan root bisa memakan puluhan menit dan menyentuh folder sistem)"
+            "{as_string} is a drive root — open a project folder inside it, not the whole disk (scanning a root can take tens of minutes and touch system folders)"
         )));
     }
 
@@ -443,7 +443,7 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
     state.allow_exact(&canon);
     push_recent(&state, &as_string)?;
     state.perf_mark("workspace_open", None);
-    tracing::info!(path = %as_string, "workspace dibuka");
+    tracing::info!(path = %as_string, "workspace opened");
 
     let _ = app.emit("workspace-opened", json!({ "path": as_string }));
     Ok(())
@@ -453,7 +453,7 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
 pub fn workspace_close(state: State<AppState>) -> ZResult<()> {
     state.stop_watcher();
     state.clear_workspace();
-    tracing::info!("workspace ditutup");
+    tracing::info!("workspace closed");
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
 import { useDebug } from '../../lib/debugStore';
+import { useT } from '../../lib/i18n';
 
 export interface DebugEvalResult {
   ok: boolean;
@@ -20,6 +21,7 @@ export default function DebugConsoleView() {
   const state = useDebug((s) => s.state);
   const bersihkanRepl = useDebug((s) => s.bersihkanRepl);
   const [expr, setExpr] = useState('');
+  const tr = useT();
   
   const riwayat = useRef<string[]>([]);
   const posisi = useRef(-1);
@@ -43,8 +45,7 @@ export default function DebugConsoleView() {
       <div className="dc-body" ref={bodyRef} data-testid="dc-body">
         {repl.length === 0 ? (
           <p className="dc-empty" data-testid="dc-empty">
-            Debug Console. Mulai sesi debug (F5) lalu evaluasi ekspresi di frame yang
-            sedang berhenti.
+            {tr('Debug Console. Start a debug session (F5), then evaluate an expression in the frame that is paused.')}
           </p>
         ) : (
           repl.map((l, i) => (

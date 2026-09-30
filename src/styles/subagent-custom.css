@@ -256,12 +256,12 @@
   border-bottom: 0;
 }
 
-/* Ikon worker di baris daftar.
+/* The worker icon in the list row.
 
-   Kotaknya sengaja seukuran ikon peran supaya baris "Ryuga" di sini dan baris
-   sub-agent-nya di panel AI terbaca sebagai hal yang sama — sebelumnya baris
-   ini cuma nama, jadi ikon yang dipilih di editor seperti hilang begitu dialog
-   ditutup. `--accent` menandai bahwa ini worker bikinan user sendiri. */
+   Its box is deliberately the size of a role icon so the "Ryuga" row here and
+   its sub-agent row in the AI panel read as the same thing - the row used to be
+   just a name, so the icon chosen in the editor seemed to vanish once the
+   dialog closed. `--accent` marks this as a user-made worker. */
 .subagent-baris-ikon {
   flex: 0 0 auto;
   display: inline-flex;

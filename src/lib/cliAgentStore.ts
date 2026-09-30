@@ -91,7 +91,7 @@ export const useCliAgent = create<CliAgentState>((set, get) => ({
           x.id === runId
             ? {
                 ...x,
-                output: teks || (r.ok ? '(tidak ada output)' : '(gagal tanpa pesan)'),
+                output: teks || (r.ok ? '(no output)' : '(failed with no message)'),
                 ok: r.ok,
                 berjalan: false,
                 timeout: r.timeout,

@@ -70,7 +70,7 @@ fn rpc(url: &str, token: &str, method: &str, params: Value) -> ZResult<Value> {
     }
 
     let resp = req.send_json(&body).map_err(|e| {
-        ZephyrError::Mcp(format!("tidak bisa menghubungi server MCP '{alamat}': {e}"))
+        ZephyrError::Mcp(format!("could not reach the MCP server '{alamat}': {e}"))
     })?;
 
     let status = resp.status().as_u16();

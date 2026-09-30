@@ -154,7 +154,7 @@ export default function FileTree({ root }: { root?: string }) {
     <div className="tree" role="tree" aria-label="File Explorer" data-root={akar} ref={panelRef}>
       {explorerError && <div className="tree-error">{explorerError}</div>}
 
-      {/* input "new" tepat di bawah root bila targetnya root */}
+      {/* "new" input right below the root when the target is the root */}
       {inlineEdit && inlineEdit.kind !== 'rename' && inlineEdit.target === akar && (
         <InlineInput
           initial={inlineEdit.initial}
@@ -257,7 +257,7 @@ export default function FileTree({ root }: { root?: string }) {
               <span className="tree-name">{node.name}</span>
             </div>
 
-            {/* input "new" di dalam folder yang sedang dibuka */}
+            {/* "new" input inside the folder that is currently open */}
             {inlineEdit &&
               inlineEdit.kind !== 'rename' &&
               inlineEdit.target === node.path &&

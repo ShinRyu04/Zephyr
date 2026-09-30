@@ -183,8 +183,8 @@ export default function McpPanel() {
           {tr('Write to CLI')}
         </button>
         {/* One click for every CLI whose config EXISTS on this machine.
-            CLI yang belum terpasang dilewati - menulis config untuk aplikasi
-            yang tidak ada hanya membuat folder sampah. */}
+            CLIs that are not installed yet are skipped - writing config for an app
+            that is not there only creates junk folders. */}
         <button
           className="btn"
           data-testid="mcp-install-all"
@@ -296,9 +296,9 @@ export default function McpPanel() {
         </div>
       </Row>
 
-      {/* Toggle ekspos: memutus akses AI luar TANPA mencabut konfigurasi.
-          KENAPA terpisah dari tombol lepas: user sering hanya ingin "matikan
-          dulu sebentar", bukan membongkar semua yang sudah dipasang. */}
+      {/* Exposure toggle: cuts off external AI access WITHOUT removing the configuration.
+          WHY separate from the revoke button: users often just want to "turn it
+          off for a bit", not tear down everything already set up. */}
       <Row
         label={tr('Allow external AI to control Zephyr')}
         hint={tr('When off, the MCP server stops accepting commands - the CLI configuration is not changed.')}

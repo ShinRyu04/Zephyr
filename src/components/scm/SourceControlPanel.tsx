@@ -437,7 +437,7 @@ function RebaseDialog() {
                 const { gitRebaseInteractive } = await import('../../lib/commands');
                 try {
                   await gitRebaseInteractive(onto);
-                  useGit.setState({ scmInfo: `Rebase onto ${onto} selesai` });
+                  useGit.setState({ scmInfo: `Rebase onto ${onto} finished` });
                 } catch (e) {
                   useGit.setState({
                     scmError: String((e as Error)?.message ?? e),

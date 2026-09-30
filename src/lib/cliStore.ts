@@ -88,7 +88,7 @@ export const useCli = create<CliState & CliActions>((set, get) => ({
 
     for (const e of args.errors || []) {
       notifyError(`Argumen CLI: ${e}`, {
-        detail: 'Jalankan `zephyr --help` untuk daftar opsi.',
+        detail: 'Run `zephyr --help` for the list of options.',
         source: 'CLI',
       });
     }
@@ -145,7 +145,7 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
       });
       useStore.getState().setSettingsOpen(false);
     } catch (e) {
-      notifyError(`Gagal membuka diff: ${cmd.asZephyrError(e).message}`, { source: 'CLI' });
+      notifyError(`Failed to open the diff: ${cmd.asZephyrError(e).message}`, { source: 'CLI' });
     }
     return;
   }
@@ -164,7 +164,7 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
       });
     }
   } catch (e) {
-    notifyError(`Gagal membuka ${namaFile(path)}: ${cmd.asZephyrError(e).message}`, {
+    notifyError(`Failed to open ${namaFile(path)}: ${cmd.asZephyrError(e).message}`, {
       source: 'CLI',
     });
   }

@@ -187,7 +187,7 @@ const opening = new Set<string>();
 export const MAX_LOADED_TABS = 12;
 
 export function maxLoadedTabs(): number {
-  // Mode penghemat RAM: simpan konten 3 tab saja di memori (dari 12).
+  // RAM-saver mode: keep only 3 tabs' content in memory (down from 12).
   return useStore.getState().settings.general.lowRam ? 3 : MAX_LOADED_TABS;
 }
 
@@ -354,7 +354,7 @@ export const useStore = create<Store>((set, get) => ({
         set({
           statusMessage:
             missing > 0
-              ? `Restore ${restored} tab, ${missing} file tidak ditemukan`
+              ? `Restore ${restored} tab, ${missing} files not found`
               : `Restore ${restored} tab`,
         });
       }
@@ -410,7 +410,7 @@ export const useStore = create<Store>((set, get) => ({
     }
 
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
-    set({ workspace: null, statusMessage: 'Workspace ditutup' });
+    set({ workspace: null, statusMessage: 'Workspace closed' });
     void import('./aiStore').then((m) => m.resetKonteksAgent());
     void import('./systemPrompt').then((m) => m.resetAturanProyek());
     void import('./projectContext').then((m) => m.resetRingkasanProyek());
@@ -600,7 +600,7 @@ export const useStore = create<Store>((set, get) => ({
       tabs: s.tabs.map((t) => (lepas.has(t.id) ? { ...t, content: '', loaded: false } : t)),
       statusMessage:
         s.tabs.length > batas
-          ? `Tab terlalu banyak — ${lepas.size} tab dilepas dari memori (isi dibaca ulang saat dibuka)`
+          ? `Tab terlalu banyak — ${lepas.size} tabs released from memory (contents reload when reopened)`
           : s.statusMessage,
     }));
   },
@@ -624,7 +624,7 @@ export const useStore = create<Store>((set, get) => ({
       await get().ensureTabLoaded(id);
       const again = get().tabs.find((t) => t.id === id);
       if (!again || again.loaded === false) {
-        set({ statusMessage: 'Tab belum dimuat ulang — buka dulu sebelum menyimpan' });
+        set({ statusMessage: 'The tab has not reloaded yet — open it before saving' });
         return false;
       }
     }
@@ -660,7 +660,7 @@ export const useStore = create<Store>((set, get) => ({
       });
       set((s) => ({
         tabs: s.tabs.map((t) => (t.id === id ? { ...t, unsaved: false, existed: true } : t)),
-        statusMessage: `Disimpan: ${cur.name}`,
+        statusMessage: `Saved: ${cur.name}`,
       }));
       return true;
     } catch (e) {
@@ -677,7 +677,7 @@ export const useStore = create<Store>((set, get) => ({
         });
         return false;
       }
-      set({ statusMessage: `Gagal simpan: ${err.message}` });
+      set({ statusMessage: `Save failed: ${err.message}` });
       return false;
     }
   },
@@ -731,12 +731,12 @@ export const useStore = create<Store>((set, get) => ({
               }
             : t,
         ),
-        statusMessage: `Disimpan: ${baseName(target)}`,
+        statusMessage: `Saved: ${baseName(target)}`,
       }));
       void get().persistSession();
       return true;
     } catch (e) {
-      set({ statusMessage: `Gagal simpan: ${cmd.asZephyrError(e).message}` });
+      set({ statusMessage: `Save failed: ${cmd.asZephyrError(e).message}` });
       return false;
     }
   },
@@ -906,7 +906,7 @@ export const useStore = create<Store>((set, get) => ({
     if (!issue) return;
     set({ saveIssue: null });
     if (choice === 'cancel') {
-      set({ statusMessage: 'Simpan dibatalkan' });
+      set({ statusMessage: 'Save cancelled' });
       return;
     }
     const tab = get().tabs.find((t) => t.id === issue.tabId);
@@ -920,7 +920,7 @@ export const useStore = create<Store>((set, get) => ({
               ? { ...t, unsaved: false, encoding: 'utf8', readOnly: false, note: '', existed: true }
               : t,
           ),
-          statusMessage: `Disimpan sebagai UTF-8: ${tab.name}`,
+          statusMessage: `Saved as UTF-8: ${tab.name}`,
         }));
       } else {
         await cmd.fsWrite(tab.path, tab.content, tab.encoding, tab.lineEnding, {
@@ -930,11 +930,11 @@ export const useStore = create<Store>((set, get) => ({
           tabs: s.tabs.map((t) =>
             t.id === issue.tabId ? { ...t, unsaved: false, existed: true } : t,
           ),
-          statusMessage: `Dibuat ulang: ${tab.name}`,
+          statusMessage: `Recreated: ${tab.name}`,
         }));
       }
     } catch (e) {
-      set({ statusMessage: `Gagal simpan: ${cmd.asZephyrError(e).message}` });
+      set({ statusMessage: `Save failed: ${cmd.asZephyrError(e).message}` });
     }
   },
 
@@ -978,17 +978,17 @@ export const useStore = create<Store>((set, get) => ({
       terapkanA11y(s.accessibility);
       reSrMode();
       /*
-       * Panel AI menyimpan salinan provider-nya sendiri, jadi perubahan
-       * "Model aktif" dari Settings harus diteruskan — kalau tidak, pilihan
-       * baru baru terpakai setelah app di-restart.
+       * The AI panel keeps its own copy of the provider, so changes to
+       * "Active model" from Settings must be forwarded — otherwise, the new
+       * choice is only used after the app is restarted.
        *
-       * Import dinamis: aiStore sudah mengimpor store di tingkat modul,
-       * memanggilnya langsung di sini akan membuat siklus.
+       * Dynamic import: aiStore already imports the store at module level;
+       * calling it directly here would create a cycle.
        */
       void import('./aiStore')
         .then((m) => m.useAi.getState().sinkronProvider())
         .catch(() => {
-          /* non-fatal: pemilihan provider tetap tersimpan di settings */
+          /* non-fatal: the provider selection is still saved in settings */
         });
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });

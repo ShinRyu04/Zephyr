@@ -1,26 +1,26 @@
-/* a11y.css — tema high-contrast + focus ring + reduced motion (fase 31).
+/* a11y.css — high-contrast theme + focus ring + reduced motion (phase 31).
 
-   ══════════════════ KEPUTUSAN ══════════════════
+   ══════════════════ DECISIONS ══════════════════
 
-   1. High contrast = TEMA BIASA, bukan mode terpisah.
-      Ia hidup di `[data-theme='high-contrast']` sama seperti 6 tema lain,
-      jadi seluruh mesin tema (applyTheme, kartu Settings, retheme xterm,
-      Compartment CodeMirror) bekerja tanpa perubahan. Membuatnya sebagai
-      "mode" berarti setiap tempat yang membaca tema harus diajari kasus
-      kedua — dan salah satu pasti lupa.
+   1. High contrast is an ORDINARY THEME, not a separate mode.
+      It lives in `[data-theme='high-contrast']` just like the other themes, so
+      the whole theme machinery (applyTheme, the Settings card, xterm retheming,
+      the CodeMirror Compartment) works untouched. Making it a "mode" would mean
+      teaching every place that reads a theme about a second case - and one of
+      them would surely be forgotten.
 
-   2. Fokus TIDAK boleh hanya bergantung warna aksen.
-      Ring memakai dua lapis (outline + box-shadow kontras) supaya terlihat
-      di atas latar apa pun, termasuk tombol beraksen sendiri.
+   2. Focus MUST NOT depend on the accent colour alone.
+      The ring uses two layers (an outline plus a contrasting box-shadow) so it
+      is visible on any background, including accent-coloured buttons.
 
-   3. `prefers-reduced-motion` dimatikan lewat SATU blok di sini, bukan
-      ditambal per file. Ada 6 file CSS yang punya transition/animation;
-      menyisipkan guard di masing-masing membuat file berikutnya lupa. */
+   3. `prefers-reduced-motion` is disabled through ONE block here, not patched
+      file by file. Six CSS files carry transitions/animations; inserting a
+      guard in each one means the next file forgets. */
 
-/* ═════════════ 1. Tema high contrast ═════════════
+/* ═════════════ 1. High-contrast theme ═════════════
 
-   Basis: hitam murni + putih murni. Semua pasangan teks/latar >= 7:1 (AAA),
-   border >= 4.5:1 supaya batas komponen terlihat tanpa mengandalkan warna. */
+   Basis: pure black + pure white. Every text/background pair >= 7:1 (AAA),
+   borders >= 4.5:1 so component edges are visible without relying on colour. */
 [data-theme='high-contrast'] {
   /* permukaan — hitam murni, dibedakan lewat BORDER bukan gradasi abu */
   --bg: #000000;
@@ -55,7 +55,7 @@
   --editor-cursor: #ffffff;
   --editor-match: rgba(255, 213, 79, 0.5);
 
-  /* syntax — hue dijaga berbeda supaya tidak hanya beda kecerahan */
+  /* syntax - the hues are kept distinct, so the difference is not brightness alone */
   --syn-keyword: #ff9ea8;
   --syn-string: #a8e0ff;
   --syn-number: #9fd0ff;
@@ -69,9 +69,9 @@
   --syn-invalid: #ff8a80;
 }
 
-/* Terminal: ANSI 0 di tema gelap dipakai sebagai PERMUKAAN, dan di high
-   contrast permukaannya hitam murni — teks hitam terminal akan hilang.
-   Override ini pelajaran fase 13 yang berlaku sama di sini. */
+/* Terminal: on dark themes ANSI 0 is used as a SURFACE colour, and in high
+   contrast that surface is pure black - black terminal text would vanish.
+   This override is the phase 13 lesson, and it applies here too. */
 [data-theme='high-contrast'] {
   --terminal-ansi-0: #000000;
   --terminal-ansi-7: #e6e6e6;
@@ -79,8 +79,8 @@
   --terminal-ansi-15: #ffffff;
 }
 
-/* High contrast menegaskan BATAS: setiap permukaan yang bisa diklik
-   mendapat border nyata, bukan hanya perbedaan latar 5%. */
+/* High contrast asserts EDGES: every clickable surface gets a real border,
+   not merely a 5% background difference. */
 [data-theme='high-contrast'] .btn,
 [data-theme='high-contrast'] .tab,
 [data-theme='high-contrast'] .tree-row,
@@ -92,11 +92,11 @@
   border: 1px solid var(--border);
 }
 
-/* ═════════════ 2. Focus ring konsisten ═════════════
+/* ═════════════ 2. Consistent focus ring ═════════════
 
-   `:focus-visible` (bukan `:focus`) supaya klik mouse tidak memunculkan ring,
-   tapi navigasi keyboard selalu memunculkannya. Dua lapis: outline aksen +
-   shadow gelap/terang di luarnya, jadi tetap terlihat di atas latar aksen. */
+   `:focus-visible` (not `:focus`) so a mouse click does not raise the ring,
+   while keyboard navigation always does. Two layers: an accent outline plus a
+   light/dark shadow outside it, so it stays visible on an accent background. */
 :where(
   button,
   a[href],
@@ -109,13 +109,13 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   box-shadow: 0 0 0 4px var(--accent-subtle);
-  /* Radius mengikuti elemen supaya ring tidak memotong sudut. */
+  /* The radius follows the element so the ring does not clip corners. */
   border-radius: inherit;
 }
 
-/* Elemen yang sengaja menyembunyikan outline (input pencarian dsb) tetap
-   WAJIB punya penanda fokus. `outline: none` tanpa pengganti = pelanggaran
-   WCAG 2.4.7, dan di audit fase ini ada 12 tempat seperti itu. */
+/* Elements that deliberately hide their outline (search inputs and the like)
+   MUST still have a focus cue. `outline: none` with no replacement is a
+   WCAG 2.4.7 violation, and this phase's audit found 12 such places. */
 :where(input, textarea):focus-visible {
   border-color: var(--accent);
 }
@@ -134,9 +134,9 @@
   box-shadow: 0 0 0 5px var(--accent);
 }
 
-/* Kelas bantu untuk elemen non-native yang ikut menerima fokus
-   (baris tree, item palette) — mereka tidak cocok dengan selector :where
-   di atas karena sudah punya outline sendiri dari fase sebelumnya. */
+/* Helper class for non-native elements that also take focus (tree rows,
+   palette items) - they do not match the :where selector above because they
+   already carry their own outline from an earlier phase. */
 .a11y-fokus:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -145,9 +145,9 @@
 
 /* ═════════════ 3. Reduced motion ═════════════
 
-   Dua jalur: preferensi OS DAN setelan aplikasi
-   (`settings.accessibility.reducedMotion` → `data-reduced-motion` di <html>),
-   karena user bisa ingin animasi mati hanya di Zephyr. */
+   Two paths: the OS preference AND the application setting
+   (`settings.accessibility.reducedMotion` -> `data-reduced-motion` on <html>),
+   because the user may want animation off in Zephyr only. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -168,17 +168,17 @@
   scroll-behavior: auto !important;
 }
 
-/* Spinner yang animasinya dimatikan jadi statis dan tampak "menggantung".
-   Diberi penanda titik supaya tetap jelas ada proses berjalan. */
+/* A spinner whose animation is off goes static and reads as "stuck". It gets
+   a dot marker so it is still clear that work is in progress. */
 [data-reduced-motion='true'] .scm-spin::after,
 [data-reduced-motion='true'] .spinner::after {
   content: '…';
 }
 
-/* B-13: jendela minimized / tidak fokus. Sama seperti reduced-motion —
-   Chromium tetap menyusun frame walau jendela tak terlihat, jadi animasi
-   yang jalan diam-diam itu biaya GPU murni. `visibilitychange` +
-   `onFocusChanged` menyetel atribut ini dari App.tsx. */
+/* B-13: minimised / unfocused window. Same as reduced-motion - Chromium keeps
+   compositing frames even when the window is not visible, so animation
+   running silently is pure GPU cost. `visibilitychange` + `onFocusChanged`
+   set this attribute from App.tsx. */
 [data-idle='1'] *,
 [data-idle='1'] *::before,
 [data-idle='1'] *::after {
@@ -188,9 +188,9 @@
 
 /* ═════════════ 4. Live region ═════════════
 
-   Wadah pengumuman screen reader. Tidak boleh `display: none` —
-   screen reader mengabaikan node yang tidak dirender. Pola ini yang dipakai
-   CodeMirror sendiri untuk `.cm-announced`. */
+   Container for screen-reader announcements. It must not be `display: none` -
+   screen readers ignore nodes that are not rendered. CodeMirror itself uses
+   this pattern for `.cm-announced`. */
 .a11y-live {
   position: absolute;
   width: 1px;
@@ -206,8 +206,8 @@
 
 /* ═════════════ 5. Skip link ═════════════
 
-   Tab pertama di app harus bisa melompati ActivityBar/Sidebar langsung ke
-   editor. Tanpa ini pengguna keyboard melewati ~20 tombol tiap kali. */
+   The first Tab in the app should jump past the ActivityBar/Sidebar straight
+   to the editor. Without it a keyboard user tabs through ~20 buttons each time. */
 .a11y-skip {
   position: absolute;
   top: -100px;
@@ -228,9 +228,9 @@
 
 /* ═════════════ 6. Screen reader mode ═════════════
 
-   Saat aktif, elemen yang murni dekoratif disembunyikan dari pohon
-   aksesibilitas lewat atribut (dikerjakan komponen), dan indikator berbasis
-   WARNA SAJA diberi teks pendamping — WCAG 1.4.1 "use of color". */
+   While enabled, purely decorative elements are hidden from the accessibility
+   tree via an attribute (done by the component), and COLOUR-ONLY indicators get
+   accompanying text - WCAG 1.4.1 "use of color". */
 [data-screen-reader='true'] .tab-dot::after,
 [data-screen-reader='true'] .pts-dot::after {
   content: ' (belum disimpan)';

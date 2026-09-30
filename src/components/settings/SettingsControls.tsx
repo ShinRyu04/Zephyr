@@ -12,8 +12,8 @@ export function Row({
   children: ReactNode;
   testid?: string;
 }) {
-  // label/hint boleh berupa kunci mentah maupun string; tr() mengembalikan
-  // kunci apa adanya kalau tidak ada terjemahan, jadi aman untuk keduanya.
+  // label/hint may be a raw key or a string; tr() returns
+  // the key as-is when there is no translation, so it is safe for both.
   const tr = useT();
   return (
     <div className="set-row" data-testid={testid}>

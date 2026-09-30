@@ -48,49 +48,49 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "javascript",
         "Console log",
         "log",
-        "console.log(${1:pesan});",
-        "console.log dengan satu argumen",
+        "console.log(${1:message});",
+        "console.log with a single argument",
     ),
     (
         "javascript",
         "Function declaration",
         "fn",
-        "function ${1:nama}(${2:args}) {\n\t${0}\n}",
-        "deklarasi function",
+        "function ${1:name}(${2:args}) {\n\t${0}\n}",
+        "function declaration",
     ),
     (
         "javascript",
         "Arrow function",
         "af",
-        "const ${1:nama} = (${2:args}) => {\n\t${0}\n};",
+        "const ${1:name} = (${2:args}) => {\n\t${0}\n};",
         "arrow function",
     ),
     (
         "javascript",
         "For of loop",
         "forof",
-        "for (const ${1:item} of ${2:daftar}) {\n\t${0}\n}",
-        "iterasi for..of",
+        "for (const ${1:item} of ${2:list}) {\n\t${0}\n}",
+        "for..of iteration",
     ),
     (
         "javascript",
         "Try / catch",
         "try",
         "try {\n\t${1}\n} catch (${2:e}) {\n\t${0}\n}",
-        "blok try/catch",
+        "try/catch block",
     ),
     (
         "typescript",
         "Interface",
         "iface",
-        "interface ${1:Nama} {\n\t${0}\n}",
-        "deklarasi interface",
+        "interface ${1:Name} {\n\t${0}\n}",
+        "interface declaration",
     ),
     (
         "typescript",
         "Type alias",
         "typ",
-        "type ${1:Nama} = ${0};",
+        "type ${1:Name} = ${0};",
         "type alias",
     ),
     
@@ -98,15 +98,15 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "tsx",
         "Function component",
         "fc",
-        "export default function ${1:Komponen}() {\n\treturn (\n\t\t<div>${0}</div>\n\t);\n}",
-        "komponen React",
+        "export default function ${1:Component}() {\n\treturn (\n\t\t<div>${0}</div>\n\t);\n}",
+        "React component",
     ),
     (
         "tsx",
         "useState",
         "us",
         "const [${1:nilai}, set${2:Nilai}] = useState(${3:null});",
-        "hook useState",
+        "useState hook",
     ),
     
     (
@@ -120,14 +120,14 @@ const BAWAAN: &[(&str, &str, &str, &str, &str)] = &[
         "rust",
         "Function",
         "fn",
-        "fn ${1:nama}(${2}) ${3:-> ()} {\n\t${0}\n}",
-        "deklarasi fn",
+        "fn ${1:name}(${2}) ${3:-> ()} {\n\t${0}\n}",
+        "fn declaration",
     ),
     (
         "rust",
         "Test module",
         "tmod",
-        "#[cfg(test)]\nmod tests {\n\tuse super::*;\n\n\t#[test]\n\tfn ${1:nama}() {\n\t\t${0}\n\t}\n}",
+        "#[cfg(test)]\nmod tests {\n\tuse super::*;\n\n\t#[test]\n\tfn ${1:name}() {\n\t\t${0}\n\t}\n}",
         "modul uji",
     ),
     (
@@ -215,12 +215,12 @@ fn parse_file(teks: &str, lang: &str, sumber: &str) -> (Vec<Snippet>, Option<Str
     let bersih = crate::tasks::buang_komentar(teks);
     let v: Value = match serde_json::from_str(&bersih) {
         Ok(v) => v,
-        Err(e) => return (Vec::new(), Some(format!("JSON tidak valid: {e}"))),
+        Err(e) => return (Vec::new(), Some(format!("invalid JSON: {e}"))),
     };
     let Value::Object(map) = v else {
         return (
             Vec::new(),
-            Some("isi file harus object { \"Nama\": { prefix, body } }".into()),
+            Some("the file content must be an object { \"Name\": { prefix, body } }".into()),
         );
     };
 
@@ -285,7 +285,7 @@ fn parse_file(teks: &str, lang: &str, sumber: &str) -> (Vec<Snippet>, Option<Str
     }
 
     let catatan = if lewat > 0 {
-        Some(format!("{lewat} entri dilewati (body/prefix tidak sah)"))
+        Some(format!("{lewat} entries skipped (invalid body/prefix)"))
     } else {
         None
     };
@@ -352,7 +352,7 @@ fn muat_ekstensi(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Ve
                 rusak.push(FileRusak {
                     path: rel.to_string(),
                     alasan: format!(
-                        "ekstensi {} menunjuk snippet di luar foldernya — ditolak",
+                        "extension {} points to a snippet outside its folder — rejected",
                         info.id
                     ),
                 });
@@ -362,7 +362,7 @@ fn muat_ekstensi(state: &AppState, lang: &str, rusak: &mut Vec<FileRusak>) -> Ve
             let Ok(isi) = std::fs::read_to_string(&target) else {
                 rusak.push(FileRusak {
                     path: target.to_string_lossy().replace('\\', "/"),
-                    alasan: format!("file snippet ekstensi {} tidak terbaca", info.id),
+                    alasan: format!("snippet file for extension {} could not be read", info.id),
                 });
                 continue;
             };
@@ -456,7 +456,7 @@ pub fn snippets_user_file(state: State<AppState>, lang: String) -> ZResult<Strin
     };
     let dir = dir_snippet(&state);
     std::fs::create_dir_all(&dir)
-        .map_err(|e| ZephyrError::Io(format!("gagal membuat folder snippets: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("failed to create snippets folder: {e}")))?;
     let p = path_user(&state, &l);
     if !p.exists() {
         let contoh = format!(
@@ -476,7 +476,7 @@ pub fn snippets_user_file(state: State<AppState>, lang: String) -> ZResult<Strin
              }}\n"
         );
         std::fs::write(&p, contoh)
-            .map_err(|e| ZephyrError::Io(format!("gagal menulis {}: {e}", p.display())))?;
+            .map_err(|e| ZephyrError::Io(format!("failed to write {}: {e}", p.display())))?;
 
         state.allow(&p);
     } else {

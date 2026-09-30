@@ -9,6 +9,10 @@ import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, ApprovalMode, ChatMsg
 
 const LS_KEY = 'zephyr.ai.sessions.v1';
 
+// Old session titles from versions before the UI was standardised to English — mapped
+// back when loaded so already-saved history also shows up in English.
+const JUDUL_LAMA = new Set(['Chat baru', 'New Chat', 'Neuer Chat', 'Nueva conversación']);
+
 export const MAX_MSGS = 200;
 
 export const ATTACH_LIMIT = 12 * 1024;
@@ -29,23 +33,108 @@ import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt'
 
 import { useCliAgent } from './cliAgentStore';
 import { useTerminal } from './terminalStore';
+import { useProblems } from './problemsStore';
 import { tx, tf } from './i18n';
 let ctxCache: { at: number; teks: string } | null = null;
 const CTX_TTL_MS = 60_000;
 
+/*
+ * Live editor state, rebuilt on every agent turn instead of cached. The model
+ * needs to know which file is in front of the user right now, what the terminal
+ * is showing, and what the diagnostics say. Without it the agent asks "which
+ * file?" on a question the user already answered by opening a tab, and it
+ * cannot connect a failing command in the terminal to the task it was given.
+ */
+function konteksEditor(): string {
+  const s = useStore.getState() as unknown as {
+    tabs?: { id: string; path?: string; title?: string; unsaved?: boolean }[];
+    activeTabId?: string | null;
+  };
+  const baris: string[] = [];
+  const semuaTab = s.tabs ?? [];
+  const tabAktif = semuaTab.find((t) => t.id === s.activeTabId);
+  baris.push(
+    `- Active file: ${tabAktif?.path || '(none open)'}` +
+      (tabAktif?.unsaved ? ' (unsaved changes in the buffer)' : ''),
+  );
+  const lain = semuaTab
+    .filter((t) => t.id !== s.activeTabId)
+    .slice(0, 8)
+    .map((t) => t.path || t.title || '?');
+  if (lain.length) baris.push(`- Other open tabs: ${lain.join(', ')}`);
+
+  try {
+    const ts = useTerminal.getState();
+    const panes = ts.terminalTabs.flatMap((tb) =>
+      tb.panes.map((p) => {
+        const status = p.status === 'live' ? '' : ` [${p.status}${p.exitCode != null ? ` exit ${p.exitCode}` : ''}]`;
+        return `${p.kind}${p.title ? ` "${p.title}"` : ''}${status}`;
+      }),
+    );
+    baris.push(panes.length ? `- Terminal panes: ${panes.join(', ')}` : '- Terminal panes: none open');
+  } catch {
+  }
+
+  const pr = useProblems.getState().all();
+  if (pr.length) {
+    const c = useProblems.getState().counts();
+    baris.push(`- Diagnostics: ${c.errors} error(s), ${c.warnings} warning(s) in the workspace`);
+    const tiga = pr.slice(0, 3).map((p) => `${p.file}:${p.line} ${p.message}`);
+    baris.push(`- First diagnostics: ${tiga.join(' | ')}`);
+  } else {
+    baris.push('- Diagnostics: clean');
+  }
+  return baris.join('\n');
+}
+
+/*
+ * The tail of any pane that exited with a failure. A build or test that died in
+ * the terminal is the single most common thing the user wants explained, and
+ * hunting for it with terminal_read costs a round trip every time. Only panes
+ * that already finished with a non-zero code qualify: a live dev server is
+ * scrolling noise, and its last 20 lines say nothing about what to do next.
+ */
+async function konteksKegagalan(): Promise<string> {
+  const panes = useTerminal.getState().allPanes();
+  const gagal = panes.filter((p) => p.exitCode != null && p.exitCode !== 0);
+  if (gagal.length === 0) return '';
+  const bagian: string[] = [];
+  for (const p of gagal.slice(0, 2)) {
+    try {
+      const teks = await cmd.ptyTail(p.id, 15);
+      if (!teks.trim()) continue;
+      bagian.push(`Pane "${p.title || p.id}" exited with code ${p.exitCode}:\n${teks.trim()}`);
+    } catch {
+      /* the pane buffer is gone; the exit code alone is still reported above */
+    }
+  }
+  if (bagian.length === 0) return '';
+  return [
+    'A command in the terminal failed. This is its output, so you do not need to read it again:',
+    bagian.join('\n\n'),
+  ].join('\n');
+}
+
 export async function konteksAgent(): Promise<string> {
   const now = Date.now();
-  if (ctxCache && now - ctxCache.at < CTX_TTL_MS) return ctxCache.teks;
+  const hidup = konteksEditor();
+  const kegagalan = await konteksKegagalan();
+  const gabung = (...blok: string[]) => blok.filter((s) => s && s.trim()).join('\n\n');
   try {
+    // The Rust context and the project summary are cached because they are
+    // expensive; the live blocks above are not, since they change with every click.
+    if (ctxCache && now - ctxCache.at < CTX_TTL_MS) {
+      return gabung(ctxCache.teks, hidup, kegagalan);
+    }
     const [dariRust, proyek] = await Promise.all([
       cmd.agentContext(),
       import('./projectContext').then((m) => m.ringkasanProyek()),
     ]);
-    const teks = [dariRust, proyek].filter((s) => s && s.trim()).join('\n\n');
+    const teks = gabung(dariRust, proyek);
     ctxCache = { at: now, teks };
-    return teks;
+    return gabung(teks, hidup, kegagalan);
   } catch {
-    return ctxCache?.teks ?? '';
+    return gabung(ctxCache?.teks ?? '', hidup, kegagalan);
   }
 }
 
@@ -85,7 +174,7 @@ export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
         ...m,
         content:
           isi.length > HISTORY_TOOL_CHARS
-            ? `${isi.slice(0, HISTORY_TOOL_CHARS)}\n[… hasil dipotong, ${isi.length - HISTORY_TOOL_CHARS} karakter lagi tidak dikirim]`
+            ? `${isi.slice(0, HISTORY_TOOL_CHARS)}\n[… result truncated, ${isi.length - HISTORY_TOOL_CHARS} more characters are not sent]`
             : isi,
       };
     }
@@ -103,8 +192,8 @@ export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
   const jumlahTool = lama.filter((m) => m.role === 'tool').length;
   const catatan =
     jumlahTool > 0
-      ? `[${jumlahTool} langkah sebelumnya diringkas agar percakapan tetap cepat. ` +
-        `Kalau butuh detailnya, jalankan ulang tool yang relevan — jangan mengarang isinya.]`
+      ? `[${jumlahTool} earlier steps were summarized to keep the conversation fast. ` +
+        `If you need the detail, re-run the relevant tool — do not invent its contents.]`
       : '';
 
   return [
@@ -157,10 +246,10 @@ export function statusPekerjaan(
     baris.push('## Rencana (todo_write)');
     for (const t of todos) baris.push(`- ${simbol(t.status)} ${t.content}`);
   } else {
-    baris.push('## Rencana: belum ada. Kalau tugas butuh 3+ langkah, tulis rencananya ke todo_write.');
+    baris.push('## Plan: none yet. When a task needs 3+ steps, write the plan into todo_write.');
   }
 
-  // Hanya langkah tool yang relevan; ambil 8 terakhir supaya prompt ringkas.
+  // Only the relevant tool steps; take the last 8 so the prompt stays compact.
   const tool = steps.filter((s) => s.kind === 'tool').slice(-8);
   if (tool.length) {
     baris.push('## Langkah tool terakhir (terbaru di bawah)');
@@ -171,8 +260,8 @@ export function statusPekerjaan(
     const gagal = tool.filter((s) => s.ok === false);
     if (gagal.length) {
       baris.push(
-        `## Perhatian: ${gagal.length} langkah terakhir GAGAL. ` +
-          'Jangan ulangi dengan cara yang sama — pakai pendekatan berbeda atau jelaskan penghambatnya.',
+        `## Warning: ${gagal.length} of the last steps FAILED. ` +
+          'Do not repeat the same approach — try something different or explain the blocker.',
       );
     }
   }
@@ -189,16 +278,16 @@ let agentBatal = false;
 const cancelled = new Set<string>();
 
 /**
- * Watchdog langkah agent.
+ * Agent step watchdog.
  *
- * Provider bisa menggantung: koneksi terbuka, header terkirim, lalu tidak ada
- * byte lagi dan tidak ada penutup stream. Saat itu Rust tidak pernah mengirim
- * "toolDone", jadi promise langkah di frontend menunggu selamanya dan
- * `agentBusy` tetap true. Efeknya luas: tombol Stop tidak mengembalikan UI,
- * dan subagent tidak bisa dijalankan karena form menolak saat agentBusy true.
+ * A provider can hang: the connection is open, headers sent, then not a single
+ * byte more and no stream close. At that point Rust never sends
+ * "toolDone", so the frontend's step promise waits forever and
+ * `agentBusy` stays true. The effect is broad: the Stop button does not give the UI back,
+ * and subagents cannot run because the form refuses while agentBusy is true.
  *
- * Watchdog menyetel ulang timer tiap kali ada chunk. Kalau benar-benar sepi
- * lebih dari AGENT_IDLE_MS, langkah dianggap gagal dan status agent dilepas.
+ * The watchdog resets the timer every time a chunk arrives. If it is truly quiet
+ * for more than AGENT_IDLE_MS, the step is considered failed and the agent status is released.
  */
 const AGENT_IDLE_MS = 90_000;
 let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
@@ -217,8 +306,8 @@ function agentWatchdogArm() {
       cancelled: true,
       error: 'Provider berhenti menjawab (timeout). Langkah dihentikan.',
     });
-    // Kalau tidak ada langkah yang menunggu (mis. menggantung di luar loop),
-    // paksa status agent lepas supaya UI dan subagent tidak terkunci.
+    // If no step is waiting (e.g. it hung outside the loop),
+    // force the agent status released so the UI and subagents are not locked.
     if (!r) {
       useAi.setState({ agentBusy: false, pending: null, agentConfirm: null });
     }
@@ -267,7 +356,7 @@ export function extractCommand(markdown: string): string | null {
 
 function judulDari(pesan: string): string {
   const baris = pesan.trim().split('\n')[0].replace(/^[#>*\-\s]+/, '').trim();
-  if (!baris) return 'Chat baru';
+  if (!baris) return 'New chat';
   if (baris.length <= 48) return baris;
   const potong = baris.slice(0, 48);
   const spasi = potong.lastIndexOf(' ');
@@ -277,7 +366,7 @@ function judulDari(pesan: string): string {
 function makeSession(model: string, provider: string): ChatSession {
   return {
     id: nextId('chat'),
-    title: 'Chat baru',
+    title: 'New chat',
     model,
     provider,
     messages: [],
@@ -294,7 +383,9 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null } {
       .filter((s) => s && Array.isArray(s.messages))
       .map((s) => ({
         ...s,
-
+        // Old titles may be stored in another language (e.g. "Chat baru" from
+        // an earlier version). Normalise them to the standard, already-translated titles.
+        title: JUDUL_LAMA.has(String(s.title ?? '')) ? 'New chat' : s.title,
         messages: s.messages.slice(-MAX_MSGS).map((m) => ({ ...m, streaming: false })),
       }));
     const activeId = sessions.some((s) => s.id === parsed.activeId)
@@ -365,12 +456,12 @@ interface AiActions {
 
   setModel: (modelId: string) => Promise<void>;
   /**
-   * Samakan provider/model panel AI dengan settings.models.activeProvider.
+   * Align the AI panel's provider/model with settings.models.activeProvider.
    *
-   * Dropdown "Model aktif" di Settings cuma menulis ke settings, sedangkan
-   * panel AI punya salinan sendiri (aiStore.provider). Tanpa penyelarasan,
-   * memilih provider baru baru terasa setelah app di-restart — jadi aksi ini
-   * dipanggil applySettings setiap kali models.activeProvider berubah.
+   * The "Active model" dropdown in Settings only writes to settings, whereas the
+   * AI panel has its own copy (aiStore.provider). Without alignment, choosing a new
+   * provider is only felt after the app is restarted — so this action
+   * is called by applySettings every time models.activeProvider changes.
    */
   sinkronProvider: () => void;
   setModelMenuOpen: (v: boolean) => void;
@@ -395,11 +486,11 @@ interface AiActions {
   sendAgent: (text: string) => Promise<void>;
 
   /**
-   * Padatkan konteks sesi aktif secara manual.
+   * Manually compact the active session's context.
    *
-   * Menyimpan sejumlah pesan terakhir dan mengganti sisanya dengan satu pesan
-   * ringkasan, supaya sesi panjang tidak membanjiri jendela konteks. Mengembalikan
-   * jumlah pesan yang dipadatkan.
+   * Keeps the last N messages and replaces the rest with a single summary
+   * message, so a long session does not flood the context window. Returns
+   * the number of messages that were compacted.
    */
   compactContext: (keep?: number) => number;
 
@@ -443,13 +534,13 @@ function persist(state: AiState) {
     }));
     localStorage.setItem(LS_KEY, JSON.stringify({ sessions, activeId: state.activeId }));
   } catch {
-    /* kuota penuh — chat tetap jalan di memori */
+    /* quota full — the chat still runs in memory */
   }
 }
 
 const boot = loadSessions();
 
-/** Mode agent terakhir yang dipilih user, dipertahankan antar sesi. */
+/** Last agent mode the user picked, kept across sessions. */
 function bootAgentMode(): 'chat' | 'agent' {
   try {
     return localStorage.getItem('zephyr.ai.mode') === 'agent' ? 'agent' : 'chat';
@@ -488,9 +579,9 @@ export const useAi = create<AiStore>((set, get) => ({
 
   init: async () => {
 
-    // Status agent tidak pernah boleh nyangkut dari sesi sebelumnya. Kalau
-    // app ditutup saat agent berjalan, atau provider menggantung, nilai ini
-    // bisa tersisa true dan memblokir kirim chat maupun subagent.
+    // The agent status must never get stuck from a previous session. If the
+    // app was closed while the agent was running, or a provider hung, this value
+    // can be left true and block both sending chat and subagents.
     agentWatchdogDisarm();
     agentBatal = false;
     agentStepResolve = null;
@@ -506,7 +597,7 @@ export const useAi = create<AiStore>((set, get) => ({
       set({ keys: pub });
       adaKey = pub.filter((k) => k.hasKey).map((k) => k.provider);
     } catch {
-      /* non-fatal: jatuh ke pemilihan tanpa info key */
+      /* non-fatal: falls back to a choice without key info */
     }
 
     const aktif = st.activeProvider;
@@ -538,7 +629,7 @@ export const useAi = create<AiStore>((set, get) => ({
     try {
       set({ keys: await cmd.getPublicModels() });
     } catch {
-      /* non-fatal: badge status jadi "belum ada key" */
+      /* non-fatal: the status badge becomes "no key yet" */
     }
   },
 
@@ -552,15 +643,15 @@ export const useAi = create<AiStore>((set, get) => ({
     const target = models?.activeProvider;
     if (!target) return;
 
-    // Provider yang belum dikenal biarkan apa adanya: menormalkan sekarang
-    // justru bisa memindahkan panel ke provider yang salah.
+    // An unknown provider is left as-is: normalising now
+    // could actually move the panel to the wrong provider.
     if (!PROVIDER_BY_ID.has(target)) return;
 
     const dariSettings = models.providers?.[target]?.model;
     const providerSama = target === get().provider;
     const modelSama = !dariSettings || dariSettings === get().model;
 
-    // Kalau provider DAN model sudah sama, tidak ada yang perlu diubah.
+    // If the provider AND model are already the same, there is nothing to change.
     if (providerSama && modelSama) return;
 
     const model =
@@ -756,7 +847,7 @@ export const useAi = create<AiStore>((set, get) => ({
     for (const m of s.messages) {
       if (m.error) continue;
       lines.push(`## ${m.role === 'user' ? 'User' : def.label}`, '');
-      if (m.image) lines.push('_[lampiran gambar — tidak ikut diekspor]_', '');
+      if (m.image) lines.push('_[image attachment — not included in the export]_', '');
       lines.push(m.content, '');
     }
     const md = lines.join('\n');
@@ -793,8 +884,8 @@ export const useAi = create<AiStore>((set, get) => ({
     let content = raw;
     if (raw.length > MSG_LIMIT) {
       content =
-        `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
-        `dikirim ${MSG_LIMIT} karakter pertama]`;
+        `${raw.slice(0, MSG_LIMIT)}\n\n[truncated: message of ${raw.length} characters, ` +
+        `sending the first ${MSG_LIMIT} characters]`;
       set({
         toast: tf('Message trimmed from {from} to {to} characters', { from: raw.length, to: MSG_LIMIT }),
         lastTruncated: { from: raw.length, to: MSG_LIMIT },
@@ -836,7 +927,7 @@ export const useAi = create<AiStore>((set, get) => ({
       payloadContent =
         `${content}\n\n---\n` +
         `Anggap file ini konteks kerja aktif.\n` +
-        `File: ${tab.path ?? tab.name}${truncated ? ' (dipotong 12KB pertama)' : ''}\n` +
+        `File: ${tab.path ?? tab.name}${truncated ? ' (first 12KB truncated)' : ''}\n` +
         '```\n' +
         body +
         '\n```';
@@ -857,7 +948,7 @@ export const useAi = create<AiStore>((set, get) => ({
       }
       payloadContent =
         payloadContent.replace(m[0], `(@file: ${path})`) +
-        `\n\n--- isi ${path}${truncated ? ' (dipotong 12KB)' : ''} ---\n` +
+        `\n\n--- isi ${path}${truncated ? ' (12KB truncated)' : ''} ---\n` +
         '```\n' +
         isi +
         '\n```';
@@ -876,7 +967,7 @@ export const useAi = create<AiStore>((set, get) => ({
         );
         if (hits.length > 0) {
           ragContext =
-            'Konteks RAG dari project ini (jawab berdasarkan ini kalau relevan):\n\n' +
+            'RAG context from this project (answer from this when relevant):\n\n' +
             hits
               .map(
                 (h, i) =>
@@ -983,7 +1074,7 @@ export const useAi = create<AiStore>((set, get) => ({
       await useCliAgent.getState().jalankan(content, cwd);
       const runs = useCliAgent.getState().runs;
       const terakhir = runs[runs.length - 1];
-      const teks = terakhir?.output ?? '(tidak ada output)';
+      const teks = terakhir?.output ?? '(no output)';
 
       get().onChunk({ id: reqId, text: teks });
       get().onChunk({ id: reqId, done: true });
@@ -1020,8 +1111,8 @@ export const useAi = create<AiStore>((set, get) => ({
     let content = raw;
     if (raw.length > MSG_LIMIT) {
       content =
-        `${raw.slice(0, MSG_LIMIT)}\n\n[dipotong: pesan ${raw.length} karakter, ` +
-        `dikirim ${MSG_LIMIT} karakter pertama]`;
+        `${raw.slice(0, MSG_LIMIT)}\n\n[truncated: message of ${raw.length} characters, ` +
+        `sending the first ${MSG_LIMIT} characters]`;
       set({
         toast: tf('Message trimmed from {from} to {to} characters', { from: raw.length, to: MSG_LIMIT }),
         lastTruncated: { from: raw.length, to: MSG_LIMIT },
@@ -1116,10 +1207,10 @@ export const useAi = create<AiStore>((set, get) => ({
         history.push({
           role: 'user',
           content:
-            `[KONTEKS EDITOR] File yang sedang dibuka user: ${tabAktif.path}` +
-            `${tabAktif.unsaved ? ' (ada perubahan belum disimpan di buffer)' : ''}. ` +
-            'Kalau instruksi menyebut "file ini", "fungsi ini", atau "di sini", ' +
-            'maksudnya file tersebut. Pakai tool editor_read/editor_write untuk isinya.',
+            `[EDITOR CONTEXT] The file the user has open: ${tabAktif.path}` +
+            `${tabAktif.unsaved ? ' (unsaved changes in the buffer)' : ''}. ` +
+            'When the instruction mentions "this file", "this function", or "here", ' +
+            'it means that file. Use the editor_read/editor_write tools for its contents.',
         });
       }
     }
@@ -1210,7 +1301,7 @@ export const useAi = create<AiStore>((set, get) => ({
           let hasil: string;
           let ok = true;
           if (readOnlyBlok) {
-            hasil = `(ditolak: mode read-only tidak mengizinkan ${tc.name})`;
+            hasil = `(refused: read-only mode does not allow ${tc.name})`;
             ok = false;
           } else if (perluSetuju) {
             set({
@@ -1248,12 +1339,12 @@ export const useAi = create<AiStore>((set, get) => ({
           if (!ok && !hasil.startsWith('(ditolak')) {
             const namaTool = AGENT_TOOLS.some((t) => t.spec.name === tc.name)
               ? tc.name
-              : `'${tc.name}' (nama tool tidak dikenal — periksa daftar tool)`;
+              : `'${tc.name}' (unknown tool name — check the tool list)`;
             hasil +=
-              `\n\n[PETUNJUK] Tool ${namaTool} gagal. Jangan ulangi dengan argumen yang sama.` +
-              ` Periksa pesan error di atas, lalu coba pendekatan lain: baca file dulu,` +
-              ` perbaiki argumen, atau pakai tool berbeda. Kalau memang tidak mungkin,` +
-              ` jelaskan ke user apa yang menghambat.`;
+              `\n\n[HINT] Tool ${namaTool} failed. Do not repeat it with the same arguments.` +
+              ` Read the error above, then try a different approach: read the file first,` +
+              ` fix the arguments or use a different tool. If it is genuinely impossible,` +
+              ` explain the blocker to the user.`;
           }
 
           if (agentBatal) break;
@@ -1290,7 +1381,7 @@ export const useAi = create<AiStore>((set, get) => ({
         }
       }
     } catch (e) {
-      if (!akhir) akhir = `Gagal menjalankan agent: ${cmd.asZephyrError(e).message}`;
+      if (!akhir) akhir = `Failed to run the agent: ${cmd.asZephyrError(e).message}`;
     }
 
     if (agentBatal) {
@@ -1312,16 +1403,16 @@ export const useAi = create<AiStore>((set, get) => ({
                 if (m.id !== botMsg.id) return m;
 
                 /*
-                 * `akhir` berasal dari `toolDone` Rust dan sudah dibersihkan
-                 * dari blok tool-call XML (lihat adapters/xml_tools.rs).
-                 * `m.content` adalah akumulasi potongan streaming mentah yang
-                 * masih memuat tag XML itu, jadi untuk pesan yang memakai tool
-                 * jawaban final harus menang; kalau tidak, tag mentah ikut
-                 * tersimpan ke disk. Untuk narasi biasa (tanpa tool) `akhir`
-                 * sama dengan teksnya, jadi tidak ada yang hilang.
+                 * `akhir` comes from Rust's `toolDone` and has already been cleaned
+                 * of the tool-call XML blocks (see adapters/xml_tools.rs).
+                 * `m.content` is the accumulation of raw streaming chunks that
+                 * still contains those XML tags, so for a message that uses tools
+                 * the final answer must win; otherwise the raw tags get
+                 * saved to disk too. For ordinary narration (no tools) `akhir`
+                 * equals the text, so nothing is lost.
                  */
                 const tampil = akhir.trim() ? akhir : m.content;
-                return { ...m, content: tampil || '(tidak ada jawaban)', streaming: false };
+                return { ...m, content: tampil || '(no answer)', streaming: false };
               }),
             }
           : x,
@@ -1344,33 +1435,33 @@ export const useAi = create<AiStore>((set, get) => ({
       const aktif = get().activeSession()?.messages.slice(-1)[0]?.id;
       if (aktif) {
         /*
-         * Saring potongan yang masih di jalan.
+         * Filter out chunks that are still in flight.
          *
-         * Menyetel flag di Rust tidak menghentikan paket yang sudah dikirim;
-         * beberapa potongan teks bisa tiba setelah tombol Stop ditekan dan —
-         * tanpa penyaringan ini — terus menempel ke bubble yang sudah
-         * dibatalkan. Id dihapus lagi saat chunk penutup tiba.
+         * Setting the flag in Rust does not stop packets already sent;
+         * a few text chunks can arrive after the Stop button is pressed and —
+         * without this filtering — keep sticking to the already-cancelled
+         * bubble. The id is removed again when the closing chunk arrives.
          */
         cancelled.add(aktif);
         try {
           await cmd.aiCancel(aktif);
         } catch {
-          /* langkah sudah selesai */
+          /* the step has already finished */
         }
       }
 
       /*
-       * Lepaskan langkah yang sedang menunggu.
+       * Release the step that is currently waiting.
        *
-       * Loop agent menunggu satu promise yang hanya diselesaikan oleh chunk
-       * "toolDone" dari Rust. Chunk itu baru datang setelah permintaan HTTP
-       * selesai — dan saat provider menggantung, itu berarti menunggu sampai
-       * timeout baca (90 detik). Tanpa pelepasan di sini, tombol Stop hanya
-       * menyetel flag: UI tetap menampilkan Stop dan agent tidak berhenti
-       * sampai provider menjawab sendiri.
+       * The agent loop waits on a single promise that is only resolved by the
+       * "toolDone" chunk from Rust. That chunk only arrives after the HTTP request
+       * finishes — and when a provider hangs, that means waiting until the
+       * read timeout (90 seconds). Without releasing here, the Stop button only
+       * sets a flag: the UI keeps showing Stop and the agent does not stop
+       * until the provider answers on its own.
        *
-       * Hasil "cancelled" membuat loop keluar lewat jalur `res.cancelled`
-       * biasa, jadi pesan akhir dan penyimpanan sesi tetap berjalan.
+       * The "cancelled" result makes the loop exit through the ordinary
+       * `res.cancelled` path, so the final message and session saving still run.
        */
       const tunggu = agentStepResolve;
       agentStepResolve = null;
@@ -1408,7 +1499,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
     if (subagentOnChunk(c)) return;
 
-    // Ada aktivitas dari provider: tunda watchdog idle.
+    // There is activity from the provider: postpone the idle watchdog.
     if (agentWatchdog) agentWatchdogArm();
 
     if (c.toolDone) {

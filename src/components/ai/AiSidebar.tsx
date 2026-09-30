@@ -100,9 +100,9 @@ export default function AiSidebar() {
       <div className="side-section tp-list-wrap">
         <div className="tp-subtitle ai-side-head-row">
           <span>{tr('Chat history')}</span>
-          {/* Hapus SEMUA: dulu hanya ada di store (clearAllChats) tanpa UI -
-              user tidak menemukannya. Tombol per-chat tetap ada di tiap baris;
-              yang ini untuk membersihkan seluruh riwayat sekaligus. */}
+          {/* Delete ALL: it used to exist only in the store (clearAllChats) without UI -
+              the user never found it. The per-chat button still exists on every row;
+              this one clears the whole history at once. */}
           {sessions.length > 0 && (
             <button
               className="tp-op ai-side-clear"
@@ -114,8 +114,8 @@ export default function AiSidebar() {
             </button>
           )}
         </div>
-        {/* A-9: cari di judul DAN isi pesan - riwayat panjang tak lagi
-            hanya bisa digulir manual. */}
+        {/* A-9: search titles AND message bodies - a long history can no longer
+            only be scrolled manually. */}
         <input
           className="ai-side-search"
           type="search"
@@ -143,7 +143,7 @@ export default function AiSidebar() {
                   onClick={() => buka(s.id)}
                 >
                   <ProviderLogo id={s.provider} size={15} />
-                  <span className="ai-side-title">{s.title}</span>
+                  <span className="ai-side-title">{tr(s.title)}</span>
                   {/*
                     * "1 · 02:40" read as two bare numbers. The count gets the
                     * word it is counting so the row says what it means.

@@ -308,8 +308,8 @@ export default function CodeMirrorEditor({ tab }: Props) {
 
       if (adaLsp && tab.path) void useLsp.getState().closeDoc(tab.path);
     };
-    // Sengaja hanya bergantung pada id tab: perubahan setting ditangani
-    // effect terpisah lewat compartment (tanpa rebuild view).
+    // Deliberately depends only on the tab id: settings changes are handled
+    // a separate effect via a compartment (without rebuilding the view).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab.id]);
 
@@ -577,7 +577,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
           />
         )}
       </div>
-      {/* A-4: chat mini melayang (Ctrl+I) - hanya ada saat dibuka. */}
+      {/* A-4: floating mini chat (Ctrl+I) - exists only while open. */}
       <InlineChat />
       {menu && (
         <div

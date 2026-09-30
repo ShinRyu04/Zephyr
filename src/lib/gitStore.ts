@@ -17,7 +17,7 @@ export type ScmConfirm =
   | { kind: 'discard-all'; paths: string[] }
   | { kind: 'delete-branch'; name: string }
   | { kind: 'set-upstream'; branch: string }
-  /** fase 15.3: remote punya commit yang belum kita punya → tawarkan pull dulu. */
+  /** phase 15.3: the remote has commits we do not have yet → offer pull first. */
   | { kind: 'pull-first'; behind: number };
 
 export interface DiffView {
@@ -205,11 +205,11 @@ export const useGit = create<GitStore>((set, get) => ({
   commit: async () => {
     const msg = get().message.trim();
     if (!msg) {
-      set({ scmError: 'Tulis pesan commit dulu' });
+      set({ scmError: 'Write a commit message first' });
       return false;
     }
     if (get().staged().length === 0) {
-      set({ scmError: 'Belum ada perubahan yang di-stage (klik + di file)' });
+      set({ scmError: 'Nothing staged yet (click + on a file)' });
       return false;
     }
     set({ busy: true, busyLabel: 'commit', scmError: null });
@@ -235,11 +235,11 @@ export const useGit = create<GitStore>((set, get) => ({
           const d = await cmd.gitDiff(c.path, c.staged);
           diffs.push(`# ${c.status} ${c.path}\n${d}`);
         } catch {
-          diffs.push(`# ${c.status} ${c.path} (diff tidak tersedia)`);
+          diffs.push(`# ${c.status} ${c.path} (diff not available)`);
         }
       }
       if (diffs.length === 0) {
-        set({ scmError: 'Tidak ada perubahan untuk diringkas' });
+        set({ scmError: 'No changes to summarise' });
         return false;
       }
       const prompt =
@@ -255,10 +255,10 @@ export const useGit = create<GitStore>((set, get) => ({
         .replace(/^["'`]|["'`]$/g, '')
         .slice(0, 100);
       if (!bersih) {
-        set({ scmError: 'AI tidak mengembalikan pesan commit' });
+        set({ scmError: 'The AI returned no commit message' });
         return false;
       }
-      set({ message: bersih, scmInfo: 'Pesan commit diisi AI, periksa lalu commit' });
+      set({ message: bersih, scmInfo: 'Commit message filled by AI — review it, then commit' });
       return true;
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -273,7 +273,7 @@ export const useGit = create<GitStore>((set, get) => ({
     try {
       const ok = await cmd.gitStashSave(message);
       await get().refreshAll();
-      set({ scmInfo: ok ? 'Perubahan disimpan ke stash' : 'Tidak ada perubahan untuk di-stash' });
+      set({ scmInfo: ok ? 'Changes saved to stash' : 'No changes to stash' });
       return ok;
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -308,7 +308,7 @@ export const useGit = create<GitStore>((set, get) => ({
     set({ busy: true, busyLabel: 'stash', scmError: null });
     try {
       await cmd.gitStashDrop(index);
-      set({ scmInfo: 'Stash dihapus' });
+      set({ scmInfo: 'Stash dropped' });
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
@@ -347,14 +347,14 @@ export const useGit = create<GitStore>((set, get) => ({
         return;
       }
       set({
-        scmError: `Remote punya ${st.behind} commit yang belum ada di lokal — pull dulu sebelum push`,
+        scmError: `Remote has ${st.behind} commits that are not local yet — pull before you push`,
       });
       return;
     }
     set({ busy: true, busyLabel: 'push', scmError: null, scmInfo: null });
     try {
       const out = await cmd.gitPush(setUpstream ?? false);
-      set({ scmInfo: ringkas(out) || 'Push selesai' });
+      set({ scmInfo: ringkas(out) || 'Push finished' });
       await get().refreshAll();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -367,7 +367,7 @@ export const useGit = create<GitStore>((set, get) => ({
     set({ busy: true, busyLabel: 'pull', scmError: null, scmInfo: null });
     try {
       const out = await cmd.gitPull(rebase ?? false);
-      set({ scmInfo: ringkas(out) || 'Pull selesai' });
+      set({ scmInfo: ringkas(out) || 'Pull finished' });
       await get().refreshAll();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
@@ -491,7 +491,7 @@ export const useGit = create<GitStore>((set, get) => ({
     try {
       set({ gh: await cmd.ghStatus() });
     } catch {
-      /* non-fatal: baris GitHub menampilkan "Belum login" */
+      /* non-fatal: the GitHub row shows "Not signed in" */
     }
   },
 
@@ -500,7 +500,7 @@ export const useGit = create<GitStore>((set, get) => ({
     try {
       const u = await cmd.ghSetPat(token);
       set({
-        ghMessage: `Tersimpan — @${u.user}`,
+        ghMessage: `Saved — @${u.user}`,
         patFormOpen: false,
       });
       await get().loadGh();
@@ -519,7 +519,7 @@ export const useGit = create<GitStore>((set, get) => ({
       const d = await cmd.ghLoginDevice();
       set({
         ghDevice: { userCode: d.userCode, verificationUri: d.verificationUri },
-        ghMessage: 'Masukkan kode di browser lalu tunggu…',
+        ghMessage: 'Enter the code in the browser, then wait…',
       });
     } catch (e) {
       set({ ghMessage: cmd.asZephyrError(e).message });
@@ -529,7 +529,7 @@ export const useGit = create<GitStore>((set, get) => ({
   logoutGh: async () => {
     try {
       await cmd.ghLogout();
-      set({ ghDevice: null, ghTest: null, ghMessage: 'Sudah logout' });
+      set({ ghDevice: null, ghTest: null, ghMessage: 'Signed out' });
       await get().loadGh();
     } catch (e) {
       set({ ghMessage: cmd.asZephyrError(e).message });
@@ -560,7 +560,7 @@ export const useGit = create<GitStore>((set, get) => ({
       return;
     }
     if (e.state === 'error') {
-      set({ ghDevice: null, ghMessage: e.message ?? 'Login gagal' });
+      set({ ghDevice: null, ghMessage: e.message ?? 'Sign-in failed' });
       return;
     }
     set({ ghMessage: e.message ?? 'Menunggu…' });

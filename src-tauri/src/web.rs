@@ -1,12 +1,12 @@
-// web.rs — akses internet untuk agent: cari di web dan ambil isi halaman.
+// web.rs — internet access for the agent: search the web and fetch page contents.
 //
-// KENAPA di Rust, bukan di JS: permintaan dari halaman web tunduk pada aturan
+// WHY in Rust, not in JS: requests from a web page are subject to the
 // CORS: DuckDuckGo and most sites reject it, so fetch() in the
-// renderer akan gagal. Permintaan dari proses Rust tidak tunduk pada CORS.
+// renderer would fail. Requests from the Rust process are not subject to CORS.
 //
 // WHY ureq: already used by browser.rs to inspect X-Frame-Options headers.
-// Menambah klien HTTP kedua (reqwest) berarti menambah seluruh stack TLS async
-// hanya untuk dua permintaan sederhana.
+// Adding a second HTTP client (reqwest) would mean adding a whole async TLS stack
+// just for two simple requests.
 
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -56,18 +56,18 @@ fn ambil(url: &str) -> ZResult<String> {
 }
 
 /**
- * Buang tag HTML dan sisakan teks yang terbaca.
+ * Strip HTML tags and keep the readable text.
  *
- * KENAPA bukan parser HTML penuh: yang dibutuhkan hanya teks untuk dibaca
+ * WHY not a full HTML parser: all that is needed is text to read,
  * model, bukan struktur. Parser penuh (scraper/html5ever) menambah puluhan
- * dependensi untuk hasil yang sama kasarnya. Yang penting di sini: buang
+ * dependencies for a result that is just as crude. What matters here: drop
  * <script> and <style> WITH their contents: dropping only the tags lets
  * JavaScript leak into the text and flood the answer.
  */
 fn teks_dari_html(html: &str) -> String {
     let mut s = html.to_string();
 
-    // Buang blok yang isinya bukan untuk dibaca.
+    // Drop blocks whose contents are not meant to be read.
     for (buka, tutup) in [
         ("<script", "</script>"),
         ("<style", "</style>"),
@@ -84,7 +84,7 @@ fn teks_dari_html(html: &str) -> String {
         }
     }
 
-    // Sisipkan baris baru pada tag blok supaya paragraf tidak menempel.
+    // Insert a newline at block tags so paragraphs do not run together.
     for t in [
         "</p>",
         "</div>",
@@ -105,7 +105,7 @@ fn teks_dari_html(html: &str) -> String {
         s = s.replace(t, "\n");
     }
 
-    // Buang seluruh tag yang tersisa.
+    // Drop all the remaining tags.
     let mut hasil = String::with_capacity(s.len());
     let mut dalam_tag = false;
     for c in s.chars() {
@@ -117,7 +117,7 @@ fn teks_dari_html(html: &str) -> String {
         }
     }
 
-    // Entitas yang paling sering muncul di halaman nyata.
+    // The entities that most often appear on real pages.
     let hasil = hasil
         .replace("&nbsp;", " ")
         .replace("&amp;", "&")
@@ -129,7 +129,7 @@ fn teks_dari_html(html: &str) -> String {
         .replace("&ndash;", "–")
         .replace("&hellip;", "…");
 
-    // Rapikan spasi: baris kosong beruntun diciutkan, spasi ganda dibuang.
+    // Tidy up whitespace: runs of blank lines are collapsed, double spaces removed.
     let mut rapi = String::with_capacity(hasil.len());
     let mut kosong = 0;
     for baris in hasil.lines() {
@@ -148,19 +148,19 @@ fn teks_dari_html(html: &str) -> String {
     rapi.trim().to_string()
 }
 
-/// Ambil satu halaman dan kembalikan teksnya saja.
+/// Fetch one page and return just its text.
 #[tauri::command(async)]
 pub fn web_fetch(url: String, max_chars: Option<usize>) -> ZResult<String> {
     let batas = max_chars.unwrap_or(12_000).clamp(500, 60_000);
     let html = ambil(&url)?;
     let teks = teks_dari_html(&html);
     if teks.is_empty() {
-        return Ok("(halaman tidak berisi teks yang bisa dibaca)".into());
+        return Ok("(the page has no readable text)".into());
     }
     if teks.chars().count() > batas {
         let potong: String = teks.chars().take(batas).collect();
         return Ok(format!(
-            "{potong}\n\n[... dipotong di {batas} karakter dari {} total]",
+            "{potong}\n\n[... truncated at {batas} characters out of {} total]",
             teks.chars().count()
         ));
     }
@@ -188,7 +188,7 @@ pub fn web_fetch(url: String, max_chars: Option<usize>) -> ZResult<String> {
 pub fn web_search(query: String, max_results: Option<usize>) -> ZResult<Vec<HasilCari>> {
     let q = query.trim();
     if q.is_empty() {
-        return Err(ZephyrError::InvalidInput("kata kunci empty".into()));
+        return Err(ZephyrError::InvalidInput("keyword is empty".into()));
     }
     let batas = max_results.unwrap_or(8).clamp(1, 20);
     let param = urlencode(q);
@@ -207,13 +207,13 @@ pub fn web_search(query: String, max_results: Option<usize>) -> ZResult<Vec<Hasi
                 if !hasil.is_empty() {
                     return Ok(hasil);
                 }
-                galat = format!("{url}: is missing hasil yang bisa dibaca");
+                galat = format!("{url}: no readable result");
             }
             Err(e) => galat = format!("{url}: {e}"),
         }
     }
     Err(ZephyrError::InvalidInput(format!(
-        "semua mesin pencari failed — {galat}"
+        "all search engines failed — {galat}"
     )))
 }
 
@@ -288,7 +288,7 @@ fn parse_hasil(html: &str, batas: usize) -> Vec<HasilCari> {
     hasil
 }
 
-/// Persen-encode untuk parameter query.
+/// Percent-encode for query parameters.
 fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
     for b in s.bytes() {

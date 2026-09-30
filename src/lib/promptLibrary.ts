@@ -73,7 +73,7 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   },
   {
     cmd: 'clear',
-    label: 'Hapus semua riwayat chat',
+    label: 'Clear the whole chat history',
     body: '',
     aksi: 'hapus-semua',
     ikon: 'bersih',
@@ -94,44 +94,44 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   },
   {
     cmd: 'explain',
-    label: 'Jelaskan kode yang dipilih',
-    body: 'Jelaskan kode berikut baris per baris: apa yang dilakukannya, alur datanya, dan bagian yang mudah disalahpahami.\n\n{sel}',
+    label: 'Explain the selected code',
+    body: 'Explain the following code line by line: what it does, how data flows, and the parts that are easy to get wrongi.\n\n{sel}',
     ikon: 'jelas',
   },
   {
     cmd: 'fix',
     label: 'Perbaiki bug',
-    body: 'Cari dan perbaiki bug pada kode berikut. Sebutkan akar masalahnya dulu, lalu berikan versi perbaikannya.\n\n{sel}',
+    body: 'Find and fix the bug in the following code. Name the root cause first, then give the fixed version.\n\n{sel}',
     ikon: 'perbaiki',
   },
   {
     cmd: 'refactor',
-    label: 'Refactor tanpa ubah perilaku',
-    body: 'Refactor kode berikut agar lebih ringkas dan mudah dibaca tanpa mengubah perilakunya. Jelaskan tiap perubahan.\n\n{sel}',
+    label: 'Refactor without changing behaviour',
+    body: 'Refactor the code below so it is shorter and easier to read without changing what it does. Explain each change.\n\n{sel}',
     ikon: 'rapikan',
   },
   {
     cmd: 'doc',
-    label: 'Tulis dokumentasi',
-    body: 'Tulis dokumentasi untuk kode berikut: ringkasan satu paragraf, parameter, nilai balik, dan contoh pemakaian.\n\n{sel}',
+    label: 'Write documentation',
+    body: 'Write documentation for the following code: a one-paragraph summary, parameters, return value, and a usage example.\n\n{sel}',
     ikon: 'dokumen',
   },
   {
     cmd: 'test',
-    label: 'Buat unit test',
-    body: 'Buat unit test untuk kode berikut. Pakai framework yang sudah dipakai proyek ini dan tutup kasus tepi yang penting.\n\n{sel}',
+    label: 'Write unit tests',
+    body: 'Write unit tests for the following code. Use the framework this project already uses and cover the important edge casesting.\n\n{sel}',
     ikon: 'uji',
   },
   {
     cmd: 'review',
-    label: 'Review kode',
-    body: 'Review kode berikut: bug, masalah keamanan, masalah performa, dan pelanggaran konvensi. Urutkan temuan dari yang paling penting.\n\n{sel}',
+    label: 'Review the code',
+    body: 'Review the following code: bugs, security issues, performance problems, and convention violations. Order the findings from theng paling penting.\n\n{sel}',
     ikon: 'tinjau',
   },
   {
     cmd: 'commit',
-    label: 'Tulis pesan commit',
-    body: 'Tulis pesan commit (judul + isi) untuk perubahan berikut, mengikuti konvensi repo ini.\n\n{sel}',
+    label: 'Write a commit message',
+    body: 'Write a commit message (subject + body) for the following changes, following this repo\'s convention.\n\n{sel}',
     ikon: 'commit',
   },
 
@@ -142,21 +142,21 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
 
   {
     cmd: 'loop',
-    label: 'Ulangi tugas ini sampai selesai',
+    label: 'Repeat this task until it is done',
     body: '',
     aksi: 'loop',
     ikon: 'putar',
   },
   {
     cmd: 'mcp',
-    label: 'Buka server MCP (port 9222)',
+    label: 'Start the MCP server (port 9222)',
     body: '',
     aksi: 'mcp',
     ikon: 'colok',
   },
   {
     cmd: 'goal',
-    label: 'Tulis rencana tugas berjalan',
+    label: 'Write a plan for the current task',
     body: '',
     aksi: 'goal',
     ikon: 'sasaran',
@@ -170,7 +170,7 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   },
   {
     cmd: 'history',
-    label: 'Riwayat percakapan',
+    label: 'Conversation history',
     body: '',
     aksi: 'riwayat',
     ikon: 'riwayat',
@@ -221,7 +221,7 @@ export function saveUserPrompts(items: PromptItem[]): void {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(items));
   } catch {
-    // Kuota penuh / mode privat: snippet hanya tidak tersimpan, tidak fatal.
+    // Quota full / private mode: the snippet simply is not saved, not fatal.
   }
 }
 

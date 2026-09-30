@@ -1,0 +1,1950 @@
+### 0
+KEY:  di baris persona untuk memakainya
+AR :  on a persona row to use it
+ID :  di baris persona untuk memakainya
+EN :  on a persona row to use it
+
+### 1
+KEY:  di baris persona untuk memakainya — berlaku untuk chat berikutnya, tidak perlu restart.
+AR :  on a persona row to use it — it applies to the next chat, no restart needed.
+ID :  di baris persona untuk memakainya — berlaku untuk chat berikutnya, tidak perlu restart.
+EN :  on a persona row to use it — it applies to the next chat, no restart needed.
+
+### 2
+KEY:  menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya. Kalau ragu, biarkan
+AR :  duplicates a built-in persona so you can change it without losing the original. If unsure, leave
+ID :  menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya. Kalau ragu, biarkan
+EN :  duplicates a built-in persona so you can change it without losing the original. If unsure, leave
+
+### 3
+KEY:  tidak didukung di sandbox ekstensi Zephyr
+AR :  is not supported in the Zephyr extension sandbox
+ID :  tidak didukung di sandbox ekstensi Zephyr
+EN :  is not supported in the Zephyr extension sandbox
+
+### 4
+KEY:  tidak ditemukan di dalam ekstensi Zephyr
+AR :  was not found inside the Zephyr extension
+ID :  tidak ditemukan di dalam ekstensi Zephyr
+EN :  was not found inside the Zephyr extension
+
+### 5
+KEY:  yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.
+AR :  active: that is Zephyr\'s built-in behaviour with nothing added.
+ID :  yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.
+EN :  active: that is Zephyr\'s built-in behaviour with nothing added.
+
+### 6
+KEY: (Python, Java, Node, etc.) can ask for permission through
+AR : (Python, Java, Node, etc.) can ask for permission through
+ID : (Python, Java, Node, etc.) can ask for permission through
+EN : (Python, Java, Node, etc.) can ask for permission through
+
+### 7
+KEY: (belum ada system prompt untuk worker ini — diisi di halaman Pengaturan)
+AR : (no system prompt for this worker yet — set it on the Settings page)
+ID : (belum ada system prompt untuk worker ini — diisi di halaman Pengaturan)
+EN : (no system prompt for this worker yet — set it on the Settings page)
+
+### 8
+KEY: (no model selected yet)
+AR : (no model selected yet)
+ID : (no model selected yet)
+EN : (no model selected yet)
+
+### 9
+KEY: (saved - type to replace)
+AR : (saved - type to replace)
+ID : (saved - type to replace)
+EN : (saved - type to replace)
+
+### 10
+KEY: - execution always happens on the Rust side from a binary you approve, and can be revoked here.
+AR : - execution always happens on the Rust side from a binary you approve, and can be revoked here.
+ID : - execution always happens on the Rust side from a binary you approve, and can be revoked here.
+EN : - execution always happens on the Rust side from a binary you approve, and can be revoked here.
+
+### 11
+KEY: - execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.
+AR : - execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.
+ID : - execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.
+EN : - execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.
+
+### 12
+KEY: /fs/IPC), so commands from extensions can run without giving system access. Extensions that need
+AR : /fs/IPC), so commands from extensions can run without giving system access. Extensions that need
+ID : /fs/IPC), so commands from extensions can run without giving system access. Extensions that need
+EN : /fs/IPC), so commands from extensions can run without giving system access. Extensions that need
+
+### 13
+KEY: : anything running as your user can drive this window as long as it knows the token.
+AR : : anything running as your user can drive this window as long as it knows the token.
+ID : : anything running as your user can drive this window as long as it knows the token.
+EN : : anything running as your user can drive this window as long as it knows the token.
+
+### 14
+KEY: : files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in
+AR : : files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in
+ID : : files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in
+EN : : files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in
+
+### 15
+KEY: A URL must start with http:// or https://
+AR : A URL must start with http:// or https://
+ID : A URL must start with http:// or https://
+EN : A URL must start with http:// or https://
+
+### 16
+KEY: A host, a local port and a target port are needed.
+AR : A host, a local port and a target port are needed.
+ID : A host, a local port and a target port are needed.
+EN : A host, a local port and a target port are needed.
+
+### 17
+KEY: AI tidak mengembalikan pesan commit
+AR : The AI returned no commit message
+ID : AI tidak mengembalikan pesan commit
+EN : The AI returned no commit message
+
+### 18
+KEY: API keys are stored by Rust in
+AR : API keys are stored by Rust in
+ID : API keys are stored by Rust in
+EN : API keys are stored by Rust in
+
+### 19
+KEY: Add external MCP server
+AR : Add external MCP server
+ID : Add external MCP server
+EN : Add external MCP server
+
+### 20
+KEY: Add one in Settings, Dev Environment.
+AR : Add one in Settings, Dev Environment.
+ID : Add one in Settings, Dev Environment.
+EN : Add one in Settings, Dev Environment.
+
+### 21
+KEY: All language servers are installed.
+AR : All language servers are installed.
+ID : All language servers are installed.
+EN : All language servers are installed.
+
+### 22
+KEY: All settings return to default. API keys are not deleted. Continue?
+AR : All settings return to default. API keys are not deleted. Continue?
+ID : All settings return to default. API keys are not deleted. Continue?
+EN : All settings return to default. API keys are not deleted. Continue?
+
+### 23
+KEY: Allow external AI to control Zephyr
+AR : Allow external AI to control Zephyr
+ID : Allow external AI to control Zephyr
+EN : Allow external AI to control Zephyr
+
+### 24
+KEY: Another persona already uses that name.
+AR : Another persona already uses that name.
+ID : Another persona already uses that name.
+EN : Another persona already uses that name.
+
+### 25
+KEY: Another sub-agent already uses that name.
+AR : Another sub-agent already uses that name.
+ID : Another sub-agent already uses that name.
+EN : Another sub-agent already uses that name.
+
+### 26
+KEY: Appended to each project name to build its URL.
+AR : Appended to each project name to build its URL.
+ID : Appended to each project name to build its URL.
+EN : Appended to each project name to build its URL.
+
+### 27
+KEY: Are you sure? The theme, shortcuts, and all preferences will be lost.
+AR : Are you sure? The theme, shortcuts, and all preferences will be lost.
+ID : Are you sure? The theme, shortcuts, and all preferences will be lost.
+EN : Are you sure? The theme, shortcuts, and all preferences will be lost.
+
+### 28
+KEY: Ask or request a code change… (Enter sends, Esc closes)
+AR : Ask or request a code change… (Enter sends, Esc closes)
+ID : Ask or request a code change… (Enter sends, Esc closes)
+EN : Ask or request a code change… (Enter sends, Esc closes)
+
+### 29
+KEY: Auto-update checks GitHub Releases periodically.
+AR : Auto-update checks GitHub Releases periodically.
+ID : Auto-update checks GitHub Releases periodically.
+EN : Auto-update checks GitHub Releases periodically.
+
+### 30
+KEY: Available while the program is paused.
+AR : Available while the program is paused.
+ID : Available while the program is paused.
+EN : Available while the program is paused.
+
+### 31
+KEY: Bearer token (optional)
+AR : Bearer token (optional)
+ID : Bearer token (optional)
+EN : Bearer token (optional)
+
+### 32
+KEY: Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka).
+AR : No folder is open yet (Ctrl+Shift+O to open one).
+ID : Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka).
+EN : No folder is open yet (Ctrl+Shift+O to open one).
+
+### 33
+KEY: Belum ada perubahan yang di-stage (klik + di file)
+AR : Nothing staged yet (click + on a file)
+ID : Belum ada perubahan yang di-stage (klik + di file)
+EN : Nothing staged yet (click + on a file)
+
+### 34
+KEY: Belum ada replace untuk dibatalkan
+AR : There is no replace to undo
+ID : Belum ada replace untuk dibatalkan
+EN : There is no replace to undo
+
+### 35
+KEY: Belum ada snapshot untuk file ini
+AR : No snapshot for this file yet
+ID : Belum ada snapshot untuk file ini
+EN : No snapshot for this file yet
+
+### 36
+KEY: Blame tidak tersedia untuk file ini
+AR : Blame is not available for this file
+ID : Blame tidak tersedia untuk file ini
+EN : Blame is not available for this file
+
+### 37
+KEY: Both a local and a remote path are needed.
+AR : Both a local and a remote path are needed.
+ID : Both a local and a remote path are needed.
+EN : Both a local and a remote path are needed.
+
+### 38
+KEY: Bottom (flush with terminal)
+AR : Bottom (flush with terminal)
+ID : Bottom (flush with terminal)
+EN : Bottom (flush with terminal)
+
+### 39
+KEY: C-x C-f buka berkas, C-x C-s simpan, C-x C-c tutup, Alt+X daftar perintah.
+AR : C-x C-f opens a file, C-x C-s saves, C-x C-c closes, Alt+X lists commands.
+ID : C-x C-f buka berkas, C-x C-s simpan, C-x C-c tutup, Alt+X daftar perintah.
+EN : C-x C-f opens a file, C-x C-s saves, C-x C-c closes, Alt+X lists commands.
+
+### 40
+KEY: CLI mode: send a message to run the CLI
+AR : CLI mode: send a message to run the CLI
+ID : Mode CLI: kirim pesan untuk menjalankan CLI
+EN : CLI mode: send a message to run the CLI
+
+### 41
+KEY: Cannot run: this workspace has no test framework.
+AR : Cannot run: this workspace has no test framework.
+ID : Cannot run: this workspace has no test framework.
+EN : Cannot run: this workspace has no test framework.
+
+### 42
+KEY: Centang dulu CLI yang mau didaftari
+AR : Select the CLIs you want to register
+ID : Centang dulu CLI yang mau didaftari
+EN : Select the CLIs you want to register
+
+### 43
+KEY: Centang dulu CLI yang mau dilepas
+AR : Select the CLIs you want to remove
+ID : Centang dulu CLI yang mau dilepas
+EN : Select the CLIs you want to remove
+
+### 44
+KEY: Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.
+AR : Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.
+ID : Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.
+EN : Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.
+
+### 45
+KEY: Click copy for its install command, then run it in the terminal.
+AR : Click copy for its install command, then run it in the terminal.
+ID : Click copy for its install command, then run it in the terminal.
+EN : Click copy for its install command, then run it in the terminal.
+
+### 46
+KEY: Click the editor gutter to set a breakpoint.
+AR : Click the editor gutter to set a breakpoint.
+ID : Click the editor gutter to set a breakpoint.
+EN : Click the editor gutter to set a breakpoint.
+
+### 47
+KEY: Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)
+AR : Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)
+ID : Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)
+EN : Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)
+
+### 48
+KEY: Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.
+AR : Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.
+ID : Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.
+EN : Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.
+
+### 49
+KEY: Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.
+AR : Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.
+ID : Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.
+EN : Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.
+
+### 50
+KEY: Commit message (Ctrl+Enter to commit)
+AR : Commit message (Ctrl+Enter to commit)
+ID : Commit message (Ctrl+Enter to commit)
+EN : Commit message (Ctrl+Enter to commit)
+
+### 51
+KEY: Commits not merged into another branch will be lost PERMANENTLY.
+AR : Commits not merged into another branch will be lost PERMANENTLY.
+ID : Commits not merged into another branch will be lost PERMANENTLY.
+EN : Commits not merged into another branch will be lost PERMANENTLY.
+
+### 52
+KEY: Copy all install commands that are not installed yet
+AR : Copy all install commands that are not installed yet
+ID : Copy all install commands that are not installed yet
+EN : Copy all install commands that are not installed yet
+
+### 53
+KEY: Create another pane: a specific shell, private, AI agent, browser, new tab
+AR : Create another pane: a specific shell, private, AI agent, browser, new tab
+ID : Create another pane: a specific shell, private, AI agent, browser, new tab
+EN : Create another pane: a specific shell, private, AI agent, browser, new tab
+
+### 54
+KEY: Ctrl+Shift+A cari aksi, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L rapikan.
+AR : Ctrl+Shift+A finds an action, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L formats.
+ID : Ctrl+Shift+A cari aksi, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L rapikan.
+EN : Ctrl+Shift+A finds an action, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L formats.
+
+### 55
+KEY: Ctrl+W lalu H/J/K/L untuk pindah pane, Ctrl+W V untuk split vertikal.
+AR : Ctrl+W then H/J/K/L to move between panes, Ctrl+W V for a vertical split.
+ID : Ctrl+W lalu H/J/K/L untuk pindah pane, Ctrl+W V untuk split vertikal.
+EN : Ctrl+W then H/J/K/L to move between panes, Ctrl+W V for a vertical split.
+
+### 56
+KEY: Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.
+AR : Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.
+ID : Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.
+EN : Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.
+
+### 57
+KEY: Debug build only: triggers a panic in Rust to test the panic hook + crash dialog
+AR : Debug build only: triggers a panic in Rust to test the panic hook + crash dialog
+ID : Debug build only: triggers a panic in Rust to test the panic hook + crash dialog
+EN : Debug build only: triggers a panic in Rust to test the panic hook + crash dialog
+
+### 58
+KEY: Destructive commands cannot be added to the allow list.
+AR : Destructive commands cannot be added to the allow list.
+ID : Destructive commands cannot be added to the allow list.
+EN : Destructive commands cannot be added to the allow list.
+
+### 59
+KEY: Detecting test framework…
+AR : Detecting test framework…
+ID : Detecting test framework…
+EN : Detecting test framework…
+
+### 60
+KEY: Discard changes to this file (permanent)
+AR : Discard changes to this file (permanent)
+ID : Discard changes to this file (permanent)
+EN : Discard changes to this file (permanent)
+
+### 61
+KEY: Do Not Disturb: toasts are muted, history is still recorded
+AR : Do Not Disturb: toasts are muted, history is still recorded
+ID : Do Not Disturb: toasts are muted, history is still recorded
+EN : Do Not Disturb: toasts are muted, history is still recorded
+
+### 62
+KEY: Drag to change the width
+AR : Drag to change the width
+ID : Drag to change the width
+EN : Drag to change the width
+
+### 63
+KEY: Enable IntelliSense (LSP)
+AR : Enable IntelliSense (LSP)
+ID : Enable IntelliSense (LSP)
+EN : Enable IntelliSense (LSP)
+
+### 64
+KEY: Enter = save · Esc = cancel
+AR : Enter = save · Esc = cancel
+ID : Enter = save · Esc = cancel
+EN : Enter = save · Esc = cancel
+
+### 65
+KEY: Enter sends · Shift+Enter for a new line
+AR : Enter sends · Shift+Enter for a new line
+ID : Enter mengirim · Shift+Enter baris baru
+EN : Enter sends · Shift+Enter for a new line
+
+### 66
+KEY: Enter sends · Shift+Enter new line · Ctrl+I focuses here.
+AR : Enter sends · Shift+Enter new line · Ctrl+I focuses here.
+ID : Enter mengirim · Shift+Enter baris baru · Ctrl+I fokus ke sini.
+EN : Enter sends · Shift+Enter new line · Ctrl+I focuses here.
+
+### 67
+KEY: Estimated from the visible chat contents and tool payloads.
+AR : Estimated from the visible chat contents and tool payloads.
+ID : Perkiraan dari isi chat yang terlihat dan payload tool.
+EN : Estimated from the visible chat contents and tool payloads.
+
+### 68
+KEY: Everything available is installed
+AR : Everything available is installed
+ID : Everything available is installed
+EN : Everything available is installed
+
+### 69
+KEY: Extension JS code runs in
+AR : Extension JS code runs in
+ID : Extension JS code runs in
+EN : Extension JS code runs in
+
+### 70
+KEY: Fetch the model list directly from the provider
+AR : Fetch the model list directly from the provider
+ID : Fetch the model list directly from the provider
+EN : Fetch the model list directly from the provider
+
+### 71
+KEY: Filter (text, source, code, file)…
+AR : Filter (text, source, code, file)…
+ID : Filter (text, source, code, file)…
+EN : Filter (text, source, code, file)…
+
+### 72
+KEY: Find usages of function X\\nCheck for bugs in module Y
+AR : Find usages of function X\\nCheck for bugs in module Y
+ID : Cari pemakaian fungsi X\\nPeriksa bug di modul Y
+EN : Find usages of function X\\nCheck for bugs in module Y
+
+### 73
+KEY: Forget the decision - the folder will be asked again when opened
+AR : Forget the decision - the folder will be asked again when opened
+ID : Forget the decision - the folder will be asked again when opened
+EN : Forget the decision - the folder will be asked again when opened
+
+### 74
+KEY: Gagal membaca tasks.json
+AR : Could not read tasks.json
+ID : Gagal membaca tasks.json
+EN : Could not read tasks.json
+
+### 75
+KEY: Gelap dengan kontras lebih rendah dari bawaan, untuk kerja malam lama.
+AR : Dark with lower contrast than the default, for long night sessions.
+ID : Gelap dengan kontras lebih rendah dari bawaan, untuk kerja malam lama.
+EN : Dark with lower contrast than the default, for long night sessions.
+
+### 76
+KEY: Git will reject the push while those commits are not local. Pull first, then push?
+AR : Git will reject the push while those commits are not local. Pull first, then push?
+ID : Git will reject the push while those commits are not local. Pull first, then push?
+EN : Git will reject the push while those commits are not local. Pull first, then push?
+
+### 77
+KEY: Go to Definition gagal
+AR : Go to Definition failed
+ID : Go to Definition gagal
+EN : Go to Definition failed
+
+### 78
+KEY: Handler HTTP dengan guard method, struct tag, err wrap, goroutine, test.
+AR : HTTP handlers with method guards, struct tags, error wrapping, goroutines, tests.
+ID : Handler HTTP dengan guard method, struct tag, err wrap, goroutine, test.
+EN : HTTP handlers with method guards, struct tags, error wrapping, goroutines, tests.
+
+### 79
+KEY: Headers (without credentials)
+AR : Headers (without credentials)
+ID : Headers (without credentials)
+EN : Headers (without credentials)
+
+### 80
+KEY: Hentikan tes setelah (detik)
+AR : Hentikan tes setelah (detik)
+ID : Hentikan tes setelah (detik)
+EN : Hentikan tes setelah (detik)
+
+### 81
+KEY: How the AI answers: length, evidence, order, tone. Leave empty for the default.
+AR : How the AI answers: length, evidence, order, tone. Leave empty for the default.
+ID : How the AI answers: length, evidence, order, tone. Leave empty for the default.
+EN : How the AI answers: length, evidence, order, tone. Leave empty for the default.
+
+### 82
+KEY: How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.
+AR : How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.
+ID : How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.
+EN : How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.
+
+### 83
+KEY: How to use it: hit "Active" on a persona row to use it — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr\'s built-in behaviour with nothing added.
+AR : How to use it: hit "Active" on a persona row to use it — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr\'s built-in behaviour with nothing added.
+ID : How to use it: hit "Active" on a persona row to use it — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr\'s built-in behaviour with nothing added.
+EN : How to use it: hit "Active" on a persona row to use it — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr\'s built-in behaviour with nothing added.
+
+### 84
+KEY: Info panel - full details are in the Subagents tab.
+AR : Info panel - full details are in the Subagents tab.
+ID : Panel info - detail penuh ada di tab Subagents.
+EN : Info panel - full details are in the Subagents tab.
+
+### 85
+KEY: Install first to see the actual contributions from the manifest.
+AR : Install first to see the actual contributions from the manifest.
+ID : Install first to see the actual contributions from the manifest.
+EN : Install first to see the actual contributions from the manifest.
+
+### 86
+KEY: Install from the bundled catalog
+AR : Install from the bundled catalog
+ID : Install from the bundled catalog
+EN : Install from the bundled catalog
+
+### 87
+KEY: Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)
+AR : The snapshot is loaded into the editor — not saved yet (Ctrl+S to write)
+ID : Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)
+EN : The snapshot is loaded into the editor — not saved yet (Ctrl+S to write)
+
+### 88
+KEY: Jalankan `zephyr --help` untuk daftar opsi.
+AR : Run `zephyr --help` for the list of options.
+ID : Jalankan `zephyr --help` untuk daftar opsi.
+EN : Run `zephyr --help` for the list of options.
+
+### 89
+KEY: Jalankan tes saat workspace dibuka
+AR : Run tests when the workspace opens
+ID : Jalankan tes saat workspace dibuka
+EN : Run tests when the workspace opens
+
+### 90
+KEY: Jalankan ulang file tes saat disimpan
+AR : Re-run the test file when it is saved
+ID : Jalankan ulang file tes saat disimpan
+EN : Re-run the test file when it is saved
+
+### 91
+KEY: Jangan menebak nama berkas, fungsi, atau API. Kalau tidak ada di repo, katakan tidak ada
+AR : Do not guess file, function, or API names. If it is not in the repo, say it is not there
+ID : Jangan menebak nama berkas, fungsi, atau API. Kalau tidak ada di repo, katakan tidak ada
+EN : Do not guess file, function, or API names. If it is not in the repo, say it is not there
+
+### 92
+KEY: Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat penggunanya paham.
+AR : You are a teaching assistant. The goal is not only to finish the task but to make the user understand it.
+ID : Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat penggunanya paham.
+EN : You are a teaching assistant. The goal is not only to finish the task but to make the user understand it.
+
+### 93
+KEY: Kamu asisten yang sangat ringkas. Jawab sesingkat mungkin tanpa kehilangan ketepatan.
+AR : You are a very concise assistant. Answer as briefly as possible without losing accuracy.
+ID : Kamu asisten yang sangat ringkas. Jawab sesingkat mungkin tanpa kehilangan ketepatan.
+EN : You are a very concise assistant. Answer as briefly as possible without losing accuracy.
+
+### 94
+KEY: Kamu asisten yang teliti. Setiap klaim harus punya dasar yang bisa diperiksa.
+AR : You are a thorough assistant. Every claim must rest on something that can be checked.
+ID : Kamu asisten yang teliti. Setiap klaim harus punya dasar yang bisa diperiksa.
+EN : You are a thorough assistant. Every claim must rest on something that can be checked.
+
+### 95
+KEY: Kamu tidak boleh menulis atau mengubah file. Laporkan temuan di jawaban akhir.
+AR : You may not write or change files. Report findings in your final answer.
+ID : Kamu tidak boleh menulis atau mengubah file. Laporkan temuan di jawaban akhir.
+EN : You may not write or change files. Report findings in your final answer.
+
+### 96
+KEY: Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang diminta.
+AR : You have no specific persona. Work carefully and report only what was asked.
+ID : Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang diminta.
+EN : You have no specific persona. Work carefully and report only what was asked.
+
+### 97
+KEY: Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang kamu buktikan.
+AR : You have no specific persona. Work carefully and report only what you can prove.
+ID : Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang kamu buktikan.
+EN : You have no specific persona. Work carefully and report only what you can prove.
+
+### 98
+KEY: Konteks sudah pendek
+AR : The context is already short
+ID : Konteks sudah pendek
+EN : The context is already short
+
+### 99
+KEY: Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang
+AR : Continue the code at the cursor. Reply with ONLY the continuation text that
+ID : Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang
+EN : Continue the code at the cursor. Reply with ONLY the continuation text that
+
+### 100
+KEY: Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah jalan.
+AR : Continue the previous task until it is actually done. Do not stop halfway.
+ID : Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah jalan.
+EN : Continue the previous task until it is actually done. Do not stop halfway.
+
+### 101
+KEY: Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah.
+AR : Continue the previous task until it is actually done. Do not stop halfway.
+ID : Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah.
+EN : Continue the previous task until it is actually done. Do not stop halfway.
+
+### 102
+KEY: Load this snapshot contents into the editor (not saved)
+AR : Load this snapshot contents into the editor (not saved)
+ID : Load this snapshot contents into the editor (not saved)
+EN : Load this snapshot contents into the editor (not saved)
+
+### 103
+KEY: Lokal (opencode / loopback)
+AR : محلي (opencode / loopback)
+ID : Lokal (opencode / loopback)
+EN : Local (opencode / loopback)
+
+### 104
+KEY: Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar.
+AR : Screen reader mode is on. The terminal and editor are tuned for screen readers.
+ID : Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar.
+EN : Screen reader mode is on. The terminal and editor are tuned for screen readers.
+
+### 105
+KEY: Monokrom: glyph dua huruf tanpa warna, untuk layar yang sudah ramai.
+AR : Monochrome: two-letter glyphs with no colour, for screens that are already busy.
+ID : Monokrom: glyph dua huruf tanpa warna, untuk layar yang sudah ramai.
+EN : Monochrome: two-letter glyphs with no colour, for screens that are already busy.
+
+### 106
+KEY: No actions at this position.
+AR : No actions at this position.
+ID : No actions at this position.
+EN : No actions at this position.
+
+### 107
+KEY: No allowed commands yet.
+AR : No allowed commands yet.
+ID : No allowed commands yet.
+EN : No allowed commands yet.
+
+### 108
+KEY: No cells found in this notebook.
+AR : No cells found in this notebook.
+ID : No cells found in this notebook.
+EN : No cells found in this notebook.
+
+### 109
+KEY: No changes - the working tree is clean.
+AR : No changes - the working tree is clean.
+ID : No changes - the working tree is clean.
+EN : No changes - the working tree is clean.
+
+### 110
+KEY: No conflict markers left in this file.
+AR : No conflict markers left in this file.
+ID : No conflict markers left in this file.
+EN : No conflict markers left in this file.
+
+### 111
+KEY: No connection yet. Once an external AI CLI greets
+AR : No connection yet. Once an external AI CLI greets
+ID : No connection yet. Once an external AI CLI greets
+EN : No connection yet. Once an external AI CLI greets
+
+### 112
+KEY: No credentials stored yet.
+AR : No credentials stored yet.
+ID : No credentials stored yet.
+EN : No credentials stored yet.
+
+### 113
+KEY: No custom sub-agent yet. Create one to give the AI a dedicated worker.
+AR : No custom sub-agent yet. Create one to give the AI a dedicated worker.
+ID : No custom sub-agent yet. Create one to give the AI a dedicated worker.
+EN : No custom sub-agent yet. Create one to give the AI a dedicated worker.
+
+### 114
+KEY: No differences for this file.
+AR : No differences for this file.
+ID : No differences for this file.
+EN : No differences for this file.
+
+### 115
+KEY: No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.
+AR : No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.
+ID : No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.
+EN : No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.
+
+### 116
+KEY: No external MCP server yet.
+AR : No external MCP server yet.
+ID : No external MCP server yet.
+EN : No external MCP server yet.
+
+### 117
+KEY: No folder has been opened yet
+AR : No folder has been opened yet
+ID : No folder has been opened yet
+EN : No folder has been opened yet
+
+### 118
+KEY: No folder has ever been given a trust decision.
+AR : No folder has ever been given a trust decision.
+ID : No folder has ever been given a trust decision.
+EN : No folder has ever been given a trust decision.
+
+### 119
+KEY: No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.
+AR : No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.
+ID : No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.
+EN : No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.
+
+### 120
+KEY: No history yet. Save the file (Ctrl+S) to create a snapshot.
+AR : No history yet. Save the file (Ctrl+S) to create a snapshot.
+ID : No history yet. Save the file (Ctrl+S) to create a snapshot.
+EN : No history yet. Save the file (Ctrl+S) to create a snapshot.
+
+### 121
+KEY: No language server for this file.
+AR : No language server for this file.
+ID : No language server for this file.
+EN : No language server for this file.
+
+### 122
+KEY: No problems detected yet. Diagnostics will appear here after a language server or task runs.
+AR : No problems detected yet. Diagnostics will appear here after a language server or task runs.
+ID : No problems detected yet. Diagnostics will appear here after a language server or task runs.
+EN : No problems detected yet. Diagnostics will appear here after a language server or task runs.
+
+### 123
+KEY: No provider has an API key yet. Add one in Settings → AI Models.
+AR : No provider has an API key yet. Add one in Settings → AI Models.
+ID : No provider has an API key yet. Add one in Settings → AI Models.
+EN : No provider has an API key yet. Add one in Settings → AI Models.
+
+### 124
+KEY: No requests yet. Send a message in the AI panel, then come back here.
+AR : No requests yet. Send a message in the AI panel, then come back here.
+ID : No requests yet. Send a message in the AI panel, then come back here.
+EN : No requests yet. Send a message in the AI panel, then come back here.
+
+### 125
+KEY: No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel.
+AR : No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel.
+ID : Tidak ada subagent yang jalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.
+EN : No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel.
+
+### 126
+KEY: No test framework was detected. Add a "test" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.
+AR : No test framework was detected. Add a "test" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.
+ID : No test framework was detected. Add a "test" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.
+EN : No test framework was detected. Add a "test" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.
+
+### 127
+KEY: No workspace yet - open a folder
+AR : No workspace yet - open a folder
+ID : No workspace yet - open a folder
+EN : No workspace yet - open a folder
+
+### 128
+KEY: None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call
+AR : None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call
+ID : None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call
+EN : None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call
+
+### 129
+KEY: None yet. Put a folder containing
+AR : None yet. Put a folder containing
+ID : None yet. Put a folder containing
+EN : None yet. Put a folder containing
+
+### 130
+KEY: Notifications muted (Do Not Disturb) - click to view history
+AR : Notifications muted (Do Not Disturb) - click to view history
+ID : Notifications muted (Do Not Disturb) - click to view history
+EN : Notifications muted (Do Not Disturb) - click to view history
+
+### 131
+KEY: One line — the AI reads it to decide when to delegate here
+AR : One line — the AI reads it to decide when to delegate here
+ID : One line — the AI reads it to decide when to delegate here
+EN : One line — the AI reads it to decide when to delegate here
+
+### 132
+KEY: Open a file to see its symbols.
+AR : Open a file to see its symbols.
+ID : Open a file to see its symbols.
+EN : Open a file to see its symbols.
+
+### 133
+KEY: Open a folder first to debug.
+AR : Open a folder first to debug.
+ID : Open a folder first to debug.
+EN : Open a folder first to debug.
+
+### 134
+KEY: Open a folder first to search the workspace.
+AR : Open a folder first to search the workspace.
+ID : Open a folder first to search the workspace.
+EN : Open a folder first to search the workspace.
+
+### 135
+KEY: Open a folder first to use git.
+AR : Open a folder first to use git.
+ID : Open a folder first to use git.
+EN : Open a folder first to use git.
+
+### 136
+KEY: Open a project folder first - recommendations are computed from the file languages in the workspace.
+AR : Open a project folder first - recommendations are computed from the file languages in the workspace.
+ID : Open a project folder first - recommendations are computed from the file languages in the workspace.
+EN : Open a project folder first - recommendations are computed from the file languages in the workspace.
+
+### 137
+KEY: Open in Restricted Mode
+AR : Open in Restricted Mode
+ID : Open in Restricted Mode
+EN : Open in Restricted Mode
+
+### 138
+KEY: Open in an external browser
+AR : Open in an external browser
+ID : Open in an external browser
+EN : Open in an external browser
+
+### 139
+KEY: Operations since start:
+AR : Operations since start:
+ID : Operations since start:
+EN : Operations since start:
+
+### 140
+KEY: Output was truncated; showing the tail only.
+AR : Output was truncated; showing the tail only.
+ID : Output was truncated; showing the tail only.
+EN : Output was truncated; showing the tail only.
+
+### 141
+KEY: Page could not be loaded
+AR : Page could not be loaded
+ID : Page could not be loaded
+EN : Page could not be loaded
+
+### 142
+KEY: Persona and rules for this worker. It runs with a clean history and only the tools above.
+AR : Persona and rules for this worker. It runs with a clean history and only the tools above.
+ID : Persona and rules for this worker. It runs with a clean history and only the tools above.
+EN : Persona and rules for this worker. It runs with a clean history and only the tools above.
+
+### 143
+KEY: Pesan commit masih kosong.
+AR : The commit message is still empty.
+ID : Pesan commit masih kosong.
+EN : The commit message is still empty.
+
+### 144
+KEY: Pick a model from the list
+AR : Pick a model from the list
+ID : Pick a model from the list
+EN : Pick a model from the list
+
+### 145
+KEY: Picking a side for a hunk writes that version into the file. Use "Take all" to resolve the whole file quickly, then stage it.
+AR : Picking a side for a hunk writes that version into the file. Use "Take all" to resolve the whole file quickly, then stage it.
+ID : Picking a side for a hunk writes that version into the file. Use "Take all" to resolve the whole file quickly, then stage it.
+EN : Picking a side for a hunk writes that version into the file. Use "Take all" to resolve the whole file quickly, then stage it.
+
+### 146
+KEY: Plain HTTP (no encryption)
+AR : Plain HTTP (no encryption)
+ID : Plain HTTP (no encryption)
+EN : Plain HTTP (no encryption)
+
+### 147
+KEY: Platform, identifier, license, and source repository.
+AR : Platform, identifier, license, and source repository.
+ID : Platform, identifier, license, and source repository.
+EN : Platform, identifier, license, and source repository.
+
+### 148
+KEY: Port must be a number from 1 to 65535
+AR : Port must be a number from 1 to 65535
+ID : Port must be a number from 1 to 65535
+EN : Port must be a number from 1 to 65535
+
+### 149
+KEY: Program is running - not paused.
+AR : Program is running - not paused.
+ID : Program is running - not paused.
+EN : Program is running - not paused.
+
+### 150
+KEY: Proses `zephyr --wait` di terminal akan lanjut setelah tab ini ditutup.
+AR : A `zephyr --wait` process in the terminal keeps running after this tab closes.
+ID : Proses `zephyr --wait` di terminal akan lanjut setelah tab ini ditutup.
+EN : A `zephyr --wait` process in the terminal keeps running after this tab closes.
+
+### 151
+KEY: RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines
+AR : RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines
+ID : RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines
+EN : RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines
+
+### 152
+KEY: Re-run the test file when it is saved
+AR : Re-run the test file when it is saved
+ID : Re-run the test file when it is saved
+EN : Re-run the test file when it is saved
+
+### 153
+KEY: Read only. Pick at least one.
+AR : Read only. Pick at least one.
+ID : Read only. Pick at least one.
+EN : Read only. Pick at least one.
+
+### 154
+KEY: Recording is off. Turn it on, then send a message in the AI panel.
+AR : Recording is off. Turn it on, then send a message in the AI panel.
+ID : Recording is off. Turn it on, then send a message in the AI panel.
+EN : Recording is off. Turn it on, then send a message in the AI panel.
+
+### 155
+KEY: Remove keybinding (the command stays in the palette)
+AR : Remove keybinding (the command stays in the palette)
+ID : Remove keybinding (the command stays in the palette)
+EN : Remove keybinding (the command stays in the palette)
+
+### 156
+KEY: Replace all in this file
+AR : Replace all in this file
+ID : Replace all in this file
+EN : Replace all in this file
+
+### 157
+KEY: Replace in all files in the search results
+AR : Replace in all files in the search results
+ID : Replace in all files in the search results
+EN : Replace in all files in the search results
+
+### 158
+KEY: Replace with (may use $1, $2)
+AR : Replace with (may use $1, $2)
+ID : Replace with (may use $1, $2)
+EN : Replace with (may use $1, $2)
+
+### 159
+KEY: Reset everything to default
+AR : Reset everything to default
+ID : Reset everything to default
+EN : Reset everything to default
+
+### 160
+KEY: Reset layout to default
+AR : Reset layout to default
+ID : Reset layout to default
+EN : Reset layout to default
+
+### 161
+KEY: Reset this section to default
+AR : Reset this section to default
+ID : Reset this section to default
+EN : Reset this section to default
+
+### 162
+KEY: Resize editor group width
+AR : Resize editor group width
+ID : Resize editor group width
+EN : Resize editor group width
+
+### 163
+KEY: Resize the bottom panel height
+AR : Resize the bottom panel height
+ID : Resize the bottom panel height
+EN : Resize the bottom panel height
+
+### 164
+KEY: Restart Zephyr to apply. While this is on, the browser pane will not render.
+AR : Restart Zephyr to apply. While this is on, the browser pane will not render.
+ID : Restart Zephyr to apply. While this is on, the browser pane will not render.
+EN : Restart Zephyr to apply. While this is on, the browser pane will not render.
+
+### 165
+KEY: Rewrite this file as UTF-8 so it can be edited
+AR : Rewrite this file as UTF-8 so it can be edited
+ID : Rewrite this file as UTF-8 so it can be edited
+EN : Rewrite this file as UTF-8 so it can be edited
+
+### 166
+KEY: Rules that always apply to this persona. Leave empty if there are none.
+AR : Rules that always apply to this persona. Leave empty if there are none.
+ID : Rules that always apply to this persona. Leave empty if there are none.
+EN : Rules that always apply to this persona. Leave empty if there are none.
+
+### 167
+KEY: Run tests when the workspace opens
+AR : Run tests when the workspace opens
+ID : Run tests when the workspace opens
+EN : Run tests when the workspace opens
+
+### 168
+KEY: Run the test suite to see results here.
+AR : Run the test suite to see results here.
+ID : Run the test suite to see results here.
+EN : Run the test suite to see results here.
+
+### 169
+KEY: Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.
+AR : Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.
+ID : Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.
+EN : Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.
+
+### 170
+KEY: Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.
+AR : Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.
+ID : Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.
+EN : Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.
+
+### 171
+KEY: Runtimes, projects, databases and logs live here.
+AR : Runtimes, projects, databases and logs live here.
+ID : Runtimes, projects, databases and logs live here.
+EN : Runtimes, projects, databases and logs live here.
+
+### 172
+KEY: Screenshot pasted as an attachment
+AR : Screenshot pasted as an attachment
+ID : Screenshot ditempel sebagai lampiran
+EN : Screenshot pasted as an attachment
+
+### 173
+KEY: Scroll lock: stop auto-scroll when new lines arrive
+AR : Scroll lock: stop auto-scroll when new lines arrive
+ID : Scroll lock: stop auto-scroll when new lines arrive
+EN : Scroll lock: stop auto-scroll when new lines arrive
+
+### 174
+KEY: Search command or chord…
+AR : Search command or chord…
+ID : Search command or chord…
+EN : Search command or chord…
+
+### 175
+KEY: Search files & commands…
+AR : Search files & commands…
+ID : Search files & commands…
+EN : Search files & commands…
+
+### 176
+KEY: Search only within the selection
+AR : Search only within the selection
+ID : Search only within the selection
+EN : Search only within the selection
+
+### 177
+KEY: Select all results (multi-cursor)
+AR : Select all results (multi-cursor)
+ID : Select all results (multi-cursor)
+EN : Select all results (multi-cursor)
+
+### 178
+KEY: Semua language server dimatikan; akan start lagi saat file dibuka
+AR : All language servers stopped; they start again when a file is opened
+ID : Semua language server dimatikan; akan start lagi saat file dibuka
+EN : All language servers stopped; they start again when a file is opened
+
+### 179
+KEY: Semua setting dikembalikan ke default (API key TIDAK dihapus)
+AR : Every setting goes back to its default (API keys are NOT deleted)
+ID : Semua setting dikembalikan ke default (API key TIDAK dihapus)
+EN : Every setting goes back to its default (API keys are NOT deleted)
+
+### 180
+KEY: Server MCP dimatikan; port tidak lagi listening
+AR : The MCP server is stopped; the port is no longer listening
+ID : Server MCP dimatikan; port tidak lagi listening
+EN : The MCP server is stopped; the port is no longer listening
+
+### 181
+KEY: Show the bottom panel (Ctrl+J)
+AR : Show the bottom panel (Ctrl+J)
+ID : Show the bottom panel (Ctrl+J)
+EN : Show the bottom panel (Ctrl+J)
+
+### 182
+KEY: Sign in to GitHub (opens browser)
+AR : Sign in to GitHub (opens browser)
+ID : Sign in to GitHub (opens browser)
+EN : Sign in to GitHub (opens browser)
+
+### 183
+KEY: Sign in to GitHub - open Source Control
+AR : Sign in to GitHub - open Source Control
+ID : Sign in to GitHub - open Source Control
+EN : Sign in to GitHub - open Source Control
+
+### 184
+KEY: Some runtimes are not installed
+AR : Some runtimes are not installed
+ID : Some runtimes are not installed
+EN : Some runtimes are not installed
+
+### 185
+KEY: Stop the server after idle (seconds)
+AR : Stop the server after idle (seconds)
+ID : Stop the server after idle (seconds)
+EN : Stop the server after idle (seconds)
+
+### 186
+KEY: Subagent info to the right of chat
+AR : Subagent info to the right of chat
+ID : Subagent info to the right of chat
+EN : Subagent info to the right of chat
+
+### 187
+KEY: Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up.
+AR : Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up.
+ID : Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up.
+EN : Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up.
+
+### 188
+KEY: Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.
+AR : Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.
+ID : Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.
+EN : Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.
+
+### 189
+KEY: Tab belum dimuat ulang — buka dulu sebelum menyimpan
+AR : The tab has not reloaded — open it before saving
+ID : Tab belum dimuat ulang — buka dulu sebelum menyimpan
+EN : The tab has not reloaded — open it before saving
+
+### 190
+KEY: Terminal tab & pane menu
+AR : Terminal tab & pane menu
+ID : Terminal tab & pane menu
+EN : Terminal tab & pane menu
+
+### 191
+KEY: Test announcement from Zephyr. The screen reader path works.
+AR : Test announcement from Zephyr. The screen reader path works.
+ID : Test announcement from Zephyr. The screen reader path works.
+EN : Test announcement from Zephyr. The screen reader path works.
+
+### 192
+KEY: Tests finished with exit code 0
+AR : Tests finished with exit code 0
+ID : Tests finished with exit code 0
+EN : Tests finished with exit code 0
+
+### 193
+KEY: The AI panel is showing in the right column. Change it in Settings → General → AI panel.
+AR : The AI panel is showing in the right column. Change it in Settings → General → AI panel.
+ID : The AI panel is showing in the right column. Change it in Settings → General → AI panel.
+EN : The AI panel is showing in the right column. Change it in Settings → General → AI panel.
+
+### 194
+KEY: The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.
+AR : The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.
+ID : The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.
+EN : The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.
+
+### 195
+KEY: The cost is an estimate, not an official provider bill.
+AR : The cost is an estimate, not an official provider bill.
+ID : Biaya ini perkiraan, bukan tagihan resmi provider.
+EN : The cost is an estimate, not an official provider bill.
+
+### 196
+KEY: The extension folder will be deleted PERMANENTLY (cannot be undone).
+AR : The extension folder will be deleted PERMANENTLY (cannot be undone).
+ID : The extension folder will be deleted PERMANENTLY (cannot be undone).
+EN : The extension folder will be deleted PERMANENTLY (cannot be undone).
+
+### 197
+KEY: The web server that fronts the projects.
+AR : The web server that fronts the projects.
+ID : The web server that fronts the projects.
+EN : The web server that fronts the projects.
+
+### 198
+KEY: Theme/keymap/language changes take effect after reload.
+AR : Theme/keymap/language changes take effect after reload.
+ID : Theme/keymap/language changes take effect after reload.
+EN : Theme/keymap/language changes take effect after reload.
+
+### 199
+KEY: This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.
+AR : This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.
+ID : This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.
+EN : This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.
+
+### 200
+KEY: This command is potentially destructive - allow the agent?
+AR : This command is potentially destructive - allow the agent?
+ID : Perintah ini berpotensi merusak - izinkan agent?
+EN : This command is potentially destructive - allow the agent?
+
+### 201
+KEY: This command is potentially destructive:
+AR : This command is potentially destructive:
+ID : Perintah ini berpotensi merusak:
+EN : This command is potentially destructive:
+
+### 202
+KEY: This command is too short - write something more specific (e.g. "npm run build", not "n").
+AR : This command is too short - write something more specific (e.g. "npm run build", not "n").
+ID : This command is too short - write something more specific (e.g. "npm run build", not "n").
+EN : This command is too short - write something more specific (e.g. "npm run build", not "n").
+
+### 203
+KEY: This folder is not a git repository yet.
+AR : This folder is not a git repository yet.
+ID : This folder is not a git repository yet.
+EN : This folder is not a git repository yet.
+
+### 204
+KEY: This host connection will be removed from the list.
+AR : This host connection will be removed from the list.
+ID : This host connection will be removed from the list.
+EN : This host connection will be removed from the list.
+
+### 205
+KEY: This is what is actually sent to the model (without project rules & context).
+AR : This is what is actually sent to the model (without project rules & context).
+ID : This is what is actually sent to the model (without project rules & context).
+EN : This is what is actually sent to the model (without project rules & context).
+
+### 206
+KEY: This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.
+AR : This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.
+ID : This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.
+EN : This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.
+
+### 207
+KEY: Tidak ada kursor di editor
+AR : No cursor in the editor
+ID : Tidak ada kursor di editor
+EN : No cursor in the editor
+
+### 208
+KEY: Tidak ada language server yang hidup
+AR : No language server is running
+ID : Tidak ada language server yang hidup
+EN : No language server is running
+
+### 209
+KEY: Tidak ada perubahan ter-stage — stage dulu lalu ulangi.
+AR : Nothing is staged — stage changes first, then try again.
+ID : Tidak ada perubahan ter-stage — stage dulu lalu ulangi.
+EN : Nothing is staged — stage changes first, then try again.
+
+### 210
+KEY: Tidak ada perubahan untuk di-stash
+AR : There are no changes to stash
+ID : Tidak ada perubahan untuk di-stash
+EN : There are no changes to stash
+
+### 211
+KEY: Tidak ada perubahan untuk diringkas
+AR : There are no changes to summarise
+ID : Tidak ada perubahan untuk diringkas
+EN : There are no changes to summarise
+
+### 212
+KEY: Tidak ada warna di dokumen ini
+AR : No colours in this document
+ID : Tidak ada warna di dokumen ini
+EN : No colours in this document
+
+### 213
+KEY: Tidak bisa membuka file untuk restore
+AR : Could not open the file to restore
+ID : Tidak bisa membuka file untuk restore
+EN : Could not open the file to restore
+
+### 214
+KEY: Tidak bisa menjalankan: tidak ada framework tes di workspace ini.
+AR : Cannot run: there is no test framework in this workspace.
+ID : Tidak bisa menjalankan: tidak ada framework tes di workspace ini.
+EN : Cannot run: there is no test framework in this workspace.
+
+### 215
+KEY: Timestamps (ms since process start):
+AR : Timestamps (ms since process start):
+ID : Timestamps (ms since process start):
+EN : Timestamps (ms since process start):
+
+### 216
+KEY: Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang.
+AR : A new token was created. Registered CLIs need to be written again.
+ID : Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang.
+EN : A new token was created. Registered CLIs need to be written again.
+
+### 217
+KEY: Tools introduced to the model
+AR : Tools introduced to the model
+ID : Tools introduced to the model
+EN : Tools introduced to the model
+
+### 218
+KEY: Total RAM (with WebView2)
+AR : Total RAM (with WebView2)
+ID : Total RAM (with WebView2)
+EN : Total RAM (with WebView2)
+
+### 219
+KEY: Tulis rencana langkah-langkah untuk tugas ini, lalu kerjakan satu per satu.
+AR : Write a step-by-step plan for this task, then work through it one step at a time.
+ID : Tulis rencana langkah-langkah untuk tugas ini, lalu kerjakan satu per satu.
+EN : Write a step-by-step plan for this task, then work through it one step at a time.
+
+### 220
+KEY: Type a commit message first
+AR : Type a commit message first
+ID : Type a commit message first
+EN : Type a commit message first
+
+### 221
+KEY: Type a task for the agent (Enter to send)…
+AR : Type a task for the agent (Enter to send)…
+ID : Ketik tugas untuk agent (Enter untuk kirim)…
+EN : Type a task for the agent (Enter to send)…
+
+### 222
+KEY: Undo the last replace (from Local History)
+AR : Undo the last replace (from Local History)
+ID : Undo the last replace (from Local History)
+EN : Undo the last replace (from Local History)
+
+### 223
+KEY: Untrusted folders run in
+AR : Untrusted folders run in
+ID : Untrusted folders run in
+EN : Untrusted folders run in
+
+### 224
+KEY: Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.
+AR : Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.
+ID : Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.
+EN : Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.
+
+### 225
+KEY: Uses the OpenSSH client; a key or ssh-agent is required.
+AR : Uses the OpenSSH client; a key or ssh-agent is required.
+ID : Uses the OpenSSH client; a key or ssh-agent is required.
+EN : Uses the OpenSSH client; a key or ssh-agent is required.
+
+### 226
+KEY: Uses the active language LSP formatter
+AR : Uses the active language LSP formatter
+ID : Uses the active language LSP formatter
+EN : Uses the active language LSP formatter
+
+### 227
+KEY: When off, the MCP server stops accepting commands - the CLI configuration is not changed.
+AR : When off, the MCP server stops accepting commands - the CLI configuration is not changed.
+ID : When off, the MCP server stops accepting commands - the CLI configuration is not changed.
+EN : When off, the MCP server stops accepting commands - the CLI configuration is not changed.
+
+### 228
+KEY: When this switch is on, Zephyr becomes an MCP server at
+AR : When this switch is on, Zephyr becomes an MCP server at
+ID : When this switch is on, Zephyr becomes an MCP server at
+EN : When this switch is on, Zephyr becomes an MCP server at
+
+### 229
+KEY: Where runtimes, projects, databases, certificates, and logs live.
+AR : Where runtimes, projects, databases, certificates, and logs live.
+ID : Where runtimes, projects, databases, certificates, and logs live.
+EN : Where runtimes, projects, databases, certificates, and logs live.
+
+### 230
+KEY: Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.
+AR : Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.
+ID : Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.
+EN : Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.
+
+### 231
+KEY: Who this AI is. Leave empty to use Zephyr\'s default identity.
+AR : Who this AI is. Leave empty to use Zephyr\'s default identity.
+ID : Who this AI is. Leave empty to use Zephyr\'s default identity.
+EN : Who this AI is. Leave empty to use Zephyr\'s default identity.
+
+### 232
+KEY: Windows already requested reduced motion - animation is off even if this is off
+AR : Windows already requested reduced motion - animation is off even if this is off
+ID : Windows already requested reduced motion - animation is off even if this is off
+EN : Windows already requested reduced motion - animation is off even if this is off
+
+### 233
+KEY: Workspace: Buka File .code-workspace
+AR : Workspace: Open a .code-workspace File
+ID : Workspace: Buka File .code-workspace
+EN : Workspace: Open a .code-workspace File
+
+### 234
+KEY: Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file
+AR : Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file
+ID : Tulis pesan (Enter kirim, Shift+Enter baris baru) - ketik @ untuk melampirkan file
+EN : Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file
+
+### 235
+KEY: Write one task per line above, then Run. Each line becomes one subagent that works concurrently.
+AR : Write one task per line above, then Run. Each line becomes one subagent that works concurrently.
+ID : Write one task per line above, then Run. Each line becomes one subagent that works concurrently.
+EN : Write one task per line above, then Run. Each line becomes one subagent that works concurrently.
+
+### 236
+KEY: Write the MCP configuration to every CLI installed on this machine
+AR : Write the MCP configuration to every CLI installed on this machine
+ID : Write the MCP configuration to every CLI installed on this machine
+EN : Write the MCP configuration to every CLI installed on this machine
+
+### 237
+KEY: Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.
+AR : Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.
+ID : Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.
+EN : Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.
+
+### 238
+KEY: Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).
+AR : Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).
+ID : Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).
+EN : Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).
+
+### 239
+KEY: Zephyr can be used entirely with the keyboard. Press
+AR : Zephyr can be used entirely with the keyboard. Press
+ID : Zephyr can be used entirely with the keyboard. Press
+EN : Zephyr can be used entirely with the keyboard. Press
+
+### 240
+KEY: Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.
+AR : Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.
+ID : Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.
+EN : Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.
+
+### 241
+KEY: Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in
+AR : Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in
+ID : Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in
+EN : Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in
+
+### 242
+KEY: Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.
+AR : Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.
+ID : Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.
+EN : Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.
+
+### 243
+KEY: a subagent stops if it exceeds this limit - a guard against endless loops that burn cost
+AR : a subagent stops if it exceeds this limit - a guard against endless loops that burn cost
+ID : a subagent stops if it exceeds this limit - a guard against endless loops that burn cost
+EN : a subagent stops if it exceeds this limit - a guard against endless loops that burn cost
+
+### 244
+KEY: an isolated Web Worker sandbox
+AR : an isolated Web Worker sandbox
+ID : an isolated Web Worker sandbox
+EN : an isolated Web Worker sandbox
+
+### 245
+KEY: and also applies to subfolders.
+AR : and also applies to subfolders.
+ID : and also applies to subfolders.
+EN : and also applies to subfolders.
+
+### 246
+KEY: axe belum disuntik
+AR : axe has not been injected
+ID : axe belum disuntik
+EN : axe has not been injected
+
+### 247
+KEY: berlaku untuk chat berikutnya, tidak perlu ganti model.
+AR : applies to the next chat, no model change needed.
+ID : berlaku untuk chat berikutnya, tidak perlu ganti model.
+EN : applies to the next chat, no model change needed.
+
+### 248
+KEY: bottom = flush with the terminal; right = a 340px column like VS Code
+AR : bottom = flush with the terminal; right = a 340px column like VS Code
+ID : bottom = flush with the terminal; right = a 340px column like VS Code
+EN : bottom = flush with the terminal; right = a 340px column like VS Code
+
+### 249
+KEY: buka folder dulu untuk mencari
+AR : open a folder first to search
+ID : buka folder dulu untuk mencari
+EN : open a folder first to search
+
+### 250
+KEY: color brackets by depth
+AR : color brackets by depth
+ID : color brackets by depth
+EN : color brackets by depth
+
+### 251
+KEY: default NO. Several subagents writing the same file can overwrite each other
+AR : default NO. Several subagents writing the same file can overwrite each other
+ID : default NO. Several subagents writing the same file can overwrite each other
+EN : default NO. Several subagents writing the same file can overwrite each other
+
+### 252
+KEY: dialog pilih folder dibuka untuk user
+AR : the folder picker was opened for the user
+ID : dialog pilih folder dibuka untuk user
+EN : the folder picker was opened for the user
+
+### 253
+KEY: dot for spaces, arrow for tabs
+AR : dot for spaces, arrow for tabs
+ID : dot for spaces, arrow for tabs
+EN : dot for spaces, arrow for tabs
+
+### 254
+KEY: draws the actual text, not color blocks - much heavier
+AR : draws the actual text, not color blocks - much heavier
+ID : draws the actual text, not color blocks - much heavier
+EN : draws the actual text, not color blocks - much heavier
+
+### 255
+KEY: each subagent calls the provider itself - more subagents means the quota is used up faster
+AR : each subagent calls the provider itself - more subagents means the quota is used up faster
+ID : each subagent calls the provider itself - more subagents means the quota is used up faster
+EN : each subagent calls the provider itself - more subagents means the quota is used up faster
+
+### 256
+KEY: editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane
+AR : editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane
+ID : editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane
+EN : editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane
+
+### 257
+KEY: eksekusi runtime gagal
+AR : runtime execution failed
+ID : eksekusi runtime gagal
+EN : runtime execution failed
+
+### 258
+KEY: ekstensi tidak dimuat
+AR : the extension is not loaded
+ID : ekstensi tidak dimuat
+EN : the extension is not loaded
+
+### 259
+KEY: entries are written to the config; the old file is copied to .bak
+AR : entries are written to the config; the old file is copied to .bak
+ID : entries are written to the config; the old file is copied to .bak
+EN : entries are written to the config; the old file is copied to .bak
+
+### 260
+KEY: fill covers fully, fit shows it whole, center is original size
+AR : fill covers fully, fit shows it whole, center is original size
+ID : fill covers fully, fit shows it whole, center is original size
+EN : fill covers fully, fit shows it whole, center is original size
+
+### 261
+KEY: flag ambiguous & invisible characters
+AR : flag ambiguous & invisible characters
+ID : flag ambiguous & invisible characters
+EN : flag ambiguous & invisible characters
+
+### 262
+KEY: folder path + symbols from the language server
+AR : folder path + symbols from the language server
+ID : folder path + symbols from the language server
+EN : folder path + symbols from the language server
+
+### 263
+KEY: for Ollama) if local, then type
+AR : for Ollama) if local, then type
+ID : for Ollama) if local, then type
+EN : for Ollama) if local, then type
+
+### 264
+KEY: for all commands. The contrast of every theme meets WCAG AA; the
+AR : for all commands. The contrast of every theme meets WCAG AA; the
+ID : for all commands. The contrast of every theme meets WCAG AA; the
+EN : for all commands. The contrast of every theme meets WCAG AA; the
+
+### 265
+KEY: from the start to jump straight to the editor,
+AR : from the start to jump straight to the editor,
+ID : from the start to jump straight to the editor,
+EN : from the start to jump straight to the editor,
+
+### 266
+KEY: fs.Stream tidak didukung di sandbox ekstensi Zephyr
+AR : fs.Stream is not supported in the Zephyr extension sandbox
+ID : fs.Stream tidak didukung di sandbox ekstensi Zephyr
+EN : fs.Stream is not supported in the Zephyr extension sandbox
+
+### 267
+KEY: fs.realpath.native tidak didukung di sandbox ekstensi Zephyr
+AR : fs.realpath.native is not supported in the Zephyr extension sandbox
+ID : fs.realpath.native tidak didukung di sandbox ekstensi Zephyr
+EN : fs.realpath.native is not supported in the Zephyr extension sandbox
+
+### 268
+KEY: function/class lines stick while scrolling
+AR : function/class lines stick while scrolling
+ID : function/class lines stick while scrolling
+EN : function/class lines stick while scrolling
+
+### 269
+KEY: harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown,
+AR : should be typed next, with no explanation, no markdown block,
+ID : harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown,
+EN : should be typed next, with no explanation, no markdown block,
+
+### 270
+KEY: health check dari AI CLI
+AR : health check from an AI CLI
+ID : health check dari AI CLI
+EN : health check from an AI CLI
+
+### 271
+KEY: how clearly the image shows through
+AR : how clearly the image shows through
+ID : how clearly the image shows through
+EN : how clearly the image shows through
+
+### 272
+KEY: how many header lines are stacked
+AR : how many header lines are stacked
+ID : how many header lines are stacked
+EN : how many header lines are stacked
+
+### 273
+KEY: if turned off, only the summary appears
+AR : if turned off, only the summary appears
+ID : if turned off, only the summary appears
+EN : if turned off, only the summary appears
+
+### 274
+KEY: in the extensions folder, or use the "Add from file…" button.
+AR : in the extensions folder, or use the "Add from file…" button.
+ID : in the extensions folder, or use the "Add from file…" button.
+EN : in the extensions folder, or use the "Add from file…" button.
+
+### 275
+KEY: in the field or pick from
+AR : in the field or pick from
+ID : in the field or pick from
+EN : in the field or pick from
+
+### 276
+KEY: indent guides + active indent
+AR : indent guides + active indent
+ID : indent guides + active indent
+EN : indent guides + active indent
+
+### 277
+KEY: install commands copied
+AR : install commands copied
+ID : install commands copied
+EN : install commands copied
+
+### 278
+KEY: is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.
+AR : is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.
+ID : is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.
+EN : is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.
+
+### 279
+KEY: language server tidak aktif untuk file ini
+AR : no language server is active for this file
+ID : language server tidak aktif untuk file ini
+EN : no language server is active for this file
+
+### 280
+KEY: leave empty to use the theme color
+AR : leave empty to use the theme color
+ID : leave empty to use the theme color
+EN : leave empty to use the theme color
+
+### 281
+KEY: light/dark mode; specific themes are in the Theme section
+AR : light/dark mode; specific themes are in the Theme section
+ID : light/dark mode; specific themes are in the Theme section
+EN : light/dark mode; specific themes are in the Theme section
+
+### 282
+KEY: lightweight code editor, built from scratch
+AR : lightweight code editor, built from scratch
+ID : lightweight code editor, built from scratch
+EN : lightweight code editor, built from scratch
+
+### 283
+KEY: main labels only, not all text
+AR : main labels only, not all text
+ID : main labels only, not all text
+EN : main labels only, not all text
+
+### 284
+KEY: manifest tidak terbaca
+AR : the manifest could not be read
+ID : manifest tidak terbaca
+EN : the manifest could not be read
+
+### 285
+KEY: menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya.
+AR : duplicates a built-in persona so you can change it without losing the original.
+ID : menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya.
+EN : duplicates a built-in persona so you can change it without losing the original.
+
+### 286
+KEY: move focus to the dialog when it opens (turn off if it is disruptive)
+AR : move focus to the dialog when it opens (turn off if it is disruptive)
+ID : move focus to the dialog when it opens (turn off if it is disruptive)
+EN : move focus to the dialog when it opens (turn off if it is disruptive)
+
+### 287
+KEY: nama memuat karakter yang tidak diizinkan
+AR : the name contains characters that are not allowed
+ID : nama memuat karakter yang tidak diizinkan
+EN : the name contains characters that are not allowed
+
+### 288
+KEY: nama tidak boleh diakhiri titik atau spasi
+AR : the name cannot end with a dot or a space
+ID : nama tidak boleh diakhiri titik atau spasi
+EN : the name cannot end with a dot or a space
+
+### 289
+KEY: no telemetry; only checks the release version
+AR : no telemetry; only checks the release version
+ID : no telemetry; only checks the release version
+EN : no telemetry; only checks the release version
+
+### 290
+KEY: off by default to save RAM
+AR : off by default to save RAM
+ID : off by default to save RAM
+EN : off by default to save RAM
+
+### 291
+KEY: one per line, Name: value
+AR : one per line, Name: value
+ID : one per line, Name: value
+EN : one per line, Name: value
+
+### 292
+KEY: only changes the tab buffer, it does NOT write to disk - saving remains your decision.
+AR : only changes the tab buffer, it does NOT write to disk - saving remains your decision.
+ID : only changes the tab buffer, it does NOT write to disk - saving remains your decision.
+EN : only changes the tab buffer, it does NOT write to disk - saving remains your decision.
+
+### 293
+KEY: or calls a tool, its line appears here - real proof, not a claim.
+AR : or calls a tool, its line appears here - real proof, not a claim.
+ID : or calls a tool, its line appears here - real proof, not a claim.
+EN : or calls a tool, its line appears here - real proof, not a claim.
+
+### 294
+KEY: package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod tidak ditemukan
+AR : no package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, or go.mod was found
+ID : package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod tidak ditemukan
+EN : no package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, or go.mod was found
+
+### 295
+KEY: pane gagal dibuat
+AR : creating the pane failed
+ID : pane gagal dibuat
+EN : creating the pane failed
+
+### 296
+KEY: pane tidak bisa dibuat
+AR : the pane could not be created
+ID : pane tidak bisa dibuat
+EN : the pane could not be created
+
+### 297
+KEY: panes exceeding the limit are rejected with a toast
+AR : panes exceeding the limit are rejected with a toast
+ID : panes exceeding the limit are rejected with a toast
+EN : panes exceeding the limit are rejected with a toast
+
+### 298
+KEY: passphrase is typed on connect
+AR : passphrase is typed on connect
+ID : passphrase is typed on connect
+EN : passphrase is typed on connect
+
+### 299
+KEY: pesan commit masih kosong
+AR : the commit message is still empty
+ID : pesan commit masih kosong
+EN : the commit message is still empty
+
+### 300
+KEY: position of snippet suggestions in the completion list
+AR : position of snippet suggestions in the completion list
+ID : position of snippet suggestions in the completion list
+EN : position of snippet suggestions in the completion list
+
+### 301
+KEY: providers hidden because there is no API key yet.
+AR : providers hidden because there is no API key yet.
+ID : provider disembunyikan karena belum ada API key.
+EN : providers hidden because there is no API key yet.
+
+### 302
+KEY: ripgrep is not installed - using the built-in search
+AR : ripgrep is not installed - using the built-in search
+ID : ripgrep is not installed - using the built-in search
+EN : ripgrep is not installed - using the built-in search
+
+### 303
+KEY: set a photo as the editor background
+AR : set a photo as the editor background
+ID : set a photo as the editor background
+EN : set a photo as the editor background
+
+### 304
+KEY: smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines
+AR : smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines
+ID : smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines
+EN : smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines
+
+### 305
+KEY: smoother, slightly heavier
+AR : smoother, slightly heavier
+ID : smoother, slightly heavier
+EN : smoother, slightly heavier
+
+### 306
+KEY: so the AI can answer. Without a key, every request will fail with 401.
+AR : so the AI can answer. Without a key, every request will fail with 401.
+ID : supaya AI bisa menjawab. Tanpa key, setiap request gagal dengan 401.
+EN : so the AI can answer. Without a key, every request will fail with 401.
+
+### 307
+KEY: steps are collapsed right after they finish
+AR : steps are collapsed right after they finish
+ID : steps are collapsed right after they finish
+EN : steps are collapsed right after they finish
+
+### 308
+KEY: swatch for #hex/rgb()/hsl(), click for a picker
+AR : swatch for #hex/rgb()/hsl(), click for a picker
+ID : swatch for #hex/rgb()/hsl(), click for a picker
+EN : swatch for #hex/rgb()/hsl(), click for a picker
+
+### 309
+KEY: tanpa mengulang kode yang sudah ada. Maksimal satu baris.
+AR : and without repeating the code that is already there. One line at most.
+ID : tanpa mengulang kode yang sudah ada. Maksimal satu baris.
+EN : and without repeating the code that is already there. One line at most.
+
+### 310
+KEY: tasks tidak didukung di sandbox Zephyr
+AR : tasks are not supported in the Zephyr sandbox
+ID : tasks tidak didukung di sandbox Zephyr
+EN : tasks are not supported in the Zephyr sandbox
+
+### 311
+KEY: terminal & editor optimized for Narrator/NVDA (heavier)
+AR : terminal & editor optimized for Narrator/NVDA (heavier)
+ID : terminal & editor optimized for Narrator/NVDA (heavier)
+EN : terminal & editor optimized for Narrator/NVDA (heavier)
+
+### 312
+KEY: the screen reader needs time to read; increase it if the toast disappears too quickly
+AR : the screen reader needs time to read; increase it if the toast disappears too quickly
+ID : the screen reader needs time to read; increase it if the toast disappears too quickly
+EN : the screen reader needs time to read; increase it if the toast disappears too quickly
+
+### 313
+KEY: then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.
+AR : then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.
+ID : then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.
+EN : then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.
+
+### 314
+KEY: tidak ada penanda teknologi umum
+AR : no common technology markers
+ID : tidak ada penanda teknologi umum
+EN : no common technology markers
+
+### 315
+KEY: tidak ada test framework yang terdeteksi
+AR : no test framework detected
+ID : tidak ada test framework yang terdeteksi
+EN : no test framework detected
+
+### 316
+KEY: tidak bisa memindahkan folder ke dalam dirinya sendiri
+AR : a folder cannot be moved into itself
+ID : tidak bisa memindahkan folder ke dalam dirinya sendiri
+EN : a folder cannot be moved into itself
+
+### 317
+KEY: tidak ditemukan di dalam ekstensi Zephyr
+AR : was not found inside the Zephyr extension
+ID : tidak ditemukan di dalam ekstensi Zephyr
+EN : was not found inside the Zephyr extension
+
+### 318
+KEY: to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.
+AR : to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.
+ID : to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.
+EN : to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.
+
+### 319
+KEY: turn off if the text feels hard to read
+AR : turn off if the text feels hard to read
+ID : turn off if the text feels hard to read
+EN : turn off if the text feels hard to read
+
+### 320
+KEY: turn off transitions & animations inside Zephyr
+AR : turn off transitions & animations inside Zephyr
+ID : turn off transitions & animations inside Zephyr
+EN : turn off transitions & animations inside Zephyr
+
+### 321
+KEY: used as Authorization: Bearer ***
+AR : used as Authorization: Bearer ***
+ID : used as Authorization: Bearer ***
+EN : used as Authorization: Bearer ***
+
+### 322
+KEY: used by the editor & terminal
+AR : used by the editor & terminal
+ID : used by the editor & terminal
+EN : used by the editor & terminal
+
+### 323
+KEY: yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.
+AR : is active: that is Zephyr\'s built-in behaviour with nothing added.
+ID : yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.
+EN : is active: that is Zephyr\'s built-in behaviour with nothing added.
+
+### 324
+KEY: ≈3.0k tokens for the full tool list
+AR : ≈3.0k tokens for the full tool list
+ID : ≈3.0k tokens for the full tool list
+EN : ≈3.0k tokens for the full tool list
+

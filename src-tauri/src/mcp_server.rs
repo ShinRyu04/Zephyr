@@ -137,10 +137,10 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
 pub fn stop(app: &AppHandle) -> bool {
     let state = app.state::<AppState>();
     let dibatalkan = state.mcp_fail_pending(
-        "MCP dimatikan saat permintaan berjalan — coba lagi setelah server dinyalakan",
+        "MCP was turned off while the request was running — try again after the server is started",
     );
     if dibatalkan > 0 {
-        tracing::info!("mcp_stop membatalkan {dibatalkan} permintaan yang menggantung");
+        tracing::info!("mcp_stop cancelled {dibatalkan} pending requests");
     }
     match state.mcp_take_runtime() {
         Some(rt) => {
@@ -154,7 +154,7 @@ pub fn stop(app: &AppHandle) -> bool {
 fn unauthorized() -> axum::response::Response {
     (
         StatusCode::UNAUTHORIZED,
-        Json(json!({ "error": "Bearer token salah atau is missing" })),
+        Json(json!({ "error": "Bearer token is wrong or missing" })),
     )
         .into_response()
 }
@@ -177,7 +177,7 @@ fn tebak_cli(ua: &str) -> String {
         }
     }
     if ua.trim().is_empty() {
-        "klien tak dikenal".to_string()
+        "unknown client".to_string()
     } else {
         ua.chars().take(40).collect()
     }
@@ -197,7 +197,7 @@ async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
     if !settings_enabled(&state) {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "ok": false, "error": "MCP dimatikan di Settings" })),
+            Json(json!({ "ok": false, "error": "MCP is disabled in Settings" })),
         )
             .into_response();
     }
@@ -237,7 +237,7 @@ async fn mcp_get(
     if !settings_enabled(&state) {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "ok": false, "error": "MCP dimatikan di Settings" })),
+            Json(json!({ "ok": false, "error": "MCP is disabled in Settings" })),
         )
             .into_response();
     }
@@ -339,7 +339,7 @@ async fn rpc(
     if !settings_enabled(&state) {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "error": "MCP dimatikan di Settings" })),
+            Json(json!({ "error": "MCP is disabled in Settings" })),
         )
             .into_response();
     }
@@ -377,7 +377,7 @@ async fn handle_one(app: &AppHandle, req: Value) -> Value {
     if method.is_empty() {
         return json!({
             "jsonrpc": "2.0", "id": id,
-            "error": { "code": -32600, "message": "method wajib ada" }
+            "error": { "code": -32600, "message": "method is required" }
         });
     }
 
@@ -420,48 +420,48 @@ pub fn tools_schema() -> Value {
         "version": 1,
         "transport": "http-jsonrpc",
         "endpoint": "POST http://127.0.0.1:9222/",
-        "auth": "Authorization: Bearer <token dari Settings → MCP>",
+        "auth": "Authorization: Bearer token from Settings → MCP>",
         "notes": [
-            "editor_write & editor_insert HANYA mengubah buffer tab — TIDAK menulis ke disk.",
-            "screenshot_pane v1 menyimpan isi buffer terminal sebagai file teks di %TEMP%.",
-            "Semua method diserialisasi: dua agent yang mengemudi bersamaan diproses satu per satu."
+            "editor_write & editor_insert ONLY change the tab buffer — they do NOT write to disk.",
+            "screenshot_pane v1 saves the terminal buffer contents as a text file in %TEMP%.",
+            "All methods are serialized: two agents driving at the same time are processed one at a time."
         ],
         "tools": [
-            tool("list_panes", "Daftar pane terminal/browser: paneId, type, title, agent, pid, running.", json!({}), vec![]),
+            tool("list_panes", "List of terminal/browser panes: paneId, type, title, agent, pid, running.", json!({}), vec![]),
             tool("list_terminals", "Alias list_panes (shell/private/agent/ssh/browser).", json!({}), vec![]),
-            tool("list_editors", "Tab editor yang terbuka: tabId, path, name, dirty, line, col.", json!({}), vec![]),
-            tool("get_window", "Kondisi jendela: focusedPaneId, title, workspace, layout.", json!({}), vec![]),
-            tool("list_extensions", "Ekstensi bawaan: id, enabled, version.", json!({}), vec![]),
-            tool("get_settings", "Settings efektif tanpa secret (mcp.token dimask).", json!({}), vec![]),
-            tool("get_setting", "Ambil satu setting dengan key bertitik, mis. 'editor.tabSize'.",
-                 json!({ "key": s("key bertitik, mis. general.fontSize") }), vec!["key"]),
-            tool("set_setting", "Ubah satu setting (hanya whitelist tampilan/editor).",
-                 json!({ "key": s("key bertitik"), "value": json!({ "description": "nilai baru" }) }), vec!["key", "value"]),
-            tool("terminal_write", "Kirim teks mentah ke pane terminal (tidak menambah Enter).",
-                 json!({ "paneId": s("id pane dari list_panes"), "data": s("teks yang dikirim") }), vec!["paneId", "data"]),
-            tool("terminal_key", "Kirim satu tombol: Enter, Ctrl+C, Ctrl+L, Ctrl+D, Arrow*, Tab, Escape, Backspace.",
-                 json!({ "paneId": s("id pane"), "key": s("nama tombol") }), vec!["paneId", "key"]),
-            tool("pane_new", "Buat pane baru: shell | private | agent | browser.",
-                 json!({ "type": s("jenis pane"), "agent": s("id agent CLI bila type=agent") }), vec![]),
-            tool("pane_close", "Tutup pane dan matikan prosesnya.",
+            tool("list_editors", "Open editor tabs: tabId, path, name, dirty, line, col.", json!({}), vec![]),
+            tool("get_window", "Window state: focusedPaneId, title, workspace, layout.", json!({}), vec![]),
+            tool("list_extensions", "Built-in extensions: id, enabled, version.", json!({}), vec![]),
+            tool("get_settings", "Effective settings without secrets (mcp.token is masked).", json!({}), vec![]),
+            tool("get_setting", "Get one setting by dotted key, e.g. 'editor.tabSize'.",
+                 json!({ "key": s("dotted key, e.g. general.fontSize") }), vec!["key"]),
+            tool("set_setting", "Change one setting (display/editor whitelist only).",
+                 json!({ "key": s("dotted key"), "value": json!({ "description": "new value" }) }), vec!["key", "value"]),
+            tool("terminal_write", "Send raw text to the terminal pane (does not add Enter).",
+                 json!({ "paneId": s("pane id from list_panes"), "data": s("the text to send") }), vec!["paneId", "data"]),
+            tool("terminal_key", "Send one key: Enter, Ctrl+C, Ctrl+L, Ctrl+D, Arrow*, Tab, Escape, Backspace.",
+                 json!({ "paneId": s("pane id"), "key": s("key name") }), vec!["paneId", "key"]),
+            tool("pane_new", "Create a new pane: shell | private | agent | browser.",
+                 json!({ "type": s("pane type"), "agent": s("CLI agent id when type=agent") }), vec![]),
+            tool("pane_close", "Close the pane and kill its process.",
                  json!({ "paneId": s("id pane") }), vec!["paneId"]),
-            tool("editor_open", "Buka file di tab editor baru lalu fokuskan.",
-                 json!({ "path": s("path absolut file") }), vec!["path"]),
-            tool("editor_close", "Tutup tab editor (perubahan belum tersimpan dibuang).",
-                 json!({ "tabId": s("id tab dari list_editors") }), vec!["tabId"]),
-            tool("editor_write", "Ganti SELURUH isi buffer tab. Tidak menulis ke disk (unsaved=true).",
-                 json!({ "tabId": s("id tab"), "content": s("isi baru") }), vec!["tabId", "content"]),
-            tool("editor_insert", "Sisipkan teks ke buffer tab pada offset 'at' (default akhir).",
-                 json!({ "tabId": s("id tab"), "text": s("teks"), "at": json!({ "type": "integer", "description": "offset karakter" }) }), vec!["tabId", "text"]),
-            tool("run_command", "Jalankan command editor: commandPalette.open, terminal.new, ai.focus, git.commit, explorer.openFolder, view.settings, view.explorer, git.panel, terminal.toggle, editor.save.",
-                 json!({ "id": s("id command") }), vec!["id"]),
-            tool("screenshot_pane", "Simpan isi buffer pane ke file teks di %TEMP% lalu kembalikan path.",
+            tool("editor_open", "Open the file in a new editor tab and focus it.",
+                 json!({ "path": s("absolute file path") }), vec!["path"]),
+            tool("editor_close", "Close the editor tab (unsaved changes are discarded).",
+                 json!({ "tabId": s("tab id from list_editors") }), vec!["tabId"]),
+            tool("editor_write", "Replace the ENTIRE tab buffer contents. Does not write to disk (unsaved=true).",
+                 json!({ "tabId": s("id tab"), "content": s("new content") }), vec!["tabId", "content"]),
+            tool("editor_insert", "Insert text into the tab buffer at offset 'at' (default end).",
+                 json!({ "tabId": s("id tab"), "text": s("text"), "at": json!({ "type": "integer", "description": "character offset" }) }), vec!["tabId", "text"]),
+            tool("run_command", "Run an editor command: commandPalette.open, terminal.new, ai.focus, git.commit, explorer.openFolder, view.settings, view.explorer, git.panel, terminal.toggle, editor.save.",
+                 json!({ "id": s("command id") }), vec!["id"]),
+            tool("screenshot_pane", "Save the pane buffer contents to a text file in %TEMP% and return the path.",
                  json!({ "paneId": s("id pane") }), vec!["paneId"]),
 
-            tool("get_problems", "Daftar diagnostik (Problems) yang sedang tampil di panel bawah.",
-                 json!({ "severity": s("filter opsional: error|warning|info|hint") }), vec![]),
-            tool("get_output", "Isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug).",
-                 json!({ "channel": s("id channel"), "tail": json!({ "type": "integer", "description": "ambil N baris terakhir" }) }), vec![]),
+            tool("get_problems", "List of diagnostics (Problems) currently shown in the bottom panel.",
+                 json!({ "severity": s("optional filter: error|warning|info|hint") }), vec![]),
+            tool("get_output", "Contents of one Output channel in the bottom panel (zephyr, mcp, ssh, extensions, debug).",
+                 json!({ "channel": s("channel id"), "tail": json!({ "type": "integer", "description": "take the last N lines" }) }), vec![]),
         ]
     })
 }
@@ -512,7 +512,7 @@ async fn ui_call(app: &AppHandle, kind: &str, payload: Value) -> ZResult<Value> 
     }
 
     const PERCOBAAN: u32 = 3;
-    let mut terakhir = ZephyrError::Mcp("is missing percobaan".into());
+    let mut terakhir = ZephyrError::Mcp("all attempts failed".into());
     for n in 0..PERCOBAAN {
         match sekali(&state, app, kind, payload.clone()).await {
             Ok(v) => return Ok(v),
@@ -535,7 +535,7 @@ fn need_str(params: &Value, key: &str) -> ZResult<String> {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .filter(|s| !s.trim().is_empty())
-        .ok_or_else(|| ZephyrError::InvalidInput(format!("param '{key}' wajib ada")))
+        .ok_or_else(|| ZephyrError::InvalidInput(format!("param '{key}' is required")))
 }
 
 const SET_WHITELIST: [&str; 10] = [
@@ -624,7 +624,7 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             let key = need_str(&params, "key")?;
             let v = crate::settings::read_settings_value(&state);
             if key.starts_with("mcp.token") {
-                return Err(ZephyrError::Permission("mcp.token tidak dibagikan".into()));
+                return Err(ZephyrError::Permission("mcp.token is not shared".into()));
             }
             Ok(json!({ "key": key, "value": dotted_get(&v, &key) }))
         }
@@ -632,14 +632,14 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             let key = need_str(&params, "key")?;
             if !SET_WHITELIST.contains(&key.as_str()) {
                 return Err(ZephyrError::Permission(format!(
-                    "setting '{key}' tidak boleh diubah lewat MCP (whitelist: {})",
+                    "setting '{key}' cannot be changed via MCP (whitelist: {})",
                     SET_WHITELIST.join(", ")
                 )));
             }
             let value = params
                 .get("value")
                 .cloned()
-                .ok_or_else(|| ZephyrError::InvalidInput("param 'value' wajib ada".into()))?;
+                .ok_or_else(|| ZephyrError::InvalidInput("param 'value' is required".into()))?;
             crate::settings::patch_settings(app, &state, nested_patch(&key, value.clone()))?;
 
             let _ = ui_call(app, "reload_settings", json!({})).await;
@@ -651,10 +651,10 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             let data = params
                 .get("data")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| ZephyrError::InvalidInput("param 'data' wajib ada".into()))?;
+                .ok_or_else(|| ZephyrError::InvalidInput("param 'data' is required".into()))?;
             if data.len() > MAX_TERMINAL_WRITE {
                 return Err(ZephyrError::InvalidInput(format!(
-                    "data {} byte melewati batas {} byte (64KB) untuk terminal_write",
+                    "data {} bytes exceeds the {} byte limit (64KB) for terminal_write",
                     data.len(),
                     MAX_TERMINAL_WRITE
                 )));
@@ -734,11 +734,11 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             let content = params
                 .get("content")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| ZephyrError::InvalidInput("param 'content' wajib ada".into()))?;
+                .ok_or_else(|| ZephyrError::InvalidInput("param 'content' is required".into()))?;
 
             if content.len() > MAX_EDITOR_WRITE {
                 return Err(ZephyrError::InvalidInput(format!(
-                    "content {} byte melewati batas {} byte (1MB) untuk editor_write",
+                    "content {} bytes exceeds the {} byte limit (1MB) for editor_write",
                     content.len(),
                     MAX_EDITOR_WRITE
                 )));
@@ -756,10 +756,10 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
             let text = params
                 .get("text")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| ZephyrError::InvalidInput("param 'text' wajib ada".into()))?;
+                .ok_or_else(|| ZephyrError::InvalidInput("param 'text' is required".into()))?;
             if text.len() > MAX_EDITOR_WRITE {
                 return Err(ZephyrError::InvalidInput(format!(
-                    "text {} byte melewati batas {} byte (1MB) untuk editor_insert",
+                    "text {} bytes exceeds the {} byte limit (1MB) for editor_insert",
                     text.len(),
                     MAX_EDITOR_WRITE
                 )));
@@ -823,6 +823,6 @@ async fn screenshot(app: &AppHandle, pane: &str) -> ZResult<Value> {
         "paneId": pane,
         "path": p,
         "format": "text",
-        "note": "v1 menyimpan isi buffer terminal sebagai teks; capture PNG jendela menyusul di fase 16"
+        "note": "v1 saves the terminal buffer contents as text; window PNG capture comes in phase 16"
     }))
 }

@@ -83,7 +83,7 @@ pub fn decide(xfo: Option<&str>, csp: Option<&str>) -> (bool, String, Option<Str
         if low.contains("deny") {
             return (
                 false,
-                "Server mengirim X-Frame-Options: DENY — embed dilarang total.".into(),
+                "The server sends X-Frame-Options: DENY — embedding is completely disallowed.".into(),
                 Some(format!("X-Frame-Options: {v}")),
             );
         }
@@ -97,7 +97,7 @@ pub fn decide(xfo: Option<&str>, csp: Option<&str>) -> (bool, String, Option<Str
         if low.contains("allow-from") {
             return (
                 false,
-                "Server membatasi embed ke origin tertentu (ALLOW-FROM).".into(),
+                "The server restricts embedding to specific origins (ALLOW-FROM).".into(),
                 Some(format!("X-Frame-Options: {v}")),
             );
         }
@@ -110,18 +110,18 @@ pub fn decide(xfo: Option<&str>, csp: Option<&str>) -> (bool, String, Option<Str
             if daftar.contains("'none'") {
                 return (
                     false,
-                    "CSP frame-ancestors 'none' — embed dilarang.".into(),
+                    "CSP frame-ancestors 'none' — embedding is disallowed.".into(),
                     Some(format!("Content-Security-Policy: frame-ancestors {daftar}")),
                 );
             }
             if !daftar.split_whitespace().any(|t| t == "*") {
                 return (
                     false,
-                    format!("CSP frame-ancestors membatasi ke: {daftar}"),
+                    format!("CSP frame-ancestors restricts to: {daftar}"),
                     Some(format!("Content-Security-Policy: frame-ancestors {daftar}")),
                 );
             }
         }
     }
-    (true, "Boleh di-embed".into(), None)
+    (true, "Can be embedded".into(), None)
 }

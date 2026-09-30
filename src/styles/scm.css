@@ -1,6 +1,6 @@
-/* scm.css — Source Control (fase 10): panel sidebar, diff viewer, badge
-   status bar. Semua warna dari CSS variables di theme.css (aturan §4:
-   dilarang hex hardcoded di komponen). */
+/* scm.css — Source Control (phase 10): sidebar panel, diff viewer, status-bar
+   badge. All colours come from the CSS variables in theme.css (rule 4: no
+   hardcoded hex in components). */
 
 /* ── panel ── */
 
@@ -260,7 +260,7 @@
   flex: 0 0 auto;
 }
 
-/* Tombol kecil per baris: hanya tampil saat hover/fokus supaya bersih. */
+/* The small per-row button only shows on hover/focus to keep the list clean. */
 .scm-mini {
   opacity: 0;
 }

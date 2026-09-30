@@ -47,7 +47,7 @@ export default function TodoPanel() {
             </span>
             {(agentBusy || sibukSub) && <span className="todo-spin" aria-hidden="true">◔</span>}
           </div>
-          {/* Bar progres: satu pandangan cukup untuk tahu sejauh mana. */}
+          {/* Progress bar: one glance is enough to know how far along it is. */}
           <div className="todo-bar" role="progressbar" aria-valuenow={persen}>
             <div className="todo-bar-isi" style={{ width: `${persen}%` }} />
           </div>

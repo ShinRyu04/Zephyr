@@ -110,10 +110,10 @@ export default function PromptSection() {
       </div>
 
       {/* What the AI answers when asked "what model are you". This block is NOT
-          bisa diedit: isinya fakta dari konfigurasi (Settings → Model AI),
-          bukan teks yang bisa ditulis ulang. Kalau bisa diedit, user bisa
-          membuat AI mengaku sebagai model lain - dan itu justru masalah yang
-          blok ini selesaikan. */}
+          editable: its content is a fact from the configuration (Settings → AI Model),
+          not text that can be rewritten. If it were editable, the user could
+          make the AI claim to be another model - and that is exactly the problem
+          this block solves. */}
       <div className="sp-bagian" data-testid="sp-model-info">
         <div className="sp-bagian-head">
           <span className="sp-bagian-judul">{tr('Model that runs the AI')}</span>

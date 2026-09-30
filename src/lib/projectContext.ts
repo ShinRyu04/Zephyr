@@ -114,14 +114,14 @@ async function hitung(workspace: string): Promise<string> {
     }
   }
   bagian.push(
-    `- Folder aktif: ${workspace.replace(/\\/g, '/')}`,
-    `- Terdeteksi: ${teknologi.length ? teknologi.join(', ') : 'tidak ada penanda teknologi umum'}`,
-    `- Jumlah file terindeks: ${files.length}${files.length >= MAKS_FILE ? '+' : ''}`,
+    `- Active workspace: ${workspace.replace(/\\/g, '/')}`,
+    `- Detected stack: ${teknologi.length ? teknologi.join(', ') : 'no common technology markers'}`,
+    `- Indexed files: ${files.length}${files.length >= MAKS_FILE ? '+' : ''}`,
   );
 
   const entry = ENTRY_KANDIDAT.filter((e) => files.includes(e));
   if (entry.length) {
-    bagian.push(`- Titik masuk yang lazim: ${entry.join(', ')}`);
+    bagian.push(`- Typical entry points: ${entry.join(', ')}`);
   }
 
   const level: Record<string, Set<string>> = {};
@@ -143,7 +143,7 @@ async function hitung(workspace: string): Promise<string> {
     if (blokPeta.length > MAKS_STRUKTUR_CHARS) {
       blokPeta = blokPeta.slice(0, MAKS_STRUKTUR_CHARS) + '\n  …';
     }
-    bagian.push(`- Struktur level atas:\n  ${blokPeta}`);
+    bagian.push(`- Top-level layout:\n  ${blokPeta}`);
   }
 
   const KODE = /\.(rs|ts|tsx|js|jsx|py|go|java|kt|rb|php|c|cpp|h|cs|swift|dart|vue|svelte|sql|sh|ps1)$/i;
@@ -155,7 +155,7 @@ async function hitung(workspace: string): Promise<string> {
       return aSrc - bSrc;
     });
   const contoh = (prioritas.length ? prioritas : files).slice(0, 50);
-  bagian.push(`- Contoh file:\n  ${contoh.join(', ')}${prioritas.length > 50 ? ', …' : ''}`);
+  bagian.push(`- Example files:\n  ${contoh.join(', ')}${prioritas.length > 50 ? ', …' : ''}`);
 
   return bagian.join('\n');
 }

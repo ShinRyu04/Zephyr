@@ -1,0 +1,1952 @@
+[
+ {
+  "key": " di baris persona untuk memakainya",
+  "ar": " on a persona row to use it",
+  "id": " di baris persona untuk memakainya",
+  "en": " on a persona row to use it"
+ },
+ {
+  "key": " di baris persona untuk memakainya — berlaku untuk chat berikutnya, tidak perlu restart.",
+  "ar": " on a persona row to use it — it applies to the next chat, no restart needed.",
+  "id": " di baris persona untuk memakainya — berlaku untuk chat berikutnya, tidak perlu restart.",
+  "en": " on a persona row to use it — it applies to the next chat, no restart needed."
+ },
+ {
+  "key": " menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya. Kalau ragu, biarkan",
+  "ar": " duplicates a built-in persona so you can change it without losing the original. If unsure, leave",
+  "id": " menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya. Kalau ragu, biarkan",
+  "en": " duplicates a built-in persona so you can change it without losing the original. If unsure, leave"
+ },
+ {
+  "key": " tidak didukung di sandbox ekstensi Zephyr",
+  "ar": " is not supported in the Zephyr extension sandbox",
+  "id": " tidak didukung di sandbox ekstensi Zephyr",
+  "en": " is not supported in the Zephyr extension sandbox"
+ },
+ {
+  "key": " tidak ditemukan di dalam ekstensi Zephyr",
+  "ar": " was not found inside the Zephyr extension",
+  "id": " tidak ditemukan di dalam ekstensi Zephyr",
+  "en": " was not found inside the Zephyr extension"
+ },
+ {
+  "key": " yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.",
+  "ar": " active: that is Zephyr\\'s built-in behaviour with nothing added.",
+  "id": " yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.",
+  "en": " active: that is Zephyr\\'s built-in behaviour with nothing added."
+ },
+ {
+  "key": "(Python, Java, Node, etc.) can ask for permission through",
+  "ar": "(Python, Java, Node, etc.) can ask for permission through",
+  "id": "(Python, Java, Node, etc.) can ask for permission through",
+  "en": "(Python, Java, Node, etc.) can ask for permission through"
+ },
+ {
+  "key": "(belum ada system prompt untuk worker ini — diisi di halaman Pengaturan)",
+  "ar": "(no system prompt for this worker yet — set it on the Settings page)",
+  "id": "(belum ada system prompt untuk worker ini — diisi di halaman Pengaturan)",
+  "en": "(no system prompt for this worker yet — set it on the Settings page)"
+ },
+ {
+  "key": "(no model selected yet)",
+  "ar": "(no model selected yet)",
+  "id": "(no model selected yet)",
+  "en": "(no model selected yet)"
+ },
+ {
+  "key": "(saved - type to replace)",
+  "ar": "(saved - type to replace)",
+  "id": "(saved - type to replace)",
+  "en": "(saved - type to replace)"
+ },
+ {
+  "key": "- execution always happens on the Rust side from a binary you approve, and can be revoked here.",
+  "ar": "- execution always happens on the Rust side from a binary you approve, and can be revoked here.",
+  "id": "- execution always happens on the Rust side from a binary you approve, and can be revoked here.",
+  "en": "- execution always happens on the Rust side from a binary you approve, and can be revoked here."
+ },
+ {
+  "key": "- execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.",
+  "ar": "- execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.",
+  "id": "- execution always happens on the Rust side from a binary you approve, and the permission can be revoked below.",
+  "en": "- execution always happens on the Rust side from a binary you approve, and the permission can be revoked below."
+ },
+ {
+  "key": "/fs/IPC), so commands from extensions can run without giving system access. Extensions that need",
+  "ar": "/fs/IPC), so commands from extensions can run without giving system access. Extensions that need",
+  "id": "/fs/IPC), so commands from extensions can run without giving system access. Extensions that need",
+  "en": "/fs/IPC), so commands from extensions can run without giving system access. Extensions that need"
+ },
+ {
+  "key": ": anything running as your user can drive this window as long as it knows the token.",
+  "ar": ": anything running as your user can drive this window as long as it knows the token.",
+  "id": ": anything running as your user can drive this window as long as it knows the token.",
+  "en": ": anything running as your user can drive this window as long as it knows the token."
+ },
+ {
+  "key": ": files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in",
+  "ar": ": files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in",
+  "id": ": files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in",
+  "en": ": files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in"
+ },
+ {
+  "key": "A URL must start with http:// or https://",
+  "ar": "A URL must start with http:// or https://",
+  "id": "A URL must start with http:// or https://",
+  "en": "A URL must start with http:// or https://"
+ },
+ {
+  "key": "A host, a local port and a target port are needed.",
+  "ar": "A host, a local port and a target port are needed.",
+  "id": "A host, a local port and a target port are needed.",
+  "en": "A host, a local port and a target port are needed."
+ },
+ {
+  "key": "AI tidak mengembalikan pesan commit",
+  "ar": "The AI returned no commit message",
+  "id": "AI tidak mengembalikan pesan commit",
+  "en": "The AI returned no commit message"
+ },
+ {
+  "key": "API keys are stored by Rust in",
+  "ar": "API keys are stored by Rust in",
+  "id": "API keys are stored by Rust in",
+  "en": "API keys are stored by Rust in"
+ },
+ {
+  "key": "Add external MCP server",
+  "ar": "Add external MCP server",
+  "id": "Add external MCP server",
+  "en": "Add external MCP server"
+ },
+ {
+  "key": "Add one in Settings, Dev Environment.",
+  "ar": "Add one in Settings, Dev Environment.",
+  "id": "Add one in Settings, Dev Environment.",
+  "en": "Add one in Settings, Dev Environment."
+ },
+ {
+  "key": "All language servers are installed.",
+  "ar": "All language servers are installed.",
+  "id": "All language servers are installed.",
+  "en": "All language servers are installed."
+ },
+ {
+  "key": "All settings return to default. API keys are not deleted. Continue?",
+  "ar": "All settings return to default. API keys are not deleted. Continue?",
+  "id": "All settings return to default. API keys are not deleted. Continue?",
+  "en": "All settings return to default. API keys are not deleted. Continue?"
+ },
+ {
+  "key": "Allow external AI to control Zephyr",
+  "ar": "Allow external AI to control Zephyr",
+  "id": "Allow external AI to control Zephyr",
+  "en": "Allow external AI to control Zephyr"
+ },
+ {
+  "key": "Another persona already uses that name.",
+  "ar": "Another persona already uses that name.",
+  "id": "Another persona already uses that name.",
+  "en": "Another persona already uses that name."
+ },
+ {
+  "key": "Another sub-agent already uses that name.",
+  "ar": "Another sub-agent already uses that name.",
+  "id": "Another sub-agent already uses that name.",
+  "en": "Another sub-agent already uses that name."
+ },
+ {
+  "key": "Appended to each project name to build its URL.",
+  "ar": "Appended to each project name to build its URL.",
+  "id": "Appended to each project name to build its URL.",
+  "en": "Appended to each project name to build its URL."
+ },
+ {
+  "key": "Are you sure? The theme, shortcuts, and all preferences will be lost.",
+  "ar": "Are you sure? The theme, shortcuts, and all preferences will be lost.",
+  "id": "Are you sure? The theme, shortcuts, and all preferences will be lost.",
+  "en": "Are you sure? The theme, shortcuts, and all preferences will be lost."
+ },
+ {
+  "key": "Ask or request a code change… (Enter sends, Esc closes)",
+  "ar": "Ask or request a code change… (Enter sends, Esc closes)",
+  "id": "Ask or request a code change… (Enter sends, Esc closes)",
+  "en": "Ask or request a code change… (Enter sends, Esc closes)"
+ },
+ {
+  "key": "Auto-update checks GitHub Releases periodically.",
+  "ar": "Auto-update checks GitHub Releases periodically.",
+  "id": "Auto-update checks GitHub Releases periodically.",
+  "en": "Auto-update checks GitHub Releases periodically."
+ },
+ {
+  "key": "Available while the program is paused.",
+  "ar": "Available while the program is paused.",
+  "id": "Available while the program is paused.",
+  "en": "Available while the program is paused."
+ },
+ {
+  "key": "Bearer token (optional)",
+  "ar": "Bearer token (optional)",
+  "id": "Bearer token (optional)",
+  "en": "Bearer token (optional)"
+ },
+ {
+  "key": "Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka).",
+  "ar": "No folder is open yet (Ctrl+Shift+O to open one).",
+  "id": "Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka).",
+  "en": "No folder is open yet (Ctrl+Shift+O to open one)."
+ },
+ {
+  "key": "Belum ada perubahan yang di-stage (klik + di file)",
+  "ar": "Nothing staged yet (click + on a file)",
+  "id": "Belum ada perubahan yang di-stage (klik + di file)",
+  "en": "Nothing staged yet (click + on a file)"
+ },
+ {
+  "key": "Belum ada replace untuk dibatalkan",
+  "ar": "There is no replace to undo",
+  "id": "Belum ada replace untuk dibatalkan",
+  "en": "There is no replace to undo"
+ },
+ {
+  "key": "Belum ada snapshot untuk file ini",
+  "ar": "No snapshot for this file yet",
+  "id": "Belum ada snapshot untuk file ini",
+  "en": "No snapshot for this file yet"
+ },
+ {
+  "key": "Blame tidak tersedia untuk file ini",
+  "ar": "Blame is not available for this file",
+  "id": "Blame tidak tersedia untuk file ini",
+  "en": "Blame is not available for this file"
+ },
+ {
+  "key": "Both a local and a remote path are needed.",
+  "ar": "Both a local and a remote path are needed.",
+  "id": "Both a local and a remote path are needed.",
+  "en": "Both a local and a remote path are needed."
+ },
+ {
+  "key": "Bottom (flush with terminal)",
+  "ar": "Bottom (flush with terminal)",
+  "id": "Bottom (flush with terminal)",
+  "en": "Bottom (flush with terminal)"
+ },
+ {
+  "key": "C-x C-f buka berkas, C-x C-s simpan, C-x C-c tutup, Alt+X daftar perintah.",
+  "ar": "C-x C-f opens a file, C-x C-s saves, C-x C-c closes, Alt+X lists commands.",
+  "id": "C-x C-f buka berkas, C-x C-s simpan, C-x C-c tutup, Alt+X daftar perintah.",
+  "en": "C-x C-f opens a file, C-x C-s saves, C-x C-c closes, Alt+X lists commands."
+ },
+ {
+  "key": "CLI mode: send a message to run the CLI",
+  "ar": "CLI mode: send a message to run the CLI",
+  "id": "Mode CLI: kirim pesan untuk menjalankan CLI",
+  "en": "CLI mode: send a message to run the CLI"
+ },
+ {
+  "key": "Cannot run: this workspace has no test framework.",
+  "ar": "Cannot run: this workspace has no test framework.",
+  "id": "Cannot run: this workspace has no test framework.",
+  "en": "Cannot run: this workspace has no test framework."
+ },
+ {
+  "key": "Centang dulu CLI yang mau didaftari",
+  "ar": "Select the CLIs you want to register",
+  "id": "Centang dulu CLI yang mau didaftari",
+  "en": "Select the CLIs you want to register"
+ },
+ {
+  "key": "Centang dulu CLI yang mau dilepas",
+  "ar": "Select the CLIs you want to remove",
+  "id": "Centang dulu CLI yang mau dilepas",
+  "en": "Select the CLIs you want to remove"
+ },
+ {
+  "key": "Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.",
+  "ar": "Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.",
+  "id": "Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.",
+  "en": "Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut."
+ },
+ {
+  "key": "Click copy for its install command, then run it in the terminal.",
+  "ar": "Click copy for its install command, then run it in the terminal.",
+  "id": "Click copy for its install command, then run it in the terminal.",
+  "en": "Click copy for its install command, then run it in the terminal."
+ },
+ {
+  "key": "Click the editor gutter to set a breakpoint.",
+  "ar": "Click the editor gutter to set a breakpoint.",
+  "id": "Click the editor gutter to set a breakpoint.",
+  "en": "Click the editor gutter to set a breakpoint."
+ },
+ {
+  "key": "Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)",
+  "ar": "Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)",
+  "id": "Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)",
+  "en": "Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P)"
+ },
+ {
+  "key": "Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.",
+  "ar": "Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.",
+  "id": "Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here.",
+  "en": "Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here."
+ },
+ {
+  "key": "Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.",
+  "ar": "Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.",
+  "id": "Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH.",
+  "en": "Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH."
+ },
+ {
+  "key": "Commit message (Ctrl+Enter to commit)",
+  "ar": "Commit message (Ctrl+Enter to commit)",
+  "id": "Commit message (Ctrl+Enter to commit)",
+  "en": "Commit message (Ctrl+Enter to commit)"
+ },
+ {
+  "key": "Commits not merged into another branch will be lost PERMANENTLY.",
+  "ar": "Commits not merged into another branch will be lost PERMANENTLY.",
+  "id": "Commits not merged into another branch will be lost PERMANENTLY.",
+  "en": "Commits not merged into another branch will be lost PERMANENTLY."
+ },
+ {
+  "key": "Copy all install commands that are not installed yet",
+  "ar": "Copy all install commands that are not installed yet",
+  "id": "Copy all install commands that are not installed yet",
+  "en": "Copy all install commands that are not installed yet"
+ },
+ {
+  "key": "Create another pane: a specific shell, private, AI agent, browser, new tab",
+  "ar": "Create another pane: a specific shell, private, AI agent, browser, new tab",
+  "id": "Create another pane: a specific shell, private, AI agent, browser, new tab",
+  "en": "Create another pane: a specific shell, private, AI agent, browser, new tab"
+ },
+ {
+  "key": "Ctrl+Shift+A cari aksi, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L rapikan.",
+  "ar": "Ctrl+Shift+A finds an action, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L formats.",
+  "id": "Ctrl+Shift+A cari aksi, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L rapikan.",
+  "en": "Ctrl+Shift+A finds an action, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L formats."
+ },
+ {
+  "key": "Ctrl+W lalu H/J/K/L untuk pindah pane, Ctrl+W V untuk split vertikal.",
+  "ar": "Ctrl+W then H/J/K/L to move between panes, Ctrl+W V for a vertical split.",
+  "id": "Ctrl+W lalu H/J/K/L untuk pindah pane, Ctrl+W V untuk split vertikal.",
+  "en": "Ctrl+W then H/J/K/L to move between panes, Ctrl+W V for a vertical split."
+ },
+ {
+  "key": "Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.",
+  "ar": "Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.",
+  "id": "Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log.",
+  "en": "Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log."
+ },
+ {
+  "key": "Debug build only: triggers a panic in Rust to test the panic hook + crash dialog",
+  "ar": "Debug build only: triggers a panic in Rust to test the panic hook + crash dialog",
+  "id": "Debug build only: triggers a panic in Rust to test the panic hook + crash dialog",
+  "en": "Debug build only: triggers a panic in Rust to test the panic hook + crash dialog"
+ },
+ {
+  "key": "Destructive commands cannot be added to the allow list.",
+  "ar": "Destructive commands cannot be added to the allow list.",
+  "id": "Destructive commands cannot be added to the allow list.",
+  "en": "Destructive commands cannot be added to the allow list."
+ },
+ {
+  "key": "Detecting test framework…",
+  "ar": "Detecting test framework…",
+  "id": "Detecting test framework…",
+  "en": "Detecting test framework…"
+ },
+ {
+  "key": "Discard changes to this file (permanent)",
+  "ar": "Discard changes to this file (permanent)",
+  "id": "Discard changes to this file (permanent)",
+  "en": "Discard changes to this file (permanent)"
+ },
+ {
+  "key": "Do Not Disturb: toasts are muted, history is still recorded",
+  "ar": "Do Not Disturb: toasts are muted, history is still recorded",
+  "id": "Do Not Disturb: toasts are muted, history is still recorded",
+  "en": "Do Not Disturb: toasts are muted, history is still recorded"
+ },
+ {
+  "key": "Drag to change the width",
+  "ar": "Drag to change the width",
+  "id": "Drag to change the width",
+  "en": "Drag to change the width"
+ },
+ {
+  "key": "Enable IntelliSense (LSP)",
+  "ar": "Enable IntelliSense (LSP)",
+  "id": "Enable IntelliSense (LSP)",
+  "en": "Enable IntelliSense (LSP)"
+ },
+ {
+  "key": "Enter = save · Esc = cancel",
+  "ar": "Enter = save · Esc = cancel",
+  "id": "Enter = save · Esc = cancel",
+  "en": "Enter = save · Esc = cancel"
+ },
+ {
+  "key": "Enter sends · Shift+Enter for a new line",
+  "ar": "Enter sends · Shift+Enter for a new line",
+  "id": "Enter mengirim · Shift+Enter baris baru",
+  "en": "Enter sends · Shift+Enter for a new line"
+ },
+ {
+  "key": "Enter sends · Shift+Enter new line · Ctrl+I focuses here.",
+  "ar": "Enter sends · Shift+Enter new line · Ctrl+I focuses here.",
+  "id": "Enter mengirim · Shift+Enter baris baru · Ctrl+I fokus ke sini.",
+  "en": "Enter sends · Shift+Enter new line · Ctrl+I focuses here."
+ },
+ {
+  "key": "Estimated from the visible chat contents and tool payloads.",
+  "ar": "Estimated from the visible chat contents and tool payloads.",
+  "id": "Perkiraan dari isi chat yang terlihat dan payload tool.",
+  "en": "Estimated from the visible chat contents and tool payloads."
+ },
+ {
+  "key": "Everything available is installed",
+  "ar": "Everything available is installed",
+  "id": "Everything available is installed",
+  "en": "Everything available is installed"
+ },
+ {
+  "key": "Extension JS code runs in",
+  "ar": "Extension JS code runs in",
+  "id": "Extension JS code runs in",
+  "en": "Extension JS code runs in"
+ },
+ {
+  "key": "Fetch the model list directly from the provider",
+  "ar": "Fetch the model list directly from the provider",
+  "id": "Fetch the model list directly from the provider",
+  "en": "Fetch the model list directly from the provider"
+ },
+ {
+  "key": "Filter (text, source, code, file)…",
+  "ar": "Filter (text, source, code, file)…",
+  "id": "Filter (text, source, code, file)…",
+  "en": "Filter (text, source, code, file)…"
+ },
+ {
+  "key": "Find usages of function X\\\\nCheck for bugs in module Y",
+  "ar": "Find usages of function X\\\\nCheck for bugs in module Y",
+  "id": "Cari pemakaian fungsi X\\\\nPeriksa bug di modul Y",
+  "en": "Find usages of function X\\\\nCheck for bugs in module Y"
+ },
+ {
+  "key": "Forget the decision - the folder will be asked again when opened",
+  "ar": "Forget the decision - the folder will be asked again when opened",
+  "id": "Forget the decision - the folder will be asked again when opened",
+  "en": "Forget the decision - the folder will be asked again when opened"
+ },
+ {
+  "key": "Gagal membaca tasks.json",
+  "ar": "Could not read tasks.json",
+  "id": "Gagal membaca tasks.json",
+  "en": "Could not read tasks.json"
+ },
+ {
+  "key": "Gelap dengan kontras lebih rendah dari bawaan, untuk kerja malam lama.",
+  "ar": "Dark with lower contrast than the default, for long night sessions.",
+  "id": "Gelap dengan kontras lebih rendah dari bawaan, untuk kerja malam lama.",
+  "en": "Dark with lower contrast than the default, for long night sessions."
+ },
+ {
+  "key": "Git will reject the push while those commits are not local. Pull first, then push?",
+  "ar": "Git will reject the push while those commits are not local. Pull first, then push?",
+  "id": "Git will reject the push while those commits are not local. Pull first, then push?",
+  "en": "Git will reject the push while those commits are not local. Pull first, then push?"
+ },
+ {
+  "key": "Go to Definition gagal",
+  "ar": "Go to Definition failed",
+  "id": "Go to Definition gagal",
+  "en": "Go to Definition failed"
+ },
+ {
+  "key": "Handler HTTP dengan guard method, struct tag, err wrap, goroutine, test.",
+  "ar": "HTTP handlers with method guards, struct tags, error wrapping, goroutines, tests.",
+  "id": "Handler HTTP dengan guard method, struct tag, err wrap, goroutine, test.",
+  "en": "HTTP handlers with method guards, struct tags, error wrapping, goroutines, tests."
+ },
+ {
+  "key": "Headers (without credentials)",
+  "ar": "Headers (without credentials)",
+  "id": "Headers (without credentials)",
+  "en": "Headers (without credentials)"
+ },
+ {
+  "key": "Hentikan tes setelah (detik)",
+  "ar": "Hentikan tes setelah (detik)",
+  "id": "Hentikan tes setelah (detik)",
+  "en": "Hentikan tes setelah (detik)"
+ },
+ {
+  "key": "How the AI answers: length, evidence, order, tone. Leave empty for the default.",
+  "ar": "How the AI answers: length, evidence, order, tone. Leave empty for the default.",
+  "id": "How the AI answers: length, evidence, order, tone. Leave empty for the default.",
+  "en": "How the AI answers: length, evidence, order, tone. Leave empty for the default."
+ },
+ {
+  "key": "How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.",
+  "ar": "How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.",
+  "id": "How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.",
+  "en": "How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply."
+ },
+ {
+  "key": "How to use it: hit \"Active\" on a persona row to use it — it applies to the next chat, no restart needed. \"Duplicate\" copies a built-in persona so you can change it without losing the original. If unsure, leave \"General\" active: that is Zephyr\\'s built-in behaviour with nothing added.",
+  "ar": "How to use it: hit \"Active\" on a persona row to use it — it applies to the next chat, no restart needed. \"Duplicate\" copies a built-in persona so you can change it without losing the original. If unsure, leave \"General\" active: that is Zephyr\\'s built-in behaviour with nothing added.",
+  "id": "How to use it: hit \"Active\" on a persona row to use it — it applies to the next chat, no restart needed. \"Duplicate\" copies a built-in persona so you can change it without losing the original. If unsure, leave \"General\" active: that is Zephyr\\'s built-in behaviour with nothing added.",
+  "en": "How to use it: hit \"Active\" on a persona row to use it — it applies to the next chat, no restart needed. \"Duplicate\" copies a built-in persona so you can change it without losing the original. If unsure, leave \"General\" active: that is Zephyr\\'s built-in behaviour with nothing added."
+ },
+ {
+  "key": "Info panel - full details are in the Subagents tab.",
+  "ar": "Info panel - full details are in the Subagents tab.",
+  "id": "Panel info - detail penuh ada di tab Subagents.",
+  "en": "Info panel - full details are in the Subagents tab."
+ },
+ {
+  "key": "Install first to see the actual contributions from the manifest.",
+  "ar": "Install first to see the actual contributions from the manifest.",
+  "id": "Install first to see the actual contributions from the manifest.",
+  "en": "Install first to see the actual contributions from the manifest."
+ },
+ {
+  "key": "Install from the bundled catalog",
+  "ar": "Install from the bundled catalog",
+  "id": "Install from the bundled catalog",
+  "en": "Install from the bundled catalog"
+ },
+ {
+  "key": "Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)",
+  "ar": "The snapshot is loaded into the editor — not saved yet (Ctrl+S to write)",
+  "id": "Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)",
+  "en": "The snapshot is loaded into the editor — not saved yet (Ctrl+S to write)"
+ },
+ {
+  "key": "Jalankan `zephyr --help` untuk daftar opsi.",
+  "ar": "Run `zephyr --help` for the list of options.",
+  "id": "Jalankan `zephyr --help` untuk daftar opsi.",
+  "en": "Run `zephyr --help` for the list of options."
+ },
+ {
+  "key": "Jalankan tes saat workspace dibuka",
+  "ar": "Run tests when the workspace opens",
+  "id": "Jalankan tes saat workspace dibuka",
+  "en": "Run tests when the workspace opens"
+ },
+ {
+  "key": "Jalankan ulang file tes saat disimpan",
+  "ar": "Re-run the test file when it is saved",
+  "id": "Jalankan ulang file tes saat disimpan",
+  "en": "Re-run the test file when it is saved"
+ },
+ {
+  "key": "Jangan menebak nama berkas, fungsi, atau API. Kalau tidak ada di repo, katakan tidak ada",
+  "ar": "Do not guess file, function, or API names. If it is not in the repo, say it is not there",
+  "id": "Jangan menebak nama berkas, fungsi, atau API. Kalau tidak ada di repo, katakan tidak ada",
+  "en": "Do not guess file, function, or API names. If it is not in the repo, say it is not there"
+ },
+ {
+  "key": "Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat penggunanya paham.",
+  "ar": "You are a teaching assistant. The goal is not only to finish the task but to make the user understand it.",
+  "id": "Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat penggunanya paham.",
+  "en": "You are a teaching assistant. The goal is not only to finish the task but to make the user understand it."
+ },
+ {
+  "key": "Kamu asisten yang sangat ringkas. Jawab sesingkat mungkin tanpa kehilangan ketepatan.",
+  "ar": "You are a very concise assistant. Answer as briefly as possible without losing accuracy.",
+  "id": "Kamu asisten yang sangat ringkas. Jawab sesingkat mungkin tanpa kehilangan ketepatan.",
+  "en": "You are a very concise assistant. Answer as briefly as possible without losing accuracy."
+ },
+ {
+  "key": "Kamu asisten yang teliti. Setiap klaim harus punya dasar yang bisa diperiksa.",
+  "ar": "You are a thorough assistant. Every claim must rest on something that can be checked.",
+  "id": "Kamu asisten yang teliti. Setiap klaim harus punya dasar yang bisa diperiksa.",
+  "en": "You are a thorough assistant. Every claim must rest on something that can be checked."
+ },
+ {
+  "key": "Kamu tidak boleh menulis atau mengubah file. Laporkan temuan di jawaban akhir.",
+  "ar": "You may not write or change files. Report findings in your final answer.",
+  "id": "Kamu tidak boleh menulis atau mengubah file. Laporkan temuan di jawaban akhir.",
+  "en": "You may not write or change files. Report findings in your final answer."
+ },
+ {
+  "key": "Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang diminta.",
+  "ar": "You have no specific persona. Work carefully and report only what was asked.",
+  "id": "Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang diminta.",
+  "en": "You have no specific persona. Work carefully and report only what was asked."
+ },
+ {
+  "key": "Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang kamu buktikan.",
+  "ar": "You have no specific persona. Work carefully and report only what you can prove.",
+  "id": "Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang kamu buktikan.",
+  "en": "You have no specific persona. Work carefully and report only what you can prove."
+ },
+ {
+  "key": "Konteks sudah pendek",
+  "ar": "The context is already short",
+  "id": "Konteks sudah pendek",
+  "en": "The context is already short"
+ },
+ {
+  "key": "Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang",
+  "ar": "Continue the code at the cursor. Reply with ONLY the continuation text that",
+  "id": "Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang",
+  "en": "Continue the code at the cursor. Reply with ONLY the continuation text that"
+ },
+ {
+  "key": "Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah jalan.",
+  "ar": "Continue the previous task until it is actually done. Do not stop halfway.",
+  "id": "Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah jalan.",
+  "en": "Continue the previous task until it is actually done. Do not stop halfway."
+ },
+ {
+  "key": "Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah.",
+  "ar": "Continue the previous task until it is actually done. Do not stop halfway.",
+  "id": "Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah.",
+  "en": "Continue the previous task until it is actually done. Do not stop halfway."
+ },
+ {
+  "key": "Load this snapshot contents into the editor (not saved)",
+  "ar": "Load this snapshot contents into the editor (not saved)",
+  "id": "Load this snapshot contents into the editor (not saved)",
+  "en": "Load this snapshot contents into the editor (not saved)"
+ },
+ {
+  "key": "Lokal (opencode / loopback)",
+  "ar": "محلي (opencode / loopback)",
+  "id": "Lokal (opencode / loopback)",
+  "en": "Local (opencode / loopback)"
+ },
+ {
+  "key": "Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar.",
+  "ar": "Screen reader mode is on. The terminal and editor are tuned for screen readers.",
+  "id": "Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar.",
+  "en": "Screen reader mode is on. The terminal and editor are tuned for screen readers."
+ },
+ {
+  "key": "Monokrom: glyph dua huruf tanpa warna, untuk layar yang sudah ramai.",
+  "ar": "Monochrome: two-letter glyphs with no colour, for screens that are already busy.",
+  "id": "Monokrom: glyph dua huruf tanpa warna, untuk layar yang sudah ramai.",
+  "en": "Monochrome: two-letter glyphs with no colour, for screens that are already busy."
+ },
+ {
+  "key": "No actions at this position.",
+  "ar": "No actions at this position.",
+  "id": "No actions at this position.",
+  "en": "No actions at this position."
+ },
+ {
+  "key": "No allowed commands yet.",
+  "ar": "No allowed commands yet.",
+  "id": "No allowed commands yet.",
+  "en": "No allowed commands yet."
+ },
+ {
+  "key": "No cells found in this notebook.",
+  "ar": "No cells found in this notebook.",
+  "id": "No cells found in this notebook.",
+  "en": "No cells found in this notebook."
+ },
+ {
+  "key": "No changes - the working tree is clean.",
+  "ar": "No changes - the working tree is clean.",
+  "id": "No changes - the working tree is clean.",
+  "en": "No changes - the working tree is clean."
+ },
+ {
+  "key": "No conflict markers left in this file.",
+  "ar": "No conflict markers left in this file.",
+  "id": "No conflict markers left in this file.",
+  "en": "No conflict markers left in this file."
+ },
+ {
+  "key": "No connection yet. Once an external AI CLI greets",
+  "ar": "No connection yet. Once an external AI CLI greets",
+  "id": "No connection yet. Once an external AI CLI greets",
+  "en": "No connection yet. Once an external AI CLI greets"
+ },
+ {
+  "key": "No credentials stored yet.",
+  "ar": "No credentials stored yet.",
+  "id": "No credentials stored yet.",
+  "en": "No credentials stored yet."
+ },
+ {
+  "key": "No custom sub-agent yet. Create one to give the AI a dedicated worker.",
+  "ar": "No custom sub-agent yet. Create one to give the AI a dedicated worker.",
+  "id": "No custom sub-agent yet. Create one to give the AI a dedicated worker.",
+  "en": "No custom sub-agent yet. Create one to give the AI a dedicated worker."
+ },
+ {
+  "key": "No differences for this file.",
+  "ar": "No differences for this file.",
+  "id": "No differences for this file.",
+  "en": "No differences for this file."
+ },
+ {
+  "key": "No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.",
+  "ar": "No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.",
+  "id": "No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.",
+  "en": "No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works."
+ },
+ {
+  "key": "No external MCP server yet.",
+  "ar": "No external MCP server yet.",
+  "id": "No external MCP server yet.",
+  "en": "No external MCP server yet."
+ },
+ {
+  "key": "No folder has been opened yet",
+  "ar": "No folder has been opened yet",
+  "id": "No folder has been opened yet",
+  "en": "No folder has been opened yet"
+ },
+ {
+  "key": "No folder has ever been given a trust decision.",
+  "ar": "No folder has ever been given a trust decision.",
+  "id": "No folder has ever been given a trust decision.",
+  "en": "No folder has ever been given a trust decision."
+ },
+ {
+  "key": "No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.",
+  "ar": "No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.",
+  "id": "No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically.",
+  "en": "No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically."
+ },
+ {
+  "key": "No history yet. Save the file (Ctrl+S) to create a snapshot.",
+  "ar": "No history yet. Save the file (Ctrl+S) to create a snapshot.",
+  "id": "No history yet. Save the file (Ctrl+S) to create a snapshot.",
+  "en": "No history yet. Save the file (Ctrl+S) to create a snapshot."
+ },
+ {
+  "key": "No language server for this file.",
+  "ar": "No language server for this file.",
+  "id": "No language server for this file.",
+  "en": "No language server for this file."
+ },
+ {
+  "key": "No problems detected yet. Diagnostics will appear here after a language server or task runs.",
+  "ar": "No problems detected yet. Diagnostics will appear here after a language server or task runs.",
+  "id": "No problems detected yet. Diagnostics will appear here after a language server or task runs.",
+  "en": "No problems detected yet. Diagnostics will appear here after a language server or task runs."
+ },
+ {
+  "key": "No provider has an API key yet. Add one in Settings → AI Models.",
+  "ar": "No provider has an API key yet. Add one in Settings → AI Models.",
+  "id": "No provider has an API key yet. Add one in Settings → AI Models.",
+  "en": "No provider has an API key yet. Add one in Settings → AI Models."
+ },
+ {
+  "key": "No requests yet. Send a message in the AI panel, then come back here.",
+  "ar": "No requests yet. Send a message in the AI panel, then come back here.",
+  "id": "No requests yet. Send a message in the AI panel, then come back here.",
+  "en": "No requests yet. Send a message in the AI panel, then come back here."
+ },
+ {
+  "key": "No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel.",
+  "ar": "No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel.",
+  "id": "Tidak ada subagent yang jalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel.",
+  "en": "No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel."
+ },
+ {
+  "key": "No test framework was detected. Add a \"test\" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.",
+  "ar": "No test framework was detected. Add a \"test\" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.",
+  "id": "No test framework was detected. Add a \"test\" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests.",
+  "en": "No test framework was detected. Add a \"test\" script to package.json, or a pyproject.toml / Cargo.toml / go.mod with tests."
+ },
+ {
+  "key": "No workspace yet - open a folder",
+  "ar": "No workspace yet - open a folder",
+  "id": "No workspace yet - open a folder",
+  "en": "No workspace yet - open a folder"
+ },
+ {
+  "key": "None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call",
+  "ar": "None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call",
+  "id": "None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call",
+  "en": "None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call"
+ },
+ {
+  "key": "None yet. Put a folder containing",
+  "ar": "None yet. Put a folder containing",
+  "id": "None yet. Put a folder containing",
+  "en": "None yet. Put a folder containing"
+ },
+ {
+  "key": "Notifications muted (Do Not Disturb) - click to view history",
+  "ar": "Notifications muted (Do Not Disturb) - click to view history",
+  "id": "Notifications muted (Do Not Disturb) - click to view history",
+  "en": "Notifications muted (Do Not Disturb) - click to view history"
+ },
+ {
+  "key": "One line — the AI reads it to decide when to delegate here",
+  "ar": "One line — the AI reads it to decide when to delegate here",
+  "id": "One line — the AI reads it to decide when to delegate here",
+  "en": "One line — the AI reads it to decide when to delegate here"
+ },
+ {
+  "key": "Open a file to see its symbols.",
+  "ar": "Open a file to see its symbols.",
+  "id": "Open a file to see its symbols.",
+  "en": "Open a file to see its symbols."
+ },
+ {
+  "key": "Open a folder first to debug.",
+  "ar": "Open a folder first to debug.",
+  "id": "Open a folder first to debug.",
+  "en": "Open a folder first to debug."
+ },
+ {
+  "key": "Open a folder first to search the workspace.",
+  "ar": "Open a folder first to search the workspace.",
+  "id": "Open a folder first to search the workspace.",
+  "en": "Open a folder first to search the workspace."
+ },
+ {
+  "key": "Open a folder first to use git.",
+  "ar": "Open a folder first to use git.",
+  "id": "Open a folder first to use git.",
+  "en": "Open a folder first to use git."
+ },
+ {
+  "key": "Open a project folder first - recommendations are computed from the file languages in the workspace.",
+  "ar": "Open a project folder first - recommendations are computed from the file languages in the workspace.",
+  "id": "Open a project folder first - recommendations are computed from the file languages in the workspace.",
+  "en": "Open a project folder first - recommendations are computed from the file languages in the workspace."
+ },
+ {
+  "key": "Open in Restricted Mode",
+  "ar": "Open in Restricted Mode",
+  "id": "Open in Restricted Mode",
+  "en": "Open in Restricted Mode"
+ },
+ {
+  "key": "Open in an external browser",
+  "ar": "Open in an external browser",
+  "id": "Open in an external browser",
+  "en": "Open in an external browser"
+ },
+ {
+  "key": "Operations since start:",
+  "ar": "Operations since start:",
+  "id": "Operations since start:",
+  "en": "Operations since start:"
+ },
+ {
+  "key": "Output was truncated; showing the tail only.",
+  "ar": "Output was truncated; showing the tail only.",
+  "id": "Output was truncated; showing the tail only.",
+  "en": "Output was truncated; showing the tail only."
+ },
+ {
+  "key": "Page could not be loaded",
+  "ar": "Page could not be loaded",
+  "id": "Page could not be loaded",
+  "en": "Page could not be loaded"
+ },
+ {
+  "key": "Persona and rules for this worker. It runs with a clean history and only the tools above.",
+  "ar": "Persona and rules for this worker. It runs with a clean history and only the tools above.",
+  "id": "Persona and rules for this worker. It runs with a clean history and only the tools above.",
+  "en": "Persona and rules for this worker. It runs with a clean history and only the tools above."
+ },
+ {
+  "key": "Pesan commit masih kosong.",
+  "ar": "The commit message is still empty.",
+  "id": "Pesan commit masih kosong.",
+  "en": "The commit message is still empty."
+ },
+ {
+  "key": "Pick a model from the list",
+  "ar": "Pick a model from the list",
+  "id": "Pick a model from the list",
+  "en": "Pick a model from the list"
+ },
+ {
+  "key": "Picking a side for a hunk writes that version into the file. Use \"Take all\" to resolve the whole file quickly, then stage it.",
+  "ar": "Picking a side for a hunk writes that version into the file. Use \"Take all\" to resolve the whole file quickly, then stage it.",
+  "id": "Picking a side for a hunk writes that version into the file. Use \"Take all\" to resolve the whole file quickly, then stage it.",
+  "en": "Picking a side for a hunk writes that version into the file. Use \"Take all\" to resolve the whole file quickly, then stage it."
+ },
+ {
+  "key": "Plain HTTP (no encryption)",
+  "ar": "Plain HTTP (no encryption)",
+  "id": "Plain HTTP (no encryption)",
+  "en": "Plain HTTP (no encryption)"
+ },
+ {
+  "key": "Platform, identifier, license, and source repository.",
+  "ar": "Platform, identifier, license, and source repository.",
+  "id": "Platform, identifier, license, and source repository.",
+  "en": "Platform, identifier, license, and source repository."
+ },
+ {
+  "key": "Port must be a number from 1 to 65535",
+  "ar": "Port must be a number from 1 to 65535",
+  "id": "Port must be a number from 1 to 65535",
+  "en": "Port must be a number from 1 to 65535"
+ },
+ {
+  "key": "Program is running - not paused.",
+  "ar": "Program is running - not paused.",
+  "id": "Program is running - not paused.",
+  "en": "Program is running - not paused."
+ },
+ {
+  "key": "Proses `zephyr --wait` di terminal akan lanjut setelah tab ini ditutup.",
+  "ar": "A `zephyr --wait` process in the terminal keeps running after this tab closes.",
+  "id": "Proses `zephyr --wait` di terminal akan lanjut setelah tab ini ditutup.",
+  "en": "A `zephyr --wait` process in the terminal keeps running after this tab closes."
+ },
+ {
+  "key": "RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines",
+  "ar": "RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines",
+  "id": "RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines",
+  "en": "RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines"
+ },
+ {
+  "key": "Re-run the test file when it is saved",
+  "ar": "Re-run the test file when it is saved",
+  "id": "Re-run the test file when it is saved",
+  "en": "Re-run the test file when it is saved"
+ },
+ {
+  "key": "Read only. Pick at least one.",
+  "ar": "Read only. Pick at least one.",
+  "id": "Read only. Pick at least one.",
+  "en": "Read only. Pick at least one."
+ },
+ {
+  "key": "Recording is off. Turn it on, then send a message in the AI panel.",
+  "ar": "Recording is off. Turn it on, then send a message in the AI panel.",
+  "id": "Recording is off. Turn it on, then send a message in the AI panel.",
+  "en": "Recording is off. Turn it on, then send a message in the AI panel."
+ },
+ {
+  "key": "Remove keybinding (the command stays in the palette)",
+  "ar": "Remove keybinding (the command stays in the palette)",
+  "id": "Remove keybinding (the command stays in the palette)",
+  "en": "Remove keybinding (the command stays in the palette)"
+ },
+ {
+  "key": "Replace all in this file",
+  "ar": "Replace all in this file",
+  "id": "Replace all in this file",
+  "en": "Replace all in this file"
+ },
+ {
+  "key": "Replace in all files in the search results",
+  "ar": "Replace in all files in the search results",
+  "id": "Replace in all files in the search results",
+  "en": "Replace in all files in the search results"
+ },
+ {
+  "key": "Replace with (may use $1, $2)",
+  "ar": "Replace with (may use $1, $2)",
+  "id": "Replace with (may use $1, $2)",
+  "en": "Replace with (may use $1, $2)"
+ },
+ {
+  "key": "Reset everything to default",
+  "ar": "Reset everything to default",
+  "id": "Reset everything to default",
+  "en": "Reset everything to default"
+ },
+ {
+  "key": "Reset layout to default",
+  "ar": "Reset layout to default",
+  "id": "Reset layout to default",
+  "en": "Reset layout to default"
+ },
+ {
+  "key": "Reset this section to default",
+  "ar": "Reset this section to default",
+  "id": "Reset this section to default",
+  "en": "Reset this section to default"
+ },
+ {
+  "key": "Resize editor group width",
+  "ar": "Resize editor group width",
+  "id": "Resize editor group width",
+  "en": "Resize editor group width"
+ },
+ {
+  "key": "Resize the bottom panel height",
+  "ar": "Resize the bottom panel height",
+  "id": "Resize the bottom panel height",
+  "en": "Resize the bottom panel height"
+ },
+ {
+  "key": "Restart Zephyr to apply. While this is on, the browser pane will not render.",
+  "ar": "Restart Zephyr to apply. While this is on, the browser pane will not render.",
+  "id": "Restart Zephyr to apply. While this is on, the browser pane will not render.",
+  "en": "Restart Zephyr to apply. While this is on, the browser pane will not render."
+ },
+ {
+  "key": "Rewrite this file as UTF-8 so it can be edited",
+  "ar": "Rewrite this file as UTF-8 so it can be edited",
+  "id": "Rewrite this file as UTF-8 so it can be edited",
+  "en": "Rewrite this file as UTF-8 so it can be edited"
+ },
+ {
+  "key": "Rules that always apply to this persona. Leave empty if there are none.",
+  "ar": "Rules that always apply to this persona. Leave empty if there are none.",
+  "id": "Rules that always apply to this persona. Leave empty if there are none.",
+  "en": "Rules that always apply to this persona. Leave empty if there are none."
+ },
+ {
+  "key": "Run tests when the workspace opens",
+  "ar": "Run tests when the workspace opens",
+  "id": "Run tests when the workspace opens",
+  "en": "Run tests when the workspace opens"
+ },
+ {
+  "key": "Run the test suite to see results here.",
+  "ar": "Run the test suite to see results here.",
+  "id": "Run the test suite to see results here.",
+  "en": "Run the test suite to see results here."
+ },
+ {
+  "key": "Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.",
+  "ar": "Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.",
+  "id": "Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.",
+  "en": "Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat."
+ },
+ {
+  "key": "Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.",
+  "ar": "Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.",
+  "id": "Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart.",
+  "en": "Runs WebView2 in a single process: much lower RAM, but the browser pane stops working until you restart. Takes effect after restart."
+ },
+ {
+  "key": "Runtimes, projects, databases and logs live here.",
+  "ar": "Runtimes, projects, databases and logs live here.",
+  "id": "Runtimes, projects, databases and logs live here.",
+  "en": "Runtimes, projects, databases and logs live here."
+ },
+ {
+  "key": "Screenshot pasted as an attachment",
+  "ar": "Screenshot pasted as an attachment",
+  "id": "Screenshot ditempel sebagai lampiran",
+  "en": "Screenshot pasted as an attachment"
+ },
+ {
+  "key": "Scroll lock: stop auto-scroll when new lines arrive",
+  "ar": "Scroll lock: stop auto-scroll when new lines arrive",
+  "id": "Scroll lock: stop auto-scroll when new lines arrive",
+  "en": "Scroll lock: stop auto-scroll when new lines arrive"
+ },
+ {
+  "key": "Search command or chord…",
+  "ar": "Search command or chord…",
+  "id": "Search command or chord…",
+  "en": "Search command or chord…"
+ },
+ {
+  "key": "Search files & commands…",
+  "ar": "Search files & commands…",
+  "id": "Search files & commands…",
+  "en": "Search files & commands…"
+ },
+ {
+  "key": "Search only within the selection",
+  "ar": "Search only within the selection",
+  "id": "Search only within the selection",
+  "en": "Search only within the selection"
+ },
+ {
+  "key": "Select all results (multi-cursor)",
+  "ar": "Select all results (multi-cursor)",
+  "id": "Select all results (multi-cursor)",
+  "en": "Select all results (multi-cursor)"
+ },
+ {
+  "key": "Semua language server dimatikan; akan start lagi saat file dibuka",
+  "ar": "All language servers stopped; they start again when a file is opened",
+  "id": "Semua language server dimatikan; akan start lagi saat file dibuka",
+  "en": "All language servers stopped; they start again when a file is opened"
+ },
+ {
+  "key": "Semua setting dikembalikan ke default (API key TIDAK dihapus)",
+  "ar": "Every setting goes back to its default (API keys are NOT deleted)",
+  "id": "Semua setting dikembalikan ke default (API key TIDAK dihapus)",
+  "en": "Every setting goes back to its default (API keys are NOT deleted)"
+ },
+ {
+  "key": "Server MCP dimatikan; port tidak lagi listening",
+  "ar": "The MCP server is stopped; the port is no longer listening",
+  "id": "Server MCP dimatikan; port tidak lagi listening",
+  "en": "The MCP server is stopped; the port is no longer listening"
+ },
+ {
+  "key": "Show the bottom panel (Ctrl+J)",
+  "ar": "Show the bottom panel (Ctrl+J)",
+  "id": "Show the bottom panel (Ctrl+J)",
+  "en": "Show the bottom panel (Ctrl+J)"
+ },
+ {
+  "key": "Sign in to GitHub (opens browser)",
+  "ar": "Sign in to GitHub (opens browser)",
+  "id": "Sign in to GitHub (opens browser)",
+  "en": "Sign in to GitHub (opens browser)"
+ },
+ {
+  "key": "Sign in to GitHub - open Source Control",
+  "ar": "Sign in to GitHub - open Source Control",
+  "id": "Sign in to GitHub - open Source Control",
+  "en": "Sign in to GitHub - open Source Control"
+ },
+ {
+  "key": "Some runtimes are not installed",
+  "ar": "Some runtimes are not installed",
+  "id": "Some runtimes are not installed",
+  "en": "Some runtimes are not installed"
+ },
+ {
+  "key": "Stop the server after idle (seconds)",
+  "ar": "Stop the server after idle (seconds)",
+  "id": "Stop the server after idle (seconds)",
+  "en": "Stop the server after idle (seconds)"
+ },
+ {
+  "key": "Subagent info to the right of chat",
+  "ar": "Subagent info to the right of chat",
+  "id": "Subagent info to the right of chat",
+  "en": "Subagent info to the right of chat"
+ },
+ {
+  "key": "Subagents are invoked by the main agent through the \"Parallel tasks\" button in the AI panel, or automatically when a task can be split up.",
+  "ar": "Subagents are invoked by the main agent through the \"Parallel tasks\" button in the AI panel, or automatically when a task can be split up.",
+  "id": "Subagents are invoked by the main agent through the \"Parallel tasks\" button in the AI panel, or automatically when a task can be split up.",
+  "en": "Subagents are invoked by the main agent through the \"Parallel tasks\" button in the AI panel, or automatically when a task can be split up."
+ },
+ {
+  "key": "Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.",
+  "ar": "Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.",
+  "id": "Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history.",
+  "en": "Subagents are standalone - run from here, separate from the AI conversation. Their results do not go into the chat history."
+ },
+ {
+  "key": "Tab belum dimuat ulang — buka dulu sebelum menyimpan",
+  "ar": "The tab has not reloaded — open it before saving",
+  "id": "Tab belum dimuat ulang — buka dulu sebelum menyimpan",
+  "en": "The tab has not reloaded — open it before saving"
+ },
+ {
+  "key": "Terminal tab & pane menu",
+  "ar": "Terminal tab & pane menu",
+  "id": "Terminal tab & pane menu",
+  "en": "Terminal tab & pane menu"
+ },
+ {
+  "key": "Test announcement from Zephyr. The screen reader path works.",
+  "ar": "Test announcement from Zephyr. The screen reader path works.",
+  "id": "Test announcement from Zephyr. The screen reader path works.",
+  "en": "Test announcement from Zephyr. The screen reader path works."
+ },
+ {
+  "key": "Tests finished with exit code 0",
+  "ar": "Tests finished with exit code 0",
+  "id": "Tests finished with exit code 0",
+  "en": "Tests finished with exit code 0"
+ },
+ {
+  "key": "The AI panel is showing in the right column. Change it in Settings → General → AI panel.",
+  "ar": "The AI panel is showing in the right column. Change it in Settings → General → AI panel.",
+  "id": "The AI panel is showing in the right column. Change it in Settings → General → AI panel.",
+  "en": "The AI panel is showing in the right column. Change it in Settings → General → AI panel."
+ },
+ {
+  "key": "The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.",
+  "ar": "The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.",
+  "id": "The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel.",
+  "en": "The OpenSSH client is not installed. Add it from Settings > Apps > Optional features > OpenSSH Client, then reopen this panel."
+ },
+ {
+  "key": "The cost is an estimate, not an official provider bill.",
+  "ar": "The cost is an estimate, not an official provider bill.",
+  "id": "Biaya ini perkiraan, bukan tagihan resmi provider.",
+  "en": "The cost is an estimate, not an official provider bill."
+ },
+ {
+  "key": "The extension folder will be deleted PERMANENTLY (cannot be undone).",
+  "ar": "The extension folder will be deleted PERMANENTLY (cannot be undone).",
+  "id": "The extension folder will be deleted PERMANENTLY (cannot be undone).",
+  "en": "The extension folder will be deleted PERMANENTLY (cannot be undone)."
+ },
+ {
+  "key": "The web server that fronts the projects.",
+  "ar": "The web server that fronts the projects.",
+  "id": "The web server that fronts the projects.",
+  "en": "The web server that fronts the projects."
+ },
+ {
+  "key": "Theme/keymap/language changes take effect after reload.",
+  "ar": "Theme/keymap/language changes take effect after reload.",
+  "id": "Theme/keymap/language changes take effect after reload.",
+  "en": "Theme/keymap/language changes take effect after reload."
+ },
+ {
+  "key": "This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.",
+  "ar": "This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.",
+  "id": "This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive.",
+  "en": "This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive."
+ },
+ {
+  "key": "This command is potentially destructive - allow the agent?",
+  "ar": "This command is potentially destructive - allow the agent?",
+  "id": "Perintah ini berpotensi merusak - izinkan agent?",
+  "en": "This command is potentially destructive - allow the agent?"
+ },
+ {
+  "key": "This command is potentially destructive:",
+  "ar": "This command is potentially destructive:",
+  "id": "Perintah ini berpotensi merusak:",
+  "en": "This command is potentially destructive:"
+ },
+ {
+  "key": "This command is too short - write something more specific (e.g. \"npm run build\", not \"n\").",
+  "ar": "This command is too short - write something more specific (e.g. \"npm run build\", not \"n\").",
+  "id": "This command is too short - write something more specific (e.g. \"npm run build\", not \"n\").",
+  "en": "This command is too short - write something more specific (e.g. \"npm run build\", not \"n\")."
+ },
+ {
+  "key": "This folder is not a git repository yet.",
+  "ar": "This folder is not a git repository yet.",
+  "id": "This folder is not a git repository yet.",
+  "en": "This folder is not a git repository yet."
+ },
+ {
+  "key": "This host connection will be removed from the list.",
+  "ar": "This host connection will be removed from the list.",
+  "id": "This host connection will be removed from the list.",
+  "en": "This host connection will be removed from the list."
+ },
+ {
+  "key": "This is what is actually sent to the model (without project rules & context).",
+  "ar": "This is what is actually sent to the model (without project rules & context).",
+  "id": "This is what is actually sent to the model (without project rules & context).",
+  "en": "This is what is actually sent to the model (without project rules & context)."
+ },
+ {
+  "key": "This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.",
+  "ar": "This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.",
+  "id": "This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models.",
+  "en": "This prompt is sent to the model on every conversation. Leave it empty to use the Zephyr default - the default is tuned to work well across all models."
+ },
+ {
+  "key": "Tidak ada kursor di editor",
+  "ar": "No cursor in the editor",
+  "id": "Tidak ada kursor di editor",
+  "en": "No cursor in the editor"
+ },
+ {
+  "key": "Tidak ada language server yang hidup",
+  "ar": "No language server is running",
+  "id": "Tidak ada language server yang hidup",
+  "en": "No language server is running"
+ },
+ {
+  "key": "Tidak ada perubahan ter-stage — stage dulu lalu ulangi.",
+  "ar": "Nothing is staged — stage changes first, then try again.",
+  "id": "Tidak ada perubahan ter-stage — stage dulu lalu ulangi.",
+  "en": "Nothing is staged — stage changes first, then try again."
+ },
+ {
+  "key": "Tidak ada perubahan untuk di-stash",
+  "ar": "There are no changes to stash",
+  "id": "Tidak ada perubahan untuk di-stash",
+  "en": "There are no changes to stash"
+ },
+ {
+  "key": "Tidak ada perubahan untuk diringkas",
+  "ar": "There are no changes to summarise",
+  "id": "Tidak ada perubahan untuk diringkas",
+  "en": "There are no changes to summarise"
+ },
+ {
+  "key": "Tidak ada warna di dokumen ini",
+  "ar": "No colours in this document",
+  "id": "Tidak ada warna di dokumen ini",
+  "en": "No colours in this document"
+ },
+ {
+  "key": "Tidak bisa membuka file untuk restore",
+  "ar": "Could not open the file to restore",
+  "id": "Tidak bisa membuka file untuk restore",
+  "en": "Could not open the file to restore"
+ },
+ {
+  "key": "Tidak bisa menjalankan: tidak ada framework tes di workspace ini.",
+  "ar": "Cannot run: there is no test framework in this workspace.",
+  "id": "Tidak bisa menjalankan: tidak ada framework tes di workspace ini.",
+  "en": "Cannot run: there is no test framework in this workspace."
+ },
+ {
+  "key": "Timestamps (ms since process start):",
+  "ar": "Timestamps (ms since process start):",
+  "id": "Timestamps (ms since process start):",
+  "en": "Timestamps (ms since process start):"
+ },
+ {
+  "key": "Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang.",
+  "ar": "A new token was created. Registered CLIs need to be written again.",
+  "id": "Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang.",
+  "en": "A new token was created. Registered CLIs need to be written again."
+ },
+ {
+  "key": "Tools introduced to the model",
+  "ar": "Tools introduced to the model",
+  "id": "Tools introduced to the model",
+  "en": "Tools introduced to the model"
+ },
+ {
+  "key": "Total RAM (with WebView2)",
+  "ar": "Total RAM (with WebView2)",
+  "id": "Total RAM (with WebView2)",
+  "en": "Total RAM (with WebView2)"
+ },
+ {
+  "key": "Tulis rencana langkah-langkah untuk tugas ini, lalu kerjakan satu per satu.",
+  "ar": "Write a step-by-step plan for this task, then work through it one step at a time.",
+  "id": "Tulis rencana langkah-langkah untuk tugas ini, lalu kerjakan satu per satu.",
+  "en": "Write a step-by-step plan for this task, then work through it one step at a time."
+ },
+ {
+  "key": "Type a commit message first",
+  "ar": "Type a commit message first",
+  "id": "Type a commit message first",
+  "en": "Type a commit message first"
+ },
+ {
+  "key": "Type a task for the agent (Enter to send)…",
+  "ar": "Type a task for the agent (Enter to send)…",
+  "id": "Ketik tugas untuk agent (Enter untuk kirim)…",
+  "en": "Type a task for the agent (Enter to send)…"
+ },
+ {
+  "key": "Undo the last replace (from Local History)",
+  "ar": "Undo the last replace (from Local History)",
+  "id": "Undo the last replace (from Local History)",
+  "en": "Undo the last replace (from Local History)"
+ },
+ {
+  "key": "Untrusted folders run in",
+  "ar": "Untrusted folders run in",
+  "id": "Untrusted folders run in",
+  "en": "Untrusted folders run in"
+ },
+ {
+  "key": "Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.",
+  "ar": "Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.",
+  "id": "Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.",
+  "en": "Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat."
+ },
+ {
+  "key": "Uses the OpenSSH client; a key or ssh-agent is required.",
+  "ar": "Uses the OpenSSH client; a key or ssh-agent is required.",
+  "id": "Uses the OpenSSH client; a key or ssh-agent is required.",
+  "en": "Uses the OpenSSH client; a key or ssh-agent is required."
+ },
+ {
+  "key": "Uses the active language LSP formatter",
+  "ar": "Uses the active language LSP formatter",
+  "id": "Uses the active language LSP formatter",
+  "en": "Uses the active language LSP formatter"
+ },
+ {
+  "key": "When off, the MCP server stops accepting commands - the CLI configuration is not changed.",
+  "ar": "When off, the MCP server stops accepting commands - the CLI configuration is not changed.",
+  "id": "When off, the MCP server stops accepting commands - the CLI configuration is not changed.",
+  "en": "When off, the MCP server stops accepting commands - the CLI configuration is not changed."
+ },
+ {
+  "key": "When this switch is on, Zephyr becomes an MCP server at",
+  "ar": "When this switch is on, Zephyr becomes an MCP server at",
+  "id": "When this switch is on, Zephyr becomes an MCP server at",
+  "en": "When this switch is on, Zephyr becomes an MCP server at"
+ },
+ {
+  "key": "Where runtimes, projects, databases, certificates, and logs live.",
+  "ar": "Where runtimes, projects, databases, certificates, and logs live.",
+  "id": "Where runtimes, projects, databases, certificates, and logs live.",
+  "en": "Where runtimes, projects, databases, certificates, and logs live."
+ },
+ {
+  "key": "Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.",
+  "ar": "Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.",
+  "id": "Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar.",
+  "en": "Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar."
+ },
+ {
+  "key": "Who this AI is. Leave empty to use Zephyr\\'s default identity.",
+  "ar": "Who this AI is. Leave empty to use Zephyr\\'s default identity.",
+  "id": "Who this AI is. Leave empty to use Zephyr\\'s default identity.",
+  "en": "Who this AI is. Leave empty to use Zephyr\\'s default identity."
+ },
+ {
+  "key": "Windows already requested reduced motion - animation is off even if this is off",
+  "ar": "Windows already requested reduced motion - animation is off even if this is off",
+  "id": "Windows already requested reduced motion - animation is off even if this is off",
+  "en": "Windows already requested reduced motion - animation is off even if this is off"
+ },
+ {
+  "key": "Workspace: Buka File .code-workspace",
+  "ar": "Workspace: Open a .code-workspace File",
+  "id": "Workspace: Buka File .code-workspace",
+  "en": "Workspace: Open a .code-workspace File"
+ },
+ {
+  "key": "Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file",
+  "ar": "Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file",
+  "id": "Tulis pesan (Enter kirim, Shift+Enter baris baru) - ketik @ untuk melampirkan file",
+  "en": "Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file"
+ },
+ {
+  "key": "Write one task per line above, then Run. Each line becomes one subagent that works concurrently.",
+  "ar": "Write one task per line above, then Run. Each line becomes one subagent that works concurrently.",
+  "id": "Write one task per line above, then Run. Each line becomes one subagent that works concurrently.",
+  "en": "Write one task per line above, then Run. Each line becomes one subagent that works concurrently."
+ },
+ {
+  "key": "Write the MCP configuration to every CLI installed on this machine",
+  "ar": "Write the MCP configuration to every CLI installed on this machine",
+  "id": "Write the MCP configuration to every CLI installed on this machine",
+  "en": "Write the MCP configuration to every CLI installed on this machine"
+ },
+ {
+  "key": "Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.",
+  "ar": "Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.",
+  "id": "Writes the stack to the log then shows the crash dialog. This button does not exist in release builds.",
+  "en": "Writes the stack to the log then shows the crash dialog. This button does not exist in release builds."
+ },
+ {
+  "key": "Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).",
+  "ar": "Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).",
+  "id": "Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).",
+  "en": "Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore)."
+ },
+ {
+  "key": "Zephyr can be used entirely with the keyboard. Press",
+  "ar": "Zephyr can be used entirely with the keyboard. Press",
+  "id": "Zephyr can be used entirely with the keyboard. Press",
+  "en": "Zephyr can be used entirely with the keyboard. Press"
+ },
+ {
+  "key": "Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.",
+  "ar": "Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.",
+  "id": "Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.",
+  "en": "Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers."
+ },
+ {
+  "key": "Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in",
+  "ar": "Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in",
+  "id": "Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in",
+  "en": "Zephyr does NOT bundle language server binaries (the installer stays ~7 MB). Servers are looked up in"
+ },
+ {
+  "key": "Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.",
+  "ar": "Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.",
+  "id": "Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom.",
+  "en": "Zephyr finds the test framework from the project files. Override it here when the project mixes frameworks, then run the suite from the Tests panel at the bottom."
+ },
+ {
+  "key": "a subagent stops if it exceeds this limit - a guard against endless loops that burn cost",
+  "ar": "a subagent stops if it exceeds this limit - a guard against endless loops that burn cost",
+  "id": "a subagent stops if it exceeds this limit - a guard against endless loops that burn cost",
+  "en": "a subagent stops if it exceeds this limit - a guard against endless loops that burn cost"
+ },
+ {
+  "key": "an isolated Web Worker sandbox",
+  "ar": "an isolated Web Worker sandbox",
+  "id": "an isolated Web Worker sandbox",
+  "en": "an isolated Web Worker sandbox"
+ },
+ {
+  "key": "and also applies to subfolders.",
+  "ar": "and also applies to subfolders.",
+  "id": "and also applies to subfolders.",
+  "en": "and also applies to subfolders."
+ },
+ {
+  "key": "axe belum disuntik",
+  "ar": "axe has not been injected",
+  "id": "axe belum disuntik",
+  "en": "axe has not been injected"
+ },
+ {
+  "key": "berlaku untuk chat berikutnya, tidak perlu ganti model.",
+  "ar": "applies to the next chat, no model change needed.",
+  "id": "berlaku untuk chat berikutnya, tidak perlu ganti model.",
+  "en": "applies to the next chat, no model change needed."
+ },
+ {
+  "key": "bottom = flush with the terminal; right = a 340px column like VS Code",
+  "ar": "bottom = flush with the terminal; right = a 340px column like VS Code",
+  "id": "bottom = flush with the terminal; right = a 340px column like VS Code",
+  "en": "bottom = flush with the terminal; right = a 340px column like VS Code"
+ },
+ {
+  "key": "buka folder dulu untuk mencari",
+  "ar": "open a folder first to search",
+  "id": "buka folder dulu untuk mencari",
+  "en": "open a folder first to search"
+ },
+ {
+  "key": "color brackets by depth",
+  "ar": "color brackets by depth",
+  "id": "color brackets by depth",
+  "en": "color brackets by depth"
+ },
+ {
+  "key": "default NO. Several subagents writing the same file can overwrite each other",
+  "ar": "default NO. Several subagents writing the same file can overwrite each other",
+  "id": "default NO. Several subagents writing the same file can overwrite each other",
+  "en": "default NO. Several subagents writing the same file can overwrite each other"
+ },
+ {
+  "key": "dialog pilih folder dibuka untuk user",
+  "ar": "the folder picker was opened for the user",
+  "id": "dialog pilih folder dibuka untuk user",
+  "en": "the folder picker was opened for the user"
+ },
+ {
+  "key": "dot for spaces, arrow for tabs",
+  "ar": "dot for spaces, arrow for tabs",
+  "id": "dot for spaces, arrow for tabs",
+  "en": "dot for spaces, arrow for tabs"
+ },
+ {
+  "key": "draws the actual text, not color blocks - much heavier",
+  "ar": "draws the actual text, not color blocks - much heavier",
+  "id": "draws the actual text, not color blocks - much heavier",
+  "en": "draws the actual text, not color blocks - much heavier"
+ },
+ {
+  "key": "each subagent calls the provider itself - more subagents means the quota is used up faster",
+  "ar": "each subagent calls the provider itself - more subagents means the quota is used up faster",
+  "id": "each subagent calls the provider itself - more subagents means the quota is used up faster",
+  "en": "each subagent calls the provider itself - more subagents means the quota is used up faster"
+ },
+ {
+  "key": "editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane",
+  "ar": "editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane",
+  "id": "editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane",
+  "en": "editor = large editor with the terminal docked below; terminal = the terminal becomes the main area, the editor becomes a side pane"
+ },
+ {
+  "key": "eksekusi runtime gagal",
+  "ar": "runtime execution failed",
+  "id": "eksekusi runtime gagal",
+  "en": "runtime execution failed"
+ },
+ {
+  "key": "ekstensi tidak dimuat",
+  "ar": "the extension is not loaded",
+  "id": "ekstensi tidak dimuat",
+  "en": "the extension is not loaded"
+ },
+ {
+  "key": "entries are written to the config; the old file is copied to .bak",
+  "ar": "entries are written to the config; the old file is copied to .bak",
+  "id": "entries are written to the config; the old file is copied to .bak",
+  "en": "entries are written to the config; the old file is copied to .bak"
+ },
+ {
+  "key": "fill covers fully, fit shows it whole, center is original size",
+  "ar": "fill covers fully, fit shows it whole, center is original size",
+  "id": "fill covers fully, fit shows it whole, center is original size",
+  "en": "fill covers fully, fit shows it whole, center is original size"
+ },
+ {
+  "key": "flag ambiguous & invisible characters",
+  "ar": "flag ambiguous & invisible characters",
+  "id": "flag ambiguous & invisible characters",
+  "en": "flag ambiguous & invisible characters"
+ },
+ {
+  "key": "folder path + symbols from the language server",
+  "ar": "folder path + symbols from the language server",
+  "id": "folder path + symbols from the language server",
+  "en": "folder path + symbols from the language server"
+ },
+ {
+  "key": "for Ollama) if local, then type",
+  "ar": "for Ollama) if local, then type",
+  "id": "for Ollama) if local, then type",
+  "en": "for Ollama) if local, then type"
+ },
+ {
+  "key": "for all commands. The contrast of every theme meets WCAG AA; the",
+  "ar": "for all commands. The contrast of every theme meets WCAG AA; the",
+  "id": "for all commands. The contrast of every theme meets WCAG AA; the",
+  "en": "for all commands. The contrast of every theme meets WCAG AA; the"
+ },
+ {
+  "key": "from the start to jump straight to the editor,",
+  "ar": "from the start to jump straight to the editor,",
+  "id": "from the start to jump straight to the editor,",
+  "en": "from the start to jump straight to the editor,"
+ },
+ {
+  "key": "fs.Stream tidak didukung di sandbox ekstensi Zephyr",
+  "ar": "fs.Stream is not supported in the Zephyr extension sandbox",
+  "id": "fs.Stream tidak didukung di sandbox ekstensi Zephyr",
+  "en": "fs.Stream is not supported in the Zephyr extension sandbox"
+ },
+ {
+  "key": "fs.realpath.native tidak didukung di sandbox ekstensi Zephyr",
+  "ar": "fs.realpath.native is not supported in the Zephyr extension sandbox",
+  "id": "fs.realpath.native tidak didukung di sandbox ekstensi Zephyr",
+  "en": "fs.realpath.native is not supported in the Zephyr extension sandbox"
+ },
+ {
+  "key": "function/class lines stick while scrolling",
+  "ar": "function/class lines stick while scrolling",
+  "id": "function/class lines stick while scrolling",
+  "en": "function/class lines stick while scrolling"
+ },
+ {
+  "key": "harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown,",
+  "ar": "should be typed next, with no explanation, no markdown block,",
+  "id": "harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown,",
+  "en": "should be typed next, with no explanation, no markdown block,"
+ },
+ {
+  "key": "health check dari AI CLI",
+  "ar": "health check from an AI CLI",
+  "id": "health check dari AI CLI",
+  "en": "health check from an AI CLI"
+ },
+ {
+  "key": "how clearly the image shows through",
+  "ar": "how clearly the image shows through",
+  "id": "how clearly the image shows through",
+  "en": "how clearly the image shows through"
+ },
+ {
+  "key": "how many header lines are stacked",
+  "ar": "how many header lines are stacked",
+  "id": "how many header lines are stacked",
+  "en": "how many header lines are stacked"
+ },
+ {
+  "key": "if turned off, only the summary appears",
+  "ar": "if turned off, only the summary appears",
+  "id": "if turned off, only the summary appears",
+  "en": "if turned off, only the summary appears"
+ },
+ {
+  "key": "in the extensions folder, or use the \"Add from file…\" button.",
+  "ar": "in the extensions folder, or use the \"Add from file…\" button.",
+  "id": "in the extensions folder, or use the \"Add from file…\" button.",
+  "en": "in the extensions folder, or use the \"Add from file…\" button."
+ },
+ {
+  "key": "in the field or pick from",
+  "ar": "in the field or pick from",
+  "id": "in the field or pick from",
+  "en": "in the field or pick from"
+ },
+ {
+  "key": "indent guides + active indent",
+  "ar": "indent guides + active indent",
+  "id": "indent guides + active indent",
+  "en": "indent guides + active indent"
+ },
+ {
+  "key": "install commands copied",
+  "ar": "install commands copied",
+  "id": "install commands copied",
+  "en": "install commands copied"
+ },
+ {
+  "key": "is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.",
+  "ar": "is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.",
+  "id": "is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.",
+  "en": "is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside."
+ },
+ {
+  "key": "language server tidak aktif untuk file ini",
+  "ar": "no language server is active for this file",
+  "id": "language server tidak aktif untuk file ini",
+  "en": "no language server is active for this file"
+ },
+ {
+  "key": "leave empty to use the theme color",
+  "ar": "leave empty to use the theme color",
+  "id": "leave empty to use the theme color",
+  "en": "leave empty to use the theme color"
+ },
+ {
+  "key": "light/dark mode; specific themes are in the Theme section",
+  "ar": "light/dark mode; specific themes are in the Theme section",
+  "id": "light/dark mode; specific themes are in the Theme section",
+  "en": "light/dark mode; specific themes are in the Theme section"
+ },
+ {
+  "key": "lightweight code editor, built from scratch",
+  "ar": "lightweight code editor, built from scratch",
+  "id": "lightweight code editor, built from scratch",
+  "en": "lightweight code editor, built from scratch"
+ },
+ {
+  "key": "main labels only, not all text",
+  "ar": "main labels only, not all text",
+  "id": "main labels only, not all text",
+  "en": "main labels only, not all text"
+ },
+ {
+  "key": "manifest tidak terbaca",
+  "ar": "the manifest could not be read",
+  "id": "manifest tidak terbaca",
+  "en": "the manifest could not be read"
+ },
+ {
+  "key": "menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya.",
+  "ar": "duplicates a built-in persona so you can change it without losing the original.",
+  "id": "menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya.",
+  "en": "duplicates a built-in persona so you can change it without losing the original."
+ },
+ {
+  "key": "move focus to the dialog when it opens (turn off if it is disruptive)",
+  "ar": "move focus to the dialog when it opens (turn off if it is disruptive)",
+  "id": "move focus to the dialog when it opens (turn off if it is disruptive)",
+  "en": "move focus to the dialog when it opens (turn off if it is disruptive)"
+ },
+ {
+  "key": "nama memuat karakter yang tidak diizinkan",
+  "ar": "the name contains characters that are not allowed",
+  "id": "nama memuat karakter yang tidak diizinkan",
+  "en": "the name contains characters that are not allowed"
+ },
+ {
+  "key": "nama tidak boleh diakhiri titik atau spasi",
+  "ar": "the name cannot end with a dot or a space",
+  "id": "nama tidak boleh diakhiri titik atau spasi",
+  "en": "the name cannot end with a dot or a space"
+ },
+ {
+  "key": "no telemetry; only checks the release version",
+  "ar": "no telemetry; only checks the release version",
+  "id": "no telemetry; only checks the release version",
+  "en": "no telemetry; only checks the release version"
+ },
+ {
+  "key": "off by default to save RAM",
+  "ar": "off by default to save RAM",
+  "id": "off by default to save RAM",
+  "en": "off by default to save RAM"
+ },
+ {
+  "key": "one per line, Name: value",
+  "ar": "one per line, Name: value",
+  "id": "one per line, Name: value",
+  "en": "one per line, Name: value"
+ },
+ {
+  "key": "only changes the tab buffer, it does NOT write to disk - saving remains your decision.",
+  "ar": "only changes the tab buffer, it does NOT write to disk - saving remains your decision.",
+  "id": "only changes the tab buffer, it does NOT write to disk - saving remains your decision.",
+  "en": "only changes the tab buffer, it does NOT write to disk - saving remains your decision."
+ },
+ {
+  "key": "or calls a tool, its line appears here - real proof, not a claim.",
+  "ar": "or calls a tool, its line appears here - real proof, not a claim.",
+  "id": "or calls a tool, its line appears here - real proof, not a claim.",
+  "en": "or calls a tool, its line appears here - real proof, not a claim."
+ },
+ {
+  "key": "package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod tidak ditemukan",
+  "ar": "no package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, or go.mod was found",
+  "id": "package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod tidak ditemukan",
+  "en": "no package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, or go.mod was found"
+ },
+ {
+  "key": "pane gagal dibuat",
+  "ar": "creating the pane failed",
+  "id": "pane gagal dibuat",
+  "en": "creating the pane failed"
+ },
+ {
+  "key": "pane tidak bisa dibuat",
+  "ar": "the pane could not be created",
+  "id": "pane tidak bisa dibuat",
+  "en": "the pane could not be created"
+ },
+ {
+  "key": "panes exceeding the limit are rejected with a toast",
+  "ar": "panes exceeding the limit are rejected with a toast",
+  "id": "panes exceeding the limit are rejected with a toast",
+  "en": "panes exceeding the limit are rejected with a toast"
+ },
+ {
+  "key": "passphrase is typed on connect",
+  "ar": "passphrase is typed on connect",
+  "id": "passphrase is typed on connect",
+  "en": "passphrase is typed on connect"
+ },
+ {
+  "key": "pesan commit masih kosong",
+  "ar": "the commit message is still empty",
+  "id": "pesan commit masih kosong",
+  "en": "the commit message is still empty"
+ },
+ {
+  "key": "position of snippet suggestions in the completion list",
+  "ar": "position of snippet suggestions in the completion list",
+  "id": "position of snippet suggestions in the completion list",
+  "en": "position of snippet suggestions in the completion list"
+ },
+ {
+  "key": "providers hidden because there is no API key yet.",
+  "ar": "providers hidden because there is no API key yet.",
+  "id": "provider disembunyikan karena belum ada API key.",
+  "en": "providers hidden because there is no API key yet."
+ },
+ {
+  "key": "ripgrep is not installed - using the built-in search",
+  "ar": "ripgrep is not installed - using the built-in search",
+  "id": "ripgrep is not installed - using the built-in search",
+  "en": "ripgrep is not installed - using the built-in search"
+ },
+ {
+  "key": "set a photo as the editor background",
+  "ar": "set a photo as the editor background",
+  "id": "set a photo as the editor background",
+  "en": "set a photo as the editor background"
+ },
+ {
+  "key": "smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines",
+  "ar": "smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines",
+  "id": "smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines",
+  "en": "smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines"
+ },
+ {
+  "key": "smoother, slightly heavier",
+  "ar": "smoother, slightly heavier",
+  "id": "smoother, slightly heavier",
+  "en": "smoother, slightly heavier"
+ },
+ {
+  "key": "so the AI can answer. Without a key, every request will fail with 401.",
+  "ar": "so the AI can answer. Without a key, every request will fail with 401.",
+  "id": "supaya AI bisa menjawab. Tanpa key, setiap request gagal dengan 401.",
+  "en": "so the AI can answer. Without a key, every request will fail with 401."
+ },
+ {
+  "key": "steps are collapsed right after they finish",
+  "ar": "steps are collapsed right after they finish",
+  "id": "steps are collapsed right after they finish",
+  "en": "steps are collapsed right after they finish"
+ },
+ {
+  "key": "swatch for #hex/rgb()/hsl(), click for a picker",
+  "ar": "swatch for #hex/rgb()/hsl(), click for a picker",
+  "id": "swatch for #hex/rgb()/hsl(), click for a picker",
+  "en": "swatch for #hex/rgb()/hsl(), click for a picker"
+ },
+ {
+  "key": "tanpa mengulang kode yang sudah ada. Maksimal satu baris.",
+  "ar": "and without repeating the code that is already there. One line at most.",
+  "id": "tanpa mengulang kode yang sudah ada. Maksimal satu baris.",
+  "en": "and without repeating the code that is already there. One line at most."
+ },
+ {
+  "key": "tasks tidak didukung di sandbox Zephyr",
+  "ar": "tasks are not supported in the Zephyr sandbox",
+  "id": "tasks tidak didukung di sandbox Zephyr",
+  "en": "tasks are not supported in the Zephyr sandbox"
+ },
+ {
+  "key": "terminal & editor optimized for Narrator/NVDA (heavier)",
+  "ar": "terminal & editor optimized for Narrator/NVDA (heavier)",
+  "id": "terminal & editor optimized for Narrator/NVDA (heavier)",
+  "en": "terminal & editor optimized for Narrator/NVDA (heavier)"
+ },
+ {
+  "key": "the screen reader needs time to read; increase it if the toast disappears too quickly",
+  "ar": "the screen reader needs time to read; increase it if the toast disappears too quickly",
+  "id": "the screen reader needs time to read; increase it if the toast disappears too quickly",
+  "en": "the screen reader needs time to read; increase it if the toast disappears too quickly"
+ },
+ {
+  "key": "then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.",
+  "ar": "then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.",
+  "id": "then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle.",
+  "en": "then on PATH. A server only starts when a file of that type is opened, and shuts down on its own after idle."
+ },
+ {
+  "key": "tidak ada penanda teknologi umum",
+  "ar": "no common technology markers",
+  "id": "tidak ada penanda teknologi umum",
+  "en": "no common technology markers"
+ },
+ {
+  "key": "tidak ada test framework yang terdeteksi",
+  "ar": "no test framework detected",
+  "id": "tidak ada test framework yang terdeteksi",
+  "en": "no test framework detected"
+ },
+ {
+  "key": "tidak bisa memindahkan folder ke dalam dirinya sendiri",
+  "ar": "a folder cannot be moved into itself",
+  "id": "tidak bisa memindahkan folder ke dalam dirinya sendiri",
+  "en": "a folder cannot be moved into itself"
+ },
+ {
+  "key": "tidak ditemukan di dalam ekstensi Zephyr",
+  "ar": "was not found inside the Zephyr extension",
+  "id": "tidak ditemukan di dalam ekstensi Zephyr",
+  "en": "was not found inside the Zephyr extension"
+ },
+ {
+  "key": "to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.",
+  "ar": "to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.",
+  "id": "to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal.",
+  "en": "to pull the model list directly from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal."
+ },
+ {
+  "key": "turn off if the text feels hard to read",
+  "ar": "turn off if the text feels hard to read",
+  "id": "turn off if the text feels hard to read",
+  "en": "turn off if the text feels hard to read"
+ },
+ {
+  "key": "turn off transitions & animations inside Zephyr",
+  "ar": "turn off transitions & animations inside Zephyr",
+  "id": "turn off transitions & animations inside Zephyr",
+  "en": "turn off transitions & animations inside Zephyr"
+ },
+ {
+  "key": "used as Authorization: Bearer ***",
+  "ar": "used as Authorization: Bearer ***",
+  "id": "used as Authorization: Bearer ***",
+  "en": "used as Authorization: Bearer ***"
+ },
+ {
+  "key": "used by the editor & terminal",
+  "ar": "used by the editor & terminal",
+  "id": "used by the editor & terminal",
+  "en": "used by the editor & terminal"
+ },
+ {
+  "key": "yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.",
+  "ar": "is active: that is Zephyr\\'s built-in behaviour with nothing added.",
+  "id": "yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.",
+  "en": "is active: that is Zephyr\\'s built-in behaviour with nothing added."
+ },
+ {
+  "key": "≈3.0k tokens for the full tool list",
+  "ar": "≈3.0k tokens for the full tool list",
+  "id": "≈3.0k tokens for the full tool list",
+  "en": "≈3.0k tokens for the full tool list"
+ }
+]

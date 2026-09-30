@@ -91,7 +91,7 @@ export default function Minimap({ view, path, renderCharacters, docVersion }: Pr
      * The old math capped the *scale* at 3px and let the step be whatever fell
      * out, so a 1500-line file drew 1500 rows into 515px — a 0.34px step, and
      * lines thinner than a pixel stack into one uniform smear. Nothing about
-     * the map was readable at that density, which is exactly what "numpuk"
+     * the map was readable at that density, which is exactly what "stacked up"
      * looks like.
      *
      * Two ceilings apply and the tighter one wins: the panel can hold about

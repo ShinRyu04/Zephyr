@@ -72,14 +72,14 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
             <FileIcon lang={t.lang} name={t.name} />
             <span className="tab-name">{t.name}</span>
             {t.unsaved && <span className="tab-dot" title={tx('Not saved')} aria-hidden="true" />}
-            {/* FASE 31: tombol ✕ diganti <span>.
-                ARIA melarang `role="tab"` punya keturunan interaktif, dan
-                `tabIndex={-1}` TIDAK cukup - axe: "a negative tabindex on an
+            {/* PHASE 31: the ✕ button was replaced with a <span>.
+                ARIA forbids `role="tab"` from having interactive descendants, and
+                `tabIndex={-1}` is NOT enough - axe: "a negative tabindex on an
                 element inside an interactive control does not prevent
-                assistive technologies from focusing the element". Jadi
-                elemennya memang tidak boleh interaktif: <span> + aria-hidden,
-                klik tetap jalan untuk mouse, keyboard memakai
-                Delete/Backspace di tab-nya (lihat onKeyDown). */}
+                assistive technologies from focusing the element". So the
+                element really must not be interactive: <span> + aria-hidden,
+                the click still works for the mouse, the keyboard uses
+                Delete/Backspace on its tab (see onKeyDown). */}
             <span
               className="tab-close"
               title={tx('common.close')}

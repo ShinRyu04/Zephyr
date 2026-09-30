@@ -174,18 +174,37 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'terminal_read',
       description:
-        'Read the last N lines of output from a terminal pane scrollback. The output is taken from the process buffer, so it stays readable even after you have scrolled far away or the pane is not visible. Use it after terminal_exec (interactive commands). For one-shot commands, shell_exec already returned the output.',
+        'Read the last N lines of output from a terminal pane scrollback. The output is taken from the process buffer, so it stays readable even after you have scrolled far away or the pane is not visible. Use it after terminal_exec (interactive commands). For one-shot commands, shell_exec already returned the output. Pass pane to pick a specific pane by index or id when more than one is open; call list_panes first to see them.',
       parameters: {
         type: 'object',
         properties: {
           maxLines: { type: 'number', description: 'Maximum number of lines to read (default 40)' },
+          pane: {
+            type: 'string',
+            description:
+              'Pane index (0, 1, 2) or pane id from list_panes. Default: the active agent pane, then any non-browser pane.',
+          },
         },
       },
     },
     run: async (args) => {
       const maxLines = Math.max(1, Math.min(2000, Number(args.maxLines ?? 40) || 40));
       const panes = useTerminal.getState().allPanes();
-      const target = panes.find((p) => p.kind === 'agent') ?? panes.find((p) => p.kind !== 'browser');
+      if (panes.length === 0) return '(no terminal pane is open - open one from the Terminal panel)';
+      const pilih = String(args.pane ?? '').trim();
+      let target = panes.find((p) => p.kind === 'agent') ?? panes.find((p) => p.kind !== 'browser');
+      if (pilih) {
+        const idx = Number(pilih);
+        const cocok =
+          Number.isInteger(idx) && panes[idx] ? panes[idx] : panes.find((p) => p.id === pilih);
+        if (!cocok) {
+          // Never silently read a different pane than the one asked for: a
+          // wrong pane returns plausible output and the model acts on it.
+          const daftar = panes.map((p, i) => `${i}=${p.id} (${p.kind})`).join(', ');
+          return `Pane "${pilih}" not found. Open panes: ${daftar}`;
+        }
+        target = cocok;
+      }
       if (!target) return '(no terminal pane)';
       try {
         const teks = await cmd.ptyTail(target.id, maxLines);

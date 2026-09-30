@@ -2,13 +2,13 @@ use serde::Serialize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ZephyrError {
-    #[error("tidak ditemukan: {0}")]
+    #[error("not found: {0}")]
     NotFound(String),
     #[error("input is not valid: {0}")]
     InvalidInput(String),
-    #[error("izin ditolak: {0}")]
+    #[error("permission denied: {0}")]
     Permission(String),
-    #[error("path di luar workspace: {0}")]
+    #[error("path outside the workspace: {0}")]
     WorkspaceOutside(String),
     #[error("git: {0}")]
     #[allow(dead_code)]

@@ -9,32 +9,32 @@ export interface ActionDef {
 
 export const ACTIONS: ActionDef[] = [
   { id: 'file.new', label: 'File baru', group: 'File', default: 'Ctrl+N' },
-  { id: 'file.open', label: 'Buka file', group: 'File', default: 'Ctrl+O' },
-  { id: 'file.openFolder', label: 'Buka folder', group: 'File', default: 'Ctrl+Shift+O' },
+  { id: 'file.open', label: 'Open File', group: 'File', default: 'Ctrl+O' },
+  { id: 'file.openFolder', label: 'Open Folder', group: 'File', default: 'Ctrl+Shift+O' },
   { id: 'file.save', label: 'Simpan', group: 'File', default: 'Ctrl+S' },
-  { id: 'file.saveAs', label: 'Simpan sebagai', group: 'File', default: 'Ctrl+Shift+S' },
-  { id: 'file.closeTab', label: 'Tutup tab', group: 'File', default: 'Ctrl+W' },
+  { id: 'file.saveAs', label: 'Save As', group: 'File', default: 'Ctrl+Shift+S' },
+  { id: 'file.closeTab', label: 'Close Tab', group: 'File', default: 'Ctrl+W' },
 
-  { id: 'edit.find', label: 'Cari di file', group: 'Edit', default: 'Ctrl+F' },
-  { id: 'edit.findInFiles', label: 'Cari di workspace', group: 'Edit', default: 'Ctrl+Shift+F' },
+  { id: 'edit.find', label: 'Find in File', group: 'Edit', default: 'Ctrl+F' },
+  { id: 'edit.findInFiles', label: 'Find in Workspace', group: 'Edit', default: 'Ctrl+Shift+F' },
 
   { id: 'edit.replaceInFiles', label: 'Ganti di workspace', group: 'Edit', default: 'Ctrl+Shift+H' },
-  { id: 'edit.nextMatch', label: 'Hasil pencarian berikutnya', group: 'Edit', default: 'F4' },
-  { id: 'edit.prevMatch', label: 'Hasil pencarian sebelumnya', group: 'Edit', default: 'Shift+F4' },
+  { id: 'edit.nextMatch', label: 'Next search result', group: 'Edit', default: 'F4' },
+  { id: 'edit.prevMatch', label: 'Previous search result', group: 'Edit', default: 'Shift+F4' },
 
   { id: 'view.sidebar', label: 'Toggle sidebar', group: 'View', default: 'Ctrl+B' },
-  { id: 'view.panel', label: 'Toggle panel bawah', group: 'View', default: 'Ctrl+J' },
+  { id: 'view.panel', label: 'Toggle bottom panel', group: 'View', default: 'Ctrl+J' },
 
   { id: 'view.subagents', label: 'Panel Subagents', group: 'View', default: 'Ctrl+Shift+D' },
   /* Notes, todos and the schedule share one panel; the shortcut opens it. */
   { id: 'view.notes', label: 'Notes & todos', group: 'View', default: 'Ctrl+Shift+N' },
-  { id: 'view.splitEditorRight', label: 'Split editor ke kanan', group: 'View', default: 'Ctrl+\\' },
-  { id: 'view.explorer', label: 'Buka Explorer', group: 'View', default: 'Ctrl+Shift+E' },
+  { id: 'view.splitEditorRight', label: 'Split editor to the right', group: 'View', default: 'Ctrl+\\' },
+  { id: 'view.explorer', label: 'Open Explorer', group: 'View', default: 'Ctrl+Shift+E' },
   { id: 'view.palette', label: 'Command Palette', group: 'View', default: 'Ctrl+Shift+P' },
   { id: 'view.quickOpen', label: 'Quick Open file', group: 'View', default: 'Ctrl+P' },
   { id: 'view.nextTab', label: 'Tab editor berikutnya', group: 'View', default: 'Ctrl+Tab' },
   { id: 'view.prevTab', label: 'Tab editor sebelumnya', group: 'View', default: 'Ctrl+Shift+Tab' },
-  { id: 'view.settings', label: 'Buka Settings', group: 'View', default: 'Ctrl+,' },
+  { id: 'view.settings', label: 'Open Settings', group: 'View', default: 'Ctrl+,' },
   { id: 'view.zoomIn', label: 'Zoom in', group: 'View', default: 'Ctrl+=' },
   { id: 'view.zoomOut', label: 'Zoom out', group: 'View', default: 'Ctrl+-' },
   { id: 'view.zoomReset', label: 'Zoom reset', group: 'View', default: 'Ctrl+0' },
@@ -44,8 +44,8 @@ export const ACTIONS: ActionDef[] = [
   { id: 'terminal.newPane', label: 'Pane terminal baru (alt)', group: 'Terminal', default: 'Ctrl+Shift+`' },
 
   { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: 'Ctrl+Shift+A' },
-  { id: 'ai.send', label: 'Kirim prompt AI', group: 'AI', default: 'Ctrl+Enter' },
-  { id: 'git.panel', label: 'Buka Source Control', group: 'Git', default: 'Ctrl+Shift+G' },
+  { id: 'ai.send', label: 'Send AI prompt', group: 'AI', default: 'Ctrl+Enter' },
+  { id: 'git.panel', label: 'Open Source Control', group: 'Git', default: 'Ctrl+Shift+G' },
 
   { id: 'tasks.build', label: 'Run Build Task', group: 'Tasks', default: 'Ctrl+Shift+B' },
   { id: 'tasks.run', label: 'Run Task', group: 'Tasks', default: '' },

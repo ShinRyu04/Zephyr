@@ -42,21 +42,21 @@ function PersonaCard() {
           <span className="set-h2-sub">{tr('Persona')}</span>
           <span className="set-hint">
             {tr(
-              'Kepribadian yang dipakai AI. Persona hanya mengganti cara bicara dan cara berpikir — daftar alat, aturan proyek, dan instruksimu tetap berlaku.',
+              'How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.',
             )}
           </span>
           {/*
-            * Blok "cara pakai".
+            * The "how to use" block.
             *
-            * Sebelumnya cuma ada satu baris yang menjelaskan APA itu persona,
-            * tidak pernah BAGAIMANA memakainya — jadi wajar kalau user bingung
-            * harus ngapain. Tiga langkah di bawah ini ditulis sebagai kalimat
-            * biasa (bukan daftar bernomor ala dokumentasi) supaya tetap enak
-            * dibaca di panel seting yang sempit.
+            * Previously there was only one line explaining WHAT a persona is,
+            * never HOW to use it — so it was no wonder users were confused
+            * about what to do. The three steps below are written as plain
+            * sentences (not a numbered documentation-style list) so they still read
+            * well in a narrow settings panel.
             */}
           <span className="set-hint persona-cara" data-testid="persona-cara">
             {tr(
-              'Cara pakai: klik "Aktif" di baris persona untuk memakainya — berlaku untuk chat berikutnya, tidak perlu restart. Tombol "Salin" menduplikat persona bawaan supaya bisa diubah tanpa kehilangan aslinya. Kalau ragu, biarkan "Umum" yang aktif: itu perilaku bawaan Zephyr tanpa tambahan apa pun.',
+              'How to use it: hit "Active" on a persona row to turn it on — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr\'s built-in behaviour with nothing added.',
             )}
           </span>
         </div>
@@ -99,7 +99,7 @@ function PersonaCard() {
                   data-testid={`persona-${p.id}-ubah`}
                   onClick={() => bukaSunting(p.id)}
                 >
-                  {tr('Subagent: ubah')}
+                  {tr('Subagent: edit')}
                 </button>
                 {p.bawaan ? (
                   <button
@@ -115,7 +115,7 @@ function PersonaCard() {
                     data-testid={`persona-${p.id}-hapus`}
                     onClick={() => void hapus(p.id)}
                   >
-                    {tr('Subagent: hapus')}
+                    {tr('Subagent: delete')}
                   </button>
                 )}
               </div>
@@ -184,9 +184,9 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
       >
         <div className="subagent-head">
           <h2 className="modal-title" id="persona-title">
-            {awal ? tr('Ubah persona') : tr('Persona baru')}
+            {awal ? tr('Edit persona') : tr('Persona baru')}
           </h2>
-          <button className="btn btn-icon" data-testid="persona-tutup" aria-label={tr('Subagent: tutup')} onClick={onTutup}>
+          <button className="btn btn-icon" data-testid="persona-tutup" aria-label={tr('Subagent: close')} onClick={onTutup}>
             ✕
           </button>
         </div>
@@ -204,7 +204,7 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
             />
             {namaBentrok && (
               <span className="subagent-warn" data-testid="persona-nama-bentrok">
-                {tr('Nama itu sudah dipakai persona lain.')}
+                {tr('Another persona already uses that name.')}
               </span>
             )}
           </label>
@@ -215,7 +215,7 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
               className="input"
               data-testid="persona-deskripsi"
               value={deskripsi}
-              placeholder={tr('Satu baris — muncul di daftar persona')}
+              placeholder={tr('One line — shown in the persona list')}
               onChange={(e) => setDeskripsi(e.target.value)}
             />
           </label>
@@ -227,7 +227,7 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
               data-testid="persona-identitas"
               value={identitas}
               rows={3}
-              placeholder={tr('Siapa AI ini. Kosongkan untuk memakai identitas bawaan Zephyr.')}
+              placeholder={tr('Who this AI is. Leave empty to use Zephyr\'s default identity.')}
               onChange={(e) => setIdentitas(e.target.value)}
             />
           </label>
@@ -239,7 +239,7 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
               data-testid="persona-carakerja"
               value={caraKerja}
               rows={4}
-              placeholder={tr('Bagaimana AI menjawab: panjang, bukti, urutan, nada. Kosongkan untuk bawaan.')}
+              placeholder={tr('How the AI answers: length, evidence, order, tone. Leave empty for the default.')}
               onChange={(e) => setCaraKerja(e.target.value)}
             />
           </label>
@@ -251,7 +251,7 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
               data-testid="persona-aturan"
               value={aturan}
               rows={3}
-              placeholder={tr('Aturan yang selalu berlaku untuk persona ini. Kosongkan kalau tidak ada.')}
+              placeholder={tr('Rules that always apply to this persona. Leave empty if there are none.')}
               onChange={(e) => setAturan(e.target.value)}
             />
           </label>
@@ -278,7 +278,7 @@ function PersonaEditor({ awal, onTutup }: EditorProps) {
               onTutup();
             }}
           >
-            {tr('Subagent: simpan')}
+            {tr('Subagent: save')}
           </button>
         </div>
       </div>

@@ -272,10 +272,10 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
   const tulis = p?.butuhTulis
     ? inggris
       ? 'You may change files within the scope of your task only.'
-      : 'Kamu boleh mengubah file sebatas lingkup tugasmu.'
+      : 'You may edit files, but only within the scope of your task.'
     : inggris
       ? 'Do not write any file (editor_write/file_write/file_edit/file_patch are rejected).'
-      : 'Jangan menulis file apa pun (editor_write/file_write/file_edit/file_patch ditolak).';
+      : 'Do not write any file (editor_write/file_write/file_edit/file_patch are refused).';
   const baris = inggris
     ? [
         'You are a SUBAGENT in a parallel task.',
@@ -294,20 +294,20 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
         '- If the task cannot be done, say why. Do not make things up.',
       ]
     : [
-        'Kamu adalah SUBAGENT dari sebuah tugas paralel.',
+        'You are a SUBAGENT on a parallel task.',
         p ? `PERANMU: ${p.label}` : '',
         p ? p.arahan : custom ? arahanCustom(custom, total) : '',
         '',
         `Tugasmu (${total} subagent berjalan bersamaan): ${tugas}`,
         '',
         'ATURAN:',
-        '- Kerjakan HANYA tugas di atas. Jangan mengerjakan tugas subagent lain.',
-        '- KERJAKAN DENGAN TOOL, bukan cuma menjelaskan. Pakai file_read/file_list untuk melihat, search untuk mencari, dan shell_exec untuk menjalankan perintah. Jangan menjawab dari ingatan kalau bisa memeriksa.',
+        '- Do ONLY the task above. Do not do another subagent\'s work.',
+        '- DO THE WORK WITH TOOLS, do not just explain. Use file_read/file_list to look around, search to find things, and shell_exec to run commands. Do not answer from memory when you can check.',
         tulis,
-        '- BEKERJA SAMPAI SELESAI lalu berhenti. Jangan memanggil tool setelah kamu punya jawabannya.',
-        '- Laporkan temuan sejelas mungkin di jawaban AKHIR: apa yang kamu temukan,',
-        '  di file mana, dan kesimpulan singkatnya. Sebutkan path dan nomor baris bila ada.',
-        '- Kalau tugas tidak bisa diselesaikan, katakan alasannya. Jangan mengarang.',
+        '- WORK UNTIL DONE, then stop. Do not call a tool after you already have the answer.',
+        '- Report your findings as clearly as possible in the FINAL answer: what you found,',
+        '  in which file, and a short conclusion. Name the path and line numbers when you have them.',
+        '- If the task cannot be finished, say why. Do not make things up.',
       ];
   return baris.filter(Boolean).join('\n');
 }
@@ -436,15 +436,15 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     const bagian = akhir.map((a) => {
       const statusTeks =
         a.status === 'selesai' ? 'SELESAI' : a.status === 'batal' ? 'DIBATALKAN' : 'GAGAL';
-      const isi = a.hasil || a.error || '(tidak ada hasil)';
+      const isi = a.hasil || a.error || '(no results)';
       // State the evidence next to the claim, so a reader can tell a verified
       // result from an agent that only talked.
       const bukti =
         a.verdict === 'terbukti'
-          ? `${a.nTool} langkah tool, semua berhasil`
+          ? `${a.nTool} tool steps, all succeeded`
           : a.verdict === 'sebagian'
-            ? `${a.nTool} langkah tool, ada yang gagal — periksa`
-            : 'TIDAK ADA langkah tool yang berhasil — hasil belum terbukti';
+            ? `${a.nTool} tool steps, some failed — check`
+            : 'NO tool step succeeded — the result is unproven';
       const file = a.fileDitulis.length ? `\nFile ditulis: ${a.fileDitulis.join(', ')}` : '';
       return `## ${a.nama} — ${statusTeks}\nTugas: ${a.tugas}\nBukti: ${bukti}${file}\n\n${isi}`;
     });
@@ -562,7 +562,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     const agent = get().agents.find((a) => a.id === id);
     if (!agent || !agent.riwayat || agent.riwayat.length === 0) return false;
     // A follow-up needs the slot: refuse rather than queue, so the row cannot
-    // sit in "menunggu" behind a batch the user already forgot about.
+    // sit in "waiting" behind a batch the user has already forgotten about.
     if (agent.status === 'jalan' || agent.status === 'menunggu') return false;
 
     const ai = useAi.getState();
@@ -680,14 +680,14 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
           let ok = true;
           if (dilarang) {
             hasil = tulisTool
-              ? '(ditolak: subagent paralel tidak boleh menulis file; aktifkan allowWrite di Settings → Subagents kalau memang perlu)'
-              : '(ditolak: perintah merusak tidak diizinkan untuk subagent paralel)';
+              ? '(refused: a parallel subagent may not write files; turn on allowWrite in Settings → Subagents if that is wanted)'
+              : '(refused: destructive commands are not allowed for a parallel subagent)';
             ok = false;
           } else if (fileMilikLain) {
             const pemilik = get().agents.find((a) => a.id === konflik);
             hasil =
-              `(ditolak: ${fileTarget} sedang dikerjakan subagent "${pemilik?.nama ?? konflik}". ` +
-              'Kerjakan file lain atau tunggu subagent itu selesai.)';
+              `(refused: ${fileTarget} is being worked on by subagent "${pemilik?.nama ?? konflik}". ` +
+              'Work on another file or wait for that subagent to finish.)';
             ok = false;
           } else {
             if (fileTarget) klaimFile(id, fileTarget);
@@ -814,7 +814,7 @@ async function jalankanSatu(
     {
       role: 'user',
       content: ctx.konteks
-        ? `${agent.tugas}\n\nHasil langkah sebelumnya (pakai ini, jangan mengerjakan ulang):\n${ctx.konteks}`
+        ? `${agent.tugas}\n\nResults from the previous step (use these, do not redo the work):\n${ctx.konteks}`
         : agent.tugas,
     },
   ];
@@ -909,14 +909,14 @@ async function jalankanSatu(
         let ok = true;
         if (dilarang) {
           hasil = tulisTool
-            ? '(ditolak: subagent paralel tidak boleh menulis file; aktifkan allowWrite di Settings → Subagents kalau memang perlu)'
-            : '(ditolak: perintah merusak tidak diizinkan untuk subagent paralel)';
+            ? '(refused: a parallel subagent may not write files; turn on allowWrite in Settings → Subagents if that is wanted)'
+            : '(refused: destructive commands are not allowed for a parallel subagent)';
           ok = false;
         } else if (fileMilikLain) {
           const pemilik = get().agents.find((a) => a.id === konflik);
           hasil =
-            `(ditolak: ${fileTarget} sedang dikerjakan subagent "${pemilik?.nama ?? konflik}". ` +
-            'Kerjakan file lain atau tunggu subagent itu selesai.)';
+            `(refused: ${fileTarget} is being worked on by subagent "${pemilik?.nama ?? konflik}". ` +
+            'Work on another file or wait for that subagent to finish.)';
           ok = false;
         } else {
           if (fileTarget) klaimFile(agent.id, fileTarget);

@@ -9,7 +9,7 @@ const depthOf = (text: string, tabSize: number): number => {
     else if (ch === '\t') kolom += tabSize - (kolom % tabSize);
     else return Math.floor(kolom / tabSize);
   }
-  return -1; // baris kosong / hanya whitespace
+  return -1; // empty line / whitespace only
 };
 
 const indentPlugin = ViewPlugin.fromClass(

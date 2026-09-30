@@ -166,12 +166,12 @@ pub fn run() {
                         .unwrap_or(false)
                 };
                 if !enabled {
-                    tracing::debug!("MCP tidak aktif  Eserver tidak dijalankan (lazy)");
+                    tracing::debug!("MCP is not running — the server starts lazily");
                     return;
                 }
                 match mcp_server::start(handle.clone()).await {
                     Ok(port) => tracing::info!(port, "MCP hidup saat startup"),
-                    Err(e) => tracing::warn!("MCP tidak bisa start: {e}"),
+                    Err(e) => tracing::warn!("MCP could not start: {e}"),
                 }
             });
             tracing::info!(ms = boot.elapsed().as_millis() as u64, "setup selesai");

@@ -45,6 +45,11 @@ in-app updater.
 - A read-only role is not offered write tools at all.
 - The last batch is restored after a restart, so a long run is not lost.
 - The idle limit before a step is abandoned is a Setting now.
+- The worker list falls back to the saved file when the store is empty, so
+  workers no longer vanish until the settings page has been opened once.
+- Each row shows the worker's own icon; before this the row was name and tags
+  only, so the icon picked in the editor looked discarded on close.
+- The edit dialog no longer opens behind the AI panel.
 
 ## New views
 
@@ -56,6 +61,46 @@ in-app updater.
   added.
 - Credentials live in their own encrypted file, separate from `secrets.json`,
   and listing never returns a stored value.
+
+## Language
+
+- The interface is English end to end. Extension descriptions and command
+  errors were written in Indonesian while the interface shipped in English, so
+  the two never matched: 121 extension descriptions and 259 error messages are
+  now English at the source. Translation still happens through the i18n layer,
+  so every language keeps its own wording.
+- The English and Indonesian dictionaries match now (1280 keys). Around 120
+  keys existed only in the Indonesian dictionary, and four of those were still
+  Indonesian text, which is why a handful of menus stayed Indonesian with the
+  interface set to English.
+- The lookup order prefers English over Indonesian. The Indonesian dictionary
+  used to be the last fallback, which leaked any key that only it knew into
+  every other language. It went unnoticed because those values happened to be
+  English already.
+- All ten languages are in sync: 1403 keys, checked by
+  `scripts/verify-i18n.mjs`.
+
+## Interface
+
+- Terminal, Run and Debug, and Extensions panels rebuilt to match the reference
+  layout.
+- Extension tabs no longer overlap in a narrow sidebar: the active tab keeps
+  its full label, the inactive ones ellipsize.
+- Marketplace catalogue icons are inlined and recoloured per path, because an
+  `<img>` on a data URI cannot be tinted from outside. No icon renders black.
+- Icon colours use each language's official brand hex across 73 packages
+  instead of a hash of the package name.
+- Minimap, bracket-pair colours, indent guides, ghost text with `Ctrl+Right`
+  to accept a word, and the folder open/close animation.
+
+## Integrations
+
+- Discord Rich Presence: on launch Zephyr connects to the local Discord IPC
+  pipe and publishes the active workspace folder with an elapsed-time counter.
+  Presence clears on exit, so the game slot no longer shows Discord's
+  placeholder mark.
+- The About page links to the Discord community instead of the WhatsApp group,
+  with the real Clyde mark on its native 24x24 grid.
 
 ## Fixes
 
@@ -73,6 +118,10 @@ in-app updater.
 - MySQL reads its version from the install folder, and Redis installs with a
   flat layout are detected.
 - A SFTP listing read the wrong column for the file size.
+- A mistranslated log statement referenced a variable that does not exist,
+  which broke the Rust build.
+- Editor action buttons no longer show a black-on-black label in the light
+  theme.
 
 ## Known issues
 

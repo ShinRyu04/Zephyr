@@ -93,10 +93,10 @@ const NAME_INVALID = /[<>:"/\\|?*\u0000-\u001f]/;
 
 function validateName(name: string): string | null {
   const n = name.trim();
-  if (!n) return 'nama tidak boleh kosong';
-  if (NAME_INVALID.test(n)) return 'nama memuat karakter yang tidak diizinkan';
-  if (n === '.' || n === '..') return 'nama tidak valid';
-  if (/[. ]$/.test(n)) return 'nama tidak boleh diakhiri titik atau spasi';
+  if (!n) return 'the name cannot be empty';
+  if (NAME_INVALID.test(n)) return 'the name contains characters that are not allowed';
+  if (n === '.' || n === '..') return 'invalid name';
+  if (/[. ]$/.test(n)) return 'the name cannot end with a dot or a space';
   return null;
 }
 
@@ -259,7 +259,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     } catch (e) {
       const msg = cmd.asZephyrError(e).message;
       set({ explorerError: msg, ctxMenu: null });
-      notifyError(tx('Gagal menghapus'), { detail: msg, source: 'explorer' });
+      notifyError(tx('Delete failed'), { detail: msg, source: 'explorer' });
     }
   },
 
@@ -282,7 +282,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     if (dirOf(src) === dest) return; 
     
     if (dest === src || dest.toLowerCase().startsWith(`${src.toLowerCase()}\\`)) {
-      set({ explorerError: 'tidak bisa memindahkan folder ke dalam dirinya sendiri' });
+      set({ explorerError: 'a folder cannot be moved into itself' });
       return;
     }
     const target = joinPath(dest, baseOf(src));
@@ -315,7 +315,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
       await navigator.clipboard.writeText(path);
       useStore.getState().setStatus(`Path disalin: ${baseOf(path)}`);
     } catch {
-      useStore.getState().setStatus('Gagal menyalin path');
+      useStore.getState().setStatus('Failed to copy the path');
     }
     set({ ctxMenu: null });
   },
@@ -333,7 +333,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
       return;
     }
     if (!useStore.getState().workspace) {
-      set({ searchError: 'buka folder dulu untuk mencari' });
+      set({ searchError: 'open a folder before searching' });
       return;
     }
     set({ searching: true, searchError: null });

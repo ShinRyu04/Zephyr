@@ -112,7 +112,7 @@ export default function StatusBar() {
     getAppInfo()
       .then((i) => setVersion(i.version))
       .catch(() => {
-        /* tetap pakai default */
+        /* keep using the default */
       });
 
     let stop: (() => void) | undefined;
@@ -121,7 +121,7 @@ export default function StatusBar() {
         stop = un;
       })
       .catch(() => {
-        /* event RAM tidak tersedia (mis. mode browser) */
+        /* the RAM event is not available (e.g. browser mode) */
       });
 
     const t = window.setTimeout(() => {
@@ -190,9 +190,9 @@ export default function StatusBar() {
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />
-      {/* Tombol Customize Layout di status bar: jalan keluar kalau Menu Bar
-          dimatikan. Tanpa ini, mematikan Menu Bar = tidak ada cara
-          menyalakannya lagi selain mengedit settings.json manual. */}
+      {/* Customize Layout button in the status bar: the way out if the Menu Bar
+          is turned off. Without this, turning off the Menu Bar = no way
+          to turn it back on except editing settings.json by hand. */}
       <button
         className="sb-btn"
         data-testid="sb-layout"

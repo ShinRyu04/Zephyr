@@ -5,9 +5,9 @@ import { translate } from './i18n';
 const URL_ANNOUNCEMENTS =
   'https://raw.githubusercontent.com/ShinRyu04/Zephyr/main/announcements.json';
 
-// Teks pengumuman bisa berupa string biasa (dipakai apa adanya) ATAU objek
-// per-bahasa { en, id, ja, ... }. Kalau objek, dipilih sesuai bahasa aktif;
-// kalau bahasa itu tidak ada, jatuh ke 'en', lalu ke nilai pertama yang ada.
+// The announcement text can be a plain string (used as-is) OR an object
+// per language { en, id, ja, ... }. If it is an object, pick according to the active language;
+// if that language is missing, fall back to 'en', then to the first value present.
 type Teks = string | Record<string, string>;
 interface AnnItem {
   id: string;

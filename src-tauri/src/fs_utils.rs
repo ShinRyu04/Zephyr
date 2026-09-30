@@ -14,10 +14,10 @@ pub const BIG_FILE_BYTES: u64 = 4 * 1024 * 1024;
 pub fn map_fs_err(e: std::io::Error, path: &str) -> ZephyrError {
     match e.kind() {
         std::io::ErrorKind::NotFound => ZephyrError::NotFound(format!(
-            "{path} is missing (mungkin sudah dihapus atau dipindah)"
+            "{path} is missing (it may have been deleted or moved)"
         )),
         std::io::ErrorKind::PermissionDenied => {
-            ZephyrError::Permission(format!("{path} tidak boleh diakses"))
+            ZephyrError::Permission(format!("{path} cannot be accessed"))
         }
         _ => ZephyrError::Io(format!("{path}: {e}")),
     }
@@ -150,8 +150,8 @@ fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Ve
             let (cow, _, had_errors) = encoding_rs::WINDOWS_1252.encode(&text);
             if had_errors {
                 return Err(ZephyrError::Encoding(
-                    "konten memuat karakter yang tidak ada di Windows-1252 (ANSI); \
-                     simpan sebagai UTF-8"
+                    "content contains characters that are not in Windows-1252 (ANSI); \
+                     save as UTF-8"
                         .into(),
                 ));
             }
@@ -159,7 +159,7 @@ fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Ve
         }
 
         "utf16le" | "utf16be" => Err(ZephyrError::Encoding(
-            "file UTF-16 dibuka read-only — pakai \"Simpan sebagai UTF-8\" to edit it"
+            "UTF-16 file opened read-only — use \"Save as UTF-8\" to edit it"
                 .into(),
         )),
         other => Err(ZephyrError::Encoding(format!(
@@ -195,14 +195,14 @@ fn read_only_reason(len: u64, encoding: &str) -> (bool, String) {
     if encoding == "utf16le" || encoding == "utf16be" {
         return (
             true,
-            "file UTF-16 — dibuka baca-saja; simpan sebagai UTF-8 untuk mengedit".to_string(),
+            "UTF-16 file — opened read-only; save as UTF-8 to edit".to_string(),
         );
     }
     if len > BIG_FILE_BYTES {
         return (
             true,
             format!(
-                "file besar ({:.1} MB) — mode baca-saja ringan",
+                "large file ({:.1} MB) — lightweight read-only mode",
                 len as f64 / (1024.0 * 1024.0)
             ),
         );
@@ -280,7 +280,7 @@ pub fn fs_write(
 
     if existing.is_none() && !allow_missing.unwrap_or(false) && was_existing.unwrap_or(false) {
         return Err(ZephyrError::NotFound(format!(
-            "{path} sudah is missing di disk"
+            "{path} is already missing on disk"
         )));
     }
     let (fallback_enc, fallback_le) = match &existing {
@@ -335,7 +335,7 @@ pub fn fs_create_file(
     state.ensure_writable(&p)?;
     let lp = crate::paths::long_path(&p);
     if lp.exists() {
-        return Err(ZephyrError::InvalidInput(format!("{path} sudah ada")));
+        return Err(ZephyrError::InvalidInput(format!("{path} already exists")));
     }
     if let Some(parent) = p.parent() {
         if !parent.as_os_str().is_empty() {
@@ -360,7 +360,7 @@ pub fn fs_create_dir(state: State<AppState>, path: String) -> ZResult<()> {
 #[tauri::command(async)]
 pub fn fs_delete(state: State<AppState>, paths: Vec<String>, recursive: bool) -> ZResult<()> {
     if paths.is_empty() {
-        return Err(ZephyrError::InvalidInput("daftar empty path".into()));
+        return Err(ZephyrError::InvalidInput("empty path list".into()));
     }
     for path in &paths {
         let p = state.resolve_ws(&PathBuf::from(path));
@@ -397,7 +397,7 @@ pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()
         return Err(ZephyrError::NotFound(from));
     }
     if lb.exists() {
-        return Err(ZephyrError::InvalidInput(format!("{to} sudah ada")));
+        return Err(ZephyrError::InvalidInput(format!("{to} already exists")));
     }
     std::fs::rename(&la, &lb)?;
     tracing::info!(from = %state.label(&a), to = %state.label(&b), "fs_rename");

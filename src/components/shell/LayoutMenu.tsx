@@ -78,10 +78,10 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
         );
       })}
 
-      {/* ── Panel info subagent (T4.1b) ──
-          Terpisah dari BARIS_LAYOUT karena hanya relevan saat panel AI tampil
-          di kolom kanan; kalau digabung, tombol reset tata letak akan ikut
-          mematikannya padahal itu pilihan yang disengaja user. */}
+      {/* ── Subagent info panel (T4.1b) ──
+          Separate from BARIS_LAYOUT because it is only relevant while the AI panel is shown
+          in the right column; if merged, the layout reset button would also
+          turn it off even though it is a choice the user made deliberately. */}
       <div className="lm-seksi">{tr('AI panel')}</div>
       <button
         className={`lm-baris${L.subKanan ? ' is-aktif' : ''}`}
@@ -98,7 +98,7 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
         <span className="lm-label">{tr('Subagent info to the right of chat')}</span>
       </button>
 
-      {/* ── Posisi panel AI ── */}
+      {/* ── AI panel position ── */}
       <div className="lm-seksi">{tr('AI panel')}</div>
       <div className="lm-pil" data-testid="lm-posisi-ai">
         {(

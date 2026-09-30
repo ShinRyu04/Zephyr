@@ -106,7 +106,7 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   saveKey: async (provider, key) => {
     try {
       await cmd.setModelKey(provider, key);
-      set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key saved' : 'API key dihapus' });
+      set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key saved' : 'API key removed' });
 
       if (key.trim()) void get().refreshRemoteModels(provider);
       else set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: [] } }));

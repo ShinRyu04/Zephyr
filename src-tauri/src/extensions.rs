@@ -55,26 +55,26 @@ const BUILTIN: &[(&str, &str, &str)] = &[
     (
         "file-icon-provider",
         "File Icon Provider",
-        "Ikon per bahasa di Explorer & tab editor",
+        "Icons per language in Explorer & editor tabs",
     ),
     (
         "git-provider",
         "Git Provider",
-        "Status file, diff, dan Source Control",
+        "File status, diff, and Source Control",
     ),
     (
         "ai-provider",
         "AI Provider",
-        "Adapter OpenAI/Anthropic/Gemini untuk panel AI",
+        "OpenAI/Anthropic/Gemini adapters for the AI panel",
     ),
-    ("lang-web", "Bahasa Web", "HTML, CSS, JS/TS, JSON"),
-    ("lang-python", "Python", "highlight + indentasi"),
+    ("lang-web", "Web Languages", "HTML, CSS, JS/TS, JSON"),
+    ("lang-python", "Python", "highlight + indentation"),
     ("lang-rust", "Rust", "highlight"),
     ("lang-markdown", "Markdown", "highlight"),
     (
         "bracket-pair",
         "Bracket Pair",
-        "pasangan tanda kurung berwarna",
+        "colored bracket pairs",
     ),
 ];
 
@@ -298,7 +298,7 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
     let mut error = None;
     if main_bytes > MAX_MAIN_BYTES as i64 {
         error = Some(format!(
-            "file {main} berukuran {} KB — melebihi batas {} MB, ekstensi ditolak",
+            "file {main} is {} KB — exceeds the {} MB limit, extension rejected",
             main_bytes / 1024,
             MAX_MAIN_BYTES / 1024 / 1024
         ));
@@ -372,16 +372,16 @@ pub fn extensions_list(state: State<AppState>) -> ZResult<Vec<ExtensionInfo>> {
 
 #[tauri::command]
 pub fn extensions_load(state: State<AppState>, id: String) -> ZResult<ExtensionLoad> {
-    crate::workspace::ensure_trusted(&state, "Memuat ekstensi")?;
+    crate::workspace::ensure_trusted(&state, "Loading extension")?;
 
     let info = list_all(&state)
         .into_iter()
         .find(|x| x.id == id)
-        .ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+        .ok_or_else(|| ZephyrError::NotFound(format!("extension {id}")))?;
 
     if info.builtin {
         return Err(ZephyrError::InvalidInput(
-            "ekstensi bawaan tidak punya manifest di disk".into(),
+            "built-in extension has no manifest on disk".into(),
         ));
     }
     if let Some(e) = info.error {
@@ -396,10 +396,10 @@ pub fn extensions_load(state: State<AppState>, id: String) -> ZResult<ExtensionL
     let main_path = dir.join(&info.main);
     let size = std::fs::metadata(&main_path)
         .map(|m| m.len())
-        .map_err(|_| ZephyrError::NotFound(format!("file entry {}", info.main)))?;
+        .map_err(|_| ZephyrError::NotFound(format!("entry file {}", info.main)))?;
     if size > MAX_MAIN_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            "{} berukuran {} KB — batas 1MB",
+            "{} is {} KB — 1MB limit",
             info.main,
             size / 1024
         )));
@@ -432,13 +432,13 @@ pub fn extensions_add(state: State<AppState>, path: String) -> ZResult<Extension
     };
     if !dir.join("package.json").is_file() {
         return Err(ZephyrError::InvalidInput(
-            "folder itu tidak punya package.json".into(),
+            "that folder has no package.json".into(),
         ));
     }
     let dir = crate::app_state::normalize(&dir);
     let enabled = enabled_list(&state);
     let info = read_package(&dir, &enabled)
-        .ok_or_else(|| ZephyrError::InvalidInput("bukan paket ekstensi".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("not an extension package".into()))?;
 
     let mut list = registry_paths(&state);
     if !list.iter().any(|x| x == &dir) {

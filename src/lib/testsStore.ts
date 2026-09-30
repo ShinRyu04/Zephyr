@@ -155,11 +155,11 @@ export const useTests = create<TestsState & TestsActions>((set, get) => ({
     let fw = get().framework;
     if (!fw) fw = await get().detect();
     if (!fw) {
-      set({ error: 'tidak ada test framework yang terdeteksi' });
+      set({ error: 'no test framework detected' });
       useNotif.getState().notify({
         severity: 'warn',
-        message: 'Tidak ada test framework',
-        detail: 'package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod tidak ditemukan.',
+        message: 'No test framework',
+        detail: 'package.json (test/vitest/jest), pyproject (pytest), Cargo.toml, atau go.mod was not found.',
         source: 'Tests',
       });
       return null;
@@ -174,7 +174,7 @@ export const useTests = create<TestsState & TestsActions>((set, get) => ({
       set({ running: false, error: msg });
       useNotif.getState().notify({
         severity: 'error',
-        message: 'Gagal menjalankan test',
+        message: 'Failed to run the test',
         detail: msg,
         source: 'Tests',
       });

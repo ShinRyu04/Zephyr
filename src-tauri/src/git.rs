@@ -74,9 +74,9 @@ struct GitOut {
 
 fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
     /*
-     * current_dir() dengan path kosong/putus membuat CreateProcess gagal
-     * "The directory name is invalid. (os error 267)". Cek di sini supaya
-     * semua pemanggil dapat pesan yang sama, bukan error sistem mentah.
+     * current_dir() with an empty/broken path makes CreateProcess fail with
+     * "The directory name is invalid. (os error 267)". Check here so that
+     * every caller gets the same message, not a raw system error.
      */
     if !cwd.is_dir() {
         return Err(ZephyrError::Git(format!(
@@ -180,15 +180,15 @@ fn ws(state: &AppState) -> ZResult<PathBuf> {
         .ok_or_else(|| ZephyrError::Git("no workspace is open".into()))?;
 
     /*
-     * Workspace bisa saja sudah tidak ada di disk — folder dipindah/dihapus
-     * atau drive eksternal dicabut. Command::current_dir() dengan path yang
-     * hilang gagal dengan "The directory name is invalid. (os error 267)"
-     * yang tidak berarti apa-apa bagi user, jadi periksa di sini dan beri
-     * pesan yang bisa ditindaklanjuti.
+     * The workspace may no longer exist on disk — the folder was moved/deleted
+     * or an external drive was unplugged. Command::current_dir() with a missing
+     * path fails with "The directory name is invalid. (os error 267)"
+     * which means nothing to the user, so check here and give a message
+     * they can act on.
      */
     if !dir.is_dir() {
         return Err(ZephyrError::Git(format!(
-            "workspace folder not found: {} — buka ulang folder proyek",
+            "workspace folder not found: {} — reopen the project folder",
             dir.display()
         )));
     }
@@ -366,7 +366,7 @@ pub fn git_init(state: State<AppState>, path: Option<String>) -> ZResult<()> {
     };
     if !dir.is_dir() {
         return Err(ZephyrError::InvalidInput(format!(
-            "{} bukan folder",
+            "{} is not a folder",
             dir.to_string_lossy()
         )));
     }
@@ -465,7 +465,7 @@ fn non_empty(paths: &[String]) -> ZResult<Vec<&str>> {
         .filter(|s| !s.is_empty())
         .collect();
     if v.is_empty() {
-        return Err(ZephyrError::InvalidInput("is missing path".into()));
+        return Err(ZephyrError::InvalidInput("no path given".into()));
     }
 
     if v.iter().any(|p| p.starts_with('-')) {
@@ -519,7 +519,7 @@ pub fn git_commit(state: State<AppState>, message: String) -> ZResult<String> {
             }
             _ => {
                 return Err(ZephyrError::Git(
-                    "identitas git belum diatur — isi Nama & Email di Settings → Source Control"
+                    "git identity is not set up — fill in Name & Email in Settings → Source Control"
                         .into(),
                 ))
             }
@@ -656,7 +656,7 @@ fn current_branch(state: &AppState) -> ZResult<String> {
     let b = out.trim().to_string();
     if b.is_empty() || b == "HEAD" {
         return Err(ZephyrError::Git(
-            "HEAD tidak menunjuk branch (detached)".into(),
+            "HEAD does not point to a branch (detached)".into(),
         ));
     }
     Ok(b)
@@ -719,7 +719,7 @@ fn valid_branch_name(name: &str) -> ZResult<String> {
         || n.ends_with('.')
     {
         return Err(ZephyrError::InvalidInput(format!(
-            "nama branch is not valid: {n}"
+            "branch name is not valid: {n}"
         )));
     }
     Ok(n.to_string())
@@ -763,7 +763,7 @@ pub fn git_delete_branch(state: State<AppState>, name: String) -> ZResult<()> {
     let cur = current_branch(&state)?;
     if n == cur {
         return Err(ZephyrError::Git(format!(
-            "branch \"{n}\" sedang aktif — pindah dulu sebelum menghapus"
+            "branch \"{n}\" is currently active — switch away before deleting"
         )));
     }
     git(&state, &["branch", "-D", &n])?;
@@ -829,7 +829,7 @@ fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
         s.push('\n');
     }
     s.push_str(&format!(
-        "Binary file ({ukuran}) — perbedaan tidak ditampilkan\n"
+        "Binary file ({ukuran}) — differences not shown\n"
     ));
     s
 }
@@ -839,7 +839,7 @@ fn synth_new_file_diff(rel: &str, full: &Path) -> String {
     let content = std::fs::read(full).unwrap_or_default();
 
     if content.iter().take(8192).any(|b| *b == 0) {
-        return format!("diff --git a/{rel} b/{rel}\nnew file\nBinary file (tidak ditampilkan)\n");
+        return format!("diff --git a/{rel} b/{rel}\nnew file\nBinary file (not shown)\n");
     }
     let text = String::from_utf8_lossy(&content);
     let lines: Vec<&str> = text.lines().collect();
@@ -855,7 +855,7 @@ fn synth_new_file_diff(rel: &str, full: &Path) -> String {
     }
     if lines.len() > shown {
         s.push_str(&format!(
-            "… {} baris berikutnya tidak ditampilkan\n",
+            "… {} more lines not shown\n",
             lines.len() - shown
         ));
     }
@@ -1057,7 +1057,7 @@ pub fn git_stash_drop(state: State<AppState>, index: u32) -> ZResult<bool> {
 #[tauri::command(async)]
 pub fn git_rebase(state: State<AppState>, onto: String) -> ZResult<String> {
     if onto.trim().is_empty() || onto.starts_with('-') {
-        return Err(ZephyrError::InvalidInput("nama branch is not valid".into()));
+        return Err(ZephyrError::InvalidInput("branch name is not valid".into()));
     }
     git(&state, &["rebase", &onto])
 }
@@ -1068,7 +1068,7 @@ pub fn git_conflict_take(state: State<AppState>, path: String, side: String) -> 
     let flag = match side.as_str() {
         "ours" => "--ours",
         "theirs" => "--theirs",
-        _ => return Err(ZephyrError::InvalidInput("side harus 'ours' atau 'theirs'".into())),
+        _ => return Err(ZephyrError::InvalidInput("side must be 'ours' or 'theirs'".into())),
     };
     git(&state, &["checkout", flag, "--", &rel])?;
     git(&state, &["add", "--", &rel])?;

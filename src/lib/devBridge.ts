@@ -1066,14 +1066,14 @@ export function installDevBridge(): void {
     install: (p: string) => useExt19.getState().install(p),
     installKatalog: async (id: string) => {
       /*
-       * Cari di katalog lengkap, bukan hanya KATALOG_BUNDLED.
+       * Search the full catalog, not just KATALOG_BUNDLED.
        *
-       * KATALOG_BUNDLED berisi paket yang ditampilkan tanpa registry (5 entri),
-       * sedangkan paket bawaan lain — termasuk seluruh paket bahasa seperti
-       * zephyr.lang-toml — datang dari registry native Rust dan masuk ke
-       * state.remote. Kalau daftar registry belum pernah dimuat (tab
-       * Marketplace belum dibuka), paketnya belum terlihat di state mana pun;
-       * muat dulu baru cari lagi.
+       * KATALOG_BUNDLED holds packages shown without a registry (5 entries),
+       * while the other bundled packages — including every language pack such as
+       * zephyr.lang-toml — come from the native Rust registry and land in
+       * state.remote. If the registry list has never been loaded (the
+       * Marketplace tab has not been opened), the package is not visible in any
+       * state yet; load it first, then search again.
        */
       const cari = () =>
         KATALOG_BUNDLED.find((x) => x.id === id) ??
@@ -1609,11 +1609,11 @@ export function installDevBridge(): void {
 
     sisip: async (lang: string, prefix: string) => {
       const v = getActiveView();
-      if (!v) return 'tidak ada editor aktif';
+      if (!v) return 'no active editor';
       const S = useSnip.getState();
       if (S.untuk(lang).length === 0) await S.muat(lang);
       const s = S.untuk(lang).find((x) => x.prefix === prefix);
-      if (!s) return `snippet '${prefix}' tidak ada untuk ${lang}`;
+      if (!s) return `snippet '${prefix}' tidak is available for ${lang}`;
       const tab = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
       await sisipkanSnippet(v, s, tab?.path ?? '');
       return 'ok';
@@ -1755,7 +1755,7 @@ export function installDevBridge(): void {
 
     axe: async (opsi?: Record<string, unknown>) => {
       const g = window as unknown as { axe?: { run: (ctx: unknown, o?: unknown) => Promise<unknown> } };
-      if (!g.axe) return { err: 'axe belum disuntik' };
+      if (!g.axe) return { err: 'axe is not injected yet' };
       return (await g.axe.run(document, opsi ?? {})) as unknown;
     },
   };

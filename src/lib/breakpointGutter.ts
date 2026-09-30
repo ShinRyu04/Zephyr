@@ -23,8 +23,8 @@ class BpMarker extends GutterMarker {
     el.title = this.pesan
       ? `${tx('Breakpoint')}: ${this.pesan}`
       : this.verified
-        ? tx('Breakpoint aktif')
-        : tx('Breakpoint (belum diverifikasi adapter)');
+        ? tx('Breakpoint active')
+        : tx('Breakpoint (not yet verified by the adapter)');
     el.setAttribute('data-bp', this.verified ? 'verified' : 'pending');
     return el;
   }

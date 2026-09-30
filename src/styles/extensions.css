@@ -1,6 +1,6 @@
-/* extensions.css — panel Extensions di sidebar kiri (fase 19).
-   Gaya baris: LIST RINGKAS ala VS Code (fase 32) — bukan kartu besar.
-   Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded. */
+/* extensions.css — the Extensions panel in the left sidebar (phase 19).
+   Row style: a COMPACT LIST in the VS Code manner (phase 32) - not large cards.
+   Colours MUST come from CSS variables (AGENTS.md section 4) - no hardcoded hex. */
 
 .xv {
   display: flex;
@@ -34,8 +34,8 @@
   border-color: var(--accent);
 }
 
-/* Menu aksi (…): Install from Folder / .vsix / Reload — dipindah ke sini
-   supaya tidak makan satu baris penuh (sebelumnya 3 tombol berjajar). */
+/* Action menu (…): Install from Folder / .vsix / Reload - moved in here so it
+   does not cost a full row (it used to be 3 buttons in a line). */
 .xv-actions-menu {
   position: relative;
   flex: 0 0 auto;

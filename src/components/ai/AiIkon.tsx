@@ -2,7 +2,7 @@
  * Icon set for the AI panel header.
  *
  * The header used to spell every action out in words ("+ New chat", "Delete
- * all", "Padatkan", "Ekspor"), which cost a full row of width and read as a
+ * all", "Compact", "Export"), which cost a full row of width and read as a
  * toolbar of buttons rather than as the chrome of a chat panel. These are
  * stroke SVGs on one 16px grid with one weight, the same approach the activity
  * bar and the tool chips take, so the whole app draws icons the same way.

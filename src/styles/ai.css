@@ -1,14 +1,14 @@
-/* ai.css — panel AI (fase 09).
-   Semua warna dari token di theme.css (AGENTS.md §4). Logo brand provider
-   memakai hex resmi di SVG-nya sendiri, bukan di sini. */
+/* ai.css — AI panel (phase 09).
+   All colours come from the tokens in theme.css (AGENTS.md §4). Provider brand logos
+   use the official hex in their own SVG, not here. */
 
-/* ── pemilih isi panel bawah: Terminal | AI ──
-   Satu baris tipis berisi pemilih SAJA (fase 24.1). Tab terminal pindah ke kolom
-   kanan, tombol [+ ▾]/[⋮] pindah ke baris tab panel. */
+/* ── bottom panel content switcher: Terminal | AI ──
+   A single thin row holding ONLY the switcher (phase 24.1). Terminal tabs moved to the right
+   column, the [+ ▾]/[⋮] buttons moved to the panel tab row. */
 
 
 
-/* ── kerangka panel ── */
+/* ── panel frame ── */
 .ai-panel {
   display: flex;
   flex-direction: column;
@@ -68,7 +68,7 @@
   cursor: default;
 }
 
-/* ── dropdown model ── */
+/* ── model dropdown ── */
 .ai-model-wrap {
   position: relative;
   display: flex;
@@ -266,7 +266,7 @@
   border-color: color-mix(in srgb, var(--success) 45%, transparent);
 }
 
-/* ── area chat ── */
+/* ── chat area ── */
 .ai-chat {
   flex: 1 1 auto;
   min-height: 0;
@@ -502,7 +502,7 @@
   padding: 7px 9px;
 }
 
-/* ── blok kode ── */
+/* ── code blocks ── */
 .ai-code {
   margin: 0 0 8px;
   border: 1px solid var(--border);
@@ -591,9 +591,9 @@
   resize: none;
   min-height: 42px;
   max-height: 140px;
-  /* Baris baru (Shift+Enter) otomatis membesarkan kotak sampai max-height —
-     tanpa ini teks mengalir keluar/scroll dan terlihat "tidak bisa baris
-     baru". field-sizing didukung WebView2/Chrome 123+. */
+  /* A new line (Shift+Enter) automatically grows the box up to max-height —
+     without this the text overflows/scrolls and it looks like "you cannot make
+     a new line". field-sizing is supported by WebView2/Chrome 123+. */
   field-sizing: content;
   padding: 6px 8px;
   font-family: var(--font-ui);
@@ -663,7 +663,7 @@
   gap: 6px;
   margin-bottom: 6px;
 }
-/* Hasil tool di dalam bubble jawaban (item 23). */
+/* Tool results inside the answer bubble (item 23). */
 .ai-toolruns {
   display: flex;
   flex-direction: column;
@@ -801,7 +801,7 @@
 .ai-toolrun-out.is-err {
   color: var(--danger, #d66);
 }
-/* A-7: referensi file yang bisa diklik di teks jawaban. */
+/* A-7: clickable file references in the answer text. */
 .ai-file-ref {
   display: inline-block;
   margin: 0 2px;
@@ -938,7 +938,7 @@
   text-align: center;
 }
 
-/* ── konfirmasi perintah berbahaya ── */
+/* ── dangerous command confirmation ── */
 .ai-confirm {
   position: absolute;
   left: 50%;
@@ -990,7 +990,7 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
 }
 
-/* ── sidebar AI ── */
+/* ── AI sidebar ── */
 .ai-side-model {
   display: flex;
   align-items: center;
@@ -1027,7 +1027,7 @@
   flex-direction: column;
   gap: 2px;
 }
-/* A-9: kotak cari riwayat chat. */
+/* A-9: the chat history search box. */
 .ai-side-search {
   width: 100%;
   margin-bottom: 6px;
@@ -1043,7 +1043,7 @@
   border-color: var(--accent);
 }
 
-/* A-3: menu quick chat dari seleksi editor. */
+/* A-3: the quick chat menu from an editor selection. */
 .cm-ai-menu {
   position: fixed;
   z-index: 60;
@@ -1071,13 +1071,13 @@
   color: var(--accent-fg, #fff);
 }
 
-/* A-8: saran slash command di atas input. */
+/* A-8: slash command suggestions above the input. */
 .ai-slash {
   display: flex;
   flex-direction: column;
-  /* 9 prompt bawaan + prompt user bisa lewat batas ini. Daftarnya digulir
-     (bukan dipotong) supaya semua pilihan tetap terjangkau; panah keyboard
-     mengikuti sorotan lewat scrollIntoView di AiPanel. */
+  /* 9 built-in prompts + user prompts can exceed this limit. The list scrolls
+     (rather than being cut off) so every option stays reachable; the keyboard arrows
+     follow the highlight via scrollIntoView in AiPanel. */
   max-height: 220px;
   margin-bottom: 4px;
   overflow-y: auto;
@@ -1085,8 +1085,8 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-1);
-  /* Scrollbar tipis: daftar ini muncul di atas input, scrollbar tebal
-     membuat panel terasa sesak. */
+  /* A thin scrollbar: this list appears above the input, and a thick scrollbar
+     makes the panel feel cramped. */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -1135,8 +1135,8 @@
   font-size: 11px;
 }
 
-/* A-4: chat mini melayang di editor (Ctrl+I). Posisi mengambang di kanan atas
-   area editor supaya tidak menutupi baris yang sedang dikerjakan. */
+/* A-4: the floating mini chat in the editor (Ctrl+I). It floats at the top right of the
+   editor area so it does not cover the line being worked on. */
 .ic {
   position: absolute;
   top: 8px;
@@ -1210,7 +1210,7 @@
   justify-content: flex-end;
 }
 
-/* A-6: pratinjau diff sebelum "Terapkan" menimpa isi tab. */
+/* A-6: a diff preview before "Apply" overwrites the tab contents. */
 .ai-diff {
   margin-top: 6px;
   border: 1px solid var(--border);
@@ -1352,9 +1352,9 @@
   background: var(--accent-subtle);
   color: var(--text);
 }
-/* Baris judul + tombol "Hapus semua" sejajar. Tombolnya sendiri pakai
-   .tp-op (border tipis, hover merah) — konsisten dengan tombol hapus
-   per-chat di daftar di bawahnya. */
+/* The title row + the "Delete all" button are in line. The button itself uses
+   .tp-op (thin border, red hover) — consistent with the per-chat delete button
+   in the list below it. */
 .ai-side-head-row {
   display: flex;
   align-items: center;
@@ -1376,7 +1376,7 @@
   flex: 0 0 auto;
 }
 
-/* ── mode agent ── */
+/* ── agent mode ── */
 
 .ai-mode {
   display: flex;
@@ -1419,7 +1419,7 @@
   flex: 0 0 auto;
 }
 
-/* T1.2/T1.5: baris pemilih jalur AI (Native vs CLI). */
+/* T1.2/T1.5: the AI path selector row (Native vs CLI). */
 .ai-cli-bar {
   display: flex;
   align-items: center;
@@ -1473,7 +1473,7 @@
   margin-left: auto;
 }
 
-/* T1.1: blok "Reasoned" — penalaran model, bisa dilipat. */
+/* T1.1: the "Reasoned" block — the model's reasoning, collapsible. */
 .ai-reasoned {
   margin: 2px 0 8px;
   border-left: 2px solid var(--border);
@@ -1532,8 +1532,8 @@
   padding: 6px 8px;
 }
 
-/* T1.1: pemilih tingkat penalaran. Disamakan dengan .ai-approval supaya
-   baris header tidak punya dua bahasa visual. */
+/* T1.1: the reasoning level selector. Matched to .ai-approval so the
+   header row does not have two visual languages. */
 .ai-effort {
   background: var(--bg-panel);
   color: var(--text);
@@ -1545,8 +1545,8 @@
   flex: 0 0 auto;
 }
 
-/* Sorot saat bukan default — user harus bisa melihat dengan sekali lihat
-   bahwa penalaran sedang dinaikkan (berpengaruh ke biaya & waktu). */
+/* Highlighted when it is not the default — the user must be able to see at a glance
+   that reasoning is being raised (which affects cost & time). */
 .ai-effort[data-aktif='true'] {
   border-color: var(--accent);
   color: var(--accent);
@@ -1659,7 +1659,7 @@
   font-style: italic;
 }
 
-/* Panel Todo agent ala opencode (item 24). */
+/* The agent Todo panel in the style of opencode (item 24). */
 .ai-todos {
   margin-bottom: 6px;
   border: 1px solid var(--border);
@@ -2005,7 +2005,7 @@
 .sub-card.is-jalan {
   border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
   border-left-color: var(--warning);
-  /* Denyut halus: menandakan masih hidup tanpa mengganggu. */
+  /* A gentle pulse: signals it is still alive without being distracting. */
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 16%, transparent);
 }
 
@@ -2176,7 +2176,7 @@
   font-size: 10.5px;
 }
 
-/* Langkah yang SEDANG dikerjakan — selalu terlihat. */
+/* The step CURRENTLY being worked on — always visible. */
 .sub-now {
   display: flex;
   align-items: baseline;
@@ -2302,7 +2302,7 @@
 
 
 
-/* ── TODO panel (daftar tugas + progres) ─────────────────────────────── */
+/* ── TODO panel (task list + progress) ─────────────────────────────── */
 .todo-panel {
   display: flex;
   flex-direction: column;
@@ -2400,8 +2400,8 @@
 
 
 /* ── T3.6: labelled agent step timeline ───────────────────────────────────
-   Ikon + label manusiawi ("Read", "Edit", "Run") berwarna per jenis aksi.
-   Warna diambil dari token tema; tidak ada hex hardcoded kecuali fallback. */
+   Icon + human-readable label ("Read", "Edit", "Run") coloured per action kind.
+   Colours come from theme tokens; no hardcoded hex except fallbacks. */
 .ai-agent-ikon {
   width: 14px;
   text-align: center;
@@ -2444,7 +2444,7 @@
   color: var(--text);
 }
 
-/* Warna per jenis aksi — konsisten antara timeline agent dan panel subagent. */
+/* Colour per action kind — consistent between the agent timeline and the subagent panel. */
 .is-baca .ai-agent-ikon,
 .sub-step.is-baca .sub-aksi-ikon {
   color: var(--err, #f85149);
@@ -2470,7 +2470,7 @@
   color: var(--text-muted);
 }
 
-/* ── Subagent: langkah sebagai timeline ─────────────────────────────────── */
+/* ── Subagent: steps as a timeline ─────────────────────────────────── */
 .sub-step {
   display: flex;
   align-items: baseline;
@@ -2549,7 +2549,7 @@
   color: var(--text-muted);
 }
 
-/* Blok "Reasoned" yang bisa dilipat. */
+/* The collapsible "Reasoned" block. */
 .sub-pikir-toggle {
   display: flex;
   align-items: center;
@@ -2583,7 +2583,7 @@
   font-style: italic;
 }
 
-/* Baris status hidup: "Read agent.ts · 13s" */
+/* The live status row: "Read agent.ts · 13s" */
 .sub-now-teks {
   flex: 1;
   min-width: 0;
@@ -2601,11 +2601,11 @@
 }
 
 
-/* ── T3.10: panel subagent COMPACT ───────────────────────────────────────
-   Keluhan user: panelnya "numpuk bnget". Penyebabnya tiga lapis informasi
-   yang isinya sama (form input + pesan ringkasan chat + kartu subagent yang
-   mengulang hasil). Perbaikannya: form jadi satu baris, kartu jadi ringkas,
-   dan hasil panjang tidak diulang di kartu. */
+/* ── T3.10: COMPACT subagent panel ───────────────────────────────────────
+   User complaint: the panel "numpuk bnget" (piled up badly). The cause was three layers of information
+   saying the same thing (the input form + the chat summary message + a subagent card that
+   repeated the results). The fix: the form becomes one row, the cards become brief,
+   and long results are not repeated in the card. */
 .sub-open {
   display: inline-flex;
   align-items: center;
@@ -2707,7 +2707,7 @@
   color: var(--err, #f85149);
 }
 
-/* Pratinjau hasil satu baris (pengganti blok paragraf yang mengulang chat). */
+/* A one-line result preview (replacing the paragraph block that repeated the chat). */
 .sub-hasil-1baris {
   font-size: 11px;
   color: var(--text-muted);
@@ -2717,7 +2717,7 @@
   white-space: nowrap;
 }
 
-/* Kartu lebih rapat: 4 kartu sejajar tetap terbaca tanpa mendominasi panel. */
+/* Tighter cards: 4 cards side by side stay readable without dominating the panel. */
 .sub-card {
   padding: 7px 9px;
 }
@@ -2735,10 +2735,10 @@
 }
 
 
-/* ── T3.11: pemilih mode (persetujuan + penalaran) ───────────────────────
-   Mengganti <select> native. Daftar <option> dirender OS, jadi di tema gelap
-   tampil putih dengan teks nyaris tak terbaca — keluhan user "ga kliatan".
-   Popover ini memakai token tema yang sama dengan sisa aplikasi. */
+/* ── T3.11: mode selector (approval + reasoning) ───────────────────────
+   Replaces the native <select>. The <option> list is rendered by the OS, so on a dark theme
+   it shows up white with barely legible text — user complaint "ga kliatan" (can't see it).
+   This popover uses the same theme tokens as the rest of the app. */
 .pick-wrap {
   position: relative;
   display: inline-flex;
@@ -2774,8 +2774,8 @@
   opacity: 0.6;
 }
 
-/* Warna per tingkat: hijau = aman, kuning = hati-hati, merah = bebas penuh.
-   Tujuannya supaya user tahu tingkat otonomi TANPA membuka menunya. */
+/* Colour per level: green = safe, yellow = careful, red = full freedom.
+   The point is for the user to know the autonomy level WITHOUT opening the menu. */
 .pick-wrap.is-aman .pick-dot { background: var(--ok, #3fb950); }
 .pick-wrap.is-tanya .pick-dot { background: var(--warn, #d29922); }
 .pick-wrap.is-kerja .pick-dot { background: var(--accent); }
@@ -2882,7 +2882,7 @@
   margin-top: 3px;
 }
 
-/* ── T3.11: indikator pemakaian konteks ─────────────────────────────────── */
+/* ── T3.11: context usage indicator ─────────────────────────────────── */
 .ctx-wrap {
   position: relative;
   display: inline-flex;
@@ -3006,7 +3006,7 @@
 
 
 
-/* ── T4.2: badge peran subagent ─────────────────────────────────────────── */
+/* ── T4.2: subagent role badges ─────────────────────────────────────────── */
 .sub-peran {
   font-size: 9.5px;
   padding: 1px 5px;
@@ -3017,33 +3017,33 @@
   flex: 0 0 auto;
 }
 
-/* Peran yang boleh menulis dibedakan: user perlu tahu subagent mana yang
-   bisa mengubah file, karena itu yang berisiko. */
+/* Roles allowed to write are called out: the user needs to know which subagent
+   can change files, because that is the risky one. */
 .sub-peran.is-tulis {
   border-color: var(--warn, #d29922);
   color: var(--warn, #d29922);
 }
 
-/* Subagent bikinan user sendiri.
+/* A user-made subagent.
 
-   Si robot di dalamnya sudah menandai "ini punyamu", tapi ikon saja terlalu
-   halus dibedakan dari enam peran bawaan saat barisnya rapat. Warna aksen
-   dipakai supaya sekali lirik sudah kelihatan mana yang dibuat user — dan
-   `is-tulis` tetap menang, karena izin menulis lebih penting dikasih tahu
-   daripada asal-usulnya. */
+   The robot inside it already marks "this one is yours", but the icon alone is too
+   subtle to tell apart from the six built-in roles when the rows are tight. The accent
+   colour is used so that one glance shows which ones the user made — and
+   `is-tulis` still wins, because write permission matters more to be told about
+   than where it came from. */
 .sub-peran.is-kustom {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
   color: var(--accent);
 }
 
-/* ── T4.10: pemilih model DUA TINGKAT ──────────────────────────────────────
-   Sebelumnya semua model dari semua provider ada di satu daftar datar —
-   puluhan baris, menggulir jauh, dan model tanpa API key ikut tampil sehingga
-   bisa dipilih padahal pasti gagal. Sekarang: tingkat provider dulu (hanya
-   yang ber-key), lalu modelnya. Kelas di bawah menata kepala tingkat model,
-   tombol kembali, kotak cari, dan baris provider yang punya chevron. */
+/* ── T4.10: TWO-LEVEL model selector ──────────────────────────────────────
+   Previously every model from every provider was in one flat list —
+   dozens of rows, a long scroll, and models without an API key showed up too so they
+   could be picked even though they were bound to fail. Now: the provider level first (only
+   those with a key), then the models. The classes below style the model-level header,
+   the back button, the search box, and provider rows that have a chevron. */
 
-/* Kotak cari di atas menu: jalan pintas saat user sudah tahu nama modelnya. */
+/* The search box above the menu: a shortcut for when the user already knows the model name. */
 .ai-mp-cari {
   display: flex;
   align-items: center;
@@ -3062,7 +3062,7 @@
   min-width: 0;
 }
 
-/* Baris provider: chevron di kanan menandakan "masuk ke dalam". */
+/* Provider row: the chevron on the right signals "go into this one". */
 .ai-mp-item {
   gap: 8px;
 }
@@ -3074,7 +3074,7 @@
   color: var(--text-muted);
 }
 
-/* Kepala tingkat model: tombol kembali + logo + nama provider + badge key. */
+/* Model-level header: back button + logo + provider name + key badge. */
 .ai-mp-head {
   display: flex;
   align-items: center;
@@ -3121,7 +3121,7 @@
   color: var(--text);
 }
 
-/* Catatan kecil di bawah daftar provider (mis. berapa yang disembunyikan). */
+/* A small note below the provider list (e.g. how many were hidden). */
 .ai-mp-note {
   padding: 6px 8px;
   font-size: 10.5px;
@@ -3131,17 +3131,17 @@
   margin-top: 4px;
 }
 
-/* Tombol pemilih model subagent duduk di baris kontrol agent — beri lebar
-   wajar supaya nama model panjang tidak mendorong kontrol lain. */
+/* The subagent model selector button sits in the agent control row — give it a
+   reasonable width so a long model name does not push the other controls around. */
 .ai-sub-model .ai-model-name {
   max-width: 132px;
 }
 
-/* ── T4.1b: panel INFO subagent di kanan chat ─────────────────────────────
-   Ringkas dengan sengaja: satu baris per subagent (nama + peran + status),
-   langkah terakhir dipotong satu baris. Kartu penuh sudah ada di tab
-   Subagents; menampilkan hal yang sama di sini akan mengulang masalah
-   "menumpuk" yang baru saja diperbaiki. */
+/* ── T4.1b: the subagent INFO panel on the right of the chat ─────────────────────────────
+   Deliberately brief: one row per subagent (name + role + status),
+   the last step truncated to one line. The full cards are already in the
+   Subagents tab; showing the same thing here would repeat the "piled up"
+   problem that was just fixed. */
 .sai-head {
   display: flex;
   align-items: center;
@@ -3331,20 +3331,20 @@
   color: var(--text-muted);
 }
 
-/* ── T4.12: panel AI di KOLOM KANAN ────────────────────────────────────────
-   Kepala panel berisi 8+ kontrol dan dirancang untuk dock BAWAH (lebar penuh).
-   Di kolom 340px semuanya berjejal dan terpotong — keluhan user: "dia jelek
+/* ── T4.12: the AI panel in the RIGHT COLUMN ────────────────────────────────────────
+   The panel header holds 8+ controls and was designed for the BOTTOM dock (full width).
+   In a 340px column everything crowds together and gets cut off — user complaint: "dia jelek
    bnget tampilannya klo ke kanan, soalny ga dbikin ver kecil nya untuk di
    kanan gtu".
 
-   Yang diubah di kolom kanan:
-     * kepala jadi DUA BARIS — baris 1: model + tombol sesi; baris 2: mode +
-       penalaran. Di bawah, semua cukup satu baris.
-     * tombol teks ("+ Chat baru", "Hapus semua", "Ekspor") jadi ikon: teks
-       yang dipotong lebih buruk daripada ikon yang utuh.
-     * nama sesi & hitungan pesan disembunyikan — itu informasi sekunder yang
-       di kolom sempit hanya menambah kebisingan.
-     * padding & gap dirapatkan supaya isi chat dapat ruang lebih. */
+   What changed in the right column:
+     * the header becomes TWO ROWS — row 1: model + session buttons; row 2: mode +
+       reasoning. Below that, one row is enough for everything.
+     * text buttons ("+ New chat", "Delete all", "Export") become icons: truncated
+       text is worse than an intact icon.
+     * the session name & message count are hidden — that is secondary information
+       that only adds noise in a narrow column.
+     * padding & gap are tightened so the chat contents get more room. */
 
 .ai-panel.is-kanan .ai-head {
   flex-wrap: wrap;
@@ -3353,7 +3353,7 @@
   row-gap: 5px;
 }
 
-/* Baris 1: pemilih model + tombol sesi (ikon). */
+/* Row 1: model selector + session buttons (icons). */
 .ai-panel.is-kanan .ai-model-wrap {
   order: 1;
   flex: 1 1 auto;
@@ -3371,8 +3371,8 @@
   white-space: nowrap;
 }
 
-/* Sembunyikan badge key di kolom kanan: pemilih model sudah punya indikator
-   sendiri di dalam menunya, dan di sini ia memakan lebar. */
+/* Hide the key badge in the right column: the model selector already has its own
+   indicator inside its menu, and here it just eats width. */
 .ai-panel.is-kanan .ai-keystate {
   display: none;
 }
@@ -3393,7 +3393,7 @@
   margin-left: auto;
 }
 
-/* Tombol teks -> ikon. Pakai ::before untuk glyph, dan sembunyikan teksnya. */
+/* Text buttons -> icons. Use ::before for the glyph, and hide the text. */
 .ai-panel.is-kanan .ai-export,
 .ai-panel.is-kanan .ai-hide {
   width: 24px;
@@ -3401,7 +3401,7 @@
   padding: 0;
   display: inline-grid;
   place-items: center;
-  font-size: 0; /* sembunyikan teks tanpa menghapusnya dari a11y tree */
+  font-size: 0; /* hide the text without removing it from the a11y tree */
   overflow: hidden;
 }
 
@@ -3424,7 +3424,7 @@
   content: '✕';
 }
 
-/* Baris 2: mode (Chat/Agent) + pemilih penalaran. */
+/* Row 2: mode (Chat/Agent) + reasoning selector. */
 .ai-panel.is-kanan .ai-mode {
   order: 3;
   flex: 0 0 auto;
@@ -3435,13 +3435,13 @@
   flex: 0 0 auto;
 }
 
-/* Informasi sekunder: di kolom sempit ini hanya menambah kebisingan. */
+/* Secondary information: in this narrow column it only adds noise. */
 .ai-panel.is-kanan .ai-chatname,
 .ai-panel.is-kanan .ai-count {
   display: none;
 }
 
-/* Isi chat: padding lebih rapat supaya teks dapat lebar maksimal. */
+/* Chat contents: tighter padding so the text gets maximum width. */
 .ai-panel.is-kanan .ai-chat {
   padding: 8px 9px;
 }
@@ -3450,14 +3450,14 @@
   max-width: 100%;
 }
 
-/* Kotak input: tombol kirim jangan sampai terpotong. */
+/* Input box: the send button must not get cut off. */
 .ai-panel.is-kanan .ai-input-row {
   padding: 6px 7px;
   gap: 6px;
 }
 
-/* Panel TODO & langkah agent: di kolom kanan keduanya panjang ke bawah, jadi
-   dibatasi tingginya — kalau tidak, kotak input terdorong keluar layar. */
+/* The TODO & agent step panels: in the right column they both run long downwards, so
+   their height is capped — otherwise the input box gets pushed off screen. */
 .ai-panel.is-kanan .todo-panel {
   max-height: 132px;
   overflow-y: auto;

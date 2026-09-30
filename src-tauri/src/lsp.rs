@@ -55,7 +55,7 @@ fn get(id: &str) -> ZResult<Arc<Server>> {
         .map_err(|_| ZephyrError::Internal("registry lsp terkunci".into()))?
         .get(id)
         .cloned()
-        .ok_or_else(|| ZephyrError::NotFound(format!("language server {id} tidak hidup")))
+        .ok_or_else(|| ZephyrError::NotFound(format!("language server {id} is not alive")))
 }
 
 fn write_msg(srv: &Server, msg: &Value) -> ZResult<()> {
@@ -187,7 +187,7 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
     }
 
     Err(ZephyrError::NotFound(format!(
-        "{exe} tidak ditemukan. Pasang language server '{}' ke PATH atau {}",
+        "{exe} not found. Install the '{}' language server onto PATH, or set the path to {}",
         spec.id,
         state.data_dir.join("lsp").join(&spec.id).display()
     )))
@@ -251,7 +251,7 @@ pub async fn lsp_start(
     }
     let mut child = c
         .spawn()
-        .map_err(|e| ZephyrError::Io(format!("failed menjalankan {exe}: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("failed to start {exe}: {e}")))?;
     let pid = child.id();
     let stdin = child
         .stdin
@@ -513,7 +513,7 @@ fn request_blocking(srv: &Arc<Server>, method: &str, params: Value) -> ZResult<V
                 p.remove(&id);
             }
             Err(ZephyrError::Internal(format!(
-                "lsp {method} tidak menjawab dalam {}s",
+                "lsp {method} did not respond within {}s",
                 REQ_TIMEOUT.as_secs()
             )))
         }
@@ -732,6 +732,6 @@ mod tests {
         let u = path_to_uri(Path::new(r"D:\a b\中文.ts"));
         assert!(u.starts_with("file:///D:/a%20b/"), "dapat: {u}");
         assert!(u.ends_with(".ts"));
-        assert!(!u.contains('中'), "unicode harus di-encode: {u}");
+        assert!(!u.contains('中'), "unicode must be encoded: {u}");
     }
 }

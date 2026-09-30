@@ -38,7 +38,7 @@ export default function XtermPane({ pane }: Props) {
       },
       onResize: (cols, rows) => {
         void cmd.ptyResize(pane.id, cols, rows).catch(() => {
-          /* sesi mungkin sudah mati */
+          /* the session may already be dead */
         });
       },
     });

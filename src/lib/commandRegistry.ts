@@ -92,7 +92,7 @@ const lompatMasalah = (arah: 1 | -1) => {
     .filter((d) => d.file === tab.path)
     .sort((a, b) => a.line - b.line || a.column - b.column);
   if (!diags.length) {
-    notifyInfo(tx('Tidak ada masalah di file ini'), { source: 'editor' });
+    notifyInfo(tx('No problems in this file'), { source: 'editor' });
     return;
   }
   const idx = diags.findIndex((d) => d.line > baris || (d.line === baris && d.column > 0));
@@ -439,8 +439,8 @@ export const COMMANDS: CommandDef[] = [
         useGit.setState({
           scmError:
             staged === 0
-              ? 'Tidak ada perubahan ter-stage — stage dulu lalu ulangi.'
-              : 'Pesan commit masih kosong.',
+              ? 'Nothing staged yet — stage files first, then try again.'
+              : 'The commit message is still empty.',
         });
         window.setTimeout(() => {
           document.querySelector<HTMLTextAreaElement>('[data-testid="scm-message"]')?.focus();
@@ -475,12 +475,12 @@ export const COMMANDS: CommandDef[] = [
       const st = S();
       const tab = st.tabs.find((t) => t.id === st.activeTabId);
       if (!tab?.path) {
-        notifyWarn(tx('Buka file dulu'), { source: 'Git' });
+        notifyWarn(tx('Open a file first'), { source: 'Git' });
         return;
       }
       const lines = await useGit.getState().blameFile(tab.path);
       if (lines.length === 0) {
-        notifyWarn(tx('Blame tidak tersedia untuk file ini'), { source: 'Git' });
+        notifyWarn(tx('Blame is not available for this file'), { source: 'Git' });
         return;
       }
       await useOutput.getState().append(
@@ -492,7 +492,7 @@ export const COMMANDS: CommandDef[] = [
           '\n',
       );
       usePanel.getState().focusTab('output');
-      notifyInfo(`${lines.length} baris blame ditampilkan di Output`, { source: 'Git' });
+      notifyInfo(`${lines.length} baris blame shown in Output`, { source: 'Git' });
     },
   },
   {
@@ -553,7 +553,7 @@ export const COMMANDS: CommandDef[] = [
       const n = useAi.getState().compactContext();
       T().setVisible(true);
       usePanel.getState().focusTab('ai');
-      S().setStatus(n > 0 ? `${n} pesan dipadatkan` : 'Konteks sudah pendek');
+      S().setStatus(n > 0 ? `${n} pesan dipadatkan` : 'Context is already short');
     },
   },
 
@@ -964,7 +964,7 @@ export const COMMANDS: CommandDef[] = [
         hitung.set(hex, (hitung.get(hex) ?? 0) + 1);
       }
       if (hitung.size === 0) {
-        notifyInfo(tx('Tidak ada warna di dokumen ini'));
+        notifyInfo(tx('No colours in this document'));
         return;
       }
       const urut = [...hitung.entries()].sort((a, b) => b[1] - a[1]);
@@ -1206,13 +1206,13 @@ export const COMMANDS: CommandDef[] = [
       try {
         const loc = await lspDefinition(path, view, view.state.selection.main.head);
         if (!loc) {
-          notifyWarn(tx('Definisi tidak ditemukan'), { source: 'LSP' });
+          notifyWarn(tx('Definition not found'), { source: 'LSP' });
           return;
         }
         await S().openPath(loc.file);
         window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
       } catch (e) {
-        notifyError(tx('Go to Definition gagal'), { source: 'LSP', detail: asZephyrError(e).message });
+        notifyError(tx('Go to Definition failed'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1228,9 +1228,9 @@ export const COMMANDS: CommandDef[] = [
       const { peekDefinition } = await import('./lspCm');
       try {
         const ok = await peekDefinition(path, view, view.state.selection.main.head);
-        if (!ok) notifyWarn(tx('Definisi tidak ditemukan'), { source: 'LSP' });
+        if (!ok) notifyWarn(tx('Definition not found'), { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Peek Definition gagal'), { source: 'LSP', detail: asZephyrError(e).message });
+        notifyError(tx('Peek Definition failed'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1247,7 +1247,7 @@ export const COMMANDS: CommandDef[] = [
       try {
         const refs = await lspReferences(path, view, view.state.selection.main.head);
         if (refs.length === 0) {
-          notifyWarn(tx('Tidak ada referensi'), { source: 'LSP' });
+          notifyWarn(tx('No references'), { source: 'LSP' });
           return;
         }
 
@@ -1273,7 +1273,7 @@ export const COMMANDS: CommandDef[] = [
         usePanel.getState().focusTab('problems');
         notifyInfo(`${refs.length} referensi di ${byFile.size} file`, { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Find References gagal'), { source: 'LSP', detail: asZephyrError(e).message });
+        notifyError(tx('Find References failed'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1290,9 +1290,9 @@ export const COMMANDS: CommandDef[] = [
       const ed = S().settings.editor;
       try {
         const n = await lspFormat(path, view, ed.tabSize, ed.insertSpaces);
-        notifyInfo(n > 0 ? `Dokumen diformat (${n} perubahan)` : 'Sudah rapi', { source: 'LSP' });
+        notifyInfo(n > 0 ? `Document formatted (${n} changes)` : 'Already tidy', { source: 'LSP' });
       } catch (e) {
-        notifyError(tx('Format gagal'), { source: 'LSP', detail: asZephyrError(e).message });
+        notifyError(tx('Formatting failed'), { source: 'LSP', detail: asZephyrError(e).message });
       }
     },
   },
@@ -1407,7 +1407,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'lsp restart ulang language server',
     run: async () => {
       await useLsp.getState().stopAll();
-      notifyInfo(tx('Semua language server dimatikan; akan start lagi saat file dibuka'), {
+      notifyInfo(tx('Every language server is stopped; they start again when a file opens'), {
         source: 'LSP',
       });
     },
@@ -1436,7 +1436,7 @@ export const COMMANDS: CommandDef[] = [
         open_docs?: number;
       }[];
       if (list.length === 0) {
-        notifyInfo(tx('Tidak ada language server yang hidup'), { source: 'LSP' });
+        notifyInfo(tx('No language server is running'), { source: 'LSP' });
         return;
       }
       for (const s of list) {
@@ -1468,7 +1468,7 @@ export const COMMANDS: CommandDef[] = [
     id: 'tasks.runBuild',
     title: 'Tasks: Run Build Task',
     group: 'Tasks',
-    keywords: 'build compile jalankan ctrl+shift+b',
+    keywords: 'build compile run ctrl+shift+b',
     enabled: () => useTasks.getState().buildDefault() !== null,
     run: async () => {
       usePanel.getState().focusTab('output');
@@ -1550,7 +1550,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'timeline.snapshot',
-    title: 'Timeline: Snapshot Sekarang',
+    title: 'Timeline: Snapshot Now',
     group: 'View',
     keywords: 'history simpan versi manual',
     enabled: () => {
@@ -1576,7 +1576,7 @@ export const COMMANDS: CommandDef[] = [
       const H = useHistory.getState();
       const snap = H.timeline.find((t) => t.kind === 'snapshot');
       if (!snap) {
-        notifyWarn(tx('Belum ada snapshot untuk file ini'), { source: 'history' });
+        notifyWarn(tx('No snapshot for this file yet'), { source: 'history' });
         return;
       }
       await H.restore(snap.id);
@@ -1584,7 +1584,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'timeline.clear',
-    title: 'Timeline: Hapus Riwayat File Ini',
+    title: 'Timeline: Delete This File History',
     group: 'View',
     keywords: 'history bersihkan hapus snapshot',
     enabled: () => (useHistory.getState().info?.snapshots.length ?? 0) > 0,
@@ -1710,7 +1710,7 @@ export const COMMANDS: CommandDef[] = [
       const { activeLine } = await import('./editorRegistry');
       const line = activeLine();
       if (line < 1) {
-        notifyWarn(tx('Tidak ada kursor di editor'), { source: 'debug' });
+        notifyWarn(tx('No cursor in the editor'), { source: 'debug' });
         return;
       }
       await useDebug.getState().toggleBreakpoint(p, line);
@@ -1718,7 +1718,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'debug.clearBreakpoints',
-    title: 'Debug: Hapus Semua Breakpoint',
+    title: 'Debug: Remove All Breakpoints',
     group: 'Debug',
     keywords: 'debug bersihkan breakpoint',
     enabled: () => useDebug.getState().breakpoints.length > 0,
@@ -1746,7 +1746,7 @@ export const COMMANDS: CommandDef[] = [
       });
       umumkanA11y(
         baru
-          ? 'Mode screen reader aktif. Terminal dan editor dioptimalkan untuk pembaca layar.'
+          ? 'Screen reader mode is on. Terminal and editor are tuned for screen readers.'
           : 'Mode screen reader nonaktif.',
       );
     },
@@ -1773,7 +1773,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'a11y.highContrast',
-    title: 'Accessibility: Tema High Contrast',
+    title: 'Accessibility: High Contrast Theme',
     group: 'Settings',
     keywords: 'aksesibilitas kontras tinggi tema low vision aaa a11y',
     run: async () => {
@@ -1784,7 +1784,7 @@ export const COMMANDS: CommandDef[] = [
         theme: { current: kembali ? 'zephyr-dark' : 'high-contrast' },
         general: { theme: 'dark' },
       });
-      umumkanA11y(kembali ? 'Tema Zephyr Dark.' : 'Tema High Contrast aktif.');
+      umumkanA11y(kembali ? 'Zephyr Dark theme.' : 'High Contrast theme enabled.');
     },
   },
   {
@@ -1809,13 +1809,13 @@ export const COMMANDS: CommandDef[] = [
       const tab = s.tabs.find((t) => t.id === s.activeTabId);
       const v = getActiveView();
       if (!tab || !v) {
-        umumkanA11y('Tidak ada file yang terbuka.', 'assertive');
+        umumkanA11y('No file is open.', 'assertive');
         return;
       }
       const sel = v.state.selection.main;
       const baris = v.state.doc.lineAt(sel.head);
       const total = v.state.doc.lines;
-      const kotor = tab.unsaved ? ', belum disimpan' : '';
+      const kotor = tab.unsaved ? ', unsaved' : '';
       umumkanA11y(
         `${tab.name}${kotor}. Baris ${baris.number} dari ${total}, kolom ${
           sel.head - baris.from + 1
@@ -1857,7 +1857,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'snippets.reload',
-    title: 'Snippets: Muat Ulang Snippet',
+    title: 'Snippets: Reload Snippets',
     group: 'Snippets',
     keywords: 'snippet reload refresh muat ulang',
     run: async () => {
@@ -1871,7 +1871,7 @@ export const COMMANDS: CommandDef[] = [
 
   {
     id: 'workspace.addFolder',
-    title: 'Workspace: Tambah Folder ke Workspace',
+    title: 'Workspace: Add Folder to Workspace',
     group: 'File',
     keywords: 'workspace root folder multi tambah add',
     run: async () => {
@@ -1882,7 +1882,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'workspace.removeFolder',
-    title: 'Workspace: Hapus Folder Aktif dari Workspace',
+    title: 'Workspace: Remove Active Folder from Workspace',
     group: 'File',
     keywords: 'workspace root folder hapus remove',
 
@@ -1894,7 +1894,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'workspace.openFile',
-    title: 'Workspace: Buka File .code-workspace',
+    title: 'Workspace: Open .code-workspace File',
     group: 'File',
     keywords: 'workspace code-workspace buka open multi root',
     run: async () => {
@@ -1930,7 +1930,7 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'workspace.trustList',
-    title: 'Workspace: Daftar Folder Tepercaya',
+    title: 'Workspace: List Trusted Folders',
     group: 'File',
     keywords: 'trust daftar list security settings',
     run: async () => {
@@ -2291,7 +2291,7 @@ export const COMMANDS: CommandDef[] = [
       void w.once('tauri://error', (e) => {
         useNotif.getState().notify({
           severity: 'error',
-          message: 'Gagal membuka jendela baru',
+          message: 'Failed to open a new window',
           detail: String((e as { payload?: unknown }).payload ?? e).slice(0, 200),
           source: 'Window',
         });
@@ -2340,9 +2340,9 @@ export function extensionCommands(): CommandDef[] {
     group: 'Extensions' as CmdGroup,
     keywords: `${extId} ${extName} ${description} ekstensi`,
     run: () => {
-      S().setStatus(`${title} — dari ekstensi ${extName} (manifest v1)`);
+      S().setStatus(`${title} — from extension ${extName} (manifest v1)`);
       useExtensions.setState({
-        extInfo: `Command "${title}" dijalankan dari ekstensi ${extName}`,
+        extInfo: `Command "${title}" dijalankan from extension ${extName}`,
       });
     },
   });
@@ -2416,10 +2416,10 @@ export async function runCommand(id: string): Promise<boolean> {
     await c.run();
     return true;
   } catch (e) {
-    // Menu kini selalu aktif, jadi sebuah command bisa dipanggil saat
-    // konteksnya belum siap (belum ada tab, bukan repo git, dst). Dulu item
-    // seperti itu di-disable; sekarang jangan biarkan error-nya naik ke
-    // handler global (yang memunculkan toast/kartu error untuk setiap klik).
+    // The menu is now always active, so a command can be invoked when its
+    // context is not ready yet (no tab open, not a git repo, etc.). Back then the item
+    // like that were disabled; now do not let its errors bubble up to
+    // global handler (which pops a toast/error card on every click).
     const pesan = e instanceof Error ? e.message : String(e);
     S().setStatus(pesan);
     return false;

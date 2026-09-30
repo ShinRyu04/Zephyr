@@ -50,7 +50,7 @@
   box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-/* Group kanan tidak perlu garis tepi ganda. */
+/* The right group does not need a doubled edge line. */
 .editor-split .editor-group:last-child {
   border-right: none;
 }
@@ -79,8 +79,8 @@
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-/* Tab bar di dalam group tetap mengambil gaya yang sama; yang beda hanya
-   batas bawahnya menyatu dengan host editor. */
+/* The tab bar inside a group keeps the same styling; the only difference is
+   that its bottom edge merges with the host editor. */
 .editor-group > .tabbar {
   flex: 0 0 auto;
 }

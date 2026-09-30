@@ -74,16 +74,16 @@ pub fn teks_ext_help(warna: bool) -> String {
         ("", "")
     };
     format!(
-        "{a}zephyr ext{d} — kelola ekstensi dari command line\n\n\
-         {a}Pemakaian{d}\n  \
-         zephyr ext list                 daftar ekstensi terpasang\n  \
-         zephyr ext install <id|url>     pasang dari registry atau URL\n  \
-         zephyr ext remove <id>          lepas ekstensi\n  \
-         zephyr ext registry             tampilkan URL registry\n  \
-         zephyr ext registry <url>       set URL registry\n\n\
-         {a}Catatan{d}\n  \
-         Ekstensi dipasang ke folder data Zephyr. Kalau aplikasi sedang jalan,\n  \
-         perubahan langsung terlihat setelah panel Ekstensi dibuka ulang.\n",
+        "{a}zephyr ext{d} — manage extensions from the command line\n\n\
+         {a}Usage{d}\n  \
+         zephyr ext list                 list installed extensions\n  \
+         zephyr ext install <id|url>     install from registry or URL\n  \
+         zephyr ext remove <id>          remove an extension\n  \
+         zephyr ext registry             show the registry URL\n  \
+         zephyr ext registry <url>       set the registry URL\n\n\
+         {a}Note{d}\n  \
+         Extensions are installed into the Zephyr data folder. If the app is running,\n  \
+         changes appear immediately after the Extensions panel is reopened.\n",
         a = a,
         d = d
     )
@@ -140,14 +140,14 @@ pub fn jalankan(argv: &[String]) -> bool {
             format!(
                 "Zephyr {}\nmode      : {}\nfolder data: {}\n",
                 env!("CARGO_PKG_VERSION"),
-                if p { "portable" } else { "terpasang" },
+                if p { "portable" } else { "installed" },
                 dir.display()
             )
         }
         Sub::ExtList => match daftar_terpasang(&dir) {
-            Ok(list) if list.is_empty() => "Belum ada ekstensi terpasang.\n".to_string(),
+            Ok(list) if list.is_empty() => "No extensions installed yet.\n".to_string(),
             Ok(list) => {
-                let mut s = format!("{} ekstensi terpasang:\n", list.len());
+                let mut s = format!("{} extensions installed:\n", list.len());
                 for (id, versi, nama) in list {
                     s.push_str(&format!(
                         "  {:<28} {:<10} {}\n",
@@ -158,30 +158,30 @@ pub fn jalankan(argv: &[String]) -> bool {
                 }
                 s
             }
-            Err(e) => format!("gagal membaca daftar ekstensi: {e}\n"),
+            Err(e) => format!("failed to read extension list: {e}\n"),
         },
         Sub::ExtHelp => teks_ext_help(warna),
         Sub::ExtInstall(x) if x.is_empty() => teks_ext_help(warna),
         Sub::ExtInstall(x) => {
             format!(
-                "Untuk memasang \"{x}\":\n  \
-                 1. buka Zephyr\n  \
+                "To install \"{x}\":\n  \
+                 1. open Zephyr\n  \
                  2. Ctrl+Shift+P → \"Extensions: Install\"\n  \
-                 3. tempel: {x}\n\n\
-                 Pemasangan lewat CLI langsung belum tersedia karena butuh\n\
-                 verifikasi tanda tangan + pengecekan runtime yang hanya ada\n\
-                 di dalam aplikasi.\n"
+                 3. paste: {x}\n\n\
+                 Direct CLI installation is not yet available because it needs\n\
+                 signature verification + runtime checks that only exist\n\
+                 inside the app.\n"
             )
         }
         Sub::ExtRemove(x) if x.is_empty() => teks_ext_help(warna),
         Sub::ExtRemove(x) => {
             let target = dir.join("extensions").join(&x);
             if !target.exists() {
-                format!("Ekstensi \"{x}\" tidak ditemukan di {}.\n", dir.display())
+                format!("Extension \"{x}\" not found in {}.\n", dir.display())
             } else {
                 match std::fs::remove_dir_all(&target) {
-                    Ok(_) => format!("Ekstensi \"{x}\" dilepas.\n"),
-                    Err(e) => format!("gagal melepas \"{x}\": {e}\n"),
+                    Ok(_) => format!("Extension \"{x}\" removed.\n"),
+                    Err(e) => format!("failed to remove \"{x}\": {e}\n"),
                 }
             }
         }
@@ -189,7 +189,7 @@ pub fn jalankan(argv: &[String]) -> bool {
             let f = dir.join("extensions").join("registry-url.txt");
             let url = std::fs::read_to_string(&f).unwrap_or_default();
             if url.trim().is_empty() {
-                "Registry: bawaan (index yang dibundel di aplikasi).\n".to_string()
+                "Registry: built-in (index bundled with the app).\n".to_string()
             } else {
                 format!("Registry: {}\n", url.trim())
             }
@@ -200,8 +200,8 @@ pub fn jalankan(argv: &[String]) -> bool {
                 let _ = std::fs::create_dir_all(p);
             }
             match std::fs::write(&f, url.trim()) {
-                Ok(_) => format!("Registry diset ke: {}\n", url.trim()),
-                Err(e) => format!("gagal menulis registry: {e}\n"),
+                Ok(_) => format!("Registry set to: {}\n", url.trim()),
+                Err(e) => format!("failed to write registry: {e}\n"),
             }
         }
     };

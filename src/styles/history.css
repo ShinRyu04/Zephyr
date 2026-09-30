@@ -1,8 +1,8 @@
-/* history.css — Timeline / Local History (fase 26).
+/* history.css — Timeline / Local History (phase 26).
  *
- * Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded.
- * Timeline duduk di bawah file tree dan TIDAK boleh mendorong tree keluar:
- * karena itu `flex: 0 0 auto` dengan tinggi maksimum, bukan flex tumbuh.
+ * Colours MUST come from CSS variables (AGENTS.md section 4) - no hardcoded hex.
+ * The timeline sits below the file tree and MUST NOT push the tree out: hence
+ * `flex: 0 0 auto` with a maximum height, rather than a growing flex item.
  */
 
 .timeline {
@@ -144,10 +144,10 @@
 
 .tl-badge[data-kind='commit'] {
   background: var(--bg3);
-  /* FASE 31: `--fg2` (= --text-muted) hanya 3.97:1 di atas --bg3, dan badge ini
-     9px bold — teks kecil justru butuh kontras lebih, bukan kurang. Dipakai
-     --text-secondary yang 5.6:1 di atas surface-3 di semua tema.
-     (Ditemukan axe-core: color-contrast serious x14, satu per baris commit.) */
+  /* PHASE 31: `--fg2` (= --text-muted) is only 3.97:1 on --bg3, and this badge
+     is 9px bold - small text needs MORE contrast, not less. --text-secondary is
+     used instead, at 5.6:1 on surface-3 across every theme.
+     (Found by axe-core: color-contrast serious x14, one per commit row.) */
   color: var(--text-secondary);
 }
 

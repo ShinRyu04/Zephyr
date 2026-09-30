@@ -1,5 +1,5 @@
-/* settings.css — halaman Settings (fase 08).
-   Semua warna dari token theme.css; tidak ada hex hardcoded. */
+/* settings.css — the Settings page (phase 08).
+   All colours come from theme.css tokens; no hardcoded hex. */
 
 .settings-page {
   display: flex;
@@ -10,7 +10,7 @@
   font-family: var(--font-ui);
 }
 
-/* bar tipis di atas halaman Settings (pengganti tab bar editor) */
+/* the thin bar above the Settings page (replacing the editor tab bar) */
 .set-topbar {
   display: flex;
   align-items: center;
@@ -29,10 +29,10 @@
   margin-left: auto;
 }
 
-/* jalan cepat section Settings di sidebar — DIHAPUS (nav asli sudah di
-   sidebar; kelas .side-quick tidak dipakai lagi). */
+/* the Settings section quick-nav in the sidebar — REMOVED (the real nav is already in
+   the sidebar; the .side-quick class is no longer used). */
 
-/* ─────────── panel sidebar Terminal (daftar sesi) ─────────── */
+/* ─────────── Terminal sidebar panel (session list) ─────────── */
 
 .tp-summary {
   font-size: 11.5px;
@@ -348,7 +348,7 @@
   color: var(--danger);
 }
 
-/* ─────────── navigasi section (DI SIDEBAR KIRI) ─────────── */
+/* ─────────── section navigation (IN THE LEFT SIDEBAR) ─────────── */
 
 .set-nav {
   display: flex;
@@ -423,7 +423,7 @@
   justify-content: flex-end;
 }
 
-/* ─────────── isi kanan ─────────── */
+/* ─────────── right-side contents ─────────── */
 
 .set-body {
   flex: 1;
@@ -445,9 +445,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* fase 29: sub-heading di dalam satu section (Security). Lebih kecil dari
-   .set-h2 — dua judul sebesar itu dalam satu halaman membuat section terlihat
-   seperti dua halaman berbeda. */
+/* phase 29: a sub-heading inside one section (Security). Smaller than
+   .set-h2 — two headings that big on one page make the section look
+   like two different pages. */
 .set-h2-sub {
   font-size: 14px;
   margin-top: 18px;
@@ -494,7 +494,7 @@
   font-size: 12px;
 }
 
-/* ─────────── baris kontrol ─────────── */
+/* ─────────── control rows ─────────── */
 
 .set-row {
   display: flex;
@@ -520,11 +520,11 @@
   line-height: 1.4;
 }
 
-/* Blok "cara pakai" di bawah deskripsi persona.
+/* The "how to use" block below the persona description.
 
-   `.set-hint` itu `span` inline, jadi dua di antaranya menempel jadi satu baris
-   panjang dan kalimat "apa itu persona" lari ke "cara pakainya" tanpa jeda.
-   Dijadikan blok supaya terbaca sebagai dua keterangan terpisah. */
+   `.set-hint` is an inline `span`, so two of them stuck together into one long
+   line and the sentence "what a persona is" ran into "how to use it" with no break.
+   Made into a block so it reads as two separate notes. */
 .set-hint.persona-cara {
   display: block;
   margin-top: 5px;
@@ -570,7 +570,7 @@
   background: var(--text-inverse);
 }
 
-/* angka + slider */
+/* number + slider */
 .set-num {
   display: flex;
   align-items: center;
@@ -666,7 +666,7 @@
   cursor: pointer;
 }
 
-/* ─────────── tema: kartu preview ─────────── */
+/* ─────────── themes: preview cards ─────────── */
 
 .theme-grid {
   display: grid;
@@ -698,7 +698,7 @@
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--border);
-  /* penting: token dibaca dari data-theme pada elemen ini sendiri */
+  /* important: the tokens are read from data-theme on this element itself */
   background: var(--bg);
 }
 .tp-side {
@@ -1012,7 +1012,7 @@
   color: var(--text-muted);
 }
 
-/* ── fase 13: aksi, badge, marketplace ── */
+/* ── phase 13: actions, badges, marketplace ── */
 
 .ext-actions {
   display: flex;
@@ -1187,7 +1187,7 @@
   accent-color: var(--accent);
 }
 
-/* dot hijau berdenyut saat server hidup — sinyal "ini benar-benar jalan" */
+/* a pulsing green dot while the server is live — the signal for "this really runs" */
 .mcp-status.is-running .mcp-dot {
   box-shadow: 0 0 0 0 var(--success);
   animation: mcp-pulse 1.8s ease-out infinite;
@@ -1328,10 +1328,10 @@
 }
 
 /* ─────────── about (compact) ───────────
-   Perubahan: teksnya dipadatkan atas permintaan user ("teksnya kebanyakan").
-   Dulu: header + 3 tabel penuh + catatan panjang + 5 tombol. Sekarang:
-   2 kartu identitas, 1 baris tautan, utilitas langka disembunyikan ke
-   tautan kecil. Warna tetap dari CSS variable (aturan konvensi fase 08). */
+   Change: the text was condensed at the user's request ("teksnya kebanyakan" / too much text).
+   Before: a header + 3 full tables + a long note + 5 buttons. Now:
+   2 identity cards, 1 row of links, and rare utilities tucked away into a small
+   link. Colours still come from CSS variables (the phase 08 convention). */
 
 .about-kartu {
   display: flex;
@@ -1368,7 +1368,7 @@
   font-size: 11.5px;
   color: var(--text-muted);
 }
-/* Kartu detail: satu kolom penuh, label-atas-nilai di bawah di layar sempit. */
+/* Detail card: one full column, label-above-value below it on narrow screens. */
 .about-kartu-detail {
   flex-direction: column;
   align-items: stretch;
@@ -1410,7 +1410,7 @@
   color: var(--text);
   word-break: break-all;
 }
-/* Tautan dalam tabel: bergaya teks, bukan tombol tebal. */
+/* Links inside tables: styled as text, not as a chunky button. */
 .about-tautan-inline {
   background: none;
   border: none;
@@ -1437,7 +1437,7 @@
   gap: 7px;
   margin: 14px 0 4px;
 }
-/* Utilitas langka: tautan kecil yang rapat — tidak lagi tombol besar. */
+/* Rare utilities: a small, tight link — no longer a big button. */
 .about-util {
   display: flex;
   flex-wrap: wrap;
@@ -1545,7 +1545,7 @@
   opacity: 1;
 }
 
-/* ── Diagnostics (fase 14.5) ─────────────────────────────────────────── */
+/* ── Diagnostics (phase 14.5) ─────────────────────────────────────────── */
 .diag {
   margin-top: 18px;
   padding: 12px 14px;
@@ -1609,7 +1609,7 @@
   flex: 1;
 }
 
-/* ── Dialog crash (fase 14.6) ────────────────────────────────────────── */
+/* ── Crash dialog (phase 14.6) ────────────────────────────────────────── */
 .crash-backdrop {
   position: fixed;
   inset: 0;
@@ -1665,7 +1665,7 @@
   gap: 8px;
 }
 
-/* ─────────── Diagnostics fase 16.5 ─────────── */
+/* ─────────── Diagnostics phase 16.5 ─────────── */
 .diag-domains {
   margin-top: 10px;
 }
@@ -1746,7 +1746,7 @@
   border-top: 1px solid var(--border);
 }
 
-/* ─────────── Update panel fase 17.6 ─────────── */
+/* ─────────── Update panel phase 17.6 ─────────── */
 .upd {
   margin-top: 14px;
   padding-top: 12px;
@@ -1770,8 +1770,8 @@
   transition: width 0.18s ease;
 }
 
-/* ── Dialog pilihan donasi ── */
-/* Ikon header memakai warna aksen supaya sejalan dengan tombol donasi. */
+/* ── Donation choice dialog ── */
+/* The header icon uses the accent colour so it matches the donation button. */
 .donate-ico {
   color: var(--brand-donate);
 }
@@ -1793,7 +1793,7 @@
     border-color 0.15s ease,
     background-color 0.15s ease;
 }
-/* Baris pertama tiap tombol: logo + nama layanan. */
+/* The first row of each button: logo + service name. */
 .donate-brand {
   display: inline-flex;
   align-items: center;
@@ -1811,16 +1811,16 @@
   font-size: 11.5px;
   opacity: 0.7;
   font-family: var(--font-mono);
-  /* URL sejajar dengan teks nama, bukan dengan logonya. */
+  /* The URL lines up with the name text, not with the logo. */
   padding-left: 22px;
 }
 .donate-opt:hover:not(:disabled) {
   border-color: var(--brand-donate);
   background-color: color-mix(in srgb, var(--brand-donate) 10%, transparent);
 }
-/* Kedua opsi memakai gaya kartu yang sama; pembedanya hanya warna merek,
-   supaya tidak ada satu kartu yang terlihat seperti tombol utama dan satu
-   seperti tombol sekunder padahal keduanya pilihan setara. */
+/* Both options use the same card style; the only difference is the brand colour,
+   so that one card does not look like a primary button and the other
+   like a secondary button when the two are equal choices. */
 .donate-opt[data-testid='donate-trakteer'] .donate-brand > svg {
   color: var(--brand-trakteer);
 }
@@ -1835,7 +1835,7 @@
   border-color: var(--brand-saweria);
   background-color: color-mix(in srgb, var(--brand-saweria) 10%, transparent);
 }
-/* Nama layanan ikut warna mereknya saat kartu disorot. */
+/* The service name takes on its brand colour when the card is highlighted. */
 .donate-opt[data-testid='donate-trakteer']:hover:not(:disabled) strong {
   color: var(--brand-trakteer);
 }
@@ -1843,7 +1843,7 @@
   color: var(--brand-saweria);
 }
 
-/* Changelog update (render markdown ringan + tabel) */
+/* The update changelog (a light markdown render + tables) */
 .upd-changelog {
   font-size: 13px;
   line-height: 1.6;
@@ -1903,7 +1903,7 @@
   overflow-y: auto;
 }
 
-/* ── Dialog "versi baru tersedia" (gaya sendiri, bukan jiplakan) ── */
+/* ── The "new version available" dialog (its own style, not a copy) ── */
 .upd-backdrop {
   position: fixed;
   inset: 0;
@@ -1926,12 +1926,12 @@
   overflow: hidden;
 }
 
-/* Dialog donasi jauh lebih sempit dari dialog update.
-   Aturan ini WAJIB setelah .upd-dialog: kedua kelas dipakai bersama
-   (.upd-dialog.donate-dialog) dan pada specificity yang sama yang menang
-   adalah yang terakhir di berkas. Sebelumnya .donate-dialog ditulis di atas
-   .upd-dialog, jadi lebarnya kalah dan dialog melar selebar 960px dengan
-   tombol 922px — tampak seperti kotak kosong raksasa. */
+/* The donation dialog is far narrower than the update dialog.
+   This rule MUST come after .upd-dialog: the two classes are used together
+   (.upd-dialog.donate-dialog) and at equal specificity the last one in the file
+   wins. Previously .donate-dialog was written above
+   .upd-dialog, so its width lost and the dialog stretched to 960px with
+   922px buttons — it looked like a giant empty box. */
 .upd-dialog.donate-dialog {
   width: min(440px, calc(100vw - 48px));
 }
@@ -1957,8 +1957,8 @@
   font-size: 12px;
   color: var(--text-muted);
 }
-/* Tombol tutup: beri ruang dari tepi supaya tidak menempel di sudut, dan
-   pastikan ukurannya tetap persegi walau di dalam dialog sempit. */
+/* The close button: leave room from the edge so it does not stick to the corner, and
+   make sure it stays square even inside a narrow dialog. */
 .upd-dialog.donate-dialog .upd-dialog-x {
   margin-left: auto;
   flex: 0 0 auto;
@@ -1994,9 +1994,9 @@
 }
 
 /* ── T4.3: Settings → Prompt AI ────────────────────────────────────────────
-   Setiap bagian prompt punya kotak sendiri dengan badge status (bawaan /
-   diubah). Badge penting: tanpa itu user tidak tahu apakah tulisannya benar-
-   benar terpakai atau masih memakai bawaan. */
+   Each prompt section has its own box with a status badge (built-in /
+   modified). The badge matters: without it the user does not know whether what they wrote
+   is actually in use or whether the built-in is still in effect. */
 .sp-root {
   max-width: 880px;
 }
@@ -2109,8 +2109,8 @@
   word-break: break-word;
 }
 
-/* Blok identitas model di Prompt AI: lebih pendek dari pratinjau penuh, dan
-   dibedakan supaya jelas ini fakta yang tidak bisa diedit (bukan area isian). */
+/* The model identity block in Prompt AI: shorter than the full preview, and
+   set apart so it is clear this is an uneditable fact (not an input area). */
 .sp-pre-model {
   max-height: 220px;
   margin: 0;
@@ -2119,7 +2119,7 @@
   color: var(--text-primary);
 }
 
-/* ── T4.5: daftar izin perintah ── */
+/* ── T4.5: the command permission list ── */
 .sp-tambah {
   display: flex;
   gap: 6px;
@@ -2201,11 +2201,11 @@
   color: var(--danger);
 }
 
-/* ── T4.6: About berkelompok ───────────────────────────────────────────────
-   Tabel lama satu blok panjang (9 baris) sehingga "versi" dan "folder data"
-   tercampur. Sekarang tiga kelompok: Build · Runtime · Data. */
+/* ── T4.6: grouped About ───────────────────────────────────────────────
+   The old table was one long block (9 rows) so "version" and "data folder"
+   got mixed together. Now there are three groups: Build · Runtime · Data. */
 
-/* ── T4.7: ringkasan CLI terdaftar ── */
+/* ── T4.7: registered CLI summary ── */
 .mcp-ringkas {
   font-size: 10.5px;
   color: var(--text-muted);
@@ -2213,9 +2213,9 @@
 }
 
 /* ── T4.8: Capture requests ────────────────────────────────────────────────
-   Ditampilkan MENTAH dengan sengaja: ini alat debugging, dan bagian yang
-   biasanya dicari (header mana yang terkirim, field apa di body) justru yang
-   hilang kalau tampilannya "dirapikan". */
+   Shown RAW on purpose: this is a debugging tool, and the parts that are
+   usually looked for (which headers were sent, which fields are in the body) are exactly
+   what disappears if the display is "tidied up". */
 .cp-root {
   margin: 14px 0;
   padding: 10px 12px;

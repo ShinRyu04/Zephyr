@@ -37,18 +37,18 @@ function Icon({ d, size = 13 }: { d: string; size?: number }) {
 }
 
 /**
- * Pane browser dengan webview anak asli, bukan iframe.
+ * Browser pane with a real child webview, not an iframe.
  *
- * KENAPA bukan iframe: isi iframe tidak bisa dibaca dari luar karena aturan
- * same-origin, dan situs yang mengirim X-Frame-Options menolak tampil sama
- * sekali. Webview2 anak dimiliki proses ini sendiri, jadi agent bisa membaca
- * DOM-nya lewat browser_pane_eval, mengklik elemen, dan situs seperti Google
+ * WHY not an iframe: iframe content cannot be read from outside because of the
+ * same-origin rules, and sites that send X-Frame-Options refuse to display at
+ * all. The child Webview2 is owned by this process itself, so the agent can read
+ * its DOM via browser_pane_eval, click elements, and sites like Google
  * can load because no iframe is involved.
  *
- * KONSEKUENSI tata letak: webview anak melayang di atas jendela pada koordinat
- * native, jadi ia TIDAK ikut scroll atau terpotong oleh induknya. Karena itu
- * posisinya disinkronkan terus lewat requestAnimationFrame dan disembunyikan
- * begitu elemen penampungnya keluar dari layar.
+ * LAYOUT CONSEQUENCE: the child webview floats above the window at native
+ * coordinates, so it does NOT scroll with or get clipped by its parent. Because of that
+ * its position is continuously synced via requestAnimationFrame and it is hidden
+ * as soon as its container element leaves the screen.
  */
 export default function BrowserPane({ pane }: { pane: PaneMeta }) {
   const tr = useT();
@@ -69,7 +69,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
   }, [pane.url]);
 
   /**
-   * Buka (atau arahkan ulang) webview ke URL pane.
+   * Open (or redirect) the webview to the pane's URL.
    *
    * The initial position comes from the container element so the webview lands
    * in the right place; the sync loop below keeps it there afterwards.

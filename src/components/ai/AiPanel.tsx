@@ -354,10 +354,10 @@ export default function AiPanel() {
         // These three fill the composer instead of acting, so the user can see
         // and edit the text before sending.
         case 'loop':
-          setDraft('Lanjutkan tugas sebelumnya sampai benar-benar selesai. Jangan berhenti di tengah jalan.');
+          setDraft('Continue the previous task until it is actually done. Do not stop halfway.');
           break;
         case 'goal':
-          setDraft('Tulis rencana langkah-langkah untuk tugas ini, lalu kerjakan satu per satu.');
+          setDraft('Write a step-by-step plan for this task, then work through it one step at a time.');
           break;
         case 'btw':
           setDraft('Ngomong-ngomong, ');
@@ -662,13 +662,13 @@ export default function AiPanel() {
         )}
       </div>
 
-      {/* Panel TODO: HARUS di luar kondisi agent-busy. Daftar tugas ditulis
-          agent di tengah tugas, tapi setelah tugas selesai user masih perlu
-          melihat apa yang sudah dikerjakan - kalau panelnya ikut hilang,
-          TODO-nya tidak bisa dipantau sama sekali. */}
+      {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written
+          by the agent mid-task, but once the task finishes the user still needs
+          to see what was done - if the panel disappears with it,
+          the TODO cannot be monitored at all. */}
       <TodoPanel />
 
-      {/* Log langkah agent: tool yang dipanggil + hasil singkat. */}
+      {/* Agent step log: the tool that was called + a short result. */}
       {(agentBusy || agentSteps.length > 0) && (
         <div className="ai-agent" data-testid="ai-agent">
           {agentSteps.map((st, i) => {
@@ -717,7 +717,7 @@ export default function AiPanel() {
 
       {/* T2.1: kartu subagent paralel. */}
 
-      {/* Action bar: muncul hanya kalau jawaban terakhir memuat perintah. */}
+      {/* Action bar: appears only when the last answer carries commands. */}
       {lastCommand && (
         <div className="ai-actions" data-testid="ai-actions">
           <code className="ai-action-cmd" title={lastCommand}>
@@ -794,10 +794,10 @@ export default function AiPanel() {
           </div>
         )}
 
-        {/* A-8: saran slash command; Tab/Enter memakai yang tersorot.
-            T4.4: ">" menampilkan SNIPPET - teks yang disisipkan, bukan
-            pertanyaan baru. Pemicunya ditandai di baris pertama daftar supaya
-            user tahu mana yang sedang aktif. */}
+        {/* A-8: slash command suggestions; Tab/Enter uses the highlighted one.
+            T4.4: ">" shows SNIPPETS - the text that gets inserted, not
+            a new question. The trigger is marked on the first line of the list so the
+            user knows which one is currently active. */}
         {saranFile.length === 0 && saran.length > 0 && (
           <div
             className="ai-slash"
@@ -1190,7 +1190,7 @@ export default function AiPanel() {
         </div>
       )}
 
-      {/* Persetujuan tool agent: mode ask / perintah berbahaya. */}
+      {/* Agent tool approval: ask mode / dangerous command. */}
       {agentConfirm && (
         <div className="ai-confirm" role="alertdialog" data-testid="ai-agent-confirm">
           <p className="ai-confirm-title">

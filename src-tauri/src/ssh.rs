@@ -70,20 +70,20 @@ fn write_configs(state: &AppState, list: &[SshConfig]) -> ZResult<()> {
 
 fn validate(c: &SshConfig) -> ZResult<()> {
     if c.name.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("nama host wajib diisi".into()));
+        return Err(ZephyrError::InvalidInput("host name is required".into()));
     }
     if c.host.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("host wajib diisi".into()));
+        return Err(ZephyrError::InvalidInput("host is required".into()));
     }
     if c.port == 0 {
-        return Err(ZephyrError::InvalidInput("port harus 1-65535".into()));
+        return Err(ZephyrError::InvalidInput("port must be 1-65535".into()));
     }
     if c.user.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("user wajib diisi".into()));
+        return Err(ZephyrError::InvalidInput("user is required".into()));
     }
     if c.auth != "key" && c.auth != "password" {
         return Err(ZephyrError::InvalidInput(
-            "auth harus 'key' atau 'password'".into(),
+            "auth must be 'key' or 'password'".into(),
         ));
     }
     if c.auth == "key" && c.key_path.trim().is_empty() {
@@ -253,7 +253,7 @@ pub fn ssh_connect(
 
     let ssh = find_ssh().ok_or_else(|| {
         ZephyrError::NotFound(
-            "OpenSSH Client tidak ditemukan — instal via Settings (Windows optional feature)"
+            "OpenSSH Client not found — install it via Settings (Windows optional feature)"
                 .into(),
         )
     })?;

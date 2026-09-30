@@ -107,7 +107,7 @@ export const usePanel = create<PanelState & PanelActions>((set, get) => ({
         panel: { visibleTabs, activeTab, height: T().height },
       } as never);
     } catch {
-      /* gagal simpan preferensi bukan alasan mengganggu user */
+      /* a failed preference save is no reason to bother the user */
     }
   },
 

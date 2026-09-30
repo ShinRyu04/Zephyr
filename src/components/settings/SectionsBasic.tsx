@@ -311,9 +311,9 @@ export function EditorSection() {
         />
       </Row>
 
-      {/* ── fase 24: editor extras ──
-          Nama kunci sengaja sama dengan VS Code supaya user yang pindah tidak
-          perlu belajar nama baru. Yang berat diberi peringatan di hint. */}
+      {/* ── phase 24: editor extras ──
+          Key names are deliberately the same as VS Code so users switching over do not
+          need to learn new names. The heavy ones get a warning in the hint. */}
       <p className="set-note">
         The editor conveniences below can be turned off one by one. They are all
         also available in the View → Appearance menu.
@@ -412,7 +412,7 @@ export function ThemeSection() {
       <p className="set-note">{tr('A theme changes the UI, editor, and terminal at once. The mode in the General section (light/dark) wins over the choice here - picking a dark theme while in light mode will switch it back to Zephyr Light.')}</p>
 
       <div className="theme-grid" data-testid="theme-grid">
-        {/* semuaTema() = bawaan + tema dari ekstensi aktif (fase 19.5). */}
+        {/* semuaTema() = built-in + themes from active extensions (phase 19.5). */}
         {semuaTema().map((th) => {
           const active = theme.current === th.id;
           return (
@@ -429,8 +429,8 @@ export function ThemeSection() {
                 })
               }
             >
-              {/* Preview memakai data-theme lokal: token tema ikut walau
-                  belum jadi tema aktif. */}
+              {/* The preview uses a local data-theme: theme tokens apply even
+                  before it becomes the active theme. */}
               <span className="theme-preview" data-theme={th.id}>
                 <span className="tp-side" />
                 <span className="tp-main">
@@ -467,10 +467,10 @@ export function ThemeSection() {
         </span>
       </Row>
 
-      {/* Latar belakang kustom (permintaan user: "bisa edit background jga
-          ntah pasang foto, apakah bisa?"). Gambar TIDAK disalin ke folder
-          data - path-nya dipakai langsung lewat convertFileSrc supaya tidak
-          ada duplikasi file besar dan user tetap bisa memindahkan fotonya. */}
+      {/* Custom background (user request: "can I also edit the background
+          whether setting a photo, is that possible?"). The image is NOT copied to the
+          data folder - its path is used directly via convertFileSrc so there is no
+          duplication of large files and the user can still move their photo. */}
       <Row label={tr('Background')} hint={tr('set a photo as the editor background')}>
         <span className="set-bg">
           <button
@@ -485,7 +485,7 @@ export function ThemeSection() {
                 const img = await cmd.bgImageRead(path);
                 await apply({ background: { image: img.data_url } });
               } catch {
-                /* dialog dibatalkan / izin ditolak - bukan error */
+                /* dialog cancelled / permission denied - not an error */
               }
             }}
           >

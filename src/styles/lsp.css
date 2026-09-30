@@ -1,10 +1,10 @@
-/* lsp.css — squiggle, hover tooltip, dan overlay LSP (fase 21).
-   Warna dari token src/styles/theme.css & tokens.css (AGENTS.md §4). */
+/* lsp.css — squiggle, hover tooltip, and the LSP overlay (phase 21).
+   Colours come from the tokens in src/styles/theme.css & tokens.css (AGENTS.md section 4). */
 
 /* ─────────── Squiggle inline ─────────── */
 .cm-zdiag {
-  /* Garis bergelombang dibuat dari gradien berulang, bukan gambar —
-     tetap tajam di semua DPI dan ikut warna token tema. */
+  /* The squiggle is drawn from a repeating gradient rather than an image - it
+     stays sharp at every DPI and follows the theme tokens' colour. */
   background-repeat: repeat-x;
   background-position: bottom left;
   background-size: 4px 2px;
@@ -38,7 +38,7 @@
   box-shadow: 0 6px 20px rgb(0 0 0 / 40%);
 }
 
-/* Popup completion CodeMirror ikut tema Zephyr. */
+/* CodeMirror's completion popup follows the Zephyr theme. */
 .cm-tooltip.cm-tooltip-autocomplete {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -230,7 +230,7 @@
   font-family: var(--font-mono);
 }
 
-/* Tombol "salin" kecil per baris server yang belum terpasang. */
+/* The small "copy" button on each row of a not-yet-installed server. */
 .btn-xs {
   padding: 2px 8px;
   font-size: 10px;
@@ -247,8 +247,8 @@
   color: var(--text);
 }
 
-/* Ringkasan "N belum terpasang" + tombol salin semua (pengganti teks
-   panjang berjajar perintah install mentah). */
+/* The "N not installed" summary plus a copy-all button (replacing the long
+   block of raw install commands). */
 .lsp-belum {
   display: flex;
   align-items: center;

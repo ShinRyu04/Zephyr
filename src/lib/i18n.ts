@@ -138,6 +138,8 @@ const ID: Dict = {
   'common.hide': 'Sembunyikan',
   'common.running': 'Berjalan',
   'common.stopped': 'Berhenti',
+  'settings.tests': 'Tes',
+  'settings.devenv': 'Dev Environment',
 };
 
 const EN: Dict = {
@@ -275,6 +277,8 @@ const EN: Dict = {
   'common.hide': 'Hide',
   'common.running': 'Running',
   'common.stopped': 'Stopped',
+  'settings.tests': 'Tests',
+  'settings.devenv': 'Dev Environment',
 };
 
 const JA: Dict = {
@@ -404,6 +408,8 @@ const JA: Dict = {
   'donate.hint': 'お好みのプラットフォームを選択',
   'common.ok': 'OK',
   'common.close': '閉じる',
+  'settings.tests': 'テスト',
+  'settings.devenv': '開発環境',
 };
 
 const KO: Dict = {
@@ -533,6 +539,8 @@ const KO: Dict = {
   'donate.hint': '원하는 플랫폼을 선택하세요',
   'common.ok': '확인',
   'common.close': '닫기',
+  'settings.tests': '테스트',
+  'settings.devenv': '개발 환경',
 };
 
 const ZH: Dict = {
@@ -662,6 +670,8 @@ const ZH: Dict = {
   'donate.hint': '选择您偏好的平台',
   'common.ok': '确定',
   'common.close': '关闭',
+  'settings.tests': '测试',
+  'settings.devenv': '开发环境',
 };
 
 const ES: Dict = {
@@ -791,6 +801,8 @@ const ES: Dict = {
   'donate.hint': 'Elige tu plataforma preferida',
   'common.ok': 'Aceptar',
   'common.close': 'Cerrar',
+  'settings.tests': 'Pruebas',
+  'settings.devenv': 'Entorno de desarrollo',
 };
 
 const FR: Dict = {
@@ -920,6 +932,8 @@ const FR: Dict = {
   'donate.hint': 'Choisissez votre plateforme préférée',
   'common.ok': 'OK',
   'common.close': 'Fermer',
+  'settings.tests': 'Tests',
+  'settings.devenv': 'Environnement de dev',
 };
 
 const DE: Dict = {
@@ -1049,6 +1063,8 @@ const DE: Dict = {
   'donate.hint': 'Wähle deine bevorzugte Plattform',
   'common.ok': 'OK',
   'common.close': 'Schließen',
+  'settings.tests': 'Tests',
+  'settings.devenv': 'Entwicklungsumgebung',
 };
 
 const PT: Dict = {
@@ -1178,6 +1194,8 @@ const PT: Dict = {
   'donate.hint': 'Escolha sua plataforma preferida',
   'common.ok': 'OK',
   'common.close': 'Fechar',
+  'settings.tests': 'Testes',
+  'settings.devenv': 'Ambiente de desenvolvimento',
 };
 
 const AR: Dict = {
@@ -1307,6 +1325,8 @@ const AR: Dict = {
   'donate.hint': 'اختر منصتك المفضلة',
   'common.ok': 'موافق',
   'common.close': 'إغلاق',
+  'settings.tests': 'الاختبارات',
+  'settings.devenv': 'بيئة التطوير',
 };
 
 const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ar: AR };
@@ -1337,30 +1357,30 @@ export async function muatKamusTambahan(): Promise<void> {
 
 export function translate(lang: string, key: string): string {
 
-  // Kamus bahasa tujuan SELALU menang. SRC cuma kamus Inggris untuk kunci
-  // yang teks aslinya Indonesia; dulu SRC dicek lebih dulu sehingga kunci
-  // apa pun yang ada di SRC selalu tampil Inggris walau terjemahan JA/KO/
-  // ES/… sudah tersedia - itu penyebab "ganti bahasa masih ada Indonesia/
+  // The target-language dictionary ALWAYS wins. SRC is only the English dictionary for keys
+  // whose original text is Indonesian; it used to be that SRC was checked first, so any
+  // key present in SRC always showed English even when the JA/KO/
+  // ES/… translation was already available - that was the cause of "switch language and it is still English
   // Inggris".
   const own = EXTRA[lang]?.[key] ?? DICTS[lang]?.[key];
   if (own !== undefined) return own;
   const src = SRC[key];
   if (src !== undefined) return lang === 'id' ? key : src;
-  // Inggris dulu, baru Indonesia.
+  // Indonesian first, then Indonesian.
   //
-  // DICTS.id sempat jadi jaring terakhir, dan itu berbahaya: kunci yang cuma
-  // ada di kamus ID bocor ke SEMUA bahasa. Selama nilainya kebetulan sudah
-  // Inggris tidak ada yang kelihatan rusak - sampai satu kunci ditulis dalam
-  // bahasa Indonesia, dan menu itu muncul Indonesia di UI Inggris, Jepang,
-  // dan seterusnya tanpa jejak. id tetap disertakan supaya tidak ada teks yang
-  // hilang sama sekali, tapi urutannya sekarang benar.
+  // DICTS.id was at one point the last resort, and that was dangerous: a key that only
+  // exists in the ID dictionary leaked into ALL languages. As long as its value happened to be
+  // English nothing looked broken - until a key was written in
+  // Indonesian, and that menu showed up in Indonesian in the English, Japanese,
+  // and so on without a trace. id is still included so that no text is
+  // vanish altogether, but the order is now correct.
   return EXTRA.en?.[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
 }
 
 /**
- * Teks catatan rilis / changelog bisa multi-bahasa: kalau `notes` berupa JSON
- * objek { en, id, ja, ... } pilih sesuai bahasa aktif (fallback ke en). Kalau
- * bukan JSON, kembalikan apa adanya (perilaku lama).
+ * Release note / changelog text can be multi-language: if `notes` is a JSON
+ * object { en, id, ja, ... } pick according to the active language (falling back to en). If it is
+ * not JSON, return it as-is (the old behaviour).
  */
 export function catatanUntukBahasa(notes: string | null | undefined, lang: string): string {
   if (!notes) return '';
@@ -1372,7 +1392,7 @@ export function catatanUntukBahasa(notes: string | null | undefined, lang: strin
       return obj[lang] ?? obj.en ?? Object.values(obj)[0] ?? notes;
     }
   } catch {
-    /* bukan JSON - pakai apa adanya */
+    /* not JSON - use it as-is */
   }
   return notes;
 }

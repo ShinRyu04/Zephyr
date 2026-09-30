@@ -244,7 +244,7 @@ export function TerminalOps() {
               Private Terminal
             </button>
 
-            {/* AI agent: dulu tombol toolbar sendiri (ikon robot). */}
+            {/* AI agent: used to be its own toolbar button (robot icon). */}
             <div className="tt-drop-sep" />
             <div className="tt-drop-label">AI agent</div>
             {agents.length === 0 ? (
@@ -362,8 +362,8 @@ export function TerminalOps() {
               Close Pane
             </button>
 
-            {/* Layout: dulu tombol toolbar tetap, padahal hanya berguna saat ada
-                ≥2 pane. Sebagai item menu, status disabled-nya jelas alasannya. */}
+            {/* Layout: used to be a fixed toolbar button, though it is only useful with
+                ≥2 panes. As a menu item, its disabled status clearly states the reason. */}
             <div className="tt-drop-sep" />
             <div className="tt-drop-label">{tr('This tab')}</div>
             <button
