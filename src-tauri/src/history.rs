@@ -82,13 +82,13 @@ pub fn tampak_biner(buf: &[u8]) -> bool {
 fn alasan_skip(isi: &[u8], ukuran: u64) -> String {
     if ukuran > BATAS_BYTE {
         return format!(
-            "ukuran {:.1} MB melewati batas {:.0} MB",
+            "size {:.1} MB exceeds the limit of {:.0} MB",
             ukuran as f64 / 1048576.0,
             BATAS_BYTE as f64 / 1048576.0
         );
     }
     if tampak_biner(isi) {
-        return "tampak biner (bukan teks)".into();
+        return "looks binary (not text)".into();
     }
     String::new()
 }
@@ -239,7 +239,7 @@ pub fn history_snapshot(
     let meta_fs = std::fs::metadata(&abs)
         .map_err(|e| ZephyrError::InvalidInput(format!("cannot read {path}: {e}")))?;
     if !meta_fs.is_file() {
-        return Err(ZephyrError::InvalidInput(format!("{path} bukan file")));
+        return Err(ZephyrError::InvalidInput(format!("{path} is not a file")));
     }
     let ukuran = meta_fs.len();
 
@@ -262,7 +262,7 @@ pub fn history_snapshot(
 
     let hash = blake3::hash(&isi).to_hex().to_string();
     if hash == meta.hash_terakhir {
-        return Ok(serde_json::json!({ "id": "", "skip": "isi identik snapshot terakhir" }));
+        return Ok(serde_json::json!({ "id": "", "skip": "identical to the last snapshot" }));
     }
 
     let id = format!("{}__{}.snap", now_ms(), reason);
@@ -295,7 +295,7 @@ pub fn history_list(state: State<AppState>, path: String) -> ZResult<HistoryInfo
                 .unwrap_or(0);
             buf.truncate(n);
             if tampak_biner(&buf) {
-                "tampak biner (bukan teks)".to_string()
+                "looks binary (not text)".to_string()
             } else {
                 String::new()
             }
@@ -323,7 +323,7 @@ pub fn history_read(state: State<AppState>, path: String, id: String) -> ZResult
     let abs = izinkan(&state, Path::new(&path))?;
     let f = dir_untuk(&state, &abs).join(&id);
     let isi = std::fs::read(&f)
-        .map_err(|e| ZephyrError::InvalidInput(format!("snapshot {id} tidak terbaca: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("snapshot {id} could not be read: {e}")))?;
     Ok(String::from_utf8_lossy(&isi).to_string())
 }
 
@@ -456,7 +456,7 @@ mod tests {
 
         std::fs::write(dir.join("1577836800000__save.snap"), "tua").unwrap();
         let buang = pangkas(&dir, 50, 30);
-        assert_eq!(buang, 0, "snapshot terakhir tidak boleh ikut terhapus");
+        assert_eq!(buang, 0, "the last snapshot must not be deleted along with it");
         assert_eq!(daftar_snapshot(&dir).len(), 1);
         std::fs::remove_dir_all(&dir).ok();
     }

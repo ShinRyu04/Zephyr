@@ -94,15 +94,15 @@ export default function Panel() {
         {activeTab === 'ports' && <PortsView />}
         {activeTab === 'subagents' && <SubAgentView />}
 
-        {/* T4.11: tab AI. AiPanel tetap SATU instance: kalau panel AI dipindah
-            ke kolom kanan (Settings → Umum → Panel AI), tab ini menampilkan
-            keterangan pemindahan - bukan salinan kedua panel (dua listener
-            streaming = setiap token tampil dobel). */}
+        {/* T4.11: AI tab. AiPanel stays a SINGLE instance: if the AI panel is moved
+            to the right column (Settings → General → AI Panel), this tab shows
+            a note about the move - not a second copy of the panel (two streaming
+            listeners = every token shown twice). */}
         {activeTab === 'ai' && <AiTabView />}
 
-        {/* Terminal: tetap mounted (lihat catatan di atas), disembunyikan saat
-            tab lain aktif. `hidden` HTML tidak dipakai karena xterm butuh
-            elemen yang punya ukuran saat di-mount pertama kali. */}
+        {/* Terminal: stays mounted (see the note above), hidden while
+            another tab is active. HTML `hidden` is not used because xterm needs an
+            element that has a size when it is first mounted. */}
         {terminalMounted && (
           <div
             className="panel-term-host"

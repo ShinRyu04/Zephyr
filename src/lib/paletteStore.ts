@@ -48,7 +48,7 @@ function saveRecent(ids: string[]) {
   try {
     localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, MAX_RECENT)));
   } catch {
-    /* localStorage penuh/diblokir — recent bukan fitur kritis */
+    /* localStorage full/blocked — recent is not a critical feature */
   }
 }
 
@@ -154,7 +154,7 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     if (mode !== 'file') return;
     
     if (!useStore.getState().workspace) {
-      set({ files: [], filesError: 'Belum ada folder yang dibuka (Ctrl+Shift+O untuk membuka).' });
+      set({ files: [], filesError: 'No folder is open yet (Ctrl+Shift+O to open one).' });
       return;
     }
     set({ loadingFiles: true });
@@ -252,7 +252,7 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     try {
       await c.run();
     } catch (e) {
-      useStore.getState().setStatus(`Command "${c.title}" gagal: ${cmd.asZephyrError(e).message}`);
+      useStore.getState().setStatus(`Command "${c.title}" failed: ${cmd.asZephyrError(e).message}`);
     }
   },
 }));

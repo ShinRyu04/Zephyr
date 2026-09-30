@@ -139,7 +139,7 @@ pub fn parse(argv: &[String], cwd: &Path) -> Args {
                     a.wait_token = Some(argv[i + 1].clone());
                     i += 1;
                 } else {
-                    a.errors.push("--wait-token butuh satu nilai".into());
+                    a.errors.push("--wait-token requires one value".into());
                 }
             }
             "--diff" | "-d" => {
@@ -149,7 +149,7 @@ pub fn parse(argv: &[String], cwd: &Path) -> Args {
                     a.targets.push(Target::Diff { kiri, kanan });
                     i += 2;
                 } else {
-                    a.errors.push("--diff butuh dua path: --diff A B".into());
+                    a.errors.push("--diff requires two paths: --diff A B".into());
 
                     i = argv.len();
                 }
@@ -222,7 +222,7 @@ pub fn cli_wait_buat(token: String) -> ZResult<String> {
     std::fs::create_dir_all(&dir)
         .map_err(|e| ZephyrError::Io(format!("creating the wait folder failed: {e}")))?;
     let p = path_penanda_wait(&token);
-    std::fs::write(&p, b"1").map_err(|e| ZephyrError::Io(format!("gagal menulis penanda: {e}")))?;
+    std::fs::write(&p, b"1").map_err(|e| ZephyrError::Io(format!("failed to write marker: {e}")))?;
     Ok(p.to_string_lossy().replace('\\', "/"))
 }
 
@@ -240,7 +240,7 @@ pub fn cli_teks(mode: String, warna: bool, kolom: Option<usize>) -> ZResult<Stri
         "banner" => banner(warna, k),
         lain => {
             return Err(ZephyrError::InvalidInput(format!(
-                "mode teks CLI \"{lain}\" not recognised (help|version|banner)"
+                "CLI text mode \"{lain}\" not recognised (help|version|banner)"
             )))
         }
     })
@@ -356,22 +356,22 @@ pub fn teks_help(warna: bool, kolom: usize) -> String {
     let mut s = banner(warna, kolom);
     s.push('\n');
     s.push_str(
-        "Pakai: zephyr [opsi] [path...]\n\
+        "Usage: zephyr [options] [path...]\n\
          \n\
          Path:\n\
-         \x20 zephyr .                    buka folder sekarang sebagai workspace\n\
-         \x20 zephyr <folder>             buka folder sebagai workspace\n\
-         \x20 zephyr <file>               buka file di tab baru\n\
-         \x20 zephyr <file>:LINE[:COL]    buka file, kursor ke posisi\n\
+         \x20 zephyr .                    open the current folder as workspace\n\
+         \x20 zephyr <folder>             open folder as workspace\n\
+         \x20 zephyr <file>               open file in a new tab\n\
+         \x20 zephyr <file>:LINE[:COL]    open file, cursor to position\n\
          \n\
-         Opsi:\n\
-         \x20 -n, --new-window            paksa jendela baru\n\
-         \x20 -d, --diff A B              bandingkan dua file\n\
-         \x20 -w, --wait                  tunggu sampai file ditutup (core.editor)\n\
-         \x20 -h, --help                  tampilkan bantuan ini\n\
-         \x20 -v, --version               tampilkan versi\n\
+         Options:\n\
+         \x20 -n, --new-window            force a new window\n\
+         \x20 -d, --diff A B              compare two files\n\
+         \x20 -w, --wait                  wait until the file is closed (core.editor)\n\
+         \x20 -h, --help                  show this help\n\
+         \x20 -v, --version               show version\n\
          \n\
-         Tanpa argumen: membuka jendela/workspace terakhir.\n\
+         No arguments: opens the last window/workspace.\n\
          Git: git config --global core.editor \"zephyr --wait\"\n",
     );
     s

@@ -96,7 +96,7 @@ fn parse_index_inner(teks: &str, asal: &str) -> Vec<IndexEntry> {
         tracing::warn!(
             asal,
             jumlah = bersih.len(),
-            "registry: potong ke {MAX_ENTRI}"
+            "registry: truncated to {MAX_ENTRI}"
         );
         bersih.truncate(MAX_ENTRI);
     }
@@ -112,14 +112,14 @@ fn baca_file_terbatas(path: &std::path::Path, asal: &str) -> Vec<IndexEntry> {
         tracing::warn!(
             asal,
             ukuran = meta.len(),
-            "registry: file lebih besar dari batas"
+            "registry: file larger than the limit"
         );
         return vec![];
     }
     match std::fs::read_to_string(path) {
         Ok(teks) => parse_index(&teks, asal),
         Err(e) => {
-            tracing::warn!(asal, err = %e, "registry: tidak bisa dibaca");
+            tracing::warn!(asal, err = %e, "registry: could not be read");
             vec![]
         }
     }
@@ -137,7 +137,7 @@ async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
     let r = match r {
         Ok(r) => r,
         Err(e) => {
-            tracing::warn!(url, err = %e, "registry remote tidak terjangkau");
+            tracing::warn!(url, err = %e, "remote registry unreachable");
             return vec![];
         }
     };
@@ -145,7 +145,7 @@ async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
         tracing::warn!(
             url,
             status = r.status().as_u16(),
-            "registry remote menjawab non-200"
+            "remote registry responded non-200"
         );
         return vec![];
     }
@@ -157,7 +157,7 @@ async fn ambil_remote(url: &str) -> Vec<IndexEntry> {
     {
         Ok(t) => t,
         Err(e) => {
-            tracing::warn!(url, err = %e, "registry remote: body tidak terbaca");
+            tracing::warn!(url, err = %e, "remote registry: body could not be read");
             return vec![];
         }
     };
@@ -209,7 +209,7 @@ pub async fn ext_registry_list(
         if url.starts_with("https://") {
             tambah(ambil_remote(&url).await);
         } else {
-            tracing::warn!(%url, "registryUrl harus https://, ignored");
+            tracing::warn!(%url, "registryUrl must be https://, ignored");
         }
     }
 
@@ -238,7 +238,7 @@ pub fn ext_registry_save(state: State<AppState>, teks: String) -> ZResult<()> {
         std::fs::create_dir_all(induk)?;
     }
     let bytes = serde_json::to_vec_pretty(&root)
-        .map_err(|e| ZephyrError::Internal(format!("registry tidak bisa diserialisasi: {e}")))?;
+        .map_err(|e| ZephyrError::Internal(format!("registry could not be serialized: {e}")))?;
     std::fs::write(&path, bytes)?;
     Ok(())
 }
@@ -261,7 +261,7 @@ fn index_contoh() -> String {
       "name": "Contoh Paket",
       "publisher": "zephyr",
       "version": "1.0.0",
-      "description": "Contoh entri registry. Hapus dan ganti dengan punyamu.",
+      "description": "Example registry entry. Delete it and replace it with your own.",
       "categories": ["Themes"],
       "logo": "▣",
       "url": "https://contoh-zephyr.dev/paket/contoh.zext",

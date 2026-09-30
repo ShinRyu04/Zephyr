@@ -176,31 +176,31 @@ fn resolve_shell(kind: &str, explicit: Option<&str>) -> ZResult<(String, Vec<Str
                     "-Command".into(),
                     
                     "Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue; \
-                     Write-Host 'Zephyr Private Terminal — riwayat tidak disimpan ke disk' \
+                     Write-Host 'Zephyr Private Terminal — history is not saved to disk' \
                      -ForegroundColor DarkGray"
                         .into(),
                 ],
             ))
         }
         "cmd" => Ok((
-            find("cmd").ok_or_else(|| ZephyrError::Pty("cmd.exe tidak ditemukan".into()))?,
+            find("cmd").ok_or_else(|| ZephyrError::Pty("cmd.exe not found".into()))?,
             vec![],
         )),
         "bash" => Ok((
-            find("bash").ok_or_else(|| ZephyrError::Pty("bash tidak ditemukan".into()))?,
+            find("bash").ok_or_else(|| ZephyrError::Pty("bash not found".into()))?,
             vec!["--login".into(), "-i".into()],
         )),
         "wsl" => Ok((
-            find("wsl").ok_or_else(|| ZephyrError::Pty("wsl tidak ditemukan".into()))?,
+            find("wsl").ok_or_else(|| ZephyrError::Pty("wsl not found".into()))?,
             vec![],
         )),
         "pwsh" => Ok((
-            find("pwsh").ok_or_else(|| ZephyrError::Pty("pwsh tidak ditemukan".into()))?,
+            find("pwsh").ok_or_else(|| ZephyrError::Pty("pwsh not found".into()))?,
             vec!["-NoLogo".into()],
         )),
 
         "agent" => Err(ZephyrError::InvalidInput(
-            "kind 'agent' wajib menyertakan command".into(),
+            "kind 'agent' must include a command".into(),
         )),
 
         _ => Ok((
@@ -234,10 +234,10 @@ pub fn pty_spawn(
     rows: Option<u16>,
 ) -> ZResult<u32> {
     if id.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("id kosong".into()));
+        return Err(ZephyrError::InvalidInput("id is empty".into()));
     }
     if state.pty_exists(&id) {
-        return Err(ZephyrError::InvalidInput(format!("sesi {id} sudah ada")));
+        return Err(ZephyrError::InvalidInput(format!("session {id} already exists")));
     }
 
     let kind = kind.unwrap_or_else(|| "shell".to_string());
@@ -273,7 +273,7 @@ pub fn pty_spawn(
 
     let pair = native_pty_system()
         .openpty(size)
-        .map_err(|e| ZephyrError::Pty(format!("openpty gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Pty(format!("openpty failed: {e}")))?;
 
     let mut cmd = CommandBuilder::new(&program);
     for a in &argv {
@@ -297,17 +297,17 @@ pub fn pty_spawn(
     let child = pair
         .slave
         .spawn_command(cmd)
-        .map_err(|e| ZephyrError::Pty(format!("spawn {program} gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Pty(format!("failed to spawn {program}: {e}")))?;
     let pid = child.process_id();
 
     let reader = pair
         .master
         .try_clone_reader()
-        .map_err(|e| ZephyrError::Pty(format!("clone reader gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Pty(format!("failed to clone reader: {e}")))?;
     let writer = pair
         .master
         .take_writer()
-        .map_err(|e| ZephyrError::Pty(format!("take writer gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Pty(format!("failed to take writer: {e}")))?;
     let killer = child.clone_killer();
 
     let alive = Arc::new(AtomicBool::new(true));
@@ -454,11 +454,11 @@ pub fn pty_write(state: State<AppState>, id: String, data: String) -> ZResult<()
         let mut w = s
             .writer
             .lock()
-            .map_err(|_| ZephyrError::Pty("writer terkunci".into()))?;
+            .map_err(|_| ZephyrError::Pty("writer is locked".into()))?;
         w.write_all(data.as_bytes())
-            .map_err(|e| ZephyrError::Pty(format!("tulis gagal: {e}")))?;
+            .map_err(|e| ZephyrError::Pty(format!("write failed: {e}")))?;
         w.flush()
-            .map_err(|e| ZephyrError::Pty(format!("flush gagal: {e}")))?;
+            .map_err(|e| ZephyrError::Pty(format!("flush failed: {e}")))?;
         Ok(())
     })
 }
@@ -469,14 +469,14 @@ pub fn pty_resize(state: State<AppState>, id: String, cols: u16, rows: u16) -> Z
         let m = s
             .master
             .lock()
-            .map_err(|_| ZephyrError::Pty("master terkunci".into()))?;
+            .map_err(|_| ZephyrError::Pty("master is locked".into()))?;
         m.resize(PtySize {
             rows: rows.max(1),
             cols: cols.max(1),
             pixel_width: 0,
             pixel_height: 0,
         })
-        .map_err(|e| ZephyrError::Pty(format!("resize gagal: {e}")))
+        .map_err(|e| ZephyrError::Pty(format!("resize failed: {e}")))
     })
 }
 
@@ -518,7 +518,7 @@ pub fn pty_interrupt(state: State<AppState>, id: String) -> ZResult<u32> {
             let _ = w.flush();
         }
         s.pid
-            .ok_or_else(|| ZephyrError::Pty("pid tidak diketahui".into()))
+            .ok_or_else(|| ZephyrError::Pty("unknown pid".into()))
     })?;
 
     let mut sys = sysinfo::System::new();

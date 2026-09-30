@@ -14,7 +14,7 @@ mod extra;
 
 const TEMA_KERTAS: &str = r##"{
   "id": "zephyr.tema-kertas",
-  "name": "Tema Kertas",
+  "name": "Paper Theme",
   "publisher": "zephyr",
   "version": "1.0.0",
   "description": "Light low-contrast theme, suited to daytime in bright rooms.",
@@ -55,7 +55,7 @@ const TEMA_KERTAS_JSON: &str = r##"{
 
 const KEYMAP_SUBLIME: &str = r##"{
   "id": "zephyr.keymap-sublime",
-  "name": "Sublime-style keymap",
+  "name": "Sublime-style Keymap",
   "publisher": "zephyr",
   "version": "1.0.0",
   "description": "Chord familiar Sublime Text.",
@@ -96,7 +96,7 @@ const SNIPPET_PY_JSON: &str = r##"{
   "fungsi": {
     "prefix": "def",
     "body": ["def ${1:nama}(${2:args}) -> ${3:None}:", "\t${4:pass}"],
-    "description": "definisi fungsi dengan anotasi"
+    "description": "function definition with type annotations"
   },
   "kelas": {
     "prefix": "class",
@@ -120,7 +120,7 @@ const SNIPPET_REACT: &str = r##"{
   "name": "Snippet React + TS",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Komponen fungsi, useState, useEffect, custom hook, context.",
+  "description": "Function components, useState, useEffect, custom hook, context.",
   "engines": { "zephyr": ">=1.0" },
   "categories": ["Snippets"],
   "contributes": {
@@ -143,7 +143,7 @@ const SNIPPET_REACT_JSON: &str = r##"{
       "\treturn <div>{${1:anak}}</div>;",
       "}"
     ],
-    "description": "komponen fungsi TS"
+    "description": "function component in TS"
   },
   "useState": {
     "prefix": "us",
@@ -153,7 +153,7 @@ const SNIPPET_REACT_JSON: &str = r##"{
   "useEffect": {
     "prefix": "ue",
     "body": ["useEffect(() => {", "\t${1:// efek}", "\treturn () => {", "\t\t${2:// bersihkan}", "\t};", "}, [${3:}]);"],
-    "description": "hook efek dengan cleanup"
+    "description": "effect hook with cleanup"
   },
   "custom hook": {
     "prefix": "hook",
@@ -164,10 +164,10 @@ const SNIPPET_REACT_JSON: &str = r##"{
 
 const IKON_BULAT: &str = r##"{
   "id": "zephyr.ikon-bulat",
-  "name": "Ikon Bulat",
+  "name": "Round Icons",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Icon theme file tree: inisial bahasa dengan warna resminya.",
+  "description": "File tree icon theme: language initials in the official colours.",
   "engines": { "zephyr": ">=1.0" },
   "categories": ["Icon Themes"],
   "contributes": {
@@ -1455,14 +1455,14 @@ pub fn extensions_bundled_ids() -> Vec<String> {
 const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
     (
         "zephyr.tema-kertas",
-        "Tema Kertas",
+        "Paper Theme",
         "Light low-contrast theme, suited to daytime in bright rooms.",
         "PT",
         &[],
     ),
     (
         "zephyr.keymap-sublime",
-        "Sublime-style keymap",
+        "Sublime-style Keymap",
         "Sublime Text keyboard chords: Ctrl+P, Ctrl+Shift+D, Ctrl+K Ctrl+B.",
         "SB",
         &[],
@@ -1483,7 +1483,7 @@ const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
     ),
     (
         "zephyr.ikon-bulat",
-        "Ikon Bulat",
+        "Round Icons",
         "Circular icon theme for the file explorer.",
         "IB",
         &[],
@@ -1495,42 +1495,42 @@ const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
 
     (
         "zephyr.ikon-garis",
-        "Ikon Garis",
+        "Line Icons",
         "Monochrome icon theme: two-letter glyphs with no colour, for busy screens.",
         "IG",
         &[],
     ),
     (
         "zephyr.ikon-bahasa",
-        "Ikon Bahasa",
+        "Language Icons",
         "Every language gets its own official colour — TS blue, Go cyan, Rust orange.",
         "IW",
         &[],
     ),
     (
         "zephyr.ikon-titik",
-        "Ikon Titik",
+        "Dot Icons",
         "One coloured dot per language family, the rest uniform.",
         "IT",
         &[],
     ),
     (
         "zephyr.keymap-vim",
-        "Keymap ala Vim",
+        "Vim-style Keymap",
         "Ctrl+W then H/J/K/L to move between panes, Ctrl+W V for a vertical split.",
         "VM",
         &[],
     ),
     (
         "zephyr.keymap-emacs",
-        "Emacs-style keymap",
+        "Emacs-style Keymap",
         "C-x C-f opens a file, C-x C-s saves, C-x C-c closes, Alt+X lists commands.",
         "EM",
         &[],
     ),
     (
         "zephyr.keymap-ide",
-        "JetBrains-style keymap",
+        "JetBrains-style Keymap",
         "Ctrl+Shift+A to find an action, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L to format.",
         "JB",
         &[],
@@ -1572,7 +1572,7 @@ const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
     ),
     (
         "zephyr.tema-malam",
-        "Tema Malam",
+        "Night Theme",
         "Dark with lower contrast than the default, for long night sessions.",
         "TM",
         &[],

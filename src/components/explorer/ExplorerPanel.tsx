@@ -137,10 +137,10 @@ export default function ExplorerPanel() {
       </div>
 
       <div className="explorer-body">
-        {/* Root tunggal tetap dirender tanpa header section: menambah satu
-            lapisan header untuk satu folder hanya membuang ruang vertikal.
-            `kunciRoots` dipakai sebagai key supaya tree dibangun ulang saat
-            daftar root berubah. */}
+        {/* A single root is still rendered without a section header: adding one
+            header layer for one folder only wastes vertical space.
+            `kunciRoots` is used as the key so the tree is rebuilt when the
+            root list changes. */}
         {multi ? (
           <div className="root-list" data-testid="root-list" key={kunciRoots}>
             {roots.map((r) => (

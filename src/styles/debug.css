@@ -1,8 +1,8 @@
-/* debug.css — Run & Debug (fase 22).
+/* debug.css — Run & Debug (phase 22).
  *
- * Semua warna dari CSS variable (AGENTS.md §4). Tidak ada hex hardcoded:
- * tema terang/gelap dan tema dari ekstensi harus ikut berubah tanpa menyentuh
- * file ini.
+ * All colours come from CSS variables (AGENTS.md section 4). No hardcoded hex:
+ * light/dark themes and themes from extensions must follow without this file
+ * being touched.
  */
 
 /* ── sidebar Run & Debug ── */
@@ -102,7 +102,7 @@
   margin-bottom: 0;
 }
 
-/* ── section yang bisa dilipat ── */
+/* ── collapsible sections ── */
 
 .dbg-sections {
   flex: 1;
@@ -183,7 +183,7 @@
   font-size: 11px;
 }
 
-/* Lingkaran kosong = belum diverifikasi adapter; penuh = sudah. */
+/* Empty circle = adapter not verified yet; filled = verified. */
 .dbg-bp-dot {
   flex: 0 0 auto;
   color: var(--text-muted);
@@ -492,7 +492,7 @@
   width: 14px;
   cursor: pointer;
 }
-/* Area klik terlihat saat hover, supaya user tahu gutter ini bisa diklik. */
+/* The click area shows on hover, so the user knows this gutter is clickable. */
 .cm-bp-gutter:hover {
   background: var(--surface-2);
 }

@@ -106,7 +106,7 @@ export function PreviewGambar({ path }: { path: string }) {
           });
         }
       } catch {
-        // Gagal baca: store dibiarkan kosong; UI menampilkan pesan galat.
+        // Read failed: the store is left empty; the UI shows an error message.
       }
     })();
     return () => {

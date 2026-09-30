@@ -42,7 +42,7 @@ fn gelap(hex: &str) -> bool {
 #[tauri::command]
 pub fn titlebar_theme(app: AppHandle, bg: String, fg: String, border: String) -> ZResult<()> {
     let caption = colorref(&bg)
-        .ok_or_else(|| ZephyrError::InvalidInput(format!("warna title bar is not valid: {bg}")))?;
+        .ok_or_else(|| ZephyrError::InvalidInput(format!("title bar color is not valid: {bg}")))?;
     let text = colorref(&fg).unwrap_or(caption);
     let edge = colorref(&border).unwrap_or(caption);
 
@@ -56,7 +56,7 @@ pub fn titlebar_theme(app: AppHandle, bg: String, fg: String, border: String) ->
 
         dwm::set(hwnd, dwm::USE_IMMERSIVE_DARK_MODE, gelap(&bg) as u32);
         if !dwm::set(hwnd, dwm::CAPTION_COLOR, caption) {
-            tracing::debug!("title bar: DwmSetWindowAttribute(CAPTION_COLOR) ditolak");
+            tracing::debug!("title bar: DwmSetWindowAttribute(CAPTION_COLOR) rejected");
         }
         dwm::set(hwnd, dwm::TEXT_COLOR, text);
         dwm::set(hwnd, dwm::BORDER_COLOR, edge);

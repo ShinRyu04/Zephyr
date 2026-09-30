@@ -63,7 +63,7 @@ export default function ProblemsView() {
       
       window.setTimeout(() => revealPosition(d.line, d.column), 90);
     } catch {
-      /* file mungkin sudah dihapus - diamkan, tabel tetap menampilkannya */
+      /* the file may already be deleted - stay silent, the table still lists it */
     }
   };
 

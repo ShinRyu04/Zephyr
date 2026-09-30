@@ -79,7 +79,7 @@ fn baca_trust(state: &AppState) -> HashMap<String, Trust> {
         return HashMap::new();
     };
     let Ok(v) = serde_json::from_str::<Value>(&teks) else {
-        tracing::warn!(path = %p.to_string_lossy(), "trust.json rusak, ignored");
+        tracing::warn!(path = %p.to_string_lossy(), "trust.json is corrupt, ignored");
         return HashMap::new();
     };
     let mut out = HashMap::new();
@@ -161,11 +161,11 @@ pub fn ensure_trusted(state: &AppState, apa: &str) -> ZResult<()> {
         return Ok(());
     }
     let sebab = match t {
-        Trust::Restricted => "folder ini dibuka dalam Restricted Mode",
-        _ => "folder ini belum dipercaya",
+        Trust::Restricted => "this folder is open in Restricted Mode",
+        _ => "this folder is not trusted yet",
     };
     Err(ZephyrError::Permission(format!(
-        "{apa} diblokir: {sebab}. Buka \"Manage Workspace Trust\" then choose Trust to turn it on."
+        "{apa} is blocked: {sebab}. Open \"Manage Workspace Trust\" then choose Trust to turn it on."
     )))
 }
 
@@ -181,7 +181,7 @@ pub fn ensure_trusted_path(state: &AppState, path: &Path, apa: &str) -> ZResult<
 
 pub fn baca_workspace_file(path: &Path) -> ZResult<WorkspaceFile> {
     let teks = std::fs::read_to_string(path)
-        .map_err(|e| ZephyrError::Io(format!("baca {}: {e}", path.to_string_lossy())))?;
+        .map_err(|e| ZephyrError::Io(format!("read {}: {e}", path.to_string_lossy())))?;
     let bersih = crate::tasks::buang_komentar(&teks);
     serde_json::from_str::<WorkspaceFile>(&bersih).map_err(|e| {
         ZephyrError::InvalidInput(format!(
@@ -255,9 +255,9 @@ pub fn workspace_info(state: State<AppState>) -> ZResult<WorkspaceInfo> {
     } else if semua_percaya {
         String::new()
     } else if perlu_tanya {
-        "Folder ini belum dipercaya — tasks, debug, LSP, dan ekstensi dinonaktifkan.".into()
+        "This folder is not trusted — tasks, debug, LSP, and extensions are disabled.".into()
     } else {
-        "Restricted Mode: tasks, debug, LSP, dan ekstensi dinonaktifkan.".into()
+        "Restricted Mode: tasks, debug, LSP, and extensions are disabled.".into()
     };
 
     Ok(WorkspaceInfo {
@@ -280,14 +280,14 @@ pub fn workspace_set_trust(
     trust: bool,
 ) -> ZResult<WorkspaceInfo> {
     let p = PathBuf::from(&path);
-    // Folder yang sudah dihapus TETAP boleh di-trust: keputusan trust disimpan
-    // per path, dan folder bisa dibuat lagi nanti. Menolak di sini membuat
-    // pemanggil (mis. harness yang membersihkan temp, atau user lewat dialog)
-    // melihat toast error padahal tidak ada yang gagal.
+    // A folder that has been deleted may STILL be trusted: the trust decision is stored
+    // per path, and the folder can be created again later. Refusing here makes
+    // callers (e.g. a harness cleaning up temp, or the user via a dialog)
+    // see an error toast even though nothing failed.
     if !p.exists() {
-        tracing::debug!(path = %path, "trust disimpan untuk path yang belum ada");
+        tracing::debug!(path = %path, "trust saved for a path that does not exist yet");
     } else if !p.is_dir() {
-        return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
+        return Err(ZephyrError::InvalidInput(format!("{path} is not a folder")));
     }
     let mut map = baca_trust(&state);
     map.insert(
@@ -299,7 +299,7 @@ pub fn workspace_set_trust(
         },
     );
     tulis_trust(&state, &map)?;
-    tracing::info!(path = %path, trust, "trust workspace diubah");
+    tracing::info!(path = %path, trust, "workspace trust changed");
     let _ = app.emit("workspace-trust", json!({ "path": path, "trusted": trust }));
     workspace_info(state)
 }
@@ -336,11 +336,11 @@ pub fn workspace_add_root(
 ) -> ZResult<WorkspaceInfo> {
     let p = crate::app_state::normalize(&PathBuf::from(&path));
     if !p.is_dir() {
-        return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
+        return Err(ZephyrError::InvalidInput(format!("{path} is not a folder")));
     }
     if crate::paths::is_drive_root(&p) {
         return Err(ZephyrError::InvalidInput(format!(
-            "{path} adalah root drive — buka folder proyek di dalamnya"
+            "{path} is a drive root — open a project folder inside it"
         )));
     }
     state.add_root(p.clone(), None)?;
@@ -395,7 +395,7 @@ pub fn workspace_open_file(
 
     if wf.folders.is_empty() {
         return Err(ZephyrError::InvalidInput(
-            "file .code-workspace tidak memuat folder".into(),
+            "the .code-workspace file contains no folders".into(),
         ));
     }
 
@@ -414,7 +414,7 @@ pub fn workspace_open_file(
     }
     if dipasang == 0 {
         return Err(ZephyrError::InvalidInput(format!(
-            "is missing folder yang bisa dibuka dari {path} (dilewati: {})",
+            "no folder could be opened from {path} (skipped: {})",
             dilewati.join(", ")
         )));
     }
@@ -423,7 +423,7 @@ pub fn workspace_open_file(
     state.set_workspace_settings(wf.settings.clone());
     crate::settings::push_recent(&state, &p.to_string_lossy())?;
 
-    tracing::info!(file = %path, roots = dipasang, dilewati = dilewati.len(), "workspace file dibuka");
+    tracing::info!(file = %path, roots = dipasang, dilewati = dilewati.len(), "workspace file opened");
     let _ = app.emit(
         "workspace-opened",
         json!({
@@ -460,7 +460,7 @@ pub fn workspace_save_file(
 
     if folders.is_empty() {
         return Err(ZephyrError::InvalidInput(
-            "is missing root untuk disimpan".into(),
+            "no root to save".into(),
         ));
     }
 

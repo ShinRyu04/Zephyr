@@ -26,7 +26,7 @@ export default function CapturePanel() {
       setOn(nyala);
       setDaftar(isi ?? []);
     } catch {
-      /* command belum ada (build lama) - panel tetap tampil kosong */
+      /* command does not exist yet (old build) - the panel still renders empty */
     }
   };
 

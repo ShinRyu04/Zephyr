@@ -92,7 +92,7 @@ pub fn tambah(state: &AppState, bagian: &str, isi: &str) -> ZResult<String> {
     let limit = limit_bagian(bagian);
     if gabung.chars().count() > limit {
         return Err(ZephyrError::InvalidInput(format!(
-            "memory '{bagian}' is full: {} of {} characters. Delete or shorten old entries first (memory_write dengan action 'replace' atau 'remove'), baru tambahkan yang baru.",
+            "memory '{bagian}' is full: {} of {} characters. Delete or shorten old entries first (memory_write with action 'replace' or 'remove'), and only then add the new one.",
             gabung.chars().count(),
             limit
         )));
@@ -164,7 +164,7 @@ pub fn ringkasan_untuk_prompt(state: &AppState) -> String {
     }
     let mut s = String::new();
     if !mem.is_empty() {
-        s.push_str("\n\nMEMORI (catatanmu dari sesi sebelumnya — pakai, dan perbarui lewat memory_write bila berubah):\n");
+        s.push_str("\n\nMEMORY (your notes from earlier sessions — use them, dan perbarui lewat memory_write bila berubah):\n");
         s.push_str(&mem);
     }
     if !usr.is_empty() {
@@ -203,7 +203,7 @@ pub fn memory_write(
         "replace" => ganti(&state, &section, &lama, &isi),
         "remove" => hapus(&state, &section, &lama).map(|n| format!("{n} entri dihapus")),
         other => Err(ZephyrError::InvalidInput(format!(
-            "action not recognised: '{other}' (pakai add/replace/remove)"
+            "action not recognised: '{other}' (use add/replace/remove)"
         ))),
     }
 }

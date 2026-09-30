@@ -88,7 +88,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       notifyInfo(`Root ditambahkan: ${namaAkhir(path)}`, { source: 'Workspace' });
       return true;
     } catch (e) {
-      notifyError(`Gagal menambah root: ${cmd.asZephyrError(e).message}`, { source: 'Workspace' });
+      notifyError(`Failed to add root: ${cmd.asZephyrError(e).message}`, { source: 'Workspace' });
       return false;
     }
   },
@@ -105,7 +105,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       }
       return true;
     } catch (e) {
-      notifyError(`Gagal menghapus root: ${cmd.asZephyrError(e).message}`, { source: 'Workspace' });
+      notifyError(`Failed to remove root: ${cmd.asZephyrError(e).message}`, { source: 'Workspace' });
       return false;
     }
   },
@@ -118,7 +118,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       await useStore.getState().syncWorkspaceLokal(path);
       return true;
     } catch (e) {
-      notifyError(`Gagal mengganti root aktif: ${cmd.asZephyrError(e).message}`, {
+      notifyError(`Failed to switch the active root: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',
       });
       return false;
@@ -141,7 +141,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       });
       return true;
     } catch (e) {
-      notifyError(`Gagal membuka workspace: ${cmd.asZephyrError(e).message}`, {
+      notifyError(`Failed to open the workspace: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',
       });
       return false;
@@ -152,10 +152,10 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
     try {
       const disimpan = await cmd.workspaceSaveFile(path);
       set({ file: disimpan });
-      notifyInfo(`Workspace disimpan: ${namaAkhir(disimpan)}`, { source: 'Workspace' });
+      notifyInfo(`Workspace saved: ${namaAkhir(disimpan)}`, { source: 'Workspace' });
       return true;
     } catch (e) {
-      notifyError(`Gagal menyimpan workspace: ${cmd.asZephyrError(e).message}`, {
+      notifyError(`Failed to save the workspace: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',
       });
       return false;
@@ -177,7 +177,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
         notifyInfo(`${namaAkhir(path)} dibuka dalam Restricted Mode`, { source: 'Workspace' });
       }
     } catch (e) {
-      notifyError(`Gagal menyimpan trust: ${cmd.asZephyrError(e).message}`, {
+      notifyError(`Failed to save trust: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',
       });
     }
@@ -189,7 +189,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       terapkan(set, info);
       await get().muatDaftarTrust();
     } catch (e) {
-      notifyError(`Gagal melupakan trust: ${cmd.asZephyrError(e).message}`, {
+      notifyError(`Failed to forget trust: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',
       });
     }
@@ -227,7 +227,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       await useStore.getState().reloadSettings();
       return true;
     } catch (e) {
-      notifyError(`Gagal menulis settings workspace: ${cmd.asZephyrError(e).message}`, {
+      notifyError(`Failed to write workspace settings: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',
       });
       return false;
@@ -258,7 +258,7 @@ async function muatUlangFiturEksekusi(): Promise<void> {
     await useTasks.getState().muat();
     await useExt19.getState().refresh();
   } catch {
-    // Gagal memuat ulang bukan alasan membatalkan trust yang sudah disimpan.
+    // Failing to reload is no reason to cancel an already-saved trust.
   }
 }
 

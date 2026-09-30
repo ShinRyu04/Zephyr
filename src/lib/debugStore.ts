@@ -213,7 +213,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   buatLaunch: async () => {
     const ws = useStore.getState().workspace;
     if (!ws) {
-      notifyError(tx('Buka folder dulu untuk debug.'), {
+      notifyError(tx('Open a folder first to debug.'), {
         source: 'debug',
       });
       return false;
@@ -487,7 +487,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   kontrol: async (aksi) => {
     const tid = get().threadId;
     if (tid == null) {
-      notifyWarn(tx('Belum ada thread yang berhenti'), { source: 'debug' });
+      notifyWarn(tx('No stopped threads'), { source: 'debug' });
       return;
     }
     try {
@@ -557,7 +557,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
       await get().expandVariable(ref);
       return true;
     } catch (e) {
-      notifyError(`Set Value gagal: ${pesan(e)}`, { source: 'debug' });
+      notifyError(`Set Value failed: ${pesan(e)}`, { source: 'debug' });
       return false;
     }
   },
@@ -590,7 +590,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   evalRepl: async (expr) => {
     set((s) => ({ repl: [...s.repl, { kind: 'input', text: expr }] }));
     if (get().state === 'inactive') {
-      const t = 'Tidak ada sesi debug aktif. Tekan F5 untuk mulai.';
+      const t = 'No active debug session. Press F5 to start.';
       set((s) => ({ repl: [...s.repl, { kind: 'error', text: t }] }));
       return t;
     }

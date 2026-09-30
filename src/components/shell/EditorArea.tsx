@@ -109,27 +109,27 @@ export default function EditorArea() {
 
   return (
     <section className="editor-area">
-      {/* fase 29: banner Restricted di ATAS area editor, bukan sidebar -
-          sidebar bisa disembunyikan dan peringatan keamanan tidak boleh
-          ikut hilang. */}
+      {/* phase 29: the Restricted banner goes ABOVE the editor area, not in the sidebar -
+          the sidebar can be hidden and a security warning must not
+          disappear with it. */}
       <RestrictedBanner />
       <EditorTabBar />
       {/* The shell version of <Breadcrumbs /> was REMOVED from here:
-          Ada DUA komponen bernama Breadcrumbs: yang lama (shell/, hanya path)
-          dan yang fase 24 (editor/, path + simbol LSP + dropdown navigasi).
-          Keduanya terender sekaligus, jadi jalur file tampil dua kali dan
-          memakan 46px tinggi editor. Yang dipertahankan versi fase 24, yang
-          dirender di dalam CodeMirrorEditor (butuh EditorView + baris kursor,
-          dan ikut mati saat file read-only). */}
+          There are TWO components named Breadcrumbs: the old one (shell/, path only)
+          and the phase 24 one (editor/, path + LSP symbols + navigation dropdown).
+          Both rendered at the same time, so the file path appeared twice and
+          ate 46px of editor height. The phase 24 version is the one kept; it
+          is rendered inside CodeMirrorEditor (it needs EditorView + the cursor line,
+          and it dies together with a read-only file). */}
       <ReadOnlyBanner />
       <FindBar />
-      {/* fase 22: toolbar debug mengambang, hanya saat sesi hidup. Diletakkan
-          di editor-area (bukan di dalam CodeMirrorEditor) supaya tetap terlihat
-          walau tab yang aktif bukan file yang sedang di-debug. */}
+      {/* phase 22: floating debug toolbar, only while a session is live. Placed
+          in the editor-area (not inside CodeMirrorEditor) so it stays visible
+          even when the active tab is not the file being debugged. */}
       <DebugToolbar />
       <div className="editor-host">
-        {/* Gambar TIDAK dirender sebagai teks: membukanya di CodeMirror
-            menampilkan biner rusak. Pratinjau menggantikannya. */}
+        {/* Images are NOT rendered as text: opening one in CodeMirror
+            shows broken binary. The preview replaces that. */}
         {gambarAktif ? (
 
           tab && apakahGambar(tab.path ?? '') ? (

@@ -29,16 +29,16 @@ function dirRel(rel: string): string {
 }
 
 const PREAMBLE = `// Sandbox ekstensi Zephyr: Web Worker terisolasi (tanpa window/fs).
-// Shim CommonJS + API vscode minimal supaya bundle marketplace bisa dimuat.
+// CommonJS + minimal vscode API shim so marketplace bundles can be loaded.
 
 var __zh = {};
 
 /*
- * Ubah nilai apa pun menjadi teks yang bisa ditampilkan.
+ * Turn any value into text that can be displayed.
  *
- * Ekstensi bisa memanggil notify() tanpa argumen, atau melempar null /
- * undefined. String(null) menghasilkan teks "null" yang bocor ke notifikasi
- * pengguna, jadi nilainya diperiksa dulu dan diganti keterangan yang jelas.
+ * An extension can call notify() with no argument, or throw null / undefined.
+ * String(null) produces the literal "null" leaking into the user's
+ * notifications, so the value is checked first and replaced with a clear note.
  */
 function teksAman(nilai) {
   if (nilai === null || nilai === undefined) return 'tanpa keterangan';
@@ -187,10 +187,10 @@ var os = {
     return { username: 'user', uid: 0, gid: 0, shell: null, homedir: '/' };
   },
   networkInterfaces: function () { return {}; },
-  // os.constants diisi SETELAH constants didefinisikan (lihat bawah).
+  // os.constants is filled in AFTER constants is defined (see below).
 };
 
-// constants (node:constants): nilai-nilai murni yang sering dipakai untuk
+// constants (node:constants): pure values that are often used for
 // flag fs (O_RDONLY, S_IFMT, ...). ms-python.python butuh ini saat load.
 var constants = {
   O_RDONLY: 0,
@@ -250,7 +250,7 @@ var constants = {
   },
 };
 // Struktur Node asli: constants.os.errno / constants.os.signals / constants.fs
-// (dipakai ekstensi saat load, mis. ms-python.python).
+// (used by extensions at load, e.g. ms-python.python).
 constants.os = {
   errno: constants.errno,
   signals: constants.signals,
@@ -294,14 +294,14 @@ var util = {
   },
 };
 
-// ── setImmediate/clearImmediate — dipakai ekstensi saat aktivasi (mis.
-//    vscjava.vscode-java-dependency). Worker tidak punya builtin ini.
+// ── setImmediate/clearImmediate — used by extensions on activation (e.g.
+//    vscjava.vscode-java-dependency). A Worker has no builtin for these.
 var setImmediate = function (fn) { return setTimeout(fn, 0); };
 var clearImmediate = function (id) { clearTimeout(id); };
 
-// ── Buffer (node) — dipakai bundle saat load (mis. meta.pyrefly). ──
-// Implementasi NYATA di atas Uint8Array supaya toString/write/subarray dll
-// berfungsi, bukan sekadar stub yang meledak.
+// ── Buffer (node) — used by bundles at load (e.g. meta.pyrefly). ──
+// A REAL implementation on top of Uint8Array so toString/write/subarray etc.
+// work, not just a stub that blows up.
 var Buffer = (function () {
   function toBytes(arg, enc) {
     if (arg instanceof Uint8Array) return arg;
@@ -513,7 +513,7 @@ function __zhStream() {
   };
 }
 
-// ── API vscode MINIMAL: command yang didaftarkan masuk ke palette, ──
+// ── MINIMAL vscode API: registered commands go into the palette, ──
 //    pesan window.* diteruskan ke notifikasi Zephyr, sisanya no-op.
 function __zhVscode() {
   function Disposable(fn) { this._fn = fn || null; }
@@ -574,10 +574,10 @@ function __zhVscode() {
 
   function noopDisposable() { return new Disposable(null); }
 
-  // ── Kelas & enum vscode yang umum dipakai ekstensi ──
+  // ── vscode classes & enums commonly used by extensions ──
   // Banyak ekstensi melakukan class X extends vscode.CompletionItem (atau
-  // TreeItem, CodeAction, ...) — tanpa kelas nyata itu crash saat LOAD dengan
-  // "Class extends value undefined". Ini fix untuk ms-python.python dkk.
+  // TreeItem, CodeAction, ...) — without those real classes it crashes at LOAD with
+  // "Class extends value undefined". This is the fix for ms-python.python et al.
   function Position(line, character) {
     this.line = line;
     this.character = character;
@@ -807,7 +807,7 @@ function __zhVscode() {
   var InlayHintKind = Object.freeze({ Type: 1, Parameter: 2 });
 
   return {
-    // vscode.version: SAH sebagai VS Code-compatible (bukan versi Zephyr).
+    // vscode.version: VALID as VS Code-compatible (not the Zephyr version).
     // Language client ekstensi memeriksa semver ini (mis. ^1.91.0) sebelum aktif.
     version: '1.95.0',
     Disposable: Disposable,
@@ -888,7 +888,7 @@ function __zhVscode() {
     ConfigurationScope: { Default: 1, Resource: 2, Window: 3, LanguageOverridable: 4, Machine: 5, MachineOverridable: 6 },
     ViewColumn: ViewColumn,
     QuickInputButtonKind: undefined,
-    // ── Kelas tambahan (dipakai bundle marketplace saat LOAD via __toESM) ──
+    // ── Extra classes (used by marketplace bundles at LOAD via __toESM) ──
     Emitter: class Emitter {
       constructor() { this._listeners = []; this._event = null; }
       get event() {
@@ -913,7 +913,7 @@ function __zhVscode() {
       cancel() { this._token.isCancellationRequested = true; }
       dispose() {}
     },
-    CancellationToken: undefined, // namespace-ish; token dari CTS di atas
+    CancellationToken: undefined, // namespace-ish; token from the CTS above
     Progress: undefined,
     ProgressType: class ProgressType {},
     ProgressToken: undefined,
@@ -1235,7 +1235,7 @@ function __zhVscode() {
     l10n: {
       t: function (msg) {
         // t(msg) / t(msg, args) / t(msg, count) — ganti {placeholder} sekali
-        // jalan (single pass, aman walau nilai berisi kurung kurawal).
+        // runs (single pass, safe even when a value contains curly braces).
         var args = Array.prototype.slice.call(arguments, 1);
         var s = String(msg);
         var count = args.length === 1 && typeof args[0] === 'number';
@@ -1292,7 +1292,7 @@ function __zhVscode() {
       shell: undefined,
     },
     // extensions: stub pola VS Code — getExtension(id) mengembalikan stub
-    // ekstensi sendiri (packageJSON = manifest asli) dan undefined untuk id
+    // the extension itself (packageJSON = the real manifest) and undefined for an id
     // lain. Tanpa ini ekstensi penuh (mis. golang.go) meledak "Cannot read
     // properties of undefined (reading 'getExtension')" saat aktivasi.
     lm: {
@@ -1314,7 +1314,7 @@ function __zhVscode() {
       onDidStartTaskProcess: function () { return { dispose: function () {} }; },
       onDidEndTaskProcess: function () { return { dispose: function () {} }; },
       fetchTasks: function () { return Promise.resolve([]); },
-      executeTask: function () { return Promise.reject(new Error("tasks tidak didukung di sandbox Zephyr")); },
+      executeTask: function () { return Promise.reject(new Error("tasks are not supported in the Zephyr sandbox")); },
     },
     debug: {
       registerDebugConfigurationProvider: function () { return { dispose: function () {} }; },
@@ -1358,28 +1358,28 @@ function __zhVscode() {
 }
 var vscode = __zhSafeNs(__zhVscode(), "vscode");
 
-// ── fs: objek NYATA (bukan Proxy) dengan API standar lengkap. ──
-// Setiap fungsi melempar error JELAS kalau DIPANGGIL. Ini penting:
+// ── fs: a REAL object (not a Proxy) with the complete standard API. ──
+// Every function throws a CLEAR error when CALLED. This matters:
 // graceful-fs/fs-extra MENG-KLONE objek fs (Object.getOwnPropertyNames +
-// Object.assign) dan mengintip fs.realpath.native saat load. Kalau fs berupa
-// Proxy target kosong, klon-nya tidak punya realpath → error membingungkan
+// Object.assign) and peeks at fs.realpath.native at load. If fs were an
+// empty Proxy target, its clone would have no realpath → a confusing error
 // "Cannot read properties of undefined (reading 'native')" (persis kasus
-// vscjava.vscode-java-dependency). Dengan objek nyata, klon & wrapper-nya
-// berhasil dimuat; pemakaian fs yang sesungguhnya tetap error jelas.
+// vscjava.vscode-java-dependency). With a real object, its clone & wrappers
+// load successfully; actual use of fs still throws a clear error.
 function __zhFs() {
   var nama = ['access','appendFile','chmod','chown','close','copyFile','exists','fchmod','fchown','fdatasync','fstat','fsync','ftruncate','futimes','lchmod','lchown','link','lstat','mkdir','mkdtemp','open','opendir','read','readdir','readFile','readlink','realpath','rename','rm','rmdir','stat','symlink','truncate','unlink','utimes','writeFile','writev','readv','readSync','writeSync','openSync','closeSync','readFileSync','writeFileSync','mkdirSync','statSync','lstatSync','existsSync','realpathSync','readdirSync','unlinkSync','rmSync','rmdirSync','renameSync','copyFileSync','chmodSync','chownSync','symlinkSync','readlinkSync','truncateSync','fstatSync','fsyncSync','utimesSync','mkdtempSync','appendFileSync','createReadStream','createWriteStream','watch','watchFile','unwatchFile'];
   var fs = {};
   nama.forEach(function (nm) {
     fs[nm] = function () {
-      throw new Error('fs.' + nm + ' tidak didukung di sandbox ekstensi Zephyr');
+      throw new Error('fs.' + nm + ' is not supported in the Zephyr extension sandbox');
     };
   });
   // graceful-fs mengintip fs.realpath.native saat load — sediakan fungsi.
   fs.realpath.native = function () {
-    throw new Error('fs.realpath.native tidak didukung di sandbox ekstensi Zephyr');
+    throw new Error('fs.realpath.native is not supported in the Zephyr extension sandbox');
   };
   function Stream() {
-    throw new Error('fs.Stream tidak didukung di sandbox ekstensi Zephyr');
+    throw new Error('fs.Stream is not supported in the Zephyr extension sandbox');
   }
   fs.ReadStream = Stream;
   fs.WriteStream = Stream;
@@ -1392,15 +1392,15 @@ function __zhFs() {
   fs.promises = {};
   ['access','appendFile','chmod','chown','copyFile','lstat','mkdir','mkdtemp','open','readdir','readFile','readlink','realpath','rename','rm','rmdir','stat','symlink','truncate','unlink','utimes','writeFile','read','write'].forEach(function (nm) {
     fs.promises[nm] = function () {
-      throw new Error('fs.promises.' + nm + ' tidak didukung di sandbox ekstensi Zephyr');
+      throw new Error('fs.promises.' + nm + ' is not supported in the Zephyr extension sandbox');
     };
   });
   return fs;
 }
 
-// Modul sistem lain (child_process/crypto/net/http/...): TIDAK tersedia di
-// sandbox. Akses properti apa pun mengembalikan fungsi yang melempar error
-// JELAS — bukan ReferenceError yang membingungkan.
+// Other system modules (child_process/crypto/net/http/...): NOT available in the
+// sandbox. Accessing any property returns a function that throws a
+// CLEAR error — not a confusing ReferenceError.
 function __zhUnavailable(nama) {
   return new Proxy({}, {
     get: function (t, prop) {
@@ -1408,18 +1408,18 @@ function __zhUnavailable(nama) {
         return function () { return '[modul sandbox: ' + nama + ']'; };
       }
       return function () {
-        throw new Error('Modul "' + nama + '" tidak didukung di sandbox ekstensi Zephyr');
+        throw new Error('Modul "' + nama + '" is not supported in the Zephyr extension sandbox');
       };
     },
   });
 }
 
-// ── require relatif antar file ekstensi (mis. require('./dist/bundle')) ──
-// File ekstensi dibaca backend (extensions_read_files) dan dikirim sebagai
-// peta __zhFiles: relpath -> isi. Setiap file dijalankan dengan module /
-// exports / require sendiri (seperti Node), lengkap cache + circular-safe.
-// Tanpa ini, ekstensi seperti vscjava.vscode-java-dependency gagal dengan
-// "Modul ./dist/extension.bundle tidak didukung di sandbox".
+// ── relative require between extension files (e.g. require('./dist/bundle')) ──
+// Extension files are read by the backend (extensions_read_files) and sent as
+// the __zhFiles map: relpath -> content. Each file runs with its own module /
+// exports / require (like Node), complete with cache + circular-safe handling.
+// Without this, extensions like vscjava.vscode-java-dependency fail with
+// "Module ./dist/extension.bundle is not supported in the sandbox".
 var __zhRequireCache = {};
 
 function __zhDir(rel) {
@@ -1437,14 +1437,14 @@ function __zhResolve(dir, id) {
   for (var i = 0; i < cands.length; i++) {
     if (Object.prototype.hasOwnProperty.call(__zhFiles, cands[i])) return cands[i];
   }
-  throw new Error('file "' + id + '" tidak ditemukan di dalam ekstensi (dicari: ' + base + ')');
+  throw new Error('file "' + id + '" was not found inside the extension (looked for: ' + base + ')');
 }
 
 function __zhLoadFile(rel) {
   if (__zhRequireCache[rel]) return __zhRequireCache[rel].exports;
   var code = __zhFiles[rel];
   if (code === undefined) {
-    throw new Error('file "' + rel + '" tidak ditemukan di dalam ekstensi Zephyr');
+    throw new Error('file "' + rel + '" was not found inside the Zephyr extension');
   }
   var mod = { exports: {} };
   __zhRequireCache[rel] = mod;
@@ -1469,7 +1469,7 @@ function __zhLoadFile(rel) {
   return mod.exports;
 }
 
-// ── Modul node yang bisa dipetakan ke API browser Worker ──
+// ── node modules that can be mapped to browser Worker APIs ──
 function __zhCrypto() {
   var w = self.crypto;
   return {
@@ -1529,10 +1529,10 @@ function __zhFsPromises() {
   return {
     readFile: function () { return f.readFile.apply(f, arguments); },
     writeFile: function () { return f.writeFile.apply(f, arguments); },
-    stat: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
-    readdir: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
-    mkdir: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
-    unlink: function () { return Promise.reject(new Error("fs/promises tidak didukung di sandbox Zephyr")); },
+    stat: function () { return Promise.reject(new Error("fs/promises is not supported in the Zephyr sandbox")); },
+    readdir: function () { return Promise.reject(new Error("fs/promises is not supported in the Zephyr sandbox")); },
+    mkdir: function () { return Promise.reject(new Error("fs/promises is not supported in the Zephyr sandbox")); },
+    unlink: function () { return Promise.reject(new Error("fs/promises is not supported in the Zephyr sandbox")); },
   };
 }
 
@@ -1579,8 +1579,8 @@ function __zhMakeRequire(dir) {
     if (id === 'readline') return __zhReadline();
     if (id === 'fs/promises' || id === 'node:fs/promises') return __zhFsPromises();
     if (id === 'assert' || id === 'node:assert') {
-      var __zhAssert = function (cond, msg) { if (!cond) throw new Error(msg || "assertion gagal"); };
-      __zhAssert.ok = function (cond, msg) { if (!cond) throw new Error(msg || "assertion gagal"); };
+      var __zhAssert = function (cond, msg) { if (!cond) throw new Error(msg || "assertion failed"); };
+      __zhAssert.ok = function (cond, msg) { if (!cond) throw new Error(msg || "assertion failed"); };
       __zhAssert.equal = function () {};
       __zhAssert.deepEqual = function () {};
       __zhAssert.strictEqual = function () {};
@@ -1597,15 +1597,15 @@ function __zhMakeRequire(dir) {
       return __zhAssert;
     }
     // require relatif/sibling ('.', '..', atau absolut): file di dalam folder
-    // ekstensi yang dikirim backend sebagai __zhFiles.
+    // an extension sent by the backend as __zhFiles.
     if (id.charAt(0) === '.' || id.charAt(0) === '/') {
       return __zhLoadFile(__zhResolve(dir, id));
     }
     // Modul lain (fs, child_process, crypto, net, atau paket npm apa pun):
-    // kembalikan stub. Error baru muncul kalau propertinya BENAR-BENAR dipakai
-    // (mis. fs.readFileSync) — bukan saat require-nya sendiri. Ini membuat
-    // ekstensi seperti ms-python.python tetap bisa dimuat walau memanggil
-    // banyak require di level atas.
+    // return the stub. The error only appears when the property is REALLY used
+    // (e.g. fs.readFileSync) — not at require time itself. This makes
+    // extensions like ms-python.python loadable even though they call
+    // many requires at the top level.
     return __zhUnavailable(id);
   };
 }
@@ -1614,15 +1614,15 @@ function __zhMakeRequire(dir) {
 const TRAILER = `
 } catch (err) {
   // Error saat MEMUAT kode ekstensi: dilaporkan sekali, jelas, tanpa
-  // "Uncaught ReferenceError" yang membingungkan.
+  // a confusing "Uncaught ReferenceError".
   self.postMessage({
     type: 'notify',
     severity: 'warn',
-    message: 'tidak bisa dimuat: ' + teksAman(err),
+    message: 'cannot be loaded: ' + teksAman(err),
   });
 }
 
-// Pola VS Code: panggil activate(context) kalau bundle mengekspornya.
+// VS Code pattern: call activate(context) if the bundle exports it.
 try {
   var __zhCtx = {
     subscriptions: [],
@@ -1679,7 +1679,7 @@ try {
   self.postMessage({
     type: 'notify',
     severity: 'warn',
-    message: 'aktivasi gagal: ' + ((err && err.message) || err),
+    message: 'activation failed: ' + ((err && err.message) || err),
   });
 }
 `;

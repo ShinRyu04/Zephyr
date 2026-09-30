@@ -126,13 +126,13 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
       }
       return f;
     } catch (e) {
-      // Error dari invoke Tauri berbentuk { code, message }, bukan Error
-      // biasa; asZephyrError(e).message mencetak "[object Object]" ke toast user.
+      // An error from a Tauri invoke is shaped { code, message }, not Error
+      // usual; asZephyrError(e).message prints "[object Object]" to the user's toast.
       const msg = asZephyrError(e).message;
       set({ loading: false, error: msg, file: null });
       useNotif.getState().notify({
         severity: 'error',
-        message: 'Gagal membaca tasks.json',
+        message: 'Failed to read tasks.json',
         detail: msg,
         source: 'Tasks',
       });
@@ -156,10 +156,10 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
   jalankan: async (label, opts) => {
     const def = get().cari(label);
     if (!def) {
-      set({ error: `task "${label}" tidak ada` });
+      set({ error: `task "${label}" does not exist` });
       useNotif.getState().notify({
         severity: 'error',
-        message: 'Task tidak ditemukan',
+        message: 'Task not found',
         detail: label,
         source: 'Tasks',
       });
@@ -174,8 +174,8 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
         if (hasil.some((r) => !r || r.status === 'failed')) {
           useNotif.getState().notify({
             severity: 'error',
-            message: 'Rantai task gagal',
-            detail: `dependsOn "${label}" ada yang gagal`,
+            message: 'The task chain failed',
+            detail: `dependsOn "${label}" some failed`,
             source: 'Tasks',
           });
           return null;
@@ -246,13 +246,13 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
         endsPattern: def.background?.endsPattern || undefined,
       });
     } catch (e) {
-      // Error dari invoke Tauri berbentuk { code, message }, bukan Error
-      // biasa; asZephyrError(e).message mencetak "[object Object]" ke toast user.
+      // An error from a Tauri invoke is shaped { code, message }, not Error
+      // usual; asZephyrError(e).message prints "[object Object]" to the user's toast.
       const msg = asZephyrError(e).message;
-      useOutput.getState().append(ch, `[zephyr] gagal menjalankan: ${msg}`);
+      useOutput.getState().append(ch, `[zephyr] failed to run: ${msg}`);
       useNotif.getState().notify({
         severity: 'error',
-        message: `Task "${label}" gagal dijalankan`,
+        message: `Task "${label}" failed to run`,
         detail: msg,
         source: 'Tasks',
       });
@@ -316,10 +316,10 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
         isBackground: false,
       });
     } catch (e) {
-      // Error dari invoke Tauri berbentuk { code, message }, bukan Error
-      // biasa; asZephyrError(e).message mencetak "[object Object]" ke toast user.
+      // An error from a Tauri invoke is shaped { code, message }, not Error
+      // usual; asZephyrError(e).message prints "[object Object]" to the user's toast.
       const msg = asZephyrError(e).message;
-      useOutput.getState().append(ch, `[zephyr] gagal menjalankan: ${msg}`);
+      useOutput.getState().append(ch, `[zephyr] failed to run: ${msg}`);
       set({ error: msg });
       return null;
     }
@@ -331,7 +331,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     if (!def) {
       useNotif.getState().notify({
         severity: 'warn',
-        message: 'Tidak ada build task',
+        message: 'No build task',
         detail: 'Tambahkan task dengan group "build" di tasks.json',
         source: 'Tasks',
       });

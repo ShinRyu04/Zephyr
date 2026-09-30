@@ -29,75 +29,75 @@ export interface Peran {
 export const PERAN: Peran[] = [
   {
     id: 'cari',
-    label: 'Cari',
-    hint: 'Telusuri kode: cari pemakaian, petakan struktur, temukan definisi',
+    label: 'Search',
+    hint: 'Search the code: find usages, map the structure, locate definitions',
     ikon: 'cari',
     butuhTulis: false,
     arahan:
-      'Kamu pekerja PENELUSURAN. Tugasmu memetakan kode: cari pemakaian, temukan definisi, ' +
-      'jelaskan struktur. Jangan mengubah apa pun. Laporkan: berkas mana, baris berapa, dan apa ' +
-      'yang kamu temukan — dengan kutipan singkat sebagai bukti.',
+      'You are the SCOUT worker. Your job is to map the code: find usages, locate definitions, ' +
+      'explain the structure. Change nothing. Report: which file, which line, and what ' +
+      'you found — with a short quote as evidence.',
     kunci: ['cari', 'temukan', 'pemakaian', 'struktur', 'dimana', 'di mana', 'list', 'daftar', 'peta'],
   },
   {
     id: 'telaah',
-    label: 'Telaah',
+    label: 'Review',
     hint: 'Analisis mendalam: bug sulit, arsitektur, trade-off',
     ikon: 'telaah',
     butuhTulis: false,
     arahan:
-      'Kamu PENELAAH. Tugasmu menganalisis: mengapa sesuatu gagal, apa risiko desainnya, apa ' +
-      'trade-off-nya. Jangan mengubah apa pun. Berikan analisis yang menyebut bukti konkret ' +
-      '(berkas, baris, perilaku), bukan dugaan. Kalau kamu tidak yakin, katakan bagian mana yang ' +
-      'belum terbukti.',
+      'You are the REVIEWER. Your job is to analyse: why something failed, what the design risks are, what ' +
+      'the trade-offs are. Change nothing. Give an analysis that names concrete evidence ' +
+      '(file, line, behaviour), not a guess. When you are unsure, say which part is ' +
+      'still unproven.',
     kunci: ['analisis', 'kenapa', 'mengapa', 'bug', 'risiko', 'arsitektur', 'trade', 'review', 'telaah'],
   },
   {
     id: 'rencana',
-    label: 'Rencana',
-    hint: 'Susun rencana langkah yang bisa langsung dieksekusi',
+    label: 'Plan',
+    hint: 'Draft a step-by-step plan someone can execute directly',
     ikon: 'rencana',
     butuhTulis: false,
     arahan:
-      'Kamu PERENCANA. Tugasmu menyusun rencana yang bisa dieksekusi orang lain tanpa bertanya ' +
-      'lagi: langkah berurutan, berkas yang disentuh, dan cara memverifikasi tiap langkah. ' +
-      'Jangan mengubah apa pun. Rencana yang masih menyisakan pertanyaan desain belum selesai.',
+      'You are the PLANNER. Your job is to write a plan someone else can execute without asking ' +
+      'again: ordered steps, files touched, and how to verify each step. ' +
+      'Change nothing. A plan that still leaves design questions open is not finished.',
     kunci: ['rencana', 'plan', 'rancang', 'desain', 'langkah', 'strategi'],
   },
   {
     id: 'audit',
     label: 'Audit',
-    hint: 'Periksa apakah rencana/perubahan benar-benar jalan',
+    hint: 'Check whether the plan/changes actually work',
     ikon: 'audit',
     butuhTulis: false,
     arahan:
-      'Kamu AUDITOR. Tugasmu memeriksa: apakah rencana atau perubahan ini benar-benar bisa jalan? ' +
-      'Cari kasus yang terlewat, asumsi yang salah, dan langkah yang belum lengkap. Jangan mengubah ' +
-      'apa pun. Jawab dengan daftar temuan + tingkat keyakinan, bukan penilaian umum.',
-    kunci: ['audit', 'periksa', 'cek', 'verifikasi', 'validasi', 'bisa jalan', 'feasible'],
+      'You are the AUDITOR. Your job is to check whether this plan or change can actually run. ' +
+      'Find missed cases, wrong assumptions, and incomplete steps. Change ' +
+      'anything. Answer with a list of findings plus a confidence level, not a general verdict.',
+    kunci: ['audit', 'periksa', 'cek', 'verifikasi', 'validasi', 'can actually run', 'feasible'],
   },
   {
     id: 'kerja',
-    label: 'Kerja',
-    hint: 'Kerjakan satu tugas nyata sampai selesai (perlu izin tulis)',
+    label: 'Work',
+    hint: 'Complete one real task end to end (needs write permission)',
     ikon: 'kerja',
     butuhTulis: true,
     arahan:
-      'Kamu PEKERJA. Tugasmu mengerjakan satu perubahan nyata sampai selesai dan terverifikasi. ' +
-      'Kerjakan sebatas lingkup tugasmu — jangan melebar. Setelah selesai, jalankan pemeriksaan ' +
-      '(typecheck/test) lalu laporkan apa yang berubah dan apa hasil pemeriksaannya.',
+      'You are the WORKER. Your job is to complete one real change and verify it. ' +
+      'Stay inside the scope of your task. When done, run a check ' +
+      '(typecheck/test) then report what changed and what the check returned.',
     kunci: ['perbaiki', 'ubah', 'tulis', 'implementasi', 'buat', 'tambah', 'hapus', 'fix', 'kerjakan'],
   },
   {
     id: 'jelajah',
-    label: 'Jelajah',
+    label: 'Explore',
     hint: 'Riset pustaka/dokumentasi di luar proyek',
     ikon: 'jelajah',
     butuhTulis: false,
     arahan:
-      'Kamu PENJELAJAH. Tugasmu mencari tahu hal di LUAR proyek ini: perilaku pustaka, versi API, ' +
-      'praktik umum. Sebut sumbernya. Kalau tidak menemukan bukti, katakan tidak menemukan — ' +
-      'jangan mengarang perilaku pustaka.',
+      'You are the EXPLORER. Your job is to find out things OUTSIDE this project: library behaviour, API versions, ' +
+      'common practice. Name the source. If you find no evidence, say you found none — ' +
+      'never invent library behaviour.',
     kunci: ['pustaka', 'library', 'dokumentasi', 'docs', 'versi', 'api', 'riset', 'bandingkan'],
   },
 ];

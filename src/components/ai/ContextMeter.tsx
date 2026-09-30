@@ -13,11 +13,11 @@ export function jendelaKonteks(modelId: string): number {
 }
 
 /**
- * Harga indikatif (USD per 1 juta token: masuk/keluar) per model.
+ * Indicative price (USD per 1 million tokens: input/output) per model.
  *
- * Angka ini perkiraan untuk memberi gambaran biaya, BUKAN tagihan resmi.
- * Kalau model tidak ada di peta, biaya tidak ditampilkan (lebih baik kosong
- * daripada menampilkan angka palsu).
+ * These numbers are an estimate to give a sense of cost, NOT an official bill.
+ * If the model is not in the map, the cost is not shown (better empty
+ * than displaying a fake number).
  */
 const HARGA: Record<string, { masuk: number; keluar: number }> = {
   'gemini-3.8-flash': { masuk: 0.3, keluar: 2.5 },
@@ -94,7 +94,7 @@ export default function ContextMeter() {
   const total = jendelaKonteks(model);
   const persen = Math.min(100, Math.round((dipakai / total) * 100));
 
-  // Token masuk (user) vs keluar (asisten) untuk estimasi biaya sesi.
+  // Input tokens (user) vs output (assistant) for the session cost estimate.
   const tokMasuk = msgs
     .filter((m) => m.role === 'user')
     .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);

@@ -10,10 +10,10 @@ if (import.meta.env.DEV) {
 void import('./lib/i18n').then((m) => m.muatKamusTambahan());
 
 /*
- * Sembunyikan splash boot (lihat index.html) setelah React benar-benar
- * menaruh isi di #root — bukan sekadar setelah render() dipanggil, karena
- * komit React berjalan asinkron. Observer dipasang SEBELUM render supaya
- * tidak melewatkan mutasi pertama.
+ * Hide the boot splash (see index.html) once React has actually put content
+ * into #root - not merely after render() is called, because React's commit
+ * runs asynchronously. The observer is installed BEFORE render so the first
+ * mutation is not missed.
  */
 const splashOff = () => {
   document.documentElement.setAttribute('data-zephyr-ready', '1');
@@ -27,7 +27,7 @@ if (rootEl) {
     }
   });
   obs.observe(rootEl, { childList: true });
-  // Jaring pengaman: kalau React gagal mount, splash tidak menutup selamanya.
+  // Safety net: if React fails to mount, the splash does not stay up forever.
   window.setTimeout(splashOff, 20000);
 }
 

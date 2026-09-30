@@ -250,12 +250,12 @@ export default function SubagentCustomModal({ awal }: Props) {
       >
         <div className="subagent-head">
           <h2 className="modal-title" id="sc-title">
-            {awal ? tr('Ubah sub-agent') : tr('Sub-agent baru')}
+            {awal ? tr('Edit sub-agent') : tr('Sub-agent baru')}
           </h2>
           <button
             className="btn btn-icon"
             data-testid="sc-tutup"
-            aria-label={tr('Subagent: tutup')}
+            aria-label={tr('Subagent: close')}
             onClick={() => tutup()}
           >
             ✕
@@ -275,7 +275,7 @@ export default function SubagentCustomModal({ awal }: Props) {
             />
             {namaTerpakai && (
               <span className="subagent-warn" data-testid="sc-nama-bentrok">
-                {tr('Nama itu sudah dipakai sub-agent lain.')}
+                {tr('Another sub-agent already uses that name.')}
               </span>
             )}
           </label>
@@ -286,7 +286,7 @@ export default function SubagentCustomModal({ awal }: Props) {
               className="input"
               data-testid="sc-deskripsi"
               value={deskripsi}
-              placeholder={tr('Satu baris — AI membacanya untuk memutuskan kapan mendelegasikan ke sini')}
+              placeholder={tr('One line — the AI reads it to decide when to delegate here')}
               onChange={(e) => setDeskripsi(e.target.value)}
             />
           </label>
@@ -327,7 +327,7 @@ export default function SubagentCustomModal({ awal }: Props) {
                 );
               })}
             </div>
-            <span className="subagent-hint">{tr('Hanya baca. Pilih minimal satu.')}</span>
+            <span className="subagent-hint">{tr('Read only. Pick at least one.')}</span>
           </div>
 
           <div className="subagent-field">
@@ -377,7 +377,7 @@ export default function SubagentCustomModal({ awal }: Props) {
               value={prompt}
               rows={10}
               spellCheck={false}
-              placeholder={tr('Persona dan aturan untuk pekerja ini. Ia berjalan dengan riwayat bersih dan hanya alat di atas.')}
+              placeholder={tr('Persona and rules for this worker. It runs with a clean history and only the tools above.')}
               onChange={(e) => setPrompt(e.target.value)}
             />
           </label>
@@ -412,7 +412,7 @@ export default function SubagentCustomModal({ awal }: Props) {
               {menuBuka && (
                 <div className="sc-model-menu" data-testid="sc-model-menu" role="listbox">
                   {opsiModel.length === 1 && (
-                    <p className="sc-model-kosong">{tr('Belum ada provider dengan API key. Isi di Settings → AI Models.')}</p>
+                    <p className="sc-model-kosong">{tr('No provider has an API key yet. Add one in Settings → AI Models.')}</p>
                   )}
                   {opsiModel.map((m) => (
                     <button
@@ -435,7 +435,7 @@ export default function SubagentCustomModal({ awal }: Props) {
               )}
             </div>
             <span className="subagent-hint">
-              {tr('Jalankan pekerja ini di model sendiri (mis. yang lebih murah untuk pencarian besar). Bawaan = sama seperti chat.')}
+              {tr('Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat.')}
             </span>
           </div>
         </div>
@@ -447,7 +447,7 @@ export default function SubagentCustomModal({ awal }: Props) {
               data-testid="sc-hapus"
               onClick={() => void hapus(awal.id)}
             >
-              {tr('Subagent: hapus')}
+              {tr('Subagent: delete')}
             </button>
           )}
           <span className="subagent-spacer" />
@@ -460,7 +460,7 @@ export default function SubagentCustomModal({ awal }: Props) {
             disabled={!bisaSimpan || sibuk}
             onClick={() => void kirim()}
           >
-            {tr('Subagent: simpan')}
+            {tr('Subagent: save')}
           </button>
         </div>
       </div>

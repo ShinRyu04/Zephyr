@@ -23,7 +23,7 @@ export default function GhMenu({ anchor, gh, onClose, onLogout, onLogin, onBukaT
 
   return (
     <Popover anchor={anchor} arah="up" sisi="left" onClose={onClose} testid="gh-menu" className="tt-dropdown">
-      {/* Baris identitas - tidak diklik, hanya label */}
+      {/* Identity row - not clickable, just a label */}
       <div className="gh-menu-id">
         {signedIn ? (
           <>

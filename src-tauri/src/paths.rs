@@ -226,8 +226,8 @@ mod tests {
 
     #[test]
     fn pathdiff_tidak_panik_unicode() {
-        // Root dan child berisi karakter multi-byte dengan panjang byte berbeda;
-        // versi lama slice byte dan akan panic.
+        // Root and child contain multi-byte characters with different byte lengths;
+        // the old version sliced bytes and would panic.
         let root = Path::new("D:\\日");
         let child = Path::new("D:\\日本語\\файл\\emoji😀.rs");
         let hasil = pathdiff(root, child);

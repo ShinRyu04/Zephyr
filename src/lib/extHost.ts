@@ -32,13 +32,13 @@ self.onmessage = (e) => {
     if (!pe) return;
     delete __zhExecPending[m.seq];
     if (m.ok) pe.resolve(m.value);
-    else pe.reject(new Error(m.error || 'eksekusi runtime gagal'));
+    else pe.reject(new Error(m.error || 'runtime execution failed'));
     return;
   }
   if (m.type !== 'invoke') return;
   const fn = __zh[m.id];
   if (!fn) {
-    self.postMessage({ type: 'result', seq: m.seq, ok: false, error: 'command tak dikenal: ' + m.id });
+    self.postMessage({ type: 'result', seq: m.seq, ok: false, error: 'unknown command: ' + m.id });
     return;
   }
   try {
@@ -73,7 +73,7 @@ export function sandboxCommands(): { id: string; extId: string; title: string }[
 
 export function runEkstensiCommand(extId: string, commandId: string, args: unknown[]): Promise<unknown> {
   const rt = runtimes.get(extId);
-  if (!rt) return Promise.reject(new Error('ekstensi tidak dimuat'));
+  if (!rt) return Promise.reject(new Error('the extension was not loaded'));
   const seq = rt.nextSeq++;
   return new Promise((resolve, reject) => {
     rt.pending.set(seq, { resolve, reject });
@@ -116,7 +116,7 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
       message: `Ekstensi ${extId}: ${m.message}`,
       
       detail: gagalAktivasi
-        ? 'Ekstensi VS Code penuh biasanya butuh runtime eksternal (Python/Java/Docker/Node) atau API host yang tidak tersedia di sandbox Zephyr v1 (manifest-only).'
+        ? 'A full VS Code extension usually needs an external runtime (Python/Java/Docker/Node) or host APIs that are not available in the Zephyr sandbox v1 (manifest-only).'
         : undefined,
       source: 'extensions',
     });
@@ -141,7 +141,7 @@ async function prosesExecReq(extId: string, m: ExecReq, rt: ExtRuntime): Promise
         jawab(
           false,
           undefined,
-          `runtime '${m.runtime}' tidak ditemukan di PATH — eksekusi ditolak. Pastikan ter-install, atau beri izin manual di Settings → Ekstensi.`,
+          `runtime '${m.runtime}' was not found on PATH — execution refused. Make sure it is installed, or grant permission manually in Settings → Extensions.`,
         );
         return;
       }
@@ -224,8 +224,8 @@ export async function muatEkstensiRuntime(daftar: ExtManifestStatus[]): Promise<
       void cmd.extensionsSetEnabled(st.manifest.id, false).catch(() => {});
       useNotif.getState().notify({
         severity: 'error',
-        message: `Ekstensi ${st.manifest.id} dinonaktifkan: gagal dimuat di sandbox Zephyr v1`,
-        detail: `${cmd.asZephyrError(e).message}. Kemungkinan besar ekstensi ini butuh runtime eksternal (Python/Java/Docker/Node) yang tidak didukung Zephyr v1 (manifest-only). Aktifkan lagi di Settings → Ekstensi kalau ingin mencoba ulang.`,
+        message: `Extension ${st.manifest.id} disabled: it failed to load in the Zephyr v1 sandbox`,
+        detail: `${cmd.asZephyrError(e).message}. This extension most likely needs an external runtime (Python/Java/Docker/Node) that Zephyr v1 does not support (manifest-only). Enable it again in Settings → Extensions to try once more.`,
         source: 'extensions',
       });
     }

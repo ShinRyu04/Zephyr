@@ -106,7 +106,7 @@ export function useDengar(tulis: (teks: string, final: boolean) => void, lang = 
       try {
         rec.abort();
       } catch {
-        // Sudah berhenti: tidak ada yang perlu dibersihkan.
+        // Already stopped: there is nothing to clean up.
       }
       ref.current = null;
     };

@@ -95,11 +95,11 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
         id,
         label: `${t.label || m.name} (${m.name})`,
         kind: t.kind === 'light' ? 'light' : 'dark',
-        hint: `dari ekstensi ${m.id}`,
+        hint: `from extension ${m.id}`,
       });
       out.push(id);
     } catch {
-      /* file tema rusak — dicatat pemanggil sebagai gagal */
+      /* broken theme file — the caller records it as a failure */
     }
   }
   return out;
@@ -410,7 +410,7 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
     if (st.error || !st.manifest) {
       hasil.gagal.push({
         id: st.path.split(/[\\/]/).pop() ?? st.path,
-        alasan: st.error ?? 'manifest tidak terbaca',
+        alasan: st.error ?? 'the manifest could not be read',
       });
       continue;
     }
@@ -444,14 +444,14 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
     const { mergeBindings } = await import('./keybindings');
     useKb.setState({ bindings: mergeBindings(useKb.getState().user, extKeymap.slice()) });
   } catch {
-    /* keybindingStore belum siap saat boot paling awal — load() akan merge */
+    /* keybindingStore is not ready yet at the earliest boot — load() will merge */
   }
 
   try {
     const { naikkanExtVersi } = await import('../components/editor/CodeMirrorEditor');
     naikkanExtVersi();
   } catch {
-    /* di luar UI (harness/node) tidak ada editor */
+    /* outside the UI (harness/node) there is no editor */
   }
 
   try {

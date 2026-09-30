@@ -127,7 +127,7 @@ pub fn tambah(
     let mut daftar = muat(state);
     if daftar.len() >= MAX_JOBS {
         return Err(ZephyrError::InvalidInput(format!(
-            "batas {MAX_JOBS} tugas tercapai — hapus yang tidak dipakai dulu"
+            "the limit of {MAX_JOBS} jobs has been reached — delete the ones you no longer use first"
         )));
     }
     let job = CronJob {

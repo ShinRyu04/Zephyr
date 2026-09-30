@@ -133,7 +133,7 @@ class SwatchWidget extends WidgetType {
     el.className = 'cm-zcolor';
     el.setAttribute('data-testid', 'color-swatch');
     el.setAttribute('data-color', this.warna);
-    el.title = `${this.warna} — klik untuk mengubah`;
+    el.title = `${this.warna} — click to change`;
     el.style.backgroundColor = this.warna;
 
     const inp = document.createElement('input');
@@ -141,7 +141,7 @@ class SwatchWidget extends WidgetType {
     inp.value = this.warna;
     inp.className = 'cm-zcolor-input';
     inp.setAttribute('data-testid', 'color-input');
-    inp.setAttribute('aria-label', `Ubah warna ${this.warna}`);
+    inp.setAttribute('aria-label', `Change colour ${this.warna}`);
 
     const terapkan = (nilai: string) => {
       

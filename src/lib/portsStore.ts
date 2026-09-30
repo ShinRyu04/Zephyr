@@ -29,11 +29,11 @@ interface PortsActions {
   clear: () => void;
   /**
    * Read the ports actually listening on the system and merge them with
-   * daftar manual.
+   * the manual list.
    *
-   * KENAPA digabung, bukan ditimpa: port yang user tambahkan sendiri (mis. port
-   * di mesin lain lewat SSH) tidak akan pernah muncul di pemindaian lokal.
-   * Menimpanya akan menghapus entri itu setiap kali pemindaian berjalan.
+   * WHY merged, not overwritten: a port the user added themselves (e.g. a port
+   * on another machine over SSH) will never show up in a local scan.
+   * Overwriting it would delete that entry every time a scan runs.
    */
 }
 

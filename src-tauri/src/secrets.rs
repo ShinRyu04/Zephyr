@@ -99,9 +99,9 @@ fn map_untuk_tulis(state: &AppState) -> ZResult<Map<String, Value>> {
                 backup_sekali(state, &raw);
             }
             Err(ZephyrError::Internal(
-                "secrets.json ada tapi tidak terbaca (kunci mesin mungkin berubah). \
-                 File lama dibiarkan utuh dan dicadangkan ke secrets.json.bak-*. \
-                 Isi ulang API key untuk melanjutkan."
+                "secrets.json exists but could not be read (the machine key may have changed). \
+                 The old file was left intact and backed up to secrets.json.bak-*. \
+                 Re-enter the API key to continue."
                     .into(),
             ))
         }
@@ -136,7 +136,7 @@ fn write_secrets(state: &AppState, map: &Map<String, Value>) -> ZResult<()> {
         Ok(()) => Ok(()),
         Err(e) => {
             let _ = std::fs::remove_file(&tmp);
-            Err(ZephyrError::Internal(format!("failed menyimpan secrets: {e}")))
+            Err(ZephyrError::Internal(format!("failed to save secrets: {e}")))
         }
     }
 }
@@ -214,7 +214,7 @@ pub fn key_for(state: &AppState, provider: &str) -> String {
 pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
     let n = name.trim();
     if n.is_empty() {
-        return Err(ZephyrError::InvalidInput("nama secret empty".into()));
+        return Err(ZephyrError::InvalidInput("secret name is empty".into()));
     }
     let mut map = map_untuk_tulis(state)?;
     if value.trim().is_empty() {
@@ -229,7 +229,7 @@ pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
 pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> ZResult<()> {
     let p = provider.trim();
     if p.is_empty() {
-        return Err(ZephyrError::InvalidInput("provider empty".into()));
+        return Err(ZephyrError::InvalidInput("provider is empty".into()));
     }
     let mut map = map_untuk_tulis(&state)?;
     if key.trim().is_empty() {
@@ -265,7 +265,7 @@ pub fn test_model_connection(
     if key.is_empty() {
         return Ok(TestResult {
             ok: false,
-            message: "Belum ada API key untuk provider ini".into(),
+            message: "No API key for this provider yet".into(),
             status: None,
             ms: 0,
         });
@@ -330,9 +330,9 @@ pub fn test_model_connection(
             false,
             Some(code),
             match code {
-                401 | 403 => "API key ditolak (401/403) — periksa key".to_string(),
-                404 => "Endpoint tidak ditemukan (404) — periksa base URL".to_string(),
-                429 => "Rate limit (429) — key valid tapi sedang dibatasi".to_string(),
+                401 | 403 => "API key rejected (401/403) — check the key".to_string(),
+                404 => "Endpoint not found (404) — check the base URL".to_string(),
+                429 => "Rate limit (429) — the key is valid but currently throttled".to_string(),
                 c => format!("Server menjawab {c}"),
             },
         ),
@@ -422,9 +422,9 @@ pub fn list_models(
         &body
             .into_body()
             .read_to_string()
-            .map_err(|e| ZephyrError::InvalidInput(format!("Gagal baca respon: {e}")))?,
+            .map_err(|e| ZephyrError::InvalidInput(format!("Failed to read response: {e}")))?,
     )
-    .map_err(|e| ZephyrError::InvalidInput(format!("Respon bukan JSON: {e}")))?;
+    .map_err(|e| ZephyrError::InvalidInput(format!("Response is not JSON: {e}")))?;
 
     let ids: Vec<String> = if style == "gemini" {
         json.get("models")

@@ -75,7 +75,7 @@ fn ssh_ok() -> ZResult<()> {
         Ok(())
     } else {
         Err(ZephyrError::NotFound(
-            "ssh.exe tidak ditemukan. Pasang OpenSSH Client lewat Settings > Apps > Optional features.".into(),
+            "ssh.exe not found. Install the OpenSSH Client via Settings > Apps > Optional features.".into(),
         ))
     }
 }
@@ -220,7 +220,7 @@ pub fn sftp_upload(
     let l = PathBuf::from(&lokal);
     if !l.is_file() {
         return Err(ZephyrError::InvalidInput(format!(
-            "berkas lokal is missing: {lokal}"
+            "local file is missing: {lokal}"
         )));
     }
     // Quote both sides: a path with a space would otherwise split into two
@@ -311,7 +311,7 @@ pub fn sftp_tunnel_start(
 #[tauri::command(async)]
 pub fn sftp_tunnel_stop(id: String) -> ZResult<bool> {
     let pid = {
-        let g = TUNNEL.lock().map_err(|_| ZephyrError::Internal("tunnel terkunci".into()))?;
+        let g = TUNNEL.lock().map_err(|_| ZephyrError::Internal("tunnel is locked".into()))?;
         g.iter().find(|(k, _)| k == &id).map(|(_, p)| *p)
     };
     let Some(pid) = pid else {

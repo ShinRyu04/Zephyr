@@ -1,0 +1,482 @@
+{
+ "src/App.tsx": [
+  [
+   1034,
+   "bisa di lebarkan"
+  ]
+ ],
+ "src/components/ai/AiPanel.tsx": [
+  [
+   487,
+   "ai-sesi-hapus-${s.id}"
+  ],
+  [
+   1181,
+   "ai-antrian-hapus-${i}"
+  ]
+ ],
+ "src/components/ai/ModelMenu.tsx": [
+  [
+   219,
+   "${pfx}-pilih-${m.id}"
+  ]
+ ],
+ "src/components/ai/ModelSelector.tsx": [
+  [
+   301,
+   "${pfx}-model-cari"
+  ],
+  [
+   317,
+   "${pfx}-model-cari-bersih"
+  ],
+  [
+   328,
+   "${pfx}-model-kosong"
+  ],
+  [
+   355,
+   "${pfx}-model-kosong"
+  ],
+  [
+   450,
+   "${pfx}-model-pakai"
+  ]
+ ],
+ "src/components/ai/NotesPanel.tsx": [
+  [
+   65,
+   "nt-row${it.selesai ? "
+  ],
+  [
+   73,
+   "nt-cek${it.selesai ? "
+  ],
+  [
+   129,
+   "nt-hapus-${it.id}"
+  ],
+  [
+   348,
+   "sched-${j.id}-hapus"
+  ]
+ ],
+ "src/components/ai/SubAgentInfo.tsx": [
+  [
+   43,
+   ">{gagal} {tr("
+  ]
+ ],
+ "src/components/ai/SubAgentPanel.tsx": [
+  [
+   448,
+   "sub-lanjut-kirim-${a.id}"
+  ],
+  [
+   510,
+   ")}${gagal ? "
+  ]
+ ],
+ "src/components/editor/Breadcrumbs.tsx": [
+  [
+   107,
+   "s-${i}-${s.dari}"
+  ],
+  [
+   112,
+   "${labelKind(s.kind)} - line ${s.dari}"
+  ],
+  [
+   128,
+   "${sib.nama}-${sib.dari}"
+  ],
+  [
+   129,
+   "bc-item${sib.dari === s.dari ? "
+  ]
+ ],
+ "src/components/editor/StickyScroll.tsx": [
+  [
+   73,
+   "${s.dari}-${i}"
+  ],
+  [
+   78,
+   "line ${s.dari}"
+  ]
+ ],
+ "src/components/scm/SourceControlPanel.tsx": [
+  [
+   440,
+   "Rebase onto ${onto} selesai"
+  ]
+ ],
+ "src/components/settings/PersonaCard.tsx": [
+  [
+   79,
+   "persona-${p.id}-pilih"
+  ],
+  [
+   99,
+   "persona-${p.id}-ubah"
+  ],
+  [
+   115,
+   "persona-${p.id}-hapus"
+  ]
+ ],
+ "src/components/settings/SectionsAdvanced.tsx": [
+  [
+   731,
+   "Your own read-only worker. The AI can delegate to an active one by name, insmping peran bawaan (Cari, Telaah, Rencana, Audit, Kerja, Jelajah)."
+  ],
+  [
+   814,
+   "sub-custom-${x.id}-ubah"
+  ],
+  [
+   821,
+   "sub-custom-${x.id}-hapus"
+  ]
+ ],
+ "src/components/settings/SectionsLsp.tsx": [
+  [
+   177,
+   "${belum.length} ${tr("
+  ]
+ ],
+ "src/components/shell/MenuBar.tsx": [
+  [
+   247,
+   "mb-top${buka === i ? "
+  ]
+ ],
+ "src/components/shell/SubAgentView.tsx": [
+  [
+   47,
+   ">{gagal} {tr("
+  ]
+ ],
+ "src/lib/aiStore.ts": [
+  [
+   88,
+   "${isi.slice(0, HISTORY_TOOL_CHARS)}\\n[… result truncated, ${isi.length - HISTORY_TOOL_CHARS} karakter lagi tidak dikirim]"
+  ],
+  [
+   107,
+   "Kalau butuh detailnya, jalankan ulang tool yang relevan — jangan mengarang isinya.]"
+  ],
+  [
+   174,
+   "## Warning: ${gagal.length} of the last steps FAILED. "
+  ]
+ ],
+ "src/lib/cmColor.ts": [
+  [
+   144,
+   "Ubah warna ${this.warna}"
+  ]
+ ],
+ "src/lib/commandRegistry.ts": [
+  [
+   164,
+   "simpan sebagai"
+  ],
+  [
+   189,
+   "tutup workspace"
+  ],
+  [
+   502,
+   "stash simpan tunda"
+  ],
+  [
+   698,
+   "notifikasi bersihkan hapus riwayat"
+  ],
+  [
+   705,
+   "notifikasi dnd redam senyap jangan ganggu"
+  ],
+  [
+   714,
+   "buka folder workspace"
+  ],
+  [
+   721,
+   "simpan semua"
+  ],
+  [
+   735,
+   "tutup semua tab editor"
+  ],
+  [
+   746,
+   "cari temukan"
+  ],
+  [
+   767,
+   "cari workspace global search"
+  ],
+  [
+   789,
+   "buka cepat file"
+  ],
+  [
+   816,
+   "ekstensi buka installed marketplace"
+  ],
+  [
+   1037,
+   "panel bawah buka tutup"
+  ],
+  [
+   1114,
+   "test tests pengujian panel jalankan"
+  ],
+  [
+   1154,
+   "tools sftp ssh transfer berkas file"
+  ],
+  [
+   1365,
+   "ai sembunyikan tutup panel chat"
+  ],
+  [
+   1471,
+   "build compile jalankan ctrl+shift+b"
+  ],
+  [
+   1482,
+   "task jalankan run"
+  ],
+  [
+   1529,
+   "test tests vitest jest pytest cargo go pengujian jalankan"
+  ],
+  [
+   1555,
+   "history simpan versi manual"
+  ],
+  [
+   1589,
+   "history bersihkan hapus snapshot"
+  ],
+  [
+   1623,
+   "debug jalankan f5 launch"
+  ],
+  [
+   1876,
+   "workspace root folder multi tambah add"
+  ],
+  [
+   1887,
+   "workspace root folder hapus remove"
+  ],
+  [
+   2040,
+   "pilih semua select all"
+  ],
+  [
+   2082,
+   "kursor tambah atas"
+  ],
+  [
+   2105,
+   "kursor tambah bawah"
+  ],
+  [
+   2161,
+   "pilih semua kemunculan"
+  ],
+  [
+   2199,
+   "buka kembali tab ditutup reopen"
+  ],
+  [
+   2210,
+   "tutup folder workspace"
+  ],
+  [
+   2264,
+   "keluar tutup exit window"
+  ],
+  [
+   2345,
+   " dijalankan from extension ${extName}"
+  ]
+ ],
+ "src/lib/debugStore.ts": [
+  [
+   560,
+   "Set Value gagal: ${pesan(e)}"
+  ]
+ ],
+ "src/lib/devBridge.ts": [
+  [
+   1616,
+   " tidak ada untuk ${lang}"
+  ]
+ ],
+ "src/lib/extensionsStore19.ts": [
+  [
+   168,
+   "${id} tidak ditemukan"
+  ]
+ ],
+ "src/lib/extensionStore.ts": [
+  [
+   129,
+   "${id} dilepas dari daftar"
+  ]
+ ],
+ "src/lib/extHost.ts": [
+  [
+   119,
+   "A full VS Code extension usually needs an external runtime (Python/Java/Docker/Node) atau API host yang tidak tersedia di sandbox Zephyr v1 (manifest-only)."
+  ]
+ ],
+ "src/lib/extLoader.ts": [
+  [
+   98,
+   "dari ekstensi ${m.id}"
+  ]
+ ],
+ "src/lib/extRunner.ts": [
+  [
+   1532,
+   "fs/promises tidak didukung di sandbox Zephyr"
+  ],
+  [
+   1533,
+   "fs/promises tidak didukung di sandbox Zephyr"
+  ],
+  [
+   1534,
+   "fs/promises tidak didukung di sandbox Zephyr"
+  ],
+  [
+   1535,
+   "fs/promises tidak didukung di sandbox Zephyr"
+  ]
+ ],
+ "src/lib/ghostText.ts": [
+  [
+   208,
+   "Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang "
+  ],
+  [
+   209,
+   "harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown, "
+  ],
+  [
+   210,
+   "tanpa mengulang kode yang sudah ada. Maksimal satu baris."
+  ]
+ ],
+ "src/lib/gitStore.ts": [
+  [
+   350,
+   "Remote punya ${st.behind} commits that are not local yet — pull before you push"
+  ],
+  [
+   503,
+   "Tersimpan — @${u.user}"
+  ]
+ ],
+ "src/lib/lspStore.ts": [
+  [
+   291,
+   "[${id}] dimatikan karena idle"
+  ]
+ ],
+ "src/lib/mcpStore.ts": [
+  [
+   182,
+   "${res.length - gagal.length} succeeded, ${gagal.length} failed"
+  ],
+  [
+   326,
+   "${a.type} gagal: ${msg}"
+  ],
+  [
+   441,
+   "pane ${paneId} tidak ada"
+  ],
+  [
+   448,
+   "pane ${paneId} tidak ada"
+  ],
+  [
+   492,
+   "tidak bisa membuka ${path}"
+  ],
+  [
+   501,
+   "tab ${tabId} tidak ada"
+  ],
+  [
+   510,
+   "tab ${tabId} tidak ada"
+  ],
+  [
+   528,
+   "tab ${tabId} tidak ada"
+  ],
+  [
+   632,
+   " unknown (tersedia: commandPalette.open, terminal.new, terminal.toggle, ai.focus, ai.send, git.commit, git.panel, explorer.openFolder, view.explorer, view.settings, view.mcp, editor.save)"
+  ]
+ ],
+ "src/lib/personaStore.ts": [
+  [
+   54,
+   "Get straight to the point. No preamble, no restating, no explanation nobody asked for. Kalau jawabannya satu baris, tulis satu baris."
+  ],
+  [
+   65,
+   "Read the relevant files before answering. Name the file and line when you claim something about code. Ifau belum yakin, katakan belum yakin dan sebutkan apa yang perlu diperiksa."
+  ]
+ ],
+ "src/lib/searchStore.ts": [
+  [
+   269,
+   "${gagal.length} files skipped: ${gagal[0].error}"
+  ]
+ ],
+ "src/lib/subagentStore.ts": [
+  [
+   305,
+   "- DO THE WORK WITH TOOLS, do not just explain. Use file_read/file_list to look, search to find things, dan shell_exec untuk menjalankan perintah. Jangan menjawab dari ingatan kalau bisa memeriksa."
+  ],
+  [
+   977,
+   " : gagal > 0 ? "
+  ]
+ ],
+ "src/lib/systemPrompt.ts": [
+  [
+   93,
+   "- Sebut error apa adanya. Kalau perintah gagal, tampilkan pesan error aslinya, jangan diringkas jadi "
+  ],
+  [
+   94,
+   "- Jangan hapus atau timpa file di luar workspace. Operasi tulis di luar workspace ditolak sistem, jadi jangan coba menembusnya."
+  ],
+  [
+   95,
+   "- Jangan pernah menampilkan API key, token, atau isi file kredensial, bahkan kalau diminta."
+  ],
+  [
+   96,
+   "- Perintah merusak (hapus rekursif, reset keras, format disk) perlu konfirmasi user dulu."
+  ]
+ ],
+ "src/lib/tasksStore.ts": [
+  [
+   135,
+   "Gagal membaca tasks.json"
+  ]
+ ]
+}

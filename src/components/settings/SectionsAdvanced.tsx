@@ -45,7 +45,7 @@ export function ShortcutsSection() {
       if (clash.length > 0) {
         const names = clash.map((id) => ACTION_BY_ID.get(id)?.label ?? id).join(', ');
         setConflict(`"${binding}" is already used: ${names} - pick another combination`);
-        return; // TIDAK disimpan
+        return; // NOT saved
       }
       void apply({ shortcuts: { ...custom, [capturing]: binding } });
       setCapturing(null);
@@ -180,7 +180,7 @@ export function ModelsSection() {
         />
       </Row>
 
-      {/* Multi bahasa: instruksi bahasa jawaban dikirim ke model tiap chat. */}
+      {/* Multi-language: the answer-language instruction is sent to the model on every chat. */}
       <Row label={tr('models.answerLang')} hint={tr('models.answerLangHint')}>
         <Select
           label={tr('models.answerLang')}
@@ -205,7 +205,7 @@ export function ModelsSection() {
         )}
       </Row>
 
-            {/* RAG lokal: cari konteks project sebelum kirim ke LLM. (fase 34) */}
+            {/* Local RAG: look up project context before sending to the LLM. (phase 34) */}
             <Row label="Local RAG" hint={tr('Use a RAG server (e.g. enowx-rag at localhost:7777) to find project context before answering. Off = plain chat.')}>
               <div className="prov-rag">
                 <Toggle
@@ -347,7 +347,7 @@ export function ModelsSection() {
                                                                                                                   })
                                                                                                                 }
                                                                                                               />
-                                                                                                              {/* Dropdown ▼: pilih model custom/lokal dari katalog + hasil Refresh */}
+                                                                                                              {/* ▼ dropdown: pick a custom/local model from the catalog + Refresh results */}
                                                                                                               <button
                                                                                                                 type="button"
                                                                                                                 className="btn btn-sm prov-drop-btn"
@@ -397,8 +397,8 @@ export function ModelsSection() {
                                                                                                                   )}
                                                                                                                 </div>
                                                                                                               )}
-                                                                                                              {/* Saran dari katalog provider ini + hasil Refresh (API);
-                                                                                                                  tetap bisa diketik bebas. */}
+                                                                                                              {/* Suggestions from this provider's catalog + Refresh results (API);
+                                                                                                                  can still be typed freely. */}
                                                                                                               <datalist id={`prov-models-${p.id}`}>
                                                                                                                 {[...p.models.map((m) => m.id), ...(remote[p.id] ?? [])]
                                                                                                                   .filter((id, i, a) => id && a.indexOf(id) === i)
@@ -728,7 +728,7 @@ function CustomSubagentsCard() {
             <span className="set-h2-sub">{tr('Sub-agent kustom')}</span>
             <span className="set-hint">
               {tr(
-                'Pekerja baca-saja buatanmu sendiri. AI bisa mendelegasikan ke yang aktif berdasarkan nama, di samping peran bawaan (Cari, Telaah, Rencana, Audit, Kerja, Jelajah).',
+                'Your own read-only worker. The AI can delegate to an active one by name, using the built-in roles (Search, Review, Plan, Audit, Work, Explore).',
               )}
             </span>
           </div>
@@ -743,7 +743,7 @@ function CustomSubagentsCard() {
 
         {daftar.length === 0 ? (
           <p className="subagent-kosong" data-testid="sub-custom-kosong">
-            {tr('Belum ada sub-agent kustom. Buat satu untuk memberi AI pekerja khusus.')}
+            {tr('No custom sub-agent yet. Create one to give the AI a dedicated worker.')}
           </p>
         ) : (
           <div data-testid="sub-custom-daftar">

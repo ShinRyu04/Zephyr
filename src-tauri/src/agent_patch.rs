@@ -101,7 +101,7 @@ pub fn file_patch(
     let _ = std::fs::remove_file(&tmp);
 
     Err(ZephyrError::InvalidInput(format!(
-        "patch tidak bisa diterapkan. Detail:\n{}",
+        "the patch could not be applied. Details:\n{}",
         res.conflict
     )))
 }

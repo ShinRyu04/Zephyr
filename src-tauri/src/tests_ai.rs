@@ -294,7 +294,7 @@ mod tests {
         assert_eq!(calls.len(), 1, "tool call XML harus dipulihkan");
         assert_eq!(calls[0].name, "file_list");
         assert_eq!(calls[0].args["path"], json!("."));
-        // Tag mentah tidak boleh ikut ke bubble/disk.
+        // Raw tags must not make it into the bubble/disk.
         assert!(!content.contains("DSML"));
         assert!(content.contains("Saya cek dulu."));
     }

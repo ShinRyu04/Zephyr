@@ -147,10 +147,10 @@ export default function MenuBar() {
 
     const def = it.command ? findCommand(it.command) : undefined;
 
-    // Menu selalu aktif: item hanya "nonaktif" kalau command-nya memang tidak
-    // terdaftar sama sekali (item mati). Gating konteks (enabled()) sengaja
-    // TIDAK dipakai di sini - kalau konteksnya belum ada, command-nya sendiri
-    // yang menangani (no-op / pesan lembut), bukan mengunci menunya.
+    // The menu is always active: an item is only "disabled" if its command really
+    // is registered at all (dead item). Context gating (enabled()) is deliberately
+    // is NOT used here - if the context does not exist yet, the command itself
+    // handles it (no-op / gentle message), rather than locking the menu.
     const adaCommand = !!def;
     const nonaktif = !!it.command && !adaCommand;
     const chord = it.command ? chordFor(it.command, bindings) : '';
@@ -220,23 +220,23 @@ export default function MenuBar() {
       role="menubar"
       data-tauri-drag-region
     >
-      {/* Revisi 1.1.10: logo Z di kiri menubar, sebelah "File". Title bar
-          native sudah dimatikan, jadi ini satu-satunya penanda identitas.
-          Pakai glyphOnly: logo ber-kotak di bar 28px hanya menghasilkan
-          huruf Z ~7px (padding kotak memakan ~50% area). Ukuran 13px dipilih
-          dari pengukuran VS Code di mesin ini: logonya 19px = 1.58x tinggi
-          teks menunya. Zephyr pakai ~1.4x (sedikit lebih kalem, karena huruf
-          Z lebih lebar daripada glyph pita VS Code). */}
+      {/* Revision 1.1.10: the Z logo on the left of the menubar, next to "File". The
+          native title bar is disabled, so this is the only identity marker.
+          Uses glyphOnly: a boxed logo in a 28px bar only yields a
+          Z letter ~7px (the box padding eats ~50% of the area). The 13px size was chosen
+          from measuring VS Code on this machine: its logo is 19px = 1.58x the height of
+          the menu text. Zephyr uses ~1.4x (a bit calmer, because the letter
+          Z is wider than VS Code's ribbon glyph). */}
       <div className="mb-brand" role="none" aria-hidden="true">
         <ZephyrLogo size={13} glyphOnly />
       </div>
       {MENUS.map((m, i) => {
         /*
-         * Label menu diterjemahkan saat render. Mnemonic (huruf bergaris
-         * bawah saat Alt ditekan) dihitung dari label TERJEMAHAN: huruf yang
-         * sama belum tentu ada di bahasa lain, jadi kalau tidak ketemu
-         * indeksnya -1 dan tidak ada huruf yang digarisbawahi - lebih baik
-         * daripada menandai huruf yang salah.
+         * Menu labels are translated at render time. The mnemonic (the letter
+         * underlined when Alt is held) is computed from the TRANSLATED
+         * label: the same letter is not necessarily present in another language, so
+         * if the index is not found it is -1 and no letter is underlined - better
+         * than marking the wrong letter.
          */
         const labelMenu = lbl(m.label);
         const mnemonicIdx = labelMenu.toLowerCase().indexOf(m.mnemonic);
@@ -287,8 +287,8 @@ export default function MenuBar() {
         );
       })}
 
-      {/* Command center ala VS Code: kotak di baris menu sejajar
-          File/Edit/dll. Klik = buka Command Palette (mode command). */}
+      {/* VS Code-style command center: a box on the menu row, in line with
+          File/Edit/etc. Click = open the Command Palette (command mode). */}
       <div className="mb-cc-wrap" role="none">
         <button
           className="mb-cc"
@@ -310,9 +310,9 @@ export default function MenuBar() {
         </button>
       </div>
 
-      {/* Layout panel - 4 tombol posisi SELALU TERLIHAT di kanan atas menu
-          bar (bukan popover): klik langsung pindah, tanpa buka menu dulu.
-          Posisi aktif ditandai; tombol mata di ujung = sembunyikan panel. */}
+      {/* Panel layout - the 4 position buttons are ALWAYS VISIBLE at the top right of
+          the menu bar (not a popover): a click switches directly, without opening a menu first.
+          The active position is marked; the eye button at the end = hide the panel. */}
       <div className="mb-layout" role="radiogroup" aria-label={tr('Panel position')}>
         {POSISI_PANEL.map((p) => (
           <button
@@ -330,7 +330,7 @@ export default function MenuBar() {
             }}
           >
             <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
-              {/* ikon layout: panel kiri/kanan/atas/bawah di sekitar editor */}
+              {/* layout icon: left/right/top/bottom panel around the editor */}
               <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
               {p.id === 'left' && <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />}
               {p.id === 'right' && <path d="M10.2 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />}
@@ -340,9 +340,9 @@ export default function MenuBar() {
           </button>
         ))}
         <div className="mb-layout-sep" role="separator" />
-        {/* Customize Layout (ala VS Code): satu panel untuk SEMUA kontrol
-            tata letak. Tanpa ini, user harus tahu bahwa "sembunyikan status
-            bar" ada di command palette dan "zen mode" di menu View. */}
+        {/* Customize Layout (VS Code style): one panel for ALL layout
+            controls. Without this, the user has to know that "hide status
+            bar" is in the command palette and "zen mode" is in the View menu. */}
         <Tip label={tr('Customize Layout…')}>
           <button
             className={`mb-layout-btn${layoutBuka ? ' is-aktif' : ''}`}
@@ -355,7 +355,7 @@ export default function MenuBar() {
             }}
           >
             <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
-              {/* ikon tata letak: dua kolom dengan pembagi */}
+              {/* layout icon: two columns with a divider */}
               <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
               <path d="M6.4 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
               <path d="M9.6 6.2h3.4M9.6 9.4h3.4" stroke="currentColor" strokeWidth="1.1" />
@@ -392,7 +392,7 @@ export default function MenuBar() {
         </Tip>
       </div>
 
-      {/* C-18: tombol window sendiri (title bar Windows dihapus). */}
+      {/* C-18: our own window buttons (the Windows title bar was removed). */}
       <WindowControls />
     </div>
   );

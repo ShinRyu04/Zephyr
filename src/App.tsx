@@ -156,7 +156,7 @@ async function cekUpdateStartup() {
     const u = useUpdater.getState();
     if (u.status === 'idle') await u.check({ senyap: true });
   } catch {
-    /* diam */
+    /* silent */
   }
 }
 
@@ -613,7 +613,7 @@ export default function App() {
         un = u;
       })
       .catch(() => {
-        /* mode browser tanpa Tauri - biarkan */
+        /* browser mode without Tauri - leave it */
       });
 
     const timer = window.setInterval(() => {
@@ -647,7 +647,7 @@ export default function App() {
           unlisten = un;
         })
         .catch(() => {
-          /* di luar Tauri (browser dev) event ini tidak ada */
+          /* outside Tauri (browser dev) this event does not exist */
         });
     } catch {
       /* non-Tauri */
@@ -931,9 +931,9 @@ export default function App() {
   return (
     <div className="app-root">
       {/* FASE 31: skip link - elemen fokusabel PERTAMA di app.
-          Tanpa ini pengguna keyboard harus melewati ~20 tombol ActivityBar +
-          Sidebar sebelum sampai ke editor, setiap kali. Dibuat <button> bukan
-          <a href="#..."> karena editor bukan anchor target dan CodeMirror
+          Without it a keyboard user has to tab past ~20 ActivityBar buttons + the
+          Sidebar before reaching the editor, every single time. It is a <button> and not
+          an <a href="#..."> because the editor is not an anchor target and CodeMirror
           butuh .focus() nyata, bukan perpindahan hash. */}
       <button
         className="a11y-skip"
@@ -957,10 +957,10 @@ export default function App() {
       </Suspense>
       <div className={`app-body sidebar-pos-${pos}${zen ? ' is-zen' : ''}${L.kerapatan === 'compact' ? ' is-compact' : ''}`}>
         {/* ActivityBar IKUT PINDAH mengikuti posisi panel:
-            - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)
-            - atas/bawah : horizontal di tepi atas/bawah (CSS)
-            Urutan DOM dibuat tetap [ActivityBar, sidebar?, main, …] supaya
-            flex-direction row-reverse/column dari sidebar-pos-* bekerja. */}
+            - left/right : vertical on the panel side (right = flipped by CSS)
+            - top/bottom : horizontal on the top/bottom edge (CSS)
+            The DOM order is kept fixed as [ActivityBar, sidebar?, main, …] so that
+            flex-direction row-reverse/column from sidebar-pos-* works. */}
         <div className="app-body-col">
           {pos !== 'bottom' && L.activityBar && <ActivityBar />}
 
@@ -985,8 +985,8 @@ export default function App() {
           )}
 
           {/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal.
-              Dev Environment, API Client dan SFTP memakai lebar penuh, jadi
-              sidebar-nya (yang isinya null untuk activity itu) tidak perlu
+              Dev Environment, API Client and SFTP use the full width, so their
+              sidebar (whose contents are null for those activities) does not need
               mengambil ruang sama sekali. */}
           {(pos === 'left' || pos === 'right') &&
             sidebarVisible &&
@@ -1008,8 +1008,8 @@ export default function App() {
 
           <main className={`main-area${terminalMaximized ? ' term-maximized' : ''}`}>
             {/* C-19: layout terminal-first ala Terax - terminal jadi area
-                utama, editor menempel sebagai pane di kanan. Default tetap
-                editor-first supaya perilaku lama tidak berubah. */}
+                area, the editor sticks as a pane on the right. The default stays
+                editor-first so the old behaviour does not change. */}
             {layoutTerminal ? (
               <div className="term-first" data-testid="term-first">
                 <section className="term-first-term" aria-label="Main terminal">
@@ -1028,10 +1028,10 @@ export default function App() {
           </main>
 
           {/* A-10: panel AI sebagai kolom kanan 340px ala VS Code, bukan dock
-              bawah sejajar terminal. Dirender HANYA saat dock = 'ai' supaya
-              lebar editor tidak berkurang saat user sedang di terminal. */}
+              dock level with the terminal. Rendered ONLY when dock = 'ai' so the
+              editor width does not shrink while the user is in the terminal. */}
           {/* AI column resizer: draggable like the sidebar. Previously the width
-              340px MATI - user minta "bisa di lebarkan". */}
+              340px WAS FIXED - the user asked for "bisa di lebarkan" (make it wider). */}
           {aiKanan && !aiMax && (
             <div
               className="resizer"
@@ -1059,14 +1059,14 @@ export default function App() {
               }
               aria-label={tx('AI panel')}
             >
-              {/* Baris: chat di kiri, panel info subagent di kanan. Wrapper ini
-                  WAJIB - tanpa-nya .ai-side-col (flex column) menaruh panel
+              {/* The row: chat on the left, the subagent info panel on the right. This wrapper is
+                  MANDATORY - without it .ai-side-col (flex column) puts the info
                   info di BAWAH chat, bukan di sampingnya. */}
               <div className="ai-side-row">
                 <AiPanel />
                 {/* T4.1b: panel INFO subagent di sebelah kanan chat. Ditaruh
-                    di dalam kolom AI supaya hanya muncul saat chat memang
-                    sedang tampil - kalau tidak, ia menggantung tanpa konteks. */}
+                    inside the AI column so it only appears when the chat is
+                    actually showing - otherwise it hangs there with no context. */}
                 {subKanan && <SubAgentInfo />}
               </div>
             </aside>
@@ -1099,8 +1099,8 @@ export default function App() {
       {L.statusBar && <StatusBar />}
 
       {/* Panel Customize Layout dirender di SINI (bukan di dalam MenuBar).
-          Kalau di dalam MenuBar, mematikan Menu Bar akan menghilangkan
-          satu-satunya tombol untuk menyalakannya kembali. */}
+          If it were inside the MenuBar, turning the Menu Bar off would remove
+          the only button available to turn it back on. */}
       {L.menuBuka && <LayoutMenu onTutup={() => L.setMenuBuka(false)} />}
       <Suspense fallback={null}>
         <ConfirmDialog />
@@ -1116,15 +1116,15 @@ export default function App() {
         <DeleteConfirmDialog />
         <ClearChatsDialog />
         <TrustDialog />
-        {/* Izin runtime eksternal ekstensi - global, bisa muncul kapan
-            saja karena eksekusi bisa diminta dari worker mana pun. */}
+        {/* Extension external-runtime permissions - global, they can appear at any
+            time because execution can be requested from any worker. */}
         <ExtApprovalModal />
         <KeybindingsEditor />
         <LspOverlay />
       </Suspense>
       <Toast />
-      {/* fase 31: live region a11y. Dirender TERAKHIR supaya tidak menyisip
-          di antara landmark dan tidak mengganggu urutan Tab (ia tak fokusabel). */}
+      {/* phase 31: the a11y live region. Rendered LAST so it does not slip in
+          between landmarks and does not disturb the Tab order (it is not focusable). */}
       <LiveRegion />
     </div>
   );

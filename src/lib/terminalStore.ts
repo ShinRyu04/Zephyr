@@ -161,7 +161,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
           try {
             await cmd.ptyKill(p.id);
           } catch {
-            /* mungkin sudah mati */
+            /* may already be dead */
           }
           disposeHandle(p.id);
         }
@@ -244,7 +244,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       const agentId = opts?.agentId;
       const info = get().agents.find((a) => a.id === agentId);
       if (!agentId || !info) {
-        set({ terminalError: `agent ${agentId ?? '?'} tidak terdeteksi`, agentPickerOpen: false });
+        set({ terminalError: `agent ${agentId ?? '?'} not detected`, agentPickerOpen: false });
         return null;
       }
       const st = useStore.getState().settings.agents;
@@ -343,7 +343,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
         }
         await cmd.ptyKill(paneId);
       } catch {
-        /* mungkin sudah mati — lanjut tutup pane */
+        /* may already be dead — carry on closing the pane */
       }
       
       disposeHandle(paneId);

@@ -188,7 +188,7 @@ export default function SettingsNav() {
       await cmd.resetSettings();
       await reloadSettings();
       setResetStage(0);
-      setMessage('Semua setting dikembalikan ke default (API key TIDAK dihapus)');
+      setMessage('Every setting is back to default (API keys are NOT removed)');
     } catch (e) {
       setMessage(cmd.asZephyrError(e).message);
     }

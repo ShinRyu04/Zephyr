@@ -155,7 +155,7 @@ pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
             invalid.push(InvalidEntry {
                 index: i,
                 name: nama,
-                reason: "field \"name\" wajib".into(),
+                reason: "field \"name\" is required".into(),
             });
             continue;
         }
@@ -169,7 +169,7 @@ pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
             invalid.push(InvalidEntry {
                 index: i,
                 name: nama,
-                reason: "field \"type\" wajib (mis. \"node\", \"python\")".into(),
+                reason: "field \"type\" is required (e.g. \"node\", \"python\")".into(),
             });
             continue;
         }
@@ -233,7 +233,7 @@ fn spec_node(state: &AppState) -> AdapterSpec {
             String::new()
         } else {
             format!(
-                "Adapter Node (js-debug) belum ada di {}. Jalankan: node scripts/unduh-dap.mjs",
+                "The Node adapter (js-debug) is not present at {}. Run: node scripts/unduh-dap.mjs",
                 entry.display()
             )
         },
@@ -266,11 +266,11 @@ fn spec_python(state: &AppState) -> AdapterSpec {
         tcp: false,
         missing: match (py.is_some(), ada_debugpy) {
             (false, _) => {
-                "Python tidak ditemukan di PATH. Install Python lalu: pip install debugpy"
+                "Python not found on PATH. Install Python then: pip install debugpy"
                     .to_string()
             }
             (true, false) => {
-                format!("Paket debugpy is not installed yet. Jalankan: {exe} -m pip install debugpy")
+                format!("The debugpy package is not installed yet. Run: {exe} -m pip install debugpy")
             }
             (true, true) => String::new(),
         },
@@ -435,7 +435,7 @@ fn sesi_aktif(_rt: &DapRuntime) -> ZResult<Arc<Sesi>> {
         .lock()
         .map_err(|_| ZephyrError::Internal("runtime dap terkunci".into()))?
         .clone()
-        .ok_or_else(|| ZephyrError::NotFound("is missing sesi debug aktif".into()))
+        .ok_or_else(|| ZephyrError::NotFound("no active debug session".into()))
 }
 
 fn request(sesi: &Arc<Sesi>, command: &str, args: Value) -> ZResult<Value> {
@@ -725,7 +725,7 @@ pub fn dap_start(
 
     if !cwd.is_dir() {
         return Err(ZephyrError::InvalidInput(format!(
-            "cwd \"{}\" bukan folder yang ada",
+            "cwd \"{}\" is not an existing folder",
             cwd.display()
         )));
     }
@@ -746,7 +746,7 @@ pub fn dap_start(
         .stderr(std::process::Stdio::piped());
     let mut child = cmd.spawn().map_err(|e| {
         ZephyrError::Io(format!(
-            "failed menjalankan adapter {}: {e}",
+            "failed to start adapter {}: {e}",
             cmd_vec.join(" ")
         ))
     })?;
@@ -783,7 +783,7 @@ pub fn dap_start(
             let s = sock.ok_or_else(|| {
                 let _ = child.kill();
                 ZephyrError::Io(format!(
-                    "adapter tidak mendengar di port {p} setelah {}s",
+                    "adapter not listening on port {p} after {}s",
                     TCP_TUNGGU.as_secs()
                 ))
             })?;
@@ -859,7 +859,7 @@ pub fn dap_start(
     while !sesi.siap.load(Ordering::SeqCst) && std::time::Instant::now() < batas {
         if sesi.berakhir.load(Ordering::SeqCst) {
             return Err(ZephyrError::Internal(
-                "adapter berakhir sebelum initialized".into(),
+                "adapter exited before initialized".into(),
             ));
         }
         std::thread::sleep(std::time::Duration::from_millis(30));
@@ -1114,7 +1114,7 @@ pub fn dap_set_variable(
         .unwrap_or(false);
     if !dukung {
         return Err(ZephyrError::InvalidInput(
-            "adapter ini tidak mendukung Set Value".into(),
+            "this adapter does not support Set Value".into(),
         ));
     }
     request(
@@ -1288,7 +1288,7 @@ mod tests {
         assert!(p > 1024);
 
         let l = std::net::TcpListener::bind(("127.0.0.1", p));
-        assert!(l.is_ok(), "port {p} hasil port_bebas tidak bisa dibind");
+        assert!(l.is_ok(), "port {p} chosen by port_bebas could not be bound");
     }
 
     #[test]

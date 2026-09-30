@@ -14,10 +14,10 @@ export default function Sidebar() {
   const activity = useStore((s) => s.activity);
 
   /*
-   * Dev Environment, API Client dan SFTP memakai lebar penuh: isinya sudah
-   * punya tata letak sendiri (kartu, kolom ganda) dan tidak punya daftar
-   * yang cocok untuk sidebar. Sebelumnya ketiganya jatuh ke `default` yang
-   * mengembalikan null, jadi sisi kiri tampak kosong selebar sidebar.
+   * Dev Environment, API Client and SFTP use the full width: their content already
+   * has its own layout (cards, double columns) and has no list
+   * suitable for a sidebar. Previously all three fell through to `default`, which
+   * returned null, so the left side looked empty across the whole sidebar width.
    */
   if (
     activity === 'tools' ||

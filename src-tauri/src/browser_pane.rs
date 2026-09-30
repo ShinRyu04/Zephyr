@@ -1,8 +1,8 @@
-// browser_pane.rs — child webview asli untuk panel browser.
+// browser_pane.rs — a real child webview for the browser panel.
 //
-// KENAPA bukan iframe lagi: isi <iframe> tidak bisa dibaca dari luar (aturan
-// same-origin browser), jadi agent tidak bisa melihat halaman maupun
-// mengkliknya. Webview2 anak milik proses kita sendiri, sehingga eval() bisa
+// WHY not an iframe any more: the contents of an <iframe> cannot be read from outside (the
+// browser same-origin rule), so the agent can neither see the page nor
+// click it. A child Webview2 belongs to our own process, so eval() can
 // read the DOM and run clicks inside it.
 //
 // The remaining limit: a page that sends X-Frame-Options cannot be
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl};
 
-/// Label webview anak yang sedang hidup, dipetakan dari id pane.
+/// Labels of the live child webviews, mapped from the pane id.
 static PANES: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
 
 fn label_untuk(pane_id: &str) -> String {
@@ -34,7 +34,7 @@ pub struct PaneInfo {
     pub title: String,
 }
 
-/// Bikin webview anak untuk satu pane browser.
+/// Create a child webview for one browser pane.
 #[tauri::command(async)]
 pub fn browser_pane_open(
     app: AppHandle,
@@ -103,7 +103,7 @@ pub fn browser_pane_open(
     })
 }
 
-/// Geser/ukur webview anak mengikuti tata letak pane.
+/// Move/resize the child webview to follow the pane layout.
 #[tauri::command(async)]
 pub fn browser_pane_bounds(
     app: AppHandle,
@@ -125,7 +125,7 @@ pub fn browser_pane_bounds(
     Ok(true)
 }
 
-/// Tampilkan / sembunyikan tanpa membuang halaman yang sudah dimuat.
+/// Show / hide without discarding the already loaded page.
 #[tauri::command(async)]
 pub fn browser_pane_visible(app: AppHandle, pane_id: String, visible: bool) -> ZResult<bool> {
     let label = label_untuk(&pane_id);
@@ -137,7 +137,7 @@ pub fn browser_pane_visible(app: AppHandle, pane_id: String, visible: bool) -> Z
     Ok(true)
 }
 
-/// Tutup webview anak (dipanggil saat pane ditutup).
+/// Close the child webview (called when the pane is closed).
 #[tauri::command(async)]
 pub fn browser_pane_close(app: AppHandle, pane_id: String) -> ZResult<bool> {
     let label = label_untuk(&pane_id);
@@ -151,7 +151,7 @@ pub fn browser_pane_close(app: AppHandle, pane_id: String) -> ZResult<bool> {
     Ok(ada)
 }
 
-/// Navigasi: url baru, atau perintah 'back' / 'forward' / 'reload'.
+/// Navigation: a new url, or the 'back' / 'forward' / 'reload' command.
 #[tauri::command(async)]
 pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResult<String> {
     let label = label_untuk(&pane_id);
@@ -240,7 +240,7 @@ pub fn browser_pane_eval(app: AppHandle, pane_id: String, js: String) -> ZResult
     }
 }
 
-/// Info halaman: URL dan judul saat ini.
+/// Page info: the current URL and title.
 #[tauri::command(async)]
 pub fn browser_pane_info(app: AppHandle, pane_id: String) -> ZResult<PaneInfo> {
     let label = label_untuk(&pane_id);

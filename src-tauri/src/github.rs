@@ -312,7 +312,7 @@ pub struct DeviceLogin {
 pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<DeviceLogin> {
     let cid = client_id(&state).ok_or_else(|| {
         ZephyrError::Git(
-            "OAuth belum dikonfigurasi — isi Client ID (GitHub OAuth App dengan Device Flow aktif)"
+            "OAuth is not configured yet — fill in the Client ID (a GitHub OAuth App with Device Flow enabled)"
                 .into(),
         )
     })?;

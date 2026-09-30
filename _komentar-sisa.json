@@ -1,0 +1,238 @@
+[
+ {
+  "file": "D:/Zephyr/src/lib/extRunner.ts",
+  "blok": "/*\n * Ubah nilai apa pun menjadi teks yang bisa ditampilkan.\n *\n * Ekstensi bisa memanggil notify() tanpa argumen, atau melempar null /\n * undefined. String(null) menghasilkan teks \"null\" yang bocor ke notifikasi\n * pengguna, jadi nilainya diperiksa dulu dan diganti keterangan yang jelas.\n */"
+ },
+ {
+  "file": "D:/Zephyr/src/main.tsx",
+  "blok": "/*\n * Sembunyikan splash boot (lihat index.html) setelah React benar-benar\n * menaruh isi di #root — bukan sekadar setelah render() dipanggil, karena\n * komit React berjalan asinkron. Observer dipasang SEBELUM render supaya\n * tidak melewatkan mutasi pertama.\n */"
+ },
+ {
+  "file": "D:/Zephyr/src/main.tsx",
+  "blok": "// Jaring pengaman: kalau React gagal mount, splash tidak menutup selamanya."
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* a11y.css — tema high-contrast + focus ring + reduced motion (fase 31).\n\n   ══════════════════ KEPUTUSAN ══════════════════\n\n   1. High contrast = TEMA BIASA, bukan mode terpisah.\n      Ia hidup di `[data-theme='high-contrast']` sama seperti 6 tema lain,\n      jadi seluruh mesin tema (applyTheme, kartu Settings, retheme xterm,\n      Compartment CodeMirror) bekerja tanpa perubahan. Membuatnya sebagai\n      \"mode\" berarti setiap tempat yang membaca tema harus diajari kasus\n      kedua — dan salah satu pasti lupa.\n\n   2. Fokus TIDAK boleh hanya bergantung warna aksen.\n      Ring memakai dua lapis (outline + box-shadow kontras) supaya terlihat\n      di atas latar apa pun, termasuk tombol beraksen sendiri.\n\n   3. `prefers-reduced-motion` dimatikan lewat SATU blok di sini, bukan\n      ditambal per file. Ada 6 file CSS yang punya transition/animation;\n      menyisipkan guard di masing-masing membuat file berikutnya lupa. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* ═════════════ 1. Tema high contrast ═════════════\n\n   Basis: hitam murni + putih murni. Semua pasangan teks/latar >= 7:1 (AAA),\n   border >= 4.5:1 supaya batas komponen terlihat tanpa mengandalkan warna. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* syntax — hue dijaga berbeda supaya tidak hanya beda kecerahan */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* Terminal: ANSI 0 di tema gelap dipakai sebagai PERMUKAAN, dan di high\n   contrast permukaannya hitam murni — teks hitam terminal akan hilang.\n   Override ini pelajaran fase 13 yang berlaku sama di sini. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* High contrast menegaskan BATAS: setiap permukaan yang bisa diklik\n   mendapat border nyata, bukan hanya perbedaan latar 5%. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* ═════════════ 2. Focus ring konsisten ═════════════\n\n   `:focus-visible` (bukan `:focus`) supaya klik mouse tidak memunculkan ring,\n   tapi navigasi keyboard selalu memunculkannya. Dua lapis: outline aksen +\n   shadow gelap/terang di luarnya, jadi tetap terlihat di atas latar aksen. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* Radius mengikuti elemen supaya ring tidak memotong sudut. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* Elemen yang sengaja menyembunyikan outline (input pencarian dsb) tetap\n   WAJIB punya penanda fokus. `outline: none` tanpa pengganti = pelanggaran\n   WCAG 2.4.7, dan di audit fase ini ada 12 tempat seperti itu. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* Kelas bantu untuk elemen non-native yang ikut menerima fokus\n   (baris tree, item palette) — mereka tidak cocok dengan selector :where\n   di atas karena sudah punya outline sendiri dari fase sebelumnya. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* Spinner yang animasinya dimatikan jadi statis dan tampak \"menggantung\".\n   Diberi penanda titik supaya tetap jelas ada proses berjalan. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* B-13: jendela minimized / tidak fokus. Sama seperti reduced-motion —\n   Chromium tetap menyusun frame walau jendela tak terlihat, jadi animasi\n   yang jalan diam-diam itu biaya GPU murni. `visibilitychange` +\n   `onFocusChanged` menyetel atribut ini dari App.tsx. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* ═════════════ 4. Live region ═════════════\n\n   Wadah pengumuman screen reader. Tidak boleh `display: none` —\n   screen reader mengabaikan node yang tidak dirender. Pola ini yang dipakai\n   CodeMirror sendiri untuk `.cm-announced`. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* ═════════════ 5. Skip link ═════════════\n\n   Tab pertama di app harus bisa melompati ActivityBar/Sidebar langsung ke\n   editor. Tanpa ini pengguna keyboard melewati ~20 tombol tiap kali. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/a11y.css",
+  "blok": "/* ═════════════ 6. Screen reader mode ═════════════\n\n   Saat aktif, elemen yang murni dekoratif disembunyikan dari pohon\n   aksesibilitas lewat atribut (dikerjakan komponen), dan indikator berbasis\n   WARNA SAJA diberi teks pendamping — WCAG 1.4.1 \"use of color\". */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/debug.css",
+  "blok": "/* debug.css — Run & Debug (fase 22).\n *\n * Semua warna dari CSS variable (AGENTS.md §4). Tidak ada hex hardcoded:\n * tema terang/gelap dan tema dari ekstensi harus ikut berubah tanpa menyentuh\n * file ini.\n */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/debug.css",
+  "blok": "/* ── section yang bisa dilipat ── */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/debug.css",
+  "blok": "/* Lingkaran kosong = belum diverifikasi adapter; penuh = sudah. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/debug.css",
+  "blok": "/* Area klik terlihat saat hover, supaya user tahu gutter ini bisa diklik. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* editor-extras.css — breadcrumbs, minimap, sticky scroll, indent guides,\n   bracket colors, color swatch, unicode highlight (fase 24).\n\n   Semua warna dari CSS variable (AGENTS.md §4). Tidak ada hex hardcoded. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Semua dropdown toolbar terminal dirender ke <body> lewat portal supaya tidak\n   dipotong rantai `overflow: hidden` panel bawah. Posisi diatur inline oleh\n   komponen Popover; di sini hanya kerangka + urutan tumpukan.\n   400 = di atas panel (40–140) tapi di bawah command palette (400+). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Popover memakai kelas isi yang sama seperti sebelumnya (.tt-dropdown), jadi\n   properti posisi absolut lamanya harus dinetralkan di dalam portal. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Kolom tab hanya dirender saat tab terminal >= 2 (lihat TerminalSideTabs),\n   jadi dengan satu terminal tidak ada ruang yang terpakai sama sekali. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* CodeMirror menandai semua hasil dengan .cm-searchMatch tapi warnanya samar;\n   saat \"sorot semua\" aktif, dinaikkan supaya benar-benar terlihat. Kelas ada\n   di <body> karena FindBar hidup di luar pohon .cm-editor. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Revisi 1.1.10: logo di kiri menubar. Menubar sendiri adalah drag region,\n   jadi logo sengaja tidak ikut menyerap klik.\n\n   Lebar brand = lebar Activity Bar (--activitybar-w), dan logo di-center di\n   kolom itu. Efeknya dua-duanya rata dengan kolom di bawahnya, sama seperti\n   VS Code: di sana logo (x 19..38) juga duduk di kolom Activity Bar\n   (x 0..48), dan teks menu dimulai setelah kolom itu berakhir.\n   Jangan tambah padding di sini — padding menggeser titik center logo dan\n   membuatnya tidak lagi sejajar dengan ikon Activity Bar. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Menggunakan kerangka .tt-dropdown/.tt-drop-item yang sudah ada supaya\n   bentuknya identik dengan dropdown lain; di sini hanya baris identitas\n   akun yang belum punya padanannya. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* pointer-events: none supaya baris ini jelas-jelas label, bukan tombol\n     yang bisa diklik (klik di sini tidak melakukan apa pun). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Titik hijau kecil = layanan hidup. Tanpa ini user harus membuka kolom\n   ketiga untuk tahu mana yang jalan. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* ── T3.4: Zen mode ─────────────────────────────────────────────────────\n   Menyembunyikan Activity Bar, sidebar, panel bawah, dan status bar —\n   hanya editor yang tersisa. `display:none` (bukan width:0) supaya tidak\n   ada sisa fokus keyboard di elemen yang tak terlihat. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Indikator kecil supaya user tahu zen sedang aktif dan bisa keluar\n   (Esc). Tanpa penanda, user bisa bingung \"kenapa UI-nya hilang\". */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/editor-extras.css",
+  "blok": "/* Posisi TIDAK bergantung pada MenuBar: kalau Menu Bar dimatikan, panel ini\n     tetap harus muncul di tempat yang masuk akal. `top: 8px` dipakai saat\n     Menu Bar tidak ada (lihat .tanpa-menubar di bawah). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/extensions.css",
+  "blok": "/* extensions.css — panel Extensions di sidebar kiri (fase 19).\n   Gaya baris: LIST RINGKAS ala VS Code (fase 32) — bukan kartu besar.\n   Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/extensions.css",
+  "blok": "/* Menu aksi (…): Install from Folder / .vsix / Reload — dipindah ke sini\n   supaya tidak makan satu baris penuh (sebelumnya 3 tombol berjajar). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/history.css",
+  "blok": "/* history.css — Timeline / Local History (fase 26).\n *\n * Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded.\n * Timeline duduk di bawah file tree dan TIDAK boleh mendorong tree keluar:\n * karena itu `flex: 0 0 auto` dengan tinggi maksimum, bukan flex tumbuh.\n */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/history.css",
+  "blok": "/* FASE 31: `--fg2` (= --text-muted) hanya 3.97:1 di atas --bg3, dan badge ini\n     9px bold — teks kecil justru butuh kontras lebih, bukan kurang. Dipakai\n     --text-secondary yang 5.6:1 di atas surface-3 di semua tema.\n     (Ditemukan axe-core: color-contrast serious x14, satu per baris commit.) */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/lsp.css",
+  "blok": "/* lsp.css — squiggle, hover tooltip, dan overlay LSP (fase 21).\n   Warna dari token src/styles/theme.css & tokens.css (AGENTS.md §4). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/lsp.css",
+  "blok": "/* Garis bergelombang dibuat dari gradien berulang, bukan gambar —\n     tetap tajam di semua DPI dan ikut warna token tema. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/lsp.css",
+  "blok": "/* Popup completion CodeMirror ikut tema Zephyr. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/lsp.css",
+  "blok": "/* Tombol \"salin\" kecil per baris server yang belum terpasang. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/lsp.css",
+  "blok": "/* Ringkasan \"N belum terpasang\" + tombol salin semua (pengganti teks\n   panjang berjajar perintah install mentah). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/palette.css",
+  "blok": "/* palette.css — Command Palette & Quick Open (fase 12).\n   Warna WAJIB dari CSS variables (AGENTS.md §4). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/palette.css",
+  "blok": "/* Tombol Split With Browser di toolbar = IKON SAJA (seperti tombol lain).\n   Label teksnya pernah ada di sini dan menutupi tombol \"+ Agent\" di\n   sebelahnya — toolbar terminal sempit, jadi teks tidak boleh ikut. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* panel.css — panel bawah fase 20 (Problems · Output · Debug Console ·\n   Terminal · Ports) + ringkasan diagnostik di status bar & gutter editor.\n\n   SEMUA warna dari token src/styles/theme.css & tokens.css (AGENTS.md §4).\n   Tidak ada hex hardcoded kecuali dua token kontras teks pada badge. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* Scrollbar yang selalu terlihat saat overflow -- scrollbar auto-hide\n     adalah alasan tab DEVENV/DB/SFTP tidak pernah ditemukan user. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* WebView2/Chromium: scrollbar tipis yang tidak memakan tinggi baris tab. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* Gradien tepi kanan: isyarat \"masih ada tab di luar layar\".\n   Dipasang di container, bukan di .pts-tabs (yang ikut scroll). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* Posisi diatur inline oleh Popover (portal ke <body>) — dulu absolut di\n     dalam .pts-ops dan ikut terpotong `overflow: hidden` panel. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* ── T4.1: tab SUBAGENTS ────────────────────────────────────────────────\n   Subagent dapat tab sendiri supaya panel AI tidak menumpuk. Di sini ada\n   ruang lebar, jadi kartunya grid 3-4 kolom (di panel AI dulu hanya 2). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/panel.css",
+  "blok": "/* Pemilih model subagent di kepala tab Subagents. Dibatasi lebarnya supaya\n   nama model panjang tidak mendorong tombol Hentikan/Bersihkan keluar layar. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/scm.css",
+  "blok": "/* scm.css — Source Control (fase 10): panel sidebar, diff viewer, badge\n   status bar. Semua warna dari CSS variables di theme.css (aturan §4:\n   dilarang hex hardcoded di komponen). */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/split-editor.css",
+  "blok": "/* Group kanan tidak perlu garis tepi ganda. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/split-editor.css",
+  "blok": "/* Tab bar di dalam group tetap mengambil gaya yang sama; yang beda hanya\n   batas bawahnya menyatu dengan host editor. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/subagent-custom.css",
+  "blok": "/* Ikon worker di baris daftar.\n\n   Kotaknya sengaja seukuran ikon peran supaya baris \"Ryuga\" di sini dan baris\n   sub-agent-nya di panel AI terbaca sebagai hal yang sama — sebelumnya baris\n   ini cuma nama, jadi ikon yang dipilih di editor seperti hilang begitu dialog\n   ditutup. `--accent` menandai bahwa ini worker bikinan user sendiri. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/theme-light.css",
+  "blok": "/* theme-light.css — Zephyr Light (fase 13 memisahkannya dari theme.css).\n   Palet tetap satu keluarga token dengan tema gelap; yang berbeda hanya\n   nilainya. Semua token WAJIB lengkap — token yang hilang jatuh ke :root\n   (zephyr-dark) dan hasilnya teks gelap di atas latar gelap. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/themes-extra.css",
+  "blok": "/* themes-extra.css — tema komunitas (fase 13 memisahkannya dari theme.css).\n   nord · tokyo-night · gruvbox-dark · one-dark\n   Setiap blok WAJIB memuat set token yang sama dengan :root di theme.css. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/workspace.css",
+  "blok": "/* workspace.css — multi-root Explorer, Restricted banner, dialog Trust (fase 29).\n   Semua warna dari CSS variable (AGENTS.md §4) — nol hex hardcoded. */"
+ },
+ {
+  "file": "D:/Zephyr/src/styles/workspace.css",
+  "blok": "/* Root aktif ditandai garis aksen di kiri, bukan warna latar penuh:\n     latar penuh membuat dua root terlihat seperti dua panel berbeda. */"
+ }
+]

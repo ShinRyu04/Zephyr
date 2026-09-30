@@ -1,5 +1,5 @@
-/* workspace.css — multi-root Explorer, Restricted banner, dialog Trust (fase 29).
-   Semua warna dari CSS variable (AGENTS.md §4) — nol hex hardcoded. */
+/* workspace.css — multi-root Explorer, Restricted banner, Trust dialog (phase 29).
+   All colours come from CSS variables (AGENTS.md section 4) - zero hardcoded hex. */
 
 /* ── daftar root di Explorer ── */
 
@@ -30,8 +30,8 @@
 }
 
 .root-section.is-active .rs-head {
-  /* Root aktif ditandai garis aksen di kiri, bukan warna latar penuh:
-     latar penuh membuat dua root terlihat seperti dua panel berbeda. */
+  /* The active root is marked with an accent line on the left, not a full
+     background fill: a full fill makes two roots look like two different panels. */
   box-shadow: inset 2px 0 0 var(--accent);
 }
 

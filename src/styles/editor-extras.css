@@ -1,7 +1,7 @@
 /* editor-extras.css — breadcrumbs, minimap, sticky scroll, indent guides,
-   bracket colors, color swatch, unicode highlight (fase 24).
+   bracket colors, color swatch, unicode highlight (phase 24).
 
-   Semua warna dari CSS variable (AGENTS.md §4). Tidak ada hex hardcoded. */
+   All colours come from CSS variables (AGENTS.md section 4). No hardcoded hex. */
 
 /* ═════════ Kerangka: breadcrumbs di atas, minimap di kanan ═════════ */
 
@@ -375,10 +375,10 @@
 
 /* ═════════ Popover portal (fase 24.1) ═════════ */
 
-/* Semua dropdown toolbar terminal dirender ke <body> lewat portal supaya tidak
-   dipotong rantai `overflow: hidden` panel bawah. Posisi diatur inline oleh
-   komponen Popover; di sini hanya kerangka + urutan tumpukan.
-   400 = di atas panel (40–140) tapi di bawah command palette (400+). */
+/* Every terminal-toolbar dropdown renders into <body> through a portal so the
+   bottom panel's `overflow: hidden` chain cannot clip it. Position is set
+   inline by the Popover component; only the frame and stacking order live here.
+   400 = above the panel (40-140) but below the command palette (400+). */
 .zpop {
   position: fixed;
   z-index: 360;
@@ -389,8 +389,8 @@
   overflow-y: auto;
 }
 
-/* Popover memakai kelas isi yang sama seperti sebelumnya (.tt-dropdown), jadi
-   properti posisi absolut lamanya harus dinetralkan di dalam portal. */
+/* The popover reuses the same inner classes as before (.tt-dropdown), so their
+   old absolute positioning has to be neutralised inside the portal. */
 .zpop.tt-dropdown {
   position: fixed;
   bottom: auto;
@@ -419,8 +419,8 @@
   min-width: 0;
 }
 
-/* Kolom tab hanya dirender saat tab terminal >= 2 (lihat TerminalSideTabs),
-   jadi dengan satu terminal tidak ada ruang yang terpakai sama sekali. */
+/* The tab column only renders with >= 2 terminal tabs (see TerminalSideTabs),
+   so with a single terminal it takes up no room at all. */
 .tt-side {
   display: flex;
   flex-direction: column;
@@ -456,9 +456,9 @@
 
 /* ═════════ Highlight all (Find, fase 24) ═════════ */
 
-/* CodeMirror menandai semua hasil dengan .cm-searchMatch tapi warnanya samar;
-   saat "sorot semua" aktif, dinaikkan supaya benar-benar terlihat. Kelas ada
-   di <body> karena FindBar hidup di luar pohon .cm-editor. */
+/* CodeMirror marks every hit with .cm-searchMatch but the colour is faint;
+   while "highlight all" is on it is raised so the hits are actually visible.
+   The class lives on <body> because FindBar renders outside .cm-editor. */
 body.find-highlight-all .cm-searchMatch {
   background: color-mix(in srgb, var(--warning) 34%, transparent);
   outline: 1px solid color-mix(in srgb, var(--warning) 60%, transparent);
@@ -574,15 +574,15 @@ body.find-highlight-all .cm-searchMatch-selected {
   line-height: 13px;
 }
 
-/* Revisi 1.1.10: logo di kiri menubar. Menubar sendiri adalah drag region,
-   jadi logo sengaja tidak ikut menyerap klik.
+/* 1.1.10 revision: the logo at the left of the menubar. The menubar itself is
+   a drag region, so the logo deliberately does not absorb clicks.
 
-   Lebar brand = lebar Activity Bar (--activitybar-w), dan logo di-center di
-   kolom itu. Efeknya dua-duanya rata dengan kolom di bawahnya, sama seperti
-   VS Code: di sana logo (x 19..38) juga duduk di kolom Activity Bar
-   (x 0..48), dan teks menu dimulai setelah kolom itu berakhir.
-   Jangan tambah padding di sini — padding menggeser titik center logo dan
-   membuatnya tidak lagi sejajar dengan ikon Activity Bar. */
+   Brand width = Activity Bar width (--activitybar-w), and the logo is centred
+   in that column. The effect is that both line up with the column below, just
+   like VS Code: there the logo (x 19..38) also sits in the Activity Bar column
+   (x 0..48), and the menu text starts after that column ends.
+   Do not add padding here - padding shifts the logo's centre point and takes it
+   out of alignment with the Activity Bar icons. */
 .mb-brand {
   display: flex;
   align-items: center;
@@ -594,16 +594,15 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 /* ── Menu akun GitHub (dropdown dari avatar di Activity Bar) ── */
-/* Menggunakan kerangka .tt-dropdown/.tt-drop-item yang sudah ada supaya
-   bentuknya identik dengan dropdown lain; di sini hanya baris identitas
-   akun yang belum punya padanannya. */
+/* Reuses the existing .tt-dropdown/.tt-drop-item frame so it looks identical
+   to the other dropdowns; only the account identity row has no counterpart. */
 .gh-menu-id {
   display: flex;
   flex-direction: column;
   gap: 1px;
   padding: 6px 10px 4px;
-  /* pointer-events: none supaya baris ini jelas-jelas label, bukan tombol
-     yang bisa diklik (klik di sini tidak melakukan apa pun). */
+  /* pointer-events: none so this row is plainly a label and not a clickable
+     button (clicking here does nothing). */
   pointer-events: none;
 }
 .gh-menu-nama {
@@ -1403,8 +1402,8 @@ body.find-highlight-all .cm-searchMatch-selected {
   white-space: nowrap;
 }
 
-/* Titik hijau kecil = layanan hidup. Tanpa ini user harus membuka kolom
-   ketiga untuk tahu mana yang jalan. */
+/* A small green dot = service is up. Without it the user has to open a third
+   column to find out which ones are running. */
 .devenv-dot {
   width: 6px;
   height: 6px;
@@ -1832,10 +1831,10 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 
-/* ── T3.4: Zen mode ─────────────────────────────────────────────────────
-   Menyembunyikan Activity Bar, sidebar, panel bawah, dan status bar —
-   hanya editor yang tersisa. `display:none` (bukan width:0) supaya tidak
-   ada sisa fokus keyboard di elemen yang tak terlihat. */
+/* ── Zen mode ───────────────────────────────────────────────────────────
+   Hides the Activity Bar, sidebar, bottom panel and status bar - only the
+   editor remains. `display:none` (not width:0) so no keyboard focus is left
+   stranded on an invisible element. */
 .app-body.is-zen .activitybar,
 .app-body.is-zen .sidebar,
 .app-body.is-zen .panel-area,
@@ -1850,8 +1849,8 @@ body.find-highlight-all .cm-searchMatch-selected {
   height: 100% !important;
 }
 
-/* Indikator kecil supaya user tahu zen sedang aktif dan bisa keluar
-   (Esc). Tanpa penanda, user bisa bingung "kenapa UI-nya hilang". */
+/* A small indicator so the user knows zen mode is on and can leave (Esc).
+   Without a marker the user may wonder "why did the UI disappear". */
 .app-body.is-zen::after {
   content: 'ZEN — Esc untuk keluar';
   position: fixed;
@@ -2001,9 +2000,9 @@ body.find-highlight-all .cm-searchMatch-selected {
 /* ── Customize Layout (panel mengambang ala VS Code) ───────────────────── */
 .layout-menu {
   position: fixed;
-  /* Posisi TIDAK bergantung pada MenuBar: kalau Menu Bar dimatikan, panel ini
-     tetap harus muncul di tempat yang masuk akal. `top: 8px` dipakai saat
-     Menu Bar tidak ada (lihat .tanpa-menubar di bawah). */
+  /* The position does NOT depend on the MenuBar: with the Menu Bar turned off
+     this panel still has to appear somewhere sensible. `top: 8px` is used when
+     there is no Menu Bar (see .tanpa-menubar below). */
   top: 34px;
   right: 118px;
   /*

@@ -1,4 +1,4 @@
-import { existsSync, renameSync, mkdirSync, readdirSync, statSync, rmSync } from 'node:fs';
+import { existsSync, renameSync, mkdirSync, readdirSync, statSync, rmSync, readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -59,7 +59,26 @@ process.on('SIGINT', () => { kembalikan(); process.exit(130); });
 
 amankan();
 try {
-  execSync(`npx tauri build --config ${config}`, { stdio: 'inherit' });
+  // Signing key: dibaca dari %APPDATA%\zephyr (di luar repo, .gitignore menutup
+  // *.key & signing-key.txt). Tanpa keduanya `tauri build` gagal di tahap updater
+  // artifact dengan "A public key has been found, but no private key" — dan
+  // installer terbit tanpa .sig sehingga auto-update tidak bisa memverifikasinya.
+  const KEY = join(DIR, 'zephyr.key');
+  const KEYFILE = join(DIR, 'signing-key.txt');
+  const env = { ...process.env };
+  if (existsSync(KEY)) {
+    // The CLI takes the base64 key itself, not a path: handed a path it tries to
+    // decode "C:\..." and dies with "Invalid symbol 58" (the colon).
+    env.TAURI_SIGNING_PRIVATE_KEY = readFileSync(KEY, 'utf8').trim();
+    console.log('[signing] private key dipasang dari ' + KEY);
+  } else {
+    console.error('[signing] PERINGATAN: zephyr.key tidak ada — artefak updater tidak akan ditandatangani');
+  }
+  if (existsSync(KEYFILE)) {
+    env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = readFileSync(KEYFILE, 'utf8').trim();
+    console.log('[signing] password kunci dibaca dari signing-key.txt');
+  }
+  execSync(`npx tauri build --config ${config}`, { stdio: 'inherit', env });
 } finally {
   kembalikan();
   scanArtefak();

@@ -1,0 +1,217 @@
+{
+ "src\\components\\ai\\AiPanel.tsx": [
+  "{n} messages",
+  "{n} messages",
+  "\"{name}\" is larger than 3.5 MB - skipped",
+  "The agent is asking permission to run {tool}:"
+ ],
+ "src\\components\\ai\\AiSidebar.tsx": [
+  "No chats match \"{cari}\".",
+  "{n} messages",
+  "{n} messages"
+ ],
+ "src\\components\\ai\\ChatMessage.tsx": [
+  "No active editor tab",
+  "The file contents are already the same as this code",
+  "No active editor tab",
+  "Tab contents replaced - Ctrl+S to save",
+  "Code inserted at the cursor",
+  "No active tab to insert into",
+  "Replace the active editor tab contents with this code",
+  "Insert the code at the cursor position",
+  "Code copied",
+  "Risky command - will ask for confirmation",
+  "Send to the active terminal pane",
+  "Copy the answer contents",
+  "Output copied",
+  "Copy the input",
+  "Open a terminal pane in the bottom panel",
+  "Open in terminal"
+ ],
+ "src\\components\\ai\\ReasonedBlock.tsx": [
+  "lines"
+ ],
+ "src\\components\\ai\\SubAgentBar.tsx": [
+  "Find usages of function X\\nCheck for bugs in module Y"
+ ],
+ "src\\components\\api\\ApiClientView.tsx": [
+  "https://api.example.com/endpoint"
+ ],
+ "src\\components\\debug\\DebugView.tsx": [
+  "Copy value",
+  "paused ({alasan})"
+ ],
+ "src\\components\\editor\\Breadcrumbs.tsx": [
+  "without a language server: path estimated from indentation"
+ ],
+ "src\\components\\editor\\EditorTabBar.tsx": [
+  "Not saved"
+ ],
+ "src\\components\\editor\\LspOverlay.tsx": [
+  "The server returned no changes",
+  "Rename failed",
+  "No quick fix at this position",
+  "Quick Fix failed",
+  "Code action failed",
+  "No symbols in this file",
+  "Go to Symbol failed"
+ ],
+ "src\\components\\explorer\\DeleteConfirmDialog.tsx": [
+  "Delete {n} items"
+ ],
+ "src\\components\\explorer\\FileTree.tsx": [
+  "This folder is empty"
+ ],
+ "src\\components\\extensions\\ExtensionsView.tsx": [
+  "Download & install v{version}"
+ ],
+ "src\\components\\notifications\\NotificationCenter.tsx": [
+  "Remove from history",
+  "Remove this notification",
+  "{n} unread notifications"
+ ],
+ "src\\components\\scm\\SourceControlPanel.tsx": [
+  "Not signed in",
+  "GitHub account",
+  "Discard changes (permanent)",
+  "Discard all changes (permanent)"
+ ],
+ "src\\components\\settings\\CapturePanel.tsx": [
+  "Records the requests sent to the provider (URL, headers, body) so they can be inspected when a response is wrong. Headers containing API keys are ALREADY STRIPPED - this recording is safe to copy into a bug report."
+ ],
+ "src\\components\\settings\\McpPanel.tsx": [
+  "External AI CLIs (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) can read panes, editor tabs, and settings - and also drive this window: type in the terminal, open files, run commands. Loopback only: never exposed to the network.",
+  "of"
+ ],
+ "src\\components\\settings\\PromptSection.tsx": [
+  "If you ask \"what model are you\", Zeph answers from these facts - not by guessing. Change it in Settings → AI Models. This block is intentionally not editable so the AI never claims to be another model."
+ ],
+ "src\\components\\settings\\SectionsAdvanced.tsx": [
+  "in encrypted form (key derived from this machine), SEPARATE from settings.json. The frontend only receives a mask - the real key is never sent to the UI and never logged. Honest note: this encryption protects against someone reading the file, not against someone who already has access to your Windows account."
+ ],
+ "src\\components\\settings\\SectionsBasic.tsx": [
+  "A theme changes the UI, editor, and terminal at once. The mode in the General section (light/dark) wins over the choice here - picking a dark theme while in light mode will switch it back to Zephyr Light."
+ ],
+ "src\\components\\settings\\SectionsExtensions.tsx": [
+  "Inline blame, line history, and commit graph",
+  "Installed from folder ({n})"
+ ],
+ "src\\components\\settings\\SectionsMisc.tsx": [
+  "scm.identityNote",
+  "scm.pullBeforePushHint",
+  "Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted).",
+  "Delete SSH host \"{name}\"?"
+ ],
+ "src\\components\\settings\\TestsSection.tsx": [
+  "Auto-detect",
+  "Auto-detect",
+  "Running..."
+ ],
+ "src\\components\\shell\\ActivityBar.tsx": [
+  "@{user} - GitHub account (click: Source Control)",
+  "GitHub account: @{user}"
+ ],
+ "src\\components\\shell\\ErrorBoundary.tsx": [
+  "This section failed to render",
+  "Try again",
+  "Reload Zephyr",
+  "Technical details"
+ ],
+ "src\\components\\shell\\GhMenu.tsx": [
+  "Not signed in",
+  "Sign out of GitHub",
+  "Manage GitHub token"
+ ],
+ "src\\components\\shell\\OutputView.tsx": [
+  "Channel \"{name}\" is still empty."
+ ],
+ "src\\components\\shell\\PanelTabStrip.tsx": [
+  "new log"
+ ],
+ "src\\components\\shell\\PortsView.tsx": [
+  "Failed to copy the URL"
+ ],
+ "src\\components\\shell\\SplitEditor.tsx": [
+  "Empty group - open a file here"
+ ],
+ "src\\components\\shell\\StatusBar.tsx": [
+  "{n} errors, {m} warnings - open Problems"
+ ],
+ "src\\components\\shell\\TerminalArea.tsx": [
+  "Show the bottom panel (Ctrl+`)",
+  "Resize the terminal panel height"
+ ],
+ "src\\components\\shell\\TerminalPanel.tsx": [
+  "has exited",
+  "No sessions yet.",
+  "{a} tabs · {b} panes · {c} live",
+  "Shell",
+  "Private",
+  "Hide panel",
+  "Show panel",
+  "AGENT CLIS DETECTED",
+  "AGENT CLI",
+  "No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list.",
+  "Click = open the agent in the bottom terminal panel.",
+  " The panel is not showing - it will be opened too.",
+  "The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID.",
+  "Close tab",
+  "Kill process",
+  "Kill process"
+ ],
+ "src\\components\\terminal\\BrowserPane.tsx": [
+  "URL address",
+  "Open URL",
+  "Open URL",
+  "Open in the system browser",
+  "Open in the system browser"
+ ],
+ "src\\components\\terminal\\PaneIcons.tsx": [
+  "Private (no history)"
+ ],
+ "src\\components\\terminal\\TerminalTabs.tsx": [
+  "Terminal tab name"
+ ],
+ "src\\components\\workspace\\RootSection.tsx": [
+  "This folder is a git repo",
+  "Folder is not trusted - click to manage trust",
+  "not trusted",
+  "Make this the active root",
+  "Make this the active root",
+  "Remove folder from workspace",
+  "Remove folder from workspace"
+ ],
+ "src\\lib\\breakpointGutter.ts": [
+  "Breakpoint (not yet verified by the adapter)"
+ ],
+ "src\\lib\\commandRegistry.ts": [
+  "No problems in this file",
+  "Open a file first",
+  "Blame is not available for this file",
+  "No colours in this document",
+  "Definition not found",
+  "Go to Definition failed",
+  "Definition not found",
+  "Peek Definition failed",
+  "No references",
+  "Find References failed",
+  "Formatting failed",
+  "Every language server is stopped; they start again when a file opens",
+  "No language server is running",
+  "No snapshot for this file yet",
+  "No cursor in the editor"
+ ],
+ "src\\lib\\debugStore.ts": [
+  "No stopped threads"
+ ],
+ "src\\lib\\explorerStore.ts": [
+  "Delete failed"
+ ],
+ "src\\lib\\historyStore.ts": [
+  "Cannot open the file for restore",
+  "Snapshot contents loaded into the editor — not saved yet (Ctrl+S to write)"
+ ],
+ "src\\lib\\searchStore.ts": [
+  "There is no replace to undo"
+ ]
+}

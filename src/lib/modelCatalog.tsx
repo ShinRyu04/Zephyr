@@ -45,11 +45,11 @@ export const PROVIDERS: ProviderInfo[] = [
     models: [
           { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', note: 'terbaru, agentik', ctx: 1_048_576, maxOut: 65536 },
           { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', note: 'coding + agent', ctx: 1_048_576, maxOut: 65536 },
-          { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', note: 'cepat, murah', ctx: 1_000_000, maxOut: 65536 },
+          { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', note: 'fast, cheap', ctx: 1_000_000, maxOut: 65536 },
           { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', note: 'multimodal', ctx: 1_048_576, maxOut: 65536 },
           { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', note: 'hemat', ctx: 1_048_576, maxOut: 65536 },
           { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', note: 'penalaran dalam', ctx: 1_048_576, maxOut: 65536 },
-          { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', note: 'murah, cepat', ctx: 1_048_576, maxOut: 65536 },
+          { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', note: 'cheap, fast', ctx: 1_048_576, maxOut: 65536 },
           { id: 'gemini-3.1-flash-image', label: 'Nano Banana 2 (gambar)', note: 'generate/edit gambar', ctx: 1_000_000, maxOut: 65536 },
           { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', note: 'penalaran panjang', ctx: 2_000_000, maxOut: 65536 },
           { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', note: 'cepat', ctx: 1_000_000, maxOut: 65536 },
@@ -89,7 +89,7 @@ export const PROVIDERS: ProviderInfo[] = [
                   { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', note: 'reasoning', ctx: 1_000_000, maxOut: 128000 },
                   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', note: 'seimbang', ctx: 1_000_000, maxOut: 128000 },
                   { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', note: 'seimbang (lama)', ctx: 200_000, maxOut: 8192 },
-                  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'cepat, hemat', ctx: 200_000, maxOut: 64000 },
+                  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'fast, efficient', ctx: 200_000, maxOut: 64000 },
                                   ],
       },
       {
@@ -101,8 +101,8 @@ export const PROVIDERS: ProviderInfo[] = [
               models: [
                         { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', note: 'terbaru, coding', ctx: 1_000_000, maxOut: 65536 },
                         { id: 'deepseek-flash', label: 'DeepSeek Flash (V4.1)', note: 'terbaru, default', ctx: 1_000_000, maxOut: 65536 },
-                        { id: 'deepseek-chat', label: 'DeepSeek Chat (V3.2)', note: 'umum, versi lama', ctx: 128_000, maxOut: 8192 },
-                                                { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner (R1/V3.2)', note: 'penalaran, versi lama', ctx: 128_000, maxOut: 8192 },
+                        { id: 'deepseek-chat', label: 'DeepSeek Chat (V3.2)', note: 'general, older version', ctx: 128_000, maxOut: 8192 },
+                                                { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner (R1/V3.2)', note: 'reasoning, older version', ctx: 128_000, maxOut: 8192 },
                                               ],
       },
             {
@@ -129,7 +129,7 @@ export const PROVIDERS: ProviderInfo[] = [
         envKey: 'OPENAI_API_KEY',
         logo: 'opencode',
         freeText: true,
-        models: [{ id: 'local-default', label: 'Ketik nama model lokal', note: 'mis. qwen3-coder:32b', maxOut: 4096 }],
+        models: [{ id: 'local-default', label: 'Type a local model name', note: 'mis. qwen3-coder:32b', maxOut: 4096 }],
       },
       {
         id: 'custom',
@@ -138,7 +138,7 @@ export const PROVIDERS: ProviderInfo[] = [
         envKey: 'OPENAI_API_KEY',
         logo: 'generic',
         freeText: true,
-        models: [{ id: 'custom-model', label: 'Ketik nama model', note: 'bebas, sesuaikan provider', maxOut: 4096 }],
+        models: [{ id: 'custom-model', label: 'Type a model name', note: 'bebas, sesuaikan provider', maxOut: 4096 }],
       },
     ];
 

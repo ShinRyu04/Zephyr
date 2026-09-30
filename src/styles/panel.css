@@ -1,8 +1,10 @@
-/* panel.css — panel bawah fase 20 (Problems · Output · Debug Console ·
-   Terminal · Ports) + ringkasan diagnostik di status bar & gutter editor.
+/* panel.css — the bottom panel (Problems · Output · Debug Console ·
+   Terminal · Ports) plus the diagnostics summary in the status bar and the
+   editor gutter.
 
-   SEMUA warna dari token src/styles/theme.css & tokens.css (AGENTS.md §4).
-   Tidak ada hex hardcoded kecuali dua token kontras teks pada badge. */
+   ALL colours come from the tokens in src/styles/theme.css & tokens.css
+   (AGENTS.md section 4). No hardcoded hex except two text-contrast tokens on
+   the badge. */
 
 /* ─────────── Kontainer ─────────── */
 .panel-area {
@@ -53,13 +55,13 @@
   align-items: stretch;
   min-width: 0;
   overflow-x: auto;
-  /* Scrollbar yang selalu terlihat saat overflow -- scrollbar auto-hide
-     adalah alasan tab DEVENV/DB/SFTP tidak pernah ditemukan user. */
+  /* Always-visible scrollbar on overflow -- an auto-hiding scrollbar is why
+     users never found the DEVENV/DB/SFTP tabs. */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-/* WebView2/Chromium: scrollbar tipis yang tidak memakan tinggi baris tab. */
+/* WebView2/Chromium: a thin scrollbar that does not eat into the tab row height. */
 .pts-tabs::-webkit-scrollbar {
   height: 3px;
 }
@@ -77,8 +79,8 @@
   background: var(--text-muted);
 }
 
-/* Gradien tepi kanan: isyarat "masih ada tab di luar layar".
-   Dipasang di container, bukan di .pts-tabs (yang ikut scroll). */
+/* Right-edge gradient: the cue that "there are more tabs off-screen".
+   Applied to the container, not to .pts-tabs (which scrolls). */
 .pts-root {
   position: relative;
 }
@@ -163,8 +165,8 @@
   background: var(--surface-3, var(--bg2));
 }
 .pts-menu {
-  /* Posisi diatur inline oleh Popover (portal ke <body>) — dulu absolut di
-     dalam .pts-ops dan ikut terpotong `overflow: hidden` panel. */
+  /* Position is set inline by the Popover (a portal into <body>) - it used to
+     be absolute inside .pts-ops and got clipped by the panel's `overflow: hidden`. */
   min-width: 178px;
   padding: 4px;
   border: 1px solid var(--border);
@@ -479,9 +481,10 @@
 }
 
 
-/* ── T4.1: tab SUBAGENTS ────────────────────────────────────────────────
-   Subagent dapat tab sendiri supaya panel AI tidak menumpuk. Di sini ada
-   ruang lebar, jadi kartunya grid 3-4 kolom (di panel AI dulu hanya 2). */
+/* ── Subagents tab ─────────────────────────────────────────────────────
+   Subagents get their own tab so they do not pile up in the AI panel. There is
+   room for width here, so the cards form a 3-4 column grid (it used to be 2 in
+   the AI panel). */
 .sav-root {
   display: flex;
   flex-direction: column;
@@ -586,8 +589,8 @@
   min-width: 0;
 }
 
-/* Pemilih model subagent di kepala tab Subagents. Dibatasi lebarnya supaya
-   nama model panjang tidak mendorong tombol Hentikan/Bersihkan keluar layar. */
+/* The subagent model picker in the Subagents tab header. Its width is capped
+   so a long model name cannot push the Stop/Clear buttons off screen. */
 .sav-model {
   display: inline-flex;
   align-items: center;

@@ -37,13 +37,13 @@ export interface AlatInfo {
  * default would be a foot-gun. `kerja` (the built-in writer role) still has it.
  */
 export const ALAT: AlatInfo[] = [
-  { id: 'file_read', label: 'Baca berkas', hint: 'Buka isi satu berkas', ikon: '▤' },
-  { id: 'file_list', label: 'Daftar folder', hint: 'Lihat isi sebuah folder', ikon: '☰' },
-  { id: 'shell_exec', label: 'Jalankan perintah', hint: 'Cari lewat rg / git / find', ikon: '⌘' },
-  { id: 'terminal_read', label: 'Baca terminal', hint: 'Lihat keluaran terminal pane', ikon: '▭' },
+  { id: 'file_read', label: 'Read a file', hint: 'Open the contents of one file', ikon: '▤' },
+  { id: 'file_list', label: 'Daftar folder', hint: 'List the contents of a folder', ikon: '☰' },
+  { id: 'shell_exec', label: 'Run a command', hint: 'Search via rg / git / find', ikon: '⌘' },
+  { id: 'terminal_read', label: 'Baca terminal', hint: 'Read the terminal pane output', ikon: '▭' },
   { id: 'get_problems', label: 'Diagnostik', hint: 'Error dan peringatan editor', ikon: '⚠' },
   { id: 'get_output', label: 'Log output', hint: 'Kanal Output panel bawah', ikon: '≡' },
-  { id: 'skill_list', label: 'Daftar skill', hint: 'Skill yang tersedia', ikon: '✦' },
+  { id: 'skill_list', label: 'Daftar skill', hint: 'Available skills', ikon: '✦' },
   { id: 'memory_read', label: 'Baca memori', hint: 'Catatan lintas sesi', ikon: '◈' },
 ];
 
@@ -178,7 +178,7 @@ export function arahanCustom(d: SubagentCustom, total: number): string {
     ? gpuang
     : inggris
       ? 'You have no specific persona. Be thorough and report only what the task asked for.'
-      : 'Kamu tidak punya persona khusus. Kerjakan dengan teliti dan laporkan hanya yang diminta.';
+      : 'You have no specific persona. Work carefully and report only what was asked.';
 
   return [
     inggris ? `YOUR WORKER IDENTITY: ${d.nama}` : `IDENTITASMU: ${d.nama}`,
@@ -186,19 +186,19 @@ export function arahanCustom(d: SubagentCustom, total: number): string {
       ? ''
       : inggris
         ? '(no system prompt set for this worker — the Settings page is where to add one)'
-        : '(belum ada system prompt untuk worker ini — diisi di halaman Pengaturan)',
+        : '(no system prompt for this worker yet — set one on the Settings page)',
     '',
     inti,
     '',
     inggris
       ? `You may call ONLY these tools: ${alat}. Anything else is rejected.`
-      : `Kamu HANYA boleh memakai tool ini: ${alat}. Selain itu ditolak.`,
+      : `You may ONLY use these tools: ${alat}. Anything else is refused.`,
     inggris
       ? 'You cannot write or edit any file. Report findings in your final answer.'
-      : 'Kamu tidak boleh menulis atau mengubah file. Laporkan temuan di jawaban akhir.',
+      : 'You may not write or change files. Report your findings in the final answer.',
     inggris
       ? `${total} subagent(s) are running at the same time; stay on your own task.`
-      : `${total} subagent berjalan bersamaan; tetap pada tugasmu sendiri.`,
+      : `${total} subagents are running at once; stay on your own task.`,
   ]
     .filter((l) => l !== '')
     .join('\n');
@@ -276,7 +276,7 @@ export function daftarPekerja(): { id: string; label: string; hint: string; ikon
     { id: 'telaah', label: 'Telaah', hint: 'Analisis mendalam', ikon: '◈', custom: false },
     { id: 'rencana', label: 'Rencana', hint: 'Susun langkah', ikon: '≡', custom: false },
     { id: 'audit', label: 'Audit', hint: 'Periksa mutu', ikon: '✓', custom: false },
-    { id: 'kerja', label: 'Kerja', hint: 'Ubah berkas', ikon: '⚒', custom: false },
+    { id: 'kerja', label: 'Kerja', hint: 'Change a file', ikon: '⚒', custom: false },
     { id: 'jelajah', label: 'Jelajah', hint: 'Petakan proyek', ikon: '⊕', custom: false },
   ];
   const kustom = (() => {

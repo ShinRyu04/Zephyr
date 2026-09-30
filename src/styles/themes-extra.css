@@ -1,6 +1,6 @@
-/* themes-extra.css — tema komunitas (fase 13 memisahkannya dari theme.css).
+/* themes-extra.css — community themes (phase 13 split them out of theme.css).
    nord · tokyo-night · gruvbox-dark · one-dark
-   Setiap blok WAJIB memuat set token yang sama dengan :root di theme.css. */
+   Every block MUST carry the same token set as :root in theme.css. */
 
 /* ── Nord (arctic, biru dingin) ── */
 [data-theme='nord'] {

@@ -26,8 +26,8 @@ export function PaneEmpty() {
         </button>
       </div>
 
-      {/* Tombol besar tersendiri: ini fitur yang dicari orang saat develop web -
-          shell di kiri, preview dev server di kanan. */}
+      {/* Its own big button: this is the feature people look for when developing web -
+          shell on the left, dev server preview on the right. */}
       <button
         className="pane-split-browser"
         data-testid="empty-split-browser"

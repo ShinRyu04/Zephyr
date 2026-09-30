@@ -283,7 +283,7 @@ pub fn read_manifest(dir: &Path) -> ZResult<ExtManifest> {
         ("package.json".to_string(), dir.join("package.json"))
     } else {
         return Err(ZephyrError::InvalidInput(format!(
-            "the folder has neither {MANIFEST_NATIVE} maupun package.json"
+            "the folder has neither {MANIFEST_NATIVE} nor package.json"
         )));
     };
 
@@ -362,19 +362,19 @@ pub fn resolve_in_ext(root: &Path, rel: &str) -> ZResult<PathBuf> {
     for c in p.components() {
         if matches!(c, Component::ParentDir) {
             return Err(ZephyrError::Permission(format!(
-                "path kontribusi tidak boleh memuat '..': {rel}"
+                "contribution path must not contain '..': {rel}"
             )));
         }
     }
     let gabung = root.join(p);
 
     let real = std::fs::canonicalize(&gabung)
-        .map_err(|_| ZephyrError::NotFound(format!("file kontribusi {rel}")))?;
+        .map_err(|_| ZephyrError::NotFound(format!("contribution file {rel}")))?;
     let real_root = std::fs::canonicalize(root)
-        .map_err(|_| ZephyrError::NotFound("folder ekstensi".to_string()))?;
+        .map_err(|_| ZephyrError::NotFound("extension folder".to_string()))?;
     if !real.starts_with(&real_root) {
         return Err(ZephyrError::Permission(format!(
-            "path kontribusi keluar dari folder ekstensi: {rel}"
+            "contribution path escapes the extension folder: {rel}"
         )));
     }
     Ok(real)
@@ -444,7 +444,7 @@ fn copy_dir(src: &Path, dst: &Path, terpakai: &mut u64) -> ZResult<()> {
             *terpakai += sz;
             if *terpakai > MAX_UNZIP_TOTAL {
                 return Err(ZephyrError::InvalidInput(
-                    "paket ekstensi terlalu besar (>64MB)".into(),
+                    "extension package too large (>64MB)".into(),
                 ));
             }
             std::fs::copy(e.path(), &ke)?;
@@ -457,14 +457,14 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
     let sz = std::fs::metadata(arsip)?.len();
     if sz > MAX_ZEXT_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            "arsip {} MB melebihi batas {} MB",
+            "archive {} MB exceeds the {} MB limit",
             sz / 1024 / 1024,
             MAX_ZEXT_BYTES / 1024 / 1024
         )));
     }
     let f = std::fs::File::open(arsip)?;
     let mut zip = zip::ZipArchive::new(f)
-        .map_err(|e| ZephyrError::InvalidInput(format!("bukan arsip zip yang valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("not a valid zip archive: {e}")))?;
 
     std::fs::create_dir_all(dst)?;
     let mut total: u64 = 0;
@@ -472,13 +472,13 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
     for i in 0..zip.len() {
         let mut item = zip
             .by_index(i)
-            .map_err(|e| ZephyrError::InvalidInput(format!("entri zip rusak: {e}")))?;
+            .map_err(|e| ZephyrError::InvalidInput(format!("corrupt zip entry: {e}")))?;
 
         let rel = match item.enclosed_name() {
             Some(p) => p.to_path_buf(),
             None => {
                 return Err(ZephyrError::Permission(format!(
-                    "entri zip tidak aman ditolak: {}",
+                    "unsafe zip entry rejected: {}",
                     item.name()
                 )))
             }
@@ -486,7 +486,7 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
         let tujuan = dst.join(&rel);
         if !tujuan.starts_with(dst) {
             return Err(ZephyrError::Permission(format!(
-                "entri zip keluar dari folder tujuan: {}",
+                "zip entry escapes the destination folder: {}",
                 item.name()
             )));
         }
@@ -498,7 +498,7 @@ fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
         total += item.size();
         if total > MAX_UNZIP_TOTAL {
             return Err(ZephyrError::InvalidInput(
-                "isi arsip melebihi 64MB setelah diekstrak".into(),
+                "archive contents exceed 64MB after extraction".into(),
             ));
         }
         if let Some(p) = tujuan.parent() {
@@ -578,7 +578,7 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
                 copy_dir(induk, &staging, &mut n)?;
             } else {
                 return Err(ZephyrError::InvalidInput(
-                    "pilih folder ekstensi, file .zext, atau manifest-nya".into(),
+                    "choose an extension folder, a .zext file, or its manifest".into(),
                 ));
             }
         } else {
@@ -589,11 +589,11 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
         let akar = turun_ke_akar(&staging);
         let man = read_manifest(&akar)?;
         if man.id.trim().is_empty() {
-            return Err(ZephyrError::InvalidInput("manifest tanpa id".into()));
+            return Err(ZephyrError::InvalidInput("manifest without an id".into()));
         }
         if !man.engine_ok {
             return Err(ZephyrError::InvalidInput(format!(
-                "ekstensi butuh Zephyr {} — versi ini {}",
+                "extension requires Zephyr {} — this version is {}",
                 man.engine,
                 env!("CARGO_PKG_VERSION")
             )));
@@ -658,7 +658,7 @@ pub fn extensions_uninstall(state: State<AppState>, id: String) -> ZResult<bool>
         let real_root = std::fs::canonicalize(&dir_ext)?;
         if !real.starts_with(&real_root) {
             return Err(ZephyrError::Permission(
-                "folder ekstensi di luar direktori data — tidak dihapus".into(),
+                "extension folder outside the data directory — not deleted".into(),
             ));
         }
         std::fs::remove_dir_all(&real)?;
@@ -697,28 +697,28 @@ pub fn extensions_set_enabled(state: State<AppState>, id: String, on: bool) -> Z
 #[tauri::command]
 pub fn extensions_read_contrib(state: State<AppState>, id: String, rel: String) -> ZResult<Value> {
     let dir =
-        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("extension {id}")))?;
     let file = resolve_in_ext(&dir, &rel)?;
     let sz = std::fs::metadata(&file)?.len();
     if sz > MAX_CONTRIB_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            "{rel} berukuran {} KB — batas 512KB",
+            "{rel} is {} KB — 512KB limit",
             sz / 1024
         )));
     }
     let raw = std::fs::read_to_string(&file)?;
     serde_json::from_str(&raw)
-        .map_err(|e| ZephyrError::InvalidInput(format!("{rel} bukan JSON valid: {e}")))
+        .map_err(|e| ZephyrError::InvalidInput(format!("{rel} is not valid JSON: {e}")))
 }
 
 #[tauri::command]
 pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> ZResult<String> {
-    // Batas file main ekstensi. Dinaikkan dari 1 MB ke 20 MB di v1.1.7 supaya
-    // ekstensi besar tetap bisa dimuat; pesan errornya dulu tidak ikut berubah
-    // sehingga laporan ke user menyebut angka yang salah.
+    // Size limit for an extension main file. Raised from 1 MB to 20 MB in v1.1.7 so that
+    // large extensions can still be loaded; the error message used to not be updated
+    // along with it, so the report to the user quoted the wrong number.
     const MAX_MAIN_BYTES: u64 = 20 * 1024 * 1024;
     let dir =
-        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("extension {id}")))?;
     let file = resolve_in_ext(&dir, &rel).or_else(|e| {
         if !rel.ends_with(".js") && !rel.ends_with(".cjs") {
             resolve_in_ext(&dir, &format!("{rel}.js"))
@@ -731,7 +731,7 @@ pub fn extensions_read_main(state: State<AppState>, id: String, rel: String) -> 
     let sz = std::fs::metadata(&file)?.len();
     if sz > MAX_MAIN_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            "{rel} berukuran {} KB — batas {} MB",
+            "{rel} is {} KB — {} MB limit",
             sz / 1024,
             MAX_MAIN_BYTES / 1024 / 1024
         )));
@@ -750,7 +750,7 @@ pub fn extensions_read_files(
     const MAX_DEPTH: u32 = 20;
 
     let dir =
-        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("ekstensi {id}")))?;
+        ext_dir_of(&state, &id).ok_or_else(|| ZephyrError::NotFound(format!("extension {id}")))?;
     let mut out = HashMap::new();
     let mut total: u64 = 0;
 
@@ -889,12 +889,12 @@ pub async fn ext_exec(
         .unwrap_or("");
     if granted.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
-            "ekstensi {ext_id} belum diberi izin runtime '{runtime}'"
+            "extension {ext_id} has not been granted runtime permission '{runtime}'"
         )));
     }
     if granted != bin {
         return Err(ZephyrError::InvalidInput(format!(
-            "path runtime '{runtime}' untuk ekstensi {ext_id} tidak cocok dengan izin — minta izin ulang"
+            "runtime path '{runtime}' for extension {ext_id} does not match the permission — request permission again"
         )));
     }
 
@@ -925,7 +925,7 @@ pub async fn ext_exec(
         Ok(c) => c,
         Err(e) => {
             return Err(ZephyrError::InvalidInput(format!(
-                "failed menjalankan {bin}: {e}"
+                "failed to run {bin}: {e}"
             )));
         }
     };
@@ -1098,7 +1098,7 @@ pub fn extensions_download_zext(url: String, id: String) -> ZResult<String> {
     let host = url.split('/').nth(2).unwrap_or("").to_lowercase();
     if !url.starts_with("https://") || !IZIN.contains(&host.as_str()) {
         return Err(ZephyrError::Permission(
-            "unduhan ekstensi hanya dari registry tepercaya (open-vsx.org)".into(),
+            "extension downloads are only allowed from a trusted registry (open-vsx.org)".into(),
         ));
     }
 
@@ -1121,7 +1121,7 @@ pub fn extensions_download_zext(url: String, id: String) -> ZResult<String> {
         .header("Accept", "application/octet-stream")
         .header("User-Agent", "Zephyr-Editor/1.0")
         .call()
-        .map_err(|e| ZephyrError::Git(format!("failed mengunduh .zext: {e}")))?;
+        .map_err(|e| ZephyrError::Git(format!("failed to download .zext: {e}")))?;
 
     if r.status().as_u16() != 200 {
         return Err(ZephyrError::Git(format!(
@@ -1135,10 +1135,10 @@ pub fn extensions_download_zext(url: String, id: String) -> ZResult<String> {
         .with_config()
         .limit(MAX_ZEXT_BYTES)
         .read_to_vec()
-        .map_err(|e| ZephyrError::Git(format!("failed membaca unduhan: {e}")))?;
+        .map_err(|e| ZephyrError::Git(format!("failed to read download: {e}")))?;
     if bytes.len() as u64 > MAX_ZEXT_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
-            ".zext melebihi batas {} MB",
+            ".zext exceeds the {} MB limit",
             MAX_ZEXT_BYTES / 1024 / 1024
         )));
     }

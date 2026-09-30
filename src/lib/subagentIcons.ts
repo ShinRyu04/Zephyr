@@ -82,10 +82,10 @@ export const IKON_SUBAGENT: IkonDef[] = [
  */
 export const IKON_LABEL: Record<SubagentIkonId, string> = {
   kode: 'Subagent: ikon baca kode',
-  tulis: 'Subagent: ikon menulis',
+  tulis: 'Subagent: writing icon',
   telaah: 'Subagent: ikon menelaah',
   audit: 'Subagent: ikon audit',
-  jalan: 'Subagent: ikon menjalankan',
+  jalan: 'Subagent: running icon',
   robot: 'Subagent: ikon robot agen',
   umum: 'Subagent: ikon serbaguna',
 };

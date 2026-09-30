@@ -1,5 +1,5 @@
-/* palette.css — Command Palette & Quick Open (fase 12).
-   Warna WAJIB dari CSS variables (AGENTS.md §4). */
+/* palette.css — Command Palette & Quick Open (phase 12).
+   Colours MUST come from CSS variables (AGENTS.md section 4). */
 
 .cp-overlay {
   position: fixed;
@@ -244,9 +244,9 @@
   color: var(--success);
 }
 
-/* Tombol Split With Browser di toolbar = IKON SAJA (seperti tombol lain).
-   Label teksnya pernah ada di sini dan menutupi tombol "+ Agent" di
-   sebelahnya — toolbar terminal sempit, jadi teks tidak boleh ikut. */
+/* The Split With Browser toolbar button is ICON ONLY (like the other buttons).
+   Its text label used to live here and covered the "+ Agent" button beside it -
+   the terminal toolbar is narrow, so text cannot be included. */
 
 .bp-stage {
   position: relative;

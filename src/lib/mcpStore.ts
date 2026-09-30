@@ -121,7 +121,7 @@ export const useMcp = create<McpStore>((set, get) => ({
         get().pushLog(`server hidup di 127.0.0.1:${port}`, 'server');
       } else {
         await cmd.mcpStop();
-        set({ mcpInfo: 'Server MCP dimatikan; port tidak lagi listening' });
+        set({ mcpInfo: 'MCP server stopped; the port is no longer listening' });
         get().pushLog('server dimatikan', 'server');
       }
 
@@ -141,7 +141,7 @@ export const useMcp = create<McpStore>((set, get) => ({
       await get().refresh();
       await get().refreshClis();
       set({
-        mcpInfo: 'Token baru dibuat. CLI yang sudah didaftari perlu ditulis ulang.',
+        mcpInfo: 'A new token was created. Every CLI already registered has to be written again.',
       });
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
@@ -164,7 +164,7 @@ export const useMcp = create<McpStore>((set, get) => ({
   writeToCli: async () => {
     const ids = get().checked;
     if (ids.length === 0) {
-      set({ mcpError: 'Centang dulu CLI yang mau didaftari' });
+      set({ mcpError: 'Tick the CLIs you want to register first' });
       return;
     }
     set({ busy: true, mcpError: null, mcpInfo: null });
@@ -179,7 +179,7 @@ export const useMcp = create<McpStore>((set, get) => ({
         mcpInfo:
           gagal.length === 0
             ? `${res.length} config CLI diperbarui (file lama disalin ke .bak)`
-            : `${res.length - gagal.length} berhasil, ${gagal.length} gagal`,
+            : `${res.length - gagal.length} succeeded, ${gagal.length} failed`,
         mcpError: gagal.length > 0 ? gagal.map((g) => `${g.label}: ${g.message}`).join('; ') : null,
       });
     } catch (e) {
@@ -192,7 +192,7 @@ export const useMcp = create<McpStore>((set, get) => ({
   removeFromCli: async () => {
     const ids = get().checked;
     if (ids.length === 0) {
-      set({ mcpError: 'Centang dulu CLI yang mau dilepas' });
+      set({ mcpError: 'Tick the CLIs you want to remove first' });
       return;
     }
     set({ busy: true, mcpError: null, mcpInfo: null });
@@ -200,7 +200,7 @@ export const useMcp = create<McpStore>((set, get) => ({
       const res = await cmd.mcpRemoveCli(ids);
       set({ lastWrite: res });
       await get().refreshClis();
-      set({ mcpInfo: `Entri zephyr dilepas dari ${res.filter((r) => r.ok).length} config` });
+      set({ mcpInfo: `Zephyr entries removed from ${res.filter((r) => r.ok).length} config` });
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
     } finally {
@@ -219,7 +219,7 @@ export const useMcp = create<McpStore>((set, get) => ({
   saveServer: async (s) => {
     const url = s.url.trim();
     if (!url) {
-      set({ mcpError: 'URL server MCP wajib diisi' });
+      set({ mcpError: 'MCP server URL is required' });
       return false;
     }
     set({ busy: true, mcpError: null, mcpInfo: null });
@@ -241,7 +241,7 @@ export const useMcp = create<McpStore>((set, get) => ({
     try {
       const ok = await cmd.mcpClientRemove(id);
       await get().refreshServers();
-      set({ mcpInfo: ok ? 'Server MCP eksternal dihapus' : 'Server tidak ditemukan' });
+      set({ mcpInfo: ok ? 'External MCP server removed' : 'Server not found' });
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
     } finally {
@@ -274,7 +274,7 @@ export const useMcp = create<McpStore>((set, get) => ({
     try {
       const { clipboardWrite } = await import('./clipboard');
       await clipboardWrite(tok);
-      set({ mcpInfo: 'Token disalin ke clipboard' });
+      set({ mcpInfo: 'Token copied to clipboard' });
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
     }
@@ -311,7 +311,7 @@ export const useMcp = create<McpStore>((set, get) => ({
 
       if (a.type === 'counts') {
         const sudah = get().log.some((l) => l.kind === 'connect');
-        get().pushLog(sudah ? 'health check dari AI CLI' : 'MCP connected: AI CLI menyapa /health', 'connect');
+        get().pushLog(sudah ? 'health check from an AI CLI' : 'MCP connected: AI CLI menyapa /health', 'connect');
       } else {
         get().pushLog(detail, 'action');
       }
@@ -323,7 +323,7 @@ export const useMcp = create<McpStore>((set, get) => ({
     } catch (e) {
       const msg = cmd.asZephyrError(e).message;
       result = { error: msg };
-      get().pushLog(`${a.type} gagal: ${msg}`, 'action');
+      get().pushLog(`${a.type} failed: ${msg}`, 'action');
     }
     try {
       await cmd.mcpReply(a.reqId, result);
@@ -428,24 +428,24 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
     case 'pane_new': {
       const kind = (str(p, 'type') || 'shell') as PaneKind;
       if (!['shell', 'private', 'agent', 'browser', 'cmd', 'bash', 'wsl', 'pwsh'].includes(kind)) {
-        throw new Error(`type pane '${kind}' tidak dikenal`);
+        throw new Error(`type pane '${kind}' unknown`);
       }
       const agentId = p.agent ? String(p.agent) : undefined;
       const id = await t().addPane(kind, agentId ? { agentId } : undefined);
-      if (!id) throw new Error(t().terminalError ?? t().toast ?? 'pane tidak bisa dibuat');
+      if (!id) throw new Error(t().terminalError ?? t().toast ?? 'pane could not be created');
       return { paneId: id, type: kind };
     }
 
     case 'pane_close': {
       const paneId = str(p, 'paneId');
-      if (!t().findPane(paneId)) throw new Error(`pane ${paneId} tidak ada`);
+      if (!t().findPane(paneId)) throw new Error(`pane ${paneId} does not exist`);
       await t().closePane(paneId);
       return { ok: true, paneId };
     }
 
     case 'pane_text': {
       const paneId = str(p, 'paneId');
-      if (!t().findPane(paneId)) throw new Error(`pane ${paneId} tidak ada`);
+      if (!t().findPane(paneId)) throw new Error(`pane ${paneId} does not exist`);
       return { paneId, text: readBuffer(paneId, 500) };
     }
 
@@ -474,7 +474,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       const id = typeof p.channel === 'string' && p.channel ? p.channel : o.activeChannel;
       const ch = o.channels.find((c) => c.id === id);
       if (!ch) {
-        throw new Error(`channel ${id} tidak ada (tersedia: ${o.channels.map((c) => c.id).join(', ')})`);
+        throw new Error(`channel ${id} does not exist (available: ${o.channels.map((c) => c.id).join(', ')})`);
       }
       const tail = typeof p.tail === 'number' && p.tail > 0 ? Math.min(p.tail, 2000) : 200;
       return {
@@ -489,7 +489,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       const path = str(p, 'path');
       await s().openPath(path);
       const tab = s().tabs.find((x) => x.path?.toLowerCase() === path.toLowerCase());
-      if (!tab) throw new Error(s().statusMessage || `tidak bisa membuka ${path}`);
+      if (!tab) throw new Error(s().statusMessage || `Cannot open ${path}`);
 
       s().setSettingsOpen(false);
       s().setActiveTab(tab.id);
@@ -498,7 +498,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
 
     case 'editor_close': {
       const tabId = str(p, 'tabId');
-      if (!s().tabs.some((x) => x.id === tabId)) throw new Error(`tab ${tabId} tidak ada`);
+      if (!s().tabs.some((x) => x.id === tabId)) throw new Error(`tab ${tabId} does not exist`);
       s().forceCloseTab(tabId);
       return { ok: true, tabId };
     }
@@ -507,7 +507,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       const tabId = str(p, 'tabId');
       const content = String(p.content ?? '');
       const tab = s().tabs.find((x) => x.id === tabId);
-      if (!tab) throw new Error(`tab ${tabId} tidak ada`);
+      if (!tab) throw new Error(`tab ${tabId} does not exist`);
 
       s().updateTabContent(tabId, content);
       const after = s().tabs.find((x) => x.id === tabId);
@@ -525,7 +525,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
 
       flushTab(tabId);
       const tab = s().tabs.find((x) => x.id === tabId);
-      if (!tab) throw new Error(`tab ${tabId} tidak ada`);
+      if (!tab) throw new Error(`tab ${tabId} does not exist`);
       const at =
         typeof p.at === 'number' && p.at >= 0 && p.at <= tab.content.length
           ? (p.at as number)
@@ -540,7 +540,7 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       return runEditorCommand(str(p, 'id'));
 
     default:
-      throw new Error(`aksi UI '${type}' tidak dikenal`);
+      throw new Error(`aksi UI '${type}' unknown`);
   }
 }
 
@@ -556,7 +556,7 @@ async function runEditorCommand(id: string): Promise<unknown> {
 
     case 'terminal.new': {
       const paneId = await t.addPane('shell');
-      if (!paneId) throw new Error(t.terminalError ?? t.toast ?? 'pane gagal dibuat');
+      if (!paneId) throw new Error(t.terminalError ?? t.toast ?? 'pane failed to create');
       return { ok: true, id, paneId };
     }
 
@@ -581,8 +581,8 @@ async function runEditorCommand(id: string): Promise<unknown> {
       const g = useGit.getState();
       if (!g.status?.isRepo) throw new Error('folder ini bukan repo git');
       const staged = (g.status.changes ?? []).filter((c) => c.staged).length;
-      if (staged === 0) throw new Error('tidak ada perubahan ter-stage');
-      if (!g.message.trim()) throw new Error('pesan commit masih kosong');
+      if (staged === 0) throw new Error('nothing is staged');
+      if (!g.message.trim()) throw new Error('the commit message is still empty');
       await g.commit();
       const err = useGit.getState().scmError;
       if (err) throw new Error(err);
@@ -598,7 +598,7 @@ async function runEditorCommand(id: string): Promise<unknown> {
     case 'explorer.openFolder':
 
       void s.openFolderDialog();
-      return { ok: true, id, note: 'dialog pilih folder dibuka untuk user' };
+      return { ok: true, id, note: 'the folder picker was opened for the user' };
 
     case 'view.explorer':
       s.setSettingsOpen(false);
@@ -620,16 +620,16 @@ async function runEditorCommand(id: string): Promise<unknown> {
       return { ok: true, id };
 
     case 'editor.save': {
-      if (!s.activeTabId) throw new Error('tidak ada tab aktif');
+      if (!s.activeTabId) throw new Error('no active tab');
       flushTab(s.activeTabId);
       const ok = await s.saveTab(s.activeTabId);
-      if (!ok) throw new Error(useStore.getState().statusMessage || 'gagal menyimpan');
+      if (!ok) throw new Error(useStore.getState().statusMessage || 'save failed');
       return { ok: true, id, tabId: s.activeTabId };
     }
 
     default:
       throw new Error(
-        `command '${id}' tidak dikenal (tersedia: commandPalette.open, terminal.new, terminal.toggle, ai.focus, ai.send, git.commit, git.panel, explorer.openFolder, view.explorer, view.settings, view.mcp, editor.save)`,
+        `command '${id}' unknown (available: commandPalette.open, terminal.new, terminal.toggle, ai.focus, ai.send, git.commit, git.panel, explorer.openFolder, view.explorer, view.settings, view.mcp, editor.save)`,
       );
   }
 }

@@ -73,21 +73,21 @@ export function TrakteerLogo({ size = 14 }: LogoProps) {
     >
       <mask id={heartMask}>
         <rect width="16" height="16" fill="#fff" />
-        {/* Hati di badan toples, dilubangi dari siluet. */}
+        {/* Heart on the jar body, cut out of the silhouette. */}
         <path
           d="M8 13.3s-3.1-1.9-3.1-3.8c0-1.1.9-1.9 1.9-1.9.6 0 1 .3 1.2.7.2-.4.6-.7 1.2-.7 1 0 1.9.8 1.9 1.9 0 1.9-3.1 3.8-3.1 3.8z"
           fill="#000"
         />
       </mask>
 
-      {/* Badan toples: sisi lurus, sudut bawah membulat. */}
+      {/* Jar body: straight sides, rounded bottom corners. */}
       <path
         d="M4.2 6.4h7.6v5.1c0 1.6-1.3 2.9-2.9 2.9H7.1c-1.6 0-2.9-1.3-2.9-2.9z"
         mask={`url(#${heartMask})`}
       />
-      {/* Tutup datar, sedikit lebih lebar dari badan. */}
+      {/* Flat lid, slightly wider than the body. */}
       <rect x="3.3" y="4.9" width="9.4" height="1.5" rx="0.5" />
-      {/* Dua koin bertumpuk miring di atas tutup. */}
+      {/* Two coins stacked at an angle on top of the lid. */}
       <circle cx="10.5" cy="2.9" r="1.9" />
       <circle cx="6.3" cy="3.3" r="2.1" />
     </svg>
@@ -118,7 +118,7 @@ export function SaweriaLogo({ size = 14 }: LogoProps) {
         <ellipse cx="8" cy="11.9" rx="1" ry="0.8" fill="#000" />
       </mask>
 
-      {/* Telinga panjang tegak, lalu kepala bulat - satu siluet. */}
+      {/* Long upright ears, then a round head - one silhouette. */}
       <g mask={`url(#${faceMask})`}>
         <rect x="4.3" y="0.7" width="2.7" height="6.4" rx="1.35" />
         <rect x="9" y="0.7" width="2.7" height="6.4" rx="1.35" />
@@ -147,13 +147,13 @@ export function SupportLogo({ size = 14 }: LogoProps) {
     >
       <mask id={facetMask}>
         <rect width="16" height="16" fill="#fff" />
-        {/* Sisi atas dan dua garis potong yang membentuk facet. */}
+        {/* Top face and the two cut lines that form the facet. */}
         <path d="M2.6 5.3h10.8v1.1H2.6z" fill="#000" />
         <path d="M5.5 1.3 8 6.4 10.5 1.3 8 15.4z" fill="#000" />
       </mask>
 
       <path d="M5.5 1.3h5l3.4 4-5.9 9.9-5.9-9.9z" mask={`url(#${facetMask})`} />
-      {/* Sisi kiri-kanan digambar utuh supaya facet atas tetap terbaca. */}
+      {/* The left-right faces are drawn whole so the top facet stays legible. */}
       <path d="M2.6 5.3h10.8v1.1H2.6z" />
       <path d="M5.5 1.3 2.6 5.3h2.6zM10.5 1.3l2.9 4h-2.6z" />
     </svg>

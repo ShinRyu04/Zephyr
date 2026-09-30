@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* index.css — layout shell Zephyr.
-   SEMUA warna dari token di src/styles/theme.css (AGENTS.md §4). */
+/* index.css — Zephyr layout shell.
+   ALL colours come from the tokens in src/styles/theme.css (AGENTS.md §4). */
 
 * {
   box-sizing: border-box;
@@ -27,11 +27,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Latar belakang kustom (permintaan user: "bisa edit background jga ntah
-   pasang foto"). Gambar dipasang sebagai lapisan ::before di belakang UI,
-   dengan kekuatan `--bg-opacity` — UI-nya sendiri TIDAK dibuat transparan,
-   kalau tidak teks jadi sulit dibaca. Panel tetap punya warna permukaan
-   sendiri sehingga konten selalu terbaca di atas gambar apa pun. */
+/* Custom background (user request: "bisa edit background jga ntah
+   pasang foto"). The image is mounted as a ::before layer behind the UI,
+   at the strength of `--bg-opacity` — the UI itself is NOT made transparent,
+   otherwise the text becomes hard to read. Panels keep their own surface
+   colour so content always stays readable over any image. */
 body::before {
   content: '';
   position: fixed;
@@ -44,12 +44,12 @@ body::before {
   opacity: var(--bg-opacity, 0);
   pointer-events: none;
 }
-/* Saat background aktif, permukaan panel dibuat sedikit tembus pandang supaya
-   gambar terlihat — tapi teks tetap di atas warna solid yang cukup kontras. */
-/* Semua permukaan shell dibuat tembus pandang. Daftar ini WAJIB memuat
-   .main-area dan .activitybar — dulu keduanya terlewat, dan karena keduanya
-   memakai warna SOLID, wallpaper hanya terlihat di sidebar sementara area
-   editor (yang paling luas) tetap gelap total. */
+/* While the background is active, panel surfaces are made slightly translucent so
+   the image shows through — but text still sits on a solid colour with enough contrast. */
+/* Every shell surface is made translucent. This list MUST include
+   .main-area and .activitybar — both used to be missed, and since both
+   used SOLID colours, the wallpaper only showed in the sidebar while the
+   editor area (by far the largest) stayed fully dark. */
 [data-bg='on'] .sidebar,
 [data-bg='on'] .main-area,
 [data-bg='on'] .activitybar,
@@ -61,26 +61,26 @@ body::before {
 [data-bg='on'] .secondary-sidebar {
   background-color: color-mix(in srgb, var(--surface) 68%, transparent);
 }
-/* Area EDITOR tetap lebih solid daripada chrome di sekelilingnya: kode harus
-   terbaca. Ini kompromi yang sama dipakai tema wallpaper di editor lain —
-   gambar terlihat jelas di sekitar, konten tetap nyaman dibaca. */
-/* Layar sambutan (tanpa kode) boleh sangat tembus — tidak ada teks panjang
-   yang perlu dibaca di sana, jadi wallpaper bisa terlihat penuh. */
+/* The EDITOR area stays more solid than the chrome around it: code has to be
+   readable. This is the same compromise wallpaper themes use in other editors —
+   the image is clearly visible around it, the content stays comfortable to read. */
+/* The welcome screen (no code open) may be very translucent — there is no long
+   text to read there, so the wallpaper can show in full. */
 [data-bg='on'] .editor-host,
 [data-bg='on'] .welcome,
 [data-bg='on'] .empty-state {
   background-color: color-mix(in srgb, var(--editor-bg) 22%, transparent);
 }
-/* Area yang memuat KONTEN PADAT (terminal, chat, panel) tetap lebih solid —
-   teks di atas foto harus nyaman dibaca. */
+/* Areas holding DENSE CONTENT (terminal, chat, panels) stay more solid —
+   text over a photo has to be comfortable to read. */
 [data-bg='on'] .term-area,
 [data-bg='on'] .pane,
 [data-bg='on'] .panel-body,
 [data-bg='on'] .ai-panel {
   background-color: color-mix(in srgb, var(--editor-bg) 72%, transparent);
 }
-/* Saat user mematikan "panel tembus pandang", semuanya kembali solid —
-   data-bg='solid' dipasang applyTheme saat opsi itu dimatikan. */
+/* When the user turns off "translucent panels", everything goes back to solid —
+   applyTheme sets data-bg='solid' when that option is turned off. */
 [data-bg='solid'] .sidebar,
 [data-bg='solid'] .main-area,
 [data-bg='solid'] .activitybar,
@@ -140,8 +140,8 @@ input {
   min-height: 0;
 }
 
-/* Kolom isi app-body: sidebar + main-area. Arahnya ditentukan posisi panel
-   (sidebar-pos-*), ala VS Code Layout. */
+/* The app-body content column: sidebar + main-area. Its direction is set by the panel
+   position (sidebar-pos-*), in the style of VS Code Layout. */
 .app-body-col {
   flex: 1;
   min-width: 0;
@@ -149,21 +149,21 @@ input {
   display: flex;
 }
 
-/* KIRI (default): urutan DOM sidebar → main. */
-/* KANAN: dibalik — sidebar tampil di sisi kanan editor. */
+/* LEFT (default): DOM order sidebar → main. */
+/* RIGHT: reversed — the sidebar shows on the right side of the editor. */
 .app-body.sidebar-pos-right .app-body-col {
   flex-direction: row-reverse;
 }
 
-/* ATAS / BAWAH: panel di atas/bawah editor (kolom). */
+/* TOP / BOTTOM: panel above/below the editor (column). */
 .app-body.sidebar-pos-top .app-body-col,
 .app-body.sidebar-pos-bottom .app-body-col {
   flex-direction: column;
 }
 
-/* A-10: panel AI sebagai kolom kanan 340px ala VS Code Copilot. Lebarnya
-   tetap (tidak bisa di-drag) supaya kode di editor tidak terpotong makin
-   sempit tiap kali panel dibuka-tutup. */
+/* A-10: the AI panel as a 340px right-hand column, in the style of VS Code Copilot. Its width
+   is fixed (not draggable) so the code in the editor is not squeezed more
+   and more every time the panel is opened and closed. */
 .ai-side-col {
   flex: 0 0 340px;
   width: 340px;
@@ -174,11 +174,11 @@ input {
   background: var(--surface-1);
 }
 
-/* Kolom AI: flex COLUMN berisi chat, lalu (opsional) panel info di BAWAHNYA —
-   itu SALAH. Chat dan panel info harus BERDAMPINGAN. Karena itu isinya dibungkus
-   satu baris (.ai-side-row) yang flex-row; kolomnya sendiri hanya menyediakan
-   lebar. Tanpa wrapper ini panel info jatuh ke bawah chat dengan lebar penuh.
-   (pernah kejadian: chat 559px + info 559px bertumpuk). */
+/* AI column: flex COLUMN holding the chat, then (optionally) the info panel BELOW it —
+   that is WRONG. The chat and the info panel must sit SIDE BY SIDE. So the contents are
+   wrapped in one row (.ai-side-row) that is flex-row; the column itself only supplies
+   the width. Without this wrapper the info panel falls below the chat at full width.
+   (this happened: chat 559px + info 559px stacked). */
 .ai-side-col {
   display: flex;
   flex-direction: column;
@@ -199,18 +199,18 @@ input {
   height: auto;
 }
 
-/* Saat panel info terbuka, kolom AI melebar supaya chat tidak terhimpit.
-   Ini menambah lebar DI ATAS lebar drag user (bukan menimpanya): `+ 218px` =
-   lebar panel info, jadi chat tetap selebar yang user pilih. */
+/* While the info panel is open, the AI column widens so the chat is not squeezed.
+   This adds width ON TOP OF the user's drag width (not over it): `+ 218px` =
+   the info panel width, so the chat stays the width the user chose. */
 .ai-side-col:has(.sai-root) {
   flex-basis: calc(var(--ai-w, 340px) + 218px);
   width: calc(var(--ai-w, 340px) + 218px);
 }
 
-/* T4.14 "lebarkan / fullscreen ala VS Code": saat tombol maximize ditekan,
-   panel AI mengambil SELURUH lebar area kerja dan editor disembunyikan —
-   persis perilaku maximize panel di VS Code. Tanpa aturan ini kelas is-max
-   hanya nama kosong dan lebarnya tetap 340px (bug yang sempat terjadi). */
+/* T4.14 "widen / fullscreen like VS Code": when the maximize button is pressed,
+   the AI panel takes the WHOLE width of the work area and the editor is hidden —
+   exactly how panel maximize behaves in VS Code. Without this rule the is-max
+   class is just an empty name and the width stays 340px (a bug that did happen). */
 .ai-side-col.is-max {
   flex: 1 1 auto;
   width: auto;
@@ -220,8 +220,8 @@ input {
   display: none;
 }
 
-/* Panel info subagent: kolom sempit di KANAN chat. Sengaja ringkas — ini
-   informasi, bukan ruang kerja; detail penuh ada di tab Subagents. */
+/* Subagent info panel: a narrow column on the RIGHT of the chat. Deliberately brief — this
+   is information, not a workspace; the full detail lives in the Subagents tab. */
 .sai-root {
   flex: 0 0 218px;
   width: 218px;
@@ -232,7 +232,7 @@ input {
   border-left: 1px solid var(--border);
   background: var(--surface-2);
 }
-/* Pengganti di dock bawah saat AI dipindah ke kanan. */
+/* The replacement in the bottom dock when the AI is moved to the right. */
 .ai-moved {
   margin: 0;
   padding: 12px 14px;
@@ -240,9 +240,9 @@ input {
   font-size: 12px;
 }
 
-/* C-19: layout terminal-first ala Terax. Terminal memenuhi sisa lebar, editor
-   jadi pane tetap di kanan. TerminalArea mode mandiri membawa tinggi sendiri
-   (style inline), jadi tingginya di-override ke 100% di sini. */
+/* C-19: terminal-first layout in the style of Terax. The terminal fills the remaining width, the editor
+   becomes a fixed pane on the right. Standalone-mode TerminalArea carries its own height
+   (inline style), so its height is overridden to 100% here. */
 .term-first {
   display: flex;
   flex: 1;
@@ -280,8 +280,8 @@ input {
   cursor: col-resize;
 }
 
-/* Panel horizontal (posisi atas/bawah): selebar konten, tingginya diatur
-   inline lewat sidebarHeight (drag divider horizontal). */
+/* Horizontal panel (top/bottom position): content width, its height is set
+   inline via sidebarHeight (dragging the horizontal divider). */
 .sidebar-h {
   width: 100%;
   min-width: 0;
@@ -294,7 +294,7 @@ input {
   border-top: 1px solid var(--border);
 }
 
-/* Divider horizontal untuk posisi atas/bawah. */
+/* Horizontal divider for the top/bottom position. */
 .resizer-h {
   width: auto;
   height: 4px;
@@ -304,18 +304,18 @@ input {
 
 /* ─────────── ActivityBar ─────────── */
 
-/* ─────────── layout sempit (fase 15.6) ───────────
-   Jendela minimum 800x520: sidebar dilipat oleh App.tsx, sisanya diatur di
-   sini. Yang penting: tidak ada elemen yang memaksa lebar minimum lebih besar
-   dari viewport (itu yang membuat layout "pecah" / muncul scrollbar horizontal). */
+/* ─────────── narrow layout (phase 15.6) ───────────
+   Minimum window 800x520: the sidebar is collapsed by App.tsx, the rest is handled
+   here. The key point: no element forces a minimum width larger than the
+   viewport (that is what made the layout "break" / a horizontal scrollbar appear). */
 body.is-narrow .sidebar {
   max-width: 40vw;
 }
 body.is-narrow .statusbar {
   overflow: hidden;
 }
-/* Item status bar yang paling tidak penting disembunyikan lebih dulu supaya
-   Ln/Col + pesan status tetap terbaca. */
+/* The least important status bar items are hidden first so that
+   Ln/Col + the status message stay readable. */
 body.is-narrow .sb-brand,
 body.is-narrow .sb-btn[disabled] {
   display: none;
@@ -323,13 +323,13 @@ body.is-narrow .sb-btn[disabled] {
 body.is-narrow .find-bar .find-input {
   min-width: 80px;
 }
-/* Palette tidak boleh lebih lebar dari jendela. */
+/* The palette must not be wider than the window. */
 body.is-narrow .cp-modal {
   width: calc(100vw - 24px);
   max-width: calc(100vw - 24px);
 }
-/* Tooltip ActivityBar di layout sempit: `title` native tidak bisa keluar dari
-   jendela, jadi cukup pastikan tombolnya sendiri tidak melebar. */
+/* ActivityBar tooltips in the narrow layout: a native `title` cannot escape the
+   window, so it is enough to make sure the button itself does not overflow. */
 body.is-narrow .ab-btn {
   width: 36px;
 }
@@ -383,7 +383,7 @@ body.is-narrow .ab-btn {
   border-radius: 1px;
 }
 
-/* Akun GitHub di bawah activity bar (ala VS Code). */
+/* The GitHub account below the activity bar (like VS Code). */
 .ab-spacer {
   flex: 1 1 auto;
 }
@@ -405,8 +405,8 @@ body.is-narrow .ab-btn {
   user-select: none;
   overflow: hidden;
 }
-/* Foto profil asli dari GitHub (avatars.githubusercontent.com). object-fit
-   supaya rasio apa pun tetap bulat penuh tanpa distorsi. */
+/* The real profile photo from GitHub (avatars.githubusercontent.com). object-fit
+   so any aspect ratio stays a full circle with no distortion. */
 .ab-gh-img {
   width: 100%;
   height: 100%;
@@ -415,13 +415,13 @@ body.is-narrow .ab-btn {
   border-radius: 50%;
 }
 
-/* ─────────── ActivityBar ikut posisi panel ───────────
-   ActivityBar dirender DI DALAM .app-body-col bersama sidebar, jadi ia
-   ikut arah flex:
-     - kiri  : vertikal di tepi kiri (default)
-     - kanan : vertikal di tepi kanan (row-reverse di .app-body-col)
-     - atas  : HORIZONTAL di atas panel
-     - bawah : HORIZONTAL di bawah panel */
+/* ─────────── ActivityBar follows the panel position ───────────
+   The ActivityBar is rendered INSIDE .app-body-col together with the sidebar, so it
+   follows the flex direction:
+     - left  : vertical on the left edge (default)
+     - right : vertical on the right edge (row-reverse on .app-body-col)
+     - top   : HORIZONTAL above the panel
+     - bottom: HORIZONTAL below the panel */
 .app-body.sidebar-pos-right .activitybar {
   border-right: none;
   border-left: 1px solid var(--border);
@@ -441,7 +441,7 @@ body.is-narrow .ab-btn {
 .app-body.sidebar-pos-bottom .activitybar {
   border-top: 1px solid var(--border);
 }
-/* Indikator aktif: di mode horizontal pindah ke tepi atas tombol. */
+/* Active indicator: in horizontal mode it moves to the button's top edge. */
 .app-body.sidebar-pos-top .activitybar .ab-indicator,
 .app-body.sidebar-pos-bottom .activitybar .ab-indicator {
   left: 50%;
@@ -450,7 +450,7 @@ body.is-narrow .ab-btn {
   width: 20px;
   height: 2px;
 }
-/* Avatar GitHub di ujung kanan saat horizontal (spacer mendorong ke kanan). */
+/* GitHub avatar at the right end when horizontal (a spacer pushes it right). */
 .app-body.sidebar-pos-top .activitybar .ab-gh,
 .app-body.sidebar-pos-bottom .activitybar .ab-gh {
   margin-bottom: 0;
@@ -568,14 +568,14 @@ body.is-narrow .ab-btn {
   border-radius: 1px;
 }
 
-/* Konten panel */
+/* Panel content */
 .sidebar-content {
   flex: 1;
   overflow: auto;
   padding: 8px 0;
 }
 
-/* Secondary sidebar — di sisi berlawanan */
+/* Secondary sidebar — on the opposite side */
 .secondary-sidebar {
   flex-shrink: 0;
   background: var(--surface);
@@ -737,8 +737,8 @@ body.is-narrow .ab-btn {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  /* background diatur oleh aturan [data-bg] di atas: warna solid di sini akan
-     menutupi wallpaper kustom (dulu inilah sebab editor tetap gelap). */
+  /* The background is set by the [data-bg] rules above: a solid colour here would
+     cover the custom wallpaper (this was why the editor used to stay dark). */
   background: var(--bg);
 }
 [data-bg='on'] .main-area {
@@ -767,21 +767,21 @@ body.is-narrow .ab-btn {
   height: 100%;
 }
 
-/* Saat latar kustom aktif, editor dibuat tembus pandang. Token
-   `--editor-background` dipakai CodeMirror sebagai backgroundColor inline,
-   jadi harus ditimpa di sini — mengubah tokennya akan ikut mengubah tema. */
+/* While the custom background is active, the editor is made translucent. The token
+   `--editor-background` is used by CodeMirror as an inline backgroundColor,
+   so it has to be overridden here — changing the token would change the theme too. */
 [data-bg='on'] .zephyr-cm-host .cm-editor,
 [data-bg='on'] .zephyr-cm-host .cm-scroller,
 [data-bg='on'] .zephyr-cm-host .cm-content,
 [data-bg='on'] .zephyr-cm-host .cm-gutters {
   background-color: transparent;
 }
-/* Gutter tetap sedikit gelap supaya nomor baris terbaca di atas foto. */
+/* The gutter stays slightly dark so the line numbers are readable over the photo. */
 [data-bg='on'] .zephyr-cm-host .cm-gutters {
   background-color: color-mix(in srgb, var(--editor-bg) 45%, transparent);
 }
 
-/* Panel search bawaan CodeMirror disembunyikan — Zephyr punya FindBar sendiri. */
+/* CodeMirror's built-in search panel is hidden — Zephyr has its own FindBar. */
 .cm-panels {
   display: none !important;
 }
@@ -831,7 +831,7 @@ body.is-resizing-v {
   background: var(--accent-subtle);
 }
 
-/* Perbesar/restore panel terminal (fase 06) — kelas dipasang di .main-area. */
+/* Maximize/restore the terminal panel (phase 06) — the class is set on .main-area. */
 .main-area.term-maximized .editor-area {
   display: none;
 }
@@ -975,10 +975,10 @@ body.is-resizing-v {
 .tt-actions {
   display: flex;
   align-items: center;
-  /* jarak antar tombol toolbar: sebelumnya 1px -> terlihat berdempet */
+  /* spacing between toolbar buttons: it was 1px -> they looked stuck together */
   gap: 3px;
-  /* fase 24.1: hidup di baris tab panel (PanelTabStrip), tepat sebelum
-     …/perbesar/tutup. Tidak lagi punya baris sendiri. */
+  /* phase 24.1: lives in the panel tab row (PanelTabStrip), right before
+     …/maximize/close. It no longer has a row of its own. */
   padding: 0 4px 0 0;
   margin-right: 2px;
   border-right: 1px solid var(--border);
@@ -1022,11 +1022,11 @@ body.is-resizing-v {
 }
 
 .tt-dropdown {
-  /* Posisi & z-index diatur .zpop (portal ke <body>, lihat editor-extras.css).
-     Dulu absolut di dalam .tt-picker-wrap dan terpotong `overflow: hidden`
-     panel bawah — itu sebabnya menu terlihat "tertimpa". */
+  /* Position & z-index are handled by .zpop (a portal into <body>, see editor-extras.css).
+     It used to be absolute inside .tt-picker-wrap and was clipped by the bottom
+     panel's `overflow: hidden` — that is why the menu looked "covered". */
   min-width: 208px;
-  /* padding lebih lega + jarak antar item, supaya tidak berdempet */
+  /* roomier padding + spacing between items, so they are not stuck together */
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -1046,7 +1046,7 @@ body.is-resizing-v {
   align-items: center;
   gap: 10px;
   width: 100%;
-  /* tinggi baris konsisten 30px: nyaman diklik, tidak boros */
+  /* consistent 30px row height: comfortable to click, not wasteful */
   min-height: 30px;
   padding: 6px 10px;
   border-radius: 5px;
@@ -1064,7 +1064,7 @@ body.is-resizing-v {
   background: var(--danger);
 }
 
-/* Ikon di dalam dropdown: lebar tetap supaya label rata kiri sejajar. */
+/* Icons inside the dropdown: fixed width so the left-aligned labels line up. */
 .tt-drop-item .tt-icon {
   flex: 0 0 15px;
   width: 15px;
@@ -1077,11 +1077,11 @@ body.is-resizing-v {
   background: var(--border);
 }
 
-/* ── fase 24.1: toolbar terminal 6 tombol → 2 ── */
+/* ── phase 24.1: terminal toolbar 6 buttons → 2 ── */
 
-/* [+ ▾] satu kontrol dua bagian: aksi utama + panah pilihan. Keduanya SEJAJAR
-   horizontal — .tt-actions memakai flex row, dan wrapper ini harus ikut row,
-   bukan menumpuk atas-bawah. */
+/* [+ ▾] one control in two parts: the main action + the choices arrow. Both sit IN LINE
+   horizontally — .tt-actions uses flex row, and this wrapper has to be a row too,
+   not stacked top-to-bottom. */
 .tt-split-btn {
   position: relative;
   display: flex;
@@ -1089,7 +1089,7 @@ body.is-resizing-v {
   align-items: center;
   gap: 0;
 }
-/* Dua tombol menyatu jadi satu kesatuan visual. */
+/* The two buttons merge into one visual unit. */
 .tt-split-btn > .tt-btn:first-child {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
@@ -1103,13 +1103,13 @@ body.is-resizing-v {
   width: 11px;
   height: 11px;
 }
-/* Garis pemisah tipis di antara keduanya, hanya muncul saat di-hover supaya
-   toolbar tetap bersih. */
+/* A thin divider between the two, shown only on hover so the
+   toolbar stays clean. */
 .tt-split-btn:hover > .tt-btn:first-child {
   box-shadow: inset -1px 0 0 var(--border);
 }
 
-/* Judul kelompok di dalam dropdown ("Shell", "AI agent", "Pane aktif"). */
+/* Group headings inside the dropdown ("Shell", "AI agent", "Active pane"). */
 .tt-drop-label {
   padding: 4px 10px 2px;
   font-size: 9.5px;
@@ -1132,7 +1132,7 @@ body.is-resizing-v {
   overflow: hidden;
 }
 
-/* ── grid multi-pane (fase 06) ── */
+/* ── multi-pane grid (phase 06) ── */
 
 .pane-grid {
   position: absolute;
@@ -1353,9 +1353,9 @@ body.is-resizing-v {
   height: 100%;
 }
 
-/* xterm tidak selalu menuliskan background-nya sebagai inline style (WebView2
-   kadang membuat .xterm tetap transparan), sehingga pane terminal tampak
-   hitam/kosong. Warnai permukaannya lewat CSS dengan token tema yang sama. */
+/* xterm does not always write its background as an inline style (WebView2
+   sometimes leaves .xterm transparent), so the terminal pane looks
+   black/empty. Colour its surface via CSS with the same theme tokens. */
 .xterm-pane,
 .xterm-holder,
 .xterm-pane .xterm,
@@ -1551,7 +1551,7 @@ body.is-resizing-v {
   border: 1px solid var(--border);
 }
 
-/* ─────────── banner read-only (fase 15.1) ─────────── */
+/* ─────────── read-only banner (phase 15.1) ─────────── */
 .ro-banner {
   display: flex;
   align-items: center;
@@ -1596,8 +1596,8 @@ body.is-resizing-v {
 .empty-title {
   font-size: 28px;
   font-weight: 400;
-  /* Sebelumnya 0.14em -> "Z e p h y r" terbaca terlalu renggang.
-     0.02em cukup untuk kesan lapang tanpa memecah kata. */
+  /* It used to be 0.14em -> "Z e p h y r" read too loosely spaced.
+     0.02em is enough for an airy feel without breaking the word apart. */
   letter-spacing: 0.02em;
   color: var(--text);
 }
@@ -1632,7 +1632,7 @@ body.is-resizing-v {
   color: var(--text-secondary);
 }
 
-/* ─────────── Explorer (fase 04) ─────────── */
+/* ─────────── Explorer (phase 04) ─────────── */
 
 .explorer {
   display: flex;
@@ -1991,7 +1991,7 @@ body.is-resizing-v {
   min-height: 14px;
 }
 
-/* Tombol pelipat opsi include/exclude + checkbox .gitignore (fase 25). */
+/* The include/exclude options toggle button + the .gitignore checkbox (phase 25). */
 .search-opsi-toggle {
   width: 100%;
   padding: 3px 12px;
@@ -2025,13 +2025,13 @@ body.is-resizing-v {
   min-height: 0;
   overflow: auto;
   padding: 0 0 8px;
-  /* fase 25: baris hasil diposisikan absolut di dalam .sr-spacer supaya bisa
-     divirtualkan. `position: relative` di sini yang menjadi acuannya. */
+  /* phase 25: result rows are positioned absolutely inside .sr-spacer so they can
+     be virtualised. The `position: relative` here is what anchors them. */
   position: relative;
 }
 
-/* Spacer setinggi seluruh daftar hasil (fase 25). Scrollbar mengikuti tinggi
-   ini, bukan jumlah node yang benar-benar dirender. */
+/* A spacer as tall as the whole result list (phase 25). The scrollbar follows this height,
+   not the number of nodes actually rendered. */
 .sr-spacer {
   position: relative;
   width: 100%;
@@ -2049,9 +2049,9 @@ body.is-resizing-v {
   font-size: 12px;
   color: var(--text);
   background: var(--surface-2);
-  /* fase 25: dulu `position: sticky`. Dengan virtualisasi, header ikut
-     dipindah-posisikan absolut — sticky di dalam spacer absolut membuat
-     header menumpuk di satu titik. */
+  /* phase 25: it used to be `position: sticky`. With virtualisation the header is
+     repositioned absolutely too — sticky inside an absolute spacer made the
+     header pile up at a single point. */
   position: absolute;
   left: 0;
   right: 0;
@@ -2059,7 +2059,7 @@ body.is-resizing-v {
   box-sizing: border-box;
 }
 
-/* Tombol lipat per file (fase 25). */
+/* The per-file collapse button (phase 25). */
 .sr-fold {
   flex: 0 0 auto;
   width: 14px;
@@ -2073,7 +2073,7 @@ body.is-resizing-v {
   color: var(--text);
 }
 
-/* Folder induk, ditampilkan redup di sebelah nama file. */
+/* The parent folder, shown dimmed next to the file name. */
 .sr-file-dir {
   flex: 1;
   min-width: 0;
@@ -2122,9 +2122,9 @@ body.is-resizing-v {
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
-  /* fase 25: diposisikan absolut untuk virtualisasi. Tinggi WAJIB tetap 22px
-     dan cocok dengan TINGGI_BARIS di SearchPanel.tsx — kalau berbeda, offset
-     baris melenceng makin jauh saat digulir. */
+  /* phase 25: positioned absolutely for virtualisation. The height MUST stay 22px
+     and match TINGGI_BARIS in SearchPanel.tsx — if they differ, the row offset
+     drifts further and further off as you scroll. */
   position: absolute;
   left: 0;
   right: 0;
@@ -2254,7 +2254,7 @@ body.is-resizing-v {
   opacity: 0.45;
   cursor: default;
 }
-/* Tombol donasi status bar — sedikit menonjol tapi tetap subtle. */
+/* The status bar donation button — slightly prominent but still subtle. */
 .sb-btn.sb-donate {
   color: var(--text);
   font-weight: 600;
@@ -2266,8 +2266,8 @@ body.is-resizing-v {
   background: var(--surface-3);
   color: var(--text);
 }
-/* Dua tanda layanan donasi memakai warna mereknya sendiri, jadi tombolnya
-   terbaca sebagai pintu donasi tanpa perlu teks tambahan. */
+/* The two donation service marks use their own brand colours, so the button
+   reads as a donation entry point without needing extra text. */
 .sb-donate-tk {
   display: inline-flex;
   color: var(--brand-trakteer);
@@ -2277,9 +2277,9 @@ body.is-resizing-v {
   color: var(--brand-saweria);
   margin-left: -2px;
 }
-/* Tombol donasi di About: memakai warna aksen tema supaya seragam dengan
-   tombol utama lain, bukan warna kuning sendiri. Ikonnya emoji kopi, jadi
-   warnanya dibiarkan asli dari font emoji. */
+/* The donation button in About: uses the theme accent colour so it matches the
+   other primary buttons, rather than a yellow of its own. Its icon is a coffee emoji, so
+   its colour is left as the emoji font renders it. */
 .btn.btn-donate {
   border-color: var(--brand-donate);
   color: var(--brand-donate);
@@ -2287,7 +2287,7 @@ body.is-resizing-v {
 .btn.btn-donate .about-donate-emoji {
   font-size: 1.05em;
   line-height: 1;
-  /* Emoji tetap berwarna walau tema memaksa warna teks. */
+  /* The emoji stays coloured even when the theme forces a text colour. */
   color: initial;
   font-family: 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
 }
@@ -2296,10 +2296,10 @@ body.is-resizing-v {
   background-color: color-mix(in srgb, var(--brand-donate) 12%, transparent);
 }
 
-/* Tombol brand di About: logo resmi + label.
-   Ikonnya memakai fill currentColor supaya tetap ikut tema, dan warna merek
-   diberikan lewat token supaya WhatsApp hijau dan GitHub tetap kontras di
-   tema terang maupun gelap. */
+/* Brand buttons in About: the official logo + a label.
+   The icon uses fill currentColor so it still follows the theme, and the brand colour
+   is supplied via tokens so WhatsApp green and GitHub stay contrasty in
+   both the light and the dark theme. */
 .btn.btn-brand {
   display: inline-flex;
   align-items: center;
@@ -2324,9 +2324,9 @@ body.is-resizing-v {
   color: var(--brand-whatsapp);
 }
 
-/* Tombol Discord memakai pola yang sama dengan WhatsApp: ikonnya tetap
-   berwarna merek walau tombolnya di-hover, karena bluring di latar gelap
-   membuat ikon ikut berubah jadi aksen dan warnanya jadi tidak dikenali. */
+/* The Discord button uses the same pattern as WhatsApp: its icon stays
+   in brand colour even when the button is hovered, because blurring on a dark background
+   makes the icon turn into the accent colour too and it becomes unrecognisable. */
 .btn.btn-brand-dc > svg {
   color: var(--brand-discord);
 }
@@ -2390,7 +2390,7 @@ body.is-resizing-v {
   justify-content: flex-end;
 }
 
-/* ─────────── Notifikasi: toast + center (fase 27) ─────────── */
+/* ─────────── Notifications: toast + center (phase 27) ─────────── */
 .toast-stack {
   position: fixed;
   right: 14px;
@@ -2461,7 +2461,7 @@ body.is-resizing-v {
 }
 .toast-close:hover { color: var(--text); background: var(--surface-2); }
 
-/* lonceng di status bar */
+/* the bell in the status bar */
 .sb-bell { position: relative; gap: 0; padding: 0 7px; }
 .sb-bell-ico { width: 14px; height: 14px; }
 .sb-bell.is-active { color: var(--text); background: var(--surface-2); }
@@ -2567,7 +2567,7 @@ body.is-resizing-v {
 .nc-x { color: var(--text-muted); font-size: 11px; padding: 2px 4px; border-radius: 3px; }
 .nc-x:hover { color: var(--text); background: var(--surface-2); }
 
-/* daftar item pada dialog hapus */
+/* the item list in the delete dialog */
 .del-list {
   list-style: none;
   margin: 0 0 12px;
@@ -2581,7 +2581,7 @@ body.is-resizing-v {
 }
 .del-list code { font-family: var(--font-mono); color: var(--text); }
 
-/* ─────────── Menu bar (fase 18.1) ─────────── */
+/* ─────────── Menu bar (phase 18.1) ─────────── */
 .menubar {
   display: flex;
   align-items: stretch;
@@ -2595,8 +2595,8 @@ body.is-resizing-v {
   z-index: 60;
 }
 .mb-menu { position: relative; }
-/* Tombol posisi panel — SELALU terlihat di kanan atas (bukan popover).
-   Empat ikon layout + tombol sembunyikan panel (mata dicoret). */
+/* Panel position buttons — ALWAYS visible at the top right (not a popover).
+   Four layout icons + a hide-panel button (crossed-out eye). */
 .mb-layout {
   display: flex;
   align-items: center;
@@ -2629,9 +2629,9 @@ body.is-resizing-v {
   height: 15px;
 }
 
-/* C-18: tombol minimize/maximize/close sendiri — title bar Windows dihapus
-   supaya chrome-nya bisa bertema gelap. Ukuran mengikuti konvensi Windows
-   (46x28) supaya terasa native, bukan tombol web. */
+/* C-18: our own minimize/maximize/close buttons — the Windows title bar is removed
+   so the chrome can be themed dark. The size follows the Windows convention
+   (46x28) so it feels native, not like a web button. */
 .wc {
   display: flex;
   align-items: stretch;
@@ -2667,13 +2667,13 @@ body.is-resizing-v {
   margin: 0 6px;
   background: var(--border);
 }
-/* Command center: pill lebar di TENGAH baris menu ala VS Code —
-   nempel setelah Help tapi memanjang ke kanan (bukan kotak kecil di pojok). */
+/* Command center: a wide pill in the MIDDLE of the menu row, like VS Code —
+   flush after Help but stretching to the right (not a small box in the corner). */
 .mb-cc-wrap {
   display: flex;
   align-items: center;
-  /* Rata TENGAH di baris menu (ala VS Code command center) — bukan nempel
-     setelah menu Help di kiri. */
+  /* Centred in the menu row (like the VS Code command center) — not stuck
+     after the Help menu on the left. */
   justify-content: center;
   flex: 1 1 auto;
   min-width: 0;
@@ -2768,7 +2768,7 @@ body.is-resizing-v {
 body.is-narrow .menubar { font-size: 11px; }
 body.is-narrow .mb-top { padding: 0 6px; }
 
-/* ─────────── Editor Keyboard Shortcuts (fase 18.4) ─────────── */
+/* ─────────── Editor Keyboard Shortcuts (phase 18.4) ─────────── */
 .kb-backdrop { align-items: flex-start; padding-top: 6vh; }
 .kb-panel {
   width: min(980px, calc(100vw - 40px));
@@ -2850,8 +2850,8 @@ body.is-narrow .mb-top { padding: 0 6px; }
 }
 .kb-foot code { font-family: var(--font-mono); }
 
-/* ErrorBoundary (shell/ErrorBoundary.tsx) — kartu pemulihan saat satu bagian
-   gagal render. Tanpa ini React melepas seluruh tree dan jendela jadi blank. */
+/* ErrorBoundary (shell/ErrorBoundary.tsx) — the recovery card when one part
+   fails to render. Without it React unmounts the whole tree and the window goes blank. */
 .err-boundary {
   margin: auto;
   max-width: 520px;

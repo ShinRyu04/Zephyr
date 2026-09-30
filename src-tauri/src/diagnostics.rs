@@ -121,7 +121,7 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         if n == 0 {
             "no active pane".into()
         } else {
-            format!("{n} pane aktif")
+            format!("{n} active panes")
         },
     ));
 
@@ -135,7 +135,7 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         if git_ok {
             "repo git terdeteksi".into()
         } else {
-            "workspace bukan repo git".into()
+            "workspace is not a git repo".into()
         },
     ));
 
@@ -157,7 +157,7 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
         if ada_key { "ok" } else { "warn" },
         format!(
             "provider {prov} — key {}",
-            if ada_key { "terpasang" } else { "belum ada" }
+            if ada_key { "configured" } else { "not set" }
         ),
     ));
 
@@ -203,9 +203,9 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
                         (false, "the file contents differ after reading".into())
                     }
                 }
-                Err(e) => (false, format!("failed baca: {e}")),
+                Err(e) => (false, format!("read failed: {e}")),
             },
-            Err(e) => (false, format!("failed tulis: {e}")),
+            Err(e) => (false, format!("write failed: {e}")),
         }
     });
     out.push(SelfTestItem {
@@ -227,7 +227,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
                     .join(", ")
             ),
         ),
-        Ok(_) => (false, "is missing shell terdeteksi".into()),
+        Ok(_) => (false, "no shell detected".into()),
         Err(e) => (false, format!("{e}")),
     });
     out.push(SelfTestItem {
@@ -245,7 +245,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
                 (true, String::from_utf8_lossy(&o.stdout).trim().to_string())
             }
             Ok(o) => (false, format!("exit {:?}", o.status.code())),
-            Err(e) => (false, format!("git tidak ditemukan: {e}")),
+            Err(e) => (false, format!("git not found: {e}")),
         }
     });
     out.push(SelfTestItem {
@@ -261,7 +261,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
             std::time::Duration::from_millis(800),
         ) {
             Ok(_) => (true, format!("socket :{p} menerima koneksi")),
-            Err(e) => (false, format!("port {p} tidak bisa dihubungi: {e}")),
+            Err(e) => (false, format!("port {p} cannot be reached: {e}")),
         },
         None => (true, "server down (not tested)".into()),
     });
@@ -273,7 +273,7 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
     });
 
     let (ok, detail, ms) = ukur(&|| {
-        tracing::info!(target: "selftest", "self-test menulis satu baris");
+        tracing::info!(target: "selftest", "self-test writes one line");
         match crate::logging::log_file_path() {
             Some(p) if p.exists() => {
                 let n = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
@@ -283,14 +283,14 @@ pub fn self_test(state: State<AppState>) -> ZResult<Vec<SelfTestItem>> {
         }
     });
     out.push(SelfTestItem {
-        name: "log tulis".into(),
+        name: "log write".into(),
         ok,
         ms,
         detail,
     });
 
     let gagal = out.iter().filter(|x| !x.ok).count();
-    tracing::info!("self_test: {} item, {gagal} failed", out.len());
+    tracing::info!("self_test: {} items, {gagal} failed", out.len());
     Ok(out)
 }
 
@@ -321,7 +321,7 @@ pub fn debug_panic() -> ZResult<()> {
     #[cfg(not(debug_assertions))]
     {
         Err(crate::errors::ZephyrError::Permission(
-            "debug_panic hanya tersedia di build debug".into(),
+            "debug_panic is only available in debug builds".into(),
         ))
     }
 }

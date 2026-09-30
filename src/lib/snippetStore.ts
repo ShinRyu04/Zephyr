@@ -377,7 +377,7 @@ export const useSnip = create<SnipState & SnipActions>((set, get) => ({
       ]);
       set({ bahasaUser: user, bahasaBawaan: bawaan });
     } catch {
-      /* daftar hanya untuk UI — gagal bukan alasan mengganggu editor */
+      /* list for the UI only — a failure is no reason to bother the editor */
     }
   },
 

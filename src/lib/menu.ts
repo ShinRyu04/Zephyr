@@ -21,7 +21,7 @@ export const MENUS: MenuDef[] = [
   {
     label: 'File',
     mnemonic: 'f',
-    // Catatan: label ini salah satu dari delapan judul menu; kuncinya 'File'.
+    // Note: this label is one of the eight menu titles; its key is 'File'.
     items: [
       { label: 'New File', command: 'file.new' },
       { label: 'New Window', command: 'window.new' },

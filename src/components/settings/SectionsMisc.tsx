@@ -439,7 +439,7 @@ export function AboutSection() {
         </div>
       </div>
 
-      {/* Kartu detail: label kiri, nilai kanan - 4 baris saja. */}
+      {/* Detail card: label left, value right - only 4 rows. */}
       <div className="about-kartu about-kartu-detail">
         <div className="about-judul">{tr('Build details')}</div>
         <div className="about-sub">
@@ -475,7 +475,7 @@ export function AboutSection() {
         {tr('Auto-update checks GitHub Releases periodically.')}
       </p>
 
-      {/* Baris tautan utama - yang paling sering dipakai user. */}
+      {/* Primary link row - the one users reach for most often. */}
       <div className="about-links">
         <button
           className="btn btn-primary"
@@ -519,7 +519,7 @@ export function AboutSection() {
         </button>
       </div>
 
-      {/* Utilitas langka - tetap ada, tapi tidak lagi jadi tombol besar. */}
+      {/* Rare utilities - still there, but no longer big buttons. */}
       <div className="about-util">
         <button
           className="about-util-btn"
@@ -657,7 +657,7 @@ function DiagnosticsPanel() {
         </tbody>
       </table>
 
-      {/* fase 16.5: status per domain - nilainya dari Rust, bukan tebakan UI. */}
+      {/* phase 16.5: per-domain status - the value comes from Rust, not a UI guess. */}
       {d && d.domains.length > 0 && (
         <table className="about-table diag-domains" data-testid="diag-domains">
           <tbody>

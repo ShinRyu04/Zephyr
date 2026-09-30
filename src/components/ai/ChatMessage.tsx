@@ -384,10 +384,10 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             <p className="ai-plain">{msg.content}</p>
           ) : (
             <>
-              {/* T1.1: blok "Reasoned" - penalaran model, bisa dilipat.
-                  Terlipat secara default supaya jawaban tetap jadi fokus;
-                  dibuka otomatis saat masih mengalir supaya user melihat
-                  model benar-benar berpikir (bukan menggantung). */}
+              {/* T1.1: "Reasoned" block - the model's reasoning, collapsible.
+                  Collapsed by default so the answer stays the focus;
+                  auto-opened while still streaming so the user sees
+                  the model really thinking (not hanging). */}
               {msg.reasoning && (
                 <ReasonedBlock text={msg.reasoning} streaming={!!msg.streaming} />
               )}

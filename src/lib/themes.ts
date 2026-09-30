@@ -7,32 +7,32 @@ export interface ThemeInfo {
 }
 
 export const THEMES: ThemeInfo[] = [
-  { id: 'zephyr-dark', label: 'Zephyr Dark', kind: 'dark', hint: 'default, kontras tinggi' },
-  { id: 'zephyr-light', label: 'Zephyr Light', kind: 'light', hint: 'terang, untuk siang' },
-  { id: 'nord', label: 'Nord', kind: 'dark', hint: 'biru dingin, lembut' },
-  { id: 'tokyo-night', label: 'Tokyo Night', kind: 'dark', hint: 'ungu-biru, malam' },
-  { id: 'gruvbox-dark', label: 'Gruvbox Dark', kind: 'dark', hint: 'hangat, retro' },
-  { id: 'one-dark', label: 'One Dark Pro', kind: 'dark', hint: 'ala Atom/VS Code' },
-  { id: 'senja', label: 'Senja', kind: 'dark', hint: 'gelap hangat, aksen jingga senja' },
-  { id: 'zephyr-acrylic', label: 'Zephyr Dark Acrylic', kind: 'dark', hint: 'modern ADE, transparan & glass' },
+  { id: 'zephyr-dark', label: 'Zephyr Dark', kind: 'dark', hint: 'default, high contrast' },
+  { id: 'zephyr-light', label: 'Zephyr Light', kind: 'light', hint: 'light, for daytime' },
+  { id: 'nord', label: 'Nord', kind: 'dark', hint: 'cool blue, soft' },
+  { id: 'tokyo-night', label: 'Tokyo Night', kind: 'dark', hint: 'violet-blue, night' },
+  { id: 'gruvbox-dark', label: 'Gruvbox Dark', kind: 'dark', hint: 'warm, retro' },
+  { id: 'one-dark', label: 'One Dark Pro', kind: 'dark', hint: 'Atom/VS Code style' },
+  { id: 'senja', label: 'Senja', kind: 'dark', hint: 'warm dark, dusk-orange accents' },
+  { id: 'zephyr-acrylic', label: 'Zephyr Dark Acrylic', kind: 'dark', hint: 'modern ADE, transparent and glassy' },
 
   {
     id: 'high-contrast',
     label: 'High Contrast',
     kind: 'dark',
-    hint: 'AAA, untuk low-vision',
+    hint: 'AAA, for low vision',
   },
 
-  { id: 'dracula', label: 'Dracula', kind: 'dark', hint: 'ungu-merah, klasik' },
-  { id: 'catppuccin-mocha', label: 'Catppuccin Mocha', kind: 'dark', hint: 'pastel lembut, populer' },
-  { id: 'rose-pine', label: 'Rosé Pine', kind: 'dark', hint: 'mawar tua, tenang' },
-  { id: 'kanagawa', label: 'Kanagawa', kind: 'dark', hint: 'sumi-e, gelap kehijauan' },
-  { id: 'everforest-dark', label: 'Everforest', kind: 'dark', hint: 'hijau hutan, mata nyaman' },
-  { id: 'github-dark', label: 'GitHub Dark', kind: 'dark', hint: 'ala GitHub, netral' },
-  { id: 'ayu-mirage', label: 'Ayu Mirage', kind: 'dark', hint: 'biru malam, aksen jingga' },
-  { id: 'solarized-light', label: 'Solarized Light', kind: 'light', hint: 'krem hangat, terang' },
-  { id: 'nord-light', label: 'Nord Light', kind: 'light', hint: 'biru dingin, terang' },
-  { id: 'min-light', label: 'Min Light', kind: 'light', hint: 'putih bersih minimalis' },
+  { id: 'dracula', label: 'Dracula', kind: 'dark', hint: 'violet-red, classic' },
+  { id: 'catppuccin-mocha', label: 'Catppuccin Mocha', kind: 'dark', hint: 'soft pastel, popular' },
+  { id: 'rose-pine', label: 'Rosé Pine', kind: 'dark', hint: 'deep rose, calm' },
+  { id: 'kanagawa', label: 'Kanagawa', kind: 'dark', hint: 'sumi-e, dark green' },
+  { id: 'everforest-dark', label: 'Everforest', kind: 'dark', hint: 'forest green, easy on the eyes' },
+  { id: 'github-dark', label: 'GitHub Dark', kind: 'dark', hint: 'GitHub style, neutral' },
+  { id: 'ayu-mirage', label: 'Ayu Mirage', kind: 'dark', hint: 'night blue, orange accents' },
+  { id: 'solarized-light', label: 'Solarized Light', kind: 'light', hint: 'warm cream, light' },
+  { id: 'nord-light', label: 'Nord Light', kind: 'light', hint: 'cool blue, light' },
+  { id: 'min-light', label: 'Min Light', kind: 'light', hint: 'clean minimal white' },
 ];
 
 export const isKnownTheme = (id: string) =>

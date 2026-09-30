@@ -62,7 +62,7 @@ export const useExtensions = create<ExtStore>((set, get) => ({
             const l = await cmd.extensionsLoad(e.id);
             set((s) => ({ loaded: { ...s.loaded, [e.id]: l } }));
           } catch {
-            /* manifest rusak — sudah tercermin di e.error */
+            /* broken manifest — already reflected in e.error */
           }
         }
       }
@@ -126,7 +126,7 @@ export const useExtensions = create<ExtStore>((set, get) => ({
       set((st) => {
         const loaded = { ...st.loaded };
         delete loaded[id];
-        return { loaded, extInfo: `${id} dilepas dari daftar` };
+        return { loaded, extInfo: `${id} removed from the list` };
       });
       await get().refresh();
     } catch (e) {

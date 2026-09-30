@@ -104,12 +104,12 @@ fn baca_satu(dir: &Path, scope: &str) -> Option<SkillInfo> {
 }
 
 /**
- * Telusuri satu folder skill, termasuk subfolder.
+ * Walk one skill folder, including subfolders.
  *
- * KENAPA rekursif: skill bisa disusun bertingkat (mis. `web/xss/SKILL.md`),
- * dan versi pertama hanya melihat satu tingkat sehingga skill bertingkat tidak
- * ditemukan. Kedalaman dibatasi 4 supaya folder yang salah tempat tidak
- * membuat penelusuran berputar.
+ * WHY recursive: skills can be arranged in tiers (e.g. `web/xss/SKILL.md`),
+ * and the first version only looked one level deep, so tiered skills were not
+ * found. The depth is capped at 4 so a misplaced folder does not make the
+ * walk spin.
  */
 fn kumpulkan_skill(root: &Path, scope: &str, kedalaman: u8, hasil: &mut Vec<SkillInfo>) {
     if kedalaman > 4 {
@@ -118,7 +118,7 @@ fn kumpulkan_skill(root: &Path, scope: &str, kedalaman: u8, hasil: &mut Vec<Skil
     if let Some(info) = baca_satu(root, scope) {
         hasil.push(info);
         // A folder that has SKILL.md is not walked further: in a nested
-        // bertingkat, isinya adalah lampiran skill itu, bukan skill baru.
+        // tier, its contents are attachments of that skill, not new skills.
         return;
     }
     let entries = match std::fs::read_dir(root) {
@@ -161,10 +161,10 @@ pub fn daftar_skills(state: &AppState) -> Vec<SkillInfo> {
 }
 
 /**
- * Cari folder skill berdasarkan nama.
+ * Find a skill folder by name.
  *
- * Urutan pencarian: workspace, lalu global. Skill bertingkat dicari dengan
- * mencocokkan nama folder paling dalam, dan juga `name:` dari frontmatter
+ * Search order: workspace, then global. Tiered skills are found by
+ * matching the innermost folder name, and also the frontmatter `name:`
  * when the folder name differs.
  */
 fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)> {
@@ -201,7 +201,7 @@ fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)
         }
     }
 
-    // Penelusuran bertingkat untuk skill yang disusun berkelompok.
+    // Tiered walk for skills arranged in groups.
     for (root, scope) in &kandidat {
         let mut ditemukan: Vec<PathBuf> = Vec::new();
         cari_folder_nama(root, nama, 0, &mut ditemukan);
@@ -216,11 +216,11 @@ fn folder_skill(state: &AppState, nama: &str) -> ZResult<(PathBuf, &'static str)
 }
 
 /**
- * Telusuri bertingkat, cocokkan nama folder ATAU `name:` di frontmatter.
+ * Walk in tiers, matching the folder name OR the frontmatter `name:`.
  *
- * KENAPA dua cara: nama folder kadang beda dari `name:` di SKILL.md
- * (`antislop-code/` berisi `name: antislop-code`, tapi folder lain bisa
- * memakai nama berbeda). Mencocokkan keduanya menghindari "skill not found"
+ * WHY two ways: the folder name is sometimes different from the `name:` in SKILL.md
+ * (`antislop-code/` contains `name: antislop-code`, but another folder may
+ * use a different name). Matching both avoids "skill not found"
  * when it does exist.
  */
 fn cari_folder_nama(root: &Path, nama: &str, kedalaman: u8, hasil: &mut Vec<PathBuf>) {
@@ -279,7 +279,7 @@ pub fn baca_skill(state: &AppState, nama: &str) -> ZResult<(SkillInfo, String)> 
     }
     let teks = std::fs::read_to_string(&file)?;
     let info = baca_satu(&dir, scope)
-        .ok_or_else(|| ZephyrError::Internal(format!("failed membaca metadata skill '{nama}'")))?;
+        .ok_or_else(|| ZephyrError::Internal(format!("failed to read skill metadata '{nama}'")))?;
     Ok((info, teks))
 }
 
@@ -304,7 +304,7 @@ pub fn tulis_skill(
         },
         other => {
             return Err(ZephyrError::InvalidInput(format!(
-                "scope not recognised: '{other}' (pakai 'workspace' atau 'global')"
+                "scope not recognised: '{other}' (use 'workspace' or 'global')"
             )))
         }
     };
@@ -382,7 +382,7 @@ pub fn ringkasan_untuk_prompt(state: &AppState) -> String {
     if list.is_empty() {
         return String::new();
     }
-    let mut s = String::from("\n\nSKILL TERSEDIA (buka isinya dengan tool skill_view sebelum mengerjakan tugas yang cocok):\n");
+    let mut s = String::from("\n\nAVAILABLE SKILLS (read one with the skill_view tool before starting work it matches):\n");
     for sk in list {
         s.push_str(&format!(
             "- {} [{}]: {}\n",

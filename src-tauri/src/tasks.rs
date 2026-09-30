@@ -263,7 +263,7 @@ const FIELD_DIKENAL: &[&str] = &[
 fn parse_satu_task(v: &Value, idx: usize, errors: &mut Vec<String>) -> Option<TaskDef> {
     let label = sf(v, "label");
     if label.is_empty() {
-        errors.push(format!("task[{idx}]: field \"label\" wajib ada"));
+        errors.push(format!("task[{idx}]: the \"label\" field is required"));
         return None;
     }
     let kind = {
@@ -276,7 +276,7 @@ fn parse_satu_task(v: &Value, idx: usize, errors: &mut Vec<String>) -> Option<Ta
             "npm".to_string()
         } else {
             errors.push(format!(
-                "task \"{label}\": type \"{t}\" tidak dikenal — dipakai \"shell\""
+                "task \"{label}\": unknown type \"{t}\" — using \"shell\""
             ));
             "shell".to_string()
         }
@@ -329,7 +329,7 @@ fn parse_satu_task(v: &Value, idx: usize, errors: &mut Vec<String>) -> Option<Ta
 
     if command.is_empty() && depends_on.is_empty() {
         errors.push(format!(
-            "task \"{label}\": butuh \"command\" atau \"dependsOn\""
+            "task \"{label}\": requires \"command\" or \"dependsOn\""
         ));
         return None;
     }
@@ -412,7 +412,7 @@ pub fn tasks_load(state: State<AppState>, root: Option<String>) -> ZResult<Tasks
     let bersih = buang_komentar(&raw);
     let v: Value = serde_json::from_str(&bersih).map_err(|e| {
         ZephyrError::InvalidInput(format!(
-            "{} bukan JSON valid: {e}",
+            "{} is not valid JSON: {e}",
             file.file_name().unwrap_or_default().to_string_lossy()
         ))
     })?;
@@ -424,7 +424,7 @@ pub fn tasks_load(state: State<AppState>, root: Option<String>) -> ZResult<Tasks
         .cloned()
         .unwrap_or_default();
     if arr.is_empty() {
-        errors.push("tidak ada entri di array \"tasks\"".into());
+        errors.push("no entries in the \"tasks\" array".into());
     }
 
     let mut tasks = Vec::new();
@@ -806,7 +806,7 @@ pub fn tasks_run(
                 .map_err(|_| ZephyrError::InvalidInput(format!("cwd is missing: {raw}")))?;
             if !p.is_dir() {
                 return Err(ZephyrError::InvalidInput(format!(
-                    "cwd bukan folder: {raw}"
+                    "cwd is not a folder: {raw}"
                 )));
             }
             let di_dalam = ws
@@ -861,7 +861,7 @@ pub fn tasks_run(
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| ZephyrError::InvalidInput(format!("gagal menjalankan \"{command}\": {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("failed to run \"{command}\": {e}")))?;
     let pid = child.id();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -1036,7 +1036,7 @@ pub fn tasks_wait(
                             r.ended_ms = Some(now_ms());
                             return Ok(r.clone());
                         }
-                        return Err(ZephyrError::InvalidInput(format!("run {id} hilang")));
+                        return Err(ZephyrError::InvalidInput(format!("run {id} is missing")));
                     }
                     Ok(None) => {}
                     Err(e) => return Err(ZephyrError::InvalidInput(format!("try_wait: {e}"))),

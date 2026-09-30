@@ -191,7 +191,7 @@ async function mintaSaran(view: EditorView) {
   const def = findModel(ai.model, ai.provider);
   const cfg = (useStore.getState().settings.models.providers ?? {})[def.provider] ?? {};
   if (!ai.hasKey(def.provider)) {
-    ai.onChunk({ id: 'ghost', err: `Belum ada API key untuk ${def.label}` });
+    ai.onChunk({ id: 'ghost', err: `No API key yet for ${def.label}` });
     return;
   }
 
@@ -205,9 +205,9 @@ async function mintaSaran(view: EditorView) {
     {
       role: 'system',
       content:
-        'Lanjutkan kode pada posisi kursor. Balas HANYA lanjutan teks yang ' +
-        'harus diketik berikutnya, tanpa penjelasan, tanpa blok markdown, ' +
-        'tanpa mengulang kode yang sudah ada. Maksimal satu baris.',
+        'Continue the code at the cursor. Reply with ONLY the continuation text that ' +
+        'should be typed next, with no explanation, no markdown block, ' +
+        'and without repeating the code that is already there. One line at most.',
     },
     { role: 'user', content: `File: ${path}\n\n${konteksSekitar(view)}` },
   ];

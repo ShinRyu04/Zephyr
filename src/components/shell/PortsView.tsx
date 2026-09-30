@@ -44,7 +44,7 @@ export default function PortsView() {
     } catch (e) {
       notifyError(`Could not open ${url}`, {
         source: 'ports',
-        // Error dari invoke Tauri berbentuk { code, message }, bukan Error,
+        // An error from a Tauri invoke is shaped { code, message }, not Error,
         // jadi cabang String(e) mencetak "[object Object]".
         detail: cmd.asZephyrError(e).message,
       });

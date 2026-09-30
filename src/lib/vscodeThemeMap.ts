@@ -166,16 +166,16 @@ export function petakanTemaVscode(colors: Warna): Record<string, string> {
   set('minimap-bg', ambil(colors, ['minimap.background']) ?? bg);
 
   /*
-   * Kunci yang sudah memakai nama token Zephyr (--bg0, --fg0, --accent, ...)
-   * diteruskan apa adanya — DIJALANKAN TERAKHIR supaya menang atas pemetaan
-   * VS Code.
+   * Keys that already use Zephyr token names (--bg0, --fg0, --accent, ...)
+   * are passed through as-is — RUN LAST so they win over the
+   * VS Code mapping.
    *
-   * Tema bawaan paket Zephyr memakai kunci native ini dan nilainya sudah CSS
-   * siap pakai. Pemetaan VS Code di atas juga menghasilkan token bernama sama
-   * (mis. `accent` → `--accent` dengan warna fallback), jadi kalau pass-through
-   * dijalankan lebih dulu, nilai fallback itulah yang menang dan tema tampak
-   * tidak berubah. Untuk tema VS Code asli (editor.background, ...) blok ini
-   * tidak menemukan apa pun, sehingga pemetaan tetap berjalan seperti semula.
+   * Zephyr's bundled themes use these native keys and their values are already
+   * ready-to-use CSS. The VS Code mapping above also produces tokens with the same
+   * names (e.g. `accent` → `--accent` with a fallback colour), so if the pass-through
+   * were run first, that fallback value would win and the theme would look
+   * unchanged. For a real VS Code theme (editor.background, ...) this block
+   * finds nothing, so the mapping still runs as before.
    */
   for (const [k, v] of Object.entries(colors)) {
     if (k.startsWith('--') && typeof v === 'string' && v.trim()) out[k] = v.trim();

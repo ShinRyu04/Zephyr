@@ -81,8 +81,8 @@ export default function PanelTabStrip() {
     <div className="pts-root" data-testid="panel-tabstrip">
       <div className="pts-tabs" role="tablist" aria-label={tr('Bottom panel tabs')}>
         {PANEL_TABS.filter((t) => visibleTabs.includes(t.id))
-          // Tab AI disembunyikan saat chat sudah tampil di kolom kanan: isinya
-          // hanya keterangan pemindahan, jadi slot tabnya terbuang.
+          // The AI tab is hidden when the chat is already shown in the right column: its
+          // content is only a note about the move, so the tab slot is wasted.
           .filter((t) => !(t.id === 'ai' && aiDiKanan))
           .map((t) => (
           <button
@@ -102,11 +102,11 @@ export default function PanelTabStrip() {
 
       <span className="pts-spacer" />
 
-      {/* fase 24.1: kontrol khusus terminal ([+ ▾] dan [⋮]) numpang di baris ini,
-          sejajar Problems/Output/…, dan HANYA saat tab Terminal aktif. Dulu
-          mereka punya baris toolbar sendiri di bawah - dua baris chrome untuk
-          satu tingkat kendali. Waktu tab lain aktif, tombol ini dilepas dari DOM
-          (bukan disembunyikan) supaya tidak bisa di-fokus lewat Tab. */}
+      {/* phase 24.1: terminal-specific controls ([+ ▾] and [⋮]) ride on this row,
+          aligned with Problems/Output/…, and ONLY while the Terminal tab is active. Previously
+          they had their own toolbar row below - two rows of chrome for
+          one level of control. While another tab is active, these buttons are removed from the DOM
+          (not hidden) so they cannot be focused via Tab. */}
       {activeTab === 'terminal' && <TerminalOps />}
 
       <div className="pts-ops" ref={menuRef}>

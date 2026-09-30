@@ -409,7 +409,7 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
             message: if backup {
                 "entri zephyr ditulis (file lama disalin ke .bak)".into()
             } else {
-                "entri zephyr ditulis (file baru dibuat)".into()
+                "the zephyr entry was written (a new file was created)".into()
             },
         },
         Err(e) => CliWriteResult {
@@ -454,7 +454,7 @@ pub fn remove_cli(id: &str) -> CliWriteResult {
             path: p.to_string_lossy().into(),
             ok: true,
             backup: false,
-            message: "config is missing — is missing yang dihapus".into(),
+            message: "config was missing; the entry was removed".into(),
         };
     }
     let existing = std::fs::read_to_string(&p).unwrap_or_default();

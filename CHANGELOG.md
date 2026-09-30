@@ -5,12 +5,109 @@ All notable changes per release. Format follows the spirit of
 
 ## [Unreleased]
 
+## [1.1.12] - 2026-09-30
+
+### Dev Environment
+- New view for runtimes, services, terminals, ports, and scanned projects;
+  runtimes report the real versions the terminal sees.
+- Start and Stop work from the panel, and Stop only kills a process Zephyr
+  started.
+- The scan is cached by configuration, so reopening the panel is instant and
+  typing in a Settings field no longer starts a scan per keystroke.
+- Every button does something: rows open their folder, `Start all` and
+  `Stop all` drive the list, `New project` creates the folder, and the `...`
+  menu opens a folder, copies a path, or opens a project in the browser.
+
+### New views
+- Read-only SQLite browser: tables, columns, and SELECT with a filter. Writes
+  are refused by an allowlist, a banned-word check, and `SQLITE_OPEN_READ_ONLY`.
+- HTTP client: GET and POST, headers, GraphQL, Bearer and API-key auth, and
+  per-session history.
+- SFTP and a local port forward on the bundled OpenSSH client, with no SSH
+  crate added.
+- Credentials live in their own encrypted file, separate from `secrets.json`,
+  and listing never returns a stored value.
+
+### AI
+- Streaming no longer truncates when a body arrives in small pieces.
+- Rate limit (429) and server errors (5xx) retry twice with backoff, then fall
+  back to another provider that has a key.
+- A stalled connection fails in 30 seconds instead of 90.
+- The context meter shows real token counts when the provider reports them.
+- An agent that calls one tool three times with identical arguments is stopped
+  instead of burning its step budget.
+- The agent prompt is written, not templated, and each of the ten UI languages
+  gets its own text.
+
+### Subagents
+- One task line can name its own model, or tag the task `[model:provider/id]`.
+- A line can chain with `->`, so the second step waits for the first and
+  receives its result as context.
+- A subagent claims a file the first time it writes; a second subagent handed
+  the same file is refused with the owner's name.
+- Each subagent carries an evidence verdict beside its status: proven, partial,
+  or unproven, based on what its tool steps actually did.
+- A read-only role is not offered write tools at all.
+- The last batch is restored after a restart.
+- The idle limit before a step is abandoned is a Setting now.
+- The worker list falls back to the saved file when the store is empty, so
+  workers no longer vanish until the settings page has been opened once.
+- Each row shows the worker's own icon; before this the row was name and tags
+  only, so the icon picked in the editor looked discarded on close.
+- The edit dialog no longer opens behind the AI panel.
+
+### Language
+- The interface is English end to end. Extension descriptions and command
+  errors were written in Indonesian while the interface shipped in English:
+  121 extension descriptions and 259 error messages are now English at the
+  source, with translation still handled by the i18n layer.
+- English and Indonesian dictionaries are the same size (1280 keys). Around
+  120 keys existed only in the Indonesian dictionary and four of those were
+  still Indonesian text, which is why a few menus stayed Indonesian with the
+  interface set to English.
+- The lookup order prefers English over Indonesian. The Indonesian dictionary
+  used to be the last fallback, leaking any key only it knew into every other
+  language. It went unnoticed because those values were already English.
+- Ten languages in sync: 1403 keys (`scripts/verify-i18n.mjs`).
+
 ### Integrations
 - Discord Rich Presence built into the app: on launch Zephyr connects to the
   local Discord IPC pipe and publishes "Zephyr" as the current activity with
   the custom application icon, the active workspace folder as state, and an
   elapsed-time counter. Presence clears on exit, so the game-activity slot no
   longer shows Discord's generic question-mark placeholder.
+- The About page links to the Discord community instead of the WhatsApp group,
+  with the real Clyde mark on its native 24x24 grid.
+
+### Interface
+- Terminal, Run and Debug, and Extensions panels rebuilt to match the
+  reference layout.
+- Extension tabs no longer overlap in a narrow sidebar: the active tab keeps
+  its full label, the inactive ones ellipsize.
+- Marketplace catalogue icons are inlined and recoloured per path, because an
+  `<img>` on a data URI cannot be tinted from outside. No icon renders black.
+- Icon colours use each language's official brand hex across 73 packages
+  instead of a hash of the package name.
+- Minimap, bracket-pair colours, indent guides, ghost text with `Ctrl+Right`
+  to accept a word, and the folder open/close animation.
+
+### Fixes
+- The TypeScript language server failed to start on a machine with a stale npm
+  global shim that pointed at a deleted node.
+- The command palette showed four themes twice, and the Help menu listed two
+  items on the same command id.
+- Several `<select>` controls had a `value` prop without `onChange`, producing
+  33 warnings.
+- The menu bar no longer trips the axe `aria-required-children` critical rule.
+- Contrast passes AA in all 19 themes.
+- Runtime version labels no longer repeat the name.
+- MySQL reads its version from the install folder, and Redis installs with a
+  flat layout are detected.
+- A SFTP listing read the wrong column for the file size.
+- A mistranslated log statement referenced a variable that does not exist,
+  which broke the Rust build.
+- Editor action buttons no longer show a black-on-black label in the light
+  theme.
 
 ## [1.1.11] - 2026-09-26
 

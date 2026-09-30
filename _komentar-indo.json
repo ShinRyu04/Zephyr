@@ -1,0 +1,945 @@
+{
+ "src\\lib\\agentTools.ts": [
+  "/*    * Make sure the pane will actually be on screen before measuring it.    *    * A pane that lives in the store but sits in a hidden panel lays ou"
+ ],
+ "src\\lib\\aiDebugStore.ts": [
+  "/*  * Request log for the AI panel.  *  * When an answer comes back wrong — empty, truncated, cut mid-word, or phrased  * as if a tool ran when it did",
+  "/** One request/response pair, as the panel lists it. */",
+  "/** \"chat\" for the panel, \"agent\" for a tool-using turn. */",
+  "/** Ring buffer size. Older entries fall off; the panel says so in its header. */",
+  "/** Newest first, so the panel lists without reversing. */",
+  "/** Id of the row expanded in the panel, or null. */"
+ ],
+ "src\\lib\\aiStore.ts": [
+  "// Judul sesi lama dari versi sebelum UI diseragamkan ke English — dipetakan",
+  "// ulang saat dimuat supaya riwayat yang sudah tersimpan ikut tampil English.",
+  "// Hanya langkah tool yang relevan; ambil 8 terakhir supaya prompt ringkas.",
+  "/**  * Watchdog langkah agent.  *  * Provider bisa menggantung: koneksi terbuka, header terkirim, lalu tidak ada  * byte lagi dan tidak ada penutup st",
+  "// Kalau tidak ada langkah yang menunggu (mis. menggantung di luar loop),",
+  "// paksa status agent lepas supaya UI dan subagent tidak terkunci.",
+  "// Judul lama bisa tersimpan dalam bahasa lain (mis. \"Chat baru\" dari",
+  "// versi sebelumnya). Rapikan ke judul standar yang sudah diterjemahkan.",
+  "/**    * Samakan provider/model panel AI dengan settings.models.activeProvider.    *    * Dropdown \"Model aktif\" di Settings cuma menulis ke settings,",
+  "/**    * Padatkan konteks sesi aktif secara manual.    *    * Menyimpan sejumlah pesan terakhir dan mengganti sisanya dengan satu pesan    * ringkasan",
+  "/* kuota penuh — chat tetap jalan di memori */",
+  "/** Mode agent terakhir yang dipilih user, dipertahankan antar sesi. */",
+  "// Status agent tidak pernah boleh nyangkut dari sesi sebelumnya. Kalau",
+  "// app ditutup saat agent berjalan, atau provider menggantung, nilai ini",
+  "// bisa tersisa true dan memblokir kirim chat maupun subagent.",
+  "/* non-fatal: badge status jadi \"belum ada key\" */",
+  "// Provider yang belum dikenal biarkan apa adanya: menormalkan sekarang",
+  "// justru bisa memindahkan panel ke provider yang salah.",
+  "// Kalau provider DAN model sudah sama, tidak ada yang perlu diubah.",
+  "/*                  * `akhir` berasal dari `toolDone` Rust dan sudah dibersihkan                  * dari blok tool-call XML (lihat adapters/xml_tools.",
+  "/*          * Saring potongan yang masih di jalan.          *          * Menyetel flag di Rust tidak menghentikan paket yang sudah dikirim;          *",
+  "/* langkah sudah selesai */",
+  "/*        * Lepaskan langkah yang sedang menunggu.        *        * Loop agent menunggu satu promise yang hanya diselesaikan oleh chunk        * \"too",
+  "// Ada aktivitas dari provider: tunda watchdog idle."
+ ],
+ "src\\lib\\announcements.ts": [
+  "// Teks pengumuman bisa berupa string biasa (dipakai apa adanya) ATAU objek",
+  "// per-bahasa { en, id, ja, ... }. Kalau objek, dipilih sesuai bahasa aktif;",
+  "// kalau bahasa itu tidak ada, jatuh ke 'en', lalu ke nilai pertama yang ada."
+ ],
+ "src\\lib\\clipboard.ts": [
+  "/* diamkan: copy gagal bukan alasan mematikan terminal */"
+ ],
+ "src\\lib\\cmIndent.ts": [
+  "// baris kosong / hanya whitespace"
+ ],
+ "src\\lib\\commandRegistry.ts": [
+  "// Menu kini selalu aktif, jadi sebuah command bisa dipanggil saat",
+  "// konteksnya belum siap (belum ada tab, bukan repo git, dst). Dulu item",
+  "// handler global (yang memunculkan toast/kartu error untuk setiap klik)."
+ ],
+ "src\\lib\\devBridge.ts": [
+  "/*        * Cari di katalog lengkap, bukan hanya KATALOG_BUNDLED.        *        * KATALOG_BUNDLED berisi paket yang ditampilkan tanpa registry (5 en"
+ ],
+ "src\\lib\\devenvStore.ts": [
+  "/**  * A forced load that arrived while a scan was already running. The scan cannot  * be interrupted, so the request is replayed once it finishes — d",
+  "/** Force a fresh scan; the Refresh button in the panel calls this. */",
+  "// Refresh, config edit) must not be swallowed, or the panel keeps showing",
+  "// the panel repeatedly must not re-spawn detect (3.2s) and services (1.2s).",
+  "// A failed scan must leave the panel usable: the rows stay, uninstalled."
+ ],
+ "src\\lib\\extCatalog.ts": [
+  "/* ── Icon themes ─────────────────────────────────────────────────────      Three more looks for the file tree. The catalog shipped with one; the    "
+ ],
+ "src\\lib\\extensionStore.ts": [
+  "/* manifest rusak — sudah tercermin di e.error */"
+ ],
+ "src\\lib\\extIkon.ts": [
+  "/*  * The mark on an extension card.  *  * Every card used to show two capital letters in a grey box: `PY`, `KE`, `IK`.  * A list of 118 looked like a",
+  "/*    * The separator is a hyphen, not a dot: the ids are `zephyr.lang-elm`,    * `zephyr.tema-kertas`, `zephyr.ikon-bulat`. Matching on `zephyr.lang."
+ ],
+ "src\\lib\\extLoader.ts": [
+  "/* file tema rusak — dicatat pemanggil sebagai gagal */",
+  "/* keybindingStore belum siap saat boot paling awal — load() akan merge */",
+  "/* di luar UI (harness/node) tidak ada editor */"
+ ],
+ "src\\lib\\extRunner.ts": [
+  "// Shim CommonJS + API vscode minimal supaya bundle marketplace bisa dimuat.",
+  "/*  * Ubah nilai apa pun menjadi teks yang bisa ditampilkan.  *  * Ekstensi bisa memanggil notify() tanpa argumen, atau melempar null /  * undefined. ",
+  "// os.constants diisi SETELAH constants didefinisikan (lihat bawah).",
+  "// constants (node:constants): nilai-nilai murni yang sering dipakai untuk",
+  "// (dipakai ekstensi saat load, mis. ms-python.python).",
+  "// ── setImmediate/clearImmediate — dipakai ekstensi saat aktivasi (mis.",
+  "//    vscjava.vscode-java-dependency). Worker tidak punya builtin ini.",
+  "// ── Buffer (node) — dipakai bundle saat load (mis. meta.pyrefly). ──",
+  "// Implementasi NYATA di atas Uint8Array supaya toString/write/subarray dll",
+  "// berfungsi, bukan sekadar stub yang meledak.",
+  "// ── API vscode MINIMAL: command yang didaftarkan masuk ke palette, ──",
+  "// ── Kelas & enum vscode yang umum dipakai ekstensi ──",
+  "// TreeItem, CodeAction, ...) — tanpa kelas nyata itu crash saat LOAD dengan",
+  "// \"Class extends value undefined\". Ini fix untuk ms-python.python dkk.",
+  "// vscode.version: SAH sebagai VS Code-compatible (bukan versi Zephyr).",
+  "// ── Kelas tambahan (dipakai bundle marketplace saat LOAD via __toESM) ──",
+  "// namespace-ish; token dari CTS di atas",
+  "// jalan (single pass, aman walau nilai berisi kurung kurawal).",
+  "// ekstensi sendiri (packageJSON = manifest asli) dan undefined untuk id",
+  "// ── fs: objek NYATA (bukan Proxy) dengan API standar lengkap. ──",
+  "// Setiap fungsi melempar error JELAS kalau DIPANGGIL. Ini penting:",
+  "// Object.assign) dan mengintip fs.realpath.native saat load. Kalau fs berupa",
+  "// Proxy target kosong, klon-nya tidak punya realpath → error membingungkan",
+  "// vscjava.vscode-java-dependency). Dengan objek nyata, klon & wrapper-nya",
+  "// berhasil dimuat; pemakaian fs yang sesungguhnya tetap error jelas.",
+  "// Modul sistem lain (child_process/crypto/net/http/...): TIDAK tersedia di",
+  "// sandbox. Akses properti apa pun mengembalikan fungsi yang melempar error",
+  "// JELAS — bukan ReferenceError yang membingungkan.",
+  "// ── require relatif antar file ekstensi (mis. require('./dist/bundle')) ──",
+  "// File ekstensi dibaca backend (extensions_read_files) dan dikirim sebagai",
+  "// peta __zhFiles: relpath -> isi. Setiap file dijalankan dengan module /",
+  "// exports / require sendiri (seperti Node), lengkap cache + circular-safe.",
+  "// Tanpa ini, ekstensi seperti vscjava.vscode-java-dependency gagal dengan",
+  "// \"Modul ./dist/extension.bundle tidak didukung di sandbox\".",
+  "// ── Modul node yang bisa dipetakan ke API browser Worker ──",
+  "// ekstensi yang dikirim backend sebagai __zhFiles.",
+  "// kembalikan stub. Error baru muncul kalau propertinya BENAR-BENAR dipakai",
+  "// (mis. fs.readFileSync) — bukan saat require-nya sendiri. Ini membuat",
+  "// ekstensi seperti ms-python.python tetap bisa dimuat walau memanggil",
+  "// banyak require di level atas.",
+  "// \"Uncaught ReferenceError\" yang membingungkan.",
+  "// Pola VS Code: panggil activate(context) kalau bundle mengekspornya."
+ ],
+ "src\\lib\\fileRefs.ts": [
+  "/**  * Filters workspace files against the text typed after \"@\".  *  * `semua` is passed in rather than fetched here so the caller controls caching:  ",
+  "// \"@\", not on every panel render."
+ ],
+ "src\\lib\\ghostText.ts": [
+  "/*      * Surface the failure instead of swallowing it.      *      * The old `catch {}` dropped the reason, so a ghost that never appeared      * loo",
+  "/*  * Ask for a suggestion after a pause in typing.  *  * The feature existed but had to be summoned with `Alt+\\`, which nobody  * discovers: the same"
+ ],
+ "src\\lib\\gitStore.ts": [
+  "/** fase 15.3: remote punya commit yang belum kita punya → tawarkan pull dulu. */",
+  "/* non-fatal: baris GitHub menampilkan \"Belum login\" */"
+ ],
+ "src\\lib\\i18n.ts": [
+  "// Kamus bahasa tujuan SELALU menang. SRC cuma kamus Inggris untuk kunci",
+  "// yang teks aslinya Indonesia; dulu SRC dicek lebih dulu sehingga kunci",
+  "// apa pun yang ada di SRC selalu tampil Inggris walau terjemahan JA/KO/",
+  "// ES/… sudah tersedia - itu penyebab \"ganti bahasa masih ada Indonesia/",
+  "// Inggris dulu, baru Indonesia.",
+  "// DICTS.id sempat jadi jaring terakhir, dan itu berbahaya: kunci yang cuma",
+  "// ada di kamus ID bocor ke SEMUA bahasa. Selama nilainya kebetulan sudah",
+  "// Inggris tidak ada yang kelihatan rusak - sampai satu kunci ditulis dalam",
+  "// dan seterusnya tanpa jejak. id tetap disertakan supaya tidak ada teks yang",
+  "/**  * Teks catatan rilis / changelog bisa multi-bahasa: kalau `notes` berupa JSON  * objek { en, id, ja, ... } pilih sesuai bahasa aktif (fallback ke",
+  "/* bukan JSON - pakai apa adanya */"
+ ],
+ "src\\lib\\labelAksi.ts": [
+  "/*    * args arrives as a JSON string from the tool layer, but not every caller    * guarantees that: a step restored from a saved session can carry t"
+ ],
+ "src\\lib\\labelI18n.ts": [
+  "/**  * Terjemahan label yang datang dari data, bukan dari JSX.  *  * Sebagian besar label UI hidup di berkas data (daftar menu, daftar action,  * daft",
+  "/**  * Terjemahkan satu label data sesuai bahasa antarmuka yang aktif.  *  * Aman dipanggil dari komponen maupun dari fungsi biasa: bahasa dibaca  * l",
+  "/** Versi hook: dipakai komponen yang perlu ikut render ulang saat bahasa berganti. */",
+  "// Berlangganan uiLang supaya komponen menggambar ulang saat bahasa diganti."
+ ],
+ "src\\lib\\lspStore.ts": [
+  "/* server mungkin sudah mati — tidak masalah */"
+ ],
+ "src\\lib\\menu.ts": [
+  "// Catatan: label ini salah satu dari delapan judul menu; kuncinya 'File'."
+ ],
+ "src\\lib\\modelBrandIcons.ts": [
+  "// Mark merek resmi untuk keluarga model di katalog. Path diambil dari",
+  "// semua mark berbagi satu viewBox dan berskala bersih.",
+  "// `warna: null` memang disengaja, bukan data hilang: merek itu digambar satu",
+  "// warna netral dan terlihat salah kalau diwarnai.",
+  "/** Warna merek, atau null untuk mengikuti warna teks sekitarnya. */"
+ ],
+ "src\\lib\\notesTodosStore.ts": [
+  "/*  * Notes and todos, for the floating panel in the title bar.  *  * The panel holds three things that share one shape: a short line of text the  * u",
+  "/** Which tab the panel shows. */",
+  "/** Whether the panel stays open when focus leaves it. */"
+ ],
+ "src\\lib\\paletteStore.ts": [
+  "/* localStorage penuh/diblokir — recent bukan fitur kritis */"
+ ],
+ "src\\lib\\panelStore.ts": [
+  "/* gagal simpan preferensi bukan alasan mengganggu user */"
+ ],
+ "src\\lib\\peranIcons.ts": [
+  "/**  * The robot, for a worker the user defined themselves.  *  * A custom sub-agent is not one of the six roles, so it must not borrow a  * role's ma"
+ ],
+ "src\\lib\\portsStore.ts": [
+  "/**    * Read the ports actually listening on the system and merge them with    * daftar manual.    *    * KENAPA digabung, bukan ditimpa: port yang u"
+ ],
+ "src\\lib\\promptLibrary.ts": [
+  "/* ── Workspace commands ──────────────────────────────────────────────      These act on Zephyr itself rather than on the composer: they open a      ",
+  "// Kuota penuh / mode privat: snippet hanya tidak tersimpan, tidak fatal."
+ ],
+ "src\\lib\\schedStore.ts": [
+  "/** Set when the last command failed; the panel shows it inline. */",
+  "/* Optimistic: the row disappears at once, and a failure re-loads the real        list rather than leaving the panel lying about what exists. */",
+  "/*  * Open/closed state lives in its own store.  *  * The panel is mounted once at the app root and opened from a header button, so  * the flag cannot"
+ ],
+ "src\\lib\\shortcuts.ts": [
+  "/* Notes, todos and the schedule share one panel; the shortcut opens it. */"
+ ],
+ "src\\lib\\snippetStore.ts": [
+  "/* daftar hanya untuk UI — gagal bukan alasan mengganggu editor */"
+ ],
+ "src\\lib\\store.ts": [
+  "// Mode penghemat RAM: simpan konten 3 tab saja di memori (dari 12).",
+  "/*        * Panel AI menyimpan salinan provider-nya sendiri, jadi perubahan        * \"Model aktif\" dari Settings harus diteruskan — kalau tidak, pilih",
+  "/* non-fatal: pemilihan provider tetap tersimpan di settings */"
+ ],
+ "src\\lib\\subagentCustom.ts": [
+  "// panel does not wait on the settings round trip to show the new row.",
+  "/**  * The custom worker whose name matches a task prefix, if any. The orchestrator  * writes `nama: task` for a built-in role and `@nama: task` for a",
+  "/*      * The store is the fast path, not the source of truth.      *      * It starts empty and is only filled when Settings → Subagents is opened, s"
+ ],
+ "src\\lib\\subagentStore.ts": [
+  "/**    * Set when this worker came from Settings → Subagents rather than from the    * shipped role list. `peran` still names the nearest built-in rol",
+  "// The batch default: the Subagents setting if set, otherwise the AI panel's",
+  "// Every agent is created up front so the panel shows the whole plan, then"
+ ],
+ "src\\lib\\tasksStore.ts": [
+  "// Error dari invoke Tauri berbentuk { code, message }, bukan Error",
+  "// Error dari invoke Tauri berbentuk { code, message }, bukan Error",
+  "// Error dari invoke Tauri berbentuk { code, message }, bukan Error"
+ ],
+ "src\\lib\\terminalStore.ts": [
+  "/* mungkin sudah mati */",
+  "/*      * Show the pane we are about to create.      *      * The bottom panel keeps its own active tab, and a pane whose tab is not      * the active",
+  "/* mungkin sudah mati — lanjut tutup pane */"
+ ],
+ "src\\lib\\types.ts": [
+  "// `tests` is deliberately absent: the Test Explorer panel is opt-in and",
+  "// stays hidden until the user shows it from the panel tab menu, so a fresh"
+ ],
+ "src\\lib\\updaterStore.ts": [
+  "// Error dari invoke Tauri berbentuk { code, message }, bukan Error.",
+  "// Error dari invoke Tauri berbentuk { code, message }, bukan Error."
+ ],
+ "src\\lib\\useDengar.ts": [
+  "/*  * Voice dictation for the AI composer, built on the Web Speech API.  *  * The WebView supplies the recognition engine, so this needs no API key an",
+  "// Sudah berhenti: tidak ada yang perlu dibersihkan."
+ ],
+ "src\\lib\\vscodeThemeMap.ts": [
+  "/*    * Kunci yang sudah memakai nama token Zephyr (--bg0, --fg0, --accent, ...)    * diteruskan apa adanya — DIJALANKAN TERAKHIR supaya menang atas p"
+ ],
+ "src\\lib\\workspaceStore.ts": [
+  "// Gagal memuat ulang bukan alasan membatalkan trust yang sudah disimpan."
+ ],
+ "src\\App.tsx": [
+  "/*  * The tool gate floats over the editor, so it mounts here rather than inside  * the AI panel: it has to survive the panel being resized or hidden,",
+  "/* Same reason as the tool gate: the request log floats over the editor and must    outlive the AI panel being hidden or resized. */",
+  "/*  * Loaded after ai.css (which is imported above with the other early styles) so  * the compact panel rules win: this file flattens the AI header in",
+  "/*  * The agent trace sits after the compact panel rules: it restyles the same  * step rows (one line per action, per-kind accent rail) and has to win",
+  "/* Toggle: the same key closes the panel it opened. */",
+  "// action belum punya implementasi -> jangan telan event",
+  "/* di luar Tauri (browser dev) event ini tidak ada */",
+  "/* FASE 31: skip link - elemen fokusabel PERTAMA di app.           Tanpa ini pengguna keyboard harus melewati ~20 tombol ActivityBar +           Sideb",
+  "/* ActivityBar IKUT PINDAH mengikuti posisi panel:             - kiri/kanan : vertikal di sisi panel (kanan = dibalik CSS)             - atas/bawah : ",
+  "/* Posisi ATAS: panel di atas editor, divider horizontal. */",
+  "/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal.               Dev Environment, API Client dan SFTP memakai lebar penuh, jadi         ",
+  "/* C-19: layout terminal-first ala Terax - terminal jadi area                 utama, editor menempel sebagai pane di kanan. Default tetap             ",
+  "/* A-10: panel AI sebagai kolom kanan 340px ala VS Code, bukan dock               bawah sejajar terminal. Dirender HANYA saat dock = 'ai' supaya      ",
+  "/* AI column resizer: draggable like the sidebar. Previously the width               340px MATI - user minta \"bisa di lebarkan\". */",
+  "/* Baris: chat di kiri, panel info subagent di kanan. Wrapper ini                   WAJIB - tanpa-nya .ai-side-col (flex column) menaruh panel        ",
+  "/* T4.1b: panel INFO subagent di sebelah kanan chat. Ditaruh                     di dalam kolom AI supaya hanya muncul saat chat memang               ",
+  "/* Posisi BAWAH: divider horizontal + panel di bawah editor. */",
+  "/* Panel Customize Layout dirender di SINI (bukan di dalam MenuBar).           Kalau di dalam MenuBar, mematikan Menu Bar akan menghilangkan          ",
+  "/* Izin runtime eksternal ekstensi - global, bisa muncul kapan             saja karena eksekusi bisa diminta dari worker mana pun. */",
+  "/* fase 31: live region a11y. Dirender TERAKHIR supaya tidak menyisip           di antara landmark dan tidak mengganggu urutan Tab (ia tak fokusabel)."
+ ],
+ "src\\main.tsx": [
+  "/*  * Sembunyikan splash boot (lihat index.html) setelah React benar-benar  * menaruh isi di #root — bukan sekadar setelah render() dipanggil, karena ",
+  "// Jaring pengaman: kalau React gagal mount, splash tidak menutup selamanya."
+ ],
+ "src\\components\\ai\\AiIkon.tsx": [
+  "/*  * Icon set for the AI panel header.  *  * The header used to spell every action out in words (\"+ New chat\", \"Delete  * all\", \"Padatkan\", \"Ekspor\")",
+  "// A bare cross: dismiss the floating panel."
+ ],
+ "src\\components\\ai\\AiPanel.tsx": [
+  "/*    * Session switcher.    *    * The chat history lived only in the sidebar, so changing conversation meant    * leaving the panel, and the header ",
+  "// ${nama}\\n${isi}\\n${'```'}`);",
+  "/*    * The return value is kept this time.    *    * It used to be discarded, so recognition was wired up and had no way to be    * started: the hook",
+  "/*      * Session commands (/new, /clear, /compact, /export) act immediately and      * clear the composer. They replaced the header buttons: the head",
+  "/* The floating schedule panel, opened from the title-bar clock. */",
+  "/*             * Maximise, only as a right-hand column.             *             * In the bottom dock the panel already spans the full width, so a   ",
+  "/*             * Close the panel. The same action the dock's own tab strip offers,             * kept here because this is where the eye goes when the",
+  "/*              * A mark, a line of purpose, then three things to do. The panel used              * to open on two lines of grey hint text, which read",
+  "/* Panel TODO: HARUS di luar kondisi agent-busy. Daftar tugas ditulis           agent di tengah tugas, tapi setelah tugas selesai user masih perlu    ",
+  "/* Log langkah agent: tool yang dipanggil + hasil singkat. */",
+  "/* Action bar: muncul hanya kalau jawaban terakhir memuat perintah. */",
+  "/* A-8: saran slash command; Tab/Enter memakai yang tersorot.             T4.4: \">\" menampilkan SNIPPET - teks yang disisipkan, bukan             pert",
+  "/* Persetujuan tool agent: mode ask / perintah berbahaya. */"
+ ],
+ "src\\components\\ai\\AiSidebar.tsx": [
+  "/* Hapus SEMUA: dulu hanya ada di store (clearAllChats) tanpa UI -               user tidak menemukannya. Tombol per-chat tetap ada di tiap baris;    ",
+  "/* A-9: cari di judul DAN isi pesan - riwayat panjang tak lagi             hanya bisa digulir manual. */"
+ ],
+ "src\\components\\ai\\ChatMessage.tsx": [
+  "/* T1.1: blok \"Reasoned\" - penalaran model, bisa dilipat.                   Terlipat secara default supaya jawaban tetap jadi fokus;                  ",
+  "/*             * Thinking state, in the middle of the transcript.             *             * It used to live only in the header row, which sits at th"
+ ],
+ "src\\components\\ai\\ContextMeter.tsx": [
+  "/**  * Harga indikatif (USD per 1 juta token: masuk/keluar) per model.  *  * Angka ini perkiraan untuk memberi gambaran biaya, BUKAN tagihan resmi.  *",
+  "/*    * The panel opens on hover and closes on leave. It used to open on click,    * which put the numbers people check most often — how full is the c",
+  "/*    * A short grace period before closing: moving the pointer from the ring to    * the panel crosses a few pixels that belong to neither, and witho",
+  "// Token masuk (user) vs keluar (asisten) untuk estimasi biaya sesi."
+ ],
+ "src\\components\\ai\\DebugPanel.tsx": [
+  "/*  * Debug drawer for the AI panel.  *  * Lists the requests the panel has sent, newest first, with the numbers that  * explain a bad answer: provide"
+ ],
+ "src\\components\\ai\\ModeMenu.tsx": [
+  "/*  * Two menus for how a message is dispatched.  *  * They used to be three separate controls on the composer row (a two-button  * mode switch, an ap"
+ ],
+ "src\\components\\ai\\NotesPanel.tsx": [
+  "/*  * Notes, todos and schedule in one floating panel.  *  * The three answer the same kind of question — \"what did I write down\" and  * \"what runs wh",
+  "/* Ctrl+F focuses the filter, matching the strip the panel shows. */",
+  "/*    * Close on an outside click unless the panel is pinned.    *    * The pin exists for the case where the user is copying out of the panel, so    ",
+  "/* No scrim when pinned: the point of the pin is to keep reading the page           behind the panel, and a dimmed backdrop would defeat that. */"
+ ],
+ "src\\components\\ai\\ReasonedBlock.tsx": [
+  "/*  * The model's reasoning, folded into one line.  *  * Reasoning is the noisiest thing in a transcript: long, written for the model  * rather than f",
+  "/*    * Collapsed by default, even while streaming. The old version auto-opened,    * which pushed the answer being waited for down the panel and left"
+ ],
+ "src\\components\\ai\\SubAgentBar.tsx": [
+  "/*    * The form folds itself in the tab once a batch exists.    *    * It is 125px and the bottom panel is 231px, so an open form pushed the agent   ",
+  "/* Right-aligned to the button, so the menu does not run                          past the panel's right edge. */"
+ ],
+ "src\\components\\ai\\SubAgentPanel.tsx": [
+  "/**  * One agent on the timeline.  *  * Layout: the node column (number + connector) is fixed on the left and the  * row content is a grid with aligne",
+  "/* The robot replaces the bare status glyph: it carries the same               state in its colour, and it gives the panel a face — every row is      ",
+  "/*    * A click elsewhere closes the menu.    *    * Without this the list stayed open until the same badge was clicked again,    * so scrolling the p"
+ ],
+ "src\\components\\ai\\SubSummary.tsx": [
+  "/*  * The combined summary is the report a batch produces: one section per agent,  * separated by `---` in the stored text.  *  * It used to render in",
+  "/*      * Closed by default. The report is long — with three agents it ran to 280px      * and, sitting in a flex column above nothing, it took the sp"
+ ],
+ "src\\components\\ai\\TodoPanel.tsx": [
+  "/* Bar progres: satu pandangan cukup untuk tahu sejauh mana. */"
+ ],
+ "src\\components\\ai\\ToolGatePanel.tsx": [
+  "/*  * Floating tool gate.  *  * Sits over the editor rather than in the bottom dock: it is a decision the  * user makes once and then closes, and a do",
+  "/* Escape closes; the listener lives only while the panel is up. */"
+ ],
+ "src\\components\\api\\ApiClientView.tsx": [
+  "/**  * The API client panel.  *  * One surface for REST and GraphQL: the mode only changes how the body is  * built. Everything else (method, headers,"
+ ],
+ "src\\components\\devenv\\DevEnvView.tsx": [
+  "// so re-opening the panel is instant; a real re-scan only happens from the",
+  "/* ── 5. TERMINALS ── read-only: the panes the terminal panel already           manages, listed here so the whole environment is in one place. */",
+  "//${p.nama}${domain}`}",
+  "//${p.nama}${domain}`;"
+ ],
+ "src\\components\\editor\\Breadcrumbs.tsx": [
+  "/* Tanda sumber: kalau dari indentasi, jalurnya perkiraan - user berhak           tahu supaya tidak menyalahkan breadcrumbs saat namanya kasar. */"
+ ],
+ "src\\components\\editor\\CodeMirrorEditor.tsx": [
+  "// Sengaja hanya bergantung pada id tab: perubahan setting ditangani",
+  "/* A-4: chat mini melayang (Ctrl+I) - hanya ada saat dibuka. */"
+ ],
+ "src\\components\\editor\\EditorTabBar.tsx": [
+  "/* FASE 31: tombol ✕ diganti <span>.                 ARIA melarang `role=\"tab\"` punya keturunan interaktif, dan                 `tabIndex={-1}` TIDAK "
+ ],
+ "src\\components\\editor\\FindBar.tsx": [
+  "// Panel bawaan CM disembunyikan lewat CSS (kita pakai UI sendiri),"
+ ],
+ "src\\components\\editor\\ImagePreview.tsx": [
+  "// Gagal baca: store dibiarkan kosong; UI menampilkan pesan galat."
+ ],
+ "src\\components\\editor\\Minimap.tsx": [
+  "/*      * How many document lines share one minimap row.      *      * The old math capped the *scale* at 3px and let the step be whatever fell      *",
+  "/*        * Parse the whole document before reading tokens.        *        * CodeMirror parses lazily: `syntaxTree` only covers the viewport plus a  ",
+  "/*      * `docVersion` belongs in this dependency list.      *      * Without it the callback kept the first `view` it ever saw. That view is      * c"
+ ],
+ "src\\components\\explorer\\ExplorerPanel.tsx": [
+  "/* Root tunggal tetap dirender tanpa header section: menambah satu             lapisan header untuk satu folder hanya membuang ruang vertikal.        "
+ ],
+ "src\\components\\explorer\\FileTree.tsx": [
+  "/*    * Scroll the panel back to the top when the root changes.    *    * Opening a different folder reused the same scrolled container, so the first ",
+  "/* input \"new\" tepat di bawah root bila targetnya root */",
+  "/* input \"new\" di dalam folder yang sedang dibuka */"
+ ],
+ "src\\components\\explorer\\SearchPanel.tsx": [
+  "/* Riwayat query: <datalist> memberi dropdown native tanpa               menambah widget yang harus diurus fokus & keyboard-nya. */",
+  "/**\"                 aria-label=\"files to include\"                 data-testid=\"search-include\"                 value={include}                 onChan"
+ ],
+ "src\\components\\extensions\\ExtensionsView.tsx": [
+  "/*    * A count on each tab.    *    * Without one, \"Installed\" and \"Recommended\" were indistinguishable from    * \"Marketplace\" until opened, and a t"
+ ],
+ "src\\components\\settings\\BrandLogos.tsx": [
+  "/* Hati di badan toples, dilubangi dari siluet. */",
+  "/* Badan toples: sisi lurus, sudut bawah membulat. */",
+  "/* Tutup datar, sedikit lebih lebar dari badan. */",
+  "/* Dua koin bertumpuk miring di atas tutup. */",
+  "/* Telinga panjang tegak, lalu kepala bulat - satu siluet. */",
+  "/* Sisi atas dan dua garis potong yang membentuk facet. */",
+  "/* Sisi kiri-kanan digambar utuh supaya facet atas tetap terbaca. */"
+ ],
+ "src\\components\\settings\\CapturePanel.tsx": [
+  "/* command belum ada (build lama) - panel tetap tampil kosong */"
+ ],
+ "src\\components\\settings\\DevEnvSettingsSection.tsx": [
+  "/**  * Settings for the Dev Environment panel plus the credential store.  *  * The panel itself edits the layout; this page owns the values that outli",
+  "// A scan queued by the last keystroke still has to run, or the panel keeps"
+ ],
+ "src\\components\\settings\\McpPanel.tsx": [
+  "/* One click for every CLI whose config EXISTS on this machine.             CLI yang belum terpasang dilewati - menulis config untuk aplikasi         ",
+  "/* Toggle ekspos: memutus akses AI luar TANPA mencabut konfigurasi.           KENAPA terpisah dari tombol lepas: user sering hanya ingin \"matikan     "
+ ],
+ "src\\components\\settings\\PersonaCard.tsx": [
+  "/*             * Blok \"cara pakai\".             *             * Sebelumnya cuma ada satu baris yang menjelaskan APA itu persona,             * tidak p",
+  "/*                    * The active persona is marked with a word as well as a                    * colour. A tinted row alone fails the readers who ca"
+ ],
+ "src\\components\\settings\\PromptSection.tsx": [
+  "/* What the AI answers when asked \"what model are you\". This block is NOT           bisa diedit: isinya fakta dari konfigurasi (Settings → Model AI), "
+ ],
+ "src\\components\\settings\\SectionsAdvanced.tsx": [
+  "// TIDAK disimpan",
+  "/* Multi bahasa: instruksi bahasa jawaban dikirim ke model tiap chat. */",
+  "/* Dropdown ▼: pilih model custom/lokal dari katalog + hasil Refresh */",
+  "/* Saran dari katalog provider ini + hasil Refresh (API);                                                                                             ",
+  "/*                   * The worker's own icon, so the row and the AI panel agree.                   *                   * The list used to be name-only"
+ ],
+ "src\\components\\settings\\SectionsBasic.tsx": [
+  "/* ── fase 24: editor extras ──           Nama kunci sengaja sama dengan VS Code supaya user yang pindah tidak           perlu belajar nama baru. Yang",
+  "/* semuaTema() = bawaan + tema dari ekstensi aktif (fase 19.5). */",
+  "/* Preview memakai data-theme lokal: token tema ikut walau                   belum jadi tema aktif. */",
+  "/* Latar belakang kustom (permintaan user: \"bisa edit background jga           ntah pasang foto, apakah bisa?\"). Gambar TIDAK disalin ke folder       ",
+  "/* dialog dibatalkan / izin ditolak - bukan error */"
+ ],
+ "src\\components\\settings\\SectionsMisc.tsx": [
+  "/* Kartu detail: label kiri, nilai kanan - 4 baris saja. */",
+  "/* Baris tautan utama - yang paling sering dipakai user. */",
+  "/* Utilitas langka - tetap ada, tapi tidak lagi jadi tombol besar. */",
+  "/* fase 16.5: status per domain - nilainya dari Rust, bukan tebakan UI. */"
+ ],
+ "src\\components\\settings\\SettingsControls.tsx": [
+  "// kunci apa adanya kalau tidak ada terjemahan, jadi aman untuk keduanya."
+ ],
+ "src\\components\\settings\\UpdatePanel.tsx": [
+  "/* diam - link hanya pelengkap */"
+ ],
+ "src\\components\\sftp\\SftpView.tsx": [
+  "/**  * SFTP browser and port forwarding.  *  * Both go through the OpenSSH client Windows already ships, so a host in  * `known_hosts` behaves the sam"
+ ],
+ "src\\components\\shell\\ActivityBar.tsx": [
+  "/*        * A robot head, not a sparkle.        *        * The four-point star is the generic \"AI\" glyph and says nothing about        * this product;"
+ ],
+ "src\\components\\shell\\DonateDialog.tsx": [
+  "/* diam - link hanya pelengkap */"
+ ],
+ "src\\components\\shell\\EditorArea.tsx": [
+  "/* fase 29: banner Restricted di ATAS area editor, bukan sidebar -           sidebar bisa disembunyikan dan peringatan keamanan tidak boleh           ",
+  "/* The shell version of <Breadcrumbs /> was REMOVED from here:           Ada DUA komponen bernama Breadcrumbs: yang lama (shell/, hanya path)         ",
+  "/* fase 22: toolbar debug mengambang, hanya saat sesi hidup. Diletakkan           di editor-area (bukan di dalam CodeMirrorEditor) supaya tetap terlih",
+  "/* Gambar TIDAK dirender sebagai teks: membukanya di CodeMirror             menampilkan biner rusak. Pratinjau menggantikannya. */"
+ ],
+ "src\\components\\shell\\GhMenu.tsx": [
+  "/* Baris identitas - tidak diklik, hanya label */"
+ ],
+ "src\\components\\shell\\LayoutMenu.tsx": [
+  "/* ── Panel info subagent (T4.1b) ──           Terpisah dari BARIS_LAYOUT karena hanya relevan saat panel AI tampil           di kolom kanan; kalau di",
+  "/* ── Posisi panel AI ── */"
+ ],
+ "src\\components\\shell\\MenuBar.tsx": [
+  "// Menu selalu aktif: item hanya \"nonaktif\" kalau command-nya memang tidak",
+  "// TIDAK dipakai di sini - kalau konteksnya belum ada, command-nya sendiri",
+  "// yang menangani (no-op / pesan lembut), bukan mengunci menunya.",
+  "/* Revisi 1.1.10: logo Z di kiri menubar, sebelah \"File\". Title bar           native sudah dimatikan, jadi ini satu-satunya penanda identitas.        ",
+  "/*          * Label menu diterjemahkan saat render. Mnemonic (huruf bergaris          * bawah saat Alt ditekan) dihitung dari label TERJEMAHAN: huruf ",
+  "/* Layout panel - 4 tombol posisi SELALU TERLIHAT di kanan atas menu           bar (bukan popover): klik langsung pindah, tanpa buka menu dulu.       ",
+  "/* ikon layout: panel kiri/kanan/atas/bawah di sekitar editor */",
+  "/* Customize Layout (ala VS Code): satu panel untuk SEMUA kontrol             tata letak. Tanpa ini, user harus tahu bahwa \"sembunyikan status        ",
+  "/* ikon tata letak: dua kolom dengan pembagi */",
+  "/*           * Notes, todos and the schedule in one panel, in the slot the           * hide-panel button used to take.           *           * That bu",
+  "/* clipboard with lines: the panel holds notes, todos and jobs */",
+  "/* C-18: tombol window sendiri (title bar Windows dihapus). */"
+ ],
+ "src\\components\\shell\\Panel.tsx": [
+  "/* T4.11: tab AI. AiPanel tetap SATU instance: kalau panel AI dipindah             ke kolom kanan (Settings → Umum → Panel AI), tab ini menampilkan   ",
+  "/* Terminal: tetap mounted (lihat catatan di atas), disembunyikan saat             tab lain aktif. `hidden` HTML tidak dipakai karena xterm butuh     "
+ ],
+ "src\\components\\shell\\PanelTabStrip.tsx": [
+  "// Tab AI disembunyikan saat chat sudah tampil di kolom kanan: isinya",
+  "// hanya keterangan pemindahan, jadi slot tabnya terbuang.",
+  "/* fase 24.1: kontrol khusus terminal ([+ ▾] dan [⋮]) numpang di baris ini,           sejajar Problems/Output/…, dan HANYA saat tab Terminal aktif. Du"
+ ],
+ "src\\components\\shell\\PortsView.tsx": [
+  "// Error dari invoke Tauri berbentuk { code, message }, bukan Error,"
+ ],
+ "src\\components\\shell\\ProblemsView.tsx": [
+  "/* file mungkin sudah dihapus - diamkan, tabel tetap menampilkannya */"
+ ],
+ "src\\components\\shell\\Sidebar.tsx": [
+  "/*    * Dev Environment, API Client dan SFTP memakai lebar penuh: isinya sudah    * punya tata letak sendiri (kartu, kolom ganda) dan tidak punya daft"
+ ],
+ "src\\components\\shell\\StatusBar.tsx": [
+  "/* tetap pakai default */",
+  "/* event RAM tidak tersedia (mis. mode browser) */",
+  "/* Tombol Customize Layout di status bar: jalan keluar kalau Menu Bar           dimatikan. Tanpa ini, mematikan Menu Bar = tidak ada cara           me"
+ ],
+ "src\\components\\shell\\SubAgentView.tsx": [
+  "/*        * The header is one line: title, the counts, then the batch action.        *        * The group strip that used to sit below it is gone. It ",
+  "/*          * The model picker sits in the header so it is always reachable.          *          * It lives in the form footer too, but that form fold"
+ ],
+ "src\\components\\shell\\Tip.tsx": [
+  "/*  * A hover label that cannot cover what it describes.  *  * The title-bar buttons used the browser's native `title`, which renders a wide  * OS-dra"
+ ],
+ "src\\components\\terminal\\BrowserPane.tsx": [
+  "/**  * Pane browser dengan webview anak asli, bukan iframe.  *  * KENAPA bukan iframe: isi iframe tidak bisa dibaca dari luar karena aturan  * same-or",
+  "/**    * Keep the child webview glued to its container element.    *    * WHY this is not a plain requestAnimationFrame loop: the first version ran   "
+ ],
+ "src\\components\\terminal\\PaneGrid.tsx": [
+  "/* Tombol besar tersendiri: ini fitur yang dicari orang saat develop web -           shell di kiri, preview dev server di kanan. */"
+ ],
+ "src\\components\\terminal\\PaneIcons.tsx": [
+  "/*        * The mark as its owner ships it: `Hermes Agent Logo - Black`, the asset        * from zonalogo.com. Copied verbatim, all three paths, trans"
+ ],
+ "src\\components\\terminal\\TerminalTabs.tsx": [
+  "/* AI agent: dulu tombol toolbar sendiri (ikon robot). */",
+  "/* Layout: dulu tombol toolbar tetap, padahal hanya berguna saat ada                 ≥2 pane. Sebagai item menu, status disabled-nya jelas alasannya. "
+ ],
+ "src\\components\\terminal\\XtermPane.tsx": [
+  "/* sesi mungkin sudah mati */"
+ ],
+ "src\\index.css": [
+  "/* index.css — layout shell Zephyr.    SEMUA warna dari token di src/styles/theme.css (AGENTS.md §4). */",
+  "/* Latar belakang kustom (permintaan user: \"bisa edit background jga ntah    pasang foto\"). Gambar dipasang sebagai lapisan ::before di belakang UI,  ",
+  "/* Saat background aktif, permukaan panel dibuat sedikit tembus pandang supaya    gambar terlihat — tapi teks tetap di atas warna solid yang cukup kon",
+  "/* Semua permukaan shell dibuat tembus pandang. Daftar ini WAJIB memuat    .main-area dan .activitybar — dulu keduanya terlewat, dan karena keduanya  ",
+  "/* Area EDITOR tetap lebih solid daripada chrome di sekelilingnya: kode harus    terbaca. Ini kompromi yang sama dipakai tema wallpaper di editor lain",
+  "/* Layar sambutan (tanpa kode) boleh sangat tembus — tidak ada teks panjang    yang perlu dibaca di sana, jadi wallpaper bisa terlihat penuh. */",
+  "/* Area yang memuat KONTEN PADAT (terminal, chat, panel) tetap lebih solid —    teks di atas foto harus nyaman dibaca. */",
+  "/* Saat user mematikan \"panel tembus pandang\", semuanya kembali solid —    data-bg='solid' dipasang applyTheme saat opsi itu dimatikan. */",
+  "/* Kolom isi app-body: sidebar + main-area. Arahnya ditentukan posisi panel    (sidebar-pos-*), ala VS Code Layout. */",
+  "/* ATAS / BAWAH: panel di atas/bawah editor (kolom). */",
+  "/* A-10: panel AI sebagai kolom kanan 340px ala VS Code Copilot. Lebarnya    tetap (tidak bisa di-drag) supaya kode di editor tidak terpotong makin   ",
+  "/* Kolom AI: flex COLUMN berisi chat, lalu (opsional) panel info di BAWAHNYA —    itu SALAH. Chat dan panel info harus BERDAMPINGAN. Karena itu isinya",
+  "/* Saat panel info terbuka, kolom AI melebar supaya chat tidak terhimpit.    Ini menambah lebar DI ATAS lebar drag user (bukan menimpanya): `+ 218px` ",
+  "/* T4.14 \"lebarkan / fullscreen ala VS Code\": saat tombol maximize ditekan,    panel AI mengambil SELURUH lebar area kerja dan editor disembunyikan — ",
+  "/* Panel info subagent: kolom sempit di KANAN chat. Sengaja ringkas — ini    informasi, bukan ruang kerja; detail penuh ada di tab Subagents. */",
+  "/* Pengganti di dock bawah saat AI dipindah ke kanan. */",
+  "/* C-19: layout terminal-first ala Terax. Terminal memenuhi sisa lebar, editor    jadi pane tetap di kanan. TerminalArea mode mandiri membawa tinggi s",
+  "/* Panel horizontal (posisi atas/bawah): selebar konten, tingginya diatur    inline lewat sidebarHeight (drag divider horizontal). */",
+  "/* Divider horizontal untuk posisi atas/bawah. */",
+  "/* ─────────── layout sempit (fase 15.6) ───────────    Jendela minimum 800x520: sidebar dilipat oleh App.tsx, sisanya diatur di    sini. Yang penting",
+  "/* Item status bar yang paling tidak penting disembunyikan lebih dulu supaya    Ln/Col + pesan status tetap terbaca. */",
+  "/* Palette tidak boleh lebih lebar dari jendela. */",
+  "/* Tooltip ActivityBar di layout sempit: `title` native tidak bisa keluar dari    jendela, jadi cukup pastikan tombolnya sendiri tidak melebar. */",
+  "/* Akun GitHub di bawah activity bar (ala VS Code). */",
+  "/* Foto profil asli dari GitHub (avatars.githubusercontent.com). object-fit    supaya rasio apa pun tetap bulat penuh tanpa distorsi. */",
+  "/* ─────────── ActivityBar ikut posisi panel ───────────    ActivityBar dirender DI DALAM .app-body-col bersama sidebar, jadi ia    ikut arah flex:   ",
+  "/* Indikator aktif: di mode horizontal pindah ke tepi atas tombol. */",
+  "/*    * Only the vertical axis is clipped.    *    * `overflow: hidden` on both axes meant a long file tree, a long chat list or    * a long settings ",
+  "/* Konten panel */",
+  "/* background diatur oleh aturan [data-bg] di atas: warna solid di sini akan      menutupi wallpaper kustom (dulu inilah sebab editor tetap gelap). */",
+  "/* Saat latar kustom aktif, editor dibuat tembus pandang. Token    `--editor-background` dipakai CodeMirror sebagai backgroundColor inline,    jadi ha",
+  "/* Gutter tetap sedikit gelap supaya nomor baris terbaca di atas foto. */",
+  "/* Panel search bawaan CodeMirror disembunyikan — Zephyr punya FindBar sendiri. */",
+  "/* Perbesar/restore panel terminal (fase 06) — kelas dipasang di .main-area. */",
+  "/* jarak antar tombol toolbar: sebelumnya 1px -> terlihat berdempet */",
+  "/* fase 24.1: hidup di baris tab panel (PanelTabStrip), tepat sebelum      …/perbesar/tutup. Tidak lagi punya baris sendiri. */",
+  "/* Posisi & z-index diatur .zpop (portal ke <body>, lihat editor-extras.css).      Dulu absolut di dalam .tt-picker-wrap dan terpotong `overflow: hidd",
+  "/* padding lebih lega + jarak antar item, supaya tidak berdempet */",
+  "/* tinggi baris konsisten 30px: nyaman diklik, tidak boros */",
+  "/* Ikon di dalam dropdown: lebar tetap supaya label rata kiri sejajar. */",
+  "/* [+ ▾] satu kontrol dua bagian: aksi utama + panah pilihan. Keduanya SEJAJAR    horizontal — .tt-actions memakai flex row, dan wrapper ini harus iku",
+  "/* Garis pemisah tipis di antara keduanya, hanya muncul saat di-hover supaya    toolbar tetap bersih. */",
+  "/* xterm tidak selalu menuliskan background-nya sebagai inline style (WebView2    kadang membuat .xterm tetap transparan), sehingga pane terminal tamp",
+  "/* Sebelumnya 0.14em -> \"Z e p h y r\" terbaca terlalu renggang.      0.02em cukup untuk kesan lapang tanpa memecah kata. */",
+  "/* ─────────── Search panel ─────────── */",
+  "/* fase 25: baris hasil diposisikan absolut di dalam .sr-spacer supaya bisa      divirtualkan. `position: relative` di sini yang menjadi acuannya. */",
+  "/* Spacer setinggi seluruh daftar hasil (fase 25). Scrollbar mengikuti tinggi    ini, bukan jumlah node yang benar-benar dirender. */",
+  "/* fase 25: dulu `position: sticky`. Dengan virtualisasi, header ikut      dipindah-posisikan absolut — sticky di dalam spacer absolut membuat      he",
+  "/* Folder induk, ditampilkan redup di sebelah nama file. */",
+  "/* fase 25: diposisikan absolut untuk virtualisasi. Tinggi WAJIB tetap 22px      dan cocok dengan TINGGI_BARIS di SearchPanel.tsx — kalau berbeda, off",
+  "/* Tombol donasi status bar — sedikit menonjol tapi tetap subtle. */",
+  "/* Dua tanda layanan donasi memakai warna mereknya sendiri, jadi tombolnya    terbaca sebagai pintu donasi tanpa perlu teks tambahan. */",
+  "/* Tombol donasi di About: memakai warna aksen tema supaya seragam dengan    tombol utama lain, bukan warna kuning sendiri. Ikonnya emoji kopi, jadi  ",
+  "/* Emoji tetap berwarna walau tema memaksa warna teks. */",
+  "/* Tombol brand di About: logo resmi + label.    Ikonnya memakai fill currentColor supaya tetap ikut tema, dan warna merek    diberikan lewat token su",
+  "/* Tombol Discord memakai pola yang sama dengan WhatsApp: ikonnya tetap    berwarna merek walau tombolnya di-hover, karena bluring di latar gelap    m",
+  "/*    * Above every floating surface in the app, not just the panes.    *    * At 100 this sat under the AI panel's own popovers (`.sub-daftar-menu` o",
+  "/* daftar item pada dialog hapus */",
+  "/* Tombol posisi panel — SELALU terlihat di kanan atas (bukan popover).    Empat ikon layout + tombol sembunyikan panel (mata dicoret). */",
+  "/* C-18: tombol minimize/maximize/close sendiri — title bar Windows dihapus    supaya chrome-nya bisa bertema gelap. Ukuran mengikuti konvensi Windows",
+  "/* Command center: pill lebar di TENGAH baris menu ala VS Code —    nempel setelah Help tapi memanjang ke kanan (bukan kotak kecil di pojok). */",
+  "/* Rata TENGAH di baris menu (ala VS Code command center) — bukan nempel      setelah menu Help di kiri. */",
+  "/* ErrorBoundary (shell/ErrorBoundary.tsx) — kartu pemulihan saat satu bagian    gagal render. Tanpa ini React melepas seluruh tree dan jendela jadi b"
+ ],
+ "src\\styles\\a11y.css": [
+  "/* a11y.css — tema high-contrast + focus ring + reduced motion (fase 31).     ══════════════════ KEPUTUSAN ══════════════════     1. High contrast = T",
+  "/* ═════════════ 1. Tema high contrast ═════════════     Basis: hitam murni + putih murni. Semua pasangan teks/latar >= 7:1 (AAA),    border >= 4.5:1 ",
+  "/* permukaan — hitam murni, dibedakan lewat BORDER bukan gradasi abu */",
+  "/* teks — putih murni untuk teks utama */",
+  "/* aksen & status — dipilih terang supaya >= 7:1 di atas hitam */",
+  "/* syntax — hue dijaga berbeda supaya tidak hanya beda kecerahan */",
+  "/* Terminal: ANSI 0 di tema gelap dipakai sebagai PERMUKAAN, dan di high    contrast permukaannya hitam murni — teks hitam terminal akan hilang.    Ov",
+  "/* High contrast menegaskan BATAS: setiap permukaan yang bisa diklik    mendapat border nyata, bukan hanya perbedaan latar 5%. */",
+  "/* ═════════════ 2. Focus ring konsisten ═════════════     `:focus-visible` (bukan `:focus`) supaya klik mouse tidak memunculkan ring,    tapi navigas",
+  "/* Radius mengikuti elemen supaya ring tidak memotong sudut. */",
+  "/* Elemen yang sengaja menyembunyikan outline (input pencarian dsb) tetap    WAJIB punya penanda fokus. `outline: none` tanpa pengganti = pelanggaran ",
+  "/* Tema high contrast: ring lebih tebal, karena 2px di atas hitam masih tipis. */",
+  "/* Kelas bantu untuk elemen non-native yang ikut menerima fokus    (baris tree, item palette) — mereka tidak cocok dengan selector :where    di atas k",
+  "/* ═════════════ 3. Reduced motion ═════════════     Dua jalur: preferensi OS DAN setelan aplikasi    (`settings.accessibility.reducedMotion` → `data-",
+  "/* Spinner yang animasinya dimatikan jadi statis dan tampak \"menggantung\".    Diberi penanda titik supaya tetap jelas ada proses berjalan. */",
+  "/* B-13: jendela minimized / tidak fokus. Sama seperti reduced-motion —    Chromium tetap menyusun frame walau jendela tak terlihat, jadi animasi    y",
+  "/* ═════════════ 4. Live region ═════════════     Wadah pengumuman screen reader. Tidak boleh `display: none` —    screen reader mengabaikan node yang",
+  "/* ═════════════ 5. Skip link ═════════════     Tab pertama di app harus bisa melompati ActivityBar/Sidebar langsung ke    editor. Tanpa ini pengguna ",
+  "/* ═════════════ 6. Screen reader mode ═════════════     Saat aktif, elemen yang murni dekoratif disembunyikan dari pohon    aksesibilitas lewat atrib"
+ ],
+ "src\\styles\\ai-debug.css": [
+  "/*  * Debug drawer — the request log for the AI panel.  *  * Floats like the tool gate: a reader opens it to answer one question (\"what  * did we actu",
+  "/*  * Clear sits apart from Close, and reads as the destructive one.  *  * Both were plain 22px squares with an 8px gap, so they read as one control  "
+ ],
+ "src\\styles\\ai-icons.css": [
+  "/*  * File-type icons and the subagent robot mark.  *  * Two things live here: the tint per file type used by the composer's \"@\"  * picker, and the ro",
+  "/* No disc behind the head. It was added to lift the mark off the panel      background, but `currentColor` is the status colour, so a running agent  ",
+  "/*  * Every agent cycles through the same four hues.  *  * The cycle was running-only, and finished rows were pinned to a single colour  * to look \"se",
+  "/*  * One column, same 16px footprint as the file icon, so the \"/\" and \"@\" popups  * line up when the user switches between them. The tint is the acce",
+  "/*    * Fixed, not absolute.    *    * The row sits inside a grid cell inside a scrolling panel, and every    * ancestor with `overflow` clips an abso"
+ ],
+ "src\\styles\\ai-panel-compact.css": [
+  "/*  * AI panel — compact, flat, Copilot-shaped.  *  * The panel used to be a stack of bordered buttons: every action spelled out in  * words, each one",
+  "/*    * A side panel is narrow (≈340px). The model selector alone is ~325px, so a    * single unwrapped row can never hold it plus the mode switch plu",
+  "/*  * Narrow panel (the side column): the row cannot hold five controls plus Send,  * so it breaks into two tidy lines — the model chip on the first, ",
+  "/*  * Row 2 keeps the mode switch + effort pickers on the left and the action icons  * on the right. At ~340px wide the four controls cannot share one",
+  "/*  * Container queries do the width-dependent work: `is-kanan` says the panel is  * docked right, not how wide it is, so the rules below key off the ",
+  "/* Message count and token estimate: quiet, and the first thing to give up    space when the panel is narrow. */",
+  "/* The panel is narrow; the popover must not run past its right edge. */",
+  "/*  * Opens DOWNWARD from the header, unlike the composer menus: the header sits at  * the top of the panel, so there is room below it. z-index is rai",
+  "/*  * Opens upward like the mode and permission menus: the composer sits at the  * bottom of the panel, so a menu anchored below the trigger (`top: 30",
+  "/*  * Anchored to the RIGHT edge of its trigger.  *  * The model chip sits at the right end of the composer, so a menu anchored to  * the left edge gr",
+  "/* In a narrow panel the menu takes the panel's width, less the margins. */",
+  "/*  * Anchored LEFT, extending rightward.  *  * The old rule anchored `right: 0` for the permission menu, which made it grow  * leftward from the trig",
+  "/*  * At the very right edge of a narrow panel the menu would overflow, so it  * flips to the right edge there instead.  */",
+  "/*  * The composer must not clip its own popovers, and neither may the panel: an  * overflow value on either of them turns the menu into a cut-off box",
+  "/*  * Compact rows: one line each.  *  * The two-line form (bold label over a grey sentence) cost ~44px per row and  * the menu holds eleven rows — ne",
+  "/*  * Anchored near the top rather than centred: in a docked panel the composer is  * what the eye should land on, and a vertically centred block push",
+  "/*  * The empty-state mark breathes and slowly turns.  *  * An idle panel is the first thing a new user sees, and a completely still  * one reads as \""
+ ],
+ "src\\styles\\ai-sesi.css": [
+  "/*  * Session switcher.  *  * The list hangs off the title in the chat header, so it shares the floating  * menu language used elsewhere in the panel:"
+ ],
+ "src\\styles\\ai-streaming.css": [
+  "/*  * Chat layout and streaming states.  *  * The shape people already read as a chat: your own message is ONE soft bubble  * on the RIGHT, the assist",
+  "/*  * No bubble and no box. The side carries the meaning: your message sits on the  * RIGHT, the assistant's on the LEFT, and that is the whole distin",
+  "/* The text is the thing that hugs the right edge, capped so a long message    still wraps instead of running the full width of the panel. */",
+  "/*  * One button that gathers the ways to put something INTO the message.  *  * It opens UPWARD and is anchored to the BOTTOM of the composer: in the ",
+  "/*  * The composer row is the positioning context. Without it the menu would be  * placed against the nearest positioned ancestor — the whole panel — ",
+  "/*  * A soft sweep across the chip, under the text.  *  * The dots alone are 3px of motion in a wide panel; the sweep gives the row a  * second, large"
+ ],
+ "src\\styles\\ai-trace.css": [
+  "/*  * AI panel — compact trace, Zephyr's own take.  *  * Reference shape (TEDI's panel) that this borrows from: one line per action,  * label on the l",
+  "/*  * The \"thinking about the next step\" note pulses.  *  * It marks the gap between a tool call finishing and the next one starting —  * often severa"
+ ],
+ "src\\styles\\ai.css": [
+  "/* ai.css — panel AI (fase 09).    Semua warna dari token di theme.css (AGENTS.md §4). Logo brand provider    memakai hex resmi di SVG-nya sendiri, bu",
+  "/* ── pemilih isi panel bawah: Terminal | AI ──    Satu baris tipis berisi pemilih SAJA (fase 24.1). Tab terminal pindah ke kolom    kanan, tombol [+ ",
+  "/* ── kerangka panel ── */",
+  "/*    * Never let the transcript collapse to nothing.    *    * Short panel, tall card: with `min-height: 0` the flex row squeezed the    * scroller b",
+  "/* Baris baru (Shift+Enter) otomatis membesarkan kotak sampai max-height —      tanpa ini teks mengalir keluar/scroll dan terlihat \"tidak bisa baris  ",
+  "/* A-7: referensi file yang bisa diklik di teks jawaban. */",
+  "/* ── konfirmasi perintah berbahaya ── */",
+  "/* A-9: kotak cari riwayat chat. */",
+  "/* A-3: menu quick chat dari seleksi editor. */",
+  "/* A-8: saran slash command di atas input. */",
+  "/* 9 prompt bawaan + prompt user bisa lewat batas ini. Daftarnya digulir      (bukan dipotong) supaya semua pilihan tetap terjangkau; panah keyboard  ",
+  "/* Scrollbar tipis: daftar ini muncul di atas input, scrollbar tebal      membuat panel terasa sesak. */",
+  "/* A-4: chat mini melayang di editor (Ctrl+I). Posisi mengambang di kanan atas    area editor supaya tidak menutupi baris yang sedang dikerjakan. */",
+  "/* Baris judul + tombol \"Hapus semua\" sejajar. Tombolnya sendiri pakai    .tp-op (border tipis, hover merah) — konsisten dengan tombol hapus    per-ch",
+  "/* T1.1: blok \"Reasoned\" — penalaran model, bisa dilipat. */",
+  "/* T1.1: pemilih tingkat penalaran. Disamakan dengan .ai-approval supaya    baris header tidak punya dua bahasa visual. */",
+  "/* Sorot saat bukan default — user harus bisa melihat dengan sekali lihat    bahwa penalaran sedang dinaikkan (berpengaruh ke biaya & waktu). */",
+  "/* Panel Todo agent ala opencode (item 24). */",
+  "/* ── panel ── */",
+  "/* 2 columns on wide panels (>= 420px), 1 column on narrow panels.      menampilkan beberapa kartu berdampingan supaya 4 subagent terbaca      tanpa s",
+  "/* Langkah yang SEDANG dikerjakan — selalu terlihat. */",
+  "/* ── TODO panel (daftar tugas + progres) ─────────────────────────────── */",
+  "/* ── T3.6: labelled agent step timeline ───────────────────────────────────    Ikon + label manusiawi (\"Read\", \"Edit\", \"Run\") berwarna per jenis aksi",
+  "/* Warna per jenis aksi — konsisten antara timeline agent dan panel subagent. */",
+  "/* Blok \"Reasoned\" yang bisa dilipat. */",
+  "/* ── T3.10: panel subagent COMPACT ───────────────────────────────────────    Keluhan user: panelnya \"numpuk bnget\". Penyebabnya tiga lapis informasi",
+  "/* Pratinjau hasil satu baris (pengganti blok paragraf yang mengulang chat). */",
+  "/* Kartu lebih rapat: 4 kartu sejajar tetap terbaca tanpa mendominasi panel. */",
+  "/* ── T3.11: pemilih mode (persetujuan + penalaran) ───────────────────────    Mengganti <select> native. Daftar <option> dirender OS, jadi di tema ge",
+  "/* Warna per tingkat: hijau = aman, kuning = hati-hati, merah = bebas penuh.    Tujuannya supaya user tahu tingkat otonomi TANPA membuka menunya. */",
+  "/* Peran yang boleh menulis dibedakan: user perlu tahu subagent mana yang    bisa mengubah file, karena itu yang berisiko. */",
+  "/* Subagent bikinan user sendiri.     Si robot di dalamnya sudah menandai \"ini punyamu\", tapi ikon saja terlalu    halus dibedakan dari enam peran baw",
+  "/* ── T4.10: pemilih model DUA TINGKAT ──────────────────────────────────────    Sebelumnya semua model dari semua provider ada di satu daftar datar —",
+  "/* Kotak cari di atas menu: jalan pintas saat user sudah tahu nama modelnya. */",
+  "/* Kepala tingkat model: tombol kembali + logo + nama provider + badge key. */",
+  "/* Catatan kecil di bawah daftar provider (mis. berapa yang disembunyikan). */",
+  "/* Tombol pemilih model subagent duduk di baris kontrol agent — beri lebar    wajar supaya nama model panjang tidak mendorong kontrol lain. */",
+  "/* ── T4.1b: panel INFO subagent di kanan chat ─────────────────────────────    Ringkas dengan sengaja: satu baris per subagent (nama + peran + status",
+  "/* ── T4.12: panel AI di KOLOM KANAN ────────────────────────────────────────    Kepala panel berisi 8+ kontrol dan dirancang untuk dock BAWAH (lebar ",
+  "/* Sembunyikan badge key di kolom kanan: pemilih model sudah punya indikator    sendiri di dalam menunya, dan di sini ia memakan lebar. */",
+  "/*    * `auto`, not `0`.    *    * With the title hidden as a right-hand column the header holds only this    * cluster, and `margin-left: 0` pinned i",
+  "/* Tombol teks -> ikon. Pakai ::before untuk glyph, dan sembunyikan teksnya. */",
+  "/* sembunyikan teks tanpa menghapusnya dari a11y tree */",
+  "/* Informasi sekunder: di kolom sempit ini hanya menambah kebisingan. */",
+  "/* Isi chat: padding lebih rapat supaya teks dapat lebar maksimal. */",
+  "/* Panel TODO & langkah agent: di kolom kanan keduanya panjang ke bawah, jadi    dibatasi tingginya — kalau tidak, kotak input terdorong keluar layar."
+ ],
+ "src\\styles\\api.css": [
+  "/* API client panel.     Two columns: the request on the left, the response on the right, so a result    is compared against what produced it without "
+ ],
+ "src\\styles\\debug.css": [
+  "/* debug.css — Run & Debug (fase 22).  *  * Semua warna dari CSS variable (AGENTS.md §4). Tidak ada hex hardcoded:  * tema terang/gelap dan tema dari ",
+  "/* Kotak instruksi install adapter / entri launch.json yang ditolak. */",
+  "/* ── section yang bisa dilipat ── */",
+  "/* Lingkaran kosong = belum diverifikasi adapter; penuh = sudah. */",
+  "/* ── toolbar mengambang di atas editor ── */",
+  "/* Toolbar butuh acuan posisi; editor-area yang jadi patokannya. */",
+  "/* Area klik terlihat saat hover, supaya user tahu gutter ini bisa diklik. */",
+  "/* Baris yang sedang dieksekusi. */"
+ ],
+ "src\\styles\\devenv.css": [
+  "/* Panel Dev Environment.     Colours come from the theme tokens only, so a theme switch re-themes this    panel for free. Layout mirrors the Herd win",
+  "/* A status light, not a glyph: reads as \"up\" from across the panel. */"
+ ],
+ "src\\styles\\editor-extras.css": [
+  "/* editor-extras.css — breadcrumbs, minimap, sticky scroll, indent guides,    bracket colors, color swatch, unicode highlight (fase 24).     Semua war",
+  "/* ═════════ Kerangka: breadcrumbs di atas, minimap di kanan ═════════ */",
+  "/* A-4: jangkar untuk chat mini melayang (.ic, position:absolute). */",
+  "/* Dipakai .cm-sticky agar overlay-nya berhenti sebelum minimap.      Diset ke lebar nyata oleh .cm-body:has(.cm-minimap) di bawah. */",
+  "/* Sticky scroll tidak boleh menutupi minimap. */",
+  "/* kotak kecil transparan tetap terlihat di atas latar apa pun */",
+  "/* Semua dropdown toolbar terminal dirender ke <body> lewat portal supaya tidak    dipotong rantai `overflow: hidden` panel bawah. Posisi diatur inlin",
+  "/* Popover memakai kelas isi yang sama seperti sebelumnya (.tt-dropdown), jadi    properti posisi absolut lamanya harus dinetralkan di dalam portal. *",
+  "/* Kolom tab hanya dirender saat tab terminal >= 2 (lihat TerminalSideTabs),    jadi dengan satu terminal tidak ada ruang yang terpakai sama sekali. *",
+  "/* Tab horizontal memakai border bawah sebagai penanda aktif; di kolom      vertikal penandanya garis KIRI, seperti daftar terminal VS Code. */",
+  "/* CodeMirror menandai semua hasil dengan .cm-searchMatch tapi warnanya samar;    saat \"sorot semua\" aktif, dinaikkan supaya benar-benar terlihat. Kel",
+  "/* Revisi 1.1.10: logo di kiri menubar. Menubar sendiri adalah drag region,    jadi logo sengaja tidak ikut menyerap klik.     Lebar brand = lebar Act",
+  "/* ── Menu akun GitHub (dropdown dari avatar di Activity Bar) ── */",
+  "/* Menggunakan kerangka .tt-dropdown/.tt-drop-item yang sudah ada supaya    bentuknya identik dengan dropdown lain; di sini hanya baris identitas    a",
+  "/* pointer-events: none supaya baris ini jelas-jelas label, bukan tombol      yang bisa diklik (klik di sini tidak melakukan apa pun). */",
+  "/* Titik hijau kecil = layanan hidup. Tanpa ini user harus membuka kolom    ketiga untuk tahu mana yang jalan. */",
+  "/* ── T3.4: Zen mode ─────────────────────────────────────────────────────    Menyembunyikan Activity Bar, sidebar, panel bawah, dan status bar —    h",
+  "/* Di zen, editor mengisi seluruh tinggi yang tersisa. */",
+  "/* Indikator kecil supaya user tahu zen sedang aktif dan bisa keluar    (Esc). Tanpa penanda, user bisa bingung \"kenapa UI-nya hilang\". */",
+  "/* ── Customize Layout (panel mengambang ala VS Code) ───────────────────── */",
+  "/* Posisi TIDAK bergantung pada MenuBar: kalau Menu Bar dimatikan, panel ini      tetap harus muncul di tempat yang masuk akal. `top: 8px` dipakai saa",
+  "/* Baris yang aktif diberi aksen kiri — status \"terlihat\" terbaca sekilas. */",
+  "/* ── Tombol sembunyikan panel AI (ala tombol X VS Code) ─────────────────── */"
+ ],
+ "src\\styles\\extensions.css": [
+  "/* extensions.css — panel Extensions di sidebar kiri (fase 19).    Gaya baris: LIST RINGKAS ala VS Code (fase 32) — bukan kartu besar.    Warna WAJIB ",
+  "/* Menu aksi (…): Install from Folder / .vsix / Reload — dipindah ke sini    supaya tidak makan satu baris penuh (sebelumnya 3 tombol berjajar). */",
+  "/*  * The three groups, as one control.  *  * They were three underlined tabs sharing a hairline with the panel border, so  * \"Installed / Recommended",
+  "/* Three tabs share a 260px rail with the panel's own margins, so the label has      to be allowed to clip rather than push the row wider than its box",
+  "/* Menu roda-gigi dirender lewat Popover (portal ke body) — sidebar punya    overflow:hidden yang memotong menu absolut (pelajaran fase 24.1). */",
+  "/* ── panel Details ── */"
+ ],
+ "src\\styles\\history.css": [
+  "/* history.css — Timeline / Local History (fase 26).  *  * Warna WAJIB dari CSS variable (AGENTS.md §4) — tidak ada hex hardcoded.  * Timeline duduk d",
+  "/* FASE 31: --fg2 (= --text-muted) hanya 3.97:1 di atas --bg3 pada 10px.      Sama seperti .tl-badge — badge kecil butuh kontras lebih. */",
+  "/* FASE 31: `--fg2` (= --text-muted) hanya 3.97:1 di atas --bg3, dan badge ini      9px bold — teks kecil justru butuh kontras lebih, bukan kurang. Di"
+ ],
+ "src\\styles\\lsp.css": [
+  "/* lsp.css — squiggle, hover tooltip, dan overlay LSP (fase 21).    Warna dari token src/styles/theme.css & tokens.css (AGENTS.md §4). */",
+  "/* Garis bergelombang dibuat dari gradien berulang, bukan gambar —      tetap tajam di semua DPI dan ikut warna token tema. */",
+  "/* Popup completion CodeMirror ikut tema Zephyr. */",
+  "/* Tombol \"salin\" kecil per baris server yang belum terpasang. */",
+  "/* Ringkasan \"N belum terpasang\" + tombol salin semua (pengganti teks    panjang berjajar perintah install mentah). */"
+ ],
+ "src\\styles\\notes-todos.css": [
+  "/*  * Notes & todos — the floating panel from the title-bar button.  *  * Shares the shell with the schedule (`.sch-*` rows live in sched.css); this  ",
+  "/* Pinned: no scrim, and a ring marks the state so it is obvious why the panel    is staying up. */",
+  "/*  * Drawn above the button, never below.  *  * The native `title` tooltip rendered under the cursor, and for a title-bar  * button that is directly "
+ ],
+ "src\\styles\\palette.css": [
+  "/* palette.css — Command Palette & Quick Open (fase 12).    Warna WAJIB dari CSS variables (AGENTS.md §4). */",
+  "/* Tombol Split With Browser di toolbar = IKON SAJA (seperti tombol lain).    Label teksnya pernah ada di sini dan menutupi tombol \"+ Agent\" di    seb"
+ ],
+ "src\\styles\\panel.css": [
+  "/* panel.css — panel bawah fase 20 (Problems · Output · Debug Console ·    Terminal · Ports) + ringkasan diagnostik di status bar & gutter editor.    ",
+  "/* Scrollbar yang selalu terlihat saat overflow -- scrollbar auto-hide      adalah alasan tab DEVENV/DB/SFTP tidak pernah ditemukan user. */",
+  "/* WebView2/Chromium: scrollbar tipis yang tidak memakan tinggi baris tab. */",
+  "/* Gradien tepi kanan: isyarat \"masih ada tab di luar layar\".    Dipasang di container, bukan di .pts-tabs (yang ikut scroll). */",
+  "/* Posisi diatur inline oleh Popover (portal ke <body>) — dulu absolut di      dalam .pts-ops dan ikut terpotong `overflow: hidden` panel. */",
+  "/* ── T4.1: tab SUBAGENTS ────────────────────────────────────────────────    Subagent dapat tab sendiri supaya panel AI tidak menumpuk. Di sini ada  ",
+  "/* Pemilih model subagent di kepala tab Subagents. Dibatasi lebarnya supaya    nama model panjang tidak mendorong tombol Hentikan/Bersihkan keluar lay"
+ ],
+ "src\\styles\\sched.css": [
+  "/*  * Schedule — the floating list of timed jobs.  *  * Third panel in the same family as the tool gate and the debug drawer, so it  * borrows their s"
+ ],
+ "src\\styles\\scm.css": [
+  "/* scm.css — Source Control (fase 10): panel sidebar, diff viewer, badge    status bar. Semua warna dari CSS variables di theme.css (aturan §4:    dil",
+  "/* ── panel ── */",
+  "/* Tombol kecil per baris: hanya tampil saat hover/fokus supaya bersih. */"
+ ],
+ "src\\styles\\settings.css": [
+  "/* settings.css — halaman Settings (fase 08).    Semua warna dari token theme.css; tidak ada hex hardcoded. */",
+  "/* bar tipis di atas halaman Settings (pengganti tab bar editor) */",
+  "/* jalan cepat section Settings di sidebar — DIHAPUS (nav asli sudah di    sidebar; kelas .side-quick tidak dipakai lagi). */",
+  "/* ─────────── panel sidebar Terminal (daftar sesi) ─────────── */",
+  "/*  * The shell / private / panel row.  *  * These three are the only actions the panel offers before any session exists,  * so they carry the whole e",
+  "/*  * Section heading.  *  * \"Agent CLIs detected\" and \"Chat history\" were sentence case at 11px, which  * left the panel without any structure: the e",
+  "/*  * The hint under the agent list.  *  * Two paragraphs used to say the same thing twice — that the panel lives at the  * bottom and that it opens i",
+  "/* fase 29: sub-heading di dalam satu section (Security). Lebih kecil dari    .set-h2 — dua judul sebesar itu dalam satu halaman membuat section terli",
+  "/* Blok \"cara pakai\" di bawah deskripsi persona.     `.set-hint` itu `span` inline, jadi dua di antaranya menempel jadi satu baris    panjang dan kali",
+  "/* ─────────── tema: kartu preview ─────────── */",
+  "/* penting: token dibaca dari data-theme pada elemen ini sendiri */",
+  "/* ─────────── about (compact) ───────────    Perubahan: teksnya dipadatkan atas permintaan user (\"teksnya kebanyakan\").    Dulu: header + 3 tabel pen",
+  "/* Kartu detail: satu kolom penuh, label-atas-nilai di bawah di layar sempit. */",
+  "/* Tautan dalam tabel: bergaya teks, bukan tombol tebal. */",
+  "/* Utilitas langka: tautan kecil yang rapat — tidak lagi tombol besar. */",
+  "/* ─────────── Update panel fase 17.6 ─────────── */",
+  "/* Ikon header memakai warna aksen supaya sejalan dengan tombol donasi. */",
+  "/* Baris pertama tiap tombol: logo + nama layanan. */",
+  "/* URL sejajar dengan teks nama, bukan dengan logonya. */",
+  "/* Kedua opsi memakai gaya kartu yang sama; pembedanya hanya warna merek,    supaya tidak ada satu kartu yang terlihat seperti tombol utama dan satu  ",
+  "/* Nama layanan ikut warna mereknya saat kartu disorot. */",
+  "/* ── Dialog \"versi baru tersedia\" (gaya sendiri, bukan jiplakan) ── */",
+  "/* Dialog donasi jauh lebih sempit dari dialog update.    Aturan ini WAJIB setelah .upd-dialog: kedua kelas dipakai bersama    (.upd-dialog.donate-dia",
+  "/* Tombol tutup: beri ruang dari tepi supaya tidak menempel di sudut, dan    pastikan ukurannya tetap persegi walau di dalam dialog sempit. */",
+  "/* ── T4.3: Settings → Prompt AI ────────────────────────────────────────────    Setiap bagian prompt punya kotak sendiri dengan badge status (bawaan ",
+  "/* Blok identitas model di Prompt AI: lebih pendek dari pratinjau penuh, dan    dibedakan supaya jelas ini fakta yang tidak bisa diedit (bukan area is",
+  "/* ── T4.5: daftar izin perintah ── */",
+  "/* ── T4.8: Capture requests ────────────────────────────────────────────────    Ditampilkan MENTAH dengan sengaja: ini alat debugging, dan bagian yan"
+ ],
+ "src\\styles\\split-editor.css": [
+  "/* Group kanan tidak perlu garis tepi ganda. */",
+  "/* Tab bar di dalam group tetap mengambil gaya yang sama; yang beda hanya    batas bawahnya menyatu dengan host editor. */"
+ ],
+ "src\\styles\\subagent-custom.css": [
+  "/* Mixed up from --border: at full strength the hairline sits within a few      points of the panel behind it and the field stops reading as a box. */",
+  "/* Ikon worker di baris daftar.     Kotaknya sengaja seukuran ikon peran supaya baris \"Ryuga\" di sini dan baris    sub-agent-nya di panel AI terbaca s"
+ ],
+ "src\\styles\\subagent-timeline.css": [
+  "/*  * Subagent timeline.  *  * One agent per row: a numbered node on a vertical rail, then a grid of  * name / status / time that lines up down the co",
+  "/*  * NOT a scroller. It used to carry `overflow-y: auto` with `flex: 1 0 auto`,  * which let it grow to its content height (314px inside a 231px pane",
+  "/*  * The rows, at their natural height. The shell scrolls, not this — see the  * note on .sav-root. `flex: 1 0 auto` lets a short list still fill a t",
+  "/*  * Nine explicit columns, one per element, assigned below by grid-column.  *  * The row used to be a seven-column grid holding ten elements, so the",
+  "/*  * Steps and duration, right-aligned with tabular figures so the column lines  * up down the panel and durations can be compared without reading th",
+  "/*  * Markdown report, so the body is styled as a document (see subagent-view.css  * for the element rules). This block only positions the box inside ",
+  "/*  * The same round send button as the chat composer, re-declared here because the  * chat's rule is scoped to `.ai-input-side` and does not reach th",
+  "/* ── Narrow panel ─────────────────────────────────────────────────────── */"
+ ],
+ "src\\styles\\subagent-view.css": [
+  "/*  * Subagents tab, laid out like the AI panel.  *  * The tab used to read as a full page: a centred empty state floating in the  * middle of the vie",
+  "/*  * The tab's outer shell, and the ONLY scrolling region in the tab.  *  * This was a nested-scroller bug: the shell clipped while the timeline insi",
+  "/*  * One header, one rule.  *  * Every element starts at the same left edge and the whole tab uses a single  * padding scale, so the panel has one ve",
+  "/* Header actions are icon-sized, like the AI panel's. */",
+  "/*  * The textarea fixes three things ai.css gets wrong for this tab:  *   - `resize: vertical` drew a native grip in the corner, which reads as a  * ",
+  "/*  * The AI panel's picker opens UPWARD because its composer is pinned to the  * bottom edge, so there is no room below it.  *  * This header sits at",
+  "/* The header is only ~26px tall, so the menu's own offset is measured from      the picker, not the panel: this keeps it flush under the trigger. */",
+  "/*  * The header is narrow, but the menu is not: it needs room for a provider name,  * a model id and a context badge on one line.  *  * This used to ",
+  "/*  * Left-aligned and pinned near the top, where the first result row would land.  * Centring it in the panel meant the text moved every time the pan",
+  "/*  * The report scrolls inside its own box. Open, it is as long as the batch was  * talkative — a three-agent report measured 280px in a 231px panel,",
+  "/*  * The report body: one block per agent in a grid.  *  * The panel is often 800-1400px wide, so a single column of text sat in the  * left half wit",
+  "/*  * Results stay a grid: each card is a small self-contained report, and a grid  * lets several be compared at once. The minimum width is lowered so",
+  "/* ── Narrow panel ─────────────────────────────────────────────────────── */"
+ ],
+ "src\\styles\\theme-light.css": [
+  "/* theme-light.css — Zephyr Light (fase 13 memisahkannya dari theme.css).    Palet tetap satu keluarga token dengan tema gelap; yang berbeda hanya    "
+ ],
+ "src\\styles\\themes-extra.css": [
+  "/* themes-extra.css — tema komunitas (fase 13 memisahkannya dari theme.css).    nord · tokyo-night · gruvbox-dark · one-dark    Setiap blok WAJIB memu",
+  "/* Everforest — hijau hutan, mata nyaman */"
+ ],
+ "src\\styles\\tokens.css": [
+  "/* syntax (nama kontrak fase 13) */",
+  "/* Shared spacing scale. Each panel used to pick its own padding      (4/5/6/8/10px), so left edges never lined up across panels.      Used by bars, s"
+ ],
+ "src\\styles\\tool-gate.css": [
+  "/*  * Tool gate — the floating list that decides what the agent may call.  *  * It floats over the editor instead of docking: it is a decision the use",
+  "/*  * The ring is the only focus cue the panel needs: the field is autofocused on  * open, so without it a reader cannot tell that typing will filter.",
+  "/* WebView2 draws the default light scrollbar here; the theme needs the dark    one or it reads as a browser control pasted into the panel. */",
+  "/*    * One pixel larger than the per-tool boxes, and round.    *    * The group control and the tool control were identical, so the only thing    * s",
+  "/*    * `--fg1`, not `--text-muted`.    *    * The badge sits on `--surface-3`, so muted grey on grey was the dimmest text    * in the panel — the cou"
+ ],
+ "src\\styles\\tools.css": [
+  "/*  * Tools: one rail entry that holds four workspace views.  *  * The tab strip sits above the view and uses the same surface steps as the  * editor ",
+  "/* The underline is the second cue: colour alone would not survive a monochrome    screen, and it matches the panel tab strip below. */"
+ ],
+ "src\\styles\\workspace.css": [
+  "/* workspace.css — multi-root Explorer, Restricted banner, dialog Trust (fase 29).    Semua warna dari CSS variable (AGENTS.md §4) — nol hex hardcoded",
+  "/* Root aktif ditandai garis aksen di kiri, bukan warna latar penuh:      latar penuh membuat dua root terlihat seperti dua panel berbeda. */"
+ ],
+ "src-tauri\\src\\browser_pane.rs": [
+  "// browser_pane.rs — child webview asli untuk panel browser.",
+  "// KENAPA bukan iframe lagi: isi <iframe> tidak bisa dibaca dari luar (aturan",
+  "// same-origin browser), jadi agent tidak bisa melihat halaman maupun",
+  "// mengkliknya. Webview2 anak milik proses kita sendiri, sehingga eval() bisa",
+  "/// Label webview anak yang sedang hidup, dipetakan dari id pane.",
+  "/// Bikin webview anak untuk satu pane browser.",
+  "/// Tampilkan / sembunyikan tanpa membuang halaman yang sudah dimuat.",
+  "/// Tutup webview anak (dipanggil saat pane ditutup).",
+  "/// Navigasi: url baru, atau perintah 'back' / 'forward' / 'reload'."
+ ],
+ "src-tauri\\src\\devenv.rs": [
+  "/// Set when ok is false, so the panel can explain itself.",
+  "// taskkill mirrors what the terminal panel already does for a process",
+  "// panel says so instead of inventing rows.",
+  "//{nama}{tld}\"),"
+ ],
+ "src-tauri\\src\\ext_pkg.rs": [
+  "// Batas file main ekstensi. Dinaikkan dari 1 MB ke 20 MB di v1.1.7 supaya",
+  "// ekstensi besar tetap bisa dimuat; pesan errornya dulu tidak ikut berubah",
+  "// sehingga laporan ke user menyebut angka yang salah."
+ ],
+ "src-tauri\\src\\git.rs": [
+  "/*      * current_dir() dengan path kosong/putus membuat CreateProcess gagal      * \"The directory name is invalid. (os error 267)\". Cek di sini supay",
+  "/*      * Workspace bisa saja sudah tidak ada di disk — folder dipindah/dihapus      * atau drive eksternal dicabut. Command::current_dir() dengan pat"
+ ],
+ "src-tauri\\src\\mcp_commands.rs": [
+  "/// MCP server tidak perlu membuang percobaan pada jendela boot."
+ ],
+ "src-tauri\\src\\paths.rs": [
+  "// Root dan child berisi karakter multi-byte dengan panjang byte berbeda;"
+ ],
+ "src-tauri\\src\\sftp.rs": [
+  "/// Live tunnels, so the panel can show state after a reload.",
+  "// The machine this runs on must have it; the panel depends on it."
+ ],
+ "src-tauri\\src\\skills.rs": [
+  "/**  * Telusuri satu folder skill, termasuk subfolder.  *  * KENAPA rekursif: skill bisa disusun bertingkat (mis. `web/xss/SKILL.md`),  * dan versi pe",
+  "// bertingkat, isinya adalah lampiran skill itu, bukan skill baru.",
+  "/**  * Cari folder skill berdasarkan nama.  *  * Urutan pencarian: workspace, lalu global. Skill bertingkat dicari dengan  * mencocokkan nama folder p",
+  "// Penelusuran bertingkat untuk skill yang disusun berkelompok.",
+  "/**  * Telusuri bertingkat, cocokkan nama folder ATAU `name:` di frontmatter.  *  * KENAPA dua cara: nama folder kadang beda dari `name:` di SKILL.md "
+ ],
+ "src-tauri\\src\\tests_ai.rs": [
+  "// Tag mentah tidak boleh ikut ke bubble/disk."
+ ],
+ "src-tauri\\src\\web.rs": [
+  "// web.rs — akses internet untuk agent: cari di web dan ambil isi halaman.",
+  "// KENAPA di Rust, bukan di JS: permintaan dari halaman web tunduk pada aturan",
+  "// renderer akan gagal. Permintaan dari proses Rust tidak tunduk pada CORS.",
+  "// Menambah klien HTTP kedua (reqwest) berarti menambah seluruh stack TLS async",
+  "// hanya untuk dua permintaan sederhana.",
+  "/*;q=0.8\",         )         .header(\"Accept-Language\", \"en-US,en;q=0.9,id;q=0.8\")         .call()         .map_err(|e| ZephyrError::InvalidInput(form",
+  "// Buang blok yang isinya bukan untuk dibaca.",
+  "// Sisipkan baris baru pada tag blok supaya paragraf tidak menempel.",
+  "// Buang seluruh tag yang tersisa.",
+  "// Entitas yang paling sering muncul di halaman nyata.",
+  "// Rapikan spasi: baris kosong beruntun diciutkan, spasi ganda dibuang.",
+  "/// Ambil satu halaman dan kembalikan teksnya saja.",
+  "/// Persen-encode untuk parameter query."
+ ],
+ "src-tauri\\src\\workspace.rs": [
+  "// Folder yang sudah dihapus TETAP boleh di-trust: keputusan trust disimpan",
+  "// per path, dan folder bisa dibuat lagi nanti. Menolak di sini membuat",
+  "// pemanggil (mis. harness yang membersihkan temp, atau user lewat dialog)",
+  "// melihat toast error padahal tidak ada yang gagal."
+ ]
+}

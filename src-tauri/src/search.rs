@@ -253,7 +253,7 @@ pub fn search_grep(
     let stdout = anak
         .stdout
         .take()
-        .ok_or_else(|| ZephyrError::InvalidInput("stdout rg tidak bisa dibaca".to_string()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("the rg stdout could not be read".to_string()))?;
 
     let mut total = 0usize;
     let mut jml_file = 0usize;

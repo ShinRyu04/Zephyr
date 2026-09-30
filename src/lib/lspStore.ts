@@ -116,7 +116,7 @@ export const useLsp = create<LspState & LspActions>((set, get) => ({
     } catch (e) {
       const msg = cmd.asZephyrError(e).message;
       set({ lspError: msg });
-      logOutput('lsp', `[${def.id}] GAGAL start: ${msg}`);
+      logOutput('lsp', `[${def.id}] FAILED to start: ${msg}`);
       return null;
     } finally {
       set((s) => {
@@ -167,7 +167,7 @@ export const useLsp = create<LspState & LspActions>((set, get) => ({
         textDocument: { uri: pathToUri(path) },
       });
     } catch {
-      /* server mungkin sudah mati — tidak masalah */
+      /* the server may already be dead — no problem */
     }
     
     useProblems.getState().removeFile(path);
@@ -176,7 +176,7 @@ export const useLsp = create<LspState & LspActions>((set, get) => ({
   req: async (path, method, params) => {
     const doc = get().docs[path];
     const serverId = doc?.serverId ?? (await get().ensureFor(path));
-    if (!serverId) throw new Error('language server tidak aktif untuk file ini');
+    if (!serverId) throw new Error('no language server is active for this file');
     return cmd.lspRequest(serverId, method, params);
   },
 
@@ -288,7 +288,7 @@ export const useLsp = create<LspState & LspActions>((set, get) => ({
         for (const id of mati) delete aktif[id];
         return { aktif };
       });
-      for (const id of mati) logOutput('lsp', `[${id}] dimatikan karena idle`);
+      for (const id of mati) logOutput('lsp', `[${id}] stopped while idle`);
     }
     return mati;
   },

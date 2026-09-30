@@ -432,7 +432,7 @@ function Baris({
               <input
                 className="sub-lanjut-input"
                 data-testid={`sub-lanjut-input-${a.id}`}
-                placeholder={tr('Kirim pesan lanjutan…')}
+                placeholder={tr('Send a follow-up message…')}
                 value={teksLanjut}
                 disabled={sibukGlobal}
                 onChange={(e) => setTeksLanjut(e.target.value)}
@@ -449,7 +449,7 @@ function Baris({
                 disabled={sibukGlobal || !teksLanjut.trim()}
                 onClick={() => kirimLanjutan()}
               >
-                {tr('Subagent: kirim lanjutan')}
+                {tr('Subagent: send follow-up')}
               </button>
             </div>
           )}

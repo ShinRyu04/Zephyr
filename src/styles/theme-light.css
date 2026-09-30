@@ -1,7 +1,7 @@
-/* theme-light.css — Zephyr Light (fase 13 memisahkannya dari theme.css).
-   Palet tetap satu keluarga token dengan tema gelap; yang berbeda hanya
-   nilainya. Semua token WAJIB lengkap — token yang hilang jatuh ke :root
-   (zephyr-dark) dan hasilnya teks gelap di atas latar gelap. */
+/* theme-light.css — Zephyr Light (phase 13 split it out of theme.css).
+   The palette stays one token family with the dark themes; only the values
+   differ. Every token MUST be present - a missing token falls back to :root
+   (zephyr-dark) and yields dark text on a dark background. */
 
 [data-theme='zephyr-light'] {
   --bg: #ffffff;

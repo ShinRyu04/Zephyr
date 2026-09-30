@@ -93,7 +93,7 @@ fn map_rag_err(e: &ureq::Error, base: &str) -> ZephyrError {
             ZephyrError::Rag(format!("Server RAG menjawab HTTP {code} (query ditolak?)"))
         }
         other => ZephyrError::Rag(format!(
-            "Server RAG di {base} tidak bisa dihubungi: {other}"
+            "The RAG server at {base} could not be reached: {other}"
         )),
     }
 }

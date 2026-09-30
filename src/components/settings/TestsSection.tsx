@@ -43,7 +43,7 @@ export default function TestsSection() {
     setHasil(null);
     const r = await jalankanSemua();
     if (!r) {
-      setHasil(tr('Tidak bisa menjalankan: tidak ada framework tes di workspace ini.'));
+      setHasil(tr('Cannot run: this workspace has no test framework.'));
       return;
     }
     const c = r.counts;
@@ -55,8 +55,8 @@ export default function TestsSection() {
   };
 
   const labelAuto = terdeteksi
-    ? `${tr('Deteksi otomatis')} (${terdeteksi.label})`
-    : `${tr('Deteksi otomatis')} (${tr('tidak ada')})`;
+    ? `${tr('Auto-detect')} (${terdeteksi.label})`
+    : `${tr('Auto-detect')} (${tr('none')})`;
 
   return (
     <section className="set-section" data-testid="set-tests">
@@ -92,7 +92,7 @@ export default function TestsSection() {
           checked={cfg.autoRunOnOpen === true}
           onChange={(e) => void applySettings({ tests: { autoRunOnOpen: e.target.checked } })}
         />
-        <span>{tr('Jalankan tes saat workspace dibuka')}</span>
+        <span>{tr('Run tests when the workspace opens')}</span>
       </label>
 
       <label className="set-row">
@@ -102,11 +102,11 @@ export default function TestsSection() {
           checked={cfg.runOnSave === true}
           onChange={(e) => void applySettings({ tests: { runOnSave: e.target.checked } })}
         />
-        <span>{tr('Jalankan ulang file tes saat disimpan')}</span>
+        <span>{tr('Re-run the test file when it is saved')}</span>
       </label>
 
       <label className="set-row">
-        <span className="set-label">{tr('Hentikan tes setelah (detik)')}</span>
+        <span className="set-label">{tr('Stop tests after (seconds)')}</span>
         <input
           className="set-input set-input-num"
           type="number"
@@ -130,17 +130,17 @@ export default function TestsSection() {
           disabled={sedangJalan}
           onClick={() => void jalankan()}
         >
-          {sedangJalan ? tr('Berjalan...') : tr('Jalankan semua tes')}
+          {sedangJalan ? tr('Running...') : tr('Run all tests')}
         </button>
         <button
           className="btn btn-sm"
           data-testid="tests-redetect"
           onClick={() => void detect()}
         >
-          {mendeteksi ? tr('Mendeteksi...') : tr('Deteksi ulang')}
+          {mendeteksi ? tr('Detecting...') : tr('Re-detect')}
         </button>
         <span className="set-hint" data-testid="tests-detected">
-          {tr('Terdeteksi')}: {terdeteksi ? `${terdeteksi.label} (${terdeteksi.command})` : tr('tidak ada')}
+          {tr('Terdeteksi')}: {terdeteksi ? `${terdeteksi.label} (${terdeteksi.command})` : tr('none')}
         </span>
       </div>
 

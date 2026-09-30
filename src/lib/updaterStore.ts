@@ -114,7 +114,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         });
       }
     } catch (e) {
-      // Error dari invoke Tauri berbentuk { code, message }, bukan Error.
+      // An error from a Tauri invoke is shaped { code, message }, not Error.
       const pesan = cmd.asZephyrError(e).message;
       if (belumDikonfigurasi(pesan)) {
         set({
@@ -165,7 +165,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       const notes = get().notes ?? '';
       void cmd.setSettings({ update: { pendingNotes: notes } }).catch(() => {});
     } catch (e) {
-      // Error dari invoke Tauri berbentuk { code, message }, bukan Error.
+      // An error from a Tauri invoke is shaped { code, message }, not Error.
       const pesan = cmd.asZephyrError(e).message;
       set({ status: 'error', message: tf('update.installFailed', { e: pesan }) });
     }

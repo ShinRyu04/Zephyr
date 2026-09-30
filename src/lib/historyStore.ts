@@ -62,8 +62,8 @@ const gabungTimeline = (
         : s.reason === 'manual'
           ? 'Snapshot manual'
           : s.reason === 'before-rename'
-            ? 'Sebelum rename'
-            : 'Sebelum restore',
+            ? 'Before rename'
+            : 'Before restore',
     detail: `${(s.size / 1024).toFixed(1)} KB`,
     reason: s.reason,
     size: s.size,
@@ -128,7 +128,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
       return r.id;
     } catch (e) {
       
-      notifyWarn(`Local History gagal: ${asZephyrError(e).message}`, { source: 'history' });
+      notifyWarn(`Local History failed: ${asZephyrError(e).message}`, { source: 'history' });
       return '';
     }
   },
@@ -171,19 +171,19 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
         await S.openPath(file);
         const baru = useStore.getState().tabs.find((t) => cocok(t.path));
         if (!baru) {
-          notifyError(tx('Tidak bisa membuka file untuk restore'), { source: 'history' });
+          notifyError(tx('Cannot open the file for restore'), { source: 'history' });
           return false;
         }
         useStore.getState().updateTabContent(baru.id, isi);
       } else {
         useStore.getState().updateTabContent(tab.id, isi);
       }
-      notifyInfo(tx('Isi snapshot dimuat ke editor — belum disimpan (Ctrl+S untuk menulis)'), {
+      notifyInfo(tx('Snapshot contents loaded into the editor — not saved yet (Ctrl+S to write)'), {
         source: 'history',
       });
       return true;
     } catch (e) {
-      notifyError(`Restore gagal: ${asZephyrError(e).message}`, { source: 'history' });
+      notifyError(`Restore failed: ${asZephyrError(e).message}`, { source: 'history' });
       return false;
     }
   },

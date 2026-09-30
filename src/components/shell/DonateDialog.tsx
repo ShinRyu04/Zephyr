@@ -10,7 +10,7 @@ async function buka(url: string) {
     const { openUrl } = await import('@tauri-apps/plugin-opener');
     await openUrl(url);
   } catch {
-    /* diam - link hanya pelengkap */
+    /* silent - the link is only supplementary */
   }
 }
 
