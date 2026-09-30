@@ -48,3 +48,7 @@ _*.txt
 
 # Salinan catatan rilis lama — catatan resmi hidup di release/<versi>/
 RELEASE_NOTES_v*.md
+
+# Cache Python & berkas uji sementara
+__pycache__/
+*.pyc
