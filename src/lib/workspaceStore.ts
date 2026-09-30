@@ -136,7 +136,7 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       for (const r of info.roots.slice(1)) await useExplorer.getState().loadDir(r.path, true);
       
       await useStore.getState().reloadSettings();
-      notifyInfo(`Workspace dibuka: ${namaAkhir(path)} (${info.roots.length} folder)`, {
+      notifyInfo(`Workspace opened: ${namaAkhir(path)} (${info.roots.length} folder(s))`, {
         source: 'Workspace',
       });
       return true;
@@ -168,13 +168,13 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       terapkan(set, info);
       set({ tanyaUntuk: null });
       if (trust) {
-        notifyInfo(`${namaAkhir(path)} dipercaya — tasks, debug, LSP, ekstensi aktif`, {
+        notifyInfo(`${namaAkhir(path)} trusted — tasks, debug, LSP and extensions are active`, {
           source: 'Workspace',
         });
         
         void muatUlangFiturEksekusi();
       } else {
-        notifyInfo(`${namaAkhir(path)} dibuka dalam Restricted Mode`, { source: 'Workspace' });
+        notifyInfo(`${namaAkhir(path)} opened in Restricted Mode`, { source: 'Workspace' });
       }
     } catch (e) {
       notifyError(`Failed to save trust: ${cmd.asZephyrError(e).message}`, {

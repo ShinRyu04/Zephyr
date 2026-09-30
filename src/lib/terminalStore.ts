@@ -284,7 +284,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       if (kind === 'agent' && useStore.getState().settings.agents.attachActiveFile) {
         const active = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
         if (active?.path) {
-          await cmd.ptyWrite(paneId, `# Zephyr: file aktif = ${active.path}\r`).catch(() => {});
+          await cmd.ptyWrite(paneId, `# Zephyr: active file = ${active.path}\r`).catch(() => {});
         }
       }
       return paneId;

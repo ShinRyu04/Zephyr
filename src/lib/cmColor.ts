@@ -246,7 +246,7 @@ export const unicodeHighlight = (): Extension =>
                 class: 'cm-zuni',
                 attributes: {
                   'data-testid': 'unicode-warn',
-                  title: `U+${kode} mudah tertukar dengan ${AMBIGU[ch]}`,
+                  title: `U+${kode} is easy to confuse with ${AMBIGU[ch]}`,
                 },
               }),
             );

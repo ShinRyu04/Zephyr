@@ -213,7 +213,7 @@ export const useLsp = create<LspState & LspActions>((set, get) => ({
     }
 
     if (kind === 'ready') {
-      logOutput('lsp', `[${server}] siap (pid ${String(ev.pid ?? '?')})`);
+      logOutput('lsp', `[${server}] ready (pid ${String(ev.pid ?? '?')})`);
       return;
     }
 

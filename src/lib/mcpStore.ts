@@ -226,7 +226,7 @@ export const useMcp = create<McpStore>((set, get) => ({
     try {
       await cmd.mcpClientSave({ id: s.id, label: s.label, url, token: s.token });
       await get().refreshServers();
-      set({ mcpInfo: `Server MCP eksternal disimpan (${url})` });
+      set({ mcpInfo: `External MCP server saved (${url})` });
       return true;
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });

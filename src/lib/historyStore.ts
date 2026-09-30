@@ -193,7 +193,7 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
     if (!f) return;
     try {
       const n = await historyClear(f);
-      notifyInfo(`${n} snapshot dihapus`, { source: 'history' });
+      notifyInfo(`${n} snapshot(s) deleted`, { source: 'history' });
       await get().muat(f);
     } catch (e) {
       set({ error: asZephyrError(e).message });

@@ -187,7 +187,7 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
             useNotif.getState().notify({
               severity: 'error',
               message: 'Rantai task berhenti',
-              detail: `"${d}" gagal, "${label}" dibatalkan`,
+              detail: `"${d}" failed, "${label}" cancelled`,
               source: 'Tasks',
             });
             return null;

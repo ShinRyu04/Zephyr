@@ -158,8 +158,8 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
 
     if (args.wait && args.waitToken) {
       useCli.setState((s) => ({ menunggu: { ...s.menunggu, [path]: args.waitToken as string } }));
-      notifyInfo(`Menunggu ${namaFile(path)} ditutup`, {
-        detail: 'Proses `zephyr --wait` di terminal akan lanjut setelah tab ini ditutup.',
+      notifyInfo(`Waiting for ${namaFile(path)} to close`, {
+        detail: 'The `zephyr --wait` process in the terminal continues after this tab closes.',
         source: 'CLI',
       });
     }

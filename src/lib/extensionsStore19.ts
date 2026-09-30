@@ -165,7 +165,7 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
       const ok = await cmd.extensionsUninstall(id);
       await get().refresh();
       set({
-        info: ok ? `${id} dihapus` : `${id} not found`,
+        info: ok ? `${id} deleted` : `${id} not found`,
         err: null,
         perluReload: true,
         detailFor: null,

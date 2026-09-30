@@ -922,7 +922,7 @@ export default function SourceControlPanel() {
                 const { gitRebaseContinue } = await import('../../lib/commands');
                 try {
                   await gitRebaseContinue();
-                  useGit.setState({ rebaseAktif: false, scmInfo: 'Rebase dilanjutkan' });
+                  useGit.setState({ rebaseAktif: false, scmInfo: 'Rebase continued' });
                 } catch (e) {
                   useGit.setState({ scmError: String((e as Error)?.message ?? e) });
                 }
@@ -940,7 +940,7 @@ export default function SourceControlPanel() {
                 const { gitRebaseAbort } = await import('../../lib/commands');
                 try {
                   await gitRebaseAbort();
-                  useGit.setState({ rebaseAktif: false, scmInfo: 'Rebase dibatalkan' });
+                  useGit.setState({ rebaseAktif: false, scmInfo: 'Rebase aborted' });
                 } catch (e) {
                   useGit.setState({ scmError: String((e as Error)?.message ?? e) });
                 }

@@ -445,7 +445,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
           : a.verdict === 'sebagian'
             ? `${a.nTool} tool steps, some failed — check`
             : 'NO tool step succeeded — the result is unproven';
-      const file = a.fileDitulis.length ? `\nFile ditulis: ${a.fileDitulis.join(', ')}` : '';
+      const file = a.fileDitulis.length ? `\nFiles written: ${a.fileDitulis.join(', ')}` : '';
       return `## ${a.nama} — ${statusTeks}\nTugas: ${a.tugas}\nBukti: ${bukti}${file}\n\n${isi}`;
     });
     const ringkasan = bagian.join('\n\n---\n\n');
