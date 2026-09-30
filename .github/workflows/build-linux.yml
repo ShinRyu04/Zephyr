@@ -4,7 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+  # Rilis Linux juga bisa dipicu tanpa tag baru (mis. build ulang 1.1.12).
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Upload hasil ke release tag ini (kosongkan untuk artifact saja)'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -60,3 +66,18 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage.sig
             src-tauri/target/release/zephyr
           if-no-files-found: error
+
+      # Artefak Linux ditempelkan ke release yang sama dengan installer Windows,
+      # jadi satu release memuat 4 berkas + 4 signature seperti 1.1.11.
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          gh release upload "$TAG" \
+            src-tauri/target/release/bundle/deb/*.deb \
+            src-tauri/target/release/bundle/deb/*.deb.sig \
+            src-tauri/target/release/bundle/appimage/*.AppImage \
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig \
+            --clobber
