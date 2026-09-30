@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { BRAND_MARKS } from './modelBrandIcons';
 
 export type LogoId =
   | 'gemini'
@@ -142,6 +143,43 @@ export const PROVIDERS: ProviderInfo[] = [
     ];
 
 export const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
+
+/**
+ * The base URL that will actually be used: what the user configured in
+ * Settings, else what the catalogue ships. `custom` ships an EMPTY base URL on
+ * purpose - there is no sensible default for an OpenAI-compatible endpoint -
+ * so until the user fills it in, this returns '' and the provider is not ready.
+ */
+export function baseUrlEfektif(
+  providerId: string,
+  overrides?: Record<string, { baseUrl?: string } | undefined>,
+): string {
+  const configured = (overrides ?? {})[providerId]?.baseUrl;
+  if (typeof configured === 'string' && configured.trim()) return configured.trim();
+  return PROVIDER_BY_ID.get(providerId)?.baseUrl ?? '';
+}
+
+/**
+ * Is this provider usable right now?
+ *
+ * A stored API key is not enough on its own. `custom` accepts any key, but with
+ * no base URL there is nowhere to send the request, so the UI used to claim
+ * "key saved for this provider" while every send failed. Requiring the endpoint
+ * too fixes that, and it also keeps the provider out of the picker until the
+ * user has actually configured it.
+ */
+export function providerSiap(
+  p: ProviderInfo,
+  hasKey: boolean,
+  overrides?: Record<string, { baseUrl?: string } | undefined>,
+): boolean {
+  // BOTH are required. This returned true on the key alone, so a `custom`
+  // provider with a saved key and no endpoint was reported as ready and every
+  // send failed with nowhere to go — the exact case the doc comment above
+  // describes as fixed. A provider with a built-in base URL still passes, since
+  // baseUrlEfektif falls back to the catalogue default.
+  return hasKey && baseUrlEfektif(p.id, overrides).length > 0;
+}
 
 export interface ModelDef extends ProviderModel {
   provider: string;
@@ -304,4 +342,224 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
         </svg>
       );
   }
+});
+
+/*
+ * Per-model mark.
+ *
+ * The provider logo alone is not enough inside a group: a custom endpoint can
+ * list deepseek, claude and gemini side by side, and they all came out as the
+ * same generic square — the list read as a wall of identical rows.
+ *
+ * The mark is derived from the model id, so a model that arrives from the
+ * provider's /models endpoint gets its family mark without any per-model
+ * configuration. Unknown ids fall back to a neutral dot, which still separates
+ * them from the known families at a glance.
+ */
+export type ModelFamily =
+  | 'gemini'
+  | 'claude'
+  | 'gpt'
+  | 'deepseek'
+  | 'grok'
+  | 'llama'
+  | 'mistral'
+  | 'qwen'
+  | 'kimi'
+  | 'ollama'
+  | 'lmstudio'
+  | 'huggingface'
+  | 'perplexity'
+  | 'copilot'
+  | 'glm'
+  | 'minimax'
+  | 'nvidia'
+  | 'tencent'
+  | 'bytedance'
+  | 'longcat'
+  | 'mimo'
+  | 'stepfun'
+  | 'baidu'
+  | 'spark'
+  | 'yi'
+  | 'baichuan'
+  | 'together'
+  | 'groq'
+  | 'cerebras'
+  | 'openrouter'
+  | 'azure'
+  | 'bedrock'
+  | 'vertexai'
+  | 'antgroup'
+  | 'siliconcloud'
+  | 'fireworks'
+  | 'unknown';
+
+/*
+ * Ordered longest-match-first where names overlap.
+ *
+ * `glm` before `gpt` matters: "glm-5.3" would otherwise be caught by nothing,
+ * but a pattern like `m-` would misfire. Each rule is anchored on a real model
+ * name prefix seen in the wild or in the catalogue.
+ */
+export function modelFamily(id: string): ModelFamily {
+  const s = id.toLowerCase();
+  if (/gemini|gemma|palm|nano-banana/.test(s)) return 'gemini';
+  if (/claude|sonnet|opus|haiku|fable|anthropic/.test(s)) return 'claude';
+  if (/copilot/.test(s)) return 'copilot';
+  if (/gpt|o[1-9](-|$)|openai|davinci|codex/.test(s)) return 'gpt';
+  if (/deepseek/.test(s)) return 'deepseek';
+  if (/grok|xai/.test(s)) return 'grok';
+  if (/llama|meta-/.test(s)) return 'llama';
+  if (/mistral|mixtral|codestral|devstral/.test(s)) return 'mistral';
+  if (/qwen|tongyi/.test(s)) return 'qwen';
+  if (/kimi|moonshot/.test(s)) return 'kimi';
+  if (/glm|chatglm|zhipu/.test(s)) return 'glm';
+  if (/minimax|abab/.test(s)) return 'minimax';
+  if (/nemotron|nvidia/.test(s)) return 'nvidia';
+  if (/hunyuan|tencent/.test(s)) return 'tencent';
+  if (/doubao|bytedance|seed-/.test(s)) return 'bytedance';
+  if (/longcat/.test(s)) return 'longcat';
+  if (/mimo|xiaomi/.test(s)) return 'mimo';
+  if (/stepfun|step-/.test(s)) return 'stepfun';
+  if (/ernie|wenxin|baidu/.test(s)) return 'baidu';
+  if (/spark/.test(s)) return 'spark';
+  if (/^yi-|yi-lightning|01-ai/.test(s)) return 'yi';
+  if (/baichuan/.test(s)) return 'baichuan';
+  if (/together/.test(s)) return 'together';
+  if (/groq/.test(s)) return 'groq';
+  if (/cerebras/.test(s)) return 'cerebras';
+  if (/openrouter/.test(s)) return 'openrouter';
+  if (/azure/.test(s)) return 'azure';
+  if (/bedrock/.test(s)) return 'bedrock';
+  if (/vertex/.test(s)) return 'vertexai';
+  if (/ling|inclusion|bailing/.test(s)) return 'antgroup';
+  if (/silicon/.test(s)) return 'siliconcloud';
+  if (/fireworks/.test(s)) return 'fireworks';
+  if (/ollama/.test(s)) return 'ollama';
+  if (/lm-?studio/.test(s)) return 'lmstudio';
+  if (/hugging|hf\./.test(s)) return 'huggingface';
+  if (/perplexity|sonar/.test(s)) return 'perplexity';
+  return 'unknown';
+}
+
+/*
+ * Per-model mark.
+ *
+ * Three cases, in order:
+ *   1. A known brand family -> the official brand path.
+ *   2. No known brand, but a usable name -> initials on a tinted disc. A model
+ *      like "space-bunny" or a custom endpoint's "mr-vip" has no published
+ *      mark; initials still give the row its own identity, and they never claim
+ *      to be a brand that is not theirs.
+ *   3. No usable name -> a neutral dot.
+ *
+ * The tint is derived from the name, so the same model always gets the same
+ * colour without storing anything.
+ */
+const WARNA_INISIAL = [
+  '#5B8DEF',
+  '#E0725A',
+  '#4FA96B',
+  '#B478E0',
+  '#D9A441',
+  '#4BA8B8',
+  '#D06A9C',
+  '#7A8FE0',
+];
+
+/** Two letters that stand for the model: "space-bunny" -> "SB". */
+function inisial(id: string): string {
+  const bersih = id.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
+  if (!bersih) return '?';
+  const kata = bersih.split(/\s+/).filter(Boolean);
+  if (kata.length >= 2) return (kata[0][0] + kata[1][0]).toUpperCase();
+  return bersih.slice(0, 2).toUpperCase();
+}
+
+/** Stable colour index for a name, so a model keeps its colour across renders. */
+function warnaInisial(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return WARNA_INISIAL[h % WARNA_INISIAL.length];
+}
+
+export const ModelLogo = memo(function ModelLogo({
+  id,
+  size = 15,
+}: {
+  id: string;
+  size?: number;
+}) {
+  const fam = modelFamily(id);
+  const mark = BRAND_MARKS[fam];
+
+  if (mark) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        role="img"
+        aria-label={fam}
+        style={{ flexShrink: 0, color: mark.warna ?? undefined }}
+      >
+        <path d={mark.d} fill={mark.warna ?? 'currentColor'} />
+      </svg>
+    );
+  }
+
+  // A placeholder id ("Type the model name", "custom-model") gets no initials:
+  // they would read as a real model name rather than an empty slot.
+  const kosong = /^(type|ketik|custom-model|local-default|\?)/i.test(id.trim());
+  if (kosong) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 16 16"
+        role="img"
+        aria-label="unknown"
+        style={{ flexShrink: 0 }}
+      >
+        <circle
+          cx="8"
+          cy="8"
+          r="2.4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          opacity="0.5"
+        />
+      </svg>
+    );
+  }
+
+  const teks = inisial(id);
+  const warna = warnaInisial(id);
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      role="img"
+      aria-label={id}
+      style={{ flexShrink: 0 }}
+    >
+      <circle cx="8" cy="8" r="7.4" fill={warna} opacity="0.22" />
+      <text
+        x="8"
+        y="8"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill={warna}
+        fontSize={teks.length > 1 ? 6.6 : 8}
+        fontWeight="700"
+        fontFamily="var(--font-ui, sans-serif)"
+      >
+        {teks}
+      </text>
+    </svg>
+  );
 });

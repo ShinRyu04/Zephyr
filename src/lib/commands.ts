@@ -62,15 +62,15 @@ import type {
 } from './types';
 
 /**
- * Ubah apa pun yang dilempar menjadi ZephyrError yang aman ditampilkan.
+ * Turn anything that gets thrown into a ZephyrError that is safe to display.
  *
- * Tauri melempar objek { code, message }, tetapi message-nya bisa null atau
- * kosong  Edan String(null) menghasilkan teks "null" yang bocor ke UI.
- * Objek yang tidak punya pesan berguna dianggap error internal, dan pesannya
- * diambil dari sumber lain yang masih ada supaya pengguna melihat keterangan
- * yang benar-benar menjelaskan masalahnya.
+ * Tauri throws objects like { code, message }, but the message can be null or
+ * empty, and String(null) produces the text "null" that leaks into the UI.
+ * An object with no useful message is treated as an internal error, and its
+ * message is taken from another field that is still present so the user sees a
+ * description that actually explains the problem.
  */
-/** Kode error yang dikenali backend; di luar ini dianggap Internal. */
+/** Error codes the backend recognises; anything else counts as Internal. */
 const KODE_SAH = new Set<ErrorCode>([
   'NotFound', 'InvalidInput', 'Permission', 'WorkspaceOutside', 'Git',
   'Pty', 'Ssh', 'Mcp', 'Encoding', 'Io', 'Internal',
@@ -86,7 +86,7 @@ export function asZephyrError(e: unknown): ZephyrError {
         : 'Internal';
     if (pesan) return { code: kode, message: pesan };
 
-    // Tidak ada message: pakai kolom lain yang biasanya ikut dikirim.
+    // No message: use another field that is usually sent along.
     const cadangan =
       (typeof o.error === 'string' && o.error.trim()) ||
       (typeof o.detail === 'string' && o.detail.trim()) ||
@@ -94,17 +94,17 @@ export function asZephyrError(e: unknown): ZephyrError {
       '';
     if (cadangan) return { code: kode, message: cadangan };
 
-    // Masih kosong: sebut jenis error-nya alih-alih menampilkan "null".
+    // Still empty: name the error type instead of showing "null".
     const nama = e.constructor?.name;
     if (nama && nama !== 'Object') {
-      return { code: kode, message: `${nama}: tidak ada keterangan dari backend` };
+      return { code: kode, message: `${nama}: no description from the backend` };
     }
-    return { code: kode, message: `Error ${kode} tanpa keterangan` };
+    return { code: kode, message: `Error ${kode} with no description` };
   }
 
-  // String kosong / null / undefined juga tidak boleh jadi teks "null".
+  // An empty string / null / undefined must not become the text "null" either.
   const teks = typeof e === 'string' ? e.trim() : e == null ? '' : String(e);
-  return { code: 'Internal', message: teks || 'Terjadi kesalahan yang tidak dijelaskan' };
+  return { code: 'Internal', message: teks || 'An unexplained error occurred' };
 }
 
 export const getAppInfo = () => invoke<AppInfo>('get_app_info');
@@ -427,11 +427,14 @@ export interface ConflictHunk {
 }
 export const gitConflictRead = (path: string) =>
   invoke<ConflictHunk[]>('git_conflict_read', { path });
+export const gitConflictApply = (path: string, hunkIndex: number, side: 'ours' | 'theirs') =>
+  invoke<boolean>('git_conflict_apply', { path, hunkIndex, side });
 export const gitRebaseInteractive = (onto: string) =>
   invoke<string>('git_rebase_interactive', { onto });
 export const gitRebaseContinue = () => invoke<string>('git_rebase_continue');
 export const gitRebaseAbort = () => invoke<string>('git_rebase_abort');
 export const gitRebaseStatus = () => invoke<boolean>('git_rebase_status');
+export const gitRebaseProgress = () => invoke<string>('git_rebase_progress');
 
 export const ghStatus = () => invoke<GhStatus>('gh_status');
 
@@ -503,8 +506,8 @@ export const extensionsWriteBundled = (id: string) =>
 
 export const extensionsBundledIds = () => invoke<string[]>('extensions_bundled_ids');
 
-export const extensionsDownloadVsix = (url: string, id: string) =>
-  invoke<string>('extensions_download_vsix', { url, id });
+export const extensionsDownloadZext = (url: string, id: string) =>
+  invoke<string>('extensions_download_zext', { url, id });
 
 export const extWhich = (runtime: string) =>
   invoke<string | null>('ext_which', { runtime });
@@ -814,3 +817,159 @@ export const webSearch = (query: string, maxResults?: number) =>
   invoke<HasilCari[]>('web_search', { query, maxResults });
 export const browserPaneCursor = (paneId: string, selector: string) =>
   invoke<string>('browser_pane_cursor', { paneId, selector });
+
+/** Dev Environment: what is actually installed. Read-only; never installs. */
+export interface DevenvRuntime {
+  id: string;
+  label: string;
+  path: string;
+  version: string;
+  installed: boolean;
+  custom: boolean;
+}
+
+export const devenvDetectRuntimes = (custom?: Record<string, string>) =>
+  invoke<DevenvRuntime[]>('devenv_detect_runtimes', { custom: custom ?? null });
+/** Dev Environment services. Read-only unless the caller owns the process. */
+export interface DevenvService {
+  id: string;
+  label: string;
+  path: string;
+  version: string;
+  port: number;
+  installed: boolean;
+  jalan: boolean;
+  pid: number;
+  milikZephyr: boolean;
+  /** Windows service name when the tool runs under the service manager. */
+  windowsService: string;
+  /** Every version found next to the active one. */
+  versions: string[];
+}
+
+export interface DevenvServiceHasil {
+  ok: boolean;
+  pid: number;
+  jalan: boolean;
+  pesan: string;
+}
+
+export const devenvDetectServices = (root: string) =>
+  invoke<DevenvService[]>('devenv_detect_services', { root });
+
+export const devenvServiceStart = (id: string, root: string) =>
+  invoke<DevenvServiceHasil>('devenv_service_start', { id, root });
+
+export const devenvServiceStop = (id: string) =>
+  invoke<DevenvServiceHasil>('devenv_service_stop', { id });
+/** Dev Environment projects: one subfolder each under <root>/www. */
+export interface DevenvProject {
+  nama: string;
+  path: string;
+  composer: boolean;
+  package: boolean;
+  url: string;
+}
+
+export const devenvScanProjects = (root: string, domain: string) =>
+  invoke<DevenvProject[]>('devenv_scan_projects', { root, domain });
+
+export const devenvOpenPath = (path: string) => invoke<void>('devenv_open_path', { path });
+/** Credential store for third-party accounts (separate from model API keys). */
+export interface CredentialInfo {
+  id: string;
+  label: string;
+  kind: string;
+  has: boolean;
+  updatedAt: number;
+}
+
+export const credentialsList = () => invoke<CredentialInfo[]>('credentials_list');
+export const credentialsSet = (id: string, label: string, kind: string, secret: string) =>
+  invoke<void>('credentials_set', { id, label, kind, secret });
+export const credentialsDelete = (id: string) => invoke<void>('credentials_delete', { id });
+export const credentialsGet = (id: string) => invoke<string | null>('credentials_get', { id });
+/** Database browser (read-only). Statements are validated in Rust. */
+export interface DbKolom {
+  nama: string;
+  tipe: string;
+}
+export interface DbTabel {
+  nama: string;
+  baris: number;
+}
+export interface DbHasil {
+  kolom: DbKolom[];
+  baris: string[][];
+  dipotong: boolean;
+}
+
+export const dbTables = (path: string, engine?: string) =>
+  invoke<DbTabel[]>('db_tables', { path, engine: engine ?? null });
+export const dbColumns = (path: string, tabel: string) =>
+  invoke<DbKolom[]>('db_columns', { path, tabel });
+export const dbQuery = (path: string, sql: string) => invoke<DbHasil>('db_query', { path, sql });
+export const dbDefaultPath = (root: string) => invoke<string>('db_default_path', { root });
+/** API client: one HTTP path for .http files, GraphQL and the request editor. */
+export interface HttpHeader {
+  nama: string;
+  nilai: string;
+}
+export interface HttpPermintaan {
+  method: string;
+  url: string;
+  headers?: HttpHeader[];
+  body?: string | null;
+  bearerCredential?: string | null;
+  apiKeyCredential?: string | null;
+}
+export interface HttpJawaban {
+  status: number;
+  statusText: string;
+  headers: HttpHeader[];
+  body: string;
+  ms: number;
+  dipotong: boolean;
+}
+
+export const httpRequest = (req: HttpPermintaan, followRedirects?: boolean) =>
+  invoke<HttpJawaban>('http_request', { req, followRedirects: followRedirects ?? null });
+export const graphqlBody = (query: string, variables?: string | null) =>
+  invoke<string>('graphql_body', { query, variables: variables ?? null });
+export const graphqlErrors = (body: string) => invoke<string[]>('graphql_errors', { body });
+/** SFTP and port forwarding, driven by the OpenSSH client Windows ships. */
+export interface SftpEntry {
+  nama: string;
+  direktori: boolean;
+  ukuran: number;
+  mode: string;
+}
+
+export const sftpAvailable = () => invoke<boolean>('sftp_available');
+export const sftpList = (host: string, port: number, user: string, path: string) =>
+  invoke<SftpEntry[]>('sftp_list', { host, port, user, path });
+export const sftpUpload = (
+  host: string,
+  port: number,
+  user: string,
+  lokal: string,
+  remote: string,
+) => invoke<void>('sftp_upload', { host, port, user, lokal, remote });
+export const sftpDownload = (
+  host: string,
+  port: number,
+  user: string,
+  remote: string,
+  lokal: string,
+) => invoke<void>('sftp_download', { host, port, user, remote, lokal });
+export const sftpTunnelStart = (args: {
+  id: string;
+  host: string;
+  port: number;
+  user: string;
+  localPort: number;
+  targetHost: string;
+  targetPort: number;
+}) => invoke<number>('sftp_tunnel_start', args);
+export const sftpTunnelStop = (id: string) => invoke<boolean>('sftp_tunnel_stop', { id });
+export const sftpTunnelList = () => invoke<string[]>('sftp_tunnel_list');

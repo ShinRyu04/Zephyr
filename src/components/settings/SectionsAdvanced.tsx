@@ -15,6 +15,10 @@ import * as cmd from '../../lib/commands';
 import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 import { useSubAgent } from '../../lib/subagentStore';
+import { useSubagentCustom } from '../../lib/subagentCustom';
+import { ikonSubagent } from '../../lib/subagentIcons';
+import SubagentCustomModal from './SubagentCustomModal';
+import PersonaCard from './PersonaCard';
 
 export function ShortcutsSection() {
   const tr = useT();
@@ -500,6 +504,8 @@ export function AgentsSection() {
 
   return (
     <Section title={tr('settings.agents')}>
+      <PersonaCard />
+
       <Row label={tr('agents.maxPanes')} hint={tr('panes exceeding the limit are rejected with a toast')}>
         <NumberInput
           label={tr('agents.maxPanes')}
@@ -675,11 +681,161 @@ export function SubagentSection() {
         </span>
       </Row>
 
+      <CustomSubagentsCard />
+
       <p className="set-note" data-testid="sub-note">
         {tr(
           'Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up.',
         )}
       </p>
     </Section>
+  );
+}
+
+/*
+ * Custom workers: the list plus the editor. Kept in its own component so the
+ * modal's local form state does not re-render the whole settings section on
+ * every keystroke, and so the store subscription for the list is isolated.
+ */
+function CustomSubagentsCard() {
+  const tr = useT();
+  const daftar = useSubagentCustom((s) => s.daftar);
+  const muat = useSubagentCustom((s) => s.muat);
+  const bukaBaru = useSubagentCustom((s) => s.bukaBaru);
+  const bukaSunting = useSubagentCustom((s) => s.bukaSunting);
+  const setAktif = useSubagentCustom((s) => s.setAktif);
+  const hapus = useSubagentCustom((s) => s.hapus);
+  const sunting = useSubagentCustom((s) => s.sunting);
+  const baru = useSubagentCustom((s) => s.baru);
+
+  useEffect(() => {
+    muat();
+  }, [muat]);
+
+  const sedangDisunting = sunting ? daftar.find((x) => x.id === sunting) ?? null : null;
+
+  return (
+    <>
+      {/*
+       * A column, not .set-row: the row class is a two-column flex layout for
+       * one label plus one control, and this card holds a header AND a list.
+       * Using it put the header and the empty state side by side and squeezed
+       * the "New" button into the middle of the card.
+       */}
+      <div className="subagent-kartu" data-testid="sub-custom-card">
+        <div className="subagent-kartu-head">
+          <div className="set-row-label">
+            <span className="set-h2-sub">{tr('Sub-agent kustom')}</span>
+            <span className="set-hint">
+              {tr(
+                'Pekerja baca-saja buatanmu sendiri. AI bisa mendelegasikan ke yang aktif berdasarkan nama, di samping peran bawaan (Cari, Telaah, Rencana, Audit, Kerja, Jelajah).',
+              )}
+            </span>
+          </div>
+          <button
+            className="btn btn-sm"
+            data-testid="sub-custom-new"
+            onClick={() => bukaBaru()}
+          >
+            {tr('+ Baru')}
+          </button>
+        </div>
+
+        {daftar.length === 0 ? (
+          <p className="subagent-kosong" data-testid="sub-custom-kosong">
+            {tr('Belum ada sub-agent kustom. Buat satu untuk memberi AI pekerja khusus.')}
+          </p>
+        ) : (
+          <div data-testid="sub-custom-daftar">
+            {daftar.map((x) => (
+              <div className="subagent-baris" key={x.id} data-testid={`sub-custom-${x.id}`}>
+                {/*
+                  * The worker's own icon, so the row and the AI panel agree.
+                  *
+                  * The list used to be name-only, which meant the icon chosen in
+                  * the editor — the one the sub-agent row wears in the AI panel
+                  * — was invisible the moment the dialog closed. Showing it here
+                  * makes the choice look like it stuck.
+                  */}
+                <span
+                  className="subagent-baris-ikon"
+                  data-ikon={ikonSubagent(x.ikon).id}
+                  aria-hidden="true"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d={ikonSubagent(x.ikon).d} />
+                    {ikonSubagent(x.ikon).dFill && (
+                      <path d={ikonSubagent(x.ikon).dFill!} fill="currentColor" stroke="none" />
+                    )}
+                  </svg>
+                </span>
+                <div className="subagent-baris-teks">
+                  <span className="subagent-baris-nama">
+                    {x.nama}
+                    <span className={`subagent-tag${x.aktif ? ' is-on' : ''}`}>
+                      {x.aktif ? tr('aktif') : tr('nonaktif')}
+                    </span>
+                  </span>
+                  <span className="subagent-baris-ket" title={x.deskripsi}>
+                    {x.deskripsi || `${x.alat.length} ${tr('alat')}`}
+                  </span>
+                </div>
+                {/*
+                  * The model gets its own column instead of riding along inside
+                  * the name row.
+                  *
+                  * It was a chip next to the name, so the name, the status chip
+                  * and a 20-character model id all competed for one line — the
+                  * id was the first to clip, and on a narrow settings pane it
+                  * vanished entirely. A fixed column at the end keeps it
+                  * readable whatever the name is, and it lines up down the list.
+                  */}
+                <span className="subagent-model" data-testid={`sub-custom-${x.id}-model`} title={x.model || undefined}>
+                  {x.model || tr('sama seperti chat')}
+                </span>
+                <div className="subagent-baris-aksi">
+                  <Toggle
+                    label={tr('aktif')}
+                    testid={`sub-custom-${x.id}-aktif`}
+                    checked={x.aktif}
+                    onChange={(v) => void setAktif(x.id, v)}
+                  />
+                  <button
+                    className="btn btn-sm"
+                    data-testid={`sub-custom-${x.id}-ubah`}
+                    onClick={() => bukaSunting(x.id)}
+                  >
+                    {tr('Ubah')}
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    data-testid={`sub-custom-${x.id}-hapus`}
+                    onClick={() => void hapus(x.id)}
+                  >
+                    {tr('Hapus')}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {(baru || sedangDisunting) && (
+        <SubagentCustomModal
+          awal={baru ? null : sedangDisunting}
+          key={sunting ?? 'baru'}
+        />
+      )}
+    </>
   );
 }

@@ -77,12 +77,81 @@
   background: var(--surface-3);
 }
 
+/*
+ * The three groups, as one control.
+ *
+ * They were three underlined tabs sharing a hairline with the panel border, so
+ * "Installed / Recommended / Marketplace" read as three section headings and the
+ * active one was marked by 2px of blue on the bottom edge — invisible in a
+ * 260px column. A segmented pill gives them a shared container, which says
+ * "pick one of these" before any of them is read, and the active segment is
+ * filled rather than underlined so it survives at a glance.
+ */
 .xv-tabs {
   display: flex;
   gap: 2px;
-  padding: 0 8px 6px;
+  margin: 0 8px 8px;
+  padding: 2px;
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.xv-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  /* Three tabs share a 260px rail with the panel's own margins, so the label has
+     to be allowed to clip rather than push the row wider than its box — which is
+     what stacked "Recommended" on top of "Marketplace". */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+/* The active tab gets the whole label; only the inactive ones may shorten. */
+.xv-tab.is-active {
+  flex: 1 1 auto;
+  overflow: visible;
+  color: var(--text);
+  background: var(--surface-1, var(--bg1));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 22%);
+}
+
+.xv-tab:hover:not(.is-active) {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+/* The count, so a tab that is empty says so before it is opened. */
+.xv-tab-jumlah {
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 13px;
+  color: var(--text-muted);
+  background: var(--surface-3);
+  border-radius: 7px;
+  flex: none;
+}
+
+.xv-tab.is-active .xv-tab-jumlah {
+  color: var(--text-secondary);
+  background: var(--surface-3);
 }
 .xv-filter {
   display: flex;
@@ -99,21 +168,6 @@
   border-radius: 4px;
   font-size: 11px;
   padding: 2px 6px;
-}
-.xv-tab {
-  flex: 1;
-  height: 22px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  border-radius: 3px;
-}
-.xv-tab:hover {
-  color: var(--text);
-  background: var(--surface-2);
-}
-.xv-tab.is-active {
-  color: var(--text);
-  background: var(--surface-2);
 }
 
 .xv-reload {
@@ -194,6 +248,56 @@
   overflow: hidden;
 }
 
+/*
+ * A drawn mark rather than a logo file.
+ *
+ * The grey tile behind it was there to make two letters readable, and it is what
+ * made a hundred cards look like a hundred identical chips. A mark with its own
+ * shape and colour has no use for a backing plate, so the tile drops away and
+ * the icon is sized to leave the same optical margin the plate used to.
+ */
+.xc-gambar {
+  display: block;
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+.xc-gambar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * A language with no icon of its own.
+ *
+ * Ink on the chip is picked for contrast against the fill rather than left at
+ * the theme's text colour, which on a saturated yellow or lime chip would be
+ * unreadable. The chip is a fallback, not a design: it is here so an unlabelled
+ * language does not masquerade as the same grey page glyph as every other one.
+ */
+.xc-inisial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: #0b0d10;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex: 0 0 auto;
+}
+
+.xc-logo:has(.xc-gambar),
+.xc-logo:has(.xc-inisial) {
+  background: transparent;
+  border-radius: 5px;
+}
+
 .xc-logo.has-img {
   background: transparent;
   border-radius: 4px;
@@ -234,6 +338,47 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * The publisher / version / category line.
+ *
+ * These used to be one `.xc-meta` string — "acme · v1.2.3 · Themes, Language Packs"
+ * — all the same 10px grey, run together with middot separators. Nothing in the
+ * line had a level, so the eye could not find the version or tell which word was
+ * a publisher and which was a category. The three now differ by weight and
+ * contrast: the publisher is near-body ink, the version is dimmer, the category
+ * is a faint outline. Still one line, still no wrapping, but scannable.
+ */
+.xc-pub-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.xc-ver-badge {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.xc-cat-badge {
+  padding: 0 5px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: var(--surface-3);
+  border-radius: 3px;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12ch;
 }
 .xc-meta {
   font-size: 10px;

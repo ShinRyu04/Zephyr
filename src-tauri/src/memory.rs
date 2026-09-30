@@ -31,7 +31,7 @@ fn bagian_valid(bagian: &str) -> ZResult<()> {
     match bagian {
         "memory" | "user" => Ok(()),
         other => Err(ZephyrError::InvalidInput(format!(
-            "bagian tidak dikenal: '{other}' (pakai 'memory' atau 'user')"
+            "unknown section: '{other}' (use 'memory' or 'user')"
         ))),
     }
 }
@@ -81,7 +81,7 @@ fn tulis_mentah(state: &AppState, bagian: &str, teks: &str) -> ZResult<()> {
 pub fn tambah(state: &AppState, bagian: &str, isi: &str) -> ZResult<String> {
     let baru = isi.trim();
     if baru.is_empty() {
-        return Err(ZephyrError::InvalidInput("entri kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty entry".into()));
     }
     let lama = baca(state, bagian)?;
     let gabung = if lama.is_empty() {
@@ -92,7 +92,7 @@ pub fn tambah(state: &AppState, bagian: &str, isi: &str) -> ZResult<String> {
     let limit = limit_bagian(bagian);
     if gabung.chars().count() > limit {
         return Err(ZephyrError::InvalidInput(format!(
-            "memori '{bagian}' penuh: {} dari {} karakter. Hapus atau ringkas entri lama dulu (memory_write dengan action 'replace' atau 'remove'), baru tambahkan yang baru.",
+            "memory '{bagian}' is full: {} of {} characters. Delete or shorten old entries first (memory_write dengan action 'replace' atau 'remove'), baru tambahkan yang baru.",
             gabung.chars().count(),
             limit
         )));
@@ -104,7 +104,7 @@ pub fn tambah(state: &AppState, bagian: &str, isi: &str) -> ZResult<String> {
 pub fn ganti(state: &AppState, bagian: &str, cari: &str, baru: &str) -> ZResult<String> {
     let kunci = cari.trim();
     if kunci.is_empty() {
-        return Err(ZephyrError::InvalidInput("teks yang dicari kosong".into()));
+        return Err(ZephyrError::InvalidInput("the search text is empty".into()));
     }
     let daftar = entri(&baca(state, bagian)?);
     let mut kena = 0;
@@ -122,7 +122,7 @@ pub fn ganti(state: &AppState, bagian: &str, cari: &str, baru: &str) -> ZResult<
         .collect();
     if kena == 0 {
         return Err(ZephyrError::NotFound(format!(
-            "tidak ada entri '{bagian}' yang memuat: {kunci}"
+            "no entry in '{bagian}' contains: {kunci}"
         )));
     }
     let teks = hasil.join(PEMISAH);
@@ -141,7 +141,7 @@ pub fn ganti(state: &AppState, bagian: &str, cari: &str, baru: &str) -> ZResult<
 pub fn hapus(state: &AppState, bagian: &str, cari: &str) -> ZResult<usize> {
     let kunci = cari.trim();
     if kunci.is_empty() {
-        return Err(ZephyrError::InvalidInput("teks yang dicari kosong".into()));
+        return Err(ZephyrError::InvalidInput("the search text is empty".into()));
     }
     let daftar = entri(&baca(state, bagian)?);
     let sebelum = daftar.len();
@@ -149,7 +149,7 @@ pub fn hapus(state: &AppState, bagian: &str, cari: &str) -> ZResult<usize> {
     let terhapus = sebelum - hasil.len();
     if terhapus == 0 {
         return Err(ZephyrError::NotFound(format!(
-            "tidak ada entri '{bagian}' yang memuat: {kunci}"
+            "no entry in '{bagian}' contains: {kunci}"
         )));
     }
     tulis_mentah(state, bagian, &hasil.join(PEMISAH))?;
@@ -203,7 +203,7 @@ pub fn memory_write(
         "replace" => ganti(&state, &section, &lama, &isi),
         "remove" => hapus(&state, &section, &lama).map(|n| format!("{n} entri dihapus")),
         other => Err(ZephyrError::InvalidInput(format!(
-            "action tidak dikenal: '{other}' (pakai add/replace/remove)"
+            "action not recognised: '{other}' (pakai add/replace/remove)"
         ))),
     }
 }

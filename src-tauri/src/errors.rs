@@ -4,7 +4,7 @@ use serde::Serialize;
 pub enum ZephyrError {
     #[error("tidak ditemukan: {0}")]
     NotFound(String),
-    #[error("input tidak valid: {0}")]
+    #[error("input is not valid: {0}")]
     InvalidInput(String),
     #[error("izin ditolak: {0}")]
     Permission(String),

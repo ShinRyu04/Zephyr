@@ -1,5 +1,6 @@
 import { snippet } from '@codemirror/autocomplete';
 import type { Completion } from '@codemirror/autocomplete';
+import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { create } from 'zustand';
 
@@ -256,13 +257,15 @@ function isiVariabel(
   });
 }
 
-export async function konteksDari(view: EditorView, path: string): Promise<KonteksVar> {
-  const st = view.state;
+export async function konteksDari(
+  viewOrState: EditorView | EditorState,
+  path: string,
+): Promise<KonteksVar> {
+  const st = 'state' in viewOrState ? viewOrState.state : viewOrState;
   const sel = st.selection.main;
   const baris = st.doc.lineAt(sel.head);
   let clip = '';
   try {
-    
     clip = await clipboardRead();
   } catch {
     clip = '';

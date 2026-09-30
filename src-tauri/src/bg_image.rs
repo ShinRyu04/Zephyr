@@ -66,7 +66,7 @@ pub fn bg_image_read(path: String) -> ZResult<BgImage> {
         return Err(ZephyrError::InvalidInput(format!("bukan file: {path}")));
     }
     let meta = std::fs::metadata(p)
-        .map_err(|e| ZephyrError::InvalidInput(format!("tidak bisa membaca {path}: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("cannot read {path}: {e}")))?;
     let bytes_len = meta.len();
     if bytes_len > MAX_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
@@ -76,13 +76,13 @@ pub fn bg_image_read(path: String) -> ZResult<BgImage> {
         )));
     }
     let isi = std::fs::read(p)
-        .map_err(|e| ZephyrError::InvalidInput(format!("gagal membaca {path}: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("reading {path} failed: {e}")))?;
     let kind = match tebak_kind(&isi) {
         Some(k) => k,
         None if tebak_svg(&isi) => "image/svg+xml",
         None => {
             return Err(ZephyrError::InvalidInput(
-                "format gambar tidak dikenali (png/jpg/gif/webp/bmp/avif/ico/svg)".into(),
+                "format gambar not recognisedi (png/jpg/gif/webp/bmp/avif/ico/svg)".into(),
             ))
         }
     };

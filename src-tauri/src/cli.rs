@@ -155,7 +155,7 @@ pub fn parse(argv: &[String], cwd: &Path) -> Args {
                 }
             }
             lain if lain.starts_with('-') && lain.len() > 1 => {
-                a.errors.push(format!("opsi tidak dikenal: {lain}"));
+                a.errors.push(format!("opsi not recognised: {lain}"));
             }
             lain => positional.push(lain.to_string()),
         }
@@ -210,7 +210,7 @@ pub fn cli_wait_selesai(token: String) -> ZResult<bool> {
     let p = path_penanda_wait(&token);
     if p.exists() {
         std::fs::remove_file(&p)
-            .map_err(|e| ZephyrError::Io(format!("gagal menghapus penanda wait: {e}")))?;
+            .map_err(|e| ZephyrError::Io(format!("removing the wait marker failed: {e}")))?;
         return Ok(true);
     }
     Ok(false)
@@ -220,7 +220,7 @@ pub fn cli_wait_selesai(token: String) -> ZResult<bool> {
 pub fn cli_wait_buat(token: String) -> ZResult<String> {
     let dir = dir_penanda_wait();
     std::fs::create_dir_all(&dir)
-        .map_err(|e| ZephyrError::Io(format!("gagal membuat folder wait: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("creating the wait folder failed: {e}")))?;
     let p = path_penanda_wait(&token);
     std::fs::write(&p, b"1").map_err(|e| ZephyrError::Io(format!("gagal menulis penanda: {e}")))?;
     Ok(p.to_string_lossy().replace('\\', "/"))
@@ -240,7 +240,7 @@ pub fn cli_teks(mode: String, warna: bool, kolom: Option<usize>) -> ZResult<Stri
         "banner" => banner(warna, k),
         lain => {
             return Err(ZephyrError::InvalidInput(format!(
-                "mode teks CLI \"{lain}\" tidak dikenal (help|version|banner)"
+                "mode teks CLI \"{lain}\" not recognised (help|version|banner)"
             )))
         }
     })

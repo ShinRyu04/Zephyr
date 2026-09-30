@@ -1,4 +1,10 @@
-import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
+import {
+  autocompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+  type CompletionSource,
+} from '@codemirror/autocomplete';
 import { Compartment, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   Decoration,
@@ -135,8 +141,7 @@ export function snippetCompletionSource(path: string, langId: () => string) {
       : daftar;
     if (cocok.length === 0) return null;
 
-    if (!ctx.view) return null;
-    const konteks = await konteksDari(ctx.view, path);
+    const konteks = await konteksDari(ctx.state, path);
     const boostMode = mode === 'top' ? 99 : mode === 'bottom' ? -99 : 0;
 
     return {
@@ -163,14 +168,123 @@ export function lspAutocompletion(path: string): Extension {
   });
 }
 
+/*
+ * Words already in the file.
+ *
+ * This is the source that makes a popup appear for ordinary identifiers without
+ * waiting on anything external. It is deliberately local and cheap: scan the
+ * visible text, collect identifier-shaped runs, rank the ones nearest the
+ * cursor first. A language server would give better results, but it is not
+ * always running and completion should not be dead until it is.
+ */
+function sumberKataDokumen(): CompletionSource {
+  return (ctx: CompletionContext): CompletionResult | null => {
+    const kata = ctx.matchBefore(/[\w$]+/);
+    if (!kata || (kata.from === kata.to && !ctx.explicit)) return null;
+    const diketik = kata.text;
+    /* Allow single character matching so typing 't' offers words starting with 't' */
+    if (diketik.length < 1 && !ctx.explicit) return null;
+
+    const kandidat = new Map<string, number>();
+    const doc = ctx.state.doc;
+    const sekitar = ctx.state.sliceDoc(
+      Math.max(0, ctx.pos - 40_000),
+      Math.min(doc.length, ctx.pos + 4_000),
+    );
+    for (const m of sekitar.matchAll(/[A-Za-z_$][\w$]{1,40}/g)) {
+      const w = m[0];
+      if (w === diketik) continue;
+      if (!w.toLowerCase().startsWith(diketik.toLowerCase())) continue;
+      kandidat.set(w, (kandidat.get(w) ?? 0) + 1);
+    }
+    if (kandidat.size === 0) return null;
+
+    const opsi: Completion[] = [...kandidat.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 40)
+      .map(([label, freq]) => ({
+        label,
+        type: /^[A-Z]/.test(label) ? 'class' : 'variable',
+        boost: freq,
+        /* A plain text label: inserting it must not run snippet syntax. */
+        apply: label,
+      }));
+
+    return { from: kata.from, options: opsi, validFor: /^[\w$]*$/ };
+  };
+}
+
+function sumberSemuaCompletion(
+  path: string,
+  langId: () => string,
+  adaLsp: boolean,
+): CompletionSource {
+  const lsp = adaLsp ? lspCompletionSource(path) : null;
+  const snip = snippetCompletionSource(path, langId);
+  const kata = sumberKataDokumen();
+
+  return async (ctx: CompletionContext): Promise<CompletionResult | null> => {
+    const langSources = ctx.state.languageDataAt<CompletionSource>('autocomplete', ctx.pos);
+    const promises: Promise<CompletionResult | null>[] = [];
+    for (const src of langSources) {
+      try {
+        promises.push(Promise.resolve(src(ctx)));
+      } catch {
+        // ignore
+      }
+    }
+    if (lsp) {
+      try {
+        promises.push(Promise.resolve(lsp(ctx)));
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      promises.push(Promise.resolve(snip(ctx)));
+    } catch {
+      // ignore
+    }
+    try {
+      promises.push(Promise.resolve(kata(ctx)));
+    } catch {
+      // ignore
+    }
+
+    const results = await Promise.all(promises);
+    const valid = results.filter(
+      (r): r is CompletionResult => r !== null && Array.isArray(r.options) && r.options.length > 0,
+    );
+    if (valid.length === 0) return null;
+
+    let from = ctx.pos;
+    const options: Completion[] = [];
+    const seen = new Set<string>();
+
+    for (const r of valid) {
+      if (r.from < from) from = r.from;
+      for (const opt of r.options) {
+        if (!seen.has(opt.label)) {
+          seen.add(opt.label);
+          options.push(opt);
+        }
+      }
+    }
+
+    return {
+      from,
+      options,
+      validFor: /^[\w$]*$/,
+    };
+  };
+}
+
 export function autocompletionZephyr(path: string, langId: () => string, adaLsp: boolean): Extension {
-  const sumber = adaLsp
-    ? [snippetCompletionSource(path, langId), lspCompletionSource(path)]
-    : [snippetCompletionSource(path, langId)];
   return autocompletion({
-    override: sumber,
+    override: [sumberSemuaCompletion(path, langId, adaLsp)],
     activateOnTyping: true,
     maxRenderedOptions: 60,
+    defaultKeymap: true,
   });
 }
 

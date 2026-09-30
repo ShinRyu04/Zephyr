@@ -1,4 +1,11 @@
 /* fase 33: split editor — dua grup editor berdampingan + divider geser. */
+.editor-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
 .editor-split {
   display: flex;
   flex-direction: row;
@@ -19,11 +26,24 @@
   opacity: 0.72;
 }
 
+/* Not scoped to .editor-group on purpose: the Dev Environment, API Client and
+   SFTP views also sit directly inside .editor-area. flex:1 gives the host its
+   height, but a child using `height: 100%` (that is how .api and .sftp are
+   written) resolves percentage heights against an explicit height, not a
+   flex-computed one - so those views collapsed to their content (211px / 39px).
+   The host is a grid with a single 1fr row, which gives the child a definite
+   height to measure against. */
+.editor-area > .editor-host,
 .editor-group .editor-host {
   flex: 1;
   min-height: 0;
   position: relative;
   overflow: hidden;
+}
+
+.editor-area > .editor-host {
+  display: grid;
+  grid-template-rows: 1fr;
 }
 
 .editor-group.is-fokus .editor-host {

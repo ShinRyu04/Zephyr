@@ -76,8 +76,13 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
   const out: string[] = [];
   for (const t of m.contributes.themes) {
     const id = themeId(m.id, t.label || 'tema');
-    
+
+    // Skip a built-in id, and skip one we have already added in this pass: two
+    // manifests with the same id (a bundled copy and an installed copy) would
+    // otherwise register the same theme twice and the picker would list it
+    // twice.
     if (THEMES.some((x) => x.id === id)) continue;
+    if (daftarThemeInfo.some((x) => x.id === id)) continue;
     try {
       const raw = (await cmd.extensionsReadContrib(m.id, t.path)) as Record<string, unknown>;
       

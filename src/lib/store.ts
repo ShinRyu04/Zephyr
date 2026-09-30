@@ -51,6 +51,15 @@ interface StoreState {
   sidebarVisible: boolean;
   sidebarWidth: number;
 
+  /**
+   * Which tab the Tools view should show. Another part of the app sets this
+   * when it wants a specific tool opened (the palette's "Run tests" command,
+   * the Dev Environment's own "open settings" link); the Tools view reads it
+   * once and clears it back to null.
+   */
+  toolsTab: string | null;
+  setToolsTab: (v: string | null) => void;
+
   aiWidth: number;
 
   aiMax: boolean;
@@ -209,6 +218,7 @@ export const useStore = create<Store>((set, get) => ({
   activity: 'explorer',
   sidebarVisible: true,
   sidebarWidth: 260,
+  toolsTab: null,
   aiWidth: 340,
   aiMax: false,
   sidebarHeight: 200,
@@ -242,6 +252,7 @@ export const useStore = create<Store>((set, get) => ({
   activeTheme: 'zephyr-dark',
 
   setActivity: (a) => set({ activity: a }),
+  setToolsTab: (v) => set({ toolsTab: v }),
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),

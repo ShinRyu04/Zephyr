@@ -100,7 +100,7 @@ class Cdp {
       })().then(
         (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
         (e) => { window[${JSON.stringify(slot)}] = { done: true, value: null,
-                  error: (e && (e.message || e.code)) ? JSON.stringify(e) : String(e) }; },
+                  error: (e && (e.stack || e.message || e.code)) ? String(e.stack || e.message || e.code).slice(0, 600) : String(e) }; },
       );
       return 'started';
     })()`);

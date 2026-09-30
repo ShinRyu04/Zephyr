@@ -103,7 +103,8 @@ pub fn default_settings() -> Value {
             "showPanel": true,
             "autoCollapse": true,
             "model": "",
-            "provider": ""
+            "provider": "",
+            "idleSecs": 90
         },
         "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
         "ssh": { "recentHosts": [] },
@@ -115,6 +116,18 @@ pub fn default_settings() -> Value {
         },
 
         "lsp": { "enabled": true, "idleSeconds": 300, "servers": {} },
+
+        // Dev Environment. Every key must exist here: settings_load deep-merges
+        // the stored file over this default, so a key missing from the default
+        // would arrive as undefined in the frontend.
+        "devenv": {
+            "rootFolder": "D:\\DevEnv",
+            "domain": ".test",
+            "server": "nginx",
+            "runtimes": {},
+            "services": {},
+            "projects": []
+        },
 
         "history": { "enabled": true, "maxPerFile": 50, "maxDays": 30 },
         "update": {
@@ -160,9 +173,9 @@ pub fn read_json_um(path: &PathBuf) -> Option<Value> {
             std::thread::sleep(std::time::Duration::from_millis(60));
             continue;
         }
-        // Buang BOM UTF-8 bila ada: serde_json menolaknya dan menganggap file
-        // "rusak", padahal isinya valid. Ini penyebab file dipindah ke
-        // .broken-* berulang kali.
+        // Strip the UTF-8 BOM when present: serde_json rejects it and treats
+        // the file as "corrupt" even though the contents are valid. That was
+        // the reason the file kept being moved to .broken-*.
         let bersih = raw.trim_start_matches('\u{feff}');
         match serde_json::from_str(bersih) {
             Ok(v) => return Some(v),
@@ -270,7 +283,7 @@ fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
         Ok(()) => Ok(()),
         Err(e) => {
             let _ = std::fs::remove_file(&tmp);
-            Err(ZephyrError::Internal(format!("gagal menyimpan {}: {e}", path.display())))
+            Err(ZephyrError::Internal(format!("failed menyimpan {}: {e}", path.display())))
         }
     }
 }
@@ -338,12 +351,12 @@ pub fn get_settings(state: State<AppState>) -> ZResult<Value> {
 
 #[tauri::command]
 pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZResult<()> {    if !patch.is_object() {
-        return Err(ZephyrError::InvalidInput("patch harus object".into()));
+        return Err(ZephyrError::InvalidInput("the patch must be an object".into()));
     }
     let path = state.file("settings.json");
     let mut current = match baca_untuk_patch(&path) {
         Some(v) => v,
-        None => return Err(ZephyrError::Internal("settings.json tidak terbaca; patch dibatalkan agar tidak menimpa data".into())),
+        None => return Err(ZephyrError::Internal("settings.json could not be read; the patch was cancelled so it will not overwrite your data".into())),
     };
     deep_merge_um(&mut current, &patch);
     write_json(&path, &current)?;
@@ -363,7 +376,7 @@ pub fn set_window_size(app: AppHandle, width: f64, height: f64) -> ZResult<()> {
     }
     let win = app
         .get_webview_window("main")
-        .ok_or_else(|| ZephyrError::Internal("window main tidak ada".into()))?;
+        .ok_or_else(|| ZephyrError::Internal("there is no main window".into()))?;
     win.set_size(tauri::LogicalSize::new(width, height))?;
     Ok(())
 }
@@ -487,12 +500,12 @@ pub fn patch_settings(app: &AppHandle, state: &AppState, patch: Value) -> ZResul
 
 pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
     if !patch.is_object() {
-        return Err(ZephyrError::InvalidInput("patch harus object".into()));
+        return Err(ZephyrError::InvalidInput("the patch must be an object".into()));
     }
     let path = state.file("settings.json");
     let mut current = match baca_untuk_patch(&path) {
         Some(v) => v,
-        None => return Err(ZephyrError::Internal("settings.json tidak terbaca; patch dibatalkan agar tidak menimpa data".into())),
+        None => return Err(ZephyrError::Internal("settings.json could not be read; the patch was cancelled so it will not overwrite your data".into())),
     };
     deep_merge_um(&mut current, &patch);
     write_json(&path, &current)
@@ -585,17 +598,17 @@ fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
     );
 
     /*
-     * Jumlahkan proses ZEPHYR saja (diri sendiri + keturunannya).
+     * Total only ZEPHYR processes (itself plus its descendants).
      *
-     * Penelusuran rantai induk harus berhenti pada Keyakinan bahwa proses itu
-     * benar-benar milik kita. DI WINDOWS, PID induk dipakai ulang setelah
-     * proses mati: PID milik proses yang sudah selesai bisa dipegang proses
-     * LAIN, sehingga penelusuran "sampai ketemu Zephyr" tanpa batas bisa
-     * menyambung ke proses sistem dan menjumlahkan seluruh mesin (pernah
-     * terbaca 13,9 GB padahal Zephyr hanya ~110 MB).
+     * Walking the parent chain must stop on certainty that the process really
+     * is ours. ON WINDOWS, a parent PID is reused after the process dies: a PID
+     * belonging to a finished process can be held by a DIFFERENT process, so an
+     * unbounded "walk until we find Zephyr" search can reach a system process
+     * and total up the whole machine (it once reported 13.9 GB while Zephyr
+     * was only ~110 MB).
      *
-     * Batas 6 tingkat tetap dipakai, TAPI jumlah proses yang ditelusuri juga
-     * dibatasi supaya satu rantai panjang tidak menyeret proses asing.
+     * The 6-level limit is still used, BUT the number of processes walked is
+     * capped too so that one long chain cannot drag in unrelated processes.
      */
     let mut total = sys.process(own).map(|p| p.memory()).unwrap_or(0);
 
@@ -609,7 +622,7 @@ fn hitung_total(sys: &mut sysinfo::System, own: sysinfo::Pid) -> u64 {
             None => continue,
         };
 
-        // Rantai induk harus BENAR-BENAR sampai ke PID kita.
+        // The parent chain must REALLY reach our PID.
         let mut cur = Some(mulai);
         let mut depth = 0usize;
         let mut milik_kita = false;

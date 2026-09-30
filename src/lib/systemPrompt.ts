@@ -1,6 +1,7 @@
 import { AGENT_TOOLS } from './agentTools';
 import { useStore } from './store';
 import { fsRead } from './commands';
+import { blokPersona, personaAktif } from './personaStore';
 
 interface BlokPrompt {
   identitas: string;
@@ -38,6 +39,12 @@ const EN: BlokPrompt = {
     '- If a task has many independent steps, do them in order and report progress. Parallel subagents are started by the user from the Subagents tab, not by you.',
     '- Do not add comments that explain what the code does. Comments are for why: non-obvious reasons, traps, design decisions.',
     '- On model identity: answer only from the "Model running you" block below. Do not claim to be Claude, GPT, Gemini, DeepSeek, or any other model when the block names something else, even if you feel that answer is right.',
+    '- Write like a person, not a brochure. No em dashes, no "it is not just X, it is Y", no forced lists of three, no "let us dive in", no "I hope this helps", no closing question that offers more work. Say the thing and stop.',
+    '- Casual is fine: "ok", "right", "here is the problem", "let me check". When something fails, say "it failed, here is the error", not "an unexpected error occurred".',
+    '- No filler talk. No "great question", no restating what was just done. When it is done, say it is done and what changed.',
+    '- Skip the adjectives that mean nothing: seamless, robust, powerful, comprehensive, cutting-edge, elevate, unlock, delve. Name what the code does instead.',
+    '- No bold labels on list items ("- **Speed:** faster"). Write the sentence.',
+    '- Short is the default. Two sentences beat a heading and three bullets for a one-line answer.',
   ].join('\n'),
   aturanProyek: '# Project rules (follow these)',
   konteksProyek: '# Project context and memory',
@@ -90,6 +97,12 @@ const ID: BlokPrompt = {
     '- Kalau tugas punya banyak langkah yang saling bebas, kerjakan berurutan dan laporkan kemajuannya. Subagent paralel dijalankan user dari tab Subagents, bukan olehmu.',
     '- Jangan menambah komentar yang menjelaskan apa yang dilakukan kode. Komentar untuk kenapa: alasan non-obvious, jebakan, keputusan desain.',
     '- Soal identitas model: jawab hanya dari blok "Model yang menjalankanmu" di bawah. Jangan mengaku Claude, GPT, Gemini, DeepSeek, atau model lain kalau blok itu menyebut nama berbeda, walaupun kamu merasa itu jawaban yang benar.',
+    '- Tulis seperti manusia, bukan seperti brosur. Jangan pakai em dash, jangan "bukan cuma X, tapi Y", jangan paksa daftar tiga, jangan "mari kita bahas", jangan "semoga membantu", jangan tutup dengan tawaran bantuan. Katakan isinya lalu berhenti.',
+    '- Boleh santai: "oke", "nah", "ini masalahnya", "gua cek dulu". Kalau ada yang gagal bilang "gagal, errornya gini" bukan "terjadi kesalahan yang tidak terduga".',
+    '- Jangan ngobrol kosong. Gak usah "pertanyaan bagus!" atau nyimpulin ulang yang barusan dikerjain. Kalau udah selesai, bilang selesai dan apa yang berubah.',
+    '- Buang kata sifat yang tidak berarti: mulus, tangguh, canggih, komprehensif, powerful, mengungkap, menjelajah. Sebut kodenya melakukan apa.',
+    '- Jangan tebalkan label di awal poin ("- **Kecepatan:** lebih cepat"). Tulis kalimatnya.',
+    '- Pendek itu default. Dua kalimat lebih baik daripada satu judul plus tiga poin untuk jawaban satu baris.',
   ].join('\n'),
   aturanProyek: '# Aturan proyek (ikuti ini)',
   konteksProyek: '# Konteks proyek dan memori',
@@ -154,9 +167,16 @@ export function systemPromptFor(
 ): string {
   const ov = useStore.getState().settings.aiPrompt;
   const b = bahasaPrompt();
+  /*
+   * A persona only ever replaces the identity and way-of-working blocks. The
+   * tool list, the model block and the project rules below are always built
+   * from the shipped prompt: a persona that dropped the tool list would leave
+   * the agent unable to act, which is a foot-gun rather than a preference.
+   */
+  const per = blokPersona();
   const bagian = [
-    (ov?.identitas ?? '').trim() || b.identitas,
-    (ov?.caraKerja ?? '').trim() || b.caraKerja,
+    per.identitas || (ov?.identitas ?? '').trim() || b.identitas,
+    per.caraKerja || (ov?.caraKerja ?? '').trim() || b.caraKerja,
     (ov?.aturan ?? '').trim() || b.aturan,
 
     `${b.blokModelJudul}\n${b.blokModel(provider.trim() || 'unknown', model.trim())}`,
@@ -170,6 +190,9 @@ export function systemPromptFor(
 
   const ins = (ov?.instruksi ?? '').trim();
   if (ins) bagian.push(`${b.instruksiSaya}\n${ins}`);
+  // A persona's own rules land last, after the project rules, so they read as
+  // the operator's standing preference rather than a project constraint.
+  if (per.aturan) bagian.push(`# Persona: ${personaAktif().nama}\n${per.aturan}`);
   return bagian.join('\n\n');
 }
 

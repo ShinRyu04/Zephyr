@@ -14,6 +14,15 @@ import ZephyrLogo from './ZephyrLogo';
 import { ErrorBoundary } from './ErrorBoundary';
 import DiffViewer from '../scm/DiffViewer';
 const SettingsPage = lazy(() => import('../settings/SettingsPage'));
+// Dev Environment, API Client and SFTP are full-page views: each carries its own
+// header and row layout. They take over the middle area the same way Settings
+// does below, instead of sitting in the sidebar, where they were squeezed into a
+// narrow column while the editor stayed empty beside them.
+const DevEnvView = lazy(() => import('../devenv/DevEnvView'));
+const TestsView = lazy(() => import('../shell/TestsView'));
+const ApiClientView = lazy(() => import('../api/ApiClientView'));
+const SftpView = lazy(() => import('../sftp/SftpView'));
+const ToolsView = lazy(() => import('../shell/ToolsView'));
 import { useGit } from '../../lib/gitStore';
 import { useT, tx } from '../../lib/i18n';
 function EmptyState() {
@@ -160,9 +169,40 @@ export default function SplitEditor() {
   const tr = useT();
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const activity = useStore((s) => s.activity);
   const hasDiff = useGit((s) => s.diff !== null);
   const split = useLayout((s) => s.split);
   const groups = useLayout((s) => s.groups);
+
+  if (
+    activity === 'tools' ||
+    activity === 'devenv' ||
+    activity === 'api' ||
+    activity === 'sftp' ||
+    activity === 'tests'
+  ) {
+    return (
+      <section className="editor-area">
+        {/* editor-host is what gives its child the full height (it carries
+            flex: 1 + min-height: 0). Without it each view collapsed to its own
+            content height: 212px for the API client, 39px for SFTP. */}
+        <div className="editor-host">
+          <ErrorBoundary nama="Panel">
+            <Suspense fallback={null}>
+              {/* The rail has one entry for all four; the single-activity
+                  branches stay so the palette can still jump straight to one
+                  of them without going through the tab strip. */}
+              {activity === 'tools' && <ToolsView />}
+              {activity === 'devenv' && <DevEnvView />}
+              {activity === 'api' && <ApiClientView />}
+              {activity === 'sftp' && <SftpView />}
+              {activity === 'tests' && <TestsView />}
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      </section>
+    );
+  }
 
   if (settingsOpen) {
     return (

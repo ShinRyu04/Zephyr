@@ -45,6 +45,56 @@
   gap: 5px;
   padding-bottom: 10px;
 }
+
+/*
+ * The shell / private / panel row.
+ *
+ * These three are the only actions the panel offers before any session exists,
+ * so they carry the whole empty state. They sit as equal cards with the icon
+ * beside the label, and the panel toggle keeps the same shape rather than
+ * reading as a different kind of control.
+ *
+ * The colour is deliberately left alone. `.tp-actions` is shared with the AI
+ * sidebar, and forcing a muted foreground here painted the "New chat" primary
+ * button grey-on-blue — the label all but disappeared. A rule that only ever
+ * arranges the box, never the ink, cannot do that.
+ */
+.tp-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 6px;
+}
+
+.tp-actions .btn svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+.tp-actions .btn:hover svg {
+  opacity: 1;
+}
+
+/* Secondary buttons have no colour of their own; give them one. */
+.tp-actions .btn:not(.btn-primary) {
+  color: var(--text-secondary);
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.tp-actions .btn:not(.btn-primary):hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+/*
+ * Section heading.
+ *
+ * "Agent CLIs detected" and "Chat history" were sentence case at 11px, which
+ * left the panel without any structure: the eye could not tell a section name
+ * from a status line. Uppercase with letter spacing gives the same grouping
+ * cue the terminal view uses, without adding a rule or extra padding.
+ */
 .tp-subtitle {
   font-size: 10.5px;
   font-weight: 600;
@@ -56,36 +106,77 @@
 .tp-agents {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
+
+/*
+ * The hint under the agent list.
+ *
+ * Two paragraphs used to say the same thing twice — that the panel lives at the
+ * bottom and that it opens itself — and together they were the largest block of
+ * text in a 260px sidebar, pushing the actual list down. One line, and it sits
+ * in the footer position where a note belongs.
+ */
+.tp-agents-hint {
+  margin: 0 0 2px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .tp-agent {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 7px;
+  gap: 10px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--text-secondary);
-  font-size: 12px;
+  border-radius: 6px;
+  background: var(--surface-1, #161b22);
+  color: var(--text);
+  font-size: 12.5px;
   cursor: pointer;
   text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
 }
+
 .tp-agent:hover {
-  background: var(--surface-3);
+  background: var(--surface-2, #21262d);
   color: var(--text);
-  border-color: var(--border-strong);
+  border-color: var(--border-strong, #388bfd);
 }
+
 .tp-agent-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
+
 .tp-agent-plus {
-  color: var(--accent);
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2f81f7;
+  color: #ffffff;
+  font-size: 11px;
   font-weight: 600;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.tp-agent-plus svg {
+  stroke: #ffffff;
+  stroke-width: 2.2;
+}
+
+.tp-agent:hover .tp-agent-plus {
+  background: #388bfd;
+  transform: scale(1.08);
 }
 
 .tp-list-wrap {
@@ -220,18 +311,41 @@
 .tp-pane:hover .tp-pane-ops {
   opacity: 1;
 }
+/*
+ * Pane actions.
+ *
+ * These were the words "kill" and "close" in 10px grey, which made a row of
+ * two panes read as a paragraph of text rather than as a control strip — and
+ * the labels sat far wider than the icons they now hold. Icon-only, aligned on
+ * a fixed box so the two buttons line up with the status dot above them, and
+ * revealed on hover so a row is not permanently covered in controls.
+ */
 .tp-op {
-  padding: 2px 5px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
   color: var(--text-muted);
-  font-size: 10px;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
 }
+
+.tp-pane:hover .tp-op,
+.tp-pane-btn.is-active ~ .tp-pane-ops .tp-op,
+.tp-op:focus-visible {
+  opacity: 1;
+}
+
 .tp-op:hover {
+  background: var(--surface-3);
+  border-color: var(--border);
   color: var(--danger);
-  border-color: var(--danger);
 }
 
 /* ─────────── navigasi section (DI SIDEBAR KIRI) ─────────── */
@@ -404,6 +518,20 @@
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.4;
+}
+
+/* Blok "cara pakai" di bawah deskripsi persona.
+
+   `.set-hint` itu `span` inline, jadi dua di antaranya menempel jadi satu baris
+   panjang dan kalimat "apa itu persona" lari ke "cara pakainya" tanpa jeda.
+   Dijadikan blok supaya terbaca sebagai dua keterangan terpisah. */
+.set-hint.persona-cara {
+  display: block;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  opacity: 0.72;
 }
 .set-row-control {
   flex: 0 0 auto;

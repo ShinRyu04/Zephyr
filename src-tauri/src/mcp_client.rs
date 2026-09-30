@@ -52,7 +52,7 @@ fn agent() -> ureq::Agent {
 fn rpc(url: &str, token: &str, method: &str, params: Value) -> ZResult<Value> {
     let alamat = url.trim();
     if alamat.is_empty() {
-        return Err(ZephyrError::InvalidInput("url server MCP kosong".into()));
+        return Err(ZephyrError::InvalidInput("url server MCP empty".into()));
     }
     let id = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -126,7 +126,7 @@ pub fn list_tools(url: &str, token: &str) -> ZResult<Vec<McpToolSpec>> {
 pub fn call_tool(url: &str, token: &str, tool: &str, args: Value) -> ZResult<Value> {
     let nama = tool.trim();
     if nama.is_empty() {
-        return Err(ZephyrError::InvalidInput("tool kosong".into()));
+        return Err(ZephyrError::InvalidInput("tool empty".into()));
     }
     let arguments = if args.is_null() { json!({}) } else { args };
     rpc(
@@ -185,7 +185,7 @@ pub fn save_server(
 pub fn remove_server(app: &tauri::AppHandle, state: &AppState, id: &str) -> ZResult<bool> {
     let target = id.trim();
     if target.is_empty() {
-        return Err(ZephyrError::InvalidInput("id server kosong".into()));
+        return Err(ZephyrError::InvalidInput("id server empty".into()));
     }
     let mut daftar = servers_of(state);
     let sebelum = daftar.len();

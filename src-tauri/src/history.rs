@@ -167,7 +167,7 @@ fn izinkan(state: &AppState, p: &Path) -> ZResult<PathBuf> {
     } else {
         state
             .workspace_path()
-            .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?
             .join(p)
     };
     let di_dalam = state
@@ -185,7 +185,7 @@ fn izinkan(state: &AppState, p: &Path) -> ZResult<PathBuf> {
 pub fn snapshot_internal(state: &AppState, path: &Path, reason: &str) -> ZResult<String> {
     if !reason_valid(reason) {
         return Err(ZephyrError::InvalidInput(format!(
-            "reason \"{reason}\" tidak dikenal"
+            "reason \"{reason}\" not recognised"
         )));
     }
     let abs = izinkan(state, path)?;
@@ -232,12 +232,12 @@ pub fn history_snapshot(
     let reason = reason.unwrap_or_else(|| "save".to_string());
     if !reason_valid(&reason) {
         return Err(ZephyrError::InvalidInput(format!(
-            "reason \"{reason}\" tidak dikenal"
+            "reason \"{reason}\" not recognised"
         )));
     }
     let abs = izinkan(&state, Path::new(&path))?;
     let meta_fs = std::fs::metadata(&abs)
-        .map_err(|e| ZephyrError::InvalidInput(format!("tidak bisa membaca {path}: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("cannot read {path}: {e}")))?;
     if !meta_fs.is_file() {
         return Err(ZephyrError::InvalidInput(format!("{path} bukan file")));
     }
@@ -317,7 +317,7 @@ pub fn history_list(state: State<AppState>, path: String) -> ZResult<HistoryInfo
 pub fn history_read(state: State<AppState>, path: String, id: String) -> ZResult<String> {
     if id.contains('/') || id.contains('\\') || id.contains("..") || !id.ends_with(".snap") {
         return Err(ZephyrError::InvalidInput(format!(
-            "id snapshot tidak valid: {id}"
+            "id snapshot is not valid: {id}"
         )));
     }
     let abs = izinkan(&state, Path::new(&path))?;

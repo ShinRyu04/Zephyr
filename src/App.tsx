@@ -26,6 +26,16 @@ const LspOverlay = lazy(() => import('./components/editor/LspOverlay'));
 const ScmConfirmDialog = lazy(() => import('./components/scm/ScmConfirmDialog'));
 const CommandPalette = lazy(() => import('./components/shell/CommandPalette'));
 const McpToast = lazy(() => import('./components/shell/McpToast'));
+/*
+ * The tool gate floats over the editor, so it mounts here rather than inside
+ * the AI panel: it has to survive the panel being resized or hidden, and it
+ * needs a z-index above the dock.
+ */
+const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
+/* Same reason as the tool gate: the request log floats over the editor and must
+   outlive the AI panel being hidden or resized. */
+const DebugPanel = lazy(() => import('./components/ai/DebugPanel'));
+const NotesPanel = lazy(() => import('./components/ai/NotesPanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
 import { useStore } from './lib/store';
@@ -50,6 +60,7 @@ import { bindDebugListeners } from './lib/debugStore';
 import { bindCliListeners } from './lib/cliStore';
 import { bindWorkspaceListeners } from './lib/workspaceStore';
 import { usePanel } from './lib/panelStore';
+import { useSchedBuka } from './lib/schedStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
 import { useLsp } from './lib/lspStore';
@@ -76,8 +87,50 @@ import './styles/split-editor.css';
 import './styles/history.css';
 import './styles/debug.css';
 import './styles/workspace.css';
+import './styles/devenv.css';
+import './styles/api.css';
+import './styles/sftp.css';
+import './styles/tools.css';
+/*
+ * Loaded after ai.css (which is imported above with the other early styles) so
+ * the compact panel rules win: this file flattens the AI header into one row of
+ * icon buttons and reshapes the input into a single rounded field.
+ */
+import './styles/ai-panel-compact.css';
+/*
+ * The agent trace sits after the compact panel rules: it restyles the same
+ * step rows (one line per action, per-kind accent rail) and has to win.
+ */
+import './styles/ai-trace.css';
+/*
+ * Reasoning ("Thinking") block: replaces the auto-opened italic block with one
+ * folded row that shows a live shimmer and a timer while tokens arrive.
+ */
+import './styles/ai-reasoning.css';
+/*
+ * Streaming states: the thinking dots and the caret that follows the text as it
+ * arrives. After ai.css, which styles the same classes for the older shape.
+ */
+import './styles/ai-streaming.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
+/*
+ * Loaded after index.css on purpose: this file restyles `.modal`,
+ * `.modal-title` and `.modal-body` for the sub-agent and persona dialogs, and
+ * index.css carries the base rules for those same classes. With the import
+ * placed before it, every override lost the cascade and the dialogs kept the
+ * 18px padding and the muted body text.
+ */
+import './styles/subagent-custom.css';
+import './styles/subagent-view.css';
+import './styles/subagent-timeline.css';
+import './styles/ai-icons.css';
+import './styles/tool-gate.css';
+import './styles/ai-debug.css';
+import './styles/sched.css';
+import './styles/notes-todos.css';
+import './styles/model-menu.css';
+import './styles/ai-sesi.css';
 
 import './styles/a11y.css';
 import { useT, tx } from './lib/i18n';
@@ -113,6 +166,7 @@ export default function App() {
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const sidebarHeight = useStore((s) => s.sidebarHeight);
   const pos = useStore((s) => s.settings.sidebar) ?? 'left';
+  const activity = useStore((s) => s.activity);
 
   const zen = useTampilan((s) => s.mode === 'zen');
 
@@ -319,6 +373,10 @@ export default function App() {
 
           usePanel.getState().focusTab('subagents');
           if (!t.visible) t.setVisible(true);
+          break;
+        case 'view.notes':
+          /* Toggle: the same key closes the panel it opened. */
+          useSchedBuka.getState().toggle();
           break;
         case 'view.palette':
           void usePalette.getState().openPalette('command');
@@ -926,8 +984,14 @@ export default function App() {
             </>
           )}
 
-          {/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal. */}
-          {(pos === 'left' || pos === 'right') && sidebarVisible && L.sidebar && (
+          {/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal.
+              Dev Environment, API Client dan SFTP memakai lebar penuh, jadi
+              sidebar-nya (yang isinya null untuk activity itu) tidak perlu
+              mengambil ruang sama sekali. */}
+          {(pos === 'left' || pos === 'right') &&
+            sidebarVisible &&
+            L.sidebar &&
+            !['tools', 'devenv', 'api', 'sftp', 'tests'].includes(activity) && (
             <>
               <aside className="sidebar" style={{ width: sidebarWidth }} aria-label="Sidebar">
                 <Sidebar />
@@ -1044,6 +1108,9 @@ export default function App() {
         <ScmConfirmDialog />
         <CommandPalette />
         <McpToast />
+        <ToolGatePanel />
+        <DebugPanel />
+        <NotesPanel />
         <CrashDialog />
         <NotificationCenter />
         <DeleteConfirmDialog />

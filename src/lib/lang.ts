@@ -94,8 +94,18 @@ export function extLangUntuk(nameOrPath: string | null): ContribLanguage | null 
   const dot = lower.lastIndexOf('.');
   if (dot < 0) return null;
   const ext = lower.slice(dot + 1);
-  
-  if (BY_EXT[ext]) return null;
+
+  /*
+   * The guard is inverted-proof on purpose.
+   *
+   * This used to read `if (BY_EXT[ext]) return null`, which returned `null`
+   * for every extension the app actually knew about — `.ts`, `.js`, `.json` —
+   * and fell through to `bahasaUntukExt` only for unknown ones. No language
+   * extension was ever installed, so the Lezer syntax tree stayed empty, the
+   * minimap had nothing to colour, and the editor's token colours came only
+   * from the LSP overlay. Only known extensions get a language now.
+   */
+  if (!BY_EXT[ext]) return null;
   return bahasaUntukExt(ext);
 }
 

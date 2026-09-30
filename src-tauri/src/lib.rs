@@ -13,6 +13,7 @@ mod cli_ext;
 mod credential;
 mod cron;
 mod dap;
+mod devenv;
 mod diagnostics;
 mod dialogs;
 mod discord_rpc;
@@ -41,6 +42,7 @@ mod pty;
 mod rag;
 mod search;
 mod secrets;
+mod sftp;
 mod settings;
 mod skills;
 mod snippets;
@@ -263,6 +265,27 @@ pub fn run() {
     pty::pty_tail,
             pty::pty_set_paused,
             pty::pty_interrupt,
+            /*
+             * Dev Environment and SFTP.
+             *
+             * Both modules existed as files but were never declared with `mod`
+             * or registered here, so every command they expose answered
+             * "Command not found": SFTP reported the OpenSSH client as missing
+             * and the Dev Environment listed every runtime as not installed.
+             */
+            devenv::devenv_detect_runtimes,
+            devenv::devenv_detect_services,
+            devenv::devenv_service_start,
+            devenv::devenv_service_stop,
+            devenv::devenv_scan_projects,
+            devenv::devenv_open_path,
+            sftp::sftp_available,
+            sftp::sftp_list,
+            sftp::sftp_upload,
+            sftp::sftp_download,
+            sftp::sftp_tunnel_start,
+            sftp::sftp_tunnel_stop,
+            sftp::sftp_tunnel_list,
             ssh::ssh_list,
             ssh::ssh_add,
             ssh::ssh_update,
@@ -350,7 +373,7 @@ pub fn run() {
             ext_pkg::ext_which,
             ext_pkg::ext_exec,
             ext_pkg::extensions_manifests,
-            ext_pkg::extensions_download_vsix,
+            ext_pkg::extensions_download_zext,
             ext_bundled::extensions_write_bundled,
             ext_bundled::extensions_bundled_ids,
             ext_registry::ext_registry_list,
@@ -453,8 +476,8 @@ pub fn run() {
             }
         }),
         Err(e) => {
-            tracing::error!("gagal start: {e:?}");
-            eprintln!("[zephyr] gagal start: {e:?}");
+            tracing::error!("failed start: {e:?}");
+            eprintln!("[zephyr] failed start: {e:?}");
         }
     }
 }

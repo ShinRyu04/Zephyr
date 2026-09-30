@@ -13,6 +13,22 @@ const TerminalPanel = lazy(() => import('./TerminalPanel'));
 export default function Sidebar() {
   const activity = useStore((s) => s.activity);
 
+  /*
+   * Dev Environment, API Client dan SFTP memakai lebar penuh: isinya sudah
+   * punya tata letak sendiri (kartu, kolom ganda) dan tidak punya daftar
+   * yang cocok untuk sidebar. Sebelumnya ketiganya jatuh ke `default` yang
+   * mengembalikan null, jadi sisi kiri tampak kosong selebar sidebar.
+   */
+  if (
+    activity === 'tools' ||
+    activity === 'devenv' ||
+    activity === 'api' ||
+    activity === 'sftp' ||
+    activity === 'tests'
+  ) {
+    return null;
+  }
+
   const isi = (() => {
     switch (activity) {
       case 'explorer':

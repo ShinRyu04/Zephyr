@@ -113,7 +113,7 @@ fn http_get(url: &str, token: &str) -> ZResult<Resp> {
         .header("Accept", "application/vnd.github+json")
         .header("User-Agent", UA)
         .call()
-        .map_err(|e| ZephyrError::Git(format!("tidak bisa menghubungi GitHub: {e}")))?;
+        .map_err(|e| ZephyrError::Git(format!("cannot reach GitHub: {e}")))?;
     let status = r.status().as_u16();
 
     let scopes = r
@@ -149,7 +149,7 @@ fn http_post_form(url: &str, form: &[(&str, &str)]) -> ZResult<Resp> {
         .header("Accept", "application/json")
         .header("User-Agent", UA)
         .send_form(form.iter().map(|(k, v)| (*k, *v)))
-        .map_err(|e| ZephyrError::Git(format!("tidak bisa menghubungi GitHub: {e}")))?;
+        .map_err(|e| ZephyrError::Git(format!("cannot reach GitHub: {e}")))?;
     let status = r.status().as_u16();
     let mut body = r.into_body();
     Ok(Resp {
@@ -242,7 +242,7 @@ pub struct GhUser {
 pub fn gh_set_pat(app: AppHandle, state: State<AppState>, token: String) -> ZResult<GhUser> {
     let t = token.trim().to_string();
     if t.is_empty() {
-        return Err(ZephyrError::InvalidInput("token kosong".into()));
+        return Err(ZephyrError::InvalidInput("token empty".into()));
     }
     let r = http_get(API_USER, &t)?;
     if r.status == 401 {
@@ -415,7 +415,7 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
                 .unwrap_or("")
                 .to_string();
             if token.is_empty() {
-                emit("error", "GitHub tidak mengirim access token");
+                emit("error", "GitHub sent no access token");
                 return;
             }
             let refresh = v
@@ -453,7 +453,7 @@ pub fn gh_login_device(app: AppHandle, state: State<AppState>) -> ZResult<Device
 
             let st = handle.state::<AppState>();
             if save_tokens(&st, &token, Some(&refresh)).is_err() {
-                emit("error", "Gagal menyimpan token");
+                emit("error", "Could not save the token");
                 return;
             }
             let expires_at = expires_in.map(|s| now_secs() + s);
@@ -520,7 +520,7 @@ pub fn gh_test(state: State<AppState>) -> ZResult<GhTest> {
             return Ok(GhTest {
                 ok: false,
                 user: None,
-                message: "Belum login GitHub".into(),
+                message: "Not signed in to GitHub".into(),
                 status: None,
             })
         }

@@ -1,4 +1,4 @@
-import { openPath } from '@tauri-apps/plugin-opener';
+
 import * as cmd from '../../lib/commands';
 import { useStore } from '../../lib/store';
 import { useT, UI_LANGS } from '../../lib/i18n';
@@ -185,7 +185,7 @@ export function GeneralSection() {
         <button
           className="btn"
           data-testid="general-open-data"
-          onClick={() => void openPath(dataDir).catch(() => {})}
+          onClick={() => void cmd.revealPath(dataDir).catch(() => {})}
         >
           {tr('general.openDataFolder')}
         </button>

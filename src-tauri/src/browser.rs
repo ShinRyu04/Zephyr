@@ -22,7 +22,7 @@ pub fn browser_probe(url: String) -> ZResult<ProbeResult> {
     let u = url.trim().to_string();
     if !(u.starts_with("http://") || u.starts_with("https://")) {
         return Err(ZephyrError::InvalidInput(
-            "URL harus diawali http:// atau https://".into(),
+            "the URL must start with http:// or https://".into(),
         ));
     }
     let started = std::time::Instant::now();
@@ -56,7 +56,7 @@ pub fn browser_probe(url: String) -> ZResult<ProbeResult> {
                 reachable: false,
                 status: None,
                 embeddable: false,
-                reason: format!("Tidak bisa dihubungi: {e}"),
+                reason: format!("Cannot be reached: {e}"),
                 header: None,
                 ms: started.elapsed().as_millis() as u64,
             })
@@ -90,7 +90,7 @@ pub fn decide(xfo: Option<&str>, csp: Option<&str>) -> (bool, String, Option<Str
         if low.contains("sameorigin") {
             return (
                 false,
-                "Server mengirim X-Frame-Options: SAMEORIGIN — hanya boleh di-embed oleh dirinya sendiri.".into(),
+                "the server sent X-Frame-Options: SAMEORIGIN — it only allows embedding by itself.".into(),
                 Some(format!("X-Frame-Options: {v}")),
             );
         }

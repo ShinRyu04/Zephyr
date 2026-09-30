@@ -16,6 +16,8 @@ const NAV_KEY: Record<SectionId, string> = {
   lsp: 'settings.lsp',
   scm: 'settings.scm',
   mcp: 'settings.mcp',
+  tests: 'settings.tests',
+  devenv: 'settings.devenv',
   security: 'settings.security',
   accessibility: 'settings.accessibility',
   ssh: 'settings.ssh',
@@ -114,6 +116,23 @@ export function NavIcon({ id }: { id: SectionId }) {
         <svg {...p}>
           <path d="M2.6 11.4V6.2a2 2 0 012-2h6.8a2 2 0 012 2v5.2" {...st} />
           <path d="M5.4 11.4V7.6M8 11.4V6.8M10.6 11.4V8.4" {...st} />
+        </svg>
+      );
+    case 'devenv':
+      return (
+        <svg {...p}>
+          <rect x="1.8" y="2.4" width="12.4" height="4.2" rx="1.1" {...st} />
+          <rect x="1.8" y="9.4" width="12.4" height="4.2" rx="1.1" {...st} />
+          <circle cx="4.4" cy="4.5" r="0.8" fill="currentColor" />
+          <circle cx="4.4" cy="11.5" r="0.8" fill="currentColor" />
+        </svg>
+      );
+    case 'tests':
+      return (
+        <svg {...p}>
+          <path d="M6.2 2.4h3.6v2.4H6.2z" {...st} />
+          <path d="M6.2 3.6H4.4v10h7.2v-10H9.8" {...st} />
+          <path d="M6 9.2l1.4 1.4 2.8-2.8" {...st} />
         </svg>
       );
     case 'security':

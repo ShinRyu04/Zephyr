@@ -1,4 +1,5 @@
 use crate::adapters;
+use crate::adapters::xml_tools;
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
@@ -188,11 +189,11 @@ fn emit_chunk(app: &AppHandle, payload: Value) {
 
 fn friendly(status: u16) -> String {
     match status {
-        400 => "Permintaan ditolak (400) — model atau isi pesan tidak valid".into(),
+        400 => "Request rejected (400) — the model or the message body is invalid".into(),
         401 | 403 => "API key salah/kadaluarsa (401) — perbarui di Settings → Model AI".into(),
-        404 => "Model tidak ditemukan (404) — periksa nama model & base URL".into(),
+        404 => "Model not found (404) — check the model name and base URL".into(),
         413 => "Pesan terlalu besar (413) — kurangi lampiran file".into(),
-        429 => "Rate limit (429) — tunggu sebentar lalu coba lagi".into(),
+        429 => "Rate limited (429) — wait a moment and try again".into(),
         500..=599 => format!("Server provider bermasalah ({status}) — coba lagi nanti"),
         s => format!("Provider menjawab {s}"),
     }
@@ -211,16 +212,16 @@ pub fn ai_chat(
     effort: Option<ReasoningEffort>,
 ) -> ZResult<()> {
     if id.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("id kosong".into()));
+        return Err(ZephyrError::InvalidInput("id empty".into()));
     }
     if messages.is_empty() {
-        return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
+        return Err(ZephyrError::InvalidInput("no message".into()));
     }
 
     let key = crate::secrets::key_for(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
-            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+            "No API key for {provider} yet — add one in Settings → AI Models"
         )));
     }
 
@@ -280,7 +281,7 @@ pub fn ai_chat(
                          atau Base URL di Settings → Model AI ({teks})"
                     )
                 } else {
-                    format!("Tidak bisa menghubungi provider: {teks}")
+                    format!("Cannot reach the provider: {teks}")
                 };
                 emit_chunk(&handle, json!({ "id": req_id, "err": pesan }));
                 return;
@@ -369,7 +370,7 @@ pub fn ai_chat(
         if !sent_any && !cancel.load(Ordering::Relaxed) {
             emit_chunk(
                 &handle,
-                json!({ "id": req_id, "err": "Provider tidak mengirim teks apa pun" }),
+                json!({ "id": req_id, "err": "The provider sent no text at all" }),
             );
         }
         emit_chunk(&handle, json!({ "id": req_id, "done": true }));
@@ -396,13 +397,13 @@ pub async fn ai_tool_chat(
     effort: Option<ReasoningEffort>,
 ) -> ZResult<AiToolResult> {
     if messages.is_empty() {
-        return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
+        return Err(ZephyrError::InvalidInput("no message".into()));
     }
 
     let key = crate::secrets::key_for(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
-            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+            "No API key for {provider} yet — add one in Settings → AI Models"
         )));
     }
 
@@ -453,7 +454,7 @@ pub async fn ai_tool_chat(
                          atau Base URL di Settings → Model AI ({teks})"
                     )
                 } else {
-                    format!("Tidak bisa menghubungi provider: {teks}")
+                    format!("Cannot reach the provider: {teks}")
                 };
                 Err(pesan)
             }
@@ -481,7 +482,7 @@ pub async fn ai_tool_chat(
     }
 
     let v: Value = serde_json::from_str(&raw)
-        .map_err(|e| ZephyrError::InvalidInput(format!("jawaban provider tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid provider response: {e}")))?;
     Ok(adapters::parse_tool_response(&prov, &v))
 }
 
@@ -499,15 +500,15 @@ pub fn ai_tool_chat_stream(
     effort: Option<ReasoningEffort>,
 ) -> ZResult<()> {
     if id.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("id kosong".into()));
+        return Err(ZephyrError::InvalidInput("id empty".into()));
     }
     if messages.is_empty() {
-        return Err(ZephyrError::InvalidInput("tidak ada pesan".into()));
+        return Err(ZephyrError::InvalidInput("no message".into()));
     }
     let key = crate::secrets::key_for(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
-            "Belum ada API key untuk {provider} — isi di Settings → Model AI"
+            "No API key for {provider} yet — add one in Settings → AI Models"
         )));
     }
 
@@ -580,6 +581,8 @@ pub fn ai_tool_chat_stream(
         }
 
         let mut acc = adapters::StreamAcc::new(&prov);
+        /* Text held back because its tail might still grow into a tool tag. */
+        let mut tahan = String::new();
         let mut reader = BufReader::new(resp.into_body().into_reader());
         let mut buf_line = String::new();
 
@@ -626,11 +629,40 @@ pub fn ai_tool_chat_stream(
                 emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
             }
             if let Some(text) = acc.feed(&v) {
-                emit_chunk(&handle, json!({ "id": req_id, "text": text }));
+                /*
+                 * Hold back a tail that may still become a tool tag.
+                 *
+                 * The parser only sees complete markup, and it runs at `finish`
+                 * — but streaming already sent every chunk to the UI by then,
+                 * so a tag being written out arrived as prose and stayed on
+                 * screen. Keeping a possible partial tag in the buffer means
+                 * the parser gets first refusal; whatever it does not consume
+                 * is flushed below as ordinary text.
+                 */
+                tahan.push_str(&text);
+                if !xml_tools::mungkin_awal_tag(&tahan) {
+                    emit_chunk(&handle, json!({ "id": req_id, "text": tahan.clone() }));
+                    tahan.clear();
+                }
             }
         }
 
         let (content, tool_calls) = acc.finish();
+        /*
+         * Flush whatever is still held.
+         *
+         * If the tail was a real tag the parser has consumed it and the reply
+         * text no longer contains it; if it was ordinary prose (`2 < 3`) the
+         * hold was unnecessary and the text is owed to the reader now. Either
+         * way nothing stays buffered.
+         */
+        if !tahan.is_empty() {
+            let bersih = xml_tools::bersihkan_teks(&tahan);
+            if !bersih.is_empty() {
+                emit_chunk(&handle, json!({ "id": req_id, "text": bersih }));
+            }
+            tahan.clear();
+        }
         let dibatalkan = cancel.load(Ordering::Relaxed);
         emit_chunk(
             &handle,
@@ -661,14 +693,14 @@ fn pesan_koneksi(e: &ureq::Error) -> String {
         )
     } else if dns {
         format!(
-            "Nama host provider tidak bisa di-resolve. Periksa Base URL di Settings - Model AI. ({teks})"
+            "The provider host name does not resolve. Check the base URL in Settings - AI Models. ({teks})"
         )
     } else if refused {
         format!(
             "Provider menolak koneksi. Periksa Base URL dan apakah servernya hidup. ({teks})"
         )
     } else {
-        format!("Tidak bisa menghubungi provider: {teks}")
+        format!("Cannot reach the provider: {teks}")
     }
 }
 

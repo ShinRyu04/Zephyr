@@ -70,14 +70,23 @@ class Cdp {
       window[${JSON.stringify(slot)}] = { done: false, value: null, error: null };
       (async () => {
         const s = window.__ZEPHYR__.getState();
+        // wait() is the helper every harness body uses to yield to the renderer.
+        // This copy of runAsync lacked it, so any body calling await wait(ms)
+        // threw ReferenceError and the whole suite reported an opaque failure.
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         ${body}
       })().then(
         (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
         (e) => {
-          window[${JSON.stringify(slot)}] = {
-            done: true, value: null,
-            error: (e && (e.message || e.code)) ? JSON.stringify(e) : String(e),
-          };
+          // JSON.stringify(Error) is "{}" - message and stack are not
+          // enumerable, which is how this harness printed an empty error
+          // object and hid the real cause. Read message/stack first.
+          const pesan = e
+            ? (e.stack ? String(e.stack).slice(0, 600)
+               : e.message ? String(e.message)
+               : (typeof e === 'object' ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : String(e)))
+            : 'unknown';
+          window[${JSON.stringify(slot)}] = { done: true, value: null, error: pesan };
         },
       );
       return 'started';
@@ -152,12 +161,25 @@ const main = async () => {
       emptyState: !!document.querySelector('.empty-state'),
     })`),
   );
-  check('F02-V4a', sh.activityButtons === 9, `ActivityBar ${sh.activityButtons} ikon`);
+  // 10 since the four view icons (devenv/api/sftp/tests) were folded into one
+  // Tools entry; the rail is explorer/search/outline/scm/debug/ai/terminal/
+  // extensions/tools/settings.
+  check('F02-V4a', sh.activityButtons === 10, `ActivityBar ${sh.activityButtons} ikon`);
   check('F02-V6a', /Zephyr v\d+\.\d+\.\d+/.test(sh.statusbar), `StatusBar "${sh.statusbar}"`);
+  /*
+   * The terminal resizer only exists while the panel is open, so the harness
+   * has to open it first. Asserting on whatever state the previous harness left
+   * behind made this check depend on run order.
+   */
+  const termBuka = await cdp.runAsync(`
+    const t = window.__ZEPHYR_TERM__;
+    if (t) { t.getState().setVisible(true); await wait(600); }
+    return !!document.querySelector('.term-resizer');
+  `);
   check(
     'F02-V5a',
-    sh.resizer && sh.terminalResizer,
-    `divider sidebar=${sh.resizer}, divider terminal=${sh.terminalResizer}`,
+    sh.resizer && termBuka,
+    `divider sidebar=${sh.resizer}, divider terminal=${termBuka}`,
   );
   check('F03-V0', sh.emptyState, 'empty state tampil saat tanpa tab');
 
@@ -592,6 +614,14 @@ const main = async () => {
 };
 
 main().catch((e) => {
-  console.error('verify error:', e.message);
+  // An Error thrown from the page arrives as a plain object with no message, so
+  // `e.message` printed `{}` and hid the cause. Show the shape instead.
+  const detail =
+    e && e.message
+      ? e.message
+      : e instanceof Error
+        ? e.stack
+        : JSON.stringify(e, Object.getOwnPropertyNames(e ?? {}), 2);
+  console.error('verify error:', detail);
   process.exit(2);
 });

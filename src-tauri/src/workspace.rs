@@ -79,7 +79,7 @@ fn baca_trust(state: &AppState) -> HashMap<String, Trust> {
         return HashMap::new();
     };
     let Ok(v) = serde_json::from_str::<Value>(&teks) else {
-        tracing::warn!(path = %p.to_string_lossy(), "trust.json rusak, diabaikan");
+        tracing::warn!(path = %p.to_string_lossy(), "trust.json rusak, ignored");
         return HashMap::new();
     };
     let mut out = HashMap::new();
@@ -110,7 +110,7 @@ fn tulis_trust(state: &AppState, map: &HashMap<String, Trust>) -> ZResult<()> {
     let teks = serde_json::to_string_pretty(&Value::Object(obj))
         .map_err(|e| ZephyrError::Internal(format!("serialisasi trust: {e}")))?;
     std::fs::write(&p, teks)
-        .map_err(|e| ZephyrError::Io(format!("tulis trust.json gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("writing trust.json failed: {e}")))?;
     Ok(())
 }
 
@@ -165,7 +165,7 @@ pub fn ensure_trusted(state: &AppState, apa: &str) -> ZResult<()> {
         _ => "folder ini belum dipercaya",
     };
     Err(ZephyrError::Permission(format!(
-        "{apa} diblokir: {sebab}. Buka \"Manage Workspace Trust\" lalu pilih Trust untuk mengaktifkan."
+        "{apa} diblokir: {sebab}. Buka \"Manage Workspace Trust\" then choose Trust to turn it on."
     )))
 }
 
@@ -174,7 +174,7 @@ pub fn ensure_trusted_path(state: &AppState, path: &Path, apa: &str) -> ZResult<
         return Ok(());
     }
     Err(ZephyrError::Permission(format!(
-        "{apa} diblokir untuk {}: folder belum dipercaya",
+        "{apa} is blocked for {}: the folder is not trusted yet",
         path.to_string_lossy()
     )))
 }
@@ -185,7 +185,7 @@ pub fn baca_workspace_file(path: &Path) -> ZResult<WorkspaceFile> {
     let bersih = crate::tasks::buang_komentar(&teks);
     serde_json::from_str::<WorkspaceFile>(&bersih).map_err(|e| {
         ZephyrError::InvalidInput(format!(
-            "{} bukan .code-workspace yang sah: {e}",
+            "{} is not a valid .code-workspace: {e}",
             path.to_string_lossy()
         ))
     })
@@ -414,7 +414,7 @@ pub fn workspace_open_file(
     }
     if dipasang == 0 {
         return Err(ZephyrError::InvalidInput(format!(
-            "tidak ada folder yang bisa dibuka dari {path} (dilewati: {})",
+            "is missing folder yang bisa dibuka dari {path} (dilewati: {})",
             dilewati.join(", ")
         )));
     }
@@ -460,7 +460,7 @@ pub fn workspace_save_file(
 
     if folders.is_empty() {
         return Err(ZephyrError::InvalidInput(
-            "tidak ada root untuk disimpan".into(),
+            "is missing root untuk disimpan".into(),
         ));
     }
 
@@ -585,7 +585,7 @@ pub fn workspace_set_settings(
     patch: Value,
 ) -> ZResult<Value> {
     if !patch.is_object() {
-        return Err(ZephyrError::InvalidInput("patch harus object".into()));
+        return Err(ZephyrError::InvalidInput("the patch must be an object".into()));
     }
     let mut cur = state.workspace_settings().unwrap_or_else(|| json!({}));
     crate::settings::deep_merge_um(&mut cur, &patch);

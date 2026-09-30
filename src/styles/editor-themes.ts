@@ -28,6 +28,23 @@ function themeSpec(): Record<string, Record<string, string>> {
       backgroundColor: v('--gutter-bg'),
       color: v('--gutter-fg'),
       border: 'none',
+      /*
+       * A floor on the number column.
+       *
+       * CodeMirror sizes the gutter to the widest number it currently renders,
+       * so the column grew and shrank as you scrolled and, on a narrow editor,
+       * the leading digits were the part that got cut — "160" read as "60".
+       * Reserving room for four digits plus padding keeps the column still and
+       * the numbers whole; five- and six-digit files still widen past it, which
+       * is the correct behaviour.
+       */
+      minWidth: '2.6em',
+      paddingRight: '6px',
+    },
+    '.cm-lineNumbers .cm-gutterElement': {
+      padding: '0 4px 0 8px',
+      minWidth: '1.6em',
+      textAlign: 'right',
     },
     '.cm-activeLineGutter': {
       backgroundColor: v('--line-active'),
@@ -50,6 +67,47 @@ function themeSpec(): Record<string, Record<string, string>> {
     },
     '.cm-panels': { backgroundColor: v('--bg1'), color: v('--fg0') },
   };
+}
+
+/*
+ * Token colours as concrete values, for canvases that cannot use CSS variables.
+ *
+ * The highlight style below paints the editor with `var(--syntax-*)`, which is
+ * right for DOM and useless for a `<canvas>`: `fillStyle` needs a colour string.
+ * Reading the resolved variables off the document element once per theme keeps
+ * the minimap on the same palette as the code without duplicating it.
+ */
+export const warnaToken = {
+  get keyword() {
+    return baca('--syntax-keyword', '#ff7b72');
+  },
+  get string() {
+    return baca('--syntax-string', '#a5d6ff');
+  },
+  get number() {
+    return baca('--syntax-number', '#79c0ff');
+  },
+  get comment() {
+    return baca('--syntax-comment', '#8b949e');
+  },
+  get fn() {
+    return baca('--syntax-fn', '#d2a8ff');
+  },
+  get type() {
+    return baca('--syntax-type', '#7ee787');
+  },
+  get operator() {
+    return baca('--syntax-operator', '#79c0ff');
+  },
+  get foreground() {
+    return baca('--fg2', '#8b98a5');
+  },
+};
+
+function baca(nama: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(nama).trim();
+  return v || fallback;
 }
 
 export const zephyrHighlight: Extension = syntaxHighlighting(

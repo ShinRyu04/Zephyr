@@ -256,14 +256,22 @@
 
 /* ═════════ Indent guides ═════════ */
 
-/* Guide digambar dengan repeating background-image: nol node DOM tambahan,
-   berapa pun jumlah levelnya. --zig-n = jumlah level, --zig-step = lebar satu
-   level dalam px, --zig-act = level yang disorot (0 = tidak ada). */
+/*
+ * Guides are drawn with a repeating background gradient: no extra DOM nodes at
+ * any nesting level. `--zig-n` is the number of levels, `--zig-step` the width
+ * of one level in px, `--zig-act` the level to highlight (0 = none).
+ *
+ * The stripe uses a dedicated token rather than `--border`: at 1px on a dark
+ * background the border colour is close enough to the editor background that
+ * the guides measured as present in the DOM and invisible on screen. A slightly
+ * stronger colour, plus the gradient repeated over the full line height, is
+ * what makes them read at a glance.
+ */
 .cm-zig {
   background-image: repeating-linear-gradient(
     to right,
-    var(--border) 0,
-    var(--border) 1px,
+    var(--indent-guide, var(--border)) 0,
+    var(--indent-guide, var(--border)) 1px,
     transparent 1px,
     transparent var(--zig-step, 16px)
   );
@@ -292,26 +300,46 @@
 
 /* ═════════ Bracket pair colorization ═════════ */
 
-.cm-zbr-0 {
-  color: var(--bracket-1);
+/*
+ * Six colours that stay apart.
+ *
+ * The old set borrowed the syntax tokens, and three of the six collapsed onto
+ * the same blue (`--bracket-3` and `--bracket-6` were both `--syn-operator`),
+ * so a nested expression showed curly-vs-square brackets in one identical
+ * colour and the feature looked absent.
+ *
+ * These selectors target the span *and* any token span nested inside it. The
+ * syntax highlighter runs on the inner span and would otherwise win: a bracket
+ * decorated here measured as the right colour on the outer element while its
+ * child painted it blue, so the rainbow never reached the screen.
+ */
+.cm-zbr-0,
+.cm-zbr-0 * {
+  color: var(--syn-keyword) !important;
 }
-.cm-zbr-1 {
-  color: var(--bracket-2);
+.cm-zbr-1,
+.cm-zbr-1 * {
+  color: var(--syn-type) !important;
 }
-.cm-zbr-2 {
-  color: var(--bracket-3);
+.cm-zbr-2,
+.cm-zbr-2 * {
+  color: var(--syn-number) !important;
 }
-.cm-zbr-3 {
-  color: var(--bracket-4);
+.cm-zbr-3,
+.cm-zbr-3 * {
+  color: var(--syn-function) !important;
 }
-.cm-zbr-4 {
-  color: var(--bracket-5);
+.cm-zbr-4,
+.cm-zbr-4 * {
+  color: var(--warning) !important;
 }
-.cm-zbr-5 {
-  color: var(--bracket-6);
+.cm-zbr-5,
+.cm-zbr-5 * {
+  color: var(--accent) !important;
 }
-.cm-zbr-bad {
-  color: var(--danger);
+.cm-zbr-bad,
+.cm-zbr-bad * {
+  color: var(--danger) !important;
   text-decoration: underline wavy var(--danger);
   text-underline-offset: 2px;
 }
@@ -454,12 +482,96 @@ body.find-highlight-all .cm-searchMatch-selected {
 
 /* ═════════ Ghost text (A-1) ═════════ */
 
+/*
+ * Inline completion, styled as a suggestion rather than as text.
+ *
+ * Muted grey at 55% read as a rendering glitch — half-visible code the user
+ * might think they had typed. Dimming it *and* tinting it with the accent says
+ * "this is proposed, not written", which is the whole job of ghost text. The
+ * dotted underline marks the exact span that Tab would insert.
+ */
+.cm-ghost-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  pointer-events: none;
+}
+
 .cm-ghost {
-  color: var(--text-muted);
-  opacity: 0.55;
+  color: var(--accent);
+  opacity: 0.62;
   font-style: italic;
   pointer-events: none;
   white-space: pre;
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/*
+ * The accept hint: two labels, each followed by its key caps.
+ *
+ * It sits after the suggestion at a smaller size and much lower contrast, so it
+ * never competes with the suggested text itself — the suggestion is the thing
+ * to read, the hint is the thing to glance at once.
+ */
+.cm-ghost-wrap {
+  position: relative;
+}
+
+.cm-ghost-hint {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  background: var(--surface-1, #181b20);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.2;
+  z-index: 100;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.cm-ghost-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  user-select: none;
+  font-size: 10px;
+}
+
+.cm-ghost-nav:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.cm-ghost-hint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cm-ghost-hint kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 13px;
 }
 
 /* Revisi 1.1.10: logo di kiri menubar. Menubar sendiri adalah drag region,
@@ -575,7 +687,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .http-method {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   padding: 1px 5px;
@@ -614,7 +726,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .http-code {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-weight: 700;
 }
 
@@ -664,7 +776,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11.5px;
   min-height: 0;
 }
@@ -830,7 +942,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border-radius: 3px;
   font: inherit;
   font-size: 10.5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   padding: 1px 4px;
   min-width: 0;
 }
@@ -862,7 +974,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border-radius: 4px;
   font: inherit;
   font-size: 11px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   padding: 3px 4px;
   flex: 0 0 auto;
 }
@@ -875,7 +987,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border-radius: 4px;
   font: inherit;
   font-size: 11.5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   padding: 3px 6px;
   min-width: 0;
 }
@@ -924,7 +1036,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 4px 6px;
   resize: vertical;
@@ -977,7 +1089,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border-radius: 4px;
   font: inherit;
   font-size: 11.5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   padding: 3px 6px;
 }
 
@@ -995,7 +1107,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border-radius: 9px;
   font: inherit;
   font-size: 10.5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   padding: 1px 8px;
   cursor: pointer;
 }
@@ -1039,7 +1151,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 .tun-item.is-hidup .tun-dot { color: var(--ok, #3fb950); }
 
 .tun-port-label {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
 }
@@ -1049,7 +1161,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   align-items: center;
   gap: 6px;
   margin-top: 5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   word-break: break-all;
 }
@@ -1132,7 +1244,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 0 5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
 }
 
 .test-catatan {
@@ -1144,7 +1256,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 .test-perintah {
   display: block;
   margin-top: 4px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-muted);
   word-break: break-all;
@@ -1189,7 +1301,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 .test-run-out {
   grid-column: 1 / -1;
   margin: 3px 0 0;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-muted);
   max-height: 110px;
@@ -1311,7 +1423,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .devenv-ver-nama {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
 }
@@ -1323,7 +1435,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .devenv-hint code {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   color: var(--text);
 }
 
@@ -1352,7 +1464,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .devenv-port {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-muted);
 }
@@ -1408,7 +1520,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 3px 6px;
 }
@@ -1462,7 +1574,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   cursor: pointer;
   font-size: 11px;
   text-align: left;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
 }
 
 .db-tabel-item:hover {
@@ -1497,7 +1609,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 4px 6px;
   resize: vertical;
@@ -1542,7 +1654,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 
 .db-table {
   border-collapse: collapse;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   white-space: nowrap;
 }
@@ -1650,7 +1762,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 3px 6px;
 }
@@ -1693,7 +1805,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
 }
 
 .sftp-nama.is-dir {
@@ -1702,7 +1814,7 @@ body.find-highlight-all .cm-searchMatch-selected {
   color: var(--accent);
   cursor: pointer;
   text-align: left;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 0;
 }
@@ -1841,7 +1953,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .peek-path {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1851,7 +1963,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .peek-baris {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   overflow: auto;
   padding: 4px 0;
@@ -1894,7 +2006,14 @@ body.find-highlight-all .cm-searchMatch-selected {
      Menu Bar tidak ada (lihat .tanpa-menubar di bawah). */
   top: 34px;
   right: 118px;
-  z-index: 80;
+  /*
+   * Above the AI dock, the tool gate and the debug drawer.
+   *
+   * Those panels sit in the 600s, and at `z-index: 80` this menu rendered
+   * UNDERNEATH the AI header — the message count and the tool counter showed
+   * through the popup, which read as a layout bug rather than a stacking one.
+   */
+  z-index: 660;
   width: 268px;
   max-height: calc(100vh - 60px);
   overflow-y: auto;
@@ -1966,7 +2085,7 @@ body.find-highlight-all .cm-searchMatch-selected {
 }
 
 .lm-kbd {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 9.5px;
   color: var(--text-muted);
   background: var(--bg);

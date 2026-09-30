@@ -80,7 +80,7 @@ fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
      */
     if !cwd.is_dir() {
         return Err(ZephyrError::Git(format!(
-            "folder tidak ditemukan: {}",
+            "folder not found: {}",
             cwd.display()
         )));
     }
@@ -104,9 +104,9 @@ fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
 
     let child = cmd.spawn().map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
-            ZephyrError::Git("git tidak ditemukan di PATH — pasang Git for Windows".into())
+            ZephyrError::Git("git was not found on PATH — install Git for Windows".into())
         } else {
-            ZephyrError::Git(format!("gagal menjalankan git: {e}"))
+            ZephyrError::Git(format!("running git failed: {e}"))
         }
     })?;
     let pid = child.id();
@@ -122,11 +122,11 @@ fn run_git_in(cwd: &Path, args: &[&str], extra: &[String]) -> ZResult<GitOut> {
             stdout: String::from_utf8_lossy(&out.stdout).to_string(),
             stderr: String::from_utf8_lossy(&out.stderr).to_string(),
         }),
-        Ok(Err(e)) => Err(ZephyrError::Git(format!("git gagal: {e}"))),
+        Ok(Err(e)) => Err(ZephyrError::Git(format!("git failed: {e}"))),
         Err(_) => {
             kill_tree(pid);
             Err(ZephyrError::Git(format!(
-                "git tidak selesai dalam {}s (dihentikan)",
+                "git did not finish within {}s (dihentikan)",
                 TIMEOUT.as_secs()
             )))
         }
@@ -167,7 +167,7 @@ fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -
             progress(app, op, "done");
         }
         Err(e) => {
-            tracing::warn!(op, ms, code = e.code(), "git gagal: {e}");
+            tracing::warn!(op, ms, code = e.code(), "git failed: {e}");
             progress(app, op, "error");
         }
     }
@@ -177,7 +177,7 @@ fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -
 fn ws(state: &AppState) -> ZResult<PathBuf> {
     let dir = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::Git("belum ada workspace terbuka".into()))?;
+        .ok_or_else(|| ZephyrError::Git("no workspace is open".into()))?;
 
     /*
      * Workspace bisa saja sudah tidak ada di disk — folder dipindah/dihapus
@@ -188,7 +188,7 @@ fn ws(state: &AppState) -> ZResult<PathBuf> {
      */
     if !dir.is_dir() {
         return Err(ZephyrError::Git(format!(
-            "folder workspace tidak ditemukan: {} — buka ulang folder proyek",
+            "workspace folder not found: {} — buka ulang folder proyek",
             dir.display()
         )));
     }
@@ -229,7 +229,7 @@ fn clean_err(stderr: &str, stdout: &str) -> String {
         .collect::<Vec<_>>()
         .join(" · ");
     let msg = if msg.is_empty() {
-        "perintah git gagal tanpa pesan".to_string()
+        "the git command failed with no message".to_string()
     } else {
         msg
     };
@@ -465,11 +465,11 @@ fn non_empty(paths: &[String]) -> ZResult<Vec<&str>> {
         .filter(|s| !s.is_empty())
         .collect();
     if v.is_empty() {
-        return Err(ZephyrError::InvalidInput("tidak ada path".into()));
+        return Err(ZephyrError::InvalidInput("is missing path".into()));
     }
 
     if v.iter().any(|p| p.starts_with('-')) {
-        return Err(ZephyrError::InvalidInput("path tidak valid".into()));
+        return Err(ZephyrError::InvalidInput("invalid path".into()));
     }
     Ok(v)
 }
@@ -505,7 +505,7 @@ pub fn git_unstage(state: State<AppState>, paths: Vec<String>) -> ZResult<()> {
 pub fn git_commit(state: State<AppState>, message: String) -> ZResult<String> {
     let msg = message.trim().to_string();
     if msg.is_empty() {
-        return Err(ZephyrError::InvalidInput("pesan commit kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty commit message".into()));
     }
 
     let mut extra: Vec<String> = Vec::new();
@@ -699,7 +699,7 @@ pub fn git_branches(state: State<AppState>) -> ZResult<GitBranches> {
 fn valid_branch_name(name: &str) -> ZResult<String> {
     let n = name.trim();
     if n.is_empty() {
-        return Err(ZephyrError::InvalidInput("nama branch kosong".into()));
+        return Err(ZephyrError::InvalidInput("nama branch empty".into()));
     }
 
     if n.starts_with('-')
@@ -719,7 +719,7 @@ fn valid_branch_name(name: &str) -> ZResult<String> {
         || n.ends_with('.')
     {
         return Err(ZephyrError::InvalidInput(format!(
-            "nama branch tidak valid: {n}"
+            "nama branch is not valid: {n}"
         )));
     }
     Ok(n.to_string())
@@ -774,7 +774,7 @@ pub fn git_delete_branch(state: State<AppState>, name: String) -> ZResult<()> {
 pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> ZResult<String> {
     let p = path.trim();
     if p.is_empty() || p.starts_with('-') {
-        return Err(ZephyrError::InvalidInput("path tidak valid".into()));
+        return Err(ZephyrError::InvalidInput("invalid path".into()));
     }
     let staged = staged.unwrap_or(false);
     let args: Vec<&str> = if staged {
@@ -815,7 +815,7 @@ fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
         Some(n) if n >= 1024 * 1024 => format!("{:.1} MB", n as f64 / 1024.0 / 1024.0),
         Some(n) if n >= 1024 => format!("{} KB", n / 1024),
         Some(n) => format!("{n} B"),
-        None => "ukuran tidak diketahui".to_string(),
+        None => "ukuran unknown".to_string(),
     };
 
     let index_line = raw
@@ -1057,7 +1057,7 @@ pub fn git_stash_drop(state: State<AppState>, index: u32) -> ZResult<bool> {
 #[tauri::command(async)]
 pub fn git_rebase(state: State<AppState>, onto: String) -> ZResult<String> {
     if onto.trim().is_empty() || onto.starts_with('-') {
-        return Err(ZephyrError::InvalidInput("nama branch tidak valid".into()));
+        return Err(ZephyrError::InvalidInput("nama branch is not valid".into()));
     }
     git(&state, &["rebase", &onto])
 }
@@ -1089,7 +1089,7 @@ pub fn git_conflict_read(state: State<AppState>, path: String) -> ZResult<Vec<Co
     let isi = {
         let ws = state
             .workspace_path()
-            .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
         let full = ws.join(&rel);
         std::fs::read_to_string(crate::paths::long_path(&full))
             .map_err(|e| ZephyrError::NotFound(format!("baca {rel}: {e}")))?
@@ -1157,7 +1157,7 @@ pub fn git_rebase_abort(state: State<AppState>) -> ZResult<String> {
 pub fn git_rebase_status(state: State<AppState>) -> ZResult<bool> {
     let ws = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
     let git_dir = ws.join(".git");
     Ok(git_dir.join("rebase-merge").exists() || git_dir.join("rebase-apply").exists())
 }

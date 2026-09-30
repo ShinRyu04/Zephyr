@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
 import { useT } from '../../lib/i18n';
 import {
+  baseUrlEfektif,
   ALL_MODELS,
   fmtCtx,
   findModel,
@@ -12,8 +13,9 @@ import {
   PROVIDERS,
   PROVIDER_BY_ID,
   ProviderLogo,
-  type ProviderInfo,
+  ModelLogo,
 } from '../../lib/modelCatalog';
+import AiIkon from './AiIkon';
 
 const LS_SAVED = 'zephyr.ai.custommodels.v1';
 
@@ -60,28 +62,35 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
 
   const ikutChat = sub && !model.trim();
 
-  const [tahap, setTahap] = useState<'provider' | 'model'>('provider');
-
-  const [dipilih, setDipilih] = useState<string>('');
   const [cari, setCari] = useState('');
+
+  /* Which provider groups are folded shut. The active provider opens by
+     default, so the current model is visible the moment the menu opens. */
+  const [bukaGrup, setBukaGrup] = useState<Record<string, boolean>>({});
   const [typed, setTyped] = useState('');
   const [saved, setSaved] = useState<Record<string, string[]>>(loadSaved);
 
   const [remote, setRemote] = useState<Record<string, string[]>>({});
   const [fetching, setFetching] = useState(false);
 
+  const baseUrlOv = useStore((s) => s.settings.models.providers);
+
   const efektif = ikutChat ? findModel(aiModel, aiProvider) : findModel(model, provider || undefined);
-  const hasKey = keys.some((k) => k.provider === efektif.provider && k.hasKey);
-
-  const baseUrl =
-    (useStore.getState().settings.models.providers ?? {})[efektif.provider]?.baseUrl ||
-    efektif.baseUrl;
-
   const adaKey = (id: string) => keys.some((k) => k.provider === id && k.hasKey);
 
-  const providerSiap: ProviderInfo[] = useMemo(
-    () => PROVIDERS.filter((p) => keys.some((k) => k.provider === p.id && k.hasKey) || p.freeText),
-    [keys],
+  // A stored key is not enough on its own: without an endpoint there is nowhere
+  // to send the request. `custom` ships an empty base URL on purpose, so before
+  // this it was listed - and badged "key saved" - while every send failed.
+  const baseUrl = baseUrlEfektif(efektif.provider, baseUrlOv);
+
+  // Same rule for the picker: a provider is offered only when it can actually
+  // send - key present AND an endpoint to send to.
+  const providerSiap = useMemo(
+    () =>
+      PROVIDERS.filter(
+        (p) => adaKey(p.id) && baseUrlEfektif(p.id, baseUrlOv).length > 0,
+      ),
+    [keys, baseUrlOv],
   );
   const providerTersembunyi = PROVIDERS.length - providerSiap.length;
 
@@ -107,19 +116,42 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   }, [open, setOpen]);
 
   useEffect(() => {
-    if (open) {
-      setTahap('provider');
-      setCari('');
-      setDipilih(efektif.provider);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) setCari('');
   }, [open]);
 
+  /*
+   * Pull the key list as soon as the selector mounts, not when a request is
+   * sent.
+   *
+   * The provider list is built from `keys`, so an empty store meant the menu
+   * opened with no providers at all and only filled in after the first send
+   * happened to call loadKeys — the "custom provider shows up late" symptom.
+   */
   useEffect(() => {
-    if (open && tahap === 'model' && PROVIDER_BY_ID.get(dipilih)?.freeText && !MODEL_BY_ID.has(model))
-      setTyped(model);
+    void useAi.getState().loadKeys();
+  }, []);
+
+  /*
+   * Fetch the live model list the moment the menu opens.
+   *
+   * `loadRemote` only ran from the refresh button in the footer, so a user who
+   * never pressed it saw the static catalogue alone — for `custom` that is a
+   * single placeholder row ("Type the model name"), which reads as "my models
+   * are missing" even though the provider serves eighteen of them. Fetching on
+   * open costs one request per open and makes the list correct by default.
+   *
+   * `remote` is checked first so reopening the menu does not re-hit the API for
+   * a list already in memory.
+   */
+  useEffect(() => {
+    if (!open || providerSiap.length === 0) return;
+    const belum = providerSiap.filter((p) => (remote[p.id]?.length ?? 0) === 0);
+    if (belum.length === 0) return;
+    void (async () => {
+      for (const p of belum) await loadRemote(p.id);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tahap, dipilih]);
+  }, [open, providerSiap]);
 
   const loadRemote = async (p: string) => {
     if (fetching) return;
@@ -132,18 +164,19 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       const ids = await cmd.listModels(p, b);
       setRemote((r) => ({ ...r, [p]: ids }));
     } catch {
-      /* tanpa key / offline - daftar tersimpan tetap tampil */
+      /* no key / offline - the stored list is still shown */
     } finally {
       setFetching(false);
     }
   };
 
-  useEffect(() => {
-    if (open && tahap === 'model' && adaKey(dipilih)) void loadRemote(dipilih);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tahap, dipilih]);
+  /* One refresh pulls the live list for every provider that can send, so the
+     footer action does not depend on which group the user is looking at. */
+  const refreshSemua = async () => {
+    for (const p of providerSiap) await loadRemote(p.id);
+  };
 
-  const commitTyped = (p: string, close?: boolean) => {
+  const commitTyped = (p: string) => {
     const v = typed.trim();
     if (!v) return;
     pakai(v);
@@ -155,41 +188,22 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       try {
         localStorage.setItem(LS_SAVED, JSON.stringify(out));
       } catch {
-        /* kuota penuh - daftar tetap di memori */
+        /* quota full - the list stays in memory */
       }
       return out;
     });
-    if (close) setOpen(false);
+    setTyped('');
+    setOpen(false);
   };
 
   const bukaSettings = () => {
+    setOpen(false);
     setActivity('settings');
     setSettingsOpen(true);
     if (!useStore.getState().sidebarVisible) useStore.getState().toggleSidebar();
     void import('../../lib/settingsStore').then(({ useSettingsUi }) =>
       useSettingsUi.getState().setSection('models'),
     );
-  };
-
-  const modelUntuk = (p: string) => {
-    const info = PROVIDER_BY_ID.get(p);
-
-    const uiRemote = useSettingsUi.getState().remoteModels[p] ?? [];
-    const live = [...(remote[p] ?? []), ...uiRemote].filter(
-      (id, i, a) => id && a.indexOf(id) === i,
-    );
-    const katalog = (info?.models ?? []).map((m) => ({
-      id: m.id,
-      label: m.label,
-      sub: [info?.label, m.ctx ? fmtCtx(m.ctx) : '', tr(m.note ?? '')].filter(Boolean).join(' · '),
-    }));
-    const dariApi = live
-      .filter((id) => !MODEL_BY_ID.has(id))
-      .map((id) => ({ id, label: id, sub: `${tr('from provider')} · API` }));
-    const tersimpan = (saved[p] ?? [])
-      .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id))
-      .map((id) => ({ id, label: id, sub: tr('saved for this provider') }));
-    return [...dariApi, ...tersimpan, ...katalog];
   };
 
   const hasilCari = useMemo(() => {
@@ -202,21 +216,55 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       id: m.id,
       label: m.label,
       provider: m.provider,
-      sub: [PROVIDER_BY_ID.get(m.provider)?.label, m.ctx ? fmtCtx(m.ctx) : '', tr(m.note ?? '')]
-        .filter(Boolean)
-        .join(' · '),
+      note: tr(m.note ?? ''),
+      ctx: m.ctx ? fmtCtx(m.ctx) : '',
     }));
     const live = Object.entries(remote)
       .filter(([p]) => boleh.has(p))
       .flatMap(([p, ids]) =>
         ids
           .filter((id) => !MODEL_BY_ID.has(id) && id.toLowerCase().includes(q))
-          .map((id) => ({ id, label: id, provider: p, sub: `${tr('from provider')} · API` })),
+          .map((id) => ({ id, label: id, provider: p, note: tr('from provider'), ctx: '' })),
       );
     return [...katalog, ...live].slice(0, 40);
   }, [cari, providerSiap, remote, tr]);
 
   const modeCari = cari.trim().length > 0;
+
+  /*
+   * Flat list: every usable model in one scrollable list, grouped under a
+   * provider heading, the way the reference picker does it.
+   *
+   * The two-level drill-down this replaces asked for the provider first and
+   * only then showed models — two clicks plus a back button to answer one
+   * question, and the second screen hid the first. Providers with no key stay
+   * out (they cannot send); the note at the bottom says how many were hidden.
+   */
+  const daftarModel = useMemo(
+    () =>
+      providerSiap.map((p) => {
+        const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
+        const live = [...(remote[p.id] ?? []), ...uiRemote].filter(
+          (id, i, a) => id && a.indexOf(id) === i,
+        );
+        const dariApi = live
+          .filter((id) => !MODEL_BY_ID.has(id))
+          .map((id) => ({ id, label: id, note: tr('from provider'), ctx: '' }));
+        const tersimpan = (saved[p.id] ?? [])
+          .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id))
+          // No note: a saved id IS the model name, and "saved" said nothing
+          // about it that the list position did not already say.
+          .map((id) => ({ id, label: id, note: '', ctx: '' }));
+        const katalog = (p.models ?? []).map((m) => ({
+          id: m.id,
+          label: m.label,
+          note: tr(m.note ?? ''),
+          ctx: m.ctx ? fmtCtx(m.ctx) : '',
+        }));
+        return { provider: p.id, label: p.label, freeText: !!p.freeText, items: [...dariApi, ...tersimpan, ...katalog] };
+      }),
+    [providerSiap, remote, saved, tr],
+  );
 
   return (
     <div className="ai-model-wrap" ref={wrap}>
@@ -227,57 +275,25 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
         data-provider={efektif.provider}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={
-          sub
-            ? ikutChat
-              ? tr('Follow the chat model - click to pick a dedicated subagent model')
-              : `${efektif.providerLabel} - ${baseUrl || tr('base URL not set')}`
-            : `${efektif.providerLabel} - ${baseUrl || tr('base URL not set')}`
-        }
+        title={`${efektif.providerLabel} - ${baseUrl || tr('base URL not set')}`}
         onClick={() => setOpen(!open)}
       >
         <ProviderLogo id={efektif.provider} size={15} />
         <span className="ai-model-name">
           {ikutChat ? tr('Follow chat') : efektif.label}
         </span>
-        {ikutChat && <span className="ai-mi-key is-ok">{tr('follow')}</span>}
-        <svg viewBox="0 0 16 16" className="ai-chev" aria-hidden="true">
-          <path d="M4 6.5l4 3.5 4-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
+        <AiIkon name="chev-up" size={11} />
       </button>
-
-      {/* Status key provider aktif: hijau = siap, oranye = belum ada key.
-          Untuk target subagent, "ikut chat" berarti statusnya ikut provider
-          chat - jadi tombol ini tetap relevan. */}
-      {!sub && (
-        <button
-          className={`ai-keystate${hasKey ? ' is-ok' : ' is-warn'}`}
-          data-testid="ai-keystate"
-          data-haskey={hasKey ? '1' : '0'}
-          title={
-            hasKey
-              ? tr('API key saved for this provider')
-              : tr('No API key yet - click to open Settings → AI Models')
-          }
-          onClick={() => {
-            if (hasKey) return;
-            bukaSettings();
-          }}
-        >
-          <span className="ai-dot" aria-hidden="true" />
-          {hasKey ? tr('key ready') : tr('enter key')}
-        </button>
-      )}
 
       {open && (
         <div
           className="ai-model-menu"
           role="listbox"
           data-testid={`${pfx}-model-menu`}
-          data-tahap={modeCari ? 'cari' : tahap}
+          data-tahap={modeCari ? 'cari' : 'daftar'}
         >
-          {/* Kotak cari: bekerja lintas provider, jadi user yang sudah tahu
-              nama modelnya tidak perlu menelusuri dua tingkat. */}
+          {/* Search works across every provider, so a user who knows the model
+              name does not have to scan the groups. */}
           <div className="ai-mp-cari">
             <input
               type="text"
@@ -307,9 +323,8 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             )}
           </div>
 
-          {/* ── Mode CARI: daftar datar hasil saringan ── */}
-          {modeCari &&
-            (hasilCari.length === 0 ? (
+          {modeCari ? (
+            hasilCari.length === 0 ? (
               <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
                 {tr('No matching model')}
               </div>
@@ -322,186 +337,156 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}`}
                   data-model-item={m.id}
                   data-provider={m.provider}
-                  data-baseurl={PROVIDER_BY_ID.get(m.provider)?.baseUrl}
                   onClick={() => {
                     pakai(m.id);
                     setOpen(false);
                   }}
                 >
-                  <ProviderLogo id={m.provider} size={16} />
-                  <span className="ai-mi-main">
-                    <span className="ai-mi-name">{tr(m.label)}</span>
-                    <span className="ai-mi-sub">{m.sub}</span>
+                  <ModelLogo id={m.id} size={15} />
+                  <span className="ai-mi-name">{tr(m.label)}</span>
+                  <span className="ai-mi-badge">
+                    {[m.ctx, m.note].filter(Boolean).join(' · ')}
                   </span>
+                  {m.id === efektif.id && <span className="pick-check">✓</span>}
                 </button>
               ))
-            ))}
-
-          {/* ── Tingkat PROVIDER ── */}
-          {!modeCari && tahap === 'provider' && (
+            )
+          ) : providerSiap.length === 0 ? (
+            <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
+              {tr('No API key installed yet. Add a key first to pick a model.')}
+              <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={bukaSettings}>
+                {tr('Open Settings → AI Models')}
+              </button>
+            </div>
+          ) : (
             <>
               {sub && (
                 <button
                   type="button"
                   role="option"
                   aria-selected={ikutChat}
-                  className={`ai-model-item ai-mp-item${ikutChat ? ' is-active' : ''}`}
+                  className={`ai-model-item${ikutChat ? ' is-active' : ''}`}
                   data-testid="sub-model-ikut"
                   onClick={() => {
                     void applySettings({ subagent: { model: '', provider: '' } } as never);
                     setOpen(false);
                   }}
                 >
-                  <span className="ai-mi-main">
-                    <span className="ai-mi-name">{tr('Follow the chat model')}</span>
-                    <span className="ai-mi-sub">
-                      {tr('The subagent uses the same model as the conversation')}
-                    </span>
-                  </span>
+                  <span className="ai-mi-name">{tr('Follow the chat model')}</span>
+                  <span className="ai-mi-badge">{tr('same as the conversation')}</span>
+                  {ikutChat && <span className="pick-check">✓</span>}
                 </button>
               )}
-              {providerSiap.length === 0 ? (
-                <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
-                  {tr('No API key installed yet. Add a key first to pick a model.')}
-                  <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={bukaSettings}>
-                    {tr('Open Settings → AI Models')}
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="ai-model-group">{tr('Pick a provider')}</div>
-                  {providerSiap.map((p) => {
-                    const jml = p.freeText
-                      ? (saved[p.id]?.length ?? 0) + p.models.length
-                      : p.models.length;
-                    const aktif = p.id === efektif.provider;
-                    return (
-                      <button
-                        key={`p:${p.id}`}
-                        role="option"
-                        aria-selected={aktif}
-                        className={`ai-model-item ai-mp-item${aktif ? ' is-active' : ''}`}
-                        data-provider-item={p.id}
-                        data-provider={p.id}
-                        onClick={() => {
-                          setDipilih(p.id);
-                          setTahap('model');
+
+              {daftarModel.map((g) => {
+                /*
+                 * Collapsible group, the shape the reference picker uses: a
+                 * chevron, the provider name, and the model count in brackets.
+                 *
+                 * The count is what makes collapsing safe — you can see how much
+                 * is folded away, so a collapsed group does not read as empty.
+                 * The active provider starts open so the current model is
+                 * visible the moment the menu opens.
+                 */
+                const terbuka = bukaGrup[g.provider] ?? g.provider === efektif.provider;
+                return (
+                  <Fragment key={g.provider}>
+                    <button
+                      type="button"
+                      className={`ai-model-group${terbuka ? ' is-open' : ''}`}
+                      data-testid={`${pfx}-model-grup-${g.provider}`}
+                      data-group={g.provider}
+                      aria-expanded={terbuka}
+                      onClick={() => setBukaGrup((s) => ({ ...s, [g.provider]: !terbuka }))}
+                    >
+                      <AiIkon name={terbuka ? 'chev-down' : 'chev-right'} size={11} />
+                      <ProviderLogo id={g.provider} size={13} />
+                      <span className="ai-model-group-nama">{g.label}</span>
+                      <span className="ai-model-group-jml">({g.items.length})</span>
+                    </button>
+
+                    {terbuka &&
+                      g.items.map((m) => (
+                        <button
+                          key={`m:${g.provider}:${m.id}`}
+                          role="option"
+                          aria-selected={m.id === efektif.id}
+                          className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}`}
+                          data-model-item={m.id}
+                          data-provider={g.provider}
+                          data-baseurl={PROVIDER_BY_ID.get(g.provider)?.baseUrl}
+                          onClick={() => {
+                            pakai(m.id);
+                            setOpen(false);
+                          }}
+                        >
+                          <ModelLogo id={m.id} size={15} />
+                          <span className="ai-mi-name">{tr(m.label)}</span>
+                          <span className="ai-mi-badge">{[m.ctx, m.note].filter(Boolean).join(' · ')}</span>
+                          {m.id === efektif.id && <span className="pick-check">✓</span>}
+                        </button>
+                      ))}
+
+                  {/* A provider that accepts free-form ids gets its input inside
+                      its own group, so the typed id lands in the right place
+                      without a separate screen. */}
+                  {g.freeText && (
+                    <div className="ai-model-typed">
+                      <input
+                        type="text"
+                        className="ai-model-input"
+                        data-testid={`${pfx}-model-input`}
+                        placeholder={tr('Type a model name… (Enter)')}
+                        value={typed}
+                        spellCheck={false}
+                        onChange={(e) => setTyped(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitTyped(g.provider);
                         }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        data-testid={`${pfx}-model-pakai`}
+                        disabled={!typed.trim()}
+                        onClick={() => commitTyped(g.provider)}
                       >
-                        <ProviderLogo id={p.id} size={16} />
-                        <span className="ai-mi-main">
-                          <span className="ai-mi-name">{p.label}</span>
-                          <span className="ai-mi-sub">
-                            {jml} {tr('models')}
-                            {p.freeText ? ` · ${tr('free-text entry allowed')}` : ''}
-                          </span>
-                        </span>
-                        <span className={`ai-mi-key${adaKey(p.id) ? ' is-ok' : ''}`}>
-                          {adaKey(p.id) ? 'key' : tr('free')}
-                        </span>
-                        <svg viewBox="0 0 16 16" className="ai-chev" aria-hidden="true">
-                          <path d="M6.5 4l3.5 4-3.5 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                        </svg>
+                        {tr('Use')}
                       </button>
-                    );
-                  })}
-                  {providerTersembunyi > 0 && (
-                    <div className="ai-mp-note" data-testid={`${pfx}-mp-note`}>
-                      {providerTersembunyi} {tr('providers hidden because there is no API key yet.')}
                     </div>
                   )}
-                </>
-              )}
-            </>
-          )}
+                  </Fragment>
+                );
+              })}
 
-          {/* ── Tingkat MODEL ── */}
-          {!modeCari && tahap === 'model' && (
-            <>
-              <div className="ai-mp-head">
-                <button
-                  type="button"
-                  className="ai-mp-back"
-                  data-testid={`${pfx}-mp-back`}
-                  title={tr('Back to the provider list')}
-                  onClick={() => {
-                    setTahap('provider');
-                    setCari('');
-                  }}
-                >
-                  <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M9.5 4L6 8l3.5 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                  </svg>
-                </button>
-                <ProviderLogo id={dipilih} size={14} />
-                <span className="ai-mp-title">{PROVIDER_BY_ID.get(dipilih)?.label}</span>
-                <span className={`ai-mi-key${adaKey(dipilih) ? ' is-ok' : ''}`}>
-                  {adaKey(dipilih) ? 'key' : tr('free')}
-                </span>
-                {adaKey(dipilih) && (
-                  <button
-                    type="button"
-                    className="ai-model-refresh"
-                    data-testid={`${pfx}-model-refresh`}
-                    disabled={fetching}
-                    title={tr('Fetch the latest model list from the provider')}
-                    onClick={() => void loadRemote(dipilih)}
-                  >
-                    {fetching ? '…' : '↻'}
-                  </button>
-                )}
-              </div>
-
-              {PROVIDER_BY_ID.get(dipilih)?.freeText && (
-                <div className="ai-model-typed">
-                  <input
-                    type="text"
-                    className="ai-model-input"
-                    data-testid={`${pfx}-model-input`}
-                    placeholder={tr('Type a model name… (Enter)')}
-                    value={typed}
-                    spellCheck={false}
-                    autoFocus
-                    onChange={(e) => setTyped(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitTyped(dipilih, true);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    data-testid={`${pfx}-model-pakai`}
-                    disabled={!typed.trim()}
-                    onClick={() => commitTyped(dipilih, true)}
-                  >
-                    {tr('Use')}
-                  </button>
+              {providerTersembunyi > 0 && (
+                <div className="ai-mp-note" data-testid={`${pfx}-mp-note`}>
+                  {providerTersembunyi} {tr('providers hidden because there is no API key yet.')}
                 </div>
               )}
-
-              {modelUntuk(dipilih).map((m) => (
-                <button
-                  key={`m:${dipilih}:${m.id}`}
-                  role="option"
-                  aria-selected={m.id === efektif.id}
-                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}`}
-                  data-model-item={m.id}
-                  data-provider={dipilih}
-                  data-baseurl={PROVIDER_BY_ID.get(dipilih)?.baseUrl}
-                  onClick={() => {
-                    pakai(m.id);
-                    setOpen(false);
-                  }}
-                >
-                  <ProviderLogo id={dipilih} size={16} />
-                  <span className="ai-mi-main">
-                    <span className="ai-mi-name">{tr(m.label)}</span>
-                    <span className="ai-mi-sub">{m.sub}</span>
-                  </span>
-                </button>
-              ))}
             </>
           )}
+
+          <div className="mode-div" aria-hidden="true" />
+
+          {/* Footer, the same two actions the reference picker carries: pull the
+              live list, or go edit the providers. */}
+          <button
+            type="button"
+            className="ai-plus-item"
+            data-testid={`${pfx}-model-refresh`}
+            disabled={fetching || providerSiap.length === 0}
+            onClick={() => void refreshSemua()}
+          >
+            <AiIkon name="refresh" />
+            <span className="ai-plus-label">
+              {fetching ? tr('Refreshing…') : tr('Refresh models')}
+            </span>
+          </button>
+          <button type="button" className="ai-plus-item" data-testid={`${pfx}-model-edit`} onClick={bukaSettings}>
+            <AiIkon name="gear" />
+            <span className="ai-plus-label">{tr('Edit models…')}</span>
+          </button>
         </div>
       )}
     </div>

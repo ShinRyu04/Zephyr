@@ -216,7 +216,7 @@ pub fn search_grep(
         }
         None => state
             .workspace_path()
-            .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?,
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?,
     };
 
     let Some(rg) = cari_rg(&state, rg_path.as_deref()) else {
@@ -249,7 +249,7 @@ pub fn search_grep(
         .stdin(Stdio::null());
     let mut anak = cmd
         .spawn()
-        .map_err(|e| ZephyrError::InvalidInput(format!("gagal menjalankan rg: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("failed menjalankan rg: {e}")))?;
     let stdout = anak
         .stdout
         .take()
@@ -417,7 +417,7 @@ pub fn search_replace(
     replacement: String,
 ) -> ZResult<Vec<ReplaceHasil>> {
     if opts.query.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("query kosong".into()));
+        return Err(ZephyrError::InvalidInput("query empty".into()));
     }
 
     let pola = if opts.regex {
@@ -433,7 +433,7 @@ pub fn search_replace(
     let re = regex::RegexBuilder::new(&pola)
         .case_insensitive(!opts.case_sensitive)
         .build()
-        .map_err(|e| ZephyrError::InvalidInput(format!("regex tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid regex: {e}")))?;
 
     let mut out = Vec::with_capacity(files.len());
     for f in files {

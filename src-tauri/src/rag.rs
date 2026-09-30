@@ -40,14 +40,14 @@ pub fn rag_search(
     let base = base_url.trim().trim_end_matches('/');
     if !(base.starts_with("http://") || base.starts_with("https://")) {
         return Err(ZephyrError::InvalidInput(
-            "RAG base URL harus diawali http:// atau https://".into(),
+            "RAG base the URL must start with http:// or https://".into(),
         ));
     }
     if project.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("RAG project belum diisi".into()));
     }
     if query.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("Pertanyaan kosong".into()));
+        return Err(ZephyrError::InvalidInput("Pertanyaan empty".into()));
     }
     let k = k.clamp(1, 20);
 

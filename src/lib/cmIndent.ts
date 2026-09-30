@@ -19,7 +19,19 @@ const indentPlugin = ViewPlugin.fromClass(
       this.deco = this.build(view);
     }
     update(u: ViewUpdate) {
-      if (u.docChanged || u.viewportChanged || u.selectionSet) this.deco = this.build(u.view);
+      /*
+       * Rebuild on every update.
+       *
+       * Both decorations here derive from the text plus the syntax tree, and
+       * neither is versioned the way CodeMirror's own decorations are — so any
+       * update can invalidate them. The previous guard only rebuilt on document
+       * or viewport change, which meant a scroll that reused already-measured
+       * ranges kept the first paint's decorations: the whole file rendered at
+       * depth 0 and rainbow brackets appeared broken. The work is one pass over
+       * the bracket characters of the visible text, which is cheap enough to
+       * simply redo.
+       */
+      this.deco = this.build(u.view);
     }
     build(view: EditorView): DecorationSet {
       const b = new RangeSetBuilder<Decoration>();
@@ -94,33 +106,64 @@ const bracketPlugin = ViewPlugin.fromClass(
       this.deco = this.build(view);
     }
     update(u: ViewUpdate) {
-      if (u.docChanged || u.viewportChanged) this.deco = this.build(u.view);
+      /*
+       * Rebuild on every update, for the same reason the indent guides do: this
+       * decoration depends on text plus syntax tree, and a scroll that reuses
+       * measured ranges would otherwise keep the first paint's depths.
+       */
+      this.deco = this.build(u.view);
     }
     build(view: EditorView): DecorationSet {
       const b = new RangeSetBuilder<Decoration>();
       const tree = syntaxTree(view.state);
+      const doc = view.state.doc;
+      /*
+       * Walk from the start of the document, not from the first visible line.
+       *
+       * The stack was reset for every visible range, so opening a file scrolled
+       * to line 700 began with an empty stack: every closing bracket had nothing
+       * to match and every opening one landed at depth 0, which is why the whole
+       * file rendered in a single colour and rainbow brackets looked broken.
+       * Scanning from line 1 first (cheap — bracket characters only) carries the
+       * real nesting depth into the viewport, then only the visible tokens are
+       * decorated.
+       */
+      const tumpukan: string[] = [];
+      const rangeAtas = view.visibleRanges.length ? view.visibleRanges[0].from : 0;
+
+      const prosesChar = (pos: number, ch: string, catat: boolean) => {
+        const nama = tree.resolveInner(pos, 1).name;
+        if (/String|Comment|Literal/.test(nama)) return;
+        if (BUKA.has(ch)) {
+          if (catat) b.add(pos, pos + 1, kelasKedalaman[tumpukan.length % TINGKAT]);
+          tumpukan.push(ch);
+          return;
+        }
+        const harus = PASANGAN[ch];
+        if (tumpukan.length > 0 && tumpukan[tumpukan.length - 1] === harus) {
+          tumpukan.pop();
+          if (catat) b.add(pos, pos + 1, kelasKedalaman[tumpukan.length % TINGKAT]);
+        } else if (catat) {
+          b.add(pos, pos + 1, kelasSalah);
+        }
+      };
+
+      /* Pass one: depth bookkeeping only, up to the first visible line. */
+      if (rangeAtas > 0) {
+        const awal = doc.sliceString(0, rangeAtas);
+        for (let i = 0; i < awal.length; i++) {
+          const ch = awal[i];
+          if (BUKA.has(ch) || ch in PASANGAN) prosesChar(i, ch, false);
+        }
+      }
+
+      /* Pass two: decorate what is actually on screen. */
       for (const { from, to } of view.visibleRanges) {
-        const teks = view.state.doc.sliceString(from, to);
-        const tumpukan: string[] = [];
+        const teks = doc.sliceString(from, to);
         for (let i = 0; i < teks.length; i++) {
           const ch = teks[i];
           if (!BUKA.has(ch) && !(ch in PASANGAN)) continue;
-          const pos = from + i;
-          const nama = tree.resolveInner(pos, 1).name;
-          if (/String|Comment|Literal/.test(nama)) continue;
-
-          if (BUKA.has(ch)) {
-            b.add(pos, pos + 1, kelasKedalaman[tumpukan.length % TINGKAT]);
-            tumpukan.push(ch);
-          } else {
-            const harus = PASANGAN[ch];
-            if (tumpukan.length > 0 && tumpukan[tumpukan.length - 1] === harus) {
-              tumpukan.pop();
-              b.add(pos, pos + 1, kelasKedalaman[tumpukan.length % TINGKAT]);
-            } else {
-              b.add(pos, pos + 1, kelasSalah);
-            }
-          }
+          prosesChar(from + i, ch, true);
         }
       }
       return b.finish();

@@ -122,10 +122,10 @@ fn dimensi(b: &[u8]) -> (u32, u32) {
 pub fn baca_gambar(path: String) -> ZResult<GambarData> {
     let p = Path::new(&path);
     if !p.is_file() {
-        return Err(ZephyrError::NotFound(format!("file tidak ada: {path}")));
+        return Err(ZephyrError::NotFound(format!("file does not exist: {path}")));
     }
     let meta = std::fs::metadata(p)
-        .map_err(|e| ZephyrError::Io(format!("tidak bisa membaca info file: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("cannot read info file: {e}")))?;
     if meta.len() > MAX_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
             "gambar terlalu besar ({} MB, maks {} MB)",
@@ -135,7 +135,7 @@ pub fn baca_gambar(path: String) -> ZResult<GambarData> {
     }
 
     let bytes =
-        std::fs::read(p).map_err(|e| ZephyrError::Io(format!("gagal membaca file: {e}")))?;
+        std::fs::read(p).map_err(|e| ZephyrError::Io(format!("failed membaca file: {e}")))?;
     let (lebar, tinggi) = dimensi(&bytes);
 
     use base64::Engine;

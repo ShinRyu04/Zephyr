@@ -14,7 +14,7 @@ pub const BIG_FILE_BYTES: u64 = 4 * 1024 * 1024;
 pub fn map_fs_err(e: std::io::Error, path: &str) -> ZephyrError {
     match e.kind() {
         std::io::ErrorKind::NotFound => ZephyrError::NotFound(format!(
-            "{path} tidak ada (mungkin sudah dihapus atau dipindah)"
+            "{path} is missing (mungkin sudah dihapus atau dipindah)"
         )),
         std::io::ErrorKind::PermissionDenied => {
             ZephyrError::Permission(format!("{path} tidak boleh diakses"))
@@ -95,7 +95,7 @@ fn decode_bytes(bytes: &[u8], forced: Option<&str>) -> ZResult<(String, String)>
             }
             other => {
                 return Err(ZephyrError::Encoding(format!(
-                    "encoding tidak dikenal: {other}"
+                    "unknown encoding: {other}"
                 )))
             }
         }
@@ -159,11 +159,11 @@ fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Ve
         }
 
         "utf16le" | "utf16be" => Err(ZephyrError::Encoding(
-            "file UTF-16 dibuka read-only — pakai \"Simpan sebagai UTF-8\" untuk mengeditnya"
+            "file UTF-16 dibuka read-only — pakai \"Simpan sebagai UTF-8\" to edit it"
                 .into(),
         )),
         other => Err(ZephyrError::Encoding(format!(
-            "encoding tidak dikenal: {other}"
+            "unknown encoding: {other}"
         ))),
     }
 }
@@ -240,7 +240,7 @@ pub fn fs_read(
 
     if meta.len() > 32 * 1024 * 1024 {
         return Err(ZephyrError::InvalidInput(
-            "file lebih besar dari 32MB — belum didukung".into(),
+            "file is larger than 32MB — not supported yet".into(),
         ));
     }
 
@@ -280,7 +280,7 @@ pub fn fs_write(
 
     if existing.is_none() && !allow_missing.unwrap_or(false) && was_existing.unwrap_or(false) {
         return Err(ZephyrError::NotFound(format!(
-            "{path} sudah tidak ada di disk"
+            "{path} sudah is missing di disk"
         )));
     }
     let (fallback_enc, fallback_le) = match &existing {
@@ -360,7 +360,7 @@ pub fn fs_create_dir(state: State<AppState>, path: String) -> ZResult<()> {
 #[tauri::command(async)]
 pub fn fs_delete(state: State<AppState>, paths: Vec<String>, recursive: bool) -> ZResult<()> {
     if paths.is_empty() {
-        return Err(ZephyrError::InvalidInput("daftar path kosong".into()));
+        return Err(ZephyrError::InvalidInput("daftar empty path".into()));
     }
     for path in &paths {
         let p = state.resolve_ws(&PathBuf::from(path));

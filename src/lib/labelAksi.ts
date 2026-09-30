@@ -24,6 +24,25 @@ const PETA: Record<string, AksiInfo> = {
   file_edit: { label: 'Edit', jenis: 'tulis', ikon: '✎' },
 
   terminal_exec: { label: 'Run', jenis: 'jalan', ikon: '❯' },
+  shell_exec: { label: 'Run', jenis: 'jalan', ikon: '❯' },
+  browser_open: { label: 'Open page', jenis: 'jalan', ikon: '❯' },
+  browser_click: { label: 'Click', jenis: 'jalan', ikon: '❯' },
+  browser_type: { label: 'Type', jenis: 'jalan', ikon: '❯' },
+  browser_eval: { label: 'Eval in page', jenis: 'jalan', ikon: '❯' },
+  browser_screenshot: { label: 'Screenshot', jenis: 'jalan', ikon: '◫' },
+  browser_read: { label: 'Read page', jenis: 'baca', ikon: '◫' },
+  browser_nav: { label: 'Navigate', jenis: 'jalan', ikon: '❯' },
+  browser_list: { label: 'List pages', jenis: 'cari', ikon: '⌸' },
+  web_search: { label: 'Search web', jenis: 'cari', ikon: '⌸' },
+  web_fetch: { label: 'Fetch page', jenis: 'baca', ikon: '◫' },
+  editor_patch: { label: 'Patch (buffer)', jenis: 'tulis', ikon: '✎' },
+  file_patch: { label: 'Patch', jenis: 'tulis', ikon: '✎' },
+  fs_read: { label: 'Read', jenis: 'baca', ikon: '◫' },
+  fs_write: { label: 'Write', jenis: 'tulis', ikon: '✎' },
+  fs_list: { label: 'List', jenis: 'cari', ikon: '⌸' },
+  editor_open: { label: 'Open in editor', jenis: 'jalan', ikon: '❯' },
+  mcp_call: { label: 'MCP call', jenis: 'lain', ikon: '⑃' },
+  subagent_run: { label: 'Subagent', jenis: 'lain', ikon: '⑃' },
 
   memory_read: { label: 'Read memory', jenis: 'ingat', ikon: '◈' },
   memory_write: { label: 'Write memory', jenis: 'ingat', ikon: '◈' },
@@ -48,8 +67,17 @@ export function infoAksi(nama: string | undefined): AksiInfo {
 
 export function sasaranAksi(args: string | undefined): string {
   if (!args) return '';
+  /*
+   * args arrives as a JSON string from the tool layer, but not every caller
+   * guarantees that: a step restored from a saved session can carry the parsed
+   * object, and the fallback below then threw "args.match is not a function"
+   * and took the whole AI panel down with it. Normalise first — a non-string
+   * becomes '' rather than a crash.
+   */
+  const teks = typeof args === 'string' ? args : '';
+  if (!teks) return '';
   try {
-    const o = JSON.parse(args) as Record<string, unknown>;
+    const o = JSON.parse(teks) as Record<string, unknown>;
 
     for (const k of ['path', 'file', 'command', 'cmd', 'pattern', 'query', 'nama', 'name', 'id']) {
       const v = o[k];
@@ -61,7 +89,7 @@ export function sasaranAksi(args: string | undefined): string {
     return '';
   } catch {
 
-    const m = args.match(/"(?:path|file|command|cmd|pattern|query)"\s*:\s*"([^"]{1,120})"/);
+    const m = teks.match(/"(?:path|file|command|cmd|pattern|query)"\s*:\s*"([^"]{1,120})"/);
     return m ? m[1] : '';
   }
 }

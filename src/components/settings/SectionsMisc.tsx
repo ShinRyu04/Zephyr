@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { openPath, openUrl } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useT, useTf } from '../../lib/i18n';
 import * as cmd from '../../lib/commands';
@@ -9,7 +9,7 @@ import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 import UpdatePanel from './UpdatePanel';
 import { useUpdater } from '../../lib/updaterStore';
 import { useFocusTrap } from '../../lib/useFocusTrap';
-import { GitHubLogo, WhatsAppLogo } from './BrandLogos';
+import { DiscordLogo, GitHubLogo } from './BrandLogos';
 
 import { useTerminal } from '../../lib/terminalStore';
 export function ScmSection() {
@@ -501,11 +501,11 @@ export function AboutSection() {
           <GitHubLogo /> {tr('Report an issue')}
         </button>
         <button
-          className="btn btn-brand btn-brand-wa"
-          data-testid="about-wa"
-          onClick={() => void openUrl('https://chat.whatsapp.com/LNp12sKUWFFGH1RRSyHQkb').catch(() => {})}
+          className="btn btn-brand btn-brand-dc"
+          data-testid="about-discord"
+          onClick={() => void openUrl('https://discord.gg/fWr84DxSQ').catch(() => {})}
         >
-          <WhatsAppLogo /> {tr('WhatsApp group')}
+          <DiscordLogo /> {tr('Discord community')}
         </button>
         <button
           className="btn btn-donate"
@@ -536,7 +536,13 @@ export function AboutSection() {
           className="about-util-btn"
           data-testid="about-logs"
           disabled={!dataDir}
-          onClick={() => void openPath(`${dataDir}\\logs`).catch(() => {})}
+          /*
+           * revealPath hands the folder to Explorer. openPath() was used here
+           * and it reads the path into the editor instead, so pointing it at a
+           * directory did nothing visible — the same bug that was already fixed
+           * in the diagnostics section.
+           */
+          onClick={() => void cmd.revealPath(`${dataDir}\\logs`).catch(() => {})}
         >
           {tr('Open log folder')}
         </button>
@@ -544,7 +550,7 @@ export function AboutSection() {
           className="about-util-btn"
           data-testid="about-data"
           disabled={!dataDir}
-          onClick={() => void openPath(dataDir).catch(() => {})}
+          onClick={() => void cmd.revealPath(dataDir).catch(() => {})}
         >
           {tr('Open data folder')}
         </button>

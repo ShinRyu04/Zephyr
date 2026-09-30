@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
 import { detectLang } from '../../lib/lang';
-import FileIcon from '../editor/FileIcon';
+import FileIcon, { FolderIcon } from '../editor/FileIcon';
 import type { DirNode } from '../../lib/types';
 import { tx } from '../../lib/i18n';
 
@@ -37,22 +37,6 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-function FolderIcon({ open }: { open: boolean }) {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path
-        d={
-          open
-            ? 'M1.5 4.2A1.2 1.2 0 012.7 3h3l1.2 1.5h5.4a1.2 1.2 0 011.2 1.2v.6H4.2L2 12.6V4.2z'
-            : 'M1.5 4.2A1.2 1.2 0 012.7 3h3l1.2 1.5h5.4a1.2 1.2 0 011.2 1.2v6.1a1.2 1.2 0 01-1.2 1.2H2.7a1.2 1.2 0 01-1.2-1.2V4.2z'
-        }
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth="1.2"
-      />
-    </svg>
-  );
-}
 
 function InlineInput({
   initial,
@@ -102,6 +86,20 @@ export default function FileTree({ root }: { root?: string }) {
   const workspace = useStore((s) => s.workspace);
   
   const akar = root ?? workspace;
+
+  /*
+   * Scroll the panel back to the top when the root changes.
+   *
+   * Opening a different folder reused the same scrolled container, so the first
+   * thing shown was the middle of the new tree with its root already out of
+   * view — it read as a list that had lost its beginning. The scroll lives on
+   * the sidebar element, so that is what gets reset.
+   */
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    panelRef.current?.closest('.sidebar')?.scrollTo({ top: 0 });
+  }, [akar]);
+
   const openPath = useStore((s) => s.openPath);
   const activeTabPath = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.path ?? null);
 
@@ -153,7 +151,7 @@ export default function FileTree({ root }: { root?: string }) {
   };
 
   return (
-    <div className="tree" role="tree" aria-label="File Explorer" data-root={akar}>
+    <div className="tree" role="tree" aria-label="File Explorer" data-root={akar} ref={panelRef}>
       {explorerError && <div className="tree-error">{explorerError}</div>}
 
       {/* input "new" tepat di bawah root bila targetnya root */}
@@ -166,7 +164,7 @@ export default function FileTree({ root }: { root?: string }) {
         />
       )}
 
-      {rows.map(({ node, depth }) => {
+      {rows.map(({ node, depth }, i) => {
         const isSel = selected.includes(node.path);
         const isActive = activeTabPath?.toLowerCase() === node.path.toLowerCase();
         const isRenaming = inlineEdit?.kind === 'rename' && inlineEdit.target === node.path;
@@ -184,7 +182,19 @@ export default function FileTree({ root }: { root?: string }) {
         }
 
         return (
-          <div key={node.path}>
+          <div
+            key={node.path}
+            /*
+             * Stagger the rows so a folder's contents arrive in order.
+             *
+             * The chevron already turned, but every child snapped in at once,
+             * which reads as a repaint rather than as something being opened.
+             * A short delay per row, capped so a large folder does not take a
+             * second to finish, gives the expansion a direction.
+             */
+            style={{ ['--tree-delay' as string]: `${Math.min(i, 24) * 11}ms` }}
+            className="tree-slot"
+          >
             <div
               role="treeitem"
               tabIndex={0}
@@ -240,7 +250,7 @@ export default function FileTree({ root }: { root?: string }) {
                 {node.isDir && node.hasChildren ? <Chevron open={!!expanded[node.path]} /> : null}
               </span>
               {node.isDir ? (
-                <FolderIcon open={!!expanded[node.path]} />
+                <FolderIcon open={!!expanded[node.path]} nama={node.name} />
               ) : (
                 <FileIcon lang={detectLang(node.name)} name={node.name} />
               )}

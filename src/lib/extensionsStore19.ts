@@ -138,8 +138,8 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
         const path = await cmd.extensionsWriteBundled(item.id);
         return await get().install(path);
       }
-      const vsixPath = await cmd.extensionsDownloadVsix(item.url, item.id);
-      return await get().install(vsixPath);
+      const zextPath = await cmd.extensionsDownloadZext(item.url, item.id);
+      return await get().install(zextPath);
     } catch (e) {
       set({ err: cmd.asZephyrError(e).message });
       return false;
@@ -260,23 +260,33 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
 
   hasil: () => {
     const { q, tab, remote, kategori } = get();
+
+    /*
+     * Marketplace shows two things: whatever the registry served, and the
+     * packages Zephyr ships inside the binary. The bundled ones are installable
+     * without a network, so hiding them behind "no registry URL is configured"
+     * made the tab look broken on a fresh install — they are the only catalog
+     * that is always there.
+     *
+     * Installed is now strictly "what is on disk": it reads the manifests the
+     * loader found, so the tab answers "what do I have", not "what could I have".
+     */
     if (tab === 'marketplace') {
-      
-      const daftarRemote = (remote ?? []).filter((it) => !it.perluRuntime);
-      return daftarRemote.filter(
+      const dariRemote = (remote ?? []).filter((it) => !it.perluRuntime);
+      const idRemote = new Set(dariRemote.map((x) => x.id));
+      const dariBundel = KATALOG_BUNDLED.filter((it) => !idRemote.has(it.id));
+      return [...dariRemote, ...dariBundel].filter(
         (it) => cocok(it, q) && (!kategori || it.categories.includes(kategori)),
       );
     }
     if (tab === 'recommended') {
       return get().rekomendasi().filter((it) => cocok(it, q));
     }
-    
-    const dariKatalog = KATALOG_BUNDLED.filter((it) => cocok(it, q));
-    const idKatalog = new Set(dariKatalog.map((x) => x.id));
+
+    // Installed: only what the loader actually found on disk.
     const tambahan: KatalogItem[] = [];
     for (const st of get().terpasang()) {
       const m = st.manifest!;
-      if (idKatalog.has(m.id)) continue;
       const it: KatalogItem = {
         id: m.id,
         name: m.name,
@@ -286,11 +296,11 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
         categories: m.categories.length > 0 ? m.categories : ['Other'],
         logo: (m.name || m.id).slice(0, 2).toUpperCase(),
         bundled: false,
-        
+
         logoUrl: st.iconPath || undefined,
       };
       if (cocok(it, q)) tambahan.push(it);
     }
-    return [...dariKatalog, ...tambahan];
+    return tambahan;
   },
 }));

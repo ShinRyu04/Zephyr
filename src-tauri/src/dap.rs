@@ -107,7 +107,7 @@ pub struct InvalidEntry {
 pub fn dap_load(state: State<AppState>) -> ZResult<LaunchFile> {
     let ws = state
         .workspace_path()
-        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
     let kandidat = [
         ws.join(".zephyr").join("launch.json"),
         ws.join(".vscode").join("launch.json"),
@@ -127,7 +127,7 @@ pub fn dap_load(state: State<AppState>) -> ZResult<LaunchFile> {
 pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
     let bersih = crate::tasks::buang_komentar(teks);
     let v: Value = serde_json::from_str(&bersih)
-        .map_err(|e| ZephyrError::InvalidInput(format!("launch.json tidak valid: {e}")))?;
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid launch.json: {e}")))?;
 
     let version = v
         .get("version")
@@ -181,7 +181,7 @@ pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
             invalid.push(InvalidEntry {
                 index: i,
                 name: nama,
-                reason: format!("request \"{req}\" tidak dikenal (launch|attach)"),
+                reason: format!("request \"{req}\" not recognised (launch|attach)"),
             });
             continue;
         }
@@ -190,7 +190,7 @@ pub fn parse_launch(teks: &str, path: &str) -> ZResult<LaunchFile> {
             Err(e) => invalid.push(InvalidEntry {
                 index: i,
                 name: nama,
-                reason: format!("bentuk tidak dikenal: {e}"),
+                reason: format!("bentuk not recognised: {e}"),
             }),
         }
     }
@@ -270,7 +270,7 @@ fn spec_python(state: &AppState) -> AdapterSpec {
                     .to_string()
             }
             (true, false) => {
-                format!("Paket debugpy belum terpasang. Jalankan: {exe} -m pip install debugpy")
+                format!("Paket debugpy is not installed yet. Jalankan: {exe} -m pip install debugpy")
             }
             (true, true) => String::new(),
         },
@@ -293,7 +293,7 @@ pub fn spec_untuk(state: &AppState, tipe: &str) -> ZResult<AdapterSpec> {
         "node" | "pwa-node" | "node-terminal" | "pwa-chrome" => Ok(spec_node(state)),
         "python" | "debugpy" => Ok(spec_python(state)),
         lain => Err(ZephyrError::InvalidInput(format!(
-            "debug type \"{lain}\" belum didukung (v1: node, python)"
+            "debug type \"{lain}\" is not supported yet (v1: node, python)"
         ))),
     }
 }
@@ -348,7 +348,7 @@ impl Read for Baca {
 
 fn write_msg(sesi: &Sesi, msg: &Value) -> ZResult<()> {
     let body = serde_json::to_vec(msg)
-        .map_err(|e| ZephyrError::Internal(format!("serialisasi dap gagal: {e}")))?;
+        .map_err(|e| ZephyrError::Internal(format!("serialising the dap message failed: {e}")))?;
     let mut out = sesi
         .tulis
         .lock()
@@ -435,7 +435,7 @@ fn sesi_aktif(_rt: &DapRuntime) -> ZResult<Arc<Sesi>> {
         .lock()
         .map_err(|_| ZephyrError::Internal("runtime dap terkunci".into()))?
         .clone()
-        .ok_or_else(|| ZephyrError::NotFound("tidak ada sesi debug aktif".into()))
+        .ok_or_else(|| ZephyrError::NotFound("is missing sesi debug aktif".into()))
 }
 
 fn request(sesi: &Arc<Sesi>, command: &str, args: Value) -> ZResult<Value> {
@@ -467,10 +467,10 @@ fn request(sesi: &Arc<Sesi>, command: &str, args: Value) -> ZResult<Value> {
 
 fn port_bebas() -> ZResult<u16> {
     let l = std::net::TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| ZephyrError::Io(format!("tidak bisa mencari port bebas: {e}")))?;
+        .map_err(|e| ZephyrError::Io(format!("could not find a free port: {e}")))?;
     let p = l
         .local_addr()
-        .map_err(|e| ZephyrError::Io(format!("local_addr gagal: {e}")))?
+        .map_err(|e| ZephyrError::Io(format!("local_addr failed: {e}")))?
         .port();
     drop(l);
     Ok(p)
@@ -499,7 +499,7 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
                             tx.send(Err(msg
                                 .get("message")
                                 .and_then(|x| x.as_str())
-                                .unwrap_or("request gagal")
+                                .unwrap_or("request failed")
                                 .to_string()))
                         };
                     }
@@ -559,7 +559,7 @@ fn pasang_reader(app: AppHandle, sesi: Arc<Sesi>, baca: Baca) {
                                     "dap-output",
                                     json!({
                                         "category": "stderr",
-                                        "output": format!("sesi anak gagal: {e}"),
+                                        "output": format!("sesi anak failed: {e}"),
                                     }),
                                 );
                             }
@@ -594,7 +594,7 @@ fn buat_sesi_anak(app: AppHandle, cfg: Value, req: &str) -> ZResult<()> {
         .lock()
         .ok()
         .and_then(|g| *g)
-        .ok_or_else(|| ZephyrError::Internal("port adapter tidak diketahui".into()))?;
+        .ok_or_else(|| ZephyrError::Internal("unknown adapter port".into()))?;
 
     let s = TcpStream::connect(("127.0.0.1", port))
         .map_err(|e| ZephyrError::Io(format!("sambung sesi anak: {e}")))?;
@@ -721,7 +721,7 @@ pub fn dap_start(
         .filter(|c| !c.trim().is_empty())
         .map(PathBuf::from)
         .or_else(|| ws.clone())
-        .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?;
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
 
     if !cwd.is_dir() {
         return Err(ZephyrError::InvalidInput(format!(
@@ -746,7 +746,7 @@ pub fn dap_start(
         .stderr(std::process::Stdio::piped());
     let mut child = cmd.spawn().map_err(|e| {
         ZephyrError::Io(format!(
-            "gagal menjalankan adapter {}: {e}",
+            "failed menjalankan adapter {}: {e}",
             cmd_vec.join(" ")
         ))
     })?;
@@ -796,11 +796,11 @@ pub fn dap_start(
             let si = child
                 .stdin
                 .take()
-                .ok_or_else(|| ZephyrError::Internal("stdin adapter tidak ada".into()))?;
+                .ok_or_else(|| ZephyrError::Internal("stdin adapter is missing".into()))?;
             let so = child
                 .stdout
                 .take()
-                .ok_or_else(|| ZephyrError::Internal("stdout adapter tidak ada".into()))?;
+                .ok_or_else(|| ZephyrError::Internal("stdout adapter is missing".into()))?;
             (Tulis::Stdin(si), Baca::Stdout(so))
         }
     };
@@ -1045,7 +1045,7 @@ pub fn dap_kontrol(rt: State<DapRuntime>, aksi: String, thread_id: i64) -> ZResu
         "pause" => "pause",
         lain => {
             return Err(ZephyrError::InvalidInput(format!(
-                "aksi debug \"{lain}\" tidak dikenal"
+                "aksi debug \"{lain}\" not recognised"
             )))
         }
     };

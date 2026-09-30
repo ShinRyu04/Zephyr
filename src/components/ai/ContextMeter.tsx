@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { findModel } from '../../lib/modelCatalog';
 import { useT } from '../../lib/i18n';
@@ -55,6 +55,41 @@ export default function ContextMeter() {
   const msgs = useAi((s) => s.activeSession()?.messages ?? []);
   const model = useAi((s) => s.model);
 
+  /*
+   * The panel opens on hover and closes on leave. It used to open on click,
+   * which put the numbers people check most often — how full is the context,
+   * what has this session cost — two interactions away. Hovering the ring is
+   * one, and it costs nothing to look.
+   *
+   * Focus/blur carry the same behaviour for the keyboard; click still toggles.
+   */
+  const tutupTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (tutupTimer.current !== null) window.clearTimeout(tutupTimer.current);
+    },
+    [],
+  );
+
+  const bukaSekarang = () => {
+    if (tutupTimer.current !== null) {
+      window.clearTimeout(tutupTimer.current);
+      tutupTimer.current = null;
+    }
+    setBuka(true);
+  };
+
+  /*
+   * A short grace period before closing: moving the pointer from the ring to
+   * the panel crosses a few pixels that belong to neither, and without the
+   * delay the panel closes mid-reach.
+   */
+  const tutupNanti = () => {
+    if (tutupTimer.current !== null) window.clearTimeout(tutupTimer.current);
+    tutupTimer.current = window.setTimeout(() => setBuka(false), 140);
+  };
+
   const dipakai = msgs.reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
   const total = jendelaKonteks(model);
   const persen = Math.min(100, Math.round((dipakai / total) * 100));
@@ -71,14 +106,21 @@ export default function ContextMeter() {
   const tingkat = persen >= 85 ? 'penuh' : persen >= 60 ? 'sedang' : 'aman';
 
   return (
-    <span className="ctx-wrap">
+    <span
+      className="ctx-wrap"
+      onMouseEnter={bukaSekarang}
+      onMouseLeave={tutupNanti}
+      onFocus={bukaSekarang}
+      onBlur={tutupNanti}
+    >
       <button
         className={`ctx-btn is-${tingkat}`}
         data-testid="ctx-meter"
         data-persen={persen}
         title={tr('Context usage (estimate)')}
         aria-expanded={buka}
-        onClick={() => setBuka((v) => !v)}
+        aria-haspopup="dialog"
+        onClick={() => (buka ? setBuka(false) : bukaSekarang())}
       >
         <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
           <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.3" />

@@ -1346,6 +1346,14 @@ export function translate(lang: string, key: string): string {
   if (own !== undefined) return own;
   const src = SRC[key];
   if (src !== undefined) return lang === 'id' ? key : src;
+  // Inggris dulu, baru Indonesia.
+  //
+  // DICTS.id sempat jadi jaring terakhir, dan itu berbahaya: kunci yang cuma
+  // ada di kamus ID bocor ke SEMUA bahasa. Selama nilainya kebetulan sudah
+  // Inggris tidak ada yang kelihatan rusak - sampai satu kunci ditulis dalam
+  // bahasa Indonesia, dan menu itu muncul Indonesia di UI Inggris, Jepang,
+  // dan seterusnya tanpa jejak. id tetap disertakan supaya tidak ada teks yang
+  // hilang sama sekali, tapi urutannya sekarang benar.
   return EXTRA.en?.[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
 }
 

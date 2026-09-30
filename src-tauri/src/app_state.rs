@@ -25,7 +25,7 @@ fn read_lock<'a, T>(lock: &'a RwLock<T>, name: &str) -> ZResult<std::sync::RwLoc
                 if start.elapsed() >= LOCK_BUDGET {
                     tracing::error!(lock = name, "lock baca sibuk >500ms — operasi ditolak");
                     return Err(ZephyrError::Internal(format!(
-                        "state '{name}' sedang sibuk, coba lagi"
+                        "state '{name}' is busy, try again"
                     )));
                 }
                 std::thread::sleep(SPIN);
@@ -50,7 +50,7 @@ fn write_lock<'a, T>(
                 if start.elapsed() >= LOCK_BUDGET {
                     tracing::error!(lock = name, "lock tulis sibuk >500ms — operasi ditolak");
                     return Err(ZephyrError::Internal(format!(
-                        "state '{name}' sedang sibuk, coba lagi"
+                        "state '{name}' is busy, try again"
                     )));
                 }
                 std::thread::sleep(SPIN);
@@ -212,10 +212,10 @@ impl AppState {
                 Err(_) => {
                     if !warned && start.elapsed() >= LOCK_BUDGET {
                         warned = true;
-                        tracing::debug!("menunggu proses git lain selesai");
+                        tracing::debug!("waiting for another git process to finish");
                     }
                     if start.elapsed() >= GIT_WAIT {
-                        tracing::error!("permit git tidak didapat dalam 90s");
+                        tracing::error!("the git permit was not granted within 90s");
                         return Err(ZephyrError::Git(
                             "proses git lain masih berjalan — coba lagi".into(),
                         ));
@@ -514,7 +514,7 @@ impl AppState {
                 Some(p) => self.set_workspace(p)?,
                 None => {
                     return Err(ZephyrError::InvalidInput(
-                        "root terakhir tidak bisa dihapus — pakai Close Folder".into(),
+                        "the last root cannot be removed — use Close Folder".into(),
                     ))
                 }
             }
@@ -617,7 +617,7 @@ impl AppState {
 
     pub fn ensure_writable(&self, p: &Path) -> ZResult<()> {
         if p.as_os_str().is_empty() {
-            return Err(ZephyrError::InvalidInput("path kosong".into()));
+            return Err(ZephyrError::InvalidInput("empty path".into()));
         }
         let ws = self.workspace_path();
         let resolv = self.resolve_ws(p);
@@ -661,7 +661,7 @@ impl AppState {
 
     pub fn ensure_readable(&self, p: &Path) -> ZResult<()> {
         if p.as_os_str().is_empty() {
-            return Err(ZephyrError::InvalidInput("path kosong".into()));
+            return Err(ZephyrError::InvalidInput("empty path".into()));
         }
         Ok(())
     }

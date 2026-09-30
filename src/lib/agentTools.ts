@@ -18,7 +18,7 @@ export const FILE_LIST_MAX = 300;
 
 function contextTerdekat(isi: string, cari: string): string {
   const probe = cari.trim().split('\n')[0]?.slice(0, 40) ?? '';
-  if (!probe) return 'Coba file_read dulu untuk melihat isi file.';
+  if (!probe) return 'Try file_read first to see the file contents.';
   const baris = isi.split('\n');
   let best = -1;
   let bestSkor = 0;
@@ -32,10 +32,10 @@ function contextTerdekat(isi: string, cari: string): string {
       best = i;
     }
   }
-  if (best < 0 || bestSkor === 0) return 'Tidak ada baris mirip. Panggil file_read untuk isi file.';
+  if (best < 0 || bestSkor === 0) return 'No similar lines. Call file_read for the file contents.';
   const a = Math.max(0, best - 2);
   const b = Math.min(baris.length, best + 3);
-  return `Baris terdekat:\n${baris
+  return `Closest lines:\n${baris
     .slice(a, b)
     .map((l, k) => `${a + k + 1}: ${l}`)
     .join('\n')}`;
@@ -51,20 +51,21 @@ async function cariPaneTerminal(): Promise<string | null> {
     if (!id) return null;
 
     await new Promise((r) => setTimeout(r, 700));
-    // Ambil state SEGAR: snapshot lama tidak memuat pane yang baru dibuat, jadi
-    // findPane() di atasnya gagal dan tool melaporkan "tidak bisa membuka pane".
+    // Read FRESH state: the old snapshot does not contain the pane we just
+    // created, so findPane() on it fails and the tool reports
+    // "cannot open pane".
     pane = useTerminal.getState().findPane(id);
   }
   return pane ? pane.id : null;
 }
 
 /**
- * Cari pane browser yang hidup, atau buat satu kalau belum ada.
+ * Find a live browser pane, or create one if there is none yet.
  *
- * Pane browser WAJIB ada sebelum tool browser dipakai: webview anak dibuat di
- * dalam pane, jadi tanpa pane tidak ada tempat menempel. Pane dibuat lewat
- * store the UI button uses, not a separate path, so the layout stays
- * tetap diurus grid.
+ * A browser pane MUST exist before a browser tool is used: the child webview
+ * is created inside the pane, so without a pane there is nothing to attach to.
+ * The pane is created through the same store the UI button uses, not a
+ * separate path, so the layout keeps being handled by the grid.
  */
 async function paneBrowserId(minta: string): Promise<string> {
   /*
@@ -85,7 +86,7 @@ async function paneBrowserId(minta: string): Promise<string> {
   const ada = t.allPanes().find((p) => p.kind === 'browser');
   if (ada) return ada.id;
   const id = await t.addPane('browser');
-  if (!id) throw new Error('tidak bisa membuat pane browser');
+  if (!id) throw new Error('cannot create a browser pane');
   // Wait for React to lay the new pane out before anything measures it.
   await new Promise((r) => setTimeout(r, 900));
   return id;
@@ -106,13 +107,13 @@ async function bacaHalaman(paneId: string): Promise<string> {
   const info = await cmd.browserPaneInfo(paneId);
   const teks = await cmd.browserPaneEval(
     paneId,
-    "document.body ? document.body.innerText.replace(/\\n{3,}/g,'\\n\\n').slice(0,4000) : '(halaman belum dimuat)'",
+    "document.body ? document.body.innerText.replace(/\\n{3,}/g,'\\n\\n').slice(0,4000) : '(page not loaded yet)'",
   );
   return [
-    `URL: ${info.url || '(belum dimuat)'}`,
-    `Judul: ${info.title || '(tanpa judul)'}`,
+    `URL: ${info.url || '(not loaded yet)'}`,
+    `Title: ${info.title || '(no title)'}`,
     '',
-    String(teks || '(halaman kosong)'),
+    String(teks || '(empty page)'),
   ].join('\n');
 }
 
@@ -121,28 +122,28 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'shell_exec',
       description:
-        'Jalankan perintah sampai SELESAI dan kembalikan exit code plus output. Pakai ini untuk perintah non-interaktif: test, build, typecheck, git, ls. Output dibaca dari proses, bukan dari layar terminal, jadi tidak terpotong scroll. Jangan pakai untuk server atau apa pun yang jalan terus; untuk itu pakai terminal_exec.',
+        'Run a command to completion and return the exit code plus output. Use this for non-interactive commands: test, build, typecheck, git, ls. The output is read from the process, not from the terminal screen, so it is never cut off by scrolling. Do not use it for a server or anything that keeps running; use terminal_exec for that.',
       parameters: {
         type: 'object',
         properties: {
-          command: { type: 'string', description: 'Perintah shell, boleh multi-baris. Contoh: cd src-tauri && cargo test --lib' },
-          timeoutMs: { type: 'number', description: 'Batas tunggu ms (default 120000, maks 600000)' },
+          command: { type: 'string', description: 'Shell command, may be multi-line. Example: cd src-tauri && cargo test --lib' },
+          timeoutMs: { type: 'number', description: 'Timeout in ms (default 120000, max 600000)' },
         },
         required: ['command'],
       },
     },
     run: async (args) => {
       const perintah = String(args.command ?? '').trim();
-      if (!perintah) throw new Error('shell_exec: command kosong');
+      if (!perintah) throw new Error('shell_exec: command is empty');
       const timeoutMs = args.timeoutMs === undefined ? undefined : Number(args.timeoutMs);
       const r = await cmd.agentExec(perintah, timeoutMs);
       const bagian: string[] = [];
       bagian.push(`exit code: ${r.exitCode}`);
-      bagian.push(`waktu: ${r.ms} ms${r.timedOut ? ' (TIMEOUT, proses dibunuh)' : ''}`);
+      bagian.push(`time: ${r.ms} ms${r.timedOut ? ' (TIMEOUT, process killed)' : ''}`);
       if (r.stdout.trim()) bagian.push(`stdout:\n${r.stdout}`);
       if (r.stderr.trim()) bagian.push(`stderr:\n${r.stderr}`);
-      if (r.truncated) bagian.push('[output dipotong, bagian awal tidak ditampilkan]');
-      if (!r.stdout.trim() && !r.stderr.trim()) bagian.push('(tidak ada output)');
+      if (r.truncated) bagian.push('[output truncated, the first part is not shown]');
+      if (!r.stdout.trim() && !r.stderr.trim()) bagian.push('(no output)');
       return bagian.join('\n\n');
     },
   },
@@ -150,34 +151,34 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'terminal_exec',
       description:
-        'Kirim perintah ke pane terminal interaktif (ConPTY) dan langsung kembali tanpa menunggu. Output TIDAK termasuk di hasil; baca sendiri dengan terminal_read. Pakai hanya untuk yang harus jalan terus atau butuh interaksi (server dev, REPL, watch). Untuk test/build/git yang sekali jalan, pakai shell_exec yang menunggu sampai selesai.',
+        'Send a command to an interactive terminal pane (ConPTY) and return immediately without waiting. The output is NOT part of the result; read it yourself with terminal_read. Use it only for what has to keep running or needs interaction (dev server, REPL, watch). For one-shot test/build/git commands, use shell_exec, which waits until they finish.',
       parameters: {
         type: 'object',
         properties: {
-          command: { type: 'string', description: 'Perintah shell (bisa multi-baris, contoh: node script.js)' },
+          command: { type: 'string', description: 'Shell command (may be multi-line, e.g. node script.js)' },
         },
         required: ['command'],
       },
     },
     run: async (args) => {
       const perintah = String(args.command ?? '').trim();
-      if (!perintah) throw new Error('terminal_exec: command kosong');
+      if (!perintah) throw new Error('terminal_exec: command is empty');
       const paneId = await cariPaneTerminal();
-      if (!paneId) throw new Error('tidak bisa membuka pane terminal');
+      if (!paneId) throw new Error('cannot open a terminal pane');
       useTerminal.getState().setVisible(true);
       await writeChunked(paneId, `${perintah.replace(/\r?\n/g, '\r')}\r`);
-      return `Perintah dikirim ke terminal (tidak menunggu). Untuk melihat output, panggil terminal_read.`;
+      return `Command sent to the terminal (not waiting). Call terminal_read to see the output.`;
     },
   },
   {
     spec: {
       name: 'terminal_read',
       description:
-        'Baca N baris terakhir output scrollback pane terminal. Output diambil dari buffer proses, jadi tetap terbaca walau sudah ter-scroll jauh atau pane tidak terlihat. Dipakai setelah terminal_exec (perintah interaktif). Untuk perintah sekali jalan, shell_exec sudah mengembalikan outputnya.',
+        'Read the last N lines of output from a terminal pane scrollback. The output is taken from the process buffer, so it stays readable even after you have scrolled far away or the pane is not visible. Use it after terminal_exec (interactive commands). For one-shot commands, shell_exec already returned the output.',
       parameters: {
         type: 'object',
         properties: {
-          maxLines: { type: 'number', description: 'Maksimum baris yang dibaca (default 40)' },
+          maxLines: { type: 'number', description: 'Maximum number of lines to read (default 40)' },
         },
       },
     },
@@ -185,67 +186,67 @@ export const AGENT_TOOLS: AgentTool[] = [
       const maxLines = Math.max(1, Math.min(2000, Number(args.maxLines ?? 40) || 40));
       const panes = useTerminal.getState().allPanes();
       const target = panes.find((p) => p.kind === 'agent') ?? panes.find((p) => p.kind !== 'browser');
-      if (!target) return '(tidak ada pane terminal)';
+      if (!target) return '(no terminal pane)';
       try {
         const teks = await cmd.ptyTail(target.id, maxLines);
         if (teks.trim()) return teks;
       } catch {
-        /* jatuh ke pembacaan DOM */
+        /* fall through to DOM reading */
       }
       const el = document.querySelector('.xterm-rows');
-      if (!el) return '(pane terminal tidak terlihat - buka panel Terminal dulu)';
+      if (!el) return '(terminal pane is not visible - open the Terminal panel first)';
       const baris = Array.from(el.querySelectorAll('div'))
         .map((d) => d.textContent ?? '')
         .filter((t) => t.trim() !== '');
       const potong = baris.slice(-maxLines);
-      return potong.join('\n') || '(belum ada output)';
+      return potong.join('\n') || '(no output yet)';
     },
   },
   {
     spec: {
       name: 'editor_read',
       description:
-        'Baca isi buffer tab editor yang AKTIF (belum tentu sama dengan isi di disk). Termasuk nama file.',
+        'Read the contents of the ACTIVE editor tab buffer (not necessarily the same as on disk). Includes the file name.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
       const st = useStore.getState();
       const tab = st.tabs.find((t) => t.id === st.activeTabId);
-      if (!tab) return '(tidak ada tab editor aktif)';
+      if (!tab) return '(no active editor tab)';
       const isi = tab.content ?? '';
       const potong = isi.length > AGENT_READ_LIMIT;
-      return `File: ${tab.path ?? tab.name}${potong ? ` (dipotong ${AGENT_READ_LIMIT} pertama)` : ''}\n\`\`\`\n${isi.slice(0, AGENT_READ_LIMIT)}\n\`\`\``;
+      return `File: ${tab.path ?? tab.name}${potong ? ` (first ${AGENT_READ_LIMIT} characters only)` : ''}\n\`\`\`\n${isi.slice(0, AGENT_READ_LIMIT)}\n\`\`\``;
     },
   },
   {
     spec: {
       name: 'editor_write',
       description:
-        'TIMPA isi buffer tab editor yang aktif dengan konten baru. TIDAK menulis ke disk — user tetap harus menyimpan. Gunakan untuk memperbaiki kode.',
+        'Overwrite the active editor tab buffer with new content. This does NOT write to disk — the user still must save. Use it to fix code.',
       parameters: {
         type: 'object',
-        properties: { content: { type: 'string', description: 'Isi baru seluruh file' } },
+        properties: { content: { type: 'string', description: 'New full file contents' } },
         required: ['content'],
       },
     },
     run: async (args) => {
       const st = useStore.getState();
       const tab = st.tabs.find((t) => t.id === st.activeTabId);
-      if (!tab) throw new Error('editor_write: tidak ada tab editor aktif');
+      if (!tab) throw new Error('editor_write: no active editor tab');
       st.updateTabContent(tab.id, String(args.content ?? ''));
-      return `Buffer ${tab.path ?? tab.name} diperbarui (belum disimpan ke disk — beri tahu user untuk menyimpan).`;
+      return `Buffer ${tab.path ?? tab.name} updated (not saved to disk yet — tell the user to save).`;
     },
   },
   {
     spec: {
       name: 'file_write',
       description:
-        'Tulis langsung isi file ke disk (atau buat file baru jika belum ada). Memperbarui buffer tab bila file sedang dibuka di editor.',
+        'Write file contents straight to disk (or create a new file if it does not exist). Updates the editor buffer tab when the file is open in the editor.',
       parameters: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: 'Path file (absolut atau relatif workspace)' },
-          content: { type: 'string', description: 'Isi lengkap teks yang akan ditulis ke file' },
+          path: { type: 'string', description: 'File path (absolute or relative to the workspace)' },
+          content: { type: 'string', description: 'Full text content to be written to the file' },
         },
         required: ['path', 'content'],
       },
@@ -253,7 +254,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     run: async (args) => {
       const filePath = String(args.path ?? '').trim();
       const content = String(args.content ?? '');
-      if (!filePath) throw new Error('file_write: path kosong');
+      if (!filePath) throw new Error('file_write: path is empty');
       await cmd.fsWrite(filePath, content);
       
       const st = useStore.getState();
@@ -261,20 +262,20 @@ export const AGENT_TOOLS: AgentTool[] = [
       if (tab) {
         st.updateTabContent(tab.id, content);
       }
-      return `File ${filePath} berhasil ditulis ke disk (${content.length} karakter).`;
+      return `File ${filePath} written to disk (${content.length} characters).`;
     },
   },
   {
     spec: {
       name: 'file_edit',
       description:
-        'Ubah sebagian isi file yang ada di disk dengan mencari teks lama (old_text) dan menggantinya dengan teks baru (new_text).',
+        'Change part of an existing file on disk by finding the old text (old_text) and replacing it with new text (new_text).',
       parameters: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: 'Path file' },
-          old_text: { type: 'string', description: 'Teks persis yang ingin diganti' },
-          new_text: { type: 'string', description: 'Teks pengganti' },
+          path: { type: 'string', description: 'File path' },
+          old_text: { type: 'string', description: 'The exact text you want replaced' },
+          new_text: { type: 'string', description: 'The replacement text' },
         },
         required: ['path', 'old_text', 'new_text'],
       },
@@ -283,13 +284,13 @@ export const AGENT_TOOLS: AgentTool[] = [
       const filePath = String(args.path ?? '').trim();
       const oldText = String(args.old_text ?? '');
       const newText = String(args.new_text ?? '');
-      if (!filePath) throw new Error('file_edit: path kosong');
-      if (!oldText) throw new Error('file_edit: old_text kosong');
+      if (!filePath) throw new Error('file_edit: path is empty');
+      if (!oldText) throw new Error('file_edit: old_text is empty');
       const r = await cmd.fsRead(filePath);
       const original = r.content ?? '';
       if (!original.includes(oldText)) {
         throw new Error(
-          `file_edit: old_text tidak ditemukan di ${filePath}. ${contextTerdekat(original, oldText)}`,
+          `file_edit: old_text not found in ${filePath}. ${contextTerdekat(original, oldText)}`,
         );
       }
       const jumlah = original.split(oldText).length - 1;
@@ -300,19 +301,19 @@ export const AGENT_TOOLS: AgentTool[] = [
       if (tab) {
         st.updateTabContent(tab.id, updated);
       }
-      return `File ${filePath} berhasil diedit dan disimpan ke disk (${jumlah} kemunculan diganti).`;
+      return `File ${filePath} edited and saved to disk (${jumlah} occurrences replaced).`;
     },
   },
   {
     spec: {
       name: 'file_patch',
       description:
-        'Terapkan unified diff ke satu file, seperti output git diff. Pakai ini untuk perubahan multi-baris; lebih andal daripada file_edit karena tidak perlu menyalin teks lama persis satu blok. Format: header ---/+++ dan hunk @@. Baris konteks dipakai untuk menemukan lokasi.',
+        'Apply a unified diff to a single file, the way git diff outputs it. Use this for multi-line changes; it is more reliable than file_edit because you do not have to copy the old text exactly in one block. Format: ---/+++ headers and @@ hunks. Context lines are used to find the location.',
       parameters: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: 'Path file yang dipatch' },
-          patch: { type: 'string', description: 'Unified diff. Sertakan header a/ b/ dan hunk @@.' },
+          path: { type: 'string', description: 'Path of the file to patch' },
+          patch: { type: 'string', description: 'Unified diff. Include the a/ b/ headers and the @@ hunks.' },
         },
         required: ['path', 'patch'],
       },
@@ -320,8 +321,8 @@ export const AGENT_TOOLS: AgentTool[] = [
     run: async (args) => {
       const filePath = String(args.path ?? '').trim();
       const isiPatch = String(args.patch ?? '');
-      if (!filePath) throw new Error('file_patch: path kosong');
-      if (!isiPatch.trim()) throw new Error('file_patch: patch kosong');
+      if (!filePath) throw new Error('file_patch: path is empty');
+      if (!isiPatch.trim()) throw new Error('file_patch: patch is empty');
       const r = await cmd.filePatch(filePath, isiPatch);
       const st = useStore.getState();
       const segar = await cmd.fsRead(filePath).catch(() => null);
@@ -330,52 +331,52 @@ export const AGENT_TOOLS: AgentTool[] = [
         if (tab) st.updateTabContent(tab.id, segar.content ?? '');
       }
       if (!r.applied) {
-        throw new Error(`file_patch: patch tidak diterapkan. ${r.conflict}`);
+        throw new Error(`file_patch: patch not applied. ${r.conflict}`);
       }
-      return `Patch diterapkan ke ${filePath} (+${r.added} -${r.removed}).`;
+      return `Patch applied to ${filePath} (+${r.added} -${r.removed}).`;
     },
   },
   {
     spec: {
       name: 'file_read',
       description:
-        'Baca isi file dari disk (read-only, maks 100KB). Path bisa absolut atau relatif terhadap workspace.',
+        'Read the contents of a file from disk (read-only, max 100KB). The path can be absolute or relative to the workspace.',
       parameters: {
         type: 'object',
-        properties: { path: { type: 'string', description: 'Path file' } },
+        properties: { path: { type: 'string', description: 'File path' } },
         required: ['path'],
       },
     },
     run: async (args) => {
       const r = await cmd.fsRead(String(args.path));
       const isi = (r.content ?? '').slice(0, AGENT_READ_LIMIT);
-      return isi || '(kosong)';
+      return isi || '(empty)';
     },
   },
   {
     spec: {
       name: 'file_list',
-      description: 'Daftar isi folder (nama file/direktori).',
+      description: 'List the contents of a folder (file/directory names).',
       parameters: {
         type: 'object',
-        properties: { path: { type: 'string', description: 'Path folder' } },
+        properties: { path: { type: 'string', description: 'Folder path' } },
         required: ['path'],
       },
     },
     run: async (args) => {
       const nodes = await cmd.scanDir(String(args.path));
-      if (nodes.length === 0) return '(kosong)';
+      if (nodes.length === 0) return '(empty)';
       const potong = nodes.slice(0, FILE_LIST_MAX);
       const teks = potong.map((n) => (n.isDir ? `${n.name}/` : n.name)).join('\n');
       if (nodes.length <= FILE_LIST_MAX) return teks;
-      return `${teks}\n\n[... dan ${nodes.length - FILE_LIST_MAX} entri lain tidak ditampilkan. Sebut sub-folder spesifik kalau butuh daftar lengkapnya.]`;
+      return `${teks}\n\n[... and ${nodes.length - FILE_LIST_MAX} other entries are not shown. Name a specific sub-folder if you need its full list.]`;
     },
   },
   {
     spec: {
       name: 'list_panes',
       description:
-        'Daftar pane terminal/browser yang sedang terbuka (paneId, type, title, agent, pid, running). Berguna untuk mengetahui terminal mana yang hidup sebelum menjalankan perintah.',
+        'List the currently open terminal/browser panes (paneId, type, title, agent, pid, running). Useful for finding out which terminal is alive before running a command.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => JSON.stringify(await runAction('list_panes', {})),
@@ -384,10 +385,10 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'get_problems',
       description:
-        'Baca diagnostik (Problems) yang sedang tampil di panel bawah: error & warning per file. Filter severity opsional: error | warning | info | hint.',
+        'Read the diagnostics (Problems) currently shown in the bottom panel: errors and warnings per file. Optional severity filter: error | warning | info | hint.',
       parameters: {
         type: 'object',
-        properties: { severity: { type: 'string', description: 'filter opsional: error|warning|info|hint' } },
+        properties: { severity: { type: 'string', description: 'optional filter: error|warning|info|hint' } },
       },
     },
     run: async (args) => {
@@ -395,7 +396,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       const r = p as { counts?: { errors?: number; warnings?: number }; problems?: unknown[] };
       const probs = Array.isArray(r.problems) ? r.problems : [];
       if (probs.length === 0) {
-        return `Tidak ada masalah. (counts: ${JSON.stringify(r.counts ?? {})})`;
+        return `No problems. (counts: ${JSON.stringify(r.counts ?? {})})`;
       }
       return probs
         .map((x) => {
@@ -409,12 +410,12 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'get_output',
       description:
-        'Baca isi satu channel Output panel bawah (zephyr, mcp, ssh, extensions, debug). Param channel wajib; tail opsional (default 200 baris terakhir).',
+        'Read the contents of one channel of the bottom Output panel (zephyr, mcp, ssh, extensions, debug). The channel param is required; tail is optional (default 200 last lines).',
       parameters: {
         type: 'object',
         properties: {
-          channel: { type: 'string', description: 'id channel: zephyr|mcp|ssh|extensions|debug' },
-          tail: { type: 'number', description: 'ambil N baris terakhir (default 200, maks 2000)' },
+          channel: { type: 'string', description: 'channel id: zephyr|mcp|ssh|extensions|debug' },
+          tail: { type: 'number', description: 'take the last N lines (default 200, max 2000)' },
         },
         required: ['channel'],
       },
@@ -427,21 +428,21 @@ export const AGENT_TOOLS: AgentTool[] = [
       };
       const lines = Array.isArray(r.lines) ? r.lines : [];
       return lines.length === 0
-        ? `(channel ${r.channel ?? args.channel} kosong)`
-        : `[${r.channel ?? ''} — ${r.total ?? lines.length} baris]\n${lines.join('\n')}`;
+        ? `(channel ${r.channel ?? args.channel} is empty)`
+        : `[${r.channel ?? ''} — ${r.total ?? lines.length} lines]\n${lines.join('\n')}`;
     },
   },
   {
     spec: {
       name: 'mcp_call',
       description:
-        'Panggil satu tool pada server MCP eksternal yang terdaftar di Settings → MCP → External MCP servers. Isi "server" dengan id atau label server (lihat daftar di Settings), "tool" dengan nama tool dari server itu, dan "args" dengan argumen sesuai schema tool. Kembalikan jawaban mentah server.',
+        'Call one tool on an external MCP server registered in Settings → MCP → External MCP servers. Put the server id or label in "server" (see the list in Settings), the tool name from that server in "tool", and the arguments matching the tool schema in "args". Returns the raw server response.',
       parameters: {
         type: 'object',
         properties: {
-          server: { type: 'string', description: 'id atau label server MCP eksternal' },
-          tool: { type: 'string', description: 'nama tool yang dipanggil di server itu' },
-          args: { type: 'object', description: 'argumen tool sesuai schema-nya (opsional)' },
+          server: { type: 'string', description: 'id or label of the external MCP server' },
+          tool: { type: 'string', description: 'name of the tool to call on that server' },
+          args: { type: 'object', description: 'tool arguments matching its schema (optional)' },
         },
         required: ['server', 'tool'],
       },
@@ -449,13 +450,13 @@ export const AGENT_TOOLS: AgentTool[] = [
     run: async (args) => {
       const server = String(args.server ?? '').trim();
       const tool = String(args.tool ?? '').trim();
-      if (!server) throw new Error('mcp_call: server kosong');
-      if (!tool) throw new Error('mcp_call: tool kosong');
+      if (!server) throw new Error('mcp_call: server is empty');
+      if (!tool) throw new Error('mcp_call: tool is empty');
       const isi = (args.args ?? {}) as Record<string, unknown>;
       const hasil = await cmd.mcpClientCall(server, tool, isi);
       const teks = typeof hasil === 'string' ? hasil : JSON.stringify(hasil, null, 2);
       return teks.length > AGENT_READ_LIMIT
-        ? `${teks.slice(0, AGENT_READ_LIMIT)}\n\n[... dipotong di ${AGENT_READ_LIMIT} karakter]`
+        ? `${teks.slice(0, AGENT_READ_LIMIT)}\n\n[... truncated at ${AGENT_READ_LIMIT} characters]`
         : teks;
     },
   },
@@ -463,17 +464,17 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'todo_write',
       description:
-        'Tulis/ganti daftar tugas yang sedang dikerjakan (maks 20 item). Panggil ulang tiap kali status berubah — jangan menunggu tugas selesai. Status: pending | in_progress | done.',
+        'Write/replace the list of tasks being worked on (max 20 items). Call it again every time the status changes — do not wait until the task is done. Status: pending | in_progress | done.',
       parameters: {
         type: 'object',
         properties: {
           todos: {
             type: 'array',
-            description: 'daftar tugas lengkap (mengganti yang lama, bukan menambah)',
+            description: 'the full task list (it replaces the old one, it does not append)',
             items: {
               type: 'object',
               properties: {
-                content: { type: 'string', description: 'satu baris tugas, kata kerja dulu' },
+                content: { type: 'string', description: 'one line of task text, verb first' },
                 status: { type: 'string', description: 'pending | in_progress | done' },
               },
               required: ['content', 'status'],
@@ -487,19 +488,19 @@ export const AGENT_TOOLS: AgentTool[] = [
       const list = Array.isArray(args.todos) ? args.todos : [];
 
       const n = useAi.getState().setAgentTodos(list);
-      return `Daftar tugas disimpan (${n} item).`;
+      return `Task list saved (${n} items).`;
     },
   },
   {
     spec: {
       name: 'todo_read',
-      description: 'Baca daftar tugas yang sedang dikerjakan beserta statusnya.',
+      description: 'Read the list of tasks being worked on together with their status.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
 
       const todos = useAi.getState().agentTodos;
-      if (todos.length === 0) return '(daftar tugas kosong)';
+      if (todos.length === 0) return '(no tasks)';
       return todos.map((t, i) => `${i + 1}. [${t.status}] ${t.content}`).join('\n');
     },
   },
@@ -513,7 +514,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     },
     run: async () => {
       const list = await cmd.skillsList();
-      if (list.length === 0) return '(belum ada skill)';
+      if (list.length === 0) return '(no skills yet)';
       return list
         .map((s) => `- ${s.name} [${s.scope}]: ${s.description}`)
         .join('\n');
@@ -527,17 +528,17 @@ export const AGENT_TOOLS: AgentTool[] = [
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'nama skill (lihat skill_list)' },
+          name: { type: 'string', description: 'skill name (see skill_list)' },
         },
         required: ['name'],
       },
     },
     run: async (args) => {
       const nama = String(args.name ?? '').trim();
-      if (!nama) throw new Error('skill_view: name kosong');
+      if (!nama) throw new Error('skill_view: name is empty');
       const isi = await cmd.skillRead(nama);
       return isi.length > AGENT_READ_LIMIT
-        ? `${isi.slice(0, AGENT_READ_LIMIT)}\n\n[... dipotong di ${AGENT_READ_LIMIT} karakter]`
+        ? `${isi.slice(0, AGENT_READ_LIMIT)}\n\n[... truncated at ${AGENT_READ_LIMIT} characters]`
         : isi;
     },
   },
@@ -549,9 +550,9 @@ export const AGENT_TOOLS: AgentTool[] = [
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'nama pendek huruf/angka/-/_' },
-          description: { type: 'string', description: 'satu baris: kapan skill ini dipakai' },
-          content: { type: 'string', description: 'isi SKILL.md (markdown, langkah + jebakan)' },
+          name: { type: 'string', description: 'short name made of letters/digits/-/_' },
+          description: { type: 'string', description: 'one line: when this skill applies' },
+          content: { type: 'string', description: 'the SKILL.md contents (markdown, steps + pitfalls)' },
           scope: { type: 'string', description: 'workspace (default) | global' },
         },
         required: ['name', 'description', 'content'],
@@ -567,24 +568,24 @@ export const AGENT_TOOLS: AgentTool[] = [
       
 
       resetKonteksAgent();
-      return `Skill disimpan: ${path}`;
+      return `Skill saved: ${path}`;
     },
   },
   {
     spec: {
       name: 'skill_delete',
-      description: 'Hapus satu skill beserta isinya. Hanya kalau skill itu sudah salah atau tidak dipakai lagi.',
+      description: 'Delete one skill and its contents. Only when that skill is wrong or no longer used.',
       parameters: {
         type: 'object',
-        properties: { name: { type: 'string', description: 'nama skill' } },
+        properties: { name: { type: 'string', description: 'skill name' } },
         required: ['name'],
       },
     },
     run: async (args) => {
       const nama = String(args.name ?? '').trim();
-      if (!nama) throw new Error('skill_delete: name kosong');
+      if (!nama) throw new Error('skill_delete: name is empty');
       await cmd.skillDelete(nama);
-      return `Skill '${nama}' dihapus.`;
+      return `Skill '${nama}' deleted.`;
     },
   },
   
@@ -592,7 +593,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'memory_read',
       description:
-        'Baca memori lintas sesi: bagian "memory" (catatanmu soal lingkungan & pelajaran teknis) dan "user" (siapa user-nya: preferensi, gaya, kebiasaan).',
+        'Read the cross-session memory: the "memory" section (your notes about the environment and technical lessons) and "user" (who the user is: preferences, style, habits).',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
@@ -604,23 +605,23 @@ export const AGENT_TOOLS: AgentTool[] = [
       if (m.user.trim()) {
         bagian.push(`[user ${m.user_chars}/${m.user_limit}]\n${m.user}`);
       }
-      return bagian.length ? bagian.join('\n\n') : '(memori kosong)';
+      return bagian.length ? bagian.join('\n\n') : '(memory is empty)';
     },
   },
   {
     spec: {
       name: 'memory_write',
       description:
-        'Tambah/ganti/hapus satu entri memori lintas sesi. Simpan fakta yang berlaku di SEMUA percakapan (siapa user, konvensi proyek, jebakan lingkungan) — bukan progres tugas. Kalau penuh, ringkas dulu entri lama (action replace/remove).',
+        'Add/replace/delete one cross-session memory entry. Save facts that apply to ALL conversations (who the user is, project conventions, environment traps) — not task progress. If it is full, condense the old entries first (action replace/remove).',
       parameters: {
         type: 'object',
         properties: {
           section: { type: 'string', description: 'memory | user' },
           action: { type: 'string', description: 'add | replace | remove' },
-          content: { type: 'string', description: 'entri baru (untuk add/replace)' },
+          content: { type: 'string', description: 'the new entry (for add/replace)' },
           old_text: {
             type: 'string',
-            description: 'potongan teks entri lama yang mau diganti/dihapus (untuk replace/remove)',
+            description: 'the piece of the old entry text to replace/remove (for replace/remove)',
           },
         },
         required: ['section', 'action'],
@@ -637,7 +638,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       });
 
       resetKonteksAgent();
-      return `Memori '${section}' diperbarui (${action}). ${hasil.length} karakter total.`;
+      return `Memory '${section}' updated (${action}). ${hasil.length} characters total.`;
     },
   },
   
@@ -645,14 +646,14 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'cron_create',
       description:
-        'Buat tugas terjadwal. Isi every_minutes (>0) untuk berulang tiap N menit, ATAU at_hour (0-23) untuk harian. Perintah dijalankan di pane terminal Zephyr saat jatuh tempo.',
+        'Create a scheduled task. Set every_minutes (>0) to repeat every N minutes, OR at_hour (0-23) for daily. The command runs in a Zephyr terminal pane when it comes due.',
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'nama tugas' },
-          command: { type: 'string', description: 'perintah shell' },
-          every_minutes: { type: 'number', description: 'interval menit (opsional)' },
-          at_hour: { type: 'number', description: 'jam harian 0-23 (opsional)' },
+          name: { type: 'string', description: 'task name' },
+          command: { type: 'string', description: 'shell command' },
+          every_minutes: { type: 'number', description: 'interval in minutes (optional)' },
+          at_hour: { type: 'number', description: 'hour of day 0-23 (optional)' },
         },
         required: ['name', 'command'],
       },
@@ -664,23 +665,23 @@ export const AGENT_TOOLS: AgentTool[] = [
         everyMinutes: args.every_minutes ? Number(args.every_minutes) : undefined,
         atHour: args.at_hour !== undefined ? Number(args.at_hour) : undefined,
       });
-      const jadwal = job.every_minutes > 0 ? `tiap ${job.every_minutes} menit` : `tiap hari jam ${job.at_hour}`;
-      return `Tugas '${job.name}' dibuat (${jadwal}), id=${job.id}.`;
+      const jadwal = job.every_minutes > 0 ? `every ${job.every_minutes} minutes` : `daily at ${job.at_hour}:00`;
+      return `Task '${job.name}' created (${jadwal}), id=${job.id}.`;
     },
   },
   {
     spec: {
       name: 'cron_list',
-      description: 'Daftar tugas terjadwal beserta status dan jadwalnya.',
+      description: 'List the scheduled tasks with their status and schedule.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
       const list = await cmd.cronList();
-      if (list.length === 0) return '(belum ada tugas terjadwal)';
+      if (list.length === 0) return '(no scheduled tasks yet)';
       return list
         .map((j) => {
-          const jadwal = j.every_minutes > 0 ? `tiap ${j.every_minutes}m` : `harian ${j.at_hour}:00`;
-          const status = j.enabled ? 'aktif' : 'nonaktif';
+          const jadwal = j.every_minutes > 0 ? `every ${j.every_minutes}m` : `daily ${j.at_hour}:00`;
+          const status = j.enabled ? 'enabled' : 'disabled';
           return `- ${j.id} "${j.name}" [${status}] ${jadwal} → ${j.command}`;
         })
         .join('\n');
@@ -689,32 +690,32 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     spec: {
       name: 'cron_delete',
-      description: 'Hapus satu tugas terjadwal berdasarkan id.',
+      description: 'Delete one scheduled task by id.',
       parameters: {
         type: 'object',
-        properties: { id: { type: 'string', description: 'id tugas (lihat cron_list)' } },
+        properties: { id: { type: 'string', description: 'task id (see cron_list)' } },
         required: ['id'],
       },
     },
     run: async (args) => {
       const id = String(args.id ?? '').trim();
-      if (!id) throw new Error('cron_delete: id kosong');
+      if (!id) throw new Error('cron_delete: id is empty');
       await cmd.cronDelete(id);
-      return `Tugas '${id}' dihapus.`;
+      return `Task '${id}' deleted.`;
     },
   },
   {
     spec: {
       name: 'browser_open',
       description:
-        'Buka URL di pane browser dan kembalikan isi halamannya (judul + teks). Pakai ini untuk MELIHAT halaman web, bukan sekadar memuatnya. Kalau pane browser belum ada, satu dibuat otomatis. Halaman yang menolak ditampilkan di dalam jendela (X-Frame-Options) akan gagal — laporkan apa adanya, jangan mengarang isinya.',
+        'Open a URL in the browser pane and return its page contents (title + text). Use this to VIEW web pages, not just to load them. If there is no browser pane yet, one is created automatically. Pages that refuse to be displayed inside a window (X-Frame-Options) will fail — report that as it is, do not make up the contents.',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL lengkap, harus http:// atau https://' },
+          url: { type: 'string', description: 'full URL, must be http:// or https://' },
           paneId: {
             type: 'string',
-            description: 'id pane browser yang sudah ada (opsional; lihat browser_list)',
+            description: 'id of an existing browser pane (optional; see browser_list)',
           },
         },
         required: ['url'],
@@ -722,7 +723,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     },
     run: async (args) => {
       const url = String(args.url ?? '').trim();
-      if (!url) throw new Error('browser_open: url kosong');
+      if (!url) throw new Error('browser_open: url is empty');
       const paneId = await paneBrowserId(String(args.paneId ?? ''));
 
       /*
@@ -770,27 +771,27 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'browser_read',
       description:
-        'Baca isi halaman yang sedang terbuka di pane browser: judul, URL, teks yang terlihat, dan daftar link. Panggil ini setelah browser_open atau setelah user berpindah halaman.',
+        'Read the contents of the page currently open in the browser pane: title, URL, visible text, and the list of links. Call this after browser_open or after the user navigates to another page.',
       parameters: {
         type: 'object',
         properties: {
-          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+          paneId: { type: 'string', description: 'browser pane id (optional)' },
           mode: {
             type: 'string',
-            description: "'teks' (default) = teks halaman; 'link' = daftar link; 'html' = HTML mentah",
+            description: "'text' (default) = page text; 'link' = list of links; 'html' = raw HTML",
           },
         },
       },
     },
     run: async (args) => {
       const paneId = await paneBrowserId(String(args.paneId ?? ''));
-      const mode = String(args.mode ?? 'teks');
+      const mode = String(args.mode ?? 'text');
       if (mode === 'link') {
         const js = `JSON.stringify(Array.from(document.querySelectorAll('a[href]')).slice(0,80).map(a=>a.innerText.trim().slice(0,80)+' -> '+a.href).filter(s=>s.length>6))`;
         return await cmd.browserPaneEval(paneId, js);
       }
       if (mode === 'html') {
-        return (await cmd.browserPaneEval(paneId, 'document.documentElement.outerHTML.slice(0,20000)')) || '(kosong)';
+        return (await cmd.browserPaneEval(paneId, 'document.documentElement.outerHTML.slice(0,20000)')) || '(empty)';
       }
       return bacaHalaman(paneId);
     },
@@ -799,13 +800,13 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'browser_click',
       description:
-        'Klik elemen di pane browser. Pilih elemen lewat selector CSS atau teks yang terlihat. Kembalikan isi halaman sesudah klik, jadi kamu langsung tahu hasilnya tanpa perlu memanggil browser_read lagi.',
+        'Click an element in the browser pane. Pick the element by CSS selector or by visible text. Returns the page contents after the click, so you know the result without calling browser_read again.',
       parameters: {
         type: 'object',
         properties: {
-          selector: { type: 'string', description: 'selector CSS, mis. "button.login" atau "#submit"' },
-          teks: { type: 'string', description: 'teks tombol/link (dipakai kalau selector tidak diberikan)' },
-          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+          selector: { type: 'string', description: 'CSS selector, e.g. "button.login" or "#submit"' },
+          teks: { type: 'string', description: 'button/link text (used when no selector is given)' },
+          paneId: { type: 'string', description: 'browser pane id (optional)' },
         },
       },
     },
@@ -813,7 +814,7 @@ export const AGENT_TOOLS: AgentTool[] = [
       const paneId = await paneBrowserId(String(args.paneId ?? ''));
       const sel = String(args.selector ?? '').trim();
       const teks = String(args.teks ?? '').trim();
-      if (!sel && !teks) throw new Error('browser_click: berikan selector atau teks');
+      if (!sel && !teks) throw new Error('browser_click: give a selector or some text');
       // Show what is about to be clicked. Without it the page changes with no
       // visible cause, which reads as a glitch to anyone watching the pane.
       if (sel) {
@@ -824,26 +825,26 @@ export const AGENT_TOOLS: AgentTool[] = [
         }
       }
       const js = sel
-        ? `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return 'TIDAK ADA elemen: '+${JSON.stringify(sel)};e.scrollIntoView({block:'center'});e.click();return 'klik: '+(e.innerText||e.value||e.tagName).slice(0,60);})()`
-        : `(function(){var t=${JSON.stringify(teks)};var k=Array.from(document.querySelectorAll('a,button,input[type=submit],[role=button]'));var e=k.find(function(x){return (x.innerText||x.value||'').trim().toLowerCase().indexOf(t.toLowerCase())>=0;});if(!e)return 'TIDAK ADA elemen dengan teks: '+t;e.scrollIntoView({block:'center'});e.click();return 'klik: '+(e.innerText||e.value||'').slice(0,60);})()`;
+        ? `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return 'NO ELEMENT: '+${JSON.stringify(sel)};e.scrollIntoView({block:'center'});e.click();return 'clicked: '+(e.innerText||e.value||e.tagName).slice(0,60);})()`
+        : `(function(){var t=${JSON.stringify(teks)};var k=Array.from(document.querySelectorAll('a,button,input[type=submit],[role=button]'));var e=k.find(function(x){return (x.innerText||x.value||'').trim().toLowerCase().indexOf(t.toLowerCase())>=0;});if(!e)return 'NO ELEMENT with text: '+t;e.scrollIntoView({block:'center'});e.click();return 'clicked: '+(e.innerText||e.value||'').slice(0,60);})()`;
       const hasil = await cmd.browserPaneEval(paneId, js);
-      if (String(hasil).startsWith('TIDAK ADA')) return String(hasil);
+      if (String(hasil).startsWith('NO ELEMENT')) return String(hasil);
       await new Promise((r) => setTimeout(r, 1200));
-      return `aksi: ${hasil}\n\n${await bacaHalaman(paneId)}`;
+      return `action: ${hasil}\n\n${await bacaHalaman(paneId)}`;
     },
   },
   {
     spec: {
       name: 'browser_type',
       description:
-        'Isi sebuah input di pane browser lalu kirim Enter. Kembalikan isi halaman sesudahnya.',
+        'Fill an input in the browser pane and then press Enter. Returns the page contents afterwards.',
       parameters: {
         type: 'object',
         properties: {
-          selector: { type: 'string', description: 'selector CSS input/textarea' },
-          teks: { type: 'string', description: 'teks yang diketik' },
-          enter: { type: 'boolean', description: 'kirim Enter sesudah mengetik (default true)' },
-          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+          selector: { type: 'string', description: 'CSS selector of the input/textarea' },
+          teks: { type: 'string', description: 'the text to type' },
+          enter: { type: 'boolean', description: 'press Enter after typing (default true)' },
+          paneId: { type: 'string', description: 'browser pane id (optional)' },
         },
         required: ['selector', 'teks'],
       },
@@ -853,25 +854,25 @@ export const AGENT_TOOLS: AgentTool[] = [
       const sel = String(args.selector ?? '');
       const teks = String(args.teks ?? '');
       const enter = args.enter !== false;
-      const js = `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return 'TIDAK ADA: '+${JSON.stringify(sel)};e.focus();var d=Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value');if(d&&d.set)d.set.call(e,${JSON.stringify(teks)});else e.value=${JSON.stringify(teks)};e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));${enter ? "e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));var f=e.form;if(f&&f.requestSubmit)f.requestSubmit();" : ''}return 'diisi: '+${JSON.stringify(sel)};})()`;
+      const js = `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return 'NO ELEMENT: '+${JSON.stringify(sel)};e.focus();var d=Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value');if(d&&d.set)d.set.call(e,${JSON.stringify(teks)});else e.value=${JSON.stringify(teks)};e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));${enter ? "e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));var f=e.form;if(f&&f.requestSubmit)f.requestSubmit();" : ''}return 'filled: '+${JSON.stringify(sel)};})()`;
       const hasil = await cmd.browserPaneEval(paneId, js);
-      if (String(hasil).startsWith('TIDAK ADA')) return String(hasil);
+      if (String(hasil).startsWith('NO ELEMENT')) return String(hasil);
       await new Promise((r) => setTimeout(r, 1500));
-      return `aksi: ${hasil}\n\n${await bacaHalaman(paneId)}`;
+      return `action: ${hasil}\n\n${await bacaHalaman(paneId)}`;
     },
   },
   {
     spec: {
       name: 'browser_nav',
-      description: 'Navigasi pane browser: kembali, maju, muat ulang, atau pindah ke URL lain.',
+      description: 'Navigate the browser pane: back, forward, reload, or go to another URL.',
       parameters: {
         type: 'object',
         properties: {
           aksi: {
             type: 'string',
-            description: "'back' | 'forward' | 'reload' | URL lengkap",
+            description: "'back' | 'forward' | 'reload' | a full URL",
           },
-          paneId: { type: 'string', description: 'id pane browser (opsional)' },
+          paneId: { type: 'string', description: 'browser pane id (optional)' },
         },
         required: ['aksi'],
       },
@@ -879,7 +880,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     run: async (args) => {
       const paneId = await paneBrowserId(String(args.paneId ?? ''));
       const aksi = String(args.aksi ?? '').trim();
-      if (!aksi) throw new Error('browser_nav: aksi kosong');
+      if (!aksi) throw new Error('browser_nav: aksi is empty');
       await cmd.browserPaneNav(paneId, aksi);
       await new Promise((r) => setTimeout(r, 1200));
       return bacaHalaman(paneId);
@@ -889,22 +890,22 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'web_search',
       description:
-        'Cari di internet. Pakai ini untuk hal yang berubah sepanjang waktu atau di luar pengetahuanmu: berita terbaru, harga, versi rilis, dokumentasi, kejadian terkini. Kembalikan judul + URL + cuplikan; panggil web_fetch untuk membaca halaman yang menarik.',
+        'Search the internet. Use this for things that change over time or are outside your knowledge: the latest news, prices, release versions, documentation, current events. Returns title + URL + snippet; call web_fetch to read the pages that look interesting.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'kata kunci pencarian' },
-          maxResults: { type: 'number', description: 'jumlah hasil, 1-20 (default 8)' },
+          query: { type: 'string', description: 'search keywords' },
+          maxResults: { type: 'number', description: 'number of results, 1-20 (default 8)' },
         },
         required: ['query'],
       },
     },
     run: async (args) => {
       const q = String(args.query ?? '').trim();
-      if (!q) throw new Error('web_search: query kosong');
+      if (!q) throw new Error('web_search: query is empty');
       const n = Number(args.maxResults ?? 8);
       const hasil = await cmd.webSearch(q, Number.isFinite(n) ? n : 8);
-      if (hasil.length === 0) return `Tidak ada hasil untuk: ${q}`;
+      if (hasil.length === 0) return `No results for: ${q}`;
       return hasil
         .map(
           (h, i) =>
@@ -917,19 +918,19 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'web_fetch',
       description:
-        'Ambil satu halaman web dan kembalikan teksnya (tag HTML dibuang). Pakai setelah web_search untuk membaca sumber lengkapnya, atau langsung kalau URL-nya sudah diketahui.',
+        'Fetch one web page and return its text (the HTML tags are stripped). Use it after web_search to read a source in full, or directly when you already know the URL.',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL lengkap, harus http:// atau https://' },
-          maxChars: { type: 'number', description: 'batas karakter, 500-60000 (default 12000)' },
+          url: { type: 'string', description: 'full URL, must be http:// or https://' },
+          maxChars: { type: 'number', description: 'character limit, 500-60000 (default 12000)' },
         },
         required: ['url'],
       },
     },
     run: async (args) => {
       const url = String(args.url ?? '').trim();
-      if (!url) throw new Error('web_fetch: url kosong');
+      if (!url) throw new Error('web_fetch: url is empty');
       const n = Number(args.maxChars ?? 12000);
       return await cmd.webFetch(url, Number.isFinite(n) ? n : 12000);
     },
@@ -937,21 +938,21 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     spec: {
       name: 'browser_list',
-      description: 'Daftar pane browser yang sedang terbuka beserta URL dan judulnya.',
+      description: 'List the browser panes that are currently open, with their URL and title.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
       const t = useTerminal.getState();
       const panes = t.allPanes().filter((p) => p.kind === 'browser');
-      if (panes.length === 0) return 'Belum ada pane browser yang terbuka.';
+      if (panes.length === 0) return 'No browser pane is open.';
       const baris: string[] = [];
       for (const p of panes) {
         let info = '';
         try {
           const i = await cmd.browserPaneInfo(p.id);
-          info = `${i.title || '(tanpa judul)'} | ${i.url}`;
+          info = `${i.title || '(no title)'} | ${i.url}`;
         } catch {
-          info = '(webview belum siap)';
+          info = '(webview not ready yet)';
         }
         baris.push(`- ${p.id}: ${info}`);
       }
@@ -962,14 +963,14 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'subagent_run',
       description:
-        'Jalankan beberapa tugas sebagai subagent paralel (satu tugas per baris). Pakai untuk memecah pekerjaan besar jadi bagian yang berjalan bersamaan. Kedalaman bersarang dibatasi (subagent tidak bisa memanggil subagent tanpa henti).',
+        'Run several tasks as parallel subagents (one task per line). Use this to break up complex work into parts that run at the same time. The nesting depth is limited (a subagent cannot keep calling subagents forever).',
       parameters: {
         type: 'object',
         properties: {
           tasks: {
             type: 'array',
             items: { type: 'string' },
-            description: 'daftar tugas; tiap item jadi satu subagent',
+            description: 'the task list; each item becomes one subagent',
           },
         },
         required: ['tasks'],
@@ -979,20 +980,20 @@ export const AGENT_TOOLS: AgentTool[] = [
       const tasks = Array.isArray(args.tasks)
         ? (args.tasks as unknown[]).map((t) => String(t)).filter((t) => t.trim())
         : [];
-      if (tasks.length === 0) throw new Error('subagent_run: tasks kosong');
+      if (tasks.length === 0) throw new Error('subagent_run: tasks is empty');
       if (subDepth >= MAX_SUB_DEPTH) {
-        return `(ditolak: kedalaman subagent maksimum ${MAX_SUB_DEPTH} tercapai)`;
+        return `(rejected: the maximum subagent depth of ${MAX_SUB_DEPTH} is reached)`;
       }
       subDepth += 1;
       try {
-        // Impor malas: hindari siklus modul (subagent memakai agentTools).
+        // Lazy import: avoid a module cycle (subagent uses agentTools).
         const { useSubAgent } = await import('./subagentStore');
         await useSubAgent.getState().jalankan(tasks, { bersarang: true });
         const agents = useSubAgent.getState().agents;
         return (
-          `Selesai menjalankan ${agents.length} subagent.\n` +
+          `Finished running ${agents.length} subagents.\n` +
           agents
-            .map((a) => `## ${a.nama} [${a.status}]\n${a.hasil || a.error || '(tidak ada hasil)'}`)
+            .map((a) => `## ${a.nama} [${a.status}]\n${a.hasil || a.error || '(no result)'}`)
             .join('\n\n')
         );
       } finally {
@@ -1002,12 +1003,48 @@ export const AGENT_TOOLS: AgentTool[] = [
   },
 ];
 
-/** Kedalaman subagent bersarang, untuk mencegah rekursi tanpa batas. */
+/** Nested subagent depth, to prevent unbounded recursion. */
 let subDepth = 0;
 export const MAX_SUB_DEPTH = 2;
 
-export function agentToolSpecs(): AgentToolSpec[] {
-  return AGENT_TOOLS.map((t) => t.spec);
+/** Tool names that change files on disk or in the editor. */
+const TOOL_TULIS = new Set(['editor_write', 'file_write', 'file_edit', 'file_patch']);
+
+/**
+ * Tool specs for a caller. A read-only caller is not offered the write tools at
+ * all, rather than being offered them and refused after the model has already
+ * spent a turn on the call. The runtime still refuses a write attempt, so this
+ * is the first of two layers, not the only one.
+ */
+export function agentToolSpecs(opsi?: {
+  bolehTulis?: boolean;
+  kedalaman?: number;
+  /**
+   * Hard allowlist, for a custom worker from Settings → Subagents.
+   *
+   * The built-in roles are gated on a single `bolehTulis` flag, which is enough
+   * because they all draw from the same read-only pool. A custom worker picks
+   * its own tools, so the flag is not enough: without this, a definition that
+   * ticked only "read diagnostics" would still be handed the browser and the
+   * cron tools. An allowlist also makes deletion meaningful — unticking a tool
+   * actually takes it away.
+   *
+   * `subagent_run` is always added back: a worker with no way to delegate is
+   * just a slower way to do the work inline.
+   */
+  alat?: string[];
+}): AgentToolSpec[] {
+  const boleh = opsi?.bolehTulis !== false;
+  const bisaNested = (opsi?.kedalaman ?? 0) < MAX_SUB_DEPTH;
+  const daftar = opsi?.alat;
+  return AGENT_TOOLS.map((t) => t.spec).filter((s) => {
+    if (daftar) {
+      return daftar.includes(s.name) || s.name === 'subagent_run';
+    }
+    if (!boleh && TOOL_TULIS.has(s.name)) return false;
+    if (!bisaNested && s.name === 'subagent_run') return false;
+    return true;
+  });
 }
 
 export async function jalankanAgentTool(
@@ -1015,6 +1052,6 @@ export async function jalankanAgentTool(
   args: Record<string, unknown>,
 ): Promise<string> {
   const tool = AGENT_TOOLS.find((t) => t.spec.name === name);
-  if (!tool) throw new Error(`tool tak dikenal: ${name}`);
+  if (!tool) throw new Error(`unknown tool: ${name}`);
   return tool.run(args);
 }

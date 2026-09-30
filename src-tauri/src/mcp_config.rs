@@ -162,7 +162,7 @@ fn home() -> ZResult<PathBuf> {
     std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .map(PathBuf::from)
-        .map_err(|_| ZephyrError::Internal("USERPROFILE tidak ada".into()))
+        .map_err(|_| ZephyrError::Internal("USERPROFILE is missing".into()))
 }
 
 pub fn target_path(t: &CliTarget) -> ZResult<PathBuf> {
@@ -350,7 +350,7 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
             path: String::new(),
             ok: false,
             backup: false,
-            message: format!("CLI '{id}' tidak dikenal"),
+            message: format!("CLI '{id}' not recognised"),
         };
     };
     let p = match target_path(t) {
@@ -395,7 +395,7 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
                 path: p.to_string_lossy().into(),
                 ok: false,
                 backup,
-                message: format!("gagal membuat folder: {e}"),
+                message: format!("failed membuat folder: {e}"),
             };
         }
     }
@@ -418,7 +418,7 @@ pub fn write_cli(id: &str, port: u16, token: &str) -> CliWriteResult {
             path: p.to_string_lossy().into(),
             ok: false,
             backup,
-            message: format!("gagal menulis: {e}"),
+            message: format!("writing failed: {e}"),
         },
     }
 }
@@ -431,7 +431,7 @@ pub fn remove_cli(id: &str) -> CliWriteResult {
             path: String::new(),
             ok: false,
             backup: false,
-            message: format!("CLI '{id}' tidak dikenal"),
+            message: format!("CLI '{id}' not recognised"),
         };
     };
     let p = match target_path(t) {
@@ -454,7 +454,7 @@ pub fn remove_cli(id: &str) -> CliWriteResult {
             path: p.to_string_lossy().into(),
             ok: true,
             backup: false,
-            message: "config tidak ada — tidak ada yang dihapus".into(),
+            message: "config is missing — is missing yang dihapus".into(),
         };
     }
     let existing = std::fs::read_to_string(&p).unwrap_or_default();
@@ -491,7 +491,7 @@ pub fn remove_cli(id: &str) -> CliWriteResult {
             path: p.to_string_lossy().into(),
             ok: false,
             backup,
-            message: format!("gagal menulis: {e}"),
+            message: format!("writing failed: {e}"),
         },
     }
 }
@@ -521,7 +521,7 @@ pub fn write_custom_cli(
             path: String::new(),
             ok: false,
             backup: false,
-            message: "path kosong".into(),
+            message: "empty path".into(),
         };
     }
     let kunci = if key.trim().is_empty() {
@@ -563,7 +563,7 @@ pub fn write_custom_cli(
                     path: p.to_string_lossy().into(),
                     ok: false,
                     backup,
-                    message: format!("gagal menulis: {e}"),
+                    message: format!("writing failed: {e}"),
                 },
             }
         }

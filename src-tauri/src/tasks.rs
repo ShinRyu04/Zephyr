@@ -338,7 +338,7 @@ fn parse_satu_task(v: &Value, idx: usize, errors: &mut Vec<String>) -> Option<Ta
     if let Some(map) = v.as_object() {
         for k in map.keys() {
             if !FIELD_DIKENAL.contains(&k.as_str()) {
-                warnings.push(format!("field \"{k}\" tidak dikenal, diabaikan"));
+                warnings.push(format!("field \"{k}\" not recognised, ignored"));
             }
         }
     }
@@ -393,7 +393,7 @@ pub fn tasks_load(state: State<AppState>, root: Option<String>) -> ZResult<Tasks
         Some(r) => PathBuf::from(r),
         None => state
             .workspace_path()
-            .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?,
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?,
     };
 
     let file = match cari_tasks_file(&root) {
@@ -431,7 +431,7 @@ pub fn tasks_load(state: State<AppState>, root: Option<String>) -> ZResult<Tasks
     for (i, t) in arr.iter().enumerate() {
         if let Some(d) = parse_satu_task(t, i, &mut errors) {
             if tasks.iter().any(|x: &TaskDef| x.label == d.label) {
-                errors.push(format!("label \"{}\" dobel — yang kedua dibuang", d.label));
+                errors.push(format!("label \"{}\" duplicated — the second one was dropped", d.label));
                 continue;
             }
             tasks.push(d);
@@ -691,7 +691,7 @@ pub fn tasks_match_line(
     let mut st = MatcherState::baru(&[matcher]);
     if !st.ada() {
         return Err(ZephyrError::InvalidInput(format!(
-            "matcher tidak dikenal: {}",
+            "unknown matcher: {}",
             "lihat tasks_matchers()"
         )));
     }
@@ -778,15 +778,15 @@ pub fn tasks_run(
     crate::workspace::ensure_trusted(&state, "Menjalankan task")?;
 
     if id.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("id run kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty run id".into()));
     }
     if command.trim().is_empty() {
-        return Err(ZephyrError::InvalidInput("command kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty command".into()));
     }
     {
         let procs = rt.procs.lock().unwrap();
         if procs.contains_key(&id) {
-            return Err(ZephyrError::InvalidInput(format!("run {id} sudah jalan")));
+            return Err(ZephyrError::InvalidInput(format!("run {id} is already going")));
         }
     }
 
@@ -798,12 +798,12 @@ pub fn tasks_run(
                 p
             } else {
                 ws.clone()
-                    .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?
+                    .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?
                     .join(p)
             };
 
             let p = std::fs::canonicalize(&p)
-                .map_err(|_| ZephyrError::InvalidInput(format!("cwd tidak ada: {raw}")))?;
+                .map_err(|_| ZephyrError::InvalidInput(format!("cwd is missing: {raw}")))?;
             if !p.is_dir() {
                 return Err(ZephyrError::InvalidInput(format!(
                     "cwd bukan folder: {raw}"
@@ -821,7 +821,7 @@ pub fn tasks_run(
         }
         None => ws
             .clone()
-            .ok_or_else(|| ZephyrError::InvalidInput("belum ada workspace".into()))?,
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?,
     };
 
     let shell = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".into());
@@ -1046,7 +1046,7 @@ pub fn tasks_wait(
                 if let Some(r) = runs.iter().find(|r| r.id == id) {
                     return Ok(r.clone());
                 }
-                return Err(ZephyrError::InvalidInput(format!("run {id} tidak ada")));
+                return Err(ZephyrError::InvalidInput(format!("run {id} is missing")));
             }
         }
         if t0.elapsed().as_millis() as u64 > batas {

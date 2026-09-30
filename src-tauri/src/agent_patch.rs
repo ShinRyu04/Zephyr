@@ -42,19 +42,19 @@ pub fn file_patch(
 ) -> ZResult<PatchResult> {
     let p = patch.trim();
     if p.is_empty() {
-        return Err(ZephyrError::InvalidInput("patch kosong".into()));
+        return Err(ZephyrError::InvalidInput("empty patch".into()));
     }
     if p.len() > MAX_PATCH_CHARS {
         return Err(ZephyrError::InvalidInput("patch terlalu besar".into()));
     }
     let Some(ws) = state.workspace_path() else {
-        return Err(ZephyrError::InvalidInput("belum ada workspace".into()));
+        return Err(ZephyrError::InvalidInput("no workspace".into()));
     };
     crate::workspace::ensure_trusted(&state, "Menerapkan patch")?;
 
     let target = state.resolve_ws(&PathBuf::from(&path));
     if !target.is_file() {
-        return Err(ZephyrError::InvalidInput(format!("file tidak ada: {path}")));
+        return Err(ZephyrError::InvalidInput(format!("file does not exist: {path}")));
     }
     state.ensure_writable(&target)?;
 
@@ -95,7 +95,7 @@ pub fn file_patch(
             res.conflict = String::from_utf8_lossy(&out.stderr).to_string();
         }
         Err(e) => {
-            res.conflict = format!("gagal menjalankan git: {e}");
+            res.conflict = format!("running git failed: {e}");
         }
     }
     let _ = std::fs::remove_file(&tmp);

@@ -1,5 +1,6 @@
 import { useSubAgent } from '../../lib/subagentStore';
 import { infoPeran } from '../../lib/subagentRoles';
+import { pathIkonPeran } from '../../lib/peranIcons';
 import { useLayoutCustom } from '../../lib/layoutStore';
 import { useT } from '../../lib/i18n';
 
@@ -76,7 +77,26 @@ export default function SubAgentInfo() {
                   <span className={`sai-dot is-${a.status}`} aria-hidden="true" />
                   <span className="sai-nama">{a.nama}</span>
                   <span className="sai-peran" title={p ? tr(p.label) : ''}>
-                    {p ? `${p.ikon} ${tr(p.label)}` : '-'}
+                    {p ? (
+                      <>
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d={pathIkonPeran(p.ikon)} />
+                        </svg>
+                        {tr(p.label)}
+                      </>
+                    ) : (
+                      '-'
+                    )}
                   </span>
                 </div>
                 <div className="sai-langkah" title={langkahTerakhir(a)}>

@@ -1,0 +1,911 @@
+/*
+ * Chat layout and streaming states.
+ *
+ * The shape people already read as a chat: your own message is ONE soft bubble
+ * on the RIGHT, the assistant answers as plain text on the LEFT. Before this
+ * both sides were identical blocks, so a long conversation was hard to scan —
+ * you could not tell at a glance which lines were yours.
+ *
+ * Everything else is deliberately absent. No divider between turns, no avatar
+ * or model name per message, no rail down the left edge, no box inside the
+ * bubble, no stroke on inline code. Each of those was a container drawn around
+ * content that does not need one, and together they made the panel read as a
+ * stack of cards rather than a conversation.
+ *
+ * Loaded after ai.css, which styles the same classes with borders and avatars.
+ */
+
+/* ── Column ───────────────────────────────────────────────────────────── */
+
+/*
+ * Full width, no centring. Messages hug their own side: the user's bubble sits
+ * against the RIGHT edge, the assistant's text against the LEFT edge, which is
+ * what makes a turn readable at a glance.
+ *
+ * `width: 100%` is load-bearing. Auto side margins on a flex column item make
+ * it shrink to fit AND centre in one step, so every message collapsed to the
+ * width of its own text: a two-word message became a 40px column that broke
+ * "halo?" across three lines, and the wider paragraphs sat at a different left
+ * edge than the lists. Full width keeps one shared column with no drift.
+ */
+.ai-chat {
+  padding: 14px 16px 8px;
+}
+
+.ai-chat > * {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* ── Turn ─────────────────────────────────────────────────────────────── */
+
+.ai-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 0 9px;
+  /* No divider: the side a message sits on already tells you whose turn it is,
+     so a rule between turns is decoration. */
+  border-bottom: 0;
+  max-width: 100%;
+}
+
+.ai-msg:last-child {
+  border-bottom: 0;
+}
+
+/* Assistant: plain text, full column. */
+.ai-msg.is-assistant,
+.ai-msg.is-system {
+  align-items: flex-start;
+  padding-top: 12px;
+}
+
+/* User: bubble, right-aligned, capped so a long line still wraps. */
+.ai-msg.is-user {
+  align-items: flex-end;
+  padding-top: 4px;
+}
+
+/* ── User message: right-aligned text, no container ───────────────────── */
+
+/*
+ * No bubble and no box. The side carries the meaning: your message sits on the
+ * RIGHT, the assistant's on the LEFT, and that is the whole distinction — no
+ * fill, no stroke, no radius, nothing drawn around the text.
+ *
+ * ai.css styles .ai-plain (the element user messages use) with a background,
+ * a 1px border, a radius and padding, so every one of those has to be cleared
+ * here or the "box" comes back. The assistant's .ai-body carries a 2px
+ * border-left in the same file — that was the vertical line down the left side.
+ *
+ * `align-self: flex-end` plus a width cap is what makes it read as "mine"
+ * without a container: the text hugs the right edge, and long messages still
+ * wrap instead of running the full width of the panel.
+ */
+/*
+ * The wrapper is the flex item, so IT has to stop shrinking: shrink-to-fit
+ * measured the text at 33px wide (the width of "halo") and broke the message
+ * across two lines. Full width, then the text inside aligns itself right.
+ */
+.ai-msg.is-user .ai-body {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The text is the thing that hugs the right edge, capped so a long message
+   still wraps instead of running the full width of the panel. */
+.ai-msg.is-user .ai-plain {
+  max-width: min(78%, 620px);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  /* ai.css sets break-word on the shared body/plain rule, which lets a word
+     split mid-letter; normal wrapping keeps "halo ?" on one line. */
+  word-break: normal;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.62;
+}
+
+/* A code block inside your own message keeps its block shape. */
+.ai-msg.is-user .ai-body .ai-code {
+  margin: 6px 0 2px;
+}
+
+/* ── Assistant: no container, no rail ─────────────────────────────────── */
+
+/*
+ * The 2px border-left from ai.css was the vertical line beside every answer,
+ * and .ai-plain carries a fill + stroke + radius. All of it cleared: the
+ * assistant's answer is plain text in the column, nothing drawn around it.
+ */
+.ai-msg.is-assistant .ai-body,
+.ai-msg.is-assistant .ai-plain,
+.ai-msg.is-system .ai-body {
+  align-self: stretch;
+  max-width: 100%;
+  padding: 0;
+  padding-left: 0;
+  background: none;
+  border: 0;
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: none;
+  line-height: 1.68;
+}
+
+.ai-body p {
+  margin: 0 0 10px;
+}
+
+.ai-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── No byline ────────────────────────────────────────────────────────── */
+
+/*
+ * The avatar + model name used to sit above every message. With more than a
+ * couple of turns it became a repeated label carrying no new information — the
+ * same provider on every message — and it pushed the actual text down. The
+ * model name is still reachable from the usage meter in the header.
+ *
+ * Only the byline goes: the action buttons live in the same row, so they are
+ * moved BELOW the message instead of being hidden with it. That also removes
+ * the left edge mark that read as a vertical line beside the assistant's text.
+ */
+.ai-msg-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-msg.is-assistant .ai-msg-head,
+.ai-msg.is-system .ai-msg-head {
+  /* Below the body, like the action row under an answer. */
+  order: 2;
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+/* Everything in the row except the actions: the provider mark and the name. */
+.ai-msg.is-assistant .ai-msg-head > *:not(.ai-msg-actions),
+.ai-msg.is-system .ai-msg-head > *:not(.ai-msg-actions) {
+  display: none;
+}
+
+/* Nothing left to show when the actions are not rendered. */
+.ai-msg.is-assistant .ai-msg-head:not(:has(.ai-msg-actions)),
+.ai-msg.is-system .ai-msg-head:not(:has(.ai-msg-actions)) {
+  display: none;
+}
+
+/* For the user the row only carries the action buttons, so it follows the
+   bubble's side and sits just under it, aligned right like the bubble. */
+.ai-msg.is-user .ai-who {
+  display: none;
+}
+
+.ai-msg.is-user .ai-msg-head {
+  order: 2;
+  justify-content: flex-end;
+  margin-top: 1px;
+}
+
+/* Nothing left to show when the actions are not rendered. */
+.ai-msg.is-user .ai-msg-head:not(:has(.ai-msg-actions)) {
+  display: none;
+}
+
+/* ── Actions: on hover ────────────────────────────────────────────────── */
+
+.ai-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.ai-msg:hover .ai-msg-actions,
+.ai-msg:focus-within .ai-msg-actions {
+  opacity: 1;
+}
+
+/* Keyboard users must be able to reach the actions without a pointer. */
+@media (hover: none) {
+  .ai-msg-actions {
+    opacity: 1;
+  }
+}
+
+/* ── Inline code: fill only, no stroke ────────────────────────────────── */
+
+.ai-body code,
+.ai-plain code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 1.5px 5px;
+  background: var(--surface-3);
+  border: 0;
+  border-radius: 5px;
+  color: var(--text);
+}
+
+/* ── Lists keep their markers ─────────────────────────────────────────── */
+
+/*
+ * A reset elsewhere in the stylesheet removed the list markers, which made the
+ * assistant's "here is what I can do" lists run together as one paragraph.
+ */
+.ai-body ul,
+.ai-body ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  list-style: revert;
+}
+
+.ai-body li {
+  margin: 0 0 4px;
+}
+
+.ai-body li::marker {
+  color: var(--text-muted);
+}
+
+.ai-body li > ul,
+.ai-body li > ol {
+  margin: 4px 0 0;
+}
+
+/* ── Composer, Hermes-style: one bar ──────────────────────────────────── */
+
+/*
+ * The reference puts everything the message needs on a single line inside one
+ * bordered container — "+" on the left, then the selectors as bare text with a
+ * chevron, no pills and no boxes around them. The field and the controls share
+ * that one container instead of stacking two bordered rows, which is what made
+ * the old composer read as a form.
+ *
+ * Selectors are stripped to text + caret on purpose: at this size a bordered
+ * pill around every control competes with the text you are typing.
+ */
+.ai-input-row {
+  border-radius: 10px;
+  background: var(--bg0);
+}
+
+/* The controls row is part of the same bar, not a separate strip. */
+.ai-input-side {
+  border-top: 0;
+  background: transparent;
+  padding: 4px 6px 6px 6px;
+  gap: 4px;
+}
+
+/* Bare-text controls: no chip, no fill, no border. */
+.ai-input-side .mode-btn,
+.ai-input-side .ai-model-btn {
+  height: 24px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.ai-input-side .mode-btn:hover,
+.ai-input-side .ai-model-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* The caret is the only mark that says "this opens a menu". */
+.ai-input-side .pick-caret,
+.ai-input-side .ai-chev {
+  width: 10px;
+  height: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Attach controls stay icon-only, and slightly smaller than the text. */
+.ai-input-side .ai-attach,
+.ai-input-side .ai-photo,
+.ai-input-side .ai-voice {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+}
+
+/* Send keeps its weight as the one filled control in the bar. */
+.ai-input-side .btn {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 6px;
+}
+
+/* ── Round send / stop ────────────────────────────────────────────────── */
+
+/*
+ * An icon, not a labelled button. Send is the one action everyone already knows
+ * by shape, and the word took a third of the bar's width — width the model name
+ * and the permission level needed more.
+ *
+ * Both states are round and the same size, so the button does not move or
+ * resize when a request starts or finishes.
+ */
+.ai-input-side .ai-round-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  order: 6;
+  transition: background 110ms ease, opacity 110ms ease;
+}
+
+.ai-input-side .ai-round-btn.is-send {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ai-input-side .ai-round-btn.is-send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 86%, #fff);
+}
+
+.ai-input-side .ai-round-btn.is-send:disabled {
+  background: var(--surface-3);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.ai-input-side .ai-round-btn.is-stop {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.ai-input-side .ai-round-btn.is-stop:hover {
+  background: color-mix(in srgb, var(--danger) 22%, var(--surface-3));
+}
+
+.ai-input-side .ai-round-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Outgoing queue ───────────────────────────────────────────────────── */
+
+/*
+ * Sits directly above the composer, where the messages are: a queued message is
+ * still the user's to change, so it belongs next to the input rather than in
+ * the transcript.
+ */
+.ai-antrian {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 10px 6px;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.ai-antrian-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.ai-antrian-head > svg {
+  flex-shrink: 0;
+}
+
+.ai-antrian-judul {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/*
+ * The explanation, not a label.
+ *
+ * It sits between the count and the Clear button, dimmer than both, so the row
+ * still reads "2 waiting · Clear" at a glance and the sentence is there only for
+ * whoever is wondering what the queue does.
+ */
+.ai-antrian-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-antrian-act {
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 10.5px;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ai-antrian-act:hover {
+  color: var(--text);
+}
+
+.ai-antrian-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 6px;
+  background: var(--surface-3);
+  border-radius: 5px;
+}
+
+/* One line per queued message: the queue is a glance, not a transcript. */
+.ai-antrian-teks {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-antrian-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font-size: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ai-antrian-x:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ── "+" menu ─────────────────────────────────────────────────────────── */
+
+/*
+ * One button that gathers the ways to put something INTO the message.
+ *
+ * It opens UPWARD and is anchored to the BOTTOM of the composer: in the side
+ * panel the composer sits at the bottom of the window, so a menu below it would
+ * open off-screen. Anchoring to the bottom of the trigger (not the top of it)
+ * keeps the menu above the bar no matter how tall it grows.
+ *
+ * `max-height` plus scrolling covers the case where the panel itself is short:
+ * a long list scrolls inside the menu instead of running off the top edge.
+ */
+.ai-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  order: 1;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.ai-plus:hover,
+.ai-plus.is-on {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.ai-plus:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Catches the next click so the menu closes on a click anywhere. */
+.ai-plus-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+}
+
+.ai-plus-menu {
+  position: absolute;
+  /* Above the trigger, pinned to its bottom edge. */
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 6px;
+  z-index: 321;
+  min-width: 232px;
+  max-height: min(300px, 45vh);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 0.45);
+}
+
+/*
+ * The composer row is the positioning context. Without it the menu would be
+ * placed against the nearest positioned ancestor — the whole panel — and its
+ * `bottom: 100%` would measure from the panel's bottom, pushing it off-screen.
+ */
+.ai-input-side {
+  position: relative;
+}
+
+.ai-plus-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 8px;
+  font-family: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ai-plus-item:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.ai-plus-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ai-plus-item > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.ai-plus-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.ai-plus-teks b {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* The second line is a hint, so it stays quiet and never wraps the row. */
+.ai-plus-teks i {
+  font-size: 10.5px;
+  font-style: normal;
+  color: var(--text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Typing indicator ─────────────────────────────────────────────────── */
+
+.ai-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+
+  /* The chip breathes so the row reads as live even when a token is slow to
+     arrive and the dots are between beats. */
+  animation: typing-breathe 2s ease-in-out infinite;
+}
+
+/*
+ * A soft sweep across the chip, under the text.
+ *
+ * The dots alone are 3px of motion in a wide panel; the sweep gives the row a
+ * second, larger signal without adding a spinner. `overflow: hidden` keeps it
+ * inside the pill.
+ */
+.ai-typing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    var(--accent-subtle) 50%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  animation: typing-sweep 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.ai-typing {
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes typing-breathe {
+  0%,
+  100% {
+    border-color: var(--border);
+  }
+  50% {
+    border-color: var(--accent);
+  }
+}
+
+@keyframes typing-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Three dots that rise in sequence. CSS only: nothing to compute, no renders
+   while tokens stream in. */
+.ai-typing .ai-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0;
+}
+
+.ai-typing .ai-dots::before,
+.ai-typing .ai-dots::after,
+.ai-typing .ai-dots i {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: typing-dot 1.15s ease-in-out infinite;
+}
+
+.ai-typing .ai-dots i {
+  animation-delay: 0.16s;
+}
+
+.ai-typing .ai-dots::after {
+  animation-delay: 0.32s;
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-typing,
+  .ai-typing::after,
+  .ai-typing .ai-dots::before,
+  .ai-typing .ai-dots::after,
+  .ai-typing .ai-dots i {
+    animation: none;
+    opacity: 0.7;
+  }
+  /* The sweep is decoration; without motion it would just sit there as a
+     grey smear, so it is removed entirely rather than frozen. */
+  .ai-typing::after {
+    display: none;
+  }
+}
+
+/* ── Streaming caret ──────────────────────────────────────────────────── */
+
+/*
+ * A thin bar that sits after the last character while text is arriving. It is
+ * inline so it follows the text flow; a block cursor would push the line down
+ * every time a token lands.
+ */
+.ai-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: caret-blink 1.05s step-end infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-caret {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
+/* ── Thinking state, in the middle of the transcript ───────────────────── */
+
+/*
+ * Sits where the answer will appear, not in the header.
+ *
+ * The header chip is 10px tall and scrolls out of view; this is the block the
+ * eye is already resting on while it waits. Three signals, all cheap: an orb
+ * that pulses, a label, and the dot wave — and no spinner, because a spinner
+ * implies a determinate wait and this one is not.
+ */
+.ai-think {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0 2px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.ai-think-orb {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, var(--accent), transparent 72%);
+  box-shadow: 0 0 0 0 var(--accent-subtle);
+  animation: think-orb 1.5s ease-in-out infinite;
+}
+
+@keyframes think-orb {
+  0%,
+  100% {
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 var(--accent-subtle);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 5px transparent;
+    opacity: 1;
+  }
+}
+
+.ai-think-text {
+  /* A slow shimmer: the label reads as moving without ever changing width, so
+     nothing below it reflows. */
+  background: linear-gradient(
+    90deg,
+    var(--text-secondary) 0%,
+    var(--text) 45%,
+    var(--text-secondary) 90%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: think-shimmer 2.6s linear infinite;
+}
+
+@keyframes think-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+/* The dot wave, sized for the body rather than the 10px header chip. */
+.ai-think .ai-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0;
+}
+
+.ai-think .ai-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: think-dot 1.25s ease-in-out infinite;
+}
+
+.ai-think .ai-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.ai-think .ai-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes think-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-think-orb,
+  .ai-think-text,
+  .ai-think .ai-dots i {
+    animation: none;
+  }
+  .ai-think-text {
+    color: var(--text-secondary);
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}

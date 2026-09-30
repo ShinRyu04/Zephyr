@@ -271,10 +271,37 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 10px 12px;
+  /*
+   * Bottom padding reserves room for the last card's action row.
+   *
+   * The composer overlaps this scroller, so a tool card expanded at the end of
+   * the transcript had its Copy row hidden behind the input box — the buttons
+   * existed, and elementFromPoint proved they could not be hit. The reserved
+   * space is one action row plus a margin, not a guess.
+   */
+  padding: 10px 12px 34px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /*
+   * Never let the transcript collapse to nothing.
+   *
+   * Short panel, tall card: with `min-height: 0` the flex row squeezed the
+   * scroller below one card and pushed the action row out of the panel
+   * entirely, where it could not be scrolled to.
+   */
+  min-height: 120px;
+}
+
+/*
+ * A tool call body scrolls, not the card.
+ *
+ * With long outputs the whole transcript moved every time an agent ran one
+ * more command; capping the body keeps the message list still and lets the
+ * reader scroll the output on its own.
+ */
+.ai-toolrun-code {
+  overscroll-behavior: contain;
 }
 
 .ai-empty {
@@ -665,9 +692,82 @@
 .ai-toolrun-head:hover {
   background: var(--surface-3, var(--surface-2));
 }
+/*
+ * Per-tool icon and the file chip.
+ *
+ * The row used to lead with the raw tool name — "editor_write" — which the
+ * reader has to translate before it means anything. The label comes from the
+ * shared action table (Read / Write / Run), and a call that edits a file shows
+ * the file itself, with a grip that echoes the drop-handle language used by the
+ * editor tabs.
+ */
+.ai-toolrun-ikon {
+  flex: none;
+  width: 13px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.ai-toolrun-ikon.is-tulis {
+  color: var(--syn-keyword);
+}
+
+.ai-toolrun-ikon.is-jalan {
+  color: var(--syn-type);
+}
+
+.ai-toolrun-ikon.is-baca {
+  color: var(--syn-number);
+}
+
+.ai-toolrun-ikon.is-cari,
+.ai-toolrun-ikon.is-ingat {
+  color: var(--syn-function);
+}
+
+.ai-file-chip {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--fg0);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-file-chip-grip {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1;
+}
+
 .ai-toolrun-caret {
   color: var(--muted);
   font-size: 10px;
+}
+
+/*
+ * Elapsed time for the call.
+ *
+ * Tinted with the same syntax green the thinking dots use for "finished work",
+ * monospaced so the digits stop jittering as values change, and pushed right by
+ * the flexible args column so the badge sits on a shared edge down the list.
+ */
+.ai-toolrun-ms {
+  flex: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
 }
 .ai-toolrun-name {
   font-weight: 600;
@@ -718,10 +818,83 @@
   border-color: var(--accent);
   text-decoration: underline;
 }
+/*
+ * Tool call body: Input, Output, then the actions.
+ *
+ * The result used to sit in one unlabelled <pre> directly under the header, so
+ * a shell call showed an output with no visible command — you had to read the
+ * JSON in the collapsed row to know what ran. Two labelled sections make the
+ * pair explicit, and the actions moved to icon buttons on the right so the row
+ * reads as one control strip rather than three loose words.
+ */
+.ai-toolrun-body {
+  border-top: 1px solid var(--border);
+  background: var(--bg0);
+}
+
+.ai-toolrun-sec {
+  padding: 6px 8px;
+}
+
+.ai-toolrun-sec + .ai-toolrun-sec {
+  border-top: 1px dashed var(--border);
+}
+
+.ai-toolrun-sec-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ai-toolrun-code {
+  margin: 0;
+  max-height: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--editor-bg);
+  color: var(--fg1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-toolrun-code.is-err {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger);
+}
+
+.ai-toolrun-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ai-toolrun-btn:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--fg0);
+}
+
 .ai-toolrun-act {
   display: flex;
-  gap: 6px;
-  padding: 4px 8px 6px;
+  gap: 4px;
+  padding: 4px 6px 6px;
   border-top: 1px solid var(--border);
 }
 .ai-imgpreview {
@@ -1113,6 +1286,68 @@
   background: var(--surface-2);
   color: var(--text);
 }
+/*
+ * Row delete.
+ *
+ * The row used to end in the word "delete" in muted grey, which cost width in a
+ * narrow sidebar and read as a label rather than a control. An icon keeps the
+ * row steady, and it stays invisible until hover so a stray click cannot wipe a
+ * conversation — the same rule the session switcher follows.
+ */
+.ai-side-del {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.ai-side-item:hover .ai-side-del,
+.ai-side-btn.is-active + .ai-side-del,
+.ai-side-del:focus-visible {
+  opacity: 1;
+}
+
+.ai-side-del:hover {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+/*
+ * The meta line sits under the title, not beside it.
+ *
+ * Title and meta on one line meant a long title squeezed "3 messages · 02:40"
+ * down to an ellipsis, so the row lost the one piece of information that tells
+ * two same-named chats apart. Scoped to this list: the generic `.btn` rule a
+ * few lines up is not involved, so the New chat button keeps its icon beside
+ * the label rather than above it.
+ */
+.ai-side-list .ai-side-btn {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+}
+
+.ai-side-btn > svg {
+  display: none;
+}
+
+.ai-side-title {
+  font-size: 11.5px;
+}
+
+.ai-side-meta {
+  font-size: 9.5px;
+}
+
 .ai-side-btn.is-active {
   background: var(--accent-subtle);
   color: var(--text);
@@ -1288,7 +1523,7 @@
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-muted);
@@ -1343,6 +1578,57 @@
 .ai-agent-tool {
   font-weight: 600;
   color: var(--accent);
+}
+
+/* Progress counter + per-step timer: same hierarchy as the step rows, with
+   live values in muted text so static and running numbers read apart. */
+.ai-agent-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-agent-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-agent-durasi {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+}
+
+.ai-agent-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text);
+  border-top: 1px dashed var(--border);
+  padding-top: 4px;
+}
+
+.ai-agent-live-ikon {
+  color: var(--accent);
+}
+
+.ai-agent-live-aksi {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ai-agent-live-sasaran {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-agent-live-durasi {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-agent-args {
@@ -1480,12 +1766,145 @@
   border-bottom: 1px solid var(--border);
   font: inherit;
   font-size: 11.5px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   padding: 7px 9px;
   resize: vertical;
 }
 
 .sub-input:focus { outline: none; }
+
+/* The parsed task list. Read-only: the batch model is picked once in the tab
+   header, so a row only needs to show the task and - when that line carries a
+   [model:...] tag - that it overrides the batch. */
+.sub-daftar {
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 9px 0;
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.sub-daftar-baris {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 19px;
+}
+
+.sub-daftar-caret {
+  flex: 0 0 auto;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.sub-daftar-teks {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Per-line model badge. It is a button, not a <select>: the row stays quiet
+   until it is actually used, and clicking it opens the list on demand instead
+   of N dropdowns sitting open all the time. */
+.sub-daftar-model {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sub-daftar-model:hover { color: var(--text); border-color: var(--border-strong, var(--border)); }
+
+/* A row that overrides the batch model is called out, so a mixed batch is
+   visible at a glance instead of hiding in the text. */
+.sub-daftar-model.is-override {
+  color: var(--text);
+  border-color: var(--accent, var(--border));
+}
+
+.sub-daftar-baris { position: relative; }
+
+.sub-daftar-menu {
+  /*
+   * Fixed, not absolute.
+   *
+   * The menu was `absolute` inside `.sub-daftar`, which is a 132px scroller —
+   * so the list was clipped to whatever fit in that strip and the rest of the
+   * models were unreachable, with the row below drawing over the top. Taking it
+   * out of the scroll container is the only fix that does not depend on how
+   * many rows happen to be listed; the coordinates come from the button's own
+   * rect when the menu opens.
+   */
+  position: fixed;
+  z-index: 900;
+  min-width: 240px;
+  max-height: min(300px, 44vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 3px;
+  background: var(--surface-1, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+}
+
+.sub-daftar-menu-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  font-size: 10.5px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sub-daftar-menu-item:hover { background: var(--surface-3); }
+
+.sub-daftar-menu-sub {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Footer: which model this batch runs on. "Follow chat" is styled quieter so
+   the dedicated-model case stands out. */
+.sub-model-batch {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.sub-model-batch.is-ikut {
+  color: var(--text-muted);
+  font-style: italic;
+}
 
 .sub-form-foot {
   display: flex;
@@ -1584,19 +2003,28 @@
 }
 
 .sub-card.is-jalan {
-  border-left-color: var(--accent);
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+  border-left-color: var(--warning);
   /* Denyut halus: menandakan masih hidup tanpa mengganggu. */
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 16%, transparent);
 }
 
-.sub-card.is-selesai { border-left-color: var(--ok, #3fb950); }
-.sub-card.is-gagal { border-left-color: var(--err, #f85149); }
+.sub-card.is-selesai { border-left-color: var(--success); }
+.sub-card.is-gagal { border-left-color: var(--danger); }
 .sub-card.is-batal { border-left-color: var(--text-muted); opacity: 0.7; }
 .sub-card.is-menunggu { border-left-color: var(--border); }
 
+/*
+ * Card header: mark, name, status, model chip.
+ *
+ * It wraps now. The row was `nowrap`, so on a narrow card the model chip was
+ * squeezed to 46px ("deeps…") even though there was a whole line of free space
+ * below it. Wrapping puts the chip on its own line instead of truncating it.
+ */
 .sub-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -1615,6 +2043,51 @@
   font-weight: 700;
   font-size: 11.5px;
   letter-spacing: 0.01em;
+}
+
+/* Which model an agent ran on. Square-ish chip, deliberately not the pill
+   shape of .sub-badge (that one is a status), so the two read differently. */
+/*
+ * Which model an agent ran on.
+ *
+ * It used to be capped at 40% of the card, so a real model name like
+ * "deepseek-v4.1-flash" was cut to "deeps…" and told the reader nothing. The
+ * cap is raised and the row is allowed to wrap instead: the model name is the
+ * one piece of metadata worth two lines.
+ */
+.sub-model-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* Batch header above the task list, mirroring how an agent trace is grouped:
+   what it is, then how many, then the cap. */
+.sav-kelompok {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px 2px;
+}
+
+.sav-kelompok-ikon { color: var(--accent, var(--text-muted)); font-size: 12px; }
+
+.sav-kelompok-nama { font-size: 11.5px; font-weight: 600; }
+
+.sav-kelompok-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
 }
 
 .sub-badge {
@@ -1642,12 +2115,45 @@
   border-color: var(--err, #f85149);
 }
 
+/* The evidence marker: what the agent's own steps prove, next to its claim. */
+.sub-verdict {
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 5px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+}
+
+.sub-verdict.is-terbukti {
+  color: var(--ok, #3fb950);
+  border-color: var(--ok, #3fb950);
+}
+
+.sub-verdict.is-sebagian {
+  color: var(--warning, #d29922);
+  border-color: var(--warning, #d29922);
+}
+
+.sub-verdict.is-tanpa-bukti {
+  color: var(--err, #f85149);
+  border-color: var(--err, #f85149);
+}
+
+/*
+ * Steps + duration, pushed to the right of the header.
+ *
+ * `white-space: nowrap` matters now that the header wraps: without it the
+ * "1 steps · 2.7s" string broke across two lines and pushed the model chip
+ * into a third, which made a one-line header three lines tall.
+ */
 .sub-meta {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  margin-left: auto;
   text-align: right;
   color: var(--text-muted);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .sub-batal {
@@ -1690,7 +2196,7 @@
 }
 
 .sub-now code {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent);
   flex: 0 0 auto;
@@ -1699,7 +2205,7 @@
 .sub-now-args,
 .sub-now-pikir {
   color: var(--text-muted);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1759,7 +2265,7 @@
 }
 
 .sub-step-tool {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent);
 }
@@ -1768,7 +2274,7 @@
 
 .sub-step-args {
   color: var(--text-muted);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   margin-left: 4px;
   word-break: break-all;
@@ -1776,7 +2282,7 @@
 
 .sub-step-hasil {
   margin: 2px 0 0;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   max-height: 90px;
@@ -1792,23 +2298,7 @@
   font-size: 11px;
 }
 
-.sub-ringkas {
-  flex: 0 0 auto;
-  font-size: 11px;
-}
-
-.sub-ringkas summary {
-  cursor: pointer;
-  color: var(--text-muted);
-}
-
-.sub-ringkas pre {
-  margin: 4px 0;
-  max-height: 220px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font-size: 10.5px;
-}
+/* Combined summary styles live in subagent-view.css. */
 
 
 
@@ -1921,7 +2411,7 @@
 }
 
 .ai-agent-sasaran {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-muted);
   overflow: hidden;
@@ -2008,7 +2498,7 @@
 }
 
 .sub-aksi-sasaran {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-muted);
   overflow: hidden;
@@ -2534,6 +3024,18 @@
   color: var(--warn, #d29922);
 }
 
+/* Subagent bikinan user sendiri.
+
+   Si robot di dalamnya sudah menandai "ini punyamu", tapi ikon saja terlalu
+   halus dibedakan dari enam peran bawaan saat barisnya rapat. Warna aksen
+   dipakai supaya sekali lirik sudah kelihatan mana yang dibuat user — dan
+   `is-tulis` tetap menang, karena izin menulis lebih penting dikasih tahu
+   daripada asal-usulnya. */
+.sub-peran.is-kustom {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent);
+}
+
 /* ── T4.10: pemilih model DUA TINGKAT ──────────────────────────────────────
    Sebelumnya semua model dari semua provider ada di satu daftar datar —
    puluhan baris, menggulir jauh, dan model tanpa API key ikut tampil sehingga
@@ -2879,7 +3381,16 @@
   order: 2;
   gap: 4px;
   flex: 0 0 auto;
-  margin-left: 0;
+  /*
+   * `auto`, not `0`.
+   *
+   * With the title hidden as a right-hand column the header holds only this
+   * cluster, and `margin-left: 0` pinned it to the panel's left edge — the
+   * controls ended up against the editor and the whole right half of the bar
+   * sat empty, which read as a broken layout. `auto` keeps the cluster on the
+   * panel's outer edge, the same side as the window controls above it.
+   */
+  margin-left: auto;
 }
 
 /* Tombol teks -> ikon. Pakai ::before untuk glyph, dan sembunyikan teksnya. */
@@ -2955,4 +3466,18 @@
 .ai-panel.is-kanan .ai-agent {
   max-height: 132px;
   overflow-y: auto;
+}
+
+
+/* ── Header as a right-hand column ─────────────────────────────────────── */
+
+/*
+ * Maximised column: the editor keeps only a sliver, and the chat takes the
+ * rest. `min-width: 0` on the flex child is what lets it shrink that far —
+ * without it the editor's intrinsic width wins and the column never grows.
+ */
+.ai-side-col.is-max {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
 }
