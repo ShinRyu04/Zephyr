@@ -846,7 +846,6 @@ export interface GeneralSettings {
   checkUpdates: boolean;
 
     lowRam?: boolean;
-    ramEkstrem?: boolean;
 
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
 
@@ -1046,7 +1045,6 @@ export const DEFAULT_SETTINGS: Settings = {
     restoreSession: true,
     checkUpdates: true,
     lowRam: false,
-  ramEkstrem: false,
     multilineKey: 'auto',
 
     aiPanel: 'bottom',

@@ -65,17 +65,25 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
-const RAM_ARGS_BASE: &str = "--renderer-process-limit=1 --js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
+/*
+ * Argumen WebView2 yang dipasang selalu.
+ *
+ * `--renderer-process-limit=1` dan `--single-process` DIHAPUS dari sini: keduanya
+ * memaksa renderer, GPU, dan utility masuk ke proses browser. Itu menghemat RAM
+ * saat menganggur, tetapi mematikan multi-proses WebView2, dan terminal PTY serta
+ * pane browser (iframe) tidak hidup tanpa pemisahan proses. Di build rilis
+ * gejalanya: terminal tidak jalan, pane browser kosong.
+ *
+ * Yang tersisa hanya argumen yang aman: hemat RAM tanpa mengganggu proses.
+ */
+const RAM_ARGS_BASE: &str = "--js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
 
 fn pasang_arg_webview2() {
     let ada = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
-    if ada.contains("--renderer-process-limit") {
+    if ada.contains("--js-flags") {
         return;
     }
     let mut gabung = RAM_ARGS_BASE.to_string();
-    if crate::settings::ram_ekstrem_aktif() {
-        gabung.push_str(" --single-process");
-    }
     if !ada.trim().is_empty() {
         gabung.push(' ');
         gabung.push_str(ada.trim());
