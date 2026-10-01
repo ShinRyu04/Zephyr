@@ -67,12 +67,22 @@ function duration(ms: number | undefined, tf: StatusAreaProps['tf']): string | n
 }
 
 function statusLabel(status: TaskStatus | WorkStatus, tr: StatusAreaProps['tr']): string {
-  if (status === 'in_progress') return tr('In progress');
-  if (status === 'pending') return tr('Pending');
-  if (status === 'running') return tr('Running');
-  if (status === 'done') return tr('Done');
-  if (status === 'failed') return tr('Failed');
-  return tr('Cancelled');
+  /*
+   * Kuncinya BERBAHASA INDONESIA ('Sedang jalan', 'Antre'), bukan Inggris.
+   *
+   * Kamus proyek ini memakai kunci Indonesia dengan nilai terjemahan, jadi
+   * `tr('In progress')` tidak pernah ketemu: kuncinya tidak ada di kamus mana
+   * pun, dan penerjemahnya mengembalikan teks kunci apa adanya. Akibatnya
+   * seluruh badge status tetap berbahasa Inggris di sembilan bahasa - dan di
+   * Indonesia pun salah, karena "In progress" yang muncul, bukan "Sedang
+   * jalan".
+   */
+  if (status === 'in_progress') return tr('Sedang jalan');
+  if (status === 'pending') return tr('Antre');
+  if (status === 'running') return tr('Berjalan');
+  if (status === 'done') return tr('Selesai');
+  if (status === 'failed') return tr('Gagal');
+  return tr('Dibatalkan');
 }
 
 export default function StatusArea({
@@ -104,7 +114,7 @@ export default function StatusArea({
         onClick={() => setOpen((value) => !value)}
       >
         <span className="w4-status-pulse" aria-hidden="true" />
-        <span>{tr('Activity status')}</span>
+        <span>{tr('Status aktivitas')}</span>
         <span className="w4-status-count">{sectionCount}</span>
         <span className="w4-status-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
       </button>
@@ -135,7 +145,7 @@ export default function StatusArea({
           {showTasks && tasks && null}
           {showSubagents && subagents && (
             <section className="w4-status-section">
-              <h4>{tr('Subagents')}</h4>
+              <h4>{tr('Sub-agen')}</h4>
               <ul>
                 {subagents.items.map((agent) => (
                   <li className="w4-status-row" key={agent.id}>

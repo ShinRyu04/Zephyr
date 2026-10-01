@@ -38,7 +38,10 @@ export default function SubAgentInfo({ variant = 'panel', onDismiss }: SubAgentI
 
   const langkahTerakhir = (a: (typeof agents)[number]) => {
     const l = a.langkah[a.langkah.length - 1];
-    if (!l) return a.status === 'menunggu' ? tr('waiting') : '…';
+    /* Kunci kapital, sama dengan yang dipakai badge status di komponen lain.
+       Bentuk huruf kecilnya juga ada di kamus, tapi dua bentuk untuk satu
+       istilah berarti dua tempat bisa berbeda terjemahan tanpa ada yang sadar. */
+    if (!l) return a.status === 'menunggu' ? tr('Menunggu') : '…';
     if (l.kind === 'tool') return l.nama || '…';
 
     return (l.teks ?? '').split(/[\r\n]+/)[0].slice(0, 90) || '…';
@@ -64,11 +67,11 @@ export default function SubAgentInfo({ variant = 'panel', onDismiss }: SubAgentI
                 * sehingga spasi tidak bisa hilang lagi berapa pun format
                 * kodenya nanti.
                 */}
-              {jalan > 0 && <b className="is-jalan">{`${jalan} ${tr('running')}`}</b>}
+              {jalan > 0 && <b className="is-jalan">{`${jalan} ${tr('Berjalan')}`}</b>}
               {jalan > 0 && (beres > 0 || gagal > 0) && ' · '}
-              {beres > 0 && <b className="is-beres">{`${beres} ${tr('done')}`}</b>}
+              {beres > 0 && <b className="is-beres">{`${beres} ${tr('Selesai')}`}</b>}
               {beres > 0 && gagal > 0 && ' · '}
-              {gagal > 0 && <b className="is-gagal">{`${gagal} ${tr('failed')}`}</b>}
+              {gagal > 0 && <b className="is-gagal">{`${gagal} ${tr('Gagal')}`}</b>}
             </>
           ) : (
             <span className="sai-sepi">{tr('none yet')}</span>
@@ -138,7 +141,7 @@ export default function SubAgentInfo({ variant = 'panel', onDismiss }: SubAgentI
                   >
                     {a.provider}/{a.model} · {a.modelSource === 'auto' ? 'auto' : a.modelSource === 'chat-fallback' ? 'fallback' : 'manual'}
                   </span>
-                  {a.status === 'jalan' && <span className="sai-live">{tr('running')}</span>}
+                  {a.status === 'jalan' && <span className="sai-live">{tr('Berjalan')}</span>}
                 </div>
               </div>
             );

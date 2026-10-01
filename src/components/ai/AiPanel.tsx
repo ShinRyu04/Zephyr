@@ -733,8 +733,8 @@ const JEJAK_TOOL_MAKS = 4;
             <button
               className="ai-ikon ai-subagents-trigger"
               data-testid="ai-subagents-trigger"
-              title={tr('Subagents')}
-              aria-label={tr('Subagents')}
+              title={tr('Sub-agen')}
+              aria-label={tr('Sub-agen')}
               aria-haspopup="dialog"
               aria-expanded={subagentsBuka}
               aria-controls="ai-subagents-menu"
@@ -744,7 +744,7 @@ const JEJAK_TOOL_MAKS = 4;
               {subagentsSibuk && <span className="ai-subagents-count" aria-label={tf('{n} running', { n: subagentsAktif.length })}>{subagentsAktif.length}</span>}
             </button>
             {subagentsBuka && (
-              <div id="ai-subagents-menu" className="ai-subagents-menu" role="dialog" aria-label={tr('Subagents')}>
+              <div id="ai-subagents-menu" className="ai-subagents-menu" role="dialog" aria-label={tr('Sub-agen')}>
                 <SubAgentInfo variant="popover" onDismiss={() => setSubagentsBuka(false)} />
               </div>
             )}
@@ -1006,7 +1006,7 @@ const JEJAK_TOOL_MAKS = 4;
                    */}
                   {jejakToolTerlihat.map((step, i) => {
                     const info = infoAksi(step.name);
-                    const kartu = kartuTool(step, tr('Completed'), tr('Failed'));
+                    const kartu = kartuTool(step, tr('Selesai'), tr('Gagal'));
                     return (
                       <li className="ai-agent-card-item" key={`${step.at}-${i}`}>
                         <ToolCallCard

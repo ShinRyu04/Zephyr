@@ -180,7 +180,7 @@ export default function ToolCallCard<T extends ToolCallLike = ToolCallLike>({
           * kembali padahal sudah.
           */}
         <span className={`w4-tool-pill is-${failed ? 'gagal' : isJalan ? 'jalan' : 'beres'}`}>
-          {failed ? tr('Failed') : isJalan ? tr('Running') : tr('Done')}
+          {failed ? tr('Gagal') : isJalan ? tr('Berjalan') : tr('Selesai')}
         </span>
         {details.durationMs != null && <span className="w4-tool-duration">{formatDuration(details.durationMs, tf)}</span>}
       </button>

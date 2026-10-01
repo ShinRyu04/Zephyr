@@ -1863,7 +1863,31 @@ export function translate(lang: string, key: string): string {
   // Indonesian, and that menu showed up in Indonesian in the English, Japanese,
   // and so on without a trace. id is still included so that no text is
   // vanish altogether, but the order is now correct.
-  return EXTRA.en?.[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
+  //
+  // URUTAN INI DIPERBAIKI. Dulu baris terakhirnya:
+  //
+  //   return EXTRA.en?.[key] ?? DICTS.en[key] ?? DICTS.id[key] ?? key;
+  //
+  // `DICTS.en` di baris itu adalah kamus DASAR - bukan kamus Inggris
+  // terjemahan. Ia memuat pasangan seperti `'Berjalan': 'Running'`, yaitu
+  // kunci Indonesia dengan nilai Inggris. Jadi untuk kunci yang HANYA ada di
+  // kamus dasar, SEMUA bahasa jatuh ke situ dan menampilkan bahasa Inggris.
+  //
+  // Gejalanya halus dan menyesatkan: di bahasa Indonesia, badge status muncul
+  // "Running" padahal kamusnya ada dan sudah diterjemahkan; di bahasa Jepang
+  // pun "Running". Terlihat seperti kunci yang hilang, padahal kuncinya ada -
+  // yang salah cuma urutan pencariannya.
+  //
+  // Sekarang bahasa aktif dicoba pada kamus dasarnya LEBIH DULU, dan bahasa
+  // Inggris hanya dipakai sebagai jaring terakhir saat benar-benar tidak ada
+  // apa pun.
+  return (
+    EXTRA[lang]?.[key] ??
+    DICTS[lang]?.[key] ??
+    DICTS.en[key] ??
+    DICTS.id[key] ??
+    key
+  );
 }
 
 /**

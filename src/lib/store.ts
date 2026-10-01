@@ -844,7 +844,30 @@ export const useStore = create<Store>((set, get) => ({
         return targets.some((x) => lower === x || lower.startsWith(`${x}\\`));
       })
       .map((t) => t.id);
-    for (const id of doomed) get().forceCloseTab(id);
+
+    /*
+     * HANYA tab yang sudah tersimpan yang boleh ditutup tanpa bertanya.
+     *
+     * Dulu di sini semuanya lewat `forceCloseTab`, dan itu membuang tab yang
+     * BELUM DISIMPAN tanpa satu pun peringatan. Jalurnya nyata dan mudah
+     * dijangkau: menghapus atau mengganti nama folder di explorer, dan menutup
+     * workspace, keduanya memanggil fungsi ini. User yang menyunting berkas
+     * lalu menghapus foldernya kehilangan tulisannya dalam diam - dan tulisannya
+     * tidak bisa dikembalikan, karena tabnya sudah lepas dari disk.
+     *
+     * Tab yang belum disimpan dikumpulkan dulu, lalu SATU pertanyaan diajukan
+     * untuk semuanya. Bertanya satu per satu untuk folder berisi sepuluh berkas
+     * berarti sepuluh dialog berturut-turut, dan user akan menekan "buang" tanpa
+     * membaca.
+     */
+    const kotor = doomed.filter((id) => get().tabs.find((t) => t.id === id)?.unsaved);
+    const bersih = doomed.filter((id) => !kotor.includes(id));
+
+    for (const id of bersih) get().forceCloseTab(id);
+
+    if (kotor.length > 0) {
+      set({ confirm: { tabIds: kotor, intent: 'close-tab' } });
+    }
   },
 
   cycleTab: (delta) => {

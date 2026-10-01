@@ -76,9 +76,19 @@ export default function TodoPanel() {
   };
 
   const statusTeks = (status: string) => {
-    if (status === 'done') return tr('Done');
-    if (status === 'in_progress') return tr('Running');
-    return tr('Waiting');
+    /*
+     * Kunci kamus proyek ini BERBAHASA INDONESIA, dengan nilai terjemahannya.
+     * `tr('Done')` dan `tr('Running')` tidak pernah ketemu di kamus mana pun,
+     * jadi penerjemahnya mengembalikan teks kunci apa adanya - dan kartunya
+     * tetap berbahasa Inggris di sembilan bahasa.
+     *
+     * Untuk 'selesai' dipakai istilah yang sama dengan badge subagent
+     * ('Selesai'), supaya satu pekerjaan yang sama tidak disebut dua nama
+     * berbeda di dua tempat di layar yang sama.
+     */
+    if (status === 'done') return tr('Selesai');
+    if (status === 'in_progress') return tr('Berjalan');
+    return tr('Menunggu');
   };
 
   return (

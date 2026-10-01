@@ -136,8 +136,8 @@ export default function DebugPanel() {
             {ringkas.total === 0
               ? tr('No requests yet')
               : tf('{n} logged', { n: ringkas.total }) +
-                (ringkas.err > 0 ? ` · ${ringkas.err} ${tr('failed')}` : '') +
-                (ringkas.jalan > 0 ? ` · ${ringkas.jalan} ${tr('running')}` : '')}
+                (ringkas.err > 0 ? ` · ${ringkas.err} ${tr('Gagal')}` : '') +
+                (ringkas.jalan > 0 ? ` · ${ringkas.jalan} ${tr('Berjalan')}` : '')}
           </span>
           <button className="dbg-btn" data-testid="dbg-bersih" onClick={bersih} disabled={log.length === 0}>
             {tr('Clear')}

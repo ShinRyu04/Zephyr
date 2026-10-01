@@ -34,9 +34,26 @@ const tampil = await cdp.json(`return JSON.stringify(await (async () => {
   const ai = window.__ZEPHYR_AI__.store;
   const simpan = { agentBusy: ai.getState().agentBusy, agentStepIndex: ai.getState().agentStepIndex, agentStepLimit: ai.getState().agentStepLimit };
 
+  /*
+   * Blok detail ada DI DALAM panel yang bisa dilipat, dan bawaannya terlipat.
+   * Tanpa membukanya lebih dulu, elemennya tidak ada di DOM sama sekali - dan
+   * ujinya gagal karena "tidak ketemu", bukan karena labelnya salah.
+   */
+  const bukaLipatan = async () => {
+    const badan = document.querySelector('[data-testid="ai-agent-progress"], #ai-work-loop-body');
+    if (badan) return true;
+    const kepala = document.querySelector('.ai-work-head, [aria-controls="ai-work-loop-body"]');
+    if (kepala) {
+      kepala.click();
+      await new Promise((res) => setTimeout(res, 350));
+    }
+    return !!document.querySelector('#ai-work-loop-body');
+  };
+
   const potret = async (idx, limit) => {
     ai.setState({ agentBusy: true, agentStepIndex: idx, agentStepLimit: limit, agentPhase: 'thinking' });
     await new Promise((res) => setTimeout(res, 320));
+    await bukaLipatan();
     const el = document.querySelector('[data-testid="ai-work-step"]');
     return el ? el.textContent : null;
   };

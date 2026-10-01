@@ -97,7 +97,7 @@ function Langkah({ l }: { l: SubStep }) {
           {sasaran}
         </span>
       )}
-      {l.ok === false && <span className="sub-aksi-gagal">{tr('failed')}</span>}
+      {l.ok === false && <span className="sub-aksi-gagal">{tr('Gagal')}</span>}
       {l.hasil && (
         <details className="sub-aksi-hasil">
           <summary>{tr('result')}</summary>
@@ -557,7 +557,7 @@ export default function SubAgentPanel({ polos = false }: { polos?: boolean } = {
 
   const judul = sibuk
     ? tf('{n} parallel tasks', { n: jalan + antri })
-    : `${total} ${tr('subagent')} · ${beres} ${tr('done')}${gagal ? ` · ${gagal} ${tr('failed')}` : ''}`;
+    : `${total} ${tr('subagent')} · ${beres} ${tr('Selesai')}${gagal ? ` · ${gagal} ${tr('Gagal')}` : ''}`;
 
   return (
     <div className="sub-panel" data-testid="sub-panel">

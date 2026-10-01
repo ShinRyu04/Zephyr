@@ -88,10 +88,37 @@ try {
   r.check('V6', d.spin === 1, `satu spinner in_progress (dapat ${d.spin})`);
   r.check('V7', d.pend === 2, `dua lingkaran putus pending (dapat ${d.pend})`);
   r.check('V8', d.doneSvg === 2, `dua centang svg done (dapat ${d.doneSvg})`);
+  /*
+   * Label status diterjemahkan sesuai bahasa AKTIF, bukan dipatok ke satu
+   * bahasa.
+   *
+   * Uji sebelumnya mematok 'Done'/'Running'/'Waiting' - dan itu lulus hanya
+   * karena bug: kunci Inggris itu tidak ada di kamus, jadi penerjemahnya
+   * mengembalikan teks kunci apa adanya dan kebetulan cocok dengan harapan
+   * ujinya. Uji yang mengunci bug seperti ini lebih buruk daripada tidak ada
+   * uji: ia akan MENOLAK perbaikan yang benar.
+   *
+   * Sekarang yang diperiksa adalah terjemahan dari kamusnya sendiri, jadi
+   * ujinya benar untuk bahasa apa pun yang sedang aktif.
+   */
+  const harap = await cdp.json(`return JSON.stringify(await (async () => {
+    const i = await import(String.fromCharCode(47) + 'src' + String.fromCharCode(47) + 'lib' + String.fromCharCode(47) + 'i18n.ts');
+    const s = await import(String.fromCharCode(47) + 'src' + String.fromCharCode(47) + 'lib' + String.fromCharCode(47) + 'store.ts');
+    const lang = s.useStore.getState().settings.general.uiLang;
+    return {
+      lang,
+      selesai: i.translate(lang, 'Selesai'),
+      berjalan: i.translate(lang, 'Berjalan'),
+      menunggu: i.translate(lang, 'Menunggu'),
+    };
+  })())`);
+
   r.check(
     'V9',
-    d.statuses[0] === 'Done' && d.statuses[2] === 'Running' && d.statuses[3] === 'Waiting',
-    `teks status (dapat ${JSON.stringify(d.statuses)})`,
+    d.statuses[0] === harap.selesai &&
+      d.statuses[2] === harap.berjalan &&
+      d.statuses[3] === harap.menunggu,
+    `teks status sesuai kamus bahasa "${harap.lang}" (dapat ${JSON.stringify(d.statuses)}, harap ${JSON.stringify([harap.selesai, '…', harap.berjalan, harap.menunggu])})`,
   );
   r.check(
     'V10',
