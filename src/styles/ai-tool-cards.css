@@ -9,6 +9,36 @@
   overflow: hidden;
 }
 
+/*
+ * Lebar dikunci.
+ *
+ * Tanpa ini, kartu mengikuti lebar isinya: satu perintah shell yang panjang
+ * membuatnya melar jauh melampaui kolom percakapan, sementara kartu di
+ * atasnya tetap sempit. Kolom jadi bergerigi, dan yang paling melebar justru
+ * yang paling tidak penting untuk dibaca. Isi yang panjang melipat di dalam
+ * kartu, bukan melebarkan kartunya.
+ */
+.w4-tool-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.w4-tool-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Blok isi tidak boleh bisa melebarkan induknya lewat isinya yang panjang. */
+.w4-tool-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .w4-tool-head,
 .w4-status-head {
   display: flex;
@@ -73,13 +103,72 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * Pill keadaan: berjalan, selesai, gagal.
+ *
+ * Tiga keadaan, bukan dua. Sebelumnya hanya "Gagal" yang punya penanda; kartu
+ * yang sudah selesai dan kartu yang masih jalan tampak identik, padahal yang
+ * pertama sudah tidak akan berubah lagi dan yang kedua masih.
+ *
+ * Gagal dibuat SOLID dengan teks gelap, bukan sekadar bergaris merah. Di
+ * antara puluhan kartu yang lewat, pill bergaris terbaca sebagai salah satu
+ * hiasan; yang solid langsung menangkap mata, dan justru itu yang perlu
+ * dilihat user.
+ */
+.w4-tool-pill {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.w4-tool-pill.is-gagal {
+  background: var(--danger);
+  color: var(--bg0);
+}
+
+.w4-tool-pill.is-jalan {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  /* Titiknya berdenyut: satu-satunya kartu yang masih bisa berubah, dan animasi
+     adalah cara termurah menunjukkan itu tanpa menambah teks. */
+  animation: w4-pill-denyut 1.6s ease-in-out infinite;
+}
+
+.w4-tool-pill.is-beres {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+}
+
+@keyframes w4-pill-denyut {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w4-tool-pill.is-jalan {
+    animation: none;
+  }
+}
+
+/* Badge lama dipertahankan sebagai alias supaya pemakaian lama tidak pecah. */
 .w4-tool-failed {
   flex: none;
-  padding: 1px 5px;
-  border: 1px solid var(--danger);
-  border-radius: 4px;
-  color: var(--danger);
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--bg0);
   font-size: 10px;
+  font-weight: 600;
 }
 
 .w4-tool-body {

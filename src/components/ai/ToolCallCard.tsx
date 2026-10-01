@@ -12,6 +12,14 @@ export interface ToolCallLike {
   output?: unknown;
   stdout?: unknown;
   ok?: boolean;
+  /**
+   * Tool masih berjalan.
+   *
+   * Dipakai untuk pill keadaan. Dibedakan dari `ok === undefined`, karena
+   * hasil yang belum ada dan hasil yang gagal adalah dua hal berbeda - dan
+   * menampilkan "Gagal" untuk tool yang masih jalan itu menakutkan tanpa sebab.
+   */
+  running?: boolean;
   durationMs?: number;
   exitCode?: number | null;
   cwd?: string;
@@ -24,6 +32,8 @@ export interface ToolCallDetails {
   output?: unknown;
   stdout?: string;
   ok?: boolean;
+  /** Tool masih berjalan; lihat catatan di ToolCallLike. */
+  running?: boolean;
   durationMs?: number;
   exitCode?: number | null;
   cwd?: string;
@@ -143,6 +153,9 @@ export default function ToolCallCard<T extends ToolCallLike = ToolCallLike>({
   const bytes = new TextEncoder().encode(stdout).length;
   const lines = stdout ? stdout.replace(/\r?\n$/, '').split(/\r?\n/).length : 0;
   const failed = details.ok === false || (details.exitCode != null && details.exitCode !== 0);
+  /* Gagal lebih dulu: tool yang sudah gagal tidak mungkin masih jalan, dan
+     kalau kedua tanda itu bertentangan, yang lebih dipercaya adalah hasilnya. */
+  const isJalan = !failed && details.running === true;
   const category = categoryOf(details.name, details.category);
 
   return (
@@ -158,8 +171,18 @@ export default function ToolCallCard<T extends ToolCallLike = ToolCallLike>({
         <span className="w4-tool-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
         <span className="w4-tool-icon"><ToolIcon category={category} /></span>
         <span className="w4-tool-name">{details.name}</span>
+        {/*
+          * Pill keadaan: jalan, selesai, atau gagal.
+          *
+          * `isJalan` dibaca dari hasil tool, bukan dari waktu. Tanpa itu, kartu
+          * yang sudah selesai tapi belum sempat diperbarui akan terus terlihat
+          * berjalan - dan model yang menunggu tool-nya tampak seperti belum
+          * kembali padahal sudah.
+          */}
+        <span className={`w4-tool-pill is-${failed ? 'gagal' : isJalan ? 'jalan' : 'beres'}`}>
+          {failed ? tr('Failed') : isJalan ? tr('Running') : tr('Done')}
+        </span>
         {details.durationMs != null && <span className="w4-tool-duration">{formatDuration(details.durationMs, tf)}</span>}
-        {failed && <span className="w4-tool-failed">{tr('Failed')}</span>}
       </button>
       {open && (
         <div className="w4-tool-body" id={bodyId}>
