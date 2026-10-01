@@ -28,6 +28,7 @@ import { useTerminal } from '../../lib/terminalStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { runCommand } from '../../lib/commandRegistry';
 import SubAgentInfo from './SubAgentInfo';
+import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
 
 /** The folder part of a workspace-relative path, for the picker's second column. */
 function folderDari(path: string): string {
@@ -76,7 +77,8 @@ export default function AiPanel() {
   const agentStepLimit = useAi((s) => s.agentStepLimit);
   const agentLastProgressAt = useAi((s) => s.agentLastProgressAt);
   const agentSteps = useAi((s) => s.agentSteps);
-  const agentTodos = useAi((s) => s.agentTodos);
+/* Berapa aksi terakhir yang tampil penuh di jejak tool; sisa-nya jadi 'N more actions'. */
+const JEJAK_TOOL_MAKS = 4;
   const agentConfirm = useAi((s) => s.agentConfirm);
   /* Mode switching lives in ModeMenu; AiPanel only reads the mode to pick the
      placeholder and the send label. */
@@ -99,6 +101,9 @@ export default function AiPanel() {
   const backgroundCount = subagentsAktif.length + jadwalAktif.length;
   const loopRuns = agentSteps.filter((step) => step.kind === 'mulai').length;
   const loopFinished = !sibuk && agentSteps.some((step) => step.kind === 'selesai');
+  /* Jejak tool: hanya beberapa terakhir yang dirender, sisanya diringkas. */
+  const jejakTool = agentSteps.filter((step) => step.kind === 'tool');
+  const jejakToolTerlihat = jejakTool.slice(-JEJAK_TOOL_MAKS);
 
   useEffect(() => {
     if (!sibuk || !agentLastProgressAt) return;
@@ -855,29 +860,53 @@ export default function AiPanel() {
             <div id="ai-work-loop-body" className="ai-work-body" role="status" data-testid={sibuk ? 'ai-agent-progress' : undefined}>
               <div className="ai-work-detail">
                 <span>{agentPhaseLabel}</span>
-                <span>{tf('Step {current}/{total}', { current: agentStepIndex, total: agentStepLimit })}</span>
-                {sibuk && <span>{progressElapsed}s</span>}
+                {/* Pemisah eksplisit: dulu '{current}/{total}' menempel ke label fase. */}
+                <span className="ai-work-step">
+                  {tf('step {current} of {total}', { current: agentStepIndex, total: agentStepLimit })}
+                </span>
+                {sibuk && <span>{tf('{n}s', { n: progressElapsed })}</span>}
               </div>
               {agentCurrentTool && <code className="ai-work-tool">{agentCurrentTool}</code>}
-              {agentSteps.filter((step) => step.kind === 'tool').length > 0 ? (
-                <ul className="ai-work-list">
-                  {agentSteps.filter((step) => step.kind === 'tool').map((step, i) => (
-                    <li key={`${step.at}-${i}`}>
-                      <span>{step.ok === false ? tr('failed') : tr('done')}</span>
-                      <code>{step.name ?? tr('Tool')}</code>
+              {jejakTool.length > 0 ? (
+                <ul className="ai-agent">
+                  {/*
+                   * Hanya beberapa aksi terakhir yang ditampilkan.
+                   *
+                   * Dulu SEMUA langkah dirender, jadi setelah belasan tool call
+                   * daftarnya mendorong isi panel keluar layar. Sisa-nya
+                   * diringkas jadi satu baris 'N more actions'.
+                   *
+                   * Kelas .ai-agent-* datang dari ai-trace.css: satu baris per
+                   * aksi, label kiri, target monospace kanan, gap 8px. Dulu blok
+                   * ini memakai .ai-work-* yang tidak pernah diberi CSS sama
+                   * sekali, jadi status dan nama tool menempel ('doneworkspace').
+                   */}
+                  {jejakToolTerlihat.map((step, i) => {
+                    const info = infoAksi(step.name);
+                    return (
+                      <li
+                        className={`ai-agent-step is-tool ${KELAS_JENIS[info.jenis] ?? ''}`}
+                        key={`${step.at}-${i}`}
+                      >
+                        <AiIkon name={info.ikon} size={12} />
+                        <span className="ai-agent-tool">{tr(info.label)}</span>
+                        <span className="ai-agent-sasaran">{sasaranAksi(step.args)}</span>
+                        <span className={`ai-agent-hasil${step.ok === false ? ' is-err' : ''}`}>
+                          {step.ok === false ? tr('failed') : tr('done')}
+                        </span>
+                      </li>
+                    );
+                  })}
+                  {jejakTool.length > jejakToolTerlihat.length && (
+                    <li className="ai-agent-step">
+                      <span className="ai-agent-note">
+                        {tf('{n} more actions', { n: jejakTool.length - jejakToolTerlihat.length })}
+                      </span>
                     </li>
-                  ))}
+                  )}
                 </ul>
               ) : (
                 <p className="ai-work-empty">{tr('No loop activity yet.')}</p>
-              )}
-              {agentTodos.length > 0 && (
-                <p className="ai-work-note">
-                  {tf('{done} of {total} tasks done', {
-                    done: agentTodos.filter((todo) => todo.status === 'done').length,
-                    total: agentTodos.length,
-                  })}
-                </p>
               )}
             </div>
           )}

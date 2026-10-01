@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSubAgent, batasParalel, type SubAgent, type SubStep } from '../../lib/subagentStore';
 import { useStore } from '../../lib/store';
 import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
+import AiIkon from './AiIkon';
 import { infoPeran } from '../../lib/subagentRoles';
 import { pathIkonPeran } from '../../lib/peranIcons';
 import { findModel } from '../../lib/modelCatalog';
@@ -87,7 +88,8 @@ function Langkah({ l }: { l: SubStep }) {
       data-jenis={info.jenis}
     >
       <span className="sub-aksi-ikon" aria-hidden="true">
-        {info.ikon}
+        {/* Dulu ini mencetak info.ikon sebagai teks, jadi user melihat kata 'doc'/'brain' di layar. */}
+        <AiIkon name={info.ikon} size={12} />
       </span>
       <span className="sub-aksi-label">{info.label}</span>
       {sasaran && (

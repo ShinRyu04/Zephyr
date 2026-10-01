@@ -1,3 +1,5 @@
+import type { NamaAiIkon } from '../components/ai/AiIkon';
+
 export type JenisAksi = 'baca' | 'tulis' | 'jalan' | 'cari' | 'ingat' | 'lain';
 
 export interface AksiInfo {
@@ -6,7 +8,7 @@ export interface AksiInfo {
 
   jenis: JenisAksi;
 
-  ikon: string;
+  ikon: NamaAiIkon;
 }
 
 const PETA: Record<string, AksiInfo> = {

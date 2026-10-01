@@ -12,8 +12,7 @@
  * and by screen reader.
  */
 
-interface Props {
-  name:
+export type NamaAiIkon =
     | 'new-chat'
     | 'trash'
     | 'compact'
@@ -74,6 +73,9 @@ interface Props {
     | 'clock'
     | 'pin'
     | 'x';
+
+interface Props {
+  name: NamaAiIkon;
   size?: number;
 }
 
