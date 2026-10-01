@@ -750,23 +750,70 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'file_read',
       description:
-        'Read the contents of a file from disk (read-only, max 100KB). The path can be absolute or relative to the workspace.',
+        `Read a file from disk (read-only). At most ${AGENT_READ_LIMIT / 1024}KB is returned per call, and the reply says so when it was cut short - if that happens, call this again with offset set past what you already saw instead of assuming the file ended. The path can be absolute or relative to the workspace.`,
       parameters: {
         type: 'object',
-        properties: { path: { type: 'string', description: 'File path' } },
+        properties: {
+          path: { type: 'string', description: 'File path' },
+          /*
+           * Without these, a long file could only ever be read from the top:
+           * everything past the first 100KB was unreachable, and the model had
+           * no way to tell a complete file from a truncated one.
+           */
+          offset: {
+            type: 'number',
+            description: `Character offset to start reading from (default 0). Use the "next offset" value from a previous truncated read to continue.`,
+          },
+          limit: {
+            type: 'number',
+            description: `Maximum number of characters to return (default and max ${AGENT_READ_LIMIT}).`,
+          },
+        },
         required: ['path'],
       },
     },
     run: async (args) => {
       const r = await cmd.fsRead(String(args.path));
-      const isi = (r.content ?? '').slice(0, AGENT_READ_LIMIT);
-      return isi || '(empty)';
+      const semua = r.content ?? '';
+      if (!semua) return '(empty)';
+
+      const offsetDiminta = Number(args.offset ?? 0);
+      const offset = Number.isFinite(offsetDiminta) && offsetDiminta > 0 ? Math.floor(offsetDiminta) : 0;
+      const limitDiminta = Number(args.limit ?? AGENT_READ_LIMIT);
+      const limit =
+        Number.isFinite(limitDiminta) && limitDiminta > 0
+          ? Math.min(Math.floor(limitDiminta), AGENT_READ_LIMIT)
+          : AGENT_READ_LIMIT;
+
+      if (offset >= semua.length) {
+        return `(offset ${offset} is past the end of the file, which is ${semua.length} characters long)`;
+      }
+
+      const potongan = semua.slice(offset, offset + limit);
+      const selesai = offset + potongan.length;
+      const terpotong = selesai < semua.length;
+      const bagian = [potongan];
+
+      /*
+       * Tell the model exactly where it stopped and what to ask for next. A
+       * silent cut is worse than an error: the model reads half a file believing
+       * it saw all of it and draws the wrong conclusion.
+       */
+      if (terpotong) {
+        bagian.push(
+          `\n[TRUNCATED: showed characters ${offset}-${selesai} of ${semua.length}. Call file_read again with offset=${selesai} to continue.]`,
+        );
+      } else if (offset > 0) {
+        bagian.push(`\n[END OF FILE: reached character ${selesai} of ${semua.length}.]`);
+      }
+
+      return bagian.join('');
     },
   },
   {
     spec: {
       name: 'file_list',
-      description: 'List the contents of a folder (file/directory names).',
+      description: `List the contents of a folder (file/directory names), at most ${FILE_LIST_MAX} entries. When a folder holds more, the reply says how many were left out and names the way to see them (ask for a specific sub-folder).`,
       parameters: {
         type: 'object',
         properties: { path: { type: 'string', description: 'Folder path' } },
@@ -1490,7 +1537,7 @@ export const AGENT_TOOLS: AgentTool[] = [
     spec: {
       name: 'web_fetch',
       description:
-        'Fetch one web page and return its text (the HTML tags are stripped). Use it after web_search to read a source in full, or directly when you already know the URL.',
+        'Fetch one web page and return its text (the HTML tags are stripped). Use it after web_search to read a source in full, or directly when you already know the URL. The page text is trimmed to roughly 4000 characters, so a long article comes back as its opening portion - fetch a more specific page or use web_search to narrow down rather than expecting the whole document.',
       parameters: {
         type: 'object',
         properties: {
