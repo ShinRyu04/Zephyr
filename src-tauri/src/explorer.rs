@@ -58,15 +58,15 @@ pub fn scan_dir(state: State<AppState>, path: String) -> ZResult<Vec<DirNode>> {
      * Resolve relative paths against the workspace, exactly like fs_read does.
      *
      * Without this, the agent's file_list tool was handed `path: "."` and
-     * scanned the editor PROCESS's working directory — the folder the .exe was
-     * launched from — not the workspace the user has open. The listing came back
+     * scanned the editor PROCESS's working directory  Ethe folder the .exe was
+     * launched from  Enot the workspace the user has open. The listing came back
      * with unrelated entries (or an empty list), so every plan the agent built
      * from it was built on the wrong directory. It also silently ignored an
      * absolute path being absent: "." meant "somewhere", and the tool had no way
      * to say which.
      */
     let dir = state.resolve_ws(&PathBuf::from(&path));
-    state.ensure_readable(&dir)?;
+    state.periksa_path_baca(&dir)?;
     if !dir.is_dir() {
         return Err(ZephyrError::InvalidInput(format!("{path} bukan folder")));
     }

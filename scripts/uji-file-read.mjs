@@ -6,9 +6,18 @@
  * bernama "file_read" di array itu dan memanggil `run()`-nya langsung - jalur
  * kode yang sama persis dengan yang dilalui AI, termasuk penjaga path Rust.
  *
- * Penjaga path Rust (`app_state.rs` ensure_readable) hanya mengizinkan berkas di
- * bawah ROOT WORKSPACE YANG TERDAFTAR. App yang baru dibuka belum punya root,
- * jadi uji 0 menambah root lewat `__ZEPHYR_WS__.tambahRoot` dulu.
+ * BACAAAN TIDAK DIBATASI ke workspace, dan itu memang disengaja - editor Zephyr
+ * bisa membuka berkas dari mana saja lewat dialog. Yang dibatasi adalah
+ * PENULISAN (lihat `app_state.rs` ensure_writable).
+ *
+ * Komentar di sini dulu mengklaim sebaliknya: bahwa penjaga bacaan "hanya
+ * mengizinkan berkas di bawah root workspace". Itu TIDAK PERNAH benar - fungsi
+ * itu hanya memeriksa path kosong. Namanya sekarang `periksa_path_baca`,
+ * supaya tidak lagi menjanjikan penegakan yang tidak ada.
+ *
+ * Uji 0 tetap menambah root lewat `__ZEPHYR_WS__.tambahRoot` agar pohon
+ * berkasnya terisi - tapi itu untuk menyiapkan data uji, bukan karena bacaan
+ * diblokir tanpanya.
  *
  * Pakai: node scripts/uji-file-read.mjs <port> <folder>
  */

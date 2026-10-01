@@ -159,7 +159,7 @@ fn encode_string(content: &str, encoding: &str, line_ending: &str) -> ZResult<Ve
         }
 
         "utf16le" | "utf16be" => Err(ZephyrError::Encoding(
-            "UTF-16 file opened read-only — use \"Save as UTF-8\" to edit it"
+            "UTF-16 file opened read-only  Euse \"Save as UTF-8\" to edit it"
                 .into(),
         )),
         other => Err(ZephyrError::Encoding(format!(
@@ -238,14 +238,14 @@ fn read_only_reason(len: u64, encoding: &str) -> (bool, String) {
     if encoding == "utf16le" || encoding == "utf16be" {
         return (
             true,
-            "UTF-16 file — opened read-only; save as UTF-8 to edit".to_string(),
+            "UTF-16 file  Eopened read-only; save as UTF-8 to edit".to_string(),
         );
     }
     if len > BIG_FILE_BYTES {
         return (
             true,
             format!(
-                "large file ({:.1} MB) — lightweight read-only mode",
+                "large file ({:.1} MB)  Elightweight read-only mode",
                 len as f64 / (1024.0 * 1024.0)
             ),
         );
@@ -286,7 +286,7 @@ pub fn fs_read(
 
     if meta.len() > 32 * 1024 * 1024 {
         return Err(ZephyrError::InvalidInput(
-            "file is larger than 32MB — not supported yet".into(),
+            "file is larger than 32MB  Enot supported yet".into(),
         ));
     }
 
@@ -362,7 +362,7 @@ pub fn fs_exists(path: String) -> ZResult<bool> {
 #[tauri::command(async)]
 pub fn fs_stat(state: State<AppState>, path: String) -> ZResult<StatResult> {
     let p = state.resolve_ws(&PathBuf::from(&path));
-    state.ensure_readable(&p)?;
+    state.periksa_path_baca(&p)?;
     let meta = std::fs::metadata(crate::paths::long_path(&p)).map_err(|e| map_fs_err(e, &path))?;
     Ok(StatResult {
         size: meta.len(),

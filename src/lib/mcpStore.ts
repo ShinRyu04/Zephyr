@@ -498,7 +498,34 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
 
     case 'editor_close': {
       const tabId = str(p, 'tabId');
-      if (!s().tabs.some((x) => x.id === tabId)) throw new Error(`tab ${tabId} does not exist`);
+      const tab = s().tabs.find((x) => x.id === tabId);
+      if (!tab) throw new Error(`tab ${tabId} does not exist`);
+
+      /*
+       * Tab yang belum disimpan DITOLAK, bukan ditutup diam-diam.
+       *
+       * Sebelumnya di sini `s().forceCloseTab(tabId)` dipanggil langsung -
+       * satu-satunya dari tiga pemanggil `forceCloseTab` di seluruh proyek
+       * yang tidak memeriksa `unsaved` (dua lainnya sudah benar). Artinya
+       * klien MCP mana pun, termasuk agen luar, bisa membuang pekerjaan yang
+       * belum disimpan tanpa dialog dan tanpa jejak.
+       *
+       * Tidak memakai `requestCloseTab` di sini karena jalur ini SINKRON dan
+       * harus mengembalikan jawaban ke agen. Membuka dialog berarti agen
+       * mendapat "ok" padahal tab-nya masih terbuka, atau menggantung
+       * menunggu user yang mungkin tidak sedang melihat layar.
+       *
+       * Menolak dengan pesan yang jelas lebih benar: agen diberi tahu apa yang
+       * harus dilakukan (simpan dulu), dan pekerjaan user selamat. Agen yang
+       * memang perlu menutupnya bisa memanggil `editor_save` lebih dulu -
+       * urutan itu masuk akal dan bisa dilakukannya sendiri.
+       */
+      if (tab.unsaved) {
+        throw new Error(
+          `tab ${tabId} has unsaved changes; save it first (editor_save) or discard it from the editor UI`,
+        );
+      }
+
       s().forceCloseTab(tabId);
       return { ok: true, tabId };
     }

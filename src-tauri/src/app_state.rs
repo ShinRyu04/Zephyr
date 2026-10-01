@@ -690,7 +690,27 @@ impl AppState {
         ))
     }
 
-    pub fn ensure_readable(&self, p: &Path) -> ZResult<()> {
+    /**
+     * Memeriksa path yang akan DIBACA.
+     *
+     * Fungsi ini SENGAJA tidak membatasi bacaan ke dalam workspace, dan itu
+     * memang keputusan, bukan kelalaian:
+     *
+     * Editor Zephyr bisa membuka berkas dari mana saja lewat dialog - itu
+     * memang gunanya. Membatasi bacaan ke workspace akan membuat berkas yang
+     * baru saja dibuka user sendiri tidak bisa dibaca lagi.
+     *
+     * Yang ditegakkan adalah aturan yang sesungguhnya berlaku: bacaan tidak
+     * dibatasi, PENULISAN dibatasi (lihat `ensure_writable`). Itu pasangan yang
+     * masuk akal - membaca berkas orang lain tidak mengubah apa pun, sedangkan
+     * menulisnya bisa merusak.
+     *
+     * Penamaannya dulu `ensure_readable`, dan nama itu menjanjikan penegakan
+     * yang tidak ada di sini - sampai ada yang menyimpulkan salah dan
+     * menuliskan uji yang mengharapkan penolakan. Sekarang namanya menyebut apa
+     * yang benar-benar dilakukan.
+     */
+    pub fn periksa_path_baca(&self, p: &Path) -> ZResult<()> {
         if p.as_os_str().is_empty() {
             return Err(ZephyrError::InvalidInput("empty path".into()));
         }
