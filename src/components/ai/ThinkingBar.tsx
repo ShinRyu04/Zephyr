@@ -43,8 +43,10 @@ export default function ThinkingBar({
       <span className="w4-thinking-grid" aria-hidden="true">
         {Array.from({ length: 9 }, (_, index) => <i key={index} />)}
       </span>
-      <span className="w4-thinking-status">{status}</span>
-      <span className="w4-thinking-time">{tf('{n}s', { n: seconds })}</span>
+      {/* Satu string utuh, bukan dua ekspresi bersebelahan: JSX membuang spasi
+          yang mengelilingi baris baru dan ekspresi, jadi "{status} {tf(...)}"
+          dirender menempel sebagai "Thinking145s". */}
+      <span className="w4-thinking-status">{`${status} ${tf('{n}s', { n: seconds })}`}</span>
     </div>
   );
 }

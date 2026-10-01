@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 import { subagentOnChunk } from './subagentStore';
+import {
+  mengulangDominan,
+  mengulangPelarian,
+  REPETITION_LOOP_INTERRUPTED,
+} from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, PROVIDER_BY_ID } from './modelCatalog';
@@ -557,11 +562,21 @@ interface AgentStepResult {
   toolCalls: AgentToolCall[];
   cancelled: boolean;
   error?: string;
+  /**
+   * Pemakaian token yang dilaporkan provider untuk putaran ini.
+   *
+   * Subagent memakainya untuk menjumlahkan token dan menghitung biaya. Dibuat
+   * opsional: tidak semua provider melaporkannya, dan `undefined` berarti
+   * "tidak dilaporkan" - bukan nol.
+   */
+  usage?: { input: number; output: number };
 }
 
 export interface AgentTodo {
   content: string;
   status: 'pending' | 'in_progress' | 'done';
+  startedAt?: number;
+  endedAt?: number;
 }
 
 export const MAX_TODOS = 20;
@@ -615,7 +630,7 @@ const cancelledAttempts = new Set<string>();
 const retiredAgentAttempts = new Set<string>();
 
 let agentBatal = false;
-let agentStopReason: 'user' | 'watchdog' | 'provider' | null = null;
+let agentStopReason: 'user' | 'watchdog' | 'provider' | 'hard-limit' | null = null;
 
 type AgentFailureCategory = 'provider' | 'tool' | 'timeout' | 'cancelled' | 'protocol' | 'unknown';
 
@@ -669,6 +684,50 @@ export function resetAutoCompact() {
 // while keeping the frontend watchdog bounded below the 300s total request limit.
 const AGENT_IDLE_MS = 210_000;
 let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+/*
+ * Watchdog lapis kedua: pukulan tunggal di batas mutlak.
+ *
+ * Watchdog utama di atas disetel ULANG setiap potongan masuk. Itu benar untuk
+ * provider yang lambat tapi hidup - tapi justru salah untuk provider yang
+ * mengirim satu potongan setiap dua menit: timer-nya tidak pernah habis,
+ * `agentBusy` tetap true, dan UI terkunci pada dasarnya selamanya. Stop tidak
+ * mengembalikan UI, dan subagent tidak bisa jalan.
+ *
+ * Batas mutlak ini TIDAK pernah disetel ulang. Kalau satu langkah berjalan
+ * lebih lama dari ini, cepat atau lambat ia salah atau providernya mengirim
+ * data tak berguna; dua-duanya bukan alasan menahan UI.
+ */
+const AGENT_HARD_LIMIT_MS = 15 * 60_000;
+let agentHardTimer: ReturnType<typeof setTimeout> | null = null;
+
+function agentHardLimitArm() {
+  if (agentHardTimer) clearTimeout(agentHardTimer);
+  agentHardTimer = setTimeout(() => {
+    agentHardTimer = null;
+    if (!useAi.getState().agentBusy) return; // sudah selesai sendiri, tidak ada yang perlu dipaksa
+    agentStopReason = 'hard-limit';
+    agentBatal = true;
+    agentStepResolve = null;
+    agentConfirmResolve = null;
+    useAi.setState({
+      agentBusy: false,
+      pending: null,
+      agentConfirm: null,
+      agentPhase: 'idle',
+      agentCurrentTool: null,
+      agentStepIndex: 0,
+      agentStepLimit: MAX_AGENT_STEPS,
+      agentLastProgressAt: null,
+      toast: 'Satu langkah berjalan melebihi batas waktu dan dihentikan. Agen siap menerima perintah lagi.',
+    });
+  }, AGENT_HARD_LIMIT_MS);
+}
+
+function agentHardLimitDisarm() {
+  if (agentHardTimer) clearTimeout(agentHardTimer);
+  agentHardTimer = null;
+}
 
 const AGENT_PROVIDER_RETRY_DELAYS = [1000, 2500] as const;
 
@@ -961,6 +1020,9 @@ interface AiState {
 
   agentTodos: AgentTodo[];
 
+  promptHistory: string[];
+  promptHistoryIdx: number;
+
   reasoningEffort: ReasoningEffort | null;
 
   reasoningText: string | null;
@@ -998,6 +1060,11 @@ interface AiActions {
   setAgentProgress: (progress: Partial<AgentProgress>) => void;
 
   setAgentTodos: (list: unknown[]) => number;
+
+  historyUp: () => string | null;
+  historyDown: () => string | null;
+  addPromptHistory: (prompt: string) => void;
+  clearPromptHistory: () => void;
 
   setReasoningEffort: (e: ReasoningEffort | null) => void;
 
@@ -1137,6 +1204,8 @@ export const useAi = create<AiStore>((set, get) => ({
   agentSteps: [],
   agentConfirm: null,
   agentTodos: [],
+  promptHistory: [],
+  promptHistoryIdx: -1,
   reasoningEffort: null,
   reasoningText: null,
 
@@ -1146,6 +1215,7 @@ export const useAi = create<AiStore>((set, get) => ({
     // app was closed while the agent was running, or a provider hung, this value
     // can be left true and block both sending chat and subagents.
     agentWatchdogDisarm();
+    agentHardLimitDisarm();
     agentBatal = false;
     agentStopReason = null;
     agentStepResolve = null;
@@ -1413,7 +1483,22 @@ export const useAi = create<AiStore>((set, get) => ({
       } else if (s === 'in_progress' || s === 'in-progress' || s === 'active' || s === 'running' || s === 'working') {
         status = 'in_progress';
       }
-      bersih.push({ content, status });
+
+      const prev = sebelum.find((x) => x.content === content);
+      let startedAt = prev?.startedAt;
+      let endedAt = prev?.endedAt;
+
+      if (status === 'in_progress' && !startedAt) {
+        startedAt = Date.now();
+      } else if (status === 'done') {
+        if (!startedAt) startedAt = Date.now();
+        if (!endedAt) endedAt = Date.now();
+      } else if (status === 'pending') {
+        startedAt = undefined;
+        endedAt = undefined;
+      }
+
+      bersih.push({ content, status, startedAt, endedAt });
     }
     set({ agentTodos: bersih });
     /*
@@ -1454,6 +1539,33 @@ export const useAi = create<AiStore>((set, get) => ({
     }
     set({ agentConfirm: null });
   },
+
+  historyUp: () => {
+    const s = get();
+    if (!s.promptHistory.length) return null;
+    const next = Math.min(s.promptHistoryIdx + 1, s.promptHistory.length - 1);
+    set({ promptHistoryIdx: next });
+    return s.promptHistory[next];
+  },
+  historyDown: () => {
+    const s = get();
+    if (s.promptHistoryIdx < 0) return null;
+    const next = s.promptHistoryIdx - 1;
+    if (next < 0) {
+      set({ promptHistoryIdx: -1 });
+      return null;
+    }
+    set({ promptHistoryIdx: next });
+    return s.promptHistory[next];
+  },
+  addPromptHistory: (prompt: string) => {
+    if (!prompt.trim()) return;
+    const s = get();
+    // Taruh di depan kalau sudah pernah ada, batasi 30 entri.
+    const history = [prompt, ...s.promptHistory.filter((h) => h !== prompt)].slice(0, 30);
+    set({ promptHistory: history, promptHistoryIdx: -1 });
+  },
+  clearPromptHistory: () => set({ promptHistory: [], promptHistoryIdx: -1 }),
 
   compactContext: (keep = 4) => {
     const id = get().activeId;
@@ -1584,6 +1696,8 @@ export const useAi = create<AiStore>((set, get) => ({
     const raw = (text ?? get().draft).trim();
     const imgs = images ?? get().draftImages;
     if (!raw && imgs.length === 0) return false;
+
+    if (raw) get().addPromptHistory(raw);
 
     if (get().agentMode === 'agent') {
       if (get().agentBusy) {
@@ -2008,6 +2122,7 @@ export const useAi = create<AiStore>((set, get) => ({
         }));
 
         agentWatchdogArm();
+        agentHardLimitArm();
         /*
          * Automatic context compaction — the call site.
          *
@@ -2114,6 +2229,7 @@ export const useAi = create<AiStore>((set, get) => ({
               });
           });
           agentWatchdogDisarm();
+          agentHardLimitDisarm();
 
           // Retry only a failed provider request before any tool call is returned.
           // The history is untouched until the successful response below, so a
@@ -2529,6 +2645,27 @@ export const useAi = create<AiStore>((set, get) => ({
       if (next && !get().agentBusy) {
         void get().kirimAntrian(0);
       }
+    } else {
+      /*
+       * Antrean dilewati. Ini disengaja: menjalankan ulang permintaan yang baru
+       * saja gagal, atau yang baru saja dibatalkan user, bukan hal yang user
+       * minta.
+       *
+       * Masalahnya, antrean yang berhenti tanpa penjelasan terbaca sebagai
+       * kerusakan - user melihat pesannya duduk di sana dan tidak tahu harus
+       * apa. Jadi di sini kita CUMA memberi tahu, tidak melakukan apa pun:
+       * pesannya tetap di antrean supaya bisa dikirim manual.
+       *
+       * Pesannya sengaja bukan error. "Gagal" terbaca seperti kehilangan data;
+       * "belum terkirim, masih menunggu" itu yang sebenarnya terjadi.
+       */
+      const sisa = get().antrian.length;
+      if (sisa > 0) {
+        const alasan = runWasCancelled ? 'dibatalkan' : 'berhenti karena gagal';
+        set({
+          toast: `${sisa} pesan masih menunggu di antrean karena langkah sebelumnya ${alasan}. Kirim manual kalau sudah siap.`,
+        });
+      }
     }
     clearGambarMenunggu();
     return !runWasCancelled && !agentFailure;
@@ -2635,6 +2772,10 @@ export const useAi = create<AiStore>((set, get) => ({
 
     if (c.toolDone) {
       agentWatchdogDisarm();
+      /* Langkah selesai, jadi batas mutlaknya juga dibatalkan. Kalau tidak,
+         timer 15 menit itu akan menembak di tengah langkah BERIKUTNYA dan
+         menghentikan agen yang sedang berjalan normal. */
+      agentHardLimitDisarm();
       cancelled.delete(c.id);
       const r = agentStepResolve;
       agentStepResolve = null;
@@ -2647,6 +2788,10 @@ export const useAi = create<AiStore>((set, get) => ({
         content: c.content ?? '',
         toolCalls: c.toolCalls ?? [],
         cancelled: !!c.cancelled,
+        /* Pemakaian token diteruskan apa adanya. `undefined` berarti provider
+           tidak melaporkannya, dan subagent menyimpannya sebagai `null` -
+           bukan nol - supaya "tidak dilaporkan" tidak terbaca sebagai "gratis". */
+        usage: c.usage,
       });
       return;
     }
@@ -2678,6 +2823,73 @@ export const useAi = create<AiStore>((set, get) => ({
     if (c.text || c.reasoning) useAiDebug.getState().potong(c.id, (c.text?.length ?? 0) + (c.reasoning?.length ?? 0));
     if (c.done || c.err) {
       useAiDebug.getState().selesai(c.id, c.err ? 'error' : 'ok', 0, c.err ?? undefined);
+    }
+
+    /*
+     * Penjaga pengulangan.
+     *
+     * Diperiksa SETIAP potongan, tapi sengaja murah: di bawah 400 karakter
+     * langsung keluar, dan jawaban 216.000 karakter selesai diperiksa dalam
+     * ~1ms. Tanpa penjaga ini, model yang masuk loop degeneratif menghabiskan
+     * seluruh anggaran outputnya untuk mengulang satu fragmen, tetap ditagih,
+     * dan tetap ditampilkan.
+     *
+     * Yang dibuang hanya fragmen yang benar-benar didominasi ulangan saat
+     * jawabannya SUDAH selesai. Jawaban yang panjang dan berulang tapi masih
+     * mengalir dibiarkan - user mungkin memang minta daftar panjang, dan
+     * memotong di tengah hanya membuat outputnya setengah jadi.
+     */
+    if (c.text && !c.reasoning) {
+      const akumulasi = teksAkumulasi(c.id) + c.text;
+      simpanTeksAkumulasi(c.id, akumulasi);
+
+      if (c.done || c.err) {
+        hapusTeksAkumulasi(c.id);
+        const periksa = mengulangPelarian(akumulasi);
+        if (periksa.ya) {
+          useAiDebug.getState().selesai(c.id, 'error', 0, periksa.alasan);
+          set((s) => ({
+            sessions: s.sessions.map((sess) => ({
+              ...sess,
+              messages: sess.messages.map((m) =>
+                m.id === c.id
+                  ? {
+                      ...m,
+                      content: REPETITION_LOOP_INTERRUPTED,
+                      error: 'Balasan rusak menjadi pengulangan dan dihentikan.',
+                      streaming: false,
+                    }
+                  : m,
+              ),
+            })),
+          }));
+          return;
+        }
+      } else if (periksaSedangMengulang(akumulasi)) {
+        /* Loop sudah jelas sementara jawabannya masih mengalir: hentikan
+         * sekarang, jangan tunggu sampai 16 ribu karakter. Kuota yang dihemat
+         * di sini bisa puluhan ribu token. */
+        const periksa = mengulangDominan(akumulasi);
+        useAiDebug.getState().selesai(c.id, 'error', 0, periksa.alasan);
+        hapusTeksAkumulasi(c.id);
+        set((s) => ({
+          sessions: s.sessions.map((sess) => ({
+            ...sess,
+            messages: sess.messages.map((m) =>
+              m.id === c.id
+                ? {
+                    ...m,
+                    content: REPETITION_LOOP_INTERRUPTED,
+                    error: 'Balasan rusak menjadi pengulangan dan dihentikan.',
+                    streaming: false,
+                  }
+                : m,
+            ),
+          })),
+        }));
+        get().cancel();
+        return;
+      }
     }
     set((s) => ({
       sessions: s.sessions.map((sess) => ({
@@ -2783,3 +2995,44 @@ export const useAi = create<AiStore>((set, get) => ({
     }
   },
 }));
+
+/*
+ * Akumulasi teks per permintaan untuk penjaga pengulangan.
+ *
+ * Disimpan di luar state Zustand dengan sengaja: potongan datang puluhan kali
+ * per detik, dan menaruh salinan penuh jawaban di state berarti menyalin
+ * seluruh teks setiap potongan. Peta di tingkat modul memperbarui satu entri
+ * saja, dan dibersihkan begitu jawabannya selesai supaya tidak menahan memori
+ * percakapan lama.
+ */
+const akumulasiTeks = new Map<string, number | string>();
+
+/** Ambang sadar-kontek: di bawah ini pemeriksaan tidak layak dijalankan. */
+const AMBANG_TENGAH = 1_200;
+
+function teksAkumulasi(id: string): string {
+  const v = akumulasiTeks.get(id);
+  return typeof v === 'string' ? v : '';
+}
+
+function simpanTeksAkumulasi(id: string, teks: string): void {
+  akumulasiTeks.set(id, teks);
+}
+
+function hapusTeksAkumulasi(id: string): void {
+  akumulasiTeks.delete(id);
+}
+
+/**
+ * Pemeriksaan ringan SELAMA jawaban mengalir.
+ *
+ * Dipakai lebih awal daripada penjaga akhir karena kuota yang dihemat di sini
+ * bisa puluhan ribu token: loop yang jelas tidak perlu dibiarkan sampai
+ * jawabannya "selesai" dulu. Sementara ini SENGAJA hanya memakai salah satu
+ * lapis pengulangan, supaya tidak ada jawaban yang valid terpotong di tengah
+ * hanya karena kebetulan berpola.
+ */
+function periksaSedangMengulang(teks: string): boolean {
+  if (teks.length < AMBANG_TENGAH) return false;
+  return mengulangDominan(teks).ya;
+}

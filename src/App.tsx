@@ -142,6 +142,7 @@ import './styles/notes-todos.css';
 import './styles/model-menu.css';
 import './styles/ai-sesi.css';
 import './styles/ai-todo-card.css';
+import './styles/ai-subagents-menu.css';
 
 import './styles/a11y.css';
 import { useT, tx } from './lib/i18n';

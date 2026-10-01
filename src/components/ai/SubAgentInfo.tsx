@@ -54,11 +54,21 @@ export default function SubAgentInfo({ variant = 'panel', onDismiss }: SubAgentI
         <span className="sai-angka" data-testid="sai-angka">
           {agents.length > 0 ? (
             <>
-              {jalan > 0 && <b className="is-jalan">{jalan} {tr('running')}</b>}
+              {/*
+                * Jangan pernah menaruh dua ekspresi JSX berdampingan dengan
+                * spasi di antaranya. JSX MEMBUANG spasi yang mengelilingi baris
+                * baru dan ekspresi, jadi `{jalan} {tr('running')}` dirender
+                * menjadi "1running" - bukan "1 running".
+                *
+                * Di sini jumlah dan labelnya digabung jadi satu string utuh,
+                * sehingga spasi tidak bisa hilang lagi berapa pun format
+                * kodenya nanti.
+                */}
+              {jalan > 0 && <b className="is-jalan">{`${jalan} ${tr('running')}`}</b>}
               {jalan > 0 && (beres > 0 || gagal > 0) && ' · '}
-              {beres > 0 && <b className="is-beres">{beres} {tr('done')}</b>}
+              {beres > 0 && <b className="is-beres">{`${beres} ${tr('done')}`}</b>}
               {beres > 0 && gagal > 0 && ' · '}
-              {gagal > 0 && <b className="is-gagal">{gagal} {tr('failed')}</b>}
+              {gagal > 0 && <b className="is-gagal">{`${gagal} ${tr('failed')}`}</b>}
             </>
           ) : (
             <span className="sai-sepi">{tr('none yet')}</span>

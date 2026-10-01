@@ -118,9 +118,17 @@ export default function TodoPanel() {
           </svg>
         </span>
         <span className="todo-judul">{tr('Task list')}</span>
-        <span className="todo-count">
-          {done}/{todos.length}
-        </span>
+        {/*
+          * Hitungan hanya berguna kalau ada yang dihitung. "0/0" pada daftar
+          * kosong tidak memberi tahu apa pun, jadi disembunyikan seluruhnya.
+          * Saat ada isinya, ini satu-satunya tempat angka progres muncul -
+          * baris "Tasks" yang kembar di area status sudah dibuang.
+          */}
+        {todos.length > 0 && (
+          <span className="todo-count">
+            {done}/{todos.length}
+          </span>
+        )}
         {jalan && !lipat && <span className="todo-jalan" aria-hidden="true" />}
       </button>
 

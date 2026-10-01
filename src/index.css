@@ -385,6 +385,11 @@ body.is-narrow .ab-btn {
 .activitybar {
   width: var(--activitybar-w);
   flex-shrink: 0;
+  /* Di atas overlay melayang (.dbg-scrim z-index 638, .ai-sesi-menu 700).
+     Tanpa ini, rail-nya tertutup lapisan fixed dan semua ikonnya berhenti
+     merespons klik saat overlay itu tertinggal di layar. */
+  position: relative;
+  z-index: 1000;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;

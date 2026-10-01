@@ -10,6 +10,14 @@ import { useSettingsUi, SECTION_ORDER } from './settingsStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
+import {
+  mengulangDominan,
+  mengulangPelarian,
+  MIN_FRAGMENT_LENGTH,
+  STOP_PATH_MIN_CHARS,
+  REPETITION_LOOP_INTERRUPTED,
+} from './repeatDetect';
+import { formatElapsed, durasiMs, mulaiTimer, waktuMulai, lupakanTimer, bersihkanTimer } from './waktu';
 import { useCliAgent } from './cliAgentStore';
 import { useSubAgent, MAX_PARALLEL, MAX_SUB_STEPS } from './subagentStore';
 import { useLayoutCustom, BARIS_LAYOUT } from './layoutStore';
@@ -693,13 +701,20 @@ export function installDevBridge(): void {
     baris: () => BARIS_LAYOUT.map((b) => ({ kunci: b.kunci, label: b.label })),
   };
 
-  w.__ZEPHYR_SUB__ = {
+  /* Subagent PARALEL (pekerja yang menjalankan tugas otonom).
+     Nama ini sengaja BUKAN `__ZEPHYR_SUB__`: nama itu sudah dipakai di bawah
+     untuk subagent KUSTOM, dan dua blok dengan nama sama berarti yang terakhir
+     menang tanpa peringatan - bridge-nya jadi tidak bisa dipakai sama sekali. */
+  w.__ZEPHYR_PARALEL__ = {
     store: useSubAgent,
     MAX_PARALLEL,
     MAX_SUB_STEPS,
     agents: () => useSubAgent.getState().agents,
-    jalankan: (tugas: string[]) => useSubAgent.getState().jalankan(tugas),
+    daftar: () => useSubAgent.getState().agents,
+    jalankan: (tugas: string[], opts?: { delegasiId?: string; kedalaman?: number }) =>
+      useSubAgent.getState().jalankan(tugas, opts),
     batalSemua: () => useSubAgent.getState().batalSemua(),
+    batal: (id: string) => useSubAgent.getState().batal(id),
     bersihkan: () => useSubAgent.getState().bersihkan(),
     ringkasan: () => useSubAgent.getState().ringkasan,
     sibuk: () => useSubAgent.getState().sibuk,
@@ -769,6 +784,29 @@ export function installDevBridge(): void {
     },
     baca: () => useAi.getState().agentTodos,
     bersih: () => useAi.getState().setAgentTodos([]),
+  };
+
+  w.__ZEPHYR_WAKTU__ = {
+    // Modul waktu dipakai komponen, jadi ia tidak punya keadaan yang bisa
+    // dibaca dari luar. Harness memanggil fungsinya langsung supaya yang diuji
+    // adalah implementasi yang benar-benar jalan.
+    formatElapsed,
+    durasiMs,
+    mulaiTimer,
+    waktuMulai,
+    lupakanTimer,
+    bersihkanTimer,
+  };
+
+  w.__ZEPHYR_REPEAT__ = {
+    // Penjaga pengulangan dipakai di jalur streaming, jadi ia tidak punya
+    // keadaan yang bisa dibaca - hanya fungsi murni. Harness memanggilnya
+    // langsung supaya yang diuji adalah implementasi yang benar-benar jalan,
+    // bukan salinan di dalam skrip uji.
+    mengulangDominan: (teks: string) => mengulangDominan(teks),
+    mengulangPelarian: (teks: string) => mengulangPelarian(teks),
+    ambang: { MIN_FRAGMENT_LENGTH, STOP_PATH_MIN_CHARS },
+    teksGanti: REPETITION_LOOP_INTERRUPTED,
   };
 
   w.__ZEPHYR_PROMPT__ = {

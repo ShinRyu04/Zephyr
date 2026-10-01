@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
+import { useTerminal } from '../../lib/terminalStore';
+import { usePanel } from '../../lib/panelStore';
 import GhMenu from './GhMenu';
 import { useT, useTf } from '../../lib/i18n';
 import type { ActivityId } from '../../lib/types';
@@ -272,8 +274,39 @@ export default function ActivityBar() {
             data-activity={id}
             data-testid={`ab-${id}`}
             onClick={() => {
-
               setSettingsOpen(false);
+
+              /*
+               * Ikon AI punya CABANG SENDIRI, tidak memakai toggle generik
+               * seperti ikon lain.
+               *
+               * Ikon lain (Explorer, Search, SCM, dst) mengendalikan panelnya
+               * sendiri lewat `activity` + `sidebarVisible`, jadi toggle generik
+               * sudah cukup. Panel AI tidak begitu: ia hidup di panel BAWAH yang
+               * dikendalikan store lain (`useTerminal.visible` + tab aktif di
+               * `usePanel`), dan bisa menutup dirinya sendiri
+               * (AiPanel memindahkan posisinya ke 'bottom' lalu set visible false).
+               *
+               * Akibatnya, dengan toggle generik, klik ikon AI hanya mengubah
+               * `activity` yang TIDAK memengaruhi panel AI sama sekali. Panelnya
+               * sudah tertutup dan klik berikutnya berhenti membuka apa pun -
+               * tombolnya terasa mati, padahal state-nya baik-baik saja.
+               */
+              if (id === 'ai') {
+                setActivity('ai');
+                if (!sidebarVisible) toggleSidebar();
+                const t = useTerminal.getState();
+                const p = usePanel.getState();
+                /* Sudah terbuka DAN tab AI yang aktif -> klik berarti tutup.
+                   Selain itu -> buka dan fokuskan tab AI. */
+                if (t.visible && p.activeTab === 'ai') t.setVisible(false);
+                else {
+                  t.setVisible(true);
+                  p.focusTab('ai');
+                }
+                return;
+              }
+
               if (activity === id) toggleSidebar();
               else {
                 setActivity(id);

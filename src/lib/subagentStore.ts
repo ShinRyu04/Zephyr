@@ -19,6 +19,43 @@ export const MAX_PARALLEL = 4;
  */
 const LS_KEY = 'zephyr.subagent.last.v1';
 
+/**
+ * Tarif harga per juta token, dalam USD.
+ *
+ * Sengaja KOSONG sampai ada tarif yang benar-benar dipakai: `null` di sini
+ * berarti "tidak dilaporkan". Mengarang angka tarif akan menghasilkan biaya
+ * yang salah tapi terlihat meyakinkan, dan itu lebih buruk daripada tidak ada
+ * biaya sama sekali. Isi tabel ini kalau tarif providernya sudah pasti.
+ */
+const TARIF: Record<string, { input: number; output: number }> = {};
+
+/**
+ * Gabungkan pemakaian token dari satu putaran ke catatan agent.
+ *
+ * Dipanggil beberapa kali per agent (satu kali per putaran tool), jadi ini
+ * MENJUMLAHKAN, bukan menimpa. Token bukan angka puncak - totalnya yang
+ * menentukan biaya.
+ */
+function pakaiToken(
+  a: { inputTokens: number | null; outputTokens: number | null; model?: string | null },
+  usage: { input: number; output: number } | undefined,
+): { inputTokens: number | null; outputTokens: number | null; costUsd: number | null } {
+  if (!usage) {
+    // Provider tidak melaporkan pemakaian. Biarkan null apa adanya: "tidak
+    // dilaporkan" berbeda dari "nol", dan user yang mengawasi kuota perlu tahu
+    // bedanya.
+    return { inputTokens: a.inputTokens, outputTokens: a.outputTokens, costUsd: null };
+  }
+
+  const masuk = (a.inputTokens ?? 0) + usage.input;
+  const keluar = (a.outputTokens ?? 0) + usage.output;
+
+  const tarif = a.model ? TARIF[a.model] : undefined;
+  const biaya = tarif ? (masuk / 1_000_000) * tarif.input + (keluar / 1_000_000) * tarif.output : null;
+
+  return { inputTokens: masuk, outputTokens: keluar, costUsd: biaya };
+}
+
 export function batasParalel(): number {
   const n = useStore.getState().settings.subagent?.maxParallel;
   return typeof n === 'number' && n >= 1 ? Math.min(8, Math.floor(n)) : MAX_PARALLEL;
@@ -115,6 +152,28 @@ export interface SubAgent {
   fileDitulis: string[];
   /** Nesting depth: 0 for a top-level batch, higher inside `subagent_run`. */
   kedalaman: number;
+
+  /**
+   * Identitas BATCH, bukan kedalaman.
+   *
+   * `kedalaman` saja tidak cukup untuk memisahkan batch: dua batch bersamaan
+   * sama-sama berada di kedalaman 0, jadi keduanya melebur jadi satu grup di
+   * panel dan tidak bisa lagi dibedakan mana hasil milik siapa. Semua agent
+   * yang lahir dari satu pemanggilan `jalankan` membawa id yang sama.
+   */
+  delegasiId: string;
+
+  /**
+   * Biaya dan pemakaian token yang dilaporkan provider untuk agent ini.
+   *
+   * `null` berarti providernya tidak melaporkan, BUKAN nol - dan perbedaan itu
+   * penting saat ditampilkan: "tidak dilaporkan" dan "gratis" adalah dua hal
+   * yang berbeda bagi user yang sedang mengawasi kuota.
+   */
+  inputTokens: number | null;
+  outputTokens: number | null;
+  /** Estimasi biaya USD, hanya terisi kalau providernya melaporkan token. */
+  costUsd: number | null;
   /**
    * The conversation this agent had, kept so a stopped or finished agent can be
    * continued with a follow-up message instead of starting over. Only populated
@@ -136,7 +195,16 @@ interface SubAgentState {
 
   sesiId: string | null;
 
-  jalankan: (tugas: string[], opts?: { bersarang?: boolean; kedalaman?: number; routing?: 'auto' | 'manual' }) => Promise<number>;
+  jalankan: (
+    tugas: string[],
+    opts?: {
+      bersarang?: boolean;
+      kedalaman?: number;
+      routing?: 'auto' | 'manual';
+      /** Identitas batch; dipakai memisahkan dua batch yang jalan bersamaan. */
+      delegasiId?: string;
+    },
+  ) => Promise<number>;
 
   batal: (id: string) => void;
 
@@ -292,6 +360,8 @@ interface AgentStepResult {
   toolCalls: { id: string; name: string; args: unknown }[];
   cancelled: boolean;
   error?: string;
+  /** Pemakaian token dari provider; `undefined` = tidak dilaporkan, bukan nol. */
+  usage?: { input: number; output: number };
 }
 
 function promptSub(tugas: string, total: number, peran: PeranId, customId?: string | null): string {
@@ -446,6 +516,10 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
         verdict: 'tanpa-bukti' as const,
         fileDitulis: [],
         kedalaman: opts?.kedalaman ?? 0,
+        delegasiId: opts?.delegasiId ?? 'batch-0',
+        inputTokens: null,
+        outputTokens: null,
+        costUsd: null,
       };
     };
 
@@ -836,13 +910,38 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
       if (!raw) return;
       const parsed = JSON.parse(raw) as { agents?: SubAgent[]; ringkasan?: string | null };
       if (!Array.isArray(parsed.agents) || parsed.agents.length === 0) return;
-      const agents = parsed.agents.map((a) =>
-        // A row still "running" when the app closed has no live call. Show it
-        // as failed with a reason, not as endlessly spinning.
-        a.status === 'jalan' || a.status === 'menunggu'
-          ? { ...a, status: 'gagal' as SubStatus, error: a.error ?? 'interrupted by a restart', selesai: a.selesai ?? Date.now() }
-          : a,
-      );
+      /*
+       * Hanya status terminal yang boleh lolos apa adanya.
+       *
+       * Daftar yang disimpan bisa berasal dari versi aplikasi yang lebih lama,
+       * dan status yang tidak dikenal (atau kosong karena entri rusak) akan
+       * diteruskan ke panel - di sana ia bukan 'selesai' maupun 'jalan', jadi
+       * barisnya tampil berputar selamanya tanpa apa pun yang menghentikannya.
+       * Apa pun yang tidak dikenal diperlakukan sebagai gagal, karena itu satu-
+       * satunya keadaan yang masih bisa user tindak lanjuti.
+       */
+      const terminal = new Set<SubStatus>(['selesai', 'gagal', 'batal']);
+      const agents = parsed.agents.map((a) => {
+        if (a.status === 'jalan' || a.status === 'menunggu') {
+          // A row still "running" when the app closed has no live call. Show it
+          // as failed with a reason, not as endlessly spinning.
+          return {
+            ...a,
+            status: 'gagal' as SubStatus,
+            error: a.error ?? 'interrupted by a restart',
+            selesai: a.selesai ?? Date.now(),
+          };
+        }
+        if (!terminal.has(a.status)) {
+          return {
+            ...a,
+            status: 'gagal' as SubStatus,
+            error: a.error ?? `status tidak dikenal dari data tersimpan: ${String(a.status)}`,
+            selesai: a.selesai ?? Date.now(),
+          };
+        }
+        return a;
+      });
       set({ agents, ringkasan: parsed.ringkasan ?? null, sibuk: false, sesiId: null });
     } catch {
       // A corrupt entry must never block start-up.
@@ -960,6 +1059,7 @@ async function jalankanSatu(
           status: 'selesai',
           hasil: res.content.trim() || a.hasil,
           selesai: Date.now(),
+          ...pakaiToken(a, res.usage),
         }));
         return;
       }

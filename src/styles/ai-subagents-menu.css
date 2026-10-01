@@ -1,0 +1,77 @@
+/*
+ * Panel daftar subagent (dropdown otak di header AI).
+ *
+ * JSX-nya sudah ada sejak lama (`AiPanel.tsx` merender `.ai-subagents-menu` dan
+ * `SubAgentInfo` memakai `.is-popover`), tapi TIDAK SATU PUN aturan CSS-nya ada.
+ * Akibatnya elemennya jatuh ke tata letak normal: menu ikut mengalir di dalam
+ * header, mendorong tombol-tombol lain, dan tampil sebagai blok besar yang
+ * menutupi percakapan - bukan melayang di atasnya. Itu sebabnya panelnya
+ * "melebar" dan susunannya berantakan meski datanya benar.
+ */
+
+.ai-subagents-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Titik kecil di sudut ikon: jumlah subagent yang sedang jalan. */
+.ai-subagents-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--bg0);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Menu melayang: keluar dari aliran tata letak, menempel di bawah ikon. */
+.ai-subagents-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: 340px;
+  max-width: min(340px, calc(100vw - 48px));
+  /* Tumbuh sampai 60% tinggi jendela, lalu menggulir sendiri. Tanpa batas ini,
+     20 subagent membuat menu setinggi layar dan isinya tak terjangkau. */
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg1);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+/* Popover: kontainer yang sudah melayang tidak perlu kotak kedua di dalamnya. */
+.ai-subagents-menu .is-popover {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  max-height: none;
+}
+
+/* Di jendela sempit, jangan sampai menutupi seluruh lebar layar. */
+@media (max-width: 560px) {
+  .ai-subagents-menu {
+    width: calc(100vw - 32px);
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-subagents-menu {
+    transition: none;
+  }
+}

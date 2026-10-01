@@ -121,20 +121,18 @@ export default function StatusArea({
               </div>
             </section>
           )}
-          {showTasks && tasks && (
-            <section className="w4-status-section">
-              <h4>{tr('Tasks')}</h4>
-              <ul>
-                {tasks.items.map((task) => (
-                  <li className={`w4-status-row is-${task.status}`} key={task.id}>
-                    <span className="w4-task-mark" aria-hidden="true">{task.status === 'done' ? '✓' : task.status === 'in_progress' ? '◌' : '○'}</span>
-                    <span className="w4-status-main">{task.title}</span>
-                    <span className="w4-visually-hidden">{statusLabel(task.status, tr)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {/*
+            * Baris "Tasks" DIHAPUS. Isinya menghitung hal yang sama dengan
+            * kartu daftar tugas di atas kotak ketik ("Task list 0/3"), jadi di
+            * layar muncul dua angka progres untuk pekerjaan yang sama dengan
+            * dua penamaan berbeda. Kartunya lebih kaya (berisi label tiap tugas
+            * dan durasinya), jadi dia yang dipertahankan.
+            *
+            * `showTasks` sengaja TETAP dipakai di perhitungan sectionCount dan
+            * gerbang `return null` di atas: selama masih ada tugas, area status
+            * tetap boleh tampil membawa section lain (loop, subagent, latar).
+            */}
+          {showTasks && tasks && null}
           {showSubagents && subagents && (
             <section className="w4-status-section">
               <h4>{tr('Subagents')}</h4>

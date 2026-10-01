@@ -372,6 +372,32 @@ function Baris({
             {a.status === 'menunggu' ? '--' : durasiRingkas(ms)}
           </span>
 
+          {/*
+            Token dan biaya.
+
+            Hanya dirender kalau providernya BENAR-BENAR melaporkan pemakaian.
+            Menampilkan "0 token" untuk agent yang jalan 12 langkah itu menyesatkan:
+            yang terjadi bukan pemakaian nol, melainkan tidak ada laporan. Kalau
+            user tidak bisa membedakan keduanya, kolom ini lebih buruk daripada
+            tidak ada. */}
+          {a.inputTokens !== null || a.outputTokens !== null ? (
+            <span
+              className="sub-token"
+              data-testid={`sub-token-${a.id}`}
+              title={
+                tf('{masuk} token masuk · {keluar} token keluar', {
+                  masuk: a.inputTokens ?? 0,
+                  keluar: a.outputTokens ?? 0,
+                }) + (a.costUsd !== null ? ` · $${a.costUsd.toFixed(4)}` : '')
+              }
+            >
+              {(a.inputTokens ?? 0) + (a.outputTokens ?? 0) >= 1000
+                ? `${(((a.inputTokens ?? 0) + (a.outputTokens ?? 0)) / 1000).toFixed(1)}k`
+                : `${(a.inputTokens ?? 0) + (a.outputTokens ?? 0)}`}
+              {a.costUsd !== null && a.costUsd > 0 && ` · $${a.costUsd.toFixed(3)}`}
+            </span>
+          ) : null}
+
           {hidup ? (
             <button
               className="sub-aksi-btn"

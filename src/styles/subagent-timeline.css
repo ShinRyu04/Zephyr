@@ -460,6 +460,7 @@
     auto              /* status badge */
     92px              /* elapsed */
     76px              /* steps */
+    auto              /* token + biaya */
     24px;             /* action */
   align-items: center;
   gap: 8px;
@@ -494,12 +495,24 @@
   grid-column: 7;
 }
 
+/* Kolom 9: token dan biaya. Dirender hanya kalau providernya melaporkan
+   pemakaian, jadi barisnya tetap utuh saat kolom ini kosong. */
+.sub-token {
+  grid-column: 9;
+  justify-self: end;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
 .sub-waktu {
   grid-column: 8;
 }
 
 .sub-aksi-btn {
-  grid-column: 9;
+  grid-column: 10;
 }
 
 /* Left over from the flex layout this row used to be; inside the grid it would
@@ -911,7 +924,8 @@
   }
 
   .sub-badge,
-  .sub-waktu {
+  .sub-waktu,
+  .sub-token {
     grid-column: 2 / -1;
     grid-row: 2;
     justify-self: start;
@@ -920,6 +934,12 @@
 
   .sub-waktu {
     justify-self: end;
+  }
+
+  /* Di layar sempit, token dan waktu berbagi baris yang sama: token di kiri,
+     waktu di kanan. Tanpa ini dua-duanya menumpuk di kolom yang sama. */
+  .sub-token {
+    justify-self: start;
   }
 
   .sub-model-badge {
