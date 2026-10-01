@@ -577,6 +577,16 @@ export interface AgentTodo {
   status: 'pending' | 'in_progress' | 'done';
   startedAt?: number;
   endedAt?: number;
+  /**
+   * Identitas stabil satu baris tugas.
+   *
+   * Sebelumnya tipe ini TIDAK punya id, dan `setAgentTodos` membuangnya kalau
+   * ada. Tanpa identitas, React memakai kunci cadangan yang diturunkan dari
+   * ISI tugas - sehingga menyunting teks sebuah tugas melepas-pasang barisnya
+   * (animasi centang dan durasi yang berjalan ikut tereset), dan dua tugas
+   * berisi sama menghasilkan kunci kembar.
+   */
+  id?: string;
 }
 
 export const MAX_TODOS = 20;
@@ -1518,6 +1528,8 @@ export const useAi = create<AiStore>((set, get) => ({
         status = 'in_progress';
       }
 
+      /* Simpan id-nya. Lihat catatan di bawah - membuangnya merusak pemasangan
+         baris dan identitas untuk React. */
       const prev = sebelum.find((x) => x.content === content);
       let startedAt = prev?.startedAt;
       let endedAt = prev?.endedAt;
@@ -1532,7 +1544,29 @@ export const useAi = create<AiStore>((set, get) => ({
         endedAt = undefined;
       }
 
-      bersih.push({ content, status, startedAt, endedAt });
+      /*
+       * `id` IKUT DISIMPAN.
+       *
+       * Dulu baris ini berbunyi `bersih.push({ content, status, startedAt,
+       * endedAt })` - id-nya dibuang. Akibatnya tidak ada identitas stabil per
+       * baris, dan React jatuh ke kunci cadangan (`renderKey` di TodoPanel)
+       * yang diturunkan dari ISI tugas.
+       *
+       * Itu merusak dua hal sekaligus. Pertama, saat model menyunting isi
+       * sebuah tugas ("langkah tiga" menjadi "langkah tiga, diperbaiki"),
+       * kuncinya berubah dan React melepas-pasang barisnya - animasi centang
+       * dan durasi yang sedang berjalan ikut tereset. Kedua, dua tugas dengan
+       * isi yang sama persis menghasilkan kunci kembar, dan React salah
+       * memasangkan isi ke elemen.
+       *
+       * Id dipakai ulang dari entri lama kalau isinya sama, supaya tugas yang
+       * sama tetap punya identitas yang sama sepanjang hidupnya.
+       */
+      const id =
+        prev?.id ??
+        `td-${Date.now().toString(36)}-${bersih.length}-${Math.random().toString(36).slice(2, 7)}`;
+
+      bersih.push({ id, content, status, startedAt, endedAt });
     }
     set({ agentTodos: bersih });
     /*

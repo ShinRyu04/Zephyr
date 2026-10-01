@@ -30,6 +30,7 @@ function EyeIcon({ off }: { off: boolean }) {
 export default function McpPanel() {
   const tr = useT();
   const mcp = useStore((s) => s.settings.mcp);
+  const applySettings = useStore((s) => s.applySettings);
   const status = useMcp((s) => s.status);
   const clis = useMcp((s) => s.clis);
   const checked = useMcp((s) => s.checked);
@@ -102,6 +103,28 @@ export default function McpPanel() {
             <span className="mcp-uptime"> · {Math.round(status.uptimeMs / 1000)}s</span>
           )}
         </span>
+      </Row>
+
+      {/*
+        * Sakelar kendali terminal.
+        *
+        * Rust sudah membaca `mcp.allow_terminal_control` sejak lama, tapi tidak
+        * ada satu pun tempat di UI untuk menyetelnya - jadi nilainya terkunci
+        * `false` selamanya dan kemampuan itu praktis tidak ada. Sakelar ini
+        * menutup celah itu.
+        *
+        * Ditempatkan TERPISAH dari sakelar utama, bukan sebagai sub-opsi di
+        * dalamnya: menghidupkan server MCP dan memberi klien luar kemampuan
+        * menjalankan perintah adalah dua keputusan berbeda, dan yang kedua jauh
+        * lebih besar akibatnya.
+        */}
+      <Row label={tr('mcp.allowTerminalControl')} hint={tr('mcp.allowTerminalControlHint')}>
+        <Toggle
+          label={tr('mcp.allowTerminalControl')}
+          testid="mcp-allow-terminal"
+          checked={mcp.allowTerminalControl}
+          onChange={(v) => void applySettings({ mcp: { allow_terminal_control: v } })}
+        />
       </Row>
 
       {running && status && status.port !== status.requestedPort && (

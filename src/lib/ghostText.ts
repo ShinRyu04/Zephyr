@@ -127,6 +127,9 @@ const ghostField = StateField.define<DecorationSet>({
 let aktif: string | null = null;
 let akumulasi = '';
 let listenerSiap = false;
+// unlisten dari onAiChunk: dulu dibuang, jadi listener ai-chunk tetap terpasang
+// dan memproses chunk ghost meskipun fitur ghost text sudah dimatikan.
+let listenerUnlisten: (() => void) | undefined;
 let viewAktif: EditorView | null = null;
 
 function pastikanListener() {
@@ -155,7 +158,23 @@ function pastikanListener() {
       if (satuBaris !== akumulasi) bersihkan();
       return;
     }
-  });
+  })
+    .then((un) => {
+      listenerUnlisten = un;
+    })
+    .catch((e) => {
+      // Listen gagal: lepas guard supaya percobaan berikutnya masih bisa memasang.
+      listenerSiap = false;
+      console.error('gagal memasang listener ai-chunk untuk ghost text', e);
+    });
+}
+
+/* Lepas listener ai-chunk milik ghost text. Dipakai saat fitur dimatikan supaya
+ * chunk dari permintaan lain tidak lagi membangunkan kode ghost. */
+export function lepasListenerGhost(): void {
+  listenerUnlisten?.();
+  listenerUnlisten = undefined;
+  listenerSiap = false;
 }
 
 function tampilkan(teks: string) {

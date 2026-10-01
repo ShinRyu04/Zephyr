@@ -986,7 +986,23 @@ export interface Settings {
       clientId?: string;
     };
   };
-  mcp: { enabled: boolean; port: number; token: string; writeToCli: string[] };
+  mcp: {
+    enabled: boolean;
+    port: number;
+    token: string;
+    writeToCli: string[];
+    /**
+     * Izinkan agen LUAR (lewat MCP) mengendalikan terminal lewat `terminal_exec`.
+     *
+     * Bawaannya `false`, dan memang harus begitu: ini memberi klien MCP mana
+     * pun kemampuan menjalankan perintah di mesin user. Rust sudah membaca
+     * pengaturan ini sejak lama, tapi TIDAK ADA satu pun tempat di UI untuk
+     * menyetelnya - jadi fiturnya terkunci mati permanen, dan tidak ada cara
+     * menghidupkannya selain menyunting berkas pengaturan sendiri. Sakelarnya
+     * ditambahkan di halaman MCP.
+     */
+    allowTerminalControl: boolean;
+  };
   ssh: { recentHosts?: string[] };
 
   panel: { visibleTabs: string[]; activeTab: string; height: number };
@@ -1082,7 +1098,7 @@ export const DEFAULT_SETTINGS: Settings = {
     toastDurasiMin: 3200,
   },
   git: { defaultBranch: 'main', pullBeforePush: true },
-  mcp: { enabled: false, port: 9222, token: '', writeToCli: [] },
+  mcp: { enabled: false, port: 9222, token: '', writeToCli: [], allowTerminalControl: false },
   ssh: { recentHosts: [] },
   panel: {
     // `tests` is deliberately absent: the Test Explorer panel is opt-in and

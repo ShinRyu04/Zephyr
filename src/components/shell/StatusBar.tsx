@@ -10,6 +10,15 @@ import { runCommand } from '../../lib/commandRegistry';
 import { useT, useTf } from '../../lib/i18n';
 import { useLayoutCustom } from '../../lib/layoutStore';
 
+/*
+ * StrictMode memasang effect DUA kali. onRamUsage masih berjalan saat cleanup
+ * dipanggil, jadi unlisten belum ada dan cleanup tidak melepas apa pun; mount
+ * kedua kemudian memasang listener RAM kedua dan setRamBytes jalan dua kali per
+ * event. Guard ini memastikan hanya satu pemasangan per proses.
+ */
+let ramListenerBound = false;
+let ramListenerUnlisten: (() => void) | undefined;
+
 const ENC_LABEL: Record<string, string> = {
   utf8: 'UTF-8',
   'utf8-bom': 'UTF-8 with BOM',
@@ -115,14 +124,17 @@ export default function StatusBar() {
         /* keep using the default */
       });
 
-    let stop: (() => void) | undefined;
-    onRamUsage(setRamBytes)
-      .then((un) => {
-        stop = un;
-      })
-      .catch(() => {
-        /* the RAM event is not available (e.g. browser mode) */
-      });
+    if (!ramListenerBound) {
+      ramListenerBound = true;
+      onRamUsage(setRamBytes)
+        .then((un) => {
+          ramListenerUnlisten = un;
+        })
+        .catch(() => {
+          /* the RAM event is not available (e.g. browser mode) */
+          ramListenerBound = false;
+        });
+    }
 
     const t = window.setTimeout(() => {
       void getDiagnostics()
@@ -137,7 +149,9 @@ export default function StatusBar() {
 
     return () => {
       window.clearTimeout(t);
-      stop?.();
+      ramListenerUnlisten?.();
+      ramListenerUnlisten = undefined;
+      ramListenerBound = false;
     };
   }, [setRamBytes]);
 

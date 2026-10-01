@@ -136,6 +136,9 @@ const ID: Dict = {
   'scm.pullBeforePush': 'Pull sebelum push',
 
   'mcp.enable': 'Aktifkan MCP port 9222',
+  'mcp.allowTerminalControl': 'Izinkan kendali terminal',
+  'mcp.allowTerminalControlHint':
+    'Beri klien MCP izin menjalankan perintah di terminal. Bawaannya mati: ini memberi program luar kemampuan menjalankan apa pun di mesin ini.',
   'mcp.status': 'Status',
   'mcp.port': 'Port',
   'mcp.token': 'Token',

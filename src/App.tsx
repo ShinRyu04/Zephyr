@@ -162,16 +162,46 @@ let ghListenerUnlisten: (() => void) | undefined;
 let mcpListenerBound = false;
 let mcpListenerUnlisten: (() => void) | undefined;
 
+/* mcp-screenshot dan mcp-connect dulu hanya menumpang guard mcp-action. Kalau
+   listen mcp-action sudah siap, kedua pemasangan ini ikut dilewati; sebaliknya
+   saat mcp-action gagal keduanya ikut dipasang ulang. Masing-masing sekarang
+   punya guard dan unlisten sendiri supaya tidak saling bergantung. */
+let mcpShotListenerBound = false;
+let mcpShotListenerUnlisten: (() => void) | undefined;
+
+let mcpConnectListenerBound = false;
+let mcpConnectListenerUnlisten: (() => void) | undefined;
+
 let lspListenerBound = false;
 let lspListenerUnlisten: (() => void) | undefined;
 
 let cronListenerBound = false;
 let cronListenerUnlisten: (() => void) | undefined;
 
+// git-progress dulu menumpang ghListenerBound, jadi kegagalan gh-login ikut
+// memutus pemasangan ulang progres git. Guard-nya sekarang berdiri sendiri.
+let gitProgressListenerBound = false;
+let gitProgressListenerUnlisten: (() => void) | undefined;
+
+// Event jendela (drop/close/focus) TIDAK idempoten: drop ganda membuka path dua
+// kali, close ganda menjalankan persist session dua kali. Cleanup effect saja
+// tidak cukup karena StrictMode melepas effect sebelum listen() selesai, jadi
+// listener kedua tetap terpasang. Guard tingkat modul + unlisten yang disimpan
+// memastikan hanya satu listener yang hidup dan benar-benar bisa dilepas.
+let dragDropListenerBound = false;
+let dragDropListenerUnlisten: (() => void) | undefined;
+
+let closeReqListenerBound = false;
+let closeReqListenerUnlisten: (() => void) | undefined;
+
+let focusChgListenerBound = false;
+let focusChgListenerUnlisten: (() => void) | undefined;
+
 // Two separate effects subscribe to fs-changed (explorer tree, git refresh).
 // Each needs its own guard so StrictMode does not double-bind either one.
 let fsListenerBound = false;
 let gitFsListenerBound = false;
+let gitFsListenerUnlisten: (() => void) | undefined;
 
 let errorHandlersBound = false;
 
@@ -665,7 +695,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    if (dragDropListenerBound) return;
+    dragDropListenerBound = true;
 
     try {
       getCurrentWindow()
@@ -681,19 +712,28 @@ export default function App() {
           }
         })
         .then((un) => {
-          unlisten = un;
+          dragDropListenerUnlisten = un;
         })
         .catch(() => {
           /* outside Tauri (browser dev) this event does not exist */
+          dragDropListenerBound = false;
         });
     } catch {
       /* non-Tauri */
+      dragDropListenerBound = false;
     }
-    return () => unlisten?.();
+    return () => {
+      // Drop ganda membuka setiap path dua kali, jadi unlisten-nya dipegang di
+      // module scope dan hanya dipasang sekali untuk seluruh umur proses.
+      dragDropListenerUnlisten?.();
+      dragDropListenerUnlisten = undefined;
+      dragDropListenerBound = false;
+    };
   }, []);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    if (closeReqListenerBound) return;
+    closeReqListenerBound = true;
 
     try {
       getCurrentWindow()
@@ -706,15 +746,23 @@ export default function App() {
           }
         })
         .then((un) => {
-          unlisten = un;
+          closeReqListenerUnlisten = un;
         })
         .catch(() => {
           /* non-Tauri */
+          closeReqListenerBound = false;
         });
     } catch {
       /* non-Tauri */
+      closeReqListenerBound = false;
     }
-    return () => unlisten?.();
+    return () => {
+      // Close ganda menjalankan persistSession dua kali dan bisa menutup jendela
+      // padahal handler sudah membatalkannya.
+      closeReqListenerUnlisten?.();
+      closeReqListenerUnlisten = undefined;
+      closeReqListenerBound = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -727,19 +775,31 @@ export default function App() {
     document.addEventListener('visibilitychange', onVis);
     onVis();
 
-    let unlisten: (() => void) | undefined;
-    try {
-      void getCurrentWindow()
-        .onFocusChanged(({ payload: fokus }) => set(!fokus || document.hidden))
-        .then((un) => {
-          unlisten = un;
-        });
-    } catch {
-      /* non-Tauri */
+    if (!focusChgListenerBound) {
+      focusChgListenerBound = true;
+      try {
+        void getCurrentWindow()
+          .onFocusChanged(({ payload: fokus }) => set(!fokus || document.hidden))
+          .then((un) => {
+            focusChgListenerUnlisten = un;
+          })
+          .catch(() => {
+            /* non-Tauri */
+            focusChgListenerBound = false;
+          });
+      } catch {
+        /* non-Tauri */
+        focusChgListenerBound = false;
+      }
     }
+
     return () => {
       document.removeEventListener('visibilitychange', onVis);
-      unlisten?.();
+      // Two mounts would leave two focus listeners toggling data-idle, so the
+      // unlisten lives in module scope and the mount is guarded.
+      focusChgListenerUnlisten?.();
+      focusChgListenerUnlisten = undefined;
+      focusChgListenerBound = false;
       delete root.dataset.idle;
     };
   }, []);
@@ -890,10 +950,6 @@ export default function App() {
         console.error('gagal memasang listener gh-login', e);
       });
 
-    void onGitProgress((p) => useGit.getState().setProgress(p)).catch((e) => {
-      console.error('gagal memasang listener git-progress', e);
-    });
-
     return () => {
       ghListenerUnlisten?.();
       ghListenerUnlisten = undefined;
@@ -902,67 +958,127 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let timer: number | undefined;
-    const bump = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => void useGit.getState().refresh(), 250);
-    };
-    let unlisten: (() => void) | undefined;
-    onFsChanged(bump)
+    // git-progress dulu menumpang guard gh-login; sekarang punya guard sendiri
+    // supaya kedua listener tidak saling memutus saat salah satunya gagal.
+    if (gitProgressListenerBound) return;
+    gitProgressListenerBound = true;
+
+    onGitProgress((p) => useGit.getState().setProgress(p))
       .then((un) => {
-        unlisten = un;
+        gitProgressListenerUnlisten = un;
       })
-      .catch(() => {
-        /* non-Tauri */
+      .catch((e) => {
+        gitProgressListenerBound = false;
+        console.error('gagal memasang listener git-progress', e);
       });
-    if (!gitFsListenerBound) gitFsListenerBound = true;
+
+    return () => {
+      gitProgressListenerUnlisten?.();
+      gitProgressListenerUnlisten = undefined;
+      gitProgressListenerBound = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = { id: undefined as number | undefined };
+    const bump = () => {
+      window.clearTimeout(timer.id);
+      timer.id = window.setTimeout(() => void useGit.getState().refresh(), 250);
+    };
+
+    // Guard-nya harus DICEK, bukan cuma di-set: kalau hanya ditandai, mount kedua
+    // dari StrictMode tetap memasang listener kedua, jadi setiap perubahan berkas
+    // menjalankan refresh git dua kali.
+    if (!gitFsListenerBound) {
+      gitFsListenerBound = true;
+      onFsChanged(bump)
+        .then((un) => {
+          gitFsListenerUnlisten = un;
+        })
+        .catch(() => {
+          /* non-Tauri */
+          gitFsListenerBound = false;
+        });
+    }
+
     const unsub = useStore.subscribe((s, prev) => {
       if (s.workspace !== prev.workspace) void useGit.getState().init();
 
       if (s.tabs !== prev.tabs) bump();
     });
     return () => {
-      window.clearTimeout(timer);
-      unlisten?.();
+      window.clearTimeout(timer.id);
+      gitFsListenerUnlisten?.();
+      gitFsListenerUnlisten = undefined;
+      gitFsListenerBound = false;
       unsub();
     };
   }, []);
 
   useEffect(() => {
     void useMcp.getState().init();
-    if (mcpListenerBound) return;
 
-    // Guard-nya di-set setelah listen() utama sukses (pola pty), supaya kegagalan
-    // sesaat tidak membuat MCP mati permanen di proses ini.
-    onMcpAction((a) => void useMcp.getState().handleAction(a))
-      .then((un) => {
-        mcpListenerUnlisten = un;
-        mcpListenerBound = true;
-        void import('./lib/commands').then((c) => c.mcpUiReady().catch(() => {}));
+    if (!mcpListenerBound) {
+      // Guard-nya di-set setelah listen() utama sukses (pola pty), supaya kegagalan
+      // sesaat tidak membuat MCP mati permanen di proses ini.
+      onMcpAction((a) => void useMcp.getState().handleAction(a))
+        .then((un) => {
+          mcpListenerUnlisten = un;
+          mcpListenerBound = true;
+          void import('./lib/commands').then((c) => c.mcpUiReady().catch(() => {}));
+        })
+        .catch((e) => {
+          mcpListenerBound = false;
+          console.error('gagal memasang listener mcp-action', e);
+        });
+    }
+
+    if (!mcpShotListenerBound) {
+      mcpShotListenerBound = true;
+      // Dulu unlisten-nya dibuang dengan void, jadi satu tombol screenshot tercatat
+      // dua kali di log MCP setelah StrictMode memasang listener kedua.
+      onMcpScreenshot(({ paneId, path }) => {
+        const m = useMcp.getState();
+        m.setToast(`AI CLI captured a screenshot of pane ${paneId.slice(-6)}`);
+        m.pushLog(`screenshot_pane ${paneId.slice(-6)} → ${path.split(/[\\/]/).pop()}`, 'action');
+        useMcp.setState({ lastShot: path, mcpInfo: `Screenshot pane ${paneId} → ${path}` });
       })
-      .catch((e) => {
-        mcpListenerBound = false;
-        console.error('gagal memasang listener mcp-action', e);
-      });
-    void onMcpScreenshot(({ paneId, path }) => {
-      const m = useMcp.getState();
-      m.setToast(`AI CLI captured a screenshot of pane ${paneId.slice(-6)}`);
-      m.pushLog(`screenshot_pane ${paneId.slice(-6)} → ${path.split(/[\\/]/).pop()}`, 'action');
-      useMcp.setState({ lastShot: path, mcpInfo: `Screenshot pane ${paneId} → ${path}` });
-    }).catch((e) => {
-      console.error('gagal memasang listener mcp-screenshot', e);
-    });
+        .then((un) => {
+          mcpShotListenerUnlisten = un;
+        })
+        .catch((e) => {
+          mcpShotListenerBound = false;
+          console.error('gagal memasang listener mcp-screenshot', e);
+        });
+    }
 
-    void onMcpConnect(({ client }) => {
-      useMcp.getState().pushLog(`MCP connected: ${client}`, 'connect');
-    }).catch((e) => {
-      console.error('gagal memasang listener mcp-connect', e);
-    });
+    if (!mcpConnectListenerBound) {
+      mcpConnectListenerBound = true;
+      // Sama: satu koneksi klien MCP akan muncul dua kali di log tanpa guard ini.
+      onMcpConnect(({ client }) => {
+        useMcp.getState().pushLog(`MCP connected: ${client}`, 'connect');
+      })
+        .then((un) => {
+          mcpConnectListenerUnlisten = un;
+        })
+        .catch((e) => {
+          mcpConnectListenerBound = false;
+          console.error('gagal memasang listener mcp-connect', e);
+        });
+    }
 
     return () => {
       mcpListenerUnlisten?.();
       mcpListenerUnlisten = undefined;
       mcpListenerBound = false;
+
+      mcpShotListenerUnlisten?.();
+      mcpShotListenerUnlisten = undefined;
+      mcpShotListenerBound = false;
+
+      mcpConnectListenerUnlisten?.();
+      mcpConnectListenerUnlisten = undefined;
+      mcpConnectListenerBound = false;
     };
   }, []);
 

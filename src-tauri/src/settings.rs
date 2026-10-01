@@ -105,7 +105,17 @@ pub fn default_settings() -> Value {
             "provider": "",
             "idleSecs": 90
         },
-        "mcp": { "enabled": false, "port": 9222, "token": "", "writeToCli": [] },
+        // `allow_terminal_control` sudah dibaca di mcp_server.rs sejak lama,
+        // tapi bawaannya harus ditulis eksplisit di sini juga. Tanpa kunci ini,
+        // pengaturan bawaan tidak pernah memuatnya, jadi nilainya tetap
+        // `false` dan fiturnya tidak bisa dihidupkan dari UI manapun.
+        "mcp": {
+            "enabled": false,
+            "port": 9222,
+            "token": "",
+            "writeToCli": [],
+            "allow_terminal_control": false,
+        },
         "ssh": { "recentHosts": [] },
 
         "panel": {

@@ -22,6 +22,67 @@
   --fg2: var(--text-muted);
   --accent-fg: var(--text-inverse);
 
+  /*
+   * ALIAS untuk nama lama.
+   *
+   * Berkas gaya di proyek ini ditulis dalam DUA generasi penamaan, dan
+   * generasi yang lebih tua memakai nama yang tidak pernah didefinisikan di
+   * sini: `--surface-1`, `--bg-panel`, `--bg-elevated`, `--text-primary`,
+   * `--text-dim`, `--hover`, `--mono`, `--fg`, `--fg-muted`, `--ok`, `--err`,
+   * `--warn`, `--danger-fg`, `--panel`, dan `--bg-2`.
+   *
+   * Selama nama-nama itu tidak ada, `var(--x)` pada properti `color` gagal
+   * berlaku dan teksnya jatuh ke hitam bawaan browser - di atas latar gelap,
+   * teksnya hilang. Pada `background`, panelnya jadi tembus pandang. Itu bukan
+   * soal kerapian: ada puluhan tempat, dan gejalanya "kadang teks tidak
+   * terlihat" yang sangat sulit dilacak.
+   *
+   * Aliasing di sini - bukan mengubah puluhan berkas - juga membuat
+   * pergantian tema tetap bekerja: nilainya menunjuk ke token asli, jadi tema
+   * terang ikut berubah tanpa perlu disentuh.
+   *
+   * Ini juga menutup satu kesalahan ketik yang sudah lama ada:
+   * `subagent-view.css` pernah memakai `var(--font-mono)` yang waktu itu tidak
+   * ada, dan komentar di berkasnya mencatat bahwa medannya "diam-diam jatuh ke
+   * font UI". Sekarang nama lamanya juga hidup, jadi kesalahan seperti itu
+   * tidak lagi berakhir tanpa suara.
+   */
+  --fg: var(--text);
+  --fg-muted: var(--text-muted);
+  --text-primary: var(--text);
+  --text-dim: var(--text-muted);
+
+  --surface-1: var(--surface-2);
+  --bg-panel: var(--surface);
+  --bg-elevated: var(--surface-3);
+  --panel: var(--surface);
+  --bg-2: var(--surface-2);
+
+  --hover: color-mix(in srgb, var(--text) 7%, transparent);
+  --danger-fg: var(--text-inverse);
+  --mono: var(--font-mono);
+
+  /*
+   * `--ok`, `--err`, `--warn` dan `--red` adalah himpunan nama pendek yang
+   * sudah dipakai di banyak berkas. Di sini mereka dipetakan ke token warna
+   * yang sesungguhnya, jadi satu tema tetap mengendalikan semuanya.
+   */
+  --ok: var(--success);
+  --err: var(--danger);
+  --warn: var(--warning);
+  --red: var(--danger);
+
+  /* Sisanya dari himpunan nama lama yang sama. */
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-dim: color-mix(in srgb, var(--accent) 12%, transparent);
+  --hover-bg: color-mix(in srgb, var(--text) 6%, transparent);
+  --text-faint: var(--text-muted);
+  --text-on-accent: var(--text-inverse);
+  --surface-raised: var(--surface-2);
+  --card: var(--surface-2);
+  --editor-line-height: 1.5;
+  --tree-delay: 0ms;
+
   /* editor */
   --editor-background: var(--editor-bg);
   --editor-foreground: var(--text);

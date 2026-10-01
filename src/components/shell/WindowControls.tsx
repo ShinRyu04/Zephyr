@@ -2,27 +2,46 @@ import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useT } from '../../lib/i18n';
 
+/*
+ * StrictMode memasang effect DUA kali. onResized adalah listen() async, jadi
+ * cleanup mount pertama berjalan sebelum unlisten ada: listener pertama tetap
+ * terpasang dan mount kedua menambah listener kedua, sehingga setiap resize
+ * memanggil isMaximized() dua kali. Guard + unlisten module-scope mencegahnya.
+ */
+let resizedListenerBound = false;
+let resizedListenerUnlisten: (() => void) | undefined;
+
 export default function WindowControls() {
   const tr = useT();
   const [maks, setMaks] = useState(false);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    try {
-      const w = getCurrentWindow();
-      void w.isMaximized().then(setMaks).catch(() => {});
-      void w
-        .onResized(() => {
-          void w.isMaximized().then(setMaks).catch(() => {});
-        })
-        .then((un) => {
-          unlisten = un;
-        })
-        .catch(() => {});
-    } catch {
-      /* non-Tauri */
+    if (!resizedListenerBound) {
+      resizedListenerBound = true;
+      try {
+        const w = getCurrentWindow();
+        void w.isMaximized().then(setMaks).catch(() => {});
+        void w
+          .onResized(() => {
+            void w.isMaximized().then(setMaks).catch(() => {});
+          })
+          .then((un) => {
+            resizedListenerUnlisten = un;
+          })
+          .catch(() => {
+            /* non-Tauri */
+            resizedListenerBound = false;
+          });
+      } catch {
+        /* non-Tauri */
+        resizedListenerBound = false;
+      }
     }
-    return () => unlisten?.();
+    return () => {
+      resizedListenerUnlisten?.();
+      resizedListenerUnlisten = undefined;
+      resizedListenerBound = false;
+    };
   }, []);
 
   const aksi = (fn: (w: ReturnType<typeof getCurrentWindow>) => Promise<unknown>) => {

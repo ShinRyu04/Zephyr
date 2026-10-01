@@ -143,8 +143,21 @@ export default function TodoPanel() {
       </button>
 
       <div className="todo-daftar" id="todo-daftar" data-testid="ai-todos" hidden={lipat}>
+        {/*
+          * Kuncinya `t.id`, BUKAN indeks array.
+          *
+          * Kunci indeks memasangkan baris ke POSISI, bukan ke tugasnya. Begitu
+          * urutannya berubah - dan itu memang terjadi, karena daftar ini
+          * ditulis ulang model setiap putaran - React memasangkan isi baru ke
+          * elemen lama, dan yang terlihat adalah centang serta durasi yang
+          * melompat ke tugas yang salah.
+          *
+          * `i` tetap dipakai untuk data-testid, karena harness memakainya
+          * untuk menunjuk baris ke-N di layar - dan di situ memang posisi yang
+          * dimaksud.
+          */}
         {todos.map((t, i) => (
-          <div key={i} className={`todo-row ${t.status}`} data-testid={`todo-${i}`}>
+          <div key={t.id ?? i} className={`todo-row ${t.status}`} data-testid={`todo-${i}`}>
             <span className="todo-ic" aria-hidden="true">
               {t.status === 'done' ? (
                 <svg width="14" height="14" viewBox="0 0 16 16">
