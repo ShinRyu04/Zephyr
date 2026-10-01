@@ -176,8 +176,51 @@ fn mtime_ms(meta: &std::fs::Metadata) -> u64 {
         .unwrap_or(0)
 }
 
+/**
+ * Batas ukuran berkas yang boleh dibaca bulat-bulat.
+ *
+ * Sama dengan batas yang dipakai `fs_read`, supaya kedua jalur membaca
+ * memperlakukan berkas besar dengan cara yang sama - dua batas berbeda untuk
+ * hal yang sama hanya menghasilkan kejutan di kemudian hari.
+ */
+pub const MAX_READ_BYTES: u64 = 32 * 1024 * 1024;
+
 pub fn read_file_detect(path: &Path) -> ZResult<ReadResult> {
+    /*
+     * Diperiksa SEBELUM membaca, bukan sesudah.
+     *
+     * `std::fs::read` menyerap seluruh berkas ke memori, lalu `decode_bytes`
+     * membuat salinan kedua, dan `raw.replace` salinan ketiga. Berkas 500MB
+     * jadi lonjakan beberapa GB dan UI membeku - dan pada berkas yang lebih
+     * besar lagi, prosesnya bisa mati.
+     *
+     * Versi sebelumnya tidak memeriksa apa pun. `fs_read` sudah memeriksa, tapi
+     * `replace_in_file` dan `search_replace` memanggil fungsi ini langsung,
+     * jadi keduanya bisa dipicu pengguna lewat "Replace All" pada berkas besar.
+     *
+     * Diperiksa dari metadata dulu supaya berkas raksasa tidak pernah tersentuh
+     * sama sekali; ukuran sebenarnya tetap dicek setelah baca untuk berkas yang
+     * bertambah besar di antara dua panggilan.
+     */
+    let meta = std::fs::metadata(path)?;
+    if meta.len() > MAX_READ_BYTES {
+        return Err(crate::errors::ZephyrError::InvalidInput(format!(
+            "berkas terlalu besar untuk diolah ({} MB, batas {} MB): {}",
+            meta.len() / (1024 * 1024),
+            MAX_READ_BYTES / (1024 * 1024),
+            path.display()
+        )));
+    }
+
     let bytes = std::fs::read(path)?;
+    if bytes.len() as u64 > MAX_READ_BYTES {
+        return Err(crate::errors::ZephyrError::InvalidInput(format!(
+            "berkas bertambah besar saat dibaca ({} MB, batas {} MB): {}",
+            bytes.len() / (1024 * 1024),
+            MAX_READ_BYTES / (1024 * 1024),
+            path.display()
+        )));
+    }
     let (raw, detected) = decode_bytes(&bytes, None)?;
     let line_ending = detect_line_ending(&raw).to_string();
     let (read_only, note) = read_only_reason(bytes.len() as u64, &detected);

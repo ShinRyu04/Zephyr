@@ -450,7 +450,29 @@ pub fn search_replace(
                     error: "file biner dilewati".into(),
                 });
             }
-            let teks = String::from_utf8_lossy(&isi).to_string();
+            /*
+             * Membaca lewat `read_file_detect`, BUKAN `from_utf8_lossy`.
+             *
+             * Versi sebelumnya membaca dengan lossy dan menulis dengan
+             * `baru.as_bytes()`. Dua-duanya merusak berkas pengguna secara
+             * PERMANEN:
+             *
+             * - Berkas Windows-1252/ANSI: byte yang bukan UTF-8 yang sah
+             *   diganti U+FFFD, dan hasilnya ditulis sebagai UTF-8. Setiap
+             *   karakter aksen, tanda kutip tipografi, dan simbol mata uang di
+             *   seluruh berkas rusak - bukan hanya di bagian yang diganti.
+             * - Berkas UTF-8 dengan BOM: BOM-nya hilang.
+             *
+             * Kerusakannya tidak bisa dikembalikan byte-per-byte, karena
+             * informasi encodingnya sudah terbuang saat dibaca. Dan ini terjadi
+             * pada "Replace All" yang jangkauannya bisa satu workspace penuh.
+             *
+             * `read_file_detect` mencatat encoding dan akhir baris aslinya,
+             * lalu `write_file_encoded` menulis kembali dengan keduanya utuh -
+             * persis pola yang sudah dipakai `replace_in_file` di explorer.rs.
+             */
+            let read = crate::fs_utils::read_file_detect(&p)?;
+            let teks = read.content.clone();
             let jml = re.find_iter(&teks).count();
             if jml == 0 {
                 return Ok(ReplaceHasil {
@@ -465,7 +487,20 @@ pub fn search_replace(
             let snap =
                 crate::history::snapshot_internal(&state, &p, "before-replace").unwrap_or_default();
 
-            std::fs::write(&p, baru.as_bytes())?;
+            /*
+             * Ditulis kembali dengan encoding dan akhir baris ASLINYA.
+             *
+             * Menulis `baru.as_bytes()` berarti selalu UTF-8 dengan LF: berkas
+             * ANSI berubah encoding, berkas CRLF kehilangan \r, dan BOM hilang.
+             * Ketiganya perubahan yang tidak diminta pengguna dan muncul di
+             * diff git sebagai "seluruh berkas berubah".
+             */
+            crate::fs_utils::write_file_encoded(
+                &p,
+                &baru,
+                &read.detected_encoding,
+                &read.line_ending,
+            )?;
             Ok(ReplaceHasil {
                 path: f.clone(),
                 jumlah: jml,
