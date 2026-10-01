@@ -28,12 +28,69 @@ import { useTerminal } from '../../lib/terminalStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { runCommand } from '../../lib/commandRegistry';
 import SubAgentInfo from './SubAgentInfo';
-import { infoAksi, sasaranAksi, KELAS_JENIS } from '../../lib/labelAksi';
+import { infoAksi, KELAS_JENIS } from '../../lib/labelAksi';
+import ToolCallCard from './ToolCallCard';
+import DiffViewer from './DiffViewer';
+import ThinkingBar from './ThinkingBar';
 
 /** The folder part of a workspace-relative path, for the picker's second column. */
 function folderDari(path: string): string {
   const pisah = path.lastIndexOf('/');
   return pisah < 0 ? '' : path.slice(0, pisah);
+}
+
+/**
+ * Gelombang 4: turn one recorded agent step into the shape ToolCallCard wants.
+ *
+ * `args` and `result` in the store are the raw strings the loop already kept -
+ * the card decides how to present them. Two things are worth deriving here
+ * rather than in the card, because only this layer knows the tool names:
+ *
+ * - a unified diff, when the tool rewrote a file (that is what DiffViewer is
+ *   for; a raw JSON blob of an edit is unreadable);
+ * - the exit code, when the result carries one.
+ */
+function kartuTool(
+  step: { name?: string; args?: string; result?: string; ok?: boolean; at: number; durasiMs?: number; exitCode?: number; cwd?: string },
+  okText: string,
+  gagalText: string,
+): {
+  name: string;
+  input: string;
+  output: string;
+  ok: boolean;
+  durationMs?: number;
+  exitCode?: number;
+  cwd?: string;
+  diff?: string;
+} {
+  const nama = step.name ?? '';
+  const hasil = step.result ?? '';
+  const info = infoAksi(nama);
+  const menyunting = info.jenis === 'tulis' || /edit|write|patch|replace|apply/i.test(nama);
+  const adaHunk = /(^|\n)(diff --git|@@ -\d+)/.test(hasil);
+  const diff = menyunting && adaHunk ? hasil : undefined;
+
+  let keluaran = hasil;
+  let exitCode = step.exitCode;
+  if (exitCode == null) {
+    const cocok = /"exit_?code"\s*:\s*(-?\d+)/.exec(hasil);
+    if (cocok) exitCode = Number(cocok[1]);
+  }
+
+  if (step.ok === false && !keluaran) keluaran = gagalText;
+  else if (step.ok !== false && !keluaran) keluaran = okText;
+
+  return {
+    name: nama,
+    input: step.args ?? '',
+    output: keluaran,
+    ok: step.ok !== false,
+    durationMs: step.durasiMs,
+    exitCode,
+    cwd: step.cwd,
+    diff,
+  };
 }
 
 export default function AiPanel() {
@@ -104,6 +161,12 @@ const JEJAK_TOOL_MAKS = 4;
   /* Jejak tool: hanya beberapa terakhir yang dirender, sisanya diringkas. */
   const jejakTool = agentSteps.filter((step) => step.kind === 'tool');
   const jejakToolTerlihat = jejakTool.slice(-JEJAK_TOOL_MAKS);
+  /*
+   * Gelombang 3: the status stack used to render even when every counter was
+   * zero. `stackKosong` lets the whole block leave the DOM instead of drawing
+   * four rows that only say "nothing is happening".
+   */
+  const stackKosong = !sibuk && !loopFinished && backgroundCount === 0 && antrian.length === 0;
 
   useEffect(() => {
     if (!sibuk || !agentLastProgressAt) return;
@@ -843,7 +906,16 @@ const JEJAK_TOOL_MAKS = 4;
         </div>
       )}
 
+      {/*
+        * Gelombang 3: the status stack only exists while something is actually
+        * happening. Before this it always rendered four rows of zeroes ("Loop
+        * idle, 0 runs", "0 Background, 0 running subagents, 0 scheduled jobs",
+        * "0 Queued"), which read as broken instead of idle. Each section keeps
+        * its own guard so one active row cannot drag the empty ones back.
+        */}
+      {!stackKosong && (
       <div className="ai-work-stack" data-testid="ai-work-stack">
+        {(sibuk || loopFinished) && (
         <section className="ai-work-section" data-testid="ai-work-stack-loop">
           <button
             className="ai-work-summary"
@@ -851,24 +923,46 @@ const JEJAK_TOOL_MAKS = 4;
             aria-controls="ai-work-loop-body"
             onClick={() => setLoopBuka((v) => !v)}
           >
-            <span className={`ai-work-status${sibuk ? ' is-running' : loopFinished ? ' is-done' : ''}`} aria-hidden="true" />
-            <span>{tr(sibuk ? 'Loop running' : loopFinished ? 'Loop finished' : 'Loop idle')}</span>
-            <span className="ai-work-meta">· {tf('{n} runs', { n: loopRuns })}</span>
+            <span className={`ai-work-status${sibuk ? ' is-running' : ' is-done'}`} aria-hidden="true" />
+            <span>{tr(sibuk ? 'Loop running' : 'Loop finished')}</span>
+            {loopRuns > 0 && <span className="ai-work-meta">· {tf('{n} runs', { n: loopRuns })}</span>}
             <span className="ai-work-caret" aria-hidden="true">{loopBuka ? '▾' : '▸'}</span>
           </button>
           {loopBuka && (
             <div id="ai-work-loop-body" className="ai-work-body" role="status" data-testid={sibuk ? 'ai-agent-progress' : undefined}>
+              {/*
+               * Gelombang 4: bar ini menggantikan baris teks diam yang hanya
+               * menuliskan 'ThinkingStep 4/120'. Ia menyala HANYA saat sibuk,
+               * memutar status yang bisa dibaca manusia setiap 6 detik, dan
+               * menghitung detik berjalan supaya user tahu ia masih hidup -
+               * bukan macet.
+               */}
+              {sibuk && (
+                <ThinkingBar
+                  active
+                  startedAt={agentLastProgressAt ?? undefined}
+                  statuses={[
+                    tr('Reading the files that matter'),
+                    tr('Planning the next step'),
+                    tr('Working through the workspace'),
+                    tr('Writing the change'),
+                    tr('Checking the result'),
+                  ]}
+                  tr={tr}
+                  tf={tf}
+                />
+              )}
               <div className="ai-work-detail">
                 <span>{agentPhaseLabel}</span>
                 {/* Pemisah eksplisit: dulu '{current}/{total}' menempel ke label fase. */}
                 <span className="ai-work-step">
-                  {tf('step {current} of {total}', { current: agentStepIndex, total: agentStepLimit })}
+                  {tf('Progress {current} of {total}', { current: agentStepIndex, total: agentStepLimit })}
                 </span>
                 {sibuk && <span>{tf('{n}s', { n: progressElapsed })}</span>}
               </div>
               {agentCurrentTool && <code className="ai-work-tool">{agentCurrentTool}</code>}
               {jejakTool.length > 0 ? (
-                <ul className="ai-agent">
+                <ul className="ai-agent ai-agent-cards">
                   {/*
                    * Hanya beberapa aksi terakhir yang ditampilkan.
                    *
@@ -876,24 +970,26 @@ const JEJAK_TOOL_MAKS = 4;
                    * daftarnya mendorong isi panel keluar layar. Sisa-nya
                    * diringkas jadi satu baris 'N more actions'.
                    *
-                   * Kelas .ai-agent-* datang dari ai-trace.css: satu baris per
-                   * aksi, label kiri, target monospace kanan, gap 8px. Dulu blok
-                   * ini memakai .ai-work-* yang tidak pernah diberi CSS sama
-                   * sekali, jadi status dan nama tool menempel ('doneworkspace').
+                   * Gelombang 4: tiap aksi kini satu ToolCallCard yang bisa
+                   * dibuka - tertutup ia tetap satu baris ringkas, dibuka ia
+                   * memperlihatkan Input/Output, exit status, cwd dan durasi.
+                   * DiffViewer dipakai saat tool itu mengubah berkas, jadi
+                   * perubahannya terbaca sebagai baris merah/hijau, bukan
+                   * tembok JSON.
                    */}
                   {jejakToolTerlihat.map((step, i) => {
                     const info = infoAksi(step.name);
+                    const kartu = kartuTool(step, tr('Completed'), tr('Failed'));
                     return (
-                      <li
-                        className={`ai-agent-step is-tool ${KELAS_JENIS[info.jenis] ?? ''}`}
-                        key={`${step.at}-${i}`}
-                      >
-                        <AiIkon name={info.ikon} size={12} />
-                        <span className="ai-agent-tool">{tr(info.label)}</span>
-                        <span className="ai-agent-sasaran">{sasaranAksi(step.args)}</span>
-                        <span className={`ai-agent-hasil${step.ok === false ? ' is-err' : ''}`}>
-                          {step.ok === false ? tr('failed') : tr('done')}
-                        </span>
+                      <li className="ai-agent-card-item" key={`${step.at}-${i}`}>
+                        <ToolCallCard
+                          call={kartu}
+                          tr={tr}
+                          tf={tf}
+                          defaultOpen={false}
+                          className={`is-jenis-${KELAS_JENIS[info.jenis] ?? 'lain'}`}
+                        />
+                        {kartu.diff && <DiffViewer text={kartu.diff} tr={tr} tf={tf} />}
                       </li>
                     );
                   })}
@@ -905,13 +1001,13 @@ const JEJAK_TOOL_MAKS = 4;
                     </li>
                   )}
                 </ul>
-              ) : (
-                <p className="ai-work-empty">{tr('No loop activity yet.')}</p>
-              )}
+              ) : null}
             </div>
           )}
         </section>
+        )}
 
+        {backgroundCount > 0 && (
         <section className="ai-work-section" data-testid="ai-work-stack-background">
           <button
             className="ai-work-summary"
@@ -921,9 +1017,16 @@ const JEJAK_TOOL_MAKS = 4;
           >
             <span className={`ai-work-status${subagentsAktif.length ? ' is-running' : ''}`} aria-hidden="true" />
             <span>{tf('{n} Background', { n: backgroundCount })}</span>
-            <span className="ai-work-meta">
-              · {tf('{n} running subagents', { n: subagentsAktif.length })} · {tf('{n} scheduled jobs', { n: jadwalAktif.length })}
-            </span>
+            {subagentsAktif.length > 0 && (
+              <span className="ai-work-meta">
+                · {tf('{n} running subagents', { n: subagentsAktif.length })}
+              </span>
+            )}
+            {jadwalAktif.length > 0 && (
+              <span className="ai-work-meta">
+                · {tf('{n} scheduled jobs', { n: jadwalAktif.length })}
+              </span>
+            )}
             <span className="ai-work-caret" aria-hidden="true">{backgroundBuka ? '▾' : '▸'}</span>
           </button>
           {backgroundBuka && (
@@ -943,11 +1046,12 @@ const JEJAK_TOOL_MAKS = 4;
                   <code>{tf('every {n} minutes', { n: job.every_minutes })}</code>
                 </div>
               ))}
-              {backgroundCount === 0 && <p className="ai-work-empty">{tr('No running subagents or enabled scheduled jobs.')}</p>}
             </div>
           )}
         </section>
+        )}
 
+        {antrian.length > 0 && (
         <section className="ai-work-section" data-testid="ai-work-stack-queue">
           <div className="ai-cq" data-testid="ai-antrian" data-collapsed={cqLipat ? '1' : '0'}>
             {/*
@@ -968,7 +1072,7 @@ const JEJAK_TOOL_MAKS = 4;
               onClick={() => setCqLipat((v) => !v)}
             >
               <AiIkon name="queue" size={12} />
-              {tf('{n} Queued', { n: antrian.length })}
+              {tf('{n} in queue', { n: antrian.length })}
               <span className="ai-cq-caret" aria-hidden="true">
                 {cqLipat ? '▸' : '▾'}
               </span>
@@ -1127,7 +1231,9 @@ const JEJAK_TOOL_MAKS = 4;
             )}
           </div>
         </section>
+        )}
       </div>
+      )}
 
       <div className="ai-input-row">
         {draftImages.length > 0 && (

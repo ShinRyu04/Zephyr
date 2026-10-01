@@ -20,6 +20,19 @@
   flex: 1;
   height: auto !important;
 }
+
+/* ─────────── Gelombang 5: wallpaper menembus panel bawah ───────────
+   .panel-area is one of the largest surfaces in the window and it was the last
+   one still painting a solid `var(--surface)` over the wallpaper when the user
+   turned translucency on. The editor and the terminal beside it were already
+   see-through, so the bottom panel read as a grey slab. Same shorthand caveat
+   as in index.css - the base rule uses `background`, so this one must too. */
+html[data-bg='on'] .panel-area {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+html[data-bg='solid'] .panel-area {
+  background: var(--surface);
+}
 .panel-body {
   flex: 1;
   min-height: 0;

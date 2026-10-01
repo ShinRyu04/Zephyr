@@ -112,8 +112,23 @@ body::before {
 [data-bg='on'] .ai-panel {
   background-color: color-mix(in srgb, var(--editor-bg) 72%, transparent);
 }
-/* When the user turns off "translucent panels", everything goes back to solid â€”
-   applyTheme sets data-bg='solid' when that option is turned off. */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Gelombang 5: chrome yang tertinggal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   The list above covers the big surfaces, but the CHROME NESTED inside them kept
+   an opaque background and put the wallpaper back under a solid sheet: the tab
+   bar, an active tab, breadcrumbs, the panel header, the terminal tab strip and
+   the pane header. They are drawn after the shell surface in the cascade, so a
+   plain `[data-bg='on'] .tabbar` rule is not enough â€” the later `.tab.is-active`
+   rule wins. The `html` prefix raises specificity without resorting to
+   `!important`, and every rule here has a matching `data-bg='solid'` counterpart
+   so turning off translucent panels still gives back a fully solid window.
+
+   NOTE ON ORDER: an earlier attempt put these rules here, next to the other
+   `data-bg` blocks at the top of the file, and they lost. `.term-header` and
+   `.pane-head` write their background with the SHORTHAND further down (lines
+   ~960 and ~1253), and a later shorthand beats an earlier `background-color`
+   even when the earlier one has higher specificity. The rules therefore live at
+   the END of the file, after every layout rule they need to override. Keep them
+   there. */
 [data-bg='solid'] .sidebar,
 [data-bg='solid'] .main-area,
 [data-bg='solid'] .activitybar,
@@ -2923,4 +2938,59 @@ body.is-narrow .mb-top { padding: 0 6px; }
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-secondary);
+}
+
+/* „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ Gelombang 5: wallpaper pada chrome yang tertinggal „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+   The big surfaces are handled near the top of the file, but the CHROME NESTED
+   inside them kept an opaque background and put a solid sheet back over the
+   wallpaper: the tab bar, an active tab, breadcrumbs, the panel header, the
+   terminal tab strip, the pane header and the AI panel header. They were drawn
+   AFTER the shell surface in the cascade, so a rule written at the top of the
+   file loses no matter how specific it is. Hence: end of file.
+
+   Two rules here use `background` rather than `background-color`, because the
+   layout rules they override use the SHORTHAND (`background: var(--surface)`),
+   and a shorthand resets background-color even when it comes later only by
+   source order.
+
+   Every rule has a `data-bg='solid'` counterpart, so turning translucency off
+   still yields a fully solid window. Modals, popovers, menus and toasts are
+   deliberately left alone: they need to stay readable over whatever is behind
+   them. */
+html[data-bg='on'] .tabbar,
+html[data-bg='on'] .term-header,
+html[data-bg='on'] .tt-root,
+html[data-bg='on'] .pane-head,
+html[data-bg='on'] .breadcrumbs,
+html[data-bg='on'] .cm-breadcrumbs,
+html[data-bg='on'] .ai-head,
+html[data-bg='on'] .pts-root,
+html[data-bg='on'] .side-panel {
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+}
+
+/* The tab the user is working in stays the most solid one, so it remains easy
+   to pick out, but not so solid that it becomes the single opaque rectangle in
+   an otherwise translucent window. */
+html[data-bg='on'] .tab.is-active,
+html[data-bg='on'] .tt-tab.is-active,
+html[data-bg='on'] .pts-tab.is-active {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+html[data-bg='solid'] .tabbar,
+html[data-bg='solid'] .term-header,
+html[data-bg='solid'] .tt-root,
+html[data-bg='solid'] .pane-head,
+html[data-bg='solid'] .breadcrumbs,
+html[data-bg='solid'] .cm-breadcrumbs,
+html[data-bg='solid'] .ai-head,
+html[data-bg='solid'] .pts-root,
+html[data-bg='solid'] .side-panel {
+  background: var(--surface);
+}
+html[data-bg='solid'] .tab.is-active,
+html[data-bg='solid'] .tt-tab.is-active,
+html[data-bg='solid'] .pts-tab.is-active {
+  background: var(--surface-2);
 }
