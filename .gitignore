@@ -31,7 +31,7 @@ key-baru-*/
 # Artefak rilis (installer, sig, latest.json) — tetap lokal, jangan masuk repo
 release/
 # Skrip probe lokal
-scripts/zz-*.mjs
+scripts/zz-*
 
 # Screenshot & capture pengujian — dokumentasi, bukan bagian dari aplikasi
 shot-*.png
