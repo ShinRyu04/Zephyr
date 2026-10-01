@@ -4,6 +4,9 @@ import { useStore } from './store';
 import { useTerminal } from './terminalStore';
 import { usePanel, type PanelTabId } from './panelStore';
 import { writeChunked } from './terminalClipboard';
+import { clipboardRead, clipboardWrite } from './clipboard';
+import { tangkapPane, tangkapJendela, BARIS_BAWAAN } from './screenshotUi';
+import { rencanaKeTeks, tafsirJawaban, adaPerubahanBelumDisimpan, PILIHAN_RENCANA, type Rencana } from './planMode';
 import { runAction } from './mcpStore';
 import { flushTab } from './editorRegistry';
 import { pathSama } from './pathKey';
@@ -416,6 +419,173 @@ export const AGENT_TOOLS: AgentTool[] = [
       },
     },
     run: async (args) => `Task complete${args.verified === true ? ' and verified' : ''}${args.summary ? `: ${String(args.summary)}` : '.'}`,
+  },
+  {
+    spec: {
+      name: 'plan_mode',
+      description:
+        'Propose a plan and WAIT for the user to approve it. Use it BEFORE starting work that is hard to undo: changes across many files, deleting or moving things, rewriting something that already works, anything touching configuration or data. Do NOT use it for a single obvious edit - asking permission for every step trains the user to approve without reading. If approved, carry the plan out; if the user asks for changes, revise and call this again; if they cancel, stop.',
+      parameters: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string', description: 'One sentence: what the change achieves' },
+          steps: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The steps, in order, each one short and concrete',
+          },
+          files: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Files or areas that will be touched, so the user can judge the blast radius',
+          },
+          risk: {
+            type: 'string',
+            description: 'Anything irreversible or risky. Leave empty if there is none.',
+          },
+        },
+        required: ['summary', 'steps'],
+      },
+    },
+    run: async (args) => {
+      const s = useAi.getState();
+      if (!s.agentBusy) {
+        throw new Error(
+          'plan_mode: no agent turn is running, so there is nobody to approve. Present the plan in your reply instead.',
+        );
+      }
+
+      const ringkasan = String(args.summary ?? '').trim();
+      const langkah = (Array.isArray(args.steps) ? args.steps : [])
+        .map((x) => String(x ?? '').trim())
+        .filter(Boolean);
+
+      if (!ringkasan) throw new Error('plan_mode: summary is empty');
+      if (langkah.length === 0) {
+        throw new Error('plan_mode: steps is empty, so there is nothing to approve');
+      }
+
+      const rencana: Rencana = {
+        ringkasan,
+        langkah,
+        berkas: (Array.isArray(args.files) ? args.files : []).map((x) => String(x ?? '').trim()).filter(Boolean),
+        risiko: args.risk ? String(args.risk) : undefined,
+      };
+
+      /* Berkas yang belum tersimpan diperiksa LEBIH DULU dan dilaporkan ke
+         user: menyetujui rencana yang menimpa perubahan yang belum disimpan
+         adalah cara kehilangan pekerjaan tanpa peringatan. */
+      const kotor = await adaPerubahanBelumDisimpan(rencana.berkas ?? []);
+
+      const teks = rencanaKeTeks(rencana);
+      const peringatan = kotor.length
+        ? `\n\nPerhatian: berkas ini punya perubahan yang belum disimpan: ${kotor.join(', ')}`
+        : '';
+
+      const jawaban = await s.agentAjukanTanya(`${teks}${peringatan}`, [...PILIHAN_RENCANA]);
+      const tafsir = tafsirJawaban(jawaban);
+
+      if (tafsir.setuju) {
+        return 'The user approved the plan. Carry it out now, in the order given.';
+      }
+      if (tafsir.mintaUbah) {
+        return `The user did NOT approve; they want changes first. Their words: ${tafsir.catatan || '(no detail given)'}. Revise the plan and call plan_mode again.`;
+      }
+      return 'The user cancelled the plan. Stop. Do not start any of the steps, and do not propose the same plan again unless they ask.';
+    },
+  },
+  {
+    spec: {
+      name: 'screenshot_ui',
+      description:
+        'Look at what the application is actually showing right now. Call it with no arguments for an overview of every open pane and editor; pass `pane` to read one pane\'s text. Use it to check your own work on screen - after starting a dev server, after opening a file, when the user says "it looks wrong". Prefer this over guessing: the text it returns is what the user is looking at.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pane: {
+            type: 'string',
+            description:
+              'Pane index (0, 1, 2) or pane id. Omit for an overview of all panes and editors.',
+          },
+          lines: {
+            type: 'number',
+            description: `How many lines from the END of the pane to return. Default ${120}. The end matters: it is what is happening now.`,
+          },
+        },
+      },
+    },
+    run: async (args) => {
+      const pane = String(args.pane ?? '').trim();
+
+      if (!pane) {
+        const { pane: panes, editor } = await tangkapJendela();
+        if (panes.length === 0 && editor.length === 0) {
+          return 'Nothing is open: no terminal pane and no editor. The window is empty.';
+        }
+        const barisP = panes.map(
+          (p) => `  ${p.index}: ${p.jenis} "${p.judul}"${p.jalan ? ` [${p.jalan}]` : ''} (${p.status})`,
+        );
+        const barisE = editor.map((e) => `  ${e.path}${e.kotor ? ' (unsaved changes)' : ''}`);
+        return [
+          panes.length ? `Panes (${panes.length}):\n${barisP.join('\n')}` : 'Panes: none',
+          editor.length ? `Editors (${editor.length}):\n${barisE.join('\n')}` : 'Editors: none',
+        ].join('\n');
+      }
+
+      const baris = Number(args.lines ?? BARIS_BAWAAN);
+      const t = await tangkapPane(pane, Number.isFinite(baris) ? baris : BARIS_BAWAAN);
+      const kepala = `Pane ${t.paneId} (${t.jenis}${t.judul ? `, "${t.judul}"` : ''})${t.jalan ? ` [${t.jalan}]` : ''}, status ${t.status}`;
+      if (!t.teks.trim()) return `${kepala}\n(no output yet)`;
+      /* Pemotongan dinyatakan terus terang: tanpa itu, model menyimpulkan
+         seluruh isi pane dari ekornya saja. */
+      const catatan = t.terpotong ? '\n[...older lines above were omitted]' : '';
+      return `${kepala}\n${t.teks}${catatan}`;
+    },
+  },
+  {
+    spec: {
+      name: 'clipboard_read',
+      description:
+        'Read the current clipboard text. Useful when the user says "fix this" and the thing they mean is on their clipboard. Returns an empty string when the clipboard holds no text (e.g. an image or nothing at all) - it does not error.',
+      parameters: { type: 'object', properties: {} },
+    },
+    run: async () => {
+      /*
+       * Melewati `clipboardRead()` dari lib/clipboard.ts, bukan plugin Tauri
+       * langsung: pembaca itu sudah punya jalur mundur ke
+       * `navigator.clipboard`, dan di WebView2 jalur mundur itulah yang
+       * kadang bekerja saat dokumen tidak fokus. Memanggil plugin langsung di
+       * sini akan kehilangan cadangan itu.
+       */
+      const teks = await clipboardRead();
+      if (!teks) {
+        return 'The clipboard has no text right now (it may hold an image, or be empty).';
+      }
+      return teks;
+    },
+  },
+  {
+    spec: {
+      name: 'clipboard_write',
+      description:
+        'Put text on the clipboard. Use it when the user asks for something to copy - a command, a path, a snippet - instead of making them select it out of your reply by hand.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'The exact text to place on the clipboard' },
+        },
+        required: ['text'],
+      },
+    },
+    run: async (args) => {
+      const teks = String(args.text ?? '');
+      if (!teks) throw new Error('clipboard_write: text is empty');
+      await clipboardWrite(teks);
+      /* Dikonfirmasi dengan jumlah karakter, bukan "ok": model perlu tahu
+         bahwa yang tersalin adalah yang PANJANGNYA sesuai, dan angka itu
+         membuktikannya tanpa membocorkan isinya ke log. */
+      return `Copied ${teks.length} characters to the clipboard.`;
+    },
   },
   {
     spec: {
