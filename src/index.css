@@ -2999,3 +2999,49 @@ html[data-bg='solid'] .tt-tab.is-active,
 html[data-bg='solid'] .pts-tab.is-active {
   background: var(--surface-2);
 }
+
+/* ?? Gelombang 7: permukaan chrome yang masih tertinggal ??
+   Blok Gelombang 5 di atas menutup tab bar, breadcrumbs, header pane dan
+   header AI. Tujuh permukaan di bawah ini punya masalah yang sama tapi
+   terlewat: masing-masing menggambar papan solid di atas wallpaper.
+
+   Ketujuhnya ditemukan dengan menyusur SELURUH berkas CSS dan mencari elemen
+   yang punya latar-belakang sendiri, lalu memisahkan mana chrome kerangka
+   (harus tembus) dari mana popover/modal/toast (sengaja solid supaya tetap
+   terbaca). Yang di bawah ini semuanya chrome kerangka.
+
+   Shorthand ackground dipakai, bukan ackground-color, karena aturan
+   dasar yang ditimpa juga memakai shorthand - dan shorthand mereset
+   background-color walau datang belakangan hanya karena urutan sumber.
+
+   Setiap aturan on punya pasangan solid, jadi mematikan tembus pandang
+   tetap menghasilkan jendela yang sepenuhnya solid. */
+html[data-bg='on'] .set-topbar,
+html[data-bg='on'] .diff-head,
+html[data-bg='on'] .scm-sec-head,
+html[data-bg='on'] .tt-side,
+html[data-bg='on'] .w4-tool-head,
+html[data-bg='on'] .w4-status-head,
+html[data-bg='on'] .sr-file-head {
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+}
+
+/* Strip chip antrean AI memakai permukaan panel yang lebih gelap, jadi
+   persentase tembusnya disamakan supaya hasil akhirnya setara. */
+html[data-bg='on'] .ai-cli-bar {
+  background: color-mix(in srgb, var(--bg-panel) 68%, transparent);
+}
+
+html[data-bg='solid'] .set-topbar,
+html[data-bg='solid'] .diff-head,
+html[data-bg='solid'] .scm-sec-head,
+html[data-bg='solid'] .tt-side,
+html[data-bg='solid'] .w4-tool-head,
+html[data-bg='solid'] .w4-status-head,
+html[data-bg='solid'] .sr-file-head {
+  background: var(--surface);
+}
+
+html[data-bg='solid'] .ai-cli-bar {
+  background: var(--bg-panel);
+}
