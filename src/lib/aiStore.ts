@@ -1325,11 +1325,21 @@ export const useAi = create<AiStore>((set, get) => ({
       const o = raw as { content?: unknown; status?: unknown };
       const content = String(o?.content ?? '').trim();
       if (!content) continue;
-      const s = String(o?.status ?? 'pending');
-      bersih.push({
-        content,
-        status: s === 'done' || s === 'in_progress' ? s : 'pending',
-      });
+      const s = String(o?.status ?? 'pending').trim().toLowerCase();
+      /*
+       * Terima semua sinonim, jangan paksa ke 'pending'.
+       *
+       * Dulu hanya 'done' dan 'in_progress' yang lolos, jadi model yang mengirim
+       * 'completed' (istilah standar di banyak prompt) jatuh ke 'pending' - todo
+       * tidak pernah centang dan agen mengulang pekerjaan yang sama tanpa henti.
+       */
+      let status: AgentTodo['status'] = 'pending';
+      if (s === 'done' || s === 'completed' || s === 'complete' || s === 'finished' || s === 'selesai') {
+        status = 'done';
+      } else if (s === 'in_progress' || s === 'in-progress' || s === 'active' || s === 'running' || s === 'working') {
+        status = 'in_progress';
+      }
+      bersih.push({ content, status });
     }
     set({ agentTodos: bersih });
     return bersih.length;
@@ -1881,6 +1891,10 @@ export const useAi = create<AiStore>((set, get) => ({
     let navigationOpened = false;
     let langkah = 0;
     let agentFailure: { category: AgentFailureCategory; message: string } | null = null;
+    /* Pengaman loop setan: lihat komentar di dekat pencatatan agentSteps. */
+    let kunciAksiTerakhir = '';
+    let ulangBerturut = 0;
+    const BATAS_ULANG = 3;
     try {
       for (; langkah < MAX_AGENT_STEPS; langkah++) {
         if (agentBatal) break;
@@ -2234,6 +2248,25 @@ export const useAi = create<AiStore>((set, get) => ({
             ms: selesaiPada - mulaiTool,
             ...status,
           };
+          /*
+           * Deteksi aksi berulang.
+           *
+           * Todo yang tidak pernah 'done' dulu membuat agen memanggil tool yang
+           * sama berulang-ulang tanpa kemajuan. Perbaikan status todo menutup
+           * sebab utamanya; ini jaring kedua untuk sebab lain (mis. tool yang
+           * selalu gagal dan model mencoba lagi dengan cara sama).
+           *
+           * Kunci = nama tool + argumen, TANPA id: id berbeda tiap panggilan,
+           * jadi memasukkannya membuat setiap aksi terlihat unik.
+           */
+          const kunciAksi = `${run.name}:${JSON.stringify(run.args ?? {})}`;
+          if (kunciAksi === kunciAksiTerakhir) {
+            ulangBerturut += 1;
+          } else {
+            kunciAksiTerakhir = kunciAksi;
+            ulangBerturut = 1;
+          }
+
           set((s) => ({
             agentSteps: [
               ...s.agentSteps,
@@ -2252,6 +2285,20 @@ export const useAi = create<AiStore>((set, get) => ({
             ),
           }));
           history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: hasil });
+
+          /*
+           * Aksi identik berkali-kali berturut-turut = tidak ada kemajuan.
+           * Hentikan dengan pesan yang jelas, jangan berputar sampai MAX_AGENT_STEPS.
+           */
+          if (ulangBerturut >= BATAS_ULANG) {
+            const ringkasArgs = String(run.args ?? '').slice(0, 160);
+            akhir =
+              `Berhenti: tool \`${run.name}\` dipanggil ${ulangBerturut}x berturut-turut ` +
+              `dengan argumen sama tanpa kemajuan. Argumen: ${ringkasArgs || '(kosong)'} ` +
+              `Hasil terakhir: ${hasil.slice(0, 200)}`;
+            agentStopReason = 'watchdog';
+            break;
+          }
 
           /*
            * Navigation-only requests end at the first successful open. The
