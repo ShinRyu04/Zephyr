@@ -32,6 +32,7 @@ import { infoAksi, KELAS_JENIS } from '../../lib/labelAksi';
 import ToolCallCard from './ToolCallCard';
 import DiffViewer from './DiffViewer';
 import ThinkingBar from './ThinkingBar';
+import StatusArea from './StatusArea';
 
 /** The folder part of a workspace-relative path, for the picker's second column. */
 function folderDari(path: string): string {
@@ -1031,21 +1032,37 @@ const JEJAK_TOOL_MAKS = 4;
           </button>
           {backgroundBuka && (
             <div id="ai-work-background-body" className="ai-work-body">
-              {subagentsAktif.map((agent) => (
-                <div className="ai-work-job" key={agent.id}>
-                  <span className="ai-work-live" aria-label={tr('running')} />
-                  <span>{agent.nama}</span>
-                  <code>{agent.provider}/{agent.model}</code>
-                  <span>{tf('{n} steps', { n: agent.langkah.length })}</span>
-                </div>
-              ))}
-              {jadwalAktif.map((job) => (
-                <div className="ai-work-job" key={job.id}>
-                  <span aria-hidden="true">◷</span>
-                  <span>{job.name}</span>
-                  <code>{tf('every {n} minutes', { n: job.every_minutes })}</code>
-                </div>
-              ))}
+              {/*
+                * Gelombang 4: one StatusArea replaces the two hand-rolled job
+                * rows. It reads the REAL subagent records (name, the task it was
+                * given, when it started, its live status) and the real scheduled
+                * jobs, and it renders nothing at all when both are empty - the
+                * section above is already gated on backgroundCount, so this can
+                * never contribute an empty shell.
+                */}
+              <StatusArea
+                subagents={{
+                  active: subagentsAktif.length > 0,
+                  items: subagentsAktif.map((agent) => ({
+                    id: agent.id,
+                    name: agent.nama,
+                    description: agent.tugas,
+                    durationMs: Date.now() - agent.mulai,
+                    status: agent.status === 'jalan' ? ('running' as const) : ('pending' as const),
+                  })),
+                }}
+                background={{
+                  active: jadwalAktif.length > 0,
+                  items: jadwalAktif.map((job) => ({
+                    id: job.id,
+                    /* The real schedule, not a friendly alias. */
+                    command: tf('every {n} minutes', { n: job.every_minutes }),
+                    status: 'pending' as const,
+                  })),
+                }}
+                tr={tr}
+                tf={tf}
+              />
             </div>
           )}
         </section>
