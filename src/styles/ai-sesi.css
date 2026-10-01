@@ -1,0 +1,202 @@
+/*
+ * Session switcher.
+ *
+ * The list hangs off the title in the chat header, so it shares the floating
+ * menu language used elsewhere in the panel: fixed positioning (a menu inside
+ * the header row would be clipped by the row's own overflow), a provider-free
+ * flat list, and a delete button that only appears on hover — a permanent trash
+ * icon on every row is an accident waiting to happen on a 340px panel.
+ */
+
+.ai-sesi-menu {
+  position: fixed;
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: 420px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg1);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+  overflow: hidden;
+}
+
+/* The magnifier and its field read as one control. */
+.ai-sesi-cari {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0);
+  color: var(--text-muted);
+}
+
+.ai-sesi-cari input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--fg0);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.ai-sesi-cari input::placeholder {
+  color: var(--text-muted);
+}
+
+.ai-sesi-daftar {
+  flex: 1;
+  min-height: 0;
+  margin: 6px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ai-sesi-kosong {
+  margin: 0;
+  padding: 14px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.ai-sesi-baris {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+}
+
+.ai-sesi-baris:hover {
+  background: var(--bg2);
+}
+
+.ai-sesi-baris.is-aktif {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* The row's own button, so the whole label is the hit area. */
+.ai-sesi-pilih {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--fg0);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-sesi-judul {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-sesi-info {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+/*
+ * Delete stays invisible until the row is hovered.
+ *
+ * On a 300px list the button would otherwise sit under the cursor for every
+ * conversation, and one misclick loses a chat.
+ */
+.ai-sesi-hapus {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.ai-sesi-baris:hover .ai-sesi-hapus,
+.ai-sesi-baris.is-aktif .ai-sesi-hapus,
+.ai-sesi-hapus:focus-visible {
+  opacity: 1;
+}
+
+.ai-sesi-hapus:hover {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.ai-sesi-baru {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg0);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ai-sesi-baru:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * The title is a button now.
+ *
+ * It has to keep the header's own metrics — the same height and the same
+ * ellipsis — or the row jumps when the switcher is added.
+ */
+.ai-chatname-btn {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-chatname-btn:hover {
+  background: var(--bg2);
+}
+
+.ai-chatname-teks {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-chatname-btn svg {
+  flex: none;
+  opacity: 0.6;
+}

@@ -1,0 +1,48 @@
+/* Panel "Update Developer" di Settings.
+
+   Dev-only: merakit ulang Zephyr lalu menukar binary yang sedang berjalan lewat
+   helper terpisah. Warna hanya dari token tema supaya ikut berganti saat tema
+   diganti. */
+
+.devupdate-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+
+.devupdate-meta dt {
+  color: var(--text-dim);
+}
+
+.devupdate-meta dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, monospace);
+}
+
+.devupdate-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+/* Log build: harus bisa digulir sendiri, bukan mendorong tombol keluar layar. */
+.devupdate-log {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-2, var(--bg));
+  color: var(--text-dim);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,262 @@
+import { create } from 'zustand';
+import * as cmd from './commands';
+import { notifyError, notifyInfo, useNotif } from './notificationStore';
+import { tf, tx, translate } from './i18n';
+import { useStore } from './store';
+
+// The updater hands us one `notes` string, but the release is published in
+// every UI language. The Tauri plugin also passes the parsed latest.json entry
+// as `rawJson`, so when that entry carries a per-language `notes` object we
+// pick the one matching uiLang. Falls back to the plugin's plain body, then to
+// English, then to the first language present.
+function notesUntukBahasa(
+  body: string | null | undefined,
+  raw: Record<string, unknown> | null | undefined,
+): string | null {
+  const lang = useStore.getState().settings?.general?.uiLang ?? 'en';
+  const n = raw?.notes;
+  if (n && typeof n === 'object') {
+    const t = n as Record<string, string>;
+    const pilih = t[lang] ?? t.en ?? Object.values(t)[0];
+    if (pilih) return pilih;
+  }
+  if (typeof n === 'string' && n) return translate(lang, n);
+  return body ? translate(lang, body) : null;
+}
+
+/*
+ * Plain English for now; a separate worker owns the translations, so this must
+ * stay a normal UI status message rather than a key that does not exist yet.
+ */
+const PESAN_PORTABLE =
+  'This is a portable copy, so the in-app installer cannot update it. ' +
+  'Download the new portable build and replace zephyr.exe while keeping data/ ' +
+  'and the portable marker.';
+
+export type UpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'up-to-date'
+  | 'unconfigured'
+  | 'error';
+
+interface UpdaterState {
+  status: UpdateStatus;
+
+  version: string | null;
+
+  pubDate: string | null;
+
+  notes: string | null;
+
+  progress: number;
+
+  message: string | null;
+
+  dialogOpen: boolean;
+}
+
+interface UpdaterActions {
+  check: (opts?: { senyap?: boolean }) => Promise<void>;
+  unduhDanPasang: () => Promise<void>;
+  restart: () => Promise<void>;
+  tutupDialog: () => void;
+  reset: () => void;
+}
+
+let updateObj: unknown = null;
+
+let lastNotified = '';
+
+function belumDikonfigurasi(pesan: string): boolean {
+  const p = pesan.toLowerCase();
+  return (
+    p.includes('empty') ||
+    p.includes('no endpoint') ||
+    p.includes('endpoints') ||
+    p.includes('invalid url') ||
+    p.includes('relative url') ||
+    p.includes('builder error')
+  );
+}
+
+export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
+  status: 'idle',
+  version: null,
+  pubDate: null,
+  notes: null,
+  progress: 0,
+  message: null,
+  dialogOpen: false,
+
+  check: async (opts) => {
+    if (get().status === 'checking' || get().status === 'downloading') return;
+
+    if (import.meta.env.DEV) {
+      set({
+        status: 'idle',
+        version: null,
+        pubDate: null,
+        notes: null,
+        progress: 0,
+        message: tx('update.devMode'),
+      });
+      return;
+    }
+    set({ status: 'checking', message: null, progress: 0 });
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const upd = await check();
+      if (!upd) {
+        set({ status: 'up-to-date', message: tx('update.upToDate'), version: null });
+        return;
+      }
+      updateObj = upd;
+      // `rawJson` is the parsed latest.json entry, but the plugin's TypeScript
+      // types describe it as a string. Read it through `unknown` so the cast is
+      // honest, and normalise whatever arrives into a plain object before the
+      // per-language notes lookup touches it.
+      const rawAny = (upd as unknown as { rawJson?: unknown }).rawJson;
+      const rawObj =
+        rawAny && typeof rawAny === 'object' ? (rawAny as Record<string, unknown>) : null;
+      const updAny = upd as unknown as { date?: string | null };
+      set({
+        status: 'available',
+        version: upd.version,
+        pubDate: updAny.date ?? null,
+        notes: notesUntukBahasa(upd.body, rawObj),
+        dialogOpen: !opts?.senyap,
+        message: null,
+      });
+      if (upd.version !== lastNotified) {
+        lastNotified = upd.version;
+
+        const ringkas = (notesUntukBahasa(upd.body, rawObj) ?? '')
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l && !/^#/.test(l))
+          .slice(0, 3)
+          .join(' · ')
+          .replace(/\*\*/g, '')
+          .slice(0, 220);
+        useNotif.getState().notify({
+          severity: 'info',
+          message: tf('update.available', { v: upd.version }),
+          detail: ringkas || undefined,
+          source: 'update',
+          actions: [{ label: tx('update.viewInstall'), command: 'help.checkUpdates' }],
+        });
+      }
+    } catch (e) {
+      // An error from a Tauri invoke is shaped { code, message }, not Error.
+      const pesan = cmd.asZephyrError(e).message;
+      if (belumDikonfigurasi(pesan)) {
+        set({
+          status: 'unconfigured',
+          message: tx('update.unconfigured'),
+        });
+        return;
+      }
+      set({
+        status: opts?.senyap ? 'idle' : 'error',
+        message: opts?.senyap ? null : tf('update.checkFailed', { e: pesan }),
+      });
+    }
+  },
+
+  unduhDanPasang: async () => {
+    /*
+     * A portable copy must never run the installer.
+     *
+     * The NSIS update replaces the INSTALLED product under %LOCALAPPDATA%, so
+     * downloading and running it from the portable exe would silently update a
+     * different copy (or install one) and leave the running portable folder
+     * untouched, while the UI reported success. Blocking the install is the
+     * only honest answer; checking for updates stays allowed. The flag comes
+     * from get_app_info, which reads it from cli_ext::portable_aktif(), so no
+     * build profile can defeat it.
+     */
+    const info = await cmd.getAppInfo().catch(() => null);
+    if (info?.portable) {
+      const pesan = PESAN_PORTABLE;
+      set({ status: 'error', message: pesan, progress: 0, dialogOpen: false });
+      notifyError(pesan, { source: 'update' });
+      return;
+    }
+
+    const upd = updateObj as
+      | { downloadAndInstall: (cb: (ev: unknown) => void) => Promise<void> }
+      | null;
+    if (!upd) {
+      set({ status: 'error', message: tx('update.nothingToDownload') });
+      return;
+    }
+    set({ status: 'downloading', progress: 0, dialogOpen: false, message: null });
+    let total = 0;
+    let terunduh = 0;
+    try {
+      await upd.downloadAndInstall((ev) => {
+        const e = ev as { event: string; data?: { contentLength?: number; chunkLength?: number } };
+        if (e.event === 'Started') {
+          total = e.data?.contentLength ?? 0;
+          terunduh = 0;
+        } else if (e.event === 'Progress') {
+          terunduh += e.data?.chunkLength ?? 0;
+          const p = total > 0 ? Math.min(100, Math.round((terunduh / total) * 100)) : 0;
+          set({ progress: p });
+        } else if (e.event === 'Finished') {
+          set({ progress: 100 });
+        }
+      });
+      set({
+        status: 'ready',
+        message: tx('update.installed'),
+      });
+      notifyInfo(tx('update.installed'), {
+        source: 'update',
+      });
+      const notes = get().notes ?? '';
+      void cmd.setSettings({ update: { pendingNotes: notes } }).catch(() => {});
+    } catch (e) {
+      // An error from a Tauri invoke is shaped { code, message }, not Error.
+      const pesan = cmd.asZephyrError(e).message;
+      set({ status: 'error', message: tf('update.installFailed', { e: pesan }) });
+    }
+  },
+
+  restart: async () => {
+    try {
+      const { relaunch } = await import('@tauri-apps/plugin-process');
+      await relaunch();
+    } catch (e) {
+      set({ message: tf('update.restartFailed', { e: cmd.asZephyrError(e).message }) });
+    }
+  },
+
+  tutupDialog: () => set({ dialogOpen: false }),
+  reset: () => set({ status: 'idle', version: null, pubDate: null, notes: null, progress: 0, message: null }),
+}));
+
+export function labelStatus(s: UpdateStatus, versi: string | null, progress: number): string {
+  switch (s) {
+    case 'checking':
+      return tx('update.checking');
+    case 'available':
+      return tf('update.updateTo', { v: versi ?? '?' });
+    case 'downloading':
+      return tf('update.downloading', { p: progress });
+    case 'ready':
+      return tx('update.restartToInstall');
+    case 'up-to-date':
+      return tx('update.upToDate');
+    case 'unconfigured':
+      return tx('update.unconfigured');
+    case 'error':
+      return tx('update.retry');
+    default:
+      return tx('update.check');
+  }
+}

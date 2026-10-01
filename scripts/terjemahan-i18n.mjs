@@ -1,0 +1,307 @@
+/**
+ * Daftar terjemahan untuk teks UI yang sebelumnya hardcode.
+ *
+ * Dipakai scripts/isi-i18n2.mjs. Kunci = teks Indonesia apa adanya; nilai =
+ * padanan per bahasa. Entri yang berupa potongan kode (mis. `s.dari`) atau
+ * kata yang terlalu umum untuk diterjemahkan (`bukan`, `Semua`) TIDAK ada di
+ * sini — keduanya ditangani terpisah di komponen masing-masing.
+ */
+export const TERJEMAHAN = {
+  'Tanya apa saja soal kode ini.': {
+    en: 'Ask anything about this code.', ja: 'このコードについて何でも聞いてください。',
+    ko: '이 코드에 대해 무엇이든 물어보세요.', zh: '关于这段代码，随便问。',
+    es: 'Pregunta lo que quieras sobre este código.', fr: "Posez n'importe quelle question sur ce code.",
+    de: 'Frag alles über diesen Code.', pt: 'Pergunte qualquer coisa sobre este código.',
+    ar: 'اسأل أي شيء عن هذا الكود.',
+  },
+  'Jalankan di Terminal': {
+    en: 'Run in Terminal', ja: 'ターミナルで実行', ko: '터미널에서 실행', zh: '在终端中运行',
+    es: 'Ejecutar en la terminal', fr: 'Exécuter dans le terminal', de: 'Im Terminal ausführen',
+    pt: 'Executar no terminal', ar: 'التشغيل في الطرفية',
+  },
+  'Belum ada percakapan. Klik “+ Chat baru”.': {
+    en: 'No conversations yet. Click “+ New chat”.', ja: 'まだ会話がありません。「+ 新しいチャット」をクリック。',
+    ko: '아직 대화가 없습니다. “+ 새 채팅”을 클릭하세요.', zh: '还没有对话。点击“+ 新建聊天”。',
+    es: 'Aún no hay conversaciones. Haz clic en “+ Chat nuevo”.', fr: 'Aucune conversation. Cliquez sur « + Nouveau chat ».',
+    de: 'Noch keine Unterhaltungen. Klicke auf „+ Neuer Chat“.', pt: 'Ainda não há conversas. Clique em “+ Novo chat”.',
+    ar: 'لا توجد محادثات بعد. اضغط على «+ محادثة جديدة».',
+  },
+  'Buka di terminal': {
+    en: 'Open in terminal', ja: 'ターミナルで開く', ko: '터미널에서 열기', zh: '在终端中打开',
+    es: 'Abrir en la terminal', fr: 'Ouvrir dans le terminal', de: 'Im Terminal öffnen',
+    pt: 'Abrir no terminal', ar: 'الفتح في الطرفية',
+  },
+  'Hapus semua riwayat chat?': {
+    en: 'Delete all chat history?', ja: 'チャット履歴をすべて削除しますか？', ko: '모든 채팅 기록을 삭제할까요?',
+    zh: '删除所有聊天记录？', es: '¿Borrar todo el historial de chat?', fr: "Supprimer tout l'historique des chats ?",
+    de: 'Gesamten Chat-Verlauf löschen?', pt: 'Apagar todo o histórico de chat?', ar: 'حذف كل سجل المحادثات؟',
+  },
+  'Hapus semua': {
+    en: 'Delete all', ja: 'すべて削除', ko: '모두 삭제', zh: '全部删除',
+    es: 'Borrar todo', fr: 'Tout supprimer', de: 'Alle löschen', pt: 'Apagar tudo', ar: 'حذف الكل',
+  },
+  '(tidak ada launch.json)': {
+    en: '(no launch.json)', ja: '(launch.json なし)', ko: '(launch.json 없음)', zh: '(没有 launch.json)',
+    es: '(sin launch.json)', fr: '(aucun launch.json)', de: '(keine launch.json)',
+    pt: '(sem launch.json)', ar: '(لا يوجد launch.json)',
+  },
+  'Tersedia saat program berhenti.': {
+    en: 'Available while the program is paused.', ja: 'プログラム停止中に利用できます。',
+    ko: '프로그램이 일시 중지된 동안 사용할 수 있습니다.', zh: '程序暂停时可用。',
+    es: 'Disponible mientras el programa está en pausa.', fr: 'Disponible pendant la pause du programme.',
+    de: 'Verfügbar, solange das Programm pausiert.', pt: 'Disponível enquanto o programa está pausado.',
+    ar: 'متاح أثناء إيقاف البرنامج مؤقتًا.',
+  },
+  'Tidak ada aksi di posisi ini.': {
+    en: 'No action at this position.', ja: 'この位置にアクションはありません。', ko: '이 위치에는 작업이 없습니다.',
+    zh: '此位置没有可执行的操作。', es: 'No hay acciones en esta posición.', fr: 'Aucune action à cette position.',
+    de: 'Keine Aktion an dieser Position.', pt: 'Nenhuma ação nesta posição.', ar: 'لا يوجد إجراء في هذا الموضع.',
+  },
+  'Tidak ada simbol.': {
+    en: 'No symbols.', ja: 'シンボルがありません。', ko: '심볼이 없습니다.', zh: '没有符号。',
+    es: 'No hay símbolos.', fr: 'Aucun symbole.', de: 'Keine Symbole.', pt: 'Nenhum símbolo.', ar: 'لا توجد رموز.',
+  },
+  'Belum ada riwayat. Simpan file (Ctrl+S) untuk membuat snapshot.': {
+    en: 'No history yet. Save the file (Ctrl+S) to take a snapshot.',
+    ja: '履歴はまだありません。ファイルを保存（Ctrl+S）するとスナップショットが作られます。',
+    ko: '기록이 없습니다. 파일을 저장(Ctrl+S)하면 스냅샷이 생성됩니다.',
+    zh: '还没有历史记录。保存文件（Ctrl+S）即可创建快照。',
+    es: 'Aún no hay historial. Guarda el archivo (Ctrl+S) para crear una instantánea.',
+    fr: 'Aucun historique. Enregistrez le fichier (Ctrl+S) pour créer un instantané.',
+    de: 'Noch kein Verlauf. Speichere die Datei (Ctrl+S) für einen Schnappschuss.',
+    pt: 'Ainda sem histórico. Salve o arquivo (Ctrl+S) para criar um snapshot.',
+    ar: 'لا يوجد سجل بعد. احفظ الملف (Ctrl+S) لإنشاء لقطة.',
+  },
+  'Buka folder proyek dulu — rekomendasi dihitung dari bahasa file di workspace.': {
+    en: 'Open a project folder first — recommendations come from the file languages in the workspace.',
+    ja: '先にプロジェクトフォルダーを開いてください — おすすめはワークスペースのファイル言語から算出します。',
+    ko: '먼저 프로젝트 폴더를 여세요 — 추천은 워크스페이스의 파일 언어를 기준으로 계산됩니다.',
+    zh: '请先打开项目文件夹 — 推荐基于工作区中的文件语言计算。',
+    es: 'Abre primero una carpeta de proyecto — las recomendaciones se calculan según los lenguajes del workspace.',
+    fr: "Ouvrez d'abord un dossier de projet — les recommandations viennent des langages du workspace.",
+    de: 'Öffne zuerst einen Projektordner — Empfehlungen richten sich nach den Dateisprachen im Workspace.',
+    pt: 'Abra primeiro uma pasta de projeto — as recomendações vêm das linguagens no workspace.',
+    ar: 'افتح مجلد مشروع أولًا — التوصيات تُحسب من لغات الملفات في مساحة العمل.',
+  },
+  'Folder ekstensi akan dihapus PERMANEN (tidak bisa di-undo).': {
+    en: 'The extension folder will be deleted PERMANENTLY (cannot be undone).',
+    ja: '拡張機能フォルダーは完全に削除されます（元に戻せません）。',
+    ko: '확장 폴더가 영구적으로 삭제됩니다 (되돌릴 수 없음).',
+    zh: '扩展文件夹将被永久删除（无法撤销）。',
+    es: 'La carpeta de extensiones se borrará de forma PERMANENTE (no se puede deshacer).',
+    fr: "Le dossier d'extension sera supprimé DÉFINITIVEMENT (irréversible).",
+    de: 'Der Erweiterungsordner wird ENDGÜLTIG gelöscht (nicht rückgängig zu machen).',
+    pt: 'A pasta da extensão será apagada PERMANENTEMENTE (não dá para desfazer).',
+    ar: 'سيُحذف مجلد الإضافة نهائيًا (لا يمكن التراجع).',
+  },
+  'Belum ada notifikasi.': {
+    en: 'No notifications yet.', ja: '通知はまだありません。', ko: '알림이 없습니다.', zh: '还没有通知。',
+    es: 'Aún no hay notificaciones.', fr: 'Aucune notification.', de: 'Noch keine Benachrichtigungen.',
+    pt: 'Ainda sem notificações.', ar: 'لا توجد إشعارات بعد.',
+  },
+  'Tidak ada perubahan — working tree bersih.': {
+    en: 'No changes — the working tree is clean.', ja: '変更はありません — 作業ツリーはクリーンです。',
+    ko: '변경 사항이 없습니다 — 작업 트리가 깨끗합니다.', zh: '没有改动 — 工作区是干净的。',
+    es: 'Sin cambios — el árbol de trabajo está limpio.', fr: "Aucune modification — l'arbre de travail est propre.",
+    de: 'Keine Änderungen — der Arbeitsbaum ist sauber.', pt: 'Sem alterações — a árvore de trabalho está limpa.',
+    ar: 'لا توجد تغييرات — شجرة العمل نظيفة.',
+  },
+  'Kirim pengumuman uji': {
+    en: 'Send a test announcement', ja: 'テスト通知を送信', ko: '테스트 알림 보내기', zh: '发送测试通知',
+    es: 'Enviar un anuncio de prueba', fr: 'Envoyer une annonce de test', de: 'Testankündigung senden',
+    pt: 'Enviar anúncio de teste', ar: 'إرسال إشعار تجريبي',
+  },
+  'Tambah dari file…': {
+    en: 'Add from file…', ja: 'ファイルから追加…', ko: '파일에서 추가…', zh: '从文件添加…',
+    es: 'Añadir desde archivo…', fr: 'Ajouter depuis un fichier…', de: 'Aus Datei hinzufügen…',
+    pt: 'Adicionar de arquivo…', ar: 'إضافة من ملف…',
+  },
+  'Matikan semua server': {
+    en: 'Stop all servers', ja: 'すべてのサーバーを停止', ko: '모든 서버 중지', zh: '停止所有服务器',
+    es: 'Detener todos los servidores', fr: 'Arrêter tous les serveurs', de: 'Alle Server stoppen',
+    pt: 'Parar todos os servidores', ar: 'إيقاف كل الخوادم',
+  },
+  'Salin semua perintah': {
+    en: 'Copy all commands', ja: 'すべてのコマンドをコピー', ko: '모든 명령 복사', zh: '复制所有命令',
+    es: 'Copiar todos los comandos', fr: 'Copier toutes les commandes', de: 'Alle Befehle kopieren',
+    pt: 'Copiar todos os comandos', ar: 'نسخ كل الأوامر',
+  },
+  'Koneksi host ini akan dihapus dari daftar.': {
+    en: 'This host connection will be removed from the list.', ja: 'このホスト接続は一覧から削除されます。',
+    ko: '이 호스트 연결이 목록에서 제거됩니다.', zh: '此主机连接将从列表中移除。',
+    es: 'Esta conexión de host se quitará de la lista.', fr: "Cette connexion d'hôte sera retirée de la liste.",
+    de: 'Diese Host-Verbindung wird aus der Liste entfernt.', pt: 'Esta conexão de host será removida da lista.',
+    ar: 'ستُزال اتصالات هذا المضيف من القائمة.',
+  },
+  'Yakin? Tema, shortcut, dan semua preferensi akan hilang.': {
+    en: 'Sure? Theme, shortcuts and every preference will be lost.',
+    ja: 'よろしいですか？テーマ、ショートカット、すべての設定が失われます。',
+    ko: '확실합니까? 테마, 단축키, 모든 환경설정이 사라집니다.',
+    zh: '确定？主题、快捷键和所有偏好设置都会丢失。',
+    es: '¿Seguro? Se perderán el tema, los atajos y todas las preferencias.',
+    fr: 'Sûr ? Le thème, les raccourcis et toutes les préférences seront perdus.',
+    de: 'Sicher? Theme, Tastenkürzel und alle Einstellungen gehen verloren.',
+    pt: 'Certeza? Tema, atalhos e todas as preferências serão perdidos.',
+    ar: 'متأكد؟ سيضيع المظهر والاختصارات وكل التفضيلات.',
+  },
+  'Reset semua': {
+    en: 'Reset everything', ja: 'すべてリセット', ko: '모두 초기화', zh: '全部重置',
+    es: 'Restablecer todo', fr: 'Tout réinitialiser', de: 'Alles zurücksetzen',
+    pt: 'Redefinir tudo', ar: 'إعادة تعيين الكل',
+  },
+  'Merekam chord untuk': {
+    en: 'Recording chord for', ja: 'コードを記録中:', ko: '코드 기록 중:', zh: '正在录制快捷键组合：',
+    es: 'Grabando combinación para', fr: 'Enregistrement du raccourci pour',
+    de: 'Tastenkombination aufnehmen für', pt: 'Gravando atalho para', ar: 'جارٍ تسجيل الاختصار لـ',
+  },
+  'Tersimpan di': {
+    en: 'Saved to', ja: '保存先', ko: '저장 위치', zh: '已保存到',
+    es: 'Guardado en', fr: 'Enregistré dans', de: 'Gespeichert in', pt: 'Salvo em', ar: 'حُفظ في',
+  },
+  'Hanya file aktif': {
+    en: 'Only the active file', ja: 'アクティブなファイルのみ', ko: '활성 파일만', zh: '仅当前文件',
+    es: 'Solo el archivo activo', fr: 'Seulement le fichier actif', de: 'Nur die aktive Datei',
+    pt: 'Somente o arquivo ativo', ar: 'الملف النشط فقط',
+  },
+  'Halaman tidak bisa dimuat': {
+    en: 'The page could not be loaded', ja: 'ページを読み込めませんでした', ko: '페이지를 불러올 수 없습니다',
+    zh: '页面无法加载', es: 'No se pudo cargar la página', fr: "La page n'a pas pu être chargée",
+    de: 'Die Seite konnte nicht geladen werden', pt: 'Não foi possível carregar a página',
+    ar: 'تعذّر تحميل الصفحة',
+  },
+  'Buka di browser eksternal': {
+    en: 'Open in the external browser', ja: '外部ブラウザーで開く', ko: '외부 브라우저에서 열기',
+    zh: '在外部浏览器中打开', es: 'Abrir en el navegador externo', fr: 'Ouvrir dans le navigateur externe',
+    de: 'Im externen Browser öffnen', pt: 'Abrir no navegador externo', ar: 'الفتح في المتصفح الخارجي',
+  },
+  'Tidak ada CLI agent terdeteksi.': {
+    en: 'No CLI agent detected.', ja: 'CLI エージェントが見つかりません。', ko: 'CLI 에이전트가 감지되지 않았습니다.',
+    zh: '未检测到 CLI 智能体。', es: 'No se detectó ningún agente CLI.', fr: 'Aucun agent CLI détecté.',
+    de: 'Kein CLI-Agent gefunden.', pt: 'Nenhum agente CLI detectado.', ar: 'لم يُكتشف أي وكيل CLI.',
+  },
+  'Tab ini': {
+    en: 'This tab', ja: 'このタブ', ko: '이 탭', zh: '此标签页',
+    es: 'Esta pestaña', fr: 'Cet onglet', de: 'Dieser Tab', pt: 'Esta aba', ar: 'هذا التبويب',
+  },
+  'Percayai folder ini?': {
+    en: 'Trust this folder?', ja: 'このフォルダーを信頼しますか？', ko: '이 폴더를 신뢰할까요?', zh: '信任此文件夹？',
+    es: '¿Confiar en esta carpeta?', fr: 'Faire confiance à ce dossier ?', de: 'Diesem Ordner vertrauen?',
+    pt: 'Confiar nesta pasta?', ar: 'هل تثق بهذا المجلد؟',
+  },
+  'Percayai folder ini': {
+    en: 'Trust this folder', ja: 'このフォルダーを信頼する', ko: '이 폴더 신뢰', zh: '信任此文件夹',
+    es: 'Confiar en esta carpeta', fr: 'Faire confiance à ce dossier', de: 'Diesem Ordner vertrauen',
+    pt: 'Confiar nesta pasta', ar: 'ثق بهذا المجلد',
+  },
+  'Buka dalam Restricted Mode': {
+    en: 'Open in Restricted Mode', ja: '制限モードで開く', ko: '제한 모드로 열기', zh: '以受限模式打开',
+    es: 'Abrir en modo restringido', fr: 'Ouvrir en mode restreint', de: 'Im eingeschränkten Modus öffnen',
+    pt: 'Abrir em modo restrito', ar: 'الفتح في الوضع المقيّد',
+  },
+  'Nanti saja': {
+    en: 'Not now', ja: '後で', ko: '나중에', zh: '以后再说',
+    es: 'Ahora no', fr: 'Plus tard', de: 'Später', pt: 'Agora não', ar: 'لاحقًا',
+  },
+  'Timeline: Hapus Riwayat File Ini': {
+    en: "Timeline: Delete This File's History", ja: 'タイムライン: このファイルの履歴を削除',
+    ko: '타임라인: 이 파일의 기록 삭제', zh: '时间线：删除此文件的历史记录',
+    es: 'Cronología: borrar el historial de este archivo', fr: "Chronologie : supprimer l'historique de ce fichier",
+    de: 'Zeitleiste: Verlauf dieser Datei löschen', pt: 'Linha do tempo: apagar o histórico deste arquivo',
+    ar: 'الخط الزمني: حذف سجل هذا الملف',
+  },
+  'Debug: Fokus Run & Debug': {
+    en: 'Debug: Focus Run & Debug', ja: 'デバッグ: 実行とデバッグにフォーカス',
+    ko: '디버그: 실행 및 디버그로 포커스', zh: '调试：聚焦“运行和调试”',
+    es: 'Depurar: enfocar Ejecutar y depurar', fr: 'Déboguer : focus sur Exécuter et déboguer',
+    de: 'Debuggen: Fokus auf Ausführen und Debuggen', pt: 'Depurar: focar Executar e depurar',
+    ar: 'التنقيح: التركيز على التشغيل والتنقيح',
+  },
+  'Debug: Hapus Semua Breakpoint': {
+    en: 'Debug: Remove All Breakpoints', ja: 'デバッグ: すべてのブレークポイントを削除',
+    ko: '디버그: 모든 중단점 제거', zh: '调试：移除所有断点',
+    es: 'Depurar: quitar todos los puntos de interrupción', fr: "Déboguer : supprimer tous les points d'arrêt",
+    de: 'Debuggen: alle Haltepunkte entfernen', pt: 'Depurar: remover todos os pontos de interrupção',
+    ar: 'التنقيح: إزالة كل نقاط التوقف',
+  },
+  'Accessibility: Fokus ke Editor': {
+    en: 'Accessibility: Focus the Editor', ja: 'アクセシビリティ: エディターにフォーカス',
+    ko: '접근성: 편집기로 포커스', zh: '辅助功能：聚焦编辑器',
+    es: 'Accesibilidad: enfocar el editor', fr: "Accessibilité : focus sur l'éditeur",
+    de: 'Barrierefreiheit: Fokus auf den Editor', pt: 'Acessibilidade: focar o editor',
+    ar: 'إمكانية الوصول: التركيز على المحرر',
+  },
+  'Workspace: Tambah Folder ke Workspace': {
+    en: 'Workspace: Add Folder to Workspace', ja: 'ワークスペース: フォルダーを追加',
+    ko: '워크스페이스: 폴더 추가', zh: '工作区：将文件夹添加到工作区',
+    es: 'Espacio de trabajo: añadir carpeta', fr: 'Espace de travail : ajouter un dossier',
+    de: 'Arbeitsbereich: Ordner hinzufügen', pt: 'Workspace: adicionar pasta', ar: 'مساحة العمل: إضافة مجلد',
+  },
+  'Workspace: Hapus Folder Aktif dari Workspace': {
+    en: 'Workspace: Remove Active Folder from Workspace', ja: 'ワークスペース: アクティブなフォルダーを削除',
+    ko: '워크스페이스: 활성 폴더 제거', zh: '工作区：从工作区移除当前文件夹',
+    es: 'Espacio de trabajo: quitar la carpeta activa', fr: 'Espace de travail : retirer le dossier actif',
+    de: 'Arbeitsbereich: aktiven Ordner entfernen', pt: 'Workspace: remover a pasta ativa',
+    ar: 'مساحة العمل: إزالة المجلد النشط',
+  },
+  'Hapus Semua Breakpoint': {
+    en: 'Remove All Breakpoints', ja: 'すべてのブレークポイントを削除', ko: '모든 중단점 제거', zh: '移除所有断点',
+    es: 'Quitar todos los puntos de interrupción', fr: "Supprimer tous les points d'arrêt",
+    de: 'Alle Haltepunkte entfernen', pt: 'Remover todos os pontos de interrupção', ar: 'إزالة كل نقاط التوقف',
+  },
+  'Jelaskan kode yang dipilih': {
+    en: 'Explain the selected code', ja: '選択したコードを説明', ko: '선택한 코드 설명', zh: '解释选中的代码',
+    es: 'Explicar el código seleccionado', fr: 'Expliquer le code sélectionné', de: 'Ausgewählten Code erklären',
+    pt: 'Explicar o código selecionado', ar: 'شرح الكود المحدد',
+  },
+  'Cari di file': {
+    en: 'Find in file', ja: 'ファイル内を検索', ko: '파일에서 찾기', zh: '在文件中查找',
+    es: 'Buscar en el archivo', fr: 'Rechercher dans le fichier', de: 'In Datei suchen',
+    pt: 'Localizar no arquivo', ar: 'البحث في الملف',
+  },
+  'Cari di workspace': {
+    en: 'Find in workspace', ja: 'ワークスペース内を検索', ko: '워크스페이스에서 찾기', zh: '在工作区中查找',
+    es: 'Buscar en el espacio de trabajo', fr: "Rechercher dans l'espace de travail",
+    de: 'Im Arbeitsbereich suchen', pt: 'Localizar no workspace', ar: 'البحث في مساحة العمل',
+  },
+  'Ganti di workspace': {
+    en: 'Replace in workspace', ja: 'ワークスペース内を置換', ko: '워크스페이스에서 바꾸기', zh: '在工作区中替换',
+    es: 'Reemplazar en el espacio de trabajo', fr: "Remplacer dans l'espace de travail",
+    de: 'Im Arbeitsbereich ersetzen', pt: 'Substituir no workspace', ar: 'الاستبدال في مساحة العمل',
+  },
+  'Split editor ke kanan': {
+    en: 'Split editor to the right', ja: 'エディターを右に分割', ko: '편집기를 오른쪽으로 분할', zh: '向右拆分编辑器',
+    es: 'Dividir el editor a la derecha', fr: "Diviser l'éditeur vers la droite", de: 'Editor nach rechts teilen',
+    pt: 'Dividir o editor à direita', ar: 'تقسيم المحرر إلى اليمين',
+  },
+  'Kirim prompt AI': {
+    en: 'Send AI prompt', ja: 'AI プロンプトを送信', ko: 'AI 프롬프트 보내기', zh: '发送 AI 提示词',
+    es: 'Enviar prompt a la IA', fr: 'Envoyer le prompt IA', de: 'KI-Prompt senden',
+    pt: 'Enviar prompt de IA', ar: 'إرسال طلب الذكاء الاصطناعي',
+  },
+  'Susun rencana langkah yang bisa langsung dieksekusi': {
+    en: 'Draft a step-by-step plan that can be executed right away',
+    ja: 'すぐに実行できる手順プランをまとめる', ko: '바로 실행할 수 있는 단계별 계획을 작성',
+    zh: '拟定可直接执行的步骤计划', es: 'Redactar un plan de pasos ejecutables de inmediato',
+    fr: "Rédiger un plan d'étapes directement exécutables",
+    de: 'Einen sofort ausführbaren Schritt-für-Schritt-Plan entwerfen',
+    pt: 'Montar um plano de passos executáveis na hora', ar: 'صياغة خطة خطوات قابلة للتنفيذ مباشرة',
+  },
+  'Riset pustaka/dokumentasi di luar proyek': {
+    en: 'Research libraries and documentation outside the project',
+    ja: 'プロジェクト外のライブラリ・ドキュメントを調査', ko: '프로젝트 외부의 라이브러리/문서 조사',
+    zh: '调研项目之外的库与文档', es: 'Investigar bibliotecas y documentación fuera del proyecto',
+    fr: 'Étudier les bibliothèques et la documentation hors du projet',
+    de: 'Bibliotheken und Dokumentation außerhalb des Projekts recherchieren',
+    pt: 'Pesquisar bibliotecas e documentação fora do projeto', ar: 'البحث في المكتبات والوثائق خارج المشروع',
+  },
+  'terang, untuk siang': {
+    en: 'light, for daytime', ja: '明るい、昼間向け', ko: '밝은, 주간용', zh: '浅色，适合白天',
+    es: 'claro, para el día', fr: 'clair, pour la journée', de: 'hell, für den Tag',
+    pt: 'claro, para o dia', ar: 'فاتح، للنهار',
+  },
+  'AAA, untuk low-vision': {
+    en: 'AAA, for low vision', ja: 'AAA、弱視向け', ko: 'AAA, 저시력용', zh: 'AAA，适合低视力',
+    es: 'AAA, para baja visión', fr: 'AAA, pour la basse vision', de: 'AAA, für Sehbeeinträchtigte',
+    pt: 'AAA, para baixa visão', ar: 'AAA، لضعف البصر',
+  },
+};

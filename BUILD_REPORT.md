@@ -1,4 +1,96 @@
-# BUILD REPORT - Zephyr v1.0.0
+# BUILD REPORT - Zephyr v1.1.13 release gate status
+
+Date: 2026-10-01
+Release: 1.1.13
+Current gate status: **RELEASE BUILT, TERMINAL AND BROWSER PANES VERIFIED** -
+see section 0 below. Signature/updater metadata is still outstanding.
+
+---
+
+## 0. 1.1.13 build executed on 2026-10-01
+
+The release build was run from this repository with
+`npm run tauri:build` (config `src-tauri/tauri.release.conf.json`) after the
+release-config WebView2 fix described below.
+
+Artifacts produced:
+
+| Artifact | Size |
+| --- | --- |
+| `src-tauri/target/release/zephyr.exe` | ~10.7 MB |
+| `src-tauri/target/release/bundle/msi/Zephyr_1.1.13_x64_en-US.msi` | ~6.1 MB |
+| `src-tauri/target/release/bundle/nsis/Zephyr_1.1.13_x64-setup.exe` | ~4.6 MB |
+| `release/1.1.13/portable/Zephyr_1.1.13_windows_portable.zip` | 5,789,248 bytes |
+
+The build exited non-zero only at the signature step because
+`TAURI_SIGNING_PRIVATE_KEY` was not present in the environment. The executables
+and both installers were produced; the `.sig` files and a final signed
+`latest.json` were not. In-app update therefore remains unavailable until the
+release is signed.
+
+### Verified in the built release executable
+
+These checks ran against `target/release/zephyr.exe` over the CDP debug port
+with a separate `ZEPHYR_DATA_DIR`, calling the real Tauri commands. No
+development bridge was involved.
+
+| Check | Evidence | Result |
+| --- | --- | --- |
+| WebView2 is multi-process | 19 `msedgewebview2` processes alive | PASS |
+| Terminal PTY spawns and runs | `pty_spawn` returned a pid; `pty_write` + `pty_tail` returned PowerShell output including `UJI_RELEASE_TERMINAL_OK`; `pty_list` reported `alive: true` | PASS |
+| Browser pane opens | `browser_pane_open` returned pane info for `http://localhost:8099/` | PASS |
+| Browser pane renders and executes | `browser_pane_eval` returned the served document text `UJI BROWSER PANE OK` | PASS |
+| Browser pane show/hide/close | all three commands returned success | PASS |
+
+The same suite run against the debug build additionally confirmed four
+concurrent terminal panes answering independently, and that `.pane-body`
+computes `overflow: hidden` and `min-width: 0` in the shipped CSS.
+
+### Portable package contents
+
+The zip contains exactly `zephyr.exe`, the `portable` marker and
+`PORTABLE-README.txt`. It contains no `data/` entry of any kind. The packaged
+`zephyr.exe` SHA-256 matches `target/release/zephyr.exe` exactly
+(`7C6E5B5AD609F445AC355EF3EEDF1656094AD66522FB2A1BED87461E129723AF`).
+
+---
+
+## 0.1 Defects fixed before this build
+
+- `src-tauri/tauri.release.conf.json`: removed `--single-process` from the
+  WebView2 arguments. This flag was the reason terminal panes and the browser
+  pane were dead in every installed build.
+- `src/index.css` and `src/lib/xtermRegistry.ts`: panes clip their content and
+  terminal fitting is skipped while the container has no size, fixing terminal
+  output bleeding into the neighbouring pane.
+- `src/components/settings/SectionsBasic.tsx`: the extreme-RAM warning now names
+  terminal panes as well as the browser pane.
+- `src/components/settings/SettingsPage.tsx`: the developer update panel is
+  dev-only, so a release install can no longer present it.
+- `src-tauri/tauri.conf.json`: `plugins.updater.windows.installMode` set to
+  `basicUi` so updates are never installed silently.
+- `scripts/package-portable-windows.mjs`: the zip is built from an allow-list
+  and the job aborts if a stale `data/` cannot be removed.
+- `scripts/build-rilis.sh`: uses `tauri:build:safe` so the secrets guard runs.
+- `src/App.tsx`: the two `fs-changed` listeners are module-guarded, so file
+  changes no longer refresh the explorer and Source Control twice.
+- `src/lib/systemPrompt.ts`, `aiStore.ts`, `types.ts`, `settings.rs`,
+  `SectionsAdvanced.tsx` and `i18n.ts`: new AI answer-style setting (short /
+  normal / detailed), default short.
+
+## 1.1.13 evidence available before 2026-10-01
+
+- Release notes and updater metadata were inspected.
+- The staged Windows signature does not match the signature embedded in the
+  staged `release/1.1.13/latest.json`; root `latest.json` was therefore not
+  overwritten.
+- No installer verification is claimed. The installer is not certificate-signed,
+  and minisign verification must be performed against the final published
+  artifact.
+
+---
+
+## Historical v1.0.0 report
 
 Summary of the first release build execution. Every number here comes from an
 actual measurement on the build machine, not an estimate.

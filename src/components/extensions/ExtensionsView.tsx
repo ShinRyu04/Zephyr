@@ -506,6 +506,20 @@ export default function ExtensionsView() {
   const tersembunyiRuntime = (remote ?? []).filter((it) => it.perluRuntime).length;
 
   /*
+   * The Category dropdown lists every category in the whole catalogue, not just
+   * the ones left after the current query.
+   *
+   * It used to be derived from `remoteBersih`, which the search box rewrites on
+   * every keystroke: typing "rust" narrowed the list to extensions matching
+   * "rust", the dropdown was rebuilt from that subset, and every other category
+   * disappeared from the menu mid-search. Categories are a property of the
+   * catalogue, so they are computed from the unfiltered catalogue instead.
+   */
+  const semuaKategori = Array.from(
+    new Set((remote ?? []).flatMap((it) => it.categories)),
+  ).sort();
+
+  /*
    * A count on each tab.
    *
    * Without one, "Installed" and "Recommended" were indistinguishable from
@@ -656,9 +670,7 @@ export default function ExtensionsView() {
             data-testid="ext-filter-select"
           >
             <option value="">All</option>
-            {Array.from(new Set(remoteBersih.flatMap((it) => it.categories)))
-              .sort()
-              .map((k) => (
+            {semuaKategori.map((k) => (
                 <option key={k} value={k}>
                   {k}
                 </option>
