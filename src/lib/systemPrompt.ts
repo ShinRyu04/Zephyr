@@ -254,24 +254,20 @@ export function systemPromptFor(
   provider = '',
   answerStyle = '',
 ): string {
-  const ov = useStore.getState().settings.aiPrompt;
   const b = bahasaPrompt();
   /*
-   * The identity and way-of-working blocks are built by LAYERING, not by
-   * picking a winner.
+   * The persona is the ONLY editable source of the identity and way-of-working
+   * blocks. It used to be a three-way choice between the persona, an override
+   * from Settings -> Prompt, and the shipped text (`per.X || ov.X || b.X`).
    *
-   * They used to be `per.X || ov.X || b.X`, which short-circuits: a persona with
-   * text in it silently discarded whatever the user had typed under
-   * Settings -> Prompt. The shipped persona fills both fields, so those two
-   * textareas were inert on a fresh install - they looked like a control that
-   * did nothing. That is a worse failure than a duplicated sentence, because
-   * the user has no way to tell that their input is being ignored.
+   * The override layer is gone. It was a second place to say the same thing,
+   * and because the shipped persona fills both fields it was inert on a fresh
+   * install: typing there changed nothing and said nothing about it. Two
+   * controls for one decision, one of them silent, is worse than one control.
+   * Editing who the AI is now happens in Settings -> Persona, and nowhere else.
    *
-   * So each layer now appends what is NOT already present. The shipped default
-   * is the floor: it is dropped only when something above it already speaks.
-   * The persona is the identity ("who am I"), the Settings text is the
-   * standing preference ("how I want my assistant to behave"), and both are
-   * real, so both appear.
+   * The shipped text stays as the floor so a persona that leaves a field blank
+   * still produces a complete prompt - never an empty block.
    *
    * The tool list, the model block and the project rules below are never
    * layered: they are always built from the shipped prompt. A persona that
@@ -279,15 +275,13 @@ export function systemPromptFor(
    * expressing a preference.
    */
   const per = blokPersona();
-  const identitasSaya = (ov?.identitas ?? '').trim();
-  const caraKerjaSaya = (ov?.caraKerja ?? '').trim();
   const bagian = [
-    // Floor, then each layer that says something the floor does not.
-    ...lapisan(b.identitas, per.identitas, identitasSaya),
+    // Floor, then the persona when it says something the floor does not.
+    ...lapisan(b.identitas, per.identitas, ''),
     b.editorFakta,
-    ...lapisan(b.caraKerja, per.caraKerja, caraKerjaSaya),
+    ...lapisan(b.caraKerja, per.caraKerja, ''),
     aturanRute(useStore.getState().settings.general.uiLang || 'en'),
-    (ov?.aturan ?? '').trim() || b.aturan,
+    b.aturan,
 
     `${b.blokModelJudul}\n${b.blokModel(provider.trim() || 'unknown', model.trim())}`,
     daftarTool(),
@@ -301,8 +295,6 @@ export function systemPromptFor(
   if (konteks.trim()) bagian.push(`${b.konteksProyek}\n${konteks.trim()}`);
   else bagian.push(`${b.konteksProyek}\n- No workspace is open yet. Ask the user to open a folder, or work with files they name by absolute path.`);
 
-  const ins = (ov?.instruksi ?? '').trim();
-  if (ins) bagian.push(`${b.instruksiSaya}\n${ins}`);
   // A persona's own rules land last, after the project rules, so they read as
   // the operator's standing preference rather than a project constraint.
   if (per.aturan) bagian.push(`# Persona: ${personaAktif().nama}\n${per.aturan}`);

@@ -11,7 +11,7 @@ const NAV_KEY: Record<SectionId, string> = {
   models: 'settings.models',
   agents: 'settings.agents',
   subagent: 'settings.subagent',
-  aiprompt: 'settings.aiprompt',
+  permissions: 'settings.permissions',
   extensions: 'settings.extensions',
   lsp: 'settings.lsp',
   scm: 'settings.scm',
@@ -83,6 +83,13 @@ export function NavIcon({ id }: { id: SectionId }) {
         <svg {...p}>
           <rect x="3" y="5" width="10" height="7.4" rx="1.8" {...st} />
           <path d="M8 5V2.8M5.8 8.6h.01M10.2 8.6h.01" {...st} />
+        </svg>
+      );
+    case 'permissions':
+      return (
+        <svg {...p}>
+          <path d="M8 1.6l4.6 1.9v4.1c0 2.8-1.9 5.2-4.6 6.1-2.7-.9-4.6-3.3-4.6-6.1V3.5z" {...st} />
+          <path d="M6.1 8.1l1.3 1.3 2.6-2.8" {...st} />
         </svg>
       );
     case 'extensions':

@@ -1,10 +1,10 @@
-// verify08.mjs — verifikasi V1..V13 fase 08 (Settings lengkap) lewat CDP
+// verify08.mjs  Everifikasi V1..V13 fase 08 (Settings lengkap) lewat CDP
 // di app yang benar-benar berjalan.
 //
 // Pakai:  node scripts/verify08.mjs [port]
 // Syarat: 1) zephyr.exe berjalan dengan
 //            WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223"
-//         2) `npm run dev` (vite) hidup — app dev memuat dari sana
+//         2) `npm run dev` (vite) hidup  Eapp dev memuat dari sana
 //
 // Prinsip: setiap V dibuktikan dari DOM/state/DISK yang nyata, bukan dari
 // asumsi. Perubahan settings dicek ulang lewat get_settings (baca disk),
@@ -146,7 +146,7 @@ const SECTIONS = [
   'models',
   'agents',
   'subagent',
-  'aiprompt',
+  'permissions',
   'extensions',
   'lsp',
   'scm',
@@ -168,7 +168,7 @@ const main = async () => {
   console.log(`# target: ${page.title}\n`);
 
   if ((await cdp.eval('typeof window.__ZEPHYR_SET__')) === 'undefined') {
-    throw new Error('__ZEPHYR_SET__ tidak ada — reload halaman');
+    throw new Error('__ZEPHYR_SET__ tidak ada  Ereload halaman');
   }
 
   // Kondisi awal bersih: tutup terminal & tab, kembalikan settings default.
@@ -431,7 +431,7 @@ const main = async () => {
         sel.dispatchEvent(new Event('change', { bubbles: true }));
       };
       // Default bawaan app sekarang INGGRIS, jadi baseline diukur setelah
-      // dipaksa ke Indonesia dulu — bukan dari keadaan awal yang tak tentu.
+      // dipaksa ke Indonesia dulu  Ebukan dari keadaan awal yang tak tentu.
       await gantiLang('id');
       await wait(700);
       const idLabels = bacaNav();
@@ -503,14 +503,14 @@ const main = async () => {
        * Test connection hits the real provider, so the assertion is "the user
        * got an answer with a result icon", not "the answer was success".
        *
-       * This used to require ✓, which made the suite fail on a machine with no
+       * This used to require ✁E which made the suite fail on a machine with no
        * network, no quota, or an expired key - none of which is a bug in
        * Zephyr. The dummy key in this suite genuinely reaches Google and gets a
        * 400; that IS the correct behaviour being tested (the request was built
-       * and sent, the reply was surfaced). Keep ✓ or ✕, allow the pending
+       * and sent, the reply was surfaced). Keep ✁Eor ✁E allow the pending
        * spinner never to be the final state.
        */
-      /✕|✓/.test(v8.hasil),
+      /✕|✁E.test(v8.hasil),
     `hasKey ${v8.hasKeyAwal} -> ${v8.hasKey}, badge "${v8.badge0}" -> "${v8.badge1}", mask="${v8.preview}", key utuh bocor ke frontend=${v8.adaKeyUtuh}, logo brand=${v8.logo}; test connection: ${v8.hasil.slice(0, 92)}`,
   );
 
@@ -544,7 +544,7 @@ const main = async () => {
     `${v8b.path}: ada=${v8b.ada}, memuat key plaintext=${v8b.adaPlaintext}; isi awal ${JSON.stringify(v8b.cuplikan.slice(0, 76))}`,
   );
 
-  // ───────── V9: agents — deteksi CLI, start command, maxPanes ─────────
+  // ───────── V9: agents  Edeteksi CLI, start command, maxPanes ─────────
   const v9 = JSON.parse(
     await cdp.runAsync(`
       await bukaSettings('agents');
@@ -726,7 +726,7 @@ const main = async () => {
 
 
   // ───────── V11: extensions enable/disable ─────────
-  // Fase 13 mengganti daftar bawaan (6 → 8: + file-icon/git/ai provider) dan
+  // Fase 13 mengganti daftar bawaan (6 ↁE8: + file-icon/git/ai provider) dan
   // memindahkan section-nya ke SectionsExtensions.tsx. Daftar bawaan dibaca
   // dari Rust (`extensions_list`), bukan konstanta frontend.
   const v11 = JSON.parse(
@@ -827,7 +827,7 @@ const main = async () => {
   );
   check(
     'V13',
-    // T4.15 memadatkan About: dulu 9 baris (Build 5 + Runtime 6 + Data 3 →
+    // T4.15 memadatkan About: dulu 9 baris (Build 5 + Runtime 6 + Data 3 ↁE
     // setelah fase 11 jadi 9 baris terhitung), sekarang 5 baris di satu kartu.
     v13.baris >= 3 &&
       v13.baris <= 8 &&

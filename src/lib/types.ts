@@ -929,16 +929,6 @@ export interface Settings {
 
   allowCommands: string[];
 
-  aiPrompt: {
-
-    identitas: string;
-
-    caraKerja: string;
-
-    aturan: string;
-
-    instruksi: string;
-  };
   agents: {
     maxPanes: number;
     order: string[];
@@ -1081,7 +1071,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
 
   subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '', idleSecs: 90 },
-  aiPrompt: { identitas: '', caraKerja: '', aturan: '', instruksi: '' },
+
   allowCommands: [],
   extensions: { enabled: [], trust: {} },
 

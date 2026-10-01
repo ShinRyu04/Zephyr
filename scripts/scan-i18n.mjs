@@ -1,4 +1,4 @@
-// scan-i18n.mjs — pindai teks Indonesia yang masih tampil saat UI berbahasa Inggris.
+// scan-i18n.mjs  Epindai teks Indonesia yang masih tampil saat UI berbahasa Inggris.
 //
 // Pakai:  node scripts/scan-i18n.mjs [port]
 //
@@ -29,7 +29,7 @@ const main = async () => {
     await wait(700);
 
     const semua = {};
-    const sections = ['general','editor','theme','shortcuts','models','agents','subagent','aiprompt','extensions','lsp','scm','mcp','security','accessibility','ssh','about'];
+    const sections = ['general','editor','theme','shortcuts','models','agents','subagent','permissions','extensions','lsp','scm','mcp','security','accessibility','ssh','about'];
     for (const sec of sections) {
       setLang.ui.getState().setSection(sec);
       await wait(700);

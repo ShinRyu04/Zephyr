@@ -6,7 +6,6 @@ type Dict = Record<string, string>;
 const ID: Dict = {
 
   'settings.subagent': 'Subagent',
-  'settings.aiprompt': 'Prompt AI',
   'sub.maxParallel': 'Subagent paralel maksimum',
   'sub.maxSteps': 'Batas langkah per subagent',
   'sub.allowWrite': 'Izinkan subagent menulis file',

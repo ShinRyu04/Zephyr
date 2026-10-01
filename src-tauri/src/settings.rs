@@ -93,7 +93,6 @@ pub fn default_settings() -> Value {
         },
         "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
 
-        "aiPrompt": { "identitas": "", "caraKerja": "", "aturan": "", "instruksi": "" },
         "allowCommands": [],
 
         "subagent": {
@@ -345,6 +344,17 @@ pub fn get_settings(state: State<AppState>) -> ZResult<Value> {
     let mut merged = default_settings();
     if let Some(user) = read_json_um(&state.file("settings.json")) {
         deep_merge_um(&mut merged, &user);
+    }
+    /*
+     * The Prompt AI override was removed: whoever the AI is comes from the
+     * persona alone now. A settings file written by an older build still
+     * carries the key, and because the merge above only ever ADDS, it would be
+     * handed back forever - a key nothing reads, and a second place that
+     * pretends to control the prompt. Strip it on read so the file converges
+     * on the current shape instead of keeping history around.
+     */
+    if let Some(obj) = merged.as_object_mut() {
+        obj.remove("aiPrompt");
     }
     Ok(merged)
 }
