@@ -52,3 +52,12 @@ RELEASE_NOTES_v*.md
 # Cache Python & berkas uji sementara
 __pycache__/
 *.pyc
+
+# Hasil uji sekali pakai — dibaca scripts/run-all-verify.mjs, bukan bagian aplikasi
+verify-all.json
+verify-all.txt
+
+# Folder sementara yang dibuat harness uji (v4-folder-<timestamp>, v6-pindah-*, dst.)
+v4-folder-*
+v6-pindah-*
+testfiles/v9-replace-*
