@@ -961,9 +961,29 @@ const JEJAK_TOOL_MAKS = 4;
               )}
               <div className="ai-work-detail">
                 <span>{agentPhaseLabel}</span>
-                {/* Pemisah eksplisit: dulu '{current}/{total}' menempel ke label fase. */}
-                <span className="ai-work-step">
-                  {tf('Progress {current} of {total}', { current: agentStepIndex, total: agentStepLimit })}
+                {/*
+                  * "Progress 2 of 120" DIGANTI, bukan diterjemahkan.
+                  *
+                  * Angka itu adalah batas langkah internal agen, dan bagi user
+                  * tidak berarti apa-apa: "2 dari 120" membuat pekerjaan
+                  * terlihat seperti baru 2% selesai padahal langkah berikutnya
+                  * bisa jadi yang terakhir. Batas itu juga plafon keamanan,
+                  * bukan rencana - agen yang selesai di langkah 3 dari 120
+                  * sudah SELESAI, bukan 2,5% jadi.
+                  *
+                  * Yang berguna bagi user adalah sudah berapa langkah
+                  * DIKERJAKAN. Plafonnya hanya disebut kalau sudah mendekati,
+                  * karena di situ ia benar-benar jadi peringatan.
+                  */}
+                <span className="ai-work-step" data-testid="ai-work-step">
+                  {agentStepIndex === 0
+                    ? tr('Starting')
+                    : agentStepIndex === 1
+                      ? tr('1 step done')
+                      : tf('{n} steps done', { n: agentStepIndex })}
+                  {agentStepLimit > 0 && agentStepIndex >= Math.floor(agentStepLimit * 0.8)
+                    ? ' · ' + tf('{left} steps left', { left: Math.max(0, agentStepLimit - agentStepIndex) })
+                    : ''}
                 </span>
                 {sibuk && <span>{tf('{n}s', { n: progressElapsed })}</span>}
               </div>
