@@ -125,20 +125,16 @@ fn write_secrets(state: &AppState, map: &Map<String, Value>) -> ZResult<()> {
         std::fs::create_dir_all(p)?;
     }
     let bytes = serde_json::to_vec_pretty(&Value::Object(map.clone()))?;
-    let mut tmp = path.clone();
-    let nama = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "secrets.json".into());
-    tmp.set_file_name(format!("{nama}.tmp-{}", std::process::id()));
-    std::fs::write(&tmp, &bytes)?;
-    match std::fs::rename(&tmp, &path) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp);
-            Err(ZephyrError::Internal(format!("failed to save secrets: {e}")))
-        }
-    }
+    /*
+     * Memakai helper bersama `tulis_aman`.
+     *
+     * Isi fungsinya sama persis dengan yang dulu ada di sini - tulis ke
+     * `.tmp-<pid>`, lalu rename - tapi sekarang hanya ada SATU implementasi di
+     * seluruh proyek. Dua salinan berarti salah satunya bisa diperbaiki dan
+     * yang lain tertinggal, dan yang tertinggal itu justru berkas berisi kunci
+     * API pengguna.
+     */
+    crate::tulis_aman::tulis_atomik(&path, &bytes)
 }
 
 fn preview(key: &str) -> String {

@@ -102,7 +102,13 @@ fn baca_meta(dir: &Path) -> MetaFile {
 
 fn tulis_meta(dir: &Path, m: &MetaFile) {
     if let Ok(s) = serde_json::to_string_pretty(m) {
-        let _ = std::fs::write(dir.join("meta.json"), s);
+        /* Senyap (`let _ =`) dipertahankan: meta yang gagal ditulis tidak boleh
+           menggagalkan pembuatan snapshot, karena snapshot-nya sendiri yang
+           penting bagi pengguna. Tapi penulisannya sekarang atomik, jadi
+           meta.json tidak bisa lagi tinggal separuh kalau prosesnya mati
+           di tengah - dan meta yang separuh membuat SELURUH riwayat tidak
+           terbaca, bukan cuma satu entri. */
+        let _ = crate::tulis_aman::tulis_atomik_teks(&dir.join("meta.json"), &s);
     }
 }
 
@@ -213,7 +219,10 @@ pub fn snapshot_internal(state: &AppState, path: &Path, reason: &str) -> ZResult
         }
     }
     let id = format!("{}__{}.snap", now_ms(), reason);
-    std::fs::write(dir.join(&id), &isi)?;
+    /* Snapshot ditulis atomik: berkas yang tinggal separuh karena proses mati di
+       tengah penulisan akan terbaca sebagai riwayat yang rusak, dan pengguna
+       kehilangan SELURUH riwayat, bukan hanya satu titik. */
+    crate::tulis_aman::tulis_atomik(&dir.join(&id), &isi)?;
     meta.hash_terakhir = hash;
     meta.total += 1;
     tulis_meta(&dir, &meta);
@@ -266,7 +275,10 @@ pub fn history_snapshot(
     }
 
     let id = format!("{}__{}.snap", now_ms(), reason);
-    std::fs::write(dir.join(&id), &isi)?;
+    /* Snapshot ditulis atomik: berkas yang tinggal separuh karena proses mati di
+       tengah penulisan akan terbaca sebagai riwayat yang rusak, dan pengguna
+       kehilangan SELURUH riwayat, bukan hanya satu titik. */
+    crate::tulis_aman::tulis_atomik(&dir.join(&id), &isi)?;
     meta.hash_terakhir = hash;
     meta.total += 1;
     tulis_meta(&dir, &meta);

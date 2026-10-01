@@ -109,7 +109,10 @@ fn tulis_trust(state: &AppState, map: &HashMap<String, Trust>) -> ZResult<()> {
     let p = file_trust(state);
     let teks = serde_json::to_string_pretty(&Value::Object(obj))
         .map_err(|e| ZephyrError::Internal(format!("serialisasi trust: {e}")))?;
-    std::fs::write(&p, teks)
+    /* trust.json ditulis atomik. Kalau berkasnya tinggal separuh, pengguna
+       kehilangan daftar folder yang mereka percayai - dan mereka harus menyetujui
+       ulang setiap folder, tanpa tahu kenapa. */
+    crate::tulis_aman::tulis_atomik_teks(&p, &teks)
         .map_err(|e| ZephyrError::Io(format!("writing trust.json failed: {e}")))?;
     Ok(())
 }
@@ -470,7 +473,10 @@ pub fn workspace_save_file(
     };
     let teks = serde_json::to_string_pretty(&wf)
         .map_err(|e| ZephyrError::Internal(format!("serialisasi workspace: {e}")))?;
-    std::fs::write(&p, format!("{teks}\n"))
+    /* Berkas workspace ditulis atomik: kalau ia tinggal separuh, workspace-nya
+       tidak bisa dibuka sama sekali - dan workspace itu menyimpan daftar tab,
+       pengaturan, dan susunan panel pengguna. */
+    crate::tulis_aman::tulis_atomik_teks(&p, &format!("{teks}\n"))
         .map_err(|e| ZephyrError::Io(format!("tulis {path}: {e}")))?;
 
     state.set_workspace_file(p.to_string_lossy().replace('\\', "/"));
@@ -598,7 +604,10 @@ pub fn workspace_set_settings(
             wf.settings = Some(cur.clone());
             let teks = serde_json::to_string_pretty(&wf)
                 .map_err(|e| ZephyrError::Internal(format!("serialisasi: {e}")))?;
-            std::fs::write(&p, format!("{teks}\n"))
+            /* Berkas workspace ditulis atomik: kalau ia tinggal separuh, workspace-nya
+               tidak bisa dibuka sama sekali - dan workspace itu menyimpan daftar tab,
+               pengaturan, dan susunan panel pengguna. */
+            crate::tulis_aman::tulis_atomik_teks(&p, &format!("{teks}\n"))
                 .map_err(|e| ZephyrError::Io(format!("tulis {f}: {e}")))?;
         }
     }

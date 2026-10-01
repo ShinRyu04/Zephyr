@@ -26,6 +26,7 @@ mod ext_pkg;
 mod ext_registry;
 mod extensions;
 pub mod fs_utils;
+pub mod tulis_aman;
 mod gambar;
 mod git;
 mod github;

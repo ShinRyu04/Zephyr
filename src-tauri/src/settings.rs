@@ -275,26 +275,12 @@ pub fn set_keybindings(app: AppHandle, state: State<AppState>, bindings: Value) 
 }
 
 fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
     let bytes = serde_json::to_vec_pretty(v)?;
-
-    let tmp = {
-        let mut n = path.file_name()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or_else(|| "settings.json".into());
-        n.push_str(&format!(".tmp-{}", std::process::id()));
-        path.with_file_name(n)
-    };
-    std::fs::write(&tmp, &bytes)?;
-    match std::fs::rename(&tmp, path) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp);
-            Err(ZephyrError::Internal(format!("failed to save {}: {e}", path.display())))
-        }
-    }
+    /* Memakai helper bersama `tulis_aman`: satu implementasi penulisan atomik
+       untuk seluruh proyek. Sebelumnya ada dua salinan (di sini dan di
+       secrets.rs), dan dua salinan berarti salah satunya bisa diperbaiki dan
+       yang lain tertinggal. */
+    crate::tulis_aman::tulis_atomik(path, &bytes)
 }
 
 #[tauri::command]
