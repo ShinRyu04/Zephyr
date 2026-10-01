@@ -1,0 +1,75 @@
+/*
+ * Kartu pertanyaan agen (tool ask_user).
+ *
+ * Ditempatkan tepat di atas kotak ketik, memakai bentuk "kapsul menyatu" yang
+ * sama dengan kartu daftar tugas: sudut atas membulat, sudut bawah lurus, tanpa
+ * border bawah - sehingga tepi atas kotak ketik jadi garis pemisah bersama.
+ *
+ * Kartu ini HARUS menempel pada kotak ketik, bukan mengambang jauh di atasnya:
+ * pertanyaannya dijawab lewat kotak itu juga, jadi keduanya harus terbaca
+ * sebagai satu benda.
+ */
+
+.ai-tanya {
+  box-sizing: border-box;
+  margin: 0 10px;
+  padding: 9px 11px 10px;
+  border: 0.8px solid var(--accent);
+  border-bottom: 0;
+  border-radius: var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px) 0 0;
+  /* Latar sedikit berbeda dari kotak ketik: pertanyaan ini butuh perhatian,
+     dan warna aksen di tepinya sudah menandai itu tanpa perlu berteriak. */
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg0));
+  flex-shrink: 0;
+}
+
+.ai-tanya-label {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  text-transform: none;
+}
+
+.ai-tanya-isi {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg0);
+  /* Pertanyaan boleh panjang dan berbaris-baris: jangan dipotong. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-tanya-pilihan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ai-tanya-pilihan .btn {
+  /* Pilihan yang panjang tidak boleh mendorong tombol lain keluar kartu. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-tanya-isi-jawab {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ai-tanya-isi-jawab .input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-tanya {
+    transition: none;
+  }
+}

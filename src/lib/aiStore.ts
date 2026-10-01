@@ -620,6 +620,18 @@ export function statusPekerjaan(
 
 let agentConfirmResolve: ((ok: boolean) => void) | null = null;
 
+/*
+ * Penunggu jawaban `ask_user`.
+ *
+ * Berbeda dari `agentConfirmResolve` yang menerima boolean, ini menerima
+ * STRING: pertanyaan bebas tidak bisa dijawab dengan ya/tidak.
+ *
+ * `null` juga punya arti sendiri di sini - bukan "belum dijawab", melainkan
+ * "user menutup pertanyaannya tanpa menjawab". Tool-nya harus bisa membedakan
+ * keduanya, karena jawaban kosong yang disengaja berbeda dari pembatalan.
+ */
+let agentTanyaResolve: ((jawaban: string | null) => void) | null = null;
+
 let agentStepResolve: ((r: AgentStepResult) => void) | null = null;
 
 // The UI message id is stable across agent steps, but every provider call must
@@ -714,6 +726,7 @@ function agentHardLimitArm() {
       agentBusy: false,
       pending: null,
       agentConfirm: null,
+  agentTanya: null,
       agentPhase: 'idle',
       agentCurrentTool: null,
       agentStepIndex: 0,
@@ -1018,6 +1031,14 @@ interface AiState {
 
   agentConfirm: { tool: string; argsText: string; isDestructive: boolean; isWrite?: boolean } | null;
 
+  /**
+   * Pertanyaan yang sedang menunggu jawaban user, diisi tool `ask_user`.
+   *
+   * `pilihan` boleh kosong: kalau ada isinya, UI menampilkan tombol pilihan
+   * cepat di samping kotak ketik bebas.
+   */
+  agentTanya: { pertanyaan: string; pilihan: string[] } | null;
+
   agentTodos: AgentTodo[];
 
   promptHistory: string[];
@@ -1058,6 +1079,18 @@ interface AiActions {
 
   agentPutuskan: (setujui: boolean) => void;
   setAgentProgress: (progress: Partial<AgentProgress>) => void;
+
+  /**
+   * Ajukan pertanyaan ke user dan tunggu jawabannya.
+   *
+   * Mengembalikan jawaban yang diketik user, atau `null` kalau pertanyaannya
+   * dibatalkan (ditutup tanpa dijawab). Dipakai tool `ask_user`: model yang
+   * menemukan instruksi ambigu berhenti dan bertanya, alih-alih menebak lalu
+   * mengerjakan hal yang salah.
+   */
+  agentAjukanTanya: (pertanyaan: string, pilihan?: string[]) => Promise<string | null>;
+  /** Jawab pertanyaan yang sedang menunggu. Dipanggil dari UI. */
+  jawabTanya: (jawaban: string | null) => void;
 
   setAgentTodos: (list: unknown[]) => number;
 
@@ -1203,6 +1236,7 @@ export const useAi = create<AiStore>((set, get) => ({
   agentLastProgressAt: null,
   agentSteps: [],
   agentConfirm: null,
+  agentTanya: null,
   agentTodos: [],
   promptHistory: [],
   promptHistoryIdx: -1,
@@ -1538,6 +1572,33 @@ export const useAi = create<AiStore>((set, get) => ({
       r(setujui);
     }
     set({ agentConfirm: null });
+  },
+
+  agentAjukanTanya: (pertanyaan, pilihan) =>
+    new Promise<string | null>((selesai) => {
+      /*
+       * Hanya satu pertanyaan yang boleh menunggu pada satu waktu. Kalau ada
+       * yang lain, yang lama dijawab batal dulu - kalau tidak, janjinya
+       * menggantung selamanya dan langkah agen tidak pernah lanjut.
+       */
+      if (agentTanyaResolve) {
+        const lama = agentTanyaResolve;
+        agentTanyaResolve = null;
+        lama(null);
+      }
+
+      agentTanyaResolve = selesai;
+      set({ agentTanya: { pertanyaan, pilihan: pilihan ?? [] } });
+    }),
+
+  jawabTanya: (jawaban) => {
+    const r = agentTanyaResolve;
+    agentTanyaResolve = null;
+    set({ agentTanya: null });
+    /* Dipanggil SETELAH state dibersihkan: kalau pemanggilnya langsung memicu
+       render ulang, kartu pertanyaannya sudah tidak ada lagi saat komponennya
+       membaca state. */
+    if (r) r(jawaban);
   },
 
   historyUp: () => {
@@ -2028,6 +2089,7 @@ export const useAi = create<AiStore>((set, get) => ({
       agentStepLimit: MAX_AGENT_STEPS,
       agentLastProgressAt: Date.now(),
       agentConfirm: null,
+  agentTanya: null,
       agentTodos: [],
     }));
     resetAgentToolCache();
@@ -2612,6 +2674,7 @@ export const useAi = create<AiStore>((set, get) => ({
       agentPhase: 'idle',
       agentCurrentTool: null,
       agentConfirm: null,
+  agentTanya: null,
       agentStepIndex: 0,
       agentLastProgressAt: null,
       agentSteps: [...s.agentSteps, { kind: 'selesai', at: Date.now() }],

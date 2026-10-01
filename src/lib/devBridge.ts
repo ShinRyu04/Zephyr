@@ -786,6 +786,13 @@ export function installDevBridge(): void {
     bersih: () => useAi.getState().setAgentTodos([]),
   };
 
+  /*
+   * Katalog tool dipasang di AKHIR berkas ini (lihat blok `__ZEPHYR_TOOLS__`
+   * yang memakai impor dinamis). Jangan menambah definisi kedua di sini:
+   * nama yang sama akan saling menimpa tanpa peringatan, dan yang terakhir
+   * menang - itu pernah terjadi dua kali di berkas ini.
+   */
+
   w.__ZEPHYR_WAKTU__ = {
     // Modul waktu dipakai komponen, jadi ia tidak punya keadaan yang bisa
     // dibaca dari luar. Harness memanggil fungsinya langsung supaya yang diuji
@@ -1844,11 +1851,34 @@ export function installDevBridge(): void {
   // snippet would resolve to a second copy of the module and the pane store
   // it touches would be a different instance than the one on screen.
   //
-  // The module is imported lazily: agentTools pulls in aiStore, which pulls the
-  // store back in, and evaluating it eagerly at bridge install time hits the
-  // circular edge before agentTools has finished initialising.
+  /*
+   * Katalog tool, dimuat malas: agentTools menarik aiStore, yang menarik store
+   * kembali, dan mengevaluasinya saat bridge dipasang akan menabrak sisi
+   * sirkularnya sebelum agentTools selesai diinisialisasi.
+   *
+   * Bentuknya adalah SATU objek dengan fungsi, bukan array telanjang. Dulu di
+   * sini ada `w.__ZEPHYR_TOOLS__ = m.AGENT_TOOLS`, dan blok serupa di atas
+   * mendefinisikan nama yang sama - artinya definisi yang kedua menimpa yang
+   * pertama tanpa peringatan (persis kasus `__ZEPHYR_SUB__`). Array telanjang
+   * tidak punya cara MEMANGGIL tool, jadi harness hanya bisa melihat daftar
+   * nama, bukan menguji perilakunya. Sekarang keduanya digabung di satu tempat:
+   * daftar untuk dibaca, `jalankan` untuk benar-benar mengeksekusi.
+   */
   void import('./agentTools').then((m) => {
-    w.__ZEPHYR_TOOLS__ = m.AGENT_TOOLS;
+    w.__ZEPHYR_TOOLS__ = {
+      /** Nama semua tool yang terdaftar. */
+      nama: () => m.AGENT_TOOLS.map((t) => t.spec.name),
+      /** Skema satu tool, atau null kalau namanya tidak ada. */
+      spec: (nama: string) => m.AGENT_TOOLS.find((t) => t.spec.name === nama)?.spec ?? null,
+      /** Daftar mentahnya, untuk harness yang perlu memeriksa lebih dalam. */
+      semua: () => m.AGENT_TOOLS,
+      /** Jalankan satu tool lewat implementasinya yang sebenarnya. */
+      jalankan: async (nama: string, args: Record<string, unknown>) => {
+        const t = m.AGENT_TOOLS.find((x) => x.spec.name === nama);
+        if (!t) throw new Error(`tool tidak ada: ${nama}`);
+        return t.run(args);
+      },
+    };
   });
 
   // Dev Environment store, exposed so a harness can drive a real scan and read

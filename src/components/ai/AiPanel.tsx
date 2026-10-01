@@ -143,6 +143,11 @@ const JEJAK_TOOL_MAKS = 4;
   /* Mode switching lives in ModeMenu; AiPanel only reads the mode to pick the
      placeholder and the send label. */
   const agentPutuskan = useAi((s) => s.agentPutuskan);
+  /* Pertanyaan dari agen (tool ask_user): agen menahan langkahnya sampai user
+     menjawab, jadi kartunya tidak boleh ikut disembunyikan saat panel sibuk. */
+  const agentTanya = useAi((s) => s.agentTanya);
+  const jawabTanya = useAi((s) => s.jawabTanya);
+  const [jawabanTanya, setJawabanTanya] = useState('');
   const sibuk = pending || agentBusy;
   const [bukaSendMenu, setBukaSendMenu] = useState(false);
   const [progressNow, setProgressNow] = useState(() => Date.now());
@@ -1786,6 +1791,71 @@ const JEJAK_TOOL_MAKS = 4;
        * as a compact row of chips inside the input area, which is where the
        * messages were typed and where the user looks when adding another.
        */}
+
+      {/*
+        * Pertanyaan dari agen (tool ask_user).
+
+        * Agen BERHENTI dan menunggu di sini: langkahnya benar-benar tertahan
+        * sampai user menjawab atau membatalkan. Karena itu tombolnya harus
+        * selalu ada - kalau kartunya gagal dirender, langkah agen menggantung
+        * selamanya tanpa apa pun yang bisa user lakukan.
+        *
+        * Pilihan cepat HANYA muncul kalau model mengirim daftarnya. Pertanyaan
+        * bebas tetap bisa dijawab lewat kotak ketik di bawah.
+        */}
+      {agentTanya && (
+        <div className="ai-tanya" role="alertdialog" data-testid="ai-agent-tanya">
+          <p className="ai-tanya-label">{tr('The agent needs your answer')}</p>
+          <p className="ai-tanya-isi">{agentTanya.pertanyaan}</p>
+          {agentTanya.pilihan.length > 0 && (
+            <div className="ai-tanya-pilihan">
+              {agentTanya.pilihan.map((p, i) => (
+                <button
+                  key={i}
+                  className="btn btn-sm"
+                  data-testid={`ai-tanya-pilih-${i}`}
+                  onClick={() => jawabTanya(p)}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="ai-tanya-isi-jawab">
+            <input
+              className="input input-sm"
+              data-testid="ai-tanya-jawab"
+              value={jawabanTanya}
+              placeholder={tr('Type your answer...')}
+              onChange={(e) => setJawabanTanya(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && jawabanTanya.trim()) {
+                  e.preventDefault();
+                  jawabTanya(jawabanTanya.trim());
+                }
+              }}
+            />
+            <button
+              className="btn btn-sm btn-primary"
+              data-testid="ai-tanya-kirim"
+              disabled={!jawabanTanya.trim()}
+              onClick={() => jawabTanya(jawabanTanya.trim())}
+            >
+              {tr('Send')}
+            </button>
+            {/* Batal mengirim null, dan tool-nya membedakan itu dari jawaban
+                kosong: agen tidak boleh menganggap "dibatalkan" sama dengan
+                "terserah kamu". */}
+            <button
+              className="btn btn-sm"
+              data-testid="ai-tanya-batal"
+              onClick={() => jawabTanya(null)}
+            >
+              {tr('Cancel')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Agent tool approval: ask mode / dangerous command. */}
       {agentConfirm && (

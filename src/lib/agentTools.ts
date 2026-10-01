@@ -419,6 +419,65 @@ export const AGENT_TOOLS: AgentTool[] = [
   },
   {
     spec: {
+      name: 'ask_user',
+      description:
+        'Ask the user a question and WAIT for their answer. Use it when the instruction is genuinely ambiguous and a wrong guess would waste work: which of two files to change, which of several accounts to use, whether to overwrite existing data. Do NOT use it for anything the repository, the tools, or the conversation already answer - search first, then ask. One question at a time; the answer arrives as the result of this call.',
+      parameters: {
+        type: 'object',
+        properties: {
+          question: {
+            type: 'string',
+            description: 'The question, in one sentence, in the user\'s language',
+          },
+          options: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Up to 6 short suggested answers the user can pick with one click. Leave empty for a free-text answer.',
+          },
+        },
+        required: ['question'],
+      },
+    },
+    /*
+     * Tidak ada panggilan Rust. Pertanyaannya diselesaikan di frontend: store
+     * menyimpan pertanyaan yang menunggu, UI-nya menampilkan kartu, lalu janji
+     * ini selesai saat user menjawab.
+     *
+     * Sama seperti `task_complete`, tool ini hanya masuk akal kalau agen
+     * sedang berjalan - kalau dipanggil di luar itu, tidak ada yang menunggu
+     * dan tidak ada yang bisa menjawab.
+     */
+    run: async (args) => {
+      const pertanyaan = String(args.question ?? '').trim();
+      if (!pertanyaan) throw new Error('ask_user: question is empty');
+
+      const s = useAi.getState();
+      if (!s.agentBusy) {
+        throw new Error(
+          'ask_user: no agent turn is running, so there is nobody to answer. Ask the user in your reply instead.',
+        );
+      }
+
+      const mentah = Array.isArray(args.options) ? args.options : [];
+      const pilihan = mentah
+        .map((o) => String(o ?? '').trim())
+        .filter((o) => o.length > 0)
+        .slice(0, 6);
+
+      const jawaban = await s.agentAjukanTanya(pertanyaan, pilihan);
+
+      /* null berarti pertanyaannya dibatalkan, dan itu BUKAN jawaban kosong -
+         model harus tahu bedanya supaya tidak memperlakukan pembatalan
+         sebagai "user tidak keberatan". */
+      if (jawaban === null || jawaban === undefined) {
+        return 'The user dismissed the question without answering. Do not proceed on the assumption that the default is acceptable; either ask again differently or stop and explain what you need.';
+      }
+      return `User's answer: ${jawaban}`;
+    },
+  },
+  {
+    spec: {
       name: 'shell_exec',
       description:
         'Run a command to completion and return the exit code plus output. Use this for non-interactive commands: test, build, typecheck, git, ls. For network commands, always use a short timeout (30 seconds or less); never wait indefinitely. Do not use it for a server or anything that keeps running; use terminal_exec for that. Do not use it to open or read URLs: use browser_open/system_browser_open, browser_read, or web_fetch.',
