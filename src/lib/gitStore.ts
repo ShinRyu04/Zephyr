@@ -114,12 +114,53 @@ interface GitActions {
 
 export type GitStore = GitState & GitActions;
 
+/*
+ * Gerbang operasi git: satu operasi pada satu waktu.
+ *
+ * Bukan karena git tidak bisa paralel - ia bisa - melainkan karena SEMUA
+ * operasi di sini menyentuh indeks dan worktree yang sama, dan hasilnya tidak
+ * bisa diprediksi saat dua di antaranya tumpang tindih. `checkout` yang
+ * berlomba dengan `commit` adalah contoh yang paling merugikan: hasilnya
+ * bukan error, melainkan commit yang isinya bukan yang dilihat user.
+ *
+ * `mulaiSibuk` mengembalikan `false` kalau sudah ada yang jalan, dan
+ * pemanggilnya WAJIB berhenti. Pesannya menyebut operasi apa yang sedang
+ * berjalan - "sibuk" saja tidak memberi tahu user harus menunggu apa.
+ */
+function mulaiSibuk(label: string): boolean {
+  const s = useGit.getState();
+  if (s.busy) {
+    useGit.setState({
+      scmError: `Masih sibuk: ${s.busyLabel || 'operasi git lain'} belum selesai.`,
+    });
+    return false;
+  }
+  useGit.setState({ busy: true, busyLabel: label, scmError: null });
+  return true;
+}
+
+function selesaiSibuk(): void {
+  useGit.setState({ busy: false, busyLabel: '' });
+}
+
 export const useGit = create<GitStore>((set, get) => ({
   status: null,
   branches: null,
   log: [],
   diff: null,
   message: '',
+  /*
+   * `busy` di sini BUKAN sekadar indikator.
+   *
+   * Dulu ia hanya diset dan ditampilkan, tidak pernah diperiksa - jadi sembilan
+   * belas operasi git bisa berjalan bersamaan tanpa satu pun yang menolak.
+   * Dua `git commit` atas indeks yang sama, atau `checkout` yang berlomba
+   * dengan `commit`, menghasilkan kerusakan yang membingungkan: commit kedua
+   * menyerobot berkas yang sudah di-commit dan melaporkan "nothing to commit",
+   * padahal sebabnya bukan itu.
+   *
+   * Lihat `mulaiSibuk()` dan `selesaiSibuk()` di bawah untuk gerbangnya.
+   */
   busy: false,
   busyLabel: '',
   progress: null,
@@ -212,6 +253,26 @@ export const useGit = create<GitStore>((set, get) => ({
       set({ scmError: 'Nothing staged yet (click + on a file)' });
       return false;
     }
+
+    /*
+     * GUARD re-entrancy.
+     *
+     * `busy` sudah lama diset di sini, tapi tidak pernah DIPERIKSA - jadi ia
+     * hanya hiasan untuk indikator sementara. Padahal tombol commit bisa
+     * ditekan dua kali dalam rentang satu detik dengan mudah: sekali lewat
+     * klik, sekali lewat pintasan keyboard atau command palette. Dua
+     * `git commit` yang berjalan bersamaan atas indeks yang sama adalah cara
+     * paling mudah membuat commit kedua menyerobot berkas yang sudah
+     * di-commit, atau gagal dengan pesan yang membingungkan.
+     *
+     * Ditolak dengan pesan yang jelas, bukan diam-diam diabaikan: user yang
+     * menekan tombol dan tidak melihat apa pun akan menekannya lagi.
+     */
+    if (get().busy) {
+      set({ scmError: `Masih sibuk: ${get().busyLabel || 'operasi git lain'} belum selesai.` });
+      return false;
+    }
+
     set({ busy: true, busyLabel: 'commit', scmError: null });
     try {
       const hash = await cmd.gitCommit(msg);
@@ -227,7 +288,8 @@ export const useGit = create<GitStore>((set, get) => ({
   },
 
   commitWithAi: async () => {
-    set({ busy: true, busyLabel: 'ai-commit', scmError: null, scmInfo: null });
+    if (!mulaiSibuk('ai-commit')) return false;
+    set({ scmInfo: null });
     try {
       const diffs: string[] = [];
       for (const c of [...get().staged(), ...get().unstaged()].slice(0, 8)) {
@@ -264,12 +326,12 @@ export const useGit = create<GitStore>((set, get) => ({
       set({ scmError: cmd.asZephyrError(e).message });
       return false;
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   stashSave: async (message) => {
-    set({ busy: true, busyLabel: 'stash', scmError: null });
+    if (!mulaiSibuk('stash')) return false;
     try {
       const ok = await cmd.gitStashSave(message);
       await get().refreshAll();
@@ -279,7 +341,7 @@ export const useGit = create<GitStore>((set, get) => ({
       set({ scmError: cmd.asZephyrError(e).message });
       return false;
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
@@ -292,7 +354,7 @@ export const useGit = create<GitStore>((set, get) => ({
   },
 
   stashPop: async (index) => {
-    set({ busy: true, busyLabel: 'stash', scmError: null });
+    if (!mulaiSibuk('stash')) return;
     try {
       await cmd.gitStashPop(index);
       await get().refreshAll();
@@ -300,19 +362,19 @@ export const useGit = create<GitStore>((set, get) => ({
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   stashDrop: async (index) => {
-    set({ busy: true, busyLabel: 'stash', scmError: null });
+    if (!mulaiSibuk('stash')) return;
     try {
       await cmd.gitStashDrop(index);
       set({ scmInfo: 'Stash dropped' });
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
@@ -351,7 +413,8 @@ export const useGit = create<GitStore>((set, get) => ({
       });
       return;
     }
-    set({ busy: true, busyLabel: 'push', scmError: null, scmInfo: null });
+    if (!mulaiSibuk('push')) return;
+    set({ scmInfo: null });
     try {
       const out = await cmd.gitPush(setUpstream ?? false);
       set({ scmInfo: ringkas(out) || 'Push finished' });
@@ -359,12 +422,13 @@ export const useGit = create<GitStore>((set, get) => ({
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   pull: async (rebase) => {
-    set({ busy: true, busyLabel: 'pull', scmError: null, scmInfo: null });
+    if (!mulaiSibuk('pull')) return;
+    set({ scmInfo: null });
     try {
       const out = await cmd.gitPull(rebase ?? false);
       set({ scmInfo: ringkas(out) || 'Pull finished' });
@@ -374,19 +438,19 @@ export const useGit = create<GitStore>((set, get) => ({
       
       await get().refreshAll();
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   fetch: async () => {
-    set({ busy: true, busyLabel: 'fetch', scmError: null });
+    if (!mulaiSibuk('fetch')) return;
     try {
       await cmd.gitFetch();
       await get().refreshAll();
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
@@ -407,7 +471,8 @@ export const useGit = create<GitStore>((set, get) => ({
   },
 
   checkout: async (branch) => {
-    set({ busy: true, busyLabel: 'checkout', scmError: null, branchMenuOpen: false });
+    if (!mulaiSibuk('checkout')) return;
+    set({ branchMenuOpen: false });
     try {
       await cmd.gitCheckout(branch);
       set({ scmInfo: `Pindah ke ${branch}` });
@@ -417,12 +482,13 @@ export const useGit = create<GitStore>((set, get) => ({
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   createBranch: async (name) => {
-    set({ busy: true, busyLabel: 'branch', scmError: null, newBranchOpen: false });
+    if (!mulaiSibuk('branch')) return;
+    set({ newBranchOpen: false });
     try {
       await cmd.gitCreateBranch(name);
       set({ scmInfo: `Branch ${name} created and checked out` });
@@ -430,12 +496,12 @@ export const useGit = create<GitStore>((set, get) => ({
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   deleteBranch: async (name) => {
-    set({ busy: true, busyLabel: 'branch', scmError: null });
+    if (!mulaiSibuk('branch')) return;
     try {
       await cmd.gitDeleteBranch(name);
       set({ scmInfo: `Branch ${name} deleted` });
@@ -443,18 +509,19 @@ export const useGit = create<GitStore>((set, get) => ({
     } catch (e) {
       set({ scmError: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
   resolveConfirm: async () => {
     const c = get().confirm;
     if (!c) return;
+    if (!mulaiSibuk('discard')) return;
     set({ confirm: null });
+    try {
     switch (c.kind) {
       case 'discard':
       case 'discard-all':
-        set({ busy: true, busyLabel: 'discard', scmError: null });
         try {
           await cmd.gitDiscard(c.paths);
           set({
@@ -468,8 +535,6 @@ export const useGit = create<GitStore>((set, get) => ({
           await reloadOpenTabs();
         } catch (e) {
           set({ scmError: cmd.asZephyrError(e).message });
-        } finally {
-          set({ busy: false, busyLabel: '' });
         }
         break;
       case 'delete-branch':
@@ -485,6 +550,9 @@ export const useGit = create<GitStore>((set, get) => ({
         await get().push(false);
         break;
     }
+    } finally {
+      selesaiSibuk();
+    }
   },
 
   loadGh: async () => {
@@ -496,7 +564,8 @@ export const useGit = create<GitStore>((set, get) => ({
   },
 
   savePat: async (token) => {
-    set({ busy: true, busyLabel: 'github', ghMessage: null });
+    if (!mulaiSibuk('github')) return false;
+    set({ ghMessage: null });
     try {
       const u = await cmd.ghSetPat(token);
       set({
@@ -509,7 +578,7 @@ export const useGit = create<GitStore>((set, get) => ({
       set({ ghMessage: cmd.asZephyrError(e).message });
       return false;
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 
@@ -537,14 +606,14 @@ export const useGit = create<GitStore>((set, get) => ({
   },
 
   testGh: async () => {
-    set({ busy: true, busyLabel: 'github' });
+    if (!mulaiSibuk('github')) return;
     try {
       const r = await cmd.ghTest();
       set({ ghTest: r, ghMessage: r.message });
     } catch (e) {
       set({ ghMessage: cmd.asZephyrError(e).message });
     } finally {
-      set({ busy: false, busyLabel: '' });
+      selesaiSibuk();
     }
   },
 

@@ -135,13 +135,26 @@ export function SshSection() {
       setStatus(`SSH: ${h.user}@${h.host} - pane ${paneId.slice(0, 12)}`);
       setForm(null);
 
-      try {
-        await useTerminal.getState().daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
-      } catch (e) {
-        // Registration failed after the backend allocated the SSH session. Do
-        // not leave that session running without a pane that can own it.
-        await cmd.sshDisconnect(paneId).catch((e) => console.warn('[ssh] sshDisconnect failed for pane', paneId, e));
-        throw e;
+      /*
+       * Pendaftaran bisa DITOLAK (mengembalikan null) bila batas pane sudah
+       * tercapai. Sesi SSH-nya sudah hidup di backend pada titik ini, jadi
+       * menolak berarti kita WAJIB menutupnya - kalau tidak, ada sesi SSH yang
+       * berjalan tanpa pane yang bisa mematikannya, dan user tidak punya cara
+       * melihat atau menutupnya.
+       *
+       * Dulu jalur ini hanya menangani kasus "melempar", padahal penolakan
+       * batas bukan error - ia keputusan yang sah, dan justru karena itu
+       * lebih mudah terlewat.
+       */
+      const paneIdTerdaftar = await useTerminal
+        .getState()
+        .daftarkanPaneEksternal(paneId, 'ssh', `${h.user}@${h.host}`);
+
+      if (!paneIdTerdaftar) {
+        await cmd.sshDisconnect(paneId).catch((e) => console.warn('[ssh] sshDisconnect gagal untuk pane', paneId, e));
+        /* Tidak ada langkah lanjutan: pesannya sudah muncul sebagai toast dari
+           store, dan `finally` di bawah tetap membersihkan penanda sibuk. */
+        return;
       }
     } catch (e) {
       setErr(cmd.asZephyrError(e).message);

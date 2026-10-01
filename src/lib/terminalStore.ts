@@ -57,7 +57,14 @@ interface TerminalActions {
 
   addPane: (kind: PaneKind, opts?: { agentId?: string; url?: string; cwd?: string }) => Promise<string | null>;
   
-  daftarkanPaneEksternal: (paneId: string, kind: string, title: string) => Promise<string>;
+  /**
+   * Daftarkan pane yang sesinya sudah dibuat di luar store ini (mis. SSH).
+   *
+   * Mengembalikan `null` bila batas pane sudah tercapai. Pemanggilnya WAJIB
+   * memeriksa itu dan menutup sesi backend yang sudah terlanjur dibuat -
+   * kalau tidak, sesinya hidup tanpa pane yang bisa mematikannya.
+   */
+  daftarkanPaneEksternal: (paneId: string, kind: string, title: string) => Promise<string | null>;
   setActivePane: (tabId: string, paneId: string) => void;
   closePane: (paneId: string) => Promise<void>;
   killPane: (paneId: string) => Promise<void>;
@@ -305,6 +312,32 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   daftarkanPaneEksternal: async (paneId, kind, title) => {
     let tabId = get().activeTabId;
     if (!tabId || !get().terminalTabs.some((t) => t.id === tabId)) tabId = get().newTab();
+
+    /*
+     * Batas pane ditegakkan di sini juga.
+     *
+     * `addPane` sudah memeriksanya, tapi `daftarkanPaneEksternal` adalah pintu
+     * MASUK KEDUA dan dulu tidak memeriksa apa pun. Jalur SSH memakainya:
+     * sesi SSH dibuat di backend lebih dulu, lalu pane-nya didaftarkan di sini.
+     * Akibatnya user bisa menembus batas dengan menghubungkan beberapa host
+     * berurutan - dan karena sesi backend-nya sudah hidup sebelum pendaftaran
+     * ditolak, menolak belakangan berarti meninggalkan sesi SSH yang tidak
+     * pernah user lihat, tanpa pane yang mematikannya.
+     *
+     * Ditolak dengan `null` supaya pemanggilnya bisa menutup sesi backend yang
+     * sudah terlanjur dibuat.
+     */
+    const tab = get().terminalTabs.find((t) => t.id === tabId);
+    const max = get().maxPanes();
+    if (tab && tab.panes.length >= max) {
+      set({
+        toast: `Maksimal ${max} pane per tab (atur di Settings)`,
+        pickerOpen: false,
+        agentPickerOpen: false,
+      });
+      return null;
+    }
+
     const pane: PaneMeta = {
       id: paneId,
       kind: kind as PaneKind,
