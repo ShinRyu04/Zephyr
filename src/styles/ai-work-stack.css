@@ -1,0 +1,226 @@
+/* ai-work-stack.css — the live status stack under the AI chat.
+ *
+ * Why this file exists at all: `AiPanel.tsx` has rendered `.ai-work-stack`,
+ * `.ai-work-section`, `.ai-work-summary`, `.ai-work-meta`, `.ai-work-caret`,
+ * `.ai-work-body`, `.ai-work-detail`, `.ai-work-step` and `.ai-work-tool`
+ * since the status stack was built, and NOT ONE of those classes had a rule
+ * anywhere in src/styles. The markup was shipping unstyled, which is why the
+ * rendering read as text that had leaked out of its boxes: a status word and
+ * the number next to it ran together ("doneworkspace"), because nothing set
+ * spacing, weight, colour or separation between them.
+ *
+ * So this is not a restyle of an existing block - it is the missing half of
+ * the component. Every rule below is derived from the tokens in tokens.css,
+ * so all 12 themes follow automatically; there is no hardcoded colour here.
+ *
+ * The stack exists to answer one question - "what is the agent doing right
+ * now" - so it is deliberately quiet: a low-contrast container, one accent
+ * only on the thing that is currently moving, and no borders heavier than
+ * 1px. It sits under the transcript and must never compete with it.
+ */
+
+.ai-work-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 8px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg1);
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg1);
+}
+
+.ai-work-section {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg1);
+}
+
+.ai-work-section + .ai-work-section {
+  border-top: 1px solid var(--border);
+}
+
+/*
+ * The clickable header row. `gap` is what fixes the "done" + "workspace"
+ * collision: the summary is a flex row, so the status text, the runs counter
+ * and the caret are separate boxes that cannot touch.
+ */
+.ai-work-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-work-summary:hover {
+  background: var(--bg2);
+}
+
+/* The primary line of a section: "Loop running", "2 Background". */
+.ai-work-summary > span:nth-child(2) {
+  color: var(--fg0);
+  font-weight: 600;
+}
+
+/*
+ * The status dot. It is the first child of the summary (the label is the
+ * second), so the `> span:first-child` rule that used to be here was styling
+ * the dot as if it were the label - and since the dot has no text, the label
+ * itself never got its weight. Both states are defined here so the dot can
+ * never render as a bare, invisible box: `is-running` pulses on the accent,
+ * `is-done` is a steady, muted mark.
+ */
+.ai-work-status {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg2);
+}
+
+.ai-work-status.is-running {
+  background: var(--accent);
+  animation: ai-work-pulse 1.4s ease-in-out infinite;
+}
+
+.ai-work-status.is-done {
+  background: var(--success, #3fb950);
+}
+
+/*
+ * Secondary text (run count, job name, subagent count). Separated by its own
+ * margin rather than a leading character, so a missing separator can never
+ * glue two labels together again.
+ */
+.ai-work-meta {
+  color: var(--fg2);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-work-meta + .ai-work-meta {
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+.ai-work-caret {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--fg2);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.ai-work-body {
+  padding: 2px 10px 9px;
+  border-top: 1px solid var(--border);
+  background: var(--bg0);
+}
+
+/* One finished step: what it did, to what, and how long it took. */
+.ai-work-detail {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  min-width: 0;
+}
+
+.ai-work-step {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg1);
+}
+
+/* The tool name is an identifier, so it gets the monospace face. */
+.ai-work-tool {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg2);
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+  font-size: 11px;
+  color: var(--fg2);
+}
+
+/*
+ * A background job's real command. Given its own block so a long command
+ * wraps instead of being clipped - the command IS the information, and an
+ * ellipsised command tells the user nothing about what will run.
+ */
+.ai-work-section[data-testid='ai-work-stack-background'] .ai-work-body code,
+.ai-work-section[data-testid='ai-work-stack-background'] .ai-work-detail code {
+  display: block;
+  padding: 4px 7px;
+  margin-top: 2px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg2);
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+  font-size: 11px;
+  color: var(--fg0);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* The queue reads as a list of pending items, one per line. */
+.ai-work-section[data-testid='ai-work-stack-queue'] .ai-work-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* A moving accent, only while the agent is actually working. */
+.ai-work-body[role='status'] .ai-work-step::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+  animation: ai-work-pulse 1.4s ease-in-out infinite;
+}
+
+/* Respect a user who has asked the system to stop moving things. */
+@media (prefers-reduced-motion: reduce) {
+  .ai-work-body[role='status'] .ai-work-step::before,
+  .ai-work-status.is-running {
+    animation: none;
+    opacity: 0.9;
+  }
+}
+
+@keyframes ai-work-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+

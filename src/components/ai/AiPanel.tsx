@@ -1055,8 +1055,18 @@ const JEJAK_TOOL_MAKS = 4;
                   active: jadwalAktif.length > 0,
                   items: jadwalAktif.map((job) => ({
                     id: job.id,
-                    /* The real schedule, not a friendly alias. */
-                    command: tf('every {n} minutes', { n: job.every_minutes }),
+                    /*
+                     * The command the job actually runs, not a friendly alias.
+                     *
+                     * This used to send `every {n} minutes`, which told the user
+                     * the schedule but never what would run - so a list of jobs
+                     * was a list of intervals that could not be told apart. The
+                     * whole point of showing a background job is knowing what is
+                     * about to happen on your machine. The interval moves into
+                     * the name slot, where it reads as a subtitle.
+                     */
+                    name: tf('every {n} minutes', { n: job.every_minutes }),
+                    command: job.command,
                     status: 'pending' as const,
                   })),
                 }}

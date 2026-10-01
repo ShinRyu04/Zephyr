@@ -105,6 +105,14 @@ import './styles/ai-panel-compact.css';
  */
 import './styles/ai-trace.css';
 /*
+ * ai-tool-cards.css was written but never imported, so every `.w4-status*`
+ * rule in it (the status-card styling, ~440 lines) was dead CSS that shipped
+ * in the repo and never reached the browser. Same story for ai-work-stack.css,
+ * which is the half of the status stack that had no rules at all.
+ */
+import './styles/ai-tool-cards.css';
+import './styles/ai-work-stack.css';
+/*
  * Reasoning ("Thinking") block: replaces the auto-opened italic block with one
  * folded row that shows a live shimmer and a timer while tokens arrive.
  */
