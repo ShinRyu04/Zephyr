@@ -18,13 +18,33 @@ const EXTRA_GROUPS: Record<ToolGroupId, string[]> = {
   files: ['search_text', 'find_files', 'read_image', 'open_file', 'workspace', 'worktree'],
   edit: ['editor_save', 'file_delete', 'file_move', 'file_copy', 'dir_create', 'replace_in_files'],
   search: ['get_output'],
-  shell: ['terminal_kill', 'terminal_wait', 'pane_control', 'focus_pane', 'ssh'],
+  /*
+   * `ssh` TIDAK lagi di sini.
+   *
+   * Sebelumnya ia ada di daftar ini, dan itu membuat grup `ssh` kosong: grup
+   * `shell` muncul lebih dulu di TOOL_GROUPS, jadi ia mengklaim `ssh` dan
+   * penanda `seen` menolak klaim berikutnya. Akibatnya grup "SSH" di menu
+   * tampil tanpa isi dan tombolnya tidak menyalakan apa pun - kerusakan yang
+   * tidak terlihat sampai ada yang benar-benar mengkliknya.
+   *
+   * Aturannya: satu tool hanya boleh ada di SATU daftar. Grup di TOOL_GROUPS
+   * yang menang, karena di situlah tempat yang dibaca orang saat mencari.
+   */
+  shell: ['terminal_kill', 'terminal_wait', 'pane_control', 'focus_pane'],
   web: ['browser_download_url', 'system_browser_open', 'browser_close'],
   agents: ['subagent_list'],
   tasks: [],
   schedule: ['schedule_command'],
   notes: ['settings', 'extensions'],
   mcp: [],
+  /* Grup di bawah ini tidak menambah tool: isinya sudah didaftarkan lengkap di
+     TOOL_GROUPS. Entrinya tetap ada karena `Record<ToolGroupId, string[]>`
+     mensyaratkan SETIAP id punya kunci - dan itu memang yang diinginkan:
+     menambah id grup baru tanpa menyebutnya di sini akan gagal dikompilasi,
+     bukan diam-diam jadi grup kosong. */
+  browser: [],
+  ssh: [],
+  skills: [],
 };
 
 function makeToolGroups(base: ToolGroup[]): ToolGroup[] {
@@ -78,6 +98,12 @@ function makeToolGroups(base: ToolGroup[]): ToolGroup[] {
  */
 export type ToolGroupId =
   | 'files' | 'edit' | 'search' | 'shell' | 'web' | 'agents' | 'tasks' | 'schedule' | 'notes' | 'mcp'
+  /*
+   * Grup yang sejak awal MATI (lihat GRUP_MATI_AWAL di bawah): permukaan yang
+   * bisa menghabiskan uang, menyentuh mesin lain, atau berjalan sendiri tanpa
+   * diminta. Semuanya bisa dihidupkan user, tapi tidak menyala sendiri.
+   */
+  | 'browser' | 'ssh' | 'skills'
   | `tool:${string}`;
 
 export interface ToolGroup {
@@ -101,9 +127,32 @@ export const TOOL_GROUPS: ToolGroup[] = makeToolGroups([
   { id: 'web', tools: ['web_search', 'web_fetch'] },
   { id: 'agents', tools: ['subagent_run'] },
   { id: 'tasks', tools: ['todo_write', 'todo_read', 'run_task', 'panel_focus', 'lsp_query', 'snippets', 'keybindings'] },
-  { id: 'schedule', tools: ['cron_create', 'cron_list', 'cron_delete'] },
-  { id: 'notes', tools: ['skill_list', 'skill_view', 'skill_write', 'skill_delete', 'memory_read', 'memory_write'] },
-  { id: 'mcp', tools: ['mcp_call', 'browser_open', 'browser_read', 'browser_click', 'browser_type', 'browser_nav', 'browser_list'] },
+  { id: 'schedule', tools: ['cron_create', 'cron_list', 'cron_delete', 'schedule_command'], },
+  { id: 'notes', tools: ['memory_read', 'memory_write'] },
+  /*
+   * Grup di bawah ini sejak awal MATI (lihat GRUP_MATI_AWAL). Pemisahannya
+   * bukan soal risiko - `notes` pun bisa menulis - melainkan soal SEBERAPA
+   * SERING dipakai. Sesi menyunting berkas hampir tidak pernah membuka SSH
+   * atau menjadwalkan cron, jadi membiarkannya menyala hanya membuat daftar
+   * pilihan panjang tanpa guna.
+   */
+  { id: 'mcp', tools: ['mcp_call'] },
+  { id: 'browser', tools: ['browser_open', 'browser_read', 'browser_click', 'browser_type', 'browser_nav', 'browser_list'] },
+  { id: 'ssh', tools: ['ssh'] },
+  { id: 'skills', tools: ['skill_list', 'skill_view', 'skill_write', 'skill_delete'] },
+  /*
+   * 'cron' dan 'language' SENGAJA TIDAK ADA di sini.
+   *
+   * Keduanya sempat saya tambahkan, lalu ketahuan kosong: `cron_create` dan
+   * kawan-kawan sudah diklaim grup `schedule`, dan `lsp_query` diklaim grup
+   * `tasks` - dua-duanya muncul lebih dulu, jadi penanda `seen` menolak klaim
+   * berikutnya. Grup kosong tetap tampil di menu dengan kepala dan tombolnya,
+   * tapi tidak menyalakan apa pun; itu terbaca seperti kerusakan.
+   *
+   * Jadi tool-nya tetap bisa dihidupkan dari grup `schedule` dan `tasks`.
+   * Menambah grup kedua untuk tool yang sama hanya akan mengulang kesalahan
+   * itu.
+   */
 ]);
 
 /** Every tool the gate knows about, derived from the executable catalogue. */
@@ -232,11 +281,98 @@ interface ToolGateState {
   izinkanTulis: (nama: string, izin: boolean) => void;
 }
 
+/*
+ * Tool yang WAJIB selalu nyala.
+ *
+ * Ini bukan preferensi - ini yang membuat agen bisa bekerja sama sekali.
+ * Tanpa pembaca berkas ia menebak isi kode; tanpa pencari ia menyisir
+ * direktori satu per satu; tanpa shell ia tidak bisa menjalankan apa pun untuk
+ * MEMBUKTIKAN pekerjaannya; tanpa `task_complete` ia tidak punya cara mengakhiri
+ * giliran dengan rapi; tanpa `get_problems` ia tidak tahu kodenya rusak.
+ *
+ * Daftarnya sengaja PENDEK. Setiap tool yang ditambahkan di sini mengurangi
+ * kendali user tanpa memberi manfaat; yang lain cukup jadi default-nya saja.
+ */
+export const TOOL_WAJIB: readonly string[] = [
+  'editor_read',
+  'file_list',
+  'search_text',
+  'shell_exec',
+  'task_complete',
+  'get_problems',
+];
+
+/**
+ * Tool yang nyala secara DEFAULT, di luar yang wajib.
+ *
+ * Sebelumnya SEMUA tool nyala (`new Set(SEMUA_TOOL)`). Itu berarti model bisa
+ * menyentuh browser, SSH, cron, MCP dan SSH sejak menit pertama, padahal
+ * sesi menyunting berkas tidak pernah memakainya - dan daftar pilihannya jadi
+ * dinding yang tidak terbaca.
+ *
+ * Yang ada di sini adalah yang dipakai hampir setiap sesi. Sisanya tetap
+ * TERSEDIA, dan hidup dengan satu klik lewat grupnya di menu tool - jadi tidak
+ * ada kemampuan yang hilang, hanya tidak lagi aktif tanpa diminta.
+ */
+export const TOOL_DEFAULT: readonly string[] = [
+  ...TOOL_WAJIB,
+  /* Membaca dan menyunting. */
+  'file_read',
+  'editor_write',
+  'editor_save',
+  'file_edit',
+  'file_write',
+  'file_patch',
+  'replace_in_files',
+  /* Mencari dan memeriksa. */
+  'find_files',
+  'get_output',
+  'list_panes',
+  /* Menjalankan dan mengawasi terminal. */
+  'terminal_exec',
+  'terminal_read',
+  /* Mencari di web. */
+  'web_search',
+  'web_fetch',
+  /* Membagi pekerjaan. */
+  'subagent_run',
+  /* Mencatat rencana dan ingatan. */
+  'todo_write',
+  'todo_read',
+  'memory_read',
+  'memory_write',
+  /* Berkomunikasi balik dan memeriksa tampilan sendiri. */
+  'ask_user',
+  'clipboard_read',
+  'clipboard_write',
+  'screenshot_ui',
+  'plan_mode',
+];
+
+/**
+ * Grup yang sejak awal MATI.
+ *
+ * Semuanya adalah permukaan yang bisa menghabiskan uang, menyentuh sistem di
+ * luar proyek, atau mengubah sesuatu di luar berkas: browser otomatis, SSH ke
+ * mesin lain, cron yang berjalan sendiri, server MCP, dan kontrol jendela.
+ * Satu klik menghidupkannya - yang penting adalah user MEMILIH, bukan
+ * menemukannya sudah menyala.
+ */
+export const GRUP_MATI_AWAL: readonly ToolGroupId[] = ['mcp', 'browser', 'ssh', 'skills'];
+
 export const useToolGate = create<ToolGateState>((set, get) => ({
-  aktif: new Set(SEMUA_TOOL),
+  /*
+   * Sekat awalnya adalah TOOL_DEFAULT saja. Grup yang mati tidak perlu
+   * dikurangi dari sini - nama-nama di grup itu memang TIDAK ada di
+   * TOOL_DEFAULT, jadi sudah mati dengan sendirinya.
+   */
+  aktif: new Set(TOOL_DEFAULT),
   cari: '',
   buka: false,
-  tutup: new Set(TERTUTUP_AWAL),
+  /* Grup yang mati sejak awal sekaligus terlipat: kalau tidak, menu terbuka
+     dengan enam kepala grup yang isinya semuanya tidak aktif, dan itu terbaca
+     seperti kerusakan alih-alih seperti pilihan yang belum diambil. */
+  tutup: new Set([...TERTUTUP_AWAL, ...GRUP_MATI_AWAL]),
   tulisIzin: new Set<string>(),
 
   tulisDiizinkan: (nama) => get().tulisIzin.has(nama),

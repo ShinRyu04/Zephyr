@@ -19,6 +19,24 @@ const r = reporter('tools-g7');
 const { cdp } = await Cdp.attach(PORT);
 cdp.snapshot = null;
 
+/*
+ * Sekat tool dibuka untuk kelima tool yang diuji di sini.
+ *
+ * Harness ini MEMANGGIL tool lewat bridge dev. Tanpa membuka sekatnya, ujinya
+ * lulus saat dijalankan sendiri tapi gagal saat dijalankan setelah harness
+ * lain - dan kegagalan yang bergantung urutan seperti itu jauh lebih mahal
+ * daripada bug yang sebenarnya, karena menuntut penyelidikan tiap kali.
+ */
+await cdp.json(`return JSON.stringify(await (async () => {
+  const m = await import(String.fromCharCode(47)+'src'+String.fromCharCode(47)+'lib'+String.fromCharCode(47)+'toolGate.ts');
+  const g = m.useToolGate.getState();
+  for (const t of ['ask_user', 'clipboard_read', 'clipboard_write', 'screenshot_ui', 'plan_mode']) {
+    if (!g.aktif.has(t)) g.balik(t);
+  }
+  await new Promise((res) => setTimeout(res, 200));
+  return { aktif: m.useToolGate.getState().aktif.size };
+})())`);
+
 const ada = await cdp.json(`return JSON.stringify((() => {
   const t = window.__ZEPHYR_TOOLS__;
   if (!t) return { ada: false };

@@ -20,6 +20,26 @@ const r = reporter('ask-user');
 const { cdp } = await Cdp.attach(PORT);
 cdp.snapshot = null;
 
+/*
+ * Harness ini MEMANGGIL tool lewat bridge dev, jadi sekat tool harus membuka
+ * yang dipanggilnya.
+ *
+ * Tanpa ini, ujinya lulus saat dijalankan sendiri tapi gagal saat dijalankan
+ * setelah harness lain - karena harness lain meninggalkan sekat dalam keadaan
+ * hasil pemulihannya. Kegagalan yang bergantung urutan seperti itu menghabiskan
+ * waktu lebih banyak daripada bug yang sebenarnya, jadi sekatnya dibuka
+ * eksplisit di sini.
+ */
+await cdp.json(`return JSON.stringify(await (async () => {
+  const m = await import(String.fromCharCode(47)+'src'+String.fromCharCode(47)+'lib'+String.fromCharCode(47)+'toolGate.ts');
+  const g = m.useToolGate.getState();
+  for (const t of ['ask_user', 'clipboard_read', 'clipboard_write', 'screenshot_ui', 'plan_mode']) {
+    if (!g.aktif.has(t)) g.balik(t);
+  }
+  await new Promise((res) => setTimeout(res, 200));
+  return { aktif: m.useToolGate.getState().aktif.size };
+})())`);
+
 /* ---- A1: tool terdaftar ---- */
 
 const daftar = await cdp.json(`return JSON.stringify(await (async () => {
