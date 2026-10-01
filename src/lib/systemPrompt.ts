@@ -216,6 +216,36 @@ function daftarTool(): string {
   return ['# Tools you can use', ...baris].join('\n');
 }
 
+/*
+ * Stacks the layers of one prose block, bottom-up.
+ *
+ * `bawaan` is the shipped text and acts as the floor: it is emitted only when
+ * nothing above it says anything, so a fresh install is never left without an
+ * identity. `persona` and `saya` are the two layers that can add to it, and
+ * each is dropped when it is empty OR when it repeats text an earlier layer
+ * already contributed - an exact duplicate is what produced the doubled
+ * sentences this layering replaced.
+ *
+ * The order is deliberate: the persona speaks as "who am I", so it comes
+ * first, and the Settings text as the user's standing preference, so it reads
+ * as the closer instruction.
+ */
+function lapisan(bawaan: string, persona: string, saya: string): string[] {
+  const sudah = new Set<string>();
+  const keluar: string[] = [];
+  for (const teks of [persona, saya, bawaan]) {
+    const isi = teks.trim();
+    if (!isi) continue;
+    if (sudah.has(isi)) continue;
+    // The floor steps aside as soon as either layer above it spoke, so the
+    // shipped prose does not contradict an explicit preference.
+    if (teks === bawaan && keluar.length > 0) continue;
+    sudah.add(isi);
+    keluar.push(isi);
+  }
+  return keluar;
+}
+
 export function systemPromptFor(
   answerLang: string,
   konteks = '',
@@ -227,16 +257,35 @@ export function systemPromptFor(
   const ov = useStore.getState().settings.aiPrompt;
   const b = bahasaPrompt();
   /*
-   * A persona only ever replaces the identity and way-of-working blocks. The
-   * tool list, the model block and the project rules below are always built
-   * from the shipped prompt: a persona that dropped the tool list would leave
-   * the agent unable to act rather than expressing a preference.
+   * The identity and way-of-working blocks are built by LAYERING, not by
+   * picking a winner.
+   *
+   * They used to be `per.X || ov.X || b.X`, which short-circuits: a persona with
+   * text in it silently discarded whatever the user had typed under
+   * Settings -> Prompt. The shipped persona fills both fields, so those two
+   * textareas were inert on a fresh install - they looked like a control that
+   * did nothing. That is a worse failure than a duplicated sentence, because
+   * the user has no way to tell that their input is being ignored.
+   *
+   * So each layer now appends what is NOT already present. The shipped default
+   * is the floor: it is dropped only when something above it already speaks.
+   * The persona is the identity ("who am I"), the Settings text is the
+   * standing preference ("how I want my assistant to behave"), and both are
+   * real, so both appear.
+   *
+   * The tool list, the model block and the project rules below are never
+   * layered: they are always built from the shipped prompt. A persona that
+   * could drop the tool list would leave the agent unable to act rather than
+   * expressing a preference.
    */
   const per = blokPersona();
+  const identitasSaya = (ov?.identitas ?? '').trim();
+  const caraKerjaSaya = (ov?.caraKerja ?? '').trim();
   const bagian = [
-    per.identitas || (ov?.identitas ?? '').trim() || b.identitas,
+    // Floor, then each layer that says something the floor does not.
+    ...lapisan(b.identitas, per.identitas, identitasSaya),
     b.editorFakta,
-    per.caraKerja || (ov?.caraKerja ?? '').trim() || b.caraKerja,
+    ...lapisan(b.caraKerja, per.caraKerja, caraKerjaSaya),
     aturanRute(useStore.getState().settings.general.uiLang || 'en'),
     (ov?.aturan ?? '').trim() || b.aturan,
 

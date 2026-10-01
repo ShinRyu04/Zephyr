@@ -6,9 +6,16 @@ import { useStore } from './store';
  *
  * A persona is a layer on top of the built-in prompt, not a replacement. The
  * shipped prompt (systemPrompt.ts) keeps the tool list, the model block and the
- * project rules; a persona adds the "who am I talking to" part — the identity
+ * project rules; a persona adds the "who am I talking to" part - the identity
  * and the way of working. That split matters: a persona must not be able to
  * accidentally drop the tool list, or the agent stops being able to act.
+ *
+ * "Layer" is literal: the identity and way-of-working blocks are STACKED, not
+ * chosen between. `lapisan()` in systemPrompt.ts emits the persona's text, then
+ * whatever the user typed under Settings -> Prompt, and falls back to the
+ * shipped prose only when neither above it said anything. So editing Settings
+ * still takes effect even while a persona is active - which is the point, and
+ * was not true when these were an `||` chain.
  *
  * The active persona lives in `settings.personaAktif`; the definitions live in
  * `settings.personas`. Both travel with the rest of the settings file.
