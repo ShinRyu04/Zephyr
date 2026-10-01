@@ -56,7 +56,7 @@ function PersonaCard() {
             */}
           <span className="set-hint persona-cara" data-testid="persona-cara">
             {tr(
-              'How to use it: hit "Active" on a persona row to turn it on — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr\'s built-in behaviour with nothing added.',
+              'How to use it: hit "Active" on a persona row to turn it on — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\'s built-in orchestrator with nothing added.',
             )}
           </span>
         </div>

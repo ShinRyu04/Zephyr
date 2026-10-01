@@ -30,54 +30,30 @@ export interface Persona {
 }
 
 /**
- * The personas that ship with Zephyr. Kept short on purpose: each one changes
- * the *approach*, not the competence. `umum` is the neutral default and is
- * what a fresh install runs on.
+ * The personas that ship with Zephyr. Zephyr ships a single built-in persona,
+ * Zeph, the orchestrator that owns the task end to end. It is what a fresh
+ * install runs on. Users are still free to add their own personas in Settings.
  */
 export const PERSONA_BAWAAN: Persona[] = [
   {
-    id: 'umum',
-    nama: 'General',
-    deskripsi: 'Balanced. Answer directly, explain only what is needed.',
-    identitas: '',
-    caraKerja: '',
+    id: 'zeph',
+    nama: 'Zeph',
+    deskripsi:
+      'Orchestrator. Learns, designs, builds, tests, and audits by delegating to sub-agents and driving the task to completion.',
+    identitas:
+      'You are Zeph, the primary orchestrator. You own the task end to end and drive it to completion - you do not stop at "should work"; you verify, then finish. You can take on anything - learning and reading the codebase, designing, implementing, testing, and auditing.',
+    caraKerja: [
+      '- Work from the goal, not a recipe. Decompose the work, then run independent parts in parallel.',
+      '- If `run_subagents` is in your tool list, route each kind of work to the agent whose category fits it (the roster is in that tool\'s description), then synthesize their summaries yourself. Keep your own context clean: hand large searches and parallelizable work to sub-agents instead of doing everything inline. If it is not in your tool list, do the work inline and never mention sub-agents.',
+      '- Match effort to the task: do small, single-file, or trivial work inline - delegation has a cost. Be terse; the approval card is the confirmation.',
+    ].join('\n'),
     aturan: '',
     bawaan: true,
   },
-  {
-    id: 'ringkas',
-    nama: 'Concise',
-    deskripsi: 'Short answers, no filler, straight to the point.',
-    identitas:
-      'You are a very concise assistant. Answer as briefly as possible without losing accuracy.',
-    caraKerja:
-      'Get straight to the point. No preamble, no restating, no explanation nobody asked for. When the answer fits on one line, use one line.',
-    aturan: "Never repeat the user's question. Do not offer next steps unless asked.",
-    bawaan: true,
-  },
-  {
-    id: 'teliti',
-    nama: 'Thorough',
-    deskripsi: 'Check before answering. Show the evidence.',
-    identitas:
-      'You are a thorough assistant. Every claim must rest on something that can be checked.',
-    caraKerja:
-      'Read the relevant files before answering. Name the file and line when you claim something about code. If you are not sure yet, say you are not sure and name what needs checking.',
-    aturan: 'Do not guess file, function, or API names. If it is not in the repo, say it is not there.',
-    bawaan: true,
-  },
-  {
-    id: 'guru',
-    nama: 'Teacher',
-    deskripsi: 'Explain as you work, so the user follows along.',
-    identitas:
-      'You are a teaching assistant. The goal is not only to finish the task but to make the user understand it.',
-    caraKerja:
-      'Do the task, then briefly explain the reasoning behind your choices. Use precise terms and define each one the first time it appears.',
-    aturan: 'Do not talk down to the reader. Do not ramble. One short explanation beats three paragraphs.',
-    bawaan: true,
-  },
 ];
+
+/** Ids of built-in personas that older Zephyr versions shipped. */
+const ID_LAMA = ['umum', 'ringkas', 'teliti', 'guru'];
 
 interface PersonaState {
   daftar: Persona[];
@@ -107,13 +83,26 @@ function bacaPersona(): Persona[] {
   // same id wins so an edit to a built-in survives a restart.
   const olehId = new Map(tersimpan.map((p) => [p.id, p]));
   const bawaan = PERSONA_BAWAAN.map((p) => olehId.get(p.id) ?? p);
-  const kustom = tersimpan.filter((p) => !PERSONA_BAWAAN.some((b) => b.id === p.id));
+  // Custom personas are kept, but stored copies of the old built-ins are
+  // dropped so they do not linger in the list. Legacy ids that may still sit
+  // in `settings.personaAktif` are remapped in `bacaAktif`.
+  const kustom = tersimpan.filter(
+    (p) => !PERSONA_BAWAAN.some((b) => b.id === p.id) && !ID_LAMA.includes(p.id),
+  );
   return [...bawaan, ...kustom];
 }
 
 function bacaAktif(): string {
   const s = useStore.getState().settings as unknown as { personaAktif?: string };
-  return s.personaAktif ?? 'umum';
+  const id = s.personaAktif ?? 'zeph';
+  // Legacy ids from older versions ('umum', 'ringkas', 'teliti', 'guru') and
+  // any id that no longer resolves to a known persona fall back to Zeph. A
+  // custom persona still in the list keeps its own id.
+  if (ID_LAMA.includes(id)) return 'zeph';
+  const dikenal =
+    PERSONA_BAWAAN.some((p) => p.id === id) ||
+    bacaPersona().some((p) => p.id === id);
+  return dikenal ? id : 'zeph';
 }
 
 function idBaru(): string {
@@ -122,7 +111,7 @@ function idBaru(): string {
 
 export const usePersona = create<PersonaState>((set, get) => ({
   daftar: [],
-  aktif: 'umum',
+  aktif: 'zeph',
   sunting: null,
   baru: false,
 
@@ -158,9 +147,9 @@ export const usePersona = create<PersonaState>((set, get) => ({
     const target = get().daftar.find((x) => x.id === id);
     if (target?.bawaan) return;
     const next = get().daftar.filter((x) => x.id !== id);
-    // Deleting the active persona falls back to the neutral default, so the
-    // prompt never points at an id that no longer exists.
-    const aktif = get().aktif === id ? 'umum' : get().aktif;
+    // Deleting the active persona falls back to the built-in orchestrator, so
+    // the prompt never points at an id that no longer exists.
+    const aktif = get().aktif === id ? 'zeph' : get().aktif;
     set({ daftar: next, aktif, sunting: null, baru: false });
     await useStore
       .getState()

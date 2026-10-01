@@ -200,7 +200,10 @@ export function ModeMenu() {
            * so the list belongs directly under the mode and only while the mode
            * can use it. Two headings, because the two sets behave differently:
            * a shipped persona can be picked but never edited, and the user's own
-           * can be both. The active one is checked, so the answer to "which am I
+           * can be both. Zephyr ships a single built-in persona (Zeph, the
+           * orchestrator), so the "Your own" heading only appears once the user
+           * has made a persona of their own - an empty section would read as a
+           * broken list. The active one is checked, so the answer to "which am I
            * using" never needs a second look.
            */}
           {isAgent && (

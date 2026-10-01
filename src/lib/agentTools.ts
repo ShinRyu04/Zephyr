@@ -985,9 +985,19 @@ export const AGENT_TOOLS: AgentTool[] = [
       },
     },
     run: async (args) => {
-      const list = Array.isArray(args.todos) ? args.todos : [];
-
-      const n = useAi.getState().setAgentTodos(list);
+      /*
+       * A model can describe the todos without `todos` (args spread flat), and
+       * a plan that is silently dropped is never completed, which is exactly
+       * the treadmill the anti-loop watchdog exists to catch. Accept the flat
+       * shape instead of writing an empty list over a good plan.
+       */
+      const mentah = args.todos;
+      const daftar: unknown[] = Array.isArray(mentah)
+        ? mentah
+        : typeof (args as { content?: unknown }).content === 'string'
+          ? [{ content: args.content, status: (args as { status?: unknown }).status }]
+          : [];
+      const n = useAi.getState().setAgentTodos(daftar);
       return `Task list saved (${n} items).`;
     },
   },

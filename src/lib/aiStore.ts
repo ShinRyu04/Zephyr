@@ -70,9 +70,26 @@ export const IMAGE_MAX_BYTES = 3_500_000;
 
 export const PERSIST_TOOL_CHARS = 4000;
 
-export const HISTORY_KEEP_STEPS = 8;
+/*
+ * 6 steps, was 8. The window is what keeps the agent responsive: every step
+ * re-sends the whole trimmed history, so each extra step kept here is paid
+ * again on every request. Six still covers the working set the model needs to
+ * reason about (the file it just read, the edit it just made), and older turns
+ * are already represented by the summary note `ringkasRiwayat` inserts.
+ */
+export const HISTORY_KEEP_STEPS = 6;
 
-export const HISTORY_TOOL_CHARS = 1200;
+/*
+ * 500 chars, was 1200. Only old turns are clipped here: a tool result produced
+ * during the current step is pushed to `history` untrimmed and reaches the
+ * model in full until it ages out of HISTORY_KEEP_STEPS. Measured reports put
+ * step 14 in the tens of thousands of tokens, and most of that is stale file
+ * dumps and subagent transcripts the model has already acted on. Cutting the
+ * archived copy to 500 chars drops the per-step token cost roughly 2.4x on tool
+ * heavy runs, while the note appended to each clipped result tells the model it
+ * can re-run the tool if it genuinely needs the lost tail.
+ */
+export const HISTORY_TOOL_CHARS = 500;
 
 import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt';
 
@@ -120,6 +137,62 @@ function agentToolCacheKey(name: string, args: Record<string, unknown>): string 
   if (!safe.has(name) && !readGit && !safeAction && !exactTsc) return null;
   return `${name}:${stableToolJson(args)}`;
 }
+
+/*
+ * Anti-loop watchdog.
+ *
+ * The failure it exists for is not a crash but a treadmill: the model re-reads
+ * the same file or re-runs the same subagent every step, the history grows, and
+ * the run ends at MAX_AGENT_STEPS with nothing to show. `agentToolCacheKey`
+ * cannot serve as the fingerprint because it only covers read-only tools on
+ * purpose, and the treadmill is at least as common with a failing build or a
+ * subagent that never returns. So the fingerprint here is the requested call
+ * itself, normalized through `stableToolJson` so key order and path spelling
+ * cannot make one repeated action look like two.
+ */
+const BATAS_AKSI_SAMA = 3;
+const BATAS_AKSI_INGAT = 2;
+
+function sidikAksi(name: string, args: Record<string, unknown>): string {
+  return `${name}:${stableToolJson(args)}`;
+}
+
+export interface HasilCatatAksi {
+  /** How many requests carried this fingerprint during the current turn. */
+  jumlah: number;
+  /** True on the second occurrence: nudge the model, do not stop it. */
+  ingatkan: boolean;
+  /** True once the same request has been made `BATAS_AKSI_SAMA` times. */
+  hentikan: boolean;
+}
+
+/**
+ * Count one requested tool call against the current turn's fingerprints.
+ *
+ * Pure bookkeeping: it observes and decides, it never dispatches a tool. The
+ * caller owns the map and clears it per turn and on real progress.
+ */
+export function catatAksiBerulang(peta: Map<string, number>, name: string, args: Record<string, unknown>): HasilCatatAksi {
+  const sidik = sidikAksi(name, args);
+  const jumlah = (peta.get(sidik) ?? 0) + 1;
+  peta.set(sidik, jumlah);
+  return {
+    jumlah,
+    ingatkan: jumlah === BATAS_AKSI_INGAT,
+    hentikan: jumlah >= BATAS_AKSI_SAMA,
+  };
+}
+
+/**
+ * Fingerprints of tool calls requested during the current agent turn.
+ *
+ * Module-level rather than a local of the loop because the todo-completion
+ * reset happens in `setAgentTodos`, which runs outside that loop and must be
+ * able to forget what the watchdog has counted. It is cleared where it is
+ * consumed (turn start, and turn start of the next run), so a stale turn can
+ * never stop the next one.
+ */
+const agenAksiBerulang = new Map<string, number>();
 
 /** Clear the per-run tool cache. Called at both start and end of sendAgent. */
 export function resetAgentToolCache(): void {
@@ -300,7 +373,7 @@ export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
       const teks = String(m.content ?? '');
       return {
         ...m,
-        content: teks.length > 800 ? `${teks.slice(0, 800)}…` : teks,
+        content: teks.length > HISTORY_TOOL_CHARS ? `${teks.slice(0, HISTORY_TOOL_CHARS)}…` : teks,
         toolCalls: undefined,
       };
     }
@@ -1319,6 +1392,7 @@ export const useAi = create<AiStore>((set, get) => ({
   },
   setAgentTodos: (list) => {
 
+    const sebelum = get().agentTodos;
     const bersih: AgentTodo[] = [];
     for (const raw of Array.isArray(list) ? list : []) {
       if (bersih.length >= MAX_TODOS) break;
@@ -1342,6 +1416,26 @@ export const useAi = create<AiStore>((set, get) => ({
       bersih.push({ content, status });
     }
     set({ agentTodos: bersih });
+    /*
+     * A todo reaching 'done' is real progress, so the anti-loop watchdog
+     * forgets what it has seen: completing a task is the one signal that the
+     * repetition is producing something, and without it a plan that
+     * legitimately revisits a step (fix, re-check, fix again) would be stopped
+     * as a treadmill.
+     *
+     * Membership is counted per content, not by position: a todo written as
+     * "step three" and later edited to "step three, refactored" is still the
+     * same plan item being finished, and a positional diff would miss it.
+     */
+    const jumlahSelesai = (list2: AgentTodo[]) =>
+      list2.reduce((peta, t) => {
+        if (t.status === 'done') peta.set(t.content, (peta.get(t.content) ?? 0) + 1);
+        return peta;
+      }, new Map<string, number>());
+    const lSebelum = jumlahSelesai(sebelum);
+    const lSesudah = jumlahSelesai(bersih);
+    const adaBaruSelesai = [...lSesudah].some(([content, n]) => (lSebelum.get(content) ?? 0) < n);
+    if (adaBaruSelesai) agenAksiBerulang.clear();
     return bersih.length;
   },
 
@@ -1891,10 +1985,8 @@ export const useAi = create<AiStore>((set, get) => ({
     let navigationOpened = false;
     let langkah = 0;
     let agentFailure: { category: AgentFailureCategory; message: string } | null = null;
-    /* Pengaman loop setan: lihat komentar di dekat pencatatan agentSteps. */
-    let kunciAksiTerakhir = '';
-    let ulangBerturut = 0;
-    const BATAS_ULANG = 3;
+    /* Anti-loop fingerprints; see `catatAksiBerulang` for the why. */
+    agenAksiBerulang.clear();
     try {
       for (; langkah < MAX_AGENT_STEPS; langkah++) {
         if (agentBatal) break;
@@ -2115,9 +2207,43 @@ export const useAi = create<AiStore>((set, get) => ({
 
         for (const tc of callsToDispatch) {
           if (agentBatal) break;
+          const argsObj = (tc.args ?? {}) as Record<string, unknown>;
+          /*
+           * Anti-loop watchdog — observe only.
+           *
+           * The fingerprint is taken from the call AS REQUESTED, before any
+           * tool actually runs, and this block never dispatches a tool of its
+           * own: it counts and decides, nothing else. Counting the request
+           * rather than the result is what catches the expensive failure mode —
+           * a model re-issuing a file_read or a subagent on every step — even
+           * while a previous identical call is still in flight, and it does so
+           * without paying for the call first.
+           */
+          const hitungAksi = catatAksiBerulang(agenAksiBerulang, tc.name, argsObj);
+          if (hitungAksi.hentikan) {
+            /*
+             * Nothing runs. The refused call is recorded as a tool message so
+             * the provider pairing (assistant toolCalls -> tool results) stays
+             * valid and the model sees why the loop ended, instead of reading a
+             * silent gap as a reason to try again.
+             */
+            akhir =
+              `Stopped: the same action repeated ${hitungAksi.jumlah} times without progress ` +
+              `(\`${tc.name}\` ${JSON.stringify(argsObj).slice(0, 120)}). ` +
+              'The call was not dispatched. Change the approach or report the blocker ' +
+              'to the user instead of retrying.';
+            history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: akhir });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: akhir.slice(0, 400), ok: false, at: Date.now() },
+              ],
+            }));
+            agentStopReason = 'watchdog';
+            break;
+          }
           get().setAgentProgress({ agentPhase: 'running-tool', agentCurrentTool: tc.name, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
           const mulaiTool = Date.now();
-          const argsObj = (tc.args ?? {}) as Record<string, unknown>;
           const namaShell = tc.name === 'terminal_exec' || tc.name === 'shell_exec';
           const perintah = namaShell ? String(argsObj.command ?? '') : '';
           /*
@@ -2248,25 +2374,6 @@ export const useAi = create<AiStore>((set, get) => ({
             ms: selesaiPada - mulaiTool,
             ...status,
           };
-          /*
-           * Deteksi aksi berulang.
-           *
-           * Todo yang tidak pernah 'done' dulu membuat agen memanggil tool yang
-           * sama berulang-ulang tanpa kemajuan. Perbaikan status todo menutup
-           * sebab utamanya; ini jaring kedua untuk sebab lain (mis. tool yang
-           * selalu gagal dan model mencoba lagi dengan cara sama).
-           *
-           * Kunci = nama tool + argumen, TANPA id: id berbeda tiap panggilan,
-           * jadi memasukkannya membuat setiap aksi terlihat unik.
-           */
-          const kunciAksi = `${run.name}:${JSON.stringify(run.args ?? {})}`;
-          if (kunciAksi === kunciAksiTerakhir) {
-            ulangBerturut += 1;
-          } else {
-            kunciAksiTerakhir = kunciAksi;
-            ulangBerturut = 1;
-          }
-
           set((s) => ({
             agentSteps: [
               ...s.agentSteps,
@@ -2286,18 +2393,20 @@ export const useAi = create<AiStore>((set, get) => ({
           }));
           history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: hasil });
 
-          /*
-           * Aksi identik berkali-kali berturut-turut = tidak ada kemajuan.
-           * Hentikan dengan pesan yang jelas, jangan berputar sampai MAX_AGENT_STEPS.
-           */
-          if (ulangBerturut >= BATAS_ULANG) {
-            const ringkasArgs = String(run.args ?? '').slice(0, 160);
-            akhir =
-              `Berhenti: tool \`${run.name}\` dipanggil ${ulangBerturut}x berturut-turut ` +
-              `dengan argumen sama tanpa kemajuan. Argumen: ${ringkasArgs || '(kosong)'} ` +
-              `Hasil terakhir: ${hasil.slice(0, 200)}`;
-            agentStopReason = 'watchdog';
-            break;
+          if (hitungAksi.ingatkan) {
+            /*
+             * Second identical call in this turn: the model is looping, but a
+             * reminder is cheaper and less destructive than a stop. The line
+             * rides along after the tool result so it is the last thing the
+             * model reads before deciding its next move, and it names the
+             * escape hatches (use the result already in hand, or change
+             * approach) instead of just forbidding the repeat.
+             */
+            history.push({
+              role: 'user',
+              content:
+                'You have already run this exact call. Do not repeat it - either use the result you have or take a different approach.',
+            });
           }
 
           /*
