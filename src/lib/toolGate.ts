@@ -39,7 +39,21 @@ function makeToolGroups(base: ToolGroup[]): ToolGroup[] {
     return { ...group, tools };
   });
   const ungrouped = AGENT_TOOL_NAMES.filter((name) => !seen.has(name));
-  if (ungrouped.length > 0) groups[0].tools.push(...ungrouped);
+  /*
+   * A tool that is in the catalogue but in no group used to be pushed into
+   * `groups[0]` (files) unconditionally. That is how `git` and `task_complete`
+   * ended up listed under "Files" in the tool menu, where nobody looks for
+   * them, and any tool added to agentTools.ts later would silently land there
+   * too.
+   *
+   * Each stray tool now gets its own group. The id must be UNIQUE, not a reused
+   * 'tasks': the store looks a group up with `find(g => g.id === id)`, so a
+   * repeated id makes every group after the first one untoggleable - the menu
+   * would flip the wrong rows. `ToolGroupId` is widened to allow these.
+   */
+  for (const name of ungrouped) {
+    groups.push({ id: `tool:${name}` as ToolGroupId, tools: [name] });
+  }
   return groups;
 }
 
@@ -57,7 +71,14 @@ function makeToolGroups(base: ToolGroup[]): ToolGroup[] {
  */
 
 /** Catalogue groups, in the order the menu lists them. */
-export type ToolGroupId = 'files' | 'edit' | 'search' | 'shell' | 'web' | 'agents' | 'tasks' | 'schedule' | 'notes' | 'mcp';
+/*
+ * The ten curated groups, plus `tool:<name>` for a catalogue tool that no
+ * curated group claims (see makeToolGroups). Those synthetic ids keep their own
+ * row in the menu and must stay unique.
+ */
+export type ToolGroupId =
+  | 'files' | 'edit' | 'search' | 'shell' | 'web' | 'agents' | 'tasks' | 'schedule' | 'notes' | 'mcp'
+  | `tool:${string}`;
 
 export interface ToolGroup {
   id: ToolGroupId;
