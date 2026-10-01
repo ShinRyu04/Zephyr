@@ -279,7 +279,7 @@
    * existed, and elementFromPoint proved they could not be hit. The reserved
    * space is one action row plus a margin, not a guess.
    */
-  padding: 10px 12px 34px;
+  padding: 10px var(--ai-chat-pad-x) 34px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -578,13 +578,42 @@
   padding: 1px 6px;
 }
 
+/*
+ * Permukaan kotak ketik - juga sisi bawah "kapsul" yang dibentuk bersama
+ * kartu tugas di atasnya (lihat ai-todo-card.css).
+ *
+ * Yang penting di sini HANYA dua baris pertama: sudut ATAS lurus dan border
+ * atas tetap ada. Kartu tugas mengapalkan border bawahnya sendiri dan
+ * meluruskan sudut bawahnya, jadi garis yang terlihat di antara keduanya adalah
+ * SATU garis milik komponen ini. Kalau baris itu ikut dibulatkan atau
+ * border atasnya dihapus, sambungannya putus dan mereka kembali terlihat
+ * sebagai dua kotak terpisah.
+ *
+ * Bagian kedua memakai .ai-input-row:not(:first-child): saat kartu tugas hadir,
+ * kotak ketik memang bukan anak pertama lagi, jadi border atas tadi dihapus
+ * supaya tidak ada garis dobel, dan sudut atasnya dibulatkan sedikit supaya
+ * tetap enak dilihat sendirian.
+ */
 .ai-input-row {
   display: flex;
   gap: 8px;
   padding: 8px 10px;
+  /* Sudut atas LURUS: bagian bawah kapsul, yang bersambung ke atas. */
+  border: 0.8px solid var(--border);
+  border-radius: 0 0 var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px);
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--bg0);
   flex: 0 0 auto;
+}
+
+/* Kotak ketik BERDIRI SENDIRI tanpa kartu di atasnya: jangan biarkan sudut
+   atasnya lurus, karena tidak ada apa pun yang menempel di sana. */
+.ai-input-row:not(:first-child) {
+  border-top: 0;
+}
+
+.ai-input-row:first-child {
+  border-radius: var(--ai-dock-radius, 10px);
 }
 .ai-input {
   flex: 1 1 auto;

@@ -1,119 +1,159 @@
+import { useEffect, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
-import { useSubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
+import { formatElapsed, durasiMs } from '../../lib/waktu';
+import StableText from './StableText';
+import '../../styles/ai-todo-card.css';
 
-function BarisTodo({
-  teks,
-  status,
-  n,
-}: {
-  teks: string;
-  status: 'pending' | 'in_progress' | 'done';
-  n: number;
-}) {
-  /*
-   * Three circular status markers, no boxes.
-   *
-   * The list used to mark rows with text glyphs (✓ / ◔ / ○) that all rendered
-   * at the same weight and size, so the one running task was no easier to find
-   * than the seven already finished. These are the three shapes a glance can
-   * sort without reading:
-   *
-   *   done         filled disc + white check   (success colour)
-   *   in_progress  ring with a sweeping arc    (warning colour, spinning)
-   *   pending      hollow ring, low contrast   (muted)
-   *
-   * The active row is deliberately the loudest: coloured, larger and spinning.
-   * Drawn as inline SVG so they take their colour from the theme tokens and sit
-   * on the text baseline without depending on a glyph existing in the font.
-   */
-  const isi =
-    status === 'done' ? (
-      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-        <circle cx="8" cy="8" r="7" fill="currentColor" />
-        <path
-          d="M4.6 8.3l2.4 2.4 4.4-4.9"
-          fill="none"
-          stroke="var(--bg0, #0d1117)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ) : status === 'in_progress' ? (
-      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" className="todo-putar">
-        <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.28" />
-        <path
-          d="M8 1.8a6.2 6.2 0 016.2 6.2"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.9"
-          strokeLinecap="round"
-        />
-      </svg>
-    ) : (
-      <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
-        <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      </svg>
-    );
-
-  return (
-    <div className={`todo-item is-${status}`} data-todo-status={status} data-testid={`todo-${n}`}>
-      <span className="todo-ikon" aria-hidden="true">
-        {isi}
-      </span>
-      <span className="todo-teks">{teks}</span>
-    </div>
-  );
-}
+/**
+ * Daftar progres tugas agent - satu kartu di atas kotak ketik.
+ *
+ * Cara menyatukannya dengan kotak ketik diambil dari Hermes Agent
+ * (`apps/desktop/src/app/chat/composer/status-stack/index.tsx`), yang memakai
+ * satu trik: kartu status dan kotak ketik BERBAGI SATU GARIS.
+ *
+ *   card = rounded-t-2xl  border-b-0
+ *   kotak ketik = rounded-b-2xl  border-t-0
+ *
+ * Sudut bawah kartu diluruskan, border bawahnya dihapus, dan tepi atas kotak
+ * ketik yang jadi garis pemisahnya. Hasilnya keduanya terbaca sebagai satu
+ * kapsul, bukan dua kotak yang kebetulan berdekatan.
+ *
+ * Karena itu komponen ini HARUS jadi saudara langsung kotak ketik, di dalam
+ * kolom dock yang sama - bukan anak `.ai-chat`.
+ */
+const KUNCI_LIPAT = 'zephyr.todoCard.collapsed';
 
 export default function TodoPanel() {
   const tr = useT();
   const todos = useAi((s) => s.agentTodos);
-  const agents = useSubAgent((s) => s.agents);
-  const sibukSub = useSubAgent((s) => s.sibuk);
-  const agentBusy = useAi((s) => s.agentBusy);
 
-  const adaTodo = todos.length > 0;
-  const adaSub = agents.length > 0;
-  if (!adaTodo && !adaSub) return null;
+  const [lipat, setLipat] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(KUNCI_LIPAT) === '1';
+    } catch {
+      return false;
+    }
+  });
 
-  const selesai = todos.filter((t) => t.status === 'done').length;
-  const persen = adaTodo ? Math.round((selesai / todos.length) * 100) : 0;
+  // Segarkan durasi tiap 10 detik. Interval mati saat terlipat: tidak ada
+  // angka durasi yang terlihat, jadi tidak ada yang perlu dihitung.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (todos.length === 0 || lipat) return;
+    const t = setInterval(() => setTick((x) => x + 1), 10_000);
+    return () => clearInterval(t);
+  }, [todos.length, lipat]);
+
+  const ubahLipat = (nilai: boolean) => {
+    setLipat(nilai);
+    try {
+      localStorage.setItem(KUNCI_LIPAT, nilai ? '1' : '0');
+    } catch {
+      /* localStorage bisa diblokir; lipat tetap jalan untuk sesi ini. */
+    }
+  };
+
+  if (todos.length === 0) return null;
+
+  const done = todos.filter((t) => t.status === 'done').length;
+  const jalan = todos.some((t) => t.status === 'in_progress');
+
+  /*
+   * Durasi memakai `formatElapsed` tingkat modul, bukan aritmetika lokal.
+   *
+   * Versi sebelumnya memakai `Math.max(1, ...)`: tugas yang SELESAI dalam waktu
+   * di bawah satu detik dilaporkan sebagai "1s", seolah berjalan lebih lama
+   * daripada kenyataannya. `formatElapsed` melaporkan "0s" dengan jujur.
+   *
+   * Tugas yang BELUM PERNAH MULAI tidak punya durasi sama sekali, jadi
+   * hasilnya string kosong - bukan "0s". Bagi user, "0s" berarti "barusan
+   * mulai", sedangkan kenyataannya "belum jalan". Dua hal berbeda.
+   */
+  const dur = (t: { startedAt?: number; endedAt?: number; status: string }): string => {
+    if (!t.startedAt) return '';
+    return formatElapsed(durasiMs(t.startedAt, t.status === 'done' ? t.endedAt : undefined));
+  };
+
+  const statusTeks = (status: string) => {
+    if (status === 'done') return tr('Done');
+    if (status === 'in_progress') return tr('Running');
+    return tr('Waiting');
+  };
 
   return (
-    <div className="todo-panel" data-testid="todo-panel">
-      {adaTodo && (
-        <div className="todo-blok">
-          <div className="todo-head">
-            <span className="todo-judul">{tr('Task list')}</span>
-            <span className="todo-progress">
-              {selesai}/{todos.length}
-            </span>
-            {(agentBusy || sibukSub) && <span className="todo-spin" aria-hidden="true">◔</span>}
-          </div>
-          {/* Progress bar: one glance is enough to know how far along it is. */}
-          <div className="todo-bar" role="progressbar" aria-valuenow={persen}>
-            <div className="todo-bar-isi" style={{ width: `${persen}%` }} />
-          </div>
-          <div className="todo-list" data-testid="ai-todos">
-            {todos.map((t, i) => (
-              <BarisTodo key={i} teks={t.content} status={t.status} n={i} />
-            ))}
-          </div>
-        </div>
-      )}
+    <div className={`todo-dock${lipat ? ' is-lipat' : ''}`} data-testid="todo-panel">
+      <button
+        type="button"
+        className="todo-dock-head"
+        data-testid="todo-lipat"
+        aria-expanded={!lipat}
+        aria-controls="todo-daftar"
+        title={lipat ? tr('Expand') : tr('Collapse')}
+        onClick={() => ubahLipat(!lipat)}
+      >
+        <span className="todo-caret" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 16 16">
+            <path
+              d="M5.5 3.5L10 8l-4.5 4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span className="todo-caret-ikon" aria-hidden="true">
+          {/* Ikon checklist, sama semangatnya dengan `checklist` codicon Hermes. */}
+          <svg width="13" height="13" viewBox="0 0 16 16">
+            <path
+              d="M2.5 4.2l1.6 1.6 3-3.1M2.5 11.2l1.6 1.6 3-3.1M9 4.6h4.6M9 11.6h4.6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span className="todo-judul">{tr('Task list')}</span>
+        <span className="todo-count">
+          {done}/{todos.length}
+        </span>
+        {jalan && !lipat && <span className="todo-jalan" aria-hidden="true" />}
+      </button>
 
-      {adaSub && (
-        <div className="todo-blok">
-          <div className="todo-head">
-            <span className="todo-judul">
-              {tr('Subagent')} · {agents.filter((a) => a.status === 'selesai').length}/
-              {agents.length}
+      <div className="todo-daftar" id="todo-daftar" data-testid="ai-todos" hidden={lipat}>
+        {todos.map((t, i) => (
+          <div key={i} className={`todo-row ${t.status}`} data-testid={`todo-${i}`}>
+            <span className="todo-ic" aria-hidden="true">
+              {t.status === 'done' ? (
+                <svg width="14" height="14" viewBox="0 0 16 16">
+                  <circle cx="8" cy="8" r="7.2" fill="var(--success)" />
+                  <path
+                    d="M5 8.2l2 2 4-4.4"
+                    stroke="var(--bg0)"
+                    strokeWidth="1.8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : t.status === 'in_progress' ? (
+                <span className="spin" />
+              ) : (
+                <span className="todo-pend" />
+              )}
             </span>
+            <span className="todo-label" title={t.content}>
+              {t.content}
+            </span>
+            <span className="todo-status">{statusTeks(t.status)}</span>
+            <StableText className="todo-dur" teks={dur(t)} minSel={3} warnaDigit="var(--fg2)" judul={tr('Duration')} />
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

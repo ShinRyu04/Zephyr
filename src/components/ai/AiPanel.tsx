@@ -121,6 +121,8 @@ export default function AiPanel() {
   const ubahAntrian = useAi((s) => s.ubahAntrian);
   const cancel = useAi((s) => s.cancel);
   const kirimSekarang = useAi((s) => s.kirimSekarang);
+  const historyUp = useAi((s) => s.historyUp);
+  const historyDown = useAi((s) => s.historyDown);
   const exportChat = useAi((s) => s.exportChat);
   const newChat = useAi((s) => s.newChat);
   const selectChat = useAi((s) => s.selectChat);
@@ -866,13 +868,12 @@ const JEJAK_TOOL_MAKS = 4;
         ) : (
           msgs.map((m) => <ChatMessage key={m.id} msg={m} />)
         )}
-      </div>
 
-      {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written
-          by the agent mid-task, but once the task finishes the user still needs
-          to see what was done - if the panel disappears with it,
-          the TODO cannot be monitored at all. */}
-      <TodoPanel />
+        {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written
+            by the agent mid-task, but once the task finishes the user still needs
+            to see what was done - if the panel disappears with it,
+            the TODO cannot be monitored at all. */}
+      </div>
 
       {/*
         The step-by-step tool log that used to live here is GONE on purpose.
@@ -1262,6 +1263,13 @@ const JEJAK_TOOL_MAKS = 4;
       </div>
       )}
 
+      {/* Daftar tugas agent: satu kartu DI ATAS kotak ketik, dan sudut bawah
+          kartu itu lurus supaya menyambung ke tepi atas kotak ketik - keduanya
+          berbagi satu garis dan terbaca sebagai satu kapsul. Karena itu ia
+          harus jadi SAUDARA kotak ketik di sini, bukan anak .ai-chat: kalau
+          dipisah, tepinya tidak akan pernah segaris. */}
+      <TodoPanel />
+
       <div className="ai-input-row">
         {draftImages.length > 0 && (
           <div className="ai-imgstrip" data-testid="ai-imgstrip">
@@ -1400,6 +1408,20 @@ const JEJAK_TOOL_MAKS = 4;
               setIdxSaran((i) => (e.key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n));
               return;
             }
+
+            // Prompt History Navigation
+            const st = useAi.getState();
+            const inHistory = st.promptHistoryIdx >= 0 && draft === st.promptHistory[st.promptHistoryIdx];
+            if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && saran.length === 0 && saranFile.length === 0) {
+              if (draft === '' || inHistory) {
+                e.preventDefault();
+                const nextDraft = e.key === 'ArrowUp' ? historyUp() : historyDown();
+                if (nextDraft !== null) setDraft(nextDraft);
+                else setDraft(''); // if we go down past 0, clear it
+                return;
+              }
+            }
+
             if (saran.length > 0 && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey))) {
               e.preventDefault();
               pakaiPrompt(saran[idxSaran]);

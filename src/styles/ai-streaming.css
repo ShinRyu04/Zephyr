@@ -28,8 +28,18 @@
  * "halo?" across three lines, and the wider paragraphs sat at a different left
  * edge than the lists. Full width keeps one shared column with no drift.
  */
+/*
+ * Inden kiri/kanan kolom percakapan, DISIMPAN di satu variabel karena TIGA
+ * elemen harus memakai angka yang sama persis supaya sejajar:
+ *   .ai-chat      - padding kolomnya sendiri
+ *   .ai-input-row - kotak ketik di bagian bawah
+ *   .todo-bungkus - kartu progres tugas (ai-todo-card.css)
+ * Dulu hanya 16px dan 12px yang kebetulan sama-sama pas; begitu salah satunya
+ * diubah, kartu dan kotak ketik meleset beberapa piksel dari gelembung pesan.
+ */
 .ai-chat {
-  padding: 14px 16px 8px;
+  --ai-chat-pad-x: 12px;
+  padding: 14px var(--ai-chat-pad-x) 8px;
 }
 
 .ai-chat > * {
