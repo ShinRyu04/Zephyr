@@ -2081,6 +2081,7 @@ const ID: Dict = {
   'On branch {name}': "Di branch {name}",
   'Copy output': "Salin keluaran",
   'Go to the newest': "Ke yang terbaru",
+  'Click to open': "Klik untuk buka",
   'Stop loop': "Hentikan loop",
 };
 const EN: Dict = {
@@ -4183,6 +4184,7 @@ const EN: Dict = {
   'On branch {name}': "On branch {name}",
   'Copy output': "Copy output",
   'Go to the newest': "Go to the newest",
+  'Click to open': "Click to open",
   'Stop loop': "Stop loop",
 };
 const JA: Dict = {
@@ -6254,6 +6256,7 @@ const JA: Dict = {
   'On branch {name}': "ブランチ {name}",
   'Copy output': "出力をコピー",
   'Go to the newest': "最新へ移動",
+  'Click to open': "クリックして開く",
   'Stop loop': "ループを停止",
 };
 const KO: Dict = {
@@ -8325,6 +8328,7 @@ const KO: Dict = {
   'On branch {name}': "브랜치 {name}",
   'Copy output': "출력 복사",
   'Go to the newest': "최신으로 이동",
+  'Click to open': "클릭하여 열기",
   'Stop loop': "루프 중지",
 };
 const ZH: Dict = {
@@ -10396,6 +10400,7 @@ const ZH: Dict = {
   'On branch {name}': "分支 {name}",
   'Copy output': "复制输出",
   'Go to the newest': "跳到最新",
+  'Click to open': "点击打开",
   'Stop loop': "停止循环",
 };
 const ES: Dict = {
@@ -12467,6 +12472,7 @@ const ES: Dict = {
   'On branch {name}': "En la rama {name}",
   'Copy output': "Copiar salida",
   'Go to the newest': "Ir a lo más reciente",
+  'Click to open': "Clic para abrir",
   'Stop loop': "Detener el bucle",
 };
 const FR: Dict = {
@@ -14538,6 +14544,7 @@ const FR: Dict = {
   'On branch {name}': "Sur la branche {name}",
   'Copy output': "Copier la sortie",
   'Go to the newest': "Aller au plus récent",
+  'Click to open': "Cliquez pour ouvrir",
   'Stop loop': "Arrêter la boucle",
 };
 const DE: Dict = {
@@ -16609,6 +16616,7 @@ const DE: Dict = {
   'On branch {name}': "Auf Branch {name}",
   'Copy output': "Ausgabe kopieren",
   'Go to the newest': "Zum Neuesten",
+  'Click to open': "Zum Öffnen klicken",
   'Stop loop': "Schleife stoppen",
 };
 const PT: Dict = {
@@ -18680,6 +18688,7 @@ const PT: Dict = {
   'On branch {name}': "No branch {name}",
   'Copy output': "Copiar saída",
   'Go to the newest': "Ir para o mais recente",
+  'Click to open': "Clique para abrir",
   'Stop loop': "Parar o loop",
 };
 const AR: Dict = {
@@ -20751,6 +20760,7 @@ const AR: Dict = {
   'On branch {name}': "على الفرع {name}",
   'Copy output': "نسخ المخرجات",
   'Go to the newest': "الانتقال إلى الأحدث",
+  'Click to open': "انقر للفتح",
   'Stop loop': "إيقاف الحلقة",
 };
 export const EXTRA: Record<string, Dict> = {

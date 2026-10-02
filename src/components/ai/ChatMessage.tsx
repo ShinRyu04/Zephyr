@@ -7,6 +7,7 @@ import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
+import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
@@ -149,6 +150,8 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
 }
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
+  /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
+  const [gambarBuka, setGambarBuka] = useState<string | null>(null);
   const tr = useT();
   const isUser = msg.role === 'user';
   const def = msg.model ? findModel(msg.model) : null;
@@ -261,12 +264,29 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             return (
               <div className="ai-msg-imgs" data-testid="ai-msg-imgs">
                 {imgs.map((src, i) => (
+                  /*
+                   * Clicking an attachment opens it full-size.
+                   *
+                   * The thumbnail is 88px - enough to confirm the image arrived,
+                   * nowhere near enough to read what is in it. Before this the
+                   * click did nothing, so the only way to actually look at a
+                   * screenshot the user attached was to find the file on disk.
+                   */
                   <img
                     className="ai-msg-img"
                     key={i}
                     src={src}
                     alt={`Attachment ${i + 1}`}
                     data-testid="ai-msg-img"
+                    role="button"
+                    tabIndex={0}
+                    title={tr('Click to open')}
+                    onClick={() => setGambarBuka(src)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      setGambarBuka(src);
+                    }}
                   />
                 ))}
               </div>
@@ -349,8 +369,21 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                         /^\{\s*"(path|command|query)":\s*""\s*\}$/.test(label);
                       return (
                         <>
+                          {/*
+                            * One glyph for every kind of call: the shell prompt.
+                            *
+                            * The row used to draw a per-kind outline icon (a page
+                            * for reads, a magnifier for searches), which told the
+                            * reader what the call did but left the column without
+                            * a rhythm - twenty different shapes in twenty rows is
+                            * a list you have to read, not one you can scan. The
+                            * reference leads every row with the same green `>_`,
+                            * and the KIND is still carried by the colour via the
+                            * `is-<jenis>` class below. Same mark, different hue:
+                            * scannable AND informative.
+                            */}
                           <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
-                            <AiIkon name={info.ikon as never} size={13} />
+                            <AiIkon name="prompt" size={13} />
                           </span>
                           <span className="ai-toolrun-name">{info.label}</span>
                           {fileChip ? (
@@ -600,6 +633,15 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
           )}
         </div>
       )}
+      {/*
+        * The full-size viewer, mounted only while an image is open.
+        *
+        * Mounted at the END of the message rather than at the panel level so it
+        * needs no store of its own - the message already owns the list of
+        * attachments, and one component that opens its own images is smaller
+        * than a global viewer plus the plumbing to feed it a source.
+        */}
+      {gambarBuka && <Lightbox src={gambarBuka} onClose={() => setGambarBuka(null)} />}
     </div>
   );
 }

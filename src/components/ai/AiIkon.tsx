@@ -76,6 +76,9 @@ export type NamaAiIkon =
        in its queue panel. Distinct from 'snippet' (which carries a dash and
        means "prompt fragment") and from 'new-chat' (which carries a plus). */
     | 'comment'
+    /* A shell prompt: `>` with a cursor bar. Every tool row in the transcript
+       leads with it - see the comment on the case below. */
+    | 'prompt'
     | 'x';
 
 interface Props {
@@ -441,6 +444,24 @@ export default function AiIkon({ name, size = 15 }: Props) {
       return (
         <svg {...box}>
           <path d="M13.6 8.2a5.2 5.2 0 0 1-7.3 4.7l-3.9.9.9-3.8A5.2 5.2 0 1 1 13.6 8.2z" />
+        </svg>
+      );
+
+    /*
+     * A shell prompt: `>` followed by a cursor bar.
+     *
+     * Every tool row in the transcript leads with this mark, which is the shape
+     * the reference uses (terax-ai draws `>_` in green at the head of each tool
+     * call). It is deliberately the SAME mark for every kind of call: the column
+     * of identical prompts is what makes a long transcript scannable - the eye
+     * runs down the left edge and finds each call without reading anything. The
+     * kind is carried by the colour (see `.is-*` in ai.css), not by the glyph.
+     */
+    case 'prompt':
+      return (
+        <svg {...box} strokeWidth={1.8}>
+          <path d="M3 4.2 6.6 8 3 11.8" />
+          <path d="M8.4 11.8h4.6" />
         </svg>
       );
 

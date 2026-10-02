@@ -831,25 +831,70 @@
   border: 0;
   padding-left: 0;
 }
+/*
+ * A tool row in the transcript has NO box.
+ *
+ * The reader's correction, and the reference agrees: in the reference every tool
+ * call in the transcript is a bare line - caret, prompt, name, chip - separated
+ * from the next by a hairline, with no border, no radius and no fill. The boxed
+ * card belongs INSIDE the status stack (the running/expanded view), not here.
+ * Twenty boxes in a conversation turns the transcript into a wall of frames;
+ * twenty lines read as a log.
+ */
 .ai-toolrun {
   border: 0;
   background: none;
   overflow: hidden;
+  animation: ai-toolrun-in 180ms ease-out both;
 }
+/*
+ * The tool row, shaped like the reference's header line.
+ *
+ * Left to right: caret, green prompt, the action's name in bright text, then the
+ * target as a code chip. The name is the one bright thing on the row - it is
+ * what the reader scans for - while the chip and the trailing meta stay muted so
+ * a column of rows reads as a list of actions rather than as a wall of text.
+ */
 .ai-toolrun-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   width: 100%;
-  padding: 2px 0;
-  background: none;
+  padding: 3px 6px;
   border: 0;
+  border-radius: 6px;
+  background: none;
   color: var(--text-muted);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background 110ms ease;
+}
+
+/* Rows arrive as they are appended, so they fade in - the same 180ms slide the
+   tool cards use, which keeps the two surfaces reading as one system. */
+.ai-toolrun {
+  animation: ai-toolrun-in 180ms ease-out both;
+}
+
+@keyframes ai-toolrun-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-toolrun {
+    animation: none;
+  }
 }
 .ai-toolrun-head:hover {
+  background: var(--bg1);
   color: var(--text);
 }
 .ai-toolrun-head:hover .ai-toolrun-args,
@@ -874,6 +919,19 @@
  * action it was. Green is the convention every agent UI already uses for "this
  * ran", and it is the only colour on an otherwise monochrome row, so the eye
  * can follow the icon column straight down.
+ */
+/*
+ * The tool row's glyph: a terminal prompt in green.
+ *
+ * The reference leads every tool row with a green `>_` (terax-ai's tool card
+ * header), and the shape does two jobs at once - it says "a command ran" and it
+ * says which rows are actions rather than conversation, without the reader
+ * parsing a word. Zephyr drew a per-kind outline icon here, which was
+ * informative but read as decoration next to the green prompt in the reference:
+ * the column of identical green marks is what makes the transcript scannable.
+ *
+ * The per-kind colour still applies (see the `.is-*` rules below) - the shape is
+ * the prompt, the colour still carries the kind.
  */
 .ai-toolrun-ikon {
   flex: none;
@@ -1115,12 +1173,61 @@
   display: none;
 }
 
+/*
+ * The caret and the status bullet at the head of the row.
+ *
+ * The reference opens every tool line with a small solid dot whose colour IS
+ * the state - amber while running, green when done, red on failure - followed
+ * by the shell prompt. Zephyr had only the caret, so the state lived at the far
+ * end of the row (the elapsed time and the failure word) and a running call
+ * looked identical to a finished one when scanning down the left edge.
+ *
+ * The dot is 6px and sits before the prompt: it is the first thing the eye
+ * crosses on every row, which is exactly where a status marker belongs.
+ */
 .ai-toolrun-caret {
   flex: none;
   width: 8px;
   color: var(--text-muted);
   font-size: 8px;
   opacity: 0.7;
+}
+
+.ai-toolrun-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+/* Done: a quiet outline - the call finished, nothing to look at. */
+.ai-toolrun-dot.is-beres {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+}
+
+/* Running: solid amber and pulsing. The one state that changes, so the one
+   state that moves. */
+.ai-toolrun-dot.is-jalan {
+  background: var(--warning, #d29922);
+  animation: ai-dot-pulse 1.5s ease-in-out infinite;
+}
+
+/* Failed: solid red - the loudest mark in the column, deliberately. */
+.ai-toolrun-dot.is-gagal {
+  background: var(--danger);
+}
+
+@keyframes ai-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-toolrun-dot.is-jalan {
+    animation: none;
+  }
 }
 
 /*
@@ -1139,19 +1246,44 @@
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
 }
+/*
+ * The action's name: the one bright thing on the row.
+ *
+ * The reference prints it in normal-weight bright text (`Open page`), while
+ * everything else on the line - the chip, the timing, the state word - is muted.
+ * That single bright element is what the eye lands on when scanning a column of
+ * calls, so the weight here is deliberate: 500, not 700, because bold at this
+ * size starts to compete with the message text above the transcript.
+ */
 .ai-toolrun-name {
   flex: none;
   color: var(--text);
   font-size: 11px;
+  font-weight: 500;
 }
+/*
+ * The argument, drawn as a code chip.
+ *
+ * The reference wraps the call's target in a bordered pill with a monospace
+ * value inside (`Open page` + `[https://www.google.com]`), and the chip is the
+ * strongest shape on the row - it is how the reader tells the action's name
+ * from the thing it acted on. A bare muted string left the two running together
+ * as one sentence.
+ */
 .ai-toolrun-args {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
-  color: var(--text-muted);
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 5px;
+  background: var(--bg1);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
 }
 /* A failed call stays quiet: one short word in the danger colour, sized like
    the rest of the row. It used to be a pill with a tinted fill that pulled the

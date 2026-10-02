@@ -1,0 +1,135 @@
+/*
+ * The image viewer.
+ *
+ * A near-opaque backdrop, not pure black: the panel behind stays faintly
+ * visible, so the viewer reads as part of the app rather than as a different
+ * program that took over the screen. The blur is what keeps the transcript
+ * legible enough to orient by without competing with the image.
+ */
+.ai-lb {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  background: color-mix(in srgb, var(--bg0) 94%, transparent);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+  animation: ai-lb-in 140ms ease-out both;
+}
+
+@keyframes ai-lb-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/*
+ * The image keeps its own aspect and never exceeds the viewport.
+ *
+ * `object-fit: contain` with `max-width/max-height` is what makes a tall
+ * screenshot and a wide one both fit without either being cropped - the point
+ * of opening an attachment is to see ALL of it.
+ *
+ * `transform-origin: center` is paired with the translate/scale written by the
+ * component; the pan offset is applied first in that string so zooming does not
+ * shift the image under the cursor.
+ */
+.ai-lb-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  user-select: none;
+  transition: transform 80ms ease-out;
+}
+
+.ai-lb-img:active {
+  cursor: grabbing;
+}
+
+/*
+ * The control bar, pinned to the bottom centre.
+ *
+ * It is a child of the backdrop, so it needs `stopPropagation` on its own click
+ * (done in the component) or every button press would also close the viewer.
+ */
+.ai-lb-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.ai-lb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.ai-lb-btn:hover {
+  background: var(--bg2);
+  color: var(--text);
+}
+
+.ai-lb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ai-lb-btn.is-close {
+  color: var(--text-muted);
+}
+
+.ai-lb-btn.is-close:hover {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  color: var(--danger);
+}
+
+.ai-lb-zoom {
+  min-width: 42px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-lb { animation: none; }
+  .ai-lb-img { transition: none; }
+}
+
+/* The thumbnail in the transcript: clicking it opens the viewer, so it has to
+   look clickable. */
+.ai-msg-img {
+  cursor: zoom-in;
+  transition: opacity 120ms ease;
+}
+
+.ai-msg-img:hover {
+  opacity: .88;
+}
