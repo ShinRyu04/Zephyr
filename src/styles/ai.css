@@ -1875,12 +1875,30 @@
   color: var(--accent);
 }
 
+/*
+ * Daftar langkah agent.
+ *
+ * `max-height: 130px` + `overflow-y: auto` DIHAPUS dari sini, dan itu
+ * memperbaiki keluhan "ketimbun dan melayang".
+ *
+ * Blok ini hidup di dalam `.ai-chat`, yang sudah punya `overflow-y: auto`.
+ * Memberinya scroll SENDIRI berarti ada dua scroll bersarang: daftar langkahnya
+ * menggulir tanpa menggerakkan percakapan di belakangnya, sehingga batasnya
+ * tidak terbaca - isinya seperti melayang di atas teks dan terpotong di tengah
+ * kalimat. Angka 130px juga tidak ada hubungannya dengan isi: satu langkah
+ * dengan argumen panjang langsung terpotong.
+ *
+ * CATATAN: kelas ini ternyata tidak pernah dipakai di JSX - isi tumpukan status
+ * memakai `.ai-work-body`. Perbaikannya tetap dilakukan di sini karena (a)
+ * kalau nanti ada yang memakainya, angkanya salah, dan (b) membiarkan aturan
+ * yang membahayakan tetap ada berarti menunggu bug yang sama terulang.
+ * Perbaikan yang benar-benar berlaku ada di `.ai-work-body` (ai-work-stack.css).
+ */
 .ai-agent {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 130px;
-  overflow-y: auto;
+  min-height: 0;
   padding: 6px 10px;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated, rgba(128, 128, 128, 0.05));

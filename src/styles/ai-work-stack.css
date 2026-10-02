@@ -19,6 +19,23 @@
  * 1px. It sits under the transcript and must never compete with it.
  */
 
+/*
+ * Batas tinggi tumpukan status.
+ *
+ * `40vh` diambil dari Hermes (`max-h-[40vh]` pada `composer-status-stack`), dan
+ * angkanya punya alasan: ia cukup untuk melihat beberapa baris sekaligus,
+ * sementara percakapan di atasnya tetap kebagian ruang. Tanpa batas, satu loop
+ * dengan banyak langkah akan mendorong percakapan keluar dari layar - dan
+ * percakapan itu yang utama, bukan statusnya.
+ *
+ * `overflow-y: auto` di SINI adalah satu-satunya scroll di dalam tumpukan ini.
+ * Sebelumnya `.ai-agent` juga punya scroll sendiri, dan dua scroll bersarang
+ * itulah yang membuat isinya tampak terpotong dan melayang.
+ *
+ * `overscroll-behavior: contain` menahan gulir roda di sini: tanpa itu, sekali
+ * pengguna mencapai ujung daftar, gulirannya "bocor" ke percakapan di belakang
+ * dan halaman melompat tanpa sebab yang terlihat.
+ */
 .ai-work-stack {
   display: flex;
   flex-direction: column;
@@ -27,7 +44,10 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg1);
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: 40vh;
+  min-height: 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--fg1);
@@ -123,10 +143,34 @@
   line-height: 1;
 }
 
+/*
+ * Isi tumpukan status: daftar langkah yang sedang berjalan.
+ *
+ * `max-height` + `overflow-y: auto` DIPASANG DI SINI, dan hanya di sini.
+ *
+ * Sebelumnya isi ini setinggi apa pun, sehingga satu loop dengan banyak langkah
+ * mendorong percakapan keluar dari layar - dan karena ia berada di dalam
+ * `.ai-chat` yang menggulir, hasilnya adalah dua scroll yang bersaing: bagian
+ * dalamnya menggulir tanpa menggerakkan percakapan di belakangnya, dan
+ * batasnya tidak terbaca. Itu yang membuatnya tampak "ketimbun dan melayang".
+ *
+ * `40vh` diambil dari Hermes (`max-h-[40vh]` pada `composer-status-stack`), dan
+ * angkanya punya alasan: cukup untuk melihat beberapa baris sekaligus,
+ * sementara percakapan di atasnya tetap kebagian ruang. Percakapan itu yang
+ * utama; statusnya hanya keterangan.
+ *
+ * `overscroll-behavior: contain` menahan gulir roda di sini, sehingga setelah
+ * mencapai ujung daftar gulirannya tidak "bocor" ke percakapan di belakang dan
+ * membuat halaman melompat tanpa sebab yang terlihat.
+ */
 .ai-work-body {
   padding: 2px 10px 9px;
   border-top: 1px solid var(--border);
   background: var(--bg0);
+  max-height: 40vh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* One finished step: what it did, to what, and how long it took. */
