@@ -146,6 +146,52 @@ export const SECTION_URUTAN: { id: ToolSection; label: string }[] = [
   { id: 'extensions', label: 'Extensions' },
 ];
 
+/*
+ * INTI 40: himpunan tool yang paling sering dipakai, diangkat ke atas.
+ *
+ * Alasannya sama dengan TEDI yang menyusun katalognya sebagai 40 tool dalam
+ * sepuluh kelompok: 76 tool sekaligus membuat agen harus membaca seluruh daftar
+ * sebelum memilih, dan daftar sepanjang itu membuat yang penting tenggelam
+ * bersama yang jarang dipakai.
+ *
+ * Angka 40 bukan angka ajaib - itu konsekuensi dari memilih berdasarkan
+ * PEMAKAIAN, bukan berdasarkan kelengkapan. Yang masuk di sini adalah tool yang
+ * muncul di hampir setiap tugas agent: membaca, mencari, mengedit, menjalankan
+ * perintah, memeriksa hasil. Yang tinggal di luar justru yang sifatnya khusus -
+ * browser, skill, cron, SSH, keybinding - dan itu memang jarang dipanggil
+ * sendiri tanpa diminta.
+ *
+ * Disimpan sebagai daftar eksplisit, BUKAN diturunkan dari aturan, karena
+ * pilihannya bergantung pada penilaian berapa sering sebuah tool benar-benar
+ * dipakai. Aturan yang "menebak" pemakaian akan menaikkan tool yang namanya
+ * mirip, bukan yang sering dipanggil.
+ */
+export const TOOL_INTI: string[] = [
+  /* Membaca dan mencari - hampir selalu jadi langkah pertama. */
+  'file_read', 'file_list', 'search_text', 'find_files', 'editor_read',
+  'get_problems', 'get_output', 'list_panes', 'git', 'lsp_query',
+
+  /* Mengubah berkas. */
+  'file_write', 'file_edit', 'file_patch', 'replace_in_files', 'editor_write',
+  'editor_save', 'file_delete', 'file_move', 'file_copy', 'dir_create',
+
+  /* Menjalankan dan memeriksa. */
+  'shell_exec', 'terminal_exec', 'terminal_read', 'terminal_kill',
+  'terminal_wait', 'run_tests', 'run_task',
+
+  /* Menjawab ke pengguna, dan tugas panjang. */
+  'ask_user', 'todo_write', 'todo_read', 'task_complete', 'plan_mode',
+  'memory_read', 'memory_write', 'notes',
+
+  /* Mencari di luar repo, dan agen. */
+  'web_search', 'web_fetch', 'subagent_run', 'subagent_list', 'schedule_command',
+];
+
+/** Apakah sebuah tool termasuk inti. */
+export function adalahInti(nama: string): boolean {
+  return TOOL_INTI.includes(nama);
+}
+
 export interface ToolGroup {
   id: ToolGroupId;
   /** Tool names as they appear in `agentTools.ts` — the join key. */

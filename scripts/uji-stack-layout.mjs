@@ -23,6 +23,48 @@ cdp.snapshot = null;
 /* ---- Siapkan: isi agent dengan beberapa langkah supaya ada yang ditata ---- */
 
 const siap = await cdp.json(`return JSON.stringify(await (async () => {
+  /*
+   * Panel AI DIBUKA dulu, dan ditunggu sampai benar-benar terpasang.
+   *
+   * Mengisi store saja tidak cukup: kalau panelnya tertutup, tidak ada yang
+   * merender tumpukannya - dan uji melaporkan "tumpukan tidak ada di DOM"
+   * padahal datanya lengkap. Kegagalan seperti itu menyesatkan: ia terlihat
+   * seperti bug komponen, padahal panelnya hanya belum dibuka.
+   *
+   * Hasilnya juga tidak bergantung lagi pada apa yang ditinggalkan uji lain,
+   * karena panelnya dipastikan terbuka di sini.
+   */
+  /*
+   * Panel AI dibuka lewat IKON di ActivityBar, bukan lewat aksi store.
+   *
+   * Tidak ada setAiOpen di store ini - panelnya dikendalikan panelStore dan
+   * command registry. Versi pertama skrip ini menebak nama aksinya, dan
+   * kegagalannya menyesatkan: terlihat seperti komponen yang tidak merender,
+   * padahal cuma panelnya belum pernah dibuka.
+   *
+   * Dipanggil lewat registry supaya ujinya memakai jalur yang sama dengan
+   * pengguna yang menekan pintasan panel - bukan menyetel state internal yang
+   * bisa saja tidak lagi mengendalikan apa pun.
+   */
+  if (!document.querySelector('.ai-chat')) {
+    /*
+     * Panel dibuka lewat IKONNYA, sama seperti pengguna.
+     *
+     * Ini jalur yang paling tidak bergantung pada bentuk dalam kode: tidak ada
+     * nama aksi store yang perlu ditebak, tidak ada bentuk registry yang perlu
+     * dicocokkan. Kalau ikonnya ada dan bisa diklik, panelnya terbuka - dan
+     * kalau tidak, itu memang temuan yang perlu diketahui, bukan asumsi yang
+     * perlu diakali.
+     */
+    const btns = [...document.querySelectorAll('.activitybar button, .activitybar [role="button"]')];
+    const ai = btns.find((b) => /ai|mcp/i.test((b.getAttribute('aria-label') || '') + (b.title || '')));
+    if (ai) ai.click();
+
+    for (let i = 0; i < 15 && !document.querySelector('.ai-chat'); i++) {
+      await new Promise((res) => setTimeout(res, 300));
+    }
+  }
+
   const a = await import(String.fromCharCode(47) + 'src' + String.fromCharCode(47) + 'lib' + String.fromCharCode(47) + 'aiStore.ts');
   const s = a.useAi.getState();
 
@@ -49,11 +91,25 @@ const siap = await cdp.json(`return JSON.stringify(await (async () => {
     });
   }
   a.useAi.setState({ agentBusy: true, agentSteps: langkah, agentPhase: 'working' });
-  await new Promise((res) => setTimeout(res, 900));
-  return { jumlah: (a.useAi.getState().agentSteps || []).length };
+
+  /* Ditunggu sampai tumpukannya benar-benar terpasang, bukan sekadar dijeda
+     sekian milidetik - lamanya render bergantung pada mesin. */
+  for (let i = 0; i < 15 && !document.querySelector('.ai-work-stack'); i++) {
+    await new Promise((res) => setTimeout(res, 300));
+  }
+
+  return {
+    jumlah: (a.useAi.getState().agentSteps || []).length,
+    mapTerpasang: !!document.querySelector('.ai-work-stack'),
+    panel: !!document.querySelector('.ai-chat'),
+  };
 })())`);
 
-r.check('L0', siap.jumlah > 0, `${siap.jumlah} langkah agent disiapkan untuk diuji`);
+r.check(
+  'L0',
+  siap.jumlah > 0 && siap.mapTerpasang === true,
+  `${siap.jumlah} langkah disiapkan; panel=${siap.panel}, tumpukan terpasang=${siap.mapTerpasang}`,
+);
 
 /* ---- L1: tidak ada scroll bersarang ---- */
 
