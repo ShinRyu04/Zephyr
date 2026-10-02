@@ -16,13 +16,37 @@
 
 /* ── Trace: one line per step ─────────────────────────────────────────── */
 
+/*
+ * Daftar langkah agent di dalam tumpukan status.
+ *
+ * `overflow-y: auto` + `max-height: 40%` DIHAPUS dari sini, dan inilah
+ * perbaikan yang sebenarnya berlaku.
+ *
+ * Ada DUA berkas yang menata `.ai-agent`: `ai.css` dan berkas ini.
+ * Berkas ini dimuat SETELAHNYA ("Loaded after ai.css so these rules win"), jadi
+ * aturan di sini yang menang - dan perbaikan pertama saya di `ai.css` tidak
+ * pernah berlaku. Itu ketahuan hanya karena uji tata letak membaca GAYA
+ * TERHITUNG dari elemen yang hidup: aturan yang kalah tetap "ada" di berkasnya,
+ * dan pemeriksaan atas isi berkas akan melaporkannya sebagai sudah diperbaiki.
+ *
+ * Kenapa dua batas ini salah di sini:
+ *
+ * `max-height: 40%` diukur terhadap tinggi INDUKNYA (`.ai-work-body`), bukan
+ * terhadap viewport. Jadi batasnya berubah-ubah mengikuti tinggi induk yang
+ * sudah dibatasi - dan saat isinya sedikit lebih tinggi (42px di kotak 26px),
+ * daftarnya langsung mendapat scroll SENDIRI di dalam `overflow-y: auto`
+ * milik induknya. Dua scroll bersarang, persis yang membuatnya tampak terpotong
+ * dan melayang.
+ *
+ * `.ai-work-body` sudah punya batas 40vh dan gulirnya sendiri. Menambahkan
+ * batas kedua di dalamnya hanya membuat dua kotak bersaing mengurus panjang
+ * yang sama. Satu kotak, satu batas, satu scroller.
+ */
 .ai-agent {
   display: flex;
   flex-direction: column;
   gap: 0;
   padding: 4px 10px 6px;
-  overflow-y: auto;
-  max-height: 40%;
   flex: 0 1 auto;
   min-height: 0;
 }

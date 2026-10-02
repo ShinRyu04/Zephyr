@@ -638,7 +638,7 @@ const main = async () => {
       gemReq.length >= 2 &&
       gemReq[0].headers.xGoog === 'MOCK-KEY-GEMINI-1234' &&
       v3.errors === 0,
-    `streaming bertahap: panjang teks naik ${naik}x (${v3.jejak.map((x) => x.n).join('竊・)}), indikator "mengetik窶ｦ" tampil; markdown <strong>=${JSON.stringify(v3.bold)}; adapter gemini dipanggil ${gemReq.length}x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)`,
+    `streaming bertahap: panjang teks naik ${naik}x (${v3.jejak.map((x) => x.n).join(', ')}), indikator "mengetik..." tampil; markdown <strong>=${JSON.stringify(v3.bold)}; adapter gemini dipanggil ${gemReq.length}x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V4: attach file aktif 竊・jawaban mengutip isinya 笏笏笏笏笏笏笏笏笏

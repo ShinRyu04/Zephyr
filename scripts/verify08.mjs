@@ -503,14 +503,14 @@ const main = async () => {
        * Test connection hits the real provider, so the assertion is "the user
        * got an answer with a result icon", not "the answer was success".
        *
-       * This used to require ✁E which made the suite fail on a machine with no
+       * This used to require X, which made the suite fail on a machine with no
        * network, no quota, or an expired key - none of which is a bug in
        * Zephyr. The dummy key in this suite genuinely reaches Google and gets a
        * 400; that IS the correct behaviour being tested (the request was built
-       * and sent, the reply was surfaced). Keep ✁Eor ✁E allow the pending
+       * and sent, the reply was surfaced). Keep ✕ or ✗ to allow the pending
        * spinner never to be the final state.
        */
-      /✕|✁E.test(v8.hasil),
+      /✕|✗/.test(v8.hasil),
     `hasKey ${v8.hasKeyAwal} -> ${v8.hasKey}, badge "${v8.badge0}" -> "${v8.badge1}", mask="${v8.preview}", key utuh bocor ke frontend=${v8.adaKeyUtuh}, logo brand=${v8.logo}; test connection: ${v8.hasil.slice(0, 92)}`,
   );
 

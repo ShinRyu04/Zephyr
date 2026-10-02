@@ -208,7 +208,27 @@ if (!agen.ada) {
 
 /* ---- L3: percakapan tidak tertimpa ---- */
 
-const timpa = await cdp.json(`return JSON.stringify((() => {
+const timpa = await cdp.json(`return JSON.stringify(await (async () => {
+  /*
+   * Overlay ditutup DULU.
+   *
+   * elementFromPoint mengembalikan elemen teratas di titik itu, dan overlay
+   * apa pun - panel sekat tool, dialog, atau scrim - akan menang atas apa yang
+   * ada di bawahnya. Uji ini sempat melaporkan "percakapan menimpa tumpukan"
+   * padahal yang menutupinya adalah scrim sekat tool yang kebetulan terbuka
+   * dari uji sebelumnya. Menutupnya dulu membuat hasilnya tidak bergantung pada
+   * apa yang ditinggalkan uji lain.
+   */
+  const scrim = document.querySelector('.tg-scrim, [class*=scrim]');
+  if (scrim) {
+    scrim.click();
+    await new Promise((res) => setTimeout(res, 400));
+  }
+  if (document.querySelector('.tg-scrim')) {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise((res) => setTimeout(res, 400));
+  }
+
   const chat = document.querySelector('.ai-chat');
   const stack = document.querySelector('.ai-work-stack');
   if (!chat || !stack) return { bisaDiperiksa: false };

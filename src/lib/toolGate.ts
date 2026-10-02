@@ -106,6 +106,46 @@ export type ToolGroupId =
   | 'browser' | 'ssh' | 'skills'
   | `tool:${string}`;
 
+/*
+ * SECTION: dua tingkat, seperti TEDI.
+ *
+ * Panel TEDI (src/modules/ai/tools/catalog.ts) menyusun katalognya sebagai
+ * ToolSection = "Built-in" | "MCP" | "Extensions", dan di dalam tiap section
+ * ada grup. Pemisahan itu punya alasan yang jelas bagi pembaca: tool bawaan
+ * aplikasi dan tool yang datang dari server MCP punya ASAL yang berbeda, dan
+ * ketika ada yang tidak berfungsi, pertanyaan pertama selalu "ini tool siapa".
+ * Satu daftar pipih berisi tiga puluh baris tidak bisa menjawab itu.
+ *
+ * Di Zephyr namanya "Zephyr", bukan "Built-in": di sini ada juga tool yang
+ * datang dari extension, dan label yang menyebut nama aplikasinya langsung
+ * menjawab pertanyaan itu tanpa perlu dijelaskan.
+ */
+export type ToolSection = 'zephyr' | 'mcp' | 'extensions';
+
+/**
+ * Section untuk sebuah grup.
+ *
+ * Diturunkan dari ID grupnya, bukan disimpan di tiap entri `TOOL_GROUPS`.
+ * Dua daftar yang harus dijaga sinkron akan berbeda pendapat cepat atau lambat,
+ * dan yang paling sering terjadi adalah grup baru ditambahkan ke satu daftar
+ * saja - lalu menghilang dari panel tanpa pesan apa pun.
+ *
+ * Grup `mcp` berisi tool yang datang dari server MCP Zephyr, jadi sectionnya
+ * mengikuti. Sisanya bawaan aplikasi.
+ */
+export function sectionDariGrup(id: string): ToolSection {
+  if (id === 'mcp') return 'mcp';
+  if (id.startsWith('ext:')) return 'extensions';
+  return 'zephyr';
+}
+
+/** Nama section yang ditampilkan, urut sesuai kepentingannya bagi pembaca. */
+export const SECTION_URUTAN: { id: ToolSection; label: string }[] = [
+  { id: 'zephyr', label: 'Zephyr' },
+  { id: 'mcp', label: 'MCP' },
+  { id: 'extensions', label: 'Extensions' },
+];
+
 export interface ToolGroup {
   id: ToolGroupId;
   /** Tool names as they appear in `agentTools.ts` — the join key. */
@@ -122,7 +162,21 @@ export interface ToolGroup {
 export const TOOL_GROUPS: ToolGroup[] = makeToolGroups([
   { id: 'files', tools: ['file_read', 'file_list', 'editor_read'] },
   { id: 'edit', tools: ['file_write', 'file_edit', 'file_patch', 'editor_write'] },
-  { id: 'search', tools: ['get_problems', 'get_output', 'list_panes'] },
+  /*
+   * `git` ditambahkan ke grup ini.
+   *
+   * Ia satu-satunya tool dari 76 yang belum punya grup - dan itu ketahuan hanya
+   * karena ada skrip yang membandingkan daftar tool di `agentTools.ts` dengan
+   * daftar grup di sini. Tool tanpa grup tetap bisa dipakai lewat sekat
+   * `tool:<nama>`, tapi barisnya muncul sendirian di ujung daftar dan terbaca
+   * seperti kelalaian, bukan pilihan.
+   *
+   * Diletakkan bersama `get_problems` dan `get_output` karena ketiganya sama:
+   * MELIHAT keadaan, bukan mengubahnya. Riwayat git, masalah kode, dan keluaran
+   * program adalah tiga jawaban untuk pertanyaan yang sama - "apa yang sedang
+   * terjadi di proyek ini".
+   */
+  { id: 'search', tools: ['get_problems', 'get_output', 'list_panes', 'git'] },
   { id: 'shell', tools: ['shell_exec', 'terminal_exec', 'terminal_read', 'start_server', 'server_status', 'server_stop', 'run_tests', 'debug'] },
   { id: 'web', tools: ['web_search', 'web_fetch'] },
   { id: 'agents', tools: ['subagent_run'] },
