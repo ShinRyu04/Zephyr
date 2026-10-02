@@ -93,6 +93,32 @@ export class Cdp {
     return r.result?.result?.value;
   }
 
+  /**
+   * Tangkap layar, kembalikan data PNG dalam base64.
+   *
+   * `clip` opsional: `{ x, y, width, height }` dalam piksel CSS. Tanpa itu,
+   * seluruh viewport yang diambil.
+   *
+   * Ada alasannya ini disediakan: keluhan seperti "melayang" dan "ketimbun"
+   * hanya bisa dinilai dengan MATA. Angka tinggi dan nilai overflow tidak
+   * menangkap kesan visualnya - panel bisa lolos semua pemeriksaan angka dan
+   * tetap terlihat salah bagi orang yang memakainya.
+   */
+  async screenshot(clip) {
+    const params = { format: 'png', captureBeyondViewport: false };
+    if (clip) {
+      params.clip = { ...clip, scale: 1 };
+      /* Tanpa ini, WebView2 memotong wilayah di luar viewport alih-alih
+         mengembalikan yang kosong - dan hasilnya PNG yang tampak benar
+         tapi isinya salah tempat. */
+      params.captureBeyondViewport = false;
+    }
+    const r = await this.send('Page.captureScreenshot', params);
+    if (r.error) throw new Error(`screenshot: ${JSON.stringify(r.error)}`);
+    if (!r.result?.data) throw new Error('screenshot: tidak ada data yang dikembalikan');
+    return r.result.data;
+  }
+
   /** Jalankan body async DI HALAMAN lalu polling hasilnya.
    *  Pintasan yang tersedia di dalam body: S/s (store), T/TS (terminal),
    *  B (__ZEPHYR_BUG__), D (__ZEPHYR_DIAG__), G (git), M (mcp), X (ai),
