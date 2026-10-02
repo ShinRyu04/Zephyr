@@ -112,10 +112,35 @@ pub fn save(state: &AppState, cfg: &McpConfig) -> ZResult<()> {
     Ok(())
 }
 
+/**
+ * Membuat token baru, lalu MENYEBARKANNYA ke server yang sedang berjalan.
+ *
+ * Kenapa penyebarannya wajib. Server menyimpan tokennya di dalam `Ctx` yang
+ * dibekukan saat bind - jadi mengubah berkas konfigurasi saja tidak
+ * memengaruhinya sedikit pun. Sebelum ini, menekan "New token" menghasilkan
+ * keadaan yang MUSTAHIL dipakai:
+ *
+ *   - UI menampilkan token baru,
+ *   - `mcp.json` berisi token baru,
+ *   - server masih membandingkan dengan token LAMA,
+ *
+ * sehingga setiap permintaan dijawab 401 selamanya. Dan karena "Perbarui token"
+ * di UI memang bertujuan memperbaiki klien yang tertolak, kegagalannya justru
+ * muncul tepat pada tindakan yang dimaksudkan untuk memperbaikinya - pengguna
+ * akan menyimpulkan kliennya yang salah, bukan tokennya.
+ *
+ * Token di server diperbarui lewat jalur yang sama dengan pembacanya
+ * (`McpRuntime`), bukan dengan me-restart server: me-restart akan membuang port
+ * yang sudah terhubung dan memutus setiap klien yang sedang bekerja.
+ */
 pub fn rotate_token(state: &AppState) -> ZResult<McpConfig> {
     let mut cfg = load_or_init(state);
     cfg.token = random_token();
     save(state, &cfg)?;
+
+    /* Tanpa efek bila server belum berjalan - `set_token` hanya menyegarkan
+       nilai yang nanti dipakai saat bind. */
+    state.mcp_set_token(&cfg.token);
     Ok(cfg)
 }
 

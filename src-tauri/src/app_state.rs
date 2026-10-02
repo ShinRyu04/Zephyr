@@ -120,6 +120,15 @@ pub struct McpRuntime {
     pub requested: u16,
     pub started: std::time::Instant,
     pub shutdown: tokio::sync::oneshot::Sender<()>,
+    /**
+     * Token yang sedang dipegang server ini.
+     *
+     * Disimpan di runtime supaya bisa DIPUTAR tanpa memulai ulang server.
+     * Sebelumnya token hanya hidup di dalam `Ctx` yang dibekukan saat bind,
+     * sehingga tidak ada cara mengubahnya - dan "Perbarui token" di UI
+     * menghasilkan 401 permanen.
+     */
+    pub token: String,
 }
 
 pub struct GitPermit<'a> {
@@ -283,6 +292,32 @@ impl AppState {
         read_lock(&self.mcp_rt, "mcp_rt")
             .ok()
             .and_then(|s| s.as_ref().map(|r| r.requested))
+    }
+
+    /**
+     * Menyegarkan token yang dipakai server MCP yang SEDANG berjalan.
+     *
+     * Server menyalin tokennya ke dalam `Ctx` saat bind, dan salinan itu tidak
+     * pernah dibaca ulang. Tanpa fungsi ini, memutar token dari UI hanya
+     * mengubah berkas konfigurasi - dan server tetap menolak token baru dengan
+     * 401, tepat pada tindakan yang dimaksudkan untuk memperbaikinya.
+     *
+     * Aman dipanggil saat server belum berjalan: nilainya hanya diperbarui di
+     * runtime, dan akan dipakai saat bind berikutnya.
+     */
+    pub fn mcp_set_token(&self, token: &str) {
+        if let Ok(mut slot) = write_lock(&self.mcp_rt, "mcp_rt") {
+            if let Some(rt) = slot.as_mut() {
+                rt.token = token.to_string();
+            }
+        }
+    }
+
+    /** Token yang sedang dipegang runtime MCP, bila servernya berjalan. */
+    pub fn mcp_token(&self) -> Option<String> {
+        read_lock(&self.mcp_rt, "mcp_rt")
+            .ok()
+            .and_then(|s| s.as_ref().map(|r| r.token.clone()))
     }
 
     pub fn mcp_uptime_ms(&self) -> u64 {

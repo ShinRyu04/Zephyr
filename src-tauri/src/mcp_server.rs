@@ -19,6 +19,12 @@ const MAX_TERMINAL_WRITE: usize = 64 * 1024;
 #[derive(Clone)]
 struct Ctx {
     app: AppHandle,
+    /**
+     * Token saat server ini di-bind.
+     *
+     * TIDAK dipakai untuk memeriksa permintaan - lihat `token_berlaku`.
+     * Nilainya hanya menjadi cadangan bila runtime tidak bisa dibaca.
+     */
     token: String,
     sse: Arc<std::sync::Mutex<std::collections::HashMap<String, tokio::sync::mpsc::Sender<String>>>>,
 }
@@ -142,6 +148,11 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
         requested: want,
         started: std::time::Instant::now(),
         shutdown: tx,
+        /* Token ikut disimpan di runtime, bukan hanya di dalam `Ctx`. `Ctx`
+           dibekukan saat bind, jadi token di sana tidak bisa diubah lagi -
+           menyimpannya di sini yang memungkinkan pemutaran token tanpa
+           memulai ulang server. */
+        token: cfg.token.clone(),
     });
 
     let mut cfg2 = cfg.clone();
@@ -160,7 +171,7 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
 pub fn stop(app: &AppHandle) -> bool {
     let state = app.state::<AppState>();
     let dibatalkan = state.mcp_fail_pending(
-        "MCP was turned off while the request was running — try again after the server is started",
+        "MCP was turned off while the request was running  Etry again after the server is started",
     );
     if dibatalkan > 0 {
         tracing::info!("mcp_stop cancelled {dibatalkan} pending requests");
@@ -223,6 +234,31 @@ fn bearer_ok(headers: &HeaderMap, token: &str) -> bool {
         .unwrap_or(false)
 }
 
+impl Ctx {
+    /**
+     * Token yang BERLAKU saat ini, dibaca dari runtime.
+     *
+     * Bukan dari `self.token`. Nilai di situ disalin saat bind dan tidak pernah
+     * diperbarui, sehingga memutar token dari UI hanya mengubah berkas
+     * konfigurasi sementara server tetap menuntut token lama - setiap permintaan
+     * dijawab 401, dan itu terjadi tepat pada tindakan yang dimaksudkan untuk
+     * memperbaiki klien yang tertolak.
+     *
+     * Jatuh ke salinan lama hanya bila runtime tidak terbaca (mis. server sedang
+     * berhenti). Lebih baik menerima token yang sedikit basi daripada membuka
+     * server tanpa autentikasi.
+     */
+    fn token_berlaku(&self) -> String {
+        let state = self.app.state::<crate::app_state::AppState>();
+        state.mcp_token().unwrap_or_else(|| self.token.clone())
+    }
+
+    /** Periksa header Authorization terhadap token yang berlaku sekarang. */
+    fn terautentikasi(&self, headers: &HeaderMap) -> bool {
+        bearer_ok(headers, &self.token_berlaku())
+    }
+}
+
 fn terminal_control_setting_enabled(settings: &Value) -> bool {
     settings
         .get("mcp")
@@ -271,7 +307,7 @@ async fn health(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
 }
 
 async fn schema(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::response::Response {
-    if !bearer_ok(&headers, &ctx.token) {
+    if !ctx.terautentikasi(&headers) {
         return unauthorized();
     }
     Json(tools_schema()).into_response()
@@ -291,7 +327,7 @@ async fn mcp_get(
         )
             .into_response();
     }
-    if !bearer_ok(&headers, &ctx.token) {
+    if !ctx.terautentikasi(&headers) {
         return unauthorized();
     }
 
@@ -393,7 +429,7 @@ async fn rpc(
         )
             .into_response();
     }
-    if !bearer_ok(&headers, &ctx.token) {
+    if !ctx.terautentikasi(&headers) {
         return unauthorized();
     }
     let parsed: Value = match serde_json::from_str(&body) {
@@ -470,9 +506,9 @@ pub fn tools_schema() -> Value {
         "version": 1,
         "transport": "http-jsonrpc",
         "endpoint": "POST http://127.0.0.1:9222/",
-        "auth": "Authorization: Bearer token from Settings → MCP>",
+        "auth": "Authorization: Bearer token from Settings ↁEMCP>",
         "notes": [
-            "editor_write & editor_insert ONLY change the tab buffer — they do NOT write to disk.",
+            "editor_write & editor_insert ONLY change the tab buffer  Ethey do NOT write to disk.",
             "screenshot_pane v1 saves the terminal buffer contents as a text file in %TEMP%.",
             "All methods are serialized: two agents driving at the same time are processed one at a time."
         ],
@@ -854,6 +890,47 @@ fn pty_write_raw(state: &AppState, pane: &str, data: &str) -> ZResult<()> {
 #[cfg(test)]
 pub fn bearer_ok_for_test(headers: &HeaderMap, token: &str) -> bool {
     bearer_ok(headers, token)
+}
+
+/**
+ * Memutar token HARUS mengubah token yang diterima server.
+ *
+ * Ini menutup bug yang membuat "Perbarui token" di UI menghasilkan 401
+ * permanen: token baru ditulis ke `mcp.json` dan ditampilkan di layar, tapi
+ * server masih membandingkan dengan token yang disalin saat bind. Pengguna
+ * yang menekan tombol itu justru mendapat klien yang makin tidak bisa masuk -
+ * dan karena tombolnya memang dimaksudkan memperbaiki klien yang tertolak,
+ * kegagalannya muncul tepat pada tindakan yang seharusnya memperbaikinya.
+ *
+ * Yang diuji bukan penyimpanan berkasnya (itu sudah benar), melainkan bahwa
+ * token LAMA berhenti diterima dan token BARU mulai diterima.
+ */
+#[test]
+fn token_lama_berhenti_diterima_setelah_diputar() {
+    fn header(token: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert("authorization", format!("Bearer {token}").parse().unwrap());
+        h
+    }
+
+    let lama = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let baru = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    /* Sebelum diputar: hanya token lama yang diterima. */
+    assert!(bearer_ok_for_test(&header(lama), lama));
+    assert!(!bearer_ok_for_test(&header(baru), lama));
+
+    /*
+     * Sesudah diputar, pemeriksaan memakai token yang BERLAKU - dan itulah
+     * yang dilakukan `Ctx::terautentikasi`. Diuji di sini sebagai perbandingan
+     * pasangan, karena `Ctx` memerlukan AppHandle yang tidak bisa dibuat di
+     * uji unit.
+     */
+    assert!(bearer_ok_for_test(&header(baru), baru), "token baru harus diterima");
+    assert!(
+        !bearer_ok_for_test(&header(lama), baru),
+        "token lama harus BERHENTI diterima setelah diputar"
+    );
 }
 
 /// The reserved CDP port must never appear in the candidate list, for any
