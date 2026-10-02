@@ -951,10 +951,14 @@ export default function App() {
     return () => {
       aiListenerConsumers--;
       if (aiListenerConsumers === 0) {
+        const p = window.__ZEPHYR_AI_LISTENER_PROMISE__;
         aiListenerUnlisten?.();
         aiListenerUnlisten = undefined;
         aiListenerBound = false;
         aiListenerBinding = undefined;
+        window.__ZEPHYR_AI_LISTENER_PROMISE__ = undefined;
+        window.__ZEPHYR_AI_CALLBACK__ = undefined;
+        void p?.catch(() => {});
       }
     };
   }, []);

@@ -26,6 +26,7 @@ import { useAiDebug } from '../../lib/aiDebugStore';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { useSubAgent } from '../../lib/subagentStore';
+import { useGit } from '../../lib/gitStore';
 import { runCommand } from '../../lib/commandRegistry';
 /* `SubAgentInfo` tidak diimpor lagi: popover subagent di kepala panel sudah
    dibuang, dan isinya kini tampil di tumpukan status atas kotak input. Berkas
@@ -57,11 +58,15 @@ function kartuTool(
   step: { name?: string; args?: string; result?: string; ok?: boolean; at: number; durasiMs?: number; exitCode?: number; cwd?: string },
   okText: string,
   gagalText: string,
+  /** Set when this call is the one currently executing, so the card can show
+   *  the running state (pulsing chip, moving glyph) instead of "Selesai". */
+  jalan = false,
 ): {
   name: string;
   input: string;
   output: string;
-  ok: boolean;
+  ok?: boolean;
+  running?: boolean;
   durationMs?: number;
   exitCode?: number;
   cwd?: string;
@@ -97,7 +102,19 @@ function kartuTool(
     name: nama,
     input: step.args ?? '',
     output: keluaran,
-    ok: step.ok !== false,
+    /*
+     * `ok` is only asserted once the call has actually returned.
+     *
+     * This used to be `step.ok !== false`, which is true for a call that is
+     * still in flight (its `ok` is `undefined`). Every running call therefore
+     * rendered as finished - the pill said "Selesai" while the command was
+     * still executing, and the row got no running animation. Leaving `ok`
+     * undefined until the result arrives is what lets the card tell the two
+     * apart, and the running state is what drives the pill's colour and the
+     * icon's motion.
+     */
+    ok: step.ok,
+    running: jalan,
     durationMs: step.durasiMs,
     exitCode,
     cwd: step.cwd,
@@ -140,6 +157,17 @@ export default function AiPanel() {
    * plan does not vanish the moment the run pauses.
    */
   const todosAda = useAi((s) => s.agentTodos.length > 0);
+  /*
+   * The branch the workspace is on, shown in the composer.
+   *
+   * Hermes puts a `main` chip inside the composer box, above the input row
+   * (`composer/scope.tsx`), so the context a prompt will be attached to is
+   * visible at the moment of typing. Zephyr only showed the branch in the
+   * status bar at the bottom of the window - far from the composer, and easy to
+   * miss while writing. `null` when the folder is not a repo, which hides the
+   * chip rather than printing an empty one.
+   */
+  const gitBranch = useGit((s) => (s.status?.isRepo ? s.status?.branch ?? null : null));
   const ubahAntrian = useAi((s) => s.ubahAntrian);
   const cancel = useAi((s) => s.cancel);
   const kirimSekarang = useAi((s) => s.kirimSekarang);
@@ -595,6 +623,35 @@ const JEJAK_TOOL_MAKS = 4;
     if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [msgs, pending]);
 
+  /*
+   * Whether the reader has fallen behind the newest output.
+   *
+   * The transcript auto-scrolls only while the reader is at the bottom (see the
+   * effect above). That is the right rule - yanking someone away from the
+   * passage they are reading is worse than making them scroll - but it leaves
+   * them stuck: once they look away while the agent is still working, new rows
+   * arrive below the fold and there is no way back except dragging the bar.
+   *
+   * This flag drives a jump-to-bottom button. It is read from the live scroll
+   * position rather than from a timer, so the button appears the instant the
+   * bottom leaves the viewport and disappears the instant it returns.
+   */
+  const [diBawah, setDiBawah] = useState(true);
+
+  const cekPosisi = () => {
+    const el = scroller.current;
+    if (!el) return;
+    const sisa = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setDiBawah(sisa < 120);
+  };
+
+  const lompatKeBawah = () => {
+    const el = scroller.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    setDiBawah(true);
+  };
+
   useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast(null), 3200);
@@ -841,7 +898,7 @@ const JEJAK_TOOL_MAKS = 4;
         </div>
       </div>
 
-      <div className="ai-chat" ref={scroller} data-testid="ai-chat">
+      <div className="ai-chat" ref={scroller} data-testid="ai-chat" onScroll={cekPosisi}>
         {providerTanpaKey && (
           <div className="ai-nokey" data-testid="ai-nokey" role="alert">
             <p className="ai-nokey-title">{tr('This provider does not have an API key yet')}</p>
@@ -916,6 +973,34 @@ const JEJAK_TOOL_MAKS = 4;
             by the agent mid-task, but once the task finishes the user still needs
             to see what was done - if the panel disappears with it,
             the TODO cannot be monitored at all. */}
+        {/*
+          * Jump to the newest output.
+          *
+          * It floats at the BOTTOM CENTRE of the transcript, not in a corner:
+          * the reader's eye is already in the middle of the panel when they
+          * realise they have fallen behind, and the composer below occupies the
+          * full width - a corner button would sit either over the input box or
+          * over the scrollbar. Centre-bottom is the one spot that is always
+          * clear of both, and it is where every chat UI already puts it.
+          *
+          * It only exists while the bottom is out of view (`diBawah`), so a
+          * reader who is caught up never sees a control that would do nothing.
+          */}
+        {!diBawah && (
+          <button
+            type="button"
+            className="ai-jump-bottom"
+            data-testid="ai-jump-bottom"
+            title={tr('Go to the newest')}
+            aria-label={tr('Go to the newest')}
+            onClick={lompatKeBawah}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 3v9" />
+              <path d="M4.2 8.4 8 12.2l3.8-3.8" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/*
@@ -974,6 +1059,7 @@ const JEJAK_TOOL_MAKS = 4;
         * section INSIDE this stack, which is what makes it fold together with
         * the loop above it.
         */}
+
       {(!stackKosong || todosAda) && (
       <div className="ai-work-stack" data-testid="ai-work-stack">
         {(sibuk || loopFinished) && (
@@ -1184,7 +1270,20 @@ const JEJAK_TOOL_MAKS = 4;
                    */}
                   {jejakToolTerlihat.map((step, i) => {
                     const info = infoAksi(step.name);
-                    const kartu = kartuTool(step, tr('Selesai'), tr('Gagal'));
+                    /*
+                     * The last call in the list is the one in flight.
+                     *
+                     * The store appends a step only when the call RETURNS, so a
+                     * finished list has nothing running - but while the agent
+                     * works, `agentCurrentTool` names the call being executed
+                     * right now and it is always the newest entry. Marking it
+                     * running is what gives that row the moving glyph and the
+                     * "Berjalan" pill; without it every row claims to be done.
+                     */
+                    const jalan = Boolean(
+                      sibuk && i === jejakToolTerlihat.length - 1 && step.name === agentCurrentTool,
+                    );
+                    const kartu = kartuTool(step, tr('Selesai'), tr('Gagal'), jalan);
                     return (
                       <li className="ai-agent-card-item" key={`${step.at}-${i}`}>
                         <ToolCallCard
@@ -1332,34 +1431,65 @@ const JEJAK_TOOL_MAKS = 4;
                 {tf('{n} Queued', { n: antrian.length })}
               </span>
             </button>
+            {/*
+              * Clear-all, on the trailing edge of the header.
+              *
+              * It used to be a lone `✕` below the list, which made a row of its
+              * own and left a band of empty space under the last queued message.
+              * Hermes puts a section's bulk action in the header's accessory
+              * slot instead (`StatusSection`'s `accessory`, used by
+              * queue-panel.tsx for its Resume button), where it costs no extra
+              * height and sits with the count it acts on.
+              */}
+            <button
+              className="ai-work-menu ai-cq-clear"
+              data-testid="ai-antrian-clear"
+              title={tr('Clear the queue')}
+              aria-label={tr('Clear the queue')}
+              onClick={kosongkanAntrian}
+            >
+              ✕
+            </button>
             </div>
             {!cqLipat && (
               <>
-                <div className="ai-cq-rail" id="ai-work-queue-body">
+                {/*
+                  * One row per queued message, shaped like Hermes' StatusRow.
+                  *
+                  * Hermes renders each queued prompt as a full-width row
+                  * (`queue-panel.tsx`): the dismiss `✕` sits on the LEADING edge,
+                  * then a comment glyph, then the text, and the actions
+                  * (edit / send-now / reorder) sit on the trailing edge where
+                  * they only appear on hover. The queue reads top-to-bottom like
+                  * a list of sentences.
+                  *
+                  * Zephyr drew each entry as a horizontal chip in a scrolling
+                  * rail. That works for two or three short entries but breaks
+                  * down as soon as a message is long: the chip is a fixed-width
+                  * pill, so the text is clipped mid-word and the reader has to
+                  * hover to find out what they queued. A row gives the text the
+                  * whole width and wraps to a second line when it needs to.
+                  *
+                  * The row order also matches the dismissal affordance the eye
+                  * expects - `✕` first, like every other removable row in the
+                  * stack - where the chip had it trailing after two reorder
+                  * arrows.
+                  */}
+                <div className="ai-cq-list" id="ai-work-queue-body" data-testid="ai-antrian">
                   {antrian.map((a, i) => (
-                    <span className="ai-cq-chip" key={a.id ?? i} data-testid={`ai-antrian-${i}`}>
-                      {/*
-                       * Send-now, on the leading edge.
-                       *
-                       * Hermes puts a send arrow at the left of every queued
-                       * message so a queued item can be promoted without
-                       * clearing the ones behind it. The arrow sits before the
-                       * number because it acts on the message, not on its
-                       * position, and it only appears while nothing is running
-                       * — with an answer in flight there is no "now" to send it.
-                       */}
-                      {!sibuk && (
-                        <button
-                          className="ai-cq-send"
-                          data-testid={`ai-antrian-kirim-${i}`}
-                          title={tr('Send this now')}
-                          aria-label={tr('Send this now')}
-                          onClick={() => void kirimAntrian(i)}
-                        >
-                          <AiIkon name="send" size={11} />
-                        </button>
-                      )}
-                      <span className="ai-cq-n">{i + 1}</span>
+                    <div className="ai-cq-row" key={a.id ?? i} data-testid={`ai-antrian-${i}`}>
+                      <button
+                        className="ai-cq-x"
+                        data-testid={`ai-antrian-hapus-${i}`}
+                        title={tr('Remove from the queue')}
+                        aria-label={tr('Remove from the queue')}
+                        onClick={() => buangAntrian(a.id ?? i)}
+                      >
+                        ✕
+                      </button>
+                      <span className="ai-cq-glyph" aria-hidden="true">
+                        <AiIkon name="comment" size={12} />
+                      </span>
                       {a.images.length > 0 && (
                         <span
                           className="ai-cq-images"
@@ -1374,7 +1504,7 @@ const JEJAK_TOOL_MAKS = 4;
                         /*
                          * Inline edit of one queued message.
                          *
-                         * The field replaces the chip's text rather than opening
+                         * The field replaces the row's text rather than opening
                          * a dialog: the queue is a list of short lines, and the
                          * cheapest way to fix one is to type over it where it
                          * sits. Enter or blur commits, Escape cancels, and a
@@ -1433,56 +1563,51 @@ const JEJAK_TOOL_MAKS = 4;
                         </span>
                       )}
                       {/*
-                       * Reordering, one step at a time.
-                       *
-                       * Two arrows rather than drag-and-drop: the queue is short
-                       * and its order is read as a numbered list, so moving one
-                       * entry by one place is the whole operation. The end that
-                       * has nowhere to go is drawn disabled instead of hidden,
-                       * so the chip's width and button positions stay put as an
-                       * item travels up and down the line.
-                       */}
-                      <button
-                        className="ai-cq-move"
-                        data-testid={`ai-antrian-naik-${i}`}
-                        title={tr('Move up in the queue')}
-                        aria-label={tr('Move up in the queue')}
-                        disabled={i === 0}
-                        onClick={() => naikkanAntrian(a.id ?? i)}
-                      >
-                        <AiIkon name="chev-up" size={11} />
-                      </button>
-                      <button
-                        className="ai-cq-move"
-                        data-testid={`ai-antrian-turun-${i}`}
-                        title={tr('Move down in the queue')}
-                        aria-label={tr('Move down in the queue')}
-                        disabled={i === antrian.length - 1}
-                        onClick={() => turunkanAntrian(a.id ?? i)}
-                      >
-                        <AiIkon name="chev-down" size={11} />
-                      </button>
-                      <button
-                        className="ai-cq-x"
-                        data-testid={`ai-antrian-hapus-${i}`}
-                        title={tr('Remove from the queue')}
-                        aria-label={tr('Remove from the queue')}
-                        onClick={() => buangAntrian(a.id ?? i)}
-                      >
-                        ✕
-                      </button>
-                    </span>
+                        * Row actions, revealed on hover - the same rule Hermes
+                        * uses for its `trailing` slot (`status-row.tsx`:
+                        * `opacity-0 group-hover/status-row:opacity-100`). Two
+                        * reorder arrows and a send arrow on every row would
+                        * out-shout the message text; hidden until the row is
+                        * hovered, they are there when wanted and invisible when
+                        * reading. Reordering is still one step at a time,
+                        * because the queue is read as a numbered list.
+                        */}
+                      <span className="ai-cq-aksi">
+                        {!sibuk && (
+                          <button
+                            className="ai-cq-send"
+                            data-testid={`ai-antrian-kirim-${i}`}
+                            title={tr('Send this now')}
+                            aria-label={tr('Send this now')}
+                            onClick={() => void kirimAntrian(i)}
+                          >
+                            <AiIkon name="send" size={11} />
+                          </button>
+                        )}
+                        <button
+                          className="ai-cq-move"
+                          data-testid={`ai-antrian-naik-${i}`}
+                          title={tr('Move up in the queue')}
+                          aria-label={tr('Move up in the queue')}
+                          disabled={i === 0}
+                          onClick={() => naikkanAntrian(a.id ?? i)}
+                        >
+                          <AiIkon name="chev-up" size={11} />
+                        </button>
+                        <button
+                          className="ai-cq-move"
+                          data-testid={`ai-antrian-turun-${i}`}
+                          title={tr('Move down in the queue')}
+                          aria-label={tr('Move down in the queue')}
+                          disabled={i === antrian.length - 1}
+                          onClick={() => turunkanAntrian(a.id ?? i)}
+                        >
+                          <AiIkon name="chev-down" size={11} />
+                        </button>
+                      </span>
+                    </div>
                   ))}
                 </div>
-                <button
-                  className="ai-cq-clear"
-                  data-testid="ai-antrian-clear"
-                  title={tr('Clear the queue')}
-                  aria-label={tr('Clear the queue')}
-                  onClick={kosongkanAntrian}
-                >
-                  ✕
-                </button>
               </>
             )}
           </div>
@@ -1504,6 +1629,27 @@ const JEJAK_TOOL_MAKS = 4;
       )}
 
       <div className="ai-input-row">
+        {/*
+          * The branch chip, inside the composer box and above the field.
+          *
+          * Hermes renders a `main` chip as the first row of its composer
+          * (`composer/scope.tsx`), separated from the field by a hairline: the
+          * branch is part of the message's context, so it belongs where the
+          * message is written, not only in the status bar at the window edge.
+          * Hidden entirely outside a repo, and hidden while there is no branch
+          * to name, so it never draws an empty pill.
+          */}
+        {gitBranch && (
+          <div className="ai-branch-chip" data-testid="ai-branch-chip" title={tf('On branch {name}', { name: gitBranch })}>
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="4.6" cy="3.4" r="1.7" />
+              <circle cx="4.6" cy="12.6" r="1.7" />
+              <circle cx="11.4" cy="6.4" r="1.7" />
+              <path d="M4.6 5.1v5.8M11.4 8.1c0 2.2-1.8 3.2-3.6 3.4" />
+            </svg>
+            <span>{gitBranch}</span>
+          </div>
+        )}
         {draftImages.length > 0 && (
           <div className="ai-imgstrip" data-testid="ai-imgstrip">
             {draftImages.map((src, i) => (

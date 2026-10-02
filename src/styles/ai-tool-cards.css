@@ -1,10 +1,161 @@
-/* Wave 4 AI work surfaces. All palette values come from the active theme. */
-.w4-tool-card,
+/*
+ * One tool call, one box.
+ *
+ * Every call is its own bordered, rounded box on the panel's black, with a gap
+ * between boxes - NOT a run of rows sharing a single frame. The reader counts
+ * calls at a glance and sees exactly where one ends and the next begins; rows
+ * welded into one block read as a single wall of text and the boundaries
+ * disappear.
+ *
+ * The fill is `--bg0` - the panel's own black - NOT `--surface`, which is a
+ * step lighter and turns a column of boxes grey against a black panel.
+ */
+.w4-tool-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg0);
+  color: var(--text);
+  overflow: hidden;
+  /*
+   * Each call slides in as it arrives.
+   *
+   * A tool call is appended the moment the agent decides to make it, so the
+   * list grows while the reader is looking at it. Without motion the new box
+   * simply appears and the rows below jump down - the eye loses the line it was
+   * on. A short fade + 3px rise makes the arrival readable and, just as
+   * importantly, makes it obvious WHICH box is new.
+   *
+   * 180ms and `ease-out`: long enough to follow, short enough that a burst of
+   * parallel calls does not feel like the panel is lagging. `both` keeps the
+   * first frame applied before the animation starts, so there is no flash of
+   * the final position.
+   */
+  animation: w4-card-in 180ms ease-out both;
+}
+
+@keyframes w4-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * A running call's icon chip pulses.
+ *
+ * The pill already carries the state in words ("Berjalan"), but the chip is the
+ * thing the eye lands on first in a column of rows - so the running row is
+ * marked where the reader is already looking, not only at the far right edge.
+ * Slow (1.8s) and shallow (0.7) so a long-running command does not strobe.
+ */
+.w4-tool-card:not(.is-failed) .w4-tool-icon {
+  transition: box-shadow 200ms ease;
+}
+
+.w4-tool-card.is-running .w4-tool-icon {
+  animation: w4-chip-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes w4-chip-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+/*
+ * Per-kind icon motion.
+ *
+ * Every kind of call does something different, and a single generic pulse says
+ * "busy" for all of them. Giving each kind the motion of its own work makes the
+ * column readable without reading a word: a read scans side to side, a write
+ * taps down, a search sweeps, a command blinks like a cursor.
+ *
+ * The glyph is what moves, never the chip - the chip's size and position hold
+ * the row's left edge steady, which is the whole reason it is a fixed square.
+ */
+.w4-tool-card.is-running .w4-tool-icon svg {
+  transform-origin: center;
+}
+
+/* Read: a slow left-right scan, the way an eye crosses a page. */
+.w4-tool-card.is-running[data-category='read'] .w4-tool-icon svg {
+  animation: w4-icon-scan 1.6s ease-in-out infinite;
+}
+
+@keyframes w4-icon-scan {
+  0%, 100% { transform: translateX(-1px); }
+  50% { transform: translateX(1px); }
+}
+
+/* Write: a short downward tap, like a pen touching the page. */
+.w4-tool-card.is-running[data-category='write'] .w4-tool-icon svg {
+  animation: w4-icon-tap 1.1s ease-in-out infinite;
+}
+
+@keyframes w4-icon-tap {
+  0%, 100% { transform: translateY(-1px); }
+  45% { transform: translateY(1.5px); }
+}
+
+/* Search: a sweep with a slight tilt, the arc of a magnifier over a page. */
+.w4-tool-card.is-running[data-category='search'] .w4-tool-icon svg {
+  animation: w4-icon-sweep 1.8s ease-in-out infinite;
+}
+
+@keyframes w4-icon-sweep {
+  0%, 100% { transform: rotate(-8deg) translate(0, 0); }
+  50% { transform: rotate(8deg) translate(0.5px, 0.5px); }
+}
+
+/* Command: a cursor blink - the one motion every terminal already trained the
+   reader to read as "something is executing". */
+.w4-tool-card.is-running[data-category='command'] .w4-tool-icon svg {
+  animation: w4-icon-blink 1.05s steps(1, end) infinite;
+}
+
+@keyframes w4-icon-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0.35; }
+}
+
+/* Task / todo: a gentle spin, the shape of a list being walked through. */
+.w4-tool-card.is-running[data-category='task'] .w4-tool-icon svg {
+  animation: w4-icon-spin 2.2s linear infinite;
+}
+
+@keyframes w4-icon-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Browser: the globe turns, because a fetch is a trip. */
+.w4-tool-card.is-running[data-category='browser'] .w4-tool-icon svg {
+  animation: w4-icon-turn 2.4s linear infinite;
+}
+
+@keyframes w4-icon-turn {
+  to { transform: rotate(360deg); }
+}
+
+/*
+ * The diff and status blocks stay framed, but on the panel's own black.
+ *
+ * `--surface` is a step lighter than the panel, and on a transcript that is
+ * mostly rows the one remaining filled box reads as a different material. The
+ * frame is what separates these two from the rows; the fill does not need to
+ * help, so both use `--bg0` - the same black as the panel and the composer.
+ */
 .w4-diff,
 .w4-status {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--bg0);
   color: var(--text);
   overflow: hidden;
 }
@@ -39,25 +190,34 @@
   overflow-x: auto;
 }
 
+/*
+ * One row: caret, icon chip, name, status pill, duration - on a single line.
+ *
+ * `border-radius: 6px` on the row (not the card) is what makes hover read as a
+ * hit target rather than as a colour change; the divider lives on the card so
+ * the two rows never double up their lines.
+ */
 .w4-tool-head,
 .w4-status-head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   width: 100%;
-  min-height: 30px;
-  padding: 5px 8px;
+  min-height: 28px;
+  padding: 4px 6px;
   border: 0;
-  background: var(--surface);
+  border-radius: 6px;
+  background: none;
   color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background 110ms ease;
 }
 
 .w4-tool-head:hover,
 .w4-status-head:hover {
-  background: var(--surface-2);
+  background: var(--bg1);
   color: var(--text);
 }
 
@@ -67,21 +227,51 @@
   outline-offset: -2px;
 }
 
+/*
+ * The gap between boxes.
+ *
+ * Each call is its own box, so the space between them is what makes the
+ * boundaries readable. `:first-child`/`:last-child` are left alone so the
+ * spacing is uniform top and bottom.
+ */
+.w4-tool-card + .w4-tool-card {
+  margin-top: 4px;
+}
+
 .w4-tool-caret,
 .w4-status-caret {
   flex: none;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 9px;
+  width: 9px;
+  text-align: center;
 }
 
+/*
+ * The icon chip: a filled rounded square with a white glyph.
+ *
+ * terax-ai draws it as `size-5 rounded-md bg-primary text-primary-foreground`
+ * on every row. The fill is what makes the column scan; a bare outline glyph in
+ * muted grey disappears between the name and the status pill, and every row
+ * then reads as the same undifferentiated line of text.
+ */
 .w4-tool-icon {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
-  color: var(--accent);
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--bg0);
 }
 
+/* A failed call keeps its chip but turns it red: the row's shape stays put so
+   the list does not jump, and the colour is the signal. */
 .w4-tool-card.is-failed .w4-tool-icon {
-  color: var(--danger);
+  background: var(--danger);
+  color: var(--bg0);
 }
 
 .w4-tool-name {
@@ -125,21 +315,34 @@
   white-space: nowrap;
 }
 
+/*
+ * The status pill, coloured the way the reference colours it.
+ *
+ * terax-ai maps tool state to a colour family and paints the pill's text in it
+ * with a tinted fill: emerald for done, sky/amber for running, red for error.
+ * Zephyr already had the three states; what it lacked was the tint - a
+ * transparent pill with coloured text disappears against a dark row, and the
+ * one thing the reader scans a long transcript for is which calls finished.
+ *
+ * The fill is `color-mix` at 16% rather than a solid block: solid green on
+ * every row would make a finished transcript look like a wall of success, and
+ * the failures have to be the thing that stands out.
+ */
 .w4-tool-pill.is-gagal {
-  background: var(--danger);
-  color: var(--bg0);
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
 }
 
 .w4-tool-pill.is-jalan {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
-  /* Titiknya berdenyut: satu-satunya kartu yang masih bisa berubah, dan animasi
+  /* Denyut halus: satu-satunya baris yang masih bisa berubah, dan animasi
      adalah cara termurah menunjukkan itu tanpa menambah teks. */
   animation: w4-pill-denyut 1.6s ease-in-out infinite;
 }
 
 .w4-tool-pill.is-beres {
-  background: color-mix(in srgb, var(--success) 18%, transparent);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
   color: var(--success);
 }
 
@@ -171,26 +374,144 @@
   font-weight: 600;
 }
 
+/*
+ * The expanded body, indented to line up under the name.
+ *
+ * `border-left` instead of a full frame: the row above already anchors it, and a
+ * second border would re-introduce the nested-box look the row layout removed.
+ * The indent (23px) matches caret + chip + gap, so the body's text starts on the
+ * same column as the row's name.
+ */
 .w4-tool-body {
-  padding: 7px 10px 9px 29px;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
+  margin: 2px 0 6px 23px;
+  padding: 6px 10px 8px;
+  border-left: 2px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: none;
 }
 
 .w4-tool-io + .w4-tool-io {
   margin-top: 8px;
 }
 
+/*
+ * The section label (INPUT / OUTPUT).
+ *
+ * Small, spaced, dim, and always upper case - the reference draws it exactly
+ * that way and the capitals are load-bearing: they mark a field name, so the
+ * eye skips it and lands on the value. Sentence-case "Input" at the same size
+ * as its content read as part of the sentence.
+ */
 .w4-tool-label {
   margin-bottom: 3px;
   color: var(--text-muted);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
 
-.w4-tool-io pre {
+/*
+ * The OUTPUT bar: label on the left, stream tabs on the right.
+ *
+ * The tabs sit on the same line as the label rather than above the block, so a
+ * card that has both streams costs no extra height - and the line counts ride
+ * inside the tabs, which is how a reader discovers stderr has content without
+ * opening it.
+ */
+.w4-tool-iobar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.w4-tool-iobar .w4-tool-label {
+  margin-bottom: 0;
+}
+
+.w4-tool-streams {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.w4-tool-stream {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.w4-tool-stream:hover {
+  color: var(--text);
+  background: var(--bg1);
+}
+
+.w4-tool-stream.is-aktif {
+  background: var(--bg1);
+  color: var(--text);
+}
+
+/* The line count: a quiet figure that reads as a badge, not as text. */
+.w4-tool-stream b {
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--bg2);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The action row under the output, behind a hairline.
+ *
+ * Every expanded card ends with the same set of quiet text buttons, which is
+ * the shape the reference closes with (copy / copy input / open in terminal).
+ * They are text, not icons: at this size an icon needs a tooltip to be
+ * understood, and the words are short enough to just say.
+ */
+.w4-tool-acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.w4-tool-act {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.w4-tool-act:hover {
+  background: var(--bg1);
+  color: var(--text);
+}
+
+.w4-tool-act:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.w4-tool-io pre,
+.w4-tool-pre {
   max-height: 240px;
   margin: 0;
   overflow: auto;
@@ -200,6 +521,7 @@
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+  background: none;
 }
 
 .w4-tool-io pre.is-failed {
@@ -242,7 +564,9 @@
   gap: 6px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  /* The panel's own black, not `--surface`: a grey strip on a black card reads
+     as a different material, and the diff block already has its own border. */
+  background: var(--bg0);
   color: var(--text-secondary);
   font-family: var(--font-ui);
   font-size: 11px;
@@ -525,11 +849,20 @@ code.w4-status-main {
   border: 0;
 }
 
+/*
+ * Motion is decoration here, not information: the state is also carried by the
+ * pill's text and colour, so nothing is lost when it is switched off. Users who
+ * ask their OS for reduced motion get the rows without the movement.
+ */
 @media (prefers-reduced-motion: reduce) {
   .w4-thinking-grid i,
   .w4-status-pulse,
   .w4-status-dot.is-running,
-  .w4-status-row.is-in_progress .w4-task-mark {
+  .w4-status-row.is-in_progress .w4-task-mark,
+  .w4-tool-card,
+  .w4-tool-card.is-running .w4-tool-icon,
+  .w4-tool-card.is-running .w4-tool-icon svg,
+  .w4-tool-pill.is-jalan {
     animation: none;
   }
 }

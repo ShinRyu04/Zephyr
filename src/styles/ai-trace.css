@@ -42,11 +42,22 @@
  * batas kedua di dalamnya hanya membuat dua kotak bersaing mengurus panjang
  * yang sama. Satu kotak, satu batas, satu scroller.
  */
+/*
+ * The tool-card list: a stack of separate boxes, not a run of welded rows.
+ *
+ * `gap: 0` came from the trace layout, where every step was a row sharing one
+ * frame and the divider did the separating. Now that each call is its own box,
+ * zero gap puts them edge to edge and they read as one card with internal
+ * lines - the exact look this replaced. The gap is what makes the boundaries.
+ *
+ * The horizontal padding stays so the boxes sit inside the stack's inset; the
+ * bottom pad is dropped because the last box already has its own edge.
+ */
 .ai-agent {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: 4px 10px 6px;
+  gap: 5px;
+  padding: 6px 10px 2px;
   flex: 0 1 auto;
   min-height: 0;
 }
@@ -68,6 +79,20 @@
 
 .ai-agent-step:last-child {
   border-bottom: 0;
+}
+
+/*
+ * The list item wrapping each tool box carries no chrome of its own.
+ *
+ * The box (`<article class="w4-tool-card">`) already draws its border, radius
+ * and background; a `<li>` with its own padding or border would double the
+ * frame. It exists only to hold the card and its diff viewer.
+ */
+.ai-agent-card-item {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
 }
 
 /* The accent rail is per-kind, not one colour for every step. */

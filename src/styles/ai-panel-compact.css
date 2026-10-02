@@ -497,6 +497,42 @@
 }
 
 /*
+ * The branch chip: the first row of the composer, above the field.
+ *
+ * Hermes opens its composer with a scope row (`composer/scope.tsx`) carrying the
+ * branch, then a hairline, then the field - so the branch reads as part of the
+ * box you are typing into rather than as window chrome. Zephyr only showed the
+ * branch in the status bar at the very bottom of the window, which is a long
+ * way from the message being written.
+ *
+ * The icon is the only colour in the row (git green), because it is the part
+ * that says "this is a repo" at a glance; the name stays muted so it does not
+ * compete with the message text below it.
+ */
+.ai-branch-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--fg2);
+  min-width: 0;
+}
+
+.ai-branch-chip svg {
+  flex-shrink: 0;
+  color: rgb(63, 185, 80);
+}
+
+.ai-branch-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
  * The composer field itself.
  *
  * WHY it is not transparent any more: this file loads after `ai.css`, so these

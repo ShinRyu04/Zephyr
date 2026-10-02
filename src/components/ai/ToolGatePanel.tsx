@@ -5,7 +5,6 @@ import {
   TOOL_GROUPS,
   SEMUA_TOOL,
   TOOL_DESKRIPSI,
-  TOOL_INTI,
   SECTION_URUTAN,
 } from '../../lib/toolGate';
 import AiIkon from './AiIkon';
@@ -264,7 +263,7 @@ export default function ToolGatePanel() {
                                 onMouseEnter={() => setSorot(idx)}
                                 role="switch"
                                 aria-checked={aktif.has(nama)}
-                                disabled={TOOL_INTI.includes(nama)}
+                                disabled={false}
                               >
                                 <span className="tg-kotak" aria-hidden="true">
                                   {aktif.has(nama) && <AiIkon name="check" size={9} />}

@@ -515,6 +515,19 @@
  * in flight - a menu whose single item does nothing reads as broken. Kept
  * square and icon-sized so it does not widen the header.
  */
+/*
+ * Hidden until the row is hovered, the way Hermes' accessory behaves.
+ *
+ * A visible `⋯` on an otherwise empty header line reads as a stray glyph - the
+ * header's own text is short, so the menu is the only thing on the right half
+ * of the row and the eye lands on it instead of on the status. Hermes keeps the
+ * same control (session-control-loop.tsx renders it as a ghost icon Button)
+ * and it only shows on hover.
+ *
+ * `opacity` rather than `display: none` so it keeps its box and the header does
+ * not reflow when it appears; `:focus-visible` keeps it reachable from the
+ * keyboard, which matters because it holds the only stop control.
+ */
 .ai-work-menu {
   display: inline-flex;
   align-items: center;
@@ -522,6 +535,8 @@
   flex-shrink: 0;
   width: 22px;
   height: 22px;
+  opacity: 0;
+  transition: opacity 120ms ease;
   /* No `margin-left: auto`: the trigger already fills the row, so the menu is
      pushed to the end by the layout instead of by its own margin. Keeping both
      would fight each other the moment the trigger's flex value changes. */
@@ -535,6 +550,13 @@
   line-height: 1;
   cursor: pointer;
   transition: color 120ms ease, background 120ms ease;
+}
+
+/* Revealed on hover over the section, or when the menu itself is open. */
+.ai-work-section:hover .ai-work-menu,
+.ai-work-menu:focus-visible,
+.ai-work-menu[aria-expanded='true'] {
+  opacity: 1;
 }
 
 .ai-work-menu:hover,

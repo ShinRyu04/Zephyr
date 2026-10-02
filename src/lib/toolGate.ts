@@ -311,16 +311,8 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
     set((s) => {
       const next = new Set(s.aktif);
       if (next.has(nama)) {
-        /*
-         * Yang ada di TOOL_AKTIF_AWAL tidak bisa dimatikan dari sini.
-         *
-         * Dulu pelindungnya `TOOL_INTI`, dan begitu empat tool web menyala
-         * sejak awal, pelindung itu berhenti cocok - menekan `browser_open`
-         * yang aktif akan menghapusnya, padahal itu kemampuan dasar yang
-         * tadi baru sengaja dinyalakan. Yang dijaga adalah "apa yang dipakai
-         * sejak awal", bukan "apa yang bukan web".
-         */
-        if (!TOOL_AKTIF_AWAL.includes(nama)) next.delete(nama);
+        /* Tool inti 40 tetap aktif; 11 tool web bebas dimatikan/dinyalakan oleh user */
+        if (!TOOL_INTI.includes(nama)) next.delete(nama);
       } else next.add(nama);
       return { aktif: next };
     }),
@@ -332,7 +324,7 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
       const next = new Set(s.aktif);
       for (const t of grup.tools) {
         if (nyala) next.add(t);
-        else if (!TOOL_AKTIF_AWAL.includes(t)) next.delete(t);
+        else if (!TOOL_INTI.includes(t)) next.delete(t);
       }
       return { aktif: next };
     }),
@@ -374,16 +366,14 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
     }
 
     /*
-     * Empat puluh tool inti dipastikan ikut, apa pun isi setelan tersimpan.
-     *
-     * Ini yang menepati janjinya: setelan lama - dari sebelum penggantian tool
-     * - pasti tidak memuat nama-nama baru, dan menghormatinya apa adanya akan
-     * mematikan sebagian besar kemampuan agen. Nama web/browser TIDAK
-     * ditambahkan di sini, karena itu memang bukan bagian dari 40 dan
-     * keputusannya milik user.
+     * Perubahan gaya lama MEMAKSA 40 tool inti menyala, dan itu membatalkan
+     * tombol "All off": user yang sengaja mematikan `read_file` atau `bash_run`
+     * menemukannya hidup lagi setiap kali app dibuka, tanpa pernah diberi tahu.
+     * Sekarang pilihan tersimpan dihormati apa adanya - 40 inti hanya dipakai
+     * sebagai titik awal ketika setelannya masih kosong atau tidak dikenali,
+     * bukan sebagai pemaksaan di atas keputusan user.
      */
-    const intiHilang = TOOL_AKTIF_AWAL.filter((n) => !sah.includes(n));
-    set({ aktif: new Set([...sah, ...intiHilang]) });
+    set({ aktif: new Set(sah) });
   },
 }));
 
@@ -394,9 +384,46 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
 if (import.meta.env?.DEV) {
   const masalah = [
     ...periksaKatalog(),
+    ...periksaSekat(),
   ];
   if (masalah.length) {
     /* eslint-disable-next-line no-console */
     console.error('[toolGate] katalog tidak konsisten:\n  ' + masalah.join('\n  '));
   }
+}
+
+/**
+ * Kontrak sekat tool: setiap nama yang bisa dinyalakan harus ada di katalog,
+ * dan setiap nama di katalog harus bisa dinyalakan.
+ *
+ * Ini menahan kesalahan yang paling mudah terjadi saat memindahkan tool: nama
+ * yang salah ketik membuat sebuah tool tidak pernah bisa dinyalakan, dan
+ * gejalanya cuma "tool itu tidak ada" tanpa pesan apa pun - model akan
+ * menebak-nebak, dan user akan menyimpulkan aplikasinya rusak.
+ *
+ * Diperiksa juga bahwa kunci tersimpan selalu bisa dipetakan ke nama katalog,
+ * karena tool yang lahir setelah setelan lama harus tetap punya jalan untuk
+ * menyala.
+ */
+export function periksaSekat(): string[] {
+  const masalah: string[] = [];
+  const kat = new Set(SEMUA_TOOL);
+
+  for (const n of TOOL_AKTIF_AWAL) {
+    if (!kat.has(n)) masalah.push(`default awal bukan nama katalog: ${n}`);
+  }
+  for (const g of TOOL_GROUPS) {
+    for (const t of g.tools) {
+      if (!kat.has(t)) masalah.push(`tool grup ${g.id} bukan nama katalog: ${t}`);
+    }
+  }
+  for (const n of namaTampilDikenal()) {
+    if (!kat.has(n)) masalah.push(`nama tampilan tidak ada di katalog: ${n}`);
+  }
+  return masalah;
+}
+
+/** Nama yang punya label manusia - dipakai pemeriksa di atas. */
+function namaTampilDikenal(): string[] {
+  return SEMUA_TOOL;
 }

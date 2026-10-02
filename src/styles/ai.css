@@ -294,6 +294,76 @@
 }
 
 /*
+ * Jump to the newest output.
+ *
+ * Anchored to the bottom centre of the transcript, just above the composer.
+ * It is positioned against `.ai-chat` rather than against the panel so it
+ * travels with the scroller it controls, and `position: sticky` keeps it in
+ * view at the end of the scroll without taking it out of the layout - an
+ * `absolute` button would need the scroller to be its containing block, and
+ * `overflow-y: auto` already makes that true, but sticky avoids the extra
+ * `position: relative` wrapper and the stacking questions that come with it.
+ *
+ * The ring is the panel's own black rather than a shadow: on a dark theme a
+ * shadow is invisible, and the button sits over text, so it needs a hard edge
+ * to stay readable.
+ */
+.ai-jump-bottom {
+  position: sticky;
+  bottom: 6px;
+  z-index: 5;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-top: -30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg1);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 0 0 3px var(--bg0);
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  animation: ai-jump-in 140ms ease-out both;
+}
+
+.ai-jump-bottom:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.ai-jump-bottom:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ai-jump-bottom:active {
+  transform: scale(0.94);
+}
+
+/* Slides up from the composer's edge, so its arrival reads as "there is more
+   below" rather than as a control that was always there. */
+@keyframes ai-jump-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-jump-bottom {
+    animation: none;
+  }
+}
+
+/*
  * A tool call body scrolls, not the card.
  *
  * With long outputs the whole transcript moved every time an agent ran one
@@ -1924,6 +1994,18 @@
  * yang membahayakan tetap ada berarti menunggu bug yang sama terulang.
  * Perbaikan yang benar-benar berlaku ada di `.ai-work-body` (ai-work-stack.css).
  */
+/*
+ * The tool-card list: the panel's own black, no fill of its own.
+ *
+ * It used to paint `--bg-elevated` (a translucent grey), which made the list a
+ * lighter rectangle inside the status stack - visible as a grey band under the
+ * thinking bar, and the reason a column of black tool boxes sat on a surface
+ * that did not match them. The stack already owns the background; this list is
+ * only a container for the boxes, so it stays transparent.
+ *
+ * The top border stays: it separates the list from the thinking bar above it
+ * without needing a fill to do it.
+ */
 .ai-agent {
   display: flex;
   flex-direction: column;
@@ -1931,7 +2013,7 @@
   min-height: 0;
   padding: 6px 10px;
   border-top: 1px solid var(--border);
-  background: var(--bg-elevated, rgba(128, 128, 128, 0.05));
+  background: transparent;
 }
 
 .ai-agent-step {

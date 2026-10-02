@@ -58,7 +58,23 @@ export function onPtyExit(cb: (id: string, code: number | null) => void): Promis
   );
 }
 
+declare global {
+  interface Window {
+    __ZEPHYR_AI_LISTENER_PROMISE__?: Promise<UnlistenFn>;
+    __ZEPHYR_AI_CALLBACK__?: (c: AiChunk) => void;
+  }
+}
+
 export function onAiChunk(cb: (c: AiChunk) => void): Promise<UnlistenFn> {
+  if (typeof window !== 'undefined') {
+    window.__ZEPHYR_AI_CALLBACK__ = cb;
+    if (!window.__ZEPHYR_AI_LISTENER_PROMISE__) {
+      window.__ZEPHYR_AI_LISTENER_PROMISE__ = listen<AiChunk>(EV.aiChunk, (e) => {
+        window.__ZEPHYR_AI_CALLBACK__?.(e.payload);
+      });
+    }
+    return window.__ZEPHYR_AI_LISTENER_PROMISE__;
+  }
   return listen<AiChunk>(EV.aiChunk, (e) => cb(e.payload));
 }
 

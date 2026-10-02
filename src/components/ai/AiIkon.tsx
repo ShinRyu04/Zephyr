@@ -72,6 +72,10 @@ export type NamaAiIkon =
     | 'bug'
     | 'clock'
     | 'pin'
+    /* A speech bubble with a tail: a queued message, the way Hermes marks one
+       in its queue panel. Distinct from 'snippet' (which carries a dash and
+       means "prompt fragment") and from 'new-chat' (which carries a plus). */
+    | 'comment'
     | 'x';
 
 interface Props {
@@ -421,6 +425,22 @@ export default function AiIkon({ name, size = 15 }: Props) {
       return (
         <svg {...box}>
           <path d="M13.6 3.4a3.2 3.2 0 0 1-4.2 4.2L4.6 12.4a1.5 1.5 0 1 1-2.1-2.1l4.8-4.8a3.2 3.2 0 0 1 4.2-4.2l-2 2 .9 1.4 1.4.9 2-2z" />
+        </svg>
+      );
+
+    /*
+     * A speech bubble: one queued message.
+     *
+     * Hermes uses a comment glyph as the `leading` slot of every row in its
+     * queue panel (`queue-panel.tsx`: `<Codicon name="comment" />`), and the
+     * shape carries the meaning on its own - a queued entry is something you
+     * said that has not been answered yet, not a file. Drawn with the same tail
+     * as 'snippet' but without the dash inside, so the two stay tellable apart.
+     */
+    case 'comment':
+      return (
+        <svg {...box}>
+          <path d="M13.6 8.2a5.2 5.2 0 0 1-7.3 4.7l-3.9.9.9-3.8A5.2 5.2 0 1 1 13.6 8.2z" />
         </svg>
       );
 

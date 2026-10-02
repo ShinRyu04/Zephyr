@@ -432,13 +432,20 @@
  * header already claims the full row. Column direction, and the rail gets its
  * own line.
  */
+/*
+ * The queue block: header on top, rows below.
+ *
+ * No bottom padding. The rows already carry their own vertical inset, and the
+ * section below (or the composer) provides the seam - a bottom pad here just
+ * adds an empty band under the last queued message.
+ */
 .ai-cq {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 0;
   width: 100%;
-  padding: 0 0 6px;
+  padding: 0;
   min-width: 0;
 }
 
@@ -447,15 +454,76 @@
  * longer means "share the row with the header" - it means nothing useful in a
  * column, and the horizontal scroll region is what carries the chips.
  */
-.ai-cq-rail {
+/*
+ * The queued messages, as a vertical list of rows.
+ *
+ * This replaced a horizontal scrolling rail of fixed-width chips. A chip has to
+ * pick a width up front, so a long message was clipped mid-word and the reader
+ * had to hover each one to find out what they had queued. Hermes renders queued
+ * prompts as full-width rows (`queue-panel.tsx` -> `StatusRow`) where the text
+ * owns the line and wraps to a second line when it needs to, which is what a
+ * list of sentences should do.
+ */
+.ai-cq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   width: 100%;
-  /*
-   * Inset to match the section headers, so the first chip lines up with the
-   * caret above it instead of touching the stack's border. The right padding is
-   * what keeps the last chip clear of the edge when the rail scrolls.
-   */
-  padding: 0 10px;
+  padding: 0 0 2px;
   box-sizing: border-box;
+}
+
+/*
+ * One queued message: dismiss on the leading edge, glyph, text, actions on the
+ * trailing edge. `align-items: center` keeps the `✕` and the glyph on the first
+ * text line when the message wraps to two.
+ */
+.ai-cq-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.ai-cq-row:hover {
+  background: var(--bg1);
+}
+
+/* Leading glyph slot: fixed square so every row's text starts at the same x. */
+.ai-cq-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--fg2);
+}
+
+/*
+ * The row actions, hidden until the row is hovered - Hermes' `trailing` slot
+ * does the same (`status-row.tsx`:
+ * `opacity-0 group-hover/status-row:opacity-100`). Three controls per row at
+ * full contrast would out-shout the message they belong to.
+ *
+ * `opacity` rather than `display: none` so the row height never changes when
+ * the pointer crosses it, and `:focus-within` keeps them reachable by keyboard.
+ */
+.ai-cq-aksi {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.ai-cq-row:hover .ai-cq-aksi,
+.ai-cq-aksi:focus-within {
+  opacity: 1;
 }
 
 /*
@@ -577,12 +645,28 @@
   color: var(--text-muted);
 }
 
+/*
+ * The queued message text.
+ *
+ * It used to be a single clipped line (`nowrap` + ellipsis), which was right for
+ * a fixed-width chip but wrong for a row: the row has the full width of the
+ * panel, so there is no reason to cut a message off mid-word. It wraps, capped
+ * at two lines - the same limit Hermes puts on a queued entry
+ * (`queue-panel.tsx`: `line-clamp-2 break-words`) - so one long message cannot
+ * push the composer down the screen.
+ */
 .ai-cq-t {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   cursor: text;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 /*
@@ -594,6 +678,8 @@
  * the chip against the rail's fixed height, hence the overflow clip.
  */
 .ai-cq-edit {
+  flex: 1 1 auto;
+  min-width: 0;
   min-width: 40px;
   flex: 1;
   height: 16px;
@@ -644,7 +730,18 @@
 }
 
 .ai-cq-x,
+/*
+ * Clear-all sits in the queue header's trailing slot.
+ *
+ * It reuses the header's menu button shape (`.ai-work-menu`) so it lines up with
+ * the `⋯` on the loop row above it - same size, same hover fill, same radius.
+ * The one thing it must NOT inherit is that button's hover-reveal: the loop menu
+ * is an optional action, while clearing the queue is how a user gets rid of
+ * messages they no longer want, and hiding it behind a hover makes it look like
+ * the queue cannot be emptied. `opacity: 1` restores it unconditionally.
+ */
 .ai-cq-clear {
+  opacity: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;

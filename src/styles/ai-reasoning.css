@@ -14,7 +14,8 @@
   margin: 4px 0 10px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  background: var(--surface);
+  /* Same black as the tool cards around it: one panel, one surface tone. */
+  background: var(--bg0);
   overflow: hidden;
   transition: border-color 120ms ease;
 }

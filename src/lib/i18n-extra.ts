@@ -2078,6 +2078,9 @@ const ID: Dict = {
   'Cadence': "Zeph",
   'self-paced': "swadaya",
   'Loop actions': "Aksi loop",
+  'On branch {name}': "Di branch {name}",
+  'Copy output': "Salin keluaran",
+  'Go to the newest': "Ke yang terbaru",
   'Stop loop': "Hentikan loop",
 };
 const EN: Dict = {
@@ -4177,6 +4180,9 @@ const EN: Dict = {
   'Cadence': "Zeph",
   'self-paced': "self-paced",
   'Loop actions': "Loop actions",
+  'On branch {name}': "On branch {name}",
+  'Copy output': "Copy output",
+  'Go to the newest': "Go to the newest",
   'Stop loop': "Stop loop",
 };
 const JA: Dict = {
@@ -6245,6 +6251,9 @@ const JA: Dict = {
   'Cadence': "Zeph",
   'self-paced': "自己ペース",
   'Loop actions': "ループ操作",
+  'On branch {name}': "ブランチ {name}",
+  'Copy output': "出力をコピー",
+  'Go to the newest': "最新へ移動",
   'Stop loop': "ループを停止",
 };
 const KO: Dict = {
@@ -8313,6 +8322,9 @@ const KO: Dict = {
   'Cadence': "Zeph",
   'self-paced': "자율 진행",
   'Loop actions': "루프 작업",
+  'On branch {name}': "브랜치 {name}",
+  'Copy output': "출력 복사",
+  'Go to the newest': "최신으로 이동",
   'Stop loop': "루프 중지",
 };
 const ZH: Dict = {
@@ -10381,6 +10393,9 @@ const ZH: Dict = {
   'Cadence': "Zeph",
   'self-paced': "自主节奏",
   'Loop actions': "循环操作",
+  'On branch {name}': "分支 {name}",
+  'Copy output': "复制输出",
+  'Go to the newest': "跳到最新",
   'Stop loop': "停止循环",
 };
 const ES: Dict = {
@@ -12449,6 +12464,9 @@ const ES: Dict = {
   'Cadence': "Zeph",
   'self-paced': "a su ritmo",
   'Loop actions': "Acciones del bucle",
+  'On branch {name}': "En la rama {name}",
+  'Copy output': "Copiar salida",
+  'Go to the newest': "Ir a lo más reciente",
   'Stop loop': "Detener el bucle",
 };
 const FR: Dict = {
@@ -14517,6 +14535,9 @@ const FR: Dict = {
   'Cadence': "Zeph",
   'self-paced': "à son rythme",
   'Loop actions': "Actions de boucle",
+  'On branch {name}': "Sur la branche {name}",
+  'Copy output': "Copier la sortie",
+  'Go to the newest': "Aller au plus récent",
   'Stop loop': "Arrêter la boucle",
 };
 const DE: Dict = {
@@ -16585,6 +16606,9 @@ const DE: Dict = {
   'Cadence': "Zeph",
   'self-paced': "im eigenen Tempo",
   'Loop actions': "Schleifenaktionen",
+  'On branch {name}': "Auf Branch {name}",
+  'Copy output': "Ausgabe kopieren",
+  'Go to the newest': "Zum Neuesten",
   'Stop loop': "Schleife stoppen",
 };
 const PT: Dict = {
@@ -18653,6 +18677,9 @@ const PT: Dict = {
   'Cadence': "Zeph",
   'self-paced': "no próprio ritmo",
   'Loop actions': "Ações do loop",
+  'On branch {name}': "No branch {name}",
+  'Copy output': "Copiar saída",
+  'Go to the newest': "Ir para o mais recente",
   'Stop loop': "Parar o loop",
 };
 const AR: Dict = {
@@ -20721,6 +20748,9 @@ const AR: Dict = {
   'Cadence': "Zeph",
   'self-paced': "بوتيرة ذاتية",
   'Loop actions': "إجراءات الحلقة",
+  'On branch {name}': "على الفرع {name}",
+  'Copy output': "نسخ المخرجات",
+  'Go to the newest': "الانتقال إلى الأحدث",
   'Stop loop': "إيقاف الحلقة",
 };
 export const EXTRA: Record<string, Dict> = {
