@@ -120,7 +120,13 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
     const cfg = s.settings.history;
     if (!cfg?.enabled) return '';
     try {
-      const r = await historySnapshot(file, reason, cfg.maxPerFile, cfg.maxDays);
+      const r = await historySnapshot(
+        file,
+        reason,
+        cfg.maxPerFile,
+        cfg.maxDays,
+        cfg.maxTotal,
+      );
       
       if (r.id && get().file && kunciPath(get().file!) === kunciPath(file)) {
         void get().muat(file);

@@ -15,14 +15,14 @@ import type { PeranId } from './subagentRoles';
 
 /** Read-only tools a custom worker may be granted. Writing stays opt-in. */
 export type AlatId =
-  | 'file_read'
-  | 'file_list'
-  | 'shell_exec'
-  | 'terminal_read'
-  | 'get_problems'
-  | 'get_output'
-  | 'skill_list'
-  | 'memory_read';
+  | 'read_file'
+  | 'list_directory'
+  | 'grep'
+  | 'glob'
+  | 'bash_logs'
+  | 'bash_list'
+  | 'notes_read'
+  | 'fetch';
 
 export interface AlatInfo {
   id: AlatId;
@@ -37,14 +37,14 @@ export interface AlatInfo {
  * default would be a foot-gun. `kerja` (the built-in writer role) still has it.
  */
 export const ALAT: AlatInfo[] = [
-  { id: 'file_read', label: 'Read a file', hint: 'Open the contents of one file', ikon: '▤' },
-  { id: 'file_list', label: 'Daftar folder', hint: 'List the contents of a folder', ikon: '☰' },
-  { id: 'shell_exec', label: 'Run a command', hint: 'Search via rg / git / find', ikon: '⌘' },
-  { id: 'terminal_read', label: 'Baca terminal', hint: 'Read the terminal pane output', ikon: '▭' },
-  { id: 'get_problems', label: 'Diagnostik', hint: 'Error dan peringatan editor', ikon: '⚠' },
-  { id: 'get_output', label: 'Log output', hint: 'Kanal Output panel bawah', ikon: '≡' },
-  { id: 'skill_list', label: 'Daftar skill', hint: 'Available skills', ikon: '✦' },
-  { id: 'memory_read', label: 'Baca memori', hint: 'Catatan lintas sesi', ikon: '◈' },
+  { id: 'read_file', label: 'Read a file', hint: 'Open the contents of one file', ikon: '▤' },
+  { id: 'list_directory', label: 'Daftar folder', hint: 'List the contents of a folder', ikon: '☰' },
+  { id: 'grep', label: 'Cari teks', hint: 'Search file contents across the workspace', ikon: '⌘' },
+  { id: 'glob', label: 'Cari berkas', hint: 'Find files by name or path pattern', ikon: '▭' },
+  { id: 'bash_logs', label: 'Baca log', hint: 'Read the output of a background process', ikon: '≡' },
+  { id: 'bash_list', label: 'Daftar proses', hint: 'List background processes and their exit codes', ikon: '⚠' },
+  { id: 'notes_read', label: 'Baca memori', hint: 'Catatan lintas sesi', ikon: '◈' },
+  { id: 'fetch', label: 'Ambil halaman', hint: 'Fetch the text of one URL', ikon: '✦' },
 ];
 
 export interface SubagentCustom {
@@ -81,7 +81,7 @@ export function kosongkanSubagent(): Omit<SubagentCustom, 'id'> {
   return {
     nama: '',
     deskripsi: '',
-    alat: ['file_read', 'file_list'],
+    alat: ['read_file', 'list_directory'],
     prompt: '',
     model: '',
     provider: '',

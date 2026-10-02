@@ -262,6 +262,52 @@ export default function App() {
 
   const dragging = useRef(false);
 
+  /*
+   * ActivityBar owns the sidebar state, while AI lives in the independent
+   * bottom-panel store. Remember whether the clicked surface was open before
+   * ActivityBar updates its own state, then apply one unambiguous toggle after
+   * its click handler has run. This also repairs stale states such as
+   * `activity === 'settings'` with the settings editor already closed.
+   */
+  const activityToggleIntent = useRef<{ id: 'ai' | 'settings'; wasOpen: boolean } | null>(null);
+  const rememberActivityToggle = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const id = (e.target as HTMLElement).closest<HTMLElement>('[data-activity]')?.dataset.activity;
+    if (id === 'ai') {
+      const terminal = useTerminal.getState();
+      activityToggleIntent.current = {
+        id,
+        wasOpen: terminal.visible && usePanel.getState().activeTab === 'ai',
+      };
+    } else if (id === 'settings') {
+      activityToggleIntent.current = { id, wasOpen: useStore.getState().settingsOpen };
+    } else {
+      activityToggleIntent.current = null;
+    }
+  }, []);
+  const applyActivityToggle = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const id = (e.target as HTMLElement).closest<HTMLElement>('[data-activity]')?.dataset.activity;
+    const intent = activityToggleIntent.current;
+    activityToggleIntent.current = null;
+    if (!intent || intent.id !== id) return;
+
+    const store = useStore.getState();
+    if (intent.id === 'ai') {
+      store.setSettingsOpen(false);
+      store.setActivity('ai');
+      if (intent.wasOpen) {
+        useTerminal.getState().setVisible(false);
+      } else {
+        store.setSidebarVisible(true);
+        usePanel.getState().focusTab('ai');
+      }
+      return;
+    }
+
+    const open = !intent.wasOpen;
+    store.setSettingsOpen(open);
+    store.setSidebarVisible(open);
+  }, []);
+
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
@@ -1182,7 +1228,11 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app-root">
+    <div
+      className="app-root"
+      onClickCapture={rememberActivityToggle}
+      onClick={applyActivityToggle}
+    >
       {/* FASE 31: skip link - elemen fokusabel PERTAMA di app.
           Without it a keyboard user has to tab past ~20 ActivityBar buttons + the
           Sidebar before reaching the editor, every single time. It is a <button> and not

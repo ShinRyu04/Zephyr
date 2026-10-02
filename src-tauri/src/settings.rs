@@ -138,7 +138,7 @@ pub fn default_settings() -> Value {
             "projects": []
         },
 
-        "history": { "enabled": true, "maxPerFile": 50, "maxDays": 30 },
+        "history": { "enabled": true, "maxPerFile": 200, "maxDays": 30, "maxTotal": 2000 },
         "update": {
             "lastSeenVersion": "",
             "pendingNotes": "",

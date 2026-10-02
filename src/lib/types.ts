@@ -1032,6 +1032,9 @@ export interface Settings {
     maxPerFile: number;
 
     maxDays: number;
+
+    /** Ceiling on snapshots across ALL files, oldest pruned first. */
+    maxTotal: number;
   };
   update?: {
     lastSeenVersion: string;
@@ -1110,7 +1113,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   lsp: { enabled: true, idleSeconds: 300, servers: {} },
 
-  history: { enabled: true, maxPerFile: 50, maxDays: 30 },
+  history: { enabled: true, maxPerFile: 200, maxDays: 30, maxTotal: 2000 },
   tests: { framework: 'auto', autoRunOnOpen: false, runOnSave: false, timeoutSeconds: 300 },
   devenv: {
     rootFolder: 'D:\\DevEnv',

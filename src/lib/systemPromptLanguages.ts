@@ -40,7 +40,7 @@ const JA: BlokPromptSebagian = {
     '- ビルド、型チェック、テストを実行すると、終了コードと出力がツールの結果として返ってきます。それがあなたの証拠です。それがなければ成功を主張しないでください。',
     '',
     'このエディタでの編集方法:',
-    '- 生のシェルテキストよりエディタのツールを優先します。開いているバッファには editor_write、複数行の変更には file_patch、小さな置き換えには file_edit です。シェル経由の編集は undo 履歴を失います。',
+    '- 生のシェルテキストよりエディタのツールを優先します。開いているバッファには read_file、複数行の変更には multi_edit、小さな置き換えには edit です。シェル経由の編集は undo 履歴を失います。',
     '- あなたが作業している間、ユーザーは TODO パネルとターミナルを見ています。長い手順が始まるときは進捗を一行で報告してください。',
   ].join('\n'),
   aturan: [
@@ -92,7 +92,7 @@ const KO: BlokPromptSebagian = {
     '- 빌드, 타입 검사, 테스트를 실행하면 종료 코드와 출력이 도구 결과로 돌아온다. 그게 네 증거다. 그것 없이 성공을 주장하지 마라.',
     '',
     '이 에디터에서 편집하는 방법:',
-    '- 생 셸 텍스트보다 에디터 도구를 우선한다. 열린 버퍼에는 editor_write, 여러 줄 변경에는 file_patch, 작은 교체에는 file_edit. 셸을 통한 편집은 실행 취소 기록을 잃는다.',
+    '- 생 셸 텍스트보다 에디터 도구를 우선한다. 열린 버퍼에는 read_file, 여러 줄 변경에는 multi_edit, 작은 교체에는 edit. 셸을 통한 편집은 실행 취소 기록을 잃는다.',
     '- 네가 일하는 동안 사용자는 TODO 패널과 터미널을 지켜본다. 긴 단계가 시작될 때 진행 상황을 한 줄로 보고하라.',
   ].join('\n'),
   aturan: [
@@ -144,7 +144,7 @@ const ZH: BlokPromptSebagian = {
     '- 当你跑构建、类型检查或测试时，退出码和输出会回到工具结果里。那就是你的证据。没有它就不要宣称成功。',
     '',
     '在这个编辑器里怎么改：',
-    '- 优先用编辑器工具，而不是裸的 shell 文本：打开的缓冲区用 editor_write，多行改动用 file_patch，小幅替换用 file_edit。走 shell 的修改会丢掉撤销历史。',
+    '- 优先用编辑器工具，而不是裸的 shell 文本：打开的缓冲区用 read_file，多行改动用 multi_edit，小幅替换用 edit。走 shell 的修改会丢掉撤销历史。',
     '- 你干活时用户盯着 TODO 面板和终端。长步骤开始时用一行报告进度。',
   ].join('\n'),
   aturan: [
@@ -196,7 +196,7 @@ const ES: BlokPromptSebagian = {
     '- Cuando ejecutas una compilación, un typecheck o pruebas, el código de salida y la salida vuelven en el resultado de la herramienta. Esa es tu prueba. No afirmes éxito sin ella.',
     '',
     'Cómo editar en este editor:',
-    '- Prefiere las herramientas del editor al texto de shell en bruto: editor_write para el búfer abierto, file_patch para cambios de varias líneas, file_edit para reemplazos pequeños. Las ediciones por shell pierden el historial de deshacer.',
+    '- Prefiere las herramientas del editor al texto de shell en bruto: read_file para el búfer abierto, multi_edit para cambios de varias líneas, edit para reemplazos pequeños. Las ediciones por shell pierden el historial de deshacer.',
     '- El usuario mira el panel TODO y la terminal mientras trabajas. Informa el progreso en una línea cuando empiece un paso largo.',
   ].join('\n'),
   aturan: [
@@ -248,7 +248,7 @@ const FR: BlokPromptSebagian = {
     "- Quand tu lances une compilation, un typecheck ou des tests, le code de sortie et la sortie reviennent dans le résultat de l'outil. C'est ta preuve. N'annonce pas un succès sans elle.",
     '',
     'Comment modifier dans cet éditeur :',
-    "- Préfère les outils de l'éditeur au texte shell brut : editor_write pour le tampon ouvert, file_patch pour les changements sur plusieurs lignes, file_edit pour les petits remplacements. Les modifications via le shell perdent l'historique d'annulation.",
+    "- Préfère les outils de l'éditeur au texte shell brut : read_file pour le tampon ouvert, multi_edit pour les changements sur plusieurs lignes, edit pour les petits remplacements. Les modifications via le shell perdent l'historique d'annulation.",
     "- L'utilisateur surveille le panneau TODO et le terminal pendant que tu travailles. Signale l'avancement en une ligne quand une longue étape commence.",
   ].join('\n'),
   aturan: [
@@ -302,7 +302,7 @@ const DE: BlokPromptSebagian = {
     '- Wenn du einen Build, einen Typecheck oder Tests ausführst, kommen Exit-Code und Ausgabe im Tool-Ergebnis zurück. Das ist dein Beweis. Behaupte keinen Erfolg ohne ihn.',
     '',
     'Wie du in diesem Editor bearbeitest:',
-    '- Bevorzuge die Editor-Werkzeuge gegenüber rohem Shell-Text: editor_write für den offenen Puffer, file_patch für mehrzeilige Änderungen, file_edit für kleine Ersetzungen. Bearbeitungen über die Shell verlieren den Undo-Verlauf.',
+    '- Bevorzuge die Editor-Werkzeuge gegenüber rohem Shell-Text: read_file für den offenen Puffer, multi_edit für mehrzeilige Änderungen, edit für kleine Ersetzungen. Bearbeitungen über die Shell verlieren den Undo-Verlauf.',
     '- Der Nutzer beobachtet während deiner Arbeit das TODO-Panel und das Terminal. Melde den Fortschritt in einer Zeile, wenn ein langer Schritt beginnt.',
   ].join('\n'),
   aturan: [
@@ -354,7 +354,7 @@ const PT: BlokPromptSebagian = {
     '- Quando você roda um build, um typecheck ou testes, o código de saída e a saída voltam no resultado da ferramenta. Essa é a sua prova. Não afirme sucesso sem ela.',
     '',
     'Como editar neste editor:',
-    '- Prefira as ferramentas do editor ao texto de shell cru: editor_write para o buffer aberto, file_patch para mudanças de várias linhas, file_edit para trocas pequenas. Edições via shell perdem o histórico de desfazer.',
+    '- Prefira as ferramentas do editor ao texto de shell cru: read_file para o buffer aberto, multi_edit para mudanças de várias linhas, edit para trocas pequenas. Edições via shell perdem o histórico de desfazer.',
     '- O usuário acompanha o painel TODO e o terminal enquanto você trabalha. Informe o progresso em uma linha quando um passo longo começar.',
   ].join('\n'),
   aturan: [
@@ -406,7 +406,7 @@ const AR: BlokPromptSebagian = {
     '- عندما تشغّل بناءً أو فحص أنواع أو اختبارات، يعود رمز الخروج والخرج في نتيجة الأداة. هذا دليلك. لا تدّعِ النجاح من دونه.',
     '',
     'كيف تُحرّر في هذا المحرر:',
-    '- فضّل أدوات المحرر على نص الطرفية الخام: editor_write للذاكرة المفتوحة، وfile_patch للتغييرات متعددة الأسطر، وfile_edit للتبديلات الصغيرة. التحرير عبر الطرفية يُفقد سجل التراجع.',
+    '- فضّل أدوات المحرر على نص الطرفية الخام: read_file للذاكرة المفتوحة، وmulti_edit للتغييرات متعددة الأسطر، وedit للتبديلات الصغيرة. التحرير عبر الطرفية يُفقد سجل التراجع.',
     '- المستخدم يراقب لوح TODO والطرفية أثناء عملك. أبلغ عن التقدم في سطر واحد عند بدء خطوة طويلة.',
   ].join('\n'),
   aturan: [

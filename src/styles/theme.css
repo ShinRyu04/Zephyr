@@ -29,6 +29,21 @@
   --accent: #3884ff;
   --accent-hover: #4c93ff;
   --accent-subtle: rgba(56, 132, 255, 0.16);
+
+  /*
+   * Warna kotak centang yang terisi, dan warna centang di dalamnya.
+   *
+   * Sengaja mengikuti --accent, bukan dipatok biru: tema lain memakai aksen
+   * kuning, hijau, dan merah muda, dan kotak centang yang tetap biru di sana
+   * akan terlihat seperti sisa dari tema lain.
+   *
+   * Yang WAJIB tetap adalah warna centangnya. Sebelumnya ikon centang mewarisi
+   * warna teks baris, dan di tema terang hasilnya centang gelap di atas kotak
+   * beraksen - praktis tak terlihat. Di sini ia dipatok putih, karena latar
+   * kotak yang terisi selalu berwarna pekat.
+   */
+  --cek-biru: var(--accent);
+  --cek-centang: #ffffff;
   --danger: #f85149;
   --warning: #d29922;
   --success: #3fb950;

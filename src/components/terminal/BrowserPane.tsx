@@ -35,7 +35,17 @@ export function shortUrl(url: string): string {
  * an empty black stage. In dev the dev server is the useful default, so pick it
  * there and a real page everywhere else.
  */
-const HOME = import.meta.env.DEV ? 'http://localhost:5173' : 'https://duckduckgo.com';
+/**
+ * Alamat awal pane browser.
+ *
+ * DIEKSPOR karena `TerminalTabs.tsx` membutuhkannya saat membuat pane browser
+ * lewat tombol "Pane Browser (split)". Sebelum ini tombol itu memanggil
+ * `addPane('browser')` TANPA url, dan pane yang lahir dengan url kosong membuat
+ * child webview memuat halaman kosong - pane tampil sebagai panel gelap yang
+ * terlihat mati. Satu definisi di sini mencegah nilai "dev" dan nilai "rilis"
+ * hidup di dua tempat dan berbeda diam-diam.
+ */
+export const HOME = import.meta.env.DEV ? 'http://localhost:5173' : 'https://duckduckgo.com';
 
 function Icon({ d, size = 13 }: { d: string; size?: number }) {
   return (
@@ -96,7 +106,19 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
    */
   useEffect(() => {
     const url = pane.url;
-    if (!url) {
+    /*
+     * 'about:blank' diperlakukan SAMA seperti url kosong.
+     *
+     * `addPane('browser')` tanpa url menghasilkan pane ber-url 'about:blank'
+     * (lihat terminalStore), bukan string kosong. Nilai itu truthy, jadi
+     * penjaga `if (!url)` di bawah melewatinya, lalu:
+     *   - toolbar mencoba memuatnya dan MENOLAK ("url harus http:// atau https://")
+     *   - child webview tetap dibuat, memuat halaman kosong
+     *   - pane tampil sebagai panel gelap, seolah mati
+     * Ini yang dulu terjadi. Sekarang nilai itu ditolak di sini.
+     */
+    const kosong = !url || url === 'about:blank';
+    if (kosong) {
       siapRef.current = false;
       void cmd.browserPaneClose(pane.id).catch(() => {});
       return;
@@ -363,7 +385,7 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
           spellCheck={false}
           aria-label={tx('URL address')}
           data-testid="bp-url"
-          placeholder="http://localhost:5173"
+          placeholder={HOME}
           onChange={(e) => setDraft(e.target.value)}
         />
 
@@ -398,8 +420,19 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
                 >
                   {tr('Open in an external browser')}
                 </button>
+                {/*
+                  * Label mengikuti HOME, bukan menulis alamat dev dengan tangan.
+                  *
+                  * HOME sudah dijaga `import.meta.env.DEV`: di rilis nilainya
+                  * https://duckduckgo.com. Tapi tulisan tombol ini selalu
+                  * "localhost:5173", jadi di rilis ia menuju DuckDuckGo sambil
+                  * menjanjikan localhost - tombol yang berbohong tentang apa
+                  * yang dilakukannya. Sekarang tulisannya berasal dari nilai
+                  * yang sama dengan tujuan handler-nya, sehingga keduanya tidak
+                  * bisa lagi berbeda.
+                  */}
                 <button className="btn btn-sm" data-testid="bp-goto-local" onClick={() => go(HOME)}>
-                  Go to localhost:5173
+                  {tr('Go to')} {HOME.replace(/^https?:\/\//, '')}
                 </button>
               </div>
             </div>

@@ -530,6 +530,16 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
       return { ok: true, tabId };
     }
 
+    /*
+     * A full-content buffer write. The model-facing names for this are
+     * `write_file` (and the `edit` / `multi_edit` pair for partial rewrites);
+     * `editor_write` is the MCP action name the Rust server still sends over
+     * `mcp-action`, so both vocabularies are accepted here rather than dropping
+     * the live one. The body only swaps the tab buffer and never touches disk.
+     */
+    case 'write_file':
+    case 'edit':
+    case 'multi_edit':
     case 'editor_write': {
       const tabId = str(p, 'tabId');
       const content = String(p.content ?? '');

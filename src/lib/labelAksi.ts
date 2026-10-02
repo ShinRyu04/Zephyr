@@ -11,61 +11,118 @@ export interface AksiInfo {
   ikon: NamaAiIkon;
 }
 
+/*
+ * The map keys are the 51 model-facing names in tediTools/catalog.ts, verbatim.
+ *
+ * It used to be keyed on a retired tool vocabulary that no longer exists in
+ * the catalog, so every call fell through to the generic row: the raw name, a
+ * dot icon,
+ * and jenis 'lain'. The version below tracks the catalog one-for-one — 26
+ * builtin, then the 14 MCP names in their full mcp__tedi__ form, then the 11
+ * web/browser names — so a call renders its own verb and glyph again.
+ */
 const PETA: Record<string, AksiInfo> = {
+  /* Files - read */
+  read_file: { label: 'Read', jenis: 'baca', ikon: 'doc' },
+  list_directory: { label: 'List', jenis: 'baca', ikon: 'list' },
 
-  file_read: { label: 'Read', jenis: 'baca', ikon: 'doc' },
-  editor_read: { label: 'Read (buffer)', jenis: 'baca', ikon: 'doc' },
-  file_list: { label: 'List', jenis: 'cari', ikon: 'list' },
-  terminal_read: { label: 'Read output', jenis: 'baca', ikon: 'doc' },
-  get_output: { label: 'Read output', jenis: 'baca', ikon: 'doc' },
-  get_problems: { label: 'Read problems', jenis: 'baca', ikon: 'warn' },
-  list_panes: { label: 'List panes', jenis: 'cari', ikon: 'list' },
+  /* Files - write */
+  write_file: { label: 'Write', jenis: 'tulis', ikon: 'doc-edit' },
+  create_directory: { label: 'Create folder', jenis: 'tulis', ikon: 'doc-edit' },
+  move_file: { label: 'Move', jenis: 'tulis', ikon: 'doc-edit' },
+  copy_file: { label: 'Copy', jenis: 'tulis', ikon: 'doc-edit' },
+  delete_file: { label: 'Delete', jenis: 'tulis', ikon: 'doc-edit' },
+  replace_in_files: { label: 'Replace', jenis: 'tulis', ikon: 'doc-edit' },
 
-  editor_write: { label: 'Edit (buffer)', jenis: 'tulis', ikon: 'doc-edit' },
-  file_write: { label: 'Write', jenis: 'tulis', ikon: 'doc-edit' },
-  file_edit: { label: 'Edit', jenis: 'tulis', ikon: 'doc-edit' },
+  /* Edit */
+  edit: { label: 'Edit', jenis: 'tulis', ikon: 'doc-edit' },
+  multi_edit: { label: 'Edit', jenis: 'tulis', ikon: 'doc-edit' },
 
-  terminal_exec: { label: 'Run', jenis: 'jalan', ikon: 'terminal' },
-  shell_exec: { label: 'Run', jenis: 'jalan', ikon: 'terminal' },
+  /* Search */
+  grep: { label: 'Search', jenis: 'cari', ikon: 'search' },
+  glob: { label: 'Find files', jenis: 'cari', ikon: 'search' },
+
+  /* Shell */
+  bash_run: { label: 'Run', jenis: 'jalan', ikon: 'terminal' },
+  bash_background: { label: 'Run in background', jenis: 'jalan', ikon: 'terminal' },
+  bash_logs: { label: 'Read output', jenis: 'baca', ikon: 'doc' },
+  bash_list: { label: 'List processes', jenis: 'baca', ikon: 'list' },
+  bash_kill: { label: 'Stop process', jenis: 'jalan', ikon: 'terminal' },
+
+  /* Network */
+  fetch: { label: 'Fetch', jenis: 'baca', ikon: 'doc' },
+
+  /* Sub-agents */
+  run_subagent: { label: 'Subagent', jenis: 'lain', ikon: 'puzzle' },
+  run_subagents: { label: 'Subagents', jenis: 'lain', ikon: 'puzzle' },
+
+  /* Tasks & Notes */
+  todo_write: { label: 'Write TODO', jenis: 'ingat', ikon: 'check' },
+  notes_read: { label: 'Read notes', jenis: 'ingat', ikon: 'brain' },
+  notes_write: { label: 'Write notes', jenis: 'ingat', ikon: 'brain' },
+
+  /* Schedules */
+  schedule_command: { label: 'Schedule', jenis: 'ingat', ikon: 'clock' },
+  list_schedules: { label: 'List schedules', jenis: 'ingat', ikon: 'clock' },
+  cancel_schedule: { label: 'Cancel schedule', jenis: 'ingat', ikon: 'clock' },
+
+  /* MCP - inspect */
+  mcp__tedi__inspect: { label: 'Inspect', jenis: 'baca', ikon: 'search' },
+  mcp__tedi__state: { label: 'Read state', jenis: 'baca', ikon: 'doc' },
+  mcp__tedi__read: { label: 'Read surface', jenis: 'baca', ikon: 'doc' },
+  mcp__tedi__wait_for_terminal: { label: 'Wait for terminal', jenis: 'baca', ikon: 'clock' },
+
+  /* MCP - control */
+  mcp__tedi__run_command: { label: 'Run command', jenis: 'jalan', ikon: 'terminal' },
+  mcp__tedi__open_file: { label: 'Open file', jenis: 'tulis', ikon: 'doc-edit' },
+  mcp__tedi__workspace: { label: 'Workspace', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__tedi__set_setting: { label: 'Set setting', jenis: 'tulis', ikon: 'gear' },
+  mcp__tedi__extension: { label: 'Extension', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__tedi__ssh: { label: 'SSH', jenis: 'jalan', ikon: 'terminal' },
+  mcp__tedi__worktree: { label: 'Worktree', jenis: 'tulis', ikon: 'puzzle' },
+
+  /* MCP - terminal */
+  mcp__tedi__sh: { label: 'Run in terminal', jenis: 'jalan', ikon: 'terminal' },
+  mcp__tedi__focus_pane: { label: 'Focus pane', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__tedi__pane: { label: 'Pane', jenis: 'tulis', ikon: 'puzzle' },
+
+  /* Web */
+  web_search: { label: 'Search web', jenis: 'cari', ikon: 'search' },
+  web_fetch: { label: 'Fetch page', jenis: 'baca', ikon: 'doc' },
+
+  /* Browser */
   browser_open: { label: 'Open page', jenis: 'jalan', ikon: 'terminal' },
+  browser_read: { label: 'Read page', jenis: 'baca', ikon: 'doc' },
   browser_click: { label: 'Click', jenis: 'jalan', ikon: 'terminal' },
   browser_type: { label: 'Type', jenis: 'jalan', ikon: 'terminal' },
-  browser_eval: { label: 'Eval in page', jenis: 'jalan', ikon: 'terminal' },
-  browser_screenshot: { label: 'Screenshot', jenis: 'jalan', ikon: 'doc' },
-  browser_read: { label: 'Read page', jenis: 'baca', ikon: 'doc' },
   browser_nav: { label: 'Navigate', jenis: 'jalan', ikon: 'terminal' },
-  browser_list: { label: 'List pages', jenis: 'cari', ikon: 'list' },
-  web_search: { label: 'Search web', jenis: 'cari', ikon: 'list' },
-  search_text: { label: 'Search', jenis: 'cari', ikon: 'search' },
-  web_fetch: { label: 'Fetch page', jenis: 'baca', ikon: 'doc' },
-  editor_patch: { label: 'Patch (buffer)', jenis: 'tulis', ikon: 'doc-edit' },
-  file_patch: { label: 'Patch', jenis: 'tulis', ikon: 'doc-edit' },
-  fs_read: { label: 'Read', jenis: 'baca', ikon: 'doc' },
-  fs_write: { label: 'Write', jenis: 'tulis', ikon: 'doc-edit' },
-  fs_list: { label: 'List', jenis: 'cari', ikon: 'list' },
-  editor_open: { label: 'Open in editor', jenis: 'jalan', ikon: 'terminal' },
-  mcp_call: { label: 'MCP call', jenis: 'lain', ikon: 'puzzle' },
-  subagent_run: { label: 'Subagent', jenis: 'lain', ikon: 'puzzle' },
-
-  memory_read: { label: 'Read memory', jenis: 'ingat', ikon: 'brain' },
-  memory_write: { label: 'Write memory', jenis: 'ingat', ikon: 'brain' },
-  skill_list: { label: 'List skills', jenis: 'ingat', ikon: 'brain' },
-  skill_view: { label: 'Read skill', jenis: 'ingat', ikon: 'brain' },
-  skill_write: { label: 'Write skill', jenis: 'ingat', ikon: 'brain' },
-  skill_delete: { label: 'Delete skill', jenis: 'ingat', ikon: 'brain' },
-  todo_read: { label: 'Read TODO', jenis: 'ingat', ikon: 'check' },
-  todo_write: { label: 'Write TODO', jenis: 'ingat', ikon: 'check' },
-  cron_list: { label: 'List cron', jenis: 'ingat', ikon: 'clock' },
-  cron_create: { label: 'Create cron', jenis: 'ingat', ikon: 'clock' },
-  cron_delete: { label: 'Delete cron', jenis: 'ingat', ikon: 'clock' },
-
-  subagent: { label: 'Subagent', jenis: 'lain', ikon: 'puzzle' },
-  agent_sub: { label: 'Subagent', jenis: 'lain', ikon: 'puzzle' },
+  browser_list: { label: 'List pages', jenis: 'baca', ikon: 'list' },
+  browser_close: { label: 'Close page', jenis: 'tulis', ikon: 'doc-edit' },
+  browser_download_url: { label: 'Download', jenis: 'tulis', ikon: 'doc-edit' },
+  system_browser_open: { label: 'Open in browser', jenis: 'jalan', ikon: 'terminal' },
 };
+
+/*
+ * A model-facing MCP name carries a `mcp__tedi__` prefix; the tool layer does
+ * too, but a bare `inspect` can still reach here from a restored session or a
+ * hand-written step. Strip the prefix before the lookup so both spellings
+ * resolve to the same entry instead of one of them landing on the generic row.
+ */
+const AWALAN_MCP = 'mcp__tedi__';
 
 export function infoAksi(nama: string | undefined): AksiInfo {
   if (!nama) return { label: '—', jenis: 'lain', ikon: 'dot' };
-  return PETA[nama] ?? { label: nama, jenis: 'lain', ikon: 'dot' };
+  const langsung = PETA[nama];
+  if (langsung) return langsung;
+  /* A bare MCP name (`inspect`) means its namespaced entry. */
+  const berawalan = PETA[AWALAN_MCP + nama];
+  if (berawalan) return berawalan;
+  /* A namespaced name whose namespaced entry is missing falls back to bare. */
+  if (nama.startsWith(AWALAN_MCP)) {
+    const polos = PETA[nama.slice(AWALAN_MCP.length)];
+    if (polos) return polos;
+  }
+  return { label: nama, jenis: 'lain', ikon: 'dot' };
 }
 
 export function sasaranAksi(args: string | undefined): string {

@@ -26,6 +26,19 @@ import {
   AUTO_COMPACT_COOLDOWN_STEPS,
 } from './contextBudget';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
+import { TOOL_CATALOG } from './tediTools/catalog';
+
+/*
+ * Read-only tools, derived from the catalog instead of typed out by hand.
+ *
+ * A hand-kept list of names silently stops matching the moment a tool is
+ * renamed, and then the coalescing and the parallel-read batch quietly never
+ * fire. The catalog already classifies every tool, so it is the only list that
+ * can stay correct.
+ */
+const TOOL_BACA: readonly string[] = TOOL_CATALOG.filter((t) => t.effect === 'read').map((t) => t.name);
+const TOOL_BACA_SET: ReadonlySet<string> = new Set(TOOL_BACA);
+const TOOL_BACA_DIPARALELKAN = new Set(TOOL_BACA);
 
 const LS_KEY = 'zephyr.ai.sessions.v1';
 
@@ -136,10 +149,9 @@ function stableToolJson(value: unknown, key = ''): string {
 function agentToolCacheKey(name: string, args: Record<string, unknown>): string | null {
   const action = String(args.action ?? '').trim().toLowerCase();
   const readGit = name === 'git' && ['status', 'diff', 'log', 'branches'].includes(action);
-  const safe = new Set(['file_read', 'file_list', 'scan_dir', 'editor_read', 'terminal_read', 'memory_read', 'skill_list', 'skill_view', 'todo_read']);
   const safeAction = (name === 'notes' && action === 'list') || (name === 'schedule_command' && action === 'list') || (name === 'worktree' && action === 'list');
-  const exactTsc = name === 'shell_exec' && String(args.command ?? '').trim() === 'npx tsc --noEmit';
-  if (!safe.has(name) && !readGit && !safeAction && !exactTsc) return null;
+  const exactTsc = name === 'bash_run' && String(args.command ?? '').trim() === 'npx tsc --noEmit';
+  if (!TOOL_BACA_SET.has(name) && !readGit && !safeAction && !exactTsc) return null;
   return `${name}:${stableToolJson(args)}`;
 }
 
@@ -216,7 +228,7 @@ export async function jalankanAgentToolCached(name: string, args: Record<string,
   if (!key) return jalankanAgentTool(name, args);
   const now = Date.now();
   const prior = agentToolCache.get(key);
-  const ttl = name === 'terminal_read' ? TERMINAL_READ_CACHE_TTL_MS : Infinity;
+  const ttl = name === 'bash_run' ? TERMINAL_READ_CACHE_TTL_MS : Infinity;
   if (prior && (now - prior.at < ttl)) return prior.result !== undefined ? prior.result : prior.promise;
   const promise = jalankanAgentTool(name, args);
   const entry: AgentToolCacheEntry = { promise, at: now };
@@ -225,7 +237,7 @@ export async function jalankanAgentToolCached(name: string, args: Record<string,
     const result = await promise;
     // Only successful results are reusable. In particular, a failed tsc run is
     // not cached, so a later call can observe the fixed workspace.
-    if (name !== 'shell_exec' || /^__meta exit=0(?:\\s|$)/.test(result)) entry.result = result;
+    if (name !== 'bash_run' || /^exit=0(?:\s|$)/.test(result)) entry.result = result;
     else agentToolCache.delete(key);
     return result;
   } catch (error) {
@@ -286,7 +298,7 @@ function konteksEditor(): string {
 /*
  * The tail of any pane that exited with a failure. A build or test that died in
  * the terminal is the single most common thing the user wants explained, and
- * hunting for it with terminal_read costs a round trip every time. Only panes
+ * hunting for it with a terminal read costs a round trip every time. Only panes
  * that already finished with a non-zero code qualify: a live dev server is
  * scrolling noise, and its last 20 lines say nothing about what to do next.
  */
@@ -1236,7 +1248,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
   agentMode: bootAgentMode(),
 
-  approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'work',
+  approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'auto',
   agentBusy: false,
   agentNavigationOnly: false,
   agentPhase: 'idle',
@@ -2185,7 +2197,7 @@ export const useAi = create<AiStore>((set, get) => ({
             `[EDITOR CONTEXT] The file the user has open: ${tabAktif.path}` +
             `${tabAktif.unsaved ? ' (unsaved changes in the buffer)' : ''}. ` +
             'When the instruction mentions "this file", "this function", or "here", ' +
-            'it means that file. Use the editor_read/editor_write tools for its contents.',
+            'it means that file. Use read_file for its contents and edit/write_file to change it.',
         });
       }
     }
@@ -2381,12 +2393,8 @@ export const useAi = create<AiStore>((set, get) => ({
         if (callsToDispatch.length === 0) break;
 
         /* Start eligible read calls together; dispatch below preserves order and all gates. */
-        const PARALLEL_READ_TOOLS = new Set([
-          'file_read', 'file_list', 'editor_read', 'terminal_read', 'memory_read',
-          'skill_list', 'skill_view', 'todo_read',
-        ]);
         const canParallelize = (tc: AgentToolCall): boolean => {
-          if (PARALLEL_READ_TOOLS.has(tc.name)) return true;
+          if (TOOL_BACA_DIPARALELKAN.has(tc.name)) return true;
           const action = String((tc.args as Record<string, unknown> | undefined)?.action ?? '').trim();
           if (tc.name === 'git') return action === 'status' || action === 'diff' || action === 'log' || action === 'branches';
           if (tc.name === 'notes') return action === 'list';
@@ -2456,7 +2464,17 @@ export const useAi = create<AiStore>((set, get) => ({
           }
           get().setAgentProgress({ agentPhase: 'running-tool', agentCurrentTool: tc.name, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
           const mulaiTool = Date.now();
-          const namaShell = tc.name === 'terminal_exec' || tc.name === 'shell_exec';
+          /*
+           * Shell menghasilkan perintah yang perlu diperiksa bahayanya SEBELUM
+           * dijalankan, dan pemeriksaan itu butuh daftar perintah yang bisa
+           * ditebak dari argumennya.
+           *
+           * `bash_run` dan `bash_background` adalah pengganti langsung
+           * `shell_exec` dan `terminal_exec` setelah penggantian tool. Keduanya
+           * memakai argumen `command`, jadi pembacaan `perintah` di bawah tetap
+           * bekerja tanpa perubahan.
+           */
+          const namaShell = tc.name === 'bash_run' || tc.name === 'bash_background';
           const perintah = namaShell ? String(argsObj.command ?? '') : '';
           /*
            * Read-only mode is a hard gate on the whole write set, not a shell
@@ -2564,11 +2582,12 @@ export const useAi = create<AiStore>((set, get) => ({
             /*
              * Pull the exit code out of the tool's own header.
              *
-             * shell_exec prefixes its result with `__meta exit=N ms=N`; that
-             * line is for this parser, and it is stripped from the copy that
-             * reaches the reader so the transcript never shows plumbing.
+             * bash_run prefixes its result with `exit=N (N ms)` and, when the
+             * command timed out, `exit=N (WAKTU HABIS) (N ms)`. That header is
+             * for this parser, and it is stripped from the copy that reaches
+             * the reader so the transcript never shows plumbing.
              */
-            const meta = /^__meta exit=(-?\d+)(?: ms=(\d+))?(?: timeout=1)?\n/.exec(hasil);
+            const meta = /^exit=(-?\d+)(?: \(WAKTU HABIS\))? \(\d+ ms\)\n/.exec(hasil);
             if (meta) {
               status.exitCode = Number(meta[1]);
               hasil = hasil.slice(meta[0].length);
@@ -2648,8 +2667,32 @@ export const useAi = create<AiStore>((set, get) => ({
            * is exactly when the model needs to look at it.
            */
           const gambarBaru = ambilGambarMenunggu();
-          if (tc.name === 'task_complete') {
-            taskComplete = true;
+          /*
+           * Sinyal "selesai" tidak lagi datang dari tool `task_complete`.
+           *
+           * Tool itu tidak ada di katalog 51 tool, jadi kondisi lama di sini
+           * TIDAK PERNAH bernilai true. Akibatnya loop tidak pernah berhenti
+           * karena model menyatakan pekerjaannya selesai: ia berjalan sampai
+           * model kebetulan berhenti memanggil tool, atau sampai menyentuh
+           * batas langkah. Yang terlihat user: agen terus melangkah pada tugas
+           * yang sudah beres.
+           *
+           * Yang benar-benar tersedia sebagai penanda selesai cuma dua:
+           *
+           *   - daftar tugas agen, kalau model memeliharanya. Semua tugas
+           *     berstatus 'done' berarti pekerjaannya tuntas.
+           *   - perintah itu sendiri tidak punya lagi langkah berarti, dan itu
+           *     sudah tertangani oleh loop di bawah (tidak ada tool call lagi).
+           *
+           * Menghapus syarat lama tanpa menggantinya akan membuat loop
+           * berjalan lebih lama, bukan lebih pendek - jadi penggantinya harus
+           * benar-benar bisa terpenuhi.
+           */
+          if (tc.name === 'todo_write') {
+            const todos = useAi.getState().agentTodos;
+            if (todos.length > 0 && todos.every((t) => t.status === 'done')) {
+              taskComplete = true;
+            }
           }
           if (gambarBaru.length > 0) {
             history.push({

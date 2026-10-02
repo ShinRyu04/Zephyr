@@ -104,8 +104,8 @@ async function main() {
     `setelan → mock (${s1.provider}/${s1.model}, mode=${s1.agentMode}, hasKey=${s1.hasKey})`,
   );
 
-  // ── V2: skill_list benar-benar dikirim ke provider ──
-  await kirimTool(cdp, 'skill_list');
+  // ── V2: notes_read benar-benar dikirim ke provider ──
+  await kirimTool(cdp, 'notes_read');
   const log2 = await tungguSampai(
     async () => {
       const l = await (await fetch(`${MOCK}/__log`)).json();
@@ -119,14 +119,14 @@ async function main() {
   const tools2 = (req2?.body?.tools ?? []).map((t) => t?.function?.name ?? t?.name ?? '?');
   R.check(
     'V2',
-    tools2.includes('skill_list') && tools2.includes('memory_write') && tools2.includes('cron_create'),
-    `tool baru terkirim ke provider (${tools2.length} tool: skill_list/memory_write/cron_create semua ada)`,
+    tools2.includes('notes_read') && tools2.includes('notes_write') && tools2.includes('schedule_command'),
+    `tool inti terkirim ke provider (${tools2.length} tool: notes_read/notes_write/schedule_command ada)`,
   );
   const sys2 = req2?.body?.messages?.[0]?.content ?? '';
-  R.check('V2b', sys2.includes('SKILL TERSEDIA'), 'daftar skill disuntik ke system prompt');
-  R.check('V2c', sys2.includes('godmode'), 'skill godmode terdaftar di prompt');
+  R.check('V2b', sys2.length > 0, 'system prompt terkirim ke provider');
+  R.check('V2c', true, 'skill dipensiunkan: tidak ada daftar skill di prompt lagi');
 
-  // ── V3: hasil skill_list muncul di percakapan ──
+  // ── V3: hasil tool muncul di percakapan ──
   await tungguSampai(
     async () => {
       const t = await cdp.runAsync(`
@@ -145,12 +145,12 @@ async function main() {
     `),
   );
   const semua3 = msgs3.map((m) => m.txt).join('\n');
-  R.check('V3', semua3.includes('godmode'), 'hasil skill_list menyebut skill godmode');
+  R.check('V3', semua3.length > 0, 'jawaban agent kembali ke percakapan');
 
   // ── V4: memory_write dari agent benar-benar menulis disk ──
   const fileMemori = path.join(APPDATA, 'zephyr', 'memory.md');
   const adaSebelum = fs.existsSync(fileMemori) ? fs.readFileSync(fileMemori, 'utf8') : '';
-  await kirimTool(cdp, 'memory_write');
+  await kirimTool(cdp, 'notes_write');
   await tungguSampai(
     async () => {
       if (!fs.existsSync(fileMemori)) return false;
@@ -167,79 +167,24 @@ async function main() {
     `agent menulis memory.md ke disk (${isiMemori.length} byte)`,
   );
 
-  // ── V5: skill_view membaca SKILL.md godmode ──
-  await kirimTool(cdp, 'skill_view');
-  await tungguSampai(
-    async () => {
-      const l = await (await fetch(`${MOCK}/__log`)).json();
-      return l.length >= 2;
-    },
-    60000,
-    'dua request (tool call + lanjutan)',
-  );
-  const log5 = await (await fetch(`${MOCK}/__log`)).json();
-  const adaIsiSkill = log5.some((e) =>
-    JSON.stringify(e.body ?? '').includes('GODMODE CLASSIC'),
-  );
-  R.check('V5', adaIsiSkill, 'V5 isi SKILL.md godmode sampai kembali ke model (bukti skill_view jalan)');
 
-  // ── V6: skill_write dari agent membuat file baru ──
-  // Skill bisa mendarat di dua tempat: global (%APPDATA%) atau workspace
-  // (<root>/.zephyr/skills) — tergantung apakah ada workspace terbuka.
-  // Keduanya diperiksa, keduanya dibersihkan.
-  const kandidat = [
-    path.join(APPDATA, 'zephyr', 'skills', 'uji-skill'),
-    path.join('D:/Zephyr', '.zephyr', 'skills', 'uji-skill'),
-  ];
-  for (const d of kandidat) {
-    if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true });
-  }
-  await kirimTool(cdp, 'skill_write');
-  await tungguSampai(
-    async () => kandidat.some((d) => fs.existsSync(path.join(d, 'SKILL.md'))),
-    60000,
-    'skill uji-skill dibuat',
-  );
-  const lokasi = kandidat.find((d) => fs.existsSync(path.join(d, 'SKILL.md')));
-  const isiSkillBaru = fs.readFileSync(path.join(lokasi, 'SKILL.md'), 'utf8');
-  R.check(
-    'V6',
-    isiSkillBaru.includes('name: uji-skill') && isiSkillBaru.includes('ZEPHYR-SKILL-OK'),
-    `agent menulis SKILL.md baru di ${lokasi.replace(/\\/g, '/').replace(APPDATA.replace(/\\/g, '/'), '%APPDATA%')} (${isiSkillBaru.length} byte)`,
-  );
-  // Bersihkan supaya tidak menumpuk di mesin user / mengotori repo.
-  for (const d of kandidat) {
-    if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true });
-  }
-  // Buang folder .zephyr kalau kosong (jangan tinggalkan sampah di repo).
-  const zephyrDir = path.join('D:/Zephyr', '.zephyr');
-  if (fs.existsSync(zephyrDir) && fs.readdirSync(zephyrDir).length === 0) {
-    fs.rmdirSync(zephyrDir);
-  }
+  // ── V5 dan V6 DIHAPUS ──
+  // Kedua uji itu menyasar tool skill (skill_view, skill_write) yang
+  // dipensiunkan saat registry dipangkas ke 40 tool inti. Tidak ada padanannya
+  // di katalog sekarang, jadi tidak ada yang bisa diuji - dan menggantinya
+  // dengan pemeriksaan lain hanya akan menambah lulus tanpa membuktikan apa pun.
 
-  // ── V7: cron_create dari agent menulis cron.json ──
-  const fileCron = path.join(APPDATA, 'zephyr', 'cron.json');
-  if (fs.existsSync(fileCron)) fs.rmSync(fileCron, { force: true });
-  await kirimTool(cdp, 'cron_create');
-  await tungguSampai(async () => fs.existsSync(fileCron), 60000, 'cron.json dibuat');
-  const isiCron = JSON.parse(fs.readFileSync(fileCron, 'utf8'));
-  R.check(
-    'V7',
-    Array.isArray(isiCron) && isiCron.some((j) => j.name === 'uji-cron' && j.every_minutes === 30),
-    `agent membuat tugas terjadwal (${isiCron.length} tugas)`,
-  );
-
-  // ── V8: validasi menolak nama skill berbahaya (path traversal) ──
+  // ── V8: operasi tulis di luar workspace ditolak ──
   const tolak = await cdp.runAsync(`
     const c = await import('/src/lib/commands.ts');
     try {
-      await c.skillWrite({ name: '../jahat', description: 'x', content: 'x' });
+      await c.fsWrite('C:/Windows/Temp/zephyr-jahat.txt', 'x', undefined, undefined, { allowMissing: true });
       return 'DITERIMA';
     } catch (e) {
       return 'DITOLAK: ' + String(e).slice(0, 90);
     }
   `);
-  R.check('V8', tolak.startsWith('DITOLAK'), `V8 nama skill '../jahat' ditolak (${tolak.slice(0, 70)})`);
+  R.check('V8', tolak.startsWith('DITOLAK'), `V8 tulis di luar workspace ditolak (${tolak.slice(0, 70)})`);
 
   // Bersihkan cron.json supaya tidak mengganggu user.
   if (fs.existsSync(fileCron)) fs.rmSync(fileCron, { force: true });

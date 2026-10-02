@@ -27,7 +27,9 @@ import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { runCommand } from '../../lib/commandRegistry';
-import SubAgentInfo from './SubAgentInfo';
+/* `SubAgentInfo` tidak diimpor lagi: popover subagent di kepala panel sudah
+   dibuang, dan isinya kini tampil di tumpukan status atas kotak input. Berkas
+   komponennya sengaja TIDAK dihapus - ia masih dipakai di tempat lain. */
 import { infoAksi, KELAS_JENIS } from '../../lib/labelAksi';
 import ToolCallCard from './ToolCallCard';
 import DiffViewer from './DiffViewer';
@@ -154,11 +156,14 @@ const JEJAK_TOOL_MAKS = 4;
   const [loopBuka, setLoopBuka] = useState(false);
   const [backgroundBuka, setBackgroundBuka] = useState(false);
   const [cqLipat, setCqLipat] = useState(true);
-  const [subagentsBuka, setSubagentsBuka] = useState(false);
-  const subagentsRef = useRef<HTMLDivElement | null>(null);
-
+  /*
+   * `subagentsSibuk` tidak lagi dipakai header.
+   *
+   * Popover subagent di kepala panel sudah dibuang - isinya pindah ke
+   * tumpukan status di atas kotak input. Jadi yang tersisa di sini hanya daftar
+   * agennya, untuk menghitung berapa yang sedang jalan.
+   */
   const subagents = useSubAgent((s) => s.agents);
-  const subagentsSibuk = useSubAgent((s) => s.sibuk);
   const jadwal = useSched((s) => s.daftar);
   const muatJadwal = useSched((s) => s.muat);
   const subagentsAktif = subagents.filter((a) => a.status === 'jalan' || a.status === 'menunggu');
@@ -186,22 +191,6 @@ const JEJAK_TOOL_MAKS = 4;
   useEffect(() => {
     void muatJadwal();
   }, [muatJadwal]);
-
-  useEffect(() => {
-    if (!subagentsBuka) return;
-    const onDown = (e: MouseEvent) => {
-      if (!subagentsRef.current?.contains(e.target as Node)) setSubagentsBuka(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSubagentsBuka(false);
-    };
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [subagentsBuka]);
 
   const agentPhaseLabel = tr({
     idle: pending ? 'Waiting for answer' : 'Ready',
@@ -729,26 +718,18 @@ const JEJAK_TOOL_MAKS = 4;
             </span>
           </button>
 
-          <div className="ai-subagents-wrap" ref={subagentsRef}>
-            <button
-              className="ai-ikon ai-subagents-trigger"
-              data-testid="ai-subagents-trigger"
-              title={tr('Sub-agen')}
-              aria-label={tr('Sub-agen')}
-              aria-haspopup="dialog"
-              aria-expanded={subagentsBuka}
-              aria-controls="ai-subagents-menu"
-              onClick={() => setSubagentsBuka((v) => !v)}
-            >
-              <AiIkon name="brain" size={14} />
-              {subagentsSibuk && <span className="ai-subagents-count" aria-label={tf('{n} running', { n: subagentsAktif.length })}>{subagentsAktif.length}</span>}
-            </button>
-            {subagentsBuka && (
-              <div id="ai-subagents-menu" className="ai-subagents-menu" role="dialog" aria-label={tr('Sub-agen')}>
-                <SubAgentInfo variant="popover" onDismiss={() => setSubagentsBuka(false)} />
-              </div>
-            )}
-          </div>
+          {/*
+            * Pemicu popover subagent DIBUANG dari header.
+            *
+            * Dua alasan. Pertama, isinya sudah ada di tempat yang lebih baik:
+            * tumpukan status di atas kotak input menampilkan subagent yang
+            * sedang jalan dengan ikon server-process, dan itu tepat di sebelah
+            * tempat user mengetik - bukan di sudut yang harus dicari.
+            *
+            * Kedua, popover kosong ("none yet") memakan ruang lebar di kepala
+            * panel dan terbaca seperti kerusakan, bukan seperti keadaan yang
+            * wajar. Header sekarang hanya memuat yang benar-benar dipakai.
+            */}
 
           <button
             className="ai-ikon"

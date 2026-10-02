@@ -5,6 +5,7 @@ import Popover from '../shell/Popover';
 import PaneIcon, { AgentLogo } from './PaneIcons';
 import type { PaneKind, TerminalTab } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
+import { HOME as URL_HOME_BROWSER } from './BrowserPane';
 
 export function ActionIcon({
   name,
@@ -286,7 +287,13 @@ export function TerminalOps() {
                 setPickerOpen(false);
 
                 if ((activeTab?.panes.length ?? 0) === 0) await addPane('shell');
-                await addPane('browser');
+                // WAJIB kirim url. Tanpa ini `addPane('browser')` membuat pane
+                // dengan url kosong, dan BrowserPane lalu membuat child webview
+                // yang memuat halaman kosong -> hanya latar gelap, terlihat
+                // seperti panel mati. Alamat yang dipakai harus sama dengan
+                // HOME di BrowserPane.tsx (dev: localhost:5173, rilis:
+                // duckduckgo.com) supaya pane langsung menampilkan sesuatu.
+                await addPane('browser', { url: URL_HOME_BROWSER });
               }}
             >
               <ActionIcon name="browser" />

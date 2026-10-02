@@ -314,7 +314,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
 }
 
 .pick-seksi {
@@ -635,7 +635,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
 }
 
 /* ── Header session menu ("…") ────────────────────────────────────────── */
@@ -657,7 +657,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
 }
 
 .ai-head-menu .mode-item:disabled {
@@ -703,7 +703,7 @@
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
 }
 
 /* In a narrow panel the menu takes the panel's width, less the margins. */
@@ -1027,7 +1027,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
-  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
 }
 
 /*

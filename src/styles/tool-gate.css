@@ -133,6 +133,47 @@
   text-align: center;
 }
 
+.tg-bagian + .tg-bagian {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.tg-bagian-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  padding: 2px 4px;
+}
+
+.tg-bagian-nama {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg0);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tg-bagian-angka {
+  flex-shrink: 0;
+  color: var(--fg1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tg-bagian .tg-grup {
+  margin-left: 17px;
+}
+
 .tg-grup + .tg-grup {
   margin-top: 2px;
 }
@@ -254,6 +295,19 @@
   color: var(--fg0);
 }
 
+/*
+ * Kotak centang per tool.
+ *
+ * Ini BUKAN <input type="checkbox">, jadi `accent-color` tidak berlaku:
+ * warnanya harus ditulis sendiri. Sebelumnya ia memakai --accent, dan itu
+ * sudah biru di tema bawaan - tetapi di tema terang --accent menjadi biru
+ * tua yang terbaca hampir seperti teks biasa, dan centangnya mewarisi warna
+ * teks sehingga tampak putih.
+ *
+ * Karena itu warnanya dipatok ke biru yang sama di semua tema lewat
+ * --cek-biru, dengan --accent sebagai cadangan. Ia variabel, bukan hex
+ * langsung, supaya tetap bisa disetel dari satu tempat.
+ */
 .tg-kotak {
   display: grid;
   place-items: center;
@@ -263,12 +317,30 @@
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--bg1);
-  color: var(--bg0);
+  /* Warna centang saat kotak terisi: kontras terhadap latar biru. */
+  color: var(--cek-centang, #fff);
 }
 
 .tg-row.is-on .tg-kotak {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--cek-biru, var(--accent));
+  border-color: var(--cek-biru, var(--accent));
+}
+
+/* Ikon centang di dalamnya harus ikut biru-latar, bukan mewarisi warna teks
+   baris - tanpa ini centangnya tampil putih di atas kotak putih. */
+.tg-row.is-on .tg-kotak svg {
+  color: var(--cek-centang, #fff);
+  stroke: var(--cek-centang, #fff);
+  fill: none;
+}
+
+/*
+ * Checkbox grup dan section adalah <input type="checkbox"> asli, jadi di sini
+ * `accent-color` memang bekerja. Dipatok ke biru yang sama supaya ketiga
+ * tingkat kontrol (section, grup, tool) terbaca sebagai satu keluarga.
+ */
+.tg-cek {
+  accent-color: var(--cek-biru, var(--accent));
 }
 
 .tg-nama {

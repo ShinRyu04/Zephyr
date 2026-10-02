@@ -640,13 +640,18 @@ export const historySnapshot = (
   reason: 'save' | 'before-rename' | 'manual' | 'before-restore' = 'save',
   maxPerFile?: number,
   maxDays?: number,
+  maxTotal?: number,
 ) =>
-  invoke<{ id: string; skip: string; dibuang?: number; total?: number }>('history_snapshot', {
-    path,
-    reason,
-    maxPerFile,
-    maxDays,
-  });
+  invoke<{ id: string; skip: string; dibuang?: number; dibuangTotal?: number; total?: number }>(
+    'history_snapshot',
+    {
+      path,
+      reason,
+      maxPerFile,
+      maxDays,
+      maxTotal,
+    },
+  );
 
 export const historyList = (path: string) => invoke<HistoryInfo>('history_list', { path });
 

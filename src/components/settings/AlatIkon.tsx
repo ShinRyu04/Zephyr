@@ -40,7 +40,7 @@ function Svg({ size = 13, children }: { size?: number; children: React.ReactNode
 export default function AlatIkon({ id, size }: Props) {
   switch (id) {
     // Read file: a page with a folded corner.
-    case 'file_read':
+    case 'read_file':
       return (
         <Svg size={size}>
           <path d="M9 1.8H4.2a1 1 0 0 0-1 1v10.4a1 1 0 0 0 1 1h7.6a1 1 0 0 0 1-1V5.6z" />
@@ -48,22 +48,22 @@ export default function AlatIkon({ id, size }: Props) {
         </Svg>
       );
     // List dir: a folder.
-    case 'file_list':
+    case 'list_directory':
       return (
         <Svg size={size}>
           <path d="M1.8 12.6V4a1 1 0 0 1 1-1h3.1l1.4 1.7h6.9a1 1 0 0 1 1 1v6.9a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1z" />
         </Svg>
       );
     // Run command: a shell prompt.
-    case 'shell_exec':
+    case 'bash_run':
       return (
         <Svg size={size}>
           <rect x="1.8" y="2.6" width="12.4" height="10.8" rx="1.2" />
           <path d="M4.6 6.4l1.9 1.9-1.9 1.9M8.6 10.2h3" />
         </Svg>
       );
-    // Read terminal: a terminal window with a caret line.
-    case 'terminal_read':
+    // Read a terminal surface: a window with a caret line.
+    case 'mcp__tedi__read':
       return (
         <Svg size={size}>
           <rect x="1.8" y="2.6" width="12.4" height="10.8" rx="1.2" />
@@ -71,8 +71,8 @@ export default function AlatIkon({ id, size }: Props) {
           <path d="M4.4 8.2l1.5 1.5-1.5 1.5" />
         </Svg>
       );
-    // Diagnostics: a warning triangle.
-    case 'get_problems':
+    // Diagnostics: a warning triangle over the background task list.
+    case 'bash_list':
       return (
         <Svg size={size}>
           <path d="M7.1 2.6 1.9 11.6a1 1 0 0 0 .9 1.5h10.4a1 1 0 0 0 .9-1.5L8.9 2.6a1 1 0 0 0-1.8 0z" />
@@ -80,22 +80,22 @@ export default function AlatIkon({ id, size }: Props) {
           <path d="M8 11.4h.01" />
         </Svg>
       );
-    // Output log: text lines.
-    case 'get_output':
+    // Log output: text lines.
+    case 'bash_logs':
       return (
         <Svg size={size}>
           <path d="M2.4 4.2h11.2M2.4 8h11.2M2.4 11.8h7.2" />
         </Svg>
       );
-    // List skills: a four-point star, the app's mark for skills.
-    case 'skill_list':
+    // Search the whole workspace: a four-point star, the app's mark for scanning.
+    case 'grep':
       return (
         <Svg size={size}>
           <path d="M8 2.2l1.6 4.2 4.2 1.6-4.2 1.6L8 13.8l-1.6-4.2L2.2 8l4.2-1.6z" />
         </Svg>
       );
     // Read memory: a stack of layers.
-    case 'memory_read':
+    case 'notes_read':
       return (
         <Svg size={size}>
           <path d="M8 2.2 2.2 5.2 8 8.2l5.8-3z" />

@@ -8,6 +8,7 @@ import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, pisahPipeline,
 import { arahanCustom, cariCustom, bacaDaftar, pisahCustom } from './subagentCustom';
 import { useAi, isDestructive } from './aiStore';
 import { TOOL_DISK_TULIS } from './toolGate';
+import { TOOL_BY_NAME } from './tediTools/catalog';
 
 export const MAX_PARALLEL = 4;
 
@@ -295,27 +296,65 @@ function lepasFileAgen(agentId: string): void {
 /**
  * The files a write tool is about to touch.
  *
- * Every tool that persists to disk must appear here, or two subagents can be
- * handed the same file and clobber each other. `editor_save` counts because it
- * flushes a buffer another agent may be editing, and move/copy claim BOTH
+ * Every tool that persists to disk must be recognised here, or two subagents
+ * can be handed the same file and clobber each other. move/copy claim BOTH
  * ends so neither the source nor the destination goes unguarded.
+ *
+ * The write tools are classified from the catalog's effect (`fsWrite` /
+ * `appWrite`) rather than a hand-kept name list, because a list written by hand
+ * drifts the moment the catalog gains or renames a tool. The explicit real
+ * names below are the readable fallback for anything the catalog map has not
+ * loaded yet: read_file/list_directory carry no write path, so they fall
+ * through to null.
  */
 function pathDitulis(namaTool: string, args: Record<string, unknown>): string | null {
   const p = (v: unknown) => String(v ?? '').trim();
+  const efek = TOOL_BY_NAME.get(namaTool)?.effect;
+  const menulis = efek === 'fsWrite' || efek === 'appWrite';
+  const menulisEksplisit = new Set([
+    'write_file',
+    'edit',
+    'multi_edit',
+    'delete_file',
+    'create_directory',
+    'move_file',
+    'copy_file',
+    'replace_in_files',
+  ]).has(namaTool);
+  if (!menulis && !menulisEksplisit) return null;
   switch (namaTool) {
-    case 'file_write':
-    case 'file_edit':
-    case 'file_patch':
-    case 'editor_save':
-    case 'file_delete':
-    case 'dir_create':
+    case 'write_file':
+    case 'edit':
+    case 'multi_edit':
+    case 'delete_file':
+    case 'create_directory':
       return p(args.path) || null;
-    case 'file_move':
-    case 'file_copy':
+    case 'move_file':
+    case 'copy_file':
       return p(args.to) || p(args.destination) || p(args.path) || null;
+    case 'replace_in_files':
+      return p(args.root) || null;
     default:
       return null;
   }
+}
+
+/**
+ * Whether a tool runs a shell command whose text lands in `args.command`.
+ *
+ * The dangerous-command check only fires for these, so a retired name here
+ * means a destructive command from a subagent is never caught. `bash_run` and
+ * `bash_background` are the built-in shells; `mcp__tedi__sh` sends a command to
+ * the user's terminal. MCP tools reach the model prefixed, so both the full
+ * `mcp__tedi__sh` form and the bare `sh` are accepted.
+ */
+function isToolShell(namaTool: string): boolean {
+  return (
+    namaTool === 'bash_run' ||
+    namaTool === 'bash_background' ||
+    namaTool === 'mcp__tedi__sh' ||
+    namaTool === 'sh'
+  );
 }
 
 const AGENT_IDLE_MS = 90_000;
@@ -383,8 +422,8 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
       ? 'You may change files within the scope of your task only.'
       : 'You may edit files, but only within the scope of your task.'
     : inggris
-      ? 'Do not write any file (editor_write/file_write/file_edit/file_patch are rejected).'
-      : 'Do not write any file (editor_write/file_write/file_edit/file_patch are refused).';
+      ? 'Do not write any file (write_file/edit/multi_edit/delete_file are rejected).'
+      : 'Do not write any file (write_file/edit/multi_edit/delete_file are refused).';
   const baris = inggris
     ? [
         'You are a SUBAGENT in a parallel task.',
@@ -395,7 +434,7 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
         '',
         'RULES:',
         '- Do only the task above. Do not do another subagent task.',
-        '- WORK WITH TOOLS, do not just explain. Use file_read/file_list to look, search to find, and shell_exec to run commands. Do not answer from memory when you can check.',
+        '- WORK WITH TOOLS, do not just explain. Use read_file/list_directory to look, grep/glob to find, and bash_run to run commands. Do not answer from memory when you can check.',
         tulis,
         '- WORK UNTIL DONE, then stop. Do not call tools after you have the answer.',
         '- Report findings clearly in your FINAL answer: what you found, in which file,',
@@ -411,7 +450,7 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
         '',
         'ATURAN:',
         '- Do ONLY the task above. Do not do another subagent\'s work.',
-        '- DO THE WORK WITH TOOLS, do not just explain. Use file_read/file_list to look around, search to find things, and shell_exec to run commands. Do not answer from memory when you can check.',
+        '- DO THE WORK WITH TOOLS, do not just explain. Use read_file/list_directory to look around, grep/glob to find things, and bash_run to run commands. Do not answer from memory when you can check.',
         tulis,
         '- WORK UNTIL DONE, then stop. Do not call a tool after you already have the answer.',
         '- Report your findings as clearly as possible in the FINAL answer: what you found,',
@@ -810,7 +849,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
           }
           const argsObj = (tc.args ?? {}) as Record<string, unknown>;
           const perintahSub = String(argsObj.command ?? '');
-          const toolShell = tc.name === 'shell_exec' || tc.name === 'terminal_exec';
+          const toolShell = isToolShell(tc.name);
           const tulisTool = TOOL_TULIS.has(tc.name);
           const shellBahaya = toolShell && isDestructive(perintahSub);
           const dilarang = !bolehTulis() && (tulisTool || shellBahaya);
@@ -1071,7 +1110,7 @@ async function jalankanSatu(
         }
         const argsObj = (tc.args ?? {}) as Record<string, unknown>;
         const perintahSub = String(argsObj.command ?? '');
-        const toolShell = tc.name === 'shell_exec' || tc.name === 'terminal_exec';
+        const toolShell = isToolShell(tc.name);
 
         const tulisTool = TOOL_TULIS.has(tc.name);
         const shellBahaya = toolShell && isDestructive(perintahSub);

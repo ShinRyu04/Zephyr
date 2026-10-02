@@ -1,0 +1,1269 @@
+/**
+ * Tool bawaan - implementasi untuk 26 nama pertama di katalog.
+ *
+ * ## Kenapa berkas ini ada
+ *
+ * Registry tool sebelumnya tumbuh satu tool demi satu, dan nama-namanya
+ * mengikuti kebiasaan orang yang menambahkannya: `file_read` di sebelah
+ * `editor_read`, `shell_exec` di sebelah `terminal_exec`, `file_edit` di
+ * sebelah `file_patch`. Yang menanggung akibatnya adalah model: dengan dua nama
+ * untuk satu pekerjaan, ia harus menebak - dan tebakannya berubah-ubah antar
+ * panggilan.
+ *
+ * Berkas ini menulis ulang kumpulan itu dengan satu nama per pekerjaan, dan
+ * nama itu diambil dari sumber yang sama dengan katalog. Jadi daftar tool,
+ * izin, dan implementasinya tidak bisa lagi berbeda pendapat.
+ *
+ * ## Yang sengaja TIDAK berubah
+ *
+ * Perilaku. Setiap handler memakai fungsi, command Rust, dan store yang SAMA
+ * dengan handler lama yang digantikannya. Yang berubah hanya nama dan jalan
+ * masuknya. Menulis ulang logikanya akan berarti menguji ulang semuanya dari
+ * nol, dan risikonya tidak dibayar oleh apa pun.
+ *
+ * ## Catatan penamaan yang menipu
+ *
+ * Dua command Rust bernama lebih sempit daripada yang sebenarnya:
+ *
+ *   `agent_exec`    menjalankan perintah di SHELL milik user, bukan di agen
+ *                   terpisah. Karena itu keluarannya bisa memuat apa pun yang
+ *                   ada di sesi itu.
+ *   `search_replace` mengganti di dalam daftar berkas yang DIKIRIM, bukan
+ *                   menyisir seluruh workspace sendiri.
+ *
+ * Keduanya dipakai apa adanya, tapi perilakunya disebut di sini supaya tidak
+ * ada yang menebak dari namanya.
+ *
+ * ## Batas yang dipegang semua handler
+ *
+ * - Operasi tulis hanya boleh di dalam workspace. Penolakannya ada di sisi
+ *   Rust, bukan di berkas ini: berkas ini bisa dilewati, command Rust tidak.
+ * - Tidak ada handler yang mencetak API key atau token.
+ * - Hasil panjang dipotong, dan pemotongannya DIKATAKAN. Pemotongan diam
+ *   membuat model menghitung berkas dari baris yang dia lihat, lalu menyimpulkan
+ *   isi yang salah dengan yakin.
+ */
+import { useStore } from '../store';
+import { useAi } from '../aiStore';
+import * as cmd from '../commands';
+import type { AgentTool } from '../agentTools';
+import type { SearchOpts } from '../types';
+
+/* ------------------------------------------------------------------ */
+/* Batas dan pemotongan                                               */
+/* ------------------------------------------------------------------ */
+
+/** Batas keluaran yang dikembalikan ke model. */
+export const BATAS_HASIL = 40 * 1024;
+
+/** Jumlah baris yang didaftar dari satu direktori. */
+export const BATAS_DAFTAR = 300;
+
+/**
+ * Potong keluaran yang kepanjangan, dan KATAKAN bahwa ia dipotong.
+ *
+ * Versi pertama fungsi ini hanya memotong, diam-diam. Model lalu membaca daftar
+ * yang terpotong sebagai daftar yang lengkap. Menyebutkan berapa yang
+ * disembunyikan membuat kesimpulan seperti itu tidak mungkin lagi.
+ */
+export function potong(teks: string, batas = BATAS_HASIL): string {
+  if (teks.length <= batas) return teks;
+  const hilang = teks.length - batas;
+  return (
+    teks.slice(0, batas) +
+    `\n\n[terpotong: ${hilang} karakter lagi tidak ditampilkan. ` +
+    'Persempit permintaannya, misalnya dengan pola atau kedalaman.]'
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Penerjemah argumen                                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Model kadang mengirim angka sebagai string ("10") dan kadang sebagai number.
+ * Memaksa satu bentuk di skema tidak cukup: penyedia yang berbeda memperlakukan
+ * `type: "number"` secara berbeda, dan sebagian mengirimnya sebagai teks. Jadi
+ * setiap pembaca angka dan boolean menerima keduanya. Kalau tidak, agent gagal
+ * pada panggilan yang sebenarnya benar hanya karena bentuk nilainya.
+ */
+export function bacaAngka(v: unknown, bawaan?: number): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return bawaan;
+}
+
+export function bacaBool(v: unknown, bawaan = false): boolean {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'ya') return true;
+    if (s === 'false' || s === '0' || s === 'tidak') return false;
+  }
+  if (typeof v === 'number') return v !== 0;
+  return bawaan;
+}
+
+/** Wajib ada, dan tidak boleh kosong. Kesalahan menyebut nama argumennya. */
+export function wajib(args: Record<string, unknown>, nama: string): string {
+  const v = args[nama];
+  if (typeof v !== 'string' || v.trim() === '') {
+    throw new Error(`ERROR: argumen "${nama}" wajib diisi dan tidak boleh kosong.`);
+  }
+  return v;
+}
+
+/** Akar workspace saat ini, untuk bawaannya. */
+function akar(): string {
+  return useStore.getState().workspace ?? '.';
+}
+
+/* ------------------------------------------------------------------ */
+/* Bantuan berkas                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Berkas yang sedang terbuka di editor, kalau ada. */
+function tabUntuk(path: string) {
+  return useStore.getState().tabs.find((t) => t.path && t.path === path) ?? null;
+}
+
+/**
+ * Baca berkas untuk agen: buffer editor lebih dulu, disk sebagai cadangan.
+ *
+ * Urutannya penting dan bukan pilihan gaya. Ketika user sedang mengedit berkas,
+ * DISK sudah basi: ia berisi versi sebelum perubahan terakhir. Membaca disk di
+ * situ berarti agen menjawab berdasarkan kode yang sudah tidak ada di layar -
+ * dan itu menghasilkan jawaban yang tampak yakin tapi salah.
+ *
+ * Karena itu buffer menang, dan hasilnya selalu menyebut dari mana isinya
+ * datang. Tanpa penanda itu, user tidak punya cara tahu apakah agen membaca
+ * pekerjaannya yang belum tersimpan atau versi lama di disk.
+ */
+export async function bacaBerkas(
+  path: string,
+  offset?: number,
+  limit?: number,
+  dariDisk = false,
+): Promise<string> {
+  const mulai = offset === undefined ? 0 : Math.max(0, offset);
+  const jumlah = limit === undefined ? undefined : Math.max(0, limit);
+  const tab = dariDisk ? null : tabUntuk(path);
+
+  if (tab) {
+    const baris = (tab.content ?? '').split('\n');
+    const potongBaris = jumlah === undefined ? baris.slice(mulai) : baris.slice(mulai, mulai + jumlah);
+    const tanda = tab.unsaved ? ', ada perubahan belum tersimpan' : '';
+    return `[buffer editor${tanda}; ${baris.length} baris]\n` + potongBaris.join('\n');
+  }
+
+  const hasil = await cmd.fsRead(path);
+  const baris = hasil.content.split('\n');
+  const potongBaris = jumlah === undefined ? baris.slice(mulai) : baris.slice(mulai, mulai + jumlah);
+  const tanda = hasil.readOnly ? ', READ-ONLY' : '';
+  const catatan = hasil.note ? ` (${hasil.note})` : '';
+  return (
+    `[dari disk; ${baris.length} baris; ${hasil.bytes} byte; encoding ${hasil.detectedEncoding}${tanda}${catatan}]\n` +
+    potongBaris.join('\n')
+  );
+}
+
+/** Perintah yang jelas tidak boleh dijalankan dari tool mana pun. */
+const PERINTAH_TERLARANG: RegExp[] = [
+  /\b(shutdown|Stop-Computer|Restart-Computer)\b/i,
+  /\bFormat-Volume\b/i,
+  /\bRemove-Item\b[^\n]*\b-Credential\b/i,
+];
+
+export function periksaPerintah(command: string): void {
+  for (const pola of PERINTAH_TERLARANG) {
+    if (pola.test(command)) {
+      throw new Error(
+        `ERROR: perintah ditolak oleh pembatas keamanan: cocok dengan ${pola}. ` +
+          'Kalau memang perlu, jalankan sendiri di terminal.',
+      );
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Kolom pencarian                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Susun opsi pencarian dari argumen tool.
+ *
+ * `include` dan `exclude` di SearchOpts adalah SATU string pola, bukan daftar.
+ * Beberapa pola digabung dengan `|` - itu bentuk yang dimengerti mesin glob
+ * yang dipakai di bawahnya. Daftar glob dari model diterima dalam bentuk array
+ * maupun string, karena keduanya muncul di praktik.
+ */
+function opsiCari(a: Record<string, unknown>, query: string): SearchOpts {
+  const keSatu = (v: unknown): string => {
+    if (Array.isArray(v)) return v.map(String).filter(Boolean).join('|');
+    if (typeof v === 'string') return v;
+    return '';
+  };
+  return {
+    query,
+    caseSensitive: bacaBool(a.caseSensitive),
+    wholeWord: bacaBool(a.wholeWord),
+    regex: bacaBool(a.regex, true),
+    include: keSatu(a.glob ?? a.include),
+    exclude: keSatu(a.exclude),
+    respectGitignore: true,
+    includeHidden: bacaBool(a.all),
+    maxResults: Math.min(2000, bacaAngka(a.limit, 200) ?? 200),
+    root: a.root ? String(a.root) : undefined,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 26 tool                                                            */
+/* ------------------------------------------------------------------ */
+
+export const TOOL_BAWAAN: AgentTool[] = [
+  /* ---------------- Files ---------------- */
+
+  {
+    spec: {
+      name: 'read_file',
+      description:
+        'Baca sebuah berkas. Kalau berkasnya sedang terbuka di editor, isi yang BELUM TERSIMPAN yang dibaca - hasilnya menyebutkan dari mana asalnya. Pakai offset dan limit untuk berkas besar.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas.' },
+          offset: { type: ['number', 'string'], description: 'Baris awal, dihitung dari 0.' },
+          limit: { type: ['number', 'string'], description: 'Jumlah baris yang dibaca.' },
+          fromDisk: { type: ['boolean', 'string'], description: 'Paksa baca dari disk, abaikan buffer editor.' },
+        },
+        required: ['path'],
+      },
+    },
+    run: async (a) =>
+      potong(await bacaBerkas(wajib(a, 'path'), bacaAngka(a.offset), bacaAngka(a.limit), bacaBool(a.fromDisk))),
+  },
+
+  {
+    spec: {
+      name: 'list_directory',
+      description:
+        'Daftar isi sebuah direktori, satu tingkat. Untuk masuk lebih dalam, pakai depth (maksimum 3). Jangan menyisir seluruh pohon dengan satu panggilan: hasilnya terpotong dan kamu akan menyimpulkan isi yang salah.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Direktori. Kosongkan untuk akar workspace.' },
+          depth: { type: ['number', 'string'], description: 'Kedalaman rekursif, maksimum 3.' },
+          all: { type: ['boolean', 'string'], description: 'Ikut sertakan entri tersembunyi.' },
+        },
+        required: [],
+      },
+    },
+    run: async (a) => {
+      const path = String(a.path ?? '') || akar();
+      const depth = Math.min(3, Math.max(1, bacaAngka(a.depth, 1) ?? 1));
+      const simpul = await cmd.scanDir(path);
+      const baris: string[] = [];
+      const jelajah = (daftar: typeof simpul, sisa: number, awalan: string) => {
+        for (const n of daftar) {
+          if (baris.length >= BATAS_DAFTAR) return;
+          baris.push(`${n.isDir ? 'dir ' : 'file'}  ${awalan}${n.name}`);
+          if (n.isDir && sisa > 1 && n.hasChildren) {
+            /* Kedalaman kedua dan seterusnya dimuat malas: `scan_dir` hanya
+               membaca satu tingkat, jadi anaknya harus diminta sendiri. Kalau
+               `hasChildren` salah, panggilan ini gagal - dan kegagalannya
+               ditelan, karena satu direktori yang tidak terbaca tidak boleh
+               menggagalkan seluruh daftar. */
+            // dimuat di bawah secara berurutan
+          }
+        }
+      };
+      jelajah(simpul, depth, '');
+
+      if (depth > 1) {
+        let tingkat = simpul.filter((n) => n.isDir && n.hasChildren);
+        let level = 1;
+        while (level < depth && tingkat.length && baris.length < BATAS_DAFTAR) {
+          const berikut: typeof simpul = [];
+          for (const dir of tingkat) {
+            const anak = await cmd.scanDir(dir.path).catch(() => [] as typeof simpul);
+            for (const n of anak) {
+              if (baris.length >= BATAS_DAFTAR) break;
+              baris.push(`${n.isDir ? 'dir ' : 'file'}  ${dir.name}/${n.name}`);
+            }
+            berikut.push(...anak.filter((n) => n.isDir && n.hasChildren).map((n) => ({ ...n, name: `${dir.name}/${n.name}` })));
+          }
+          tingkat = berikut;
+          level++;
+        }
+      }
+
+      if (!baris.length) return `Direktori kosong: ${path}`;
+      const lebih = baris.length >= BATAS_DAFTAR ? `\n[... daftar dibatasi ${BATAS_DAFTAR} entri; persempit kedalamannya]` : '';
+      return potong(`${path}\n` + baris.join('\n') + lebih);
+    },
+  },
+
+  {
+    spec: {
+      name: 'write_file',
+      description:
+        'Tulis isi ke sebuah berkas, menimpa isinya. Untuk perubahan kecil pada berkas yang sudah ada, pakai edit - ia tidak menghapus bagian yang tidak kamu sentuh.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas. Harus di dalam workspace.' },
+          content: { type: 'string', description: 'Isi lengkap berkas.' },
+          createOnly: { type: ['boolean', 'string'], description: 'Gagal kalau berkasnya sudah ada.' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const isi = String(a.content ?? '');
+      if (bacaBool(a.createOnly)) {
+        const ada = await cmd.fsExists(path).catch(() => false);
+        if (ada) throw new Error(`ERROR: berkas sudah ada, dan createOnly disetel: ${path}`);
+      }
+      await cmd.fsWrite(path, isi, undefined, undefined, { allowMissing: true });
+      await segarkanTab(path);
+      return `Ditulis: ${path} (${isi.length} karakter)`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'create_directory',
+      description: 'Buat sebuah direktori, termasuk direktori induk yang belum ada.',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string', description: 'Jalur direktori baru.' } },
+        required: ['path'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      await cmd.fsCreateDir(path);
+      return `Direktori dibuat: ${path}`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'move_file',
+      description: 'Pindahkan atau ganti nama sebuah berkas atau direktori.',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: 'Jalur asal.' },
+          to: { type: 'string', description: 'Jalur tujuan.' },
+        },
+        required: ['from', 'to'],
+      },
+    },
+    run: async (a) => {
+      const from = wajib(a, 'from');
+      const to = wajib(a, 'to');
+      await cmd.fsRename(from, to);
+      /* Tab yang menunjuk berkas itu harus ikut pindah. Tanpa ini, tab-nya
+         masih menunjuk jalur lama, dan menyimpannya akan MENULIS ULANG berkas
+         di tempat lama - menghidupkan kembali berkas yang baru saja
+         dipindahkan. */
+      useStore.getState().renamePathInTabs(from, to);
+      return `Dipindahkan: ${from} -> ${to}`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'copy_file',
+      description:
+        'Salin sebuah berkas. Untuk direktori, salin isinya berkas demi berkas - menyalin seluruh pohon dengan satu panggilan tidak didukung.',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: 'Jalur asal.' },
+          to: { type: 'string', description: 'Jalur tujuan.' },
+        },
+        required: ['from', 'to'],
+      },
+    },
+    run: async (a) => {
+      const from = wajib(a, 'from');
+      const to = wajib(a, 'to');
+      const hasil = await cmd.fsRead(from);
+      await cmd.fsWrite(to, hasil.content, undefined, undefined, { allowMissing: true });
+      return `Disalin: ${from} -> ${to} (${hasil.content.length} karakter)`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'delete_file',
+      description:
+        'Hapus berkas atau direktori. TIDAK BISA DIBATALKAN. Baca dulu apa yang kamu hapus, dan sebutkan alasannya kepada user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur yang dihapus.' },
+          recursive: { type: ['boolean', 'string'], description: 'Perlu untuk direktori yang tidak kosong.' },
+        },
+        required: ['path'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      await cmd.fsDelete([path], bacaBool(a.recursive));
+      useStore.getState().closeTabsUnder([path]);
+      return `Dihapus: ${path}`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'replace_in_files',
+      description:
+        'Ganti teks atau pola di banyak berkas sekaligus. Jalankan dulu grep dengan pola yang sama untuk melihat APA yang akan kena: satu pola yang terlalu luas bisa merusak seluruh repo dalam satu panggilan. Gunakan dryRun untuk melihat dampaknya tanpa mengubah apa pun.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Pola pencarian (regex).' },
+          replacement: { type: 'string', description: 'Teks pengganti. Boleh memakai $1, ${nama}.' },
+          glob: { type: ['array', 'string'], items: { type: 'string' }, description: 'Batasi ke pola jalur tertentu.' },
+          root: { type: 'string', description: 'Akar pencarian. Bawaannya workspace.' },
+          dryRun: { type: ['boolean', 'string'], description: 'Hanya laporkan, jangan ubah apa pun.' },
+        },
+        required: ['pattern', 'replacement'],
+      },
+    },
+    run: async (a) => {
+      const pattern = wajib(a, 'pattern');
+      const replacement = String(a.replacement ?? '');
+      const opsi = opsiCari(a, pattern);
+      opsi.root = a.root ? String(a.root) : akar();
+      opsi.regex = true;
+
+      /* Mode uji jalan memakai pencarian yang SAMA dengan penggantian, supaya
+         yang dilaporkan benar-benar yang akan berubah. Menghitung dengan cara
+         lain akan membuat laporannya berbeda dari akibatnya. */
+      const ringkas = await cmd.searchGrep(opsi);
+      if (ringkas.error) throw new Error(`ERROR: pencarian gagal: ${ringkas.error}`);
+      if (ringkas.files === 0) return `Tidak ada berkas yang cocok, jadi tidak ada yang diubah.`;
+
+      if (bacaBool(a.dryRun)) {
+        return `Uji jalan: ${ringkas.files} berkas, ${ringkas.hits} kecocokan akan diganti. Tidak ada yang diubah.`;
+      }
+
+      /* Daftar berkas harus dikumpulkan sendiri: `search_replace` mengganti di
+         dalam berkas yang DIKIRIM, ia tidak menyisir workspace. Itu disebut di
+         kepala berkas ini supaya tidak ada yang menebaknya dari nama. */
+      const berkas = await kumpulkanBerkas(opsi);
+      if (!berkas.length) return 'Tidak ada berkas yang cocok, jadi tidak ada yang diubah.';
+
+      const hasil = await cmd.searchReplace(berkas, opsi, replacement);
+      const berubah = hasil.filter((h) => h.jumlah > 0);
+      for (const h of berubah) await segarkanTab(h.path);
+      const baris = berubah.map((h) => `  ${h.path}  (${h.jumlah} penggantian)`);
+      const galat = hasil.filter((h) => h.error);
+      const total = berubah.reduce((n, h) => n + h.jumlah, 0);
+      const kepala = `Diganti di ${berubah.length} berkas, ${total} penggantian.`;
+      const kaki = galat.length ? '\nGagal:\n' + galat.map((h) => `  ${h.path}: ${h.error}`).join('\n') : '';
+      return potong(kepala + '\n' + baris.join('\n') + kaki);
+    },
+  },
+
+  /* ---------------- Edit ---------------- */
+
+  {
+    spec: {
+      name: 'edit',
+      description:
+        'Ubah sebagian isi berkas: cari teks lama, ganti teks baru. Teks lama harus muncul TEPAT SEKALI kecuali replace_all disetel. Pakai ini, bukan write_file, untuk perubahan kecil.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Berkas yang diubah.' },
+          old_string: { type: 'string', description: 'Teks yang dicari. Harus persis, termasuk indentasi.' },
+          new_string: { type: 'string', description: 'Teks pengganti.' },
+          replace_all: { type: ['boolean', 'string'], description: 'Ganti semua kemunculan, bukan hanya satu.' },
+        },
+        required: ['path', 'old_string', 'new_string'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const lama = String(a.old_string ?? '');
+      const baru = String(a.new_string ?? '');
+      if (lama === '') throw new Error('ERROR: old_string tidak boleh kosong.');
+      if (lama === baru) throw new Error('ERROR: old_string dan new_string sama, tidak ada yang berubah.');
+
+      const isi = await bacaLengkap(path);
+      const semua = bacaBool(a.replace_all);
+      const jumlah = isi.split(lama).length - 1;
+
+      if (jumlah === 0) {
+        /* Kesalahan yang paling sering: indentasi berbeda. Disebutkan apa
+           adanya supaya model bisa memperbaiki sendiri. */
+        throw new Error(
+          `ERROR: teks lama tidak ditemukan di ${path}. Periksa indentasi dan spasi. ` +
+            'Kalau berkasnya sudah berubah, baca ulang dengan read_file.',
+        );
+      }
+      if (jumlah > 1 && !semua) {
+        throw new Error(
+          `ERROR: teks lama muncul ${jumlah} kali di ${path}. Persempit teksnya supaya unik, ` +
+            'atau setel replace_all untuk mengganti semuanya.',
+        );
+      }
+
+      const hasil = semua ? isi.split(lama).join(baru) : isi.replace(lama, baru);
+      await tulis(path, hasil);
+      return `${jumlah} penggantian di ${path}.`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'multi_edit',
+      description:
+        'Beberapa penggantian pada SATU berkas dalam satu langkah. Dipakai ketika perubahan saling bergantung dan harus berhasil bersama: kalau ada satu yang gagal, TIDAK ADA yang diterapkan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Berkas yang diubah.' },
+          edits: {
+            type: 'array',
+            description: 'Daftar penggantian, dijalankan berurutan.',
+            items: {
+              type: 'object',
+              properties: {
+                old_string: { type: 'string' },
+                new_string: { type: 'string' },
+                replace_all: { type: ['boolean', 'string'] },
+              },
+              required: ['old_string', 'new_string'],
+            },
+          },
+        },
+        required: ['path', 'edits'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const daftar = Array.isArray(a.edits) ? a.edits : [];
+      if (!daftar.length) throw new Error('ERROR: edits kosong.');
+
+      let kerja = await bacaLengkap(path);
+      const laporan: string[] = [];
+
+      for (let i = 0; i < daftar.length; i++) {
+        const e = daftar[i] as Record<string, unknown>;
+        const lama = String(e.old_string ?? '');
+        const baru = String(e.new_string ?? '');
+        const semua = bacaBool(e.replace_all);
+        if (!lama) throw new Error(`ERROR: edits[${i}].old_string kosong.`);
+
+        const jumlah = kerja.split(lama).length - 1;
+        if (jumlah === 0) {
+          /* Batalkan SELURUHNYA. Menerapkan sebagian meninggalkan berkas
+             setengah jadi yang tidak dikompilasi - lebih buruk daripada tidak
+             mengubah apa pun. */
+          throw new Error(
+            `ERROR: edits[${i}] tidak menemukan teksnya. Tidak ada perubahan diterapkan; ` +
+              `${path} tetap seperti semula.`,
+          );
+        }
+        if (jumlah > 1 && !semua) {
+          throw new Error(
+            `ERROR: edits[${i}] menemukan ${jumlah} kemunculan. Persempit teksnya atau setel replace_all. ` +
+              'Tidak ada perubahan diterapkan.',
+          );
+        }
+        kerja = semua ? kerja.split(lama).join(baru) : kerja.replace(lama, baru);
+        laporan.push(`  edits[${i}]: ${jumlah} penggantian`);
+      }
+
+      await tulis(path, kerja);
+      return `Diterapkan ${daftar.length} penggantian di ${path}.\n` + laporan.join('\n');
+    },
+  },
+
+  /* ---------------- Search ---------------- */
+
+  {
+    spec: {
+      name: 'grep',
+      description:
+        'Cari teks atau pola di seluruh workspace. Hasilnya dibatasi; kalau terlalu banyak, persempit polanya atau tambahkan glob.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Pola pencarian (regex).' },
+          glob: { type: ['array', 'string'], items: { type: 'string' }, description: 'Batasi ke pola jalur.' },
+          root: { type: 'string', description: 'Akar pencarian.' },
+          ignoreCase: { type: ['boolean', 'string'], description: 'Abaikan besar-kecil huruf.' },
+          limit: { type: ['number', 'string'], description: 'Jumlah hasil maksimum.' },
+        },
+        required: ['pattern'],
+      },
+    },
+    run: async (a) => {
+      const pattern = wajib(a, 'pattern');
+      const opsi = opsiCari(a, pattern);
+      opsi.root = a.root ? String(a.root) : akar();
+      /* Model menulis pola dengan asumsi case-insensitive lebih sering daripada
+         tidak; `caseSensitive` disetel terbalik dari `ignoreCase` supaya
+         argumennya bisa dibaca apa adanya. */
+      opsi.caseSensitive = !bacaBool(a.ignoreCase);
+      const ringkas = await cmd.searchGrep(opsi);
+      if (ringkas.error) throw new Error(`ERROR: pencarian gagal: ${ringkas.error}`);
+      const berkas = await kumpulkanBerkas(opsi);
+      if (!berkas.length) return `Tidak ada hasil untuk ${JSON.stringify(pattern)}.`;
+      const kepala = `[${ringkas.files} berkas, ${ringkas.hits} kecocokan]`;
+      const daftar = potong(berkas.join('\n'));
+      return `${kepala}\n${daftar}`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'glob',
+      description: 'Cari berkas berdasarkan pola nama atau jalur.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Pola glob, mis. **/*.ts.' },
+          root: { type: 'string', description: 'Akar pencarian.' },
+          limit: { type: ['number', 'string'], description: 'Jumlah berkas maksimum.' },
+        },
+        required: ['pattern'],
+      },
+    },
+    run: async (a) => {
+      const pattern = wajib(a, 'pattern');
+      const batas = Math.min(2000, bacaAngka(a.limit, 200) ?? 200);
+      const semua = await cmd.listWorkspaceFiles(batas);
+      /* `list_workspace_files` mengembalikan daftar cepat berkas di workspace,
+         jadi penyaringan pola dilakukan di sini. Ia mencari NAMA, bukan isi -
+         untuk isi, pakai grep. */
+      const re = polaKeRegex(pattern);
+      const cocok = semua.map((f) => f.path).filter((p) => re.test(p)).slice(0, batas);
+      if (!cocok.length) return `Tidak ada berkas yang cocok dengan ${pattern}.`;
+      const kepala = cocok.length >= batas ? `[dibatasi ${batas} berkas]\n` : '';
+      return potong(kepala + cocok.join('\n'));
+    },
+  },
+
+  /* ---------------- Shell ---------------- */
+
+  {
+    spec: {
+      name: 'bash_run',
+      description:
+        'Jalankan perintah dan tunggu sampai selesai. Untuk dev server atau apa pun yang tidak selesai sendiri, pakai bash_background. Keluarannya dikembalikan apa adanya, termasuk kode keluarnya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Perintah yang dijalankan.' },
+          timeout: { type: ['number', 'string'], description: 'Batas waktu dalam milidetik.' },
+        },
+        required: ['command'],
+      },
+    },
+    run: async (a) => {
+      const command = wajib(a, 'command');
+      periksaPerintah(command);
+      const r = await cmd.agentExec(command, bacaAngka(a.timeout));
+      const bagian = [
+        `exit=${r.exitCode}${r.timedOut ? ' (WAKTU HABIS)' : ''} (${r.ms} ms)`,
+        r.stdout ? `--- stdout ---\n${r.stdout}` : '',
+        r.stderr ? `--- stderr ---\n${r.stderr}` : '',
+      ].filter(Boolean);
+      return potong(bagian.join('\n'));
+    },
+  },
+
+  {
+    spec: {
+      name: 'bash_background',
+      description:
+        'Jalankan proses yang berumur panjang - dev server, watcher - sebagai tugas yang dipantau aplikasi, dan kembalikan segera dengan id-nya. Baca keluarannya dengan bash_logs, hentikan dengan bash_kill.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Perintah yang dijalankan.' },
+          id: { type: 'string', description: 'Id tugas yang didefinisikan di settings.tasks.json.' },
+        },
+        required: ['command'],
+      },
+    },
+    run: async (a) => {
+      const command = wajib(a, 'command');
+      periksaPerintah(command);
+
+      /*
+       * Bangun dari perintah apa adanya, TANPA menyisipkan apa pun.
+       *
+       * Versi pertama fungsi ini memecah perintah dengan `split(' ')` lalu
+       * meneruskannya sebagai `args`. Itu kelihatan rapi sampai kena perintah
+       * yang memuat tanda kutip, mis. `node -e "console.log('x')"`. Pecahan
+       * seperti itu menghasilkan argumen yang berbeda dari yang ditulis, dan
+       * kegagalannya membingungkan karena perintah yang sama berhasil di
+       * bash_run. Karena itu seluruh perintah dioper sebagai satu kesatuan.
+       */
+      /*
+       * `navigator.userAgent` dipakai, bukan `process.platform`: kode ini
+       * berjalan di WebView, bukan di Node, dan nama `process` tidak ada di
+       * sana. Menyentuhnya membuat bundel gagal pada saat runtime - bukan saat
+       * kompilasi, jadi kesalahannya baru muncul jauh dari sini.
+       */
+      const windows = /Windows/i.test(navigator.userAgent);
+      const shell = windows ? 'pwsh' : 'sh';
+      const bendera = windows ? '-Command' : '-c';
+
+      const id = a.id ? String(a.id) : `agent-${Date.now().toString(36)}`;
+      const runId = await cmd.tasksRun({
+        id,
+        label: a.id ? String(a.id) : command.slice(0, 60),
+        kind: 'shell',
+        command: shell,
+        args: [bendera, command],
+        cwd: akar(),
+        isBackground: true,
+      });
+
+      return (
+        `Proses latar belakang dimulai.\n  id: ${runId}\n  command: ${command}\n` +
+        'Keluaran awal mungkin belum siap. Tunggu sebentar, lalu panggil bash_logs - jangan menebak isinya.'
+      );
+    },
+  },
+
+  {
+    spec: {
+      name: 'bash_logs',
+      description:
+        'Baca keluaran sebuah proses latar belakang. Pakai since_offset dari panggilan sebelumnya untuk membaca tambahannya saja.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Id proses dari bash_background atau bash_list.' },
+          since_offset: { type: ['number', 'string'], description: 'Mulai dari baris keluaran ini.' },
+        },
+        required: ['id'],
+      },
+    },
+    run: async (a) => {
+      const id = wajib(a, 'id');
+      const offset = bacaAngka(a.since_offset) ?? 0;
+
+      /*
+       * Tunggu sebentar dulu, baru baca.
+       *
+       * `tasks_runs` melaporkan BERAPA BARIS yang sudah dihasilkan, bukan
+       * isinya; keluaran diambil dari terminal lewat `pty_tail`. Tanpa jeda,
+       * pembacaan pertama hampir selalu kosong - dan model lalu menyimpulkan
+       * prosesnya gagal padahal baru saja dimulai.
+       */
+      if (offset === 0) await new Promise((r) => setTimeout(r, 1200));
+
+      const semua = await cmd.tasksRuns();
+      const run = semua.find((r) => r.id === id);
+      if (!run) {
+        const ids = semua.map((r) => r.id).join(', ') || '(tidak ada)';
+        throw new Error(`ERROR: tidak ada proses dengan id "${id}". Yang ada: ${ids}`);
+      }
+
+      /*
+       * `pty_tail` mengembalikan EKOR riwayat sejumlah N baris - ia tidak
+       * menerima offset. Jadi `since_offset` diperlakukan sebagai "berapa baris
+       * terakhir yang mau dilihat", dan itu memang arti yang berguna di sini:
+       * yang dicari adalah keluaran TERBARU, bukan yang paling awal.
+       *
+       * `run.lines` memberi tahu total baris; kalau ada baris yang sudah
+       * tergeser keluar dari riwayat, itu disebutkan supaya model tidak
+       * menyimpulkan bahwa isinya hanya sebanyak yang dia lihat.
+       */
+      const maksBaris = offset > 0 ? Math.max(20, Math.min(2000, offset)) : 400;
+      const teks = await cmd.ptyTail(id, maksBaris).catch(() => '');
+
+      const dilihat = teks ? teks.split('\n').length : 0;
+      const terlewat = run.lines > dilihat ? `  (${run.lines - dilihat} baris lebih awal tidak ditampilkan)` : '';
+      const masalah = run.problems.length
+        ? `\nMasalah yang terdeteksi:\n` +
+          run.problems
+            .slice(0, 20)
+            .map((p) => `  ${p.file}:${p.line}  ${p.message}`)
+            .join('\n')
+        : '';
+
+      const kepala =
+        `status=${run.active ? 'berjalan' : 'selesai'}` +
+        `  exit=${run.exitCode ?? 'n/a'}  baris=${run.lines}${terlewat}`;
+      return potong(`${kepala}\n${teks || '(belum ada keluaran)'}${masalah}`);
+    },
+  },
+
+  {
+    spec: {
+      name: 'bash_list',
+      description: 'Daftar semua proses latar belakang, termasuk yang sudah selesai.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+    run: async () => {
+      const daftar = await cmd.tasksRuns();
+      if (!daftar.length) return 'Tidak ada tugas latar belakang yang terdaftar.';
+      return daftar
+        .map(
+          (t) =>
+            `${t.id}  ${t.active ? 'berjalan' : 'selesai'}  ${t.label}  ` +
+            `exit=${t.exitCode ?? 'n/a'}  ${t.lines} baris`,
+        )
+        .join('\n');
+    },
+  },
+
+  {
+    spec: {
+      name: 'bash_kill',
+      description:
+        'Hentikan sebuah proses latar belakang beserta seluruh proses turunannya. Tidak apa-apa dipanggil pada proses yang sudah selesai.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'Id proses dari bash_background atau bash_list.' } },
+        required: ['id'],
+      },
+    },
+    run: async (a) => {
+      const id = wajib(a, 'id');
+      const ada = await cmd.tasksRuns();
+      if (!ada.some((r) => r.id === id)) {
+        const ids = ada.map((r) => r.id).join(', ') || '(tidak ada)';
+        throw new Error(`ERROR: tidak ada proses dengan id "${id}". Yang ada: ${ids}`);
+      }
+      /*
+       * Dua langkah, dan keduanya perlu.
+       *
+       * `tasks_kill` menandai tugasnya berhenti dan mematikannya dari sudut
+       * pandang aplikasi, tapi proses anak yang sudah di-spawn - mis. server
+       * yang dijalankan oleh `npm run dev` - bisa tetap hidup dan memegang
+       * portnya. Karena itu PTY-nya ikut dimatikan. Tanpa langkah kedua,
+       * menjalankan ulang tugas yang sama gagal karena portnya masih terpakai,
+       * dan penyebabnya tidak terlihat dari mana pun.
+       */
+      await cmd.tasksKill(id);
+      await cmd.ptyKill(id).catch(() => undefined);
+      return `Proses ${id} dihentikan.`;
+    },
+  },
+
+  /* ---------------- Network ---------------- */
+
+  {
+    spec: {
+      name: 'fetch',
+      description:
+        'Ambil satu URL dan kembalikan teksnya. Skrip di halaman TIDAK dijalankan, jadi situs yang isinya dibuat JavaScript akan tampak kosong - untuk itu pakai browser_open lalu browser_read.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'URL http atau https.' },
+          maxChars: { type: ['number', 'string'], description: 'Jumlah karakter maksimum.' },
+        },
+        required: ['url'],
+      },
+    },
+    run: async (a) => {
+      const url = wajib(a, 'url');
+      const maks = bacaAngka(a.maxChars, 40000) ?? 40000;
+      const teks = await cmd.webFetch(url, maks);
+      return potong(teks || '(halaman kosong)');
+    },
+  },
+
+  /* ---------------- Sub-agents ---------------- */
+
+  {
+    spec: {
+      name: 'run_subagent',
+      description:
+        'Jalankan satu subagent untuk tugas mandiri, dan kembalikan ringkasannya. Subagent TIDAK punya ingatan percakapan ini, jadi tulis instruksinya lengkap: apa yang dicari, di mana, dan dalam bentuk apa jawabannya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'Instruksi lengkap untuk subagent.' },
+          type: { type: 'string', description: 'Jenis subagent.' },
+          description: { type: 'string', description: 'Label singkat untuk kartunya.' },
+        },
+        required: ['prompt'],
+      },
+    },
+    run: async (a) => {
+      const prompt = wajib(a, 'prompt');
+      return potong(await jalankanSubagent([prompt]));
+    },
+  },
+
+  {
+    spec: {
+      name: 'run_subagents',
+      description:
+        'Jalankan beberapa subagent SEKALIGUS, masing-masing dengan tugas mandiri. Jauh lebih cepat daripada memanggil run_subagent berulang kali. Beri setiap subagent kumpulan berkas yang TIDAK tumpang tindih.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tasks: {
+            type: 'array',
+            description: 'Daftar tugas.',
+            items: {
+              type: 'object',
+              properties: {
+                prompt: { type: 'string' },
+                type: { type: 'string' },
+                description: { type: 'string' },
+              },
+              required: ['prompt'],
+            },
+          },
+        },
+        required: ['tasks'],
+      },
+    },
+    run: async (a) => {
+      const tugas = Array.isArray(a.tasks) ? a.tasks : [];
+      if (!tugas.length) throw new Error('ERROR: tasks kosong.');
+      const prompts = tugas.map((t) => String((t as Record<string, unknown>).prompt ?? '').trim()).filter(Boolean);
+      if (!prompts.length) throw new Error('ERROR: tidak ada tugas yang punya "prompt".');
+      return potong(await jalankanSubagent(prompts));
+    },
+  },
+
+  /* ---------------- Tasks & Notes ---------------- */
+
+  {
+    spec: {
+      name: 'todo_write',
+      description:
+        'Ganti daftar tugas agen untuk pekerjaan ini. Pakai untuk memecah tugas berlapis menjadi langkah kecil. Kirim daftar LENGKAP setiap kali - ini mengganti, bukan menambah.',
+      parameters: {
+        type: 'object',
+        properties: {
+          todos: {
+            type: 'array',
+            description: 'Daftar tugas lengkap.',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Id tetap untuk tugas ini, supaya tanda centangnya tidak berpindah baris.' },
+                title: { type: 'string' },
+                status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] },
+              },
+              required: ['title', 'status'],
+            },
+          },
+        },
+        required: ['todos'],
+      },
+    },
+    run: async (a) => {
+      const daftar = Array.isArray(a.todos) ? a.todos : [];
+      const bersih = daftar.map((t, i) => {
+        const x = t as Record<string, unknown>;
+        /*
+         * Medannya bernama `content`, bukan `title`.
+         *
+         * `setAgentTodos` menyaring entri yang `content`-nya kosong - dan
+         * penyaring itu benar: baris tugas tanpa teks tidak ada gunanya. Tapi
+         * artinya mengirim `title` saja membuat SELURUH daftar tersaring habis,
+         * dan hasilnya kartu tugas yang tidak pernah muncul walaupun toolnya
+         * melaporkan sukses.
+         *
+         * Karena itu `title` tetap diterima sebagai jalan masuk yang wajar
+         * (model sering memakai nama itu), lalu dipetakan ke `content`.
+         */
+        return {
+          /* Id wajib. Tanpa id, daftar dipasangkan ke URUTAN, dan karena urutan
+             berubah setiap putaran, tanda centang dan durasi melompat ke tugas
+             yang salah. Kalau model tidak memberi id, nomornya dibuat di sini -
+             lebih baik daripada membiarkannya kosong. */
+          id: x.id ? String(x.id) : `t${i + 1}`,
+          content: String(x.content ?? x.title ?? '').trim(),
+          status: String(x.status ?? 'pending'),
+        };
+      });
+      const diterima = useAi.getState().setAgentTodos(bersih);
+      const selesai = bersih.filter(
+        (t) => t.status === 'done' || t.status === 'completed',
+      ).length;
+      /*
+       * Kalau tidak ada satu pun yang diterima, itu bukan sukses - dan
+       * melaporkannya sebagai sukses adalah cara paling halus membuat agen
+       * mengulang panggilan yang sama tanpa henti. Sebutkan sebabnya.
+       */
+      if (bersih.length > 0 && diterima === 0) {
+        throw new Error(
+          'ERROR: tidak ada tugas yang diterima karena teksnya kosong. ' +
+            'Isi medan "title" atau "content" pada setiap tugas.',
+        );
+      }
+      return `Daftar tugas diperbarui: ${diterima} tugas, ${selesai} selesai.`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'notes_read',
+      description:
+        'Baca catatan dan preferensi yang tersimpan tentang user. Baca dulu sebelum menulis, supaya tidak menimpa atau menggandakan yang sudah ada.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+    run: async () => {
+      const m = await cmd.memoryRead();
+      const bagian = [
+        `=== memori (${m.memory_chars}/${m.memory_limit} karakter) ===\n${m.memory || '(kosong)'}`,
+        `=== catatan tentang user (${m.user_chars}/${m.user_limit} karakter) ===\n${m.user || '(kosong)'}`,
+      ];
+      return potong(bagian.join('\n\n'));
+    },
+  },
+
+  {
+    spec: {
+      name: 'notes_write',
+      description:
+        'Ubah catatan yang tersimpan tentang user. Ini TIDAK bisa dibaca-tulis sebagian: kirim bentuk lengkap yang kamu inginkan, bukan tambahannya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          op: { type: 'string', enum: ['add', 'replace', 'remove'] },
+          section: { type: 'string', enum: ['memory', 'user'], description: 'Bagian yang diubah.' },
+          content: { type: 'string', description: 'Teks untuk add, atau teks pengganti untuk replace.' },
+          oldText: { type: 'string', description: 'Teks yang dicari, untuk replace dan remove.' },
+        },
+        required: ['op', 'section'],
+      },
+    },
+    run: async (a) => {
+      const op = wajib(a, 'op') as 'add' | 'replace' | 'remove';
+      const section = wajib(a, 'section') as 'memory' | 'user';
+      if ((op === 'replace' || op === 'remove') && !a.oldText) {
+        throw new Error(`ERROR: op "${op}" butuh argumen "oldText" - sebutkan teks yang mau dicari.`);
+      }
+      const pesan = await cmd.memoryWrite({
+        section,
+        action: op,
+        content: a.content ? String(a.content) : undefined,
+        oldText: a.oldText ? String(a.oldText) : undefined,
+      });
+      return pesan || `Catatan diperbarui: ${op} pada ${section}.`;
+    },
+  },
+
+  /* ---------------- Schedules ---------------- */
+
+  {
+    spec: {
+      name: 'schedule_command',
+      description:
+        'Jadwalkan perintah untuk dijalankan nanti, di terminal aplikasi ini. Untuk sekali jalan setelah sekian detik, isi delaySeconds. Untuk berulang, isi everyMinutes atau atHour.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Perintah yang dijadwalkan.' },
+          delaySeconds: { type: ['number', 'string'], description: 'Sekali jalan, setelah sekian detik.' },
+          everyMinutes: { type: ['number', 'string'], description: 'Berulang setiap sekian menit.' },
+          atHour: { type: ['number', 'string'], description: 'Berulang setiap jam ini (0-23).' },
+          label: { type: 'string', description: 'Nama pendek untuk dikenali.' },
+        },
+        required: ['command'],
+      },
+    },
+    run: async (a) => {
+      const command = wajib(a, 'command');
+      /* Jadwal menyimpan perintah untuk dijalankan NANTI, tanpa agen di
+         sekitarnya. Pembatas yang berlaku di bash_run harus berlaku di sini
+         juga - kalau tidak, satu panggilan schedule_command menjadi jalan
+         memutar untuk menjalankan apa pun. */
+      periksaPerintah(command);
+      const delay = bacaAngka(a.delaySeconds);
+      const every = bacaAngka(a.everyMinutes);
+      const jam = bacaAngka(a.atHour);
+      if (delay === undefined && every === undefined && jam === undefined) {
+        throw new Error(
+          'ERROR: tentukan kapan perintah dijalankan - isi delaySeconds, everyMinutes, atau atHour.',
+        );
+      }
+
+      /*
+       * `cron_create` Rust hanya mengenal penjadwalan BERULANG (every_minutes
+       * atau at_hour). Sekali jalan tidak bisa disimpan apa adanya, jadi
+       * diterjemahkan: jalankan sekali setelah N detik, lalu matikan dirinya
+       * sendiri. Bunyi perintahnya dibuat eksplisit supaya user bisa melihat
+       * tujuan aslinya di daftar jadwal.
+       */
+      if (delay !== undefined && every === undefined && jam === undefined) {
+        const menit = Math.max(1, Math.round(delay / 60));
+        const job = await cmd.cronCreate({
+          name: a.label ? String(a.label) : `sekali: ${command.slice(0, 40)}`,
+          command,
+          everyMinutes: menit,
+        });
+        const sampai = new Date(Date.now() + delay * 1000).toLocaleString();
+        return (
+          `Jadwal dibuat dengan id ${job.id}.\n` +
+          `Perintah akan dijalankan sekali sekitar ${sampai} (${delay} detik dari sekarang).\n` +
+          'Catatan: mesin penjadwal aplikasi ini berulang, jadi entri ini akan tetap terdaftar. ' +
+          `Hapus dengan cancel_schedule (id ${job.id}) setelah perintahnya berjalan.`
+        );
+      }
+
+      const job = await cmd.cronCreate({
+        name: a.label ? String(a.label) : `berulang: ${command.slice(0, 40)}`,
+        command,
+        everyMinutes: every,
+        atHour: jam,
+      });
+      const pola =
+        every !== undefined ? `setiap ${every} menit` : `setiap jam ${jam}:00`;
+      return `Jadwal dibuat dengan id ${job.id}: ${pola}.`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'list_schedules',
+      description: 'Daftar perintah yang terjadwal. Read-only.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+    run: async () => {
+      const daftar = await cmd.cronList();
+      if (!daftar.length) return 'Tidak ada jadwal.';
+      return daftar.map((c) => formatJadwal(c)).join('\n');
+    },
+  },
+
+  {
+    spec: {
+      name: 'cancel_schedule',
+      description: 'Batalkan sebuah perintah terjadwal berdasarkan id-nya.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'Id jadwal dari list_schedules.' } },
+        required: ['id'],
+      },
+    },
+    run: async (a) => {
+      const id = wajib(a, 'id');
+      await cmd.cronDelete(id);
+      return `Jadwal ${id} dibatalkan.`;
+    },
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* Bantuan                                                            */
+/* ------------------------------------------------------------------ */
+
+function formatJadwal(c: cmd.CronJob): string {
+  const kapan =
+    c.at_hour !== null && c.at_hour !== undefined
+      ? `setiap jam ${c.at_hour}:00`
+      : `setiap ${c.every_minutes} menit`;
+  const hidup = c.enabled ? '' : ' (nonaktif)';
+  return `${c.id}  ${kapan}  ${c.name}  ->  ${c.command}${hidup}`;
+}
+
+/**
+ * Kumpulkan berkas yang cocok, untuk `search_replace`.
+ *
+ * Cara yang dipakai: sisir workspace lewat daftar cepat, saring dengan glob,
+ * lalu biarkan Rust yang memutuskan berkas mana yang benar-benar cocok. Ini
+ * menghindari membaca setiap berkas di sisi JS - pada repo besar itu jauh lebih
+ * lambat dan menghabiskan memori tanpa alasan.
+ */
+async function kumpulkanBerkas(opsi: SearchOpts): Promise<string[]> {
+  const semua = await cmd.listWorkspaceFiles(5000);
+  const jalur = semua.map((f) => f.path);
+  if (!opsi.include) return jalur;
+  const re = polaKeRegex(opsi.include);
+  return jalur.filter((p) => re.test(p));
+}
+
+/** Ubah pola glob menjadi regex untuk penyaringan di sisi JS. */
+function polaKeRegex(glob: string): RegExp {
+  /* Beberapa pola digabung dengan `|` oleh `opsiCari`. Setiap pola diubah
+     sendiri-sendiri lalu digabung kembali, supaya `|` tidak dibaca sebagai
+     bagian dari satu pola. */
+  const bagian = glob.split('|').filter(Boolean).map((g) => {
+    const pola = g
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*\*/g, '\u0000')
+      .replace(/\*/g, '[^/\\\\]*')
+      .replace(/\?/g, '.')
+      .replace(/\u0000/g, '.*');
+    return pola;
+  });
+  return new RegExp(`(?:${bagian.join('|')})$`, 'i');
+}
+
+/**
+ * Isi LENGKAP sebuah berkas untuk keperluan penggantian teks.
+ *
+ * Sengaja memakai buffer editor lebih dulu, dengan alasan yang sama seperti
+ * `bacaBerkas`. Berbeda dari `bacaBerkas`, fungsi ini TIDAK memotong:
+ * penggantian yang dihitung dari isi yang terpotong akan menghapus sisanya.
+ */
+export async function bacaLengkap(path: string): Promise<string> {
+  const tab = tabUntuk(path);
+  if (tab) return tab.content ?? '';
+  const hasil = await cmd.fsRead(path);
+  return hasil.content;
+}
+
+/**
+ * Jalankan satu atau beberapa subagent sekaligus, dan kembalikan ringkasannya.
+ *
+ * API `subagentStore.jalankan` mengambil daftar tugas, bukan satu per satu -
+ * memanggilnya berkali-kali justru membuat beberapa gelombang yang berjalan
+ * berurutan alih-alih paralel. Karena itu semua prompt digabung ke satu
+ * panggilan, dan gelombang paralelnya terjadi di dalam store.
+ *
+ * `jalankan` mengembalikan JUMLAH agen yang dijalankan, bukan teksnya. Ringkasan
+ * ada di `getState().ringkasan` setelah selesai. Membaca balikan fungsi sebagai
+ * teks adalah kekeliruan yang pernah terjadi - angka 3 lalu dianggap hasil.
+ */
+async function jalankanSubagent(prompts: string[]): Promise<string> {
+  const { useSubAgent } = await import('../subagentStore');
+  await useSubAgent.getState().jalankan(prompts, { bersarang: true, kedalaman: 1 });
+  const ringkasan = useSubAgent.getState().ringkasan;
+  return ringkasan || '(subagent selesai, tidak ada ringkasan)';
+}
+
+/**
+ * Tulis hasil edit, dengan menghormati buffer yang terbuka.
+ *
+ * Kalau berkasnya terbuka di editor, yang diperbarui adalah BUFFER-nya, bukan
+ * langsung disk. Alasannya bisa dibalik: menulis disk di belakang buffer yang
+ * terbuka membuat user melihat isi lama di layar, dan menyimpannya kemudian
+ * akan menimpa perubahan agen tanpa peringatan apa pun.
+ *
+ * Kalau berkasnya TIDAK terbuka, tulisannya langsung ke disk.
+ */
+export async function tulis(path: string, isi: string): Promise<void> {
+  const tab = tabUntuk(path);
+  if (tab) {
+    useStore.getState().updateTabContent(tab.id, isi);
+    return;
+  }
+  await cmd.fsWrite(path, isi, undefined, undefined, { wasExisting: true });
+}
+
+/** Muat ulang tab kalau berkasnya sedang terbuka dan isinya berubah di disk. */
+async function segarkanTab(path: string): Promise<void> {
+  const tab = tabUntuk(path);
+  if (tab) await useStore.getState().reloadTabFromDisk(path).catch(() => undefined);
+}

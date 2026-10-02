@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useStore } from './store';
 import { EN as SRC } from './i18n-src';
 
@@ -1838,13 +1839,88 @@ export const UI_LANGS: { value: string; label: string }[] = [
 
 let EXTRA: Record<string, Record<string, string>> = {};
 
-export async function muatKamusTambahan(): Promise<void> {
-  try {
-    const m = await import('./i18n-extra');
-    EXTRA = m.EXTRA as unknown as Record<string, Record<string, string>>;
-  } catch {
-    EXTRA = {};
+/**
+ * Pemuat kamus tambahan, dipanggil SEKALI dan tidak pernah dilewatkan.
+ *
+ * ## Kenapa ini diperbaiki
+ *
+ * Fungsi ini dulu hanya DIDEFINISIKAN; tidak ada satu pun pemanggilnya. Kamus
+ * `i18n-extra.ts` berisi ribuan terjemahan - dan hampir semua terjemahan
+ * Inggris yang benar untuk kunci Indonesia tinggal di sana, bukan di `DICTS.en`
+ * yang kecil.
+ *
+ * Akibatnya: selama EXTRA kosong, `translate()` tidak menemukan terjemahannya
+ * di kamus bahasa tujuan, lalu jatuh ke kamus dasar Indonesia dan mengembalikan
+ * teks Indonesia apa adanya. Yang terlihat user persis seperti yang dilaporkan:
+ * antarmuka English yang DI SANA-SINI masih Indonesia - dan campurannya
+ * tampak acak, karena hanya kunci yang kebetulan ada di `DICTS.en` terlihat
+ * benar.
+ *
+ * ## Kenapa promise, bukan flag boolean
+ *
+ * Beberapa komponen bisa memanggil `translate` pada frame yang sama, dan
+ * masing-masing akan memicu pemuatan kalau penandanya hanya boolean - jadi
+ * berkas 1.4 MB di-import berkali-kali. Promise disimpan supaya permintaan
+ * kedua dan seterusnya menunggu yang pertama, bukan memulai yang baru.
+ */
+let janjiKamus: Promise<void> | null = null;
+
+export function muatKamusTambahan(): Promise<void> {
+  if (!janjiKamus) {
+    janjiKamus = import('./i18n-extra')
+      .then((m) => {
+        EXTRA = m.EXTRA as unknown as Record<string, Record<string, string>>;
+        /* Tandai bahwa kamus sudah siap, supaya hook di bawah bisa memicu
+           render ulang. Tanpa ini, komponen yang diterjemahkan SEBELUM kamus
+           tiba akan menyimpan teks Indonesianya sampai ada sebab lain untuk
+           render ulang - dan bagi user itu terlihat seperti terjemahan yang
+           gagal permanen. */
+        kamusSiap = true;
+        for (const dengar of pendengarKamus) {
+          try {
+            dengar();
+          } catch {
+            /* satu pendengar yang gagal tidak boleh membatalkan yang lain */
+          }
+        }
+        pendengarKamus.clear();
+      })
+      .catch(() => {
+        /* Dibiarkan kosong dengan sadar: aplikasi tetap harus jalan, hanya
+           dengan terjemahan yang lebih sedikit. Yang penting kegagalannya
+           TIDAK diam - ia dicatat, karena kamus yang gagal dimuat adalah
+           keadaan yang harus terlihat saat pengembangan. */
+        EXTRA = {};
+        // eslint-disable-next-line no-console
+        console.error('[i18n] gagal memuat kamus tambahan - sebagian teks akan jatuh ke bahasa sumber');
+      });
   }
+  return janjiKamus;
+}
+
+/** Apakah kamus tambahan sudah termuat. Dibaca hook di bawah. */
+let kamusSiap = false;
+
+/** Pendengar yang ingin diberi tahu saat kamus selesai dimuat. */
+const pendengarKamus = new Set<() => void>();
+
+export function kamusTambahanSiap(): boolean {
+  return kamusSiap;
+}
+
+/**
+ * Berlangganan kabar "kamus sudah siap". Mengembalikan fungsi pembatalan.
+ *
+ * Dipakai hook terjemahan: terjemahan pertama bisa terjadi sebelum kamus tiba,
+ * dan hasilnya tidak boleh terkunci seperti itu.
+ */
+export function saatKamusSiap(fn: () => void): () => void {
+  if (kamusSiap) {
+    fn();
+    return () => undefined;
+  }
+  pendengarKamus.add(fn);
+  return () => pendengarKamus.delete(fn);
 }
 
 export function translate(lang: string, key: string): string {
@@ -1915,6 +1991,24 @@ export function catatanUntukBahasa(notes: string | null | undefined, lang: strin
 
 export function useT(): (key: string) => string {
   const lang = useStore((s) => s.settings.general.uiLang);
+  /*
+   * Muat kamus tambahan dari sini, dan render ulang saat ia tiba.
+   *
+   * Hook ini adalah satu-satunya tempat yang PASTI dilewati setiap komponen
+   * yang menampilkan teks terjemahan - jadi ini titik yang benar untuk memicu
+   * pemuatan, alih-alih menaruhnya di satu tempat startup yang mudah
+   * terlupakan (dan memang sudah terlupakan: itulah bug asalnya).
+   *
+   * `versi` sengaja dipakai sebagai pemicu render: saat kamus selesai dimuat,
+   * nilainya berubah, komponen render ulang, dan terjemahan yang tadi jatuh ke
+   * bahasa Indonesia diganti dengan yang benar.
+   */
+  const [versi, setVersi] = useState(0);
+  useEffect(() => {
+    void muatKamusTambahan();
+    return saatKamusSiap(() => setVersi((v) => v + 1));
+  }, []);
+  void versi;
   return (key: string) => translate(lang, key);
 }
 

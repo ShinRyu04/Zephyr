@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../../lib/i18n';
-import { useToolGate, TOOL_GROUPS, SEMUA_TOOL, TOOL_DESKRIPSI, type ToolGroupId } from '../../lib/toolGate';
+import {
+  useToolGate,
+  TOOL_GROUPS,
+  SEMUA_TOOL,
+  TOOL_DESKRIPSI,
+  TOOL_INTI,
+  SECTION_URUTAN,
+} from '../../lib/toolGate';
 import AiIkon from './AiIkon';
 
 /*
@@ -30,6 +37,7 @@ export default function ToolGatePanel() {
 
   const cariRef = useRef<HTMLInputElement | null>(null);
   const [sorot, setSorot] = useState(0);
+  const [bagianTertutup, setBagianTertutup] = useState<Set<string>>(new Set());
 
   /* Focus the filter on open, so typing narrows without a click. */
   useEffect(() => {
@@ -53,17 +61,41 @@ export default function ToolGatePanel() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [buka, setBuka]);
 
-  /* Group counts, and the filtered view the list renders. */
+  /*
+   * Baris yang ditampilkan, dikelompokkan dua tingkat: bagian dulu, lalu
+   * kelompok di dalamnya.
+   *
+   * Pemisahan bagian BUKAN hiasan. Dengan 51 tool, daftar pipih menjadi dinding
+   * nama yang tidak bisa dipindai - dan ketika satu tool tidak berfungsi,
+   * pertanyaan pertamanya selalu "ini tool siapa". Kepala bagian menjawabnya
+   * sebelum daftarnya dibaca.
+   */
   const tampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    return TOOL_GROUPS.map((g) => ({
-      ...g,
-      isi: g.tools.filter((t) => (q ? t.includes(q) : true)),
-      nyala: g.tools.filter((t) => aktif.has(t)).length,
-    })).filter((g) => g.isi.length > 0);
+    const perBagian = SECTION_URUTAN.map((s) => ({
+      ...s,
+      grup: TOOL_GROUPS.filter((g) => g.section === s.id)
+        .map((g) => ({
+          ...g,
+          isi: g.tools.filter((t) => (q ? t.toLowerCase().includes(q) : true)),
+          nyala: g.tools.filter((t) => aktif.has(t)).length,
+        }))
+        .filter((g) => g.isi.length > 0),
+    })).filter((s) => s.grup.length > 0);
+
+    return { perBagian };
   }, [cari, aktif]);
 
   const totalNyala = SEMUA_TOOL.filter((t) => aktif.has(t)).length;
+
+  /*
+   * Awalan MCP adalah detail protokol, bukan nama yang perlu dibaca user.
+   *
+   * Model tetap menerima `mcp__tedi__inspect` agar kontrak dispatch tidak
+   * berubah. Picker hanya menampilkan `inspect`, seperti daftar rujukan. Ini
+   * juga memastikan nama aplikasi lama tidak muncul lagi di UI.
+   */
+  const namaTampil = (nama: string): string => nama.replace(/^mcp__tedi__/, '');
 
   /*
    * Keyboard navigation walks the flattened, filtered list.
@@ -72,7 +104,31 @@ export default function ToolGatePanel() {
    * thirty rows one Tab at a time is unusable, and the arrow keys are what a
    * reader who is already typing in the filter expects.
    */
-  const datar = useMemo(() => tampil.flatMap((g) => (tutup.has(g.id) ? [] : g.isi)), [tampil, tutup]);
+  const datar = useMemo(
+    () =>
+      tampil.perBagian.flatMap((s) =>
+        bagianTertutup.has(s.id)
+          ? []
+          : s.grup.flatMap((g) => (tutup.has(g.id) ? [] : g.isi)),
+      ),
+    [tampil, tutup, bagianTertutup],
+  );
+
+  const lipatBagian = (id: string) => {
+    setBagianTertutup((sekarang) => {
+      const next = new Set(sekarang);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const setBagian = (id: string, nyala: boolean) => {
+    const grup = TOOL_GROUPS.filter((g) => g.section === id);
+    for (const g of grup) {
+      if (nyala || g.optional) setGrup(g.id, nyala);
+    }
+  };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (datar.length === 0) return;
@@ -127,77 +183,104 @@ export default function ToolGatePanel() {
         </div>
 
         <div className="tg-list" data-testid="toolgate-list">
-          {tampil.length === 0 && <p className="tg-kosong">{tr('No tool matches that filter.')}</p>}
+          {tampil.perBagian.length === 0 && <p className="tg-kosong">{tr('No tool matches that filter.')}</p>}
 
-          {tampil.map((g) => {
-            const lipatIni = tutup.has(g.id);
+          {tampil.perBagian.map((s) => {
+            const lipatBagianIni = bagianTertutup.has(s.id);
+            const jumlah = s.grup.reduce((n, g) => n + g.tools.length, 0);
+            const nyala = s.grup.reduce((n, g) => n + g.nyala, 0);
             return (
-              <div className="tg-grup" key={g.id} data-testid={`toolgate-grup-${g.id}`}>
-                <div className="tg-grup-head">
-                  {/* The caret owns the collapse; the checkbox owns the group. */}
+              <div className="tg-bagian" key={s.id} data-testid={`toolgate-bagian-${s.id}`}>
+                <div className="tg-bagian-head">
                   <button
-                    className={`tg-caret${lipatIni ? ' is-lipat' : ''}`}
-                    onClick={() => lipat(g.id)}
-                    aria-expanded={!lipatIni}
-                    tabIndex={-1}
+                    className={`tg-caret${lipatBagianIni ? ' is-lipat' : ''}`}
+                    onClick={() => lipatBagian(s.id)}
+                    aria-expanded={!lipatBagianIni}
+                    aria-label={`${s.label} ${tr('section')}`}
                   >
                     <AiIkon name="chev-down" size={11} />
                   </button>
                   <input
                     type="checkbox"
                     className="tg-cek"
-                    data-testid={`toolgate-grup-cek-${g.id}`}
-                    checked={g.nyala === g.tools.length}
+                    data-testid={`toolgate-bagian-cek-${s.id}`}
+                    checked={nyala === jumlah}
+                    disabled={s.id === 'mcp'}
                     ref={(el) => {
-                      /* Indeterminate is the honest state for a partly-on group. */
-                      if (el) el.indeterminate = g.nyala > 0 && g.nyala < g.tools.length;
+                      if (el) el.indeterminate = nyala > 0 && nyala < jumlah;
                     }}
-                    onChange={(e) => setGrup(g.id as ToolGroupId, e.target.checked)}
+                    onChange={(e) => setBagian(s.id, e.target.checked)}
+                    aria-label={s.label}
                   />
-                  <button className="tg-nama-grup" onClick={() => lipat(g.id)} tabIndex={-1}>
-                    {tr(g.id)}
+                  <button className="tg-bagian-nama" onClick={() => lipatBagian(s.id)}>
+                    {s.label}
                   </button>
-                  <span className="tg-angka" data-nyala={g.nyala === g.tools.length}>
-                    {g.nyala}/{g.tools.length}
-                  </span>
+                  <span className="tg-bagian-angka">{nyala}/{jumlah}</span>
                 </div>
 
-                {!lipatIni && (
-                  <div className="tg-isi">
-                    {g.isi.map((nama) => {
-                      const idx = datar.indexOf(nama);
-                      return (
+                {!lipatBagianIni && s.grup.map((g) => {
+                  const lipatIni = tutup.has(g.id);
+                  return (
+                    <div className="tg-grup" key={g.id} data-testid={`toolgate-grup-${g.id}`}>
+                      <div className="tg-grup-head">
                         <button
-                          key={nama}
-                          className={`tg-row${aktif.has(nama) ? ' is-on' : ''}${idx === sorot ? ' is-sorot' : ''}`}
-                          data-testid={`toolgate-${nama}`}
-                          data-on={aktif.has(nama)}
-                          onClick={() => balik(nama)}
-                          onMouseEnter={() => setSorot(idx)}
-                          role="switch"
-                          aria-checked={aktif.has(nama)}
+                          className={`tg-caret${lipatIni ? ' is-lipat' : ''}`}
+                          onClick={() => lipat(g.id)}
+                          aria-expanded={!lipatIni}
+                          tabIndex={-1}
                         >
-                          <span className="tg-kotak" aria-hidden="true">
-                            {aktif.has(nama) && <AiIkon name="check" size={9} />}
-                          </span>
-                          <span className="tg-nama">{nama}</span>
-                          {/*
-                           * What the tool acts on, next to its name.
-                           *
-                           * A list of bare identifiers assumes the reader
-                           * already knows every tool; the object of the call is
-                           * what makes the row decidable. It is monospace and
-                           * muted so it reads as the argument it is, not as a
-                           * second label competing with the name.
-                           */}
-                          {TOOL_DESKRIPSI[nama] && TOOL_DESKRIPSI[nama] !== '—' && (
-                            <span className="tg-objek">{TOOL_DESKRIPSI[nama]}</span>
-                          )}
+                          <AiIkon name="chev-down" size={11} />
                         </button>
-                      );
-                    })}
-                  </div>
-                )}
+                        <input
+                          type="checkbox"
+                          className="tg-cek"
+                          data-testid={`toolgate-grup-cek-${g.id}`}
+                          checked={g.nyala === g.tools.length}
+                          disabled={!g.optional}
+                          ref={(el) => {
+                            if (el) el.indeterminate = g.nyala > 0 && g.nyala < g.tools.length;
+                          }}
+                          onChange={(e) => setGrup(g.id, e.target.checked)}
+                        />
+                        <button className="tg-nama-grup" onClick={() => lipat(g.id)} tabIndex={-1}>
+                          {tr(g.label)}
+                        </button>
+                        <span className="tg-angka" data-nyala={g.nyala === g.tools.length}>
+                          {g.nyala}/{g.tools.length}
+                        </span>
+                      </div>
+
+                      {!lipatIni && (
+                        <div className="tg-isi">
+                          {g.isi.map((nama) => {
+                            const idx = datar.indexOf(nama);
+                            return (
+                              <button
+                                key={nama}
+                                className={`tg-row${aktif.has(nama) ? ' is-on' : ''}${idx === sorot ? ' is-sorot' : ''}`}
+                                data-testid={`toolgate-${nama}`}
+                                data-on={aktif.has(nama)}
+                                onClick={() => balik(nama)}
+                                onMouseEnter={() => setSorot(idx)}
+                                role="switch"
+                                aria-checked={aktif.has(nama)}
+                                disabled={TOOL_INTI.includes(nama)}
+                              >
+                                <span className="tg-kotak" aria-hidden="true">
+                                  {aktif.has(nama) && <AiIkon name="check" size={9} />}
+                                </span>
+                                <span className="tg-nama">{namaTampil(nama)}</span>
+                                {TOOL_DESKRIPSI[nama] && TOOL_DESKRIPSI[nama] !== '—' && (
+                                  <span className="tg-objek">{TOOL_DESKRIPSI[nama]}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}

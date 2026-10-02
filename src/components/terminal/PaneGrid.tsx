@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
 import { useT, tx } from '../../lib/i18n';
-import BrowserPane, { shortUrl } from './BrowserPane';
+import BrowserPane, { shortUrl, HOME } from './BrowserPane';
 import PaneIcon from './PaneIcons';
 import XtermPane from './XtermPane';
 import type { PaneMeta, TerminalTab } from '../../lib/types';
@@ -32,9 +32,11 @@ export function PaneEmpty() {
         className="pane-split-browser"
         data-testid="empty-split-browser"
         onClick={async () => {
-          
           await addPane('shell');
-          await addPane('browser');
+          // URL wajib. Tanpa ini pane lahir dengan 'about:blank', toolbar
+          // menolaknya ("harus http:// atau https://"), dan pane tinggal
+          // hitam tanpa memuat apa pun.
+          await addPane('browser', { url: HOME });
         }}
       >
         <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">

@@ -162,16 +162,30 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
   closeTab: async (id) => {
     const tab = get().terminalTabs.find((t) => t.id === id);
     if (tab) {
-      
       for (const p of tab.panes) {
-        if (p.kind !== 'browser') {
-          try {
-            await cmd.ptyKill(p.id);
-          } catch {
-            /* may already be dead */
-          }
-          disposeHandle(p.id);
+        if (p.kind === 'browser') {
+          /*
+           * Webview anak TIDAK ikut mati bersama state React.
+           *
+           * `browser_pane_open` membuat webview di sisi Rust, dan yang
+           * menutupnya selama ini hanyalah efek unmount `BrowserPane`. Tapi
+           * grid pane hanya merender tab yang AKTIF: menutup tab browser yang
+           * sedang tidak dilihat tidak pernah menjalankan unmount itu, dan
+           * webview-nya tertinggal melayang di layar tanpa pane pemiliknya.
+           *
+           * Karena itu penutupannya dilakukan di sini, dari data, bukan
+           * menggantungkan diri pada siklus hidup komponen yang belum tentu
+           * berjalan.
+           */
+          await cmd.browserPaneClose(p.id).catch(() => undefined);
+          continue;
         }
+        try {
+          await cmd.ptyKill(p.id);
+        } catch {
+          /* mungkin sudah mati */
+        }
+        disposeHandle(p.id);
       }
     }
     set((s) => {
@@ -367,40 +381,68 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     })),
 
   closePane: async (paneId) => {
-    
+    /*
+     * Seluruh badan dibungkus try/finally, dan `closing.delete` dipindah ke
+     * finally.
+     *
+     * Sebelumnya penghapusan itu ada di baris terakhir badan. Artinya satu
+     * lemparan dari `disposeHandle` atau dari `set` - keduanya di LUAR try yang
+     * menelan kesalahan - membuat id pane tertinggal di `closing` SELAMANYA.
+     * Sesudah itu setiap percobaan menutup pane yang sama berhenti di penjaga
+     * di atas, diam-diam, tanpa pesan. Yang terlihat user: tombol tutup tidak
+     * bekerja lagi, dan tidak ada cara memperbaikinya selain memulai ulang.
+     */
     if (closing.has(paneId)) return;
     closing.add(paneId);
-    const pane = get().findPane(paneId);
-    if (pane && pane.kind !== 'browser') {
-      try {
-        
-        if (pane.kind === 'agent') {
-          await cmd.ptyInterrupt(paneId).catch((e) => console.warn('[terminal] ptyInterrupt failed for pane', paneId, e));
-          await new Promise((r) => setTimeout(r, 120));
+    try {
+      const pane = get().findPane(paneId);
+      if (pane && pane.kind === 'browser') {
+        /*
+         * Webview anak ditutup DARI SINI, tidak diserahkan ke unmount komponen.
+         *
+         * Sebelumnya cabang ini hanya "lewati, bukan terminal" - dan
+         * pengandaiannya adalah efek unmount `BrowserPane` yang akan
+         * membersihkan webview-nya. Pengandaian itu tidak selalu benar: grid
+         * pane hanya merender tab yang AKTIF, jadi menutup pane browser pada
+         * tab yang sedang tidak dilihat tidak pernah menjalankan unmount itu.
+         * Webview-nya tertinggal di koordinat layar terakhirnya, melayang di
+         * atas panel lain - dan tidak ada lagi yang mengurusnya.
+         *
+         * Ditutup dari data, bukan dari siklus hidup komponen: pane ini ada di
+         * store, jadi penutupannya pun tidak boleh bergantung pada apakah
+         * komponennya kebetulan pernah dirender.
+         */
+        await cmd.browserPaneClose(paneId).catch(() => undefined);
+      } else if (pane) {
+        try {
+          if (pane.kind === 'agent') {
+            await cmd.ptyInterrupt(paneId).catch((e) => console.warn('[terminal] ptyInterrupt failed for pane', paneId, e));
+            await new Promise((r) => setTimeout(r, 120));
+          }
+          await cmd.ptyKill(paneId);
+        } catch {
+          /* mungkin sudah mati - lanjutkan menutup pane-nya */
         }
-        await cmd.ptyKill(paneId);
-      } catch {
-        /* may already be dead — carry on closing the pane */
+        disposeHandle(paneId);
       }
-      
-      disposeHandle(paneId);
+      set((s) => ({
+        terminalTabs: s.terminalTabs.map((t) => {
+          if (!t.panes.some((p) => p.id === paneId)) return t;
+          const idx = t.panes.findIndex((p) => p.id === paneId);
+          const panes = t.panes.filter((p) => p.id !== paneId);
+          let activePaneId = t.activePaneId;
+          if (activePaneId === paneId) {
+            const n = panes[Math.min(idx, panes.length - 1)];
+            activePaneId = n ? n.id : null;
+          }
+          return { ...t, panes, activePaneId };
+        }),
+        paneMenuFor: null,
+        menuFor: null,
+      }));
+    } finally {
+      closing.delete(paneId);
     }
-    set((s) => ({
-      terminalTabs: s.terminalTabs.map((t) => {
-        if (!t.panes.some((p) => p.id === paneId)) return t;
-        const idx = t.panes.findIndex((p) => p.id === paneId);
-        const panes = t.panes.filter((p) => p.id !== paneId);
-        let activePaneId = t.activePaneId;
-        if (activePaneId === paneId) {
-          const n = panes[Math.min(idx, panes.length - 1)];
-          activePaneId = n ? n.id : null;
-        }
-        return { ...t, panes, activePaneId };
-      }),
-      paneMenuFor: null,
-      menuFor: null,
-    }));
-    closing.delete(paneId);
   },
 
   killPane: async (paneId) => {

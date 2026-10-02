@@ -75,13 +75,34 @@ use tauri::{Emitter, Manager, RunEvent, WindowEvent};
  * pane browser (iframe) tidak hidup tanpa pemisahan proses. Di build rilis
  * gejalanya: terminal tidak jalan, pane browser kosong.
  *
- * Yang tersisa hanya argumen yang aman: hemat RAM tanpa mengganggu proses.
+ * PENTING — jangan hapus dua flag ini: `SpareRendererForSitePerProcess` dan
+ * `CalculateNativeWinOcclusion`. Keduanya WAJIB agar child webview (pane browser)
+ * dan terminal PTY benar-benar menggambar di build rilis:
+ *   * `SpareRendererForSitePerProcess` mempertahankan renderer cadangan. Tanpa
+ *     ini, ketika renderer pane browser mati, tidak ada pengganti — pane tinggal
+ *     hitam.
+ *   * `CalculateNativeWinOcclusion` menjaga penghitungan occlusion Windows; tanpa
+ *     ini child webview tidak pernah disuruh menggambar, sehingga hitam sejak awal.
+ * Gejala ini muncul di rilis karena flag ini hanya ada lewat path ini (env var +
+ * config rilis). Dev dan debug memuat frontend dari Vite dan juga butuh flag ini,
+ * tapi rilis-lah yang terlihat hitam pertama kali. Bukti A/B: build lama yang
+ * jalan punya kedua flag ini di command line WebView2; build baru yang hitam tidak.
+ *
+ * Yang tersisa selain kedua flag wajib di atas hanya argumen yang aman: hemat RAM
+ * tanpa mengganggu proses ATAU cara WebView2 menggambar.
  */
 const RAM_ARGS_BASE: &str = "--js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
 
 fn pasang_arg_webview2() {
     let ada = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
-    if ada.contains("--js-flags") {
+    // Penjaga yang benar: jangan pasang dua kali.
+    //
+    // Memeriksa `--js-flags` saja TIDAK cukup. `additionalBrowserArgs` di
+    // tauri.release.conf.json diteruskan langsung ke WebView2, bukan lewat env
+    // var, jadi penjaga lama tidak pernah melihatnya - dan flag yang sama
+    // terpasang dua kali. Sekarang kita kenali kedua penanda yang mungkin sudah
+    // datang dari config.
+    if ada.contains("--js-flags") || ada.contains("--disable-features") {
         return;
     }
     let mut gabung = RAM_ARGS_BASE.to_string();

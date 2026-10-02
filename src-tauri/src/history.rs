@@ -167,6 +167,54 @@ fn pangkas(dir: &Path, maks: usize, hari: u64) -> usize {
     hapus.len()
 }
 
+fn semua_snapshot(root: &Path) -> Vec<(PathBuf, Snapshot)> {
+    let mut out = Vec::new();
+    let Ok(rd) = std::fs::read_dir(root) else {
+        return out;
+    };
+    for e in rd.flatten() {
+        if !e.path().is_dir() {
+            continue;
+        }
+        for s in daftar_snapshot(&e.path()) {
+            out.push((e.path().join(&s.id), s));
+        }
+    }
+    out.sort_by(|a, b| b.1.timestamp_ms.cmp(&a.1.timestamp_ms));
+    out
+}
+
+fn pangkas_total(root: &Path, maks: usize) -> usize {
+    if maks == 0 {
+        return 0;
+    }
+    let list = semua_snapshot(root);
+    if list.len() <= maks {
+        return 0;
+    }
+    let mut hapus = 0;
+    let mut per_folder: std::collections::HashMap<PathBuf, usize> = std::collections::HashMap::new();
+    for (f, s) in &list {
+        *per_folder.entry(f.parent().unwrap_or(f).to_path_buf()).or_insert(0) += 1;
+    }
+    for (path, s) in &list {
+        if list.len() - hapus <= maks {
+            break;
+        }
+        let key = path.parent().unwrap_or(path).to_path_buf();
+        let c = per_folder.entry(key).or_insert(0);
+        if *c <= 1 {
+            continue;
+        }
+        if std::fs::remove_file(path).is_ok() {
+            *c -= 1;
+            hapus += 1;
+        }
+        let _ = s;
+    }
+    hapus
+}
+
 fn izinkan(state: &AppState, p: &Path) -> ZResult<PathBuf> {
     let abs = if p.is_absolute() {
         p.to_path_buf()
@@ -226,7 +274,8 @@ pub fn snapshot_internal(state: &AppState, path: &Path, reason: &str) -> ZResult
     meta.hash_terakhir = hash;
     meta.total += 1;
     tulis_meta(&dir, &meta);
-    pangkas(&dir, 50, 30);
+    pangkas(&dir, 200, 30);
+    pangkas_total(&root_history(state), 2000);
     Ok(id)
 }
 
@@ -237,6 +286,7 @@ pub fn history_snapshot(
     reason: Option<String>,
     max_per_file: Option<usize>,
     max_days: Option<u64>,
+    max_total: Option<usize>,
 ) -> ZResult<serde_json::Value> {
     let reason = reason.unwrap_or_else(|| "save".to_string());
     if !reason_valid(&reason) {
@@ -283,12 +333,14 @@ pub fn history_snapshot(
     meta.total += 1;
     tulis_meta(&dir, &meta);
 
-    let dibuang = pangkas(&dir, max_per_file.unwrap_or(50), max_days.unwrap_or(30));
+    let dibuang = pangkas(&dir, max_per_file.unwrap_or(200), max_days.unwrap_or(30));
+    let dibuang_total = pangkas_total(&root_history(&state), max_total.unwrap_or(2000));
 
     Ok(serde_json::json!({
         "id": id,
         "skip": "",
         "dibuang": dibuang,
+        "dibuangTotal": dibuang_total,
         "total": meta.total,
     }))
 }

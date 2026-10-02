@@ -1,6 +1,7 @@
 import { useStore } from './store';
 import { useLayoutCustom } from './layoutStore';
 import { useTerminal } from './terminalStore';
+import { HOME as HOME_BROWSER } from '../components/terminal/BrowserPane';
 import { useAi } from './aiStore';
 import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
@@ -376,7 +377,9 @@ export const COMMANDS: CommandDef[] = [
 
       const t = T();
       if ((t.activeTab()?.panes.length ?? 0) === 0) await t.addPane('shell');
-      await t.addPane('browser');
+      // URL wajib - lihat catatan di TerminalTabs.tsx. Tanpa ini pane browser
+      // memuat 'about:blank' dan tampil sebagai panel gelap kosong.
+      await t.addPane('browser', { url: HOME_BROWSER });
     },
   },
   {

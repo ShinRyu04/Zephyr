@@ -1,0 +1,269 @@
+/**
+ * ai-composer-stack.css - Kapsul Status Bersatu Docked di atas Input Composer ala Hermes.
+ *
+ * Sesuai arsitektur Hermes Agent:
+ *   - Satu wadah kapsul: rounded-t-xl (atas melengkung), rounded-b-none (bawah lurus).
+ *   - Menempel langsung ke kotak input .ai-input-row (yang memiliki rounded-t-none, rounded-b-xl).
+ *   - Border bawah wadah dihilangkan, berbagi garis single seam dengan border atas input.
+ *   - Latar fill sama persis dengan kotak input (var(--bg0)).
+ *   - Ikon per jenis: sync, server-process, checklist.
+ *   - Menu titik tiga (...) di ujung kanan header.
+ */
+
+.composer-status-stack {
+  box-sizing: border-box;
+  margin: 0 10px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--bg0);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  overflow: hidden;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Header baris utama kapsul */
+.composer-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 10px;
+  background: var(--bg0);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  user-select: none;
+}
+
+.composer-status-header.is-empty-body {
+  border-bottom: 0;
+}
+
+/* Kiri: trigger collapse utama + ikon jenis + judul */
+.composer-status-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg1);
+}
+
+.composer-status-left:hover .composer-status-title {
+  color: var(--fg0, #fff);
+}
+
+.composer-status-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--fg3);
+  transition: transform 0.15s ease-out;
+}
+
+.composer-status-stack.is-collapsed .composer-status-caret {
+  transform: rotate(-90deg);
+}
+
+/* Badge ikon per jenis di header */
+.composer-status-types {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.composer-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3.5px;
+  padding: 1.5px 5.5px;
+  border-radius: 9999px;
+  font-size: 11px;
+  line-height: 1;
+  background: var(--bg1);
+  color: var(--fg2);
+  border: 0.5px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.composer-type-pill.is-active {
+  color: var(--accent, #a78bfa);
+  background: color-mix(in srgb, var(--accent, #a78bfa) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #a78bfa) 25%, transparent);
+}
+
+.composer-type-pill svg {
+  flex-shrink: 0;
+}
+
+/* Spinner untuk jenis sync */
+.spin-sync {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.composer-status-title {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fg2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-status-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg3);
+  margin-left: 2px;
+}
+
+/* Kanan: Menu tindakan ... (three dots) */
+.composer-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.composer-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--fg3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.composer-action-btn:hover {
+  background: var(--bg2);
+  color: var(--fg1);
+}
+
+/* Menu popup popover */
+.composer-menu-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 150px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.composer-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 0;
+  background: none;
+  font-size: 11.5px;
+  color: var(--fg2);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.composer-menu-item:hover {
+  background: var(--bg2);
+  color: var(--fg0, #fff);
+}
+
+/* Badan tumpukan status saat expanded */
+.composer-status-body {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Section pembagi per jenis di dalam stack */
+.status-section-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-section-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg3);
+  padding: 3px 4px 1px;
+}
+
+/* Baris proses background / server */
+.composer-process-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3.5px 6px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  background: color-mix(in srgb, var(--bg1) 60%, transparent);
+  border: 0.5px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.composer-process-row .proc-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.composer-process-row .proc-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg1);
+}
+
+.composer-process-row .proc-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--success, #10b981) 15%, transparent);
+  color: var(--success, #10b981);
+}
+
+/* Sambungan rapat ke .ai-input-row */
+.composer-status-stack + .ai-input-row {
+  border-top: 1px solid var(--border) !important;
+  border-radius: 0 0 12px 12px !important;
+  margin-top: 0 !important;
+}
