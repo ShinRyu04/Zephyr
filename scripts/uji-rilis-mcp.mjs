@@ -422,8 +422,15 @@ async function rpc(path, init) {
 const health = await rpc('/health');
 r.check(
   'R7',
-  health.status === 200 && /zephyr/i.test(health.teks || ''),
-  `GET http://127.0.0.1:${MCP}/health -> ${health.status} ${String(health.teks).slice(0, 110)}`,
+  /*
+   * Kriteria identitasnya `ok:true` + ada `version`, BUKAN nama "zephyr".
+   *
+   * Versi pertama uji ini mencari kata "zephyr" di badan respons dan gagal -
+   * padahal servernya sehat. Memeriksa bentuk responsnya lebih tepat: itulah
+   * kontrak yang benar-benar dijaga server.
+   */
+  health.status === 200 && /"ok"\s*:\s*true/.test(health.teks || '') && /"version"/.test(health.teks || ''),
+  `GET http://127.0.0.1:${MCP}/health -> ${health.status} ${String(health.teks).slice(0, 130)}`,
 );
 
 const tanpa = await rpc('/mcp', {
