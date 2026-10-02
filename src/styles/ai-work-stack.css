@@ -82,14 +82,93 @@
   cursor: pointer;
 }
 
-.ai-work-summary:hover {
+/*
+ * Hover: pill halus yang HANYA selebar teksnya.
+ *
+ * Dulu `background: var(--bg2)` mengisi seluruh lebar baris, sehingga sorotan
+ * selebar panel terbaca sebagai blok besar - bukan sebagai tanda "bagian ini
+ * bisa diklik". Pola Hermes (`disclosure-row.tsx`) membatasi sorotannya pada
+ * teksnya sendiri:
+ *
+ *   "The hover background is a tight content-shaped pill - sized to the title
+ *    text, NOT the full row - and reaches just past the chevron with `-mx-1.5
+ *    px-1.5` so it reads as a soft hit-target rather than a slab stretching to
+ *    the message edge."
+ *
+ * Marquee negatif dipakai supaya pill-nya melebar sedikit melewati teks, dan
+ * paddingnya mengembalikan keseimbangan - jadi sorotannya terasa seperti target
+ * klik, bukan seperti papan yang menempe! ke tepi panel.
+ */
+/*
+ * Tombolnya selebar ISINYA, bukan selebar panel.
+ *
+ * `width: auto` saja TIDAK cukup: `justify-content: space-between` pada
+ * induknya membuat tombol melar memenuhi baris, sehingga hover-nya tetap
+ * selebar panel - persis keluhan yang diperbaiki. `align-self: flex-start`
+ * yang benar-benar menghentikannya, karena di dalam flex container sumbu
+ * melintang itulah yang menentukan lebar.
+ */
+.ai-work-summary {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+}
+
+.ai-work-summary .ai-work-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  padding: 2px 6px;
+  margin: -2px -2px;
+  border-radius: 5px;
+  /* Teks status dibiarkan REDUP: ia keterangan, bukan isi. Percakapan di
+     atasnya yang utama, dan judul yang terlalu terang akan bersaing dengannya. */
+  color: var(--fg2);
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.ai-work-summary:hover .ai-work-title,
+.ai-work-summary:focus-visible .ai-work-title {
+  color: var(--fg0);
   background: var(--bg2);
 }
 
-/* The primary line of a section: "Loop running", "2 Background". */
-.ai-work-summary > span:nth-child(2) {
-  color: var(--fg0);
-  font-weight: 600;
+/* Caret duduk di sebelah kanan judul, bukan di ujung baris. Jaraknya kecil
+   supaya ia terbaca sebagai bagian dari judulnya. */
+.ai-work-summary .ai-work-caret {
+  margin-left: 2px;
+  opacity: 0.55;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.ai-work-summary:hover .ai-work-caret,
+.ai-work-summary:focus-visible .ai-work-caret {
+  opacity: 0.9;
+}
+
+/*
+ * Baris utama sebuah bagian: "Loop running", "2 Background".
+ *
+ * Dipilih lewat KELASNYA, bukan `nth-child(2)`.
+ *
+ * Selektor posisi itu rapuh: begitu ada elemen baru disisipkan sebelum judul -
+ * dan itu terjadi saat caret dipindahkan ke sebelah judul - ia menunjuk elemen
+ * yang salah tanpa peringatan apa pun. Di sini ia bahkan sempat menimpa warna
+ * yang baru saja diset, sehingga judulnya tetap terang padahal seharusnya redup.
+ *
+ * Warnanya diturunkan dari `--fg0` ke `--fg1`, dan tebalnya dari 600 ke 500.
+ * Alasannya sama dengan yang dipakai Hermes: tumpukan status ini KETERANGAN,
+ * bukan isi. Judul yang tebal dan terang akan bersaing dengan percakapan di
+ * atasnya, padahal percakapan itulah yang utama. Status yang redup tetap
+ * terbaca saat dicari, dan tidak menarik mata saat tidak dicari.
+ *
+ * Hover yang menaikkannya kembali ke `--fg0` - lihat aturan di atas.
+ */
+.ai-work-summary .ai-work-title {
+  color: var(--fg1);
+  font-weight: 500;
 }
 
 /*

@@ -930,10 +930,32 @@ const JEJAK_TOOL_MAKS = 4;
             aria-controls="ai-work-loop-body"
             onClick={() => setLoopBuka((v) => !v)}
           >
+            {/*
+             * Chevron PINDAH ke kanan teks, dan judulnya menyatu dengan
+             * jumlahnya.
+             *
+             * Dulu chevronnya menempel di ujung kanan baris, jauh dari teks
+             * yang dibukanya - sehingga hubungan antara panah dan judulnya
+             * hilang, dan baris selebar panel terbaca sebagai tiga hal
+             * terpisah yang kebetulan sebaris. Pola Hermes
+             * (`components/chat/disclosure-row.tsx`) menaruh caret tepat di
+             * sebelah judulnya, di dalam tombol yang lebarnya mengikuti
+             * teksnya: "max-w-fit so the click target hugs the title text
+             * width - no background fill, just the cursor + the affordance
+             * caret".
+             *
+             * Yang membuatnya terbaca sebagai satu kesatuan: caret duduk di
+             * sebelah kanan judul, judul dan jumlahnya berbagi satu baris tanpa
+             * pemisah terpisah, dan hover-nya hanya selebar teks itu.
+             */}
             <span className={`ai-work-status${sibuk ? ' is-running' : ' is-done'}`} aria-hidden="true" />
-            <span>{tr(sibuk ? 'Loop running' : 'Loop finished')}</span>
-            {loopRuns > 0 && <span className="ai-work-meta">· {tf('{n} runs', { n: loopRuns })}</span>}
-            <span className="ai-work-caret" aria-hidden="true">{loopBuka ? '▾' : '▸'}</span>
+            <span className="ai-work-title">
+              {tr(sibuk ? 'Loop running' : 'Loop finished')}
+              {loopRuns > 0 && <span className="ai-work-meta">· {tf('{n} runs', { n: loopRuns })}</span>}
+            </span>
+            <span className="ai-work-caret" aria-hidden="true">
+              {loopBuka ? '▾' : '▸'}
+            </span>
           </button>
           {loopBuka && (
             <div id="ai-work-loop-body" className="ai-work-body" role="status" data-testid={sibuk ? 'ai-agent-progress' : undefined}>
