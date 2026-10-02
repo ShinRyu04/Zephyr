@@ -142,13 +142,44 @@ export const TOOL_WEB: AgentTool[] = [
     run: async (a) => {
       const url = wajib(a, 'url');
       const t = useTerminal.getState();
-      const existing = paneBrowserId();
-      if (existing) {
-        t.setPaneUrl(existing, url);
-        return `URL ${url} dibuka di pane browser yang ada (${existing}).`;
+      /*
+       * Pane browser yang sudah membawa URL INI dipakai ulang; selain itu
+       * dibuat pane baru.
+       *
+       * Dulu di sini `setPaneUrl(existing, url)` dipanggil pada pane browser
+       * PERTAMA yang ditemukan, apa pun isinya. Itu salah karena dua alasan:
+       *
+       *  1. URL hanya tersimpan di state. Child webview sudah dibuat dengan
+       *     URL lama, dan `setPaneUrl` tidak menyuruhnya bernavigasi - jadi
+       *     store menjawab `github.com/...` sementara layarnya tetap
+       *     menampilkan halaman sebelumnya.
+       *  2. Pengguna yang sedang membaca satu halaman kehilangan halamannya
+       *     tanpa diminta begitu agen membuka tautan lain.
+       *
+       * Jadi kesamaan URL-lah yang menentukan, bukan keberadaan pane browser.
+       * `setPaneUrl` tetap dipakai HANYA saat tidak ada yang berubah - yaitu
+       * ketika URL-nya sudah sama dan tidak ada yang perlu dinavigasi.
+       */
+      const sameUrl = t
+        .allPanes()
+        .find((p) => p.kind === 'browser' && p.url === url);
+      if (sameUrl) {
+        return `URL ${url} sudah terbuka di pane browser (${sameUrl.id}).`;
       }
-      await t.addPane('browser', { url });
-      return `Pane browser baru dibuka dengan URL: ${url}`;
+      const paneId = await t.addPane('browser', { url });
+      if (!paneId) {
+        /*
+         * addPane menolak ketika batas pane tercapai, dan pelaporannya ada di
+         * `toast` - bukan sebagai lemparan. Mengembalikan pesan sukses di sini
+         * akan membuat agen mengira halamannya terbuka lalu menebak-nebak
+         * kenapa `browser_read` tidak menemukan apa pun.
+         */
+        return (
+          `Tidak bisa membuka pane browser baru: ${useTerminal.getState().toast ?? 'batas pane tercapai'}. ` +
+          'Tutup satu pane dulu, atau naikkan batasnya di Settings.'
+        );
+      }
+      return `Pane browser ${paneId} dibuka dengan URL: ${url}`;
     },
   },
 
@@ -247,11 +278,53 @@ export const TOOL_WEB: AgentTool[] = [
       const id = paneBrowserId();
       if (!id) throw new Error('Tidak ada pane browser yang aktif.');
       const t = useTerminal.getState();
-      if (act === 'goto' && a.url) {
-        t.setPaneUrl(id, String(a.url));
-        return `Pane browser bernavigasi ke ${a.url}.`;
+
+      /*
+       * `goto` membuang dan membuat ulang pane; `back`/`forward`/`reload`
+       * memakai perintah webview yang sudah ada.
+       *
+       * Sebelum ini ketiga aksi terakhir tidak melakukan apa pun - handler-nya
+       * mengembalikan `Navigasi browser ${act} dijalankan.` tanpa menyentuh
+       * webview sama sekali, jadi model melaporkan keberhasilan atas halaman
+       * yang tidak bergerak. Itu kesalahan yang paling menyesatkan di sini:
+       * hasilnya benar, aksinya tidak ada.
+       *
+       * `back`/`forward`/`reload` tidak bisa lewat jalur buang-dan-buat ulang
+       * karena halaman baru tidak punya riwayat - membuat ulang URL yang sama
+       * justru MENGHAPUS riwayat yang jadi tujuan `back`. Jadi ketiganya
+       * dikirim sebagai perintah ke webview yang hidup.
+       */
+      if (act === 'goto') {
+        const tujuan = String(a.url ?? '');
+        if (!tujuan) throw new Error('action "goto" butuh "url".');
+        /*
+         * Keluar dari pane lalu buka baru: itu satu-satunya jalur yang benar-
+         * benar memuat halaman.
+         *
+         * `setPaneUrl` hanya menulis state, sedangkan child webview sudah
+         * hidup dengan URL lama di dalam proses WebView2 - jadi mengubah state
+         * menghasilkan pane yang MENGKLAIM halaman baru sementara isinya masih
+         * halaman lama. Menutup dulu memaksa webview dibuang, dan pembukaan
+         * berikutnya membuatnya dengan URL yang benar.
+         */
+        await t.closePane(id);
+        const paneId = await t.addPane('browser', { url: tujuan });
+        if (!paneId) {
+          return `Gagal bernavigasi ke ${tujuan}: ${useTerminal.getState().toast ?? 'batas pane tercapai'}.`;
+        }
+        return `Pane browser ${paneId} bernavigasi ke ${tujuan}.`;
       }
-      return `Navigasi browser ${act} dijalankan.`;
+
+      /*
+       * `browserPaneNav` meneruskan aksinya apa adanya ke Rust, dan Rust yang
+       * memutuskan artinya - jadi ketiga nama di bawah harus sama persis dengan
+       * yang dikenali perintah `browser_pane_nav`.
+       */
+      const SAH = new Set(['back', 'forward', 'reload']);
+      if (!SAH.has(act)) throw new Error(`action tidak dikenal: ${act}`);
+
+      await cmd.browserPaneNav(id, act);
+      return `Pane browser ${id}: ${act} dijalankan.`;
     },
   },
 

@@ -154,7 +154,9 @@ let ptyListenersUnlisten: (() => void)[] = [];
 let ptyListenerConsumers = 0;
 
 let aiListenerBound = false;
+let aiListenerBinding: Promise<(() => void) | undefined> | undefined;
 let aiListenerUnlisten: (() => void) | undefined;
+let aiListenerConsumers = 0;
 
 let ghListenerBound = false;
 let ghListenerUnlisten: (() => void) | undefined;
@@ -930,20 +932,30 @@ export default function App() {
 
   useEffect(() => {
     void useAi.getState().init();
-    if (aiListenerBound) return;
-    onAiChunk((c) => useAi.getState().onChunk(c))
-      .then((un) => {
-        aiListenerUnlisten = un;
-        aiListenerBound = true;
-      })
-      .catch((e) => {
-        aiListenerBound = false;
-        console.error('gagal memasang listener ai-chunk', e);
-      });
+    aiListenerConsumers++;
+    if (!aiListenerBound && !aiListenerBinding) {
+      aiListenerBinding = onAiChunk((c) => useAi.getState().onChunk(c))
+        .then((un) => {
+          aiListenerUnlisten = un;
+          aiListenerBound = true;
+          aiListenerBinding = undefined;
+          return un;
+        })
+        .catch((e) => {
+          aiListenerBound = false;
+          aiListenerBinding = undefined;
+          console.error('gagal memasang listener ai-chunk', e);
+          return undefined;
+        });
+    }
     return () => {
-      aiListenerUnlisten?.();
-      aiListenerUnlisten = undefined;
-      aiListenerBound = false;
+      aiListenerConsumers--;
+      if (aiListenerConsumers === 0) {
+        aiListenerUnlisten?.();
+        aiListenerUnlisten = undefined;
+        aiListenerBound = false;
+        aiListenerBinding = undefined;
+      }
     };
   }, []);
 

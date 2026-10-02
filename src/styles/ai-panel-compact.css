@@ -463,6 +463,17 @@
  * the field owns the top row, the controls share the bottom one, and a hairline
  * separates them. Left cluster = what goes into the message (attach, image,
  * analyse); right cluster = how it is sent (mode, effort, send).
+ *
+ * WHY the shape depends on what is above it: this row is the bottom half of the
+ * status run. When a stack sits above, the two are flush - no gap, square top
+ * corners, and the top border acts as the single seam between them, exactly the
+ * way the loop and the task list are joined inside the stack. When there is no
+ * stack, the row is the whole capsule and rounds all four corners.
+ *
+ * The `10px` side inset is the stack's inset too, so the left and right edges
+ * of the two boxes line up to the pixel. It used to be `8px` with a different
+ * radius, which is what made the composer look slightly narrower than the panel
+ * above it.
  */
 .ai-input-row {
   display: flex;
@@ -471,12 +482,38 @@
   margin: 0 10px 10px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--ai-dock-radius, 10px);
   background: var(--bg);
   flex: 0 0 auto;
   overflow: hidden;
 }
 
+/* Directly below the status stack: drop the gap, square the top, and let the
+   top border be the seam. */
+.ai-work-stack + .ai-input-row {
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px);
+}
+
+/*
+ * The composer field itself.
+ *
+ * WHY it is not transparent any more: this file loads after `ai.css`, so these
+ * rules win, and the old ones set `background: transparent; border: 0` on the
+ * assumption that the wrapper supplied the surface. It does - but the wrapper
+ * is `--bg0`, the same tone the panel behind it uses, so with nothing to
+ * separate them the field read as a grey smear instead of a place to type.
+ *
+ * The field is BLACK, the same tone as the panel behind it.
+ *
+ * An earlier pass gave it `--surface` to separate it from the wrapper, which
+ * worked but made the composer the lightest surface in the panel - a grey box
+ * where the reader expects the darkest one. The separation comes from the
+ * BORDER instead: a 1px rule at `--border` reads as an edge on a dark field
+ * without lifting the fill. The field keeps `--bg` so it matches the panel, the
+ * chat above it, and the composer row it sits in.
+ */
 .ai-input {
   width: 100%;
   box-sizing: border-box;
@@ -489,10 +526,17 @@
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   outline: none;
+}
+
+/* Focus moves the border to the accent instead of adding a ring: the wrapper
+   already tints its own border on focus-within, and two cues on nested boxes
+   read as a double frame. */
+.ai-input:focus {
+  border-color: var(--accent);
 }
 
 .ai-input::placeholder {

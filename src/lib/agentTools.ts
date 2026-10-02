@@ -81,12 +81,24 @@ export async function jalankanAgentTool(
   nama: string,
   args: Record<string, unknown> = {},
 ): Promise<string> {
-  const tool = AGENT_TOOLS.find((t) => t.spec.name === nama);
+  const clean = nama.replace(/^mcp__(?:tedi|zephyr)__/, '');
+  const tool = AGENT_TOOLS.find(
+    (t) =>
+      t.spec.name === nama ||
+      t.spec.name.replace(/^mcp__(?:tedi|zephyr)__/, '') === clean,
+  );
   if (!tool) {
     throw new Error(`Tool tidak ditemukan atau tidak didukung: "${nama}"`);
   }
   const aktif = useToolGate.getState().aktif;
-  if (!aktif.has(nama)) {
+  const targetName = tool.spec.name;
+  const targetClean = targetName.replace(/^mcp__(?:tedi|zephyr)__/, '');
+  const diizinkan =
+    aktif.has(targetName) ||
+    aktif.has(targetClean) ||
+    aktif.has(`mcp__tedi__${targetClean}`) ||
+    aktif.has(`mcp__zephyr__${targetClean}`);
+  if (!diizinkan) {
     throw new Error(`Tool "${nama}" sedang dinonaktifkan di pengaturan tool.`);
   }
   return await tool.run(args);

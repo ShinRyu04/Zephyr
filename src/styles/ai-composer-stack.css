@@ -10,30 +10,94 @@
  *   - Menu titik tiga (...) di ujung kanan header.
  */
 
+/*
+ * The task list, as a section of the shared stack.
+ *
+ * It used to be its own card: its own border, its own rounded top, its own
+ * margin above the composer. That made the panel show two boxes stacked on top
+ * of each other instead of one - the loop in one card, the plan in another.
+ *
+ * Hermes keeps the todo tree inside the same stack as every other status group
+ * (status-stack/index.tsx renders the `todo` group with the same StatusSection
+ * chrome), so the plan and the loop collapse and expand as parts of one object.
+ * The card chrome is gone here: the stack supplies the border, the radius and
+ * the background, and this contributes only a divider between sections.
+ */
+/*
+ * The task list, as a section INSIDE the stack.
+ *
+ * It has no card chrome of its own: no border, no radius, no margin. The stack
+ * above it owns all of that, and this contributes only the divider that
+ * separates it from the section above - the same 1px rule the stack draws
+ * between its other sections. Giving it its own border again would put a box
+ * inside a box, which is the double-frame look this replaced.
+ */
 .composer-status-stack {
   box-sizing: border-box;
-  margin: 0 10px;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--border);
-  border-bottom: 0;
-  border-radius: 12px 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
   background: var(--bg0);
   flex-shrink: 0;
   position: relative;
-  z-index: 10;
   overflow: hidden;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* Header baris utama kapsul */
+/* Header baris utama kapsul.
+ *
+ * Shaped like the stack's other headers (`.ai-work-summary`): the same 8px
+ * gap, the same 6px/10px padding, and a caret that sits FIRST rather than at
+ * the end of the row. The task list is one of the stack's sections now, so its
+ * header has to be the same row as the loop's - otherwise the two rows look
+ * like they came from different widgets even inside one card.
+ */
 .composer-status-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 6px 8px 6px 10px;
   background: var(--bg0);
   border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
   user-select: none;
+}
+
+/* The caret column, matching `.ai-work-caret`: small, dim, and it rotates
+   rather than swapping glyphs so the row does not reflow when it opens. */
+.composer-status-caret {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  color: var(--fg2);
+  opacity: 0.55;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.composer-status-header:hover .composer-status-caret {
+  opacity: 0.9;
+}
+
+.composer-status-caret svg {
+  transition: transform 140ms ease;
+}
+
+.composer-status-left[aria-expanded='true'] .composer-status-caret svg {
+  transform: rotate(90deg);
+}
+
+/* The section label, at the same weight and colour as the stack's titles. */
+.composer-status-title {
+  color: var(--fg2);
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer-status-header.is-empty-body {

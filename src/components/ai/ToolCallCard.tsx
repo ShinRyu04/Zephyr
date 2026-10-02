@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react';
+import { namaPolos } from '../../lib/labelAksi';
 import '../../styles/ai-tool-cards.css';
 
 export type ToolCategory = 'read' | 'write' | 'search' | 'command' | 'browser' | 'task' | 'other';
@@ -119,7 +120,14 @@ function defaultDetails(call: ToolCallLike): ToolCallDetails {
   const exitValue = call.exitCode ?? numberOf(result?.exitCode) ?? numberOf(result?.exit_code);
   const cwdValue = call.cwd ?? (typeof result?.cwd === 'string' ? result.cwd : undefined);
   return {
-    name: call.name ?? '',
+    /*
+     * Nama yang dipakai kartu ini HANYA untuk dibaca: judul, aria-label, dan
+     * pemilihan kategori lewat regex. Tak satu pun membutuhkan awalan
+     * `mcp__tedi__`, dan menampilkannya membuat tool TEDI sendiri terbaca
+     * seperti milik pihak lain. Perbandingan yang butuh nama asli terjadi di
+     * lapisan dispatch, bukan di sini.
+     */
+    name: namaPolos(call.name),
     input: call.input ?? call.args,
     output,
     stdout: typeof stdoutValue === 'string' ? stdoutValue : undefined,

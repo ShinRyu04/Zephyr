@@ -110,6 +110,24 @@ const PETA: Record<string, AksiInfo> = {
  */
 const AWALAN_MCP = 'mcp__tedi__';
 
+/*
+ * Nama MCP yang dibaca manusia tidak boleh memperlihatkan awalan internal.
+ *
+ * Awalan `mcp__tedi__` adalah konvensi protokol: dispatcher dan prompt model
+ * bergantung padanya, jadi nama itu TIDAK diubah. Yang diubah hanya yang
+ * terlihat di kartu loop, dan itu dilakukan di sini - satu tempat - supaya
+ * AiPanel, ChatMessage, dan SubAgentPanel ikut bersih tanpa perlu tahu
+ * soal awalan itu sama sekali.
+ *
+ * Alasannya bukan kosmetik: `mcp__tedi__inspect` di baris aksi terbaca
+ * sebagai nama asing milik alat lain, padahal itu tindakan TEDI sendiri.
+ * Pengguna tidak punya cara menebak bahwa `mcp__tedi__` hanya pintu masuk.
+ */
+export function namaPolos(nama: string | undefined): string {
+  if (!nama) return '';
+  return nama.startsWith(AWALAN_MCP) ? nama.slice(AWALAN_MCP.length) : nama;
+}
+
 export function infoAksi(nama: string | undefined): AksiInfo {
   if (!nama) return { label: '—', jenis: 'lain', ikon: 'dot' };
   const langsung = PETA[nama];
@@ -122,7 +140,14 @@ export function infoAksi(nama: string | undefined): AksiInfo {
     const polos = PETA[nama.slice(AWALAN_MCP.length)];
     if (polos) return polos;
   }
-  return { label: nama, jenis: 'lain', ikon: 'dot' };
+  /*
+   * Fallback terakhir: nama tool mentah.
+   *
+   * Ini yang dulu membocorkan `mcp__tedi__<tool>` ke layar setiap kali ada
+   * tool MCP baru yang belum terdaftar di PETA. Awalan itu bukan bagian dari
+   * nama yang perlu dibaca siapa pun, jadi dibuang di sini juga.
+   */
+  return { label: namaPolos(nama), jenis: 'lain', ikon: 'dot' };
 }
 
 export function sasaranAksi(args: string | undefined): string {

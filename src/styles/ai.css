@@ -594,25 +594,55 @@
  * supaya tidak ada garis dobel, dan sudut atasnya dibulatkan sedikit supaya
  * tetap enak dilihat sendirian.
  */
+/*
+ * The composer: the bottom row of the status run.
+ *
+ * Square top corners and a top border, so when a status stack sits above it the
+ * two share one seam exactly like the loop and the task list do inside the
+ * stack - flush, one 1px rule, no gap. The top border is what makes the seam
+ * visible; it is never removed.
+ *
+ * When the stack is absent (nothing running, no plan) this row is alone in the
+ * DOM, and `:first-child` below rounds all four corners so it still reads as a
+ * complete box rather than a lidless one.
+ *
+ * The side inset matches the stack's `10px`, so left and right edges line up.
+ */
 .ai-input-row {
   display: flex;
   gap: 8px;
   padding: 8px 10px;
-  /* Sudut atas LURUS: bagian bawah kapsul, yang bersambung ke atas. */
-  border: 0.8px solid var(--border);
-  border-radius: 0 0 var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px);
+  margin: 0 10px;
+  border: 1px solid var(--border);
   border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px);
   background: var(--bg0);
   flex: 0 0 auto;
 }
 
 /* Kotak ketik BERDIRI SENDIRI tanpa kartu di atasnya: jangan biarkan sudut
    atasnya lurus, karena tidak ada apa pun yang menempel di sana. */
-.ai-input-row:not(:first-child) {
-  border-top: 0;
-}
+/*
+ * No more special case for "a card sits above me".
+ *
+ * This rule used to delete the composer's top border whenever the task card was
+ * present, so the two boxes shared a single seam. Now that each is its own
+ * card with a gap between them, the border belongs to the composer always -
+ * otherwise the row loses its top edge exactly when a loop is running, which is
+ * the shape change the reader noticed.
+ */
 
-.ai-input-row:first-child {
+/*
+ * Alone in the DOM: round all four corners.
+ *
+ * `:first-child` is not enough on its own any more. The status stack and the
+ * composer are siblings, so when the stack IS present the composer is still a
+ * first-child only if nothing else precedes it - and the panel header does. The
+ * reliable test is what the browser actually needs to know: is there a stack
+ * directly above me? If not, this row is the whole capsule and gets its top
+ * corners back.
+ */
+.ai-input-row:not(.ai-work-stack + .ai-input-row) {
   border-radius: var(--ai-dock-radius, 10px);
 }
 .ai-input {

@@ -89,8 +89,11 @@ export const TOOL_MCP: AgentTool[] = [
       const id = wajib(a, 'id');
       if (id.includes('terminal.new')) {
         const t = useTerminal.getState();
-        t.newTab();
-        return `Command dijalankan: terminal baru dibuat.`;
+        const paneId = await t.addPane('shell');
+        if (!paneId) {
+          throw new Error(`ERROR: ${useTerminal.getState().terminalError ?? 'terminal gagal dibuat'}`);
+        }
+        return `Command dijalankan: terminal baru dibuat (${paneId}).`;
       }
       if (id.includes('closeActiveEditor')) {
         const s = useStore.getState();
@@ -270,7 +273,9 @@ export const TOOL_MCP: AgentTool[] = [
       if (src === 'terminal') {
         const t = useTerminal.getState();
         const activeTab = t.terminalTabs.find((x) => x.id === t.activeTabId);
-        const targetId = a.leafId ? String(a.leafId) : activeTab?.panes[0]?.id;
+        const targetId = a.leafId
+        ? String(a.leafId)
+        : activeTab?.activePaneId ?? activeTab?.panes[0]?.id;
         if (!targetId) return 'Tidak ada terminal yang aktif.';
         const baris = bacaAngka(a.lines, 100) ?? 100;
         const teks = await cmd.ptyTail(targetId, baris).catch(() => '');
@@ -299,7 +304,9 @@ export const TOOL_MCP: AgentTool[] = [
       periksaPerintah(command);
       const t = useTerminal.getState();
       const activeTab = t.terminalTabs.find((x) => x.id === t.activeTabId);
-      const targetId = a.leafId ? String(a.leafId) : activeTab?.panes[0]?.id;
+      const targetId = a.leafId
+        ? String(a.leafId)
+        : activeTab?.activePaneId ?? activeTab?.panes[0]?.id;
       if (!targetId) throw new Error('ERROR: tidak ada terminal aktif untuk menerima perintah sh.');
       await cmd.ptyWrite(targetId, command + '\r');
       return `Perintah dikirim ke terminal ${targetId}: ${command}`;
@@ -388,8 +395,11 @@ export const TOOL_MCP: AgentTool[] = [
       const action = wajib(a, 'action');
       const t = useTerminal.getState();
       if (action === 'open') {
-        const id = t.newTab();
-        return `Pane baru dibuka: ${id}`;
+        const paneId = await t.addPane('shell');
+        if (!paneId) {
+          throw new Error(`ERROR: ${useTerminal.getState().terminalError ?? 'pane terminal gagal dibuat'}`);
+        }
+        return `Pane terminal baru dibuka: ${paneId}`;
       }
       if (action === 'close') {
         const activeTab = t.terminalTabs.find((x) => x.id === t.activeTabId);

@@ -2075,6 +2075,10 @@ const ID: Dict = {
   'devupdate.cannotSelfUpdateHint': 'Bangun ulang Zephyr dari repo ini dan tukar binary yang sedang berjalan tanpa keluar aplikasi. Sesi terminal, task yang jalan, dan buffer yang belum disimpan akan hilang karena semuanya hidup di memori proses yang digantikan; pengaturan di %APPDATA% tetap aman.',
   'devupdate.installAndRestart': '2. Pasang dan restart',
   'devupdate.rollbackHint': 'Kembalikan binary sebelum build terakhir, lalu buka lagi.',
+  'Cadence': "Zeph",
+  'self-paced': "swadaya",
+  'Loop actions': "Aksi loop",
+  'Stop loop': "Hentikan loop",
 };
 const EN: Dict = {
   'Agent': 'Agent',
@@ -4170,6 +4174,10 @@ const EN: Dict = {
   'devupdate.cannotSelfUpdateHint': 'Rebuild Zephyr from this repo and swap the running binary without leaving the app. Terminal sessions, running tasks and unsaved buffers will be lost because they only ever lived in the memory of the process being replaced; settings in %APPDATA% stay safe.',
   'devupdate.installAndRestart': '2. Install and restart',
   'devupdate.rollbackHint': 'Restore the binary from before the last build, then open the app again.',
+  'Cadence': "Zeph",
+  'self-paced': "self-paced",
+  'Loop actions': "Loop actions",
+  'Stop loop': "Stop loop",
 };
 const JA: Dict = {
   'Agent': 'エージェント',
@@ -6234,6 +6242,10 @@ const JA: Dict = {
   'devupdate.cannotSelfUpdateHint': 'このリポジトリから Zephyr を再ビルドし、アプリを終了せずに実行中のバイナリを差し替えます。ターミナルセッション、実行中のタスク、未保存のバッファは、置き換えられるプロセスのメモリ上にしか存在しないため失われます。%APPDATA% の設定は安全です。',
   'devupdate.installAndRestart': '2. インストールして再起動',
   'devupdate.rollbackHint': '最後のビルド前のバイナリに戻してから、もう一度開きます。',
+  'Cadence': "Zeph",
+  'self-paced': "自己ペース",
+  'Loop actions': "ループ操作",
+  'Stop loop': "ループを停止",
 };
 const KO: Dict = {
   'Agent': '에이전트',
@@ -8298,6 +8310,10 @@ const KO: Dict = {
   'devupdate.cannotSelfUpdateHint': '이 저장소에서 Zephyr를 다시 빌드하고 앱을 종료하지 않은 채 실행 중인 바이너리를 교체합니다. 터미널 세션, 실행 중인 작업, 저장하지 않은 버퍼는 교체되는 프로세스의 메모리에만 존재하므로 사라집니다. %APPDATA%의 설정은 안전합니다.',
   'devupdate.installAndRestart': '2. 설치 및 재시작',
   'devupdate.rollbackHint': '마지막 빌드 이전의 바이너리로 되돌린 뒤 다시 엽니다.',
+  'Cadence': "Zeph",
+  'self-paced': "자율 진행",
+  'Loop actions': "루프 작업",
+  'Stop loop': "루프 중지",
 };
 const ZH: Dict = {
   'Agent': '代理',
@@ -10362,6 +10378,10 @@ const ZH: Dict = {
   'devupdate.cannotSelfUpdateHint': '从此仓库重新构建 Zephyr，并在不退出应用的情况下替换正在运行的二进制文件。终端会话、正在运行的任务和未保存的缓冲区都会丢失，因为它们只存在于被替换进程的内存中；%APPDATA% 中的设置仍然安全。',
   'devupdate.installAndRestart': '2. 安装并重启',
   'devupdate.rollbackHint': '恢复到上次构建之前的二进制文件，然后重新打开。',
+  'Cadence': "Zeph",
+  'self-paced': "自主节奏",
+  'Loop actions': "循环操作",
+  'Stop loop': "停止循环",
 };
 const ES: Dict = {
   'Agent': 'Agente',
@@ -12426,6 +12446,10 @@ const ES: Dict = {
   'devupdate.cannotSelfUpdateHint': 'Recompila Zephyr desde este repositorio y cambia el binario en ejecución sin salir de la aplicación. Las sesiones de terminal, las tareas en ejecución y los búferes sin guardar se perderán, porque solo existían en la memoria del proceso que se reemplaza; la configuración en %APPDATA% sigue a salvo.',
   'devupdate.installAndRestart': '2. Instalar y reiniciar',
   'devupdate.rollbackHint': 'Restaura el binario anterior a la última compilación y vuelve a abrir.',
+  'Cadence': "Zeph",
+  'self-paced': "a su ritmo",
+  'Loop actions': "Acciones del bucle",
+  'Stop loop': "Detener el bucle",
 };
 const FR: Dict = {
   'Agent': 'Agent',
@@ -14490,6 +14514,10 @@ const FR: Dict = {
   'devupdate.cannotSelfUpdateHint': "Recompilez Zephyr depuis ce dépôt et remplacez le binaire en cours d'exécution sans quitter l'application. Les sessions de terminal, les tâches en cours et les tampons non enregistrés seront perdus, car ils n'existaient que dans la mémoire du processus remplacé ; les réglages dans %APPDATA% restent intacts.",
   'devupdate.installAndRestart': '2. Installer et redémarrer',
   'devupdate.rollbackHint': "Restaurez le binaire d'avant la dernière compilation, puis rouvrez.",
+  'Cadence': "Zeph",
+  'self-paced': "à son rythme",
+  'Loop actions': "Actions de boucle",
+  'Stop loop': "Arrêter la boucle",
 };
 const DE: Dict = {
   'Agent': 'Agent',
@@ -16554,6 +16582,10 @@ const DE: Dict = {
   'devupdate.cannotSelfUpdateHint': 'Baue Zephyr aus diesem Repo neu und tausche das laufende Binary aus, ohne die App zu verlassen. Terminal-Sitzungen, laufende Aufgaben und ungespeicherte Puffer gehen verloren, weil sie nur im Speicher des ersetzten Prozesses existierten; die Einstellungen in %APPDATA% bleiben sicher.',
   'devupdate.installAndRestart': '2. Installieren und neu starten',
   'devupdate.rollbackHint': 'Stelle das Binary von vor dem letzten Build wieder her und öffne die App erneut.',
+  'Cadence': "Zeph",
+  'self-paced': "im eigenen Tempo",
+  'Loop actions': "Schleifenaktionen",
+  'Stop loop': "Schleife stoppen",
 };
 const PT: Dict = {
   'Agent': 'Agente',
@@ -18618,6 +18650,10 @@ const PT: Dict = {
   'devupdate.cannotSelfUpdateHint': 'Recompile o Zephyr deste repositório e troque o binário em execução sem sair do aplicativo. As sessões de terminal, as tarefas em execução e os buffers não salvos serão perdidos, porque só existiam na memória do processo que está sendo substituído; as configurações em %APPDATA% continuam seguras.',
   'devupdate.installAndRestart': '2. Instalar e reiniciar',
   'devupdate.rollbackHint': 'Restaure o binário de antes do último build e abra novamente.',
+  'Cadence': "Zeph",
+  'self-paced': "no próprio ritmo",
+  'Loop actions': "Ações do loop",
+  'Stop loop': "Parar o loop",
 };
 const AR: Dict = {
   'Agent': 'الوكيل',
@@ -20682,6 +20718,10 @@ const AR: Dict = {
   'devupdate.cannotSelfUpdateHint': 'أعد بناء Zephyr من هذا المستودع واستبدل الملف التنفيذي قيد التشغيل دون الخروج من التطبيق. ستفقد جلسات الطرفية والمهام الجارية والمخازن غير المحفوظة لأنها لم تكن موجودة إلا في ذاكرة العملية المستبدلة؛ تبقى الإعدادات في %APPDATA% آمنة.',
   'devupdate.installAndRestart': '٢. التثبيت وإعادة التشغيل',
   'devupdate.rollbackHint': 'استعد الملف التنفيذي السابق لآخر بناء، ثم افتح التطبيق مرة أخرى.',
+  'Cadence': "Zeph",
+  'self-paced': "بوتيرة ذاتية",
+  'Loop actions': "إجراءات الحلقة",
+  'Stop loop': "إيقاف الحلقة",
 };
 export const EXTRA: Record<string, Dict> = {
   id: ID,

@@ -70,6 +70,15 @@ function kartuTool(
   const nama = step.name ?? '';
   const hasil = step.result ?? '';
   const info = infoAksi(nama);
+  /*
+   * Nama yang MASUK ke kartu sudah polos, tapi tiap pemakaian pola di bawah
+   * tetap butuh nama APA ADANYA.
+   *
+   * `mcp__tedi__open_file` mengandung `open_file`, bukan `open`; kalau yang
+   * polos yang diuji, sebuah pemanggilan yang menyunting berkas berhenti
+   * terdeteksi sebagai penyunting dan diffnya tidak pernah dirender. Jadi
+   * pengujian pola memakai `nama`, dan yang ditampilkan memakai `info.label`.
+   */
   const menyunting = info.jenis === 'tulis' || /edit|write|patch|replace|apply/i.test(nama);
   const adaHunk = /(^|\n)(diff --git|@@ -\d+)/.test(hasil);
   const diff = menyunting && adaHunk ? hasil : undefined;
@@ -120,6 +129,17 @@ export default function AiPanel() {
   const kirimAntrian = useAi((s) => s.kirimAntrian);
   const naikkanAntrian = useAi((s) => s.naikkanAntrian);
   const turunkanAntrian = useAi((s) => s.turunkanAntrian);
+  /*
+   * Whether the task list has anything to show.
+   *
+   * Read as a primitive count rather than the array itself: zustand v5
+   * compares selector results with `===`, and returning `s.agentTodos` is fine
+   * only because the store keeps that array identity stable. A count is immune
+   * to the phase-09 trap either way, and it is all this needs - the stack is
+   * kept on screen when the plan exists even if nothing else is running, so a
+   * plan does not vanish the moment the run pauses.
+   */
+  const todosAda = useAi((s) => s.agentTodos.length > 0);
   const ubahAntrian = useAi((s) => s.ubahAntrian);
   const cancel = useAi((s) => s.cancel);
   const kirimSekarang = useAi((s) => s.kirimSekarang);
@@ -154,8 +174,19 @@ const JEJAK_TOOL_MAKS = 4;
   const [bukaSendMenu, setBukaSendMenu] = useState(false);
   const [progressNow, setProgressNow] = useState(() => Date.now());
   const [loopBuka, setLoopBuka] = useState(false);
+  const [loopMenuBuka, setLoopMenuBuka] = useState(false);
   const [backgroundBuka, setBackgroundBuka] = useState(false);
-  const [cqLipat, setCqLipat] = useState(true);
+  /*
+   * The queue opens expanded.
+   *
+   * It used to start collapsed, which kept the composer short but meant a
+   * queued message was invisible until you clicked the header - the count said
+   * "3 Queued" while the three messages stayed hidden. Hermes shows the queued
+   * items themselves (`session-control-queue.tsx` renders the chip rail, not
+   * just a count), and the point of parking a message is being able to see it
+   * is parked. Collapsing is still one click away for a long queue.
+   */
+  const [cqLipat, setCqLipat] = useState(false);
   /*
    * `subagentsSibuk` tidak lagi dipakai header.
    *
@@ -171,6 +202,18 @@ const JEJAK_TOOL_MAKS = 4;
   const backgroundCount = subagentsAktif.length + jadwalAktif.length;
   const loopRuns = agentSteps.filter((step) => step.kind === 'mulai').length;
   const loopFinished = !sibuk && agentSteps.some((step) => step.kind === 'selesai');
+  /*
+   * Prompt and cadence for the loop section.
+   *
+   * Hermes shows the loop's own prompt and cadence inside the section body
+   * (apps/desktop/src/app/chat/composer/status-stack/session-control-loop.tsx):
+   * the reader asked for this run and should see WHAT it was asked to do, not
+   * just that a loop exists. Zephyr has no loop scheduler yet, so the prompt is
+   * the message that started the current run and the cadence is self-paced by
+   * definition - the agent works until its task list is done rather than on a
+   * timer. Reading them from real state keeps the row honest: when a scheduled
+   * loop arrives, only `cadence` changes.
+   */
   /* Jejak tool: hanya beberapa terakhir yang dirender, sisanya diringkas. */
   const jejakTool = agentSteps.filter((step) => step.kind === 'tool');
   const jejakToolTerlihat = jejakTool.slice(-JEJAK_TOOL_MAKS);
@@ -230,6 +273,20 @@ const JEJAK_TOOL_MAKS = 4;
    */
   const toolAktif = useToolGate((s) => s.aktif);
   const jumlahToolNyala = SEMUA_TOOL.reduce((n, t) => (toolAktif.has(t) ? n + 1 : n), 0);
+  /*
+   * Prompt and cadence for the loop section.
+   *
+   * Hermes shows the loop's own prompt and cadence inside the section body
+   * (apps/desktop/src/app/chat/composer/status-stack/session-control-loop.tsx):
+   * the reader asked for this run and should see WHAT it was asked to do, not
+   * just that a loop exists. Zephyr has no loop scheduler yet, so the prompt is
+   * the message that started the current run and the cadence is self-paced by
+   * definition - the agent works until its task list is done rather than on a
+   * timer. Reading both from real state keeps the row honest: when a scheduled
+   * loop arrives, only the cadence changes.
+   */
+  const pesanUserTerakhir = [...msgs].reverse().find((m) => m.role === 'user');
+  const loopPrompt = (pesanUserTerakhir?.content ?? '').trim();
   const lastBot = [...msgs].reverse().find((m) => m.role === 'assistant' && !m.error);
   const lastCommand = lastBot ? extractCommand(lastBot.content) : null;
 
@@ -901,10 +958,38 @@ const JEJAK_TOOL_MAKS = 4;
         * "0 Queued"), which read as broken instead of idle. Each section keeps
         * its own guard so one active row cannot drag the empty ones back.
         */}
-      {!stackKosong && (
+      {/*
+        * One stack, one card.
+        *
+        * Hermes keeps every status group - the session loop, the todo tree,
+        * subagents, background processes, the queue - inside a SINGLE stack
+        * (apps/desktop/src/app/chat/composer/status-stack/index.tsx pushes each
+        * group into one `sections` array and renders them in one surface). The
+        * stack owns the rounded top and the composer below owns the body, so
+        * the two read as one card.
+        *
+        * Zephyr rendered the task list as its own separate card above the
+        * composer (`<TodoPanel />` as a sibling), so the panel showed two
+        * unrelated boxes stacked on top of each other. The task list is now a
+        * section INSIDE this stack, which is what makes it fold together with
+        * the loop above it.
+        */}
+      {(!stackKosong || todosAda) && (
       <div className="ai-work-stack" data-testid="ai-work-stack">
         {(sibuk || loopFinished) && (
         <section className="ai-work-section" data-testid="ai-work-stack-loop">
+          {/*
+            * Header row: trigger + action menu on ONE line.
+            *
+            * Hermes' `status-section.tsx` does exactly this - the header is
+            * `flex items-center gap-1 pr-1`, the trigger is
+            * `flex min-w-0 flex-1`, and the accessory (the ellipsis menu) is
+            * `shrink-0` at the end of the same row. Without the row wrapper the
+            * trigger hugged its text and the menu dropped to a line of its own,
+            * so the header showed a wide empty band with a stray `⋯` floating
+            * at its right edge.
+            */}
+          <div className="ai-work-head">
           <button
             className="ai-work-summary"
             aria-expanded={loopBuka}
@@ -929,15 +1014,78 @@ const JEJAK_TOOL_MAKS = 4;
              * sebelah kanan judul, judul dan jumlahnya berbagi satu baris tanpa
              * pemisah terpisah, dan hover-nya hanya selebar teks itu.
              */}
-            <span className={`ai-work-status${sibuk ? ' is-running' : ' is-done'}`} aria-hidden="true" />
+            {/*
+              * Header row shaped like Hermes', left to right:
+              * caret, status icon, label, then the count.
+              *
+              * Hermes' StatusSection (components/chat/status-section.tsx) puts
+              * the disclosure caret FIRST, then the glyph, then the label, and
+              * colours the glyph by state - muted when the loop is done,
+              * emerald while it runs (session-control-loop.tsx `iconClass`).
+              * Zephyr had the caret on the right and a status dot on the left,
+              * which reads as a different widget next to the Background and
+              * Queue rows. Matching the order and the icon is what makes the
+              * three rows scan as one stack.
+              */}
+            <span className="ai-work-caret" aria-hidden="true">
+              {loopBuka ? '▾' : '▸'}
+            </span>
+            <span
+              className={`ai-work-glyph${sibuk ? ' is-running' : ' is-done'}`}
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9L14 6m0-4v4h-4" />
+              </svg>
+            </span>
             <span className="ai-work-title">
               {tr(sibuk ? 'Loop running' : 'Loop finished')}
               {loopRuns > 0 && <span className="ai-work-meta">· {tf('{n} runs', { n: loopRuns })}</span>}
             </span>
-            <span className="ai-work-caret" aria-hidden="true">
-              {loopBuka ? '▾' : '▸'}
-            </span>
           </button>
+          {/*
+            * Loop actions, mirroring Hermes' ellipsis menu.
+            *
+            * Hermes puts pause/resume/stop on the loop section
+            * (session-control-loop.tsx, `renderMenuItems`). Zephyr's loop has no
+            * scheduler to pause, so the only honest action is stopping the run
+            * that is in flight - and the menu is hidden entirely when nothing
+            * is running, because a menu whose single item does nothing reads as
+            * broken.
+            */}
+          {sibuk && (
+            <button
+              className="ai-work-menu"
+              data-testid="ai-work-menu"
+              title={tr('Loop actions')}
+              aria-label={tr('Loop actions')}
+              aria-haspopup="menu"
+              aria-expanded={loopMenuBuka}
+              onClick={() => setLoopMenuBuka((v) => !v)}
+            >
+              <span aria-hidden="true">⋯</span>
+            </button>
+          )}
+          {sibuk && loopMenuBuka && (
+            <div className="ai-work-menu-pop" role="menu" data-testid="ai-work-menu-pop">
+              <button
+                className="ai-work-menu-item is-danger"
+                role="menuitem"
+                data-testid="ai-work-stop"
+                onClick={() => {
+                  setLoopMenuBuka(false);
+                  void cancel();
+                }}
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path d="M6 6h4v4H6z" />
+                </svg>
+                {tr('Stop loop')}
+              </button>
+            </div>
+          )}
+          </div>
           {loopBuka && (
             <div id="ai-work-loop-body" className="ai-work-body" role="status" data-testid={sibuk ? 'ai-agent-progress' : undefined}>
               {/*
@@ -962,6 +1110,33 @@ const JEJAK_TOOL_MAKS = 4;
                   tf={tf}
                 />
               )}
+              {/*
+                * The loop's own prompt, then its cadence.
+                *
+                * Hermes renders both rows inside the loop section
+                * (session-control-loop.tsx): a `comment` row with the prompt and
+                * a `clock` row with `Cadence: self-paced`. Without the prompt
+                * the section only says a loop happened; the reader cannot tell
+                * WHAT it was working on without scrolling up to find the
+                * message that started it. Self-paced is the accurate cadence
+                * here - this loop runs until the agent's task list is done, not
+                * on a timer - so it is stated rather than left blank.
+                */}
+              {loopPrompt && (
+                <div className="ai-work-prompt" data-testid="ai-work-prompt">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+                    <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" />
+                  </svg>
+                  <span>{loopPrompt}</span>
+                </div>
+              )}
+              <div className="ai-work-cadence" data-testid="ai-work-cadence">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path d="M8 5v3l2 1.5" />
+                </svg>
+                <span>{tr('Cadence')}: {tr('self-paced')}</span>
+              </div>
               <div className="ai-work-detail">
                 <span>{agentPhaseLabel}</span>
                 {/*
@@ -1039,14 +1214,21 @@ const JEJAK_TOOL_MAKS = 4;
 
         {backgroundCount > 0 && (
         <section className="ai-work-section" data-testid="ai-work-stack-background">
+          <div className="ai-work-head">
           <button
             className="ai-work-summary"
             aria-expanded={backgroundBuka}
             aria-controls="ai-work-background-body"
             onClick={() => setBackgroundBuka((v) => !v)}
           >
-            <span className={`ai-work-status${subagentsAktif.length ? ' is-running' : ''}`} aria-hidden="true" />
-            <span>{tf('{n} Background', { n: backgroundCount })}</span>
+            <span className="ai-work-caret" aria-hidden="true">{backgroundBuka ? '▾' : '▸'}</span>
+            <span className={`ai-work-glyph${subagentsAktif.length ? ' is-running' : ' is-done'}`} aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2.5" width="12" height="5" rx="1.5" />
+                <rect x="2" y="9" width="12" height="5" rx="1.5" />
+              </svg>
+            </span>
+            <span className="ai-work-title">{tf('{n} Background', { n: backgroundCount })}</span>
             {subagentsAktif.length > 0 && (
               <span className="ai-work-meta">
                 · {tf('{n} running subagents', { n: subagentsAktif.length })}
@@ -1057,8 +1239,8 @@ const JEJAK_TOOL_MAKS = 4;
                 · {tf('{n} scheduled jobs', { n: jadwalAktif.length })}
               </span>
             )}
-            <span className="ai-work-caret" aria-hidden="true">{backgroundBuka ? '▾' : '▸'}</span>
           </button>
+          </div>
           {backgroundBuka && (
             <div id="ai-work-background-body" className="ai-work-body">
               {/*
@@ -1119,20 +1301,38 @@ const JEJAK_TOOL_MAKS = 4;
              * the composer off the screen while they read the answer. Collapsed
              * it is a single header line; expanded it is the chip rail.
              */}
+            {/*
+              * Queue header, drawn like the Background section above it.
+              *
+              * Hermes' status stack is one list of identical disclosure rows:
+              * a status glyph, a bold title, a dim count, then the caret
+              * (status-section.tsx + session-control-queue.tsx). Zephyr's queue
+              * used a different header shape with its own icon and no status
+              * dot, so the three sections read as three unrelated widgets
+              * instead of one stack. Matching the row shape is what makes the
+              * stack scan as a single object.
+              */}
+            <div className="ai-work-head">
             <button
-              className="ai-cq-lead"
+              className="ai-work-summary"
               data-testid="ai-cq-toggle"
               aria-expanded={!cqLipat}
               aria-controls="ai-work-queue-body"
-              title={tr(cqLipat ? 'Show the queue' : 'Hide the queue')}
               onClick={() => setCqLipat((v) => !v)}
             >
-              <AiIkon name="queue" size={12} />
-              {tf('{n} in queue', { n: antrian.length })}
-              <span className="ai-cq-caret" aria-hidden="true">
+              <span className="ai-work-caret" aria-hidden="true">
                 {cqLipat ? '▸' : '▾'}
               </span>
+              <span className="ai-work-glyph is-done" aria-hidden="true">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                </svg>
+              </span>
+              <span className="ai-work-title">
+                {tf('{n} Queued', { n: antrian.length })}
+              </span>
             </button>
+            </div>
             {!cqLipat && (
               <>
                 <div className="ai-cq-rail" id="ai-work-queue-body">
@@ -1288,15 +1488,20 @@ const JEJAK_TOOL_MAKS = 4;
           </div>
         </section>
         )}
+
+        {/*
+          * The task list rides inside the same stack.
+          *
+          * Hermes renders its todo tree as one of the stack's own sections
+          * (`groupStatusItems` emits a `todo` group and the stack renders it
+          * with the same StatusSection chrome as the rest), which is why the
+          * plan and the loop read as one object. Keeping it here - rather than
+          * as a sibling card - is what makes the todo collapse and expand in
+          * the same box as everything else.
+          */}
+        <TodoPanel />
       </div>
       )}
-
-      {/* Daftar tugas agent: satu kartu DI ATAS kotak ketik, dan sudut bawah
-          kartu itu lurus supaya menyambung ke tepi atas kotak ketik - keduanya
-          berbagi satu garis dan terbaca sebagai satu kapsul. Karena itu ia
-          harus jadi SAUDARA kotak ketik di sini, bukan anak .ai-chat: kalau
-          dipisah, tepinya tidak akan pernah segaris. */}
-      <TodoPanel />
 
       <div className="ai-input-row">
         {draftImages.length > 0 && (

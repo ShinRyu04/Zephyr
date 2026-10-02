@@ -418,13 +418,44 @@
  * It is a single line that scrolls sideways. A long queue must never grow the
  * composer, or the textarea the user is typing into starts moving under them.
  */
+/*
+ * The queue block: header on top, chip rail BELOW it.
+ *
+ * This was `display: flex` with the default row direction, which put the header
+ * row and the chip rail side by side on one line. The header's trigger is
+ * `flex: 1`, so it took the whole width and the rail was left with `width: 0` -
+ * the chips still rendered, but overflowed past the panel's right edge where
+ * nothing could be read or clicked.
+ *
+ * Hermes stacks them (`session-control-queue.tsx`: the disclosure header, then
+ * the items beneath it), which is the only arrangement that works when the
+ * header already claims the full row. Column direction, and the rail gets its
+ * own line.
+ */
 .ai-cq {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 6px;
   width: 100%;
   padding: 0 0 6px;
   min-width: 0;
+}
+
+/*
+ * The rail spans the block now that it is on its own line, so `flex: 1` no
+ * longer means "share the row with the header" - it means nothing useful in a
+ * column, and the horizontal scroll region is what carries the chips.
+ */
+.ai-cq-rail {
+  width: 100%;
+  /*
+   * Inset to match the section headers, so the first chip lines up with the
+   * caret above it instead of touching the stack's border. The right padding is
+   * what keeps the last chip clear of the edge when the rail scrolls.
+   */
+  padding: 0 10px;
+  box-sizing: border-box;
 }
 
 /*

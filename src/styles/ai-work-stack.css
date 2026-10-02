@@ -36,14 +36,49 @@
  * pengguna mencapai ujung daftar, gulirannya "bocor" ke percakapan di belakang
  * dan halaman melompat tanpa sebab yang terlihat.
  */
+/*
+ * The stack surface, matched to the composer it sits on.
+ *
+ * Hermes builds the status stack and the composer as ONE card: the stack
+ * supplies the rounded top, the composer the square-bottomed body, and both
+ * share `--bg0` and a single border (composer/status-stack). Zephyr drew the
+ * stack as its own rounded box in `--bg1` with its own margin, so it floated
+ * above the input as a separate object instead of reading as the top of it.
+ *
+ * The margin now matches the composer's own (`0 10px`), the background is the
+ * composer's `--bg0`, and the top corners are the only rounded ones - the
+ * bottom edge is left square and borderless so the input row below continues
+ * it. `--ai-dock-radius` is the same token the composer uses for those corners,
+ * so a theme that changes the radius changes both together.
+ */
 .ai-work-stack {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin: 8px 12px 10px;
+  /*
+   * Joined to the composer, the way the stack's own sections are joined.
+   *
+   * The reader's reference is the loop and the task list inside this card: they
+   * sit flush, with a single 1px rule between them and no gap. The composer is
+   * the next row of that same run, so it gets the same treatment - square
+   * bottom corners, no bottom border, no gap - and the input row below supplies
+   * the shared seam and the bottom radius.
+   *
+   * This is NOT the old "fused" bug coming back. The old one had no seam at all:
+   * the composer's top border was deleted, so the two surfaces bled together
+   * and the composer changed shape depending on whether a loop was on screen.
+   * Here the boundary is explicit - `.ai-input-row` keeps its top border, which
+   * is the divider the eye needs - and the shape never changes, because the
+   * stack simply is not rendered when there is nothing to show.
+   *
+   * The `10px` side inset matches the composer's, so the left and right edges
+   * line up exactly.
+   */
+  margin: 8px 10px 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg1);
+  border-bottom: 0;
+  border-radius: var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px) 0 0;
+  background: var(--bg0);
   overflow-y: auto;
   overscroll-behavior: contain;
   max-height: 40vh;
@@ -51,16 +86,73 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--fg1);
+  flex-shrink: 0;
 }
 
+/*
+ * A section is a COLUMN of two things: the header row and the body.
+ *
+ * The header row itself has to be a separate flex row (`.ai-work-head`), because
+ * the trigger and the action menu must share one line - the trigger takes the
+ * full remaining width and the menu sits at the end of that same line. With the
+ * section as a bare column and no row wrapper, the trigger hugged its text and
+ * the menu landed on a second line of its own, leaving most of a line empty
+ * between them.
+ *
+ * This mirrors Hermes' `status-section.tsx`, whose header is
+ * `flex items-center gap-1 pr-1` holding `status-section-trigger` at
+ * `flex min-w-0 flex-1` plus a shrink-0 accessory.
+ */
 .ai-work-section {
   display: flex;
   flex-direction: column;
-  background: var(--bg1);
+  background: var(--bg0);
+}
+
+/*
+ * The header row: trigger on the left, menu at the far right, one line.
+ *
+ * `align-items: center` keeps the 22px menu button centred against the 32px
+ * trigger; without it the taller trigger would stretch the row and the button
+ * would ride high.
+ */
+.ai-work-head {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .ai-work-section + .ai-work-section {
   border-top: 1px solid var(--border);
+}
+
+/*
+ * Section order, matching Hermes' status stack.
+ *
+ * Hermes builds its stack as an ordered array and pushes the queue last
+ * (`status-stack/index.tsx`: loop/subagent/background/todo first, then
+ * `sections.push({ key: 'queue', node: queue })`), so the queue sits nearest
+ * the composer - where the reader's hands are, and where the "what goes out
+ * next" information belongs. Zephyr rendered the queue above the task list,
+ * which put the thing you are about to send further from the box you type in
+ * than the thing you already sent.
+ *
+ * Done with `order` rather than moving JSX: the three sections are long and
+ * interleaved with conditionals, and reordering the markup would mean moving
+ * hundreds of lines for a purely visual change. `order` on a flex column gives
+ * the identical result without touching the tree.
+ */
+.ai-work-stack > [data-testid='ai-work-stack-loop'] {
+  order: 1;
+}
+.ai-work-stack > [data-testid='ai-work-stack-background'] {
+  order: 2;
+}
+.ai-work-stack > .composer-status-stack {
+  order: 3;
+}
+.ai-work-stack > [data-testid='ai-work-stack-queue'] {
+  order: 4;
 }
 
 /*
@@ -108,10 +200,19 @@
  * yang benar-benar menghentikannya, karena di dalam flex container sumbu
  * melintang itulah yang menentukan lebar.
  */
+/*
+ * The trigger fills the header row so the click target spans the full width,
+ * the way Hermes' `status-section-trigger` does (`flex min-w-0 flex-1`).
+ *
+ * It used to hug its text (`align-self: flex-start; width: auto`), which was
+ * correct while the menu could not share its line - but once both are in the
+ * same flex row, hugging leaves the row mostly dead space: nothing between the
+ * label and the menu is clickable, and the gap reads as a hole in the header.
+ * `min-width: 0` keeps the label truncating instead of pushing the menu off.
+ */
 .ai-work-summary {
-  flex: 0 0 auto;
-  align-self: flex-start;
-  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: 100%;
 }
 
@@ -179,21 +280,37 @@
  * never render as a bare, invisible box: `is-running` pulses on the accent,
  * `is-done` is a steady, muted mark.
  */
-.ai-work-status {
+/*
+ * The state glyph in a stack header, matching Hermes.
+ *
+ * Hermes colours the loop glyph by state - `text-emerald-500` while it runs and
+ * `text-muted-foreground/70` once it is done (session-control-loop.tsx
+ * `iconClass`) - and the same icon carries both states. Zephyr used a coloured
+ * dot instead, which put a different mark on every row and made the stack read
+ * as unrelated widgets. The glyph is the section's own icon now, tinted by
+ * state: emerald while working, muted when finished.
+ *
+ * The running tint is `--success` rather than a hardcoded emerald so the light
+ * and non-default themes keep their own contrast. The pulse is gone with the
+ * dot: a tinted icon already says "active", and two motion cues on one row is
+ * noise.
+ */
+.ai-work-glyph {
   flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--fg2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg2);
+  transition: color 140ms ease;
 }
 
-.ai-work-status.is-running {
-  background: var(--accent);
-  animation: ai-work-pulse 1.4s ease-in-out infinite;
+.ai-work-glyph.is-running {
+  color: var(--success, #3fb950);
 }
 
-.ai-work-status.is-done {
-  background: var(--success, #3fb950);
+.ai-work-glyph.is-done {
+  color: var(--fg3, var(--fg2));
+  opacity: 0.85;
 }
 
 /*
@@ -347,3 +464,126 @@
 }
 
 
+
+/*
+ * Prompt and cadence rows inside the loop section.
+ *
+ * Hermes renders these two as `StatusControlRow`s with a small icon on the
+ * left and muted text (session-control-loop.tsx). The prompt is the message
+ * that started the run, so it is the one row a reader actually needs: without
+ * it the section only says a loop happened, not what it was working on. It is
+ * allowed to wrap and breaks long words, because a prompt can be a paragraph.
+ *
+ * The cadence row is dimmer than the prompt: it describes the loop's schedule,
+ * not its work.
+ */
+.ai-work-prompt,
+.ai-work-cadence {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.ai-work-prompt {
+  color: var(--fg1);
+}
+
+.ai-work-cadence {
+  color: var(--fg3, var(--fg2));
+}
+
+.ai-work-prompt svg,
+.ai-work-cadence svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.75;
+}
+
+.ai-work-prompt span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The ellipsis menu, mirroring Hermes' loop actions.
+ *
+ * It sits at the right edge of the header row and only exists while a run is
+ * in flight - a menu whose single item does nothing reads as broken. Kept
+ * square and icon-sized so it does not widen the header.
+ */
+.ai-work-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  /* No `margin-left: auto`: the trigger already fills the row, so the menu is
+     pushed to the end by the layout instead of by its own margin. Keeping both
+     would fight each other the moment the trigger's flex value changes. */
+  margin-right: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--fg2);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.ai-work-menu:hover,
+.ai-work-menu:focus-visible,
+.ai-work-menu[aria-expanded='true'] {
+  color: var(--fg0);
+  background: var(--bg2);
+}
+
+.ai-work-menu-pop {
+  position: absolute;
+  top: 26px;
+  right: 4px;
+  z-index: 30;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1, var(--bg1));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.ai-work-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg0);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-work-menu-item:hover {
+  background: var(--bg2);
+}
+
+.ai-work-menu-item.is-danger {
+  color: rgb(248, 81, 73);
+}
+
+/* The popover is positioned against the section header, so that row must be
+   the containing block - without this it anchors to the nearest positioned
+   ancestor, which is the panel, and lands in the wrong place. */
+.ai-work-section {
+  position: relative;
+}

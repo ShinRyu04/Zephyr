@@ -8,7 +8,7 @@ import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
 import ReasoningBlock from './ReasoningBlock';
-import { infoAksi, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
+import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 
 const SHELL_LANGS = new Set([
@@ -301,7 +301,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 <div
                   className={`ai-toolrun${t.ok ? '' : ' is-gagal'}`}
                   key={i}
-                  data-tool-name={t.name}
+                  data-tool-name={namaPolos(t.name)}
                   data-ok={t.ok ? '1' : '0'}
                 >
                   <button

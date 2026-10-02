@@ -138,11 +138,20 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
  *
  * Kontraknya:
  *   - tetap ada di katalog, tetap bisa dinyalakan satu per satu atau per grup
- *   - TIDAK masuk TOOL_BAWAAN_AKTIF, jadi pada profil baru semuanya mati
+ *   - pada profil baru, HANYA yang membaca yang menyala (lihat di bawah)
  *   - 40 tool inti di atas tidak pernah bergantung padanya
  *
- * Jadi user bisa menyalakannya kapan pun lewat panel Tools, dan selama dia
- * belum menyentuhnya, yang berjalan tetap 40.
+ * Empat di antaranya menyala sejak awal - `browser_open`, `browser_read`,
+ * `browser_nav`, dan `web_fetch` - karena keempatnya hanya MENAMPILKAN atau
+ * MEMBACA. Yang tetap mati adalah yang bertindak: klik, ketik, unduh ke disk,
+ * dan buka browser sistem. Batasnya "mengubah vs menampilkan", bukan "di dalam
+ * Zephyr vs di internet": `web_fetch` memang menarik data dari luar, tapi ia
+ * tidak mengubah apa pun dan tidak menulis berkas.
+ *
+ * Daftar yang menyala itu tinggal di `toolGate.ts` (`TOOL_WEB_AKTIF_AWAL`),
+ * bukan di sini - katalog hanya memutuskan bahwa tool ini ADA dan berisiko
+ * net, sedangkan sekat yang memutuskan mana yang dipakai. Kalau nanti tambah
+ * tool web baru, tempatkan di sini sebagai mati, lalu pilih sadar di sekat.
  */
 const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
   ['web_search', 'Web', 'net', false, 'Cari di internet'],
@@ -294,12 +303,34 @@ export function periksaKatalog(): string[] {
   }
 
   /*
-   * Sebelas tool web tidak boleh masuk default.
+   * Empat tool web BACA yang menyala default, dan hanya empat itu.
    *
-   * Ini yang menahan janji "40 wajib kepake" tetap benar: katalog boleh memuat
-   * 51, tapi yang menyala sendiri hanya 40. Kalau salah satu nama web masuk
-   * TOOL_BAWAAN_AKTIF, jaminan itu bocor tanpa terlihat - jadi diperiksa di
-   * sini, bukan diserahkan ke disiplin orang yang menyuntingnya.
+   * Ini yang menahan janji "40 inti wajib kepake" tetap benar SEKALIGUS menjaga
+   * supaya kemampuan yang bertindak tidak diam-diam jadi default. Katalog boleh
+   * memuat 51, tapi yang menyala sendiri hanya 40 + 4.
+   *
+   * Yang diperiksa karena itu bukan "apakah web", melainkan "apakah dia salah
+   * satu dari empat yang boleh". Tool web BARU tidak ada di daftar itu, jadi ia
+   * tertahan sampai seseorang menambahkannya dengan sadar - bukan menyala
+   * hanya karena `source`-nya kebetulan 'web'.
+   */
+  const WEB_BACA_SAJA = new Set(['browser_open', 'browser_read', 'browser_nav', 'web_fetch']);
+  for (const n of WEB_BACA_SAJA) {
+    const t = TOOL_BY_NAME.get(n);
+    if (!t) masalah.push(`tool web baca-saja tidak ada di katalog: ${n}`);
+    else if (t.source !== 'web') masalah.push(`bukan tool web: ${n}`);
+    else if (t.effect !== 'net' && t.effect !== 'read') {
+      masalah.push(`tool web baca-saja tidak boleh mengubah sesuatu: ${n}`);
+    }
+  }
+
+  /*
+   * Dan `TOOL_BAWAAN_AKTIF` tetap harus bersih dari web.
+   *
+   * Ia turunan katalog yang dibaca pemanggil lama, dan pada profil baru yang
+   * dianggap "selalu menyala" adalah 40 - empat tambahan itu datang dari sekat,
+   * bukan dari katalog. Kalau ada nama web menyusup ke sini, dua sumber itu
+   * mulai berbeda diam-diam.
    */
   for (const n of TOOL_BAWAAN_AKTIF) {
     const t = TOOL_BY_NAME.get(n);

@@ -48,6 +48,23 @@ import { useAi } from '../aiStore';
 import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
 import type { SearchOpts } from '../types';
+import { periksaBaca, periksaTulis, periksaPerintahShell } from '../agentGuard';
+
+/** Tolak jalur rahasia/terproteksi sebelum tool menyentuhnya. */
+function jagaBaca(...paths: string[]): void {
+  for (const p of paths) {
+    const r = periksaBaca(p);
+    if (!r.ok) throw new Error(`ERROR: ${r.alasan}`);
+  }
+}
+
+/** Sama seperti jagaBaca, plus larangan direktori sistem untuk tulis. */
+function jagaTulis(...paths: string[]): void {
+  for (const p of paths) {
+    const r = periksaTulis(p);
+    if (!r.ok) throw new Error(`ERROR: ${r.alasan}`);
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Batas dan pemotongan                                               */
@@ -170,22 +187,10 @@ export async function bacaBerkas(
   );
 }
 
-/** Perintah yang jelas tidak boleh dijalankan dari tool mana pun. */
-const PERINTAH_TERLARANG: RegExp[] = [
-  /\b(shutdown|Stop-Computer|Restart-Computer)\b/i,
-  /\bFormat-Volume\b/i,
-  /\bRemove-Item\b[^\n]*\b-Credential\b/i,
-];
-
+/** Terapkan penjaga shell bersama ke semua tool yang menjalankan perintah. */
 export function periksaPerintah(command: string): void {
-  for (const pola of PERINTAH_TERLARANG) {
-    if (pola.test(command)) {
-      throw new Error(
-        `ERROR: perintah ditolak oleh pembatas keamanan: cocok dengan ${pola}. ` +
-          'Kalau memang perlu, jalankan sendiri di terminal.',
-      );
-    }
-  }
+  const hasil = periksaPerintahShell(command);
+  if (!hasil.ok) throw new Error(`ERROR: ${hasil.alasan}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -243,8 +248,13 @@ export const TOOL_BAWAAN: AgentTool[] = [
         required: ['path'],
       },
     },
-    run: async (a) =>
-      potong(await bacaBerkas(wajib(a, 'path'), bacaAngka(a.offset), bacaAngka(a.limit), bacaBool(a.fromDisk))),
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      jagaBaca(path);
+      return potong(
+        await bacaBerkas(path, bacaAngka(a.offset), bacaAngka(a.limit), bacaBool(a.fromDisk)),
+      );
+    },
   },
 
   {
@@ -324,6 +334,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const path = wajib(a, 'path');
+      jagaTulis(path);
       const isi = String(a.content ?? '');
       if (bacaBool(a.createOnly)) {
         const ada = await cmd.fsExists(path).catch(() => false);
@@ -347,6 +358,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const path = wajib(a, 'path');
+      jagaTulis(path);
       await cmd.fsCreateDir(path);
       return `Direktori dibuat: ${path}`;
     },
@@ -368,6 +380,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     run: async (a) => {
       const from = wajib(a, 'from');
       const to = wajib(a, 'to');
+      jagaTulis(from, to);
       await cmd.fsRename(from, to);
       /* Tab yang menunjuk berkas itu harus ikut pindah. Tanpa ini, tab-nya
          masih menunjuk jalur lama, dan menyimpannya akan MENULIS ULANG berkas
@@ -395,6 +408,8 @@ export const TOOL_BAWAAN: AgentTool[] = [
     run: async (a) => {
       const from = wajib(a, 'from');
       const to = wajib(a, 'to');
+      jagaBaca(from);
+      jagaTulis(to);
       const hasil = await cmd.fsRead(from);
       await cmd.fsWrite(to, hasil.content, undefined, undefined, { allowMissing: true });
       return `Disalin: ${from} -> ${to} (${hasil.content.length} karakter)`;
@@ -417,6 +432,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const path = wajib(a, 'path');
+      jagaTulis(path);
       await cmd.fsDelete([path], bacaBool(a.recursive));
       useStore.getState().closeTabsUnder([path]);
       return `Dihapus: ${path}`;
@@ -496,6 +512,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const path = wajib(a, 'path');
+      jagaTulis(path);
       const lama = String(a.old_string ?? '');
       const baru = String(a.new_string ?? '');
       if (lama === '') throw new Error('ERROR: old_string tidak boleh kosong.');
@@ -554,6 +571,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const path = wajib(a, 'path');
+      jagaTulis(path);
       const daftar = Array.isArray(a.edits) ? a.edits : [];
       if (!daftar.length) throw new Error('ERROR: edits kosong.');
 
@@ -664,7 +682,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     spec: {
       name: 'bash_run',
       description:
-        'Jalankan perintah dan tunggu sampai selesai. Untuk dev server atau apa pun yang tidak selesai sendiri, pakai bash_background. Keluarannya dikembalikan apa adanya, termasuk kode keluarnya.',
+        'Jalankan perintah dan tunggu sampai selesai. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang (server/watcher), pakai bash_background.',
       parameters: {
         type: 'object',
         properties: {

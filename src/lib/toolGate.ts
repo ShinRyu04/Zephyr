@@ -155,28 +155,58 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter((t) => t.source 
 );
 
 /**
- * Tool yang nyala pada profil baru: SELURUH 40 tool inti.
+ * Empat tool web yang nyala pada profil baru - BACA dan BUKA saja.
+ *
+ * Keempatnya hanya MENAMPILKAN: membuka URL di pane yang bisa dilihat user,
+ * membacanya kembali, memindahkan pane yang sudah ada, dan mengambil teks URL
+ * tanpa membuka pane sama sekali. Tidak satu pun menulis berkas, mengirim data
+ * ke server yang ditentukan model, atau mengubah state apa pun di luar jendela
+ * Zephyr - jadi menyalakannya tidak memperluas apa yang bisa dilakukan agen
+ * terhadap mesin ini.
+ *
+ * Yang masih MATI adalah yang bertindak: mengklik elemen, mengisi form,
+ * mengunduh berkas ke disk, dan membuka browser sistem. Itu empat kemampuan
+ * yang mengubah sesuatu di luar Zephyr, dan tetap milik user untuk dipilih.
+ *
+ * Ditulis sebagai daftar eksplisit, bukan `filter(source === 'web')`, karena
+ * inilah satu-satunya tempat yang boleh menyala sendiri: tool web BARU yang
+ * ditambahkan nanti harus muncul MATI, bukan langsung aktif karena source-nya
+ * kebetulan sama.
+ */
+export const TOOL_WEB_AKTIF_AWAL: readonly string[] = [
+  'browser_open',
+  'browser_read',
+  'browser_nav',
+  'web_fetch',
+];
+
+/**
+ * Tool yang nyala pada profil baru: 40 inti + 4 web baca-saja = 44.
  *
  * Badan `TOOL_BAWAAN_AKTIF` di katalog sudah tidak menentukan apa yang menyala
  * lagi - ia hanya memuat nama yang aman dibaca sejak awal. Sumber kebenaran
  * untuk "apa yang aktif" ada di sini, dan di sini artinya utuh: agen tidak
  * boleh mulai dalam keadaan kehilangan kemampuan menulis daftar tugasnya
- * sendiri.
+ * sendiri, atau membuka halaman yang diminta user.
  */
-export const TOOL_AKTIF_AWAL: readonly string[] = TOOL_INTI;
+export const TOOL_AKTIF_AWAL: readonly string[] = [
+  ...TOOL_INTI,
+  ...TOOL_WEB_AKTIF_AWAL,
+];
 
 /**
- * Grup yang sejak awal MATI: hanya web/browser.
+ * Grup yang sejak awal MATI: web/browser, KECUALI yang membaca.
  *
- * Kesebelas tool ini bisa membuka halaman apa pun, mengirim data ke luar, dan
- * menulis berkas dari internet. Semuanya kemampuan yang pantas DIPILIH user,
- * bukan diwariskan. Satu klik menghidupkannya per grup atau satu per satu.
+ * Tujuh sisanya bisa menulis berkas dari internet, mengirim data ke luar, dan
+ * membuka browser sistem. Semuanya kemampuan yang pantas DIPILIH user, bukan
+ * diwariskan. Satu klik menghidupkannya per grup atau satu per satu.
  *
- * Mencari berdasarkan `section` dan bukan dengan menuliskan sebelas namanya:
- * menambah tool web baru lewat katalog akan otomatis ikut mati, tanpa ada
- * daftar kedua yang harus diperbarui.
+ * Turunannya tetap dihitung dari katalog: menambah tool web baru akan otomatis
+ * masuk grup ini dengan sendirinya, tanpa daftar kedua yang harus diperbarui.
  */
-export const GRUP_MATI_AWAL: readonly string[] = TOOL_GROUPS.filter((g) => g.optional).map((g) => g.id);
+export const GRUP_MATI_AWAL: readonly string[] = TOOL_GROUPS.filter((g) => g.optional).map(
+  (g) => g.id,
+);
 
 /* ------------------------------------------------------------------ */
 /* Deskripsi dan label                                                */
@@ -281,7 +311,16 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
     set((s) => {
       const next = new Set(s.aktif);
       if (next.has(nama)) {
-        if (!TOOL_INTI.includes(nama)) next.delete(nama);
+        /*
+         * Yang ada di TOOL_AKTIF_AWAL tidak bisa dimatikan dari sini.
+         *
+         * Dulu pelindungnya `TOOL_INTI`, dan begitu empat tool web menyala
+         * sejak awal, pelindung itu berhenti cocok - menekan `browser_open`
+         * yang aktif akan menghapusnya, padahal itu kemampuan dasar yang
+         * tadi baru sengaja dinyalakan. Yang dijaga adalah "apa yang dipakai
+         * sejak awal", bukan "apa yang bukan web".
+         */
+        if (!TOOL_AKTIF_AWAL.includes(nama)) next.delete(nama);
       } else next.add(nama);
       return { aktif: next };
     }),
@@ -293,7 +332,7 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
       const next = new Set(s.aktif);
       for (const t of grup.tools) {
         if (nyala) next.add(t);
-        else if (!TOOL_INTI.includes(t)) next.delete(t);
+        else if (!TOOL_AKTIF_AWAL.includes(t)) next.delete(t);
       }
       return { aktif: next };
     }),
