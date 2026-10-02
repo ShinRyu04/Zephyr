@@ -987,19 +987,21 @@ const JEJAK_TOOL_MAKS = 4;
           * reader who is caught up never sees a control that would do nothing.
           */}
         {!diBawah && (
-          <button
-            type="button"
-            className="ai-jump-bottom"
-            data-testid="ai-jump-bottom"
-            title={tr('Go to the newest')}
-            aria-label={tr('Go to the newest')}
-            onClick={lompatKeBawah}
-          >
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M8 3v9" />
-              <path d="M4.2 8.4 8 12.2l3.8-3.8" />
-            </svg>
-          </button>
+          <div className="ai-jump-wrap">
+            <button
+              type="button"
+              className="ai-jump-bottom"
+              data-testid="ai-jump-bottom"
+              title={tr('Go to the newest')}
+              aria-label={tr('Go to the newest')}
+              onClick={lompatKeBawah}
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M8 3v9" />
+                <path d="M4.2 8.4 8 12.2l3.8-3.8" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
 

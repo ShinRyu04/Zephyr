@@ -310,6 +310,10 @@ export default function ToolCallCard<T extends ToolCallLike = ToolCallLike>({
               onClick={() => void navigator.clipboard?.writeText(output || '')}
               title={tr('Copy output')}
             >
+              <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 3H4.6a1 1 0 0 0-1 1v8.4a1 1 0 0 0 1 1h6.8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H10" />
+                <rect x="6" y="1.7" width="4" height="2.6" rx="0.9" />
+              </svg>
               {tr('Copy')}
             </button>
             {input && (
@@ -319,6 +323,10 @@ export default function ToolCallCard<T extends ToolCallLike = ToolCallLike>({
                 onClick={() => void navigator.clipboard?.writeText(input)}
                 title={tr('Copy input')}
               >
+                <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 3H4.6a1 1 0 0 0-1 1v8.4a1 1 0 0 0 1 1h6.8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H10" />
+                  <rect x="6" y="1.7" width="4" height="2.6" rx="0.9" />
+                </svg>
                 {tr('Copy input')}
               </button>
             )}

@@ -308,23 +308,45 @@
  * shadow is invisible, and the button sits over text, so it needs a hard edge
  * to stay readable.
  */
-.ai-jump-bottom {
+/*
+ * The wrapper is what centres the button.
+ *
+ * `align-self: center` on the button itself did NOT work: `.ai-chat` is a flex
+ * column, and a sticky child with an explicit width still stretched to the full
+ * cross size - the button rendered 1190px wide, a full-width bar instead of a
+ * circle. A full-width flex wrapper with `justify-content: center` is the
+ * layout that cannot be argued with: the wrapper takes the row, the button
+ * inside it is sized by its own rules.
+ *
+ * `pointer-events: none` on the wrapper so the empty space either side of the
+ * button does not swallow clicks meant for the transcript underneath;
+ * `auto` restores them on the button itself.
+ */
+.ai-jump-wrap {
   position: sticky;
   bottom: 6px;
   z-index: 5;
-  align-self: center;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: -30px;
+  pointer-events: none;
+}
+
+.ai-jump-bottom {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
-  margin-top: -30px;
+  flex: 0 0 30px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 50%;
   background: var(--bg1);
   color: var(--text);
   cursor: pointer;
+  pointer-events: auto;
   box-shadow: 0 0 0 3px var(--bg0);
   transition: background 120ms ease, color 120ms ease, transform 120ms ease;
   animation: ai-jump-in 140ms ease-out both;
