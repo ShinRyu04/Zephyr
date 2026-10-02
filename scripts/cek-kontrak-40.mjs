@@ -47,10 +47,37 @@ const cek = (nama, syarat, rincian) => {
   }
 };
 
+/*
+ * Jumlah tool TIDAK dipatok sebagai angka mati di sini.
+ *
+ * Dulu berkas ini memeriksa `=== 51` dan `=== 40`, dan dua baris itu harus
+ * disunting SETIAP kali satu tool ditambahkan - dan cara itu sudah membuat
+ * berkas ini menolak keadaan yang benar: menambah `suggest_command` gagal di
+ * sini walau katalognya sehat. Yang diperiksa sekarang adalah HUBUNGANNYA:
+ * tool inti hanyalah tool non-web, jadi keduanya tidak bisa berbeda pendapat.
+ */
+const jumlah = await cdp.json(`return JSON.stringify(await (async () => {
+  const { TOOL_CATALOG, TOOL_INTI } = await import('/src/lib/tediTools/catalog.ts');
+  const web = TOOL_CATALOG.filter((t) => t.source === 'web');
+  return {
+    katalog: TOOL_CATALOG.length,
+    nonWeb: TOOL_CATALOG.length - web.length,
+    intiDariKatalog: TOOL_INTI.length,
+    web: web.length,
+  };
+})())`);
+
 console.log('\n== Kontrak tool di aplikasi yang hidup ==');
-cek('51 tool terpasang', hasil.terpasang === 51, { dapat: hasil.terpasang });
-cek('40 tool inti terdaftar', hasil.inti === 40, { dapat: hasil.inti });
-cek('40 tool inti AKTIF', hasil.intiKurang.length === 0, { kurang: hasil.intiKurang });
+cek('inti = katalog dikurangi web (katalog)', jumlah.intiDariKatalog === jumlah.nonWeb, jumlah);
+cek('jumlah terpasang = inti + web', hasil.terpasang === jumlah.intiDariKatalog + jumlah.web, {
+  dapat: hasil.terpasang,
+  harap: jumlah.intiDariKatalog + jumlah.web,
+});
+cek('inti di katalog = inti di sekat', hasil.inti === jumlah.intiDariKatalog, {
+  dapat: hasil.inti,
+  harap: jumlah.intiDariKatalog,
+});
+cek('43 tool inti AKTIF', hasil.intiKurang.length === 0, { kurang: hasil.intiKurang });
 cek('tidak ada tool web yang menyala', hasil.webMenyala.length === 0, { bocor: hasil.webMenyala });
 cek('popover subagents sudah hilang', hasil.popoverSubagents === false);
 

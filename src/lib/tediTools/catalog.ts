@@ -3,7 +3,7 @@
  *
  * Bentuknya dua lapis:
  *
- *   40 tool INTI - 26 bawaan + 14 MCP. Selalu terpasang, selalu aktif.
+ *   43 tool INTI - 29 bawaan + 14 MCP. Selalu terpasang, selalu aktif.
  *   11 tool web/browser - terpasang, tapi mati sampai user menyalakannya.
  *
  * Aturan yang membuat berkas ini berguna:
@@ -54,7 +54,7 @@ export interface ToolCatalogEntry {
 }
 
 /* ------------------------------------------------------------------ */
-/* 26 tool BAWAAN - nama diambil persis dari sumber TEDI.             */
+/* 29 tool BAWAAN - nama diambil persis dari sumber TEDI.             */
 /* ------------------------------------------------------------------ */
 
 const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
@@ -101,6 +101,11 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['schedule_command', 'Schedules', 'appWrite', true, 'Jadwalkan perintah untuk dijalankan nanti'],
   ['list_schedules', 'Schedules', 'read', false, 'Daftar perintah yang terjadwal'],
   ['cancel_schedule', 'Schedules', 'appWrite', true, 'Batalkan perintah terjadwal'],
+
+  /* Terminal - 3 */
+  ['suggest_command', 'Terminal', 'appWrite', true, 'Sarankan satu perintah shell sebagai kartu - user yang menjalankannya'],
+  ['get_terminal_output', 'Terminal', 'read', false, 'Baca potongan terakhir scrollback terminal aktif'],
+  ['open_preview', 'Terminal', 'appWrite', true, 'Buka pratinjau localhost di pane browser'],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -129,7 +134,7 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
 /* ------------------------------------------------------------------ */
 
 /*
- * Sebelas tool ini sengaja dipisah dari 40 tool inti.
+ * Sebelas tool ini sengaja dipisah dari 43 tool inti.
  *
  * Alasannya bukan soal asal-usul, melainkan soal apa yang terjadi kalau alat
  * ini menyala sejak awal. Pane browser bisa membuka halaman apa pun, klik dan
@@ -139,7 +144,7 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
  * Kontraknya:
  *   - tetap ada di katalog, tetap bisa dinyalakan satu per satu atau per grup
  *   - pada profil baru, HANYA yang membaca yang menyala (lihat di bawah)
- *   - 40 tool inti di atas tidak pernah bergantung padanya
+ *   - 43 tool inti di atas tidak pernah bergantung padanya
  *
  * Empat di antaranya menyala sejak awal - `browser_open`, `browser_read`,
  * `browser_nav`, dan `web_fetch` - karena keempatnya hanya MENAMPILKAN atau
@@ -185,9 +190,9 @@ function rakit(
 }
 
 /**
- * Katalog final: 26 bawaan + 14 MCP + 11 web/browser = 51 tool.
+ * Katalog final: 29 bawaan + 14 MCP + 11 web/browser = 54 tool.
  *
- * Dua puluh enam dan empat belas membentuk 40 tool INTI. Sebelas sisanya
+ * Dua puluh sembilan dan empat belas membentuk 43 tool INTI. Sebelas sisanya
  * tersedia tapi tidak menyala sendiri.
  */
 export const TOOL_CATALOG: readonly ToolCatalogEntry[] = [
@@ -215,7 +220,7 @@ export const TOOL_COUNTS = {
  * yang tidak diminta sebelum user sempat membaca apa yang dia aktifkan.
  */
 /**
- * Tool yang aktif pada profil baru: SELURUH 40 tool inti.
+ * Tool yang aktif pada profil baru: SELURUH 43 tool inti.
  *
  * Dulu berkas ini memuat daftar pendek berisi tool pembaca saja, dengan alasan
  * bahwa tool menulis tidak pantas menyala sendiri. Alasannya tidak salah, tapi
@@ -224,7 +229,7 @@ export const TOOL_COUNTS = {
  * tugas berhenti di tengah dengan pesan "tool dinonaktifkan", dan user
  * menyimpulkan aplikasinya rusak.
  *
- * Sekarang kontraknya jelas: 40 tool inti selalu aktif. Satu-satunya yang mati
+ * Sekarang kontraknya jelas: 43 tool inti selalu aktif. Satu-satunya yang mati
  * sejak awal adalah 11 tool web/browser, karena itu permukaan yang bisa
  * mengirim data ke luar dan memang pantas dipilih user lebih dulu.
  *
@@ -305,9 +310,9 @@ export function periksaKatalog(): string[] {
   /*
    * Empat tool web BACA yang menyala default, dan hanya empat itu.
    *
-   * Ini yang menahan janji "40 inti wajib kepake" tetap benar SEKALIGUS menjaga
+   * Ini yang menahan janji "43 inti wajib kepake" tetap benar SEKALIGUS menjaga
    * supaya kemampuan yang bertindak tidak diam-diam jadi default. Katalog boleh
-   * memuat 51, tapi yang menyala sendiri hanya 40 + 4.
+   * memuat 54, tapi yang menyala sendiri hanya 43 + 4.
    *
    * Yang diperiksa karena itu bukan "apakah web", melainkan "apakah dia salah
    * satu dari empat yang boleh". Tool web BARU tidak ada di daftar itu, jadi ia
@@ -328,7 +333,7 @@ export function periksaKatalog(): string[] {
    * Dan `TOOL_BAWAAN_AKTIF` tetap harus bersih dari web.
    *
    * Ia turunan katalog yang dibaca pemanggil lama, dan pada profil baru yang
-   * dianggap "selalu menyala" adalah 40 - empat tambahan itu datang dari sekat,
+   * dianggap "selalu menyala" adalah 43 - empat tambahan itu datang dari sekat,
    * bukan dari katalog. Kalau ada nama web menyusup ke sini, dua sumber itu
    * mulai berbeda diam-diam.
    */
@@ -340,7 +345,7 @@ export function periksaKatalog(): string[] {
   return masalah;
 }
 
-/** Nama 40 tool inti: yang wajib terpasang dan wajib aktif. */
+/** Nama 43 tool inti: yang wajib terpasang dan wajib aktif. */
 export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
   (t) => t.source !== 'web',
 ).map((t) => t.name);

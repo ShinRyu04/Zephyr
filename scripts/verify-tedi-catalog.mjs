@@ -8,16 +8,26 @@
  * katalognya berubah, jadi ia mengunci kesalahan alih-alih mencegahnya.
  *
  * Kontrak yang dikunci:
- *   40 tool inti (26 bawaan + 14 MCP) - terpasang DAN aktif sejak awal
- *   11 tool web/browser             - terpasang, TAPI mati sampai dinyalakan
- *   51 total
+ *   tool INTI (bawaan + MCP)  - terpasang DAN aktif sejak awal
+ *   11 tool web/browser       - terpasang, TAPI mati sampai dinyalakan
+ *   total = inti + web
+ *
+ * Angka-angkanya TIDAK dipatok di sini. Versi lama mematok 26/14/40/51 dan
+ * harus disunting setiap kali satu tool ditambahkan - dan pada akhirnya ia
+ * menolak keadaan yang benar: menambah `suggest_command` gagal di sini padahal
+ * katalognya sehat. Yang diperiksa sekarang adalah HUBUNGAN antar-angka itu,
+ * yang tetap benar berapa pun jumlah toolnya.
+ *
+ * Sumber nama bawaan TIDAK lagi `.tedi/reference` (sudah dihapus) melainkan
+ * handler Zephyr sendiri, supaya berkas ini tidak bisa lulus palsu saat
+ * referensinya hilang - dulu ia menemukan nol nama dan tetap melaporkan lulus.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const AKAR = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = join(AKAR, '.tedi', 'reference');
+const REF = join(AKAR, 'src', 'lib', 'tediTools');
 
 /* Tool web/browser yang harus ada tapi tidak boleh menyala sendiri. Ditulis
    tangan: daftar ini mewakili keputusan produk, bukan turunan kode. */
@@ -43,23 +53,29 @@ function periksa(nama, syarat, rincian) {
 /* Baca nama BAWAAN langsung dari sumber - jangan diketik ulang.       */
 /* ------------------------------------------------------------------ */
 
-const berkasBawaan = ['fs', 'edit', 'fetch', 'search', 'shell', 'subagent', 'todo', 'notes', 'schedule'];
+/*
+ * Nama bawaan dibaca dari `builtins.ts` HARUS cocok dengan katalog. Kalau satu
+ * tool ditambahkan ke katalog tanpa handler (atau sebaliknya), di situlah
+ * ketahuannya - dan itu lebih berguna daripada sekadar mencocokkan angka.
+ */
+const isiBawaan = readFileSync(join(REF, 'builtins.ts'), 'utf8');
 const bawaanSumber = [];
-for (const f of berkasBawaan) {
-  const isi = readFileSync(join(REF, 'tedi-tools', f + '.ts'), 'utf8');
-  for (const m of isi.matchAll(/^ {4}([a-z_]+): tool\(\{/gm)) bawaanSumber.push(m[1]);
+for (const m of isiBawaan.matchAll(/^ {6}name: '([a-z_]+)',/gm)) bawaanSumber.push(m[1]);
+if (bawaanSumber.length === 0) {
+  console.error('FATAL: tidak menemukan nama tool di builtins.ts.');
+  console.error('Nol nama membuat setiap pemeriksaan lulus palsu; berhenti di sini.');
+  process.exit(1);
 }
 
-/* Nama MCP dari tabel handler. */
-const mcpIsi = readFileSync(join(REF, 'tediMcpServer.ts'), 'utf8');
-const awalTabel = mcpIsi.indexOf('const HANDLERS');
-if (awalTabel < 0) {
-  console.error('FATAL: tabel handler tidak ditemukan.');
+/* Nama MCP dari handler Zephyr sendiri (`src/lib/tediTools/mcp.ts`). */
+const mcpIsi = readFileSync(join(REF, 'mcp.ts'), 'utf8');
+const mcpSumber = [];
+for (const m of mcpIsi.matchAll(/name: 'mcp__tedi__([a-z_]+)'/g)) mcpSumber.push(m[1]);
+if (mcpSumber.length === 0) {
+  console.error('FATAL: nama tool MCP tidak ditemukan di mcp.ts.');
   console.error('Menemukan nol tool diam-diam akan membuat setiap pemeriksaan lulus palsu.');
   process.exit(1);
 }
-const mcpSumber = [];
-for (const m of mcpIsi.slice(awalTabel).matchAll(/^ {2}([a-z_]+): async/gm)) mcpSumber.push(m[1]);
 
 /* ------------------------------------------------------------------ */
 /* Muat katalog dengan esbuild.                                       */
@@ -98,16 +114,26 @@ const nama = katalog.names;
 /* ------------------------------------------------------------------ */
 
 console.log('\n== 1. Jumlah ==');
-periksa('26 tool bawaan', katalog.counts.builtin === 26, { dapat: katalog.counts.builtin });
-periksa('14 tool MCP', katalog.counts.mcp === 14, { dapat: katalog.counts.mcp });
 periksa('11 tool web/browser', katalog.counts.web === 11, { dapat: katalog.counts.web });
-periksa('40 tool inti', katalog.counts.inti === 40, { dapat: katalog.counts.inti });
-periksa('total 51 tool', katalog.counts.total === 51, { dapat: katalog.counts.total });
+periksa('inti = bawaan + MCP', katalog.counts.inti === katalog.counts.builtin + katalog.counts.mcp, {
+  inti: katalog.counts.inti,
+  bawaan: katalog.counts.builtin,
+  mcp: katalog.counts.mcp,
+});
+periksa('total = inti + web', katalog.counts.total === katalog.counts.inti + katalog.counts.web, {
+  total: katalog.counts.total,
+  inti: katalog.counts.inti,
+  web: katalog.counts.web,
+});
+periksa('bawaan di katalog = bawaan berhandler', katalog.counts.builtin === bawaanSumber.length, {
+  katalog: katalog.counts.builtin,
+  handler: bawaanSumber.length,
+});
 periksa('tidak ada nama ganda', new Set(nama).size === nama.length, {
   ganda: nama.filter((n, i) => nama.indexOf(n) !== i),
 });
 
-console.log('\n== 2. Nama bawaan sama persis dengan sumber ==');
+console.log('\n== 2. Nama bawaan sama persis dengan handler ==');
 {
   const diharapkan = [...bawaanSumber].sort();
   const dapat = nama.filter((n) => !n.startsWith('mcp__') && !WEB_NAMA.includes(n)).sort();
@@ -140,16 +166,18 @@ console.log('\n== 3. Nama MCP sama persis dengan tabel handler ==');
 console.log('\n== 4. Tool web/browser terpasang ==');
 for (const n of WEB_NAMA) periksa('ada: ' + n, nama.includes(n));
 
-console.log('\n== 5. Kontrak 40 inti ==');
-periksa('TOOL_INTI berisi 40', katalog.inti.length === 40, { dapat: katalog.inti.length });
+console.log('\n== 5. Kontrak inti ==');
+periksa('TOOL_INTI = bawaan + MCP', katalog.inti.length === bawaanSumber.length + mcpSumber.length, {
+  inti: katalog.inti.length,
+  harap: bawaanSumber.length + mcpSumber.length,
+});
 periksa('TOOL_INTI tidak memuat nama web', !katalog.inti.some((n) => WEB_NAMA.includes(n)), {
   bocor: katalog.inti.filter((n) => WEB_NAMA.includes(n)),
 });
-periksa('TOOL_INTI = 26 bawaan + 14 MCP', katalog.inti.length === bawaanSumber.length + mcpSumber.length);
 {
-  /* Yang paling penting: default aktif harus UTUH 40, bukan sebagian. */
+  /* Yang paling penting: default aktif harus UTUH, bukan sebagian. */
   const kurang = katalog.inti.filter((n) => !katalog.aktif.includes(n));
-  periksa('SEMUA 40 inti aktif sejak awal', kurang.length === 0, { kurang });
+  periksa('SEMUA tool inti aktif sejak awal', kurang.length === 0, { kurang });
 }
 {
   /* Dan tidak satu pun tool web boleh menyala sendiri. */

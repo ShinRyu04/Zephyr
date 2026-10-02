@@ -170,6 +170,63 @@ function agentToolCacheKey(name: string, args: Record<string, unknown>): string 
 const BATAS_AKSI_SAMA = 3;
 const BATAS_AKSI_INGAT = 2;
 
+/*
+ * Browser treadmill guard.
+ *
+ * The identical-action watchdog above does NOT catch this one: browser_open ->
+ * browser_read -> web_fetch -> browser_read -> ... never repeats a fingerprint,
+ * so the counter never trips, and the run marches to MAX_AGENT_STEPS while the
+ * page has been visible on screen since the first step.
+ *
+ * The distinguishing fact is not repetition but the absence of PROGRESS after
+ * a page has already been opened. Once an open succeeded in this turn, any
+ * further browser/web call that is not itself an open for a DIFFERENT url is
+ * the model circling. Three of those in a row is enough to stop.
+ */
+const BATAS_BROWSER_MUTER = 3;
+/* Consecutive read-only steps that teach nothing before the run is ended. */
+const BATAS_TANPA_KEMAJUAN = 4;
+
+/*
+ * Tool yang benar-benar mengubah sesuatu.
+ *
+ * Sengaja sebuah HIMPUNAN, bukan regex berawalan. Versi regex sebelumnya punya
+ * dua cacat yang terbukti:
+ *
+ *   - `web_` dan `browser_` didaftarkan sebagai penulis, sehingga `web_fetch`
+ *     dan `browser_read` - yang hanya membaca - mereset penghitung "muter".
+ *     Akibatnya treadmill yang seluruhnya berisi bacaan web tidak pernah
+ *     tertangkap: setiap langkah dianggap kemajuan.
+ *   - `sh$` dan `get_` tidak berlabuh, jadi namanya cocok dengan hal lain.
+ *
+ * Daftar eksplisit tidak bisa salah cocok. Kalau ada tool baru, tool itu
+ * dianggap PEMBACA sampai namanya ditambahkan di sini - dan arah salah itu
+ * jauh lebih aman: paling buruk agen berhenti lebih awal dengan pesan yang
+ * menjelaskan, bukan terus berputar tanpa henti.
+ */
+const TOOL_PENULIS = new Set([
+  'write_file', 'edit', 'multi_edit', 'replace_in_files', 'create_directory',
+  'copy_file', 'move_file', 'delete_file',
+  'browser_open', 'browser_click', 'browser_type', 'browser_nav', 'browser_close',
+  'system_browser_open', 'browser_download_url', 'open_preview',
+  'subagent_run', 'subagent_kirim', 'subagent_batal',
+  'todo_write', 'schedule_command', 'cancel_schedule', 'notes_write',
+  'set_setting', 'run_command', 'ssh', 'worktree', 'extension', 'pane',
+  'workspace', 'focus_pane', 'suggest_command',
+]);
+const TOOL_BROWSER = new Set([
+  'browser_open',
+  'browser_read',
+  'browser_nav',
+  'browser_click',
+  'browser_type',
+  'browser_close',
+  'browser_list',
+  'system_browser_open',
+  'web_fetch',
+  'web_search',
+]);
+
 function sidikAksi(name: string, args: Record<string, unknown>): string {
   return `${name}:${stableToolJson(args)}`;
 }
@@ -528,23 +585,71 @@ export const MAX_AGENT_STEPS = 120;
  * Classify only explicit URL navigation requests. A URL is required, as is a
  * clear open/navigate/visit verb; inspection, fetching, clicking, execution,
  * and verification language always makes the request a normal agent task.
+ *
+ * "buka X di terminal/pane browser" IS navigation - the terminal/shell words
+ * only name WHERE the browser pane lives. Only a genuine execution verb aimed
+ * at the URL itself (jalankan script/perintah, unduh, ambil/baca isinya, uji,
+ * verifikasi) disqualifies it.
  */
+/*
+ * Sesuatu yang jelas-jelas nama situs, bukan sekadar kata berakhiran "com".
+ *
+ * Versi lama hanya menerima `http://`, `https://`, dan `www.`, sehingga
+ * permintaan yang paling wajar justru ditolak: "buka google.com" dan "buka
+ * youtube" bukan URL menurut regex itu. Pola di bawah menerima domain telanjang
+ * (`google.com`, `youtube.co.id`, `localhost:5173`), dan sengaja menolak nama
+ * berkas agar "buka src/main.ts" tidak berubah menjadi navigasi - itulah yang
+ * membedakan `.com` dari `.ts`.
+ */
+const POLA_URL_NAVIGASI = new RegExp(
+  [
+    String.raw`https?://[^\s<>)]+`,
+    String.raw`\bwww\.[^\s<>)]+`,
+    String.raw`\b(?:localhost|127\.0\.0\.1)(?::\d+)?(?:/\S*)?`,
+    String.raw`\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|dev|ai|app|co|id|me|xyz|info|edu|gov|tv|site|online|store|blog|news|tech|cloud|page|link|live|pro|space|website|fun|club|today|world|life|zone|digital|studio|design|software|code|sh|to|gg|ly|be|it|fr|de|jp|ru|br|au|ca|in|nl|se|no|pl|es|mx|kr|cn|tw|hk|sg|my|th|vn|ph|tr|ir|sa|ae|eg|za|ng|ke|pk|bd|lk|np|mm|kh|la|mn|kz|ua|by|cz|sk|hu|ro|bg|gr|pt|ch|at|dk|fi|ie|is|ee|lv|lt|si|hr|rs|ba|mk|al|mt|cy|lu|mc|li|ad|sm|va|gi|im|je|gg|fo|gl|aq|tf|hm|bv|gs|um|us|uk|ca|au|nz|eu|asia|int|mil|aero|coop|museum|jobs|mobi|name|pro|tel|travel|xxx|cat|coop)\b`,
+  ].join('|'),
+  'i',
+);
+
 export function isNavigationOnlyRequest(text: string): boolean {
   const source = String(text ?? '').trim();
-  if (!source || !/https?:\/\/[^\s<>)]+|\bwww\.[^\s<>)]+/i.test(source)) return false;
+  if (!source || !POLA_URL_NAVIGASI.test(source)) return false;
 
-  // A URL is not enough to make this a navigation request. In particular, do
-  // not turn a coding/terminal instruction into a browser action merely because
-  // it happens to quote a URL. The short Indonesian "coba jalankan ini" form is
-  // the one intentional exception: users commonly use it to mean "open this".
+  const explicitNavigation =
+    /\b(?:open|navigate|visit|go\s+to|buka|navigasi|kunjungi|pergi\s+ke)\b/i.test(source) ||
+    /\bcoba\s+jalankan\s+ini\b/i.test(source);
+  if (!explicitNavigation) return false;
+
+  /*
+   * Maksud lain pada URL-nya membatalkan navigasi.
+   *
+   * Versi lama mensyaratkan kata kerja Indonesia diikuti `script|perintah|ini
+   * di terminal`, sehingga "buka https://example.com lalu jalankan npm install"
+   * LOLOS sebagai navigasi - padahal separuh perintahnya adalah pekerjaan nyata,
+   * dan menghentikan agent setelah halaman terbuka akan membuang instruksi itu.
+   * Sekarang kata kerja eksekusi berdiri sendiri, jadi bentuk apa pun tertangkap.
+   *
+   * Kata penunjuk tempat (terminal/shell/pane/browser) tetap TIDAK membatalkan:
+   * itu hanya menyebut di mana halaman harus dibuka.
+   */
+  /*
+   * "coba jalankan ini <url>" adalah IDIOM, bukan perintah eksekusi.
+   *
+   * Orang memakainya untuk berarti "buka ini", dan pola `jalankan` di bawah
+   * akan membatalkannya. Diperiksa lebih dulu, dan HANYA bentuk utuh itu:
+   * "coba jalankan ini" yang diikuti ketentuan lain tetap tertangkap.
+   */
+  const cobaJalankan = /\bcoba\s+jalankan\s+ini\b/i.test(source);
+  if (cobaJalankan && source.replace(/\bcoba\s+jalankan\s+ini\b/i, '').trim().split(/\s+/).length <= 1) {
+    return true;
+  }
+
   const executionOrInspection =
-    /\b(?:terminal|shell|powershell|command|script|perintah|execute|run\s+command|download|fetch|read|check|inspect|click|test|verify)\b/i.test(source) ||
-    /\b(?:terminal|powershell|perintah|jalankan\s+(?:script|perintah)|unduh|download|ambil|baca|cek|periksa|inspeksi|klik|uji|verifikasi)\b/i.test(source);
+    /\b(?:jalankan|execute|run|download|fetch|read|check|inspect|click|test|verify|install|build|rename|deploy)\b/i.test(source) ||
+    /\b(?:unduh|ambil|baca|cek|periksa|inspeksi|klik|uji|verifikasi|pasang|bangun|ganti\s+nama|serahkan)\b/i.test(source);
   if (executionOrInspection) return false;
 
-  const explicitNavigation = /\b(?:open|navigate|visit|go\s+to|buka|navigasi|kunjungi|pergi\s+ke)\b/i.test(source);
-  const cobaJalankan = /\bcoba\s+jalankan\s+ini\b/i.test(source);
-  return explicitNavigation || cobaJalankan;
+  return true;
 }
 
 function normalizedBrowserUrl(value: unknown): string {
@@ -1062,6 +1167,19 @@ interface AiState {
   agentTanya: { pertanyaan: string; pilihan: string[] } | null;
 
   agentTodos: AgentTodo[];
+  /**
+   * Kartu saran perintah dari tool `suggest_command`.
+   *
+   * Sengaja hanya DATA, bukan aksi: tool ini menampilkan perintah untuk
+   * diperiksa user, dan yang menjalankannya adalah user lewat tombol Insert.
+   * Kalau tool ini langsung menulis ke PTY, ia berubah menjadi eksekusi shell
+   * tanpa izin - persis yang ingin dihindari oleh kelas efek `appWrite`.
+   */
+  commandSuggestion: {
+    command: string;
+    alasan?: string;
+    at: number;
+  } | null;
 
   promptHistory: string[];
   promptHistoryIdx: number;
@@ -1115,6 +1233,9 @@ interface AiActions {
   jawabTanya: (jawaban: string | null) => void;
 
   setAgentTodos: (list: unknown[]) => number;
+
+  /** Tampilkan kartu saran perintah. Tidak menjalankan apa pun. */
+  setCommandSuggestion: (s: { command: string; alasan?: string } | null) => void;
 
   historyUp: () => string | null;
   historyDown: () => string | null;
@@ -1260,6 +1381,7 @@ export const useAi = create<AiStore>((set, get) => ({
   agentConfirm: null,
   agentTanya: null,
   agentTodos: [],
+  commandSuggestion: null,
   promptHistory: [],
   promptHistoryIdx: -1,
   reasoningEffort: null,
@@ -1645,6 +1767,20 @@ export const useAi = create<AiStore>((set, get) => ({
        render ulang, kartu pertanyaannya sudah tidak ada lagi saat komponennya
        membaca state. */
     if (r) r(jawaban);
+  },
+
+  setCommandSuggestion: (s) => {
+    if (!s) {
+      set({ commandSuggestion: null });
+      return;
+    }
+    const command = String(s.command ?? '').trim();
+    if (!command) {
+      set({ commandSuggestion: null });
+      return;
+    }
+    const alasan = String(s.alasan ?? '').trim();
+    set({ commandSuggestion: { command, alasan: alasan || undefined, at: Date.now() } });
   },
 
   historyUp: () => {
@@ -2137,6 +2273,7 @@ export const useAi = create<AiStore>((set, get) => ({
       agentConfirm: null,
   agentTanya: null,
       agentTodos: [],
+      commandSuggestion: null,
     }));
     resetAgentToolCache();
     persist(get());
@@ -2209,6 +2346,11 @@ export const useAi = create<AiStore>((set, get) => ({
     let agentFailure: { category: AgentFailureCategory; message: string } | null = null;
     /* Anti-loop fingerprints; see `catatAksiBerulang` for the why. */
     agenAksiBerulang.clear();
+    /* Set once a page actually opened, then counts circling browser calls. */
+    let halamanTerbuka = false;
+    let browserMuter = 0;
+    /* Consecutive read-only steps with nothing new; see the goal-satisfied guard. */
+    let langkahTanpaKemajuan = 0;
     try {
       for (; langkah < MAX_AGENT_STEPS; langkah++) {
         if (agentBatal) break;
@@ -2462,6 +2604,68 @@ export const useAi = create<AiStore>((set, get) => ({
             agentStopReason = 'watchdog';
             break;
           }
+          /*
+           * Browser treadmill guard — observe only, never dispatches.
+           *
+           * After a page has already opened this turn, another browser/web call
+           * that does not open a DIFFERENT url is circling: the content is
+           * already on screen. A fresh `browser_open` with a new URL resets the
+           * counter, so legitimate multi-tab work is untouched.
+           */
+          /*
+           * Guard treadmill browser.
+           *
+           * `system_browser_open` diperlakukan SAMA dengan `browser_open` di
+           * sini. Sebelumnya ia hanya ikut dihitung sebagai "muter" tapi tidak
+           * pernah diakui sebagai pembuka baru, sehingga membuka tiga alamat
+           * berbeda lewat browser sistem akan dihentikan sebagai putaran -
+           * padahal setiap langkah membuka halaman baru.
+           */
+          if (halamanTerbuka && TOOL_BROWSER.has(tc.name)) {
+            const alatBuka = tc.name === 'browser_open' || tc.name === 'system_browser_open';
+            const membukaBaru = alatBuka && Boolean(String(argsObj.url ?? '').trim());
+            if (membukaBaru) {
+              browserMuter = 0;
+            } else {
+              browserMuter += 1;
+              if (browserMuter >= BATAS_BROWSER_MUTER) {
+                akhir =
+                  `Stopped: a page is already open, and ${browserMuter} further browser steps ` +
+                  'made no progress. Report what is on screen and stop; do not inspect it again.';
+                history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: akhir });
+                set((s) => ({
+                  agentSteps: [
+                    ...s.agentSteps,
+                    { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: akhir.slice(0, 400), ok: false, at: Date.now() },
+                  ],
+                }));
+                agentStopReason = 'watchdog';
+                break;
+              }
+            }
+          }
+          /*
+           * Tool yang benar-benar mengubah sesuatu.
+           *
+           * Dipakai oleh guard di bawah, jadi daftarnya HARUS lengkap: tool yang
+           * lupa didaftarkan di sini akan dianggap "tidak melakukan apa-apa",
+           * dan pekerjaan nyata bisa dipotong di tengah.
+           */
+          if (TOOL_PENULIS.has(tc.name)) {
+            langkahTanpaKemajuan = 0;
+          } else {
+            /*
+             * Bukan penulis = tidak mengubah apa pun, jadi ia tidak boleh
+             * MENAMBAH harapan bahwa sesuatu sedang terjadi. Tidak ada daftar
+             * pembaca yang perlu dipelihara: kalau bukan penulis, ia pasif.
+             *
+             * Ini juga menutup lubang lama: `web_fetch`/`web_search` dulu tidak
+             * terdaftar sebagai penulis MAUPUN pembaca (polanya `web_` ditulis
+             * di tempat yang salah), sehingga satu pun tak terhitung dan
+             * treadmill web murni lolos dari semua penjaga.
+             */
+            langkahTanpaKemajuan += 1;
+          }
           get().setAgentProgress({ agentPhase: 'running-tool', agentCurrentTool: tc.name, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
           const mulaiTool = Date.now();
           /*
@@ -2562,6 +2766,7 @@ export const useAi = create<AiStore>((set, get) => ({
           }
 
           if (agentBatal) break;
+          if (ok && (tc.name === 'browser_open' || tc.name === 'system_browser_open')) halamanTerbuka = true;
           const selesaiPada = Date.now();
           /*
            * The one-line status the collapsed row shows.
@@ -2649,13 +2854,48 @@ export const useAi = create<AiStore>((set, get) => ({
            */
           const navigationResultOk =
             ok && !/navigation not requested|navigation requested but not verified|not verified/i.test(hasil);
+          /*
+           * Syarat "ini navigasi saja" bertumpu pada pesan USER.
+           *
+           * Versi lama memeriksa regex URL terpisah di sini, dan itu salah dua
+           * arah sekaligus:
+           *
+           *   - ia memindai pesan user, bukan URL yang BARU SAJA DIBUKA. Pesan
+           *     pertama yang menyebut URL di mana pun (mis. sebagai contoh
+           *     berkas yang harus dibaca) membuat setiap `browser_open`
+           *     berikutnya - yang mungkin bagian dari tugas panjang - mengakhiri
+           *     seluruh pekerjaan.
+           *   - regex-nya hanya mengenal `https://` dan `www.`, sehingga
+           *     "buka google.com" yang ditolak pengklasifikasi tidak pernah
+           *     berhenti.
+           *
+           * Karena itu aturannya disederhanakan: penghentian otomatis hanya
+           * berlaku kalau SELURUH permintaan user memang navigasi (lewat
+           * `isNavigationOnlyRequest`, yang sudah mengenal domain telanjang).
+           * Kalau tidak, membuka halaman hanyalah satu langkah dari tugas yang
+           * lebih besar, dan agen melanjutkan - dijaga oleh watchdog, bukan
+           * dengan memotong pekerjaan yang sah.
+           */
           if (
-            navigationOnly &&
             navigationResultOk &&
-            (tc.name === 'browser_open' || tc.name === 'system_browser_open')
+            (tc.name === 'browser_open' || tc.name === 'system_browser_open') &&
+            navigationOnly
           ) {
+            /*
+             * Opening a page IS the whole task here, so end the run at the
+             * successful open instead of letting the model inspect what it just
+             * displayed. This also covers requests the classifier deliberately
+             * treats as ordinary work ("buka google.com di terminal"): the
+             * words around the URL do not change that a URL was opened.
+             *
+             * The URL is never echoed back as the only words - a bare echo is
+             * what makes a stop feel like a crash, so the message states where
+             * the page went and that the task ends there.
+             */
             const openedUrl = String(argsObj.url ?? '').trim();
-            akhir = `Opened ${openedUrl || 'the URL'}.`;
+            akhir = openedUrl
+              ? `Halaman dibuka di pane browser: ${openedUrl}.\n\nTugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjakan. Beri tahu saya kalau ada yang ingin dicari atau dilakukan di sana.`
+              : 'Halaman dibuka di pane browser.\n\nTugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjakan.';
             navigationOpened = true;
           }
 
@@ -2704,6 +2944,35 @@ export const useAi = create<AiStore>((set, get) => ({
           if (taskComplete || navigationOpened) break;
         }
         if (taskComplete || navigationOpened) break;
+
+        /*
+         * Goal-satisfied guard — diperiksa sekali per LANGKAH, bukan per
+         * panggilan tool.
+         *
+         * Perbedaan ini penting dan dulu salah. Model sering mengirim BEBERAPA
+         * tool call dalam satu balasan (tiga `read_file` sekaligus), dan itu
+         * satu langkah pemikiran yang wajar - bukan tiga langkah yang berputar.
+         * Versi lama menaikkan penghitung di dalam loop per-panggilan, sehingga
+         * satu balasan berisi empat bacaan langsung menyentuh batas dan
+         * menghentikan agen pada langkah PERTAMA, padahal model baru mulai.
+         *
+         * Di tingkat langkah, artinya jujur: empat langkah berturut-turut yang
+         * tidak mengubah apa pun.
+         */
+        if (langkahTanpaKemajuan >= BATAS_TANPA_KEMAJUAN) {
+          akhir =
+            `Stopped: ${langkahTanpaKemajuan} steps in a row only read things and changed nothing. ` +
+            'Everything needed to answer is already collected. Report findings to the user ' +
+            'now instead of reading further.';
+          set((s) => ({
+            agentSteps: [
+              ...s.agentSteps,
+              { kind: 'tool', name: '(watchdog)', args: '{}', result: akhir.slice(0, 400), ok: false, at: Date.now() },
+            ],
+          }));
+          agentStopReason = 'watchdog';
+          break;
+        }
       }
     } catch (e) {
       if (!agentBatal) agentStopReason = 'provider';

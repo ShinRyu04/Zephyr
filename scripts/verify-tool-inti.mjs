@@ -1,14 +1,14 @@
 /**
- * verify-tool-inti.mjs - uji himpunan 40 tool inti.
+ * verify-tool-inti.mjs - uji himpunan tool inti.
  *
  *   node scripts/verify-tool-inti.mjs 9223
  *
- * Klaim yang diperiksa: 76 tool terlalu banyak untuk dibaca sekaligus, dan
- * yang paling sering dipakai harus diangkat. Yang diuji bukan "ada 40 nama di
- * sebuah daftar" - itu tidak membuktikan apa pun - melainkan bahwa daftarnya
- * KONSISTEN dan BENAR-BENAR bagian dari tool yang terdaftar.
+ * Klaim yang diperiksa: terlalu banyak tool untuk dibaca sekaligus, dan yang
+ * paling sering dipakai harus diangkat. Yang diuji bukan "ada N nama di sebuah
+ * daftar" - itu tidak membuktikan apa pun - melainkan bahwa daftarnya KONSISTEN
+ * dan BENAR-BENAR bagian dari tool yang terdaftar.
  *
- *   I1  jumlahnya 40 (sesuai maksud, bukan kebetulan)
+ *   I1  daftar inti = tool non-web di katalog (hubungannya, bukan angkanya)
  *   I2  setiap nama di daftar inti MEMANG terdaftar di AGENT_TOOLS
  *   I3  tidak ada nama kembar
  *   I4  setiap tool inti punya grup (supaya tidak ada yang tak terjangkau)
@@ -42,9 +42,17 @@ const d = await cdp.json(`return JSON.stringify(await (async () => {
 
   const grupInti = [...new Set(inti.map((n) => peta[n]).filter(Boolean))].sort();
 
+  /*
+   * Jumlah web dibaca dari katalog, bukan ditulis di sini, supaya harness ini
+   * tidak punya angka sendiri yang bisa berbeda dari aplikasinya.
+   */
+  const katalog = await import(String.fromCharCode(47) + 'src' + String.fromCharCode(47) + 'lib' + String.fromCharCode(47) + 'tediTools' + String.fromCharCode(47) + 'catalog.ts');
+  const jumlahWeb = (katalog.TOOL_CATALOG || []).filter((t) => t.source === 'web').length;
+
   return {
     jumlahInti: inti.length,
     jumlahSemua: terdaftar.length,
+    jumlahWeb,
     hantu,
     kembar,
     tanpaGrup,
@@ -53,7 +61,21 @@ const d = await cdp.json(`return JSON.stringify(await (async () => {
   };
 })())`);
 
-r.check('I1', d.jumlahInti === 40, `daftar inti berisi ${d.jumlahInti} tool (dari ${d.jumlahSemua} terdaftar)`);
+/*
+ * I1 sengaja memeriksa HUBUNGAN, bukan angka mati.
+ *
+ * Dulu barisnya `=== 40`, dan itu harus disunting setiap kali satu tool inti
+ * ditambahkan - serta menolak keadaan yang benar. Yang penting bukan jumlahnya
+ * 40, melainkan bahwa "inti" benar-benar berarti "semua yang bukan web" dan
+ * bahwa daftar itu memang terpasang seluruhnya. Angka apa pun yang memenuhi
+ * hubungan itu diterima.
+ */
+const harapInti = d.jumlahSemua - d.jumlahWeb;
+r.check(
+  'I1',
+  d.jumlahInti === harapInti && d.jumlahInti > 0,
+  `daftar inti berisi ${d.jumlahInti} tool = ${d.jumlahSemua} terdaftar - ${d.jumlahWeb} web`,
+);
 
 r.check(
   'I2',

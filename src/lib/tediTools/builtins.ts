@@ -1180,6 +1180,133 @@ export const TOOL_BAWAAN: AgentTool[] = [
       return `Jadwal ${id} dibatalkan.`;
     },
   },
+
+  /* ---------------- Terminal ---------------- */
+
+  {
+    spec: {
+      name: 'suggest_command',
+      description:
+        'SARAN, bukan eksekusi: tampilkan satu perintah shell sebagai kartu di panel AI, dengan tombol Insert supaya user sendiri yang menjalankannya. Pakai ini kalau user minta perintah atau menanyakan cara melakukan sesuatu di terminal. JANGAN pakai ini untuk menjalankan sesuatu - untuk itu ada bash_run.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Perintah lengkap yang disarankan, siap tempel.' },
+          alasan: { type: 'string', description: 'Satu kalimat: apa yang dilakukan perintah ini.' },
+        },
+        required: ['command'],
+      },
+    },
+    run: async (a) => {
+      const command = wajib(a, 'command');
+      if (/[\r\n]/.test(command)) {
+        /*
+         * Satu baris saja. Perintah multi-baris yang ditempel ke terminal
+         * dijalankan baris demi baris, dan user tidak pernah melihat mana yang
+         * dimaksud sebagai satu perintah.
+         */
+        throw new Error('ERROR: suggest_command menerima SATU baris perintah; kirim perintah majemuk dengan && atau ;.');
+      }
+      const alasan = String(a.alasan ?? '').trim();
+      useAi.getState().setCommandSuggestion({ command, alasan: alasan || undefined });
+      return `Kartu saran ditampilkan (belum dijalankan): ${command}${alasan ? `\nAlasan: ${alasan}` : ''}`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'get_terminal_output',
+      description:
+        'Baca potongan TERAKHIR dari scrollback terminal yang sedang aktif - keluaran yang sudah terlihat di layar. Pakai untuk memeriksa hasil perintah yang baru dijalankan. Terminal private tidak bisa dibaca dan akan menjawab demikian.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lines: { type: ['number', 'string'], description: 'Jumlah baris terakhir, default 80.' },
+          paneId: { type: 'string', description: 'ID pane tertentu; kosongkan untuk pane yang sedang aktif.' },
+        },
+        required: [],
+      },
+    },
+    run: async (a) => {
+      /*
+       * `terminalStore` di-import DINAMIS, bukan di puncak berkas.
+       *
+       * Store itu menarik xterm, yang hanya jalan di browser. Import statis di
+       * sini membuat seluruh rantai `agentTools -> builtins -> terminalStore`
+       * gagal dimuat di Node (`self is not defined`), dan itu mematikan
+       * `scripts/verify-tools-runtime.mjs` yang menjalankan bundel di Node
+       * untuk memeriksa tool yang benar-benar terpasang.
+       */
+      const { useTerminal } = await import('../terminalStore');
+      const t = useTerminal.getState();
+      const tab = t.terminalTabs.find((x) => x.id === t.activeTabId);
+      const targetId = String(a.paneId ?? '') || tab?.activePaneId || tab?.panes[0]?.id;
+      if (!targetId) return 'Tidak ada terminal yang aktif.';
+      const pane = t.allPanes().find((p) => p.id === targetId);
+      if (pane?.kind === 'private') {
+        /*
+         * Terminal private menjanjikan scrollback yang tidak disimpan -
+         * itu alasan mode ini ada. Membacanya lewat tool akan membatalkan
+         * janji itu, jadi jawabannya menolak dengan menyebut alasannya.
+         */
+        return 'Pane ini terminal private: scrollback-nya sengaja tidak dibaca oleh agen.';
+      }
+      const baris = Math.min(500, Math.max(1, bacaAngka(a.lines, 80) ?? 80));
+      const teks = await cmd.ptyTail(targetId, baris).catch(() => '');
+      if (!teks.trim()) return `Terminal ${targetId}: (belum ada keluaran).`;
+      return potong(`Terminal ${targetId}, ${baris} baris terakhir:\n${teks}`);
+    },
+  },
+
+  {
+    spec: {
+      name: 'open_preview',
+      description:
+        'Buka pratinjau halaman lokal di pane browser - untuk melihat hasil dev server (localhost). Hanya alamat localhost/127.0.0.1 yang diterima; alamat luar pakai browser_open.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Alamat localhost, mis. http://localhost:5173.' },
+        },
+        required: ['url'],
+      },
+    },
+    run: async (a) => {
+      const raw = wajib(a, 'url').trim();
+      const url = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+      let host = '';
+      try {
+        host = new URL(url).hostname.toLowerCase();
+      } catch {
+        throw new Error(`ERROR: alamat tidak valid: ${raw}`);
+      }
+      /*
+       * Dibatasi localhost dengan sengaja. Pratinjau ada untuk memeriksa apa
+       * yang baru saja dijalankan di mesin ini, dan membiarkannya menerima
+       * alamat apa pun berarti ia menjadi jalan kedua - tanpa pemeriksaan
+       * izin - menuju internet lewat pane browser.
+       */
+      const lokal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1' || host.endsWith('.localhost');
+      if (!lokal) {
+        throw new Error(`ERROR: open_preview hanya untuk alamat localhost. Untuk ${host}, pakai browser_open.`);
+      }
+      /*
+       * Memakai `addPane` yang SAMA dengan `browser_open`. Menulis koordinat
+       * webview sendiri di sini akan membuat pane pratinjau berbeda perilaku
+       * dari pane browser biasa - dan perbedaan itu hanya muncul di layar,
+       * bukan di uji.
+       */
+      const { useTerminal } = await import('../terminalStore');
+      const t = useTerminal.getState();
+      const sudah = t.allPanes().find((p) => p.kind === 'browser' && p.url === url);
+      if (sudah) return `Pratinjau ${url} sudah terbuka di pane ${sudah.id}.`;
+      const paneId = await t.addPane('browser', { url });
+      if (!paneId) {
+        return `Tidak bisa membuka pane pratinjau: ${useTerminal.getState().toast ?? 'batas pane tercapai'}.`;
+      }
+      return `Pratinjau localhost dibuka (pane ${paneId}): ${url}`;
+    },
+  },
 ];
 
 /* ------------------------------------------------------------------ */
