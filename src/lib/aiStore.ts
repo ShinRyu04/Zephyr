@@ -2688,6 +2688,10 @@ export const useAi = create<AiStore>((set, get) => ({
               ],
             }));
             agentStopReason = 'watchdog';
+            /* Stop the RUN, not just this batch - see the note on the browser
+               guard below. A bare `break` leaves the step loop alive and the
+               model simply retries the same call on the next step. */
+            agentBatal = true;
             break;
           }
           /*
@@ -2713,21 +2717,36 @@ export const useAi = create<AiStore>((set, get) => ({
             if (membukaBaru) {
               browserMuter = 0;
             } else {
-              browserMuter += 1;
-              if (browserMuter >= BATAS_BROWSER_MUTER) {
-                akhir =
-                  `Stopped: a page is already open, and ${browserMuter} further browser steps ` +
-                  'made no progress. Report what is on screen and stop; do not inspect it again.';
-                history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: akhir });
-                set((s) => ({
-                  agentSteps: [
-                    ...s.agentSteps,
-                    { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: akhir.slice(0, 400), ok: false, at: Date.now() },
-                  ],
-                }));
-                agentStopReason = 'watchdog';
-                break;
-              }
+            browserMuter += 1;
+            if (browserMuter >= BATAS_BROWSER_MUTER) {
+              akhir =
+                `Stopped: a page is already open, and ${browserMuter} further browser steps ` +
+                'made no progress. Report what is on screen and stop; do not inspect it again.';
+              history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: akhir });
+              set((s) => ({
+                agentSteps: [
+                  ...s.agentSteps,
+                  { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: akhir.slice(0, 400), ok: false, at: Date.now() },
+                ],
+              }));
+              agentStopReason = 'watchdog';
+              /*
+               * END THE RUN, not just this batch.
+               *
+               * `break` here leaves only the inner `for i` loop over the
+               * current batch of tool calls. Control returns to the step loop,
+               * which asks the provider for another step - and the model, told
+               * only that this one call was stopped, simply tries again. That
+               * is the "keeps looping" report: the guard fires on every step
+               * and the run never ends, marching to MAX_AGENT_STEPS with the
+               * page already on screen the whole time.
+               *
+               * `agentBatal` is what the step loop actually tests at the top
+               * of each iteration, so setting it is what stops the treadmill.
+               */
+              agentBatal = true;
+              break;
+            }
             }
           }
           /*
@@ -3057,6 +3076,9 @@ export const useAi = create<AiStore>((set, get) => ({
             ],
           }));
           agentStopReason = 'watchdog';
+          /* Same reason as the other guards: `break` only leaves the step loop
+             when the flag is set, so the flag is what actually ends the run. */
+          agentBatal = true;
           break;
         }
       }
