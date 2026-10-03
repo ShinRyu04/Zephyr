@@ -95,7 +95,7 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   {
     cmd: 'explain',
     label: 'Explain the selected code',
-    body: 'Explain the following code line by line: what it does, how data flows, and the parts that are easy to get wrongi.\n\n{sel}',
+    body: 'Explain the following code line by line: what it does, how data flows, and the parts that are easy to get wrong.\n\n{sel}',
     ikon: 'jelas',
   },
   {
@@ -119,13 +119,13 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   {
     cmd: 'test',
     label: 'Write unit tests',
-    body: 'Write unit tests for the following code. Use the framework this project already uses and cover the important edge casesting.\n\n{sel}',
+    body: 'Write unit tests for the following code. Use the framework this project already uses and cover the important edge cases.\n\n{sel}',
     ikon: 'uji',
   },
   {
     cmd: 'review',
     label: 'Review the code',
-    body: 'Review the following code: bugs, security issues, performance problems, and convention violations. Order the findings from theng paling penting.\n\n{sel}',
+    body: 'Review the following code: bugs, security issues, performance problems, and convention violations. Order the findings by importance.\n\n{sel}',
     ikon: 'tinjau',
   },
   {
@@ -143,7 +143,7 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   {
     cmd: 'loop',
     label: 'Repeat this task until it is done',
-    body: '',
+    body: 'Keep working on this until it is actually done - verify the result, and do not stop halfway.\n\n{sel}',
     aksi: 'loop',
     ikon: 'putar',
   },
@@ -157,7 +157,7 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   {
     cmd: 'goal',
     label: 'Write a plan for the current task',
-    body: '',
+    body: 'Write a step-by-step plan for this task, then work through it one step at a time.\n\n{sel}',
     aksi: 'goal',
     ikon: 'sasaran',
   },
@@ -185,7 +185,7 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
   {
     cmd: 'btw',
     label: 'Sisipkan pertanyaan singkat di luar topik',
-    body: '',
+    body: 'Ngomong-ngomong, {sel}',
     aksi: 'btw',
     ikon: 'sisip',
   },
@@ -281,14 +281,78 @@ export function expandSnippet(draft: string, sel: string): string {
   return `${sebelum}${item.body}${sesudah || (sel ? '' : '')}`;
 }
 
+/**
+ * Turn a picked prompt into the text that goes in the composer.
+ *
+ * THE SHAPE, and why it changed:
+ *
+ * A slash command now STAYS in the composer - `/explain` is written back as
+ * `/explain ` and the cursor is placed after it, so the command reads as a
+ * command and the user can type an argument next to it. Picking a prompt used to
+ * replace the whole line with the template body, which had three problems the
+ * user reported directly:
+ *
+ *   1. The command vanished. You could not see which one you had picked, and
+ *      typing a second one meant retyping the slash.
+ *   2. There was nowhere to put an argument. `/explain this function` is the
+ *      natural thing to type, but the picker consumed the line.
+ *   3. `{sel}` stayed literal when nothing was selected. The body's placeholder
+ *      was replaced with an empty string only if there WAS a selection, so an
+ *      unselected `/explain` sent the model the text "{sel}".
+ *
+ * The template body is NOT lost - it is applied at SEND time (see
+ * `expandPromptBody`), where the argument and the selection are both known. That
+ * is the split the reference uses: the composer holds the command, the send path
+ * holds the expansion.
+ */
 export function expandPrompt(draft: string, sel: string): string {
+  void sel;
   const m = /^\/([\w-]+)\s*([\s\S]*)$/.exec(draft);
   if (!m) return draft;
   const item = allPrompts().find((p) => p.cmd === m[1].toLowerCase());
   if (!item) return draft;
-  const sisa = m[2].trim();
-  if (item.body.includes('{sel}')) {
-    return item.body.replace('{sel}', sisa || sel || '');
-  }
-  return sisa ? `${item.body}\n\n${sisa}` : item.body;
+  /*
+   * Commands with no body act immediately (handled by the caller). For the ones
+   * with a body, the composer keeps `/<cmd> <argument>` exactly as typed.
+   */
+  if (!item.body) return draft;
+  return `/${item.cmd} ${m[2].trim()}`.trimEnd() + ' ';
+}
+
+/**
+ * Expand a command into the message that is actually sent.
+ *
+ * Called on the send path, where both the argument (what the user typed after
+ * the command) and the editor selection are available. The template's `{sel}`
+ * is filled with the argument when there is one, the selection otherwise, and
+ * the placeholder is removed entirely when neither exists - so the model never
+ * receives a literal `{sel}`.
+ */
+export function expandPromptBody(
+  draft: string,
+  sel: string,
+): { kirim: string; tampil: string } | null {
+  const m = /^\/([\w-]+)\s*([\s\S]*)$/.exec(draft);
+  if (!m) return null;
+  const item = allPrompts().find((p) => p.cmd === m[1].toLowerCase());
+  if (!item || !item.body) return null;
+  /*
+   * The argument wins over the editor selection: if the user typed something
+   * after the command, that is what they mean, and reaching for the selection
+   * as well would silently append unrelated code.
+   */
+  const isi = m[2].trim() || sel.trim();
+  /*
+   * `.trimEnd()` matters when nothing was filled in: every body ends in `{sel}`
+   * after a blank line, so an empty argument used to leave the message with two
+   * trailing newlines. Harmless to the model, visible in the transcript.
+   */
+  const kirim = (
+    item.body.includes('{sel}')
+      ? item.body.replace('{sel}', isi)
+      : isi
+        ? `${item.body}\n\n${isi}`
+        : item.body
+  ).trimEnd();
+  return { kirim, tampil: draft };
 }

@@ -8,6 +8,8 @@ import {
 import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, PROVIDER_BY_ID } from './modelCatalog';
+import { expandPromptBody } from './promptLibrary';
+import { activeSelection } from './editorRegistry';
 import { useAiDebug } from './aiDebugStore';
 import { useToolGate, TOOL_DISK_TULIS } from './toolGate';
 import {
@@ -748,6 +750,18 @@ export function statusPekerjaan(
   return baris.join('\n');
 }
 
+/*
+ * Expand a leading slash command in a message about to be sent.
+ *
+ * `/explain why this fails` becomes the template body with the argument and the
+ * editor selection filled in. A message that does not start with a known command
+ * is returned untouched, which is what keeps ordinary text - including text that
+ * happens to start with a slash, like a path - safe.
+ */
+function perluasPerintah(teks: string): { kirim: string; tampil: string } {
+  return expandPromptBody(teks, activeSelection()) ?? { kirim: teks, tampil: teks };
+}
+
 let agentConfirmResolve: ((ok: boolean) => void) | null = null;
 
 /*
@@ -1247,7 +1261,7 @@ interface AiActions {
 
   setReasoningEffort: (e: ReasoningEffort | null) => void;
 
-  sendAgent: (text: string, images?: string[]) => Promise<boolean>;
+  sendAgent: (text: string, images?: string[], tampilBubble?: string) => Promise<boolean>;
 
   /**
    * Manually compact the active session's context.
@@ -1958,25 +1972,49 @@ export const useAi = create<AiStore>((set, get) => ({
 
   send: async (text, images): Promise<boolean> => {
     get().sinkronProvider();
-    const raw = (text ?? get().draft).trim();
+    const diketik = (text ?? get().draft).trim();
+    /*
+     * Expand a leading slash command into the message the model receives.
+     *
+     * The composer keeps `/explain why this fails` visible while the user types,
+     * so the command has to be turned into the template body before the request
+     * goes out. This is the one place every send path passes through - Enter, the
+     * send button, and the queued-message drain all end up here - so the
+     * expansion cannot differ between them.
+     *
+     * `diketik` (what the user typed) is kept for the prompt history and for the
+     * bubble in the transcript: seeing `/loop cek build` back is more useful than
+     * seeing the paragraph it expanded to. Only the request to the provider uses
+     * the expanded text.
+     */
+    const perluas = perluasPerintah(diketik);
+    const raw = perluas.kirim;
+    const tampil = perluas.tampil;
     const imgs = images ?? get().draftImages;
     if (!raw && imgs.length === 0) return false;
 
-    if (raw) get().addPromptHistory(raw);
+    if (diketik) get().addPromptHistory(diketik);
 
     if (get().agentMode === 'agent') {
       if (get().agentBusy) {
         // Park it instead of refusing: the composer accepts the message and it
         // goes out as soon as the running task finishes.
-        set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: raw, images: imgs }] }));
+        /*
+         * The queue holds what the user TYPED, not the expanded text: the drain
+         * runs it back through `send`, which expands it again. Storing the
+         * expanded form would work too - a body does not start with a slash, so
+         * a second pass leaves it alone - but the queued row would then show the
+         * paragraph instead of the command, and the two paths would drift.
+         */
+        set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
         set({ draft: '', draftImages: [], toast: tx('Added to the queue') });
         return true;
       }
-      return get().sendAgent(raw, imgs);
+      return get().sendAgent(raw, imgs, tampil);
     }
     if (get().pending) {
       // Same rule in chat mode: queue it rather than dropping the text.
-      set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: raw, images: imgs }] }));
+      set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
       set({ draft: '', draftImages: [], toast: tx('Added to the queue') });
       return true;
     }
@@ -2083,7 +2121,9 @@ export const useAi = create<AiStore>((set, get) => ({
         const userMsg: ChatMsg = {
           id: nextId('m'),
           role: 'user',
-          content,
+          /* Same rule as the agent path: the bubble shows the command as typed,
+             the provider gets the expanded body. */
+          content: tampil,
           at: Date.now(),
           attached,
 
@@ -2249,7 +2289,7 @@ export const useAi = create<AiStore>((set, get) => ({
     return true;
   },
 
-  sendAgent: async (raw, explicitImages) => {
+  sendAgent: async (raw, explicitImages, tampilBubble) => {
     get().sinkronProvider();
     clearGambarMenunggu();
     if (get().pending || get().agentBusy) {
@@ -2295,7 +2335,13 @@ export const useAi = create<AiStore>((set, get) => ({
     const userMsg: ChatMsg = {
       id: nextId('m'),
       role: 'user',
-      content,
+      /*
+       * Show the command as typed. The model gets the expanded body (that is
+       * `content`), but the transcript is for the person reading it back: a
+       * `/loop cek build` bubble says what was asked far better than the
+       * paragraph it turned into.
+       */
+      content: tampilBubble ?? content,
       at: Date.now(),
       images: agentImages.length > 0 ? agentImages : undefined,
       image: agentImages[0],

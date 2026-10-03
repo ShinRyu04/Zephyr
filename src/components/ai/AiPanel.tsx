@@ -653,22 +653,40 @@ const JEJAK_TOOL_MAKS = 4;
           void runCommand('help.shortcuts');
           break;
 
-        // These three fill the composer instead of acting, so the user can see
-        // and edit the text before sending.
+        /*
+         * These three stay in the composer as COMMANDS, not as replacement text.
+         *
+         * They used to overwrite the draft with a fixed sentence, so picking
+         * `/loop` left you with a paragraph and no command - you could not see
+         * what you had chosen, could not add your own instruction, and could not
+         * pick a second command without retyping the slash. The user asked for
+         * the reference behaviour, and it is the better one: the command stays,
+         * the cursor lands after it, and what you type next becomes the argument.
+         *
+         * The expansion to the full instruction happens at send time
+         * (`expandPromptBody`), which is also where the editor selection is
+         * available.
+         */
         case 'loop':
-          setDraft('Continue the previous task until it is actually done. Do not stop halfway.');
+          setDraft('/loop ');
           break;
         case 'goal':
-          setDraft('Write a step-by-step plan for this task, then work through it one step at a time.');
+          setDraft('/goal ');
           break;
         case 'btw':
-          setDraft('Ngomong-ngomong, ');
+          setDraft('/btw ');
           break;
       }
       inputRef.current?.focus();
       return;
     }
 
+    /*
+     * A picked template stays in the composer as `/cmd `, with the cursor after
+     * it. The body is applied when the message is sent, not here - see
+     * `expandPrompt` and `perluasPerintah`. This is what lets the user type an
+     * argument next to the command instead of replacing the whole line.
+     */
     setDraft(
       modeSnippet
         ? expandSnippet(draft, activeSelection())
