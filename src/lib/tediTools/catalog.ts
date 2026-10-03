@@ -23,6 +23,8 @@
  * klasifikasi apa pun. Sekarang daftar ini yang menentukan.
  */
 
+import { DESKRIPSI_TOOL_ID } from './deskripsiTool';
+
 /** Sumber tool, untuk ditampilkan di picker sebagai bagian terpisah. */
 export type ToolSource = 'builtin' | 'mcp' | 'web';
 
@@ -185,7 +187,12 @@ function rakit(
     group,
     effect,
     needsApproval,
-    description,
+    /* Deskripsi tidak lagi diketik di baris katalog, melainkan diambil dari
+       deskripsiTool.ts. Tujuannya supaya katalog hanya memutuskan perilaku
+       (nama, kelompok, efek, izin), sedangkan teks yang dibaca manusia bisa
+       berganti bahasa tanpa menyentuh keputusan itu. Sumber bawaannya tetap
+       Indonesia, sama seperti teks aslinya dulu. */
+    description: DESKRIPSI_TOOL_ID[source === 'mcp' ? `mcp__tedi__${nama}` : nama] ?? description,
   }));
 }
 
@@ -240,7 +247,63 @@ export const TOOL_BAWAAN_AKTIF: readonly string[] = TOOL_CATALOG.filter(
   (t) => t.source !== 'web',
 ).map((t) => t.name);
 
+/**
+ * Tool web yang MATI pada profil baru - yang bertindak, bukan yang membaca.
+ *
+ * ## Kenapa daftar MATI, bukan daftar NYALA
+ *
+ * Versi sebelumnya menyebut yang NYALA, dan itu arah yang salah. Daftar nyala
+ * berarti tool web BARU lahir mati, dan kelahirannya yang perlu disadari
+ * seseorang; kalau terlewat, ia mati diam-diam sampai user melihat baris merah
+ * di transkrip. Itu yang persis terjadi pada `browser_list`:
+ *
+ *   1. User meminta agen membuka sebuah URL.
+ *   2. Agen memanggil `browser_list` dulu untuk melihat apakah halamannya
+ *      sudah terbuka - langkah yang wajar.
+ *   3. Sekat menolaknya karena tool itu tidak ada di daftar nyala.
+ *   4. Baris merah "List pages - failed" muncul di transkrip.
+ *   5. Agen kehilangan jalan membuka pane, lalu beralih ke `web_fetch`
+ *      berulang kali, dan pengawas anti-loop menghentikan seluruh giliran.
+ *
+ * Dengan daftar MATI, arah salahnya terbalik dan jauh lebih aman: tool baru
+ * lahir BISA DIPAKAI. Yang perlu disadari seseorang adalah tool yang berbahaya,
+ * dan tool berbahaya selalu ditulis dengan sadar - tidak ada yang menambahkan
+ * "klik elemen di halaman user" tanpa memikirkannya.
+ *
+ * ## Isinya: yang mengubah sesuatu di luar Zephyr
+ *
+ *   browser_click, browser_type   - bertindak atas nama user di halaman web
+ *   browser_download_url          - menulis berkas dari internet ke disk
+ *   browser_close                 - menutup pane yang mungkin sedang dibaca
+ *   system_browser_open           - melempar keluar ke browser sistem
+ *
+ * `web_search` dan `web_fetch` TIDAK di sini meski efeknya `net`: keduanya
+ * cuma mengirim permintaan GET dan mengembalikan teks. Ia mengirim data ke
+ * luar, tapi data itu adalah URL yang diminta agen sendiri - bukan isi mesin
+ * user, bukan isi berkas, bukan sesuatu yang perlu izin.
+ */
+const WEB_MATI: readonly string[] = [
+  'browser_click',
+  'browser_type',
+  'browser_download_url',
+  'browser_close',
+  'system_browser_open',
+];
+
+/**
+ * Tool web yang nyala pada profil baru: katalog web DIKURANGI daftar mati.
+ *
+ * Tinggal di sini, bukan di `toolGate.ts`, karena `periksaKatalog()` di berkas
+ * ini yang memeriksanya - pemeriksaan yang membaca daftarnya dari berkas lain
+ * akan menyeret impor melingkar.
+ */
+export const TOOL_WEB_AKTIF_AWAL: readonly string[] = TOOL_CATALOG.filter(
+  (t) => t.source === 'web' && !WEB_MATI.includes(t.name),
+).map((t) => t.name);
+
 /** Peta nama -> entri, untuk pencarian cepat. */
+export { deskripsiTool } from './deskripsiTool';
+
 export const TOOL_BY_NAME: ReadonlyMap<string, ToolCatalogEntry> = new Map(
   TOOL_CATALOG.map((t) => [t.name, t]),
 );
@@ -308,24 +371,47 @@ export function periksaKatalog(): string[] {
   }
 
   /*
-   * Empat tool web BACA yang menyala default, dan hanya empat itu.
+   * Tool web BACA yang menyala default - dan hanya yang efeknya membaca.
    *
-   * Ini yang menahan janji "43 inti wajib kepake" tetap benar SEKALIGUS menjaga
-   * supaya kemampuan yang bertindak tidak diam-diam jadi default. Katalog boleh
-   * memuat 54, tapi yang menyala sendiri hanya 43 + 4.
+   * ## Kenapa pemeriksaan ini TIDAK memakai daftar nama sendiri
    *
-   * Yang diperiksa karena itu bukan "apakah web", melainkan "apakah dia salah
-   * satu dari empat yang boleh". Tool web BARU tidak ada di daftar itu, jadi ia
-   * tertahan sampai seseorang menambahkannya dengan sadar - bukan menyala
-   * hanya karena `source`-nya kebetulan 'web'.
+   * Versi sebelumnya menulis ulang keempat nama di sini
+   * (`['browser_open','browser_read','browser_nav','web_fetch']`), jadi aturan
+   * "web baca boleh nyala" hidup di DUA tempat: di `toolGate.ts` sebagai
+   * keputusan, dan di sini sebagai salinan. Salinan itulah yang membuat
+   * `browser_list` bisa tertinggal di kedua-duanya sekaligus, tanpa satu pun
+   * pemeriksaan berbunyi - karena pemeriksaannya membandingkan daftar dengan
+   * dirinya sendiri.
+   *
+   * Sekarang yang diperiksa adalah ATURANNYA, bukan namanya: setiap tool web
+   * ber-efek `read` harus ada, harus benar-benar bersumber web, dan - yang
+   * paling penting - TIDAK boleh menuntut izin per panggilan. Membaca yang
+   * minta izin berarti dua lapis penjagaan untuk perbuatan yang tidak mengubah
+   * apa pun; user akan menekan "izinkan" puluhan kali untuk hal yang tidak
+   * berisiko, dan itu melatihnya mengklik tanpa membaca.
    */
-  const WEB_BACA_SAJA = new Set(['browser_open', 'browser_read', 'browser_nav', 'web_fetch']);
-  for (const n of WEB_BACA_SAJA) {
+  const webSemua = TOOL_CATALOG.filter((t) => t.source === 'web');
+  if (webSemua.length === 0) {
+    masalah.push('tidak ada satu pun tool web - blok WEB di katalog hilang?');
+  }
+  /* Gagal-terbuka bukan berarti gagal-aman: tool yang mengubah sesuatu di luar
+     Zephyr tetap harus meminta izin per panggilan. Kalau daftar mati berubah
+     dan sebuah tool bertindak jadi nyala, izin inilah jaring terakhirnya. */
+  for (const t of webSemua) {
+    const bertindak = t.effect === 'netWrite' || t.effect === 'fsWrite' || t.effect === 'appWrite';
+    if (bertindak && !t.needsApproval) {
+      masalah.push(`tool web yang bertindak harus minta izin: ${t.name}`);
+    }
+  }
+  /* Keputusan sekat dan aturan katalog harus sepakat. Kalau sekat menyalaikan
+     sesuatu yang efeknya bukan membaca, itu perluasan izin yang tidak disengaja
+     dan harus ketahuan di sini, bukan saat user melihatnya gagal. */
+  for (const n of TOOL_WEB_AKTIF_AWAL) {
     const t = TOOL_BY_NAME.get(n);
-    if (!t) masalah.push(`tool web baca-saja tidak ada di katalog: ${n}`);
+    if (!t) masalah.push(`tool web aktif-default tidak ada di katalog: ${n}`);
     else if (t.source !== 'web') masalah.push(`bukan tool web: ${n}`);
-    else if (t.effect !== 'net' && t.effect !== 'read') {
-      masalah.push(`tool web baca-saja tidak boleh mengubah sesuatu: ${n}`);
+    else if (t.effect !== 'read' && t.effect !== 'net') {
+      masalah.push(`tool web aktif-default tidak boleh mengubah sesuatu: ${n}`);
     }
   }
 

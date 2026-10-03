@@ -17,6 +17,47 @@
 import { useStore } from '../store';
 import { useTerminal } from '../terminalStore';
 import * as cmd from '../commands';
+import { kutipUrlDiPerintah } from '../kutipPerintah';
+
+/*
+ * Berapa kali perintah yang SAMA BOLEH dikirim sebelum ditolak.
+ *
+ * Tiga, bukan satu: mengirim ulang sekali setelah menunggu proses yang lambat
+ * adalah wajar, dan menolak pada percobaan kedua akan menghentikan pekerjaan
+ * yang sah. Tetapi tiga kali tanpa kemajuan berarti agen mengulang, bukan
+ * menunggu - dan pada titik itu satu pesan lebih berguna daripada percobaan
+ * keempat.
+ */
+const BATAS_PERINTAH_SAMA = 3;
+
+/*
+ * Status di tingkat MODUL, bukan di dalam handler.
+ *
+ * Kalau penghitungnya dibuat di dalam `run`, ia akan nol lagi setiap panggilan
+ * dan tidak pernah mencapai batas - penjaga yang tampak ada tapi tidak bekerja.
+ * Sudah terbukti berkali-kali di proyek ini: status yang seharusnya bertahan
+ * antar-panggilan tidak boleh hidup di dalam panggilan.
+ */
+let perintahTerakhir = '';
+let hitunganPerintahSama = 0;
+
+/** Catat perintah; kembalikan berapa kali perintah itu dikirim berturut-turut. */
+function catatPerintahSama(perintah: string): number {
+  const bersih = perintah.trim();
+  if (bersih === perintahTerakhir) {
+    hitunganPerintahSama += 1;
+  } else {
+    perintahTerakhir = bersih;
+    hitunganPerintahSama = 1;
+  }
+  return hitunganPerintahSama;
+}
+
+/** Dipakai uji: mengembalikan penghitung ke keadaan awal. */
+export function resetPenjagaPerintahSama(): void {
+  perintahTerakhir = '';
+  hitunganPerintahSama = 0;
+}
 import type { AgentTool } from '../agentTools';
 import { potong, bacaAngka, wajib, periksaPerintah } from './builtins';
 
@@ -26,14 +67,14 @@ export const TOOL_MCP: AgentTool[] = [
     spec: {
       name: 'mcp__tedi__inspect',
       description:
-        'Periksa isi internal editor: commands, extensions, settings, workspaces, atau logs.',
+        'Inspect the internal state of the editor: commands, extensions, settings, workspaces, or logs.',
       parameters: {
         type: 'object',
         properties: {
           what: {
             type: 'string',
             enum: ['commands', 'extensions', 'settings', 'workspaces', 'logs'],
-            description: 'Apa yang ingin diperiksa.',
+            description: 'What to inspect.',
           },
         },
         required: ['what'],
@@ -76,11 +117,11 @@ export const TOOL_MCP: AgentTool[] = [
   {
     spec: {
       name: 'mcp__tedi__run_command',
-      description: 'Jalankan command internal aplikasi berdasarkan ID.',
+      description: 'Run an internal application command by its ID.',
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'string', description: 'ID command, mis. workbench.action.splitEditor.' },
+          id: { type: 'string', description: 'Command ID, e.g. workbench.action.splitEditor.' },
         },
         required: ['id'],
       },
@@ -108,11 +149,11 @@ export const TOOL_MCP: AgentTool[] = [
   {
     spec: {
       name: 'mcp__tedi__open_file',
-      description: 'Buka sebuah berkas di tab editor.',
+      description: 'Open a file in an editor tab.',
       parameters: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: 'Jalur absolut atau relatif ke berkas.' },
+          path: { type: 'string', description: 'Absolute or relative path to the file.' },
         },
         required: ['path'],
       },
@@ -129,12 +170,12 @@ export const TOOL_MCP: AgentTool[] = [
   {
     spec: {
       name: 'mcp__tedi__workspace',
-      description: 'Kelola workspace: switch, create, rename, atau remove.',
+      description: 'Manage workspaces: switch, create, rename, or remove.',
       parameters: {
         type: 'object',
         properties: {
           action: { type: 'string', enum: ['switch', 'create', 'rename', 'remove'] },
-          path: { type: 'string', description: 'Jalur folder workspace untuk action switch/create.' },
+          path: { type: 'string', description: 'Workspace folder path for the switch/create action.' },
         },
         required: ['action'],
       },
@@ -155,12 +196,12 @@ export const TOOL_MCP: AgentTool[] = [
   {
     spec: {
       name: 'mcp__tedi__set_setting',
-      description: 'Ubah salah satu preferensi atau setelan aplikasi.',
+      description: 'Change one application preference or setting.',
       parameters: {
         type: 'object',
         properties: {
-          key: { type: 'string', description: 'Kunci setelan, mis. editor.fontSize.' },
-          value: { type: 'string', description: 'Nilai baru dalam bentuk teks atau JSON.' },
+          key: { type: 'string', description: 'Setting key, e.g. editor.fontSize.' },
+          value: { type: 'string', description: 'New value, as text or JSON.' },
         },
         required: ['key', 'value'],
       },
@@ -174,7 +215,15 @@ export const TOOL_MCP: AgentTool[] = [
       } catch {
         // biarkan string
       }
-      await cmd.setSettings({ patch: { [key]: parsedVal } });
+      /*
+       * `cmd.setSettings` takes the patch ITSELF, not a record with a `patch`
+       * key - `commands.ts:112` spreads it into the invoke payload as `{ patch }`.
+       * Wrapping it here produced a literal key called "patch" in settings.json
+       * and merged that instead, so this tool reported success every time and
+       * never changed a single setting. The wrong shape was invisible because it
+       * still type-checks: `Record<string, unknown>` accepts anything.
+       */
+      await cmd.setSettings({ [key]: parsedVal });
       return `Setelan diperbarui: ${key} = ${val}`;
     },
   },
@@ -308,8 +357,44 @@ export const TOOL_MCP: AgentTool[] = [
         ? String(a.leafId)
         : activeTab?.activePaneId ?? activeTab?.panes[0]?.id;
       if (!targetId) throw new Error('ERROR: tidak ada terminal aktif untuk menerima perintah sh.');
-      await cmd.ptyWrite(targetId, command + '\r');
-      return `Perintah dikirim ke terminal ${targetId}: ${command}`;
+      /*
+       * URL dengan `&` dikutip DULU.
+       *
+       * Tanpa ini, shell memecah `yt-dlp https://.../watch?v=a&list=b` menjadi
+       * perintah latar belakang plus dua perintah gagal. Prompt kembali cepat
+       * karena bagian pertama dilepas ke background, jadi agen mengira belum
+       * jalan dan mengirimnya lagi - berulang. Itu loop yang dilaporkan user.
+       *
+       * Hasilnya dilaporkan kembali supaya agen tahu perintahnya DISESUAIKAN,
+       * bukan sekadar dijalankan apa adanya.
+       */
+      const { perintah: aman, diubah } = kutipUrlDiPerintah(command);
+      /*
+       * Penjaga pengulangan.
+       *
+       * Kutipan di atas mencegah loop karena `&`. Penjaga ini menangkap SEBAB
+       * LAIN yang belum terpikirkan: agen mengirim perintah yang sama persis
+       * berkali-kali karena mengira yang pertama tidak jalan (perintah yang
+       * memang tidak menghasilkan output, atau yang gagal tanpa pesan jelas).
+       *
+       * Ditolaknya berupa PESAN, bukan diam - agen harus tahu kenapa, kalau
+       * tidak ia akan mengira toolnya rusak dan menempuh jalan lain yang lebih
+       * berbahaya.
+       */
+      const berulang = catatPerintahSama(aman);
+      if (berulang > BATAS_PERINTAH_SAMA) {
+        return (
+          `Perintah yang sama sudah dikirim ${berulang - 1} kali berturut-turut dan tidak ada gunanya mengirim lagi.\n` +
+          `Perintah: ${aman}\n` +
+          'Kalau kamu mengira perintahnya belum jalan, periksa keluaran terminal dengan get_terminal_output ' +
+          'alih-alih mengirim ulang. Kalau perintahnya gagal, BACA pesan errornya dan perbaiki penyebabnya. ' +
+          'Kalau perintahnya tidak menghasilkan apa-apa, itu memang hasilnya - lanjutkan.'
+        );
+      }
+      await cmd.ptyWrite(targetId, aman + '\r');
+      return diubah
+        ? `Perintah dikirim ke terminal ${targetId} (URL dikutip otomatis agar & tidak memecah perintah): ${aman}`
+        : `Perintah dikirim ke terminal ${targetId}: ${aman}`;
     },
   },
 

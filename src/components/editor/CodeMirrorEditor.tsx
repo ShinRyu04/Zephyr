@@ -51,6 +51,7 @@ import {
 import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
+import { vim } from '@replit/codemirror-vim';
 import { useStore } from '../../lib/store';
 import { useTerminal } from '../../lib/terminalStore';
 import { usePanel } from '../../lib/panelStore';
@@ -132,6 +133,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
   const langComp = useRef(new Compartment());
   const wsComp = useRef(new Compartment());
   const themeComp = useRef(new Compartment());
+  const vimComp = useRef(new Compartment());
 
   const extrasComp = useRef(new Compartment());
   const pending = useRef<number | null>(null);
@@ -233,6 +235,20 @@ export default function CodeMirrorEditor({ tab }: Props) {
 
       extrasComp.current.of(extrasEditor(editorSettings, readOnly, lowRam)),
       baseKeymap,
+      /*
+       * Vim sits AFTER `baseKeymap` on purpose.
+       *
+       * vim() installs its own keymap, and precedence in CodeMirror is resolved
+       * by the order the keymap extensions are registered: whichever is read
+       * first wins. Placing it last makes the vim bindings authoritative while
+       * the mode is on; the built-in keymap still covers every key vim leaves
+       * unbound, so no shortcut is lost.
+       *
+       * It goes through a compartment so toggling the setting reconfigures the
+       * live view instead of rebuilding it - rebuilding would drop the undo
+       * history and the scroll position.
+       */
+      vimComp.current.of(editorSettings.vimMode && !readOnly ? vim() : []),
       langComp.current.of([]),
       wsComp.current.of(editorSettings.showWhitespace ? highlightWhitespace() : []),
       wrapComp.current.of(editorSettings.wordWrap ? EditorView.lineWrapping : []),
@@ -442,6 +458,7 @@ export default function CodeMirrorEditor({ tab }: Props) {
           indentUnit.of(editorSettings.insertSpaces ? ' '.repeat(editorSettings.tabSize) : '\t'),
         ),
         wsComp.current.reconfigure(editorSettings.showWhitespace ? highlightWhitespace() : []),
+        vimComp.current.reconfigure(editorSettings.vimMode && !readOnly ? vim() : []),
       ],
     });
   }, [
@@ -449,6 +466,8 @@ export default function CodeMirrorEditor({ tab }: Props) {
     editorSettings.insertSpaces,
     editorSettings.tabSize,
     editorSettings.showWhitespace,
+    editorSettings.vimMode,
+    readOnly,
   ]);
 
   useEffect(() => {

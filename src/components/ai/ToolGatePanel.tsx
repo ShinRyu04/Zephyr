@@ -4,9 +4,17 @@ import {
   useToolGate,
   TOOL_GROUPS,
   SEMUA_TOOL,
-  TOOL_DESKRIPSI,
   SECTION_URUTAN,
 } from '../../lib/toolGate';
+/*
+ * Hook diimpor dari berkas Hook yang terpisah.
+ *
+ * `deskripsiTool.ts` sengaja murni data supaya `catalog.ts` tidak menarik
+ * seluruh rantai aplikasi (store -> xterm -> CodeMirror), yang di Node membuat
+ * `scripts/verify-tedi-catalog.mjs` gagal dimuat. Lihat komentar di
+ * deskripsiToolHook.ts.
+ */
+import { useDeskripsiTool } from '../../lib/tediTools/deskripsiToolHook';
 import AiIkon from './AiIkon';
 
 /*
@@ -23,6 +31,8 @@ import AiIkon from './AiIkon';
  */
 export default function ToolGatePanel() {
   const tr = useT();
+  /* Deskripsi tool ikut bahasa antarmuka yang aktif. */
+  const deskripsi = useDeskripsiTool();
   const buka = useToolGate((s) => s.buka);
   const setBuka = useToolGate((s) => s.setBuka);
   const cari = useToolGate((s) => s.cari);
@@ -269,8 +279,8 @@ export default function ToolGatePanel() {
                                   {aktif.has(nama) && <AiIkon name="check" size={9} />}
                                 </span>
                                 <span className="tg-nama">{namaTampil(nama)}</span>
-                                {TOOL_DESKRIPSI[nama] && TOOL_DESKRIPSI[nama] !== '—' && (
-                                  <span className="tg-objek">{TOOL_DESKRIPSI[nama]}</span>
+                                {deskripsi(nama) && deskripsi(nama) !== '—' && (
+                                  <span className="tg-objek">{deskripsi(nama)}</span>
                                 )}
                               </button>
                             );

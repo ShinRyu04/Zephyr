@@ -450,6 +450,88 @@
   flex-shrink: 0;
 }
 
+/* ---- Custom instructions textarea (Settings → Agents) ---- */
+
+/*
+ * The same box PersonaCard draws, but out here it is not inside
+ * `.subagent-modal`, so the modal-scoped rules never reach it. Restating the
+ * shape here keeps the two fields reading as the same control in the same
+ * section. Monospace because the content is a prompt the model will read
+ * verbatim, not prose to be skimmed.
+ */
+.set-section textarea.subagent-prompt {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--fg0);
+  background: var(--bg1);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, var(--text-muted));
+  border-radius: 6px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.set-section textarea.subagent-prompt::placeholder {
+  color: var(--fg2);
+}
+
+.set-section textarea.subagent-prompt:focus {
+  border-color: var(--accent);
+  background: var(--bg2);
+}
+
+/* ---- Chat snippets (Settings → Agents) ---- */
+
+/*
+ * One snippet per row: command, body, delete. Kept as a row rather than a
+ * column of labelled fields so a list of them scans like the persona list
+ * above it - the command is the identity of a snippet and belongs on its own
+ * line, not buried under a label.
+ */
+.snippet-baris {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 2fr auto;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.snippet-baris:last-child {
+  border-bottom: 0;
+}
+
+.snippet-baris input.input,
+.snippet-baris textarea.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--fg0);
+  background: var(--bg1);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, var(--text-muted));
+  border-radius: 6px;
+  outline: none;
+}
+
+.snippet-baris textarea.input {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.snippet-baris input.input:focus,
+.snippet-baris textarea.input:focus {
+  border-color: var(--accent);
+  background: var(--bg2);
+}
+
 /* ---- Follow-up box on a stopped subagent card ---- */
 
 .sub-lanjut {

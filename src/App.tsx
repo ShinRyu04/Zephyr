@@ -38,7 +38,7 @@ const DebugPanel = lazy(() => import('./components/ai/DebugPanel'));
 const NotesPanel = lazy(() => import('./components/ai/NotesPanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
-import { useStore } from './lib/store';
+import { useStore, pasangAutoSaveFokus, flushSetelanTerakhir } from './lib/store';
 import { useTampilan } from './lib/tampilanStore';
 import { useLayoutCustom } from './lib/layoutStore';
 import { useExplorer } from './lib/explorerStore';
@@ -206,6 +206,12 @@ let gitFsListenerBound = false;
 let gitFsListenerUnlisten: (() => void) | undefined;
 
 let errorHandlersBound = false;
+
+// `onFocusChange` auto save listens on window blur + visibilitychange. A second
+// mount would leave a duplicate pair of listeners firing two saves per focus
+// loss, so the binding is guarded in module scope like the others here.
+let autoSaveFokusBound = false;
+let autoSaveFokusUnlisten: (() => void) | undefined;
 
 let autoCollapsed = false;
 
@@ -788,6 +794,17 @@ export default function App() {
         .onCloseRequested(async (event) => {
           const s = useStore.getState();
           flushTab(s.activeTabId);
+          /*
+           * Settings writes are debounced, so a change made in the last few
+           * hundred milliseconds is still in memory when this runs. Persisting
+           * the session without it meant the user's last setting edit died with
+           * the process and reverted on the next launch, with nothing on screen
+           * to explain why.
+           *
+           * Awaited BEFORE the close proceeds, because after `close()` the
+           * webview is gone and the pending write with it.
+           */
+          await flushSetelanTerakhir();
           await s.persistSession();
           if (!useStore.getState().requestCloseWindow()) {
             event.preventDefault();
@@ -849,6 +866,20 @@ export default function App() {
       focusChgListenerUnlisten = undefined;
       focusChgListenerBound = false;
       delete root.dataset.idle;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Auto save on focus change is a global behaviour, not a per-editor one:
+    // every open tab has to be flushed, not just the active one. The handler
+    // itself decides whether the mode is on, so the listener can stay bound.
+    if (autoSaveFokusBound) return;
+    autoSaveFokusBound = true;
+    autoSaveFokusUnlisten = pasangAutoSaveFokus();
+    return () => {
+      autoSaveFokusUnlisten?.();
+      autoSaveFokusUnlisten = undefined;
+      autoSaveFokusBound = false;
     };
   }, []);
 
@@ -1426,7 +1457,7 @@ export default function App() {
           (a click that flips menuBuka) tears the whole tree down with "A
           component suspended while responding to synchronous input". In dev the
           chunk is already warm from an earlier load, so the bug only shows on a
-          fresh install — where the first click killed the app. */}
+          fresh install, where the first click killed the app. */}
       <Suspense fallback={null}>
         {L.menuBuka && <LayoutMenu onTutup={() => L.setMenuBuka(false)} />}
       </Suspense>

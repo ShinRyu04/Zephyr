@@ -105,6 +105,88 @@ export function GeneralSection() {
         />
       </Row>
 
+      {/*
+        * The four below are new in 1.2.0.
+        *
+        * Each falls back with `?? default` because these keys may be absent on
+        * an upgraded install: `deep_merge` leaves a missing key missing rather
+        * than filling it from the Rust default, and `undefined` on a Toggle
+        * renders as off. An "off" that is really "absent" would be a lie told by
+        * the UI, so the default is stated here as well.
+        */}
+      <Row
+        label={tr('Confirm before closing the window')}
+        hint={tr('asks first if there are unsaved files; a window closed by mistake cannot be undone')}
+      >
+        <Toggle
+          label={tr('Confirm before closing the window')}
+          testid="general-confirm-exit"
+          checked={g.confirmExit ?? true}
+          onChange={(v) => patch({ confirmExit: v })}
+        />
+      </Row>
+
+      {/*
+        * `minimizeToTray` is DISABLED with an explanation, and that is the
+        * honest state of it rather than a shortcut.
+        *
+        * There is no tray in this app: no `tauri-plugin-tray` in Cargo.toml, no
+        * tray setup in main.rs, no `trayIcon` in tauri.conf.json. Turning the
+        * switch on would hide the window with no icon anywhere to bring it back
+        * - the user would have closed Zephyr and lost it, while the process kept
+        * running and kept holding the workspace lock. A switch that does that is
+        * worse than a missing feature.
+        *
+        * It stays visible, greyed, with the reason next to it, so the state of
+        * the feature is legible. A hidden switch would look like it was never
+        * planned; an enabled one would lie.
+        */}
+      <Row
+        label={tr('Keep running in the tray when closed')}
+        hint={tr('not available yet: Zephyr has no tray icon, so a closed window could not be reopened. Coming once the tray is built.')}
+      >
+        <Toggle
+          label={tr('Keep running in the tray when closed')}
+          testid="general-tray"
+          checked={false}
+          disabled
+          onChange={() => undefined}
+        />
+      </Row>
+
+      <Row
+        label={tr('Default terminal')}
+        hint={tr('which shell a new terminal starts; "Default" means the one this system already uses')}
+      >
+        <Select
+          label={tr('Default terminal')}
+          testid="general-terminal"
+          value={g.defaultTerminal ?? 'default'}
+          onChange={(v) => patch({ defaultTerminal: v as typeof g.defaultTerminal })}
+          options={[
+            { value: 'default', label: tr('Default (auto-detect)') },
+            { value: 'pwsh', label: 'PowerShell 7 (pwsh)' },
+            { value: 'powershell', label: 'Windows PowerShell' },
+            { value: 'cmd', label: 'Command Prompt (cmd)' },
+            { value: 'bash', label: 'Bash' },
+            { value: 'wsl', label: 'WSL' },
+          ]}
+        />
+      </Row>
+
+      <Row
+        label={tr('Shell path')}
+        hint={tr('leave empty to use the choice above; set it to point at a shell Zephyr cannot find on its own')}
+      >
+        <TextInput
+          label={tr('Shell path')}
+          testid="general-shell-path"
+          mono
+          value={g.shellPath ?? ''}
+          onChange={(v) => patch({ shellPath: v })}
+        />
+      </Row>
+
       <Row
         label={tr('RAM saver mode')}
         hint={tr('smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines')}
@@ -287,6 +369,54 @@ export function EditorSection() {
           onChange={(v) => patch({ showWhitespace: v })}
         />
       </Row>
+
+      <Row
+        label={tr('editor.vimMode')}
+        hint={tr('Normal/insert/visual modes; the built-in keymap still handles unbound keys')}
+      >
+        <Toggle
+          label={tr('editor.vimMode')}
+          testid="editor-vim"
+          checked={e.vimMode}
+          onChange={(v) => patch({ vimMode: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.autoSave')}
+        hint={tr('saves dirty tabs through the normal save path, so format on save still runs')}
+      >
+        <Select
+          label={tr('editor.autoSave')}
+          testid="editor-autosave"
+          value={e.autoSave}
+          onChange={(v) => patch({ autoSave: v as typeof e.autoSave })}
+          options={[
+            { value: 'off', label: tr('editor.autoSaveOff') },
+            { value: 'afterDelay', label: tr('editor.autoSaveAfterDelay') },
+            { value: 'onFocusChange', label: tr('editor.autoSaveOnFocusChange') },
+          ]}
+        />
+      </Row>
+
+      {/*
+        Only meaningful for `afterDelay`; the delay is ignored by the other two
+        modes, so it stays hidden rather than editable-but-inert.
+      */}
+      {e.autoSave === 'afterDelay' && (
+        <Row label={tr('editor.autoSaveDelay')}>
+          <NumberInput
+            label={tr('editor.autoSaveDelay')}
+            testid="editor-autosave-delay"
+            min={200}
+            max={10000}
+            step={100}
+            value={e.autoSaveDelay}
+            onChange={(v) => patch({ autoSaveDelay: v })}
+            suffix="ms"
+          />
+        </Row>
+      )}
 
       {/* ── phase 24: editor extras ──
           Key names are deliberately the same as VS Code so users switching over do not

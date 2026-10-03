@@ -8,8 +8,6 @@ import { NotifBell } from '../notifications/NotificationCenter';
 import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { useT, useTf } from '../../lib/i18n';
-import { useLayoutCustom } from '../../lib/layoutStore';
-
 /*
  * StrictMode memasang effect DUA kali. onRamUsage masih berjalan saat cleanup
  * dipanggil, jadi unlisten belum ada dan cleanup tidak melepas apa pun; mount
@@ -204,22 +202,22 @@ export default function StatusBar() {
             </button>
             {statusMessage && <span className="sb-item sb-message">{statusMessage}</span>}
             <NotifBell />
-      {/* Customize Layout button in the status bar: the way out if the Menu Bar
-          is turned off. Without this, turning off the Menu Bar = no way
-          to turn it back on except editing settings.json by hand. */}
-      <button
-        className="sb-btn"
-        data-testid="sb-layout"
-        title={tr('Customize Layout…')}
-        aria-label={tr('Customize Layout…')}
-        onClick={() => useLayoutCustom.getState().setMenuBuka(!useLayoutCustom.getState().menuBuka)}
-      >
-        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-          <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M6.4 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M9.6 6.2h3.4M9.6 9.4h3.4" stroke="currentColor" strokeWidth="1.1" />
-        </svg>
-      </button>
+      {/*
+        * Tombol "Customize Layout" DI SINI SUDAH DIBUANG atas permintaan user:
+        * ia muncul dua kali - satu di Menu Bar (di sebelah Notes & todos) dan
+        * satu di sini, tepat setelah lonceng notifikasi.
+        *
+        * Tombol di Menu Bar yang dipertahankan, karena itu tempat yang wajar
+        * untuk kontrol tata letak.
+        *
+        * CATATAN untuk siapa pun yang menyunting ini nanti: tombol ini dulu
+        * adalah jalan keluar bila Menu Bar dimatikan. Setelah dibuang, jalan
+        * itu tinggal Command Palette (`Ctrl+Shift+P`, cari "Customize Layout")
+        * lewat perintah `view.customizeLayout` di commandRegistry.ts. Kalau
+        * suatu saat Menu Bar bisa dimatikan dari UI, pastikan masih ada jalan
+        * membukanya kembali - kalau tidak, user harus menyunting settings.json
+        * dengan tangan.
+        */}
       <button className="sb-btn" title={tr('status.format')} disabled aria-disabled="true">
         {tr('status.format')}
       </button>

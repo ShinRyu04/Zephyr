@@ -184,7 +184,15 @@ export const useHistory = create<HistoryState & HistoryActions>((set, get) => ({
       } else {
         useStore.getState().updateTabContent(tab.id, isi);
       }
-      notifyInfo(tx('Snapshot contents loaded into the editor — not saved yet (Ctrl+S to write)'), {
+      /*
+       * Tanda hubung biasa, BUKAN em dash.
+       *
+       * Kunci ini dulu memakai karakter `U+2014` sementara kesepuluh blok kamus
+       * memakai `U+002D`. Keduanya terlihat hampir sama tetapi berbeda
+       * karakter, sehingga pencarian kamus gagal dan semua bahasa menerima teks
+       * Inggris - tak terlihat selama ini karena kebetulan Inggrisnya benar.
+       */
+      notifyInfo(tx('Snapshot contents loaded into the editor - not saved yet (Ctrl+S to write)'), {
         source: 'history',
       });
       return true;

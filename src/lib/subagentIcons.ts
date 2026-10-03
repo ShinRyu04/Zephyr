@@ -3,7 +3,7 @@
  *
  * Same language as the rest of Zephyr's chrome: one stroke weight (1.4), one
  * 16px grid, round caps, `currentColor`. These replaced a heavier, more
- * ornamental set — the app's own icons (see AiIkon.tsx) are quiet line art, and
+ * ornamental set, the app's own icons (see AiIkon.tsx) are quiet line art, and
  * a sub-agent badge sitting in the same row as them has to match.
  *
  * They differ in SHAPE, not only in tint: the mark appears at 14px in a list,
@@ -94,3 +94,54 @@ export const IKON_LABEL: Record<SubagentIkonId, string> = {
 export function ikonSubagent(id: string | undefined): IkonDef {
   return IKON_SUBAGENT.find((i) => i.id === id) ?? IKON_SUBAGENT[5];
 }
+
+/*
+ * ============================================================================
+ * THE AGENTS PAGE MARK
+ * ============================================================================
+ *
+ * Two marks, not one, and the reason is worth writing down: the first is
+ * borrowed deliberately and the second is ours. Shipping only the borrowed one
+ * would make Zephyr's agent page look like a copy of another app's, and
+ * shipping only ours throws away the shape people already recognise.
+ *
+ * Both are drawn on the same 16px grid with the same 1.4 stroke as everything
+ * else here, so they sit correctly next to `IKON_SUBAGENT` glyphs. Each is
+ * exported as raw path data (not a component) because the two call sites want
+ * different wrappers: a plain `<svg>` in the sidebar, and a sized, class-carrying
+ * svg inside the page header.
+ */
+
+/**
+ * The Terax-style mark: a ring with a spark inside it.
+ *
+ * A ring says "a closed loop that runs on its own", and the spark inside says
+ * "it works" - which is exactly what an agent is. This is the shape the user
+ * pointed at, kept recognisable on purpose: a mark someone already associates
+ * with agents needs no legend.
+ */
+export const IKON_AGEN_TERAX = {
+  /* Two arcs, not a closed circle: the gap at 1 and 5 o'clock keeps the point
+   * where the spark touches from reading as a plain bullseye at 16px. */
+  d: 'M13.1 10.6A5.6 5.6 0 1 0 5.4 13.05',
+  /* The spark: a four-point star, drawn filled so it stays legible at 14px. */
+  dFill: 'M10.6 4.4l.75 1.95 1.95.75-1.95.75-.75 1.95-.75-1.95L7.9 7.1l1.95-.75z',
+};
+
+/**
+ * Zephyr's own mark: a bar, blown to two droplets, in a ring.
+ *
+ * The bar is the shape Zephyr already uses for the prompt (`>_` in AiIkon.tsx),
+ * so this mark is built from the app's own vocabulary rather than borrowed. The
+ * two dots ARE that underscore, broken into a pair that reads as both a caret
+ * and a pair of agents: one mark, split, working together. The ring carries the
+ * same "runs on its own" meaning as above, so the two marks differ in what sits
+ * inside, which is the part that says whose page this is.
+ */
+export const IKON_AGEN_ZEPHYR = {
+  d: 'M13.1 10.6A5.6 5.6 0 1 0 5.4 13.05 M5.4 6.2l1.7 1.9-1.7 1.9',
+  /* Two droplets: the underscore of `>_`, split. Drawn filled - at 2.2px across
+   * an outlined dot reads as a smudge, a filled one reads as a dot. */
+  dFill: 'M9.6 9.3a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z M12.05 9.3a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z',
+};
+

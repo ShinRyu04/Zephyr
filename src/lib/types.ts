@@ -291,7 +291,7 @@ export interface ChatMsg extends AiMessage {
    * Recorded separately from the reasoning text because the two arrive
    * independently: the text streams in chunks and the clock runs on the Rust
    * side, so the block header can state a duration even when the provider sent
-   * no reasoning at all — and it can state it without counting characters.
+   * no reasoning at all, and it can state it without counting characters.
    */
   reasoningMs?: number;
 }
@@ -316,8 +316,8 @@ export interface AgentToolRun {
   /*
    * What the call actually produced, in the same units the tool reported it.
    *
-   * Hermes and TEDI both put a one-line summary on the collapsed row —
-   * "read · 12 lines · 20.7KB", "1 replacement · L72", "+7 −3" — so the reader
+   * Hermes and TEDI both put a one-line summary on the collapsed row , 
+   * "read · 12 lines · 20.7KB", "1 replacement · L72", "+7 −3" ,  so the reader
    * can tell a 12-line read from a 400-line one without opening either. The
    * fields are optional because every transcript written before this existed
    * has none of them, and the row has to render cleanly with no status at all
@@ -333,7 +333,7 @@ export interface AgentToolRun {
    * How a shell call ended, kept apart from its output.
    *
    * A command's exit code is the single most useful fact about it and it used
-   * to be buried in the result text — "exit code: 1" on line one of a 400-line
+   * to be buried in the result text ,  "exit code: 1" on line one of a 400-line
    * blob. Stored as its own field it becomes a badge on the collapsed row, and
    * stderr can be split out so a failure shows its error instead of its noise.
    */
@@ -845,6 +845,18 @@ export interface GeneralSettings {
   restoreSession: boolean;
   checkUpdates: boolean;
 
+  /*
+   * Added in 1.2.0. All four are optional because a settings file written by an
+   * older version has none of them, and `deep_merge` MERGES rather than
+   * replaces - so the Rust defaults are what actually get used on upgrade, and
+   * these `?` marks are a promise that the UI must fall back rather than assume.
+   */
+  confirmExit?: boolean;
+  minimizeToTray?: boolean;
+  defaultTerminal?: 'default' | 'pwsh' | 'powershell' | 'cmd' | 'bash' | 'wsl';
+  /* A full path to the shell binary. Empty means "use defaultTerminal". */
+  shellPath?: string;
+
     lowRam?: boolean;
 
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
@@ -852,6 +864,28 @@ export interface GeneralSettings {
   aiPanel?: 'bottom' | 'right';
 
   layout?: 'editor' | 'terminal';
+
+  /*
+   * Panel-visibility preferences, saved by the "Customize Layout" menu.
+   *
+   * Declared here rather than left to a cast so the type checker can see it.
+   * These used to be written to `layout` above - an object over a string - which
+   * froze `layout === 'terminal'` at false for anyone who opened that menu.
+   *
+   * Every field is optional because a settings file written before this key
+   * existed has none of them, and because `deep_merge` merges rather than
+   * replaces: a partial object is a legitimate shape, not a broken one.
+   */
+  layoutPrefs?: {
+    menuBar?: boolean;
+    activityBar?: boolean;
+    sidebar?: boolean;
+    panel?: boolean;
+    statusBar?: boolean;
+    posisiSidebar?: 'left' | 'right' | 'top' | 'bottom';
+    kerapatan?: string;
+    subKanan?: boolean;
+  };
 }
 
 export interface EditorSettings {
@@ -863,6 +897,31 @@ export interface EditorSettings {
   smoothScroll: boolean;
   formatOnSave: boolean;
   showWhitespace: boolean;
+  /**
+   * Vim keybindings. Ketika menyala, tombol arah dan mode normal/insert
+   * mengikuti vim, dan itu MENGALAHKAN keymap editor biasa - bukan menyamping
+   * dengannya.
+   */
+  vimMode: boolean;
+  /**
+   * Menyimpan otomatis tanpa Ctrl+S.
+   *
+   * `off` sengaja jadi default: menyimpan berkas tanpa diminta adalah tindakan
+   * yang mengubah disk, dan sebuah editor tidak boleh mengambil alih keputusan
+   * itu pada profil baru.
+   *
+   * `afterDelay` menyimpan berkas yang baru berubah setelah jeda tenang;
+   * `onFocusChange` menyimpannya saat jendela kehilangan fokus.
+   */
+  autoSave: 'off' | 'afterDelay' | 'onFocusChange';
+  /**
+   * Jeda tenang sebelum simpan otomatis, dalam milidetik.
+   *
+   * "Tenang" berarti timer di-reset setiap perubahan baru: yang diukur bukan
+   * jarak sejak ketikan pertama, melainkan sejak ketikan TERAKHIR. Menyimpan
+   * di tengah ketikan menghasilkan banyak tulisan disk untuk satu kalimat.
+   */
+  autoSaveDelay: number;
 
   breadcrumbs: boolean;
 
@@ -934,6 +993,14 @@ export interface Settings {
     order: string[];
     startCommands: Record<string, string[]>;
     attachActiveFile: boolean;
+    /**
+     * Standing instructions appended to the system prompt on every turn, on top
+     * of whatever persona is active. Kept separate from a persona because this
+     * travels with the user, not with an identity: switching personas must not
+     * lose it, and neither persona nor this text may overwrite the other - they
+     * are stacked layers, not alternatives.
+     */
+    customInstructions: string;
   };
 
   subagent: {
@@ -1080,6 +1147,9 @@ export const DEFAULT_SETTINGS: Settings = {
 
     snippetSuggestions: 'inline',
     ghostText: false,
+    vimMode: false,
+    autoSave: 'off',
+    autoSaveDelay: 1000,
   },
   theme: { current: 'zephyr-dark', accent: '#3884ff' },
   background: { image: '', opacity: 100, size: 'fill', transparan: true },
@@ -1087,7 +1157,7 @@ export const DEFAULT_SETTINGS: Settings = {
   layout: 'default',
   shortcuts: {},
   models: { activeProvider: 'custom', providers: {}, answerLang: 'follow', answerStyle: 'short', ragEnabled: false, ragUrl: 'http://localhost:7777', ragProject: '', ragK: 4 },
-  agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false },
+  agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false, customInstructions: '' },
 
   subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '', idleSecs: 90 },
 

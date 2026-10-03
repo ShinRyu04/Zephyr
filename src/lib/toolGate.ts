@@ -28,6 +28,7 @@
 import { create } from 'zustand';
 import {
   TOOL_CATALOG,
+  TOOL_WEB_AKTIF_AWAL as _WEB_AKTIF,
   TOOL_NAMES,
   TOOL_BY_NAME,
   kelompokKatalog,
@@ -155,30 +156,14 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter((t) => t.source 
 );
 
 /**
- * Empat tool web yang nyala pada profil baru - BACA dan BUKA saja.
+ * Tool web yang nyala pada profil baru - semua yang efeknya HANYA MEMBACA.
  *
- * Keempatnya hanya MENAMPILKAN: membuka URL di pane yang bisa dilihat user,
- * membacanya kembali, memindahkan pane yang sudah ada, dan mengambil teks URL
- * tanpa membuka pane sama sekali. Tidak satu pun menulis berkas, mengirim data
- * ke server yang ditentukan model, atau mengubah state apa pun di luar jendela
- * Zephyr - jadi menyalakannya tidak memperluas apa yang bisa dilakukan agen
- * terhadap mesin ini.
- *
- * Yang masih MATI adalah yang bertindak: mengklik elemen, mengisi form,
- * mengunduh berkas ke disk, dan membuka browser sistem. Itu empat kemampuan
- * yang mengubah sesuatu di luar Zephyr, dan tetap milik user untuk dipilih.
- *
- * Ditulis sebagai daftar eksplisit, bukan `filter(source === 'web')`, karena
- * inilah satu-satunya tempat yang boleh menyala sendiri: tool web BARU yang
- * ditambahkan nanti harus muncul MATI, bukan langsung aktif karena source-nya
- * kebetulan sama.
+ * Definisinya tinggal di katalog (bersama aturannya dan bersamanya diperiksa),
+ * lalu diimpor ke sini. `browser_list` dulu tidak masuk daftar sampai user
+ * melihat sendiri baris merah "List pages - failed" - sekarang daftarnya
+ * diturunkan, jadi tidak ada nama yang bisa terlewat lagi.
  */
-export const TOOL_WEB_AKTIF_AWAL: readonly string[] = [
-  'browser_open',
-  'browser_read',
-  'browser_nav',
-  'web_fetch',
-];
+export { _WEB_AKTIF as TOOL_WEB_AKTIF_AWAL };
 
 /**
  * Tool yang nyala pada profil baru: 40 inti + 4 web baca-saja = 44.
@@ -191,7 +176,7 @@ export const TOOL_WEB_AKTIF_AWAL: readonly string[] = [
  */
 export const TOOL_AKTIF_AWAL: readonly string[] = [
   ...TOOL_INTI,
-  ...TOOL_WEB_AKTIF_AWAL,
+  ..._WEB_AKTIF,
 ];
 
 /**

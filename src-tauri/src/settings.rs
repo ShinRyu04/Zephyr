@@ -46,7 +46,20 @@ pub fn default_settings() -> Value {
             "lowRam": false,
 
             "aiPanel": "bottom",
-            "layout": "default"
+            "layout": "default",
+
+            // New in 1.2.0. Defaults are the conservative ones:
+            //  - confirmExit true, because closing with unsaved edits and losing
+            //    them is not something a user can undo;
+            //  - minimizeToTray false, because an app that keeps running after
+            //    you close the window is surprising if you did not ask for it;
+            //  - defaultTerminal "default", meaning the shell the OS already
+            //    uses, so nothing changes for anyone who does not pick;
+            //  - shellPath "" meaning "use defaultTerminal".
+            "confirmExit": true,
+            "minimizeToTray": false,
+            "defaultTerminal": "default",
+            "shellPath": ""
         },
 
         "sidebar": "left",
@@ -71,12 +84,15 @@ pub fn default_settings() -> Value {
             "indentGuides": true,
             "colorDecorators": true,
             "unicodeHighlight": true,
-            "bracketPairColorization": true
+            "bracketPairColorization": true,
+            "vimMode": false,
+            "autoSave": "off",
+            "autoSaveDelay": 1000
         },
         "theme": { "current": "zephyr-dark", "accent": "#3884ff" },
         "shortcuts": {},
         "models": { "activeProvider": "custom", "providers": {}, "answerLang": "follow", "answerStyle": "short", "ragEnabled": false, "ragUrl": "http://localhost:7777", "ragProject": "", "ragK": 4 },
-        "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false },
+        "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false, "customInstructions": "" },
 
         "extensions": {
             "enabled": [],

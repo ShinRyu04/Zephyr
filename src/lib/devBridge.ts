@@ -1218,9 +1218,18 @@ export function installDevBridge(): void {
    * module.
    *
    * `import()` inside `Runtime.evaluate` builds a second module instance with
-   * its own zustand store, so calling `bukaSunting` on it flipped a flag the
+   * its own zustand store, so calling a store action on it flipped a flag the
    * mounted component never reads — the dialog stayed shut and the test read a
    * null backdrop. Everything here goes through the single live store.
+   *
+   * `bukaBaru` and `bukaSunting` are NOT exposed. They used to be, and that was
+   * the last way into an editor the user asked to close: a harness (or anything
+   * with CDP access) could still open it and edit a built-in. Removing the
+   * buttons closed the UI; this closes the door behind it.
+   *
+   * `tutup` stays because a harness that raises `baru`/`sunting` directly - the
+   * migration path that reads old sub-agents still can - needs a way to put it
+   * back down.
    */
   w.__ZEPHYR_SUB__ = {
     store: () => useSubagentCustom,
@@ -1229,10 +1238,7 @@ export function installDevBridge(): void {
     daftar: () => useSubagentCustom.getState().daftar,
     pekerja: () => daftarPekerja(),
     aktif: () => customAktif(),
-    bukaBaru: () => useSubagentCustom.getState().bukaBaru(),
-    bukaSunting: (id: string) => useSubagentCustom.getState().bukaSunting(id),
     tutup: () => useSubagentCustom.getState().tutup(),
-    sunting: () => useSubagentCustom.getState().sunting,
     ikonPeran: (id: string | undefined) => pathIkonPeran(id),
   };
 
@@ -1878,7 +1884,16 @@ export function installDevBridge(): void {
         if (!t) throw new Error(`tool tidak ada: ${nama}`);
         return t.run(args);
       },
-    };
+      /*
+       * Tabel label + ikon per tool, supaya harness bisa memeriksa bahwa baris
+       * tool menggambar glyph yang BERBEDA antar jenis aksi.
+       *
+       * Tidak bisa diperiksa dari daftar nama saja: `labelAksi.ts` dan
+       * `AiIkon.tsx` bisa dua-duanya benar sementara baris pemanggilnya memakai
+       * satu glyph untuk semuanya - dan itulah bug yang pernah terjadi. Yang
+       * membuktikan perbaikan adalah glyph yang dihasilkan tabel ini.
+       */
+      infoAksi: (nama: string) => m.infoAksi(nama),    };
   });
 
   // Dev Environment store, exposed so a harness can drive a real scan and read

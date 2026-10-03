@@ -22,7 +22,7 @@ import { IKON_SUBAGENT, ikonSubagent, IKON_LABEL } from '../../lib/subagentIcons
  *
  * The tool picker is a row of toggleable chips rather than a multi-select: the
  * list is short, the choice is read-only, and a chip shows its state without
- * opening anything. Write tools are absent on purpose — a custom worker runs
+ * opening anything. Write tools are absent on purpose, a custom worker runs
  * unsupervised, so the picker only offers reads. The one writing worker stays
  * the built-in "kerja" role, which is gated by the allowWrite setting.
  */
@@ -58,7 +58,7 @@ export default function SubagentCustomModal({ awal }: Props) {
    * The list is filtered the same way the chat picker filters it: a provider is
    * offered only when it has a key AND an endpoint. Before this, every provider
    * in the catalog was listed, so a worker could be pinned to a provider the app
-   * has no key for and would fail at run time with a 401 — the failure looked
+   * has no key for and would fail at run time with a 401, the failure looked
    * like a subagent bug, not a missing key.
    *
    * The catalog is a module constant, not a store value: reading it through a
@@ -74,7 +74,7 @@ export default function SubagentCustomModal({ awal }: Props) {
    *
    * The static catalogue only knows the placeholder ids (`custom-model`), so a
    * worker could not be pinned to a real one until the user had opened the chat
-   * picker at least once — the list here was two entries long while the provider
+   * picker at least once, the list here was two entries long while the provider
    * served eighteen. Fetching on open fixes that without a second click.
    *
    * A failure is not surfaced: offline or a bad key just means the static list
@@ -134,8 +134,16 @@ export default function SubagentCustomModal({ awal }: Props) {
         })),
     );
 
+    /*
+     * `label` di sini sengaja KOSONG untuk baris pertama.
+     *
+     * Sebelumnya teks 'Sama seperti chat (bawaan)' ditulis langsung di sini -
+     * di dalam useMemo, jauh dari JSX, sehingga tidak pernah lewat tr() dan
+     * tidak ada kamus yang bisa menolongnya. Itu sumber utama bahasa campur di
+     * dialog ini. Label diisi di tempat render, tempat tr tersedia.
+     */
     return [
-      { id: '', label: 'Sama seperti chat (bawaan)', provider: '' },
+      { id: '', label: '', provider: '' },
       ...statis.map((m) => ({
         id: m.id,
         label: `${m.providerLabel} · ${m.label}`,
@@ -150,7 +158,7 @@ export default function SubagentCustomModal({ awal }: Props) {
    *
    * Before the picker fetched live models, `custom-model` was the only row
    * available for an OpenAI-compatible provider, so every agent created then
-   * was pinned to it — an id the provider does not serve, which makes the run
+   * was pinned to it, an id the provider does not serve, which makes the run
    * fail with a "model not found" the user cannot explain. Once the real list
    * arrives, re-point those agents at the provider's first live model and write
    * it back, so the fix persists instead of being re-derived on every open.
@@ -169,19 +177,21 @@ export default function SubagentCustomModal({ awal }: Props) {
 
   /* The label shown on the closed button: the chosen model, or the default. */
   const labelModel = useMemo(() => {
-    if (!model) return 'Sama seperti chat (bawaan)';
+    if (!model) return tr('Same as chat (default)');
     const m = opsiModel.find((x) => (x.id || '') === model);
     /*
      * Show the stored id even when it is not in the fetched list.
      *
      * Agents created before the picker fetched live models were saved with the
      * catalogue placeholder (`custom-model`), and that id is absent once the
-     * real list arrives — so `find` missed and the button fell back to "type the
+     * real list arrives, so `find` missed and the button fell back to "type the
      * model name", hiding what was actually stored. Echoing the id keeps the
      * button truthful whatever the list contains.
      */
     return m?.label ?? model;
-  }, [opsiModel, model]);
+    // `tr` ikut jadi dependensi: kamus bisa tiba setelah render pertama
+    // (pemuatan kamus tambahan asinkron), dan tanpa itu labelnya tetap kosong.
+  }, [opsiModel, model, tr]);
 
   /* Click outside / Escape closes the model menu, like the chat picker. */
   useEffect(() => {
@@ -250,12 +260,12 @@ export default function SubagentCustomModal({ awal }: Props) {
       >
         <div className="subagent-head">
           <h2 className="modal-title" id="sc-title">
-            {awal ? tr('Edit sub-agent') : tr('Sub-agent baru')}
+            {awal ? tr('subagent.editTitle') : tr('subagent.newTitle')}
           </h2>
           <button
             className="btn btn-icon"
             data-testid="sc-tutup"
-            aria-label={tr('Subagent: close')}
+            aria-label={tr('Close')}
             onClick={() => tutup()}
           >
             ✕
@@ -264,13 +274,13 @@ export default function SubagentCustomModal({ awal }: Props) {
 
         <div className="modal-body subagent-form">
           <label className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: nama')}</span>
+            <span className="subagent-label">{tr('subagent.fieldName')}</span>
             <input
               className="input"
               data-testid="sc-nama"
               value={nama}
               autoFocus
-              placeholder={tr('mis. Pemeta tes')}
+              placeholder={tr('e.g. Test mapper')}
               onChange={(e) => setNama(e.target.value)}
             />
             {namaTerpakai && (
@@ -281,18 +291,18 @@ export default function SubagentCustomModal({ awal }: Props) {
           </label>
 
           <label className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: deskripsi')}</span>
+            <span className="subagent-label">{tr('subagent.fieldDescription')}</span>
             <input
               className="input"
               data-testid="sc-deskripsi"
               value={deskripsi}
-              placeholder={tr('One line — the AI reads it to decide when to delegate here')}
+              placeholder={tr('One line, the AI reads it to decide when to delegate here')}
               onChange={(e) => setDeskripsi(e.target.value)}
             />
           </label>
 
           <div className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: alat')}</span>
+            <span className="subagent-label">{tr('subagent.fieldTools')}</span>
             <div className="subagent-chips" data-testid="sc-alat">
               {ALAT.map((a) => {
                 const aktif = alat.includes(a.id);
@@ -331,7 +341,7 @@ export default function SubagentCustomModal({ awal }: Props) {
           </div>
 
           <div className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: ikon')}</span>
+            <span className="subagent-label">{tr('subagent.fieldIcon')}</span>
             <div className="subagent-ikon-pilih" data-testid="sc-ikon" role="radiogroup">
               {IKON_SUBAGENT.map((ik) => {
                 const dipilih = ikon === ik.id;
@@ -370,7 +380,7 @@ export default function SubagentCustomModal({ awal }: Props) {
           </div>
 
           <label className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: system prompt')}</span>
+            <span className="subagent-label">{tr('subagent.fieldPrompt')}</span>
             <textarea
               className="input subagent-prompt"
               data-testid="sc-prompt"
@@ -383,13 +393,13 @@ export default function SubagentCustomModal({ awal }: Props) {
           </label>
 
           <div className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: model')}</span>
+            <span className="subagent-label">{tr('subagent.fieldModel')}</span>
             {/*
               * A custom dropdown, not a <select>.
               *
               * The native control renders one flat list of twenty-odd entries
               * with no way to show which provider each one belongs to and no
-              * room for the model's context size — and on Windows the popup is
+              * room for the model's context size, and on Windows the popup is
               * drawn by the OS at its own width, so the ids were clipped. This
               * is the same list the chat picker draws: grouped by provider, with
               * the provider's own mark.
@@ -428,7 +438,9 @@ export default function SubagentCustomModal({ awal }: Props) {
                         setMenuBuka(false);
                       }}
                     >
-                      <span className="sc-model-nama">{m.id ? m.label : tr('Sama seperti chat (bawaan)')}</span>
+                      <span className="sc-model-nama">
+                        {m.id ? m.label : tr('Same as chat (default)')}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -447,12 +459,12 @@ export default function SubagentCustomModal({ awal }: Props) {
               data-testid="sc-hapus"
               onClick={() => void hapus(awal.id)}
             >
-              {tr('Subagent: delete')}
+              {tr('subagent.delete')}
             </button>
           )}
           <span className="subagent-spacer" />
           <button className="btn" data-testid="sc-batal" onClick={() => tutup()}>
-            {tr('Subagent: batal')}
+            {tr('Cancel')}
           </button>
           <button
             className="btn btn-primary"
@@ -460,7 +472,7 @@ export default function SubagentCustomModal({ awal }: Props) {
             disabled={!bisaSimpan || sibuk}
             onClick={() => void kirim()}
           >
-            {tr('Subagent: save')}
+            {tr('Save')}
           </button>
         </div>
       </div>

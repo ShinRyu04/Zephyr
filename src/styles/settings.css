@@ -445,6 +445,26 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* The optional mark before a section heading (currently only Agents).
+   `align-items` plus a small negative top offset counteracts the heading's own
+   line box: an inline svg sits on the text baseline, which leaves a mark that
+   looks low next to 19px text. The offset is in px, not `em`, because the
+   heading's line-height is what creates the gap and that is fixed here. */
+.set-h2:has(.set-h2-ikon) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.set-h2-ikon {
+  flex: none;
+  /* Inherits the heading's colour, so the mark follows the theme in both light
+     and dark without a rule of its own. */
+  color: var(--accent);
+  position: relative;
+  top: -1px;
+}
+
 /* phase 29: a sub-heading inside one section (Security). Smaller than
    .set-h2 — two headings that big on one page make the section look
    like two different pages. */
@@ -2338,4 +2358,173 @@
 
 .cp-aksi {
   margin-top: 7px;
+}
+
+/* ==========================================================================
+   LANGUAGE SERVERS
+   ==========================================================================
+   Grouped by language, one row per server, a status dot per row.
+
+   The dot has three distinct colours rather than on/off: "installed but idle",
+   "command not found", and "turned off" are three different problems with three
+   different fixes, and collapsing them into two states is what made the old
+   screen unable to answer the only question it existed for.
+   ========================================================================== */
+
+.lsp-grup {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.lsp-grup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.lsp-grup-nama {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.lsp-grup-jumlah {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.lsp-baris {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lsp-baris:last-child {
+  border-bottom: none;
+}
+
+/* The dot is a fixed 7px and flex-none: without `flex: none` a long command
+   line squeezes it into an ellipse, which reads as a rendering bug. */
+.lsp-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--text-muted);
+}
+
+.lsp-dot-hidup {
+  background: var(--ok);
+  /* A slow pulse, so "running" is legible at a glance in a screenshot without
+     having to read the label next to it. */
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 22%, transparent);
+}
+
+.lsp-dot-hilang {
+  background: var(--err);
+}
+
+.lsp-dot-nonaktif {
+  background: var(--border);
+}
+
+.lsp-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lsp-nama {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.lsp-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.lsp-meta code {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--text-muted);
+  /* Long executables are truncated, never wrapped: a wrapped command makes the
+     row height jump and the list stops being scannable. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+
+.lsp-status {
+  font-size: 11px;
+}
+
+.lsp-status-hidup {
+  color: var(--ok);
+}
+
+.lsp-status-hilang {
+  color: var(--err);
+}
+
+.lsp-status-nonaktif,
+.lsp-status-mati {
+  color: var(--text-muted);
+}
+
+.lsp-kustom {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.lsp-install {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.lsp-install code {
+  font-family: var(--font-mono, monospace);
+  color: var(--text);
+}
+
+.lsp-aksi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.lsp-balik {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 2px 0 0 17px;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.lsp-balik:hover {
+  text-decoration: underline;
 }

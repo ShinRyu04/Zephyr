@@ -49,6 +49,7 @@ import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
 import type { SearchOpts } from '../types';
 import { periksaBaca, periksaTulis, periksaPerintahShell } from '../agentGuard';
+import { kutipUrlDiPerintah } from '../kutipPerintah';
 
 /** Tolak jalur rahasia/terproteksi sebelum tool menyentuhnya. */
 function jagaBaca(...paths: string[]): void {
@@ -695,9 +696,18 @@ export const TOOL_BAWAAN: AgentTool[] = [
     run: async (a) => {
       const command = wajib(a, 'command');
       periksaPerintah(command);
-      const r = await cmd.agentExec(command, bacaAngka(a.timeout));
+      /*
+       * URL dengan `&` dikutip DULU - `agent_exec` menjalankan perintah lewat
+       * `cmd.exe /c`, jadi `&` di situ adalah pemisah perintah, bukan teks.
+       * Tanpa ini, `yt-dlp https://...?v=a&list=b` dijalankan sebagai tiga
+       * perintah: yang pertama dilepas ke background, dua sisanya gagal. Keluar
+       * dengan cepat, agen mengira belum jalan, mengirim lagi - berulang.
+       */
+      const { perintah: aman, diubah } = kutipUrlDiPerintah(command);
+      const r = await cmd.agentExec(aman, bacaAngka(a.timeout));
       const bagian = [
         `exit=${r.exitCode}${r.timedOut ? ' (WAKTU HABIS)' : ''} (${r.ms} ms)`,
+        diubah ? '(URL dikutip otomatis agar & tidak memecah perintah)' : '',
         r.stdout ? `--- stdout ---\n${r.stdout}` : '',
         r.stderr ? `--- stderr ---\n${r.stderr}` : '',
       ].filter(Boolean);

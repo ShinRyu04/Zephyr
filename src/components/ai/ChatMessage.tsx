@@ -370,20 +370,36 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                       return (
                         <>
                           {/*
-                            * One glyph for every kind of call: the shell prompt.
+                            * Glyph per action kind, from the same table that
+                            * supplies the label.
                             *
-                            * The row used to draw a per-kind outline icon (a page
-                            * for reads, a magnifier for searches), which told the
-                            * reader what the call did but left the column without
-                            * a rhythm - twenty different shapes in twenty rows is
-                            * a list you have to read, not one you can scan. The
-                            * reference leads every row with the same green `>_`,
-                            * and the KIND is still carried by the colour via the
-                            * `is-<jenis>` class below. Same mark, different hue:
-                            * scannable AND informative.
+                            * The row used to draw the shell prompt `>_` for
+                            * EVERY call. The reasoning was that twenty shapes in
+                            * twenty rows is a list you must read rather than
+                            * scan, and that colour already carries the kind via
+                            * `is-<jenis>`. The reasoning is sound in the
+                            * abstract and wrong in practice: in a long run of
+                            * steps - read, edit, run, read, edit - the column
+                            * becomes a single repeated mark, and "everything
+                            * looks like a terminal" is exactly what a reader
+                            * concludes. Colour alone does not survive a glance
+                            * or a screenshot, and it disappears entirely for
+                            * anyone who cannot separate the red and green used
+                            * for `tulis` and `jalan`.
+                            *
+                            * `labelAksi` already assigns a distinct glyph per
+                            * tool (`doc`, `doc-edit`, `search`, `terminal`,
+                            * `clock`, `puzzle`, ...), and `AiIkon` already draws
+                            * all of them. The generic mark was the only thing
+                            * discarding that information.
+                            *
+                            * A shape is not a decoration here, it is the
+                            * fastest channel: the eye matches an outline before
+                            * it reads a word. Colour stays as a second cue on
+                            * `is-<jenis>` rather than the only one.
                             */}
                           <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
-                            <AiIkon name="prompt" size={13} />
+                            <AiIkon name={info.ikon} size={13} />
                           </span>
                           <span className="ai-toolrun-name">{info.label}</span>
                           {fileChip ? (

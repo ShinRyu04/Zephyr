@@ -39,18 +39,37 @@ const mati = await cdp.json(`return JSON.stringify(await (async () => {
   return {
     menuBar: L.state().menuBar,
     menubarDiDom: !!document.querySelector('.menubar'),
+    /*
+     * Tombol cadangan di status bar SUDAH DIBUANG atas permintaan user: ia
+     * muncul dua kali, dan yang di Menu Bar dipertahankan. Jadi V1 sekarang
+     * memastikan tombol itu BENAR-BENAR tidak ada lagi - kalau ia muncul
+     * kembali (mis. karena penggabungan yang salah), itu kegagalan.
+     */
     sbLayout: !!document.querySelector('[data-testid="sb-layout"]'),
     statusBarAda: !!document.querySelector('.statusbar'),
   };
 })())`, 60000);
 cek('Menu Bar berhasil dimatikan', mati.menuBar === false && mati.menubarDiDom === false);
-cek('status bar masih ada (tempat tombol cadangan)', mati.statusBarAda === true);
-cek('tombol cadangan sb-layout ADA saat Menu Bar mati', mati.sbLayout === true,
-  'ini yang bikin user bisa balik');
+cek('status bar masih ada', mati.statusBarAda === true);
+cek('tombol duplikat sb-layout SUDAH TIDAK ADA', mati.sbLayout === false,
+  'satu tombol cukup, di Menu Bar');
 
-// ── V2: tombol cadangan membuka panel ──
+// ── V2: satu-satunya tombol Customize Layout tinggal di Menu Bar ──
+const satu = await cdp.json(`return JSON.stringify(await (async () => {
+  const L = window.__ZEPHYR_LAYOUT__;
+  L.set({ menuBar: true });
+  await new Promise((r) => setTimeout(r, 600));
+  const semua = document.querySelectorAll('[data-testid="mb-customize-layout"]');
+  const sb = document.querySelectorAll('[data-testid="sb-layout"]');
+  return { diMenuBar: semua.length, diStatusBar: sb.length };
+})())`, 60000);
+cek('tombol Customize Layout ADA tepat SATU (di Menu Bar)',
+  satu.diMenuBar === 1 && satu.diStatusBar === 0,
+  `menuBar=${satu.diMenuBar} statusBar=${satu.diStatusBar}`);
+
+// ── V3: tombol di Menu Bar membuka panel ──
 const buka = await cdp.json(`return JSON.stringify(await (async () => {
-  const btn = document.querySelector('[data-testid="sb-layout"]');
+  const btn = document.querySelector('[data-testid="mb-customize-layout"]');
   btn.click();
   await new Promise((r) => setTimeout(r, 700));
   const menu = document.querySelector('[data-testid="layout-menu"]');
@@ -60,28 +79,45 @@ const buka = await cdp.json(`return JSON.stringify(await (async () => {
     baris: document.querySelectorAll('[data-testid^="lm-"]').length,
   };
 })())`, 60000);
-cek('panel Customize Layout terbuka dari status bar', buka.menuAda === true, buka.menuBuka ? 'menuBuka=true' : '');
+cek('panel Customize Layout terbuka dari tombol Menu Bar', buka.menuAda === true, buka.menuBuka ? 'menuBuka=true' : '');
 cek('panel memuat baris kontrol', buka.baris >= 8, `${buka.baris} elemen`);
 
 // ── V3: nyalakan Menu Bar kembali DARI panel itu ──
+/*
+ * Memakai `set({...})`, BUKAN `toggle()`.
+ *
+ * Versi uji ini dulu memanggil toggle() berturut-turut dengan jeda 500-700ms dan
+ * gagal di dua titik. Kegagalan itu terjadi pada TOGGLE, bukan pada panelnya -
+ * dan uji yang gagal karena cara memanggil, bukan karena fiturnya, lebih buruk
+ * daripada tidak ada uji: ia menuduh aplikasi atas kesalahan harness.
+ *
+ * `set` idempoten: hasilnya sama berapa kali pun dipanggil, jadi uji ini
+ * mengukur yang dimaksud - apakah panel bisa MENYALAKAN Menu Bar.
+ */
 const balik = await cdp.json(`return JSON.stringify(await (async () => {
+  const L = window.__ZEPHYR_LAYOUT__;
+  L.set({ menuBar: false });
+  await new Promise((r) => setTimeout(r, 600));
+  const matiDulu = L.state().menuBar === false && !document.querySelector('.menubar');
+
   const baris = document.querySelector('[data-testid="lm-menuBar"]');
-  if (!baris) return { err: 'baris lm-menuBar tidak ada' };
+  if (!baris) return { err: 'baris lm-menuBar tidak ada', matiDulu };
   baris.click();
-  await new Promise((r) => setTimeout(r, 700));
+  await new Promise((r) => setTimeout(r, 800));
   return {
-    menuBar: window.__ZEPHYR_LAYOUT__.state().menuBar,
+    matiDulu,
+    menuBar: L.state().menuBar,
     menubarDiDom: !!document.querySelector('.menubar'),
   };
 })())`, 60000);
-cek('Menu Bar bisa dinyalakan kembali dari panel', balik.menuBar === true && balik.menubarDiDom === true,
-  balik.err || '');
+cek('panel bisa MENYALAKAN Menu Bar kembali', balik.menuBar === true && balik.menubarDiDom === true,
+  balik.err || `dari mati=${balik.matiDulu}`);
 
 // ── V4: command palette tetap bisa membuka panel walau Menu Bar mati ──
 const viaCp = await cdp.json(`return JSON.stringify(await (async () => {
   const L = window.__ZEPHYR_LAYOUT__;
-  L.toggle('menuBar');                 // matikan lagi
-  await new Promise((r) => setTimeout(r, 500));
+  L.set({ menuBar: false });           // matikan lagi; lihat catatan V3
+  await new Promise((r) => setTimeout(r, 600));
   const menubarAda = !!document.querySelector('.menubar');
 
   const P = window.__ZEPHYR_CP__;

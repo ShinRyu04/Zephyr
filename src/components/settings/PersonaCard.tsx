@@ -1,17 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useT } from '../../lib/i18n';
-import { usePersona, type Persona } from '../../lib/personaStore';
+import { usePersona } from '../../lib/personaStore';
 
 /*
- * Persona picker and editor.
+ * Persona picker.
  *
  * The list is radio-like rather than a toggle list: exactly one persona is
  * active at a time, so two "on" rows would be a lie. A built-in row shows a
- * read-only tag instead of a delete button and offers "Duplicate", which is the
- * only way to start from a built-in without losing it.
+ * read-only tag and offers NOTHING else - it cannot be edited, duplicated, or
+ * deleted.
  *
- * Kept in its own file because the editor holds local form state and the
- * section it lives in re-renders on every settings write.
+ * Editing and duplicating were removed at the user's request, and the reason the
+ * removal is right goes beyond taste: a built-in persona stores its name and
+ * description as i18n KEYS. Letting anyone edit one meant writing a translated
+ * sentence back over that key, so the persona froze in whatever language it
+ * happened to be edited in - it stopped following the app language, and the
+ * loss was silent. A row you cannot edit cannot lose its translations.
+ *
+ * Kept in its own file so the section that hosts it does not re-render on every
+ * settings write.
  */
 
 function PersonaCard() {
@@ -20,20 +27,22 @@ function PersonaCard() {
   const aktif = usePersona((s) => s.aktif);
   const muat = usePersona((s) => s.muat);
   const setAktif = usePersona((s) => s.setAktif);
-  const bukaBaru = usePersona((s) => s.bukaBaru);
-  const bukaSunting = usePersona((s) => s.bukaSunting);
   const hapus = usePersona((s) => s.hapus);
-  const duplikat = usePersona((s) => s.duplikat);
-  const sunting = usePersona((s) => s.sunting);
-  const baru = usePersona((s) => s.baru);
-  const tutup = usePersona((s) => s.tutup);
-  const [sembunyi, setSembunyi] = useState(false);
+
+  /*
+   * `bukaBaru`, `bukaSunting`, `duplikat`, `sunting`, `baru`, and `tutup` are
+   * deliberately NOT taken.
+   *
+   * Removing the buttons alone would not have been enough: as long as the store
+   * still exposes the path, anything can call it - including devBridge - and the
+   * editor would open again. The store is left intact because `simpan` and the
+   * migration that reads old personas still need it; what is gone is every way
+   * IN.
+   */
 
   useEffect(() => {
     muat();
   }, [muat]);
-
-  const disunting = sunting ? daftar.find((p) => p.id === sunting) ?? null : null;
 
   return (
     <div className="persona-kartu" data-testid="persona-card">
@@ -42,27 +51,23 @@ function PersonaCard() {
           <span className="set-h2-sub">{tr('Persona')}</span>
           <span className="set-hint">
             {tr(
-              'How the AI carries itself. A persona only changes the way it talks and thinks — the tool list, project rules, and your own instructions still apply.',
+              'How the AI carries itself. A persona only changes the way it talks and thinks, the tool list, project rules, and your own instructions still apply.',
             )}
           </span>
           {/*
             * The "how to use" block.
             *
-            * Previously there was only one line explaining WHAT a persona is,
-            * never HOW to use it — so it was no wonder users were confused
-            * about what to do. The three steps below are written as plain
-            * sentences (not a numbered documentation-style list) so they still read
-            * well in a narrow settings panel.
+            * This used to point at a "Duplicate" button, which no longer exists.
+            * Instructions that name a control the reader cannot find are worse
+            * than no instructions: they send the reader hunting for something
+            * that was removed on purpose.
             */}
           <span className="set-hint persona-cara" data-testid="persona-cara">
             {tr(
-              'How to use it: hit "Active" on a persona row to turn it on — it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\'s built-in orchestrator with nothing added.',
+              'How to use it: click a persona row to make it active, it applies to the next chat, no restart needed. The built-in personas cannot be edited, duplicated, or deleted. If unsure, leave "Zeph" active: that is Zephyr\'s built-in orchestrator with nothing added.',
             )}
           </span>
         </div>
-        <button className="btn btn-sm" data-testid="persona-new" onClick={() => bukaBaru()}>
-          {tr('+ Persona baru')}
-        </button>
       </div>
 
       <div data-testid="persona-daftar">
@@ -94,22 +99,12 @@ function PersonaCard() {
                 <span className="persona-ket">{tr(p.deskripsi)}</span>
               </button>
               <div className="persona-aksi">
-                <button
-                  className="btn btn-sm"
-                  data-testid={`persona-${p.id}-ubah`}
-                  onClick={() => bukaSunting(p.id)}
-                >
-                  {tr('Subagent: edit')}
-                </button>
-                {p.bawaan ? (
-                  <button
-                    className="btn btn-sm"
-                    data-testid={`persona-${p.id}-salin`}
-                    onClick={() => void duplikat(p.id)}
-                  >
-                    {tr('Persona: salin')}
-                  </button>
-                ) : (
+                {/*
+                 * Only a built-in row gets an empty action cell; a persona the
+                 * user made themselves can still be deleted, because removing
+                 * that would leave rows that cannot be got rid of.
+                 */}
+                {!p.bawaan && (
                   <button
                     className="btn btn-sm"
                     data-testid={`persona-${p.id}-hapus`}
@@ -124,164 +119,6 @@ function PersonaCard() {
         })}
       </div>
 
-      {(baru || disunting) && (
-        <PersonaEditor
-          awal={baru ? null : disunting}
-          key={sunting ?? 'baru'}
-          onTutup={() => {
-            tutup();
-            setSembunyi(false);
-          }}
-        />
-      )}
-      {sembunyi && <span />}
-    </div>
-  );
-}
-
-interface EditorProps {
-  awal: Persona | null;
-  onTutup: () => void;
-}
-
-function PersonaEditor({ awal, onTutup }: EditorProps) {
-  const tr = useT();
-  const simpan = usePersona((s) => s.simpan);
-
-  /*
-   * A built-in persona stores its name and description as i18n keys, so the
-   * input has to show the translated text. The original value is kept beside
-   * it: if the field comes back unchanged we store the key again, otherwise
-   * the persona would freeze in whatever language it was last edited in.
-   */
-  const asliNama = awal?.nama ?? '';
-  const asliDeskripsi = awal?.deskripsi ?? '';
-  const [nama, setNama] = useState(awal ? tr(awal.nama) : '');
-  const [deskripsi, setDeskripsi] = useState(awal ? tr(awal.deskripsi) : '');
-  const [identitas, setIdentitas] = useState(awal?.identitas ?? '');
-  const [caraKerja, setCaraKerja] = useState(awal?.caraKerja ?? '');
-  const [aturan, setAturan] = useState(awal?.aturan ?? '');
-
-  const namaBentrok = usePersona((s) =>
-    s.daftar.some(
-      (x) =>
-        x.id !== awal?.id &&
-        (x.nama.toLowerCase() === nama.trim().toLowerCase() ||
-          tr(x.nama).toLowerCase() === nama.trim().toLowerCase()),
-    ),
-  );
-  const bisaSimpan = nama.trim().length > 0 && !namaBentrok;
-
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onTutup}>
-      <div
-        className="modal subagent-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="persona-title"
-        data-testid="persona-modal"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="subagent-head">
-          <h2 className="modal-title" id="persona-title">
-            {awal ? tr('Edit persona') : tr('Persona baru')}
-          </h2>
-          <button className="btn btn-icon" data-testid="persona-tutup" aria-label={tr('Subagent: close')} onClick={onTutup}>
-            ✕
-          </button>
-        </div>
-
-        <div className="modal-body subagent-form">
-          <label className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: nama')}</span>
-            <input
-              className="input"
-              data-testid="persona-nama"
-              value={nama}
-              autoFocus
-              placeholder={tr('mis. Pengajar')}
-              onChange={(e) => setNama(e.target.value)}
-            />
-            {namaBentrok && (
-              <span className="subagent-warn" data-testid="persona-nama-bentrok">
-                {tr('Another persona already uses that name.')}
-              </span>
-            )}
-          </label>
-
-          <label className="subagent-field">
-            <span className="subagent-label">{tr('Subagent: deskripsi')}</span>
-            <input
-              className="input"
-              data-testid="persona-deskripsi"
-              value={deskripsi}
-              placeholder={tr('One line — shown in the persona list')}
-              onChange={(e) => setDeskripsi(e.target.value)}
-            />
-          </label>
-
-          <label className="subagent-field">
-            <span className="subagent-label">{tr('Persona: identitas')}</span>
-            <textarea
-              className="input subagent-prompt"
-              data-testid="persona-identitas"
-              value={identitas}
-              rows={3}
-              placeholder={tr('Who this AI is. Leave empty to use Zephyr\'s default identity.')}
-              onChange={(e) => setIdentitas(e.target.value)}
-            />
-          </label>
-
-          <label className="subagent-field">
-            <span className="subagent-label">{tr('Persona: cara kerja')}</span>
-            <textarea
-              className="input subagent-prompt"
-              data-testid="persona-carakerja"
-              value={caraKerja}
-              rows={4}
-              placeholder={tr('How the AI answers: length, evidence, order, tone. Leave empty for the default.')}
-              onChange={(e) => setCaraKerja(e.target.value)}
-            />
-          </label>
-
-          <label className="subagent-field">
-            <span className="subagent-label">{tr('Aturan tambahan')}</span>
-            <textarea
-              className="input subagent-prompt"
-              data-testid="persona-aturan"
-              value={aturan}
-              rows={3}
-              placeholder={tr('Rules that always apply to this persona. Leave empty if there are none.')}
-              onChange={(e) => setAturan(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="modal-actions">
-          <span className="subagent-spacer" />
-          <button className="btn" data-testid="persona-batal" onClick={onTutup}>
-            {tr('Subagent: batal')}
-          </button>
-          <button
-            className="btn btn-primary"
-            data-testid="persona-simpan"
-            disabled={!bisaSimpan}
-            onClick={() => {
-              void simpan({
-                nama: nama.trim() === tr(asliNama) ? asliNama : nama.trim(),
-                deskripsi:
-                  deskripsi.trim() === tr(asliDeskripsi) ? asliDeskripsi : deskripsi.trim(),
-                identitas: identitas.trim(),
-                caraKerja: caraKerja.trim(),
-                aturan: aturan.trim(),
-              });
-              onTutup();
-            }}
-          >
-            {tr('Subagent: save')}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -58,6 +58,7 @@ export type NamaAiIkon =
      */
     | 'doc'
     | 'doc-edit'
+    | 'doc-plus'
     | 'list'
     | 'search'
     | 'warn'
@@ -66,6 +67,28 @@ export type NamaAiIkon =
     | 'check'
     | 'clock'
     | 'dot'
+    /*
+     * Glyph yang ditambahkan setelah tabel label diperiksa satu per satu.
+     *
+     * Sebelum ini, tujuh tool berbagi `puzzle` - dan `puzzle` tidak berarti
+     * apa pun untuk SSH, worktree, atau pane. Yang lebih menyesatkan lagi,
+     * sebelas tool berbagi `terminal`: `browser_open` dan `browser_click`
+     * digambar sebagai terminal, padahal keduanya bekerja di halaman web, bukan
+     * di shell. Sebuah glyph yang dipakai untuk pekerjaan yang tidak
+     * berhubungan berhenti menjadi informasi dan mulai menjadi derau - ia
+     * tampak seperti tanda, tapi tidak membedakan apa pun.
+     *
+     * Empat bentuk ini memisahkan yang paling sering tertukar:
+     *   'web'    - halaman web, dibuka/dibaca/diklik (bukan shell)
+     *   'robot'  - subagent, pekerjaan yang diserahkan ke agen lain
+     *   'folder' - direktori dan strukturnya (bukan pencarian isi berkas)
+     *   'plus'   - membuat sesuatu yang baru, bukan mengubah yang sudah ada
+     */
+    | 'web'
+    | 'robot'
+    | 'folder'
+    | 'plus'
+    | 'node'
     /* Tool-gate and debug controls: a spanner for the tool list, a bug for the
        request log, an X to dismiss either. */
     | 'wrench'
@@ -207,7 +230,16 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <path d="M8 11.8v2.4M5.8 14.2h4.4" />
         </svg>
       );
-    // A plus: add something to the message.
+    /*
+     * A plus: menambahkan sesuatu.
+     *
+     * Dipakai untuk dua hal yang sebenarnya sama - menambahkan lampiran ke
+     * pesan, dan MEMBUAT berkas baru (`write_file`, `create_directory`).
+     * Sebelumnya tool pembuat berkas memakai `doc-edit`, yang dipakai juga oleh
+     * `edit` dan `replace_in_files`: menulis berkas baru dan mengubah berkas
+     * yang sudah ada adalah dua hal berbeda, dan pemisahan itulah yang dicari
+     * pembaca saat memindai transkrip.
+     */
     case 'plus':
       return (
         <svg {...box}>
@@ -275,7 +307,14 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <path d="M9 2v3.8h3.8" />
         </svg>
       );
-    // A folder: a directory.
+    /*
+     * A folder: a directory, bukan isi berkas.
+     *
+     * Dipakai `glob` dan `list_directory` supaya tidak berbagi magnifier dengan
+     * `grep`. Pekerjaannya berbeda: yang satu mencari DI DALAM berkas, yang lain
+     * memetakan DIREKTORI - dan glyph yang dipakai untuk dua hal berbeda
+     * berhenti membedakan apa pun.
+     */
     case 'folder':
       return (
         <svg {...box}>
@@ -389,6 +428,53 @@ export default function AiIkon({ name, size = 15 }: Props) {
         <svg {...box}>
           <path d="M8 2.4 14.4 13H1.6z" />
           <path d="M8 6.4v3.2M8 11.4h.01" />
+        </svg>
+      );
+    /*
+     * A globe with a meridian: work happening on a web page, not in a shell.
+     *
+     * Dibuat untuk memisahkan `browser_open` / `browser_click` / `browser_nav`
+     * dari terminal. Ketiganya dulu digambar sebagai `>_`, dan seorang pembaca
+     * yang melihat deretan `>_` wajar menyimpulkan agennya menjalankan perintah
+     * shell - padahal ia sedang membuka halaman web.
+     */
+    case 'web':
+      return (
+        <svg {...box}>
+          <circle cx="8" cy="8" r="5.6" />
+          <path d="M2.4 8h11.2" />
+          <path d="M8 2.4c1.5 1.7 2.3 3.6 2.3 5.6S9.5 12 8 13.6C6.5 12 5.7 10 5.7 8s.8-3.9 2.3-5.6z" />
+        </svg>
+      );
+    /*
+     * A head with two eyes and antennae: work handed to another agent.
+     *
+     * Menggantikan `puzzle` untuk run_subagent/run_subagents. Puzzle berarti
+     * "sesuatu yang perlu dipecahkan", bukan "pekerjaan yang diserahkan" - dan
+     * tool yang memanggil agen lain memang bukan teka-teki, ia delegasi.
+     */
+    case 'robot':
+      return (
+        <svg {...box}>
+          <rect x="3" y="5.2" width="10" height="7.6" rx="1.8" />
+          <path d="M8 5.2V2.8" />
+          <circle cx="8" cy="2.1" r="0.9" />
+          <path d="M6 8.6v1.4M10 8.6v1.4" />
+        </svg>
+      );
+    /*
+     * Dua titik tersambung garis: satu simpul dalam jaringan.
+     *
+     * Dipakai untuk SSH, worktree, dan pane - ketiganya menghubungkan sesi,
+     * bukan memecahkan teka-teki. Sebelumnya berbagi `puzzle` dengan subagent,
+     * sehingga pekerjaan yang sangat berbeda tampak identik.
+     */
+    case 'node':
+      return (
+        <svg {...box}>
+          <circle cx="4.1" cy="4.1" r="2.1" />
+          <circle cx="11.9" cy="11.9" r="2.1" />
+          <path d="M5.6 5.6l4.8 4.8" />
         </svg>
       );
     case 'puzzle':

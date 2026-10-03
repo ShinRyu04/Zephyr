@@ -16,9 +16,13 @@ import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useSubagentCustom } from '../../lib/subagentCustom';
-import { ikonSubagent } from '../../lib/subagentIcons';
-import SubagentCustomModal from './SubagentCustomModal';
+import { IKON_AGEN_ZEPHYR, ikonSubagent } from '../../lib/subagentIcons';
 import PersonaCard from './PersonaCard';
+import {
+  loadUserPrompts,
+  saveUserPrompts,
+  type PromptItem,
+} from '../../lib/promptLibrary';
 
 export function ShortcutsSection() {
   const tr = useT();
@@ -519,8 +523,30 @@ export function AgentsSection() {
   const loadAgents = useTerminal((s) => s.loadAgents);
 
   return (
-    <Section title={tr('settings.agents')}>
+    <Section title={tr('settings.agents')} ikon={IKON_AGEN_ZEPHYR}>
       <PersonaCard />
+
+      {/*
+        Custom instructions.
+
+        A standing layer the user writes once and every conversation carries.
+        Kept OUTSIDE the persona on purpose: it belongs to the user, not to an
+        identity, so switching personas must not lose it - and because
+        systemPrompt.ts stacks it as its own layer, it can neither be swallowed
+        by the persona nor swallow the persona's identity.
+      */}
+      <label className="subagent-field" data-testid="agents-custom-instructions-wrap">
+        <span className="subagent-label">{tr('agents.customInstructions')}</span>
+        <span className="set-hint">{tr('agents.customInstructionsHint')}</span>
+        <textarea
+          className="input subagent-prompt"
+          data-testid="agents-custom-instructions"
+          rows={4}
+          value={a.customInstructions ?? ''}
+          placeholder={tr('agents.customInstructionsPlaceholder')}
+          onChange={(e) => void apply({ agents: { customInstructions: e.target.value } })}
+        />
+      </label>
 
       <Row label={tr('agents.maxPanes')} hint={tr('panes exceeding the limit are rejected with a toast')}>
         <NumberInput
@@ -599,7 +625,110 @@ export function AgentsSection() {
           })}
         </div>
       )}
+
+      <SnippetCard />
     </Section>
+  );
+}
+
+/*
+ * User chat snippets.
+ *
+ * A snippet is a trigger word plus the text it inserts: typing ">review" (or
+ * "#review") in the AI composer swaps the trigger for the body. The list here
+ * is the ONLY editor for them, and it writes through `saveUserPrompts` to the
+ * same localStorage key the composer already reads (`zephyr.ai.prompts.v1`) -
+ * a parallel store would let the two disagree about what a snippet is.
+ *
+ * The built-in prompt commands are not shown: they ship with the app and are
+ * not the user's to edit or delete. Only their own snippets appear, so the row
+ * count matches what they actually created.
+ */
+function SnippetCard() {
+  const tr = useT();
+  const [items, setItems] = useState<PromptItem[]>(() => loadUserPrompts());
+
+  /*
+   * Persist on every change and keep the local copy as the source of truth for
+   * the list below. `loadUserPrompts` normalises the command the same way the
+   * composer does, so what is typed here is what the trigger will match.
+   */
+  const simpan = (next: PromptItem[]) => {
+    setItems(next);
+    saveUserPrompts(next);
+  };
+
+  const tambah = () => {
+    const dipakai = new Set(items.map((x) => x.cmd));
+    let n = items.length + 1;
+    let cmd = `snippet-${n}`;
+    while (dipakai.has(cmd)) {
+      n += 1;
+      cmd = `snippet-${n}`;
+    }
+    simpan([...items, { cmd, label: cmd, body: '', ikon: 'tanya' }]);
+  };
+
+  const ubah = (i: number, patch: Partial<PromptItem>) => {
+    simpan(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  };
+
+  return (
+    <div className="subagent-kartu" data-testid="snippet-card">
+      <div className="subagent-kartu-head">
+        <div className="set-row-label">
+          <span className="set-h2-sub">{tr('agents.snippets')}</span>
+          <span className="set-hint">{tr('agents.snippetsHint')}</span>
+        </div>
+        <button className="btn btn-sm" data-testid="snippet-add" onClick={tambah}>
+          {tr('agents.snippetAdd')}
+        </button>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="set-note" data-testid="snippet-kosong">
+          {tr('agents.snippetKosong')}
+        </p>
+      ) : (
+        <div data-testid="snippet-daftar">
+          {items.map((s, i) => (
+            <div className="snippet-baris" key={i} data-testid={`snippet-${i}`}>
+              <input
+                className="input"
+                data-testid={`snippet-cmd-${i}`}
+                value={s.cmd}
+                aria-label={tr('agents.snippetCmd')}
+                placeholder={tr('agents.snippetCmd')}
+                /*
+                 * Normalise the command the same way `loadUserPrompts` does, so
+                 * a space or capital typed here cannot produce a snippet that
+                 * is saved but can never be triggered.
+                 */
+                onChange={(e) =>
+                  ubah(i, { cmd: e.target.value.toLowerCase().replace(/\s+/g, '-') })
+                }
+              />
+              <textarea
+                className="input subagent-prompt"
+                data-testid={`snippet-body-${i}`}
+                value={s.body}
+                rows={2}
+                aria-label={tr('agents.snippetBody')}
+                placeholder={tr('agents.snippetBody')}
+                onChange={(e) => ubah(i, { body: e.target.value })}
+              />
+              <button
+                className="btn btn-sm"
+                data-testid={`snippet-hapus-${i}`}
+                onClick={() => simpan(items.filter((_, j) => j !== i))}
+              >
+                {tr('agents.snippetHapus')}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -717,18 +846,27 @@ function CustomSubagentsCard() {
   const tr = useT();
   const daftar = useSubagentCustom((s) => s.daftar);
   const muat = useSubagentCustom((s) => s.muat);
-  const bukaBaru = useSubagentCustom((s) => s.bukaBaru);
-  const bukaSunting = useSubagentCustom((s) => s.bukaSunting);
   const setAktif = useSubagentCustom((s) => s.setAktif);
   const hapus = useSubagentCustom((s) => s.hapus);
-  const sunting = useSubagentCustom((s) => s.sunting);
-  const baru = useSubagentCustom((s) => s.baru);
+
+  /*
+   * `bukaBaru`, `bukaSunting`, `sunting`, dan `baru` sengaja TIDAK diambil.
+   *
+   * Membuang tombolnya saja tidak cukup. Selama store masih menyimpan jalur itu,
+   * siapa pun bisa memasukinya - termasuk `devBridge` - dan orang bisa mengubah
+   * nama `cari` menjadi apa pun. `peranBawaan` di subagentCustom.ts mencocokkan
+   * peran lewat NAMA, jadi sekali namanya diubah, pekerja itu kehilangan label,
+   * ikon, dan arahannya secara diam-diam.
+   *
+   * Modal editornya juga tidak dirender lagi. Ia sengaja tidak dihapus dari
+   * disk: berkasnya masih memuat bentuk field dan tata letaknya, dan menghapusnya
+   * sekarang berarti kehilangan rancangan itu tanpa alasan. Yang penting adalah
+   * ia tidak punya jalan masuk.
+   */
 
   useEffect(() => {
     muat();
   }, [muat]);
-
-  const sedangDisunting = sunting ? daftar.find((x) => x.id === sunting) ?? null : null;
 
   return (
     <>
@@ -753,11 +891,17 @@ function CustomSubagentsCard() {
            * How to actually use one, in three lines.
            *
            * The section described what a custom sub-agent IS and never said how
-           * to invoke it, which left the feature looking decorative — the user
+           * to invoke it, which left the feature looking decorative - the user
            * created one and then had nothing to do with it. The three ways below
            * are the three that exist, in the order a reader is likely to try
            * them: ask in plain words, name it explicitly, or just let the agent
            * pick it up when the task matches.
+           *
+           * The closing note used to point at "the tools you tick in its editor".
+           * That editor is gone - editing and duplicating were removed - so the
+           * sentence now names a control that does not exist, which sends the
+           * reader hunting for it. What a sub-agent sees is decided when it is
+           * created, and the note says so instead.
            */}
           <details className="subagent-cara" data-testid="sub-custom-cara">
             <summary>{tr('How to use it')}</summary>
@@ -776,16 +920,26 @@ function CustomSubagentsCard() {
               </li>
             </ol>
             <p className="subagent-cara-note">
-              {tr('A sub-agent only sees the tools you tick in its editor, and it can never write files — that is what keeps it safe to run several at once.')}
+              {tr('A sub-agent only sees the tools it was given when it was made, and it can never write files: that is what keeps it safe to run several at once.')}
+            </p>
+            <p className="subagent-cara-note">
+              {tr('The list is read-only: a sub-agent cannot be edited or duplicated from here. Turn one on to use it, or delete it to remove it.')}
             </p>
           </details>
-          <button
-            className="btn btn-sm"
-            data-testid="sub-custom-new"
-            onClick={() => bukaBaru()}
-          >
-            {tr('+ Baru')}
-          </button>
+          {/*
+           * Tombol "+ Baru" dibuang atas permintaan user: cukup nama, tidak
+           * perlu bisa menambah, mengubah, atau menduplikat.
+           *
+           * Konsekuensinya harus disadari, bukan disembunyikan: daftar ini
+           * sekarang READ-ONLY bagi user kecuali tombol hapus. Sub-agent kustom
+           * yang masih tersimpan dari versi sebelumnya tetap tampil, tetap bisa
+           * dinyalakan, dan tetap bisa dihapus - yang hilang hanyalah cara
+           * membuat yang baru dari UI.
+           *
+           * Penghapusnya juga masih diambil dari store, karena baris tanpa
+           * tombol hapus meninggalkan sub-agent yang tidak bisa dibuang sama
+           * sekali - itu bukan penyederhanaan, itu kebuntuan.
+           */}
         </div>
 
         {daftar.length === 0 ? (
@@ -800,8 +954,8 @@ function CustomSubagentsCard() {
                   * The worker's own icon, so the row and the AI panel agree.
                   *
                   * The list used to be name-only, which meant the icon chosen in
-                  * the editor — the one the sub-agent row wears in the AI panel
-                  * — was invisible the moment the dialog closed. Showing it here
+                  * the editor, the one the sub-agent row wears in the AI panel
+                  *, was invisible the moment the dialog closed. Showing it here
                   * makes the choice look like it stuck.
                   */}
                 <span
@@ -841,7 +995,7 @@ function CustomSubagentsCard() {
                   * the name row.
                   *
                   * It was a chip next to the name, so the name, the status chip
-                  * and a 20-character model id all competed for one line — the
+                  * and a 20-character model id all competed for one line, the
                   * id was the first to clip, and on a narrow settings pane it
                   * vanished entirely. A fixed column at the end keeps it
                   * readable whatever the name is, and it lines up down the list.
@@ -850,19 +1004,23 @@ function CustomSubagentsCard() {
                   {x.model || tr('sama seperti chat')}
                 </span>
                 <div className="subagent-baris-aksi">
+                  {/*
+                   * Tiga kontrol saja: nyalakan, dan hapus. Tombol "Ubah" yang
+                   * dulu ada di sini sudah dibuang atas permintaan user - baris
+                   * ini dimaksudkan untuk MEMILIH pekerja, bukan menyuntingnya.
+                   *
+                   * Yang ikut hilang bersamanya: `bukaSunting` dan modal editor.
+                   * Membiarkan keduanya terpasang berarti menyimpan jalur masuk
+                   * yang tidak punya satu pun tombol - kode mati yang akan
+                   * dihidupkan lagi oleh orang berikutnya karena terlihat
+                   * lengkap, tanpa tahu bahwa bentuknya memang tidak diinginkan.
+                   */}
                   <Toggle
                     label={tr('aktif')}
                     testid={`sub-custom-${x.id}-aktif`}
                     checked={x.aktif}
                     onChange={(v) => void setAktif(x.id, v)}
                   />
-                  <button
-                    className="btn btn-sm"
-                    data-testid={`sub-custom-${x.id}-ubah`}
-                    onClick={() => bukaSunting(x.id)}
-                  >
-                    {tr('Ubah')}
-                  </button>
                   <button
                     className="btn btn-sm"
                     data-testid={`sub-custom-${x.id}-hapus`}
@@ -877,12 +1035,15 @@ function CustomSubagentsCard() {
         )}
       </div>
 
-      {(baru || sedangDisunting) && (
-        <SubagentCustomModal
-          awal={baru ? null : sedangDisunting}
-          key={sunting ?? 'baru'}
-        />
-      )}
+      {/*
+       * `<SubagentCustomModal />` tidak dirender lagi.
+       *
+       * Ia menunggu `baru || sedangDisunting`, dan kedua pemicunya sudah tidak
+       * ada: tombol "+ Baru" dibuang, tombol "Ubah" juga. Membiarkan baris ini
+       * terpasang hanya menyisakan kondisi yang selamanya `false` - dan itu
+       * jenis kode mati yang paling menipu, karena ia terlihat seperti fitur
+       * yang siap dipakai.
+       */}
     </>
   );
 }

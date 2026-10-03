@@ -6,7 +6,7 @@ import {
   IMAGE_MAX_BYTES,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { matchPrompts, expandPrompt, matchSnippets, expandSnippet } from '../../lib/promptLibrary';
+import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
 import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
 import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
@@ -449,6 +449,8 @@ const JEJAK_TOOL_MAKS = 4;
   const { items: saranSnippet } = matchSnippets(draft);
   const modeSnippet = saranSnippet.length > 0;
   const saran = modeSnippet ? saranSnippet : saranSlash;
+  /* The trigger symbol the user typed (`>` or `#`) so the rows echo it back. */
+  const pemicuSnippet = modeSnippet ? snippetTrigger(draft) ?? '>' : '>';
 
   /*
    * Inline file references. The token is read from the text BEFORE the caret,
@@ -1707,9 +1709,10 @@ const JEJAK_TOOL_MAKS = 4;
         )}
 
         {/* A-8: slash command suggestions; Tab/Enter uses the highlighted one.
-            T4.4: ">" shows SNIPPETS - the text that gets inserted, not
+            T4.4: ">" (or "#") shows SNIPPETS - the text that gets inserted, not
             a new question. The trigger is marked on the first line of the list so the
-            user knows which one is currently active. */}
+            user knows which one is currently active, and the row prints the
+            symbol actually typed. */}
         {saranFile.length === 0 && saran.length > 0 && (
           <div
             className="ai-slash"
@@ -1731,7 +1734,7 @@ const JEJAK_TOOL_MAKS = 4;
               >
                 <CmdIkon nama={p.ikon} />
                 <span className="ai-slash-cmd">
-                  {modeSnippet ? `>${p.cmd}` : `/${p.cmd}`}
+                  {modeSnippet ? `${pemicuSnippet}${p.cmd}` : `/${p.cmd}`}
                 </span>
                 <span className="ai-slash-label">{tr(p.label)}</span>
               </button>

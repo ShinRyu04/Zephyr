@@ -26,11 +26,49 @@ export function Row({
   );
 }
 
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({
+  title,
+  children,
+  ikon,
+}: {
+  title: string;
+  children: ReactNode;
+  /*
+   * Optional mark, shown before the heading.
+   *
+   * Optional on purpose: every other settings section keeps its plain heading,
+   * so only the page that was asked for gets a mark. A badge on all of them
+   * would turn a signal into decoration.
+   *
+   * `dFill` is drawn as a filled path AFTER the stroked one. When the dots are
+   * part of the stroke they inherit the 1.4px width and vanish at this size;
+   * filling them is what keeps them visible.
+   */
+  ikon?: { d: string; dFill?: string };
+}) {
   const tr = useT();
   return (
     <section className="set-section">
-      <h2 className="set-h2">{tr(title)}</h2>
+      <h2 className="set-h2">
+        {ikon && (
+          <svg
+            className="set-h2-ikon"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d={ikon.d} />
+            {ikon.dFill && <path d={ikon.dFill} fill="currentColor" stroke="none" />}
+          </svg>
+        )}
+        {tr(title)}
+      </h2>
       {children}
     </section>
   );
@@ -41,11 +79,18 @@ export function Toggle({
   onChange,
   label,
   testid,
+  disabled,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
   testid?: string;
+  /*
+   * A disabled switch is worth having as a real state rather than a switch that
+   * looks on and quietly does nothing. Only used where the feature genuinely is
+   * not built yet - see `general-tray`.
+   */
+  disabled?: boolean;
 }) {
   const tr = useT();
   return (
@@ -54,9 +99,16 @@ export function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={tr(label)}
-      className={`set-toggle${checked ? ' is-on' : ''}`}
+      className={`set-toggle${checked ? ' is-on' : ''}${disabled ? ' is-disabled' : ''}`}
       data-testid={testid}
-      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      /* Guarded as well as `disabled`: the attribute covers the mouse, and this
+         covers a programmatic call from a harness or the dev bridge - neither of
+         which the attribute stops. */
+      onClick={() => {
+        if (disabled) return;
+        onChange(!checked);
+      }}
     >
       <span className="set-toggle-knob" />
     </button>

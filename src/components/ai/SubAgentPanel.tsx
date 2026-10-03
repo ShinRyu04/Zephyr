@@ -91,7 +91,17 @@ function Langkah({ l }: { l: SubStep }) {
         {/* Dulu ini mencetak info.ikon sebagai teks, jadi user melihat kata 'doc'/'brain' di layar. */}
         <AiIkon name={info.ikon} size={12} />
       </span>
-      <span className="sub-aksi-label">{info.label}</span>
+      {/*
+        * `tr(...)` WAJIB di sini.
+        *
+        * `info.label` datang dari peta aksi di bawah ini yang ditulis dalam
+        * bahasa Indonesia ('Baca', 'Tulis', 'Cari'). Tanpa tr(), label itu
+        * tampil apa adanya - dan itu salah satu dari sekian banyak tempat di
+        * mana teks Indonesia tetap muncul walaupun aplikasi diset English.
+        * Baris 273 di berkas yang sama sudah memakai tr(pr.label); ini
+        * menyamakannya.
+        */}
+      <span className="sub-aksi-label">{tr(info.label)}</span>
       {sasaran && (
         <span className="sub-aksi-sasaran" title={sasaran}>
           {sasaran}

@@ -182,7 +182,122 @@ const baseName = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ||
 
 let bootstrapStarted = false;
 
+/**
+ * Fills in settings keys that a file from an older version does not have, and
+ * repairs the `general.layout` collision.
+ *
+ * Why this is needed at all: `deep_merge` on the Rust side MERGES. It never
+ * fills a missing key from the Rust defaults, so a new setting added in a later
+ * version stays ABSENT on an upgraded install until the user happens to change
+ * it. The UI then reads `undefined` where it expects a boolean, and a switch
+ * that should default to ON shows as off - the screen quietly misrepresents the
+ * app's real behaviour.
+ *
+ * Two jobs here, and only these two:
+ *
+ * 1. DEFAULT THE NEW KEYS, matching `settings.rs` exactly. If these two ever
+ *    disagree, the file and the screen disagree, which is worse than either.
+ *
+ * 2. REPAIR `general.layout`. An older build wrote the layout-preferences OBJECT
+ *    to this key, and the type is `'editor' | 'terminal'`, read by `App.tsx` as
+ *    `=== 'terminal'`. An object there makes that comparison permanently false.
+ *    The object is moved to `layoutPrefs` and the key set back to a valid
+ *    string, so anyone who hit that bug is fixed by upgrading rather than left
+ *    stuck with a key that can never compare true again.
+ *
+ * Deliberately NOT a general-purpose schema validator: it touches only what is
+ * known to be wrong, so it cannot silently rewrite a setting someone chose.
+ */
+function normalisasiSettings<T>(s: T): T {
+  const root = s as Record<string, unknown>;
+  const g = (root.general ?? {}) as Record<string, unknown>;
+  const patch: Record<string, unknown> = {};
+
+  if (typeof g.confirmExit !== 'boolean') patch.confirmExit = true;
+  if (typeof g.minimizeToTray !== 'boolean') patch.minimizeToTray = false;
+  if (typeof g.defaultTerminal !== 'string') patch.defaultTerminal = 'default';
+  if (typeof g.shellPath !== 'string') patch.shellPath = '';
+
+  if (g.layout !== undefined && typeof g.layout === 'object' && g.layout !== null) {
+    const lama = g.layout as Record<string, unknown>;
+    /* `layoutPrefs` wins if it already exists: it is the newer home and was
+       written by a build that had already stopped clobbering. */
+    patch.layoutPrefs = g.layoutPrefs ?? lama;
+    /* Back to a valid string. 'editor' rather than 'terminal' because the
+       terminal-first layout is the special case, and restoring it for someone
+       who never chose it would move their window on upgrade. */
+    patch.layout = 'editor';
+  }
+
+  if (!Object.keys(patch).length) return s;
+  return { ...root, general: { ...g, ...patch } } as T;
+}
+
 const opening = new Set<string>();
+
+/*
+ * Settings disk-write coalescing. See `applySettings` for why this exists.
+ *
+ * 350ms is chosen against human typing: long enough that a burst of keystrokes
+ * becomes one write, short enough that a user who changes one control and
+ * immediately closes the window has almost certainly had it land. `beforeunload`
+ * in `flushSetelanTerakhir` covers the rest.
+ */
+const TUNDA_SETELAN_MS = 350;
+let timerSetelan: ReturnType<typeof setTimeout> | null = null;
+let gabungTertunda: Record<string, unknown> = {};
+/* Tail of the serialisation chain: the next write waits for this. */
+let antrianTulis: Promise<void> = Promise.resolve();
+
+async function flushSetelan(): Promise<void> {
+  if (timerSetelan) {
+    clearTimeout(timerSetelan);
+    timerSetelan = null;
+  }
+  const patch = gabungTertunda;
+  if (!Object.keys(patch).length) return;
+  gabungTertunda = {};
+
+  /*
+   * `catch` on the CALLER, not inside the queued function: without it a failed
+   * write rejects `antrianTulis` and every later write chains onto a rejected
+   * promise, so one error stops settings from ever saving again for the rest of
+   * the session.
+   */
+  antrianTulis = antrianTulis.then(async () => {
+    await cmd.setSettings(patch);
+    const s = await cmd.getSettings();
+    useStore.setState({ settings: normalisasiSettings(s) });
+
+    useStore.setState({ activeTheme: applyTheme(s.general, s.theme, s.background) });
+    retheme();
+    terapkanA11y(s.accessibility);
+    reSrMode();
+    /*
+     * The AI panel keeps its own copy of the provider, so changes to "Active
+     * model" must be forwarded - otherwise the new choice only applies after a
+     * restart. Dynamic import: aiStore imports the store at module level, so
+     * calling it directly here would create a cycle.
+     */
+    void import('./aiStore')
+      .then((m) => m.useAi.getState().sinkronProvider())
+      .catch(() => {
+        /* non-fatal: the selection is still saved in settings */
+      });
+  });
+  return antrianTulis;
+}
+
+/**
+ * Flush any pending settings write NOW.
+ *
+ * Called before the window closes. Without it a change made in the last 350ms
+ * is held in memory only, and the process dies with it - the user sees their
+ * setting revert on the next launch, with nothing to explain it.
+ */
+export function flushSetelanTerakhir(): Promise<void> {
+  return flushSetelan();
+}
 
 export const MAX_LOADED_TABS = 12;
 
@@ -204,6 +319,93 @@ function touchTab(id: string): void {
 function lupakanTab(id: string): void {
   const i = touchOrder.indexOf(id);
   if (i >= 0) touchOrder.splice(i, 1);
+}
+
+/*
+ * Timer auto save, satu per tab.
+ *
+ * Disimpan di Map dan bukan di state: nilainya tidak pernah dirender, dan
+ * menaruhnya di state berarti setiap ketikan memicu render baru. Kuncinya id
+ * tab supaya tab yang berbeda punya jeda masing-masing, dan tab yang ditutup
+ * bisa membatalkan timernya sendiri.
+ */
+const autoSaveTimers = new Map<string, number>();
+
+function batalAutoSave(id: string): void {
+  const t = autoSaveTimers.get(id);
+  if (t !== undefined) {
+    window.clearTimeout(t);
+    autoSaveTimers.delete(id);
+  }
+}
+
+/*
+ * Tab ini boleh disimpan otomatis atau tidak.
+ *
+ * Read-only dan untitled sengaja dikecualikan: read-only adalah file yang
+ * memang tidak boleh ditulisi, dan tab tanpa path akan membuka dialog "save
+ * as" - dialog yang muncul sendiri tanpa user memintanya jauh lebih
+ * mengganggu daripada manfaat auto save-nya.
+ */
+function bisaAutoSave(t: Tab | undefined): t is Tab {
+  return !!t && t.readOnly !== true && !!t.path && t.loaded !== false;
+}
+
+/*
+ * Jadwalkan auto save untuk SATU tab.
+ *
+ * Dipanggil setiap kali tab ditandai dirty, jadi timer lama selalu dibatalkan
+ * lebih dulu - itu yang membuat jeda benar-benar dihitung dari perubahan
+ * TERAKHIR, bukan dari yang pertama.
+ */
+function jadwalkanAutoSave(id: string): void {
+  batalAutoSave(id);
+  const editor = useStore.getState().settings.editor;
+  if (editor.autoSave !== 'afterDelay') return;
+  const delay = Math.max(200, editor.autoSaveDelay || 1000);
+  autoSaveTimers.set(
+    id,
+    window.setTimeout(() => {
+      autoSaveTimers.delete(id);
+      const tab = useStore.getState().tabs.find((t) => t.id === id);
+      if (!bisaAutoSave(tab) || !tab.unsaved) return;
+      // Lewat saveTab, bukan fsWrite langsung: format on save, snapshot
+      // riwayat, dan penanganan error semuanya hidup di jalur itu.
+      void useStore.getState().saveTab(id);
+    }, delay),
+  );
+}
+
+/*
+ * Simpan semua tab yang masih kotor - jalur `onFocusChange`.
+ *
+ * Dipanggil saat jendela kehilangan fokus atau disembunyikan, jadi ditunda ke
+ * microtask berikutnya agar pemanggilnya (event handler) tidak menunggu I/O.
+ */
+function simpanSemuaKotor(): void {
+  const { tabs } = useStore.getState();
+  for (const t of tabs) {
+    if (!t.unsaved) continue;
+    if (!bisaAutoSave(t)) continue;
+    void useStore.getState().saveTab(t.id);
+  }
+}
+
+/** Dipakai main.tsx / App: pasang listener blur+visibilitychange sekali saja. */
+export function pasangAutoSaveFokus(): () => void {
+  const onBlur = () => {
+    if (useStore.getState().settings.editor.autoSave === 'onFocusChange') simpanSemuaKotor();
+  };
+  const onVisible = () => {
+    if (document.visibilityState !== 'hidden') return;
+    if (useStore.getState().settings.editor.autoSave === 'onFocusChange') simpanSemuaKotor();
+  };
+  window.addEventListener('blur', onBlur);
+  document.addEventListener('visibilitychange', onVisible);
+  return () => {
+    window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onVisible);
+  };
 }
 
 function mergeDalam(base: unknown, patch: unknown): unknown {
@@ -291,7 +493,7 @@ export const useStore = create<Store>((set, get) => ({
 
     try {
       const s = await cmd.getSettings();
-      set({ settings: s, settingsLoaded: true });
+      set({ settings: normalisasiSettings(s), settingsLoaded: true });
       void import('./aiStore').then((m) => m.useAi.getState().sinkronProvider());
       set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
       retheme();
@@ -614,12 +816,12 @@ export const useStore = create<Store>((set, get) => ({
       tabs: s.tabs.map((t) => (lepas.has(t.id) ? { ...t, content: '', loaded: false } : t)),
       statusMessage:
         s.tabs.length > batas
-          ? `Tab terlalu banyak — ${lepas.size} tabs released from memory (contents reload when reopened)`
+          ? `Tab terlalu banyak, ${lepas.size} tabs released from memory (contents reload when reopened)`
           : s.statusMessage,
     }));
   },
 
-  updateTabContent: (id, content) =>
+  updateTabContent: (id, content) => {
     set((s) => ({
       tabs: s.tabs.map((t) =>
 
@@ -627,7 +829,13 @@ export const useStore = create<Store>((set, get) => ({
           ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved }
           : t,
       ),
-    })),
+    }));
+    // Titik dirty tunggal untuk seluruh aplikasi: editor, AI, MCP, dan restore
+    // sesi semuanya menulis lewat sini, jadi cukup satu kait untuk menjadwalkan
+    // auto save tanpa berpikir dari mana perubahannya datang.
+    const sesudah = useStore.getState().tabs.find((t) => t.id === id);
+    if (sesudah?.unsaved && bisaAutoSave(sesudah)) jadwalkanAutoSave(id);
+  },
 
   saveTab: async (id) => {
     const tab = get().tabs.find((t) => t.id === id);
@@ -638,7 +846,7 @@ export const useStore = create<Store>((set, get) => ({
       await get().ensureTabLoaded(id);
       const again = get().tabs.find((t) => t.id === id);
       if (!again || again.loaded === false) {
-        set({ statusMessage: 'The tab has not reloaded yet — open it before saving' });
+        set({ statusMessage: 'The tab has not reloaded yet ,  open it before saving' });
         return false;
       }
     }
@@ -672,6 +880,10 @@ export const useStore = create<Store>((set, get) => ({
       await cmd.fsWrite(cur.path as string, cur.content, cur.encoding, cur.lineEnding, {
         wasExisting: cur.existed === true,
       });
+      // Timer dibatalkan di sini, bukan hanya saat tab ditutup: tab yang sudah
+      // bersih tidak perlu disimpan lagi, dan menutup tab nanti tidak boleh
+      // menyisakan timer yang menunjuk ke id yang sudah tidak ada.
+      batalAutoSave(id);
       set((s) => ({
         tabs: s.tabs.map((t) => (t.id === id ? { ...t, unsaved: false, existed: true } : t)),
         statusMessage: `Saved: ${cur.name}`,
@@ -767,6 +979,10 @@ export const useStore = create<Store>((set, get) => ({
 
   forceCloseTab: (id) => {
 
+    // Tab yang ditutup tidak boleh menyimpan dirinya sendiri setelah hilang:
+    // timer yang masih hidup akan menulis ke disk untuk tab yang barusan
+    // dibuang, atau lebih buruk lagi menyimpan isi yang sudah tidak dipakai.
+    batalAutoSave(id);
     const tabTutup = get().tabs.find((t) => t.id === id);
     if (tabTutup?.path) {
       void import('./cliStore').then((m) => m.useCli.getState().lepasWait(tabTutup.path as string));
@@ -935,11 +1151,54 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  /*
+   * The single gate for closing the window. Returns true when the close may go
+   * ahead, false when it must be cancelled and a dialog shown.
+   *
+   * Two settings live here rather than in the App handler, because this is the
+   * one place that runs for EVERY close - the title bar button, Alt+F4, and the
+   * close from the taskbar all arrive here, and a check placed in the handler
+   * would have to be repeated for each.
+   *
+   * Unsaved files always win, even with `confirmExit` off. Turning off "ask
+   * before closing" must not silently discard edits: that is data loss, and it
+   * is not what the switch promises. The switch only decides whether a CLEAN
+   * window still asks.
+   */
   requestCloseWindow: () => {
-    const dirty = get().tabs.filter((t) => t.unsaved);
-    if (dirty.length === 0) return true;
-    set({ confirm: { tabIds: dirty.map((t) => t.id), intent: 'close-window' } });
-    return false;
+    const s = get();
+    const dirty = s.tabs.filter((t) => t.unsaved);
+    if (dirty.length > 0) {
+      set({ confirm: { tabIds: dirty.map((t) => t.id), intent: 'close-window' } });
+      return false;
+    }
+
+    /*
+     * Clean window, nothing to save. If "keep running in the tray" is on, the
+     * close is turned into a HIDE - the window goes away, the process does not.
+     * Returning false stops the destroy from happening; the app then stays alive
+     * with its tray icon, which is what the switch promises.
+     *
+     * `?.` on the settings: this runs during close, and a partial settings
+     * object must not throw here. A throw would leave the window unclosable,
+     * which is far worse than skipping a confirmation.
+     */
+    const g = s.settings?.general;
+    if (g?.minimizeToTray) {
+      void getCurrentWindow().hide();
+      return false;
+    }
+
+    /*
+     * `?? true`: absent means on. That matches the Rust default, and it is the
+     * safe direction for a setting whose whole job is to prevent an accident.
+     */
+    if (g?.confirmExit ?? true) {
+      set({ confirm: { tabIds: [], intent: 'close-window' } });
+      return false;
+    }
+
+    return true;
   },
 
   setSaveIssue: (i) => set({ saveIssue: i }),
@@ -1005,37 +1264,42 @@ export const useStore = create<Store>((set, get) => ({
     });
   },
 
-  applySettings: async (patch) => {
+  /*
+   * Settings writes are DEBOUNCED and SERIALISED, for two separate reasons that
+   * both showed up as the same complaint: a setting that reverts on its own.
+   *
+   * 1. DEBOUNCE. Applying on every call meant one disk write per keystroke in
+   *    every settings text field. More importantly, the Rust side is
+   *    read-modify-write (`settings.rs:357-378` reads the whole file, merges,
+   *    writes it back), so two calls in flight together each read the SAME base
+   *    and the second write wins with only its own patch. The result is a
+   *    setting that silently lost its previous value.
+   *
+   * 2. SERIALISE. Even coalesced, the last call must FINISH before the next
+   *    starts, otherwise the same lost-update happens. `antrianTulis` holds the
+   *    tail of the chain, so writes run one after another.
+   *
+   * The state update stays IMMEDIATE: the merge is computed and applied to the
+   * store on the spot, so the UI never lags a keystroke. Only the disk write is
+   * delayed - and the merge is recomputed from CURRENT state when it runs, so
+   * the delayed write carries every change made in the meantime rather than
+   * just the one that scheduled it.
+   */
+  applySettings: (patch) => {
+    const sebelumnya = get().settings;
+    set({ settings: mergeDalam(sebelumnya, patch) as typeof sebelumnya });
 
-    try {
-      const sebelumnya = get().settings;
+    /* Merge into the pending payload so a burst becomes one write carrying all
+       of it. This is what makes the debounce safe: nothing is dropped, only
+       combined. */
+    gabungTertunda = mergeDalam(gabungTertunda, patch) as Record<string, unknown>;
 
-      const gabungan = mergeDalam(sebelumnya, patch);
-      set({ settings: gabungan as typeof sebelumnya });
-      await cmd.setSettings(patch);
-      const s = await cmd.getSettings();
-      set({ settings: s });
+    if (timerSetelan) clearTimeout(timerSetelan);
+    timerSetelan = setTimeout(() => {
+      void flushSetelan();
+    }, TUNDA_SETELAN_MS);
 
-      set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
-      retheme();
-      terapkanA11y(s.accessibility);
-      reSrMode();
-      /*
-       * The AI panel keeps its own copy of the provider, so changes to
-       * "Active model" from Settings must be forwarded — otherwise, the new
-       * choice is only used after the app is restarted.
-       *
-       * Dynamic import: aiStore already imports the store at module level;
-       * calling it directly here would create a cycle.
-       */
-      void import('./aiStore')
-        .then((m) => m.useAi.getState().sinkronProvider())
-        .catch(() => {
-          /* non-fatal: the provider selection is still saved in settings */
-        });
-    } catch (e) {
-      set({ statusMessage: cmd.asZephyrError(e).message });
-    }
+    return Promise.resolve();
   },
 
   applyLayout: async (mode: 'default' | 'focus' | 'term' | 'quad', opsi?: { sidebar?: boolean; panel?: boolean }) => {

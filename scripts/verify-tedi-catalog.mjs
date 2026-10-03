@@ -84,6 +84,38 @@ if (mcpSumber.length === 0) {
 const { buildSync } = await import('esbuild');
 const sementara = join(AKAR, 'node_modules', '.cache', 'verify-catalog.mjs');
 await (await import('node:fs/promises')).mkdir(dirname(sementara), { recursive: true });
+
+/*
+ * `self` harus ada SEBELUM bundel dimuat.
+ *
+ * `catalog.ts` kini menarik `deskripsiTool.ts`, dan rantai impor di sekitarnya
+ * menyentuh `terminalStore` -> `xtermRegistry` -> `@xterm/addon-fit`. xterm
+ * menganggap dirinya berjalan di browser dan menyentuh `self` saat dimuat,
+ * sehingga bundel ini GAGAL TOTAL di Node - dan itu muncul sebagai
+ * "FATAL: katalog tidak bisa dimuat", bukan sebagai kegagalan pemeriksaan.
+ *
+ * Penyebabnya bukan katalognya: katalog tetap murni data. Yang berubah adalah
+ * panjang rantai impornya. Ditemukan hanya karena harness ini dijalankan lagi
+ * setelah perubahan itu, bukan karena ada yang menyentuh berkasnya.
+ *
+ * xterm tidak pernah dipakai di sini - yang diperiksa hanya DAFTAR nama.
+ */
+if (typeof globalThis.self === 'undefined') {
+  globalThis.self = globalThis;
+}
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = {
+    createElement: () => ({ style: {}, appendChild() {}, remove() {}, setAttribute() {}, addEventListener() {}, removeEventListener() {} }),
+    addEventListener() {},
+    removeEventListener() {},
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    body: { appendChild() {}, removeChild() {} },
+    documentElement: { style: {} },
+  };
+}
+if (typeof globalThis.window === 'undefined') globalThis.window = globalThis;
+
 buildSync({
   entryPoints: [join(AKAR, 'src', 'lib', 'tediTools', 'catalog.ts')],
   outfile: sementara,
@@ -91,6 +123,9 @@ buildSync({
   format: 'esm',
   platform: 'node',
   logLevel: 'silent',
+  define: {
+    'import.meta.env': JSON.stringify({ DEV: false, PROD: true, MODE: 'production' }),
+  },
 });
 
 let katalog;

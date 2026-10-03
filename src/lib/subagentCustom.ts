@@ -6,8 +6,7 @@ import type { PeranId } from './subagentRoles';
  * Custom sub-agents: workers the user defines themselves, alongside the six
  * built-in roles. A built-in role is a fixed prompt Zephyr ships; a custom one
  * is a name, a one-line purpose, a tool allowlist and a system prompt the user
- * writes. The orchestrator treats both the same way once a task is launched —
- * only the prompt and the allowed tools differ.
+ * writes. The orchestrator treats both the same way once a task is launched, * only the prompt and the allowed tools differ.
  *
  * Storage lives under `settings.subagentCustom` so a definition travels with
  * the rest of the settings file and is restored by the same load path.
@@ -38,13 +37,13 @@ export interface AlatInfo {
  */
 export const ALAT: AlatInfo[] = [
   { id: 'read_file', label: 'Read a file', hint: 'Open the contents of one file', ikon: '▤' },
-  { id: 'list_directory', label: 'Daftar folder', hint: 'List the contents of a folder', ikon: '☰' },
-  { id: 'grep', label: 'Cari teks', hint: 'Search file contents across the workspace', ikon: '⌘' },
-  { id: 'glob', label: 'Cari berkas', hint: 'Find files by name or path pattern', ikon: '▭' },
-  { id: 'bash_logs', label: 'Baca log', hint: 'Read the output of a background process', ikon: '≡' },
-  { id: 'bash_list', label: 'Daftar proses', hint: 'List background processes and their exit codes', ikon: '⚠' },
-  { id: 'notes_read', label: 'Baca memori', hint: 'Catatan lintas sesi', ikon: '◈' },
-  { id: 'fetch', label: 'Ambil halaman', hint: 'Fetch the text of one URL', ikon: '✦' },
+  { id: 'list_directory', label: 'List a folder', hint: 'List the contents of a folder', ikon: '☰' },
+  { id: 'grep', label: 'Search text', hint: 'Search file contents across the workspace', ikon: '⌘' },
+  { id: 'glob', label: 'Find files', hint: 'Find files by name or path pattern', ikon: '▭' },
+  { id: 'bash_logs', label: 'Read a log', hint: 'Read the output of a background process', ikon: '≡' },
+  { id: 'bash_list', label: 'List processes', hint: 'List background processes and their exit codes', ikon: '⚠' },
+  { id: 'notes_read', label: 'Read memory', hint: 'Notes that persist across sessions', ikon: '◈' },
+  { id: 'fetch', label: 'Fetch a page', hint: 'Fetch the text of one URL', ikon: '✦' },
 ];
 
 export interface SubagentCustom {
@@ -131,7 +130,7 @@ export function bacaDaftar(): SubagentCustom[] {
  * This is the only bridge between the settings page and the runtime. Until it
  * existed the definitions were written and never read again: `subagent_run`
  * spawned generic workers, the custom ones sat in Settings, and there was no
- * path from one to the other. Case-insensitive on purpose — a model writing
+ * path from one to the other. Case-insensitive on purpose, a model writing
  * `[ryuga]` should not silently get a generic worker instead of failing.
  */
 export function customAktif(): SubagentCustom[] {
@@ -165,40 +164,36 @@ export function pisahCustom(tugas: string): { custom: SubagentCustom | null; sis
 /**
  * The persona block that replaces the built-in role prompt.
  *
+ * ALWAYS IN ENGLISH, whatever the interface language is. This text is not shown
+ * to anyone - it is an instruction to a model - and the interface language has
+ * no business reaching it. It used to switch to Indonesian when `uiLang` was
+ * `id`, which meant a user who set Indonesian got a worker briefed in
+ * Indonesian while every other user got one briefed in English. That is a
+ * difference in BEHAVIOUR that follows a display preference, and it is not one
+ * the user asked for or could see. Two users running the same task should get
+ * the same worker.
+ *
  * When a definition has no prompt of its own it says so rather than leaving the
  * worker with nothing: an empty persona makes it behave like a generic reader,
  * which is the same result as never wiring it up at all, and the user would
  * have no way to tell the two apart.
  */
 export function arahanCustom(d: SubagentCustom, total: number): string {
-  const inggris = (useStore.getState().settings.general?.uiLang || 'en') !== 'id';
   const alat = ALAT.filter((a) => d.alat.includes(a.id)).map((a) => a.id).join(', ');
-  const gpuang = d.prompt.trim();
-  const inti = gpuang
-    ? gpuang
-    : inggris
-      ? 'You have no specific persona. Be thorough and report only what the task asked for.'
-      : 'You have no specific persona. Work carefully and report only what was asked.';
+  const prompt = d.prompt.trim();
+  const inti = prompt
+    ? prompt
+    : 'You have no specific persona. Be thorough and report only what the task asked for.';
 
   return [
-    inggris ? `YOUR WORKER IDENTITY: ${d.nama}` : `IDENTITASMU: ${d.nama}`,
-    gpuang
-      ? ''
-      : inggris
-        ? '(no system prompt set for this worker — the Settings page is where to add one)'
-        : '(no system prompt for this worker yet — set one on the Settings page)',
+    `YOUR WORKER IDENTITY: ${d.nama}`,
+    prompt ? '' : '(no system prompt set for this worker - the Settings page is where to add one)',
     '',
     inti,
     '',
-    inggris
-      ? `You may call ONLY these tools: ${alat}. Anything else is rejected.`
-      : `You may ONLY use these tools: ${alat}. Anything else is refused.`,
-    inggris
-      ? 'You cannot write or edit any file. Report findings in your final answer.'
-      : 'You may not write or change files. Report your findings in the final answer.',
-    inggris
-      ? `${total} subagent(s) are running at the same time; stay on your own task.`
-      : `${total} subagents are running at once; stay on your own task.`,
+    `You may call ONLY these tools: ${alat}. Anything else is rejected.`,
+    'You cannot write or edit any file. Report findings in your final answer.',
+    `${total} subagent(s) are running at the same time; stay on your own task.`,
   ]
     .filter((l) => l !== '')
     .join('\n');
@@ -271,6 +266,12 @@ export function customDariPrefix(teks: string): { custom: SubagentCustom; tugas:
  * knows the custom workers by name.
  */
 export function daftarPekerja(): { id: string; label: string; hint: string; ikon: string; custom: boolean }[] {
+  /*
+   * The six built-in roles. Labels are the stable English ids the orchestrator
+   * writes into a task line, NOT translated text: `cari`, `telaah` and the rest
+   * are matched by name in `peranBawaan`, so translating the label here would
+   * break the match while looking like it had been tidied up.
+   */
   const bawaan = [
     { id: 'cari', label: 'Cari', hint: 'Telusuri kode', ikon: '⌕', custom: false },
     { id: 'telaah', label: 'Telaah', hint: 'Analisis mendalam', ikon: '◈', custom: false },
@@ -285,7 +286,7 @@ export function daftarPekerja(): { id: string; label: string; hint: string; ikon
      *
      * It starts empty and is only filled when Settings → Subagents is opened, so
      * a user who defines a worker and goes straight to the AI panel got an empty
-     * roster — the definition existed on disk the whole time. Reading the file
+     * roster, the definition existed on disk the whole time. Reading the file
      * here is what makes a custom worker usable in the session that defines it.
      */
     const di = useSubagentCustom.getState().daftar;

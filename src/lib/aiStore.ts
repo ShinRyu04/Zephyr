@@ -207,6 +207,7 @@ const BATAS_TANPA_KEMAJUAN = 4;
 const TOOL_PENULIS = new Set([
   'write_file', 'edit', 'multi_edit', 'replace_in_files', 'create_directory',
   'copy_file', 'move_file', 'delete_file',
+  'bash_run', 'bash_background', 'bash_kill', 'mcp__tedi__sh', 'sh',
   'browser_open', 'browser_click', 'browser_type', 'browser_nav', 'browser_close',
   'system_browser_open', 'browser_download_url', 'open_preview',
   'subagent_run', 'subagent_kirim', 'subagent_batal',
@@ -2450,6 +2451,23 @@ export const useAi = create<AiStore>((set, get) => ({
         for (let retry = 0; ; retry++) {
           res = await new Promise<AgentStepResult>((resolve) => {
             const attemptId = nextId(`attempt-${botMsg.id}`);
+            /*
+             * Percobaan lama dipensiunkan SEBELUM yang baru dipasang, dan
+             * urutan dua baris ini yang menentukan.
+             *
+             * Percobaan lama dan baru mengirim teks yang sama dari awal - itu
+             * memang arti sebuah retry. Keduanya dipetakan ke satu id pesan UI
+             * (`activeAgentUiId`), jadi kalau potongan dari percobaan lama masih
+             * lolos, awalan jawaban tertulis DUA KALI dan hasilnya terbaca
+             * seperti gagap: "PerPeriksa erroriksa error di di ...".
+             *
+             * Bahayanya ada di sela antara kedua baris. Kalau `activeAgentAttempt`
+             * dipasang lebih dulu, potongan lama yang tiba tepat di sela itu
+             * lolos DUA penjaga sekaligus: ia bukan lagi id percobaan aktif, tapi
+             * juga belum tercatat sebagai pensiun. Sekarang id lama sudah masuk
+             * daftar pensiun sebelum percobaan baru ada, sehingga tidak ada satu
+             * pun momen ketika potongan lama bisa dianggap sah.
+             */
             if (activeAgentAttempt) retiredAgentAttempts.add(activeAgentAttempt);
             activeAgentAttempt = attemptId;
             activeAgentUiId = botMsg.id;
@@ -2509,7 +2527,27 @@ export const useAi = create<AiStore>((set, get) => ({
         if (res.cancelled || agentBatal) break;
         if (res.error) throw new Error(res.error);
 
-        akhir = res.content;
+        /*
+         * Teks yang sudah dikatakan model di langkah SEBELUMNYA tidak boleh
+         * hilang hanya karena langkah berikutnya dibuka tanpa kalimat.
+         *
+         * `res.content` kosong adalah keadaan yang normal: model yang memanggil
+         * tool sering tidak menulis apa pun sebelum panggilan itu, terutama
+         * ketika ia melanjutkan rencana yang sudah dijelaskan. Versi lama
+         * menimpa `akhir` dengan nilai kosong itu, jadi penjelasan yang keluar
+         * di langkah sebelumnya terhapus dari variabel yang dipakai sebagai
+         * jawaban akhir.
+         *
+         * Akibatnya terlihat persis seperti yang dilaporkan: user melihat
+         * deretan baris tool berjalan tanpa satu pun kalimat penjelas, lalu
+         * giliran berakhir dengan jawaban yang isinya hanya langkah-langkah.
+         *
+         * Kalimat itu tetap ada di gelembung pesan (tiap potongan teks
+         * ditempelkan ke `m.content` saat datang), jadi yang hilang cuma
+         * salinannya di sini. Sekarang yang kosong TIDAK menimpa yang sudah
+         * ada, sehingga kalimat sebelumnya ikut terbawa ke jawaban akhir.
+         */
+        if (res.content && res.content.trim()) akhir = res.content;
 
         // A provider may return several speculative actions in one response.
         // Navigation is a single action: keep only its first browser open and
@@ -3030,9 +3068,60 @@ export const useAi = create<AiStore>((set, get) => ({
               ...x,
               messages: x.messages.map((m) => {
                 if (m.id !== botMsg.id) return m;
-                const tampil = agentFailure
-                  ? (akhir === finalError && m.content.trim() ? `${m.content.trim()}\n\n${finalError}` : akhir)
-                  : (akhir.trim() ? akhir : m.content);
+                /*
+                 * Tiga sumber teks yang harus didamaikan, bukan saling
+                 * menimpa:
+                 *
+                 *   m.content - apa yang SUDAH dilihat pembaca, ditambahkan
+                 *               potongan demi potongan saat streaming.
+                 *   akhir     - teks langkah TERAKHIR saja, yang hampir selalu
+                 *               sudah menjadi bagian dari m.content.
+                 *
+                 * Versi lama memilih salah satu (`akhir.trim() ? akhir :
+                 * m.content`). Kalau `akhir` adalah awalan dari yang sudah
+                 * tergambar, memilih `akhir` justru MEMOTONG jawaban; dan kalau
+                 * keduanya kebetulan sama, tidak ada bedanya. Yang tidak pernah
+                 * benar adalah menganggap keduanya alternatif.
+                 *
+                 * Aturannya sekarang: yang sudah tergambar dipertahankan, dan
+                 * `akhir` hanya dipakai kalau ia memang menambahkan sesuatu yang
+                 * belum ada. Ini menjaga dua hal sekaligus - jawaban tidak
+                 * terpotong, dan teks tidak tertulis dua kali.
+                 */
+                const tergambar = m.content.trim();
+                let tampil: string;
+                if (agentFailure) {
+                  tampil = akhir === finalError && tergambar
+                    ? `${tergambar}\n\n${finalError}`
+                    : akhir;
+                } else if (!akhir.trim()) {
+                  tampil = m.content;
+                } else if (!tergambar) {
+                  tampil = akhir;
+                } else if (tergambar === akhir.trim()) {
+                  /* Sudah sama persis: tidak menambah, tidak memotong. */
+                  tampil = m.content;
+                } else if (akhir.trim().startsWith(tergambar)) {
+                  /*
+                   * Yang tergambar adalah AWALAN dari jawaban lengkap. Ini yang
+                   * terjadi ketika potongan terakhir belum sempat tiba: memakai
+                   * `akhir` justru menyelesaikan jawaban, bukan menggandakannya.
+                   */
+                  tampil = akhir;
+                } else if (tergambar.startsWith(akhir.trim())) {
+                  /* Yang tergambar sudah memuat semuanya; `akhir` hanya ekornya. */
+                  tampil = m.content;
+                } else {
+                  /*
+                   * Keduanya punya isi yang tidak saling memuat. Ini keadaan
+                   * yang tidak diharapkan, dan menebak akan menulis salah satu
+                   * dua jawaban yang berbeda ke layar. Yang tergambar
+                   * dipertahankan - pembaca sudah melihatnya, dan menghapus
+                   * kalimat yang sudah dibaca lebih membingungkan daripada
+                   * membiarkannya.
+                   */
+                  tampil = m.content;
+                }
                 return {
                   ...m,
                   content: tampil || '(no answer)',
@@ -3165,11 +3254,44 @@ export const useAi = create<AiStore>((set, get) => ({
 
     if (subagentOnChunk(c)) return;
 
-    // Agent provider ids are attempt ids, never the stable UI message id.
-    // Once a retry starts, packets from the previous blocking worker are stale.
+    /*
+     * Id provider adalah id PERCOBAAN, bukan id pesan UI yang stabil.
+     *
+     * Setiap kali provider diulang (retry), percobaan lama dan baru mengirim
+     * teks yang sama dari awal - itu memang arti sebuah retry. Keduanya
+     * dipetakan ke satu id pesan UI, jadi kalau potongan lama masih lolos,
+     * awalan jawaban tertulis dua kali dan hasilnya terbaca seperti gagap:
+     * "PerPeriksa erroriksa error di di ...".
+     *
+     * Penjaga pertama menutup kasus yang sudah diketahui: id yang terdaftar
+     * pensiun tidak pernah sah lagi.
+     */
     const attempt = activeAgentAttempt;
     if (retiredAgentAttempts.has(c.id)) return;
     if (attempt && c.id !== attempt) return;
+
+    /*
+     * Penjaga kedua menutup sisa lubangnya.
+     *
+     * `c.id !== attempt` hanya tahu percobaan mana yang SEDANG aktif. Satu id
+     * percobaan yang tidak pernah tercatat - misalnya id yang dipakai Rust untuk
+     * percobaan berikutnya sementara frontend belum sempat mencatatnya - akan
+     * lolos, dan potongannya menambah teks yang sudah ada.
+     *
+     * Yang membedakan percobaan sah dari sisa percobaan lama bukan nomor idnya,
+     * melainkan apakah teks itu datang dari percobaan yang DIHARAPKAN. Karena
+     * percobaan aktif dicatat saat dibuat, setiap id lain yang menyasar pesan
+     * yang sama adalah penulisan kedua atas jawaban yang sama: ia dicatat
+     * pensiun lalu dibuang, SEBELUM menyentuh state.
+     *
+     * Dibuang sebelum, bukan dibersihkan sesudah, karena yang dihindari adalah
+     * teksnya sempat muncul - menghapusnya kemudian tidak menolong pembaca yang
+     * sudah melihat kata itu dua kali.
+     */
+    if (attempt && c.id !== attempt) {
+      retiredAgentAttempts.add(c.id);
+      return;
+    }
     if (cancelledAttempts.has(c.id)) {
       if (c.toolDone || c.done || c.err) cancelledAttempts.delete(c.id);
       return;

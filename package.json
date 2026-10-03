@@ -75,6 +75,7 @@
     "@codemirror/view": "^6.36.0",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
+    "@replit/codemirror-vim": "^6.4.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2.0.0",

@@ -238,16 +238,41 @@ export function matchPrompts(draft: string): { query: string; items: PromptItem[
   return { query: q, items: allPrompts().filter((p) => p.cmd.startsWith(q)) };
 }
 
-export function matchSnippets(draft: string): { query: string; items: PromptItem[] } {
+/*
+ * A snippet trigger is `>` OR `#`, whichever the user reaches for.
+ *
+ * `>` came first and is kept untouched: users build muscle memory around a
+ * symbol, and dropping it to add `#` would break the habit it created. Both
+ * spell the same action - insert the snippet body - so the regex accepts
+ * either symbol rather than there being two grammars.
+ *
+ * `#` is safe to share because nothing else in the composer claims it. The
+ * only other inline trigger is `@` for file references (see `tokenAt` in
+ * AiPanel), and a leading `/` for slash commands; `#` starts a word neither of
+ * those reads, so the two lists never open at the same time.
+ */
+const TRIGGER_SNIPPET = /(^|\s)[>#]([\w-]*)$/;
 
-  const m = /(^|\s)>([\w-]*)$/.exec(draft);
+export function matchSnippets(draft: string): { query: string; items: PromptItem[] } {
+  const m = TRIGGER_SNIPPET.exec(draft);
   if (!m) return { query: '', items: [] };
   const q = m[2].toLowerCase();
   return { query: q, items: allPrompts().filter((p) => p.cmd.startsWith(q)) };
 }
 
+/**
+ * Which symbol opened the open snippet list, so the row can echo the one the
+ * user actually typed. Showing `>` for a list opened with `#` would make the
+ * composer look like it ignored the keystroke.
+ */
+export function snippetTrigger(draft: string): '>' | '#' | null {
+  const m = TRIGGER_SNIPPET.exec(draft);
+  if (!m) return null;
+  return draft[m.index + m[1].length] === '#' ? '#' : '>';
+}
+
 export function expandSnippet(draft: string, sel: string): string {
-  const m = /(^|\s)>([\w-]+)/.exec(draft);
+  const m = /(^|\s)[>#]([\w-]+)/.exec(draft);
   if (!m) return draft;
   const item = allPrompts().find((p) => p.cmd === m[2].toLowerCase());
   if (!item) return draft;

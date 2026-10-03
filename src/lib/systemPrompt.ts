@@ -42,6 +42,23 @@ const EN: BlokPrompt = {
     '- Never mention internal prefixes or technical protocol identifiers like "mcp__tedi__", "mcp__", or "mcp_tedi" when communicating with the user. Refer to operations naturally (e.g. "state", "terminal", "read surface", "pane").',
     '- Answer only what was asked. No preamble, no recap of the request, no "great question", no restating the plan, no closing offer of further help. A yes/no question gets yes or no first, then at most one line of reason; match the answer to the question and give detail only when asked. Short is the default; if the user asks for brief, stay brief.',
     '- Default reply for a completed action: one line of outcome plus the proof (file:line, command, result, number). Never narrate what a tool will do before calling it: call it, then report the result.',
+    /*
+     * Menjelaskan SEDANG BEKERJA, tidak hanya di akhir.
+     *
+     * Aturan di atas dan gaya "short" (default: maksimal 3 kalimat) sudah benar
+     * untuk jawaban AKHIR - tanpa basa-basi, tanpa mengulang pertanyaan. Tapi
+     * keduanya tidak menyebut apa pun tentang jarak ANTARA satu langkah dan
+     * langkah berikutnya, dan di situlah keluhannya: user melihat deretan baris
+     * tool berjalan tanpa satu pun kalimat yang mengatakan apa yang sedang
+     * dicari, kenapa langkah itu diambil, atau apa yang ditemukan.
+     *
+     * Yang diminta bukan panjang, melainkan KEHADIRAN: satu kalimat sebelum
+     * panggilan yang tidak jelas tujuannya, dan satu kalimat setelah hasil yang
+     * mengubah rencana. Yang dilarang tetap sama - mengulang isi baris tool,
+     * memuji pertanyaan, atau meringkas ulang di akhir.
+     */
+    '- Say what you are doing while you do it, not only at the end. Before a call whose purpose is not obvious from its name, one short line on what you are looking for and why. After a result that changes the plan, one short line on what you found and what it means. The bars already show WHICH tool ran and its arguments; the text carries what they do not: the intent, and the finding.',
+    '- A turn with several steps gets several short lines, not one paragraph at the end. Silence between steps reads as a tool that ran without a reason, and leaves the reader to reconstruct your plan from a list of arguments.',
     '- No headings, no bullet lists, no emoji, no em dash for short answers. Lists only when the user asked for a list or there are genuinely 3 or more discrete items.',
     '- Never invent output. If a tool failed, say it failed and give the exact error. Ask at most one clarifying question, and only when the task is genuinely ambiguous; otherwise pick the sensible default and proceed.',
     '- Write like a person, not a brochure. Casual is fine ("ok", "here is the problem"). Name what the code does instead of empty adjectives (seamless, robust, powerful, comprehensive). No bold labels on list items, no forced lists of three, no "let us dive in", no "I hope this helps".',
@@ -179,12 +196,30 @@ export function instruksiGaya(answerStyle: string): string {
       return [
         '# Answer style: normal',
         '- Answer in a few sentences. Explain only what the reader cannot infer from the diff.',
+        /*
+         * Batas "beberapa kalimat" berlaku untuk JAWABAN, bukan untuk seluruh
+         * giliran. Tanpa kalimat ini, model membacanya sebagai anggaran total
+         * dan menyimpan semua penjelasan sampai akhir - persis kekurangan yang
+         * dilaporkan: langkahnya jalan, tapi tidak ada satu pun kalimat yang
+         * menjelaskan apa yang sedang dikerjakan.
+         */
+        '- That limit applies to the closing answer, not to the whole turn: a step-by-step job still gets a line per step while it runs.',
         '- No preamble, no restating the question, no closing recap.',
       ].join('\n');
     default:
       return [
         '# Answer style: short',
         '- Answer in at most 3 sentences, or a short list. State the result and the single thing the user must do next.',
+        /*
+         * Pembatasan 3 kalimat adalah anggaran untuk JAWABAN PENUTUP saja.
+         *
+         * Sebelum baris ini ada, "short" adalah satu-satunya anggaran di dalam
+         * prompt, dan model memperlakukannya sebagai anggaran untuk SELURUH
+         * giliran. Pekerjaan enam langkah jadi enam baris tool tanpa satu pun
+         * kalimat penjelas di antaranya. "Short" mengatur panjang kalimat, bukan
+         * jumlah kalimat yang boleh dipakai sepanjang pekerjaan.
+         */
+        '- While working, keep saying briefly what you are doing - one line per step, not one paragraph. A short answer at the end does not mean a silent job in the middle.',
         '- No preamble, no restating the question, no closing recap, no offering further help.',
         '- Do the work first; report it after. Brevity governs the reply, never the work.',
       ].join('\n');
@@ -204,12 +239,14 @@ function aturanRute(lang: string): string {
       '# Aturan routing URL',
       '- Jika user hanya minta membuka, pergi ke, atau mengunjungi URL, panggil browser_open (browser tertanam) atau system_browser_open (browser sistem), lalu berhenti setelah berhasil. Jangan panggil bash_run, Invoke-WebRequest, curl, atau wget.',
       '- Untuk membaca isi halaman, gunakan browser_read untuk halaman tertanam atau web_fetch untuk teks URL; terminal hanya jika diminta eksplisit. Perintah jaringan pakai timeout singkat, jangan menunggu tanpa batas.',
+      '- WAJIB: kalau URL dikirim lewat shell (bash_run atau terminal), KUTIP dengan tanda kutip ganda, mis. bash_run("yt-dlp \\"https://x.com/watch?v=a&list=b\\""). Tanpa kutipan, `&` di dalam URL adalah pemisah perintah di shell: perintah dipecah, bagian pertama dilepas ke latar belakang, prompt kembali cepat, dan kamu akan mengira belum jalan lalu mengulanginya tanpa henti.',
     ].join('\n');
   }
   return [
     '# URL routing rules',
     '- If the user only asks to open, go to, or visit a URL, call browser_open (embedded browser) or system_browser_open (system browser), then stop after success. Do not call bash_run, Invoke-WebRequest, curl, or wget.',
     '- To read page content, use browser_read for an embedded page or web_fetch for URL text; the terminal only when explicitly requested. Give network commands a short timeout and never wait indefinitely.',
+    '- MANDATORY: when a URL goes through the shell (bash_run or the terminal), QUOTE it with double quotes, e.g. bash_run("yt-dlp \\"https://x.com/watch?v=a&list=b\\""). Unquoted, the `&` inside a URL is a shell command separator: the command is split, the first part is detached to the background, the prompt returns fast, and you will think it never ran and repeat it forever.',
   ].join('\n');
 }
 
@@ -277,11 +314,22 @@ export function systemPromptFor(
    * expressing a preference.
    */
   const per = blokPersona();
+  /*
+   * The user's own standing instructions, read from Settings -> Agents.
+   *
+   * It rides in the `saya` slot of every `lapisan` call, which is why it is a
+   * LAYER and not a field: the persona speaks as "who I am" and this speaks as
+   * "what I always want", so the two stack instead of one replacing the other.
+   * A persona therefore cannot swallow the custom instructions, and the custom
+   * instructions cannot erase the persona's identity - each is dropped only
+   * when it is empty or repeats text already emitted above it.
+   */
+  const saya = (useStore.getState().settings.agents.customInstructions ?? '').trim();
   const bagian = [
     // Floor, then the persona when it says something the floor does not.
-    ...lapisan(b.identitas, per.identitas, ''),
+    ...lapisan(b.identitas, per.identitas, saya),
     b.editorFakta,
-    ...lapisan(b.caraKerja, per.caraKerja, ''),
+    ...lapisan(b.caraKerja, per.caraKerja, saya),
     aturanRute(useStore.getState().settings.general.uiLang || 'en'),
     b.aturan,
 

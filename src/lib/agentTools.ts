@@ -19,6 +19,14 @@ import { useToolGate, TOOL_TULIS } from './toolGate';
 
 export { TOOL_TULIS };
 
+/*
+ * Tabel label + ikon per tool diteruskan dari sini supaya bridge dev bisa
+ * membacanya lewat modul yang sama dengan handler-nya. Harness yang mengukur
+ * "apakah baris tool menggambar glyph berbeda" butuh tabel yang BENAR-BENAR
+ * dipakai komponen, bukan salinan di dalam skrip uji.
+ */
+export { infoAksi } from './labelAksi';
+
 export interface AgentTool {
   spec: AgentToolSpec;
   run: (args: Record<string, unknown>) => Promise<string>;

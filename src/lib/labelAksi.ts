@@ -40,7 +40,7 @@ const PETA: Record<string, AksiInfo> = {
 
   /* Search */
   grep: { label: 'Search', jenis: 'cari', ikon: 'search' },
-  glob: { label: 'Find files', jenis: 'cari', ikon: 'search' },
+  glob: { label: 'Find files', jenis: 'cari', ikon: 'folder' },
 
   /* Shell */
   bash_run: { label: 'Run', jenis: 'jalan', ikon: 'terminal' },
@@ -53,8 +53,8 @@ const PETA: Record<string, AksiInfo> = {
   fetch: { label: 'Fetch', jenis: 'baca', ikon: 'doc' },
 
   /* Sub-agents */
-  run_subagent: { label: 'Subagent', jenis: 'lain', ikon: 'puzzle' },
-  run_subagents: { label: 'Subagents', jenis: 'lain', ikon: 'puzzle' },
+  run_subagent: { label: 'Subagent', jenis: 'lain', ikon: 'robot' },
+  run_subagents: { label: 'Subagents', jenis: 'lain', ikon: 'robot' },
 
   /* Tasks & Notes */
   todo_write: { label: 'Write TODO', jenis: 'ingat', ikon: 'check' },
@@ -75,31 +75,31 @@ const PETA: Record<string, AksiInfo> = {
   /* MCP - control */
   mcp__tedi__run_command: { label: 'Run command', jenis: 'jalan', ikon: 'terminal' },
   mcp__tedi__open_file: { label: 'Open file', jenis: 'tulis', ikon: 'doc-edit' },
-  mcp__tedi__workspace: { label: 'Workspace', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__tedi__workspace: { label: 'Workspace', jenis: 'tulis', ikon: 'node' },
   mcp__tedi__set_setting: { label: 'Set setting', jenis: 'tulis', ikon: 'gear' },
   mcp__tedi__extension: { label: 'Extension', jenis: 'tulis', ikon: 'puzzle' },
-  mcp__tedi__ssh: { label: 'SSH', jenis: 'jalan', ikon: 'terminal' },
-  mcp__tedi__worktree: { label: 'Worktree', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__tedi__ssh: { label: 'SSH', jenis: 'jalan', ikon: 'node' },
+  mcp__tedi__worktree: { label: 'Worktree', jenis: 'tulis', ikon: 'node' },
 
   /* MCP - terminal */
   mcp__tedi__sh: { label: 'Run in terminal', jenis: 'jalan', ikon: 'terminal' },
-  mcp__tedi__focus_pane: { label: 'Focus pane', jenis: 'tulis', ikon: 'puzzle' },
-  mcp__tedi__pane: { label: 'Pane', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__tedi__focus_pane: { label: 'Focus pane', jenis: 'tulis', ikon: 'node' },
+  mcp__tedi__pane: { label: 'Pane', jenis: 'tulis', ikon: 'node' },
 
   /* Web */
   web_search: { label: 'Search web', jenis: 'cari', ikon: 'search' },
   web_fetch: { label: 'Fetch page', jenis: 'baca', ikon: 'doc' },
 
   /* Browser */
-  browser_open: { label: 'Open page', jenis: 'jalan', ikon: 'terminal' },
-  browser_read: { label: 'Read page', jenis: 'baca', ikon: 'doc' },
-  browser_click: { label: 'Click', jenis: 'jalan', ikon: 'terminal' },
-  browser_type: { label: 'Type', jenis: 'jalan', ikon: 'terminal' },
-  browser_nav: { label: 'Navigate', jenis: 'jalan', ikon: 'terminal' },
+  browser_open: { label: 'Open page', jenis: 'jalan', ikon: 'web' },
+  browser_read: { label: 'Read page', jenis: 'baca', ikon: 'web' },
+  browser_click: { label: 'Click', jenis: 'jalan', ikon: 'web' },
+  browser_type: { label: 'Type', jenis: 'jalan', ikon: 'web' },
+  browser_nav: { label: 'Navigate', jenis: 'jalan', ikon: 'web' },
   browser_list: { label: 'List pages', jenis: 'baca', ikon: 'list' },
-  browser_close: { label: 'Close page', jenis: 'tulis', ikon: 'doc-edit' },
-  browser_download_url: { label: 'Download', jenis: 'tulis', ikon: 'doc-edit' },
-  system_browser_open: { label: 'Open in browser', jenis: 'jalan', ikon: 'terminal' },
+  browser_close: { label: 'Close page', jenis: 'tulis', ikon: 'web' },
+  browser_download_url: { label: 'Download', jenis: 'tulis', ikon: 'plus' },
+  system_browser_open: { label: 'Open in browser', jenis: 'jalan', ikon: 'web' },
 };
 
 /*

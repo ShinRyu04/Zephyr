@@ -51,23 +51,23 @@ async function bacaHalaman(paneId: string): Promise<string> {
         try {
           return await cmd.webFetch(p.url, 15000);
         } catch (e) {
-          return `(gagal membaca konten via fetch: ${e})`;
+          return `(failed to read content via fetch: ${e})`;
         }
       }
     }
   }
-  return '(halaman belum dimuat atau kosong)';
+  return '(page not loaded yet, or empty)';
 }
 
 export const TOOL_WEB: AgentTool[] = [
   {
     spec: {
       name: 'web_search',
-      description: 'Cari di web lewat DuckDuckGo HTML dan kembalikan daftar tautan beserta cuplikannya.',
+      description: 'Search the web through DuckDuckGo HTML and return a list of links with their snippets.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Kata kunci pencarian.' },
+          query: { type: 'string', description: 'The search keywords.' },
         },
         required: ['query'],
       },
@@ -95,20 +95,20 @@ export const TOOL_WEB: AgentTool[] = [
         }
       }
       return hasil.length
-        ? `Hasil pencarian untuk "${q}":\n\n${hasil.join('\n\n')}`
-        : `Tidak ada hasil pencarian web untuk "${q}".`;
+        ? `Search results for "${q}":\n\n${hasil.join('\n\n')}`
+        : `No web search results for "${q}".`;
     },
   },
 
   {
     spec: {
       name: 'web_fetch',
-      description: 'Ambil teks sebuah URL web (dikonversi dari HTML menjadi teks bersih tanpa script/style).',
+      description: 'Fetch the text of a web URL (converted from HTML to clean text with script/style removed).',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL yang ingin diambil (http:// atau https://).' },
-          max_chars: { type: 'number', description: 'Batas karakter teks (default 15000).' },
+          url: { type: 'string', description: 'The URL to fetch (http:// or https://).' },
+          max_chars: { type: 'number', description: 'Text length limit in characters (default 15000).' },
         },
         required: ['url'],
       },
@@ -123,18 +123,18 @@ export const TOOL_WEB: AgentTool[] = [
         .replace(/<[^>]+>/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-      return potong(teksBersih.slice(0, maxChars) || '(konten kosong)');
+      return potong(teksBersih.slice(0, maxChars) || '(empty content)');
     },
   },
 
   {
     spec: {
       name: 'browser_open',
-      description: 'Buka URL di pane browser bawaan aplikasi agar bisa dilihat user dan diinspeksi oleh agent.',
+      description: 'Open a URL in the app built-in browser pane so the user can see it and the agent can inspect it.',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL lengkap yang ingin dibuka.' },
+          url: { type: 'string', description: 'The full URL to open.' },
         },
         required: ['url'],
       },
@@ -164,7 +164,7 @@ export const TOOL_WEB: AgentTool[] = [
         .allPanes()
         .find((p) => p.kind === 'browser' && p.url === url);
       if (sameUrl) {
-        return `URL ${url} sudah terbuka di pane browser (${sameUrl.id}).`;
+        return `URL ${url} is already open in browser pane (${sameUrl.id}).`;
       }
       const paneId = await t.addPane('browser', { url });
       if (!paneId) {
@@ -175,28 +175,28 @@ export const TOOL_WEB: AgentTool[] = [
          * kenapa `browser_read` tidak menemukan apa pun.
          */
         return (
-          `Tidak bisa membuka pane browser baru: ${useTerminal.getState().toast ?? 'batas pane tercapai'}. ` +
-          'Tutup satu pane dulu, atau naikkan batasnya di Settings.'
+          `Cannot open a new browser pane: ${useTerminal.getState().toast ?? 'pane limit reached'}. ` +
+          'Close a pane first, or raise the limit in Settings.'
         );
       }
-      return `Pane browser ${paneId} dibuka dengan URL: ${url}`;
+      return `Browser pane ${paneId} opened with URL: ${url}`;
     },
   },
 
   {
     spec: {
       name: 'browser_read',
-      description: 'Baca isi teks dan tautan dari pane browser yang sedang terbuka.',
+      description: 'Read the text and links from a browser pane that is currently open.',
       parameters: {
         type: 'object',
         properties: {
-          pane_id: { type: 'string', description: 'ID pane browser spesifik (opsional).' },
+          pane_id: { type: 'string', description: 'ID of a specific browser pane (optional).' },
         },
       },
     },
     run: async (a) => {
       const id = paneBrowserId(a.pane_id ? String(a.pane_id) : undefined);
-      if (!id) throw new Error('Tidak ada pane browser yang sedang terbuka. Buka dulu dengan browser_open.');
+      if (!id) throw new Error('No browser pane is currently open. Open one first with browser_open.');
       const konten = await bacaHalaman(id);
       return potong(konten);
     },
@@ -205,11 +205,11 @@ export const TOOL_WEB: AgentTool[] = [
   {
     spec: {
       name: 'browser_click',
-      description: 'Klik elemen pada halaman browser aktif menggunakan CSS selector.',
+      description: 'Click an element on the active browser page using a CSS selector.',
       parameters: {
         type: 'object',
         properties: {
-          selector: { type: 'string', description: 'CSS selector elemen yang ingin diklik.' },
+          selector: { type: 'string', description: 'CSS selector of the element to click.' },
         },
         required: ['selector'],
       },
@@ -217,27 +217,27 @@ export const TOOL_WEB: AgentTool[] = [
     run: async (a) => {
       const sel = wajib(a, 'selector');
       const id = paneBrowserId();
-      if (!id) throw new Error('Tidak ada pane browser yang aktif.');
+      if (!id) throw new Error('No browser pane is active.');
       const iframe = document.querySelector(`iframe[data-pane-id="${id}"]`) as HTMLIFrameElement | null;
       if (!iframe || !iframe.contentDocument) {
-        return `Klik disimulasikan pada selector "${sel}" (akses langsung frame dibatasi).`;
+        return `Click simulated on selector "${sel}" (direct frame access is restricted).`;
       }
       const el = iframe.contentDocument.querySelector(sel) as HTMLElement | null;
-      if (!el) throw new Error(`Elemen tidak ditemukan untuk selector: "${sel}"`);
+      if (!el) throw new Error(`Element not found for selector: "${sel}"`);
       el.click();
-      return `Berhasil mengklik elemen: "${sel}"`;
+      return `Element clicked successfully: "${sel}"`;
     },
   },
 
   {
     spec: {
       name: 'browser_type',
-      description: 'Ketik teks ke dalam input form di pane browser.',
+      description: 'Type text into a form input in the browser pane.',
       parameters: {
         type: 'object',
         properties: {
-          selector: { type: 'string', description: 'CSS selector elemen input atau textarea.' },
-          text: { type: 'string', description: 'Teks yang akan diketikkan.' },
+          selector: { type: 'string', description: 'CSS selector of the input or textarea element.' },
+          text: { type: 'string', description: 'The text to type.' },
         },
         required: ['selector', 'text'],
       },
@@ -246,29 +246,29 @@ export const TOOL_WEB: AgentTool[] = [
       const sel = wajib(a, 'selector');
       const teks = wajib(a, 'text');
       const id = paneBrowserId();
-      if (!id) throw new Error('Tidak ada pane browser yang aktif.');
+      if (!id) throw new Error('No browser pane is active.');
       const iframe = document.querySelector(`iframe[data-pane-id="${id}"]`) as HTMLIFrameElement | null;
       if (!iframe || !iframe.contentDocument) {
-        return `Ketik teks "${teks}" disimulasikan pada "${sel}".`;
+        return `Typing text "${teks}" into "${sel}" was simulated.`;
       }
       const el = iframe.contentDocument.querySelector(sel) as HTMLInputElement | null;
-      if (!el) throw new Error(`Elemen input tidak ditemukan: "${sel}"`);
+      if (!el) throw new Error(`Input element not found: "${sel}"`);
       el.value = teks;
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
-      return `Teks berhasil diketik ke "${sel}".`;
+      return `Text typed successfully into "${sel}".`;
     },
   },
 
   {
     spec: {
       name: 'browser_nav',
-      description: 'Navigasi pane browser: back, forward, reload, atau ganti URL.',
+      description: 'Navigate the browser pane: back, forward, reload, or change URL.',
       parameters: {
         type: 'object',
         properties: {
           action: { type: 'string', enum: ['back', 'forward', 'reload', 'goto'] },
-          url: { type: 'string', description: 'URL tujuan untuk action "goto".' },
+          url: { type: 'string', description: 'Target URL for the "goto" action.' },
         },
         required: ['action'],
       },
@@ -276,7 +276,7 @@ export const TOOL_WEB: AgentTool[] = [
     run: async (a) => {
       const act = wajib(a, 'action');
       const id = paneBrowserId();
-      if (!id) throw new Error('Tidak ada pane browser yang aktif.');
+      if (!id) throw new Error('No browser pane is active.');
       const t = useTerminal.getState();
 
       /*
@@ -296,7 +296,7 @@ export const TOOL_WEB: AgentTool[] = [
        */
       if (act === 'goto') {
         const tujuan = String(a.url ?? '');
-        if (!tujuan) throw new Error('action "goto" butuh "url".');
+        if (!tujuan) throw new Error('action "goto" requires "url".');
         /*
          * Keluar dari pane lalu buka baru: itu satu-satunya jalur yang benar-
          * benar memuat halaman.
@@ -310,9 +310,9 @@ export const TOOL_WEB: AgentTool[] = [
         await t.closePane(id);
         const paneId = await t.addPane('browser', { url: tujuan });
         if (!paneId) {
-          return `Gagal bernavigasi ke ${tujuan}: ${useTerminal.getState().toast ?? 'batas pane tercapai'}.`;
+          return `Failed to navigate to ${tujuan}: ${useTerminal.getState().toast ?? 'pane limit reached'}.`;
         }
-        return `Pane browser ${paneId} bernavigasi ke ${tujuan}.`;
+        return `Browser pane ${paneId} navigated to ${tujuan}.`;
       }
 
       /*
@@ -324,14 +324,14 @@ export const TOOL_WEB: AgentTool[] = [
       if (!SAH.has(act)) throw new Error(`action tidak dikenal: ${act}`);
 
       await cmd.browserPaneNav(id, act);
-      return `Pane browser ${id}: ${act} dijalankan.`;
+      return `Browser pane ${id}: ${act} executed.`;
     },
   },
 
   {
     spec: {
       name: 'browser_list',
-      description: 'Daftar semua pane browser yang sedang terbuka beserta URL dan judulnya.',
+      description: 'List every browser pane that is currently open, with its URL and title.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
@@ -344,7 +344,7 @@ export const TOOL_WEB: AgentTool[] = [
           }
         }
       }
-      if (!browserPanes.length) return 'Tidak ada pane browser yang sedang terbuka.';
+      if (!browserPanes.length) return 'No browser pane is currently open.';
       return JSON.stringify(browserPanes, null, 2);
     },
   },
@@ -352,31 +352,31 @@ export const TOOL_WEB: AgentTool[] = [
   {
     spec: {
       name: 'browser_close',
-      description: 'Tutup sebuah pane browser tertentu atau pane browser yang sedang aktif.',
+      description: 'Close a specific browser pane, or the browser pane that is currently active.',
       parameters: {
         type: 'object',
         properties: {
-          pane_id: { type: 'string', description: 'ID pane browser yang ingin ditutup.' },
+          pane_id: { type: 'string', description: 'ID of the browser pane to close.' },
         },
       },
     },
     run: async (a) => {
       const id = paneBrowserId(a.pane_id ? String(a.pane_id) : undefined);
-      if (!id) return 'Tidak ada pane browser yang ditemukan untuk ditutup.';
+      if (!id) return 'No browser pane found to close.';
       await useTerminal.getState().closePane(id);
-      return `Pane browser ${id} berhasil ditutup.`;
+      return `Browser pane ${id} closed successfully.`;
     },
   },
 
   {
     spec: {
       name: 'browser_download_url',
-      description: 'Unduh berkas dari URL langsung ke direktori workspace lokal.',
+      description: 'Download a file from a URL straight into the local workspace directory.',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL berkas yang akan diunduh.' },
-          destination_path: { type: 'string', description: 'Jalur relatif di dalam workspace untuk menyimpan berkas.' },
+          url: { type: 'string', description: 'URL of the file to download.' },
+          destination_path: { type: 'string', description: 'Relative path inside the workspace to save the file to.' },
         },
         required: ['url', 'destination_path'],
       },
@@ -386,18 +386,18 @@ export const TOOL_WEB: AgentTool[] = [
       const dest = wajib(a, 'destination_path');
       const konten = await cmd.webFetch(url, 200000);
       await cmd.fsWrite(dest, konten, undefined, undefined, { allowMissing: true });
-      return `Berkas dari ${url} berhasil diunduh ke ${dest} (${konten.length} byte).`;
+      return `File from ${url} downloaded successfully to ${dest} (${konten.length} bytes).`;
     },
   },
 
   {
     spec: {
       name: 'system_browser_open',
-      description: 'Buka URL di browser eksternal sistem operasi bawaan user.',
+      description: 'Open a URL in the user operating system default external browser.',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL yang ingin dibuka.' },
+          url: { type: 'string', description: 'The URL to open.' },
         },
         required: ['url'],
       },
@@ -405,7 +405,7 @@ export const TOOL_WEB: AgentTool[] = [
     run: async (a) => {
       const url = wajib(a, 'url');
       await openUrl(url);
-      return `URL dibuka di browser sistem eksternal: ${url}`;
+      return `URL opened in the external system browser: ${url}`;
     },
   },
 ];

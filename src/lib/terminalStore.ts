@@ -284,6 +284,36 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       if (copies > 0) title = `${info.label} ${copies + 1}`;
     }
 
+    /*
+     * A plain shell pane honours the general terminal settings.
+     *
+     * Only for `kind === 'shell'`, deliberately:
+     *  - `agent` panes have their command chosen above (a start command, or the
+     *    CLI's own default), and overwriting that with "the user's shell" would
+     *    break every agent;
+     *  - `private` panes must stay clean, which is the whole point of private.
+     *
+     * `shellPath` wins over `defaultTerminal`, and that ordering is enforced on
+     * the Rust side too (`pty.rs:159` returns an explicit command immediately),
+     * so a path that does not exist surfaces as a real spawn error instead of
+     * being silently swapped for a shell that works. A user who typed a path
+     * needs to know it is wrong.
+     */
+    if (kind === 'shell' && !command) {
+      const g = useStore.getState().settings?.general;
+      const jalur = g?.shellPath?.trim();
+      if (jalur) {
+        command = jalur;
+        args = undefined;
+      } else if (g?.defaultTerminal && g.defaultTerminal !== 'default') {
+        /* Sent as `command`, which `resolve_shell` treats as an explicit choice:
+           `pty.rs:197-211` maps these exact ids ("pwsh", "powershell", "cmd",
+           "bash", "wsl") to a located binary, and errors when it is missing. */
+        command = g.defaultTerminal;
+        args = undefined;
+      }
+    }
+
     try {
       const pid = await cmd.ptySpawn({ id: paneId, kind, command, args, cwd: workspace, cols: 80, rows: 24 });
       const pane: PaneMeta = {
