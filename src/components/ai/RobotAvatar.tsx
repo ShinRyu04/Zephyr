@@ -21,7 +21,7 @@ import { useEffect, useState } from 'react';
  * glyph can be labelled differently by whoever uses it.
  */
 
-export function RobotAvatar({ size = 22 }: { size?: number }) {
+export function RobotAvatar({ size = 28 }: { size?: number }) {
   return (
     <svg
       className="ai-avatar-bot"
@@ -78,7 +78,7 @@ export function RobotAvatar({ size = 22 }: { size?: number }) {
  * otherwise leave a broken-image glyph in the transcript forever: the element
  * is swapped for the initial, which is the same fallback the empty case uses.
  */
-export function UserAvatar({ src, name, size = 22 }: { src: string | null; name: string; size?: number }) {
+export function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string; size?: number }) {
   const [gagal, setGagal] = useState(false);
   /*
    * Reset the failure flag when the source changes: picking a NEW photo must

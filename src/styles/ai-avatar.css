@@ -63,15 +63,22 @@
  * hidden` on a circle: the giant ellipse a screenshot of the panel showed, with
  * the message pushed off screen beside it.
  *
- * The size is also stated inline by the component (`<UserAvatar size={22}>`),
- * which is where the number should come from - but a CSS fallback has to exist
- * or the box has no size at all before the inline style is applied. 22px matches
- * the component default; `flex: none` keeps the row from stretching it.
+ * The size is also stated inline by the component, which is where the number
+ * should come from - but a CSS fallback has to exist or the box has no size at
+ * all before the inline style is applied.
+ *
+ * 28px, raised from 22. At 22 the photo read as a dot next to the message head:
+ * large enough to notice, too small to recognise a face in - which defeats the
+ * point of setting a photo at all. 28 is the low end of what chat interfaces
+ * use (Telegram, Slack and Discord all sit between 28 and 36) and it still
+ * leaves the bubble the majority of the row.
+ *
+ * `flex: none` keeps the row from stretching it.
  */
 .ai-avatar {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   margin-top: 2px;
   display: inline-flex;
   align-items: center;
@@ -121,7 +128,9 @@
 .ai-avatar-inisial {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
-  font-size: 11px;
+  /* Scaled with the avatar (28px): an 11px letter in a 28px circle reads as a
+     speck in a lot of empty space. */
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
   /* Uppercase is applied in the component, not here, so the letter that is

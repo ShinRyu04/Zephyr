@@ -11,6 +11,8 @@ import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
+import { useBicaraStore } from '../../lib/bicaraStore';
+import { teksUntukDibaca } from '../../lib/useBicara';
 import { useStore } from '../../lib/store';
 import { RobotAvatar, UserAvatar } from './RobotAvatar';
 
@@ -211,6 +213,36 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const pesanAvatar = useStore((s) => s.settings?.agents?.chatAvatar !== false);
   const fotoSaya = useStore((s) => s.settings?.agents?.userAvatarPath ?? null);
 
+  /*
+   * Voice, read field by field.
+   *
+   * NOT `useStore((s) => s.settings?.voice)`: that returns a fresh object on
+   * every settings write, and zustand v5 compares selector results with `===`,
+   * so every keystroke in Settings would re-render every message in the
+   * transcript. Primitives only.
+   */
+  const vBicara = useStore((s) => s.settings?.voice?.enabled !== false);
+  const vVoiceId = useStore((s) => s.settings?.voice?.voiceId ?? '');
+  const vInputLang = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
+  const vRate = useStore((s) => s.settings?.voice?.rate ?? 1);
+  const vVolume = useStore((s) => s.settings?.voice?.volume ?? 1);
+  const vSkipKode = useStore((s) => s.settings?.voice?.skipCode !== false);
+
+  /*
+   * One speech engine for the whole transcript, and it has to be.
+   *
+   * `speechSynthesis` is a single global queue, so N messages each owning their
+   * own hook is N hooks fighting over one voice - pressing speak on a second
+   * answer while the first is talking produces a jumble with no way to stop
+   * either. The engine lives in the store; a message only asks about itself.
+   *
+   * Primitives again, for the same reason as above: `idBicara` is a string or
+   * null, so this row re-renders when the speaker changes, and only then.
+   */
+  const bicarakan = useBicaraStore((s) => s.bicarakan);
+  const idBicara = useBicaraStore((s) => s.idBicara);
+  const iniBicara = idBicara !== null && idBicara === msg.id;
+
   return (
     <div
       className={`ai-row${isUser ? ' is-user' : ''}${msg.error ? ' is-error' : ''}`}
@@ -218,7 +250,13 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
     >
       {pesanAvatar && (
         <span className="ai-avatar" data-testid={isUser ? 'ai-avatar-saya' : 'ai-avatar-bot'}>
-          {isUser ? <UserAvatar src={fotoSaya} name="" size={22} /> : <RobotAvatar size={22} />}
+          {/*
+            * 28px, not the old 22: at 22 a photo was too small to recognise, and
+            * the whole point of setting one is being able to see it. The avatar
+            * is still a mark beside the message, not a portrait - it stays well
+            * inside the gutter the row reserves for it.
+            */}
+          {isUser ? <UserAvatar src={fotoSaya} name="" size={28} /> : <RobotAvatar size={28} />}
         </span>
       )}
       <div
@@ -256,6 +294,44 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               }}
             >
               ⧉
+            </button>
+          )}
+          {/*
+            Read this answer aloud.
+            *
+            * Only on a finished, non-error assistant reply: a streaming answer
+            * read out loud is restarted on every chunk, so the user would hear
+            * the first sentence over and over and never reach the second, and an
+            * error message is not something anyone wants spoken.
+            *
+            * AND ONLY WHEN THERE IS SOMETHING TO READ. A reply can finish with no
+            * text at all - a run that was cancelled after the tool calls, or a
+            * provider that returned an empty body. The button used to appear
+            * anyway and then do nothing when pressed, because the text it was
+            * handed was empty: a control that looks live and is silent reads as
+            * broken, and the user has no way to tell "nothing to say" from "the
+            * feature does not work". Worse, this was reported as exactly that -
+            * voice not working - when the real state was a message with no words
+            * in it.
+            *
+            * The button reflects THIS message being spoken, not speech in
+            * general: the engine's queue is global, so a row reporting only its
+            * own state would claim to be silent while a different answer played.
+            */}
+          {!isUser && !msg.streaming && !msg.error && vBicara && msg.content.trim() !== '' && (
+            <button
+              className={'ai-msg-act' + (iniBicara ? ' ai-msg-act-on' : '')}
+              data-testid="ai-speak-msg"
+              aria-pressed={iniBicara}
+              title={iniBicara ? tr('Stop reading') : tr('Read this answer aloud')}
+              onClick={() => bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
+                id: vVoiceId,
+                lang: vInputLang,
+                rate: vRate,
+                volume: vVolume,
+              })}
+            >
+              <AiIkon name={iniBicara ? 'speaker-on' : 'speaker'} size={14} />
             </button>
           )}
         </span>
