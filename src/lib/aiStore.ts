@@ -2184,19 +2184,66 @@ export const useAi = create<AiStore>((set, get) => ({
 
     const def = findModel(get().model, get().provider);
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
-    try {
-      await cmd.aiChat({
-        id: reqId,
-        provider: def.provider,
-        model: def.id,
-        messages: history,
-        baseUrl: cfg.baseUrl || undefined,
-        maxTokens: def.maxOut ?? 2048,
-        effort: get().reasoningEffort ?? undefined,
-      });
-    } catch (e) {
-      const msg = cmd.asZephyrError(e).message;
-      get().onChunk({ id: reqId, err: msg });
+
+    /*
+     * Chat mode retries a failed request, exactly like the agent does.
+     *
+     * WHY it did not before, and why that was wrong: only `sendAgent` had retry
+     * logic, so a transient provider failure - a 502 from the router, a dropped
+     * connection - killed a plain chat turn on the first attempt while the same
+     * failure in agent mode was silently retried and usually succeeded. The user
+     * sees "Server provider bermasalah (502) — coba lagi nanti" in chat and a
+     * perfectly fine answer in the agent, from the same provider, seconds apart.
+     *
+     * A chat turn has no tools and no side effects, so retrying it is strictly
+     * safer than retrying an agent step: there is nothing to replay. The stream
+     * is restarted from the beginning, which is why the partial text is cleared
+     * before each attempt (see `resetTeksRetry` below) - otherwise the second
+     * attempt's answer lands on top of the first attempt's fragment and the
+     * message stutters.
+     */
+    const RETRY_CHAT = [1200, 3000] as const;
+    let terakhirErr: string | null = null;
+    for (let retry = 0; retry <= RETRY_CHAT.length; retry++) {
+      if (retry > 0) {
+        /* Clear what the failed attempt wrote before the new one starts. The
+           retry re-sends the same prompt and the provider answers from scratch,
+           so any fragment already in the bubble would end up duplicated. */
+        set((s) => ({
+          sessions: s.sessions.map((sess) => ({
+            ...sess,
+            messages: sess.messages.map((m) => (m.id === botMsg.id ? { ...m, content: '', error: undefined } : m)),
+          })),
+        }));
+        if (!(await tungguRetryAgent(RETRY_CHAT[retry - 1]))) break;
+        if (cancelled.has(reqId)) break;
+      }
+      try {
+        await cmd.aiChat({
+          id: reqId,
+          provider: def.provider,
+          model: def.id,
+          messages: history,
+          baseUrl: cfg.baseUrl || undefined,
+          maxTokens: def.maxOut ?? 2048,
+          effort: get().reasoningEffort ?? undefined,
+        });
+        terakhirErr = null;
+        break;
+      } catch (e) {
+        const msg = cmd.asZephyrError(e).message;
+        terakhirErr = msg;
+        /*
+         * Retry only what can succeed on a second try. A 401 or a 400 will
+         * answer the same way every time, and retrying those would just make
+         * the user wait three seconds to see the same error.
+         */
+        if (!isRetryableAgentProviderError(msg) || retry === RETRY_CHAT.length) break;
+        if (cancelled.has(reqId)) break;
+      }
+    }
+    if (terakhirErr) {
+      get().onChunk({ id: reqId, err: terakhirErr });
       get().onChunk({ id: reqId, done: true });
     }
     return true;
