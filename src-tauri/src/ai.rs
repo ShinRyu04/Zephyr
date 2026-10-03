@@ -113,6 +113,83 @@ fn header_sensitif(nama: &str) -> bool {
         || n.contains("token")
 }
 
+/*
+ * Send a prepared request, retrying the failures that can succeed on a second
+ * attempt.
+ *
+ * WHY this exists: a 502 from a router is almost always transient - the upstream
+ * provider blipped, the gateway picked a bad node, the connection was cut mid
+ * handshake. The reference implementation (Hermes) treats 5xx and 429 as
+ * retryable and recovers from them silently; Zephyr surfaced the first one as a
+ * hard error, so the user saw "Server provider bermasalah (502)" on a provider
+ * that answered normally seconds later. Retrying here, in the transport, means
+ * every caller - chat, agent, tool stream - gets the same behaviour instead of
+ * three implementations that drift.
+ *
+ * What is NOT retried: 4xx. A 401 or a 400 answers the same way every time, and
+ * waiting three seconds to show the same error is worse than showing it now.
+ *
+ * The body is re-serialised per attempt because a `Request` is consumed by
+ * `send_json`; rebuilding it is cheap and the only correct option.
+ */
+fn kirim_dengan_ulang(
+    agent: &ureq::Agent,
+    prepared: &Prepared,
+    attempts: usize,
+) -> Result<ureq::http::Response<ureq::Body>, String> {
+    /* Backoff between attempts: 400ms, then 1.2s. Short enough that a healthy
+       retry is invisible, long enough that a rate-limited node has a chance to
+       clear. */
+    const JEDA_MS: [u64; 2] = [400, 1200];
+
+    let mut terakhir: Option<String> = None;
+
+    for percobaan in 0..attempts.max(1) {
+        let mut req = agent.post(&prepared.url);
+        for (k, v) in &prepared.headers {
+            req = req.header(k.as_str(), v.as_str());
+        }
+
+        match req.send_json(&prepared.body) {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                /*
+                 * 5xx and 429 get another try. The response is consumed to read
+                 * the body for the error message, so a retry cannot reuse it -
+                 * but only the FAILING attempt needs the body, and if the retry
+                 * succeeds the body is the successful stream.
+                 */
+                let bisa_ulang = status == 429 || (500..=599).contains(&status);
+                if bisa_ulang && percobaan + 1 < attempts {
+                    terakhir = Some(format!("HTTP {status}"));
+                    std::thread::sleep(std::time::Duration::from_millis(JEDA_MS[percobaan.min(1)]));
+                    continue;
+                }
+                return Ok(resp);
+            }
+            Err(e) => {
+                /*
+                 * A transport error is worth another try for the same reason:
+                 * a reset connection or a connect timeout is not a verdict on
+                 * the request. DNS failures are excluded - a name that does not
+                 * resolve will not resolve 1.2s later, and retrying only delays
+                 * the message the user needs.
+                 */
+                let teks = e.to_string();
+                let low = teks.to_lowercase();
+                let permanen = low.contains("dns") || low.contains("resolve") || low.contains("invalid url");
+                if permanen || percobaan + 1 >= attempts {
+                    return Err(teks);
+                }
+                terakhir = Some(teks);
+                std::thread::sleep(std::time::Duration::from_millis(JEDA_MS[percobaan.min(1)]));
+            }
+        }
+    }
+
+    Err(terakhir.unwrap_or_else(|| "provider tidak merespons".into()))
+}
+
 pub fn rekam_request(
     state: &AppState,
     provider: &str,
@@ -273,15 +350,9 @@ pub fn ai_chat(
             .http_status_as_error(false)
             .build()
             .into();
-        let mut req = agent.post(&prepared.url);
-        for (k, v) in &prepared.headers {
-            req = req.header(k.as_str(), v.as_str());
-        }
-
-        let resp = match req.send_json(&prepared.body) {
+        let resp = match kirim_dengan_ulang(&agent, &prepared, 3) {
             Ok(r) => r,
-            Err(e) => {
-                let teks = e.to_string();
+            Err(teks) => {
                 let low = teks.to_lowercase();
                 let pesan = if low.contains("dns")
                     || low.contains("resolve")
@@ -457,11 +528,7 @@ pub async fn ai_tool_chat(
             .http_status_as_error(false)
             .build()
             .into();
-        let mut req = agent.post(&prepared.url);
-        for (k, v) in &prepared.headers {
-            req = req.header(k.as_str(), v.as_str());
-        }
-        match req.send_json(&prepared.body) {
+        match kirim_dengan_ulang(&agent, &prepared, 3) {
             Ok(r) => {
                 let status = r.status().as_u16();
                 let mut body = r.into_body();
@@ -581,12 +648,7 @@ pub fn ai_tool_chat_stream(
             .http_status_as_error(false)
             .build()
             .into();
-        let mut req = agent.post(&prepared.url);
-        for (k, v) in &prepared.headers {
-            req = req.header(k.as_str(), v.as_str());
-        }
-
-        let resp = match req.send_json(&prepared.body) {
+        let resp = match kirim_dengan_ulang(&agent, &prepared, 3) {
             Ok(r) => r,
             Err(e) => {
                 let cancelled = cancel.load(Ordering::Relaxed);
@@ -733,8 +795,15 @@ pub fn ai_tool_chat_stream(
     Ok(())
 }
 
-fn pesan_koneksi(e: &ureq::Error) -> String {
-    let teks = e.to_string();
+/*
+ * Turn a transport failure into the sentence the user reads.
+ *
+ * Takes the message string rather than `&ureq::Error` because the retry helper
+ * already reduced the error to its text by the time a caller sees it - and the
+ * final attempt's error is the one worth reporting, not the first.
+ */
+fn pesan_koneksi(teks: &str) -> String {
+    let teks = teks.to_string();
     let low = teks.to_lowercase();
     let timeout = low.contains("timed out") || low.contains("timeout") || low.contains("receive");
     let dns = low.contains("dns") || low.contains("resolve");
@@ -785,4 +854,164 @@ pub fn ai_capture_clear(state: State<AppState>) -> ZResult<()> {
         v.clear();
     }
     Ok(())
+}
+
+
+/*
+ * Retry behaviour, proven against a real socket rather than a mocked client.
+ *
+ * The bug this guards: a transient 502 from the router surfaced as a hard error
+ * ("Server provider bermasalah (502)") while the same provider answered fine
+ * seconds later. The retry lives in `kirim_dengan_ulang`, and the only way to
+ * test it honestly is to make a server that fails on purpose - a mock of the
+ * HTTP client would just be asserting that the code calls itself.
+ */
+#[cfg(test)]
+mod retry_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    /*
+     * A one-endpoint server that answers with `statuses` in order, then 200.
+     *
+     * Hand-written over TcpListener rather than pulling in a web framework: the
+     * crate has no test server dependency, and the requests under test are
+     * simple POSTs whose body this does not need to parse.
+     */
+    fn server(statuses: Vec<u16>) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        let hits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let hits_srv = hits.clone();
+
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = match stream {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                /*
+                 * Read the WHOLE request before answering.
+                 *
+                 * Answering after a single `read` closed the socket while the
+                 * client was still writing its body, and the client - seeing its
+                 * write fail - opened a fresh connection for the same request.
+                 * That connection consumed the next status in the list, so the
+                 * 401 test was served a 200 and failed on a mock bug rather than
+                 * a real one. Draining headers plus `Content-Length` bytes is
+                 * what a real server does.
+                 */
+                let mut head = Vec::new();
+                let mut buf = [0u8; 4096];
+                loop {
+                    match stream.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            head.extend_from_slice(&buf[..n]);
+                            if let Some(pos) = find_double_crlf(&head) {
+                                let headers = String::from_utf8_lossy(&head[..pos]).to_lowercase();
+                                let want = headers
+                                    .lines()
+                                    .find_map(|l| l.strip_prefix("content-length:"))
+                                    .and_then(|v| v.trim().parse::<usize>().ok())
+                                    .unwrap_or(0);
+                                let sudah = head.len().saturating_sub(pos + 4);
+                                if sudah >= want {
+                                    break;
+                                }
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+
+                let n = hits_srv.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let status = statuses.get(n).copied().unwrap_or(200);
+
+                let body = if status == 200 {
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n"
+                } else {
+                    "{\"error\":{\"message\":\"mock failure\"}}"
+                };
+                let resp = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = stream.write_all(resp.as_bytes());
+                let _ = stream.flush();
+            }
+        });
+
+        (format!("http://127.0.0.1:{port}/v1/chat/completions"), hits)
+    }
+
+    /* Index of the blank line that ends the request head, if present. */
+    fn find_double_crlf(b: &[u8]) -> Option<usize> {
+        b.windows(4).position(|w| w == b"\r\n\r\n")
+    }
+
+    fn prepared(url: String) -> Prepared {
+        Prepared {
+            url,
+            headers: vec![("Content-Type".into(), "application/json".into())],
+            body: json!({ "model": "test", "messages": [] }),
+            sse: true,
+        }
+    }
+
+    fn agent() -> ureq::Agent {
+        ureq::Agent::config_builder()
+            .timeout_connect(Some(std::time::Duration::from_secs(5)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(5)))
+            .timeout_per_call(Some(std::time::Duration::from_secs(20)))
+            .http_status_as_error(false)
+            .build()
+            .into()
+    }
+
+    #[test]
+    fn retries_a_502_and_succeeds() {
+        let (url, hits) = server(vec![502, 502]);
+        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus sukses");
+        assert_eq!(resp.status().as_u16(), 200, "percobaan ketiga harus 200");
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 3, "harus 3 percobaan");
+    }
+
+    #[test]
+    fn retries_a_429_and_succeeds() {
+        let (url, hits) = server(vec![429]);
+        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus sukses");
+        assert_eq!(resp.status().as_u16(), 200);
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn gives_up_after_the_last_attempt_and_returns_the_failure() {
+        let (url, hits) = server(vec![502, 502, 502, 502]);
+        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
+        assert_eq!(resp.status().as_u16(), 502, "percobaan terakhir tetap dilaporkan");
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 3, "tidak lebih dari 3");
+    }
+
+    #[test]
+    fn does_not_retry_a_401() {
+        let (url, hits) = server(vec![401, 200]);
+        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
+        assert_eq!(resp.status().as_u16(), 401, "401 diteruskan apa adanya");
+        assert_eq!(
+            hits.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "401 tidak boleh diulang - jawabannya sama setiap kali"
+        );
+    }
+
+    #[test]
+    fn a_healthy_call_is_not_retried() {
+        let (url, hits) = server(vec![200]);
+        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus sukses");
+        assert_eq!(resp.status().as_u16(), 200);
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1, "sekali saja");
+    }
 }
