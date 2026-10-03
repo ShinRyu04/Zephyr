@@ -217,6 +217,8 @@ function normalisasiSettings<T>(s: T): T {
   if (typeof g.minimizeToTray !== 'boolean') patch.minimizeToTray = false;
   if (typeof g.defaultTerminal !== 'string') patch.defaultTerminal = 'default';
   if (typeof g.shellPath !== 'string') patch.shellPath = '';
+  if (typeof g.chatAvatar !== 'boolean') patch.chatAvatar = true;
+  if (typeof g.userAvatarPath !== 'string') patch.userAvatarPath = '';
 
   if (g.layout !== undefined && typeof g.layout === 'object' && g.layout !== null) {
     const lama = g.layout as Record<string, unknown>;

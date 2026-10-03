@@ -56,10 +56,20 @@ pub fn default_settings() -> Value {
             //  - defaultTerminal "default", meaning the shell the OS already
             //    uses, so nothing changes for anyone who does not pick;
             //  - shellPath "" meaning "use defaultTerminal".
+            //
+            // New in 1.3.0, for the chat avatars:
+            //  - chatAvatar true, because the avatars are the point of the
+            //    feature and a switch nobody finds is a feature nobody has;
+            //  - userAvatarPath "", meaning "no photo chosen" - the UI then
+            //    falls back to the signed-in GitHub photo, and failing that to
+            //    the user's initial. Storing a PATH rather than image bytes
+            //    keeps settings.json small and text-only.
             "confirmExit": true,
             "minimizeToTray": false,
             "defaultTerminal": "default",
-            "shellPath": ""
+            "shellPath": "",
+            "chatAvatar": true,
+            "userAvatarPath": ""
         },
 
         "sidebar": "left",

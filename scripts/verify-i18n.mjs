@@ -10,6 +10,14 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync('src/lib/i18n.ts', 'utf8');
 const extra = readFileSync('src/lib/i18n-extra.ts', 'utf8');
 
+// Kutip tunggal DAN ganda, karena berkasnya memakai keduanya: entri yang ditulis
+// tangan memakai '...' sementara entri yang disisipkan skrip memakai "...".
+// Versi lama hanya mengenali kutip tunggal, sehingga kunci yang ADA terlaporkan
+// HILANG - dan itu membuat uji ini berbunyi palsu pada kamus yang sehat, jauh
+// lebih sering daripada ia menemukan masalah sungguhan.
+//
+// Pemisah barisnya /\r?\n/ karena berkas ini CRLF; tanpa itu setiap baris
+// membawa '\r' di ujungnya dan pola yang berakhir ': ' tidak pernah cocok.
 function keysOf(name, teks) {
   const i = teks.indexOf(`const ${name}: Dict`);
   if (i === -1) return null; // blok tidak ada di file ini
@@ -18,7 +26,7 @@ function keysOf(name, teks) {
     teks
       .slice(i, j)
       .split(/\r?\n/)
-      .map((l) => (l.match(/^  '(.+?)':/) || [])[1])
+      .map((l) => (l.match(/^  (['"])(.+?)\1:/) || [])[2])
       .filter(Boolean),
   );
 }

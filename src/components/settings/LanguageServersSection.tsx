@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
-import { DEFAULT_LSP_SETTINGS, LSP_SERVERS, type LspSettings } from '../../lib/lsp';
+import { DEFAULT_LSP_SETTINGS, LSP_SERVERS, type LspServerDef, type LspSettings } from '../../lib/lsp';
 import { Section, Toggle } from './SettingsControls';
 
 /*
@@ -118,6 +118,58 @@ export default function LanguageServersSection() {
     return 'mati';
   };
 
+  /*
+   * A server the machine can actually run, whether or not it is switched on.
+   *
+   * This is deliberately NOT the same question as `statusServer`. That one asks
+   * "is it running right now"; this one asks "is the binary on PATH". The green
+   * tick in the row is driven by THIS, because the useful thing to know when
+   * scanning the list is which languages are ready to use on this machine - a
+   * server that is installed but idle is a different situation from one that
+   * was never installed, and the old design showed both as the same grey.
+   */
+  const terpasang = (id: string) => probe[id]?.ok === true;
+
+  /* Re-probing one row. `probeAll` is still the store's only probe entry point,
+   * so a per-row button re-probes everything and then the row reads its own
+   * value - the button does not invent a probe path the backend does not have.
+   * The busy set exists only so the button can say it is working: a spinner on
+   * a row that silently does nothing for a second reads as a dead button. */
+  const [sedangPeriksa, setSedangPeriksa] = useState<string | null>(null);
+  const periksaUlang = async (id: string) => {
+    setSedangPeriksa(id);
+    try {
+      await probeAll();
+    } finally {
+      setSedangPeriksa(null);
+    }
+  };
+
+  /* The row whose install dialog is open. `null` means no dialog. */
+  const [dialogPasang, setDialogPasang] = useState<LspServerDef | null>(null);
+
+  /*
+   * Probe once when the page opens.
+   *
+   * Without this the list renders with no installed markers at all until
+   * somebody clicks a re-check button, so the green ticks - the fastest way to
+   * see which languages this machine can actually handle - only appear if you
+   * already knew to ask for them. Probing is a PATH lookup per server and takes
+   * a moment, which is exactly why it belongs on mount rather than on every
+   * render.
+   *
+   * Guarded by "only if we have nothing yet": the store's probe map survives
+   * navigation, so coming back to the page must not re-probe twenty servers and
+   * flash the list back to blank. The dependency is a primitive boolean, not
+   * the map object, so this cannot re-run when the store writes an equivalent
+   * map - a new object identity every write would loop.
+   */
+  const sudahAdaProbe = Object.keys(probe).length > 0;
+  useEffect(() => {
+    if (sudahAdaProbe) return;
+    void probeAll();
+  }, [sudahAdaProbe, probeAll]);
+
   const labelStatus = (st: ReturnType<typeof statusServer>) =>
     st === 'hidup'
       ? tr('running')
@@ -166,8 +218,22 @@ export default function LanguageServersSection() {
 
       {grup.length === 0 && <span className="set-hint">{tr('No server matches that filter.')}</span>}
 
+      {/*
+        With the master switch off, every per-server control is inert: the
+        toggle above gates them, so a row that LOOKS clickable and silently
+        does nothing is the same lie as a button that lies. The rows go
+        visually dim and every control goes `disabled`, and this line says what
+        to do about it - a user who cannot find the cause concludes the screen
+        is broken, and they are right from what they can see.
+      */}
+      {!semua && (
+        <div className="lsp-mati-nota" data-testid="lsp-mati-nota">
+          {tr('IntelliSense is off. Turn it on above to change the servers below.')}
+        </div>
+      )}
+
       {grup.map(([bahasa, daftar]) => (
-        <div className="lsp-grup" key={bahasa} data-testid={`lsp-grup-${bahasa}`}>
+        <div className={`lsp-grup${semua ? '' : ' is-mati'}`} key={bahasa} data-testid={`lsp-grup-${bahasa}`}>
           <div className="lsp-grup-head">
             <span className="lsp-grup-nama">{bahasa}</span>
             <span className="lsp-grup-jumlah">{daftar.length}</span>
@@ -177,16 +243,50 @@ export default function LanguageServersSection() {
             const st = statusServer(s.id);
             const kustom = !!ov[s.id]?.cmd;
             const exe = probe[s.id]?.exe ?? s.cmd[0];
+            /* The language's own name, used for the installed marker. The
+             * label carries a tool name in brackets - "JSON (vscode-json)" -
+             * and the tick belongs next to the LANGUAGE, so the bracket part
+             * would only get in the way. */
+            const bahasa = s.label.split(' (')[0];
+            const siap = terpasang(s.id);
             return (
               <div className="lsp-baris" key={s.id} data-testid={`lsp-${s.id}`}>
                 <span className={`lsp-dot lsp-dot-${st}`} data-testid={`lsp-${s.id}-dot`} aria-hidden="true" />
                 <div className="lsp-info">
-                  <span className="lsp-nama">{s.label}</span>
+                  <span className="lsp-nama">
+                    {bahasa}
+                    {/*
+                     * The installed marker, and the reason it is a separate
+                     * element from the status dot: the dot answers "running?",
+                     * which is about this session. This answers "installed?",
+                     * which is about the machine and stays true when the server
+                     * is idle. One dot cannot say both, and the old design
+                     * collapsed them into the same grey.
+                     *
+                     * Rendered only when true. The green dot is the exception,
+                     * not the rule: on a machine with three of twenty servers
+                     * installed, a column of eleven grey dots is noise that
+                     * makes the three green ones harder to find.
+                     */}
+                    {siap && (
+                      <span
+                        className="lsp-siap"
+                        data-testid={`lsp-${s.id}-siap`}
+                        title={tr('Installed on this machine')}
+                      >
+                        {'\u2022'}
+                      </span>
+                    )}
+                  </span>
                   <span className="lsp-meta">
-                    {/* `title` carries the whole command: the row shows only the
-                        executable, because the flags are what make it long and
-                        they are not what anyone is looking for. */}
-                    <code title={s.cmd.join(' ')}>{exe}</code>
+                    {/*
+                     * The full path when we have it, because the PATH lookup is
+                     * the thing people actually need when two versions are
+                     * installed and the wrong one keeps winning. The `title`
+                     * carries the whole command with its flags, which are what
+                     * make it long and are not what anyone is looking for.
+                     */}
+                    <code title={kustom ? s.cmd.join(' ') : probe[s.id]?.exe ?? s.cmd.join(' ')}>{exe}</code>
                     <span className={`lsp-status lsp-status-${st}`}>{labelStatus(st)}</span>
                     {kustom && <span className="lsp-kustom">{tr('custom')}</span>}
                   </span>
@@ -201,28 +301,91 @@ export default function LanguageServersSection() {
                   )}
                 </div>
 
+                {/*
+                  Every control here is inert while the master switch is off,
+                  so each one is really `disabled` rather than merely having no
+                  effect. A control that accepts a click and then does nothing
+                  reads as a broken screen; a disabled one reads as "not yet".
+                  `disabled` also takes them out of the tab order, so keyboard
+                  users are not walked through buttons that cannot act.
+                */}
                 <div className="lsp-aksi">
                   {st === 'hidup' && (
-                    <button className="btn btn-sm" data-testid={`lsp-${s.id}-stop`} onClick={() => void stop(s.id)}>
+                    <button
+                      className="btn btn-sm"
+                      data-testid={`lsp-${s.id}-stop`}
+                      disabled={!semua}
+                      onClick={() => void stop(s.id)}
+                    >
                       {tr('Stop all servers')}
                     </button>
                   )}
-                  {/* Re-check re-probes. `probeAll` is the only probe entry point
-                      in the store; filtering its result per row would be
-                      inventing state, so the button says what it really does. */}
-                  <button className="btn btn-sm" data-testid={`lsp-${s.id}-reload`} onClick={() => void probeAll()}>
-                    {tr('Re-check')}
+                  {/*
+                   * The re-probe button is an icon, not the word "Re-check".
+                   *
+                   * The word was repeated on all twenty rows, and it is the
+                   * widest thing in the row - twenty copies of the same six
+                   * letters pushed every row's real content to the left and
+                   * made the list read as a wall of buttons. An icon says the
+                   * same thing once per row and leaves the width to the path,
+                   * which is the part that actually differs between rows.
+                   *
+                   * The accessible name is kept in words via aria-label and
+                   * title, so nothing is lost for a screen reader or a tooltip.
+                   * `probeAll` is the store's only probe entry point, so this
+                   * re-probes everything and the row reads its own value.
+                   */}
+                  <button
+                    className={`lsp-ikon-btn${sedangPeriksa === s.id ? ' is-putar' : ''}`}
+                    data-testid={`lsp-${s.id}-reload`}
+                    disabled={!semua || sedangPeriksa !== null}
+                    aria-label={tr('Re-check')}
+                    title={tr('Re-check')}
+                    onClick={() => void periksaUlang(s.id)}
+                  >
+                    {/* Two arrows chasing each other - the universal "refresh"
+                        glyph, drawn here rather than pulled from a font so it
+                        inherits the row's colour and size like every other
+                        icon in the app. */}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <path d="M21 3v6h-6" />
+                    </svg>
                   </button>
                   <Toggle
                     label={tr('Enabled')}
                     testid={`lsp-${s.id}-toggle`}
                     checked={semua && ov[s.id]?.enabled !== false}
-                    onChange={(v) => ubah(s.id, { enabled: v })}
+                    disabled={!semua}
+                    onChange={(v) => {
+                      /*
+                       * Switching a server ON that the machine cannot run opens
+                       * the install dialog instead of silently flipping a
+                       * switch that can never do anything. This is the whole
+                       * point of the dialog: a toggle that succeeds while the
+                       * feature stays dead is the failure mode where the user
+                       * concludes the app is broken.
+                       *
+                       * Switching OFF, or switching on something installed,
+                       * goes straight through - the dialog must not stand in
+                       * the way of the normal case.
+                       */
+                      if (v && !siap && !kustom) {
+                        setDialogPasang(s);
+                        return;
+                      }
+                      ubah(s.id, { enabled: v });
+                    }}
                   />
                 </div>
 
                 {kustom && (
-                  <button className="lsp-balik" data-testid={`lsp-${s.id}-reset`} onClick={() => ubah(s.id, { cmd: null })}>
+                  <button
+                    className="lsp-balik"
+                    data-testid={`lsp-${s.id}-reset`}
+                    disabled={!semua}
+                    onClick={() => ubah(s.id, { cmd: null })}
+                  >
                     {tr('Reset to the built-in command')}
                   </button>
                 )}
@@ -231,6 +394,146 @@ export default function LanguageServersSection() {
           })}
         </div>
       ))}
+
+      {dialogPasang && (
+        <DialogPasang
+          server={dialogPasang}
+          tr={tr}
+          sedang={sedangPeriksa !== null}
+          kiniSiap={terpasang(dialogPasang.id)}
+          onPeriksa={() => void periksaUlang(dialogPasang.id)}
+          onTutup={() => setDialogPasang(null)}
+        />
+      )}
     </Section>
+  );
+}
+
+/*
+ * The "cannot run it yet" dialog.
+ *
+ * Shown when someone switches on a server whose binary is not on PATH. The
+ * switch is NOT flipped in that case - the point is to say why it cannot work
+ * yet and to give the exact command that fixes it, rather than accepting a
+ * click that cannot lead anywhere.
+ *
+ * The copy button is the reason this is worth building at all: the install
+ * line for a language server is long, easy to mistype, and different per
+ * manager (`npm i -g`, `pip install`, `rustup component add`). Handing over the
+ * exact text is the difference between "install it yourself" and a fix that
+ * actually happens.
+ */
+function DialogPasang({
+  server,
+  onPeriksa,
+  onTutup,
+  sedang,
+  kiniSiap,
+  tr,
+}: {
+  server: LspServerDef;
+  onPeriksa: () => void;
+  onTutup: () => void;
+  sedang: boolean;
+  kiniSiap: boolean;
+  tr: (s: string) => string;
+}) {
+  const [tersalin, setTersalin] = useState(false);
+
+  /* The dialog stays open after a successful re-check so the outcome is
+   * visible; closing it on success would make the button look like it did
+   * nothing. Only when the user is done do they close it. */
+  const salin = async () => {
+    try {
+      /* The Tauri clipboard plugin, not `navigator.clipboard`: the latter
+       * always fails in WebView2 when the document is not focused, which is
+       * the normal state for a settings panel opened by the app itself. */
+      const { clipboardWrite } = await import('../../lib/clipboard');
+      await clipboardWrite(server.install);
+      setTersalin(true);
+      setTimeout(() => setTersalin(false), 1600);
+    } catch {
+      /* Nothing to do: the command is on screen and selectable. A failed
+       * clipboard is not worth an error dialog when the text is right there. */
+    }
+  };
+
+  return (
+    <div className="lsp-dialog-latar" data-testid="lsp-dialog-pasang" onClick={onTutup}>
+      {/* Clicking the backdrop closes; clicking the panel must not. */}
+      <div
+        className="lsp-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={tr('Install the language server')}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className="lsp-dialog-x" data-testid="lsp-dialog-tutup" aria-label={tr('Close')} onClick={onTutup}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <h3 className="lsp-dialog-judul">
+          {tr('Install')} {server.label} {tr('language server')}
+        </h3>
+        <p className="lsp-dialog-teks">
+          {tr('Zephyr could not find')} <code>{server.cmd[0]}</code> {tr('on your PATH. Install it, then check again to enable this server.')}
+        </p>
+
+        <div className="lsp-dialog-perintah">
+          <pre>{server.install}</pre>
+          <button
+            className="lsp-dialog-salin"
+            data-testid="lsp-dialog-salin"
+            aria-label={tr('Copy')}
+            title={tr('Copy')}
+            onClick={() => void salin()}
+          >
+            {tersalin ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="11" height="11" rx="2" />
+                <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        {/* The outcome of the last re-check, in words. The row behind this
+            dialog also shows it, but the dialog covers the row. */}
+        {kiniSiap && (
+          <p className="lsp-dialog-ok" data-testid="lsp-dialog-ok">
+            {tr('Found it. Switch this server on to use it.')}
+          </p>
+        )}
+
+        <div className="lsp-dialog-aksi">
+          <a
+            className="lsp-dialog-doc"
+            href="https://microsoft.github.io/language-server-protocol/implementors/servers/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {tr('Documentation')}
+          </a>
+          <span className="lsp-dialog-spacer" />
+          <button className="btn" data-testid="lsp-dialog-periksa" disabled={sedang} onClick={onPeriksa}>
+            {/* Same refresh glyph as the row button: one symbol for one idea. */}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+              <path d="M21 3v6h-6" />
+            </svg>
+            <span>{sedang ? tr('Checking...') : tr('Check again')}</span>
+          </button>
+          <button className="btn" data-testid="lsp-dialog-selesai" onClick={onTutup}>
+            {tr('Done')}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

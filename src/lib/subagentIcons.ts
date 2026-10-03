@@ -97,6 +97,43 @@ export function ikonSubagent(id: string | undefined): IkonDef {
 
 /*
  * ============================================================================
+ * THE ROLE MARK FOR A PERSONA
+ * ============================================================================
+ *
+ * Each built-in persona gets the mark that matches what it DOES, so the row can
+ * be recognised by shape before the name is read. The mapping lives here, next
+ * to the glyphs themselves, for one reason: an icon set with two owners drifts.
+ * Adding a persona means picking an id from this table, not drawing a new glyph.
+ *
+ * Keyed by persona id, and the fallback is the general mark - a persona whose
+ * id is not in this table (one the user created) still gets a sensible glyph
+ * rather than a blank cell.
+ *
+ * The ids are the ones IKON_SUBAGENT already defines, and the choices are
+ * deliberate rather than decorative:
+ *   zeph      - two droplets: the orchestrator, several workers as one mark
+ *   coder     - angle brackets, because that is code
+ *   architect - a box with a line through it, the only "drawing" glyph here
+ *   reviewer  - a magnifier: reading and reporting, changing nothing
+ *   security  - a shield with a tick
+ *   designer  - a pencil, because design work produces an artefact
+ */
+const IKON_PERSONA: Record<string, SubagentIkonId> = {
+  zeph: 'robot',
+  coder: 'kode',
+  architect: 'umum',
+  reviewer: 'telaah',
+  security: 'audit',
+  designer: 'tulis',
+};
+
+/** The mark for a persona id, falling back to the general one. */
+export function ikonPersona(id: string | undefined): IkonDef {
+  return ikonSubagent(id ? IKON_PERSONA[id] : undefined);
+}
+
+/*
+ * ============================================================================
  * THE AGENTS PAGE MARK
  * ============================================================================
  *

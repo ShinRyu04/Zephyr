@@ -382,10 +382,36 @@ const main = async () => {
       return JSON.stringify({ err: window.__ZEPHYR_EX__.getState().explorerError });
     `),
   );
+  /*
+   * Harapannya dibaca dari KAMUS bahasa yang sedang aktif, bukan dipaku sebagai
+   * teks Indonesia.
+   *
+   * Versi lama memeriksa `err.includes('dirinya sendiri')`, dan itu lulus HANYA
+   * selama UI kebetulan berbahasa Indonesia. Begitu bahasa default menjadi
+   * Inggris - yang memang diinginkan - ujinya berbunyi gagal pada aplikasi yang
+   * benar. Uji seperti itu bukan penjaga, melainkan penghalang: ia MENOLAK
+   * perbaikan yang benar.
+   *
+   * Jadi pesan yang diharapkan dihitung dari terjemahan yang sebenarnya dipakai,
+   * lewat `__ZEPHYR_I18N__` kalau tersedia; kalau tidak, diterima salah satu
+   * bentuk yang sah dari pesan itu.
+   */
+  const pesanSelfMove = await cdp.eval(`
+    (() => {
+      const t = window.__ZEPHYR_I18N__;
+      if (t && typeof t.tr === 'function') return t.tr('a folder cannot be moved into itself');
+      if (t && typeof t.translate === 'function') return t.translate(t.lang || 'en', 'a folder cannot be moved into itself');
+      return null;
+    })()
+  `);
+  /* Dua bentuk yang sah: Inggris (pesan sumber) dan Indonesia (kunci lama). */
+  const sah = ['a folder cannot be moved into itself', 'tidak bisa memindahkan folder ke dalam dirinya sendiri'];
+  const harap = typeof pesanSelfMove === 'string' && pesanSelfMove ? [pesanSelfMove, ...sah] : sah;
+
   check(
     'V6b',
-    typeof v6b.err === 'string' && v6b.err.includes('dirinya sendiri'),
-    `proteksi self-move: "${v6b.err}"`,
+    typeof v6b.err === 'string' && harap.some((h) => v6b.err.includes(h)),
+    `proteksi self-move: "${v6b.err}" (diharapkan salah satu dari: ${harap.map((h) => h.slice(0, 34)).join(' | ')})`,
   );
 
   // ───────── V7: watcher — file dibuat dari luar app ─────────

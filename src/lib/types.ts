@@ -857,6 +857,18 @@ export interface GeneralSettings {
   /* A full path to the shell binary. Empty means "use defaultTerminal". */
   shellPath?: string;
 
+  /*
+   * Chat avatars. `chatAvatar` hides BOTH sides at once rather than having a
+   * switch per side: the reason to turn them off is visual clutter, and no one
+   * wants the robot gone but their own face still there.
+   *
+   * `userAvatarPath` is a path on disk, not image bytes - settings.json stays
+   * small and diffable. Empty means "none chosen": the panel falls back to the
+   * GitHub photo if signed in, then to the user's initial.
+   */
+  chatAvatar?: boolean;
+  userAvatarPath?: string;
+
     lowRam?: boolean;
 
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';

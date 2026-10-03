@@ -300,13 +300,18 @@ async function main() {
    * guessing an action name produces a failure that looks like a broken app
    * while the app is fine. Clicking is also the stronger test: it proves the
    * navigation itself works, which is what a user actually does.
+   *
+   * The testid is `set-nav-<id>` (SettingsNav.tsx:221). An earlier version used
+   * `sec-<id>`, which never matched - the click silently did nothing and the
+   * assertion then ran against whichever section was already open. That failure
+   * looked like a missing feature rather than a bad selector, so the count of
+   * found buttons is returned and asserted on rather than ignored.
    */
   const klikNav = async (idSection) => {
     return evalAsync(`
-      const tombol = document.querySelector('[data-testid="sec-${idSection}"]')
-        || [...document.querySelectorAll('.set-nav button, .settings-nav button')].find(b => (b.dataset.testid || '').includes('${idSection}'));
+      const tombol = document.querySelector('[data-testid="set-nav-${idSection}"]');
       if (!tombol) {
-        const semua = [...document.querySelectorAll('.set-nav button, .settings-nav button')].map(b => b.dataset.testid || b.textContent.trim());
+        const semua = [...document.querySelectorAll('[data-testid^="set-nav-"]')].map(b => b.dataset.testid);
         return JSON.stringify({ ketemu: false, tersedia: semua });
       }
       tombol.click();
@@ -318,6 +323,8 @@ async function main() {
   /* ---- 9. LSP: buka halamannya dan hitung GRUP, bukan sekadar tombol ---- */
   const navLsp = await klikNav('lsp');
   console.log('  info: navigasi ke LSP -> ' + navLsp);
+  const nL = JSON.parse(navLsp || '{}');
+  catat('tombol nav LSP ditemukan dan diklik', nL.ketemu === true, nL.tersedia ? 'tersedia: ' + (nL.tersedia || []).join(',') : '');
   const lsp = await evalAsync(`
     const grup = document.querySelectorAll('[data-testid^="lsp-grup-"]').length;
     const baris = document.querySelectorAll('[data-testid^="lsp-"][data-testid$="-dot"]').length;
@@ -334,16 +341,27 @@ async function main() {
   catat('kotak saring LSP ada', L.filter === true);
 
   /* ---- 10. Buka halaman Agents: ikon header + panduan cara pakai ---- */
+  /*
+   * The Agents page and the Sub-agents page are DIFFERENT sections.
+   *
+   * `AgentSection` (id `agents`) hosts the persona list; the custom sub-agent
+   * builder with its how-to guide lives in `subagent`. An earlier version of
+   * this file asserted on `sub-custom-cara` right after navigating to `agents`,
+   * where that element does not exist - a failure that read as "the guide is
+   * missing" while the guide was fine, on the page next to it.
+   */
   const navAgen = await klikNav('agents');
   console.log('  info: navigasi ke Agents -> ' + navAgen);
+  const nA = JSON.parse(navAgen || '{}');
+  catat('tombol nav Agents ditemukan dan diklik', nA.ketemu === true, nA.tersedia ? 'tersedia: ' + (nA.tersedia || []).join(',') : '');
   const agen = await evalAsync(`
     const ikon = document.querySelectorAll('.set-h2-ikon').length;
-    const cara = !!document.querySelector('[data-testid="sub-custom-cara"]');
+    const judul = [...document.querySelectorAll('.set-h2')].map(e => e.textContent.trim());
     const baru = !!document.querySelector('[data-testid="sub-custom-new"]');
     const ubah = document.querySelectorAll('[data-testid$="-ubah"]').length;
     const salin = document.querySelectorAll('[data-testid$="-salin"]').length;
     const hapus = document.querySelectorAll('[data-testid$="-hapus"]').length;
-    return JSON.stringify({ ikon, cara, baru, ubah, salin, hapus });
+    return JSON.stringify({ ikon, judul, baru, ubah, salin, hapus });
   `);
   console.log('  info: halaman Agents -> ' + agen);
   const A = JSON.parse(agen || '{}');
@@ -351,7 +369,20 @@ async function main() {
   catat('tombol Baru sudah HILANG', A.baru === false);
   catat('tombol Ubah sudah HILANG', (A.ubah || 0) === 0);
   catat('tombol Duplikat/Salin sudah HILANG', (A.salin || 0) === 0);
-  catat('panduan cara pakai ada', A.cara === true);
+
+  /* ---- 11. halaman Subagent: panduan cara pakai ---- */
+  const navSub = await klikNav('subagent');
+  console.log('  info: navigasi ke Subagent -> ' + navSub);
+  const sub = await evalAsync(`
+    const cara = !!document.querySelector('[data-testid="sub-custom-cara"]');
+    const teks = cara ? document.querySelector('[data-testid="sub-custom-cara"]').textContent.trim().slice(0, 90) : null;
+    const baru = !!document.querySelector('[data-testid="sub-custom-new"]');
+    return JSON.stringify({ cara, teks, baru });
+  `);
+  console.log('  info: halaman Subagent -> ' + sub);
+  const S = JSON.parse(sub || '{}');
+  catat('panduan cara pakai subagent ada', S.cara === true, S.teks || '');
+  catat('tombol subagent Baru sudah HILANG', S.baru === false);
 
   /* ---- 11. tutup Settings supaya editor kembali terlihat ---- */
   await evalAsync(`

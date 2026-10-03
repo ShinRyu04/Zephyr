@@ -435,6 +435,74 @@
   color: var(--fg0);
 }
 
+/*
+ * The role mark for a persona.
+ *
+ * Fixed size and flex-none so the six rows line their names up in a column: a
+ * mark that grew with the text would make the list ragged, and the whole point
+ * of the mark is that the eye can run down one column of shapes.
+ *
+ * '--fg2' rather than full-strength text, because the mark is a signpost and
+ * not the content. On the active row it lifts to the accent so the selected
+ * persona is marked by shape AND colour, not only the background tint.
+ */
+.persona-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 6px;
+  color: var(--fg2);
+  background: var(--bg1);
+  border: 1px solid var(--border);
+}
+
+.persona-baris.is-aktif .persona-ikon {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg1));
+}
+
+/*
+ * The text column beside the mark. It must be allowed to SHRINK, or a long
+ * description pushes the action buttons off the row - and the ellipsis on
+ * '.persona-ket' only ever applies once this can actually get narrower than
+ * its content.
+ */
+.persona-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+/*
+ * "Active": the state of the row, in the same slot where a non-active row shows
+ * the button that would activate it.
+ *
+ * Sized to match 'btn btn-sm' deliberately. If the active row were shorter than
+ * the inactive ones, the list would visibly shift as the selection moved, and
+ * the rows would stop lining up.
+ */
+.persona-aktif-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+
 .persona-ket {
   font-size: 12px;
   color: var(--fg2);

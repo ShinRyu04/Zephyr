@@ -1541,12 +1541,31 @@ export const useAi = create<AiStore>((set, get) => ({
     const pos = posisiAntrian(get().antrian, idx);
     const item = get().antrian[pos];
     if (!item) return false;
-    await get().send(item.teks, item.images);
-    const accepted = get().hasKey() && !get().toast;
-    if (accepted) {
+
+    /*
+     * Whether the message went out is taken from `send`'s RETURN VALUE, not
+     * from whether a toast happens to be on screen.
+     *
+     * The old check was `get().hasKey() && !get().toast`, and it read a side
+     * effect as if it were the result. `toast` carries all sorts of unrelated
+     * things - 'Added to the queue', 'Message trimmed from N to M characters' -
+     * and any of them being live at this moment made an ACCEPTED send look
+     * rejected. The item then stayed in the queue and was sent AGAIN by the next
+     * drain, so the same message went out twice and its answer arrived out of
+     * order or interleaved: the "AI stutters" report.
+     *
+     * `send` already answers the real question and always did - it returns false
+     * only when nothing could be sent (no key, empty text) and true when the
+     * request went out or was accepted into the queue. Reading it directly is
+     * what makes a queued message leave the queue exactly once.
+     */
+    const terkirim = await get().send(item.teks, item.images);
+    if (terkirim) {
+      /* Removed by IDENTITY, so two identical texts in the queue do not both
+         disappear when only one of them was sent. */
       set((s) => ({ antrian: s.antrian.filter((entry) => entry !== item) }));
     }
-    return accepted;
+    return terkirim;
   },
 
   /**

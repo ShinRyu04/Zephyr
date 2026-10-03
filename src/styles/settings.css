@@ -2412,6 +2412,235 @@
   border-bottom: none;
 }
 
+/* Rows are dimmed while the master switch is off, because every control in
+   them is `disabled`. Dimming WITHOUT disabling would be the worst of both:
+   the eye is told "inactive" while the mouse is told "go ahead". Opacity alone
+   rather than a colour change, so this works on every theme without needing a
+   token per theme. */
+.lsp-grup.is-mati .lsp-baris {
+  opacity: 0.5;
+}
+
+/* The explanation for the dimming. Sits above the first row so it is read
+   BEFORE the user tries a control and finds it dead, not after. */
+/* Marker for "this one is installed on the machine".
+ *
+ * Separate from the status dot on purpose. The dot answers "is it running right
+ * now"; this answers "is the binary on PATH". A server can be installed and
+ * switched off, and that is the useful state to spot while scanning the list:
+ * it is the difference between "I could turn this on" and "I would have to
+ * install it first". */
+.lsp-siap {
+  margin-left: 6px;
+  color: var(--ok, var(--success));
+  font-size: 15px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* Icon-only button for the re-probe action. Sized to match the toggle's height
+ * so a row of them reads as one column rather than a ragged edge. */
+.lsp-ikon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: none;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+
+.lsp-ikon-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-hover, var(--bg-2));
+  border-color: var(--border);
+}
+
+.lsp-ikon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* While a probe is in flight. A button that takes a second and shows nothing
+ * reads as a dead button, so the glyph turns instead. */
+.lsp-ikon-btn.is-putar svg {
+  animation: lsp-putar 0.9s linear infinite;
+}
+
+@keyframes lsp-putar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A modal must not animate its rotation, or the whole dialog spins. */
+.lsp-dialog .lsp-ikon-btn svg,
+.lsp-dialog button svg {
+  animation: none;
+}
+
+/* ---------- install dialog ---------- */
+
+.lsp-dialog-latar {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 24px;
+}
+
+.lsp-dialog {
+  position: relative;
+  width: min(520px, 100%);
+  background: var(--bg-elevated, var(--bg-1));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 20px 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.lsp-dialog-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.lsp-dialog-x:hover {
+  color: var(--text);
+  background: var(--bg-hover, var(--bg-2));
+}
+
+.lsp-dialog-judul {
+  margin: 0 24px 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.lsp-dialog-teks {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.lsp-dialog-teks code {
+  font-family: var(--font-mono, monospace);
+  color: var(--text);
+  background: var(--bg-2);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* The command box. Selectable text is the fallback, so the copy button failing
+ * is never a dead end. */
+.lsp-dialog-perintah {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 10px 10px 12px;
+}
+
+.lsp-dialog-perintah pre {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--text);
+  user-select: all;
+}
+
+.lsp-dialog-salin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.lsp-dialog-salin:hover {
+  color: var(--text);
+  background: var(--bg-hover, var(--bg-2));
+}
+
+.lsp-dialog-ok {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--ok, var(--success));
+}
+
+.lsp-dialog-aksi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.lsp-dialog-spacer {
+  flex: 1;
+}
+
+.lsp-dialog-doc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.lsp-dialog-doc:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* Buttons in the dialog carry an icon and a word, so the built-in gap applies. */
+.lsp-dialog-aksi .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lsp-mati-nota {
+  padding: 8px 10px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--bg-2));
+  color: var(--text-muted);
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+
+
 /* The dot is a fixed 7px and flex-none: without `flex: none` a long command
    line squeezes it into an ellipse, which reads as a rendering bug. */
 .lsp-dot {
