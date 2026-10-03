@@ -53,9 +53,25 @@
  * an ellipse. The 2px top offset lines the avatar up with the first line of the
  * message head rather than with the top edge of the bubble, which is what makes
  * it look attached to the text.
+ *
+ * THE WIDTH AND HEIGHT ARE THE POINT, and they were missing.
+ *
+ * The comment claimed a fixed size while the rule never set one, so the box was
+ * sized by its contents - and the photo inside is `width: 100%; height: 100%`,
+ * which is a cycle the browser resolves by falling back to the image's INTRINSIC
+ * size. A 1000px photo therefore rendered at 1000px, clipped by `overflow:
+ * hidden` on a circle: the giant ellipse a screenshot of the panel showed, with
+ * the message pushed off screen beside it.
+ *
+ * The size is also stated inline by the component (`<UserAvatar size={22}>`),
+ * which is where the number should come from - but a CSS fallback has to exist
+ * or the box has no size at all before the inline style is applied. 22px matches
+ * the component default; `flex: none` keeps the row from stretching it.
  */
 .ai-avatar {
   flex: none;
+  width: 22px;
+  height: 22px;
   margin-top: 2px;
   display: inline-flex;
   align-items: center;

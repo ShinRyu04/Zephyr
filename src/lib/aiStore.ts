@@ -115,6 +115,8 @@ import { useCliAgent } from './cliAgentStore';
 import { useTerminal } from './terminalStore';
 import { useProblems } from './problemsStore';
 import { tx, tf } from './i18n';
+import { useBicaraStore } from './bicaraStore';
+import { teksUntukDibaca } from './useBicara';
 let ctxCache: { at: number; teks: string } | null = null;
 const CTX_TTL_MS = 60_000;
 
@@ -2471,6 +2473,33 @@ export const useAi = create<AiStore>((set, get) => ({
           res = await new Promise<AgentStepResult>((resolve) => {
             const attemptId = nextId(`attempt-${botMsg.id}`);
             /*
+             * A retry starts the answer over, so the partial answer the FAILED
+             * attempt already wrote has to go first.
+             *
+             * The guards above stop the old attempt's late chunks from landing,
+             * but they cannot undo what already landed: by the time the provider
+             * fails, the bubble holds whatever the dead attempt managed to say -
+             * "Hai" - and the retry then writes the full answer from the start
+             * on top of it. The reader gets "HaiHai.. Ada Ada yang mau mau",
+             * which is the stutter this is fixing. Every chunk is appended to
+             * `m.content`, so the only cure is to truncate that text before the
+             * new attempt emits its first token.
+             *
+             * `retry > 0` - a first attempt has nothing to clear, and running
+             * this on the happy path would erase the answer of a step that had
+             * legitimately produced text before the provider hiccuped.
+             */
+            if (retry > 0) {
+              set((s) => ({
+                sessions: s.sessions.map((sess) => ({
+                  ...sess,
+                  messages: sess.messages.map((m) =>
+                    m.id === botMsg.id ? { ...m, content: '' } : m,
+                  ),
+                })),
+              }));
+            }
+            /*
              * Percobaan lama dipensiunkan SEBELUM yang baru dipasang, dan
              * urutan dua baris ini yang menentukan.
              *
@@ -3154,6 +3183,63 @@ export const useAi = create<AiStore>((set, get) => ({
     }));
     persist(get());
 
+    /*
+     * Read the answer aloud, if the user asked for that.
+     *
+     * Placed HERE, after `streaming: false`, and not at the start: speaking text
+     * as it streams would restart the utterance on every chunk, so the user would
+     * hear the first sentence over and over and never reach the second.
+     *
+     * Skipped on a cancelled run - being told to stop and then having the partial
+     * answer read out loud is the opposite of what was asked. Also skipped on a
+     * failed run: an error is not something anyone wants spoken, and its text
+     * ("provider unreachable") is worse out loud than on screen.
+     *
+     * Read through `getState()` rather than a captured store: this runs at the
+     * end of a long async turn, and the settings may have been changed while the
+     * model was still answering. The user's LAST choice is the one to honour.
+     */
+    if (!runWasCancelled && !agentFailure) {
+      const st = get();
+      /* Settings live in their own store, not in `aiStore`. Read at this instant
+         rather than captured earlier: this runs at the end of a long async turn,
+         and the user may have changed the voice settings while the model was
+         still answering. The last choice is the one to honour. */
+      const voice = useStore.getState().settings?.voice;
+      if (voice?.speakReplies === true && voice.enabled !== false) {
+        /*
+         * The newest assistant message is the one to read, not `finalContent`:
+         * the text that actually reached the transcript is the text the user is
+         * looking at, and the two can differ when the answer was retried or
+         * trimmed to fit the model's character limit.
+         */
+        const sesi = st.sessions.find((x) => x.id === st.activeId);
+        const terakhir = [...(sesi?.messages ?? [])].reverse().find((m) => m.role !== 'user' && !m.error);
+        if (terakhir?.content) {
+          const v = voice;
+          /*
+           * Through the speech store, not a hook.
+           *
+           * `aiStore` is plain module state and cannot call a React hook; the
+           * engine lives in `bicaraStore`, which the panel mounts. Imported at
+           * module scope like any other store - the cycle that would cause is
+           * `bicaraStore` -> nothing, since the speech layer never imports the
+           * chat store.
+           */
+          useBicaraStore.getState().bicarakan(
+            terakhir.id,
+            teksUntukDibaca(terakhir.content, { lewatiKode: v?.skipCode !== false }),
+            {
+              id: v?.voiceId || undefined,
+              lang: v?.inputLang,
+              rate: v?.rate,
+              volume: v?.volume,
+            },
+          );
+        }
+      }
+    }
+
     // Failed provider/watchdog runs keep follow-ups visible and are never
     // automatically rerun. Successful runs retain the existing queue drain;
     // user cancellation also remains non-draining.
@@ -3272,6 +3358,41 @@ export const useAi = create<AiStore>((set, get) => ({
   onChunk: (c) => {
 
     if (subagentOnChunk(c)) return;
+
+    /*
+     * Drop the duplicate delta some providers send for every token.
+     *
+     * THE BUG THIS FIXES: some OpenAI-compatible gateways (the custom router
+     * this app ships against is one) emit each delta TWICE - chunk 0 is "1" and
+     * chunk 1 is "1" again, chunk 2 is "," and chunk 3 is "," again. The result
+     * is a transcript that stutters on every token: "11,,  22,,  33,," and
+     * "SoSoalal link link YouTube YouTube--nyanya". Every guard above is about
+     * two ATTEMPTS overlapping; this is one attempt, doubled at the source.
+     *
+     * The test is exact equality with the previous chunk for the same request.
+     * That is safe for streaming text because a provider repeating a delta
+     * verbatim on the very next frame carries no new information - two identical
+     * consecutive tokens are possible in principle ("very very"), but they
+     * arrive as ONE delta containing both words, not as two identical frames.
+     * Anything that would be lost this way would already be lost to the
+     * provider's own framing.
+     *
+     * Only `text` is checked. Reasoning deltas are separate and can legitimately
+     * repeat a short token across frames.
+     */
+    if (c.text) {
+      const sebelumnya = deltaTerakhir.get(c.id);
+      if (sebelumnya === c.text) {
+        deltaTerakhir.set(c.id, c.text);
+        return;
+      }
+      deltaTerakhir.set(c.id, c.text);
+      /* Keep the map from growing without bound: one entry per live request is
+         all it ever needs, and a finished request is removed below. */
+      if (c.done || c.err) deltaTerakhir.delete(c.id);
+    } else if (c.done || c.err) {
+      deltaTerakhir.delete(c.id);
+    }
 
     /*
      * Id provider adalah id PERCOBAAN, bukan id pesan UI yang stabil.
@@ -3556,6 +3677,17 @@ export const useAi = create<AiStore>((set, get) => ({
  * percakapan lama.
  */
 const akumulasiTeks = new Map<string, number | string>();
+
+/*
+ * The last text delta seen for each request, used to drop the duplicate the
+ * provider sends on the very next frame.
+ *
+ * Keyed by the provider's attempt id, not the UI message id: the duplicate
+ * arrives on the SAME attempt, so the attempt id is the exact scope of the
+ * problem. Cleared when the request reports `done` or `err` so the map holds at
+ * most one entry per live request.
+ */
+const deltaTerakhir = new Map<string, string>();
 
 /** Ambang sadar-kontek: di bawah ini pemeriksaan tidak layak dijalankan. */
 const AMBANG_TENGAH = 1_200;

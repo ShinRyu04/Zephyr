@@ -3,7 +3,10 @@ mod agent_exec;
 mod agent_patch;
 mod agents;
 mod ai;
+mod api_client;
 mod app_state;
+mod database;
+mod credentials;
 mod bg_image;
 mod browser;
 mod browser_pane;
@@ -57,6 +60,7 @@ mod tests_git;
 mod tests_log;
 mod tests_mcp;
 mod titlebar;
+mod voice;
 mod web;
 mod workspace;
 
@@ -343,6 +347,7 @@ pub fn run() {
             ai::ai_capture_get,
             ai::ai_capture_clear,
             ai::ai_cancel,
+            voice::ai_transcribe,
             cli_agents::cli_agents_detect,
             cli_agents::cli_agent_run,
             gambar::baca_gambar,
@@ -503,6 +508,34 @@ pub fn run() {
             cron::cron_toggle,
             cron::cron_due,
             cron::cron_mark_run,
+
+            /*
+             * The API Client, SQL Explorer and Credentials handlers.
+             *
+             * These were WRITTEN but never registered, so every button in those
+             * three extensions failed the moment it was clicked with
+             * `Command ... not found` - no build error, no type error, nothing in
+             * any log until a user pressed the button. The frontend declares all
+             * of them in `commands.ts`, so the UI drew every control and every
+             * one was dead.
+             *
+             * This is the failure Tauri makes easy: a handler is a plain function
+             * and a command is a string, so the compiler cannot see the link
+             * between them, and an unregistered handler looks exactly like a
+             * missing one until runtime. `scripts/audit-command-hilang.mjs` now
+             * checks the pairing statically.
+             */
+            api_client::http_request,
+            api_client::graphql_body,
+            api_client::graphql_errors,
+            database::db_default_path,
+            database::db_tables,
+            database::db_columns,
+            database::db_query,
+            credentials::credentials_list,
+            credentials::credentials_set,
+            credentials::credentials_get,
+            credentials::credentials_delete,
         ])
         .build(tauri::generate_context!());
 

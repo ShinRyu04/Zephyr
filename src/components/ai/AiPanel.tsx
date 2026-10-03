@@ -12,7 +12,9 @@ import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
+import BicaraHost from './BicaraHost';
 import ModelSelector from './ModelSelector';
+import { findModel } from '../../lib/modelCatalog';
 import TodoPanel from './TodoPanel';
 import ContextMeter from './ContextMeter';
 import { ModeMenu, IzinMenu } from './ModeMenu';
@@ -440,10 +442,67 @@ const JEJAK_TOOL_MAKS = 4;
    * started: the hook ran, `toggle` was thrown away, and the feature existed on
    * paper only. `bisa` gates the button on browsers with SpeechRecognition.
    */
-  const { dengar, bisa: bisaDengar, toggle: toggleDengar } = useDengar((teks, final) => {
-    const d = useAi.getState().draft;
-    setDraft(final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks);
-  });
+  /*
+   * The dictation language comes from settings, not a constant.
+   *
+   * The recogniser listens for exactly one language and never detects it: with
+   * `id-ID` set while speaking English it does not fail, it returns confident
+   * nonsense. The old hardcoded `id-ID` therefore made dictation useless for
+   * anyone not speaking Indonesian, with no visible cause.
+   *
+   * Read as a primitive - `useStore` with a selector returning a string - because
+   * zustand v5 compares selector results with `===` and an object here would
+   * re-render the whole composer on every unrelated settings write.
+   */
+  const voiceAktif = useStore((s) => s.settings?.voice?.enabled !== false);
+  const bahasaDengar = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
+
+  /*
+   * Dictation, with the active model as its transcription target.
+   *
+   * The provider and endpoint are read from the store at record time rather
+   * than captured here: the user can switch models while a clip is being
+   * recorded, and the audio should be transcribed by whichever model is
+   * selected when the recording ENDS.
+   */
+  const { dengar, bisa: bisaDengar, toggle: toggleDengar, galat: galatDengar } = useDengar(
+    (teks, final) => {
+      const d = useAi.getState().draft;
+      setDraft(final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks);
+    },
+    bahasaDengar,
+    {
+      provider,
+      get model() {
+        return useAi.getState().model;
+      },
+      get baseUrl() {
+        const st = useAi.getState();
+        const def = findModel(st.model, st.provider);
+        return useStore.getState().settings.models.providers[def.provider]?.baseUrl ?? undefined;
+      },
+    },
+  );
+
+  /*
+   * A dictation failure has to be visible.
+   *
+   * The button silently un-lighting is the worst outcome: the user speaks, the
+   * mic goes dark, and nothing says whether the audio was heard, the provider
+   * refused, or the key is missing. Each cause gets its own short message.
+   */
+  useEffect(() => {
+    if (!galatDengar) return;
+    const pesan =
+      galatDengar === 'izin'
+        ? tr('Microphone permission was refused')
+        : galatDengar === 'tanpa-provider'
+          ? tr('Pick a model first - dictation needs one to transcribe with')
+          : galatDengar === 'kosong'
+            ? tr('Nothing was recorded')
+            : tr('Could not transcribe the recording');
+    setToast(pesan);
+  }, [galatDengar, setToast, tr]);
 
   const { items: saranSlash } = matchPrompts(draft);
   const { items: saranSnippet } = matchSnippets(draft);
@@ -1896,7 +1955,7 @@ const JEJAK_TOOL_MAKS = 4;
             * content into the message — and it only renders where the browser
             * actually offers speech recognition.
             */}
-          {bisaDengar && (
+          {bisaDengar && voiceAktif && (
             <button
               className={`ai-plus ai-mic${dengar ? ' is-on' : ''}`}
               data-testid="ai-mic"
@@ -2294,6 +2353,12 @@ const JEJAK_TOOL_MAKS = 4;
           {toast}
         </div>
       )}
+
+      {/* Renders nothing. It owns the speech engine's lifetime, so the engine
+          exists exactly while this panel does - unmounting stops any answer that
+          is still being read aloud, which is what closing the thing that was
+          talking should do. */}
+      <BicaraHost />
     </div>
   );
 }

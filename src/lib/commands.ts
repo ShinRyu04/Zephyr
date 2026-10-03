@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+﻿import { invoke } from '@tauri-apps/api/core';
 import type {
   AgentInfo,
   AiMessage,
@@ -224,17 +224,157 @@ export interface PatchResult {
   conflict: string;
 }
 
-export const filePatch = (path: string, patch: string) =>
-  invoke<PatchResult>('file_patch', { path, patch });
+/*
+ * The patch is checked BEFORE it is sent, and against the patched result - not
+ * against the patch text.
+ *
+ * A patch that deletes a line is delta text, and rules match file content; the
+ * removed line is the one that matters, and it is not what the caller passes. So
+ * the check runs on the PATCHED text, which means reading the file first. That is
+ * one extra read on a path that was going to write the file anyway.
+ *
+ * Read is allowed to fail: a patch against a file that does not exist yet is the
+ * normal "create this file" case, and there is nothing to merge - the patch text
+ * IS the new content. Falling back to the patch text keeps the check meaningful
+ * in that case instead of skipping it, which is what the old code did for every
+ * case.
+ *
+ * This path previously reached the disk with no rule check at all, so a rule
+ * could be defeated simply by asking the AI to patch a file rather than write it -
+ * the exact hole the single-checkpoint design above was meant to close.
+ */
+export async function filePatch(path: string, patch: string) {
+  /*
+   * Reconstruct what the file will CONTAIN, and check that.
+   *
+   * Read fresh rather than trusting a caller-supplied "before": the file may have
+   * been edited since the AI read it, and a rule checked against a stale copy is
+   * a rule that can be defeated by editing twice.
+   *
+   * On failure the patch text itself is checked. That is weaker, and deliberately
+   * so - the alternative is skipping the check, which is what this path used to
+   * do. A false positive here costs a retry; a false negative writes a secret to
+   * disk.
+   */
+  let isi = patch;
+  try {
+    const lama = await fsRead(path);
+    if (typeof lama === 'string') {
+      const setelah = terapkanDiff(lama, patch);
+      /* `null` means the hunks did not line up, so the reconstruction would be
+         fiction. Fall back to the patch text rather than checking a result that
+         is known to be wrong - and note that Rust will reject the patch anyway
+         with a conflict, so no wrong content reaches the disk from here. */
+      if (setelah !== null) isi = setelah;
+    }
+  } catch {
+    /* File does not exist yet: the patch is the new content. */
+  }
+  await periksaAturanSebelumTulis(path, isi);
+  return invoke<PatchResult>('file_patch', { path, patch });
+}
 
-export const fsWrite = (
+/**
+ * Apply a unified diff to text, in memory, returning the result.
+ *
+ * Not a full `git apply`: it does not create files, handle renames or write to
+ * the index. It only needs to be exact enough that a rule checking the result
+ * sees the same lines `git apply` will produce - and for the simple line-level
+ * patches this system takes, that is context matching plus add/remove.
+ *
+ * Returns `null` when a hunk's context does not match, so the caller can tell
+ * "could not reconstruct" apart from "reconstructed to something short".
+ */
+export function terapkanDiff(asli: string, patch: string): string | null {
+  const baris = asli.replace(/\r\n/g, '\n').split('\n');
+  const keluaran: string[] = [];
+  let posisi = 0;          // where we are in the original
+  let i = 0;
+  const p = patch.replace(/\r\n/g, '\n').split('\n');
+
+  while (i < p.length) {
+    const l = p[i];
+
+    /* Header lines are skipped, not parsed: a context-less `@@ -a,b +c,d @@` is
+       enough to place a hunk because we walk the original in order. */
+    if (l.startsWith('diff ') || l.startsWith('index ') || l.startsWith('---') ||
+        l.startsWith('+++') || l.startsWith('@@')) {
+      i += 1;
+      continue;
+    }
+    if (l.startsWith('\\')) { i += 1; continue; }   // "\ No newline at end of file"
+
+    /* A hunk body: a run of ' ', '+' and '-' lines. */
+    if (l.startsWith(' ') || l.startsWith('-') || l.startsWith('+')) {
+      /* Find the context start: the first line of this hunk that must already
+         exist. Everything before it in the original is copied verbatim. */
+      let j = i;
+      while (j < p.length && (p[j].startsWith(' ') || p[j].startsWith('-') || p[j].startsWith('+'))) j += 1;
+
+      const badan = p.slice(i, j);
+      const konteks = badan.find((b) => b.startsWith(' '));
+      if (konteks !== undefined) {
+        const perlu = konteks.slice(1);
+        const ketemu = baris.indexOf(perlu, posisi);
+        if (ketemu === -1) return null;      // does not line up; caller falls back
+        keluaran.push(...baris.slice(posisi, ketemu));
+        posisi = ketemu;
+      }
+
+      for (const b of badan) {
+        if (b.startsWith(' ')) { keluaran.push(b.slice(1)); posisi += 1; }
+        else if (b.startsWith('-')) { posisi += 1; }   // removed from the original
+        else if (b.startsWith('+')) { keluaran.push(b.slice(1)); }
+      }
+      i = j;
+      continue;
+    }
+    i += 1;
+  }
+
+  keluaran.push(...baris.slice(posisi));
+  return keluaran.join('\n');
+}
+
+/**
+ * Check text against the rules before it reaches the disk.
+ *
+ * This is the single point every save goes through, which is why the check is
+ * here and not in the editor: a rule that only guards the textarea is bypassed
+ * by every other writer, including the AI's own file edits. The cost when no
+ * rule matches is one pass over the text - and the check is skipped entirely
+ * when rules are switched off, so the ordinary path stays as fast as before.
+ *
+ * Throws rather than returning a flag: a refused write is not a result the
+ * caller should be able to ignore by forgetting to read it.
+ */
+async function periksaAturanSebelumTulis(path: string, content: string): Promise<void> {
+  const { aturanAktif } = await import('./rulesRuntime');
+  const rules = aturanAktif();
+  if (!rules.length) return;
+
+  const { checkText, shouldBlock, blockMessage, bahasaDariPath } = await import('./rulesEngine');
+  const findings = checkText(content, bahasaDariPath(path), rules);
+  if (shouldBlock(findings)) {
+    const pesan = blockMessage(findings);
+    /* Surfaced as a toast rather than a silent rejection: a write that vanishes
+       with no explanation is the worst outcome, because the user cannot tell it
+       apart from a crash. */
+    const { useAi } = await import('./aiStore');
+    useAi.getState().setToast(pesan);
+    throw new Error(pesan);
+  }
+}
+
+export const fsWrite = async (
   path: string,
   content: string,
   encoding?: Encoding,
   lineEnding?: LineEnding,
   opts?: { wasExisting?: boolean; allowMissing?: boolean },
-) =>
-  invoke<void>('fs_write', {
+) => {
+  await periksaAturanSebelumTulis(path, content);
+  return invoke<void>('fs_write', {
     path,
     content,
     encoding,
@@ -242,6 +382,7 @@ export const fsWrite = (
     wasExisting: opts?.wasExisting ?? false,
     allowMissing: opts?.allowMissing ?? false,
   });
+};
 export const fsExists = (path: string) => invoke<boolean>('fs_exists', { path });
 export const fsStat = (path: string) => invoke<StatResult>('fs_stat', { path });
 export const fsCreateFile = (path: string, content?: string) =>
@@ -326,7 +467,7 @@ export const ptyList = () => invoke<PtyInfo[]>('pty_list');
  *
  * The JS key stays camelCase: Tauri 2 converts camelCase arguments to the
  * snake_case parameter names itself, and passing `max_lines` here is NOT
- * equivalent — the value is then dropped and the command silently falls back to
+ * equivalent 窶・the value is then dropped and the command silently falls back to
  * its default 200 lines instead of the requested count.
  */
 export const ptyTail = (id: string, maxLines?: number) =>
@@ -394,6 +535,23 @@ export const aiToolChatStream = (opts: {
   maxTokens?: number;
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
 }) => invoke<void>('ai_tool_chat_stream', opts);
+
+/*
+ * Turn a recorded clip into text.
+ *
+ * The panel records with `MediaRecorder` and posts the bytes here; Rust holds
+ * the API key and talks to the provider. The alternative - calling the
+ * provider's transcription endpoint from the WebView - would need the key in
+ * the page, which is the one thing this app never does.
+ */
+export const aiTranscribe = (opts: {
+  provider: string;
+  model?: string;
+  baseUrl?: string;
+  /** `data:<mime>;base64,<payload>` - see `useDengar`. */
+  audio: string;
+  lang?: string;
+}) => invoke<string>('ai_transcribe', opts);
 
 export interface CliAgent {
   id: string;
@@ -479,6 +637,18 @@ export interface ConflictHunk {
 }
 export const gitConflictRead = (path: string) =>
   invoke<ConflictHunk[]>('git_conflict_read', { path });
+/*
+ * NOT IMPLEMENTED - no Rust handler exists, and nothing calls this.
+ *
+ * `scripts/audit-command-hilang.mjs` reports it as a dead declaration. Kept
+ * rather than deleted because it is the documented next step for conflict
+ * resolution - `gitConflictRead` above already parses the hunks, so the UI that
+ * applies them is planned - and deleting it would lose the intended signature.
+ *
+ * Do NOT wire a button to this without writing the handler first: `invoke` on an
+ * unregistered command fails at click time with `Command ... not found`, which is
+ * a dead button rather than a build error.
+ */
 export const gitConflictApply = (path: string, hunkIndex: number, side: 'ours' | 'theirs') =>
   invoke<boolean>('git_conflict_apply', { path, hunkIndex, side });
 export const gitRebaseInteractive = (onto: string) =>
@@ -486,6 +656,12 @@ export const gitRebaseInteractive = (onto: string) =>
 export const gitRebaseContinue = () => invoke<string>('git_rebase_continue');
 export const gitRebaseAbort = () => invoke<string>('git_rebase_abort');
 export const gitRebaseStatus = () => invoke<boolean>('git_rebase_status');
+/*
+ * NOT IMPLEMENTED - see the note on `gitConflictApply` above.
+ *
+ * The interactive-rebase progress reader: no Rust handler exists and nothing
+ * calls it. Kept as the documented remaining half of the rebase feature.
+ */
 export const gitRebaseProgress = () => invoke<string>('git_rebase_progress');
 
 export const ghStatus = () => invoke<GhStatus>('gh_status');
