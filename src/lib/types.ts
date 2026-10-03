@@ -857,18 +857,6 @@ export interface GeneralSettings {
   /* A full path to the shell binary. Empty means "use defaultTerminal". */
   shellPath?: string;
 
-  /*
-   * Chat avatars. `chatAvatar` hides BOTH sides at once rather than having a
-   * switch per side: the reason to turn them off is visual clutter, and no one
-   * wants the robot gone but their own face still there.
-   *
-   * `userAvatarPath` is a path on disk, not image bytes - settings.json stays
-   * small and diffable. Empty means "none chosen": the panel falls back to the
-   * GitHub photo if signed in, then to the user's initial.
-   */
-  chatAvatar?: boolean;
-  userAvatarPath?: string;
-
     lowRam?: boolean;
 
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
@@ -1013,6 +1001,25 @@ export interface Settings {
      * are stacked layers, not alternatives.
      */
     customInstructions: string;
+
+    /*
+     * Chat avatars.
+     *
+     * ONE switch for both sides rather than one each: the reason to turn them
+     * off is visual clutter, and nobody wants the robot gone while their own
+     * face stays. A single switch is also the honest shape of the promise -
+     * "show avatars in chat" - which is what the setting is called.
+     *
+     * `undefined` means ON, and that is deliberate: the Rust default is what
+     * actually applies on upgrade, so the UI must treat a missing value as the
+     * wanted state rather than as "off". Reading it as `!== false` instead of
+     * `=== true` is what makes that true.
+     *
+     * `userAvatarPath` is a path on disk, not image bytes - settings.json stays
+     * small and the cache stays out of it.
+     */
+    chatAvatar?: boolean;
+    userAvatarPath?: string;
   };
 
   subagent: {

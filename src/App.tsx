@@ -122,6 +122,16 @@ import './styles/ai-reasoning.css';
  * arrives. After ai.css, which styles the same classes for the older shape.
  */
 import './styles/ai-streaming.css';
+/*
+ * After ai-streaming.css, deliberately.
+ *
+ * That file dates from when avatars were tried and removed, and it sizes
+ * `.ai-msg` on the assumption that nothing sits beside the bubble. The avatar
+ * rules must therefore come LAST so the row layout wins - importing this one
+ * first would leave the bubble's own width rule overriding the gutter, and the
+ * avatars would overlap the text with no error anywhere to say why.
+ */
+import './styles/ai-avatar.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 /*

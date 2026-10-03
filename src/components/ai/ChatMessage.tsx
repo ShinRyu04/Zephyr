@@ -11,6 +11,8 @@ import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
+import { useStore } from '../../lib/store';
+import { RobotAvatar, UserAvatar } from './RobotAvatar';
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -183,12 +185,47 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
     return () => window.clearInterval(t);
   }, [msg.streaming, msg.content, msg.reasoning]);
 
+  /*
+   * The avatar and the bubble are SIBLINGS inside a row wrapper.
+   *
+   * Not a child of `.ai-msg`, and that is the whole point: `.ai-msg` is a flex
+   * COLUMN, so an avatar placed inside it stacks above the message instead of
+   * sitting beside it. The row owns the horizontal axis and `.ai-msg` keeps the
+   * vertical one it already had, so none of the bubble layout below changes.
+   *
+   * `row-reverse` mirrors the row for the user, which is what puts their avatar
+   * on the right without reordering anything in the DOM.
+   *
+   * The marks are hidden entirely when the user has switched avatars off - see
+   * `settings.agents.chatAvatar`. Rendering them and hiding them with CSS would
+   * leave the gutter in place, which is the opposite of what "off" should mean.
+   */
+  /*
+   * Read as `!== false`, not `=== true`: a missing value means ON.
+   *
+   * The Rust default is what actually applies on upgrade (`deep_merge` merges
+   * rather than replaces), so a user who never touched this setting has no
+   * `chatAvatar` key at all - and treating that as "off" would hide avatars from
+   * everyone who did not ask for them to be hidden.
+   */
+  const pesanAvatar = useStore((s) => s.settings?.agents?.chatAvatar !== false);
+  const fotoSaya = useStore((s) => s.settings?.agents?.userAvatarPath ?? null);
+
   return (
     <div
-      className={`ai-msg is-${msg.role}${msg.error ? ' is-error' : ''}`}
-      data-ai-msg={msg.id}
-      data-role={msg.role}
+      className={`ai-row${isUser ? ' is-user' : ''}${msg.error ? ' is-error' : ''}`}
+      data-ai-row={msg.id}
     >
+      {pesanAvatar && (
+        <span className="ai-avatar" data-testid={isUser ? 'ai-avatar-saya' : 'ai-avatar-bot'}>
+          {isUser ? <UserAvatar src={fotoSaya} name="" size={22} /> : <RobotAvatar size={22} />}
+        </span>
+      )}
+      <div
+        className={`ai-msg is-${msg.role}${msg.error ? ' is-error' : ''}`}
+        data-ai-msg={msg.id}
+        data-role={msg.role}
+      >
       <div className="ai-msg-head">
         {isUser ? (
           <span className="ai-who">{tr('Kamu')}</span>
@@ -658,6 +695,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
         * than a global viewer plus the plumbing to feed it a source.
         */}
       {gambarBuka && <Lightbox src={gambarBuka} onClose={() => setGambarBuka(null)} />}
+      </div>
     </div>
   );
 }

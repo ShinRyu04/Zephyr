@@ -568,6 +568,27 @@ export function AgentsSection() {
         />
       </Row>
 
+      {/*
+       * One switch for both sides of the conversation.
+       *
+       * `!== false` rather than `!!`: a user who never touched this has no
+       * `chatAvatar` key, and a missing value must read as ON - otherwise
+       * everyone who upgrades silently loses their avatars.
+       *
+       * The hint says what actually changes on screen. "Show avatars" alone
+       * leaves the reader guessing whether it means the message list, the
+       * sub-agent cards, or something else; naming the robot and the photo
+       * removes the guess.
+       */}
+      <Row label={tr('agents.chatAvatar')} hint={tr('the robot and your photo beside each message')}>
+        <Toggle
+          label={tr('agents.chatAvatar')}
+          testid="agents-chat-avatar"
+          checked={a.chatAvatar !== false}
+          onChange={(v) => void apply({ agents: { chatAvatar: v } })}
+        />
+      </Row>
+
       <Row label={tr('agents.rescan')} hint={`${agents.length} CLIs detected on PATH`}>
         <button className="btn" data-testid="agents-rescan" onClick={() => void loadAgents()}>
           {tr('agents.rescan')}

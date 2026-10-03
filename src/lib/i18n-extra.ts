@@ -2276,6 +2276,8 @@ const ID: Dict = {
   "Snapshot skipped (identical content / large file / binary)": "Snapshot dilewati (isi identik / berkas besar / biner)",
   "No stopped threads": "Tidak ada thread yang berhenti",
   "Cannot open the file for restore": "Tidak bisa membuka berkas untuk pemulihan",
+  "agents.chatAvatar": "Avatar di chat",
+  "the robot and your photo beside each message": "robot dan foto Anda di samping tiap pesan",
 };
 const EN: Dict = {
   'Agent': 'Agent',
@@ -4473,6 +4475,8 @@ const EN: Dict = {
   "Checking...": "Checking...",
   "Check again": "Check again",
   "Use agent": "Use agent",
+  "agents.chatAvatar": "Chat avatars",
+  "the robot and your photo beside each message": "the robot and your photo beside each message",
 };
 const JA: Dict = {
   'Agent': 'エージェント',
@@ -6686,6 +6690,8 @@ const JA: Dict = {
   "Checking...": "確認中...",
   "Check again": "再確認",
   "Use agent": "このエージェントを使う",
+  "agents.chatAvatar": "チャットのアバター",
+  "the robot and your photo beside each message": "各メッセージの横にロボットとあなたの写真",
 };
 const KO: Dict = {
   'Agent': '에이전트',
@@ -8899,6 +8905,8 @@ const KO: Dict = {
   "Checking...": "확인 중...",
   "Check again": "다시 확인",
   "Use agent": "이 에이전트 사용",
+  "agents.chatAvatar": "채팅 아바타",
+  "the robot and your photo beside each message": "각 메시지 옆에 로봇과 내 사진",
 };
 const ZH: Dict = {
   'Agent': '代理',
@@ -11112,6 +11120,8 @@ const ZH: Dict = {
   "Checking...": "正在检查...",
   "Check again": "重新检查",
   "Use agent": "使用此代理",
+  "agents.chatAvatar": "聊天头像",
+  "the robot and your photo beside each message": "每条消息旁的机器人和你的照片",
 };
 const ES: Dict = {
   'Agent': 'Agente',
@@ -13325,6 +13335,8 @@ const ES: Dict = {
   "Checking...": "Comprobando...",
   "Check again": "Comprobar de nuevo",
   "Use agent": "Usar este agente",
+  "agents.chatAvatar": "Avatares en el chat",
+  "the robot and your photo beside each message": "el robot y tu foto junto a cada mensaje",
 };
 const FR: Dict = {
   'Agent': 'Agent',
@@ -15538,6 +15550,8 @@ const FR: Dict = {
   "Checking...": "Vérification...",
   "Check again": "Vérifier à nouveau",
   "Use agent": "Utiliser cet agent",
+  "agents.chatAvatar": "Avatars dans le chat",
+  "the robot and your photo beside each message": "le robot et votre photo à côté de chaque message",
 };
 const DE: Dict = {
   'Agent': 'Agent',
@@ -17751,6 +17765,8 @@ const DE: Dict = {
   "Checking...": "Wird geprüft...",
   "Check again": "Erneut prüfen",
   "Use agent": "Diesen Agenten verwenden",
+  "agents.chatAvatar": "Avatare im Chat",
+  "the robot and your photo beside each message": "der Roboter und dein Foto neben jeder Nachricht",
 };
 const PT: Dict = {
   'Agent': 'Agente',
@@ -19964,6 +19980,8 @@ const PT: Dict = {
   "Checking...": "Verificando...",
   "Check again": "Verificar novamente",
   "Use agent": "Usar este agente",
+  "agents.chatAvatar": "Avatares no chat",
+  "the robot and your photo beside each message": "o robô e a sua foto ao lado de cada mensagem",
 };
 const AR: Dict = {
   'Agent': 'الوكيل',
@@ -22177,6 +22195,8 @@ const AR: Dict = {
   "Checking...": "جارٍ الفحص...",
   "Check again": "أعد الفحص",
   "Use agent": "استخدام هذا الوكيل",
+  "agents.chatAvatar": "صور في الدردشة",
+  "the robot and your photo beside each message": "الروبوت وصورتك بجانب كل رسالة",
 };
 export const EXTRA: Record<string, Dict> = {
   id: ID,

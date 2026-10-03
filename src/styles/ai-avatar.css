@@ -1,0 +1,135 @@
+/*
+ * ============================================================================
+ * CHAT AVATARS
+ * ============================================================================
+ *
+ * A small round mark beside each message: the robot for the assistant, a photo
+ * or an initial for the user.
+ *
+ * THE LAYOUT PROBLEM, and why the avatar is NOT a child of .ai-msg.
+ *
+ * `.ai-msg` is `display: flex; flex-direction: column`. A column lays every
+ * child out top to bottom, so an avatar drawn as a normal child of it stacks
+ * ABOVE the message instead of sitting beside it - which is exactly how the
+ * first attempt at avatars in this project looked wrong.
+ *
+ * So the avatar is a SIBLING of the bubble, and both live in a row wrapper
+ * (`.ai-row`). The row owns the horizontal axis; `.ai-msg` keeps the vertical
+ * one it already had, unchanged. Nothing about the existing bubble layout has
+ * to be rewritten, which is what makes this safe to add to a working panel.
+ *
+ * WHY THE ROW REVERSES FOR THE USER:
+ * a chat reads as a conversation when the two sides face each other, so the
+ * user's avatar sits on the right. `flex-direction: row-reverse` does that
+ * without moving any DOM, which matters because the message list is memoised
+ * per message - adding a wrapper that changes order in the markup would defeat
+ * the memo for every row.
+ */
+
+.ai-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* The user's side is mirrored. `row-reverse` also moves the avatar to the
+   visual right, so no per-child ordering rule is needed. */
+.ai-row.is-user {
+  flex-direction: row-reverse;
+}
+
+/* The bubble keeps the full width it had before avatars existed, minus the
+   gutter the avatar now occupies. `min-width: 0` is what lets the bubble's own
+   long lines wrap instead of stretching the row. */
+.ai-row > .ai-msg {
+  min-width: 0;
+  flex: 1;
+}
+
+/* ---------- the marks themselves ---------- */
+
+/*
+ * Fixed size and `flex: none`, so a long message cannot squash the avatar into
+ * an ellipse. The 2px top offset lines the avatar up with the first line of the
+ * message head rather than with the top edge of the bubble, which is what makes
+ * it look attached to the text.
+ */
+.ai-avatar {
+  flex: none;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+/*
+ * The assistant's mark.
+ *
+ * The colours are themeable and deliberately NOT the accent: the accent already
+ * means "interactive" everywhere else in this app, and a coloured avatar would
+ * read as a button. This is a soft neutral plate with the glyph in the text
+ * colour, which stays legible on both themes because both ends come from the
+ * theme.
+ */
+.ai-avatar-bot {
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  box-sizing: content-box;
+  padding: 3px;
+}
+
+/* The tinted plate behind the head, so the robot is not a hollow outline at
+   22px. Kept subtle: the glyph is the signal, not the fill. */
+.ai-avatar-bot-head {
+  fill: color-mix(in srgb, var(--text-secondary) 14%, transparent);
+}
+
+/*
+ * The user's photo, and the initial that stands in for it.
+ *
+ * Both share `.ai-avatar-user`, so they occupy exactly the same circle: a
+ * fallback that were a different size would make the transcript shift when a
+ * photo fails to load.
+ */
+.ai-avatar-user {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.ai-avatar-inisial {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  /* Uppercase is applied in the component, not here, so the letter that is
+     measured for centring is the letter that is drawn. */
+  user-select: none;
+}
+
+/* The avatar of a message that failed is dimmed with it, so a broken bubble
+   does not keep a bright, cheerful mark beside it. */
+.ai-row.is-error .ai-avatar {
+  opacity: 0.6;
+}
+
+/*
+ * Below this width the transcript is narrow enough that the gutter costs more
+ * than the avatar gives, so the marks are hidden rather than shrunk. A 14px
+ * avatar reads as a smudge; the name in the message head still says who is
+ * speaking.
+ */
+@media (max-width: 380px) {
+  .ai-avatar {
+    display: none;
+  }
+  .ai-row {
+    gap: 0;
+  }
+}
