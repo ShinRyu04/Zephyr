@@ -214,7 +214,28 @@ for (const namaTool of himpunanKatalog) {
 }
 
 /* -- 3d. Nama MCP tidak boleh kosong di bahasa mana pun. -- */
-const mcpPanjang = katalog.filter((n) => AWALAN_MCP.test(n));
+
+/*
+ * PENTING: katalog menyimpan 14 tool MCP dengan nama POLOS (`inspect`), dan
+ * awalan `mcp__zephyr__` baru ditempelkan `rakit()` saat katalog dirakit -
+ * nama berawalan itu TIDAK PERNAH muncul sebagai literal di catalog.ts.
+ * Karena itu daftar MCP di sini dibangun dengan menempelkan awalan sendiri,
+ * bukan dengan menyaring isi berkas.
+ *
+ * Petakan lewat nama polos: 56 nama di katalog dikurangi 42 nama yang bukan
+ * MCP. Cara yang tidak menebak-nebak adalah memakai daftar dari blok `MCP` di
+ * `catalog.ts` - tapi karena harness ini sengaja tidak mengimpor katalog
+ * (lihat kepala berkas), yang dipakai adalah nama polos yang sama-sama tidak
+ * ada di 42 tool lain.
+ */
+const NAMA_MCP_POLOS = [
+  'inspect', 'run_command', 'open_file', 'workspace', 'set_setting', 'extension',
+  'ssh', 'state', 'read', 'sh', 'wait_for_terminal', 'worktree', 'focus_pane', 'pane',
+];
+const mcpPanjang = NAMA_MCP_POLOS.map((n) => `mcp__zephyr__${n}`);
+for (const n of NAMA_MCP_POLOS) {
+  if (!himpunanKatalog.has(n)) lapor(`nama MCP polos tidak ada di katalog: ${n}`);
+}
 const mcpKosong = [];
 for (const kode of KODE) {
   for (const namaLengkap of mcpPanjang) {
@@ -278,3 +299,14 @@ console.log(
   `\nOK: ${PETA_NAMA.length} peta x ${himpunanKatalog.size} kunci, himpunan kunci identik dengan katalog; ` +
     `${mcpPanjang.length} tool MCP terisi di semua bahasa; fallback ke Inggris bekerja.`,
 );
+
+/* Awalan yang dipakai katalog harus benar-benar `mcp__zephyr__`.
+   Kalau suatu saat awalan itu diganti, daftar MCP di atas berhenti mewakili
+   kenyataan - dan uji "MCP tidak kosong" akan lulus tanpa menguji apa pun. */
+if (!/export const AWALAN_MCP = 'mcp__zephyr__'/.test(katalogTeks)) {
+  console.error(
+    '\nCATATAN: AWALAN_MCP di catalog.ts tidak lagi literal \'mcp__zephyr__\' - ' +
+      'perbarui daftar MCP di harness ini supaya ia tetap menguji tool yang benar.',
+  );
+  process.exit(1);
+}

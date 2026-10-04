@@ -65,13 +65,21 @@ r.check('T2', info.kosong.length === 0, `${info.kosong.length} deskripsi kosong`
 r.check('T3', info.masihIndo.length === 0, `${info.masihIndo.length} deskripsi EN masih memuat kata Indonesia` + (info.masihIndo.length ? ` :: ${info.masihIndo.join(', ')}` : ''));
 
 /*
- * T4 DULU memeriksa "deskripsi JA harus berbeda dari EN". Premis itu SALAH:
- * `deskripsiTool` hanya punya blok ID dan EN, jadi bahasa selain 'id' SELALU
- * jatuh ke Inggris - bukan karena ada yang lupa menerjemahkan, melainkan karena
- * deskripsi tool memang hanya shipping dua bahasa itu. Harness lama tidak
- * bisa lulus dalam keadaan yang benar.
+ * T4 DULU memeriksa "deskripsi JA harus berbeda dari EN". Pada saat itu premis
+ * itu SALAH: `deskripsiTool` hanya punya blok ID dan EN, jadi bahasa selain
+ * 'id' SELALU jatuh ke Inggris - bukan karena ada yang lupa menerjemahkan,
+ * melainkan karena deskripsi tool memang baru mengangkut dua bahasa itu.
+ * Harness lama tidak bisa lulus dalam keadaan yang benar.
  *
- * Dua bug di dalam satu baris lamanya:
+ * Sejak delapan bahasa lain menyusul (ja, ko, zh, es, fr, de, pt, ar), premis
+ * "JA harus berbeda dari EN" menjadi BENAR - tapi T4 tetap TIDAK memakainya
+ * sebagai ambang, karena aturan itu sudah diuji jauh lebih keras di
+ * `cek-panel-tools-10bahasa.mjs`: di sana sepuluh bahasa diuji dari DOM yang
+ * hidup, masing-masing dengan penanda aksaranya sendiri. Mengulangnya di sini
+ * sebagai ambang hanya akan menambah tempat yang harus disunting setiap kali
+ * ada bahasa baru.
+ *
+ * Dua bug di dalam satu baris lamanya, tetap dicatat supaya tidak terulang:
  *   - `.slice(0, 5)` dipotong SEBELUM dihitung, jadi panjangnya tidak pernah
  *     lebih dari 5, dan ambang `< 5` sebenarnya berarti "<= 4". Angka itu
  *     hasil pemotongan, bukan hasil pengukuran.
@@ -79,8 +87,8 @@ r.check('T3', info.masihIndo.length === 0, `${info.masihIndo.length} deskripsi E
  *     keadaan benar. Kalau jumlah sebenarnya 5, ia gagal - padahal kegagalan
  *     itu tidak artinya apa-apa.
  *
- * Yang dijaga sekarang adalah hal yang benar-benar bisa rusak: bahasa lain
- * harus mengembalikan deskripsi terisi (fallback bekerja, panel tidak pernah
+ * Yang dijaga di sini adalah hal yang benar-benar bisa rusak: setiap bahasa
+ * harus mengembalikan deskripsi TERISI (fallback bekerja, panel tidak pernah
  * menampilkan baris kosong). Berapa banyak yang memakai fallback dilaporkan,
  * bukan dipakai sebagai ambang.
  */
