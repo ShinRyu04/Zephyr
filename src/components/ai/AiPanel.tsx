@@ -470,7 +470,6 @@ const JEJAK_TOOL_MAKS = 4;
    * zustand v5 compares selector results with `===` and an object here would
    * re-render the whole composer on every unrelated settings write.
    */
-  const voiceAktif = useStore((s) => s.settings?.voice?.enabled !== false);
   const bahasaMic = useStore((s) => s.settings?.mic?.lang ?? '');
   const bahasaLama = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
   const bahasaDengar = bahasaMic || bahasaLama;
@@ -521,6 +520,15 @@ const JEJAK_TOOL_MAKS = 4;
    */
   useEffect(() => {
     if (!galatDengar) return;
+    /*
+     * A message that already carries its reason is shown as-is.
+     *
+     * The hook returns short codes for the failures it can name, but for
+     * anything else it now returns `gagal: <what Rust said>` - and mapping that
+     * back to "Could not transcribe the recording" throws away the only useful
+     * part. Prefix matching is what keeps this table from silently swallowing
+     * every future error the backend learns to describe.
+     */
     const pesan =
       galatDengar === 'izin'
         ? tr('Microphone permission was refused')
@@ -528,9 +536,13 @@ const JEJAK_TOOL_MAKS = 4;
           ? tr('Pick a model first - dictation needs one to transcribe with')
           : galatDengar === 'key-audio'
             ? tr('Voice key rejected for audio - set a voice key in Mic settings')
-            : galatDengar === 'kosong'
-            ? tr('Nothing was recorded')
-            : tr('Could not transcribe the recording');
+            : galatDengar === 'tanpa-key'
+              ? tr('No API key for dictation - add one in Settings, or point the mic at a local server')
+              : galatDengar === 'kosong'
+                ? tr('Nothing was recorded')
+                : galatDengar.startsWith('gagal:') || galatDengar.startsWith('mic gagal:')
+                  ? galatDengar
+                  : tr('Could not transcribe the recording');
     setToast(pesan);
   }, [galatDengar, setToast, tr]);
 
@@ -2012,8 +2024,16 @@ const JEJAK_TOOL_MAKS = 4;
             * it. It sits next to "+" because it fills the same slot — both put
             * content into the message — and it only renders where the browser
             * actually offers speech recognition.
+            *
+            * NO `voiceAktif` HERE, and that is the fix, not an omission: it used
+            * to be required, which meant turning off "speaking" (the AI reading
+            * answers aloud) also removed the dictation button. The two share no
+            * engine, no endpoint and no switch in Settings, so gating one on the
+            * other made a working microphone look broken - the button simply was
+            * not there and nothing said why. `micAktif` is the only switch that
+            * owns this control.
             */}
-          {bisaDengar && voiceAktif && micAktif && (
+          {bisaDengar && micAktif && (
             <button
               className={`ai-plus ai-mic${dengar ? ' is-on' : ''}`}
               data-testid="ai-mic"

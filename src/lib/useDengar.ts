@@ -158,7 +158,24 @@ export function useDengar(
            */
           try {
             const buf = await blob.arrayBuffer();
-            const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+            /*
+             * Chunked, NOT `btoa(String.fromCharCode(...new Uint8Array(buf)))`.
+             *
+             * Spread passes one argument per byte, and the argument list is
+             * bounded (roughly 100k in V8). A clip longer than a few seconds
+             * exceeds it and throws `RangeError: Maximum call stack size
+             * exceeded` - which the catch below turns into the generic "gagal"
+             * message. So the failure looked like a server problem and only
+             * happened on longer dictation, which is exactly the kind of bug
+             * that survives a quick test.
+             */
+            const bytes = new Uint8Array(buf);
+            let biner = '';
+            const POTONG = 8192;
+            for (let i = 0; i < bytes.length; i += POTONG) {
+              biner += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + POTONG)));
+            }
+            const b64 = btoa(biner);
             if (!tujuan?.provider) {
               setGalat('tanpa-provider');
               return;
@@ -173,14 +190,27 @@ export function useDengar(
             if (teks) tulisRef.current(teks, true);
             else setGalat('kosong');
           } catch (e) {
+            /*
+             * Keep the reason, not just a code.
+             *
+             * `gagal` alone is what made this feature undiagnosable: the user
+             * saw a generic failure whether the server was down, the model was
+             * missing, or the audio was rejected. Rust already returns a precise
+             * message, so carry it through - the toast is the only place the
+             * user can see it.
+             */
             const m = e instanceof Error ? e.message : String(e);
             if (/tidak berlaku untuk endpoint audio/i.test(m)) setGalat('key-audio');
-            else setGalat('gagal');
+            else if (/No API key/i.test(m)) setGalat('tanpa-key');
+            else setGalat(`gagal: ${m.slice(0, 200)}`);
           }
         };
         rec.start();
-      } catch {
-        setGalat('izin');
+      } catch (e) {
+        // Same reasoning: "izin" hid the difference between a denied
+        // microphone and a device that could not be opened at all.
+        const m = e instanceof Error ? e.message : String(e);
+        setGalat(/NotAllowed|Permission/i.test(m) ? 'izin' : `mic gagal: ${m.slice(0, 160)}`);
         setDengar(false);
       }
     };

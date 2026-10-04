@@ -2320,6 +2320,7 @@ const ID: Dict = {
   'No key needed (local)': 'Tanpa key (lokal)',
   'Mic server URL': 'URL server mic',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Endpoint sendiri untuk dikte, mis. server STT lokal. Kosong berarti alamat provider chat.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'Tidak ada API key untuk dikte - isi di Pengaturan, atau arahkan mic ke server lokal',
 };
 const EN: Dict = {
   'Voice provider': 'Voice provider',
@@ -4561,6 +4562,7 @@ const EN: Dict = {
   'No key needed (local)': 'No key needed (local)',
   'Mic server URL': 'Mic server URL',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'No API key for dictation - add one in Settings, or point the mic at a local server',
 };
 const JA: Dict = {
   'Voice provider': 'Voice provider',
@@ -6818,6 +6820,7 @@ const JA: Dict = {
   'No key needed (local)': 'キー不要（ローカル）',
   'Mic server URL': 'マイクサーバーURL',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': '音声入力用の独自エンドポイント（例：ローカルSTTサーバー）。空欄ならチャットプロバイダーのアドレス。',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': '音声入力用のAPIキーがありません。設定で入力するか、マイクをローカルサーバーに向けてください',
 };
 const KO: Dict = {
   'Voice provider': 'Voice provider',
@@ -9075,6 +9078,7 @@ const KO: Dict = {
   'No key needed (local)': '키 불필요(로컬)',
   'Mic server URL': '마이크 서버 URL',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': '받아쓰기용 자체 엔드포인트(예: 로컬 STT 서버). 비워두면 채팅 공급자 주소.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': '받아쓰기용 API 키가 없습니다. 설정에서 입력하거나 마이크를 로컬 서버로 지정하세요',
 };
 const ZH: Dict = {
   'Voice provider': 'Voice provider',
@@ -11332,6 +11336,7 @@ const ZH: Dict = {
   'No key needed (local)': '无需密钥（本地）',
   'Mic server URL': '麦克风服务器地址',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': '听写用的自有端点，例如本地 STT 服务器。留空则使用聊天服务商地址。',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': '听写没有 API 密钥 — 请在设置中填写，或将麦克风指向本地服务器',
 };
 const ES: Dict = {
   'Voice provider': 'Voice provider',
@@ -13589,6 +13594,7 @@ const ES: Dict = {
   'No key needed (local)': 'Sin clave (local)',
   'Mic server URL': 'URL del servidor de micrófono',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Endpoint propio para dictado, p. ej. un servidor STT local. Vacío usa la dirección del proveedor de chat.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'No hay clave API para dictado: añádela en Ajustes o apunta el micrófono a un servidor local',
 };
 const FR: Dict = {
   'Voice provider': 'Voice provider',
@@ -15846,6 +15852,7 @@ const FR: Dict = {
   'No key needed (local)': 'Pas de clé (local)',
   'Mic server URL': 'URL du serveur micro',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Point de terminaison propre à la dictée, p. ex. un serveur STT local. Vide = adresse du fournisseur de chat.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'Aucune clé API pour la dictée : ajoutez-la dans les Paramètres ou pointez le micro vers un serveur local',
 };
 const DE: Dict = {
   'Voice provider': 'Voice provider',
@@ -18103,6 +18110,7 @@ const DE: Dict = {
   'No key needed (local)': 'Kein Schlüssel nötig (lokal)',
   'Mic server URL': 'Mikrofon-Server-URL',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Eigener Endpunkt für Diktat, z. B. ein lokaler STT-Server. Leer = Adresse des Chat-Anbieters.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'Kein API-Schlüssel für Diktat – in den Einstellungen eintragen oder das Mikrofon auf einen lokalen Server richten',
 };
 const PT: Dict = {
   'Voice provider': 'Voice provider',
@@ -20360,6 +20368,7 @@ const PT: Dict = {
   'No key needed (local)': 'Sem chave (local)',
   'Mic server URL': 'URL do servidor de microfone',
   'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Endpoint próprio para ditado, p. ex. um servidor STT local. Vazio usa o endereço do provedor de chat.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'Sem chave de API para ditado — adicione nas Configurações ou aponte o microfone para um servidor local',
 };
 const AR: Dict = {
   'Voice server URL': 'عنوان خادم الصوت',
@@ -22610,4 +22619,5 @@ const AR: Dict = {
   "Zephyr could not find": "لم يتمكن Zephyr من العثور على",
   "on your PATH. Install it, then check again to enable this server.": "في PATH لديك. ثبّته ثم أعد الفحص لتفعيل هذا الخادم.",  "Found it. Switch this server on to use it.": "تم العثور عليه. شغّل هذا الخادم لاستخدامه.",  "Checking...": "جارٍ الفحص...",  "Check again": "أعد الفحص",  "Use agent": "استخدام هذا الوكيل",  "agents.chatAvatar": "صور في الدردشة",  "the robot and your photo beside each message": "الروبوت وصورتك بجانب كل رسالة",
   'Mic server URL': 'عنوان خادم الميكروفون',
-  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'نقطة نهاية خاصة للإملاء، مثل خادم STT محلي. فارغ يعني عنوان مزود المحادثة.',};export const EXTRA: Record<string, Dict> = {  id: ID,  en: EN,  ja: JA,  ko: KO,  zh: ZH,  es: ES,  fr: FR,  de: DE,  pt: PT,  ar: AR,};
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'نقطة نهاية خاصة للإملاء، مثل خادم STT محلي. فارغ يعني عنوان مزود المحادثة.',
+  'No API key for dictation - add one in Settings, or point the mic at a local server': 'لا يوجد مفتاح API للإملاء — أضفه في الإعدادات أو وجّه الميكروفون إلى خادم محلي',};export const EXTRA: Record<string, Dict> = {  id: ID,  en: EN,  ja: JA,  ko: KO,  zh: ZH,  es: ES,  fr: FR,  de: DE,  pt: PT,  ar: AR,};
