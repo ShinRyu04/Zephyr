@@ -236,7 +236,14 @@ const check = (id, ok, detail) => {
 const mockLog = async () => (await fetch(`http://127.0.0.1:${MOCK}/__log`)).json();
 const mockReset = () => fetch(`http://127.0.0.1:${MOCK}/__reset`);
 
-const MOCK_VERSION = 5;
+/*
+ * Naik ke 6 bersama mock-ai. Versi 6 menambahkan mode TIMEOUT untuk menguji
+ * tombol Lanjut pada timeout SUNGGUHAN (dulu tidak bisa diuji: Rust bisa diam
+ * 1300 detik). Perilaku yang verify09 uji tidak berubah, jadi versinya
+ * disamakan - penjaga versi tetap bermakna: mock lama yang nyangkut di port
+ * tetap ditolak, bukan diam-diam diuji.
+ */
+const MOCK_VERSION = 6;
 
 async function ensureMock() {
   try {

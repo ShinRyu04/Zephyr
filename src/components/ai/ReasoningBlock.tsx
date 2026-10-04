@@ -26,26 +26,58 @@ function durasi(ms: number | undefined): string {
   return tx('Thought briefly');
 }
 
-export default function ReasoningBlock({ teks, ms }: { teks: string; ms?: number }) {
-  const [buka, setBuka] = useState(false);
+export default function ReasoningBlock({
+  teks,
+  ms,
+  berjalan,
+}: {
+  teks: string;
+  ms?: number;
+  berjalan?: boolean;
+}) {
+  /*
+   * The block is only useful while it is being written. Waiting for
+   * !msg.streaming meant the reasoning arrived and was paid for, then stayed
+   * hidden until the answer was already finished - which is exactly when the
+   * reader no longer needs it. Worse, on runs that end in an error the
+   * reasoning was never shown at all: the whole point of seeing "it was still
+   * reasoning about X" is lost precisely when the run fails.
+   *
+   * So: open while it streams (auto), closed once it is done. The reader who
+   * wants to re-read it clicks once - the same contract as before for a
+   * finished answer, and no click at all for the live one.
+   */
+  /* A person who has clicked is done being surprised: after that, the open
+     state is theirs. `null` means "nobody has decided yet", which is what lets
+     the live/done default apply. */
+  const [pilihan, setPilihan] = useState<boolean | null>(null);
+  const terbuka = pilihan ?? Boolean(berjalan);
   const isi = teks.trim();
   if (!isi) return null;
 
   return (
-    <div className="ai-reason" data-testid="ai-reason" data-open={buka ? '1' : '0'}>
+    <div
+      className="ai-reason"
+      data-testid="ai-reason"
+      data-open={terbuka ? '1' : '0'}
+      data-live={berjalan ? '1' : '0'}
+    >
       <button
         className="ai-reason-head"
         data-testid="ai-reason-toggle"
-        aria-expanded={buka}
-        onClick={() => setBuka((v) => !v)}
+        aria-expanded={terbuka}
+        onClick={() => setPilihan((v) => !(v ?? Boolean(berjalan)))}
       >
         <AiIkon name="thought" size={13} />
-        <span className="ai-reason-title">{durasi(ms)}</span>
+        {/* While it streams, the header must not claim a duration: the run is
+            not over, and "Thought for 0s" is a number that will be wrong in a
+            second. Say what is actually happening instead. */}
+        <span className="ai-reason-title">{berjalan ? tx('Thinking') : durasi(ms)}</span>
         <span className="ai-reason-caret" aria-hidden="true">
-          {buka ? '▾' : '▸'}
+          {terbuka ? '▾' : '▸'}
         </span>
       </button>
-      {buka && (
+      {terbuka && (
         <div className="ai-reason-body" data-testid="ai-reason-body">
           {isi}
         </div>

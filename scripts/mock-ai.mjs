@@ -27,7 +27,7 @@ const PORT = Number(process.argv[2] ?? 8098);
 /** Dinaikkan tiap kali protokol/perilaku mock berubah. Harness menolak
  *  server versi lama yang masih nyangkut di port (sudah kena sekali:
  *  mock lama tanpa alt=sse membuat V3..V5 gagal padahal app benar). */
-const VERSION = 5;
+const VERSION = 6;
 const log = [];
 
 /** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
@@ -114,6 +114,23 @@ const server = http.createServer(async (req, res) => {
     prompt = String(body.contents[body.contents.length - 1]?.parts?.[0]?.text ?? '');
   }
 
+  /*
+   * Penanda perintah dicari di SELURUH riwayat, bukan hanya pesan terakhir.
+   *
+   * Agent mengirim seluruh percakapan tiap step, jadi pesan terakhir biasanya
+   * hasil tool - bukan apa yang user ketik. Mencari di pesan terakhir saja
+   * membuat 'TIMEOUT ...' yang user tulis tidak pernah ditemukan, mock membalas
+   * normal dengan jawaban kosong, dan run berakhir tanpa error dalam hitungan
+   * detik. Itu terlihat persis seperti app yang gagal melaporkan timeout,
+   * padahal mocknya yang tidak melihat penandanya.
+   *
+   * Dijadikan riwayatPenuh untuk pengujian mode TIMEOUT/ERR401, sementara
+   * `prompt` tetap pesan terakhir untuk perilaku balasan biasa.
+   */
+  const riwayatPenuh = Array.isArray(body.messages)
+    ? body.messages.map((m) => String(m?.content ?? '')).join('\n')
+    : prompt;
+
   // Sudah ada hasil tool di riwayat? Berarti tool SUDAH dijalankan sekali;
   // balas teks biasa, bukan tool call lagi. Tanpa ini agent loop berputar
   // sampai MAX_AGENT_STEPS karena mock selalu meminta tool yang sama.
@@ -185,9 +202,29 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (prompt.includes('ERR401')) {
+  if (riwayatPenuh.includes('ERR401')) {
     res.writeHead(401, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: { message: 'kunci uji ditolak' } }));
+    return;
+  }
+
+  /*
+   * TIMEOUT: terima request, jangan pernah menjawab.
+   *
+   * Ini satu-satunya cara menguji tombol Lanjut pada timeout SUNGGUHAN tanpa
+   * menunggu provider yang benar-benar mati - dan itu sebelumnya tidak mungkin,
+   * karena Rust bisa diam sampai 1300 detik. Setelah RETRY_LOOP_DEADLINE_SECS
+   * dipasang, Rust selalu melapor <= 320 detik, jadi jalur ini bisa diuji dengan
+   * sabar menunggu, bukan dengan menyuntik checkpoint buatan.
+   *
+   * Socket sengaja tidak ditutup: kalau ditutup, Rust melihat "connection
+   * closed" - itu error jaringan, bukan timeout. Yang mau diuji adalah provider
+   * yang hidup tapi tidak berkata apa-apa, persis 502 yang menggantung.
+   */
+  if (riwayatPenuh.includes('TIMEOUT')) {
+    const keep = setInterval(() => {
+      if (res.destroyed) clearInterval(keep);
+    }, 5000);
     return;
   }
 

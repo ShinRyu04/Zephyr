@@ -61,7 +61,8 @@ async function main() {
 
   // ── V0: mock provider versi benar ──
   const ver = await (await fetch(`${MOCK}/__version`)).json();
-  R.check('V0', ver.version === 5, `V0 mock provider versi 5 (versi=${ver.version})`);
+  /* Versi 6 bersama mock-ai: mode TIMEOUT ditambahkan, perilaku lain sama. */
+  R.check('V0', ver.version === 6, `V0 mock provider versi 6 (versi=${ver.version})`);
 
   // ── V1: setelan diarahkan ke mock ──
   // Kunci ditulis lewat command asli (bukan menempel di state) supaya

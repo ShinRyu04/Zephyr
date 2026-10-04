@@ -863,8 +863,12 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                * how long it took. The reader who wants the reasoning clicks once;
                * the reader who does not is never made to scroll past it.
                */}
-              {msg.reasoning && !msg.streaming && (
-                <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} />
+              {/* Shown WHILE streaming too, not only after. Waiting for the
+                  stream to finish hid the reasoning during the exact window it
+                  is useful in, and hid it permanently on runs that ended in an
+                  error - which is when "it was thinking about X" matters most. */}
+              {msg.reasoning && (
+                <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
               )}
               <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
               {ekorNarasi}
