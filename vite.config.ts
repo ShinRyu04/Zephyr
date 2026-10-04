@@ -53,38 +53,5 @@ export default defineConfig({
     target: ['es2021', 'chrome100', 'safari13'],
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
-    rollupOptions: {
-      output: {
-        // Pisahkan vendor besar agar tidak ada chunk > 500kB dan
-        // parse awal lebih ringan (target startup < 3 detik).
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return
-          // @codemirror/language, state, view dan lezer core WAJIB satu chunk
-          // dengan paket bahasa (lang-*, legacy-modes).
-          //
-          // Sebelumnya paket bahasa dikembalikan `undefined` supaya pecah jadi
-          // chunk sendiri, sementara @codemirror/* masuk chunk 'codemirror'.
-          // Rollup lalu membundel salinan @codemirror/language KEDUA di dalam
-          // chunk bahasa (build output membuktikan: dua "class Language" di
-          // satu file). Dua instance berarti dua facet id, jadi LanguageSupport
-          // dari lang-javascript tidak dikenal state view: syntax tree selalu
-          // kosong dan editor tidak mewarnai satu token pun.
-          //
-          // Aturan di bawah mengelompokkan SEMUA paket CodeMirror + lezer jadi
-          // satu chunk, jadi hanya ada satu instance per modul. Paket bahasa
-          // tetap terpisah per bahasa supaya tetap diunduh saat dipakai saja.
-          if (id.includes('@codemirror/lang-') || id.includes('legacy-modes')) {
-            const m = id.match(/lang-([a-z0-9]+)|legacy-modes[\\/]mode[\\/]([a-z0-9]+)/)
-            return `cm-lang-${(m?.[1] ?? m?.[2] ?? 'misc')}`
-          }
-          if (id.includes('@codemirror') || id.includes('@lezer')) return 'codemirror'
-          if (id.includes('react-markdown') || id.includes('remark') || id.includes('micromark')) {
-            return 'markdown'
-          }
-          if (id.includes('xterm')) return 'xterm'
-          return 'vendor'
-        },
-      },
-    },
   },
 })
