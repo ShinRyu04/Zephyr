@@ -4224,11 +4224,62 @@ export const useAi = create<AiStore>((set, get) => ({
          menghentikan agen yang sedang berjalan normal. */
       agentHardLimitDisarm();
       cancelled.delete(c.id);
+
+      /*
+       * Tulis teksnya ke pesan SEBELUM kembali.
+       *
+       * `toolDone` mengembalikan lebih awal - jadi blok `set(...)` di bawah,
+       * satu-satunya tempat `c.text` dituliskan ke pesan, tidak pernah
+       * dijalankan untuk potongan terakhir. Provider yang mengirim teks dan
+       * tool call dalam paket terakhir yang sama kehilangan seluruh kalimat
+       * itu.
+       *
+       * Persis itu bentuk narasi antar tool: provider nyata mengirim satu
+       * kalimat ("Aku cek dulu isi foldernya, lalu lanjut.") lalu tool call di
+       * paket yang sama. Tanpa perbaikan ini, yang dilihat pembaca hanyalah
+       * deretan baris tool tanpa satu pun kalimat penjelas - dan aturan narasi
+       * di systemPrompt akan selalu tampak tidak dipatuhi, padahal modelnya
+       * mematuhinya dan alat yang membuangnya ada di sini.
+       *
+       * Bukti dari app hidup: mock mengirim teks itu, chunk tiba di frontend,
+       * tetapi `isi: ""` pada pesan assistant dan `calls: 0`.
+       */
+      if (c.text) {
+        const tambahan = c.text;
+        set((s) => ({
+          sessions: s.sessions.map((sess) => ({
+            ...sess,
+            messages: sess.messages.map((m) => (m.id === c.id ? { ...m, content: m.content + tambahan } : m)),
+          })),
+        }));
+      }
+
       const r = agentStepResolve;
       agentStepResolve = null;
       if (c.err) {
         if (!agentBatal) agentStopReason = 'provider';
-        r?.({ content: '', toolCalls: [], cancelled: false, error: c.err });
+        /*
+         * Teks dan tool call yang SUDAH datang dibawa serta, jangan dibuang.
+         *
+         * `err` sering datang di paket terakhir yang SAMA dengan teks dan tool
+         * call - bukan di paket kosong yang terpisah. Mengirim `content: ''`
+         * dan `toolCalls: []` membuang kerja yang sudah diterima: teks narasi
+         * lenyap dari pesan, dan tool call yang model minta tidak pernah
+         * dijalankan. Yang tersisa hanya "(no answer)" tanpa alasan.
+         *
+         * Terbukti dari app hidup: chunk `toolDone` membawa
+         * `calls=[{name:"skill_list"}]`, tetapi langkah agent berhenti di
+         * `mulai` dan pesan assistant tetap kosong - tool call-nya ada, lalu
+         * hilang di baris ini.
+         *
+         * `error` tetap disertakan supaya penyebabnya tidak hilang.
+         */
+        r?.({
+          content: c.content ?? '',
+          toolCalls: c.toolCalls ?? [],
+          cancelled: false,
+          error: c.err,
+        });
         return;
       }
       r?.({

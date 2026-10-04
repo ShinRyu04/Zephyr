@@ -33,6 +33,7 @@ const log = [];
 /** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
 const TOOL_ARGS = {
   skill_list: {},
+  calculator: { expression: '2+2' },
   skill_view: { name: 'godmode' },
   skill_write: {
     name: 'uji-skill',
@@ -56,8 +57,18 @@ function toolCallDariPrompt(prompt) {
   const m = /TOOLCALL:([a-z_]+)/.exec(prompt);
   if (!m) return null;
   const nama = m[1];
-  if (!(nama in TOOL_ARGS)) return null;
-  return { nama, args: TOOL_ARGS[nama] };
+  /*
+   * Kalau namanya belum ada di daftar argumen siap pakai, tetap kembalikan
+   * dengan argumen kosong - bukan null.
+   *
+   * Mengembalikan null berarti permintaan itu tidak menghasilkan tool call
+   * sama sekali, dan harness yang menguji "teks + tool call" jadi melaporkan
+   * nol giliran - yang terlihat seperti app yang membuang tool call, padahal
+   * mocknya yang menolak nama itu. Daftar argumen di atas hanya mencakup tool
+   * yang butuh argumen khusus; tool tanpa argumen (inspect, state, read_file)
+   * sah dipanggil dengan {}.
+   */
+  return { nama, args: TOOL_ARGS[nama] ?? {} };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -247,7 +258,22 @@ const server = http.createServer(async (req, res) => {
   const gap = slow ? 400 : 45;
   // Hanya minta tool SEKALI: kalau hasil tool sudah ada di riwayat, balas
   // teks biasa supaya loop agent berhenti (bukan berputar sampai batas).
-  const toolCall = sudahPakaiTool ? null : toolCallDariPrompt(prompt);
+  /*
+   * Penanda dicari di SELURUH riwayat, bukan hanya pesan terakhir.
+   *
+   * Agent mengirim seluruh percakapan tiap langkah, jadi pesan terakhir biasanya
+   * hasil tool - bukan apa yang user ketik. Mencari di pesan terakhir saja
+   * membuat "TOOLCALL:..." yang user tulis tidak pernah ditemukan, mock membalas
+   * teks biasa, dan harness yang menguji urutan teks+tool call melaporkan nol
+   * giliran - yang terbaca seperti app yang membuang tool call.
+   *
+   * Ini pernah kejadian pada mode TIMEOUT: penanda yang sama tidak pernah
+   * ditemukan, dan saya menyimpulkan tiga bug di app dari data itu.
+   *
+   * `prompt` tetap pesan terakhir untuk perilaku balasan biasa; mode uji
+   * memakai riwayat lengkap.
+   */
+  const toolCall = sudahPakaiTool ? null : toolCallDariPrompt(riwayatPenuh);
   // Mode agent/subagent: request membawa daftar tool, jadi provider SUNGGUHAN
   // akan memanggil salah satunya. Mock harus meniru itu — kalau tidak, subagent
   // menunggu tool call yang tidak pernah datang dan nyangkut di 'jalan'.
@@ -365,6 +391,27 @@ const server = http.createServer(async (req, res) => {
   });
   if (!entry.jawaban) entry.jawaban = `SSE membalas (${toolCallAkhir ? 'tool call' : 'teks'})`;
   if (toolCallAkhir) {
+    /*
+     * NARASI: teks dulu, BARU tool call, dalam giliran yang sama.
+     *
+     * Ini bentuk yang dipakai model sungguhan, dan mock lama tidak pernah
+     * menirunya - ia mengirim teks ATAU tool call, tidak keduanya. Akibatnya
+     * "narasi antar tool" tidak bisa diuji sama sekali: tidak ada teks di
+     * giliran yang punya tool call, jadi tidak ada yang bisa hilang.
+     *
+     * Justru di situ yang perlu dibuktikan. Urutannya penting: provider nyata
+     * mengirim content sebelum tool_calls, dan kalau Zephyr hanya menyimpan
+     * salah satunya, teks narasi itu lenyap dari UI - dan yang terlihat user
+     * adalah deretan baris tool tanpa satu pun kalimat penjelas.
+     */
+    if (riwayatPenuh.includes('NARASI')) {
+      for (const t of tokenize('Aku cek dulu isi foldernya, lalu lanjut.')) {
+        if (res.destroyed) return;
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`);
+        await sleep(gap);
+      }
+      await sleep(gap);
+    }
     // Potongan pertama: id + nama. Potongan kedua: argumen JSON.
     // Dua potongan sengaja — itu bentuk nyata dari provider dan menguji
     // akumulator `ToolAcc` (argumen menempel sepotong-sepotong).
