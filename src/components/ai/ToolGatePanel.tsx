@@ -6,15 +6,16 @@ import {
   SEMUA_TOOL,
   SECTION_URUTAN,
 } from '../../lib/toolGate';
+import { POLA_AWALAN_MCP } from '../../lib/zephyrTools/catalog';
 /*
  * Hook diimpor dari berkas Hook yang terpisah.
  *
  * `deskripsiTool.ts` sengaja murni data supaya `catalog.ts` tidak menarik
  * seluruh rantai aplikasi (store -> xterm -> CodeMirror), yang di Node membuat
- * `scripts/verify-tedi-catalog.mjs` gagal dimuat. Lihat komentar di
+ * skrip verifikasi katalog di `scripts/` gagal dimuat. Lihat komentar di
  * deskripsiToolHook.ts.
  */
-import { useDeskripsiTool } from '../../lib/tediTools/deskripsiToolHook';
+import { useDeskripsiTool } from '../../lib/zephyrTools/deskripsiToolHook';
 import AiIkon from './AiIkon';
 
 /*
@@ -100,11 +101,12 @@ export default function ToolGatePanel() {
   /*
    * Awalan MCP adalah detail protokol, bukan nama yang perlu dibaca user.
    *
-   * Model tetap menerima `mcp__tedi__inspect` agar kontrak dispatch tidak
-   * berubah. Picker hanya menampilkan `inspect`, seperti daftar rujukan. Ini
-   * juga memastikan nama aplikasi lama tidak muncul lagi di UI.
+   * Model tetap menerima `mcp__zephyr__inspect` agar kontrak dispatch tidak
+   * berubah. Picker hanya menampilkan `inspect`, seperti daftar rujukan. Pola
+   * ini juga tetap menerima awalan lama, supaya nama yang tersimpan di versi
+   * sebelumnya tidak muncul mentah-mentah di baris picker.
    */
-  const namaTampil = (nama: string): string => nama.replace(/^mcp__tedi__/, '');
+  const namaTampil = (nama: string): string => nama.replace(POLA_AWALAN_MCP, '');
 
   /*
    * Keyboard navigation walks the flattened, filtered list.

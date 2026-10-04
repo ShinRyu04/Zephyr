@@ -2,8 +2,8 @@
  * Verifikasi peta deskripsi tool.
  *
  * Yang diperiksa:
- *   1. DESKRIPSI_TOOL_EN punya tepat 54 kunci.
- *   2. DESKRIPSI_TOOL_ID punya tepat 54 kunci.
+ *   1. DESKRIPSI_TOOL_EN punya kunci untuk setiap tool di katalog.
+ *   2. DESKRIPSI_TOOL_ID punya kunci untuk setiap tool di katalog.
  *   3. Himpunan kuncinya SAMA PERSIS satu sama lain DAN sama persis dengan
  *      nama tool di katalog.
  *   4. Deskripsi Indonesia di peta itu sama persis dengan teks aslinya di
@@ -18,8 +18,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const akar = join(dirname(fileURLToPath(import.meta.url)), '..');
-const katalogTeks = readFileSync(join(akar, 'src/lib/tediTools/catalog.ts'), 'utf8');
-const deskripsiTeks = readFileSync(join(akar, 'src/lib/tediTools/deskripsiTool.ts'), 'utf8');
+const katalogTeks = readFileSync(join(akar, 'src/lib/zephyrTools/catalog.ts'), 'utf8');
+const deskripsiTeks = readFileSync(join(akar, 'src/lib/zephyrTools/deskripsiTool.ts'), 'utf8');
 
 /** Ambil isi satu objek literal bernama `nama` dari berkas TypeScript. */
 function badanObjek(teks, nama) {
@@ -65,9 +65,22 @@ const en = petaDari(badanObjek(deskripsiTeks, 'DESKRIPSI_TOOL_EN'));
 
 const masalah = [];
 
-if (katalog.length !== 54) masalah.push(`baris katalog bukan 54, melainkan ${katalog.length}`);
-if (en.size !== 54) masalah.push(`DESKRIPSI_TOOL_EN bukan 54 kunci, melainkan ${en.size}`);
-if (id.size !== 54) masalah.push(`DESKRIPSI_TOOL_ID bukan 54 kunci, melainkan ${id.size}`);
+/*
+ * Dulu ada tiga pemeriksaan `length !== 54` di sini. Angka kaku itu tidak
+ * menambah jaminan apa pun: baris di bawahnya sudah membandingkan himpunan
+ * katalog, EN, dan ID dua arah (kunci hilang DAN kunci asing), jadi angka
+ * yang berbeda pasti sudah tertangkap di sana. Yang tersisa hanyalah
+ * change-detector yang basi - setiap tool baru membuat harness ini gagal
+ * padahal keadaan sebenarnya benar (terbukti: 54 jadi 56 saat `think` dan
+ * `calculator` ditambahkan, dan harness gagal tanpa ada yang rusak).
+ *
+ * Yang tetap dijaga: katalog tidak boleh kosong, supaya regex yang gagal
+ * membaca berkas tidak bisa membuat semua pemeriksaan di bawah ini lulus
+ * karena himpunan kosong.
+ */
+if (katalog.length === 0) masalah.push('katalog tidak terbaca: regex tidak cocok dengan baris mana pun');
+if (en.size === 0) masalah.push('DESKRIPSI_TOOL_EN kosong');
+if (id.size === 0) masalah.push('DESKRIPSI_TOOL_ID kosong');
 
 const namaKatalog = new Set(katalog.map(([n]) => n));
 for (const n of namaKatalog) {
@@ -112,4 +125,4 @@ if (masalah.length) {
   for (const x of masalah) console.error('  - ' + x);
   process.exit(1);
 }
-console.log('OK: 54 deskripsi Indonesia dan 54 deskripsi Inggris, himpunan kunci identik.');
+console.log(`OK: ${id.size} deskripsi Indonesia dan ${en.size} deskripsi Inggris, himpunan kunci identik.`);

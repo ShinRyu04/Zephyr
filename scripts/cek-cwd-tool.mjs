@@ -5,7 +5,7 @@
  * Sebelum perbaikan, tool ini tidak mengirim cwd sama sekali dan backend
  * memakai state.workspace_path()-nya sendiri. Kalau state itu belum sinkron,
  * perintahnya jalan di folder instalasi aplikasi - persis yang pernah terlihat
- * di log: C:\Users\LENOVO\AppData\Local\Programs\tedi\resources
+ * di log: C:\Users\LENOVO\AppData\Local\Programs\zephyr\resources
  */
 const PORT = process.argv[2] || '9223';
 const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
@@ -31,7 +31,7 @@ await new Promise((r) => (ws.onopen = r));
 const expr = `(async () => {
   try {
   const s = await import('/src/lib/store.ts');
-  const bt = await import('/src/lib/tediTools/builtins.ts');
+  const bt = await import('/src/lib/zephyrTools/builtins.ts');
   const AKAR = 'D:\\\\Zephyr';
 
   await s.useStore.getState().openWorkspace(AKAR);

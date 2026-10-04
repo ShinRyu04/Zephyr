@@ -13,7 +13,7 @@
  *      Penggantian diam-diam adalah cara paling mudah membuat satu tool
  *      mengeksekusi handler yang salah.
  *   3. Tool MCP punya nama internal polos (inspect) dan nama yang dilihat
- *      model (mcp__tedi__inspect). Yang dilihat model itulah yang masuk sini.
+ *      model (mcp__zephyr__inspect). Yang dilihat model itulah yang masuk sini.
  *   4. Setiap tool punya satu kelompok dan satu kelas efek samping. Tool tanpa
  *      kelas tidak boleh dijalankan - jadi kelasnya wajib, bukan hiasan.
  *
@@ -56,7 +56,7 @@ export interface ToolCatalogEntry {
 }
 
 /* ------------------------------------------------------------------ */
-/* 29 tool BAWAAN - nama diambil persis dari sumber TEDI.             */
+/* 29 tool BAWAAN - nama diambil persis dari katalog sumber.             */
 /* ------------------------------------------------------------------ */
 
 const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
@@ -115,7 +115,7 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* 14 tool MCP - nama polos diambil dari tabel handler tediMcpServer. */
+/* 14 tool MCP - nama polos diambil dari tabel handler mcpServer.       */
 /* ------------------------------------------------------------------ */
 
 const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
@@ -180,12 +180,36 @@ const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
 
 /* ------------------------------------------------------------------ */
 
+/**
+ * Awalan internal tool MCP - konvensi protokol, bukan bagian dari nama yang
+ * dibaca siapa pun. Dispatcher dan prompt model bergantung padanya, jadi tool
+ * MCP tetap menyusun namanya dengan awalan ini; yang dilepas hanya di lapisan
+ * tampilan (lihat `namaPolos` di `labelAksi.ts`).
+ */
+export const AWALAN_MCP = 'mcp__zephyr__';
+
+/**
+ * Pelepasan awalan yang MASIH MENERIMA prefix lama.
+ *
+ * Sesi, checkpoint, dan setelan tersimpan dari versi sebelum penggantian nama
+ * membawa awalan yang sudah dipensiunkan. Dua tempat membacanya:
+ *
+ *   - pembacaan: nama lama harus tetap dipetakan ke tool yang sama, kalau tidak
+ *     giliran yang dilanjutkan berhenti di tengah jalan.
+ *   - tampilan: nama lama harus tetap dilepas sebelum dibaca user, kalau tidak
+ *     prefix yang sedang dihapus justru bocor lagi ke layar.
+ *
+ * Yang TIDAK boleh tetap memakai awalan lama adalah penulisan nama baru: semua
+ * nama yang keluar dari katalog memakai `mcp__zephyr__`.
+ */
+export const POLA_AWALAN_MCP = /^mcp__(?:zephyr|tedi)__/;
+
 function rakit(
   baris: Array<[string, string, ToolEffect, boolean, string]>,
   source: ToolSource,
 ): ToolCatalogEntry[] {
   return baris.map(([nama, group, effect, needsApproval, description]) => ({
-    name: source === 'mcp' ? `mcp__tedi__${nama}` : nama,
+    name: source === 'mcp' ? `${AWALAN_MCP}${nama}` : nama,
     bare: source === 'mcp' ? nama : undefined,
     source,
     group,
@@ -196,7 +220,7 @@ function rakit(
        (nama, kelompok, efek, izin), sedangkan teks yang dibaca manusia bisa
        berganti bahasa tanpa menyentuh keputusan itu. Sumber bawaannya tetap
        Indonesia, sama seperti teks aslinya dulu. */
-    description: DESKRIPSI_TOOL_ID[source === 'mcp' ? `mcp__tedi__${nama}` : nama] ?? description,
+    description: DESKRIPSI_TOOL_ID[source === 'mcp' ? `${AWALAN_MCP}${nama}` : nama] ?? description,
   }));
 }
 
@@ -333,7 +357,7 @@ export function periksaKatalog(): string[] {
   /* Nama MCP polos tidak boleh bocor ke model - ia akan bertabrakan dengan
      tool bawaan (mis. read vs read_file) dan membingungkan pemilihan. */
   for (const t of TOOL_CATALOG) {
-    if (t.source === 'mcp' && !t.name.startsWith('mcp__tedi__')) {
+    if (t.source === 'mcp' && !t.name.startsWith(AWALAN_MCP)) {
       masalah.push(`tool MCP tanpa awalan: ${t.name}`);
     }
     if (t.source !== 'mcp' && t.name.startsWith('mcp__')) {

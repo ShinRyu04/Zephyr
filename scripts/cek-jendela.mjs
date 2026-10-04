@@ -28,7 +28,7 @@ ws.onmessage = (e) => {
 await new Promise((r) => (ws.onopen = r));
 
 const js = String.raw`(async () => {
-  const t = await (await fetch('/src/lib/tediTools/builtins.ts')).text();
+  const t = await (await fetch('/src/lib/zephyrTools/builtins.ts')).text();
   const rb = await (await fetch('/src/lib/aiStore.ts')).text();
   return JSON.stringify({
     zephyr: document.title.includes('Zephyr'),

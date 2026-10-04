@@ -7,7 +7,7 @@
  * membuat berkas DATA itu tidak lagi murni. Akibatnya `catalog.ts` - yang
  * mengimpor `deskripsiTool.ts` - ikut menarik seluruh rantai aplikasi:
  * store -> terminalStore -> xterm -> CodeMirror. Di Node, rantai itu memanggil
- * `self` dan `document`, sehingga `scripts/verify-tedi-catalog.mjs` gagal
+ * `self` dan `document`, sehingga skrip verifikasi katalog di `scripts/` gagal
  * dimuat dengan "FATAL: katalog tidak bisa dimuat" - padahal katalognya sendiri
  * tidak pernah berubah dan tetap murni data.
  *
@@ -19,7 +19,7 @@
  * pun dari store. Kalau suatu saat ia butuh, taruh di berkas ini.
  */
 import { useStore } from '../store';
-import { deskripsiTool } from './deskripsiTool';
+import { deskripsiTool, POLA_AWALAN_MCP } from './deskripsiTool';
 
 /**
  * Versi hook, untuk komponen yang harus ikut render ulang saat bahasa diganti.
@@ -30,5 +30,5 @@ import { deskripsiTool } from './deskripsiTool';
  */
 export function useDeskripsiTool(): (nama: string) => string {
   const bahasa = useStore((s) => s.settings.general.uiLang);
-  return (nama) => deskripsiTool(nama.replace(/^mcp__tedi__/, ''), bahasa);
+  return (nama) => deskripsiTool(nama.replace(POLA_AWALAN_MCP, ''), bahasa);
 }

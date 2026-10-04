@@ -9,20 +9,20 @@
  * Dua bentuk nama harus ditangani, dan keduanya benar:
  *
  *   1. Tool MCP di katalog memakai nama yang dilihat MODEL
- *      (mcp__tedi__inspect) sementara handler-nya memakai nama internal polos
+ *      (mcp__zephyr__inspect) sementara handler-nya memakai nama internal polos
  *      (inspect). Pemetaan hanya berlaku untuk nama yang memang berprefiks -
- *      menerapkannya ke nama bawaan menghasilkan mcp__tedi__read_file yang
+ *      menerapkannya ke nama bawaan menghasilkan mcp__zephyr__read_file yang
  *      tidak pernah ada, dan melaporkan 68 "masalah" palsu.
  *   2. Nama tool bisa ditulis `name:` atau `tool:`; keduanya dipakai di kode.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
 
-const SUMBER_KATALOG = 'src/lib/tediTools/catalog.ts';
+const SUMBER_KATALOG = 'src/lib/zephyrTools/catalog.ts';
 const SUMBER_HANDLER = [
-  'src/lib/tediTools/builtins.ts',
-  'src/lib/tediTools/web.ts',
-  'src/lib/tediTools/mcp.ts',
+  'src/lib/zephyrTools/builtins.ts',
+  'src/lib/zephyrTools/web.ts',
+  'src/lib/zephyrTools/mcp.ts',
 ];
 
 /*
@@ -43,7 +43,7 @@ for (const m of kat.matchAll(/const (MCP|WEB|BUILTIN|BAWAAN)\w*[^=]*=\s*\[/g)) {
 }
 const prefiks = (posisi) => {
   const tepat = blok.filter((b) => b.mulai <= posisi).pop();
-  return tepat && tepat.nama === 'MCP' ? 'mcp__tedi__' : '';
+  return tepat && tepat.nama === 'MCP' ? 'mcp__zephyr__' : '';
 };
 
 const katalog = [];
@@ -59,7 +59,7 @@ for (const m of kat.matchAll(reKat)) {
  * Handler: nama sesudah `name:` atau `tool:`, apa adanya.
  *
  * Nama MCP di berkas handler ditulis polos. Dicocokkan dengan entri katalog
- * setelah prefiks `mcp__tedi__` dilepas - bukan dengan menambahkan prefiks ke
+ * setelah prefiks `mcp__zephyr__` dilepas - bukan dengan menambahkan prefiks ke
  * setiap nama, karena itu mengubah nama bawaan menjadi sesuatu yang tidak ada.
  */
 const handler = new Set();
@@ -80,9 +80,9 @@ for (const f of SUMBER_HANDLER) {
  * Ini yang menentukan seluruh perbandingan, dan menebaknya salah menghabiskan
  * dua iterasi:
  *
- *   - `rakit()` di catalog.ts menulis `mcp__tedi__inspect` untuk MCP dan nama
+ *   - `rakit()` di catalog.ts menulis `mcp__zephyr__inspect` untuk MCP dan nama
  *     apa adanya untuk builtin/web.
- *   - `mcp.ts` menulis `name: 'mcp__tedi__inspect'` - BIANG SAMA - di sisi
+ *   - `mcp.ts` menulis `name: 'mcp__zephyr__inspect'` - BIANG SAMA - di sisi
  *     handler, bukan nama polos.
  *
  * Jadi tidak ada penerjemahan yang diperlukan sama sekali: nama di katalog dan

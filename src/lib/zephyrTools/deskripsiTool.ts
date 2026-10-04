@@ -150,6 +150,16 @@ export const DESKRIPSI_TOOL_EN: Record<string, string> = {
 };
 
 /**
+ * Pelepasan awalan MCP untuk nama tool yang dibaca manusia.
+ *
+ * Sama seperti di katalog, awalan yang sudah dipensiunkan ikut diterima:
+ * giliran yang dilanjutkan dari sesi tersimpan masih membawa awalan lama, dan
+ * kalau awalan itu tidak dilepas di sini, baris tool itu tampil polos tanpa
+ * deskripsi.
+ */
+export const POLA_AWALAN_MCP = /^mcp__(?:zephyr|tedi)__/;
+
+/**
  * Deskripsi satu tool dalam bahasa yang diminta.
  *
  * Bahasa selain `id` memakai teks Inggris. Nama yang tidak dikenal
@@ -161,13 +171,13 @@ export function deskripsiTool(nama: string, bahasa: string): string {
   /*
    * Awalan protokol MCP dilepas di sini.
    *
-   * Katalog menyimpan tool MCP dengan nama lengkap `mcp__tedi__inspect`,
+   * Katalog menyimpan tool MCP dengan nama lengkap `mcp__zephyr__inspect`,
    * sedangkan kedua peta di atas memakai nama polos `inspect` - nama polos itu
    * yang bermakna bagi pembaca. Tanpa pelepasan ini, keempat belas tool MCP
    * tampil TANPA deskripsi: terbukti dari uji, 14 deskripsi kosong dan
-   * semuanya berawalan `mcp__tedi__`.
+   * semuanya berawalan `mcp__zephyr__`.
    */
-  const polos = nama.replace(/^mcp__tedi__/, '');
+  const polos = nama.replace(POLA_AWALAN_MCP, '');
   const peta = bahasa === 'id' ? DESKRIPSI_TOOL_ID : DESKRIPSI_TOOL_EN;
   return peta[polos] ?? peta[nama] ?? '';
 }

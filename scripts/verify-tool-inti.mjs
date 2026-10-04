@@ -46,7 +46,7 @@ const d = await cdp.json(`return JSON.stringify(await (async () => {
    * Jumlah web dibaca dari katalog, bukan ditulis di sini, supaya harness ini
    * tidak punya angka sendiri yang bisa berbeda dari aplikasinya.
    */
-  const katalog = await import(String.fromCharCode(47) + 'src' + String.fromCharCode(47) + 'lib' + String.fromCharCode(47) + 'tediTools' + String.fromCharCode(47) + 'catalog.ts');
+  const katalog = await import(String.fromCharCode(47) + 'src' + String.fromCharCode(47) + 'lib' + String.fromCharCode(47) + 'zephyrTools' + String.fromCharCode(47) + 'catalog.ts');
   const jumlahWeb = (katalog.TOOL_CATALOG || []).filter((t) => t.source === 'web').length;
 
   return {

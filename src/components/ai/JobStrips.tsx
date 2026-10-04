@@ -10,9 +10,9 @@
  * conversation they are acting on.
  *
  * The shapes follow the reference: the loop is a green banner with a progress
- * bar and its own stop affordance (TEDI's `LoopStrip`), the goal is a slim strip
- * with a target glyph, the text, a live clock and pause/done/clear (TEDI's
- * `GoalStrip`). Colours come from tokens, never hex.
+ * bar and its own stop affordance, the goal is a slim strip with a target
+ * glyph, the text, a live clock and pause/done/clear. Colours come from tokens,
+ * never hex.
  */
 import { useEffect, useState } from 'react';
 import { useAi } from '../../lib/aiStore';

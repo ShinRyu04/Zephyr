@@ -50,10 +50,10 @@ export class Cdp {
   static async attach(port = '9223', judul = 'Zephyr') {
     const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
     // `judul` boleh berupa DAFTAR nama, dicoba satu per satu (bukan regex).
-    // Judul aplikasi berbeda antara dev ('Zephyr') dan build lain ('TEDI'),
-    // dan harness yang tidak menemukan targetnya MATI sebelum mengukur apa
-    // pun - kegagalannya lalu menyamar sebagai masalah lingkungan, bukan
-    // masalah nyata yang sedang diburu.
+    // Judul jendela bisa berbeda antara dev dan build, dan harness yang
+    // tidak menemukan targetnya MATI sebelum mengukur apa pun - kegagalannya
+    // lalu menyamar sebagai masalah lingkungan, bukan masalah nyata yang
+    // sedang diburu.
     const daftar = Array.isArray(judul) ? judul : [judul];
     let page;
     for (const j of daftar) {

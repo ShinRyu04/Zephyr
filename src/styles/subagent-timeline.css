@@ -253,11 +253,10 @@
 /*
  * The agent's tab strip.
  *
- * Two tabs: the agent's name (summary) and its task (the step log). TEDI's
- * version reads "Aurora | Baca screenshot tabel" and the pattern is worth
- * copying — the name identifies the worker, the task says what it is doing,
- * and both are one click apart. The active tab is the only one with a
- * background, so the current view is never ambiguous.
+ * Two tabs: the agent's name (summary) and its task (the step log), reading
+ * "Aurora | Baca screenshot tabel". The name identifies the worker, the task
+ * says what it is doing, and both are one click apart. The active tab is the
+ * only one with a background, so the current view is never ambiguous.
  */
 .sub-tabs {
   display: flex;

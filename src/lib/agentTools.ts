@@ -4,17 +4,17 @@
  * ## Arsitektur
  *
  * Registry ini terdiri dari tepat 51 tools:
- *   1. 26 Built-in TEDI (diadaptasi ke backend Zephyr di src/lib/tediTools/builtins.ts)
- *   2. 14 MCP TEDI (diadaptasi ke window/state Zephyr di src/lib/tediTools/mcp.ts)
- *   3. 11 Web & Browser Zephyr (dipertahankan di src/lib/tediTools/web.ts)
+ *   1. 26 Built-in (diadaptasi ke backend Zephyr di src/lib/zephyrTools/builtins.ts)
+ *   2. 14 MCP (diadaptasi ke window/state Zephyr di src/lib/zephyrTools/mcp.ts)
+ *   3. 11 Web & Browser Zephyr (dipertahankan di src/lib/zephyrTools/web.ts)
  *
  * Tool Zephyr lama selain web/browser telah dipensiunkan agar tidak ada duplikasi
  * dan LLM memiliki set tool yang ringkas, bersih, dan konsisten.
  */
 import type { AgentToolSpec } from './types';
-import { TOOL_BAWAAN } from './tediTools/builtins';
-import { TOOL_MCP } from './tediTools/mcp';
-import { TOOL_WEB } from './tediTools/web';
+import { TOOL_BAWAAN } from './zephyrTools/builtins';
+import { TOOL_MCP } from './zephyrTools/mcp';
+import { TOOL_WEB } from './zephyrTools/web';
 import { useToolGate, TOOL_TULIS } from './toolGate';
 
 export { TOOL_TULIS };

@@ -115,7 +115,7 @@ function BarisItem({ it }: { it: Item }) {
       {/*
        * The item's own id, quiet, on the right.
        *
-       * TEDI prints it after the text so a reader can refer to one item
+       * It is printed after the text so a reader can refer to one item
        * unambiguously — in a message, a bug report, or a command — without
        * describing it by position. It is monospace and dim because it is a
        * handle, not content, and it stays out of the way until looked for.

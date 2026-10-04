@@ -138,9 +138,9 @@ function defaultDetails(call: ToolCallLike): ToolCallDetails {
     /*
      * Nama yang dipakai kartu ini HANYA untuk dibaca: judul, aria-label, dan
      * pemilihan kategori lewat regex. Tak satu pun membutuhkan awalan
-     * `mcp__tedi__`, dan menampilkannya membuat tool TEDI sendiri terbaca
-     * seperti milik pihak lain. Perbandingan yang butuh nama asli terjadi di
-     * lapisan dispatch, bukan di sini.
+     * `mcp__zephyr__`, dan menampilkannya membuat tool milik sisi ini
+     * terbaca seperti milik pihak lain. Perbandingan yang butuh nama asli
+     * terjadi di lapisan dispatch, bukan di sini.
      */
     name: namaPolos(call.name),
     input: call.input ?? call.args,

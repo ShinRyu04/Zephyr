@@ -1,13 +1,13 @@
 /**
- * verify-tool-sections.mjs - uji pengelompokan tool dua tingkat (ala TEDI).
+ * verify-tool-sections.mjs - uji pengelompokan tool dua tingkat.
  *
  *   node scripts/verify-tool-sections.mjs 9223
  *
- * Panel TEDI menyusun katalognya sebagai Section -> Group. Di Zephyr, section
- * diturunkan dari ID grupnya (`sectionDariGrup`), BUKAN disimpan di tiap entri
- * grup. Dua daftar yang harus dijaga sinkron akan berbeda pendapat cepat atau
- * lambat, dan yang paling sering terjadi adalah grup baru ditambahkan ke satu
- * daftar saja - lalu menghilang dari panel tanpa pesan apa pun.
+ * Katalog disusun sebagai Section -> Group. Di Zephyr, section diturunkan dari
+ * ID grupnya (`sectionDariGrup`), BUKAN disimpan di tiap entri grup. Dua daftar
+ * yang harus dijaga sinkron akan berbeda pendapat cepat atau lambat, dan yang
+ * paling sering terjadi adalah grup baru ditambahkan ke satu daftar saja - lalu
+ * menghilang dari panel tanpa pesan apa pun.
  *
  * Yang dibuktikan:
  *   Z1  setiap tool punya grup - tidak ada yang tersesat tanpa grup

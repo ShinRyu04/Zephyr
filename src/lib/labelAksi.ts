@@ -1,4 +1,5 @@
 import type { NamaAiIkon } from '../components/ai/AiIkon';
+import { AWALAN_MCP, POLA_AWALAN_MCP } from './zephyrTools/catalog';
 
 export type JenisAksi = 'baca' | 'tulis' | 'jalan' | 'cari' | 'ingat' | 'lain';
 
@@ -12,13 +13,13 @@ export interface AksiInfo {
 }
 
 /*
- * The map keys are the 51 model-facing names in tediTools/catalog.ts, verbatim.
+ * The map keys are the 51 model-facing names in zephyrTools/catalog.ts, verbatim.
  *
  * It used to be keyed on a retired tool vocabulary that no longer exists in
  * the catalog, so every call fell through to the generic row: the raw name, a
  * dot icon,
  * and jenis 'lain'. The version below tracks the catalog one-for-one — 26
- * builtin, then the 14 MCP names in their full mcp__tedi__ form, then the 11
+ * builtin, then the 14 MCP names in their full mcp__zephyr__ form, then the 11
  * web/browser names — so a call renders its own verb and glyph again.
  */
 const PETA: Record<string, AksiInfo> = {
@@ -67,24 +68,24 @@ const PETA: Record<string, AksiInfo> = {
   cancel_schedule: { label: 'Cancel schedule', jenis: 'ingat', ikon: 'clock' },
 
   /* MCP - inspect */
-  mcp__tedi__inspect: { label: 'Inspect', jenis: 'baca', ikon: 'search' },
-  mcp__tedi__state: { label: 'Read state', jenis: 'baca', ikon: 'doc' },
-  mcp__tedi__read: { label: 'Read surface', jenis: 'baca', ikon: 'doc' },
-  mcp__tedi__wait_for_terminal: { label: 'Wait for terminal', jenis: 'baca', ikon: 'clock' },
+  mcp__zephyr__inspect: { label: 'Inspect', jenis: 'baca', ikon: 'search' },
+  mcp__zephyr__state: { label: 'Read state', jenis: 'baca', ikon: 'doc' },
+  mcp__zephyr__read: { label: 'Read surface', jenis: 'baca', ikon: 'doc' },
+  mcp__zephyr__wait_for_terminal: { label: 'Wait for terminal', jenis: 'baca', ikon: 'clock' },
 
   /* MCP - control */
-  mcp__tedi__run_command: { label: 'Run command', jenis: 'jalan', ikon: 'terminal' },
-  mcp__tedi__open_file: { label: 'Open file', jenis: 'tulis', ikon: 'doc-edit' },
-  mcp__tedi__workspace: { label: 'Workspace', jenis: 'tulis', ikon: 'node' },
-  mcp__tedi__set_setting: { label: 'Set setting', jenis: 'tulis', ikon: 'gear' },
-  mcp__tedi__extension: { label: 'Extension', jenis: 'tulis', ikon: 'puzzle' },
-  mcp__tedi__ssh: { label: 'SSH', jenis: 'jalan', ikon: 'node' },
-  mcp__tedi__worktree: { label: 'Worktree', jenis: 'tulis', ikon: 'node' },
+  mcp__zephyr__run_command: { label: 'Run command', jenis: 'jalan', ikon: 'terminal' },
+  mcp__zephyr__open_file: { label: 'Open file', jenis: 'tulis', ikon: 'doc-edit' },
+  mcp__zephyr__workspace: { label: 'Workspace', jenis: 'tulis', ikon: 'node' },
+  mcp__zephyr__set_setting: { label: 'Set setting', jenis: 'tulis', ikon: 'gear' },
+  mcp__zephyr__extension: { label: 'Extension', jenis: 'tulis', ikon: 'puzzle' },
+  mcp__zephyr__ssh: { label: 'SSH', jenis: 'jalan', ikon: 'node' },
+  mcp__zephyr__worktree: { label: 'Worktree', jenis: 'tulis', ikon: 'node' },
 
   /* MCP - terminal */
-  mcp__tedi__sh: { label: 'Run in terminal', jenis: 'jalan', ikon: 'terminal' },
-  mcp__tedi__focus_pane: { label: 'Focus pane', jenis: 'tulis', ikon: 'node' },
-  mcp__tedi__pane: { label: 'Pane', jenis: 'tulis', ikon: 'node' },
+  mcp__zephyr__sh: { label: 'Run in terminal', jenis: 'jalan', ikon: 'terminal' },
+  mcp__zephyr__focus_pane: { label: 'Focus pane', jenis: 'tulis', ikon: 'node' },
+  mcp__zephyr__pane: { label: 'Pane', jenis: 'tulis', ikon: 'node' },
 
   /* Web */
   web_search: { label: 'Search web', jenis: 'cari', ikon: 'search' },
@@ -103,49 +104,55 @@ const PETA: Record<string, AksiInfo> = {
 };
 
 /*
- * A model-facing MCP name carries a `mcp__tedi__` prefix; the tool layer does
+ * A model-facing MCP name carries a `mcp__zephyr__` prefix; the tool layer does
  * too, but a bare `inspect` can still reach here from a restored session or a
  * hand-written step. Strip the prefix before the lookup so both spellings
  * resolve to the same entry instead of one of them landing on the generic row.
+ *
+ * `AWALAN_MCP` dan `POLA_AWALAN_MCP` datang dari katalog, bukan ditulis ulang
+ * di sini. `POLA_AWALAN_MCP` sengaja masih menerima awalan yang sudah
+ * dipensiunkan: giliran yang dilanjutkan dari sesi tersimpan membawa awalan
+ * lama, dan kalau awalan itu tidak dilepas, baris aksi justru menampilkan
+ * nama lama ke layar.
  */
-const AWALAN_MCP = 'mcp__tedi__';
 
 /*
  * Nama MCP yang dibaca manusia tidak boleh memperlihatkan awalan internal.
  *
- * Awalan `mcp__tedi__` adalah konvensi protokol: dispatcher dan prompt model
+ * Awalan `mcp__zephyr__` adalah konvensi protokol: dispatcher dan prompt model
  * bergantung padanya, jadi nama itu TIDAK diubah. Yang diubah hanya yang
  * terlihat di kartu loop, dan itu dilakukan di sini - satu tempat - supaya
  * AiPanel, ChatMessage, dan SubAgentPanel ikut bersih tanpa perlu tahu
  * soal awalan itu sama sekali.
  *
- * Alasannya bukan kosmetik: `mcp__tedi__inspect` di baris aksi terbaca
- * sebagai nama asing milik alat lain, padahal itu tindakan TEDI sendiri.
- * Pengguna tidak punya cara menebak bahwa `mcp__tedi__` hanya pintu masuk.
+ * Alasannya bukan kosmetik: `mcp__zephyr__inspect` di baris aksi terbaca
+ * sebagai nama asing milik alat lain, padahal itu tindakan Zephyr sendiri.
+ * Pengguna tidak punya cara menebak bahwa awalan itu hanya pintu masuk.
  */
 export function namaPolos(nama: string | undefined): string {
   if (!nama) return '';
-  return nama.startsWith(AWALAN_MCP) ? nama.slice(AWALAN_MCP.length) : nama;
+  return nama.replace(POLA_AWALAN_MCP, '');
 }
 
 export function infoAksi(nama: string | undefined): AksiInfo {
   if (!nama) return { label: '—', jenis: 'lain', ikon: 'dot' };
   const langsung = PETA[nama];
   if (langsung) return langsung;
+  const polosNama = nama.replace(POLA_AWALAN_MCP, '');
   /* A bare MCP name (`inspect`) means its namespaced entry. */
-  const berawalan = PETA[AWALAN_MCP + nama];
+  const berawalan = PETA[AWALAN_MCP + polosNama];
   if (berawalan) return berawalan;
   /* A namespaced name whose namespaced entry is missing falls back to bare. */
-  if (nama.startsWith(AWALAN_MCP)) {
-    const polos = PETA[nama.slice(AWALAN_MCP.length)];
+  if (polosNama !== nama) {
+    const polos = PETA[polosNama];
     if (polos) return polos;
   }
   /*
    * Fallback terakhir: nama tool mentah.
    *
-   * Ini yang dulu membocorkan `mcp__tedi__<tool>` ke layar setiap kali ada
-   * tool MCP baru yang belum terdaftar di PETA. Awalan itu bukan bagian dari
-   * nama yang perlu dibaca siapa pun, jadi dibuang di sini juga.
+   * Ini yang dulu membocorkan awalan MCP ke layar setiap kali ada tool MCP
+   * baru yang belum terdaftar di PETA. Awalan itu bukan bagian dari nama yang
+   * perlu dibaca siapa pun, jadi dibuang di sini juga.
    */
   return { label: namaPolos(nama), jenis: 'lain', ikon: 'dot' };
 }
@@ -175,8 +182,8 @@ export function sasaranAksi(args: string | undefined): string {
     /*
      * An MCP call reads as `server / tool`.
      *
-     * TEDI prints "MCP TEDI INSPECT  commands" — the server, then the tool on
-     * it — and that pair is the whole identity of the call. Falling through to
+     * The reference prints "MCP  INSPECT  commands": the server, then the tool
+     * on it. That pair is the whole identity of the call. Falling through to
      * the generic field list would return only one of the two (whichever key
      * happens to be checked first), which names half the call and hides the
      * half that says what it did.

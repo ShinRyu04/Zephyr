@@ -7,9 +7,9 @@
  * done…") and land in the transcript as a bubble. That is wrong twice over. A
  * loop is a SCHEDULE, not a message: the sentence said nothing about what to
  * repeat, and nothing repeated anything — the user got a paragraph where they
- * expected a running job. The reference (TEDI's `lib/loop.ts`, Hermes'
- * `/loop`) treats it as a real command that starts a timer and answers with a
- * toast, and never sends the command text to the model.
+ * expected a running job. The usual convention treats it as a real
+ * command that starts a timer and answers with a toast, and never sends the
+ * command text to the model.
  *
  * Each tick goes through the message queue, so it waits behind a busy turn
  * instead of stacking a second request, and a tick is queued for its own chat

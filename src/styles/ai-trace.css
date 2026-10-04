@@ -1,10 +1,9 @@
 /*
  * AI panel — compact trace, Zephyr's own take.
  *
- * Reference shape (TEDI's panel) that this borrows from: one line per action,
- * label on the left, target in muted monospace on the right, no wrapping, and
- * the noisy parts (results, reasoning) folded behind a disclosure. Colour is
- * the hierarchy — the text stays one size.
+ * Shape: one line per action, label on the left, target in muted monospace
+ * on the right, no wrapping, and the noisy parts (results, reasoning) folded
+ * behind a disclosure. Colour is the hierarchy — the text stays one size.
  *
  * What stays Zephyr: the palette comes from the app tokens (no second accent
  * family), the disclosure is <details> (native, keyboard-reachable, no JS), and

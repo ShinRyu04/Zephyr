@@ -71,7 +71,7 @@ const cek = (nama, syarat, rincian) => {
  * tool inti hanyalah tool non-web, jadi keduanya tidak bisa berbeda pendapat.
  */
 const jumlah = await cdp.json(`return JSON.stringify(await (async () => {
-  const { TOOL_CATALOG, TOOL_INTI } = await import('/src/lib/tediTools/catalog.ts');
+  const { TOOL_CATALOG, TOOL_INTI } = await import('/src/lib/zephyrTools/catalog.ts');
   const web = TOOL_CATALOG.filter((t) => t.source === 'web');
   return {
     katalog: TOOL_CATALOG.length,

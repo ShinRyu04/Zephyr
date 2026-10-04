@@ -13,13 +13,13 @@
  * ada tool yang tidak masuk grup mana pun, ada grup yang tampil kosong, dan ada
  * tool yang lolos tanpa kelas izin.
  *
- * Sekarang sumbernya SATU: `tediTools/catalog.ts`. Berkas ini hanya membaca
+ * Sekarang sumbernya SATU: `zephyrTools/catalog.ts`. Berkas ini hanya membaca
  * dari situ. Menambah tool tanpa menyebut kelasnya akan gagal di verifikasi
  * katalog, bukan diam-diam berjalan tanpa izin.
  *
  * ## Nama yang dilihat model
  *
- * Model melihat 51 nama: 26 bawaan, 14 dengan awalan `mcp__tedi__`, dan 11
+ * Model melihat 51 nama: 26 bawaan, 14 dengan awalan `mcp__zephyr__`, dan 11
  * web/browser milik Zephyr. Nama internal polos tool MCP (`read`, `state`)
  * TIDAK pernah sampai ke model - kalau sampai, `read` akan bertabrakan dengan
  * `read_file` dan model akan menebak.
@@ -33,9 +33,11 @@ import {
   TOOL_BY_NAME,
   kelompokKatalog,
   periksaKatalog,
+  AWALAN_MCP,
+  POLA_AWALAN_MCP,
   type ToolEffect,
   type ToolSource,
-} from './tediTools/catalog';
+} from './zephyrTools/catalog';
 
 /* ------------------------------------------------------------------ */
 /* Sumber nama - semuanya diturunkan dari katalog.                    */
@@ -45,7 +47,7 @@ import {
 /* Bagian dan kelompok - dibaca dari katalog, bukan diketik ulang.    */
 /* ------------------------------------------------------------------ */
 
-/* Dua tingkat, seperti TEDI: bagian dulu, lalu kelompok di dalamnya. */
+/* Dua tingkat: bagian dulu, lalu kelompok di dalamnya. */
 export type ToolSection = 'builtin' | 'mcp';
 
 /** Dua bagian yang ditampilkan oleh picker, dalam urutan visualnya. */
@@ -329,16 +331,28 @@ export const useToolGate = create<ToolGateState>((set, get) => ({
    * semua" - profil baru harus mulai dengan katalog penuh, kalau tidak agen
    * menjawab setiap permintaan dengan kesalahan izin.
    *
-   * Nama lama dari versi sebelumnya tidak lagi ada di katalog, jadi ia
-   * tersaring keluar dengan sendirinya. Itu memang yang diinginkan: tool lama
-   * yang digantikan tool baru dengan nama berbeda tidak bisa dipetakan secara
+   * Setelan dari versi sebelumnya masih memakai awalan yang sudah dipensiunkan
+   * untuk 14 tool MCP. Berbeda dengan tool yang benar-benar diganti namanya, tool MCP
+   * di sini HANYA berubah awalannya - handlernya sama. Karena itu nama lama
+   * dipetakan ke nama baru saat dibaca, bukan disaring keluar: menyaringnya
+   * akan mematikan seluruh tool MCP milik user tanpa pernah dia pilih begitu.
+   * Yang disimpan ke memori tetap nama katalog yang sekarang, jadi penulisan
+   * berikutnya sudah memakai awalan baru.
+   *
+   * Nama lama dari versi sebelumnya yang TIDAK ada di katalog tetap tersaring
+   * keluar dengan sendirinya. Itu memang yang diinginkan: tool lama yang
+   * digantikan tool baru dengan nama berbeda tidak bisa dipetakan secara
    * otomatis tanpa menebak. Yang dilakukan sebagai gantinya adalah memulihkan
    * default untuk nama baru - sehingga setelah pembaruan, agen tetap bisa
    * bekerja alih-alih kehilangan seluruh kemampuannya.
    */
   dari: (nama) => {
     if (!Array.isArray(nama) || nama.length === 0) return;
-    const sah = nama.filter((n) => SEMUA_TOOL.includes(n));
+    const dipetakan = nama.map((n) => {
+      const polos = n.replace(POLA_AWALAN_MCP, '');
+      return polos === n ? n : `${AWALAN_MCP}${polos}`;
+    });
+    const sah = dipetakan.filter((n) => SEMUA_TOOL.includes(n));
 
     /*
      * Kalau sama sekali tidak ada nama yang dikenali, ini setelan dari versi

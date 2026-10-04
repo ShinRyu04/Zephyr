@@ -82,7 +82,7 @@ function kartuTool(
    * Nama yang MASUK ke kartu sudah polos, tapi tiap pemakaian pola di bawah
    * tetap butuh nama APA ADANYA.
    *
-   * `mcp__tedi__open_file` mengandung `open_file`, bukan `open`; kalau yang
+   * `mcp__zephyr__open_file` mengandung `open_file`, bukan `open`; kalau yang
    * polos yang diuji, sebuah pemanggilan yang menyunting berkas berhenti
    * terdeteksi sebagai penyunting dan diffnya tidak pernah dirender. Jadi
    * pengujian pola memakai `nama`, dan yang ditampilkan memakai `info.label`.

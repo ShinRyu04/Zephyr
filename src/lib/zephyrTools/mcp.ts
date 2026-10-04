@@ -6,7 +6,7 @@
  * Model AI sering kali harus berinteraksi dengan jendela IDE itu sendiri:
  * membuka tab, membagi pane terminal, memfokuskan editor, memeriksa state.
  * Kemampuan ini dipaparkan lewat protokol MCP dengan awalan
- * `mcp__tedi__*`.
+ * `mcp__zephyr__*`.
  *
  * Berkas ini menyediakan implementasi in-process untuk 14 tool tersebut,
  * dihubungkan langsung ke store dan command aplikasi:
@@ -65,7 +65,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 1. inspect */
   {
     spec: {
-      name: 'mcp__tedi__inspect',
+      name: 'mcp__zephyr__inspect',
       description:
         'Inspect the internal state of the editor: commands, extensions, settings, workspaces, or logs.',
       parameters: {
@@ -116,7 +116,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 2. run_command */
   {
     spec: {
-      name: 'mcp__tedi__run_command',
+      name: 'mcp__zephyr__run_command',
       description: 'Run an internal application command by its ID.',
       parameters: {
         type: 'object',
@@ -148,7 +148,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 3. open_file */
   {
     spec: {
-      name: 'mcp__tedi__open_file',
+      name: 'mcp__zephyr__open_file',
       description: 'Open a file in an editor tab.',
       parameters: {
         type: 'object',
@@ -169,7 +169,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 4. workspace */
   {
     spec: {
-      name: 'mcp__tedi__workspace',
+      name: 'mcp__zephyr__workspace',
       description: 'Manage workspaces: switch, create, rename, or remove.',
       parameters: {
         type: 'object',
@@ -195,7 +195,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 5. set_setting */
   {
     spec: {
-      name: 'mcp__tedi__set_setting',
+      name: 'mcp__zephyr__set_setting',
       description: 'Change one application preference or setting.',
       parameters: {
         type: 'object',
@@ -231,7 +231,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 6. extension */
   {
     spec: {
-      name: 'mcp__tedi__extension',
+      name: 'mcp__zephyr__extension',
       description: 'Kelola ekstensi: enable, disable, reload, update, uninstall.',
       parameters: {
         type: 'object',
@@ -252,7 +252,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 7. ssh */
   {
     spec: {
-      name: 'mcp__tedi__ssh',
+      name: 'mcp__zephyr__ssh',
       description: 'Kelola koneksi remote SSH: list atau connect.',
       parameters: {
         type: 'object',
@@ -277,7 +277,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 8. state */
   {
     spec: {
-      name: 'mcp__tedi__state',
+      name: 'mcp__zephyr__state',
       description: 'Ambil snapshot lengkap keadaan jendela: tabs editor, pane terminal, fokus.',
       parameters: { type: 'object', properties: {}, required: [] },
     },
@@ -300,7 +300,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 9. read */
   {
     spec: {
-      name: 'mcp__tedi__read',
+      name: 'mcp__zephyr__read',
       description: 'Baca satu permukaan: scrollback terminal, live buffer editor, atau text DOM.',
       parameters: {
         type: 'object',
@@ -337,7 +337,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 10. sh */
   {
     spec: {
-      name: 'mcp__tedi__sh',
+      name: 'mcp__zephyr__sh',
       description: 'Kirim perintah shell langsung ke terminal user yang terlihat di layar.',
       parameters: {
         type: 'object',
@@ -401,7 +401,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 11. wait_for_terminal */
   {
     spec: {
-      name: 'mcp__tedi__wait_for_terminal',
+      name: 'mcp__zephyr__wait_for_terminal',
       description: 'Tunggu beberapa saat sampai terminal selesai memproses.',
       parameters: {
         type: 'object',
@@ -421,7 +421,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 12. worktree */
   {
     spec: {
-      name: 'mcp__tedi__worktree',
+      name: 'mcp__zephyr__worktree',
       description: 'Kelola git worktree di repositori.',
       parameters: {
         type: 'object',
@@ -441,7 +441,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 13. focus_pane */
   {
     spec: {
-      name: 'mcp__tedi__focus_pane',
+      name: 'mcp__zephyr__focus_pane',
       description: 'Fokuskan satu pane terminal berdasarkan ID-nya.',
       parameters: {
         type: 'object',
@@ -465,7 +465,7 @@ export const TOOL_MCP: AgentTool[] = [
   /* 14. pane */
   {
     spec: {
-      name: 'mcp__tedi__pane',
+      name: 'mcp__zephyr__pane',
       description: 'Buka, bagi, atau tutup pane terminal.',
       parameters: {
         type: 'object',

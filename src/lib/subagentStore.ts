@@ -8,7 +8,7 @@ import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, pisahPipeline,
 import { arahanCustom, cariCustom, bacaDaftar, pisahCustom } from './subagentCustom';
 import { useAi, isDestructive } from './aiStore';
 import { TOOL_DISK_TULIS } from './toolGate';
-import { TOOL_BY_NAME } from './tediTools/catalog';
+import { TOOL_BY_NAME } from './zephyrTools/catalog';
 
 export const MAX_PARALLEL = 4;
 
@@ -344,16 +344,18 @@ function pathDitulis(namaTool: string, args: Record<string, unknown>): string | 
 /**
  * Whether a tool runs a shell command whose text lands in `args.command`.
  *
- * The dangerous-command check only fires for these, so a retired name here
+ * The dangerous-command check only fires for these, so a missing name here
  * means a destructive command from a subagent is never caught. `bash_run` and
- * `bash_background` are the built-in shells; `mcp__tedi__sh` sends a command to
- * the user's terminal. MCP tools reach the model prefixed, so both the full
- * `mcp__tedi__sh` form and the bare `sh` are accepted.
+ * `bash_background` are the built-in shells; the MCP `sh` tool sends a command
+ * to the user's terminal. MCP tools reach the model prefixed, so both prefix
+ * forms and the bare `sh` are accepted - a session resumed from disk can still
+ * carry either prefix.
  */
 function isToolShell(namaTool: string): boolean {
   return (
     namaTool === 'bash_run' ||
     namaTool === 'bash_background' ||
+    namaTool === 'mcp__zephyr__sh' ||
     namaTool === 'mcp__tedi__sh' ||
     namaTool === 'sh'
   );

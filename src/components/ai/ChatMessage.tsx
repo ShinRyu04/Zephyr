@@ -901,7 +901,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               {/*
                * How long this has been going.
                *
-               * TEDI prints "Thinking about the next step   6s" — the same
+               * The line reads "Thinking about the next step   6s" — the same
                * sentence plus a live count. Without it the line looks the same
                * at two seconds and at two minutes, and the reader cannot tell
                * a slow provider from a stuck one. It only appears once the wait

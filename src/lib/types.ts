@@ -316,8 +316,8 @@ export interface AgentToolRun {
   /*
    * What the call actually produced, in the same units the tool reported it.
    *
-   * Hermes and TEDI both put a one-line summary on the collapsed row , 
-   * "read · 12 lines · 20.7KB", "1 replacement · L72", "+7 −3" ,  so the reader
+   * The collapsed row carries a one-line summary,
+   * "read · 12 lines · 20.7KB", "1 replacement · L72", "+7 −3", so the reader
    * can tell a 12-line read from a 400-line one without opening either. The
    * fields are optional because every transcript written before this existed
    * has none of them, and the row has to render cleanly with no status at all

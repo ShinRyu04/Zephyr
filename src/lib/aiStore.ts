@@ -34,7 +34,7 @@ import {
   ukuranPayload,
 } from './contextBudget';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
-import { TOOL_CATALOG } from './tediTools/catalog';
+import { TOOL_CATALOG } from './zephyrTools/catalog';
 
 /*
  * Read-only tools, derived from the catalog instead of typed out by hand.
@@ -248,7 +248,7 @@ const BATAS_TANPA_KEMAJUAN = 4;
 const TOOL_PENULIS = new Set([
   'write_file', 'edit', 'multi_edit', 'replace_in_files', 'create_directory',
   'copy_file', 'move_file', 'delete_file',
-  'bash_run', 'bash_background', 'bash_kill', 'mcp__tedi__sh', 'sh',
+  'bash_run', 'bash_background', 'bash_kill', 'mcp__zephyr__sh', 'sh',
   'browser_open', 'browser_click', 'browser_type', 'browser_nav', 'browser_close',
   'system_browser_open', 'browser_download_url', 'open_preview',
   'subagent_run', 'subagent_kirim', 'subagent_batal',
@@ -3461,12 +3461,13 @@ export const useAi = create<AiStore>((set, get) => ({
           /*
            * The one-line status the collapsed row shows.
            *
-           * TEDI and Hermes both answer "how much did that touch?" without a
-           * click — "read · 12 lines · 20.7KB" tells the reader whether opening
-           * the body is worth it. The numbers come from the result text that is
-           * already in hand: a line count for reads, and for edits the diff
-           * summary the patch tool already computes. Anything that does not fit
-           * those shapes gets no status at all, which is the honest answer.
+           * Both the reference product and Hermes answer "how much did that
+           * touch?" without a click — "read · 12 lines · 20.7KB" tells the reader
+           * whether opening the body is worth it. The numbers come from the
+           * result text that is already in hand: a line count for reads, and for
+           * edits the diff summary the patch tool already computes. Anything that
+           * does not fit those shapes gets no status at all, which is the honest
+           * answer.
            */
           const status: Partial<AgentToolRun> = {};
           if (hasil) {

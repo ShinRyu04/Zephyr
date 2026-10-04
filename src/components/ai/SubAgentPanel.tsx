@@ -443,7 +443,7 @@ function Baris({
         {/*
          * The agent's own tab strip.
          *
-         * TEDI puts the agent name and its task side by side as tabs above the
+         * The agent name and its task sit side by side as tabs above the
          * detail, so a reader can tell at a glance whose work they are looking
          * at and what it was asked to do. The same two facts were already in
          * this row — the name as a chip and the task as the headline — but with

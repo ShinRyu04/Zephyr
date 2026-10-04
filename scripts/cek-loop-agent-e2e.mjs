@@ -60,7 +60,7 @@ const e34 = await uji('E34', `
    * Kalau ada tool read yang salah masuk daftar penulis, penghitung tidak
    * akan pernah naik dan guard ini mati diam-diam.
    */
-  const { TOOL_CATALOG } = await import('/src/lib/tediTools/catalog.ts');
+  const { TOOL_CATALOG } = await import('/src/lib/zephyrTools/catalog.ts');
   const readNonWeb = TOOL_CATALOG.filter((t) => t.source !== 'web' && t.effect === 'read').map((t) => t.name);
   const webRead = TOOL_CATALOG.filter((t) => t.source === 'web' && t.effect === 'read').map((t) => t.name);
   return { readNonWeb, webRead };
@@ -70,7 +70,7 @@ r.check('E4', e34.webRead.length > 0, `${e34.webRead.length} tool baca web terda
 
 /* E1/E2 - alat buka yang diakui: browser_open dan system_browser_open. */
 const e12 = await uji('E12', `
-  const { TOOL_CATALOG } = await import('/src/lib/tediTools/catalog.ts');
+  const { TOOL_CATALOG } = await import('/src/lib/zephyrTools/catalog.ts');
   const nama = TOOL_CATALOG.map((t) => t.name);
   return {
     adaSistem: nama.includes('system_browser_open'),

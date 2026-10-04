@@ -8,7 +8,7 @@
  *   - 11 tool web/browser berada di bawah BUILT-IN, tanpa label Optional
  *   - keadaan dasar: semua tool inti ON, semua web OFF
  *   - All on -> semua ON; All off -> kembali seperti keadaan dasar
- *   - nama MCP ditampilkan polos, bukan awalan protokol mcp__tedi__
+ *   - nama MCP ditampilkan polos, bukan awalan protokol mcp__zephyr__
  *   - tidak ada nama aplikasi di teks picker
  *
  * Angka "N of M on" TIDAK dipatok di sini. Versi lama mematok '40 of 51 on'
@@ -106,7 +106,15 @@ cek('header persis BUILT-IN lalu MCP', JSON.stringify(label) === JSON.stringify(
 cek('BUILT-IN berisi grup Web', builtin?.groups.includes('Web'), { grup: builtin?.groups });
 cek('BUILT-IN berisi grup Browser', builtin?.groups.includes('Browser'), { grup: builtin?.groups });
 cek('MCP tidak berisi Web/Browser', !mcp?.groups.some((g) => g === 'Web' || g === 'Browser'), { grup: mcp?.groups });
-cek('tidak ada label Optional', !/optional/i.test(hasil.dasar.teks));
+/*
+ * Yang dilarang adalah grup berlabel "Optional", BUKAN kata "optional" di mana
+ * pun. Versi lama memakai /optional/i dan ikut menyalakan kata "optionally"
+ * di dalam kalimat deskripsi `open_file` ("Open a file in the editor,
+ * optionally at a specific line") - yaitu menolak keadaan yang benar.
+ * `\boptional\b` tetap menangkap label sungguhan ("Optional" berdiri sendiri)
+ * dan tidak lagi menangkap kata turunan di dalam kalimat.
+ */
+cek('tidak ada label Optional', !/\boptional\b/i.test(hasil.dasar.teks));
 cek('tidak ada nama aplikasi di picker', !/Zephyr|TEDI/.test(hasil.dasar.teks));
 cek('nama MCP tampil polos', hasil.dasar.namaBaris.includes('inspect') && !hasil.dasar.namaBaris.some((n) => n.includes('mcp__')), {
   contoh: hasil.dasar.namaBaris.filter((n) => n.includes('inspect') || n.includes('mcp__')).slice(0, 5),

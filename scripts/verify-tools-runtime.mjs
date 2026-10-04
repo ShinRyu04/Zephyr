@@ -38,7 +38,7 @@ console.log('\n== Tool terpasang di aplikasi hidup ==');
 
 const d = await cdp.json(`return JSON.stringify(await (async () => {
   const { AGENT_TOOLS } = await import('/src/lib/agentTools.ts');
-  const { TOOL_CATALOG } = await import('/src/lib/tediTools/catalog.ts');
+  const { TOOL_CATALOG } = await import('/src/lib/zephyrTools/catalog.ts');
   const nama = AGENT_TOOLS.map((t) => t.spec.name);
   return {
     nama,
