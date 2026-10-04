@@ -5,6 +5,101 @@ All notable changes per release. Format follows the spirit of
 
 ## [Unreleased]
 
+### Security
+- The write-tool deny-list existed in three drifting copies (13, 4 and 4
+  entries). It is now one exported `TOOL_TULIS` set of **32** members in
+  `agentTools.ts`, imported by `subagentStore.ts`; a read-only subagent can no
+  longer be offered `shell_exec`, `terminal_exec`, `terminal_kill`,
+  `pane_control`, `skill_write`, `skill_delete`, `memory_write`, `cron_create`,
+  `cron_delete`, `todo_write`, `mcp_call`, `ssh` or the four `browser_*` tools.
+  `browser_read` and `web_search` stay allowed because they only fetch.
+  `focus_pane`, `open_file` and `workspace` were added too: none of them touch
+  the disk, but they steal focus, add tabs and redirect where later writes land,
+  so a read-only caller has no business reaching them;
+- A custom sub-agent definition could name `shell_exec` in its allowlist and
+  thereby hand an executing tool to a caller with the write flag off. The
+  allowlist and the read-only gate now INTERSECT instead of the allowlist
+  short-circuiting the deny-list;
+- `read-only` mode now refuses the whole write set and both shell tools, where
+  it previously blocked only `editor_write` and shell commands, so a read-only
+  agent could still rewrite files;
+- `isDestructive` was a 12-pattern blacklist that missed the Windows footguns
+  it was meant to catch. Now ~40 case-insensitive patterns covering delete in
+  any argument order across POSIX/PowerShell/cmd, git force/history/working-tree
+  destruction, disk and volume operations, power state and destructive SQL.
+  Documented as a best-effort backstop, not a sandbox.
+
+### Added
+- Automatic context compaction: when the outgoing history passes 80% of the
+  model window the agent summarizes the older turns with a real model call and
+  replaces them, with a notice and a six-step cooldown. The token estimate moved
+  to a shared `contextBudget.ts` so the meter and the agent can no longer
+  disagree. Manual `/compact` is unchanged;
+- Git worktrees: `git_worktree_list/add/remove/prune` in Rust (porcelain
+  parsing, main worktree protected from removal) and a `worktree` tool for the
+  built-in agent;
+- Agent tools `notes` (read and write Notes & Todos), `schedule_command`
+  (deferred and repeating shell commands on top of the cron backend) and
+  `focus_pane` (raises a pane that lives in another tab);
+- Queue chips in the AI composer can now be reordered up/down and edited in
+  place.
+
+### Fixed
+- Agent provider timeouts and transient network failures now retry safely up to
+  two times with 1s/2.5s backoff before any tool is dispatched. Retry status is
+  visible (`Mencoba lagi ...`), cancellation remains responsive, and auth,
+  invalid-request, not-found, tool, and malformed-response failures are not
+  retried, so local file/shell side effects cannot be duplicated;
+- `scripts/test-subagent.mjs` carried its own hand-copied 23-entry deny-list and
+  asserted that size, so the test would stay green while the shipped set drifted
+  (it was already 29 by then). It now PARSES `TOOL_TULIS` out of
+  `agentTools.ts`, asserts a floor, and gained cases for `mcp_call` /`ssh` /
+  `browser_open` refusal, `browser_read` keeping, and the allowlist-and-deny-list
+  intersection;
+- The dev bridge's `__ZEPHYR_TODO__.tulis` called the tool directly, bypassing
+  the read-only gate that the agent loop enforces. It now checks the same gate.
+  (Dev-only surface, tree-shaken from release builds - closed for consistency);
+- `editor_read` could only ever see the ACTIVE tab, so nothing that lived in
+  another tab was reachable through it. It now takes a `path` to read any open
+  tab (and reports unsaved state), and lists every open tab when there is no
+  active one;
+- The `git` tool had no branch operations at all despite the backend commands
+  existing. Added `branches`, `checkout`, `create_branch`, `fetch` and `push`;
+- `file_copy` claimed to copy folders recursively but only copied the top
+  level and left subfolders empty. It now walks the whole tree, reports the real
+  file count, and refuses to copy a folder into its own subtree;
+- Scheduled jobs now actually run: a `cron-due` listener (`cronRunner.ts`)
+  executes the command in a terminal pane, with a non-interactive fallback and
+  a notification naming the job. The Rust timer emitted the event all along but
+  nothing listened, so no scheduled command had ever executed;
+- Queued messages no longer lose their image attachments when they are sent.
+
+## [1.1.13] - 2026-09-30
+
+### Fixed
+- Customize Layout no longer closes the window when its lazy-loaded panel is
+  opened outside a Suspense boundary.
+- The terminal and editor validate the configured font, restoring a monospace
+  terminal instead of falling back to a serif face for the invalid `terminal`
+  value.
+- The command palette repaints when its lazy command list arrives and rebuilds
+  on every open, so it is populated on first open.
+- The message queue is now a compact row of numbered chips inside the composer.
+- The reader-facing reasoning block was removed so model-only thinking no longer
+  pushes the answer down the panel.
+- The context meter no longer causes a Zustand v5 render loop with no active
+  chat session.
+
+### Interface and language
+- Added 39 missing interface strings to every language dictionary.
+- English no longer falls back to Indonesian for six entries.
+- Corrected the malformed built-in prompt and changed the Thinking indicator to
+  the project mark with motion instead of a spinner.
+
+### Release gates
+- Build, automated test, updater end-to-end, and installer verification remain
+  pending for 1.1.13. No installer verification is claimed here.
+
 ## [1.1.12] - 2026-09-30
 
 ### Dev Environment
