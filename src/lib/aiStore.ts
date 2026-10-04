@@ -951,6 +951,25 @@ function labelRetryAgent(error: string): string {
     : 'provider error sementara';
 }
 
+const TUNGGU_PULIH_DELAYS = [15000, 30000, 60000] as const;
+
+async function tungguProviderPulihAgent(
+  setProgress: (p: { agentPhase: 'thinking'; agentCurrentTool: string | null }) => void,
+  error: string,
+  fase: number,
+): Promise<boolean> {
+  if (agentBatal) return false;
+  const i = Math.min(fase, TUNGGU_PULIH_DELAYS.length - 1);
+  const detik = Math.round(TUNGGU_PULIH_DELAYS[i] / 1000);
+  setProgress({
+    agentPhase: 'thinking',
+    agentCurrentTool:
+      `Menunggu provider pulih (${i + 1}/3, ~${detik} dtk) karena ${labelRetryAgent(error)} — Stop untuk hentikan`,
+  });
+  if (!(await tungguRetryAgent(TUNGGU_PULIH_DELAYS[i]))) return false;
+  return !agentBatal;
+}
+
 function agentWatchdogArm() {
   if (agentWatchdog) clearTimeout(agentWatchdog);
   agentWatchdog = setTimeout(() => {
@@ -2755,6 +2774,7 @@ export const useAi = create<AiStore>((set, get) => ({
         });
         get().setAgentProgress({ agentPhase: 'thinking', agentCurrentTool: null, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
         let res: AgentStepResult;
+        let faseTungguPulih = 0;
         for (let retry = 0; ; retry++) {
           res = await new Promise<AgentStepResult>((resolve) => {
             const attemptId = nextId(`attempt-${botMsg.id}`);
@@ -2842,7 +2862,28 @@ export const useAi = create<AiStore>((set, get) => ({
             res.toolCalls.length === 0 &&
             !!res.error &&
             isRetryableAgentProviderError(res.error);
-          if (!bolehRetry || retry >= AGENT_PROVIDER_RETRY_DELAYS.length) break;
+          if (!bolehRetry || retry >= AGENT_PROVIDER_RETRY_DELAYS.length) {
+            /*
+             * Kerja lama tidak boleh mati hanya karena provider down beberapa
+             * menit. Dua retry cepat di atas untuk blip sesaat; kalau masih
+             * gagal, masuk fase tunggu-pulih: jeda bertingkat (15s, 30s, 60s)
+             * dengan status terlihat, lalu coba lagi. Total ~105 detik.
+             * Hanya untuk error retryable SEBELUM tool dipanggil - history
+             * belum berubah jadi tidak ada yang bisa ter-replay. Setelah 3
+             * fase masih gagal, baru mati dengan error jujur. User bisa
+             * Stop kapan saja (agentBatal / tungguRetryAgent membatalkan).
+             */
+            if (bolehRetry && faseTungguPulih < TUNGGU_PULIH_DELAYS.length) {
+              const lanjut = await tungguProviderPulihAgent(
+                (p) => get().setAgentProgress({ ...p, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS }),
+                res.error!,
+                faseTungguPulih,
+              );
+              faseTungguPulih += 1;
+              if (lanjut && !agentBatal) continue;
+            }
+            break;
+          }
 
           const retryNumber = retry + 1;
           get().setAgentProgress({
