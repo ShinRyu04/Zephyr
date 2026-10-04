@@ -12,6 +12,26 @@ const CONNECT_TIMEOUT_SECS: u64 = 15;
 const RECEIVE_IDLE_TIMEOUT_SECS: u64 = 300;
 const TOTAL_CALL_TIMEOUT_SECS: u64 = 420;
 
+/// Batas waktu TOTAL untuk seluruh tangga ulang, bukan per percobaan.
+///
+/// Tiga timeout ini sebelumnya saling tidak tahu, dan akibatnya UI terkunci:
+///
+///   - tiap percobaan boleh diam sampai 300s (recv idle) / 420s (per call)
+///   - ada 3 percobaan dan 2 jeda, masing-masing sampai 20s
+///
+/// Jadi Rust bisa diam paling lama 3 x 420 + 2 x 20 = 1300 detik, sementara
+/// watchdog frontend melepas pada 360s dan hard limit pada 900s. Setelah
+/// frontend menyerah, Rust masih hidup dan masih mengirim chunk untuk run yang
+/// sudah ditinggalkan - chunk itu lalu menempel ke pesan yang sedang diketik.
+/// Bukan hanya UI lambat: itu state yang tercemar diam-diam.
+///
+/// Batas total membalik urutannya menjadi benar: Rust selalu melapor lebih dulu,
+/// dan watchdog frontend hanya menyala kalau Rust benar-benar tidak menjawab.
+/// 300s dipilih karena itu recv-idle untuk SATU percobaan - jadi kesabarannya
+/// sama dengan batas yang sudah ada, hanya sekarang berlaku untuk seluruh
+/// tangga sekaligus.
+const RETRY_LOOP_DEADLINE_SECS: u64 = 300;
+
 // Receive timeout limits an idle gap between bytes; the total timeout still bounds the full call.
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -163,8 +183,31 @@ fn kirim_dengan_ulang(
     const JEDA_MS: [u64; 2] = [400, 1200];
 
     let mut terakhir: Option<String> = None;
+    let mulai = std::time::Instant::now();
 
     for percobaan in 0..attempts.max(1) {
+        /*
+         * Deadline check BEFORE the request, not after the sleep.
+         *
+         * Checking after the sleep means the user waits out one more full
+         * backoff to learn nothing new. Checking here means the ladder stops
+         * the moment the budget is gone, and `terakhir` - the error already in
+         * hand, with its status and its server message - is what the caller
+         * sees. That is a far better answer than a bare "timed out".
+         *
+         * This is also what makes the order of facts correct. The frontend
+         * watchdog exists for a Rust that cannot answer at all; it must never
+         * be the thing that decides first, because then late chunks land on
+         * whatever the user is typing.
+         */
+        if percobaan > 0
+            && mulai.elapsed() >= std::time::Duration::from_secs(RETRY_LOOP_DEADLINE_SECS)
+        {
+            return Err(terakhir.unwrap_or_else(|| {
+                format!("Provider tidak menjawab dalam {RETRY_LOOP_DEADLINE_SECS} detik")
+            }));
+        }
+
         let mut req = agent.post(&prepared.url);
         for (k, v) in &prepared.headers {
             req = req.header(k.as_str(), v.as_str());
@@ -1052,5 +1095,80 @@ mod retry_tests {
         let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus sukses");
         assert_eq!(resp.status().as_u16(), 200);
         assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1, "sekali saja");
+    }
+
+    /*
+     * Tiga timeout ini harus tetap punya urutan yang benar.
+     *
+     * Yang dikunci di sini adalah bug yang dilaporkan user: UI terkunci 5-6
+     * menit lalu berakhir dengan jawaban yang salah sasaran. Urutannya salah
+     * karena tiap angka dihitung sendiri-sendiri:
+     *
+     *   Rust  : 3 percobaan x 420s per-call + 2 jeda x 20s = 1300s
+     *   hard  : 900s  (frontend menyerah duluan)
+     *   idle  : 360s  (watchdog frontend)
+     *
+     * Jadi frontend menyerah lebih dulu, Rust tetap hidup, dan chunk yang
+     * terlambat menempel ke pesan yang sedang diketik. Sebelum deadline ini
+     * ada, tidak ada satu pun tes yang memeriksa HUBUNGAN antar angka itu -
+     * masing-masing benar kalau dilihat sendiri.
+     *
+     * Tes ini tidak menyentuh jaringan; ia memeriksa aritmetikanya, karena
+     * persis itulah yang rusak. Angka frontend sengaja disalin di sini dan
+     * harus dicocokkan kalau diubah - kalau tidak, tes ini akan lulus dengan
+     * tenang sementara UI kembali terkunci.
+     */
+    const FRONTEND_IDLE_WATCHDOG_SECS: u64 = 360;
+    const FRONTEND_HARD_LIMIT_SECS: u64 = 900;
+
+    #[test]
+    fn retry_ladder_always_reports_before_the_frontend_gives_up() {
+        /* Worst case: every attempt uses the per-call timeout, plus every backoff. */
+        let attempts: u64 = 3;
+        let backoff_secs: u64 = 20;
+        let per_call_secs = TOTAL_CALL_TIMEOUT_SECS.max(RECEIVE_IDLE_TIMEOUT_SECS);
+
+        /* Without the deadline - what used to happen. If this stops being
+           longer than the frontend's hard limit, this test has stopped testing
+           anything and should be rethought, not silently kept. */
+        let tanpa_deadline = attempts * per_call_secs + (attempts - 1) * backoff_secs;
+        assert!(
+            tanpa_deadline > FRONTEND_HARD_LIMIT_SECS,
+            "perkiraan lama ({tanpa_deadline} dtk) tidak lagi melewati hard limit \
+             ({FRONTEND_HARD_LIMIT_SECS} dtk), jadi tes ini tidak menguji apa pun"
+        );
+
+        /* With the deadline, the ladder is capped no matter how long an attempt takes. */
+        let dengan_deadline = RETRY_LOOP_DEADLINE_SECS + backoff_secs;
+        assert!(
+            dengan_deadline < FRONTEND_IDLE_WATCHDOG_SECS,
+            "Rust harus melapor sebelum watchdog frontend: {dengan_deadline} dtk >= \
+             idle {FRONTEND_IDLE_WATCHDOG_SECS} dtk"
+        );
+        assert!(
+            dengan_deadline < FRONTEND_HARD_LIMIT_SECS,
+            "dan jauh di bawah hard limit: {dengan_deadline} vs {FRONTEND_HARD_LIMIT_SECS}"
+        );
+    }
+
+    #[test]
+    fn a_fast_failing_provider_still_gets_its_retries() {
+        /*
+         * Deadline tidak boleh mematikan ulang-ulang yang berguna.
+         *
+         * 502 yang datang dalam hitungan detik adalah kondisi yang paling sering
+         * terjadi dan paling layak diulang - dan ia tidak pernah menyentuh
+         * deadline, karena tangganya selesai dalam hitungan detik, bukan setelah
+         * menunggu 300 detik.
+         */
+        let (url, hits) = server(vec![502, 502, 200]);
+        let resp =
+            kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
+        assert_eq!(resp.status().as_u16(), 200, "percobaan ketiga berhasil");
+        assert_eq!(
+            hits.load(std::sync::atomic::Ordering::SeqCst),
+            3,
+            "tiga percobaan tetap dijalankan - deadline hanya menghentikan yang menunggu"
+        );
     }
 }
