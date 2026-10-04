@@ -144,15 +144,15 @@ export default function MicSection() {
           </Row>
 
           <Row
-            label={tr('Voice model')}
-            hint={tr('Typed by hand. Empty means the provider default.')}
+            label={tr('Mic model')}
+            hint={tr('Transcription model on that server. Typed by hand. Empty means the provider default.')}
           >
             <TextInput
-              label={tr('Voice model')}
+              label={tr('Mic model')}
               testid="mic-model"
               mono
               value={m?.model ?? ''}
-              placeholder="whisper-1"
+              placeholder="whisper-turbo"
               onChange={(s) => set({ ...m, model: s })}
             />
           </Row>
