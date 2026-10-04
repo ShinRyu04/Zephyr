@@ -4330,12 +4330,28 @@ export const useAi = create<AiStore>((set, get) => ({
            * not of the whole answer that followed it.
            */
           if (c.reasoning) {
-            const mulai = m.reasoningMs === 0 ? Date.now() : undefined;
-            return {
-              ...m,
-              reasoning: (m.reasoning ?? '') + c.reasoning,
-              reasoningMs: m.reasoningMs === 0 ? (mulai ?? Date.now()) : m.reasoningMs,
-            };
+            /*
+             * Some providers send reasoning CUMULATIVE, not as a delta. Appending
+             * blindly doubles the text: "TheThe user asks a simple one-s user asks
+             * a simple one-sentence question" - which is exactly what came out of
+             * the live app. Three cases, cheapest first:
+             *
+             *   - the chunk is already the tail we have: nothing new, keep as is
+             *   - the chunk restates everything we have and adds more: it is the
+             *     new full text, so replace
+             *   - the chunk is somewhere inside what we have: already seen, skip
+             *   - otherwise: a genuine delta, append
+             */
+            const cur = m.reasoning ?? '';
+            const inc = String(c.reasoning);
+            const jam = m.reasoningMs === 0 ? Date.now() : m.reasoningMs;
+            if (cur.endsWith(inc) || cur.includes(inc)) {
+              return { ...m, reasoningMs: jam };
+            }
+            if (cur && inc.startsWith(cur)) {
+              return { ...m, reasoning: inc, reasoningMs: jam };
+            }
+            return { ...m, reasoning: cur + inc, reasoningMs: jam };
           }
           if (c.text) {
             /*
