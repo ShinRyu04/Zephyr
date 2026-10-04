@@ -443,11 +443,28 @@ const main = async () => {
       // agentTools is reached through the page module registry, never through
       // a dynamic import in this evaluated snippet, because a dynamic import
       // here would resolve to a second copy of the module.
-      const nav = window.__ZEPHYR_TOOLS__?.find(t => t.spec.name === 'browser_nav');
-      if (!nav) {
+      /*
+       * Bridge tool adalah SATU OBJEK dengan fungsi, bukan array telanjang.
+       *
+       * Dulu di sini window.__ZEPHYR_TOOLS__.find(...) dan .run(...). Bentuk itu
+       * sudah diganti (lihat devBridge.ts): array telanjang tidak punya cara
+       * MENJALANKAN tool, jadi harness hanya bisa membaca daftar nama dan tidak
+       * pernah bisa menguji perilakunya. Sekarang spec(nama) untuk skema dan
+       * jalankan(nama, args) untuk benar-benar mengeksekusinya.
+       */
+      if (!window.__ZEPHYR_TOOLS__?.spec?.('browser_nav')) {
         window.__v7navErr = 'tool browser_nav tidak tersedia di window';
       } else {
-        await nav.run({ paneId: T.getState().allPanes().find(p => p.kind === 'browser').id, aksi: 'http://127.0.0.1:${TEST_PORT}/' });
+        /*
+         * Argumennya 'action' + 'url', bukan 'aksi' + 'paneId'.
+         *
+         * Harness lama mengirim nama Indonesia ('aksi') dan paneId milik pane
+         * browser - keduanya ditolak: spec-nya butuh 'action', dan tool ini
+         * mencari pane browser-nya SENDIRI lewat paneBrowserId(). Nama yang
+         * benar diambil dari spec di katalog, bukan ditebak - dan 'goto' adalah
+         * aksi yang mengganti URL.
+         */
+        await window.__ZEPHYR_TOOLS__.jalankan('browser_nav', { action: 'goto', url: 'http://127.0.0.1:${TEST_PORT}/' });
       }
       await wait(3500);
 
@@ -463,11 +480,11 @@ const main = async () => {
       // old iframe could never do. Calling the raw command here used to hang,
       // because a module imported from the CDP context gets its own copy and
       // the eval never settled.
-      const read = window.__ZEPHYR_TOOLS__?.find(t => t.spec.name === 'browser_read');
+      const read = window.__ZEPHYR_TOOLS__?.spec?.('browser_read');
       let bacaan = '';
       try {
         if (!read) throw new Error('tool browser_read tidak tersedia di window');
-        bacaan = String(await read.run({ paneId: bp0.id }));
+        bacaan = String(await window.__ZEPHYR_TOOLS__.jalankan('browser_read', { paneId: bp0.id }));
         window.__v7ok = true;
       } catch (e) {
         window.__v7err = String(e.message || e).slice(0, 200);
