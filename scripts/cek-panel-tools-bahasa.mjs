@@ -98,27 +98,42 @@ r.check(
  */
 console.log('\n== Teks yang benar-benar terlihat ==');
 const layar = await cdp.json(`return JSON.stringify(await (async () => {
-  const { useStore } = await import('/src/lib/store.ts');
-  const { useToolGate } = await import('/src/lib/toolGate.ts');
-  const uiLangAsli = useStore.getState().settings.general.uiLang;
-  const bukaAsli = useToolGate.getState().buka;
-
-  /* Paksa bahasa English, buka panel Tools.
+  /* PENTING: jangan mengimpor store dari skrip ini.
    *
-   * Dua pemanggilan versi lama tidak pernah bekerja:
-   *   - st.setSetting('general.uiLang', 'en') melempar TypeError, fungsi itu
-   *     tidak ada di store. Store menyediakan applySettings.
-   *   - st.setToolGateOpen?.(true) tidak ada sama sekali. Tanda '?' membuat
-   *     pemanggilan yang hilang SUNYI - tidak ada error, tidak ada panel.
-   *     Karena itu T5 sempat mengukur SELURUH halaman dan menuduh kata
-   *     "Buka" dari sidebar sebagai kebocoran bahasa tool.
-   * Panel digerakkan store-nya sendiri: useToolGate().setBuka(true).
+   * Dynamic import('/src/lib/toolGate.ts') memberi instance modul yang BERBEDA
+   * dari yang sedang dipakai komponen yang hidup, jadi setBuka(true) menulis ke
+   * store yang tidak ada subscribed-nya. Akibatnya 'buka' terbaca true di store
+   * harness sementara panel tidak pernah muncul - persis keadaan yang membuat T5
+   * terlihat seperti bug produk. devBridge.ts sendiri sudah memperingatkan ini:
+   * "mistaken for an application bug more than once".
+   *
+   * Yang dipakai di bawah, bukan menebak:
+   *   __ZEPHYR__       = store aplikasi (baca)
+   *   __ZEPHYR_SET__   = setter applySettings yang benar
+   *   __ZEPHYR_SETTINGS__ = hanya buka/tutup HALAMAN Settings, bukan setter
    */
-  await useStore.getState().applySettings({
-    general: { ...useStore.getState().settings.general, uiLang: 'en' },
-  });
-  useToolGate.getState().setBuka(true);
-  await new Promise((r) => setTimeout(r, 700));
+  const S = window.__ZEPHYR_SET__;
+  const uiLangAsli = window.__ZEPHYR__.getState().settings.general.uiLang;
+
+  /* Buka panel AI dulu: tombol ai-toolgate hanya ada kalau AiPanel ter-render,
+     dan panel tidak dirender sampai dock = 'ai'. */
+  if (!document.querySelector('[data-testid="ai-toolgate"]')) {
+    const btn = [...document.querySelectorAll('button')].find((b) =>
+      /agent|assistant|\\bai\\b/i.test((b.getAttribute('aria-label') || '') + ' ' + (b.title || '')));
+    if (btn) { btn.click(); await new Promise((r) => setTimeout(r, 1200)); }
+  }
+  const tombolGate = document.querySelector('[data-testid="ai-toolgate"]');
+  if (!tombolGate) return JSON.stringify({ adaPanel: false, panjang: 0, cuplikan: '', sebab: 'tombol ai-toolgate tidak ada - panel AI belum terbuka' });
+
+  /* Paksa bahasa English lewat store ASLI, lalu buka panel lewat KLIK TOMBOL
+     yang sebenarnya - bukan lewat setBuka. Klik memakai store milik komponen,
+     jadi kalau panel tetap tidak muncul itu berarti produknya, bukan harness. */
+  await S.set({ general: { ...window.__ZEPHYR__.getState().settings.general, uiLang: 'en' } });
+  await new Promise((r) => setTimeout(r, 400));
+
+  const panelSebelum = !!document.querySelector('[data-testid="toolgate"]');
+  if (!panelSebelum) tombolGate.click();
+  await new Promise((r) => setTimeout(r, 1200));
 
   /* Kuncinya data-testid="toolgate". Kalau tidak ketemu, hasilnya TIDAK
      boleh diam-diam jatuh ke document.body: mengukur seluruh halaman bukan
@@ -126,15 +141,13 @@ const layar = await cdp.json(`return JSON.stringify(await (async () => {
   const panel = document.querySelector('[data-testid="toolgate"]');
   const hasil = panel
     ? { panjang: (panel.innerText || '').length, cuplikan: (panel.innerText || '').slice(0, 600), adaPanel: true }
-    : { panjang: 0, cuplikan: '', adaPanel: false };
+    : { panjang: 0, cuplikan: '', adaPanel: false, sebab: 'klik tombol tidak menghasilkan panel' };
 
   /* Kembalikan seperti semula: bahasa dan keadaan panel. Harness yang
      mengubah state global dan tidak memulihkannya membuat uji berikutnya
      bergantung urutan, dan kelihatan seperti produknya yang rusak. */
-  useToolGate.getState().setBuka(bukaAsli);
-  await useStore.getState().applySettings({
-    general: { ...useStore.getState().settings.general, uiLang: uiLangAsli },
-  });
+  if (panel) { tombolGate.click(); await new Promise((r) => setTimeout(r, 400)); }
+  await S.set({ general: { ...window.__ZEPHYR__.getState().settings.general, uiLang: uiLangAsli } });
   return hasil;
 })())`);
 const l = typeof layar === 'string' ? JSON.parse(layar) : layar;
