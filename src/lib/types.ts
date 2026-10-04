@@ -339,6 +339,16 @@ export interface AgentToolRun {
    */
   exitCode?: number;
   stderr?: string;
+
+  /*
+   * Where this call sits inside the message text, so the transcript can
+   * interleave narration and tool rows in the order they happened instead of
+   * stacking every tool above every text. The value is a character offset into
+   * the message's content at the moment the run is appended; the renderer
+   * slices the text at those offsets. Optional: transcripts written before
+   * this existed have no offsets and render the old way (tools, then text).
+   */
+  atChar?: number;
 }
 
 export interface ChatSession {

@@ -36,7 +36,15 @@ const h = await cdp.json(`return JSON.stringify(await (async () => {
   ]);
   await new Promise((r) => setTimeout(r, 700));
 
-  const k = document.querySelector('.composer-status-stack');
+  /*
+   * Radius atas kapsul milik kartu LUAR (.ai-work-stack), bukan section dalam
+   * (.composer-status-stack) yang memang radius 0 by design - ia menempel ke
+   * section di atasnya lewat divider 1px. Struktur berubah 2026-10-03 dan
+   * harness ini masih mengukur tingkat yang salah, jadi ia menolak keadaan
+   * yang benar (kapsul melengkung di atas, lurus di bawah).
+   */
+  const k = document.querySelector('.ai-work-stack');
+  const stack = document.querySelector('.composer-status-stack');
   const input = document.querySelector('.ai-input-row');
   const has = { kapsul: !!k, input: !!input, tulis: String(tulis).slice(0, 100) };
   if (!k || !input) return { ...has, error: 'kapsul atau input tidak ada' };

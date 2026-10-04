@@ -214,8 +214,17 @@ export interface AgentExecResult {
   timedOut: boolean;
 }
 
-export const agentExec = (command: string, timeoutMs?: number) =>
-  invoke<AgentExecResult>('agent_exec', { command, timeoutMs: timeoutMs ?? null });
+/*
+ * `cwd` dikirim eksplisit oleh tool yang tahu workspace aktifnya. Backend
+ * tetap memvalidasinya dan jatuh ke `state.workspace_path()` kalau kosong,
+ * jadi parameter opsional ini aman - hanya berarti pakai tebakan backend lagi.
+ */
+export const agentExec = (command: string, timeoutMs?: number, cwd?: string) =>
+  invoke<AgentExecResult>('agent_exec', {
+    command,
+    timeoutMs: timeoutMs ?? null,
+    cwd: cwd ?? null,
+  });
 
 export interface PatchResult {
   applied: boolean;

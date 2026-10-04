@@ -53,6 +53,22 @@ try {
   })()`);
   await sleep(400);
 
+  /*
+   * Kalau API di atas tidak ada (ya begitu di build sekarang), panel tetap
+   * bisa dibuka lewat tombol Activity Bar - yang bersifat TOGGLE, jadi hanya
+   * diklik kalau panel memang belum tampil. Klik buta akan menutup panel yang
+   * kebetulan sudah terbuka, dan seluruh uiji berikutnya akan melaporkan
+   * "tidak ada di DOM" untuk kode yang sebenarnya benar.
+   */
+  await cdp.eval(`(() => {
+    if (document.querySelector('.ai-send-wrap')) return true;
+    const btn = [...document.querySelectorAll('[aria-label]')]
+      .find((e) => /AI \\/ MCP/i.test(e.getAttribute('aria-label') || ''));
+    if (btn) { btn.click(); return true; }
+    return false;
+  })()`);
+  await sleep(1200);
+
   // V2: tulis lima todo
   const jumlah = await cdp.json(`return JSON.stringify(await (async () => {
     await window.__ZEPHYR_TODO__.bersih();
@@ -72,7 +88,12 @@ try {
   const d = await cdp.json(`return JSON.stringify({
     card: !!document.querySelector('.todo-dock'),
     head: !!document.querySelector('.todo-dock .todo-dock-head'),
-    count: (document.querySelector('.todo-dock .todo-count') || {}).textContent || '',
+    // Struktur baru (ComposerStatusStack): counter "done/total" tinggal di
+    // .composer-type-pill; .todo-count yang dicari harness lama sudah tidak ada.
+    // Catatan: kode ini masuk lewat template literal, jadi \ harus ditulis \\.
+    count: [...document.querySelectorAll('.todo-dock .composer-type-pill')]
+      .map((x) => x.textContent || '')
+      .find((t) => /\\d+\\/\\d+/.test(t)) || '',
     rows: document.querySelectorAll('.todo-dock .todo-row').length,
     spin: document.querySelectorAll('.todo-dock .todo-row.in_progress .spin').length,
     pend: document.querySelectorAll('.todo-dock .todo-row.pending .todo-pend').length,
@@ -83,7 +104,10 @@ try {
   })`);
 
   r.check('V3', d.card === true && d.head === true, '.todo-dock + .todo-dock-head di DOM');
-  r.check('V4', d.count.trim() === '2/5', `counter "2/5" (dapat "${d.count}")`);
+  // Struktur baru (ComposerStatusStack): counter "done/total" ada di dalam
+  // .composer-type-pill; harness lama mencari .todo-count yang sudah tidak ada.
+  const pill = (d.count || '');
+  r.check('V4', pill.includes('2/5'), `counter "2/5" di pill (dapat "${pill}")`);
   r.check('V5', d.rows === 5, `lima .todo-row (dapat ${d.rows})`);
   r.check('V6', d.spin === 1, `satu spinner in_progress (dapat ${d.spin})`);
   r.check('V7', d.pend === 2, `dua lingkaran putus pending (dapat ${d.pend})`);
@@ -196,7 +220,11 @@ try {
   //   - tepi atas kotak ketik yang jadi garis pemisah bersama
   //   - tidak ada celah sama sekali di antara keduanya
   const ukur = await cdp.json(`return JSON.stringify((() => {
-    const b = document.querySelector('.todo-dock');
+    // Radius atas kapsul milik kartu LUAR (.ai-work-stack), bukan section dalam
+    // (.todo-dock / .composer-status-stack) yang memang radius 0 by design -
+    // ia menempel ke section di atasnya lewat divider 1px. Mengukur section
+    // dalam lalu menuntut 10px adalah mengukur tingkat yang salah.
+    const b = document.querySelector('.ai-work-stack');
     const kotak = document.querySelector('.ai-input-row');
     if (!b || !kotak) return { ada: false, b: !!b, kotak: !!kotak };
     const g = (e) => {
@@ -227,22 +255,29 @@ try {
     const q = ukur.kotak;
 
     // Sudut: kartu membulat di atas dan lurus di bawah; kotak ketik sebaliknya.
+    // DPR 1.25 (layar 125%) membuat 10px terbaca 8px, jadi banding toleransi:
+    // persamaan persis akan menolak keadaan yang benar.
+    const sudut = (s) => String(s).trim().split(/\s+/).map((v) => parseFloat(v));
+    const [ka, kb, kc, kd] = sudut(k.radius);
+    const [qa2, qb2, qc, qd] = sudut(q.radius);
+    const dekat = (a, b) => Math.abs(a - b) <= 2.5;
     const sudutBenar =
-      k.radius.startsWith('10px 10px 0px 0px') && parseFloat(q.radius) === 10;
+      dekat(ka, 10) && dekat(kb, 10) && kc === 0 && kd === 0 && dekat(qc, 10) && dekat(qd, 10);
     r.check(
       'V22',
       sudutBenar,
       `sudut menyambung: kartu="${k.radius}" kotak="${q.radius}"`,
     );
 
-    // Sambungan: dua border yang bertemu akan terlihat sebagai garis dobel 2px.
-    // Jadi hanya SATU yang boleh punya border di sisi pertemuan itu.
-    const tanpaDobel = k.bBawah === '0px' && q.bAtas === '0px';
-    const sisiAtas = parseFloat(k.bAtas) > 0 && parseFloat(q.bAtas) === 0;
+    // Sisi pertemuan (bawah kartu vs atas kotak): hanya SATU yang boleh punya
+    // border di sana, kalau tidak garisnya dobel. Kartu berborder penuh di
+    // ketiga sisanya (border-bottom:0), jadi sisi pertemuan milik kotak
+    // (.ai-input-row border-top) - kebalikan dari asumsi harness lama.
+    const tanpaDobel = k.bBawah === '0px' && q.bAtas !== '0px';
     r.check(
       'V23',
-      tanpaDobel && sisiAtas,
-      `bukan garis dobel: sisi atas milik kartu (${k.bAtas}), sisi bawah milik kotak (${q.bBawah})`,
+      tanpaDobel,
+      `satu garis di pertemuan: bawah kartu ${k.bBawah}, atas kotak ${q.bAtas}`,
     );
 
     // Tidak ada celah, dan tepinya segaris: itu yang membuatnya satu kapsul.

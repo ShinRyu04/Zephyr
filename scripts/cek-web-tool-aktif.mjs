@@ -12,7 +12,7 @@
 const PORT = process.argv[2] || '9223';
 
 const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-const target = list.find((t) => t.url && t.url.includes('localhost:5173'));
+const target = list.find((t) => t.url && /localhost:517\d/.test(t.url));
 if (!target) {
   console.error('Zephyr (dev) tidak ditemukan. Targets: ' + list.map((t) => t.title).join(', '));
   process.exit(1);

@@ -108,6 +108,10 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['suggest_command', 'Terminal', 'appWrite', true, 'Sarankan satu perintah shell sebagai kartu - user yang menjalankannya'],
   ['get_terminal_output', 'Terminal', 'read', false, 'Baca potongan terakhir scrollback terminal aktif'],
   ['open_preview', 'Terminal', 'appWrite', true, 'Buka pratinjau localhost di pane browser'],
+
+  /* Penalaran - 2 (pola OpenJarvis: think.py + calculator.py, tanpa efek samping) */
+  ['think', 'Penalaran', 'read', false, 'Catat penalaran selangkah sebelum bertindak'],
+  ['calculator', 'Penalaran', 'read', false, 'Hitung ekspresi aritmetika secara deterministik'],
 ];
 
 /* ------------------------------------------------------------------ */

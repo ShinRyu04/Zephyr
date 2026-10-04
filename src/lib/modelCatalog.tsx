@@ -202,6 +202,29 @@ export const ALL_MODELS: ModelDef[] = PROVIDERS.flatMap((p) =>
 
 export const MODEL_BY_ID = new Map(ALL_MODELS.map((m) => [m.id, m]));
 
+/**
+ * Fallback candidates, read straight from the catalogue.
+ *
+ * `freeText` is carried per model here on purpose: the agent's fallback search
+ * has to know that custom/local providers have no real alternatives, and that
+ * fact lives on the provider - so it is resolved once, here, instead of being
+ * re-derived (or forgotten) by every caller.
+ *
+ * Never hand-write this list elsewhere: it would drift from the models the app
+ * actually offers and quietly rot.
+ */
+export const MODEL_FALLBACK: readonly {
+  id: string;
+  provider: string;
+  ctx?: number;
+  freeText: boolean;
+}[] = ALL_MODELS.map((m) => ({
+  id: m.id,
+  provider: m.provider,
+  ctx: m.ctx,
+  freeText: PROVIDER_BY_ID.get(m.provider)?.freeText ?? false,
+}));
+
 export function findModel(modelId: string, providerId?: string): ModelDef {
   const p = PROVIDER_BY_ID.get(providerId ?? 'custom') ?? PROVIDERS[PROVIDERS.length - 1];
 

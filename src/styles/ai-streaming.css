@@ -400,6 +400,20 @@
   background: color-mix(in srgb, var(--danger) 22%, var(--surface-3));
 }
 
+/*
+ * Resume-from-checkpoint button. Same round size as its siblings so the row
+ * does not shift when it appears; accent-tinted rather than solid accent so
+ * it reads as "continue", not as a second primary send.
+ */
+.ai-input-side .ai-round-btn.is-resume {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-3));
+  color: var(--accent);
+}
+
+.ai-input-side .ai-round-btn.is-resume:hover {
+  background: color-mix(in srgb, var(--accent) 32%, var(--surface-3));
+}
+
 .ai-input-side .ai-round-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

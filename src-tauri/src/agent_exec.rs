@@ -1,6 +1,7 @@
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 use tauri::State;
@@ -82,6 +83,44 @@ fn kill_tree(child: &tokio::process::Child) {
     let _ = child.id();
 }
 
+/**
+ * Folder kerja untuk satu pemanggilan `agent_exec`.
+ *
+ * `cwd` datang dari frontend dan TIDAK dipercaya: jalur ini menjalankan
+ * perintah arbitrer dari model, jadi string mentah dari UI tidak boleh
+ * menentukan folder. Aturannya dua lapis, keduanya memakai helper yang sudah
+ * ada di `paths` (dipakai juga oleh `tasks` dan `pty`):
+ *
+ * 1. `validate_cwd` menolak apa pun yang bukan folder yang benar-benar ada -
+ *    path hilang dan path berupa berkas ikut ditolak.
+ * 2. Kalau ada workspace aktif, folder hasil validasi harus berada DI DALAM
+ *    workspace itu. Tanpa lapis ini, cwd palsu bisa menjalankan perintah di
+ *    folder mana saja di mesin user.
+ *
+ * Kalau tidak ada workspace aktif, `validate_cwd` saja yang berlaku: hanya
+ * path yang benar-benar ada di disk yang lolos.
+ */
+fn tentukan_cwd(state: &AppState, cwd: Option<String>) -> ZResult<PathBuf> {
+    let Some(raw) = cwd.filter(|c| !c.trim().is_empty()) else {
+        return state
+            .workspace_path()
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()));
+    };
+
+    let dir = crate::paths::validate_cwd(std::path::Path::new(&raw))?;
+
+    if let Some(ws) = state.workspace_path() {
+        if !crate::paths::is_inside(&ws, &dir) {
+            return Err(ZephyrError::InvalidInput(format!(
+                "cwd di luar workspace: {}",
+                dir.to_string_lossy()
+            )));
+        }
+    }
+
+    Ok(dir)
+}
+
 async fn jalan(
     child: &mut tokio::process::Child,
     out_pipe: &mut Option<tokio::process::ChildStdout>,
@@ -117,6 +156,7 @@ pub async fn agent_exec(
     state: State<'_, AppState>,
     command: String,
     timeout_ms: Option<u64>,
+    cwd: Option<String>,
 ) -> ZResult<ExecResult> {
     crate::workspace::ensure_trusted(&state, "Menjalankan perintah")?;
 
@@ -124,9 +164,7 @@ pub async fn agent_exec(
     if perintah.is_empty() {
         return Err(ZephyrError::InvalidInput("empty command".into()));
     }
-    let cwd = state
-        .workspace_path()
-        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
+    let cwd = tentukan_cwd(&state, cwd)?;
 
     let ms_cap = timeout_ms
         .unwrap_or(DEFAULT_TIMEOUT_MS)

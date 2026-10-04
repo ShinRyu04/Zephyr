@@ -226,8 +226,119 @@ function opsiCari(a: Record<string, unknown>, query: string): SearchOpts {
   };
 }
 
+/**
+ * Evaluator aritmetika tanpa eval: tokenizer + shunting-yard + RPN.
+ *
+ * Kenapa tidak eval/Function: ekspresi datang dari model (dan kadang dari
+ * teks user) - eval mengeksekusi kode apa pun, sedangkan yang dibutuhkan
+ * hanya angka dan operator. Mendukung + - * / ^ % ( ), unary minus, desimal,
+ * dan notasi 1e3. Operator tak dikenal, kurung tak seimbang, atau pembagian
+ * nol melempar - dan toolGate mengubahnya jadi hasil tool yang gagal, bukan
+ * crash.
+ */
+function hitungAman(expr: string): string {
+  const s = String(expr ?? '').trim();
+  if (!s) throw new Error('Ekspresi kosong.');
+  if (s.length > 500) throw new Error('Ekspresi terlalu panjang (maks 500 karakter).');
+  if (!/^[0-9+\-*/^%().,\s eE]+$/.test(s)) {
+    throw new Error('Hanya angka dan operator + - * / ^ % ( ) yang diterima.');
+  }
+  const normal = s.replace(/,/g, '.');
+  type Tok = { t: 'n'; v: number } | { t: 'op'; v: string } | { t: '(' } | { t: ')' };
+  const toks: Tok[] = [];
+  let i = 0;
+  const pres: Record<string, number> = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, '^': 3, u: 4 };
+  const kanan = new Set(['^', 'u']);
+  const angkaRe = /^(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?/;
+  let harapOperand = true;
+  while (i < normal.length) {
+    const c = normal[i];
+    if (c === ' ' || c === '\t') { i++; continue; }
+    if (c === '(') { toks.push({ t: '(' }); i++; harapOperand = true; continue; }
+    if (c === ')') { toks.push({ t: ')' }); i++; harapOperand = false; continue; }
+    if (harapOperand && (c === '+' || c === '-')) {
+      toks.push({ t: 'op', v: c === '-' ? 'u' : 'p' });
+      i++; continue;
+    }
+    if (!harapOperand && '+-*/%^'.includes(c)) { toks.push({ t: 'op', v: c }); i++; harapOperand = true; continue; }
+    const m = angkaRe.exec(normal.slice(i));
+    if (m) {
+      const v = Number(m[0]);
+      if (!Number.isFinite(v)) throw new Error(`Angka tidak valid: ${m[0]}`);
+      toks.push({ t: 'n', v }); i += m[0].length; harapOperand = false; continue;
+    }
+    throw new Error(`Karakter tak terduga: '${c}'`);
+  }
+  // Shunting-yard ke RPN.
+  const out: Tok[] = [];
+  const ops: Tok[] = [];
+  for (const tk of toks) {
+    if (tk.t === 'n') { out.push(tk); continue; }
+    if (tk.t === '(') { ops.push(tk); continue; }
+    if (tk.t === ')') {
+      let ketemu = false;
+      while (ops.length) {
+        const o = ops.pop()!;
+        if (o.t === '(') { ketemu = true; break; }
+        out.push(o);
+      }
+      if (!ketemu) throw new Error('Kurung tutup tanpa pasangan.');
+      continue;
+    }
+    const o1 = (tk as { v: string }).v;
+    if (o1 === 'p') continue; // unary plus: tidak mengubah apa pun
+    while (ops.length) {
+      const top = ops[ops.length - 1];
+      if (top.t !== 'op') break;
+      const o2 = (top as { v: string }).v;
+      const p1 = pres[o1] ?? 0; const p2 = pres[o2] ?? 0;
+      if (p2 > p1 || (p2 === p1 && !kanan.has(o1))) out.push(ops.pop()!);
+      else break;
+    }
+    ops.push(tk);
+  }
+  while (ops.length) {
+    const o = ops.pop()!;
+    if (o.t === '(') throw new Error('Kurung buka tanpa pasangan.');
+    out.push(o);
+  }
+  // Evaluasi RPN.
+  const st: number[] = [];
+  for (const tk of out) {
+    if (tk.t === 'n') { st.push(tk.v); continue; }
+    const op = (tk as { v: string }).v;
+    if (op === 'u') {
+      const a = st.pop();
+      if (a === undefined) throw new Error('Ekspresi tidak lengkap.');
+      st.push(-a); continue;
+    }
+    const b = st.pop(); const a = st.pop();
+    if (a === undefined || b === undefined) throw new Error('Ekspresi tidak lengkap.');
+    let h: number;
+    switch (op) {
+      case '+': h = a + b; break;
+      case '-': h = a - b; break;
+      case '*': h = a * b; break;
+      case '/':
+        if (b === 0) throw new Error('Pembagian dengan nol.');
+        h = a / b; break;
+      case '%':
+        if (b === 0) throw new Error('Modulo dengan nol.');
+        h = a % b; break;
+      case '^': h = Math.pow(a, b); break;
+      default: throw new Error(`Operator tak dikenal: ${op}`);
+    }
+    if (!Number.isFinite(h)) throw new Error('Hasil di luar jangkauan angka.');
+    st.push(h);
+  }
+  if (st.length !== 1) throw new Error('Ekspresi tidak lengkap.');
+  const hasil = st[0];
+  const teks = Number.isInteger(hasil) ? String(hasil) : String(Math.round(hasil * 1e12) / 1e12);
+  return `${s} = ${teks}`;
+}
+
 /* ------------------------------------------------------------------ */
-/* 26 tool                                                            */
+/* 28 tool                                                            */
 /* ------------------------------------------------------------------ */
 
 export const TOOL_BAWAAN: AgentTool[] = [
@@ -704,7 +815,14 @@ export const TOOL_BAWAAN: AgentTool[] = [
        * dengan cepat, agen mengira belum jalan, mengirim lagi - berulang.
        */
       const { perintah: aman, diubah } = kutipUrlDiPerintah(command);
-      const r = await cmd.agentExec(aman, bacaAngka(a.timeout));
+      /*
+       * `cwd` dikirim dari sini, bukan diserahkan ke tebakan backend. Backend
+       * menyimpan workspace-nya sendiri; kalau state itu basi, `cd` melaporkan
+       * folder install aplikasi, bukan folder yang sedang dikerjakan user.
+       * `akar()` adalah sumber yang sama dengan yang dipakai `bash_background`.
+       * Backend tetap memvalidasi path-nya sebelum menjalankan apa pun.
+       */
+      const r = await cmd.agentExec(aman, bacaAngka(a.timeout), akar());
       const bagian = [
         `exit=${r.exitCode}${r.timedOut ? ' (WAKTU HABIS)' : ''} (${r.ms} ms)`,
         diubah ? '(URL dikutip otomatis agar & tidak memecah perintah)' : '',
@@ -1316,6 +1434,43 @@ export const TOOL_BAWAAN: AgentTool[] = [
       }
       return `Pratinjau localhost dibuka (pane ${paneId}): ${url}`;
     },
+  },
+
+  /* ---------------- Penalaran (pola OpenJarvis) ---------------- */
+
+  {
+    spec: {
+      name: 'think',
+      description:
+        'Catat penalaran selangkah sebelum bertindak: apa yang diketahui, apa yang belum, dan rencana langkah berikutnya. Tidak menyentuh apa pun - hanya membuat rencanamu terlihat di transkrip supaya bisa diperiksa. Pakai sebelum rangkaian tool yang panjang atau keputusan yang sulit dibalik.',
+      parameters: {
+        type: 'object',
+        properties: {
+          thought: { type: 'string', description: 'Penalaranmu: fakta, keraguan, dan rencana.' },
+        },
+        required: ['thought'],
+      },
+    },
+    run: async (a) => {
+      const thought = wajib(a, 'thought');
+      return potong(`[pemikiran tercatat]\n${thought}`);
+    },
+  },
+
+  {
+    spec: {
+      name: 'calculator',
+      description:
+        'Hitung ekspresi aritmetika secara deterministik: tambah, kurang, kali, bagi, pangkat, persen, dan tanda kurung. Pakai ini daripada menghitung di kepala - model sering salah pada angka besar atau desimal bertingkat. Hanya angka dan operator, bukan kode.',
+      parameters: {
+        type: 'object',
+        properties: {
+          expression: { type: 'string', description: 'Ekspresi, mis. (1200 * 1.11) + 45.' },
+        },
+        required: ['expression'],
+      },
+    },
+    run: async (a) => hitungAman(wajib(a, 'expression')),
   },
 ];
 

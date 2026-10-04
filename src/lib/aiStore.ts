@@ -7,7 +7,8 @@ import {
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
-import { findModel, PROVIDER_BY_ID } from './modelCatalog';
+import { findModel, MODEL_FALLBACK, PROVIDER_BY_ID } from './modelCatalog';
+import { useSettingsUi } from './settingsStore';
 import { expandPromptBody } from './promptLibrary';
 import { stopLoop, startLoop, parseInterval, formatInterval, MAX_LOOP_RUNS, type LoopState } from './loopJadwal';
 import { activeSelection } from './editorRegistry';
@@ -27,6 +28,10 @@ import {
   AUTO_COMPACT_AT,
   AUTO_COMPACT_KEEP,
   AUTO_COMPACT_COOLDOWN_STEPS,
+  ringkasUkuran,
+  pilihModelCadangan,
+  PAYLOAD_MAX_CHARS,
+  ukuranPayload,
 } from './contextBudget';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
 import { TOOL_CATALOG } from './tediTools/catalog';
@@ -135,7 +140,23 @@ import { useProblems } from './problemsStore';
 import { tx, tf } from './i18n';
 import { useBicaraStore } from './bicaraStore';
 import { teksUntukDibaca } from './useBicara';
-let ctxCache: { at: number; teks: string } | null = null;
+/*
+ * Only the Rust agent context is cached here.
+ *
+ * This used to be one blob holding BOTH `cmd.agentContext()` and the project
+ * summary, behind a 60s TTL. That made the workspace part of the context stale
+ * on purpose: the workspace can change at any moment with no notification, so
+ * a TTL is the wrong tool for it - a user who opens a folder and immediately
+ * asks a question is served the pre-open context, and the model stays blind
+ * while the explorer shows the tree.
+ *
+ * So the split is: workspace-derived text is rebuilt every turn (it is cheap -
+ * one capped directory walk), and only the expensive, workspace-independent
+ * Rust context keeps a TTL. Even that entry is keyed by the workspace it was
+ * built for, so switching folders drops it without waiting for anyone to call
+ * a reset.
+ */
+let ctxCache: { at: number; teks: string; workspace: string | null } | null = null;
 const CTX_TTL_MS = 60_000;
 
 /*
@@ -326,17 +347,41 @@ export async function jalankanAgentToolCached(name: string, args: Record<string,
 
 /*
  * Live editor state, rebuilt on every agent turn instead of cached. The model
- * needs to know which file is in front of the user right now, what the terminal
- * is showing, and what the diagnostics say. Without it the agent asks "which
- * file?" on a question the user already answered by opening a tab, and it
- * cannot connect a failing command in the terminal to the task it was given.
+ * needs to know which folder the project lives in, which file is in front of
+ * the user right now, what the terminal is showing, and what the diagnostics
+ * say. Without it the agent asks "which folder?" - or spends four tool calls
+ * on `cd`, `powershell`, `list` - to answer a question the explorer is
+ * already showing, and it cannot connect a failing command in the terminal to
+ * the task it was given.
  */
 function konteksEditor(): string {
   const s = useStore.getState() as unknown as {
     tabs?: { id: string; path?: string; title?: string; unsaved?: boolean }[];
     activeTabId?: string | null;
+    workspace?: string | null;
   };
   const baris: string[] = [];
+  const workspace = s.workspace ?? null;
+  /*
+   * The working directory, stated outright and unconditionally.
+   *
+   * The project summary used to be the ONLY place a workspace path reached the
+   * model, and it is built from the file listing: it returns nothing when
+   * `listWorkspaceFiles` comes back empty (a folder just created, an index
+   * that has not settled) and nothing at all before the first turn warms it.
+   * That is exactly the window where a model spends eight tool calls - Inspect,
+   * cd, cd, powershell, List, cmd - to learn which folder it is standing in.
+   *
+   * Read straight from the store and never cached: the workspace can change
+   * with no notification at all, so a stale path is worse than no path. When
+   * there is genuinely no workspace the line says so, because an honest "none
+   * open" stops the model inventing a directory instead of guessing one.
+   */
+  baris.push(
+    workspace
+      ? `- Active workspace: ${workspace.replace(/\\/g, '/')}`
+      : '- Active workspace: none open (no workspace folder is open - ask the user to open one instead of assuming a path)',
+  );
   const semuaTab = s.tabs ?? [];
   const tabAktif = semuaTab.find((t) => t.id === s.activeTabId);
   baris.push(
@@ -402,30 +447,62 @@ async function konteksKegagalan(): Promise<string> {
 }
 
 export async function konteksAgent(): Promise<string> {
-  const now = Date.now();
+  const workspace = useStore.getState().workspace ?? null;
   const hidup = konteksEditor();
   const kegagalan = await konteksKegagalan();
   const gabung = (...blok: string[]) => blok.filter((s) => s && s.trim()).join('\n\n');
-  try {
-    // The Rust context and the project summary are cached because they are
-    // expensive; the live blocks above are not, since they change with every click.
-    if (ctxCache && now - ctxCache.at < CTX_TTL_MS) {
-      return gabung(ctxCache.teks, hidup, kegagalan);
+
+  /*
+   * Cached: the Rust context. Expensive to produce, and it does not describe
+   * the workspace, so a TTL is safe here - as long as the entry is tied to the
+   * folder it was built for. A workspace change invalidates it immediately,
+   * even if nothing called `resetCacheKonteks`.
+   */
+  let dariRust = '';
+  if (ctxCache && ctxCache.workspace === workspace && Date.now() - ctxCache.at < CTX_TTL_MS) {
+    dariRust = ctxCache.teks;
+  } else {
+    try {
+      dariRust = await cmd.agentContext();
+      ctxCache = { at: Date.now(), teks: dariRust, workspace };
+    } catch {
+      dariRust = ctxCache?.teks ?? '';
     }
-    const [dariRust, proyek] = await Promise.all([
-      cmd.agentContext(),
-      import('./projectContext').then((m) => m.ringkasanProyek()),
-    ]);
-    const teks = gabung(dariRust, proyek);
-    ctxCache = { at: now, teks };
-    return gabung(teks, hidup, kegagalan);
-  } catch {
-    return gabung(ctxCache?.teks ?? '', hidup, kegagalan);
   }
+
+  /*
+   * Not cached: the project summary. It is pure workspace state - the folder
+   * path, the stack, the file tree - and it is one capped walk, so rebuilding
+   * it per turn is cheap next to serving a stale one. `ringkasanProyek` keeps
+   * its own in-flight de-duplication, so parallel callers still share a single
+   * walk instead of each starting their own.
+   */
+  let proyek = '';
+  try {
+    proyek = await (await import('./projectContext')).ringkasanProyek();
+  } catch {
+    /* a bonus block; the workspace line in `hidup` still stands on its own */
+  }
+
+  return gabung(dariRust, proyek, hidup, kegagalan);
 }
 
-export function resetKonteksAgent() {
+/**
+ * Drop every cached context block, both here and in `projectContext`.
+ *
+ * The workspace-dependent blocks are not cached at all any more, so this only
+ * clears the Rust context - but it is exported because the workspace actions in
+ * `store` already call a reset on open and close, and that call must keep
+ * meaning "nothing about this folder is remembered".
+ */
+export function resetCacheKonteks(): void {
   ctxCache = null;
+  void import('./projectContext').then((m) => m.resetRingkasanProyek());
+}
+
+/** Existing call site name for `resetCacheKonteks`; kept so callers still compile. */
+export function resetKonteksAgent(): void {
+  resetCacheKonteks();
 }
 
 export async function oneShot(prompt: string): Promise<string> {
@@ -444,20 +521,31 @@ export async function oneShot(prompt: string): Promise<string> {
   return (res.content ?? '').trim();
 }
 
-export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
+export function ringkasRiwayat(history: AgentMsg[], cap: number = PAYLOAD_MAX_CHARS): AgentMsg[] {
   const system = history.filter((m) => m.role === 'system');
   const sisanya = history.filter((m) => m.role !== 'system');
   if (sisanya.length === 0) return history;
+  
 
   const batas = Math.max(0, sisanya.length - HISTORY_KEEP_STEPS * 2);
   const lama = sisanya.slice(0, batas);
-  const baru = sisanya.slice(batas);
+  /*
+   * Images only matter when the model is looking at them right now. Anything
+   * older than the working window is dead weight: the model already acted on
+   * it, and re-sending megabytes of base64 every step is what made long runs
+   * crawl. Strip them from the outgoing copy (history itself keeps them, so a
+   * retry or a re-read still finds them where it left them).
+   */
+  const baru = sisanya.slice(batas).map((m, i, arr) =>
+    i < arr.length - 1 && m.images?.length ? { ...m, images: undefined } : m,
+  );
 
   const ringkas = lama.map((m) => {
+    const tanpaGambar = m.images?.length ? { ...m, images: undefined } : m;
     if (m.role === 'tool') {
       const isi = String(m.content ?? '');
       return {
-        ...m,
+        ...tanpaGambar,
         content:
           isi.length > HISTORY_TOOL_CHARS
             ? `${isi.slice(0, HISTORY_TOOL_CHARS)}\n[… result truncated, ${isi.length - HISTORY_TOOL_CHARS} more characters are not sent]`
@@ -467,12 +555,12 @@ export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
     if (m.role === 'assistant') {
       const teks = String(m.content ?? '');
       return {
-        ...m,
+        ...tanpaGambar,
         content: teks.length > HISTORY_TOOL_CHARS ? `${teks.slice(0, HISTORY_TOOL_CHARS)}…` : teks,
         toolCalls: undefined,
       };
     }
-    return m;
+    return tanpaGambar;
   });
 
   const jumlahTool = lama.filter((m) => m.role === 'tool').length;
@@ -482,12 +570,15 @@ export function ringkasRiwayat(history: AgentMsg[]): AgentMsg[] {
         `If you need the detail, re-run the relevant tool — do not invent its contents.]`
       : '';
 
-  return [
+  const hasil = [
     ...system,
     ...(catatan ? [{ role: 'user' as const, content: catatan }] : []),
     ...ringkas,
     ...baru,
   ];
+  // Age-based trimming above is blind to request SIZE; this is the pass that
+  // respects the gateway's body limit.
+  return system.length > 0 ? ringkasUkuran(hasil, cap) : hasil;
 }
 
 /*
@@ -852,9 +943,10 @@ export function resetAutoCompact() {
  * The watchdog resets the timer every time a chunk arrives. If it is truly quiet
  * for more than AGENT_IDLE_MS, the step is considered failed and the agent status is released.
  */
-// Rust's receive idle timeout is 180s. Give Rust time to report that failure,
-// while keeping the frontend watchdog bounded below the 300s total request limit.
-const AGENT_IDLE_MS = 210_000;
+// Rust's receive idle timeout is 300s (aligned below). The frontend watchdog
+// sits above it so Rust reports the stall first with its own message, and the
+// frontend only fires when Rust itself never answered at all.
+const AGENT_IDLE_MS = 360_000;
 let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
 
 /*
@@ -960,13 +1052,22 @@ async function tungguProviderPulihAgent(
 ): Promise<boolean> {
   if (agentBatal) return false;
   const i = Math.min(fase, TUNGGU_PULIH_DELAYS.length - 1);
-  const detik = Math.round(TUNGGU_PULIH_DELAYS[i] / 1000);
-  setProgress({
-    agentPhase: 'thinking',
-    agentCurrentTool:
-      `Menunggu provider pulih (${i + 1}/3, ~${detik} dtk) karena ${labelRetryAgent(error)} — Stop untuk hentikan`,
-  });
-  if (!(await tungguRetryAgent(TUNGGU_PULIH_DELAYS[i]))) return false;
+  const total = TUNGGU_PULIH_DELAYS.reduce((a, b) => a + b, 0);
+  const sisaFase = TUNGGU_PULIH_DELAYS.slice(i).reduce((a, b) => a + b, 0);
+  // Countdown in 5s ticks so a 60s wait shows it is still alive instead of
+  // looking frozen; interruption is checked on every tick.
+  const target = Date.now() + TUNGGU_PULIH_DELAYS[i];
+  for (;;) {
+    if (agentBatal) return false;
+    const sisa = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+    setProgress({
+      agentPhase: 'thinking',
+      agentCurrentTool:
+        `Menunggu provider pulih (${i + 1}/3, ${sisa} dtk, total ~${Math.round(sisaFase / 1000)} dtk dari ~${Math.round(total / 1000)} dtk) karena ${labelRetryAgent(error)} — Stop untuk hentikan`,
+    });
+    if (sisa <= 0) break;
+    if (!(await tungguRetryAgent(Math.min(5000, sisa * 1000)))) return false;
+  }
   return !agentBatal;
 }
 
@@ -988,7 +1089,7 @@ function agentWatchdogArm() {
     // If no step is waiting (e.g. it hung outside the loop),
     // force the agent status released so the UI and subagents are not locked.
     if (!r) {
-      useAi.setState({ agentBusy: false, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null });
+      useAi.setState({ agentBusy: false, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
     }
   }, AGENT_IDLE_MS);
 }
@@ -1156,6 +1257,7 @@ export interface AgentProgress {
   agentStepIndex: number;
   agentStepLimit: number;
   agentLastProgressAt: number | null;
+  agentStartedAt: number | null;
 }
 
 interface AiState {
@@ -1224,6 +1326,21 @@ interface AiState {
   agentStepIndex: number;
   agentStepLimit: number;
   agentLastProgressAt: number | null;
+  agentStartedAt: number | null;
+
+  /*
+   * Last failed provider-interrupted run, kept so the user can continue from
+   * where it stopped instead of redoing finished work. Cleared when a new run
+   * starts or when the user resumes it. Deliberately NOT persisted to disk:
+   * the history holds tool results that reference a live session.
+   */
+  agentResume: {
+    teks: string;
+    history: AgentMsg[];
+    images?: string[];
+    langkah: number;
+    at: number;
+  } | null;
 
   agentSteps: AgentStep[];
 
@@ -1394,6 +1511,14 @@ interface AiActions {
    * that wait times out the message is queued instead of thrown away.
    */
   kirimSekarang: (teks: string, images?: string[]) => Promise<void>;
+  /**
+   * Continue the last provider-interrupted run from its checkpoint.
+   *
+   * Re-sends the same task with the saved history (finished tool results and
+   * all), so the model picks up after the last completed step instead of
+   * redoing them. Returns false when there is nothing to resume.
+   */
+  lanjutkanAgent: () => Promise<boolean>;
   cancel: () => Promise<void>;
 
   onChunk: (c: AiChunk) => void;
@@ -1462,10 +1587,12 @@ export const useAi = create<AiStore>((set, get) => ({
   agentStepIndex: 0,
   agentStepLimit: MAX_AGENT_STEPS,
   agentLastProgressAt: null,
+  agentStartedAt: null,
   agentSteps: [],
   agentConfirm: null,
   agentTanya: null,
   agentTodos: [],
+  agentResume: null,
   commandSuggestion: null,
   promptHistory: [],
   promptHistoryIdx: -1,
@@ -1483,7 +1610,7 @@ export const useAi = create<AiStore>((set, get) => ({
     agentStopReason = null;
     agentStepResolve = null;
     agentConfirmResolve = null;
-    set({ pending: null, agentBusy: false, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null });
+    set({ pending: null, agentBusy: false, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
 
     const st = useStore.getState().settings.models;
     const dikenal = (id: string) => PROVIDER_BY_ID.has(id);
@@ -1658,6 +1785,12 @@ export const useAi = create<AiStore>((set, get) => ({
       return { goals: next };
     });
   },
+  lanjutkanAgent: async () => {
+    const cp = get().agentResume;
+    if (!cp || get().agentBusy || get().pending) return false;
+    await get().send(cp.teks, cp.images);
+    return true;
+  },
   kirimAntrian: async (idx) => {
     const pos = posisiAntrian(get().antrian, idx);
     const item = get().antrian[pos];
@@ -1712,6 +1845,12 @@ export const useAi = create<AiStore>((set, get) => ({
    */
   kirimSekarang: async (teks, images) => {
     const teksBersih = (teks ?? '').trim();
+    // "lanjut" with a pending checkpoint continues the interrupted run from
+    // where it stopped instead of starting a new one on top of the failure.
+    if (/^\s*lanjut(kan)?\s*[.!?…]*\s*$/i.test(teksBersih ?? '') && get().agentResume && !get().agentBusy && !get().pending) {
+      await get().lanjutkanAgent();
+      return;
+    }
     const imgs = images ?? get().draftImages;
     if (!teksBersih && imgs.length === 0) return;
     if (!get().pending && !get().agentBusy) {
@@ -1868,12 +2007,20 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   setReasoningEffort: (e) => set({ reasoningEffort: e }),
-  setAgentProgress: (progress) => set(() => ({
-    ...progress,
-    agentLastProgressAt: progress.agentLastProgressAt !== undefined
-      ? progress.agentLastProgressAt
-      : progress.agentPhase === 'idle' ? null : Date.now(),
-  })),
+  setAgentProgress: (progress) => set((s) => {
+    const mulai = progress.agentStartedAt !== undefined
+      ? progress.agentStartedAt
+      // A step index rolling back to zero marks a fresh run, not a rewind:
+      // the old start time would make the elapsed clock lie.
+      : (progress.agentStepIndex === 0 && s.agentStartedAt == null ? Date.now() : s.agentStartedAt);
+    return {
+      ...progress,
+      agentStartedAt: mulai,
+      agentLastProgressAt: progress.agentLastProgressAt !== undefined
+        ? progress.agentLastProgressAt
+        : progress.agentPhase === 'idle' ? null : Date.now(),
+    };
+  }),
   agentPutuskan: (setujui) => {
     if (agentConfirmResolve) {
       const r = agentConfirmResolve;
@@ -2475,7 +2622,11 @@ export const useAi = create<AiStore>((set, get) => ({
           id: reqId,
           provider: def.provider,
           model: def.id,
-          messages: history,
+          // Same gateway ceiling as the agent path. Plain chat only LOOKED
+          // immune because one message is small, but a long conversation
+          // plus a few screenshots builds the same oversized body - it just
+          // takes more turns to get there.
+          messages: ringkasUkuran(history),
           baseUrl: cfg.baseUrl || undefined,
           maxTokens: def.maxOut ?? 2048,
           effort: get().reasoningEffort ?? undefined,
@@ -2597,9 +2748,13 @@ export const useAi = create<AiStore>((set, get) => ({
       agentStepIndex: 0,
       agentStepLimit: MAX_AGENT_STEPS,
       agentLastProgressAt: Date.now(),
+      agentStartedAt: Date.now(),
       agentConfirm: null,
-  agentTanya: null,
+      agentTanya: null,
       agentTodos: [],
+      // A new run invalidates any earlier checkpoint: the reader is starting
+      // over on purpose, and a stale resume point would silently reappear.
+      agentResume: null,
       commandSuggestion: null,
     }));
     resetAgentToolCache();
@@ -2612,6 +2767,17 @@ export const useAi = create<AiStore>((set, get) => ({
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
 
     const history: AgentMsg[] = [];
+    // A resume reuses the checkpointed history verbatim (finished tool results
+    // included): that is the whole point — the model continues after the last
+    // completed step instead of redoing finished work. Fresh runs build the
+    // history from the visible session as before.
+    const checkpoint = get().agentResume;
+    let langkahAwal = 0;
+    if (checkpoint && checkpoint.teks === content) {
+      history.push(...checkpoint.history);
+      langkahAwal = checkpoint.langkah;
+      set({ agentResume: null });
+    }
     const prev = (get().activeSession()?.messages ?? []).filter(
       (m) => !m.error && (m.content.trim() || m.images?.length || m.image) && m.id !== botMsg.id,
     );
@@ -2669,7 +2835,9 @@ export const useAi = create<AiStore>((set, get) => ({
     let akhir = '';
     let taskComplete = false;
     let navigationOpened = false;
-    let langkah = 0;
+    // A resumed run keeps counting from its checkpoint so the step meter and
+    // the max-step guard see the real position, not a fresh zero.
+    let langkah = langkahAwal;
     let agentFailure: { category: AgentFailureCategory; message: string } | null = null;
     /* Anti-loop fingerprints; see `catatAksiBerulang` for the why. */
     agenAksiBerulang.clear();
@@ -2775,6 +2943,13 @@ export const useAi = create<AiStore>((set, get) => ({
         get().setAgentProgress({ agentPhase: 'thinking', agentCurrentTool: null, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
         let res: AgentStepResult;
         let faseTungguPulih = 0;
+        /*
+         * Active model definition for this step, mutable so a provider failure
+         * can switch to a fallback model without losing the run.
+         */
+        let activeDef = def;
+        let activeCfg = cfg;
+        let sudahFallback = false;
         for (let retry = 0; ; retry++) {
           res = await new Promise<AgentStepResult>((resolve) => {
             const attemptId = nextId(`attempt-${botMsg.id}`);
@@ -2826,15 +3001,27 @@ export const useAi = create<AiStore>((set, get) => ({
             activeAgentAttempt = attemptId;
             activeAgentUiId = botMsg.id;
             agentStepResolve = resolve;
+            const toolSpecs = agentToolSpecs({ alat: [...useToolGate.getState().aktif] });
+            /*
+             * The tool list rides in every request but is not part of the
+             * message history, so a cap measured on messages alone lets the
+             * body overshoot by however large the catalogue is. Measuring it
+             * here - instead of reserving a fixed number - keeps the cap right
+             * when tools are added or switched off, and for every provider:
+             * the ceiling follows the actual request rather than a constant
+             * that quietly goes stale.
+             */
+            const reserveTools = ukuranPayload([toolSpecs]) + 2048;
+            const capUntukPesan = Math.max(20_000, PAYLOAD_MAX_CHARS - reserveTools);
             cmd
               .aiToolChatStream({
                 id: attemptId,
-                provider: def.provider,
-                model: def.id,
-                messages: ringkasRiwayat(history),
-                tools: agentToolSpecs({ alat: [...useToolGate.getState().aktif] }),
-                baseUrl: cfg.baseUrl || undefined,
-                maxTokens: def.maxOut ?? 2048,
+                provider: activeDef.provider,
+                model: activeDef.id,
+                messages: ringkasRiwayat(history, capUntukPesan),
+                tools: toolSpecs,
+                baseUrl: activeCfg.baseUrl || undefined,
+                maxTokens: activeDef.maxOut ?? 2048,
                 effort: get().reasoningEffort ?? undefined,
               })
               .catch((e) => {
@@ -2881,6 +3068,49 @@ export const useAi = create<AiStore>((set, get) => ({
               );
               faseTungguPulih += 1;
               if (lanjut && !agentBatal) continue;
+            }
+
+            /*
+             * Retry ladder and wait-recover both exhausted on a RETRYABLE
+             * provider error (429/5xx). Before killing the run, try one
+             * different model.
+             *
+             * WHY this is what big apps do and Zephyr did not: they hold a
+             * fleet of upstreams and move to another when one coughs. Zephyr
+             * had exactly one endpoint, so a single overloaded model ended
+             * hours of work even though the SAME account could serve a
+             * different model right now.
+             *
+             * Only for retryable provider errors, and only once per run: a
+             * wrong-model or bad-key failure would just fail again on the
+             * fallback and waste two round trips. Ordering prefers another
+             * model under the SAME provider first (same key, same gateway,
+             * only the model changes), then a different provider with a key
+             * already configured. Model history is untouched, so no tool call
+             * is replayed and no local write is duplicated.
+             */
+            if (bolehRetry && !sudahFallback) {
+              const cadangan = pilihModelCadangan(
+                activeDef,
+                MODEL_FALLBACK,
+                (p) => useSettingsUi.getState().hasKey(p),
+              );
+              if (cadangan) {
+                sudahFallback = true;
+                // Say the switch out loud: a silent model change would leave
+                // the user reading a run that suddenly answers differently
+                // with no idea a fallback happened.
+                get().setAgentProgress({
+                  agentPhase: 'thinking',
+                  agentCurrentTool: `${activeDef.id} bermasalah (${labelRetryAgent(res.error!)}) - beralih ke ${cadangan.id}${cadangan.alasan}`,
+                  agentStepIndex: langkah + 1,
+                  agentStepLimit: MAX_AGENT_STEPS,
+                });
+                activeDef = findModel(cadangan.id, cadangan.provider);
+                activeCfg = useStore.getState().settings.models.providers[cadangan.provider] ?? {};
+                if (agentBatal) break;
+                continue;
+              }
             }
             break;
           }
@@ -2947,9 +3177,37 @@ export const useAi = create<AiStore>((set, get) => ({
         history.push({ role: 'assistant', content: res.content, toolCalls: callsToDispatch });
         if (callsToDispatch.length === 0) break;
 
-        /* Start eligible read calls together; dispatch below preserves order and all gates. */
+        /*
+         * Start eligible calls together; dispatch below preserves order and all gates.
+         *
+         * Writes to DIFFERENT files are independent of each other the same way
+         * reads are: two edits on two files cannot conflict, so waiting for
+         * the first file's round-trip before starting the second only burns
+         * provider time. Same-file writes stay serial (grouped by file below)
+         * because order matters there — an edit after a write must see the
+         * write. Anything without a single target file (shell, browser, git
+         * writes, multi-file refactors) also stays serial.
+         */
+        const targetBerkas = (tc: AgentToolCall): string | null => {
+          if (tc.name !== 'write_file' && tc.name !== 'edit') return null;
+          const p = (tc.args as Record<string, unknown> | undefined)?.path;
+          return typeof p === 'string' && p.trim() ? p.trim() : null;
+        };
+        const berkasDipakaiBatch = new Set<string>();
         const canParallelize = (tc: AgentToolCall): boolean => {
-          if (TOOL_BACA_DIPARALELKAN.has(tc.name)) return true;
+          if (TOOL_BACA_DIPARALELKAN.has(tc.name)) {
+            // A read of a file being written in the same batch must not race
+            // it: it would sometimes read the pre-write content and hand the
+            // model a stale file.
+            if (tc.name === 'read_file') {
+              const p = (tc.args as Record<string, unknown> | undefined)?.path;
+              if (typeof p === 'string' && berkasDipakaiBatch.has(p.trim())) return false;
+            }
+            return true;
+          }
+          const f = targetBerkas(tc);
+          if (f && !berkasDipakaiBatch.has(f)) { berkasDipakaiBatch.add(f); return true; }
+          return false;
           const action = String((tc.args as Record<string, unknown> | undefined)?.action ?? '').trim();
           if (tc.name === 'git') return action === 'status' || action === 'diff' || action === 'log' || action === 'branches';
           if (tc.name === 'notes') return action === 'list';
@@ -3252,9 +3510,20 @@ export const useAi = create<AiStore>((set, get) => ({
               x.id === sessionId
                 ? {
                     ...x,
-                    messages: x.messages.map((m) =>
-                      m.id === botMsg.id ? { ...m, tools: [...(m.tools ?? []), run] } : m,
-                    ),
+                    messages: x.messages.map((m) => {
+                      if (m.id !== botMsg.id) return m;
+                      /*
+                       * Stamp where this tool sits in the narration, so the
+                       * transcript can interleave text and tool rows in the
+                       * order they actually happened. The offset is the text
+                       * length at append time; the renderer slices the final
+                       * content at these points. No offset survives a message
+                       * rebuild, so messages written before this existed keep
+                       * rendering the old way (all tools, then all text).
+                       */
+                      const runDenganPosisi = { ...run, atChar: m.content.length };
+                      return { ...m, tools: [...(m.tools ?? []), runDenganPosisi] };
+                    }),
                   }
                 : x,
             ),
@@ -3433,9 +3702,36 @@ export const useAi = create<AiStore>((set, get) => ({
     // any earlier answer as context, but never let it hide a later provider error.
     let finalError: string | null = null;
     if (agentFailure) {
-      finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.`;
+      // Which failures leave a resume point.
+      //
+      // A provider failure and an idle timeout are both "we stopped mid-step,
+      // but every step before this one is real work in `history`". Resuming
+      // replays that history, so the agent picks up at the stalled step instead
+      // of restarting the task. Both are safe to resume because the stall is a
+      // property of the transport, not of the request: the same history that
+      // stalled once is exactly what a resume would resend, which is why the
+      // longer idle budget above is the actual fix and this is the safety net.
+      //
+      // Cancelled must NOT resume: the user ended the run, so it stays ended.
+      // A guard trip (step limit) must not either: re-running it would hit the
+      // same wall immediately, and "continue" would be a lie.
+      const bisaLanjut =
+        (agentFailure.category === 'provider' || agentFailure.category === 'timeout') &&
+        akhir.trim().length > 0;
+      finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ''}`;
       const context = akhir.trim();
       akhir = context ? `${context}\n\n${finalError}` : finalError;
+      if (bisaLanjut) {
+        set({
+          agentResume: {
+            teks: content,
+            history: [...history],
+            images: agentImages.length ? agentImages : undefined,
+            langkah,
+            at: Date.now(),
+          },
+        });
+      }
     }
 
     // This is the single agent exit cleanup path. It also clears approval state
@@ -3458,6 +3754,15 @@ export const useAi = create<AiStore>((set, get) => ({
   agentTanya: null,
       agentStepIndex: 0,
       agentLastProgressAt: null,
+      agentStartedAt: null,
+      /*
+       * A task the model marked in_progress is not running any more. Leaving it
+       * that way made the list claim "Running" forever after a provider
+       * failure, which reads as "still working" when the run is in fact dead -
+       * the panel showed a spinner-free but permanently busy list. Reset it to
+       * pending: it is unfinished, and pending is exactly that.
+       */
+      agentTodos: agentFailure ? s.agentTodos.map((t) => (t.status === 'in_progress' ? { ...t, status: 'pending' as const, startedAt: undefined, endedAt: undefined } : t)) : s.agentTodos,
       agentSteps: [...s.agentSteps, { kind: 'selesai', at: Date.now() }],
       sessions: s.sessions.map((x) =>
         x.id === sessionId

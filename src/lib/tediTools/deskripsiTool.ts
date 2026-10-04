@@ -58,6 +58,10 @@ export const DESKRIPSI_TOOL_ID: Record<string, string> = {
   suggest_command: 'Sarankan satu perintah shell sebagai kartu - user yang menjalankannya',
   get_terminal_output: 'Baca potongan terakhir scrollback terminal aktif',
   open_preview: 'Buka pratinjau localhost di pane browser',
+  /* Pola OpenJarvis (think.py, Apache-2.0): scratchpad penalaran tanpa efek samping. */
+  think: 'Catat penalaran selangkah sebelum bertindak',
+  /* Pola OpenJarvis (calculator.py, Apache-2.0): aritmetika deterministik tanpa eval. */
+  calculator: 'Hitung ekspresi aritmetika secara deterministik',
   inspect: 'Periksa command, pane, tab, workspace, atau setelan yang tersedia',
   run_command: 'Jalankan sebuah command aplikasi berdasarkan id-nya',
   open_file: 'Buka berkas di editor, bisa langsung ke baris tertentu',
@@ -116,6 +120,8 @@ export const DESKRIPSI_TOOL_EN: Record<string, string> = {
   suggest_command: 'Suggest a shell command as a card - the user runs it themselves',
   get_terminal_output: 'Read the latest chunk of the active terminal scrollback',
   open_preview: 'Open a localhost preview in the browser pane',
+  think: 'Record one step of reasoning before acting',
+  calculator: 'Evaluate an arithmetic expression deterministically',
   inspect: 'Inspect the available commands, panes, tabs, workspaces, or settings',
   run_command: 'Run an application command by its id',
   open_file: 'Open a file in the editor, optionally at a specific line',

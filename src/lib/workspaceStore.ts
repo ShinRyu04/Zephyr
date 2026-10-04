@@ -82,9 +82,17 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
     try {
       const info = await cmd.workspaceAddRoot(path);
       terapkan(set, info);
-      
 
-      await useExplorer.getState().loadDir(path, true);
+      // Root baru harus langsung jadi konteks kerja: tanpa ini `useStore.workspace`
+      // masih menunjuk root lama (atau null) sehingga ringkasanProyek() tetap kosong
+      // dan cache konteks agent/aturan tidak pernah di-reset.
+      await get().jadikanAktif(path);
+
+      // syncWorkspaceLokal mengosongkan cache explorer, jadi root lain dimuat ulang.
+      const aktif = get().activeRoot;
+      for (const r of get().roots) {
+        if (r.path !== aktif) await useExplorer.getState().loadDir(r.path, true);
+      }
       notifyInfo(`Root ditambahkan: ${namaAkhir(path)}`, { source: 'Workspace' });
       return true;
     } catch (e) {

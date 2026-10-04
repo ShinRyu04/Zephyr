@@ -9,8 +9,8 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, State};
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
-const RECEIVE_IDLE_TIMEOUT_SECS: u64 = 180;
-const TOTAL_CALL_TIMEOUT_SECS: u64 = 300;
+const RECEIVE_IDLE_TIMEOUT_SECS: u64 = 300;
+const TOTAL_CALL_TIMEOUT_SECS: u64 = 420;
 
 // Receive timeout limits an idle gap between bytes; the total timeout still bounds the full call.
 
@@ -132,6 +132,26 @@ fn header_sensitif(nama: &str) -> bool {
  * The body is re-serialised per attempt because a `Request` is consumed by
  * `send_json`; rebuilding it is cheap and the only correct option.
  */
+/// Baca `Retry-After` jadi milidetik: bentuk "120" (detik) maupun
+/// "Sun, 06 Nov 1994 08:49:37 GMT" (HTTP-date).
+///
+/// Bentuk kedua diparse sendiri dengan chrono yang sudah jadi dependensi, bukan
+/// menambah crate baru hanya untuk satu header. Mengembalikan `None` kalau
+/// tidak keduanya, supaya pemanggil jatuh ke jeda bawaan.
+fn retry_after_ms(v: &str) -> Option<u64> {
+    let teks = v.trim();
+    if let Ok(detik) = teks.parse::<f64>() {
+        return Some((detik * 1000.0) as u64);
+    }
+    let target = chrono::DateTime::parse_from_rfc2822(teks).ok()?;
+    let delta = target.with_timezone(&chrono::Utc).signed_duration_since(chrono::Utc::now());
+    u64::try_from(delta.num_milliseconds()).ok()
+}
+
+/// Ubah `Retry-After` versi HTTP-date (bukan angka detik) jadi milidetik dari sekarang.
+///
+/// Pakai waktu absolut milik server, bukan `now() + nilai`: HTTP-date sudah
+/// berisi waktu yang diminta, jadi menjumlahkan ke "sekarang" akan salah.
 fn kirim_dengan_ulang(
     agent: &ureq::Agent,
     prepared: &Prepared,
@@ -161,8 +181,27 @@ fn kirim_dengan_ulang(
                  */
                 let bisa_ulang = status == 429 || (500..=599).contains(&status);
                 if bisa_ulang && percobaan + 1 < attempts {
+                    /*
+                     * A gateway that answers 429/503 often says WHEN it will be
+                     * ready. Retrying on a fixed 400ms/1.2s ladder then either
+                     * wastes the window it was offered or hammers a node it
+                     * just asked us to leave alone, which is how one overloaded
+                     * upstream turns into a retry storm. Honour the server when
+                     * it speaks, and keep the ladder only as the fallback.
+                     *
+                     * Capped at 20s: the frontend already runs its own visible
+                     * retry ladder on top, and blocking here longer than that
+                     * would make Stop unresponsive.
+                     */
+                    let jeda = resp
+                        .headers()
+                        .get("retry-after")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(retry_after_ms)
+                        .filter(|ms| *ms > 0 && *ms <= 20_000)
+                        .unwrap_or_else(|| JEDA_MS[percobaan.min(1)]);
                     terakhir = Some(format!("HTTP {status}"));
-                    std::thread::sleep(std::time::Duration::from_millis(JEDA_MS[percobaan.min(1)]));
+                    std::thread::sleep(std::time::Duration::from_millis(jeda));
                     continue;
                 }
                 return Ok(resp);

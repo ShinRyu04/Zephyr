@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Fragment } from 'react';
-import Markdown from 'react-markdown';
+import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAi, isDestructive } from '../../lib/aiStore';
 import { barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
@@ -155,6 +155,79 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   );
 }
 
+/*
+ * Markdown props, declared once.
+ *
+ * A message renders Markdown twice: the narration above each tool row, and the
+ * answer at the end. Both were written out in full, so the plugin array, the
+ * `pre` passthrough and the `a` override existed in two identical copies - and
+ * were rebuilt on every render, for every message in the transcript, since
+ * `remarkPlugins={[remarkGfm]}` and a fresh object literal allocate each time.
+ * A 200-message transcript paid that twice per message per render for props
+ * whose values never change. Only the `code` handler genuinely differs: the
+ * narration blocks stay plain code, while the answer turns a single-word code
+ * span into a clickable file reference.
+ */
+const MD_PLUGINS = [remarkGfm];
+
+/* `pre` exists only to be unwrapped: CodeBlock renders its own <pre>. */
+const MdPre: NonNullable<Components['pre']> = ({ children }) => <>{children}</>;
+
+const MdLink: NonNullable<Components['a']> = ({ href, children }) => (
+  <a href={href} target="_blank" rel="noreferrer noopener">
+    {children}
+  </a>
+);
+
+const KODE_LANG = /language-([\w-]+)/;
+
+/** Narration between tool rows: every code span is a plain code block. */
+const MD_NARASI: Components = {
+  pre: MdPre,
+  code: ({ className, children }) => (
+    <CodeBlock
+      code={String(children ?? '')}
+      lang={(KODE_LANG.exec(className ?? '')?.[1] ?? '').toLowerCase()}
+    />
+  ),
+  a: MdLink,
+};
+
+/**
+ * The closing answer, where a bare path like `src/lib/types.ts:12` opens the
+ * file instead of sitting there as plain text.
+ */
+const MD_JAWABAN: Components = {
+  pre: MdPre,
+  code: ({ className, children }) => {
+    const text = String(children ?? '').replace(/\n$/, '');
+    const m = KODE_LANG.exec(className ?? '');
+    if (!m && !text.includes('\n')) {
+      const ref = REF_RE.exec(text);
+      if (ref) {
+        return (
+          <button
+            className="ai-file-ref"
+            data-testid="ai-file-ref"
+            title={`Open ${ref[1]}${ref[2] ? `:${ref[2]}` : ''}`}
+            onClick={() => {
+              void import('../../lib/store').then(({ useStore }) => {
+                const line = ref[2] ? Number(ref[2]) : 1;
+                void useStore.getState().openPathAt(ref[1], line);
+              });
+            }}
+          >
+            {text}
+          </button>
+        );
+      }
+      return <code className="ai-inline">{text}</code>;
+    }
+    return <CodeBlock code={text} lang={(m?.[1] ?? '').toLowerCase()} />;
+  },
+  a: MdLink,
+};
+
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   /*
    * Narration slices, one per tool, from the `atChar` offsets stamped at
@@ -164,23 +237,41 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    * offsets (written before `atChar`) slice nothing and the tail carries the
    * whole text - the legacy layout: all tools, then all text. Computed ONCE
    * per render so both the tool block and the tail read the same numbers.
+   *
+   * `atChar` is an offset into the message TEXT, so that first sentence is a
+   * promise: each offset has to still point at the same place in the text that
+   * is on screen, otherwise the rows and the prose stop describing the same
+   * run. Two ways to break it, both repaired here rather than in aiStore -
+   * this is the one place that knows how a row and a slice are supposed to
+   * line up, and aiStore only ever appends to the text:
+   *
+   *   - The text is shorter than it was. An offset then points past the end of
+   *     what is left, and the row's narration reads as empty. The clamp below
+   *     pulls the offset onto the last character that still exists instead.
+   *   - The offsets stopped ascending. They are stamped in call order, so they
+   *     only move backwards when the same message is stamped again after its
+   *     text restarted - a retry or a resumed run keeps the old rows and
+   *     counts the new text from zero. This used to sort the offsets and then
+   *     index that sorted list by ROW position, which handed the first run's
+   *     rows the second run's opening text. Walking the rows in order and
+   *     flooring every bound at the running cursor gives each row its OWN text:
+   *     nothing is handed to the wrong tool, and no span is used twice.
    */
   const alatNarasi = msg.tools ?? [];
   const isiNarasi = msg.content ?? '';
   const adaOffsetNarasi = alatNarasi.some((x) => typeof x.atChar === 'number');
-  let potongNarasi: string[] = alatNarasi.map(() => '');
+  const potongNarasi: string[] = alatNarasi.map(() => '');
   let ekorNarasi = adaOffsetNarasi ? '' : isiNarasi;
   if (adaOffsetNarasi) {
-    const batas = alatNarasi
-      .map((x) => Math.max(0, Math.min(isiNarasi.length, x.atChar ?? 0)))
-      .sort((a, b) => a - b);
     let a0 = 0;
-    potongNarasi = alatNarasi.map((_, idx) => {
-      const b1 = batas[idx] ?? isiNarasi.length;
-      const s = isiNarasi.slice(a0, b1);
+    for (const [i, run] of alatNarasi.entries()) {
+      /* No offset means no position is known for this row: it claims no
+         narration and the cursor stays where the previous row left it. */
+      const kasar = typeof run.atChar === 'number' ? run.atChar : a0;
+      const b1 = Math.max(a0, Math.min(isiNarasi.length, kasar));
+      potongNarasi[i] = isiNarasi.slice(a0, b1);
       a0 = b1;
-      return s;
-    });
+    }
     ekorNarasi = isiNarasi.slice(a0);
   }
   /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
@@ -528,20 +619,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 <Fragment key={i}>
                   {narasi.trim() ? (
                     <div className="ai-segmen" data-testid="ai-segmen" data-segmen={i}>
-                      <Markdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          pre: ({ children }) => <>{children}</>,
-                          code: ({ className, children }) => (
-                            <CodeBlock code={String(children ?? '')} lang={(/language-([\w-]+)/.exec(className ?? '')?.[1] ?? '').toLowerCase()} />
-                          ),
-                          a: ({ href, children }) => (
-                            <a href={href} target="_blank" rel="noreferrer noopener">
-                              {children}
-                            </a>
-                          ),
-                        }}
-                      >
+                      <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
                         {narasi}
                       </Markdown>
                     </div>
@@ -788,45 +866,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               {msg.reasoning && !msg.streaming && (
                 <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} />
               )}
-              <Markdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                
-                pre: ({ children }) => <>{children}</>,
-                code: ({ className, children }) => {
-                  const text = String(children ?? '').replace(/\n$/, '');
-                  const m = /language-([\w-]+)/.exec(className ?? '');
-                  if (!m && !text.includes('\n')) {
-                    
-                    const ref = REF_RE.exec(text);
-                    if (ref) {
-                      return (
-                        <button
-                          className="ai-file-ref"
-                          data-testid="ai-file-ref"
-                          title={`Open ${ref[1]}${ref[2] ? `:${ref[2]}` : ''}`}
-                          onClick={() => {
-                            void import('../../lib/store').then(({ useStore }) => {
-                              const line = ref[2] ? Number(ref[2]) : 1;
-                              void useStore.getState().openPathAt(ref[1], line);
-                            });
-                          }}
-                        >
-                          {text}
-                        </button>
-                      );
-                    }
-                    return <code className="ai-inline">{text}</code>;
-                  }
-                  return <CodeBlock code={text} lang={(m?.[1] ?? '').toLowerCase()} />;
-                },
-                a: ({ href, children }) => (
-                  <a href={href} target="_blank" rel="noreferrer noopener">
-                    {children}
-                  </a>
-                ),
-              }}
-            >
+              <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
               {ekorNarasi}
             </Markdown>
             </>

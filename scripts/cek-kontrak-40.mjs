@@ -19,18 +19,32 @@ const WEB = [
   'browser_download_url', 'system_browser_open',
 ];
 
+/*
+ * Kontrak web: BUKAN "semua mati", tapi daftar-MATI eksplisit (lihat
+ * tool-web-dan-penjelasan-ai.md). Lima tool berbahaya mati default; tool web
+ * yang lain bisa dipakai sejak lahir. Harness lama memeriksa "tidak ada tool
+ * web yang menyala" dan menolak desain itu - daftar nyala membuat tool baru
+ * lahir mati, dan itu sumber kegagalan diam-diam yang nyata.
+ */
+const WEB_MATI = [
+  'browser_click', 'browser_type', 'browser_download_url',
+  'browser_close', 'system_browser_open',
+];
+
 const hasil = await cdp.json(`return JSON.stringify(await (async () => {
   const { AGENT_TOOLS } = await import('/src/lib/agentTools.ts');
   const { useToolGate, TOOL_INTI } = await import('/src/lib/toolGate.ts');
   const aktif = useToolGate.getState().aktif;
   const nama = AGENT_TOOLS.map((t) => t.spec.name);
   const web = ${JSON.stringify(WEB)};
+  const webMatiHarap = ${JSON.stringify(WEB_MATI)};
   return {
     terpasang: nama.length,
     inti: TOOL_INTI.length,
     aktif: aktif.size,
     intiKurang: TOOL_INTI.filter((n) => !aktif.has(n)),
     webMenyala: web.filter((w) => aktif.has(w)),
+    webMatiAktif: webMatiHarap.filter((w) => aktif.has(w)),
     popoverSubagents: !!document.querySelector('[data-testid="ai-subagents-trigger"]'),
   };
 })())`);
@@ -78,7 +92,7 @@ cek('inti di katalog = inti di sekat', hasil.inti === jumlah.intiDariKatalog, {
   harap: jumlah.intiDariKatalog,
 });
 cek('43 tool inti AKTIF', hasil.intiKurang.length === 0, { kurang: hasil.intiKurang });
-cek('tidak ada tool web yang menyala', hasil.webMenyala.length === 0, { bocor: hasil.webMenyala });
+cek('tool web daftar-MATI tidak menyala', hasil.webMatiAktif.length === 0, { bocor: hasil.webMatiAktif });
 cek('popover subagents sudah hilang', hasil.popoverSubagents === false);
 
 console.log('\n== ' + lulus + '/' + (lulus + gagal) + ' lulus ==');

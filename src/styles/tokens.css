@@ -10,6 +10,10 @@
  * the override lives in the `[data-theme='…']` block at the bottom. */
 
 :root {
+  /* Radius kapsul AI (kartu status + kotak ketik). Didefinisikan di sini agar
+     getComputedStyle mengembalikan nilai resolve, bukan string var() mentah. */
+  --ai-dock-radius: 10px;
+
   /* permukaan (alias kontrak fase 13 → palet fase 08) */
   --bg0: var(--bg);
   --bg1: var(--surface);

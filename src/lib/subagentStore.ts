@@ -84,9 +84,11 @@ export function tulisDiskDilarang(namaTool: string): boolean {
 
 export const MAX_SUB_STEPS = 15;
 
+// Display names for spawned subagents, assigned in order (NAMA[i % NAMA.length]).
+// Awan names feel at home in Zephyr; they are display-only, never sent to the model.
 const NAMA = [
-  'Comet', 'Odyssey', 'Nova', 'Atlas', 'Orion', 'Vega',
-  'Lyra', 'Pulsar', 'Zenith', 'Quasar', 'Helix', 'Cobalt',
+  'Nakroth', 'Florentino', 'Zephys', 'Astra', 'Vesper', 'Kaito',
+  'Lumi', 'Rovetta', 'Sefira', 'Draska', 'Elowen', 'Marin',
 ];
 
 export type SubStatus = 'menunggu' | 'jalan' | 'selesai' | 'gagal' | 'batal';

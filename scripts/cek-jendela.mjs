@@ -1,75 +1,44 @@
-// cek-jendela.mjs — buktikan tidak ada jendela konsol yang muncul.
-//
-// Cara uji yang tepat: proses anak Zephyr yang berupa konsol (conhost.exe)
-// HANYA dibuat kalau ada proses anak tanpa CREATE_NO_WINDOW. Jadi jumlah
-// conhost keturunan zephyr.exe adalah buktinya — bukan hitungan global
-// (yang ikut menghitung terminal milik aplikasi lain).
-//
-// Pakai: node scripts/cek-jendela.mjs
+/* Pastikan jendela yang hidup benar-benar Zephyr pada kode terbaru, bukan
+ * halaman lain yang kebetulan memakai port CDP yang sama. */
+const PORT = process.argv[2] || '9223';
+const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+const page = list.find((t) => t.type === 'page' && t.url && !t.url.startsWith('devtools'));
+if (!page) {
+  console.log('tidak ada halaman');
+  process.exit(1);
+}
+console.log('judul:', page.title, '| url:', page.url);
 
-import { execSync } from 'node:child_process';
-import { Cdp, sleep } from 'file:///D:/Zephyr/scripts/lib-cdp.mjs';
-
-const PS = `
-$all = Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name
-$root = $all | Where-Object { $_.Name -eq 'zephyr.exe' }
-$ids = New-Object System.Collections.Generic.HashSet[int]
-foreach ($r in $root) { [void]$ids.Add([int]$r.ProcessId) }
-$changed = $true
-while ($changed) {
-  $changed = $false
-  foreach ($p in $all) {
-    if ($ids.Contains([int]$p.ParentProcessId) -and -not $ids.Contains([int]$p.ProcessId)) {
-      [void]$ids.Add([int]$p.ProcessId); $changed = $true
-    }
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+let id = 0;
+const pending = new Map();
+const send = (method, params) =>
+  new Promise((res) => {
+    const i = ++id;
+    pending.set(i, res);
+    ws.send(JSON.stringify({ id: i, method, params }));
+  });
+ws.onmessage = (e) => {
+  const m = JSON.parse(e.data);
+  if (m.id && pending.has(m.id)) {
+    pending.get(m.id)(m);
+    pending.delete(m.id);
   }
-}
-$konsole = @($all | Where-Object { $ids.Contains([int]$_.ProcessId) -and $_.Name -in @('conhost.exe','OpenConsole.exe') })
-Write-Output $konsole.Count
-`.replace(/\n/g, '; ');
+};
+await new Promise((r) => (ws.onopen = r));
 
-function hitungKonsol() {
-  const out = execSync(`powershell -NoProfile -Command "${PS}"`, { encoding: 'utf8' });
-  return parseInt(out.trim().split(/\s+/).pop(), 10);
-}
-
-const sebelum = hitungKonsol();
-console.log('conhost keturunan zephyr (sebelum):', sebelum);
-
-const { cdp } = await Cdp.attach('9223');
-await sleep(300);
-
-// 1) jalur `reg query` (dulu memunculkan jendela tiap buka app)
-await cdp.runAsync(`
-  await window.__ZEPHYR_SET__.publicModels();
-  return 'ok';
-`);
-await sleep(1200);
-const a = hitungKonsol();
-console.log('setelah publicModels (reg query) :', a);
-
-// 2) jalur git (spawn `git`, dan `taskkill` saat batal)
-await cdp.runAsync(`
-  await window.__ZEPHYR_GIT__.refresh();
-  return 'ok';
-`);
-await sleep(1500);
-const b = hitungKonsol();
-console.log('setelah git refresh              :', b);
-
-// 3) jalur diagnostik (`git --version`)
-await cdp.runAsync(`
-  if (window.__ZEPHYR_DIAG__) { await window.__ZEPHYR_DIAG__.get(); }
-  return 'ok';
-`);
-await sleep(1500);
-const c = hitungKonsol();
-console.log('setelah diagnostik               :', c);
-
-const akhir = Math.max(a, b, c);
-console.log('');
-console.log(
-  akhir <= sebelum ? 'LULUS' : 'GAGAL',
-  `— jendela konsol anak: ${sebelum} → ${akhir} (harus tidak bertambah)`,
-);
-process.exit(akhir <= sebelum ? 0 : 1);
+const js = String.raw`(async () => {
+  const t = await (await fetch('/src/lib/tediTools/builtins.ts')).text();
+  const rb = await (await fetch('/src/lib/aiStore.ts')).text();
+  return JSON.stringify({
+    zephyr: document.title.includes('Zephyr'),
+    adaCalculator: t.includes("name: 'calculator'"),
+    adaThink: t.includes("name: 'think'"),
+    adaFallback: rb.includes('pilihModelCadangan'),
+    adaCapPayload: rb.includes('PAYLOAD_MAX_CHARS'),
+    toolTerpasang: window.__ZEPHYR_TOOLS__ ? window.__ZEPHYR_TOOLS__.nama().length : null,
+  });
+})()`;
+const m = await send('Runtime.evaluate', { expression: js, awaitPromise: true, returnByValue: true });
+console.log(m.result?.result?.value ?? JSON.stringify(m.result).slice(0, 300));
+ws.close();
