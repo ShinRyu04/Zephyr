@@ -87,6 +87,26 @@ fn host_lokal(url: &str) -> bool {
     u.contains("127.0.0.1") || u.contains("localhost") || u.contains("[::1]")
 }
 
+/* Ollama runs on the user's own machine, so it needs no key and has its own
+   address. Both are applied here rather than in the settings UI: a user who
+   picks Ollama should never be asked for a key that does not exist, and the
+   default address is a property of the provider, not something to retype. */
+const OLLAMA_BASE: &str = "http://localhost:11434/v1";
+
+fn base_suara(provider: &str, base_url: Option<&String>) -> String {
+    if provider == "ollama" {
+        let dari_user = base_url.map(|b| b.trim()).filter(|b| !b.is_empty());
+        return match dari_user {
+            Some(b) => b.to_string(),
+            None => OLLAMA_BASE.to_string(),
+        };
+    }
+    base_url
+        .map(|b| b.trim().to_string())
+        .filter(|b| !b.is_empty())
+        .unwrap_or_else(|| "https://api.openai.com/v1".to_string())
+}
+
 fn key_suara(state: &AppState, provider: &str) -> String {
     let khusus = format!("{provider}-voice");
     let k = crate::secrets::key_for(state, &khusus);
@@ -251,14 +271,9 @@ pub fn ai_transcribe(
     let bahasa = lang.as_deref().filter(|s| !s.is_empty());
 
     /* A local server needs no key. A cloud one does, and saying so beats
-       sending an empty Authorization header and reporting the 401 as a bug. */
-    let base_mentah = base_url.clone().unwrap_or_default();
-    if key.is_empty() && !base_mentah.is_empty() && !host_lokal(&base_mentah) {
-        return Err(ZephyrError::InvalidInput(format!(
-            "No API key for {provider} yet — add one in Settings → AI Models"
-        )));
-    }
-    if key.is_empty() && base_mentah.is_empty() && matches!(provider.as_str(), "gemini" | "anthropic" | "groq" | "openai") {
+    sending an empty Authorization header and reporting the 401 as a bug. */
+    let base_mentah = base_suara(&provider, base_url.as_ref());
+    if key.is_empty() && !host_lokal(&base_mentah) {
         return Err(ZephyrError::InvalidInput(format!(
             "No API key for {provider} yet — add one in Settings → AI Models"
         )));
@@ -310,8 +325,7 @@ pub fn ai_transcribe(
          */
         _ => {
             let m = model.unwrap_or_else(|| "whisper-1".into());
-            let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
-            let url = format!("{}/audio/transcriptions", base.trim_end_matches('/'));
+            let url = format!("{}/audio/transcriptions", base_mentah.trim_end_matches('/'));
             transcribe_openai_compatible(&url, &key, &m, bahasa, &audio)
         }
     };
@@ -393,7 +407,7 @@ pub fn ai_speak(
         ));
     }
     let key = key_suara(&state, &provider);
-    let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+    let base = base_suara(&provider, base_url.as_ref());
     /* Same rule as transcription: no key is fine on a local server, an error on a cloud one. */
     if key.is_empty() && !host_lokal(&base) {
         return Err(ZephyrError::InvalidInput(format!(

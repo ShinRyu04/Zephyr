@@ -85,6 +85,7 @@ export default function VoiceSection() {
 
   const SUARA_PROVIDERS = [
     { value: 'openai', label: 'OpenAI' },
+    { value: 'ollama', label: 'Ollama (local, no key)' },
     { value: 'groq', label: 'Groq' },
     { value: 'gemini', label: 'Google Gemini' },
     { value: 'custom', label: 'Custom' },
@@ -243,6 +244,16 @@ export default function VoiceSection() {
                 />
               </Row>
 
+              {(v?.neuralProvider || '') === 'ollama' ? (
+                <Row
+                  label={tr('Voice API key')}
+                  hint={tr('Ollama runs on this machine and needs no key. Leave the field empty.')}
+                >
+                  <span data-testid="voice-neural-key-lokal">
+                    {tr('No key needed (local)')}
+                  </span>
+                </Row>
+              ) : (
               <Row
                 label={tr('Voice API key')}
                 hint={tr('Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.')}
@@ -252,6 +263,7 @@ export default function VoiceSection() {
                   testid="voice-neural-key"
                 />
               </Row>
+              )}
 
               <Row
                 label={tr('Voice server URL')}

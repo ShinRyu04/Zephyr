@@ -30,6 +30,7 @@ export default function MicSection() {
   const set = (bagian: NonNullable<typeof m>) => patch({ mic: bagian });
   const SUARA_PROVIDERS = [
     { value: 'openai', label: 'OpenAI' },
+    { value: 'ollama', label: 'Ollama (local, no key)' },
     { value: 'groq', label: 'Groq' },
     { value: 'gemini', label: 'Google Gemini' },
     { value: 'custom', label: 'Custom' },
@@ -95,6 +96,16 @@ export default function MicSection() {
             />
           </Row>
 
+          {(m?.provider || '') === 'ollama' ? (
+            <Row
+              label={tr('Voice API key')}
+              hint={tr('Ollama runs on this machine and needs no key. Leave the field empty.')}
+            >
+              <span data-testid="mic-key-lokal">
+                {tr('No key needed (local)')}
+              </span>
+            </Row>
+          ) : (
           <Row
             label={tr('Voice API key')}
             hint={tr('Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.')}
@@ -104,6 +115,7 @@ export default function MicSection() {
               testid="mic-key"
             />
           </Row>
+          )}
 
           <Row
             label={tr('Voice server URL')}
