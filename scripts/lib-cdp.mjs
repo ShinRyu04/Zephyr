@@ -49,8 +49,22 @@ export class Cdp {
    */
   static async attach(port = '9223', judul = 'Zephyr') {
     const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-    const page = targets.find((t) => t.type === 'page' && (t.title ?? '').includes(judul));
-    if (!page) throw new Error(`target ${judul} tidak ditemukan di :${port}`);
+    // `judul` boleh berupa DAFTAR nama, dicoba satu per satu (bukan regex).
+    // Judul aplikasi berbeda antara dev ('Zephyr') dan build lain ('TEDI'),
+    // dan harness yang tidak menemukan targetnya MATI sebelum mengukur apa
+    // pun - kegagalannya lalu menyamar sebagai masalah lingkungan, bukan
+    // masalah nyata yang sedang diburu.
+    const daftar = Array.isArray(judul) ? judul : [judul];
+    let page;
+    for (const j of daftar) {
+      page = targets.find((t) => t.type === 'page' && (t.title ?? '').includes(j));
+      if (page) break;
+    }
+    // Jaring terakhir: kalau judulnya tidak dikenal sama sekali, pakai halaman
+    // Tauri yang ada. Menyerah di sini membuat harness mustahil dijalankan
+    // pada build dengan judul lain.
+    if (!page) page = targets.find((t) => t.url?.startsWith('http://tauri.localhost'));
+    if (!page) throw new Error(`target ${daftar.join('/')} tidak ditemukan di :${port}`);
     const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
     try {
       cdp.snapshot = await cdp.json(

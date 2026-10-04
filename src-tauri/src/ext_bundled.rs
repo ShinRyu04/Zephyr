@@ -66,12 +66,32 @@ const KEYMAP_SUBLIME: &str = r##"{
   }
 }"##;
 
+/*
+ * Every command below must already exist in the app.
+ *
+ * The manifest header promises chords for commands "the app already has", and
+ * an earlier version of this file broke that promise three times over:
+ * `editor.copyLineDown`, `editor.moveLineUp`, `editor.moveLineDown` and
+ * `editor.splitRight` are NOT commands Zephyr implements. A keymap that binds a
+ * missing command is worse than an empty keymap - the user switches to Sublime
+ * chords, nothing happens for those keys, and no error is shown, because there
+ * is no binding to fail. The real names are `editor.line.moveUp`,
+ * `editor.line.moveDown`, and `pane.splitRight`.
+ *
+ * `Ctrl+Shift+D` was also removed: the app already binds it to `debug.focus`
+ * (keybindings.ts), so a keymap claiming it could never take effect and the
+ * Shortcuts table had no source to display for the row.
+ *
+ * If a command is renamed, this file must be updated with it. The table in
+ * Settings -> Keyboard Shortcuts reads these entries to show where a chord came
+ * from, so a stale name shows up as a missing source rather than as an error.
+ */
 const KEYMAP_SUBLIME_JSON: &str = r##"[
-  { "key": "Ctrl+Shift+D", "command": "editor.copyLineDown" },
-  { "key": "Ctrl+Shift+Up", "command": "editor.moveLineUp" },
-  { "key": "Ctrl+Shift+Down", "command": "editor.moveLineDown" },
+  { "key": "Ctrl+Shift+Up", "command": "editor.line.moveUp" },
+  { "key": "Ctrl+Shift+Down", "command": "editor.line.moveDown" },
   { "key": "Ctrl+K Ctrl+B", "command": "workbench.action.toggleSidebar" },
-  { "key": "Alt+Shift+2", "command": "editor.splitRight" }
+  { "key": "Ctrl+Shift+K", "command": "editor.line.delete" },
+  { "key": "Ctrl+Shift+L", "command": "editor.select.occurrences" }
 ]"##;
 
 const SNIPPET_PY: &str = r##"{

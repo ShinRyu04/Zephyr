@@ -16,6 +16,8 @@ import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useSubagentCustom } from '../../lib/subagentCustom';
+import SubagentCustomModal from './SubagentCustomModal';
+import { IkonAgen } from '../ai/IkonAgen';
 import { IKON_AGEN_ZEPHYR, ikonSubagent } from '../../lib/subagentIcons';
 import PersonaCard from './PersonaCard';
 import {
@@ -589,6 +591,56 @@ export function AgentsSection() {
         />
       </Row>
 
+      {/*
+       * The photo that goes beside your own messages.
+       *
+       * `ChatMessage` has read `agents.userAvatarPath` all along, but nothing
+       * ever wrote it: the setting existed, the switch showed avatars, and the
+       * user's side was stuck on the letter fallback with no way to change it.
+       * Reading a setting with no writer is the same defect as a control with
+       * no effect, just in the other direction - so the picker lives here,
+       * next to the switch that reveals it.
+       *
+       * The image is stored as a data URL rather than a path. A path would
+       * break the moment the user moved or deleted the file, and the avatar is
+       * small enough that copying its bytes into settings costs little. The
+       * background photo above uses a path for the opposite reason: it is
+       * large, and losing it to a moved file is a recoverable annoyance.
+       */}
+      <Row label={tr('agents.myPhoto')} hint={tr('agents.myPhotoHint')}>
+        <span className="set-avatar">
+          {a.userAvatarPath ? (
+            <img className="set-avatar-preview" src={a.userAvatarPath} alt="" data-testid="agents-avatar-preview" />
+          ) : (
+            <span className="set-avatar-preview set-avatar-empty" aria-hidden="true" />
+          )}
+          <button
+            className="btn"
+            data-testid="agents-avatar-pick"
+            onClick={async () => {
+              try {
+                const f = await cmd.fileDialogOpen(false);
+                const path = Array.isArray(f) ? f[0] : f;
+                if (!path) return;
+                const img = await cmd.bgImageRead(path);
+                await apply({ agents: { userAvatarPath: img.data_url } });
+              } catch {
+                /* dialog cancelled / permission denied - not an error */
+              }
+            }}
+          >
+            {tr('theme.chooseImage')}
+          </button>
+          <button
+            className="btn"
+            data-testid="agents-avatar-clear"
+            onClick={() => void apply({ agents: { userAvatarPath: '' } })}
+          >
+            {tr('common.reset')}
+          </button>
+        </span>
+      </Row>
+
       <Row label={tr('agents.rescan')} hint={`${agents.length} CLIs detected on PATH`}>
         <button className="btn" data-testid="agents-rescan" onClick={() => void loadAgents()}>
           {tr('agents.rescan')}
@@ -871,19 +923,23 @@ function CustomSubagentsCard() {
   const hapus = useSubagentCustom((s) => s.hapus);
 
   /*
-   * `bukaBaru`, `bukaSunting`, `sunting`, dan `baru` sengaja TIDAK diambil.
+   * The editing path is wired up again, and it is safe because `simpan` now
+   * guards the write.
    *
-   * Membuang tombolnya saja tidak cukup. Selama store masih menyimpan jalur itu,
-   * siapa pun bisa memasukinya - termasuk `devBridge` - dan orang bisa mengubah
-   * nama `cari` menjadi apa pun. `peranBawaan` di subagentCustom.ts mencocokkan
-   * peran lewat NAMA, jadi sekali namanya diubah, pekerja itu kehilangan label,
-   * ikon, dan arahannya secara diam-diam.
+   * The danger it was closed for was real: `pisahCustom` matches roles by NAME,
+   * so renaming a worker to `kerja` quietly stripped the label, icon and brief
+   * from every task that named `kerja`. Pulling the buttons removed the damage
+   * by removing the feature.
    *
-   * Modal editornya juga tidak dirender lagi. Ia sengaja tidak dihapus dari
-   * disk: berkasnya masih memuat bentuk field dan tata letaknya, dan menghapusnya
-   * sekarang berarti kehilangan rancangan itu tanpa alasan. Yang penting adalah
-   * ia tidak punya jalan masuk.
+   * A write-side guard is the better fix - `simpan` now refuses a built-in role
+   * name and refuses a duplicate, so the collision cannot be created at all.
+   * The buttons come back with that guard in place. A feature that works, and
+   * says why a name is refused, beats a feature hidden to avoid its bug.
    */
+  const bukaBaru = useSubagentCustom((s) => s.bukaBaru);
+  const bukaSunting = useSubagentCustom((s) => s.bukaSunting);
+  const baru = useSubagentCustom((s) => s.baru);
+  const sedangDisunting = useSubagentCustom((s) => s.sunting);
 
   useEffect(() => {
     muat();
@@ -944,23 +1000,31 @@ function CustomSubagentsCard() {
               {tr('A sub-agent only sees the tools it was given when it was made, and it can never write files: that is what keeps it safe to run several at once.')}
             </p>
             <p className="subagent-cara-note">
-              {tr('The list is read-only: a sub-agent cannot be edited or duplicated from here. Turn one on to use it, or delete it to remove it.')}
+              {tr('A sub-agent cannot be renamed to a built-in role name, and two sub-agents cannot share a name.')}
             </p>
           </details>
+
           {/*
-           * Tombol "+ Baru" dibuang atas permintaan user: cukup nama, tidak
-           * perlu bisa menambah, mengubah, atau menduplikat.
+           * "+ New" and "Edit" are back.
            *
-           * Konsekuensinya harus disadari, bukan disembunyikan: daftar ini
-           * sekarang READ-ONLY bagi user kecuali tombol hapus. Sub-agent kustom
-           * yang masih tersimpan dari versi sebelumnya tetap tampil, tetap bisa
-           * dinyalakan, dan tetap bisa dihapus - yang hilang hanyalah cara
-           * membuat yang baru dari UI.
+           * They were removed once, and the reason was sound at the time: editing
+           * could rename a worker to a built-in role name, and since roles are
+           * matched BY NAME, that quietly stripped the label, icon and brief from
+           * every task naming that role. Removing the buttons stopped the damage
+           * by removing the feature.
            *
-           * Penghapusnya juga masih diambil dari store, karena baris tanpa
-           * tombol hapus meninggalkan sub-agent yang tidak bisa dibuang sama
-           * sekali - itu bukan penyederhanaan, itu kebuntuan.
+           * The real fix is in `simpan`, which now refuses a built-in role name
+           * and refuses a duplicate. With the write guarded, the buttons are safe
+           * again - and a feature that works is better than a feature hidden to
+           * avoid its bug.
            */}
+          <button
+            className="btn"
+            data-testid="sub-custom-baru"
+            onClick={() => bukaBaru()}
+          >
+            {tr('New sub-agent')}
+          </button>
         </div>
 
         {daftar.length === 0 ? (
@@ -984,21 +1048,7 @@ function CustomSubagentsCard() {
                   data-ikon={ikonSubagent(x.ikon).id}
                   aria-hidden="true"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d={ikonSubagent(x.ikon).d} />
-                    {ikonSubagent(x.ikon).dFill && (
-                      <path d={ikonSubagent(x.ikon).dFill!} fill="currentColor" stroke="none" />
-                    )}
-                  </svg>
+                  <IkonAgen ik={ikonSubagent(x.ikon)} size={14} />
                 </span>
                 <div className="subagent-baris-teks">
                   <span className="subagent-baris-nama">
@@ -1026,16 +1076,21 @@ function CustomSubagentsCard() {
                 </span>
                 <div className="subagent-baris-aksi">
                   {/*
-                   * Tiga kontrol saja: nyalakan, dan hapus. Tombol "Ubah" yang
-                   * dulu ada di sini sudah dibuang atas permintaan user - baris
-                   * ini dimaksudkan untuk MEMILIH pekerja, bukan menyuntingnya.
+                   * Choose, edit, or remove.
                    *
-                   * Yang ikut hilang bersamanya: `bukaSunting` dan modal editor.
-                   * Membiarkan keduanya terpasang berarti menyimpan jalur masuk
-                   * yang tidak punya satu pun tombol - kode mati yang akan
-                   * dihidupkan lagi oleh orang berikutnya karena terlihat
-                   * lengkap, tanpa tahu bahwa bentuknya memang tidak diinginkan.
+                   * "Edit" left this row once; the row was meant for PICKING a
+                   * worker, not changing one. That reasoning held only while the
+                   * only way to change a name was unguarded. `simpan` now refuses
+                   * a built-in role name and refuses a duplicate, so an edit can
+                   * no longer strip a built-in role of its label and brief.
                    */}
+                  <button
+                    className="btn btn-sm"
+                    data-testid={`sub-custom-${x.id}-ubah`}
+                    onClick={() => bukaSunting(x.id)}
+                  >
+                    {tr('Ubah')}
+                  </button>
                   <Toggle
                     label={tr('aktif')}
                     testid={`sub-custom-${x.id}-aktif`}
@@ -1057,14 +1112,19 @@ function CustomSubagentsCard() {
       </div>
 
       {/*
-       * `<SubagentCustomModal />` tidak dirender lagi.
+       * The editor is rendered again.
        *
-       * Ia menunggu `baru || sedangDisunting`, dan kedua pemicunya sudah tidak
-       * ada: tombol "+ Baru" dibuang, tombol "Ubah" juga. Membiarkan baris ini
-       * terpasang hanya menyisakan kondisi yang selamanya `false` - dan itu
-       * jenis kode mati yang paling menipu, karena ia terlihat seperti fitur
-       * yang siap dipakai.
+       * It waits on `baru || sedangDisunting` - the same two triggers the "+ New"
+       * and "Edit" buttons set. With both buttons back, the condition is reachable
+       * again from the UI rather than only from the dev bridge.
        */}
+      {(baru || sedangDisunting) && (
+        <SubagentCustomModal
+          /* `null` means "new": the modal keys its field defaults off whether an
+             existing definition was handed to it. */
+          awal={sedangDisunting ? daftar.find((x) => x.id === sedangDisunting) ?? null : null}
+        />
+      )}
     </>
   );
 }

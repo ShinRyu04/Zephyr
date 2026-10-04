@@ -9,6 +9,7 @@ import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, PROVIDER_BY_ID } from './modelCatalog';
 import { expandPromptBody } from './promptLibrary';
+import { stopLoop, startLoop, parseInterval, formatInterval, MAX_LOOP_RUNS, type LoopState } from './loopJadwal';
 import { activeSelection } from './editorRegistry';
 import { useAiDebug } from './aiDebugStore';
 import { useToolGate, TOOL_DISK_TULIS } from './toolGate';
@@ -57,6 +58,21 @@ export interface AntrianPesan {
   id?: string;
   teks: string;
   images: string[];
+}
+
+/*
+ * A standing goal for one chat.
+ *
+ * `/goal <text>` sets it and starts working on it; the agent keeps going across
+ * turns until the goal is marked done or cleared. `startedAt` is kept so the
+ * strip can show how long the goal has been open - measured from when it was
+ * SET, so a panel reopen or a chat switch does not restart the clock.
+ */
+export interface GoalState {
+  text: string;
+  startedAt: number;
+  /** Set when the user marks it done; the strip then shows it struck through. */
+  completedAt: number | null;
 }
 
 let urutAntrian = 0;
@@ -1142,6 +1158,25 @@ interface AiState {
    */
   antrian: AntrianPesan[];
 
+  /*
+   * `/loop` state, per chat.
+   *
+   * A loop is a SCHEDULE, not a message - see `lib/loopJadwal.ts` for why it is
+   * not a prompt template. It lives in the store rather than in component state
+   * so the banner survives the panel being closed and reopened, and so the
+   * timer (which lives in the module map) has somewhere to report its runs.
+   */
+  loops: Record<string, LoopState>;
+
+  /*
+   * `/goal` state, per chat.
+   *
+   * A goal is a standing instruction the agent keeps working on across turns.
+   * Stored per chat because two conversations can have two different goals, and
+   * clearing one must not clear the other.
+   */
+  goals: Record<string, GoalState>;
+
   draft: string;
 
     attachActive: boolean;
@@ -1291,6 +1326,18 @@ interface AiActions {
   /* Drop one queued message, or clear the whole queue. */
   buangAntrian: (idx: number | string) => void;
   kosongkanAntrian: () => void;
+
+  /** Set (or clear, with null) the loop for a chat. The timer is armed here. */
+  setLoop: (sessionId: string, loop: LoopState | null) => void;
+  /** Stop the loop for a chat and forget it. */
+  hentikanLoop: (sessionId: string) => void;
+  /**
+   * Handle `/loop` and `/goal`. Returns true when the command was consumed, so
+   * the caller stops and sends nothing to the provider.
+   */
+  jalankanPerintahKerja: (teks: string, sessionId: string) => boolean;
+  /** Set (or clear, with null) the goal for a chat. */
+  setGoal: (sessionId: string, goal: GoalState | null) => void;
   /*
    * Send one queued message right now, out of turn.
    *
@@ -1374,6 +1421,8 @@ export const useAi = create<AiStore>((set, get) => ({
   provider: 'custom',
   pending: null,
   antrian: [],
+  loops: {},
+  goals: {},
   draft: '',
     attachActive: false,
     draftImages: [],
@@ -1553,6 +1602,43 @@ export const useAi = create<AiStore>((set, get) => ({
       };
     }),
   kosongkanAntrian: () => set({ antrian: [] }),
+
+  /*
+   * The loop timer lives in `loopJadwal.ts`'s module map, not here, because it
+   * has to keep firing while the panel is closed. These two actions are the
+   * bridge: `setLoop` arms or disarms the timer and mirrors the state into the
+   * store for the banner to read.
+   */
+  setLoop: (sessionId, loop) => {
+    if (!loop) {
+      stopLoop(sessionId);
+      set((s) => {
+        const next = { ...s.loops };
+        delete next[sessionId];
+        return { loops: next };
+      });
+      return;
+    }
+    set((s) => ({ loops: { ...s.loops, [sessionId]: loop } }));
+  },
+
+  hentikanLoop: (sessionId) => {
+    stopLoop(sessionId);
+    set((s) => {
+      const next = { ...s.loops };
+      delete next[sessionId];
+      return { loops: next, toast: tx('Loop stopped') };
+    });
+  },
+
+  setGoal: (sessionId, goal) => {
+    set((s) => {
+      const next = { ...s.goals };
+      if (goal) next[sessionId] = goal;
+      else delete next[sessionId];
+      return { goals: next };
+    });
+  },
   kirimAntrian: async (idx) => {
     const pos = posisiAntrian(get().antrian, idx);
     const item = get().antrian[pos];
@@ -1970,9 +2056,116 @@ export const useAi = create<AiStore>((set, get) => ({
     set({ toast: tf('Chat exported ({n} characters) - copied to the clipboard', { n: md.length }) });
   },
 
+/*
+   * Slash commands that are JOBS, not messages.
+   *
+   * `/loop` and `/goal` used to expand into a sentence and land in the transcript
+   * as a bubble, which was wrong twice: the sentence said nothing about what to
+   * repeat, and nothing repeated anything. They are handled here instead - before
+   * anything reaches the provider - and they answer with a toast or a strip, not
+   * with a bubble. The model never sees the command text.
+   *
+   * Returns `true` when the command was consumed, so the caller stops and does not
+   * send a request.
+   */
+    jalankanPerintahKerja: (teks: string, sessionId: string): boolean => {
+    const m = /^\/(loop|goal)\s*([\s\S]*)$/.exec(teks.trim());
+    if (!m) return false;
+
+    const cmd = m[1].toLowerCase();
+    const arg = m[2].trim();
+    const st = get();
+
+    if (cmd === 'loop') {
+      const low = arg.toLowerCase();
+      if (low === 'stop' || low === 'off' || low === 'clear') {
+        st.hentikanLoop(sessionId);
+        return true;
+      }
+      if (!arg) {
+        const l = st.loops[sessionId];
+        set({
+          toast: l
+            ? tf('Looping every {interval} ({runs}/{max} runs)', {
+                interval: formatInterval(l.everyMs),
+                runs: l.runs,
+                max: MAX_LOOP_RUNS,
+              })
+            : tx('No loop. Usage: /loop 10m <prompt>'),
+        });
+        return true;
+      }
+      const [pertama, ...sisa] = arg.split(/\s+/);
+      const everyMs = parseInterval(pertama);
+      const prompt = sisa.join(' ').trim();
+      if (everyMs === null || !prompt) {
+        set({ toast: tx('Usage: /loop <interval> <prompt>, interval like 5m, 1h or 1h30m (at least 1m)') });
+        return true;
+      }
+      startLoop(sessionId, everyMs, prompt, {
+        getLoop: () => get().loops[sessionId] ?? null,
+        setLoop: (l) => get().setLoop(sessionId, l),
+        /*
+         * A tick goes through `kirimSekarang`, so it waits behind a busy turn
+         * instead of stacking a second request - and it does NOT go through
+         * `jalankanPerintahKerja` again, which is what stops a loop from
+         * re-triggering itself.
+         */
+        enqueue: (text) => void get().kirimSekarang(text),
+      });
+      set({ toast: tf('Looping every {interval}. /loop stop to end it.', { interval: formatInterval(everyMs) }) });
+      return true;
+    }
+
+    /* cmd === 'goal' */
+    const low = arg.toLowerCase();
+    if (low === 'clear' || low === 'stop' || low === 'off') {
+      st.setGoal(sessionId, null);
+      set({ toast: tx('Goal cleared') });
+      return true;
+    }
+    if (low === 'done') {
+      const g = st.goals[sessionId];
+      if (!g) {
+        set({ toast: tx('No goal set') });
+        return true;
+      }
+      st.setGoal(sessionId, { ...g, completedAt: Date.now() });
+      set({ toast: tx('Goal marked done') });
+      return true;
+    }
+    if (!arg) {
+      const g = st.goals[sessionId];
+      set({ toast: g ? tf('Goal: {text}', { text: g.text }) : tx('No goal. Usage: /goal <what to achieve>') });
+      return true;
+    }
+    st.setGoal(sessionId, { text: arg, startedAt: Date.now(), completedAt: null });
+    /*
+     * Setting a goal also sends the opening turn. A goal that only wrote a line
+     * somewhere and then sat there until the user typed something else reads as a
+     * no-op - the user asked for work, so the work starts.
+     */
+    void get().send(arg, get().draftImages);
+    return true;
+    },
+
   send: async (text, images): Promise<boolean> => {
     get().sinkronProvider();
     const diketik = (text ?? get().draft).trim();
+
+    /*
+     * `/loop` and `/goal` are jobs, not messages: they start a schedule or set
+     * a standing goal and answer with a toast or a strip. Handled here, at the
+     * top of every send path, so neither the composer nor a queued drain can
+     * slip the command text through to the model.
+     */
+    {
+      const sid = get().activeId;
+      if (sid && get().jalankanPerintahKerja(diketik, sid)) {
+        set({ draft: '', draftImages: [] });
+        return true;
+      }
+    }
     /*
      * Expand a leading slash command into the message the model receives.
      *
@@ -3333,24 +3526,41 @@ export const useAi = create<AiStore>((set, get) => ({
         if (terakhir?.content) {
           const v = voice;
           /*
-           * Through the speech store, not a hook.
-           *
-           * `aiStore` is plain module state and cannot call a React hook; the
-           * engine lives in `bicaraStore`, which the panel mounts. Imported at
-           * module scope like any other store - the cycle that would cause is
-           * `bicaraStore` -> nothing, since the speech layer never imports the
-           * chat store.
+           * Neural first when enabled: it speaks through the provider, not the
+           * WebView. Plain module calls - `aiStore` cannot use a React hook,
+           * and both speech paths expose a module-level entry for this reason.
            */
-          useBicaraStore.getState().bicarakan(
-            terakhir.id,
-            teksUntukDibaca(terakhir.content, { lewatiKode: v?.skipCode !== false }),
-            {
-              id: v?.voiceId || undefined,
-              lang: v?.inputLang,
-              rate: v?.rate,
-              volume: v?.volume,
-            },
-          );
+          if (v?.neuralEnabled === true) {
+            const { putarNeural, pesanGalatNeural } = await import('./useNeural');
+            try {
+              await putarNeural(terakhir.id, terakhir.content);
+            } catch (e) {
+              if (pesanGalatNeural(e) === 'key-audio') {
+                get().setToast('Neural voice unavailable - using built-in voice');
+                useBicaraStore.getState().bicarakan(
+                  terakhir.id,
+                  teksUntukDibaca(terakhir.content, { lewatiKode: v?.skipCode !== false }),
+                  {
+                    id: v?.voiceId || undefined,
+                    lang: v?.inputLang,
+                    rate: v?.rate,
+                    volume: v?.volume,
+                  },
+                );
+              }
+            }
+          } else {
+            useBicaraStore.getState().bicarakan(
+              terakhir.id,
+              teksUntukDibaca(terakhir.content, { lewatiKode: v?.skipCode !== false }),
+              {
+                id: v?.voiceId || undefined,
+                lang: v?.inputLang,
+                rate: v?.rate,
+                volume: v?.volume,
+              },
+            );
+          }
         }
       }
     }

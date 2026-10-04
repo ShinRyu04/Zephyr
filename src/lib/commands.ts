@@ -553,6 +553,25 @@ export const aiTranscribe = (opts: {
   lang?: string;
 }) => invoke<string>('ai_transcribe', opts);
 
+export interface NeuralVoice {
+  id: string;
+  nama: string;
+  lang: string;
+}
+
+export const aiSpeak = (opts: {
+  provider: string;
+  model?: string;
+  baseUrl?: string;
+  voice?: string;
+  teks: string;
+}) => invoke<string>('ai_speak', opts);
+
+export const aiTtsVoices = (opts: {
+  provider: string;
+  baseUrl?: string;
+}) => invoke<NeuralVoice[]>('ai_tts_voices', opts);
+
 export interface CliAgent {
   id: string;
   label: string;

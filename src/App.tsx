@@ -112,6 +112,7 @@ import './styles/ai-trace.css';
  */
 import './styles/ai-tool-cards.css';
 import './styles/ai-work-stack.css';
+import './styles/ai-job-strips.css';
 /*
  * Reasoning ("Thinking") block: replaces the auto-opened italic block with one
  * folded row that shows a live shimmer and a timer while tokens arrive.
@@ -156,6 +157,7 @@ import './styles/ai-subagents-menu.css';
 import './styles/ai-tanya.css';
 
 import './styles/a11y.css';
+import { useAturanTersambung } from './lib/useAturanTersambung';
 import { useT, tx } from './lib/i18n';
 
 let ptyListenersBound = false;
@@ -253,6 +255,16 @@ export default function App() {
   const zen = useTampilan((s) => s.mode === 'zen');
 
   const L = useLayoutCustom();
+
+  /*
+   * Keep the write guard's engine in step with its settings.
+   *
+   * Called here, at the top of the app, because the guard is read from the WRITE
+   * PATH - plain module state, not React. Without this bridge the engine keeps its
+   * own flag, the settings screen keeps its own, and switching Rules on changes
+   * nothing that any write can see.
+   */
+  useAturanTersambung();
 
   const layoutDimuat = useRef(false);
   useEffect(() => {

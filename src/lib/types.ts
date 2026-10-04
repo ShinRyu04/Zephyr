@@ -1022,6 +1022,92 @@ export interface Settings {
     userAvatarPath?: string;
   };
 
+  /**
+   * Rules: the write guard that refuses a save matching a known-bad pattern.
+   *
+   * OFF by default. This setting can refuse a write, and a feature that says no
+   * to a save has to be opted into - the same reasoning as MCP's terminal control.
+   * The default here and the default in `rulesRuntime.ts` must agree: if they
+   * drift, the Settings page shows one thing and the write path enforces another,
+   * which is the worst of both - a dead switch and a surprise.
+   *
+   * `disabled` holds the ids of rules the user switched OFF individually, not the
+   * ones switched on. Storing the negative means a rule added in a later version
+   * arrives enabled instead of silently missing, and the list stays short because
+   * most users disable a few and leave the rest alone.
+   */
+  rules?: {
+    /** Master switch. Off means the write path runs no checks at all. */
+    enabled?: boolean;
+    /** Rule ids the user turned off, by id from `rulesCatalog.ts`. */
+    disabled?: string[];
+  };
+
+  /**
+   * Voice: reading replies aloud, and dictating a message.
+   *
+   * Everything is optional because these fields are new. An `undefined` must
+   * behave exactly as the Rust default does, or an existing install starts
+   * behaving differently the moment the UI reads a value the file does not yet
+   * have - the same trap `chatAvatar` documents above.
+   *
+   * `inputLang` is a BCP-47 tag (`en-US`), and it drives speech RECOGNITION:
+   * the browser's recognizer is built for one language at a time and does not
+   * switch on its own, so dictating English with `id-ID` set produces confident
+   * nonsense rather than an error. It also seeds the spoken voice when `voiceId`
+   * is empty.
+   *
+   * `voiceId` is a platform voice URI, not an index: indices shift between
+   * sessions and would silently speak in the wrong voice after a restart.
+   */
+  voice?: {
+    /** Master switch. Off hides the controls rather than leaving dead buttons. */
+    enabled?: boolean;
+    /** Speak each new answer without being asked. */
+    speakReplies?: boolean;
+    /** BCP-47 tag for dictation, and the fallback for the spoken voice. */
+    inputLang?: string;
+    /** Platform voice URI. Empty means "let the platform choose". */
+    voiceId?: string;
+    /** 0.5 to 2. Slow is the accessible end, so the range is wide. */
+    rate?: number;
+    pitch?: number;
+    volume?: number;
+    /** Say the answer without reading code blocks aloud. */
+    skipCode?: boolean;
+    /** Use provider neural TTS instead of the WebView voice. Off by default: it bills per character. */
+    neuralEnabled?: boolean;
+    /** Which provider speaks. Empty means the active chat provider. Key comes from that provider's saved key. */
+    neuralProvider?: string;
+    /** TTS model id, typed by hand. Empty means the per-provider default. */
+    neuralModel?: string;
+    /** Provider voice id. Empty means the provider default. */
+    neuralVoiceId?: string;
+    /** Pick the neural voice from the answer language. On by default. */
+    neuralFollowLang?: boolean;
+    /** 0 to 2. Above 1 boosts, which the WebView slider cannot do. */
+    neuralVolume?: number;
+  };
+  /**
+   * Microphone: dictating a message.
+   *
+   * Split out of `voice`, which now only covers the AI speaking back.
+   * `inputLang` still lives under `voice` on disk for existing installs and is
+   * read as the fallback when `mic.lang` is unset.
+   */
+  mic?: {
+    /** Master switch. Off hides the mic button in the composer. */
+    enabled?: boolean;
+    /** Which provider transcribes. Empty means the active chat provider. */
+    provider?: string;
+    /** STT model id, typed by hand. Empty means the per-provider default. */
+    model?: string;
+    /** BCP-47 tag the recogniser listens for. Falls back to `voice.inputLang`. */
+    lang?: string;
+    /** Send the transcript to the AI as soon as dictation stops. */
+    autoSend?: boolean;
+  };
+
   subagent: {
 
     maxParallel: number;

@@ -102,7 +102,53 @@ pub fn default_settings() -> Value {
         "theme": { "current": "zephyr-dark", "accent": "#3884ff" },
         "shortcuts": {},
         "models": { "activeProvider": "custom", "providers": {}, "answerLang": "follow", "answerStyle": "short", "ragEnabled": false, "ragUrl": "http://localhost:7777", "ragProject": "", "ragK": 4 },
-        "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false, "customInstructions": "" },
+        "agents": { "maxPanes": 6, "order": [], "startCommands": {}, "attachActiveFile": false, "customInstructions": "", "chatAvatar": true, "userAvatarPath": "" },
+
+        // Voice: reading answers aloud, and dictating a message.
+        //
+        // English defaults, matching the app's default language. `speakReplies`
+        // starts OFF on purpose - an app that begins talking the first time an
+        // answer arrives is startling, and on a shared machine it is worse than
+        // startling. The button is the way in; this switch is for people who want
+        // it automatic once they know what it sounds like.
+        //
+        // `voiceId` empty means "let the platform pick", which is the right
+        // default: ids are per-machine and per-install, so a hardcoded one would
+        // be meaningless on the user's machine and would silently fall back
+        // anyway. The picker writes a real id once the user chooses.
+        // Rules: the write guard. OFF by default.
+        //
+        // Off, not on, because it REFUSES WRITES. A tool that says no to a save
+        // is a different order of intrusive from one that adds an underline, and
+        // it must be opted into. The default here and the default in
+        // `rulesRuntime.ts` have to agree, or the UI shows one state and the
+        // write path enforces the other.
+        "rules": {
+            "enabled": false,
+            "disabled": []
+        },
+        "voice": {
+            "enabled": true,
+            "speakReplies": false,
+            "inputLang": "en-US",
+            "voiceId": "",
+            "rate": 1.0,
+            "pitch": 1.0,
+            "volume": 1.0,
+            "skipCode": true,
+            "neuralEnabled": false,
+            "neuralProvider": "",
+            "neuralModel": "",
+            "neuralVoiceId": "",
+            "neuralFollowLang": true,
+            "neuralVolume": 1.0
+        },
+        "mic": {
+            "enabled": true,
+            "provider": "",
+            "model": "",
+            "autoSend": false
+        },
 
         "extensions": {
             "enabled": [],

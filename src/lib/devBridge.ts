@@ -114,6 +114,7 @@ import { usePorts } from './portsStore';
 import { evaluateDebugExpr } from '../components/shell/DebugConsoleView';
 import { useLsp } from './lspStore';
 import { useSubagentCustom, customAktif, daftarPekerja } from './subagentCustom';
+import { usePersona, PERSONA_BAWAAN } from './personaStore';
 import { pathIkonPeran } from './peranIcons';
 import { minimapDebug } from '../components/editor/Minimap';
 import {
@@ -200,6 +201,22 @@ export function installDevBridge(): void {
     resetAll: () => resetSettings(),
 
     settingsFromDisk: () => getSettings(),
+
+    /*
+     * Writing settings had no bridge, so every harness reached for
+     * `import('/src/lib/store.ts')` instead - and that call creates a SECOND
+     * module instance. The harness wrote to one store while the component read
+     * another, which looks exactly like "the value never arrives" and has been
+     * mistaken for an application bug more than once. Exposing the real store
+     * removes the reason to import it.
+     *
+     * `applySettings` coalesces disk writes, so the promise is returned for
+     * callers that need to wait for the write to land rather than just for the
+     * state change.
+     */
+    set: (patch: Record<string, unknown>) => useStore.getState().applySettings(patch),
+    state: () => useStore.getState(),
+    setting: (path: string) => path.split('.').reduce<unknown>((acc, k) => (acc as Record<string, unknown> | undefined)?.[k], useStore.getState().settings),
 
     t: (key: string) => translate(useStore.getState().settings.general.uiLang, key),
   };
@@ -1231,6 +1248,26 @@ export function installDevBridge(): void {
    * migration path that reads old sub-agents still can - needs a way to put it
    * back down.
    */
+  /*
+   * The persona store is NOT the same store as the sub-agent store above, even
+   * though both are called "SUB" in conversation and both hold named roles.
+   *
+   * `PersonaCard` reads `usePersona`; `useSubagentCustom` is the older
+   * sub-agent migration path. A harness that measures personas through
+   * `__ZEPHYR_SUB__` reads a DIFFERENT array - it sees `[]` while the card is
+   * rendering eight built-in personas, and then reports the mismatch as an
+   * application bug. That mistake was made; this bridge exists so it cannot be
+   * made again by reading the obvious-looking name.
+   */
+  w.__ZEPHYR_PERSONA__ = {
+    store: () => usePersona,
+    state: () => usePersona.getState(),
+    muat: () => usePersona.getState().muat(),
+    daftar: () => usePersona.getState().daftar,
+    aktif: () => usePersona.getState().aktif,
+    bawaan: () => PERSONA_BAWAAN.length,
+  };
+
   w.__ZEPHYR_SUB__ = {
     store: () => useSubagentCustom,
     state: () => useSubagentCustom.getState(),

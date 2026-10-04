@@ -10,6 +10,13 @@ export type SectionId =
   | 'shortcuts'
   | 'models'
   | 'agents'
+  /* Voice sits next to Agents, not under Accessibility: it belongs to the chat
+     panel, and someone looking for it will look where the AI settings are. */
+  | 'voice'
+  | 'mic'
+  /* Rules guards WRITES, so it lives beside Permissions - both are about what
+     the AI is allowed to do, and a user looking for one will look for the other. */
+  | 'rules'
   | 'subagent'
   | 'permissions'
   | 'extensions'
@@ -31,6 +38,9 @@ export const SECTION_ORDER: SectionId[] = [
   'shortcuts',
   'models',
   'agents',
+  'voice',
+  'mic',
+  'rules',
   'subagent',
   'permissions',
   'extensions',

@@ -5,6 +5,32 @@ import { useSettingsUi } from '../../lib/settingsStore';
 import { useT } from '../../lib/i18n';
 import type { ApprovalMode } from '../../lib/types';
 import { usePersona } from '../../lib/personaStore';
+import { ikonPersona } from '../../lib/subagentIcons';
+import { IkonAgen } from './IkonAgen';
+
+/*
+ * The persona's mark, shown at the head of its row.
+ *
+ * A persona list without icons reads as a list of names with no way to tell
+ * them apart at a glance - and the same personas already carry a mark in
+ * Settings and in the transcript's avatar. Three places, one identity: the menu
+ * was the only one showing text alone, which made picking an agent the one
+ * moment the agent was invisible.
+ *
+ * Drawn from the SAME mapping as the Settings card (`ikonPersona`) and with the
+ * same 16px stroked geometry, so a persona cannot acquire two different marks
+ * depending on where the user happens to be looking. An unknown id falls back
+ * to the generic star, which is what a persona written by an older version
+ * looks like.
+ */
+function IkonPersonaBaris({ id }: { id: string }) {
+  const ik = ikonPersona(id);
+  return (
+    <span className="mode-item-ikon" data-ikon={ik.id} aria-hidden="true">
+      <IkonAgen ik={ik} size={15} />
+    </span>
+  );
+}
 
 /*
  * Two menus for how a message is dispatched.
@@ -224,6 +250,7 @@ export function ModeMenu() {
                       setBuka(false);
                     }}
                   >
+                    <IkonPersonaBaris id={p.id} />
                     <span className="mode-item-teks">
                       <b>{p.nama}</b>
                       <i>{p.deskripsi}</i>
@@ -250,6 +277,7 @@ export function ModeMenu() {
                           setBuka(false);
                         }}
                       >
+                        <IkonPersonaBaris id={p.id} />
                         <span className="mode-item-teks">
                           <b>{p.nama}</b>
                           <i>{p.deskripsi}</i>

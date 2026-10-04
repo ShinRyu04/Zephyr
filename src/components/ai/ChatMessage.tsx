@@ -5,6 +5,7 @@ import { useAi, isDestructive } from '../../lib/aiStore';
 import { barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
+import { useNeural, hentikanSemuaSuara } from '../../lib/useNeural';
 import type { ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
 import Lightbox from './Lightbox';
@@ -241,7 +242,10 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    */
   const bicarakan = useBicaraStore((s) => s.bicarakan);
   const idBicara = useBicaraStore((s) => s.idBicara);
-  const iniBicara = idBicara !== null && idBicara === msg.id;
+  const neural = useNeural();
+  const neuralAktif = useStore((s) => s.settings?.voice?.neuralEnabled === true);
+  const iniNeural = neural.lagiBicara !== null && neural.lagiBicara === msg.id;
+  const iniBicara = iniNeural || (idBicara !== null && idBicara === msg.id);
 
   return (
     <div
@@ -324,12 +328,29 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               data-testid="ai-speak-msg"
               aria-pressed={iniBicara}
               title={iniBicara ? tr('Stop reading') : tr('Read this answer aloud')}
-              onClick={() => bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
-                id: vVoiceId,
-                lang: vInputLang,
-                rate: vRate,
-                volume: vVolume,
-              })}
+              onClick={() => {
+                if (neuralAktif) {
+                  try { useBicaraStore.getState().hentikan(); } catch { /* abaikan */ }
+                  neural.bicarakan(msg.id, msg.content, () => {
+                    hentikanSemuaSuara();
+                    bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
+                      id: vVoiceId,
+                      lang: vInputLang,
+                      rate: vRate,
+                      volume: vVolume,
+                    });
+                    setToast(tr('Neural voice unavailable - using built-in voice'));
+                  });
+                } else {
+                  hentikanSemuaSuara();
+                  bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
+                    id: vVoiceId,
+                    lang: vInputLang,
+                    rate: vRate,
+                    volume: vVolume,
+                  });
+                }
+              }}
             >
               <AiIkon name={iniBicara ? 'speaker-on' : 'speaker'} size={14} />
             </button>

@@ -172,8 +172,10 @@ export function useDengar(
             });
             if (teks) tulisRef.current(teks, true);
             else setGalat('kosong');
-          } catch {
-            setGalat('gagal');
+          } catch (e) {
+            const m = e instanceof Error ? e.message : String(e);
+            if (/tidak berlaku untuk endpoint audio/i.test(m)) setGalat('key-audio');
+            else setGalat('gagal');
           }
         };
         rec.start();

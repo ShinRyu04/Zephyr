@@ -18,6 +18,7 @@ export type SubagentIkonId =
   | 'audit'
   | 'jalan'
   | 'robot'
+  | 'naga'
   | 'umum';
 
 export interface IkonDef {
@@ -26,6 +27,15 @@ export interface IkonDef {
   d: string;
   /** Extra path drawn filled (dots, fills) when the mark needs one. */
   dFill?: string;
+  /**
+   * True when this mark is drawn by a dedicated component rather than `d`.
+   *
+   * The dragon is a filled gradient shape and cannot go through the stroked
+   * `<svg><path>` the rest of the set uses. Renderers check this flag and
+   * delegate to `<DragonIcon />` instead of trying to stroke an empty path -
+   * which would draw nothing at all, silently.
+   */
+  punyaKomponen?: boolean;
 }
 
 export const IKON_SUBAGENT: IkonDef[] = [
@@ -74,6 +84,33 @@ export const IKON_SUBAGENT: IkonDef[] = [
   },
 ];
 
+/*
+ * The dragon - Zeph's mark alone.
+ *
+ * It is deliberately NOT in `IKON_SUBAGENT`. That list is what a user picks from
+ * when creating a custom sub-agent, and the dragon is the product's own mark for
+ * the orchestrator: offering it there invites every custom worker to wear Zeph's
+ * face, which is the same problem as the robot head in reverse - a mark that
+ * means "some agent" instead of "this one".
+ *
+ * Kept as a definition so `ikonPersona` can return an id for Zeph rather than
+ * falling through to the generic star, but `d` is empty: the drawing lives in
+ * `DragonIcon`, a filled gradient shape that cannot go through the stroked
+ * `<svg><path>` the rest of this set uses.
+ *
+ * The history is worth keeping. Zeph wore the generic robot head first, so the
+ * orchestrator looked like every other agent. Then a dragon was invented inside
+ * this file, sitting beside the one NagaIkon.tsx draws and looking nothing like
+ * it: two creatures both called Zeph, and no way to tell which was real. A mark
+ * that exists twice is worse than one that exists once. There is now one drawing,
+ * and it is the one the product ships.
+ */
+export const IKON_NAGA: IkonDef = {
+  id: 'naga',
+  d: '',
+  punyaKomponen: true,
+};
+
 /**
  * Human names for the picker.
  *
@@ -87,11 +124,16 @@ export const IKON_LABEL: Record<SubagentIkonId, string> = {
   audit: 'Subagent: ikon audit',
   jalan: 'Subagent: running icon',
   robot: 'Subagent: ikon robot agen',
+  naga: 'Subagent: ikon naga Zephyr',
   umum: 'Subagent: ikon serbaguna',
 };
 
 /** The definition for an id, falling back to the general mark. */
 export function ikonSubagent(id: string | undefined): IkonDef {
+  /* Zeph's dragon is not in the pickable list, but it must still resolve here:
+     every agent can be asked for its mark, and falling through to the generic
+     star would make Zeph look like a custom worker that never chose an icon. */
+  if (id === 'naga') return IKON_NAGA;
   return IKON_SUBAGENT.find((i) => i.id === id) ?? IKON_SUBAGENT[5];
 }
 
@@ -111,7 +153,8 @@ export function ikonSubagent(id: string | undefined): IkonDef {
  *
  * The ids are the ones IKON_SUBAGENT already defines, and the choices are
  * deliberate rather than decorative:
- *   zeph      - two droplets: the orchestrator, several workers as one mark
+ *   zeph      - the dragon, the product's own mark and the one the transcript
+ *               already shows while Zeph works (NagaIkon.tsx)
  *   coder     - angle brackets, because that is code
  *   architect - a box with a line through it, the only "drawing" glyph here
  *   reviewer  - a magnifier: reading and reporting, changing nothing
@@ -119,7 +162,16 @@ export function ikonSubagent(id: string | undefined): IkonDef {
  *   designer  - a pencil, because design work produces an artefact
  */
 const IKON_PERSONA: Record<string, SubagentIkonId> = {
-  zeph: 'robot',
+  /*
+   * Zeph wore the generic robot head, which reads as "some agent" - and it was
+   * the same glyph every other agent could wear, so the orchestrator had no mark
+   * of its own. The dragon is Zephyr's mark: it is already the working indicator
+   * in the transcript, so picking Zeph from a list now shows the same creature
+   * that appears in the conversation. The comment here also used to claim "two
+   * droplets" while the value said `robot`; a comment that contradicts its code
+   * is worse than no comment, because it is believed.
+   */
+  zeph: 'naga',
   coder: 'kode',
   architect: 'umum',
   reviewer: 'telaah',
@@ -166,19 +218,18 @@ export const IKON_AGEN_TERAX = {
 };
 
 /**
- * Zephyr's own mark: a bar, blown to two droplets, in a ring.
+ * Zephyr's own mark: the dragon.
  *
- * The bar is the shape Zephyr already uses for the prompt (`>_` in AiIkon.tsx),
- * so this mark is built from the app's own vocabulary rather than borrowed. The
- * two dots ARE that underscore, broken into a pair that reads as both a caret
- * and a pair of agents: one mark, split, working together. The ring carries the
- * same "runs on its own" meaning as above, so the two marks differ in what sits
- * inside, which is the part that says whose page this is.
+ * This was a ring containing `>_` blown into two droplets - a prompt inside a
+ * closed loop, meaning "a loop that runs on its own". It was a good mark for the
+ * AGENTS page and it was not Zeph. The page is Zeph's, the orchestrator is Zeph,
+ * and Zeph is the dragon, so the two should be one thing rather than a dragon in
+ * the transcript and a prompt in the sidebar.
+ *
+ * Kept as the same `IKON_NAGA` object `ikonPersona` hands out for Zeph, not a
+ * second copy: a mark that exists twice is worse than one that exists once,
+ * because the user cannot tell which is real. Rendering goes through the shared
+ * `<IkonAgen />`, which sees `punyaKomponen` and delegates to `<DragonIcon />`.
  */
-export const IKON_AGEN_ZEPHYR = {
-  d: 'M13.1 10.6A5.6 5.6 0 1 0 5.4 13.05 M5.4 6.2l1.7 1.9-1.7 1.9',
-  /* Two droplets: the underscore of `>_`, split. Drawn filled - at 2.2px across
-   * an outlined dot reads as a smudge, a filled one reads as a dot. */
-  dFill: 'M9.6 9.3a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z M12.05 9.3a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z',
-};
+export const IKON_AGEN_ZEPHYR = IKON_NAGA;
 

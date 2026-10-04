@@ -72,6 +72,30 @@
   --warn: var(--warning);
   --red: var(--danger);
 
+  /*
+   * Enam nama yang dipakai berkas lain tapi belum pernah punya nilai.
+   *
+   * Ditemukan oleh `scripts/cek-token-css.mjs` - penjaga yang memeriksa setiap
+   * `var()` tanpa fallback. Keenamnya NYATA: `var(--x)` yang tak terdefinisi
+   * dibuang tanpa error, dan pada `color` teksnya jatuh ke hitam bawaan browser -
+   * di atas latar gelap, teksnya hilang.
+   *
+   * `--bg-1` yang paling berbahaya karena BERSARANG: ia dipakai sebagai fallback
+   * DI DALAM fallback lain - `var(--bg-elevated, var(--bg-1))` pada dialog LSP.
+   * Kalau token pertama kosong, cadangannya pun tidak ada, jadi tidak ada satu
+   * pun nilai yang berlaku dan dialognya menjadi tembus pandang. Kesalahan seperti
+   * ini tidak terlihat sebagai "token kurang", melainkan sebagai "dialognya
+   * aneh" - jauh dari penyebabnya.
+   *
+   * Semuanya ALIAS ke token yang sudah ada, bukan warna baru: 12 tema tetap
+   * mengendalikan hasilnya, dan tema terang ikut berubah tanpa disentuh.
+   */
+  --bg-1: var(--surface);
+  --fg3: var(--text-muted);
+  --row: color-mix(in srgb, var(--text) 5%, transparent);
+  --selection: var(--editor-selection);
+  --minimap-w: 84px;
+
   /* Sisanya dari himpunan nama lama yang sama. */
   --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-dim: color-mix(in srgb, var(--accent) 12%, transparent);

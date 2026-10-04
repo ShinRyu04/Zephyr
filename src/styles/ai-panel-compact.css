@@ -1202,6 +1202,27 @@
   outline-offset: -2px;
 }
 
+/*
+ * The persona's mark, at the head of its row.
+ *
+ * Fixed width so the names line up in a column: the marks differ in how much of
+ * the 16px box they fill, and letting each one size itself would stagger the
+ * text by a pixel or two per row - which reads as misalignment, not as variety.
+ */
+.mode-item-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  color: var(--fg-dim, currentColor);
+}
+
+.mode-item:hover .mode-item-ikon,
+.mode-item.is-aktif .mode-item-ikon {
+  color: var(--accent, currentColor);
+}
+
 /* Label and hint share the row: the label never shrinks, the hint gives way. */
 .mode-item-teks {
   display: flex;

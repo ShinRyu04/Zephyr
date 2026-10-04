@@ -12,6 +12,7 @@ import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
+import { LoopStrip, GoalStrip } from './JobStrips';
 import BicaraHost from './BicaraHost';
 import ModelSelector from './ModelSelector';
 import { findModel } from '../../lib/modelCatalog';
@@ -455,7 +456,11 @@ const JEJAK_TOOL_MAKS = 4;
    * re-render the whole composer on every unrelated settings write.
    */
   const voiceAktif = useStore((s) => s.settings?.voice?.enabled !== false);
-  const bahasaDengar = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
+  const bahasaMic = useStore((s) => s.settings?.mic?.lang ?? '');
+  const bahasaLama = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
+  const bahasaDengar = bahasaMic || bahasaLama;
+  const micAktif = useStore((s) => s.settings?.mic?.enabled !== false);
+  const micAutoSend = useStore((s) => s.settings?.mic?.autoSend === true);
 
   /*
    * Dictation, with the active model as its transcription target.
@@ -468,13 +473,19 @@ const JEJAK_TOOL_MAKS = 4;
   const { dengar, bisa: bisaDengar, toggle: toggleDengar, galat: galatDengar } = useDengar(
     (teks, final) => {
       const d = useAi.getState().draft;
-      setDraft(final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks);
+      const hasil = final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks;
+      setDraft(hasil);
+      if (final && micAutoSend && hasil.trim()) {
+        void send();
+      }
     },
     bahasaDengar,
     {
-      provider,
+      get provider() {
+        return useStore.getState().settings?.mic?.provider || provider;
+      },
       get model() {
-        return useAi.getState().model;
+        return useStore.getState().settings?.mic?.model || useAi.getState().model;
       },
       get baseUrl() {
         const st = useAi.getState();
@@ -498,7 +509,9 @@ const JEJAK_TOOL_MAKS = 4;
         ? tr('Microphone permission was refused')
         : galatDengar === 'tanpa-provider'
           ? tr('Pick a model first - dictation needs one to transcribe with')
-          : galatDengar === 'kosong'
+          : galatDengar === 'key-audio'
+            ? tr('Voice key rejected for audio - set a voice key in Mic settings')
+            : galatDengar === 'kosong'
             ? tr('Nothing was recorded')
             : tr('Could not transcribe the recording');
     setToast(pesan);
@@ -1709,6 +1722,14 @@ const JEJAK_TOOL_MAKS = 4;
       </div>
       )}
 
+      {/*
+        * The job strips sit between the work stack and the composer: a loop
+        * that is running and a goal that is set are both facts about the
+        * session, and they stay visible while the conversation scrolls.
+        */}
+      <GoalStrip />
+      <LoopStrip />
+
       <div className="ai-input-row">
         {/*
           * The branch chip, inside the composer box and above the field.
@@ -1973,7 +1994,7 @@ const JEJAK_TOOL_MAKS = 4;
             * content into the message — and it only renders where the browser
             * actually offers speech recognition.
             */}
-          {bisaDengar && voiceAktif && (
+          {bisaDengar && voiceAktif && micAktif && (
             <button
               className={`ai-plus ai-mic${dengar ? ' is-on' : ''}`}
               data-testid="ai-mic"

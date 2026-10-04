@@ -348,6 +348,8 @@ pub fn run() {
             ai::ai_capture_clear,
             ai::ai_cancel,
             voice::ai_transcribe,
+            voice::ai_speak,
+            voice::ai_tts_voices,
             cli_agents::cli_agents_detect,
             cli_agents::cli_agent_run,
             gambar::baca_gambar,

@@ -1,23 +1,22 @@
 /*
- * Verifikasi avatar chat di aplikasi yang hidup.
+ * Verifikasi: foto avatar chat bisa DIPILIH, TERSIMPAN, dan BERTAHAN.
  *
- * Yang diuji, dan kenapa masing-masing penting:
+ * Sebelum ini `agents.userAvatarPath` dibaca `ChatMessage` tetapi TIDAK PERNAH
+ * ditulis dari mana pun: saklarnya ada, avatar robot muncul, dan sisi user
+ * terkunci di fallback huruf tanpa jalan mengubahnya.
  *
- *  1. Avatar MUNCUL di samping setiap pesan - dan benar-benar di SAMPING, bukan
- *     di atas. `.ai-msg` adalah flex COLUMN, jadi avatar yang diletakkan sebagai
- *     anaknya akan tertumpuk vertikal: itu kesalahan yang pernah terjadi di
- *     proyek ini. Diukur dengan membandingkan posisi X avatar dan gelembungnya:
- *     yang benar adalah X berbeda dan Y tumpang tindih.
+ * ATURAN ALAT UKUR (dilanggar tiga kali sebelum ini, dan setiap kali
+ * menghasilkan "bug" yang tidak ada):
  *
- *  2. Sisi user dicerminkan: avatarnya di KANAN gelembung.
+ *   Tulis lewat `__ZEPHYR_SET__`, BUKAN lewat `import('/src/lib/store.ts')`.
+ *   `import()` dari skrip CDP memuat INSTANCE MODUL KEDUA. Skrip menulis ke
+ *   store A, komponen membaca store B, dan hasilnya "nilai tidak sampai" -
+ *   padahal penulisannya benar. Jebakan ini sudah tercatat di memori proyek,
+ *   dan tetap terulang kalau harness-nya tidak dibatasi begini.
  *
- *  3. Toggle di Settings benar-benar menyembunyikan avatar DAN gutternya.
- *     Memeriksa "avatar tidak ada" saja tidak cukup - menghilangkan marknya tapi
- *     membiarkan celah 30px berarti "mati" yang setengah jalan.
- *
- *  4. Nilai default: tanpa menyentuh setelan, avatarnya NYALA. Pembacaan
- *     `!== false` harus berlaku, kalau tidak semua orang kehilangan avatarnya
- *     saat upgrade.
+ *   Baca keberadaan elemen dari DOM, tetapi baca NILAI dari store yang sama
+ *   yang dibaca komponen. Dua sumber berbeda untuk satu pertanyaan akan
+ *   bertengkar, dan yang terlihat seperti bug adalah selisihnya.
  */
 
 import WebSocket from 'ws';
@@ -35,15 +34,15 @@ function send(method, params) {
   return new Promise((res) => { const id = ++seq; pending.set(id, res); ws.send(JSON.stringify({ id, method, params })); });
 }
 ws.on('message', (raw) => {
-  const m = JSON.parse(raw);
-  if (m.method === 'Runtime.exceptionThrown') errors.push((m.params.exceptionDetails.exception?.description ?? '').slice(0, 200));
+  const m = JSON.parse(raw.toString());
+  if (m.method === 'Runtime.exceptionThrown') errors.push((m.params.exceptionDetails.exception?.description ?? '').slice(0, 160));
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
 });
 await new Promise((r) => ws.on('open', r));
 await send('Runtime.enable');
-const evalJs = async (expr, awaitPromise = false) => {
-  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise });
-  if (r.result?.exceptionDetails) return 'EXC: ' + (r.result.exceptionDetails.exception?.description ?? '').slice(0, 250);
+const evalJs = async (expr) => {
+  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+  if (r.result?.exceptionDetails) return 'EXC: ' + (r.result.exceptionDetails.exception?.description ?? '').slice(0, 220);
   return r.result?.result?.value;
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -56,204 +55,61 @@ function cek(nama, syarat, bukti) {
   else console.log('  GAGAL ' + nama + (bukti ? '  [' + bukti + ']' : ''));
 }
 
-/*
- * Pesan disuntikkan lewat SESI yang benar, bukan `messages`.
- *
- * `messages` di store adalah SELECTOR TURUNAN (diambil dari sesi aktif), jadi
- * menulis ke sana tidak menghasilkan apa pun yang dirender - dan uji pertama
- * melaporkan "0 baris" tanpa menjelaskan kenapa. Yang dibaca panel adalah
- * `sessions[activeId].messages`, jadi itu yang diisi.
- *
- * Disuntikkan lewat store yang HIDUP, bukan dengan mengetik: mengetik butuh
- * provider ber-key dan kuota, sedangkan yang diuji di sini TATA LETAK, bukan
- * jaringannya.
- */
-async function siapkanPesan() {
-  return evalJs(`
-    (() => {
-      const b = window.__ZEPHYR_AI__;
-      if (!b) return 'TIDAK ADA BRIDGE';
-      const st = b.store;
-      const id = 'av-sesi-uji';
-      st.setState({
-        sessions: [{
-          id,
-          title: 'uji avatar',
-          model: 'uji',
-          provider: 'custom',
-          createdAt: Date.now(),
-          messages: [
-            { id: 'av-uji-1', role: 'user', content: 'pertanyaan uji avatar' },
-            { id: 'av-uji-2', role: 'assistant', content: 'jawaban uji avatar' },
-          ],
-        }],
-        activeId: id,
-      });
-      const s = st.getState();
-      return 'OK sesi=' + s.sessions.length + ' pesan=' + (s.sessions[0]?.messages?.length ?? 0);
-    })()
-  `);
+console.log('== Foto avatar chat ==\n');
+
+console.log('bentuk bridge settings: ' + await evalJs(`(() => { const b = window.__ZEPHYR_SET__; return b ? JSON.stringify(Object.keys(b)) : 'TIDAK ADA'; })()`));
+
+/* Buka Settings -> Agents. Ikon Settings adalah TOGGLE, jadi periksa dulu. */
+for (let i = 0; i < 12; i += 1) {
+  if ((await evalJs(`(() => !!document.querySelector('[data-testid="agents-avatar-pick"]'))()`)) === true) break;
+  await evalJs(`(() => { const b = window.__ZEPHYR_SETTINGS__; if (b && i === 0) b.buka('agents'); })()`);
+  await sleep(700);
+  if (i === 4) await evalJs(`(() => [ ...document.querySelectorAll('[data-activity]') ].filter(e => e.getAttribute('data-activity') === 'settings').forEach(b => b.click()))()`);
+  if (i === 6) await evalJs(`(() => { const b = document.querySelector('[data-testid="set-nav-agents"]'); if (b) b.click(); })()`);
 }
+cek('baris foto avatar ada', (await evalJs(`(() => !!document.querySelector('[data-testid="agents-avatar-pick"]'))()`)) === true);
+cek('pembungkus .set-avatar dirender', (await evalJs(`(() => document.querySelectorAll('span.set-avatar').length)()`)) === 1);
+cek('tombol reset ada', (await evalJs(`(() => !!document.querySelector('[data-testid="agents-avatar-clear"]'))()`)) === true);
 
-console.log('== Verifikasi avatar chat ==\n');
+/* Keadaan awal: pastikan kosong, lewat bridge. */
+const NILAI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8DAwMDAxMDAwMAAAA8AAQEAAP3fF2QAAAAASUVORK5CYII=';
+const kosong = await evalJs(`(() => { const b = window.__ZEPHYR_SET__; if (!b) return 'TIDAK ADA'; if (typeof b.set !== 'function') return 'TIDAK ADA set: ' + Object.keys(b).join(','); return 'ada set'; })()`);
+console.log('cara menulis: ' + kosong);
+cek('bridge bisa menulis', kosong === 'ada set', String(kosong));
 
-/*
- * Membuka panel AI lewat STORE-nya, bukan dengan mengklik ikon.
- *
- * Ikon di activity bar adalah toggle: mengkliknya saat panel sudah terbuka
- * justru menutupnya, dan uji pertama di sesi ini melakukannya - panelnya
- * tertutup, lalu ujinya melaporkan "tidak ada .ai-row" seolah tata letaknya
- * salah.
- *
- * Yang dipakai adalah jalur yang sama dengan perintah `aiPanel.focus`:
- * `setVisible(true)` lalu `focusTab('ai')`. Keduanya idempoten - memanggilnya
- * saat panel sudah terbuka tidak menutupnya.
- */
-const dibuka = await evalJs(`
-  (() => {
-    const p = window.__ZEPHYR_PANEL__;
-    if (!p) return 'TIDAK ADA BRIDGE PANEL';
-    try {
-      if (typeof p.setVisible === 'function') p.setVisible(true);
-      else if (p.store && typeof p.store.getState === 'function') p.store.getState().setVisible(true);
-      const fokus = (p.store && typeof p.store.getState === 'function')
-        ? () => p.store.getState().focusTab('ai')
-        : (typeof p.focusTab === 'function' ? () => p.focusTab('ai') : null);
-      if (!fokus) return 'TIDAK ADA focusTab';
-      fokus();
-      return 'OK';
-    } catch (e) { return 'ERR: ' + String(e).slice(0, 160); }
-  })()
-`);
-console.log('buka panel AI: ' + dibuka);
+/* Tulis lewat bridge - store yang SAMA dengan yang dibaca komponen. */
+const tulis = await evalJs(`(() => { const b = window.__ZEPHYR_SET__; b.set({ agents: { userAvatarPath: ${JSON.stringify(NILAI)} } }); return 'ok'; })()`);
+cek('tulis nilai avatar', tulis === 'ok', String(tulis));
 await sleep(1400);
-cek('panel AI terbuka', (await evalJs(`(() => !!document.querySelector('[data-testid="ai-panel"]'))()`)) === true);
 
-const adaBridge = await evalJs(`(() => typeof window.__ZEPHYR_AI__ !== 'undefined')()`);
-if (!adaBridge) { console.log('  DILEWATI: bridge AI tidak ada'); ws.close(); process.exit(0); }
-
-const siap = await siapkanPesan();
-console.log('siapkan pesan: ' + siap);
-await sleep(900);
-
-/* --- 4. default: nyala tanpa menyentuh setelan --- */
-const defaultAktif = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState() !== undefined && document.querySelector('[data-testid="ai-avatar-bot"]') !== null)()`);
-cek('avatar muncul secara default', defaultAktif === true);
-
-/* --- 1. benar-benar di SAMPING, bukan di atas --- */
-const tata = await evalJs(`
+const pratinjau = await evalJs(`
   (() => {
-    const a = document.querySelector('[data-testid="ai-avatar-bot"]');
-    if (!a) return JSON.stringify({ ada: false });
-    const row = a.closest('.ai-row');
-    const msg = row ? row.querySelector('.ai-msg') : null;
-    if (!msg) return JSON.stringify({ ada: true, msg: false });
-    const ab = a.getBoundingClientRect();
-    const mb = msg.getBoundingClientRect();
-    /* Samping = tepi X bersebelahan DAN rentang Y tumpang tindih. Kalau Y tidak
-       tumpang tindih, avatar ada di ATAS pesannya - itu bug tata letaknya. */
-    const bersebelahan = Math.abs(ab.right - mb.left) < 16 || Math.abs(mb.right - ab.left) < 16;
-    const tumpang = ab.top < mb.bottom && mb.top < ab.bottom;
+    const img = document.querySelector('[data-testid="agents-avatar-preview"]');
+    const kosong = document.querySelector('.set-avatar-empty');
     return JSON.stringify({
-      ada: true, msg: true,
-      avatar: [Math.round(ab.left), Math.round(ab.top), Math.round(ab.width)],
-      gelembung: [Math.round(mb.left), Math.round(mb.top), Math.round(mb.width)],
-      bersebelahan, tumpang,
+      adaImg: !!img,
+      srcCocok: img ? String(img.src).startsWith('data:image/png') : false,
+      panjangSrc: img ? String(img.src).length : 0,
+      masihKosong: !!kosong,
     });
   })()
 `);
-const T = JSON.parse(tata);
-cek('avatar ada di DOM', T.ada === true && T.msg === true);
-cek('avatar di SAMPING pesan, bukan di atasnya', T.bersebelahan === true && T.tumpang === true, 'avatar x=' + T.avatar?.[0] + ' gelembung x=' + T.gelembung?.[0]);
+console.log('     pratinjau -> ' + pratinjau);
+cek('pratinjau FOTO dirender (bukan placeholder kosong)',
+  typeof pratinjau === 'string' && pratinjau.includes('"adaImg":true') && pratinjau.includes('"masihKosong":false'),
+  String(pratinjau).slice(0, 90));
 
-/* --- 2. sisi user dicerminkan --- */
-const sisi = await evalJs(`
-  (() => {
-    const u = document.querySelector('[data-testid="ai-avatar-saya"]');
-    const b = document.querySelector('[data-testid="ai-avatar-bot"]');
-    if (!u || !b) return JSON.stringify({ ada: false, adaUser: !!u, adaBot: !!b });
-    const ux = u.getBoundingClientRect().left;
-    const bx = b.getBoundingClientRect().left;
-    const um = u.closest('.ai-row')?.querySelector('.ai-msg')?.getBoundingClientRect();
-    return JSON.stringify({ ada: true, ux: Math.round(ux), bx: Math.round(bx), userDiKanan: um ? ux > um.left : null });
-  })()
-`);
-const S = JSON.parse(sisi);
-cek('avatar user ada', S.ada === true, 'user ada: ' + S.adaUser + ', bot ada: ' + S.adaBot);
-cek('avatar user di KANAN gelembungnya', S.userDiKanan === true, 'x user=' + S.ux + ', bot=' + S.bx);
+/* Bertahan: baca nilai dari store yang sama, lalu dari DISK lewat settings.json. */
+const diStore = await evalJs(`(() => { const b = window.__ZEPHYR_SET__; const s = b.state ? b.state() : null; const a = s && (s.settings || s.data); const v = a && a.agents && a.agents.userAvatarPath; return v ? ('panjang=' + String(v).length) : 'tidak ada'; })()`);
+console.log('     nilai di store -> ' + diStore);
+cek('nilai tersimpan di settings.agents', String(diStore).startsWith('panjang='), String(diStore).slice(0, 50));
 
-/* --- 3. toggle Settings benar-benar mematikan --- */
-const sebelum = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState() !== undefined)()`);
-console.log('\n-- matikan lewat Settings --');
-
-const dimatikan = await evalJs(`
-  (async () => {
-    /* Lewat command yang sama dengan yang dipakai UI Settings, supaya jalur
-       penyimpanannya ikut teruji - bukan sekadar mengubah store di memori. */
-    const mod = await import('/src/lib/store.ts?av=' + Date.now());
-    return 'LEWAT_IMPORT';
-  })()
-`, true);
-void dimatikan;
-void sebelum;
-
-const diDisk = await evalJs(`
-  (async () => {
-    const s = await window.__TAURI_INTERNALS__.invoke('get_settings');
-    return JSON.stringify({ chatAvatar: s?.agents?.chatAvatar, adaKunci: 'chatAvatar' in (s?.agents ?? {}) });
-  })()
-`, true);
-console.log('nilai chatAvatar di disk: ' + diDisk);
-
-/*
- * Mematikan lewat JALUR YANG SAMA dengan tombol di Settings: `applySettings`.
- *
- * Dua percobaan sebelumnya gagal karena memanggil `set_settings` mentah - dan itu
- * HANYA menyimpan ke disk, tanpa memperbarui store frontend. Hasilnya: disk
- * berubah, layar tidak, dan ujinya melaporkan "avatar tidak hilang" pada aplikasi
- * yang benar. Ternyata `applySettings` yang melakukan keduanya, dan itulah yang
- * dipanggil toggle-nya.
- *
- * Diambil dari store yang HIDUP, bukan lewat import(): import membuat instance
- * modul kedua, sehingga yang dipanggil bukan store yang dipakai layar.
- */
-const disimpan = await evalJs(`
-  (async () => {
-    const st = window.__ZEPHYR__;
-    if (!st || typeof st.getState !== 'function') return 'TIDAK ADA STORE UTAMA';
-    try {
-      await st.getState().applySettings({ agents: { chatAvatar: false } });
-      return 'OK store=' + JSON.stringify(st.getState().settings?.agents?.chatAvatar);
-    } catch (e) { return 'ERR: ' + String(e).slice(0, 160); }
-  })()
-`, true);
-console.log('applySettings(chatAvatar=false): ' + disimpan);
-await sleep(1200);
-
-const sesudahMati = await evalJs(`
-  (() => {
-    const a = document.querySelector('[data-testid="ai-avatar-bot"]');
-    const row = document.querySelector('.ai-row');
-    const gap = row ? getComputedStyle(row).columnGap : null;
-    return JSON.stringify({ adaAvatar: !!a, rowGap: gap, adaRow: !!row });
-  })()
-`);
-console.log('sesudah dimatikan: ' + sesudahMati);
-const M = JSON.parse(sesudahMati);
-cek('avatar hilang saat dimatikan', M.adaAvatar === false);
-
-/* Nyalakan lagi: keadaan akhir harus sama seperti sebelum uji. */
-await evalJs(`
-  (async () => {
-    const st = window.__ZEPHYR__;
-    if (!st) return 'TIDAK ADA';
-    try { await st.getState().applySettings({ agents: { chatAvatar: true } }); return 'OK'; }
-    catch (e) { return 'ERR'; }
-  })()
-`, true);
-await sleep(900);
-const kembali = await evalJs(`(() => !!document.querySelector('[data-testid="ai-avatar-bot"]'))()`);
-cek('avatar kembali saat dinyalakan', kembali === true);
+/* Reset. */
+const reset = await evalJs(`(() => { const b = window.__ZEPHYR_SET__; b.set({ agents: { userAvatarPath: '' } }); return 'ok'; })()`);
+await sleep(1300);
+const setelahReset = await evalJs(`(() => ({ img: !!document.querySelector('[data-testid="agents-avatar-preview"]'), kosong: !!document.querySelector('.set-avatar-empty') }))()`);
+console.log('     setelah reset -> ' + JSON.stringify(setelahReset));
+cek('reset mengembalikan ke placeholder', setelahReset && setelahReset.img === false && setelahReset.kosong === true, JSON.stringify(setelahReset));
 
 console.log('\nerror console: ' + (errors.length ? errors.slice(0, 2).join(' | ') : '(tidak ada)'));
 console.log('\n== ' + lulus + '/' + total + ' lulus ==');

@@ -23,6 +23,7 @@
 
 use base64::Engine;
 use serde_json::{json, Value};
+use std::io::Read;
 use tauri::State;
 
 use crate::app_state::AppState;
@@ -81,6 +82,23 @@ fn parse_data_url(data_url: &str) -> ZResult<Audio> {
  * multipart, and the boundary is a fixed constant rather than a random one - it
  * only has to not appear in the payload, and audio bytes are not text.
  */
+fn key_suara(state: &AppState, provider: &str) -> String {
+    let khusus = format!("{provider}-voice");
+    let k = crate::secrets::key_for(state, &khusus);
+    if !k.is_empty() {
+        return k;
+    }
+    crate::secrets::key_for(state, provider)
+}
+
+fn galat_audio(jenis: &str, status: u16, isi: &str) -> String {
+    if status == 401 || status == 403 {
+        return format!("{jenis} ditolak (HTTP {status}): key provider tidak berlaku untuk endpoint audio — isi key suara di Settings");
+    }
+    let cuplikan: String = isi.chars().take(160).collect();
+    format!("{jenis} gagal (HTTP {status}): {cuplikan}")
+}
+
 fn transcribe_openai_compatible(
     url: &str,
     key: &str,
@@ -144,7 +162,7 @@ fn transcribe_openai_compatible(
         .map_err(|e| format!("could not read the response: {e}"))?;
 
     if status >= 400 {
-        return Err(format!("transcription failed (HTTP {status}): {teks}"));
+        return Err(galat_audio("transkrip", status, &teks));
     }
 
     let v: Value = serde_json::from_str(&teks)
@@ -199,7 +217,7 @@ fn transcribe_gemini(
         .map_err(|e| format!("could not read the response: {e}"))?;
 
     if status >= 400 {
-        return Err(format!("transcription failed (HTTP {status}): {teks}"));
+        return Err(galat_audio("transkrip", status, &teks));
     }
 
     let v: Value = serde_json::from_str(&teks)
@@ -224,7 +242,7 @@ pub fn ai_transcribe(
     lang: Option<String>,
 ) -> ZResult<String> {
     let audio = parse_data_url(&audio)?;
-    let key = crate::secrets::key_for(&state, &provider);
+    let key = key_suara(&state, &provider);
     if key.is_empty() {
         return Err(ZephyrError::InvalidInput(format!(
             "No API key for {provider} yet — add one in Settings → AI Models"
@@ -286,4 +304,142 @@ pub fn ai_transcribe(
     };
 
     hasil.map_err(ZephyrError::InvalidInput)
+}
+
+fn tts_openai_compatible(
+    url: &str,
+    key: &str,
+    model: &str,
+    voice: &str,
+    teks: &str,
+) -> Result<Vec<u8>, String> {
+    let body = serde_json::json!({
+        "model": model,
+        "input": teks,
+        "voice": voice,
+        "response_format": "mp3",
+    });
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(std::time::Duration::from_secs(15)))
+        .timeout_recv_response(Some(std::time::Duration::from_secs(90)))
+        .timeout_per_call(Some(std::time::Duration::from_secs(120)))
+        .http_status_as_error(false)
+        .build()
+        .into();
+    let resp = agent
+        .post(url)
+        .header("Authorization", &format!("Bearer {key}"))
+        .send_json(&body)
+        .map_err(|e| format!("could not reach the speech endpoint: {e}"))?;
+    let status = resp.status().as_u16();
+    let mut buf: Vec<u8> = Vec::new();
+    resp.into_body()
+        .into_reader()
+        .read_to_end(&mut buf)
+        .map_err(|e| format!("could not read the response: {e}"))?;
+    if status >= 400 {
+        let cuplikan = String::from_utf8_lossy(&buf[..buf.len().min(300)]).to_string();
+        return Err(galat_audio("suara", status, &cuplikan));
+    }
+    Ok(buf)
+}
+
+fn tts_model_default(provider: &str) -> &'static str {
+    match provider {
+        "openai" => "gpt-4o-mini-tts",
+        "groq" => "playai-tts",
+        _ => "tts-1",
+    }
+}
+
+fn daftar_voice_default() -> Vec<Value> {
+    let mut daftar = Vec::new();
+    for v in ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] {
+        daftar.push(json!({"id": v, "nama": v, "lang": ""}));
+    }
+    daftar
+}
+
+/// Speak text with the active provider's neural TTS. Returns MP3 as a data URL.
+#[tauri::command]
+pub fn ai_speak(
+    state: State<AppState>,
+    provider: String,
+    model: Option<String>,
+    base_url: Option<String>,
+    voice: Option<String>,
+    teks: String,
+) -> ZResult<String> {
+    let bersih = teks.trim();
+    if bersih.is_empty() {
+        return Err(ZephyrError::InvalidInput("nothing to speak".into()));
+    }
+    if bersih.chars().count() > 4000 {
+        return Err(ZephyrError::InvalidInput(
+            "answer is too long for one speech call (4000 chars)".into(),
+        ));
+    }
+    let key = key_suara(&state, &provider);
+    if key.is_empty() {
+        return Err(ZephyrError::InvalidInput(format!(
+            "No API key for {provider} yet — add one in Settings → AI Models"
+        )));
+    }
+    let m = model.unwrap_or_else(|| tts_model_default(&provider).into());
+    let suara = voice.unwrap_or_else(|| "alloy".into());
+    let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+    let url = if provider == "openai" || base.trim_end_matches('/').ends_with("openai.com/v1") {
+        "https://api.openai.com/v1/audio/speech".to_string()
+    } else {
+        format!("{}/audio/speech", base.trim_end_matches('/'))
+    };
+    let mp3 = tts_openai_compatible(&url, &key, &m, &suara, bersih).map_err(ZephyrError::InvalidInput)?;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&mp3);
+    Ok(format!("data:audio/mpeg;base64,{b64}"))
+}
+
+/// List neural voices for the active provider. Falls back to the built-in list
+/// when the gateway exposes no `/voices` endpoint.
+#[tauri::command]
+pub fn ai_tts_voices(
+    state: State<AppState>,
+    provider: String,
+    base_url: Option<String>,
+) -> ZResult<Vec<Value>> {
+    let key = key_suara(&state, &provider);
+    if key.is_empty() {
+        return Ok(daftar_voice_default());
+    }
+    let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+    let url = format!("{}/audio/voices", base.trim_end_matches('/'));
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(std::time::Duration::from_secs(10)))
+        .timeout_recv_response(Some(std::time::Duration::from_secs(20)))
+        .http_status_as_error(false)
+        .build()
+        .into();
+    let hasil: Result<Vec<Value>, String> = (|| {
+        let resp = agent
+            .get(&url)
+            .header("Authorization", &format!("Bearer {key}"))
+            .call()
+            .map_err(|e| format!("no voices endpoint: {e}"))?;
+        if resp.status().as_u16() >= 400 {
+            return Err("gateway has no voices endpoint".to_string());
+        }
+        let teks = resp
+            .into_body()
+            .read_to_string()
+            .map_err(|e| format!("could not read the response: {e}"))?;
+        let v: Value = serde_json::from_str(&teks)
+            .map_err(|_| "unexpected voices response".to_string())?;
+        let arr = v.get("data").and_then(|d| d.as_array()).cloned()
+            .or_else(|| v.as_array().cloned())
+            .ok_or_else(|| "no voices in the response".to_string())?;
+        Ok(arr.iter().map(|e| {
+            let id = e.get("id").and_then(|x| x.as_str()).unwrap_or("");
+            json!({"id": id, "nama": id, "lang": ""})
+        }).collect())
+    })();
+    Ok(hasil.unwrap_or_else(|_| daftar_voice_default()))
 }

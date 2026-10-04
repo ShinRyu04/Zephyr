@@ -27,7 +27,12 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
     `
     ${bukaPanel}
     const id = 'zephyr.keymap-sublime';
-    const cmdUji = 'editor.copyLineDown';
+    // Command yang BENAR-BENAR ada di app. Versi sebelumnya memakai
+    // 'editor.copyLineDown' - bukan command Zephyr. Manifest keymap-nya juga
+    // memakai nama itu, jadi chord-nya tidak bisa dipetakan, E19.chord()
+    // mengembalikan null, dan kolom Sumber tidak punya isi untuk ditampilkan.
+    // Nama yang benar untuk pindah baris turun: 'editor.line.moveDown'.
+    const cmdUji = 'editor.line.moveDown';
 
     /*
      * Pastikan paketnya terpasang lebih dulu.
@@ -110,7 +115,8 @@ export const bagian2 = async (cdp, check, { EXT_LOKAL, EXT_RUSAK, tsc, cargo, ca
     `
     ${bukaPanel}
     const id = 'zephyr.keymap-sublime';
-    const cmdUji = 'editor.copyLineDown';
+    /* Nama command yang benar - lihat catatan di V7. */
+    const cmdUji = 'editor.line.moveDown';
 
     const sebelum = {
       terpasang: E19.terpasang().map((x) => x.id),

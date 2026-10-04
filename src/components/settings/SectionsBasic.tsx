@@ -352,15 +352,6 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row label={tr('editor.formatOnSave')} hint={tr('Uses the active language LSP formatter')}>
-        <Toggle
-          label={tr('editor.formatOnSave')}
-          testid="editor-format"
-          checked={e.formatOnSave}
-          onChange={(v) => patch({ formatOnSave: v })}
-        />
-      </Row>
-
       <Row label={tr('editor.showWhitespace')} hint={tr('dot for spaces, arrow for tabs')}>
         <Toggle
           label={tr('editor.showWhitespace')}
@@ -382,41 +373,70 @@ export function EditorSection() {
         />
       </Row>
 
-      <Row
-        label={tr('editor.autoSave')}
-        hint={tr('saves dirty tabs through the normal save path, so format on save still runs')}
-      >
-        <Select
-          label={tr('editor.autoSave')}
-          testid="editor-autosave"
-          value={e.autoSave}
-          onChange={(v) => patch({ autoSave: v as typeof e.autoSave })}
-          options={[
-            { value: 'off', label: tr('editor.autoSaveOff') },
-            { value: 'afterDelay', label: tr('editor.autoSaveAfterDelay') },
-            { value: 'onFocusChange', label: tr('editor.autoSaveOnFocusChange') },
-          ]}
-        />
-      </Row>
-
       {/*
-        Only meaningful for `afterDelay`; the delay is ignored by the other two
-        modes, so it stays hidden rather than editable-but-inert.
-      */}
-      {e.autoSave === 'afterDelay' && (
-        <Row label={tr('editor.autoSaveDelay')}>
-          <NumberInput
-            label={tr('editor.autoSaveDelay')}
-            testid="editor-autosave-delay"
-            min={200}
-            max={10000}
-            step={100}
-            value={e.autoSaveDelay}
-            onChange={(v) => patch({ autoSaveDelay: v })}
-            suffix="ms"
+        Saving, as one group.
+        *
+        * These three were scattered: `formatOnSave` sat six rows above here, with
+        * `showWhitespace` and `vimMode` between them, and the delay lived on its
+        * own below. They are one decision - when a file reaches the disk, and what
+        * happens on the way - and reading them apart let someone set an autosave
+        * delay without ever noticing the format-on-save switch that changes what
+        * actually gets written.
+        *
+        * Only the ORDER changed. Every testid is untouched, so nothing that looks
+        * these up by name is affected.
+        */}
+      <div data-testid="set-grup-saving">
+        {/* Reuses the sub-heading class phase 29 added for Security, rather than
+            a new one: two sub-heading styles a hundred lines apart would drift,
+            and the whole point of grouping is that it reads as one section. */}
+        <div className="set-h2 set-h2-sub">{tr('Saving')}</div>
+
+        <Row
+          label={tr('editor.autoSave')}
+          hint={tr('saves dirty tabs through the normal save path, so format on save still runs')}
+        >
+          <Select
+            label={tr('editor.autoSave')}
+            testid="editor-autosave"
+            value={e.autoSave}
+            onChange={(v) => patch({ autoSave: v as typeof e.autoSave })}
+            options={[
+              { value: 'off', label: tr('editor.autoSaveOff') },
+              { value: 'afterDelay', label: tr('editor.autoSaveAfterDelay') },
+              { value: 'onFocusChange', label: tr('editor.autoSaveOnFocusChange') },
+            ]}
           />
         </Row>
-      )}
+
+        {/*
+          Only meaningful for `afterDelay`; the delay is ignored by the other two
+          modes, so it stays hidden rather than editable-but-inert.
+        */}
+        {e.autoSave === 'afterDelay' && (
+          <Row label={tr('editor.autoSaveDelay')}>
+            <NumberInput
+              label={tr('editor.autoSaveDelay')}
+              testid="editor-autosave-delay"
+              min={200}
+              max={10000}
+              step={100}
+              value={e.autoSaveDelay}
+              onChange={(v) => patch({ autoSaveDelay: v })}
+              suffix="ms"
+            />
+          </Row>
+        )}
+
+        <Row label={tr('editor.formatOnSave')} hint={tr('Uses the active language LSP formatter')}>
+          <Toggle
+            label={tr('editor.formatOnSave')}
+            testid="editor-format"
+            checked={e.formatOnSave}
+            onChange={(v) => patch({ formatOnSave: v })}
+          />
+        </Row>
+      </div>
 
       {/* ── phase 24: editor extras ──
           Key names are deliberately the same as VS Code so users switching over do not

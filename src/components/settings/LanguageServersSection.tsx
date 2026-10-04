@@ -355,7 +355,21 @@ export default function LanguageServersSection() {
                   <Toggle
                     label={tr('Enabled')}
                     testid={`lsp-${s.id}-toggle`}
-                    checked={semua && ov[s.id]?.enabled !== false}
+                    /*
+                     * A checked switch must mean "this server can actually run".
+                     *
+                     * The old expression only looked at the saved override. A
+                     * missing override defaults to enabled, so EVERY server was
+                     * drawn checked - including ones whose binary was not on
+                     * PATH. That made the list claim twenty active servers on a
+                     * machine that only had six.
+                     *
+                     * Installed servers still respect an explicit user-off
+                     * override. Missing servers stay unchecked; clicking one
+                     * opens the install dialog above instead of presenting a
+                     * state that cannot work.
+                     */
+                    checked={semua && siap && ov[s.id]?.enabled !== false}
                     disabled={!semua}
                     onChange={(v) => {
                       /*

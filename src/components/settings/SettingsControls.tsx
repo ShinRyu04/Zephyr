@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
+import { useSettingsUi } from '../../lib/settingsStore';
 import { useT } from '../../lib/i18n';
+import { IkonAgen } from '../ai/IkonAgen';
+import type { IkonDef } from '../../lib/subagentIcons';
 
 export function Row({
   label,
@@ -44,28 +47,19 @@ export function Section({
    * part of the stroke they inherit the 1.4px width and vanish at this size;
    * filling them is what keeps them visible.
    */
-  ikon?: { d: string; dFill?: string };
+  /* The real definition, not a structural copy: a copy loses `punyaKomponen`
+     and `viewBox`, so a mark drawn by its own component (Zeph's dragon) would
+     type-check here and then fail to render. */
+  ikon?: IkonDef;
 }) {
   const tr = useT();
   return (
     <section className="set-section">
       <h2 className="set-h2">
         {ikon && (
-          <svg
-            className="set-h2-ikon"
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d={ikon.d} />
-            {ikon.dFill && <path d={ikon.dFill} fill="currentColor" stroke="none" />}
-          </svg>
+          <span className="set-h2-ikon">
+            <IkonAgen ik={ikon} size={16} />
+          </span>
         )}
         {tr(title)}
       </h2>
@@ -124,6 +118,7 @@ export function NumberInput({
   label,
   testid,
   suffix,
+  disabled,
 }: {
   value: number;
   min: number;
@@ -133,6 +128,11 @@ export function NumberInput({
   label: string;
   testid?: string;
   suffix?: string;
+  /* A control whose feature is unavailable is disabled, not hidden: the row
+     stays so its hint still explains why, and the user does not go looking for a
+     setting they remember seeing. A live range slider that writes to a field
+     nothing reads is the worse option. */
+  disabled?: boolean;
 }) {
   const tr = useT();
   return (
@@ -144,6 +144,7 @@ export function NumberInput({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         aria-label={tr(label)}
         data-testid={testid}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -155,6 +156,7 @@ export function NumberInput({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         aria-label={`${tr(label)} ${tr('(number)')}`}
         data-testid={testid ? `${testid}-box` : undefined}
         onChange={(e) => {
@@ -173,17 +175,22 @@ export function Select({
   onChange,
   label,
   testid,
+  disabled,
 }: {
   value: string;
   options: Array<{ value: string; label: string }>;
   onChange: (v: string) => void;
   label: string;
   testid?: string;
+  /* See NumberInput: disabled keeps the row visible so its hint can still say
+     why the feature is unavailable. */
+  disabled?: boolean;
 }) {
   return (
     <select
       className="set-select"
       value={value}
+      disabled={disabled}
       aria-label={label}
       data-testid={testid}
       onChange={(e) => onChange(e.target.value)}
@@ -261,5 +268,60 @@ export function Pills({
         </button>
       ))}
     </div>
+  );
+}
+
+export function VoiceKeyRow({
+  provider,
+  testid,
+}: {
+  provider: string;
+  testid?: string;
+}) {
+  const tr = useT();
+  const keys = useSettingsUi((s) => s.keys);
+  const saveKey = useSettingsUi((s) => s.saveKey);
+  const entry = keys.find((k) => k.provider === provider);
+  const has = entry?.hasKey === true;
+  return (
+    <span className="prov-keyrow">
+      <input
+        className="set-text is-mono"
+        type="password"
+        placeholder={has ? `${tr('models.saved')}: ${entry?.preview ?? ''}` : tr('models.noKey')}
+        defaultValue=""
+        spellCheck={false}
+        aria-label={tr('Voice API key')}
+        data-testid={testid}
+        data-has-key={has ? '1' : ''}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') return;
+          const el = e.target as HTMLInputElement;
+          if (!el.value.trim()) return;
+          void saveKey(provider, el.value).then(() => { el.value = ''; });
+        }}
+      />
+      <button
+        type="button"
+        className="btn btn-sm btn-primary"
+        onClick={(e) => {
+          const wrap = (e.target as HTMLElement).closest('.prov-keyrow');
+          const el = wrap?.querySelector('input');
+          if (!el?.value.trim()) return;
+          void saveKey(provider, el.value).then(() => { el.value = ''; });
+        }}
+      >
+        {tr('common.save')}
+      </button>
+      {has && (
+        <button
+          type="button"
+          className="btn btn-sm btn-danger"
+          onClick={() => void saveKey(provider, '')}
+        >
+          Delete
+        </button>
+      )}
+    </span>
   );
 }

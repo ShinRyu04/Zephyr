@@ -26,6 +26,19 @@ export type NamaAiIkon =
     | 'stethoscope'
     | 'more'
     | 'mic'
+    /*
+     * Speaking, not listening.
+     *
+     * `mic` is the ear; this is the mouth. They must not look alike, because the
+     * two buttons share a row and do opposite things - one puts the user's words
+     * into the draft, the other reads the answer back out. A shared glyph would
+     * make the difference a tooltip, and that is not something a user checking
+     * quickly should have to stop and read.
+     */
+    | 'speaker'
+    /* Lit waves while speech is playing: "is it talking right now?" has to be
+       answerable at a glance, from across the panel. */
+    | 'speaker-on'
     | 'plus'
     | 'search'
     | 'chev-up'
@@ -228,6 +241,31 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <rect x="6.2" y="1.8" width="3.6" height="7.2" rx="1.8" />
           <path d="M3.6 7.4a4.4 4.4 0 0 0 8.8 0" />
           <path d="M8 11.8v2.4M5.8 14.2h4.4" />
+        </svg>
+      );
+    /*
+     * A speaker cone with two waves.
+     *
+     * The cone is a filled triangle rather than a stroked outline: at 16px a
+     * 1.4px outline around a shape that narrow closes up into a smudge, and the
+     * cone is the part that has to read instantly - it is what separates this
+     * from the microphone at a glance.
+     */
+    case 'speaker':
+      return (
+        <svg {...box}>
+          <path d="M2.2 6.1h2.5l3-2.5v8.8l-3-2.5H2.2z" />
+          <path d="M10.3 5.9a3 3 0 0 1 0 4.2" />
+          <path d="M12.4 3.9a5.6 5.6 0 0 1 0 8.2" />
+        </svg>
+      );
+    /* Same cone, waves lit. Speech is playing. */
+    case 'speaker-on':
+      return (
+        <svg {...box}>
+          <path d="M2.2 6.1h2.5l3-2.5v8.8l-3-2.5H2.2z" />
+          <path d="M10.3 5.9a3 3 0 0 1 0 4.2" />
+          <path d="M12.4 3.9a5.6 5.6 0 0 1 0 8.2" />
         </svg>
       );
     /*

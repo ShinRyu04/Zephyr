@@ -156,10 +156,19 @@ export function pisahCustom(tugas: string): { custom: SubagentCustom | null; sis
   const m = /^\s*\[([^\]]{1,40})\]\s*/.exec(tugas);
   if (!m) return { custom: null, sisa: tugas };
   const nama = m[1];
-  const peranBawaan = /^(cari|telaah|rencana|audit|kerja|jelajah)$/i.test(nama.trim());
-  if (peranBawaan) return { custom: null, sisa: tugas };
+  if (PERAN_BAWAAN.includes(nama.trim().toLowerCase())) return { custom: null, sisa: tugas };
   return { custom: cariCustom(nama), sisa: tugas.slice(m[0].length) };
 }
+
+/**
+ * The six built-in role names, lowercase.
+ *
+ * Single source of truth. `simpan` refuses to create a custom worker under one
+ * of these names, and the delegation prompt lists the same six - when these were
+ * written out separately they could drift, and the drift would show up as a
+ * worker silently losing its brief rather than as a mismatch anyone could see.
+ */
+export const PERAN_BAWAAN = ['cari', 'telaah', 'rencana', 'audit', 'kerja', 'jelajah'];
 
 /**
  * The persona block that replaces the built-in role prompt.
@@ -214,6 +223,34 @@ export const useSubagentCustom = create<CustomState>((set, get) => ({
 
   simpan: async (data) => {
     const { sunting, daftar } = get();
+
+    /*
+     * A custom worker may not take a built-in role's name.
+     *
+     * `pisahCustom` matches roles by NAME, so a custom worker called `kerja`
+     * does not sit alongside the built-in one - it quietly replaces the label,
+     * icon and brief of every task that names `kerja`. This is why editing was
+     * once removed outright: the only guard lived in the READ path, where it
+     * could not prevent the collision, only lose to it.
+     *
+     * Guarding the WRITE is the actual fix. The built-in role wins the tie,
+     * matching the precedence `pisahCustom` documents, so the user is told now,
+     * while the name is still in front of them - instead of discovering later
+     * that a task ran under the wrong brief.
+     */
+    const namaBersih = String(data.nama ?? '').trim().toLowerCase();
+    if (PERAN_BAWAAN.includes(namaBersih)) {
+      useStore.getState().setStatus(`"${data.nama}" is a built-in role name - a custom sub-agent cannot take it.`);
+      return;
+    }
+
+    /* Two custom workers under one name are equally ambiguous: `cariCustom`
+       returns the first match, so the second is unreachable by name. */
+    if (daftar.some((x) => x.id !== sunting && String(x.nama ?? '').trim().toLowerCase() === namaBersih)) {
+      useStore.getState().setStatus(`Another custom sub-agent is already called "${data.nama}".`);
+      return;
+    }
+
     const next = sunting
       ? daftar.map((x) => (x.id === sunting ? { ...data, id: sunting } : x))
       : [...daftar, { ...data, id: idBaru() }];

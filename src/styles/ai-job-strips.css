@@ -1,0 +1,190 @@
+/*
+ * Job strips: the running loop and the standing goal.
+ *
+ * These sit between the transcript and the composer, inside the same dock as
+ * the work stack, because they describe the session rather than say something
+ * in it. A loop is a schedule and a goal is a standing instruction - both stay
+ * visible while the conversation they act on is scrolled.
+ *
+ * Colours are tokens only. The loop is the one place in the panel that earns a
+ * green accent: it is the only state that spends money on a timer, and the
+ * reference gives it a banner for exactly that reason.
+ */
+
+.ai-loop-strip {
+  margin: 0 10px;
+  padding: 7px 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg0);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: ai-jump-in 180ms ease-out;
+}
+
+.ai-loop-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+/* The live dot: emerald, with the same breathing halo the loop glyph uses so
+   the two read as one object. */
+.ai-loop-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--success);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent);
+  animation: ai-loop-pulse 2s ease-out infinite;
+}
+
+@keyframes ai-loop-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.ai-loop-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-loop-meta {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-loop-stop {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.ai-loop-stop:hover {
+  background: color-mix(in srgb, var(--danger, #f85149) 18%, transparent);
+  color: var(--danger, #f85149);
+}
+
+/* The run budget draining. Green, because the loop is healthy while it drains -
+   it turning red would say "broken" about a bar that only means "spent". */
+.ai-loop-bar {
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  overflow: hidden;
+}
+
+.ai-loop-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  border-radius: 2px;
+  transition: width 400ms ease;
+}
+
+.ai-loop-prompt {
+  font-size: 10.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Goal ─────────────────────────────────────────────────────────────── */
+
+.ai-goal-strip {
+  margin: 0 10px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg0);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ai-goal-glyph {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--fg);
+}
+
+.ai-goal-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.ai-goal-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-goal-text.is-done {
+  text-decoration: line-through;
+}
+
+.ai-goal-clock {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-goal-act {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.ai-goal-act:hover {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+  color: var(--fg);
+}
+
+.ai-goal-act.is-danger:hover {
+  background: color-mix(in srgb, var(--danger, #f85149) 18%, transparent);
+  color: var(--danger, #f85149);
+}

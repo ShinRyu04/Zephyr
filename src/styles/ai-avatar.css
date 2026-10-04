@@ -80,6 +80,7 @@
   width: 28px;
   height: 28px;
   margin-top: 2px;
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -100,7 +101,9 @@
   border-radius: 50%;
   color: var(--text-secondary);
   background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
-  box-sizing: content-box;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
   padding: 3px;
 }
 
@@ -138,10 +141,19 @@
   user-select: none;
 }
 
+
+
+/* Assistant avatar sits a touch lower to line up with the text. User rows
+   untouched. */
+.ai-row:not(.is-user) .ai-avatar {
+  margin-top: 8px;
+}
+
 /* The avatar of a message that failed is dimmed with it, so a broken bubble
    does not keep a bright, cheerful mark beside it. */
 .ai-row.is-error .ai-avatar {
   opacity: 0.6;
+  margin-top: 0;
 }
 
 /*

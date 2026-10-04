@@ -2757,3 +2757,23 @@
 .lsp-balik:hover {
   text-decoration: underline;
 }
+
+/* Avatar picker. The preview keeps a fixed square and a dashed outline while
+   empty, so the row does not jump in height when a photo is chosen - and so an
+   unset avatar reads as "nothing here yet" rather than as a broken image. */
+.set-avatar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.set-avatar-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.set-avatar-empty {
+  border-style: dashed;
+}
