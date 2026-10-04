@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useT } from '../../lib/i18n';
-import { usePersona } from '../../lib/personaStore';
+import { usePersona, type Persona } from '../../lib/personaStore';
 import { ikonPersona } from '../../lib/subagentIcons';
+import IkonAgen from '../ai/IkonAgen';
 
 /*
  * Persona picker.
@@ -29,6 +30,12 @@ function PersonaCard() {
   const muat = usePersona((s) => s.muat);
   const setAktif = usePersona((s) => s.setAktif);
   const hapus = usePersona((s) => s.hapus);
+  const bukaBaru = usePersona((s) => s.bukaBaru);
+  const bukaSunting = usePersona((s) => s.bukaSunting);
+  const duplikat = usePersona((s) => s.duplikat);
+  const sunting = usePersona((s) => s.sunting);
+  const baru = usePersona((s) => s.baru);
+  const tutup = usePersona((s) => s.tutup);
 
   /*
    * `bukaBaru`, `bukaSunting`, `duplikat`, `sunting`, `baru`, and `tutup` are
@@ -44,6 +51,8 @@ function PersonaCard() {
   useEffect(() => {
     muat();
   }, [muat]);
+
+  const disunting = sunting ? daftar.find((p) => p.id === sunting) ?? null : null;
 
   return (
     <div className="persona-kartu" data-testid="persona-card">
@@ -65,10 +74,13 @@ function PersonaCard() {
             */}
           <span className="set-hint persona-cara" data-testid="persona-cara">
             {tr(
-              'How to use it: click a persona row to make it active, it applies to the next chat, no restart needed. The built-in personas cannot be edited, duplicated, or deleted. If unsure, leave "Zeph" active: that is Zephyr\'s built-in orchestrator with nothing added.',
+              'How to use it: click a persona row to make it active, it applies to the next chat, no restart needed. The built-in personas cannot be edited or deleted — duplicate one to customize it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\'s built-in orchestrator with nothing added.',
             )}
           </span>
         </div>
+        <button className="btn btn-sm" data-testid="persona-new" onClick={() => bukaBaru()}>
+          {tr('Persona: baru')}
+        </button>
       </div>
 
       <div data-testid="persona-daftar">
@@ -101,10 +113,7 @@ function PersonaCard() {
                  * name would be noise for a screen reader.
                  */}
                 <span className="persona-ikon" data-ikon={ik.id} aria-hidden="true">
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={ik.d} />
-                    {ik.dFill && <path d={ik.dFill} fill="currentColor" stroke="none" />}
-                  </svg>
+                  <IkonAgen ik={ik} size={15} />
                 </span>
                 <span className="persona-teks">
                   <span className="persona-nama">
@@ -151,12 +160,30 @@ function PersonaCard() {
                  * that would leave rows that cannot be got rid of.
                  */}
                 {!p.bawaan && (
+                  <>
+                    <button
+                      className="btn btn-sm"
+                      data-testid={`persona-${p.id}-ubah`}
+                      onClick={() => bukaSunting(p.id)}
+                    >
+                      {tr('Subagent: ubah')}
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      data-testid={`persona-${p.id}-hapus`}
+                      onClick={() => void hapus(p.id)}
+                    >
+                      {tr('Subagent: hapus')}
+                    </button>
+                  </>
+                )}
+                {p.bawaan && (
                   <button
                     className="btn btn-sm"
-                    data-testid={`persona-${p.id}-hapus`}
-                    onClick={() => void hapus(p.id)}
+                    data-testid={`persona-${p.id}-salin`}
+                    onClick={() => void duplikat(p.id)}
                   >
-                    {tr('Subagent: delete')}
+                    {tr('Persona: salin')}
                   </button>
                 )}
               </div>
@@ -165,6 +192,154 @@ function PersonaCard() {
         })}
       </div>
 
+      {(baru || disunting) && (
+        <PersonaEditor
+          awal={baru ? null : disunting}
+          key={sunting ?? 'baru'}
+          onTutup={() => tutup()}
+        />
+      )}
+    </div>
+  );
+}
+
+interface EditorProps {
+  awal: Persona | null;
+  onTutup: () => void;
+}
+
+function PersonaEditor({ awal, onTutup }: EditorProps) {
+  const tr = useT();
+  const simpan = usePersona((s) => s.simpan);
+
+  const asliNama = awal?.nama ?? '';
+  const asliDeskripsi = awal?.deskripsi ?? '';
+  const [nama, setNama] = useState(awal ? tr(awal.nama) : '');
+  const [deskripsi, setDeskripsi] = useState(awal ? tr(awal.deskripsi) : '');
+  const [identitas, setIdentitas] = useState(awal?.identitas ?? '');
+  const [caraKerja, setCaraKerja] = useState(awal?.caraKerja ?? '');
+  const [aturan, setAturan] = useState(awal?.aturan ?? '');
+
+  const namaBentrok = usePersona((s) =>
+    s.daftar.some(
+      (x) =>
+        x.id !== awal?.id &&
+        (x.nama.toLowerCase() === nama.trim().toLowerCase() ||
+          tr(x.nama).toLowerCase() === nama.trim().toLowerCase()),
+    ),
+  );
+  const bisaSimpan = nama.trim().length > 0 && !namaBentrok;
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onTutup}>
+      <div
+        className="modal subagent-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="persona-title"
+        data-testid="persona-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="subagent-head">
+          <h2 className="modal-title" id="persona-title">
+            {awal ? tr('Ubah persona') : tr('Persona baru')}
+          </h2>
+          <button className="btn btn-icon" data-testid="persona-tutup" aria-label={tr('Subagent: tutup')} onClick={onTutup}>
+            ✕
+          </button>
+        </div>
+
+        <div className="modal-body subagent-form">
+          <label className="subagent-field">
+            <span className="subagent-label">{tr('Subagent: nama')}</span>
+            <input
+              className="input"
+              data-testid="persona-nama"
+              value={nama}
+              autoFocus
+              placeholder={tr('mis. Pengajar')}
+              onChange={(e) => setNama(e.target.value)}
+            />
+            {namaBentrok && (
+              <span className="subagent-warn" data-testid="persona-nama-bentrok">
+                {tr('Nama itu sudah dipakai persona lain.')}
+              </span>
+            )}
+          </label>
+
+          <label className="subagent-field">
+            <span className="subagent-label">{tr('Subagent: deskripsi')}</span>
+            <input
+              className="input"
+              data-testid="persona-deskripsi"
+              value={deskripsi}
+              placeholder={tr('Satu baris — muncul di daftar persona')}
+              onChange={(e) => setDeskripsi(e.target.value)}
+            />
+          </label>
+
+          <label className="subagent-field">
+            <span className="subagent-label">{tr('Persona: identitas')}</span>
+            <textarea
+              className="input subagent-prompt"
+              data-testid="persona-identitas"
+              value={identitas}
+              rows={3}
+              placeholder={tr('Siapa AI ini. Kosongkan untuk memakai identitas bawaan Zephyr.')}
+              onChange={(e) => setIdentitas(e.target.value)}
+            />
+          </label>
+
+          <label className="subagent-field">
+            <span className="subagent-label">{tr('Persona: cara kerja')}</span>
+            <textarea
+              className="input subagent-prompt"
+              data-testid="persona-carakerja"
+              value={caraKerja}
+              rows={4}
+              placeholder={tr('Bagaimana AI menjawab: panjang, bukti, urutan, nada. Kosongkan untuk bawaan.')}
+              onChange={(e) => setCaraKerja(e.target.value)}
+            />
+          </label>
+
+          <label className="subagent-field">
+            <span className="subagent-label">{tr('Aturan tambahan')}</span>
+            <textarea
+              className="input subagent-prompt"
+              data-testid="persona-aturan"
+              value={aturan}
+              rows={3}
+              placeholder={tr('Aturan yang selalu berlaku untuk persona ini. Kosongkan kalau tidak ada.')}
+              onChange={(e) => setAturan(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="modal-actions">
+          <span className="subagent-spacer" />
+          <button className="btn" data-testid="persona-batal" onClick={onTutup}>
+            {tr('Subagent: batal')}
+          </button>
+          <button
+            className="btn btn-primary"
+            data-testid="persona-simpan"
+            disabled={!bisaSimpan}
+            onClick={() => {
+              void simpan({
+                nama: nama.trim() === tr(asliNama) ? asliNama : nama.trim(),
+                deskripsi:
+                  deskripsi.trim() === tr(asliDeskripsi) ? asliDeskripsi : deskripsi.trim(),
+                identitas: identitas.trim(),
+                caraKerja: caraKerja.trim(),
+                aturan: aturan.trim(),
+              });
+              onTutup();
+            }}
+          >
+            {tr('Subagent: simpan')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
