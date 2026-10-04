@@ -72,11 +72,10 @@ export default defineConfig({
           //
           // Aturan di bawah mengelompokkan SEMUA paket CodeMirror + lezer jadi
           // satu chunk, jadi hanya ada satu instance per modul. Paket bahasa
-          // tetap terpisah per bahasa supaya tetap diunduh saat dipakai saja.
-          if (id.includes('@codemirror/lang-') || id.includes('legacy-modes')) {
-            const m = id.match(/lang-([a-z0-9]+)|legacy-modes[\\/]mode[\\/]([a-z0-9]+)/)
-            return `cm-lang-${(m?.[1] ?? m?.[2] ?? 'misc')}`
-          }
+          // ikut di chunk yang sama: memisahkannya (cm-lang-*) memecah import
+          // sirkular state<->view<->language antar-chunk, dan hasil minify-nya
+          // melempar `Cannot access 'Vt' before initialization` saat boot -
+          // halaman release macet di splash dengan root kosong.
           if (id.includes('@codemirror') || id.includes('@lezer')) return 'codemirror'
           if (id.includes('react-markdown') || id.includes('remark') || id.includes('micromark')) {
             return 'markdown'
