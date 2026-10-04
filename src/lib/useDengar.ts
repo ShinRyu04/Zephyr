@@ -86,6 +86,16 @@ export function useDengar(
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  /*
+   * "Throw this recording away" - written when `stop()` is called for a reason
+   * other than the user finishing, and read inside `onstop`.
+   *
+   * It lives on the component, not inside the effect, because the effect cleanup
+   * runs before `onstop` does: a local variable would already have been reassigned
+   * by the time the handler could look at it, which is exactly how every clip was
+   * being discarded.
+   */
+  const buangRef = useRef(false);
 
   // The callback is read at event time so a re-render mid-dictation does not
   // restart recognition (which would drop the sentence being spoken).
@@ -122,7 +132,23 @@ export function useDengar(
     setGalat(null);
 
     /* ---- Engine 2: the recorder, which is the one that works here ---- */
+    /*
+     * Started at most ONCE per session.
+     *
+     * Both `onerror` and `onend` of the recogniser fall back to the recorder, and
+     * in WebView2 they fire back to back for the same failure: the recogniser
+     * reports `network` (it cannot reach Google's endpoint from the embedded
+     * runtime) and then ends immediately. Two calls meant two `getUserMedia`
+     * streams and two live MediaRecorders fighting over one microphone, with the
+     * second overwriting `mediaRef` - so pressing stop closed one of them and the
+     * other kept the device open, and the transcript the user got was empty or
+     * garbage. Measured, not guessed: the click trace showed
+     * `rec.start` twice for a single press.
+     */
+    let sudahRekam = false;
     const mulaiRekam = async () => {
+      if (sudahRekam || batal) return;
+      sudahRekam = true;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (batal) {
@@ -146,7 +172,31 @@ export function useDengar(
           streamRef.current = null;
           const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
           chunksRef.current = [];
-          if (batal || blob.size === 0) return;
+          /*
+           * Why this handler ignores `buang`, and why it reads the DISCARD flag
+           * from a ref rather than the closure:
+           *
+           * Stopping dictation flips `dengar` to false, which runs the effect
+           * cleanup, which stops this recorder - so `onstop` always executes
+           * after the cleanup has already run. Any variable the cleanup mutates
+           * is therefore already changed by the time we get here, and the two
+           * states we must tell apart (a real stop vs. a discarded teardown)
+           * cannot be distinguished by reading them now.
+           *
+           * The decision was made at stop time, so it is recorded at stop time:
+           * `buangRef.current` is written by whoever called `stop()` - the
+           * cleanup on a teardown, nobody on a user stop - and read here. That
+           * ordering is the whole point, and reading the closure instead is what
+           * silently discarded every clip.
+           */
+          if (blob.size === 0) {
+            setGalat('kosong');
+            return;
+          }
+          if (buangRef.current) {
+            buangRef.current = false;
+            return;
+          }
 
           /*
            * Hand the audio to the app's own transcription.
@@ -224,7 +274,23 @@ export function useDengar(
      * seconds is handed to the recorder rather than left hanging.
      */
     const Ctor = ambilCtor();
-    if (Ctor) {
+    /*
+     * The recogniser is skipped inside the real desktop shell.
+     *
+     * It is exposed and even reports the microphone as granted, but its service
+     * lives on a Google endpoint WebView2 does not reach - so every session began
+     * with a guaranteed `network` error before the recorder could take over. That
+     * delay is not harmless: the fallback fired twice from it (see `sudahRekam`
+     * above), and the user pressed a button that sat silent for a second before
+     * anything started. Going straight to the recorder that actually works is
+     * both faster and the only engine that can succeed here.
+     *
+     * Kept for real browsers, where the recogniser is genuinely better: it
+     * streams words as they are spoken instead of waiting for the whole clip.
+     */
+    const diTauri = typeof window !== 'undefined'
+      && !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    if (Ctor && !diTauri) {
       const rec = new Ctor();
       rec.lang = lang;
       rec.continuous = true;
@@ -271,15 +337,46 @@ export function useDengar(
     }
 
     return () => {
+      /*
+       * Intent decides whether this cleanup ENDS the session or merely tears
+       * down a throwaway mount.
+       *
+       * React StrictMode (dev only) mounts, unmounts and remounts every effect,
+       * so this cleanup runs immediately after a normal start. Stopping the
+       * recorder there would transcribe a clip the user never finished - and the
+       * microphone indicator flickered on and off because of it. The session is
+       * only really over when the user pressed stop, which is exactly when
+       * `dengar` became false.
+       *
+       * So: transcribe on a user stop, stay silent on an accidental teardown.
+       */
       batal = true;
       try { ref.current?.abort(); } catch { /* already stopped */ }
       ref.current = null;
-      try {
-        if (mediaRef.current && mediaRef.current.state !== 'inactive') mediaRef.current.stop();
-      } catch { /* already stopped */ }
+      const rec = mediaRef.current;
       mediaRef.current = null;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      if (rec && rec.state !== 'inactive') {
+        if (!dengar) {
+          /*
+           * User stop: `stop()` flushes the last chunk and then fires `onstop`,
+           * where transcription lives. It must happen BEFORE `mediaRef` is
+           * cleared, and the microphone tracks must NOT be killed here - that cut
+           * the flush short and delivered empty clips. `onstop` stops the tracks
+           * once the data is in hand.
+           */
+          try { rec.stop(); } catch { /* already stopped */ }
+        } else {
+          // Throwaway teardown: discard the recorder and release the device.
+          buangRef.current = true;
+          try { rec.stop(); } catch { /* already stopped */ }
+          chunksRef.current = [];
+          streamRef.current?.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+      } else {
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
     };
   }, [dengar, lang]);
 
