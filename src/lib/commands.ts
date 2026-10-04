@@ -556,7 +556,13 @@ export const aiTranscribe = (opts: {
 export interface NeuralVoice {
   id: string;
   nama: string;
+  /** BCP-47-ish tag such as `ja-JP`. Empty when the server does not say. */
   lang: string;
+  /**
+   * Human note from the catalogue, e.g. "Japanese female". Optional: servers
+   * that publish only ids leave it out, and the picker falls back to the id.
+   */
+  keterangan?: string;
 }
 
 export const aiSpeak = (opts: {

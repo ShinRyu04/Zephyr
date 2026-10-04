@@ -16,7 +16,15 @@ export interface PakaiNeural {
   galat: string | null;
 }
 
-function providerAktif(): { provider: string; baseUrl?: string } {
+/**
+ * Where a speech request actually goes: the voice provider override, and the
+ * address it talks to.
+ *
+ * Exported because the settings picker has to list voices from the SAME endpoint
+ * that `putarNeural` posts to. When both derived the address separately they
+ * drifted, and the dropdown offered voices the speaker could not use.
+ */
+export function providerAktif(): { provider: string; baseUrl?: string } {
   const st = useAi.getState();
   const override = useStore.getState().settings?.voice?.neuralProvider || '';
   const def = findModel(st.model, override || st.provider);
@@ -46,10 +54,30 @@ export function tebakBahasa(teks: string): string {
   return 'id';
 }
 
+/**
+ * Which voice id to send for this answer.
+ *
+ * An explicit choice always wins - the user picked that voice, so honouring a
+ * language heuristic over it would be the app overruling them.
+ *
+ * What changed: a language match is now only accepted from a voice that
+ * ACTUALLY declares that language. The old code matched with
+ * `lang.startsWith(lang)` where an empty `lang` starts with everything, so the
+ * first catalogue entry with no language metadata claimed every match - which is
+ * how a Japanese answer got a random voice. Voices with no language are skipped
+ * for matching and only used as a last resort.
+ */
 function pilihVoice(suara: NeuralVoice[], lang: string, favorit: string): string {
   if (favorit && suara.some((s) => s.id === favorit)) return favorit;
-  const cocok = suara.find((s) => s.lang.toLowerCase().startsWith(lang));
-  if (cocok) return cocok.id;
+  if (lang) {
+    const l = lang.toLowerCase();
+    const base = l.split('-')[0];
+    const sameLang = suara.filter((s) => {
+      const sl = s.lang.toLowerCase();
+      return sl !== '' && (sl.startsWith(l) || sl.split('-')[0] === base);
+    });
+    if (sameLang.length) return sameLang[0].id;
+  }
   const en = suara.find((s) => s.lang.toLowerCase().startsWith('en'));
   if (en) return en.id;
   return suara[0]?.id ?? 'alloy';

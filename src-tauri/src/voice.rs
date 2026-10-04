@@ -379,12 +379,102 @@ fn tts_model_default(provider: &str) -> &'static str {
     }
 }
 
-fn daftar_voice_default() -> Vec<Value> {
-    let mut daftar = Vec::new();
-    for v in ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] {
-        daftar.push(json!({"id": v, "nama": v, "lang": ""}));
+/// 54 presets, the real Kokoro list. Local TTS servers that offer no voice
+/// catalogue are almost always Kokoro-shaped, so this is what the user gets to
+/// pick from instead of OpenAI's five aliases - which no local server accepts.
+fn daftar_voice_kokoro() -> Vec<Value> {
+    [
+        ("af_heart", "en-US", "American female, warm (default)"),
+        ("af_bella", "en-US", "American female, expressive"),
+        ("af_nicole", "en-US", "American female, friendly"),
+        ("af_nova", "en-US", "American female, clear"),
+        ("af_sky", "en-US", "American female, neutral"),
+        ("af_alloy", "en-US", "American female, balanced"),
+        ("af_aoede", "en-US", "American female"),
+        ("af_jessica", "en-US", "American female, energetic"),
+        ("af_kore", "en-US", "American female"),
+        ("af_river", "en-US", "American female, calm"),
+        ("af_sarah", "en-US", "American female, conversational"),
+        ("am_adam", "en-US", "American male, deep"),
+        ("am_michael", "en-US", "American male, clear"),
+        ("am_echo", "en-US", "American male, neutral"),
+        ("am_eric", "en-US", "American male, authoritative"),
+        ("am_fenrir", "en-US", "American male, distinctive"),
+        ("am_liam", "en-US", "American male, conversational"),
+        ("am_onyx", "en-US", "American male, rich"),
+        ("am_puck", "en-US", "American male, expressive"),
+        ("am_santa", "en-US", "American male, warm"),
+        ("bf_emma", "en-GB", "British female, clear"),
+        ("bf_isabella", "en-GB", "British female, warm"),
+        ("bf_alice", "en-GB", "British female, crisp"),
+        ("bf_lily", "en-GB", "British female, soft"),
+        ("bm_george", "en-GB", "British male, authoritative"),
+        ("bm_lewis", "en-GB", "British male, smooth"),
+        ("bm_daniel", "en-GB", "British male, calm"),
+        ("bm_fable", "en-GB", "British male, expressive"),
+        ("jf_alpha", "ja-JP", "Japanese female"),
+        ("jf_gongitsune", "ja-JP", "Japanese female"),
+        ("jf_nezumi", "ja-JP", "Japanese female"),
+        ("jf_tebukuro", "ja-JP", "Japanese female"),
+        ("jm_kumo", "ja-JP", "Japanese male"),
+        ("zf_xiaobei", "zh-CN", "Mandarin female"),
+        ("zf_xiaoni", "zh-CN", "Mandarin female"),
+        ("zf_xiaoxiao", "zh-CN", "Mandarin female"),
+        ("zf_xiaoyi", "zh-CN", "Mandarin female"),
+        ("zm_yunjian", "zh-CN", "Mandarin male"),
+        ("zm_yunxi", "zh-CN", "Mandarin male"),
+        ("zm_yunxia", "zh-CN", "Mandarin male"),
+        ("zm_yunyang", "zh-CN", "Mandarin male"),
+        ("ef_dora", "es-ES", "Spanish female"),
+        ("em_alex", "es-ES", "Spanish male"),
+        ("em_santa", "es-ES", "Spanish male"),
+        ("ff_siwis", "fr-FR", "French female"),
+        ("hf_alpha", "hi-IN", "Hindi female"),
+        ("hf_beta", "hi-IN", "Hindi female"),
+        ("hm_omega", "hi-IN", "Hindi male"),
+        ("hm_psi", "hi-IN", "Hindi male"),
+        ("if_sara", "it-IT", "Italian female"),
+        ("im_nicola", "it-IT", "Italian male"),
+        ("pf_dora", "pt-BR", "Brazilian Portuguese female"),
+        ("pm_alex", "pt-BR", "Brazilian Portuguese male"),
+        ("pm_santa", "pt-BR", "Brazilian Portuguese male"),
+    ]
+    .iter()
+    .map(|(id, lang, ket)| json!({ "id": id, "nama": id, "lang": lang, "keterangan": ket }))
+    .collect()
+}
+
+/// OpenAI's real speech voices. There is no OpenAI `/audio/voices` endpoint, so
+/// this list cannot be fetched - it is the documented set.
+fn daftar_voice_openai() -> Vec<Value> {
+    [
+        ("alloy", "Balanced, neutral"),
+        ("ash", "Warm, conversational"),
+        ("ballad", "Soft, lyrical"),
+        ("coral", "Bright, friendly"),
+        ("echo", "Steady, clear"),
+        ("fable", "Expressive, storyteller"),
+        ("nova", "Energetic, youthful"),
+        ("onyx", "Deep, authoritative"),
+        ("sage", "Calm, measured"),
+        ("shimmer", "Bright, airy"),
+        ("verse", "Versatile, natural"),
+    ]
+    .iter()
+    .map(|(id, ket)| json!({ "id": id, "nama": id, "lang": "en-US", "keterangan": ket }))
+    .collect()
+}
+
+/// Fallback for a provider whose catalogue cannot be read. Which list is right
+/// depends on where the endpoint lives: a user pointing at 127.0.0.1 is running
+/// their own server, and handing them OpenAI voice names - which every local
+/// engine rejects - is worse than useless.
+fn daftar_voice_default(base: &str) -> Vec<Value> {
+    if host_lokal(base) {
+        daftar_voice_kokoro()
+    } else {
+        daftar_voice_openai()
     }
-    daftar
 }
 
 /// Speak text with the active provider's neural TTS. Returns MP3 as a data URL.
@@ -426,8 +516,22 @@ pub fn ai_speak(
     Ok(format!("data:audio/mpeg;base64,{b64}"))
 }
 
-/// List neural voices for the active provider. Falls back to the built-in list
-/// when the gateway exposes no `/voices` endpoint.
+/// List neural voices for the active provider.
+///
+/// Three things this used to get wrong, all of which made the picker lie:
+///
+///  * A key was required to ask at all, so a local server - which has no key -
+///    was never queried. Its own catalogue is the best list there is, and asking
+///    is free. The call now goes out whenever we have an address, key or not,
+///    and a server that refuses simply falls back.
+///  * The base URL came only from the caller, so the user's Voice server URL was
+///    ignored here even though `ai_speak` honours it. The picker listed one
+///    server's voices while speech went to another.
+///  * The fallback was OpenAI's five aliases for everyone. A local engine rejects
+///    those names outright, so the user picked a voice that could never work.
+///
+/// The OpenAI host is skipped deliberately: it has no `/audio/voices` endpoint,
+/// so the request could only ever 404 before reaching the same fallback.
 #[tauri::command]
 pub fn ai_tts_voices(
     state: State<AppState>,
@@ -435,11 +539,15 @@ pub fn ai_tts_voices(
     base_url: Option<String>,
 ) -> ZResult<Vec<Value>> {
     let key = key_suara(&state, &provider);
-    if key.is_empty() {
-        return Ok(daftar_voice_default());
+    let base = base_suara(&provider, base_url.as_ref());
+    let dasar = base.trim_end_matches('/').to_string();
+    if dasar.ends_with("api.openai.com/v1") {
+        return Ok(daftar_voice_openai());
     }
-    let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
-    let url = format!("{}/audio/voices", base.trim_end_matches('/'));
+    if key.is_empty() && !host_lokal(&base) {
+        return Ok(daftar_voice_default(&base));
+    }
+    let url = format!("{dasar}/audio/voices");
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_connect(Some(std::time::Duration::from_secs(10)))
         .timeout_recv_response(Some(std::time::Duration::from_secs(20)))
@@ -447,11 +555,11 @@ pub fn ai_tts_voices(
         .build()
         .into();
     let hasil: Result<Vec<Value>, String> = (|| {
-        let resp = agent
-            .get(&url)
-            .header("Authorization", &format!("Bearer {key}"))
-            .call()
-            .map_err(|e| format!("no voices endpoint: {e}"))?;
+        let mut req = agent.get(&url);
+        if !key.is_empty() {
+            req = req.header("Authorization", &format!("Bearer {key}"));
+        }
+        let resp = req.call().map_err(|e| format!("no voices endpoint: {e}"))?;
         if resp.status().as_u16() >= 400 {
             return Err("gateway has no voices endpoint".to_string());
         }
@@ -459,15 +567,39 @@ pub fn ai_tts_voices(
             .into_body()
             .read_to_string()
             .map_err(|e| format!("could not read the response: {e}"))?;
-        let v: Value = serde_json::from_str(&teks)
-            .map_err(|_| "unexpected voices response".to_string())?;
-        let arr = v.get("data").and_then(|d| d.as_array()).cloned()
+        let v: Value =
+            serde_json::from_str(&teks).map_err(|_| "unexpected voices response".to_string())?;
+        let arr = v
+            .get("data")
+            .and_then(|d| d.as_array())
+            .cloned()
             .or_else(|| v.as_array().cloned())
             .ok_or_else(|| "no voices in the response".to_string())?;
-        Ok(arr.iter().map(|e| {
-            let id = e.get("id").and_then(|x| x.as_str()).unwrap_or("");
-            json!({"id": id, "nama": id, "lang": ""})
-        }).collect())
+        Ok(arr
+            .iter()
+            .filter_map(|e| {
+                /* Servers that do publish a catalogue do not agree on field
+                   names: OpenAI-style uses `id`, others use `name`, `voice` or
+                   `voice_id`, and some carry a language or a human note. Read all
+                   of them rather than rendering a list of blanks. */
+                let id = ["id", "name", "voice", "voice_id"]
+                    .iter()
+                    .find_map(|k| e.get(*k).and_then(|x| x.as_str()))
+                    .filter(|s| !s.is_empty())?;
+                let lang = e
+                    .get("lang")
+                    .or_else(|| e.get("language"))
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("");
+                let ket = e
+                    .get("description")
+                    .or_else(|| e.get("keterangan"))
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("");
+                Some(json!({"id": id, "nama": id, "lang": lang, "keterangan": ket}))
+            })
+            .collect())
     })();
-    Ok(hasil.unwrap_or_else(|_| daftar_voice_default()))
+    Ok(hasil.unwrap_or_else(|_| daftar_voice_default(&base)))
 }
+

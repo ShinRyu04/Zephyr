@@ -22,8 +22,7 @@ import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { useBicara, type Suara } from '../../lib/useBicara';
 import { aiTtsVoices, type NeuralVoice } from '../../lib/commands';
-import { useAi } from '../../lib/aiStore';
-import { findModel } from '../../lib/modelCatalog';
+import { providerAktif } from '../../lib/useNeural';
 import { Section, Row, Toggle, Select, NumberInput, TextInput, VoiceKeyRow } from './SettingsControls';
 
 /**
@@ -95,18 +94,41 @@ export default function VoiceSection() {
 
   const neuralAktif = v?.neuralEnabled === true;
   const [suaraNeural, setSuaraNeural] = useState<NeuralVoice[]>([]);
+
+  /*
+   * The voice catalogue belongs to a specific endpoint, so anything that
+   * redirects the request has to re-fetch it.
+   *
+   * The old effect depended on `[neuralAktif]` alone, which meant the list was
+   * fetched once and then never again: switching the provider, retyping the
+   * server URL, or changing the model left the dropdown showing the FIRST
+   * server's voices. It looked like "every provider has the same voices" - the
+   * exact complaint - and it was not even a caching bug so much as a
+   * dependency bug: the request was never re-issued.
+   *
+   * The base URL also has to be resolved the same way the speaker resolves it
+   * (`useNeural.providerAktif`), or the picker lists voices from the chat
+   * provider while speech goes to the voice server.
+   */
+  const neuralProvider = v?.neuralProvider ?? '';
+  const neuralBaseUrl = v?.neuralBaseUrl ?? '';
+  const neuralModel = v?.neuralModel ?? '';
+
   useEffect(() => {
     if (!neuralAktif) return;
-    const st = useAi.getState();
-    const def = findModel(st.model, st.provider);
-    const baseUrl = useStore.getState().settings.models.providers[def.provider]?.baseUrl ?? undefined;
+    const { provider, baseUrl } = providerAktif();
     let batal = false;
-    aiTtsVoices({ provider: def.provider, baseUrl }).then((d) => { if (!batal) setSuaraNeural(d); }).catch(() => {});
+    aiTtsVoices({ provider, baseUrl })
+      .then((d) => { if (!batal) setSuaraNeural(d); })
+      .catch(() => { if (!batal) setSuaraNeural([]); });
     return () => { batal = true; };
-  }, [neuralAktif]);
+  }, [neuralAktif, neuralProvider, neuralBaseUrl, neuralModel, aktif]);
 
   const pilihanNeural = useMemo(() => {
-    const opsi = suaraNeural.map((s) => ({ value: s.id, label: s.lang ? `${s.nama} (${s.lang})` : s.nama }));
+    const opsi = suaraNeural.map((s) => {
+      const label = s.lang ? `${s.nama} (${s.lang})` : s.nama;
+      return { value: s.id, label: s.keterangan ? `${label} - ${s.keterangan}` : label };
+    });
     const terpilih = v?.neuralVoiceId ?? '';
     if (terpilih && !opsi.some((o) => o.value === terpilih)) {
       opsi.unshift({ value: terpilih, label: terpilih });
@@ -259,7 +281,7 @@ export default function VoiceSection() {
                 hint={tr('Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.')}
               >
                 <VoiceKeyRow
-                  provider={(v?.neuralProvider || useAi.getState().provider || 'custom') + '-voice'}
+                  provider={(v?.neuralProvider || providerAktif().provider) + '-voice'}
                   testid="voice-neural-key"
                 />
               </Row>

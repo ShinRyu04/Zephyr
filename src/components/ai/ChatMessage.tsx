@@ -1,4 +1,5 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { Fragment } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAi, isDestructive } from '../../lib/aiStore';
@@ -155,6 +156,33 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
 }
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
+  /*
+   * Narration slices, one per tool, from the `atChar` offsets stamped at
+   * append time (see aiStore). `potongNarasi[i]` is the text that arrived
+   * before tool i ran; the tool loop below renders it above that tool's row.
+   * `ekorNarasi` is whatever arrived after the last tool. Messages without
+   * offsets (written before `atChar`) slice nothing and the tail carries the
+   * whole text - the legacy layout: all tools, then all text. Computed ONCE
+   * per render so both the tool block and the tail read the same numbers.
+   */
+  const alatNarasi = msg.tools ?? [];
+  const isiNarasi = msg.content ?? '';
+  const adaOffsetNarasi = alatNarasi.some((x) => typeof x.atChar === 'number');
+  let potongNarasi: string[] = alatNarasi.map(() => '');
+  let ekorNarasi = adaOffsetNarasi ? '' : isiNarasi;
+  if (adaOffsetNarasi) {
+    const batas = alatNarasi
+      .map((x) => Math.max(0, Math.min(isiNarasi.length, x.atChar ?? 0)))
+      .sort((a, b) => a - b);
+    let a0 = 0;
+    potongNarasi = alatNarasi.map((_, idx) => {
+      const b1 = batas[idx] ?? isiNarasi.length;
+      const s = isiNarasi.slice(a0, b1);
+      a0 = b1;
+      return s;
+    });
+    ekorNarasi = isiNarasi.slice(a0);
+  }
   /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
   const [gambarBuka, setGambarBuka] = useState<string | null>(null);
   const tr = useT();
@@ -224,10 +252,45 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    */
   const vBicara = useStore((s) => s.settings?.voice?.enabled !== false);
   const vVoiceId = useStore((s) => s.settings?.voice?.voiceId ?? '');
+  /*
+   * The language handed to the platform engine, which is what decides WHICH
+   * voice reads the text - a voice URI alone does not override it.
+   *
+   * This used to be `voice.inputLang`, the DICTATION language, which is a
+   * different question entirely. Picking "Microsoft Ayumi - Japanese" and then
+   * hearing a different voice was exactly this: the engine was told the text was
+   * en-US, so it ignored the Japanese voice in favour of one that matched the
+   * declared language. The dictation setting says what the user speaks; it must
+   * not decide how the answer is read.
+   *
+   * The text's own language is the right answer, and `tebakBahasa` already
+   * derives it from the characters for the neural path. It falls back to the
+   * dictation language when nothing can be inferred, which keeps old behaviour
+   * for a plain English transcript, where the two agree anyway.
+   */
   const vInputLang = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
+
   const vRate = useStore((s) => s.settings?.voice?.rate ?? 1);
   const vVolume = useStore((s) => s.settings?.voice?.volume ?? 1);
   const vSkipKode = useStore((s) => s.settings?.voice?.skipCode !== false);
+
+  /*
+   * What language the built-in engine should be told the answer is in.
+   *
+   * Derived from the message text, not from the dictation setting - see the note
+   * beside `vInputLang`. Computed once here so both branches below agree, and it
+   * is a plain string, so this row still re-renders only when it changes.
+   */
+  const vLangJawaban = useMemo(() => {
+    const t = msg.content;
+    if (/[\u3040-\u309f\u30a0-\u30ff]/.test(t)) return 'ja-JP';
+    if (/[\u4e00-\u9fff]/.test(t)) return 'zh-CN';
+    if (/[\uac00-\ud7af]/.test(t)) return 'ko-KR';
+    if (/[\u0600-\u06ff]/.test(t)) return 'ar-SA';
+    if (/[\u0400-\u04ff]/.test(t)) return 'ru-RU';
+    return vInputLang;
+  }, [msg.content, vInputLang]);
+
 
   /*
    * One speech engine for the whole transcript, and it has to be.
@@ -335,7 +398,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                     hentikanSemuaSuara();
                     bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
                       id: vVoiceId,
-                      lang: vInputLang,
+                      lang: vLangJawaban,
                       rate: vRate,
                       volume: vVolume,
                     });
@@ -345,7 +408,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                   hentikanSemuaSuara();
                   bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
                     id: vVoiceId,
-                    lang: vInputLang,
+                    lang: vLangJawaban,
                     rate: vRate,
                     volume: vVolume,
                   });
@@ -451,13 +514,43 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                   bit.push(`-${t.deletions}`);
                 }
                 const stat = bit.join(' · ');
+                /*
+                 * The narration that arrived before this tool ran, rendered as
+                 * the row's SIBLING - not its child. As a child, the DOM order
+                 * reads tool-then-text (the row opens before its own header),
+                 * which confuses every order-based check and inherits the row
+                 * styling into the prose. As a sibling inside one Fragment,
+                 * the key stays on the Fragment, so React still reconciles
+                 * each teks/tool pair as one unit.
+                 */
+                const narasi = potongNarasi[i] ?? '';
                 return (
-                <div
-                  className={`ai-toolrun${t.ok ? '' : ' is-gagal'}`}
-                  key={i}
-                  data-tool-name={namaPolos(t.name)}
-                  data-ok={t.ok ? '1' : '0'}
-                >
+                <Fragment key={i}>
+                  {narasi.trim() ? (
+                    <div className="ai-segmen" data-testid="ai-segmen" data-segmen={i}>
+                      <Markdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          pre: ({ children }) => <>{children}</>,
+                          code: ({ className, children }) => (
+                            <CodeBlock code={String(children ?? '')} lang={(/language-([\w-]+)/.exec(className ?? '')?.[1] ?? '').toLowerCase()} />
+                          ),
+                          a: ({ href, children }) => (
+                            <a href={href} target="_blank" rel="noreferrer noopener">
+                              {children}
+                            </a>
+                          ),
+                        }}
+                      >
+                        {narasi}
+                      </Markdown>
+                    </div>
+                  ) : null}
+                  <div
+                    className={`ai-toolrun${t.ok ? '' : ' is-gagal'}`}
+                    data-tool-name={namaPolos(t.name)}
+                    data-ok={t.ok ? '1' : '0'}
+                  >
                   <button
                     className="ai-toolrun-head"
                     data-testid="ai-toolrun-toggle"
@@ -669,6 +762,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                     </div>
                   )}
                 </div>
+                </Fragment>
                 );
               })}
             </div>
@@ -733,7 +827,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 ),
               }}
             >
-              {msg.content}
+              {ekorNarasi}
             </Markdown>
             </>
           )}
