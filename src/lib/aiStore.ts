@@ -3795,9 +3795,18 @@ export const useAi = create<AiStore>((set, get) => ({
       // Cancelled must NOT resume: the user ended the run, so it stays ended.
       // A guard trip (step limit) must not either: re-running it would hit the
       // same wall immediately, and "continue" would be a lie.
+      //
+      // Why `akhir` is NOT the test, proved with a real 360s timeout against a
+      // provider that never answers: a run that times out on its FIRST step
+      // produces no reply text at all, so `akhir` is empty and the guard closed
+      // - the button never appeared exactly when it was most needed. What
+      // matters is not whether text was produced, but whether there is real work
+      // to resume: the opening user turn is in `history` from the start, so
+      // anything beyond it (or a completed step) is work worth keeping.
+      const adaKerjaNyata = history.length > 1 || langkah > 0;
       const bisaLanjut =
         (agentFailure.category === 'provider' || agentFailure.category === 'timeout') &&
-        akhir.trim().length > 0;
+        adaKerjaNyata;
       finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ''}`;
       const context = akhir.trim();
       akhir = context ? `${context}\n\n${finalError}` : finalError;
@@ -3908,7 +3917,23 @@ export const useAi = create<AiStore>((set, get) => ({
                   ...m,
                   content: tampil || '(no answer)',
                   streaming: false,
-                  ...(finalError ? { error: finalError } : {}),
+                  /*
+                   * The structured field is only for the case the TEXT could not
+                   * carry the reason - i.e. there is no bubble text at all.
+                   *
+                   * It used to be written unconditionally, and the result was
+                   * proved on a real 360s timeout: the same paragraph appeared
+                   * TWICE, once as the bubble and once as the error chip
+                   * underneath, because the branch above had already appended
+                   * `finalError` to `tampil`. Two renderings of one message
+                   * read as two separate problems.
+                   *
+                   * When `tampil` is empty the bubble shows nothing but the
+                   * `(no answer)` marker, so the chip is the only place the
+                   * reason can appear - and it must, because a run that ends
+                   * with no explanation is indistinguishable from a hang.
+                   */
+                  ...(finalError && !tampil ? { error: finalError } : {}),
                 };
               }),
             }

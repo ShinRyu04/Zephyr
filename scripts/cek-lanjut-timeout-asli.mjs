@@ -179,6 +179,75 @@ if (siap2?.provider !== 'custom' || siap2?.hasKey !== true) {
   process.exit(1);
 }
 
+/*
+ * Mulai sesi BARU, bukan mengirim ke sesi yang sudah penuh sampah.
+ *
+ * Ini cacat terakhir dan yang paling merusak, terbukti langsung dari log mock:
+ * setiap kiriman menambahkan pasangan `user: TIMEOUT tolong jawab` +
+ * `assistant: (no answer)` ke riwayat PERMANEN sesi itu. Run ke-N karena itu
+ * mengirim riwayat berisi N-1 pasangan kosong, dan angka "jawaban kosong"
+ * berikutnya bukan hasil run itu - ia sisa dari semua run sebelumnya.
+ *
+ * Itu sebabnya hasilnya selalu tampak seperti app yang gagal: 40 detik, nol
+ * error, teks kosong. Padahal yang terjadi hanyalah sesi yang sudah tercampur
+ * percobaan-percobaan lama, masing-masing menyumbang satu jawaban kosong.
+ *
+ * `newSession` (kalau ada) memulai percakapan bersih; kalau tidak ada, sesi
+ * terakhir dikosongkan pesannya langsung, karena keduanya berarti hal yang
+ * sama bagi uji ini: run ini harus mulai dari nol.
+ */
+const sesi = await ev(`(() => {
+  const st = window.__ZEPHYR_AI__.store;
+  const g = st.getState();
+  /*
+   * newChat memulai percakapan baru, tetapi agentSteps ada di tingkat STORE,
+   * bukan per sesi - jadi ia tetap membawa langkah run sebelumnya. Keduanya
+   * harus dibersihkan, kalau tidak uji ini kembali membaca sisa run lama dan
+   * melaporkannya sebagai hasil run ini.
+   */
+  const sebelum = { pesan: (g.sessions?.[g.sessions.length - 1]?.messages ?? []).length,
+    langkah: (g.agentSteps ?? []).length };
+  const id = typeof g.newChat === 'function' ? g.newChat() : null;
+  st.setState({ agentSteps: [], agentFailure: null, agentStopReason: null });
+  return JSON.stringify({ cara: id ? 'newChat + kosongkan langkah' : 'kosongkan keduanya', id, sebelum });
+})()`);
+await new Promise((r) => setTimeout(r, 500));
+console.log('sesi baru    :', JSON.stringify(sesi));
+
+/* Pastikan benar-benar bersih - kalau tidak, kekacauan lama akan ikut terbaca
+   lagi dan uji ini kembali melaporkan hal yang salah. */
+const bersihCek = await ev(`(() => {
+  const s = window.__ZEPHYR_AI__.store.getState();
+  const ses = s.sessions?.[s.sessions.length - 1];
+  return JSON.stringify({ pesan: (ses?.messages ?? []).length,
+    langkah: (s.agentSteps ?? []).length, adaLanjut: Boolean(s.agentResume) });
+})()`);
+console.log('verifikasi   :', JSON.stringify(bersihCek));
+if (bersihCek?.pesan > 0 || bersihCek?.langkah > 0) {
+  console.log('GAGAL: sesi tidak bersih - hasil di bawah akan mencampur run lama.');
+  ws.close();
+  process.exit(1);
+}
+
+/*
+ * Nol-kan sisa run lama SEBELUM kirim.
+ *
+ * Ini cacat yang membuat uji ini melaporkan hasil palsu berkali-kali: harness
+ * menunggu, lalu membaca agentSteps dan `(no answer)` yang TERTINGGAL dari run
+ * sebelumnya - bukan dari run ini. Buktinya: langkah yang terbaca bernama
+ * todo_write, sedangkan teks yang dikirim sama sekali tidak menyentuh tool itu.
+ *
+ * Jadi yang dinol-kan: langkah agent dan pesan sesi aktif. Tanpa ini, uji ini
+ * tidak bisa membedakan "run ini gagal tanpa alasan" dari "run ini belum
+ * menulis apa-apa, dan yang terbaca adalah sisa run kemarin".
+ */
+await ev(`(() => {
+  const st = window.__ZEPHYR_AI__.store;
+  st.setState({ agentSteps: [], agentFailure: null, agentStopReason: null });
+  return true;
+})()`);
+await new Promise((r) => setTimeout(r, 300));
+
 const mulai = Date.now();
 const kirim = await ev(`(() => {
   const st = window.__ZEPHYR_AI__.store.getState();
@@ -192,12 +261,33 @@ if (!kirim?.ok) {
   process.exit(1);
 }
 
-/* Tunggu sampai app SENDIRI menyatakan gagal. Batasnya diambil jauh di atas
-   320 detik deadline Rust, supaya yang diukur memang perilaku app, bukan
-   kesabaran harness. */
+/*
+ * Tunggu dengan mengikuti agentBusy, bukan dengan tenggat waktu.
+ *
+ * Sebelumnya loop ini menunggu sampai 10 menit lalu membaca hasil apa pun yang
+ * ada. Itu salah dua kali: ia melaporkan "detik 40" yang sebenarnya hanyalah
+ * kesabarannya sendiri, dan ia membaca sisa run lama sebagai hasil run ini.
+ *
+ * Yang benar: tunggu sampai run benar-benar DIMULAI (busy naik), baru tunggu
+ * sampai selesai. Kalau belum mulai dalam 20 detik, hentikan dengan pesan jujur
+ * - bukan menunggu 10 menit untuk melaporkan sesuatu yang tidak terjadi.
+ */
 let akhir = null;
-for (let i = 0; i < 60; i++) {
-  await new Promise((r) => setTimeout(r, 10000));
+let pernahMulai = false;
+/*
+ * Polling 150ms, bukan 2 detik.
+ *
+ * Terbukti dari app hidup: agentBusy hanya menyala ~330ms untuk provider yang
+ * langsung gagal. Dengan polling 2 detik, seluruh run itu terlewat - harness
+ * menyimpulkan "tidak pernah mulai" padahal ia baru saja selesai. Itu jenis
+ * kesalahan yang sama dengan sebelumnya, hanya terbalik: bukan membaca sisa run
+ * lama, tapi melewatkan run yang terlalu cepat.
+ *
+ * 150ms menangkap run sependek ~150ms, dan untuk timeout asli (300 detik) biaya
+ * polling-nya tidak berarti.
+ */
+for (let i = 0; i < 2600; i++) {
+  await new Promise((r) => setTimeout(r, 150));
   const s = await ev(`(() => {
     const st = window.__ZEPHYR_AI__.store.getState();
     const ses = st.sessions[st.sessions.length - 1];
@@ -222,9 +312,22 @@ for (let i = 0; i < 60; i++) {
     });
   })()`);
   akhir = s;
-  if (s?.phase === 'idle' && !s?.busy && s?.detik > 30) break;
-  if (i % 3 === 0) console.log(`  ... ${s?.detik}s phase=${s?.phase} resume=${s?.resume}`);
+  if (s?.busy) pernahMulai = true;
+  if (!pernahMulai && s?.detik > 20) {
+    console.log('GAGAL: run tidak pernah mulai dalam 20 detik - hasil di bawah tidak berarti.');
+    break;
+  }
+  /* Selesai hanya berarti: sudah pernah mulai, dan kini tidak sibuk lagi. */
+  if (pernahMulai && !s?.busy && s?.phase === 'idle') break;
+  if (i % 100 === 0) console.log(`  ... ${s?.detik}s busy=${s?.busy} phase=${s?.phase} resume=${s?.resume}`);
 }
+if (!pernahMulai) {
+  console.log('\nKesimpulan: TIDAK ADA yang bisa dinilai - run tidak pernah jalan.');
+  await ev(`(() => { const s = window.__ZEPHYR__.getState().settings; window.__ZEPHYR_SET__.set({ models: { ...s.models, activeProvider: ${JSON.stringify(asli.activeProvider)} } }); return true; })()`);
+  ws.close();
+  process.exit(1);
+}
+console.log(`run selesai setelah ${akhir?.detik}s (pernah mulai: ${pernahMulai})`);
 
 /* Cari tombol Lanjut seperti yang dilihat user. */
 const tombol = await ev(`(() => {

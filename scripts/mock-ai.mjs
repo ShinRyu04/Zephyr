@@ -171,6 +171,19 @@ const server = http.createServer(async (req, res) => {
     },
     body,
     promptHead: prompt.slice(0, 400),
+    /*
+     * `jawaban` diisi BELAKANGAN, saat mock benar-benar membalas.
+     *
+     * Tanpa ini, log tidak bisa membedakan "mock menggantung sesuai mode
+     * TIMEOUT" dari "mock membalas normal" - dan perbedaan itulah yang
+     * menentukan apakah uji sedang mengukur timeout atau bukan. Uji tombol
+     * Lanjut bergantung padanya: kalau mode TIMEOUT tidak aktif, tidak ada
+     * timeout yang bisa diuji.
+     *
+     * Sengaja string pendek: tujuannya hanya menandai bahwa balasan benar
+     * terjadi, bukan merekam isinya.
+     */
+    jawaban: null,
   };
   log.push(entry);
 
@@ -222,6 +235,7 @@ const server = http.createServer(async (req, res) => {
    * yang hidup tapi tidak berkata apa-apa, persis 502 yang menggantung.
    */
   if (riwayatPenuh.includes('TIMEOUT')) {
+    entry.jawaban = 'MENGGANTUNG (mode TIMEOUT aktif)';
     const keep = setInterval(() => {
       if (res.destroyed) clearInterval(keep);
     }, 5000);
@@ -341,11 +355,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── OpenAI-compatible: SSE data: {...} + [DONE] ──
+  /* Dicatat SETELAH kepala terkirim, jadi "jawaban ada" berarti mock benar-benar
+     membalas - bukan hanya menerima permintaan. Kalau satu permintaan punya
+     `jawaban: null`, mock menggantung untuk permintaan itu. */
   res.writeHead(200, {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache',
     connection: 'keep-alive',
   });
+  if (!entry.jawaban) entry.jawaban = `SSE membalas (${toolCallAkhir ? 'tool call' : 'teks'})`;
   if (toolCallAkhir) {
     // Potongan pertama: id + nama. Potongan kedua: argumen JSON.
     // Dua potongan sengaja — itu bentuk nyata dari provider dan menguji
