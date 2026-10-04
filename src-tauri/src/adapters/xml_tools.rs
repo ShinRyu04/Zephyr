@@ -199,7 +199,43 @@ fn potong_sampai_penutup<'a>(teks: &'a str, mulai: usize, nama: &str) -> Option<
 /// text back instead of emitting it, and the parser either consumes it at
 /// `finish` or the text is flushed as normal prose once it can no longer match.
 pub fn mungkin_awal_tag(teks: &str) -> bool {
-    /* Only the tail matters — an earlier tag would already have been seen. */
+    /*
+     * Fold first, then decide. Every other helper in this module folds the
+     * fullwidth forms (U+FF5C ｜, U+FF1C ＜, U+FF1E ＞) to ASCII before
+     * matching, but this guard did not - and it is the one the streaming path
+     * calls, on raw text, while chunks are still being written.
+     */
+    let teks = normalisasi_penanda(teks);
+    let teks: &str = &teks;
+
+    /*
+     * A marker ANYWHERE in the buffer means hold.
+     *
+     * This is the actual leak, and it is not about fullwidth at all. The tail
+     * check below can only ever see the last 24 characters, but a finished tag
+     * with a real tool name and arguments is far longer than that:
+     *
+     *     <|DSML| invoke name="browser_close">      <- 35 chars
+     *     me="browser_close">                      <- what the tail sees
+     *
+     * The tail matched nothing, so the guard said "this is prose", the chunk
+     * was emitted to the UI, and the markup was already on screen by the time
+     * `finish` handed it to the parser. Streaming is one-way: what was emitted
+     * cannot be taken back. That is why the raw DSML showed up in the reply
+     * and no tool ever ran.
+     *
+     * So the buffer is held as soon as a marker start exists at all. `finish`
+     * always flushes through `bersihkan_teks`, so over-holding delays nothing
+     * permanently - it only moves a few characters later.
+     */
+    if teks.contains("|DSML|") || teks.contains("||DSML||") {
+        return true;
+    }
+
+    /*
+     * Nothing yet. Only a partial marker at the very end is worth holding, so
+     * prose that merely contains a comparison or an HTML tag still streams.
+     */
     const AWALAN: [&str; 6] = [
         "<|DSML|",
         "|DSML|",
@@ -208,18 +244,21 @@ pub fn mungkin_awal_tag(teks: &str) -> bool {
         "||DSML||",
         "<||DSML||",
     ];
-    let ekor = if teks.len() > 24 {
-        &teks[teks.len() - 24..]
-    } else {
-        teks
+    /*
+     * Take the tail on a CHARACTER boundary, not a byte one. A byte index of
+     * `len - 24` lands mid-character whenever the text ends in a fullwidth or
+     * CJK character, and slicing through one panics rather than merely returning
+     * something odd - and multibyte text is normal here.
+     */
+    let ekor = match teks.char_indices().nth_back(23) {
+        Some((idx, _)) => &teks[idx..],
+        None => teks,
     };
     /* A `<` alone is too common in prose to hold on its own; require a partial
        match that already commits to the marker. */
     AWALAN
         .iter()
         .any(|a| a.starts_with(ekor.trim_end()) && !ekor.trim_end().is_empty() && ekor.contains('<'))
-        || ekor.contains("<|DSML|")
-        || ekor.contains("||DSML||")
         || ekor.ends_with("|DSML")
         || ekor.ends_with("<|DSM")
         || ekor.ends_with("<|DS")
@@ -430,7 +469,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn awal_tag_terdeteksi_di_ekor() {
         /* A complete tag is the easy case. */
         assert!(mungkin_awal_tag("Halo <|DSML|"));
@@ -468,6 +506,42 @@ mod tests {
         assert!(bersih.contains("Let me check"), "prosa hilang: {bersih}");
     }
 
+    #[test]
+    fn awal_tag_menahan_tag_yang_sudah_lengkap() {
+        /*
+         * Yang dikunci di sini adalah bug yang sebenarnya.
+         *
+         * Jendela ekor hanya 24 karakter, sedangkan tag yang sudah selesai
+         * dengan nama tool dan argumen realistis jauh lebih panjang:
+         *
+         *     <|DSML| invoke name="browser_close">     <- 35 karakter
+         *     me="browser_close">                     <- yang dilihat ekor
+         *
+         * Ekor tidak cocok dengan apa pun, guard menganggapnya prosa, chunk
+         * terkirim ke layar, dan penanda sudah tampil sebelum parser sempat
+         *idepress melihatnya di `finish`. Streaming satu arah: yang sudah
+         * terkirim tidak bisa ditarik.
+         */
+        let tag = "<|DSML| invoke name=\"browser_close\">";
+        assert!(tag.len() > 24, "tag ini harus memang lebih panjang dari jendela ekor");
+        assert!(
+            mungkin_awal_tag(tag),
+            "tag yang sudah lengkap di dalam buffer tetap harus ditahan"
+        );
+    }
+
+    #[test]
+    fn prosa_yang_panjang_tanpa_marker_tidak_ditahan() {
+        // Penjaga balik: menahan "ada `<` di mana saja" akan menahan prosa
+        // besar selamanya sampai `finish`, dan streaming-nya hilang.
+        let prosa = "Jawaban ini cukup panjang sekali dan sama sekali tidak punya penanda. \
+                    _bandingkan 2 < 3 dan lihat <div> di sini, lalu lanjut mengulang kalimat \
+                     yang sama berkali-kali sampai jendela ekor ini terisi penuh.";
+        assert!(prosa.len() > 24);
+        assert!(!mungkin_awal_tag(prosa));
+    }
+
+    #[test]
     fn normalisasi_penanda_hanya_menyentuh_lebar() {
         // ASCII must pass through untouched and stay borrowed, not copied.
         let ascii = "biasa <|DSML| invoke name=\"x\">";
@@ -476,5 +550,76 @@ mod tests {
             std::borrow::Cow::Borrowed(_)
         ));
         assert_eq!(normalisasi_penanda(ascii), ascii);
+    }
+
+    /*
+     * Jalur PRODUKSI, bukan jalur yang sudah dinormalisasi.
+     *
+     * Semua tes di atas memanggil `mungkin_awal_tag` dengan teks yang sudah
+     * dilipat ke ASCII. Produksi tidak: di ai.rs, guard dijalankan pada
+     * `tahan`, yaitu teks streamed apa adanya. Itu celah yang membiarkan
+     * marker fullwidth bocor ke layar - dan tes lama tidak mungkin
+     * merasakannya karena ia hanya menguji jalan yang sudah diperbaiki.
+     *
+     * Bentuk di bawah adalah yang persis sampai ke UI:
+     *   <｜｜DSML｜｜ invoke name="browser_close">
+     * dengan U+FF1C, U+FF5C, U+FF1E (bukan ASCII).
+     */
+    #[test]
+    fn jalur_produksi_menahan_marker_lebar() {
+        let mentah = "\u{FF1C}\u{FF5C}\u{FF5C}DSML\u{FF5C}\u{FF5C} invoke name=\"browser_close\">";
+        /* Guard harus menyala pada teks mentah, persis seperti ai.rs
+           memanggilnya pada `tahan` tanpa normalisasi. */
+        assert!(
+            mungkin_awal_tag(mentah),
+            "marker fullwidth harus ditahan, bukan dialirkan ke layar"
+        );
+        /* Dan bentuk yang dipotong di tengah jalan, seperti saat streaming. */
+        for n in 1..=6 {
+            let potong: String = mentah.chars().take(n).collect();
+            assert!(
+                mungkin_awal_tag(&potong),
+                "prefix sepanjang {n} karakter harus ditahan: {potong:?}"
+            );
+        }
+    }
+
+    /*
+     * Penjaga balik dari yang di atas.
+     *
+     * Perbaikan paling mudah untuk bocor di atas adalah "tahan apa pun yang
+     * memuat `<`", tapi itu akan menahan prosa biasa selamanya dan campuran
+     * yang tidak ke mana-mana. Batas bawah ini menjaga perbaikan tetap sempit.
+     */
+    #[test]
+    fn prosa_dengan_kurung_sudut_tidak_ikut_ditahan() {
+        for prosa in [
+            "Hasilnya 2 < 3",
+            "pakai tag html <div> ya",
+            "a < b > c",
+            "1<2 dan 3>4",
+        ] {
+            assert!(
+                !mungkin_awal_tag(prosa),
+                "prosa biasa tidak boleh ikut ditahan: {prosa}"
+            );
+        }
+    }
+
+    /*
+     * Pemotongan ekor memakai indeks BYTE (`&teks[len - 24..]`). Kalau teks
+     * berakhir di karakter fullwidth, posisi `len - 24` bisa jatuh di tengah
+     * satu karakter - dan memotong di tengah karakter UTF-8 adalah panic,
+     * bukan sekadar hasil yang salah. Teks multibyte dari model CJK dan
+     * marker fullwidth membuatnya mudah terjadi.
+     */
+    #[test]
+    fn pemotongan_ekor_aman_pada_karakter_berbyte_panjang() {
+        for n in [1usize, 5, 12, 30] {
+            let s = "\u{FF5C}".repeat(n);
+            let _ = mungkin_awal_tag(&s);
+            let campuran = format!("halo {}", "\u{FF1C}".repeat(n));
+            let _ = mungkin_awal_tag(&campuran);
+        }
     }
 }

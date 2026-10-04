@@ -224,7 +224,7 @@ const BATAS_AKSI_INGAT = 2;
  * further browser/web call that is not itself an open for a DIFFERENT url is
  * the model circling. Three of those in a row is enough to stop.
  */
-const BATAS_BROWSER_MUTER = 3;
+export const BATAS_BROWSER_MUTER = 3;
 /* Consecutive read-only steps that teach nothing before the run is ended. */
 const BATAS_TANPA_KEMAJUAN = 4;
 
@@ -271,6 +271,70 @@ const TOOL_BROWSER = new Set([
 
 function sidikAksi(name: string, args: Record<string, unknown>): string {
   return `${name}:${stableToolJson(args)}`;
+}
+
+/*
+ * Muter browser, sebagai fungsi murni.
+ *
+ * Logika ini sebelumnya hidup inline di dalam loop agent, jadi tidak ada yang
+ * bisa mengujinya - dan harness yang ada ("cek-loop-agent-e2e") ternyata hanya
+ * memeriksa tool ADA di katalog, bukan bahwa penjaganya benar-benar menolak.
+ * Itulah celah yang membuat loop "buka YouTube yang sudah terbuka" berjalan
+ * sampai MAX_AGENT_STEPS.
+ *
+ * Lubangnya: `membukaBaru` dulu hanya berarti "punya url yang tidak kosong".
+ * Membuka url yang sama lagi-lagi tetap dihitung kemajuan, dan `browser_close`
+ * ada di TOOL_PENULIS sehingga juga mereset penghitung tanpa-kemajuan. Jadi
+ * siklus
+ *
+ *     browser_open(youtube) -> browser_read -> browser_close -> browser_open(youtube)
+ *
+ * mereset kedua penghitung di setiap putaran dan tidak pernah menyentuh
+ * ambang mana pun. Halaman terlihat di layar sejak langkah pertama, dan run
+ * tetap berjalan sampai 120 langkah.
+ *
+ * Jadi "baru" berarti url yang belum pernah dibuka pada giliran ini - bukan
+ * sekadar url yang tidak kosong. Membuka tab berbeda tetap lolos, membuka
+ * ulang halaman yang sama tidak.
+ *
+ * Fungsi murni: tidak menyentuh store, tidak menyentuh Date.now, tidak
+ * melempar. Jauh lebih mudah diuji daripada dibaca.
+ */
+export interface HasilMuterBrowser {
+  /** Penghitung setelah langkah ini. */
+  muter: number;
+  /** True saat langkah ini sudah menjadi muter dan run harus dihentikan. */
+  berhenti: boolean;
+}
+
+function urlBrowserDinormalisasi(nama: string, args: Record<string, unknown>): string {
+  if (nama !== 'browser_open' && nama !== 'system_browser_open') return '';
+  return String(args.url ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\/+$/, '');
+}
+
+export function cekMuterBrowser(
+  terbuka: boolean,
+  muter: number,
+  urlSudahTerbuka: readonly string[],
+  nama: string,
+  args: Record<string, unknown>,
+): HasilMuterBrowser {
+  /* Sebelum ada halaman, atau untuk tool yang bukan browser: bukan muter, dan
+     penghitung tidak boleh disentuh. */
+  if (!terbuka || !TOOL_BROWSER.has(nama)) return { muter, berhenti: false };
+
+  const url = urlBrowserDinormalisasi(nama, args);
+  if (url && !urlSudahTerbuka.includes(url)) {
+    /* Halaman yang belum pernah dibuka: ini kemajuan sungguhan, termasuk
+       ketika dipanggil lewat browser_close lalu browser_open lagi. */
+    return { muter: 0, berhenti: false };
+  }
+
+  const berikut = muter + 1;
+  return { muter: berikut, berhenti: berikut >= BATAS_BROWSER_MUTER };
 }
 
 export interface HasilCatatAksi {
@@ -2844,6 +2908,11 @@ export const useAi = create<AiStore>((set, get) => ({
     /* Set once a page actually opened, then counts circling browser calls. */
     let halamanTerbuka = false;
     let browserMuter = 0;
+    /* Pages already opened this turn. This is what separates "open a different
+       page" (progress) from "open the same page again" (circling). Without it,
+       a close/open/read cycle resets both counters every round and runs to
+       MAX_AGENT_STEPS. See cekMuterBrowser. */
+    const urlBrowserTerbuka: string[] = [];
     /* Consecutive read-only steps with nothing new; see the goal-satisfied guard. */
     let langkahTanpaKemajuan = 0;
     try {
@@ -3297,13 +3366,14 @@ export const useAi = create<AiStore>((set, get) => ({
            * padahal setiap langkah membuka halaman baru.
            */
           if (halamanTerbuka && TOOL_BROWSER.has(tc.name)) {
-            const alatBuka = tc.name === 'browser_open' || tc.name === 'system_browser_open';
-            const membukaBaru = alatBuka && Boolean(String(argsObj.url ?? '').trim());
-            if (membukaBaru) {
-              browserMuter = 0;
-            } else {
-            browserMuter += 1;
-            if (browserMuter >= BATAS_BROWSER_MUTER) {
+            /* `membukaBaru` berarti url yang BELUM pernah dibuka pada giliran
+               ini, bukan sekadar url yang tidak kosong - lihat cekMuterBrowser.
+               Membuka ulang halaman yang sama tidak lagi dihitung kemajuan,
+               dan `browser_close` tidak lagi bisa mereset apa pun karena ia
+               masuk lewat fungsi yang sama. */
+            const Putaran = cekMuterBrowser(halamanTerbuka, browserMuter, urlBrowserTerbuka, tc.name, argsObj);
+            browserMuter = Putaran.muter;
+            if (Putaran.berhenti) {
               akhir =
                 `Stopped: a page is already open, and ${browserMuter} further browser steps ` +
                 'made no progress. Report what is on screen and stop; do not inspect it again.';
@@ -3331,7 +3401,6 @@ export const useAi = create<AiStore>((set, get) => ({
                */
               agentBatal = true;
               break;
-            }
             }
           }
           /*
@@ -3456,7 +3525,17 @@ export const useAi = create<AiStore>((set, get) => ({
           }
 
           if (agentBatal) break;
-          if (ok && (tc.name === 'browser_open' || tc.name === 'system_browser_open')) halamanTerbuka = true;
+          if (ok && (tc.name === 'browser_open' || tc.name === 'system_browser_open')) {
+            halamanTerbuka = true;
+            /*
+             * Record the page only once it actually opened. A call that failed
+             * leaves nothing on screen, so treating it as "already opened"
+             * would mark the next genuine attempt at that url as circling -
+             * the guard would then stop a run that was making real progress.
+             */
+            const url = urlBrowserDinormalisasi(tc.name, argsObj);
+            if (url && !urlBrowserTerbuka.includes(url)) urlBrowserTerbuka.push(url);
+          }
           const selesaiPada = Date.now();
           /*
            * The one-line status the collapsed row shows.
