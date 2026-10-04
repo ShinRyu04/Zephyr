@@ -16,9 +16,9 @@ so `latest.json` and the artifacts must live in this repo's release.
 ## 1. Bump the version (3 files)
 
 ```
-package.json            "version": "1.1.1"
-src-tauri/Cargo.toml    version = "1.1.1"
-src-tauri/tauri.conf.json  "version": "1.1.1"
+package.json            "version": "1.1.13"
+src-tauri/Cargo.toml    version = "1.1.13"
+src-tauri/tauri.conf.json  "version": "1.1.13"
 ```
 
 ## 2. Build the release (signing key required)
@@ -33,23 +33,23 @@ Output in `src-tauri/target/release/bundle/` (Tauri v2: the Windows updater
 uses the NSIS/MSI installer directly + `.sig`, NOT a zip):
 
 ```
-msi/Zephyr_1.1.1_x64_en-US.msi         <- MSI installer
-msi/Zephyr_1.1.1_x64_en-US.msi.sig     <- minisign signature
-nsis/Zephyr_1.1.1_x64-setup.exe        <- NSIS installer (updater artifact)
-nsis/Zephyr_1.1.1_x64-setup.exe.sig    <- its signature
+msi/Zephyr_1.1.13_x64_en-US.msi         <- MSI installer
+msi/Zephyr_1.1.13_x64_en-US.msi.sig     <- minisign signature
+nsis/Zephyr_1.1.13_x64-setup.exe        <- NSIS installer (updater artifact)
+nsis/Zephyr_1.1.13_x64-setup.exe.sig    <- its signature
 ```
 
 ## 3. Create the GitHub Release
 
 ```bash
-gh release create v1.1.1 \
+gh release create v1.1.13 \
   --repo ShinRyu04/Zephyr \
-  --title "Zephyr v1.1.1" \
+  --title "Zephyr v1.1.13" \
   --notes-file RELEASE_NOTES.md \
-  "src-tauri/target/release/bundle/msi/Zephyr_1.1.1_x64_en-US.msi" \
-  "src-tauri/target/release/bundle/msi/Zephyr_1.1.1_x64_en-US.msi.sig" \
-  "src-tauri/target/release/bundle/nsis/Zephyr_1.1.1_x64-setup.exe" \
-  "src-tauri/target/release/bundle/nsis/Zephyr_1.1.1_x64-setup.exe.sig"
+  "src-tauri/target/release/bundle/msi/Zephyr_1.1.13_x64_en-US.msi" \
+  "src-tauri/target/release/bundle/msi/Zephyr_1.1.13_x64_en-US.msi.sig" \
+  "src-tauri/target/release/bundle/nsis/Zephyr_1.1.13_x64-setup.exe" \
+  "src-tauri/target/release/bundle/nsis/Zephyr_1.1.13_x64-setup.exe.sig"
 ```
 
 ## 4. Write `latest.json` + upload it as an asset
@@ -59,28 +59,35 @@ gh release create v1.1.1 \
 
 ```json
 {
-  "version": "1.1.1",
+  "version": "1.1.13",
   "notes": "Release summary.",
   "pub_date": "2026-09-07T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "<contents of Zephyr_1.1.1_x64-setup.exe.sig>",
-      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.1/Zephyr_1.1.1_x64-setup.exe"
+      "signature": "<contents of Zephyr_1.1.13_x64-setup.exe.sig>",
+      "url": "https://github.com/ShinRyu04/Zephyr/releases/download/v1.1.13/Zephyr_1.1.13_x64-setup.exe"
     }
   }
 }
 ```
 
-Upload `latest.json` as a release asset too. Since v1.1.1 becomes "latest", the
+Upload `latest.json` as a release asset too. Since v1.1.13 becomes "latest", the
 URL `.../releases/latest/download/latest.json` serves it automatically.
 
 ## 5. Verify the updater
+
+Do not call the release green until the 1.1.13 build and tests have run. Verify
+that each published signature is the complete contents of its matching `.sig`
+file and that every artifact URL resolves to the v1.1.13 release. The staged
+manifest was not promoted to the root during preparation because its Windows
+signature did not match the staged signature file.
 
 Temporarily lower the local version (3 files) to an older number, build,
 install, click "Check for updates" - it should find the new version, download,
 and install. Or at minimum:
 `curl -s https://github.com/ShinRyu04/Zephyr/releases/latest/download/latest.json`
-should show the newest version.
+should show the newest version. Manual installer verification with appropriate
+permissions is still required; none is claimed by this metadata update.
 
 ## Hard rules
 
