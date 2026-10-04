@@ -97,11 +97,25 @@ export default function MicSection() {
 
           <Row
             label={tr('Voice API key')}
-            hint={tr('Saved like a chat key. Empty means use the provider key above.')}
+            hint={tr('Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.')}
           >
             <VoiceKeyRow
               provider={(m?.provider || useAi.getState().provider || 'custom') + '-voice'}
               testid="mic-key"
+            />
+          </Row>
+
+          <Row
+            label={tr('Voice server URL')}
+            hint={tr('Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.')}
+          >
+            <TextInput
+              label={tr('Voice server URL')}
+              testid="mic-baseurl"
+              mono
+              value={m?.baseUrl ?? ''}
+              placeholder="http://127.0.0.1:11434/v1"
+              onChange={(s) => set({ ...m, baseUrl: s })}
             />
           </Row>
 

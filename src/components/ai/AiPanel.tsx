@@ -173,6 +173,8 @@ export default function AiPanel() {
   const gitBranch = useGit((s) => (s.status?.isRepo ? s.status?.branch ?? null : null));
   const ubahAntrian = useAi((s) => s.ubahAntrian);
   const cancel = useAi((s) => s.cancel);
+  const lanjutkanAgent = useAi((s) => s.lanjutkanAgent);
+  const adaCheckpoint = useAi((s) => s.agentResume != null);
   const kirimSekarang = useAi((s) => s.kirimSekarang);
   const historyUp = useAi((s) => s.historyUp);
   const historyDown = useAi((s) => s.historyDown);
@@ -189,6 +191,7 @@ export default function AiPanel() {
   const agentStepIndex = useAi((s) => s.agentStepIndex);
   const agentStepLimit = useAi((s) => s.agentStepLimit);
   const agentLastProgressAt = useAi((s) => s.agentLastProgressAt);
+  const agentStartedAt = useAi((s) => s.agentStartedAt);
   const agentSteps = useAi((s) => s.agentSteps);
 /* Berapa aksi terakhir yang tampil penuh di jejak tool; sisa-nya jadi 'N more actions'. */
 const JEJAK_TOOL_MAKS = 4;
@@ -274,6 +277,18 @@ const JEJAK_TOOL_MAKS = 4;
     cancelling: 'Cancelling',
   }[agentPhase]);
   const progressElapsed = agentLastProgressAt ? Math.max(0, Math.floor((progressNow - agentLastProgressAt) / 1000)) : 0;
+  // Elapsed wall time since the run started, plus a rough ETA from the mean
+  // step cost so far. Uses completed steps only: dividing by the in-flight
+  // step would drag the average toward zero at the start of every step.
+  const runElapsedSec = sibuk && agentStartedAt ? Math.max(0, Math.floor((progressNow - agentStartedAt) / 1000)) : 0;
+  const doneSteps = Math.max(0, agentStepIndex - 1);
+  const avgStepSec = sibuk && agentStartedAt && doneSteps > 0
+    ? Math.max(1, Math.round((progressNow - agentStartedAt) / 1000 / doneSteps))
+    : 0;
+  const etaSec = avgStepSec > 0 ? avgStepSec * Math.max(0, agentStepLimit - agentStepIndex) : 0;
+  const fmtDur = (detik: number) => detik >= 3600
+    ? `${Math.floor(detik / 3600)}:${String(Math.floor(detik % 3600 / 60)).padStart(2, '0')}:${String(detik % 60).padStart(2, '0')}`
+    : `${Math.floor(detik / 60)}:${String(detik % 60).padStart(2, '0')}`;
 
   /*
    * Close the send menu the moment the run ends. It only exists while a run
@@ -488,6 +503,8 @@ const JEJAK_TOOL_MAKS = 4;
         return useStore.getState().settings?.mic?.model || useAi.getState().model;
       },
       get baseUrl() {
+        const micSet = useStore.getState().settings?.mic;
+        if (micSet?.baseUrl) return micSet.baseUrl;
         const st = useAi.getState();
         const def = findModel(st.model, st.provider);
         return useStore.getState().settings.models.providers[def.provider]?.baseUrl ?? undefined;
@@ -1342,6 +1359,8 @@ const JEJAK_TOOL_MAKS = 4;
                   {agentStepLimit > 0 && agentStepIndex >= Math.floor(agentStepLimit * 0.8)
                     ? ' · ' + tf('{left} steps left', { left: Math.max(0, agentStepLimit - agentStepIndex) })
                     : ''}
+                  {runElapsedSec > 0 ? ` · ${fmtDur(runElapsedSec)}` : ''}
+                  {etaSec > 0 ? ` · ~${fmtDur(etaSec)}` : ''}
                 </span>
                 {sibuk && <span>{tf('{n}s', { n: progressElapsed })}</span>}
               </div>
@@ -2154,6 +2173,17 @@ const JEJAK_TOOL_MAKS = 4;
           <IzinMenu />
 
           <div className="ai-send-wrap">
+            {!sibuk && adaCheckpoint && (
+              <button
+                className="ai-round-btn is-resume"
+                data-testid="ai-resume"
+                title={tr('Continue from where it stopped')}
+                aria-label={tr('Continue from where it stopped')}
+                onClick={() => void lanjutkanAgent()}
+              >
+                <AiIkon name="send" size={14} />
+              </button>
+            )}
             {sibuk ? (
               <button
                 className="ai-round-btn is-stop"

@@ -1079,6 +1079,8 @@ export interface Settings {
     neuralEnabled?: boolean;
     /** Which provider speaks. Empty means the active chat provider. Key comes from that provider's saved key. */
     neuralProvider?: string;
+    /** Own server URL for voice. Empty means the chat provider's base URL. Fill for a local TTS server. */
+    neuralBaseUrl?: string;
     /** TTS model id, typed by hand. Empty means the per-provider default. */
     neuralModel?: string;
     /** Provider voice id. Empty means the provider default. */
@@ -1100,6 +1102,8 @@ export interface Settings {
     enabled?: boolean;
     /** Which provider transcribes. Empty means the active chat provider. */
     provider?: string;
+    /** Own server URL for dictation. Empty means the chat provider's base URL. */
+    baseUrl?: string;
     /** STT model id, typed by hand. Empty means the per-provider default. */
     model?: string;
     /** BCP-47 tag the recogniser listens for. Falls back to `voice.inputLang`. */

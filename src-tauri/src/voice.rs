@@ -82,6 +82,11 @@ fn parse_data_url(data_url: &str) -> ZResult<Audio> {
  * multipart, and the boundary is a fixed constant rather than a random one - it
  * only has to not appear in the payload, and audio bytes are not text.
  */
+fn host_lokal(url: &str) -> bool {
+    let u = url.to_lowercase();
+    u.contains("127.0.0.1") || u.contains("localhost") || u.contains("[::1]")
+}
+
 fn key_suara(state: &AppState, provider: &str) -> String {
     let khusus = format!("{provider}-voice");
     let k = crate::secrets::key_for(state, &khusus);
@@ -243,13 +248,21 @@ pub fn ai_transcribe(
 ) -> ZResult<String> {
     let audio = parse_data_url(&audio)?;
     let key = key_suara(&state, &provider);
-    if key.is_empty() {
+    let bahasa = lang.as_deref().filter(|s| !s.is_empty());
+
+    /* A local server needs no key. A cloud one does, and saying so beats
+       sending an empty Authorization header and reporting the 401 as a bug. */
+    let base_mentah = base_url.clone().unwrap_or_default();
+    if key.is_empty() && !base_mentah.is_empty() && !host_lokal(&base_mentah) {
         return Err(ZephyrError::InvalidInput(format!(
             "No API key for {provider} yet — add one in Settings → AI Models"
         )));
     }
-
-    let bahasa = lang.as_deref().filter(|s| !s.is_empty());
+    if key.is_empty() && base_mentah.is_empty() && matches!(provider.as_str(), "gemini" | "anthropic" | "groq" | "openai") {
+        return Err(ZephyrError::InvalidInput(format!(
+            "No API key for {provider} yet — add one in Settings → AI Models"
+        )));
+    }
 
     let hasil = match provider.as_str() {
         "gemini" => {
@@ -380,14 +393,15 @@ pub fn ai_speak(
         ));
     }
     let key = key_suara(&state, &provider);
-    if key.is_empty() {
+    let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+    /* Same rule as transcription: no key is fine on a local server, an error on a cloud one. */
+    if key.is_empty() && !host_lokal(&base) {
         return Err(ZephyrError::InvalidInput(format!(
             "No API key for {provider} yet — add one in Settings → AI Models"
         )));
     }
     let m = model.unwrap_or_else(|| tts_model_default(&provider).into());
     let suara = voice.unwrap_or_else(|| "alloy".into());
-    let base = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
     let url = if provider == "openai" || base.trim_end_matches('/').ends_with("openai.com/v1") {
         "https://api.openai.com/v1/audio/speech".to_string()
     } else {

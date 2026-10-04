@@ -138,6 +138,7 @@ pub fn default_settings() -> Value {
             "skipCode": true,
             "neuralEnabled": false,
             "neuralProvider": "",
+            "neuralBaseUrl": "",
             "neuralModel": "",
             "neuralVoiceId": "",
             "neuralFollowLang": true,
@@ -146,6 +147,7 @@ pub fn default_settings() -> Value {
         "mic": {
             "enabled": true,
             "provider": "",
+            "baseUrl": "",
             "model": "",
             "autoSend": false
         },

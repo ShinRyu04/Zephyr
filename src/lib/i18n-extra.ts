@@ -1465,6 +1465,7 @@ const ID: Dict = {
   'Add a todo, then press Enter': 'Tambah tugas, lalu tekan Enter',
   'Add an API key for': 'Tambahkan API key untuk',
   'Agent is working…': 'Agent sedang bekerja…',
+  'Continue from where it stopped': 'Lanjutkan dari titik terakhir berhenti',
   'Allow': 'Izinkan',
   'CLI mode: send a message to run the CLI': 'Mode CLI: kirim pesan untuk menjalankan CLI',
   'Cancel': 'Batal',
@@ -2309,6 +2310,10 @@ const ID: Dict = {
   "Cannot open the file for restore": "Tidak bisa membuka berkas untuk pemulihan",
   "agents.chatAvatar": "Avatar di chat",
   "the robot and your photo beside each message": "robot dan foto Anda di samping tiap pesan",
+  'Voice server URL': 'URL server suara',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'Endpoint sendiri untuk bicara, mis. server TTS lokal. Kosong berarti alamat provider chat.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'Endpoint sendiri untuk dikte, mis. server lokal. Kosong berarti alamat provider chat.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Disimpan seperti key chat. Kosong berarti pakai key provider di atas. Server lokal biasanya tidak perlu key.',
 };
 const EN: Dict = {
   'Voice provider': 'Voice provider',
@@ -3769,6 +3774,7 @@ const EN: Dict = {
   'Add a todo, then press Enter': 'Add a todo, then press Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'Agent is working…',
+  'Continue from where it stopped': 'Continue from where it stopped',
   'Allow': 'Allow',
   'CLI mode: send a message to run the CLI': 'CLI mode: send a message to run the CLI',
   'Cancel': 'Cancel',
@@ -4539,6 +4545,10 @@ const EN: Dict = {
   "Use agent": "Use agent",
   "agents.chatAvatar": "Chat avatars",
   "the robot and your photo beside each message": "the robot and your photo beside each message",
+  'Voice server URL': 'Voice server URL',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.',
 };
 const JA: Dict = {
   'Voice provider': 'Voice provider',
@@ -6014,6 +6024,7 @@ const JA: Dict = {
   'Add a todo, then press Enter': 'タスクを追加して Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'エージェントが作業中…',
+  'Continue from where it stopped': '中断したところから続ける',
   'Allow': '許可',
   'CLI mode: send a message to run the CLI': 'CLI mode: メッセージを送ると CLI が実行されます',
   'Cancel': 'キャンセル',
@@ -6785,6 +6796,10 @@ const JA: Dict = {
   "Use agent": "このエージェントを使う",
   "agents.chatAvatar": "チャットのアバター",
   "the robot and your photo beside each message": "各メッセージの横にロボットとあなたの写真",
+  'Voice server URL': '音声サーバーURL',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': '音声合成用の独自エンドポイント（例：ローカルTTSサーバー）。空欄はチャットプロバイダーのアドレス。',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'ディクテーション用の独自エンドポイント（例：ローカルサーバー）。空欄はチャットプロバイダーのアドレス。',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'チャットキーと同様に保存。空欄は上記プロバイダーのキーを使用。ローカルサーバーは通常キー不要。',
 };
 const KO: Dict = {
   'Voice provider': 'Voice provider',
@@ -8260,6 +8275,7 @@ const KO: Dict = {
   'Add a todo, then press Enter': '할 일을 추가하고 Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': '에이전트 작업 중…',
+  'Continue from where it stopped': '중단된 지점부터 계속',
   'Allow': '허용',
   'CLI mode: send a message to run the CLI': 'CLI mode: 메시지를 보내면 CLI가 실행됩니다',
   'Cancel': '취소',
@@ -9031,6 +9047,10 @@ const KO: Dict = {
   "Use agent": "이 에이전트 사용",
   "agents.chatAvatar": "채팅 아바타",
   "the robot and your photo beside each message": "각 메시지 옆에 로봇과 내 사진",
+  'Voice server URL': '음성 서버 URL',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': '음성 합성용 자체 엔드포인트(예: 로컬 TTS 서버). 비워 두면 채팅 제공자 주소.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': '받아쓰기용 자체 엔드포인트(예: 로컬 서버). 비워 두면 채팅 제공자 주소.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': '채팅 키처럼 저장. 비워 두면 위 제공자 키 사용. 로컬 서버는 보통 키 불필요.',
 };
 const ZH: Dict = {
   'Voice provider': 'Voice provider',
@@ -10506,6 +10526,7 @@ const ZH: Dict = {
   'Add a todo, then press Enter': '添加任务，然后按 Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': '代理正在工作…',
+  'Continue from where it stopped': '从停止处继续',
   'Allow': '允许',
   'CLI mode: send a message to run the CLI': 'CLI mode：发送一条消息以运行 CLI',
   'Cancel': '取消',
@@ -11277,6 +11298,10 @@ const ZH: Dict = {
   "Use agent": "使用此代理",
   "agents.chatAvatar": "聊天头像",
   "the robot and your photo beside each message": "每条消息旁的机器人和你的照片",
+  'Voice server URL': '语音服务器URL',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': '语音合成专用端点，例如本地TTS服务器。留空则使用聊天提供商地址。',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': '听写专用端点，例如本地服务器。留空则使用聊天提供商地址。',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': '与聊天密钥同样保存。留空则使用上述提供商密钥。本地服务器通常不需要密钥。',
 };
 const ES: Dict = {
   'Voice provider': 'Voice provider',
@@ -12752,6 +12777,7 @@ const ES: Dict = {
   'Add a todo, then press Enter': 'Añade una tarea y pulsa Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'El agente está trabajando…',
+  'Continue from where it stopped': 'Continuar desde donde se detuvo',
   'Allow': 'Permitir',
   'CLI mode: send a message to run the CLI': 'Modo CLI: envía un mensaje para ejecutar la CLI',
   'Cancel': 'Cancelar',
@@ -13523,6 +13549,10 @@ const ES: Dict = {
   "Use agent": "Usar este agente",
   "agents.chatAvatar": "Avatares en el chat",
   "the robot and your photo beside each message": "el robot y tu foto junto a cada mensaje",
+  'Voice server URL': 'URL del servidor de voz',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'Endpoint propio para voz, p. ej. un servidor TTS local. Vacío = dirección del proveedor de chat.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'Endpoint propio para dictado, p. ej. un servidor local. Vacío = dirección del proveedor de chat.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Se guarda como una clave de chat. Vacío = usar la clave del proveedor. Los servidores locales no suelen necesitar clave.',
 };
 const FR: Dict = {
   'Voice provider': 'Voice provider',
@@ -14998,6 +15028,7 @@ const FR: Dict = {
   'Add a todo, then press Enter': 'Ajoutez une tâche puis Entrée',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'L agent travaille…',
+  'Continue from where it stopped': 'Reprendre ou cela sest arrete',
   'Allow': 'Autoriser',
   'CLI mode: send a message to run the CLI': 'Mode CLI : envoyez un message pour lancer la CLI',
   'Cancel': 'Annuler',
@@ -15769,6 +15800,10 @@ const FR: Dict = {
   "Use agent": "Utiliser cet agent",
   "agents.chatAvatar": "Avatars dans le chat",
   "the robot and your photo beside each message": "le robot et votre photo à côté de chaque message",
+  'Voice server URL': 'URL du serveur vocal',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'Endpoint dédié pour la voix, p. ex. un serveur TTS local. Vide = adresse du fournisseur de chat.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'Endpoint dédié pour la dictée, p. ex. un serveur local. Vide = adresse du fournisseur de chat.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Enregistré comme une clé de chat. Vide = utiliser la clé du fournisseur. Les serveurs locaux ne nécessitent généralement pas de clé.',
 };
 const DE: Dict = {
   'Voice provider': 'Voice provider',
@@ -17244,6 +17279,7 @@ const DE: Dict = {
   'Add a todo, then press Enter': 'Aufgabe hinzufügen, dann Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'Agent arbeitet…',
+  'Continue from where it stopped': 'Fortsetzen, wo es angehalten hat',
   'Allow': 'Erlauben',
   'CLI mode: send a message to run the CLI': 'CLI-Modus: Sende eine Nachricht, um die CLI auszuführen',
   'Cancel': 'Abbrechen',
@@ -18015,6 +18051,10 @@ const DE: Dict = {
   "Use agent": "Diesen Agenten verwenden",
   "agents.chatAvatar": "Avatare im Chat",
   "the robot and your photo beside each message": "der Roboter und dein Foto neben jeder Nachricht",
+  'Voice server URL': 'Sprachserver-URL',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'Eigener Endpunkt für Sprache, z. B. ein lokaler TTS-Server. Leer = Adresse des Chat-Anbieters.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'Eigener Endpunkt für Diktat, z. B. ein lokaler Server. Leer = Adresse des Chat-Anbieters.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Wird wie ein Chat-Schlüssel gespeichert. Leer = Schlüssel des Anbieters oben verwenden. Lokale Server brauchen meist keinen Schlüssel.',
 };
 const PT: Dict = {
   'Voice provider': 'Voice provider',
@@ -19490,6 +19530,7 @@ const PT: Dict = {
   'Add a todo, then press Enter': 'Adicione uma tarefa e pressione Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'O agente está trabalhando…',
+  'Continue from where it stopped': 'Continuar de onde parou',
   'Allow': 'Permitir',
   'CLI mode: send a message to run the CLI': 'Modo CLI: envie uma mensagem para executar a CLI',
   'Cancel': 'Cancelar',
@@ -20261,6 +20302,10 @@ const PT: Dict = {
   "Use agent": "Usar este agente",
   "agents.chatAvatar": "Avatares no chat",
   "the robot and your photo beside each message": "o robô e a sua foto ao lado de cada mensagem",
+  'Voice server URL': 'URL do servidor de voz',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'Endpoint próprio para voz, ex. um servidor TTS local. Vazio = endereço do provedor de chat.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'Endpoint próprio para ditado, ex. um servidor local. Vazio = endereço do provedor de chat.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Salva como uma chave de chat. Vazio = usar a chave do provedor. Servidores locais geralmente não precisam de chave.',
 };
 const AR: Dict = {
   'Voice provider': 'Voice provider',
@@ -21736,6 +21781,7 @@ const AR: Dict = {
   'Add a todo, then press Enter': 'أضف مهمة ثم اضغط Enter',
   'Add an API key for': 'Add an API key for',
   'Agent is working…': 'الوكيل يعمل…',
+  'Continue from where it stopped': 'المتابعة من حيث توقف',
   'Allow': 'السماح',
   'CLI mode: send a message to run the CLI': 'وضع CLI: أرسل رسالة لتشغيل الـ CLI',
   'Cancel': 'إلغاء',
@@ -22507,6 +22553,10 @@ const AR: Dict = {
   "Use agent": "استخدام هذا الوكيل",
   "agents.chatAvatar": "صور في الدردشة",
   "the robot and your photo beside each message": "الروبوت وصورتك بجانب كل رسالة",
+  'Voice server URL': 'رابط خادم الصوت',
+  'Own endpoint for speech, e.g. a local TTS server. Empty means the chat provider address.': 'نقطة نهاية خاصة للنطق، مثل خادم TTS محلي. فارغ يعني عنوان موفر الدردشة.',
+  'Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.': 'نقطة نهاية خاصة للإملاء، مثل خادم محلي. فارغ يعني عنوان موفر الدردشة.',
+  'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'تُحفظ مثل مفتاح الدردشة. فارغ يعني استخدام مفتاح الموفر أعلاه. الخوادم المحلية عادة لا تحتاج مفتاحا.',
 };
 export const EXTRA: Record<string, Dict> = {
   id: ID,

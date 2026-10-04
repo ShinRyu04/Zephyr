@@ -21,7 +21,8 @@ function providerAktif(): { provider: string; baseUrl?: string } {
   const override = useStore.getState().settings?.voice?.neuralProvider || '';
   const def = findModel(st.model, override || st.provider);
   const prov = override || def.provider;
-  const baseUrl = useStore.getState().settings.models.providers[prov]?.baseUrl ?? undefined;
+  const sendiri = useStore.getState().settings?.voice?.neuralBaseUrl || '';
+  const baseUrl = sendiri || (useStore.getState().settings.models.providers[prov]?.baseUrl ?? undefined);
   return { provider: prov, baseUrl };
 }
 
