@@ -2318,6 +2318,8 @@ const ID: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Disimpan seperti key chat. Kosong berarti pakai key provider di atas. Server lokal biasanya tidak perlu key.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama jalan di mesin ini dan tidak perlu key. Kosongkan saja.',
   'No key needed (local)': 'Tanpa key (lokal)',
+  'Mic server URL': 'URL server mic',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Endpoint sendiri untuk dikte, mis. server STT lokal. Kosong berarti alamat provider chat.',
 };
 const EN: Dict = {
   'Voice provider': 'Voice provider',
@@ -4557,6 +4559,8 @@ const EN: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama runs on this machine and needs no key. Leave the field empty.',
   'No key needed (local)': 'No key needed (local)',
+  'Mic server URL': 'Mic server URL',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.',
 };
 const JA: Dict = {
   'Voice provider': 'Voice provider',
@@ -6812,6 +6816,8 @@ const JA: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'チャットキーと同様に保存。空欄は上記プロバイダーのキーを使用。ローカルサーバーは通常キー不要。',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollamaはこのマシンで動作し、キーは不要です。空欄のままにしてください。',
   'No key needed (local)': 'キー不要（ローカル）',
+  'Mic server URL': 'マイクサーバーURL',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': '音声入力用の独自エンドポイント（例：ローカルSTTサーバー）。空欄ならチャットプロバイダーのアドレス。',
 };
 const KO: Dict = {
   'Voice provider': 'Voice provider',
@@ -9067,6 +9073,8 @@ const KO: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': '채팅 키처럼 저장. 비워 두면 위 제공자 키 사용. 로컬 서버는 보통 키 불필요.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama는 이 컴퓨터에서 실행되며 키가 필요 없습니다. 비워 두세요.',
   'No key needed (local)': '키 불필요(로컬)',
+  'Mic server URL': '마이크 서버 URL',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': '받아쓰기용 자체 엔드포인트(예: 로컬 STT 서버). 비워두면 채팅 공급자 주소.',
 };
 const ZH: Dict = {
   'Voice provider': 'Voice provider',
@@ -11322,6 +11330,8 @@ const ZH: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': '与聊天密钥同样保存。留空则使用上述提供商密钥。本地服务器通常不需要密钥。',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama在本机运行，不需要密钥。请留空。',
   'No key needed (local)': '无需密钥（本地）',
+  'Mic server URL': '麦克风服务器地址',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': '听写用的自有端点，例如本地 STT 服务器。留空则使用聊天服务商地址。',
 };
 const ES: Dict = {
   'Voice provider': 'Voice provider',
@@ -13577,6 +13587,8 @@ const ES: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Se guarda como una clave de chat. Vacío = usar la clave del proveedor. Los servidores locales no suelen necesitar clave.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama corre en esta máquina y no necesita clave. Déjalo vacío.',
   'No key needed (local)': 'Sin clave (local)',
+  'Mic server URL': 'URL del servidor de micrófono',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Endpoint propio para dictado, p. ej. un servidor STT local. Vacío usa la dirección del proveedor de chat.',
 };
 const FR: Dict = {
   'Voice provider': 'Voice provider',
@@ -15832,6 +15844,8 @@ const FR: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Enregistré comme une clé de chat. Vide = utiliser la clé du fournisseur. Les serveurs locaux ne nécessitent généralement pas de clé.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama tourne sur cette machine et ne nécessite pas de clé. Laissez vide.',
   'No key needed (local)': 'Pas de clé (local)',
+  'Mic server URL': 'URL du serveur micro',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Point de terminaison propre à la dictée, p. ex. un serveur STT local. Vide = adresse du fournisseur de chat.',
 };
 const DE: Dict = {
   'Voice provider': 'Voice provider',
@@ -18087,6 +18101,8 @@ const DE: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Wird wie ein Chat-Schlüssel gespeichert. Leer = Schlüssel des Anbieters oben verwenden. Lokale Server brauchen meist keinen Schlüssel.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama läuft auf diesem Rechner und braucht keinen Schlüssel. Leer lassen.',
   'No key needed (local)': 'Kein Schlüssel nötig (lokal)',
+  'Mic server URL': 'Mikrofon-Server-URL',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Eigener Endpunkt für Diktat, z. B. ein lokaler STT-Server. Leer = Adresse des Chat-Anbieters.',
 };
 const PT: Dict = {
   'Voice provider': 'Voice provider',
@@ -20342,6 +20358,8 @@ const PT: Dict = {
   'Saved like a chat key. Empty means use the provider key above. Local servers usually need no key.': 'Salva como uma chave de chat. Vazio = usar a chave do provedor. Servidores locais geralmente não precisam de chave.',
   'Ollama runs on this machine and needs no key. Leave the field empty.': 'Ollama roda nesta máquina e não precisa de chave. Deixe vazio.',
   'No key needed (local)': 'Sem chave (local)',
+  'Mic server URL': 'URL do servidor de microfone',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'Endpoint próprio para ditado, p. ex. um servidor STT local. Vazio usa o endereço do provedor de chat.',
 };
 const AR: Dict = {
   'Voice server URL': 'عنوان خادم الصوت',
@@ -22590,4 +22608,6 @@ const AR: Dict = {
   "Install the language server": "تثبيت خادم اللغة",
   "language server": "خادم اللغة",
   "Zephyr could not find": "لم يتمكن Zephyr من العثور على",
-  "on your PATH. Install it, then check again to enable this server.": "في PATH لديك. ثبّته ثم أعد الفحص لتفعيل هذا الخادم.",  "Found it. Switch this server on to use it.": "تم العثور عليه. شغّل هذا الخادم لاستخدامه.",  "Checking...": "جارٍ الفحص...",  "Check again": "أعد الفحص",  "Use agent": "استخدام هذا الوكيل",  "agents.chatAvatar": "صور في الدردشة",  "the robot and your photo beside each message": "الروبوت وصورتك بجانب كل رسالة",};export const EXTRA: Record<string, Dict> = {  id: ID,  en: EN,  ja: JA,  ko: KO,  zh: ZH,  es: ES,  fr: FR,  de: DE,  pt: PT,  ar: AR,};
+  "on your PATH. Install it, then check again to enable this server.": "في PATH لديك. ثبّته ثم أعد الفحص لتفعيل هذا الخادم.",  "Found it. Switch this server on to use it.": "تم العثور عليه. شغّل هذا الخادم لاستخدامه.",  "Checking...": "جارٍ الفحص...",  "Check again": "أعد الفحص",  "Use agent": "استخدام هذا الوكيل",  "agents.chatAvatar": "صور في الدردشة",  "the robot and your photo beside each message": "الروبوت وصورتك بجانب كل رسالة",
+  'Mic server URL': 'عنوان خادم الميكروفون',
+  'Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.': 'نقطة نهاية خاصة للإملاء، مثل خادم STT محلي. فارغ يعني عنوان مزود المحادثة.',};export const EXTRA: Record<string, Dict> = {  id: ID,  en: EN,  ja: JA,  ko: KO,  zh: ZH,  es: ES,  fr: FR,  de: DE,  pt: PT,  ar: AR,};

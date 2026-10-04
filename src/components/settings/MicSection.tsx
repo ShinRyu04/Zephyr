@@ -28,12 +28,21 @@ export default function MicSection() {
   const [hasil, setHasil] = useState<HasilTes>('idle');
 
   const set = (bagian: NonNullable<typeof m>) => patch({ mic: bagian });
+  /*
+   * Same provider set as the voice section, and it has to stay the same:
+   * a provider missing here but present there (or the reverse) reads as a bug,
+   * because both controls answer the same question - where does audio go.
+   *
+   * Groq was removed deliberately: it has no local mode and its TTS/STT quota is
+   * separate from the chat key, so offering it invited a 401 that looked like a
+   * broken app. Ollama carries "(local, no key)" because a local server has no
+   * key to enter, and the label is what stops the user hunting for one.
+   */
   const SUARA_PROVIDERS = [
     { value: 'openai', label: 'OpenAI' },
     { value: 'ollama', label: 'Ollama (local, no key)' },
-    { value: 'groq', label: 'Groq' },
     { value: 'gemini', label: 'Google Gemini' },
-    { value: 'custom', label: 'Custom' },
+    { value: 'custom', label: 'Custom (OpenAI-compatible server)' },
     { value: 'local', label: 'Local' },
   ];
   const opsiSttProvider = [{ value: '', label: tr('Follow chat provider') }].concat(SUARA_PROVIDERS);
@@ -117,16 +126,19 @@ export default function MicSection() {
           </Row>
           )}
 
+          {/* Labelled "Mic server URL", not the borrowed "Voice server URL":
+              this field feeds dictation, and naming it after the other feature
+              sent people to the wrong setting when their mic stopped working. */}
           <Row
-            label={tr('Voice server URL')}
-            hint={tr('Own endpoint for dictation, e.g. a local server. Empty means the chat provider address.')}
+            label={tr('Mic server URL')}
+            hint={tr('Own endpoint for dictation, e.g. a local STT server. Empty means the chat provider address.')}
           >
             <TextInput
-              label={tr('Voice server URL')}
+              label={tr('Mic server URL')}
               testid="mic-baseurl"
               mono
               value={m?.baseUrl ?? ''}
-              placeholder="http://127.0.0.1:11434/v1"
+              placeholder="http://127.0.0.1:8881/v1"
               onChange={(s) => set({ ...m, baseUrl: s })}
             />
           </Row>
