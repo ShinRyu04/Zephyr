@@ -4,6 +4,9 @@ dist/
 .vite/
 src-tauri/target/
 src-tauri/gen/
+# Verifikator tanda tangan rilis punya target/ sendiri. Tanpa baris ini, 15 MB
+# artefak build ikut ter-commit setiap kali ia dibangun ulang.
+verifikasi-rilis/target/
 
 # Artefak koleksi ikon (unduhan sekali pakai) — jangan masuk repo
 .si-tmp/

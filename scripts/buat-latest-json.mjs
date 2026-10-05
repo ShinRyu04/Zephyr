@@ -1,82 +1,67 @@
-/**
- * buat-latest-json.mjs - membuat manifes updater dari artefak yang sudah dibangun.
- *
- *   node scripts/buat-latest-json.mjs <versi>
- *
- * Manifes ini yang dibaca updater DI DALAM aplikasi. Bentuknya harus persis
- * sama dengan yang dipakai rilis sebelumnya, karena aplikasi yang sudah
- * terpasang mem-parse-nya dengan bentuk itu:
- *
- *   { version, notes, pub_date, platforms: { "<target>-<arch>": { signature, url } } }
- *
- * `signature` diambil dari berkas `.sig` yang dibuat Tauri, dan itu ISI BERKAS
- * mentah - bukan sekadar nama berkasnya. Salah di sini membuat unduhan selalu
- * ditolak dengan "signature verification failed", dan pesan itu menunjuk ke
- * installer padahal masalahnya di manifes.
- *
- * URL menunjuk ke GitHub Releases rilis yang SAMA, dengan nama berkas yang
- * harus cocok huruf per huruf - kalau tidak, updater mengunduh 404.
- */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-const versi = process.argv[2] || '1.1.13';
-const dir = `D:/Zephyr/release/${versi}`;
-const bundle = 'D:/Zephyr/src-tauri/target/release/bundle';
-const repo = 'https://github.com/ShinRyu04/Zephyr/releases/download';
-
-if (!existsSync(dir)) {
-  console.error(`Folder rilis tidak ada: ${dir}`);
-  process.exit(1);
-}
-
 /*
- * Artefak updater adalah installer NSIS, bukan MSI: `installMode: basicUi`
- * di config berarti updater menjalankan setup.exe diam-diam. Menunjuk ke MSI
- * akan membuka dialog pemasangan MSI dan terasa seperti aplikasi yang hang.
+ * latest.json untuk updater dalam aplikasi.
+ *
+ * Bentuknya mengikuti 1.1.12 (version, notes, pub_date, platforms) supaya
+ * updater yang sudah beredar tidak perlu tahu apa-apa yang baru.
+ *
+ * Tanda tangannya dibaca LANGSUNG dari berkas .sig yang dihasilkan build ini,
+ * bukan disalin dari rilis sebelumnya. Menyalin tanda tangan lama akan membuat
+ * updater menolak berkas baru dengan "signature mismatch" - dan kegagalannya
+ * baru terlihat di mesin pengguna, bukan di sini.
  */
-const nsis = join(bundle, 'nsis');
-if (!existsSync(nsis)) {
-  console.error(`Folder NSIS tidak ada: ${nsis}`);
-  process.exit(1);
-}
+import fs from 'node:fs';
+import path from 'node:path';
 
-const setup = readdirSync(nsis).find((f) => f.endsWith('-setup.exe'));
-if (!setup) {
-  console.error('Tidak menemukan *-setup.exe di folder NSIS:');
-  console.error(readdirSync(nsis).join('\n'));
-  process.exit(1);
-}
+const VERSI = '1.1.13';
+const DIR = `release/${VERSI}`;
+const REPO = 'ShinRyu04/Zephyr';
 
-const sigPath = join(nsis, `${setup}.sig`);
-if (!existsSync(sigPath)) {
-  console.error(`Berkas tanda tangan tidak ada: ${sigPath}`);
-  console.error('Build tanpa kunci minisign menghasilkan installer yang tidak bisa dipakai');
-  console.error('updater. Periksa TAURI_SIGNING_PRIVATE_KEY dan passwordnya.');
-  process.exit(1);
-}
+const bacaSig = (p) => {
+  if (!fs.existsSync(p)) throw new Error(`tanda tangan tidak ada: ${p}`);
+  const s = fs.readFileSync(p, 'utf8').trim();
+  if (s.length < 100) throw new Error(`tanda tangan terlalu pendek: ${p}`);
+  return s;
+};
 
-const signature = readFileSync(sigPath, 'utf8').trim();
+/* Catatan versi diambil dari berkas catatan bahasa Inggris: itu yang dikirim
+   updater ke semua pengguna, dan bahasa lain tetap tersedia sebagai berkas. */
+const catatan = fs.readFileSync(`release/${VERSI}/notes/RELEASE_NOTES_${VERSI}.en.md`, 'utf8');
 
-/* Nama berkas di URL harus PERSIS sama dengan yang diunggah. */
-const url = `${repo}/v${versi}/${setup}`;
+const setup = `Zephyr_${VERSI}_x64-setup.exe`;
+const appimage = `Zephyr_${VERSI}_amd64.AppImage`;
 
-const catatan = existsSync(join(dir, 'RELEASE_NOTES.md'))
-  ? readFileSync(join(dir, 'RELEASE_NOTES.md'), 'utf8').slice(0, 2000)
-  : `Zephyr ${versi}`;
-
-const manifes = {
-  version: versi,
+const latest = {
+  version: VERSI,
   notes: catatan,
   pub_date: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
   platforms: {
-    'windows-x86_64': { signature, url },
+    'windows-x86_64': {
+      signature: bacaSig(`${DIR}/${setup}.sig`),
+      url: `https://github.com/${REPO}/releases/download/v${VERSI}/${setup}`,
+    },
+    'linux-x86_64': {
+      signature: bacaSig(`${DIR}/linux/${appimage}.sig`),
+      url: `https://github.com/${REPO}/releases/download/v${VERSI}/${appimage}`,
+    },
   },
 };
 
-writeFileSync(join(dir, 'latest.json'), JSON.stringify(manifes, null, 2) + '\n', { encoding: 'utf8' });
+fs.writeFileSync(`${DIR}/latest.json`, JSON.stringify(latest, null, 2) + '\n');
 
-console.log(`latest.json ditulis untuk ${versi}`);
-console.log(`  installer : ${setup}`);
-console.log(`  signature : ${signature.slice(0, 40)}... (${signature.length} karakter)`);
-console.log(`  url       : ${url}`);
+/* Diperiksa ulang setelah ditulis: tanda tangan yang tertukar atau URL yang
+   salah tidak bisa terlihat dari penulisan yang "berhasil". */
+const ulang = JSON.parse(fs.readFileSync(`${DIR}/latest.json`, 'utf8'));
+for (const [plat, info] of Object.entries(ulang.platforms)) {
+  const url = info.url;
+  const namaDiUrl = url.split('/').pop();
+  const cocok = namaDiUrl === setup || namaDiUrl === appimage;
+  console.log(`${plat}: ${cocok ? 'OK ' : 'SALAH'} signature=${info.signature.length} char, nama di URL=${namaDiUrl}`);
+  if (!cocok) throw new Error(`nama berkas di URL tidak cocok: ${namaDiUrl}`);
+  if (info.signature.length < 100) throw new Error(`signature ${plat} mencurigakan`);
+}
+/* Nama di URL harus sama dengan nama berkas yang benar-benar ada. */
+const adaWindows = fs.existsSync(`${DIR}/${setup}`);
+const adaLinux = fs.existsSync(`${DIR}/linux/${appimage}`);
+console.log(`berkas ada: windows=${adaWindows} linux=${adaLinux}`);
+if (!adaWindows || !adaLinux) throw new Error('berkas yang dirujuk latest.json belum ada');
+console.log(`\nlatest.json ${VERSI} ditulis dan diperiksa.`);

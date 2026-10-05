@@ -1,0 +1,13 @@
+[package]
+name = "verifikasi-rilis"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Crate ini memakai pustaka verifikasi yang SAMA dengan yang dipakai
+# tauri-plugin-updater (minisign-verify), dan versi yang sama seperti di
+# Cargo.lock proyek. Jadi hasilnya identik dengan yang dijalankan updater di
+# mesin pengguna - bukan tiruan yang "kira-kira sama".
+[dependencies]
+minisign-verify = "0.2.5"
+base64 = "0.22"
