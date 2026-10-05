@@ -1023,8 +1023,35 @@ export const useStore = create<Store>((set, get) => ({
       return { tabs };
     }),
 
+  /*
+   * Membuka berkas pada baris tertentu - dan TIDAK melempar kalau gagal.
+   *
+   * Sebelumnya `await get().openPath(path)` dibiarkan melempar. Itu terlihat
+   * aman, karena pemanggilnya memakai `void` - tapi `void` hanya membuang
+   * HASIL promise, bukan PENOLAKANNYA. Satu berkas yang tidak ada menghasilkan
+   * unhandledrejection, dan itu naik ke renderer.
+   *
+   * Yang membuatnya merusak: pemanggil paling sering adalah jawaban MODEL
+   * sendiri. Model yang sedang menulis tiga berkas menyebut `situs/styles.css`
+   * di kalimatnya SEBELUM berkasnya ada - jadi rujukan ke berkas yang belum
+   * ditulis adalah keadaan NORMAL, bukan kasus tepi. Setiap kali itu terjadi,
+   * loop agent yang sedang berjalan mati, dan model tampak berhenti di tengah
+   * kalimat:
+   *
+   *   assistant: "...Menulis `situs/styles.css`.Men"   <- terpotong
+   *   log      : unhandledrejection NotFound: situs/styles.css is missing
+   *
+   * Karena itu kegagalan ditelan di sini, di titik paling dalam. Membukanya
+   * gagal memang bukan hal yang bisa ditindaklanjuti pemanggil - berkasnya
+   * belum ada, dan tidak ada yang bisa dilakukan selain membiarkan agent
+   * melanjutkan tulisannya.
+   */
   openPathAt: async (path, line, col = 1) => {
-    await get().openPath(path);
+    try {
+      await get().openPath(path);
+    } catch {
+      return;
+    }
 
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     revealPosition(line, col);

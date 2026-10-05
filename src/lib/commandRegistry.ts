@@ -2205,7 +2205,15 @@ export const COMMANDS: CommandDef[] = [
     enabled: () => !!S().lastClosed,
     run: () => {
       const p = S().lastClosed?.path;
-      if (p) void S().openPath(p);
+      /*
+       * Berkas yang terakhir ditutup bisa sudah tidak ada lagi - dan `void`
+       * hanya membuang hasil promise, bukan penolakannya. Satu berkas yang
+       * hilang karena itu menghasilkan unhandledrejection yang naik ke
+       * renderer, sama seperti jalur openPathAt di ChatMessage.tsx. Ditangkap
+       * di sini karena membukanya gagal tidak bisa ditindaklanjuti: berkasnya
+       * memang sudah tidak ada.
+       */
+      if (p) S().openPath(p).catch(() => {});
     },
   },
   {
