@@ -447,7 +447,7 @@ export const useStore = create<Store>((set, get) => ({
   saveIssue: null,
 
   terminalTabs: [],
-  ai: { model: 'custom-model', messages: [] },
+  ai: { model: '', messages: [] },
   mcp: { enabled: false, running: false, port: 9222 },
 
   settings: DEFAULT_SETTINGS,

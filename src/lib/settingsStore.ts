@@ -152,8 +152,17 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
 
   testConnection: async (provider, baseUrl) => {
     set({ testing: provider });
+    /*
+     * Here `baseUrl` is passed through UNCONDITIONALLY, including when it is
+     * empty, so the backend decides what an empty string means. The settings UI
+     * used to send `cfg.baseUrl || undefined`, which turned "the field is blank"
+     * into "no argument" - and the backend's old catch-all then quietly read
+     * that as api.openai.com. An explicit "" reaches `endpoint_for`, which
+     * refuses `custom` with a clear message instead of inventing a host.
+     */
+    const dikirim = baseUrl === undefined || baseUrl === null ? baseUrl : String(baseUrl).trim();
     try {
-      const r = await cmd.testModelConnection(provider, baseUrl);
+      const r = await cmd.testModelConnection(provider, dikirim);
       set((s) => ({ testResults: { ...s.testResults, [provider]: r }, testing: null }));
     } catch (e) {
       set((s) => ({

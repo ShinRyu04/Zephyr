@@ -326,6 +326,58 @@ mod tests {
     }
 
     #[test]
+    fn endpoint_custom_tanpa_base_url_ditolak_bukan_openai() {
+        use crate::secrets::endpoint_for_test;
+
+        // The bug being pinned: "custom" with no base URL fell through to
+        // api.openai.com, so the key was sent to a host the user never chose
+        // and the verdict was about OpenAI, not their gateway.
+        for kosong in [None, Some(""), Some("   ")] {
+            let r = endpoint_for_test("custom", kosong);
+            assert!(r.is_err(), "custom tanpa base URL harus MENOLAK: {r:?}");
+            let pesan = r.unwrap_err();
+            assert!(
+                pesan.to_lowercase().contains("base url"),
+                "pesan harus menyebut base URL: {pesan}"
+            );
+        }
+
+        // With a base URL it uses it verbatim - and never OpenAI.
+        let url = endpoint_for_test("custom", Some("https://modelrouter.id/v1")).unwrap();
+        assert_eq!(url, "https://modelrouter.id/v1/models");
+        assert!(!url.contains("openai"), "custom tidak boleh jatuh ke OpenAI: {url}");
+
+        // Trailing slash must not double up.
+        let url = endpoint_for_test("custom", Some("https://router.local/v1/")).unwrap();
+        assert_eq!(url, "https://router.local/v1/models");
+    }
+
+    #[test]
+    fn endpoint_provider_lain_tidak_jatuh_ke_openai() {
+        use crate::secrets::endpoint_for_test;
+
+        // `local` ships a catalogue base URL but had no Rust arm either, so it
+        // hit the same fallback. It must resolve to loopback on its own.
+        let lokal = endpoint_for_test("local", None).unwrap();
+        assert!(lokal.contains("127.0.0.1"), "{lokal}");
+        assert!(!lokal.contains("openai"), "{lokal}");
+
+        // Known providers keep their own defaults.
+        assert!(endpoint_for_test("deepseek", None).unwrap().contains("api.deepseek.com"));
+        assert!(endpoint_for_test("xai", None).unwrap().contains("api.x.ai"));
+        assert!(endpoint_for_test("lmstudio", None).unwrap().contains("127.0.0.1:1234"));
+
+        // An unknown provider with no URL is refused, not silently sent to
+        // OpenAI - that is the whole point of removing the catch-all arm.
+        let aneh = endpoint_for_test("provider-yang-tidak-dikenal", None);
+        assert!(aneh.is_err(), "provider tak dikenal harus ditolak: {aneh:?}");
+
+        // ...but an unknown provider WITH a URL is honoured (OpenAI-compatible).
+        let url = endpoint_for_test("provider-aneh", Some("https://contoh.test/v1")).unwrap();
+        assert_eq!(url, "https://contoh.test/v1/models");
+    }
+
+    #[test]
     fn long_path_menambah_prefix_untuk_path_panjang() {
         use std::path::Path;
 

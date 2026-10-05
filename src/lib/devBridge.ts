@@ -197,7 +197,9 @@ export function installDevBridge(): void {
       findConflicts(actionId, binding, useStore.getState().settings.shortcuts),
     publicModels: () => getPublicModels(),
     setKey: (provider: string, key: string) => setModelKey(provider, key),
-    testKey: (provider: string, baseUrl?: string) => testModelConnection(provider, baseUrl),
+    /* Send baseUrl as given, even "" - the backend must see "blank", not
+       "missing", or a blank custom URL is read as api.openai.com. */
+    testKey: (provider: string, baseUrl?: string) => testModelConnection(provider, baseUrl ?? ''),
     resetAll: () => resetSettings(),
 
     settingsFromDisk: () => getSettings(),

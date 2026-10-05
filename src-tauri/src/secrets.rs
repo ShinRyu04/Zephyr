@@ -260,6 +260,118 @@ pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> Z
     write_secrets(&state, &map)
 }
 
+/// The endpoint to call for a provider, plus the auth header to call it with.
+///
+/// This is shared by `test_model_connection` and `list_models` on purpose. They
+/// used to carry two hand-written copies of the same match, and the copies had
+/// already drifted (one knew `xai`/`lmstudio`, the other did not) - which means
+/// the "Test connection" button and the model list could query two different
+/// hosts for the same provider.
+struct Endpoint {
+    url: String,
+    header: &'static str,
+    value: String,
+    /// `anthropic` needs an extra version header, and `list_models` parses the
+    /// response in a provider-specific shape. Both are carried here so a caller
+    /// never has to re-derive them from the provider string.
+    anthropic: bool,
+    gemini_style: bool,
+}
+
+/// Resolve the provider's endpoint, or refuse.
+///
+/// The refusal is the whole point for `custom`: it has NO sensible default
+/// endpoint, so the old `_ => "https://api.openai.com/v1"` arm quietly tested
+/// OpenAI while the user read a verdict about their own gateway. A key that is
+/// perfectly good for `https://modelrouter.id/v1` came back "401 - API key
+/// rejected", which reads as a broken key and is not.
+fn endpoint_for(provider: &str, base_url: Option<&str>, key: &str) -> ZResult<Endpoint> {
+    let p = provider.trim();
+    let given = base_url.map(str::trim).filter(|s| !s.is_empty());
+
+    // `custom` is the only provider that canNOT work without an address: there
+    // is no defensive default for "an OpenAI-compatible endpoint I do not know".
+    // It must say so rather than guess. `local` has a real default (loopback),
+    // so it is resolved below like the other named providers.
+    if p == "custom" && given.is_none() {
+        return Err(ZephyrError::InvalidInput(
+            "custom provider needs a base URL - set it in Settings → AI Models".into(),
+        ));
+    }
+
+    let (base, header, value, anthropic, gemini_style) = match p {
+        "gemini" => (
+            given.unwrap_or("https://generativelanguage.googleapis.com"),
+            "x-goog-api-key",
+            key.to_string(),
+            false,
+            true,
+        ),
+        "anthropic" => (
+            given.unwrap_or("https://api.anthropic.com"),
+            "x-api-key",
+            key.to_string(),
+            true,
+            false,
+        ),
+        "deepseek" => (
+            given.unwrap_or("https://api.deepseek.com/v1"),
+            "Authorization",
+            format!("Bearer {key}"),
+            false,
+            false,
+        ),
+        "xai" => (
+            given.unwrap_or("https://api.x.ai/v1"),
+            "Authorization",
+            format!("Bearer {key}"),
+            false,
+            false,
+        ),
+        "lmstudio" => (
+            given.unwrap_or("http://127.0.0.1:1234/v1"),
+            "Authorization",
+            format!("Bearer {key}"),
+            false,
+            false,
+        ),
+        "local" => (
+            given.unwrap_or("http://127.0.0.1:4096/v1"),
+            "Authorization",
+            format!("Bearer {key}"),
+            false,
+            false,
+        ),
+        // `openai` is the only provider that may default to OpenAI - by NAME.
+        // Any other unknown id is treated as OpenAI-compatible and still needs
+        // an explicit URL, so an unrecognised provider can never silently probe
+        // a host the user never chose.
+        "openai" => (
+            given.unwrap_or("https://api.openai.com/v1"),
+            "Authorization",
+            format!("Bearer {key}"),
+            false,
+            false,
+        ),
+        _ => match given {
+            Some(u) => (u, "Authorization", format!("Bearer {key}"), false, false),
+            None => {
+                return Err(ZephyrError::InvalidInput(format!(
+                    "unknown provider \"{p}\" has no base URL - set one in Settings → AI Models"
+                )))
+            }
+        },
+    };
+
+    Ok(Endpoint {
+        url: format!("{}/models", base.trim_end_matches('/')),
+        header,
+        value,
+        anthropic,
+        gemini_style,
+    })
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestResult {
@@ -275,12 +387,7 @@ pub fn test_model_connection(
     provider: String,
     base_url: Option<String>,
 ) -> ZResult<TestResult> {
-    let secrets = read_secrets(&state);
-    let key = secrets
-        .get(provider.trim())
-        .and_then(|v| v.as_str())
-        .and_then(decrypt)
-        .unwrap_or_default();
+    let key = key_for(&state, &provider);
 
     if key.is_empty() {
         return Ok(TestResult {
@@ -291,61 +398,23 @@ pub fn test_model_connection(
         });
     }
 
-    let (url, header, value) = match provider.trim() {
-        "gemini" => (
-            format!(
-                "{}/v1beta/models",
-                base_url
-                    .clone()
-                    .unwrap_or_else(|| "https://generativelanguage.googleapis.com".into())
-                    .trim_end_matches('/')
-            ),
-            "x-goog-api-key",
-            key.clone(),
-        ),
-        "anthropic" => (
-            format!(
-                "{}/v1/models",
-                base_url
-                    .clone()
-                    .unwrap_or_else(|| "https://api.anthropic.com".into())
-                    .trim_end_matches('/')
-            ),
-            "x-api-key",
-            key.clone(),
-        ),
-
-        other => (
-            format!(
-                "{}/models",
-                base_url
-                    .clone()
-                    .unwrap_or_else(|| match other {
-                        "deepseek" => "https://api.deepseek.com/v1".into(),
-                        "xai" => "https://api.x.ai/v1".into(),
-                        "lmstudio" => "http://127.0.0.1:1234/v1".into(),
-                        _ => "https://api.openai.com/v1".to_string(),
-                    })
-                    .trim_end_matches('/')
-            ),
-            "Authorization",
-            format!("Bearer {key}"),
-        ),
-    };
-
+    let ep = endpoint_for(&provider, base_url.as_deref(), &key)?;
     let started = std::time::Instant::now();
 
-    let mut req = ureq::get(&url)
+    let mut req = ureq::get(&ep.url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(8)))
         .build()
-        .header(header, &value);
-    if provider.trim() == "anthropic" {
+        .header(ep.header, &ep.value);
+    if ep.anthropic {
         req = req.header("anthropic-version", "2023-06-01");
     }
 
-    let (ok, status, message) = match req.call() {
-        Ok(r) => (true, Some(r.status().as_u16()), "Koneksi OK".to_string()),
+    // Every verdict names the URL it is a verdict ABOUT. Without this the user
+    // cannot tell a real answer from one produced by a fallback host, which is
+    // exactly how "Test connection OK" once coexisted with a chat that 404'd.
+    let (ok, status, pesan) = match req.call() {
+        Ok(r) => (true, Some(r.status().as_u16()), "Connection OK".to_string()),
         Err(ureq::Error::StatusCode(code)) => (
             false,
             Some(code),
@@ -353,7 +422,7 @@ pub fn test_model_connection(
                 401 | 403 => "API key rejected (401/403) — check the key".to_string(),
                 404 => "Endpoint not found (404) — check the base URL".to_string(),
                 429 => "Rate limit (429) — the key is valid but currently throttled".to_string(),
-                c => format!("Server menjawab {c}"),
+                c => format!("Server answered {c}"),
             },
         ),
         Err(e) => (false, None, format!("Cannot reach the server: {e}")),
@@ -361,7 +430,7 @@ pub fn test_model_connection(
 
     Ok(TestResult {
         ok,
-        message,
+        message: format!("{pesan} · {url}", url = ep.url),
         status,
         ms: started.elapsed().as_millis() as u64,
     })
@@ -380,62 +449,23 @@ pub fn list_models(
         )));
     }
 
-    let (url, header, value, style) = match provider.trim() {
-        "gemini" => (
-            format!(
-                "{}/v1beta/models",
-                base_url
-                    .clone()
-                    .unwrap_or_else(|| "https://generativelanguage.googleapis.com".into())
-                    .trim_end_matches('/')
-            ),
-            "x-goog-api-key",
-            key.clone(),
-            "gemini",
-        ),
-        "anthropic" => (
-            format!(
-                "{}/v1/models",
-                base_url
-                    .clone()
-                    .unwrap_or_else(|| "https://api.anthropic.com".into())
-                    .trim_end_matches('/')
-            ),
-            "x-api-key",
-            key.clone(),
-            "openai",
-        ),
-        other => (
-            format!(
-                "{}/models",
-                base_url
-                    .clone()
-                    .unwrap_or_else(|| match other {
-                        "deepseek" => "https://api.deepseek.com/v1".into(),
-                        _ => "https://api.openai.com/v1".to_string(),
-                    })
-                    .trim_end_matches('/')
-            ),
-            "Authorization",
-            format!("Bearer {key}"),
-            "openai",
-        ),
-    };
+    let ep = endpoint_for(&provider, base_url.as_deref(), &key)?;
 
-    let mut req = ureq::get(&url)
+    let mut req = ureq::get(&ep.url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(8)))
         .build()
-        .header(header, &value);
-    if provider.trim() == "anthropic" {
+        .header(ep.header, &ep.value);
+    if ep.anthropic {
         req = req.header("anthropic-version", "2023-06-01");
     }
 
     let body = req.call().map_err(|e| match e {
-        ureq::Error::StatusCode(code) => {
-            ZephyrError::InvalidInput(format!("Server menjawab {code} — cek key & base URL"))
-        }
-        e => ZephyrError::InvalidInput(format!("Cannot reach the server: {e}")),
+        ureq::Error::StatusCode(code) => ZephyrError::InvalidInput(format!(
+            "Server answered {code} — check the key and the base URL ({})",
+            ep.url
+        )),
+        e => ZephyrError::InvalidInput(format!("Cannot reach the server {}: {e}", ep.url)),
     })?;
 
     let json: serde_json::Value = serde_json::from_str(
@@ -446,7 +476,7 @@ pub fn list_models(
     )
     .map_err(|e| ZephyrError::InvalidInput(format!("Response is not JSON: {e}")))?;
 
-    let ids: Vec<String> = if style == "gemini" {
+    let ids: Vec<String> = if ep.gemini_style {
         json.get("models")
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -491,4 +521,11 @@ pub fn roundtrip_for_test(plain: &str) -> (String, Option<String>) {
 #[cfg(test)]
 pub fn preview_for_test(key: &str) -> String {
     preview(key)
+}
+
+/// Expose the resolved URL (or the refusal) so a test can pin the exact
+/// regression: a `custom` provider must never resolve to OpenAI.
+#[cfg(test)]
+pub fn endpoint_for_test(provider: &str, base_url: Option<&str>) -> Result<String, String> {
+    endpoint_for(provider, base_url, "uji").map(|e| e.url).map_err(|e| e.to_string())
 }

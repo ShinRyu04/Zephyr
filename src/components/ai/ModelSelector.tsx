@@ -9,6 +9,7 @@ import {
   ALL_MODELS,
   fmtCtx,
   findModel,
+  isPlaceholderModel,
   MODEL_BY_ID,
   PROVIDERS,
   PROVIDER_BY_ID,
@@ -211,7 +212,10 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     if (!q) return [];
     const boleh = new Set(providerSiap.map((p) => p.id));
     const katalog = ALL_MODELS.filter(
-      (m) => boleh.has(m.provider) && (m.label.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)),
+      (m) =>
+        boleh.has(m.provider) &&
+        !isPlaceholderModel(m.id) &&
+        (m.label.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)),
     ).map((m) => ({
       id: m.id,
       label: m.label,
@@ -248,20 +252,31 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           (id, i, a) => id && a.indexOf(id) === i,
         );
         const dariApi = live
-          .filter((id) => !MODEL_BY_ID.has(id))
+          .filter((id) => !MODEL_BY_ID.has(id) && !isPlaceholderModel(id))
           .map((id) => ({ id, label: id, note: tr('from provider'), ctx: '' }));
         const tersimpan = (saved[p.id] ?? [])
-          .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id))
+          .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id) && !isPlaceholderModel(id))
           // No note: a saved id IS the model name, and "saved" said nothing
           // about it that the list position did not already say.
           .map((id) => ({ id, label: id, note: '', ctx: '' }));
-        const katalog = (p.models ?? []).map((m) => ({
-          id: m.id,
-          label: m.label,
-          note: tr(m.note ?? ''),
-          ctx: m.ctx ? fmtCtx(m.ctx) : '',
-        }));
-        return { provider: p.id, label: p.label, freeText: !!p.freeText, items: [...dariApi, ...tersimpan, ...katalog] };
+        // The catalogue's "type a name" rows (`custom-model`, `local-default`)
+        // are prompts, not models: listing them made a dead click that wrote
+        // the placeholder into settings and 404'd on send.
+        const katalog = (p.models ?? [])
+          .filter((m) => !isPlaceholderModel(m.id))
+          .map((m) => ({
+            id: m.id,
+            label: m.label,
+            note: tr(m.note ?? ''),
+            ctx: m.ctx ? fmtCtx(m.ctx) : '',
+          }));
+        return {
+          provider: p.id,
+          label: p.label,
+          freeText: !!p.freeText,
+          perluPilih: !!p.freeText && dariApi.length + tersimpan.length + katalog.length === 0,
+          items: [...dariApi, ...tersimpan, ...katalog],
+        };
       }),
     [providerSiap, remote, saved, tr],
   );
@@ -389,6 +404,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                  * visible the moment the menu opens.
                  */
                 const terbuka = bukaGrup[g.provider] ?? g.provider === efektif.provider;
+                if (g.perluPilih && !terbuka) return null;
                 return (
                   <Fragment key={g.provider}>
                     <button
@@ -404,6 +420,19 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                       <span className="ai-model-group-nama">{g.label}</span>
                       <span className="ai-model-group-jml">({g.items.length})</span>
                     </button>
+
+                    {terbuka && g.perluPilih && (
+                      /* A free-text provider with nothing but placeholders in
+                         the catalogue has no clickable model at all. Say so,
+                         in place, instead of a dead list - the input below is
+                         still the way forward. */
+                      <div
+                        className="ai-model-empty"
+                        data-testid={`${pfx}-model-perlu-pilih-${g.provider}`}
+                      >
+                        {tr('Choose a model: type a name below or press Refresh.')}
+                      </div>
+                    )}
 
                     {terbuka &&
                       g.items.map((m) => (

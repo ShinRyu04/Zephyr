@@ -144,6 +144,16 @@ export const PROVIDERS: ProviderInfo[] = [
 
 export const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
 
+/** Ids the catalogue ships as "type a name" slots, not real models. Derived
+ *  from `freeText` providers so adding one cannot forget to update this. */
+export const PLACEHOLDER_MODEL_IDS: ReadonlySet<string> = new Set(
+  PROVIDERS.flatMap((p) => (p.freeText ? (p.models ?? []).map((m) => m.id) : [])),
+);
+
+export function isPlaceholderModel(id: string | null | undefined): boolean {
+  return !!id && PLACEHOLDER_MODEL_IDS.has(id.trim());
+}
+
 /**
  * The base URL that will actually be used: what the user configured in
  * Settings, else what the catalogue ships. `custom` ships an EMPTY base URL on
@@ -225,6 +235,12 @@ export const MODEL_FALLBACK: readonly {
   freeText: PROVIDER_BY_ID.get(m.provider)?.freeText ?? false,
 }));
 
+/*
+ * A formatter, NOT a validator: it never throws and never rejects an id. Given
+ * an unknown id it echoes it back (free-text providers really do serve ids the
+ * catalogue has never heard of). Callers that must REFUSE a placeholder check
+ * `isPlaceholderModel` themselves - see `aiStore.setModel`.
+ */
 export function findModel(modelId: string, providerId?: string): ModelDef {
   const p = PROVIDER_BY_ID.get(providerId ?? 'custom') ?? PROVIDERS[PROVIDERS.length - 1];
 
@@ -536,7 +552,7 @@ export const ModelLogo = memo(function ModelLogo({
 
   // A placeholder id ("Type the model name", "custom-model") gets no initials:
   // they would read as a real model name rather than an empty slot.
-  const kosong = /^(type|ketik|custom-model|local-default|\?)/i.test(id.trim());
+  const kosong = isPlaceholderModel(id);
   if (kosong) {
     return (
       <svg

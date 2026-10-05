@@ -138,28 +138,6 @@ const check = (id, ok, detail) => {
 // untuk update Zephyr dari dalam aplikasi (khusus build developer). Uji tetap
 // bermakna: SEMUA nav harus bisa dibuka dan punya minimal satu kontrol hidup -
 // tidak ada section yang tombolnya mati.
-const SECTIONS = [
-  'general',
-  'editor',
-  'theme',
-  'shortcuts',
-  'models',
-  'agents',
-  'subagent',
-  'permissions',
-  'extensions',
-  'lsp',
-  'scm',
-  'mcp',
-  'security',
-  'accessibility',
-  'ssh',
-  'tests',
-  'devenv',
-  'devupdate',
-  'about',
-];
-
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
   const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
@@ -189,8 +167,12 @@ const main = async () => {
   const v1 = JSON.parse(
     await cdp.runAsync(`
       await bukaSettings();
+      // Section dibaca dari nav yang benar-benar ada, supaya daftar tidak bisa
+      // basi lagi (dulu tertulis tangan, dan ketinggalan voice/mic/rules).
+      const sectionIds = qa('.set-nav-item').map((n) =>
+        (n.getAttribute('data-testid') || '').replace('set-nav-', '')).filter(Boolean);
       const out = [];
-      for (const id of ${JSON.stringify(SECTIONS)}) {
+      for (const id of sectionIds) {
         q('[data-testid="set-nav-' + id + '"]').click();
         await wait(240);
         const body = q('.set-body');
@@ -204,6 +186,7 @@ const main = async () => {
       return JSON.stringify({
         page: !!q('[data-testid="settings-page"]'),
         nav: qa('.set-nav-item').length,
+        jumlahSection: sectionIds.length,
         out,
       });
     `),
@@ -215,8 +198,8 @@ const main = async () => {
   const semuaAdaKontrol = v1.out.every((x) => x.kontrol >= 1);
   check(
     'V1',
-    v1.page && v1.nav === SECTIONS.length && semuaAdaJudul && semuaAdaKontrol,
-    `${SECTIONS.length} section terbuka semua: ${v1.out.map((x) => `${x.id}="${x.judul}"(${x.kontrol} kontrol)`).join(', ')}`,
+    v1.page && v1.nav === v1.jumlahSection && semuaAdaJudul && semuaAdaKontrol,
+    `${v1.jumlahSection} section terbuka semua: ${v1.out.map((x) => `${x.id}="${x.judul}"(${x.kontrol} kontrol)`).join(', ')}`,
   );
 
   // ───────── V2: fontSize 14 -> editor terbuka berubah LIVE ─────────
@@ -313,7 +296,13 @@ const main = async () => {
       v4.sesudah.isCustom &&
       v4.diskBinding === 'Ctrl+Alt+E' &&
       v4.bentrok?.length >= 1 &&
-      /sudah dipakai/i.test(v4.peringatan) &&
+      /*
+       * Pesannya sekarang berbunyi "... is already used: ..." (i18n aplikasi
+       * merender ke Inggris), bukan lagi "sudah dipakai". Yang diuji adalah
+       * ADANYA penolakan yang bisa dibaca, bukan bahasanya - jadi dua bahasa
+       * diterima supaya suatu hari terjemahannya berubah pun uji ini tetap sah.
+       */
+      /already used|sudah dipakai/i.test(v4.peringatan) &&
       v4.settingsBinding.binding === 'Ctrl+,',
     `remap Explorer ${v4.awal.binding} -> ${v4.sesudah.binding} (disk: ${v4.diskBinding}); konflik Ctrl+S ditolak dengan pesan "${v4.peringatan.slice(0, 58)}…" dan Settings tetap ${v4.settingsBinding.binding}` +
       (process.env.ZV8_DEBUG ? ` :: RAW ${JSON.stringify(v4)}` : ''),
@@ -739,7 +728,9 @@ const main = async () => {
       await wait(800);
       const disk = (await X.settingsFromDisk()).extensions.enabled;
       const rustOff = q('[data-testid="ext-lang-rust"]').getAttribute('aria-checked') === 'false';
-      return JSON.stringify({ kartu, semuaOnAwal, disk, rustOff });
+      const aria = q('[data-testid="ext-lang-rust"]').getAttribute('aria-checked');
+      const ariaSemua = qa('[data-testid="ext-list"] [role="switch"]').map(b => b.getAttribute('aria-checked'));
+      return JSON.stringify({ kartu, semuaOnAwal, disk, rustOff, aria, ariaSemua });
     `),
   );
   check(
@@ -750,7 +741,8 @@ const main = async () => {
       !v11.disk.includes('lang-rust') &&
       v11.disk.includes('lang-web') &&
       v11.disk.includes('git-provider'),
-    `${v11.kartu.length} ekstensi bawaan, awalnya semua aktif=${v11.semuaOnAwal}; mematikan lang-rust -> UI off=${v11.rustOff}, disk enabled=[${v11.disk.join(', ')}]`,
+    `${v11.kartu.length} ekstensi bawaan, awalnya semua aktif=${v11.semuaOnAwal}; mematikan lang-rust -> UI off=${v11.rustOff} (aria=${JSON.stringify(v11.aria)})` +
+      `${v11.ariaSemua ? `, semua aria=[${v11.ariaSemua.join(',')}]` : ''}, disk enabled=[${v11.disk.join(', ')}]`,
   );
 
   // ───────── V12: Source Control field tersimpan ─────────

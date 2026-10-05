@@ -493,7 +493,7 @@ export function ModelsSection() {
                     className="btn btn-sm"
                     data-testid={`prov-test-${p.id}`}
                     disabled={ui.testing === p.id}
-                    onClick={() => void ui.testConnection(p.id, cfg.baseUrl || undefined)}
+                    onClick={() => void ui.testConnection(p.id, cfg.baseUrl ?? '')}
                   >
                     {ui.testing === p.id ? tr('Testing…') : tr('models.test')}
                   </button>

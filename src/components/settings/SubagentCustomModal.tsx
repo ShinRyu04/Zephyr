@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useFocusTrap } from '../../lib/useFocusTrap';
-import { ALL_MODELS, PROVIDERS, PROVIDER_BY_ID, baseUrlEfektif } from '../../lib/modelCatalog';
+import { ALL_MODELS, isPlaceholderModel, PROVIDERS, PROVIDER_BY_ID, baseUrlEfektif } from '../../lib/modelCatalog';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { listModels } from '../../lib/commands';
@@ -119,10 +119,12 @@ export default function SubagentCustomModal({ awal }: Props) {
     const boleh = new Set(siap.map((p) => p.id));
 
     // Static catalogue first, then anything the provider reports that the
-    // catalogue has never heard of. The placeholder ids (`custom-model`) are
-    // dropped once a live list exists: pinning a worker to "type a model name"
-    // is never what the user means.
-    const statis = ALL_MODELS.filter((m) => boleh.has(m.provider));
+    // catalogue has never heard of. The placeholder ids (`custom-model`,
+    // `local-default`) are dropped once a live list exists: pinning a worker to
+    // "type a model name" is never what the user means.
+    const statis = ALL_MODELS.filter(
+      (m) => boleh.has(m.provider) && !(live[m.provider]?.length && isPlaceholderModel(m.id)),
+    );
     const idStatis = new Set(statis.map((m) => m.id));
     const hidup = Object.entries(live).flatMap(([p, ids]) =>
       ids
@@ -166,7 +168,7 @@ export default function SubagentCustomModal({ awal }: Props) {
   useEffect(() => {
     const idsHidup = Object.values(live).flat();
     if (idsHidup.length === 0) return;
-    const rusak = daftar.filter((a) => a.model === 'custom-model');
+    const rusak = daftar.filter((a) => isPlaceholderModel(a.model));
     if (rusak.length === 0) return;
     for (const a of rusak) {
       const ganti = a.provider ? live[a.provider]?.[0] : idsHidup[0];
