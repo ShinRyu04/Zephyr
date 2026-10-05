@@ -1121,11 +1121,18 @@ export const TOOL_BAWAAN: AgentTool[] = [
             items: {
               type: 'object',
               properties: {
-                id: { type: 'string', description: 'Id tetap untuk tugas ini, supaya tanda centangnya tidak berpindah baris.' },
-                title: { type: 'string' },
+                id: {
+                  type: 'string',
+                  description:
+                    'Id tetap untuk tugas ini. Saat mengubah status tugas yang SUDAH ada, kirim idnya saja - teksnya tidak perlu diulang.',
+                },
+                title: {
+                  type: 'string',
+                  description: 'Teks tugas. Diperlukan untuk tugas BARU; untuk tugas yang sudah ada cukup idnya.',
+                },
                 status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] },
               },
-              required: ['title', 'status'],
+              required: ['status'],
             },
           },
         },
@@ -1154,7 +1161,21 @@ export const TOOL_BAWAAN: AgentTool[] = [
              yang salah. Kalau model tidak memberi id, nomornya dibuat di sini -
              lebih baik daripada membiarkannya kosong. */
           id: x.id ? String(x.id) : `t${i + 1}`,
-          content: String(x.content ?? x.title ?? '').trim(),
+          /*
+           * Teksnya BOLEH kosong - dan itu bukan kelalaian.
+           *
+           * Baris ini dulu selalu menulis string, jadi entri `{id, status}`
+           * (cara paling wajar menandai tugas selesai) tiba di setAgentTodos
+           * dengan `content: ''` dan tersaring habis. Akibatnya to-do list
+           * TIDAK PERNAH bisa ditandai selesai, dan toolnya melaporkan gagal
+           * untuk panggilan yang sebenarnya benar.
+           *
+           * `undefined` dikirim apa adanya supaya setAgentTodos bisa mengambil
+           * teksnya dari tugas yang sudah ada lewat id. Perhatikan: `??` tidak
+           * cukup di sana - `''` bukan null, jadi cadangannya tidak akan
+           * terpakai. Yang harus hilang adalah string kosongnya sendiri.
+           */
+          content: (String(x.content ?? x.title ?? '').trim() || undefined) as string,
           status: String(x.status ?? 'pending'),
         };
       });

@@ -7,7 +7,7 @@ import {
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
-import { findModel, MODEL_FALLBACK, PROVIDER_BY_ID } from './modelCatalog';
+import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID } from './modelCatalog';
 import { useSettingsUi } from './settingsStore';
 import { expandPromptBody } from './promptLibrary';
 import { stopLoop, startLoop, parseInterval, formatInterval, MAX_LOOP_RUNS, type LoopState } from './loopJadwal';
@@ -35,6 +35,11 @@ import {
 } from './contextBudget';
 import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
 import { TOOL_CATALOG } from './zephyrTools/catalog';
+import { agentStopMessage, type AgentFailureCategory, type AgentStopReason } from './agentStop';
+
+// Re-exported so existing importers keep working; agentStop.ts is the one
+// definition. Two copies of this union would drift the moment one is widened.
+export type { AgentFailureCategory } from './agentStop';
 
 /*
  * Read-only tools, derived from the catalog instead of typed out by hand.
@@ -957,12 +962,11 @@ const cancelledAttempts = new Set<string>();
 const retiredAgentAttempts = new Set<string>();
 
 let agentBatal = false;
-let agentStopReason: 'user' | 'watchdog' | 'provider' | 'hard-limit' | null = null;
+let agentStopReason: AgentStopReason | null = null;
 
-type AgentFailureCategory = 'provider' | 'tool' | 'timeout' | 'cancelled' | 'protocol' | 'unknown';
-
-function classifyAgentFailure(error: string, reason = agentStopReason): AgentFailureCategory {
+function classifyAgentFailure(error: string, reason: AgentStopReason | null = agentStopReason): AgentFailureCategory {
   const text = error.toLowerCase();
+  if (reason === 'guard') return 'tool';
   if (reason === 'watchdog' || /watchdog|idle|timed out|timeout|batas waktu|berhenti menjawab/.test(text)) return 'timeout';
   if (reason === 'user' || /cancelled by the user|dibatalkan pengguna|user cancel/.test(text)) return 'cancelled';
   if (/tool|shell|process|command|terminal|alat/.test(text) && /error|failed|fail|timeout|gagal|tidak/.test(text)) return 'tool';
@@ -982,6 +986,23 @@ function safeAgentFailureMessage(message: string): string {
 }
 
 const cancelled = new Set<string>();
+
+/*
+ * Setiap penolakan di jalur agent WAJIB meninggalkan jejak yang terlihat.
+ *
+ * `return false` telanjang dari `sendAgent` memberi tahu pemanggil bahwa
+ * kirimannya tidak jalan, tapi kalau tidak ada toast, pembaca hanya melihat
+ * tombol Kirim yang seolah tidak melakukan apa-apa - persis keluhan "tidak ada
+ * reaksi". Helper ini memaksa setiap penolakan melewati satu pintu yang selalu
+ * menyetel toast, sehingga `return false` diam-diam jadi canggung secara
+ * struktural, bukan sekadar konvensi yang bisa lupa dipatuhi.
+ */
+function gagalKirimToast(pesan: string): false {
+  // Module-level helper, so it reaches the store through the singleton rather
+  // than the closure `set` that only exists inside `create(...)`.
+  useAi.setState({ toast: pesan });
+  return false;
+}
 
 /*
  * The last agent step at which automatic compaction ran. Module-level so it
@@ -1036,20 +1057,41 @@ function agentHardLimitArm() {
     if (!useAi.getState().agentBusy) return; // sudah selesai sendiri, tidak ada yang perlu dipaksa
     agentStopReason = 'hard-limit';
     agentBatal = true;
+    /*
+     * Resolve the pending step - do NOT just null it. The agent loop is parked
+     * on this promise (`res = await new Promise<AgentStepResult>(...)`) and
+     * nothing there polls `agentBatal`, so a bare `agentStepResolve = null`
+     * leaves the await pending forever: sendAgent never reaches its exit block,
+     * the assistant bubble stays `streaming: true`, and the user sees exactly
+     * the reported symptom - "press send, no reaction, no error, no toast".
+     * The watchdog below resolves in the same way, which is why it never had
+     * this bug.
+     */
+    const r = agentStepResolve;
     agentStepResolve = null;
     agentConfirmResolve = null;
-    useAi.setState({
-      agentBusy: false,
-      pending: null,
-      agentConfirm: null,
-  agentTanya: null,
-      agentPhase: 'idle',
-      agentCurrentTool: null,
-      agentStepIndex: 0,
-      agentStepLimit: MAX_AGENT_STEPS,
-      agentLastProgressAt: null,
-      toast: 'Satu langkah berjalan melebihi batas waktu dan dihentikan. Agen siap menerima perintah lagi.',
+    r?.({
+      content: '',
+      toolCalls: [],
+      cancelled: true,
+      error: 'Satu langkah melebihi batas 15 menit dan dihentikan.',
     });
+    // If no step is waiting (the run hung outside the loop), release the UI
+    // directly - the resolved step can no longer do it from inside the loop.
+    if (!r) {
+      useAi.setState({
+        agentBusy: false,
+        pending: null,
+        agentConfirm: null,
+  agentTanya: null,
+        agentPhase: 'idle',
+        agentCurrentTool: null,
+        agentStepIndex: 0,
+        agentStepLimit: MAX_AGENT_STEPS,
+        agentLastProgressAt: null,
+        toast: 'Satu langkah berjalan melebihi batas waktu dan dihentikan. Agen siap menerima perintah lagi.',
+      });
+    }
   }, AGENT_HARD_LIMIT_MS);
 }
 
@@ -1702,8 +1744,22 @@ export const useAi = create<AiStore>((set, get) => ({
       prov = 'custom';
     }
 
-    const model =
-      st.providers[prov]?.model || (PROVIDER_BY_ID.get(prov)?.models?.[0]?.id ?? 'custom-model');
+    /*
+     * Resolve the model WITHOUT ever landing on a catalogue placeholder.
+     *
+     * `custom`/`local` ship a "type a model name" row (`custom-model`,
+     * `local-default`) that is a prompt, not a model the provider serves. The
+     * old `?.[0]?.id ?? 'custom-model'` fallback handed that id to the router,
+     * so a fresh install sent `custom-model` and got a 404 that read as a
+     * broken provider. Prefer the stored model; else the first real catalogue
+     * model; else '' (the provider is free-text with nothing chosen yet).
+     */
+    const tersimpan = st.providers[prov]?.model ?? '';
+    const kandidat =
+      st.providers[prov]?.model ||
+      PROVIDER_BY_ID.get(prov)?.models?.find((m) => !isPlaceholderModel(m.id))?.id ||
+      '';
+    const model = isPlaceholderModel(tersimpan) ? kandidat : tersimpan || kandidat;
     set({
       provider: prov,
       model,
@@ -1742,8 +1798,22 @@ export const useAi = create<AiStore>((set, get) => ({
     // If the provider AND model are already the same, there is nothing to change.
     if (providerSama && modelSama) return;
 
-    const model =
-      dariSettings || PROVIDER_BY_ID.get(target)?.models?.[0]?.id || get().model;
+    /*
+     * Never sync the panel onto a placeholder. A stored `custom-model` (from an
+     * earlier build, or written by the Settings "Active model" select, which
+     * sends only the provider) must not become the live model again. Order:
+     * the stored model when it is real; else the provider's first real
+     * catalogue model; else KEEP what is already selected rather than forcing a
+     * placeholder. The `modelSama` guard above stays as-is so this cannot spin.
+     */
+    const tersimpan = dariSettings && !isPlaceholderModel(dariSettings) ? dariSettings : '';
+    const kandidat =
+      tersimpan ||
+      PROVIDER_BY_ID.get(target)?.models?.find((m) => !isPlaceholderModel(m.id))?.id ||
+      '';
+    const model = kandidat || get().model;
+    if (!model) return;
+
     set({ provider: target, model });
     const sid = get().activeId;
     if (sid) {
@@ -1754,6 +1824,20 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   setModel: async (modelId) => {
+    /*
+     * Persistence choke point. `custom-model` / `local-default` are catalogue
+     * rows that mean "type a name", not models the router serves; letting a
+     * click on one through used to overwrite the user's real choice in
+     * settings.json and then 404 on every send. Refuse it and say so instead.
+     */
+    if (isPlaceholderModel(modelId)) {
+      set({
+        toast: 'Pilih model dulu — nama itu cuma placeholder, bukan model yang dikenali',
+        modelMenuOpen: false,
+      });
+      return;
+    }
+
     const def = findModel(modelId, get().provider);
     set({ model: def.id, provider: def.provider, modelMenuOpen: false });
 
@@ -1988,8 +2072,26 @@ export const useAi = create<AiStore>((set, get) => ({
     const bersih: AgentTodo[] = [];
     for (const raw of Array.isArray(list) ? list : []) {
       if (bersih.length >= MAX_TODOS) break;
-      const o = raw as { content?: unknown; status?: unknown };
-      const content = String(o?.content ?? '').trim();
+      const o = raw as { id?: unknown; content?: unknown; status?: unknown };
+
+      /*
+       * Entri dikenali lewat `id` lebih dulu, baru lewat teksnya.
+       *
+       * Skema tool mengajarkan bahwa `id` adalah identitas tetap ("supaya tanda
+       * centangnya tidak berpindah baris"), jadi model yang memakainya akan
+       * mengirim `{id: '3', status: 'completed'}` TANPA mengulang teksnya -
+       * mengulang teks memang tidak perlu kalau idnya sudah menunjuk ke sana.
+       *
+       * Tapi kode ini dulu mensyaratkan teks di setiap entri, dan mencocokkan
+       * lewat `content`. Akibatnya panggilan yang paling wajar justru gagal
+       * SELURUHNYA ("tidak ada tugas yang diterima karena teksnya kosong"),
+       * dan to-do list tidak pernah bisa ditandai selesai. Yang salah bukan
+       * tafsir model: yang salah adalah tool yang mengajarkan id lalu
+       * mengabaikannya.
+       */
+      const idMasuk = o?.id == null ? '' : String(o.id).trim();
+      const dariId = idMasuk ? sebelum.find((x) => x.id === idMasuk) : undefined;
+      const content = String(o?.content ?? dariId?.content ?? '').trim();
       if (!content) continue;
       const s = String(o?.status ?? 'pending').trim().toLowerCase();
       /*
@@ -2720,10 +2822,8 @@ export const useAi = create<AiStore>((set, get) => ({
     get().sinkronProvider();
     clearGambarMenunggu();
     if (get().pending || get().agentBusy) {
-      set({ toast: tx('An agent task is still running - stop it first') });
-      return false;
+      return gagalKirimToast(tx('An agent task is still running - stop it first'));
     }
-
     const agentImages = explicitImages ?? get().draftImages;
     const navigationOnly = isNavigationOnlyRequest(raw);
     let content = raw;
@@ -2747,13 +2847,11 @@ export const useAi = create<AiStore>((set, get) => ({
         const pindah = lain[0].provider;
         const labelPindah = PROVIDER_BY_ID.get(pindah)?.label ?? pindah;
         set({ provider: pindah });
-        set({ toast: tf('No key for {from} - switched to {to}, which has one', { from: label, to: labelPindah }) });
-        return false;
+        return gagalKirimToast(tf('No key for {from} - switched to {to}, which has one', { from: label, to: labelPindah }));
       }
-      set({
-        toast: tf('Add an API key for {name} in Settings, or pick a provider that already has one', { name: label }),
-      });
-      return false;
+      return gagalKirimToast(
+        tf('Add an API key for {name} in Settings, or pick a provider that already has one', { name: label }),
+      );
     }
 
     let sessionId = get().activeId;
@@ -3341,7 +3439,7 @@ export const useAi = create<AiStore>((set, get) => ({
                 { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: akhir.slice(0, 400), ok: false, at: Date.now() },
               ],
             }));
-            agentStopReason = 'watchdog';
+            agentStopReason = 'guard';
             /* Stop the RUN, not just this batch - see the note on the browser
                guard below. A bare `break` leaves the step loop alive and the
                model simply retries the same call on the next step. */
@@ -3384,7 +3482,7 @@ export const useAi = create<AiStore>((set, get) => ({
                   { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: akhir.slice(0, 400), ok: false, at: Date.now() },
                 ],
               }));
-              agentStopReason = 'watchdog';
+              agentStopReason = 'guard';
               /*
                * END THE RUN, not just this batch.
                *
@@ -3751,7 +3849,7 @@ export const useAi = create<AiStore>((set, get) => ({
               { kind: 'tool', name: '(watchdog)', args: '{}', result: akhir.slice(0, 400), ok: false, at: Date.now() },
             ],
           }));
-          agentStopReason = 'watchdog';
+          agentStopReason = 'guard';
           /* Same reason as the other guards: `break` only leaves the step loop
              when the flag is set, so the flag is what actually ends the run. */
           agentBatal = true;
@@ -3767,10 +3865,14 @@ export const useAi = create<AiStore>((set, get) => ({
     const runWasCancelled = agentBatal;
     const stopReason = String(agentStopReason);
     if (runWasCancelled && stopReason !== 'user') {
-      const message = stopReason === 'watchdog'
-        ? 'Provider berhenti menjawab sebelum langkah selesai.'
-        : 'Agent step stopped unexpectedly.';
-      agentFailure = { category: classifyAgentFailure(message, agentStopReason), message };
+      /*
+       * The mapping lives in agentStop.ts so it can be asserted in Node. A
+       * non-null result overwrites whatever `catch` built; null means "leave it
+       * alone" - which is what lets a real provider error keep its own message
+       * instead of being replaced by a generic sentence.
+       */
+      const pesanStop = agentStopMessage(stopReason);
+      if (pesanStop) agentFailure = pesanStop;
     } else if (runWasCancelled) {
       agentFailure = { category: 'cancelled', message: 'Dihentikan oleh pengguna.' };
     }
@@ -3826,6 +3928,9 @@ export const useAi = create<AiStore>((set, get) => ({
     // This is the single agent exit cleanup path. It also clears approval state
     // when an exit happens before a tool can answer its confirmation promise.
     agentWatchdogDisarm();
+    // Without this the 15-minute timer outlives its run and fires in the middle
+    // of a LATER one, killing a healthy agent.
+    agentHardLimitDisarm();
     agentStepResolve = null;
     if (activeAgentAttempt) retiredAgentAttempts.add(activeAgentAttempt);
     activeAgentAttempt = null;
