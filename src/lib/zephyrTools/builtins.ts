@@ -452,9 +452,14 @@ export const TOOL_BAWAAN: AgentTool[] = [
         const ada = await cmd.fsExists(path).catch(() => false);
         if (ada) throw new Error(`ERROR: berkas sudah ada, dan createOnly disetel: ${path}`);
       }
+      /* Isi lama dibaca SEBELUM menulis, supaya diffnya bisa dihitung. Kalau
+         berkasnya belum ada, ini gagal dan dianggap berkas baru - untuk berkas
+         baru tidak ada yang berguna untuk dibandingkan. */
+      const lama = await bacaLengkap(path).catch(() => '');
       await cmd.fsWrite(path, isi, undefined, undefined, { allowMissing: true });
       await segarkanTab(path);
-      return `Ditulis: ${path} (${isi.length} karakter)`;
+      const diff = lama ? buatDiff(path, lama, isi) : '';
+      return `Ditulis: ${path} (${isi.length} karakter)` + (diff ? `\n${diff}` : '');
     },
   },
 
@@ -651,7 +656,11 @@ export const TOOL_BAWAAN: AgentTool[] = [
 
       const hasil = semua ? isi.split(lama).join(baru) : isi.replace(lama, baru);
       await tulis(path, hasil);
-      return `${jumlah} penggantian di ${path}.`;
+      /* Barisan kalimatnya tetap ada, tapi diffnya menyusul: panel AI hanya
+         merender DiffViewer kalau hasilnya memuat hunk `@@`. Ringkasan saja
+         membuat setiap perubahan berkas tampil sebagai satu baris teks. */
+      const diff = buatDiff(path, isi, hasil);
+      return `${jumlah} penggantian di ${path}.` + (diff ? `\n${diff}` : '');
     },
   },
 
@@ -688,6 +697,9 @@ export const TOOL_BAWAAN: AgentTool[] = [
       if (!daftar.length) throw new Error('ERROR: edits kosong.');
 
       let kerja = await bacaLengkap(path);
+      /* Disalin sebelum diubah: diff dihitung terhadap isi SEBELUM semua
+         penggantian, bukan terhadap keadaan setengah jalan. */
+      const isiAwal = kerja;
       const laporan: string[] = [];
 
       for (let i = 0; i < daftar.length; i++) {
@@ -718,7 +730,12 @@ export const TOOL_BAWAAN: AgentTool[] = [
       }
 
       await tulis(path, kerja);
-      return `Diterapkan ${daftar.length} penggantian di ${path}.\n` + laporan.join('\n');
+      const diff = buatDiff(path, isiAwal, kerja);
+      return (
+        `Diterapkan ${daftar.length} penggantian di ${path}.\n` +
+        laporan.join('\n') +
+        (diff ? `\n${diff}` : '')
+      );
     },
   },
 
@@ -1532,6 +1549,84 @@ export async function bacaLengkap(path: string): Promise<string> {
   if (tab) return tab.content ?? '';
   const hasil = await cmd.fsRead(path);
   return hasil.content;
+}
+
+/** Jumlah baris konteks di sekeliling tiap perubahan. Tiga baris adalah
+ *  kebiasaan unified diff, dan cukup untuk melihat perubahan di mana. */
+const KONTEKS_DIFF = 3;
+
+/**
+ * Hasilkan unified diff antara isi lama dan isi baru sebuah berkas.
+ *
+ * ## Kenapa ini ada
+ *
+ * Tool tulis dulu mengembalikan KALIMAT: "1 penggantian di src/a.ts.". Panel
+ * AI sudah punya DiffViewer lengkap dengan gayanya, dan `kartuTool` sudah
+ * menyiapkan tempatnya - tapi tempatnya tidak pernah terisi, karena yang
+ * dikembalikan tool bukan diff. Akibatnya setiap perubahan berkas tampil
+ * sebagai satu baris kalimat, dan tidak ada cara melihat APA yang berubah
+ * tanpa membuka berkasnya sendiri.
+ *
+ * Syarat yang dipasang di `kartuTool` adalah `/@@ -\d+/`, jadi keluaran ini
+ * memang harus berbentuk unified diff sungguhan - bukan ringkasan buatan
+ * sendiri yang kebetulan mirip.
+ *
+ * ## Yang sengaja sederhana
+ *
+ * Perbandingan baris dilakukan per baris penuh (bukan algoritma LCS): satu
+ * wilayah berubah dihitung dengan mencari awalan dan akhiran yang sama, lalu
+ * sisanya ditandai sebagai buang/tambah. Untuk berkas sumber ini hasilnya sama
+ * dengan diff sebenarnya, dan tidak perlu pustaka tambahan. Untuk berkas yang
+ * barisnya diacak-acak, hasilnya lebih kasar - tapi tetap jujur: yang ditandai
+ * memang benar berubah.
+ *
+ * Mengembalikan string kosong kalau tidak ada perbedaan, atau kalau salah satu
+ * sisi kosong (berkas baru / berkas dikosongkan) - pemanggil yang memutuskan
+ * cara menampilkan hal itu.
+ */
+export function buatDiff(path: string, lama: string, baru: string): string {
+  if (lama === baru) return '';
+
+  const barisLama = lama === '' ? [] : lama.split('\n');
+  const barisBaru = baru === '' ? [] : baru.split('\n');
+
+  /* Awalan yang sama. */
+  let awal = 0;
+  while (awal < barisLama.length && awal < barisBaru.length && barisLama[awal] === barisBaru[awal]) awal++;
+
+  /* Akhiran yang sama, tidak melewati awalan. */
+  let akhir = 0;
+  while (
+    akhir < barisLama.length - awal &&
+    akhir < barisBaru.length - awal &&
+    barisLama[barisLama.length - 1 - akhir] === barisBaru[barisBaru.length - 1 - akhir]
+  ) {
+    akhir++;
+  }
+
+  const buang = barisLama.slice(awal, barisLama.length - akhir);
+  const tambah = barisBaru.slice(awal, barisBaru.length - akhir);
+
+  /* Konteks diambil dari sekitarnya, dibatasi panjang berkas. */
+  const konteksAwal = Math.max(0, awal - KONTEKS_DIFF);
+  const konteksAkhirLama = Math.min(barisLama.length, barisLama.length - akhir + KONTEKS_DIFF);
+  const konteksAkhirBaru = Math.min(barisBaru.length, barisBaru.length - akhir + KONTEKS_DIFF);
+
+  const kepalaLama = awal - konteksAwal + buang.length + Math.max(0, konteksAkhirLama - (barisLama.length - akhir));
+  const kepalaBaru = awal - konteksAwal + tambah.length + Math.max(0, konteksAkhirBaru - (barisBaru.length - akhir));
+
+  const keluaran: string[] = [
+    `--- a/${path}`,
+    `+++ b/${path}`,
+    `@@ -${konteksAwal + 1},${Math.max(kepalaLama, buang.length)} +${konteksAwal + 1},${Math.max(kepalaBaru, tambah.length)} @@`,
+  ];
+
+  for (let i = konteksAwal; i < awal; i++) keluaran.push(' ' + barisLama[i]);
+  for (const b of buang) keluaran.push('-' + b);
+  for (const t of tambah) keluaran.push('+' + t);
+  for (let i = barisLama.length - akhir; i < konteksAkhirLama; i++) keluaran.push(' ' + barisLama[i]);
+
+  return keluaran.join('\n');
 }
 
 /**

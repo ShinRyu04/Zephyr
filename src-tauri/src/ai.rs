@@ -368,6 +368,59 @@ fn friendly(status: u16) -> String {
     }
 }
 
+/// Susun pesan untuk respons HTTP gagal, dengan ikut menyertakan apa yang
+/// DIKATAKAN SERVER.
+///
+/// Versi lama hanya membaca `/error/message` dari JSON. Untuk 502/503 dari
+/// sebuah GATEWAY (proxy ke banyak hulu), badan jawabannya sering berupa
+/// halaman HTML atau teks polos - bukan JSON. Akibatnya pengguna melihat
+/// kalimat telanjang "Server provider bermasalah (502)" tanpa satu kata pun
+/// dari server, dan tidak ada cara tahu apa yang ditolak. Persis pada provider
+/// yang paling mungkin gagal, pesannya paling tidak berguna.
+///
+/// Urutan yang dipakai:
+///   1. `/error/message` bila memang JSON (paling rapi)
+///   2. kalau tidak: badan mentah, spasi dirapatkan, dipotong 240 karakter
+///   3. sebutkan MODEL dan HOST - pada gateway yang melayani banyak model,
+///      nama model adalah fakta paling berguna untuk tahu siapa yang menolak
+pub(crate) fn pesan_http(status: u16, raw: &str, model: &str, url: &str) -> String {
+    let detail = serde_json::from_str::<Value>(raw)
+        .ok()
+        .and_then(|v| {
+            v.pointer("/error/message")
+                .or_else(|| v.pointer("/message"))
+                .or_else(|| v.pointer("/error"))
+                .and_then(|m| m.as_str())
+                .map(|s| s.to_string())
+        })
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| {
+            /* Bukan JSON, atau JSON tanpa pesan: pakai badan mentahnya. */
+            let rapat = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+            if rapat.is_empty() {
+                String::new()
+            } else if rapat.chars().count() > 240 {
+                let potong: String = rapat.chars().take(240).collect();
+                format!("{potong}…")
+            } else {
+                rapat
+            }
+        });
+
+    let host = url
+        .split("://")
+        .nth(1)
+        .and_then(|s| s.split('/').next())
+        .unwrap_or(url);
+
+    let kepala = friendly(status);
+    if detail.is_empty() {
+        format!("{kepala} [{model} @ {host}]")
+    } else {
+        format!("{kepala} [{model} @ {host}] — {detail}")
+    }
+}
+
 #[tauri::command(async)]
 pub fn ai_chat(
     app: AppHandle,
@@ -464,19 +517,7 @@ pub fn ai_chat(
         if status >= 400 {
             let mut body = resp.into_body();
             let raw: String = body.read_to_string().unwrap_or_default();
-            let detail = serde_json::from_str::<Value>(&raw)
-                .ok()
-                .and_then(|v| {
-                    v.pointer("/error/message")
-                        .and_then(|m| m.as_str())
-                        .map(|s| s.to_string())
-                })
-                .unwrap_or_default();
-            let msg = if detail.is_empty() {
-                friendly(status)
-            } else {
-                format!("{} — {}", friendly(status), detail)
-            };
+            let msg = pesan_http(status, &raw, &model, &prepared.url);
             let cancelled = cancel.load(Ordering::Relaxed);
             if !cancelled {
                 emit_chunk(&handle, json!({ "id": req_id, "err": msg }));
@@ -600,6 +641,10 @@ pub async fn ai_tool_chat(
         effort,
     )?;
     let prov = provider.clone();
+    /* Disalin sebelum `prepared` dipindah ke dalam tugas: pesan error perlu
+       menyebut host yang dihubungi, dan setelah dipindah nilainya tidak bisa
+       dibaca lagi dari luar. */
+    let alamat = prepared.url.clone();
 
     let hasil = tokio::task::spawn_blocking(move || {
         let agent: ureq::Agent = ureq::Agent::config_builder()
@@ -644,20 +689,9 @@ pub async fn ai_tool_chat(
 
     let (status, raw) = hasil.map_err(ZephyrError::InvalidInput)?;
     if status >= 400 {
-        let detail = serde_json::from_str::<Value>(&raw)
-            .ok()
-            .and_then(|v| {
-                v.pointer("/error/message")
-                    .and_then(|m| m.as_str())
-                    .map(|s| s.to_string())
-            })
-            .unwrap_or_default();
-        let msg = if detail.is_empty() {
-            friendly(status)
-        } else {
-            format!("{} — {}", friendly(status), detail)
-        };
-        return Err(ZephyrError::InvalidInput(msg));
+        return Err(ZephyrError::InvalidInput(pesan_http(
+            status, &raw, &model, &alamat,
+        )));
     }
 
     let v: Value = serde_json::from_str(&raw)
@@ -746,19 +780,7 @@ pub fn ai_tool_chat_stream(
         if status >= 400 {
             let mut body = resp.into_body();
             let raw: String = body.read_to_string().unwrap_or_default();
-            let detail = serde_json::from_str::<Value>(&raw)
-                .ok()
-                .and_then(|v| {
-                    v.pointer("/error/message")
-                        .and_then(|m| m.as_str())
-                        .map(|s| s.to_string())
-                })
-                .unwrap_or_default();
-            let msg = if detail.is_empty() {
-                friendly(status)
-            } else {
-                format!("{} — {}", friendly(status), detail)
-            };
+            let msg = pesan_http(status, &raw, &model, &prepared.url);
             let cancelled = cancel.load(Ordering::Relaxed);
             if !cancelled {
                 emit_chunk(&handle, json!({ "id": req_id, "err": msg }));
@@ -948,6 +970,72 @@ pub fn ai_capture_clear(state: State<AppState>) -> ZResult<()> {
  * test it honestly is to make a server that fails on purpose - a mock of the
  * HTTP client would just be asserting that the code calls itself.
  */
+#[cfg(test)]
+mod pesan_http_tests {
+    use super::pesan_http;
+
+    /*
+     * Bug yang dikunci di sini: 502 dari sebuah GATEWAY biasanya berbadan
+     * halaman HTML atau teks polos, bukan JSON. Versi lama hanya membaca
+     * /error/message, jadi untuk kasus itu pesannya kosong dan pengguna melihat
+     * kalimat telanjang "Server provider bermasalah (502)" tanpa satu kata pun
+     * dari server - tepat pada provider yang paling mungkin gagal.
+     *
+     * Yang diperiksa: pesan server IKUT TERSAMPAI, dan model serta hostnya
+     * disebut (satu gateway melayani banyak model, jadi nama model adalah
+     * fakta paling berguna untuk tahu siapa yang menolak).
+     */
+
+    #[test]
+    fn html_502_dari_router_ikut_dilaporkan() {
+        let badan = "<html><head><title>502 Bad Gateway</title></head>\
+                     <body><h1>502 Bad Gateway</h1><p>nginx</p></body></html>";
+        let pesan = pesan_http(502, badan, "mr-vip", "https://modelrouter.id/v1/chat/completions");
+
+        assert!(pesan.contains("502"), "status harus disebut: {pesan}");
+        assert!(
+            pesan.contains("Bad Gateway"),
+            "isi halaman server harus ikut, bukan dibuang: {pesan}"
+        );
+        assert!(pesan.contains("mr-vip"), "nama model harus disebut: {pesan}");
+        assert!(
+            pesan.contains("modelrouter.id"),
+            "host yang dihubungi harus disebut: {pesan}"
+        );
+    }
+
+    #[test]
+    fn json_error_message_tetap_dipakai() {
+        let badan = r#"{"error":{"message":"kuota habis"}}"#;
+        let pesan = pesan_http(429, badan, "mr-vip", "https://contoh.id/v1/chat/completions");
+
+        assert!(pesan.contains("kuota habis"), "pesan JSON harus dipakai: {pesan}");
+        /* JSON mentahnya tidak perlu ikut - sudah rapi. */
+        assert!(!pesan.contains("\"error\""), "JSON mentah tidak perlu ikut: {pesan}");
+    }
+
+    #[test]
+    fn badan_kosong_tidak_meninggalkan_ekor_kosong() {
+        let pesan = pesan_http(503, "", "mr-vip", "https://contoh.id/v1/chat/completions");
+
+        assert!(pesan.contains("503"), "status tetap disebut: {pesan}");
+        assert!(!pesan.ends_with('—'), "tidak boleh berakhir dengan pemisah: {pesan}");
+        assert!(!pesan.ends_with("— "), "tidak boleh berakhir dengan pemisah: {pesan}");
+    }
+
+    #[test]
+    fn badan_panjang_dipotong() {
+        let badan = "x".repeat(2000);
+        let pesan = pesan_http(500, &badan, "mr-vip", "https://contoh.id/v1/chat/completions");
+
+        assert!(
+            pesan.chars().count() < 500,
+            "badan panjang harus dipotong supaya tidak membanjiri panel: {} karakter",
+            pesan.chars().count()
+        );
+    }
+}
+
 #[cfg(test)]
 mod retry_tests {
     use super::*;
