@@ -28,6 +28,23 @@ key-backup-/
 key-baru-*/
 .build-hold/
 
+# Salinan data %APPDATA%\zephyr yang mungkin dibawa ke folder proyek.
+#
+# Data user yang sebenarnya hidup di %APPDATA%\zephyr (di luar repo ini), jadi
+# baris-baris ini tidak menutup kebocoran apa pun - nilainya nol dari sekarang.
+# Gunanya untuk keadaan yang belum terjadi: seseorang menyalin mcp.json ke sini
+# untuk men-debug, atau repo ini di-clone ke mesin yang menyimpan setelannya di
+# dalam folder proyek. Kalau itu terjadi, `git add -A` akan memasukkannya tanpa
+# peringatan - dan token MCP di dalamnya langsung ikut TERIKAT di riwayat, yang
+# tidak bisa dihapus dengan commit berikutnya.
+mcp.json
+mcp.json.bak-*
+settings.json
+settings.json.bak-*
+.env
+.env.*
+!.env.example
+
 # File lokal / sementara
 *.log
 
