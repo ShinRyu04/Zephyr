@@ -10,6 +10,7 @@ import { useExtensions } from './extensionStore';
 import { useProblems } from './problemsStore';
 import { useOutput } from './outputStore';
 import { flushTab } from './editorRegistry';
+import { pathSama } from './pathKey';
 import { readBuffer } from './xtermRegistry';
 import type { CliStatus, CliWriteResult, McpAction, McpServer, McpStatus, PaneKind } from './types';
 
@@ -488,7 +489,25 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
     case 'editor_open': {
       const path = str(p, 'path');
       await s().openPath(path);
-      const tab = s().tabs.find((x) => x.path?.toLowerCase() === path.toLowerCase());
+      /*
+       * Pembandingnya WAJIB `pathSama`, bukan `===` pada `.toLowerCase()`.
+       *
+       * Klien luar mengirim garis miring sesuai kebiasaannya sendiri, dan
+       * `D:/Talos/situs/styles.css` serta `D:\Talos\situs\styles.css` adalah
+       * BERKAS YANG SAMA bagi Windows - tapi tidak bagi `===`. Akibatnya
+       * pencarian tab ini gagal SETELAH tabnya benar-benar terbuka, lalu
+       * melempar `Cannot open`, dan klien menerima:
+       *
+       *   mcp: the UI did not answer for 'editor_open' after 3 attempts
+       *
+       * Pesan itu menyesatkan: UI nya menjawab, tabnya terbuka, dan tab itu
+       * memang menjadi aktif. Yang tidak pernah sampai hanya balasannya.
+       *
+       * `pathSama` sudah dipakai untuk masalah yang persis sama di enam berkas
+       * lain (store.ts, historyStore.ts, debugStore.ts, TimelineView.tsx) -
+       * di sini saja yang tertinggal.
+       */
+      const tab = s().tabs.find((x) => x.path && pathSama(x.path, path));
       if (!tab) throw new Error(s().statusMessage || `Cannot open ${path}`);
 
       s().setSettingsOpen(false);
