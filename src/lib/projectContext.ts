@@ -104,7 +104,32 @@ async function hitung(workspace: string): Promise<string> {
     files = [];
   }
 
-  if (files.length === 0) return '';
+  /*
+   * Workspace KOSONG tetap harus melaporkan di mana ia berada.
+   *
+   * Dulu baris berikut `return ''` - seluruh blok dibuang saat tidak ada
+   * berkas. Akibatnya agent yang diminta MEMBUAT proyek baru di folder kosong
+   * tidak pernah tahu akar workspace-nya: prompt bilang "semua path relatif
+   * terhadap workspace di blok konteks", tapi blok itu tidak ada. Model lalu
+   * menebak-nebak (`D:/Talos/situs`, lalu `situs`), setiap tebakan yang gagal
+   * membuatnya mencoba cara lain, dan watchdog akhirnya menghentikannya karena
+   * "mengulang tanpa kemajuan" - padahal yang kurang hanya satu baris:
+   * folder mana yang sedang dipakai.
+   *
+   * Folder kosong justru keadaan yang paling butuh kejelasan ini, karena di
+   * situlah agent diminta menaruh berkas pertama.
+   */
+  const akar = workspace.replace(/\\/g, '/');
+
+  if (files.length === 0) {
+    return [
+      `- Active workspace: ${akar}`,
+      '- This folder is EMPTY. Nothing is indexed yet.',
+      '- Every path you pass to a tool is relative to this workspace. To create',
+      '  a new file here, pass its relative path (e.g. "situs/index.html") or',
+      '  the full path under this workspace. Do not guess the workspace root.',
+    ].join('\n');
+  }
 
   const namaBawah = files.map((f) => f.split('/').pop()!.toLowerCase());
   const teknologi: string[] = [];
@@ -181,6 +206,15 @@ export async function ringkasanProyek(): Promise<string> {
   return sedangHitung;
 }
 
+/*
+ * Nilai cache diperiksa terhadap workspace yang MENYUSUNNYA.
+ *
+ * Tanpa ini, jawaban yang dihitung saat workspace masih kosong ("folder ini
+ * kosong") akan terus dipakai setelah berkasnya ada - karena TTL 60 detik
+ * berlaku, tapi lebih buruk lagi setelah pindah workspace: teks lama menyebut
+ * folder yang salah. Workspace adalah bagian dari identitas cache ini.
+ */
 export function resetRingkasanProyek() {
   cache = null;
+  sedangHitung = null;
 }

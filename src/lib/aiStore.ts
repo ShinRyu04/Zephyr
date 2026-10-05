@@ -2090,9 +2090,40 @@ export const useAi = create<AiStore>((set, get) => ({
        * mengabaikannya.
        */
       const idMasuk = o?.id == null ? '' : String(o.id).trim();
-      const dariId = idMasuk ? sebelum.find((x) => x.id === idMasuk) : undefined;
-      const content = String(o?.content ?? dariId?.content ?? '').trim();
+      /*
+       * Cocokkan lewat id, LALU lewat nomor urut.
+       *
+       * Model tidak pernah melihat id yang sebenarnya: id yang disimpan
+       * dibangkitkan di sini (`td-...`), sedangkan model mengirim `"1"`, `"2"`
+       * sesuai urutan yang ia susun sendiri di argumennya. Mencari
+       * `x.id === '2'` karena itu TIDAK PERNAH ketemu, dan setiap putaran
+       * membuat entri baru dengan id baru - pemanggilan kedua gagal seluruhnya
+       * walau maksudnya jelas.
+       *
+       * Nomor urut 1-basis adalah identitas yang benar-benar dimiliki model,
+       * jadi itu juga yang harus dikenali. Dua tugas yang kebetulan berbagi
+       * nomor tetap dipisahkan oleh teksnya di bawah.
+       */
+      const nomorMasuk = /^\d+$/.test(idMasuk) ? Number(idMasuk) - 1 : -1;
+      /*
+       * Satu pencarian, tiga jalan: lewat teks (paling kuat), lewat id yang
+       * dikenali, lalu lewat nomor urut.
+       *
+       * Teks dicari lebih dulu dengan sengaja: model yang MENGUBAH isi sebuah
+       * tugas mengirim teks barunya, dan mencocokkannya dengan id lama bisa
+       * salah kalau nomornya sudah bergeser karena tugas lain selesai.
+       * Nomor urut menjadi jaring terakhir - itu identitas yang benar-benar
+       * dimiliki model, karena ia menyusun daftarnya sendiri.
+       */
+      const seposisi =
+        (idMasuk ? sebelum.find((x) => x.id === idMasuk) : undefined) ??
+        (nomorMasuk >= 0 && nomorMasuk < sebelum.length ? sebelum[nomorMasuk] : undefined);
+      const content = String(o?.content ?? seposisi?.content ?? '').trim();
       if (!content) continue;
+      const dariId = seposisi;
+
+      /* Tugas yang cocok dengan daftar lama: pakai ulang identitasnya. */
+      const asal = dariId ?? seposisi;
       const s = String(o?.status ?? 'pending').trim().toLowerCase();
       /*
        * Terima semua sinonim, jangan paksa ke 'pending'.
@@ -2110,7 +2141,15 @@ export const useAi = create<AiStore>((set, get) => ({
 
       /* Simpan id-nya. Lihat catatan di bawah - membuangnya merusak pemasangan
          baris dan identitas untuk React. */
-      const prev = sebelum.find((x) => x.content === content);
+      /*
+       * `prev` dicari lewat teks - dan lewat `asal` kalau teksnya tidak ketemu.
+       *
+       * Untuk update yang membawa id/nomor saja, teksnya disalin dari tugas
+       * lama; pencarian lewat teks tetap perlu supaya model yang MENGUBAH teks
+       * sebuah tugas (mis. "langkah tiga" menjadi "langkah tiga, diperbaiki")
+       * tidak kehilangan durasi dan idnya.
+       */
+      const prev = sebelum.find((x) => x.content === content) ?? asal;
       let startedAt = prev?.startedAt;
       let endedAt = prev?.endedAt;
 
@@ -2148,6 +2187,29 @@ export const useAi = create<AiStore>((set, get) => ({
 
       bersih.push({ id, content, status, startedAt, endedAt });
     }
+
+    /*
+     * Tugas yang TIDAK disebut model tetap dipertahankan.
+     *
+     * Ini yang membuat "todo-nya tidak ikut berubah saat bekerja". Daftar yang
+     * dikirim model sering hanya menyebut tugas yang SEDANG berubah - model
+     * membalas dua baris, bukan kelima-limanya. Karena hasilnya dulu dipakai
+     * apa adanya sebagai daftar baru, setiap update MENGHAPUS tugas yang tidak
+     * ikut disebut: 5 tugas -> 3 -> 1 -> kosong, tepat saat pekerjaannya paling
+     * banyak. Yang tidak disebut bukan berarti dibatalkan; itu hanya berarti
+     * tidak berubah, dan tugas yang tidak berubah harus tetap tampil.
+     *
+     * Penghapusan tetap mungkin, tapi harus DIMINTA: satu-satunya cara sah
+     * untuk membuang tugas adalah mengirimnya dengan status yang tidak
+     * dikenali... dan itu pun tidak, karena entri tanpa teks dan tanpa nomor
+     * yang cocok memang sudah dilewati di atas. Jadi daftar ini hanya bisa
+     * bertambah dan berubah, tidak pernah menyusut diam-diam.
+     */
+    const sudahAda = new Set(bersih.map((t) => t.id));
+    for (const lama of sebelum) {
+      if (!sudahAda.has(lama.id)) bersih.push(lama);
+    }
+
     set({ agentTodos: bersih });
     /*
      * A todo reaching 'done' is real progress, so the anti-loop watchdog

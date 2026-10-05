@@ -32,7 +32,22 @@ const SHELL_LANGS = new Set([
   'terminal',
 ]);
 
-const REF_RE = /^(?:\.{0,2}\/|\.{0,2}\\)?[\w@./\\-]+(?:\.\w{1,8})(?::(\d+))?$/;
+/*
+ * A bare file reference in the closing answer, e.g. `src/lib/types.ts:12`.
+ *
+ * The path needs its OWN capture group. It did not have one: the only group
+ * was `(\d+)` for the line number, so `ref[1]` was the line number (or
+ * undefined when there was none) and the path was never captured. Every click
+ * on such a reference passed `undefined` to `openPathAt`, which reached
+ * `kunciPath(undefined).replace(...)` and threw.
+ *
+ * That throw was not contained: it killed the RUNNING AGENT LOOP, because the
+ * click handler is reached while the loop streams its answer. The visible
+ * symptom was an agent that stopped mid-plan, right after an answer that
+ * mentioned a file - with no error, no toast, and no tool call to explain it.
+ */
+const REF_RE =
+  /^((?:\.{0,2}\/|\.{0,2}\\)?[\w@./\\-]+(?:\.\w{1,8}))(?::(\d+))?$/;
 
 function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const runInTerminal = useAi((s) => s.runInTerminal);
@@ -213,7 +228,11 @@ const MD_JAWABAN: Components = {
             onClick={() => {
               void import('../../lib/store').then(({ useStore }) => {
                 const line = ref[2] ? Number(ref[2]) : 1;
-                void useStore.getState().openPathAt(ref[1], line);
+                /* ref[1] = path, ref[2] = nomor baris opsional. Keduanya
+                   diperiksa: referensi yang tidak lengkap harus tidak bisa
+                   diklik, bukan melempar saat diklik. */
+                const berkasRef = ref[1];
+                if (berkasRef) void useStore.getState().openPathAt(berkasRef, line);
               });
             }}
           >
