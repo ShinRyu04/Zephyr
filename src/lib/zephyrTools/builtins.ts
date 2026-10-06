@@ -134,6 +134,64 @@ export function wajib(args: Record<string, unknown>, nama: string): string {
   return v;
 }
 
+/*
+ * Find a deferred tool by free-text query, for `tool_search`.
+ *
+ * "Deferred" = everything NOT in the always-sent core, minus the bridge tools
+ * themselves (searching for tool_search is a dead end). Loaded lazily so this
+ * module does not import the full tool table at load time - the same cycle
+ * `tool_call` avoids.
+ *
+ * Scoring is deliberately simple and forgiving: a name or description hit on
+ * any word of the query wins, with name hits weighted higher. A model that
+ * types "buka halaman web" should find `browser_open` even though no single
+ * token matches exactly - so the query is split and matched loosely.
+ */
+async function cariToolTerdefer(
+  query: string,
+  limit: number,
+): Promise<Array<{ nama: string; deskripsi: string; params: Record<string, unknown> }>> {
+  const [{ AGENT_TOOLS }, { TOOL_DIKIRIM_SELALU }] = await Promise.all([
+    import('../agentTools'),
+    import('./catalog'),
+  ]);
+  /*
+   * Exclude what is ALREADY SENT, not what the catalog calls "core". Those are
+   * different sets: TOOL_INTI is the 43 tools installable by default, but only
+   * TOOL_DIKIRIM_SELALU (17) ride every request. Filtering by TOOL_INTI hid
+   * every default-on-but-deferred tool - schedule, notes, background bash -
+   * from search, so the model could not find them at all.
+   */
+  const dikirim = new Set<string>(TOOL_DIKIRIM_SELALU);
+  const bridge = new Set(['tool_search', 'tool_call']);
+  const kata = query
+    .toLowerCase()
+    .split(/[^a-z0-9_]+/)
+    .filter((w) => w.length >= 2);
+  const skor: Array<{ nama: string; deskripsi: string; params: Record<string, unknown>; nilai: number }> = [];
+  for (const t of AGENT_TOOLS) {
+    const nama = t.spec.name;
+    if (dikirim.has(nama) || bridge.has(nama)) continue;
+    const namaLc = nama.toLowerCase();
+    const descLc = String(t.spec.description ?? '').toLowerCase();
+    let nilai = 0;
+    for (const w of kata) {
+      if (namaLc.includes(w)) nilai += 3;
+      if (descLc.includes(w)) nilai += 1;
+    }
+    if (nilai > 0) {
+      skor.push({
+        nama,
+        deskripsi: String(t.spec.description ?? '').split('\n')[0].slice(0, 200),
+        params: (t.spec.parameters as { properties?: Record<string, unknown> })?.properties ?? {},
+        nilai,
+      });
+    }
+  }
+  skor.sort((a, b) => b.nilai - a.nilai);
+  return skor.slice(0, limit).map(({ nama, deskripsi, params }) => ({ nama, deskripsi, params }));
+}
+
 /** Akar workspace saat ini, untuk bawaannya. */
 function akar(): string {
   return useStore.getState().workspace ?? '.';
@@ -1540,6 +1598,74 @@ export const TOOL_BAWAAN: AgentTool[] = [
       const jawaban = await useAi.getState().agentAjukanTanya(pertanyaan, opsi);
       if (jawaban === null) return '[user did not answer — proceed with your best judgement, or stop and report]';
       return `[jawaban user]: ${jawaban}`;
+    },
+  },
+
+  /*
+   * Progressive tool disclosure (the Hermes `tool_search` pattern).
+   *
+   * Sending every tool on every request is expensive: the 50+ tool schemas cost
+   * ~22 KB per call, more than the entire conversation, and on a slow gateway
+   * that size is what turns a round-trip into a stall or a 502. So only the CORE
+   * tools go out every time; the rest are found here and invoked through
+   * `tool_call`. The model searches by intent, reads the schema it gets back,
+   * then calls. Nothing is hidden from the model it cannot reach - it is one
+   * hop away instead of always-on.
+   */
+  {
+    spec: {
+      name: 'tool_search',
+      description:
+        'Cari tool yang TIDAK ada di daftar utamamu. Sebagian besar kemampuan (web, browser, SSH, MCP, jadwal, catatan, preview) tidak dikirim setiap saat; pakai ini untuk menemukannya dengan kata kunci, lalu panggil lewat tool_call. Contoh query: "buka halaman web", "jalankan di browser", "jadwalkan perintah", "ssh", "tangkap layar".',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Kata kunci kemampuan yang dicari, bahasa bebas.' },
+          limit: { type: 'number', description: 'Maksimum hasil (default 8).' },
+        },
+        required: ['query'],
+      },
+    },
+    run: async (a) => {
+      const query = wajib(a, 'query');
+      const limit = Math.min(20, Math.max(1, Number(a.limit) || 8));
+      const ditemukan = await cariToolTerdefer(query, limit);
+      if (ditemukan.length === 0) {
+        return `Tidak ada tool yang cocok dengan "${query}". Coba kata kunci lain (mis. "web", "browser", "schedule", "notes", "ssh").`;
+      }
+      return ditemukan
+        .map(
+          (t) =>
+            `- ${t.nama}: ${t.deskripsi}\n  args: ${JSON.stringify(t.params)}`,
+        )
+        .join('\n');
+    },
+  },
+
+  {
+    spec: {
+      name: 'tool_call',
+      description:
+        'Panggil tool yang kamu temukan lewat tool_search (tool yang tidak dikirim setiap saat). Sebutkan nama tool persis dan argumennya sesuai skema yang kamu lihat di hasil tool_search.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Nama tool persis seperti di hasil tool_search.' },
+          args: { type: 'object', description: 'Argumen tool, sesuai skemanya.' },
+        },
+        required: ['name'],
+      },
+    },
+    run: async (a) => {
+      const nama = wajib(a, 'name');
+      const args = (a.args && typeof a.args === 'object' ? a.args : {}) as Record<string, unknown>;
+      /*
+       * Import is deferred to avoid a cycle: agentTools imports the builtin
+       * table, so reaching back at module load would be circular. At call time
+       * the module is fully initialized.
+       */
+      const { jalankanAgentTool } = await import('../agentTools');
+      return await jalankanAgentTool(nama, args);
     },
   },
 ];

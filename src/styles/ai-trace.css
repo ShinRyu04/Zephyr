@@ -286,3 +286,53 @@
   max-width: 100%;
   overflow-x: auto;
 }
+
+/*
+ * A folded run of plain reads ("Explored 3 files").
+ *
+ * Deliberately quieter than a real tool row: muted text, no right-aligned stat
+ * column, a lighter background. The point is that it recedes so the edits and
+ * commands stand out - a summary that shouts is worse than the five rows it
+ * replaced. Expanding shows the files, one plain line each.
+ */
+.ai-toolrun.is-grup {
+  border-left-color: var(--border);
+  opacity: 0.9;
+}
+
+.ai-toolrun.is-grup .ai-toolrun-head {
+  color: var(--text-muted);
+}
+
+.ai-toolrun-grup-ringkas {
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 60%;
+}
+
+.ai-grup-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-block: 4px;
+}
+
+.ai-grup-baris {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ai-grup-baris .ai-toolrun-args {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

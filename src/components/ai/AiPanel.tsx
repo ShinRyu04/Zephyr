@@ -4,7 +4,6 @@ import {
   extractCommand,
   isDestructive,
   IMAGE_MAX_BYTES,
-  type AgentStep,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
@@ -36,9 +35,6 @@ import { runCommand } from '../../lib/commandRegistry';
 /* `SubAgentInfo` tidak diimpor lagi: popover subagent di kepala panel sudah
    dibuang, dan isinya kini tampil di tumpukan status atas kotak input. Berkas
    komponennya sengaja TIDAK dihapus - ia masih dipakai di tempat lain. */
-import { infoAksi, KELAS_JENIS } from '../../lib/labelAksi';
-import ToolCallCard from './ToolCallCard';
-import DiffViewer from './DiffViewer';
 import ThinkingBar from './ThinkingBar';
 import StatusArea from './StatusArea';
 
@@ -48,84 +44,6 @@ function folderDari(path: string): string {
   return pisah < 0 ? '' : path.slice(0, pisah);
 }
 
-/**
- * Gelombang 4: turn one recorded agent step into the shape ToolCallCard wants.
- *
- * `args` and `result` in the store are the raw strings the loop already kept -
- * the card decides how to present them. Two things are worth deriving here
- * rather than in the card, because only this layer knows the tool names:
- *
- * - a unified diff, when the tool rewrote a file (that is what DiffViewer is
- *   for; a raw JSON blob of an edit is unreadable);
- * - the exit code, when the result carries one.
- */
-function kartuTool(
-  step: { name?: string; args?: string; result?: string; ok?: boolean; at: number; durasiMs?: number; exitCode?: number; cwd?: string },
-  okText: string,
-  gagalText: string,
-  /** Set when this call is the one currently executing, so the card can show
-   *  the running state (pulsing chip, moving glyph) instead of "Selesai". */
-  jalan = false,
-): {
-  name: string;
-  input: string;
-  output: string;
-  ok?: boolean;
-  running?: boolean;
-  durationMs?: number;
-  exitCode?: number;
-  cwd?: string;
-  diff?: string;
-} {
-  const nama = step.name ?? '';
-  const hasil = step.result ?? '';
-  const info = infoAksi(nama);
-  /*
-   * Nama yang MASUK ke kartu sudah polos, tapi tiap pemakaian pola di bawah
-   * tetap butuh nama APA ADANYA.
-   *
-   * `mcp__zephyr__open_file` mengandung `open_file`, bukan `open`; kalau yang
-   * polos yang diuji, sebuah pemanggilan yang menyunting berkas berhenti
-   * terdeteksi sebagai penyunting dan diffnya tidak pernah dirender. Jadi
-   * pengujian pola memakai `nama`, dan yang ditampilkan memakai `info.label`.
-   */
-  const menyunting = info.jenis === 'tulis' || /edit|write|patch|replace|apply/i.test(nama);
-  const adaHunk = /(^|\n)(diff --git|@@ -\d+)/.test(hasil);
-  const diff = menyunting && adaHunk ? hasil : undefined;
-
-  let keluaran = hasil;
-  let exitCode = step.exitCode;
-  if (exitCode == null) {
-    const cocok = /"exit_?code"\s*:\s*(-?\d+)/.exec(hasil);
-    if (cocok) exitCode = Number(cocok[1]);
-  }
-
-  if (step.ok === false && !keluaran) keluaran = gagalText;
-  else if (step.ok !== false && !keluaran) keluaran = okText;
-
-  return {
-    name: nama,
-    input: step.args ?? '',
-    output: keluaran,
-    /*
-     * `ok` is only asserted once the call has actually returned.
-     *
-     * This used to be `step.ok !== false`, which is true for a call that is
-     * still in flight (its `ok` is `undefined`). Every running call therefore
-     * rendered as finished - the pill said "Selesai" while the command was
-     * still executing, and the row got no running animation. Leaving `ok`
-     * undefined until the result arrives is what lets the card tell the two
-     * apart, and the running state is what drives the pill's colour and the
-     * icon's motion.
-     */
-    ok: step.ok,
-    running: jalan,
-    durationMs: step.durasiMs,
-    exitCode,
-    cwd: step.cwd,
-    diff,
-  };
-}
 
 /*
  * A frozen empty list, so the message-list selector can return a STABLE
@@ -177,71 +95,6 @@ const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: ()
   });
 
   return <>{msgs.map((m) => <ChatMessage key={m.id} msg={m} />)}</>;
-});
-
-/*
- * The agent's step list + file diffs, shown INSIDE the transcript.
- *
- * Copilot/Claude Code render the tool steps and the diffs as part of the
- * conversation, so the reader watches the work happen in one column instead of
- * a chat that scrolls one way and a work panel that scrolls another. This used
- * to live in the work panel by the composer; it renders after PesanList now.
- *
- * `msg`'s own tool runs are rendered by ChatMessage (inside each bubble); this
- * shows the RUN-LEVEL trail - the last few steps of the whole turn, with the
- * diff of each file change - which is what was in the work panel.
- */
-const JejakKerja = memo(function JejakKerja({
-  jejak,
-  terlihat,
-  sibuk,
-  toolSekarang,
-  tr,
-  tf,
-}: {
-  jejak: number;
-  terlihat: readonly AgentStep[];
-  sibuk: boolean;
-  toolSekarang: string | null;
-  tr: (s: string) => string;
-  tf: (s: string, v: Record<string, string | number>) => string;
-}) {
-  if (terlihat.length === 0) return null;
-  return (
-    <ul className="ai-agent ai-agent-cards ai-agent-in-chat" data-testid="ai-agent-in-chat">
-      {terlihat.map((step, i) => {
-        const info = infoAksi(step.name);
-        /*
-         * The last call in the list is the one in flight.
-         *
-         * The store appends a step only when the call RETURNS, so a finished
-         * list has nothing running - but while the agent works, `agentCurrentTool`
-         * names the call being executed right now and it is always the newest
-         * entry. Marking it running is what gives that row the moving glyph and
-         * the "running" pill; without it every row claims to be done.
-         */
-        const jalan = Boolean(sibuk && i === terlihat.length - 1 && step.name === toolSekarang);
-        const kartu = kartuTool(step, tr('Selesai'), tr('Gagal'), jalan);
-        return (
-          <li className="ai-agent-card-item" key={`${step.at}-${i}`}>
-            <ToolCallCard
-              call={kartu}
-              tr={tr}
-              tf={tf}
-              defaultOpen={false}
-              className={`is-jenis-${KELAS_JENIS[info.jenis] ?? 'lain'}`}
-            />
-            {kartu.diff && <DiffViewer text={kartu.diff} tr={tr} tf={tf} />}
-          </li>
-        );
-      })}
-      {jejak > terlihat.length && (
-        <li className="ai-agent-step">
-          <span className="ai-agent-note">{tf('{n} more actions', { n: jejak - terlihat.length })}</span>
-        </li>
-      )}
-    </ul>
-  );
 });
 
 function AiPanelInner() {
@@ -320,8 +173,6 @@ function AiPanelInner() {
   const agentLastProgressAt = useAi((s) => s.agentLastProgressAt);
   const agentStartedAt = useAi((s) => s.agentStartedAt);
   const agentSteps = useAi((s) => s.agentSteps);
-/* Berapa aksi terakhir yang tampil penuh di jejak tool; sisa-nya jadi 'N more actions'. */
-const JEJAK_TOOL_MAKS = 4;
   const agentConfirm = useAi((s) => s.agentConfirm);
   /* Mode switching lives in ModeMenu; AiPanel only reads the mode to pick the
      placeholder and the send label. */
@@ -376,8 +227,6 @@ const JEJAK_TOOL_MAKS = 4;
    * loop arrives, only `cadence` changes.
    */
   /* Jejak tool: hanya beberapa terakhir yang dirender, sisanya diringkas. */
-  const jejakTool = agentSteps.filter((step) => step.kind === 'tool');
-  const jejakToolTerlihat = jejakTool.slice(-JEJAK_TOOL_MAKS);
   /*
    * Gelombang 3: the status stack used to render even when every counter was
    * zero. `stackKosong` lets the whole block leave the DOM instead of drawing
@@ -1259,23 +1108,19 @@ const JEJAK_TOOL_MAKS = 4;
             </div>
           </div>
         ) : (
-          <>
-            <PesanList ambilScroller={ambilScroller} />
-            {/*
-              * The run's step trail + diffs, in the conversation beside the
-              * answer it belongs to (Copilot-style). Shown while the agent works
-              * and after it stops, so the record of what it did stays with the
-              * message instead of vanishing with the work panel.
-              */}
-            <JejakKerja
-              jejak={jejakTool.length}
-              terlihat={jejakToolTerlihat}
-              sibuk={Boolean(sibuk)}
-              toolSekarang={agentCurrentTool}
-              tr={tr}
-              tf={tf}
-            />
-          </>
+          /*
+           * ONE renderer for tool calls: ChatMessage, inside each bubble.
+           *
+           * A second trail used to be drawn here from `agentSteps` (the
+           * run-level list), which showed the SAME calls again in a different
+           * layout - a seven-call turn read as fourteen rows, and the two
+           * versions disagreed on icons, carets and meta. ChatMessage already
+           * interleaves each call with its narration and now shows the file
+           * diff too, so the trail here was pure duplication. opencode, Hermes
+           * and Claude Code all keep tool output in the transcript and nowhere
+           * else; this matches them.
+           */
+          <PesanList ambilScroller={ambilScroller} />
         )}
 
         {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written

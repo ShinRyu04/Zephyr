@@ -624,13 +624,29 @@
   color: var(--text-secondary);
 }
 
+/*
+ * Added / removed lines, green and red.
+ *
+ * The text colour was right, but the BACKGROUND was borrowed from elsewhere -
+ * adds sat on the blue accent tint and deletes on the amber search-match tint -
+ * so the lines read as "highlighted" in the wrong colours, not as a diff. Each
+ * side now carries its own tinted background in the SAME hue as its text, which
+ * is the one cue that makes a diff scannable at a glance: green means added,
+ * red means removed, nothing else.
+ *
+ * The tint is a fixed rgba, not color-mix: WebView2 here is an older Chromium
+ * that does not support color-mix, and a rule the engine drops would leave the
+ * lines untinted again. The theme tokens keep the TEXT colour per theme; these
+ * backgrounds only need to be a soft wash of the same hue, which reads right on
+ * dark and light alike.
+ */
 .w4-diff-line.is-add {
-  background: var(--accent-subtle);
+  background: var(--diff-add-bg, rgba(63, 185, 80, 0.16));
   color: var(--added);
 }
 
 .w4-diff-line.is-delete {
-  background: var(--editor-match);
+  background: var(--diff-del-bg, rgba(248, 81, 73, 0.16));
   color: var(--deleted);
 }
 
@@ -663,9 +679,14 @@
   white-space: pre;
 }
 
-.w4-diff-line.is-add code,
+/* Keep the code the same colour as its line: a green row whose text is plain
+   white loses the green the moment the eye lands on the code itself. */
+.w4-diff-line.is-add code {
+  color: var(--added);
+}
+
 .w4-diff-line.is-delete code {
-  color: var(--text);
+  color: var(--deleted);
 }
 
 .w4-diff-omitted {
