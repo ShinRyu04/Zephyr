@@ -15,7 +15,8 @@ import type { AgentToolSpec } from './types';
 import { TOOL_BAWAAN } from './zephyrTools/builtins';
 import { TOOL_MCP } from './zephyrTools/mcp';
 import { TOOL_WEB } from './zephyrTools/web';
-import { useToolGate, TOOL_TULIS } from './toolGate';
+import { useToolGate, TOOL_TULIS, TOOL_AKTIF_AWAL } from './toolGate';
+import { TOOL_DIKIRIM_SELALU } from './zephyrTools/catalog';
 
 export { TOOL_TULIS };
 
@@ -81,6 +82,23 @@ export function agentToolSpecs(
       daftar = daftar.filter((t) => !TOOL_TULIS.has(t.spec.name));
     }
   }
+  /*
+   * Progressive disclosure: only the CORE tools are sent every request.
+   *
+   * Sending the whole table cost ~22 KB per call, more than the conversation
+   * itself, which is what made a slow gateway time out. Everything outside the
+   * always-sent set is reachable through `tool_search` + `tool_call` instead.
+   *
+   * A tool the USER turned on beyond the default set is kept directly callable
+   * - they asked for it, so it should not be hidden behind a search. The gate
+   * records the live set; the defaults record what would be on anyway. Anything
+   * active but NOT in the defaults was chosen by the user.
+   */
+  const aktif = useToolGate.getState().aktif;
+  const bawaan = new Set(TOOL_AKTIF_AWAL);
+  daftar = daftar.filter(
+    (t) => TOOL_DIKIRIM_SELALU.includes(t.spec.name) || (aktif.has(t.spec.name) && !bawaan.has(t.spec.name)),
+  );
   return daftar.map((t) => t.spec);
 }
 

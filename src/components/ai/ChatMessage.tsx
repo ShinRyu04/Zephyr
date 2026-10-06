@@ -7,8 +7,9 @@ import { barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import { useNeural, hentikanSemuaSuara } from '../../lib/useNeural';
-import type { ChatMsg } from '../../lib/types';
+import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
+import DiffViewer from './DiffViewer';
 import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
@@ -247,6 +248,137 @@ const MD_JAWABAN: Components = {
   a: MdLink,
 };
 
+/*
+ * Read-only tools that get folded together when they run back to back.
+ *
+ * This is the opencode/Hermes idea (their CONTEXT_GROUP_TOOLS): a run of plain
+ * reads - read a file, list a folder, grep, glob, fetch - is one act of
+ * gathering, not five facts. Drawing five separate rows for it buries the rows
+ * that DO matter (the write, the edit with its diff, the command) under a pile
+ * of "Read x / Read y / List z". Folding the run into one "Explored 3 files"
+ * line keeps the transcript about the work, not the bookkeeping.
+ *
+ * Deliberately NARROW: only passive reads. `bash_run` is exec (it can change
+ * the world), edits/writes carry diffs the reader must see, `ask_user` and
+ * subagents are decisions - none of those fold. A tool that has a diff, failed,
+ * or is the newest in flight never joins a group either (see the grouping
+ * function), so a broken step is never hidden inside a summary.
+ */
+const TOOL_BACA_DIKELOMPOKKAN = new Set([
+  'read_file',
+  'list_directory',
+  'grep',
+  'glob',
+  'fetch',
+]);
+
+type SegmenTool =
+  | { jenis: 'tunggal'; i: number }
+  | { jenis: 'baca'; items: number[] };
+
+/*
+ * Group consecutive foldable reads into runs; everything else stays its own
+ * segment, in place. A run of one is left as a normal row - a "1 file" summary
+ * is longer than the row it replaces.
+ *
+ * `indeksSibuk` is the tool currently running (if any): it must never be folded
+ * away into a summary, because it is the one row the reader is watching.
+ */
+function kelompokkanTools(
+  tools: readonly AgentToolRun[],
+  indeksSibuk: number,
+): SegmenTool[] {
+  const segmen: SegmenTool[] = [];
+  let run: number[] = [];
+  const tutupRun = () => {
+    if (run.length >= 2) segmen.push({ jenis: 'baca', items: run });
+    else for (const i of run) segmen.push({ jenis: 'tunggal', i });
+    run = [];
+  };
+  for (let i = 0; i < tools.length; i += 1) {
+    const t = tools[i];
+    const bolehGabung =
+      TOOL_BACA_DIKELOMPOKKAN.has(namaPolos(t.name)) &&
+      t.ok &&
+      i !== indeksSibuk;
+    if (bolehGabung) {
+      run.push(i);
+    } else {
+      tutupRun();
+      segmen.push({ jenis: 'tunggal', i });
+    }
+  }
+  tutupRun();
+  return segmen;
+}
+
+/*
+ * One row for a run of plain reads: "Explored 3 files".
+ *
+ * Collapsed it is a single line; expanded it lists each file, so nothing is
+ * hidden, just folded. Kept visual weight BELOW a normal tool row (no stat
+ * column, muted) so the eye skips it and lands on the edits and commands that
+ * matter. The reader who wants the detail clicks once.
+ */
+function BarisBacaBerkelompok({
+  jumlah,
+  tools,
+  tr,
+  tf,
+}: {
+  jumlah: number;
+  tools: readonly AgentToolRun[];
+  tr: (s: string) => string;
+  tf: (s: string, v: Record<string, string | number>) => string;
+}) {
+  const [buka, setBuka] = useState(false);
+  return (
+    <div className="ai-toolrun is-grup" data-testid="ai-toolrun-group" data-jumlah={jumlah}>
+      <button
+        className="ai-toolrun-head"
+        data-testid="ai-toolrun-group-toggle"
+        aria-expanded={buka}
+        onClick={() => setBuka((v) => !v)}
+      >
+        <span className="ai-toolrun-caret">{buka ? '▾' : '▸'}</span>
+        <span className="ai-toolrun-ikon is-baca" aria-hidden="true">
+          <AiIkon name="search" size={13} />
+        </span>
+        <span className="ai-toolrun-name">
+          {jumlah === 1
+            ? tf('Explored {n} item', { n: jumlah })
+            : tf('Explored {n} items', { n: jumlah })}
+        </span>
+        <span className="ai-toolrun-stat ai-toolrun-grup-ringkas">
+          {tools
+            .map((t) => sasaranAksi(t.args) || infoAksi(t.name).label)
+            .slice(0, 3)
+            .join(' · ')}
+          {tools.length > 3 ? tr(' …') : ''}
+        </span>
+      </button>
+      {buka && (
+        <div className="ai-toolrun-body ai-grup-isi">
+          {tools.map((t, k) => {
+            const info = infoAksi(t.name);
+            const target = sasaranAksi(t.args);
+            return (
+              <div className="ai-grup-baris" key={k}>
+                <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
+                  <AiIkon name={info.ikon} size={12} />
+                </span>
+                <span className="ai-toolrun-name">{info.label}</span>
+                {target && <code className="ai-toolrun-args">{target}</code>}
+                {!t.ok && <span className="ai-toolrun-fail">{tx('failed')}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   /*
    * Narration slices, one per tool, from the `atChar` offsets stamped at
@@ -301,6 +433,17 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const regenerate = useAi((s) => s.regenerate);
   const setToast = useAi((s) => s.setToast);
   const [buka, setBuka] = useState<Record<number, boolean>>({});
+
+  /*
+   * Tool rows after folding: runs of consecutive plain reads become one summary
+   * segment, everything else stays its own row in place. Computed here rather
+   * than per render so the DOM order stays stable across re-renders.
+   */
+  const indeksSibuk = msg.streaming ? (msg.tools?.length ?? 0) - 1 : -1;
+  const segmenTools = useMemo(
+    () => kelompokkanTools(msg.tools ?? [], indeksSibuk),
+    [msg.tools, indeksSibuk],
+  );
 
   /*
    * Seconds since this message started streaming.
@@ -601,7 +744,40 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
           })()}
           {msg.tools && msg.tools.length > 0 && (
             <div className="ai-toolruns" data-testid="ai-toolruns">
-              {msg.tools.map((t, i) => {
+              {/*
+                * While streaming, the newest tool is the one in flight - it must
+                * stay a full row so the reader watches it, not a summary.
+                */}
+              {segmenTools.map((seg) => {
+                if (seg.jenis === 'baca') {
+                  /*
+                   * The narration belongs to the FIRST tool of the run - it is
+                   * the sentence that motivated gathering, and it has to stay in
+                   * front of the summary or the reader loses the "why" the
+                   * sentence carried. Later tools in the run have no narration
+                   * of their own (their atChar equals the first's).
+                   */
+                  const narasiGrup = potongNarasi[seg.items[0]] ?? '';
+                  return (
+                    <Fragment key={`grp-${seg.items[0]}`}>
+                      {narasiGrup.trim() ? (
+                        <div className="ai-segmen" data-testid="ai-segmen" data-segmen={seg.items[0]}>
+                          <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                            {narasiGrup}
+                          </Markdown>
+                        </div>
+                      ) : null}
+                      <BarisBacaBerkelompok
+                        jumlah={seg.items.length}
+                        tools={seg.items.map((i) => msg.tools![i])}
+                        tr={tr}
+                        tf={tf}
+                      />
+                    </Fragment>
+                  );
+                }
+                const i = seg.i;
+                const t = msg.tools![i];
                 /*
                  * Facts about the call, on one line.
                  *
@@ -858,6 +1034,29 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                       </div>
                     </div>
                   )}
+                  {/*
+                    * The file change itself, shown WITHOUT needing to expand.
+                    *
+                    * The diff is the deliverable of an edit/write - it is what
+                    * the reader checks to see whether the agent did what they
+                    * asked. It used to live in a separate work-panel card; that
+                    * panel is gone (one renderer, one place), so the diff lands
+                    * here, under the row that produced it, the way a PR shows
+                    * its changes. Only when the tool actually edited a file and
+                    * its result carries a real unified diff - a read or a plain
+                    * write with no hunks shows nothing.
+                    */}
+                  {(() => {
+                    const hasil = String(t.result ?? '');
+                    const menyunting = infoAksi(t.name).jenis === 'tulis' || /edit|write|patch|replace|apply/i.test(t.name);
+                    const adaHunk = /(^|\n)(diff --git|@@ -\d+)/.test(hasil);
+                    if (!menyunting || !adaHunk) return null;
+                    return (
+                      <div className="ai-toolrun-diff">
+                        <DiffViewer text={hasil} tr={tr} tf={tf} />
+                      </div>
+                    );
+                  })()}
                 </div>
                 </Fragment>
                 );

@@ -113,6 +113,9 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['think', 'Penalaran', 'read', false, 'Catat penalaran selangkah sebelum bertindak'],
   ['calculator', 'Penalaran', 'read', false, 'Hitung ekspresi aritmetika secara deterministik'],
   ['ask_user', 'Penalaran', 'read', false, 'Tanya user saat keputusan benar-benar ambigu, lalu tunggu jawabannya'],
+  /* Bridge progressive disclosure: mencari & memanggil tool yang tidak dikirim setiap saat. */
+  ['tool_search', 'Penalaran', 'read', false, 'Cari tool yang tidak ada di daftar utama (web, browser, SSH, MCP, jadwal)'],
+  ['tool_call', 'Penalaran', 'exec', true, 'Panggil tool yang ditemukan lewat tool_search'],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -464,6 +467,44 @@ export function periksaKatalog(): string[] {
 export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
   (t) => t.source !== 'web',
 ).map((t) => t.name);
+
+/**
+ * Tool yang DIKIRIM ke provider setiap permintaan (progressive disclosure).
+ *
+ * Ini subset kecil dari TOOL_INTI - hanya yang dipakai hampir setiap tugas:
+ * membaca/menulis/mengubah berkas, mencari, menjalankan perintah, merencanakan,
+ * dan bertanya. Sisanya (web, browser, SSH, MCP, jadwal, catatan, preview, dan
+ * tool tulis lain) TIDAK dikirim setiap kali; model menemukannya lewat
+ * `tool_search` lalu memanggilnya lewat `tool_call`.
+ *
+ * Kenapa: mengirim 50+ skema tool setiap permintaan memakan ~22 KB - lebih besar
+ * dari seluruh percakapan - dan ukuran itulah yang membuat gateway lambat lalu
+ * balas 502. opencode dan Hermes melakukan hal yang sama (kirim inti, sisanya
+ * on-demand). Yang penting: tidak ada tool yang HILANG dari model, hanya satu
+ * langkah lebih jauh.
+ *
+ * `tool_call` ada di daftar karena ia jembatannya; `tool_search` juga, supaya
+ * model bisa menemukan tool lain kapan saja.
+ */
+export const TOOL_DIKIRIM_SELALU: readonly string[] = [
+  'read_file',
+  'write_file',
+  'edit',
+  'multi_edit',
+  'replace_in_files',
+  'delete_file',
+  'list_directory',
+  'create_directory',
+  'grep',
+  'glob',
+  'bash_run',
+  'todo_write',
+  'think',
+  'ask_user',
+  'run_subagent',
+  'tool_search',
+  'tool_call',
+];
 
 /** Rincian per kelompok, untuk picker. */
 export function kelompokKatalog(): Array<{ group: string; source: ToolSource; names: string[] }> {
