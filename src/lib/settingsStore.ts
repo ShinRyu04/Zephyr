@@ -37,16 +37,13 @@ export const SECTION_ORDER: SectionId[] = [
   'theme',
   'shortcuts',
   'models',
-  'agents',
   'voice',
   'mic',
-  'rules',
   'subagent',
   'permissions',
   'extensions',
   'lsp',
   'scm',
-  'mcp',
   'tests',
   'devenv',
   'devupdate',
@@ -57,6 +54,14 @@ export const SECTION_ORDER: SectionId[] = [
   'ssh',
   'about',
 ];
+
+/*
+ * `agents`, `rules` and `mcp` are NOT in the nav order any more: they moved into
+ * the Agent Customizations modal (its Agents / Instructions / MCP Servers panes
+ * reuse the very same components). The SectionId type keeps them so deep links
+ * and the panels themselves still type-check, but they no longer get a left-nav
+ * row — the user asked to drop the duplicates.
+ */
 
 interface SettingsUiState {
   section: SectionId;

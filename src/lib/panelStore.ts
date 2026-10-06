@@ -116,7 +116,15 @@ export const usePanel = create<PanelState & PanelActions>((set, get) => ({
       const vt = (visibleTabs ?? []).filter((x): x is PanelTabId =>
         SEMUA.includes(x as PanelTabId),
       );
-      const at = SEMUA.includes(activeTab as PanelTabId) ? (activeTab as PanelTabId) : 'terminal';
+      let at = SEMUA.includes(activeTab as PanelTabId) ? (activeTab as PanelTabId) : 'terminal';
+      /*
+       * A saved activeTab of 'ai' is stale once the chat lives in its own area
+       * (right/editor/window). Leaving it selected shows the bottom panel open
+       * on the "moved" note, which reads as "AI is still in the bottom panel".
+       * Fall back to the terminal tab in that case.
+       */
+      const posAi = useStore.getState().settings.general.aiPanel ?? 'right';
+      if (at === 'ai' && posAi !== 'bottom') at = 'terminal';
       const daftar = vt.length > 0 ? vt : SEMUA.slice();
 
       const TAB_BARU: PanelTabId[] = SEMUA.filter((t) => !TAB_LAMA.includes(t));

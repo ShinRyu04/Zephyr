@@ -4,7 +4,6 @@ import { findCommand, runCommand } from '../../lib/commandRegistry';
 import { useKb } from '../../lib/keybindingStore';
 import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
-import { useStore } from '../../lib/store';
 import { useSchedBuka } from '../../lib/schedStore';
 import Tip from './Tip';
 import WindowControls from './WindowControls';
@@ -14,13 +13,6 @@ import { useT } from '../../lib/i18n';
 import { useLabel } from '../../lib/labelI18n';
 
 const bisaFokus = (it: MenuItem) => it.kind !== 'sep';
-
-const POSISI_PANEL: { id: 'left' | 'right' | 'top' | 'bottom'; label: string; desc: string }[] = [
-  { id: 'left', label: 'Left', desc: 'panel on the left of the editor' },
-  { id: 'right', label: 'Right', desc: 'panel on the right of the editor' },
-  { id: 'top', label: 'Top', desc: 'panel above the editor' },
-  { id: 'bottom', label: 'Bottom', desc: 'panel below the editor' },
-];
 
 export default function MenuBar() {
   const tr = useT();
@@ -38,9 +30,6 @@ export default function MenuBar() {
 
   const [altAktif, setAltAktif] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const posPanel = useStore((s) => s.settings.sidebar);
-  const setSidebarVisible = useStore((s) => s.setSidebarVisible);
-  const applySettings = useStore((s) => s.applySettings);
 
   const tutup = () => {
     setBuka(-1);
@@ -317,36 +306,10 @@ export default function MenuBar() {
         </button>
       </div>
 
-      {/* Panel layout - the 4 position buttons are ALWAYS VISIBLE at the top right of
-          the menu bar (not a popover): a click switches directly, without opening a menu first.
-          The active position is marked; the eye button at the end = hide the panel. */}
-      <div className="mb-layout" role="radiogroup" aria-label={tr('Panel position')}>
-        {POSISI_PANEL.map((p) => (
-          <button
-            key={p.id}
-            className={`mb-layout-btn${posPanel === p.id ? ' is-on' : ''}`}
-            data-testid={`mb-layout-${p.id}`}
-            title={`${tr('Panel')} ${tr(p.label)} - ${tr(p.desc)}`}
-            aria-label={`${tr('Panel')} ${tr(p.label)}`}
-            role="radio"
-            aria-checked={posPanel === p.id}
-            onClick={() => {
-              tutup();
-              void applySettings({ sidebar: p.id });
-              setSidebarVisible(true);
-            }}
-          >
-            <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
-              {/* layout icon: left/right/top/bottom panel around the editor */}
-              <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-              {p.id === 'left' && <path d="M5.8 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />}
-              {p.id === 'right' && <path d="M10.2 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />}
-              {p.id === 'top' && <path d="M2.2 5.8h11.6" stroke="currentColor" strokeWidth="1.3" />}
-              {p.id === 'bottom' && <path d="M2.2 10.2h11.6" stroke="currentColor" strokeWidth="1.3" />}
-            </svg>
-          </button>
-        ))}
-        <div className="mb-layout-sep" role="separator" />
+      {/* Layout controls collapse to a SINGLE "Customize Layout" button.
+          The four always-visible panel-position buttons moved INTO that popup
+          (VS Code style) so the menu bar no longer spends four slots on them. */}
+      <div className="mb-layout" aria-label={tr('Layout')}>
         {/* Customize Layout (VS Code style): one panel for ALL layout
             controls. Without this, the user has to know that "hide status
             bar" is in the command palette and "zen mode" is in the View menu. */}

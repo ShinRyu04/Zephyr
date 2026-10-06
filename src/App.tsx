@@ -5,7 +5,7 @@ import Sidebar from './components/shell/Sidebar';
 import SplitEditor from './components/shell/SplitEditor';
 import Panel from './components/shell/Panel';
 import TerminalArea from './components/shell/TerminalArea';
-import AiPanel from './components/ai/AiPanel';
+import AiPanel from './components/ai/AiHost';
 import SubAgentInfo from './components/ai/SubAgentInfo';
 import StatusBar from './components/shell/StatusBar';
 import Toast from './components/notifications/Toast';
@@ -21,6 +21,7 @@ const TrustDialog = lazy(() => import('./components/workspace/TrustDialog'));
 const UpdateBanner = lazy(() => import('./components/shell/UpdateBanner'));
 const DonateDialog = lazy(() => import('./components/shell/DonateDialog'));
 const ExtApprovalModal = lazy(() => import('./components/extensions/ExtApprovalModal'));
+const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
 const KeybindingsEditor = lazy(() => import('./components/shell/KeybindingsEditor'));
 const LspOverlay = lazy(() => import('./components/editor/LspOverlay'));
 const ScmConfirmDialog = lazy(() => import('./components/scm/ScmConfirmDialog'));
@@ -277,14 +278,22 @@ export default function App() {
   const bootstrap = useStore((s) => s.bootstrap);
   const terminalMaximized = useTerminal((s) => s.maximized);
   const panelBawahVisible = useTerminal((s) => s.visible);
-  const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'bottom');
+  const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
   const subKanan = useLayoutCustom((s) => s.subKanan);
   const aiWidth = useStore((s) => s.aiWidth);
   const aiMax = useStore((s) => s.aiMax);
   const setAiWidth = useStore((s) => s.setAiWidth);
   const layoutTerminal = useStore((s) => s.settings.general.layout === 'terminal');
 
-  const aiKanan = aiPanelPos === 'right';
+  /*
+   * AI chat position, VSCode-style. The right column is the default home; the
+   * "..." menu can move it into the editor area or pop it out to its own window.
+   * `aiKolomVisible` lets the ActivityBar icon toggle the right column without
+   * changing the saved position.
+   */
+  const aiWindow = aiPanelPos === 'window';
+  const aiKolomVisible = useStore((s) => s.aiKolomVisible);
+  const aiKanan = aiPanelPos === 'right' && aiKolomVisible && !aiWindow;
 
   useEffect(() => {
     if (layoutTerminal && !panelBawahVisible) useTerminal.getState().setVisible(true);
@@ -303,11 +312,24 @@ export default function App() {
   const rememberActivityToggle = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const id = (e.target as HTMLElement).closest<HTMLElement>('[data-activity]')?.dataset.activity;
     if (id === 'ai') {
-      const terminal = useTerminal.getState();
-      activityToggleIntent.current = {
-        id,
-        wasOpen: terminal.visible && usePanel.getState().activeTab === 'ai',
-      };
+      /*
+       * The AI chat has a HOME other than the bottom dock now (right column,
+       * editor area, pop-out window). Clicking the robot icon must toggle
+       * whichever home is configured — the old code always drove the bottom
+       * panel, so the chat kept appearing at the bottom even when the user had
+       * moved it to the right. "Open" is read per home.
+       */
+      const posAi = useStore.getState().settings.general.aiPanel ?? 'right';
+      let wasOpen: boolean;
+      if (posAi === 'bottom') {
+        wasOpen = useTerminal.getState().visible && usePanel.getState().activeTab === 'ai';
+      } else if (posAi === 'window') {
+        wasOpen = true; // the window is its own surface; the icon just focuses it
+      } else {
+        /* right column OR editor area: the column visibility flag is the state. */
+        wasOpen = useStore.getState().aiKolomVisible;
+      }
+      activityToggleIntent.current = { id, wasOpen };
     } else if (id === 'settings') {
       activityToggleIntent.current = { id, wasOpen: useStore.getState().settingsOpen };
     } else {
@@ -323,13 +345,31 @@ export default function App() {
     const store = useStore.getState();
     if (intent.id === 'ai') {
       store.setSettingsOpen(false);
-      store.setActivity('ai');
-      if (intent.wasOpen) {
-        useTerminal.getState().setVisible(false);
-      } else {
-        store.setSidebarVisible(true);
-        usePanel.getState().focusTab('ai');
+      /* NOT setActivity('ai'): there is no left AI panel any more, so switching
+         the sidebar's activity would just blank whatever panel is open. */
+      const posAi = store.settings.general.aiPanel ?? 'right';
+
+      if (posAi === 'bottom') {
+        if (intent.wasOpen) {
+          useTerminal.getState().setVisible(false);
+        } else {
+          store.setSidebarVisible(true);
+          usePanel.getState().focusTab('ai');
+        }
+        return;
       }
+
+      if (posAi === 'window') {
+        void import('./lib/aiWindow').then((m) => m.bukaAiWindow());
+        return;
+      }
+
+      /*
+       * Right column or editor area: toggle the column, and NEVER open the
+       * bottom dock. Opening also makes sure the chat is not stuck closed from
+       * an earlier session.
+       */
+      store.setAiKolomVisible(!intent.wasOpen);
       return;
     }
 
@@ -562,14 +602,21 @@ export default function App() {
         case 'ai.panel': {
 
           s.setSettingsOpen(false);
-          s.setActivity('ai');
-          if (!s.sidebarVisible) s.toggleSidebar();
 
-          const P = usePanel.getState();
-          if (t.visible && P.activeTab === 'ai') t.setVisible(false);
-          else {
-            t.setVisible(true);
-            P.focusTab('ai');
+          const posAi = s.settings.general.aiPanel ?? 'right';
+          if (posAi === 'bottom') {
+            if (!s.sidebarVisible) s.toggleSidebar();
+            const P = usePanel.getState();
+            if (t.visible && P.activeTab === 'ai') t.setVisible(false);
+            else {
+              t.setVisible(true);
+              P.focusTab('ai');
+            }
+          } else if (posAi === 'window') {
+            void import('./lib/aiWindow').then((m) => m.bukaAiWindow());
+          } else {
+            /* Right column / editor area: toggle the column, never the dock. */
+            s.toggleAiKolom();
           }
           break;
         }
@@ -1500,6 +1547,7 @@ export default function App() {
         {/* Extension external-runtime permissions - global, they can appear at any
             time because execution can be requested from any worker. */}
         <ExtApprovalModal />
+        <AgentCustomModal />
         <KeybindingsEditor />
         <LspOverlay />
       </Suspense>

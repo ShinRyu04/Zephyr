@@ -18,6 +18,107 @@
   background: var(--bg);
 }
 
+/* ── AI host: tab strip (Chat / Claude Code / Codex) + body ── */
+.ai-host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  background: var(--bg);
+}
+.ai-host-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 6px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.ai-host-tab {
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.ai-host-tab:hover {
+  color: var(--text);
+}
+.ai-host-tab.is-on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.ai-host-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  position: relative;
+}
+.ai-host-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.ai-host-pane[hidden] {
+  display: none;
+}
+
+/* ── hosted CLI tab (Claude Code / Codex) ── */
+.ai-cli-host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.ai-cli-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex: 0 0 auto;
+}
+.ai-cli-name {
+  font-size: 12px;
+  color: var(--text);
+  flex: 1 1 auto;
+}
+.ai-cli-term {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.ai-cli-term .xterm-pane {
+  width: 100%;
+  height: 100%;
+}
+.ai-cli-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  padding: 24px;
+  text-align: center;
+}
+.ai-cli-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ai-cli-empty-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 320px;
+}
+
 .ai-head {
   display: flex;
   align-items: center;
@@ -711,6 +812,7 @@
  */
 .ai-input-row {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 8px 10px;
   margin: 0 10px;
@@ -775,6 +877,42 @@
   align-items: stretch;
   width: 132px;
   flex: 0 0 auto;
+}
+/*
+ * Copilot-style composer toolbar: a horizontal row BELOW the textarea.
+ *
+ * The controls (+, mic, model, mode, permission, reasoning, send) now sit on
+ * one line under the input instead of in a 132px column beside it, so the
+ * textarea gets the full width and the bar reads like the reference composer.
+ * It wraps when the panel is narrow so no control is ever clipped.
+ */
+.ai-input-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+.ai-input-toolbar .ai-toolbar-spacer {
+  flex: 1 1 auto;
+}
+/* Bottom status bar: message count on the left, context ring on the right. */
+.ai-botbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 12px 0;
+  padding: 2px 2px 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.ai-botbar .ai-botbar-spacer {
+  flex: 1 1 auto;
+}
+.ai-botbar .ai-count {
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 .ai-attach {
   font-size: 10.5px;
@@ -4166,4 +4304,409 @@
 
 .ai-agent-progress-elapsed {
   margin-left: auto;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   "..." header menu + pop-out window (VSCode Copilot-style)
+   ────────────────────────────────────────────────────────────────────────── */
+
+.ai-more-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Invisible full-screen catcher so a click outside closes the menu. */
+.ai-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.ai-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 41;
+  min-width: 240px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+.ai-more-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ai-more-item:hover {
+  background: var(--surface-3);
+}
+
+/* A radio item that is the active position gets a leading check via ::before. */
+.ai-more-item[aria-checked='true']::before {
+  content: '✓';
+  color: var(--accent, var(--text));
+  font-size: 11px;
+  width: 12px;
+  display: inline-block;
+}
+.ai-more-item[aria-checked='false']::before {
+  content: '';
+  width: 12px;
+  display: inline-block;
+}
+
+.ai-more-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* The pop-out AI window: the chat fills the whole surface. */
+.ai-window-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--bg, var(--surface));
+}
+
+.ai-window-root .ai-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+/*
+ * AI chat as an editor-area view ("Move Chat into Editor Area").
+ *
+ * The grid host already gives a definite 1fr row, but the panel is a flex
+ * column that must actively fill it — without `height: 100%` here the panel
+ * collapsed to its intrinsic height and the whole editor area read as EMPTY
+ * (the reported "move chat into editor code gbisa, malah kosong"). It also must
+ * NOT use the narrow 340px reflow: the editor area is full width, so the panel
+ * keeps the roomy bottom-dock layout.
+ */
+.ai-editor-area > .editor-host {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.ai-editor-area .ai-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Agent Customizations modal (VSCode Copilot-style, separate from Settings)
+   ────────────────────────────────────────────────────────────────────────── */
+
+.agc-backdrop {
+  z-index: 60;
+}
+
+/*
+ * `.modal.agc-modal`, not `.agc-modal`.
+ *
+ * The base `.modal { width: 420px; max-width: 90vw }` lives in index.css, which
+ * App.tsx imports AFTER ai.css. Equal specificity means the later file wins, so
+ * a plain `.agc-modal { width: ... }` was always overridden back to 420px - the
+ * modal "stayed small" no matter the number here. Doubling the class raises the
+ * specificity (0,2,0 > 0,1,0) so this wins regardless of import order.
+ */
+.modal.agc-modal {
+  width: min(1280px, 95vw);
+  height: min(880px, 92vh);
+  max-width: none;
+  max-height: 92vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agc-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex: 0 0 auto;
+}
+
+.agc-head-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agc-head .ai-ikon {
+  margin-left: auto;
+}
+
+.agc-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.agc-nav {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.agc-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agc-nav-item:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.agc-nav-item.is-active {
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.agc-nav-ikon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.agc-nav-label {
+  flex: 1 1 auto;
+}
+
+.agc-nav-badge {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.agc-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 32px 40px;
+  background: var(--bg, var(--surface-2));
+}
+
+/* The content column keeps a comfortable reading measure in the wide modal,
+   like Copilot's — text does not stretch to the full 1000px+ width. */
+.agc-pane {
+  max-width: 920px;
+}
+
+.agc-pane-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.agc-pane-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.agc-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.agc-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.agc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 110ms ease, background 110ms ease;
+}
+
+.agc-card:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+.agc-card-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.agc-card-ikon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.agc-card-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agc-card-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── Overview hero (Copilot "Customize Your Agent" box) ─────────────────── */
+.agc-pane-overview {
+  max-width: 1080px;
+}
+
+.agc-hero {
+  margin: 4px 0 28px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.agc-hero-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.agc-hero-mark {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.agc-hero-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.agc-hero-sub {
+  margin: 6px 0 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.agc-hero-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.agc-hero-input:focus-within {
+  border-color: var(--accent);
+}
+
+.agc-hero-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  padding: 8px 0;
+  outline: none;
+}
+
+.agc-hero-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.agc-hero-send {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.agc-hero-send:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.agc-explore-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+
+.agc-explore-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.agc-head-scope {
+  color: var(--text-muted);
+  font-weight: 400;
 }

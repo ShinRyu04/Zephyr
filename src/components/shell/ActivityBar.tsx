@@ -173,7 +173,7 @@ const LABEL: Record<ActivityId, string> = {
   outline: 'Outline',
   scm: 'Source Control',
   debug: 'Run & Debug (Ctrl+Shift+D)',
-  ai: 'AI / MCP',
+  ai: 'AI Chat',
   terminal: 'Terminal',
   extensions: 'Extensions (Ctrl+Shift+X)',
   devenv: 'Dev Environment',
@@ -190,9 +190,9 @@ const ORDER: ActivityId[] = [
   'outline',
   'scm',
   'debug',
-  'ai',
-  'terminal',
   'extensions',
+  'terminal',
+  'ai',
   'tools',
   'settings',
 ];
@@ -202,6 +202,18 @@ export default function ActivityBar() {
   const tf = useTf();
   const activity = useStore((s) => s.activity);
   const sidebarVisible = useStore((s) => s.sidebarVisible);
+  /* The robot icon highlights when the chat is open in its own home, not when
+     the left sidebar shows an 'ai' panel (there is none any more). */
+  const aiKolomVisible = useStore((s) => s.aiKolomVisible);
+  const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
+  const terminalVisible = useTerminal((s) => s.visible);
+  const panelTab = usePanel((s) => s.activeTab);
+  const aiTerbuka =
+    aiPanelPos === 'bottom'
+      ? terminalVisible && panelTab === 'ai'
+      : aiPanelPos === 'window'
+        ? true
+        : aiKolomVisible;
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
@@ -263,7 +275,8 @@ export default function ActivityBar() {
       <nav className="activitybar" aria-label="Activity Bar">
       {ORDER.map((id) => {
         const Icon = Icons[id];
-        const isActive = activity === id && sidebarVisible;
+        const isActive =
+          id === 'ai' ? aiTerbuka : activity === id && sidebarVisible;
         return (
           <button
             key={id}
@@ -277,32 +290,31 @@ export default function ActivityBar() {
               setSettingsOpen(false);
 
               /*
-               * Ikon AI punya CABANG SENDIRI, tidak memakai toggle generik
-               * seperti ikon lain.
+               * The robot icon ONLY toggles the chat in its configured home.
+               * It no longer sets `activity = 'ai'`, because the left sidebar
+               * has no AI panel any more — doing so would blank whatever panel
+               * is showing on the left. Chat history now lives in the panel's
+               * own header switcher.
                *
-               * Ikon lain (Explorer, Search, SCM, dst) mengendalikan panelnya
-               * sendiri lewat `activity` + `sidebarVisible`, jadi toggle generik
-               * sudah cukup. Panel AI tidak begitu: ia hidup di panel BAWAH yang
-               * dikendalikan store lain (`useTerminal.visible` + tab aktif di
-               * `usePanel`), dan bisa menutup dirinya sendiri
-               * (AiPanel memindahkan posisinya ke 'bottom' lalu set visible false).
-               *
-               * Akibatnya, dengan toggle generik, klik ikon AI hanya mengubah
-               * `activity` yang TIDAK memengaruhi panel AI sama sekali. Panelnya
-               * sudah tertutup dan klik berikutnya berhenti membuka apa pun -
-               * tombolnya terasa mati, padahal state-nya baik-baik saja.
+               * Posisi chat AI mengikuti setelan `general.aiPanel`:
+               *   right/editor -> kolom kanan; klik = toggle kolom.
+               *   window       -> jendela terpisah.
+               *   bottom       -> legacy: tab di panel bawah.
                */
               if (id === 'ai') {
-                setActivity('ai');
-                if (!sidebarVisible) toggleSidebar();
-                const t = useTerminal.getState();
-                const p = usePanel.getState();
-                /* Sudah terbuka DAN tab AI yang aktif -> klik berarti tutup.
-                   Selain itu -> buka dan fokuskan tab AI. */
-                if (t.visible && p.activeTab === 'ai') t.setVisible(false);
-                else {
-                  t.setVisible(true);
-                  p.focusTab('ai');
+                const pos =
+                  useStore.getState().settings.general.aiPanel ?? 'right';
+                if (pos === 'bottom') {
+                  const t = useTerminal.getState();
+                  const p = usePanel.getState();
+                  if (t.visible && p.activeTab === 'ai') t.setVisible(false);
+                  else {
+                    t.setVisible(true);
+                    p.focusTab('ai');
+                  }
+                } else {
+                  /* right / editor / window: toggle the right column. */
+                  useStore.getState().toggleAiKolom();
                 }
                 return;
               }
