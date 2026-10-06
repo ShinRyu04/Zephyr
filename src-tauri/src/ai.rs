@@ -352,6 +352,54 @@ fn emit_chunk(app: &AppHandle, payload: Value) {
     let _ = app.emit("ai-chunk", payload);
 }
 
+/// Add session-affinity headers so the provider can route a conversation to the
+/// same upstream node and reuse its prompt cache across steps.
+///
+/// A Zephyr run sends one request per agent step, each carrying the whole
+/// (pruned) history. Without a stable session identifier the gateway treats
+/// every step as an unrelated request and cannot reuse the cached prefix, so the
+/// full prompt is re-processed each time - which is a large part of why a long
+/// run feels slow next to clients like opencode. opencode sends a stable
+/// `x-session-affinity` per session for exactly this reason. The header is
+/// advisory: providers that do not understand it ignore it.
+fn tambah_header_afinitas(prepared: &mut Prepared, session_id: Option<&str>) {
+    let Some(sid) = session_id.map(str::trim).filter(|s| !s.is_empty()) else {
+        return;
+    };
+    // No secrets here - session ids are opaque, not credentials.
+    prepared
+        .headers
+        .push(("x-session-affinity".into(), sid.to_string()));
+    prepared
+        .headers
+        .push(("x-session-id".into(), sid.to_string()));
+}
+
+/// Whether a streamed chunk carries a tool call, in any of the three wire
+/// shapes. Used to tell "the provider is working" (a tool-only turn) apart from
+/// "nothing arrived", so an EOF after a tool call is not misread as a broken
+/// stream. Structural, not a full parse: it only needs to recognise the
+/// presence of a call, and `StreamAcc` does the real extraction.
+fn chunk_membawa_tool_call(provider: &str, v: &Value) -> bool {
+    match provider {
+        "gemini" => v
+            .pointer("/candidates/0/content/parts")
+            .and_then(|p| p.as_array())
+            .map(|parts| parts.iter().any(|p| p.get("functionCall").is_some()))
+            .unwrap_or(false),
+        "anthropic" => v
+            .pointer("/delta/type")
+            .and_then(|t| t.as_str())
+            .map(|t| t == "input_json_delta" || t == "tool_use")
+            .unwrap_or(false),
+        _ => v
+            .pointer("/choices/0/delta/tool_calls")
+            .and_then(|c| c.as_array())
+            .map(|c| !c.is_empty())
+            .unwrap_or(false),
+    }
+}
+
 pub(crate) fn terminal_error_to_emit(cancelled: bool, error: Option<String>) -> Option<String> {
     if cancelled { None } else { error }
 }
@@ -432,6 +480,7 @@ pub fn ai_chat(
     base_url: Option<String>,
     max_tokens: Option<u32>,
     effort: Option<ReasoningEffort>,
+    session_id: Option<String>,
 ) -> ZResult<()> {
     if id.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("id empty".into()));
@@ -447,7 +496,7 @@ pub fn ai_chat(
         )));
     }
 
-    let prepared = adapters::prepare(
+    let mut prepared = adapters::prepare(
         &provider,
         &model,
         &messages,
@@ -456,6 +505,7 @@ pub fn ai_chat(
         max_tokens.unwrap_or(2048),
         effort,
     )?;
+    tambah_header_afinitas(&mut prepared, session_id.as_deref());
 
     rekam_request(
         &state,
@@ -539,7 +589,22 @@ pub fn ai_chat(
             buf_line.clear();
             match reader.read_line(&mut buf_line) {
                 Ok(0) => {
-                    terminal_error = Some("stream ended before completion".into());
+                    /*
+                     * EOF. Whether this is a clean end or a broken stream
+                     * depends on whether anything arrived.
+                     *
+                     * Not every provider ends with a `[DONE]` sentinel: Gemini's
+                     * SSE closes the connection with no terminator at all. The
+                     * old code treated EVERY EOF as "stream ended before
+                     * completion", so a perfectly complete answer from such a
+                     * provider was flagged as an error - the text was there, but
+                     * the bubble carried a failure. EOF after text is the normal
+                     * end; EOF with nothing received is the real failure, and the
+                     * `!sent_any` check below still reports it.
+                     */
+                    if !sent_any {
+                        terminal_error = Some("stream ended before completion".into());
+                    }
                     break;
                 }
                 Ok(_) => {}
@@ -711,6 +776,7 @@ pub fn ai_tool_chat_stream(
     base_url: Option<String>,
     max_tokens: Option<u32>,
     effort: Option<ReasoningEffort>,
+    session_id: Option<String>,
 ) -> ZResult<()> {
     if id.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("id empty".into()));
@@ -725,7 +791,7 @@ pub fn ai_tool_chat_stream(
         )));
     }
 
-    let prepared = adapters::prepare_tools_stream(
+    let mut prepared = adapters::prepare_tools_stream(
         &provider,
         &model,
         &messages,
@@ -735,6 +801,7 @@ pub fn ai_tool_chat_stream(
         max_tokens.unwrap_or(2048),
         effort,
     )?;
+    tambah_header_afinitas(&mut prepared, session_id.as_deref());
 
     rekam_request(
         &state,
@@ -792,6 +859,13 @@ pub fn ai_tool_chat_stream(
         let mut acc = adapters::StreamAcc::new(&prov);
         /* Text held back because its tail might still grow into a tool tag. */
         let mut tahan = String::new();
+        /*
+         * Whether anything real came out of this stream. Used to tell a clean
+         * EOF (a provider that ends without a `[DONE]` sentinel, e.g. Gemini)
+         * from a stream that died before delivering anything - only the second
+         * is an error.
+         */
+        let mut ada_output = false;
         let mut reader = BufReader::new(resp.into_body().into_reader());
         let mut buf_line = String::new();
         let mut terminal_error: Option<String> = None;
@@ -803,7 +877,15 @@ pub fn ai_tool_chat_stream(
             buf_line.clear();
             match reader.read_line(&mut buf_line) {
                 Ok(0) => {
-                    terminal_error = Some("stream ended before completion".into());
+                    /*
+                     * EOF after output is the normal end for providers that do
+                     * not send a `[DONE]` sentinel (Gemini). Only an EOF with
+                     * nothing received is a real failure - the same rule the
+                     * chat stream applies.
+                     */
+                    if !ada_output {
+                        terminal_error = Some("stream ended before completion".into());
+                    }
                     break;
                 }
                 Ok(_) => {}
@@ -840,7 +922,21 @@ pub fn ai_tool_chat_stream(
             };
 
             if let Some(think) = adapters::extract_reasoning(&prov, &v) {
+                ada_output = true;
                 emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
+            }
+            /*
+             * A chunk can carry a TOOL CALL with no text at all - and in agent
+             * mode that is the normal first response (the model decides which
+             * tool to run before saying anything). `acc.feed` swallows those
+             * into its call list and returns `None`, so counting only the text
+             * branch would leave `ada_output` false for a perfectly good
+             * tool-only turn, and the EOF below would flag it as a broken
+             * stream. Recognise a content-bearing chunk by shape across the
+             * three formats, so any of text/reasoning/tool-call marks output.
+             */
+            if chunk_membawa_tool_call(&prov, &v) {
+                ada_output = true;
             }
             if let Some(text) = acc.feed(&v) {
                 /*
@@ -853,6 +949,7 @@ pub fn ai_tool_chat_stream(
                  * the parser gets first refusal; whatever it does not consume
                  * is flushed below as ordinary text.
                  */
+                ada_output = true;
                 tahan.push_str(&text);
                 if !xml_tools::mungkin_awal_tag(&tahan) {
                     emit_chunk(&handle, json!({ "id": req_id, "text": tahan.clone() }));

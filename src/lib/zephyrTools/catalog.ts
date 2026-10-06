@@ -109,9 +109,10 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['get_terminal_output', 'Terminal', 'read', false, 'Baca potongan terakhir scrollback terminal aktif'],
   ['open_preview', 'Terminal', 'appWrite', true, 'Buka pratinjau localhost di pane browser'],
 
-  /* Penalaran - 2 (pola OpenJarvis: think.py + calculator.py, tanpa efek samping) */
+  /* Penalaran - 3. `ask_user` bertanya ke user, tidak mengubah apa pun; diklasifikasikan read. */
   ['think', 'Penalaran', 'read', false, 'Catat penalaran selangkah sebelum bertindak'],
   ['calculator', 'Penalaran', 'read', false, 'Hitung ekspresi aritmetika secara deterministik'],
+  ['ask_user', 'Penalaran', 'read', false, 'Tanya user saat keputusan benar-benar ambigu, lalu tunggu jawabannya'],
 ];
 
 /* ------------------------------------------------------------------ */

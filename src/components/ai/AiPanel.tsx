@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAi,
   extractCommand,
   isDestructive,
   IMAGE_MAX_BYTES,
+  type AgentStep,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
@@ -12,6 +13,7 @@ import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
+import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import BicaraHost from './BicaraHost';
 import ModelSelector from './ModelSelector';
@@ -125,10 +127,135 @@ function kartuTool(
   };
 }
 
-export default function AiPanel() {
+/*
+ * A frozen empty list, so the message-list selector can return a STABLE
+ * reference when there is no active session.
+ *
+ * Same reason as MSG_KOSONG in ContextMeter.tsx: zustand v5 compares the
+ * selector's output with `===`, so `?? []` inside the selector allocates a new
+ * array on every store write and reads as "changed" forever. The empty session
+ * state (cleared chat, first run before init()) is exactly when that fires.
+ */
+const PESAN_KOSONG: ChatMsg[] = [];
+
+/*
+ * The transcript, and ONLY the transcript.
+ *
+ * WHY this is its own component: `onChunk` (aiStore) rewrites `sessions` on
+ * every streamed token, so any component subscribed to `s.sessions` re-renders
+ * per token. When that component was the whole AiPanel (2453 lines, 49
+ * selectors), every single token re-rendered the entire panel - composer, model
+ * menu, tool strip, todo cards - before React ever reached the memoised
+ * ChatMessage children. On a long agent run that is the reported "freeze /
+ * answer never appears": the main thread spends the whole stream re-rendering
+ * the panel instead of painting tokens.
+ *
+ * Isolating the subscription here keeps the cost proportional to the
+ * transcript. Everything else in AiPanel only re-renders when its own slice of
+ * state changes.
+ *
+ * It also owns AUTO-SCROLL. The scroll must follow every token, so the
+ * component that already re-renders per token is the natural place to drive it;
+ * putting the tail-length subscription on AiPanelInner instead would make the
+ * whole panel reconcile every frame - the exact cost this split removes. The
+ * parent passes a getter for the scroll element so the refs stay where they
+ * belong.
+ */
+const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: () => HTMLDivElement | null }) {
+  const msgs = useAi((s) => s.activeSession()?.messages ?? PESAN_KOSONG);
+
+  /*
+   * Keep the newest output in view, but only while the reader is already at the
+   * bottom: yanking someone away from the passage they are reading is worse
+   * than making them scroll. Runs after the DOM has the new text.
+   */
+  useEffect(() => {
+    const el = ambilScroller();
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
+  });
+
+  return <>{msgs.map((m) => <ChatMessage key={m.id} msg={m} />)}</>;
+});
+
+/*
+ * The agent's step list + file diffs, shown INSIDE the transcript.
+ *
+ * Copilot/Claude Code render the tool steps and the diffs as part of the
+ * conversation, so the reader watches the work happen in one column instead of
+ * a chat that scrolls one way and a work panel that scrolls another. This used
+ * to live in the work panel by the composer; it renders after PesanList now.
+ *
+ * `msg`'s own tool runs are rendered by ChatMessage (inside each bubble); this
+ * shows the RUN-LEVEL trail - the last few steps of the whole turn, with the
+ * diff of each file change - which is what was in the work panel.
+ */
+const JejakKerja = memo(function JejakKerja({
+  jejak,
+  terlihat,
+  sibuk,
+  toolSekarang,
+  tr,
+  tf,
+}: {
+  jejak: number;
+  terlihat: readonly AgentStep[];
+  sibuk: boolean;
+  toolSekarang: string | null;
+  tr: (s: string) => string;
+  tf: (s: string, v: Record<string, string | number>) => string;
+}) {
+  if (terlihat.length === 0) return null;
+  return (
+    <ul className="ai-agent ai-agent-cards ai-agent-in-chat" data-testid="ai-agent-in-chat">
+      {terlihat.map((step, i) => {
+        const info = infoAksi(step.name);
+        /*
+         * The last call in the list is the one in flight.
+         *
+         * The store appends a step only when the call RETURNS, so a finished
+         * list has nothing running - but while the agent works, `agentCurrentTool`
+         * names the call being executed right now and it is always the newest
+         * entry. Marking it running is what gives that row the moving glyph and
+         * the "running" pill; without it every row claims to be done.
+         */
+        const jalan = Boolean(sibuk && i === terlihat.length - 1 && step.name === toolSekarang);
+        const kartu = kartuTool(step, tr('Selesai'), tr('Gagal'), jalan);
+        return (
+          <li className="ai-agent-card-item" key={`${step.at}-${i}`}>
+            <ToolCallCard
+              call={kartu}
+              tr={tr}
+              tf={tf}
+              defaultOpen={false}
+              className={`is-jenis-${KELAS_JENIS[info.jenis] ?? 'lain'}`}
+            />
+            {kartu.diff && <DiffViewer text={kartu.diff} tr={tr} tf={tf} />}
+          </li>
+        );
+      })}
+      {jejak > terlihat.length && (
+        <li className="ai-agent-step">
+          <span className="ai-agent-note">{tf('{n} more actions', { n: jejak - terlihat.length })}</span>
+        </li>
+      )}
+    </ul>
+  );
+});
+
+function AiPanelInner() {
   const tr = useT();
   const tf = useTf();
-  const sessions = useAi((s) => s.sessions);
+  /*
+   * The active session is read as a primitive id, not as the session object.
+   *
+   * `s.sessions.find(...)` would hand back a fresh object on every token (the
+   * immutable update rebuilds it), which reintroduces the per-token re-render
+   * this component is being fixed for. `activeId` is a string, so it only
+   * changes when the user actually switches chats - and the few derived values
+   * that need a session read it lazily from the store inside `useMemo`.
+   */
   const activeId = useAi((s) => s.activeId);
   const pending = useAi((s) => s.pending);
   const draft = useAi((s) => s.draft);
@@ -310,8 +437,54 @@ const JEJAK_TOOL_MAKS = 4;
   const setAiMax = useStore((s) => s.setAiMax);
   const applySettings = useStore((s) => s.applySettings);
 
-  const session = sessions.find((s) => s.id === activeId) ?? null;
-  const msgs = session?.messages ?? [];
+  /*
+   * How many messages the active chat holds.
+   *
+   * A PRIMITIVE selector, not the array: zustand v5 compares with `===`, so a
+   * number only re-renders the panel when the count actually changes - which is
+   * exactly when the empty-state must flip. Deriving this from the `activeId`
+   * memo instead would leave it stale after the FIRST message of an
+   * already-open empty chat (activeId does not change on send), so the
+   * empty-state would keep covering the answer.
+   */
+  const jumlahPesan = useAi((s) => s.sessions.find((x) => x.id === s.activeId)?.messages.length ?? 0);
+
+  /*
+   * Derived values that only decide WHICH action a button offers. Each is a
+   * PRIMITIVE (string / number), so zustand v5's `===` comparison re-renders
+   * the panel only when the value actually changes - not on every streamed
+   * token. Reading them from the array identity instead would reintroduce the
+   * per-token re-render, and memoising on `activeId` alone would leave them
+   * stale (a message does not change `activeId`).
+   */
+  const judulSesi = useAi(
+    (s) => s.sessions.find((x) => x.id === s.activeId)?.title ?? '',
+  );
+  /* The last user message's text, for the loop strip. */
+  const loopPrompt = useAi((s) => {
+    const m = s.sessions.find((x) => x.id === s.activeId)?.messages;
+    if (!m) return '';
+    for (let i = m.length - 1; i >= 0; i -= 1) {
+      if (m[i].role === 'user') return (m[i].content ?? '').trim();
+    }
+    return '';
+  });
+  /*
+   * The command from the newest assistant answer, for the "Run in Terminal"
+   * bar. Extracted inside the selector so the panel subscribes to a STRING:
+   * the derived command is stable while the answer streams (it only changes
+   * when a fenced bash block is complete), so this does not re-render per
+   * token the way subscribing to the message object would.
+   */
+  const lastCommand = useAi((s) => {
+    const m = s.sessions.find((x) => x.id === s.activeId)?.messages;
+    if (!m) return null;
+    for (let i = m.length - 1; i >= 0; i -= 1) {
+      const msg = m[i];
+      if (msg.role === 'assistant' && !msg.error) return extractCommand(msg.content);
+    }
+    return null;
+  });
   /*
    * Count the enabled tools through a Set rather than a selector that builds an
    * array: zustand v5 compares selector results with ===, so a fresh array here
@@ -319,24 +492,11 @@ const JEJAK_TOOL_MAKS = 4;
    */
   const toolAktif = useToolGate((s) => s.aktif);
   const jumlahToolNyala = SEMUA_TOOL.reduce((n, t) => (toolAktif.has(t) ? n + 1 : n), 0);
-  /*
-   * Prompt and cadence for the loop section.
-   *
-   * Hermes shows the loop's own prompt and cadence inside the section body
-   * (apps/desktop/src/app/chat/composer/status-stack/session-control-loop.tsx):
-   * the reader asked for this run and should see WHAT it was asked to do, not
-   * just that a loop exists. Zephyr has no loop scheduler yet, so the prompt is
-   * the message that started the current run and the cadence is self-paced by
-   * definition - the agent works until its task list is done rather than on a
-   * timer. Reading both from real state keeps the row honest: when a scheduled
-   * loop arrives, only the cadence changes.
-   */
-  const pesanUserTerakhir = [...msgs].reverse().find((m) => m.role === 'user');
-  const loopPrompt = (pesanUserTerakhir?.content ?? '').trim();
-  const lastBot = [...msgs].reverse().find((m) => m.role === 'assistant' && !m.error);
-  const lastCommand = lastBot ? extractCommand(lastBot.content) : null;
 
   const scroller = useRef<HTMLDivElement | null>(null);
+  /* Stable identity (ref is stable) so memoised PesanList is not re-rendered
+     just because this callback was recreated. */
+  const ambilScroller = useCallback(() => scroller.current, []);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const photoRef = useRef<HTMLInputElement | null>(null);
 
@@ -356,9 +516,16 @@ const JEJAK_TOOL_MAKS = 4;
   const [sesiRect, setSesiRect] = useState<{ left: number; top: number; bottom: number } | null>(null);
   const [sesiCari, setSesiCari] = useState('');
 
+  /*
+   * The chat-switch dropdown's list. Read from the store inside the memo (keyed
+   * on the dialog being open + the search term) instead of subscribing to
+   * `s.sessions`, so a streaming token in the active chat cannot re-render the
+   * whole panel just to refresh a list that is usually closed.
+   */
   const sesiTampil = useMemo(() => {
+    if (!sesiBuka) return [];
     const q = sesiCari.trim().toLowerCase();
-    return [...sessions]
+    return [...useAi.getState().sessions]
       .reverse()
       .filter(
         (s) =>
@@ -366,7 +533,7 @@ const JEJAK_TOOL_MAKS = 4;
           s.title.toLowerCase().includes(q) ||
           s.messages.some((m) => m.content.toLowerCase().includes(q)),
       );
-  }, [sessions, sesiCari]);
+  }, [sesiBuka, sesiCari]);
 
   /* Click-away and Escape close the list. */
   useEffect(() => {
@@ -737,18 +904,15 @@ const JEJAK_TOOL_MAKS = 4;
     inputRef.current?.focus();
   };
 
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (nearBottom) el.scrollTop = el.scrollHeight;
-  }, [msgs, pending]);
+  /* Auto-scroll now lives inside PesanList, which already re-renders per token
+     (see its comment). Doing it here would resubscribe the whole panel to a
+     per-frame value. */
 
   /*
    * Whether the reader has fallen behind the newest output.
    *
    * The transcript auto-scrolls only while the reader is at the bottom (see the
-   * effect above). That is the right rule - yanking someone away from the
+   * effect in PesanList). That is the right rule - yanking someone away from the
    * passage they are reading is worse than making them scroll - but it leaves
    * them stuck: once they look away while the agent is still working, new rows
    * arrive below the fold and there is no way back except dragging the bar.
@@ -828,7 +992,7 @@ const JEJAK_TOOL_MAKS = 4;
             setSesiCari('');
           }}
         >
-          <span className="ai-chatname-teks">{session ? tr(session.title) : '-'}</span>
+          <span className="ai-chatname-teks">{judulSesi ? tr(judulSesi) : '-'}</span>
           <AiIkon name="chev-down" size={12} />
         </button>
 
@@ -880,6 +1044,14 @@ const JEJAK_TOOL_MAKS = 4;
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteChat(s.id);
+                      /*
+                       * Close the list after a delete. `sesiTampil` is
+                       * memoised on [sesiBuka, sesiCari] for the same
+                       * isolation reason the transcript is; deleting a
+                       * non-active chat changes neither, so the row would
+                       * linger. Closing forces a fresh read on reopen.
+                       */
+                      setSesiBuka(false);
                     }}
                   >
                     <AiIkon name="trash" size={13} />
@@ -904,7 +1076,7 @@ const JEJAK_TOOL_MAKS = 4;
 
         <div className="ai-head-right">
           <span className="ai-count" data-testid="ai-msg-count">
-            {tf('{n} messages', { n: msgs.length })}
+            {tf('{n} messages', { n: jumlahPesan })}
           </span>
           {/* Always shown: the ring answers "how full is this?" before the
               first message, and hiding it made the header change shape. */}
@@ -1036,7 +1208,7 @@ const JEJAK_TOOL_MAKS = 4;
             </button>
           </div>
         )}
-        {msgs.length === 0 ? (
+        {jumlahPesan === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
             {/*
              * A mark, a line of purpose, then three things to do. The panel used
@@ -1087,7 +1259,23 @@ const JEJAK_TOOL_MAKS = 4;
             </div>
           </div>
         ) : (
-          msgs.map((m) => <ChatMessage key={m.id} msg={m} />)
+          <>
+            <PesanList ambilScroller={ambilScroller} />
+            {/*
+              * The run's step trail + diffs, in the conversation beside the
+              * answer it belongs to (Copilot-style). Shown while the agent works
+              * and after it stops, so the record of what it did stays with the
+              * message instead of vanishing with the work panel.
+              */}
+            <JejakKerja
+              jejak={jejakTool.length}
+              terlihat={jejakToolTerlihat}
+              sibuk={Boolean(sibuk)}
+              toolSekarang={agentCurrentTool}
+              tr={tr}
+              tf={tf}
+            />
+          </>
         )}
 
         {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written
@@ -1377,60 +1565,15 @@ const JEJAK_TOOL_MAKS = 4;
                 {sibuk && <span>{tf('{n}s', { n: progressElapsed })}</span>}
               </div>
               {agentCurrentTool && <code className="ai-work-tool">{agentCurrentTool}</code>}
-              {jejakTool.length > 0 ? (
-                <ul className="ai-agent ai-agent-cards">
-                  {/*
-                   * Hanya beberapa aksi terakhir yang ditampilkan.
-                   *
-                   * Dulu SEMUA langkah dirender, jadi setelah belasan tool call
-                   * daftarnya mendorong isi panel keluar layar. Sisa-nya
-                   * diringkas jadi satu baris 'N more actions'.
-                   *
-                   * Gelombang 4: tiap aksi kini satu ToolCallCard yang bisa
-                   * dibuka - tertutup ia tetap satu baris ringkas, dibuka ia
-                   * memperlihatkan Input/Output, exit status, cwd dan durasi.
-                   * DiffViewer dipakai saat tool itu mengubah berkas, jadi
-                   * perubahannya terbaca sebagai baris merah/hijau, bukan
-                   * tembok JSON.
-                   */}
-                  {jejakToolTerlihat.map((step, i) => {
-                    const info = infoAksi(step.name);
-                    /*
-                     * The last call in the list is the one in flight.
-                     *
-                     * The store appends a step only when the call RETURNS, so a
-                     * finished list has nothing running - but while the agent
-                     * works, `agentCurrentTool` names the call being executed
-                     * right now and it is always the newest entry. Marking it
-                     * running is what gives that row the moving glyph and the
-                     * "Berjalan" pill; without it every row claims to be done.
-                     */
-                    const jalan = Boolean(
-                      sibuk && i === jejakToolTerlihat.length - 1 && step.name === agentCurrentTool,
-                    );
-                    const kartu = kartuTool(step, tr('Selesai'), tr('Gagal'), jalan);
-                    return (
-                      <li className="ai-agent-card-item" key={`${step.at}-${i}`}>
-                        <ToolCallCard
-                          call={kartu}
-                          tr={tr}
-                          tf={tf}
-                          defaultOpen={false}
-                          className={`is-jenis-${KELAS_JENIS[info.jenis] ?? 'lain'}`}
-                        />
-                        {kartu.diff && <DiffViewer text={kartu.diff} tr={tr} tf={tf} />}
-                      </li>
-                    );
-                  })}
-                  {jejakTool.length > jejakToolTerlihat.length && (
-                    <li className="ai-agent-step">
-                      <span className="ai-agent-note">
-                        {tf('{n} more actions', { n: jejakTool.length - jejakToolTerlihat.length })}
-                      </span>
-                    </li>
-                  )}
-                </ul>
-              ) : null}
+              {/*
+                * The step list moved INTO the transcript (see JejakKerja below,
+                * rendered right after PesanList). It used to live here, inside
+                * the work panel next to the composer, which split the story in
+                * two: the answer scrolled in the chat while the steps and the
+                * file diffs scrolled somewhere else. Copilot/Claude Code keep
+                * them together - the steps ARE the answer as it is being
+                * written - so the panel is shown in the conversation now.
+                */}
             </div>
           )}
         </section>
@@ -2451,3 +2594,12 @@ const JEJAK_TOOL_MAKS = 4;
     </div>
   );
 }
+
+/*
+ * Memoised so the panel's parents (App.tsx, shell/Panel.tsx) cannot force a
+ * re-render of the whole thing on unrelated store writes. The panel reads from
+ * two stores through ~49 selectors, so without this a write anywhere in either
+ * store reconciles all 2453 lines of JSX.
+ */
+const AiPanel = memo(AiPanelInner);
+export default AiPanel;

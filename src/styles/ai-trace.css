@@ -251,3 +251,38 @@
     opacity: 0.85;
   }
 }
+
+/*
+ * The run's step trail, now rendered INSIDE the transcript (see JejakKerja in
+ * AiPanel.tsx). It sits below the answer it belongs to, indented to align with
+ * the assistant column so it reads as part of that turn rather than a detached
+ * panel. Width is capped to the transcript column so a wide diff cannot stretch
+ * the chat out of shape.
+ */
+.ai-agent-in-chat {
+  margin: 6px 0 14px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  list-style: none;
+}
+
+/* A hairline left rail ties the steps together as one run. */
+.ai-agent-in-chat::before {
+  content: none;
+}
+
+.ai-agent-in-chat .ai-agent-card-item {
+  min-width: 0;
+}
+
+/* The diff under a file-changing step stays inside the column, scrollable
+   horizontally instead of forcing the whole panel sideways. */
+.ai-agent-in-chat .ai-diff-view,
+.ai-agent-in-chat .w4-tool-card {
+  max-width: 100%;
+  overflow-x: auto;
+}

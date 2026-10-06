@@ -520,6 +520,9 @@ export const aiChat = (opts: {
   maxTokens?: number;
 
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
+  /* Stable per-chat id, sent to the provider as a session-affinity hint so it
+     can reuse the prompt cache across steps. */
+  sessionId?: string;
 }) => invoke<void>('ai_chat', opts);
 
 export const aiCancel = (id: string) => invoke<boolean>('ai_cancel', { id });
@@ -532,6 +535,7 @@ export const aiToolChat = (opts: {
   baseUrl?: string;
   maxTokens?: number;
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
+  sessionId?: string;
 }) => invoke<AiToolResult>('ai_tool_chat', opts);
 
 export const aiToolChatStream = (opts: {
@@ -543,6 +547,8 @@ export const aiToolChatStream = (opts: {
   baseUrl?: string;
   maxTokens?: number;
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
+  /* Stable per-chat id for provider prompt-cache affinity. */
+  sessionId?: string;
 }) => invoke<void>('ai_tool_chat_stream', opts);
 
 /*

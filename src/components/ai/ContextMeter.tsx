@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import type { ChatMsg } from '../../lib/types';
 import { useT } from '../../lib/i18n';
@@ -103,18 +103,29 @@ export default function ContextMeter() {
     tutupTimer.current = window.setTimeout(() => setBuka(false), 140);
   };
 
-  const dipakai = perkiraanKonteks(msgs);
-  const total = jendelaKonteks(model);
-  const persen = Math.min(100, Math.round((dipakai / total) * 100));
-
-  // Input tokens (user) vs output (assistant) for the session cost estimate.
-  const tokMasuk = msgs
-    .filter((m) => m.role === 'user')
-    .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
-  const tokKeluar = msgs
-    .filter((m) => m.role === 'assistant')
-    .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
-  const biaya = perkiraanBiaya(model, tokMasuk, tokKeluar);
+  /*
+   * Memoised on the transcript identity + model.
+   *
+   * `perkiraanKonteks` plus the two cost reductions walk the WHOLE transcript
+   * (up to MAX_MSGS = 200 messages) every time this component renders. During a
+   * stream the parent used to render per token, so that sum ran per token; even
+   * now that the transcript is its own subtree, recomputing it on every
+   * unrelated re-render is pure waste for a number that only changes when the
+   * messages do.
+   */
+  const { dipakai, total, persen, tokMasuk, tokKeluar, biaya } = useMemo(() => {
+    const dipakai = perkiraanKonteks(msgs);
+    const total = jendelaKonteks(model);
+    const persen = Math.min(100, Math.round((dipakai / total) * 100));
+    // Input tokens (user) vs output (assistant) for the session cost estimate.
+    const tokMasuk = msgs
+      .filter((m) => m.role === 'user')
+      .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
+    const tokKeluar = msgs
+      .filter((m) => m.role === 'assistant')
+      .reduce((n, m) => n + kiraToken(m.content ?? ''), 0);
+    return { dipakai, total, persen, tokMasuk, tokKeluar, biaya: perkiraanBiaya(model, tokMasuk, tokKeluar) };
+  }, [msgs, model]);
 
   const tingkat = persen >= 85 ? 'penuh' : persen >= 60 ? 'sedang' : 'aman';
 
