@@ -485,6 +485,13 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
  *
  * `tool_call` ada di daftar karena ia jembatannya; `tool_search` juga, supaya
  * model bisa menemukan tool lain kapan saja.
+ *
+ * Tool web/browser BACA ikut di sini karena prompt me-ROUTE ke sana dengan
+ * nama: "buka URL -> browser_open", "baca halaman -> browser_read/web_fetch".
+ * Kalau prompt menyebut sebuah tool tapi tool-nya tidak dikirim, model tidak
+ * bisa memanggilnya dan jatuh ke bash_run (`start <url>`) - itu yang membuat
+ * YouTube terbuka di browser sistem alih-alih pane browser Zephyr. Aturannya:
+ * apa pun yang di-route prompt WAJIB ikut dikirim.
  */
 export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'read_file',
@@ -504,6 +511,11 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'run_subagent',
   'tool_search',
   'tool_call',
+  'browser_open',
+  'browser_read',
+  'browser_nav',
+  'web_fetch',
+  'web_search',
 ];
 
 /** Rincian per kelompok, untuk picker. */
