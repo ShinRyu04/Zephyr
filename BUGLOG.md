@@ -6,6 +6,53 @@ Bug yang ditemukan tapi TIDAK diperbaiki juga dicatat, dengan alasannya.
 
 ---
 
+## Sesi perf AI — freeze, kelambatan, dan transkrip (Okt 2026)
+
+User melaporkan dua gejala sekaligus di semua provider: **app freeze/lambat**
+dan **balasan ngadat/tidak muncul**. Lalu, bahkan dengan model yang sama
+(deepseek-v4.1-flash), Zephyr terasa jauh lebih lambat daripada opencode,
+Hermes, dan Claude Code. Pembanding itu yang mengarahkan audit: kalau model
+sama tapi hasil beda, bedanya ada di apa yang DIKIRIM Zephyr tiap giliran.
+
+Commit: `2e60953`, `4f3724d`, `96e78c4`, `d4517aa`.
+
+| # | Gejala | Akar | Fix | Verifikasi |
+|---|--------|------|-----|------------|
+| F1 | Panel AI freeze/lag parah saat agen bekerja, di semua provider | `AiPanel` berlangganan `s.sessions`, jadi SETIAP token streaming menggambar ulang 2453 baris transkrip; bukan masalah provider | `PesanList` di-`memo`, `AiPanel` di-`memo`, selector jadi primitif; chunk di-coalesce per animation-frame (`chunkBuf` + `jadwalkanFlushChunk`) | Lag per token turun ke 2–16ms; diukur lewat CDP saat run agen panjang |
+| F2 | Balasan Gemini selalu ditandai error walau isinya lengkap | Jalur agen di `ai.rs` menganggap EOF (`Ok(0)`) tanpa `[DONE]` sebagai gagal; Gemini menutup stream dengan EOF, bukan sentinel | `ai.rs`: flag `ada_output`/`sent_any` — EOF setelah ada output bukan error | Jawaban Gemini tidak lagi jadi bubble merah; 296 test Rust lulus |
+| F3 | Balasan "ngadat"/hilang di tengah | Dedup chunk membuang chunk terminal (`done`/`err`/`toolDone`) kalau teksnya kebetulan sama dengan sebelumnya → chat menggantung selamanya | Guard `cTerminal`: chunk terminal tidak pernah di-dedup | Terminal selalu sampai; chat menutup normal |
+| F4 | Agen mengirim ~42.024 karakter untuk satu prompt sederhana | 52 spesifikasi tool (22.243) + prompt sistem (18.847) dikirim tiap giliran — lebih besar dari percakapannya; gateway lambat time-out | Pengungkapan tool bertahap gaya Hermes: hanya 17 tool inti terkirim (`TOOL_DIKIRIM_SELALU`), sisanya lewat `tool_search`+`tool_call`; prompt dipangkas (aturan berulang 3–5× jadi 1×, `daftarTool()` dihapus karena skema tool sudah dikirim provider) | Tools 22.243→9.344 (−58%), prompt 18.847→11.828 (−37%), total 42.024→21.172 (−50%); diukur di app hidup; 20/20 aturan kritis EN & 12/12 ID tetap ada |
+| F5 | Diff perubahan berkas tampil di panel terpisah di bawah, bukan di baris kerja agen | `JejakKerja` dan `ChatMessage` sama-sama menggambar baris tool → dobel; diff tidak menyatu dengan narasi | `JejakKerja` dihapus; diff dirender di dalam baris tool `ChatMessage` saat menyunting; tool baca beruntun dikelompokkan ("Explored N items") | Diff muncul inline hijau/merah; tidak ada baris tool dobel |
+
+**Tidak diperbaiki (sengaja):**
+
+- **`apply_patch` (format V4A ala Claude Code/opencode).** Ditolak. Zephyr
+  sudah punya `edit` (dengan pesan error yang mengajari model soal indentasi),
+  `multi_edit` (atomik: gagal satu, batal semua), dan `replace_in_files`
+  (perubahan sama di banyak berkas), semuanya dengan diff inline. `apply_patch`
+  menambah format parsing baru yang rapuh (fuzzy context matching) tanpa
+  kemampuan baru — risiko tanpa manfaat. Dicatat kalau suatu saat ada alasan
+  kuat (mis. interop dengan patch dari agen luar).
+
+- **`color-mix()` untuk warna diff.** Tidak dipakai: Chromium di mesin user
+  (WebView2 Edg/100) belum mendukungnya, warnanya jadi transparan. Dipakai
+  `rgba()` eksplisit. Dicek via `CSS.supports`.
+
+**Jebakan sesi ini (supaya tidak terulang):**
+
+1. **`tool_search` menyaring dari daftar yang salah.** Sempat memfilter dari
+   `TOOL_INTI` (43 nama) alih-alih `TOOL_DIKIRIM_SELALU` (17) — tool yang
+   justru DIDEFER tidak pernah ketemu lewat search. Harus `TOOL_DIKIRIM_SELALU`.
+2. **Jangan jatuhkan teks saat buffering reasoning.** `if (frames.length>0)
+   return` sebelum `if (c.text)` membuang teks token. Terapkan reasoning DAN
+   teks ke satu `patch` lalu merge.
+3. **Prompt sistem mengubah PERILAKU, bukan cuma ukuran.** Angka turun 50%
+   membuktikan biaya, bukan kualitas. Aturan "narasi per langkah" sekarang di
+   satu tempat; kalau model berhenti narasi, pertegas di situ, jangan
+   diperbanyak lagi.
+
+---
+
 ## Fase 16 — Bugfix Vol 2 (perf, RAM, startup, edge case)
 
 Status verifikasi: **10/10 lulus** lewat `npm run verify:16`. `tsc --noEmit`
