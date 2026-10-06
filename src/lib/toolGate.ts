@@ -122,6 +122,9 @@ export const TOOL_DISK_TULIS: Set<string> = new Set([
   'delete_file',
   'move_file',
   'replace_in_files',
+  /* Downloads a file to disk, so it writes like the others - it was missing
+     here, which let a download bypass the per-tool disk-write approval gate. */
+  'browser_download_url',
 ]);
 
 /** True ketika tool bisa menulis ke disk tanpa user menyimpan dulu. */

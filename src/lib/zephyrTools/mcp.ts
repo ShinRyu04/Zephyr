@@ -141,7 +141,20 @@ export const TOOL_MCP: AgentTool[] = [
         if (s.activeTabId) s.forceCloseTab(s.activeTabId);
         return `Command dijalankan: editor ditutup.`;
       }
-      return `Command dieksekusi: ${id}`;
+      /*
+       * Never report success for an id that was not actually executed.
+       *
+       * This used to return `Command dieksekusi: <id>` for ANY unknown id, so
+       * the model was told its command ran when nothing happened. A model that
+       * believes a failed action succeeded does not retry it - it builds the
+       * rest of the turn on a result that does not exist, which is the worst
+       * possible failure mode. Fail loudly so the model can route around it
+       * (e.g. to bash_run for a shell command).
+       */
+      throw new Error(
+        `ERROR: command id "${id}" is not implemented by run_command (it only runs a few internal editor ids). ` +
+          'For a shell command, use bash_run instead.',
+      );
     },
   },
 

@@ -1510,6 +1510,38 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => hitungAman(wajib(a, 'expression')),
   },
+
+  {
+    spec: {
+      name: 'ask_user',
+      description:
+        'Ajukan SATU pertanyaan pilihan kepada user dan tunggu jawabannya, saat keputusan benar-benar ambigu dan salah tebak membuang kerja (mis. pilihan arsitektur, menghapus berkas, jalur yang tidak bisa dibalik). Jangan pakai untuk hal yang bisa kamu putuskan sendiri dari konteks - lanjutkan saja dengan default yang wajar. Satu pertanyaan per pemanggilan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'Pertanyaan singkat dan konkret.' },
+          options: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '2-4 pilihan jawaban singkat untuk user pilih.',
+          },
+        },
+        required: ['question'],
+      },
+    },
+    run: async (a) => {
+      const pertanyaan = wajib(a, 'question');
+      const opsi = Array.isArray(a.options) ? a.options.map((x) => String(x)).slice(0, 4) : [];
+      /*
+       * The UI card, the resolver and the store action already existed; only the
+       * TOOL was missing, so the model could never reach any of it and the
+       * button was dead code. This is the wiring that connects them.
+       */
+      const jawaban = await useAi.getState().agentAjukanTanya(pertanyaan, opsi);
+      if (jawaban === null) return '[user did not answer — proceed with your best judgement, or stop and report]';
+      return `[jawaban user]: ${jawaban}`;
+    },
+  },
 ];
 
 /* ------------------------------------------------------------------ */

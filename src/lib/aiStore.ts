@@ -52,6 +52,17 @@ export type { AgentFailureCategory } from './agentStop';
 const TOOL_BACA: readonly string[] = TOOL_CATALOG.filter((t) => t.effect === 'read').map((t) => t.name);
 const TOOL_BACA_SET: ReadonlySet<string> = new Set(TOOL_BACA);
 const TOOL_BACA_DIPARALELKAN = new Set(TOOL_BACA);
+/*
+ * Web reads (`web_search`, `web_fetch`, `browser_read`, ...) are classified
+ * `net`, not `read`, because they touch the network. For the no-progress guard
+ * they behave like reads - gathering material is work - so they are collected
+ * here rather than being lumped in with passive steps.
+ */
+const TOOL_NET_SET: ReadonlySet<string> = new Set(
+  /* Only pure `net` (search/fetch/read). `netWrite` (browser_click/type) changes
+     remote state and is handled like a writer. */
+  TOOL_CATALOG.filter((t) => t.effect === 'net').map((t) => t.name),
+);
 
 const LS_KEY = 'zephyr.ai.sessions.v1';
 
@@ -361,10 +372,26 @@ export function catatAksiBerulang(peta: Map<string, number>, name: string, args:
   const sidik = sidikAksi(name, args);
   const jumlah = (peta.get(sidik) ?? 0) + 1;
   peta.set(sidik, jumlah);
+  /*
+   * A repeated READ is not the same failure as a repeated WRITE.
+   *
+   * The stop signal exists for a model that keeps re-issuing a mutating action
+   * with no effect - reopening the same page, re-running the same command. A
+   * read-only call repeated is usually VERIFICATION: after writing files, a
+   * model lists the directory or re-reads the file to check its own work, and
+   * the listing genuinely changes between calls because the writes changed the
+   * directory. Killing the run there stopped healthy work with a "no progress"
+   * accusation, even though the files were already on disk - the same failure
+   * the goal-satisfied guard was fixed for.
+   *
+   * So reads may WARN (the caller nudges the model to conclude) but are never
+   * allowed to force-stop. Writers keep the hard limit.
+   */
+  const bolehHentikan = !TOOL_BACA_SET.has(name);
   return {
     jumlah,
     ingatkan: jumlah === BATAS_AKSI_INGAT,
-    hentikan: jumlah >= BATAS_AKSI_SAMA,
+    hentikan: bolehHentikan && jumlah >= BATAS_AKSI_SAMA,
   };
 }
 
@@ -1055,6 +1082,10 @@ function agentHardLimitArm() {
   agentHardTimer = setTimeout(() => {
     agentHardTimer = null;
     if (!useAi.getState().agentBusy) return; // sudah selesai sendiri, tidak ada yang perlu dipaksa
+    /* Land any buffered text BEFORE aborting: the exit block decides what the
+       bubble shows from `m.content`, and a pending rAF would otherwise append
+       text after the message was already finalised. */
+    flushChunkBuf();
     agentStopReason = 'hard-limit';
     agentBatal = true;
     /*
@@ -1149,7 +1180,18 @@ function labelRetryAgent(error: string): string {
     : 'provider error sementara';
 }
 
-const TUNGGU_PULIH_DELAYS = [15000, 30000, 60000] as const;
+/*
+ * Wait-recover ladder for a provider that is retryable-down (429/5xx).
+ *
+ * Shortened from [15s, 30s, 60s] (~105s) to a ~26s total. The long ladder made
+ * a transient gateway hiccup look like the app had frozen: the user stared at
+ * "waiting for provider" for over a minute. opencode/Hermes recover in a few
+ * seconds and treat a longer outage as an error the user should see (and can
+ * act on by switching model), rather than a silence. The behaviour is the same
+ * - retry on the same step, then fall back to another model - just without the
+ * minute-long dead wait.
+ */
+const TUNGGU_PULIH_DELAYS = [3000, 8000, 15000] as const;
 
 async function tungguProviderPulihAgent(
   setProgress: (p: { agentPhase: 'thinking'; agentCurrentTool: string | null }) => void,
@@ -1160,7 +1202,7 @@ async function tungguProviderPulihAgent(
   const i = Math.min(fase, TUNGGU_PULIH_DELAYS.length - 1);
   const total = TUNGGU_PULIH_DELAYS.reduce((a, b) => a + b, 0);
   const sisaFase = TUNGGU_PULIH_DELAYS.slice(i).reduce((a, b) => a + b, 0);
-  // Countdown in 5s ticks so a 60s wait shows it is still alive instead of
+  // Countdown in 5s ticks so the wait shows it is still alive instead of
   // looking frozen; interruption is checked on every tick.
   const target = Date.now() + TUNGGU_PULIH_DELAYS[i];
   for (;;) {
@@ -1169,7 +1211,7 @@ async function tungguProviderPulihAgent(
     setProgress({
       agentPhase: 'thinking',
       agentCurrentTool:
-        `Menunggu provider pulih (${i + 1}/3, ${sisa} dtk, total ~${Math.round(sisaFase / 1000)} dtk dari ~${Math.round(total / 1000)} dtk) karena ${labelRetryAgent(error)} — Stop untuk hentikan`,
+        `Menunggu provider pulih (${i + 1}/${TUNGGU_PULIH_DELAYS.length}, ${sisa} dtk, total ~${Math.round(sisaFase / 1000)} dtk dari ~${Math.round(total / 1000)} dtk) karena ${labelRetryAgent(error)} — Stop untuk hentikan`,
     });
     if (sisa <= 0) break;
     if (!(await tungguRetryAgent(Math.min(5000, sisa * 1000)))) return false;
@@ -1181,6 +1223,9 @@ function agentWatchdogArm() {
   if (agentWatchdog) clearTimeout(agentWatchdog);
   agentWatchdog = setTimeout(() => {
     agentWatchdog = null;
+    /* Land buffered text before the step resolves as cancelled, so the exit
+       block sees the real content and no late rAF writes after finalisation. */
+    flushChunkBuf();
     agentStopReason = 'watchdog';
     agentBatal = true;
     const r = agentStepResolve;
@@ -2381,6 +2426,10 @@ export const useAi = create<AiStore>((set, get) => ({
     const s = makeSession(st.model, st.provider);
 
     s.approval = st.approvalMode;
+    /* Drop any buffered delta from a run that ended abnormally (crash, HMR) so
+       it cannot flush into the NEW chat on the next frame. */
+    batalkanFlushChunk();
+    chunkBuf.clear();
     set((x) => ({ sessions: [...x.sessions, s], activeId: s.id, draft: '' }));
     persist(get());
     return s.id;
@@ -2858,6 +2907,9 @@ export const useAi = create<AiStore>((set, get) => ({
           baseUrl: cfg.baseUrl || undefined,
           maxTokens: def.maxOut ?? 2048,
           effort: get().reasoningEffort ?? undefined,
+          // Stable per-chat id: lets the provider reuse its prompt cache for
+          // this conversation instead of re-reading the whole prompt each turn.
+          sessionId: get().activeSession()?.id,
         });
         terakhirErr = null;
         break;
@@ -3075,6 +3127,18 @@ export const useAi = create<AiStore>((set, get) => ({
     const urlBrowserTerbuka: string[] = [];
     /* Consecutive read-only steps with nothing new; see the goal-satisfied guard. */
     let langkahTanpaKemajuan = 0;
+    /*
+     * Whether the guard has already given the model its one reminder.
+     *
+     * The guard used to KILL the run the moment the counter hit the limit. That
+     * hit healthy work: a model that finished writing files and then read a few
+     * of them back to check would be stopped mid-verification, and the run ended
+     * looking like a failure even though the files were already on disk. Like
+     * opencode/Hermes, give the model one chance to conclude: on the first trip,
+     * tell it to stop reading and report, and only stop forcibly if it STILL
+     * makes no progress on the next step.
+     */
+    let sudahDiberiPeringatanTanpaKemajuan = false;
     try {
       for (; langkah < MAX_AGENT_STEPS; langkah++) {
         if (agentBatal) break;
@@ -3097,6 +3161,27 @@ export const useAi = create<AiStore>((set, get) => ({
 
         agentWatchdogArm();
         agentHardLimitArm();
+
+        /*
+         * Approaching the step cap: ask for a hand-off instead of cutting off.
+         *
+         * When the loop hits MAX_AGENT_STEPS it used to just fail with "step
+         * limit reached" - the user got a dead run with no idea what had been
+         * done or what was left. opencode/Hermes inject a "summarize now" turn
+         * before the cap: tools are effectively out, and the model must report
+         * what it finished, what is unfinished, and what to do next. That turns
+         * a hard stop into a useful hand-off. It is injected once, on the last
+         * step, and only if the model has not already wrapped up.
+         */
+        if (langkah === MAX_AGENT_STEPS - 1 && !agentBatal) {
+          history.push({
+            role: 'user',
+            content:
+              'You are at the step limit for this run. Do NOT call any more tools. ' +
+              'Write the hand-off now: what you completed, what is still unfinished, and ' +
+              'the concrete next step someone should take. Be specific (files, commands).',
+          });
+        }
         /*
          * Automatic context compaction — the call site.
          *
@@ -3252,6 +3337,10 @@ export const useAi = create<AiStore>((set, get) => ({
                 baseUrl: activeCfg.baseUrl || undefined,
                 maxTokens: activeDef.maxOut ?? 2048,
                 effort: get().reasoningEffort ?? undefined,
+                /* Same session id on every step of this run, so the provider
+                   keeps one cache for the conversation instead of treating each
+                   step as a new, uncached prompt. */
+                sessionId: get().activeSession()?.id,
               })
               .catch((e) => {
                 if (!agentBatal) agentStopReason = 'provider';
@@ -3423,20 +3512,30 @@ export const useAi = create<AiStore>((set, get) => ({
           return typeof p === 'string' && p.trim() ? p.trim() : null;
         };
         const berkasDipakaiBatch = new Set<string>();
-        const canParallelize = (tc: AgentToolCall): boolean => {
-          if (TOOL_BACA_DIPARALELKAN.has(tc.name)) {
-            // A read of a file being written in the same batch must not race
-            // it: it would sometimes read the pre-write content and hand the
-            // model a stale file.
-            if (tc.name === 'read_file') {
-              const p = (tc.args as Record<string, unknown> | undefined)?.path;
-              if (typeof p === 'string' && berkasDipakaiBatch.has(p.trim())) return false;
-            }
-            return true;
-          }
-          const f = targetBerkas(tc);
-          if (f && !berkasDipakaiBatch.has(f)) { berkasDipakaiBatch.add(f); return true; }
-          return false;
+        /*
+         * PURE predicate: does this single call MAY be run alongside others?
+         *
+         * It must not mutate anything - the caller walks the list and needs the
+         * same answer on a re-check. The cross-call bookkeeping (which files a
+         * batch touches) is applied by the caller after a call is accepted, in
+         * the `while` below. The earlier version mutated `berkasDipakaiBatch`
+         * inside this function and was called twice per element, so a writer's
+         * second check returned `false` for its OWN earlier marking and the
+         * batching silently depended on that accident.
+         */
+        const bolehParalelSendiri = (tc: AgentToolCall): boolean => {
+          if (TOOL_BACA_DIPARALELKAN.has(tc.name)) return true;
+          if (targetBerkas(tc)) return true; // a writer, gated below by file overlap
+          /*
+           * Read-only actions of otherwise-mutating tools.
+           *
+           * These reach the network or the disk but change nothing, so they are
+           * safe to run alongside other reads - and a model that asks for
+           * `git status` + `git diff` + `notes list` in one turn should not pay
+           * for them one after another. This block used to sit BELOW an
+           * unconditional `return false`, so it was dead code: the parallel
+           * batch only ever contained TOOL_BACA tools.
+           */
           const action = String((tc.args as Record<string, unknown> | undefined)?.action ?? '').trim();
           if (tc.name === 'git') return action === 'status' || action === 'diff' || action === 'log' || action === 'branches';
           if (tc.name === 'notes') return action === 'list';
@@ -3444,11 +3543,37 @@ export const useAi = create<AiStore>((set, get) => ({
           if (tc.name === 'worktree') return action === 'list';
           return false;
         };
+        /*
+         * Can `tc` join the batch that already touches `berkasDipakaiBatch`?
+         * A read of a file written in the same batch must not race it (it would
+         * sometimes read the pre-write content), and two writes to one file must
+         * not overlap. This is where the shared file set is consulted, and it is
+         * a pure read - the marking happens when the call is accepted.
+         */
+        const tumpangBerkas = (tc: AgentToolCall): boolean => {
+          const baca = tc.name === 'read_file'
+            ? (tc.args as Record<string, unknown> | undefined)?.path
+            : null;
+          if (typeof baca === 'string' && berkasDipakaiBatch.has(baca.trim())) return true;
+          const tulis = targetBerkas(tc);
+          return !!tulis && berkasDipakaiBatch.has(tulis);
+        };
+        const tandaiBerkas = (tc: AgentToolCall): void => {
+          const f = targetBerkas(tc);
+          if (f) berkasDipakaiBatch.add(f);
+        };
+
         const prefetchedReadTools = new Map<string, Promise<string>>();
         for (let i = 0; i < callsToDispatch.length; i++) {
-          if (!canParallelize(callsToDispatch[i])) continue;
+          if (!bolehParalelSendiri(callsToDispatch[i]) || tumpangBerkas(callsToDispatch[i])) continue;
           const batch: AgentToolCall[] = [];
-          while (i < callsToDispatch.length && canParallelize(callsToDispatch[i])) batch.push(callsToDispatch[i++]);
+          while (i < callsToDispatch.length) {
+            const kandidat = callsToDispatch[i];
+            if (!bolehParalelSendiri(kandidat) || tumpangBerkas(kandidat)) break;
+            batch.push(kandidat);
+            tandaiBerkas(kandidat);
+            i += 1;
+          }
           const runnable = batch.filter((candidate) =>
             useToolGate.getState().aktif.has(candidate.name) &&
             (get().approvalMode !== 'readonly' || !TOOL_TULIS.has(candidate.name)),
@@ -3572,16 +3697,24 @@ export const useAi = create<AiStore>((set, get) => ({
            */
           if (TOOL_PENULIS.has(tc.name)) {
             langkahTanpaKemajuan = 0;
+          } else if (TOOL_BACA_SET.has(tc.name) || TOOL_NET_SET.has(tc.name)) {
+            /*
+             * A read - of disk or of the web - is real work, not idleness.
+             *
+             * It must not RESET the counter (only a change proves forward
+             * progress), but it must not ADVANCE it either. Advancing it is
+             * what killed legitimate work: a research run that reads five
+             * pages/search results in a row counted as "no progress" and was
+             * stopped at four, mid-investigation. Reading is how the agent
+             * gathers what it needs before it writes; only a run that reads
+             * the SAME thing repeatedly (the identical-action watchdog) is a
+             * loop, and that guard still fires.
+             */
           } else {
             /*
-             * Bukan penulis = tidak mengubah apa pun, jadi ia tidak boleh
-             * MENAMBAH harapan bahwa sesuatu sedang terjadi. Tidak ada daftar
-             * pembaca yang perlu dipelihara: kalau bukan penulis, ia pasif.
-             *
-             * Ini juga menutup lubang lama: `web_fetch`/`web_search` dulu tidak
-             * terdaftar sebagai penulis MAUPUN pembaca (polanya `web_` ditulis
-             * di tempat yang salah), sehingga satu pun tak terhitung dan
-             * treadmill web murni lolos dari semua penjaga.
+             * Anything else is a passive step: it neither changed anything nor
+             * read new material (e.g. a wait, a status poll). These are the
+             * steps that count toward "no progress".
              */
             langkahTanpaKemajuan += 1;
           }
@@ -3901,6 +4034,35 @@ export const useAi = create<AiStore>((set, get) => ({
          * tidak mengubah apa pun.
          */
         if (langkahTanpaKemajuan >= BATAS_TANPA_KEMAJUAN) {
+          if (!sudahDiberiPeringatanTanpaKemajuan) {
+            /*
+             * First trip: NUDGE, do not kill.
+             *
+             * The work may already be done - the files are on disk and the
+             * model is only reading them back. Killing here ended successful
+             * runs with a scary "stopped" message. Instead, hand the model a
+             * clear instruction to conclude, and give it the next step to do
+             * so. If that next step also changes nothing, the guard below
+             * fires again with the flag set, and THEN it stops.
+             */
+            sudahDiberiPeringatanTanpaKemajuan = true;
+            langkahTanpaKemajuan = 0;
+            history.push({
+              role: 'user',
+              content:
+                `You have read for ${BATAS_TANPA_KEMAJUAN} steps in a row without changing anything. ` +
+                'Stop reading now: everything you need is already collected. ' +
+                'Write the final answer for the user, or make the concrete change you were about to make. ' +
+                'Do not read another file unless it is strictly required to finish.',
+            });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                { kind: 'tool', name: '(reminder)', args: '{}', result: 'Asked the model to conclude instead of reading further.', ok: true, at: Date.now() },
+              ],
+            }));
+            continue;
+          }
           akhir =
             `Stopped: ${langkahTanpaKemajuan} steps in a row only read things and changed nothing. ` +
             'Everything needed to answer is already collected. Report findings to the user ' +
@@ -3989,6 +4151,10 @@ export const useAi = create<AiStore>((set, get) => ({
 
     // This is the single agent exit cleanup path. It also clears approval state
     // when an exit happens before a tool can answer its confirmation promise.
+    /* Flush before the exit `set()` below: it computes the bubble's final text
+       from `m.content`, so buffered text must already be there or it would be
+       appended by a late rAF onto a message the UI has marked finished. */
+    flushChunkBuf();
     agentWatchdogDisarm();
     // Without this the 15-minute timer outlives its run and fires in the middle
     // of a LATER one, killing a healthy agent.
@@ -4219,6 +4385,17 @@ export const useAi = create<AiStore>((set, get) => ({
 
   cancel: async () => {
 
+    /*
+     * Flush whatever the coalescer is still holding BEFORE cancelling.
+     *
+     * Text that already arrived must not be dropped just because the user
+     * pressed Stop between two animation frames - that would show as the last
+     * few words of an answer silently missing. The buffer is flushed here, not
+     * after the flags are set, so the final partial text lands on the message
+     * the user is cancelling.
+     */
+    flushChunkBuf();
+
     // read_image payloads belong to the run being cancelled. Clear them before
     // any later send can observe the queue, including chat-mode cancellation.
     clearGambarMenunggu();
@@ -4323,17 +4500,37 @@ export const useAi = create<AiStore>((set, get) => ({
      * Only `text` is checked. Reasoning deltas are separate and can legitimately
      * repeat a short token across frames.
      */
-    if (c.text) {
+    /*
+     * A TERMINAL frame must never be droppable by the text heuristic.
+     *
+     * The duplicate this guard targets is a repeated TEXT delta; a frame that
+     * also carries `done`/`err`/`toolDone` is a different thing entirely - it is
+     * the signal that ends the request. If the provider's last text token
+     * happens to equal the previous frame AND rides along with the terminal
+     * (a restated final token, or a verbatim-duplicated closing frame - the very
+     * class this guard exists for), dropping it would leave the bubble
+     * `streaming:true` and `pending` set forever in chat mode, which has no
+     * watchdog to recover. The dedup therefore applies to text-only frames;
+     * terminals always fall through.
+     */
+    const cTerminal = !!(c.done || c.err || c.toolDone);
+    if (c.text && !cTerminal) {
       const sebelumnya = deltaTerakhir.get(c.id);
       if (sebelumnya === c.text) {
         deltaTerakhir.set(c.id, c.text);
         return;
       }
       deltaTerakhir.set(c.id, c.text);
-      /* Keep the map from growing without bound: one entry per live request is
-         all it ever needs, and a finished request is removed below. */
-      if (c.done || c.err) deltaTerakhir.delete(c.id);
-    } else if (c.done || c.err) {
+    } else if (cTerminal) {
+      /*
+       * A terminal frame is NEVER dropped (see below), but if it restates the
+       * previous text token verbatim - a frame-doubling gateway repeating its
+       * closing frame - the text must not be applied a second time. Strip just
+       * the duplicate text and let the terminal flags process normally.
+       */
+      if (c.text && deltaTerakhir.get(c.id) === c.text) {
+        c = { ...c, text: undefined };
+      }
       deltaTerakhir.delete(c.id);
     }
 
@@ -4380,6 +4577,51 @@ export const useAi = create<AiStore>((set, get) => ({
       return;
     }
     c = { ...c, id: activeAgentUiId ?? c.id };
+
+    /*
+     * Drop chunks that arrive after a CHAT cancel, BEFORE buffering.
+     *
+     * Setting the flag in Rust does not stop packets already in flight, and the
+     * user pressed Stop precisely so they would not appear. This guard used to
+     * live further down; the buffering branch below returns early, so it has to
+     * run here or those late packets get buffered and flushed onto the
+     * already-cancelled bubble. Agent cancellation is handled earlier via
+     * `cancelledAttempts`; this covers the chat path.
+     */
+    if (cancelled.has(c.id)) {
+      if (c.done || c.err) cancelled.delete(c.id);
+      return;
+    }
+
+    /*
+     * Buffer pure text/reasoning deltas and let ONE store write serve the whole
+     * animation frame. Terminal chunks (`done`/`err`/`toolDone`) skip this and
+     * go straight through, after flushing whatever was still buffered so their
+     * text is not stranded behind them.
+     *
+     * The dedup guard above already ran on the raw delta, so coalescing here
+     * cannot hide a provider's duplicate frame.
+     */
+    const terminal = !!(c.done || c.err || c.toolDone);
+    if (terminal) {
+      flushChunkBuf();
+    } else if (c.text || c.reasoning) {
+      const buf = chunkBuf.get(c.id) ?? { text: '', reasoning: [] };
+      /*
+       * Text is always a true delta, so appending it is lossless. Reasoning is
+       * NOT: some providers send it CUMULATIVE (a growing snapshot), and the
+       * cumulative/delta heuristic downstream compares each frame against what
+       * is already stored. Concatenating two snapshots ("A" then "AB") would
+       * hand it "AAB" and double the text. Keep reasoning frames as a list so
+       * the heuristic sees exactly the sequence the provider sent.
+       */
+      if (c.text) buf.text += c.text;
+      if (c.reasoning) buf.reasoning.push(String(c.reasoning));
+      chunkBuf.set(c.id, buf);
+      if (agentWatchdog) agentWatchdogArm();
+      jadwalkanFlushChunk();
+      return;
+    }
 
     // There is activity from the provider: postpone the idle watchdog.
     if (agentWatchdog) agentWatchdogArm();
@@ -4478,11 +4720,6 @@ export const useAi = create<AiStore>((set, get) => ({
       });
     }
 
-    if (cancelled.has(c.id)) {
-      if (c.done || c.err) cancelled.delete(c.id);
-      return;
-    }
-
     /* Feed the debug log. Counted before the state write so a chunk that is
        dropped by a later guard still shows up as traffic. */
     if (c.text || c.reasoning) useAiDebug.getState().potong(c.id, (c.text?.length ?? 0) + (c.reasoning?.length ?? 0));
@@ -4556,71 +4793,7 @@ export const useAi = create<AiStore>((set, get) => ({
         return;
       }
     }
-    set((s) => ({
-      sessions: s.sessions.map((sess) => ({
-        ...sess,
-        messages: sess.messages.map((m) => {
-          if (m.id !== c.id) return m;
-          if (c.err) return { ...m, error: c.err, streaming: false };
-
-          /*
-           * The reasoning clock.
-           *
-           * `reasoningMs === 0` means "reasoning has not started yet" — the
-           * first reasoning chunk stamps it with the wall clock, and the first
-           * answer token freezes the elapsed time. Everything after that is
-           * ignored, so the header keeps the duration of the thinking alone and
-           * not of the whole answer that followed it.
-           */
-          if (c.reasoning) {
-            /*
-             * Some providers send reasoning CUMULATIVE, not as a delta. Appending
-             * blindly doubles the text: "TheThe user asks a simple one-s user asks
-             * a simple one-sentence question" - which is exactly what came out of
-             * the live app. Three cases, cheapest first:
-             *
-             *   - the chunk is already the tail we have: nothing new, keep as is
-             *   - the chunk restates everything we have and adds more: it is the
-             *     new full text, so replace
-             *   - the chunk is somewhere inside what we have: already seen, skip
-             *   - otherwise: a genuine delta, append
-             */
-            const cur = m.reasoning ?? '';
-            const inc = String(c.reasoning);
-            const jam = m.reasoningMs === 0 ? Date.now() : m.reasoningMs;
-            if (cur.endsWith(inc) || cur.includes(inc)) {
-              return { ...m, reasoningMs: jam };
-            }
-            if (cur && inc.startsWith(cur)) {
-              return { ...m, reasoning: inc, reasoningMs: jam };
-            }
-            return { ...m, reasoning: cur + inc, reasoningMs: jam };
-          }
-          if (c.text) {
-            /*
-             * Freeze the clock on the first answer token.
-             *
-             * The value is a timestamp while thinking is in progress (anything
-             * above 1e12 is a 13-digit epoch, a duration never is) and a
-             * duration once frozen. Checking the magnitude is what keeps the
-             * second answer token from re-measuring: without it the small
-             * duration would be read as a timestamp again and the header would
-             * print a fifty-year "Thought for".
-             */
-            const ms =
-              typeof m.reasoningMs === 'number' && m.reasoningMs > 1e12
-                ? Date.now() - m.reasoningMs
-                : m.reasoningMs;
-            return { ...m, content: m.content + c.text, reasoningMs: ms };
-          }
-          if (c.done) return { ...m, streaming: false };
-          return m;
-        }),
-      })),
-      pending: c.done || c.err ? (s.pending === c.id ? null : s.pending) : s.pending,
-
-      reasoningText: c.reasoning ? (s.reasoningText ?? '') + c.reasoning : s.reasoningText,
-    }));
+    terapkanChunkKeState(c);
     if (c.done || c.err) persist(get());
 
     /*
@@ -4698,6 +4871,228 @@ const akumulasiTeks = new Map<string, number | string>();
  * most one entry per live request.
  */
 const deltaTerakhir = new Map<string, string>();
+
+/*
+ * Coalesce streamed text/reasoning onto one store write per animation frame.
+ *
+ * WHY: a fast provider emits many small deltas per frame (a token, sometimes a
+ * character). Each one used to run a full `set()` that rebuilds every session
+ * and message object, so React re-rendered on every delta instead of on every
+ * frame - the main thread spent the whole stream reconciling state and the
+ * transcript visibly stuttered or stalled.
+ *
+ * `text` and `reasoning` are appended here and flushed once per frame (rAF, with
+ * a setTimeout fallback for when the window is hidden and rAF never fires).
+ * Terminal chunks - `done`, `err`, `toolDone` - bypass the buffer entirely and
+ * force a synchronous flush first, so the last characters are never stranded and
+ * the agent step machine still sees its result on time.
+ */
+type BufChunk = { text: string; reasoning: string[] };
+const chunkBuf = new Map<string, BufChunk>();
+let chunkFlushHandle: number | null = null;
+let chunkFlushViaTimeout = false;
+
+function jadwalkanFlushChunk(): void {
+  if (chunkFlushHandle !== null) return;
+  /*
+   * Use a timer when rAF cannot be trusted to fire: no rAF at all, OR the
+   * document is hidden (Chromium suspends rAF for backgrounded windows, so a
+   * stream running while the user is away would sit in the buffer until they
+   * return - and could even be flushed after a watchdog already finalised the
+   * run). A timer keeps the buffer bounded in both cases.
+   */
+  const rafTakBisaDiandalkan =
+    typeof requestAnimationFrame !== 'function' ||
+    (typeof document !== 'undefined' && document.visibilityState === 'hidden');
+  if (!rafTakBisaDiandalkan) {
+    chunkFlushHandle = requestAnimationFrame(() => {
+      chunkFlushHandle = null;
+      flushChunkBuf();
+    });
+  } else {
+    /* A timer still bounds the delay so text cannot sit in the buffer
+       indefinitely while nothing paints. */
+    chunkFlushViaTimeout = true;
+    chunkFlushHandle = setTimeout(() => {
+      chunkFlushHandle = null;
+      chunkFlushViaTimeout = false;
+      flushChunkBuf();
+    }, 16) as unknown as number;
+  }
+}
+
+function batalkanFlushChunk(): void {
+  if (chunkFlushHandle === null) return;
+  if (chunkFlushViaTimeout) clearTimeout(chunkFlushHandle);
+  else if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(chunkFlushHandle);
+  chunkFlushHandle = null;
+  chunkFlushViaTimeout = false;
+}
+
+/*
+ * The single place a text/reasoning/done/err chunk mutates the store. Split out
+ * of `onChunk` so the coalescer above and the direct terminal path below share
+ * exactly one implementation - two copies would drift and the buffered frame
+ * would stop matching the unbuffered one.
+ */
+/*
+ * Fold ONE reasoning frame into an existing message.
+ *
+ * Extracted so a buffered frame can be applied one frame at a time (in order)
+ * inside a single `set()`. Applying several frames verbatim, rather than a
+ * pre-concatenated blob, is what keeps the cumulative/delta heuristic below
+ * correct: a cumulative provider sending "A" then "AB" must be seen as two
+ * frames, not as "AAB".
+ *
+ * Some providers send reasoning CUMULATIVE, not as a delta. Appending blindly
+ * doubles the text: "TheThe user asks a simple one-s user asks a simple
+ * one-sentence question" - which is exactly what came out of the live app.
+ * Three cases, cheapest first:
+ *
+ *   - the frame is already the tail we have: nothing new, keep as is
+ *   - the frame restates everything we have and adds more: it is the new full
+ *     text, so replace
+ *   - the frame is somewhere inside what we have: already seen, skip
+ *   - otherwise: a genuine delta, append
+ */
+function terapkanReasoning(
+  m: { reasoning?: string; reasoningMs?: number },
+  inc: string,
+): { reasoning?: string; reasoningMs?: number } {
+  const cur = m.reasoning ?? '';
+  const jam = m.reasoningMs === 0 ? Date.now() : m.reasoningMs;
+  if (cur.endsWith(inc) || cur.includes(inc)) {
+    return { ...m, reasoningMs: jam };
+  }
+  if (cur && inc.startsWith(cur)) {
+    return { ...m, reasoning: inc, reasoningMs: jam };
+  }
+  return { ...m, reasoning: cur + inc, reasoningMs: jam };
+}
+
+function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void {
+  /* A buffered frame carries its reasoning as an ordered list; a direct chunk
+     carries a single string. Normalise to a list so one map pass applies all. */
+  const frames = c.reasoningFrames ?? (c.reasoning ? [String(c.reasoning)] : []);
+  useAi.setState((s) => {
+    /*
+     * Fold the reasoning frames ONCE, outside the message map, and keep the
+     * running text so the global `reasoningText` counter uses the same
+     * cumulative-aware result as the message body. Joining the raw frames here
+     * would re-double a cumulative provider ("A" then "AB" -> "AAB") in the
+     * counter even though the bubble is folded correctly.
+     */
+    let reasoningHasil = '';
+    if (frames.length > 0) {
+      let acc: { reasoning?: string; reasoningMs?: number } = { reasoning: '', reasoningMs: 0 };
+      for (const inc of frames) acc = terapkanReasoning(acc, inc);
+      reasoningHasil = acc.reasoning ?? '';
+    }
+    return {
+      sessions: s.sessions.map((sess) => ({
+        ...sess,
+        messages: sess.messages.map((m) => {
+          if (m.id !== c.id) return m;
+          if (c.err) return { ...m, error: c.err, streaming: false };
+
+          /*
+           * Apply reasoning and text INDEPENDENTLY, then merge.
+           *
+           * They must not be branches of one another: a single coalesced frame
+           * routinely carries the tail of the reasoning AND the first answer
+           * token (the thinking->answer transition). An earlier version returned
+           * after the reasoning branch, silently dropping that first token and
+           * starting the answer mid-sentence. Both fields are applied here and
+           * merged in one object.
+           */
+          let patch: Partial<ChatMsg> = {};
+
+          if (frames.length > 0) {
+            /*
+             * The reasoning clock.
+             *
+             * `reasoningMs === 0` means "reasoning has not started yet" — the
+             * first reasoning frame stamps it with the wall clock, and the
+             * first answer token freezes the elapsed time. Everything after
+             * that is ignored, so the header keeps the duration of the thinking
+             * alone and not of the whole answer that followed it.
+             */
+            let next: { reasoning?: string; reasoningMs?: number } = {
+              reasoning: m.reasoning,
+              reasoningMs: m.reasoningMs,
+            };
+            for (const inc of frames) next = terapkanReasoning(next, inc);
+            patch = { ...patch, ...next };
+          }
+
+          if (c.text) {
+            /*
+             * Freeze the clock on the first answer token.
+             *
+             * The value is a timestamp while thinking is in progress (anything
+             * above 1e12 is a 13-digit epoch, a duration never is) and a
+             * duration once frozen. Checking the magnitude is what keeps the
+             * second answer token from re-measuring: without it the small
+             * duration would be read as a timestamp again and the header would
+             * print a fifty-year "Thought for".
+             *
+             * Read from the MERGED value, not from `m`: when the first reasoning
+             * frame and the first answer token arrive in the SAME coalesced
+             * frame, the reasoning branch has just stamped `patch.reasoningMs`
+             * with the wall clock. Reading `m.reasoningMs` (still 0) here would
+             * zero that stamp back out, and the "Thought for" duration would
+             * never render for the whole answer.
+             */
+            const base = patch.reasoningMs ?? m.reasoningMs;
+            const ms =
+              typeof base === 'number' && base > 1e12 ? Date.now() - base : base;
+            patch = { ...patch, content: m.content + c.text, reasoningMs: ms };
+          }
+
+          if (Object.keys(patch).length > 0) return { ...m, ...patch };
+          if (c.done) return { ...m, streaming: false };
+          return m;
+        }),
+      })),
+      pending: c.done || c.err ? (s.pending === c.id ? null : s.pending) : s.pending,
+
+      reasoningText: reasoningHasil ? (s.reasoningText ?? '') + reasoningHasil : s.reasoningText,
+    };
+  });
+}
+
+/*
+ * Apply the buffered deltas, one store write per request id.
+ *
+ * Not literally "one write": a write is per id, and each maps over every
+ * session. In practice the map holds a single entry (the main answer), so this
+ * is one write per frame - the win over per-token writes. The per-id split is
+ * what keeps the merge correct if more than one stream is live at once: each
+ * write touches only the message that actually changed.
+ */
+function flushChunkBuf(): void {
+  if (chunkBuf.size === 0) return;
+  const entries = [...chunkBuf.entries()];
+  chunkBuf.clear();
+  batalkanFlushChunk();
+  for (const [id, buf] of entries) {
+    if (!buf.text && buf.reasoning.length === 0) continue;
+    /*
+     * Keep the AI debug panel fed. Buffered chunks return early from `onChunk`
+     * (above the per-chunk `potong` call), so without this the panel would show
+     * zero traffic for everything that went through the coalescer. Count the
+     * bytes actually carried, once per flush instead of once per delta - the
+     * panel's totals are what matter, not the frame count.
+     */
+    const chars = buf.text.length + buf.reasoning.reduce((n, r) => n + r.length, 0);
+    useAiDebug.getState().potong(id, chars);
+    terapkanChunkKeState({
+      id,
+      text: buf.text || undefined,
+      reasoningFrames: buf.reasoning.length ? buf.reasoning : undefined,
+    });
+  }
+}
 
 /** Ambang sadar-kontek: di bawah ini pemeriksaan tidak layak dijalankan. */
 const AMBANG_TENGAH = 1_200;
