@@ -871,7 +871,14 @@ export interface GeneralSettings {
 
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
 
-  aiPanel?: 'bottom' | 'right';
+  /*
+   * Where the AI chat lives.
+   *   'bottom' - a tab inside the terminal panel (legacy)
+   *   'right'  - a dedicated right column, VSCode Secondary Sidebar style
+   *   'editor' - a tab in the editor area (Copilot "Move Chat into Editor Area")
+   *   'window' - a separate floating Zephyr window (Copilot "Move into New Window")
+   */
+  aiPanel?: 'bottom' | 'right' | 'editor' | 'window';
 
   layout?: 'editor' | 'terminal';
 
@@ -1242,7 +1249,7 @@ export const DEFAULT_SETTINGS: Settings = {
     lowRam: false,
     multilineKey: 'auto',
 
-    aiPanel: 'bottom',
+    aiPanel: 'right',
     layout: 'editor',
   },
   editor: {

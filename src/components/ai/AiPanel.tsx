@@ -19,14 +19,14 @@ import ModelSelector from './ModelSelector';
 import { findModel } from '../../lib/modelCatalog';
 import TodoPanel from './TodoPanel';
 import ContextMeter from './ContextMeter';
-import { ModeMenu, IzinMenu } from './ModeMenu';
+import { ModeMenu, PermissionMenu, ReasoningMenu } from './ModeMenu';
 import { useDengar } from '../../lib/useDengar';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
-import { useToolGate, SEMUA_TOOL } from '../../lib/toolGate';
-import { useAiDebug } from '../../lib/aiDebugStore';
+import { useToolGate } from '../../lib/toolGate';
+import { useAgentCustom } from '../../lib/agentCustomStore';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { useSubAgent } from '../../lib/subagentStore';
@@ -281,10 +281,25 @@ function AiPanelInner() {
   const providerTanpaKey =
     keys.length > 0 && !keys.some((k) => k.provider === provider && k.hasKey);
 
-  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
-  const aiMax = useStore((s) => s.aiMax);
-  const setAiMax = useStore((s) => s.setAiMax);
+  /* `aiDiKanan`: the vertical-panel modes (right column, editor-area tab, pop-out
+     window) as opposed to the legacy full-width bottom dock. Used for the header
+     logic and the maximise/hide buttons. */
+  const aiModePos = useStore((s) => s.settings.general.aiPanel ?? 'right');
+  const aiDiKanan = aiModePos !== 'bottom';
   const applySettings = useStore((s) => s.applySettings);
+
+  /*
+   * `aiSempit`: the compact narrow reflow is now DISABLED everywhere.
+   *
+   * The user wants one layout — the roomy bottom-dock composer and header — in
+   * every home: bottom, right column, editor-area tab, and the pop-out window.
+   * The old `is-kanan` reflow squashed the header (wrapping rows, icon-only
+   * buttons) and the composer whenever the chat was not at the bottom, so the
+   * right column and the editor tab looked different from the dock. Keeping this
+   * `false` means `.ai-panel` never gets `is-kanan`, so all four modes share the
+   * single bottom-dock layout.
+   */
+  const aiSempit = false;
 
   /*
    * How many messages the active chat holds.
@@ -334,13 +349,8 @@ function AiPanelInner() {
     }
     return null;
   });
-  /*
-   * Count the enabled tools through a Set rather than a selector that builds an
-   * array: zustand v5 compares selector results with ===, so a fresh array here
-   * would re-render on every store write (the phase-09 trap).
-   */
-  const toolAktif = useToolGate((s) => s.aktif);
-  const jumlahToolNyala = SEMUA_TOOL.reduce((n, t) => (toolAktif.has(t) ? n + 1 : n), 0);
+  /* The tool-gate count badge was removed from the header along with the wrench
+     button; the tool list is reached from Agent Customizations now. */
 
   const scroller = useRef<HTMLDivElement | null>(null);
   /* Stable identity (ref is stable) so memoised PesanList is not re-rendered
@@ -364,6 +374,24 @@ function AiPanelInner() {
   const [sesiBuka, setSesiBuka] = useState(false);
   const [sesiRect, setSesiRect] = useState<{ left: number; top: number; bottom: number } | null>(null);
   const [sesiCari, setSesiCari] = useState('');
+  /* The "..." menu, Copilot-style: move the chat into the editor area, pop it
+     out to its own window, or dock it back to the right column. */
+  const [menuBuka, setMenuBuka] = useState(false);
+  const posAi = aiModePos;
+  const pindahAi = useCallback(
+    (pos: 'right' | 'editor' | 'window' | 'bottom') => {
+      void applySettings({ general: { aiPanel: pos } } as never);
+      useStore.getState().setAiKolomVisible(true);
+      setMenuBuka(false);
+      if (pos === 'window') {
+        void import('../../lib/aiWindow').then((m) => m.bukaAiWindow());
+      } else {
+        /* Leaving window mode closes the pop-out so its listener goes away. */
+        void import('../../lib/aiWindow').then((m) => m.tutupAiWindow());
+      }
+    },
+    [applySettings],
+  );
 
   /*
    * The chat-switch dropdown's list. Read from the store inside the memo (keyed
@@ -703,9 +731,10 @@ function AiPanelInner() {
           useSchedBuka.getState().setBuka(true);
           break;
         case 'riwayat':
+          /* Chat history moved into the panel's own header switcher (the left
+             'ai' sidebar is gone). Open that switcher instead. */
           useStore.getState().setSettingsOpen(false);
-          useStore.getState().setActivity('ai');
-          useStore.getState().setSidebarVisible(true);
+          window.dispatchEvent(new Event('zephyr-ai-history'));
           break;
         case 'bantuan':
           void runCommand('help.shortcuts');
@@ -798,6 +827,20 @@ function AiPanelInner() {
     return () => window.removeEventListener('zephyr-ai-focus', onFocusReq);
   }, []);
 
+  /* `/history` and the command palette open the chat-history switcher that now
+     lives in the header (the left 'ai' sidebar was removed). */
+  useEffect(() => {
+    const onHist = () => {
+      const btn = document.querySelector<HTMLElement>('[data-testid="ai-chat-name"]');
+      const r = btn?.getBoundingClientRect();
+      if (r) setSesiRect({ left: r.left, top: r.top, bottom: r.bottom });
+      setSesiCari('');
+      setSesiBuka(true);
+    };
+    window.addEventListener('zephyr-ai-history', onHist);
+    return () => window.removeEventListener('zephyr-ai-history', onHist);
+  }, []);
+
   useEffect(() => {
     const onSel = (e: Event) => {
       const { cmd, text } = (e as CustomEvent<{ cmd: string; text: string }>).detail;
@@ -810,7 +853,7 @@ function AiPanelInner() {
 
   return (
     <div
-      className={`ai-panel${aiDiKanan ? ' is-kanan' : ''}`}
+      className={`ai-panel${aiSempit ? ' is-kanan' : ''}`}
       data-testid="ai-panel"
       data-pos={aiDiKanan ? 'kanan' : 'bawah'}
     >
@@ -924,98 +967,98 @@ function AiPanelInner() {
         )}
 
         <div className="ai-head-right">
-          <span className="ai-count" data-testid="ai-msg-count">
-            {tf('{n} messages', { n: jumlahPesan })}
-          </span>
-          {/* Always shown: the ring answers "how full is this?" before the
-              first message, and hiding it made the header change shape. */}
-          <ContextMeter />
-
           {/*
-            * Compact, as an icon rather than a menu row.
+            * The message count and the context ring MOVED to the bottom bar,
+            * below the composer (Copilot-style). The debug (bug) button was
+            * REMOVED on request — request debugging still lives behind the
+            * command palette if ever needed.
             *
-            * It used to live only behind `/compact` and the command palette,
-            * which meant a user looking at a long chat had no way to find it.
-            * The header is where someone worried about context already looks —
-            * the meter is right there — so the control belongs next to it.
-            * The button is always enabled: what it would do is not knowable
-            * from the outside (it depends on how many messages the active
-            * session holds), and a disabled icon with no reason is worse than
-            * a click that explains itself.
-            */}
-          <button
-            className="ai-ikon"
-            data-testid="ai-compact"
-            title={tr('Compact context')}
-            aria-label={tr('Compact context')}
-            onClick={() => {
-              const n = compactContext();
-              if (n > 0) setToast(tf('{n} messages compacted', { n }));
-            }}
-          >
-            <AiIkon name="compact" size={14} />
-          </button>
-
-          {/*
-            * Tool gate. The count rides next to the wrench because the number
-            * is the useful part: "40/40" answers "can the agent do X?" without
-            * opening the list, and a short count is the cue to open it.
-            */}
-          <button
-            className="ai-ikon ai-ikon-gate"
-            data-testid="ai-toolgate"
-            title={tr('AI tools')}
-            aria-label={tr('AI tools')}
-            onClick={() => useToolGate.getState().toggle()}
-          >
-            <AiIkon name="wrench" size={14} />
-            <span className="ai-gate-angka" data-testid="ai-toolgate-angka">
-              {jumlahToolNyala}/{SEMUA_TOOL.length}
-            </span>
-          </button>
-
-          {/*
-            * Pemicu popover subagent DIBUANG dari header.
-            *
-            * Dua alasan. Pertama, isinya sudah ada di tempat yang lebih baik:
-            * tumpukan status di atas kotak input menampilkan subagent yang
-            * sedang jalan dengan ikon server-process, dan itu tepat di sebelah
-            * tempat user mengetik - bukan di sudut yang harus dicari.
-            *
-            * Kedua, popover kosong ("none yet") memakan ruang lebar di kepala
-            * panel dan terbaca seperti kerusakan, bukan seperti keadaan yang
-            * wajar. Header sekarang hanya memuat yang benar-benar dipakai.
+            * Compact, the tool gate (wrench) and Maximise were REMOVED from the
+            * header on request. Compact still lives behind `/compact` and the
+            * command palette; the tool list is now reached from Agent
+            * Customizations → Tools (and the "…" menu's "Tool Sets").
             */}
 
-          <button
-            className="ai-ikon"
-            data-testid="ai-debug"
-            title={tr('Debug requests')}
-            aria-label={tr('Debug requests')}
-            onClick={() => useAiDebug.getState().toggle()}
-          >
-            <AiIkon name="bug" size={14} />
-          </button>
-
           {/*
-            * Maximise, only as a right-hand column.
-            *
-            * In the bottom dock the panel already spans the full width, so a
-            * maximise would be a no-op; as a column it trades the editor for
-            * chat width, which is the one thing the narrow layout cannot do.
+            * The "..." menu, VSCode Copilot-style: move the chat between the
+            * right column, the editor area, and its own window.
             */}
-          {aiDiKanan && (
+          <div className="ai-more-wrap">
             <button
               className="ai-ikon"
-              data-testid="ai-max"
-              title={aiMax ? tr('Restore AI panel') : tr('Maximise AI panel')}
-              aria-label={aiMax ? tr('Restore AI panel') : tr('Maximise AI panel')}
-              aria-pressed={aiMax}
-              onClick={() => setAiMax(!aiMax)}
+              data-testid="ai-more"
+              title={tr('More actions')}
+              aria-label={tr('More actions')}
+              aria-haspopup="menu"
+              aria-expanded={menuBuka}
+              onClick={() => setMenuBuka((v) => !v)}
             >
-              <AiIkon name={aiMax ? 'restore' : 'maximize'} size={14} />
+              <AiIkon name="more" size={14} />
             </button>
-          )}
+            {menuBuka && (
+              <>
+                <div className="ai-more-backdrop" onClick={() => setMenuBuka(false)} />
+                <div className="ai-more-menu" role="menu" data-testid="ai-more-menu">
+                  <button
+                    role="menuitemradio"
+                    aria-checked={posAi === 'editor'}
+                    className="ai-more-item"
+                    data-testid="ai-move-editor"
+                    onClick={() => pindahAi('editor')}
+                  >
+                    {tr('Move Chat into Editor Area')}
+                  </button>
+                  <button
+                    role="menuitemradio"
+                    aria-checked={posAi === 'window'}
+                    className="ai-more-item"
+                    data-testid="ai-move-window"
+                    onClick={() => pindahAi('window')}
+                  >
+                    {tr('Move Chat into New Window')}
+                  </button>
+                  <button
+                    role="menuitemradio"
+                    aria-checked={posAi === 'right'}
+                    className="ai-more-item"
+                    data-testid="ai-move-right"
+                    onClick={() => pindahAi('right')}
+                  >
+                    {tr('Dock Chat to Right')}
+                  </button>
+                  <div className="ai-more-sep" />
+                  <button
+                    role="menuitem"
+                    className="ai-more-item"
+                    data-testid="ai-open-customize"
+                    onClick={() => {
+                      useAgentCustom.getState().buka();
+                      setMenuBuka(false);
+                    }}
+                  >
+                    {tr('Agent Customizations…')}
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="ai-more-item"
+                    data-testid="ai-open-toolsets"
+                    onClick={() => {
+                      useToolGate.getState().toggle();
+                      setMenuBuka(false);
+                    }}
+                  >
+                    {tr('Tool Sets')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/*
+            * Maximise was REMOVED: all four homes now use the one roomy layout,
+            * and the right column is resizable by its drag handle, so a separate
+            * maximise toggle no longer earns its slot in the header.
+            */}
 
           {/*
             * Close the panel. The same action the dock's own tab strip offers,
@@ -1028,8 +1071,13 @@ function AiPanelInner() {
             title={tr('Hide AI panel')}
             aria-label={tr('Hide AI panel')}
             onClick={() => {
-              if (aiDiKanan) {
-                void applySettings({ general: { aiPanel: 'bottom' } } as never);
+              if (posAi === 'right') {
+                useStore.getState().setAiKolomVisible(false);
+              } else if (posAi === 'editor') {
+                /* Editor-area view: closing it returns the chat to the right
+                   column so the icon can bring it back. */
+                void applySettings({ general: { aiPanel: 'right' } } as never);
+                useStore.getState().setAiKolomVisible(false);
               } else {
                 useTerminal.getState().setVisible(false);
               }
@@ -1982,16 +2030,12 @@ function AiPanelInner() {
           }}
         />
 
-        <div className="ai-input-side">
+        <div className="ai-input-toolbar">
           {/*
-           * Layout, left to right: what goes INTO the message, then how it goes
-           * out — "+" (attach a file, an image or your voice), the mode switch,
-           * permissions + reasoning, the model, Send.
-           *
-           * The "+" opens a small menu rather than sitting as three separate
-           * icon buttons. Three look-alike icons in a row read as decoration;
-           * one "+" says "add something" and keeps the bar to a single line,
-           * which is the shape the reference composer uses.
+           * Copilot-style toolbar: a horizontal row BELOW the textarea instead
+           * of a vertical column beside it. Left to right — what goes INTO the
+           * message ("+", mic), then a spacer, then how it goes out (model,
+           * mode, permission, reasoning) and Send on the trailing edge.
            */}
           <button
             className={`ai-plus${bukaPlus ? ' is-on' : ''}`}
@@ -2168,17 +2212,13 @@ function AiPanelInner() {
           <span className="ai-toolbar-spacer" aria-hidden="true" />
 
           {/*
-            * Model first, then mode, then permissions.
-            *
-            * The model is the control a reader changes most often, and it was
-            * the last of the three on the row — a glance had to cross the mode
-            * and the approval state to reach it. Moving it to the front puts
-            * the most-used control where the eye lands first and leaves the
-            * rarely changed settings trailing toward the send button.
+            * Model first, then mode, permission and reasoning — each its own
+            * trigger now (permission and reasoning used to share one menu).
             */}
           <ModelSelector />
           <ModeMenu />
-          <IzinMenu />
+          <PermissionMenu />
+          <ReasoningMenu />
 
           <div className="ai-send-wrap">
             {!sibuk && adaCheckpoint && (
@@ -2298,14 +2338,20 @@ function AiPanelInner() {
       </div>
 
       {/*
-       * Queued messages are NOT rendered under the transcript.
-       *
-       * A strip above the composer read as part of the chat: it pushed the
-       * transcript up, it looked like a second message list, and it duplicated
-       * what the composer already says. The queue now lives ABOVE the composer
-       * as a compact row of chips inside the input area, which is where the
-       * messages were typed and where the user looks when adding another.
-       */}
+        * Bottom status bar, below the composer (Copilot-style).
+        *
+        * The message count and the context-fullness ring MOVED here from the
+        * header on request — they are passive readouts, so they belong at the
+        * quiet bottom edge rather than competing with the title and the actions
+        * at the top.
+        */}
+      <div className="ai-botbar" data-testid="ai-botbar">
+        <span className="ai-count" data-testid="ai-msg-count">
+          {tf('{n} messages', { n: jumlahPesan })}
+        </span>
+        <span className="ai-botbar-spacer" aria-hidden="true" />
+        <ContextMeter />
+      </div>
 
       {/*
         * Pertanyaan dari agen (tool ask_user).

@@ -8,21 +8,21 @@ import OutputView from './OutputView';
 import DebugConsoleView from './DebugConsoleView';
 import PortsView from './PortsView';
 import SubAgentView from './SubAgentView';
-import AiPanel from '../ai/AiPanel';
+import AiHost from '../ai/AiHost';
 import TerminalArea from './TerminalArea';
 import { useT } from '../../lib/i18n';
 
 function AiTabView() {
   const tr = useT();
-  const aiDiKanan = useStore((s) => s.settings.general.aiPanel === 'right');
-  if (aiDiKanan) {
+  const aiBukanBawah = useStore((s) => (s.settings.general.aiPanel ?? 'right') !== 'bottom');
+  if (aiBukanBawah) {
     return (
       <p className="ai-moved" data-testid="ai-tab-moved">
-        {tr('The AI panel is showing in the right column. Change it in Settings → General → AI panel.')}
+        {tr('The AI panel is showing in its own area. Change it in Settings → General → AI panel.')}
       </p>
     );
   }
-  return <AiPanel />;
+  return <AiHost />;
 }
 
 export default function Panel() {

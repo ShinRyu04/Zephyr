@@ -295,9 +295,9 @@ export function ModeMenu() {
   );
 }
 
-/* ── Approval + reasoning effort ──────────────────────────────────────── */
+/* ── Approval (permissions) ───────────────────────────────────────────── */
 
-export function IzinMenu() {
+export function PermissionMenu() {
   const tr = useT();
   const [buka, setBuka] = useState(false);
   const ref = useRef<HTMLSpanElement | null>(null);
@@ -305,45 +305,26 @@ export function IzinMenu() {
 
   const mode = useAi((s) => s.approvalMode ?? 'work');
   const setMode = useAi((s) => s.setApprovalMode);
-  const effort = useAi((s) => s.reasoningEffort);
-  const setEffort = useAi((s) => s.setReasoningEffort);
-
   const approvalAktif = APPROVAL.find((a) => a.id === mode) ?? APPROVAL[2];
-  const effortAktif = EFFORT.find((e) => e.id === (effort ?? '')) ?? EFFORT[0];
 
-  /* The trigger shows the approval level, and its dot carries the level's
-     colour. Effort is shown as a suffix so both settings stay visible without
-     a second control on the row. */
   return (
     <span className={`izin-wrap ${approvalAktif.kelas}`} ref={ref}>
       <button
         className="mode-btn"
         data-testid="ai-izin-menu"
         data-approval={mode}
-        data-effort={effort ?? ''}
         aria-expanded={buka}
         aria-haspopup="menu"
-        title={`${tr(approvalAktif.hint)} · ${tr('Reasoning')}: ${tr(effortAktif.label)}`}
+        title={tr(approvalAktif.hint)}
         onClick={() => setBuka((v) => !v)}
       >
         <span className="pick-dot" aria-hidden="true" />
         {tr(approvalAktif.label)}
-        {/* Reasoning as a suffix so the trigger answers both questions the menu
-            holds — the level alone left it unclear what the reasoning was set
-            to without opening the menu. */}
-        <span className="izin-effort">{tr(effortAktif.label)}</span>
         <span className="pick-caret">▾</span>
       </button>
 
       {buka && (
         <div className="mode-pop is-naik" data-testid="ai-izin-pop" role="menu">
-          {/*
-           * Permissions always shows. It used to be hidden in chat mode on the
-           * theory that there is nothing to approve there — but that made the
-           * menu look like it had lost a section, and the level still applies
-           * the moment the user switches to Agent. Better to show it and let the
-           * hint say what it does.
-           */}
           <div className="pick-seksi">{tr('Permissions')}</div>
           {APPROVAL.map((a) => (
             <button
@@ -353,7 +334,10 @@ export function IzinMenu() {
               aria-checked={a.id === mode}
               className={`mode-item${a.id === mode ? ' is-on' : ''}`}
               data-testid={`ai-approval-${a.id}`}
-              onClick={() => setMode(a.id)}
+              onClick={() => {
+                setMode(a.id);
+                setBuka(false);
+              }}
             >
               <span className={`pick-item-dot ${a.kelas}`} aria-hidden="true" />
               <span className="mode-item-teks">
@@ -361,31 +345,6 @@ export function IzinMenu() {
                 <i>{tr(a.hint)}</i>
               </span>
               {a.id === mode && <span className="pick-check">✓</span>}
-            </button>
-          ))}
-
-          <div className="mode-div" aria-hidden="true" />
-
-          <div className="pick-seksi">{tr('Reasoning')}</div>
-          {EFFORT.map((e) => (
-            <button
-              key={e.id || 'auto'}
-              type="button"
-              role="menuitemradio"
-              aria-checked={e.id === (effort ?? '')}
-              className={`mode-item${e.id === (effort ?? '') ? ' is-on' : ''}`}
-              data-testid={`ai-effort-${e.id || 'auto'}`}
-              onClick={() => {
-                // The store models "no explicit effort" as null; '' is the
-                // option id used for display only.
-                setEffort(e.id === '' ? null : (e.id as ReasoningEffort));
-              }}
-            >
-              <span className="mode-item-teks">
-                <b>{tr(e.label)}</b>
-                <i>{tr(e.hint)}</i>
-              </span>
-              {e.id === (effort ?? '') && <span className="pick-check">✓</span>}
             </button>
           ))}
 
@@ -406,6 +365,74 @@ export function IzinMenu() {
               <i>{tr('Opens Settings → Agents')}</i>
             </span>
           </button>
+        </div>
+      )}
+    </span>
+  );
+}
+
+/* ── Reasoning effort ─────────────────────────────────────────────────── */
+
+export function ReasoningMenu() {
+  const tr = useT();
+  const [buka, setBuka] = useState(false);
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useTutupOtomatis(ref, () => setBuka(false));
+
+  const effort = useAi((s) => s.reasoningEffort);
+  const setEffort = useAi((s) => s.setReasoningEffort);
+  const effortAktif = EFFORT.find((e) => e.id === (effort ?? '')) ?? EFFORT[0];
+
+  return (
+    <span className="izin-wrap" ref={ref}>
+      <button
+        className="mode-btn"
+        data-testid="ai-effort-menu"
+        data-effort={effort ?? ''}
+        aria-expanded={buka}
+        aria-haspopup="menu"
+        title={`${tr('Reasoning')}: ${tr(effortAktif.label)} — ${tr(effortAktif.hint)}`}
+        onClick={() => setBuka((v) => !v)}
+      >
+        <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+          <path
+            d="M8 1.8a4.4 4.4 0 0 0-2.6 7.95c.4.3.6.5.6 1V11h4v-.25c0-.5.2-.7.6-1A4.4 4.4 0 0 0 8 1.8z M6 13h4 M6.6 14.4h2.8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {tr(effortAktif.label)}
+        <span className="pick-caret">▾</span>
+      </button>
+
+      {buka && (
+        <div className="mode-pop is-naik" data-testid="ai-effort-pop" role="menu">
+          <div className="pick-seksi">{tr('Reasoning')}</div>
+          {EFFORT.map((e) => (
+            <button
+              key={e.id || 'auto'}
+              type="button"
+              role="menuitemradio"
+              aria-checked={e.id === (effort ?? '')}
+              className={`mode-item${e.id === (effort ?? '') ? ' is-on' : ''}`}
+              data-testid={`ai-effort-${e.id || 'auto'}`}
+              onClick={() => {
+                // The store models "no explicit effort" as null; '' is the
+                // option id used for display only.
+                setEffort(e.id === '' ? null : (e.id as ReasoningEffort));
+                setBuka(false);
+              }}
+            >
+              <span className="mode-item-teks">
+                <b>{tr(e.label)}</b>
+                <i>{tr(e.hint)}</i>
+              </span>
+              {e.id === (effort ?? '') && <span className="pick-check">✓</span>}
+            </button>
+          ))}
         </div>
       )}
     </span>
