@@ -14,6 +14,7 @@ import ZephyrLogo from './ZephyrLogo';
 import { ErrorBoundary } from './ErrorBoundary';
 import DiffViewer from '../scm/DiffViewer';
 const SettingsPage = lazy(() => import('../settings/SettingsPage'));
+const AiPanel = lazy(() => import('../ai/AiHost'));
 // Dev Environment, API Client and SFTP are full-page views: each carries its own
 // header and row layout. They take over the middle area the same way Settings
 // does below, instead of sitting in the sidebar, where they were squeezed into a
@@ -173,6 +174,30 @@ export default function SplitEditor() {
   const hasDiff = useGit((s) => s.diff !== null);
   const split = useLayout((s) => s.split);
   const groups = useLayout((s) => s.groups);
+
+  /*
+   * AI chat as an editor-area view (Copilot "Move Chat into Editor Area").
+   *
+   * Follows the same shape as the Settings / Diff branches below: a store flag
+   * decides it renders here instead of a file editor. Only ONE <AiPanel/> is
+   * ever mounted at a time - App.tsx renders the right column only when
+   * aiPanel === 'right', so these two never both appear.
+   */
+  const aiDiEditor = useStore((s) => (s.settings.general.aiPanel ?? 'right') === 'editor');
+  if (aiDiEditor && !settingsOpen) {
+    return (
+      <section className="editor-area ai-editor-area" data-testid="ai-editor-area">
+        <RestrictedBanner />
+        <div className="editor-host">
+          <ErrorBoundary nama="AI">
+            <Suspense fallback={null}>
+              <AiPanel />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      </section>
+    );
+  }
 
   if (
     activity === 'tools' ||

@@ -804,13 +804,20 @@ export const COMMANDS: CommandDef[] = [
       const s = S();
       const t = T();
       s.setSettingsOpen(false);
-      s.setActivity('ai');
-      if (!s.sidebarVisible) s.toggleSidebar();
-      const P = usePanel.getState();
-      if (t.visible && P.activeTab === 'ai') t.setVisible(false);
-      else {
-        t.setVisible(true);
-        P.focusTab('ai');
+      /* Toggle the chat in its configured home; the left 'ai' sidebar is gone. */
+      const posAi = s.settings.general.aiPanel ?? 'right';
+      if (posAi === 'bottom') {
+        if (!s.sidebarVisible) s.toggleSidebar();
+        const P = usePanel.getState();
+        if (t.visible && P.activeTab === 'ai') t.setVisible(false);
+        else {
+          t.setVisible(true);
+          P.focusTab('ai');
+        }
+      } else if (posAi === 'window') {
+        void import('./aiWindow').then((m) => m.bukaAiWindow());
+      } else {
+        s.toggleAiKolom();
       }
     },
   },

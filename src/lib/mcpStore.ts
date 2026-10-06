@@ -620,14 +620,22 @@ async function runEditorCommand(id: string): Promise<unknown> {
       t.toggleVisible();
       return { ok: true, id, visible: useTerminal.getState().visible };
 
-    case 'ai.focus':
+    case 'ai.focus': {
       s.setSettingsOpen(false);
-      s.setActivity('ai');
-      if (!s.sidebarVisible) s.toggleSidebar();
-      t.setVisible(true);
-      usePanel.getState().focusTab('ai');
+      /* Open the chat in its configured home; the left 'ai' sidebar is gone. */
+      const posAi = s.settings.general.aiPanel ?? 'right';
+      if (posAi === 'bottom') {
+        if (!s.sidebarVisible) s.toggleSidebar();
+        t.setVisible(true);
+        usePanel.getState().focusTab('ai');
+      } else if (posAi === 'window') {
+        void import('./aiWindow').then((m) => m.bukaAiWindow());
+      } else {
+        s.setAiKolomVisible(true);
+      }
       window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 60);
       return { ok: true, id, tab: 'ai' };
+    }
 
     case 'ai.send':
       await useAi.getState().send();

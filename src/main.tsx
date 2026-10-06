@@ -1,7 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import AiWindow from './AiWindow';
 import { ErrorBoundary } from './components/shell/ErrorBoundary';
+
+/*
+ * Two possible roots. The pop-out AI window loads with the hash `#ai`
+ * (set when it is created in `aiWindow.ts`); every other window is the full
+ * editor. Keeping this split at the entry point means the AI window never
+ * mounts the activity bar, editor or terminal — it is just the chat.
+ */
+const isAiWindow = window.location.hash.replace(/^#/, '').split('?')[0] === 'ai';
+const Root = isAiWindow ? AiWindow : App;
 
 if (import.meta.env.DEV) {
   void import('./lib/devBridge').then((m) => m.installDevBridge());
@@ -34,7 +44,7 @@ if (rootEl) {
 ReactDOM.createRoot(rootEl!).render(
   <React.StrictMode>
     <ErrorBoundary nama="Zephyr">
-      <App />
+      <Root />
     </ErrorBoundary>
   </React.StrictMode>,
 );

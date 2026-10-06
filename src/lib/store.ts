@@ -64,6 +64,10 @@ interface StoreState {
 
   aiMax: boolean;
 
+  /* Whether the right-hand AI column is shown. Lets the ActivityBar icon toggle
+     it without changing the saved `aiPanel` position. */
+  aiKolomVisible: boolean;
+
   sidebarHeight: number;
   ramBytes: number;
   statusMessage: string;
@@ -109,6 +113,8 @@ interface StoreActions {
   setAiWidth: (w: number) => void;
 
   setAiMax: (v: boolean) => void;
+  setAiKolomVisible: (v: boolean) => void;
+  toggleAiKolom: () => void;
   setSidebarHeight: (h: number) => void;
   setRamBytes: (b: number) => void;
   setStatus: (m: string) => void;
@@ -430,8 +436,9 @@ export const useStore = create<Store>((set, get) => ({
   sidebarVisible: true,
   sidebarWidth: 260,
   toolsTab: null,
-  aiWidth: 340,
+  aiWidth: 480,
   aiMax: false,
+  aiKolomVisible: true,
   sidebarHeight: 200,
   ramBytes: 0,
   statusMessage: '',
@@ -468,8 +475,10 @@ export const useStore = create<Store>((set, get) => ({
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
 
-  setAiWidth: (w) => set({ aiWidth: Math.max(240, Math.min(900, w)) }),
+  setAiWidth: (w) => set({ aiWidth: Math.max(320, Math.min(1000, w)) }),
   setAiMax: (v) => set({ aiMax: v }),
+  setAiKolomVisible: (v) => set({ aiKolomVisible: v }),
+  toggleAiKolom: () => set((s) => ({ aiKolomVisible: !s.aiKolomVisible })),
   setSidebarHeight: (h) => set({ sidebarHeight: Math.max(120, Math.min(480, h)) }),
   setRamBytes: (b) => set({ ramBytes: b }),
   setStatus: (m) => set({ statusMessage: m }),
