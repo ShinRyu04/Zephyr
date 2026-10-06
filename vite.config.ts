@@ -7,6 +7,15 @@ export default defineConfig({
   server: {
     strictPort: true,
     port: 5173,
+    watch: {
+      // Vite menonton seluruh akar proyek; kalau `src-tauri` ikut, ia mencoba
+      // `fs.watch` setiap berkas di dalam `target/debug/build/**` - termasuk
+      // objek `.o` yang sedang dipegang linker Rust. Windows mengunci berkas
+      // itu, `fs.watch` mengembalikan EBUSY, dan proses dev server MATI tepat
+      // saat kode Rust sedang dikompilasi (persis saat paling dibutuhkan).
+      // Aset frontend tidak pernah tinggal di sana, jadi dikecualikan.
+      ignored: ['**/src-tauri/**', '**/target/**'],
+    },
   },
   // Satu instance per paket CodeMirror.
   //
