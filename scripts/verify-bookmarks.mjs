@@ -59,14 +59,14 @@ const b1 = await ev(`(()=>{
 const j1 = JSON.parse(b1);
 check('B1', j1.on.length === 1 && j1.on[0] === 'b2' && j1.off.length === 0, `on=${j1.on} off=${j1.off}`);
 
-// B2 — rewind cuts BEFORE the target, keeping that message out.
+// B2 — rewind drops the target itself and everything after it.
 const b2 = await ev(`(()=>{
   const S=window.__ZEPHYR_CLICHAT__; const aid='claude';
   S.getState().rewindTo(aid,'b3');
   const m=S.getState().sessions[aid].find(x=>x.id===window.__BID).messages;
   return JSON.stringify({ids:m.map(x=>x.id)});})()`);
 const j2 = JSON.parse(b2);
-check('B2', JSON.stringify(j2.ids) === JSON.stringify(['b1', 'b2']), `kept ${j2.ids.join(',')} (expected b1,b2)`);
+check('B2', JSON.stringify(j2.ids) === JSON.stringify(['b1', 'b2']), `kept ${j2.ids.join(',')} (expected b1,b2 — b3 dropped with the rest)`);
 
 // B3 — rewinding to an id that no longer exists is a no-op, not an empty session.
 const b3 = await ev(`(()=>{
@@ -83,7 +83,7 @@ check('B3', j3.n === 2, `missing id left ${j3.n} messages (expected 2, not 0)`);
 await ev(`(()=>{const t=[...document.querySelectorAll('[role="tab"],button')].find(e=>/^Claude Code$/.test((e.textContent||'').trim())); if(t) t.click(); return 1;})()`);
 await new Promise((r) => setTimeout(r, 900));
 
-// B4 — the UI offers a rewind control per user message, and it asks first.
+// B4 — the rewind control lives on the assistant reply, and it asks first.
 const b4 = await ev(`(()=>{
   const btn=document.querySelector('[data-testid^="cli-rewind-"]');
   if(!btn) return JSON.stringify({btn:false});

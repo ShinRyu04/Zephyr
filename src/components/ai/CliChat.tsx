@@ -6,6 +6,7 @@ import { fileDialogOpen, fsRead, scanDir, folderDialogOpen, bacaGambar } from '.
 import { useT, useTf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CliTimeline from './CliTimeline';
+import CliTodoFloat from './CliTodoFloat';
 import Lightbox from './Lightbox';
 import CliSlashPanel, { type SlashPanel } from './CliSlashPanel';
 
@@ -563,40 +564,18 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                 data-testid={`ai-clichat-msg-${m.role}`}
               >
                 {m.role === 'user' ? (
-                  <div className="cli-native-user">
-                    {m.content}
-                    {/*
-                      * Rewind lives on the USER message, not the assistant one.
-                      *
-                      * "Go back to before this question" is the operation the
-                      * reader actually wants — they are looking at an answer
-                      * that went wrong and want to re-ask. Cutting at the
-                      * assistant reply would leave the question standing with
-                      * no answer, which is a state the session should never be
-                      * in.
-                      */}
-                    <div className="cli-native-rowtools">
-                      <button
-                        className="cli-native-iconbtn"
-                        data-testid={`cli-bookmark-${m.id}`}
-                        title={m.bookmark ? tr('Remove bookmark') : tr('Bookmark')}
-                        aria-label={tr('Bookmark')}
-                        aria-pressed={!!m.bookmark}
-                        onClick={() => toggleBookmark(agentId, m.id)}
-                      >
-                        <AiIkon name="bookmark" size={13} />
-                      </button>
-                      <button
-                        className="cli-native-iconbtn"
-                        data-testid={`cli-rewind-${m.id}`}
-                        title={tr('Rewind to here')}
-                        aria-label={tr('Rewind')}
-                        onClick={() => setKonfirmasiRewind(m.id)}
-                      >
-                        <AiIkon name="clock" size={13} />
-                      </button>
-                    </div>
-                  </div>
+                  /*
+                   * No controls on the user's own message.
+                   *
+                   * The rewind and bookmark buttons were first put here on the
+                   * reasoning that "go back to before this question" is the
+                   * operation a reader wants. The reader's answer was that a
+                   * question they just typed needs no toolbar: two icon buttons
+                   * on every turn they write is clutter in the place they are
+                   * reading their own words. The same two actions live on the
+                   * assistant reply below, which is where attention already is.
+                   */
+                  <div className="cli-native-user">{m.content}</div>
                 ) : (
                   <div className="cli-native-assistant">
                     <CliTimeline msg={m} streaming={pending === m.id} />
@@ -620,6 +599,24 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                         >
                           <AiIkon name="clipboard" size={13} />
                         </button>
+                        {/*
+                          * Rewind rides on the ASSISTANT reply.
+                          *
+                          * It belongs next to the answer being judged: the reader
+                          * reads a reply that went wrong, then asks for everything
+                          * from here on to be dropped — including the question
+                          * that produced it, which is why the cut lands BEFORE
+                          * this reply rather than after it.
+                          */}
+                        <button
+                          className="cli-native-iconbtn"
+                          data-testid={`cli-rewind-${m.id}`}
+                          title={tr('Rewind to here')}
+                          aria-label={tr('Rewind')}
+                          onClick={() => setKonfirmasiRewind(m.id)}
+                        >
+                          <AiIkon name="clock" size={13} />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -629,6 +626,16 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
           </div>
         )}
       </div>
+
+      {/*
+        * The plan floats above the composer, not inside the transcript.
+        *
+        * In the transcript it scrolls away the moment the run produces output —
+        * which is exactly when the reader wants to know how far along it is.
+        * Pinned here it stays in view for the whole run, the way the real CLI
+        * and the desktop app show it.
+        */}
+      <CliTodoFloat messages={messages} />
 
       {/* Composer — modelled on the real Claude Code input bar. */}
       <div className="cli-native-composer">
@@ -955,10 +962,13 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         <div className="cli-confirm-backdrop" role="dialog" aria-modal="true">
           <div className="cli-confirm" data-testid="cli-rewind-confirm">
             <p className="cli-confirm-text">
-              {tf('Delete every message after this one? {n} will be removed.', {
+              {tf('Delete this reply and everything after it? {n} message(s) will be removed.', {
+                /* The target itself is removed too, so it counts toward the
+                   total. An off-by-one here understates what the reader is
+                   about to lose, which is the one number they are deciding on. */
                 n: Math.max(
                   0,
-                  messages.length - messages.findIndex((x) => x.id === konfirmasiRewind) - 1,
+                  messages.length - messages.findIndex((x) => x.id === konfirmasiRewind),
                 ),
               })}
             </p>
