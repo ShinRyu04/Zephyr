@@ -223,7 +223,7 @@ function InfoPanel({
     case 'plugins':
       return <PluginsPanel info={info} reload={reload} />;
     case 'mcp':
-      return <McpPanel info={info} />;
+      return <McpPanel info={info} reload={reload} />;
     case 'hooks':
       return <HooksPanel info={info} reload={reload} />;
     case 'account':
@@ -636,9 +636,123 @@ function PluginsPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }
   );
 }
 
-function McpPanel({ info }: { info: ClaudeInfo }) {
+function McpPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) {
   const tr = useT();
-  if (!info.mcp_servers.length) return <p className="cli-sheet-empty">{tr('No MCP servers configured. Add them with the Claude CLI or an .mcp.json in your project.')}</p>;
+  const [busy, setBusy] = useState(false);
+  const [tambah, setTambah] = useState(false);
+  const [nama, setNama] = useState('');
+  const [target, setTarget] = useState('');
+  const [galat, setGalat] = useState('');
+
+  /*
+   * Remove a server by deleting its key.
+   *
+   * `null` is the delete instruction for `claude_settings_patch` (RFC 7386), so
+   * this is the one place null is correct — sending `false` or `""` would leave
+   * the entry present with a nonsense value, and the server would still be
+   * configured.
+   */
+  const hapus = async (n: string) => {
+    setBusy(true);
+    try {
+      await claudeSettingsPatch({ mcpServers: { [n]: null } });
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /*
+   * Add a server.
+   *
+   * The target is split on whitespace into command + args, which is what the
+   * CLI's own `mcpServers` entries look like: `{"command": "npx", "args": [...]}`.
+   * A URL target is written as the `url` form instead, since a hosted MCP server
+   * is a different shape from a spawned one and guessing wrong produces a server
+   * that silently never connects.
+   */
+  const simpan = async () => {
+    setGalat('');
+    const n = nama.trim();
+    const t = target.trim();
+    if (!n || !t) {
+      setGalat(tr('A server needs both a name and a command or URL.'));
+      return;
+    }
+    if (!/^[\w.-]+$/.test(n)) {
+      setGalat(tr('The name may only contain letters, digits, dot, dash and underscore.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const entry = /^https?:\/\//i.test(t)
+        ? { url: t }
+        : (() => {
+            const [cmd, ...rest] = t.split(/\s+/);
+            return { command: cmd, args: rest };
+          })();
+      await claudeSettingsPatch({ mcpServers: { [n]: entry } });
+      setNama('');
+      setTarget('');
+      setTambah(false);
+      reload();
+    } catch (e) {
+      setGalat(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const form = tambah ? (
+    <div className="cli-hook-form">
+      <label className="cli-hook-field">
+        <span>{tr('Name')}</span>
+        <input
+          className="cli-sheet-input"
+          value={nama}
+          placeholder="my-server"
+          onChange={(e) => setNama(e.target.value)}
+          data-testid="cli-mcp-name"
+        />
+      </label>
+      <label className="cli-hook-field">
+        <span>{tr('Command or URL')}</span>
+        <input
+          className="cli-sheet-input"
+          value={target}
+          placeholder={tr('npx -y @modelcontextprotocol/server-filesystem . — or https://…')}
+          onChange={(e) => setTarget(e.target.value)}
+          data-testid="cli-mcp-target"
+        />
+      </label>
+      {galat && <p className="cli-sheet-error" data-testid="cli-mcp-error">{galat}</p>}
+      <div className="cli-sheet-actions">
+        <button className="btn btn-primary btn-xs" disabled={busy} data-testid="cli-mcp-save" onClick={() => void simpan()}>
+          {tr('Add server')}
+        </button>
+        <button className="btn btn-ghost btn-xs" disabled={busy} onClick={() => { setTambah(false); setGalat(''); }}>
+          {tr('Cancel')}
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="cli-sheet-actions">
+      <button className="btn btn-ghost btn-xs" data-testid="cli-mcp-add" onClick={() => setTambah(true)}>
+        + {tr('Add server')}
+      </button>
+    </div>
+  );
+
+  if (!info.mcp_servers.length)
+    return (
+      <div className="cli-sheet-group">
+        <p className="cli-sheet-empty">{tr('No MCP servers configured.')}</p>
+        <p className="cli-sheet-note">
+          {tr('MCP servers give the agent extra tools — a database, a browser, an internal API. They are stored in ~/.claude/settings.json under mcpServers.')}
+        </p>
+        {form}
+      </div>
+    );
   return (
     <div className="cli-sheet-group">
       {info.mcp_servers.map((s) => (
@@ -647,10 +761,20 @@ function McpPanel({ info }: { info: ClaudeInfo }) {
             <AiIkon name="node" size={13} />
             <span className="cli-sheet-file-label">{s.name}</span>
             <span className="cli-sheet-file-meta">{s.kind} · {s.scope}</span>
+            <button
+              className="cli-rule-x"
+              disabled={busy}
+              title={tr('Remove')}
+              data-testid={`cli-mcp-remove-${s.name}`}
+              onClick={() => void hapus(s.name)}
+            >
+              ✕
+            </button>
           </div>
           <code className="cli-sheet-rule">{s.target}</code>
         </div>
       ))}
+      {form}
     </div>
   );
 }
