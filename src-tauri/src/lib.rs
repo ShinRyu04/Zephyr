@@ -369,6 +369,8 @@ pub fn run() {
             cc_catalog::cc_catalog_body,
             cc_catalog::cc_catalog_install,
             cc_catalog::cc_catalog_uninstall,
+            cc_catalog::cc_repo_scan,
+            cc_catalog::cc_repo_install,
             cc_plugins::cc_plugins_catalog,
             cc_plugins::cc_plugin_install,
             cc_plugins::cc_plugin_uninstall,
