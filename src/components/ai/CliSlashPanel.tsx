@@ -217,7 +217,7 @@ function InfoPanel({
     case 'permissions':
       return <PermissionsPanel info={info} reload={reload} />;
     case 'sandbox':
-      return <SandboxPanel info={info} />;
+      return <SandboxPanel info={info} reload={reload} />;
     case 'memory':
     case 'instructions':
       return <MemoryPanel info={info} cwd={cwd} reload={reload} />;
@@ -240,6 +240,48 @@ function InfoPanel({
 
 function StatusPanel({ info }: { info: ClaudeInfo }) {
   const tr = useT();
+  const [busy, setBusy] = useState(false);
+  const [hasil, setHasil] = useState('');
+
+  /*
+   * `/doctor` is the one status action that is worth a button.
+   *
+   * It answers the question the panel cannot: "is this installation actually
+   * working". It runs as a prompt, so it produces a report rather than mutating
+   * anything — which is why it is safe to offer here while the diagnostic
+   * itself is not something Zephyr should reimplement.
+   */
+  const periksa = async () => {
+    setBusy(true);
+    setHasil('');
+    try {
+      await claudeCommandWrite('zephyr-doctor', '/doctor');
+      setHasil(tr('Run /doctor in the Claude Code tab to check the installation.'));
+    } catch (e) {
+      setHasil(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const salin = () => {
+    void import('../../lib/clipboard').then((m) =>
+      m.clipboardWrite(
+        [
+          `version: ${info.version}`,
+          `model: ${info.model || 'default'}`,
+          `permission mode: ${info.permission_mode}`,
+          `theme: ${info.theme}`,
+          `cwd: ${info.cwd}`,
+          `trusted: ${info.trusted}`,
+          `endpoint host: ${info.base_url}`,
+          `max context: ${info.max_context_tokens}`,
+          `auth: ${info.auth_kind}`,
+        ].join('\n'),
+      ),
+    );
+  };
+
   return (
     <div className="cli-sheet-group">
       <Row k={tr('Version')} v={info.version || '—'} />
@@ -251,19 +293,78 @@ function StatusPanel({ info }: { info: ClaudeInfo }) {
       <Row k={tr('API endpoint')} v={<code>{info.base_url || 'api.anthropic.com'}</code>} />
       <Row k={tr('Max context')} v={info.max_context_tokens ? `${info.max_context_tokens} tokens` : '—'} />
       <Row k={tr('Auth')} v={info.auth_kind} />
+      {/*
+        * Copy exists because this panel is read for a reason — filing a bug
+        * report, comparing two machines, asking for help — and all of those
+        * need the values somewhere other than a screenshot.
+        */}
+      <div className="cli-sheet-actions">
+        <button
+          className="btn btn-ghost btn-xs"
+          data-testid="cli-status-copy"
+          onClick={salin}
+        >
+          <AiIkon name="clipboard" size={12} />
+          {tr('Copy status')}
+        </button>
+        <button
+          className="btn btn-ghost btn-xs"
+          disabled={busy}
+          data-testid="cli-status-doctor"
+          onClick={() => void periksa()}
+        >
+          {tr('Create /doctor command')}
+        </button>
+      </div>
+      {hasil && <p className="cli-sheet-note" data-testid="cli-status-note">{hasil}</p>}
     </div>
   );
 }
 
-function SandboxPanel({ info }: { info: ClaudeInfo }) {
+function SandboxPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) {
   const tr = useT();
+  const [busy, setBusy] = useState(false);
+
+  /*
+   * The sandbox is the permission mode.
+   *
+   * This panel used to only DESCRIBE that relationship while offering no way to
+   * change it, which made it the one screen in the app that explained a setting
+   * the reader could not act on. The mode is what decides whether a write or a
+   * command runs unattended, so it belongs here as a control, not as a
+   * paragraph.
+   */
+  const pilih = async (id: string) => {
+    setBusy(true);
+    try {
+      await claudeSettingsPatch({ permissions: { defaultMode: id } });
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="cli-sheet-group">
-      <Row k={tr('Permission mode')} v={info.permission_mode} />
+      <p className="cli-sheet-sub">{tr('Permission mode')}</p>
+      <div className="cli-chiprow">
+        {PERM_MODES.map((m) => (
+          <button
+            key={m.id}
+            className={`cli-chip${info.permission_mode === m.id ? ' is-on' : ''}`}
+            disabled={busy}
+            data-testid={`cli-sandbox-${m.id}`}
+            onClick={() => void pilih(m.id)}
+          >
+            {tr(m.label)}
+          </button>
+        ))}
+      </div>
+      <Row k={tr('Current')} v={info.permission_mode} />
       <Row k={tr('Skip risky prompts')} v={info.skip_dangerous ? tr('Yes') : tr('No')} />
       <Row k={tr('Trusted folder')} v={info.trusted ? tr('Yes') : tr('No')} />
       <p className="cli-sheet-note">
-        {tr('Sandbox follows the permission mode: in Plan/Manual the CLI asks before writing or running; Auto approves safe actions and pauses on anything risky.')}
+        {tr('In Plan or Manual the CLI asks before writing or running; Auto approves safe actions and stops on anything risky, and Bypass skips the prompts entirely.')}
       </p>
     </div>
   );
@@ -899,6 +1000,29 @@ function HooksPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) 
 function AccountPanel({ info }: { info: ClaudeInfo }) {
   const tr = useT();
   const total = info.usage.reduce((a, u) => a + u.cost_usd, 0);
+  const totalIn = info.usage.reduce((a, u) => a + u.input_tokens, 0);
+  const totalOut = info.usage.reduce((a, u) => a + u.output_tokens, 0);
+
+  /*
+   * Copy the usage table.
+   *
+   * Cost is the number people come to this panel for, and the reason they come
+   * is usually to put it somewhere else — a budget note, a message to a
+   * teammate. A screenshot cannot be summed; text can.
+   */
+  const salin = () => {
+    const baris = [
+      `total: $${total.toFixed(4)}  ${totalIn} in / ${totalOut} out`,
+      '',
+      ...info.usage.map(
+        (u) =>
+          `${u.project}  $${u.cost_usd.toFixed(4)}  ${u.input_tokens} in / ${u.output_tokens} out  ${fmtMs(u.duration_ms)}` +
+          (u.lines_added || u.lines_removed ? `  +${u.lines_added}/-${u.lines_removed}` : ''),
+      ),
+    ];
+    void import('../../lib/clipboard').then((m) => m.clipboardWrite(baris.join('\n')));
+  };
+
   return (
     <div className="cli-sheet-group">
       <Row k={tr('Account')} v={info.account_id || tr('(local CLI login)')} />
@@ -906,9 +1030,19 @@ function AccountPanel({ info }: { info: ClaudeInfo }) {
       <Row k={tr('Install')} v={info.install_method || '—'} />
       <Row k={tr('Startups')} v={String(info.num_startups)} />
       <Row k={tr('Total recent cost')} v={`$${total.toFixed(4)}`} />
+      {/* Tokens are what the cost is MADE of, and a total alone cannot tell a
+          cheap long run from an expensive short one. */}
+      <Row k={tr('Tokens')} v={`${totalIn.toLocaleString()} in · ${totalOut.toLocaleString()} out`} />
       <p className="cli-sheet-sub">{tr('Recent usage by project')}</p>
       {info.usage.length ? (
-        info.usage.map((u) => (
+        <>
+          <div className="cli-sheet-actions">
+            <button className="btn btn-ghost btn-xs" data-testid="cli-usage-copy" onClick={salin}>
+              <AiIkon name="clipboard" size={12} />
+              {tr('Copy usage')}
+            </button>
+          </div>
+          {info.usage.map((u) => (
           <div key={u.project} className="cli-sheet-usage">
             <div className="cli-sheet-usage-head">
               <code className="cli-sheet-usage-proj">{u.project}</code>
@@ -924,7 +1058,8 @@ function AccountPanel({ info }: { info: ClaudeInfo }) {
               </div>
             ))}
           </div>
-        ))
+          ))}
+        </>
       ) : (
         <p className="cli-sheet-empty">{tr('No recorded usage yet.')}</p>
       )}

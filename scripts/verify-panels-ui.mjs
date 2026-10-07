@@ -157,6 +157,24 @@ await new Promise((r) => setTimeout(r, 700));
 const u9n = await ev(`document.querySelectorAll('.cli-plugin-row').length`);
 check('U9', JSON.parse(u9).search && u9n > 0 && u9n < u8, `search narrowed ${u8} -> ${u9n}`);
 
+// U10..U11 — Status and Sandbox now offer actions, not just values.
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 700));
+await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/^Status$/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 900));
+const u10 = await ev(`JSON.stringify({copy: !!document.querySelector('[data-testid="cli-status-copy"]'), doctor: !!document.querySelector('[data-testid="cli-status-doctor"]')})`);
+const j10 = JSON.parse(u10);
+check('U10', j10.copy && j10.doctor, `status actions: copy=${j10.copy} doctor=${j10.doctor}`);
+
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 700));
+await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/^Sandbox$/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 900));
+/* The permission-mode chips are the control; a panel that only DESCRIBES the
+   mode was the thing being fixed. */
+const u11 = await ev(`document.querySelectorAll('[data-testid^="cli-sandbox-"]').length`);
+check('U11', u11 > 0, `${u11} permission-mode chips in the sandbox panel`);
+
 ws.close();
 const pass = out.filter(Boolean).length;
 console.log(`\n== ${pass}/${out.length} lulus ==`);
