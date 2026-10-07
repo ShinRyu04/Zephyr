@@ -36,6 +36,22 @@ await send('Runtime.enable');
 const out = [];
 const check = (i, ok, d) => { out.push(ok); console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${i.padEnd(4)} ${d}`); };
 
+/*
+ * Type "/" into the composer the way React sees it.
+ *
+ * Setting `.value` alone does not fire onChange — and the value tracker must be
+ * pointed at a DIFFERENT value first, or React concludes nothing changed and
+ * skips the handler entirely. Without that reset the palette never opens and
+ * every panel behind it reads as missing.
+ */
+const ketikSlash = async () => {
+  await ev(`(()=>{const b=document.querySelector('.cli-native-input'); if(!b) return 1;
+    const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(b),'value');
+    b._valueTracker && b._valueTracker.setValue('__force__');
+    d.set.call(b,'/'); b.dispatchEvent(new Event('input',{bubbles:true})); return 1;})()`);
+  await new Promise((r) => setTimeout(r, 900));
+};
+
 // Get into the Claude Code tab and open the hooks sheet via the store.
 console.log('tab:', await ev(`(()=>{const t=[...document.querySelectorAll('[role="tab"],button')].find(e=>/^Claude Code$/.test((e.textContent||'').trim())); if(t) t.click(); return 'ok';})()`));
 await new Promise((r) => setTimeout(r, 900));
@@ -48,18 +64,42 @@ await new Promise((r) => setTimeout(r, 900));
  * real path. Typing was tried first and did not open it: the menu is React
  * state set from the chip, not from the input's value.
  */
-console.log('open palette:', await ev(`(()=>{
-  const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/');
-  if(!t) return 'no-trigger';
-  t.click(); return 'clicked';})()`));
+/*
+ * Open the palette by TYPING "/", which is now the only way in.
+ *
+ * The chip deliberately no longer opens it: the palette is reached by typing
+ * the slash, as in every other command menu. This harness kept clicking the
+ * chip, so every panel behind it became unreachable and 10 of 11 checks failed
+ * against a working app.
+ */
+await ketikSlash();
+console.log('open palette: typed /');
 await new Promise((r) => setTimeout(r, 800));
 
 /* Then click the Hooks entry inside it. */
-console.log('open hooks:', await ev(`(()=>{
-  const items=[...document.querySelectorAll('.cli-pop button, .cli-pop a, [role="menu"] button, button')];
-  const hit=items.find(e=>/^Hooks$/i.test((e.textContent||'').trim()));
-  if(!hit) return 'not-found';
-  hit.click(); return 'clicked';})()`));
+/*
+ * Find the row by its test id, not its text.
+ *
+ * The palette now leads with the CLI's commands, whose rows read "/hooks  View
+ * or edit tool permission rules" — so an exact text match on "Hooks" no longer
+ * finds anything, and the panel behind it looked unreachable.
+ */
+/*
+ * Open a panel through the ACTION row, not the command row.
+ *
+ * Both kinds of row carry the id in their test id (`ai-clichat-cmd-hooks-…` and
+ * `ai-clichat-slash-hooks-…`), and the command rows come first because the
+ * palette leads with the CLI's commands. A loose `*="hooks"` therefore matched
+ * `/hooks` and SENT it as a prompt instead of opening the sheet — the panel
+ * looked unreachable while the app was behaving exactly as designed.
+ */
+const bukaPanel = async (id) => {
+  const r = await ev(`(()=>{const b=document.querySelector('[data-testid="ai-clichat-slash-${id}-claude"]');
+    if(!b) return 'not-found'; b.click(); return 'clicked';})()`);
+  await new Promise((res) => setTimeout(res, 1000));
+  return r;
+};
+console.log('open hooks:', await bukaPanel('hooks'));
 await new Promise((r) => setTimeout(r, 1000));
 
 // U1 — the Hooks sheet renders and offers an Add control.
@@ -104,9 +144,10 @@ const u4b = await ev(`document.querySelectorAll('.cli-plugin-row, .cli-sheet-plu
 check('U4', u4 === 'clicked' || u4 === 'no-plugins-entry', `plugins entry=${u4} rows=${u4b}`);
 
 // U5 — the MCP sheet offers an Add control (or is honestly empty).
-await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); return 1;})()`);
+await ketikSlash();
 await new Promise((r) => setTimeout(r, 600));
-await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/MCP servers/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
+await bukaPanel('mcp');
 await new Promise((r) => setTimeout(r, 900));
 const u5 = await ev(`JSON.stringify({add: !!document.querySelector('[data-testid="cli-mcp-add"]'), rows: document.querySelectorAll('.cli-sheet-file').length})`);
 const j5 = JSON.parse(u5);
@@ -137,9 +178,10 @@ const u7 = await ev(`(()=>{const e=document.querySelector('[data-testid="cli-mcp
 check('U7', typeof u7 === 'string' && u7 !== 'no-error' && /name/i.test(u7), `bad name refused: ${JSON.stringify(u7)}`);
 
 // U8..U9 — the plugin marketplace browser renders real rows.
-await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); return 1;})()`);
+await ketikSlash();
 await new Promise((r) => setTimeout(r, 700));
-await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/Manage plugins/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
+await bukaPanel('plugins');
 /* The catalog read is a real file read plus a sort over 315 entries, so give it
    a moment before judging the panel empty. */
 await new Promise((r) => setTimeout(r, 2500));
@@ -158,7 +200,8 @@ const u9n = await ev(`document.querySelectorAll('.cli-plugin-row').length`);
 check('U9', JSON.parse(u9).search && u9n > 0 && u9n < u8, `search narrowed ${u8} -> ${u9n}`);
 
 // U10..U11 — Status and Sandbox now offer actions, not just values.
-await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); return 1;})()`);
+await ketikSlash();
 await new Promise((r) => setTimeout(r, 700));
 await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/^Status$/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
 await new Promise((r) => setTimeout(r, 900));
@@ -166,7 +209,8 @@ const u10 = await ev(`JSON.stringify({copy: !!document.querySelector('[data-test
 const j10 = JSON.parse(u10);
 check('U10', j10.copy && j10.doctor, `status actions: copy=${j10.copy} doctor=${j10.doctor}`);
 
-await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); return 1;})()`);
+await ketikSlash();
 await new Promise((r) => setTimeout(r, 700));
 await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/^Sandbox$/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
 await new Promise((r) => setTimeout(r, 900));

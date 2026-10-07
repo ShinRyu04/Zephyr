@@ -2,7 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useAiCli, EMPTY_LIST } from '../../lib/aiCliStore';
 import { useStore } from '../../lib/store';
 import { catalogFor, modelChip, EFFORT_LEVELS } from '../../lib/cliCatalog';
-import { fileDialogOpen, fsRead, scanDir, folderDialogOpen, bacaGambar } from '../../lib/commands';
+import {
+  fileDialogOpen,
+  fsRead,
+  scanDir,
+  folderDialogOpen,
+  bacaGambar,
+  claudeBuiltinCommands,
+  type BuiltinCommand,
+} from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CliTimeline from './CliTimeline';
@@ -145,8 +153,19 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const [slashFilter, setSlashFilter] = useState('');
   /* The history drawer (session list), toggled from the toolbar. */
   const [showHistory, setShowHistory] = useState(false);
-  /* Which composer popover is open: '+', '/', model, or mode. One at a time. */
+  /*
+   * Which composer popover is open.
+   *
+   * `cmd` is the slash-COMMAND palette (the CLI's own /review, /init, /status…)
+   * and `slash` is the ACTION palette (Attach, Clear, Model…). They are
+   * separate because they are reached differently: `cmd` opens by TYPING "/",
+   * the way every other slash-command UI works, while `slash` is the chip's
+   * action menu. Conflating them meant the chip opened a list of commands that
+   * a reader had no reason to expect from clicking a button.
+   */
   const [menu, setMenu] = useState<null | 'plus' | 'slash' | 'model' | 'mode'>(null);
+  /* The CLI's built-in slash commands, loaded once for the typed palette. */
+  const [builtins, setBuiltins] = useState<BuiltinCommand[]>([]);
   /* Which slash sheet (Status / Permissions / Agents / …) is open, if any. */
   const [panel, setPanel] = useState<SlashPanel | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
@@ -159,6 +178,21 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
     void loadModels(agentId);
     ensureActive(agentId);
   }, [agentId, loadModels, ensureActive]);
+
+  /*
+   * Load the CLI's slash commands once.
+   *
+   * They come from the backend rather than a list in the component because the
+   * set belongs to the installed CLI, not to this app — a version that adds a
+   * command should show it without a Zephyr release. Failure is silent: the
+   * palette simply has nothing to offer, which is the honest outcome when the
+   * CLI cannot be asked.
+   */
+  useEffect(() => {
+    claudeBuiltinCommands()
+      .then(setBuiltins)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const el = scroller.current;
@@ -408,6 +442,18 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
     (a) => !slashFilter || tr(a.label).toLowerCase().includes(slashFilter.toLowerCase()),
   );
   const slashGroups = [...new Set(slashShown.map((a) => a.group))];
+
+  /*
+   * The typed palette filters on the command NAME, not its description.
+   *
+   * Matching the description too made the list jump around as someone typed —
+   * "/co" surfaced /doctor because its blurb contains "connection", which is
+   * not the command they were spelling. A name prefix is also what the CLI
+   * itself matches on.
+   */
+  const filteredCommands = builtins.filter(
+    (c) => !slashFilter || c.name.slice(1).toLowerCase().startsWith(slashFilter.toLowerCase()),
+  );
 
   return (
     <div
@@ -696,8 +742,16 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
           onChange={(e) => {
             const v = e.target.value;
             setDraft(v);
-            /* Typing "/" at the start opens the actions palette in place, so the
-               slash works from the chat box itself and not only from the chip. */
+            /*
+             * Typing "/" opens the palette, and it lists EVERYTHING — the app's
+             * actions AND the CLI's own slash commands.
+             *
+             * One list, because a slash typed at the start of a prompt is a
+             * single question ("what can I do?") and splitting the answer across
+             * two palettes meant whichever one opened, half the answer was
+             * missing. The commands are shown with their leading slash so they
+             * read as what they are.
+             */
             if (v === '/') { setMenu('slash'); setSlashFilter(''); }
             else if (menu === 'slash' && !v.startsWith('/')) setMenu(null);
             if (v.startsWith('/')) setSlashFilter(v.slice(1));
@@ -745,10 +799,21 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
             <button
               className="cli-native-chip cli-pop-trigger"
               data-testid={`ai-clichat-slash-${agentId}`}
-              title={tr('Actions')}
-              aria-haspopup="menu"
-              aria-expanded={menu === 'slash'}
-              onClick={() => { setMenu((m) => (m === 'slash' ? null : 'slash')); setSlashFilter(''); }}
+              /*
+               * Type "/" to open the palette.
+               *
+               * The chip no longer opens anything. It is a hint that a slash
+               * exists, and clicking it now only focuses the box — the palette
+               * is reached by TYPING the slash, which is how every command menu
+               * in every other tool behaves. A button that opened the same list
+               * made two different gestures mean one thing and left the chip
+               * looking like the only way in.
+               */
+              title={tr('Type / for commands')}
+              onClick={() => {
+                inputRef.current?.focus();
+                setDraft((d) => (d.startsWith('/') ? d : '/' + d));
+              }}
             >
               <span className="cli-slash-glyph" aria-hidden="true">/</span>
             </button>
@@ -762,6 +827,51 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                   onChange={(e) => setSlashFilter(e.target.value)}
                 />
                 <div className="cli-pop-scroll">
+                  {/*
+                    * The CLI's own commands come FIRST.
+                    *
+                    * Typing "/" is a request for a command, so the commands are
+                    * the answer the reader is looking for; the app's actions are
+                    * what else happens to be available. Listing the actions on
+                    * top would put the likely answer below the fold.
+                    */}
+                  {filteredCommands.length > 0 && (
+                    <div>
+                      <p className="cli-pop-group">{tr('Commands')}</p>
+                      {filteredCommands.map((c) => (
+                        <button
+                          key={c.name}
+                          role="menuitem"
+                          className="cli-pop-item"
+                          data-testid={`ai-clichat-cmd-${c.name.replace('/', '')}-${agentId}`}
+                          title={c.desc}
+                          onClick={() => {
+                            const id = c.name.replace('/', '');
+                            setDraft('');
+                            setMenu(null);
+                            /* Commands Zephyr performs itself, because
+                               `claude -p` has no interactive session for them.
+                               The rest are prompts and go to the CLI. */
+                            if (
+                              [
+                                'init', 'review', 'compact', 'config',
+                                'vim', 'login', 'logout', 'terminal-setup',
+                                'clear', 'help',
+                              ].includes(id)
+                            ) {
+                              runSlash(id);
+                            } else {
+                              void send(agentId, c.name);
+                            }
+                          }}
+                        >
+                          <span className="cli-cmd-slash" aria-hidden="true">/</span>
+                          <span className="cli-cmd-name">{c.name.replace('/', '')}</span>
+                          <span className="cli-cmd-desc">{c.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {slashGroups.map((g) => (
                     <div key={g}>
                       <p className="cli-pop-group">{tr(g)}</p>
@@ -779,7 +889,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                       ))}
                     </div>
                   ))}
-                  {slashShown.length === 0 && (
+                  {slashShown.length === 0 && filteredCommands.length === 0 && (
                     <p className="cli-pop-empty">{tr('No actions match.')}</p>
                   )}
                 </div>
