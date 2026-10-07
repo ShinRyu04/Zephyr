@@ -56,6 +56,18 @@ pub fn extract_reasoning(provider: &str, v: &Value) -> Option<String> {
     }
 }
 
+/// Token usage reported by the provider for this frame, as (input, output).
+///
+/// `None` means the frame carried no usage — which is not the same as zero.
+/// A caller that treats absent as zero reports every turn as free.
+pub fn extract_usage(provider: &str, v: &Value) -> Option<(u64, u64)> {
+    match provider {
+        "anthropic" => anthropic::extract_usage(v),
+        "gemini" => gemini::extract_usage(v),
+        _ => openai::extract_usage(v),
+    }
+}
+
 pub fn trim_base(url: &str) -> String {
     url.trim().trim_end_matches('/').to_string()
 }

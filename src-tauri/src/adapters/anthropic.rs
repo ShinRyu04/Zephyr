@@ -457,3 +457,29 @@ mod tests {
         assert_eq!(blocks[0]["text"], "penalaran");
     }
 }
+
+/// Token usage reported by Anthropic, if this frame carries it.
+///
+/// Read from two places, because Anthropic reports it in both: the per-message
+/// `usage` on a `message_start`/`message_delta`, and the final tally. The
+/// counts are CUMULATIVE for the turn, so the LAST value seen is the answer —
+/// adding them would multiply the cost by the number of frames.
+///
+/// `cache_read_input_tokens` is folded into `input` rather than reported
+/// separately: it is a cheaper rate, not a different quantity, and a caller
+/// that wants the split cannot get it from a two-number struct anyway.
+pub fn extract_usage(v: &Value) -> Option<(u64, u64)> {
+    let u = v
+        .pointer("/message/usage")
+        .or_else(|| v.pointer("/usage"))
+        .or_else(|| v.pointer("/message_delta/usage"))?;
+    let n = |k: &str| u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+    let input = n("input_tokens") + n("cache_read_input_tokens") + n("cache_creation_input_tokens");
+    let output = n("output_tokens");
+    /* A frame with neither count is not a usage report; saying "0 in, 0 out"
+       would read as a free turn. */
+    if input == 0 && output == 0 {
+        return None;
+    }
+    Some((input, output))
+}

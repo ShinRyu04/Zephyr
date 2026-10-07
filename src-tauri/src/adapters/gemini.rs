@@ -271,3 +271,19 @@ impl ToolAcc {
         (self.text, self.calls)
     }
 }
+
+/// Token usage reported by Gemini, if this frame carries it.
+///
+/// `usageMetadata` appears on the final chunk of a stream. `promptTokenCount`
+/// and `candidatesTokenCount` are the pair; `thoughtsTokenCount` is billed as
+/// output, so it is added there rather than dropped.
+pub fn extract_usage(v: &Value) -> Option<(u64, u64)> {
+    let u = v.get("usageMetadata")?;
+    let n = |k: &str| u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+    let input = n("promptTokenCount");
+    let output = n("candidatesTokenCount") + n("thoughtsTokenCount");
+    if input == 0 && output == 0 {
+        return None;
+    }
+    Some((input, output))
+}
