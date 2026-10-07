@@ -41,6 +41,13 @@ export type CliEvent =
    * prompt would start fresh.
    */
   | { kind: 'session'; sessionId: string }
+  /**
+   * Token counts and cost for the run, from the CLI's closing `result` line.
+   *
+   * The only frame that reports them; discarding it left the context meter at
+   * 0% however full the conversation became.
+   */
+  | { kind: 'usage'; input: number; output: number; cost: number; turns: number }
   /*
    * A task-list snapshot from TodoWrite / TaskCreate / TaskUpdate.
    *
@@ -88,6 +95,13 @@ export interface CliChatChunk {
   cancelled?: boolean;
   /** A structured event (thinking / text / tool / error). */
   event?: CliEvent;
+  /**
+   * Token counts the provider reported for this run.
+   *
+   * Cumulative for the turn, so the consumer REPLACES rather than adds. Sent on
+   * several frames as the turn progresses; the last one is the answer.
+   */
+  usage?: { input: number; output: number };
 }
 
 export function onCliChatChunk(cb: (chunk: CliChatChunk) => void): Promise<UnlistenFn> {

@@ -293,3 +293,28 @@ impl ToolAcc {
         (self.text, calls)
     }
 }
+
+/// Token usage reported by an OpenAI-compatible gateway, if present.
+///
+/// `prompt_tokens`/`completion_tokens` is the documented pair; some gateways
+/// use `input_tokens`/`output_tokens` instead, and a few report only one of the
+/// two. Absent counts are 0 rather than an error — a gateway that omits usage
+/// entirely is reported as `None` by the caller, which is different from a
+/// turn that genuinely used nothing.
+pub fn extract_usage(v: &Value) -> Option<(u64, u64)> {
+    let u = v
+        .pointer("/usage")
+        .or_else(|| v.pointer("/choices/0/usage"))?;
+    let n = |a: &str, b: &str| {
+        u.get(a)
+            .or_else(|| u.get(b))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0)
+    };
+    let input = n("prompt_tokens", "input_tokens");
+    let output = n("completion_tokens", "output_tokens");
+    if input == 0 && output == 0 {
+        return None;
+    }
+    Some((input, output))
+}
