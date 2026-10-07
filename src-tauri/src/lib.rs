@@ -353,6 +353,8 @@ pub fn run() {
             voice::ai_transcribe,
             voice::ai_speak,
             voice::ai_tts_voices,
+            cli_ext::ai_archive_tool_output,
+            cli_ext::ai_read_tool_output,
             cli_agents::cli_agents_detect,
             cli_agents::cli_agent_run,
             cli_chat::cli_chat,
