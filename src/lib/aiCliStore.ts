@@ -465,6 +465,15 @@ export const useAiCli = create<AiCliState>((set, get) => ({
           /* Not found means the message was already removed - leave the session
              alone rather than truncating to -1, which would empty it. */
           if (cut < 0) return sess;
+          /*
+           * The message itself goes too.
+           *
+           * The control sits on the assistant reply, and the reader is looking
+           * at a reply they want gone — keeping it would leave the very answer
+           * they rejected at the end of the trimmed thread. The question that
+           * produced it is already the last user message above the cut, so the
+           * session is left ready to ask again.
+           */
           return { ...sess, messages: sess.messages.slice(0, cut) };
         }),
       },
