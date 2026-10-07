@@ -1429,31 +1429,50 @@ pub fn claude_memory_write(scope: String, content: String, cwd: Option<String>) 
     Ok(path.to_string_lossy().to_string())
 }
 
-/// Create or overwrite a user slash command (`~/.claude/commands/<name>.md`).
-/// The name is sanitised to a bare stem so it cannot escape the folder.
+/// Create or overwrite a slash command file. The name is sanitised to a bare
+/// stem so it cannot escape the folder.
+///
+/// `dir` is optional: when absent the command lands in the real
+/// `~/.claude/commands/`, which is what the app itself means by "save a
+/// command". When present it is used as the target folder instead — a harness
+/// that wanted to prove the write works could not otherwise do so without
+/// putting a file in the user's own Claude config, which is a side effect that
+/// outlives the test.
 #[tauri::command]
-pub fn claude_command_write(name: String, content: String) -> ZResult<String> {
+pub fn claude_command_write(name: String, content: String, dir: Option<String>) -> ZResult<String> {
     let stem = name.trim().trim_start_matches('/');
     if stem.is_empty() || stem.contains(['/', '\\', ':']) || stem.contains("..") {
         return Err(ZephyrError::InvalidInput("bad command name".into()));
     }
-    let home = home_dir().ok_or_else(|| ZephyrError::NotFound("no home".into()))?;
-    let dir = home.join(".claude").join("commands");
-    std::fs::create_dir_all(&dir).map_err(|e| ZephyrError::Io(e.to_string()))?;
-    let path = dir.join(format!("{stem}.md"));
+    let folder = match dir.filter(|d| !d.is_empty()) {
+        Some(d) => std::path::PathBuf::from(d),
+        None => home_dir()
+            .ok_or_else(|| ZephyrError::NotFound("no home".into()))?
+            .join(".claude")
+            .join("commands"),
+    };
+    std::fs::create_dir_all(&folder).map_err(|e| ZephyrError::Io(e.to_string()))?;
+    let path = folder.join(format!("{stem}.md"));
     std::fs::write(&path, content).map_err(|e| ZephyrError::Io(e.to_string()))?;
     Ok(path.to_string_lossy().to_string())
 }
 
-/// Delete a user slash command file. Returns whether a file was removed.
+/// Delete a slash command file. Returns whether a file was removed. Same
+/// `dir` semantics as `claude_command_write`.
 #[tauri::command]
-pub fn claude_command_delete(name: String) -> ZResult<bool> {
+pub fn claude_command_delete(name: String, dir: Option<String>) -> ZResult<bool> {
     let stem = name.trim().trim_start_matches('/');
     if stem.is_empty() || stem.contains(['/', '\\', ':']) || stem.contains("..") {
         return Err(ZephyrError::InvalidInput("bad command name".into()));
     }
-    let home = home_dir().ok_or_else(|| ZephyrError::NotFound("no home".into()))?;
-    let path = home.join(".claude").join("commands").join(format!("{stem}.md"));
+    let folder = match dir.filter(|d| !d.is_empty()) {
+        Some(d) => std::path::PathBuf::from(d),
+        None => home_dir()
+            .ok_or_else(|| ZephyrError::NotFound("no home".into()))?
+            .join(".claude")
+            .join("commands"),
+    };
+    let path = folder.join(format!("{stem}.md"));
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| ZephyrError::Io(e.to_string()))?;
         return Ok(true);

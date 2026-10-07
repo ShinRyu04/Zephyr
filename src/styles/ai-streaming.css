@@ -1216,29 +1216,6 @@
   color: var(--accent);
 }
 
-/*
- * The dragon moves while the model works.
- *
- * WHY a bob and not a rotation: a rotating mark is a loading wheel, and a
- * loading wheel says "generic software is busy". A short vertical bob reads as
- * something alive moving under its own power, which is what "Zeph is still
- * producing tokens" should look like. The travel is 1px so the row never
- * reflows and the label beside it does not move.
- */
-.ai-naga.is-terbang {
-  animation: naga-terbang 1.35s ease-in-out infinite;
-}
-
-@keyframes naga-terbang {
-  0%,
-  100% {
-    transform: translateY(0.5px);
-  }
-  50% {
-    transform: translateY(-1.2px);
-  }
-}
-
 @keyframes think-orb {
   0%,
   100% {
