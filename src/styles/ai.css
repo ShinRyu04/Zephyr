@@ -6798,6 +6798,28 @@
 }
 .cli-diff-more:hover { background: var(--surface-3); color: var(--text); }
 
+/* ---- CLI hook add-form ------------------------------------------------ */
+.cli-hook-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.cli-hook-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--text-secondary, var(--fg1));
+}
+.cli-sheet-error {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--danger);
+}
+
 /* ---- CLI todo checklist (the agent's plan) ---------------------------- */
 .cli-todo {
   margin: 6px 0;

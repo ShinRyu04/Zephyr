@@ -11,6 +11,7 @@ import {
   ccCatalogInstall,
   ccCatalogUninstall,
   type ClaudeInfo,
+  type ClaudePlugin,
   type CatalogItem,
   type BuiltinCommand,
 } from '../../lib/commands';
@@ -220,7 +221,7 @@ function InfoPanel({
     case 'style':
       return <StylePanel info={info} reload={reload} />;
     case 'plugins':
-      return <PluginsPanel info={info} />;
+      return <PluginsPanel info={info} reload={reload} />;
     case 'mcp':
       return <McpPanel info={info} />;
     case 'hooks':
@@ -578,9 +579,39 @@ function StylePanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) 
   );
 }
 
-function PluginsPanel({ info }: { info: ClaudeInfo }) {
+function PluginsPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) {
   const tr = useT();
-  if (!info.plugins.length) return <p className="cli-sheet-empty">{tr('No plugins installed.')}</p>;
+  const [busy, setBusy] = useState(false);
+
+  /*
+   * Turn a plugin on or off.
+   *
+   * The state lives in `settings.json` as `enabledPlugins: { "<name>@<market>":
+   * true }` — the same map `claude_account_info` reads to fill `enabled`. So the
+   * toggle is an ordinary settings patch, and sending `false` (not null) is what
+   * matters: null would DELETE the key, and Claude Code treats a missing entry
+   * and an explicit false the same way for enabling, but the difference shows up
+   * the moment someone reads the file to see what was deliberately turned off.
+   */
+  const setEnabled = async (p: ClaudePlugin, on: boolean) => {
+    setBusy(true);
+    try {
+      await claudeSettingsPatch({ enabledPlugins: { [`${p.name}@${p.marketplace}`]: on } });
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!info.plugins.length)
+    return (
+      <div className="cli-sheet-group">
+        <p className="cli-sheet-empty">{tr('No plugins installed.')}</p>
+        <p className="cli-sheet-note">
+          {tr('Plugins bundle commands, agents, skills and hooks. Install them with /plugin in the terminal; they are listed here once installed.')}
+        </p>
+      </div>
+    );
   return (
     <div className="cli-sheet-group">
       {info.plugins.map((p) => (
@@ -590,6 +621,15 @@ function PluginsPanel({ info }: { info: ClaudeInfo }) {
           <span className="cli-sheet-file-meta">
             {p.marketplace}{p.version ? ` · v${p.version}` : ''} · {p.enabled ? tr('enabled') : tr('disabled')}
           </span>
+          <button
+            className="btn btn-ghost btn-xs"
+            disabled={busy}
+            data-testid={`cli-plugin-toggle-${p.name}`}
+            aria-pressed={p.enabled}
+            onClick={() => void setEnabled(p, !p.enabled)}
+          >
+            {p.enabled ? tr('Disable') : tr('Enable')}
+          </button>
         </div>
       ))}
     </div>
@@ -621,6 +661,13 @@ function McpPanel({ info }: { info: ClaudeInfo }) {
 function HooksPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) {
   const tr = useT();
   const [busy, setBusy] = useState(false);
+  /* The add form. Kept open by default: a panel whose only capability is
+     deleting is a panel nobody can start using. */
+  const [tambah, setTambah] = useState(false);
+  const [evBaru, setEvBaru] = useState('PreToolUse');
+  const [matchBaru, setMatchBaru] = useState('');
+  const [cmdBaru, setCmdBaru] = useState('');
+  const [galat, setGalat] = useState('');
 
   const removeHook = async (event: string) => {
     setBusy(true);
@@ -633,13 +680,124 @@ function HooksPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) 
     }
   };
 
+  /*
+   * Add one hook to one event.
+   *
+   * The settings shape is `hooks: { <Event>: [ { matcher, hooks: [ {type,command} ] } ] }`
+   * — an array of matcher groups, each holding an array of handlers. Writing a
+   * flat `{event, command}` object would be accepted by the merge and then
+   * ignored by Claude Code, which looks exactly like the hook having been saved.
+   *
+   * The existing groups for this event are re-sent unchanged alongside the new
+   * one because `claude_settings_patch` MERGES: sending only the new group would
+   * append to the array rather than replace it, and the reader would end up with
+   * an ever-growing list they cannot remove individually.
+   */
+  const addHook = async () => {
+    setGalat('');
+    const cmd = cmdBaru.trim();
+    if (!cmd) {
+      setGalat(tr('A hook needs a command to run.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const adaGrup = info.hooks
+        .filter((h) => h.event === evBaru)
+        .map((h) => ({ matcher: h.matcher || undefined, hooks: [{ type: 'command', command: h.command }] }));
+      const grupBaru = {
+        matcher: matchBaru.trim() || undefined,
+        hooks: [{ type: 'command', command: cmd }],
+      };
+      await claudeSettingsPatch({ hooks: { [evBaru]: [...adaGrup, grupBaru] } });
+      setCmdBaru('');
+      setMatchBaru('');
+      setTambah(false);
+      reload();
+    } catch (e) {
+      setGalat(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* The events a hook can attach to. The full set Claude Code supports; a
+     free-text box would let a typo create a hook that never fires, with no
+     feedback saying so. */
+  const EVENTS = [
+    'PreToolUse',
+    'PostToolUse',
+    'PostToolUseFailure',
+    'UserPromptSubmit',
+    'Notification',
+    'Stop',
+    'SubagentStop',
+    'PreCompact',
+    'SessionStart',
+    'SessionEnd',
+  ];
+
+  const form = tambah ? (
+    <div className="cli-hook-form">
+      <label className="cli-hook-field">
+        <span>{tr('Event')}</span>
+        <select
+          className="cli-sheet-input"
+          value={evBaru}
+          onChange={(e) => setEvBaru(e.target.value)}
+          data-testid="cli-hook-event"
+        >
+          {EVENTS.map((e) => (
+            <option key={e} value={e}>{e}</option>
+          ))}
+        </select>
+      </label>
+      <label className="cli-hook-field">
+        <span>{tr('Matcher')}</span>
+        <input
+          className="cli-sheet-input"
+          value={matchBaru}
+          placeholder={tr('Tool name, e.g. Bash (blank = all)')}
+          onChange={(e) => setMatchBaru(e.target.value)}
+          data-testid="cli-hook-matcher"
+        />
+      </label>
+      <label className="cli-hook-field">
+        <span>{tr('Command')}</span>
+        <input
+          className="cli-sheet-input"
+          value={cmdBaru}
+          placeholder={tr('Shell command to run')}
+          onChange={(e) => setCmdBaru(e.target.value)}
+          data-testid="cli-hook-command"
+        />
+      </label>
+      {galat && <p className="cli-sheet-error" data-testid="cli-hook-error">{galat}</p>}
+      <div className="cli-sheet-actions">
+        <button className="btn btn-primary btn-xs" disabled={busy} data-testid="cli-hook-save" onClick={() => void addHook()}>
+          {tr('Add hook')}
+        </button>
+        <button className="btn btn-ghost btn-xs" disabled={busy} onClick={() => { setTambah(false); setGalat(''); }}>
+          {tr('Cancel')}
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="cli-sheet-actions">
+      <button className="btn btn-ghost btn-xs" data-testid="cli-hook-add" onClick={() => setTambah(true)}>
+        + {tr('Add hook')}
+      </button>
+    </div>
+  );
+
   if (!info.hooks.length)
     return (
       <div className="cli-sheet-group">
         <p className="cli-sheet-empty">{tr('No hooks configured.')}</p>
         <p className="cli-sheet-note">
-          {tr('Hooks run a shell command on tool events (PreToolUse, PostToolUse, Stop, …). Add them in settings.json or with /hooks in the terminal; they appear here once set.')}
+          {tr('Hooks run a shell command on tool events. A PreToolUse hook can block a call, and a Stop hook can react when the agent finishes.')}
         </p>
+        {form}
       </div>
     );
   const events = [...new Set(info.hooks.map((h) => h.event))];
@@ -660,6 +818,7 @@ function HooksPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) 
           ))}
         </div>
       ))}
+      {form}
     </div>
   );
 }
