@@ -4494,6 +4494,7 @@ export const useAi = create<AiStore>((set, get) => ({
          * bubble. The id is removed again when the closing chunk arrives.
          */
         cancelled.add(aktif);
+        lupakanDelta(aktif);
         try {
           await cmd.aiCancel(aktif);
         } catch {
@@ -4527,6 +4528,7 @@ export const useAi = create<AiStore>((set, get) => ({
     if (!id) return;
 
     cancelled.add(id);
+    lupakanDelta(id);
     try {
       await cmd.aiCancel(id);
     } catch {
@@ -4942,6 +4944,22 @@ const akumulasiTeks = new Map<string, number | string>();
  * most one entry per live request.
  */
 const deltaTerakhir = new Map<string, string>();
+
+/*
+ * Forget a request's duplicate-detection state.
+ *
+ * The map is only ever pruned on a TERMINAL frame, so a request that ends
+ * without one — cancelled, errored out of the transport, killed by the step
+ * watchdog — leaves its entry behind for the life of the page. One string per
+ * abandoned request is small, but "small and unbounded" is how a long session
+ * with many cancelled runs grows a map that is never read and never freed.
+ *
+ * Called from the places a request is known to be finished, terminal frame or
+ * not.
+ */
+function lupakanDelta(id: string): void {
+  deltaTerakhir.delete(id);
+}
 
 /*
  * Coalesce streamed text/reasoning onto one store write per animation frame.
