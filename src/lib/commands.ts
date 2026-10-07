@@ -749,6 +749,21 @@ export const ccCatalogBody = (id: string) => invoke<string>('cc_catalog_body', {
 export const ccCatalogInstall = (id: string) => invoke<string>('cc_catalog_install', { id });
 export const ccCatalogUninstall = (id: string) => invoke<boolean>('cc_catalog_uninstall', { id });
 
+/* Skills/agents fetched from a third-party GitHub repo (claude-red, pg-aiguide,
+   a team's private collection). Scanned over the public API, installed by
+   re-fetching the file server-side so the webview never supplies its contents. */
+export interface RemoteEntry {
+  name: string;
+  kind: string;
+  title: string;
+  description: string;
+  path: string;
+  body: string;
+}
+export const ccRepoScan = (repo: string) => invoke<RemoteEntry[]>('cc_repo_scan', { repo });
+export const ccRepoInstall = (repo: string, path: string, kind: string) =>
+  invoke<string>('cc_repo_install', { repo, path, kind });
+
 /* The Claude Code plugin marketplace. `id` is `name@marketplace`. */
 export interface CatalogPlugin {
   id: string;
