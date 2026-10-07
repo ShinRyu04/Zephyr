@@ -94,6 +94,14 @@ export interface CliMsg {
 
 export interface CliSession {
   id: string;
+  /**
+   * The CLI's own session id, once its init line has been seen.
+   *
+   * Distinct from `id`, which is Zephyr's key for this tab. This one is the
+   * handle `claude --resume` needs, and it only exists after the first reply
+   * starts — so it is optional and filled in asynchronously.
+   */
+  cliSessionId?: string;
   /** Follows the first user message; "New chat" until then. */
   title: string;
   messages: CliMsg[];
@@ -383,6 +391,9 @@ export const useAiCli = create<AiCliState>((set, get) => ({
         agentId,
         prompt: teks,
         cwd: opts?.cwd ?? useStore.getState().workspace ?? undefined,
+        /* Continue the CLI's own conversation when we have its id. The first
+           prompt has none — the id only exists once the CLI has answered. */
+        resume: cur.cliSessionId,
         model: o.model !== 'default' ? o.model : undefined,
         mode: o.mode !== 'default' ? o.mode : undefined,
       });
@@ -528,6 +539,11 @@ function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
   } else if (ev.kind === 'thinking') {
     if (last && last.type === 'thinking') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
     else parts.push({ type: 'thinking', text: ev.text });
+  } else if (ev.kind === 'session') {
+    /* Handled by the listener, which owns the session rather than the message.
+       Reaching here means a caller passed it down anyway; rendering nothing is
+       correct, since it carries no content. */
+    return msg;
   } else if (ev.kind === 'error') {
     parts.push({ type: 'error', text: ev.text });
   } else if (ev.kind === 'todo') {
@@ -589,6 +605,13 @@ export function bindCliChatListener(): void {
         let messages = sess.messages;
         let stderr = sess.stderr;
         let pending = sess.pending;
+        /* The session's own id, which belongs to the SESSION rather than to any
+           message - so it is stored here, not inside the timeline. */
+        let cliSessionId = sess.cliSessionId;
+
+        if (chunk.event?.kind === 'session') {
+          cliSessionId = chunk.event.sessionId;
+        }
 
         /* A structured event (thinking / tool / diff / text) builds the message
            timeline; plain `text` still appends to content for back-compat. */
@@ -623,7 +646,7 @@ export function bindCliChatListener(): void {
             };
           });
         }
-        return { ...sess, messages, stderr, pending };
+        return { ...sess, messages, stderr, pending, cliSessionId };
       });
       const sessions = { ...s.sessions, [agentId]: next };
       /* Persist only when the run finished, not on every token. */
