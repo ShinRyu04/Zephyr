@@ -1,6 +1,5 @@
 import { memo, useMemo } from 'react';
 import type { CliMsg, CliTodo } from '../../lib/aiCliStore';
-import { useT } from '../../lib/i18n';
 
 /*
  * The agent's plan, floating above the composer.
@@ -19,8 +18,6 @@ import { useT } from '../../lib/i18n';
  * glance.
  */
 const CliTodoFloat = memo(function CliTodoFloat({ messages }: { messages: readonly CliMsg[] }) {
-  const tr = useT();
-
   /* The LAST todo part is the current plan — TodoWrite replaces the whole list
      each time, so an earlier part is a superseded snapshot. Scanning backwards
      from the newest message finds it without walking the whole transcript. */
@@ -46,20 +43,23 @@ const CliTodoFloat = memo(function CliTodoFloat({ messages }: { messages: readon
 
   return (
     <div className="cli-todo-float" data-testid="cli-todo-float" data-running={running ? '1' : '0'}>
-      <div className="cli-todo-float-head">
-        <span className={`cli-todo-float-dot${running ? ' is-on' : ''}`} aria-hidden="true" />
-        <span className="cli-todo-float-title">{tr('Plan')}</span>
-        <span className="cli-todo-float-count" data-testid="cli-todo-float-count">
-          {done}/{shown.length}
-        </span>
-      </div>
+      {/*
+        * No title row.
+        *
+        * The real CLI prints the list and nothing else — no "Plan", no heading.
+        * A label above three checkboxes is a word the reader has to skip on
+        * every glance, and the checklist already says what it is. The progress
+        * counter is kept but moved to the end of the last line's row, where the
+        * real client shows it, so the block reads as one list rather than a
+        * titled card.
+        */}
       <ul className="cli-todo-float-list">
         {shown.map((t, i) => {
           const jalan = t.status === 'in_progress';
           const beres = t.status === 'completed';
-          /* `activeForm` while running: "Menjalankan tes" is a thing happening,
-             "Jalankan tes" is a thing to do, and the tense is the signal that
-             the step started. */
+          /* `activeForm` while running: "Creating x1.txt" is what is happening,
+             "Create x1.txt" is what is to be done. The real CLI switches tense
+             the same way, and the tense is what says the step started. */
           const teks = jalan && t.activeForm ? t.activeForm : t.content;
           return (
             <li
@@ -67,14 +67,22 @@ const CliTodoFloat = memo(function CliTodoFloat({ messages }: { messages: readon
               className={`cli-todo-float-item${beres ? ' is-done' : ''}${jalan ? ' is-now' : ''}`}
               data-status={t.status}
             >
-              <span className="cli-todo-float-mark" aria-hidden="true">
-                {beres ? '✓' : jalan ? '▸' : '○'}
+              {/* A square checkbox, as the real CLI draws it — not a circle, not
+                  a checkmark glyph. Filled when done, hollow when not. */}
+              <span className="cli-todo-float-box" aria-hidden="true">
+                {beres ? '☒' : '☐'}
               </span>
               <span className="cli-todo-float-text">{teks}</span>
             </li>
           );
         })}
       </ul>
+      <div className="cli-todo-float-foot">
+        <span className={`cli-todo-float-dot${running ? ' is-on' : ''}`} aria-hidden="true" />
+        <span className="cli-todo-float-count" data-testid="cli-todo-float-count">
+          {done}/{shown.length}
+        </span>
+      </div>
     </div>
   );
 });

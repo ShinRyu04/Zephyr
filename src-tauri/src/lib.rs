@@ -13,6 +13,7 @@ mod browser_pane;
 mod cli;
 mod cli_agents;
 mod cc_catalog;
+mod cc_plugins;
 mod cli_chat;
 mod cli_ext;
 mod credential;
@@ -368,6 +369,10 @@ pub fn run() {
             cc_catalog::cc_catalog_body,
             cc_catalog::cc_catalog_install,
             cc_catalog::cc_catalog_uninstall,
+            cc_plugins::cc_plugins_catalog,
+            cc_plugins::cc_plugin_install,
+            cc_plugins::cc_plugin_uninstall,
+            cc_plugins::cc_plugin_marketplaces,
             gambar::baca_gambar,
             app_state::portable_mode,
             ai::ai_tool_chat,

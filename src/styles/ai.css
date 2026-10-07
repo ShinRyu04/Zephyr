@@ -6822,6 +6822,69 @@
 }
 .cli-diff-more:hover { background: var(--surface-3); color: var(--text); }
 
+/* ---- CLI plugin marketplace browser ----------------------------------- */
+.cli-plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.cli-plugin-row {
+  padding: 7px 9px;
+  border-radius: 7px;
+}
+.cli-plugin-row:hover { background: var(--surface-2, var(--bg1)); }
+.cli-plugin-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cli-plugin-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* The action sits at the far right so the column of buttons reads as one
+   consistent target rather than floating after variable-length names. */
+.cli-plugin-head .btn { margin-left: auto; }
+.cli-plugin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted, var(--fg1));
+}
+.cli-plugin-cat {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.cli-plugin-desc {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary, var(--fg1));
+  /* Three lines is enough to judge a plugin; the full text is on its homepage.
+     Without a clamp one long description pushes every row below it off screen. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cli-cat-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, var(--fg1));
+}
+
 /* ---- CLI floating plan, pinned above the composer --------------------- */
 /*
  * Sits directly above the input, in the same horizontal band as the chips, so
@@ -6880,7 +6943,7 @@
 .cli-todo-float-list {
   list-style: none;
   margin: 0;
-  padding: 0 0 5px;
+  padding: 7px 0 3px;
   max-height: 132px;
   overflow-y: auto;
 }
@@ -6893,21 +6956,30 @@
   line-height: 1.45;
   color: var(--text);
 }
-.cli-todo-float-mark {
+/* The square checkbox the real CLI draws. Monospace so the boxes line up in a
+   column regardless of which glyph a line carries, and a fixed width so the
+   text starts at the same x on every row. */
+.cli-todo-float-box {
   flex: 0 0 auto;
-  width: 11px;
-  text-align: center;
-  font-size: 10.5px;
+  width: 13px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.35;
   color: var(--text-muted, var(--fg1));
 }
 .cli-todo-float-item.is-done { color: var(--text-muted, var(--fg1)); }
-.cli-todo-float-item.is-done .cli-todo-float-text {
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
+.cli-todo-float-item.is-done .cli-todo-float-box { color: var(--success); }
+.cli-todo-float-item.is-now { color: var(--text); }
+.cli-todo-float-item.is-now .cli-todo-float-box { color: var(--accent); }
+/* The running step is the only one that gets emphasis — it is the answer to
+   "where is it now", which is the question this block exists to answer. */
+.cli-todo-float-item.is-now .cli-todo-float-text { font-weight: 600; }
+.cli-todo-float-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 5px;
 }
-.cli-todo-float-item.is-done .cli-todo-float-mark { color: var(--success); }
-.cli-todo-float-item.is-now { font-weight: 600; }
-.cli-todo-float-item.is-now .cli-todo-float-mark { color: var(--accent); }
 
 /* ---- CLI rewind confirmation ------------------------------------------ */
 .cli-confirm-backdrop {

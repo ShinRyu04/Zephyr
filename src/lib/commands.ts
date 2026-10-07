@@ -741,6 +741,31 @@ export const ccCatalogBody = (id: string) => invoke<string>('cc_catalog_body', {
 export const ccCatalogInstall = (id: string) => invoke<string>('cc_catalog_install', { id });
 export const ccCatalogUninstall = (id: string) => invoke<boolean>('cc_catalog_uninstall', { id });
 
+/* The Claude Code plugin marketplace. `id` is `name@marketplace`. */
+export interface CatalogPlugin {
+  id: string;
+  name: string;
+  marketplace: string;
+  description: string;
+  author: string;
+  category: string;
+  homepage: string;
+  installs: number;
+  commands: number;
+  agents: number;
+  skills: number;
+  hooks: number;
+  mcp: number;
+  installed: boolean;
+  enabled: boolean;
+}
+export interface PluginMarketplace { name: string; source: string; updated: string }
+
+export const ccPluginsCatalog = () => invoke<CatalogPlugin[]>('cc_plugins_catalog');
+export const ccPluginInstall = (id: string) => invoke<string>('cc_plugin_install', { id });
+export const ccPluginUninstall = (id: string) => invoke<string>('cc_plugin_uninstall', { id });
+export const ccPluginMarketplaces = () => invoke<PluginMarketplace[]>('cc_plugin_marketplaces');
+
 export interface GambarData {
   base64: string;
   lebar: number;
