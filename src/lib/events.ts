@@ -33,6 +33,23 @@ export type CliEvent =
   | { kind: 'text'; text: string }
   | { kind: 'thinking'; text: string }
   | { kind: 'error'; text: string }
+  /*
+   * A task-list snapshot from TodoWrite / TaskCreate / TaskUpdate.
+   *
+   * Sent as its own event kind rather than as a tool row: the checklist IS how
+   * that call should be represented, so the backend never emits a tool row for
+   * it. The list is complete on every send (TodoWrite's contract), which is why
+   * the consumer replaces rather than merges.
+   */
+  | {
+      kind: 'todo';
+      items: {
+        content: string;
+        activeForm: string;
+        status: string;
+        id: string;
+      }[];
+    }
   | {
       kind: 'tool';
       tool: {

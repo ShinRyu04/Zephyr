@@ -6798,6 +6798,61 @@
 }
 .cli-diff-more:hover { background: var(--surface-3); color: var(--text); }
 
+/* ---- CLI todo checklist (the agent's plan) ---------------------------- */
+.cli-todo {
+  margin: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2, var(--bg1));
+  overflow: hidden;
+}
+.cli-todo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, var(--fg1));
+}
+.cli-todo-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.cli-todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.cli-todo-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.cli-todo-mark {
+  flex: 0 0 auto;
+  width: 12px;
+  text-align: center;
+  color: var(--text-muted, var(--fg1));
+  font-size: 11px;
+}
+/* Done steps recede: the reader scanning for "where is it now" should not have
+   to read past the work that is already finished. */
+.cli-todo-item.is-done { color: var(--text-muted, var(--fg1)); }
+.cli-todo-item.is-done .cli-todo-text { text-decoration: line-through; text-decoration-thickness: 1px; }
+.cli-todo-item.is-done .cli-todo-mark { color: var(--success); }
+/* The step in progress is the one thing on this card that must be findable at a
+   glance in a long list. */
+.cli-todo-item.is-now { color: var(--text); font-weight: 600; }
+.cli-todo-item.is-now .cli-todo-mark { color: var(--accent); }
+
 /* ---- CLI slash sheet: wide variant + interactive editors -------------- */
 .cli-sheet.is-wide { width: min(900px, 100%); }
 .cli-sheet-input {
