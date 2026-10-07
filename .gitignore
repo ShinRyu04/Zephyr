@@ -81,3 +81,7 @@ verify-all.txt
 v4-folder-*
 v6-pindah-*
 testfiles/v9-replace-*
+
+# Scratch verification artifacts (screenshots, one-off probes)
+scripts/_*.mjs
+scripts/_*.png
