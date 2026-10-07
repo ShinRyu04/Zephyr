@@ -312,3 +312,68 @@ mod tests {
         }
     }
 }
+
+/// Write a large tool result to the app's data folder and return its path.
+///
+/// Tool output stays in the conversation and is billed on EVERY later turn, so a
+/// 40 KB file read is ~10,000 tokens re-sent dozens of times for an answer that
+/// may use three of its lines. Truncating is worse than costly — the model loses
+/// the rest silently and reasons from an incomplete list.
+///
+/// The archive therefore has to work even when NO workspace is open, which is
+/// exactly when a workspace-relative path is unavailable. Writing under
+/// `%APPDATA%\zephyr\` keeps it outside the workspace guard the same way
+/// `secrets.json` is, and the file is named with a timestamp so successive runs
+/// never collide.
+#[tauri::command]
+pub fn ai_archive_tool_output(name: String, content: String) -> ZResult<String> {
+    // A name is only used to make the file recognisable; strip anything that
+    // could act as a path component so it cannot escape the folder.
+    let aman: String = name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '-' })
+        .take(40)
+        .collect();
+    let aman = if aman.trim_matches('-').is_empty() { "hasil".to_string() } else { aman };
+
+    let dir = dir_data().join("tool-output");
+    std::fs::create_dir_all(&dir).map_err(|e| ZephyrError::Io(e.to_string()))?;
+
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let path = dir.join(format!("{stamp}-{aman}.txt"));
+    std::fs::write(&path, content).map_err(|e| ZephyrError::Io(e.to_string()))?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// Read back an archived tool output.
+///
+/// The archive is written under the app's data folder, which the workspace path
+/// guard correctly refuses to read — so a tool that was handed a pointer to its
+/// own archive could not open it, and the pointer was worse than useless: the
+/// model was told where the answer was and then denied it.
+///
+/// This command closes that loop. It is deliberately narrow: it will ONLY read
+/// files inside `tool-output/`, so it can never become a way to read anything
+/// else on the machine. The name is reduced to its final path component before
+/// use, so no `..` or absolute path can escape the folder.
+#[tauri::command]
+pub fn ai_read_tool_output(path: String) -> ZResult<String> {
+    let dir = dir_data().join("tool-output");
+    let nama = Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| ZephyrError::InvalidInput("bad archive path".into()))?;
+    if nama.is_empty() || nama.contains("..") {
+        return Err(ZephyrError::InvalidInput("bad archive path".into()));
+    }
+    let full = dir.join(nama);
+    /* Confirm containment after joining, so a component that survived the check
+       above cannot point outside. */
+    if !full.starts_with(&dir) {
+        return Err(ZephyrError::InvalidInput("bad archive path".into()));
+    }
+    std::fs::read_to_string(&full).map_err(|e| ZephyrError::Io(e.to_string()))
+}
