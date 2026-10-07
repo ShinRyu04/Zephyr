@@ -667,6 +667,21 @@ pub fn ai_chat(
                     emit_chunk(&handle, json!({ "id": req_id, "text": text }));
                 }
             }
+            /*
+             * Report token usage as it arrives.
+             *
+             * Nothing read it before, so every cost and token counter in the
+             * app was fed `undefined` and the accounting was dead code. The
+             * counts are CUMULATIVE for the turn, so the frontend REPLACES
+             * rather than adds — accumulating here would multiply the cost by
+             * however many frames carried the field.
+             */
+            if let Some((masuk, keluar)) = adapters::extract_usage(&prov, &v) {
+                emit_chunk(&handle, json!({
+                    "id": req_id,
+                    "usage": { "input": masuk, "output": keluar },
+                }));
+            }
         }
 
         let cancelled = cancel.load(Ordering::Relaxed);
@@ -881,6 +896,15 @@ pub fn ai_tool_chat_stream(
          * is an error.
          */
         let mut ada_output = false;
+        /*
+         * The step's token counts, replaced whenever the provider reports newer
+         * (cumulative) numbers.
+         *
+         * Declared here because the agent loop's `usage` field was optional and
+         * then never filled — a subagent's token total and the cost derived from
+         * it were always zero, so the accounting was dead code.
+         */
+        let mut langkah_usage: Option<(u64, u64)> = None;
         let mut reader = BufReader::new(resp.into_body().into_reader());
         let mut buf_line = String::new();
         let mut terminal_error: Option<String> = None;
@@ -951,6 +975,17 @@ pub fn ai_tool_chat_stream(
              */
             if let StreamAcc::Anthropic(a) = &mut acc {
                 a.feed_reasoning(&v);
+            }
+            /*
+             * Token usage for the step.
+             *
+             * The agent loop's `usage` was declared optional and then never
+             * filled, so a subagent's token total and the cost it derives were
+             * always zero. Reported per frame and replaced, not added, because
+             * the provider's counts are cumulative for the turn.
+             */
+            if let Some((masuk, keluar)) = adapters::extract_usage(&prov, &v) {
+                langkah_usage = Some((masuk, keluar));
             }
             /*
              * A chunk can carry a TOOL CALL with no text at all - and in agent
@@ -1036,6 +1071,7 @@ pub fn ai_tool_chat_stream(
                 "cancelled": dibatalkan,
                 "reasoning": reasoning,
                 "reasoningSignature": reasoning_sig,
+                "usage": langkah_usage.map(|(i, o)| json!({ "input": i, "output": o })),
             }),
         );
     });

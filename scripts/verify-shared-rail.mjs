@@ -62,6 +62,21 @@ const c = typeof cli === 'string' && cli.startsWith('{') ? JSON.parse(cli) : nul
 check('R1', Boolean(c) && c.line === '""' && c.w === '2px', `CLI rail: ${cli}`);
 check('R2', Boolean(c) && c.x === '17px' && c.pad === '30px', `CLI node/indent: --rail-x=${c?.x} pad=${c?.pad}`);
 
+/* The Chat AI transcript only mounts while ITS tab is selected, so seed a row
+   there and switch to it — otherwise the check reports the rail missing when
+   the panel is simply showing the other tab. */
+await ev(`(()=>{const S=window.__ZEPHYR_AI__ && window.__ZEPHYR_AI__.store;
+ if(!S) return 'no-store';
+ const st=S.getState(); const sid=st.activeId||(st.newChat&&st.newChat());
+ S.setState((s0)=>({sessions:(s0.sessions||[]).map(x=>x.id===sid?{...x,messages:[
+   {id:'air',role:'assistant',content:'ok',tools:[
+     {name:'Read',args:JSON.stringify({path:'src/a.ts'}),result:'x',ok:true},
+     {name:'Edit',args:JSON.stringify({path:'src/a.ts',old_string:'a',new_string:'b'}),result:'',ok:true}]}]}:x)}));
+ return 'ok';})()`);
+await new Promise((r) => setTimeout(r, 900));
+await ev(`(()=>{const t=[...document.querySelectorAll('[role="tab"],button')].find(e=>/^Chat$/.test((e.textContent||'').trim())); if(t) t.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 1100));
+
 /* The attribute is what both wrappers share; proving it is on Chat AI's wrapper
    is what proves the selector can reach it. */
 const chat = await ev(`(()=>{

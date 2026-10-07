@@ -111,6 +111,15 @@ export interface CliSession {
   stderr: string;
   /** Epoch ms the session was created — history is sorted newest first. */
   createdAt: number;
+  /**
+   * Token counts the provider reported, for the 0% context meter.
+   *
+   * REPLACED, not accumulated: the provider's counts are cumulative for the
+   * turn, so adding each frame would multiply the total by however many frames
+   * happened to carry the field. Absent until the first report arrives — which
+   * is not the same as zero, and the meter must not claim 0% on no data.
+   */
+  usage?: { input: number; output: number };
 }
 
 /*
@@ -539,10 +548,10 @@ function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
   } else if (ev.kind === 'thinking') {
     if (last && last.type === 'thinking') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
     else parts.push({ type: 'thinking', text: ev.text });
-  } else if (ev.kind === 'session') {
+  } else if (ev.kind === 'session' || ev.kind === 'usage') {
     /* Handled by the listener, which owns the session rather than the message.
        Reaching here means a caller passed it down anyway; rendering nothing is
-       correct, since it carries no content. */
+       correct, since neither carries content. */
     return msg;
   } else if (ev.kind === 'error') {
     parts.push({ type: 'error', text: ev.text });
@@ -608,9 +617,25 @@ export function bindCliChatListener(): void {
         /* The session's own id, which belongs to the SESSION rather than to any
            message - so it is stored here, not inside the timeline. */
         let cliSessionId = sess.cliSessionId;
+        let usage = sess.usage;
 
         if (chunk.event?.kind === 'session') {
           cliSessionId = chunk.event.sessionId;
+        }
+        /*
+         * Replace, never add.
+         *
+         * The provider's counts are cumulative for the turn, and several frames
+         * carry them as the turn progresses — summing would multiply the total
+         * by the number of frames. The LAST report is the turn's answer.
+         */
+        if (chunk.usage) {
+          usage = { input: chunk.usage.input, output: chunk.usage.output };
+        }
+        /* The CLI reports its counts on the closing `result` line, as an event
+           rather than a top-level field — the same numbers, different envelope. */
+        if (chunk.event?.kind === 'usage') {
+          usage = { input: chunk.event.input, output: chunk.event.output };
         }
 
         /* A structured event (thinking / tool / diff / text) builds the message
@@ -646,7 +671,7 @@ export function bindCliChatListener(): void {
             };
           });
         }
-        return { ...sess, messages, stderr, pending, cliSessionId };
+        return { ...sess, messages, stderr, pending, cliSessionId, usage };
       });
       const sessions = { ...s.sessions, [agentId]: next };
       /* Persist only when the run finished, not on every token. */

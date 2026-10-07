@@ -303,6 +303,38 @@ fn claude_events_from_line_skip(
                 }
             }
         }
+        Some("result") => {
+            /*
+             * The closing line carries the run's token counts and cost.
+             *
+             * It was discarded entirely, which is why the context meter showed
+             * 0% no matter how large the conversation grew: the only frame that
+             * reports the numbers was the one frame nothing read. Verified
+             * against the real binary — the `result` line carries `usage` with
+             * `input_tokens`/`output_tokens` and a `total_cost_usd`.
+             *
+             * Cache reads and writes are folded into `input` rather than
+             * reported separately: they are a cheaper RATE for the same tokens,
+             * and the meter measures how full the window is, not what it cost.
+             */
+            let u = v.get("usage").cloned().unwrap_or(Value::Null);
+            let n = |k: &str| u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+            let input = n("input_tokens")
+                + n("cache_read_input_tokens")
+                + n("cache_creation_input_tokens");
+            let output = n("output_tokens");
+            /* A run that reports neither is not a usage report; emitting zeros
+               would read as "this turn was free". */
+            if input > 0 || output > 0 {
+                out.push(json!({
+                    "kind": "usage",
+                    "input": input,
+                    "output": output,
+                    "cost": v.get("total_cost_usd").and_then(|x| x.as_f64()).unwrap_or(0.0),
+                    "turns": v.get("num_turns").and_then(|x| x.as_u64()).unwrap_or(0),
+                }));
+            }
+        }
         _ => {}
     }
     out
@@ -1891,6 +1923,28 @@ mod tests {
         assert!(!a.iter().any(|x| x == "--resume"), "empty id added a flag: {a:?}");
         let b = build_args("claude", "hi", None, None, None);
         assert!(!b.iter().any(|x| x == "--resume"), "None added a flag: {b:?}");
+    }
+
+    #[test]
+    fn result_line_reports_usage() {
+        // The context meter read 0% forever because the only frame carrying the
+        // numbers - the closing `result` line - was discarded.
+        let line = r#"{"type":"result","subtype":"success","num_turns":3,"total_cost_usd":0.0123,"usage":{"input_tokens":39088,"cache_read_input_tokens":1200,"cache_creation_input_tokens":300,"output_tokens":42}}"#;
+        let ev = claude_events_from_line(line);
+        assert_eq!(ev.len(), 1, "expected one event, got {ev:?}");
+        assert_eq!(ev[0]["kind"], "usage");
+        // Cache reads and writes fold into input: same tokens, cheaper rate.
+        assert_eq!(ev[0]["input"], 39088 + 1200 + 300);
+        assert_eq!(ev[0]["output"], 42);
+        assert_eq!(ev[0]["turns"], 3);
+    }
+
+    #[test]
+    fn result_line_without_usage_emits_nothing() {
+        // Emitting zeros would read as "this turn was free".
+        let line = r#"{"type":"result","subtype":"success","num_turns":1}"#;
+        let ev = claude_events_from_line(line);
+        assert!(ev.is_empty(), "emitted a zero usage: {ev:?}");
     }
 
     #[test]

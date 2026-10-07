@@ -1545,6 +1545,19 @@ interface AiState {
   promptHistory: string[];
   promptHistoryIdx: number;
 
+  /**
+   * How hard the model should think before answering.
+   *
+   * `null` means "do not ask for reasoning at all" — which is a real setting,
+   * not a bug, but it was also the DEFAULT, so every fresh install silently ran
+   * without reasoning: the provider was never asked, no thinking block came
+   * back, and the transcript had nothing to show. A reader who never opened the
+   * effort menu could not tell that the feature existed.
+   *
+   * The default is now set to `medium` on first run (see `AWAL_EFFORT`), so
+   * reasoning works out of the box and a reader who does not want it can turn
+   * it off deliberately. `null` still disables it.
+   */
   reasoningEffort: ReasoningEffort | null;
 
   reasoningText: string | null;
@@ -1741,6 +1754,36 @@ function bootRunMode(): 'interactive' | 'plan' | 'autopilot' {
   }
 }
 
+const EFFORT_KEY = 'zephyr.ai.effort';
+
+/**
+ * Reasoning effort, remembered across restarts.
+ *
+ * The choice was never persisted, so it reset on every launch — which meant a
+ * reader who deliberately turned reasoning OFF got it back on, and one who
+ * turned it up to Ultra lost that too. A setting that does not survive a
+ * restart is not a setting.
+ *
+ * The default is `medium`: reasoning ON. It used to default to null, i.e. the
+ * provider was never asked, so a fresh install produced no thinking block and
+ * nothing in the transcript showed that the feature existed at all.
+ *
+ * `'off'` is stored explicitly so "turned off on purpose" stays distinguishable
+ * from "never chosen".
+ */
+function bootEffort(): ReasoningEffort | null {
+  try {
+    const v = localStorage.getItem(EFFORT_KEY);
+    if (v === 'off') return null;
+    if (v === 'minimal' || v === 'low' || v === 'medium' || v === 'high' || v === 'ultra') {
+      return v;
+    }
+  } catch {
+    /* storage unavailable — fall through to the default */
+  }
+  return 'medium';
+}
+
 
 export const useAi = create<AiStore>((set, get) => ({
   sessions: boot.sessions,
@@ -1781,7 +1824,17 @@ export const useAi = create<AiStore>((set, get) => ({
   commandSuggestion: null,
   promptHistory: [],
   promptHistoryIdx: -1,
-  reasoningEffort: null,
+  /*
+   * Reasoning is ON by default.
+   *
+   * `null` here meant every fresh install ran without reasoning and the reader
+   * had no way to know it existed: the provider was never asked, so no thinking
+   * block could arrive and nothing in the transcript hinted at what was missing.
+   * `medium` is a middle budget — enough to be visibly useful without asking the
+   * provider to spend heavily on every turn — and turning it off stays a
+   * deliberate choice in the effort menu.
+   */
+  reasoningEffort: bootEffort(),
   reasoningText: null,
 
   init: async () => {
@@ -2340,7 +2393,15 @@ export const useAi = create<AiStore>((set, get) => ({
     return bersih.length;
   },
 
-  setReasoningEffort: (e) => set({ reasoningEffort: e }),
+  setReasoningEffort: (e) => {
+    /* Remembered, so the choice survives a restart - including "off". */
+    try {
+      localStorage.setItem(EFFORT_KEY, e ?? 'off');
+    } catch {
+      /* storage unavailable: the setting still applies for this session */
+    }
+    set({ reasoningEffort: e });
+  },
   setAgentProgress: (progress) => set((s) => {
     const mulai = progress.agentStartedAt !== undefined
       ? progress.agentStartedAt
