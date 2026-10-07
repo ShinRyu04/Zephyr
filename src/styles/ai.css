@@ -613,6 +613,30 @@
 .cli-native-rowtools {
   display: flex;
   gap: 2px;
+  /*
+   * Hidden until the reader points at the reply.
+   *
+   * The buttons are always mounted and always in the DOM — only their opacity
+   * changes — so the layout does not shift when they appear and a harness can
+   * still find them without hovering. `:focus-within` keeps them reachable by
+   * keyboard, which opacity alone would break: a control that only exists on
+   * hover is unusable for anyone tabbing through.
+   */
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+/*
+ * Reveal on hover, on keyboard focus, or on a bookmarked reply.
+ *
+ * A bookmark is a deliberate mark, so its toolbar stays visible — hiding the
+ * control that unmarks it would be perverse. `:focus-within` is what keeps the
+ * buttons usable by keyboard: a control that exists only on hover cannot be
+ * reached by tabbing.
+ */
+.cli-native-assistant:hover .cli-native-rowtools,
+.cli-native-rowtools:focus-within,
+.cli-native-rowtools:has(.is-on) {
+  opacity: 1;
 }
 
 .cli-native-iconbtn {
@@ -6797,6 +6821,93 @@
   cursor: pointer;
 }
 .cli-diff-more:hover { background: var(--surface-3); color: var(--text); }
+
+/* ---- CLI floating plan, pinned above the composer --------------------- */
+/*
+ * Sits directly above the input, in the same horizontal band as the chips, so
+ * it reads as part of the composer rather than as another message. Bounded
+ * height with its own scroll: a twenty-step plan must not push the input box
+ * off the bottom of the panel — the composer is what the reader is aiming at.
+ */
+.cli-todo-float {
+  flex: 0 0 auto;
+  margin: 0 14px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, var(--bg1));
+  overflow: hidden;
+  animation: cli-todo-in 160ms ease-out both;
+}
+@keyframes cli-todo-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.cli-todo-float-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, var(--fg1));
+}
+/* A live dot while a step is running, so the collapsed glance still says
+   "working" without reading a single word. */
+.cli-todo-float-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-muted, var(--fg1));
+  opacity: 0.5;
+}
+.cli-todo-float-dot.is-on {
+  background: var(--accent);
+  opacity: 1;
+  animation: cli-todo-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cli-todo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+.cli-todo-float-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.cli-todo-float-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 5px;
+  max-height: 132px;
+  overflow-y: auto;
+}
+.cli-todo-float-item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 2px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.cli-todo-float-mark {
+  flex: 0 0 auto;
+  width: 11px;
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--text-muted, var(--fg1));
+}
+.cli-todo-float-item.is-done { color: var(--text-muted, var(--fg1)); }
+.cli-todo-float-item.is-done .cli-todo-float-text {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.cli-todo-float-item.is-done .cli-todo-float-mark { color: var(--success); }
+.cli-todo-float-item.is-now { font-weight: 600; }
+.cli-todo-float-item.is-now .cli-todo-float-mark { color: var(--accent); }
 
 /* ---- CLI rewind confirmation ------------------------------------------ */
 .cli-confirm-backdrop {
