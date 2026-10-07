@@ -226,6 +226,11 @@ function normalisasiSettings<T>(s: T): T {
   if (typeof g.chatAvatar !== 'boolean') patch.chatAvatar = true;
   if (typeof g.userAvatarPath !== 'string') patch.userAvatarPath = '';
 
+  /* The legacy bottom-dock AI home is retired: the user never wants the chat to
+     collapse into the terminal panel again. Any saved `bottom` is rewritten to
+     the right column so an old profile cannot reopen in that mode. */
+  if (g.aiPanel === 'bottom') patch.aiPanel = 'right';
+
   if (g.layout !== undefined && typeof g.layout === 'object' && g.layout !== null) {
     const lama = g.layout as Record<string, unknown>;
     /* `layoutPrefs` wins if it already exists: it is the newer home and was

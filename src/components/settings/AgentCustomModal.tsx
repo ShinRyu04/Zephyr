@@ -3,6 +3,8 @@ import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomSt
 import { useToolGate, SEMUA_TOOL } from '../../lib/toolGate';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
+import AgcToolList from './AgcToolList';
+import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations } from './AgcSections';
 
 /*
  * Agent Customizations — a modal of its own, deliberately NOT inside Settings.
@@ -79,20 +81,6 @@ const NAV: NavItem[] = [
   { id: 'migrations', label: 'Migrations', icon: 'warn' },
 ];
 
-/** A shared empty-state for the sections that are frames for now. */
-function KerangkaKosong({ judul, teks }: { judul: string; teks: string }) {
-  const tr = useT();
-  return (
-    <div className="agc-pane">
-      <h2 className="agc-pane-title">{tr(judul)}</h2>
-      <p className="agc-pane-desc">{tr(teks)}</p>
-      <div className="agc-empty" data-testid="agc-empty">
-        <p>{tr('Nothing here yet.')}</p>
-      </div>
-    </div>
-  );
-}
-
 function Isi({ section }: { section: AgentCustomSection }) {
   const tr = useT();
   switch (section) {
@@ -103,16 +91,10 @@ function Isi({ section }: { section: AgentCustomSection }) {
           <p className="agc-pane-desc">
             {tr('Enable or disable the tools available to the agent. Disabled tools are not advertised.')}
           </p>
-          <button
-            className="btn btn-primary"
-            data-testid="agc-open-tools"
-            onClick={() => {
-              useAgentCustom.getState().tutup();
-              useToolGate.getState().setBuka(true);
-            }}
-          >
-            {tr('Open tool list')}
-          </button>
+          {/* The tool list is rendered INLINE here, not as a separate floating
+              popup. The user asked for Tools to live inside Agent Customizations
+              rather than opening the standalone tool-gate overlay. */}
+          <AgcToolList />
         </div>
       );
     case 'mcp':
@@ -152,33 +134,13 @@ function Isi({ section }: { section: AgentCustomSection }) {
         </div>
       );
     case 'plugins':
-      return (
-        <KerangkaKosong
-          judul="Plugins"
-          teks="Extend the agent with reusable packages that add commands, skills, agents, hooks, and MCP servers."
-        />
-      );
+      return <AgcPlugins />;
     case 'skills':
-      return (
-        <KerangkaKosong
-          judul="Skills"
-          teks="Add reusable knowledge and workflows for specialized tasks. The agent loads relevant skills when needed."
-        />
-      );
+      return <AgcSkills />;
     case 'hooks':
-      return (
-        <KerangkaKosong
-          judul="Hooks"
-          teks="Run automated commands at key points in the agent lifecycle to validate, format, or coordinate work."
-        />
-      );
+      return <AgcHooks />;
     case 'migrations':
-      return (
-        <KerangkaKosong
-          judul="Migrations"
-          teks="Move settings and customizations between workspaces and profiles."
-        />
-      );
+      return <AgcMigrations />;
     case 'overview':
     default:
       return (

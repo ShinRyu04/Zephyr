@@ -12,6 +12,8 @@ mod browser;
 mod browser_pane;
 mod cli;
 mod cli_agents;
+mod cc_catalog;
+mod cli_chat;
 mod cli_ext;
 mod credential;
 mod cron;
@@ -352,6 +354,20 @@ pub fn run() {
             voice::ai_tts_voices,
             cli_agents::cli_agents_detect,
             cli_agents::cli_agent_run,
+            cli_chat::cli_chat,
+            cli_chat::cli_chat_cancel,
+            cli_chat::cli_models,
+            cli_chat::codex_config,
+            cli_chat::claude_account_info,
+            cli_chat::claude_settings_patch,
+            cli_chat::claude_memory_write,
+            cli_chat::claude_command_write,
+            cli_chat::claude_command_delete,
+            cli_chat::claude_builtin_commands,
+            cc_catalog::cc_catalog_list,
+            cc_catalog::cc_catalog_body,
+            cc_catalog::cc_catalog_install,
+            cc_catalog::cc_catalog_uninstall,
             gambar::baca_gambar,
             app_state::portable_mode,
             ai::ai_tool_chat,
