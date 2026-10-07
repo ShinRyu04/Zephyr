@@ -85,3 +85,12 @@ testfiles/v9-replace-*
 # Scratch verification artifacts (screenshots, one-off probes)
 scripts/_*.mjs
 scripts/_*.png
+
+# Files a verification agent is asked to create in the working folder
+satu.txt
+dua.txt
+tiga.txt
+s1.txt
+s2.txt
+s3.txt
+s4.txt

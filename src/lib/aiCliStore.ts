@@ -211,7 +211,12 @@ interface AiCliState {
   newSession: (agentId: string) => void;
   selectSession: (agentId: string, id: string) => void;
   deleteSession: (agentId: string, id: string) => void;
-  send: (agentId: string, prompt: string) => Promise<void>;
+  /**
+   * Send a prompt. `cwd` overrides the working folder for this run only;
+   * omitted, it follows the open workspace. A caller that needs the agent to
+   * work somewhere specific (a test sandbox) has no other way to say so.
+   */
+  send: (agentId: string, prompt: string, opts?: { cwd?: string }) => Promise<void>;
   cancel: (agentId: string) => void;
   /** Clear the current conversation — same as starting a new session. */
   clear: (agentId: string) => void;
@@ -345,7 +350,7 @@ export const useAiCli = create<AiCliState>((set, get) => ({
       return { sessions, activeId };
     }),
 
-  send: async (agentId, prompt) => {
+  send: async (agentId, prompt, opts) => {
     const teks = prompt.trim();
     if (!teks) return;
     const cur = get().active(agentId);
@@ -377,7 +382,7 @@ export const useAiCli = create<AiCliState>((set, get) => ({
         id: reqId,
         agentId,
         prompt: teks,
-        cwd: useStore.getState().workspace || undefined,
+        cwd: opts?.cwd ?? useStore.getState().workspace ?? undefined,
         model: o.model !== 'default' ? o.model : undefined,
         mode: o.mode !== 'default' ? o.mode : undefined,
       });
