@@ -6798,6 +6798,34 @@
 }
 .cli-diff-more:hover { background: var(--surface-3); color: var(--text); }
 
+/* ---- CLI rewind confirmation ------------------------------------------ */
+.cli-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, #000 55%, transparent);
+  z-index: 20;
+}
+.cli-confirm {
+  max-width: 340px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1, var(--bg1));
+  box-shadow: 0 8px 28px rgb(0 0 0 / 45%);
+}
+.cli-confirm-text {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+/* A bookmarked row keeps its mark visible, so the reader can see at a glance
+   which messages they flagged without opening anything. */
+.cli-native-iconbtn.is-on { color: var(--accent); }
+
 /* ---- CLI hook add-form ------------------------------------------------ */
 .cli-hook-form {
   display: flex;

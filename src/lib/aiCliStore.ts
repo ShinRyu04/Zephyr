@@ -81,6 +81,15 @@ export interface CliMsg {
    * version — the renderer falls back to `content` when there are no parts.
    */
   parts?: CliPart[];
+  /**
+   * Marked by the reader for coming back to.
+   *
+   * A bookmark is a property of the MESSAGE, not a separate list, because the
+   * only thing a bookmark is good for is jumping to it — a parallel array of
+   * ids would need reconciling on every rewind and compact, and would silently
+   * point at messages that no longer exist after either.
+   */
+  bookmark?: boolean;
 }
 
 export interface CliSession {
@@ -218,6 +227,19 @@ interface AiCliState {
    * faithful version of that intent here.
    */
   compact: (agentId: string) => void;
+  /** Mark or unmark a message so the reader can find it again. */
+  toggleBookmark: (agentId: string, msgId: string) => void;
+  /**
+   * Roll the conversation back to just before a message, dropping everything
+   * after it.
+   *
+   * This is the destructive half of the feature — the messages after the cut
+   * are gone, not hidden — so the caller is expected to confirm first. It exists
+   * because the alternative is worse: without it, a run that went wrong can only
+   * be recovered by starting a new session and losing the context that made the
+   * question worth asking.
+   */
+  rewindTo: (agentId: string, msgId: string) => void;
 }
 
 const EMPTY_LIST: CliSession[] = [];
@@ -421,6 +443,32 @@ export const useAiCli = create<AiCliState>((set, get) => ({
         },
       };
     });
+  },
+  toggleBookmark: (agentId, msgId) => {
+    set((s) => ({
+      sessions: {
+        ...s.sessions,
+        [agentId]: (s.sessions[agentId] ?? []).map((sess) => ({
+          ...sess,
+          messages: sess.messages.map((m) => (m.id === msgId ? { ...m, bookmark: !m.bookmark } : m)),
+        })),
+      },
+    }));
+  },
+
+  rewindTo: (agentId, msgId) => {
+    set((s) => ({
+      sessions: {
+        ...s.sessions,
+        [agentId]: (s.sessions[agentId] ?? []).map((sess) => {
+          const cut = sess.messages.findIndex((m) => m.id === msgId);
+          /* Not found means the message was already removed - leave the session
+             alone rather than truncating to -1, which would empty it. */
+          if (cut < 0) return sess;
+          return { ...sess, messages: sess.messages.slice(0, cut) };
+        }),
+      },
+    }));
   },
 }));
 

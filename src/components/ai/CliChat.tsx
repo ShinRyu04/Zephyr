@@ -99,6 +99,12 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const setOpts = useAiCli((s) => s.setOpts);
   const send = useAiCli((s) => s.send);
   const cancel = useAiCli((s) => s.cancel);
+  const toggleBookmark = useAiCli((s) => s.toggleBookmark);
+  const rewindTo = useAiCli((s) => s.rewindTo);
+  /* Rewind destroys messages, so it is confirmed first. Holding the id (not a
+     boolean) means the dialog always knows which message it is asking about,
+     and cannot act on a stale one after the list changes. */
+  const [konfirmasiRewind, setKonfirmasiRewind] = useState<string | null>(null);
   const clear = useAiCli((s) => s.clear);
   const ensureActive = useAiCli((s) => s.active);
   const newSession = useAiCli((s) => s.newSession);
@@ -557,12 +563,55 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                 data-testid={`ai-clichat-msg-${m.role}`}
               >
                 {m.role === 'user' ? (
-                  <div className="cli-native-user">{m.content}</div>
+                  <div className="cli-native-user">
+                    {m.content}
+                    {/*
+                      * Rewind lives on the USER message, not the assistant one.
+                      *
+                      * "Go back to before this question" is the operation the
+                      * reader actually wants — they are looking at an answer
+                      * that went wrong and want to re-ask. Cutting at the
+                      * assistant reply would leave the question standing with
+                      * no answer, which is a state the session should never be
+                      * in.
+                      */}
+                    <div className="cli-native-rowtools">
+                      <button
+                        className="cli-native-iconbtn"
+                        data-testid={`cli-bookmark-${m.id}`}
+                        title={m.bookmark ? tr('Remove bookmark') : tr('Bookmark')}
+                        aria-label={tr('Bookmark')}
+                        aria-pressed={!!m.bookmark}
+                        onClick={() => toggleBookmark(agentId, m.id)}
+                      >
+                        <AiIkon name="bookmark" size={13} />
+                      </button>
+                      <button
+                        className="cli-native-iconbtn"
+                        data-testid={`cli-rewind-${m.id}`}
+                        title={tr('Rewind to here')}
+                        aria-label={tr('Rewind')}
+                        onClick={() => setKonfirmasiRewind(m.id)}
+                      >
+                        <AiIkon name="clock" size={13} />
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="cli-native-assistant">
                     <CliTimeline msg={m} streaming={pending === m.id} />
                     {(m.content || (m.parts && m.parts.length > 0)) && pending !== m.id && (
                       <div className="cli-native-rowtools">
+                        <button
+                          className={`cli-native-iconbtn${m.bookmark ? ' is-on' : ''}`}
+                          data-testid={`cli-bookmark-${m.id}`}
+                          title={m.bookmark ? tr('Remove bookmark') : tr('Bookmark')}
+                          aria-label={tr('Bookmark')}
+                          aria-pressed={!!m.bookmark}
+                          onClick={() => toggleBookmark(agentId, m.id)}
+                        >
+                          <AiIkon name="bookmark" size={13} />
+                        </button>
                         <button
                           className="cli-native-iconbtn"
                           title={tr('Copy')}
@@ -896,6 +945,41 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         />
       )}
       {zoomImg && <Lightbox src={zoomImg} onClose={() => setZoomImg(null)} />}
+      {konfirmasiRewind && (
+        /*
+         * A rewind throws messages away, and there is no undo — the store keeps
+         * no history of its own. So it asks, and the wording says what will be
+         * lost rather than naming the operation: "Rewind?" tells the reader
+         * nothing about the consequence.
+         */
+        <div className="cli-confirm-backdrop" role="dialog" aria-modal="true">
+          <div className="cli-confirm" data-testid="cli-rewind-confirm">
+            <p className="cli-confirm-text">
+              {tf('Delete every message after this one? {n} will be removed.', {
+                n: Math.max(
+                  0,
+                  messages.length - messages.findIndex((x) => x.id === konfirmasiRewind) - 1,
+                ),
+              })}
+            </p>
+            <div className="cli-sheet-actions">
+              <button
+                className="btn btn-primary btn-xs"
+                data-testid="cli-rewind-ok"
+                onClick={() => {
+                  rewindTo(agentId, konfirmasiRewind);
+                  setKonfirmasiRewind(null);
+                }}
+              >
+                {tr('Rewind')}
+              </button>
+              <button className="btn btn-ghost btn-xs" onClick={() => setKonfirmasiRewind(null)}>
+                {tr('Cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
