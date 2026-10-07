@@ -88,7 +88,13 @@ export const PROVIDERS: ProviderInfo[] = [
                   { id: 'claude-opus-5', label: 'Claude Opus 5', note: 'agentik coding', ctx: 1_000_000, maxOut: 128000 },
                   { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', note: 'reasoning', ctx: 1_000_000, maxOut: 128000 },
                   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', note: 'seimbang', ctx: 1_000_000, maxOut: 128000 },
+                  /* 4.6 sits where a router is likely to expose a real Claude
+                     model: it still accepts the extended-thinking form that the
+                     4.7+ generation rejects, so it is the one that works with
+                     providers that have not moved to adaptive yet. */
+                  { id: 'claude-sonnet-4.6', label: 'Claude Sonnet 4.6', note: 'seimbang (router)', ctx: 200_000, maxOut: 64000 },
                   { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', note: 'seimbang (lama)', ctx: 200_000, maxOut: 8192 },
+                  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', note: 'reasoning (router)', ctx: 200_000, maxOut: 64000 },
                   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'fast, efficient', ctx: 200_000, maxOut: 64000 },
                                   ],
       },
