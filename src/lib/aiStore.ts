@@ -895,6 +895,16 @@ interface AgentStepResult {
    * "tidak dilaporkan" - bukan nol.
    */
   usage?: { input: number; output: number };
+  /**
+   * Penalaran putaran ini, dibawa masuk ke riwayat.
+   *
+   * Dibuang berarti setiap langkah menurunkan ulang apa yang sudah
+   * disimpulkannya, karena permintaan berikutnya menunjukkan kesimpulan tanpa
+   * jejak cara mencapainya. Provider yang mengekspos penalaran mengharapkannya
+   * kembali; Anthropic memvalidasi tanda tangan pada blok thinking.
+   */
+  reasoning?: string;
+  reasoningSignature?: string;
 }
 
 export interface AgentTodo {
@@ -3563,7 +3573,24 @@ export const useAi = create<AiStore>((set, get) => ({
             return true;
           });
         }
-        history.push({ role: 'assistant', content: res.content, toolCalls: callsToDispatch });
+        /*
+         * Carry the turn's reasoning into the history.
+         *
+         * Dropping it made every step re-derive what it had already worked out,
+         * because the next request showed the model its own conclusions with no
+         * trace of how it reached them. Providers that expose reasoning expect
+         * it back: Anthropic validates the signature on a thinking block, and
+         * the OpenAI-compatible gateways accept `reasoning_content` on the
+         * assistant turn. Attached only when non-empty — an empty string is not
+         * the same as absent, and some routers reject the empty form.
+         */
+        history.push({
+          role: 'assistant',
+          content: res.content,
+          toolCalls: callsToDispatch,
+          ...(res.reasoning ? { reasoning: res.reasoning } : {}),
+          ...(res.reasoningSignature ? { reasoningSignature: res.reasoningSignature } : {}),
+        });
         if (callsToDispatch.length === 0) break;
 
         /*
@@ -4772,6 +4799,11 @@ export const useAi = create<AiStore>((set, get) => ({
            tidak melaporkannya, dan subagent menyimpannya sebagai `null` -
            bukan nol - supaya "tidak dilaporkan" tidak terbaca sebagai "gratis". */
         usage: c.usage,
+        /* The step's reasoning, so the loop can carry it into the history and
+           send it back. Without this the accumulator in Rust holds it and the
+           conversation never sees it. */
+        reasoning: c.reasoning,
+        reasoningSignature: c.reasoningSignature,
       });
       return;
     }

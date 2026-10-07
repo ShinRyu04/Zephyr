@@ -108,7 +108,7 @@ pub fn prepare_tools(
                     "content": m.content,
                 })
             } else if m.role == "assistant" && m.tool_calls.is_some() {
-                json!({
+                let mut out = json!({
                     "role": "assistant",
                     "content": m.content,
                     "tool_calls": m.tool_calls.as_ref().unwrap().iter().map(|tc| json!({
@@ -119,7 +119,19 @@ pub fn prepare_tools(
                             "arguments": serde_json::to_string(&tc.args).unwrap_or_default(),
                         }
                     })).collect::<Vec<_>>(),
-                })
+                });
+                /*
+                 * Echo the reasoning back on the assistant turn.
+                 *
+                 * The OpenAI-compatible gateways carry it as a sibling field
+                 * rather than a content block. It is attached only when present:
+                 * a `reasoning_content: ""` is not the same as omitting it, and
+                 * some routers reject the empty form.
+                 */
+                if let Some(t) = m.reasoning.as_deref().filter(|t| !t.is_empty()) {
+                    out["reasoning_content"] = json!(t);
+                }
+                out
             } else {
                 let imgs = m.images.as_deref().unwrap_or(&[]);
                 if !imgs.is_empty() {
@@ -127,9 +139,21 @@ pub fn prepare_tools(
                     for img in imgs {
                         content.push(json!({ "type": "image_url", "image_url": { "url": img } }));
                     }
-                    json!({ "role": m.role, "content": content })
+                    let mut out = json!({ "role": m.role, "content": content });
+                    if m.role == "assistant" {
+                        if let Some(t) = m.reasoning.as_deref().filter(|t| !t.is_empty()) {
+                            out["reasoning_content"] = json!(t);
+                        }
+                    }
+                    out
                 } else {
-                    json!({ "role": m.role, "content": m.content })
+                    let mut out = json!({ "role": m.role, "content": m.content });
+                    if m.role == "assistant" {
+                        if let Some(t) = m.reasoning.as_deref().filter(|t| !t.is_empty()) {
+                            out["reasoning_content"] = json!(t);
+                        }
+                    }
+                    out
                 }
             }
         })

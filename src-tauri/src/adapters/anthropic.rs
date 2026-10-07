@@ -106,7 +106,31 @@ pub fn prepare_tools(
                 }]
             }));
         } else if m.role == "assistant" && m.tool_calls.is_some() {
-            let mut blocks = vec![json!({ "type": "text", "text": m.content })];
+            let mut blocks = Vec::new();
+            /*
+             * The thinking block goes FIRST.
+             *
+             * That is the order Anthropic returns it in and the order it must
+             * be sent back: the reasoning precedes the text it produced, and the
+             * signature is validated against the block it arrived with. Putting
+             * it after the text — or omitting it — makes the provider reject the
+             * turn or silently drop the reasoning from context.
+             */
+            if let Some(t) = m.reasoning.as_deref().filter(|t| !t.is_empty()) {
+                blocks.push(match m.reasoning_signature.as_deref() {
+                    Some(sig) if !sig.is_empty() => json!({
+                        "type": "thinking",
+                        "thinking": t,
+                        "signature": sig,
+                    }),
+                    /* A reasoning block with no signature is one the provider
+                       will not verify; sending it as a plain text block keeps
+                       the content in context without pretending to a signature
+                       we do not have. */
+                    _ => json!({ "type": "text", "text": t }),
+                });
+            }
+            blocks.push(json!({ "type": "text", "text": m.content }));
             for tc in m.tool_calls.as_ref().unwrap() {
                 blocks.push(json!({
                     "type": "tool_use",
@@ -235,6 +259,41 @@ pub struct ToolAcc {
     text: String,
 
     blocks: Vec<(u64, String, String, String)>,
+
+    /*
+     * The reasoning and its signature, kept so the turn can be sent back.
+     *
+     * Anthropic returns thinking as a `thinking_delta` stream and the signature
+     * as a SEPARATE `signature_delta` that arrives once the block closes. Only
+     * the text was read, so the signature was discarded — and a thinking block
+     * sent back without its signature is rejected, which is why the reasoning
+     * had to be dropped from the conversation instead of echoed.
+     *
+     * The signature is opaque and must be returned byte-for-byte; it is stored
+     * here only to be handed back untouched.
+     */
+    reasoning: String,
+    signature: String,
+}
+
+impl ToolAcc {
+    /// The reasoning text and its signature, for the caller to carry forward.
+    pub fn reasoning_parts(&self) -> (Option<String>, Option<String>) {
+        let r = (!self.reasoning.is_empty()).then(|| self.reasoning.clone());
+        let s = (!self.signature.is_empty()).then(|| self.signature.clone());
+        (r, s)
+    }
+
+    /// Accumulate the two reasoning deltas. Returns nothing — this is state,
+    /// not a stream the caller forwards (the live text is emitted separately).
+    pub fn feed_reasoning(&mut self, v: &Value) {
+        if let Some(t) = v.pointer("/delta/thinking").and_then(|x| x.as_str()) {
+            self.reasoning.push_str(t);
+        }
+        if let Some(s) = v.pointer("/delta/signature").and_then(|x| x.as_str()) {
+            self.signature.push_str(s);
+        }
+    }
 }
 
 impl ToolAcc {
@@ -300,5 +359,101 @@ impl ToolAcc {
             })
             .collect();
         (self.text, calls)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /*
+     * The signature round trip.
+     *
+     * Anthropic streams the thinking text and the signature as TWO separate
+     * deltas. Only the text was read, so the signature was discarded — and a
+     * thinking block returned without its signature is rejected, which is why
+     * the reasoning could not be carried into the next request at all.
+     */
+    #[test]
+    fn reasoning_and_signature_are_both_kept() {
+        let mut acc = ToolAcc::default();
+        acc.feed_reasoning(&json!({
+            "type": "content_block_delta",
+            "delta": { "type": "thinking_delta", "thinking": "let me think" }
+        }));
+        acc.feed_reasoning(&json!({
+            "type": "content_block_delta",
+            "delta": { "type": "signature_delta", "signature": "sig-abc" }
+        }));
+        let (r, s) = acc.reasoning_parts();
+        assert_eq!(r.as_deref(), Some("let me think"));
+        assert_eq!(s.as_deref(), Some("sig-abc"));
+    }
+
+    #[test]
+    fn reasoning_deltas_accumulate_in_order() {
+        let mut acc = ToolAcc::default();
+        for part in ["menimbang ", "dua ", "pilihan"] {
+            acc.feed_reasoning(&json!({ "delta": { "thinking": part } }));
+        }
+        let (r, _) = acc.reasoning_parts();
+        assert_eq!(r.as_deref(), Some("menimbang dua pilihan"));
+    }
+
+    #[test]
+    fn no_reasoning_yields_none_not_empty_string() {
+        // An empty string is not the same as absent: some routers reject the
+        // empty form, so "nothing arrived" must be None.
+        let acc = ToolAcc::default();
+        let (r, s) = acc.reasoning_parts();
+        assert!(r.is_none() && s.is_none());
+    }
+
+    #[test]
+    fn assistant_turn_puts_thinking_before_text() {
+        // The order Anthropic expects; a thinking block after the text it
+        // produced is rejected.
+        let m = crate::ai::AgentMsg {
+            role: "assistant".into(),
+            content: "jawaban".into(),
+            tool_call_id: None,
+            tool_calls: Some(vec![crate::ai::ToolCall {
+                id: "t1".into(),
+                name: "Read".into(),
+                args: json!({}),
+            }]),
+            name: None,
+            images: None,
+            reasoning: Some("penalaran".into()),
+            reasoning_signature: Some("sig".into()),
+        };
+        let body = prepare_tools("m", &[m], &[], None, "k", 100, None);
+        let blocks = body.body["messages"][0]["content"].as_array().unwrap();
+        assert_eq!(blocks[0]["type"], "thinking");
+        assert_eq!(blocks[0]["thinking"], "penalaran");
+        assert_eq!(blocks[0]["signature"], "sig");
+        assert_eq!(blocks[1]["type"], "text");
+    }
+
+    #[test]
+    fn thinking_without_signature_falls_back_to_text() {
+        // Sending a "thinking" block with no signature pretends to a signature
+        // we do not have and is rejected; plain text keeps the content in
+        // context instead.
+        let m = crate::ai::AgentMsg {
+            role: "assistant".into(),
+            content: "jawaban".into(),
+            tool_call_id: None,
+            tool_calls: Some(vec![]),
+            name: None,
+            images: None,
+            reasoning: Some("penalaran".into()),
+            reasoning_signature: None,
+        };
+        let body = prepare_tools("m", &[m], &[], None, "k", 100, None);
+        let blocks = body.body["messages"][0]["content"].as_array().unwrap();
+        assert_eq!(blocks[0]["type"], "text");
+        assert_eq!(blocks[0]["text"], "penalaran");
     }
 }
