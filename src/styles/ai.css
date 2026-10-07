@@ -6701,6 +6701,86 @@
 .cli-diff-row.is-del .cli-diff-sign,
 .cli-diff-row.is-del .cli-diff-text { color: var(--danger); }
 .cli-diff-row.is-same { background: transparent; }
+
+/*
+ * Side-by-side: the before on the left, the after on the right.
+ *
+ * Each row is now a flex pair of halves rather than one grid. The halves must
+ * be exactly equal so line N on the left sits level with line N on the right —
+ * `flex: 1 1 0` with `min-width: 0` does that, and the `min-width` is load-
+ * bearing: without it a long line makes its half grow and the columns drift out
+ * of alignment, which defeats the whole view.
+ */
+.cli-diff.is-split .cli-diff-body {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.cli-diff-pair {
+  display: flex;
+  align-items: stretch;
+}
+.cli-diff-half {
+  display: grid;
+  grid-template-columns: 42px 16px 1fr;
+  align-items: baseline;
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: pre;
+}
+/* The divider is the only thing marking the change of side, so it has to read
+   at a glance — a plain border, not a colour. */
+.cli-diff-half:first-child { border-right: 1px solid var(--border); }
+/* A half with no counterpart on this side: keep the height so the row still
+   lines up, but do not tint it, or an insertion looks like it deleted
+   something on the other side. */
+.cli-diff-half.is-void { background: color-mix(in srgb, var(--border) 22%, transparent); }
+.cli-diff-half.is-add { background: color-mix(in srgb, var(--success) 15%, transparent); }
+.cli-diff-half.is-add .cli-diff-sign,
+.cli-diff-half.is-add .cli-diff-text { color: var(--success); }
+.cli-diff-half.is-del { background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.cli-diff-half.is-del .cli-diff-sign,
+.cli-diff-half.is-del .cli-diff-text { color: var(--danger); }
+.cli-diff-half .cli-diff-text { overflow: hidden; text-overflow: ellipsis; }
+
+/* The bottom strip carries the collapse button and the view toggle. */
+.cli-diff-foot {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid var(--border);
+}
+.cli-diff-foot:empty { display: none; }
+.cli-diff-view {
+  margin-left: auto;
+  padding: 5px 10px;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary, var(--fg1));
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cli-diff-view:hover { background: var(--surface-3); color: var(--text); }
+.cli-diff-more {
+  flex: 1 1 auto;
+  border-top: none;
+}
+
+/*
+ * On a wide panel the split view is the better default.
+ *
+ * The mode is a React state, not a CSS one, because the row pairing has to
+ * happen in JS — a pure-CSS split would have to render every line twice and
+ * hide half of them, which doubles the DOM for a table that is already the
+ * heaviest thing in the transcript. So the container query cannot switch the
+ * layout by itself; it only widens the columns once a caller HAS chosen split,
+ * letting long lines breathe instead of being ellipsised at ~300px.
+ */
+@container clilog (min-width: 760px) {
+  .cli-diff.is-split .cli-diff-half { grid-template-columns: 48px 16px 1fr; }
+}
+
 .cli-diff-more {
   display: block;
   width: 100%;

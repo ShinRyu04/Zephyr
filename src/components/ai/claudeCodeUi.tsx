@@ -215,15 +215,62 @@ export function halvesFromUnified(text: string): { oldText: string; newText: str
  * big edit does not flood the thread.
  */
 export const DIFF_PEEK = 24;
+/**
+ * Pair each deletion with the addition that replaced it, for side-by-side view.
+ *
+ * A unified diff is a flat list: `-old` then `+new`. Printing that straight into
+ * two columns leaves the RIGHT column blank on every `-` row and the LEFT blank
+ * on every `+`, so a three-line change becomes six staggered rows and the eye
+ * cannot tell which line became which. Pairing a run of deletions with the run
+ * of additions that follows it puts the change on ONE row, which is the whole
+ * point of a side-by-side view.
+ *
+ * Exported because it is the part most likely to be wrong and the hardest to
+ * see in a screenshot: a mispaired diff still LOOKS like a diff.
+ */
+export function pairForSplit(rows: DiffRow[]): { left: DiffRow | null; right: DiffRow | null }[] {
+  const out: { left: DiffRow | null; right: DiffRow | null }[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const r = rows[i];
+    if (r.kind === 'same') {
+      out.push({ left: r, right: r });
+      i++;
+      continue;
+    }
+    const dels: DiffRow[] = [];
+    const adds: DiffRow[] = [];
+    while (i < rows.length && rows[i].kind === 'del') dels.push(rows[i++]);
+    while (i < rows.length && rows[i].kind === 'add') adds.push(rows[i++]);
+    const n = Math.max(dels.length, adds.length);
+    for (let k = 0; k < n; k++) {
+      out.push({ left: dels[k] ?? null, right: adds[k] ?? null });
+    }
+  }
+  return out;
+}
+
 export const EditDiff = memo(function EditDiff({
   oldText,
   newText,
   rows: given,
+  mode,
 }: {
   oldText?: string;
   newText?: string;
   /** Pre-computed rows, for callers that already hold a diff table. */
   rows?: DiffRow[];
+  /**
+   * `unified` (default) is one column with a sign gutter; `split` puts the
+   * before and after side by side.
+   *
+   * Split is not always better: on a narrow panel two text columns of ~200px
+   * each make a long line wrap into an unreadable ribbon, while a single
+   * column still scrolls. So the caller decides, and the stylesheet flips to
+   * split automatically when the container is wide enough (`@container`). The
+   * prop is the explicit override for a caller that knows better.
+   */
+  mode?: 'unified' | 'split';
 }) {
   const tr = useT();
   const computed = useMemo(
@@ -235,26 +282,67 @@ export const EditDiff = memo(function EditDiff({
   const long = rows.length > DIFF_PEEK + 6;
   const shown = long && !expand ? rows.slice(0, DIFF_PEEK) : rows;
   const hidden = rows.length - shown.length;
+  const [wantSplit, setWantSplit] = useState(mode === 'split');
+
+  /* Pairing lives in `pairForSplit` so it can be unit-checked directly; see
+     its doc comment for why the pairing matters. */
+  const pairs = useMemo(() => pairForSplit(shown), [shown]);
 
   return (
-    <div className="cli-diff" data-testid="cli-tool-diff">
+    <div className={`cli-diff${wantSplit ? ' is-split' : ''}`} data-testid="cli-tool-diff" data-mode={wantSplit ? 'split' : 'unified'}>
       <div className="cli-diff-body">
-        {shown.map((r, i) => (
-          <div key={i} className={`cli-diff-row is-${r.kind}`} data-kind={r.kind}>
-            <span className="cli-diff-num">{r.a ?? ''}</span>
-            <span className="cli-diff-num">{r.b ?? ''}</span>
-            <span className="cli-diff-sign" aria-hidden="true">
-              {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ''}
-            </span>
-            <code className="cli-diff-text">{r.text || ' '}</code>
-          </div>
-        ))}
+        {wantSplit
+          ? pairs.map((p, i) => (
+              <div key={i} className="cli-diff-pair">
+                {/* LEFT: the old file. A row that only exists on the right
+                    (an insertion) leaves this half empty rather than shifting
+                    the columns out of alignment. */}
+                <div className={`cli-diff-half${p.left ? ` is-${p.left.kind}` : ' is-void'}`}>
+                  <span className="cli-diff-num">{p.left?.a ?? ''}</span>
+                  <span className="cli-diff-sign" aria-hidden="true">
+                    {p.left?.kind === 'del' ? '-' : p.left?.kind === 'add' ? '+' : ''}
+                  </span>
+                  <code className="cli-diff-text">{p.left ? p.left.text || ' ' : ''}</code>
+                </div>
+                <div className={`cli-diff-half${p.right ? ` is-${p.right.kind}` : ' is-void'}`}>
+                  <span className="cli-diff-num">{p.right?.b ?? ''}</span>
+                  <span className="cli-diff-sign" aria-hidden="true">
+                    {p.right?.kind === 'add' ? '+' : p.right?.kind === 'del' ? '-' : ''}
+                  </span>
+                  <code className="cli-diff-text">{p.right ? p.right.text || ' ' : ''}</code>
+                </div>
+              </div>
+            ))
+          : shown.map((r, i) => (
+              <div key={i} className={`cli-diff-row is-${r.kind}`} data-kind={r.kind}>
+                <span className="cli-diff-num">{r.a ?? ''}</span>
+                <span className="cli-diff-num">{r.b ?? ''}</span>
+                <span className="cli-diff-sign" aria-hidden="true">
+                  {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ''}
+                </span>
+                <code className="cli-diff-text">{r.text || ' '}</code>
+              </div>
+            ))}
       </div>
-      {long && (
-        <button className="cli-diff-more" onClick={() => setExpand((v) => !v)}>
-          {expand ? tr('Show less') : tf('Show {n} more lines', { n: hidden })}
-        </button>
-      )}
+      <div className="cli-diff-foot">
+        {long && (
+          <button className="cli-diff-more" onClick={() => setExpand((v) => !v)}>
+            {expand ? tr('Show less') : tf('Show {n} more lines', { n: hidden })}
+          </button>
+        )}
+        {/* The manual override. The container query picks a sensible default by
+            width; this is for the reader who wants the other one anyway. */}
+        {mode === undefined && (
+          <button
+            className="cli-diff-view"
+            data-testid="cli-diff-view-toggle"
+            title={wantSplit ? tr('Unified view') : tr('Split view')}
+            onClick={() => setWantSplit((v) => !v)}
+          >
+            {wantSplit ? tr('Unified') : tr('Split')}
+          </button>
+        )}
+      </div>
     </div>
   );
 });
