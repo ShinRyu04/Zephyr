@@ -352,6 +352,26 @@ impl ReasoningEffort {
         }
     }
 
+    /// The `output_config.effort` level for adaptive-thinking models.
+    ///
+    /// Depth moved out of the token budget and into this field for the 4.7+
+    /// generation, so a user who picks "Ultra" has nothing to show for it
+    /// unless the level is sent. The accepted values are the API's own:
+    /// low / medium / high / xhigh / max, and "high" is the API default — so
+    /// `None` is returned for the levels that mean "leave it alone".
+    ///
+    /// Minimal maps to `low` rather than being omitted: someone who explicitly
+    /// asked for the least thinking should not silently get the default.
+    pub fn anthropic_effort(self) -> Option<&'static str> {
+        match self {
+            ReasoningEffort::Minimal => Some("low"),
+            ReasoningEffort::Low => Some("low"),
+            ReasoningEffort::Medium => Some("medium"),
+            ReasoningEffort::High => None, // the API default
+            ReasoningEffort::Ultra => Some("max"),
+        }
+    }
+
     pub fn gemini_budget(self) -> i32 {
         match self {
             ReasoningEffort::Minimal => 512,

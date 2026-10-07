@@ -3561,6 +3561,84 @@
   font-weight: 500;
 }
 
+/*
+ * A live shimmer while the model is thinking.
+ *
+ * This is the one animation in the transcript that carries information rather
+ * than decoration: a static "Thinking" beside a growing block of text is
+ * indistinguishable from a run that has died, and the reader has no way to tell
+ * "the model is still working" from "this hung thirty seconds ago".
+ *
+ * The gradient sweeps across the TEXT rather than pulsing its opacity. A pulse
+ * reads as a blinking light — an alarm — while a sweep reads as something moving
+ * through the line under its own power, which is what is actually happening. The
+ * band is wide and the cycle slow enough to be calm at a glance.
+ */
+.ai-reason[data-live='1'] .ai-reason-title {
+  /*
+   * Colour survives even if the clip is ignored.
+   *
+   * `-webkit-text-fill-color: transparent` makes the text INVISIBLE when
+   * `background-clip: text` is not honoured — and "Thinking" disappearing while
+   * the model works is worse than no animation at all. So the element keeps a
+   * real colour, and only the clipped variant clears the fill; a browser that
+   * ignores the clip renders the plain colour instead of nothing.
+   */
+  color: var(--fg0, #e6edf3);
+  background-image: linear-gradient(
+    90deg,
+    var(--text-muted, #8b949e) 0%,
+    var(--text-muted, #8b949e) 35%,
+    var(--fg0, #e6edf3) 50%,
+    var(--text-muted, #8b949e) 65%,
+    var(--text-muted, #8b949e) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ai-reason-shimmer 1.9s linear infinite;
+}
+/* The fill is cleared only once the clip is known to apply. */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .ai-reason[data-live='1'] .ai-reason-title {
+    -webkit-text-fill-color: transparent;
+  }
+}
+@keyframes ai-reason-shimmer {
+  from { background-position: 140% 0; }
+  to { background-position: -40% 0; }
+}
+
+/*
+ * The body underneath gets a trailing glyph that keeps the "still going" signal
+ * visible when the reader has expanded the block — at that point the shimmer is
+ * off-screen above them, and the block would look finished.
+ */
+.ai-reason[data-live='1'] .ai-reason-body::after {
+  content: '▍';
+  margin-left: 1px;
+  color: var(--accent, #58a6ff);
+  animation: ai-reason-blink 1s step-end infinite;
+}
+@keyframes ai-reason-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0.15; }
+}
+
+/* Respect a reader who has asked for less motion: keep the state legible
+   without the sweep. */
+@media (prefers-reduced-motion: reduce) {
+  .ai-reason[data-live='1'] .ai-reason-title {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text, var(--fg0));
+  }
+  .ai-reason[data-live='1'] .ai-reason-body::after {
+    animation: none;
+  }
+}
+
 .ai-reason-caret {
   font-size: 10px;
   opacity: 0.75;
