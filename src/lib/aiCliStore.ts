@@ -206,6 +206,18 @@ interface AiCliState {
   cancel: (agentId: string) => void;
   /** Clear the current conversation — same as starting a new session. */
   clear: (agentId: string) => void;
+  /**
+   * Trim the transcript to save context.
+   *
+   * `/compact` in the real CLI asks the model to summarize the conversation and
+   * then continues from the summary. Zephyr's hosted tab keeps its OWN
+   * transcript and the CLI process is one-shot per prompt, so there is nothing
+   * on the CLI side to compact — but the user's intent is context, and the part
+   * Zephyr owns is the visible history. Keeping the tail (which is what the
+   * next prompt's context is actually built from) and marking the cut is the
+   * faithful version of that intent here.
+   */
+  compact: (agentId: string) => void;
 }
 
 const EMPTY_LIST: CliSession[] = [];
@@ -379,6 +391,37 @@ export const useAiCli = create<AiCliState>((set, get) => ({
   },
 
   clear: (agentId) => get().newSession(agentId),
+
+  compact: (agentId) => {
+    /* How many turns survive. Enough to keep the thread intelligible without
+       keeping the whole run: the reader usually compacts precisely because the
+       panel has become long. */
+    const KEEP = 4;
+    set((s) => {
+      const list = s.sessions[agentId] ?? [];
+      const rid0 = s.activeId[agentId];
+      return {
+        sessions: {
+          ...s.sessions,
+          [agentId]: list.map((sess) => {
+            if (sess.id !== rid0) return sess;
+            const keep = sess.messages.slice(-KEEP);
+            if (keep.length === sess.messages.length) return sess;
+            const dropped = sess.messages.length - keep.length;
+            /* A visible marker, not a silent cut. Discovering later that the
+               history is shorter than remembered, with nothing saying why,
+               reads as messages having been lost. */
+            const note: CliMsg = {
+              id: `compact-${Date.now().toString(36)}`,
+              role: 'assistant',
+              content: `— ${dropped} earlier messages compacted —`,
+            };
+            return { ...sess, messages: [note, ...keep] };
+          }),
+        },
+      };
+    });
+  },
 }));
 
 /*
