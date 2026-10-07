@@ -9,9 +9,9 @@ import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import { useNeural, hentikanSemuaSuara } from '../../lib/useNeural';
 import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
-import DiffViewer from './DiffViewer';
 import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
+import { ToolRow, EditDiff } from './claudeCodeUi';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useBicaraStore } from '../../lib/bicaraStore';
@@ -136,6 +136,17 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
         <code>{code}</code>
       </pre>
       {pratinjau && (
+        /*
+         * The apply-preview, drawn with the SAME diff grid as every other
+         * change in the app.
+         *
+         * This block had its own `ai-diff-*` markup — a second, slightly
+         * different numbered-gutter table that had to be kept in step with the
+         * CLI tab's `cli-diff` by hand. It now runs through the shared
+         * `EditDiff`, so an edit previewed here and the same edit reported by
+         * the hosted CLI are pixel-identical; only the header differs, because
+         * only this one has anything to apply.
+         */
         <div className="ai-diff" data-testid="ai-diff">
           <div className="ai-diff-head">
             <span className="ai-diff-sum">
@@ -153,18 +164,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
               Cancel
             </button>
           </div>
-          <div className="ai-diff-body">
-            {pratinjau.map((r, i) => (
-              <div key={i} className={`ai-diff-row is-${r.kind}`} data-kind={r.kind}>
-                <span className="ai-diff-no">{r.a ?? ''}</span>
-                <span className="ai-diff-no">{r.b ?? ''}</span>
-                <span className="ai-diff-sign">
-                  {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ' '}
-                </span>
-                <span className="ai-diff-text">{r.text || ' '}</span>
-              </div>
-            ))}
-          </div>
+          <EditDiff rows={pratinjau} />
         </div>
       )}
     </div>
@@ -331,51 +331,53 @@ function BarisBacaBerkelompok({
   tr: (s: string) => string;
   tf: (s: string, v: Record<string, string | number>) => string;
 }) {
-  const [buka, setBuka] = useState(false);
+  /* The collapsed row's target: the first few files this run touched, so the
+     reader can tell WHICH reads these were without expanding. */
+  const ringkas =
+    tools
+      .map((t) => sasaranAksi(t.args) || infoAksi(t.name).label)
+      .slice(0, 3)
+      .join(' · ') + (tools.length > 3 ? tr(' …') : '');
   return (
-    <div className="ai-toolrun is-grup" data-testid="ai-toolrun-group" data-jumlah={jumlah}>
-      <button
-        className="ai-toolrun-head"
-        data-testid="ai-toolrun-group-toggle"
-        aria-expanded={buka}
-        onClick={() => setBuka((v) => !v)}
-      >
-        <span className="ai-toolrun-caret">{buka ? '▾' : '▸'}</span>
-        <span className="ai-toolrun-ikon is-baca" aria-hidden="true">
-          <AiIkon name="search" size={13} />
-        </span>
-        <span className="ai-toolrun-name">
-          {jumlah === 1
-            ? tf('Explored {n} item', { n: jumlah })
-            : tf('Explored {n} items', { n: jumlah })}
-        </span>
-        <span className="ai-toolrun-stat ai-toolrun-grup-ringkas">
-          {tools
-            .map((t) => sasaranAksi(t.args) || infoAksi(t.name).label)
-            .slice(0, 3)
-            .join(' · ')}
-          {tools.length > 3 ? tr(' …') : ''}
-        </span>
-      </button>
-      {buka && (
-        <div className="ai-toolrun-body ai-grup-isi">
-          {tools.map((t, k) => {
-            const info = infoAksi(t.name);
-            const target = sasaranAksi(t.args);
-            return (
-              <div className="ai-grup-baris" key={k}>
-                <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
-                  <AiIkon name={info.ikon} size={12} />
-                </span>
-                <span className="ai-toolrun-name">{info.label}</span>
-                {target && <code className="ai-toolrun-args">{target}</code>}
-                {!t.ok && <span className="ai-toolrun-fail">{tx('failed')}</span>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    /*
+     * A run of read-only steps, folded into ONE row of the shared kit.
+     *
+     * This used to be hand-rolled `ai-toolrun is-grup` markup — the last place
+     * in Chat AI still drawing a tool row by hand after every single-call row
+     * moved to `claudeCodeUi`. Keeping it meant the two spellings could drift
+     * apart, and a summary row that does not look like the rows it summarises
+     * reads as a different kind of thing rather than the same thing collapsed.
+     *
+     * The kit draws the row; the individual steps ride along as children, so
+     * the group keeps its "Explored N items" header AND its expanded list while
+     * matching the CLI tab down to the caret and glyph.
+     */
+    <ToolRow
+      name={
+        jumlah === 1
+          ? tf('Explored {n} item', { n: jumlah })
+          : tf('Explored {n} items', { n: jumlah })
+      }
+      title={ringkas}
+      onImage={() => {}}
+    >
+      <div className="ai-grup-isi">
+        {tools.map((t, k) => {
+          const info = infoAksi(t.name);
+          const target = sasaranAksi(t.args);
+          return (
+            <div className="ai-grup-baris" key={k}>
+              <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
+                <AiIkon name={info.ikon} size={12} />
+              </span>
+              <span className="ai-toolrun-name">{info.label}</span>
+              {target && <code className="ai-toolrun-args">{target}</code>}
+              {!t.ok && <span className="ai-toolrun-fail">{tx('failed')}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </ToolRow>
   );
 }
 
@@ -432,7 +434,6 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const def = msg.model ? findModel(msg.model) : null;
   const regenerate = useAi((s) => s.regenerate);
   const setToast = useAi((s) => s.setToast);
-  const [buka, setBuka] = useState<Record<number, boolean>>({});
 
   /*
    * Tool rows after folding: runs of consecutive plain reads become one summary
@@ -819,245 +820,94 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                       </Markdown>
                     </div>
                   ) : null}
-                  <div
-                    className={`ai-toolrun${t.ok ? '' : ' is-gagal'}`}
-                    data-tool-name={namaPolos(t.name)}
-                    data-ok={t.ok ? '1' : '0'}
-                  >
-                  <button
-                    className="ai-toolrun-head"
-                    data-testid="ai-toolrun-toggle"
-                    aria-expanded={!!buka[i]}
-                    onClick={() => setBuka((b) => ({ ...b, [i]: !b[i] }))}
-                  >
-                    <span className="ai-toolrun-caret">{buka[i] ? '▾' : '▸'}</span>
-                    {/*
-                      * A file-editing call gets a chip that names the file, not
-                      * a tool name and a JSON blob: "Write src/lib/types.ts" is
-                      * the fact the reader wants, and the raw args are one click
-                      * away in the expanded body.
-                      */}
-                    {(() => {
-                      const info = infoAksi(t.name);
-                      const target = sasaranAksi(t.args);
-                      const fileChip = info.jenis === 'tulis' && target;
-                      /*
-                       * The row leads with the human target, never the raw args.
-                       *
-                       * It used to print `t.args` verbatim, so every line read
-                       * `Read {"path":"package.json"}` — JSON punctuation in the
-                       * middle of a sentence, which is noise, not information.
-                       * Hermes shows `Read package.json` and the same is right
-                       * here: the resolved target when there is one, and the
-                       * command itself for a shell call. The full JSON stays one
-                       * click away in the expanded body.
-                       */
-                      const label = target || '';
-                      /*
-                       * Never render an empty argument chip.
-                       *
-                       * `{}` and `{"path":""}` carry nothing, and an empty
-                       * bordered box at the end of a row reads as a text field
-                       * that failed to fill — the single loudest "this is
-                       * broken" cue in the whole transcript. A call with no
-                       * arguments simply shows its verb.
-                       */
-                      const argKosong =
-                        !label ||
-                        label === '{}' ||
-                        label === '[]' ||
-                        /^\{\s*"(path|command|query)":\s*""\s*\}$/.test(label);
-                      return (
-                        <>
-                          {/*
-                            * Glyph per action kind, from the same table that
-                            * supplies the label.
-                            *
-                            * The row used to draw the shell prompt `>_` for
-                            * EVERY call. The reasoning was that twenty shapes in
-                            * twenty rows is a list you must read rather than
-                            * scan, and that colour already carries the kind via
-                            * `is-<jenis>`. The reasoning is sound in the
-                            * abstract and wrong in practice: in a long run of
-                            * steps - read, edit, run, read, edit - the column
-                            * becomes a single repeated mark, and "everything
-                            * looks like a terminal" is exactly what a reader
-                            * concludes. Colour alone does not survive a glance
-                            * or a screenshot, and it disappears entirely for
-                            * anyone who cannot separate the red and green used
-                            * for `tulis` and `jalan`.
-                            *
-                            * `labelAksi` already assigns a distinct glyph per
-                            * tool (`doc`, `doc-edit`, `search`, `terminal`,
-                            * `clock`, `puzzle`, ...), and `AiIkon` already draws
-                            * all of them. The generic mark was the only thing
-                            * discarding that information.
-                            *
-                            * A shape is not a decoration here, it is the
-                            * fastest channel: the eye matches an outline before
-                            * it reads a word. Colour stays as a second cue on
-                            * `is-<jenis>` rather than the only one.
-                            */}
-                          <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
-                            <AiIkon name={info.ikon} size={13} />
-                          </span>
-                          <span className="ai-toolrun-name">{info.label}</span>
-                          {fileChip ? (
-                            <span className="ai-file-chip" data-testid="ai-file-chip" title={target}>
-                              {target}
-                            </span>
-                          ) : (
-                            !argKosong && <code className="ai-toolrun-args">{label}</code>
-                          )}
-                          {stat && (
-                            <span className="ai-toolrun-stat" data-testid="ai-toolrun-stat">
-                              {stat}
-                            </span>
-                          )}
-                        </>
-                      );
-                    })()}
-                    {!t.ok && <span className="ai-toolrun-fail">{tx('failed')}</span>}
-                    {/*
-                      * Elapsed time, right-aligned and quiet.
-                      *
-                      * Runs restored from an older transcript carry no `ms`, and
-                      * a missing value has to print nothing: "0ms" would read as
-                      * a tool that did no work. Sub-millisecond reads are the
-                      * same non-information — Hermes drops them, and a column of
-                      * "0ms" down the right edge is pure noise.
-                      */}
-                    {typeof t.ms === 'number' && t.ms >= 10 && (
-                      <span className="ai-toolrun-ms" data-testid="ai-toolrun-ms">
-                        {t.ms < 1000 ? `${t.ms}ms` : `${(t.ms / 1000).toFixed(1)}s`}
-                      </span>
-                    )}
-                  </button>
-                  {buka[i] && (
-                    <div className="ai-toolrun-body">
-                      {/*
-                        * Plain text, not labelled panels.
-                        *
-                        * The body used to be two bordered boxes under the
-                        * headings INPUT and OUTPUT. Those headings are the
-                        * tool's vocabulary, not the reader's: nobody opens a
-                        * transcript to learn which half is which, and the boxes
-                        * added four rules and two fills between the user and
-                        * six lines of text. What the reader wants is the
-                        * command and what it printed, laid out as prose — so
-                        * the command keeps the monospace row it always had, and
-                        * the result follows it unboxed.
-                        */}
-                      {/*
-                       * Input and Output, each in its own labelled block.
-                       *
-                       * The command that produced a result is the first thing
-                       * a reader checks when something looks wrong, and it has
-                       * to be distinguishable from the result at a glance —
-                       * "Input" and "Output" do that with one word each. The
-                       * tab strip is the same idea one level down: a shell
-                       * call has two streams, and mixing stderr into stdout
-                       * buries the error inside the noise that preceded it.
-                       */}
-                      {perintahAksi(t.name, t.args) && (
-                        <div className="ai-io">
-                          <span className="ai-io-label">{tx('Input')}</span>
-                          <pre className="ai-io-code" data-testid="ai-toolrun-in">
-                            {perintahAksi(t.name, t.args)}
-                          </pre>
-                        </div>
-                      )}
-
-                      <div className="ai-io">
-                        <div className="ai-io-head">
-                          <span className="ai-io-label">{tx('Output')}</span>
-                          <span className="ai-io-tabs">
-                            <span className="ai-io-tab is-on">
-                              {tx('stdout')}
-                              {t.bytes ? ` ${t.bytes}` : ''}
-                            </span>
-                            <span className="ai-io-tab">{tx('stderr')}</span>
-                          </span>
-                          {typeof t.exitCode === 'number' && (
-                            <span
-                              className={`ai-io-exit${t.exitCode === 0 ? ' is-ok' : ' is-err'}`}
-                              data-testid="ai-toolrun-exit"
-                            >
-                              exit {t.exitCode}
-                            </span>
-                          )}
-                        </div>
-                        <pre
-                          className={`ai-io-code${t.ok ? '' : ' is-err'}`}
-                          data-testid="ai-toolrun-out"
-                        >
-                          {t.result || tr('(no output)')}
-                        </pre>
-                      </div>
-
-                      <div className="ai-toolrun-act">
-                        <button
-                          className="ai-toolrun-btn"
-                          data-testid="ai-toolrun-copy"
-                          title={tx('Copy the output')}
-                          onClick={() => {
-                            void clipboardWrite(t.result).then(() => setToast(tx('Output copied')));
-                          }}
-                        >
-                          <AiIkon name="clipboard" size={12} />
-                          {tx('Copy')}
-                        </button>
-                        <button
-                          className="ai-toolrun-btn"
-                          data-testid="ai-toolrun-copy-in"
-                          title={tx('Copy the input')}
-                          onClick={() => {
-                            void clipboardWrite(t.args).then(() => setToast(tx('Input copied')));
-                          }}
-                        >
-                          <AiIkon name="clipboard" size={12} />
-                          {tx('Copy input')}
-                        </button>
-                        <button
-                          className="ai-toolrun-btn"
-                          data-testid="ai-toolrun-open"
-                          title={tx('Open a terminal pane in the bottom panel')}
-                          onClick={() => {
-                            void import('../../lib/panelStore').then((m) => {
-                              m.usePanel.getState().focusTab('terminal');
-                            });
-                          }}
-                        >
-                          <AiIkon name="chev-right" size={12} />
-                          {tx('Open in terminal')}
-                        </button>
-                      </div>
-                    </div>
-                  )}
                   {/*
-                    * The file change itself, shown WITHOUT needing to expand.
+                    * One tool call, drawn by the SAME component the hosted
+                    * Claude Code tab uses.
                     *
-                    * The diff is the deliverable of an edit/write - it is what
-                    * the reader checks to see whether the agent did what they
-                    * asked. It used to live in a separate work-panel card; that
-                    * panel is gone (one renderer, one place), so the diff lands
-                    * here, under the row that produced it, the way a PR shows
-                    * its changes. Only when the tool actually edited a file and
-                    * its result carries a real unified diff - a read or a plain
-                    * write with no hunks shows nothing.
+                    * This row used to be its own thing: `ai-toolrun` markup
+                    * with a hand-rolled header, INPUT/OUTPUT panels in the
+                    * body, and a separate `DiffViewer` card bolted underneath
+                    * for file edits. Alongside the CLI tab's timeline it read
+                    * as the older, worse half of the app - which is backwards,
+                    * since Chat AI is what most Zephyr users actually run
+                    * (the hosted CLI needs a Claude subscription they may not
+                    * have).
+                    *
+                    * The kit in `claudeCodeUi.tsx` is the CLI tab's renderer,
+                    * lifted out so both call it: caret, kind-coloured glyph,
+                    * tool name, the target it acted on, a +N/-N stat, elapsed
+                    * time, exit code - and a body that shows the input, an
+                    * inline zoomable image, or the VSCode-style diff. A file
+                    * edit opens expanded, exactly like the extension.
+                    *
+                    * Chat AI's own extras (copy output / copy input / open in
+                    * terminal) ride along as children, so nothing was lost in
+                    * the swap.
                     */}
-                  {(() => {
-                    const hasil = String(t.result ?? '');
-                    const menyunting = infoAksi(t.name).jenis === 'tulis' || /edit|write|patch|replace|apply/i.test(t.name);
-                    const adaHunk = /(^|\n)(diff --git|@@ -\d+)/.test(hasil);
-                    if (!menyunting || !adaHunk) return null;
-                    return (
-                      <div className="ai-toolrun-diff">
-                        <DiffViewer text={hasil} tr={tr} tf={tf} />
-                      </div>
-                    );
-                  })()}
-                </div>
+                  <ToolRow
+                    /*
+                     * The RAW tool name, not `infoAksi().label`.
+                     *
+                     * The label is localised prose ("Run", "Read", "Search")
+                     * and it was being handed to `ToolRow` as the tool's
+                     * identity. The kit picks the glyph and the colour from the
+                     * name, and it knows the tool as `bash_run` — not `Run` —
+                     * so every shell call in Chat AI came out with the READ
+                     * colour and a document glyph. The row still READS as
+                     * "Run npm test" because the label is what the eye wants;
+                     * it just is not what the icon lookup needs. `labelName`
+                     * carries the human word separately.
+                     */
+                    name={namaPolos(t.name)}
+                    labelName={infoAksi(t.name).label}
+                    title={sasaranAksi(t.args) || perintahAksi(t.name, t.args)}
+                    input={perintahAksi(t.name, t.args) ? '' : t.args}
+                    output={t.result}
+                    status={t.ok ? 'ok' : 'fail'}
+                    exitCode={t.exitCode}
+                    diffPatch={t.result}
+                    stat={stat}
+                    ms={t.ms}
+                    onImage={setGambarBuka}
+                  >
+                    <div className="cli-tool-act">
+                      <button
+                        className="cli-tool-btn"
+                        data-testid="ai-toolrun-copy"
+                        title={tx('Copy the output')}
+                        onClick={() => {
+                          void clipboardWrite(t.result).then(() => setToast(tx('Output copied')));
+                        }}
+                      >
+                        <AiIkon name="clipboard" size={12} />
+                        {tx('Copy')}
+                      </button>
+                      <button
+                        className="cli-tool-btn"
+                        data-testid="ai-toolrun-copy-in"
+                        title={tx('Copy the input')}
+                        onClick={() => {
+                          void clipboardWrite(t.args).then(() => setToast(tx('Input copied')));
+                        }}
+                      >
+                        <AiIkon name="clipboard" size={12} />
+                        {tx('Copy input')}
+                      </button>
+                      <button
+                        className="cli-tool-btn"
+                        data-testid="ai-toolrun-open"
+                        title={tx('Open a terminal pane in the bottom panel')}
+                        onClick={() => {
+                          void import('../../lib/panelStore').then((m) => {
+                            m.usePanel.getState().focusTab('terminal');
+                          });
+                        }}
+                      >
+                        <AiIkon name="chev-right" size={12} />
+                        {tx('Open in terminal')}
+                      </button>
+                    </div>
+                  </ToolRow>
                 </Fragment>
                 );
               })}

@@ -618,6 +618,128 @@ export const cliAgentsDetect = () => invoke<CliAgent[]>('cli_agents_detect');
 export const cliAgentRun = (opts: { id: string; prompt: string; cwd?: string }) =>
   invoke<CliRunResult>('cli_agent_run', opts);
 
+/* Cara B: run a CLI headless and stream its answer into Zephyr's own chat UI.
+   Chunks arrive on the `cli-chat-chunk` event (see events.ts / aiCliStore). */
+export const cliChat = (opts: { id: string; agentId: string; prompt: string; cwd?: string; model?: string; mode?: string }) =>
+  invoke<void>('cli_chat', opts);
+
+export const cliChatCancel = (id: string) => invoke<void>('cli_chat_cancel', { id });
+
+/* The model list a hosted CLI offers, as the logged-in account would see it.
+   Falls back to cliCatalog's static list when the agent is unknown. */
+export const cliModels = (agentId: string) =>
+  invoke<{ id: string; label: string; sub: string }[]>('cli_models', { agentId });
+
+/* The model / reasoning-effort / provider Codex is actually configured with,
+   read from ~/.codex/config.toml — so the picker is in sync with a real
+   terminal run. All fields are optional; a missing config returns nulls. */
+export interface CodexConfig {
+  model: string | null;
+  reasoning_effort: string | null;
+  provider: string | null;
+  /** Models the account has actually used, from the session history. */
+  recent_models: { id: string; count: number }[];
+}
+export const codexConfig = () => invoke<CodexConfig>('codex_config');
+
+/* ---------------------------------------------------------------------------
+ * Hosted Claude Code: the account/settings snapshot behind the slash popups,
+ * and the bundled subagent/skill catalog that can be installed into ~/.claude.
+ * All read-only or writes-into-the-CLI's-own-config; no secrets are returned.
+ * ------------------------------------------------------------------------- */
+export interface ClaudeKV { key: string; value: string }
+export interface ClaudeFile { label: string; path: string; bytes: number; preview: string; scope: string }
+export interface ClaudePlugin { name: string; marketplace: string; version: string; scope: string; enabled: boolean }
+export interface ClaudeMcp { name: string; scope: string; kind: string; target: string }
+export interface ClaudeHook { event: string; matcher: string; command: string }
+export interface ClaudeModelUsage { model: string; input_tokens: number; output_tokens: number; cost_usd: number }
+export interface ClaudeUsage {
+  project: string;
+  cost_usd: number;
+  duration_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  lines_added: number;
+  lines_removed: number;
+  session_id: string;
+  by_model: ClaudeModelUsage[];
+}
+export interface ClaudeInfo {
+  account_id: string;
+  install_method: string;
+  num_startups: number;
+  logged_in: boolean;
+  auth_kind: string;
+  version: string;
+  model: string;
+  theme: string;
+  base_url: string;
+  max_context_tokens: string;
+  cwd: string;
+  trusted: boolean;
+  permission_mode: string;
+  permission_allow: string[];
+  permission_deny: string[];
+  permission_ask: string[];
+  skip_dangerous: boolean;
+  memory_files: ClaudeFile[];
+  slash_commands: ClaudeFile[];
+  output_style: string;
+  output_styles: ClaudeFile[];
+  plugins: ClaudePlugin[];
+  mcp_servers: ClaudeMcp[];
+  hooks: ClaudeHook[];
+  usage: ClaudeUsage[];
+  env: ClaudeKV[];
+}
+
+/* Read-only snapshot of the logged-in Claude Code CLI's config, for the slash
+   popups (Status / Permissions / Memory / MCP / Hooks / Account & Usage …). */
+export const claudeAccountInfo = (cwd?: string) =>
+  invoke<ClaudeInfo>('claude_account_info', { cwd: cwd ?? null });
+
+/* Edit the CLI's own config so the popups actually change what `claude` uses:
+   a partial deep-merge patch of ~/.claude/settings.json (null deletes a key;
+   the secret env block is never touched by the popups). */
+export const claudeSettingsPatch = (patch: Record<string, unknown>) =>
+  invoke<void>('claude_settings_patch', { patch });
+
+/* Write a CLAUDE.md memory file (user or project scope). */
+export const claudeMemoryWrite = (scope: 'user' | 'project', content: string, cwd?: string) =>
+  invoke<string>('claude_memory_write', { scope, content, cwd: cwd ?? null });
+
+/* Create/overwrite or delete a user slash-command (~/.claude/commands/<name>.md). */
+export const claudeCommandWrite = (name: string, content: string) =>
+  invoke<string>('claude_command_write', { name, content });
+export const claudeCommandDelete = (name: string) =>
+  invoke<boolean>('claude_command_delete', { name });
+
+/* The built-in Claude Code slash commands, so the "Slash commands" popup is
+   complete even before the user adds any custom ones. */
+export interface BuiltinCommand { name: string; desc: string }
+export const claudeBuiltinCommands = () => invoke<BuiltinCommand[]>('claude_builtin_commands');
+
+export interface CatalogItem {
+  id: string;
+  kind: 'agent' | 'skill';
+  name: string;
+  title: string;
+  description: string;
+  source: string;
+  category: string;
+  model: string;
+  tools: string;
+  installed: boolean;
+}
+
+/* The bundled subagent + skill catalog (from anthropics/skills,
+   0xfurai & VoltAgent subagents). Installing writes into ~/.claude so the real
+   CLI uses it too. */
+export const ccCatalogList = () => invoke<CatalogItem[]>('cc_catalog_list');
+export const ccCatalogBody = (id: string) => invoke<string>('cc_catalog_body', { id });
+export const ccCatalogInstall = (id: string) => invoke<string>('cc_catalog_install', { id });
+export const ccCatalogUninstall = (id: string) => invoke<boolean>('cc_catalog_uninstall', { id });
+
 export interface GambarData {
   base64: string;
   lebar: number;

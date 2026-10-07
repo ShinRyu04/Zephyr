@@ -71,39 +71,31 @@
   padding-top: 12px;
 }
 
-/* User: bubble, right-aligned, capped so a long line still wraps. */
+/* User: a left-aligned Copilot-style card, not a right-hugging bubble. */
 .ai-msg.is-user {
-  align-items: flex-end;
+  align-items: stretch;
   padding-top: 4px;
 }
 
-/* ── User message: right-aligned text, no container ───────────────────── */
+/* ── User message: Copilot-style left-aligned card ────────────────────── */
 
 /*
- * No bubble and no box. The side carries the meaning: your message sits on the
- * RIGHT, the assistant's on the LEFT, and that is the whole distinction — no
- * fill, no stroke, no radius, nothing drawn around the text.
+ * Copilot shows the user's turn as a quiet rounded card flush with the LEFT
+ * edge, directly above the assistant's answer — the conversation reads straight
+ * down the column instead of ping-ponging left/right. The old look hugged the
+ * right edge with no container; the user asked for the Copilot layout, so the
+ * card and the left alignment come back.
  *
- * ai.css styles .ai-plain (the element user messages use) with a background,
- * a 1px border, a radius and padding, so every one of those has to be cleared
- * here or the "box" comes back. The assistant's .ai-body carries a 2px
- * border-left in the same file — that was the vertical line down the left side.
- *
- * `align-self: flex-end` plus a width cap is what makes it read as "mine"
- * without a container: the text hugs the right edge, and long messages still
- * wrap instead of running the full width of the panel.
- */
-/*
- * The wrapper is the flex item, so IT has to stop shrinking: shrink-to-fit
- * measured the text at 33px wide (the width of "halo") and broke the message
- * across two lines. Full width, then the text inside aligns itself right.
+ * ai.css styles .ai-plain with a background, border, radius and padding — we
+ * KEEP those for the user card (unlike before, which stripped them), and only
+ * normalise the width so it fills the column.
  */
 .ai-msg.is-user .ai-body {
   width: 100%;
   max-width: none;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   padding: 0;
   background: none;
   border: 0;
@@ -111,17 +103,16 @@
   box-shadow: none;
 }
 
-/* The text is the thing that hugs the right edge, capped so a long message
-   still wraps instead of running the full width of the panel. */
+/* The user's text sits in a subtle full-width card on the left. */
 .ai-msg.is-user .ai-plain {
-  max-width: min(78%, 620px);
-  padding: 0;
-  background: none;
-  border: 0;
-  border-radius: 0;
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  padding: 9px 12px;
+  background: var(--surface-2, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 10px;
   box-shadow: none;
-  /* ai.css sets break-word on the shared body/plain rule, which lets a word
-     split mid-letter; normal wrapping keeps "halo ?" on one line. */
   word-break: normal;
   overflow-wrap: anywhere;
   color: var(--text);
@@ -212,7 +203,7 @@
 
 .ai-msg.is-user .ai-msg-head {
   order: 2;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-top: 1px;
 }
 
@@ -813,7 +804,15 @@
   color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
-  order: 1;
+  /*
+   * Leftmost in the composer toolbar.
+   *
+   * This used to be `order: 1`, a leftover from the old vertical side-column
+   * layout. In the horizontal Copilot-style row the spacer before Send is
+   * `order: 0`, so an `order: 1` here sorted the "+" / mic AFTER the spacer and
+   * threw them to the far right. `order: 0` keeps them in DOM order — first.
+   */
+  order: 0;
   transition: background 110ms ease, color 110ms ease;
 }
 

@@ -19,7 +19,7 @@ import ModelSelector from './ModelSelector';
 import { findModel } from '../../lib/modelCatalog';
 import TodoPanel from './TodoPanel';
 import ContextMeter from './ContextMeter';
-import { ModeMenu, PermissionMenu, ReasoningMenu } from './ModeMenu';
+import { ModeMenu, PermissionMenu, ReasoningMenu, InteractiveMenu } from './ModeMenu';
 import { useDengar } from '../../lib/useDengar';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/commands';
@@ -287,6 +287,8 @@ function AiPanelInner() {
   const aiModePos = useStore((s) => s.settings.general.aiPanel ?? 'right');
   const aiDiKanan = aiModePos !== 'bottom';
   const applySettings = useStore((s) => s.applySettings);
+  /* Maximize/Restore moved to the shared AiHost tab strip, so AiPanel no longer
+     reads `aiMax` itself — the strip owns the toggle for all three tabs. */
 
   /*
    * `aiSempit`: the compact narrow reflow is now DISABLED everywhere.
@@ -377,6 +379,8 @@ function AiPanelInner() {
   /* The "..." menu, Copilot-style: move the chat into the editor area, pop it
      out to its own window, or dock it back to the right column. */
   const [menuBuka, setMenuBuka] = useState(false);
+  /* The "New chat" split-button dropdown (New Chat / in Editor / in Window). */
+  const [newMenuBuka, setNewMenuBuka] = useState(false);
   const posAi = aiModePos;
   const pindahAi = useCallback(
     (pos: 'right' | 'editor' | 'window' | 'bottom') => {
@@ -968,16 +972,99 @@ function AiPanelInner() {
 
         <div className="ai-head-right">
           {/*
-            * The message count and the context ring MOVED to the bottom bar,
-            * below the composer (Copilot-style). The debug (bug) button was
-            * REMOVED on request — request debugging still lives behind the
-            * command palette if ever needed.
-            *
-            * Compact, the tool gate (wrench) and Maximise were REMOVED from the
-            * header on request. Compact still lives behind `/compact` and the
-            * command palette; the tool list is now reached from Agent
-            * Customizations → Tools (and the "…" menu's "Tool Sets").
+            * Copilot-style header actions: New Chat (split button with a menu),
+            * History, Maximize/Restore, the "…" menu, and Close. The message
+            * count and context ring live in the bottom bar.
             */}
+
+          {/* New chat — split button. The main part starts a fresh chat; the
+              caret opens where it should open (here / editor / window). */}
+          <div className="ai-new-wrap">
+            <button
+              className="ai-newchat"
+              data-testid="ai-newchat"
+              title={tr('New chat')}
+              aria-label={tr('New chat')}
+              onClick={() => {
+                setDraft('');
+                newChat();
+              }}
+            >
+              <AiIkon name="plus" size={13} />
+              <span className="ai-newchat-teks">{tr('New Chat')}</span>
+            </button>
+            <button
+              className="ai-newchat-caret"
+              data-testid="ai-newchat-menu"
+              title={tr('New chat options')}
+              aria-label={tr('New chat options')}
+              aria-haspopup="menu"
+              aria-expanded={newMenuBuka}
+              onClick={() => setNewMenuBuka((v) => !v)}
+            >
+              <AiIkon name="chev-down" size={11} />
+            </button>
+            {newMenuBuka && (
+              <>
+                <div className="ai-more-backdrop" onClick={() => setNewMenuBuka(false)} />
+                <div className="ai-more-menu is-right" role="menu" data-testid="ai-newchat-menu-pop">
+                  <button
+                    role="menuitem"
+                    className="ai-more-item"
+                    data-testid="ai-newchat-here"
+                    onClick={() => {
+                      setDraft('');
+                      newChat();
+                      setNewMenuBuka(false);
+                    }}
+                  >
+                    {tr('New Chat')}
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="ai-more-item"
+                    data-testid="ai-newchat-editor"
+                    onClick={() => {
+                      setDraft('');
+                      newChat();
+                      pindahAi('editor');
+                      setNewMenuBuka(false);
+                    }}
+                  >
+                    {tr('New Chat in Editor')}
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="ai-more-item"
+                    data-testid="ai-newchat-window"
+                    onClick={() => {
+                      setDraft('');
+                      newChat();
+                      pindahAi('window');
+                      setNewMenuBuka(false);
+                    }}
+                  >
+                    {tr('New Chat in Window')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* History — opens the session switcher anchored to the title. */}
+          <button
+            className="ai-ikon"
+            data-testid="ai-history-btn"
+            title={tr('Chat history')}
+            aria-label={tr('Chat history')}
+            onClick={() => window.dispatchEvent(new Event('zephyr-ai-history'))}
+          >
+            <AiIkon name="history" size={14} />
+          </button>
+
+          {/* Maximize / Restore moved to just LEFT of Close — see below, the
+              VSCode Copilot header puts the expand toggle immediately before
+              the X. The block that used to sit here was relocated. */}
 
           {/*
             * The "..." menu, VSCode Copilot-style: move the chat between the
@@ -1058,6 +1145,17 @@ function AiPanelInner() {
             * Maximise was REMOVED: all four homes now use the one roomy layout,
             * and the right column is resizable by its drag handle, so a separate
             * maximise toggle no longer earns its slot in the header.
+            */}
+
+          {/*
+            * Maximize / Restore — only in the right column, where aiMax drives
+            * the layout. Placed immediately to the LEFT of Close, matching the
+            * VSCode Copilot chat header where the expand toggle sits next to X.
+            */}
+          {/*
+            * Maximize/Restore moved to the SHARED tab strip (AiHost), so Chat,
+            * Claude Code and Codex all toggle it from one slot instead of each
+            * carrying its own button. Nothing to render here now.
             */}
 
           {/*
@@ -2209,16 +2307,17 @@ function AiPanelInner() {
             }}
           />
 
-          <span className="ai-toolbar-spacer" aria-hidden="true" />
-
           {/*
-            * Model first, then mode, permission and reasoning — each its own
-            * trigger now (permission and reasoning used to share one menu).
+            * Model and mode (Chat/Agent) sit on the composer row next to "+",
+            * Copilot-style — they decide WHAT the message is. The controls for
+            * HOW it runs (permission + reasoning) moved to the footer below, so
+            * this row stays short and reads like the reference composer in every
+            * placement (right column, editor, window).
             */}
           <ModelSelector />
           <ModeMenu />
-          <PermissionMenu />
-          <ReasoningMenu />
+
+          <span className="ai-toolbar-spacer" aria-hidden="true" />
 
           <div className="ai-send-wrap">
             {!sibuk && adaCheckpoint && (
@@ -2340,16 +2439,21 @@ function AiPanelInner() {
       {/*
         * Bottom status bar, below the composer (Copilot-style).
         *
-        * The message count and the context-fullness ring MOVED here from the
-        * header on request — they are passive readouts, so they belong at the
-        * quiet bottom edge rather than competing with the title and the actions
-        * at the top.
+        * Left: how the turn RUNS — the run mode (Interactive / Plan / Autopilot),
+        * the permission level and the reasoning effort. This is the
+        * "Interactive · Manual permissions" footer of the reference. They moved
+        * out of the composer row so that row only carries what the message IS
+        * (model + agent). Right: the passive readouts — message count and the
+        * context-fullness ring.
         */}
       <div className="ai-botbar" data-testid="ai-botbar">
+        <InteractiveMenu />
+        <PermissionMenu />
+        <ReasoningMenu />
+        <span className="ai-botbar-spacer" aria-hidden="true" />
         <span className="ai-count" data-testid="ai-msg-count">
           {tf('{n} messages', { n: jumlahPesan })}
         </span>
-        <span className="ai-botbar-spacer" aria-hidden="true" />
         <ContextMeter />
       </div>
 

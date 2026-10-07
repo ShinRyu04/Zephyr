@@ -18,7 +18,56 @@ export const EV = {
   fileDropped: 'file-dropped',
   ramUsage: 'ram-usage',
   lspEvent: 'lsp-event',
+  cliChatChunk: 'cli-chat-chunk',
 } as const;
+
+/**
+ * One structured event from a hosted CLI, relayed inside a `cli-chat-chunk`.
+ *
+ * The backend (`cli_chat.rs`) parses each CLI's native newline-JSON dialect
+ * (Claude `stream-json`, Codex `--json`) into this one shape so the frontend
+ * renders thinking / tool calls / diffs the same way regardless of agent. When
+ * `event` is present, the top-level `text` is absent (and vice versa).
+ */
+export type CliEvent =
+  | { kind: 'text'; text: string }
+  | { kind: 'thinking'; text: string }
+  | { kind: 'error'; text: string }
+  | {
+      kind: 'tool';
+      tool: {
+        /** Stable id to match a `running` start with its `ok`/`fail` close. */
+        callId: string;
+        /** Tool name, e.g. "Bash", "Edit", "Read", "command_execution". */
+        name: string;
+        /** Human target: the command text or the file path. */
+        title?: string;
+        /** Raw args as pretty JSON, or the command text. */
+        input?: string;
+        status: 'running' | 'ok' | 'fail';
+        /** tool_result / aggregated_output (may be partial). */
+        output?: string;
+        exitCode?: number | null;
+        /** For a file edit: the diff halves + path, so the UI can draw a diff. */
+        diffOld?: string;
+        diffNew?: string;
+        path?: string;
+      };
+    };
+
+export interface CliChatChunk {
+  id: string;
+  text?: string;
+  stderr?: string;
+  done?: boolean;
+  cancelled?: boolean;
+  /** A structured event (thinking / text / tool / error). */
+  event?: CliEvent;
+}
+
+export function onCliChatChunk(cb: (chunk: CliChatChunk) => void): Promise<UnlistenFn> {
+  return listen<CliChatChunk>(EV.cliChatChunk, (e) => cb(e.payload));
+}
 
 export function onLspEvent(
   cb: (ev: Record<string, unknown>) => void,

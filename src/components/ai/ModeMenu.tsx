@@ -295,6 +295,82 @@ export function ModeMenu() {
   );
 }
 
+/* ── Run mode: Interactive / Plan / Autopilot ─────────────────────────── */
+
+const RUN_MODES: { id: 'interactive' | 'plan' | 'autopilot'; label: string; hint: string }[] = [
+  { id: 'interactive', label: 'Interactive', hint: 'Step-by-step collaboration' },
+  { id: 'plan', label: 'Plan', hint: 'Plan first, execute when ready' },
+  { id: 'autopilot', label: 'Autopilot', hint: 'Works autonomously within permissions' },
+];
+
+export function InteractiveMenu() {
+  const tr = useT();
+  const [buka, setBuka] = useState(false);
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useTutupOtomatis(ref, () => setBuka(false));
+
+  const runMode = useAi((s) => s.runMode ?? 'interactive');
+  const setRunMode = useAi((s) => s.setRunMode);
+  const aktif = RUN_MODES.find((m) => m.id === runMode) ?? RUN_MODES[0];
+
+  return (
+    <span className="izin-wrap" ref={ref}>
+      <button
+        className="mode-btn"
+        data-testid="ai-run-menu"
+        data-run={runMode}
+        aria-expanded={buka}
+        aria-haspopup="menu"
+        title={tr(aktif.hint)}
+        onClick={() => setBuka((v) => !v)}
+      >
+        {runMode === 'plan' ? (
+          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+            <path d="M3 4h7M3 8h7M3 12h4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            <path d="M12.4 10.4l1 1 2-2.2" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : runMode === 'autopilot' ? (
+          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+            <path d="M8.6 1.8 3.4 9h3.3l-1.3 5.2L12.4 7H9l1.6-5.2z" fill="currentColor" stroke="none" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+            <path d="M13.6 8.2a5.2 5.2 0 0 1-7.3 4.7l-3.9.9.9-3.8A5.2 5.2 0 1 1 13.6 8.2z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+          </svg>
+        )}
+        {tr(aktif.label)}
+        <span className="pick-caret">▾</span>
+      </button>
+
+      {buka && (
+        <div className="mode-pop is-naik" data-testid="ai-run-pop" role="menu">
+          <div className="pick-seksi">{tr('Run mode')}</div>
+          {RUN_MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={m.id === runMode}
+              className={`mode-item${m.id === runMode ? ' is-on' : ''}`}
+              data-testid={`ai-run-${m.id}`}
+              onClick={() => {
+                setRunMode(m.id);
+                setBuka(false);
+              }}
+            >
+              <span className="mode-item-teks">
+                <b>{tr(m.label)}</b>
+                <i>{tr(m.hint)}</i>
+              </span>
+              {m.id === runMode && <span className="pick-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
 /* ── Approval (permissions) ───────────────────────────────────────────── */
 
 export function PermissionMenu() {
