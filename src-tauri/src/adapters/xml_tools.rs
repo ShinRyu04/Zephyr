@@ -50,7 +50,19 @@ fn tag_name_bersih(tag: &str) -> &str {
     let t = t.strip_prefix('|').unwrap_or(t);
     let t = t.strip_prefix("DSML|").map(str::trim).unwrap_or(t);
     let t = t.strip_suffix("|>").unwrap_or(t);
-    let t = t.split(|c: char| c.is_whitespace() || c == '/').next().unwrap_or(t);
+    /*
+     * A `=` also ends the tag name, not just whitespace and `/`.
+     *
+     * The OpenAI-style spelling puts the tool on the tag as `<function=name>`,
+     * so splitting only on whitespace left the whole `function=tool_search` as
+     * the "name" — which matched neither `invoke` nor `function`, and the call
+     * was silently discarded. The attribute form `<invoke name="x">` is
+     * unaffected: its `=` comes after a space, so the split lands first.
+     */
+    let t = t
+        .split(|c: char| c.is_whitespace() || c == '/' || c == '=')
+        .next()
+        .unwrap_or(t);
     match t.rsplit_once(':') {
         Some((_, nama)) => nama,
         None => t,
@@ -100,13 +112,34 @@ fn baca_invoke(teks: &str, dari: usize) -> Option<(String, Value, usize)> {
     let gt_rel = sisa[awal..].find('>')?;
     let tag_buka = &sisa[awal..awal + gt_rel];
     let nama_tag = tag_name_bersih(tag_buka.trim_start_matches('<'));
-    if nama_tag != "invoke" {
-        return baca_invoke(teks, dari + awal + gt_rel + 1);
-    }
-    let nama_tool = atribut(tag_buka, "name")?;
+    /*
+     * Two spellings of the call tag, and both must be read.
+     *
+     * `<invoke name="x">` is the documented DSML shape and was the only one
+     * accepted. Some models instead emit the OpenAI-style function form —
+     * `<function=tool_search>` — with the name on the TAG rather than in a
+     * `name=` attribute, and a bare `<parameter=query>` with no `name=` either.
+     * Rejecting those did not merely lose the call: the markup stayed in the
+     * message body, so the reply rendered as
+     * `<tool_call><function=tool_search><parameter=query>…` on screen and the
+     * tool never ran. The reader was shown the mechanism instead of the answer.
+     */
+    let nama_tool = match nama_tag {
+        "invoke" => atribut(tag_buka, "name")?,
+        "function" => atribut(tag_buka, "function")
+            .or_else(|| atribut(tag_buka, "name"))?,
+        /*
+         * `<tool_call>tool_search{...}` — a bare tag whose body opens with the
+         * name. Handled by the caller's fallback below, not here.
+         */
+        _ => return baca_invoke(teks, dari + awal + gt_rel + 1),
+    };
     let isi_mulai = dari + awal + gt_rel + 1;
 
-    let (isi, setelah) = potong_sampai_penutup(teks, isi_mulai, "invoke")?;
+    /* The closing tag follows the opening one: `</function>` for the OpenAI
+       spelling, `</invoke>` otherwise. */
+    let penutup = if nama_tag == "function" { "function" } else { "invoke" };
+    let (isi, setelah) = potong_sampai_penutup(teks, isi_mulai, penutup)?;
 
     let mut args = serde_json::Map::new();
     let mut pos = 0usize;
@@ -156,7 +189,27 @@ fn baca_parameter(isi: &str, dari: usize) -> Option<(String, Value, usize)> {
     if nama_tag != "parameter" {
         return baca_parameter(isi, dari + awal + gt_rel + 1);
     }
-    let nama = atribut(tag_buka, "name")?;
+    /*
+     * The parameter's name comes from either an attribute or the tag itself.
+     *
+     * `<parameter name="query">` is the documented form. The OpenAI-style
+     * spelling instead puts it on the tag as `=` — `<parameter=query>` — with
+     * no `name=` anywhere, and `atribut(tag, "name")` returned None for it, so
+     * the loop moved on and the call arrived with NO arguments. A tool called
+     * with an empty argument set is worse than one not called at all: it runs,
+     * fails on a missing field, and the error reads as the tool being broken.
+     */
+    let nama = atribut(tag_buka, "name").or_else(|| {
+        let t = tag_buka.trim_start_matches('<').trim();
+        let t = t.strip_prefix("parameter").unwrap_or(t);
+        let t = t.strip_prefix('=').unwrap_or(t);
+        let t = t.trim();
+        let end = t
+            .find(|c: char| c.is_whitespace() || c == '>' || c == '/')
+            .unwrap_or(t.len());
+        let nama = t[..end].trim_matches(|c| c == '"' || c == '\'');
+        (!nama.is_empty()).then(|| nama.to_string())
+    })?;
     let isi_mulai = dari + awal + gt_rel + 1;
     let (nilai_mentah, setelah) = potong_sampai_penutup(isi, isi_mulai, "parameter")?;
     let nilai = if nilai_mentah.trim().is_empty() {
@@ -270,12 +323,31 @@ pub fn mungkin_awal_tag(teks: &str) -> bool {
 pub fn mengandung_tool_call(teks: &str) -> bool {
     let teks = normalisasi_penanda(teks);
     let teks: &str = &teks;
-    teks.contains("invoke") && teks.contains("name=") && teks.contains('<')
+    if !teks.contains('<') {
+        return false;
+    }
+    /*
+     * The DSML/invoke spelling names the tool in an attribute and the parameter
+     * in another: `<invoke name="x"><parameter name="y">`.
+     *
+     * The OpenAI-style spelling names both on the tags themselves —
+     * `<function=tool_search><parameter=query>` — so the old test, which
+     * demanded the literal words `invoke` AND `name=`, rejected it before the
+     * parser ever ran. Every such call therefore fell through untranslated and
+     * the raw markup was rendered to the user instead of being executed.
+     */
+    let dsml = teks.contains("invoke")
+        && teks.contains("name=")
         && (teks.contains("DSML")
             || teks.contains("<tool_call")
             || teks.contains("<function_call")
             || teks.contains("antml:invoke")
-            || teks.contains("<invoke"))
+            || teks.contains("<invoke"));
+    let tag_form = teks.contains("<function=")
+        || teks.contains("<parameter=")
+        || teks.contains("<tool_call>")
+        || teks.contains("<|DSML|");
+    dsml || tag_form
 }
 
 pub fn bersihkan_teks(teks: &str) -> String {
@@ -407,6 +479,49 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].name, "fs_list");
         assert_eq!(calls[0].args["path"], json!("."));
+    }
+
+    /*
+     * The OpenAI-style function spelling, which reached the screen verbatim.
+     *
+     * This is the exact string a live session produced: the model wrote the call
+     * as `<tool_call><function=tool_search><parameter=query>…`, the parser only
+     * understood `<invoke name=…>`, and so the markup was neither executed nor
+     * stripped — the user's answer contained the raw tag. Reading the name off
+     * the tag (`function=query`) and the parameter name off its own tag
+     * (`parameter=query`) is what closes that hole.
+     */
+    #[test]
+    fn gaya_function_diparse() {
+        let t = "<tool_call><function=tool_search><parameter=query>pane terminal shell</parameter></function></tool_call>";
+        let calls = parse_teks(t);
+        assert_eq!(calls.len(), 1, "expected one call, got {calls:?}");
+        assert_eq!(calls[0].name, "tool_search");
+        assert_eq!(calls[0].args["query"], json!("pane terminal shell"));
+        assert_eq!(bersihkan_teks(t), "");
+    }
+
+    #[test]
+    fn gaya_function_multi_parameter() {
+        let t = "<function=tool_call><parameter=name>fs_read</parameter><parameter=args>{\"path\":\"a.rs\"}</parameter></function>";
+        let calls = parse_teks(t);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "tool_call");
+        assert_eq!(calls[0].args["name"], json!("fs_read"));
+        assert_eq!(calls[0].args["args"]["path"], json!("a.rs"));
+    }
+
+    /* A function call sitting mid-sentence must not swallow the prose around it. */
+    #[test]
+    fn gaya_function_di_tengah_teks() {
+        let t = "Saya cek dulu.\n\n<tool_call><function=tool_search><parameter=query>web</parameter></function></tool_call>\n\nLalu lanjut.";
+        let calls = parse_teks(t);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "tool_search");
+        let bersih = bersihkan_teks(t);
+        assert!(bersih.contains("Saya cek dulu."), "got {bersih:?}");
+        assert!(bersih.contains("Lalu lanjut."), "got {bersih:?}");
+        assert!(!bersih.contains("function="), "tag leaked: {bersih:?}");
     }
 
     #[test]
