@@ -225,6 +225,13 @@ function agentToolCacheKey(name: string, args: Record<string, unknown>): string 
  * cannot make one repeated action look like two.
  */
 const BATAS_AKSI_SAMA = 3;
+/*
+ * The same read, repeated. Higher than the write limit because a read after a
+ * write is legitimate verification — the model checks its own work — and a
+ * directory listing that genuinely changed between calls is progress. Six is
+ * comfortably past "checking" and well short of the eleven seen in a live run.
+ */
+const BATAS_BACA_SAMA = 6;
 const BATAS_AKSI_INGAT = 2;
 
 /*
@@ -390,8 +397,31 @@ export function catatAksiBerulang(peta: Map<string, number>, name: string, args:
   const bolehHentikan = !TOOL_BACA_SET.has(name);
   return {
     jumlah,
-    ingatkan: jumlah === BATAS_AKSI_INGAT,
-    hentikan: bolehHentikan && jumlah >= BATAS_AKSI_SAMA,
+    /*
+     * EVERY repeat past the first, not just the second.
+     *
+     * `jumlah === BATAS_AKSI_INGAT` fires once, when the count is exactly two,
+     * and that was the whole defence against a loop. A live run made the flaw
+     * plain: `list_directory` was called ELEVEN times with identical arguments
+     * and identical results, so the reminder arrived once — at the second
+     * repeat, seconds in — and the loop then ran unreminded for nine more
+     * rounds. The failure mode being defended against is the model NOT
+     * retaining the notice, so sending it once cannot work.
+     */
+    ingatkan: jumlah > BATAS_AKSI_INGAT,
+    /*
+     * Reads keep the soft limit, but not an unlimited one.
+     *
+     * Allowing a read to force-stop was removed because a model that lists a
+     * directory after writing files is VERIFYING its own work, and killing that
+     * stopped healthy runs. That reasoning holds for a few repeats. It stops
+     * holding past `BATAS_BACA_SAMA`, where the same read returning the same
+     * bytes is no longer verification but a stuck loop — and every one of those
+     * results stays in the conversation and is re-sent on every later turn,
+     * which is the cost that makes an unbounded read loop expensive rather than
+     * merely untidy.
+     */
+    hentikan: bolehHentikan ? jumlah >= BATAS_AKSI_SAMA : jumlah >= BATAS_BACA_SAMA,
   };
 }
 
@@ -4064,18 +4094,35 @@ export const useAi = create<AiStore>((set, get) => ({
 
           if (hitungAksi.ingatkan) {
             /*
-             * Second identical call in this turn: the model is looping, but a
-             * reminder is cheaper and less destructive than a stop. The line
-             * rides along after the tool result so it is the last thing the
-             * model reads before deciding its next move, and it names the
-             * escape hatches (use the result already in hand, or change
-             * approach) instead of just forbidding the repeat.
+             * The model is repeating an identical call.
+             *
+             * Two mistakes were fixed here, and a live run showed both:
+             *
+             * ONE reminder. `ingatkan` fires only when the count EQUALS two, so
+             * a call repeated eleven times was warned about exactly once — at
+             * the second repeat, four seconds in, after which the loop ran
+             * unwatched for another nine rounds. A reminder against a loop has
+             * to keep arriving, because the whole failure mode is the model not
+             * retaining it. It now fires on every repeat past the first.
+             *
+             * As a separate `user` message. It rode in the history as its own
+             * turn, which a long conversation can push far from the result it
+             * refers to; appended to the TOOL RESULT it cannot be missed,
+             * because it is the last text before the model decides again.
+             *
+             * The wording names the escape hatch — the result is already in
+             * hand — because "do not repeat" alone leaves a model with nothing
+             * to do instead.
              */
-            history.push({
-              role: 'user',
+            history[history.length - 1] = {
+              role: 'tool',
+              toolCallId: tc.id,
+              name: tc.name,
               content:
-                'You have already run this exact call. Do not repeat it - either use the result you have or take a different approach.',
-            });
+                `${hasil}\n\n[You have run this exact call ${hitungAksi.jumlah} times this turn, ` +
+                'with the same arguments. The result above is unchanged and you already have it — ' +
+                'use it, or take a different approach. Do not call this again.]',
+            };
           }
 
           /*
@@ -4377,6 +4424,45 @@ export const useAi = create<AiStore>((set, get) => ({
                   tampil = akhir === finalError && tergambar
                     ? `${tergambar}\n\n${finalError}`
                     : akhir;
+                } else if (!akhir.trim() && !tergambar) {
+                  /*
+                   * A run that finished with WORK but no narration is not a
+                   * blank turn, and must not render as one.
+                   *
+                   * This is the "bisu" case, seen live: the model ran ten tool
+                   * calls — wrote three files, read them back — then stopped
+                   * with an empty `res.content`, so `akhir` was empty, the
+                   * bubble had no text, and the reader was shown a column of
+                   * tool rows with nothing saying what had happened or whether
+                   * it had worked.
+                   *
+                   * Saying it in Zephyr's own words is the honest answer: the
+                   * steps DID run and their results are real. What is missing is
+                   * only the model's summary, and reporting that is better than
+                   * silence. The count and the files are taken from what
+                   * actually executed, so the sentence cannot claim work that
+                   * did not happen.
+                   */
+                  const selesai = get().agentSteps.filter((s) => s.kind === 'tool');
+                  const gagal = selesai.filter((s) => s.ok === false).length;
+                  const ditulis = [...new Set(
+                    selesai
+                      .filter((s) => s.ok !== false && /write_file|edit|multi_edit/.test(s.name || ''))
+                      .map((s) => {
+                        try {
+                          const a = JSON.parse(s.args || '{}') as { path?: string };
+                          return a.path ? a.path.replace(/^.*[\\/]/, '') : '';
+                        } catch {
+                          return '';
+                        }
+                      })
+                      .filter(Boolean),
+                  )];
+                  const bagian = [`Selesai — ${selesai.length} langkah dijalankan`];
+                  if (ditulis.length) bagian.push(`berkas: ${ditulis.join(', ')}`);
+                  if (gagal) bagian.push(`${gagal} langkah gagal`);
+                  bagian.push('(model tidak menulis ringkasan)');
+                  tampil = bagian.join(' · ');
                 } else if (!akhir.trim()) {
                   tampil = m.content;
                 } else if (!tergambar) {

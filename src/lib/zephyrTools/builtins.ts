@@ -578,13 +578,22 @@ export const TOOL_BAWAAN: AgentTool[] = [
         const ada = await cmd.fsExists(path).catch(() => false);
         if (ada) throw new Error(`ERROR: berkas sudah ada, dan createOnly disetel: ${path}`);
       }
-      /* Isi lama dibaca SEBELUM menulis, supaya diffnya bisa dihitung. Kalau
-         berkasnya belum ada, ini gagal dan dianggap berkas baru - untuk berkas
-         baru tidak ada yang berguna untuk dibandingkan. */
+      /*
+       * Isi lama dibaca SEBELUM menulis, supaya diffnya bisa dihitung.
+       *
+       * Sebuah berkas BARU juga menghasilkan diff. Versi sebelumnya
+       * melewatkannya (`lama ? buatDiff(...) : ''`) dengan alasan "tidak ada
+       * yang berguna untuk dibandingkan" — dan alasan itu salah, terbukti dari
+       * run sungguhan: membuat tiga berkas baru menghasilkan NOL diff, sehingga
+       * pembaca tidak melihat satu baris pun dari apa yang ditulis, padahal
+       * menambah berkas adalah perubahan yang paling jelas (seluruh isinya
+       * baru). Diff dari kosong menampilkan tepat itu: setiap baris sebagai
+       * tambahan.
+       */
       const lama = await bacaLengkap(path).catch(() => '');
       await cmd.fsWrite(path, isi, undefined, undefined, { allowMissing: true });
       await segarkanTab(path);
-      const diff = lama ? buatDiff(path, lama, isi) : '';
+      const diff = buatDiff(path, lama, isi);
       return `Ditulis: ${path} (${isi.length} karakter)` + (diff ? `\n${diff}` : '');
     },
   },
