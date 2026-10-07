@@ -1,10 +1,11 @@
 import { memo, useMemo, useState } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { CliMsg } from '../../lib/aiCliStore';
+import type { CliMsg, CliTodo } from '../../lib/aiCliStore';
 import ReasoningBlock from './ReasoningBlock';
 import Lightbox from './Lightbox';
 import { ToolRow, unifiedFromHalves } from './claudeCodeUi';
+import { useT } from '../../lib/i18n';
 
 /*
  * The structured timeline of one hosted-CLI assistant message.
@@ -44,6 +45,55 @@ function mdComponents(onImage: (src: string) => void): Components {
       ) : null,
   };
 }
+
+/*
+ * The agent's plan, as a checklist.
+ *
+ * This is the one part of the transcript that is read BEFORE the work, not
+ * after: it answers "what is it about to do" while the tools are still running.
+ * So it is always expanded — collapsing the plan behind a click would defeat
+ * the only reason it exists — and it marks the single step in progress with the
+ * accent, so a glance finds the current one in a list of twenty.
+ *
+ * `activeForm` replaces `content` for the in-progress row on purpose: "Run the
+ * tests" is a thing to do, "Running tests" is a thing happening. The tense is
+ * the signal that the step started, and it costs nothing to show.
+ */
+const TodoChecklist = memo(function TodoChecklist({ items }: { items: CliTodo[] }) {
+  const tr = useT();
+  /* `deleted` is a removal instruction from TaskUpdate, not a state to show. */
+  const shown = items.filter((t) => t.status !== 'deleted' && (t.content || t.activeForm));
+  if (shown.length === 0) return null;
+  const done = shown.filter((t) => t.status === 'completed').length;
+
+  return (
+    <div className="cli-todo" data-testid="cli-todo">
+      <div className="cli-todo-head">
+        <span className="cli-todo-title">{tr('Plan')}</span>
+        <span className="cli-todo-count">{done}/{shown.length}</span>
+      </div>
+      <ul className="cli-todo-list">
+        {shown.map((t, i) => {
+          const jalan = t.status === 'in_progress';
+          const beres = t.status === 'completed';
+          const teks = jalan && t.activeForm ? t.activeForm : t.content;
+          return (
+            <li
+              key={t.id || i}
+              className={`cli-todo-item${beres ? ' is-done' : ''}${jalan ? ' is-now' : ''}`}
+              data-status={t.status}
+            >
+              <span className="cli-todo-mark" aria-hidden="true">
+                {beres ? '✓' : jalan ? '▸' : '○'}
+              </span>
+              <span className="cli-todo-text">{teks}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+});
 
 /* Keep the unified-diff helper referenced for callers that want a plain string. */
 export { unifiedFromHalves };
@@ -98,6 +148,9 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
               {p.text}
             </div>
           );
+        }
+        if (p.type === 'todo') {
+          return <TodoChecklist key={i} items={p.items} />;
         }
         /* text */
         return (
