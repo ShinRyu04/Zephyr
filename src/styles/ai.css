@@ -6640,6 +6640,38 @@
 }
 .cli-tool-btn:hover { background: var(--surface-3); color: var(--text); }
 
+/*
+ * The nested steps inside a grouped tool row.
+ *
+ * Chat AI folds a run of read-only calls into one row and lists them here. The
+ * children must read as SUBORDINATE to the summary above them: indented, with
+ * the kind colour carried only by the glyph rather than by the whole line, so
+ * the group's header stays the thing the eye lands on.
+ */
+.ai-grup-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 4px;
+}
+.ai-grup-baris {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 8px 1px 22px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary, var(--fg1));
+}
+.ai-grup-baris .ai-toolrun-ikon { flex: 0 0 auto; }
+.ai-grup-baris .ai-toolrun-name { color: var(--text); }
+.ai-grup-baris .ai-toolrun-args {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted, var(--fg1));
+}
+.ai-grup-baris .ai-toolrun-fail { color: var(--danger); font-size: 11px; }
+
 /* ---- CLI composer: attached-image thumbnails -------------------------- */
 .cli-img-strip {
   display: flex;

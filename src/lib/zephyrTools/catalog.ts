@@ -505,10 +505,30 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'grep',
   'glob',
   'bash_run',
+  /*
+   * Long-running commands.
+   *
+   * `bash_run` blocks until the command exits, so a dev server or a watch task
+   * either times out or holds the whole agent loop. The background pair is what
+   * makes those expressible at all, and an agent that cannot reach it has no way
+   * to start something that does not finish — which is a common enough need to
+   * justify the cost of two more specs on every request.
+   */
+  'bash_background',
+  'bash_logs',
   'todo_write',
   'think',
   'ask_user',
   'run_subagent',
+  /*
+   * The plural form.
+   *
+   * `run_subagent` takes one prompt; a task that decomposes into several
+   * independent parts is the normal case, and hiding the parallel version behind
+   * a search means the model runs them one at a time instead — slower and more
+   * expensive than the thing the search was saving.
+   */
+  'run_subagents',
   'tool_search',
   'tool_call',
   'browser_open',
