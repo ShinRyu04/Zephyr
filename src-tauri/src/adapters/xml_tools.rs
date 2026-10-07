@@ -251,6 +251,67 @@ fn potong_sampai_penutup<'a>(teks: &'a str, mulai: usize, nama: &str) -> Option<
 /// it says whether the tail could still grow into a tag. The caller holds the
 /// text back instead of emitting it, and the parser either consumes it at
 /// `finish` or the text is flushed as normal prose once it can no longer match.
+/// How much of `teks` is settled and safe to show right now.
+///
+/// Returns the byte offset of the first position that MIGHT begin a tool marker.
+/// Everything before it can be emitted immediately; everything from it onward is
+/// still in doubt and must be held until more arrives (or until `finish`).
+///
+/// This exists because the old guard held the whole buffer as soon as a marker
+/// appeared anywhere, so a reply that mentioned the marker stalled until the
+/// response completed — the visible symptom being an answer that freezes and
+/// then dumps its remainder in one block.
+///
+/// A `<` is not itself a marker: prose contains comparisons and HTML all the
+/// time, and holding on every one would reintroduce the same stall for ordinary
+/// text. Only a prefix that has already committed to the marker syntax counts.
+pub fn posisi_aman(teks: &str) -> usize {
+    let folded = normalisasi_penanda(teks);
+    let t: &str = &folded;
+
+    /* The earliest committing prefix; if none is present, nothing is held. */
+    let mut batas = t.len();
+    for p in ["<|DSML|", "|DSML|", "||DSML||", "<||DSML||"] {
+        if let Some(i) = t.find(p) {
+            if i < batas {
+                batas = i;
+            }
+        }
+    }
+
+    /*
+     * A partial marker at the very end is also held, and only there.
+     *
+     * `<|DSM` could still become `<|DSML| invoke`, so the last few characters
+     * have to wait — but a `<` in the MIDDLE of a sentence is just a `<`.
+     */
+    const AWALAN: [&str; 6] = ["<|DSML|", "|DSML|", "<", "<|", "||DSML||", "<||DSML||"];
+    let ekor = match t.char_indices().nth_back(23) {
+        Some((idx, _)) => &t[idx..],
+        None => t,
+    };
+    let partial = AWALAN
+        .iter()
+        .any(|a| a.starts_with(ekor.trim_end()) && !ekor.trim_end().is_empty() && ekor.contains('<'))
+        || ["|DSML", "<|DSM", "<|DS", "<|D", "<|", "<"].iter().any(|s| ekor.ends_with(s));
+    if partial {
+        let mulai = t.len().saturating_sub(ekor.len());
+        if mulai < batas {
+            batas = mulai;
+        }
+    }
+
+    /*
+     * Map the offset back to the ORIGINAL string.
+     *
+     * Folding replaces a fullwidth bar with an ASCII one, so every replacement
+     * keeps the byte length identical and the offset transfers unchanged. That
+     * is a property of `normalisasi_penanda` worth stating: if it ever starts
+     * changing length, this arithmetic silently slices the wrong place.
+     */
+    batas.min(teks.len())
+}
+
 pub fn mungkin_awal_tag(teks: &str) -> bool {
     /*
      * Fold first, then decide. Every other helper in this module folds the
@@ -262,26 +323,30 @@ pub fn mungkin_awal_tag(teks: &str) -> bool {
     let teks: &str = &teks;
 
     /*
-     * A marker ANYWHERE in the buffer means hold.
+     * Hold from the MARKER onward, not the whole buffer.
      *
-     * This is the actual leak, and it is not about fullwidth at all. The tail
-     * check below can only ever see the last 24 characters, but a finished tag
-     * with a real tool name and arguments is far longer than that:
+     * This guard used to return true whenever `|DSML|` appeared anywhere in the
+     * buffer, on the reasoning that `finish` flushes through `bersihkan_teks`
+     * so over-holding "only moves a few characters later". That reasoning is
+     * wrong, and it is what makes streaming stall:
      *
-     *     <|DSML| invoke name="browser_close">      <- 35 chars
-     *     me="browser_close">                      <- what the tail sees
+     * The stream decides per chunk whether to emit or hold. Once a marker
+     * appears, EVERY later chunk keeps matching this test — so nothing more is
+     * shown until the whole response completes. A reply that mentions the
+     * marker (a model explaining its own tool syntax, or quoting it back) stops
+     * mid-sentence and then dumps the rest in one block. The reader sees the
+     * answer freeze, which reads as the app hanging.
      *
-     * The tail matched nothing, so the guard said "this is prose", the chunk
-     * was emitted to the UI, and the markup was already on screen by the time
-     * `finish` handed it to the parser. Streaming is one-way: what was emitted
-     * cannot be taken back. That is why the raw DSML showed up in the reply
-     * and no tool ever ran.
+     * The correct question is not "does the buffer contain a marker" but "is
+     * there text HERE that is safe to show". Text BEFORE the marker is settled
+     * — no tag can start in it any more — so it can be emitted now; only the
+     * part from the marker to the end is still in doubt.
      *
-     * So the buffer is held as soon as a marker start exists at all. `finish`
-     * always flushes through `bersihkan_teks`, so over-holding delays nothing
-     * permanently - it only moves a few characters later.
+     * The caller gets that answer through `posisi_aman`, which returns the
+     * split point. This function stays as the coarse yes/no for callers that
+     * only need "is anything being held".
      */
-    if teks.contains("|DSML|") || teks.contains("||DSML||") {
+    if posisi_aman(teks) < teks.len() {
         return true;
     }
 
@@ -462,6 +527,7 @@ pub fn parse_teks(teks: &str) -> Vec<ToolCall> {
 mod tests {
     use super::*;
 
+
     #[test]
     fn dsml_diparse() {
         let t = "Saya cek dulu.\n\n<|DSML| calls>\n<|DSML| invoke name=\"fs_read\">\n<|DSML| parameter name=\"path\" string=\"true\">src/main.rs</|DSML| parameter>\n</|DSML| invoke>\n</|DSML| calls>";
@@ -581,6 +647,52 @@ mod tests {
         assert_eq!(calls.len(), 1, "tool call dari tag lebar harus terbaca");
         assert_eq!(calls[0].name, "file_list");
         assert_eq!(calls[0].args["path"], json!("."));
+    }
+
+    /*
+     * The stall this fixes.
+     *
+     * The guard used to hold the WHOLE buffer as soon as a marker appeared
+     * anywhere, so once the model wrote a marker the rest of the response was
+     * held until `finish` — the answer visibly froze mid-sentence and then
+     * appeared all at once. These pin the split point instead: text before the
+     * marker is settled and must be released immediately.
+     */
+    #[test]
+    fn posisi_aman_melepas_teks_sebelum_penanda() {
+        let t = "Jawaban saya sepanjang ini sudah selesai.<|DSML| invoke name=\"x\">";
+        let aman = posisi_aman(t);
+        assert_eq!(&t[..aman], "Jawaban saya sepanjang ini sudah selesai.");
+    }
+
+    #[test]
+    fn posisi_aman_menahan_seluruhnya_saat_penanda_di_awal() {
+        let t = "<|DSML| invoke name=\"x\">";
+        assert_eq!(posisi_aman(t), 0);
+    }
+
+    #[test]
+    fn posisi_aman_tidak_menahan_prosa_biasa() {
+        // A comparison or an HTML tag in mid-sentence is not a marker: holding
+        // on every `<` would reintroduce the same stall for ordinary text.
+        for t in ["2 < 3 dan itu benar", "pakai <div> untuk itu", "harga < 100 ribu"] {
+            assert_eq!(posisi_aman(t), t.len(), "held prose: {t:?}");
+        }
+    }
+
+    #[test]
+    fn posisi_aman_menahan_awalan_yang_belum_lengkap() {
+        // A partial marker at the very END could still become a real one.
+        assert!(posisi_aman("teks biasa <|DSM") < "teks biasa <|DSM".len());
+    }
+
+    #[test]
+    fn posisi_aman_tidak_melampaui_panjang_asli() {
+        // The offset is computed on the folded copy; it must never exceed the
+        // original, or the caller's slice panics.
+        for t in ["", "a", "｜DSML｜ tes", "|DSML| x"] {
+            assert!(posisi_aman(t) <= t.len(), "overflowed on {t:?}");
+        }
     }
 
     #[test]

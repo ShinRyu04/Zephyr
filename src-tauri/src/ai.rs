@@ -940,7 +940,7 @@ pub fn ai_tool_chat_stream(
             }
             if let Some(text) = acc.feed(&v) {
                 /*
-                 * Hold back a tail that may still become a tool tag.
+                 * Hold back only the part that may still become a tool tag.
                  *
                  * The parser only sees complete markup, and it runs at `finish`
                  * — but streaming already sent every chunk to the UI by then,
@@ -948,12 +948,26 @@ pub fn ai_tool_chat_stream(
                  * screen. Keeping a possible partial tag in the buffer means
                  * the parser gets first refusal; whatever it does not consume
                  * is flushed below as ordinary text.
+                 *
+                 * The split matters as much as the hold. Emitting all-or-nothing
+                 * meant that as soon as a marker appeared ANYWHERE in the
+                 * buffer, every later chunk kept the guard true and nothing more
+                 * was shown until the response ended — a reply that mentioned
+                 * the marker stalled mid-sentence and then dumped its remainder
+                 * in one block, which reads as the app having frozen. Text
+                 * BEFORE the marker is settled, so it goes out now; only the
+                 * marker and everything after it waits.
                  */
                 ada_output = true;
                 tahan.push_str(&text);
-                if !xml_tools::mungkin_awal_tag(&tahan) {
-                    emit_chunk(&handle, json!({ "id": req_id, "text": tahan.clone() }));
-                    tahan.clear();
+                let aman = xml_tools::posisi_aman(&tahan);
+                if aman > 0 {
+                    let (kirim, sisa) = tahan.split_at(aman);
+                    let bersih = xml_tools::bersihkan_teks(kirim);
+                    if !bersih.is_empty() {
+                        emit_chunk(&handle, json!({ "id": req_id, "text": bersih }));
+                    }
+                    tahan = sisa.to_string();
                 }
             }
         }
