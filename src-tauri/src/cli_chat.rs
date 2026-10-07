@@ -58,9 +58,16 @@ fn recipe(agent_id: &str) -> Option<Headless> {
 /// permission mode the user picked in the composer. Both are optional: an empty
 /// / "default" selection means "let the CLI use its own default", so no flag is
 /// added and the CLI behaves exactly as it would from a plain terminal.
-fn build_args(agent_id: &str, prompt: &str, model: Option<&str>, mode: Option<&str>) -> Vec<String> {
+fn build_args(
+    agent_id: &str,
+    prompt: &str,
+    model: Option<&str>,
+    mode: Option<&str>,
+    resume: Option<&str>,
+) -> Vec<String> {
     let model = model.filter(|m| !m.is_empty() && *m != "default");
     let mode = mode.filter(|m| !m.is_empty() && *m != "default");
+    let resume = resume.filter(|m| !m.is_empty());
     match agent_id {
         "claude" => {
             let mut v = vec![
@@ -70,6 +77,22 @@ fn build_args(agent_id: &str, prompt: &str, model: Option<&str>, mode: Option<&s
                 "stream-json".into(),
                 "--verbose".into(),
             ];
+            /*
+             * Continue an existing CLI conversation.
+             *
+             * Verified against the real binary: a session that was told "remember
+             * the name Zephyr" answers "Zephyr." when a later `-p` run passes
+             * `--resume <session-id>`. That makes Zephyr able to pick up a session
+             * started in a terminal — the context the user built up outside this
+             * app is not stranded there.
+             *
+             * Placed before the model/mode flags only for readability; the CLI
+             * does not care about order.
+             */
+            if let Some(r) = resume {
+                v.push("--resume".into());
+                v.push(r.into());
+            }
             if let Some(m) = model {
                 v.push("--model".into());
                 v.push(m.into());
@@ -258,6 +281,25 @@ fn claude_events_from_line_skip(
                         "status": if is_err { "fail" } else { "ok" },
                         "output": tool_result_text(block.get("content")),
                     })));
+                }
+            }
+        }
+        Some("system") => {
+            /*
+             * The init line names the session.
+             *
+             * Relaying it is what makes `--resume` usable from the UI: without
+             * the id, the panel has no handle on the conversation the CLI just
+             * created, and the next prompt starts a fresh one - losing the
+             * context every tab in this app exists to preserve. Emitted as its
+             * own event rather than folded into a message, because it belongs to
+             * the SESSION, not to any reply.
+             */
+            if v.get("subtype").and_then(|x| x.as_str()) == Some("init") {
+                if let Some(sid) = v.get("session_id").and_then(|x| x.as_str()) {
+                    if !sid.is_empty() {
+                        out.push(json!({ "kind": "session", "sessionId": sid }));
+                    }
                 }
             }
         }
@@ -531,6 +573,7 @@ pub async fn cli_chat(
     cwd: Option<String>,
     model: Option<String>,
     mode: Option<String>,
+    resume: Option<String>,
 ) -> ZResult<()> {
     if prompt.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("empty prompt".into()));
@@ -539,7 +582,7 @@ pub async fn cli_chat(
         .ok_or_else(|| ZephyrError::InvalidInput(format!("CLI not supported here: {agent_id}")))?;
 
     let bin = resolve_bin(rec.bin)?;
-    let args = build_args(&agent_id, &prompt, model.as_deref(), mode.as_deref());
+    let args = build_args(&agent_id, &prompt, model.as_deref(), mode.as_deref(), resume.as_deref());
 
     let mut command = crate::proc::tokio_cmd(&bin);
     command
@@ -1830,6 +1873,27 @@ mod tests {
     }
 
     #[test]
+    fn resume_flag_is_passed_through() {
+        // Verified against the real binary: a session told "remember the name
+        // Zephyr" answers "Zephyr." when a later run passes --resume with that
+        // session id. Without the flag the context built up in a terminal is
+        // stranded there.
+        let a = build_args("claude", "hi", None, None, Some("2df728d2-fb47-4934-92d0-e6205a1fd603"));
+        let pos = a.iter().position(|x| x == "--resume").expect("--resume present");
+        assert_eq!(a[pos + 1], "2df728d2-fb47-4934-92d0-e6205a1fd603");
+    }
+
+    #[test]
+    fn empty_resume_id_is_ignored() {
+        // An empty string would produce a bare `--resume` with no id, which the
+        // CLI rejects - so a blank value must add no flag at all.
+        let a = build_args("claude", "hi", None, None, Some(""));
+        assert!(!a.iter().any(|x| x == "--resume"), "empty id added a flag: {a:?}");
+        let b = build_args("claude", "hi", None, None, None);
+        assert!(!b.iter().any(|x| x == "--resume"), "None added a flag: {b:?}");
+    }
+
+    #[test]
     fn claude_edit_tool_carries_diff_halves() {
         // An Edit tool_use must surface old/new halves so the UI draws a diff.
         let line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/a.txt","old_string":"line two","new_string":"LINE TWO EDITED"}}]}}"#;
@@ -1901,15 +1965,15 @@ mod tests {
     #[test]
     fn build_args_folds_model_and_mode() {
         // Claude: --model and --permission-mode are added only when chosen.
-        let a = build_args("claude", "hi", Some("opus"), Some("plan"));
+        let a = build_args("claude", "hi", Some("opus"), Some("plan"), None);
         assert!(a.contains(&"--model".to_string()) && a.contains(&"opus".to_string()));
         assert!(a.contains(&"--permission-mode".to_string()) && a.contains(&"plan".to_string()));
         // A "default" selection adds no flag — the CLI uses its own default.
-        let b = build_args("claude", "hi", Some("default"), None);
+        let b = build_args("claude", "hi", Some("default"), None, None);
         assert!(!b.contains(&"--model".to_string()));
         assert!(!b.contains(&"--permission-mode".to_string()));
         // Codex: prompt stays last, model flag precedes it when set.
-        let c = build_args("codex", "hi", Some("gpt-5"), None);
+        let c = build_args("codex", "hi", Some("gpt-5"), None, None);
         assert_eq!(c.last().map(String::as_str), Some("hi"));
         assert!(c.contains(&"--model".to_string()) && c.contains(&"gpt-5".to_string()));
     }
