@@ -336,12 +336,150 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /*
+   * The rail is drawn on the container, once, and each row punches a node into
+   * it. Understanding why it is done this way is most of the work:
+   *
+   * The obvious approach — a left border on every row — produces a line that
+   * BREAKS at every gap, because `gap: 6px` sits between rows and borders do
+   * not span it. The reader then sees a dashed column, which reads as separate
+   * items rather than one sequence. Drawing one line on the container sidesteps
+   * the gap entirely: the line is continuous by construction, and the rows only
+   * ever ADD to it (their node dots) rather than compose it.
+   *
+   * `.cli-timeline` needs `position: relative` for that, and each row needs a
+   * background so the line does not show through behind its own text.
+   */
+  position: relative;
+  --rail-x: 17px;
+}
+
+/* The rail itself. Inset top and bottom so it starts at the first node and
+   ends at the last, instead of running past both into empty space. */
+.cli-timeline::before {
+  content: '';
+  position: absolute;
+  left: var(--rail-x);
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  transform: translateX(-1px);
+  background: var(--border);
+  pointer-events: none;
 }
 
 /* A Markdown text part reuses the plain-text look but lets block elements
    (lists, code) lay out normally rather than pre-wrapped. */
 .cli-timeline > .cli-native-text {
   white-space: normal;
+}
+
+/*
+ * Push the content right so the rail and its nodes have a column of their own.
+ *
+ * The rows' own padding is 9px, which is less than the rail's 17px — without
+ * this the line would run straight through the caret and the first few
+ * characters of every row. Only the LEFT side is touched; the row keeps its
+ * full width so the diff inside still reaches the panel edge.
+ */
+.cli-timeline > .cli-tool > .cli-tool-head {
+  padding-left: 30px;
+}
+.cli-timeline > .cli-tool.is-grup > .cli-tool-head,
+.cli-timeline > .cli-tool[data-testid='cli-tool'] > .cli-tool-head {
+  padding-left: 30px;
+}
+.cli-timeline > .cli-native-text,
+.cli-timeline > .ai-reason {
+  padding-left: 30px;
+}
+
+/* A tool's expanded body lines up under its header, not under the rail. */
+.cli-timeline > .cli-tool > .cli-tool-body {
+  padding-left: 27px;
+}
+
+/*
+ * A node on the rail: one dot per step, coloured by what the step did.
+ *
+ * The dot sits UNDER the row's own background so the rail appears to pass
+ * through it, and `z-index: 1` lifts it back over the line. The colour is the
+ * same channel the row already uses for its icon (`is-baca` / `is-tulis` /
+ * `is-jalan`), so the rail and the rows agree without a second legend.
+ */
+.cli-tool,
+.cli-timeline-error,
+.cli-timeline > .cli-native-text {
+  position: relative;
+  background: var(--bg0, var(--bg));
+}
+
+.cli-tool::before,
+.cli-timeline-error::before {
+  content: '';
+  position: absolute;
+  left: var(--rail-x);
+  top: 15px;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg0, var(--bg));
+  box-sizing: border-box;
+  z-index: 1;
+}
+
+/* Thinking gets a hollow node with a dashed ring: it is not work, it is the
+   pause before work, and the shape should say so at a glance. */
+.cli-timeline > .ai-reason,
+.cli-timeline > [data-testid='reasoning-block'] {
+  position: relative;
+  background: var(--bg0, var(--bg));
+}
+
+.cli-timeline > .ai-reason::before,
+.cli-timeline > [data-testid='reasoning-block']::before {
+  content: '';
+  position: absolute;
+  left: var(--rail-x);
+  top: 15px;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%);
+  border: 1px dashed var(--text-muted, var(--fg1));
+  border-radius: 50%;
+  background: var(--bg0, var(--bg));
+  box-sizing: border-box;
+  opacity: 0.7;
+  z-index: 1;
+}
+
+/* A write step takes the success colour, a run takes the warning colour, and a
+   read stays neutral — matching the icon colour inside the row. */
+.cli-tool:has(.cli-tool-ikon.is-tulis)::before { border-color: var(--success); }
+.cli-tool:has(.cli-tool-ikon.is-jalan)::before { border-color: var(--warning, var(--accent)); }
+.cli-tool.is-fail::before { border-color: var(--danger); background: var(--danger); }
+.cli-tool.is-running::before { border-color: var(--accent); background: var(--accent); }
+
+/* The error part is its own step and gets a filled danger node. */
+.cli-timeline-error::before { border-color: var(--danger); background: var(--danger); }
+
+/* The first row starts the rail and the last one ends it, so neither gets a
+   full-height segment above/below. Achieved by insetting the container's line
+   (see ::before) rather than by trimming per-row. */
+
+/* On a narrow panel the rail would eat into the text column, so it is dropped
+   entirely: a rail is a way of showing sequence, and at 400px the rows are
+   already stacked close enough to read as one. */
+@container clilog (max-width: 480px) {
+  .cli-timeline::before,
+  .cli-tool::before,
+  .cli-timeline-error::before,
+  .cli-timeline > .ai-reason::before,
+  .cli-timeline > [data-testid='reasoning-block']::before {
+    display: none;
+  }
 }
 
 .cli-timeline-error {
