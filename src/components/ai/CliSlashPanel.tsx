@@ -10,12 +10,17 @@ import {
   ccCatalogBody,
   ccCatalogInstall,
   ccCatalogUninstall,
+  ccPluginsCatalog,
+  ccPluginInstall,
+  ccPluginUninstall,
+  ccPluginMarketplaces,
+  type CatalogPlugin,
+  type PluginMarketplace,
   type ClaudeInfo,
-  type ClaudePlugin,
   type CatalogItem,
   type BuiltinCommand,
 } from '../../lib/commands';
-import { useT } from '../../lib/i18n';
+import { useT, tf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 
 /*
@@ -221,7 +226,7 @@ function InfoPanel({
     case 'style':
       return <StylePanel info={info} reload={reload} />;
     case 'plugins':
-      return <PluginsPanel info={info} reload={reload} />;
+      return <PluginsBrowser />;
     case 'mcp':
       return <McpPanel info={info} reload={reload} />;
     case 'hooks':
@@ -579,62 +584,6 @@ function StylePanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) 
   );
 }
 
-function PluginsPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) {
-  const tr = useT();
-  const [busy, setBusy] = useState(false);
-
-  /*
-   * Turn a plugin on or off.
-   *
-   * The state lives in `settings.json` as `enabledPlugins: { "<name>@<market>":
-   * true }` — the same map `claude_account_info` reads to fill `enabled`. So the
-   * toggle is an ordinary settings patch, and sending `false` (not null) is what
-   * matters: null would DELETE the key, and Claude Code treats a missing entry
-   * and an explicit false the same way for enabling, but the difference shows up
-   * the moment someone reads the file to see what was deliberately turned off.
-   */
-  const setEnabled = async (p: ClaudePlugin, on: boolean) => {
-    setBusy(true);
-    try {
-      await claudeSettingsPatch({ enabledPlugins: { [`${p.name}@${p.marketplace}`]: on } });
-      reload();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!info.plugins.length)
-    return (
-      <div className="cli-sheet-group">
-        <p className="cli-sheet-empty">{tr('No plugins installed.')}</p>
-        <p className="cli-sheet-note">
-          {tr('Plugins bundle commands, agents, skills and hooks. Install them with /plugin in the terminal; they are listed here once installed.')}
-        </p>
-      </div>
-    );
-  return (
-    <div className="cli-sheet-group">
-      {info.plugins.map((p) => (
-        <div key={`${p.name}@${p.marketplace}`} className="cli-sheet-plugin">
-          <span className={`cli-sheet-dot${p.enabled ? ' is-on' : ''}`} aria-hidden="true" />
-          <span className="cli-sheet-plugin-name">{p.name}</span>
-          <span className="cli-sheet-file-meta">
-            {p.marketplace}{p.version ? ` · v${p.version}` : ''} · {p.enabled ? tr('enabled') : tr('disabled')}
-          </span>
-          <button
-            className="btn btn-ghost btn-xs"
-            disabled={busy}
-            data-testid={`cli-plugin-toggle-${p.name}`}
-            aria-pressed={p.enabled}
-            onClick={() => void setEnabled(p, !p.enabled)}
-          >
-            {p.enabled ? tr('Disable') : tr('Enable')}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function McpPanel({ info, reload }: { info: ClaudeInfo; reload: () => void }) {
   const tr = useT();
@@ -978,6 +927,153 @@ function AccountPanel({ info }: { info: ClaudeInfo }) {
         ))
       ) : (
         <p className="cli-sheet-empty">{tr('No recorded usage yet.')}</p>
+      )}
+    </div>
+  );
+}
+
+function PluginsBrowser() {
+  const tr = useT();
+  const [items, setItems] = useState<CatalogPlugin[]>([]);
+  const [mkts, setMkts] = useState<PluginMarketplace[]>([]);
+  const [q, setQ] = useState('');
+  const [only, setOnly] = useState<'all' | 'installed'>('all');
+  const [busy, setBusy] = useState('');
+  const [galat, setGalat] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const refresh = () => {
+    setLoading(true);
+    ccPluginsCatalog()
+      .then(setItems)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    ccPluginMarketplaces().then(setMkts).catch(() => {});
+  };
+  useEffect(refresh, []);
+
+  const ql = q.trim().toLowerCase();
+  const shown = items.filter((p) => {
+    if (only === 'installed' && !p.installed) return false;
+    if (!ql) return true;
+    return (
+      p.name.toLowerCase().includes(ql) ||
+      p.description.toLowerCase().includes(ql) ||
+      p.category.toLowerCase().includes(ql) ||
+      p.author.toLowerCase().includes(ql)
+    );
+  });
+
+  const aksi = async (p: CatalogPlugin) => {
+    setGalat('');
+    setBusy(p.id);
+    try {
+      if (p.installed) await ccPluginUninstall(p.id);
+      else await ccPluginInstall(p.id);
+      refresh();
+    } catch (e) {
+      setGalat(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  if (loading) return <p className="cli-sheet-empty">{tr('Loading plugins…')}</p>;
+
+  return (
+    <div className="cli-sheet-group">
+      {/*
+        * Where the list comes from, and whether anything installed it.
+        *
+        * A marketplace list with no attribution is a list of names the reader
+        * has no reason to trust — an installed plugin runs commands on this
+        * machine. Showing the source up front is the cheapest form of that
+        * warning.
+        */}
+      {mkts.length > 0 && (
+        <p className="cli-sheet-note" data-testid="cli-plugin-marketplaces">
+          {tr('Marketplace')}: {mkts.map((m) => `${m.name}${m.source ? ` (${m.source})` : ''}`).join(', ')}
+        </p>
+      )}
+
+      <div className="cli-cat-bar">
+        <input
+          className="cli-sheet-input"
+          value={q}
+          placeholder={tr('Search plugins…')}
+          onChange={(e) => setQ(e.target.value)}
+          data-testid="cli-plugin-search"
+        />
+        <div className="cli-chiprow">
+          {(['all', 'installed'] as const).map((k) => (
+            <button
+              key={k}
+              className={`cli-chip${only === k ? ' is-on' : ''}`}
+              data-testid={`cli-plugin-filter-${k}`}
+              onClick={() => setOnly(k)}
+            >
+              {k === 'all' ? tr('All') : tr('Installed')}
+            </button>
+          ))}
+          <span className="cli-cat-count" data-testid="cli-plugin-count">
+            {shown.length}
+          </span>
+        </div>
+      </div>
+
+      {galat && <p className="cli-sheet-error" data-testid="cli-plugin-error">{galat}</p>}
+
+      {shown.length === 0 ? (
+        <p className="cli-sheet-empty">
+          {items.length === 0
+            ? tr('No plugin catalog on this machine yet. Open /plugin in the terminal once to fetch it.')
+            : tr('No plugin matches that search.')}
+        </p>
+      ) : (
+        <div className="cli-plugin-list">
+          {shown.slice(0, 80).map((p) => (
+            <div className="cli-plugin-row" key={p.id} data-testid={`cli-plugin-${p.name}`}>
+              <div className="cli-plugin-head">
+                <span className={`cli-sheet-dot${p.enabled ? ' is-on' : ''}`} aria-hidden="true" />
+                <span className="cli-sheet-plugin-name">{p.name}</span>
+                {p.installed && (
+                  <span className="cli-plugin-badge">{p.enabled ? tr('enabled') : tr('installed')}</span>
+                )}
+                <button
+                  className="btn btn-ghost btn-xs"
+                  disabled={busy === p.id}
+                  data-testid={`cli-plugin-act-${p.name}`}
+                  onClick={() => void aksi(p)}
+                >
+                  {busy === p.id ? '…' : p.installed ? tr('Remove') : tr('Install')}
+                </button>
+              </div>
+              <div className="cli-plugin-meta">
+                {p.category && <span className="cli-plugin-cat">{p.category}</span>}
+                {p.author && <span>{p.author}</span>}
+                {p.installs > 0 && <span>{p.installs.toLocaleString()} {tr('installs')}</span>}
+                {/* Counts instead of a bare name: "3 commands · 2 skills" tells
+                    the reader what they are about to add to their agent's
+                    context, which is the number that has a cost. */}
+                {[
+                  p.commands && `${p.commands} ${tr('commands')}`,
+                  p.agents && `${p.agents} ${tr('agents')}`,
+                  p.skills && `${p.skills} ${tr('skills')}`,
+                  p.hooks && `${p.hooks} ${tr('hooks')}`,
+                  p.mcp && `${p.mcp} MCP`,
+                ]
+                  .filter(Boolean)
+                  .map((s, i) => <span key={i}>{s}</span>)}
+              </div>
+              {p.description && <p className="cli-plugin-desc">{p.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+      {shown.length > 80 && (
+        /* Never a silent cap: a list that stops at 80 and says nothing reads as
+           "there are only 80". */
+        <p className="cli-sheet-note">{tf('Showing the first 80 of {n} — narrow the search to see the rest.', { n: shown.length })}</p>
       )}
     </div>
   );
