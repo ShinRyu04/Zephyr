@@ -14,6 +14,8 @@
  * Run: node scripts/verify-cli-todo.mjs
  */
 import { WebSocket } from 'ws';
+import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 
 const list = await (await fetch('http://127.0.0.1:9223/json/list')).json();
 const pg = list.find((x) => x.type === 'page');
@@ -37,6 +39,17 @@ await send('Runtime.enable');
 const out = [];
 const check = (i, ok, d) => { out.push(ok); console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${i.padEnd(4)} ${d}`); };
 
+/*
+ * The agent is asked to create real files, so it does so in a throwaway
+ * directory. The first version let it work in the repo root and the three files
+ * it wrote were swept into a commit — a verification harness must not change
+ * the tree it is verifying.
+ */
+/* Forward slashes only: this path is embedded into JS source that runs in the
+   page, where a Windows backslash would be read as an escape. */
+const sandbox = `${tmpdir()}/zephyr-todo-${process.pid}`.replaceAll('\\', '/');
+mkdirSync(sandbox, { recursive: true });
+
 // Focus the Claude Code tab and start a task that needs several steps.
 console.log('tab:', await ev(`(()=>{const t=[...document.querySelectorAll('[role="tab"],button')].find(e=>/^Claude Code$/.test((e.textContent||'').trim())); if(t){t.click(); return 'ok';} return 'no-tab';})()`));
 await new Promise((r) => setTimeout(r, 800));
@@ -44,7 +57,7 @@ await new Promise((r) => setTimeout(r, 800));
 console.log('send:', await ev(`
 (()=>{const S=window.__ZEPHYR_CLICHAT__; const st=S.getState();
   if (st.newSession) { try { st.newSession('claude'); } catch(e){} }
-  st.send('claude', 'Buat tiga berkas kecil terpisah di folder kerja: satu.txt, dua.txt, tiga.txt — masing-masing berisi namanya. Lacak kemajuan dengan todo list.');
+  st.send('claude', ${JSON.stringify("Buat tiga berkas kecil terpisah di folder ini: satu.txt, dua.txt, tiga.txt — masing-masing berisi namanya. Lacak kemajuan dengan todo list.")}, { cwd: ${JSON.stringify(sandbox)} });
   return 'sent';})()
 `));
 
@@ -72,6 +85,7 @@ if (found) {
   check('T3', false, 'skipped');
 }
 
+rmSync(sandbox, { recursive: true, force: true });
 ws.close();
 const pass = out.filter(Boolean).length;
 console.log(`\n== ${pass}/${out.length} lulus ==`);
