@@ -6762,6 +6762,9 @@
   white-space: nowrap;
 }
 .cli-diff-view:hover { background: var(--surface-3); color: var(--text); }
+/* Auto mode reads as "this is following something", not as a mode the reader
+   picked — a quieter weight than the forced states. */
+.cli-diff-view.is-auto { color: var(--text-muted, var(--fg1)); font-style: italic; }
 .cli-diff-more {
   flex: 1 1 auto;
   border-top: none;
