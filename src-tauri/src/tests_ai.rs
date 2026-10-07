@@ -195,6 +195,8 @@ mod tests {
             tool_calls: None,
             name: None,
             images: None,
+            reasoning: None,
+            reasoning_signature: None,
         }
     }
 

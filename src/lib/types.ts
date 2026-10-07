@@ -389,6 +389,15 @@ export interface AiChunk {
   cancelled?: boolean;
 
   reasoning?: string;
+
+  /**
+   * The opaque signature that must accompany `reasoning` when it is sent back.
+   *
+   * Anthropic returns it once the thinking block closes, in a delta of its own,
+   * and rejects a thinking block returned without it — which is why the
+   * signature is carried all the way to the history rather than only the text.
+   */
+  reasoningSignature?: string;
 }
 
 export interface GitChange {
@@ -704,6 +713,28 @@ export interface AgentMsg {
   name?: string;
 
   images?: string[];
+
+  /**
+   * The model's own reasoning for this turn.
+   *
+   * Kept on the message so it can be sent BACK on the next request. Without it
+   * the conversation drops the model's chain of thought at every step: the
+   * provider is asked to continue a task while being shown only the conclusions,
+   * not the reasoning that led there — so a multi-step run re-derives what it
+   * already worked out, or contradicts it. Providers that support it expect
+   * their own reasoning returned to them; a signature may also be attached,
+   * which the adapter must echo exactly or the provider rejects the turn.
+   */
+  reasoning?: string;
+
+  /**
+   * Provider-specific opaque blob that must accompany `reasoning`.
+   *
+   * Anthropic returns a signature with each thinking block and validates it on
+   * the way back in. It is not readable and must not be modified — it is stored
+   * and echoed verbatim, which is why it travels separately from the text.
+   */
+  reasoningSignature?: string;
 }
 
 export interface AgentToolSpec {
