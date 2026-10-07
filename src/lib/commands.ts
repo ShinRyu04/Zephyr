@@ -620,8 +620,16 @@ export const cliAgentRun = (opts: { id: string; prompt: string; cwd?: string }) 
 
 /* Cara B: run a CLI headless and stream its answer into Zephyr's own chat UI.
    Chunks arrive on the `cli-chat-chunk` event (see events.ts / aiCliStore). */
-export const cliChat = (opts: { id: string; agentId: string; prompt: string; cwd?: string; model?: string; mode?: string }) =>
-  invoke<void>('cli_chat', opts);
+export const cliChat = (opts: {
+  id: string;
+  agentId: string;
+  prompt: string;
+  cwd?: string;
+  model?: string;
+  mode?: string;
+  /** Continue an existing CLI session by id (`claude --resume <id>`). */
+  resume?: string;
+}) => invoke<void>('cli_chat', { resume: null, ...opts });
 
 export const cliChatCancel = (id: string) => invoke<void>('cli_chat_cancel', { id });
 

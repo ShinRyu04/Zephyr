@@ -33,6 +33,14 @@ export type CliEvent =
   | { kind: 'text'; text: string }
   | { kind: 'thinking'; text: string }
   | { kind: 'error'; text: string }
+  /**
+   * The CLI's own session id, from its init line.
+   *
+   * Held so the next prompt can continue this conversation with `--resume`.
+   * Without it the panel has no handle on the session the CLI created, and every
+   * prompt would start fresh.
+   */
+  | { kind: 'session'; sessionId: string }
   /*
    * A task-list snapshot from TodoWrite / TaskCreate / TaskUpdate.
    *
