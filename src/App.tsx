@@ -115,11 +115,6 @@ import './styles/ai-tool-cards.css';
 import './styles/ai-work-stack.css';
 import './styles/ai-job-strips.css';
 /*
- * Reasoning ("Thinking") block: replaces the auto-opened italic block with one
- * folded row that shows a live shimmer and a timer while tokens arrive.
- */
-import './styles/ai-reasoning.css';
-/*
  * Streaming states: the thinking dots and the caret that follows the text as it
  * arrives. After ai.css, which styles the same classes for the older shape.
  */

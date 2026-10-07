@@ -708,11 +708,12 @@ export const claudeSettingsPatch = (patch: Record<string, unknown>) =>
 export const claudeMemoryWrite = (scope: 'user' | 'project', content: string, cwd?: string) =>
   invoke<string>('claude_memory_write', { scope, content, cwd: cwd ?? null });
 
-/* Create/overwrite or delete a user slash-command (~/.claude/commands/<name>.md). */
-export const claudeCommandWrite = (name: string, content: string) =>
-  invoke<string>('claude_command_write', { name, content });
-export const claudeCommandDelete = (name: string) =>
-  invoke<boolean>('claude_command_delete', { name });
+/* Create/overwrite or delete a slash command. The folder is optional and
+   omitted by the app, which means the real `~/.claude/commands/`. */
+export const claudeCommandWrite = (name: string, content: string, dir?: string) =>
+  invoke<string>('claude_command_write', { name, content, dir: dir ?? null });
+export const claudeCommandDelete = (name: string, dir?: string) =>
+  invoke<boolean>('claude_command_delete', { name, dir: dir ?? null });
 
 /* The built-in Claude Code slash commands, so the "Slash commands" popup is
    complete even before the user adds any custom ones. */

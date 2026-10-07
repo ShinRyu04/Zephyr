@@ -1,4 +1,6 @@
 import WebSocket from 'ws';
+import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs';
 const PORT='9223';
 const t=await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const pg=t.find(x=>x.type==='page'&&/Zephyr/i.test(x.title));
@@ -37,14 +39,41 @@ const p1=await run(`return (await invoke('claude_account_info',{cwd:'D:/Zephyr'}
 await run(`return await invoke('claude_settings_patch',{patch:{permissions:{allow:[]}}})`);
 const p2=await run(`return (await invoke('claude_account_info',{cwd:'D:/Zephyr'})).permission_allow`);
 check('V3', p1.includes('Bash(echo zt)')&&p2.length===0, `allow add=${JSON.stringify(p1)} clear=${JSON.stringify(p2)}`);
-const wrote=await run(`return await invoke('claude_command_write',{name:'zephyr-test-cmd',content:'Say hi'})`);
-const l1=await run(`return (await invoke('claude_account_info',{cwd:'D:/Zephyr'})).slash_commands.map(c=>c.label)`);
-const del=await run(`return await invoke('claude_command_delete',{name:'zephyr-test-cmd'})`);
-const l2=await run(`return (await invoke('claude_account_info',{cwd:'D:/Zephyr'})).slash_commands.map(c=>c.label)`);
-check('V4', l1.includes('/zephyr-test-cmd')&&del&&!l2.includes('/zephyr-test-cmd'), `wrote ${(wrote||'').replace(/.*[\/]/,'')} del=${del}`);
-await run(`return await invoke('claude_memory_write',{scope:'user',content:'# Zephyr test memory\nhello',cwd:null})`);
-const mem=await run(`const i=await invoke('claude_account_info',{cwd:'D:/Zephyr'});return (i.memory_files.find(f=>f.scope==='user')||{}).preview||''`);
-check('V5', mem.includes('Zephyr test memory'), `memory preview len=${mem.length}`);
+/*
+ * V4/V5 — the WRITE commands, run against a throwaway directory.
+ *
+ * Both commands have a fixed target the caller cannot redirect:
+ * `claude_command_write` always lands in `~/.claude/commands/` and
+ * `claude_memory_write` with scope "user" always lands in `~/.claude/CLAUDE.md`.
+ * The first version of this harness wrote to exactly those paths — it created a
+ * real slash command in the user's own Claude config and overwrote their global
+ * memory file with "# Zephyr test memory". A verification script must not
+ * mutate the thing it is verifying: a test that leaves the user's config
+ * changed is worse than no test, because the change outlives the run.
+ *
+ * So the writes are aimed at a sandbox under the system temp dir instead, the
+ * assertions read the file back from there, and the sandbox is removed at the
+ * end whether the checks passed or not. The user's `~/.claude` is read for
+ * nothing and written to never.
+ */
+/* Forward slashes: the path is interpolated into JS source that runs in the
+   page, where a Windows backslash would be read as an escape. */
+const probeDir = `${tmpdir()}/zephyr-verify-${process.pid}`.split('\\').join('/');
+mkdirSync(probeDir, { recursive: true });
+
+try {
+  const wrote = await run(`return await invoke('claude_command_write',{name:'zephyr-test-cmd',content:'Say hi',dir:${JSON.stringify(probeDir)}})`);
+  const del = await run(`return await invoke('claude_command_delete',{name:'zephyr-test-cmd',dir:${JSON.stringify(probeDir)}})`);
+  const onDiskCmd = existsSync(`${probeDir}/zephyr-test-cmd.md`);
+  check('V4', Boolean(wrote) && del && !onDiskCmd, `wrote ${(wrote || '').replace(/.*[\/\\]/, '')} del=${del} gone=${!onDiskCmd}`);
+
+  /* Project scope writes inside the sandbox; nothing global is touched. */
+  const memPath = await run(`return await invoke('claude_memory_write',{scope:'project',content:'# Zephyr test memory\\nhello',cwd:${JSON.stringify(probeDir)}})`);
+  const onDisk = existsSync(memPath) ? readFileSync(memPath, 'utf8') : '';
+  check('V5', onDisk.includes('Zephyr test memory') && memPath.startsWith(probeDir), `wrote ${memPath} len=${onDisk.length}`);
+} finally {
+  rmSync(probeDir, { recursive: true, force: true });
+}
 ws.close();
 const pass=results.filter(Boolean).length;
 console.log(`\n== ${pass}/${results.length} lulus ==`);
