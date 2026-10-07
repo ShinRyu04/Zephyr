@@ -50,6 +50,29 @@ check('W0', ready === 'ok', 'harness mounted');
 
 /* The kit must already be loaded by the running app; reach it through an
    existing diff if one is on screen, otherwise report that honestly. */
+/*
+ * Render the diff this harness needs, instead of hoping one is on screen.
+ *
+ * Harnesses share one app instance, so a check that depends on leftover DOM
+ * passes or fails according to which harness ran before it — here, a todo
+ * harness overwrote the session and this one found no diff to resize.
+ */
+console.log('tab:', await ev(`(()=>{const t=[...document.querySelectorAll('[role="tab"],button')].find(e=>/^Claude Code$/.test((e.textContent||'').trim())); if(t) t.click(); return 'ok';})()`));
+await new Promise((r) => setTimeout(r, 800));
+/* The payload is embedded via JSON.stringify so the newlines inside the diff
+   halves survive the trip into the page; hand-escaped 
+ silently collapses
+   the diff to one line and the resize test then proves nothing. */
+const seedParts = [{"type": "tool", "callId": "wauto", "name": "Edit", "title": "src/a.ts", "status": "ok", "diffOld": "const a = 1;\nconst b = 2;\nconst c = 3;", "diffNew": "const a = 1;\nconst B = 22;\nconst c = 3;"}];
+console.log('seed:', await ev(`
+(()=>{const S=window.__ZEPHYR_CLICHAT__; const st=S.getState(); const aid='claude';
+const sid=st.activeId[aid]||(st.sessions[aid][0]&&st.sessions[aid][0].id);
+const parts=${JSON.stringify(seedParts)};
+S.setState((s0)=>({sessions:{...s0.sessions,[aid]:s0.sessions[aid].map(x=>x.id===sid?{...x,messages:[{id:'wauto',role:'assistant',content:'ok',parts}]}:x)}}));
+return 'seeded';})()
+`));
+await new Promise((r) => setTimeout(r, 1100));
+
 const has = await ev(`document.querySelectorAll('.cli-diff').length`);
 check('W1', typeof has === 'number', `existing diffs on screen = ${has}`);
 

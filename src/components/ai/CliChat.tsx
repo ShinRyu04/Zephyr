@@ -303,6 +303,76 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         });
         setMenu(null);
         break;
+      /*
+       * Commands the CLI can actually ANSWER, forwarded as a prompt.
+       *
+       * This is the distinction the old switch missed. `claude -p` has no
+       * interactive session, so the session commands (/clear, /cost, /status,
+       * /model, /vim, /login) do nothing there — verified: `/model` was even
+       * rewritten by the CLI into the path `C:/Program Files/Git/model` and run
+       * as a tool. Sending them would be worse than ignoring them.
+       *
+       * But `/init` and `/review` are PROMPTS: they expand into an instruction
+       * and the model answers. Those genuinely work in print mode, so they are
+       * sent as the message rather than swallowed by a panel.
+       */
+      case 'init':
+      case 'review': {
+        const cmd = id === 'init' ? '/init' : '/review';
+        void send(agentId, cmd);
+        setMenu(null);
+        break;
+      }
+      /*
+       * Session commands Zephyr performs itself, because it owns the session.
+       *
+       * Zephyr keeps its own transcript, so `/compact` is a real operation on
+       * that transcript rather than a CLI feature — the same intent, carried out
+       * by the half that can actually carry it out.
+       */
+      case 'compact': {
+        void import('../../lib/aiCliStore').then((m) => {
+          m.useAiCli.getState().compact(agentId);
+        });
+        setMenu(null);
+        break;
+      }
+      /*
+       * Settings that live in Zephyr's own UI. Opening the panel is the honest
+       * response: the setting exists, it is just edited here rather than by
+       * typing a command at a prompt that cannot receive one.
+       */
+      case 'config': {
+        void import('../../lib/store').then((m) => {
+          m.useStore.getState().setSettingsOpen(true);
+        });
+        setMenu(null);
+        break;
+      }
+      /*
+       * Interactive-only commands: hand them to the Terminal pane, which is the
+       * one surface with a real TTY. Vim keybindings, account switching and the
+       * Shift+Enter setup all need the actual CLI prompt.
+       */
+      case 'vim':
+      case 'login':
+      case 'logout':
+      case 'terminal-setup': {
+        void import('../../lib/terminalStore').then((m) => {
+          const ts = m.useTerminal.getState();
+          ts.setVisible(true);
+          void ts.addPane('agent', { agentId });
+        });
+        /* Say WHY, not just where. Dropping the user into a terminal with no
+           explanation reads as the command having failed. */
+        void import('../../lib/aiStore').then((m) => {
+          m.useAi.getState().setToast(
+            tf('Run {cmd} in the terminal — it needs an interactive session', { cmd: `/${id}` }),
+          );
+        });
+        setMenu(null);
+        break;
+      }
       case 'help':
         window.open('https://docs.anthropic.com/en/docs/claude-code', '_blank', 'noreferrer');
         setMenu(null);
