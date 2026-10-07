@@ -11,7 +11,7 @@ import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
 import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
-import { ToolRow, EditDiff } from './claudeCodeUi';
+import { ToolRow, EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useBicaraStore } from '../../lib/bicaraStore';
@@ -366,13 +366,23 @@ function BarisBacaBerkelompok({
           const info = infoAksi(t.name);
           const target = sasaranAksi(t.args);
           return (
+            /*
+             * The kit's own classes, not the retired `ai-toolrun-*` family.
+             *
+             * `ai-toolrun-*` is the markup the shared kit replaced, and it is
+             * still present only because this one nested list was missed. Using
+             * it here meant the icon colour came from a rule that the kit's own
+             * `.cli-tool-ikon.is-<kind>` also sets — two families describing the
+             * same thing, with the loser decided by stylesheet order. The kit's
+             * classes are what every other row in both transcripts uses.
+             */
             <div className="ai-grup-baris" key={k}>
-              <span className={`ai-toolrun-ikon is-${info.jenis}`} aria-hidden="true">
-                <AiIkon name={info.ikon} size={12} />
+              <span className={`cli-tool-ikon is-${toolKind(t.name)}`} aria-hidden="true">
+                <AiIkon name={toolGlyph(t.name) as never} size={12} />
               </span>
-              <span className="ai-toolrun-name">{info.label}</span>
-              {target && <code className="ai-toolrun-args">{target}</code>}
-              {!t.ok && <span className="ai-toolrun-fail">{tx('failed')}</span>}
+              <span className="cli-tool-name">{info.label}</span>
+              {target && <code className="ai-grup-args" title={target}>{target}</code>}
+              {!t.ok && <span className="cli-tool-fail">{tx('failed')}</span>}
             </div>
           );
         })}
@@ -744,7 +754,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             );
           })()}
           {msg.tools && msg.tools.length > 0 && (
-            <div className="ai-toolruns" data-testid="ai-toolruns">
+            <div className="ai-toolruns" data-timeline data-testid="ai-toolruns">
               {/*
                 * While streaming, the newest tool is the one in flight - it must
                 * stay a full row so the reader watches it, not a summary.
