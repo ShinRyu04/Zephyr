@@ -332,10 +332,23 @@
 }
 
 /* ---- Structured CLI timeline (thinking / tool / diff) ------------------ */
-.cli-timeline {
+.cli-timeline,
+/*
+ * Both transcripts share the rail through the `data-timeline` attribute.
+ *
+ * Fencing the rail to `.cli-timeline` meant Chat AI's identical structure — a
+ * flex column of `.cli-tool` rows — painted the node dots with no line through
+ * them, because `--rail-x` was only declared here. Widening the selectors to an
+ * attribute both wrappers carry is one edit instead of duplicating ~150 lines
+ * of rail CSS into a second family that would drift.
+ */
+[data-timeline] {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin: 6px 0;
+  border: 0;
+  padding-left: 0;
   /*
    * The rail is drawn on the container, once, and each row punches a node into
    * it. Understanding why it is done this way is most of the work:
@@ -356,7 +369,7 @@
 
 /* The rail itself. Inset top and bottom so it starts at the first node and
    ends at the last, instead of running past both into empty space. */
-.cli-timeline::before {
+[data-timeline]::before {
   content: '';
   position: absolute;
   left: var(--rail-x);
@@ -370,7 +383,7 @@
 
 /* A Markdown text part reuses the plain-text look but lets block elements
    (lists, code) lay out normally rather than pre-wrapped. */
-.cli-timeline > .cli-native-text {
+[data-timeline] > .cli-native-text {
   white-space: normal;
 }
 
@@ -382,20 +395,20 @@
  * characters of every row. Only the LEFT side is touched; the row keeps its
  * full width so the diff inside still reaches the panel edge.
  */
-.cli-timeline > .cli-tool > .cli-tool-head {
+[data-timeline] > .cli-tool > .cli-tool-head {
   padding-left: 30px;
 }
-.cli-timeline > .cli-tool.is-grup > .cli-tool-head,
-.cli-timeline > .cli-tool[data-testid='cli-tool'] > .cli-tool-head {
+[data-timeline] > .cli-tool.is-grup > .cli-tool-head,
+[data-timeline] > .cli-tool[data-testid='cli-tool'] > .cli-tool-head {
   padding-left: 30px;
 }
-.cli-timeline > .cli-native-text,
-.cli-timeline > .ai-reason {
+[data-timeline] > .cli-native-text,
+[data-timeline] > .ai-reason {
   padding-left: 30px;
 }
 
 /* A tool's expanded body lines up under its header, not under the rail. */
-.cli-timeline > .cli-tool > .cli-tool-body {
+[data-timeline] > .cli-tool > .cli-tool-body {
   padding-left: 27px;
 }
 
@@ -409,7 +422,8 @@
  */
 .cli-tool,
 .cli-timeline-error,
-.cli-timeline > .cli-native-text {
+[data-timeline] > .cli-native-text,
+[data-timeline] > .cli-tool {
   position: relative;
   background: var(--bg0, var(--bg));
 }
@@ -432,14 +446,14 @@
 
 /* Thinking gets a hollow node with a dashed ring: it is not work, it is the
    pause before work, and the shape should say so at a glance. */
-.cli-timeline > .ai-reason,
-.cli-timeline > [data-testid='reasoning-block'] {
+[data-timeline] > .ai-reason,
+[data-timeline] > [data-testid='reasoning-block'] {
   position: relative;
   background: var(--bg0, var(--bg));
 }
 
-.cli-timeline > .ai-reason::before,
-.cli-timeline > [data-testid='reasoning-block']::before {
+[data-timeline] > .ai-reason::before,
+[data-timeline] > [data-testid='reasoning-block']::before {
   content: '';
   position: absolute;
   left: var(--rail-x);
@@ -473,11 +487,11 @@
    entirely: a rail is a way of showing sequence, and at 400px the rows are
    already stacked close enough to read as one. */
 @container clilog (max-width: 480px) {
-  .cli-timeline::before,
+  [data-timeline]::before,
   .cli-tool::before,
   .cli-timeline-error::before,
-  .cli-timeline > .ai-reason::before,
-  .cli-timeline > [data-testid='reasoning-block']::before {
+  [data-timeline] > .ai-reason::before,
+  [data-timeline] > [data-testid='reasoning-block']::before {
     display: none;
   }
 }
@@ -1612,6 +1626,17 @@
   min-height: 0;
   overflow-y: auto;
   /*
+   * The same container the CLI tab declares.
+   *
+   * The rail is dropped on a narrow panel through `@container clilog (max-width:
+   * 480px)`. Without this declaration that rule can never match here, so Chat
+   * AI kept the rail (and the 30px text indent that goes with it) even at a
+   * width where the CLI tab correctly hides it — the two transcripts behaving
+   * differently at the same size.
+   */
+  container-type: inline-size;
+  container-name: clilog;
+  /*
    * Bottom padding reserves room for the last card's action row.
    *
    * The composer overlaps this scroller, so a tool card expanded at the end of
@@ -2296,14 +2321,6 @@
  * the actual answer around. Hermes-style is one quiet line per call — icon,
  * verb, target, time — with the whole row as the click target and a soft hover
  * to show it opens. Nothing else: no box, no border, no fill. */
-.ai-toolruns {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin: 6px 0;
-  border: 0;
-  padding-left: 0;
-}
 /*
  * A tool row in the transcript has NO box.
  *
@@ -6663,14 +6680,20 @@
   line-height: 1.5;
   color: var(--text-secondary, var(--fg1));
 }
-.ai-grup-baris .ai-toolrun-ikon { flex: 0 0 auto; }
-.ai-grup-baris .ai-toolrun-name { color: var(--text); }
-.ai-grup-baris .ai-toolrun-args {
+/* The kit's classes, so a nested step matches a top-level row exactly. The
+   glyph keeps the kit's kind colour; only the weight is lowered, because these
+   children are subordinate to the summary that contains them. */
+.ai-grup-baris .cli-tool-ikon { flex: 0 0 auto; }
+.ai-grup-baris .cli-tool-name { color: var(--text); font-weight: 400; }
+.ai-grup-baris .ai-grup-args {
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--text-muted, var(--fg1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.ai-grup-baris .ai-toolrun-fail { color: var(--danger); font-size: 11px; }
+.ai-grup-baris .cli-tool-fail { color: var(--danger); font-size: 11px; }
 
 /* ---- CLI composer: attached-image thumbnails -------------------------- */
 .cli-img-strip {

@@ -121,7 +121,7 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
   }
 
   return (
-    <div className="cli-timeline" data-testid="cli-timeline">
+    <div className="cli-timeline" data-timeline data-testid="cli-timeline">
       {parts.map((p, i) => {
         if (p.type === 'thinking') {
           return <ReasoningBlock key={i} teks={p.text} berjalan={streaming && i === parts.length - 1} />;
