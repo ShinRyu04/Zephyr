@@ -1465,6 +1465,18 @@ interface AiState {
 
   agentMode: 'chat' | 'agent';
 
+  /*
+   * How an agent run is dispatched — a real behaviour, not just a label:
+   *   - 'interactive' : step-by-step, approvals as configured. The default.
+   *   - 'plan'        : the agent must present a plan and STOP before changing
+   *                     anything; writes/commands are held back this turn.
+   *   - 'autopilot'   : runs to completion without pausing (approval 'auto').
+   * Separate from `agentMode` (chat vs agent) and from `approvalMode`: the run
+   * mode is the user's intent for the WHOLE turn, which then drives the
+   * approval level and a planning instruction in the system prompt.
+   */
+  runMode: 'interactive' | 'plan' | 'autopilot';
+
   approvalMode: ApprovalMode;
 
   agentBusy: boolean;
@@ -1554,6 +1566,7 @@ interface AiActions {
   setConfirmCmd: (v: string | null) => void;
 
   setAgentMode: (m: 'chat' | 'agent') => void;
+  setRunMode: (m: 'interactive' | 'plan' | 'autopilot') => void;
   setApprovalMode: (m: ApprovalMode) => void;
 
   agentPutuskan: (setujui: boolean) => void;
@@ -1708,6 +1721,16 @@ function bootAgentMode(): 'chat' | 'agent' {
   }
 }
 
+/** Last run mode (Interactive / Plan / Autopilot), kept across sessions. */
+function bootRunMode(): 'interactive' | 'plan' | 'autopilot' {
+  try {
+    const v = localStorage.getItem('zephyr.ai.runMode');
+    return v === 'plan' || v === 'autopilot' ? v : 'interactive';
+  } catch {
+    return 'interactive';
+  }
+}
+
 
 export const useAi = create<AiStore>((set, get) => ({
   sessions: boot.sessions,
@@ -1729,6 +1752,7 @@ export const useAi = create<AiStore>((set, get) => ({
   clearAllOpen: false,
 
   agentMode: bootAgentMode(),
+  runMode: bootRunMode(),
 
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'auto',
   agentBusy: false,
@@ -2102,6 +2126,33 @@ export const useAi = create<AiStore>((set, get) => ({
     } catch {
       /* diabaikan */
     }
+  },
+  /*
+   * Pick the run mode and apply the approval level it implies.
+   *
+   * The three modes map to real behaviour: Autopilot runs everything (approval
+   * 'auto'); Interactive and Plan both pause for risky actions (approval
+   * 'work'), and Plan additionally injects a "present a plan, change nothing"
+   * instruction read by `sendAgent`. Switching to agent mode here when it was
+   * 'chat' is deliberate — these modes only mean anything to the agent, so
+   * choosing one is also choosing to run as an agent.
+   */
+  setRunMode: (m) => {
+    set((s) => ({
+      runMode: m,
+      agentMode: 'agent',
+      approvalMode: m === 'autopilot' ? 'auto' : 'work',
+      sessions: s.sessions.map((x) =>
+        x.id === s.activeId ? { ...x, approval: m === 'autopilot' ? 'auto' : 'work' } : x,
+      ),
+    }));
+    try {
+      localStorage.setItem('zephyr.ai.runMode', m);
+      localStorage.setItem('zephyr.ai.mode', 'agent');
+    } catch {
+      /* diabaikan */
+    }
+    persist(get());
   },
   setApprovalMode: (m) => {
 
@@ -2798,6 +2849,26 @@ export const useAi = create<AiStore>((set, get) => ({
         role: 'system',
         content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider, gayaJawab),
       });
+      /*
+       * Plan mode: tell the agent to think before it touches anything.
+       *
+       * This is the behavioural half of the run-mode switch — the approval level
+       * ('work') already holds risky actions back, and this instruction makes
+       * the agent PRESENT a plan and stop rather than start editing. Added as a
+       * second system line so it sits above the conversation without rewriting
+       * the shared prompt builder.
+       */
+      if (ai.runMode === 'plan') {
+        history.unshift({
+          role: 'system',
+          content:
+            'PLAN MODE: Do not change anything this turn. Explore as needed with ' +
+            'read-only tools, then present a concise, numbered plan of what you ' +
+            'would do and STOP, asking the user to approve before you edit files ' +
+            'or run commands. Do not call write or terminal tools until the user ' +
+            'tells you to proceed.',
+        });
+      }
     }
 
     if (ragContext) history.push({ role: 'user', content: ragContext });

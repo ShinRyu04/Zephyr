@@ -134,6 +134,9 @@ import './styles/ai-streaming.css';
  * avatars would overlap the text with no error anywhere to say why.
  */
 import './styles/ai-avatar.css';
+/* Codex TUI (Codex tab only). After ai.css so Codex-specific rules win where a
+   class name is shared; it never touches the Chat or Claude Code surfaces. */
+import './styles/codex.css';
 import '@xterm/xterm/css/xterm.css';
 import './index.css';
 /*
@@ -982,6 +985,7 @@ export default function App() {
   useEffect(() => {
     void useTerminal.getState().loadShells();
     void useTerminal.getState().loadAgents();
+    void import('./lib/aiCliStore').then((m) => m.bindCliChatListener());
 
     ptyListenerConsumers++;
     if (!ptyListenersBound && !ptyListenersBinding) {

@@ -202,25 +202,22 @@ export function GeneralSection() {
 
       <Row
         label={tr('AI panel position')}
-        hint={tr('bottom = flush with the terminal; right = a 340px column like VS Code')}
+        hint={tr('right = a 340px column like VS Code; editor = a tab in the editor area; window = its own floating window')}
       >
         <select
           className="inp"
           data-testid="general-ai-panel"
           aria-label={tr('AI panel position')}
-          value={g.aiPanel ?? 'bottom'}
+          value={g.aiPanel === 'bottom' ? 'right' : (g.aiPanel ?? 'right')}
           onChange={async (e) => {
-            const nilai = e.target.value as 'bottom' | 'right';
+            const nilai = e.target.value as 'right' | 'editor' | 'window';
             patch({ aiPanel: nilai });
-
-            if (nilai === 'right') {
-
-              useTerminal.getState().setVisible(false);
-            }
+            useTerminal.getState().setVisible(false);
           }}
         >
-          <option value="bottom">{tr('Bottom (flush with terminal)')}</option>
           <option value="right">{tr('Right (340px)')}</option>
+          <option value="editor">{tr('Editor area (tab)')}</option>
+          <option value="window">{tr('Separate window')}</option>
         </select>
       </Row>
 

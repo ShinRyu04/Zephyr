@@ -79,6 +79,7 @@ export type NamaAiIkon =
     | 'brain'
     | 'check'
     | 'clock'
+    | 'history'
     | 'dot'
     /*
      * Glyph yang ditambahkan setelah tabel label diperiksa satu per satu.
@@ -112,9 +113,28 @@ export type NamaAiIkon =
        in its queue panel. Distinct from 'snippet' (which carries a dash and
        means "prompt fragment") and from 'new-chat' (which carries a plus). */
     | 'comment'
+    /* Hosted-CLI composer glyphs (Claude Code modes + top toolbar), each drawn
+       to match the real desktop app's menu: a hand for Manual, code brackets
+       for Edit, a lightning bolt for Auto, a rocket for Ultracode, a mortarboard
+       for "Learn", and a bookmark ribbon. */
+    | 'hand'
+    | 'code'
+    | 'bolt'
+    | 'rocket'
+    | 'grad'
+    | 'bookmark'
     /* A shell prompt: `>` with a cursor bar. Every tool row in the transcript
        leads with it - see the comment on the case below. */
     | 'prompt'
+    /* Codex TUI composer glyphs: a shield for "Approve for me", a monitor for
+       "Work locally", a cloud for the cloud work mode, a target for Goal, a
+       scribble for Sketch, and a pencil-in-square for the compose/new button. */
+    | 'shield'
+    | 'monitor'
+    | 'cloud'
+    | 'goal'
+    | 'sketch'
+    | 'compose'
     | 'x';
 
 interface Props {
@@ -172,22 +192,21 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <path d="M2.8 9.6v3.2a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1V9.6" />
         </svg>
       );
+    // VSCode-style "maximize panel": a rounded square outline, like the
+    // expand-to-full control in the Copilot chat header. The old diagonal
+    // double-arrow read as "open externally", not "maximize".
     case 'maximize':
       return (
         <svg {...box}>
-          <path d="M6.2 2.4h7.4v7.4" />
-          <path d="M13.6 2.4 8.4 7.6" />
-          <path d="M9.8 13.6H2.4V6.2" />
-          <path d="M2.4 13.6l5.2-5.2" />
+          <rect x="2.6" y="2.6" width="10.8" height="10.8" rx="1.6" />
         </svg>
       );
+    // Restore: two overlapping squares, the VSCode "restore down" glyph.
     case 'restore':
       return (
         <svg {...box}>
-          <path d="M9.8 2.4H2.4v7.4" />
-          <path d="M2.4 2.4l5.2 5.2" />
-          <path d="M6.2 13.6h7.4V6.2" />
-          <path d="M13.6 13.6 8.4 8.4" />
+          <rect x="2.4" y="4.8" width="8.4" height="8.4" rx="1.4" />
+          <path d="M5.4 4.8V3.2a1.4 1.4 0 0 1 1.4-1.4h6.4a1.4 1.4 0 0 1 1.4 1.4v6.4a1.4 1.4 0 0 1-1.4 1.4h-1.6" />
         </svg>
       );
     case 'close':
@@ -596,6 +615,52 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <path d="M4 4l8 8M12 4l-8 8" />
         </svg>
       );
+    // An open palm: Manual mode — the agent asks before each edit.
+    case 'hand':
+      return (
+        <svg {...box}>
+          <path d="M5 7V3.6a1 1 0 0 1 2 0V7M7 6.6V2.9a1 1 0 0 1 2 0V7M9 3.6a1 1 0 0 1 2 0V8" />
+          <path d="M5 7V9l-1.2-1.2a1 1 0 0 0-1.4 1.4l2.3 2.6A4 4 0 0 0 7.8 14H9a4 4 0 0 0 4-4V6.6a1 1 0 0 0-2 0" />
+        </svg>
+      );
+    // Code brackets: Edit automatically.
+    case 'code':
+      return (
+        <svg {...box}>
+          <path d="M6 4.5 2.5 8 6 11.5M10 4.5 13.5 8 10 11.5" />
+        </svg>
+      );
+    // A lightning bolt: Auto / safety-checked approvals.
+    case 'bolt':
+      return (
+        <svg {...box}>
+          <path d="M8.6 1.8 3.4 9h3.3l-1.3 5.2L12.4 7H9l1.6-5.2z" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    // A rocket: Ultracode.
+    case 'rocket':
+      return (
+        <svg {...box}>
+          <path d="M6.2 9.8C6.2 6 8.2 2.8 11.6 2.2c.6 3.4-1 6.4-4.6 7.6z" />
+          <path d="M6.2 9.8 4.4 8c-.8.3-1.5 1-1.8 2.2 1.2-.3 1.9-.1 2.2.3M7 10.6l1.8 1.8c1.2-.3 1.9-1 2.2-1.8-1.2.3-2 .1-2.3-.3" />
+          <path d="M4.4 11.6c-.6.6-.8 1.8-.8 1.8s1.2-.2 1.8-.8" />
+        </svg>
+      );
+    // A mortarboard: "Learn Claude Code".
+    case 'grad':
+      return (
+        <svg {...box}>
+          <path d="M1.8 6 8 3.2 14.2 6 8 8.8 1.8 6z" />
+          <path d="M4.4 7.1v3.1c0 .9 1.6 1.8 3.6 1.8s3.6-.9 3.6-1.8V7.1" />
+        </svg>
+      );
+    // A bookmark ribbon.
+    case 'bookmark':
+      return (
+        <svg {...box}>
+          <path d="M4 2.6h8v11l-4-2.6-4 2.6z" />
+        </svg>
+      );
     /*
      * A beetle. The debug drawer is a request log, and the bug is the one mark
      * that reads as "diagnostics" without a label in every toolchain a
@@ -616,6 +681,14 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <path d="M8 4.6V8l2.3 1.5" />
         </svg>
       );
+    // A clock with a counter-clockwise arrow: chat history.
+    case 'history':
+      return (
+        <svg {...box}>
+          <path d="M3 8a5 5 0 1 0 1.5-3.5M3 2.2V5h2.8" />
+          <path d="M8 5.4V8l2 1.3" />
+        </svg>
+      );
     // A pushpin: pinned items sort to the top of the list.
     case 'pin':
       return (
@@ -625,8 +698,57 @@ export default function AiIkon({ name, size = 15 }: Props) {
         </svg>
       );
 
-
-
+    /*
+     * Codex TUI composer glyphs. Drawn to match the real Codex desktop app's
+     * composer: an approval shield, a monitor + cloud for the work-location
+     * bar, a target for Goal, a scribble for Sketch, a pencil-in-square for the
+     * compose/new button.
+     */
+    // A shield: "Approve for me" — ask only for actions flagged unsafe.
+    case 'shield':
+      return (
+        <svg {...box}>
+          <path d="M8 1.8 13 3.6v4.1c0 3.1-2.1 5-5 6.5-2.9-1.5-5-3.4-5-6.5V3.6z" />
+        </svg>
+      );
+    // A monitor: "Work locally".
+    case 'monitor':
+      return (
+        <svg {...box}>
+          <rect x="2" y="3" width="12" height="8" rx="1.2" />
+          <path d="M6 13.6h4M8 11.4v2.2" />
+        </svg>
+      );
+    // A cloud: the cloud work mode.
+    case 'cloud':
+      return (
+        <svg {...box}>
+          <path d="M5 12h6.2a2.8 2.8 0 0 0 .3-5.6A3.8 3.8 0 0 0 4.3 7 2.6 2.6 0 0 0 5 12z" />
+        </svg>
+      );
+    // A target: set a goal to keep pursuing.
+    case 'goal':
+      return (
+        <svg {...box}>
+          <circle cx="8" cy="8" r="5.6" />
+          <circle cx="8" cy="8" r="2.4" />
+        </svg>
+      );
+    // A scribble: draw a sketch.
+    case 'sketch':
+      return (
+        <svg {...box}>
+          <path d="M2.4 11.6c1.4-5 2.8-5 4.2-2.4s2.8 2.6 4.2-.4 2.4-3.2 2.8-1.4" />
+        </svg>
+      );
+    // A pencil in a square: start a new composition.
+    case 'compose':
+      return (
+        <svg {...box}>
+          <path d="M8 2.6H4a1.4 1.4 0 0 0-1.4 1.4v8A1.4 1.4 0 0 0 4 13.4h8a1.4 1.4 0 0 0 1.4-1.4V8" />
+          <path d="M11.6 2.2 13.8 4.4 8.4 9.8l-2.6.5.5-2.6z" />
+        </svg>
+      );
 
     default:
       return null;

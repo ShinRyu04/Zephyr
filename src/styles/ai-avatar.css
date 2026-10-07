@@ -32,10 +32,15 @@
   gap: 8px;
 }
 
-/* The user's side is mirrored. `row-reverse` also moves the avatar to the
-   visual right, so no per-child ordering rule is needed. */
+/*
+ * Copilot style: BOTH sides read top-to-bottom down the left edge — the user's
+ * avatar sits on the left just like the assistant's, instead of the chat
+ * mirroring into facing columns. The user message is told apart by a subtle
+ * card (see ai-streaming.css), not by which side it hugs. Keeping the natural
+ * row direction also means no per-child ordering tricks.
+ */
 .ai-row.is-user {
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
 /* The bubble keeps the full width it had before avatars existed, minus the

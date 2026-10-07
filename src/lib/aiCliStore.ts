@@ -1,0 +1,498 @@
+import { create } from 'zustand';
+import * as cmd from './commands';
+import { onCliChatChunk, type CliEvent } from './events';
+import { useStore } from './store';
+import type { CliModel } from './cliCatalog';
+
+/*
+ * Native chat UI for a hosted CLI (Cara B).
+ *
+ * The CLI runs headless (`cli_chat` in Rust) and its answer is streamed back on
+ * the `cli-chat-chunk` event; this store collects it into ordinary chat
+ * messages so <CliChat/> can paint Zephyr's own bubbles instead of a terminal.
+ *
+ * Beyond the plain answer text, the stream now carries STRUCTURED events —
+ * thinking, tool calls (with their input/output/exit code) and file-edit diffs
+ * — exactly as the real CLI emits them. Those are collected into an ordered
+ * `parts[]` timeline on the assistant message so the UI can render the same
+ * thinking blocks / tool rows / diffs the desktop app shows, instead of a wall
+ * of text. `content` stays the concatenated answer text for copy/title/export.
+ *
+ * Like Zephyr's own AI panel, each agent keeps MANY sessions: a conversation
+ * starts fresh ("New chat"), can be switched between via a history list, and the
+ * tab title follows the first message. Sessions are persisted to localStorage
+ * so a reload does not lose the history — login/credentials stay the CLI's own
+ * responsibility, this only stores the transcript the user already saw.
+ */
+
+/**
+ * One entry in an assistant message's ordered timeline.
+ *
+ * The parts are appended in arrival order, so rendering them top-to-bottom
+ * reproduces how the turn actually unfolded: a line of narration, a tool call
+ * and its result, more narration, a diff, the final answer. A `tool` part is
+ * mutated in place (upserted by `callId`) as it goes from running to done.
+ */
+export type CliPart =
+  | { type: 'text'; text: string }
+  | { type: 'thinking'; text: string }
+  | { type: 'error'; text: string }
+  | {
+      type: 'tool';
+      callId: string;
+      name: string;
+      title?: string;
+      input?: string;
+      status: 'running' | 'ok' | 'fail';
+      output?: string;
+      exitCode?: number | null;
+      diffOld?: string;
+      diffNew?: string;
+      path?: string;
+    };
+
+export interface CliMsg {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  error?: boolean;
+  /**
+   * The structured timeline (thinking / tool / diff / text), in arrival order.
+   * Absent on user messages and on assistant messages restored from an older
+   * version — the renderer falls back to `content` when there are no parts.
+   */
+  parts?: CliPart[];
+}
+
+export interface CliSession {
+  id: string;
+  /** Follows the first user message; "New chat" until then. */
+  title: string;
+  messages: CliMsg[];
+  /** The request id of the in-flight run, or null when idle. */
+  pending: string | null;
+  /** stderr collected during the current run, shown only if it errored. */
+  stderr: string;
+  /** Epoch ms the session was created — history is sorted newest first. */
+  createdAt: number;
+}
+
+/*
+ * The composer settings the user picks per CLI (model, permission mode, effort
+ * dial, Ultracode). They are passed straight to the CLI on the next send, and
+ * kept in localStorage so a reload does not reset the picker — they are editor
+ * preferences, not secrets. `model`/`mode` default to 'default', meaning "add
+ * no flag, use the CLI's own default".
+ */
+export interface CliOpts {
+  model: string;
+  mode: string;
+  effort: number;
+  ultracode: boolean;
+}
+
+const DEFAULT_OPTS: CliOpts = { model: 'default', mode: 'default', effort: 0, ultracode: false };
+
+const OPTS_KEY = 'zephyr.aiCliOpts.v1';
+const SESS_KEY = 'zephyr.aiCliSessions.v1';
+
+function loadOpts(): Record<string, CliOpts> {
+  try {
+    const raw = localStorage.getItem(OPTS_KEY);
+    if (!raw) return {};
+    const p = JSON.parse(raw) as Record<string, Partial<CliOpts>>;
+    const out: Record<string, CliOpts> = {};
+    for (const [k, v] of Object.entries(p)) out[k] = { ...DEFAULT_OPTS, ...v };
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function persistOpts(opts: Record<string, CliOpts>): void {
+  try {
+    localStorage.setItem(OPTS_KEY, JSON.stringify(opts));
+  } catch {
+    /* storage blocked — the picker is not critical */
+  }
+}
+
+interface Persisted {
+  sessions: Record<string, CliSession[]>;
+  activeId: Record<string, string>;
+}
+
+function loadSessions(): Persisted {
+  try {
+    const raw = localStorage.getItem(SESS_KEY);
+    if (!raw) return { sessions: {}, activeId: {} };
+    const p = JSON.parse(raw) as Partial<Persisted>;
+    const sessions: Record<string, CliSession[]> = {};
+    for (const [agentId, list] of Object.entries(p.sessions ?? {})) {
+      sessions[agentId] = (list ?? [])
+        /* A run never survives a reload: anything that was pending is dead the
+           moment the window closed, so it loads back as idle. */
+        .map((s) => ({ ...s, pending: null, stderr: '' }))
+        .slice(-30);
+    }
+    return { sessions, activeId: p.activeId ?? {} };
+  } catch {
+    return { sessions: {}, activeId: {} };
+  }
+}
+
+function persistSessions(sessions: Record<string, CliSession[]>, activeId: Record<string, string>): void {
+  try {
+    /* Keep the store small: at most 30 sessions per agent, and drop the live
+       `pending`/`stderr` which only mean anything within a single run. */
+    const trimmed: Record<string, CliSession[]> = {};
+    for (const [agentId, list] of Object.entries(sessions)) {
+      trimmed[agentId] = list.slice(-30).map((s) => ({ ...s, pending: null, stderr: '' }));
+    }
+    localStorage.setItem(SESS_KEY, JSON.stringify({ sessions: trimmed, activeId }));
+  } catch {
+    /* storage blocked — history is a convenience, not critical */
+  }
+}
+
+/** A short header taken from the first user line, like Zephyr's own chat. */
+function titleFromPrompt(prompt: string): string {
+  const t = prompt.replace(/\s+/g, ' ').trim();
+  if (!t) return 'New chat';
+  return t.length > 48 ? `${t.slice(0, 48)}…` : t;
+}
+
+interface AiCliState {
+  /** Every session per agent, oldest first. */
+  sessions: Record<string, CliSession[]>;
+  /** The id of the session on screen, per agent. */
+  activeId: Record<string, string>;
+  /** Per-agent composer selection (model / mode / effort / ultracode). */
+  opts: Record<string, CliOpts>;
+  /**
+   * The live model list fetched from the backend per agent, mirroring what the
+   * logged-in CLI account can use. Empty until `loadModels` fills it; the UI
+   * falls back to cliCatalog's static list meanwhile.
+   */
+  models: Record<string, CliModel[]>;
+  /** Ensure an agent has at least one session and return the active one. */
+  active: (agentId: string) => CliSession;
+  optsFor: (agentId: string) => CliOpts;
+  setOpts: (agentId: string, patch: Partial<CliOpts>) => void;
+  loadModels: (agentId: string) => Promise<void>;
+  newSession: (agentId: string) => void;
+  selectSession: (agentId: string, id: string) => void;
+  deleteSession: (agentId: string, id: string) => void;
+  send: (agentId: string, prompt: string) => Promise<void>;
+  cancel: (agentId: string) => void;
+  /** Clear the current conversation — same as starting a new session. */
+  clear: (agentId: string) => void;
+}
+
+const EMPTY_LIST: CliSession[] = [];
+let seq = 0;
+const rid = () => `clichat-${Date.now().toString(36)}-${(seq++).toString(36)}`;
+
+function freshSession(): CliSession {
+  return { id: rid(), title: 'New chat', messages: [], pending: null, stderr: '', createdAt: Date.now() };
+}
+
+const boot = loadSessions();
+
+export const useAiCli = create<AiCliState>((set, get) => ({
+  sessions: boot.sessions,
+  activeId: boot.activeId,
+  opts: loadOpts(),
+  models: {},
+
+  active: (agentId) => {
+    const list = get().sessions[agentId] ?? [];
+    const id = get().activeId[agentId];
+    const found = list.find((s) => s.id === id);
+    if (found) return found;
+    /* No session yet (first open, or a cleared agent): make one so callers
+       always get a real session to read from. */
+    const s = freshSession();
+    set((st) => {
+      const sessions = { ...st.sessions, [agentId]: [...(st.sessions[agentId] ?? []), s] };
+      const activeId = { ...st.activeId, [agentId]: s.id };
+      persistSessions(sessions, activeId);
+      return { sessions, activeId };
+    });
+    return s;
+  },
+
+  optsFor: (agentId) => get().opts[agentId] ?? DEFAULT_OPTS,
+
+  setOpts: (agentId, patch) =>
+    set((s) => {
+      const next = { ...(s.opts[agentId] ?? DEFAULT_OPTS), ...patch };
+      const opts = { ...s.opts, [agentId]: next };
+      persistOpts(opts);
+      return { opts };
+    }),
+
+  /*
+   * Fetch the account's live model list once per agent.
+   *
+   * The backend reads the CLI's own config so the picker mirrors what a terminal
+   * run would see (real names like "Opus 4.8", the configured default). On any
+   * failure we leave the slot empty and the UI keeps cliCatalog's static list —
+   * the picker must never end up blank just because the backend could not be
+   * asked.
+   */
+  loadModels: async (agentId) => {
+    if (get().models[agentId]?.length) return;
+    try {
+      const list = await cmd.cliModels(agentId);
+      if (Array.isArray(list) && list.length) {
+        set((s) => ({ models: { ...s.models, [agentId]: list } }));
+      }
+    } catch {
+      /* keep the static fallback */
+    }
+  },
+
+  newSession: (agentId) =>
+    set((s) => {
+      const list = s.sessions[agentId] ?? [];
+      /* Reuse an empty "New chat" at the end rather than piling blanks: pressing
+         New twice should not leave two empty sessions in the history. */
+      const lastEmpty = list.length && list[list.length - 1].messages.length === 0
+        ? list[list.length - 1]
+        : null;
+      const target = lastEmpty ?? freshSession();
+      const sessions = {
+        ...s.sessions,
+        [agentId]: lastEmpty ? list : [...list, target],
+      };
+      const activeId = { ...s.activeId, [agentId]: target.id };
+      persistSessions(sessions, activeId);
+      return { sessions, activeId };
+    }),
+
+  selectSession: (agentId, id) =>
+    set((s) => {
+      if (!(s.sessions[agentId] ?? []).some((x) => x.id === id)) return {} as never;
+      const activeId = { ...s.activeId, [agentId]: id };
+      persistSessions(s.sessions, activeId);
+      return { activeId };
+    }),
+
+  deleteSession: (agentId, id) =>
+    set((s) => {
+      const list = (s.sessions[agentId] ?? []).filter((x) => x.id !== id);
+      const sessions = { ...s.sessions, [agentId]: list };
+      let activeId = s.activeId;
+      if (s.activeId[agentId] === id) {
+        /* Fall back to the newest remaining session, or none. */
+        activeId = { ...s.activeId, [agentId]: list[list.length - 1]?.id ?? '' };
+      }
+      persistSessions(sessions, activeId);
+      return { sessions, activeId };
+    }),
+
+  send: async (agentId, prompt) => {
+    const teks = prompt.trim();
+    if (!teks) return;
+    const cur = get().active(agentId);
+    if (cur.pending) return;
+
+    const reqId = rid();
+    const userMsg: CliMsg = { id: rid(), role: 'user', content: teks };
+    const botMsg: CliMsg = { id: reqId, role: 'assistant', content: '' };
+    set((s) => {
+      const list = (s.sessions[agentId] ?? []).map((x) =>
+        x.id === cur.id
+          ? {
+              ...x,
+              title: x.messages.length === 0 ? titleFromPrompt(teks) : x.title,
+              messages: [...x.messages, userMsg, botMsg],
+              pending: reqId,
+              stderr: '',
+            }
+          : x,
+      );
+      const sessions = { ...s.sessions, [agentId]: list };
+      persistSessions(sessions, s.activeId);
+      return { sessions };
+    });
+
+    const o = get().opts[agentId] ?? DEFAULT_OPTS;
+    try {
+      await cmd.cliChat({
+        id: reqId,
+        agentId,
+        prompt: teks,
+        cwd: useStore.getState().workspace || undefined,
+        model: o.model !== 'default' ? o.model : undefined,
+        mode: o.mode !== 'default' ? o.mode : undefined,
+      });
+    } catch (e) {
+      const msg = cmd.asZephyrError(e).message;
+      set((s) => {
+        const list = (s.sessions[agentId] ?? []).map((x) =>
+          x.id === cur.id
+            ? {
+                ...x,
+                pending: null,
+                messages: x.messages.map((mm) =>
+                  mm.id === reqId ? { ...mm, content: msg, error: true } : mm,
+                ),
+              }
+            : x,
+        );
+        return { sessions: { ...s.sessions, [agentId]: list } };
+      });
+    }
+  },
+
+  cancel: (agentId) => {
+    const cur = get().active(agentId);
+    if (!cur.pending) return;
+    void cmd.cliChatCancel(cur.pending).catch(() => {});
+    set((s) => {
+      const list = (s.sessions[agentId] ?? []).map((x) =>
+        x.id === cur.id ? { ...x, pending: null } : x,
+      );
+      return { sessions: { ...s.sessions, [agentId]: list } };
+    });
+  },
+
+  clear: (agentId) => get().newSession(agentId),
+}));
+
+/*
+ * Find the session a request id belongs to (chunks only carry the request id).
+ * Returns the agent and session so the listener can update exactly one.
+ */
+function sessionForReq(reqId: string): { agentId: string; sessionId: string } | null {
+  const sessions = useAiCli.getState().sessions;
+  for (const [agentId, list] of Object.entries(sessions)) {
+    for (const s of list) {
+      if (s.pending === reqId || s.messages.some((m) => m.id === reqId)) {
+        return { agentId, sessionId: s.id };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Apply one structured event onto an assistant message, returning a NEW message
+ * (immutably) with its `parts[]` and `content` updated.
+ *
+ * Rules (see the frozen event contract):
+ *  - text     : append to content AND to the trailing text part (or push one).
+ *  - thinking : append to the trailing thinking part (or push one).
+ *  - tool     : upsert by callId — a `running` start creates the row, the
+ *               `ok`/`fail` close merges output/exit/diff into the same row.
+ *  - error    : push an error part.
+ *
+ * Consecutive deltas of the same kind coalesce into one part so a token-by-token
+ * stream does not explode into hundreds of one-character parts.
+ */
+function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
+  const parts: CliPart[] = msg.parts ? msg.parts.slice() : [];
+  const last = parts[parts.length - 1];
+  let content = msg.content;
+
+  if (ev.kind === 'text') {
+    content += ev.text;
+    if (last && last.type === 'text') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
+    else parts.push({ type: 'text', text: ev.text });
+  } else if (ev.kind === 'thinking') {
+    if (last && last.type === 'thinking') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
+    else parts.push({ type: 'thinking', text: ev.text });
+  } else if (ev.kind === 'error') {
+    parts.push({ type: 'error', text: ev.text });
+  } else {
+    // tool: upsert by callId.
+    const t = ev.tool;
+    const idx = parts.findIndex((p) => p.type === 'tool' && p.callId === t.callId);
+    if (idx >= 0) {
+      const prev = parts[idx] as Extract<CliPart, { type: 'tool' }>;
+      parts[idx] = {
+        ...prev,
+        // A close event carries an empty name; keep the one from the start.
+        name: t.name || prev.name,
+        title: t.title ?? prev.title,
+        input: t.input ?? prev.input,
+        status: t.status,
+        output: t.output ?? prev.output,
+        exitCode: t.exitCode ?? prev.exitCode,
+        diffOld: t.diffOld ?? prev.diffOld,
+        diffNew: t.diffNew ?? prev.diffNew,
+        path: t.path ?? prev.path,
+      };
+    } else {
+      parts.push({ type: 'tool', ...t });
+    }
+  }
+  return { ...msg, parts, content };
+}
+
+/*
+ * One chunk listener per process, guarded like `pty-output` / `ai-chunk`:
+ * StrictMode mounts twice in dev and would otherwise double every token.
+ */
+let bound = false;
+export function bindCliChatListener(): void {
+  if (bound) return;
+  bound = true;
+  void onCliChatChunk((chunk) => {
+    const found = sessionForReq(chunk.id);
+    if (!found) return;
+    const { agentId, sessionId } = found;
+    useAiCli.setState((s) => {
+      const list = s.sessions[agentId] ?? [];
+      const next = list.map((sess) => {
+        if (sess.id !== sessionId) return sess;
+        let messages = sess.messages;
+        let stderr = sess.stderr;
+        let pending = sess.pending;
+
+        /* A structured event (thinking / tool / diff / text) builds the message
+           timeline; plain `text` still appends to content for back-compat. */
+        if (chunk.event) {
+          messages = messages.map((m) =>
+            m.id === chunk.id ? applyCliEvent(m, chunk.event!) : m,
+          );
+        }
+        if (chunk.text) {
+          messages = messages.map((m) =>
+            m.id === chunk.id
+              ? applyCliEvent(m, { kind: 'text', text: chunk.text! })
+              : m,
+          );
+        }
+        if (chunk.stderr) {
+          stderr = stderr + chunk.stderr + '\n';
+        }
+        if (chunk.done) {
+          pending = null;
+          /* If the run produced no assistant text, surface stderr as the error
+             so the bubble is never left blank. */
+          messages = messages.map((m) => {
+            if (m.id !== chunk.id) return m;
+            if (m.content.trim() || (m.parts && m.parts.length > 0)) return m;
+            return {
+              ...m,
+              content: chunk.cancelled
+                ? 'Stopped.'
+                : stderr.trim() || 'The CLI did not return any text.',
+              error: !chunk.cancelled,
+            };
+          });
+        }
+        return { ...sess, messages, stderr, pending };
+      });
+      const sessions = { ...s.sessions, [agentId]: next };
+      /* Persist only when the run finished, not on every token. */
+      if (chunk.done) persistSessions(sessions, s.activeId);
+      return { sessions };
+    });
+  });
+}
+
+export { EMPTY_LIST };

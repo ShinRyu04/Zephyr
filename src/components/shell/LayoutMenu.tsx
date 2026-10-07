@@ -158,13 +158,17 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
       </div>
 
       {/* ── AI chat home ──
-          Where the chat lives: the bottom dock, the right column (Secondary
-          Side Bar), the editor area as a tab, or its own floating window. */}
+          Where the chat lives: the right column (Secondary Side Bar), the
+          editor area as a tab, or its own floating window.
+
+          The legacy "bottom" dock is GONE on purpose: the user never wants the
+          chat to collapse into the terminal panel again, so it is no longer an
+          option here. The migration in `store.ts` rewrites any saved `bottom`
+          setting to `right`, so an old profile cannot land back in that mode. */}
       <div className="lm-seksi">{tr('AI Chat Position')}</div>
       <div className="lm-pil" data-testid="lm-posisi-ai">
         {(
           [
-            ['bottom', tr('Bottom')],
             ['right', tr('Right')],
             ['editor', tr('Editor')],
             ['window', tr('Window')],
@@ -182,9 +186,9 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
               } else {
                 void import('../../lib/aiWindow').then((m) => m.tutupAiWindow());
               }
-              if (pos !== 'bottom') {
-                useTerminal.getState().setVisible(false);
-              }
+              /* None of the remaining homes live in the bottom dock, so the
+                 terminal panel is always freed up. */
+              useTerminal.getState().setVisible(false);
             }}
           >
             {label}

@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { useAiTabs, CLI_TABS } from '../../lib/aiTabsStore';
 import { useTerminal } from '../../lib/terminalStore';
+import { useStore } from '../../lib/store';
 import AiPanel from './AiPanel';
+import AiIkon from './AiIkon';
 import { useT } from '../../lib/i18n';
 
 const CliSessionTab = lazy(() => import('./CliSessionTab'));
@@ -30,12 +32,40 @@ export default function AiHost() {
   const activeValid = active === 'chat' || cliTabs.some((c) => c.id === active);
   const current: typeof active = activeValid ? active : 'chat';
 
+  /*
+   * Maximize/Restore lives in the tab strip, SHARED by all three tabs (Chat,
+   * Claude Code, Codex), so it costs one slot instead of a button inside every
+   * surface. Only meaningful in the right column, where `aiMax` drives
+   * `.ai-side-col.is-max` in App.tsx.
+   */
+  const aiPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
+  const aiMax = useStore((s) => s.aiMax);
+  const setAiMax = useStore((s) => s.setAiMax);
+  const applySettings = useStore((s) => s.applySettings);
+  const showMax = aiPos === 'right';
+
+  /* Hide the panel — the same action AiPanel's own header offered, lifted into
+     the shared strip so Chat, Claude Code and Codex all close from one place
+     (VSCode puts these window controls at the strip's trailing edge). */
+  const hidePanel = () => {
+    if (aiPos === 'right') {
+      useStore.getState().setAiKolomVisible(false);
+    } else if (aiPos === 'editor') {
+      /* Editor-area view: closing returns the chat to the right column so the
+         activity-bar icon can bring it back. */
+      void applySettings({ general: { aiPanel: 'right' } } as never);
+      useStore.getState().setAiKolomVisible(false);
+    } else {
+      void import('../../lib/terminalStore').then((m) => m.useTerminal.getState().setVisible(false));
+    }
+  };
+
   return (
     <div className="ai-host" data-testid="ai-host">
-      {/* Only show the strip once there is more than the Chat tab — a lone
-          "Chat" tab would just be chrome with no choice to make. */}
-      {cliTabs.length > 0 && (
-        <div className="ai-host-tabs" role="tablist" data-testid="ai-host-tabs">
+      {/* The strip always renders: it carries the shared window controls
+          (maximize + hide) at its trailing edge, plus the CLI tabs when any
+          are detected. */}
+      <div className="ai-host-tabs" role="tablist" data-testid="ai-host-tabs">
           <button
             role="tab"
             aria-selected={current === 'chat'}
@@ -57,8 +87,31 @@ export default function AiHost() {
               {c.label}
             </button>
           ))}
+          {/* VSCode-style window controls at the strip's trailing edge, shared
+              by all tabs: maximize/restore (right column only) + hide panel. */}
+          <span className="ai-host-tabs-spacer" aria-hidden="true" />
+          {showMax && (
+            <button
+              className="ai-host-win"
+              data-testid="ai-host-maximize"
+              title={aiMax ? tr('Restore panel size') : tr('Maximize panel')}
+              aria-label={aiMax ? tr('Restore panel size') : tr('Maximize panel')}
+              aria-pressed={aiMax}
+              onClick={() => setAiMax(!aiMax)}
+            >
+              <AiIkon name={aiMax ? 'restore' : 'maximize'} size={14} />
+            </button>
+          )}
+          <button
+            className="ai-host-win"
+            data-testid="ai-host-hide"
+            title={tr('Hide AI panel')}
+            aria-label={tr('Hide AI panel')}
+            onClick={hidePanel}
+          >
+            <AiIkon name="close" size={14} />
+          </button>
         </div>
-      )}
 
       <div className="ai-host-body">
         {/* Chat stays mounted; CSS hides it when a CLI tab is in front so a

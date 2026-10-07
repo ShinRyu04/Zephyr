@@ -6,6 +6,7 @@ import { useStore } from './store';
 import { MAX_LOADED_TABS, maxLoadedTabs } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
+import { useAiCli } from './aiCliStore';
 import { useSettingsUi, SECTION_ORDER } from './settingsStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
@@ -132,6 +133,10 @@ export function installDevBridge(): void {
   w.__ZEPHYR__ = useStore;
   w.__ZEPHYR_EX__ = useExplorer;
   w.__ZEPHYR_TERM__ = useTerminal;
+  /* The hosted-CLI chat store (Claude Code / Codex native UI), exposed so the
+     CLI verification harness can drive a send and read back the message parts
+     (thinking / tool / diff) without needing a dynamic import. */
+  w.__ZEPHYR_CLICHAT__ = useAiCli;
   w.__ZEPHYR_CM__ = () => getActiveView();
   w.__ZEPHYR_FLUSH__ = (tabId: string) => flushTab(tabId);
   w.__ZEPHYR_FS__ = { read: fsRead, sessionLoad, scanDir, searchFiles };
