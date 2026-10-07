@@ -100,6 +100,39 @@ await new Promise((r) => setTimeout(r, 800));
 const u4b = await ev(`document.querySelectorAll('[data-testid^="cli-plugin-toggle-"], .cli-sheet-plugin').length`);
 check('U4', u4 === 'clicked' ? u4b > 0 : true, `plugins entry=${u4} pluginRows=${u4b}`);
 
+// U5 — the MCP sheet offers an Add control (or is honestly empty).
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 600));
+await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/MCP servers/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 900));
+const u5 = await ev(`JSON.stringify({add: !!document.querySelector('[data-testid="cli-mcp-add"]'), rows: document.querySelectorAll('.cli-sheet-file').length})`);
+const j5 = JSON.parse(u5);
+check('U5', j5.add, `mcp add button present=${j5.add}, rows=${j5.rows}`);
+
+// U6 — saving with an empty field is refused, so nothing is written.
+await ev(`(()=>{const b=document.querySelector('[data-testid="cli-mcp-add"]'); if(b) b.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 500));
+await ev(`(()=>{const b=document.querySelector('[data-testid="cli-mcp-save"]'); if(b) b.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 700));
+const u6 = await ev(`(()=>{const e=document.querySelector('[data-testid="cli-mcp-error"]'); return e ? e.textContent : 'no-error';})()`);
+check('U6', typeof u6 === 'string' && u6 !== 'no-error' && u6.length > 0, `refused with: ${JSON.stringify(u6)}`);
+
+// U7 — a bad name is refused too, so no invalid key reaches settings.json.
+await ev(`(()=>{
+  const n=document.querySelector('[data-testid="cli-mcp-name"]');
+  const t=document.querySelector('[data-testid="cli-mcp-target"]');
+  if(!n||!t) return 1;
+  const set=(el,v)=>{const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value');
+    const prev=el.value; d.set.call(el,v); if(el._valueTracker) el._valueTracker.setValue(prev);
+    el.dispatchEvent(new Event('input',{bubbles:true}));};
+  set(n,'bad name with spaces'); set(t,'npx -y foo');
+  return 1;})()`);
+await new Promise((r) => setTimeout(r, 400));
+await ev(`(()=>{const b=document.querySelector('[data-testid="cli-mcp-save"]'); if(b) b.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 700));
+const u7 = await ev(`(()=>{const e=document.querySelector('[data-testid="cli-mcp-error"]'); return e ? e.textContent : 'no-error';})()`);
+check('U7', typeof u7 === 'string' && u7 !== 'no-error' && /name/i.test(u7), `bad name refused: ${JSON.stringify(u7)}`);
+
 ws.close();
 const pass = out.filter(Boolean).length;
 console.log(`\n== ${pass}/${out.length} lulus ==`);
