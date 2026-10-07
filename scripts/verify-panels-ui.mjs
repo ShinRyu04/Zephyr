@@ -97,8 +97,11 @@ const u4 = await ev(`(()=>{
   hit.click();
   return 'clicked';})()`);
 await new Promise((r) => setTimeout(r, 800));
-const u4b = await ev(`document.querySelectorAll('[data-testid^="cli-plugin-toggle-"], .cli-sheet-plugin').length`);
-check('U4', u4 === 'clicked' ? u4b > 0 : true, `plugins entry=${u4} pluginRows=${u4b}`);
+/* The plugins sheet is now the marketplace browser, so its rows are
+   `.cli-plugin-row` rather than the old read-only list. Checked in full by U8
+   below; here it only has to be reachable. */
+const u4b = await ev(`document.querySelectorAll('.cli-plugin-row, .cli-sheet-plugin').length`);
+check('U4', u4 === 'clicked' || u4 === 'no-plugins-entry', `plugins entry=${u4} rows=${u4b}`);
 
 // U5 — the MCP sheet offers an Add control (or is honestly empty).
 await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
@@ -132,6 +135,27 @@ await ev(`(()=>{const b=document.querySelector('[data-testid="cli-mcp-save"]'); 
 await new Promise((r) => setTimeout(r, 700));
 const u7 = await ev(`(()=>{const e=document.querySelector('[data-testid="cli-mcp-error"]'); return e ? e.textContent : 'no-error';})()`);
 check('U7', typeof u7 === 'string' && u7 !== 'no-error' && /name/i.test(u7), `bad name refused: ${JSON.stringify(u7)}`);
+
+// U8..U9 — the plugin marketplace browser renders real rows.
+await ev(`(()=>{const x=document.querySelector('[data-testid="cli-sheet-close"], .cli-sheet-close'); if(x) x.click(); const t=[...document.querySelectorAll('.cli-pop-trigger')].find(e=>(e.textContent||'').trim()==='/'); if(t) t.click(); return 1;})()`);
+await new Promise((r) => setTimeout(r, 700));
+await ev(`(()=>{const hit=[...document.querySelectorAll('.cli-pop button, button')].find(e=>/Manage plugins/i.test((e.textContent||'').trim())); if(hit) hit.click(); return 1;})()`);
+/* The catalog read is a real file read plus a sort over 315 entries, so give it
+   a moment before judging the panel empty. */
+await new Promise((r) => setTimeout(r, 2500));
+
+const u8 = await ev(`document.querySelectorAll('.cli-plugin-row').length`);
+check('U8', u8 > 0, `${u8} plugin rows rendered`);
+
+const u9 = await ev(`(()=>{const s=document.querySelector('[data-testid="cli-plugin-search"]');
+  if(!s) return JSON.stringify({search:false});
+  const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(s),'value');
+  const prev=s.value; d.set.call(s,'kubernetes'); if(s._valueTracker) s._valueTracker.setValue(prev);
+  s.dispatchEvent(new Event('input',{bubbles:true}));
+  return JSON.stringify({search:true});})()`);
+await new Promise((r) => setTimeout(r, 700));
+const u9n = await ev(`document.querySelectorAll('.cli-plugin-row').length`);
+check('U9', JSON.parse(u9).search && u9n > 0 && u9n < u8, `search narrowed ${u8} -> ${u9n}`);
 
 ws.close();
 const pass = out.filter(Boolean).length;

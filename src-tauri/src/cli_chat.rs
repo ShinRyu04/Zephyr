@@ -142,6 +142,26 @@ fn tool_event(obj: Value) -> Value {
 ///   - {"type":"tool_result","tool_use_id":…,"content":<str|array>} -> a result
 /// System/init/result bookkeeping lines carry nothing printable and yield [].
 fn claude_events_from_line(line: &str) -> Vec<Value> {
+    claude_events_from_line_skip(line, &mut std::collections::HashSet::new())
+}
+
+/// As `claude_events_from_line`, but tracking which tool calls were folded into
+/// a `todo` event so their results can be skipped.
+///
+/// The parser is per-line because the stream is, and a tool's `tool_use` and its
+/// `tool_result` arrive as two separate lines. That means it cannot decide on
+/// its own whether a result belongs to a call it already turned into a
+/// checklist — so the set of such call ids is threaded in by the caller, which
+/// does see every line.
+///
+/// Without this, every TodoWrite produced a second, nameless tool row carrying
+/// "Todos have been modified successfully": the checklist appeared AND a piece of
+/// machinery appeared next to it, which is exactly the raw-text noise the todo
+/// event was meant to remove.
+fn claude_events_from_line_skip(
+    line: &str,
+    todo_calls: &mut std::collections::HashSet<String>,
+) -> Vec<Value> {
     let Ok(v) = serde_json::from_str::<Value>(line) else {
         return Vec::new();
     };
@@ -189,6 +209,7 @@ fn claude_events_from_line(line: &str) -> Vec<Value> {
                          * checklist IS the representation of that call.
                          */
                         if let Some(todos) = claude_todo_snapshot(name, &input) {
+                            todo_calls.insert(call_id.to_string());
                             out.push(json!({ "kind": "todo", "items": todos }));
                             continue;
                         }
@@ -224,6 +245,12 @@ fn claude_events_from_line(line: &str) -> Vec<Value> {
             for block in content {
                 if block.get("type").and_then(|x| x.as_str()) == Some("tool_result") {
                     let call_id = block.get("tool_use_id").and_then(|x| x.as_str()).unwrap_or("");
+                    /* The result of a call already shown as a checklist carries no
+                       information the checklist does not - "Todos have been
+                       modified successfully" is the tool acknowledging itself. */
+                    if todo_calls.contains(call_id) {
+                        continue;
+                    }
                     let is_err = block.get("is_error").and_then(|x| x.as_bool()).unwrap_or(false);
                     out.push(tool_event(json!({
                         "callId": call_id,
@@ -573,6 +600,12 @@ pub async fn cli_chat(
     }
 
     let mut reader = BufReader::new(stdout).lines();
+    /*
+     * Call ids already folded into a `todo` event, so their `tool_result` lines
+     * can be dropped instead of appearing as a nameless second row. Lives here
+     * because the reader sees every line; the per-line parser cannot know it.
+     */
+    let mut todo_calls: std::collections::HashSet<String> = std::collections::HashSet::new();
     while let Ok(Some(line)) = reader.next_line().await {
         if !running().lock().unwrap().contains_key(&id) {
             // Cancelled: stop relaying.
@@ -584,7 +617,7 @@ pub async fn cli_chat(
             // different newline-JSON dialect; both map onto the one event shape
             // the frontend upserts by callId.
             let events = match agent_id.as_str() {
-                "claude" => claude_events_from_line(&line),
+                "claude" => claude_events_from_line_skip(&line, &mut todo_calls),
                 "codex" => codex_events_from_line(&line),
                 _ => Vec::new(),
             };
@@ -651,7 +684,7 @@ fn pretty_model(id: &str) -> String {
 
 /// The user's home directory, via the same env vars the rest of the app uses
 /// (`USERPROFILE` on Windows, `HOME` elsewhere). No external crate needed.
-fn home_dir() -> Option<std::path::PathBuf> {
+pub(crate) fn home_dir() -> Option<std::path::PathBuf> {
     std::env::var_os("USERPROFILE")
         .or_else(|| std::env::var_os("HOME"))
         .map(std::path::PathBuf::from)
@@ -1764,6 +1797,36 @@ mod tests {
         let input = json!({ "command": "ls" });
         assert!(claude_todo_snapshot("Bash", &input).is_none());
         assert!(claude_todo_snapshot("Edit", &input).is_none());
+    }
+
+    #[test]
+    fn todo_result_is_not_emitted_as_a_nameless_tool_row() {
+        // The regression: TodoWrite became a checklist, but its tool_result then
+        // arrived on a later line and was rendered as a tool row with no name,
+        // carrying only "Todos have been modified successfully". The checklist
+        // appeared WITH a piece of machinery beside it.
+        let mut seen = std::collections::HashSet::new();
+        let use_line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_1","name":"TodoWrite","input":{"todos":[{"content":"a","status":"pending"}]}}]}}"#;
+        let ev1 = claude_events_from_line_skip(use_line, &mut seen);
+        assert_eq!(ev1.len(), 1);
+        assert_eq!(ev1[0]["kind"], "todo");
+
+        let result_line = r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu_1","content":"Todos have been modified successfully."}]}}"#;
+        let ev2 = claude_events_from_line_skip(result_line, &mut seen);
+        assert!(ev2.is_empty(), "todo result leaked a tool row: {ev2:?}");
+    }
+
+    #[test]
+    fn an_ordinary_tools_result_still_arrives() {
+        // The skip must be narrow: every other tool's result is the payload the
+        // reader actually opened the row for.
+        let mut seen = std::collections::HashSet::new();
+        let use_line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_2","name":"Bash","input":{"command":"ls"}}]}}"#;
+        claude_events_from_line_skip(use_line, &mut seen);
+        let result_line = r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu_2","content":"file.txt"}]}}"#;
+        let ev = claude_events_from_line_skip(result_line, &mut seen);
+        assert_eq!(ev.len(), 1, "ordinary tool result was dropped: {ev:?}");
+        assert_eq!(ev[0]["kind"], "tool");
     }
 
     #[test]
