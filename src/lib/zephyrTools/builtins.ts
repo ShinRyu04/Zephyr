@@ -94,6 +94,59 @@ export function potong(teks: string, batas = BATAS_HASIL): string {
   );
 }
 
+/** Ukuran di atas mana keluaran tool diarsipkan, bukan dikirim utuh. */
+export const BATAS_ARSIP = 8 * 1024;
+
+/**
+ * Buang keluaran besar ke disk dan kirim penunjuknya.
+ *
+ * Sebuah hasil tool yang panjang TINGGAL DI RIWAYAT untuk sisa percakapan, dan
+ * itu ditagih di setiap giliran berikutnya — satu `read_file` 40 KB berarti
+ * ~10.000 token yang dikirim ulang puluhan kali untuk jawaban yang mungkin cuma
+ * memakai tiga barisnya. Pendekatan "potong saja" lebih buruk lagi: model
+ * kehilangan sisanya secara diam-diam dan menyimpulkan dari daftar yang tidak
+ * lengkap.
+ *
+ * Jadi isinya disimpan utuh, dan model diberi path plus ringkasan awal. Ia bisa
+ * membaca ulang bagian mana pun (dengan offset/limit) kalau memang butuh, dan
+ * kalau tidak, yang dikirim ke konteks hanya beberapa ratus karakter.
+ *
+ * Gagal menulis TIDAK boleh menggagalkan tool-nya: arsip adalah penghematan,
+ * bukan tujuan. Kalau disk menolak, keluaran aslinya yang dikembalikan —
+ * lebih baik mahal daripada kosong.
+ */
+export async function arsipkan(teks: string, nama: string): Promise<string> {
+  if (teks.length <= BATAS_ARSIP) return teks;
+
+  /*
+   * Written through Rust, not through the workspace writer.
+   *
+   * The archive has to work when NO workspace is open — that is precisely when a
+   * workspace-relative path does not exist, and it is also when a long agent run
+   * is most likely to be piling up output. The command writes under the app's
+   * own data folder, outside the workspace guard the same way `secrets.json` is.
+   */
+  let berkas = '';
+  try {
+    const { aiArchiveToolOutput } = await import('../commands');
+    berkas = await aiArchiveToolOutput(nama, teks);
+  } catch {
+    /* Failing to archive must not fail the tool: the archive is a saving, not
+       the goal. Falls back to an honest truncation. */
+    return potong(teks);
+  }
+  if (!berkas) return potong(teks);
+
+  const kepala = teks.slice(0, 1200);
+
+  return (
+    `${kepala}\n\n` +
+    `[hasil lengkap ${teks.length.toLocaleString()} karakter disimpan di:\n  ${berkas}\n` +
+    'Baca bagian yang kamu butuhkan dengan read_file (pakai offset dan limit); ' +
+    'jangan membaca seluruhnya kalau tidak perlu.]'
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Penerjemah argumen                                                 */
 /* ------------------------------------------------------------------ */
@@ -420,10 +473,25 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const path = wajib(a, 'path');
+      /*
+       * An archived tool output is read through its own door.
+       *
+       * The archive lives under the app's data folder, which the workspace guard
+       * correctly refuses — so without this branch the model was handed a
+       * pointer to its own earlier output and then denied the file, which is
+       * worse than never archiving at all. The check is on the path SHAPE, not a
+       * glob: only something inside `tool-output/` goes this way, and everything
+       * else keeps the ordinary guarded read.
+       */
+      if (/[\\/]tool-output[\\/]/.test(path)) {
+        const teks = await cmd.aiReadToolOutput(path);
+        return potong(teks);
+      }
       jagaBaca(path);
-      return potong(
-        await bacaBerkas(path, bacaAngka(a.offset), bacaAngka(a.limit), bacaBool(a.fromDisk)),
-      );
+      const isi = await bacaBerkas(path, bacaAngka(a.offset), bacaAngka(a.limit), bacaBool(a.fromDisk));
+      /* Sebuah berkas besar TINGGAL di riwayat dan ditagih tiap giliran; yang
+         dikirim cukup kepala plus path untuk membaca sisanya kalau perlu. */
+      return arsipkan(isi, path.split(/[\\/]/).pop() || 'berkas');
     },
   },
 

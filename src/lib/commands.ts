@@ -172,6 +172,26 @@ export interface DevUpdateHasil {
  */
 export const secretsSnapshot = () => invoke<string>('secrets_snapshot');
 
+/*
+ * Archive a large tool result and return the file's path.
+ *
+ * Written through Rust so it works with NO workspace open — a workspace-relative
+ * path does not exist then, and that is exactly when a long agent run piles up
+ * the most output.
+ */
+export const aiArchiveToolOutput = (name: string, content: string) =>
+  invoke<string>('ai_archive_tool_output', { name, content });
+
+/*
+ * Read back an archived tool output.
+ *
+ * Needed because the archive lives outside the workspace, which the ordinary
+ * `fs_read` guard correctly refuses — leaving the model holding a pointer to a
+ * file it could not open.
+ */
+export const aiReadToolOutput = (path: string) =>
+  invoke<string>('ai_read_tool_output', { path });
+
 export const devUpdateInfo = () => invoke<DevUpdateInfo>('dev_update_info');
 export const devUpdateBuild = () => invoke<DevUpdateHasil>('dev_update_build');
 export const devUpdateApply = (relaunch = true) =>
