@@ -282,16 +282,64 @@ export const EditDiff = memo(function EditDiff({
   const long = rows.length > DIFF_PEEK + 6;
   const shown = long && !expand ? rows.slice(0, DIFF_PEEK) : rows;
   const hidden = rows.length - shown.length;
-  const [wantSplit, setWantSplit] = useState(mode === 'split');
+  const [wantSplit, setWantSplit] = useState<boolean | null>(
+    mode === undefined ? null : mode === 'split',
+  );
+
+  /*
+   * Which view — decided by the PANEL's width, not by a preference.
+   *
+   * The first version defaulted to unified and offered a button, which meant
+   * the reader had to discover the button and click it every single time to get
+   * the view that the available space already called for. The width is the
+   * honest signal: a docked panel is ~440px and two text columns there wrap
+   * into ribbons, while a maximised panel is ~1100px and a single column
+   * wastes half of it. So the view follows the width, and the button becomes
+   * an OVERRIDE for the reader who disagrees — not the way to reach it.
+   *
+   * `null` means "auto"; `true`/`false` is an explicit choice, which then
+   * survives a resize instead of being silently overruled.
+   */
+  const SPLIT_MIN_PX = 720;
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [wide, setWide] = useState(false);
+  /*
+   * Measure the element itself rather than the viewport.
+   *
+   * The panel is resizable and can be docked to either side, so the window
+   * width says nothing about the room this diff actually has — a 1920px window
+   * with a 440px docked panel is the narrow case. ResizeObserver reports the
+   * element's own box, which is the number the decision needs.
+   */
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? el.clientWidth;
+      setWide(w >= SPLIT_MIN_PX);
+    });
+    ro.observe(el);
+    setWide(el.clientWidth >= SPLIT_MIN_PX);
+    return () => ro.disconnect();
+  }, []);
+
+  /* Auto until the reader overrides it. */
+  const split = wantSplit ?? wide;
 
   /* Pairing lives in `pairForSplit` so it can be unit-checked directly; see
      its doc comment for why the pairing matters. */
   const pairs = useMemo(() => pairForSplit(shown), [shown]);
 
   return (
-    <div className={`cli-diff${wantSplit ? ' is-split' : ''}`} data-testid="cli-tool-diff" data-mode={wantSplit ? 'split' : 'unified'}>
+    <div
+      ref={rootRef}
+      className={`cli-diff${split ? ' is-split' : ''}`}
+      data-testid="cli-tool-diff"
+      data-mode={split ? 'split' : 'unified'}
+      data-auto={wantSplit === null ? '1' : '0'}
+    >
       <div className="cli-diff-body">
-        {wantSplit
+        {split
           ? pairs.map((p, i) => (
               <div key={i} className="cli-diff-pair">
                 {/* LEFT: the old file. A row that only exists on the right
@@ -330,16 +378,33 @@ export const EditDiff = memo(function EditDiff({
             {expand ? tr('Show less') : tf('Show {n} more lines', { n: hidden })}
           </button>
         )}
-        {/* The manual override. The container query picks a sensible default by
-            width; this is for the reader who wants the other one anyway. */}
+        {/*
+          * The override, cycling auto -> split -> unified -> auto.
+          *
+          * Auto is a real state and has to be reachable again, or a reader who
+          * once forced unified on a docked panel can never get the automatic
+          * behaviour back after maximising — the setting would outlive the
+          * reason for it. The label says which mode is in effect and, while
+          * auto, marks itself as such so the reader knows why it changed on
+          * its own.
+          */}
         {mode === undefined && (
           <button
-            className="cli-diff-view"
+            className={`cli-diff-view${wantSplit === null ? ' is-auto' : ''}`}
             data-testid="cli-diff-view-toggle"
-            title={wantSplit ? tr('Unified view') : tr('Split view')}
-            onClick={() => setWantSplit((v) => !v)}
+            data-auto={wantSplit === null ? '1' : '0'}
+            title={
+              wantSplit === null
+                ? tr('Following panel width — click to force split')
+                : wantSplit
+                  ? tr('Split view — click to force unified')
+                  : tr('Unified view — click to follow panel width')
+            }
+            onClick={() =>
+              setWantSplit((v) => (v === null ? true : v === true ? false : null))
+            }
           >
-            {wantSplit ? tr('Unified') : tr('Split')}
+            {wantSplit === null ? tr('Auto') : split ? tr('Split') : tr('Unified')}
           </button>
         )}
       </div>

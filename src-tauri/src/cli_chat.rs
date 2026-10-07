@@ -176,6 +176,22 @@ fn claude_events_from_line(line: &str) -> Vec<Value> {
                         let call_id = block.get("id").and_then(|x| x.as_str()).unwrap_or("");
                         let name = block.get("name").and_then(|x| x.as_str()).unwrap_or("tool");
                         let input = block.get("input").cloned().unwrap_or(Value::Null);
+                        /*
+                         * A todo write is a PLAN, not an action.
+                         *
+                         * TodoWrite / TaskCreate / TaskUpdate carry the agent's
+                         * task list, and rendering them as ordinary tool rows
+                         * buries the plan inside a collapsed row of JSON — the
+                         * reader sees "TodoWrite" and has to click to discover
+                         * what is about to happen. They are lifted out into a
+                         * `todo` event instead, which the panel paints as a
+                         * checklist. The tool row is not emitted at all: the
+                         * checklist IS the representation of that call.
+                         */
+                        if let Some(todos) = claude_todo_snapshot(name, &input) {
+                            out.push(json!({ "kind": "todo", "items": todos }));
+                            continue;
+                        }
                         // For file-editing tools, surface the before/after halves
                         // so the UI draws a real green/red diff (like VSCode's
                         // Claude Code) instead of raw JSON. The halves come
@@ -246,6 +262,82 @@ fn claude_tool_title(name: &str, input: &Value) -> String {
 ///   * MultiEdit    -> (joined olds, joined news) across every edit
 ///   * NotebookEdit -> ("", new_source)
 /// Any other tool yields `(None, None)` and is shown as a plain tool row.
+/// Read a todo list out of a task-tracking tool call, if that is what this is.
+///
+/// Two shapes reach here and both must be understood, because which one a
+/// session uses depends on the CLI's own defaults rather than on anything
+/// Zephyr controls:
+///
+///   * `TodoWrite` carries the WHOLE list every time, each item a
+///     `{content, status, activeForm}`. Sending the complete list is what makes
+///     this one call sufficient — the panel can replace its state outright.
+///   * `TaskCreate` / `TaskUpdate` are the newer per-task tools: one call adds
+///     or changes a single task by `taskId`. They cannot be turned into a
+///     snapshot from one call, so they are reported as a partial update and the
+///     caller merges.
+///
+/// Returns `None` for any other tool, so the ordinary tool-row path is
+/// untouched.
+fn claude_todo_snapshot(name: &str, input: &Value) -> Option<Vec<Value>> {
+    /// `activeForm` is the present-continuous label ("Running tests") shown
+    /// while the step is in progress; `content` is the imperative one ("Run
+    /// tests") shown otherwise. Either may be missing.
+    fn item(content: Option<&str>, active: Option<&str>, status: &str, id: Option<&str>) -> Value {
+        json!({
+            "content": content.unwrap_or(""),
+            "activeForm": active.unwrap_or(""),
+            "status": status,
+            "id": id.unwrap_or(""),
+        })
+    }
+
+    match name {
+        "TodoWrite" => {
+            let arr = input.get("todos").and_then(|x| x.as_array())?;
+            let items = arr
+                .iter()
+                .map(|t| {
+                    item(
+                        t.get("content").and_then(|x| x.as_str()),
+                        t.get("activeForm").and_then(|x| x.as_str()),
+                        t.get("status").and_then(|x| x.as_str()).unwrap_or("pending"),
+                        t.get("id").and_then(|x| x.as_str()),
+                    )
+                })
+                .collect();
+            Some(items)
+        }
+        "TaskCreate" => {
+            let subject = input
+                .get("subject")
+                .or_else(|| input.get("content"))
+                .and_then(|x| x.as_str())?;
+            let active = input.get("activeForm").and_then(|x| x.as_str());
+            let id = input.get("taskId").and_then(|x| x.as_str());
+            Some(vec![item(Some(subject), active, "pending", id)])
+        }
+        "TaskUpdate" => {
+            /* The id field is not reliably spelled: the SDK docs note that
+               Claude Code repairs `id`/`task_id` to `taskId` before execution
+               but that the repair is NOT reflected in the stream we read. So
+               all three spellings are accepted. */
+            let id = input
+                .get("taskId")
+                .or_else(|| input.get("id"))
+                .or_else(|| input.get("task_id"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
+            let status = input.get("status").and_then(|x| x.as_str()).unwrap_or("");
+            let active = input.get("activeForm").and_then(|x| x.as_str());
+            let subject = input.get("subject").and_then(|x| x.as_str());
+            /* `deleted` removes the task; passing it through lets the panel
+               drop the row rather than render a task with no state. */
+            Some(vec![item(subject, active, status, Some(id))])
+        }
+        _ => None,
+    }
+}
+
 fn claude_edit_halves(name: &str, input: &Value) -> (Option<String>, Option<String>) {
     let s = |k: &str| input.get(k).and_then(|x| x.as_str()).map(|x| x.to_string());
     match name {
@@ -428,6 +520,24 @@ pub async fn cli_chat(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    /*
+     * Ask the CLI for its task-tracking tools.
+     *
+     * Claude Code exposes TodoWrite / TaskCreate / TaskUpdate / TaskList by
+     * default only on its older models (Claude 3.x, Opus 4 through 4.7, Sonnet
+     * 4 through 4.6). On anything newer — including the Opus 4.8 this machine
+     * runs — the tools are absent unless the session opts in, and a session
+     * that does not opt in emits no todo tool calls at all: the agent works
+     * multi-step jobs with no visible plan, which is exactly the gap the todo
+     * panel exists to fill.
+     *
+     * Verified directly: with this variable unset a three-file task produced
+     * zero TodoWrite calls; with it set, the same task produced four. Codex is
+     * unaffected — the flag is only added for the Claude agent.
+     */
+    if agent_id == "claude" {
+        command.env("CLAUDE_CODE_ENABLE_TODO_TOOLS", "1");
+    }
     if let Some(dir) = cwd.as_deref().filter(|d| !d.is_empty()) {
         if std::path::Path::new(dir).is_dir() {
             command.current_dir(dir);
