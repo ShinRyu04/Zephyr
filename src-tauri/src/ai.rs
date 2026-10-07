@@ -1,4 +1,5 @@
 use crate::adapters;
+use crate::adapters::StreamAcc;
 use crate::adapters::xml_tools;
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
@@ -81,6 +82,20 @@ pub struct AgentMsg {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<String>>,
+
+    /// The model's reasoning for this turn, echoed back on the next request.
+    ///
+    /// Providers that expose reasoning expect their own chain of thought
+    /// returned: Anthropic's thinking blocks carry a signature it validates, and
+    /// the OpenAI-compatible gateways accept `reasoning_content` on an assistant
+    /// message. Dropping it makes each step re-derive what it already worked
+    /// out, or contradict it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
+
+    /// The opaque signature that must accompany `reasoning`, verbatim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_signature: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -926,6 +941,18 @@ pub fn ai_tool_chat_stream(
                 emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
             }
             /*
+             * Keep the reasoning and its signature for the round trip.
+             *
+             * The live text above is what the UI paints; this is what the
+             * CONVERSATION needs. Anthropic sends the signature in a separate
+             * delta and rejects a thinking block returned without it, so both
+             * halves are accumulated on the tool accumulator and handed back
+             * with the finished step.
+             */
+            if let StreamAcc::Anthropic(a) = &mut acc {
+                a.feed_reasoning(&v);
+            }
+            /*
              * A chunk can carry a TOOL CALL with no text at all - and in agent
              * mode that is the normal first response (the model decides which
              * tool to run before saying anything). `acc.feed` swallows those
@@ -972,6 +999,11 @@ pub fn ai_tool_chat_stream(
             }
         }
 
+        /* Read the reasoning BEFORE `finish` consumes the accumulator. */
+        let (reasoning, reasoning_sig) = match &acc {
+            StreamAcc::Anthropic(a) => a.reasoning_parts(),
+            _ => (None, None),
+        };
         let (content, tool_calls) = acc.finish();
         /*
          * Flush whatever is still held.
@@ -1002,6 +1034,8 @@ pub fn ai_tool_chat_stream(
                 "content": content,
                 "toolCalls": tool_calls,
                 "cancelled": dibatalkan,
+                "reasoning": reasoning,
+                "reasoningSignature": reasoning_sig,
             }),
         );
     });
