@@ -2,6 +2,58 @@ use crate::adapters::{split_data_url, trim_base};
 use crate::ai::{AgentMsg, AiToolResult, ChatMsg, Prepared, ReasoningEffort, ToolCall, ToolSpec};
 use serde_json::{json, Value};
 
+/// Build the `thinking` field for a model, in the form that model accepts.
+///
+/// The API rejects the WRONG FORM with a 400, and which form is right depends
+/// entirely on the model — so sending one shape for every model means every
+/// request to a model expecting another shape fails outright. That is the whole
+/// reason this function exists rather than a single `json!` at the call site.
+///
+/// From the documented compatibility table:
+///
+///   * `budget_tokens` is accepted by Opus 4.5–4.6, Sonnet 4.5–4.6 and Haiku
+///     4.5, is DEPRECATED on 4.6, and returns a 400 on everything newer —
+///     including the Opus 4.8, Sonnet 5 and Fable 5 lines this app ships.
+///   * The newer models take `{"type": "adaptive"}` and need nothing at all:
+///     thinking is already on, with `display` defaulting to `"omitted"`, so the
+///     text stays hidden until `"summarized"` is asked for.
+///   * `"disabled"` is a 400 on most of the newer models rather than a way to
+///     turn thinking off.
+///   * The oldest models (4.5 and below) predate `adaptive` and reject it.
+///
+/// Returns `None` when no form is safe, leaving thinking unconfigured — which
+/// the API treats as its own default and is never an error.
+pub fn thinking_field(model: &str) -> Option<Value> {
+    let m = model.to_ascii_lowercase();
+
+    /* The 4.5 generation and older: the only family that both wants
+       budget_tokens and rejects `adaptive`. */
+    let lama = m.contains("opus-4-5")
+        || m.contains("sonnet-4-5")
+        || m.contains("haiku-4-5")
+        || m.contains("opus-4-1")
+        || m.contains("3-7-sonnet")
+        || m.contains("3-5-sonnet");
+
+    if lama {
+        return None; // caller fills in budget_tokens
+    }
+
+    /*
+     * Everything else in this app's catalogue is a model where budget_tokens is
+     * a 400. `adaptive` is correct for all of them, and `summarized` is what
+     * makes the reasoning VISIBLE — without it the thinking happens and is
+     * billed, but comes back with the text omitted, which reads as the feature
+     * being broken.
+     */
+    Some(json!({ "type": "adaptive", "display": "summarized" }))
+}
+
+/// True when this model wants the legacy `{type: "enabled", budget_tokens}` form.
+pub fn butuh_budget(model: &str) -> bool {
+    thinking_field(model).is_none()
+}
+
 pub fn prepare(
     model: &str,
     messages: &[ChatMsg],
@@ -53,9 +105,23 @@ pub fn prepare(
     }
 
     if let Some(e) = effort {
-        let budget = e.anthropic_budget().min(max_tokens.saturating_sub(1));
-        if budget >= 1024 {
-            body["thinking"] = json!({ "type": "enabled", "budget_tokens": budget });
+        /*
+         * The form depends on the MODEL, and the wrong one is a 400.
+         *
+         * Sending `budget_tokens` unconditionally is what this used to do, and
+         * the API rejects it outright on every model newer than the 4.5/4.6
+         * generation — including the Opus 4.8 and Sonnet 5 lines this app ships.
+         * A model that takes `adaptive` gets that instead, with `summarized` so
+         * the reasoning is actually visible rather than billed and omitted.
+         */
+        match thinking_field(model) {
+            Some(v) => body["thinking"] = v,
+            None => {
+                let budget = e.anthropic_budget().min(max_tokens.saturating_sub(1));
+                if budget >= 1024 {
+                    body["thinking"] = json!({ "type": "enabled", "budget_tokens": budget });
+                }
+            }
         }
     }
 
@@ -175,9 +241,23 @@ pub fn prepare_tools(
     }
 
     if let Some(e) = effort {
-        let budget = e.anthropic_budget().min(max_tokens.saturating_sub(1));
-        if budget >= 1024 {
-            body["thinking"] = json!({ "type": "enabled", "budget_tokens": budget });
+        /*
+         * The form depends on the MODEL, and the wrong one is a 400.
+         *
+         * Sending `budget_tokens` unconditionally is what this used to do, and
+         * the API rejects it outright on every model newer than the 4.5/4.6
+         * generation — including the Opus 4.8 and Sonnet 5 lines this app ships.
+         * A model that takes `adaptive` gets that instead, with `summarized` so
+         * the reasoning is actually visible rather than billed and omitted.
+         */
+        match thinking_field(model) {
+            Some(v) => body["thinking"] = v,
+            None => {
+                let budget = e.anthropic_budget().min(max_tokens.saturating_sub(1));
+                if budget >= 1024 {
+                    body["thinking"] = json!({ "type": "enabled", "budget_tokens": budget });
+                }
+            }
         }
     }
 
@@ -399,6 +479,66 @@ mod tests {
         }
         let (r, _) = acc.reasoning_parts();
         assert_eq!(r.as_deref(), Some("menimbang dua pilihan"));
+    }
+
+    /*
+     * The 400-error class this fixes.
+     *
+     * The API rejects the WRONG thinking form outright, and which form is right
+     * depends on the model. The code sent `budget_tokens` to every model, so
+     * every request to anything newer than the 4.5/4.6 generation — including
+     * the Opus 4.8 and Sonnet 5 lines this app ships — came back 400.
+     */
+    #[test]
+    fn model_baru_dapat_bentuk_adaptive() {
+        for m in [
+            "claude-opus-4-8", "claude-opus-5", "claude-sonnet-5",
+            "claude-fable-5-1", "claude-opus-5-5", "claude-haiku-5-5",
+        ] {
+            let f = thinking_field(m).unwrap_or_else(|| panic!("{m} got no thinking field"));
+            assert_eq!(f["type"], "adaptive", "{m} should use adaptive");
+            /* Without `summarized` the thinking is billed but the text is
+               omitted, which reads as the feature being broken. */
+            assert_eq!(f["display"], "summarized", "{m} must ask for the summary");
+            assert!(f.get("budget_tokens").is_none(), "{m} must NOT send budget_tokens");
+        }
+    }
+
+    #[test]
+    fn model_lama_dapat_bentuk_budget() {
+        // The 4.5 generation rejects `adaptive` and wants budget_tokens, so the
+        // caller must fall back rather than sending adaptive to everything.
+        for m in ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"] {
+            assert!(thinking_field(m).is_none(), "{m} should use the budget form");
+            assert!(butuh_budget(m), "{m} needs budget_tokens");
+        }
+    }
+
+    #[test]
+    fn prepare_tidak_pernah_mengirim_budget_ke_model_baru() {
+        // The end-to-end shape: a real prepare() call for a new model must carry
+        // adaptive and no budget_tokens anywhere in the body.
+        let m = crate::ai::AgentMsg {
+            role: "user".into(),
+            content: "hi".into(),
+            tool_call_id: None,
+            tool_calls: None,
+            name: None,
+            images: None,
+            reasoning: None,
+            reasoning_signature: None,
+        };
+        let body = prepare_tools(
+            "claude-opus-4-8",
+            &[m],
+            &[],
+            None,
+            "k",
+            8000,
+            Some(crate::ai::ReasoningEffort::Medium),
+        );
+        assert_eq!(body.body["thinking"]["type"], "adaptive");
+        assert!(body.body["thinking"].get("budget_tokens").is_none());
     }
 
     #[test]
