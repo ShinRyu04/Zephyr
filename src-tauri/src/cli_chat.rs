@@ -1713,6 +1713,60 @@ mod tests {
     }
 
     #[test]
+    fn claude_todo_write_becomes_a_todo_event() {
+        // TodoWrite must NOT come through as a tool row: the checklist is the
+        // representation, and a row would bury the plan inside collapsed JSON.
+        let line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"TodoWrite","input":{"todos":[{"content":"Read the file","status":"completed","activeForm":"Reading the file"},{"content":"Edit beta","status":"in_progress","activeForm":"Editing beta"},{"content":"Run tests","status":"pending","activeForm":"Running tests"}]}}]}}"#;
+        let ev = claude_events_from_line(line);
+        assert_eq!(ev.len(), 1, "expected one event, got {ev:?}");
+        assert_eq!(ev[0]["kind"], "todo");
+        let items = ev[0]["items"].as_array().expect("items array");
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0]["content"], "Read the file");
+        assert_eq!(items[0]["status"], "completed");
+        assert_eq!(items[1]["activeForm"], "Editing beta");
+        assert_eq!(items[2]["status"], "pending");
+    }
+
+    #[test]
+    fn claude_todo_tools_never_emit_a_tool_row() {
+        // The regression this guards: a TodoWrite falling through to the
+        // ordinary tool path, which produced a collapsed "TodoWrite" row the
+        // reader had to click before they could see the plan.
+        for name in ["TodoWrite", "TaskCreate", "TaskUpdate"] {
+            let line = format!(
+                r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"t1","name":"{name}","input":{{"todos":[],"subject":"x","status":"pending"}}}}]}}}}"#
+            );
+            let ev = claude_events_from_line(&line);
+            assert!(
+                ev.iter().all(|e| e["kind"] != "tool"),
+                "{name} leaked a tool row: {ev:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn claude_task_update_accepts_all_id_spellings() {
+        // The SDK docs note Claude Code repairs id/task_id to taskId before
+        // execution but that the repair is NOT reflected in the stream, so all
+        // three spellings have to be read.
+        for key in ["taskId", "id", "task_id"] {
+            let input = json!({ key: "7", "status": "completed" });
+            let out = claude_todo_snapshot("TaskUpdate", &input).expect("snapshot");
+            assert_eq!(out[0]["id"], "7", "key {key} not read");
+            assert_eq!(out[0]["status"], "completed");
+        }
+    }
+
+    #[test]
+    fn claude_todo_snapshot_ignores_ordinary_tools() {
+        // Any other tool must be left alone so the tool-row path is untouched.
+        let input = json!({ "command": "ls" });
+        assert!(claude_todo_snapshot("Bash", &input).is_none());
+        assert!(claude_todo_snapshot("Edit", &input).is_none());
+    }
+
+    #[test]
     fn claude_edit_tool_carries_diff_halves() {
         // An Edit tool_use must surface old/new halves so the UI draws a diff.
         let line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/a.txt","old_string":"line two","new_string":"LINE TWO EDITED"}}]}}"#;

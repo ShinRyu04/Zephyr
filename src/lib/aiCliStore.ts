@@ -33,10 +33,29 @@ import type { CliModel } from './cliCatalog';
  * and its result, more narration, a diff, the final answer. A `tool` part is
  * mutated in place (upserted by `callId`) as it goes from running to done.
  */
+export type CliTodo = {
+  /** The imperative label ("Run tests"). */
+  content: string;
+  /** The present-continuous label ("Running tests"), used while in progress. */
+  activeForm: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'deleted' | string;
+  id: string;
+};
+
 export type CliPart =
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
   | { type: 'error'; text: string }
+  /*
+   * The agent's task list, replaced wholesale each time it is written.
+   *
+   * TodoWrite sends the COMPLETE list on every call, so the newest snapshot is
+   * the whole truth and there is nothing to merge — the part is replaced, not
+   * appended. Keeping the previous lists would render a history of plans
+   * instead of the current one, which is the opposite of what a checklist is
+   * for.
+   */
+  | { type: 'todo'; items: CliTodo[] }
   | {
       type: 'tool';
       callId: string;
@@ -406,6 +425,20 @@ function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
     else parts.push({ type: 'thinking', text: ev.text });
   } else if (ev.kind === 'error') {
     parts.push({ type: 'error', text: ev.text });
+  } else if (ev.kind === 'todo') {
+    /*
+     * Replace the LAST todo part rather than pushing another.
+     *
+     * TodoWrite fires several times in a run — once to lay out the plan, then
+     * again on each status change — and each call carries the whole list. Push
+     * them all and the transcript grows a checklist per step, all but the last
+     * of them stale. Replacing in place keeps ONE checklist that updates, which
+     * is what the reader watches while the agent works.
+     */
+    const idx = parts.findIndex((p) => p.type === 'todo');
+    const part = { type: 'todo' as const, items: ev.items };
+    if (idx >= 0) parts[idx] = part;
+    else parts.push(part);
   } else {
     // tool: upsert by callId.
     const t = ev.tool;
