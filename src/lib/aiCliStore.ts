@@ -520,30 +520,27 @@ export const useAiCli = create<AiCliState>((set, get) => ({
               content: `— ${dropped} earlier messages compacted —`,
             };
             /*
-             * The usage number comes down too, or the ring lies.
+             * `usage` is DROPPED, not scaled.
              *
-             * `usage` is the CLI's cumulative token report, and the ring draws
-             * it against the window. Cutting messages while leaving the count
-             * untouched meant the ring stayed pinned at 100% after every
-             * compaction — showing a full window for a history that had just
-             * been emptied. A reader who compacts to free space and sees no
-             * change concludes the command did nothing.
+             * `usage` is the CLI's CUMULATIVE token report — every turn the run
+             * has ever sent. The ring draws it against the window, so cutting
+             * messages while leaving the count alone pinned the ring at 100%
+             * forever after the first compaction.
              *
-             * Scaled by the share of messages that survived, which is the honest
-             * approximation: the dropped turns are gone from the request, and
-             * what remains is what the next turn actually sends. The NEXT turn's
-             * report replaces this with the provider's own number, so any error
-             * here is short-lived and self-correcting.
+             * The first attempt here scaled it by the share of surviving
+             * messages. That stopped the pinning but kept the lie: a transcript
+             * cut to a handful of lines still reported a half-full window,
+             * because the number was still an extrapolation of a total that
+             * described a transcript that no longer existed. What the ring is
+             * asked is "how full is the window NOW", and the honest source for
+             * that is the messages that remain.
+             *
+             * Clearing it makes the ring measure the surviving transcript, which
+             * is what the reader is looking at. The next turn's `result` line
+             * reports a fresh number and replaces this, so the fallback is only
+             * in force until the provider speaks again.
              */
-            const sebelum = sess.messages.length;
-            const sesudah = keep.length + 1; // +1 for the marker note itself
-            const usage = sess.usage
-              ? {
-                  input: Math.round(sess.usage.input * (sesudah / Math.max(1, sebelum))),
-                  output: Math.round(sess.usage.output * (sesudah / Math.max(1, sebelum))),
-                }
-              : undefined;
-            return { ...sess, messages: [note, ...keep], compacting: false, usage };
+            return { ...sess, messages: [note, ...keep], compacting: false, usage: undefined };
           }),
         },
       };
