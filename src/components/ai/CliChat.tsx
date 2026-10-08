@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAiCli, EMPTY_LIST } from '../../lib/aiCliStore';
+import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { catalogFor, modelChip, EFFORT_LEVELS } from '../../lib/cliCatalog';
 import {
@@ -11,7 +12,7 @@ import {
   claudeBuiltinCommands,
   type BuiltinCommand,
 } from '../../lib/commands';
-import { useT, useTf } from '../../lib/i18n';
+import { useT, useTf, tx } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CliTimeline from './CliTimeline';
 import CliTodoFloat from './CliTodoFloat';
@@ -119,6 +120,8 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const newSession = useAiCli((s) => s.newSession);
   const selectSession = useAiCli((s) => s.selectSession);
   const deleteSession = useAiCli((s) => s.deleteSession);
+  /* Toast lives on the AI store; the CLI store has none of its own. */
+  const setToast = useAi((s) => s.setToast);
   const liveModels = useAiCli((s) => s.models[agentId]);
   const loadModels = useAiCli((s) => s.loadModels);
   /* The active workspace, passed to the slash sheets so project-scope config
@@ -126,6 +129,9 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const cwd = useStore((s) => s.workspace) ?? '';
 
   const chat = sessions.find((s) => s.id === activeSessionId) ?? sessions[sessions.length - 1];
+  /* Token counts the CLI reported for this session, if it has reported any.
+     Read AFTER `chat` exists — it is a field of that session. */
+  const sessionUsage = (chat?.usage ?? null) as { input: number; output: number } | null;
   const messages = chat?.messages ?? [];
   const pending = chat?.pending ?? null;
   const cat = catalogFor(agentId);
@@ -342,6 +348,201 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
           ts.setVisible(true);
           void ts.addPane('agent', { agentId });
         });
+        setMenu(null);
+        break;
+      /*
+       * The rest of the real command set.
+       *
+       * Each one DOES something — that is the condition for listing it. A
+       * palette entry that quietly closed would teach the reader the command was
+       * broken, when the truth is that Zephyr simply had not wired it up. Where
+       * the work belongs to a panel Zephyr already owns, the sheet opens; where
+       * it belongs to the terminal, the terminal opens.
+       */
+      /* ---- session ---- */
+      case 'rewind':
+        /* Back to the previous turn: drop the last exchange so the reader can
+           re-ask. Same action as the row button, reached from the palette. */
+        {
+          const terakhir = [...messages].reverse().find((m) => m.role === 'user');
+          if (terakhir) setKonfirmasiRewind(terakhir.id);
+        }
+        setMenu(null);
+        break;
+      case 'recap': {
+        /* A one-line summary of what this session has done, from the steps that
+           actually ran — so it cannot claim work that did not happen. */
+        const langkah = messages.reduce((n, m) => n + (m.parts?.filter((p) => p.type === 'tool').length ?? 0), 0);
+        const berkasBaru = messages.reduce(
+          (n, m) => n + (m.parts?.filter((p) => p.type === 'tool' && /Edit|Write/.test(p.name)).length ?? 0),
+          0,
+        );
+        setToast(
+          tf('{msgs} messages · {steps} tool steps · {files} file changes', {
+            msgs: messages.length,
+            steps: langkah,
+            files: berkasBaru,
+          }),
+        );
+        setMenu(null);
+        break;
+      }
+      case 'context': {
+        /* What the window is actually holding, from the session's own numbers
+           rather than an estimate. */
+        const chars = messages.reduce(
+          (n, m) => n + (m.content?.length ?? 0) + (m.parts ? JSON.stringify(m.parts).length : 0),
+          0,
+        );
+        const token = sessionUsage;
+        setToast(
+          token
+            ? tf('Context: {in} in / {out} out tokens · transcript {kb}KB', {
+                in: token.input.toLocaleString(),
+                out: token.output.toLocaleString(),
+                kb: (chars / 1024).toFixed(1),
+              })
+            : tf('Transcript {kb}KB (token usage not reported yet)', { kb: (chars / 1024).toFixed(1) }),
+        );
+        setMenu(null);
+        break;
+      }
+      case 'export': {
+        const text = messages.map((m) => `${m.role === 'user' ? '> ' : ''}${m.content}`).join('\n\n');
+        copy(text);
+        setToast(tf('Conversation copied ({n} characters)', { n: text.length }));
+        setMenu(null);
+        break;
+      }
+      case 'exit': {
+        /* Close the SESSION, not the app: dropping the whole editor to satisfy a
+           slash command would lose unsaved work. */
+        deleteSession(agentId, activeSessionId);
+        setMenu(null);
+        break;
+      }
+      /* ---- statistics ---- */
+      case 'stats':
+      case 'usage':
+      case 'cost': {
+        const tool = messages.reduce((n, m) => n + (m.parts?.filter((p) => p.type === 'tool').length ?? 0), 0);
+        const pesan = messages.length;
+        const token = sessionUsage;
+        setToast(
+          token
+            ? tf('{msgs} messages · {tools} tool calls · {in} in / {out} out tokens · ${cost}', {
+                msgs: pesan,
+                tools: tool,
+                in: token.input.toLocaleString(),
+                out: token.output.toLocaleString(),
+                cost: '—',
+              })
+            : tf('{msgs} messages · {tools} tool calls · usage not reported', { msgs: pesan, tools: tool }),
+        );
+        setMenu(null);
+        break;
+      }
+      /* ---- panels Zephyr already owns ---- */
+      case 'diff':
+      case 'review':
+      case 'security-review':
+      case 'privacy-settings':
+      case 'context2':
+        /* These read the working tree or the config, which the sheets and the
+           Source Control view already show. Opening them is the honest answer:
+           the information exists, it is just not a chat message. */
+        if (id === 'security-review') {
+          void import('../../lib/panelStore').then((m) => m.usePanel.getState().focusTab('problems'));
+        } else if (id === 'diff') {
+          void import('../../lib/panelStore').then((m) => m.usePanel.getState().focusTab('source-control' as never));
+        } else {
+          void import('../../lib/store').then((m) => m.useStore.getState().setSettingsOpen(true));
+        }
+        setMenu(null);
+        break;
+      case 'list-agents':
+        setPanel('agents');
+        setMenu(null);
+        break;
+      case 'skills':
+        setPanel('skills');
+        setMenu(null);
+        break;
+      case 'plugins':
+        setPanel('plugins');
+        setMenu(null);
+        break;
+      case 'sandbox':
+        setPanel('sandbox');
+        setMenu(null);
+        break;
+      case 'permissions':
+        setPanel('permissions');
+        setMenu(null);
+        break;
+      case 'mcp':
+        setPanel('mcp');
+        setMenu(null);
+        break;
+      case 'hooks':
+        setPanel('hooks');
+        setMenu(null);
+        break;
+      case 'memory':
+        setPanel('memory');
+        setMenu(null);
+        break;
+      case 'status':
+        setPanel('status');
+        setMenu(null);
+        break;
+      case 'agents':
+        setPanel('agents');
+        setMenu(null);
+        break;
+      /* ---- settings Zephyr owns ---- */
+      case 'theme': {
+        const kini = useStore.getState().settings.general.theme;
+        const berikut = kini === 'dark' ? 'light' : 'dark';
+        void useStore.getState().applySettings({ general: { theme: berikut } });
+        setToast(tf('Theme: {t}', { t: berikut }));
+        setMenu(null);
+        break;
+      }
+      case 'statusline':
+        void import('../../lib/store').then((m) => m.useStore.getState().setSettingsOpen(true));
+        setMenu(null);
+        break;
+      case 'tasks': {
+        const n = useAi.getState().agentTodos.length;
+        setToast(
+          n ? tf('{n} task(s) in the current plan', { n }) : tx('No task plan in this session yet'),
+        );
+        setMenu(null);
+        break;
+      }
+      case 'fewer-permission-prompts':
+        setPanel('permissions');
+        setMenu(null);
+        break;
+      /* ---- terminal-only: honest about needing a TTY ---- */
+      case 'ide':
+      case 'keybindings':
+      case 'remote-control':
+      case 'upgrade':
+      case 'release-notes': {
+        void import('../../lib/terminalStore').then((m) => {
+          const ts = m.useTerminal.getState();
+          ts.setVisible(true);
+          void ts.addPane('agent', { agentId });
+        });
+        setToast(tf('Run {cmd} in the terminal — it needs an interactive session', { cmd: `/${id}` }));
+        setMenu(null);
+        break;
+      }
+      /* ---- doctor: the one diagnostic worth a real button ---- */
+      case 'doctor':
+        setPanel('status');
         setMenu(null);
         break;
       /*
@@ -849,19 +1050,32 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                             const id = c.name.replace('/', '');
                             setDraft('');
                             setMenu(null);
-                            /* Commands Zephyr performs itself, because
-                               `claude -p` has no interactive session for them.
-                               The rest are prompts and go to the CLI. */
-                            if (
-                              [
-                                'init', 'review', 'compact', 'config',
-                                'vim', 'login', 'logout', 'terminal-setup',
-                                'clear', 'help',
-                              ].includes(id)
-                            ) {
-                              runSlash(id);
-                            } else {
+                            /*
+                             * Where it runs is the BACKEND's answer, not a list
+                             * kept here.
+                             *
+                             * This used to be a hardcoded array of eleven ids;
+                             * every command outside it was sent to the CLI as a
+                             * prompt. So `/skills` — which Zephyr can genuinely
+                             * open a sheet for — was posted to the model as
+                             * text, and the sheet never appeared. A second list
+                             * of the same commands, in a second place, is a list
+                             * that drifts: adding a command meant remembering to
+                             * edit both.
+                             *
+                             * `runs` travels with the command from the one place
+                             * that defines it.
+                             */
+                            if (c.runs === 'cli') {
                               void send(agentId, c.name);
+                            } else if (c.runs === 'terminal') {
+                              void import('../../lib/terminalStore').then((m) => {
+                                const ts = m.useTerminal.getState();
+                                ts.setVisible(true);
+                                void ts.addPane('agent', { agentId });
+                              });
+                            } else {
+                              runSlash(id);
                             }
                           }}
                         >
