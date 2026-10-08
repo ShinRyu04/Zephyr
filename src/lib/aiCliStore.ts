@@ -490,7 +490,26 @@ export const useAiCli = create<AiCliState>((set, get) => ({
           [agentId]: list.map((sess) => {
             if (sess.id !== rid0) return sess;
             const keep = sess.messages.slice(-KEEP);
-            if (keep.length === sess.messages.length) return { ...sess, compacting: false };
+            /*
+             * Nothing to cut yet — say so rather than returning silently.
+             *
+             * Compacting a transcript that already fits does nothing, which is
+             * correct, but silent success and a broken command look identical
+             * from the outside: the reader presses /compact and the panel does
+             * not change. That was the whole report. The note is short and
+             * says which case this is.
+             */
+            if (keep.length === sess.messages.length) {
+              const kosong = sess.messages.length === 0;
+              const catatan: CliMsg = {
+                id: `compact-${Date.now().toString(36)}`,
+                role: 'assistant',
+                content: kosong
+                  ? 'Nothing to compact — this conversation is empty.'
+                  : `Nothing to compact — ${sess.messages.length} message(s) already fit.`,
+              };
+              return { ...sess, messages: [...sess.messages, catatan], compacting: false };
+            }
             const dropped = sess.messages.length - keep.length;
             /* A visible marker, not a silent cut. Discovering later that the
                history is shorter than remembered, with nothing saying why,

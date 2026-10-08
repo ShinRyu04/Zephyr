@@ -1807,7 +1807,7 @@ pub fn claude_builtin_commands() -> ZResult<Vec<BuiltinCommand>> {
         ("/login", "Switch Anthropic accounts", "terminal"),
         ("/logout", "Sign out of your Anthropic account", "terminal"),
         ("/terminal-setup", "Install the Shift+Enter newline keybinding", "terminal"),
-        ("/keybindings", "Open the keyboard shortcuts file", "terminal"),
+        ("/keybindings", "Edit Zephyr's keyboard shortcuts", "zephyr"),
         ("/remote-control", "Control this session from another device", "terminal"),
         ("/upgrade", "Upgrade the Claude Code installation", "terminal"),
         ("/release-notes", "What changed in recent versions", "terminal"),
