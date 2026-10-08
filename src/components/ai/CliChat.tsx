@@ -1088,19 +1088,24 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
               className="cli-native-chip cli-pop-trigger"
               data-testid={`ai-clichat-slash-${agentId}`}
               /*
-               * Type "/" to open the palette.
+               * Clicking the chip OPENS the palette, same as typing the slash.
                *
-               * The chip no longer opens anything. It is a hint that a slash
-               * exists, and clicking it now only focuses the box — the palette
-               * is reached by TYPING the slash, which is how every command menu
-               * in every other tool behaves. A button that opened the same list
-               * made two different gestures mean one thing and left the chip
-               * looking like the only way in.
+               * This was the other way round: the chip only focused the box and
+               * inserted a "/", on the reasoning that a command menu should be
+               * reached by typing. But a visible button that does not do the
+               * thing it depicts reads as broken — pressing it and getting an
+               * inert slash is exactly the "nothing happened" complaint. Two
+               * gestures reaching one list is not a conflict; it is a shortcut.
                */
-              title={tr('Type / for commands')}
+              title={tr('Commands')}
               onClick={() => {
-                inputRef.current?.focus();
-                setDraft((d) => (d.startsWith('/') ? d : '/' + d));
+                setDraft('/');
+                setSlashFilter('');
+                /* Always OPEN, never toggle. Toggling here fought the input:
+                   focusing the box fires the change handler, which re-opens the
+                   palette on the same tick, so a second press appeared to do
+                   nothing. Pressing the button now means one thing. */
+                setMenu('slash');
               }}
             >
               <span className="cli-slash-glyph" aria-hidden="true">/</span>
