@@ -11,6 +11,7 @@ import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
 import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
+import { ThinkingLine } from './CliTimeline';
 import { ToolRow, EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
@@ -944,9 +945,15 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
               {/* Shown WHILE streaming too, not only after. Waiting for the
                   stream to finish hid the reasoning during the exact window it
                   is useful in, and hid it permanently on runs that ended in an
-                  error - which is when "it was thinking about X" matters most. */}
+                  error - which is when "it was thinking about X" matters most.
+                  Wrapped in the shared timeline container so the rail and the
+                  dashed thinking node reach it here exactly as they do in the
+                  hosted Claude Code tab - without it the block was the one row
+                  whose text the rail ran straight through. */}
               {msg.reasoning && (
-                <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
+                <div className="ai-timeline" data-timeline data-testid="ai-timeline-reason">
+                  <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
+                </div>
               )}
               <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
               {ekorNarasi}
@@ -966,29 +973,25 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             * arriving the text itself is the progress indicator, and two
             * signals at once is noise.
             *
-            * No icon, no orb, no dragon: Hermes marks this state with a plain
-            * line of text and a sweeping ellipsis, and that is what belongs
-            * here. An animated mascot in the middle of a transcript reads as
-            * decoration competing with the answer, and the reader only needs to
-            * know one thing — work is happening.
+            * It is the SAME component the hosted Claude Code tab uses, so the
+            * two transcripts waited differently before and cannot drift again.
+            * Chat AI used to print "Thinking about the next step" beside three
+            * blinking dots — a cursor, which reads as a box waiting for input
+            * rather than a model working. The sparkle sweeps instead, and the
+            * only difference between the panels is the colour, which comes
+            * from `--think-accent` in CSS.
             */}
           {!isUser && msg.streaming && !msg.content && !msg.reasoning && (
-            <div className="ai-think" data-testid="ai-think-body" role="status">
-              <span className="ai-think-text">{tx('Thinking about the next step')}</span>
-              <span className="ai-dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
+            <div className="ai-think-wrap" data-testid="ai-think-body">
+              <ThinkingLine />
               {/*
                * How long this has been going.
                *
-               * The line reads "Thinking about the next step   6s" — the same
-               * sentence plus a live count. Without it the line looks the same
-               * at two seconds and at two minutes, and the reader cannot tell
-               * a slow provider from a stuck one. It only appears once the wait
-               * is worth mentioning: a sub-second flash of a number reads as a
-               * glitch.
+               * The line reads "✻ Thinking…   6s" — the same sentence plus a
+               * live count. Without it the line looks the same at two seconds
+               * and at two minutes, and the reader cannot tell a slow provider
+               * from a stuck one. It only appears once the wait is worth
+               * mentioning: a sub-second flash of a number reads as a glitch.
                */}
               {detik > 0 && (
                 <span className="ai-think-sec" data-testid="ai-think-sec">

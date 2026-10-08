@@ -12,12 +12,14 @@ import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
+import { DayDivider, LiveClock } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import BicaraHost from './BicaraHost';
 import ModelSelector from './ModelSelector';
 import { findModel } from '../../lib/modelCatalog';
 import TodoPanel from './TodoPanel';
+import ComposerTip from './ComposerTip';
 import ContextMeter from './ContextMeter';
 import { ModeMenu, PermissionMenu, ReasoningMenu, InteractiveMenu } from './ModeMenu';
 import { useDengar } from '../../lib/useDengar';
@@ -94,7 +96,29 @@ const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: ()
     if (nearBottom) el.scrollTop = el.scrollHeight;
   });
 
-  return <>{msgs.map((m) => <ChatMessage key={m.id} msg={m} />)}</>;
+  /*
+   * A day divider wherever the calendar day changes between two messages.
+   *
+   * Computed here, as a plain loop, rather than by giving every message a
+   * `showDate` prop: the decision depends on the PREVIOUS message, and a
+   * per-message boolean would have to be recomputed and threaded through the
+   * whole tree on every appended token. One pass over the list is cheaper and
+   * keeps `ChatMessage` unaware that days exist.
+   *
+   * The first message always gets one — a transcript that opens with a bare
+   * question gives the reader no idea when it was asked.
+   */
+  const baris: React.ReactNode[] = [];
+  let hariSebelumnya: number | null = null;
+  for (const m of msgs) {
+    const hari = new Date(m.at).setHours(0, 0, 0, 0);
+    if (hari !== hariSebelumnya) {
+      baris.push(<DayDivider key={`d-${m.id}`} at={m.at} />);
+      hariSebelumnya = hari;
+    }
+    baris.push(<ChatMessage key={m.id} msg={m} />);
+  }
+  return <>{baris}</>;
 });
 
 function AiPanelInner() {
@@ -975,7 +999,14 @@ function AiPanelInner() {
             * Copilot-style header actions: New Chat (split button with a menu),
             * History, Maximize/Restore, the "…" menu, and Close. The message
             * count and context ring live in the bottom bar.
+            *
+            * The live clock sits FIRST, before the buttons. It is read, not
+            * clicked, so it belongs at the trailing edge of the title's group
+            * rather than inside the cluster of controls — and putting it after
+            * them would push the buttons away from the corner they belong in.
             */}
+          <LiveClock />
+
 
           {/* New chat — split button. The main part starts a fresh chat; the
               caret opens where it should open (here / editor / window). */}
@@ -1896,6 +1927,14 @@ function AiPanelInner() {
       <LoopStrip />
 
       <div className="ai-input-row">
+        {/*
+          * The tip strip: the top section of the reference composer — one
+          * bordered box wrapping tip + field + toolbar, hairline between the
+          * tip and the field. It teaches gestures this box actually supports
+          * (@, /, Ctrl+Enter) and rotates so it never becomes wallpaper.
+          * Rendered first so it reads as the box's header in every placement.
+          */}
+        <ComposerTip />
         {/*
           * The branch chip, inside the composer box and above the field.
           *
