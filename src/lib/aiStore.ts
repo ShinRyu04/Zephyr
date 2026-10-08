@@ -24,8 +24,7 @@ import {
 } from './agentTools';
 import {
   perkiraanKonteks,
-  jendelaKonteks,
-  AUTO_COMPACT_AT,
+  batasAutoCompact,
   AUTO_COMPACT_KEEP,
   AUTO_COMPACT_COOLDOWN_STEPS,
   ringkasUkuran,
@@ -3367,7 +3366,9 @@ export const useAi = create<AiStore>((set, get) => ({
         {
           const keluar = ringkasRiwayat(history);
           const dipakai = perkiraanKonteks(keluar);
-          const batas = jendelaKonteks(def.id) * AUTO_COMPACT_AT;
+          /* The reader's own window wins over the percentage: someone who set
+             120k means 120k, not 80% of whatever model is selected. */
+          const batas = batasAutoCompact(def.id);
           if (
             dipakai > batas &&
             langkah - autoCompactStep >= AUTO_COMPACT_COOLDOWN_STEPS

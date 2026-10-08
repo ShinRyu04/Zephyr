@@ -1748,6 +1748,16 @@ pub fn claude_builtin_commands() -> ZResult<Vec<BuiltinCommand>> {
 
         // ---- Context -------------------------------------------------------
         ("/context", "See what is filling the context window", "zephyr"),
+        /*
+         * How full the window gets before compaction runs on its own.
+         *
+         * The real CLI has this command and Zephyr did not — its threshold was a
+         * constant at 80%, which is a sensible default and a poor fixed rule: a
+         * session doing large file edits fills the window in a few steps and
+         * wants compaction sooner, while a conversational one is happy to run
+         * closer to the line. `auto` restores the default.
+         */
+        ("/autocompact", "Set how full the context gets before auto-compacting", "zephyr"),
         ("/usage", "Show token usage and cost for this session", "zephyr"),
         ("/stats", "Session statistics: turns, tools, tokens", "zephyr"),
         ("/cost", "Alias for /usage", "zephyr"),
@@ -1833,6 +1843,7 @@ mod tests {
         for wajib in [
             "/usage", "/diff", "/rewind", "/recap", "/tasks", "/skills",
             "/plugins", "/sandbox", "/context", "/stats", "/theme", "/export",
+            "/autocompact",
         ] {
             assert!(
                 c.iter().any(|x| x.name == wajib),

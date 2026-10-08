@@ -251,6 +251,52 @@ function palingDekat<T extends { ctx?: number }>(kandidat: readonly T[], ctxSeka
  */
 export const AUTO_COMPACT_AT = 0.8;
 
+/*
+ * The window the reader chose, if they changed it.
+ *
+ * `/autocompact <tokens>` in the real CLI sets how full the window gets before
+ * compaction runs automatically. Keeping it here — next to the constant it
+ * overrides — means the agent loop and the setting cannot disagree, and the
+ * stored value is a NUMBER OF TOKENS rather than a percentage so it survives a
+ * model change with a different window size.
+ */
+const KUNCI_AUTOCOMPACT = 'zephyr.ai.autocompactTokens';
+
+/** The configured threshold in tokens, or null for the percentage default. */
+export function ambangAutoCompact(): number | null {
+  try {
+    const v = localStorage.getItem(KUNCI_AUTOCOMPACT);
+    if (!v || v === 'auto') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set it, or clear it back to the default with `null` / "auto". */
+export function setelAmbangAutoCompact(v: number | null): void {
+  try {
+    if (v === null) localStorage.removeItem(KUNCI_AUTOCOMPACT);
+    else localStorage.setItem(KUNCI_AUTOCOMPACT, String(Math.round(v)));
+  } catch {
+    /* storage unavailable: the setting applies to this session only */
+  }
+}
+
+/**
+ * The token count at which compaction should run for this model.
+ *
+ * An explicit window wins over the percentage, because that is what the reader
+ * asked for: someone who sets 120k means 120k, not "120k or 80% of whatever
+ * model happens to be selected".
+ */
+export function batasAutoCompact(modelId: string): number {
+  const pilihan = ambangAutoCompact();
+  if (pilihan !== null) return pilihan;
+  return jendelaKonteks(modelId) * AUTO_COMPACT_AT;
+}
+
 /** How many tail messages auto-compaction always leaves untouched. */
 export const AUTO_COMPACT_KEEP = 6;
 

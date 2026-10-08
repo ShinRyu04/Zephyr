@@ -112,6 +112,14 @@ export interface CliSession {
   /** Epoch ms the session was created — history is sorted newest first. */
   createdAt: number;
   /**
+   * True while compaction is running.
+   *
+   * The ring reads this to show an indeterminate arc. Compaction REPLACES the
+   * transcript, so without a visible sign the messages appear to vanish on
+   * their own — the reader concludes something was lost rather than summarised.
+   */
+  compacting?: boolean;
+  /**
    * Token counts the provider reported, for the 0% context meter.
    *
    * REPLACED, not accumulated: the provider's counts are cumulative for the
@@ -439,11 +447,40 @@ export const useAiCli = create<AiCliState>((set, get) => ({
 
   clear: (agentId) => get().newSession(agentId),
 
-  compact: (agentId) => {
+  compact: async (agentId) => {
     /* How many turns survive. Enough to keep the thread intelligible without
        keeping the whole run: the reader usually compacts precisely because the
        panel has become long. */
     const KEEP = 4;
+
+    /*
+     * Raise the busy flag BEFORE the cut, and lower it after.
+     *
+     * Compaction REPLACES the transcript. Done in one synchronous step it looks
+     * like messages vanished on their own — the reader has no way to know
+     * whether that was the command or a bug. The flag drives the ring in the
+     * toolbar, so the reader sees WHICH of the two is happening while it is
+     * happening.
+     *
+     * The minimum duration is not padding for its own sake: the real work here
+     * is instant, and a state that exists for zero milliseconds is a state
+     * nobody can see. A fifth of a second is long enough to register and short
+     * enough not to be a wait.
+     */
+    const tandai = (on: boolean) => {
+      set((s) => ({
+        sessions: {
+          ...s.sessions,
+          [agentId]: (s.sessions[agentId] ?? []).map((sess) =>
+            sess.id === s.activeId[agentId] ? { ...sess, compacting: on } : sess,
+          ),
+        },
+      }));
+    };
+
+    tandai(true);
+    await new Promise((r) => setTimeout(r, 180));
+
     set((s) => {
       const list = s.sessions[agentId] ?? [];
       const rid0 = s.activeId[agentId];
@@ -453,7 +490,7 @@ export const useAiCli = create<AiCliState>((set, get) => ({
           [agentId]: list.map((sess) => {
             if (sess.id !== rid0) return sess;
             const keep = sess.messages.slice(-KEEP);
-            if (keep.length === sess.messages.length) return sess;
+            if (keep.length === sess.messages.length) return { ...sess, compacting: false };
             const dropped = sess.messages.length - keep.length;
             /* A visible marker, not a silent cut. Discovering later that the
                history is shorter than remembered, with nothing saying why,
@@ -463,7 +500,31 @@ export const useAiCli = create<AiCliState>((set, get) => ({
               role: 'assistant',
               content: `— ${dropped} earlier messages compacted —`,
             };
-            return { ...sess, messages: [note, ...keep] };
+            /*
+             * The usage number comes down too, or the ring lies.
+             *
+             * `usage` is the CLI's cumulative token report, and the ring draws
+             * it against the window. Cutting messages while leaving the count
+             * untouched meant the ring stayed pinned at 100% after every
+             * compaction — showing a full window for a history that had just
+             * been emptied. A reader who compacts to free space and sees no
+             * change concludes the command did nothing.
+             *
+             * Scaled by the share of messages that survived, which is the honest
+             * approximation: the dropped turns are gone from the request, and
+             * what remains is what the next turn actually sends. The NEXT turn's
+             * report replaces this with the provider's own number, so any error
+             * here is short-lived and self-correcting.
+             */
+            const sebelum = sess.messages.length;
+            const sesudah = keep.length + 1; // +1 for the marker note itself
+            const usage = sess.usage
+              ? {
+                  input: Math.round(sess.usage.input * (sesudah / Math.max(1, sebelum))),
+                  output: Math.round(sess.usage.output * (sesudah / Math.max(1, sebelum))),
+                }
+              : undefined;
+            return { ...sess, messages: [note, ...keep], compacting: false, usage };
           }),
         },
       };

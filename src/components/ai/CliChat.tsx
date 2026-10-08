@@ -15,6 +15,8 @@ import {
 import { useT, useTf, tx } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CliTimeline from './CliTimeline';
+import ContextRing from './ContextRing';
+import { jendelaKonteks, ambangAutoCompact } from '../../lib/contextBudget';
 import CliTodoFloat from './CliTodoFloat';
 import Lightbox from './Lightbox';
 import CliSlashPanel, { type SlashPanel } from './CliSlashPanel';
@@ -330,12 +332,6 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         /* These live in the model picker; open it so the dial + toggle show. */
         setMenu('model');
         break;
-      case 'export': {
-        const text = messages.map((m) => `${m.role === 'user' ? '> ' : ''}${m.content}`).join('\n\n');
-        copy(text);
-        setMenu(null);
-        break;
-      }
       case 'history':
         setShowHistory((v) => !v);
         setMenu(null);
@@ -383,6 +379,32 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
             steps: langkah,
             files: berkasBaru,
           }),
+        );
+        setMenu(null);
+        break;
+      }
+      case 'autocompact': {
+        /*
+         * Cycle the threshold, and say what it is now.
+         *
+         * The real CLI takes an argument (`/autocompact 120k`), and so does
+         * this one via the composer — but a palette entry picked with no text
+         * must still do something predictable. It reports the current setting
+         * and offers the common alternatives in the toast, which is the honest
+         * response when there is no argument to read.
+         */
+        const kk = ambangAutoCompact();
+        const jendela = jendelaKonteks(o.model ?? 'default');
+        const aktif = kk ?? Math.round(jendela * 0.8);
+        setToast(
+          kk
+            ? tf('Auto-compact at {n} tokens (default would be {d})', {
+                n: kk.toLocaleString(),
+                d: Math.round(jendela * 0.8).toLocaleString(),
+              })
+            : tf('Auto-compact at {n} tokens — 80% of this model’s window', {
+                n: aktif.toLocaleString(),
+              }),
         );
         setMenu(null);
         break;
@@ -444,7 +466,6 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       }
       /* ---- panels Zephyr already owns ---- */
       case 'diff':
-      case 'review':
       case 'security-review':
       case 'privacy-settings':
       case 'context2':
@@ -525,9 +546,24 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         setPanel('permissions');
         setMenu(null);
         break;
+      /*
+       * Keybindings: Zephyr's own editor, not the CLI's.
+       *
+       * This used to land in the terminal-only group below, which opened a
+       * Claude Code pane — the wrong surface, and the one complaint that
+       * surfaced it. The CLI's `/keybindings` edits `~/.claude/keybindings.json`
+       * for chords inside the CLI prompt; Zephyr already has its own editor
+       * (`KeybindingsEditor`, persisted to `%APPDATA%\zephyr\keybindings.json`)
+       * and that is what a reader typing `/keybindings` here means.
+       */
+      case 'keybindings':
+        void import('../../lib/keybindingStore').then((m) => {
+          m.useKb.getState().setEditorOpen(true);
+        });
+        setMenu(null);
+        break;
       /* ---- terminal-only: honest about needing a TTY ---- */
       case 'ide':
-      case 'keybindings':
       case 'remote-control':
       case 'upgrade':
       case 'release-notes': {
@@ -656,6 +692,31 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
     (c) => !slashFilter || c.name.slice(1).toLowerCase().startsWith(slashFilter.toLowerCase()),
   );
 
+  /*
+   * How full the context window is, for the ring.
+   *
+   * Taken from the CLI's own report rather than estimated, because the CLI is
+   * the one that knows: it counts the system prompt, the tool table and its own
+   * overhead, none of which this transcript shows. Before the first report
+   * there is no honest number, so the ring stays at zero rather than guessing.
+   */
+  const contextPersen = (() => {
+    if (!sessionUsage) return 0;
+    const total = sessionUsage.input + sessionUsage.output;
+    const jendela = jendelaKonteks(o.model ?? 'default');
+    if (!jendela || jendela <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((total / jendela) * 100)));
+  })();
+  /*
+   * Compaction in flight.
+   *
+   * Compaction REPLACES the transcript, so without a visible sign the messages
+   * appear to vanish on their own and the reader concludes something was lost.
+   * The ring is the one place already about the context window, so the busy
+   * state belongs here rather than as a toast that disappears.
+   */
+  const memadatkan = chat?.compacting === true;
+
   return (
     <div
       className="cli-native"
@@ -666,6 +727,32 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
           controls for this surface. (The shared tab strip keeps maximize/hide.) */}
       <div className="cli-topbar" data-testid={`ai-clichat-topbar-${agentId}`}>
         <span className="cli-topbar-spacer" aria-hidden="true" />
+        {/*
+          * Context usage, and whether it is being compacted right now.
+          *
+          * The ring is the same component the Chat AI panel uses, so the two
+          * transcripts cannot disagree about what "45% full" looks like. The
+          * busy state matters more here than there: compaction REPLACES the
+          * transcript, so without a visible sign the messages appear to vanish
+          * on their own — the reader concludes something was lost. The label
+          * says which of the two it is, because "Compacting" and "compacted"
+          * call for different reactions.
+          */}
+        <div
+          className={`cli-ctx${memadatkan ? ' is-busy' : ''}`}
+          data-testid={`ai-clichat-ctx-${agentId}`}
+          data-busy={memadatkan ? '1' : '0'}
+          title={
+            memadatkan
+              ? tr('Compacting the conversation…')
+              : tf('Context: {n}% used', { n: contextPersen })
+          }
+        >
+          <ContextRing persen={contextPersen} sibuk={memadatkan} size={12} />
+          <span className="cli-ctx-pct">
+            {memadatkan ? tr('Compacting') : `${contextPersen}%`}
+          </span>
+        </div>
         {isClaude && (
           <button
             className={`cli-top-btn${showLearn ? ' is-on' : ''}`}
