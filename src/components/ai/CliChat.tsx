@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAiCli, EMPTY_LIST } from '../../lib/aiCliStore';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -122,8 +122,35 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const newSession = useAiCli((s) => s.newSession);
   const selectSession = useAiCli((s) => s.selectSession);
   const deleteSession = useAiCli((s) => s.deleteSession);
-  /* Toast lives on the AI store; the CLI store has none of its own. */
-  const setToast = useAi((s) => s.setToast);
+  /*
+   * The toast is shown by THIS panel, not by the Chat panel.
+   *
+   * `useAi.toast` renders inside `AiPanel` — which the host keeps mounted but
+   * `hidden` whenever a CLI tab is in front. So every `setToast` from a slash
+   * command fired and painted into a hidden subtree: `/usage`, `/stats`,
+   * `/context`, `/cost`, `/recap`, `/autocompact`, `/effort` and `/theme` all
+   * looked like they did nothing, because the message existed and nobody could
+   * see it. The store write is kept (the Chat tab still owns that slot for its
+   * own messages); this adds a local copy that is actually on screen.
+   */
+  const setToastStore = useAi((s) => s.setToast);
+  const [pesan, setPesan] = useState<string | null>(null);
+  const pesanTimer = useRef<number | null>(null);
+  const setToast = useCallback(
+    (t: string) => {
+      setToastStore(t);
+      setPesan(t);
+      if (pesanTimer.current !== null) window.clearTimeout(pesanTimer.current);
+      pesanTimer.current = window.setTimeout(() => setPesan(null), 3200);
+    },
+    [setToastStore],
+  );
+  useEffect(
+    () => () => {
+      if (pesanTimer.current !== null) window.clearTimeout(pesanTimer.current);
+    },
+    [],
+  );
   const liveModels = useAiCli((s) => s.models[agentId]);
   const loadModels = useAiCli((s) => s.loadModels);
   /* The active workspace, passed to the slash sheets so project-scope config
@@ -159,6 +186,9 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
      the real card. First row starts checked, matching the screenshot. */
   const [learnDone, setLearnDone] = useState<Record<string, boolean>>({ write: true });
   const [slashFilter, setSlashFilter] = useState('');
+  /* 'actions' = opened from the chip (Zephyr's own actions, nothing typed);
+     'all' = opened by typing "/" (commands AND actions). */
+  const [slashMode, setSlashMode] = useState<'actions' | 'all'>('all');
   /* The history drawer (session list), toggled from the toolbar. */
   const [showHistory, setShowHistory] = useState(false);
   /*
@@ -331,6 +361,13 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       case 'ultracode':
         /* These live in the model picker; open it so the dial + toggle show. */
         setMenu('model');
+        setToast(
+          id === 'effort'
+            ? tx('Effort is set in the model picker — pick a level there')
+            : id === 'ultracode'
+              ? tx('Ultracode is the toggle in the model picker')
+              : tx('Pick a model'),
+        );
         break;
       case 'history':
         setShowHistory((v) => !v);
@@ -358,10 +395,13 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       /* ---- session ---- */
       case 'rewind':
         /* Back to the previous turn: drop the last exchange so the reader can
-           re-ask. Same action as the row button, reached from the palette. */
+           re-ask. Same action as the row button, reached from the palette.
+           With nothing to rewind to, say so — a command that does nothing and
+           says nothing is the failure this whole pass is about. */
         {
           const terakhir = [...messages].reverse().find((m) => m.role === 'user');
           if (terakhir) setKonfirmasiRewind(terakhir.id);
+          else setToast(tx('Nothing to rewind — no message has been sent in this session yet'));
         }
         setMenu(null);
         break;
@@ -471,13 +511,19 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       case 'context2':
         /* These read the working tree or the config, which the sheets and the
            Source Control view already show. Opening them is the honest answer:
-           the information exists, it is just not a chat message. */
+           the information exists, it is just not a chat message.
+           Each one also SAYS where it went: the bottom panel can be collapsed or
+           behind the chat, and a command that silently focuses an invisible
+           panel is indistinguishable from one that failed. */
         if (id === 'security-review') {
           void import('../../lib/panelStore').then((m) => m.usePanel.getState().focusTab('problems'));
+          setToast(tx('Opened the Problems panel — security findings from the current scan'));
         } else if (id === 'diff') {
           void import('../../lib/panelStore').then((m) => m.usePanel.getState().focusTab('source-control' as never));
+          setToast(tx('Opened Source Control for the working-tree changes'));
         } else {
           void import('../../lib/store').then((m) => m.useStore.getState().setSettingsOpen(true));
+          setToast(tx('Opened Settings — review what is sent to the provider'));
         }
         setMenu(null);
         break;
@@ -532,6 +578,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       }
       case 'statusline':
         void import('../../lib/store').then((m) => m.useStore.getState().setSettingsOpen(true));
+        setToast(tx('Opened Settings — choose what the status line shows'));
         setMenu(null);
         break;
       case 'tasks': {
@@ -652,7 +699,22 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         break;
       }
       case 'help':
-        window.open('https://docs.anthropic.com/en/docs/claude-code', '_blank', 'noreferrer');
+        /*
+         * Opened through the Tauri opener plugin, not `window.open`.
+         *
+         * `window.open` to an external URL is a no-op inside the WebView — the
+         * click landed on nothing and `/help` looked broken. The plugin is the
+         * path the rest of the app already uses for external links, and it hands
+         * the URL to the real browser instead of trying to navigate the app.
+         *
+         * The toast matters here more than elsewhere: the answer appears in
+         * another application, so without it the command looks like it did
+         * nothing at all.
+         */
+        setToast(tx('Opening the Claude Code documentation in your browser'));
+        void import('@tauri-apps/plugin-opener').then(({ openUrl }) =>
+          openUrl('https://docs.anthropic.com/en/docs/claude-code'),
+        );
         setMenu(null);
         break;
       default:
@@ -688,9 +750,24 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
    * not the command they were spelling. A name prefix is also what the CLI
    * itself matches on.
    */
-  const filteredCommands = builtins.filter(
+  const semuaCommands = builtins.filter(
     (c) => !slashFilter || c.name.slice(1).toLowerCase().startsWith(slashFilter.toLowerCase()),
   );
+
+  /*
+   * The chip and the slash key open the SAME surface with different contents.
+   *
+   * Pressing the "/" chip next to the model picker is a request for what Zephyr
+   * can do here — attach an image, rewind, open a panel. It is NOT typing a
+   * command: nothing enters the box, and the Claude Code command list stays out
+   * of it, because the reader asked the app a question, not the model. Typing a
+   * slash at the prompt is the other question — "what commands exist?" — and
+   * that one shows the commands as well.
+   *
+   * One surface, two entries, because the list is the same object; only the
+   * filter differs.
+   */
+  const filteredCommands = slashMode === 'actions' ? [] : semuaCommands;
 
   /*
    * How full the context window is, for the ring.
@@ -1040,7 +1117,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
              * missing. The commands are shown with their leading slash so they
              * read as what they are.
              */
-            if (v === '/') { setMenu('slash'); setSlashFilter(''); }
+            if (v === '/') { setMenu('slash'); setSlashMode('all'); setSlashFilter(''); }
             else if (menu === 'slash' && !v.startsWith('/')) setMenu(null);
             if (v.startsWith('/')) setSlashFilter(v.slice(1));
           }}
@@ -1088,23 +1165,19 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
               className="cli-native-chip cli-pop-trigger"
               data-testid={`ai-clichat-slash-${agentId}`}
               /*
-               * Clicking the chip OPENS the palette, same as typing the slash.
+               * The chip opens Zephyr's ACTIONS, and types nothing.
                *
-               * This was the other way round: the chip only focused the box and
-               * inserted a "/", on the reasoning that a command menu should be
-               * reached by typing. But a visible button that does not do the
-               * thing it depicts reads as broken — pressing it and getting an
-               * inert slash is exactly the "nothing happened" complaint. Two
-               * gestures reaching one list is not a conflict; it is a shortcut.
+               * It used to put a "/" in the box and then show everything, which
+               * conflated two different questions. Pressing a button labelled
+               * with a slash is not typing one — the box stays empty, and the
+               * list holds what the app can do (attach, rewind, open a panel).
+               * To see the Claude Code commands, type the slash: that is the
+               * gesture that means "what commands exist?".
                */
-              title={tr('Commands')}
+              title={tr('Actions')}
               onClick={() => {
-                setDraft('/');
                 setSlashFilter('');
-                /* Always OPEN, never toggle. Toggling here fought the input:
-                   focusing the box fires the change handler, which re-opens the
-                   palette on the same tick, so a second press appeared to do
-                   nothing. Pressing the button now means one thing. */
+                setSlashMode('actions');
                 setMenu('slash');
               }}
             >
@@ -1115,7 +1188,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                 <input
                   className="cli-pop-filter"
                   autoFocus
-                  placeholder={tr('Filter actions…')}
+                  placeholder={slashMode === 'actions' ? tr('Filter actions…') : tr('Filter commands…')}
                   value={slashFilter}
                   onChange={(e) => setSlashFilter(e.target.value)}
                 />
@@ -1366,6 +1439,13 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
           onInsert={(t) => { setDraft((d) => (d ? `${d}${t}` : t)); inputRef.current?.focus(); }}
           onClose={() => setPanel(null)}
         />
+      )}
+      {/* The command feedback, shown here because this is the panel the reader
+          is looking at — see the note on `setToast` above. */}
+      {pesan && (
+        <div className="ai-toast cli-toast" role="status" data-testid={`ai-clichat-toast-${agentId}`}>
+          {pesan}
+        </div>
       )}
       {zoomImg && <Lightbox src={zoomImg} onClose={() => setZoomImg(null)} />}
       {konfirmasiRewind && (
