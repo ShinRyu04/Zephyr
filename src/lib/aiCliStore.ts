@@ -100,6 +100,19 @@ export interface CliMsg {
    * point at messages that no longer exist after either.
    */
   bookmark?: boolean;
+  /**
+   * Images the reader attached to this turn.
+   *
+   * The prompt sent to the CLI carries `@path` references (that is how the CLI
+   * actually reads an image), but a path in the transcript is not something
+   * anyone can look at — the reader attached a picture and wants to SEE it.
+   * Stored on the message rather than looked up from disk at render time so a
+   * screenshot keeps showing even after its temp file is cleaned up, and so a
+   * restored session renders the same as a live one.
+   *
+   * `url` is a data URL, which is also what the viewer zooms.
+   */
+  images?: { path: string; url: string }[];
 }
 
 export interface CliSession {
@@ -251,7 +264,11 @@ interface AiCliState {
    * omitted, it follows the open workspace. A caller that needs the agent to
    * work somewhere specific (a test sandbox) has no other way to say so.
    */
-  send: (agentId: string, prompt: string, opts?: { cwd?: string }) => Promise<void>;
+  send: (
+    agentId: string,
+    prompt: string,
+    opts?: { cwd?: string; images?: { path: string; url: string }[] },
+  ) => Promise<void>;
   cancel: (agentId: string) => void;
   /** Clear the current conversation — same as starting a new session. */
   clear: (agentId: string) => void;
@@ -392,7 +409,21 @@ export const useAiCli = create<AiCliState>((set, get) => ({
     if (cur.pending) return;
 
     const reqId = rid();
-    const userMsg: CliMsg = { id: rid(), role: 'user', content: teks };
+    /*
+     * The message keeps its OWN copy of the images.
+     *
+     * `prompt` already carries the `@path` references the CLI needs, but the
+     * transcript must not be left showing those paths as text: the reader
+     * attached a picture, and a picture is what the turn should show. The data
+     * URLs are stored on the message so the thumbnails (and the zoom viewer)
+     * keep working after the temp files are gone.
+     */
+    const userMsg: CliMsg = {
+      id: rid(),
+      role: 'user',
+      content: teks,
+      images: opts?.images?.length ? opts.images : undefined,
+    };
     const botMsg: CliMsg = { id: reqId, role: 'assistant', content: '' };
     set((s) => {
       const list = (s.sessions[agentId] ?? []).map((x) =>

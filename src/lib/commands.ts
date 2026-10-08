@@ -823,6 +823,17 @@ export interface GambarData {
 
 export const bacaGambar = (path: string) => invoke<GambarData>('baca_gambar', { path });
 
+/**
+ * Write a base64 image to a temp file and return its absolute path.
+ *
+ * Needed because the hosted CLI reads images by PATH (`@file`): a screenshot
+ * pasted into the composer exists only as clipboard bytes, so it has to touch
+ * disk before the CLI can look at it. Lives in Rust rather than going through
+ * `fsWrite`, which is confined to the workspace and would refuse a temp path.
+ */
+export const simpanGambarTemp = (base64: string, ext: string) =>
+  invoke<string>('simpan_gambar_temp', { base64, ext });
+
 export const gitInit = (path?: string) => invoke<void>('git_init', { path });
 export const gitStatus = () => invoke<GitStatusResult>('git_status');
 export const gitStage = (paths: string[]) => invoke<void>('git_stage', { paths });
