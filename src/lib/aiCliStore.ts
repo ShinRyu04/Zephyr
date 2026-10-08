@@ -44,7 +44,17 @@ export type CliTodo = {
 
 export type CliPart =
   | { type: 'text'; text: string }
-  | { type: 'thinking'; text: string }
+  /*
+   * The model's reasoning, streamed live.
+   *
+   * `t0` is when the block was created and `ms` is stamped the moment the
+   * block closes (the next kind of part arrives, or the run ends). The pair
+   * is what lets the collapsed header say "Thought for 4s" — the real desktop
+   * app's wording — instead of a duration the renderer would have to guess.
+   * Absent on thinking blocks restored from older sessions; ReasoningBlock
+   * falls back to "Thought briefly" for those.
+   */
+  | { type: 'thinking'; text: string; t0?: number; ms?: number }
   | { type: 'error'; text: string }
   /*
    * The agent's task list, replaced wholesale each time it is written.
@@ -615,8 +625,23 @@ function sessionForReq(reqId: string): { agentId: string; sessionId: string } | 
  */
 function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
   const parts: CliPart[] = msg.parts ? msg.parts.slice() : [];
-  const last = parts[parts.length - 1];
+  let last = parts[parts.length - 1];
   let content = msg.content;
+
+  /*
+   * A thinking block closes the moment anything else starts.
+   *
+   * The duration is stamped HERE rather than when the block is rendered: once
+   * the next part exists the run has moved on, and the only honest measurement
+   * is "first thinking token -> next block". A run that ends while thinking is
+   * still trailing is closed the same way by the listener's `done` branch.
+   * Idempotent — `ms` existing means it was already closed.
+   */
+  if (last && last.type === 'thinking' && last.ms === undefined && ev.kind !== 'thinking') {
+    const closed = { ...last, ms: Math.max(0, Date.now() - (last.t0 ?? Date.now())) };
+    parts[parts.length - 1] = closed;
+    last = closed;
+  }
 
   if (ev.kind === 'text') {
     content += ev.text;
@@ -624,7 +649,7 @@ function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
     else parts.push({ type: 'text', text: ev.text });
   } else if (ev.kind === 'thinking') {
     if (last && last.type === 'thinking') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
-    else parts.push({ type: 'thinking', text: ev.text });
+    else parts.push({ type: 'thinking', text: ev.text, t0: Date.now() });
   } else if (ev.kind === 'session' || ev.kind === 'usage') {
     /* Handled by the listener, which owns the session rather than the message.
        Reaching here means a caller passed it down anyway; rendering nothing is
@@ -734,13 +759,29 @@ export function bindCliChatListener(): void {
         }
         if (chunk.done) {
           pending = null;
-          /* If the run produced no assistant text, surface stderr as the error
-             so the bubble is never left blank. */
           messages = messages.map((m) => {
             if (m.id !== chunk.id) return m;
-            if (m.content.trim() || (m.parts && m.parts.length > 0)) return m;
+            /* Close a trailing thinking block: a run that ends mid-reasoning
+               (or whose last act WAS reasoning) still owes its duration, and
+               `done` is the only moment left to measure it. */
+            const parts = m.parts ? m.parts.slice() : undefined;
+            if (parts && parts.length > 0) {
+              const ujung = parts[parts.length - 1];
+              if (ujung.type === 'thinking' && ujung.ms === undefined) {
+                parts[parts.length - 1] = {
+                  ...ujung,
+                  ms: Math.max(0, Date.now() - (ujung.t0 ?? Date.now())),
+                };
+              }
+            }
+            /* If the run produced no assistant text, surface stderr as the error
+               so the bubble is never left blank. */
+            if (m.content.trim() || (parts && parts.length > 0)) {
+              return parts && parts !== m.parts ? { ...m, parts } : m;
+            }
             return {
               ...m,
+              parts,
               content: chunk.cancelled
                 ? 'Stopped.'
                 : stderr.trim() || 'The CLI did not return any text.',
