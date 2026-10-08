@@ -220,12 +220,6 @@
   display: none;
 }
 
-/* Nothing left to show when the actions are not rendered. */
-.ai-msg.is-assistant .ai-msg-head:not(:has(.ai-msg-actions)),
-.ai-msg.is-system .ai-msg-head:not(:has(.ai-msg-actions)) {
-  display: none;
-}
-
 /* For the user the row only carries the action buttons, so it follows the
    bubble's side and sits just under it, aligned right like the bubble. */
 .ai-msg.is-user .ai-who {
@@ -238,9 +232,31 @@
   margin-top: 1px;
 }
 
-/* Nothing left to show when the actions are not rendered. */
-.ai-msg.is-user .ai-msg-head:not(:has(.ai-msg-actions)) {
-  display: none;
+/*
+ * The head reserves space for content it never shows.
+ *
+ * Everything that was once in-flow here has moved elsewhere: the byline is
+ * display:none (rules above — the model name lives in the header meter), and
+ * the action buttons are position:absolute against `.ai-msg` (ai.css), so they
+ * are out of flow entirely. What is left is a 20px (user) / 18px (assistant)
+ * EMPTY strip plus its margin, stacked between the bubble and the answer —
+ * measured at ~24px per turn, the single largest contributor to the "gap is
+ * huge" complaint, and ~40 physical px at 125% display scaling.
+ *
+ * Collapse it to zero UNLESS it is actually carrying something visible: the
+ * attachment chip (user rows) or the streaming "Thinking" label — both checked
+ * in the DOM, which is what the transcript harness queries too. NOT
+ * `display:none`, because the hover buttons are children of this box and
+ * hiding the parent would take Copy/Regenerate/Speak with it; a zero-height
+ * box still renders absolutely-positioned children.
+ *
+ * Specificity (0,3,0) ties with the role rules above, so source order decides
+ * — this rule MUST stay after them, and ai-streaming.css MUST stay imported
+ * after ai.css (App.tsx). Both load-bearing.
+ */
+.ai-msg-head:not(:has(.ai-attach-chip)):not(:has(.ai-typing)) {
+  min-height: 0;
+  margin-top: 0;
 }
 
 /* ── Actions: on hover ────────────────────────────────────────────────── */
