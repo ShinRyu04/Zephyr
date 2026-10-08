@@ -3688,6 +3688,94 @@
   }
 }
 
+/*
+ * The "✻ Thinking…" line of the hosted Claude Code tab.
+ *
+ * Shown from the moment a run starts until the first token lands, and again
+ * after a tool finishes while the model decides what to do next — the same
+ * states the real desktop app covers with this line. The sparkle turns slowly
+ * and the label carries the same gradient sweep as the live ReasoningBlock
+ * header, so "the model is working" looks identical in both places.
+ */
+.cli-think-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0 5px;
+  /* Position + background so the row paints over the timeline rail (the rail
+     is `position: absolute` on the container and stacks above any child that
+     is not itself positioned — the line drew straight through this text). */
+  position: relative;
+  background: var(--bg0, var(--bg));
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Inside the rail layout, the text joins the 30px content column every other
+   row uses. Scoped here because the empty-state branch renders this line OUTSIDE
+   [data-timeline] (no rail yet), where a 30px indent would be a phantom gap. */
+[data-timeline] > .cli-think-line {
+  padding-left: 30px;
+}
+
+.cli-think-star {
+  color: var(--accent);
+  font-size: 13px;
+  line-height: 1;
+  animation: cli-think-spin 1.6s ease-in-out infinite;
+}
+@keyframes cli-think-spin {
+  0% { transform: rotate(0deg) scale(0.9); opacity: 0.65; }
+  50% { transform: rotate(180deg) scale(1.1); opacity: 1; }
+  100% { transform: rotate(360deg) scale(0.9); opacity: 0.65; }
+}
+
+/*
+ * The label sweeps instead of blinking: a blink reads as a cursor waiting for
+ * input, a sweep as something moving through the line under its own power.
+ * Same gradient construction as the ReasoningBlock title, and the same guard
+ * — the base colour stays visible when background-clip is not honoured, so
+ * "Thinking…" never disappears.
+ */
+.cli-think-text {
+  color: var(--text-muted, var(--fg0));
+  background-image: linear-gradient(
+    90deg,
+    var(--text-muted, #8b949e) 0%,
+    var(--text-muted, #8b949e) 35%,
+    var(--fg0, #e6edf3) 50%,
+    var(--text-muted, #8b949e) 65%,
+    var(--text-muted, #8b949e) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: cli-think-shimmer 1.9s linear infinite;
+}
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .cli-think-text {
+    -webkit-text-fill-color: transparent;
+  }
+}
+@keyframes cli-think-shimmer {
+  from { background-position: 140% 0; }
+  to { background-position: -40% 0; }
+}
+
+/* Keep the state, drop the motion, for a reader who asked for that. */
+@media (prefers-reduced-motion: reduce) {
+  .cli-think-star {
+    animation: none;
+    opacity: 0.9;
+  }
+  .cli-think-text {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-muted);
+  }
+}
+
 .ai-reason-caret {
   font-size: 10px;
   opacity: 0.75;
@@ -7255,6 +7343,13 @@
   border-radius: 8px;
   background: var(--surface-2, var(--bg1));
   overflow: hidden;
+  /*
+   * The rail at 17px is `position: absolute` on the timeline container, so it
+   * paints OVER every child that is not itself positioned — the plan card was
+   * unpositioned and the line drew straight across its header text. Position +
+   * background puts the card above the rail, same as the tool and text rows.
+   */
+  position: relative;
 }
 .cli-todo-head {
   display: flex;
