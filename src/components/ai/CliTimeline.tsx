@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { CliMsg, CliTodo } from '../../lib/aiCliStore';
@@ -99,7 +99,32 @@ const TodoChecklist = memo(function TodoChecklist({ items }: { items: CliTodo[] 
 export { unifiedFromHalves };
 
 /*
- * The "✻ Thinking…" line, while a run has nothing to show yet.
+ * The verbs Claude Code uses while the model thinks.
+ *
+ * The real CLI does not print "Thinking" — it picks one whimsical `-ing` verb
+ * per turn and holds it, which is what stops a long wait from reading as a
+ * frozen label. The list is the reader's own; it is left in English in every
+ * locale on purpose, because these are the words the Claude Code app itself
+ * shows and a translated "Berpikir" would no longer be the thing being copied.
+ */
+const KATA_KERJA = [
+  'Pondering',
+  'Percolating',
+  'Booping',
+  'Flibbertigibbeting',
+  'Ruminating',
+  'Philosophizing',
+  'Calibrating',
+  'Synthesizing',
+  'Noodling',
+  'Conjuring',
+] as const;
+
+/** How long one verb stays on screen before the next fades in. */
+const JEDA_KATA_MS = 2600;
+
+/*
+ * The "✻ Pondering…" line, while a run has nothing to show yet.
  *
  * The real desktop app opens every assistant turn with this: an animated
  * sparkle and a shimmering label, from the moment you press Enter until the
@@ -107,17 +132,58 @@ export { unifiedFromHalves };
  * what to do next). Without it the tab sits on an empty bubble for the CLI's
  * multi-second startup — silence that reads as "hung".
  *
+ * The label ROTATES through `KATA_KERJA` rather than saying "Thinking". That is
+ * the single most recognizable thing about the real thing: a fixed word stops
+ * carrying information after the first glance, while a word that changes tells
+ * the reader the process is still alive without needing a spinner.
+ *
  * It must NOT appear once a thinking block exists: ReasoningBlock already
  * shows a live "Thinking" header there, and two indicators side by side read
  * as a duplicate. That is why the condition excludes `thinking` as the last
  * part — see the call site.
+ *
+ * EXPORTED because Chat AI shows the same wait and had a worse answer for it:
+ * a static "Thinking about the next step" with three blinking dots. Sharing
+ * one component is what keeps the two transcripts agreeing on what waiting
+ * looks like — the colour is the only thing that differs, and it comes from
+ * `--think-accent` in CSS rather than from a prop, so neither caller has to
+ * know the other's palette.
  */
-function ThinkingLine() {
+export function ThinkingLine({ label }: { label?: string }) {
   const tr = useT();
+  const [idx, setIdx] = useState(0);
+
+  /*
+   * Rotate only while this line is MOUNTED, which is exactly the window it is
+   * visible in — the parent renders it only while the run has nothing to show.
+   * A timer that ran for the lifetime of the session would keep waking the
+   * component up to change text nobody is looking at.
+   *
+   * The first verb is shown immediately and the first change waits a full
+   * interval, so a short wait shows one stable word instead of flickering.
+   */
+  useEffect(() => {
+    if (label) return; // An explicit label is a fixed message; do not rotate it.
+    const t = window.setInterval(() => {
+      setIdx((i) => (i + 1) % KATA_KERJA.length);
+    }, JEDA_KATA_MS);
+    return () => window.clearInterval(t);
+  }, [label]);
+
+  const kata = label ?? KATA_KERJA[idx];
+
   return (
     <div className="cli-think-line" data-testid="cli-thinking" role="status" aria-live="polite">
       <span className="cli-think-star" aria-hidden="true">✻</span>
-      <span className="cli-think-text">{tr('Thinking…')}</span>
+      {/*
+        * `key` on the word is what makes the fade work: a changed key remounts
+        * the span, and a CSS animation on mount replays for each new verb. The
+        * alternative — toggling a class — needs a timer to remove it and can
+        * desync from the interval that drives the text.
+        */}
+      <span key={kata} className="cli-think-text" data-testid="cli-think-verb">
+        {label ? tr(label) : kata}
+      </span>
     </div>
   );
 }

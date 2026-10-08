@@ -394,22 +394,49 @@
  * this the line would run straight through the caret and the first few
  * characters of every row. Only the LEFT side is touched; the row keeps its
  * full width so the diff inside still reaches the panel edge.
+ *
+ * WHY this is a wildcard and not a list of classes:
+ *
+ * It started as a list — `.cli-tool-head`, `.cli-native-text`, `.ai-reason` —
+ * and every row type the list forgot had the rail drawn straight through its
+ * first letters. The reasoning body was the one readers noticed: its text is
+ * prose, so a line through the opening word is unmistakable in a way a clipped
+ * tool title is not. A list has to be extended for each new row type, and the
+ * failure mode is invisible until someone adds a row and does not know to.
+ *
+ * The wildcard inverts that: every direct child of the timeline gets the
+ * column by default, and a row that genuinely wants to sit on the rail opts
+ * OUT. `> *` cannot be satisfied by a plain descendant because the rail lives
+ * on the container, so the children are exactly the rows drawn against it.
+ *
+ * 34px clears the 17px rail by a full text-height on either side — the gap the
+ * reader asked for — while staying close enough that a row still reads as
+ * belonging to its node.
  */
-[data-timeline] > .cli-tool > .cli-tool-head {
-  padding-left: 30px;
-}
-[data-timeline] > .cli-tool.is-grup > .cli-tool-head,
-[data-timeline] > .cli-tool[data-testid='cli-tool'] > .cli-tool-head {
-  padding-left: 30px;
-}
-[data-timeline] > .cli-native-text,
-[data-timeline] > .ai-reason {
-  padding-left: 30px;
+[data-timeline] > * {
+  padding-left: 34px;
 }
 
 /* A tool's expanded body lines up under its header, not under the rail. */
 [data-timeline] > .cli-tool > .cli-tool-body {
-  padding-left: 27px;
+  padding-left: 31px;
+}
+
+/*
+ * The reasoning BODY is the exception.
+ *
+ * It is the expanded prose under a thinking header. Indenting it a second time
+ * — header at 34px, body at 34px — wastes the column and, worse, makes the
+ * body read as a sibling of the header rather than as its content. It sits one
+ * step in from the header instead, which is the shape every disclosure uses.
+ */
+[data-timeline] > .ai-reason > .ai-reason-body {
+  padding-left: 12px;
+}
+[data-timeline] > .ai-reason > .ai-reason-head {
+  /* The header owns the node; a second indent here would push the caret away
+     from the dot it belongs to. */
+  padding-left: 0;
 }
 
 /*
@@ -1427,6 +1454,60 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/*
+ * The live clock in the header.
+ *
+ * Muted and small, like the rest of the header meta: it is a reference the
+ * reader glances at, not a control, and anything louder would compete with the
+ * chat title it sits beside. Tabular figures so the digits do not shuffle
+ * sideways each minute — a clock that reflows its own width every 60 seconds
+ * is a distraction on a row that also holds buttons.
+ */
+.ai-clock {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+  /* A hair of right padding so it does not touch the first button. */
+  padding-right: 2px;
+}
+
+/*
+ * The day divider in the transcript.
+ *
+ * A rule with the date in the middle, the same shape every chat client uses,
+ * because it is the one that needs no explanation: the line says "different
+ * day below this", and the label says which one.
+ *
+ * The rule is drawn as TWO spans rather than a `border-top` on the container:
+ * a border cannot be interrupted by the text, and the text carries its own
+ * background so the line appears to pass behind it. Two flex-grow spans give
+ * the same result with no background trick and no overlap to z-order.
+ */
+.ai-day-div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 2px;
+  width: 100%;
+}
+
+.ai-day-div-line {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+.ai-day-div-text {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  user-select: none;
+}
 /* New chat split-button, Copilot-style. */
 .ai-new-wrap {
   position: relative;
@@ -1731,7 +1812,14 @@
   padding: 10px var(--ai-chat-pad-x) 34px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  /*
+   * NOTE: the gap and the top padding that actually reach the screen are set in
+   * ai-streaming.css, which is imported AFTER this file and therefore wins.
+   * Editing them here looks like it works and changes nothing — that is exactly
+   * how two different numbers for the same property ended up in the tree. The
+   * comments explaining the chosen values live beside the rules that apply.
+   */
+  gap: 16px;
   /*
    * Never let the transcript collapse to nothing.
    *
@@ -1950,6 +2038,14 @@
 .ai-msg {
   display: flex;
   flex-direction: column;
+  /*
+   * The INSIDE of one turn: header, reasoning, tool rows, answer.
+   *
+   * Kept tight on purpose. The separation between turns is `.ai-chat`'s job
+   * (18px); if this grew too, every turn would float apart into its own island
+   * and the transcript would stop reading as a conversation. 4px is the width
+   * of a blank half-line — enough to keep the blocks from touching.
+   */
   gap: 4px;
   max-width: 100%;
   position: relative;
@@ -2228,6 +2324,62 @@
   background: var(--bg0);
   flex: 0 0 auto;
   transition: border-color 110ms ease, box-shadow 110ms ease;
+}
+
+/*
+ * The tip strip — the top section of the reference composer, where ONE border
+ * wraps tip + field + toolbar and a hairline separates the tip from the field.
+ *
+ * The strip sits flush with the box edges WITHOUT negative margins: the row's
+ * padding is 0 (ai-panel-compact.css owns the row's box now — it imports after
+ * this file), so a `margin: -8px -10px` cancels nothing and instead pulls the
+ * strip OUT of the box — measured: 9px over each side and 7px above the top
+ * edge, where it painted straight over the loop/goal strip sitting above the
+ * composer. Margin 0 keeps it inside the border in every stacking case.
+ *
+ * The hairline below replaces a gap: the row's own gap is 0, and the field
+ * below carries its own padding, so the strip needs no extra spacing of its own.
+ */
+.ai-tip-strip {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  /* -1px because the strip sits on the inner edge of the row's own 1px
+     border: matching the outer radius exactly would paint the strip a hair
+     over the corner arc. */
+  border-radius: calc(var(--ai-dock-radius, 10px) - 1px) calc(var(--ai-dock-radius, 10px) - 1px) 0 0;
+  background: var(--surface-1, var(--bg));
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/*
+ * When a status stack sits directly above, the row's own top corners are
+ * square (`0 0 10px 10px`) — a rounded strip there would overhang the box it
+ * is flush against. Square top, keep the bottom square too: the hairline is
+ * the only edge that matters inside the box.
+ */
+.ai-work-stack + .ai-input-row .ai-tip-strip {
+  border-radius: 0;
+}
+
+.ai-tip-strip b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ai-tip-strip kbd {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
 }
 
 /*
@@ -3697,7 +3849,21 @@
  * and the label carries the same gradient sweep as the live ReasoningBlock
  * header, so "the model is working" looks identical in both places.
  */
+/*
+ * The colour of the waiting indicator, per transcript.
+ *
+ * Claude Code is orange and Zephyr's own Chat AI is blue, and the two are
+ * deliberate: the panels sit one tab apart, and a reader who has both open
+ * should be able to tell which one is working from the colour alone.
+ *
+ * `--think-accent` is read by the star and by the shimmer gradient below.
+ * It defaults through `--cli-accent` so the hosted Claude Code tab keeps its
+ * orange untouched, and any surface that is NOT a hosted CLI — Chat AI — sets
+ * the plain `--accent` instead. A single token means the star and its label
+ * can never disagree about what colour "thinking" is.
+ */
 .cli-think-line {
+  --think-accent: var(--cli-accent, var(--accent));
   display: flex;
   align-items: center;
   gap: 7px;
@@ -3719,7 +3885,7 @@
 }
 
 .cli-think-star {
-  color: var(--accent);
+  color: var(--think-accent, var(--accent));
   font-size: 13px;
   line-height: 1;
   animation: cli-think-spin 1.6s ease-in-out infinite;
@@ -3739,11 +3905,22 @@
  */
 .cli-think-text {
   color: var(--text-muted, var(--fg0));
+  /*
+   * The sweep runs between the muted text colour and the panel's OWN accent,
+   * so the moving highlight is tinted orange in the Claude Code tab and blue
+   * in Chat AI. `color-mix` keeps the accent from being applied at full
+   * strength: a saturated sweep over muted text reads as two colours fighting,
+   * and the label is a hint about state, not a heading.
+   *
+   * The 55% mix is the floor that still reads as "the same family" on both
+   * the dark and light themes; below it the tint disappears into the grey.
+   */
+  --think-tint: color-mix(in srgb, var(--think-accent, var(--accent)) 55%, var(--text-muted, #8b949e));
   background-image: linear-gradient(
     90deg,
     var(--text-muted, #8b949e) 0%,
     var(--text-muted, #8b949e) 35%,
-    var(--fg0, #e6edf3) 50%,
+    var(--think-tint, var(--fg0, #e6edf3)) 50%,
     var(--text-muted, #8b949e) 65%,
     var(--text-muted, #8b949e) 100%
   );
@@ -3751,6 +3928,38 @@
   -webkit-background-clip: text;
   background-clip: text;
   animation: cli-think-shimmer 1.9s linear infinite;
+  /*
+   * The verb fade rides ON TOP of the shimmer, on the same element.
+   *
+   * Two animations on one property would fight, but these touch different
+   * ones: the shimmer moves `background-position`, this one moves opacity and
+   * a small `filter`. Keeping them on one element avoids a wrapper span whose
+   * only job would be to hold a second animation.
+   */
+  animation:
+    cli-think-shimmer 1.9s linear infinite,
+    cli-think-masuk 420ms ease-out both;
+}
+/*
+ * A new verb fades up into place instead of swapping.
+ *
+ * The word changes every few seconds; an instant swap reads as a glitch on a
+ * line the reader is staring at, and a blink reads as an alarm. A short rise
+ * with a fade is what makes the change feel like the thing thinking rather
+ * than the UI stuttering.
+ *
+ * `both` holds the start state for the first frame and the end state after, so
+ * there is no flash of the un-animated word before the animation applies.
+ */
+@keyframes cli-think-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 @supports (background-clip: text) or (-webkit-background-clip: text) {
   .cli-think-text {

@@ -37,9 +37,40 @@
  * Dulu hanya 16px dan 12px yang kebetulan sama-sama pas; begitu salah satunya
  * diubah, kartu dan kotak ketik meleset beberapa piksel dari gelembung pesan.
  */
+/*
+ * Jarak ANTAR-turn, dan jarak dari tepi atas.
+ *
+ * Kenapa di sini dan bukan di ai.css: file ini diimpor SESUDAH ai.css, jadi
+ * aturan `.ai-chat` di sini yang menang. Nilai yang ditulis di ai.css tidak
+ * pernah sampai ke layar — itulah sebabnya sempat ada dua angka berbeda untuk
+ * satu properti, dan yang terlihat bukan yang diedit.
+ *
+ * Angka-angka ini diukur, bukan ditebak:
+ *
+ *   padding-top 14px  terlalu lega. Turn pertama mulai jauh dari tepi atas
+ *                     panel, jadi ada pita kosong yang terbaca seperti ada
+ *                     pesan yang gagal dimuat. 6px cukup untuk tidak menempel
+ *                     ke header tanpa meninggalkan lubang.
+ *
+ *   padding-bottom 8px  dipertahankan: 34px di ai.css disediakan untuk kartu
+ *                     tool yang terbuka, tapi jarak itu sudah ditangani
+ *                     `.ai-chat` versi ini sejak awal dan panel tidak lagi
+ *                     memakai scroller bergaya kartu.
+ *
+ *   gap 16px  jarak ANTAR-turn saja. Sebelumnya tidak ada `gap` sama sekali
+ *             di sini, sehingga dua turn hanya dipisahkan padding vertikal
+ *             `.ai-msg` (7px atas + 9px bawah) — jawaban satu giliran menempel
+ *             ke pertanyaan berikutnya tanpa jeda yang terbaca.
+ *
+ *             Padding DALAM satu turn sengaja tetap rapat supaya satu giliran
+ *             terbaca sebagai satu blok, bukan beberapa pulau terpisah.
+ */
 .ai-chat {
   --ai-chat-pad-x: 12px;
-  padding: 14px var(--ai-chat-pad-x) 8px;
+  padding: 6px var(--ai-chat-pad-x) 8px;
+  gap: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .ai-chat > * {
@@ -1190,105 +1221,17 @@
 /* ── Thinking state, in the middle of the transcript ───────────────────── */
 
 /*
- * Sits where the answer will appear, not in the header.
+ * MOVED. The wait indicator is now the SAME component the hosted Claude Code
+ * tab uses (`ThinkingLine`, styled by `.cli-think-line` in ai.css), so Chat AI
+ * and the CLI stop waiting in two different ways.
  *
- * The header chip is 10px tall and scrolls out of view; this is the block the
- * eye is already resting on while it waits. Three signals, all cheap: an orb
- * that pulses, a label, and the dot wave — and no spinner, because a spinner
- * implies a determinate wait and this one is not.
+ * What used to live here was its own family — `.ai-think` with an orb, a
+ * shimmer and a bouncing dot wave — and beside it a SECOND family in
+ * ai-icons.css doing a plainer version of the same job. Two renderings of one
+ * state is what let the panel drift from the tab in the first place, and every
+ * "make the spinner nicer" pass edited one of them.
+ *
+ * Only the wrapper and the elapsed count remain here, in ai-icons.css, because
+ * those are the parts that are genuinely Chat AI's own: the row that holds the
+ * shared line beside the seconds.
  */
-.ai-think {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 4px 0 2px;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-}
-
-.ai-think-orb {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-}
-
-@keyframes think-orb {
-  0%,
-  100% {
-    transform: scale(0.85);
-    box-shadow: 0 0 0 0 var(--accent-subtle);
-    opacity: 0.75;
-  }
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 5px transparent;
-    opacity: 1;
-  }
-}
-
-.ai-think-text {
-  color: var(--text-muted);
-}
-
-@keyframes think-shimmer {
-  0% {
-    background-position: 120% 0;
-  }
-  100% {
-    background-position: -120% 0;
-  }
-}
-
-/* The dot wave, sized for the body rather than the 10px header chip. */
-.ai-think .ai-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0;
-}
-
-.ai-think .ai-dots i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: think-dot 1.25s ease-in-out infinite;
-}
-
-.ai-think .ai-dots i:nth-child(2) {
-  animation-delay: 0.16s;
-}
-
-.ai-think .ai-dots i:nth-child(3) {
-  animation-delay: 0.32s;
-}
-
-@keyframes think-dot {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.35;
-  }
-  30% {
-    transform: translateY(-3px);
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ai-think-orb,
-  .ai-think-text,
-  .ai-think .ai-dots i {
-    animation: none;
-  }
-  .ai-think-text {
-    color: var(--text-secondary);
-    background: none;
-    -webkit-text-fill-color: currentColor;
-  }
-}
