@@ -15,8 +15,27 @@ import { tx, tf } from '../../lib/i18n';
  * A stream that ends empty is not worth a row: "Thought briefly" above an empty
  * body is a line that says nothing and takes a click to dismiss.
  */
+/*
+ * How long the model thought, in the words a reader can act on.
+ *
+ * `ms` is the ONE number that matters here: "Thought for 8s" says the model had
+ * something to work out, "Thought briefly" says it did not. The header is the
+ * whole UI for a folded block, so this line is often all the reader sees.
+ *
+ * WHY the missing case is separate from the short one:
+ *
+ * This used to return "Thought briefly" for BOTH — a sub-second run and a run
+ * whose duration was never measured at all (`ms` undefined, which is what every
+ * provider that does not report a reasoning clock produces). That made the app
+ * state something it did not know: a model that thought for a minute, on a
+ * provider with no clock, was described as having thought briefly. The two
+ * cases are now told apart, and the unmeasured one admits it.
+ */
 function durasi(ms: number | undefined): string {
-  if (typeof ms !== 'number' || ms < 0) return tx('Thought briefly');
+  /* Never measured — most providers do not report a reasoning clock. Saying
+     "briefly" here would be inventing a fact; saying nothing leaves the block
+     headerless. So it states the one thing that is true: the thinking happened. */
+  if (typeof ms !== 'number' || ms < 0) return tx('Thought');
   const detik = Math.round(ms / 1000);
   if (detik >= 60) {
     const m = Math.floor(detik / 60);

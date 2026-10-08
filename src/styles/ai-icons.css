@@ -288,17 +288,25 @@
  * cell the same width so the row does not shift, and leave the colour to do the
  * work: each bar carries its own hue, so the strip is never one flat blue.
  */
-.ai-think {
+/*
+ * The wait indicator's WRAPPER, which holds the shared ThinkingLine and the
+ * elapsed count side by side.
+ *
+ * The line itself is `.cli-think-line` (see ai.css) — Chat AI and the hosted
+ * Claude Code tab share one component so they cannot drift, and the wrapper is
+ * all this file contributes: the row direction and the gap between the label
+ * and its number.
+ *
+ * It replaced `.ai-think`, which carried its own text and three blinking dots.
+ * A blink reads as a cursor — a box waiting for input — where the sparkle
+ * sweeps as something moving under its own power, which is what a model
+ * mid-thought actually is.
+ */
+.ai-think-wrap {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 2px 0;
-  color: var(--text-muted);
-  font-size: 12.5px;
-}
-
-.ai-think-text {
-  color: var(--text-muted);
 }
 
 /*
@@ -314,48 +322,6 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
-}
-
-/*
- * The working indicator is plain text and three sweeping dots.
- *
- * It has been three things already: a spinning orb, a wave of eight coloured
- * bars, and a dragon that bobbed up and down. All of them were decoration
- * sitting where the reader is looking for the answer. Hermes marks the same
- * state with a quiet line of text, and that is what this is now — no icon, no
- * colour, no motion competing with the tokens that are about to arrive.
- */
-.ai-think .ai-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: auto;
-  animation: none;
-}
-
-.ai-think .ai-dots i {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.35;
-  animation: think-dot 1.2s ease-in-out infinite;
-}
-
-.ai-think .ai-dots i:nth-child(1) { animation-delay: 0s; }
-.ai-think .ai-dots i:nth-child(2) { animation-delay: 0.18s; }
-.ai-think .ai-dots i:nth-child(3) { animation-delay: 0.36s; }
-
-@keyframes think-dot {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.9; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ai-think .ai-dots i {
-    animation: none;
-    opacity: 0.5;
-  }
 }
 
 /* Kept for the header row's own indicator (.ai-typing), which still uses the
