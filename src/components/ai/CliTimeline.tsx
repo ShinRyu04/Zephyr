@@ -98,6 +98,30 @@ const TodoChecklist = memo(function TodoChecklist({ items }: { items: CliTodo[] 
 /* Keep the unified-diff helper referenced for callers that want a plain string. */
 export { unifiedFromHalves };
 
+/*
+ * The "✻ Thinking…" line, while a run has nothing to show yet.
+ *
+ * The real desktop app opens every assistant turn with this: an animated
+ * sparkle and a shimmering label, from the moment you press Enter until the
+ * first token lands (and again after a tool finishes, while the model decides
+ * what to do next). Without it the tab sits on an empty bubble for the CLI's
+ * multi-second startup — silence that reads as "hung".
+ *
+ * It must NOT appear once a thinking block exists: ReasoningBlock already
+ * shows a live "Thinking" header there, and two indicators side by side read
+ * as a duplicate. That is why the condition excludes `thinking` as the last
+ * part — see the call site.
+ */
+function ThinkingLine() {
+  const tr = useT();
+  return (
+    <div className="cli-think-line" data-testid="cli-thinking" role="status" aria-live="polite">
+      <span className="cli-think-star" aria-hidden="true">✻</span>
+      <span className="cli-think-text">{tr('Thinking…')}</span>
+    </div>
+  );
+}
+
 function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean }) {
   const parts = msg.parts;
   /* One zoomable image at a time, opened from any image in the answer. */
@@ -111,7 +135,10 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
         {msg.content ? (
           <Markdown remarkPlugins={MD_PLUGINS} components={MD}>{msg.content}</Markdown>
         ) : streaming ? (
-          <span className="ai-dots">…</span>
+          /* Nothing to show yet: this is the waiting state, and the shimmer
+             line is what the real app shows here — the bare "…" dots read as
+             a stall. */
+          <ThinkingLine />
         ) : (
           ''
         )}
@@ -120,11 +147,33 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
     );
   }
 
+  /*
+   * What, if anything, trails the last part while the run is live.
+   *
+   * Three states, mutually exclusive:
+   *   tool/todo/error last -> the model is deciding what to do next ->
+   *                           the shimmer line (same as the empty state);
+   *   thinking last        -> ReasoningBlock's own live header already says
+   *                           "Thinking" — a second indicator would read as a
+   *                           duplicate;
+   *   text last            -> tokens are landing; the trailing "…" says so.
+   */
+  const ujung = parts[parts.length - 1];
+  const putuskan =
+    streaming && (ujung.type === 'tool' || ujung.type === 'todo' || ujung.type === 'error');
+
   return (
     <div className="cli-timeline" data-timeline data-testid="cli-timeline">
       {parts.map((p, i) => {
         if (p.type === 'thinking') {
-          return <ReasoningBlock key={i} teks={p.text} berjalan={streaming && i === parts.length - 1} />;
+          return (
+            <ReasoningBlock
+              key={i}
+              teks={p.text}
+              ms={p.ms}
+              berjalan={streaming && i === parts.length - 1}
+            />
+          );
         }
         if (p.type === 'tool') {
           return (
@@ -159,7 +208,11 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
           </div>
         );
       })}
-      {streaming && <span className="ai-dots" aria-hidden="true">…</span>}
+      {putuskan ? (
+        <ThinkingLine />
+      ) : (
+        streaming && ujung.type === 'text' && <span className="ai-dots" aria-hidden="true">…</span>
+      )}
       {zoom && <Lightbox src={zoom} onClose={() => setZoom(null)} />}
     </div>
   );

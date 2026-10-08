@@ -31,6 +31,40 @@ fn emit(app: &AppHandle, payload: Value) {
     let _ = app.emit("cli-chat-chunk", payload);
 }
 
+/// Drain buffered token events to the frontend, merging runs of the same kind.
+///
+/// N one-token `text` events become ONE event carrying the concatenation —
+/// exactly what the frontend would have built by appending to the trailing
+/// part anyway, but in a single `setState` instead of N. Interleaved kinds
+/// (text then thinking) stay separate events in their original order.
+fn flush_events(app: &AppHandle, id: &str, pending: &mut Vec<Value>) {
+    if pending.is_empty() {
+        return;
+    }
+    let mut merged: Vec<Value> = Vec::with_capacity(pending.len());
+    for ev in pending.drain(..) {
+        let bisa_gabung = matches!(
+            ev.get("kind").and_then(|x| x.as_str()),
+            Some("text") | Some("thinking")
+        );
+        if let Some(prev) = merged.last_mut() {
+            if bisa_gabung && prev.get("kind") == ev.get("kind") {
+                let gabung = format!(
+                    "{}{}",
+                    prev.get("text").and_then(|x| x.as_str()).unwrap_or(""),
+                    ev.get("text").and_then(|x| x.as_str()).unwrap_or("")
+                );
+                prev["text"] = Value::String(gabung);
+                continue;
+            }
+        }
+        merged.push(ev);
+    }
+    for ev in merged {
+        emit(app, json!({ "id": id, "event": ev }));
+    }
+}
+
 /// Which CLI, and how to drive it headlessly.
 struct Headless {
     bin: &'static str,
@@ -76,6 +110,26 @@ fn build_args(
                 "--output-format".into(),
                 "stream-json".into(),
                 "--verbose".into(),
+                /*
+                 * Per-token deltas BEFORE the final message line.
+                 *
+                 * Without this flag the CLI only writes the completed
+                 * `assistant` line when a whole message block finishes, so a
+                 * long answer appears all at once after several seconds of
+                 * silence — the opposite of the real desktop app, where text
+                 * streams in token by token. With the flag the CLI interleaves
+                 * `stream_event` frames (`text_delta` / `thinking_delta`) while
+                 * the model is still generating.
+                 *
+                 * The final `assistant` line still arrives afterwards and
+                 * repeats the same bytes; the parser dedupes by message id
+                 * (verified against 5 full captures: concatenated deltas == the
+                 * assistant line's text, 0 mismatches).
+                 *
+                 * Only valid together with -p and --output-format stream-json,
+                 * which are always passed above.
+                 */
+                "--include-partial-messages".into(),
             ];
             /*
              * Continue an existing CLI conversation.
@@ -165,26 +219,39 @@ fn tool_event(obj: Value) -> Value {
 ///   - {"type":"tool_result","tool_use_id":…,"content":<str|array>} -> a result
 /// System/init/result bookkeeping lines carry nothing printable and yield [].
 fn claude_events_from_line(line: &str) -> Vec<Value> {
-    claude_events_from_line_skip(line, &mut std::collections::HashSet::new())
+    claude_events_from_line_skip(line, &mut ClaudeLineState::default())
 }
 
-/// As `claude_events_from_line`, but tracking which tool calls were folded into
-/// a `todo` event so their results can be skipped.
+/// Cross-line state threaded through the Claude stream parser.
 ///
-/// The parser is per-line because the stream is, and a tool's `tool_use` and its
-/// `tool_result` arrive as two separate lines. That means it cannot decide on
-/// its own whether a result belongs to a call it already turned into a
-/// checklist — so the set of such call ids is threaded in by the caller, which
-/// does see every line.
+/// The parser is per-line because the stream is, but three facts span lines
+/// and none of them can be recovered from a single line in isolation:
 ///
-/// Without this, every TodoWrite produced a second, nameless tool row carrying
-/// "Todos have been modified successfully": the checklist appeared AND a piece of
-/// machinery appeared next to it, which is exactly the raw-text noise the todo
-/// event was meant to remove.
-fn claude_events_from_line_skip(
-    line: &str,
-    todo_calls: &mut std::collections::HashSet<String>,
-) -> Vec<Value> {
+///   * `todo_calls` — which tool calls were folded into a `todo` event, so
+///     their later `tool_result` lines can be dropped (the checklist already
+///     carries the information; a nameless "Todos have been modified
+///     successfully" row is machinery, not content).
+///   * `text_streamed` / `think_streamed` — which message ids already
+///     delivered their text/thinking as per-token `stream_event` deltas. With
+///     `--include-partial-messages` the final `assistant` line repeats those
+///     exact bytes (verified: concatenation of deltas == assistant text, 0
+///     mismatches across 5 full captures), so emitting both would show every
+///     answer twice.
+///   * `current_msg` — the id of the message currently streaming. Deltas carry
+///     no id of their own; they are attributed to the last `message_start`,
+///     which the Anthropic stream protocol always sends before any delta of
+///     that message (held in every capture).
+#[derive(Default)]
+struct ClaudeLineState {
+    todo_calls: std::collections::HashSet<String>,
+    text_streamed: std::collections::HashSet<String>,
+    think_streamed: std::collections::HashSet<String>,
+    current_msg: Option<String>,
+}
+
+/// As `claude_events_from_line`, but carrying the cross-line `state` (see
+/// `ClaudeLineState` for why each field exists).
+fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<Value> {
     let Ok(v) = serde_json::from_str::<Value>(line) else {
         return Vec::new();
     };
@@ -194,9 +261,26 @@ fn claude_events_from_line_skip(
             let Some(content) = v.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_array()) else {
                 return out;
             };
+            let msg_id = v
+                .pointer("/message/id")
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string());
             for block in content {
                 match block.get("type").and_then(|x| x.as_str()) {
                     Some("text") => {
+                        /*
+                         * Dedup against the deltas already relayed for this
+                         * message. `--include-partial-messages` writes every
+                         * token as a `text_delta` FIRST and the completed
+                         * block afterwards; emitting both would double the
+                         * answer. tool_use is never skipped below — its input
+                         * only exists in full on this line.
+                         */
+                        if let Some(id) = &msg_id {
+                            if state.text_streamed.contains(id) {
+                                continue;
+                            }
+                        }
                         if let Some(s) = block.get("text").and_then(|x| x.as_str()) {
                             if !s.is_empty() {
                                 out.push(json!({ "kind": "text", "text": s }));
@@ -204,6 +288,11 @@ fn claude_events_from_line_skip(
                         }
                     }
                     Some("thinking") => {
+                        if let Some(id) = &msg_id {
+                            if state.think_streamed.contains(id) {
+                                continue;
+                            }
+                        }
                         // The reasoning body lives under "thinking"; some builds
                         // also mirror it under "text", so accept either.
                         let s = block
@@ -232,7 +321,7 @@ fn claude_events_from_line_skip(
                          * checklist IS the representation of that call.
                          */
                         if let Some(todos) = claude_todo_snapshot(name, &input) {
-                            todo_calls.insert(call_id.to_string());
+                            state.todo_calls.insert(call_id.to_string());
                             out.push(json!({ "kind": "todo", "items": todos }));
                             continue;
                         }
@@ -271,7 +360,7 @@ fn claude_events_from_line_skip(
                     /* The result of a call already shown as a checklist carries no
                        information the checklist does not - "Todos have been
                        modified successfully" is the tool acknowledging itself. */
-                    if todo_calls.contains(call_id) {
+                    if state.todo_calls.contains(call_id) {
                         continue;
                     }
                     let is_err = block.get("is_error").and_then(|x| x.as_bool()).unwrap_or(false);
@@ -282,6 +371,62 @@ fn claude_events_from_line_skip(
                         "output": tool_result_text(block.get("content")),
                     })));
                 }
+            }
+        }
+        /*
+         * Per-token frames, present only with --include-partial-messages.
+         *
+         * The CLI wraps the raw SSE-style stream in {"type":"stream_event",
+         * "event":{…}} lines that arrive WHILE the model is still generating —
+         * which is what makes the desktop-app experience of text appearing
+         * token by token possible at all. Only two inner event types matter
+         * here:
+         *
+         *   message_start       -> carries message.id; deltas that follow
+         *                           belong to it (they carry no id themselves)
+         *   content_block_delta -> text_delta / thinking_delta = one token
+         *
+         * Everything else (content_block_start/stop, message_delta,
+         * message_stop, input_json_delta) is bookkeeping the completed
+         * `assistant` line already answers better: tool inputs only exist in
+         * full there, so tool_use is parsed exclusively from that line.
+         */
+        Some("stream_event") => {
+            let Some(event) = v.get("event") else { return out; };
+            match event.get("type").and_then(|x| x.as_str()) {
+                Some("message_start") => {
+                    state.current_msg = event
+                        .pointer("/message/id")
+                        .and_then(|x| x.as_str())
+                        .map(|s| s.to_string());
+                }
+                Some("content_block_delta") => {
+                    let Some(delta) = event.get("delta") else { return out; };
+                    match delta.get("type").and_then(|x| x.as_str()) {
+                        Some("text_delta") => {
+                            let s = delta.get("text").and_then(|x| x.as_str()).unwrap_or("");
+                            if !s.is_empty() {
+                                out.push(json!({ "kind": "text", "text": s }));
+                                /* Remember which id this text came from, so the
+                                   trailing `assistant` line can be deduped. */
+                                if let Some(id) = state.current_msg.clone() {
+                                    state.text_streamed.insert(id);
+                                }
+                            }
+                        }
+                        Some("thinking_delta") => {
+                            let s = delta.get("thinking").and_then(|x| x.as_str()).unwrap_or("");
+                            if !s.is_empty() {
+                                out.push(json!({ "kind": "thinking", "text": s }));
+                                if let Some(id) = state.current_msg.clone() {
+                                    state.think_streamed.insert(id);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
         }
         Some("system") => {
@@ -674,35 +819,98 @@ pub async fn cli_chat(
         });
     }
 
-    let mut reader = BufReader::new(stdout).lines();
     /*
-     * Call ids already folded into a `todo` event, so their `tool_result` lines
-     * can be dropped instead of appearing as a nameless second row. Lives here
-     * because the reader sees every line; the per-line parser cannot know it.
+     * Reading and relaying are split across a channel + select, for one
+     * specific reason: the per-token delta flood needs a TIME-based flush, and
+     * `next_line()` is not cancel-safe inside `tokio::select!` — if the timer
+     * branch wins while a line is half-read, the bytes already consumed are
+     * dropped and the next line comes out corrupted. So the reader task owns
+     * `next_line()` for its whole life (never interrupted), and the relay loop
+     * selects on the CHANNEL (trivially cancel-safe) vs a 60ms tick.
+     *
+     * Why 60ms: `--include-partial-messages` emits ~50-100 delta lines per
+     * second. Relaying each one directly would setState the store that often,
+     * re-rendering the whole CliChat tree per token — the exact freeze this
+     * codebase already documented for the Chat panel. Batching 60ms of tokens
+     * into one merged event keeps streaming visually live (~16 renders/sec)
+     * at a fraction of the cost; the merge itself happens in `flush_events`.
      */
-    let mut todo_calls: std::collections::HashSet<String> = std::collections::HashSet::new();
-    while let Ok(Some(line)) = reader.next_line().await {
-        if !running().lock().unwrap().contains_key(&id) {
-            // Cancelled: stop relaying.
-            break;
-        }
-        if rec.json_lines {
-            // Relay the FULL structured stream (thinking / text / tool calls /
-            // tool results / errors), not just answer text. Each agent speaks a
-            // different newline-JSON dialect; both map onto the one event shape
-            // the frontend upserts by callId.
-            let events = match agent_id.as_str() {
-                "claude" => claude_events_from_line_skip(&line, &mut todo_calls),
-                "codex" => codex_events_from_line(&line),
-                _ => Vec::new(),
-            };
-            for ev in events {
-                emit(&app, json!({ "id": id, "event": ev }));
+    let (line_tx, mut line_rx) = tokio::sync::mpsc::channel::<String>(256);
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            if line_tx.send(line).await.is_err() {
+                break; // relay loop gone (cancelled or finished)
             }
-        } else if !line.is_empty() {
-            emit(&app, json!({ "id": id, "text": format!("{line}\n") }));
+        }
+    });
+
+    /*
+     * Cross-line parser state: todo-call folding + delta/assistant-line dedup
+     * + the id of the message currently streaming. Lives here because the
+     * relay sees every line; the per-line parser cannot know it.
+     */
+    let mut state = ClaudeLineState::default();
+    /* Deltas waiting to be merged and shipped. Flushed by the timer (live
+       streaming), BEFORE any non-delta event (ordering), and at EOF. */
+    let mut pending: Vec<Value> = Vec::new();
+    let mut tick = tokio::time::interval(std::time::Duration::from_millis(60));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    loop {
+        tokio::select! {
+            maybe = line_rx.recv() => {
+                let Some(line) = maybe else { break; }; // reader hit EOF
+                if !running().lock().unwrap().contains_key(&id) {
+                    // Cancelled: stop relaying.
+                    break;
+                }
+                if rec.json_lines {
+                    // Relay the FULL structured stream (live deltas / thinking /
+                    // text / tool calls / tool results / errors), not just
+                    // answer text. Each agent speaks a different newline-JSON
+                    // dialect; both map onto the one event shape the frontend
+                    // upserts by callId.
+                    let events = match agent_id.as_str() {
+                        "claude" => claude_events_from_line_skip(&line, &mut state),
+                        "codex" => codex_events_from_line(&line),
+                        _ => Vec::new(),
+                    };
+                    /* Pure token lines join the batch. EVERYTHING else — a
+                       tool row, an error, a block-stop marker with no events,
+                       a session id — must land in arrival order relative to
+                       the text before it, so the batch is shipped first. A
+                       marker yielding no events still flushes: a block
+                       boundary is the natural place to show what arrived. */
+                    let semua_token = !events.is_empty()
+                        && events.iter().all(|e| {
+                            matches!(
+                                e.get("kind").and_then(|x| x.as_str()),
+                                Some("text") | Some("thinking")
+                            )
+                        });
+                    if semua_token {
+                        pending.extend(events);
+                    } else {
+                        flush_events(&app, &id, &mut pending);
+                        for ev in events {
+                            emit(&app, json!({ "id": id, "event": ev }));
+                        }
+                    }
+                } else if !line.is_empty() {
+                    emit(&app, json!({ "id": id, "text": format!("{line}\n") }));
+                }
+            }
+            _ = tick.tick() => {
+                flush_events(&app, &id, &mut pending);
+            }
         }
     }
+
+    /* EOF/cancel: the tail of the answer may still be batched, and `done`
+       below makes the frontend freeze the message — it must not see an empty
+       bubble for text that is still sitting here. */
+    flush_events(&app, &id, &mut pending);
 
     // Reap the child and report the outcome.
     let cancelled = {
@@ -2013,7 +2221,7 @@ mod tests {
         // arrived on a later line and was rendered as a tool row with no name,
         // carrying only "Todos have been modified successfully". The checklist
         // appeared WITH a piece of machinery beside it.
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = ClaudeLineState::default();
         let use_line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_1","name":"TodoWrite","input":{"todos":[{"content":"a","status":"pending"}]}}]}}"#;
         let ev1 = claude_events_from_line_skip(use_line, &mut seen);
         assert_eq!(ev1.len(), 1);
@@ -2028,13 +2236,115 @@ mod tests {
     fn an_ordinary_tools_result_still_arrives() {
         // The skip must be narrow: every other tool's result is the payload the
         // reader actually opened the row for.
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = ClaudeLineState::default();
         let use_line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_2","name":"Bash","input":{"command":"ls"}}]}}"#;
         claude_events_from_line_skip(use_line, &mut seen);
         let result_line = r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu_2","content":"file.txt"}]}}"#;
         let ev = claude_events_from_line_skip(result_line, &mut seen);
         assert_eq!(ev.len(), 1, "ordinary tool result was dropped: {ev:?}");
         assert_eq!(ev[0]["kind"], "tool");
+    }
+
+    /*
+     * --include-partial-messages: per-token deltas, then the completed line.
+     *
+     * The regression these guard: relaying BOTH the deltas and the trailing
+     * `assistant` line printed every answer twice. The dedup key is the
+     * message id from `message_start` (deltas carry no id of their own).
+     */
+
+    #[test]
+    fn text_deltas_stream_and_assistant_line_is_deduped() {
+        let mut st = ClaudeLineState::default();
+        // message_start names the message the following deltas belong to.
+        let start = r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_1"}}}"#;
+        assert!(claude_events_from_line_skip(start, &mut st).is_empty());
+        assert_eq!(st.current_msg.as_deref(), Some("msg_1"));
+
+        // Two deltas arrive live -> two text events, both recorded.
+        let d1 = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello "}}}"#;
+        let d2 = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"world"}}}"#;
+        let e1 = claude_events_from_line_skip(d1, &mut st);
+        let e2 = claude_events_from_line_skip(d2, &mut st);
+        assert_eq!(e1[0]["kind"], "text");
+        assert_eq!(e1[0]["text"], "hello ");
+        assert_eq!(e2[0]["text"], "world");
+        assert!(st.text_streamed.contains("msg_1"));
+
+        // The final line repeats the same bytes AND carries a tool_use:
+        // text must be dropped, the tool must survive (its input only exists
+        // in full here — input_json_delta was never parsed).
+        let done = r#"{"type":"assistant","message":{"id":"msg_1","content":[{"type":"text","text":"hello world"},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls"}}]}}"#;
+        let ev = claude_events_from_line_skip(done, &mut st);
+        assert_eq!(ev.len(), 1, "expected only the tool event, got {ev:?}");
+        assert_eq!(ev[0]["kind"], "tool");
+        assert_eq!(ev[0]["tool"]["callId"], "t1");
+    }
+
+    #[test]
+    fn thinking_deltas_stream_and_assistant_line_is_deduped() {
+        let mut st = ClaudeLineState::default();
+        let start = r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_2"}}}"#;
+        claude_events_from_line_skip(start, &mut st);
+        let d = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"let me reason"}}}"#;
+        let ev = claude_events_from_line_skip(d, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["kind"], "thinking");
+        assert_eq!(ev[0]["text"], "let me reason");
+        assert!(st.think_streamed.contains("msg_2"));
+
+        // The completed line repeats the reasoning -> dropped.
+        let done = r#"{"type":"assistant","message":{"id":"msg_2","content":[{"type":"thinking","thinking":"let me reason"}]}}"#;
+        let ev2 = claude_events_from_line_skip(done, &mut st);
+        assert!(ev2.is_empty(), "thinking was emitted twice: {ev2:?}");
+    }
+
+    #[test]
+    fn assistant_line_without_deltas_still_emits_text() {
+        // No stream_event lines at all (flag absent / older CLI): the old
+        // path must be untouched — a fresh state skips nothing.
+        let mut st = ClaudeLineState::default();
+        let done = r#"{"type":"assistant","message":{"id":"msg_3","content":[{"type":"text","text":"plain"}]}}"#;
+        let ev = claude_events_from_line_skip(done, &mut st);
+        assert_eq!(ev.len(), 1, "expected the text event, got {ev:?}");
+        assert_eq!(ev[0]["text"], "plain");
+    }
+
+    #[test]
+    fn deltas_of_one_message_do_not_suppress_another() {
+        // Dedup is per message id: a later message's line must still emit.
+        let mut st = ClaudeLineState::default();
+        claude_events_from_line_skip(
+            r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_a"}}}"#,
+            &mut st,
+        );
+        claude_events_from_line_skip(
+            r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"a"}}}"#,
+            &mut st,
+        );
+        claude_events_from_line_skip(
+            r#"{"type":"assistant","message":{"id":"msg_a","content":[{"type":"text","text":"a"}]}}"#,
+            &mut st,
+        );
+        // msg_b never streamed deltas: its text still comes through.
+        let ev = claude_events_from_line_skip(
+            r#"{"type":"assistant","message":{"id":"msg_b","content":[{"type":"text","text":"b"}]}}"#,
+            &mut st,
+        );
+        assert_eq!(ev.len(), 1, "expected msg_b text, got {ev:?}");
+        assert_eq!(ev[0]["text"], "b");
+    }
+
+    #[test]
+    fn partial_messages_flag_is_passed() {
+        // Without the flag the CLI only writes completed messages and the tab
+        // shows the answer all at once after seconds of silence — the opposite
+        // of the desktop app. With it, text_delta frames stream live.
+        let a = build_args("claude", "hi", None, None, None);
+        assert!(
+            a.iter().any(|x| x == "--include-partial-messages"),
+            "flag missing: {a:?}"
+        );
     }
 
     #[test]
