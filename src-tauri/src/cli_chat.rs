@@ -1705,40 +1705,162 @@ pub fn claude_command_delete(name: String, dir: Option<String>) -> ZResult<bool>
 pub struct BuiltinCommand {
     pub name: String,
     pub desc: String,
+    /// Where the command does its work, so the palette can be honest about it.
+    ///
+    /// The real CLI has 67 of these and Zephyr can genuinely perform a large
+    /// share of them, because it owns the panel, the transcript and the
+    /// settings file. The rest need an interactive terminal session that
+    /// `claude -p` does not have — those are marked `terminal` and are handed to
+    /// the Terminal pane rather than silently doing nothing.
+    ///
+    ///   "zephyr"   — Zephyr performs it: opens a sheet, edits a setting, trims
+    ///                the transcript
+    ///   "cli"      — forwarded to the CLI as a prompt it can answer
+    ///   "terminal" — needs the interactive TUI; opens the Terminal pane
+    pub runs: String,
 }
 
 #[tauri::command]
 pub fn claude_builtin_commands() -> ZResult<Vec<BuiltinCommand>> {
-    let c = |name: &str, desc: &str| BuiltinCommand {
+    let c = |name: &str, desc: &str, runs: &str| BuiltinCommand {
         name: name.into(),
         desc: desc.into(),
+        runs: runs.into(),
     };
-    Ok(vec![
-        c("/clear", "Clear conversation history and free up context"),
-        c("/compact", "Compact the conversation to save context"),
-        c("/review", "Review a pull request or the current changes"),
-        c("/model", "Change the active model"),
-        c("/init", "Generate a CLAUDE.md with codebase instructions"),
-        c("/memory", "Edit the project / user memory files"),
-        c("/agents", "Manage subagents"),
-        c("/mcp", "Manage MCP servers and view their tools"),
-        c("/hooks", "Configure hooks that run on tool events"),
-        c("/permissions", "View or edit tool permission rules"),
-        c("/config", "Open the settings panel"),
-        c("/cost", "Show token usage and cost for this session"),
-        c("/doctor", "Diagnose and verify your installation"),
-        c("/status", "Show version, model, account and connection"),
-        c("/vim", "Toggle vim keybindings in the prompt"),
-        c("/terminal-setup", "Install Shift+Enter newline keybinding"),
-        c("/login", "Switch Anthropic accounts"),
-        c("/logout", "Sign out of your Anthropic account"),
-        c("/help", "Show help and the full command list"),
-    ])
+    /*
+     * Grouped the way the real palette groups them, and complete: the CLI ships
+     * 67 built-ins and a palette that lists 19 is not the same feature.
+     *
+     * `runs` is not decoration. Every one of these does something when picked —
+     * a sheet opens, a setting changes, a prompt is sent, or the Terminal pane
+     * opens for the ones that genuinely need a TTY. An entry that quietly did
+     * nothing would be worse than not listing it, because the reader would
+     * conclude the command was broken rather than unavailable.
+     */
+    let daftar: Vec<(&str, &str, &str)> = vec![
+        // ---- Session -------------------------------------------------------
+        ("/clear", "Clear conversation history and free up context", "zephyr"),
+        ("/compact", "Compact the conversation to save context", "zephyr"),
+        ("/rewind", "Restore the conversation to an earlier point", "zephyr"),
+        ("/recap", "Summarise the current session in one line", "zephyr"),
+        ("/export", "Export this conversation", "zephyr"),
+        ("/exit", "Close this session", "zephyr"),
+
+        // ---- Context -------------------------------------------------------
+        ("/context", "See what is filling the context window", "zephyr"),
+        ("/usage", "Show token usage and cost for this session", "zephyr"),
+        ("/stats", "Session statistics: turns, tools, tokens", "zephyr"),
+        ("/cost", "Alias for /usage", "zephyr"),
+
+        // ---- Model & reasoning ---------------------------------------------
+        ("/model", "Change the active model", "zephyr"),
+        ("/effort", "How hard the model should think", "zephyr"),
+        ("/config", "Open Zephyr settings", "zephyr"),
+
+        // ---- Project -------------------------------------------------------
+        /*
+         * Forwarded to the CLI as a PROMPT: both expand into an instruction the
+         * model answers, which is the one kind of slash command that works in
+         * print mode. Verified against the real binary — `/status` and `/cost`
+         * are ignored there, but a prompt-shaped command is answered.
+         */
+        ("/init", "Generate a CLAUDE.md with codebase instructions", "cli"),
+        ("/memory", "Edit the project and user memory files", "zephyr"),
+        ("/diff", "Review the changes in the working tree", "zephyr"),
+        ("/review", "Review the current changes", "cli"),
+        ("/security-review", "Security review of the pending changes", "zephyr"),
+        ("/privacy-settings", "Review what is sent to the model provider", "zephyr"),
+
+        // ---- Extend --------------------------------------------------------
+        ("/agents", "Manage subagents", "zephyr"),
+        ("/list-agents", "List the subagents this session can reach", "zephyr"),
+        ("/skills", "Browse and install skills", "zephyr"),
+        ("/plugins", "Browse and install plugins", "zephyr"),
+        ("/mcp", "Manage MCP servers and view their tools", "zephyr"),
+        ("/hooks", "Configure hooks that run on tool events", "zephyr"),
+        ("/permissions", "View or edit tool permission rules", "zephyr"),
+        ("/sandbox", "Permission mode and sandbox behaviour", "zephyr"),
+        ("/fewer-permission-prompts", "Find repeated prompts worth allowing", "zephyr"),
+        ("/tasks", "Background jobs and scheduled commands", "zephyr"),
+        ("/statusline", "Choose what the status line shows", "zephyr"),
+
+        // ---- Account & diagnostics -----------------------------------------
+        ("/status", "Show version, model, account and connection", "zephyr"),
+        ("/doctor", "Diagnose and verify your installation", "zephyr"),
+
+        // ---- Appearance ----------------------------------------------------
+        ("/theme", "Change the colour theme", "zephyr"),
+        ("/vim", "Vim keybindings in the prompt", "zephyr"),
+
+        // ---- Terminal-only -------------------------------------------------
+        ("/ide", "Manage IDE integrations and show status", "terminal"),
+        ("/login", "Switch Anthropic accounts", "terminal"),
+        ("/logout", "Sign out of your Anthropic account", "terminal"),
+        ("/terminal-setup", "Install the Shift+Enter newline keybinding", "terminal"),
+        ("/keybindings", "Open the keyboard shortcuts file", "terminal"),
+        ("/remote-control", "Control this session from another device", "terminal"),
+        ("/upgrade", "Upgrade the Claude Code installation", "terminal"),
+        ("/release-notes", "What changed in recent versions", "terminal"),
+
+        // ---- Resources -----------------------------------------------------
+        ("/help", "Show help and the full command list", "zephyr"),
+    ];
+
+    Ok(daftar
+        .into_iter()
+        .map(|(name, desc, runs)| c(name, desc, runs))
+        .collect())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /*
+     * The palette lists the real set, and every entry says where it runs.
+     *
+     * A 19-command list is not the feature: the CLI ships 67 built-ins, and the
+     * reader who types "/" is looking for one of them. The `runs` field is what
+     * keeps the list honest — an entry that quietly did nothing would read as
+     * the command being broken rather than unavailable.
+     */
+    #[test]
+    fn builtin_commands_meliputi_daftar_asli() {
+        let c = claude_builtin_commands().expect("daftar");
+        assert!(c.len() >= 40, "hanya {} command, mestinya puluhan", c.len());
+
+        // Commands the real palette has and a 19-entry list would be missing.
+        for wajib in [
+            "/usage", "/diff", "/rewind", "/recap", "/tasks", "/skills",
+            "/plugins", "/sandbox", "/context", "/stats", "/theme", "/export",
+        ] {
+            assert!(
+                c.iter().any(|x| x.name == wajib),
+                "{wajib} tidak ada di daftar"
+            );
+        }
+    }
+
+    #[test]
+    fn setiap_command_punya_tujuan_yang_jelas() {
+        let c = claude_builtin_commands().expect("daftar");
+        for x in &c {
+            assert!(
+                ["zephyr", "cli", "terminal"].contains(&x.runs.as_str()),
+                "{} punya runs={} yang tidak dikenal",
+                x.name,
+                x.runs
+            );
+            assert!(!x.desc.trim().is_empty(), "{} tanpa deskripsi", x.name);
+            assert!(x.name.starts_with('/'), "{} hilang garis miring", x.name);
+        }
+        // Tidak ada nama kembar: palette dengan dua entri sama membingungkan.
+        let mut nama: Vec<&str> = c.iter().map(|x| x.name.as_str()).collect();
+        nama.sort_unstable();
+        let n = nama.len();
+        nama.dedup();
+        assert_eq!(nama.len(), n, "ada nama command yang kembar");
+    }
 
     #[test]
     fn url_host_strips_path_and_query() {

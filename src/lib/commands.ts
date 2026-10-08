@@ -745,7 +745,12 @@ export const claudeCommandDelete = (name: string, dir?: string) =>
 
 /* The built-in Claude Code slash commands, so the "Slash commands" popup is
    complete even before the user adds any custom ones. */
-export interface BuiltinCommand { name: string; desc: string }
+export interface BuiltinCommand {
+  name: string;
+  desc: string;
+  /** Where it runs: 'zephyr' | 'cli' | 'terminal'. */
+  runs: string;
+}
 export const claudeBuiltinCommands = () => invoke<BuiltinCommand[]>('claude_builtin_commands');
 
 export interface CatalogItem {
