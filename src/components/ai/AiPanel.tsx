@@ -111,8 +111,18 @@ const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: ()
   const baris: React.ReactNode[] = [];
   let hariSebelumnya: number | null = null;
   for (const m of msgs) {
-    const hari = new Date(m.at).setHours(0, 0, 0, 0);
-    if (hari !== hariSebelumnya) {
+    const t = new Date(m.at);
+    /*
+     * A message with an unusable `at` must NOT draw a divider.
+     *
+     * `new Date(undefined)` is Invalid Date, and `NaN !== NaN` is true — so
+     * without this guard the FIRST malformed message made every subsequent
+     * comparison unequal and a divider landed before EVERY message, the thing
+     * that made the transcript look like it had swallowed 50px of dead air
+     * between each pair of bubbles.
+     */
+    const hari = Number.isNaN(t.getTime()) ? null : t.setHours(0, 0, 0, 0);
+    if (hari !== null && hari !== hariSebelumnya) {
       baris.push(<DayDivider key={`d-${m.id}`} at={m.at} />);
       hariSebelumnya = hari;
     }

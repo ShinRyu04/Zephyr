@@ -149,6 +149,75 @@ pub fn baca_gambar(path: String) -> ZResult<GambarData> {
     })
 }
 
+/// Write a base64 image to a temp file and return its path.
+///
+/// WHY this exists rather than reusing `fs_write`: the CLI reads images by
+/// PATH (`@file`), and a pasted screenshot has no path — it only ever lived in
+/// the clipboard. `fs_write` is also deliberately confined to the workspace by
+/// `resolve_ws`, which is the wrong place for a screenshot the user pasted
+/// into a chat. So this writes to the OS temp dir under a `zephyr-paste`
+/// folder, which is exactly the pattern the rest of this crate already uses
+/// (`agent_exec`, `agent_patch`, `cli`).
+///
+/// The file name is content-addressed by a short hash of the bytes, so pasting
+/// the same screenshot twice reuses one file instead of littering the temp dir
+/// with copies — and the caller can dedupe on the returned path.
+///
+/// Returns the ABSOLUTE path, which is what the CLI's `@` reference needs.
+#[tauri::command]
+pub fn simpan_gambar_temp(base64: String, ext: String) -> ZResult<String> {
+    use base64::Engine;
+
+    /* The extension decides nothing about safety, but it DOES decide how the
+       CLI reads the file: a PNG named `.bin` is not recognised as an image, so
+       the extension is validated against a small allow-list rather than
+       sanitised into something the model cannot open. */
+    let ext = ext.trim_start_matches('.').to_ascii_lowercase();
+    let ext = match ext.as_str() {
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" => {
+            if ext == "jpeg" { "jpg".to_string() } else { ext }
+        }
+        other => {
+            return Err(ZephyrError::InvalidInput(format!(
+                "unsupported image extension: {other}"
+            )))
+        }
+    };
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64.as_bytes())
+        .map_err(|e| ZephyrError::InvalidInput(format!("base64 gambar tidak valid: {e}")))?;
+
+    if bytes.len() as u64 > MAX_BYTES {
+        return Err(ZephyrError::InvalidInput(format!(
+            "gambar terlalu besar ({} MB, maks {} MB)",
+            bytes.len() / 1048576,
+            MAX_BYTES / 1048576
+        )));
+    }
+
+    /* Content hash for the name: same screenshot -> same path -> the caller's
+       `xs.some(x => x.path === path)` dedupe keeps working, and the temp dir
+       does not grow by one file per paste. */
+    let hash = blake3::hash(&bytes).to_hex();
+    let nama = format!("{}.{}", &hash[..24], ext);
+
+    let dir = std::env::temp_dir().join("zephyr-paste");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| ZephyrError::Io(format!("cannot create temp folder: {e}")))?;
+    let path = dir.join(nama);
+
+    /* Skip the write when the file is already there and the same size: the
+       name IS the hash, so an existing file with that name is that image. */
+    let sudah_ada = std::fs::metadata(&path).map(|m| m.len() == bytes.len() as u64).unwrap_or(false);
+    if !sudah_ada {
+        std::fs::write(&path, &bytes)
+            .map_err(|e| ZephyrError::Io(format!("cannot write temp image: {e}")))?;
+    }
+
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

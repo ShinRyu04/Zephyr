@@ -313,6 +313,33 @@
   word-break: break-word;
 }
 
+/*
+ * Images the reader attached, shown inside their own bubble.
+ *
+ * A grid rather than a row, so two screenshots sit side by side and a third
+ * wraps under them instead of running off the panel. `max-height` on each tile
+ * keeps a tall screenshot from pushing the conversation off the screen — the
+ * thumbnail is a reminder of what was sent, and the zoom viewer is where it is
+ * actually read.
+ */
+.cli-user-imgs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.cli-user-img {
+  width: 100%;
+  max-height: 190px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1, var(--bg));
+  cursor: zoom-in;
+  display: block;
+}
+
 .cli-native-assistant {
   display: flex;
   flex-direction: column;

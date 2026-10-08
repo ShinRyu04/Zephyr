@@ -378,6 +378,7 @@ pub fn run() {
             cc_plugins::cc_plugin_uninstall,
             cc_plugins::cc_plugin_marketplaces,
             gambar::baca_gambar,
+            gambar::simpan_gambar_temp,
             app_state::portable_mode,
             ai::ai_tool_chat,
             ai::ai_tool_chat_stream,

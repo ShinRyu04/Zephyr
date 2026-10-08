@@ -9,9 +9,11 @@ import {
   scanDir,
   folderDialogOpen,
   bacaGambar,
+  simpanGambarTemp,
   claudeBuiltinCommands,
   type BuiltinCommand,
 } from '../../lib/commands';
+import { clipboardReadImage } from '../../lib/clipboard';
 import { useT, useTf, tx } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CliTimeline from './CliTimeline';
@@ -98,6 +100,29 @@ const PANEL_IDS = new Set<SlashPanel>([
   'status', 'permissions', 'sandbox', 'memory', 'instructions', 'commands',
   'style', 'plugins', 'mcp', 'hooks', 'account', 'agents', 'skills',
 ]);
+
+/*
+ * What the reader's own bubble shows: their words, without the attachment
+ * plumbing.
+ *
+ * An image attachment reaches the CLI as `@/tmp/zephyr-paste/<hash>.png` and a
+ * folder as `@folder`, both prepended to the prompt on their own line. Feeding
+ * that straight back into the bubble printed a band of temp paths above the
+ * message — machinery the reader never typed and cannot act on. The pictures
+ * are shown as pictures above this text, so the references themselves add
+ * nothing but noise.
+ *
+ * Only the DISPLAY is filtered; `m.content` — what was sent — is untouched, and
+ * an `@file` the reader typed themselves (a real inline reference, which is a
+ * supported gesture) is left alone because it sits INSIDE the text rather than
+ * on the leading attachment line.
+ */
+const REF_LAMPIRAN = /^@\S+(?:\s+@\S+)*\s*/;
+
+function visibleUserText(content: string): string {
+  /* One leading run of references: exactly how `kirim` builds the prefix. */
+  return content.replace(REF_LAMPIRAN, '');
+}
 
 export default function CliChat({ agentId, label }: { agentId: string; label: string }) {
   const tr = useT();
@@ -258,11 +283,17 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
     const t = draft.trim();
     if ((!t && images.length === 0) || pending) return;
     const folderRefs = attachments.length ? attachments.map((a) => `@${a}`).join(' ') : '';
-    /* Images go to Claude as `@path` references — the CLI reads the real file,
-       exactly as the desktop app does. */
+    /*
+     * Images go to Claude as `@path` references — the CLI reads the real file,
+     * exactly as the desktop app does. The paths go into the PROMPT only; the
+     * transcript shows the pictures themselves (see `send`'s `images` option),
+     * because a row of `@C:/Temp/...png` is not something a reader can look at.
+     */
     const imgRefs = images.length ? images.map((im) => `@${im.path}`).join(' ') : '';
     const prefix = [folderRefs, imgRefs].filter(Boolean).join(' ');
-    void send(agentId, prefix ? `${prefix}\n${t}` : t);
+    void send(agentId, prefix ? `${prefix}\n${t}` : t, {
+      images: images.length ? images : undefined,
+    });
     setDraft('');
     setAttachments([]);
     setImages([]);
@@ -339,6 +370,90 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       setImages((xs) => (xs.some((x) => x.path === p) ? xs : [...xs, { path: p, url }]));
     } catch {
       /* unreadable image — ignore */
+    }
+    inputRef.current?.focus();
+  };
+
+  /*
+   * Paste an image from the clipboard, the way the real Claude Code does.
+   *
+   * Two paths, tried in order, because they cover different sources:
+   *
+   *  1. `e.clipboardData.items` — a real paste EVENT. This is the only path
+   *     that has the bytes when the clipboard holds raw image data (a
+   *     screenshot tool, or an image copied from a browser). It must be read
+   *     SYNCHRONOUSLY inside the handler; the DataTransferItem is dead as soon
+   *     as the event returns.
+   *  2. The Tauri clipboard plugin — the fallback for when the event carries
+   *     nothing usable (WebView2 does not always populate `items` for
+   *     clipboard images, and a keyboard-less paste can reach us with an empty
+   *     dataTransfer). It returns a PNG data URL.
+   *
+   * A pasted image has no path: it never touched disk. So it is written to a
+   * temp file first, because the CLI reads images by PATH (`@file`) — handing
+   * it a data URL would send a wall of base64 as text. The path is what makes
+   * the CLI actually look at the picture.
+   */
+  const tempelGambar = async (e?: React.ClipboardEvent) => {
+    setMenu(null);
+    /* 1. Bytes straight off the paste event, if the browser gave us any. */
+    const items = e?.clipboardData?.items;
+    let file: File | null = null;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          file = items[i].getAsFile();
+          break;
+        }
+      }
+    }
+    if (file) {
+      e?.preventDefault();
+      const url = await new Promise<string | null>((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(typeof r.result === 'string' ? r.result : null);
+        r.onerror = () => resolve(null);
+        r.readAsDataURL(file!);
+      });
+      if (url) {
+        await simpanTempel(url);
+        return;
+      }
+    }
+    /* 2. The plugin, for the cases the event did not cover. */
+    const url = await clipboardReadImage();
+    if (url) {
+      await simpanTempel(url);
+      return;
+    }
+    setToast(tx('No image on the clipboard'));
+  };
+
+  /*
+   * Write a pasted data URL to a real file and attach it.
+   *
+   * The CLI's `@path` reference is the whole contract for images: a data URL
+   * sent through the prompt would arrive as a megabyte of base64 text that the
+   * model cannot see, which is exactly the "foto tidak terkirim" symptom. The
+   * temp file is what turns a clipboard byte-blob back into something with a
+   * path.
+   *
+   * Failure is reported rather than swallowed: the user pasted something and
+   * it is gone, so silence would read as a broken paste.
+   */
+  const simpanTempel = async (dataUrl: string) => {
+    try {
+      const m = /^data:image\/([a-z0-9+.-]+);base64,(.+)$/i.exec(dataUrl);
+      if (!m) {
+        setToast(tx('Clipboard image could not be read'));
+        return;
+      }
+      const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase();
+      const path = await simpanGambarTemp(m[2], ext);
+      setImages((xs) => (xs.some((x) => x.path === path) ? xs : [...xs, { path, url: dataUrl }]));
+      setToast(tx('Screenshot attached'));
+    } catch {
+      setToast(tx('Clipboard image could not be saved'));
     }
     inputRef.current?.focus();
   };
@@ -986,7 +1101,37 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
                    * reading their own words. The same two actions live on the
                    * assistant reply below, which is where attention already is.
                    */
-                  <div className="cli-native-user">{m.content}</div>
+                  <div className="cli-native-user">
+                    {/*
+                      * The images first, the words after — the same order they
+                      * were attached, and the same order the desktop app shows
+                      * them. Clicking one opens the zoom viewer.
+                      */}
+                    {m.images && m.images.length > 0 && (
+                      <div className="cli-user-imgs" data-testid={`ai-clichat-user-imgs-${m.id}`}>
+                        {m.images.map((im) => (
+                          <img
+                            key={im.path}
+                            src={im.url}
+                            alt=""
+                            className="cli-user-img"
+                            title={tr('Click to zoom')}
+                            onClick={() => setZoomImg(im.url)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {/*
+                      * Strip the `@path` references from what is DISPLAYED.
+                      *
+                      * They are the mechanism that feeds the CLI the picture, not
+                      * part of what the reader typed — showing them back printed
+                      * a row of temp-file paths above their own words. The
+                      * content sent to the CLI is untouched; this only affects
+                      * the bubble.
+                      */}
+                    {visibleUserText(m.content)}
+                  </div>
                 ) : (
                   <div className="cli-native-assistant">
                     <CliTimeline msg={m} streaming={pending === m.id} />
@@ -1127,6 +1272,38 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
               kirim();
             }
           }}
+          /*
+           * Ctrl+V with an image on the clipboard, like the real Claude Code.
+           *
+           * Wired to the textarea rather than the document so a paste lands
+           * where the reader is typing, and so pasting TEXT still behaves
+           * normally (the handler only intercepts when it actually finds an
+           * image, in which case `tempelGambar` calls preventDefault itself).
+           */
+          onPaste={(e) => {
+            const items = e.clipboardData?.items;
+            for (let i = 0; items && i < items.length; i++) {
+              if (items[i].type.startsWith('image/')) {
+                void tempelGambar(e);
+                return;
+              }
+            }
+            /*
+             * No image item in the event — but that does not mean the clipboard
+             * is empty of one. WebView2 frequently hands the DOM a paste with
+             * NO image item at all (bitmap formats the event does not surface),
+             * and the handler above then did nothing: a screenshot paste that
+             * silently no-ops reads as "the feature is broken".
+             *
+             * So fall through to the clipboard plugin — the same route Chat AI
+             * already uses (AiPanel's onPaste) — and do it QUIETLY: a plain
+             * TEXT paste must not pop a "no image" toast, so only the success
+             * path speaks (simpanTempel toasts on its own).
+             */
+            void clipboardReadImage().then((url) => {
+              if (url) void simpanTempel(url);
+            });
+          }}
         />
         <div className="cli-native-bar">
           {/* "+" menu: upload / add context */}
@@ -1143,9 +1320,22 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
             </button>
             {menu === 'plus' && (
               <div className="cli-pop cli-pop-up" role="menu" data-testid={`ai-clichat-plus-menu-${agentId}`}>
-                <button role="menuitem" className="cli-pop-item" onClick={attachImage}>
+                <button role="menuitem" className="cli-pop-item" onClick={attachImage} data-testid={`ai-clichat-add-image-${agentId}`}>
                   <AiIkon name="image" size={14} />
                   {tr('Add image')}
+                </button>
+                {/* Paste is its own row, not just the Ctrl+V shortcut: a
+                    screenshot is the common case, and the keyboard route is
+                    invisible until someone already knows it exists. The real
+                    Claude Code offers both. */}
+                <button
+                  role="menuitem"
+                  className="cli-pop-item"
+                  data-testid={`ai-clichat-paste-image-${agentId}`}
+                  onClick={() => void tempelGambar()}
+                >
+                  <AiIkon name="clipboard" size={14} />
+                  {tr('Paste image')}
                 </button>
                 <button role="menuitem" className="cli-pop-item" onClick={attachFile}>
                   <AiIkon name="export" size={14} />
