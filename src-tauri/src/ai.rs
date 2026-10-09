@@ -45,6 +45,25 @@ pub struct ChatMsg {
 
     #[serde(default)]
     pub images: Option<Vec<String>>,
+
+    /*
+     * The reasoning this turn produced, echoed back on the next request.
+     *
+     * An assistant message in the chat history carries its own chain of thought
+     * so the model can see HOW it reached its previous answer, not only what it
+     * said. Anthropic validates the signature against the thinking block; the
+     * OpenAI-compatible gateways take `reasoning_content` and have no signature
+     * field, which is why the two are separate and the signature is optional.
+     *
+     * Declared here because serde DROPS unknown fields: without these, the
+     * frontend could attach reasoning to every assistant turn in the history
+     * and it would be silently discarded before the request was built.
+     */
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_signature: Option<String>,
 }
 
 impl ChatMsg {
@@ -616,6 +635,24 @@ pub fn ai_chat(
         let mut buf_line = String::new();
         let mut reader = reader;
         let mut terminal_error: Option<String> = None;
+        /*
+         * The turn's reasoning, accumulated so the finished message can carry it.
+         *
+         * The live text is emitted below as it streams, but it was never KEPT:
+         * the chat's `done` frame carried no `reasoning`, and the history that
+         * the next request is built from had nothing to echo. Providers that
+         * expose reasoning expect their own chain of thought back — Anthropic
+         * validates the signature on a thinking block, the OpenAI-compatible
+         * gateways take `reasoning_content` on the assistant turn — so a chat
+         * that dropped it made the model re-derive, or contradict, what it had
+         * already worked out one turn earlier.
+         *
+         * A plain accumulator rather than `StreamAcc`: this path has no tools,
+         * so it needs neither the tool-call blocks nor the XML fallback, only
+         * the two reasoning fields every format has in common.
+         */
+        let mut reasoning_acc = String::new();
+        let mut reasoning_sig = String::new();
 
         loop {
             if cancel.load(Ordering::Relaxed) {
@@ -679,7 +716,24 @@ pub fn ai_chat(
             };
 
             if let Some(think) = adapters::extract_reasoning(&prov, &v) {
+                /*
+                 * Accumulated as well as emitted.
+                 *
+                 * The frames arriving here are deltas for every format this app
+                 * speaks, so appending is right; the frontend's cumulative/delta
+                 * heuristic exists for providers that restate the whole text,
+                 * and it protects the BUBBLE, not this string. A cumulative
+                 * provider would build a longer history here than the screen
+                 * showed — kept deliberately, because the history is what the
+                 * model reads back, and a duplicated chain of thought is a far
+                 * cheaper error than a missing one.
+                 */
+                reasoning_acc.push_str(&think);
                 emit_chunk(&handle, json!({ "id": req_id, "reasoning": think }));
+            }
+            /* Anthropic's signature rides a delta of its own, with no text. */
+            if let Some(sig) = v.pointer("/delta/signature").and_then(|x| x.as_str()) {
+                reasoning_sig.push_str(sig);
             }
             if let Some(text) = adapters::extract_delta(&prov, &v) {
                 if !text.is_empty() {
@@ -711,7 +765,24 @@ pub fn ai_chat(
         if let Some(err) = terminal_error_to_emit(cancelled, terminal_error) {
             emit_chunk(&handle, json!({ "id": req_id, "err": err }));
         }
-        emit_chunk(&handle, json!({ "id": req_id, "done": true, "cancelled": cancelled }));
+        /*
+         * Hand the reasoning back with the finished turn.
+         *
+         * Attached only when non-empty: `reasoning: ""` is not the same as
+         * absent, and some routers reject the empty form. This is what lets the
+         * chat's history carry the model's own chain of thought into the next
+         * request instead of leaving it on screen only.
+         */
+        let reasoning = (!reasoning_acc.is_empty()).then_some(reasoning_acc);
+        let signature = (!reasoning_sig.is_empty()).then_some(reasoning_sig);
+        let mut akhir = json!({ "id": req_id, "done": true, "cancelled": cancelled });
+        if let Some(r) = &reasoning {
+            akhir["reasoning"] = json!(r);
+        }
+        if let Some(s) = &signature {
+            akhir["reasoningSignature"] = json!(s);
+        }
+        emit_chunk(&handle, akhir);
     });
 
     let _ = state;
@@ -991,11 +1062,11 @@ pub fn ai_tool_chat_stream(
              * CONVERSATION needs. Anthropic sends the signature in a separate
              * delta and rejects a thinking block returned without it, so both
              * halves are accumulated on the tool accumulator and handed back
-             * with the finished step.
+             * with the finished step. The same call covers the OpenAI and Gemini
+             * accumulators, which carried no reasoning at all before — their
+             * finished step reported null however much the model had thought.
              */
-            if let StreamAcc::Anthropic(a) = &mut acc {
-                a.feed_reasoning(&v);
-            }
+            acc.feed_reasoning(&v);
             /*
              * Token usage for the step.
              *
@@ -1055,10 +1126,7 @@ pub fn ai_tool_chat_stream(
         }
 
         /* Read the reasoning BEFORE `finish` consumes the accumulator. */
-        let (reasoning, reasoning_sig) = match &acc {
-            StreamAcc::Anthropic(a) => a.reasoning_parts(),
-            _ => (None, None),
-        };
+        let (reasoning, reasoning_sig) = acc.reasoning_parts();
         let (content, tool_calls) = acc.finish();
         /*
          * Flush whatever is still held.

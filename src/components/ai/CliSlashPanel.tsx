@@ -22,6 +22,7 @@ import {
 } from '../../lib/commands';
 import { useT, tf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
+import { useDragPopup } from '../../lib/useDragPopup';
 
 /*
  * The real popups behind the Claude Code slash "/" palette.
@@ -158,16 +159,19 @@ export default function CliSlashPanel({
   }, [panel, cwd, isCatalog]);
 
   const wide = isCatalog || panel === 'memory' || panel === 'instructions' || panel === 'commands';
+  const { popupRef: dragRef, onPointerDown: dragStart } = useDragPopup();
 
   return (
     <div className="cli-sheet-backdrop" data-testid="cli-slash-panel" onMouseDown={onClose}>
       <div
+        ref={dragRef}
         className={`cli-sheet${wide ? ' is-wide' : ''}`}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
         role="dialog"
         aria-label={tr(TITLES[panel])}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="cli-sheet-head">
+        <div className="cli-sheet-head" data-drag-handle onPointerDown={dragStart} style={{ cursor: 'grab' }}>
           <span className="cli-sheet-title">{tr(TITLES[panel])}</span>
           <button className="cli-sheet-x" title={tr('Close')} aria-label={tr('Close')} onClick={onClose}>
             <AiIkon name="close" size={13} />

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import type { ChatMsg } from '../../lib/types';
 import { useT } from '../../lib/i18n';
-import { kiraToken, jendelaKonteks, perkiraanKonteks } from '../../lib/contextBudget';
+import { useDragPopup } from '../../lib/useDragPopup';
+import { kiraToken, jendelaKonteks, perkiraanKonteks, AUTO_COMPACT_AT } from '../../lib/contextBudget';
 
 /*
  * Re-exported for the existing callers (the t3-11 check imports them from this
@@ -94,11 +95,40 @@ export default function ContextMeter() {
   };
 
   /*
+   * Click PINNED open, hover only borrows it.
+   *
+   * Hover-first is kept — the numbers are one glance away — but a click used to
+   * toggle against the state hover had already set: you pressed the ring with
+   * the panel open (because it opened as you arrived) and it CLOSED. That made
+   * the press useless, which is exactly what was reported. The click now pins:
+   * press to keep it open while your pointer moves into the panel, press again
+   * (or click outside) to dismiss. Leave-without-pin still closes after the
+   * grace period, so the old hover behaviour is intact for readers who never
+   * press anything.
+   */
+  const [sematkan, setSematkan] = useState(false);
+  const { popupRef, onPointerDown } = useDragPopup();
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!buka) return;
+    const luar = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setBuka(false);
+        setSematkan(false);
+      }
+    };
+    document.addEventListener('mousedown', luar);
+    return () => document.removeEventListener('mousedown', luar);
+  }, [buka]);
+
+  /*
    * A short grace period before closing: moving the pointer from the ring to
    * the panel crosses a few pixels that belong to neither, and without the
    * delay the panel closes mid-reach.
    */
   const tutupNanti = () => {
+    if (sematkan) return; /* pinned: only an outside click or a second press closes */
     if (tutupTimer.current !== null) window.clearTimeout(tutupTimer.current);
     tutupTimer.current = window.setTimeout(() => setBuka(false), 140);
   };
@@ -131,6 +161,7 @@ export default function ContextMeter() {
 
   return (
     <span
+      ref={wrapRef}
       className="ctx-wrap"
       onMouseEnter={bukaSekarang}
       onMouseLeave={tutupNanti}
@@ -144,7 +175,15 @@ export default function ContextMeter() {
         title={tr('Context usage (estimate)')}
         aria-expanded={buka}
         aria-haspopup="dialog"
-        onClick={() => (buka ? setBuka(false) : bukaSekarang())}
+        onClick={() => {
+          if (sematkan) {
+            setSematkan(false);
+            setBuka(false);
+          } else {
+            bukaSekarang();
+            setSematkan(true);
+          }
+        }}
       >
         <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
           <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.3" />
@@ -165,7 +204,11 @@ export default function ContextMeter() {
       </button>
 
       {buka && (
-        <div className="ctx-pop" data-testid="ctx-pop" role="dialog" aria-label={tr('Context usage')}>
+        <div ref={popupRef} className="ctx-pop" data-testid="ctx-pop" role="dialog" aria-label={tr('Context usage')} style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}>
+          {/* The heading the reference panel carries. Without it the popup
+              opens straight into a giant percentage with no name — the reader
+              lands on a number and has to infer what it counts. */}
+          <div className="ctx-judul" data-testid="ctx-judul" data-drag-handle onPointerDown={onPointerDown} style={{ cursor: 'grab' }}>{tr('Session Info')}</div>
           <div className="ctx-head">
             <span className="ctx-besar">{persen}%</span>
             <span className="ctx-kecil" data-testid="ctx-angka">
@@ -174,6 +217,19 @@ export default function ContextMeter() {
           </div>
           <div className="ctx-bar" role="progressbar" aria-valuenow={persen}>
             <div className={`ctx-bar-isi is-${tingkat}`} style={{ width: `${persen}%` }} />
+            {/* The slice automatic compaction protects, drawn on the bar.
+                AUTO_COMPACT_AT is where the agent loop fires — showing it means
+                the bar's last fifth is visibly NOT free space, instead of the
+                reader learning that from a toast after a compaction they did
+                not ask for. */}
+            <div
+              className="ctx-bar-reserve"
+              style={{ left: `${AUTO_COMPACT_AT * 100}%`, width: `${100 - AUTO_COMPACT_AT * 100}%` }}
+            />
+          </div>
+          <div className="ctx-reserve">
+            <span className="ctx-reserve-swatch" aria-hidden="true" />
+            {tr('Reserved for response')}
           </div>
           <div className="ctx-baris">
             <span>{tr('Model')}</span>
@@ -203,6 +259,25 @@ export default function ContextMeter() {
           )}
           <p className="ctx-note">{tr('Estimated from the visible chat contents and tool payloads.')}</p>
           {biaya !== null && <p className="ctx-note">{tr('The cost is an estimate, not an official provider bill.')}</p>}
+          {/*
+           * The pressable action, as the reference popup has it: compacting
+           * from HERE is where a reader finds out they need it — the bar just
+           * told them the window is full. It used to exist only behind a slash
+           * command, which you cannot discover at the moment the number goes
+           * red. Clicking it compacts (keeping the last four messages) and
+           * closes the panel, so the next glance at the ring shows the result.
+           */}
+          <button
+            className="ctx-compact"
+            data-testid="ctx-compact"
+            onClick={() => {
+              useAi.getState().compactContext();
+              setBuka(false);
+              setSematkan(false);
+            }}
+          >
+            {tr('Compact Conversation')}
+          </button>
         </div>
       )}
     </span>

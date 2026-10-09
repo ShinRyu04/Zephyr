@@ -7,6 +7,7 @@ import { usePalette } from '../../lib/paletteStore';
 import { useSchedBuka } from '../../lib/schedStore';
 import Tip from './Tip';
 import WindowControls from './WindowControls';
+import UpdateBtn from '../ai/UpdateBtn';
 import { useLayoutCustom } from '../../lib/layoutStore';
 import ZephyrLogo from './ZephyrLogo';
 import { useT } from '../../lib/i18n';
@@ -310,6 +311,17 @@ export default function MenuBar() {
           The four always-visible panel-position buttons moved INTO that popup
           (VS Code style) so the menu bar no longer spends four slots on them. */}
       <div className="mb-layout" aria-label={tr('Layout')}>
+        {/*
+          * The Update button, in the title bar immediately left of Customize
+          * Layout — VSCode's placement. It used to sit in the AI panel's tab
+          * strip, which is only visible while that panel is open; the window
+          * title bar is where a reader looks for "is there a new version", and
+          * it is visible with the AI panel closed.
+          *
+          * Renders nothing unless the updater has found a release, so the bar
+          * keeps its width when there is nothing to say.
+          */}
+        <UpdateBtn />
         {/* Customize Layout (VS Code style): one panel for ALL layout
             controls. Without this, the user has to know that "hide status
             bar" is in the command palette and "zen mode" is in the View menu. */}

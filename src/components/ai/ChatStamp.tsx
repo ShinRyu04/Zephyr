@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import { useT } from '../../lib/i18n';
 
 /*
@@ -101,28 +101,38 @@ export const DayDivider = memo(function DayDivider({ at }: { at: number }) {
  * minute, and a naive 60s interval drifts: it is scheduled from page load, so
  * the display would update at :37 of every minute instead of at :00.
  */
-export const LiveClock = memo(function LiveClock() {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    let timer: number;
-    const tik = () => {
-      const s = Date.now();
-      setNow(s);
-      /* Aim at the next minute boundary, and add a small guard so a timer that
-         fires a hair early cannot compute the same minute twice and stall. */
-      const sisa = 60_000 - (s % 60_000);
-      timer = window.setTimeout(tik, sisa + 50);
-    };
-    const s = Date.now();
-    timer = window.setTimeout(tik, 60_000 - (s % 60_000) + 50);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  const jam = useMemo(() => jamSekarang(now), [now]);
+/*
+ * The time a message was sent, in the transcript.
+ *
+ * It was a LIVE clock in the panel header and that was the wrong place twice
+ * over: a ticking `00:39` beside the New Chat button reads as a control the
+ * panel forgot to wire up, and a single global clock says nothing about WHEN
+ * any particular message arrived — which is the only question a timestamp in a
+ * transcript answers ("was this the answer from just now, or from this
+ * morning?").
+ *
+ * So it is per-message and STATIC: `msg.at` is already recorded when the
+ * message is created, so this renders a fixed string and needs no timer at
+ * all. No interval means nothing to wake up every minute for text that can
+ * never change — cheaper than the header clock it replaces, not more
+ * expensive.
+ *
+ * Its own tiny component so a transcript of a hundred messages renders a
+ * hundred cheap `<time>` elements instead of re-rendering every ChatMessage.
+ */
+export const MsgTime = memo(function MsgTime({ at }: { at: number }) {
+  /* A message with no usable timestamp shows nothing rather than "Invalid
+     Date" — the transcript stays readable, and no clock is worse than a lie. */
+  const t = new Date(at);
+  if (Number.isNaN(t.getTime())) return null;
   return (
-    <time className="ai-clock" data-testid="ai-clock" dateTime={new Date(now).toISOString()}>
-      {jam}
+    <time
+      className="ai-msg-time"
+      data-testid="ai-msg-time"
+      dateTime={t.toISOString()}
+      title={t.toLocaleString()}
+    >
+      {jamSekarang(at)}
     </time>
   );
 });

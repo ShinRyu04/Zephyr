@@ -10,6 +10,8 @@ mod tests {
             content: content.into(),
             image: None,
             images: None,
+            reasoning: None,
+            reasoning_signature: None,
         }
     }
 
@@ -437,5 +439,167 @@ mod tests {
 
         assert_eq!(r.tool_calls[0].id, "editor_read-0");
         assert!(!r.done);
+    }
+
+    /*
+     * The reasoning round trip, one test per format.
+     *
+     * The defect these lock down: the reasoning was streamed to the screen and
+     * then thrown away, so the finished step reported `None` and the next
+     * request showed the model its own conclusions with the thinking stripped
+     * out. It re-derived what it had already worked out, or contradicted it.
+     *
+     * Each test feeds the accumulator the shape that format really sends, then
+     * asserts the text comes back out AND that `prepare` puts it into the next
+     * request in that same format's shape. Both halves matter: an accumulator
+     * that collects but a `prepare` that never emits leaves the bug in place.
+     */
+    #[test]
+    fn reasoning_roundtrip_anthropic() {
+        let mut acc = adapters::StreamAcc::new("anthropic");
+        acc.feed_reasoning(&json!({
+            "type": "content_block_delta",
+            "delta": { "type": "thinking_delta", "thinking": "the user wants " }
+        }));
+        acc.feed_reasoning(&json!({
+            "type": "content_block_delta",
+            "delta": { "type": "thinking_delta", "thinking": "a short answer" }
+        }));
+        /* The signature rides a delta of its own, with no text at all. */
+        acc.feed_reasoning(&json!({
+            "type": "content_block_delta",
+            "delta": { "type": "signature_delta", "signature": "SIG-abc" }
+        }));
+
+        let (teks, sig) = acc.reasoning_parts();
+        assert_eq!(teks.as_deref(), Some("the user wants a short answer"));
+        assert_eq!(sig.as_deref(), Some("SIG-abc"));
+
+        let p = adapters::prepare(
+            "anthropic",
+            "claude-sonnet-4.5",
+            &[ChatMsg {
+                role: "assistant".into(),
+                content: "It is 42.".into(),
+                image: None,
+                images: None,
+                reasoning: teks,
+                reasoning_signature: sig,
+            }],
+            None,
+            "K",
+            512,
+            None,
+        )
+        .unwrap();
+
+        /* The thinking block goes FIRST and carries the signature verbatim. */
+        let blocks = p.body["messages"][0]["content"].as_array().unwrap();
+        assert_eq!(blocks[0]["type"], json!("thinking"));
+        assert_eq!(blocks[0]["thinking"], json!("the user wants a short answer"));
+        assert_eq!(blocks[0]["signature"], json!("SIG-abc"));
+        assert_eq!(blocks[1]["type"], json!("text"));
+        assert_eq!(blocks[1]["text"], json!("It is 42."));
+    }
+
+    #[test]
+    fn reasoning_roundtrip_openai_and_gemini() {
+        /* OpenAI-compatible: the reasoning arrives under one of three field
+           names depending on the gateway, and goes back as `reasoning_content`. */
+        let mut acc = adapters::StreamAcc::new("openai");
+        acc.feed_reasoning(&json!({ "choices": [{ "delta": { "reasoning_content": "step one; " } }] }));
+        /* `delta/reasoning` is the other spelling this must accept. */
+        acc.feed_reasoning(&json!({ "choices": [{ "delta": { "reasoning": "step two" } }] }));
+        let (teks, sig) = acc.reasoning_parts();
+        assert_eq!(teks.as_deref(), Some("step one; step two"));
+        assert_eq!(sig, None, "this protocol has no signed block");
+
+        let p = adapters::prepare(
+            "openai",
+            "gpt-5.2",
+            &[ChatMsg {
+                role: "assistant".into(),
+                content: "done".into(),
+                image: None,
+                images: None,
+                reasoning: teks,
+                reasoning_signature: None,
+            }],
+            None,
+            "K",
+            512,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            p.body["messages"][0]["reasoning_content"],
+            json!("step one; step two")
+        );
+
+        /* Gemini flags it on the part itself, with `thought: true`. */
+        let mut acc = adapters::StreamAcc::new("gemini");
+        acc.feed_reasoning(&json!({
+            "candidates": [{ "content": { "parts": [
+                { "text": "let me see", "thought": true },
+                { "text": "not a thought" }
+            ] } }]
+        }));
+        let (teks, _) = acc.reasoning_parts();
+        assert_eq!(
+            teks.as_deref(),
+            Some("let me see"),
+            "only parts flagged as thoughts belong here"
+        );
+
+        let p = adapters::prepare(
+            "gemini",
+            "gemini-3.6-flash",
+            &[ChatMsg {
+                role: "assistant".into(),
+                content: "empat puluh dua".into(),
+                image: None,
+                images: None,
+                reasoning: teks,
+                reasoning_signature: None,
+            }],
+            None,
+            "K",
+            512,
+            None,
+        )
+        .unwrap();
+        let parts = p.body["contents"][0]["parts"].as_array().unwrap();
+        assert_eq!(parts[0]["thought"], json!(true));
+        assert_eq!(parts[0]["text"], json!("let me see"));
+        assert_eq!(parts[1]["text"], json!("empat puluh dua"));
+    }
+
+    /*
+     * A user turn never carries reasoning, whatever the field says.
+     *
+     * The history is built from messages the app stores, and a stray `reasoning`
+     * on a user turn would be sent as a thinking block (Anthropic) or a thought
+     * part (Gemini) — both of which the provider rejects, costing the whole
+     * request. The guard is by ROLE, not by the field being empty.
+     */
+    #[test]
+    fn reasoning_is_never_echoed_on_a_user_turn() {
+        let pesan = ChatMsg {
+            role: "user".into(),
+            content: "hai".into(),
+            image: None,
+            images: None,
+            reasoning: Some("this should not go out".into()),
+            reasoning_signature: Some("SIG".into()),
+        };
+
+        for prov in ["anthropic", "gemini", "openai"] {
+            let p = adapters::prepare(prov, "m", &[pesan.clone()], None, "K", 512, None).unwrap();
+            let teks = p.body.to_string();
+            assert!(
+                !teks.contains("this should not go out"),
+                "{prov} echoed a user turn's reasoning"
+            );
+        }
     }
 }

@@ -130,6 +130,26 @@ fn build_args(
                  * which are always passed above.
                  */
                 "--include-partial-messages".into(),
+                /*
+                 * Subagent work, relayed instead of swallowed.
+                 *
+                 * A `Task` call runs a whole nested agent loop inside the CLI,
+                 * and by default NONE of it reaches this stream: the parent turn
+                 * shows one `Task` tool row that sits silent for minutes and
+                 * then returns a summary. The reader cannot tell a subagent
+                 * that is working from one that is stuck.
+                 *
+                 * With this flag the CLI forwards the subagent's own text and
+                 * thinking as ordinary assistant/user lines whose
+                 * `parent_tool_use_id` names the `Task` call that spawned them.
+                 * That is what makes the agent map possible at all — verified in
+                 * the CLI's own `--help` (v2.1.290): "Forward subagent text and
+                 * thinking blocks as assistant/user messages with
+                 * parent_tool_use_id set (only works with --print and
+                 * --output-format=stream-json)", both of which are always passed
+                 * here.
+                 */
+                "--forward-subagent-text".into(),
             ];
             /*
              * Continue an existing CLI conversation.
@@ -241,12 +261,62 @@ fn claude_events_from_line(line: &str) -> Vec<Value> {
 ///     no id of their own; they are attributed to the last `message_start`,
 ///     which the Anthropic stream protocol always sends before any delta of
 ///     that message (held in every capture).
+///   * `subagent_seen` — the `Task` call ids a subagent has been seen under, so
+///     a tool result belonging to one can be tagged without trusting the shape
+///     of every line (see `sarang_subagent`).
 #[derive(Default)]
 struct ClaudeLineState {
     todo_calls: std::collections::HashSet<String>,
     text_streamed: std::collections::HashSet<String>,
     think_streamed: std::collections::HashSet<String>,
     current_msg: Option<String>,
+    subagent_seen: std::collections::HashSet<String>,
+
+    /*
+     * The `task_id`s that turned out to be real agents.
+     *
+     * WHY this has to be remembered rather than re-derived per line: only
+     * `task_started` carries `subagent_type` / `task_type`. The lines that
+     * follow — `task_progress`, `task_updated`, `task_notification` — carry a
+     * `task_id` and nothing that says what kind of task it is. Filtering each
+     * line on its own therefore dropped the COMPLETION event of every agent
+     * (caught by `claude_task_lifecycle_becomes_a_task_event`), so a card could
+     * never learn that its agent had finished: it would spin forever.
+     *
+     * Membership is the test. A task id is added when a `task_started` line
+     * identifies it as an agent, and every later phase for that id is let
+     * through; a backgrounded shell never gets in, so its later lines stay out
+     * too.
+     */
+    task_agen: std::collections::HashSet<String>,
+}
+
+/*
+ * The `Task` call a line belongs to, or `None` for the main agent.
+ *
+ * With `--forward-subagent-text` the CLI marks every line a subagent produced
+ * with `parent_tool_use_id`, naming the `Task` call that spawned it (verified
+ * against the CLI's own `--help` and against a real transcript: the field is
+ * the task's `tool_use_id`, and it is absent — not null — on main-agent lines).
+ *
+ * Emitted on EVERY event from a subagent, including nested tool rows and text,
+ * so the UI can group them. Without it the whole nested loop collapses into one
+ * silent `Task` row: the reader sees nothing at all between the call and its
+ * summary, however long the subagent worked.
+ */
+fn sarang_subagent(v: &Value) -> Option<String> {
+    v.get("parent_tool_use_id")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Tag an event as belonging to a subagent, when it does.
+fn tandai_sarang(mut ev: Value, sarang: &Option<String>) -> Value {
+    if let Some(id) = sarang {
+        ev["parentId"] = json!(id);
+    }
+    ev
 }
 
 /// As `claude_events_from_line`, but carrying the cross-line `state` (see
@@ -256,6 +326,10 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
         return Vec::new();
     };
     let mut out = Vec::new();
+    let sarang = sarang_subagent(&v);
+    if let Some(id) = &sarang {
+        state.subagent_seen.insert(id.clone());
+    }
     match v.get("type").and_then(|x| x.as_str()) {
         Some("assistant") => {
             let Some(content) = v.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_array()) else {
@@ -431,6 +505,149 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
         }
         Some("system") => {
             /*
+             * Subagent task lifecycle — the data behind the agent map popup.
+             *
+             * The CLI reports each subagent on its OWN `system` lines, keyed by
+             * `task_id`, and this is the only place the numbers the desktop app
+             * shows on each card actually exist:
+             *
+             *   task_started      -> description, subagent_type, spawn_depth
+             *   task_progress     -> usage { total_tokens, tool_uses, duration_ms }
+             *                        and `last_tool_name`, emitted repeatedly as
+             *                        the agent works — this is the live counter
+             *   task_updated      -> patch { status, end_time }
+             *   task_notification -> status, summary, final usage
+             *
+             * Verified against a real two-subagent run: 20 progress lines, each
+             * carrying cumulative usage, so the card's "90.0k tokens" and
+             * "16m 2s" are read from the CLI rather than estimated here.
+             *
+             * Emitted as its own event kind because a task is not a tool ROW:
+             * it is a card in the popup, and one task spans many lines. The
+             * UI merges these by `taskId`, the same way todo snapshots are
+             * replaced wholesale.
+             */
+            let sub = v.get("subtype").and_then(|x| x.as_str()).unwrap_or("");
+            if matches!(
+                sub,
+                "task_started" | "task_progress" | "task_updated" | "task_notification"
+            ) {
+                let task_id = v.get("task_id").and_then(|x| x.as_str()).unwrap_or("");
+                if !task_id.is_empty() {
+                    let mut ev = json!({
+                        "kind": "task",
+                        "taskId": task_id,
+                        "phase": sub.trim_start_matches("task_"),
+                    });
+                    /*
+                     * `tool_use_id` is the SPAWNING call's id — the same value
+                     * the subagent's own lines carry as `parent_tool_use_id`.
+                     * That is the join key between these lifecycle lines and the
+                     * tagged transcript rows, so the popup and the nesting agree
+                     * about which rows belong to which card.
+                     */
+                    if let Some(tu) = v.get("tool_use_id").and_then(|x| x.as_str()) {
+                        ev["toolUseId"] = json!(tu);
+                    }
+                    if let Some(d) = v.get("description").and_then(|x| x.as_str()) {
+                        ev["description"] = json!(d);
+                    }
+                    if let Some(st) = v.get("subagent_type").and_then(|x| x.as_str()) {
+                        ev["subagentType"] = json!(st);
+                    }
+                    /*
+                     * The facts the detail view shows but the card does not.
+                     *
+                     * `prompt` is the whole instruction the agent was given, and
+                     * it is the single most useful thing to read when an agent
+                     * returned something unexpected — it is the only record of
+                     * what it was actually ASKED. `spawn_depth` and
+                     * `is_backgrounded` explain where the agent came from: a
+                     * depth-1 task was spawned by the main agent, a deeper one by
+                     * another subagent, and a backgrounded one is still running
+                     * after its parent returned.
+                     *
+                     * Only `task_started` carries these, which is why they are
+                     * read here rather than in the shared block below.
+                     */
+                    if let Some(p) = v.get("prompt").and_then(|x| x.as_str()) {
+                        ev["prompt"] = json!(p);
+                    }
+                    if let Some(d) = v.get("spawn_depth").and_then(|x| x.as_u64()) {
+                        ev["spawnDepth"] = json!(d);
+                    }
+                    if v.get("is_backgrounded").and_then(|x| x.as_bool()) == Some(true) {
+                        ev["background"] = json!(true);
+                    }
+                    if let Some(u) = v.get("usage") {
+                        /*
+                         * Copied field by field, and only when it IS an object.
+                         * A `task_notification` has been observed with a
+                         * `usage` that is a string, and casting that to an
+                         * object in the UI is how a card ends up with
+                         * `undefined` tokens rather than the number the CLI
+                         * sent.
+                         */
+                        if u.is_object() {
+                            let n = |k: &str| u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+                            ev["tokens"] = json!(n("total_tokens"));
+                            ev["toolUses"] = json!(n("tool_uses"));
+                            ev["durationMs"] = json!(n("duration_ms"));
+                        }
+                    }
+                    if let Some(t) = v.get("last_tool_name").and_then(|x| x.as_str()) {
+                        ev["lastTool"] = json!(t);
+                    }
+                    if let Some(s) = v.pointer("/patch/status").and_then(|x| x.as_str()) {
+                        ev["status"] = json!(s);
+                    } else if let Some(s) = v.get("status").and_then(|x| x.as_str()) {
+                        ev["status"] = json!(s);
+                    }
+                    if let Some(s) = v.get("summary").and_then(|x| x.as_str()) {
+                        ev["summary"] = json!(s);
+                    }
+                    /*
+                     * A backgrounded shell — a hook's own `bash` wrapper — is
+                     * reported through the same four subtypes with
+                     * `owned_by_subagent` / no `subagent_type`. It is not an
+                     * agent and must not become a card: the popup would fill up
+                     * with the token-optimizer's internal shell every turn.
+                     *
+                     * Only `task_started` can tell the two apart, so the answer
+                     * is recorded and later phases ask the record instead of
+                     * re-deriving it from a line that no longer carries the
+                     * evidence (`state.task_agen`).
+                     */
+                    /*
+                     * Deciding what is an agent.
+                     *
+                     * Only `task_started` carries `subagent_type` / `task_type`,
+                     * so that line is the one that establishes the fact — and
+                     * the answer is REMEMBERED (`state.task_agen`) because the
+                     * phases that follow carry a `task_id` and nothing else that
+                     * says what kind of task they belong to. Judging each line
+                     * alone dropped every completion event, so a card could
+                     * never learn its agent had finished.
+                     *
+                     * A line that DOES carry the evidence is accepted even
+                     * without having been remembered: with `--resume` Zephyr
+                     * attaches mid-session, and the `started` line of an agent
+                     * that began before the attach never arrives. Refusing those
+                     * would hide every in-flight agent in a resumed session.
+                     */
+                    let bukti = v.get("subagent_type").and_then(|x| x.as_str()).is_some()
+                        || v.get("task_type").and_then(|x| x.as_str()) == Some("local_agent");
+                    if sub == "task_started" {
+                        if bukti {
+                            state.task_agen.insert(task_id.to_string());
+                            out.push(ev);
+                        }
+                    } else if bukti || state.task_agen.contains(task_id) {
+                        out.push(ev);
+                    }
+                }
+            }
+            /*
              * The init line names the session.
              *
              * Relaying it is what makes `--resume` usable from the UI: without
@@ -482,7 +699,15 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
         }
         _ => {}
     }
-    out
+    /*
+     * Tag every event that came out of a subagent.
+     *
+     * Applied once here rather than at each of the twelve `push` sites: the
+     * parent id belongs to the LINE, not to the event kind, and a new event
+     * type must not silently lose it. A `Task` call and all of its nested work
+     * then arrive on the UI as one group the agent map can draw.
+     */
+    out.into_iter().map(|ev| tandai_sarang(ev, &sarang)).collect()
 }
 
 /// A readable, one-line target for a Claude tool call: the command for Bash, the
@@ -496,7 +721,14 @@ fn claude_tool_title(name: &str, input: &Value) -> String {
         "Glob" => get("pattern").to_string(),
         "WebFetch" => get("url").to_string(),
         "WebSearch" => get("query").to_string(),
-        "Task" => get("description").to_string(),
+        /*
+         * The subagent call. `Agent` is the current name and `Task` the older
+         * one — verified in a live session: the init line's tool list still
+         * offers `Task`, while the call the model actually makes is named
+         * `Agent`. Both are matched so the row reads the same either way, and
+         * neither falls through to the raw JSON that `_` produces.
+         */
+        "Task" | "Agent" => get("description").to_string(),
         _ => String::new(),
     }
 }
@@ -2159,6 +2391,218 @@ mod tests {
         assert_eq!(ev.len(), 1);
         assert_eq!(ev[0]["kind"], "thinking");
         assert_eq!(ev[0]["text"], "let me reason");
+    }
+
+    /*
+     * Subagent work is tagged with the call that spawned it.
+     *
+     * The shape comes from a REAL stream, not from guessing: with
+     * `--forward-subagent-text` the CLI writes the subagent's own lines as
+     * ordinary assistant/user lines carrying `parent_tool_use_id`, naming the
+     * spawning call's `tool_use_id`. Verified live — nine forwarded lines, every
+     * one of them tagged with the parent's id.
+     *
+     * The spawning tool is named `Agent` in the current CLI (v2.1.290); the
+     * init line's tool list still calls it `Task`. Neither name matters to this
+     * parser — the tag is read off the LINE, so a future rename cannot break it
+     * — but the tests below cover both spellings so the title lookup is not
+     * silently lost.
+     *
+     * Without this tag the whole nested loop is invisible: the reader watches
+     * one row sit silent for minutes and then get a summary.
+     *
+     * The three cases that matter, all in one run:
+     *   1. the main agent's own subagent call  -> tool event, parentId null
+     *   2. the subagent's tool call + text     -> tagged with the parent id
+     *   3. the subagent's tool_result          -> tagged too (a different line
+     *      shape, which is why the tag is applied per LINE and not per event)
+     */
+    #[test]
+    fn claude_subagent_events_carry_parent_id() {
+        let mut st = crate::cli_chat::ClaudeLineState::default();
+
+        /* 1. The main agent spawns a subagent. No parent: it IS the parent.
+              `Agent` is the name the live CLI uses. */
+        let panggil = r#"{"type":"assistant","parent_tool_use_id":null,"message":{"content":[{"type":"tool_use","id":"toolu_task1","name":"Agent","input":{"description":"Explore the repo","subagent_type":"Explore"}}]}}"#;
+        let ev = claude_events_from_line_skip(panggil, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["kind"], "tool");
+        assert_eq!(ev[0]["tool"]["name"], "Agent");
+        assert_eq!(ev[0]["tool"]["title"], "Explore the repo");
+        assert!(
+            ev[0].get("parentId").is_none(),
+            "the spawning call itself must not be tagged as its own child"
+        );
+
+        /* The older spelling of the same call still gets a title. */
+        let lama = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t0","name":"Task","input":{"description":"Old name"}}]}}"#;
+        let ev = claude_events_from_line_skip(lama, &mut st);
+        assert_eq!(ev[0]["tool"]["title"], "Old name");
+
+        /* 2. Inside the subagent: a tool call and prose, both tagged. */
+        let kerja = r#"{"type":"assistant","parent_tool_use_id":"toolu_task1","message":{"content":[{"type":"text","text":"Looking around."},{"type":"tool_use","id":"toolu_sub9","name":"Grep","input":{"pattern":"fn main"}}]}}"#;
+        let ev = claude_events_from_line_skip(kerja, &mut st);
+        assert_eq!(ev.len(), 2);
+        assert_eq!(ev[0]["kind"], "text");
+        assert_eq!(ev[0]["parentId"], "toolu_task1");
+        assert_eq!(ev[1]["kind"], "tool");
+        assert_eq!(ev[1]["parentId"], "toolu_task1");
+        assert_eq!(ev[1]["tool"]["callId"], "toolu_sub9");
+
+        /* 3. The subagent's tool result — a `user` line, same tag. */
+        let hasil = r#"{"type":"user","parent_tool_use_id":"toolu_task1","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_sub9","content":"src/main.rs"}]}}"#;
+        let ev = claude_events_from_line_skip(hasil, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["kind"], "tool");
+        assert_eq!(ev[0]["parentId"], "toolu_task1");
+        assert_eq!(ev[0]["tool"]["status"], "ok");
+    }
+
+    /*
+     * A `stream_event` delta belongs to a subagent too.
+     *
+     * Token-by-token frames are emitted WHILE a message streams, and a subagent
+     * streams its own text — so without the tag on this branch the subagent's
+     * prose would split: live deltas attributed to the main agent, then the
+     * completed line attributed to the task. The tag is applied once for the
+     * whole line, which is what keeps those two halves together.
+     */
+    #[test]
+    fn claude_subagent_stream_delta_is_tagged() {
+        let mut st = crate::cli_chat::ClaudeLineState::default();
+        let line = r#"{"type":"stream_event","parent_tool_use_id":"toolu_task1","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"half a sentence"}}}"#;
+        let ev = claude_events_from_line_skip(line, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["kind"], "text");
+        assert_eq!(ev[0]["text"], "half a sentence");
+        assert_eq!(ev[0]["parentId"], "toolu_task1");
+    }
+
+    /*
+     * The CLI must actually be ASKED to forward subagent text.
+     *
+     * The tag above only exists with that flag; without it the CLI prints a
+     * subagent's work nowhere, and the agent map would silently have nothing to
+     * draw. This is the assertion that keeps the parser and the argv in step.
+     */
+    /*
+     * The subagent task lifecycle — the numbers on the agent map's cards.
+     *
+     * Shapes taken from a REAL two-subagent run, not from guessing. The card in
+     * the desktop app shows a description, a duration and a token count, and
+     * `task_progress` is the only line that carries them — emitted repeatedly
+     * with CUMULATIVE usage, so the UI replaces rather than adds.
+     *
+     * Two things this must get right:
+     *   - the join key. `tool_use_id` here is the spawning call's id, the same
+     *     value the subagent's transcript rows carry as `parent_tool_use_id`.
+     *     That is what ties a card to the rows it owns.
+     *   - what is NOT an agent. A backgrounded shell (a hook's own `bash`
+     *     wrapper) is reported through the same four subtypes and would
+     *     otherwise fill the popup with a card per turn.
+     */
+    #[test]
+    fn claude_task_lifecycle_becomes_a_task_event() {
+        let mut st = crate::cli_chat::ClaudeLineState::default();
+
+        let mulai = r#"{"type":"system","subtype":"task_started","task_id":"ad619c","tool_use_id":"call_00_t118","description":"List src/lib files with descriptions","subagent_type":"Explore","spawn_depth":1,"task_type":"local_agent"}"#;
+        let ev = claude_events_from_line_skip(mulai, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["kind"], "task");
+        assert_eq!(ev[0]["taskId"], "ad619c");
+        assert_eq!(ev[0]["phase"], "started");
+        assert_eq!(ev[0]["description"], "List src/lib files with descriptions");
+        assert_eq!(ev[0]["subagentType"], "Explore");
+        /* The spawning call's id — the join to the transcript's parentId. */
+        assert_eq!(ev[0]["toolUseId"], "call_00_t118");
+
+        let maju = r#"{"type":"system","subtype":"task_progress","task_id":"ad619c","tool_use_id":"call_00_t118","description":"Running Read batch 3","subagent_type":"Explore","usage":{"total_tokens":116,"tool_uses":5,"duration_ms":25617},"last_tool_name":"Bash"}"#;
+        let ev = claude_events_from_line_skip(maju, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["phase"], "progress");
+        assert_eq!(ev[0]["tokens"], 116);
+        assert_eq!(ev[0]["toolUses"], 5);
+        assert_eq!(ev[0]["durationMs"], 25617);
+        assert_eq!(ev[0]["lastTool"], "Bash");
+
+        let selesai = r#"{"type":"system","subtype":"task_updated","task_id":"ad619c","patch":{"status":"completed","end_time":1791522032243}}"#;
+        let ev = claude_events_from_line_skip(selesai, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["phase"], "updated");
+        assert_eq!(ev[0]["status"], "completed");
+    }
+
+    /*
+     * A hook's background shell is not an agent.
+     *
+     * Verified in the real run: `task_started` also arrives for the
+     * token-optimizer's own `bash` wrapper, with `owned_by_subagent` and no
+     * `subagent_type` or `task_type`. One of those per turn would put a card
+     * labelled with a shell one-liner in the agent map.
+     */
+    #[test]
+    fn claude_task_event_ignores_a_background_shell() {
+        let mut st = crate::cli_chat::ClaudeLineState::default();
+        let shell = r#"{"type":"system","subtype":"task_started","task_id":"bc1jfl2pt","owned_by_subagent":true,"tool_use_id":"call_00_ACzP","description":"for b in bash /bin/bash; do command -v \"$b\"; done"}"#;
+        let ev = claude_events_from_line_skip(shell, &mut st);
+        assert!(
+            ev.is_empty(),
+            "a backgrounded shell must not become an agent card"
+        );
+    }
+
+    /*
+     * A `usage` that is not an object must not poison the card.
+     *
+     * `task_notification` has been seen with `usage` as a plain string. Copied
+     * field by field only when it IS an object, so a card shows the numbers the
+     * CLI sent or none at all — never `undefined` where a token count belongs.
+     *
+     * The fixture matches the REAL shape: only `task_started` carries
+     * `subagent_type`, so the fact is established there and the later phases are
+     * let through by remembering it.
+     */
+    #[test]
+    fn claude_task_event_survives_a_non_object_usage() {
+        let mut st = crate::cli_chat::ClaudeLineState::default();
+        let mulai = r#"{"type":"system","subtype":"task_started","task_id":"t1","tool_use_id":"c1","subagent_type":"Explore","task_type":"local_agent"}"#;
+        assert_eq!(claude_events_from_line_skip(mulai, &mut st).len(), 1);
+
+        let aneh = r#"{"type":"system","subtype":"task_notification","task_id":"t1","tool_use_id":"c1","status":"completed","summary":"done","usage":"12"}"#;
+        let ev = claude_events_from_line_skip(aneh, &mut st);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0]["status"], "completed");
+        assert_eq!(ev[0]["summary"], "done");
+        assert!(ev[0].get("tokens").is_none(), "usage non-objek tidak boleh jadi angka karangan");
+    }
+
+    /*
+     * A completion for a task whose `started` line was never seen still lands.
+     *
+     * This is the `--resume` case: Zephyr attaches mid-session, so an agent
+     * that began before the attach has no `started` line in this stream. The
+     * completion carries its own evidence (`subagent_type`), and refusing it
+     * would leave every in-flight agent in a resumed session invisible.
+     */
+    #[test]
+    fn claude_task_completion_lands_without_a_seen_start() {
+        let mut st = crate::cli_chat::ClaudeLineState::default();
+        let selesai = r#"{"type":"system","subtype":"task_notification","task_id":"tak-dikenal","subagent_type":"Explore","status":"completed","summary":"done"}"#;
+        let ev = claude_events_from_line_skip(selesai, &mut st);
+        assert_eq!(ev.len(), 1, "penyelesaian agen harus tetap sampai");
+        assert_eq!(ev[0]["status"], "completed");
+    }
+
+    #[test]
+    fn claude_args_forward_subagent_text() {
+        let a = build_args("claude", "hi", None, None, None);
+        assert!(
+            a.iter().any(|x| x == "--forward-subagent-text"),
+            "tanpa flag ini CLI tidak merelai pekerjaan subagent sama sekali"
+        );
+        /* It is only valid with -p / stream-json, which are always passed. */
+        assert!(a.iter().any(|x| x == "-p"));
+        assert!(a.iter().any(|x| x == "stream-json"));
     }
 
     #[test]

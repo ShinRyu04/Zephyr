@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useT, tf } from '../../lib/i18n';
 import { useAiDebug, type ReqLog } from '../../lib/aiDebugStore';
 import AiIkon from './AiIkon';
+import { useDragPopup } from '../../lib/useDragPopup';
 
 /*
  * Debug drawer for the AI panel.
@@ -95,6 +96,7 @@ function Baris({ r, buka, onToggle }: { r: ReqLog; buka: boolean; onToggle: () =
 }
 
 export default function DebugPanel() {
+  const { popupRef: dragRef, onPointerDown: dragStart } = useDragPopup();
   const tr = useT();
   const buka = useAiDebug((s) => s.buka);
   const setBuka = useAiDebug((s) => s.setBuka);
@@ -128,8 +130,10 @@ export default function DebugPanel() {
     <>
       <div className="dbg-scrim" data-testid="dbg-scrim" onClick={() => setBuka(false)} />
 
-      <div className="dbg-panel" data-testid="dbg-panel" role="dialog" aria-label={tr('Debug requests')}>
-        <div className="dbg-top">
+      <div ref={dragRef}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        className="dbg-panel" data-testid="dbg-panel" role="dialog" aria-label={tr('Debug requests')}>
+        <div className="dbg-top" data-drag-handle onPointerDown={dragStart} style={{ cursor: 'grab' }}>
           <AiIkon name="bug" size={14} />
           <span className="dbg-judul">{tr('Debug requests')}</span>
           <span className="dbg-count" data-testid="dbg-count">

@@ -110,3 +110,55 @@ export function modelChip(agentId: string, modelId: string): string {
 
 export const EFFORT_LEVELS = ['Low', 'Medium', 'High', 'Max', 'Ultra'] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
+
+/*
+ * The context window behind a Claude CLI model ALIAS.
+ *
+ * WHY this table has to exist: the hosted tab stores the model as the CLI's own
+ * alias (`default`, `opus`, `sonnet`, `haiku`, `fable` — see CLAUDE_MODELS),
+ * not as a catalogue id like `claude-sonnet-5`. Feeding an alias to the shared
+ * `jendelaKonteks` therefore found NO catalogue entry, fell through to the
+ * provider's free-text shape, and landed on the 128k floor — while the real
+ * window is 1,000,000. The context ring then divided by 128k and read ~8x too
+ * high (a true 4% showed as 30%), which is a number the reader acts on: it
+ * looks like the window is about to overflow, so they compact and throw away
+ * context they did not need to.
+ *
+ * So the aliases get their own map, and it lives HERE rather than inside
+ * CliChat for one reason: the ring and automatic compaction must agree. The
+ * agent loop's `batasAutoCompact` calls the same window function, and a meter
+ * that says 30% while compaction fires at 4% is worse than no meter.
+ */
+const CLAUDE_ALIAS_CTX: Record<string, number> = {
+  /*
+   * `default` is what the CLI uses when no --model flag is passed, and on this
+   * account that is a 1M-window model. It is the SAFE assumption for a meter:
+   * guessing low makes the ring overstate how full the window is, which is the
+   * exact complaint this table exists to fix.
+   */
+  default: 1_000_000,
+  opus: 1_000_000,
+  sonnet: 1_000_000,
+  fable: 1_000_000,
+  /* Haiku's line is 200k — measured, not assumed, so it is not lumped in with
+     the 1M models above. */
+  haiku: 200_000,
+};
+
+/**
+ * The context window for a CLI model alias, or null when the alias is unknown.
+ *
+ * Null rather than a default number ON PURPOSE: the caller can then decide
+ * whether to fall back to the shared estimate (a real catalogue id, e.g. when
+ * the user typed a full model name) or to show nothing. Returning 128k for an
+ * alias nobody has heard of is what produced the wrong reading in the first
+ * place — a wrong number is worse than an admitted gap.
+ */
+export function jendelaAliasCli(alias: string | undefined | null): number | null {
+  if (!alias) return null;
+  const k = alias.trim().toLowerCase();
+  /* A full model id may also arrive here (the composer accepts typed names);
+     anything with a hyphen is a real id and belongs to the shared lookup. */
+  if (k.includes('-')) return null;
+  return CLAUDE_ALIAS_CTX[k] ?? null;
+}

@@ -17,6 +17,7 @@ import { POLA_AWALAN_MCP } from '../../lib/zephyrTools/catalog';
  */
 import { useDeskripsiTool } from '../../lib/zephyrTools/deskripsiToolHook';
 import AiIkon from './AiIkon';
+import { useDragPopup } from '../../lib/useDragPopup';
 
 /*
  * Floating tool gate.
@@ -31,6 +32,7 @@ import AiIkon from './AiIkon';
  * total.
  */
 export default function ToolGatePanel() {
+  const { popupRef: dragRef, onPointerDown: dragStart } = useDragPopup();
   const tr = useT();
   /* Deskripsi tool ikut bahasa antarmuka yang aktif. */
   const deskripsi = useDeskripsiTool();
@@ -164,13 +166,15 @@ export default function ToolGatePanel() {
       <div className="tg-scrim" data-testid="toolgate-scrim" onClick={() => setBuka(false)} />
 
       <div
+        ref={dragRef}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
         className="tg-panel"
         data-testid="toolgate"
         role="dialog"
         aria-label={tr('AI tools')}
         onKeyDown={onKeyDown}
       >
-        <div className="tg-head">
+        <div className="tg-head" data-drag-handle onPointerDown={dragStart} style={{ cursor: 'grab' }}>
           <AiIkon name="wrench" size={14} />
           {/* A word next to the spanner: the icon alone reads as "settings". */}
           <span className="tg-judul">{tr('AI tools')}</span>
