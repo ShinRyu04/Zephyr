@@ -29,6 +29,7 @@ import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/com
 import { useT, useTf } from '../../lib/i18n';
 import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
+import ChatSettingsPopup from './ChatSettingsPopup';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useGit } from '../../lib/gitStore';
@@ -1014,6 +1015,11 @@ function AiPanelInner() {
         )}
 
       </div>
+
+      {/* The Chat Settings overlay, opened from the "…" menu. Rendered here so
+          it floats inside the chat surface; the editor-area home is drawn by
+          SplitEditor, and the store's `mode` keeps the two from overlapping. */}
+      <ChatSettingsPopup />
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat" onScroll={cekPosisi}>
         {providerTanpaKey && (
