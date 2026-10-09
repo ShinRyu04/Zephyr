@@ -180,11 +180,18 @@
 .cset-pop {
   position: fixed;
   z-index: 641;
-  top: 72px;
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(680px, calc(100vw - 48px));
-  height: min(520px, calc(100vh - 140px));
+  /*
+   * Roomy by default: VS Code's chat settings overlay is a full settings
+   * surface, not a tooltip. The list now runs to thirty rows across eight
+   * sections, and a small card turned it into a peephole with its own scrollbar
+   * inside the panel's scrollbar. Bounded by the viewport, so it can never grow
+   * past the window on a small screen.
+   */
+  width: min(1040px, calc(100vw - 56px));
+  height: min(760px, calc(100vh - 88px));
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
