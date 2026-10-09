@@ -73,7 +73,20 @@ const SECTIONS = [
 
 type SectionId = (typeof SECTIONS)[number]['id'];
 
-export default function ChatSettingsPage({ onClose }: { onClose: () => void }) {
+export default function ChatSettingsPage({
+  onClose,
+  onOpenEditor,
+}: {
+  onClose: () => void;
+  /*
+   * Ask the host to move this page into the editor area.
+   *
+   * Present only where there is an editor to move it to. The popup passes it so
+   * the "Open in Editor" button can appear; the editor-area host passes nothing,
+   * because there the page is already where that button would send it.
+   */
+  onOpenEditor?: () => void;
+}) {
   const tr = useT();
   const [bagian, setBagian] = useState<SectionId>('mode');
   const [cari, setCari] = useState('');
@@ -374,6 +387,20 @@ export default function ChatSettingsPage({ onClose }: { onClose: () => void }) {
       <div className="cset-topbar">
         <AiIkon name="gear" size={14} />
         <span className="cset-topbar-title">{tr('Chat Settings')}</span>
+        {/* The way out of the popup and into the editor. VSCode draws the same
+            door on its floating chat panels: a small overlay for a quick change,
+            and a button to keep it open as a real tab when the reader wants to
+            stay a while. Absent in the editor host, where it would go nowhere. */}
+        {onOpenEditor && (
+          <button
+            className="btn btn-sm"
+            data-testid="cset-open-editor"
+            title={tr('Open in the editor area')}
+            onClick={onOpenEditor}
+          >
+            {tr('Open in Editor')}
+          </button>
+        )}
         <button className="btn btn-sm" data-testid="cset-close" onClick={onClose}>
           {tr('Close')}
         </button>

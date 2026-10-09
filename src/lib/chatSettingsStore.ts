@@ -1,26 +1,39 @@
 import { create } from 'zustand';
 
 /*
- * Whether the Chat Settings page is open.
+ * Chat Settings: whether it is open, and where.
  *
- * A store rather than local state because the page is opened from one place
- * (the "…" menu in `ChatHeadActions`) and rendered in another: it takes over the
- * EDITOR AREA, the same way Settings does, so the surface that draws it is
- * `SplitEditor` and the surface that opens it is the chat header. Threading a
- * setter between those two subtrees would thread it through the whole app.
+ * TWO HOMES, one page. VSCode opens its chat settings as a small overlay for a
+ * quick change, and offers a button to keep it as a real editor tab when the
+ * reader wants to stay. This store carries that choice so the two surfaces
+ * cannot both think they own the page.
  *
- * A PAGE rather than a popover, at the reader's request: VS Code's chat settings
- * are a full searchable page (its `@feature:chat` view), and a small popup has
- * no room for the hints that make a setting findable.
+ *   'popup'  — floats over the chat. Opens from the "…" menu.
+ *   'editor' — takes the editor area, like Settings. Reached from the popup's
+ *              "Open in Editor" button.
+ *
+ * A store rather than local state because the triggers and the surfaces live in
+ * different subtrees: the "…" menu is in the chat header, the popup floats in
+ * the chat panel, and the page is drawn by `SplitEditor`.
  */
+export type ChatSettingsMode = 'popup' | 'editor';
+
 interface ChatSettingsState {
   buka: boolean;
+  mode: ChatSettingsMode;
+  /** Open as the floating overlay (the "…" menu's behaviour). */
   setBuka: (v: boolean) => void;
+  /** Move the open page into the editor area. */
+  keEditor: () => void;
   tutup: () => void;
 }
 
 export const useAiChatSettings = create<ChatSettingsState>((set) => ({
   buka: false,
-  setBuka: (v) => set({ buka: v }),
-  tutup: () => set({ buka: false }),
+  mode: 'popup',
+  /* Always opens as the popup: the editor home is something the reader asks for
+     from inside it, not the default, so the same menu item gives the same
+     result every time. */
+  setBuka: (v) => set({ buka: v, mode: v ? 'popup' : 'popup' }),  keEditor: () => set({ buka: true, mode: 'editor' }),
+  tutup: () => set({ buka: false, mode: 'popup' }),
 }));
