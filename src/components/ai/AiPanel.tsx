@@ -29,6 +29,7 @@ import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/com
 import { useT, useTf } from '../../lib/i18n';
 import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
+import ChatSettingsPanel from './ChatSettingsPanel';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useGit } from '../../lib/gitStore';
@@ -1014,6 +1015,10 @@ function AiPanelInner() {
         )}
 
       </div>
+
+      {/* Floating over the transcript, opened from the "…" menu. Rendered here
+          so it lands inside the chat surface rather than over the whole app. */}
+      <ChatSettingsPanel />
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat" onScroll={cekPosisi}>
         {providerTanpaKey && (
