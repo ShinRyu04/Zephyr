@@ -90,6 +90,9 @@ export default function ChatSettingsPage({
   const tr = useT();
   const [bagian, setBagian] = useState<SectionId>('mode');
   const [cari, setCari] = useState('');
+  /* User or Workspace. See the tabs' own comment: only User has anything in it
+     today, and the Workspace pane says so rather than pretending otherwise. */
+  const [scope, setScope] = useState<'user' | 'workspace'>('user');
 
   /* Conversation state — the same fields the composer chips read. */
   const agentMode = useAi((s) => s.agentMode ?? 'chat');
@@ -426,6 +429,35 @@ export default function ChatSettingsPage({
         )}
 
         <div className="cset-content">
+          {/* Scope tabs, VS Code's User / Workspace pair.
+           *
+           * Zephyr has no per-workspace settings yet — everything lives in
+           * `%APPDATA%\zephyr\settings.json` and applies to every folder — so the
+           * Workspace tab says that plainly instead of showing a copy of the
+           * User list or an empty list that reads as a broken page. The tab
+           * exists because a reader who knows VS Code will look for it; the
+           * message is what keeps it honest. */}
+          <div className="cset-scope" role="tablist" aria-label={tr('Scope')}>
+            <button
+              role="tab"
+              aria-selected={scope === 'user'}
+              className={`cset-scope-tab${scope === 'user' ? ' is-on' : ''}`}
+              data-testid="cset-scope-user"
+              onClick={() => setScope('user')}
+            >
+              {tr('User')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={scope === 'workspace'}
+              className={`cset-scope-tab${scope === 'workspace' ? ' is-on' : ''}`}
+              data-testid="cset-scope-workspace"
+              onClick={() => setScope('workspace')}
+            >
+              {tr('Workspace')}
+            </button>
+          </div>
+
           <div className="cset-cari">
             <AiIkon name="search" size={12} />
             <input
@@ -441,20 +473,42 @@ export default function ChatSettingsPage({
             )}
           </div>
 
-          {SECTIONS.filter((s) => tampilSection(s.id)).map((s) => (
-            <Section key={s.id} title={s.label}>
-              {rowsOf(s.id).map((r) => (
-                <Row key={r.id} label={r.label} hint={r.hint} testid={`cset-row-${r.id}`}>
-                  {r.ctl}
-                </Row>
+          {scope === 'workspace' ? (
+            /*
+             * The honest Workspace pane.
+             *
+             * Not a copy of the User list and not an empty one: both would lie.
+             * A copy would say "these apply to this folder" when they do not,
+             * and an empty list reads as a page that failed to load. One
+             * sentence that names where settings actually live is the only
+             * accurate thing this pane can say today.
+             */
+            <div className="cset-ws" data-testid="cset-workspace-empty">
+              <p className="cset-ws-title">{tr('No workspace settings yet')}</p>
+              <p className="cset-ws-body">
+                {tr(
+                  'Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project.',
+                )}
+              </p>
+            </div>
+          ) : (
+            <>
+              {SECTIONS.filter((s) => tampilSection(s.id)).map((s) => (
+                <Section key={s.id} title={s.label}>
+                  {rowsOf(s.id).map((r) => (
+                    <Row key={r.id} label={r.label} hint={r.hint} testid={`cset-row-${r.id}`}>
+                      {r.ctl}
+                    </Row>
+                  ))}
+                </Section>
               ))}
-            </Section>
-          ))}
 
-          {q && jumlah === 0 && (
-            <p className="cset-kosong" data-testid="cset-empty">
-              {tr('No chat settings match.')}
-            </p>
+              {q && jumlah === 0 && (
+                <p className="cset-kosong" data-testid="cset-empty">
+                  {tr('No chat settings match.')}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
