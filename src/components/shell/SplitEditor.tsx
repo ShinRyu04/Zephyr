@@ -13,8 +13,10 @@ import DebugToolbar from '../debug/DebugToolbar';
 import ZephyrLogo from './ZephyrLogo';
 import { ErrorBoundary } from './ErrorBoundary';
 import DiffViewer from '../scm/DiffViewer';
+import { useAiChatSettings } from '../../lib/chatSettingsStore';
 const SettingsPage = lazy(() => import('../settings/SettingsPage'));
 const AiPanel = lazy(() => import('../ai/AiHost'));
+const ChatSettingsPage = lazy(() => import('../ai/ChatSettingsPage'));
 // Dev Environment, API Client and SFTP are full-page views: each carries its own
 // header and row layout. They take over the middle area the same way Settings
 // does below, instead of sitting in the sidebar, where they were squeezed into a
@@ -184,6 +186,32 @@ export default function SplitEditor() {
    * aiPanel === 'right', so these two never both appear.
    */
   const aiDiEditor = useStore((s) => (s.settings.general.aiPanel ?? 'right') === 'editor');
+  const chatSettingsOpen = useAiChatSettings((s) => s.buka);
+  const tutupChatSettings = useAiChatSettings((s) => s.tutup);
+
+  /*
+   * Chat Settings as an editor-area view.
+   *
+   * Sits BEFORE the aiDiEditor branch so it wins when both are true: the reader
+   * asked for the settings page from inside the chat, and the chat is already
+   * the view underneath — returning it would hide the page they just opened.
+   * Same shape as Settings below: it takes the editor area, so the chat column
+   * on the right stays put and the conversation is one Escape away.
+   */
+  if (chatSettingsOpen) {
+    return (
+      <section className="editor-area" data-testid="chat-settings-area">
+        <div className="editor-host">
+          <ErrorBoundary nama="ChatSettings">
+            <Suspense fallback={null}>
+              <ChatSettingsPage onClose={tutupChatSettings} />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      </section>
+    );
+  }
+
   if (aiDiEditor && !settingsOpen) {
     return (
       <section className="editor-area ai-editor-area" data-testid="ai-editor-area">
@@ -229,8 +257,7 @@ export default function SplitEditor() {
     );
   }
 
-  if (settingsOpen) {
-    return (
+  if (settingsOpen) {    return (
       <section className="editor-area">
         <RestrictedBanner />
         <div className="set-topbar">

@@ -1,0 +1,163 @@
+/*
+ * Chat Settings — the chat's own preferences, as a full page.
+ *
+ * The same two-pane shape as the main Settings page: a section column on the
+ * left, scrolling content on the right. It takes over the editor area, so the
+ * chat column on the right stays visible and the conversation is one Escape
+ * away — the page is a place you visit and leave, not a mode you switch into.
+ *
+ * Deliberately reuses `.set-row`, `.set-toggle`, `.set-select` and `.set-h2`
+ * from settings.css for the controls, so a switch here is the same switch the
+ * main Settings page draws. Only the chrome around them is defined here.
+ */
+
+.cset-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.cset-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.cset-topbar-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Two-pane body ────────────────────────────────────────────────────── */
+
+.cset-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * The section column.
+ *
+ * Fixed width rather than a fraction: section names are short and predictable,
+ * and a column that grew with the window would leave the controls an unstable
+ * measure to read against.
+ */
+.cset-nav {
+  flex: 0 0 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-1);
+  overflow-y: auto;
+}
+
+.cset-nav-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cset-nav-item:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.cset-nav-item.is-active {
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Content ──────────────────────────────────────────────────────────── */
+
+.cset-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 16px 22px 40px;
+}
+
+/*
+ * The search box.
+ *
+ * Full width and first in the content column, because it filters rows rather
+ * than sections: when a query is active the section column hides and this is
+ * the only control on screen. It has to look like the thing in charge.
+ */
+.cset-cari {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 16px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text-muted);
+}
+
+.cset-cari input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.cset-cari input::placeholder {
+  color: var(--text-muted);
+}
+
+.cset-cari-n {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section headings reuse the settings page's, but a shade smaller: this page
+   is a subset of Settings, and matching its scale exactly would make the two
+   look like the same page at different scroll positions. */
+.cset-content .set-h2 {
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.cset-content .set-section + .set-section {
+  margin-top: 22px;
+}
+
+.cset-kosong {
+  padding: 24px 4px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
