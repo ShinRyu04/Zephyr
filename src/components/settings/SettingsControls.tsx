@@ -33,6 +33,7 @@ export function Section({
   title,
   children,
   ikon,
+  aksi,
 }: {
   title: string;
   children: ReactNode;
@@ -51,6 +52,17 @@ export function Section({
      and `viewBox`, so a mark drawn by its own component (Zeph's dragon) would
      type-check here and then fail to render. */
   ikon?: IkonDef;
+  /*
+   * A control that belongs to the whole section, shown at the heading's
+   * trailing edge (currently only Chat Settings' per-section Reset).
+   *
+   * A slot rather than the caller placing a sibling: a sibling of the section
+   * is positioned against the section's box, and `.set-h2` is a full-width
+   * block with its own border — an absolutely-placed sibling sat UNDER the
+   * heading and took no clicks. Rendering it inside the heading is what makes
+   * it reachable.
+   */
+  aksi?: ReactNode;
 }) {
   const tr = useT();
   return (
@@ -62,6 +74,7 @@ export function Section({
           </span>
         )}
         {tr(title)}
+        {aksi}
       </h2>
       {children}
     </section>

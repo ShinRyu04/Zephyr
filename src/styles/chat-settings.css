@@ -181,15 +181,17 @@
   position: fixed;
   z-index: 641;
   top: 56px;
-  left: 50%;
-  transform: translateX(-50%);
   /*
-   * Roomy by default: VS Code's chat settings overlay is a full settings
-   * surface, not a tooltip. The list now runs to thirty rows across eight
-   * sections, and a small card turned it into a peephole with its own scrollbar
-   * inside the panel's scrollbar. Bounded by the viewport, so it can never grow
-   * past the window on a small screen.
+   * Centred with `left` + `translate`, and the DRAG transform is added on top.
+   *
+   * The element's own `transform` is what `useDragPopup` writes to, so centring
+   * cannot also live there — an inline `transform` replaces the stylesheet's,
+   * and the `translateX(-50%)` that centred the card was silently dropped: the
+   * overlay sat off the right edge and its buttons could not be clicked at all.
+   * `left: max(28px, calc(50% - 520px))` centres the 1040px card with plain
+   * geometry, leaving `transform` free for the drag.
    */
+  left: max(28px, calc(50% - 520px));
   width: min(1040px, calc(100vw - 56px));
   height: min(760px, calc(100vh - 88px));
   border: 1px solid var(--border);
@@ -281,4 +283,82 @@
   color: var(--text-secondary);
   font-size: 12.5px;
   line-height: 1.55;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Reset per section, the "Modified" mark, and the changed-count in the nav.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The section heading and its Reset share a row.
+   Laid out with flex rather than a floating button: an `absolute` button at
+   `top: 2px` sat UNDER the full-width heading (`.set-h2` is a block with its own
+   border), so every click landed on the heading and Reset did nothing. Making
+   the heading a flex row puts the button beside it, where the pointer can reach
+   it. */
+.cset-content .set-section {
+  position: relative;
+}
+
+.cset-content .set-section .set-h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cset-reset {
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.cset-reset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The value and its "Modified" badge, side by side at the row's trailing
+   edge: the badge describes the value, so it belongs with it. */
+.cset-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cset-mod-badge {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* The changed-count on a nav row, so the section column says where the
+   non-default settings are without opening every section. */
+.cset-nav-jum {
+  float: right;
+  min-width: 16px;
+  padding: 1px 5px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cset-stat {
+  color: var(--text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
