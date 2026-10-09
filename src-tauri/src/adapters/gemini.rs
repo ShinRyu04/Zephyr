@@ -30,7 +30,21 @@ pub fn prepare(
         } else {
             "user"
         };
-        let mut parts = vec![json!({ "text": m.content })];
+        let mut parts = Vec::new();
+        /*
+         * A previous model turn's reasoning, sent back as a thought part.
+         *
+         * Gemini flags it with `"thought": true` on the part itself rather than
+         * a block type, and it precedes the answer text — the same order it
+         * arrives in. Sent only on model turns; a user part carrying the flag is
+         * not something the API produces and would be rejected.
+         */
+        if m.role == "assistant" {
+            if let Some(t) = m.reasoning.as_deref().filter(|t| !t.is_empty()) {
+                parts.push(json!({ "text": t, "thought": true }));
+            }
+        }
+        parts.push(json!({ "text": m.content }));
         for img in m.all_images() {
             if let Some((mime, data)) = split_data_url(img) {
                 parts.push(json!({
@@ -101,7 +115,13 @@ pub fn prepare_tools(
                 }));
             }
             "assistant" => {
-                let mut parts = vec![json!({ "text": m.content })];
+                let mut parts = Vec::new();
+                /* The turn's reasoning goes back as a thought part, before the
+                   answer text — the order the API returns it in. */
+                if let Some(t) = m.reasoning.as_deref().filter(|t| !t.is_empty()) {
+                    parts.push(json!({ "text": t, "thought": true }));
+                }
+                parts.push(json!({ "text": m.content }));
                 if let Some(tcs) = &m.tool_calls {
                     for tc in tcs {
                         parts.push(json!({
@@ -228,6 +248,51 @@ pub fn extract_delta(v: &Value) -> Option<String> {
 pub struct ToolAcc {
     text: String,
     calls: Vec<ToolCall>,
+
+    /*
+     * The reasoning, kept so the NEXT request can send it back.
+     *
+     * Gemini streams thought parts with `"thought": true` and expects them
+     * returned the same way. Only the live stream read them, so the finished
+     * step carried none and the next request showed the model its conclusions
+     * with the thinking stripped out.
+     */
+    reasoning: String,
+}
+
+impl ToolAcc {
+    /// The reasoning text, for the caller to carry into the next request.
+    ///
+    /// No signature half: Gemini has no signed thinking block, the flag on the
+    /// part is the whole protocol.
+    pub fn reasoning_parts(&self) -> (Option<String>, Option<String>) {
+        (
+            (!self.reasoning.is_empty()).then(|| self.reasoning.clone()),
+            None,
+        )
+    }
+
+    /*
+     * Accumulate thought parts for the round trip.
+     *
+     * Returns nothing, like the OpenAI sibling: `extract_reasoning` already
+     * emits the live text, and a frame can carry a thought part with no visible
+     * text, so returning it here would double-emit.
+     */
+    pub fn feed_reasoning(&mut self, v: &Value) {
+        if let Some(parts) = v
+            .pointer("/candidates/0/content/parts")
+            .and_then(|p| p.as_array())
+        {
+            for p in parts {
+                if p.get("thought").and_then(|t| t.as_bool()) == Some(true) {
+                    if let Some(t) = p.get("text").and_then(|x| x.as_str()) {
+                        self.reasoning.push_str(t);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl ToolAcc {

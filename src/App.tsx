@@ -7,6 +7,11 @@ import Panel from './components/shell/Panel';
 import TerminalArea from './components/shell/TerminalArea';
 import AiPanel from './components/ai/AiHost';
 import SubAgentInfo from './components/ai/SubAgentInfo';
+import SessionsPanel from './components/ai/SessionsPanel';
+import PanelTrail from './components/ai/PanelTrail';
+import PanelWins from './components/ai/PanelWins';
+import { useSessionsSide } from './lib/sessionsSideStore';
+import { useAiTabs } from './lib/aiTabsStore';
 import StatusBar from './components/shell/StatusBar';
 import Toast from './components/notifications/Toast';
 import MenuBar from './components/shell/MenuBar';
@@ -280,6 +285,21 @@ export default function App() {
   const subKanan = useLayoutCustom((s) => s.subKanan);
   const aiWidth = useStore((s) => s.aiWidth);
   const aiMax = useStore((s) => s.aiMax);
+  /* Which AI tab is in front. The Sessions column belongs to the CHAT tab
+     only: Claude Code and Codex keep their own conversation inside the CLI, so
+     a list of Zephyr chat sessions beside them would be a list of somebody
+     else's conversations. */
+  const aiTab = useAiTabs((s) => s.active);
+  /*
+   * Whether the reader hid the Sessions column while the panel is expanded.
+   *
+   * Local, not persisted: it is a per-session convenience ("get this list out
+   * of my way for now"), and a restored layout that reopens with a column
+   * hidden would look like a missing feature rather than a remembered choice.
+   * Maximizing again always shows it.
+   */
+  const sesiSisiBuka = useSessionsSide((s) => s.buka);
+  const setSesiSisi = useSessionsSide((s) => s.setBuka);
   const setAiWidth = useStore((s) => s.setAiWidth);
   const layoutTerminal = useStore((s) => s.settings.general.layout === 'terminal');
 
@@ -1477,6 +1497,45 @@ export default function App() {
               }
               aria-label={tx('AI panel')}
             >
+              {/*
+                * The maximised layout's CONTROL ROW — the chat's buttons and the
+                * window controls, moved out of the tab strip and pinned to the
+                * RIGHT edge, above the Sessions column (VSCode's expanded-chat
+                * header).
+                *
+                * Its own layer, NOT inside SessionsPanel: the reader can dismiss
+                * the list, and doing so must not take the row with it — the
+                * restore/close buttons and the way back are needed most when the
+                * list is gone. So it is a sibling ABOVE .ai-side-row, spanning
+                * the whole column, and only SessionsPanel itself disappears.
+                *
+                * The TAB STRIP is portalled into `#ai-side-top-tabs` from AiHost
+                * and renders for EVERY tab — a CLI tab needs its strip up here
+                * too, or switching to Claude Code would take the tab row away
+                * with it and leave no way back to Chat.
+                *
+                * Only the trailing ACTION buttons are chat-only: they act on the
+                * Zephyr conversation, and a New-Chat button over Claude Code
+                * does the wrong thing.
+                */}
+              {aiMax && (
+                <div className="ai-side-top" data-testid="ai-side-top">
+                  <div
+                    className="ai-side-top-tabs"
+                    id="ai-side-top-tabs"
+                    data-testid="ai-side-top-tabs"
+                  />
+                  {aiTab === 'chat' ? (
+                    <PanelTrail showMax />
+                  ) : (
+                    <>
+                      <span className="ai-host-sep" aria-hidden="true" />
+                      <PanelWins showMax />
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* The row: chat on the left, the subagent info panel on the right. This wrapper is
                   MANDATORY - without it .ai-side-col (flex column) puts the info
                   info di BAWAH chat, bukan di sampingnya. */}
@@ -1486,6 +1545,13 @@ export default function App() {
                     inside the AI column so it only appears when the chat is
                     actually showing - otherwise it hangs there with no context. */}
                 {subKanan && <SubAgentInfo />}
+                {/* The Sessions sidebar, beside the expanded CHAT only:
+                    Claude Code and Codex keep their own conversation inside the
+                    CLI, so a list of Zephyr chats next to them would be a list
+                    of somebody else's conversations. */}
+                {aiMax && aiTab === 'chat' && sesiSisiBuka && (
+                  <SessionsPanel onClose={() => setSesiSisi(false)} />
+                )}
               </div>
             </aside>
           )}

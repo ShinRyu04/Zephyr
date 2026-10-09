@@ -57,18 +57,34 @@
  *                     `.ai-chat` versi ini sejak awal dan panel tidak lagi
  *                     memakai scroller bergaya kartu.
  *
- *   gap 16px  jarak ANTAR-turn saja. Sebelumnya tidak ada `gap` sama sekali
- *             di sini, sehingga dua turn hanya dipisahkan padding vertikal
- *             `.ai-msg` (7px atas + 9px bawah) — jawaban satu giliran menempel
- *             ke pertanyaan berikutnya tanpa jeda yang terbaca.
+ *   gap 0     tidak ada jarak dari kolom sama sekali, dan itu disengaja.
+ *             Padding vertikal `.ai-msg` sudah jauh lebih besar daripada gap
+ *             mana pun yang masuk akal, jadi gap di sini hanya menambah angka
+ *             yang tidak dibaca siapa pun sebagai "jarak antar-turn".
  *
- *             Padding DALAM satu turn sengaja tetap rapat supaya satu giliran
- *             terbaca sebagai satu blok, bukan beberapa pulau terpisah.
+ *             Yang diukur (dpr 1.25, app hidup), dari kartu pertanyaan ke baris
+ *             "Thought for":
+ *                gap 16px (nilai lama) -> 29px
+ *                gap 4px               -> 23px
+ *                gap 2px               -> 19px
+ *                gap 0                 -> 14px
+ *             Tab Claude Code memisahkan turn-nya 18px
+ *             (`.cli-native-thread { gap: 18px }`, tanpa padding per-pesan).
+ *             14px sengaja sedikit LEBIH rapat daripada pembandingnya: keluhan
+ *             yang berulang adalah jaraknya terlalu jauh, dan 14px masih
+ *             memisahkan dua giliran dengan jelas karena kartu pertanyaan
+ *             membawa 9px padding-nya sendiri.
+ *
+ *             Padding-atas 12px pada giliran asisten SENGAJA tidak dipangkas:
+ *             baris tombol hover (`.ai-msg-actions`, 19.6px) diposisikan absolut
+ *             di `top: 0` dan sudah tumpang 5.6px pada 12px ini. Memangkasnya
+ *             membuat tombol Copy menutupi baris pertama jawaban. Jaraknya
+ *             diambil dari gap, bukan dari ruang yang dipakai kontrol.
  */
 .ai-chat {
   --ai-chat-pad-x: 12px;
   padding: 6px var(--ai-chat-pad-x) 8px;
-  gap: 16px;
+  gap: 0;
   display: flex;
   flex-direction: column;
 }
@@ -105,7 +121,22 @@
 /* User: a left-aligned Copilot-style card, not a right-hugging bubble. */
 .ai-msg.is-user {
   align-items: stretch;
-  padding-top: 4px;
+  /*
+   * 5px above, 2px below, with the 4px column gap.
+   *
+   * The two directions are not symmetric because the assistant's top padding is
+   * not free to change (the hover action row is absolute at `top: 0`), so the
+   * user side carries the difference:
+   *
+   *   question -> answer : 2 (user bottom) + 4 (gap) + 12 (assistant top) = 18
+   *   answer -> question : 9 (assistant bottom) + 4 (gap) + 5 (user top)  = 18
+   *
+   * Both land on the 18px the Claude Code tab uses. The card already carries
+   * 9px of its own padding (`.ai-plain`), so the box around it must not add a
+   * second empty band — that was the 37px the reader saw.
+   */
+  padding-top: 5px;
+  padding-bottom: 2px;
 }
 
 /* ── User message: Copilot-style left-aligned card ────────────────────── */
@@ -346,27 +377,42 @@
   gap: 4px;
 }
 
-/* Bare-text controls: no chip, no fill, no border. */
-.ai-input-side .mode-btn,
-.ai-input-side .ai-model-btn {
-  height: 24px;
-  padding: 0 4px;
+/*
+ * Bare-text controls: no chip, no fill, no border.
+ *
+ * Re-anchored from `.ai-input-side` — a class the JSX dropped when the
+ * composer became a row — which is why they had reverted to bordered pills:
+ * without a rule beating `.mode-btn`'s border, every control in the row wore
+ * an outline at the same moment the reference composer took them all off. The
+ * comment below this block's twin still states the design, and it is the
+ * design: at this size a pill around every control competes with the text you
+ * are typing.
+ *
+ * Scoped to the toolbar so the FOOTER chips keep their borders — those are
+ * meant to read as controls you press, this row as text you glance at.
+ */
+.ai-input-toolbar .mode-btn,
+.ai-input-toolbar .ai-model-btn {
+  height: 26px;
+  padding: 0 6px;
   background: transparent;
   border: 0;
   border-radius: 5px;
-  font-size: 11.5px;
+  /* 13px: the placeholder above is 13px, and a control row that whispers at
+     11.5px beneath it looks like two different products stacked. */
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.ai-input-side .mode-btn:hover,
-.ai-input-side .ai-model-btn:hover {
+.ai-input-toolbar .mode-btn:hover,
+.ai-input-toolbar .ai-model-btn:hover {
   background: var(--surface-3);
   color: var(--text);
 }
 
 /* The caret is the only mark that says "this opens a menu". */
-.ai-input-side .pick-caret,
-.ai-input-side .ai-chev {
+.ai-input-toolbar .pick-caret,
+.ai-input-toolbar .ai-chev {
   width: 10px;
   height: 10px;
   color: var(--text-muted);
@@ -399,7 +445,7 @@
  * Both states are round and the same size, so the button does not move or
  * resize when a request starts or finishes.
  */
-.ai-input-side .ai-round-btn {
+.ai-input-toolbar .ai-round-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -414,27 +460,27 @@
   transition: background 110ms ease, opacity 110ms ease;
 }
 
-.ai-input-side .ai-round-btn.is-send {
+.ai-input-toolbar .ai-round-btn.is-send {
   background: var(--accent);
   color: #fff;
 }
 
-.ai-input-side .ai-round-btn.is-send:hover:not(:disabled) {
+.ai-input-toolbar .ai-round-btn.is-send:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 86%, #fff);
 }
 
-.ai-input-side .ai-round-btn.is-send:disabled {
+.ai-input-toolbar .ai-round-btn.is-send:disabled {
   background: var(--surface-3);
   color: var(--text-muted);
   cursor: default;
 }
 
-.ai-input-side .ai-round-btn.is-stop {
+.ai-input-toolbar .ai-round-btn.is-stop {
   background: var(--surface-3);
   color: var(--text);
 }
 
-.ai-input-side .ai-round-btn.is-stop:hover {
+.ai-input-toolbar .ai-round-btn.is-stop:hover {
   background: color-mix(in srgb, var(--danger) 22%, var(--surface-3));
 }
 
@@ -443,16 +489,16 @@
  * does not shift when it appears; accent-tinted rather than solid accent so
  * it reads as "continue", not as a second primary send.
  */
-.ai-input-side .ai-round-btn.is-resume {
+.ai-input-toolbar .ai-round-btn.is-resume {
   background: color-mix(in srgb, var(--accent) 18%, var(--surface-3));
   color: var(--accent);
 }
 
-.ai-input-side .ai-round-btn.is-resume:hover {
+.ai-input-toolbar .ai-round-btn.is-resume:hover {
   background: color-mix(in srgb, var(--accent) 32%, var(--surface-3));
 }
 
-.ai-input-side .ai-round-btn:focus-visible {
+.ai-input-toolbar .ai-round-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

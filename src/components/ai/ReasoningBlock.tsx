@@ -6,13 +6,14 @@ import { tx, tf } from '../../lib/i18n';
  * The model's own reasoning, folded behind one line.
  *
  * The header states how long the thinking took, because that is the only number
- * a reader can act on: "Thought for 2s" says the model was sure, "Thought
- * briefly" says it had not much to work out. The glyph is a head in profile —
- * not a spinner, because nothing is happening here any more. A still thread
- * icon for work that has already stopped reads as a pause that will resume;
- * Hermes's wording says the same thing without the wrong promise.
+ * a reader can act on: "Thought for 2s" says the model was sure, "Thought for
+ * <1s" says it had not much to work out. The glyph is a filled sparkle — the
+ * same ✻ the live line sweeps while the model works (see `thought` in AiIkon),
+ * so the two states of one row read as a pair. A still thread icon for work that
+ * has already stopped reads as a pause that will resume; Hermes's wording says
+ * the same thing without the wrong promise.
  *
- * A stream that ends empty is not worth a row: "Thought briefly" above an empty
+ * A stream that ends empty is not worth a row: "Thought for <1s" above an empty
  * body is a line that says nothing and takes a click to dismiss.
  */
 /*
@@ -42,7 +43,14 @@ function durasi(ms: number | undefined): string {
     return tf('Thought for {m}m', { m });
   }
   if (detik >= 1) return tf('Thought for {s}s', { s: detik });
-  return tx('Thought briefly');
+  /*
+   * Sub-second, measured. It read "Thought briefly" — a vague word next to
+   * three rows that all state a number, and one the reader cannot compare
+   * against anything. The same sentence with a real figure keeps the header
+   * doing its job: a line of "Thought for <1s" rows is visibly the cheap part
+   * of a run, which is the whole reason the duration is on screen.
+   */
+  return tx('Thought for <1s');
 }
 
 export default function ReasoningBlock({

@@ -78,6 +78,41 @@ pub fn prepare(
             continue;
         }
         let imgs = m.all_images();
+        /*
+         * A previous assistant turn's reasoning, sent back as a thinking block.
+         *
+         * It goes FIRST, which is the order Anthropic returns it in and the
+         * order it must be returned in: the reasoning precedes the text it
+         * produced, and the signature is validated against the block it arrived
+         * with. Only assistant turns carry it — a user turn with a `reasoning`
+         * field is not a thing, and sending one as a thinking block is a 400.
+         */
+        let alasan = m
+            .reasoning
+            .as_deref()
+            .filter(|t| !t.is_empty() && m.role == "assistant")
+            .map(|t| match m.reasoning_signature.as_deref().filter(|s| !s.is_empty()) {
+                Some(sig) => json!({ "type": "thinking", "thinking": t, "signature": sig }),
+                /* No signature: the provider will not verify it, so it goes as
+                   plain text. Keeps the content in context without pretending
+                   to a signature we do not have. */
+                None => json!({ "type": "text", "text": t }),
+            });
+        let blocks_of = |isi: Value| -> Value {
+            match alasan.clone() {
+                /* A content ARRAY takes blocks, not bare strings — so the plain
+                   text half is wrapped as a text block when the array form is
+                   forced by a thinking block. */
+                Some(a) => match isi {
+                    Value::Array(mut b) => {
+                        b.insert(0, a);
+                        json!(b)
+                    }
+                    lain => json!([a, { "type": "text", "text": lain }]),
+                },
+                None => isi,
+            }
+        };
         if !imgs.is_empty() {
             let mut blocks = vec![json!({ "type": "text", "text": m.content })];
             for img in imgs {
@@ -88,9 +123,9 @@ pub fn prepare(
                     }));
                 }
             }
-            turns.push(json!({ "role": m.role, "content": blocks }));
+            turns.push(json!({ "role": m.role, "content": blocks_of(json!(blocks)) }));
         } else {
-            turns.push(json!({ "role": m.role, "content": m.content }));
+            turns.push(json!({ "role": m.role, "content": blocks_of(json!(m.content)) }));
         }
     }
 

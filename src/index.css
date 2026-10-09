@@ -232,6 +232,44 @@ input {
   flex-direction: column;
 }
 
+/*
+ * The maximised panel's top row (VSCode's expanded-chat header).
+ *
+ * Sits ABOVE .ai-side-row, so it spans the whole column â€” chat and Sessions
+ * together â€” and survives the Sessions column being dismissed: it is a
+ * sibling of the list, never a child of it.
+ *
+ * Tabs lead, action buttons trail: the tab strip is portalled in from AiHost
+ * at `#ai-side-top-tabs`, and the trail that follows is pushed to the right
+ * by `margin-left: auto` on the tabs host. So one bar reads
+ * "Chat / Claude Code / Codex â€¦â€¦â€¦ + âŒ„ â§‰ Ã—".
+ */
+.ai-side-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* The portalled tab strip. `margin-right: auto` absorbs the free space, so the
+   tabs stay hard against the leading edge and the actions go to the far right â€”
+   the same split the compact strip uses. */
+.ai-side-top-tabs {
+  display: flex;
+  align-items: center;
+  margin-right: auto;
+  min-width: 0;
+}
+
+/* The compact strip's own bottom hairline would double the row's border here. */
+.ai-side-top-tabs .ai-host-tabs {
+  border-bottom: none;
+  width: 100%;
+}
+
 .ai-side-row {
   flex: 1 1 auto;
   min-height: 0;
@@ -2945,7 +2983,7 @@ body.is-narrow .mb-top { padding: 0 6px; }
   color: var(--text-secondary);
 }
 
-/* „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ Gelombang 5: wallpaper pada chrome yang tertinggal „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Gelombang 5: wallpaper pada chrome yang tertinggal ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
    The big surfaces are handled near the top of the file, but the CHROME NESTED
    inside them kept an opaque background and put a solid sheet back over the
    wallpaper: the tab bar, an active tab, breadcrumbs, the panel header, the
@@ -3044,4 +3082,29 @@ html[data-bg='solid'] .sr-file-head {
 
 html[data-bg='solid'] .ai-cli-bar {
   background: var(--bg-panel);
+}
+
+/*
+ * The title-bar Update button.
+ *
+ * Sized and shaped like the layout buttons beside it (22px tall, 4px radius) so
+ * the row reads as one control strip, but FILLED with the accent â€” it is the
+ * only item in that row that asks for an action rather than toggling a view,
+ * and VSCode marks its update badge the same way.
+ */
+.mb-layout .ai-upd-wrap {
+  margin: 0;
+}
+.mb-layout .ai-upd-btn {
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+/* The popup drops DOWN from the title bar, not up â€” the bar is at the top. */
+.mb-layout .ai-upd-pop {
+  top: calc(100% + 8px);
+  right: auto;
+  left: 0;
 }

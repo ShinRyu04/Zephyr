@@ -29,15 +29,35 @@ pub fn prepare(
     let mut body = json!({
         "model": model,
         "messages": messages.iter().map(|m| {
+            /*
+             * Echo the reasoning a previous assistant turn produced.
+             *
+             * Carried as a sibling field rather than a content block, which is
+             * how the OpenAI-compatible protocol shapes it. Attached only when
+             * non-empty: `reasoning_content: ""` is not the same as omitting it,
+             * and some routers reject the empty form.
+             */
+            let alasan = m
+                .reasoning
+                .as_deref()
+                .filter(|t| !t.is_empty() && m.role == "assistant");
             let imgs = m.all_images();
             if !imgs.is_empty() {
                 let mut content = vec![json!({ "type": "text", "text": m.content })];
                 for img in imgs {
                     content.push(json!({ "type": "image_url", "image_url": { "url": img } }));
                 }
-                json!({ "role": m.role, "content": content })
+                let mut out = json!({ "role": m.role, "content": content });
+                if let Some(t) = alasan {
+                    out["reasoning_content"] = json!(t);
+                }
+                out
             } else {
-                json!({ "role": m.role, "content": m.content })
+                let mut out = json!({ "role": m.role, "content": m.content });
+                if let Some(t) = alasan {
+                    out["reasoning_content"] = json!(t);
+                }
+                out
             }
         }).collect::<Vec<_>>(),
         "stream": true,
@@ -231,6 +251,57 @@ pub fn parse_tool_response(v: &Value) -> AiToolResult {
 pub struct ToolAcc {
     text: String,
     calls: Vec<(String, String, String)>,
+
+    /*
+     * The reasoning, kept so the NEXT request can echo it back.
+     *
+     * `extract_reasoning` already read this field for the live stream, but it
+     * was read and thrown away — the accumulator never held it, so the finished
+     * step came back with `reasoning: null` however much the model had thought.
+     * The only trace of it left was on screen, and the next request showed the
+     * model its own conclusions with no record of how it reached them. Providers
+     * behind the OpenAI-compatible protocol accept `reasoning_content` on the
+     * assistant turn, which is what this is for.
+     */
+    reasoning: String,
+}
+
+impl ToolAcc {
+    /// The reasoning text, for the caller to carry into the next request.
+    ///
+    /// There is no signature half here: `reasoning_content` is plain text on
+    /// this protocol, and Gateways that want one send it inline.
+    pub fn reasoning_parts(&self) -> (Option<String>, Option<String>) {
+        (
+            (!self.reasoning.is_empty()).then(|| self.reasoning.clone()),
+            None,
+        )
+    }
+
+    /*
+     * Accumulate the reasoning delta for the round trip.
+     *
+     * Returns nothing: the live text is emitted separately by
+     * `extract_reasoning`, and a frame can carry this field while carrying no
+     * visible text at all, so returning it here would double-emit.
+     *
+     * The three paths mirror `extract_reasoning` — gateways disagree on the
+     * field name, and a provider that reports under one of the others would
+     * otherwise stream live reasoning that never reached the history.
+     */
+    pub fn feed_reasoning(&mut self, v: &Value) {
+        for jalur in [
+            "/choices/0/delta/reasoning_content",
+            "/choices/0/delta/reasoning",
+            "/choices/0/delta/reasoning_text",
+        ] {
+            if let Some(t) = v.pointer(jalur).and_then(|x| x.as_str()) {
+                if !t.is_empty() {
+                    self.reasoning.push_str(t);
+                }
+            }
+        }
+    }
 }
 
 impl ToolAcc {

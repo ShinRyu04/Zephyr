@@ -145,26 +145,6 @@
   color: var(--danger);
 }
 
-.ai-sesi-baru {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: none;
-  color: var(--fg0);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.ai-sesi-baru:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 /*
  * The title is a button now.
  *
@@ -199,4 +179,18 @@
 .ai-chatname-btn svg {
   flex: none;
   opacity: 0.6;
+}
+
+/*
+ * The agent-sessions toggle, pinned to the header's trailing corner.
+ *
+ * `margin-left: auto` is the whole trick: `.ai-head` is a flex row whose other
+ * children sit at the leading edge, so an `auto` left margin on the LAST child
+ * absorbs all the free space and lands the button in the right corner — the same
+ * place the window controls occupy in the tab strip above it, so the two rows
+ * read as one column of controls down the panel's right edge.
+ */
+.ai-head-sesi {
+  margin-left: auto;
+  flex: none;
 }

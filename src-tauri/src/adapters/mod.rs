@@ -159,6 +159,31 @@ impl StreamAcc {
         }
     }
 
+    /*
+     * Accumulate the turn's reasoning, for the round trip.
+     *
+     * One entry point for all three formats so the caller does not have to know
+     * which one it is holding — the same shape as `feed`. Anthropic needs this
+     * for its signature as much as its text; OpenAI and Gemini carried no
+     * reasoning at all before, so their finished step always reported null.
+     */
+    pub fn feed_reasoning(&mut self, v: &Value) {
+        match self {
+            StreamAcc::Anthropic(a) => a.feed_reasoning(v),
+            StreamAcc::Gemini(a) => a.feed_reasoning(v),
+            StreamAcc::Openai(a) => a.feed_reasoning(v),
+        }
+    }
+
+    /// The turn's reasoning and its signature, read before `finish` consumes it.
+    pub fn reasoning_parts(&self) -> (Option<String>, Option<String>) {
+        match self {
+            StreamAcc::Anthropic(a) => a.reasoning_parts(),
+            StreamAcc::Gemini(a) => a.reasoning_parts(),
+            StreamAcc::Openai(a) => a.reasoning_parts(),
+        }
+    }
+
     pub fn finish(self) -> (String, Vec<ToolCall>) {
         let (content, calls) = match self {
             StreamAcc::Anthropic(a) => a.finish(),

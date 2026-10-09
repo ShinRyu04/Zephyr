@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAiCli, EMPTY_LIST } from '../../lib/aiCliStore';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAiCli, EMPTY_LIST, EMPTY_TASKS, type CliTask } from '../../lib/aiCliStore';
+import { useSubAgent } from '../../lib/subagentStore';
+import AgentMapPanel from './AgentMapPanel';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { catalogFor, modelChip, EFFORT_LEVELS } from '../../lib/cliCatalog';
+import { catalogFor, modelChip, EFFORT_LEVELS, jendelaAliasCli } from '../../lib/cliCatalog';
 import {
   fileDialogOpen,
   fsRead,
@@ -13,7 +15,7 @@ import {
   claudeBuiltinCommands,
   type BuiltinCommand,
 } from '../../lib/commands';
-import { clipboardReadImage } from '../../lib/clipboard';
+import { clipboardReadImage, clipboardWrite } from '../../lib/clipboard';
 import { useT, useTf, tx } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CliTimeline from './CliTimeline';
@@ -188,6 +190,79 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const sessionUsage = (chat?.usage ?? null) as { input: number; output: number } | null;
   const messages = chat?.messages ?? [];
   const pending = chat?.pending ?? null;
+  /*
+   * The subagent cards this session's CLI reported.
+   *
+   * A frozen empty constant, not `?? []`: zustand v5 compares with `===`, so a
+   * fresh array literal on every render re-renders forever. Same reason
+   * `EMPTY_LIST` exists above.
+   */
+  const tugasSesi = chat?.tasks ?? EMPTY_TASKS;
+  /**
+   * Whether the agent map dialog is open.
+   *
+   * Local state, not store state: the panel is a view of what is already in the
+   * session, and putting "am I open" in a persisted store would restore an open
+   * dialog on the next launch, over a conversation the reader may not even be
+   * looking at.
+   */
+  const [petaAgen, setPetaAgen] = useState(false);
+  /*
+   * Zephyr's own parallel workers — the other half of the agents chip.
+   *
+   * Selected as PRIMITIVES, never as a new array: a zustand v5 selector that
+   * builds an array returns a new reference every render and trips
+   * `Maximum update depth exceeded` (the phase-09 trap this file already
+   * documents). Filtering happens in the `useMemo` below instead.
+   */
+  const pekerjaSemua = useSubAgent((s) => s.agents);
+  /*
+   * Who is working right now, from both sources, in one number.
+   *
+   * CLI subagents are counted from the parts of THIS conversation: a `Task` /
+   * `Agent` tool part whose subagent rows are tagged with its id (see AgentMap)
+   * and which has not finished yet. A row is "finished" when its own status is
+   * not `running` — the CLI reports the spawning call's status, and it stays
+   * `running` for as long as the nested loop does.
+   *
+   * The parallel workers are counted from the store, and only while they are
+   * actually going: `menunggu` (queued) counts as working because the reader
+   * started it and it has not finished, while `selesai` / `gagal` / `batal` are
+   * history and belong in the transcript, not in a chip that is supposed to
+   * answer "is anything happening".
+   */
+  const { agentsJalan } = useMemo(() => {
+    const cli: string[] = [];
+    const punyaAnak = new Set<string>();
+    for (const m of messages) {
+      for (const p of m.parts ?? []) {
+        if (p.parentId) punyaAnak.add(p.parentId);
+      }
+    }
+    /*
+     * A CLI subagent counts as working while its spawning row is `running`.
+     *
+     * Read from the TASKS rather than from the row's status where both exist:
+     * the task lifecycle is the CLI's own report and it is the same source the
+     * map's cards use, so the chip and the popup cannot disagree about how many
+     * agents are live. The row scan stays as the fallback for a run whose
+     * lifecycle lines were not seen (an older CLI, or a resume that attached
+     * after the spawn).
+     */
+    const dariTask = tugasSesi.filter((t: CliTask) => t.status === 'running').length;
+    if (dariTask === 0) {
+      for (const m of messages) {
+        for (const p of m.parts ?? []) {
+          if (p.type !== 'tool' || !punyaAnak.has(p.callId)) continue;
+          if (p.status === 'running') cli.push(p.callId);
+        }
+      }
+    }
+    const zephyr = pekerjaSemua.filter(
+      (a) => a.status === 'jalan' || a.status === 'menunggu',
+    ).length;
+    return { agentsJalan: dariTask + cli.length + zephyr };
+  }, [messages, pekerjaSemua, tugasSesi]);
   const cat = catalogFor(agentId);
   const accent = ACCENT[agentId] ?? 'var(--accent)';
   const mode = cat.modes.find((m) => m.id === o.mode) ?? cat.modes[0];
@@ -226,7 +301,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
    * action menu. Conflating them meant the chip opened a list of commands that
    * a reader had no reason to expect from clicking a button.
    */
-  const [menu, setMenu] = useState<null | 'plus' | 'slash' | 'model' | 'mode'>(null);
+  const [menu, setMenu] = useState<null | 'plus' | 'slash' | 'model' | 'mode' | 'agents'>(null);
   /* The CLI's built-in slash commands, loaded once for the typed palette. */
   const [builtins, setBuiltins] = useState<BuiltinCommand[]>([]);
   /* Which slash sheet (Status / Permissions / Agents / …) is open, if any. */
@@ -300,8 +375,17 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
     setMenu(null);
   };
 
+  /*
+   * The Tauri plugin, not `navigator.clipboard`.
+   *
+   * The WebView2 clipboard API rejects with `NotAllowedError` whenever the
+   * document is not focused, which is the normal state while the reader is
+   * looking at a menu or another window — the copy silently did nothing and the
+   * button looked broken. `clipboardWrite` goes through the plugin first and
+   * keeps the browser API only as a fallback.
+   */
   const copy = (text: string) => {
-    void navigator.clipboard?.writeText(text).catch(() => {});
+    void clipboardWrite(text);
   };
 
   /* Tick / untick an onboarding row — strikes it through, like the real card. */
@@ -549,7 +633,10 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
          * response when there is no argument to read.
          */
         const kk = ambangAutoCompact();
-        const jendela = jendelaKonteks(o.model ?? 'default');
+        /* Same alias-aware window as the ring: the toast tells the reader what
+           auto-compact will do, and it must not quote a 128k floor for a 1M
+           model — the two numbers have to agree. */
+        const jendela = jendelaAliasCli(o.model) ?? jendelaKonteks(o.model ?? 'default');
         const aktif = kk ?? Math.round(jendela * 0.8);
         setToast(
           kk
@@ -895,7 +982,15 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
   const contextPersen = (() => {
     if (!sessionUsage) return 0;
     const total = sessionUsage.input + sessionUsage.output;
-    const jendela = jendelaKonteks(o.model ?? 'default');
+    /*
+     * The alias table FIRST, the catalogue second.
+     *
+     * `o.model` is the CLI's alias (`opus`, `sonnet`, `default`), which the
+     * shared catalogue lookup does not know — it used to fall through to the
+     * 128k floor and report a 1M-window model's 4% as 30%. Only when the entry
+     * is not an alias (the user typed a full id) does the catalogue answer.
+     */
+    const jendela = jendelaAliasCli(o.model) ?? jendelaKonteks(o.model ?? 'default');
     if (!jendela || jendela <= 0) return 0;
     return Math.max(0, Math.min(100, Math.round((total / jendela) * 100)));
   })();
@@ -1465,6 +1560,64 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
               </div>
             )}
           </div>
+
+          {/*
+            * The agents chip: who is working right now, from both sources.
+            *
+            * Two different things are called "agent" in this app and the reader
+            * has one word for both, so the chip counts both rather than making
+            * them learn which panel to look in:
+            *
+            *   - CLI subagents — the `Agent`/`Task` calls THIS conversation's
+            *     model made, relayed by the CLI (see AgentMap). Counted as the
+            *     ones still running, which is what the map's own nesting shows.
+            *   - Zephyr's parallel workers — the ones the reader started from
+            *     the Subagents tab (subagentStore).
+            *
+            * Only WORKING agents are counted. A finished one is history and
+            * belongs in the transcript; a chip that says "3 agents" while
+            * nothing is happening is a number the reader cannot act on. Zero
+            * both ways means the chip is still shown — unlike the pill in the
+            * real Claude Code, which is always present — because its absence
+            * would read as the feature being missing rather than idle.
+            */}
+          <div className="cli-pop-wrap">
+            <button
+              className="cli-native-chip cli-chip-agents"
+              data-testid={`ai-clichat-agents-${agentId}`}
+              data-count={agentsJalan}
+              aria-haspopup="dialog"
+              aria-expanded={petaAgen}
+              title={tr('Agent map')}
+              onClick={() => setPetaAgen((v) => !v)}
+            >
+              <span className={`cli-chip-dot${agentsJalan > 0 ? ' is-live' : ''}`} aria-hidden="true" />
+              {tf('{n} agents', { n: agentsJalan })}
+            </button>
+          </div>
+
+          {/*
+            * The agent map opens from the chip, not as a dropdown.
+            *
+            * The chip first opened a dropdown listing what was running, which
+            * only ever answered "is anything happening" — the question a reader
+            * has ALREADY answered before clicking. The map answers the next one:
+            * what each agent was for, how long it took, and what it cost. It is
+            * a dialog (backdrop, Escape, focus) rather than a menu because it
+            * shows history, not a list of choices.
+            */}
+          {petaAgen && (
+            <AgentMapPanel
+              tasks={tugasSesi}
+              messages={messages}
+              title={chat?.title || tr('This conversation')}
+              modelLabel={chipLabel}
+              contextTokens={
+                sessionUsage ? sessionUsage.input + sessionUsage.output : 0
+              }
+              onClose={() => setPetaAgen(false)}
+            />
+          )}
 
           {/* Model chip → "Select a model" picker */}
           <div className="cli-pop-wrap">

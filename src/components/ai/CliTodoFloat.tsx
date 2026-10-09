@@ -1,5 +1,29 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import type { CliMsg, CliTodo } from '../../lib/aiCliStore';
+import AiIkon from './AiIkon';
+import { useT } from '../../lib/i18n';
+
+/*
+ * Whether the reader has folded the plan away.
+ *
+ * PERSISTED, unlike most panel state in this app. The card is pinned above the
+ * composer for the whole run, and someone who does not want it there wants it
+ * gone for every run — asking again on each new turn would be a control that
+ * forgets the answer it was just given. localStorage because it is a
+ * per-viewer preference about chrome, not shared state, and because it must
+ * survive a reload without a round trip.
+ */
+const KUNCI_TODO_TUTUP = 'zephyr.cli.todoHidden';
+
+function awalTutup(): boolean {
+  try {
+    return localStorage.getItem(KUNCI_TODO_TUTUP) === '1';
+  } catch {
+    /* Storage blocked: the card shows, which is the safe default — the plan is
+       information, and hiding it by accident loses it. */
+    return false;
+  }
+}
 
 /*
  * The agent's plan, floating above the composer.
@@ -18,6 +42,19 @@ import type { CliMsg, CliTodo } from '../../lib/aiCliStore';
  * glance.
  */
 const CliTodoFloat = memo(function CliTodoFloat({ messages }: { messages: readonly CliMsg[] }) {
+  const tr = useT();
+  const [tutup, setTutup] = useState(awalTutup);
+
+  /* Written on every change rather than at unmount: a run can end abruptly
+     (Stop, a provider error, the window closing) and an unmount handler would
+     simply never fire, silently losing the reader's choice. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(KUNCI_TODO_TUTUP, tutup ? '1' : '0');
+    } catch {
+      /* Storage unavailable: the choice holds for this session only. */
+    }
+  }, [tutup]);
   /* The LAST todo part is the current plan — TodoWrite replaces the whole list
      each time, so an earlier part is a superseded snapshot. Scanning backwards
      from the newest message finds it without walking the whole transcript. */
@@ -42,17 +79,35 @@ const CliTodoFloat = memo(function CliTodoFloat({ messages }: { messages: readon
   const running = shown.some((t) => t.status === 'in_progress');
 
   return (
-    <div className="cli-todo-float" data-testid="cli-todo-float" data-running={running ? '1' : '0'}>
+    <div className="cli-todo-float" data-testid="cli-todo-float" data-running={running ? '1' : '0'} data-hidden={tutup ? '1' : '0'}>
       {/*
-        * No title row.
+        * The fold control.
         *
-        * The real CLI prints the list and nothing else — no "Plan", no heading.
-        * A label above three checkboxes is a word the reader has to skip on
-        * every glance, and the checklist already says what it is. The progress
-        * counter is kept but moved to the end of the last line's row, where the
-        * real client shows it, so the block reads as one list rather than a
-        * titled card.
+        * The real CLI keeps this card pinned for the whole run, and on a long
+        * run it is a standing block of screen above the box you type in. A
+        * reader who already knows the plan should be able to put it away — and
+        * the counter stays visible while folded, so "how far along" is still
+        * answerable without unfolding.
         */}
+      <button
+        className="cli-todo-float-fold"
+        data-testid="cli-todo-float-fold"
+        aria-expanded={!tutup}
+        title={tutup ? tr('Show the plan') : tr('Hide the plan')}
+        onClick={() => setTutup((v) => !v)}
+      >
+        <span className="cli-todo-float-caret" aria-hidden="true">{tutup ? '▸' : '▾'}</span>
+        <span className="cli-todo-float-fold-text">{tr('Plan')}</span>
+        <span className="cli-todo-float-fold-count">
+          {done}/{shown.length}
+        </span>
+        <span className={`cli-todo-float-dot${running ? ' is-on' : ''}`} aria-hidden="true" />
+        <span className="cli-todo-float-fold-ikon" aria-hidden="true">
+          <AiIkon name={tutup ? 'eye' : 'collapse'} size={12} />
+        </span>
+      </button>
+      {!tutup && (
+      <>
       <ul className="cli-todo-float-list">
         {shown.map((t, i) => {
           const jalan = t.status === 'in_progress';
@@ -77,12 +132,8 @@ const CliTodoFloat = memo(function CliTodoFloat({ messages }: { messages: readon
           );
         })}
       </ul>
-      <div className="cli-todo-float-foot">
-        <span className={`cli-todo-float-dot${running ? ' is-on' : ''}`} aria-hidden="true" />
-        <span className="cli-todo-float-count" data-testid="cli-todo-float-count">
-          {done}/{shown.length}
-        </span>
-      </div>
+      </>
+      )}
     </div>
   );
 });

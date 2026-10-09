@@ -479,7 +479,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin: 0 10px 10px;
+  margin: 0 10px 20px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--ai-dock-radius, 10px);
@@ -758,20 +758,21 @@
  * width band, same radius, same shadow, same item rhythm.
  */
 /*
- * Anchored to the RIGHT edge of its trigger.
+ * Anchored to the LEFT edge of its trigger.
  *
- * The model chip sits at the right end of the composer, so a menu anchored to
- * the left edge grew rightward from x=1301 and ran past the panel edge — the
- * model descriptions were cut mid-word and the panel's own edge clipped the
- * rest. Anchoring right makes the menu grow leftward into the space that is
- * actually free.
+ * It used to anchor right, because the model chip then sat at the RIGHT end of
+ * the composer. The chip has since moved to the leading edge of the footer row
+ * (the reference's placement), and a right anchor grew the menu leftward from
+ * x=282 — measured off-screen at x=-19, its first column cut through every
+ * model name. Left anchoring grows it into the panel, which is the side that
+ * has the room now.
  */
 .ai-model-menu {
   position: absolute;
   top: auto;
   bottom: calc(100% + 6px);
-  right: 0;
-  left: auto;
+  right: auto;
+  left: 0;
   z-index: 400;
   width: max-content;
   min-width: 300px;
@@ -789,8 +790,8 @@
 /* In a narrow panel the menu takes the panel's width, less the margins. */
 @container aipanel (max-width: 420px) {
   .ai-model-menu {
-    right: 0;
-    left: auto;
+    right: auto;
+    left: 0;
     width: min(320px, calc(100cqw - 16px));
     min-width: 0;
   }
@@ -1038,6 +1039,23 @@
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
+}
+
+/*
+ * The footer trio — Interactive, permission, reasoning — sized for reading,
+ * not tucked away.
+ *
+ * They inherited the composer's chip metrics (26px / 11.5px), which are tuned
+ * for a row that already has four controls competing for width. In the footer
+ * they are the only thing on the left half of the row, and at that size they
+ * read as metadata rather than as controls you can click. 30px tall with a
+ * 12.5px label matches the reference footer's chips.
+ */
+.ai-botbar .izin-wrap .mode-btn {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  gap: 7px;
 }
 
 .mode-btn {

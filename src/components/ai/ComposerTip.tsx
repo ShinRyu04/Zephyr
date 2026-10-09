@@ -1,5 +1,7 @@
 import { memo, useEffect, useState } from 'react';
+import { useAi } from '../../lib/aiStore';
 import { useT } from '../../lib/i18n';
+import AiIkon from './AiIkon';
 
 /*
  * The "Tip:" strip at the top of the composer box (Copilot-style).
@@ -25,11 +27,18 @@ const TIPS = [
 function ComposerTipInner() {
   const tr = useT();
   const [idx, setIdx] = useState(0);
+  const terlihat = useAi((s) => s.tipsVisible);
+  const setTerlihat = useAi((s) => s.setTipsVisible);
 
   useEffect(() => {
     const t = window.setInterval(() => setIdx((i) => (i + 1) % TIPS.length), 7000);
     return () => window.clearInterval(t);
   }, []);
+
+  /* Hidden at the reader's request: the ✕ dismisses it for good (persisted),
+     and "Show tips" in the "…" menu brings it back — the setting lives in a
+     popup beside where the thing was, not in Settings. */
+  if (!terlihat) return null;
 
   const tip = TIPS[idx];
   return (
@@ -55,6 +64,15 @@ function ComposerTipInner() {
         )}
         {tip === 'tip-newchat' && <>{tr('Start a new chat to run another task in parallel')}</>}
       </span>
+      <button
+        className="ai-tip-tutup"
+        data-testid="ai-tip-dismiss"
+        title={tr('Hide tips')}
+        aria-label={tr('Hide tips')}
+        onClick={() => setTerlihat(false)}
+      >
+        <AiIkon name="close" size={11} />
+      </button>
     </div>
   );
 }

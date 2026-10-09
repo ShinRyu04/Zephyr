@@ -42,7 +42,27 @@ export type CliTodo = {
   id: string;
 };
 
-export type CliPart =
+/**
+ * A part can belong to a subagent, whatever kind it is.
+ *
+ * The tag sits at the top level rather than inside the `tool` variant for the
+ * same reason it does on `CliEvent`: a subagent writes prose and thinks as well
+ * as calling tools, and tagging only its tool rows would misattribute the rest.
+ */
+type PartMilikSarang = {
+  /**
+   * The `Task` call this part belongs to, when a subagent produced it.
+   *
+   * The CLI relays a subagent's work tagged with the id of the `Task` call that
+   * spawned it. Kept on the part so the transcript can nest it under that call —
+   * without it a subagent's whole nested loop is invisible, and the reader
+   * watches a silent `Task` row for minutes.
+   */
+  parentId?: string;
+};
+
+export type CliPart = PartMilikSarang &
+  (
   | { type: 'text'; text: string }
   /*
    * The model's reasoning, streamed live.
@@ -78,7 +98,8 @@ export type CliPart =
       diffOld?: string;
       diffNew?: string;
       path?: string;
-    };
+    }
+  );
 
 export interface CliMsg {
   id: string;
@@ -115,6 +136,49 @@ export interface CliMsg {
   images?: { path: string; url: string }[];
 }
 
+/**
+ * One subagent, as reported by the CLI's `system` task lines.
+ *
+ * This is the data behind the agent map popup — a card per agent, with the
+ * description, how long it has been running and how many tokens it has spent.
+ * Every field comes from the CLI; nothing here is estimated.
+ *
+ * WHY it is kept on the SESSION rather than derived from `parts`: the lifecycle
+ * lines arrive as `system` events that belong to no message, and they carry
+ * facts the transcript rows never see — cumulative token counts, the spawn
+ * depth, and whether the agent has finished. Deriving a card from the tagged
+ * parts alone would give a title and a row count, and no durations or tokens.
+ *
+ * Keyed by `taskId`, replaced on every event: the CLI resends the whole picture
+ * each time (cumulative usage), so merging would double the token count.
+ */
+export interface CliTask {
+  id: string;
+  /** The spawning call's `tool_use_id` — joins a card to its transcript rows. */
+  toolUseId?: string;
+  description?: string;
+  subagentType?: string;
+  /**
+   * The full instruction the agent was given.
+   *
+   * The only record of what the agent was actually ASKED, which is what a
+   * reader needs when it came back with something unexpected. Carried whole
+   * rather than truncated: this view exists to show it.
+   */
+  prompt?: string;
+  /** 1 = spawned by the main agent; higher = by another subagent. */
+  spawnDepth?: number;
+  /** Still running after its parent returned. */
+  background?: boolean;
+  /** `running` until the CLI reports a terminal status. */
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | string;
+  tokens: number;
+  toolUses: number;
+  durationMs: number;
+  lastTool?: string;
+  summary?: string;
+}
+
 export interface CliSession {
   id: string;
   /**
@@ -128,6 +192,14 @@ export interface CliSession {
   /** Follows the first user message; "New chat" until then. */
   title: string;
   messages: CliMsg[];
+  /**
+   * The subagents this session's CLI reported, in the order they started.
+   *
+   * Feeds the agent map popup. Absent on sessions restored from an older
+   * version, and on any run where the model delegated nothing — a session with
+   * no `tasks` has no map to show, which is not an error.
+   */
+  tasks?: CliTask[];
   /** The request id of the in-flight run, or null when idle. */
   pending: string | null;
   /** stderr collected during the current run, shown only if it errored. */
@@ -300,6 +372,14 @@ interface AiCliState {
 }
 
 const EMPTY_LIST: CliSession[] = [];
+/*
+ * A frozen empty task list, for the same reason `EMPTY_LIST` exists.
+ *
+ * zustand v5 compares a selector's result with `===`, so `?? []` in a component
+ * returns a NEW array on every render and re-renders forever. A module-level
+ * constant is the same reference every time.
+ */
+const EMPTY_TASKS: CliTask[] = [];
 let seq = 0;
 const rid = () => `clichat-${Date.now().toString(36)}-${(seq++).toString(36)}`;
 
@@ -678,6 +758,17 @@ function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
     content += ev.text;
     if (last && last.type === 'text') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
     else parts.push({ type: 'text', text: ev.text });
+  } else if (ev.kind === 'task') {
+    /*
+     * A subagent's lifecycle belongs to the SESSION, not to a message.
+     *
+     * The `system` task lines are not part of any turn's timeline, so this
+     * returns the message untouched and the listener folds the event into
+     * `session.tasks`. Handled here rather than by rejecting it earlier so the
+     * contract stays "every event has a home", and a future caller that routes
+     * events differently cannot silently lose one.
+     */
+    return msg;
   } else if (ev.kind === 'thinking') {
     if (last && last.type === 'thinking') parts[parts.length - 1] = { ...last, text: last.text + ev.text };
     else parts.push({ type: 'thinking', text: ev.text, t0: Date.now() });
@@ -725,6 +816,19 @@ function applyCliEvent(msg: CliMsg, ev: CliEvent): CliMsg {
       parts.push({ type: 'tool', ...t });
     }
   }
+  /*
+   * Carry the subagent tag onto whichever part this event produced.
+   *
+   * Applied here, after the branches, rather than inside each of them: a
+   * subagent emits text and thinking as well as tool calls, and a tag that only
+   * landed on tool rows would leave its prose attributed to the main agent. The
+   * tag goes on the LAST part, which is the one this event created or extended
+   * — every branch above either pushes or updates the tail.
+   */
+  if (ev.parentId && parts.length > 0) {
+    const tail = parts[parts.length - 1];
+    if (tail.parentId !== ev.parentId) parts[parts.length - 1] = { ...tail, parentId: ev.parentId };
+  }
   return { ...msg, parts, content };
 }
 
@@ -747,6 +851,9 @@ export function bindCliChatListener(): void {
         let messages = sess.messages;
         let stderr = sess.stderr;
         let pending = sess.pending;
+        /* The session's subagent cards. Copied on first write so the events of
+           one run never mutate the array a previous render is holding. */
+        let tasks: CliTask[] = sess.tasks ? sess.tasks.slice() : [];
         /* The session's own id, which belongs to the SESSION rather than to any
            message - so it is stored here, not inside the timeline. */
         let cliSessionId = sess.cliSessionId;
@@ -774,9 +881,47 @@ export function bindCliChatListener(): void {
         /* A structured event (thinking / tool / diff / text) builds the message
            timeline; plain `text` still appends to content for back-compat. */
         if (chunk.event) {
-          messages = messages.map((m) =>
-            m.id === chunk.id ? applyCliEvent(m, chunk.event!) : m,
-          );
+          /*
+           * A task event is folded into the SESSION, not into a message.
+           *
+           * It arrives on a `system` line and belongs to none of the transcript
+           * turns — but it is the only place a card's duration and token count
+           * exist, so it cannot simply be dropped either. Kept in `tasks`,
+           * keyed by `taskId`, REPLACED each time: the CLI's counts are
+           * cumulative for the agent, and merging would multiply them by the
+           * number of progress lines (20 in a measured two-agent run).
+           */
+          if (chunk.event.kind === 'task') {
+            const t = chunk.event;
+            const sebelumnya = tasks;
+            const idx = sebelumnya.findIndex((x) => x.id === t.taskId);
+            const lama = idx >= 0 ? sebelumnya[idx] : null;
+            const baru: CliTask = {
+              id: t.taskId,
+              /* Kept from the earlier phase when this line does not repeat it:
+                 only `task_started` carries the call id and the description,
+                 and a card that lost them on the first progress line would go
+                 blank halfway through the run. */
+              toolUseId: t.toolUseId ?? lama?.toolUseId,
+              description: t.description ?? lama?.description,
+              subagentType: t.subagentType ?? lama?.subagentType,
+              prompt: t.prompt ?? lama?.prompt,
+              spawnDepth: t.spawnDepth ?? lama?.spawnDepth,
+              background: t.background ?? lama?.background,
+              status: (t.status as CliTask['status']) ?? lama?.status ?? 'running',
+              tokens: t.tokens ?? lama?.tokens ?? 0,
+              toolUses: t.toolUses ?? lama?.toolUses ?? 0,
+              durationMs: t.durationMs ?? lama?.durationMs ?? 0,
+              lastTool: t.lastTool ?? lama?.lastTool,
+              summary: t.summary ?? lama?.summary,
+            };
+            if (idx >= 0) tasks[idx] = baru;
+            else tasks.push(baru);
+          } else {
+            messages = messages.map((m) =>
+              m.id === chunk.id ? applyCliEvent(m, chunk.event!) : m,
+            );
+          }
         }
         if (chunk.text) {
           messages = messages.map((m) =>
@@ -820,7 +965,7 @@ export function bindCliChatListener(): void {
             };
           });
         }
-        return { ...sess, messages, stderr, pending, cliSessionId, usage };
+        return { ...sess, messages, stderr, pending, cliSessionId, usage, tasks };
       });
       const sessions = { ...s.sessions, [agentId]: next };
       /* Persist only when the run finished, not on every token. */
@@ -830,4 +975,4 @@ export function bindCliChatListener(): void {
   });
 }
 
-export { EMPTY_LIST };
+export { EMPTY_LIST, EMPTY_TASKS };

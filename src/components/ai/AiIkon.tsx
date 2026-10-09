@@ -44,6 +44,7 @@ export type NamaAiIkon =
     | 'chev-up'
     | 'chev-down'
     | 'chev-right'
+    | 'arrow-left'
     | 'refresh'
     | 'gear'
     | 'send'
@@ -324,6 +325,22 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <path d="M6.5 4L10 8l-3.5 4" />
         </svg>
       );
+    /*
+     * A left arrow, not a left chevron.
+     *
+     * The agent detail view is a step BACK to the map, and it is drawn with a
+     * full arrow the way every "return to the previous view" control is. A
+     * chevron already means "collapse this row" in this transcript (the tool
+     * rows' carets), so reusing it here would read as folding the panel rather
+     * than leaving it.
+     */
+    case 'arrow-left':
+      return (
+        <svg {...box}>
+          <path d="M13 8H3" />
+          <path d="M7 4L3 8l4 4" />
+        </svg>
+      );
     // A circular arrow: reload the model list from the provider.
     case 'refresh':
       return (
@@ -410,22 +427,25 @@ export default function AiIkon({ name, size = 15 }: Props) {
         </svg>
       );
     /*
-     * The reasoning row's own glyphs.
+     * A four-point sparkle, and the ONLY filled glyph in the reasoning set.
      *
-     * A thought is drawn as a head in profile with a small spark beside it —
-     * the same idea as Hermes's "Thought for 2s" line, and distinct from every
-     * tool glyph, so the reasoning rows and the work rows never read as the
-     * same kind of thing. The eye is a tool call that looked at something, and
-     * the terminal is one that ran something; both are drawn here rather than
-     * reusing the row's text icons because a reasoning block and a tool row sit
-     * side by side and their icons have to be told apart at a glance.
+     * It used to be a head in profile with a spark beside it, which the reader
+     * could not tell from the tool glyphs in the same column, and which said
+     * nothing about the state the row is in. The sparkle is the mark the live
+     * line already sweeps while the model works (`.cli-think-star`, the same
+     * ✻), the COLLAPSED header now leads with it, and the two rows therefore
+     * read as the same thing at two moments: working, then finished. Filling it
+     * is what makes it match that ✻, which is a filled text glyph - an outline
+     * here would put the same mark in two weights on one transcript.
      */
     case 'thought':
       return (
         <svg {...box}>
-          <path d="M9.6 2.6a3.4 3.4 0 0 0-3.3 4.2 3.1 3.1 0 0 0-1.5 2.7 3.1 3.1 0 0 0 3.1 3.1h.4v1.4" />
-          <path d="M8.3 12.6v1.8" />
-          <path d="M12.4 2.2l.5 1.1 1.1.5-1.1.5-.5 1.1-.5-1.1-1.1-.5 1.1-.5.5-1.1z" />
+          <path
+            d="M8 1.6c.55 3.4 2.85 5.7 6.4 6.4-3.55.7-5.85 3-6.4 6.4-.55-3.4-2.85-5.7-6.4-6.4 3.55-.7 5.85-3 6.4-6.4z"
+            fill="currentColor"
+            stroke="none"
+          />
         </svg>
       );
     case 'eye':

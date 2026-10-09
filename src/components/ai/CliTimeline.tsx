@@ -5,6 +5,7 @@ import type { CliMsg, CliTodo } from '../../lib/aiCliStore';
 import ReasoningBlock from './ReasoningBlock';
 import Lightbox from './Lightbox';
 import { ToolRow, unifiedFromHalves } from './claudeCodeUi';
+import AgentMap, { kelompokkanSubagent } from './AgentMap';
 import { useT } from '../../lib/i18n';
 
 /*
@@ -193,6 +194,17 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
   /* One zoomable image at a time, opened from any image in the answer. */
   const [zoom, setZoom] = useState<string | null>(null);
   const MD = useMemo(() => mdComponents(setZoom), []);
+  /*
+   * The agent map, derived from the tags on the parts.
+   *
+   * Declared ABOVE the early return below, and that placement is the whole
+   * point: a hook after a conditional `return` runs on some renders and not
+   * others, which React reports as "Rendered more hooks than during the
+   * previous render" — and it did, the moment a message with no `parts` was
+   * followed by one with them. Every hook in this component must be above the
+   * back-compat exit.
+   */
+  const subagent = useMemo(() => kelompokkanSubagent(parts ?? []), [parts]);
 
   /* Back-compat: no structured timeline → render the plain answer. */
   if (!parts || parts.length === 0) {
@@ -242,10 +254,24 @@ function CliTimelineInner({ msg, streaming }: { msg: CliMsg; streaming: boolean 
           );
         }
         if (p.type === 'tool') {
+          /*
+           * A `Task` call whose subagent reported work becomes the agent map.
+           *
+           * Keyed off the CHILDREN, not off `name === 'Task'`: a Task call that
+           * forwarded nothing (an older CLI without the flag, or a subagent that
+           * never wrote a line) has no map to draw, and rendering an empty one
+           * would add a nesting level that shows nothing. Falling back to the
+           * ordinary row keeps those cases working exactly as before.
+           */
+          const anak = subagent.get(p.callId);
+          if (anak && anak.length > 0) {
+            return <AgentMap key={p.callId || i} part={p} anak={anak} onImage={setZoom} />;
+          }
           return (
             <ToolRow
               key={p.callId || i}
               name={p.name}
+              callId={p.callId}
               title={p.title}
               input={p.input}
               output={p.output}

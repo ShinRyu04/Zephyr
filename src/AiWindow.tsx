@@ -1,7 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import LiveRegion from './components/a11y/LiveRegion';
 import Toast from './components/notifications/Toast';
 import { useAiChunkListener } from './lib/useAiChunkListener';
+import { useAi } from './lib/aiStore';
+import { useStore } from './lib/store';
 
 const AiPanel = lazy(() => import('./components/ai/AiHost'));
 const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
@@ -15,9 +17,32 @@ const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
  * whole surface, exactly like VSCode's floating Copilot window. The main
  * window stops rendering its own `<AiPanel/>` while in 'window' mode, so there
  * is still only ONE `ai-chunk` listener and tokens never double.
+ *
+ * Bootstrap runs HERE, not only in App: the pop-out is a separate WebView
+ * process with its own store instances. Without this the provider, model and
+ * API keys are never loaded, and the model chip reads as empty — which is
+ * exactly the bug that made the window unusable.
  */
 export default function AiWindow() {
   useAiChunkListener();
+
+  useEffect(() => {
+    void useStore.getState().bootstrap();
+  }, []);
+
+  useEffect(() => {
+    if (useStore.getState().settingsLoaded) {
+      void useAi.getState().init();
+      return;
+    }
+    const unsub = useStore.subscribe((s, prev) => {
+      if (!prev.settingsLoaded && s.settingsLoaded) {
+        void useAi.getState().init();
+      }
+    });
+    return unsub;
+  }, []);
+
   return (
     <div className="ai-window-root" data-testid="ai-window-root">
       <Suspense fallback={null}>

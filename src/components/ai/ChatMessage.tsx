@@ -11,6 +11,7 @@ import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
 import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
+import { MsgTime } from './ChatStamp';
 import { ThinkingLine } from './CliTimeline';
 import { ToolRow, EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
@@ -606,6 +607,17 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
           </>
         )}
         <span className="ai-msg-actions">
+          {/*
+            * When the message arrived, in the same row as the actions.
+            *
+            * Placed here — rather than as its own line — because this row is
+            * already collapsed to zero height (ai-streaming.css) and its
+            * children are absolutely positioned, so a timestamp costs no
+            * vertical space and cannot re-open the gap that was just removed.
+            * It settles on the side the message came from, next to the buttons
+            * that belong to it.
+            */}
+          <MsgTime at={msg.at} />
           {!isUser && !msg.streaming && !msg.error && (
             <button
               className="ai-msg-act"
