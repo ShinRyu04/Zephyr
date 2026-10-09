@@ -68,7 +68,11 @@ const SECTIONS = [
   { id: 'mode', label: 'Mode' },
   { id: 'agent', label: 'Agent' },
   { id: 'context', label: 'Context' },
+  { id: 'subagent', label: 'Sub-agents' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'voice', label: 'Voice' },
   { id: 'appearance', label: 'Appearance' },
+  { id: 'advanced', label: 'Advanced' },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -111,9 +115,16 @@ export default function ChatSettingsPage({
   const apply = useStore((s) => s.applySettings);
   const models = settings.models;
   const agents = settings.agents;
-  const subagent = settings.subagent;
+  const voice = settings.voice;
+  const mic = settings.mic;
+  const rules = settings.rules;
 
   const debugBuka = useAiDebug((s) => s.buka);
+  /* Tool counts, read as primitives: the Set itself is replaced on every
+     toggle, so comparing it in a selector is fine, but a derived number keeps
+     this row from re-rendering on unrelated changes. */
+  const jumlahToolAktif = useToolGate((s) => s.aktif.size);
+  const subagent = settings.subagent;
 
   /* Escape closes the page, like any other editor-area view. */
   useEffect(() => {
@@ -216,52 +227,6 @@ export default function ChatSettingsPage({
         />
       ),
     },
-    {
-      section: 'agent',
-      id: 'subwrite',
-      label: 'Let sub-agents write',
-      hint: 'Off means every sub-agent may only read; you approve writes yourself.',
-      words: 'agent subagent sub-agent write edit allow worker parallel',
-      ctl: (
-        <Toggle
-          checked={subagent.allowWrite ?? false}
-          testid="cset-subwrite"
-          label="Let sub-agents write"
-          onChange={(v) => void apply({ subagent: { allowWrite: v } })}
-        />
-      ),
-    },
-    {
-      section: 'agent',
-      id: 'subpanel',
-      label: 'Show the sub-agent panel',
-      hint: 'The live list of workers beside the chat.',
-      words: 'agent subagent sub-agent panel show workers list side',
-      ctl: (
-        <Toggle
-          checked={subagent.showPanel !== false}
-          testid="cset-subpanel"
-          label="Show the sub-agent panel"
-          onChange={(v) => void apply({ subagent: { showPanel: v } })}
-        />
-      ),
-    },
-    {
-      section: 'agent',
-      id: 'tools',
-      label: 'Tool sets',
-      hint: 'Choose which tools the agent may call at all.',
-      words: 'agent tools tool sets gate allow call',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-tools"
-          onClick={() => useToolGate.getState().setBuka(true)}
-        >
-          {tr('Open tool sets…')}
-        </button>
-      ),
-    },
 
     {
       section: 'context',
@@ -318,21 +283,6 @@ export default function ChatSettingsPage({
         />
       ),
     },
-    {
-      section: 'context',
-      id: 'debug',
-      label: 'Show the debug view',
-      hint: 'Log every request the panel sends, with timing and token counts.',
-      words: 'context debug view requests log timing tokens trace',
-      ctl: (
-        <Toggle
-          checked={debugBuka}
-          testid="cset-debug"
-          label="Show the debug view"
-          onChange={() => useAiDebug.getState().toggle()}
-        />
-      ),
-    },
 
     {
       section: 'appearance',
@@ -361,6 +311,341 @@ export default function ChatSettingsPage({
           testid="cset-avatar"
           label="Chat avatars"
           onChange={(v) => void apply({ agents: { chatAvatar: v } })}
+        />
+      ),
+    },
+    {
+      section: 'appearance',
+      id: 'subpanel2',
+      label: 'Collapse finished steps',
+      hint: 'Fold a sub-agent’s step list away once it stops.',
+      words: 'appearance subagent sub-agent collapse fold steps panel tidy',
+      ctl: (
+        <Toggle
+          checked={subagent.autoCollapse !== false}
+          testid="cset-autocollapse"
+          label="Collapse finished steps"
+          onChange={(v) => void apply({ subagent: { autoCollapse: v } })}
+        />
+      ),
+    },
+
+    {
+      section: 'subagent',
+      id: 'subwrite',
+      label: 'Let sub-agents write',
+      hint: 'Off means every sub-agent may only read; you approve writes yourself.',
+      words: 'subagent sub-agent write edit allow worker parallel permission',
+      ctl: (
+        <Toggle
+          checked={subagent.allowWrite ?? false}
+          testid="cset-subwrite"
+          label="Let sub-agents write"
+          onChange={(v) => void apply({ subagent: { allowWrite: v } })}
+        />
+      ),
+    },
+    {
+      section: 'subagent',
+      id: 'subpanel',
+      label: 'Show the sub-agent panel',
+      hint: 'The live list of workers beside the chat.',
+      words: 'subagent sub-agent panel show workers list side',
+      ctl: (
+        <Toggle
+          checked={subagent.showPanel !== false}
+          testid="cset-subpanel"
+          label="Show the sub-agent panel"
+          onChange={(v) => void apply({ subagent: { showPanel: v } })}
+        />
+      ),
+    },
+    {
+      section: 'subagent',
+      id: 'parallel',
+      label: 'Run at most',
+      hint: 'How many sub-agents may work at the same time.',
+      words: 'subagent sub-agent parallel concurrency workers simultaneous',
+      ctl: (
+        <Select
+          value={String(subagent.maxParallel ?? 4)}
+          testid="cset-subparallel"
+          label="Run at most"
+          options={[1, 2, 3, 4, 6, 8].map((n) => ({ value: String(n), label: `${n}` }))}
+          onChange={(v) => void apply({ subagent: { maxParallel: Number(v) } })}
+        />
+      ),
+    },
+    {
+      section: 'subagent',
+      id: 'steps',
+      label: 'Steps per sub-agent',
+      hint: 'The ceiling on how many tool steps one worker may take.',
+      words: 'subagent sub-agent steps limit budget ceiling tools',
+      ctl: (
+        <Select
+          value={String(subagent.maxSteps ?? 15)}
+          testid="cset-substeps"
+          label="Steps per sub-agent"
+          options={[5, 10, 15, 20, 30, 50].map((n) => ({ value: String(n), label: `${n}` }))}
+          onChange={(v) => void apply({ subagent: { maxSteps: Number(v) } })}
+        />
+      ),
+    },
+    {
+      section: 'subagent',
+      id: 'idle',
+      label: 'Give up after',
+      hint: 'How long a sub-agent may sit idle before its step is abandoned.',
+      words: 'subagent sub-agent idle timeout give up abandon seconds',
+      ctl: (
+        <Select
+          value={String(subagent.idleSecs ?? 90)}
+          testid="cset-subidle"
+          label="Give up after"
+          options={[30, 60, 90, 120, 300, 600].map((n) => ({
+            value: String(n),
+            label: `${n}s`,
+          }))}
+          onChange={(v) => void apply({ subagent: { idleSecs: Number(v) } })}
+        />
+      ),
+    },
+    {
+      section: 'subagent',
+      id: 'submodel',
+      label: 'Sub-agent model',
+      hint: 'Which model the workers use. Empty follows the chat model.',
+      words: 'subagent sub-agent model provider batch worker',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-submodel"
+          title={subagent.model || undefined}
+          onClick={() => useStore.getState().setSettingsOpen(true)}
+        >
+          {subagent.model ? subagent.model : tr('Follow chat')}
+        </button>
+      ),
+    },
+
+    {
+      section: 'tools',
+      id: 'toolsets',
+      label: 'Tool sets',
+      hint: 'Pick exactly which tools the agent may call.',
+      words: 'tools tool sets gate allow call permission enabled',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-tools"
+          onClick={() => useToolGate.getState().setBuka(true)}
+        >
+          {tr('Open tool sets…')}
+        </button>
+      ),
+    },
+    {
+      section: 'tools',
+      id: 'toolcount',
+      label: 'Enabled tools',
+      hint: 'How many tools are currently available to the agent.',
+      words: 'tools enabled count number available active',
+      ctl: (
+        <span className="cset-stat" data-testid="cset-toolcount">
+          {jumlahToolAktif}
+        </span>
+      ),
+    },
+    {
+      section: 'tools',
+      id: 'rules',
+      label: 'Guard writes',
+      hint: 'Refuse a save whose contents match a known-bad pattern.',
+      words: 'tools rules guard write refuse save pattern dangerous',
+      ctl: (
+        <Toggle
+          checked={rules?.enabled ?? false}
+          testid="cset-rules"
+          label="Guard writes"
+          onChange={(v) => void apply({ rules: { enabled: v } })}
+        />
+      ),
+    },
+    {
+      section: 'tools',
+      id: 'rag2',
+      label: 'Allow shell commands',
+      hint: 'Commands listed in Permissions run without asking. Opens that page.',
+      words: 'tools shell commands allow permission allowlist terminal',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-allowcmds"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('permissions'),
+            );
+          }}
+        >
+          {tr('Permissions…')}
+        </button>
+      ),
+    },
+
+    {
+      section: 'voice',
+      id: 'voiceon',
+      label: 'Voice',
+      hint: 'The master switch for speech in and out of the chat.',
+      words: 'voice speech audio master enable speak talk',
+      ctl: (
+        <Toggle
+          checked={voice?.enabled !== false}
+          testid="cset-voice"
+          label="Voice"
+          onChange={(v) => void apply({ voice: { enabled: v } })}
+        />
+      ),
+    },
+    {
+      section: 'voice',
+      id: 'speak',
+      label: 'Read answers aloud',
+      hint: 'Speak each new answer as it arrives.',
+      words: 'voice speech read aloud answers tts speak auto',
+      ctl: (
+        <Toggle
+          checked={voice?.speakReplies ?? false}
+          testid="cset-speak"
+          label="Read answers aloud"
+          onChange={(v) => void apply({ voice: { speakReplies: v } })}
+        />
+      ),
+    },
+    {
+      section: 'voice',
+      id: 'skipcode',
+      label: 'Skip code blocks',
+      hint: 'Do not read code aloud — it never sounds right.',
+      words: 'voice speech skip code blocks reading tts',
+      ctl: (
+        <Toggle
+          checked={voice?.skipCode !== false}
+          testid="cset-skipcode"
+          label="Skip code blocks"
+          onChange={(v) => void apply({ voice: { skipCode: v } })}
+        />
+      ),
+    },
+    {
+      section: 'voice',
+      id: 'mic',
+      label: 'Dictation button',
+      hint: 'Show the microphone in the composer.',
+      words: 'voice mic microphone dictate dictation button composer stt',
+      ctl: (
+        <Toggle
+          checked={mic?.enabled !== false}
+          testid="cset-mic"
+          label="Dictation button"
+          onChange={(v) => void apply({ mic: { enabled: v } })}
+        />
+      ),
+    },
+    {
+      section: 'voice',
+      id: 'autosend',
+      label: 'Send when dictation stops',
+      hint: 'Send the transcript as soon as you stop talking.',
+      words: 'voice mic dictation send auto stop transcript',
+      ctl: (
+        <Toggle
+          checked={mic?.autoSend ?? false}
+          testid="cset-autosend"
+          label="Send when dictation stops"
+          onChange={(v) => void apply({ mic: { autoSend: v } })}
+        />
+      ),
+    },
+
+    {
+      section: 'advanced',
+      id: 'provider',
+      label: 'Provider & API keys',
+      hint: 'Which provider answers, and the keys it uses.',
+      words: 'advanced provider api key openai anthropic gemini model endpoint',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-provider"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('models'),
+            );
+          }}
+        >
+          {tr('Models & keys…')}
+        </button>
+      ),
+    },
+    {
+      section: 'advanced',
+      id: 'custom',
+      label: 'Custom instructions',
+      hint: 'Standing text appended to the system prompt on every turn.',
+      words: 'advanced custom instructions system prompt standing rules append',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-custom"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('agents'),
+            );
+          }}
+        >
+          {tr('Edit…')}
+        </button>
+      ),
+    },
+    {
+      section: 'advanced',
+      id: 'ragk',
+      label: 'Retrieved chunks',
+      hint: 'How many passages the project index hands the model.',
+      words: 'advanced rag project index chunks retrieval k passages',
+      ctl: (
+        <Select
+          value={String(models.ragK ?? 4)}
+          testid="cset-ragk"
+          label="Retrieved chunks"
+          options={[2, 4, 6, 8, 12, 20].map((n) => ({ value: String(n), label: `${n}` }))}
+          onChange={(v) => void apply({ models: { ragK: Number(v) } })}
+        />
+      ),
+    },
+    {
+      section: 'advanced',
+      id: 'debug2',
+      label: 'Show the debug view',
+      hint: 'Log every request the panel sends, with timing and token counts.',
+      words: 'advanced debug view requests log timing tokens trace',
+      ctl: (
+        <Toggle
+          checked={debugBuka}
+          testid="cset-debug"
+          label="Show the debug view"
+          onChange={() => useAiDebug.getState().toggle()}
         />
       ),
     },
