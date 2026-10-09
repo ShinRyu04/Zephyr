@@ -52,8 +52,19 @@ export default function ChatSettingsPopup() {
         {/* The page's own header is the drag handle: it already carries the
             title and the buttons, and a second bar above it would be a frame
             around a frame. */}
-        <div className="cset-pop-inner" data-drag-handle onPointerDown={onPointerDown}>
-          <ChatSettingsPage onClose={tutup} onOpenEditor={keEditor} />
+        {/*
+          * The drag handle is the page's OWN header, not this wrapper.
+          *
+          * `useDragPopup` starts a drag from `closest('[data-drag-handle]')` and
+          * calls `preventDefault()` on that pointerdown. Marking the whole
+          * wrapper made every click inside the page a drag start, and the
+          * preventDefault swallowed the click that follows — so the Reset button
+          * (and the Modified rows' controls beneath it) could not be pressed at
+          * all. Naming the header only is what the hook's own contract asks for:
+          * drag from the title bar, click everywhere else.
+          */}
+        <div className="cset-pop-inner">
+          <ChatSettingsPage onClose={tutup} onOpenEditor={keEditor} onDragStart={onPointerDown} />
         </div>
       </div>
     </>
