@@ -8,6 +8,7 @@ import {
   CODEX_EFFORT_LABELS,
 } from '../../lib/codexStore';
 import { fileDialogOpen, fsRead, folderDialogOpen, scanDir } from '../../lib/commands';
+import { clipboardWrite } from '../../lib/clipboard';
 import { useT, useTf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import CodexSettings from './CodexSettings';
@@ -120,8 +121,13 @@ export default function CodexChat({ label }: { label: string }) {
     setMenu(null);
   };
 
+  /*
+   * The Tauri plugin, not `navigator.clipboard` — WebView2 rejects the browser
+   * API with `NotAllowedError` while the document is unfocused, which is exactly
+   * when a reader clicks Copy on a finished answer.
+   */
   const copy = (text: string) => {
-    void navigator.clipboard?.writeText(text).catch(() => {});
+    void clipboardWrite(text);
   };
 
   const attachFile = async () => {

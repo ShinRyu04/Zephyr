@@ -5,6 +5,7 @@ import { useNotesTodos, urutkan, type Item, type Kind } from '../../lib/notesTod
 import { useStore } from '../../lib/store';
 import type { CronJob } from '../../lib/commands';
 import AiIkon from './AiIkon';
+import { useDragPopup } from '../../lib/useDragPopup';
 
 /*
  * Notes, todos and schedule in one floating panel.
@@ -150,6 +151,7 @@ function BarisItem({ it }: { it: Item }) {
 }
 
 export default function NotesPanel() {
+  const { popupRef: dragRef, onPointerDown: dragStart } = useDragPopup();
   const tr = useT();
   const buka = useSchedBuka((s) => s.buka);
   const setBuka = useSchedBuka((s) => s.setBuka);
@@ -269,12 +271,14 @@ export default function NotesPanel() {
       )}
 
       <div
+        ref={dragRef}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
         className={`nt-panel${pinPanel ? ' is-pin' : ''}`}
         data-testid="nt-panel"
         role="dialog"
         aria-label={tr('Notes & todos')}
       >
-        <div className="nt-top">
+        <div className="nt-top" data-drag-handle onPointerDown={dragStart} style={{ cursor: 'grab' }}>
           <input
             ref={cariRef}
             className="nt-cari"

@@ -266,6 +266,16 @@ export interface AiMessage {
   images?: string[];
 
   reasoning?: string;
+
+  /**
+   * The signature that must ride with `reasoning`.
+   *
+   * Anthropic validates it against the thinking block it arrived with, so the
+   * pair travels together or not at all — a block sent without its signature is
+   * rejected, which is why the reasoning used to be dropped from the history
+   * instead of echoed.
+   */
+  reasoningSignature?: string;
 }
 
 export interface ChatMsg extends AiMessage {
@@ -276,6 +286,15 @@ export interface ChatMsg extends AiMessage {
   streaming?: boolean;
 
   error?: string;
+
+  /**
+   * The opaque signature that must accompany `reasoning` when it is sent back.
+   *
+   * Anthropic returns it in a delta of its own once the thinking block closes,
+   * and rejects a thinking block returned without it. Carried on the message
+   * because the chat's history is rebuilt from these messages every turn.
+   */
+  reasoningSignature?: string;
 
   model?: string;
 

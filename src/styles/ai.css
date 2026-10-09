@@ -55,6 +55,31 @@
 .ai-host-tabs-spacer {
   flex: 1 1 auto;
 }
+
+/*
+ * The chat actions, on the tab strip.
+ *
+ * `margin-left: auto` is neutralised here: the strip has its own spacer for
+ * that, and two auto margins would float this group to the middle of the bar.
+ * It sits right after the tabs instead — tabs, actions, space, window controls
+ * — which is the order the reference header reads.
+ */
+.ai-host-tabs .ai-head-right {
+  margin-left: 0;
+  gap: 4px;
+  align-items: center;
+}
+
+/* The hairline between the chat's actions and the window controls. */
+.ai-host-sep {
+  width: 1px;
+  height: 15px;
+  margin: 0 5px;
+  border-radius: 1px;
+  background: var(--border);
+  flex: 0 0 auto;
+}
+
 .ai-host-win {
   display: inline-flex;
   align-items: center;
@@ -464,6 +489,31 @@
   /* The header owns the node; a second indent here would push the caret away
      from the dot it belongs to. */
   padding-left: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/*
+ * The thinking row is the FIRST thing in most answers, so its top margin is
+ * the gap the reader sees under their own question.
+ *
+ * Measured live (dpr 1.25): question card -> thinking row was 29px, of which
+ * only 6px was inter-turn space. The rest was a stack of small vertical
+ * contributions that no single rule owned — `.ai-msg` padding-top 12px,
+ * `.ai-timeline` margin-top 6px, `.ai-reason` margin-top 2px, and the header's
+ * own 2px padding — each defensible alone, 29px together. Every one of them
+ * sits on the path from the question to the first row of the answer, and the
+ * Claude Code tab draws the same boundary at 18px.
+ *
+ * Trimmed here rather than at the `.ai-msg` padding, which cannot move: the
+ * hover action row is absolutely positioned at `top: 0` and would overlap the
+ * first line of the answer without it.
+ */
+[data-timeline] {
+  margin-top: 0;
+}
+[data-timeline] > .ai-reason {
+  margin-top: 2px;
 }
 
 /*
@@ -787,6 +837,94 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--surface-2);
+}
+
+/*
+ * The agents chip, beside the model picker.
+ *
+ * Shaped like `.cli-native-model` on purpose: both answer "what is going on
+ * with this run", and a second pill shape next to it would read as a different
+ * KIND of control rather than a different fact. The dot is the only part that
+ * moves — a live pulse when something is working, a flat grey ring when nothing
+ * is — so the chip's state is readable from across the panel without reading
+ * the number.
+ */
+.cli-chip-agents {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cli-chip-agents:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.cli-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  /* Idle: a hollow ring, dim. It must not read as an error light — nothing is
+     wrong, there is simply nothing running. */
+  background: var(--text-muted);
+  opacity: 0.45;
+}
+
+/*
+ * Working: the accent, and a slow pulse.
+ *
+ * The pulse is the ONLY animation here and it carries the whole message: a
+ * static dot next to "2 agents" looks the same at two seconds and at two
+ * minutes, and the reader cannot tell a busy run from a hung one. The colour
+ * comes from the tab's own accent variable, so this is blue in Chat AI and
+ * orange in the Claude Code tab without a second rule.
+ */
+.cli-chip-dot.is-live {
+  background: var(--cli-accent, var(--accent));
+  opacity: 1;
+  animation: cli-chip-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes cli-chip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+
+/* Respect a reader who asked the system for less motion: the colour alone
+   still distinguishes working from idle. */
+@media (prefers-reduced-motion: reduce) {
+  .cli-chip-dot.is-live {
+    animation: none;
+  }
+}
+
+/* Name and detail inside the chip's menu rows, so "Explore" and its tool name
+   line up in a column instead of running together. */
+.cli-pop-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cli-pop-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .cli-native-auto {
@@ -1483,22 +1621,25 @@
 }
 
 /*
- * The live clock in the header.
+ * The time a message arrived, shown in its action row.
  *
- * Muted and small, like the rest of the header meta: it is a reference the
- * reader glances at, not a control, and anything louder would compete with the
- * chat title it sits beside. Tabular figures so the digits do not shuffle
- * sideways each minute — a clock that reflows its own width every 60 seconds
- * is a distraction on a row that also holds buttons.
+ * Muted and small: it is a reference the reader glances at, not a control, and
+ * it must not compete with the message text. Tabular figures so 8:30 and 11:11
+ * occupy the same width and a column of timestamps does not shuffle.
+ *
+ * `margin-right: auto` pushes it to the LEADING edge of the action row — the
+ * side the message came from — while the hover buttons stay on the trailing
+ * edge. Without it the two would sit adjacent and the time would read as a
+ * label for the buttons.
  */
-.ai-clock {
-  font-size: 11px;
+.ai-msg-time {
+  margin-right: auto;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   white-space: nowrap;
   user-select: none;
-  /* A hair of right padding so it does not touch the first button. */
-  padding-right: 2px;
+  opacity: 0.8;
 }
 
 /*
@@ -2372,7 +2513,7 @@
   align-items: baseline;
   gap: 5px;
   margin: 0;
-  padding: 7px 10px;
+  padding: 7px 14px;
   border-bottom: 1px solid var(--border);
   /* -1px because the strip sits on the inner edge of the row's own 1px
      border: matching the outer radius exactly would paint the strip a hair
@@ -2454,7 +2595,9 @@
      without this the text overflows/scrolls and it looks like "you cannot make
      a new line". field-sizing is supported by WebView2/Chrome 123+. */
   field-sizing: content;
-  padding: 4px 4px 0;
+  /* 14px, the same gutter as the toolbar row below it: text that starts at 4px
+     while the "+" beneath it starts at 14px reads as two unaligned columns. */
+  padding: 4px 14px 0;
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.5;
@@ -2487,15 +2630,33 @@
  * It wraps when the panel is narrow so no control is ever clipped.
  */
 .ai-input-toolbar {
+  /*
+   * The positioning context for the menus anchored to this row.
+   *
+   * This used to live on `.ai-input-side` — a class the JSX dropped when the
+   * composer became a row — so `.ai-plus-menu`'s `bottom: 100%` measured
+   * against the whole panel and landed 198px ABOVE the viewport (measured
+   * live): the "+" menu opened somewhere the reader could not see.
+   */
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  /* 14px, not the 6px this started at: the controls read as one smudge at
+     6px, and the reference spaces them wider still. */
+  gap: 14px;
   flex-wrap: wrap;
   flex: 0 0 auto;
-  /* Pull the row a touch left so the leading "+" lines up under the textarea
-     text rather than sitting inset by its own icon padding. */
-  margin-left: -2px;
+  /* 14px, mirip kanan. Baris ini pernah memakai `margin-left: -2px` supaya "+"
+     sejajar teks textarea — tapi margin negatif di dalam box dengan padding 0
+     mendorong tombolnya 1px KE LUAR border, yang persis yang terlihat di
+     layar: tombol menempel di sudut kiri. */
+  padding-left: 14px;
+  /* And keep the trailing Send off the corner: flush against the border the
+     round button's edge met the box's edge with nothing between them. 14px
+     leaves the button sitting inside the box the way the reference does —
+     measured at 7px before, which still read as clipped to the edge. */
+  padding-right: 14px;
 }
 .ai-input-toolbar .ai-toolbar-spacer {
   flex: 1 1 auto;
@@ -2505,8 +2666,10 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
-  margin: 4px 12px 0;
+  /* The reference footer spaces its chips evenly, not shoulder to shoulder. */
+  gap: 6px 10px;
+
+  margin: 4px 12px 10px;
   padding: 2px 2px 0;
   font-size: 11px;
   color: var(--text-secondary);
@@ -6088,16 +6251,26 @@
 .ai-more-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 899;
 }
 
+/*
+ * The dropdown z-order.
+ *
+ * 41 was enough while these menus hung off the panel's own header, inside the
+ * panel's stacking context. They now live in the TAB STRIP, and the panel body
+ * below the strip paints above it (later in the DOM, same context) — so the
+ * menu's first rows were covered by the transcript, which is the "ketimpa"
+ * that was reported. A number this far above the strip's own layers puts the
+ * menu over the body without lifting anything else.
+ */
 .ai-more-menu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 41;
-  min-width: 240px;
-  padding: 4px;
+  z-index: 900;
+  min-width: 220px;
+  padding: 3px;
   display: flex;
   flex-direction: column;
   background: var(--surface-2);
@@ -6111,12 +6284,16 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  /* Compact rows, matching the reference's dropdown: a menu of ten items at
+     7px padding is a 320px-tall panel, and every one of them is a single
+     short line of text. 4px/8px puts the row at ~26px — the reference's
+     rhythm — while staying above the 24px minimum target. */
+  padding: 4px 8px;
   border: 0;
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: 4px;
   background: transparent;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 12px;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -6142,7 +6319,7 @@
 
 .ai-more-sep {
   height: 1px;
-  margin: 4px 6px;
+  margin: 3px 6px;
   background: var(--border);
 }
 
@@ -7116,6 +7293,72 @@
 .cli-tool-ms:first-of-type { margin-left: auto; }
 
 /*
+ * The agent map: a subagent's own work, nested under the `Task` call.
+ *
+ * The nesting is carried by an indent and a rule, not by a card. A subagent can
+ * emit hundreds of rows, and boxing them would put a border inside a border at
+ * four levels of depth — the transcript would read as a pile of panels. A quiet
+ * left rule says "these belong to the row above" and then gets out of the way,
+ * which is the same job the timeline rail does one level up.
+ *
+ * The indent is small (10px) for the same reason: the rows inside are the SAME
+ * `ToolRow` components as outside, and pushing them far in would make a
+ * subagent's Bash call look like a different kind of thing from the main
+ * agent's.
+ */
+.cli-sub-body {
+  margin: 4px 0 2px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Prose a subagent wrote. Dimmer than the answer: it is the agent narrating its
+   own work, not the answer to the reader's question. */
+.cli-sub-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary, var(--text-muted));
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 2px 0;
+}
+
+/* A subagent's own checklist — one step smaller than the main one, so the two
+   are never mistaken for each other when both are on screen. */
+.cli-sub-todo {
+  list-style: none;
+  margin: 2px 0;
+  padding: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-muted, var(--fg1));
+}
+.cli-sub-todo-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.cli-sub-todo-mark {
+  font-family: var(--font-mono);
+  width: 9px;
+  flex: 0 0 auto;
+}
+.cli-sub-todo-item.is-completed {
+  color: var(--text-muted, var(--fg1));
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
+}
+.cli-sub-todo-item.is-in_progress {
+  color: var(--text);
+}
+.cli-sub-todo-item.is-in_progress .cli-sub-todo-mark {
+  color: var(--accent);
+}
+
+/*
  * Action strip under a tool row's body.
  *
  * Chat AI's copy / copy-input / open-in-terminal buttons live here, inside the
@@ -7515,12 +7758,39 @@
 /* The running step is the only one that gets emphasis — it is the answer to
    "where is it now", which is the question this block exists to answer. */
 .cli-todo-float-item.is-now .cli-todo-float-text { font-weight: 600; }
-.cli-todo-float-foot {
+/*
+ * The fold control, which replaced the bare counter footer.
+ *
+ * The counter used to sit on a footer row of its own UNDER the list, which
+ * pushed the plan's height and put the one always-useful number furthest from
+ * the top. As the header of a foldable block it does two jobs at once: it says
+ * how far along, and it is the control that puts the list away — and when the
+ * list IS away it is all that remains, which is why the caret, the label and
+ * the count all stay in it.
+ */
+.cli-todo-float-fold {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 10px 5px;
+  width: 100%;
+  padding: 3px 10px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
 }
+.cli-todo-float-fold:hover { color: var(--text); }
+.cli-todo-float-caret { font-size: 10px; opacity: 0.8; }
+.cli-todo-float-fold-text { font-weight: 500; }
+.cli-todo-float-fold-count {
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.cli-todo-float-fold-ikon { display: inline-flex; opacity: 0.7; }
+.cli-todo-float[data-hidden='1'] { padding-bottom: 4px; }
 
 /* ---- CLI rewind confirmation ------------------------------------------ */
 .cli-confirm-backdrop {
@@ -7709,3 +7979,924 @@
 .cli-hook-row { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 .btn.btn-xs { padding: 1px 7px; font-size: 11px; margin-left: auto; }
 .btn.btn-ghost { background: transparent; }
+
+/* ── Agent map (dialog) ───────────────────────────────────────────────────
+ *
+ * One card per subagent the CLI reported, laid out in columns with elbows
+ * between them. The shape follows the reference: a card is a title line and a
+ * meta line, and the lines connecting them show that these agents came from one
+ * run rather than being separate events.
+ *
+ * Columns, not a vertical list, because the constraint being drawn is "these
+ * ran side by side". A stacked list reads as a sequence — task 1, then task 2 —
+ * which is the opposite of what a fan-out is, and on a run with three agents it
+ * is the difference between "it did three things at once" and "it did three
+ * things in a row".
+ */
+.cli-agent-map-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /*
+   * A light scrim, not a blackout. This dialog is a view of work that is still
+   * happening behind it, so the transcript stays readable — a reader checking
+   * the map mid-run should not lose sight of the agent that is writing.
+   */
+  background: color-mix(in srgb, var(--bg0) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.cli-agent-map {
+  width: min(960px, 100%);
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  padding: 18px 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg1, var(--bg));
+  box-shadow: 0 18px 48px rgb(0 0 0 / 45%);
+  outline: none;
+}
+
+.cli-agent-map-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.cli-agent-map-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cli-agent-map-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cli-agent-map-x {
+  display: inline-flex;
+  padding: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.cli-agent-map-x:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/*
+ * The grid: card, connector, card, connector, …
+ *
+ * The connectors get a column of their own so the elbow has something to be
+ * drawn against. `auto-flow: column` with a fixed row count keeps every card in
+ * the same row — the horizontal shape the map is for — and lets the whole grid
+ * scroll sideways when a run spawned more agents than fit.
+ */
+/*
+ * The tree: trunk on the left, branches stacked to its right.
+ *
+ * Two columns, and the elbow spans the gap between them. The arm is one element
+ * with a border on two sides — a horizontal stub out of the trunk and a
+ * vertical segment down the branch side — so a branch is drawn without an SVG
+ * and without measuring anything. It re-lays-out for free when a card grows,
+ * which is every second while an agent streams.
+ */
+.cli-agent-tree {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.cli-agent-root {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 240px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, var(--surface));
+}
+
+.cli-agent-root-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cli-agent-root .cli-agent-dot {
+  margin-top: 5px;
+}
+
+/* The elbow out of the trunk into the branch column. */
+.cli-agent-trunk-arm {
+  flex: 0 0 auto;
+  width: 16px;
+  align-self: stretch;
+  margin-top: 20px;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  /* The vertical run stops at the LAST branch: a line continuing past the
+     bottom card would imply a fourth agent that never existed. */
+  max-height: calc(100% - 20px);
+}
+
+.cli-agent-kids {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/*
+ * Each branch carries its own left elbow and the vertical run between them.
+ *
+ * Drawn per branch rather than as one long line so the run stops at the last
+ * card: `:last-child` removes the vertical half from the final branch, which is
+ * what makes the tree end cleanly instead of trailing off past the last agent.
+ */
+.cli-agent-kid {
+  position: relative;
+  padding-left: 18px;
+}
+
+.cli-agent-kid::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.cli-agent-kid:last-child::before {
+  bottom: auto;
+  height: 22px;
+}
+
+/* The horizontal half of the elbow, meeting the card's middle. */
+.cli-agent-kid::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22px;
+  width: 12px;
+  height: 1px;
+  background: var(--border);
+}
+
+.cli-agent-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, var(--surface));
+}
+
+/* A live agent gets the accent edge: it is the one card worth looking at, and
+   scanning for it should not require reading four dim cards. */
+.cli-agent-card.is-live {
+  border-color: color-mix(in srgb, var(--cli-accent, var(--accent)) 45%, var(--border));
+}
+
+.cli-agent-card.is-fail {
+  border-color: color-mix(in srgb, var(--danger, #f85149) 45%, var(--border));
+}
+
+.cli-agent-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cli-agent-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.cli-agent-role {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  font-size: 10.5px;
+}
+
+.cli-agent-tool {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+
+.cli-agent-facts {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * Narrow panel: the trunk moves ABOVE the branches.
+ *
+ * A 240px trunk plus branching room does not fit a panel docked narrow, and a
+ * horizontally scrolling tree hides the branches — the whole point. Stacking
+ * keeps every card visible and the elbows still read, because they were drawn
+ * per branch rather than as one spanning line.
+ */
+@container clilog (max-width: 620px) {
+  .cli-agent-tree {
+    flex-direction: column;
+  }
+  .cli-agent-root {
+    width: 100%;
+  }
+  .cli-agent-trunk-arm {
+    display: none;
+  }
+  .cli-agent-kids {
+    margin-top: 10px;
+    width: 100%;
+  }
+  .cli-agent-map {
+    padding: 14px 14px 16px;
+  }
+}
+
+/* ── Agent detail (opened from a card) ──────────────────────────────────── */
+
+/*
+ * The detail replaces the tree in place — a back arrow, not a second dialog.
+ *
+ * Opening a modal on a modal loses the shape the reader just looked at, and
+ * "which of the five agents am I in" becomes unanswerable. Swapping the body
+ * keeps the title bar and the close control exactly where they were, so the
+ * only thing that changes is what is inside.
+ */
+.cli-agent-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cli-agent-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cli-agent-back:hover { color: var(--cli-accent, var(--accent)); }
+
+.cli-agent-detail-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cli-agent-detail-facts,
+.cli-agent-detail-from,
+.cli-agent-detail-stats {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cli-agent-detail-stats {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* The agent's own closing words. Given the text colour and a rule above it: it
+   is often the whole reason someone opened this view. */
+.cli-agent-detail-summary {
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cli-agent-fold { margin-top: 12px; }
+
+.cli-agent-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cli-agent-fold-head:hover { color: var(--text); }
+.cli-agent-fold-caret { font-size: 10px; opacity: 0.8; }
+
+/*
+ * The prompt, verbatim in a monospace block.
+ *
+ * Pre-wrap rather than a single line: a subagent prompt is written as prose with
+ * its own line breaks, and collapsing them makes an instruction with a list in
+ * it read as one run-on sentence — which is exactly the thing a reader is here
+ * to check.
+ */
+.cli-agent-prompt {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg0, var(--bg));
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cli-agent-tool-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.cli-agent-tool-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.cli-agent-tool-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  align-self: center;
+  background: var(--text-muted);
+}
+.cli-agent-tool-dot.is-ok { background: var(--success, #3fb950); }
+.cli-agent-tool-dot.is-fail { background: var(--danger, #f85149); }
+.cli-agent-tool-dot.is-running { background: var(--accent); }
+
+.cli-agent-tool-nama {
+  font-weight: 500;
+  color: var(--text);
+  flex: 0 0 auto;
+}
+
+.cli-agent-tool-target {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cli-agent-note {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.cli-agent-open-transcript {
+  margin-top: 16px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2, var(--surface));
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cli-agent-open-transcript:hover {
+  background: var(--surface-3, var(--surface-2));
+  border-color: var(--cli-accent, var(--accent));
+}
+
+/* Cards are buttons now, so they need the button defaults stripped. */
+.cli-agent-card {
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.cli-agent-card:hover { background: var(--surface-3, var(--surface-2)); }
+
+/* ── Agent transcript (third view, inside the dialog) ───────────────────── */
+
+/*
+ * The agent's own rows, inside the same dialog.
+ *
+ * Same body scroll as the rest of the panel: the dialog already has an
+ * `overflow: auto`, so this only adds the pieces the tree and detail views do
+ * not have — the instruction block, and the divider that separates the header
+ * from the work.
+ */
+.cli-agent-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cli-agent-transcript-prompt {
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg0, var(--bg));
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* The rows sit under their own top rule, so the prompt reads as a distinct
+   turn rather than a block that drifted into the tool list. */
+.cli-agent-transcript .cli-sub-body {
+  margin-top: 12px;
+  border-left-color: var(--border);
+}
+
+/* ── Session Info popup: heading, reserve segment, compact action ──────── */
+
+/* The panel's own name. Quieter than the percentage below it — it is a label,
+   not the subject. */
+.ctx-judul {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/*
+ * The reserved slice of the window, drawn ON the bar.
+ *
+ * Hatched rather than filled: a second solid segment would read as "this part
+ * is also used", and the whole point of it is that the space is NOT available —
+ * it is the margin automatic compaction protects for the answer and the next
+ * step's tool results (AUTO_COMPACT_AT, 80%).
+ */
+.ctx-bar {
+  position: relative;
+}
+.ctx-bar-reserve {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--text-muted) 45%, transparent) 0 3px,
+    transparent 3px 6px
+  );
+  opacity: 0.55;
+}
+
+.ctx-reserve {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -3px 0 8px;
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+.ctx-reserve-swatch {
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--text-muted) 55%, transparent) 0 3px,
+    transparent 3px 6px
+  );
+  opacity: 0.7;
+}
+
+/*
+ * The one button in the panel, and the reason a reader opened it.
+ *
+ * Full width, bordered rather than filled: it is an action that CHANGES the
+ * conversation, so it should look pressable — but the accent fill is reserved
+ * for Send, and two solid buttons on one screen make them peers. Hover lifts
+ * it to the accent border, which is the same hover language the rest of the
+ * composer uses.
+ */
+.ctx-compact {
+  display: block;
+  width: 100%;
+  margin-top: 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: center;
+  cursor: pointer;
+}
+.ctx-compact:hover {
+  background: var(--surface-3);
+  border-color: var(--accent);
+}
+
+/* The strip's dismiss control, pinned to its trailing edge. Quiet until
+   hovered: the tip is meant to be read first and dismissed second. */
+.ai-tip-tutup {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ai-tip-tutup:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* ── Update button + popup (VSCode-style) ─────────────────────────────── */
+
+.ai-upd-wrap {
+  position: relative;
+  display: inline-flex;
+  margin-left: 4px;
+}
+
+.ai-upd-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ai-upd-btn:hover {
+  background: color-mix(in srgb, var(--accent) 86%, #fff);
+}
+
+.ai-upd-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 900;
+  min-width: 280px;
+  padding: 14px 16px;
+  background: var(--surface-1, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.ai-upd-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ai-upd-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ai-upd-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ai-upd-titles b {
+  font-size: 13px;
+  color: var(--text);
+}
+.ai-upd-titles span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.ai-upd-baris {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ai-upd-baris:last-of-type {
+  border-bottom: none;
+}
+.ai-upd-baris span {
+  color: var(--text-muted);
+}
+.ai-upd-baris b {
+  font-weight: 600;
+}
+
+.ai-upd-notes-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.ai-upd-notes-btn:hover {
+  background: var(--surface-3);
+}
+
+.ai-upd-actions {
+  margin-top: 10px;
+}
+.ai-upd-install {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-upd-install:hover {
+  background: color-mix(in srgb, var(--accent) 86%, #fff);
+}
+
+/* Disabled menu item — greyed out, no hover, cursor default. */
+.ai-more-item.is-mati,
+.ai-more-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ── Sessions sidebar (maximize mode) ──────────────────────────────────── */
+
+/*
+ * The session list beside an expanded chat.
+ *
+ * It sits in the same flex row as the chat, so it only has to state its own
+ * width and borders — `.ai-side-row` already lays it out. A fixed 260px rather
+ * than a fraction: a session title needs a predictable measure, and a list that
+ * grew with the window would leave the chat with the leftover space.
+ */
+.ai-sessions-panel {
+  flex: 0 0 260px;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface-1, var(--bg));
+}
+
+.ai-sessions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  flex: 0 0 auto;
+}
+
+.ai-sessions-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ai-sessions-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The search box mirrors the switcher popup's, so the two read as one feature. */
+.ai-sessions-cari {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 10px 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.ai-sessions-cari input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.ai-sessions-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 10px;
+}
+
+.ai-sessions-grup {
+  margin-bottom: 8px;
+}
+
+.ai-sessions-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.ai-sessions-jumlah {
+  margin-left: auto;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.ai-sessions-baris {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-sessions-baris:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.ai-sessions-baris.is-aktif {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+.ai-sessions-judul {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-sessions-waktu {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* The delete appears on hover only: a column of trash icons competes with the
+   titles, and a session is not something anyone deletes in bulk. */
+.ai-sessions-hapus {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ai-sessions-baris:hover .ai-sessions-hapus {
+  display: inline-flex;
+}
+.ai-sessions-hapus:hover {
+  color: var(--danger, #f85149);
+}
+
+.ai-sessions-kosong {
+  margin: 12px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Sessions column: the conversation's actions on top ─────────────────── */
+
+/*
+ * The chat actions at the head of the Sessions column, when the panel is
+ * maximized. Same cluster the compact strip carries, different home: over the
+ * conversation LIST rather than over the tab bar.
+ *
+ * Right-aligned because the session panel's own title ("Sessions") is on the
+ * left of the row below; two left-aligned headings stacked would read as one
+ * broken heading.
+ */
+.ai-sessions-aksi {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 8px 0;
+  flex: 0 0 auto;
+}
+.ai-sessions-aksi .ai-head-right {
+  margin-left: 0;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ── The trail of an expanded chat, beside the Sessions column ──────────── */

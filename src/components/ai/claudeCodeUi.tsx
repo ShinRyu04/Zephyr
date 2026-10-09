@@ -94,7 +94,18 @@ export function toolGlyph(name: string): string {
   if (k === 'fetch' || k === 'webfetch' || k === 'websearch') return 'globe';
   if (FIND_KEYS.has(k)) return 'search';
   if (READ_KEYS.has(k)) return 'doc';
-  if (k === 'task' || k === 'agent' || k === 'runsubagent' || k === 'runsubagents') return 'puzzle';
+  /*
+   * A delegated agent gets `robot`, not `puzzle`.
+   *
+   * `puzzle` means "something to solve", which is not what a subagent call is —
+   * it is work handed to another agent. AiIkon already made that call for
+   * `run_subagent`, and this table was never brought in line, so the same act
+   * wore two different glyphs depending on which panel drew it. Both spellings
+   * are listed because the CLI renamed the tool: it was `Task` and is `Agent` as
+   * of v2.1.290 (verified in a live session's tool list, which now offers both
+   * names).
+   */
+  if (k === 'task' || k === 'agent' || k === 'runsubagent' || k === 'runsubagents') return 'robot';
   if (k === 'todowrite' || k === 'noteswrite' || k === 'managetodo') return 'check';
   return 'terminal';
 }
@@ -427,6 +438,16 @@ export function diffStat(oldText: string, newText: string): { adds: number; dels
 export type ToolRowProps = {
   name: string;
   /**
+   * The call's own id, when the caller has one.
+   *
+   * Rendering does not need it — it is not shown anywhere. It is stamped onto
+   * the row as `data-call-id` so another surface can FIND this exact row: the
+   * agent map's "Open transcript" jumps to the call an agent came from, and
+   * every Bash row carries the same `data-tool`, so the name cannot serve as a
+   * target.
+   */
+  callId?: string;
+  /**
    * The human word for the tool, when it differs from `name`.
    *
    * `name` is the tool's IDENTITY — the glyph and the colour are looked up from
@@ -457,6 +478,16 @@ export type ToolRowProps = {
   onImage?: (src: string) => void;
   /** Rendered under the row's body — Chat AI's copy/open-in-terminal actions. */
   children?: React.ReactNode;
+  /**
+   * Start expanded, without a diff to trigger it.
+   *
+   * The row opens itself when it has a diff, because the `+N -N` badge promises
+   * something to see. A subagent's work is the same promise by another route:
+   * the row says "4 steps · 1 running", and leaving that behind a click hides
+   * the only evidence that the agent is alive. Used by the agent map; every
+   * other caller leaves it false and keeps the old behaviour.
+   */
+  autoOpen?: boolean;
 };
 
 /*
@@ -470,6 +501,7 @@ export type ToolRowProps = {
  */
 export const ToolRow = memo(function ToolRow({
   name,
+  callId,
   labelName,
   title,
   input,
@@ -483,6 +515,7 @@ export const ToolRow = memo(function ToolRow({
   ms,
   onImage,
   children,
+  autoOpen,
 }: ToolRowProps) {
   const tr = useT();
   /* The patch form is folded into halves so every caller reaches one renderer. */
@@ -510,7 +543,7 @@ export const ToolRow = memo(function ToolRow({
    * The effect opens the row when a diff appears and never closes it again, so
    * a click that collapses the row is respected rather than fought.
    */
-  const [buka, setBuka] = useState(hasDiff);
+  const [buka, setBuka] = useState(hasDiff || Boolean(autoOpen));
   const autoOpened = useRef(false);
   useEffect(() => {
     if (hasDiff && !autoOpened.current) {
@@ -531,6 +564,15 @@ export const ToolRow = memo(function ToolRow({
       className={`cli-tool${failed ? ' is-fail' : ''}${spin ? ' is-running' : ''}`}
       data-testid="cli-tool"
       data-tool={name}
+      /*
+       * The call id on the row, so a caller can find THIS row.
+       *
+       * `data-tool` names the kind and is shared by every Bash call in the
+       * transcript — useless as a target when the agent map's "Open transcript"
+       * needs the one row a specific agent came from. The id is stable and
+       * unique per call.
+       */
+      data-call-id={callId ?? undefined}
       data-status={status}
     >
       <button

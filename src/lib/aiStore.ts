@@ -1619,6 +1619,8 @@ interface AiActions {
 
   setAgentMode: (m: 'chat' | 'agent') => void;
   setRunMode: (m: 'interactive' | 'plan' | 'autopilot') => void;
+  tipsVisible: boolean;
+  setTipsVisible: (v: boolean) => void;
   setApprovalMode: (m: ApprovalMode) => void;
 
   agentPutuskan: (setujui: boolean) => void;
@@ -1774,6 +1776,23 @@ function bootAgentMode(): 'chat' | 'agent' {
 }
 
 /** Last run mode (Interactive / Plan / Autopilot), kept across sessions. */
+/**
+ * Whether the composer's Tip strip is shown.
+ *
+ * A preference, not a run setting: it is chrome the reader chose to remove, and
+ * it lives in localStorage rather than Settings because the control to remove
+ * it is the strip's own ✕ — an option you only ever reach from the settings
+ * page for something you already dismissed is a trap. The re-enable lives in
+ * the "…" menu, one click from where the strip used to be.
+ */
+function bootTips(): boolean {
+  try {
+    return localStorage.getItem('zephyr.ai.tip') !== '0';
+  } catch {
+    return true;
+  }
+}
+
 function bootRunMode(): 'interactive' | 'plan' | 'autopilot' {
   try {
     const v = localStorage.getItem('zephyr.ai.runMode');
@@ -1835,6 +1854,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
   agentMode: bootAgentMode(),
   runMode: bootRunMode(),
+  tipsVisible: bootTips(),
 
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'auto',
   agentBusy: false,
@@ -2217,6 +2237,14 @@ export const useAi = create<AiStore>((set, get) => ({
       localStorage.setItem('zephyr.ai.mode', m);
     } catch {
       /* diabaikan */
+    }
+  },
+  setTipsVisible: (v) => {
+    set({ tipsVisible: v });
+    try {
+      localStorage.setItem('zephyr.ai.tip', v ? '1' : '0');
+    } catch {
+      /* diabaikan: pilihan hanya berlaku sesi ini */
     }
   },
   /*
@@ -2935,6 +2963,17 @@ export const useAi = create<AiStore>((set, get) => ({
                   role: m.role,
                   content: m.content,
                   ...(banyak.length ? { images: banyak } : {}),
+                  /*
+                   * Echo the turn's reasoning back to the provider.
+                   *
+                   * Anthropic validates the signature against the thinking block,
+                   * so the two travel together; the OpenAI-compatible gateways
+                   * take `reasoning_content` on the assistant turn and ignore the
+                   * signature field. Non-empty only — an empty string is not the
+                   * same as absent, and some routers reject that form.
+                   */
+                  ...(m.reasoning ? { reasoning: m.reasoning } : {}),
+                  ...(m.reasoningSignature ? { reasoningSignature: m.reasoningSignature } : {}),
                 };
               });
 
@@ -5240,9 +5279,19 @@ function terapkanReasoning(
 }
 
 function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void {
-  /* A buffered frame carries its reasoning as an ordered list; a direct chunk
-     carries a single string. Normalise to a list so one map pass applies all. */
-  const frames = c.reasoningFrames ?? (c.reasoning ? [String(c.reasoning)] : []);
+  /*
+   * A buffered frame carries its reasoning as an ordered list; a direct chunk
+   * carries a single string. Normalise to a list so one map pass applies all.
+   *
+   * A `done` frame is excluded on purpose. Rust accumulates the whole turn's
+   * reasoning and sends it back on that frame, so it is a REPEAT of what the
+   * live frames already folded — treating it as one more delta would double the
+   * global `reasoningText` counter, and would stamp the clock with a raw
+   * timestamp on a message whose reasoning never streamed (nothing follows a
+   * `done` frame to freeze it, so the header would print a fifty-year "Thought
+   * for"). It is applied below as a BACKFILL instead, only where it is missing.
+   */
+  const frames = c.reasoningFrames ?? (c.reasoning && !c.done ? [String(c.reasoning)] : []);
   useAi.setState((s) => {
     /*
      * Fold the reasoning frames ONCE, outside the message map, and keep the
@@ -5318,8 +5367,29 @@ function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void
             patch = { ...patch, content: m.content + c.text, reasoningMs: ms };
           }
 
+          /*
+           * Backfill the reasoning on the `done` frame.
+           *
+           * The live frames already folded it in the normal case, so this is a
+           * no-op then. It matters when they did not: a provider that reports
+           * its chain of thought only on the terminal frame, or a stream whose
+           * reasoning arrived while the panel was not listening. Rust holds the
+           * whole turn's text, so the message ends up with it either way, and
+           * nothing is stamped on the clock — the duration belongs to the live
+           * frames, and a `done` frame has no answer token left to freeze it.
+           */
+          if (c.done && c.reasoning && !m.reasoning) {
+            patch = { ...patch, reasoning: c.reasoning };
+          }
+          if (c.done) {
+            patch = {
+              ...patch,
+              streaming: false,
+              ...(c.reasoningSignature ? { reasoningSignature: c.reasoningSignature } : {}),
+            };
+          }
+
           if (Object.keys(patch).length > 0) return { ...m, ...patch };
-          if (c.done) return { ...m, streaming: false };
           return m;
         }),
       })),

@@ -182,24 +182,15 @@ export function ModeMenu() {
 
       {buka && (
         <div className="mode-pop is-naik" data-testid="ai-mode-pop" role="menu">
+          {/*
+           * Chat is gone from this menu, at the reader's request: the footer
+           * already offers Interactive, and two switches for "how this behaves"
+           * one row apart read as the same control twice. `agentMode` itself is
+           * untouched — a session stored in chat mode keeps running as chat and
+           * can still move to Agent here; the picker simply no longer offers a
+           * way back into it.
+           */}
           <div className="pick-seksi">{tr('Mode')}</div>
-          <button
-            type="button"
-            role="menuitemradio"
-            aria-checked={!isAgent}
-            className={`mode-item${!isAgent ? ' is-on' : ''}`}
-            data-testid="ai-mode-chat-item"
-            onClick={() => {
-              setAgentMode('chat');
-              setBuka(false);
-            }}
-          >
-            <span className="mode-item-teks">
-              <b>{tr('Chat')}</b>
-              <i>{tr('Ordinary Q&A. No tools, no project context.')}</i>
-            </span>
-            {!isAgent && <span className="pick-check">✓</span>}
-          </button>
           <button
             type="button"
             role="menuitemradio"

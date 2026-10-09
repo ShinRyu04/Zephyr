@@ -1,9 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAiTabs, CLI_TABS } from '../../lib/aiTabsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
 import AiPanel from './AiPanel';
-import AiIkon from './AiIkon';
+import PanelTrail from './PanelTrail';
+import PanelWins from './PanelWins';
 import { useT } from '../../lib/i18n';
 
 const CliSessionTab = lazy(() => import('./CliSessionTab'));
@@ -33,85 +35,83 @@ export default function AiHost() {
   const current: typeof active = activeValid ? active : 'chat';
 
   /*
-   * Maximize/Restore lives in the tab strip, SHARED by all three tabs (Chat,
-   * Claude Code, Codex), so it costs one slot instead of a button inside every
-   * surface. Only meaningful in the right column, where `aiMax` drives
-   * `.ai-side-col.is-max` in App.tsx.
+   * The trail (`PanelTrail`) renders on this row in every state, and decides
+   * its own contents. `showMax` is the right column's rule: maximize only means
+   * something when the panel has a width to grow into.
    */
   const aiPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
-  const aiMax = useStore((s) => s.aiMax);
-  const setAiMax = useStore((s) => s.setAiMax);
-  const applySettings = useStore((s) => s.applySettings);
   const showMax = aiPos === 'right';
+  const aiMax = useStore((s) => s.aiMax);
 
-  /* Hide the panel — the same action AiPanel's own header offered, lifted into
-     the shared strip so Chat, Claude Code and Codex all close from one place
-     (VSCode puts these window controls at the strip's trailing edge). */
-  const hidePanel = () => {
-    if (aiPos === 'right') {
-      useStore.getState().setAiKolomVisible(false);
-    } else if (aiPos === 'editor') {
-      /* Editor-area view: closing returns the chat to the right column so the
-         activity-bar icon can bring it back. */
-      void applySettings({ general: { aiPanel: 'right' } } as never);
-      useStore.getState().setAiKolomVisible(false);
-    } else {
-      void import('../../lib/terminalStore').then((m) => m.useTerminal.getState().setVisible(false));
+  /*
+   * While MAXIMISED the tab row travels up into the top control row above the
+   * Sessions column, so tabs and action buttons share ONE bar with the tabs at
+   * the leading edge. A PORTAL, not a second copy: the tablist must stay a
+   * single element or `aria-selected` and the tab order would exist twice.
+   *
+   * The host is found by id, not by context: App renders it, this subtree does
+   * not own it, and the lookup has to re-run the first time the panel grows.
+   */
+  const [topHost, setTopHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!aiMax) {
+      setTopHost(null);
+      return;
     }
-  };
+    setTopHost(document.getElementById('ai-side-top-tabs'));
+  }, [aiMax]);
+
+  /*
+   * The tab strip. Built once, then either kept here (compact) or PORTALLED up
+   * into the top control row above the Sessions column (maximised), so "Chat /
+   * Claude Code / Codex" and the action buttons share one bar. A portal rather
+   * than a second copy: the tablist has to stay a single element, or there
+   * would be two of every tab in the tab order.
+   */
+  const strip = (
+    <div className="ai-host-tabs" role="tablist" data-testid="ai-host-tabs">
+      <button
+        role="tab"
+        aria-selected={current === 'chat'}
+        className={`ai-host-tab${current === 'chat' ? ' is-on' : ''}`}
+        data-testid="ai-host-tab-chat"
+        onClick={() => setActive('chat')}
+      >
+        {tr('Chat')}
+      </button>
+      {cliTabs.map((c) => (
+        <button
+          key={c.id}
+          role="tab"
+          aria-selected={current === c.id}
+          className={`ai-host-tab${current === c.id ? ' is-on' : ''}`}
+          data-testid={`ai-host-tab-${c.id}`}
+          onClick={() => setActive(c.id)}
+        >
+          {c.label}
+        </button>
+      ))}
+      <span className="ai-host-tabs-spacer" aria-hidden="true" />
+      {/* COMPACT only: when expanded, the trail lives in the top control row
+          (App renders it there) and must not also be down here. */}
+      {!aiMax && current === 'chat' && <PanelTrail showMax={showMax} />}
+      {!aiMax && current !== 'chat' && (
+        <>
+          <span className="ai-host-sep" aria-hidden="true" />
+          <PanelWins showMax={showMax} />
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="ai-host" data-testid="ai-host">
-      {/* The strip always renders: it carries the shared window controls
-          (maximize + hide) at its trailing edge, plus the CLI tabs when any
-          are detected. */}
-      <div className="ai-host-tabs" role="tablist" data-testid="ai-host-tabs">
-          <button
-            role="tab"
-            aria-selected={current === 'chat'}
-            className={`ai-host-tab${current === 'chat' ? ' is-on' : ''}`}
-            data-testid="ai-host-tab-chat"
-            onClick={() => setActive('chat')}
-          >
-            {tr('Chat')}
-          </button>
-          {cliTabs.map((c) => (
-            <button
-              key={c.id}
-              role="tab"
-              aria-selected={current === c.id}
-              className={`ai-host-tab${current === c.id ? ' is-on' : ''}`}
-              data-testid={`ai-host-tab-${c.id}`}
-              onClick={() => setActive(c.id)}
-            >
-              {c.label}
-            </button>
-          ))}
-          {/* VSCode-style window controls at the strip's trailing edge, shared
-              by all tabs: maximize/restore (right column only) + hide panel. */}
-          <span className="ai-host-tabs-spacer" aria-hidden="true" />
-          {showMax && (
-            <button
-              className="ai-host-win"
-              data-testid="ai-host-maximize"
-              title={aiMax ? tr('Restore panel size') : tr('Maximize panel')}
-              aria-label={aiMax ? tr('Restore panel size') : tr('Maximize panel')}
-              aria-pressed={aiMax}
-              onClick={() => setAiMax(!aiMax)}
-            >
-              <AiIkon name={aiMax ? 'restore' : 'maximize'} size={14} />
-            </button>
-          )}
-          <button
-            className="ai-host-win"
-            data-testid="ai-host-hide"
-            title={tr('Hide AI panel')}
-            aria-label={tr('Hide AI panel')}
-            onClick={hidePanel}
-          >
-            <AiIkon name="close" size={14} />
-          </button>
-        </div>
+      {/*
+        * Maximised: the strip goes up to the top control row, for EVERY tab —
+        * the tabs are how you get back, so they must not travel with only one
+        * of the surfaces they switch between. Compact: it stays right here.
+        */}
+      {aiMax && topHost ? createPortal(strip, topHost) : strip}
 
       <div className="ai-host-body">
         {/* Chat stays mounted; CSS hides it when a CLI tab is in front so a

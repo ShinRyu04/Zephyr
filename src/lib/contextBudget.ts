@@ -25,6 +25,11 @@ export function kiraToken(teks: string): number {
  * Falls back to 128k for an unknown model, which is the smallest window Zephyr
  * ships. Guessing low is the safe direction: it compacts earlier rather than
  * overflowing a provider that would reject the request.
+ *
+ * NOTE for the hosted CLI tabs: they store the CLI's ALIAS (`opus`, `sonnet`,
+ * `default`), which has no catalogue entry and would silently land on the 128k
+ * floor while the real window is 1M. Those callers must resolve the alias
+ * first — `jendelaAliasCli` in cliCatalog — and only pass a real model id here.
  */
 export function jendelaKonteks(modelId: string): number {
   const m = findModel(modelId);

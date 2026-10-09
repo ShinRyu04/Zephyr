@@ -6,13 +6,14 @@ import {
   IMAGE_MAX_BYTES,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
+import { useSessionsSide } from '../../lib/sessionsSideStore';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
 import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
 import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
-import { DayDivider, LiveClock } from './ChatStamp';
+import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import BicaraHost from './BicaraHost';
@@ -26,11 +27,9 @@ import { useDengar } from '../../lib/useDengar';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
+import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
-import { useToolGate } from '../../lib/toolGate';
-import { useAgentCustom } from '../../lib/agentCustomStore';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
-import { useTerminal } from '../../lib/terminalStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useGit } from '../../lib/gitStore';
 import { runCommand } from '../../lib/commandRegistry';
@@ -320,7 +319,9 @@ function AiPanelInner() {
      logic and the maximise/hide buttons. */
   const aiModePos = useStore((s) => s.settings.general.aiPanel ?? 'right');
   const aiDiKanan = aiModePos !== 'bottom';
-  const applySettings = useStore((s) => s.applySettings);
+  const aiMax = useStore((s) => s.aiMax);
+  const sesiSisiBuka = useSessionsSide((s) => s.buka);
+  const setSesiSisiBuka = useSessionsSide((s) => s.setBuka);
   /* Maximize/Restore moved to the shared AiHost tab strip, so AiPanel no longer
      reads `aiMax` itself — the strip owns the toggle for all three tabs. */
 
@@ -409,27 +410,10 @@ function AiPanelInner() {
    */
   const [sesiBuka, setSesiBuka] = useState(false);
   const [sesiRect, setSesiRect] = useState<{ left: number; top: number; bottom: number } | null>(null);
+  const { popupRef: refSesi, onPointerDown: onDragSesi } = useDragPopup();
   const [sesiCari, setSesiCari] = useState('');
   /* The "..." menu, Copilot-style: move the chat into the editor area, pop it
      out to its own window, or dock it back to the right column. */
-  const [menuBuka, setMenuBuka] = useState(false);
-  /* The "New chat" split-button dropdown (New Chat / in Editor / in Window). */
-  const [newMenuBuka, setNewMenuBuka] = useState(false);
-  const posAi = aiModePos;
-  const pindahAi = useCallback(
-    (pos: 'right' | 'editor' | 'window' | 'bottom') => {
-      void applySettings({ general: { aiPanel: pos } } as never);
-      useStore.getState().setAiKolomVisible(true);
-      setMenuBuka(false);
-      if (pos === 'window') {
-        void import('../../lib/aiWindow').then((m) => m.bukaAiWindow());
-      } else {
-        /* Leaving window mode closes the pop-out so its listener goes away. */
-        void import('../../lib/aiWindow').then((m) => m.tutupAiWindow());
-      }
-    },
-    [applySettings],
-  );
 
   /*
    * The chat-switch dropdown's list. Read from the store inside the memo (keyed
@@ -895,7 +879,16 @@ function AiPanelInner() {
       data-testid="ai-panel"
       data-pos={aiDiKanan ? 'kanan' : 'bawah'}
     >
-      <div className="ai-head">
+      {/*
+        * The panel's own header row — hidden while MAXIMISED.
+        *
+        * In the expanded layout the tab strip and the window controls are lifted
+        * into one bar at the top of the column (App's `.ai-side-top`), and the
+        * session switcher lives in the Sessions column. Keeping this row as well
+        * left a second bar carrying a duplicate title, which read as a leftover
+        * "New chat" strip stranded above the transcript.
+        */}
+      <div className="ai-head" hidden={aiMax}>
         {/*
          * Header = what this conversation is, how full the context is, and how
          * to close it. Everything else (new chat, delete all, compact, export,
@@ -926,14 +919,42 @@ function AiPanelInner() {
           <AiIkon name="chev-down" size={12} />
         </button>
 
+        {/*
+          * Show/hide the agent sessions column, pinned to the RIGHT edge of
+          * this row.
+          *
+          * Only while the panel is COMPACT (`!aiMax`): once the panel is
+          * expanded the session column carries the control in its own header,
+          * directly above the list it toggles, and a second copy up here would
+          * be the same switch in two places.
+          */}
+        {!aiMax && (
+          <button
+            type="button"
+            className={`ai-ikon ai-head-sesi${sesiSisiBuka ? ' is-on' : ''}`}
+            data-testid="ai-toggle-sessions-side"
+            title={tr('Show Agent Sessions Sidebar')}
+            aria-label={tr('Show Agent Sessions Sidebar')}
+            aria-pressed={sesiSisiBuka}
+            onClick={() => setSesiSisiBuka(!sesiSisiBuka)}
+          >
+            <AiIkon name="list" size={14} />
+          </button>
+        )}
+
         {sesiBuka && sesiRect && (
           <div
+            ref={refSesi}
             className="ai-sesi-menu"
             data-testid="ai-sesi-menu"
             role="listbox"
-            style={{ left: Math.max(8, Math.min(sesiRect.left, window.innerWidth - 320)), top: sesiRect.bottom + 6 }}
+            style={{
+              left: Math.max(8, Math.min(sesiRect.left, window.innerWidth - 320)),
+              top: sesiRect.bottom + 6,
+              transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))',
+            }}
           >
-            <div className="ai-sesi-cari">
+            <div className="ai-sesi-cari" data-drag-handle onPointerDown={onDragSesi} style={{ cursor: 'grab' }}>
               <AiIkon name="search" size={12} />
               <input
                 autoFocus
@@ -989,242 +1010,9 @@ function AiPanelInner() {
                 </div>
               ))}
             </div>
-            <button
-              type="button"
-              className="ai-sesi-baru"
-              data-testid="ai-sesi-baru"
-              onClick={() => {
-                newChat();
-                setSesiBuka(false);
-              }}
-            >
-              <AiIkon name="plus" size={13} />
-              {tr('New chat')}
-            </button>
           </div>
         )}
 
-        <div className="ai-head-right">
-          {/*
-            * Copilot-style header actions: New Chat (split button with a menu),
-            * History, Maximize/Restore, the "…" menu, and Close. The message
-            * count and context ring live in the bottom bar.
-            *
-            * The live clock sits FIRST, before the buttons. It is read, not
-            * clicked, so it belongs at the trailing edge of the title's group
-            * rather than inside the cluster of controls — and putting it after
-            * them would push the buttons away from the corner they belong in.
-            */}
-          <LiveClock />
-
-
-          {/* New chat — split button. The main part starts a fresh chat; the
-              caret opens where it should open (here / editor / window). */}
-          <div className="ai-new-wrap">
-            <button
-              className="ai-newchat"
-              data-testid="ai-newchat"
-              title={tr('New chat')}
-              aria-label={tr('New chat')}
-              onClick={() => {
-                setDraft('');
-                newChat();
-              }}
-            >
-              <AiIkon name="plus" size={13} />
-              <span className="ai-newchat-teks">{tr('New Chat')}</span>
-            </button>
-            <button
-              className="ai-newchat-caret"
-              data-testid="ai-newchat-menu"
-              title={tr('New chat options')}
-              aria-label={tr('New chat options')}
-              aria-haspopup="menu"
-              aria-expanded={newMenuBuka}
-              onClick={() => setNewMenuBuka((v) => !v)}
-            >
-              <AiIkon name="chev-down" size={11} />
-            </button>
-            {newMenuBuka && (
-              <>
-                <div className="ai-more-backdrop" onClick={() => setNewMenuBuka(false)} />
-                <div className="ai-more-menu is-right" role="menu" data-testid="ai-newchat-menu-pop">
-                  <button
-                    role="menuitem"
-                    className="ai-more-item"
-                    data-testid="ai-newchat-here"
-                    onClick={() => {
-                      setDraft('');
-                      newChat();
-                      setNewMenuBuka(false);
-                    }}
-                  >
-                    {tr('New Chat')}
-                  </button>
-                  <button
-                    role="menuitem"
-                    className="ai-more-item"
-                    data-testid="ai-newchat-editor"
-                    onClick={() => {
-                      setDraft('');
-                      newChat();
-                      pindahAi('editor');
-                      setNewMenuBuka(false);
-                    }}
-                  >
-                    {tr('New Chat in Editor')}
-                  </button>
-                  <button
-                    role="menuitem"
-                    className="ai-more-item"
-                    data-testid="ai-newchat-window"
-                    onClick={() => {
-                      setDraft('');
-                      newChat();
-                      pindahAi('window');
-                      setNewMenuBuka(false);
-                    }}
-                  >
-                    {tr('New Chat in Window')}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* History — opens the session switcher anchored to the title. */}
-          <button
-            className="ai-ikon"
-            data-testid="ai-history-btn"
-            title={tr('Chat history')}
-            aria-label={tr('Chat history')}
-            onClick={() => window.dispatchEvent(new Event('zephyr-ai-history'))}
-          >
-            <AiIkon name="history" size={14} />
-          </button>
-
-          {/* Maximize / Restore moved to just LEFT of Close — see below, the
-              VSCode Copilot header puts the expand toggle immediately before
-              the X. The block that used to sit here was relocated. */}
-
-          {/*
-            * The "..." menu, VSCode Copilot-style: move the chat between the
-            * right column, the editor area, and its own window.
-            */}
-          <div className="ai-more-wrap">
-            <button
-              className="ai-ikon"
-              data-testid="ai-more"
-              title={tr('More actions')}
-              aria-label={tr('More actions')}
-              aria-haspopup="menu"
-              aria-expanded={menuBuka}
-              onClick={() => setMenuBuka((v) => !v)}
-            >
-              <AiIkon name="more" size={14} />
-            </button>
-            {menuBuka && (
-              <>
-                <div className="ai-more-backdrop" onClick={() => setMenuBuka(false)} />
-                <div className="ai-more-menu" role="menu" data-testid="ai-more-menu">
-                  <button
-                    role="menuitemradio"
-                    aria-checked={posAi === 'editor'}
-                    className="ai-more-item"
-                    data-testid="ai-move-editor"
-                    onClick={() => pindahAi('editor')}
-                  >
-                    {tr('Move Chat into Editor Area')}
-                  </button>
-                  <button
-                    role="menuitemradio"
-                    aria-checked={posAi === 'window'}
-                    className="ai-more-item"
-                    data-testid="ai-move-window"
-                    onClick={() => pindahAi('window')}
-                  >
-                    {tr('Move Chat into New Window')}
-                  </button>
-                  <button
-                    role="menuitemradio"
-                    aria-checked={posAi === 'right'}
-                    className="ai-more-item"
-                    data-testid="ai-move-right"
-                    onClick={() => pindahAi('right')}
-                  >
-                    {tr('Dock Chat to Right')}
-                  </button>
-                  <div className="ai-more-sep" />
-                  <button
-                    role="menuitem"
-                    className="ai-more-item"
-                    data-testid="ai-open-customize"
-                    onClick={() => {
-                      useAgentCustom.getState().buka();
-                      setMenuBuka(false);
-                    }}
-                  >
-                    {tr('Agent Customizations…')}
-                  </button>
-                  <button
-                    role="menuitem"
-                    className="ai-more-item"
-                    data-testid="ai-open-toolsets"
-                    onClick={() => {
-                      useToolGate.getState().toggle();
-                      setMenuBuka(false);
-                    }}
-                  >
-                    {tr('Tool Sets')}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/*
-            * Maximise was REMOVED: all four homes now use the one roomy layout,
-            * and the right column is resizable by its drag handle, so a separate
-            * maximise toggle no longer earns its slot in the header.
-            */}
-
-          {/*
-            * Maximize / Restore — only in the right column, where aiMax drives
-            * the layout. Placed immediately to the LEFT of Close, matching the
-            * VSCode Copilot chat header where the expand toggle sits next to X.
-            */}
-          {/*
-            * Maximize/Restore moved to the SHARED tab strip (AiHost), so Chat,
-            * Claude Code and Codex all toggle it from one slot instead of each
-            * carrying its own button. Nothing to render here now.
-            */}
-
-          {/*
-            * Close the panel. The same action the dock's own tab strip offers,
-            * kept here because this is where the eye goes when the panel is
-            * already open and in the way.
-            */}
-          <button
-            className="ai-ikon"
-            data-testid="ai-hide"
-            title={tr('Hide AI panel')}
-            aria-label={tr('Hide AI panel')}
-            onClick={() => {
-              if (posAi === 'right') {
-                useStore.getState().setAiKolomVisible(false);
-              } else if (posAi === 'editor') {
-                /* Editor-area view: closing it returns the chat to the right
-                   column so the icon can bring it back. */
-                void applySettings({ general: { aiPanel: 'right' } } as never);
-                useStore.getState().setAiKolomVisible(false);
-              } else {
-                useTerminal.getState().setVisible(false);
-              }
-            }}
-          >
-            <AiIkon name="close" />
-          </button>
-        </div>
       </div>
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat" onScroll={cekPosisi}>
@@ -2196,38 +1984,6 @@ function AiPanelInner() {
             <AiIkon name="plus" />
           </button>
 
-          {/*
-            * Dictation gets its own button, not just a menu entry.
-            *
-            * The hook was already wired into the draft, but nothing could start
-            * it. It sits next to "+" because it fills the same slot — both put
-            * content into the message — and it only renders where the browser
-            * actually offers speech recognition.
-            *
-            * NO `voiceAktif` HERE, and that is the fix, not an omission: it used
-            * to be required, which meant turning off "speaking" (the AI reading
-            * answers aloud) also removed the dictation button. The two share no
-            * engine, no endpoint and no switch in Settings, so gating one on the
-            * other made a working microphone look broken - the button simply was
-            * not there and nothing said why. `micAktif` is the only switch that
-            * owns this control.
-            */}
-          {bisaDengar && micAktif && (
-            <button
-              className={`ai-plus ai-mic${dengar ? ' is-on' : ''}`}
-              data-testid="ai-mic"
-              aria-pressed={dengar}
-              title={dengar ? tr('Stop dictation') : tr('Start dictation')}
-              aria-label={dengar ? tr('Stop dictation') : tr('Start dictation')}
-              onClick={() => {
-                toggleDengar();
-                inputRef.current?.focus();
-              }}
-            >
-              <AiIkon name="mic" />
-            </button>
-          )}
-
           {bukaPlus && (
             <>
               <div className="ai-plus-backdrop" onClick={() => setBukaPlus(false)} />
@@ -2357,16 +2113,44 @@ function AiPanelInner() {
           />
 
           {/*
-            * Model and mode (Chat/Agent) sit on the composer row next to "+",
-            * Copilot-style — they decide WHAT the message is. The controls for
-            * HOW it runs (permission + reasoning) moved to the footer below, so
-            * this row stays short and reads like the reference composer in every
-            * placement (right column, editor, window).
+            * Agent first, then the model beside it — the order asked for: the
+            * mode says WHAT will act, the model says WHO acts, and reading
+            * "Agent → model" matches how the choice is made (pick the mode,
+            * then the model behind it). Both inside the box, on one line.
             */}
-          <ModelSelector />
           <ModeMenu />
+          <ModelSelector />
 
           <span className="ai-toolbar-spacer" aria-hidden="true" />
+
+          {/*
+            * Dictation sits on the trailing edge, next to Send — the placement
+            * the reference composer uses, and the one that keeps every control
+            * that does NOT go into the message on the left.
+            *
+            * NO `voiceAktif` HERE, and that is the fix, not an omission: it used
+            * to be required, which meant turning off "speaking" (the AI reading
+            * answers aloud) also removed the dictation button. The two share no
+            * engine, no endpoint and no switch in Settings, so gating one on the
+            * other made a working microphone look broken - the button simply was
+            * not there and nothing said why. `micAktif` is the only switch that
+            * owns this control.
+            */}
+          {bisaDengar && micAktif && (
+            <button
+              className={`ai-plus ai-mic${dengar ? ' is-on' : ''}`}
+              data-testid="ai-mic"
+              aria-pressed={dengar}
+              title={dengar ? tr('Stop dictation') : tr('Start dictation')}
+              aria-label={dengar ? tr('Stop dictation') : tr('Start dictation')}
+              onClick={() => {
+                toggleDengar();
+                inputRef.current?.focus();
+              }}
+            >
+              <AiIkon name="mic" />
+            </button>
+          )}
 
           <div className="ai-send-wrap">
             {!sibuk && adaCheckpoint && (

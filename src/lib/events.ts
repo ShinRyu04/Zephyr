@@ -29,7 +29,31 @@ export const EV = {
  * renders thinking / tool calls / diffs the same way regardless of agent. When
  * `event` is present, the top-level `text` is absent (and vice versa).
  */
-export type CliEvent =
+/**
+ * Every event can belong to a subagent.
+ *
+ * The tag lives at the top level rather than inside `tool` because a subagent
+ * produces text and thinking too, not only tool calls — grouping only the tool
+ * rows would leave its prose misattributed to the main agent. Applied as an
+ * intersection so each variant keeps its own required fields.
+ */
+type MilikSarang = {
+  /**
+   * The `Task` call this event belongs to, when a subagent produced it.
+   *
+   * With `--forward-subagent-text` the CLI relays a subagent's own text,
+   * thinking and tool calls as ordinary lines tagged with
+   * `parent_tool_use_id` — the id of the `Task` call that spawned it. Carried
+   * through so the transcript can group a subagent's work under its call
+   * instead of showing one silent `Task` row for minutes and then a summary.
+   *
+   * Absent on everything the main agent produced.
+   */
+  parentId?: string;
+};
+
+export type CliEvent = MilikSarang &
+  (
   | { kind: 'text'; text: string }
   | { kind: 'thinking'; text: string }
   | { kind: 'error'; text: string }
@@ -65,6 +89,39 @@ export type CliEvent =
         id: string;
       }[];
     }
+  /*
+   * A subagent's lifecycle, from the CLI's own `system` task lines.
+   *
+   * Four phases (`started` / `progress` / `updated` / `notification`) all keyed
+   * by `taskId`, and the UI merges them into one card. `progress` arrives many
+   * times with CUMULATIVE `tokens` / `toolUses` / `durationMs`, so a consumer
+   * must replace, never add — accumulating would multiply a card's token count
+   * by the number of progress lines (20 of them in a measured two-agent run).
+   *
+   * This is the ONLY source for a card's duration and token count: the tagged
+   * transcript rows carry no such numbers.
+   */
+  | {
+      kind: 'task';
+      taskId: string;
+      phase: 'started' | 'progress' | 'updated' | 'notification' | string;
+      /** The spawning call's id — joins the card to its tagged rows. */
+      toolUseId?: string;
+      description?: string;
+      subagentType?: string;
+      /** The full instruction the agent was given — only on `started`. */
+      prompt?: string;
+      /** 1 = spawned by the main agent; higher = by another subagent. */
+      spawnDepth?: number;
+      /** Still running after its parent returned. */
+      background?: boolean;
+      tokens?: number;
+      toolUses?: number;
+      durationMs?: number;
+      lastTool?: string;
+      status?: string;
+      summary?: string;
+    }
   | {
       kind: 'tool';
       tool: {
@@ -85,7 +142,8 @@ export type CliEvent =
         diffNew?: string;
         path?: string;
       };
-    };
+    }
+  );
 
 export interface CliChatChunk {
   id: string;
