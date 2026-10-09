@@ -187,18 +187,23 @@ export default function SplitEditor() {
    */
   const aiDiEditor = useStore((s) => (s.settings.general.aiPanel ?? 'right') === 'editor');
   const chatSettingsOpen = useAiChatSettings((s) => s.buka);
+  const chatSettingsMode = useAiChatSettings((s) => s.mode);
   const tutupChatSettings = useAiChatSettings((s) => s.tutup);
 
   /*
    * Chat Settings as an editor-area view.
    *
+   * ONLY when the reader asked for that home ("Open in Editor" in the overlay):
+   * the default is the floating popup, drawn inside the chat panel, and both
+   * must not appear at once. `mode` is what separates them — one flag for
+   * "open", one for "where", so the overlay and this page cannot disagree about
+   * which of them is on screen.
+   *
    * Sits BEFORE the aiDiEditor branch so it wins when both are true: the reader
    * asked for the settings page from inside the chat, and the chat is already
    * the view underneath — returning it would hide the page they just opened.
-   * Same shape as Settings below: it takes the editor area, so the chat column
-   * on the right stays put and the conversation is one Escape away.
    */
-  if (chatSettingsOpen) {
+  if (chatSettingsOpen && chatSettingsMode === 'editor') {
     return (
       <section className="editor-area" data-testid="chat-settings-area">
         <div className="editor-host">
