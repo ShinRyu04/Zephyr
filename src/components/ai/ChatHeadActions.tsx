@@ -4,7 +4,7 @@ import { useStore } from '../../lib/store';
 import { useAgentCustom } from '../../lib/agentCustomStore';
 import { useToolGate } from '../../lib/toolGate';
 import { useAiDebug } from '../../lib/aiDebugStore';
-import { useSettingsUi } from '../../lib/settingsStore';
+import { useAiChatSettings } from '../../lib/chatSettingsStore';
 import AiIkon from './AiIkon';
 import { useT } from '../../lib/i18n';
 
@@ -188,7 +188,7 @@ export default function ChatHeadActions() {
                   <button role="menuitem" className="ai-more-item" data-testid="ai-open-customize" onClick={() => { useAgentCustom.getState().buka(); setMenuBuka(false); }}>{tr('Agent Customizations…')}</button>
                   <button role="menuitem" className="ai-more-item" data-testid="ai-open-toolsets" onClick={() => { useToolGate.getState().toggle(); setMenuBuka(false); }}>{tr('Tool Sets')}</button>
                   <div className="ai-more-sep" />
-                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-chat-settings" onClick={() => { const st = useStore.getState(); st.setActivity('settings'); st.setSettingsOpen(true); useSettingsUi.getState().setSection('models'); if (!st.sidebarVisible) st.toggleSidebar(); setMenuBuka(false); }}>{tr('Chat Settings')}</button>
+                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-chat-settings" onClick={() => { useAiChatSettings.getState().setBuka(true); setMenuBuka(false); }}>{tr('Chat Settings')}</button>
                   <div className="ai-more-sep" />
                   <button role="menuitemcheckbox" aria-checked={debugBuka} className="ai-more-item" data-testid="ai-toggle-debug" onClick={() => { useAiDebug.getState().toggle(); setMenuBuka(false); }}>{tr('Show Chat Debug View')}</button>
                   <button role="menuitem" className="ai-more-item is-mati" data-testid="ai-voice-transcripts" disabled>{tr('Show Voice Transcripts')}</button>
