@@ -10,6 +10,7 @@ import SubAgentInfo from './components/ai/SubAgentInfo';
 import SessionsPanel from './components/ai/SessionsPanel';
 import PanelTrail from './components/ai/PanelTrail';
 import PanelWins from './components/ai/PanelWins';
+import AiIkon from './components/ai/AiIkon';
 import { useSessionsSide } from './lib/sessionsSideStore';
 import { useAiTabs } from './lib/aiTabsStore';
 import StatusBar from './components/shell/StatusBar';
@@ -1525,6 +1526,29 @@ export default function App() {
                     id="ai-side-top-tabs"
                     data-testid="ai-side-top-tabs"
                   />
+                  {/*
+                    * The Sessions column's own toggle, on this row while the
+                    * panel is expanded.
+                    *
+                    * Without it the column was a ONE-WAY door: its ✕ could hide
+                    * it, and the header that carries the way back is hidden while
+                    * maximised — so a reader who dismissed the list had no way to
+                    * bring it back short of leaving maximize. Only for the Chat
+                    * tab, because only the Chat tab HAS the column.
+                    */}
+                  {aiTab === 'chat' && (
+                    <button
+                      type="button"
+                      className={`ai-ikon${sesiSisiBuka ? ' is-on' : ''}`}
+                      data-testid="ai-toggle-sessions-side"
+                      title={tr('Show Agent Sessions Sidebar')}
+                      aria-label={tr('Show Agent Sessions Sidebar')}
+                      aria-pressed={sesiSisiBuka}
+                      onClick={() => setSesiSisi(!sesiSisiBuka)}
+                    >
+                      <AiIkon name="list" size={14} />
+                    </button>
+                  )}
                   {aiTab === 'chat' ? (
                     <PanelTrail showMax />
                   ) : (
