@@ -8678,6 +8678,30 @@
   background: var(--surface-3);
 }
 
+/*
+ * The inline release-notes fallback.
+ *
+ * Shown when the notes could not be opened as an editor tab — no workspace is
+ * open, or the write was refused. Scrolls rather than growing the popup: the
+ * notes are arbitrary length, and a popup that resizes to fit them can end up
+ * taller than the window with its own buttons pushed off screen.
+ */
+.ai-upd-notes {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .ai-upd-actions {
   margin-top: 10px;
 }
