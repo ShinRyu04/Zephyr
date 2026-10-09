@@ -211,3 +211,67 @@
 .cset-pop .cset-content {
   padding: 14px 18px 28px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Scope tabs (User / Workspace) and the Workspace pane's notice.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.cset-scope {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Underlined tabs, the shape VS Code uses for the same pair. The underline is
+   the active state, so the two tabs do not need a background fill that would
+   read as a button. */
+.cset-scope-tab {
+  position: relative;
+  padding: 6px 2px 8px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cset-scope-tab:hover {
+  color: var(--text);
+}
+
+.cset-scope-tab.is-on {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.cset-scope-tab.is-on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.cset-ws {
+  max-width: 520px;
+  padding: 22px 2px;
+}
+
+.cset-ws-title {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cset-ws-body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
