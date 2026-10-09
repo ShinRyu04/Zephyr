@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useAiDebug } from '../../lib/aiDebugStore';
 import { useToolGate } from '../../lib/toolGate';
-import { useT } from '../../lib/i18n';
-import { Row, Section, Select, Toggle } from '../settings/SettingsControls';
+import { useT, tf } from '../../lib/i18n';
+import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
@@ -80,6 +80,7 @@ type SectionId = (typeof SECTIONS)[number]['id'];
 export default function ChatSettingsPage({
   onClose,
   onOpenEditor,
+  onDragStart,
 }: {
   onClose: () => void;
   /*
@@ -90,6 +91,15 @@ export default function ChatSettingsPage({
    * because there the page is already where that button would send it.
    */
   onOpenEditor?: () => void;
+  /*
+   * Makes this page's own header the drag handle of the popup that frames it.
+   *
+   * Passed in rather than owned here: only the popup is draggable, and the page
+   * must not start a drag when it is the full-height editor home. The header is
+   * the right handle because it is the one strip with no interactive control
+   * except the buttons at its trailing edge — which the hook excludes itself.
+   */
+  onDragStart?: (e: React.PointerEvent) => void;
 }) {
   const tr = useT();
   const [bagian, setBagian] = useState<SectionId>('mode');
@@ -162,6 +172,8 @@ export default function ChatSettingsPage({
           onChange={(v) => setAgentMode(v as 'chat' | 'agent')}
         />
       ),
+      isDefault: agentMode === 'chat',
+      reset: () => setAgentMode('chat'),
     },
     {
       section: 'mode',
@@ -178,6 +190,8 @@ export default function ChatSettingsPage({
           onChange={(v) => setRunMode(v as 'interactive' | 'plan' | 'autopilot')}
         />
       ),
+      isDefault: runMode === 'interactive',
+      reset: () => setRunMode('interactive'),
     },
     {
       section: 'mode',
@@ -194,6 +208,8 @@ export default function ChatSettingsPage({
           onChange={(v) => setEffort(v === '' ? null : (v as ReasoningEffort))}
         />
       ),
+      isDefault: (effort ?? 'medium') === 'medium',
+      reset: () => setEffort('medium'),
     },
 
     {
@@ -211,6 +227,8 @@ export default function ChatSettingsPage({
           onChange={(v) => setApprovalMode(v as ApprovalMode)}
         />
       ),
+      isDefault: approvalMode === 'work',
+      reset: () => setApprovalMode('work'),
     },
     {
       section: 'agent',
@@ -226,6 +244,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ agents: { attachActiveFile: v } })}
         />
       ),
+      isDefault: (agents.attachActiveFile ?? false) === false,
+      reset: () => void apply({ agents: { attachActiveFile: false } }),
     },
 
     {
@@ -247,6 +267,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ models: { answerLang: v } })}
         />
       ),
+      isDefault: (models.answerLang ?? 'follow') === 'follow',
+      reset: () => void apply({ models: { answerLang: 'follow' } }),
     },
     {
       section: 'context',
@@ -267,6 +289,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ models: { answerStyle: v } })}
         />
       ),
+      isDefault: (models.answerStyle ?? 'short') === 'short',
+      reset: () => void apply({ models: { answerStyle: 'short' } }),
     },
     {
       section: 'context',
@@ -282,6 +306,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ models: { ragEnabled: v } })}
         />
       ),
+      isDefault: (models.ragEnabled ?? false) === false,
+      reset: () => void apply({ models: { ragEnabled: false } }),
     },
 
     {
@@ -298,6 +324,8 @@ export default function ChatSettingsPage({
           onChange={setTipsVisible}
         />
       ),
+      isDefault: tipsVisible === true,
+      reset: () => setTipsVisible(true),
     },
     {
       section: 'appearance',
@@ -313,6 +341,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ agents: { chatAvatar: v } })}
         />
       ),
+      isDefault: (agents.chatAvatar !== false) === true,
+      reset: () => void apply({ agents: { chatAvatar: true } }),
     },
     {
       section: 'appearance',
@@ -328,6 +358,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ subagent: { autoCollapse: v } })}
         />
       ),
+      isDefault: (subagent.autoCollapse !== false) === true,
+      reset: () => void apply({ subagent: { autoCollapse: true } }),
     },
 
     {
@@ -344,6 +376,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ subagent: { allowWrite: v } })}
         />
       ),
+      isDefault: (subagent.allowWrite ?? false) === false,
+      reset: () => void apply({ subagent: { allowWrite: false } }),
     },
     {
       section: 'subagent',
@@ -359,6 +393,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ subagent: { showPanel: v } })}
         />
       ),
+      isDefault: (subagent.showPanel !== false) === true,
+      reset: () => void apply({ subagent: { showPanel: true } }),
     },
     {
       section: 'subagent',
@@ -375,6 +411,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ subagent: { maxParallel: Number(v) } })}
         />
       ),
+      isDefault: (subagent.maxParallel ?? 4) === 4,
+      reset: () => void apply({ subagent: { maxParallel: 4 } }),
     },
     {
       section: 'subagent',
@@ -391,6 +429,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ subagent: { maxSteps: Number(v) } })}
         />
       ),
+      isDefault: (subagent.maxSteps ?? 15) === 15,
+      reset: () => void apply({ subagent: { maxSteps: 15 } }),
     },
     {
       section: 'subagent',
@@ -410,6 +450,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ subagent: { idleSecs: Number(v) } })}
         />
       ),
+      isDefault: (subagent.idleSecs ?? 90) === 90,
+      reset: () => void apply({ subagent: { idleSecs: 90 } }),
     },
     {
       section: 'subagent',
@@ -427,6 +469,7 @@ export default function ChatSettingsPage({
           {subagent.model ? subagent.model : tr('Follow chat')}
         </button>
       ),
+      isDefault: true,
     },
 
     {
@@ -444,6 +487,7 @@ export default function ChatSettingsPage({
           {tr('Open tool sets…')}
         </button>
       ),
+      isDefault: true,
     },
     {
       section: 'tools',
@@ -456,6 +500,7 @@ export default function ChatSettingsPage({
           {jumlahToolAktif}
         </span>
       ),
+      isDefault: true,
     },
     {
       section: 'tools',
@@ -471,6 +516,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ rules: { enabled: v } })}
         />
       ),
+      isDefault: (rules?.enabled ?? false) === false,
+      reset: () => void apply({ rules: { enabled: false } }),
     },
     {
       section: 'tools',
@@ -494,6 +541,7 @@ export default function ChatSettingsPage({
           {tr('Permissions…')}
         </button>
       ),
+      isDefault: true,
     },
 
     {
@@ -510,6 +558,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ voice: { enabled: v } })}
         />
       ),
+      isDefault: (voice?.enabled !== false) === true,
+      reset: () => void apply({ voice: { enabled: true } }),
     },
     {
       section: 'voice',
@@ -525,6 +575,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ voice: { speakReplies: v } })}
         />
       ),
+      isDefault: (voice?.speakReplies ?? false) === false,
+      reset: () => void apply({ voice: { speakReplies: false } }),
     },
     {
       section: 'voice',
@@ -540,6 +592,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ voice: { skipCode: v } })}
         />
       ),
+      isDefault: (voice?.skipCode !== false) === true,
+      reset: () => void apply({ voice: { skipCode: true } }),
     },
     {
       section: 'voice',
@@ -555,6 +609,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ mic: { enabled: v } })}
         />
       ),
+      isDefault: (mic?.enabled !== false) === true,
+      reset: () => void apply({ mic: { enabled: true } }),
     },
     {
       section: 'voice',
@@ -570,6 +626,204 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ mic: { autoSend: v } })}
         />
       ),
+      isDefault: (mic?.autoSend ?? false) === false,
+      reset: () => void apply({ mic: { autoSend: false } }),
+    },
+    {
+      section: 'voice',
+      id: 'dictlang',
+      label: 'Dictation language',
+      hint: 'The language the microphone expects you to speak.',
+      words: 'voice mic dictation language speech input locale bcp47',
+      ctl: (
+        <Select
+          value={mic?.lang ?? 'en-US'}
+          testid="cset-dictlang"
+          label="Dictation language"
+          options={[
+            ['en-US', 'English (US)'],
+            ['en-GB', 'English (UK)'],
+            ['id-ID', 'Bahasa Indonesia'],
+            ['ja-JP', '日本語'],
+            ['ko-KR', '한국어'],
+            ['zh-CN', '中文 (简体)'],
+            ['es-ES', 'Español'],
+            ['fr-FR', 'Français'],
+            ['de-DE', 'Deutsch'],
+            ['pt-BR', 'Português (BR)'],
+            ['ar-SA', 'العربية'],
+          ].map(([value, label]) => ({ value, label }))}
+          onChange={(v) => void apply({ mic: { lang: v } })}
+        />
+      ),
+      isDefault: (mic?.lang ?? 'en-US') === 'en-US',
+      reset: () => void apply({ mic: { lang: 'en-US' } }),
+    },
+    {
+      section: 'voice',
+      id: 'rate',
+      label: 'Speech speed',
+      hint: 'How fast answers are read aloud.',
+      words: 'voice speech speed rate pace fast slow tts',
+      ctl: (
+        <Select
+          value={String(voice?.rate ?? 1)}
+          testid="cset-rate"
+          label="Speech speed"
+          options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((n) => ({
+            value: String(n),
+            label: `${n}×`,
+          }))}
+          onChange={(v) => void apply({ voice: { rate: Number(v) } })}
+        />
+      ),
+      isDefault: (voice?.rate ?? 1) === 1,
+      reset: () => void apply({ voice: { rate: 1 } }),
+    },
+    {
+      section: 'voice',
+      id: 'vol',
+      label: 'Speech volume',
+      hint: 'How loud spoken answers are.',
+      words: 'voice speech volume loud quiet tts',
+      ctl: (
+        <Select
+          value={String(voice?.volume ?? 1)}
+          testid="cset-vol"
+          label="Speech volume"
+          options={[0.2, 0.5, 0.75, 1].map((n) => ({
+            value: String(n),
+            label: `${Math.round(n * 100)}%`,
+          }))}
+          onChange={(v) => void apply({ voice: { volume: Number(v) } })}
+        />
+      ),
+      isDefault: (voice?.volume ?? 1) === 1,
+      reset: () => void apply({ voice: { volume: 1 } }),
+    },
+    {
+      section: 'voice',
+      id: 'pitch',
+      label: 'Speech pitch',
+      hint: 'Lower or higher voice.',
+      words: 'voice speech pitch tone high low tts',
+      ctl: (
+        <Select
+          value={String(voice?.pitch ?? 1)}
+          testid="cset-pitch"
+          label="Speech pitch"
+          options={[0.5, 0.75, 1, 1.25, 1.5].map((n) => ({
+            value: String(n),
+            label: `${n}×`,
+          }))}
+          onChange={(v) => void apply({ voice: { pitch: Number(v) } })}
+        />
+      ),
+      isDefault: (voice?.pitch ?? 1) === 1,
+      reset: () => void apply({ voice: { pitch: 1 } }),
+    },
+    {
+      section: 'voice',
+      id: 'neural',
+      label: 'Neural voice',
+      hint: 'Use a provider voice instead of the one built into the system.',
+      words: 'voice neural provider tts openai gemini cloud natural',
+      ctl: (
+        <Toggle
+          checked={voice?.neuralEnabled ?? false}
+          testid="cset-neural"
+          label="Neural voice"
+          onChange={(v) => void apply({ voice: { neuralEnabled: v } })}
+        />
+      ),
+      isDefault: (voice?.neuralEnabled ?? false) === false,
+      reset: () => void apply({ voice: { neuralEnabled: false } }),
+    },
+    {
+      section: 'voice',
+      id: 'neuralprovider',
+      label: 'Neural provider',
+      hint: 'Which service speaks when the neural voice is on.',
+      words: 'voice neural provider tts openai ollama groq gemini custom',
+      ctl: (
+        <Select
+          value={voice?.neuralProvider ?? ''}
+          testid="cset-neuralprovider"
+          label="Neural provider"
+          options={[
+            { value: '', label: '—' },
+            { value: 'openai', label: 'OpenAI' },
+            { value: 'gemini', label: 'Gemini' },
+            { value: 'groq', label: 'Groq' },
+            { value: 'ollama', label: 'Ollama' },
+            { value: 'custom', label: 'Custom' },
+          ]}
+          onChange={(v) => void apply({ voice: { neuralProvider: v } })}
+        />
+      ),
+      isDefault: (voice?.neuralProvider ?? '') === '',
+      reset: () => void apply({ voice: { neuralProvider: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'neuralmodel',
+      label: 'Neural model',
+      hint: 'The text-to-speech model id at that provider.',
+      words: 'voice neural model tts id name',
+      ctl: (
+        <TextInput
+          value={voice?.neuralModel ?? ''}
+          testid="cset-neuralmodel"
+          label="Neural model"
+          placeholder="e.g. tts-1"
+          onChange={(v) => void apply({ voice: { neuralModel: v } })}
+        />
+      ),
+      isDefault: (voice?.neuralModel ?? '') === '',
+      reset: () => void apply({ voice: { neuralModel: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'sttprovider',
+      label: 'Dictation provider',
+      hint: 'Which service turns your speech into text.',
+      words: 'voice mic stt dictation provider speech to text openai gemini',
+      ctl: (
+        <Select
+          value={mic?.provider ?? ''}
+          testid="cset-sttprovider"
+          label="Dictation provider"
+          options={[
+            { value: '', label: '—' },
+            { value: 'openai', label: 'OpenAI' },
+            { value: 'gemini', label: 'Gemini' },
+            { value: 'ollama', label: 'Ollama' },
+            { value: 'custom', label: 'Custom' },
+            { value: 'local', label: 'Local' },
+          ]}
+          onChange={(v) => void apply({ mic: { provider: v } })}
+        />
+      ),
+      isDefault: (mic?.provider ?? '') === '',
+      reset: () => void apply({ mic: { provider: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'sttmodel',
+      label: 'Dictation model',
+      hint: 'The speech-to-text model id at that provider.',
+      words: 'voice mic stt dictation model whisper id',
+      ctl: (
+        <TextInput
+          value={mic?.model ?? ''}
+          testid="cset-sttmodel"
+          label="Dictation model"
+          placeholder="e.g. whisper-1"
+          onChange={(v) => void apply({ mic: { model: v } })}
+        />
+      ),
+      isDefault: (mic?.model ?? '') === '',
+      reset: () => void apply({ mic: { model: '' } }),
     },
 
     {
@@ -594,6 +848,7 @@ export default function ChatSettingsPage({
           {tr('Models & keys…')}
         </button>
       ),
+      isDefault: true,
     },
     {
       section: 'advanced',
@@ -617,6 +872,7 @@ export default function ChatSettingsPage({
           {tr('Edit…')}
         </button>
       ),
+      isDefault: true,
     },
     {
       section: 'advanced',
@@ -633,6 +889,8 @@ export default function ChatSettingsPage({
           onChange={(v) => void apply({ models: { ragK: Number(v) } })}
         />
       ),
+      isDefault: (models.ragK ?? 4) === 4,
+      reset: () => void apply({ models: { ragK: 4 } }),
     },
     {
       section: 'advanced',
@@ -648,19 +906,41 @@ export default function ChatSettingsPage({
           onChange={() => useAiDebug.getState().toggle()}
         />
       ),
+      isDefault: debugBuka === false,
+      reset: () => {
+        if (debugBuka) useAiDebug.getState().toggle();
+      },
     },
   ];
 
   const q = cari.trim().toLowerCase();
 
+  /*
+   * VSCode's `@modified` / `@default` filters.
+   *
+   * A leading `@word` switches the search from text matching to a predicate over
+   * the whole list, and the remaining words then filter within that — which is
+   * exactly how the reference behaves and why the two can be combined
+   * (`@modified agent` = changed settings in the Agent section).
+   */
+  const at = q.startsWith('@') ? q.slice(1).split(/\s+/)[0] : null;
+  const sisa = at ? q.slice(at.length + 1).trim() : q;
+  const filterAktif =
+    at === 'modified' || at === 'changed' ? 'modified' : at === 'default' ? 'default' : null;
+
+  /* Text match on the part after the `@word`, so `@modified agent` narrows to
+     rows whose own words contain "agent". */
+  const cocokTeks = (r: RowDef) =>
+    !sisa || r.label.toLowerCase().includes(sisa) || (r.words ?? '').toLowerCase().includes(sisa);
+
   /* One predicate for every row, used by both the count and the render — the
      two cannot drift apart because there is only one of them. */
-  const cocok = (r: RowDef) =>
-    !q || r.label.toLowerCase().includes(q) || (r.words ?? '').toLowerCase().includes(q);
-
-  /* How many rows match, for the "N found" readout. The full list while no
-     query is active, so the number and the page always describe each other. */
-  const jumlah = useMemo(() => rows.filter(cocok).length, [q, rows]);
+  const cocok = (r: RowDef) => {
+    if (!cocokTeks(r)) return false;
+    if (filterAktif === 'modified') return !r.isDefault;
+    if (filterAktif === 'default') return r.isDefault;
+    return true;
+  };
 
   /* A section renders when its own row is selected (no query) or when it still
      has a row left after filtering (query). Without the second case a search
@@ -670,9 +950,24 @@ export default function ChatSettingsPage({
 
   const rowsOf = (id: SectionId) => rows.filter((r) => r.section === id && cocok(r));
 
+  /* The "N found" readout. The full list while no query is active, so the
+     number and the page always describe each other. */
+  const jumlah = rows.filter(cocok).length;
+
+  /* How many rows in a section have been changed, for its Reset button. A
+     section with nothing changed gets no button: a control that would do
+     nothing is worse than no control. */
+  const diubahDi = (id: SectionId) => rows.filter((r) => r.section === id && !r.isDefault).length;
+
   return (
     <div className="cset-page" data-testid="cset-page">
-      <div className="cset-topbar">
+      <div
+        className="cset-topbar"
+        /* The popup's drag handle when there is one; a plain header in the
+           editor home, where nothing floats and there is nothing to drag. */
+        {...(onDragStart ? { 'data-drag-handle': true, onPointerDown: onDragStart } : {})}
+        style={onDragStart ? { cursor: 'grab' } : undefined}
+      >
         <AiIkon name="gear" size={14} />
         <span className="cset-topbar-title">{tr('Chat Settings')}</span>
         {/* The way out of the popup and into the editor. VSCode draws the same
@@ -699,17 +994,28 @@ export default function ChatSettingsPage({
             take the whole width and no section looks empty. */}
         {!q && (
           <nav className="cset-nav" aria-label={tr('Chat Settings')}>
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                className={`cset-nav-item${bagian === s.id ? ' is-active' : ''}`}
-                data-testid={`cset-nav-${s.id}`}
-                aria-current={bagian === s.id}
-                onClick={() => setBagian(s.id)}
-              >
-                {tr(s.label)}
-              </button>
-            ))}
+            {SECTIONS.map((s) => {
+              const n = diubahDi(s.id);
+              return (
+                <button
+                  key={s.id}
+                  className={`cset-nav-item${bagian === s.id ? ' is-active' : ''}`}
+                  data-testid={`cset-nav-${s.id}`}
+                  aria-current={bagian === s.id}
+                  onClick={() => setBagian(s.id)}
+                >
+                  {tr(s.label)}
+                  {/* How many rows in this section are off their defaults, so
+                      the column says where the changes are without opening every
+                      section. Absent at zero rather than showing "0". */}
+                  {n > 0 && (
+                    <span className="cset-nav-jum" data-testid={`cset-nav-n-${s.id}`}>
+                      {n}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
         )}
 
@@ -778,15 +1084,56 @@ export default function ChatSettingsPage({
             </div>
           ) : (
             <>
-              {SECTIONS.filter((s) => tampilSection(s.id)).map((s) => (
-                <Section key={s.id} title={s.label}>
-                  {rowsOf(s.id).map((r) => (
-                    <Row key={r.id} label={r.label} hint={r.hint} testid={`cset-row-${r.id}`}>
-                      {r.ctl}
-                    </Row>
-                  ))}
-                </Section>
-              ))}
+              {SECTIONS.filter((s) => tampilSection(s.id)).map((s) => {
+                const diubah = diubahDi(s.id);
+                return (
+                  <Section
+                    key={s.id}
+                    title={s.label}
+                    /*
+                     * The section's Reset, in the heading's trailing edge.
+                     *
+                     * Shown only when at least one row in it has been changed — a
+                     * control that would do nothing is worse than no control — and
+                     * its tooltip says how many rows it would put back, so the
+                     * reader knows the blast radius before pressing it. VSCode
+                     * draws the same affordance in the same place.
+                     */
+                    aksi={
+                      diubah > 0 ? (
+                        <button
+                          className="cset-reset"
+                          data-testid={`cset-reset-${s.id}`}
+                          title={tf('Reset {n} changed setting(s)', { n: diubah })}
+                          onClick={() => {
+                            for (const r of rowsOf(s.id)) r.reset?.();
+                          }}
+                        >
+                          {tr('Reset')}
+                        </button>
+                      ) : null
+                    }
+                  >
+                    {rowsOf(s.id).map((r) => (
+                      <Row key={r.id} label={r.label} hint={r.hint} testid={`cset-row-${r.id}`}>
+                        {/* The modified mark sits with the control, not the
+                            label: it says "this value is not the default", which
+                            is a fact about the value. */}
+                        {r.isDefault ? (
+                          r.ctl
+                        ) : (
+                          <span className="cset-mod">
+                            <span className="cset-mod-badge" data-testid={`cset-mod-${r.id}`}>
+                              {tr('Modified')}
+                            </span>
+                            {r.ctl}
+                          </span>
+                        )}
+                      </Row>
+                    ))}
+                  </Section>
+                );
+              })}
 
               {q && jumlah === 0 && (
                 <p className="cset-kosong" data-testid="cset-empty">
@@ -816,4 +1163,17 @@ interface RowDef {
   hint?: string;
   words?: string;
   ctl: React.ReactNode;
+  /*
+   * Whether this row currently holds its default value, for the `@modified`
+   * filter and the "Modified" badge. Computed at build time from the same
+   * value the control shows, so a row cannot be marked default while its
+   * control is showing something else.
+   */
+  isDefault: boolean;
+  /*
+   * Put this row back to its default. Omitted for rows that only LINK
+   * somewhere (Models, Custom instructions): they hold no value of their own,
+   * so there is nothing to reset and a Reset button would lie.
+   */
+  reset?: () => void;
 }
