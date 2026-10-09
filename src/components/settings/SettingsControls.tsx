@@ -74,8 +74,17 @@ export function Section({
           </span>
         )}
         {tr(title)}
-        {aksi}
       </h2>
+      {/*
+        * A whole-section control, on its own row under the heading.
+        *
+        * Its own row rather than inside the `<h2>`: nested in the heading the
+        * button rendered and hit-tested correctly but its `onClick` never ran,
+        * with no error — the same markup placed outside the heading (as the
+        * Close button is) works. The heading is a text element and treats its
+        * contents as text; a control does not belong inside it.
+        */}
+      {aksi && <div className="set-aksi">{aksi}</div>}
       {children}
     </section>
   );
