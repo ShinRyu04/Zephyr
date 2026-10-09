@@ -2624,10 +2624,20 @@ export const useAi = create<AiStore>((set, get) => ({
     set((s) => {
       const sessions = s.sessions.filter((x) => x.id !== id);
 
-      const activeId = s.activeId === id ? null : s.activeId;
+      /*
+       * Hapus yang aktif: pindah ke chat lain yang SUDAH ADA, jangan bikin
+       * yang baru.
+       *
+       * Dulu baris berikutnya selalu `newChat()` begitu `activeId` jadi null,
+       * jadi menghapus chat yang sedang dibuka langsung memunculkan chat
+       * kosong sebagai gantinya — jumlah sesi tidak pernah berkurang dan
+       * tombol hapus terlihat rusak. Membuat chat baru hanya benar kalau
+       * memang sudah tidak ada sisa sama sekali.
+       */
+      const activeId = s.activeId === id ? (sessions[sessions.length - 1]?.id ?? null) : s.activeId;
       return { sessions, activeId };
     });
-    if (!get().activeId) get().newChat();
+    if (get().sessions.length === 0) get().newChat();
     persist(get());
   },
 
