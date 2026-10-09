@@ -362,3 +362,51 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * A multi-line setting (Custom instructions).
+ *
+ * Full width with a small fixed height: it is the one row here whose value is a
+ * paragraph rather than a choice, so it needs its own line under the label
+ * instead of the trailing-edge slot the other controls use. `resize: vertical`
+ * lets the reader enlarge it without letting them drag it narrower.
+ */
+.cset-textarea {
+  width: 100%;
+  min-height: 62px;
+  max-height: 220px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.cset-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* A row whose control needs the full width stacks instead of sitting side by
+   side — the label above, the control beneath. */
+.cset-content .set-row:has(.cset-textarea) {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.cset-content .set-row:has(.cset-textarea) .set-row-label {
+  flex: none;
+}
+
+/* The whole-section action row (currently the Reset button).
+   Right-aligned under the heading, above the rows it acts on. */
+.set-aksi {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 6px;
+}

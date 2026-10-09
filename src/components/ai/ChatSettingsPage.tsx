@@ -827,6 +827,266 @@ export default function ChatSettingsPage({
     },
 
     {
+      section: 'voice',
+      id: 'voiceid',
+      label: 'System voice',
+      hint: 'Which voice the system uses. Empty lets the system choose.',
+      words: 'voice speech voice id system platform uri pick choose',
+      ctl: (
+        <TextInput
+          value={voice?.voiceId ?? ''}
+          testid="cset-voiceid"
+          label="System voice"
+          placeholder={tr('System default')}
+          onChange={(v) => void apply({ voice: { voiceId: v } })}
+        />
+      ),
+      isDefault: (voice?.voiceId ?? '') === '',
+      reset: () => void apply({ voice: { voiceId: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'nbase',
+      label: 'Neural server',
+      hint: 'Your own TTS server. Empty uses the chat provider.',
+      words: 'voice neural server url endpoint base local tts',
+      ctl: (
+        <TextInput
+          value={voice?.neuralBaseUrl ?? ''}
+          testid="cset-nbase"
+          label="Neural server"
+          placeholder="https://…"
+          onChange={(v) => void apply({ voice: { neuralBaseUrl: v } })}
+        />
+      ),
+      isDefault: (voice?.neuralBaseUrl ?? '') === '',
+      reset: () => void apply({ voice: { neuralBaseUrl: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'nvoice',
+      label: 'Neural voice',
+      hint: 'The provider voice id. Empty uses the provider default.',
+      words: 'voice neural voice id provider pick tts',
+      ctl: (
+        <TextInput
+          value={voice?.neuralVoiceId ?? ''}
+          testid="cset-nvoice"
+          label="Neural voice"
+          placeholder={tr('Provider default')}
+          onChange={(v) => void apply({ voice: { neuralVoiceId: v } })}
+        />
+      ),
+      isDefault: (voice?.neuralVoiceId ?? '') === '',
+      reset: () => void apply({ voice: { neuralVoiceId: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'nvol',
+      label: 'Neural volume',
+      hint: 'Above 100% boosts, which the system voice cannot do.',
+      words: 'voice neural volume loud boost tts',
+      ctl: (
+        <Select
+          value={String(voice?.neuralVolume ?? 1)}
+          testid="cset-nvol"
+          label="Neural volume"
+          options={[0.5, 1, 1.25, 1.5, 2].map((n) => ({
+            value: String(n),
+            label: `${Math.round(n * 100)}%`,
+          }))}
+          onChange={(v) => void apply({ voice: { neuralVolume: Number(v) } })}
+        />
+      ),
+      isDefault: (voice?.neuralVolume ?? 1) === 1,
+      reset: () => void apply({ voice: { neuralVolume: 1 } }),
+    },
+    {
+      section: 'voice',
+      id: 'nfollow',
+      label: 'Voice follows language',
+      hint: 'Pick the neural voice from the language the answer came in.',
+      words: 'voice neural follow language auto match tts',
+      ctl: (
+        <Toggle
+          checked={voice?.neuralFollowLang !== false}
+          testid="cset-nfollow"
+          label="Voice follows language"
+          onChange={(v) => void apply({ voice: { neuralFollowLang: v } })}
+        />
+      ),
+      isDefault: (voice?.neuralFollowLang !== false) === true,
+      reset: () => void apply({ voice: { neuralFollowLang: true } }),
+    },
+    {
+      section: 'voice',
+      id: 'mbase',
+      label: 'Dictation server',
+      hint: 'Your own speech-to-text server. Empty uses the provider default.',
+      words: 'voice mic dictation server url endpoint stt base',
+      ctl: (
+        <TextInput
+          value={mic?.baseUrl ?? ''}
+          testid="cset-mbase"
+          label="Dictation server"
+          placeholder="https://…"
+          onChange={(v) => void apply({ mic: { baseUrl: v } })}
+        />
+      ),
+      isDefault: (mic?.baseUrl ?? '') === '',
+      reset: () => void apply({ mic: { baseUrl: '' } }),
+    },
+
+    {
+      section: 'agent',
+      id: 'panes',
+      label: 'Terminal panes',
+      hint: 'The ceiling on panes per tab, agent panes included.',
+      words: 'agent terminal panes max split limit',
+      ctl: (
+        <Select
+          value={String(agents.maxPanes ?? 6)}
+          testid="cset-panes"
+          label="Terminal panes"
+          options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `${n}` }))}
+          onChange={(v) => void apply({ agents: { maxPanes: Number(v) } })}
+        />
+      ),
+      isDefault: (agents.maxPanes ?? 6) === 6,
+      reset: () => void apply({ agents: { maxPanes: 6 } }),
+    },
+    {
+      section: 'context',
+      id: 'ragurl',
+      label: 'Index server',
+      hint: 'Where the project index lives.',
+      words: 'context rag index server url endpoint project',
+      ctl: (
+        <TextInput
+          value={models.ragUrl ?? ''}
+          testid="cset-ragurl"
+          label="Index server"
+          placeholder="http://localhost:7777"
+          onChange={(v) => void apply({ models: { ragUrl: v } })}
+        />
+      ),
+      isDefault: (models.ragUrl ?? '') === 'http://localhost:7777',
+      reset: () => void apply({ models: { ragUrl: 'http://localhost:7777' } }),
+    },
+    {
+      section: 'context',
+      id: 'ragproj',
+      label: 'Index project',
+      hint: 'The project or collection name to search.',
+      words: 'context rag index project collection name',
+      ctl: (
+        <TextInput
+          value={models.ragProject ?? ''}
+          testid="cset-ragproj"
+          label="Index project"
+          placeholder={tr('Project name')}
+          onChange={(v) => void apply({ models: { ragProject: v } })}
+        />
+      ),
+      isDefault: (models.ragProject ?? '') === '',
+      reset: () => void apply({ models: { ragProject: '' } }),
+    },
+
+    {
+      section: 'advanced',
+      id: 'instr',
+      label: 'Custom instructions',
+      hint: 'Standing text appended to the system prompt on every turn.',
+      words: 'advanced custom instructions system prompt standing rules text',
+      ctl: (
+        <textarea
+          className="cset-textarea"
+          data-testid="cset-instr"
+          rows={3}
+          value={agents.customInstructions ?? ''}
+          placeholder={tr('Anything the AI should always know or always do…')}
+          onChange={(e) => void apply({ agents: { customInstructions: e.target.value } })}
+        />
+      ),
+      isDefault: (agents.customInstructions ?? '') === '',
+      reset: () => void apply({ agents: { customInstructions: '' } }),
+    },
+    {
+      section: 'advanced',
+      id: 'his',
+      label: 'Keep local history',
+      hint: 'Snapshot files as you edit so an old version can be restored.',
+      words: 'advanced history local snapshot timeline restore',
+      ctl: (
+        <Toggle
+          checked={settings.history?.enabled !== false}
+          testid="cset-his"
+          label="Keep local history"
+          onChange={(v) => void apply({ history: { enabled: v } })}
+        />
+      ),
+      isDefault: (settings.history?.enabled !== false) === true,
+      reset: () => void apply({ history: { enabled: true } }),
+    },
+    {
+      section: 'advanced',
+      id: 'hisperfile',
+      label: 'Snapshots per file',
+      hint: 'How many versions to keep for each file.',
+      words: 'advanced history snapshots per file limit keep',
+      ctl: (
+        <Select
+          value={String(settings.history?.maxPerFile ?? 200)}
+          testid="cset-hisperfile"
+          label="Snapshots per file"
+          options={[50, 100, 200, 500, 1000].map((n) => ({ value: String(n), label: `${n}` }))}
+          onChange={(v) => void apply({ history: { maxPerFile: Number(v) } })}
+        />
+      ),
+      isDefault: (settings.history?.maxPerFile ?? 200) === 200,
+      reset: () => void apply({ history: { maxPerFile: 200 } }),
+    },
+    {
+      section: 'advanced',
+      id: 'hisdays',
+      label: 'Keep history for',
+      hint: 'Older snapshots are pruned.',
+      words: 'advanced history days age prune keep retention',
+      ctl: (
+        <Select
+          value={String(settings.history?.maxDays ?? 30)}
+          testid="cset-hisdays"
+          label="Keep history for"
+          options={[7, 14, 30, 90, 365].map((n) => ({ value: String(n), label: `${n}d` }))}
+          onChange={(v) => void apply({ history: { maxDays: Number(v) } })}
+        />
+      ),
+      isDefault: (settings.history?.maxDays ?? 30) === 30,
+      reset: () => void apply({ history: { maxDays: 30 } }),
+    },
+    {
+      section: 'advanced',
+      id: 'histotal',
+      label: 'History ceiling',
+      hint: 'Total snapshots across every file, oldest pruned first.',
+      words: 'advanced history total ceiling limit all files prune',
+      ctl: (
+        <Select
+          value={String(settings.history?.maxTotal ?? 2000)}
+          testid="cset-histotal"
+          label="History ceiling"
+          options={[500, 1000, 2000, 5000, 10000].map((n) => ({
+            value: String(n),
+            label: `${n}`,
+          }))}
+          onChange={(v) => void apply({ history: { maxTotal: Number(v) } })}
+        />
+      ),
+      isDefault: (settings.history?.maxTotal ?? 2000) === 2000,
+      reset: () => void apply({ history: { maxTotal: 2000 } }),
+    },
+
+    {
       section: 'advanced',
       id: 'provider',
       label: 'Provider & API keys',
