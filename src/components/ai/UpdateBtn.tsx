@@ -35,6 +35,15 @@ export default function UpdateBtn() {
   const appInfo = useStore((s) => s.appInfo);
   const [buka, setBuka] = useState(false);
   /*
+   * Fallback: show the notes inside the popup.
+   *
+   * Set when there is no workspace to write into (the write/read guard covers
+   * only the workspace and its roots) or when the write itself is refused.
+   * Without this the button would do nothing at all, which is how it behaved
+   * before — the failure was `WorkspaceOutside` on every press.
+   */
+  const [notesInline, setNotesInline] = useState(false);
+  /*
    * Whether the settle delay has elapsed.
    *
    * Keyed off `status === 'available'`: the timer starts when a release is
@@ -124,18 +133,47 @@ export default function UpdateBtn() {
                 data-testid="ai-update-notes"
                 onClick={() => {
                   setBuka(false);
+                  /*
+                   * Open the notes as an editor tab — but they have to live
+                   * INSIDE the workspace to get there.
+                   *
+                   * `fs_write` and `fs_read` are both confined by
+                   * `AppState::ensure_writable` to the workspace and its
+                   * registered roots, so the old `%APPDATA%\zephyr\…` target was
+                   * refused with WorkspaceOutside on every press: the button
+                   * looked wired up and never once worked. `.zephyr/` inside the
+                   * open folder is the crate's existing home for generated
+                   * files, and it is inside the guard.
+                   *
+                   * With no workspace open there is nowhere legal to put it, so
+                   * the notes are shown inline instead of failing silently.
+                   */
+                  const ws = useStore.getState().workspace;
+                  if (!ws) {
+                    setNotesInline(true);
+                    return;
+                  }
+                  const rel = `.zephyr/release-notes-${versi}.md`;
+                  const abs = `${ws}\\.zephyr\\release-notes-${versi}.md`;
                   void import('../../lib/commands').then((c) =>
-                    c.fsWrite(
-                      `${appInfo?.dataDir ?? ''}/release-notes-${versi}.md`,
-                      `# Zephyr ${versi}\n\n${notes}`,
-                    ).then(() => {
-                      void useStore.getState().openPath(`${appInfo?.dataDir ?? ''}/release-notes-${versi}.md`);
-                    }),
+                    c
+                      .fsWrite(rel, `# Zephyr ${versi}\n\n${notes}`, undefined, undefined, {
+                        allowMissing: true,
+                      })
+                      .then(() => {
+                        void useStore.getState().openPath(abs);
+                      })
+                      .catch(() => setNotesInline(true)),
                   );
                 }}
               >
                 {tr('Release Notes')}
               </button>
+            )}
+            {notesInline && (
+              <pre className="ai-upd-notes" data-testid="ai-update-notes-inline">
+                {notes}
+              </pre>
             )}
             <div className="ai-upd-actions">
               <button
