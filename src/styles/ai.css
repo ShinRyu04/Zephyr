@@ -8626,11 +8626,6 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
   flex-shrink: 0;
 }
 

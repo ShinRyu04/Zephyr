@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
-import { notifyError, notifyInfo, useNotif } from './notificationStore';
+import { notifyError, notifyInfo } from './notificationStore';
 import { tf, tx, translate } from './i18n';
 import { useStore } from './store';
 
@@ -69,8 +69,6 @@ interface UpdaterActions {
 
 let updateObj: unknown = null;
 
-let lastNotified = '';
-
 function belumDikonfigurasi(pesan: string): boolean {
   const p = pesan.toLowerCase();
   return (
@@ -131,25 +129,15 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         dialogOpen: !opts?.senyap,
         message: null,
       });
-      if (upd.version !== lastNotified) {
-        lastNotified = upd.version;
-
-        const ringkas = (notesUntukBahasa(upd.body, rawObj) ?? '')
-          .split('\n')
-          .map((l) => l.trim())
-          .filter((l) => l && !/^#/.test(l))
-          .slice(0, 3)
-          .join(' · ')
-          .replace(/\*\*/g, '')
-          .slice(0, 220);
-        useNotif.getState().notify({
-          severity: 'info',
-          message: tf('update.available', { v: upd.version }),
-          detail: ringkas || undefined,
-          source: 'update',
-          actions: [{ label: tx('update.viewInstall'), command: 'help.checkUpdates' }],
-        });
-      }
+      /*
+       * No bell notification for an available update.
+       *
+       * The title-bar Update button (UpdateBtn) is now the single door to an
+       * available release — a VSCode-style badge that stays visible until the
+       * user acts on it. A corner toast on top of it was the same news twice,
+       * and it is the one that interrupts. The bell stays reserved for errors
+       * and the "installed" confirmation below.
+       */
     } catch (e) {
       // An error from a Tauri invoke is shaped { code, message }, not Error.
       const pesan = cmd.asZephyrError(e).message;
