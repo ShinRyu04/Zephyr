@@ -5,6 +5,7 @@ import {
   isDestructive,
   IMAGE_MAX_BYTES,
   type AntrianPesan,
+  type AgentSurfaceState,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSessionsSide } from '../../lib/sessionsSideStore';
@@ -18,12 +19,10 @@ import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
-import { findModel } from '../../lib/modelCatalog';
 import TodoPanel from './TodoPanel';
 import ComposerTip from './ComposerTip';
 import ContextMeter from './ContextMeter';
 import { ModeMenu, PermissionMenu, ReasoningMenu, InteractiveMenu } from './ModeMenu';
-import { useDengar } from '../../lib/useDengar';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
@@ -64,6 +63,24 @@ const PESAN_KOSONG: ChatMsg[] = [];
  * queued anything reads this on every render.
  */
 const ANTRIAN_KOSONG: AntrianPesan[] = [];
+
+/*
+ * A surface with no run at all. A frozen constant, not an object literal inside
+ * the selector: zustand compares with === and would re-render on every write.
+ */
+const AGENT_KOSONG: AgentSurfaceState = {
+  steps: [],
+  phase: 'idle',
+  currentTool: null,
+  stepIndex: 0,
+  stepLimit: 0,
+  lastProgressAt: null,
+  startedAt: null,
+  navigationOnly: false,
+  tanya: null,
+  confirm: null,
+  todos: [],
+};
 
 /*
  * The transcript, and ONLY the transcript.
@@ -231,7 +248,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * kept on screen when the plan exists even if nothing else is running, so a
    * plan does not vanish the moment the run pauses.
    */
-  const todosAda = useAi((s) => s.agentTodos.length > 0);
+  const todosAda = (useAi((s) => s.agentStates[composerId]?.todos.length) ?? 0) > 0;
   /*
    * The branch the workspace is on, shown in the composer.
    *
@@ -246,7 +263,9 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const ubahAntrian = useAi((s) => s.ubahAntrian);
   const cancel = useAi((s) => s.cancel);
   const lanjutkanAgent = useAi((s) => s.lanjutkanAgent);
-  const adaCheckpoint = useAi((s) => s.agentResume != null);
+  /* A checkpoint belongs to one conversation; the surface showing that
+     conversation is the one that should offer Resume. */
+  const adaCheckpoint = useAi((s) => s.agentResumes[composerId] != null);
   const kirimSekarang = useAi((s) => s.kirimSekarang);
   const historyUp = useAi((s) => s.historyUp);
   const historyDown = useAi((s) => s.historyDown);
@@ -258,20 +277,34 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const runInTerminal = useAi((s) => s.runInTerminal);
   const agentMode = useAi((s) => s.agentMode);
   const agentBusy = useAi((s) => s.agentBusys[composerId] ?? false);
-  const agentPhase = useAi((s) => s.agentPhase);
-  const agentCurrentTool = useAi((s) => s.agentCurrentTool);
-  const agentStepIndex = useAi((s) => s.agentStepIndex);
-  const agentStepLimit = useAi((s) => s.agentStepLimit);
-  const agentLastProgressAt = useAi((s) => s.agentLastProgressAt);
-  const agentStartedAt = useAi((s) => s.agentStartedAt);
-  const agentSteps = useAi((s) => s.agentSteps);
-  const agentConfirm = useAi((s) => s.agentConfirm);
+  /*
+   * THIS surface's run, read from its own record.
+   *
+   * These were flat selectors reading the primary surface's run, so a run
+   * started in the editor tab drew its step trail, its phase label and its tool
+   * name in the right column as well — and an approval prompt appeared on both
+   * panels at once. `agentStates[composerId]` is written by the loop through the
+   * same mirror that handles `agentBusy`, so the two always agree.
+   *
+   * The record is a frozen constant when absent, not an object literal: zustand
+   * compares selector output with `===`, and allocating here would re-render the
+   * panel on every store write.
+   */
+  const kosong = useAi((s) => s.agentStates[composerId]) ?? AGENT_KOSONG;
+  const agentPhase = kosong.phase;
+  const agentCurrentTool = kosong.currentTool;
+  const agentStepIndex = kosong.stepIndex;
+  const agentStepLimit = kosong.stepLimit;
+  const agentLastProgressAt = kosong.lastProgressAt;
+  const agentStartedAt = kosong.startedAt;
+  const agentSteps = kosong.steps;
+  const agentConfirm = kosong.confirm;
   /* Mode switching lives in ModeMenu; AiPanel only reads the mode to pick the
      placeholder and the send label. */
   const agentPutuskan = useAi((s) => s.agentPutuskan);
   /* Pertanyaan dari agen (tool ask_user): agen menahan langkahnya sampai user
      menjawab, jadi kartunya tidak boleh ikut disembunyikan saat panel sibuk. */
-  const agentTanya = useAi((s) => s.agentTanya);
+  const agentTanya = kosong.tanya;
   const jawabTanya = useAi((s) => s.jawabTanya);
   const [jawabanTanya, setJawabanTanya] = useState('');
   const sibuk = pending || agentBusy;
@@ -569,107 +602,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
     setToast(tr('Screenshot pasted as an attachment'));
   };
 
-  /*
-   * Dictation writes into the draft: interim segments append, final segments
-   * replace the interim tail so no words are duplicated.
-   *
-   * The draft is read from the store at event time rather than captured, since
-   * setDraft takes a value (not an updater) and recognition runs outside React.
-   */
-  /*
-   * The return value is kept this time.
-   *
-   * It used to be discarded, so recognition was wired up and had no way to be
-   * started: the hook ran, `toggle` was thrown away, and the feature existed on
-   * paper only. `bisa` gates the button on browsers with SpeechRecognition.
-   */
-  /*
-   * The dictation language comes from settings, not a constant.
-   *
-   * The recogniser listens for exactly one language and never detects it: with
-   * `id-ID` set while speaking English it does not fail, it returns confident
-   * nonsense. The old hardcoded `id-ID` therefore made dictation useless for
-   * anyone not speaking Indonesian, with no visible cause.
-   *
-   * Read as a primitive - `useStore` with a selector returning a string - because
-   * zustand v5 compares selector results with `===` and an object here would
-   * re-render the whole composer on every unrelated settings write.
-   */
-  const bahasaMic = useStore((s) => s.settings?.mic?.lang ?? '');
-  const bahasaLama = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
-  const bahasaDengar = bahasaMic || bahasaLama;
-  const micAktif = useStore((s) => s.settings?.mic?.enabled !== false);
-  const micAutoSend = useStore((s) => s.settings?.mic?.autoSend === true);
-
-  /*
-   * Dictation, with the active model as its transcription target.
-   *
-   * The provider and endpoint are read from the store at record time rather
-   * than captured here: the user can switch models while a clip is being
-   * recorded, and the audio should be transcribed by whichever model is
-   * selected when the recording ENDS.
-   */
-  const { dengar, bisa: bisaDengar, toggle: toggleDengar, galat: galatDengar } = useDengar(
-    (teks, final) => {
-      const d = useAi.getState().draftOf(composerId);
-      const hasil = final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks;
-      setDraft(hasil);
-      if (final && micAutoSend && hasil.trim()) {
-        void kirimSekarang(hasil, useAi.getState().draftImages, composerId);
-      }
-    },
-    bahasaDengar,
-    {
-      get provider() {
-        return useStore.getState().settings?.mic?.provider || provider;
-      },
-      get model() {
-        return useStore.getState().settings?.mic?.model || useAi.getState().model;
-      },
-      get baseUrl() {
-        const micSet = useStore.getState().settings?.mic;
-        if (micSet?.baseUrl) return micSet.baseUrl;
-        const st = useAi.getState();
-        const def = findModel(st.model, st.provider);
-        return useStore.getState().settings.models.providers[def.provider]?.baseUrl ?? undefined;
-      },
-    },
-  );
-
-  /*
-   * A dictation failure has to be visible.
-   *
-   * The button silently un-lighting is the worst outcome: the user speaks, the
-   * mic goes dark, and nothing says whether the audio was heard, the provider
-   * refused, or the key is missing. Each cause gets its own short message.
-   */
-  useEffect(() => {
-    if (!galatDengar) return;
-    /*
-     * A message that already carries its reason is shown as-is.
-     *
-     * The hook returns short codes for the failures it can name, but for
-     * anything else it now returns `gagal: <what Rust said>` - and mapping that
-     * back to "Could not transcribe the recording" throws away the only useful
-     * part. Prefix matching is what keeps this table from silently swallowing
-     * every future error the backend learns to describe.
-     */
-    const pesan =
-      galatDengar === 'izin'
-        ? tr('Microphone permission was refused')
-        : galatDengar === 'tanpa-provider'
-          ? tr('Pick a model first - dictation needs one to transcribe with')
-          : galatDengar === 'key-audio'
-            ? tr('Voice key rejected for audio - set a voice key in Mic settings')
-            : galatDengar === 'tanpa-key'
-              ? tr('No API key for dictation - add one in Settings, or point the mic at a local server')
-              : galatDengar === 'kosong'
-                ? tr('Nothing was recorded')
-                : galatDengar.startsWith('gagal:') || galatDengar.startsWith('mic gagal:')
-                  ? galatDengar
-                  : tr('Could not transcribe the recording');
-    setToast(pesan);
-  }, [galatDengar, setToast, tr]);
 
   const { items: saranSlash } = matchPrompts(draft);
   const { items: saranSnippet } = matchSnippets(draft);
@@ -1598,7 +1530,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
               data-testid="ai-antrian-clear"
               title={tr('Clear the queue')}
               aria-label={tr('Clear the queue')}
-              onClick={kosongkanAntrian}
+              onClick={() => kosongkanAntrian(composerId)}
             >
               ✕
             </button>
@@ -1635,7 +1567,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                         data-testid={`ai-antrian-hapus-${i}`}
                         title={tr('Remove from the queue')}
                         aria-label={tr('Remove from the queue')}
-                        onClick={() => buangAntrian(a.id ?? i)}
+                        onClick={() => buangAntrian(a.id ?? i, composerId)}
                       >
                         ✕
                       </button>
@@ -1680,7 +1612,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                             e.stopPropagation();
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              ubahAntrian(a.id ?? i, cqDraft);
+                              ubahAntrian(a.id ?? i, cqDraft, composerId);
                               setCqEdit(null);
                             } else if (e.key === 'Escape') {
                               e.preventDefault();
@@ -1688,7 +1620,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                             }
                           }}
                           onBlur={() => {
-                            ubahAntrian(a.id ?? i, cqDraft);
+                            ubahAntrian(a.id ?? i, cqDraft, composerId);
                             setCqEdit(null);
                           }}
                         />
@@ -1731,7 +1663,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                             data-testid={`ai-antrian-kirim-${i}`}
                             title={tr('Send this now')}
                             aria-label={tr('Send this now')}
-                            onClick={() => void kirimAntrian(i)}
+                            onClick={() => void kirimAntrian(i, composerId)}
                           >
                             <AiIkon name="send" size={11} />
                           </button>
@@ -1742,7 +1674,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                           title={tr('Move up in the queue')}
                           aria-label={tr('Move up in the queue')}
                           disabled={i === 0}
-                          onClick={() => naikkanAntrian(a.id ?? i)}
+                          onClick={() => naikkanAntrian(a.id ?? i, composerId)}
                         >
                           <AiIkon name="chev-up" size={11} />
                         </button>
@@ -1752,7 +1684,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                           title={tr('Move down in the queue')}
                           aria-label={tr('Move down in the queue')}
                           disabled={i === antrian.length - 1}
-                          onClick={() => turunkanAntrian(a.id ?? i)}
+                          onClick={() => turunkanAntrian(a.id ?? i, composerId)}
                         >
                           <AiIkon name="chev-down" size={11} />
                         </button>
@@ -2044,7 +1976,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
           {/*
            * Copilot-style toolbar: a horizontal row BELOW the textarea instead
            * of a vertical column beside it. Left to right — what goes INTO the
-           * message ("+", mic), then a spacer, then how it goes out (model,
+           * message ("+"), then a spacer, then how it goes out (model,
            * mode, permission, reasoning) and Send on the trailing edge.
            */}
           <button
@@ -2198,34 +2130,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
 
           <span className="ai-toolbar-spacer" aria-hidden="true" />
 
-          {/*
-            * Dictation sits on the trailing edge, next to Send — the placement
-            * the reference composer uses, and the one that keeps every control
-            * that does NOT go into the message on the left.
-            *
-            * NO `voiceAktif` HERE, and that is the fix, not an omission: it used
-            * to be required, which meant turning off "speaking" (the AI reading
-            * answers aloud) also removed the dictation button. The two share no
-            * engine, no endpoint and no switch in Settings, so gating one on the
-            * other made a working microphone look broken - the button simply was
-            * not there and nothing said why. `micAktif` is the only switch that
-            * owns this control.
-            */}
-          {bisaDengar && micAktif && (
-            <button
-              className={`ai-plus ai-mic${dengar ? ' is-on' : ''}`}
-              data-testid="ai-mic"
-              aria-pressed={dengar}
-              title={dengar ? tr('Stop dictation') : tr('Start dictation')}
-              aria-label={dengar ? tr('Stop dictation') : tr('Start dictation')}
-              onClick={() => {
-                toggleDengar();
-                inputRef.current?.focus();
-              }}
-            >
-              <AiIkon name="mic" />
-            </button>
-          )}
+          
 
           <div className="ai-send-wrap">
             {!sibuk && adaCheckpoint && (
