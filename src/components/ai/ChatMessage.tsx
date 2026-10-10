@@ -6,7 +6,6 @@ import { useAi, isDestructive } from '../../lib/aiStore';
 import { barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
-import { useNeural, hentikanSemuaSuara } from '../../lib/useNeural';
 import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import AiIkon from './AiIkon';
 import Lightbox from './Lightbox';
@@ -16,8 +15,6 @@ import { ThinkingLine } from './CliTimeline';
 import { ToolRow, EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
-import { useBicaraStore } from '../../lib/bicaraStore';
-import { teksUntukDibaca } from '../../lib/useBicara';
 import { useStore } from '../../lib/store';
 import { RobotAvatar, UserAvatar } from './RobotAvatar';
 
@@ -516,66 +513,6 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    * so every keystroke in Settings would re-render every message in the
    * transcript. Primitives only.
    */
-  const vBicara = useStore((s) => s.settings?.voice?.enabled !== false);
-  const vVoiceId = useStore((s) => s.settings?.voice?.voiceId ?? '');
-  /*
-   * The language handed to the platform engine, which is what decides WHICH
-   * voice reads the text - a voice URI alone does not override it.
-   *
-   * This used to be `voice.inputLang`, the DICTATION language, which is a
-   * different question entirely. Picking "Microsoft Ayumi - Japanese" and then
-   * hearing a different voice was exactly this: the engine was told the text was
-   * en-US, so it ignored the Japanese voice in favour of one that matched the
-   * declared language. The dictation setting says what the user speaks; it must
-   * not decide how the answer is read.
-   *
-   * The text's own language is the right answer, and `tebakBahasa` already
-   * derives it from the characters for the neural path. It falls back to the
-   * dictation language when nothing can be inferred, which keeps old behaviour
-   * for a plain English transcript, where the two agree anyway.
-   */
-  const vInputLang = useStore((s) => s.settings?.voice?.inputLang ?? 'en-US');
-
-  const vRate = useStore((s) => s.settings?.voice?.rate ?? 1);
-  const vVolume = useStore((s) => s.settings?.voice?.volume ?? 1);
-  const vSkipKode = useStore((s) => s.settings?.voice?.skipCode !== false);
-
-  /*
-   * What language the built-in engine should be told the answer is in.
-   *
-   * Derived from the message text, not from the dictation setting - see the note
-   * beside `vInputLang`. Computed once here so both branches below agree, and it
-   * is a plain string, so this row still re-renders only when it changes.
-   */
-  const vLangJawaban = useMemo(() => {
-    const t = msg.content;
-    if (/[\u3040-\u309f\u30a0-\u30ff]/.test(t)) return 'ja-JP';
-    if (/[\u4e00-\u9fff]/.test(t)) return 'zh-CN';
-    if (/[\uac00-\ud7af]/.test(t)) return 'ko-KR';
-    if (/[\u0600-\u06ff]/.test(t)) return 'ar-SA';
-    if (/[\u0400-\u04ff]/.test(t)) return 'ru-RU';
-    return vInputLang;
-  }, [msg.content, vInputLang]);
-
-
-  /*
-   * One speech engine for the whole transcript, and it has to be.
-   *
-   * `speechSynthesis` is a single global queue, so N messages each owning their
-   * own hook is N hooks fighting over one voice - pressing speak on a second
-   * answer while the first is talking produces a jumble with no way to stop
-   * either. The engine lives in the store; a message only asks about itself.
-   *
-   * Primitives again, for the same reason as above: `idBicara` is a string or
-   * null, so this row re-renders when the speaker changes, and only then.
-   */
-  const bicarakan = useBicaraStore((s) => s.bicarakan);
-  const idBicara = useBicaraStore((s) => s.idBicara);
-  const neural = useNeural();
-  const neuralAktif = useStore((s) => s.settings?.voice?.neuralEnabled === true);
-  const iniNeural = neural.lagiBicara !== null && neural.lagiBicara === msg.id;
-  const iniBicara = iniNeural || (idBicara !== null && idBicara === msg.id);
-
   return (
     <div
       className={`ai-row${isUser ? ' is-user' : ''}${msg.error ? ' is-error' : ''}`}
@@ -662,39 +599,6 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             * general: the engine's queue is global, so a row reporting only its
             * own state would claim to be silent while a different answer played.
             */}
-          {!isUser && !msg.streaming && !msg.error && vBicara && msg.content.trim() !== '' && (
-            <button
-              className={'ai-msg-act' + (iniBicara ? ' ai-msg-act-on' : '')}
-              data-testid="ai-speak-msg"
-              aria-pressed={iniBicara}
-              title={iniBicara ? tr('Stop reading') : tr('Read this answer aloud')}
-              onClick={() => {
-                if (neuralAktif) {
-                  try { useBicaraStore.getState().hentikan(); } catch { /* abaikan */ }
-                  neural.bicarakan(msg.id, msg.content, () => {
-                    hentikanSemuaSuara();
-                    bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
-                      id: vVoiceId,
-                      lang: vLangJawaban,
-                      rate: vRate,
-                      volume: vVolume,
-                    });
-                    setToast(tr('Neural voice unavailable - using built-in voice'));
-                  });
-                } else {
-                  hentikanSemuaSuara();
-                  bicarakan(msg.id, teksUntukDibaca(msg.content, { lewatiKode: vSkipKode }), {
-                    id: vVoiceId,
-                    lang: vLangJawaban,
-                    rate: vRate,
-                    volume: vVolume,
-                  });
-                }
-              }}
-            >
-              <AiIkon name={iniBicara ? 'speaker-on' : 'speaker'} size={14} />
-            </button>
-          )}
         </span>
         {msg.attached && (
           <span className="ai-attach-chip" title={msg.attached.path} data-testid="ai-attach-chip">
