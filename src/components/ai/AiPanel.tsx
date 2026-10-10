@@ -142,7 +142,11 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * changes when the user actually switches chats - and the few derived values
    * that need a session read it lazily from the store inside `useMemo`.
    */
-  const activeId = useAi((s) => s.activeId);
+  /*
+   * This SURFACE's active chat. Each mounted panel keeps its own, so the editor
+   * tab and the right column can show two different conversations at once.
+   */
+  const activeId = useAi((s) => s.activeIds[composerId] ?? null);
   const pending = useAi((s) => s.pending);
   /*
    * The draft is this MOUNT's own, read through `drafts[composerId]`.
@@ -172,7 +176,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const removeDraftImage = useAi((s) => s.removeDraftImage);
   const setToast = useAi((s) => s.setToast);
   const setConfirmCmd = useAi((s) => s.setConfirmCmd);
-  const send = useAi((s) => s.send);
   const antrian = useAi((s) => s.antrian);
   const buangAntrian = useAi((s) => s.buangAntrian);
   const kosongkanAntrian = useAi((s) => s.kosongkanAntrian);
@@ -365,7 +368,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * already-open empty chat (activeId does not change on send), so the
    * empty-state would keep covering the answer.
    */
-  const jumlahPesan = useAi((s) => s.sessions.find((x) => x.id === s.activeId)?.messages.length ?? 0);
+  const jumlahPesan = useAi((s) => s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.messages.length ?? 0);
 
   /*
    * Derived values that only decide WHICH action a button offers. Each is a
@@ -376,11 +379,11 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * stale (a message does not change `activeId`).
    */
   const judulSesi = useAi(
-    (s) => s.sessions.find((x) => x.id === s.activeId)?.title ?? '',
+    (s) => s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.title ?? '',
   );
   /* The last user message's text, for the loop strip. */
   const loopPrompt = useAi((s) => {
-    const m = s.sessions.find((x) => x.id === s.activeId)?.messages;
+    const m = s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.messages;
     if (!m) return '';
     for (let i = m.length - 1; i >= 0; i -= 1) {
       if (m[i].role === 'user') return (m[i].content ?? '').trim();
@@ -395,7 +398,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * token the way subscribing to the message object would.
    */
   const lastCommand = useAi((s) => {
-    const m = s.sessions.find((x) => x.id === s.activeId)?.messages;
+    const m = s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.messages;
     if (!m) return null;
     for (let i = m.length - 1; i >= 0; i -= 1) {
       const msg = m[i];
@@ -573,7 +576,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
       const hasil = final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks;
       setDraft(hasil);
       if (final && micAutoSend && hasil.trim()) {
-        void send();
+        void kirimSekarang(hasil, useAi.getState().draftImages, composerId);
       }
     },
     bahasaDengar,
@@ -745,7 +748,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
       switch (p.aksi) {
         case 'baru':
           setDraft('');
-          newChat();
+          newChat(composerId);
           break;
         case 'hapus-semua':
           setDraft('');
@@ -997,7 +1000,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                     type="button"
                     className="ai-sesi-pilih"
                     onClick={() => {
-                      selectChat(s.id);
+                      selectChat(s.id, composerId);
                       setSesiBuka(false);
                     }}
                   >
@@ -1947,9 +1950,20 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                * and the queue only exists to wait for a run.
                */
               if (sibuk && (e.ctrlKey || e.metaKey)) {
-                void kirimSekarang(draft, draftImages);
+                void kirimSekarang(draft, draftImages, composerId);
               } else {
-                void send();
+                /*
+                 * Enter goes through `kirimSekarang` with this surface's id, the
+                 * same call the Send button makes.
+                 *
+                 * It used to call `send()` — the store's raw action — which took
+                 * no composer id and therefore resolved the session from the
+                 * store's PRIMARY `activeId`. In the editor tab that sent the
+                 * message into the right column's conversation, so Enter looked
+                 * like it did nothing here while the reply appeared over there.
+                 * One path for both keys, so they cannot disagree.
+                 */
+                void kirimSekarang(draft, draftImages, composerId);
               }
             }
           }}
@@ -2203,7 +2217,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                 disabled={!draft.trim() && draftImages.length === 0}
                 title={agentMode === 'agent' ? tr('Run') : tr('Send')}
                 aria-label={agentMode === 'agent' ? tr('Run') : tr('Send')}
-                onClick={() => void send()}
+                onClick={() => void kirimSekarang(draft, draftImages, composerId)}
               >
                 <AiIkon name="send" size={15} />
               </button>
@@ -2242,7 +2256,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                     role="menuitem"
                     onClick={() => {
                       setBukaSendMenu(false);
-                      void kirimSekarang(draft, draftImages);
+                      void kirimSekarang(draft, draftImages, composerId);
                     }}
                   >
                     <AiIkon name="stop" size={13} />
@@ -2258,7 +2272,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                     role="menuitem"
                     onClick={() => {
                       setBukaSendMenu(false);
-                      void send();
+                      void kirimSekarang(draft, draftImages, composerId);
                     }}
                   >
                     <AiIkon name="queue" size={13} />
