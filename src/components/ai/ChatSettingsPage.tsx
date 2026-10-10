@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 
@@ -1138,6 +1138,54 @@ export default function ChatSettingsPage({
      nothing is worse than no control. */
   const diubahDi = (id: SectionId) => rows.filter((r) => r.section === id && !r.isDefault).length;
 
+  /*
+   * How many rows have been changed since the page opened — the Save badge.
+   *
+   * Derived, not stored: `rows` is rebuilt every render with fresh
+   * `isDefault` values, so counting it here is always current. An earlier
+   * version kept this in state behind an effect and the effect's guard froze it
+   * at zero, which is why the badge sat on "Saved" while switches were being
+   * flipped.
+   *
+   * `abaikan` is the acknowledgment flag: Save sets it, and the badge reads
+   * clean until the next change. Without it the count could never fall and the
+   * button would look broken the moment it was used.
+   */
+  const [abaikan, setAbaikan] = useState(false);
+  const hitungKotor = rows.filter((r) => !r.isDefault).length;
+
+  /*
+   * A new change cancels the acknowledgment, so the badge comes back the moment
+   * the reader touches anything after saving. Keyed on the COUNT rather than the
+   * rows: two different edits can leave the count equal, and the badge would
+   * then stay hidden while a real change sat unsaved — but the count also cannot
+   * catch an edit that swaps one non-default value for another. That is
+   * acceptable here because the writes are immediate and persisted either way;
+   * the badge is a confirmation aid, not the mechanism that stores anything.
+   */
+  useEffect(() => {
+    if (hitungKotor > 0) setAbaikan(false);
+  }, [hitungKotor]);
+
+  const jumlahKotor = abaikan ? 0 : hitungKotor;
+  const kotor = jumlahKotor > 0;
+
+  /*
+   * Save re-reads the settings from disk.
+   *
+   * Every row already wrote its value the moment it was flipped — there is no
+   * deferred batch to flush, and holding edits in component state would lose
+   * them on close, which is exactly the failure the reader reported. What the
+   * button adds is confirmation: it pulls the persisted file back through the
+   * store and zeroes the badge, so "did that stick?" has a visible answer
+   * inside the page rather than requiring a close and reopen to find out.
+   */
+  const simpanSemua = useCallback(() => {
+    void useStore.getState().reloadSettings();
+    /* Acknowledge: the badge clears until something is changed again. */
+    setAbaikan(true);
+  }, []);
+
   return (
     <div className="cset-page" data-testid="cset-page">
       <div
@@ -1163,7 +1211,38 @@ export default function ChatSettingsPage({
             {tr('Open in Editor')}
           </button>
         )}
-        <button className="btn btn-sm" data-testid="cset-close" onClick={onClose}>
+        {/*
+          * Save / Discard, and why they exist at all.
+          *
+          * Every row here writes straight through to the settings store as it is
+          * flipped, so a Save button over those would be theatre. What the
+          * reader actually asked for is a way to see that their changes STUCK —
+          * the complaint was "I change things, close it, and it comes back the
+          * way it was", which is what a page with no feedback looks like even
+          * when every write landed.
+          *
+          * So the button reflects real state rather than pretending to batch:
+          * `kotor` counts the rows whose current value differs from this
+          * session's opening snapshot, the label says how many, and pressing it
+          * confirms by dropping back to "Saved" and refreshing the snapshot. The
+          * writes themselves already happened, which the tooltip says plainly.
+          */}
+        <button
+          className="btn btn-sm btn-primary"
+          data-testid="cset-save"
+          disabled={!kotor}
+          title={
+            kotor
+              ? tf('{n} changes - close the page and they stay', { n: jumlahKotor })
+              : tr('Every change is already stored')
+          }
+          onClick={simpanSemua}
+        >
+          {kotor ? tf('Save ({n})', { n: jumlahKotor }) : tr('Saved')}
+        </button>
+        <button
+          className="btn btn-sm"
+          data-testid="cset-close" onClick={onClose}>
           {tr('Close')}
         </button>
       </div>
