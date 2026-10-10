@@ -1179,6 +1179,26 @@ export const skillWrite = (opts: {
 }) => invoke<string>('skill_write', opts);
 export const skillDelete = (name: string) => invoke<void>('skill_delete', { name });
 
+export interface InstructionInfo {
+  name: string;
+  scope: 'global' | 'workspace';
+  description: string;
+  apply_to: string;
+  path: string;
+  bytes: number;
+}
+
+export const instructionsList = () => invoke<InstructionInfo[]>('instructions_list');
+export const instructionRead = (name: string) => invoke<string>('instruction_read', { name });
+export const instructionWrite = (opts: {
+  name: string;
+  description: string;
+  applyTo: string;
+  body: string;
+  scope: string;
+}) => invoke<string>('instruction_write', opts);
+export const instructionDelete = (name: string) => invoke<boolean>('instruction_delete', { name });
+
 export const agentContext = () => invoke<string>('agent_context');
 
 export const memoryRead = () => invoke<MemoryState>('memory_read');

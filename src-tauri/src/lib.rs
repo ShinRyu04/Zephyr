@@ -43,6 +43,7 @@ mod mcp_client;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
+mod instructions;
 mod memory;
 mod paths;
 mod proc;
@@ -519,6 +520,10 @@ pub fn run() {
             dialogs::file_dialog_save,
             dialogs::folder_dialog_open,
             titlebar::titlebar_theme,
+            instructions::instructions_list,
+            instructions::instruction_read,
+            instructions::instruction_write,
+            instructions::instruction_delete,
             skills::skills_list,
             skills::skill_read,
             skills::skill_write,
