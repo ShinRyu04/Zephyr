@@ -4,6 +4,7 @@ import {
   useAgentExtras,
   HOOK_EVENTS,
   type Hook,
+  type HookEvent,
 } from '../../lib/agentExtrasStore';
 import AiIkon from '../ai/AiIkon';
 import { useSkills } from '../../lib/skillsStore';
@@ -580,6 +581,105 @@ function EditorBaru({ scope, onSelesai }: { scope: 'workspace' | 'global'; onSel
   );
 }
 
+/*
+ * The hook draft a model produced, laid out so the reader can judge it.
+ *
+ * The EVENT and the COMMAND are shown as their own labelled fields, above the
+ * explanation, because those two are what would run and when. A hook draft that
+ * buried the command inside a paragraph of prose would be asking the reader to
+ * approve something they have to hunt for.
+ *
+ * The default event is validated against the real list: a model that invents
+ * "before-commit" would otherwise store a hook on an event nothing fires.
+ */
+function DraftHook({
+  draft,
+  onSimpan,
+  onBatal,
+}: {
+  draft: DraftHasil;
+  onSimpan: (patch: { name: string; event: HookEvent; command: string }) => void;
+  onBatal: () => void;
+}) {
+  const tr = useT();
+  const eventValid = HOOK_EVENTS.some((e) => e.id === draft.event);
+  const [nama, setNama] = useState(draft.name);
+  const [event, setEvent] = useState<HookEvent>(
+    eventValid ? (draft.event as HookEvent) : 'session-end',
+  );
+  const [command, setCommand] = useState(draft.command ?? '');
+
+  const bisa = nama.trim() !== '' && command.trim() !== '';
+
+  return (
+    <div className="agc-editor agc-editor-draft" data-testid="agc-draft-hook">
+      <p className="agc-draft-note">
+        {tr('This is a draft from the model. Read the command before saving - it is stored disabled and will not run.')}
+      </p>
+      <label className="agc-label" htmlFor="agc-dh-nama">
+        {tr('Name')}
+      </label>
+      <input
+        id="agc-dh-nama"
+        className="agc-field"
+        data-testid="agc-dh-nama"
+        value={nama}
+        onChange={(e) => setNama(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-dh-event">
+        {tr('Runs when')}
+      </label>
+      <select
+        id="agc-dh-event"
+        className="agc-field"
+        data-testid="agc-dh-event"
+        value={event}
+        onChange={(e) => setEvent(e.target.value as HookEvent)}
+      >
+        {HOOK_EVENTS.map((e) => (
+          <option key={e.id} value={e.id}>
+            {tr(e.label)}
+          </option>
+        ))}
+      </select>
+      <label className="agc-label" htmlFor="agc-dh-cmd">
+        {tr('Command')}
+      </label>
+      <input
+        id="agc-dh-cmd"
+        className="agc-field agc-field-mono"
+        data-testid="agc-dh-cmd"
+        value={command}
+        onChange={(e) => setCommand(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-dh-body">
+        {tr('What it does')}
+      </label>
+      <textarea
+        id="agc-dh-body"
+        className="agc-field agc-field-area"
+        data-testid="agc-dh-body"
+        rows={6}
+        value={draft.body}
+        readOnly
+      />
+      <div className="agc-editor-actions">
+        <button className="btn btn-sm" onClick={onBatal}>
+          {tr('Discard draft')}
+        </button>
+        <button
+          className="btn btn-sm btn-primary"
+          data-testid="agc-dh-simpan"
+          disabled={!bisa}
+          onClick={() => onSimpan({ name: nama.trim(), event, command: command.trim() })}
+        >
+          {tr('Save (disabled)')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Hooks ───────────────────────────────────────────────────────────────── */
 
 function HookRow({ hook }: { hook: Hook }) {
@@ -660,6 +760,9 @@ export function AgcHooks() {
   const tr = useT();
   const hooks = useAgentExtras((s) => s.hooks);
   const add = useAgentExtras((s) => s.addHook);
+  const update = useAgentExtras((s) => s.updateHook);
+  const [aiHook, setAiHook] = useState<'workspace' | 'user' | null>(null);
+  const [draftHook, setDraftHook] = useState<DraftHasil | null>(null);
 
   const groups: { scope: Hook['scope']; label: string }[] = [
     { scope: 'workspace', label: 'Workspace' },
@@ -672,6 +775,22 @@ export function AgcHooks() {
       <p className="agc-pane-desc">
         {tr('Commands run automatically at key points in the agent lifecycle to validate, format, or coordinate work.')}
       </p>
+
+      {/*
+        * The truth about this pane, said before the list rather than under it.
+        *
+        * Zephyr has no hook executor: nothing reads `hooks` except this panel.
+        * A saved hook is a note the reader keeps, not a behaviour. Letting the
+        * pane look live would be the worst version of this feature — the reader
+        * would trust a guard that is not running. Wiring the executor means
+        * timeouts, cancellation, output caps, exit codes, workspace-trust
+        * checks and a decision about which lifecycle events the architecture
+        * can actually guarantee; until those exist, saying "not yet" is the
+        * honest state.
+        */}
+      <p className="agc-warn" data-testid="agc-hooks-belum-jalan" role="note">
+        {tr('Hooks are saved as drafts and are NOT executed yet - Zephyr has no hook runner. Nothing here runs on its own.')}
+      </p>
       {groups.map((g) => {
         const list = hooks.filter((h) => h.scope === g.scope);
         return (
@@ -682,8 +801,22 @@ export function AgcHooks() {
               </span>
               <button
                 className="btn btn-sm"
+                data-testid={`agc-hook-ai-${g.scope}`}
+                title={tr('Draft a hook from a description')}
+                onClick={() => {
+                  setAiHook(g.scope);
+                  setDraftHook(null);
+                }}
+              >
+                <AiIkon name="thought" size={12} /> {tr('Create with AI')}
+              </button>
+              <button
+                className="btn btn-sm"
                 data-testid={`agc-hook-add-${g.scope}`}
-                onClick={() => add(g.scope)}
+                onClick={() => {
+                  add(g.scope);
+                  setAiHook(null);
+                }}
               >
                 <AiIkon name="plus" size={12} /> {tr('New Hook')}
               </button>
@@ -692,6 +825,36 @@ export function AgcHooks() {
               <p className="agc-group-empty">{tr('No hooks yet.')}</p>
             ) : (
               list.map((h) => <HookRow key={h.id} hook={h} />)
+            )}
+            {aiHook === g.scope && (
+              <PanelAi
+                kind="hook"
+                onDraft={setDraftHook}
+                onBatal={() => {
+                  setAiHook(null);
+                  setDraftHook(null);
+                }}
+              />
+            )}
+            {aiHook === g.scope && draftHook && (
+              <DraftHook
+                draft={draftHook}
+                onSimpan={(patch) => {
+                  /*
+                   * Saved DISABLED, always. A hook is a command that runs on the
+                   * reader's machine, and one that arrived from a model must be
+                   * read before it is armed — so this writes the draft with
+                   * `enabled: false` and the reader turns it on themselves after
+                   * seeing the event and the command. Nothing here executes it
+                   * either way: there is no runner.
+                   */
+                  const id = add(g.scope);
+                  update(id, { ...patch, enabled: false });
+                  setAiHook(null);
+                  setDraftHook(null);
+                }}
+                onBatal={() => setDraftHook(null)}
+              />
             )}
           </section>
         );

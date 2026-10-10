@@ -9154,3 +9154,27 @@
   line-height: 1.5;
   color: var(--text-secondary);
 }
+
+/* The collapsed "Create with AI" button, before the panel opens. */
+.agc-ai-aksi {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+/*
+ * A warning the reader must not miss — used where a feature LOOKS live and is
+ * not (hooks have no runner). Accent-amber rather than the error red: nothing
+ * has gone wrong, something is simply not built yet, and colouring it like a
+ * failure would train the reader to ignore the real errors above it.
+ */
+.agc-warn {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--warn, #cca700) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warn, #cca700) 9%, transparent);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
