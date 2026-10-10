@@ -915,7 +915,7 @@ export function SubagentSection() {
  * modal's local form state does not re-render the whole settings section on
  * every keystroke, and so the store subscription for the list is isolated.
  */
-function CustomSubagentsCard() {
+export function CustomSubagentsCard() {
   const tr = useT();
   const daftar = useSubagentCustom((s) => s.daftar);
   const muat = useSubagentCustom((s) => s.muat);
