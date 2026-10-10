@@ -410,3 +410,28 @@
   justify-content: flex-end;
   margin: -4px 0 6px;
 }
+
+/*
+ * A control that shows the current value instead of hiding it behind a label
+ * (the chat model's name). Read-only text inside a button frame: pressing it
+ * opens the picker rather than changing anything itself, so it must not look
+ * like a dropdown.
+ */
+.cset-value {
+  max-width: 190px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.cset-value:hover {
+  border-color: var(--accent);
+}
