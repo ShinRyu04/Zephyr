@@ -9355,3 +9355,329 @@
   max-width: 100vw;
   max-height: 100vh;
 }
+
+
+/* ── Agent Customizations: penyempurnaan tampilan ───────────────────────── */
+/*
+ * Dibuat terasa lebih "mahal" tanpa menambah elemen baru: yang berubah hanya
+ * kedalaman, aksen, dan ruang.
+ *
+ * Tiga hal yang membuat versi sebelumnya terbaca datar:
+ *
+ *   1. Semua permukaan memakai satuan warna yang sama datar (`--surface` dan
+ *      `--surface-3`), jadi kepala, nav dan isi melebur jadi satu bidang abu.
+ *      Sekarang kepala dan nav lebih gelap daripada isi, sehingga ada arah
+ *      cahaya dan panel isi terbaca sebagai lembar yang di atas.
+ *   2. Tidak ada kedalaman sama sekali - border 1px di mana-mana, tanpa
+ *      bayangan. Kartu yang bisa diklik sekarang punya bayangan halus yang
+ *      naik saat disentuh, yang merupakan cara paling murah memberi tahu
+ *      "ini bisa ditekan".
+ *   3. Aksen hanya dipakai di satu tempat (ikon hero). Sekarang garis atas
+ *      modal, ikon nav yang aktif, dan judul section ikut memakainya, jadi
+ *      mata punya jalur yang jelas.
+ */
+.agc-modal {
+  /*
+   * A hairline of accent along the top edge.
+   *
+   * Cheaper than a border on all four sides and reads as deliberate: it marks
+   * where the window begins without boxing the content in.
+   */
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 70%, transparent) 22%,
+      color-mix(in srgb, var(--accent) 70%, transparent) 78%,
+      transparent 100%
+    )
+    1;
+  box-shadow:
+    0 24px 64px -12px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.agc-head {
+  /* Deeper than the body, so the header reads as a lid rather than as the
+     first line of the content. */
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.agc-head-title {
+  letter-spacing: -0.01em;
+}
+
+.agc-head-scope {
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.agc-nav {
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+}
+
+/*
+ * Nav items: a left rule that appears on the active one.
+ *
+ * An inset accent bar reads as "you are here" without a filled pill, which at
+ * this width would shout louder than the page it opens.
+ */
+.agc-nav-item {
+  position: relative;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.agc-nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+.agc-nav-item.is-active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.agc-nav-ikon {
+  opacity: 0.85;
+}
+
+.agc-nav-item.is-active .agc-nav-ikon {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* The content pane: a slightly lighter sheet above the darker chrome. */
+.agc-content {
+  background: var(--surface);
+}
+
+.agc-pane-title {
+  letter-spacing: -0.015em;
+}
+
+.agc-pane-desc {
+  max-width: 74ch;
+  line-height: 1.6;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+
+.agc-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 130ms ease,
+    background 130ms ease,
+    transform 130ms ease,
+    box-shadow 130ms ease;
+}
+
+.agc-card::after {
+  /* A faint sheen that only shows on hover. Sits behind the content because
+     the card is position: relative and this is absolutely placed. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    120% 90% at 50% 0%,
+    color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+    transparent 70%
+  );
+  transition: opacity 130ms ease;
+}
+
+.agc-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--surface-3);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+}
+
+.agc-card:hover::after {
+  opacity: 1;
+}
+
+.agc-card:active {
+  transform: translateY(0);
+}
+
+.agc-card-ikon {
+  color: var(--text-secondary);
+}
+
+.agc-card:hover .agc-card-ikon {
+  color: var(--accent);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+
+.agc-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      100% 140% at 0% 0%,
+      color-mix(in srgb, var(--accent) 9%, transparent) 0%,
+      transparent 60%
+    ),
+    var(--surface);
+  box-shadow: 0 2px 12px -6px rgba(0, 0, 0, 0.35);
+}
+
+.agc-hero-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.agc-hero-input {
+  transition: border-color 130ms ease, box-shadow 130ms ease;
+}
+
+.agc-hero-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.agc-hero-send {
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.agc-hero-send:hover {
+  transform: scale(1.06);
+}
+
+/* ── Section headings inside a pane ────────────────────────────────────── */
+
+.agc-pane .set-h2 {
+  letter-spacing: -0.01em;
+}
+
+/* ── Focus ring, one place, so it cannot be forgotten ──────────────────── */
+
+.agc-modal :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+
+/*
+ * Lebar isi dan grid kartu.
+ *
+ * Dua hal yang terbaca sebagai "belum selesai" di layar:
+ *
+ *   1. Isi hanya memakai 780px dari ~940px yang tersedia, jadi ada jalur kosong
+ *      di kanan yang membuat halaman terlihat belum diisi. Penyebabnya
+ *      `.agc-pane` dibatasi 920px sementara `.agc-content` punya padding 40px di
+ *      kiri dan kanan; setelah padding, yang tersisa untuk isi memang menyusut.
+ *      Padding dikurangi dan batas pane dinaikkan supaya isi benar-benar memakai
+ *      ruang modal.
+ *   2. Kartu "Explore Customizations" terpotong di baris kedua. `auto-fill`
+ *      dengan minimum 280px menghasilkan tiga kolom di lebar ini, dan empat
+ *      kartu sisa satu yang menggantung sendirian. `auto-fit` dengan minimum
+ *      yang sedikit lebih kecil memberi dua kolom yang seimbang pada lebar
+ *      modal, dan tetap tiga saat layar cukup lebar.
+ */
+.agc-content {
+  padding: 28px 32px 48px;
+}
+
+.agc-pane {
+  max-width: 1000px;
+}
+
+.agc-cards {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+/*
+ * Kartu terakhir yang jumlahnya ganjil tidak boleh melebar sendiri.
+ *
+ * Dengan `auto-fit`, satu kartu yang sendirian di baris terakhir akan mengisi
+ * seluruh lebar dan terbaca sebagai kartu yang berbeda jenis. Dibiarkan pada
+ * lebar kolom yang sama lewat `max-width` pada isi grid.
+ */
+.agc-card {
+  max-width: 100%;
+}
+
+/* Judul "Explore Customizations" diberi jarak yang lebih tegas dari hero di
+   atasnya, supaya dua bagian ini terbaca sebagai dua, bukan satu. */
+.agc-explore-title {
+  margin-top: 4px;
+  letter-spacing: -0.01em;
+}
+
+
+/* ── Sessions panel: penyempurnaan tampilan ────────────────────────────── */
+/*
+ * Konsisten dengan keluarga dialog yang lain.
+ *
+ * Kolom ini bukan popup — ia berdampingan dengan chat saat maximize — jadi
+ * "premium" di sini berarti dua hal yang berbeda dari dialog: kepalanya harus
+ * terbaca sebagai tutup kolom (lebih gelap daripada isinya), dan baris yang
+ * sedang dibuka harus punya penanda yang sama dengan yang dipakai nav Agent
+ * Customizations, supaya "kamu di sini" di seluruh aplikasi berbentuk sama.
+ */
+.ai-sessions-panel {
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+}
+
+.ai-sessions-head {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-sessions-title {
+  letter-spacing: 0.06em;
+}
+
+/*
+ * The active row gets the same left accent rule as `.agc-nav-item.is-active`.
+ *
+ * Two different "selected" treatments in one app is a small thing that reads as
+ * two different apps; this makes the selection language consistent.
+ */
+.ai-sessions-baris {
+  position: relative;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.ai-sessions-baris.is-aktif::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+.ai-sessions-baris.is-aktif {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* The search box matches the dialog focus treatment. */
+.ai-sessions-cari:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}

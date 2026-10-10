@@ -1,0 +1,43 @@
+feat(ui): tampilan premium untuk semua dialog, popup dan panel sesi
+
+Diminta setelah Agent Customizations selesai: samakan yang lain.
+
+Dibuat di SUMBER-nya, bukan per komponen. `.modal` dan
+`.modal-backdrop` di index.css dipakai oleh SEMUA dialog aplikasi
+(konfirmasi tutup tab, hapus berkas, SCM, izin extension, keybindings,
+subagent, agent custom), jadi satu perubahan di sana menyeragamkan
+seluruhnya tanpa menyentuh satu komponen pun - dan tanpa ada dialog yang
+terlewat, yang biasanya justru dialog yang dipakai pengguna keyboard.
+
+Yang berubah di .modal:
+- sudut 8px -> 10px
+- garis aksen di tepi atas, sama dengan Agent Customizations dan popup
+  chat, jadi semua dialog terbaca sebagai satu keluarga
+- bayangan dua lapis (satu rapat untuk tepi kontak, satu lebar untuk
+  angkat). Satu blur besar terbaca sebagai kabut di sekeliling kartu;
+  pasangan ini terbaca sebagai kartu di atas permukaan.
+- cincin fokus tunggal untuk semua kontrol di dalam dialog, pakai
+  :focus-visible supaya klik mouse tidak menggambar cincin di tombol
+  yang baru ditekan
+
+Yang berubah di .modal-backdrop:
+- `backdrop-filter: blur(3px) saturate(0.9)`. Scrim hitam rata membuat
+  aplikasi jadi lempeng abu tanpa kedalaman; blur menjaga editor tetap
+  terbaca sebagai LATAR sehingga pembaca masih tahu dialognya datang
+  dari mana. Warna dasar tetap ada, jadi build tanpa backdrop-filter
+  tetap mendapat scrim yang bisa dipakai.
+
+Chat Settings popup: sudut 12px, bayangan dan garis aksen yang sama,
+scrim-nya ikut di-blur (lebih terang dari modal karena chat di
+belakangnya tidak boleh hilang - pembaca membukanya DARI chat itu).
+
+Sessions panel (saat Chat AI maximize): kepala lebih gelap dari isinya
+supaya terbaca sebagai tutup kolom, dan baris aktif memakai garis aksen
+kiri yang SAMA dengan nav Agent Customizations. Dua perlakuan "terpilih"
+yang berbeda di satu aplikasi terbaca sebagai dua aplikasi.
+
+Diverifikasi: gaya yang benar-benar berlaku diukur dari DOM
+(radius=10px, blur=blur(3px) saturate(0.9), borderImage=gradient,
+shadow dua lapis), app mount bersih tanpa error.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
