@@ -542,16 +542,24 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   /*
    * Code intelligence.
    *
-   * Kept together and placed next to the search tools, because an agent that
-   * reaches for `grep` to find a symbol should see these in the same part of the
-   * list. They are additive to the search pair, never a replacement: a file whose
-   * language has no server still has to be greppable.
+   * `lsp_definition` saja yang ikut setiap permintaan.
+   *
+   * Awalnya kelima `lsp_*` dikirim, dan itu pemborosan yang mahal: skemanya
+   * ~500 karakter masing-masing, jadi lima tool itu menambah ~2,5 KB di SETIAP
+   * langkah - untuk kemampuan yang jarang dipakai. `lsp_definition` adalah
+   * satu-satunya yang benar-benar sulit ditiru: menemukan definisi sebuah simbol
+   * tanpa language server berarti menebak nama berkas lalu grep di sana.
+   *
+   * `lsp_symbols`, `lsp_references`, `lsp_hover`, dan `lsp_diagnostics` tetap
+   * TERPASANG dan tetap AKTIF - hanya tidak dikirim setiap kali. Model
+   * menemukannya lewat `tool_search` ("cari simbol", "error language server")
+   * lalu memanggilnya lewat `tool_call`. Tidak ada yang hilang, hanya satu
+   * langkah lebih jauh untuk yang memang jarang dipakai.
+   *
+   * `grep` dan `glob` tetap selalu dikirim: berkas yang bahasanya tidak punya
+   * language server tetap harus bisa dicari.
    */
-  'lsp_symbols',
-  'lsp_references',
   'lsp_definition',
-  'lsp_hover',
-  'lsp_diagnostics',
   'skill_view',
   'think',
   'ask_user',
@@ -567,11 +575,30 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'run_subagents',
   'tool_search',
   'tool_call',
+  /*
+   * Browser/web.
+   *
+   * Empat yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
+   * ambil halaman sebagai teks, dan cari di web.
+   *
+   * Dua yang DILEPAS dari daftar ini:
+   *
+   *   `browser_nav` - maju/mundur/reload. Semua yang dibutuhkannya bisa
+   *     dicapai lewat `browser_open` dengan URL yang dituju; model yang butuh
+   *     mundur bisa membuka URL sebelumnya. Skemanya tidak sebanding dengan
+   *     frekuensinya.
+   *
+   *   `web_search` - paling sering menyeret model ke jalan samping. Kalau
+   *     halaman bisa dibuka langsung di pane, mencari dulu hanya menambah
+   *     langkah; kalau tidak bisa, `web_fetch` dengan URL yang sudah diketahui
+   *     lebih langsung.
+   *
+   * Keduanya tetap terpasang dan tetap aktif, hanya diakses lewat
+   * `tool_search` -> `tool_call`.
+   */
   'browser_open',
   'browser_read',
-  'browser_nav',
   'web_fetch',
-  'web_search',
 ];
 
 /** Rincian per kelompok, untuk picker. */

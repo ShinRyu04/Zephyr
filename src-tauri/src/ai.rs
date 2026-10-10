@@ -1,13 +1,12 @@
 use crate::adapters;
-use crate::adapters::StreamAcc;
 use crate::adapters::xml_tools;
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader};
-use std::sync::atomic::Ordering;
-use tauri::{AppHandle, Emitter, State};
+use std::sync::atomic::{AtomicU64, Ordering};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
 const RECEIVE_IDLE_TIMEOUT_SECS: u64 = 300;
@@ -86,6 +85,7 @@ pub struct ToolCall {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AgentMsg {
     pub role: String,
     pub content: String,
@@ -155,6 +155,150 @@ pub struct CapturedRequest {
     pub body: Value,
 
     pub chars: usize,
+
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tool_call_diagnostics: Vec<CapturedToolCallDiagnostic>,
+
+    #[serde(skip)]
+    capture_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapturedToolCallDiagnostic {
+    pub index: usize,
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub argument_fragments: usize,
+    pub argument_chars: usize,
+    pub argument_kind: Option<String>,
+    pub arguments_json_valid: Option<bool>,
+    pub parsed_arguments_kind: Option<String>,
+}
+
+const TOOL_ARGUMENT_CAPTURE_LIMIT: usize = 64 * 1024;
+
+#[derive(Default)]
+struct OpenAiToolCallCapture {
+    calls: Vec<OpenAiToolCallCaptureEntry>,
+}
+
+#[derive(Default)]
+struct OpenAiToolCallCaptureEntry {
+    index: usize,
+    id: Option<String>,
+    name: Option<String>,
+    argument_fragments: usize,
+    argument_chars: usize,
+    argument_kind: Option<String>,
+    raw_arguments: String,
+    raw_arguments_bytes: usize,
+    arguments_truncated: bool,
+}
+
+impl OpenAiToolCallCapture {
+    fn feed(&mut self, frame: &Value) {
+        let Some(calls) = frame
+            .pointer("/choices/0/delta/tool_calls")
+            .and_then(Value::as_array)
+        else {
+            return;
+        };
+
+        for call in calls {
+            let index = call.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
+            while self.calls.len() <= index {
+                self.calls.push(OpenAiToolCallCaptureEntry {
+                    index: self.calls.len(),
+                    ..Default::default()
+                });
+            }
+            let entry = &mut self.calls[index];
+            if let Some(id) = call
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+            {
+                entry.id = Some(id.to_string());
+            }
+            if let Some(name) = call
+                .pointer("/function/name")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+            {
+                entry.name = Some(name.to_string());
+            }
+
+            let Some(arguments) = call.pointer("/function/arguments") else {
+                continue;
+            };
+            if let Some(arguments) = arguments.as_str() {
+                entry.argument_fragments += 1;
+                entry.argument_chars += arguments.chars().count();
+                entry.argument_kind = Some("string".into());
+                entry.raw_arguments_bytes += arguments.len();
+                if entry.raw_arguments_bytes <= TOOL_ARGUMENT_CAPTURE_LIMIT {
+                    entry.raw_arguments.push_str(arguments);
+                } else {
+                    entry.arguments_truncated = true;
+                    entry.raw_arguments.clear();
+                }
+            } else {
+                let kind = json_kind(arguments);
+                entry.argument_kind = Some(match entry.argument_kind.take() {
+                    Some(previous) if previous != kind => "mixed".into(),
+                    _ => kind.into(),
+                });
+                entry.argument_chars += arguments.to_string().chars().count();
+                entry.arguments_truncated = true;
+            }
+        }
+    }
+
+    fn finish(self) -> Vec<CapturedToolCallDiagnostic> {
+        self.calls
+            .into_iter()
+            .map(|entry| {
+                let parsed = if entry.argument_kind.as_deref() == Some("string")
+                    && !entry.arguments_truncated
+                    && entry.argument_fragments > 0
+                {
+                    serde_json::from_str::<Value>(&entry.raw_arguments).ok()
+                } else {
+                    None
+                };
+                let arguments_json_valid = if entry.argument_kind.as_deref() == Some("string")
+                    && !entry.arguments_truncated
+                    && entry.argument_fragments > 0
+                {
+                    Some(parsed.is_some())
+                } else {
+                    None
+                };
+                CapturedToolCallDiagnostic {
+                    index: entry.index,
+                    id: entry.id,
+                    name: entry.name,
+                    argument_fragments: entry.argument_fragments,
+                    argument_chars: entry.argument_chars,
+                    argument_kind: entry.argument_kind,
+                    arguments_json_valid,
+                    parsed_arguments_kind: parsed.as_ref().map(json_kind).map(str::to_string),
+                }
+            })
+            .collect()
+    }
+}
+
+fn json_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
 }
 
 fn header_sensitif(nama: &str) -> bool {
@@ -198,8 +342,34 @@ fn retry_after_ms(v: &str) -> Option<u64> {
         return Some((detik * 1000.0) as u64);
     }
     let target = chrono::DateTime::parse_from_rfc2822(teks).ok()?;
-    let delta = target.with_timezone(&chrono::Utc).signed_duration_since(chrono::Utc::now());
+    let delta = target
+        .with_timezone(&chrono::Utc)
+        .signed_duration_since(chrono::Utc::now());
     u64::try_from(delta.num_milliseconds()).ok()
+}
+
+const DEEPSEEK_REASONING_REFUSAL: &str = "must be passed back to the api";
+const DEEPSEEK_REASONING_RETRIES: usize = 3;
+
+fn request_deepseek_tool_call(prepared: &Prepared) -> bool {
+    prepared
+        .body
+        .get("model")
+        .and_then(Value::as_str)
+        .is_some_and(|model| model.to_ascii_lowercase().contains("deepseek"))
+        && prepared
+            .body
+            .get("messages")
+            .and_then(Value::as_array)
+            .is_some_and(|messages| {
+                messages.iter().any(|message| {
+                    message.get("role").and_then(Value::as_str) == Some("assistant")
+                        && message
+                            .get("tool_calls")
+                            .and_then(Value::as_array)
+                            .is_some_and(|calls| !calls.is_empty())
+                })
+            })
 }
 
 /// Ubah `Retry-After` versi HTTP-date (bukan angka detik) jadi milidetik dari sekarang.
@@ -212,14 +382,18 @@ fn kirim_dengan_ulang(
     attempts: usize,
 ) -> Result<ureq::http::Response<ureq::Body>, String> {
     /* Backoff between attempts: 400ms, then 1.2s. Short enough that a healthy
-       retry is invisible, long enough that a rate-limited node has a chance to
-       clear. */
+    retry is invisible, long enough that a rate-limited node has a chance to
+    clear. */
     const JEDA_MS: [u64; 2] = [400, 1200];
 
+    let batas_percobaan = attempts.max(1);
+    let retry_reasoning_deepseek = request_deepseek_tool_call(prepared);
+    let mut percobaan_reguler = 0usize;
+    let mut retry_reasoning = 0usize;
     let mut terakhir: Option<String> = None;
     let mulai = std::time::Instant::now();
 
-    for percobaan in 0..attempts.max(1) {
+    while percobaan_reguler < batas_percobaan {
         /*
          * Deadline check BEFORE the request, not after the sleep.
          *
@@ -234,7 +408,7 @@ fn kirim_dengan_ulang(
          * be the thing that decides first, because then late chunks land on
          * whatever the user is typing.
          */
-        if percobaan > 0
+        if percobaan_reguler > 0
             && mulai.elapsed() >= std::time::Duration::from_secs(RETRY_LOOP_DEADLINE_SECS)
         {
             return Err(terakhir.unwrap_or_else(|| {
@@ -247,9 +421,25 @@ fn kirim_dengan_ulang(
             req = req.header(k.as_str(), v.as_str());
         }
 
+        percobaan_reguler += 1;
         match req.send_json(&prepared.body) {
             Ok(resp) => {
                 let status = resp.status().as_u16();
+                if status == 400 && retry_reasoning_deepseek {
+                    let (parts, mut body) = resp.into_parts();
+                    let raw = body.read_to_string().unwrap_or_default();
+                    if raw
+                        .to_ascii_lowercase()
+                        .contains(DEEPSEEK_REASONING_REFUSAL)
+                        && retry_reasoning < DEEPSEEK_REASONING_RETRIES
+                    {
+                        retry_reasoning += 1;
+                        percobaan_reguler -= 1;
+                        continue;
+                    }
+                    let body = ureq::Body::builder().data(raw.into_bytes());
+                    return Ok(ureq::http::Response::from_parts(parts, body));
+                }
                 /*
                  * 5xx and 429 get another try. The response is consumed to read
                  * the body for the error message, so a retry cannot reuse it -
@@ -257,7 +447,7 @@ fn kirim_dengan_ulang(
                  * succeeds the body is the successful stream.
                  */
                 let bisa_ulang = status == 429 || (500..=599).contains(&status);
-                if bisa_ulang && percobaan + 1 < attempts {
+                if bisa_ulang && percobaan_reguler < batas_percobaan {
                     /*
                      * A gateway that answers 429/503 often says WHEN it will be
                      * ready. Retrying on a fixed 400ms/1.2s ladder then either
@@ -276,7 +466,7 @@ fn kirim_dengan_ulang(
                         .and_then(|v| v.to_str().ok())
                         .and_then(retry_after_ms)
                         .filter(|ms| *ms > 0 && *ms <= 20_000)
-                        .unwrap_or_else(|| JEDA_MS[percobaan.min(1)]);
+                        .unwrap_or_else(|| JEDA_MS[(percobaan_reguler - 1).min(1)]);
                     terakhir = Some(format!("HTTP {status}"));
                     std::thread::sleep(std::time::Duration::from_millis(jeda));
                     continue;
@@ -293,12 +483,15 @@ fn kirim_dengan_ulang(
                  */
                 let teks = e.to_string();
                 let low = teks.to_lowercase();
-                let permanen = low.contains("dns") || low.contains("resolve") || low.contains("invalid url");
-                if permanen || percobaan + 1 >= attempts {
+                let permanen =
+                    low.contains("dns") || low.contains("resolve") || low.contains("invalid url");
+                if permanen || percobaan_reguler >= batas_percobaan {
                     return Err(teks);
                 }
                 terakhir = Some(teks);
-                std::thread::sleep(std::time::Duration::from_millis(JEDA_MS[percobaan.min(1)]));
+                std::thread::sleep(std::time::Duration::from_millis(
+                    JEDA_MS[(percobaan_reguler - 1).min(1)],
+                ));
             }
         }
     }
@@ -313,10 +506,10 @@ pub fn rekam_request(
     url: &str,
     headers: &[(String, String)],
     body: &Value,
-) {
-    use std::sync::atomic::Ordering;
+) -> Option<u64> {
+    static NEXT_CAPTURE_ID: AtomicU64 = AtomicU64::new(1);
     if !state.ai_capture_on.load(Ordering::Relaxed) {
-        return;
+        return None;
     }
     let headers: Vec<(String, String)> = headers
         .iter()
@@ -324,6 +517,7 @@ pub fn rekam_request(
         .cloned()
         .collect();
     let chars = body.to_string().len();
+    let capture_id = NEXT_CAPTURE_ID.fetch_add(1, Ordering::Relaxed);
     let rec = CapturedRequest {
         at_ms: state.uptime_ms(),
         provider: provider.to_string(),
@@ -332,13 +526,38 @@ pub fn rekam_request(
         headers,
         body: body.clone(),
         chars,
+        tool_call_diagnostics: Vec::new(),
+        capture_id,
     };
     if let Ok(mut v) = state.ai_capture.write() {
         if v.len() >= 20 {
             v.remove(0);
         }
         v.push(rec);
+        Some(capture_id)
+    } else {
+        tracing::warn!("failed to lock AI request capture for write");
+        None
     }
+}
+
+fn rekam_diagnostik_tool_call(
+    app: &AppHandle,
+    capture_id: Option<u64>,
+    diagnostics: Vec<CapturedToolCallDiagnostic>,
+) {
+    let Some(capture_id) = capture_id else {
+        return;
+    };
+    let state = app.state::<AppState>();
+    match state.ai_capture.write() {
+        Ok(mut requests) => {
+            if let Some(request) = requests.iter_mut().find(|r| r.capture_id == capture_id) {
+                request.tool_call_diagnostics = diagnostics;
+            }
+        }
+        Err(_) => tracing::warn!("failed to lock AI request capture for tool diagnostics"),
+    };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -455,7 +674,11 @@ fn chunk_membawa_tool_call(provider: &str, v: &Value) -> bool {
 }
 
 pub(crate) fn terminal_error_to_emit(cancelled: bool, error: Option<String>) -> Option<String> {
-    if cancelled { None } else { error }
+    if cancelled {
+        None
+    } else {
+        error
+    }
 }
 
 fn friendly(status: u16) -> String {
@@ -485,6 +708,203 @@ fn friendly(status: u16) -> String {
 ///   2. kalau tidak: badan mentah, spasi dirapatkan, dipotong 240 karakter
 ///   3. sebutkan MODEL dan HOST - pada gateway yang melayani banyak model,
 ///      nama model adalah fakta paling berguna untuk tahu siapa yang menolak
+/** Diagnostik payload terakhir yang ditolak provider. */
+pub struct TolakTerakhir {
+    pub status: u16,
+    pub model: String,
+    pub jumlah_pesan: usize,
+    pub peran: String,
+    pub ukuran: usize,
+    pub catatan: Vec<String>,
+    pub jejak: Vec<String>,
+    pub body_server: String,
+}
+
+pub static TOLAK_TERAKHIR: std::sync::Mutex<Option<TolakTerakhir>> = std::sync::Mutex::new(None);
+
+/// Catat payload yang ditolak, supaya UI bisa menjelaskan APA yang salah.
+///
+/// "Request rejected (400)" tanpa satu pun petunjuk tentang bentuk body-nya
+/// memaksa setiap diagnosis jadi tebakan. Yang dicatat di sini adalah hal-hal
+/// yang benar-benar bisa membuat provider menolak: urutan peran, asisten kosong,
+/// tool call tanpa hasil, pesan system yang tidak di depan, dan ukuran body.
+/// Tidak ada isi percakapan yang disimpan - hanya bentuknya.
+pub(crate) fn catat_penolakan(
+    status: u16,
+    prepared: &Prepared,
+    model: &str,
+    body_server: &str,
+) {
+    let pesan = prepared
+        .body
+        .get("messages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let peran: Vec<String> = pesan
+        .iter()
+        .map(|m| {
+            m.get("role")
+                .and_then(Value::as_str)
+                .unwrap_or("?")
+                .to_string()
+        })
+        .collect();
+
+    let mut catatan: Vec<String> = Vec::new();
+
+    /* Asisten berurutan tanpa hasil tool: bentuk tidak sah untuk sebagian besar
+    gateway, dan yang paling sering bikin 400 pada loop agent. */
+    for i in 1..peran.len() {
+        if peran[i] == "assistant" && peran[i - 1] == "assistant" {
+            catatan.push(format!("dua pesan assistant berurutan di indeks {i}"));
+            break;
+        }
+    }
+
+    /* Asisten tanpa isi DAN tanpa tool call. */
+    for (i, m) in pesan.iter().enumerate() {
+        if m.get("role").and_then(Value::as_str) != Some("assistant") {
+            continue;
+        }
+        let kosong = m
+            .get("content")
+            .and_then(Value::as_str)
+            .map(|s| s.trim().is_empty())
+            .unwrap_or(true);
+        let ada_call = m
+            .get("tool_calls")
+            .and_then(Value::as_array)
+            .is_some_and(|c| !c.is_empty());
+        if kosong && !ada_call {
+            catatan.push(format!("assistant tanpa isi dan tanpa tool call di indeks {i}"));
+            break;
+        }
+    }
+
+    /* Tool call yang tidak punya hasil tool sesudahnya. */
+    for (i, m) in pesan.iter().enumerate() {
+        let calls = m
+            .get("tool_calls")
+            .and_then(Value::as_array)
+            .map(|c| c.len())
+            .unwrap_or(0);
+        if calls == 0 {
+            continue;
+        }
+        for n in 0..calls {
+            let berikut = pesan.get(i + 1 + n).and_then(|x| x.get("role")).and_then(Value::as_str);
+            if berikut != Some("tool") {
+                catatan.push(format!("tool call di indeks {i} tanpa hasil tool"));
+                break;
+            }
+        }
+    }
+
+    /* System prompt wajib di paling depan. */
+    if let Some(pos) = peran.iter().position(|r| r == "system") {
+        if pos != 0 {
+            catatan.push(format!("pesan system di indeks {pos}, bukan di awal"));
+        }
+    }
+    if peran.iter().filter(|r| *r == "system").count() > 1 {
+        catatan.push("lebih dari satu pesan system".into());
+    }
+
+    /* Body tanpa pesan sama sekali, atau pesan terakhir bukan giliran user/tool. */
+    if pesan.is_empty() {
+        catatan.push("tidak ada pesan sama sekali".into());
+    } else if let Some(terakhir) = peran.last() {
+        if terakhir == "assistant" {
+            catatan.push("pesan terakhir adalah assistant".into());
+        }
+    }
+
+    let ukuran = serde_json::to_string(&prepared.body)
+        .map(|s| s.len())
+        .unwrap_or(0);
+
+    /*
+     * Jejak singkat tiap pesan, karena urutan peran saja tidak cukup untuk
+     * menemukan pelanggarannya.
+     *
+     * `system -> user -> assistant -> user -> ...` terlihat wajar sampai
+     * diketahui bahwa salah satu "user" itu sebenarnya catatan internal yang
+     * menyelip di antara asisten dan hasil tool-nya. Tanpa melihat isinya, tidak
+     * ada cara membedakan pesan user asli dari sisipan.
+     */
+    let mut jejak: Vec<String> = Vec::new();
+    for m in pesan.iter().take(24) {
+        let peran = m.get("role").and_then(Value::as_str).unwrap_or("?");
+        let awal = m
+            .get("content")
+            .and_then(Value::as_str)
+            .map(|s| {
+                s.trim()
+                    .replace('\n', " ")
+                    .chars()
+                    .take(56)
+                    .collect::<String>()
+            })
+            .unwrap_or_default();
+        let calls = m
+            .get("tool_calls")
+            .and_then(Value::as_array)
+            .map(|c| c.len())
+            .unwrap_or(0);
+        jejak.push(format!(
+            "{peran}{} \"{awal}\"",
+            if calls > 0 {
+                format!("(x{calls})")
+            } else {
+                String::new()
+            }
+        ));
+    }
+    if pesan.len() > 24 {
+        jejak.push(format!("… {} pesan lagi", pesan.len() - 24));
+    }
+
+    if let Ok(mut slot) = TOLAK_TERAKHIR.lock() {
+        *slot = Some(TolakTerakhir {
+            status,
+            model: model.to_string(),
+            jumlah_pesan: pesan.len(),
+            peran: peran.join(" -> "),
+            ukuran,
+            catatan,
+            jejak,
+            body_server: body_server.chars().take(400).collect(),
+        });
+    }
+}
+
+/// Ambil catatan penolakan terakhir, sekali pakai.
+pub fn tolak_terakhir() -> Option<String> {
+    let slot = TOLAK_TERAKHIR.lock().ok()?;
+    let t = slot.as_ref()?;
+    let mut baris = vec![format!(
+        "HTTP {} untuk {} — {} pesan, {} byte",
+        t.status, t.model, t.jumlah_pesan, t.ukuran
+    )];
+    baris.push(format!("urutan peran: {}", t.peran));
+    if !t.jejak.is_empty() {
+        baris.push("isi tiap pesan:".into());
+        for (i, j) in t.jejak.iter().enumerate() {
+            baris.push(format!("  {i}. {j}"));
+        }
+    }
+    if t.catatan.is_empty() {
+        baris.push("bentuk pesan: tidak ada pelanggaran yang terdeteksi".into());
+    } else {
+        baris.push(format!("masalah: {}", t.catatan.join("; ")));
+    }
+    if !t.body_server.trim().is_empty() {
+        baris.push(format!("kata server: {}", t.body_server));
+    }
+    Some(baris.join("\n"))
+}
+
 pub(crate) fn pesan_http(status: u16, raw: &str, model: &str, url: &str) -> String {
     let detail = serde_json::from_str::<Value>(raw)
         .ok()
@@ -583,8 +1003,12 @@ pub fn ai_chat(
         let _request_guard = request_guard;
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(CONNECT_TIMEOUT_SECS)))
-            .timeout_recv_response(Some(std::time::Duration::from_secs(RECEIVE_IDLE_TIMEOUT_SECS)))
-            .timeout_per_call(Some(std::time::Duration::from_secs(TOTAL_CALL_TIMEOUT_SECS)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(
+                RECEIVE_IDLE_TIMEOUT_SECS,
+            )))
+            .timeout_per_call(Some(std::time::Duration::from_secs(
+                TOTAL_CALL_TIMEOUT_SECS,
+            )))
             .max_redirects(3)
             .http_status_as_error(false)
             .build()
@@ -612,7 +1036,10 @@ pub fn ai_chat(
                 if !cancelled {
                     emit_chunk(&handle, json!({ "id": req_id, "err": pesan }));
                 }
-                emit_chunk(&handle, json!({ "id": req_id, "done": true, "cancelled": cancelled }));
+                emit_chunk(
+                    &handle,
+                    json!({ "id": req_id, "done": true, "cancelled": cancelled }),
+                );
                 return;
             }
         };
@@ -621,12 +1048,16 @@ pub fn ai_chat(
         if status >= 400 {
             let mut body = resp.into_body();
             let raw: String = body.read_to_string().unwrap_or_default();
+            catat_penolakan(status, &prepared, &model, &raw);
             let msg = pesan_http(status, &raw, &model, &prepared.url);
             let cancelled = cancel.load(Ordering::Relaxed);
             if !cancelled {
                 emit_chunk(&handle, json!({ "id": req_id, "err": msg }));
             }
-            emit_chunk(&handle, json!({ "id": req_id, "done": true, "cancelled": cancelled }));
+            emit_chunk(
+                &handle,
+                json!({ "id": req_id, "done": true, "cancelled": cancelled }),
+            );
             return;
         }
 
@@ -751,10 +1182,13 @@ pub fn ai_chat(
              * however many frames carried the field.
              */
             if let Some((masuk, keluar)) = adapters::extract_usage(&prov, &v) {
-                emit_chunk(&handle, json!({
-                    "id": req_id,
-                    "usage": { "input": masuk, "output": keluar },
-                }));
+                emit_chunk(
+                    &handle,
+                    json!({
+                        "id": req_id,
+                        "usage": { "input": masuk, "output": keluar },
+                    }),
+                );
             }
         }
 
@@ -828,15 +1262,19 @@ pub async fn ai_tool_chat(
     )?;
     let prov = provider.clone();
     /* Disalin sebelum `prepared` dipindah ke dalam tugas: pesan error perlu
-       menyebut host yang dihubungi, dan setelah dipindah nilainya tidak bisa
-       dibaca lagi dari luar. */
+    menyebut host yang dihubungi, dan setelah dipindah nilainya tidak bisa
+    dibaca lagi dari luar. */
     let alamat = prepared.url.clone();
 
     let hasil = tokio::task::spawn_blocking(move || {
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(CONNECT_TIMEOUT_SECS)))
-            .timeout_recv_response(Some(std::time::Duration::from_secs(RECEIVE_IDLE_TIMEOUT_SECS)))
-            .timeout_per_call(Some(std::time::Duration::from_secs(TOTAL_CALL_TIMEOUT_SECS)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(
+                RECEIVE_IDLE_TIMEOUT_SECS,
+            )))
+            .timeout_per_call(Some(std::time::Duration::from_secs(
+                TOTAL_CALL_TIMEOUT_SECS,
+            )))
             .max_redirects(3)
             .http_status_as_error(false)
             .build()
@@ -882,7 +1320,13 @@ pub async fn ai_tool_chat(
 
     let v: Value = serde_json::from_str(&raw)
         .map_err(|e| ZephyrError::InvalidInput(format!("invalid provider response: {e}")))?;
-    Ok(adapters::parse_tool_response(&prov, &v))
+    adapters::parse_tool_response(&prov, &v).map_err(ZephyrError::InvalidInput)
+}
+
+/// Ambil catatan payload terakhir yang ditolak provider, untuk diagnosis UI.
+#[tauri::command]
+pub fn ai_penolakan_terakhir() -> Option<String> {
+    tolak_terakhir()
 }
 
 #[tauri::command(async)]
@@ -924,7 +1368,7 @@ pub fn ai_tool_chat_stream(
     )?;
     tambah_header_afinitas(&mut prepared, session_id.as_deref());
 
-    rekam_request(
+    let capture_id = rekam_request(
         &state,
         &provider,
         &model,
@@ -946,8 +1390,12 @@ pub fn ai_tool_chat_stream(
         let _request_guard = request_guard;
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(CONNECT_TIMEOUT_SECS)))
-            .timeout_recv_response(Some(std::time::Duration::from_secs(RECEIVE_IDLE_TIMEOUT_SECS)))
-            .timeout_per_call(Some(std::time::Duration::from_secs(TOTAL_CALL_TIMEOUT_SECS)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(
+                RECEIVE_IDLE_TIMEOUT_SECS,
+            )))
+            .timeout_per_call(Some(std::time::Duration::from_secs(
+                TOTAL_CALL_TIMEOUT_SECS,
+            )))
             .max_redirects(3)
             .http_status_as_error(false)
             .build()
@@ -959,7 +1407,10 @@ pub fn ai_tool_chat_stream(
                 if !cancelled {
                     emit_chunk(&handle, json!({ "id": req_id, "err": pesan_koneksi(&e) }));
                 }
-                emit_chunk(&handle, json!({ "id": req_id, "toolDone": true, "cancelled": cancelled }));
+                emit_chunk(
+                    &handle,
+                    json!({ "id": req_id, "toolDone": true, "cancelled": cancelled }),
+                );
                 return;
             }
         };
@@ -968,16 +1419,21 @@ pub fn ai_tool_chat_stream(
         if status >= 400 {
             let mut body = resp.into_body();
             let raw: String = body.read_to_string().unwrap_or_default();
+            catat_penolakan(status, &prepared, &model, &raw);
             let msg = pesan_http(status, &raw, &model, &prepared.url);
             let cancelled = cancel.load(Ordering::Relaxed);
             if !cancelled {
                 emit_chunk(&handle, json!({ "id": req_id, "err": msg }));
             }
-            emit_chunk(&handle, json!({ "id": req_id, "toolDone": true, "cancelled": cancelled }));
+            emit_chunk(
+                &handle,
+                json!({ "id": req_id, "toolDone": true, "cancelled": cancelled }),
+            );
             return;
         }
 
         let mut acc = adapters::StreamAcc::new(&prov);
+        let mut tool_call_capture = capture_id.map(|_| OpenAiToolCallCapture::default());
         /* Text held back because its tail might still grow into a tool tag. */
         let mut tahan = String::new();
         /*
@@ -1050,6 +1506,10 @@ pub fn ai_tool_chat_stream(
                     break;
                 }
             };
+
+            if let Some(capture) = &mut tool_call_capture {
+                capture.feed(&v);
+            }
 
             if let Some(think) = adapters::extract_reasoning(&prov, &v) {
                 ada_output = true;
@@ -1127,7 +1587,20 @@ pub fn ai_tool_chat_stream(
 
         /* Read the reasoning BEFORE `finish` consumes the accumulator. */
         let (reasoning, reasoning_sig) = acc.reasoning_parts();
-        let (content, tool_calls) = acc.finish();
+        let (content, tool_calls) = match acc.finish() {
+            Ok(result) => result,
+            Err(error) => {
+                if terminal_error.is_none() {
+                    terminal_error = Some(error);
+                }
+                (String::new(), Vec::new())
+            }
+        };
+        rekam_diagnostik_tool_call(
+            &handle,
+            capture_id,
+            tool_call_capture.map_or_else(Vec::new, OpenAiToolCallCapture::finish),
+        );
         /*
          * Flush whatever is still held.
          *
@@ -1191,9 +1664,7 @@ fn pesan_koneksi(teks: &str) -> String {
             "The provider host name does not resolve. Check the base URL in Settings - AI Models. ({teks})"
         )
     } else if refused {
-        format!(
-            "Provider menolak koneksi. Periksa Base URL dan apakah servernya hidup. ({teks})"
-        )
+        format!("Provider menolak koneksi. Periksa Base URL dan apakah servernya hidup. ({teks})")
     } else {
         format!("Cannot reach the provider: {teks}")
     }
@@ -1229,6 +1700,77 @@ pub fn ai_capture_clear(state: State<AppState>) -> ZResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tool_call_capture_tests {
+    use super::OpenAiToolCallCapture;
+    use serde_json::json;
+
+    #[test]
+    fn captures_only_tool_argument_shape_and_parse_status() {
+        let mut capture = OpenAiToolCallCapture::default();
+        capture.feed(&json!({
+            "choices": [{
+                "delta": {
+                    "tool_calls": [{
+                        "index": 0,
+                        "id": "call_123",
+                        "function": {
+                            "name": "browser_open",
+                            "arguments": "{\"url\":"
+                        }
+                    }]
+                }
+            }]
+        }));
+        capture.feed(&json!({
+            "choices": [{
+                "delta": {
+                    "tool_calls": [{
+                        "index": 0,
+                        "function": { "arguments": "\"https://example.com\"}" }
+                    }]
+                }
+            }]
+        }));
+
+        let diagnostics = capture.finish();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].id.as_deref(), Some("call_123"));
+        assert_eq!(diagnostics[0].name.as_deref(), Some("browser_open"));
+        assert_eq!(diagnostics[0].argument_fragments, 2);
+        assert_eq!(diagnostics[0].argument_kind.as_deref(), Some("string"));
+        assert_eq!(diagnostics[0].arguments_json_valid, Some(true));
+        assert_eq!(
+            diagnostics[0].parsed_arguments_kind.as_deref(),
+            Some("object")
+        );
+        let serialized = serde_json::to_string(&diagnostics[0]).expect("serialize");
+        assert!(!serialized.contains("example.com"));
+    }
+
+    #[test]
+    fn reports_empty_arguments_and_non_string_argument_shapes() {
+        let mut capture = OpenAiToolCallCapture::default();
+        capture.feed(&json!({
+            "choices": [{
+                "delta": {
+                    "tool_calls": [
+                        { "index": 0, "function": { "name": "missing_args" } },
+                        { "index": 1, "function": { "name": "object_args", "arguments": {} } }
+                    ]
+                }
+            }]
+        }));
+
+        let diagnostics = capture.finish();
+        assert_eq!(diagnostics.len(), 2);
+        assert_eq!(diagnostics[0].argument_fragments, 0);
+        assert_eq!(diagnostics[0].argument_chars, 0);
+        assert_eq!(diagnostics[0].arguments_json_valid, None);
+        assert_eq!(diagnostics[1].argument_kind.as_deref(), Some("object"));
+        assert_eq!(diagnostics[1].arguments_json_valid, None);
+    }
+}
 
 /*
  * Retry behaviour, proven against a real socket rather than a mocked client.
@@ -1259,14 +1801,22 @@ mod pesan_http_tests {
     fn html_502_dari_router_ikut_dilaporkan() {
         let badan = "<html><head><title>502 Bad Gateway</title></head>\
                      <body><h1>502 Bad Gateway</h1><p>nginx</p></body></html>";
-        let pesan = pesan_http(502, badan, "mr-vip", "https://modelrouter.id/v1/chat/completions");
+        let pesan = pesan_http(
+            502,
+            badan,
+            "mr-vip",
+            "https://modelrouter.id/v1/chat/completions",
+        );
 
         assert!(pesan.contains("502"), "status harus disebut: {pesan}");
         assert!(
             pesan.contains("Bad Gateway"),
             "isi halaman server harus ikut, bukan dibuang: {pesan}"
         );
-        assert!(pesan.contains("mr-vip"), "nama model harus disebut: {pesan}");
+        assert!(
+            pesan.contains("mr-vip"),
+            "nama model harus disebut: {pesan}"
+        );
         assert!(
             pesan.contains("modelrouter.id"),
             "host yang dihubungi harus disebut: {pesan}"
@@ -1276,11 +1826,22 @@ mod pesan_http_tests {
     #[test]
     fn json_error_message_tetap_dipakai() {
         let badan = r#"{"error":{"message":"kuota habis"}}"#;
-        let pesan = pesan_http(429, badan, "mr-vip", "https://contoh.id/v1/chat/completions");
+        let pesan = pesan_http(
+            429,
+            badan,
+            "mr-vip",
+            "https://contoh.id/v1/chat/completions",
+        );
 
-        assert!(pesan.contains("kuota habis"), "pesan JSON harus dipakai: {pesan}");
+        assert!(
+            pesan.contains("kuota habis"),
+            "pesan JSON harus dipakai: {pesan}"
+        );
         /* JSON mentahnya tidak perlu ikut - sudah rapi. */
-        assert!(!pesan.contains("\"error\""), "JSON mentah tidak perlu ikut: {pesan}");
+        assert!(
+            !pesan.contains("\"error\""),
+            "JSON mentah tidak perlu ikut: {pesan}"
+        );
     }
 
     #[test]
@@ -1288,14 +1849,25 @@ mod pesan_http_tests {
         let pesan = pesan_http(503, "", "mr-vip", "https://contoh.id/v1/chat/completions");
 
         assert!(pesan.contains("503"), "status tetap disebut: {pesan}");
-        assert!(!pesan.ends_with('—'), "tidak boleh berakhir dengan pemisah: {pesan}");
-        assert!(!pesan.ends_with("— "), "tidak boleh berakhir dengan pemisah: {pesan}");
+        assert!(
+            !pesan.ends_with('—'),
+            "tidak boleh berakhir dengan pemisah: {pesan}"
+        );
+        assert!(
+            !pesan.ends_with("— "),
+            "tidak boleh berakhir dengan pemisah: {pesan}"
+        );
     }
 
     #[test]
     fn badan_panjang_dipotong() {
         let badan = "x".repeat(2000);
-        let pesan = pesan_http(500, &badan, "mr-vip", "https://contoh.id/v1/chat/completions");
+        let pesan = pesan_http(
+            500,
+            &badan,
+            "mr-vip",
+            "https://contoh.id/v1/chat/completions",
+        );
 
         assert!(
             pesan.chars().count() < 500,
@@ -1368,10 +1940,14 @@ mod retry_tests {
                 let n = hits_srv.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 let status = statuses.get(n).copied().unwrap_or(200);
 
-                let body = if status == 200 {
-                    "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n"
-                } else {
-                    "{\"error\":{\"message\":\"mock failure\"}}"
+                let body = match status {
+                    200 => {
+                        "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n"
+                    }
+                    400 => {
+                        "{\"error\":{\"message\":\"reasoning_content must be passed back to the API\"}}"
+                    }
+                    _ => "{\"error\":{\"message\":\"mock failure\"}}",
                 };
                 let resp = format!(
                     "HTTP/1.1 {status} X\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -1400,6 +1976,22 @@ mod retry_tests {
         }
     }
 
+    fn prepared_deepseek_tool_call(url: String) -> Prepared {
+        let mut request = prepared(url);
+        request.body = json!({
+            "model": "deepseek-v4.1-flash",
+            "messages": [{
+                "role": "assistant",
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": { "name": "read_file", "arguments": "{}" }
+                }]
+            }]
+        });
+        request
+    }
+
     fn agent() -> ureq::Agent {
         ureq::Agent::config_builder()
             .timeout_connect(Some(std::time::Duration::from_secs(5)))
@@ -1415,7 +2007,11 @@ mod retry_tests {
         let (url, hits) = server(vec![502, 502]);
         let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus sukses");
         assert_eq!(resp.status().as_u16(), 200, "percobaan ketiga harus 200");
-        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 3, "harus 3 percobaan");
+        assert_eq!(
+            hits.load(std::sync::atomic::Ordering::SeqCst),
+            3,
+            "harus 3 percobaan"
+        );
     }
 
     #[test]
@@ -1429,15 +2025,25 @@ mod retry_tests {
     #[test]
     fn gives_up_after_the_last_attempt_and_returns_the_failure() {
         let (url, hits) = server(vec![502, 502, 502, 502]);
-        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
-        assert_eq!(resp.status().as_u16(), 502, "percobaan terakhir tetap dilaporkan");
-        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 3, "tidak lebih dari 3");
+        let resp =
+            kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
+        assert_eq!(
+            resp.status().as_u16(),
+            502,
+            "percobaan terakhir tetap dilaporkan"
+        );
+        assert_eq!(
+            hits.load(std::sync::atomic::Ordering::SeqCst),
+            3,
+            "tidak lebih dari 3"
+        );
     }
 
     #[test]
     fn does_not_retry_a_401() {
         let (url, hits) = server(vec![401, 200]);
-        let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
+        let resp =
+            kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan respons");
         assert_eq!(resp.status().as_u16(), 401, "401 diteruskan apa adanya");
         assert_eq!(
             hits.load(std::sync::atomic::Ordering::SeqCst),
@@ -1447,11 +2053,38 @@ mod retry_tests {
     }
 
     #[test]
+    fn retries_only_matching_deepseek_reasoning_400s() {
+        let (url, hits) = server(vec![400]);
+        let resp = kirim_dengan_ulang(&agent(), &prepared_deepseek_tool_call(url), 3)
+            .expect("percobaan kedua harus berhasil");
+        assert_eq!(resp.status().as_u16(), 200);
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn does_not_retry_other_400s_and_preserves_the_response_body() {
+        let (url, hits) = server(vec![400, 200]);
+        let mut resp =
+            kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus mengembalikan 400");
+        assert_eq!(resp.status().as_u16(), 400);
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(resp
+            .body_mut()
+            .read_to_string()
+            .expect("badan respons harus terbaca")
+            .contains("must be passed back to the API"));
+    }
+
+    #[test]
     fn a_healthy_call_is_not_retried() {
         let (url, hits) = server(vec![200]);
         let resp = kirim_dengan_ulang(&agent(), &prepared(url), 3).expect("harus sukses");
         assert_eq!(resp.status().as_u16(), 200);
-        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1, "sekali saja");
+        assert_eq!(
+            hits.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "sekali saja"
+        );
     }
 
     /*
@@ -1486,8 +2119,8 @@ mod retry_tests {
         let per_call_secs = TOTAL_CALL_TIMEOUT_SECS.max(RECEIVE_IDLE_TIMEOUT_SECS);
 
         /* Without the deadline - what used to happen. If this stops being
-           longer than the frontend's hard limit, this test has stopped testing
-           anything and should be rethought, not silently kept. */
+        longer than the frontend's hard limit, this test has stopped testing
+        anything and should be rethought, not silently kept. */
         let tanpa_deadline = attempts * per_call_secs + (attempts - 1) * backoff_secs;
         assert!(
             tanpa_deadline > FRONTEND_HARD_LIMIT_SECS,
