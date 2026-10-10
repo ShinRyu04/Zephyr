@@ -5,8 +5,9 @@ import { useAiDebug } from '../../lib/aiDebugStore';
 import { useToolGate } from '../../lib/toolGate';
 import { usePersona } from '../../lib/personaStore';
 import { useAgentCustom } from '../../lib/agentCustomStore';
+import { useSettingsUi } from '../../lib/settingsStore';
 import { useT, tf } from '../../lib/i18n';
-import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
+import { Row, Section, Select, TextInput, Toggle, VoiceKeyRow } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
 import { CLI_TABS } from '../../lib/aiTabsStore';
@@ -152,10 +153,26 @@ export default function ChatSettingsPage({
     if (daftarPersona.length === 0) muatPersona();
   }, [daftarPersona.length, muatPersona]);
 
+  /*
+   * Load the key list on mount.
+   *
+   * `VoiceKeyRow` reads `useSettingsUi.keys`, and the only thing that ever
+   * filled it was the Models page. Without this, a key saved earlier shows as
+   * "no key" here — and pressing Save would look like it failed while it
+   * actually worked, which is the worst of both.
+   */
+  useEffect(() => {
+    void useSettingsUi.getState().loadKeys();
+  }, []);
+
   /* Settings-backed fields. */
   const settings = useStore((s) => s.settings);
   const apply = useStore((s) => s.applySettings);
   const models = settings.models;
+  /* The provider a voice key falls back to when its own provider is unset —
+     the same rule the Voice/Mic settings pages use, so a key saved here and one
+     saved there land on the same entry. */
+  const providerAktif = models.activeProvider || 'custom';
   const agents = settings.agents;
   const voice = settings.voice;
   const mic = settings.mic;
@@ -866,6 +883,37 @@ export default function ChatSettingsPage({
       ),
       isDefault: (mic?.model ?? '') === '',
       reset: () => void apply({ mic: { model: '' } }),
+    },
+    {
+      section: 'voice',
+      id: 'voicekey',
+      label: 'Voice API key',
+      hint: 'Saved like a chat key. Empty means the provider key is used. Local servers need none.',
+      words: 'voice neural api key secret token tts credential save',
+      ctl: (
+        <VoiceKeyRow
+          provider={(voice?.neuralProvider || providerAktif) + '-voice'}
+          testid="cset-voicekey"
+        />
+      ),
+      /* A key is not a value with a default: it is either set or it is not, and
+         there is nothing to "put back". It stays out of the @modified filter for
+         the same reason — a saved key is configuration, not a changed setting. */
+      isDefault: true,
+    },
+    {
+      section: 'voice',
+      id: 'mickey',
+      label: 'Dictation API key',
+      hint: 'Saved like a chat key. Empty means the provider key is used. Local servers need none.',
+      words: 'voice mic dictation api key secret token stt credential save',
+      ctl: (
+        <VoiceKeyRow
+          provider={(mic?.provider || providerAktif) + '-voice'}
+          testid="cset-mickey"
+        />
+      ),
+      isDefault: true,
     },
 
     {
