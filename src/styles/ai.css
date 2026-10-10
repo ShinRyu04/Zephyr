@@ -9178,3 +9178,79 @@
   line-height: 1.5;
   color: var(--text);
 }
+
+/* ── Agent Customizations: katalog skills ───────────────────────────────── */
+.agc-katalog {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.agc-katalog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agc-katalog-head .agc-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agc-katalog-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/*
+ * Its own scroll area with a fixed height. The list can hold hundreds of rows
+ * and the pane already scrolls; without a bounded box the catalog would push
+ * the reader's own skills off the screen and the search box would scroll away
+ * with them — the search is the only reason the list is usable at this size.
+ */
+.agc-katalog-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.agc-katalog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.agc-katalog-row:last-child {
+  border-bottom: none;
+}
+
+.agc-katalog-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agc-katalog-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+}
+
+.agc-katalog-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

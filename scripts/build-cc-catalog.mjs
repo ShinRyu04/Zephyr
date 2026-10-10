@@ -26,15 +26,46 @@ function frontmatter(md) {
   const m = md.match(/^---\n([\s\S]*?)\n---\n?/);
   if (!m) return { meta: {}, body: md };
   const meta = {};
-  for (const line of m[1].split('\n')) {
+  const baris = m[1].split('\n');
+  for (let n = 0; n < baris.length; n++) {
+    const line = baris[n];
     const i = line.indexOf(':');
     if (i < 0) continue;
     const k = line.slice(0, i).trim();
+    if (!k) continue;
     let v = line.slice(i + 1).trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+
+    /*
+     * YAML block scalars: `description: >` (folded) and `description: |`
+     * (literal).
+     *
+     * The value is on the FOLLOWING lines, indented. Reading only the line that
+     * holds the key stored the marker itself as the value, so 13 catalog skills
+     * arrived with their description rendered as ">" and the real text thrown
+     * away — visible in the UI as a row whose summary is one angle bracket.
+     *
+     * Folded joins with spaces, literal keeps newlines. That is what the markers
+     * mean, and a skill description is a sentence, so folding is usually the one
+     * that applies; both are handled because both appear in the wild.
+     */
+    if (v === '>' || v === '|' || v === '>-' || v === '|-' || v === '>+' || v === '|+') {
+      const lipat = v.startsWith('>');
+      const kumpul = [];
+      let j = n + 1;
+      for (; j < baris.length; j++) {
+        const l = baris[j];
+        if (l.trim() === '') { kumpul.push(''); continue; }
+        /* A line at column 0 ends the block. */
+        if (!/^\s/.test(l)) break;
+        kumpul.push(l.trim());
+      }
+      n = j - 1;
+      v = lipat ? kumpul.join(' ').replace(/\s+/g, ' ').trim() : kumpul.join('\n').trim();
+    } else if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
       v = v.slice(1, -1);
     }
-    if (k) meta[k] = v;
+
+    meta[k] = v;
   }
   return { meta, body: md };
 }

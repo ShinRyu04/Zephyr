@@ -1,0 +1,29 @@
+feat(ai): browser katalog skills di Agent Customizations
+
+- Tombol "Browse catalog" di grup Workspace dan User. 428 skill bawaan
+  bisa dicari dan dipasang, dan yang dipasang ditulis lewat
+  useSkills().simpan - jalur yang sama dengan skill ketik tangan, jadi
+  hasilnya skill biasa setelahnya.
+- Daftar dibatasi 40 baris dan punya kotak scroll sendiri. Merender 428
+  baris membuat kotak pencarian tidak terpakai justru saat pembaca
+  sedang menyempitkan daftar; jumlah sebenarnya tetap dilaporkan di
+  atas, jadi tidak ada yang disembunyikan tanpa dikatakan.
+- Baris yang sudah ada menampilkan "Installed", bukan tombol yang akan
+  menimpa editan pembaca.
+- Sengaja TIDAK memakai CatalogBrowser milik CliSlashPanel: yang itu
+  memasang ke ~/.claude/skills/, tempat CLI claude membacanya. Pane ini
+  untuk agent Zephyr, yang membaca .zephyr/skills/ dan folder data app -
+  memakai komponen itu akan memasang setiap skill di tempat yang
+  daftar pane ini sendiri tidak bisa lihat.
+- Daftar disaring ke kind 'skill': katalog juga membawa 224 agent, dan
+  agent milik sistem subagent yang bentuknya beda (peran, allowlist
+  tool). Menawarkannya di pane bernama Skills akan menyimpan sesuatu
+  sebagai .md yang tidak dibaca siapa pun sebagai agent.
+
+build-cc-catalog.mjs: frontmatter YAML block scalar (">" dan "|")
+ditangani. Sebelumnya nilai di baris berikutnya dibuang dan marker-nya
+sendiri yang tersimpan, jadi 13 skill datang dengan deskripsi berisi
+satu karakter ">". Sekarang 1 tersisa, dan itu memang tidak punya field
+description di sumbernya.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
