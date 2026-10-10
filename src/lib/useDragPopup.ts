@@ -126,3 +126,18 @@ export function useDragEverywhere<T extends HTMLElement = HTMLDivElement>() {
 
   return { popupRef, onPointerDown };
 }
+
+/*
+ * ## Menus are deliberately NOT draggable
+ *
+ * The … menu, the new-chat caret, the composer plus button and the model picker
+ * all open a menu that is 'position: absolute' against the button that opened
+ * it, and that closes on the first click outside. Making those draggable would
+ * do one of two bad things: move the menu away from its button while the button
+ * stays put, so the menu no longer belongs to the control it came from; or move
+ * the button, which is not what the reader grabbed.
+ *
+ * A floating WINDOW is a different thing: it has no anchor, so where it sits is
+ * entirely the readers business. That is why the eight dialogs use
+ * useDragEverywhere and these do not.
+ */
