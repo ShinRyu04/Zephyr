@@ -63,7 +63,6 @@ mod tests_git;
 mod tests_log;
 mod tests_mcp;
 mod titlebar;
-mod voice;
 mod web;
 mod workspace;
 
@@ -350,9 +349,6 @@ pub fn run() {
             ai::ai_capture_get,
             ai::ai_capture_clear,
             ai::ai_cancel,
-            voice::ai_transcribe,
-            voice::ai_speak,
-            voice::ai_tts_voices,
             cli_ext::ai_archive_tool_output,
             cli_ext::ai_read_tool_output,
             cli_agents::cli_agents_detect,

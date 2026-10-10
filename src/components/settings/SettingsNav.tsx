@@ -10,8 +10,6 @@ const NAV_KEY: Record<SectionId, string> = {
   shortcuts: 'settings.shortcuts',
   models: 'settings.models',
   agents: 'settings.agents',
-  voice: 'settings.voice',
-  mic: 'settings.mic',
   rules: 'settings.rules',
   subagent: 'settings.subagent',
   permissions: 'settings.permissions',
@@ -61,25 +59,6 @@ export function NavIcon({ id }: { id: SectionId }) {
         <svg {...p}>
           <rect x="1.8" y="4.4" width="12.4" height="7.2" rx="1.6" {...st} />
           <path d="M4.4 7h.01M6.6 7h.01M8.8 7h.01M11 7h.01M5.4 9.4h5.2" {...st} />
-        </svg>
-      );
-    /*
-     * A speaker with sound leaving it, which is the one glyph that says "this
-     * page is about audio" without also meaning "microphone" - the mic icon is
-     * already spoken for by the composer's dictation button.
-     */
-    case 'voice':
-      return (
-        <svg {...p}>
-          <path d="M2.4 6.2h2.2l2.9-2.4v8.4L4.6 9.8H2.4z" {...st} />
-          <path d="M9.8 6.1a2.8 2.8 0 010 3.8M11.7 4.2a5.2 5.2 0 010 7.6" {...st} />
-        </svg>
-      );
-    case 'mic':
-      return (
-        <svg {...p}>
-          <rect x="6" y="1.8" width="4" height="7.4" rx="2" {...st} />
-          <path d="M4 7.4a4 4 0 008 0M8 11.4v2.4M5.8 13.8h4.4" {...st} />
         </svg>
       );
     /* A shield with a check: rules that GUARD a write. Distinct from Settings

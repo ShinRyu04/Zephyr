@@ -5046,10 +5046,6 @@ export const useAi = create<AiStore>((set0, get) => {
      * end of a long async turn, and the settings may have been changed while the
      * model was still answering. The user's LAST choice is the one to honour.
      */
-    /* Speech output was removed from Zephyr, so there is no auto-read here any
-       more: `voice.speakReplies` no longer has a reader. See the Voice section's
-       removal note in the settings store. */
-
     // Failed provider/watchdog runs keep follow-ups visible and are never
     // automatically rerun. Successful runs retain the existing queue drain;
     // user cancellation also remains non-draining.
