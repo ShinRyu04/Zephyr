@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
 import { useToolGate, SEMUA_TOOL } from '../../lib/toolGate';
 import { useT } from '../../lib/i18n';
@@ -213,6 +214,7 @@ function Isi({ section }: { section: AgentCustomSection }) {
 export default function AgentCustomModal() {
   const tr = useT();
   const open = useAgentCustom((s) => s.open);
+  const { popupRef, onPointerDown } = useDragEverywhere();
   const section = useAgentCustom((s) => s.section);
   const setSection = useAgentCustom((s) => s.setSection);
   const tutup = useAgentCustom((s) => s.tutup);
@@ -222,7 +224,15 @@ export default function AgentCustomModal() {
 
   return (
     <div className="modal-backdrop agc-backdrop" role="presentation" data-testid="agent-custom">
-      <div className="modal agc-modal" role="dialog" aria-modal="true" aria-label={tr('Agent Customizations')}>
+      <div
+        className="modal agc-modal"
+        ref={popupRef}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
+        role="dialog"
+        aria-modal="true"
+        aria-label={tr('Agent Customizations')}
+      >
         <div className="agc-head">
           <span className="agc-head-title">
             {tr('Agent Customizations')}

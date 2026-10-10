@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useGit } from '../../lib/gitStore';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 import { useT } from '../../lib/i18n';
 
 export default function ScmConfirmDialog() {
@@ -19,6 +20,7 @@ export default function ScmConfirmDialog() {
     aktif: !!confirm,
     onEscape: () => setConfirm(null),
   });
+  const { popupRef, onPointerDown } = useDragEverywhere();
 
   if (!confirm) return null;
 
@@ -70,7 +72,20 @@ export default function ScmConfirmDialog() {
         if (e.key === 'Escape') setConfirm(null);
       }}
     >
-      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="scm-cf-title">
+      <div
+        className="modal"
+        ref={(el) => {
+          /* Both refs on one node: the focus trap keeps Tab inside, the drag
+             hook moves it. A wrapper would break the trap's own bounds. */
+          trapRef.current = el;
+          popupRef.current = el;
+        }}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="scm-cf-title"
+      >
         <h2 className="modal-title" id="scm-cf-title" data-testid="scm-confirm-title">
           {title}
         </h2>
