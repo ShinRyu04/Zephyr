@@ -8979,21 +8979,26 @@
 }
 
 /*
- * Editor tab: the composer sits ON the chip row, VSCode-style.
+ * The composer sits ON the chip row — in every home.
  *
- * In the docked column the composer floats above the panel's bottom edge, so it
- * keeps a 20px bottom margin and the chip row below it gets its own 4px — a gap
- * that reads as deliberate separation when the panel is one narrow column. In
- * the editor tab the two are the bottom of a full-height view with nothing under
- * them: the same additively-stacked margins (20px + 4px = 24px measured) push
- * the composer up off the floor and leave a band of empty background between the
- * send button and the chips. Closing that gap is what "bring the composer down
- * next to the Interactive chips" asks for.
+ * This was scoped to the editor tab at first, and that was the wrong scope: the
+ * three homes (right column compact, right column maximised, editor tab) are the
+ * SAME conversation in the SAME panel, so a reader who moves the chat between
+ * them should not watch the composer re-seat itself. Measured before this: 24px
+ * of dead space between the send button and the Interactive chips in the column,
+ * 2px in the editor tab.
+ *
+ * Why the gap existed: the composer floats above the panel's bottom edge in the
+ * docked column and keeps a 20px bottom margin, and the chip row adds its own
+ * 4px on top. Those are additive, so the two together left a band of empty
+ * background under the send button. The chip row's own margins are then set so
+ * the row still has breathing room from the panel edge without re-opening the
+ * gap above it.
  */
-.ai-view-chat .ai-input-row {
+.ai-panel .ai-input-row {
   margin-bottom: 0;
 }
-.ai-view-chat .ai-botbar {
+.ai-panel .ai-botbar {
   margin-top: 2px;
   margin-bottom: 6px;
 }
