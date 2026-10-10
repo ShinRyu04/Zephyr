@@ -1412,11 +1412,11 @@ function makeSession(model: string, provider: string): ChatSession {
   };
 }
 
-function loadSessions(): { sessions: ChatSession[]; activeId: string | null } {
+function loadSessions(): { sessions: ChatSession[]; activeId: string | null; activeIds: Record<string, string | null> } {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { sessions: [], activeId: null };
-    const parsed = JSON.parse(raw) as { sessions?: ChatSession[]; activeId?: string };
+    if (!raw) return { sessions: [], activeId: null, activeIds: {} };
+    const parsed = JSON.parse(raw) as { sessions?: ChatSession[]; activeId?: string; activeIds?: Record<string, string | null> };
     const sessions = (parsed.sessions ?? [])
       .filter((s) => s && Array.isArray(s.messages))
       .map((s) => ({
@@ -1429,9 +1429,20 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null } {
     const activeId = sessions.some((s) => s.id === parsed.activeId)
       ? (parsed.activeId as string)
       : (sessions[0]?.id ?? null);
-    return { sessions, activeId };
+    /*
+     * Per-surface ids are restored too, but any that lost its chat (trimmed to
+     * the last 20, or deleted on another window) falls back to the primary —
+     * a surface pointing at a missing session would render an empty transcript
+     * with no way to tell why.
+     */
+    const activeIds: Record<string, string | null> = { '': activeId };
+    for (const [k, v] of Object.entries(parsed.activeIds ?? {})) {
+      if (k === '') continue;
+      activeIds[k] = sessions.some((s) => s.id === v) ? v : activeId;
+    }
+    return { sessions, activeId, activeIds };
   } catch {
-    return { sessions: [], activeId: null };
+    return { sessions: [], activeId: null, activeIds: {} };
   }
 }
 
@@ -1450,6 +1461,22 @@ export interface AgentProgress {
 
 interface AiState {
   sessions: ChatSession[];
+
+  /*
+   * Which conversation each SURFACE is showing, keyed by composer id.
+   *
+   * Two `AiPanel`s can be mounted at once — the docked right column and the
+   * editor tab — and they are two independent chats, not one shown twice. A
+   * single `activeId` made them share a conversation, so sending from the editor
+   * also appended the exchange to the column's transcript and ran the column's
+   * streaming. Keyed like `drafts`, with `''` as the primary surface (the right
+   * column), so every existing no-id call site keeps its old meaning.
+   *
+   * `activeId` (below) remains the PRIMARY surface's id, kept in sync so the
+   * ~20 places that read it for the docked panel — the agent loop, persistence,
+   * the model/approval writers — need no change.
+   */
+  activeIds: Record<string, string | null>;
   activeId: string | null;
 
   model: string;
@@ -1672,7 +1699,7 @@ interface AiActions {
 
   setReasoningEffort: (e: ReasoningEffort | null) => void;
 
-  sendAgent: (text: string, images?: string[], tampilBubble?: string) => Promise<boolean>;
+  sendAgent: (text: string, images?: string[], tampilBubble?: string, composerId?: string) => Promise<boolean>;
 
   /**
    * Manually compact the active session's context.
@@ -1683,8 +1710,8 @@ interface AiActions {
    */
   compactContext: (keep?: number) => number;
 
-  newChat: () => string;
-    selectChat: (id: string) => void;
+  newChat: (id?: string) => string;
+    selectChat: (id: string, composerId?: string) => void;
     deleteChat: (id: string) => void;
 
     clearAllChats: () => void;
@@ -1697,7 +1724,7 @@ interface AiActions {
 
     exportChat: () => Promise<void>;
 
-  send: (text?: string, images?: string[]) => Promise<boolean>;
+  send: (text?: string, images?: string[], composerId?: string) => Promise<boolean>;
 
   /* Drop one queued message, or clear the whole queue. */
   buangAntrian: (idx: number | string) => void;
@@ -1750,7 +1777,7 @@ interface AiActions {
    * busy: it stops the current run first and waits for it to unwind. When
    * that wait times out the message is queued instead of thrown away.
    */
-  kirimSekarang: (teks: string, images?: string[]) => Promise<void>;
+  kirimSekarang: (teks: string, images?: string[], composerId?: string) => Promise<void>;
   /**
    * Continue the last provider-interrupted run from its checkpoint.
    *
@@ -1778,7 +1805,7 @@ function persist(state: AiState) {
         tools: m.tools?.map((t) => ({ ...t, result: t.result.slice(0, PERSIST_TOOL_CHARS) })),
       })),
     }));
-    localStorage.setItem(LS_KEY, JSON.stringify({ sessions, activeId: state.activeId }));
+    localStorage.setItem(LS_KEY, JSON.stringify({ sessions, activeId: state.activeId, activeIds: state.activeIds }));
   } catch {
     /* quota full — the chat still runs in memory */
   }
@@ -1858,6 +1885,7 @@ function bootEffort(): ReasoningEffort | null {
 export const useAi = create<AiStore>((set, get) => ({
   sessions: boot.sessions,
   activeId: boot.activeId,
+  activeIds: boot.activeIds,
   model: 'custom-model',
   provider: 'custom',
   pending: null,
@@ -2195,7 +2223,7 @@ export const useAi = create<AiStore>((set, get) => ({
    * ceiling so a pathological provider cannot wedge the button forever. If
    * the ceiling is hit the message is queued instead, which is always safe.
    */
-  kirimSekarang: async (teks, images) => {
+  kirimSekarang: async (teks, images, composerId = '') => {
     const teksBersih = (teks ?? '').trim();
     // "lanjut" with a pending checkpoint continues the interrupted run from
     // where it stopped instead of starting a new one on top of the failure.
@@ -2206,7 +2234,7 @@ export const useAi = create<AiStore>((set, get) => ({
     const imgs = images ?? get().draftImages;
     if (!teksBersih && imgs.length === 0) return;
     if (!get().pending && !get().agentBusy) {
-      await get().send(teksBersih, imgs);
+      await get().send(teksBersih, imgs, composerId);
       return;
     }
     await get().cancel();
@@ -2623,7 +2651,7 @@ export const useAi = create<AiStore>((set, get) => ({
     return lama.length;
   },
 
-  newChat: () => {
+  newChat: (id = '') => {
     const st = get();
     const s = makeSession(st.model, st.provider);
 
@@ -2632,14 +2660,34 @@ export const useAi = create<AiStore>((set, get) => ({
        it cannot flush into the NEW chat on the next frame. */
     batalkanFlushChunk();
     chunkBuf.clear();
-    set((x) => ({ sessions: [...x.sessions, s], activeId: s.id, drafts: {} }));
+    /*
+     * The new chat becomes the active one for the surface that asked for it, and
+     * only for that surface. `activeId`/`drafts['']` are the primary surface's
+     * copies, so they follow only when the primary asked.
+     */
+    set((x) => ({
+      sessions: [...x.sessions, s],
+      activeIds: { ...x.activeIds, [id]: s.id },
+      ...(id === '' ? { activeId: s.id } : {}),
+      drafts: id === '' ? {} : x.drafts,
+    }));
     persist(get());
     return s.id;
   },
 
-  selectChat: (id) => {
+  selectChat: (id, composerId = '') => {
     const s = get().sessions.find((x) => x.id === id);
-    set({ activeId: id, approvalMode: s?.approval ?? get().approvalMode });
+    set((st) => ({
+      activeIds: { ...st.activeIds, [composerId]: id },
+      ...(composerId === '' ? { activeId: id } : {}),
+      /*
+       * Approval mode is a property of the CHAT, not the surface — switching the
+       * docked panel to a chat whose approval is 'auto' must not silently change
+       * what the editor tab's chat will do. Only the primary surface's switch
+       * updates it, which is the behaviour every existing caller expects.
+       */
+      ...(composerId === '' ? { approvalMode: s?.approval ?? get().approvalMode } : {}),
+    }));
     persist(get());
   },
 
@@ -2656,16 +2704,29 @@ export const useAi = create<AiStore>((set, get) => ({
        * kosong sebagai gantinya — jumlah sesi tidak pernah berkurang dan
        * tombol hapus terlihat rusak. Membuat chat baru hanya benar kalau
        * memang sudah tidak ada sisa sama sekali.
+       *
+       * EVERY surface pointing at the deleted chat moves, not just the primary:
+       * the editor tab and the right column can each have that chat open, and
+       * leaving one of them pointing at a chat that no longer exists would blank
+       * its transcript while `activeIds` still claimed a session.
        */
-      const activeId = s.activeId === id ? (sessions[sessions.length - 1]?.id ?? null) : s.activeId;
-      return { sessions, activeId };
+      const gantinya = sessions[sessions.length - 1]?.id ?? null;
+      const activeIds: Record<string, string | null> = { ...s.activeIds };
+      for (const k of Object.keys(activeIds)) {
+        if (activeIds[k] === id) activeIds[k] = gantinya;
+      }
+      const activeId = s.activeId === id ? gantinya : s.activeId;
+      return { sessions, activeId, activeIds };
     });
     if (get().sessions.length === 0) get().newChat();
     persist(get());
   },
 
   clearAllChats: () => {
-    set({ sessions: [], activeId: null, clearAllOpen: false });
+    /* Every surface loses its chat here, not just the primary — the sessions
+       themselves are gone, so any id left in `activeIds` would be a dangling
+       reference to a chat that no longer exists. */
+    set({ sessions: [], activeId: null, activeIds: {}, clearAllOpen: false });
     get().newChat();
     set({ toast: tx('Chat history cleared') });
   },
@@ -2804,7 +2865,7 @@ export const useAi = create<AiStore>((set, get) => ({
     return true;
     },
 
-  send: async (text, images): Promise<boolean> => {
+  send: async (text, images, composerId = ''): Promise<boolean> => {
     get().sinkronProvider();
     const diketik = (text ?? get().drafts[''] ?? '').trim();
 
@@ -2815,7 +2876,9 @@ export const useAi = create<AiStore>((set, get) => ({
      * slip the command text through to the model.
      */
     {
-      const sid = get().activeId;
+      /* The surface's own chat: a job started from the editor tab belongs to the
+         editor tab's conversation, not to whatever the right column has open. */
+      const sid = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
       if (sid && get().jalankanPerintahKerja(diketik, sid)) {
         set({ drafts: {}, draftImages: [] });
         return true;
@@ -2858,7 +2921,7 @@ export const useAi = create<AiStore>((set, get) => ({
         set({ drafts: {}, draftImages: [], toast: tx('Added to the queue') });
         return true;
       }
-      return get().sendAgent(raw, imgs, tampil);
+      return get().sendAgent(raw, imgs, tampil, composerId);
     }
     if (get().pending) {
       // Same rule in chat mode: queue it rather than dropping the text.
@@ -2898,8 +2961,18 @@ export const useAi = create<AiStore>((set, get) => ({
       return false;
     }
 
-    let sessionId = get().activeId;
-    if (!sessionId) sessionId = get().newChat();
+    /*
+     * The chat this message belongs to is the SENDING SURFACE's, not the
+     * primary one's.
+     *
+     * This is the line that made the two surfaces share a conversation: the
+     * editor tab's composer sent into whatever chat the right column had open,
+     * so a message typed in the editor was appended to the column's transcript
+     * and the column showed the streaming reply. `activeIds[composerId]` scopes
+     * it; the fallback keeps no-id callers (queued drains, tests) on the primary.
+     */
+    let sessionId = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
+    if (!sessionId) sessionId = get().newChat(composerId);
 
     let attached: ChatMsg['attached'];
     let payloadContent = content;
@@ -3175,7 +3248,7 @@ export const useAi = create<AiStore>((set, get) => ({
     return true;
   },
 
-  sendAgent: async (raw, explicitImages, tampilBubble) => {
+  sendAgent: async (raw, explicitImages, tampilBubble, composerId = '') => {
     get().sinkronProvider();
     clearGambarMenunggu();
     if (get().pending || get().agentBusy) {
@@ -3211,8 +3284,18 @@ export const useAi = create<AiStore>((set, get) => ({
       );
     }
 
-    let sessionId = get().activeId;
-    if (!sessionId) sessionId = get().newChat();
+    /*
+     * The chat this message belongs to is the SENDING SURFACE's, not the
+     * primary one's.
+     *
+     * This is the line that made the two surfaces share a conversation: the
+     * editor tab's composer sent into whatever chat the right column had open,
+     * so a message typed in the editor was appended to the column's transcript
+     * and the column showed the streaming reply. `activeIds[composerId]` scopes
+     * it; the fallback keeps no-id callers (queued drains, tests) on the primary.
+     */
+    let sessionId = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
+    if (!sessionId) sessionId = get().newChat(composerId);
 
     const userMsg: ChatMsg = {
       id: nextId('m'),
