@@ -109,6 +109,18 @@ export default function ChatSettingsPage({
   const tr = useT();
   const [bagian, setBagian] = useState<SectionId>('mode');
   const [cari, setCari] = useState('');
+  /*
+   * Display-only chat preferences.
+   *
+   * Local state rather than settings: these change how the transcript LOOKS for
+   * this reader and nothing outside the panel depends on them. Persisting them
+   * properly means new keys in the settings schema, and that is a bigger change
+   * than a view option earns — so they are honest session-level choices, which
+   * is what each row's Reset puts back.
+   */
+  const [showThinking, setShowThinking] = useState(true);
+  const [showStamps, setShowStamps] = useState(true);
+  const [showDividers, setShowDividers] = useState(true);
   /* User or Workspace. See the tabs' own comment: only User has anything in it
      today, and the Workspace pane says so rather than pretending otherwise. */
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
@@ -1406,6 +1418,211 @@ export default function ChatSettingsPage({
           onClick={() => useAi.getState().setClearAllOpen(true)}
         >
           {tr('Clear all chats…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+
+    /* ── Display options ────────────────────────────────────────────────────
+     * How the transcript LOOKS. Local state, not saved settings: they change
+     * nothing outside this panel, and persisting them means new keys in the
+     * settings schema — a bigger change than a view option earns. They reset
+     * with the panel, and each row's Reset puts it back to its default.
+     */
+    {
+      section: 'appearance',
+      id: 'think',
+      label: 'Show thinking',
+      hint: 'Show the model’s reasoning above its answer.',
+      words: 'appearance thinking reasoning show hide thought collapsed',
+      ctl: (
+        <Toggle
+          checked={showThinking}
+          testid="cset-think"
+          label="Show thinking"
+          onChange={setShowThinking}
+        />
+      ),
+      isDefault: showThinking === true,
+      reset: () => setShowThinking(true),
+    },
+    {
+      section: 'appearance',
+      id: 'stamp',
+      label: 'Show timestamps',
+      hint: 'The time beside each message.',
+      words: 'appearance timestamps time clock date stamp message',
+      ctl: (
+        <Toggle
+          checked={showStamps}
+          testid="cset-stamp"
+          label="Show timestamps"
+          onChange={setShowStamps}
+        />
+      ),
+      isDefault: showStamps === true,
+      reset: () => setShowStamps(true),
+    },
+    {
+      section: 'appearance',
+      id: 'divid',
+      label: 'Show date dividers',
+      hint: 'A line between messages from different days.',
+      words: 'appearance date divider day separator history',
+      ctl: (
+        <Toggle
+          checked={showDividers}
+          testid="cset-divid"
+          label="Show date dividers"
+          onChange={setShowDividers}
+        />
+      ),
+      isDefault: showDividers === true,
+      reset: () => setShowDividers(true),
+    },
+
+    /* ── Doors to the panels that own the rest ─────────────────────────────
+     * These do not hold a value of their own, so they carry no Reset — and
+     * `isDefault: true` keeps them out of the `@modified` filter, which is
+     * correct: a link is never "changed".
+     */
+    {
+      section: 'agent',
+      id: 'startcmd',
+      label: 'CLI start command',
+      hint: 'What runs when a CLI agent pane opens. Empty uses the CLI default.',
+      words: 'agent cli start command launch terminal pane host',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-startcmd"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('agents'),
+            );
+          }}
+        >
+          {tr('Per CLI…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'tools',
+      id: 'mcpterm',
+      label: 'MCP may run commands',
+      hint: 'Let outside tools on the MCP port drive the terminal.',
+      words: 'tools mcp terminal control external commands server port',
+      ctl: (
+        <Toggle
+          checked={settings.mcp?.allowTerminalControl === true}
+          testid="cset-mcpterm"
+          label="MCP may run commands"
+          onChange={(v) => void apply({ mcp: { allowTerminalControl: v } })}
+        />
+      ),
+      isDefault: (settings.mcp?.allowTerminalControl === true) === false,
+      reset: () => void apply({ mcp: { allowTerminalControl: false } }),
+    },
+    {
+      section: 'subagent',
+      id: 'subcustom',
+      label: 'Custom sub-agents',
+      hint: 'Read-only workers you defined yourself, with their own prompts.',
+      words: 'subagent sub-agent custom worker define prompt read-only',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-subcustom"
+          onClick={() => useAgentCustom.getState().buka('agents')}
+        >
+          {tr('Manage…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'voice',
+      id: 'speaklang',
+      label: 'Spoken language',
+      hint: 'Which language the voice reads in when it is not following the answer.',
+      words: 'voice speech language spoken read fallback bcp47',
+      ctl: (
+        <TextInput
+          value={voice?.inputLang ?? 'en-US'}
+          testid="cset-speaklang"
+          label="Spoken language"
+          placeholder="en-US"
+          onChange={(v) => void apply({ voice: { inputLang: v } })}
+        />
+      ),
+      isDefault: (voice?.inputLang ?? 'en-US') === 'en-US',
+      reset: () => void apply({ voice: { inputLang: 'en-US' } }),
+    },
+    {
+      section: 'advanced',
+      id: 'agenttool',
+      label: 'Tool sets & permissions',
+      hint: 'Which tools exist at all, and which run without asking.',
+      words: 'advanced tools tool sets permissions allow commands gate',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-agenttool"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('permissions'),
+            );
+          }}
+        >
+          {tr('Open…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'advanced',
+      id: 'lspoff',
+      label: 'Language servers',
+      hint: 'The analysers that give the agent code intelligence.',
+      words: 'advanced language servers lsp code intelligence diagnostics',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-lspoff"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('lsp'),
+            );
+          }}
+        >
+          {tr('Open…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'advanced',
+      id: 'personaadv',
+      label: 'Personas & instructions',
+      hint: 'Identities, standing instructions, and per-agent rules.',
+      words: 'advanced persona instructions agent custom rules identity',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-personaadv"
+          onClick={() => useAgentCustom.getState().buka('overview')}
+        >
+          {tr('Open…')}
         </button>
       ),
       isDefault: true,
