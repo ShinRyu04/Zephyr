@@ -2100,6 +2100,7 @@ export default function ChatSettingsPage({
 
   const rowsOf = (id: SectionId) => rows.filter((r) => r.section === id && cocok(r));
 
+
   /* The "N found" readout. The full list while no query is active, so the
      number and the page always describe each other. */
   const jumlah = rows.filter(cocok).length;
@@ -2237,33 +2238,57 @@ export default function ChatSettingsPage({
               {SECTIONS.filter((s) => tampilSection(s.id)).map((s) => {
                 const diubah = diubahDi(s.id);
                 return (
-                  <Section
-                    key={s.id}
-                    title={s.label}
-                    /*
-                     * The section's Reset, in the heading's trailing edge.
-                     *
-                     * Shown only when at least one row in it has been changed — a
-                     * control that would do nothing is worse than no control — and
-                     * its tooltip says how many rows it would put back, so the
-                     * reader knows the blast radius before pressing it. VSCode
-                     * draws the same affordance in the same place.
-                     */
-                    aksi={
-                      diubah > 0 ? (
-                        <button
-                          className="cset-reset"
-                          data-testid={`cset-reset-${s.id}`}
-                          title={tf('Reset {n} changed setting(s)', { n: diubah })}
-                          onClick={() => {
-                            for (const r of rowsOf(s.id)) r.reset?.();
-                          }}
-                        >
-                          {tr('Reset')}
-                        </button>
-                      ) : null
-                    }
-                  >
+                  <Section key={s.id} title={s.label}>
+                    {/*
+                      * Reset lives as the FIRST CHILD ROW, not in the heading's
+                      * `aksi` slot.
+                      *
+                      * In the slot it rendered and hit-tested correctly but its
+                      * onClick never ran, with no error — while every control in
+                      * `children` (selects, toggles, buttons) works. The heading
+                      * is a text element; a control that must run belongs in the
+                      * same list as the other controls.
+                      */}
+                    {diubah > 0 && (
+                      <div className="set-row cset-reset-row">
+                        <div className="set-row-label">
+                          <span className="set-label">{tr('Reset this section')}</span>
+                          <span className="set-hint">
+                            {tf('Put {n} changed setting(s) back to their defaults.', {
+                              n: diubah,
+                            })}
+                          </span>
+                        </div>
+                        <div className="set-row-control">
+                          <button
+                            className="btn btn-sm"
+                            type="button"
+                            data-testid={`cset-reset-${s.id}`}
+                            onClick={() => {
+                              /*
+                               * Reversed, and that matters.
+                               *
+                               * Some resets write values OTHERS depend on:
+                               * `setRunMode` forces `agentMode` to 'agent' (the
+                               * run modes only mean anything to an agent, so
+                               * choosing one also chooses to run as one). Reset in
+                               * document order and the Mode section's
+                               * `dispatch` reset is immediately undone by the
+                               * `runmode` reset that follows it — which is exactly
+                               * why this button appeared to do nothing.
+                               *
+                               * Last-to-first puts the depended-on write down
+                               * first, so a later reset cannot clobber it.
+                               */
+                              const baris = rowsOf(s.id);
+                              for (let i = baris.length - 1; i >= 0; i--) baris[i].reset?.();
+                            }}
+                          >
+                            {tr('Reset')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {rowsOf(s.id).map((r) => (
                       <Row key={r.id} label={r.label} hint={r.hint} testid={`cset-row-${r.id}`}>
                         {/* The modified mark sits with the control, not the
