@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { skillsList, skillRead, skillWrite, skillDelete, type SkillInfo } from './commands';
+import { resetCacheKonteks } from './aiStore';
 
 /*
  * Skills, read from and written to DISK through the Rust backend.
@@ -95,6 +96,14 @@ export const useSkills = create<SkillsState>((set, get) => ({
     set({ sibuk: true, galat: null });
     try {
       await skillWrite({ name, description, content, scope });
+      /*
+       * The prompt builder caches  for 60 seconds, which is
+       * right for a read that rarely changes and wrong for this: the reader
+       * saves a skill, sends a message, and the agent does not know the skill
+       * exists yet. Dropping the cache here is what makes Save take effect on
+       * the very next turn rather than a minute later.
+       */
+      resetCacheKonteks();
       await get().muat();
       set({ sibuk: false });
       return true;
@@ -109,6 +118,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     try {
       await skillDelete(name);
       if (get().dibuka === name) set({ dibuka: null, isi: '' });
+      resetCacheKonteks();
       await get().muat();
       set({ sibuk: false });
       return true;
