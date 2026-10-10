@@ -9105,3 +9105,52 @@
   font-size: 12px;
   color: var(--text);
 }
+
+/* ── Agent Customizations: "Buat dengan AI" ─────────────────────────────── */
+/*
+ * The generate box and the draft it produces. Same visual family as the manual
+ * editor underneath, because the two paths end in the same place: a name, a
+ * description, a body, and a Save. A differently-styled box would suggest the
+ * AI path leads somewhere else.
+ */
+.agc-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+
+.agc-ai-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.agc-editor-draft {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+/*
+ * The "this is a suggestion" line. Accent-tinted rather than plain grey: it is
+ * the one sentence on this pane that the reader must not skip, because the text
+ * below it becomes instructions the agent follows.
+ */
+.agc-draft-note {
+  margin: 0 0 4px;
+  padding: 7px 9px;
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-radius: 0 5px 5px 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

@@ -7,6 +7,7 @@ import {
 } from '../../lib/agentExtrasStore';
 import AiIkon from '../ai/AiIkon';
 import { useSkills } from '../../lib/skillsStore';
+import { buatDraft, type DraftKind, type DraftHasil } from '../../lib/agentDraft';
 import type { SkillInfo } from '../../lib/commands';
 
 /*
@@ -191,6 +192,10 @@ export function AgcSkills() {
   const tr = useT();
   const { daftar, sibuk, galat, dibuka, buka, muat, bersihkanGalat } = useSkills();
   const [namaBaru, setNamaBaru] = useState<'workspace' | 'global' | null>(null);
+  /* Which scope's AI panel is open, if any. One at a time: a draft being
+     written and a second one being requested is two half-finished forms. */
+  const [aiKinds, setAiKinds] = useState<'workspace' | 'global' | null>(null);
+  const [draft, setDraft] = useState<DraftHasil | null>(null);
 
   /* Loaded on mount, and re-loaded whenever a write lands (the store does that
      itself) — so a skill added by hand or by `git pull` appears without a
@@ -242,8 +247,22 @@ export function AgcSkills() {
               </span>
               <button
                 className="btn btn-sm"
+                data-testid={`agc-skill-ai-${g.scope}`}
+                title={tr('Draft a skill from a description')}
+                onClick={() => {
+                  setAiKinds(g.scope);
+                  setNamaBaru(null);
+                }}
+              >
+                <AiIkon name="thought" size={12} /> {tr('Create with AI')}
+              </button>
+              <button
+                className="btn btn-sm"
                 data-testid={`agc-skill-add-${g.scope}`}
-                onClick={() => setNamaBaru(g.scope)}
+                onClick={() => {
+                  setNamaBaru(g.scope);
+                  setAiKinds(null);
+                }}
               >
                 <AiIkon name="plus" size={12} /> {tr('New Skill')}
               </button>
@@ -269,6 +288,37 @@ export function AgcSkills() {
         * to disk. Naming a file before its contents exist would leave an empty
         * SKILL.md in the prompt of every turn until the reader got back to it.
         */}
+      {aiKinds !== null && (
+        <section className="agc-group" data-testid="agc-skill-ai">
+          <div className="agc-group-head">
+            <span className="agc-group-title">
+              {tr('Create with AI')} - {aiKinds === 'workspace' ? tr('Workspace') : tr('User')}
+            </span>
+          </div>
+          <PanelAi
+            kind="skill"
+            onDraft={(d) => {
+              setDraft(d);
+              setNamaBaru(null);
+            }}
+            onBatal={() => {
+              setAiKinds(null);
+              setDraft(null);
+            }}
+          />
+          {draft && (
+            <DraftEditor
+              draft={draft}
+              scope={aiKinds}
+              onSelesai={() => {
+                setAiKinds(null);
+                setDraft(null);
+              }}
+            />
+          )}
+        </section>
+      )}
+
       {namaBaru !== null && (
         <section className="agc-group" data-testid="agc-skill-baru">
           <div className="agc-group-head">
@@ -277,6 +327,183 @@ export function AgcSkills() {
           <EditorBaru scope={namaBaru} onSelesai={() => setNamaBaru(null)} />
         </section>
       )}
+    </div>
+  );
+}
+
+/*
+ * "Buat dengan AI" — describe the skill, get a draft, review it, save it.
+ *
+ * Three deliberate properties:
+ *
+ *   - The result lands in the ORDINARY editor below, not straight on disk. What
+ *     the model produces is a suggestion; the reader sees the name, the
+ *     description and the body as fields they can change, and nothing exists as
+ *     a file until Save.
+ *
+ *   - No tools are sent with the request (`agentDraft.ts`). The model is asked
+ *     for text, so there is nothing it could run even if the prompt persuaded
+ *     it to try.
+ *
+ *   - A failure is shown where the button is. A draft the reader is waiting on
+ *     should say what went wrong rather than fail quietly.
+ */
+function PanelAi({
+  kind,
+  onDraft,
+  onBatal,
+}: {
+  kind: DraftKind;
+  onDraft: (d: DraftHasil) => void;
+  onBatal: () => void;
+}) {
+  const tr = useT();
+  const [permintaan, setPermintaan] = useState('');
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  const kirim = async () => {
+    setSibuk(true);
+    setGalat(null);
+    try {
+      const d = await buatDraft({ kind, permintaan });
+      onDraft(d);
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  const contoh =
+    kind === 'skill'
+      ? 'Buatkan skill untuk menjalankan test Zephyr. Pakai command sesuai jenis berkas yang berubah, jangan bilang test lulus kalau belum dijalankan, dan jelaskan kegagalannya.'
+      : kind === 'agent'
+        ? 'Buatkan agent untuk meninjau kode: cari bug dan masalah keamanan, jangan ubah berkas apa pun, dan mulai dari hak akses paling kecil.'
+        : 'Buatkan hook yang mencatat setiap kali agent selesai mengubah berkas, tanpa mengirim data ke mana pun.';
+
+  return (
+    <div className="agc-ai" data-testid={`agc-ai-${kind}`}>
+      <div className="agc-ai-head">
+        <AiIkon name="thought" size={13} />
+        <span>{tr('Describe it in plain language')}</span>
+      </div>
+      <textarea
+        className="agc-field agc-field-area"
+        data-testid={`agc-ai-input-${kind}`}
+        rows={4}
+        placeholder={tr(contoh)}
+        value={permintaan}
+        disabled={sibuk}
+        onChange={(e) => setPermintaan(e.target.value)}
+      />
+      {galat && (
+        <p className="agc-error" data-testid={`agc-ai-error-${kind}`} role="alert">
+          {galat}
+        </p>
+      )}
+      <div className="agc-editor-actions">
+        <button className="btn btn-sm" onClick={onBatal} disabled={sibuk}>
+          {tr('Cancel')}
+        </button>
+        <button
+          className="btn btn-sm btn-primary"
+          data-testid={`agc-ai-generate-${kind}`}
+          disabled={sibuk || permintaan.trim().length === 0}
+          onClick={() => void kirim()}
+        >
+          {sibuk ? tr('Generating…') : tr('Generate draft')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * The draft the model produced, in an editable form.
+ *
+ * Deliberately the same shape as `EditorBaru` — name, description, body, then
+ * Save — so "make one myself" and "have the AI make one" end in the same place.
+ * The reader is told the text is a suggestion, because a generated instruction
+ * that reads confidently is exactly the kind that should be checked before it
+ * becomes a file the agent follows.
+ */
+function DraftEditor({
+  draft,
+  scope,
+  onSelesai,
+}: {
+  draft: DraftHasil;
+  scope: 'workspace' | 'global';
+  onSelesai: () => void;
+}) {
+  const tr = useT();
+  const simpan = useSkills((s) => s.simpan);
+  const sibuk = useSkills((s) => s.sibuk);
+  const [nama, setNama] = useState(draft.name);
+  const [desc, setDesc] = useState(draft.description);
+  const [body, setBody] = useState(draft.body);
+
+  const bisa = nama.trim().length > 0 && body.trim().length > 0;
+
+  return (
+    <div className="agc-editor agc-editor-draft" data-testid="agc-draft-editor">
+      <p className="agc-draft-note">
+        {tr('This is a draft from the model. Check it before saving - it becomes instructions the agent follows.')}
+      </p>
+      <label className="agc-label" htmlFor="agc-draft-nama">
+        {tr('Name')}
+      </label>
+      <input
+        id="agc-draft-nama"
+        className="agc-field"
+        data-testid="agc-draft-nama"
+        value={nama}
+        onChange={(e) => setNama(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-draft-desc">
+        {tr('When the agent should use this')}
+      </label>
+      <input
+        id="agc-draft-desc"
+        className="agc-field"
+        data-testid="agc-draft-desc"
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-draft-body">
+        {tr('Instructions')}
+      </label>
+      <textarea
+        id="agc-draft-body"
+        className="agc-field agc-field-area"
+        data-testid="agc-draft-body"
+        rows={12}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      <div className="agc-editor-actions">
+        <button className="btn btn-sm" onClick={onSelesai} disabled={sibuk}>
+          {tr('Discard draft')}
+        </button>
+        <button
+          className="btn btn-sm btn-primary"
+          data-testid="agc-draft-simpan"
+          disabled={!bisa || sibuk}
+          onClick={() =>
+            void simpan({
+              name: nama.trim(),
+              description: desc,
+              content: body,
+              scope,
+            }).then((ok) => {
+              if (ok) onSelesai();
+            })
+          }
+        >
+          {tr('Save')}
+        </button>
+      </div>
     </div>
   );
 }
