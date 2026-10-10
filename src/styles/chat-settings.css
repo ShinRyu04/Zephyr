@@ -180,20 +180,24 @@
 .cset-pop {
   position: fixed;
   z-index: 641;
-  top: 56px;
+  top: 44px;
   /*
-   * Centred with `left` + `translate`, and the DRAG transform is added on top.
+   * Centred with `left` + calc, and the DRAG transform is added on top.
    *
    * The element's own `transform` is what `useDragPopup` writes to, so centring
    * cannot also live there — an inline `transform` replaces the stylesheet's,
-   * and the `translateX(-50%)` that centred the card was silently dropped: the
+   * and a `translateX(-50%)` that centred the card was silently dropped: the
    * overlay sat off the right edge and its buttons could not be clicked at all.
-   * `left: max(28px, calc(50% - 520px))` centres the 1040px card with plain
+   * `left: max(20px, calc(50% - 640px))` centres the 1280px card with plain
    * geometry, leaving `transform` free for the drag.
+   *
+   * Sized to match the Agent Customizations modal (1280x880): the two are the
+   * same kind of surface — a big settings page over the app — and a reader who
+   * opens one after the other should not see the window jump.
    */
-  left: max(28px, calc(50% - 520px));
-  width: min(1040px, calc(100vw - 56px));
-  height: min(760px, calc(100vh - 88px));
+  left: max(20px, calc(50% - 640px));
+  width: min(1280px, calc(100vw - 40px));
+  height: min(880px, calc(100vh - 60px));
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
@@ -434,4 +438,29 @@
 
 .cset-value:hover {
   border-color: var(--accent);
+}
+
+/* In the big popup the section column gets more room too: at 1280px the old
+   168px column carried a lot of empty space beside short section names, and the
+   extra width belongs to the content, not the margins. */
+.cset-pop .cset-nav {
+  flex: 0 0 196px;
+  padding: 14px 10px;
+}
+
+.cset-pop .cset-nav-item {
+  padding: 7px 11px;
+  font-size: 12.5px;
+}
+
+.cset-pop .cset-content {
+  padding: 18px 26px 36px;
+}
+
+/* The content column was capped by `.set-section { max-width: 780px }` from the
+   main Settings page, which leaves half of a 1280px modal unused and pushes the
+   controls to the far left. Widened here only — the Settings page keeps its
+   measure, because there the column is genuinely narrower. */
+.cset-content .set-section {
+  max-width: 980px;
 }

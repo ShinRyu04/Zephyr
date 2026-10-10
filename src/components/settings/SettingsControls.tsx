@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { useSettingsUi } from '../../lib/settingsStore';
 import { useT } from '../../lib/i18n';
 import { IkonAgen } from '../ai/IkonAgen';
 import type { IkonDef } from '../../lib/subagentIcons';
@@ -290,60 +289,5 @@ export function Pills({
         </button>
       ))}
     </div>
-  );
-}
-
-export function VoiceKeyRow({
-  provider,
-  testid,
-}: {
-  provider: string;
-  testid?: string;
-}) {
-  const tr = useT();
-  const keys = useSettingsUi((s) => s.keys);
-  const saveKey = useSettingsUi((s) => s.saveKey);
-  const entry = keys.find((k) => k.provider === provider);
-  const has = entry?.hasKey === true;
-  return (
-    <span className="prov-keyrow">
-      <input
-        className="set-text is-mono"
-        type="password"
-        placeholder={has ? `${tr('models.saved')}: ${entry?.preview ?? ''}` : tr('models.noKey')}
-        defaultValue=""
-        spellCheck={false}
-        aria-label={tr('Voice API key')}
-        data-testid={testid}
-        data-has-key={has ? '1' : ''}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter') return;
-          const el = e.target as HTMLInputElement;
-          if (!el.value.trim()) return;
-          void saveKey(provider, el.value).then(() => { el.value = ''; });
-        }}
-      />
-      <button
-        type="button"
-        className="btn btn-sm btn-primary"
-        onClick={(e) => {
-          const wrap = (e.target as HTMLElement).closest('.prov-keyrow');
-          const el = wrap?.querySelector('input');
-          if (!el?.value.trim()) return;
-          void saveKey(provider, el.value).then(() => { el.value = ''; });
-        }}
-      >
-        {tr('common.save')}
-      </button>
-      {has && (
-        <button
-          type="button"
-          className="btn btn-sm btn-danger"
-          onClick={() => void saveKey(provider, '')}
-        >
-          Delete
-        </button>
-      )}
-    </span>
   );
 }

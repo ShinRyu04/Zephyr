@@ -3,8 +3,6 @@ import { useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
 import { AgentsSection, ModelsSection, ShortcutsSection, SubagentSection } from './SectionsAdvanced';
 import CommandPermissions from './CommandPermissions';
-import VoiceSection from './VoiceSection';
-import MicSection from './MicSection';
 import RulesSection from './RulesSection';
 import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
 import { ExtensionsSection } from './SectionsExtensions';
@@ -30,10 +28,6 @@ function SectionBody({ id }: { id: SectionId }) {
       return <ModelsSection />;
     case 'agents':
       return <AgentsSection />;
-    case 'voice':
-      return <VoiceSection />;
-    case 'mic':
-      return <MicSection />;
     case 'rules':
       return <RulesSection />;
     case 'subagent':

@@ -37,7 +37,6 @@ export const SECTION_ORDER: SectionId[] = [
   'theme',
   'shortcuts',
   'models',
-  'permissions',
   'extensions',
   'lsp',
   'scm',
@@ -53,12 +52,13 @@ export const SECTION_ORDER: SectionId[] = [
 ];
 
 /*
- * `subagent`, `voice` and `mic` are NOT in the nav order any more: all three are
- * chat settings — who does the work, how the assistant speaks, how you dictate —
- * and they now live in Chat Settings, whose section carries the same controls
- * including the custom-sub-agent list and both API keys. The SectionId type
- * keeps them so deep links and the panels themselves still type-check; nothing
- * routes there from the nav.
+ * `subagent`, `permissions`, `voice` and `mic` are NOT in the nav order any more:
+ * all four are chat settings — who does the work, which commands may run without
+ * asking, how the assistant speaks, how you dictate — and they now live in Chat
+ * Settings, whose sections carry the same controls (including the custom
+ * sub-agent list and the command allow-list themselves, not just doors to them).
+ * The SectionId type keeps them so deep links and the panels still type-check;
+ * nothing routes there from the nav.
  *
  * `agents`, `rules` and `mcp` left the nav earlier for the same reason: they
  * moved into the Agent Customizations modal (its Agents / Instructions / MCP

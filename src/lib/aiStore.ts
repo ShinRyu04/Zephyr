@@ -153,8 +153,6 @@ import { useCliAgent } from './cliAgentStore';
 import { useTerminal } from './terminalStore';
 import { useProblems } from './problemsStore';
 import { tx, tf } from './i18n';
-import { useBicaraStore } from './bicaraStore';
-import { teksUntukDibaca } from './useBicara';
 /*
  * Only the Rust agent context is cached here.
  *
@@ -4586,63 +4584,9 @@ export const useAi = create<AiStore>((set, get) => ({
      * end of a long async turn, and the settings may have been changed while the
      * model was still answering. The user's LAST choice is the one to honour.
      */
-    if (!runWasCancelled && !agentFailure) {
-      const st = get();
-      /* Settings live in their own store, not in `aiStore`. Read at this instant
-         rather than captured earlier: this runs at the end of a long async turn,
-         and the user may have changed the voice settings while the model was
-         still answering. The last choice is the one to honour. */
-      const voice = useStore.getState().settings?.voice;
-      if (voice?.speakReplies === true && voice.enabled !== false) {
-        /*
-         * The newest assistant message is the one to read, not `finalContent`:
-         * the text that actually reached the transcript is the text the user is
-         * looking at, and the two can differ when the answer was retried or
-         * trimmed to fit the model's character limit.
-         */
-        const sesi = st.sessions.find((x) => x.id === st.activeId);
-        const terakhir = [...(sesi?.messages ?? [])].reverse().find((m) => m.role !== 'user' && !m.error);
-        if (terakhir?.content) {
-          const v = voice;
-          /*
-           * Neural first when enabled: it speaks through the provider, not the
-           * WebView. Plain module calls - `aiStore` cannot use a React hook,
-           * and both speech paths expose a module-level entry for this reason.
-           */
-          if (v?.neuralEnabled === true) {
-            const { putarNeural, pesanGalatNeural } = await import('./useNeural');
-            try {
-              await putarNeural(terakhir.id, terakhir.content);
-            } catch (e) {
-              if (pesanGalatNeural(e) === 'key-audio') {
-                get().setToast('Neural voice unavailable - using built-in voice');
-                useBicaraStore.getState().bicarakan(
-                  terakhir.id,
-                  teksUntukDibaca(terakhir.content, { lewatiKode: v?.skipCode !== false }),
-                  {
-                    id: v?.voiceId || undefined,
-                    lang: v?.inputLang,
-                    rate: v?.rate,
-                    volume: v?.volume,
-                  },
-                );
-              }
-            }
-          } else {
-            useBicaraStore.getState().bicarakan(
-              terakhir.id,
-              teksUntukDibaca(terakhir.content, { lewatiKode: v?.skipCode !== false }),
-              {
-                id: v?.voiceId || undefined,
-                lang: v?.inputLang,
-                rate: v?.rate,
-                volume: v?.volume,
-              },
-            );
-          }
-        }
-      }
-    }
+    /* Speech output was removed from Zephyr, so there is no auto-read here any
+       more: `voice.speakReplies` no longer has a reader. See the Voice section's
+       removal note in the settings store. */
 
     // Failed provider/watchdog runs keep follow-ups visible and are never
     // automatically rerun. Successful runs retain the existing queue drain;

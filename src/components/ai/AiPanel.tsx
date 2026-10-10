@@ -16,7 +16,6 @@ import ChatMessage from './ChatMessage';
 import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
-import BicaraHost from './BicaraHost';
 import ModelSelector from './ModelSelector';
 import { findModel } from '../../lib/modelCatalog';
 import TodoPanel from './TodoPanel';
@@ -2424,7 +2423,6 @@ function AiPanelInner() {
           exists exactly while this panel does - unmounting stops any answer that
           is still being read aloud, which is what closing the thing that was
           talking should do. */}
-      <BicaraHost />
     </div>
   );
 }
