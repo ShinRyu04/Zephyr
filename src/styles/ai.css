@@ -6404,7 +6404,16 @@
   color: var(--text);
 }
 
-.agc-head .ai-ikon {
+/*
+ * Only the FIRST control is pushed to the trailing edge.
+ *
+ * `margin-left: auto` on every `.ai-ikon` in this header put a gap between each
+ * pair: with two buttons the maximize control went to the middle of the bar and
+ * Close sat at the far right, 487px apart, so the two window controls read as
+ * belonging to different groups. The intent was always "push the cluster right",
+ * and the cluster's first element is what does that.
+ */
+.agc-head .ai-ikon:first-of-type {
   margin-left: auto;
 }
 
@@ -6480,6 +6489,66 @@
    like Copilot's — text does not stretch to the full 1000px+ width. */
 .agc-pane {
   max-width: 920px;
+}
+
+/*
+ * Settings components reused inside a pane need their PAGE layout undone.
+ *
+ * `McpPanel`, `RulesSection` and `PersonaCard` were written for the Settings
+ * page, where the content column is capped at 780px and a row is
+ * `label: 1 1 auto` next to `control: 0 0 auto`. That split works there.
+ *
+ * Inside Agent Customizations the numbers stop agreeing: the pane allows 920px,
+ * `.set-section` inside it still caps at 780, and the MCP control is a
+ * two-column grid of CLI entries whose intrinsic width leaves the LABEL with
+ * whatever is left. Measured in the broken state: row 780px, control 717px,
+ * label 43px. At 43px "Write to CLI" wraps to roughly one letter per line, which
+ * is the crushed column in the report.
+ *
+ * The fix is to let the row actually be a row here: the label keeps a sane
+ * minimum, and the control is allowed to shrink and wrap instead of holding its
+ * full intrinsic width. `min-width: 0` on the control is what permits that — a
+ * flex item refuses to go below its content width without it.
+ */
+.agc-pane .set-section {
+  max-width: none;
+}
+
+.agc-pane .set-row {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.agc-pane .set-row-label {
+  flex: 0 1 auto;
+  min-width: 180px;
+}
+
+.agc-pane .set-row-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+/*
+ * The two-column CLI grid needs a floor, or it collapses to slivers once the
+ * control is allowed to shrink. `minmax(0, 1fr)` keeps the columns equal while
+ * allowing their contents to ellipsis rather than forcing the grid wider.
+ */
+.agc-pane .mcp-clis {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  width: 100%;
+}
+
+.agc-pane .mcp-cli {
+  min-width: 0;
+}
+
+/* The path is the longest item and the one that should give way first. */
+.agc-pane .mcp-cli-path {
+  flex: 1 1 60px;
+  min-width: 0;
 }
 
 .agc-pane-title {
@@ -9268,4 +9337,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+
+/* ── Maximize: Agent Customizations + Chat Settings ─────────────────────── */
+/*
+ * Fills the viewport instead of the 1280x880 card.
+ *
+ * `!important` is not needed and neither is a specificity trick: the base rule
+ * sets `width`/`height` on the same element, and this one comes later in the
+ * same file with an extra class, so it wins. The `max-*` overrides matter
+ * because the base rule sets those too, and a `92vh` cap would keep the card
+ * from reaching the edges on a short screen.
+ */
+.modal.agc-modal.is-besar {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
 }
