@@ -392,6 +392,16 @@ function BarisBacaBerkelompok({
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   /*
+   * Transcript appearance, from Chat Settings.
+   *
+   * Read here, at the leaf that draws each piece, rather than threaded down as
+   * props: the three switches were live in the settings page but nothing in the
+   * transcript ever asked for them, so turning "Show thinking" off left the
+   * reasoning block on screen.
+   */
+  const showThinking = useAi((s) => s.showThinking);
+  const showStamps = useAi((s) => s.showStamps);
+  /*
    * Narration slices, one per tool, from the `atChar` offsets stamped at
    * append time (see aiStore). `potongNarasi[i]` is the text that arrived
    * before tool i ran; the tool loop below renders it above that tool's row.
@@ -554,7 +564,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             * It settles on the side the message came from, next to the buttons
             * that belong to it.
             */}
-          <MsgTime at={msg.at} />
+          {showStamps && <MsgTime at={msg.at} />}
           {!isUser && !msg.streaming && !msg.error && (
             <button
               className="ai-msg-act"
@@ -866,7 +876,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                   dashed thinking node reach it here exactly as they do in the
                   hosted Claude Code tab - without it the block was the one row
                   whose text the rail ran straight through. */}
-              {msg.reasoning && (
+              {showThinking && msg.reasoning && (
                 <div className="ai-timeline" data-timeline data-testid="ai-timeline-reason">
                   <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
                 </div>

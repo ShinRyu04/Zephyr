@@ -52,8 +52,9 @@ function useDetik(aktif: boolean): number {
 
 /* ── Loop banner ───────────────────────────────────────────────────────── */
 
-export function LoopStrip() {
-  const sessionId = useAi((s) => s.activeId);
+export function LoopStrip({ composerId = '' }: { composerId?: string }) {
+  /* This surface's chat, not the primary one. */
+  const sessionId = useAi((s) => s.activeIds[composerId] ?? null);
   const loop = useAi((s) => (sessionId ? s.loops[sessionId] : undefined));
   const hentikanLoop = useAi((s) => s.hentikanLoop);
   const tr = useT();
@@ -103,8 +104,9 @@ export function LoopStrip() {
 
 /* ── Goal strip ────────────────────────────────────────────────────────── */
 
-export function GoalStrip() {
-  const sessionId = useAi((s) => s.activeId);
+export function GoalStrip({ composerId = '' }: { composerId?: string }) {
+  /* This surface's chat, not the primary one. */
+  const sessionId = useAi((s) => s.activeIds[composerId] ?? null);
   const goal = useAi((s) => (sessionId ? s.goals[sessionId] : undefined));
   const setGoal = useAi((s) => s.setGoal);
   const setToast = useAi((s) => s.setToast);
