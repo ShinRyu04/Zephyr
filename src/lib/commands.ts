@@ -571,47 +571,6 @@ export const aiToolChatStream = (opts: {
   sessionId?: string;
 }) => invoke<void>('ai_tool_chat_stream', opts);
 
-/*
- * Turn a recorded clip into text.
- *
- * The panel records with `MediaRecorder` and posts the bytes here; Rust holds
- * the API key and talks to the provider. The alternative - calling the
- * provider's transcription endpoint from the WebView - would need the key in
- * the page, which is the one thing this app never does.
- */
-export const aiTranscribe = (opts: {
-  provider: string;
-  model?: string;
-  baseUrl?: string;
-  /** `data:<mime>;base64,<payload>` - see `useDengar`. */
-  audio: string;
-  lang?: string;
-}) => invoke<string>('ai_transcribe', opts);
-
-export interface NeuralVoice {
-  id: string;
-  nama: string;
-  /** BCP-47-ish tag such as `ja-JP`. Empty when the server does not say. */
-  lang: string;
-  /**
-   * Human note from the catalogue, e.g. "Japanese female". Optional: servers
-   * that publish only ids leave it out, and the picker falls back to the id.
-   */
-  keterangan?: string;
-}
-
-export const aiSpeak = (opts: {
-  provider: string;
-  model?: string;
-  baseUrl?: string;
-  voice?: string;
-  teks: string;
-}) => invoke<string>('ai_speak', opts);
-
-export const aiTtsVoices = (opts: {
-  provider: string;
-  baseUrl?: string;
-}) => invoke<NeuralVoice[]>('ai_tts_voices', opts);
 
 export interface CliAgent {
   id: string;

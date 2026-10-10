@@ -1451,6 +1451,30 @@ export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
 
 export type AgentPhase = 'idle' | 'thinking' | 'running-tool' | 'waiting-confirmation' | 'cancelling';
 
+/*
+ * Everything one surface shows about ITS run in progress.
+ *
+ * `null` for a surface with no run. Kept separate from the flat fields below,
+ * which remain the primary surface's copy for the ~forty call sites that read
+ * them without an id.
+ */
+export interface AgentSurfaceState {
+  steps: AgentStep[];
+  phase: AgentPhase;
+  currentTool: string | null;
+  stepIndex: number;
+  stepLimit: number;
+  lastProgressAt: number | null;
+  startedAt: number | null;
+  navigationOnly: boolean;
+  /** A question the agent is waiting on (ask_user), for this run. */
+  tanya: { pertanyaan: string; pilihan: string[] } | null;
+  /** An approval the loop is blocked on, for this run. */
+  confirm: { tool: string; argsText: string; isDestructive: boolean; isWrite?: boolean } | null;
+  /** The task list the agent maintains, for this run. */
+  todos: AgentTodo[];
+}
+
 export interface AgentProgress {
   agentPhase: AgentPhase;
   agentCurrentTool: string | null;
@@ -1507,6 +1531,32 @@ interface AiState {
   pendings: Record<string, string | null>;
   antrians: Record<string, AntrianPesan[]>;
   agentBusys: Record<string, boolean>;
+
+  /*
+   * The agent RUN's own display state, also per surface.
+   *
+   * These describe one run in progress: which step it is on, what it is doing,
+   * how far along the ETA is, and any question or approval it is waiting on.
+   * With two panels mounted and one shared copy, a run started in the editor
+   * drew its step trail in the right column too, and an approval prompt appeared
+   * on both at once — the reader could answer the same question twice, or answer
+   * it on the panel that was not running.
+   *
+   * Stored as one record rather than a dozen parallel ones because they are
+   * always written together by the loop and always read together by the panel
+   * that renders the trail. A MISSING key means "this surface has no run", which
+   * is what the panel's selectors fall back to.
+   */
+  agentStates: Record<string, AgentSurfaceState>;
+
+  /*
+   * The resumable checkpoint, per surface.
+   *
+   * A checkpoint is a half-finished task in ONE conversation, so Resume belongs
+   * on the panel showing that conversation. Shared, the button appeared on both
+   * and pressing it on the wrong panel resumed work into the other one's chat.
+   */
+  agentResumes: Record<string, { teks: string; images: string[] } | null>;
 
   /*
    * Messages the user sent while the assistant was still answering.
@@ -1771,8 +1821,8 @@ interface AiActions {
   send: (text?: string, images?: string[], composerId?: string) => Promise<boolean>;
 
   /* Drop one queued message, or clear the whole queue. */
-  buangAntrian: (idx: number | string) => void;
-  kosongkanAntrian: () => void;
+  buangAntrian: (idx: number | string, composerId?: string) => void;
+  kosongkanAntrian: (composerId?: string) => void;
 
   /** Set (or clear, with null) the loop for a chat. The timer is armed here. */
   setLoop: (sessionId: string, loop: LoopState | null) => void;
@@ -1782,7 +1832,7 @@ interface AiActions {
    * Handle `/loop` and `/goal`. Returns true when the command was consumed, so
    * the caller stops and sends nothing to the provider.
    */
-  jalankanPerintahKerja: (teks: string, sessionId: string) => boolean;
+  jalankanPerintahKerja: (teks: string, sessionId: string, composerId?: string) => boolean;
   /** Set (or clear, with null) the goal for a chat. */
   setGoal: (sessionId: string, goal: GoalState | null) => void;
   /*
@@ -1794,7 +1844,7 @@ interface AiActions {
    * the queue and goes through the same send() path as a typed one, so it
    * cannot bypass the busy check — it just reorders what was already lined up.
    */
-  kirimAntrian: (idx: number | string) => Promise<boolean>;
+  kirimAntrian: (idx: number | string, composerId?: string) => Promise<boolean>;
   /**
    * Move one queued message one place up or down the line.
    *
@@ -1803,8 +1853,8 @@ interface AiActions {
    * no-ops because the panel already disables the button there; the guard is
    * what makes a stray call harmless rather than a way to install undefined.
    */
-  naikkanAntrian: (idx: number | string) => void;
-  turunkanAntrian: (idx: number | string) => void;
+  naikkanAntrian: (idx: number | string, composerId?: string) => void;
+  turunkanAntrian: (idx: number | string, composerId?: string) => void;
   /*
    * Rewrite one queued message in place.
    *
@@ -1813,7 +1863,7 @@ interface AiActions {
    * other four. Blank input is refused rather than saved, so a cleared field is
    * not a way to lose the message by accident.
    */
-  ubahAntrian: (idx: number | string, teks: string) => void;
+  ubahAntrian: (idx: number | string, teks: string, composerId?: string) => void;
   /**
    * Send a message now, interrupting whatever is running.
    *
@@ -1972,6 +2022,56 @@ function mirrorRun(
     const a = patch.antrian as AntrianPesan[];
     out.antrians = { ...s.antrians, [id]: a };
   }
+
+  /*
+   * The agent-display fields, folded into one per-surface record.
+   *
+   * Each flat key that is present in this patch updates its field on the writing
+   * surface's entry; fields the patch does not mention keep their previous value
+   * for that surface, so a loop writing only `agentStepIndex` does not wipe the
+   * step list. The primary surface's entry exists only once it has run
+   * something, which is why a missing entry reads as "no run" rather than as a
+   * half-filled one.
+   */
+  const AGEN_KUNCI: Array<[string, keyof AgentSurfaceState]> = [
+    ['agentSteps', 'steps'],
+    ['agentPhase', 'phase'],
+    ['agentCurrentTool', 'currentTool'],
+    ['agentStepIndex', 'stepIndex'],
+    ['agentStepLimit', 'stepLimit'],
+    ['agentLastProgressAt', 'lastProgressAt'],
+    ['agentStartedAt', 'startedAt'],
+    ['agentNavigationOnly', 'navigationOnly'],
+    ['agentTanya', 'tanya'],
+    ['agentConfirm', 'confirm'],
+    ['agentTodos', 'todos'],
+  ];
+  const adaAgent = AGEN_KUNCI.some(([k]) => k in patch);
+  if (adaAgent) {
+    const lama = s.agentStates[id];
+    const dasar: AgentSurfaceState = lama ?? {
+      steps: [],
+      phase: 'idle',
+      currentTool: null,
+      stepIndex: 0,
+      stepLimit: 0,
+      lastProgressAt: null,
+      startedAt: null,
+      navigationOnly: false,
+      tanya: null,
+      confirm: null,
+      todos: [],
+    };
+    const next: AgentSurfaceState = { ...dasar };
+    for (const [k, field] of AGEN_KUNCI) {
+      if (k in patch) (next as unknown as Record<string, unknown>)[field] = patch[k];
+    }
+    out.agentStates = { ...s.agentStates, [id]: next };
+  }
+  if ('agentResume' in patch) {
+    out.agentResumes = { ...s.agentResumes, [id]: patch.agentResume as { teks: string; images: string[] } | null };
+  }
+
   return out;
 }
 
@@ -2023,6 +2123,8 @@ export const useAi = create<AiStore>((set0, get) => {
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'auto',
   agentBusy: false,
   agentBusys: { '' : false },
+  agentStates: {},
+  agentResumes: {},
   agentNavigationOnly: false,
   agentPhase: 'idle',
   agentCurrentTool: null,
@@ -2211,38 +2313,71 @@ export const useAi = create<AiStore>((set0, get) => {
   setDraft: (v, id = '') => set((s) => ({ drafts: { ...s.drafts, [id]: v } })),
   draftOf: (id) => get().drafts[id] ?? '',
 
-  buangAntrian: (idx) =>
-    set((s) => ({
-      antrian: s.antrian.filter((a, i) => !cocokAntrian(a, i, idx)),
-    })),
-  naikkanAntrian: (idx) =>
+  /*
+   * Every queue mutator takes the id of the composer whose queue it edits.
+   *
+   * They wrote the FLAT `antrian` — the primary surface's mirror — while the
+   * panel renders `antrians[composerId]`. So pressing "run now", "remove" or
+   * "clear" on a row in the EDITOR tab edited the RIGHT COLUMN's queue: the row
+   * the reader clicked stayed put, and a row in the other panel disappeared.
+   * Reported as the queue looking linked between the two surfaces.
+   *
+   * The flat `antrian` is written on the primary path only (id === '') so the
+   * ~fifteen call sites that read it without an id — the drain, the store's own
+   * bookkeeping — keep working unchanged.
+   */
+  buangAntrian: (idx, composerId = '') =>
     set((s) => {
-      const pos = posisiAntrian(s.antrian, idx);
-      if (pos <= 0 || pos >= s.antrian.length) return {};
-      const arr = s.antrian.slice();
+      const daftar = s.antrians[composerId] ?? [];
+      const sisa = daftar.filter((a, i) => !cocokAntrian(a, i, idx));
+      return {
+        antrians: { ...s.antrians, [composerId]: sisa },
+        ...(composerId === '' ? { antrian: sisa } : {}),
+      };
+    }),
+  naikkanAntrian: (idx, composerId = '') =>
+    set((s) => {
+      const daftar = s.antrians[composerId] ?? [];
+      const pos = posisiAntrian(daftar, idx);
+      if (pos <= 0 || pos >= daftar.length) return {};
+      const arr = daftar.slice();
       [arr[pos - 1], arr[pos]] = [arr[pos], arr[pos - 1]];
-      return { antrian: arr };
+      return {
+        antrians: { ...s.antrians, [composerId]: arr },
+        ...(composerId === '' ? { antrian: arr } : {}),
+      };
     }),
-  turunkanAntrian: (idx) =>
+  turunkanAntrian: (idx, composerId = '') =>
     set((s) => {
-      const pos = posisiAntrian(s.antrian, idx);
-      if (pos < 0 || pos >= s.antrian.length - 1) return {};
-      const arr = s.antrian.slice();
+      const daftar = s.antrians[composerId] ?? [];
+      const pos = posisiAntrian(daftar, idx);
+      if (pos < 0 || pos >= daftar.length - 1) return {};
+      const arr = daftar.slice();
       [arr[pos], arr[pos + 1]] = [arr[pos + 1], arr[pos]];
-      return { antrian: arr };
+      return {
+        antrians: { ...s.antrians, [composerId]: arr },
+        ...(composerId === '' ? { antrian: arr } : {}),
+      };
     }),
-  ubahAntrian: (idx, teks) =>
+  ubahAntrian: (idx, teks, composerId = '') =>
     set((s) => {
-      const pos = posisiAntrian(s.antrian, idx);
-      const sekarang = s.antrian[pos];
+      const daftar = s.antrians[composerId] ?? [];
+      const pos = posisiAntrian(daftar, idx);
+      const sekarang = daftar[pos];
       if (!sekarang) return {};
       const bersih = (teks ?? '').trim();
       if (!bersih) return {};
+      const arr = daftar.map((a, i) => (i === pos ? { ...a, teks: bersih } : a));
       return {
-        antrian: s.antrian.map((a, i) => (i === pos ? { ...a, teks: bersih } : a)),
+        antrians: { ...s.antrians, [composerId]: arr },
+        ...(composerId === '' ? { antrian: arr } : {}),
       };
     }),
-  kosongkanAntrian: () => set({ antrian: [] }),
+  kosongkanAntrian: (composerId = '') =>
+    set((s) => ({
+      antrians: { ...s.antrians, [composerId]: [] },
+      ...(composerId === '' ? { antrian: [] } : {}),
+    })),
 
   /*
    * The loop timer lives in `loopJadwal.ts`'s module map, not here, because it
@@ -2286,9 +2421,9 @@ export const useAi = create<AiStore>((set0, get) => {
     await get().send(cp.teks, cp.images);
     return true;
   },
-  kirimAntrian: async (idx) => {
-    const pos = posisiAntrian(get().antrian, idx);
-    const item = get().antrian[pos];
+  kirimAntrian: async (idx, composerId = '') => {
+    const pos = posisiAntrian(get().antrians[composerId] ?? [], idx);
+    const item = (get().antrians[composerId] ?? [])[pos];
     if (!item) return false;
 
     /*
@@ -2308,11 +2443,21 @@ export const useAi = create<AiStore>((set0, get) => {
      * request went out or was accepted into the queue. Reading it directly is
      * what makes a queued message leave the queue exactly once.
      */
-    const terkirim = await get().send(item.teks, item.images);
+    /*
+     * Sent as THIS surface, so the message lands in the conversation that
+     * queued it and its reply does not surface in the other panel.
+     */
+    const terkirim = await get().send(item.teks, item.images, composerId);
     if (terkirim) {
       /* Removed by IDENTITY, so two identical texts in the queue do not both
          disappear when only one of them was sent. */
-      set((s) => ({ antrian: s.antrian.filter((entry) => entry !== item) }));
+      set((s) => {
+        const sisa = (s.antrians[composerId] ?? []).filter((entry) => entry !== item);
+        return {
+          antrians: { ...s.antrians, [composerId]: sisa },
+          ...(composerId === '' ? { antrian: sisa } : {}),
+        };
+      });
     }
     return terkirim;
   },
@@ -2916,15 +3061,64 @@ export const useAi = create<AiStore>((set0, get) => {
    * Returns `true` when the command was consumed, so the caller stops and does not
    * send a request.
    */
-    jalankanPerintahKerja: (teks: string, sessionId: string): boolean => {
-    const m = /^\/(loop|goal)\s*([\s\S]*)$/.exec(teks.trim());
+    jalankanPerintahKerja: (teks: string, sessionId: string, composerId = ''): boolean => {
+    /*
+     * SESSION commands are handled here too, not only in the slash menu.
+     *
+     * `/new`, `/clear`, `/compact` and `/export` existed only as menu items: the
+     * suggestion dropdown matched a BARE token (`/^\/([\w-]*)$/`), so the
+     * moment the reader typed a trailing space or an argument the dropdown
+     * closed, Enter fell through to the normal send path, and `/clear` was
+     * posted to the MODEL as a chat message. Nothing was cleared and the command
+     * text became part of the conversation.
+     *
+     * Accepting an optional argument here (`\s*` instead of the dropdown's
+     * bare-token rule) is what makes typed and picked behave the same: whichever
+     * way the command is entered, it reaches this one function and is consumed
+     * before any request goes out.
+     */
+    const m = /^\/(loop|goal|new|clear|compact|export)\b\s*([\s\S]*)$/.exec(teks.trim());
     if (!m) return false;
 
     const cmd = m[1].toLowerCase();
     const arg = m[2].trim();
     const st = get();
 
+    /*
+     * ── Session commands ────────────────────────────────────────────────────
+     * Each acts on THIS surface's chat, then returns true so the caller stops.
+     */
+    if (cmd === 'new') {
+      st.newChat(composerId);
+      set({ toast: tx('New chat') });
+      return true;
+    }
+    if (cmd === 'clear') {
+      /* Every surface's history goes, so the confirmation is not per-surface. */
+      set({ clearAllOpen: true });
+      return true;
+    }
+    if (cmd === 'compact') {
+      const n = st.compactContext(undefined, composerId);
+      set({
+        toast:
+          n > 0
+            ? tf('Context compacted - {n} messages folded away', { n })
+            : tx('Nothing old enough to compact yet'),
+      });
+      return true;
+    }
+    if (cmd === 'export') {
+      void st.exportChat(composerId);
+      return true;
+    }
+
     if (cmd === 'loop') {
+      /* A loop is per CONVERSATION, so it needs one to attach to. */
+      if (!sessionId) {
+        set({ toast: tx('Open a chat before starting a loop') });
+        return true;
+      }
       const low = arg.toLowerCase();
       if (low === 'stop' || low === 'off' || low === 'clear') {
         st.hentikanLoop(sessionId);
@@ -2959,13 +3153,22 @@ export const useAi = create<AiStore>((set0, get) => {
          * `jalankanPerintahKerja` again, which is what stops a loop from
          * re-triggering itself.
          */
-        enqueue: (text) => void get().kirimSekarang(text),
+        /*
+         * The tick goes back to the surface that STARTED the loop, so a loop
+         * running from the editor tab keeps feeding the editor tab's
+         * conversation instead of surfacing its output in the right column.
+         */
+        enqueue: (text) => void get().kirimSekarang(text, undefined, composerId),
       });
       set({ toast: tf('Looping every {interval}. /loop stop to end it.', { interval: formatInterval(everyMs) }) });
       return true;
     }
 
     /* cmd === 'goal' */
+    if (!sessionId) {
+      set({ toast: tx('Open a chat before setting a goal') });
+      return true;
+    }
     const low = arg.toLowerCase();
     if (low === 'clear' || low === 'stop' || low === 'off') {
       st.setGoal(sessionId, null);
@@ -3012,7 +3215,12 @@ export const useAi = create<AiStore>((set0, get) => {
       /* The surface's own chat: a job started from the editor tab belongs to the
          editor tab's conversation, not to whatever the right column has open. */
       const sid = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
-      if (sid && get().jalankanPerintahKerja(diketik, sid)) {
+      /*
+       * Called even with no session id: "clear" and "new" are meaningful on an
+       * empty surface (the first clears history, the second creates a chat), and
+       * the commands that DO need a conversation guard themselves.
+       */
+      if (get().jalankanPerintahKerja(diketik, sid ?? '', composerId)) {
         set({ drafts: {}, draftImages: [] });
         return true;
       }
@@ -3386,7 +3594,19 @@ export const useAi = create<AiStore>((set0, get) => {
     get().sinkronProvider();
     clearGambarMenunggu();
     if (get().pending || get().agentBusy) {
-      return gagalKirimToast(tx('An agent task is still running - stop it first'));
+      /*
+       * The busy guard is deliberately APP-WIDE, not per surface: there is one
+       * provider, one request id and one chunk buffer, so two agent loops at
+       * once would interleave their deltas into the same transcript. What the
+       * message adds is WHERE the run is, so a reader who started it in the
+       * editor tab is not left hunting in the right column for the Stop button.
+       */
+      const diEditor = COMPOSER_AKTIF !== '';
+      return gagalKirimToast(
+        diEditor
+          ? tx('An agent task is still running in the editor tab - stop it first')
+          : tx('An agent task is still running - stop it first'),
+      );
     }
     const agentImages = explicitImages ?? get().draftImages;
     const navigationOnly = isNavigationOnlyRequest(raw);
@@ -4834,9 +5054,11 @@ export const useAi = create<AiStore>((set0, get) => {
     // automatically rerun. Successful runs retain the existing queue drain;
     // user cancellation also remains non-draining.
     if (!runWasCancelled && !agentFailure) {
-      const next = get().antrian[0];
-      if (next && !get().agentBusy) {
-        void get().kirimAntrian(0);
+      /* The queue of the surface that just finished, not the primary one's. */
+      const daftar = get().antrians[COMPOSER_AKTIF] ?? [];
+      const next = daftar[0];
+      if (next && !(get().agentBusys[COMPOSER_AKTIF] ?? false)) {
+        void get().kirimAntrian(0, COMPOSER_AKTIF);
       }
     } else {
       /*
@@ -5291,13 +5513,13 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     if (c.done || c.err) {
       const s2 = get();
-      const next = s2.antrian[0];
-      if (next && !s2.pending && !s2.agentBusy) {
+      const next = (s2.antrians[COMPOSER_AKTIF] ?? [])[0];
+      if (next && !(s2.pendings[COMPOSER_AKTIF] ?? null) && !(s2.agentBusys[COMPOSER_AKTIF] ?? false)) {
         // Lewat `kirimAntrian` supaya satu-satunya jalur drain pada mode chat
         // sama dengan mode agent: item HANYA dihapus kalau `send` benar-benar
         // diterima. Kalau tidak (mis. belum ada API key), pesan tetap di
         // antrian dan tidak hilang diam-diam.
-        void get().kirimAntrian(0);
+        void get().kirimAntrian(0, COMPOSER_AKTIF);
       }
     }
   },
