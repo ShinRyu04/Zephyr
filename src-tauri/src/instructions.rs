@@ -199,8 +199,18 @@ pub fn instructions_list(state: State<AppState>) -> ZResult<Vec<InstructionInfo>
 #[tauri::command]
 pub fn instruction_read(state: State<AppState>, name: String) -> ZResult<String> {
     let p = cari_file(&state, &name)?;
-    std::fs::read_to_string(&p)
-        .map_err(|e| ZephyrError::NotFound(format!("cannot read {}: {e}", p.display())))
+    /*
+     * The BODY, without the frontmatter block — same reasoning as `skill_read`.
+     *
+     * Both consumers of this want the instructions, not the metadata: the editor
+     * would show `---` and the key/value pairs as if they were part of what the
+     * agent is told, and the prompt would inject them into the system message.
+     * The metadata is already reported by `instructions_list`, which is where a
+     * reader or a form should get it from.
+     */
+    let teks = std::fs::read_to_string(&p)
+        .map_err(|e| ZephyrError::NotFound(format!("cannot read {}: {e}", p.display())))?;
+    Ok(buang_frontmatter(&teks).trim().to_string())
 }
 
 fn cari_file(state: &AppState, nama: &str) -> ZResult<PathBuf> {
@@ -310,6 +320,86 @@ pub fn instruction_delete(state: State<AppState>, name: String) -> ZResult<bool>
             p.display()
         ))),
     }
+}
+
+/* ── The bundled catalog ─────────────────────────────────────────────────── */
+
+/// One entry of the shipped corpus: an instruction from the community
+/// collection, ready to install into this workspace or the user scope.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CatalogInstruction {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default, rename = "applyTo")]
+    pub apply_to: String,
+    #[serde(default)]
+    pub source: String,
+    pub body: String,
+}
+
+/// Same lazy-parse-and-cache shape as `cc_catalog`: the file is ~2.3 MB of
+/// embedded JSON and parsing it on every list call would be visible in the UI.
+fn katalog_instruksi() -> &'static Vec<CatalogInstruction> {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Vec<CatalogInstruction>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let raw = include_str!("../assets/instruction-catalog.json");
+        serde_json::from_str(raw).unwrap_or_default()
+    })
+}
+
+/// The catalog WITHOUT bodies — what the browse list needs.
+///
+/// Bodies are ~2 MB in total and the list shows a name and a sentence; sending
+/// them all over IPC to render a list would be most of a megabyte for text the
+/// reader has not asked to see. `instruction_catalog_body` fetches one on
+/// demand, which is what the preview pane calls.
+#[tauri::command]
+pub fn instruction_catalog_list() -> ZResult<Vec<CatalogInstruction>> {
+    Ok(katalog_instruksi()
+        .iter()
+        .map(|e| CatalogInstruction {
+            body: String::new(),
+            ..e.clone()
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub fn instruction_catalog_body(id: String) -> ZResult<String> {
+    katalog_instruksi()
+        .iter()
+        .find(|e| e.id == id)
+        .map(|e| e.body.clone())
+        .ok_or_else(|| ZephyrError::NotFound(format!("catalog instruction not found: {id}")))
+}
+
+/// Install one catalog entry into a scope, returning the path written.
+///
+/// Goes through the same `instruction_write` path as a hand-typed instruction —
+/// including the name check, the size cap and the frontmatter rebuild — so an
+/// installed entry is an ordinary instruction afterwards and cannot arrive with
+/// a shape the manual path would have refused.
+#[tauri::command]
+pub fn instruction_install(
+    state: State<AppState>,
+    id: String,
+    scope: String,
+) -> ZResult<String> {
+    let e = katalog_instruksi()
+        .iter()
+        .find(|x| x.id == id)
+        .ok_or_else(|| ZephyrError::NotFound(format!("catalog instruction not found: {id}")))?;
+    instruction_write(
+        state,
+        e.name.clone(),
+        e.description.clone(),
+        e.apply_to.clone(),
+        e.body.clone(),
+        scope,
+    )
 }
 
 #[cfg(test)]

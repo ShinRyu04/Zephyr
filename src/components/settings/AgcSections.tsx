@@ -9,7 +9,17 @@ import {
 import AiIkon from '../ai/AiIkon';
 import { useSkills } from '../../lib/skillsStore';
 import { buatDraft, type DraftKind, type DraftHasil } from '../../lib/agentDraft';
-import { ccCatalogList, ccCatalogBody, type SkillInfo, type CatalogItem } from '../../lib/commands';
+import {
+  ccCatalogList,
+  ccCatalogBody,
+  instructionCatalogList,
+  instructionInstall,
+  type SkillInfo,
+  type CatalogItem,
+  type InstructionInfo,
+  type CatalogInstruction,
+} from '../../lib/commands';
+import { useInstructions } from '../../lib/instructionsStore';
 
 /*
  * The real content for Agent Customizations' Skills, Hooks, Plugins and
@@ -829,6 +839,420 @@ function DraftHook({
           onClick={() => onSimpan({ name: nama.trim(), event, command: command.trim() })}
         >
           {tr('Save (disabled)')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Instructions ────────────────────────────────────────────────────────── */
+
+/*
+ * Instructions: coding standards attached to a file PATTERN.
+ *
+ * The pane this replaces showed the global rules editor — always-on guidance
+ * for the whole repository. That is a different thing: an instruction applies
+ * to the files its `applyTo` glob matches, so TypeScript conventions fire when
+ * a `.ts` file is open and stay out of the way otherwise. Loading all of them
+ * unconditionally would make this feature indistinguishable from the rules it
+ * sits next to.
+ *
+ * The pattern is shown on every row, because that is the whole point of the
+ * entry — a reader scanning the list needs to see WHAT it applies to before
+ * deciding whether it belongs.
+ */
+function InstructionRow({ ins, aktif, onBuka }: { ins: InstructionInfo; aktif: boolean; onBuka: () => void }) {
+  const tr = useT();
+  const hapus = useInstructions((s) => s.hapus);
+  const [konfirmasi, setKonfirmasi] = useState(false);
+
+  return (
+    <div className={`agc-item${aktif ? ' is-open' : ''}`} data-testid={`agc-ins-${ins.name}`}>
+      <div className="agc-item-head">
+        <button className="agc-item-toggle" aria-expanded={aktif} onClick={onBuka}>
+          <AiIkon name={aktif ? 'chev-down' : 'chev-right'} size={11} />
+          <AiIkon name="check" size={14} />
+          <span className="agc-item-name">{ins.name}</span>
+          <span className="agc-item-scope">{ins.scope}</span>
+        </button>
+        {konfirmasi ? (
+          <>
+            <button
+              className="btn btn-sm btn-danger"
+              data-testid={`agc-ins-del-yes-${ins.name}`}
+              onClick={() => void hapus(ins.name)}
+            >
+              {tr('Delete')}
+            </button>
+            <button className="btn btn-sm" onClick={() => setKonfirmasi(false)}>
+              {tr('Cancel')}
+            </button>
+          </>
+        ) : (
+          <button
+            className="agc-item-del"
+            data-testid={`agc-ins-del-${ins.name}`}
+            title={tr('Delete')}
+            aria-label={tr('Delete')}
+            onClick={() => setKonfirmasi(true)}
+          >
+            <AiIkon name="trash" size={13} />
+          </button>
+        )}
+      </div>
+      <div className="agc-item-meta">
+        <code className="agc-ins-pola">{ins.apply_to || tr('(no pattern set)')}</code>
+        <span className="agc-item-bytes">{Math.round((ins.bytes / 1024) * 10) / 10} KB</span>
+      </div>
+      {aktif && <InstructionEditor ins={ins} />}
+    </div>
+  );
+}
+
+function InstructionEditor({ ins }: { ins: InstructionInfo }) {
+  const tr = useT();
+  const { isi, memuatIsi, simpan, buka, sibuk } = useInstructions();
+  const [pola, setPola] = useState(ins.apply_to);
+  const [desc, setDesc] = useState(ins.description);
+  const [body, setBody] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (memuatIsi) return;
+    setBody((lama) => lama ?? isi);
+  }, [isi, memuatIsi]);
+
+  useEffect(() => {
+    setPola(ins.apply_to);
+    setDesc(ins.description);
+    setBody(null);
+  }, [ins.name, ins.apply_to, ins.description]);
+
+  const kotor =
+    body !== null && (pola !== ins.apply_to || desc !== ins.description || body !== isi);
+
+  return (
+    <div className="agc-editor" data-testid={`agc-ins-editor-${ins.name}`}>
+      {memuatIsi || body === null ? (
+        <p className="agc-group-empty">{tr('Loading…')}</p>
+      ) : (
+        <>
+          <label className="agc-label" htmlFor="agc-ins-pola">
+            {tr('Applies to (glob)')}
+          </label>
+          <input
+            id="agc-ins-pola"
+            className="agc-field agc-field-mono"
+            data-testid="agc-ins-pola"
+            placeholder="**/*.{ts,tsx}"
+            value={pola}
+            onChange={(e) => setPola(e.target.value)}
+          />
+          <label className="agc-label" htmlFor="agc-ins-desc">
+            {tr('Description')}
+          </label>
+          <input
+            id="agc-ins-desc"
+            className="agc-field"
+            data-testid="agc-ins-desc"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+          <label className="agc-label" htmlFor="agc-ins-body">
+            {tr('Rules')}
+          </label>
+          <textarea
+            id="agc-ins-body"
+            className="agc-field agc-field-area"
+            data-testid="agc-ins-body"
+            rows={10}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <div className="agc-editor-actions">
+            <span className="agc-item-path" title={ins.path}>
+              {ins.path}
+            </span>
+            <button className="btn btn-sm" disabled={!kotor || sibuk} onClick={() => buka(ins.name)}>
+              {tr('Revert')}
+            </button>
+            <button
+              className="btn btn-sm btn-primary"
+              data-testid="agc-ins-simpan"
+              disabled={!kotor || sibuk}
+              onClick={() =>
+                void simpan({
+                  name: ins.name,
+                  description: desc,
+                  applyTo: pola,
+                  body,
+                  scope: ins.scope,
+                })
+              }
+            >
+              {tr('Save')}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The browser for the shipped instruction corpus. */
+function KatalogInstructions({ scope }: { scope: 'workspace' | 'global' }) {
+  const tr = useT();
+  const tf = useTf();
+  const daftar = useInstructions((s) => s.daftar);
+  const muat = useInstructions((s) => s.muat);
+  const [buka, setBuka] = useState(false);
+  const [items, setItems] = useState<CatalogInstruction[]>([]);
+  const [cari, setCari] = useState('');
+  const [sibuk, setSibuk] = useState<string | null>(null);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!buka || items.length > 0) return;
+    instructionCatalogList()
+      .then(setItems)
+      .catch((e) => setGalat(String(e)));
+  }, [buka, items.length]);
+
+  const ada = new Set(daftar.map((d) => d.name.toLowerCase()));
+  const q = cari.trim().toLowerCase();
+  const tampil = q
+    ? items.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.applyTo.toLowerCase().includes(q),
+      )
+    : items;
+
+  const pasang = async (it: CatalogInstruction) => {
+    setSibuk(it.id);
+    setGalat(null);
+    try {
+      await instructionInstall(it.id, scope);
+      await muat();
+    } catch (e) {
+      setGalat(String(e));
+    } finally {
+      setSibuk(null);
+    }
+  };
+
+  if (!buka) {
+    return (
+      <div className="agc-ai-aksi">
+        <button
+          className="btn btn-sm"
+          data-testid={`agc-ins-katalog-${scope}`}
+          onClick={() => setBuka(true)}
+        >
+          <AiIkon name="link" size={12} /> {tr('Browse catalog')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="agc-katalog" data-testid={`agc-ins-katalog-panel-${scope}`}>
+      <div className="agc-katalog-head">
+        <input
+          className="agc-field"
+          data-testid="agc-ins-katalog-cari"
+          placeholder={tr('Search the catalog…')}
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+        <span className="agc-katalog-count">{tf('{n} available', { n: tampil.length })}</span>
+        <button className="btn btn-sm" onClick={() => setBuka(false)}>
+          {tr('Close')}
+        </button>
+      </div>
+      {galat && (
+        <p className="agc-error" role="alert">
+          {galat}
+        </p>
+      )}
+      <div className="agc-katalog-list">
+        {tampil.map((it) => {
+          const sudah = ada.has(it.name.toLowerCase());
+          return (
+            <div className="agc-katalog-row" key={it.id} data-testid={`agc-ins-kat-${it.name}`}>
+              <div className="agc-katalog-main">
+                <span className="agc-katalog-name">{it.name}</span>
+                <code className="agc-ins-pola">{it.applyTo || '(no pattern)'}</code>
+                <span className="agc-katalog-desc">{it.description}</span>
+              </div>
+              <button
+                className="btn btn-sm"
+                disabled={sudah || sibuk === it.id}
+                data-testid={`agc-ins-pasang-${it.name}`}
+                onClick={() => void pasang(it)}
+              >
+                {sudah ? tr('Installed') : sibuk === it.id ? tr('Installing…') : tr('Install')}
+              </button>
+            </div>
+          );
+        })}
+        {tampil.length === 0 && <p className="agc-group-empty">{tr('Nothing matches that search.')}</p>}
+      </div>
+    </div>
+  );
+}
+
+export function AgcInstructions() {
+  const tr = useT();
+  const { daftar, galat, dibuka, buka, muat, bersihkanGalat } = useInstructions();
+  const [baru, setBaru] = useState<'workspace' | 'global' | null>(null);
+
+  useEffect(() => {
+    void muat();
+  }, [muat]);
+
+  const kelompok: { scope: 'workspace' | 'global'; label: string }[] = [
+    { scope: 'workspace', label: 'Workspace' },
+    { scope: 'global', label: 'User' },
+  ];
+
+  return (
+    <div className="agc-pane">
+      <h2 className="agc-pane-title">{tr('Instructions')}</h2>
+      <p className="agc-pane-desc">
+        {tr('Rules that apply to files matching a pattern. Only the ones matching a file you have open are sent to the agent.')}
+      </p>
+
+      {galat && (
+        <p className="agc-error" data-testid="agc-ins-error" role="alert">
+          {galat}
+          <button className="btn btn-sm" onClick={bersihkanGalat}>
+            {tr('Dismiss')}
+          </button>
+        </p>
+      )}
+
+      {kelompok.map((g) => {
+        const list = daftar.filter((x) => x.scope === g.scope);
+        return (
+          <section className="agc-group" key={g.scope} data-testid={`agc-ins-${g.scope}`}>
+            <div className="agc-group-head">
+              <span className="agc-group-title">
+                {tr(g.label)} <span className="agc-group-count">{list.length}</span>
+              </span>
+              <button
+                className="btn btn-sm"
+                data-testid={`agc-ins-add-${g.scope}`}
+                onClick={() => setBaru(g.scope)}
+              >
+                <AiIkon name="plus" size={12} /> {tr('New instruction')}
+              </button>
+            </div>
+            {list.length === 0 ? (
+              <p className="agc-group-empty">{tr('No instructions yet.')}</p>
+            ) : (
+              list.map((x) => (
+                <InstructionRow
+                  key={`${x.scope}-${x.name}`}
+                  ins={x}
+                  aktif={dibuka === x.name}
+                  onBuka={() => void buka(dibuka === x.name ? null : x.name)}
+                />
+              ))
+            )}
+            <KatalogInstructions scope={g.scope} />
+          </section>
+        );
+      })}
+
+      {baru !== null && <InstructionBaru scope={baru} onSelesai={() => setBaru(null)} />}
+    </div>
+  );
+}
+
+function InstructionBaru({
+  scope,
+  onSelesai,
+}: {
+  scope: 'workspace' | 'global';
+  onSelesai: () => void;
+}) {
+  const tr = useT();
+  const simpan = useInstructions((s) => s.simpan);
+  const sibuk = useInstructions((s) => s.sibuk);
+  const [nama, setNama] = useState('');
+  const [pola, setPola] = useState('');
+  const [desc, setDesc] = useState('');
+  const [body, setBody] = useState('');
+
+  const bisa = nama.trim() !== '' && pola.trim() !== '' && body.trim() !== '';
+
+  return (
+    <div className="agc-editor" data-testid="agc-ins-baru">
+      <label className="agc-label" htmlFor="agc-insb-nama">
+        {tr('Name')}
+      </label>
+      <input
+        id="agc-insb-nama"
+        className="agc-field"
+        data-testid="agc-insb-nama"
+        placeholder="typescript-conventions"
+        value={nama}
+        onChange={(e) => setNama(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-insb-pola">
+        {tr('Applies to (glob)')}
+      </label>
+      <input
+        id="agc-insb-pola"
+        className="agc-field agc-field-mono"
+        data-testid="agc-insb-pola"
+        placeholder="**/*.{ts,tsx}"
+        value={pola}
+        onChange={(e) => setPola(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-insb-desc">
+        {tr('Description')}
+      </label>
+      <input
+        id="agc-insb-desc"
+        className="agc-field"
+        data-testid="agc-insb-desc"
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-insb-body">
+        {tr('Rules')}
+      </label>
+      <textarea
+        id="agc-insb-body"
+        className="agc-field agc-field-area"
+        data-testid="agc-insb-body"
+        rows={8}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      <div className="agc-editor-actions">
+        <button className="btn btn-sm" onClick={onSelesai} disabled={sibuk}>
+          {tr('Cancel')}
+        </button>
+        <button
+          className="btn btn-sm btn-primary"
+          data-testid="agc-insb-simpan"
+          disabled={!bisa || sibuk}
+          onClick={() =>
+            void simpan({
+              name: nama.trim(),
+              description: desc,
+              applyTo: pola.trim(),
+              body,
+              scope,
+            }).then((ok) => {
+              if (ok) onSelesai();
+            })
+          }
+        >
+          {tr('Save')}
         </button>
       </div>
     </div>
