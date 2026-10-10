@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { useAiDebug } from '../../lib/aiDebugStore';
+
 import { useToolGate } from '../../lib/toolGate';
 import { usePersona } from '../../lib/personaStore';
 import { useAgentCustom } from '../../lib/agentCustomStore';
@@ -181,7 +181,6 @@ export default function ChatSettingsPage({
      while it is off, so they render disabled rather than pretending to work. */
   const rulesOn = rules?.enabled === true;
 
-  const debugBuka = useAiDebug((s) => s.buka);
   /* Tool counts, read as primitives: the Set itself is replaced on every
      toggle, so comparing it in a selector is fine, but a derived number keeps
      this row from re-rendering on unrelated changes. */
@@ -1331,54 +1330,6 @@ export default function ChatSettingsPage({
 
     {
       section: 'advanced',
-      id: 'provider',
-      label: 'Provider & API keys',
-      hint: 'Which provider answers, and the keys it uses.',
-      words: 'advanced provider api key openai anthropic gemini model endpoint',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-provider"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('models'),
-            );
-          }}
-        >
-          {tr('Models & keys…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
-      id: 'custom',
-      label: 'Custom instructions',
-      hint: 'Standing text appended to the system prompt on every turn.',
-      words: 'advanced custom instructions system prompt standing rules append',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-custom"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('agents'),
-            );
-          }}
-        >
-          {tr('Edit…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
       id: 'ragk',
       label: 'Retrieved chunks',
       hint: 'How many passages the project index hands the model.',
@@ -1394,25 +1345,6 @@ export default function ChatSettingsPage({
       ),
       isDefault: (models.ragK ?? 4) === 4,
       reset: () => void apply({ models: { ragK: 4 } }),
-    },
-    {
-      section: 'advanced',
-      id: 'debug2',
-      label: 'Show the debug view',
-      hint: 'Log every request the panel sends, with timing and token counts.',
-      words: 'advanced debug view requests log timing tokens trace',
-      ctl: (
-        <Toggle
-          checked={debugBuka}
-          testid="cset-debug"
-          label="Show the debug view"
-          onChange={() => useAiDebug.getState().toggle()}
-        />
-      ),
-      isDefault: debugBuka === false,
-      reset: () => {
-        if (debugBuka) useAiDebug.getState().toggle();
-      },
     },
 
     {
@@ -1572,23 +1504,6 @@ export default function ChatSettingsPage({
       isDefault: true,
     },
     {
-      section: 'tools',
-      id: 'mcpterm',
-      label: 'MCP may run commands',
-      hint: 'Let outside tools on the MCP port drive the terminal.',
-      words: 'tools mcp terminal control external commands server port',
-      ctl: (
-        <Toggle
-          checked={settings.mcp?.allowTerminalControl === true}
-          testid="cset-mcpterm"
-          label="MCP may run commands"
-          onChange={(v) => void apply({ mcp: { allowTerminalControl: v } })}
-        />
-      ),
-      isDefault: (settings.mcp?.allowTerminalControl === true) === false,
-      reset: () => void apply({ mcp: { allowTerminalControl: false } }),
-    },
-    {
       section: 'subagent',
       id: 'subcustom',
       label: 'Custom sub-agents',
@@ -1623,71 +1538,6 @@ export default function ChatSettingsPage({
       isDefault: (voice?.inputLang ?? 'en-US') === 'en-US',
       reset: () => void apply({ voice: { inputLang: 'en-US' } }),
     },
-    {
-      section: 'advanced',
-      id: 'agenttool',
-      label: 'Tool sets & permissions',
-      hint: 'Which tools exist at all, and which run without asking.',
-      words: 'advanced tools tool sets permissions allow commands gate',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-agenttool"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('permissions'),
-            );
-          }}
-        >
-          {tr('Open…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
-      id: 'lspoff',
-      label: 'Language servers',
-      hint: 'The analysers that give the agent code intelligence.',
-      words: 'advanced language servers lsp code intelligence diagnostics',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-lspoff"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('lsp'),
-            );
-          }}
-        >
-          {tr('Open…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
-      id: 'personaadv',
-      label: 'Personas & instructions',
-      hint: 'Identities, standing instructions, and per-agent rules.',
-      words: 'advanced persona instructions agent custom rules identity',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-personaadv"
-          onClick={() => useAgentCustom.getState().buka('overview')}
-        >
-          {tr('Open…')}
-        </button>
-      ),
-      isDefault: true,
-    },
 
     /* ── Sub-agent model ─────────────────────────────────────────────────── */
     {
@@ -1718,44 +1568,6 @@ export default function ChatSettingsPage({
     },
 
     /* ── MCP server ──────────────────────────────────────────────────────── */
-    {
-      section: 'tools',
-      id: 'mcpon',
-      label: 'MCP server',
-      hint: 'Let outside tools talk to Zephyr over a local port.',
-      words: 'tools mcp server enable port external control agent',
-      ctl: (
-        <Toggle
-          checked={settings.mcp?.enabled === true}
-          testid="cset-mcpon"
-          label="MCP server"
-          onChange={(v) => void apply({ mcp: { enabled: v } })}
-        />
-      ),
-      isDefault: (settings.mcp?.enabled === true) === false,
-      reset: () => void apply({ mcp: { enabled: false } }),
-    },
-    {
-      section: 'tools',
-      id: 'mcpport',
-      label: 'MCP port',
-      hint: 'The local port the server listens on.',
-      words: 'tools mcp port listen local server number',
-      ctl: (
-        <Select
-          value={String(settings.mcp?.port ?? 9222)}
-          testid="cset-mcpport"
-          label="MCP port"
-          options={[9222, 9224, 9225, 9226, 9228].map((n) => ({
-            value: String(n),
-            label: String(n),
-          }))}
-          onChange={(v) => void apply({ mcp: { port: Number(v) } })}
-        />
-      ),
-      isDefault: (settings.mcp?.port ?? 9222) === 9222,
-      reset: () => void apply({ mcp: { port: 9222 } }),
-    },
 
     /* ── Avatar ──────────────────────────────────────────────────────────── */
     {
@@ -1801,78 +1613,6 @@ export default function ChatSettingsPage({
     },
 
     /* ── Extensions ──────────────────────────────────────────────────────── */
-    {
-      section: 'advanced',
-      id: 'exts',
-      label: 'Extensions',
-      hint: 'Installed extensions and which of them are switched on.',
-      words: 'advanced extensions plugins install enable disable market',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-exts"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('extensions'),
-            );
-          }}
-        >
-          {tr(`${settings.extensions?.enabled?.length ?? 0} enabled…`)}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
-      id: 'root',
-      label: 'Workspace folders',
-      hint: 'Folders the agent is allowed to read and write.',
-      words: 'advanced workspace folders roots allow path permission',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-root"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('security'),
-            );
-          }}
-        >
-          {tr('Open…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
-      id: 'micadv',
-      label: 'Dictation engine',
-      hint: 'Where speech-to-text runs, and which model it uses.',
-      words: 'advanced mic dictation speech text engine provider model',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-micadv"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('mic'),
-            );
-          }}
-        >
-          {tr('Open…')}
-        </button>
-      ),
-      isDefault: true,
-    },
 
     /* ── Write-guard rules, one row each ───────────────────────────────────
      * Generated from the rule catalogue rather than typed out: the list is the
@@ -1913,116 +1653,6 @@ export default function ChatSettingsPage({
     }),
 
     /* ── Extension trust ─────────────────────────────────────────────────── */
-    {
-      section: 'advanced',
-      id: 'trust',
-      label: 'Extension trust',
-      hint: 'Which extensions may run code, and which are sandboxed.',
-      words: 'advanced extension trust allow sandbox code run permission',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-trust"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('extensions'),
-            );
-          }}
-        >
-          {tr(`${Object.keys(settings.extensions?.trust ?? {}).length} set…`)}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'advanced',
-      id: 'registry',
-      label: 'Extension registry',
-      hint: 'Where the extension list is fetched from.',
-      words: 'advanced extension registry url market source fetch',
-      ctl: (
-        <TextInput
-          value={settings.extensions?.registryUrl ?? ''}
-          testid="cset-registry"
-          label="Extension registry"
-          placeholder="https://…"
-          onChange={(v) => void apply({ extensions: { registryUrl: v } })}
-        />
-      ),
-      isDefault: (settings.extensions?.registryUrl ?? '') === '',
-      reset: () => void apply({ extensions: { registryUrl: '' } }),
-    },
-    {
-      section: 'advanced',
-      id: 'mcpcli',
-      label: 'MCP config writing',
-      hint: 'Which CLI config files Zephyr may edit to register its MCP server.',
-      words: 'advanced mcp cli config write register server claude codex',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-mcpcli"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('mcp'),
-            );
-          }}
-        >
-          {settings.mcp?.writeToCli?.length
-            ? tr(`${settings.mcp.writeToCli.length} selected…`)
-            : tr('Choose…')}
-        </button>
-      ),
-      isDefault: (settings.mcp?.writeToCli?.length ?? 0) === 0,
-    },
-    {
-      section: 'advanced',
-      id: 'mcptoken',
-      label: 'MCP token',
-      hint: 'The shared secret outside tools must send. Empty means no check.',
-      words: 'advanced mcp token secret auth bearer key',
-      ctl: (
-        <TextInput
-          value=""
-          testid="cset-mcptoken"
-          label="MCP token"
-          placeholder={settings.mcp?.token ? tr('Set — type to replace') : tr('Not set')}
-          password
-          onChange={(v) => void apply({ mcp: { token: v } })}
-        />
-      ),
-      isDefault: !settings.mcp?.token,
-    },
-    {
-      section: 'advanced',
-      id: 'idle',
-      label: 'Language server idle timeout',
-      hint: 'How long an analyser waits before it is shut down.',
-      words: 'advanced lsp language server idle timeout shutdown memory',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-lspidle"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('lsp'),
-            );
-          }}
-        >
-          {tr('Open…')}
-        </button>
-      ),
-      isDefault: true,
-    },
 
     /* ── One start command per detected CLI ────────────────────────────────
      * Generated from CLI_TABS: which CLIs exist is the catalogue's business, so
@@ -2066,49 +1696,6 @@ export default function ChatSettingsPage({
     }),
 
     /* ── Outside connections ─────────────────────────────────────────────── */
-    {
-      section: 'advanced',
-      id: 'sshhosts',
-      label: 'Recent SSH hosts',
-      hint: 'Servers Zephyr has connected to lately.',
-      words: 'advanced ssh host server remote connect recent',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-sshhosts"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('ssh'),
-            );
-          }}
-        >
-          {tr(`${settings.ssh?.recentHosts?.length ?? 0} saved…`)}
-        </button>
-      ),
-      isDefault: (settings.ssh?.recentHosts?.length ?? 0) === 0,
-    },
-    {
-      section: 'advanced',
-      id: 'announce',
-      label: 'Announcements',
-      hint: 'Product notes you have already seen. Clearing shows them again.',
-      words: 'advanced announcements notes news seen dismiss clear reset',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-announce"
-          onClick={() => void apply({ update: { seenAnnouncements: [] } })}
-        >
-          {settings.update?.seenAnnouncements?.length
-            ? tr(`Clear ${settings.update.seenAnnouncements.length}`)
-            : tr('None seen')}
-        </button>
-      ),
-      isDefault: (settings.update?.seenAnnouncements?.length ?? 0) === 0,
-    },
   ];
 
   const q = cari.trim().toLowerCase();
