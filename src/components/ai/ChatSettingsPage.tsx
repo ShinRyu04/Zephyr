@@ -1152,6 +1152,8 @@ export default function ChatSettingsPage({
    * button would look broken the moment it was used.
    */
   const [abaikan, setAbaikan] = useState(false);
+  /* Only meaningful in the popup; the editor home already fills its host. */
+  const [besar, setBesar] = useState(false);
   const hitungKotor = rows.filter((r) => !r.isDefault).length;
 
   /*
@@ -1187,7 +1189,7 @@ export default function ChatSettingsPage({
   }, []);
 
   return (
-    <div className="cset-page" data-testid="cset-page">
+    <div className={`cset-page${besar ? ' is-besar' : ''}`} data-testid="cset-page">
       <div
         className="cset-topbar"
         /* The popup's drag handle when there is one; a plain header in the
@@ -1240,10 +1242,41 @@ export default function ChatSettingsPage({
         >
           {kotor ? tf('Save ({n})', { n: jumlahKotor }) : tr('Saved')}
         </button>
+        {/*
+          * Maximise, for the same reason Agent Customizations has one: the page
+          * is 1280x880 and a reader comparing many settings wants the room. Only
+          * in the POPUP - in the editor tab the page already fills its host, so a
+          * second control there would do nothing.
+          */}
+        {onDragStart && (
+          <button
+            className="ai-ikon"
+            data-testid="cset-max"
+            title={besar ? tr('Restore size') : tr('Maximize')}
+            aria-label={besar ? tr('Restore size') : tr('Maximize')}
+            aria-pressed={besar}
+            onClick={() => setBesar((v) => !v)}
+          >
+            <AiIkon name={besar ? 'restore' : 'maximize'} size={14} />
+          </button>
+        )}
+        {/*
+          * An icon, matching every other window control in the app.
+          *
+          * This was the only text button in a row of icons - "Tutup" next to a
+          * maximize glyph - so the two read as different kinds of control even
+          * though they act on the same window. The header already carries the
+          * page title, so a word here was also the only thing competing with it
+          * for the reader's attention.
+          */}
         <button
-          className="btn btn-sm"
-          data-testid="cset-close" onClick={onClose}>
-          {tr('Close')}
+          className="ai-ikon"
+          data-testid="cset-close"
+          title={tr('Close')}
+          aria-label={tr('Close')}
+          onClick={onClose}
+        >
+          <AiIkon name="close" size={14} />
         </button>
       </div>
 
