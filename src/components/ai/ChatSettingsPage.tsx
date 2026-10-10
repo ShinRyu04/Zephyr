@@ -3,6 +3,8 @@ import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useAiDebug } from '../../lib/aiDebugStore';
 import { useToolGate } from '../../lib/toolGate';
+import { usePersona } from '../../lib/personaStore';
+import { useAgentCustom } from '../../lib/agentCustomStore';
 import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
@@ -70,8 +72,11 @@ const SECTIONS = [
   { id: 'context', label: 'Context' },
   { id: 'subagent', label: 'Sub-agents' },
   { id: 'tools', label: 'Tools' },
+  { id: 'models', label: 'Models' },
+  { id: 'persona', label: 'Persona' },
   { id: 'voice', label: 'Voice' },
   { id: 'appearance', label: 'Appearance' },
+  { id: 'session', label: 'Session' },
   { id: 'advanced', label: 'Advanced' },
 ] as const;
 
@@ -119,6 +124,18 @@ export default function ChatSettingsPage({
   const setEffort = useAi((s) => s.setReasoningEffort);
   const tipsVisible = useAi((s) => s.tipsVisible);
   const setTipsVisible = useAi((s) => s.setTipsVisible);
+
+  /* Persona: which identity is layered onto the prompt, and the list to pick
+     from. Loaded on mount because the store starts empty and only filled itself
+     from the Settings page — a reader who never opened Settings would see one
+     option and conclude the feature was missing. */
+  const daftarPersona = usePersona((s) => s.daftar);
+  const personaAktif = usePersona((s) => s.aktif);
+  const setPersonaAktif = usePersona((s) => s.setAktif);
+  const muatPersona = usePersona((s) => s.muat);
+  useEffect(() => {
+    if (daftarPersona.length === 0) muatPersona();
+  }, [daftarPersona.length, muatPersona]);
 
   /* Settings-backed fields. */
   const settings = useStore((s) => s.settings);
@@ -845,6 +862,159 @@ export default function ChatSettingsPage({
       reset: () => void apply({ voice: { voiceId: '' } }),
     },
     {
+      section: 'models',
+      id: 'askmodel',
+      label: 'Chat model',
+      hint: 'Which model answers in this panel.',
+      words: 'models model chat pick llm provider answer',
+      ctl: (
+        <button
+          className="cset-value"
+          data-testid="cset-askmodel"
+          title={tr('Opens the model picker')}
+          onClick={() => useAi.getState().setModelMenuOpen(true)}
+        >
+          {useAi.getState().model || tr('Choose…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'models',
+      id: 'provider2',
+      label: 'Active provider',
+      hint: 'Where those models come from.',
+      words: 'models provider active openai anthropic gemini custom ollama',
+      ctl: (
+        <Select
+          value={models.activeProvider ?? 'custom'}
+          testid="cset-provider2"
+          label="Active provider"
+          options={[
+            { value: 'custom', label: 'Custom / local' },
+            { value: 'openai', label: 'OpenAI' },
+            { value: 'anthropic', label: 'Anthropic' },
+            { value: 'gemini', label: 'Google Gemini' },
+            { value: 'ollama', label: 'Ollama' },
+            { value: 'groq', label: 'Groq' },
+          ]}
+          onChange={(v) => void apply({ models: { activeProvider: v } })}
+        />
+      ),
+      isDefault: (models.activeProvider ?? 'custom') === 'custom',
+      reset: () => void apply({ models: { activeProvider: 'custom' } }),
+    },
+    {
+      section: 'models',
+      id: 'baseurl',
+      label: 'Endpoint',
+      hint: 'Override the provider URL. Empty uses the provider default.',
+      words: 'models endpoint base url override gateway custom local',
+      ctl: (
+        <TextInput
+          value={models.providers?.[models.activeProvider ?? 'custom']?.baseUrl ?? ''}
+          testid="cset-baseurl"
+          label="Endpoint"
+          placeholder="https://…"
+          onChange={(v) =>
+            void apply({
+              models: {
+                providers: {
+                  [models.activeProvider ?? 'custom']: { baseUrl: v },
+                },
+              },
+            })
+          }
+        />
+      ),
+      isDefault: (models.providers?.[models.activeProvider ?? 'custom']?.baseUrl ?? '') === '',
+      reset: () =>
+        void apply({
+          models: { providers: { [models.activeProvider ?? 'custom']: { baseUrl: '' } } },
+        }),
+    },
+    {
+      section: 'models',
+      id: 'keys',
+      label: 'API keys',
+      hint: 'Keys are stored encrypted and never shown back to the screen.',
+      words: 'models api key secret token openai anthropic gemini credential',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-keys"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('models'),
+            );
+          }}
+        >
+          {tr('Manage keys…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+
+    {
+      section: 'persona',
+      id: 'persona',
+      label: 'Active persona',
+      hint: 'The identity and standing rules layered onto the system prompt.',
+      words: 'persona identity agent character who zeph style rules',
+      ctl: (
+        <Select
+          value={personaAktif}
+          testid="cset-persona"
+          label="Active persona"
+          options={
+            daftarPersona.length > 0
+              ? daftarPersona.map((p) => ({ value: p.id, label: p.nama }))
+              : [{ value: 'zeph', label: 'Zeph' }]
+          }
+          onChange={(v) => void setPersonaAktif(v)}
+        />
+      ),
+      isDefault: personaAktif === 'zeph',
+      reset: () => void setPersonaAktif('zeph'),
+    },
+    {
+      section: 'persona',
+      id: 'managepersona',
+      label: 'Personas',
+      hint: 'Write your own, or edit the ones that ship with Zephyr.',
+      words: 'persona edit create new manage custom agent identity',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-managepersona"
+          onClick={() => useAgentCustom.getState().buka('agents')}
+        >
+          {tr('Manage personas…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'persona',
+      id: 'skills',
+      label: 'Skills & hooks',
+      hint: 'Reusable instruction bundles and commands that run around tool calls.',
+      words: 'persona skills hooks plugins extras automation lifecycle',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-skills"
+          onClick={() => useAgentCustom.getState().buka('skills')}
+        >
+          {tr('Open skills…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
       section: 'voice',
       id: 'nbase',
       label: 'Neural server',
@@ -1170,6 +1340,75 @@ export default function ChatSettingsPage({
       reset: () => {
         if (debugBuka) useAiDebug.getState().toggle();
       },
+    },
+
+    {
+      section: 'session',
+      id: 'restore',
+      label: 'Restore last session',
+      hint: 'Reopen the files and chats you had open when Zephyr last closed.',
+      words: 'session restore reopen startup launch previous workspace',
+      ctl: (
+        <Toggle
+          checked={settings.general?.restoreSession !== false}
+          testid="cset-restore"
+          label="Restore last session"
+          onChange={(v) => void apply({ general: { restoreSession: v } })}
+        />
+      ),
+      isDefault: (settings.general?.restoreSession !== false) === true,
+      reset: () => void apply({ general: { restoreSession: true } }),
+    },
+    {
+      section: 'session',
+      id: 'updates',
+      label: 'Check for updates',
+      hint: 'Look for a new release when Zephyr starts.',
+      words: 'session updates check release version startup auto',
+      ctl: (
+        <Toggle
+          checked={settings.general?.checkUpdates !== false}
+          testid="cset-updates"
+          label="Check for updates"
+          onChange={(v) => void apply({ general: { checkUpdates: v } })}
+        />
+      ),
+      isDefault: (settings.general?.checkUpdates !== false) === true,
+      reset: () => void apply({ general: { checkUpdates: true } }),
+    },
+    {
+      section: 'session',
+      id: 'lowram',
+      label: 'Save memory',
+      hint: 'Keep fewer files loaded at once. Useful on a small machine.',
+      words: 'session memory ram low save performance tabs',
+      ctl: (
+        <Toggle
+          checked={settings.general?.lowRam === true}
+          testid="cset-lowram"
+          label="Save memory"
+          onChange={(v) => void apply({ general: { lowRam: v } })}
+        />
+      ),
+      isDefault: (settings.general?.lowRam === true) === false,
+      reset: () => void apply({ general: { lowRam: false } }),
+    },
+    {
+      section: 'session',
+      id: 'cls',
+      label: 'Clear all chats',
+      hint: 'Delete every conversation. This cannot be undone.',
+      words: 'session clear delete all chats history wipe reset',
+      ctl: (
+        <button
+          className="btn btn-sm btn-danger"
+          data-testid="cset-clear"
+          onClick={() => useAi.getState().setClearAllOpen(true)}
+        >
+          {tr('Clear all chats…')}
+        </button>
+      ),
+      isDefault: true,
     },
   ];
 
