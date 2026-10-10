@@ -1199,6 +1199,20 @@ export const instructionWrite = (opts: {
 }) => invoke<string>('instruction_write', opts);
 export const instructionDelete = (name: string) => invoke<boolean>('instruction_delete', { name });
 
+export interface CatalogInstruction {
+  id: string;
+  name: string;
+  description: string;
+  applyTo: string;
+  source: string;
+  body: string;
+}
+
+export const instructionCatalogList = () =>
+  invoke<CatalogInstruction[]>('instruction_catalog_list');
+export const instructionInstall = (id: string, scope: string) =>
+  invoke<string>('instruction_install', { id, scope });
+
 export const agentContext = () => invoke<string>('agent_context');
 
 export const memoryRead = () => invoke<MemoryState>('memory_read');

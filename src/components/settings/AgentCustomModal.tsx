@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import AgcToolList from './AgcToolList';
-import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations } from './AgcSections';
+import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcInstructions } from './AgcSections';
 
 /*
  * Agent Customizations — a modal of its own, deliberately NOT inside Settings.
@@ -27,7 +27,6 @@ import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations } from './AgcSections';
  */
 
 const McpPanel = lazy(() => import('../settings/McpPanel'));
-const RulesSection = lazy(() => import('../settings/RulesSection'));
 const PersonaCard = lazy(() => import('../settings/PersonaCard'));
 
 /*
@@ -296,11 +295,9 @@ function Isi({ section }: { section: AgentCustomSection }) {
         <div className="agc-pane">
           <h2 className="agc-pane-title">{tr('Instructions')}</h2>
           <p className="agc-pane-desc">
-            {tr('Define common guidelines that shape how the agent works.')}
+            {tr('Rules attached to a file pattern. Aturan repositori yang selalu menyala ada di AGENTS.md.')}
           </p>
-          <Suspense fallback={null}>
-            <RulesSection />
-          </Suspense>
+          <AgcInstructions />
         </div>
       );
     case 'agents':
