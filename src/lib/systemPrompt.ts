@@ -1,5 +1,5 @@
 import { useStore } from './store';
-import { fsRead } from './commands';
+import { fsRead, instructionRead } from './commands';
 import { blokPersona, personaAktif } from './personaStore';
 import { LANGS } from './systemPromptLanguages';
 
@@ -438,9 +438,79 @@ export async function aturanProyek(): Promise<string> {
     } catch {
     }
   }
+  /*
+   * File-pattern instructions ride along with the project rules, because they
+   * are the same KIND of thing: standing guidance for this repository. What
+   * separates them is WHEN they apply — each carries an `applyTo` glob, and only
+   * the ones matching a file the reader has open are included.
+   *
+   * Filtering here rather than sending all of them is the whole point of the
+   * feature. `instructions/` in the community corpus holds ~200 files; sending
+   * every one would put Terraform conventions in front of a TypeScript task and
+   * grow the prompt with material the task cannot use.
+   *
+   * The open tabs are the signal. They are not a perfect proxy for "what the
+   * agent will touch" — a task can create a new file category — but they are the
+   * only honest one available before the agent starts, and an instruction the
+   * reader opened the file for is very likely the one they want.
+   */
+  const instruksi = await instruksiUntukTabTerbuka();
+  if (instruksi) {
+    const sisa = ATURAN_TOTAL_MAX - total;
+    if (sisa > 0) bagian.push(instruksi.slice(0, sisa));
+  }
   const hasil = bagian.join('\n\n');
   cacheAturan = { at: now, teks: hasil };
   return hasil;
+}
+
+/**
+ * The instructions whose `applyTo` matches a file currently open in a tab.
+ *
+ * Read from the store at call time, not captured: the cache above lives 30
+ * seconds and a stale set of open files would apply the wrong rules with no sign
+ * anything was wrong.
+ */
+async function instruksiUntukTabTerbuka(): Promise<string> {
+  try {
+    const { useInstructions, cocokPola } = await import('./instructionsStore');
+    const st = useInstructions.getState();
+    if (st.daftar.length === 0) await st.muat();
+    const daftar = useInstructions.getState().daftar;
+    if (daftar.length === 0) return '';
+
+    const tabs = useStore.getState().tabs;
+    const jalur = tabs.map((t) => t.path).filter((p): p is string => !!p);
+    if (jalur.length === 0) return '';
+
+    /*
+     * A workspace instruction of the same name shadows the global one, the same
+     * rule the backend applies when listing skills — so only the first match per
+     * name is kept.
+     */
+    const dipakai = new Set<string>();
+    const blok: string[] = [];
+    for (const ins of daftar) {
+      const kunci = ins.name.toLowerCase();
+      if (dipakai.has(kunci)) continue;
+      if (!ins.apply_to.trim()) continue;
+      if (!jalur.some((p) => cocokPola(ins.apply_to, p))) continue;
+      dipakai.add(kunci);
+      try {
+        const isi = await instructionRead(ins.name);
+        if (isi.trim()) {
+          blok.push(`## ${ins.name} (applies to ${ins.apply_to})\n${isi.slice(0, ATURAN_MAX_CHARS)}`);
+        }
+      } catch {
+        /* A listed instruction whose file cannot be read is skipped rather than
+           failing the whole prompt build. */
+      }
+    }
+    if (blok.length === 0) return '';
+    return '# File-specific instructions (read from .zephyr/instructions)\n\n' + blok.join('\n\n');
+  } catch {
+    return '';
+  }
 }
 
 export function resetAturanProyek() {

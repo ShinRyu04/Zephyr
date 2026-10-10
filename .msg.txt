@@ -1,0 +1,36 @@
+feat(ai): Instructions per pola berkas
+
+Instruksi adalah aturan yang terikat pada GLOB dan berlaku untuk
+pekerjaan pada berkas yang cocok: konvensi TypeScript saat menyunting
+.ts, konvensi Terraform saat menyunting .tf. Itu yang membedakannya
+dari dua jenis customization lain - aturan proyek (AGENTS.md) selalu
+menyala, skill dibuka agent saat tugasnya cocok, sedangkan instruksi
+menempel pada pola.
+
+- instructions.rs: baca/tulis/hapus di .zephyr/instructions/ (workspace)
+  dan <data_dir>/instructions/ (global). Frontmatter mengikuti bentuk
+  VS Code Copilot supaya korpus komunitas bisa dipakai apa adanya.
+- Hanya yang polanya cocok dengan berkas yang SEDANG TERBUKA yang ikut
+  ke prompt. Mengirim semuanya akan menaruh konvensi Terraform di depan
+  tugas TypeScript dan menumbuhkan prompt dengan bahan yang tidak bisa
+  dipakai tugas itu - persis yang dihindari oleh pemisahan ini.
+- Nama workspace menaungi nama global, aturan yang sama dengan skills.
+- cocokPola mendukung `**`, `*`, `?`, daftar dipisah koma, dan `{a,b}`.
+  Pola yang tidak bisa dipahami dianggap COCOK, bukan tidak: instruksi
+  yang ditulis pembaca lalu gagal kita parse lebih mungkin diinginkan
+  daripada sampah, dan membuangnya diam-diam membuat fitur ini tampak
+  rusak tanpa ada yang menjelaskan kenapa.
+
+Dua bug yang ditemukan saat menguji cocokPola, keduanya diperbaiki:
+- Pembangun regex versi replace berantai menyisakan penanda `\u0000` di
+  regex akhir, jadi SETIAP pola yang mengandung "/" gagal - yaitu hampir
+  semuanya. Sekarang dibangun satu pass karakter per karakter.
+- Ekspansi `{a,b}` dijalankan SETELAH pemisahan koma, jadi
+  `**/*.{ts,tsx}` terpecah jadi `**/*.{ts` dan `tsx}` - dua serpihan,
+  bukan pola. Sekarang brace dilebarkan lebih dulu.
+
+Diuji: 18/18 kasus pola, termasuk bentuk yang muncul di korpus
+(`**/*.{ts,tsx}`, `**/*.yml, **/*.yaml`, `**/*.razor, **/*.razor.cs`).
+8 unit test Rust baru; total 373 lulus.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
