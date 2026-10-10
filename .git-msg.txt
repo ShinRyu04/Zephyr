@@ -1,0 +1,24 @@
+fix(ai): pisahkan state runtime per permukaan + perbaiki tombol Chat Settings
+
+Masih banyak yang nyambung antara kolom kanan dan tab editor karena
+state runtime-nya global, bukan cuma chat-nya:
+
+- Transcript: PesanList membaca s.activeSession() yang menunjuk
+  activeId utama, jadi panel editor menampilkan judul chat-nya sendiri
+  tapi isi transkrip milik kolom kanan.
+- Tombol: pendings/antrians/agentBusys per composerId. Sebelumnya
+  menjalankan agent di editor membuat kolom kanan ikut menampilkan
+  Stop dan antriannya ikut terisi.
+- ContextMeter, GoalStrip, LoopStrip: ikut per permukaan.
+- compactContext/exportChat menerima composerId.
+- Jalur kirim: Enter dan tombol Send masih memanggil send() mentah
+  (tanpa composerId) - itu sebabnya kirim dari editor masuk ke chat
+  kolom kanan.
+
+Tombol Chat Settings yang mati:
+- Show thinking / timestamps / dividers hanya useState lokal di
+  halaman Settings; komentarnya sendiri mengakui "not saved settings".
+  Switch bergerak, toast muncul, transkrip tidak berubah. Sekarang di
+  aiStore + localStorage, dibaca ChatMessage dan AiPanel.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
