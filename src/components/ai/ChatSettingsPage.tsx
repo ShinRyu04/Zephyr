@@ -9,6 +9,7 @@ import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
+import { CLI_TABS } from '../../lib/aiTabsStore';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
 
@@ -1973,6 +1974,92 @@ export default function ChatSettingsPage({
         </button>
       ),
       isDefault: true,
+    },
+
+    /* ── One start command per detected CLI ────────────────────────────────
+     * Generated from CLI_TABS: which CLIs exist is the catalogue's business, so
+     * a row per CLI is derived rather than typed — adding a CLI must not mean
+     * remembering to add a row here.
+     */
+    ...CLI_TABS.map((cli) => {
+      const cmd = (settings.agents?.startCommands?.[cli.id] ?? []).join(' && ');
+      return {
+        section: 'agent' as const,
+        id: `start-${cli.id}`,
+        label: `${cli.label} start command`,
+        hint: 'What runs when this CLI opens. Empty uses the CLI default.',
+        words: `agent cli start command ${cli.label} launch terminal pane host`,
+        ctl: (
+          <TextInput
+            value={cmd}
+            testid={`cset-start-${cli.id}`}
+            label={`${cli.label} start command`}
+            placeholder={tr('CLI default')}
+            mono
+            onChange={(v) => {
+              const next = { ...(settings.agents?.startCommands ?? {}) };
+              const parts = v
+                .split('&&')
+                .map((x) => x.trim())
+                .filter(Boolean);
+              if (parts.length === 0) delete next[cli.id];
+              else next[cli.id] = parts;
+              void apply({ agents: { startCommands: next } });
+            }}
+          />
+        ),
+        isDefault: cmd === '',
+        reset: () => {
+          const next = { ...(settings.agents?.startCommands ?? {}) };
+          delete next[cli.id];
+          void apply({ agents: { startCommands: next } });
+        },
+      };
+    }),
+
+    /* ── Outside connections ─────────────────────────────────────────────── */
+    {
+      section: 'advanced',
+      id: 'sshhosts',
+      label: 'Recent SSH hosts',
+      hint: 'Servers Zephyr has connected to lately.',
+      words: 'advanced ssh host server remote connect recent',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-sshhosts"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('ssh'),
+            );
+          }}
+        >
+          {tr(`${settings.ssh?.recentHosts?.length ?? 0} saved…`)}
+        </button>
+      ),
+      isDefault: (settings.ssh?.recentHosts?.length ?? 0) === 0,
+    },
+    {
+      section: 'advanced',
+      id: 'announce',
+      label: 'Announcements',
+      hint: 'Product notes you have already seen. Clearing shows them again.',
+      words: 'advanced announcements notes news seen dismiss clear reset',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-announce"
+          onClick={() => void apply({ update: { seenAnnouncements: [] } })}
+        >
+          {settings.update?.seenAnnouncements?.length
+            ? tr(`Clear ${settings.update.seenAnnouncements.length}`)
+            : tr('None seen')}
+        </button>
+      ),
+      isDefault: (settings.update?.seenAnnouncements?.length ?? 0) === 0,
     },
   ];
 
