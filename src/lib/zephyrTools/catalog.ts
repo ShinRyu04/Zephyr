@@ -95,6 +95,19 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   /* Tasks - 1 */
   ['todo_write', 'Tasks & Notes', 'appWrite', true, 'Ganti daftar tugas agen untuk tugas ini'],
 
+  /* Code intelligence - 5 */
+  /*
+   * The language-server queries. Read-only, and grouped apart from `grep`/`glob`
+   * because they answer a different question: those find TEXT, these find CODE.
+   * A gate that switched these off would leave the agent with only text search,
+   * which still works — just less precisely — so they are not in TOOL_WAJIB.
+   */
+  ['lsp_symbols', 'Code intelligence', 'read', false, 'Daftar simbol di sebuah berkas, dengan jenis dan kedalaman'],
+  ['lsp_references', 'Code intelligence', 'read', false, 'Tempat-tempat yang memakai sebuah simbol, menurut language server'],
+  ['lsp_definition', 'Code intelligence', 'read', false, 'Lokasi definisi sebuah simbol'],
+  ['lsp_hover', 'Code intelligence', 'read', false, 'Tipe dan dokumentasi simbol pada satu posisi'],
+  ['lsp_diagnostics', 'Code intelligence', 'read', false, 'Galat dan peringatan language server untuk sebuah berkas'],
+
   /* Skills - 1 */
   /*
    * Read-only: 'read', not 'appWrite' and not 'exec'. A skill is content the
@@ -526,6 +539,19 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'bash_background',
   'bash_logs',
   'todo_write',
+  /*
+   * Code intelligence.
+   *
+   * Kept together and placed next to the search tools, because an agent that
+   * reaches for `grep` to find a symbol should see these in the same part of the
+   * list. They are additive to the search pair, never a replacement: a file whose
+   * language has no server still has to be greppable.
+   */
+  'lsp_symbols',
+  'lsp_references',
+  'lsp_definition',
+  'lsp_hover',
+  'lsp_diagnostics',
   'skill_view',
   'think',
   'ask_user',

@@ -51,6 +51,22 @@ import type { SearchOpts } from '../types';
 import { periksaBaca, periksaTulis, periksaPerintahShell } from '../agentGuard';
 import { kutipUrlDiPerintah } from '../kutipPerintah';
 
+/*
+ * The LSP helpers are imported lazily inside the tool bodies rather than here.
+ * `agentLsp` pulls in `lspStore`, which pulls in the editor's language-client
+ * plumbing — and `agentTools` is evaluated during startup, before the editor is
+ * mounted. A top-level import would put that whole chain on the boot path for
+ * tools an agent may never call.
+ */
+const lspSymbols = async (path: string) => (await import('../agentLsp')).lspDocumentSymbolsTool(path);
+const lspRefs = async (path: string, pos: { line: number; column: number }, dekl: boolean) =>
+  (await import('../agentLsp')).lspReferencesTool(path, pos, dekl);
+const lspDef = async (path: string, pos: { line: number; column: number }) =>
+  (await import('../agentLsp')).lspDefinitionTool(path, pos);
+const lspHover = async (path: string, pos: { line: number; column: number }) =>
+  (await import('../agentLsp')).lspHoverTool(path, pos);
+const lspDiagnostics = async (path: string) => (await import('../agentLsp')).lspDiagnosticsTool(path);
+
 /** Tolak jalur rahasia/terproteksi sebelum tool menyentuhnya. */
 function jagaBaca(...paths: string[]): void {
   for (const p of paths) {
@@ -1241,6 +1257,160 @@ export const TOOL_BAWAAN: AgentTool[] = [
   },
 
   /* ---------------- Tasks & Notes ---------------- */
+
+  /*
+   * ── Language-server queries ────────────────────────────────────────────────
+   *
+   * Why these exist next to `grep` and `glob`: those two match TEXT, and text is
+   * a poor stand-in for code. Asking for `lsp_references` on a function returns
+   * the calls; asking `grep` returns the calls, the definition, every comment
+   * that mentions the name, and any string containing it — leaving the agent to
+   * read them all and guess. That difference is the reason this block is here.
+   *
+   * All five are `read` effect, none can write. A `lsp_rename` would be a
+   * workspace-wide edit the reader never saw, and deliberate changes already go
+   * through the diff-review path.
+   *
+   * Every one degrades to a plain sentence when no language server is available
+   * for the file. That matters: an agent told "no results" concludes the symbol
+   * does not exist, where the truth may be that nobody was asked.
+   */
+  {
+    spec: {
+      name: 'lsp_symbols',
+      description:
+        'Daftar simbol (fungsi, kelas, metode, variabel) di sebuah berkas, dengan jenis dan kedalamannya. Pakai ini untuk memahami struktur berkas tanpa membacanya penuh. Berbasis language server, bukan pencarian teks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas.' },
+        },
+        required: ['path'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const r = await lspSymbols(path);
+      if (!r.ok) return r.pesan;
+      if (r.hasil.length === 0) return `Tidak ada simbol yang dilaporkan untuk ${path}.`;
+      return r.hasil
+        .map((s) => `${'  '.repeat(Math.min(s.depth, 4))}${s.name} (${s.kind}) - baris ${s.line}`)
+        .join('\n');
+    },
+  },
+
+  {
+    spec: {
+      name: 'lsp_references',
+      description:
+        'Cari semua TEMPAT yang memakai simbol pada posisi tertentu. Berbasis language server: hasilnya pemakaian yang sebenarnya, bukan kemunculan teks. Pakai sebelum mengubah tanda tangan fungsi atau menghapus simbol, untuk tahu apa saja yang akan terdampak.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas yang memuat simbolnya.' },
+          line: { type: ['number', 'string'], description: 'Baris simbol, dihitung dari 1.' },
+          column: { type: ['number', 'string'], description: 'Kolom simbol, dihitung dari 1.' },
+          includeDeclaration: {
+            type: ['boolean', 'string'],
+            description: 'Ikutkan baris deklarasinya. Bawaan: tidak.',
+          },
+        },
+        required: ['path', 'line'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const pos = { line: bacaAngka(a.line) ?? 1, column: bacaAngka(a.column) ?? 1 };
+      const r = await lspRefs(path, pos, bacaBool(a.includeDeclaration));
+      if (!r.ok) return r.pesan;
+      if (r.hasil.length === 0) {
+        return `Tidak ada pemakaian lain yang dilaporkan untuk simbol di ${path}:${pos.line}:${pos.column}.`;
+      }
+      return (
+        `${r.hasil.length} pemakaian:\n` +
+        r.hasil.map((l) => `${l.file}:${l.line}:${l.column}  ${l.teks ?? ''}`.trimEnd()).join('\n')
+      );
+    },
+  },
+
+  {
+    spec: {
+      name: 'lsp_definition',
+      description:
+        'Lokasi definisi simbol pada posisi tertentu, menurut language server. Lebih tepat daripada mencari nama dengan grep, terutama saat nama yang sama dipakai di banyak tempat.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas yang memuat simbolnya.' },
+          line: { type: ['number', 'string'], description: 'Baris simbol, dihitung dari 1.' },
+          column: { type: ['number', 'string'], description: 'Kolom simbol, dihitung dari 1.' },
+        },
+        required: ['path', 'line'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const pos = { line: bacaAngka(a.line) ?? 1, column: bacaAngka(a.column) ?? 1 };
+      const r = await lspDef(path, pos);
+      if (!r.ok) return r.pesan;
+      if (r.hasil.length === 0) return `Definisi tidak ditemukan untuk simbol di ${path}:${pos.line}.`;
+      return r.hasil.map((l) => `${l.file}:${l.line}:${l.column}\n  ${l.teks ?? ''}`).join('\n');
+    },
+  },
+
+  {
+    spec: {
+      name: 'lsp_hover',
+      description:
+        'Tipe dan dokumentasi simbol pada posisi tertentu, seperti yang muncul saat kursor diarahkan di editor. Pakai untuk mengetahui tanda tangan fungsi atau tipe variabel tanpa membaca seluruh berkas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas.' },
+          line: { type: ['number', 'string'], description: 'Baris, dihitung dari 1.' },
+          column: { type: ['number', 'string'], description: 'Kolom, dihitung dari 1.' },
+        },
+        required: ['path', 'line'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const pos = { line: bacaAngka(a.line) ?? 1, column: bacaAngka(a.column) ?? 1 };
+      const r = await lspHover(path, pos);
+      if (!r.ok) return r.pesan;
+      return r.teks.trim() || `Tidak ada informasi tipe untuk simbol di ${path}:${pos.line}.`;
+    },
+  },
+
+  {
+    spec: {
+      name: 'lsp_diagnostics',
+      description:
+        'Galat dan peringatan yang dilaporkan language server untuk sebuah berkas. Pakai setelah mengubah kode, untuk memeriksa hasilnya dengan alat yang sama yang dipakai editor - bukan dengan menebak dari isi berkas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas.' },
+        },
+        required: ['path'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const r = await lspDiagnostics(path);
+      if (!r.ok) return r.pesan;
+      if (r.hasil.length === 0) {
+        return `Tidak ada galat atau peringatan yang dilaporkan untuk ${path}.`;
+      }
+      const jumlah = r.hasil.filter((d) => d.severity === 'error').length;
+      return (
+        `${r.hasil.length} masalah (${jumlah} galat):\n` +
+        r.hasil
+          .map((d) => `${d.line}:${d.column} [${d.severity}] ${d.pesan} (${d.sumber})`)
+          .join('\n')
+      );
+    },
+  },
 
   /*
    * `skill_view` — the tool the prompt has been promising all along.
