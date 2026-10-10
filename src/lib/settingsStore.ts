@@ -10,10 +10,6 @@ export type SectionId =
   | 'shortcuts'
   | 'models'
   | 'agents'
-  /* Voice sits next to Agents, not under Accessibility: it belongs to the chat
-     panel, and someone looking for it will look where the AI settings are. */
-  | 'voice'
-  | 'mic'
   /* Rules guards WRITES, so it lives beside Permissions - both are about what
      the AI is allowed to do, and a user looking for one will look for the other. */
   | 'rules'
@@ -52,13 +48,15 @@ export const SECTION_ORDER: SectionId[] = [
 ];
 
 /*
- * `subagent`, `permissions`, `voice` and `mic` are NOT in the nav order any more:
- * all four are chat settings — who does the work, which commands may run without
- * asking, how the assistant speaks, how you dictate — and they now live in Chat
- * Settings, whose sections carry the same controls (including the custom
- * sub-agent list and the command allow-list themselves, not just doors to them).
- * The SectionId type keeps them so deep links and the panels still type-check;
- * nothing routes there from the nav.
+ * `subagent` and `permissions` are NOT in the nav order any more: both are chat
+ * settings — who does the work, which commands may run without asking — and they
+ * now live in Chat Settings, whose sections carry the same controls (including
+ * the custom sub-agent list and the command allow-list themselves, not just
+ * doors to them). The SectionId type keeps them so deep links and the panels
+ * still type-check; nothing routes there from the nav.
+ *
+ * `voice` and `mic` went further and left the type entirely: dictation and
+ * speech output were REMOVED from Zephyr, so there is no panel to deep-link to.
  *
  * `agents`, `rules` and `mcp` left the nav earlier for the same reason: they
  * moved into the Agent Customizations modal (its Agents / Instructions / MCP
