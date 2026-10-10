@@ -4,6 +4,7 @@ import { findCommand } from '../../lib/commandRegistry';
 import { chordConflicts, displayChord, normalizeChord, type KeyBinding } from '../../lib/keybindings';
 import { eventToBinding } from '../../lib/shortcuts';
 import { useT } from '../../lib/i18n';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 
 const LAYER_LABEL: Record<KeyBinding['layer'], string> = {
   app: 'App',
@@ -13,6 +14,7 @@ const LAYER_LABEL: Record<KeyBinding['layer'], string> = {
 };
 
 export default function KeybindingsEditor() {
+  const { popupRef, onPointerDown } = useDragEverywhere();
   const tr = useT();
   const open = useKb((s) => s.editorOpen);
   const bindings = useKb((s) => s.bindings);
@@ -97,7 +99,15 @@ export default function KeybindingsEditor() {
         if (e.target === e.currentTarget && !rekam) setOpen(false);
       }}
     >
-      <div className="kb-panel" role="dialog" aria-modal="true" aria-label="Keyboard Shortcuts">
+      <div
+        className="kb-panel"
+        ref={popupRef}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Keyboard Shortcuts"
+      >
         <header className="kb-head">
           <span className="kb-title">Keyboard Shortcuts</span>
           <input

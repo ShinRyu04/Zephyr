@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 import { ALL_MODELS, isPlaceholderModel, PROVIDERS, PROVIDER_BY_ID, baseUrlEfektif } from '../../lib/modelCatalog';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -48,6 +49,7 @@ export default function SubagentCustomModal({ awal }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [sibuk, setSibuk] = useState(false);
 
+  const { popupRef, onPointerDown } = useDragEverywhere();
   const trapRef = useFocusTrap<HTMLDivElement>({ aktif: true, onEscape: () => tutup() });
 
   /*
@@ -253,7 +255,14 @@ export default function SubagentCustomModal({ awal }: Props) {
     <div className="modal-backdrop" role="presentation" onMouseDown={() => tutup()}>
       <div
         className="modal subagent-modal"
-        ref={trapRef}
+        ref={(el) => {
+          /* Both refs on one node: the focus trap keeps Tab inside, the drag
+             hook moves it. A wrapper would break the trap's own bounds. */
+          trapRef.current = el;
+          popupRef.current = el;
+        }}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
         role="dialog"
         aria-modal="true"
         aria-labelledby="sc-title"

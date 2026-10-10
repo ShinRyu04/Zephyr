@@ -3,6 +3,7 @@ import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 
 export default function ConfirmDialog() {
   const tr = useT();
@@ -10,6 +11,7 @@ export default function ConfirmDialog() {
   const tabs = useStore((s) => s.tabs);
   const resolveConfirm = useStore((s) => s.resolveConfirm);
   const saveRef = useRef<HTMLButtonElement | null>(null);
+  const { popupRef, onPointerDown } = useDragEverywhere();
 
   useEffect(() => {
     if (confirm) saveRef.current?.focus();
@@ -47,7 +49,20 @@ export default function ConfirmDialog() {
           if (e.key === 'Escape') void resolveConfirm('cancel');
         }}
       >
-        <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="cf-title">
+        <div
+          className="modal"
+          ref={(el) => {
+            /* Both refs, one node: the focus trap needs it to keep Tab inside,
+               and the drag hook needs it to move. */
+            trapRef.current = el;
+            popupRef.current = el;
+          }}
+          style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+          onPointerDown={onPointerDown}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cf-title"
+        >
           <h2 className="modal-title" id="cf-title">
             {tr('Close Zephyr?')}
           </h2>

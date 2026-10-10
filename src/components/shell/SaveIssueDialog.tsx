@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../../lib/store';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 import { useT } from '../../lib/i18n';
 
 export default function SaveIssueDialog() {
@@ -18,6 +19,7 @@ export default function SaveIssueDialog() {
     aktif: !!issue,
     onEscape: () => void resolve('cancel'),
   });
+  const { popupRef, onPointerDown } = useDragEverywhere();
 
   if (!issue) return null;
 
@@ -38,7 +40,20 @@ export default function SaveIssueDialog() {
         if (e.key === 'Escape') void resolve('cancel');
       }}
     >
-      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="si-title">
+      <div
+        className="modal"
+        ref={(el) => {
+          /* Both refs on one node: the focus trap keeps Tab inside, the drag
+             hook moves it. A wrapper would break the trap's own bounds. */
+          trapRef.current = el;
+          popupRef.current = el;
+        }}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="si-title"
+      >
         <h2 className="modal-title" id="si-title" data-testid="save-issue-title">
           {title}
         </h2>

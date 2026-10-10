@@ -3,6 +3,7 @@ import { useExplorer } from '../../lib/explorerStore';
 import { useT, useTf } from '../../lib/i18n';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 
 const nama = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -23,6 +24,7 @@ export default function DeleteConfirmDialog() {
     aktif: !!pending && pending.length > 0,
     onEscape: () => cancel(),
   });
+  const { popupRef, onPointerDown } = useDragEverywhere();
 
   if (!pending || pending.length === 0) return null;
 
@@ -36,7 +38,20 @@ export default function DeleteConfirmDialog() {
         if (e.key === 'Escape') cancel();
       }}
     >
-      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="del-title">
+      <div
+        className="modal"
+        ref={(el) => {
+          /* Both refs on one node: the focus trap keeps Tab inside, the drag
+             hook moves it. A wrapper would break the trap's own bounds. */
+          trapRef.current = el;
+          popupRef.current = el;
+        }}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="del-title"
+      >
         <h2 className="modal-title" id="del-title" data-testid="del-title">
           {satu ? `Delete "${nama(pending[0])}"?` : `Delete ${pending.length} items?`}
         </h2>
