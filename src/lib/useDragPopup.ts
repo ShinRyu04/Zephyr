@@ -1,33 +1,67 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 /**
- * Make a floating popup draggable by its header.
+ * Make a floating popup draggable.
  *
- * Returns a ref to attach to the popup element, and a handler to put on the
- * drag handle (typically the popup's title/header row). The popup is moved by
- * setting `--drag-x` and `--drag-y` CSS custom properties on itself; the
- * popup's CSS uses `transform: translate(var(--drag-x), var(--drag-y))` so
+ * The popup is moved by setting `--drag-x` / `--drag-y` CSS custom properties on
+ * itself; its CSS uses `transform: translate(var(--drag-x), var(--drag-y))` so
  * layout is not disturbed during the drag.
  *
- * The drag only starts when the pointer goes down on an element marked with
- * `data-drag-handle` — the popup's title bar. Clicks on buttons, links, or any
- * other interactive element inside the popup do not trigger a drag.
+ * TWO WAYS TO START A DRAG, and the difference matters:
  *
- * Usage:
- *   const { ref: popupRef, onPointerDown } = useDragPopup();
- *   <div ref={popupRef} style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}>
- *     <div data-drag-handle onPointerDown={onPointerDown}>Title</div>
- *     ...content...
- *   </div>
+ *  - `useDragPopup()` — only from an element marked `[data-drag-handle]`. For a
+ *    popup with a title bar, that is the title. Use this when the body contains
+ *    controls that would fight a drag (a list, a form, a canvas).
+ *
+ *  - `useDragEverywhere()` — from anywhere in the popup EXCEPT an interactive
+ *    element. For dialogs whose whole surface is a short message and a couple of
+ *    buttons: there is no title bar to grab, and "drag the box" is what every
+ *    desktop dialog does.
+ *
+ * WHY THE INTERACTIVE CHECK IS A LIST, NOT A CLASS: the thing being excluded is
+ * "whatever the browser would give the click to" — buttons, links, inputs,
+ * selects, textareas, and anything explicitly marked `[data-no-drag]`. A single
+ * marker class would require editing every dialog to add it, and the one that
+ * forgot would produce a control that drags instead of pressing.
  */
+
+/** Elements that keep their own pointer behaviour: pressing one must never drag. */
+const INTERAKTIF = 'button, a, input, select, textarea, label, [contenteditable], [data-no-drag]';
+
+function mulaiDrag(
+  el: HTMLElement,
+  e: React.PointerEvent,
+): void {
+  const style = window.getComputedStyle(el);
+  const origX = parseFloat(style.getPropertyValue('--drag-x')) || 0;
+  const origY = parseFloat(style.getPropertyValue('--drag-y')) || 0;
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let hidup = true;
+
+  const onMove = (ev: PointerEvent) => {
+    if (!hidup) return;
+    el.style.setProperty('--drag-x', `${origX + (ev.clientX - startX)}px`);
+    el.style.setProperty('--drag-y', `${origY + (ev.clientY - startY)}px`);
+  };
+
+  const onUp = () => {
+    hidup = false;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
+
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  /* A cancelled pointer (the OS taking it away, a touch turning into a scroll)
+     must end the drag too, or the popup follows the next gesture. */
+  window.addEventListener('pointercancel', onUp);
+}
+
 export function useDragPopup() {
   const popupRef = useRef<HTMLDivElement | null>(null);
-  const dragState = useRef<{
-    startX: number;
-    startY: number;
-    origX: number;
-    origY: number;
-  } | null>(null);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const el = popupRef.current;
@@ -38,31 +72,57 @@ export function useDragPopup() {
     if (!handle || !el.contains(handle)) return;
 
     e.preventDefault();
-
-    const style = window.getComputedStyle(el);
-    const origX = parseFloat(style.getPropertyValue('--drag-x')) || 0;
-    const origY = parseFloat(style.getPropertyValue('--drag-y')) || 0;
-
-    dragState.current = { startX: e.clientX, startY: e.clientY, origX, origY };
-
-    const onMove = (ev: PointerEvent) => {
-      const s = dragState.current;
-      if (!s) return;
-      const dx = ev.clientX - s.startX;
-      const dy = ev.clientY - s.startY;
-      el.style.setProperty('--drag-x', `${s.origX + dx}px`);
-      el.style.setProperty('--drag-y', `${s.origY + dy}px`);
-    };
-
-    const onUp = () => {
-      dragState.current = null;
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    mulaiDrag(el, e);
   }, []);
+
+  return { popupRef, onPointerDown };
+}
+
+/**
+ * Drag from anywhere in the popup except its controls.
+ *
+ * Attach the handler to the POPUP CONTAINER, not to a header — it fires for
+ * every press inside and decides for itself whether that press was meant to
+ * move the box or press something.
+ */
+export function useDragEverywhere<T extends HTMLElement = HTMLDivElement>() {
+  const popupRef = useRef<T | null>(null);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    const el = popupRef.current;
+    if (!el) return;
+
+    const target = e.target as HTMLElement;
+    /* A press on a control belongs to that control. `closest` walks up, so this
+       also excludes a press on an icon INSIDE a button. */
+    if (target.closest(INTERAKTIF)) return;
+    /* Text selection inside a dialog is a legitimate thing to want. Dragging
+       from selected text would fight it, so a press that lands on a selection
+       is left alone. */
+    const pilihan = window.getSelection();
+    if (pilihan && !pilihan.isCollapsed && pilihan.toString().trim() !== '') return;
+
+    e.preventDefault();
+    mulaiDrag(el, e);
+  }, []);
+
+  /*
+   * Clear the offset when the popup unmounts.
+   *
+   * The custom properties live on the element, which React discards, so this is
+   * belt-and-braces for the case where the same DOM node is reused (a portal
+   * host, a keyed list): without it the next popup in that slot would open
+   * already displaced by the last one's drag.
+   */
+  useEffect(
+    () => () => {
+      const el = popupRef.current;
+      if (!el) return;
+      el.style.removeProperty('--drag-x');
+      el.style.removeProperty('--drag-y');
+    },
+    [],
+  );
 
   return { popupRef, onPointerDown };
 }

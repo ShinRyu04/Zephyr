@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useExtApproval } from '../../lib/extApprovalStore';
+import { useDragEverywhere } from '../../lib/useDragPopup';
 
 export default function ExtApprovalModal() {
   const kepala = useExtApproval((s) => s.antrean[0]);
   const putuskan = useExtApproval((s) => s.putuskan);
   const [sibuk, setSibuk] = useState(false);
+  const { popupRef, onPointerDown } = useDragEverywhere();
 
   if (!kepala) return null;
 
@@ -12,7 +14,15 @@ export default function ExtApprovalModal() {
 
   return (
     <div className="modal-backdrop" role="presentation" data-testid="ext-approval">
-      <div className="modal" role="alertdialog" aria-modal="true" aria-labelledby="ext-approval-title">
+      <div
+        className="modal"
+        ref={popupRef}
+        style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
+        onPointerDown={onPointerDown}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="ext-approval-title"
+      >
         <h2 className="modal-title" id="ext-approval-title">
           External runtime permission
         </h2>
