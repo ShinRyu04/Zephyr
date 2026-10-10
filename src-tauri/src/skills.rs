@@ -352,10 +352,20 @@ pub fn skills_list(state: State<AppState>) -> ZResult<Vec<SkillInfo>> {
     Ok(daftar_skills(&state))
 }
 
+/// One skill's BODY, without the frontmatter block.
+///
+/// `baca_skill` returns the file as stored. Handing that to the editor would
+/// put the `---` header inside the "Instructions" field, and saving it back
+/// would nest a second copy of the frontmatter inside the body — each
+/// round-trip adding another. `tulis_skill` already strips a leading block from
+/// what it is given, so the two now agree on what the field means.
+///
+/// The reader who wants the raw file opens it in the editor; the path is shown
+/// under the form.
 #[tauri::command]
 pub fn skill_read(state: State<AppState>, name: String) -> ZResult<String> {
     let (_, teks) = baca_skill(&state, &name)?;
-    Ok(teks)
+    Ok(buang_frontmatter(&teks).trim().to_string())
 }
 
 #[tauri::command]
