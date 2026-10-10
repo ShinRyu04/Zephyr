@@ -3,15 +3,12 @@ import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 
 import { useToolGate } from '../../lib/toolGate';
-import { usePersona } from '../../lib/personaStore';
-import { useAgentCustom } from '../../lib/agentCustomStore';
-import { useSettingsUi } from '../../lib/settingsStore';
 import { useT, tf } from '../../lib/i18n';
-import { Row, Section, Select, TextInput, Toggle, VoiceKeyRow } from '../settings/SettingsControls';
+import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
 import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
-import { CLI_TABS } from '../../lib/aiTabsStore';
+import CommandPermissions from '../settings/CommandPermissions';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
 
@@ -78,8 +75,6 @@ const SECTIONS = [
   { id: 'tools', label: 'Tools' },
   { id: 'rules', label: 'Rules' },
   { id: 'models', label: 'Models' },
-  { id: 'persona', label: 'Persona' },
-  { id: 'voice', label: 'Voice' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'session', label: 'Session' },
   { id: 'advanced', label: 'Advanced' },
@@ -142,42 +137,13 @@ export default function ChatSettingsPage({
   const tipsVisible = useAi((s) => s.tipsVisible);
   const setTipsVisible = useAi((s) => s.setTipsVisible);
 
-  /* Persona: which identity is layered onto the prompt, and the list to pick
-     from. Loaded on mount because the store starts empty and only filled itself
-     from the Settings page — a reader who never opened Settings would see one
-     option and conclude the feature was missing. */
-  const daftarPersona = usePersona((s) => s.daftar);
-  const personaAktif = usePersona((s) => s.aktif);
-  const setPersonaAktif = usePersona((s) => s.setAktif);
-  const muatPersona = usePersona((s) => s.muat);
-  useEffect(() => {
-    if (daftarPersona.length === 0) muatPersona();
-  }, [daftarPersona.length, muatPersona]);
-
-  /*
-   * Load the key list on mount.
-   *
-   * `VoiceKeyRow` reads `useSettingsUi.keys`, and the only thing that ever
-   * filled it was the Models page. Without this, a key saved earlier shows as
-   * "no key" here — and pressing Save would look like it failed while it
-   * actually worked, which is the worst of both.
-   */
-  useEffect(() => {
-    void useSettingsUi.getState().loadKeys();
-  }, []);
-
   /* Settings-backed fields. */
   const settings = useStore((s) => s.settings);
   const apply = useStore((s) => s.applySettings);
   const models = settings.models;
-  /* The provider a voice key falls back to when its own provider is unset —
-     the same rule the Voice/Mic settings pages use, so a key saved here and one
-     saved there land on the same entry. */
-  const providerAktif = models.activeProvider || 'custom';
   const agents = settings.agents;
-  const voice = settings.voice;
-  const mic = settings.mic;
   const rules = settings.rules;
+  const subagent = settings.subagent;
   /* Whether the guard is on at all. The per-rule switches below are dead
      while it is off, so they render disabled rather than pretending to work. */
   const rulesOn = rules?.enabled === true;
@@ -186,7 +152,6 @@ export default function ChatSettingsPage({
      toggle, so comparing it in a selector is fine, but a derived number keeps
      this row from re-rendering on unrelated changes. */
   const jumlahToolAktif = useToolGate((s) => s.aktif.size);
-  const subagent = settings.subagent;
 
   /* Escape closes the page, like any other editor-area view. */
   useEffect(() => {
@@ -506,25 +471,6 @@ export default function ChatSettingsPage({
       reset: () => void apply({ subagent: { idleSecs: 90 } }),
     },
     {
-      section: 'subagent',
-      id: 'submodel',
-      label: 'Sub-agent model',
-      hint: 'Which model the workers use. Empty follows the chat model.',
-      words: 'subagent sub-agent model provider batch worker',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-submodel"
-          title={subagent.model || undefined}
-          onClick={() => useStore.getState().setSettingsOpen(true)}
-        >
-          {subagent.model ? subagent.model : tr('Follow chat')}
-        </button>
-      ),
-      isDefault: true,
-    },
-
-    {
       section: 'tools',
       id: 'toolsets',
       label: 'Tool sets',
@@ -580,360 +526,26 @@ export default function ChatSettingsPage({
     },
     {
       section: 'tools',
-      id: 'rag2',
-      label: 'Allow shell commands',
-      hint: 'Commands listed in Permissions run without asking. Opens that page.',
-      words: 'tools shell commands allow permission allowlist terminal',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-allowcmds"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('permissions'),
-            );
-          }}
-        >
-          {tr('Permissions…')}
-        </button>
-      ),
+      id: 'allowcmds',
+      /*
+       * The allow-list itself, not a door to it.
+       *
+       * This replaced a "Permissions…" button that jumped to the Settings page.
+       * The list is small and the question it answers ("what may run without
+       * asking?") is asked WHILE working, so it belongs on the page you are
+       * already on. `CommandPermissions` is the Settings page's own component,
+       * reused verbatim — one implementation, one place the destructive-command
+       * guard lives.
+       */
+      label: 'Always-allowed commands',
+      hint: 'Run without asking again. Destructive commands are still asked — that net cannot be switched off.',
+      words: 'tools shell commands allow permission allowlist terminal run',
+      ctl: <CommandPermissions />,
+      /* Holds a list, not a value: nothing to reset, nothing to compare. */
       isDefault: true,
     },
 
-    {
-      section: 'voice',
-      id: 'voiceon',
-      label: 'Voice',
-      hint: 'The master switch for speech in and out of the chat.',
-      words: 'voice speech audio master enable speak talk',
-      ctl: (
-        <Toggle
-          checked={voice?.enabled !== false}
-          testid="cset-voice"
-          label="Voice"
-          onChange={(v) => void apply({ voice: { enabled: v } })}
-        />
-      ),
-      isDefault: (voice?.enabled !== false) === true,
-      reset: () => void apply({ voice: { enabled: true } }),
-    },
-    {
-      section: 'voice',
-      id: 'speak',
-      label: 'Read answers aloud',
-      hint: 'Speak each new answer as it arrives.',
-      words: 'voice speech read aloud answers tts speak auto',
-      ctl: (
-        <Toggle
-          checked={voice?.speakReplies ?? false}
-          testid="cset-speak"
-          label="Read answers aloud"
-          onChange={(v) => void apply({ voice: { speakReplies: v } })}
-        />
-      ),
-      isDefault: (voice?.speakReplies ?? false) === false,
-      reset: () => void apply({ voice: { speakReplies: false } }),
-    },
-    {
-      section: 'voice',
-      id: 'skipcode',
-      label: 'Skip code blocks',
-      hint: 'Do not read code aloud — it never sounds right.',
-      words: 'voice speech skip code blocks reading tts',
-      ctl: (
-        <Toggle
-          checked={voice?.skipCode !== false}
-          testid="cset-skipcode"
-          label="Skip code blocks"
-          onChange={(v) => void apply({ voice: { skipCode: v } })}
-        />
-      ),
-      isDefault: (voice?.skipCode !== false) === true,
-      reset: () => void apply({ voice: { skipCode: true } }),
-    },
-    {
-      section: 'voice',
-      id: 'mic',
-      label: 'Dictation button',
-      hint: 'Show the microphone in the composer.',
-      words: 'voice mic microphone dictate dictation button composer stt',
-      ctl: (
-        <Toggle
-          checked={mic?.enabled !== false}
-          testid="cset-mic"
-          label="Dictation button"
-          onChange={(v) => void apply({ mic: { enabled: v } })}
-        />
-      ),
-      isDefault: (mic?.enabled !== false) === true,
-      reset: () => void apply({ mic: { enabled: true } }),
-    },
-    {
-      section: 'voice',
-      id: 'autosend',
-      label: 'Send when dictation stops',
-      hint: 'Send the transcript as soon as you stop talking.',
-      words: 'voice mic dictation send auto stop transcript',
-      ctl: (
-        <Toggle
-          checked={mic?.autoSend ?? false}
-          testid="cset-autosend"
-          label="Send when dictation stops"
-          onChange={(v) => void apply({ mic: { autoSend: v } })}
-        />
-      ),
-      isDefault: (mic?.autoSend ?? false) === false,
-      reset: () => void apply({ mic: { autoSend: false } }),
-    },
-    {
-      section: 'voice',
-      id: 'dictlang',
-      label: 'Dictation language',
-      hint: 'The language the microphone expects you to speak.',
-      words: 'voice mic dictation language speech input locale bcp47',
-      ctl: (
-        <Select
-          value={mic?.lang ?? 'en-US'}
-          testid="cset-dictlang"
-          label="Dictation language"
-          options={[
-            ['en-US', 'English (US)'],
-            ['en-GB', 'English (UK)'],
-            ['id-ID', 'Bahasa Indonesia'],
-            ['ja-JP', '日本語'],
-            ['ko-KR', '한국어'],
-            ['zh-CN', '中文 (简体)'],
-            ['es-ES', 'Español'],
-            ['fr-FR', 'Français'],
-            ['de-DE', 'Deutsch'],
-            ['pt-BR', 'Português (BR)'],
-            ['ar-SA', 'العربية'],
-          ].map(([value, label]) => ({ value, label }))}
-          onChange={(v) => void apply({ mic: { lang: v } })}
-        />
-      ),
-      isDefault: (mic?.lang ?? 'en-US') === 'en-US',
-      reset: () => void apply({ mic: { lang: 'en-US' } }),
-    },
-    {
-      section: 'voice',
-      id: 'rate',
-      label: 'Speech speed',
-      hint: 'How fast answers are read aloud.',
-      words: 'voice speech speed rate pace fast slow tts',
-      ctl: (
-        <Select
-          value={String(voice?.rate ?? 1)}
-          testid="cset-rate"
-          label="Speech speed"
-          options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((n) => ({
-            value: String(n),
-            label: `${n}×`,
-          }))}
-          onChange={(v) => void apply({ voice: { rate: Number(v) } })}
-        />
-      ),
-      isDefault: (voice?.rate ?? 1) === 1,
-      reset: () => void apply({ voice: { rate: 1 } }),
-    },
-    {
-      section: 'voice',
-      id: 'vol',
-      label: 'Speech volume',
-      hint: 'How loud spoken answers are.',
-      words: 'voice speech volume loud quiet tts',
-      ctl: (
-        <Select
-          value={String(voice?.volume ?? 1)}
-          testid="cset-vol"
-          label="Speech volume"
-          options={[0.2, 0.5, 0.75, 1].map((n) => ({
-            value: String(n),
-            label: `${Math.round(n * 100)}%`,
-          }))}
-          onChange={(v) => void apply({ voice: { volume: Number(v) } })}
-        />
-      ),
-      isDefault: (voice?.volume ?? 1) === 1,
-      reset: () => void apply({ voice: { volume: 1 } }),
-    },
-    {
-      section: 'voice',
-      id: 'pitch',
-      label: 'Speech pitch',
-      hint: 'Lower or higher voice.',
-      words: 'voice speech pitch tone high low tts',
-      ctl: (
-        <Select
-          value={String(voice?.pitch ?? 1)}
-          testid="cset-pitch"
-          label="Speech pitch"
-          options={[0.5, 0.75, 1, 1.25, 1.5].map((n) => ({
-            value: String(n),
-            label: `${n}×`,
-          }))}
-          onChange={(v) => void apply({ voice: { pitch: Number(v) } })}
-        />
-      ),
-      isDefault: (voice?.pitch ?? 1) === 1,
-      reset: () => void apply({ voice: { pitch: 1 } }),
-    },
-    {
-      section: 'voice',
-      id: 'neural',
-      label: 'Neural voice',
-      hint: 'Use a provider voice instead of the one built into the system.',
-      words: 'voice neural provider tts openai gemini cloud natural',
-      ctl: (
-        <Toggle
-          checked={voice?.neuralEnabled ?? false}
-          testid="cset-neural"
-          label="Neural voice"
-          onChange={(v) => void apply({ voice: { neuralEnabled: v } })}
-        />
-      ),
-      isDefault: (voice?.neuralEnabled ?? false) === false,
-      reset: () => void apply({ voice: { neuralEnabled: false } }),
-    },
-    {
-      section: 'voice',
-      id: 'neuralprovider',
-      label: 'Neural provider',
-      hint: 'Which service speaks when the neural voice is on.',
-      words: 'voice neural provider tts openai ollama groq gemini custom',
-      ctl: (
-        <Select
-          value={voice?.neuralProvider ?? ''}
-          testid="cset-neuralprovider"
-          label="Neural provider"
-          options={[
-            { value: '', label: '—' },
-            { value: 'openai', label: 'OpenAI' },
-            { value: 'gemini', label: 'Gemini' },
-            { value: 'groq', label: 'Groq' },
-            { value: 'ollama', label: 'Ollama' },
-            { value: 'custom', label: 'Custom' },
-          ]}
-          onChange={(v) => void apply({ voice: { neuralProvider: v } })}
-        />
-      ),
-      isDefault: (voice?.neuralProvider ?? '') === '',
-      reset: () => void apply({ voice: { neuralProvider: '' } }),
-    },
-    {
-      section: 'voice',
-      id: 'neuralmodel',
-      label: 'Neural model',
-      hint: 'The text-to-speech model id at that provider.',
-      words: 'voice neural model tts id name',
-      ctl: (
-        <TextInput
-          value={voice?.neuralModel ?? ''}
-          testid="cset-neuralmodel"
-          label="Neural model"
-          placeholder="e.g. tts-1"
-          onChange={(v) => void apply({ voice: { neuralModel: v } })}
-        />
-      ),
-      isDefault: (voice?.neuralModel ?? '') === '',
-      reset: () => void apply({ voice: { neuralModel: '' } }),
-    },
-    {
-      section: 'voice',
-      id: 'sttprovider',
-      label: 'Dictation provider',
-      hint: 'Which service turns your speech into text.',
-      words: 'voice mic stt dictation provider speech to text openai gemini',
-      ctl: (
-        <Select
-          value={mic?.provider ?? ''}
-          testid="cset-sttprovider"
-          label="Dictation provider"
-          options={[
-            { value: '', label: '—' },
-            { value: 'openai', label: 'OpenAI' },
-            { value: 'gemini', label: 'Gemini' },
-            { value: 'ollama', label: 'Ollama' },
-            { value: 'custom', label: 'Custom' },
-            { value: 'local', label: 'Local' },
-          ]}
-          onChange={(v) => void apply({ mic: { provider: v } })}
-        />
-      ),
-      isDefault: (mic?.provider ?? '') === '',
-      reset: () => void apply({ mic: { provider: '' } }),
-    },
-    {
-      section: 'voice',
-      id: 'sttmodel',
-      label: 'Dictation model',
-      hint: 'The speech-to-text model id at that provider.',
-      words: 'voice mic stt dictation model whisper id',
-      ctl: (
-        <TextInput
-          value={mic?.model ?? ''}
-          testid="cset-sttmodel"
-          label="Dictation model"
-          placeholder="e.g. whisper-1"
-          onChange={(v) => void apply({ mic: { model: v } })}
-        />
-      ),
-      isDefault: (mic?.model ?? '') === '',
-      reset: () => void apply({ mic: { model: '' } }),
-    },
-    {
-      section: 'voice',
-      id: 'voicekey',
-      label: 'Voice API key',
-      hint: 'Saved like a chat key. Empty means the provider key is used. Local servers need none.',
-      words: 'voice neural api key secret token tts credential save',
-      ctl: (
-        <VoiceKeyRow
-          provider={(voice?.neuralProvider || providerAktif) + '-voice'}
-          testid="cset-voicekey"
-        />
-      ),
-      /* A key is not a value with a default: it is either set or it is not, and
-         there is nothing to "put back". It stays out of the @modified filter for
-         the same reason — a saved key is configuration, not a changed setting. */
-      isDefault: true,
-    },
-    {
-      section: 'voice',
-      id: 'mickey',
-      label: 'Dictation API key',
-      hint: 'Saved like a chat key. Empty means the provider key is used. Local servers need none.',
-      words: 'voice mic dictation api key secret token stt credential save',
-      ctl: (
-        <VoiceKeyRow
-          provider={(mic?.provider || providerAktif) + '-voice'}
-          testid="cset-mickey"
-        />
-      ),
-      isDefault: true,
-    },
 
-    {
-      section: 'voice',
-      id: 'voiceid',
-      label: 'System voice',
-      hint: 'Which voice the system uses. Empty lets the system choose.',
-      words: 'voice speech voice id system platform uri pick choose',
-      ctl: (
-        <TextInput
-          value={voice?.voiceId ?? ''}
-          testid="cset-voiceid"
-          label="System voice"
-          placeholder={tr('System default')}
-          onChange={(v) => void apply({ voice: { voiceId: v } })}
-        />
-      ),
-      isDefault: (voice?.voiceId ?? '') === '',
-      reset: () => void apply({ voice: { voiceId: '' } }),
-    },
     {
       section: 'models',
       id: 'askmodel',
@@ -1031,154 +643,6 @@ export default function ChatSettingsPage({
       isDefault: true,
     },
 
-    {
-      section: 'persona',
-      id: 'persona',
-      label: 'Active persona',
-      hint: 'The identity and standing rules layered onto the system prompt.',
-      words: 'persona identity agent character who zeph style rules',
-      ctl: (
-        <Select
-          value={personaAktif}
-          testid="cset-persona"
-          label="Active persona"
-          options={
-            daftarPersona.length > 0
-              ? daftarPersona.map((p) => ({ value: p.id, label: p.nama }))
-              : [{ value: 'zeph', label: 'Zeph' }]
-          }
-          onChange={(v) => void setPersonaAktif(v)}
-        />
-      ),
-      isDefault: personaAktif === 'zeph',
-      reset: () => void setPersonaAktif('zeph'),
-    },
-    {
-      section: 'persona',
-      id: 'managepersona',
-      label: 'Personas',
-      hint: 'Write your own, or edit the ones that ship with Zephyr.',
-      words: 'persona edit create new manage custom agent identity',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-managepersona"
-          onClick={() => useAgentCustom.getState().buka('agents')}
-        >
-          {tr('Manage personas…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'persona',
-      id: 'skills',
-      label: 'Skills & hooks',
-      hint: 'Reusable instruction bundles and commands that run around tool calls.',
-      words: 'persona skills hooks plugins extras automation lifecycle',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-skills"
-          onClick={() => useAgentCustom.getState().buka('skills')}
-        >
-          {tr('Open skills…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'voice',
-      id: 'nbase',
-      label: 'Neural server',
-      hint: 'Your own TTS server. Empty uses the chat provider.',
-      words: 'voice neural server url endpoint base local tts',
-      ctl: (
-        <TextInput
-          value={voice?.neuralBaseUrl ?? ''}
-          testid="cset-nbase"
-          label="Neural server"
-          placeholder="https://…"
-          onChange={(v) => void apply({ voice: { neuralBaseUrl: v } })}
-        />
-      ),
-      isDefault: (voice?.neuralBaseUrl ?? '') === '',
-      reset: () => void apply({ voice: { neuralBaseUrl: '' } }),
-    },
-    {
-      section: 'voice',
-      id: 'nvoice',
-      label: 'Neural voice',
-      hint: 'The provider voice id. Empty uses the provider default.',
-      words: 'voice neural voice id provider pick tts',
-      ctl: (
-        <TextInput
-          value={voice?.neuralVoiceId ?? ''}
-          testid="cset-nvoice"
-          label="Neural voice"
-          placeholder={tr('Provider default')}
-          onChange={(v) => void apply({ voice: { neuralVoiceId: v } })}
-        />
-      ),
-      isDefault: (voice?.neuralVoiceId ?? '') === '',
-      reset: () => void apply({ voice: { neuralVoiceId: '' } }),
-    },
-    {
-      section: 'voice',
-      id: 'nvol',
-      label: 'Neural volume',
-      hint: 'Above 100% boosts, which the system voice cannot do.',
-      words: 'voice neural volume loud boost tts',
-      ctl: (
-        <Select
-          value={String(voice?.neuralVolume ?? 1)}
-          testid="cset-nvol"
-          label="Neural volume"
-          options={[0.5, 1, 1.25, 1.5, 2].map((n) => ({
-            value: String(n),
-            label: `${Math.round(n * 100)}%`,
-          }))}
-          onChange={(v) => void apply({ voice: { neuralVolume: Number(v) } })}
-        />
-      ),
-      isDefault: (voice?.neuralVolume ?? 1) === 1,
-      reset: () => void apply({ voice: { neuralVolume: 1 } }),
-    },
-    {
-      section: 'voice',
-      id: 'nfollow',
-      label: 'Voice follows language',
-      hint: 'Pick the neural voice from the language the answer came in.',
-      words: 'voice neural follow language auto match tts',
-      ctl: (
-        <Toggle
-          checked={voice?.neuralFollowLang !== false}
-          testid="cset-nfollow"
-          label="Voice follows language"
-          onChange={(v) => void apply({ voice: { neuralFollowLang: v } })}
-        />
-      ),
-      isDefault: (voice?.neuralFollowLang !== false) === true,
-      reset: () => void apply({ voice: { neuralFollowLang: true } }),
-    },
-    {
-      section: 'voice',
-      id: 'mbase',
-      label: 'Dictation server',
-      hint: 'Your own speech-to-text server. Empty uses the provider default.',
-      words: 'voice mic dictation server url endpoint stt base',
-      ctl: (
-        <TextInput
-          value={mic?.baseUrl ?? ''}
-          testid="cset-mbase"
-          label="Dictation server"
-          placeholder="https://…"
-          onChange={(v) => void apply({ mic: { baseUrl: v } })}
-        />
-      ),
-      isDefault: (mic?.baseUrl ?? '') === '',
-      reset: () => void apply({ mic: { baseUrl: '' } }),
-    },
 
     {
       section: 'agent',
@@ -1480,48 +944,6 @@ export default function ChatSettingsPage({
      * `isDefault: true` keeps them out of the `@modified` filter, which is
      * correct: a link is never "changed".
      */
-    {
-      section: 'agent',
-      id: 'startcmd',
-      label: 'CLI start command',
-      hint: 'What runs when a CLI agent pane opens. Empty uses the CLI default.',
-      words: 'agent cli start command launch terminal pane host',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-startcmd"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('agents'),
-            );
-          }}
-        >
-          {tr('Per CLI…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
-      section: 'voice',
-      id: 'speaklang',
-      label: 'Spoken language',
-      hint: 'Which language the voice reads in when it is not following the answer.',
-      words: 'voice speech language spoken read fallback bcp47',
-      ctl: (
-        <TextInput
-          value={voice?.inputLang ?? 'en-US'}
-          testid="cset-speaklang"
-          label="Spoken language"
-          placeholder="en-US"
-          onChange={(v) => void apply({ voice: { inputLang: v } })}
-        />
-      ),
-      isDefault: (voice?.inputLang ?? 'en-US') === 'en-US',
-      reset: () => void apply({ voice: { inputLang: 'en-US' } }),
-    },
 
     /* ── Sub-agent model ─────────────────────────────────────────────────── */
     {
@@ -1657,49 +1079,6 @@ export default function ChatSettingsPage({
     }),
 
     /* ── Extension trust ─────────────────────────────────────────────────── */
-
-    /* ── One start command per detected CLI ────────────────────────────────
-     * Generated from CLI_TABS: which CLIs exist is the catalogue's business, so
-     * a row per CLI is derived rather than typed — adding a CLI must not mean
-     * remembering to add a row here.
-     */
-    ...CLI_TABS.map((cli) => {
-      const cmd = (settings.agents?.startCommands?.[cli.id] ?? []).join(' && ');
-      return {
-        section: 'agent' as const,
-        id: `start-${cli.id}`,
-        label: `${cli.label} start command`,
-        hint: 'What runs when this CLI opens. Empty uses the CLI default.',
-        words: `agent cli start command ${cli.label} launch terminal pane host`,
-        ctl: (
-          <TextInput
-            value={cmd}
-            testid={`cset-start-${cli.id}`}
-            label={`${cli.label} start command`}
-            placeholder={tr('CLI default')}
-            mono
-            onChange={(v) => {
-              const next = { ...(settings.agents?.startCommands ?? {}) };
-              const parts = v
-                .split('&&')
-                .map((x) => x.trim())
-                .filter(Boolean);
-              if (parts.length === 0) delete next[cli.id];
-              else next[cli.id] = parts;
-              void apply({ agents: { startCommands: next } });
-            }}
-          />
-        ),
-        isDefault: cmd === '',
-        reset: () => {
-          const next = { ...(settings.agents?.startCommands ?? {}) };
-          delete next[cli.id];
-          void apply({ agents: { startCommands: next } });
-        },
-      };
-    }),
-
-    /* ── Outside connections ─────────────────────────────────────────────── */
   ];
 
   const q = cari.trim().toLowerCase();
