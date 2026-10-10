@@ -1,0 +1,41 @@
+feat(ai): "Create with AI" untuk Agents dan Hooks + tandai hook belum jalan
+
+Agents:
+- Tombol "Create with AI" di pane Agents. Draft memakai personaStore.simpan
+  yang sama dengan editor manual, jadi persona hasil AI adalah persona
+  biasa setelahnya.
+- Persona dibuat tapi TIDAK langsung diaktifkan: mengaktifkan persona
+  mengubah cara semua jawaban berikutnya ditulis, dan menyalakannya
+  sebagai efek samping tomol Save adalah kejutan. Pembaca memilihnya di
+  daftar, tempat aktivasi memang sudah ada.
+- Tool yang disarankan model ditulis ke kolom aturan sebagai TEKS, bukan
+  diberikan sebagai izin.
+
+Hooks:
+- Tombol "Create with AI" di tiap grup.
+- Event dan command ditampilkan sebagai field berlabel sendiri, di atas
+  penjelasan - dua hal itulah yang akan berjalan dan kapan, jadi draft
+  yang menyembunyikan command di dalam paragraf meminta pembaca menyetujui
+  sesuatu yang harus dicarinya dulu.
+- Event divalidasi terhadap daftar asli: model yang mengarang
+  "before-commit" tidak akan menyimpan hook pada event yang tidak ada
+  pemanggilnya.
+- Selalu tersimpan dengan enabled:false. Tombolnya berbunyi "Save
+  (disabled)". Hook adalah perintah yang berjalan di mesin pembaca, dan
+  yang datang dari model harus dibaca sebelum dipersenjatai.
+
+Banner jujur:
+- Pane Hooks menyatakan di ATAS daftar bahwa hook belum dieksekusi -
+  Zephyr belum punya runner. Diverifikasi dengan grep: useAgentExtras
+  hanya dipakai AgcSections (UI), tidak ada yang membaca hooks untuk
+  menjalankan apa pun. Membiarkan pane ini terlihat hidup akan membuat
+  pembaca mempercayai penjaga yang tidak ada.
+
+agentDraft.ts: dipulihkan setelah git clean menghapusnya dua kali (file
+baru, belum ter-track). Sudah di-stage di commit ini.
+
+Diverifikasi live: draft Skills (3419 char), Agents (identitas 3058
+char), Hooks (event after-tool + command) semuanya muncul dan bisa
+disimpan; hook tersimpan enabled:false.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
