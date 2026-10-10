@@ -37,8 +37,6 @@ export const SECTION_ORDER: SectionId[] = [
   'theme',
   'shortcuts',
   'models',
-  'voice',
-  'mic',
   'subagent',
   'permissions',
   'extensions',
@@ -56,11 +54,15 @@ export const SECTION_ORDER: SectionId[] = [
 ];
 
 /*
- * `agents`, `rules` and `mcp` are NOT in the nav order any more: they moved into
- * the Agent Customizations modal (its Agents / Instructions / MCP Servers panes
- * reuse the very same components). The SectionId type keeps them so deep links
- * and the panels themselves still type-check, but they no longer get a left-nav
- * row — the user asked to drop the duplicates.
+ * `voice` and `mic` are NOT in the nav order any more: both are chat settings —
+ * how the assistant speaks and how you dictate — and they now live in Chat
+ * Settings, whose Voice section carries the same controls including their API
+ * keys. The SectionId type keeps them so deep links and the panels themselves
+ * still type-check; nothing routes there from the nav.
+ *
+ * `agents`, `rules` and `mcp` left the nav earlier for the same reason: they
+ * moved into the Agent Customizations modal (its Agents / Instructions / MCP
+ * Servers panes reuse the very same components).
  */
 
 interface SettingsUiState {
