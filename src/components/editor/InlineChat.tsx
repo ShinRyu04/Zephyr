@@ -11,7 +11,12 @@ export default function InlineChat() {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const draft = useAi((s) => s.draft);
+  /* The docked panel's draft, shown as a hint so the reader can see there is
+     already a half-written message there. Read by the PRIMARY composer's id
+     ('') — the panel in the right column, which is the one this hint is about;
+     the editor-tab chat is a second surface with its own draft and showing its
+     text here would be showing the wrong conversation's typing. */
+  const draft = useAi((s) => s.drafts[''] ?? '');
   const setDraft = useAi((s) => s.setDraft);
   const send = useAi((s) => s.send);
   const pending = useAi((s) => s.pending);

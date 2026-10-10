@@ -1486,7 +1486,25 @@ interface AiState {
    */
   goals: Record<string, GoalState>;
 
-  draft: string;
+  /*
+   * The composer's text, keyed by WHICH composer typed it.
+   *
+   * `AiPanel` is mounted more than once at a time — the docked right column and
+   * the editor tab are two live instances of the same conversation — and a
+   * single shared `draft` made them share one input: typing in the editor made
+   * the same characters appear in the column, and typing in the column made
+   * them appear in the editor. Reported as exactly that.
+   *
+   * The KEY is the mount's own id, not the tab or the conversation: the same
+   * chat shown in two places is one conversation with one transcript, but each
+   * SURFACE gets its own half-typed message, which is what a reader expects from
+   * two text boxes they can both see.
+   *
+   * `''` is the primary composer — the docked right column — so every existing
+   * caller that passes no id (`setDraft('')` from a menu, a template insert, a
+   * test) keeps its old meaning.
+   */
+  drafts: Record<string, string>;
 
     attachActive: boolean;
 
@@ -1606,7 +1624,13 @@ interface AiActions {
    */
   sinkronProvider: () => void;
   setModelMenuOpen: (v: boolean) => void;
-  setDraft: (v: string) => void;
+  /*
+   * `id` names WHICH composer is typing. Optional so every existing caller keeps
+   * working and targets the primary composer (the docked right column).
+   */
+  setDraft: (v: string, id?: string) => void;
+  /** The draft for one composer; '' when it has not typed anything yet. */
+  draftOf: (id: string) => string;
     setAttachActive: (v: boolean) => void;
 
     addDraftImage: (dataUrl: string) => boolean;
@@ -1840,7 +1864,7 @@ export const useAi = create<AiStore>((set, get) => ({
   antrian: [],
   loops: {},
   goals: {},
-  draft: '',
+  drafts: { '': '' },
     attachActive: false,
     draftImages: [],
     lastTruncated: null,
@@ -2041,7 +2065,8 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   setModelMenuOpen: (v) => set({ modelMenuOpen: v }),
-  setDraft: (v) => set({ draft: v }),
+  setDraft: (v, id = '') => set((s) => ({ drafts: { ...s.drafts, [id]: v } })),
+  draftOf: (id) => get().drafts[id] ?? '',
 
   buangAntrian: (idx) =>
     set((s) => ({
@@ -2607,7 +2632,7 @@ export const useAi = create<AiStore>((set, get) => ({
        it cannot flush into the NEW chat on the next frame. */
     batalkanFlushChunk();
     chunkBuf.clear();
-    set((x) => ({ sessions: [...x.sessions, s], activeId: s.id, draft: '' }));
+    set((x) => ({ sessions: [...x.sessions, s], activeId: s.id, drafts: {} }));
     persist(get());
     return s.id;
   },
@@ -2781,7 +2806,7 @@ export const useAi = create<AiStore>((set, get) => ({
 
   send: async (text, images): Promise<boolean> => {
     get().sinkronProvider();
-    const diketik = (text ?? get().draft).trim();
+    const diketik = (text ?? get().drafts[''] ?? '').trim();
 
     /*
      * `/loop` and `/goal` are jobs, not messages: they start a schedule or set
@@ -2792,7 +2817,7 @@ export const useAi = create<AiStore>((set, get) => ({
     {
       const sid = get().activeId;
       if (sid && get().jalankanPerintahKerja(diketik, sid)) {
-        set({ draft: '', draftImages: [] });
+        set({ drafts: {}, draftImages: [] });
         return true;
       }
     }
@@ -2830,7 +2855,7 @@ export const useAi = create<AiStore>((set, get) => ({
          * paragraph instead of the command, and the two paths would drift.
          */
         set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
-        set({ draft: '', draftImages: [], toast: tx('Added to the queue') });
+        set({ drafts: {}, draftImages: [], toast: tx('Added to the queue') });
         return true;
       }
       return get().sendAgent(raw, imgs, tampil);
@@ -2838,7 +2863,7 @@ export const useAi = create<AiStore>((set, get) => ({
     if (get().pending) {
       // Same rule in chat mode: queue it rather than dropping the text.
       set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
-      set({ draft: '', draftImages: [], toast: tx('Added to the queue') });
+      set({ drafts: {}, draftImages: [], toast: tx('Added to the queue') });
       return true;
     }
 
@@ -3055,7 +3080,7 @@ export const useAi = create<AiStore>((set, get) => ({
             }
           : x,
       ),
-      draft: text ? s.draft : '',
+      drafts: text ? s.drafts : {},
       draftImages: [],
       pending: reqId,
       toast: null,
@@ -3231,7 +3256,7 @@ export const useAi = create<AiStore>((set, get) => ({
             }
           : x,
       ),
-      draft: '',
+      drafts: {},
       draftImages: [],
       toast: null,
       agentSteps: [],
