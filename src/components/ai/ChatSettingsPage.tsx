@@ -1627,6 +1627,191 @@ export default function ChatSettingsPage({
       ),
       isDefault: true,
     },
+
+    /* ── Sub-agent model ─────────────────────────────────────────────────── */
+    {
+      section: 'subagent',
+      id: 'submodel2',
+      label: 'Sub-agent provider',
+      hint: 'Which provider the workers use. Empty follows the chat.',
+      words: 'subagent sub-agent provider model worker batch cheap',
+      ctl: (
+        <Select
+          value={subagent.provider ?? ''}
+          testid="cset-subprovider"
+          label="Sub-agent provider"
+          options={[
+            { value: '', label: tr('Follow chat') },
+            { value: 'openai', label: 'OpenAI' },
+            { value: 'anthropic', label: 'Anthropic' },
+            { value: 'gemini', label: 'Google Gemini' },
+            { value: 'ollama', label: 'Ollama' },
+            { value: 'groq', label: 'Groq' },
+            { value: 'custom', label: 'Custom / local' },
+          ]}
+          onChange={(v) => void apply({ subagent: { provider: v } })}
+        />
+      ),
+      isDefault: (subagent.provider ?? '') === '',
+      reset: () => void apply({ subagent: { provider: '' } }),
+    },
+
+    /* ── MCP server ──────────────────────────────────────────────────────── */
+    {
+      section: 'tools',
+      id: 'mcpon',
+      label: 'MCP server',
+      hint: 'Let outside tools talk to Zephyr over a local port.',
+      words: 'tools mcp server enable port external control agent',
+      ctl: (
+        <Toggle
+          checked={settings.mcp?.enabled === true}
+          testid="cset-mcpon"
+          label="MCP server"
+          onChange={(v) => void apply({ mcp: { enabled: v } })}
+        />
+      ),
+      isDefault: (settings.mcp?.enabled === true) === false,
+      reset: () => void apply({ mcp: { enabled: false } }),
+    },
+    {
+      section: 'tools',
+      id: 'mcpport',
+      label: 'MCP port',
+      hint: 'The local port the server listens on.',
+      words: 'tools mcp port listen local server number',
+      ctl: (
+        <Select
+          value={String(settings.mcp?.port ?? 9222)}
+          testid="cset-mcpport"
+          label="MCP port"
+          options={[9222, 9224, 9225, 9226, 9228].map((n) => ({
+            value: String(n),
+            label: String(n),
+          }))}
+          onChange={(v) => void apply({ mcp: { port: Number(v) } })}
+        />
+      ),
+      isDefault: (settings.mcp?.port ?? 9222) === 9222,
+      reset: () => void apply({ mcp: { port: 9222 } }),
+    },
+
+    /* ── Avatar ──────────────────────────────────────────────────────────── */
+    {
+      section: 'appearance',
+      id: 'myavatar',
+      label: 'My avatar',
+      hint: 'The picture shown beside your own messages.',
+      words: 'appearance avatar picture me user photo profile image',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-myavatar"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('agents'),
+            );
+          }}
+        >
+          {agents.userAvatarPath ? tr('Change…') : tr('Choose…')}
+        </button>
+      ),
+      isDefault: !agents.userAvatarPath,
+    },
+    {
+      section: 'appearance',
+      id: 'robotavatar',
+      label: 'Assistant avatar',
+      hint: 'Show a mark beside the assistant’s messages.',
+      words: 'appearance avatar assistant robot mark message icon',
+      ctl: (
+        <Toggle
+          checked={agents.chatAvatar !== false}
+          testid="cset-robotavatar"
+          label="Assistant avatar"
+          onChange={(v) => void apply({ agents: { chatAvatar: v } })}
+        />
+      ),
+      isDefault: (agents.chatAvatar !== false) === true,
+      reset: () => void apply({ agents: { chatAvatar: true } }),
+    },
+
+    /* ── Extensions ──────────────────────────────────────────────────────── */
+    {
+      section: 'advanced',
+      id: 'exts',
+      label: 'Extensions',
+      hint: 'Installed extensions and which of them are switched on.',
+      words: 'advanced extensions plugins install enable disable market',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-exts"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('extensions'),
+            );
+          }}
+        >
+          {tr(`${settings.extensions?.enabled?.length ?? 0} enabled…`)}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'advanced',
+      id: 'root',
+      label: 'Workspace folders',
+      hint: 'Folders the agent is allowed to read and write.',
+      words: 'advanced workspace folders roots allow path permission',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-root"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('security'),
+            );
+          }}
+        >
+          {tr('Open…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'advanced',
+      id: 'micadv',
+      label: 'Dictation engine',
+      hint: 'Where speech-to-text runs, and which model it uses.',
+      words: 'advanced mic dictation speech text engine provider model',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-micadv"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('mic'),
+            );
+          }}
+        >
+          {tr('Open…')}
+        </button>
+      ),
+      isDefault: true,
+    },
   ];
 
   const q = cari.trim().toLowerCase();
