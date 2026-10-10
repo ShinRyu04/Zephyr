@@ -1356,19 +1356,16 @@ export function AgcHooks() {
       </p>
 
       {/*
-        * The truth about this pane, said before the list rather than under it.
+        * What actually runs, said before the list rather than under it.
         *
-        * Zephyr has no hook executor: nothing reads `hooks` except this panel.
-        * A saved hook is a note the reader keeps, not a behaviour. Letting the
-        * pane look live would be the worst version of this feature — the reader
-        * would trust a guard that is not running. Wiring the executor means
-        * timeouts, cancellation, output caps, exit codes, workspace-trust
-        * checks and a decision about which lifecycle events the architecture
-        * can actually guarantee; until those exist, saying "not yet" is the
-        * honest state.
+        * The runner exists now, but only for the two SESSION events — see
+        * `hookRuntime.ts` for why the other three are deliberately unwired. The
+        * note therefore states which are live instead of claiming the whole
+        * feature is off, because a reader who sets a `before-tool` hook and sees
+        * nothing happen needs to know that is expected rather than broken.
         */}
-      <p className="agc-warn" data-testid="agc-hooks-belum-jalan" role="note">
-        {tr('Hooks are saved as drafts and are NOT executed yet - Zephyr has no hook runner. Nothing here runs on its own.')}
+      <p className="agc-warn" data-testid="agc-hooks-status" role="note">
+        {tr('Only “Session starts” and “Session ends” run. The other events are stored but not fired yet, because running a command between your approval and the action it approved would defeat the gate.')}
       </p>
       {groups.map((g) => {
         const list = hooks.filter((h) => h.scope === g.scope);

@@ -1213,6 +1213,22 @@ export const instructionCatalogList = () =>
 export const instructionInstall = (id: string, scope: string) =>
   invoke<string>('instruction_install', { id, scope });
 
+export interface HookRunResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+  timed_out: boolean;
+  duration_ms: number;
+}
+
+/*
+ * Run one hook command. Rust enforces the timeout, the output cap and the
+ * workspace-bound working directory; this only carries the request.
+ */
+export const hookRun = (opts: { command: string; cwd: string; timeoutSec: number }) =>
+  invoke<HookRunResult>('hook_run', opts);
+
 export const agentContext = () => invoke<string>('agent_context');
 
 export const memoryRead = () => invoke<MemoryState>('memory_read');
