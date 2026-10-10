@@ -1,39 +1,42 @@
 import { create } from 'zustand';
+import { useStore } from './store';
 
 /*
- * Chat Settings: whether it is open, and where.
+ * Chat Settings: whether the floating overlay is open.
  *
  * TWO HOMES, one page. VSCode opens its chat settings as a small overlay for a
  * quick change, and offers a button to keep it as a real editor tab when the
- * reader wants to stay. This store carries that choice so the two surfaces
- * cannot both think they own the page.
+ * reader wants to stay.
  *
- *   'popup'  — floats over the chat. Opens from the "…" menu.
- *   'editor' — takes the editor area, like Settings. Reached from the popup's
- *              "Open in Editor" button.
+ *   overlay — floats over the chat. Opens from the "…" menu.
+ *   tab     — a real editor tab, in the tab strip beside the files.
  *
- * A store rather than local state because the triggers and the surfaces live in
- * different subtrees: the "…" menu is in the chat header, the popup floats in
- * the chat panel, and the page is drawn by `SplitEditor`.
+ * The TAB home does not live here any more. It is a real `Tab` in the editor
+ * store (`view: 'chat-settings'`), so this store has nothing to say about it:
+ * `keEditor` opens that tab and then the overlay is done, and closing the tab
+ * is what closes the page — the same way the X on a file tab closes a file.
+ * Keeping a second flag here for "the page is open in the editor" is what made
+ * the old version unable to say which of the two surfaces owned the screen, and
+ * it is why `SplitEditor` had to grow a branch that hid the tab strip.
  */
-export type ChatSettingsMode = 'popup' | 'editor';
-
 interface ChatSettingsState {
   buka: boolean;
-  mode: ChatSettingsMode;
   /** Open as the floating overlay (the "…" menu's behaviour). */
   setBuka: (v: boolean) => void;
-  /** Move the open page into the editor area. */
+  /** Move the open page into a real editor tab. */
   keEditor: () => void;
   tutup: () => void;
 }
 
 export const useAiChatSettings = create<ChatSettingsState>((set) => ({
   buka: false,
-  mode: 'popup',
-  /* Always opens as the popup: the editor home is something the reader asks for
-     from inside it, not the default, so the same menu item gives the same
-     result every time. */
-  setBuka: (v) => set({ buka: v, mode: v ? 'popup' : 'popup' }),  keEditor: () => set({ buka: true, mode: 'editor' }),
-  tutup: () => set({ buka: false, mode: 'popup' }),
+  setBuka: (v) => set({ buka: v }),
+  keEditor: () => {
+    /* Close the overlay first, then open the tab. The other order leaves the
+       overlay hanging over the editor for a frame, and the reader sees the same
+       page twice. */
+    set({ buka: false });
+    useStore.getState().bukaViewAi('chat-settings');
+  },
+  tutup: () => set({ buka: false }),
 }));
