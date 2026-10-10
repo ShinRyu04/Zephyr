@@ -1,0 +1,32 @@
+feat(ai): "Create with AI" untuk Skills, draft -> review -> simpan
+
+Pengguna mendeskripsikan kebutuhannya dengan bahasa biasa, model
+menyusun draft, dan draft itu muncul di editor yang biasa - bukan
+langsung ditulis ke disk. Baru tersimpan setelah Save.
+
+- agentDraft.ts: pemanggil provider untuk draft. Memakai aiToolChat
+  (request/response biasa), BUKAN aiChat, karena ai-chat membawa SATU
+  callback global di window: draft yang jalan sementara chat terbuka
+  akan merebut callback itu dan chat berhenti menerima token di tengah
+  jawaban - bug yang jauh dari tombol penyebabnya. Tidak ada tool yang
+  dikirim, jadi tidak ada yang bisa dijalankan model.
+- parseDraft: terima JSON bersih, dibungkus pagar kode, atau dikelilingi
+  prosa. Yang penting: teks MENTAH dicoba dulu, pagar baru dilepas kalau
+  itu gagal. Urutan sebaliknya terlihat lebih aman tapi salah - body
+  draft adalah markdown, dan markdown berisi blok kode berpagar; regex
+  pagar menemukan pagar DI DALAM body lebih dulu, memotong jawaban jadi
+  serpihan, dan JSON.parse gagal pada teks yang sebenarnya utuh.
+- DRAFT_MAX 8192: batas token chat (2048) membuat jawaban panjang
+  terpotong di tengah objek JSON. Terukur: permintaan satu baris lolos,
+  dua baris tidak.
+- Galat dibedakan: terpotong vs tidak bisa dibaca - keduanya butuh
+  tanggapan berbeda dari pembaca.
+- UI: tombol "Create with AI" di grup Workspace dan User, panel
+  deskripsi, lalu draft dalam form yang bisa diedit dengan catatan
+  "ini saran model, periksa dulu".
+
+Diverifikasi end-to-end lewat UI: deskripsi panjang -> draft 3419
+karakter -> Save -> .zephyr/skills/cargo-test/SKILL.md tertulis dengan
+frontmatter benar.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
