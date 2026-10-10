@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { skillsList, skillRead, skillWrite, skillDelete, type SkillInfo } from './commands';
-import { resetCacheKonteks } from './aiStore';
 
 /*
  * Skills, read from and written to DISK through the Rust backend.
@@ -103,7 +102,14 @@ export const useSkills = create<SkillsState>((set, get) => ({
        * exists yet. Dropping the cache here is what makes Save take effect on
        * the very next turn rather than a minute later.
        */
-      resetCacheKonteks();
+      /*
+       * Dynamic, not a top-level import: aiStore pulls in systemPrompt, which
+       * pulls in THIS module when it needs the file-pattern instructions. A
+       * static import here would close that loop, and the cycle would be live
+       * while aiStore is still initialising.  uses the same pattern
+       * for the same reason.
+       */
+      void import('./aiStore').then((m) => m.resetCacheKonteks());
       await get().muat();
       set({ sibuk: false });
       return true;
@@ -118,7 +124,14 @@ export const useSkills = create<SkillsState>((set, get) => ({
     try {
       await skillDelete(name);
       if (get().dibuka === name) set({ dibuka: null, isi: '' });
-      resetCacheKonteks();
+      /*
+       * Dynamic, not a top-level import: aiStore pulls in systemPrompt, which
+       * pulls in THIS module when it needs the file-pattern instructions. A
+       * static import here would close that loop, and the cycle would be live
+       * while aiStore is still initialising.  uses the same pattern
+       * for the same reason.
+       */
+      void import('./aiStore').then((m) => m.resetCacheKonteks());
       await get().muat();
       set({ sibuk: false });
       return true;
