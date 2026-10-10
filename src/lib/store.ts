@@ -140,6 +140,14 @@ interface StoreActions {
   openPath: (path: string) => Promise<void>;
   newUntitled: () => void;
 
+  /*
+   * Open one of the AI views as an editor tab, or bring its tab forward if it
+   * is already open. Same shape as VSCode's "Move Chat into Editor Area": there
+   * is at most ONE chat tab and ONE Chat Settings tab, so pressing the button
+   * twice focuses rather than stacking duplicates.
+   */
+  bukaViewAi: (view: 'ai-chat' | 'chat-settings') => void;
+
   setActiveTab: (id: string) => void;
   updateTabContent: (id: string, content: string) => void;
   saveTab: (id: string) => Promise<boolean>;
@@ -723,6 +731,46 @@ export const useStore = create<Store>((set, get) => ({
     } finally {
       opening.delete(kunci);
     }
+  },
+
+  bukaViewAi: (view) => {
+    /* Already open: just bring it forward. Reopening must not add a second tab
+       — the reader pressed a button they already pressed, and two chat tabs
+       would be two conversations pretending to be one. */
+    const ada = get().tabs.find((t) => t.view === view);
+    if (ada) {
+      set({ activeTabId: ada.id });
+      const fokus = useLayout.getState().fokus;
+      set((s) => ({
+        tabs: s.tabs.map((t) => (t.id === ada.id ? { ...t, groupId: fokus } : t)),
+      }));
+      return;
+    }
+
+    const tab: Tab = {
+      id: nextId(),
+      path: null,
+      name: view === 'ai-chat' ? 'Chat' : 'Chat Settings',
+      encoding: 'utf8' as Encoding,
+      lineEnding: 'crlf' as LineEnding,
+      unsaved: false,
+      content: '',
+      lang: 'plain',
+      loaded: true,
+      view,
+      groupId: useLayout.getState().fokus,
+    };
+
+    /*
+     * If the editor is currently empty, reset the layout first: an empty editor
+     * area has had `useLayout.reset()` run against it, and this tab has to land
+     * in the same group a file would have landed in.
+     */
+    if (get().tabs.length === 0) useLayout.getState().reset();
+
+    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
+    touchTab(tab.id);
+    void get().persistSession();
   },
 
   newUntitled: () => {

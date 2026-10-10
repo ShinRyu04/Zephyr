@@ -786,6 +786,24 @@ export interface Tab {
   content: string;
   lang: LangId;
 
+  /*
+   * A tab that is a VIEW, not a file: the AI chat and the Chat Settings page.
+   *
+   * They behave like VSCode's built-in tabs (Settings, Welcome, a Copilot chat
+   * editor) — they open in the editor area, sit in the tab bar with a real tab
+   * you can click back to, and closing the tab is what closes the view. Before
+   * this they were store flags that swapped the whole editor area for a
+   * full-bleed page, which is why they read as "maximize" rather than as a tab:
+   * there was no tab row, no tab to return to, and nothing in the strip to
+   * close.
+   *
+   * `path` stays null on these — they have no file — so every path-keyed code
+   * path (save, reload from disk, rename, watch) treats them as untitled and
+   * skips them. `view` is what routes them to their own component; a tab with
+   * no `view` and no path is still the ordinary untitled buffer.
+   */
+  view?: 'ai-chat' | 'chat-settings';
+
   loaded?: boolean;
 
   readOnly?: boolean;

@@ -8,24 +8,23 @@ import ChatSettingsPage from './ChatSettingsPage';
  *
  * The page itself is `ChatSettingsPage`, unchanged: same sections, same search,
  * same rows. Only the frame differs, so a setting can never exist in one home
- * and not the other. The "Open in Editor" button in its header hands the reader
- * over to the full-height home, which is where VSCode puts the same choice.
+ * and not the other. The "Open in Editor" button in its header opens the page as
+ * a real editor TAB (`keEditor`), which is where VSCode puts the same choice.
  *
- * Rendered by `AiPanel` so it lands inside the chat surface; the editor host
- * draws the same page in `SplitEditor`. The store's `mode` decides which of the
- * two is showing, so they are never on screen together.
+ * Rendered by `AiPanel` so it lands inside the chat surface. The overlay and the
+ * tab are mutually exclusive by construction: `keEditor` closes this one before
+ * opening the tab, so the same page can never be on screen twice.
  */
 export default function ChatSettingsPopup() {
   const { popupRef, onPointerDown } = useDragPopup();
   const buka = useAiChatSettings((s) => s.buka);
-  const mode = useAiChatSettings((s) => s.mode);
   const tutup = useAiChatSettings((s) => s.tutup);
   const keEditor = useAiChatSettings((s) => s.keEditor);
 
   /* Escape closes the overlay. Capture phase, so the chat's own Escape
      handling does not also fire and treat the key as "stop the run". */
   useEffect(() => {
-    if (!buka || mode !== 'popup') return;
+    if (!buka) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -34,9 +33,9 @@ export default function ChatSettingsPopup() {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [buka, mode, tutup]);
+  }, [buka, tutup]);
 
-  if (!buka || mode !== 'popup') return null;
+  if (!buka) return null;
 
   return (
     <>

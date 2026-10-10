@@ -1,4 +1,4 @@
-import { useRef, lazy, Suspense } from 'react';
+import { useRef, lazy, Suspense, useEffect } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
 import { useLayout } from '../../lib/editorLayoutStore';
 import CodeMirrorEditor from '../editor/CodeMirrorEditor';
@@ -15,7 +15,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import DiffViewer from '../scm/DiffViewer';
 import { useAiChatSettings } from '../../lib/chatSettingsStore';
 const SettingsPage = lazy(() => import('../settings/SettingsPage'));
-const AiPanel = lazy(() => import('../ai/AiHost'));
+const AiChatView = lazy(() => import('../ai/AiPanel'));
 const ChatSettingsPage = lazy(() => import('../ai/ChatSettingsPage'));
 // Dev Environment, API Client and SFTP are full-page views: each carries its own
 // header and row layout. They take over the middle area the same way Settings
@@ -74,6 +74,29 @@ function EmptyState() {
   );
 }
 
+/*
+ * The chat as an editor tab — the CHAT ONLY, with no bar above it.
+ *
+ * Not `AiHost`. That component is the right-hand panel's full surface and it
+ * carries the "Chat / Claude Code / Codex" tab strip; mounting it here would put
+ * a second tab strip inside an editor tab and offer the CLI tabs in a place the
+ * reader did not ask for them. This tab is the Zephyr conversation only.
+ *
+ * There is deliberately NO header row. An editor tab already has a title in the
+ * tab strip, so a second bar repeating "Chat" under it is the frame-around-a-
+ * frame the reader asked to have removed. The chat's own actions (new chat,
+ * history, "…") are reachable from the "…" menu and the docked panel, and the
+ * chat's status chips already sit in its bottom bar — so the tab is just the
+ * conversation, edge to edge.
+ */
+function AiChatOnly() {
+  return (
+    <div className="ai-view-chat" data-testid="ai-view-chat">
+      <AiChatView />
+    </div>
+  );
+}
+
 function EditorPane({ gid }: { gid: string }) {
   const tabs = useStore((s) => s.tabs);
   const tabGlobalAktif = useActiveTab();
@@ -113,7 +136,32 @@ function EditorPane({ gid }: { gid: string }) {
     >
       {!kosongTotal && <EditorTabBar gid={gid} />}
       <div className="editor-host">
-        {gambarGrup ? (
+        {/*
+          * A VIEW tab (chat / Chat Settings) comes first.
+          *
+          * Checked before the image branch on purpose: these tabs carry a null
+          * path, and every path-based test below would otherwise fall through to
+          * CodeMirror and render an empty buffer behind the button that opened
+          * them. `key` on the tab id so switching between two view tabs remounts
+          * — the two are different components with their own state.
+        */}
+        {tab?.view === 'ai-chat' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-chat">
+            <ErrorBoundary nama="AI">
+              <Suspense fallback={null}>
+                <AiChatOnly />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'chat-settings' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-chat-settings">
+            <ErrorBoundary nama="ChatSettings">
+              <Suspense fallback={null}>
+                <ChatSettingsPage onClose={() => useStore.getState().requestCloseTab(tab.id)} />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : gambarGrup ? (
 
           tab && apakahGambar(tab.path ?? '') ? (
             <PreviewGambar path={tab.path ?? ''} />
@@ -178,59 +226,43 @@ export default function SplitEditor() {
   const groups = useLayout((s) => s.groups);
 
   /*
-   * AI chat as an editor-area view (Copilot "Move Chat into Editor Area").
+   * Chat Settings and the AI chat are TABS now, not branches here.
    *
-   * Follows the same shape as the Settings / Diff branches below: a store flag
-   * decides it renders here instead of a file editor. Only ONE <AiPanel/> is
-   * ever mounted at a time - App.tsx renders the right column only when
-   * aiPanel === 'right', so these two never both appear.
+   * Both used to swap this whole editor area for a lone page with no tab row,
+   * which is what made them read as "maximize": nothing to click back to, no tab
+   * in the strip, nothing to close. They are ordinary `Tab`s carrying a `view`
+   * and are routed inside `EditorPane` instead, so they get the real tab strip,
+   * real close button, and sit beside the files. `aiPanel: 'editor'` is still
+   * read below for the layout the user saved in an older version — it opens the
+   * chat tab the first time it is seen, then is not consulted again.
    */
-  const aiDiEditor = useStore((s) => (s.settings.general.aiPanel ?? 'right') === 'editor');
+  /*
+   * The Chat Settings OVERLAY is not drawn here at all — it floats inside the
+   * chat panel (see ChatSettingsPopup). The branch that used to live here drew
+   * the page full-bleed in the editor area with no tab row, which is the
+   * "maximize, not a tab" complaint; it is a real tab now.
+   */
   const chatSettingsOpen = useAiChatSettings((s) => s.buka);
-  const chatSettingsMode = useAiChatSettings((s) => s.mode);
-  const tutupChatSettings = useAiChatSettings((s) => s.tutup);
+  void chatSettingsOpen;
 
   /*
-   * Chat Settings as an editor-area view.
+   * A layout saved by an older version can still say `aiPanel: 'editor'`.
    *
-   * ONLY when the reader asked for that home ("Open in Editor" in the overlay):
-   * the default is the floating popup, drawn inside the chat panel, and both
-   * must not appear at once. `mode` is what separates them — one flag for
-   * "open", one for "where", so the overlay and this page cannot disagree about
-   * which of them is on screen.
-   *
-   * Sits BEFORE the aiDiEditor branch so it wins when both are true: the reader
-   * asked for the settings page from inside the chat, and the chat is already
-   * the view underneath — returning it would hide the page they just opened.
+   * That value used to mean "draw the chat in the editor area", and the drawing
+   * is gone — so an upgraded install would be left with the setting and no chat
+   * anywhere on screen. Open the real chat tab once and write the setting back
+   * to 'right' (the docked column, which is what the tab's panel trail controls
+   * anyway), so the reader keeps the chat they had and the stale value does not
+   * keep re-triggering. An effect, not a render-time write: setting state while
+   * rendering is what `applySettings` would do on its own.
    */
-  if (chatSettingsOpen && chatSettingsMode === 'editor') {
-    return (
-      <section className="editor-area" data-testid="chat-settings-area">
-        <div className="editor-host">
-          <ErrorBoundary nama="ChatSettings">
-            <Suspense fallback={null}>
-              <ChatSettingsPage onClose={tutupChatSettings} />
-            </Suspense>
-          </ErrorBoundary>
-        </div>
-      </section>
-    );
-  }
-
-  if (aiDiEditor && !settingsOpen) {
-    return (
-      <section className="editor-area ai-editor-area" data-testid="ai-editor-area">
-        <RestrictedBanner />
-        <div className="editor-host">
-          <ErrorBoundary nama="AI">
-            <Suspense fallback={null}>
-              <AiPanel />
-            </Suspense>
-          </ErrorBoundary>
-        </div>
-      </section>
-    );
-  }
+  const migrasiChatEditor = useStore((s) => (s.settings.general.aiPanel ?? 'right') === 'editor');
+  const applySettings = useStore((s) => s.applySettings);
+  useEffect(() => {
+    if (!migrasiChatEditor) return;
+    useStore.getState().bukaViewAi('ai-chat');
+    void applySettings({ general: { aiPanel: 'right' } } as never);
+  }, [migrasiChatEditor, applySettings]);
 
   if (
     activity === 'tools' ||

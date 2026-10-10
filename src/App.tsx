@@ -10,7 +10,6 @@ import SubAgentInfo from './components/ai/SubAgentInfo';
 import SessionsPanel from './components/ai/SessionsPanel';
 import PanelTrail from './components/ai/PanelTrail';
 import PanelWins from './components/ai/PanelWins';
-import AiIkon from './components/ai/AiIkon';
 import { useSessionsSide } from './lib/sessionsSideStore';
 import { useAiTabs } from './lib/aiTabsStore';
 import StatusBar from './components/shell/StatusBar';
@@ -1527,28 +1526,15 @@ export default function App() {
                     data-testid="ai-side-top-tabs"
                   />
                   {/*
-                    * The Sessions column's own toggle, on this row while the
-                    * panel is expanded.
+                    * No Sessions toggle here.
                     *
-                    * Without it the column was a ONE-WAY door: its ✕ could hide
-                    * it, and the header that carries the way back is hidden while
-                    * maximised — so a reader who dismissed the list had no way to
-                    * bring it back short of leaving maximize. Only for the Chat
-                    * tab, because only the Chat tab HAS the column.
+                    * There used to be one, added to make the column a two-way
+                    * door. Maximize already carries a way back — the panel's own
+                    * hide control, and the column's ✕ — so the button was a
+                    * second door to the same room and earned nothing. This is
+                    * the maximised row only; the compact header keeps its own
+                    * toggle.
                     */}
-                  {aiTab === 'chat' && (
-                    <button
-                      type="button"
-                      className={`ai-ikon${sesiSisiBuka ? ' is-on' : ''}`}
-                      data-testid="ai-toggle-sessions-side"
-                      title={tr('Show Agent Sessions Sidebar')}
-                      aria-label={tr('Show Agent Sessions Sidebar')}
-                      aria-pressed={sesiSisiBuka}
-                      onClick={() => setSesiSisi(!sesiSisiBuka)}
-                    >
-                      <AiIkon name="list" size={14} />
-                    </button>
-                  )}
                   {aiTab === 'chat' ? (
                     <PanelTrail showMax />
                   ) : (

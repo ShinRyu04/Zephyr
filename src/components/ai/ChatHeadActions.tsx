@@ -45,6 +45,21 @@ export default function ChatHeadActions() {
       void applySettings({ general: { aiPanel: pos } } as never);
       useStore.getState().setAiKolomVisible(true);
       setMenuBuka(false);
+      /*
+       * "Editor" is not a position for the right-hand column — it is a TAB.
+       *
+       * The old path set `aiPanel: 'editor'`, which made SplitEditor swap the
+       * whole editor area for a lone <AiPanel/> with no tab row: the chat became
+       * a page you could only leave by changing the setting back, which is
+       * exactly the "it just looks maximized" complaint. The setting is left at
+       * 'right' (the panel column) and the chat is opened as a real editor tab
+       * instead, so it sits in the tab strip beside the files with a tab to
+       * click back to and an X that closes it — same as VSCode.
+       */
+      if (pos === 'editor') {
+        useStore.getState().bukaViewAi('ai-chat');
+        return;
+      }
       if (pos === 'window') {
         void import('../../lib/aiWindow').then((m) => m.bukaAiWindow());
       } else {
