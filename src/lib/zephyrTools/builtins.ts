@@ -1242,6 +1242,75 @@ export const TOOL_BAWAAN: AgentTool[] = [
 
   /* ---------------- Tasks & Notes ---------------- */
 
+  /*
+   * `skill_view` — the tool the prompt has been promising all along.
+   *
+   * `skills.rs` injects a list of available skills into the system prompt with
+   * the line "read one with the skill_view tool before starting work it
+   * matches". That tool did not exist: it was named in the prompt, absent from
+   * every registry, so an agent that followed the instruction got an unknown
+   * tool back and either gave up or invented the skill's contents. The list was
+   * real and the reader was pointed at a door that was not there.
+   *
+   * Read-only by construction. A skill is CONTENT the agent reads; nothing here
+   * changes what the agent is allowed to do, and a skill whose body says "run
+   * the deploy script" still goes through the same tool gate as the reader
+   * typing that command.
+   */
+  {
+    spec: {
+      name: 'skill_view',
+      description:
+        'Baca isi sebuah skill yang terdaftar di daftar AVAILABLE SKILLS. Pakai sebelum menjalankan pekerjaan yang cocok dengan deskripsi skill itu. Tanpa argumen name, kembalikan daftar skill beserta deskripsinya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Nama skill, persis seperti di daftar AVAILABLE SKILLS.',
+          },
+        },
+      },
+    },
+    run: async (a) => {
+      const daftar = await cmd.skillsList().catch(() => []);
+      const nama = typeof a.name === 'string' ? a.name.trim() : '';
+
+      if (!nama) {
+        if (daftar.length === 0) {
+          return 'Belum ada skill yang terpasang. Skill disimpan di .zephyr/skills/<nama>/ (workspace) atau folder data Zephyr (global).';
+        }
+        return daftar
+          .map((s) => `- ${s.name} [${s.scope}]: ${s.description || '(tanpa deskripsi)'}`)
+          .join('\n');
+      }
+
+      /*
+       * Resolve by NAME across both scopes before reading, so the path handed to
+       * `skill_read` is one the backend just listed. Passing the model's string
+       * straight through would let it probe names that do not exist, and the
+       * error it got back would be indistinguishable from a real skill whose
+       * file had been deleted.
+       */
+      const kunci = nama.toLowerCase();
+      const ketemu = daftar.find((s) => s.name.toLowerCase() === kunci);
+      if (!ketemu) {
+        const mirip = daftar
+          .filter((s) => s.name.toLowerCase().includes(kunci) || kunci.includes(s.name.toLowerCase()))
+          .map((s) => s.name)
+          .slice(0, 5);
+        return mirip.length > 0
+          ? `Skill "${nama}" tidak ada. Yang mirip: ${mirip.join(', ')}.`
+          : `Skill "${nama}" tidak ada. Skill yang terpasang: ${daftar.map((s) => s.name).join(', ') || '(tidak ada)'}.`;
+      }
+
+      const isi = await cmd.skillRead(ketemu.name).catch((e) => {
+        return `Gagal membaca skill "${ketemu.name}": ${String(e)}`;
+      });
+      return potong(isi);
+    },
+  },
+
   {
     spec: {
       name: 'todo_write',

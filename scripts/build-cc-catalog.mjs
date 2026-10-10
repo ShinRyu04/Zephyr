@@ -5,6 +5,7 @@
 //   - 0xfurai/claude-code-subagents          -> agents/*.md
 //   - VoltAgent/awesome-claude-code-subagents -> categories/<cat>/*.md
 //   - anthropics/skills                       -> skills/<name>/SKILL.md
+//   - github/awesome-copilot                  -> skills/<name>/SKILL.md, agents/*.md
 //
 // Output: src-tauri/assets/cc-catalog.json — one array of entries:
 //   { id, kind:'agent'|'skill', name, title, description, source, category,
@@ -141,6 +142,86 @@ function push(e) {
       extras: extras.slice(0, 40),
       body,
     });
+  }
+}
+
+// --- github/awesome-copilot -------------------------------------------------
+/*
+ * The community collection behind GitHub Copilot. Same on-disk shape as
+ * anthropics/skills (a folder per skill holding SKILL.md), so it needs no
+ * special handling — which is the point of matching that layout in the first
+ * place.
+ *
+ * Its frontmatter carries fields Zephyr does not use (license, compatibility,
+ * metadata, argument-hint). They are dropped here rather than passed through:
+ * `cc_catalog_install` writes the BODY to disk, and the reader's own `claude`
+ * or agent runtime re-reads whatever frontmatter that file has. Copying fields
+ * this build does not understand into the catalogue would mean carrying data
+ * nothing validates.
+ *
+ * Agents are a flat `agents/*.md` directory here, unlike the tiered layout the
+ * other two sources use, so they are read in one pass.
+ */
+if (existsSync(join(root, 'ex_awesome'))) {
+  const base = join(root, 'ex_awesome');
+
+  // Skills: folder per skill, SKILL.md inside.
+  const skRoot = join(base, 'skills');
+  if (existsSync(skRoot)) {
+    for (const name of readdirSync(skRoot)) {
+      const skFile = join(skRoot, name, 'SKILL.md');
+      if (!existsSync(skFile)) continue;
+      const md = readFileSync(skFile, 'utf8');
+      const { meta, body } = frontmatter(md);
+      // Bundled assets (scripts/, references/) are what make these skills
+      // self-contained, so they are listed for the UI the same way the
+      // anthropics block does.
+      const extras = [];
+      const walk = (d, rel) => {
+        for (const e of readdirSync(d)) {
+          if (e === 'SKILL.md') continue;
+          const p = join(d, e);
+          const r = rel ? `${rel}/${e}` : e;
+          if (statSync(p).isDirectory()) walk(p, r);
+          else extras.push(r);
+        }
+      };
+      walk(join(skRoot, name), '');
+      push({
+        id: `skill:ac-${name}`,
+        kind: 'skill',
+        name: meta.name || name,
+        title: titleCase(meta.name || name),
+        description: meta.description || '',
+        source: 'github/awesome-copilot',
+        category: 'Skills',
+        extras: extras.slice(0, 40),
+        body,
+      });
+    }
+  }
+
+  // Agents: flat markdown files.
+  const agRoot = join(base, 'agents');
+  if (existsSync(agRoot)) {
+    for (const f of readdirSync(agRoot)) {
+      if (!f.endsWith('.md')) continue;
+      const md = readFileSync(join(agRoot, f), 'utf8');
+      const { meta, body } = frontmatter(md);
+      const name = meta.name || f.replace(/\.md$/, '');
+      push({
+        id: `agent:ac-${name}`,
+        kind: 'agent',
+        name,
+        title: meta.title || titleCase(name),
+        description: meta.description || '',
+        source: 'github/awesome-copilot',
+        category: meta.category ? titleCase(String(meta.category)) : 'Agents',
+        model: meta.model || '',
+        tools: Array.isArray(meta.tools) ? meta.tools.join(', ') : meta.tools || '',
+        body,
+      });
+    }
   }
 }
 
