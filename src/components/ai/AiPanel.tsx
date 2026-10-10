@@ -4,6 +4,7 @@ import {
   extractCommand,
   isDestructive,
   IMAGE_MAX_BYTES,
+  type AntrianPesan,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSessionsSide } from '../../lib/sessionsSideStore';
@@ -58,6 +59,13 @@ function folderDari(path: string): string {
 const PESAN_KOSONG: ChatMsg[] = [];
 
 /*
+ * Same trick for the per-surface queue: a stable empty array, so the selector's
+ * output does not change identity on every store write. A panel that has never
+ * queued anything reads this on every render.
+ */
+const ANTRIAN_KOSONG: AntrianPesan[] = [];
+
+/*
  * The transcript, and ONLY the transcript.
  *
  * WHY this is its own component: `onChunk` (aiStore) rewrites `sessions` on
@@ -80,8 +88,29 @@ const PESAN_KOSONG: ChatMsg[] = [];
  * parent passes a getter for the scroll element so the refs stay where they
  * belong.
  */
-const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: () => HTMLDivElement | null }) {
-  const msgs = useAi((s) => s.activeSession()?.messages ?? PESAN_KOSONG);
+const PesanList = memo(function PesanList({
+  composerId,
+  ambilScroller,
+}: {
+  composerId: string;
+  ambilScroller: () => HTMLDivElement | null;
+}) {
+  /*
+   * THIS surface's transcript.
+   *
+   * It used to read `s.activeSession()`, which resolves the store's PRIMARY
+   * `activeId` — the right column's chat. So both panels drew the column's
+   * messages while their headers showed their own titles: the editor tab said
+   * "PESAN_EDITOR_ENTER" at the top and listed the column's conversation
+   * underneath, which is exactly the "editor still shows the right side's chat"
+   * report. Resolved through `activeIds[composerId]`, the same key the header,
+   * the composer and the send path already use.
+   */
+  const showDividers = useAi((s) => s.showDividers);
+  const msgs = useAi((s) => {
+    const id = s.activeIds[composerId] ?? null;
+    return (id ? s.sessions.find((x) => x.id === id)?.messages : null) ?? PESAN_KOSONG;
+  });
 
   /*
    * Keep the newest output in view, but only while the reader is already at the
@@ -109,6 +138,11 @@ const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: ()
    */
   const baris: React.ReactNode[] = [];
   let hariSebelumnya: number | null = null;
+  /* From Chat Settings. Turning it off must actually remove the dividers. */
+  if (!showDividers) {
+    for (const m of msgs) baris.push(<ChatMessage key={m.id} msg={m} />);
+    return <>{baris}</>;
+  }
   for (const m of msgs) {
     const t = new Date(m.at);
     /*
@@ -147,7 +181,12 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * tab and the right column can show two different conversations at once.
    */
   const activeId = useAi((s) => s.activeIds[composerId] ?? null);
-  const pending = useAi((s) => s.pending);
+  /*
+   * This SURFACE's run state. The three flat values are the primary surface's
+   * mirror; each panel reads its own record so a run started in the editor does
+   * not put the column's Send button into Stop or fill the column's queue.
+   */
+  const pending = useAi((s) => s.pendings[composerId] ?? null);
   /*
    * The draft is this MOUNT's own, read through `drafts[composerId]`.
    *
@@ -176,7 +215,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const removeDraftImage = useAi((s) => s.removeDraftImage);
   const setToast = useAi((s) => s.setToast);
   const setConfirmCmd = useAi((s) => s.setConfirmCmd);
-  const antrian = useAi((s) => s.antrian);
+  const antrian = useAi((s) => s.antrians[composerId] ?? ANTRIAN_KOSONG);
   const buangAntrian = useAi((s) => s.buangAntrian);
   const kosongkanAntrian = useAi((s) => s.kosongkanAntrian);
   const kirimAntrian = useAi((s) => s.kirimAntrian);
@@ -218,7 +257,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const setClearAllOpen = useAi((s) => s.setClearAllOpen);
   const runInTerminal = useAi((s) => s.runInTerminal);
   const agentMode = useAi((s) => s.agentMode);
-  const agentBusy = useAi((s) => s.agentBusy);
+  const agentBusy = useAi((s) => s.agentBusys[composerId] ?? false);
   const agentPhase = useAi((s) => s.agentPhase);
   const agentCurrentTool = useAi((s) => s.agentCurrentTool);
   const agentStepIndex = useAi((s) => s.agentStepIndex);
@@ -756,11 +795,11 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
           break;
         case 'padatkan':
           setDraft('');
-          void compactContext();
+          void compactContext(undefined, composerId);
           break;
         case 'ekspor':
           setDraft('');
-          void exportChat();
+          void exportChat(composerId);
           break;
 
         // Zephyr surfaces. Each one reuses the command palette action so the
@@ -1120,7 +1159,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
            * and Claude Code all keep tool output in the transcript and nowhere
            * else; this matches them.
            */
-          <PesanList ambilScroller={ambilScroller} />
+          <PesanList composerId={composerId} ambilScroller={ambilScroller} />
         )}
 
         {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written
@@ -1746,8 +1785,8 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
         * that is running and a goal that is set are both facts about the
         * session, and they stay visible while the conversation scrolls.
         */}
-      <GoalStrip />
-      <LoopStrip />
+      <GoalStrip composerId={composerId} />
+      <LoopStrip composerId={composerId} />
 
       <div className="ai-input-row">
         {/*
@@ -2323,7 +2362,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
         <span className="ai-count" data-testid="ai-msg-count">
           {tf('{n} messages', { n: jumlahPesan })}
         </span>
-        <ContextMeter />
+        <ContextMeter composerId={composerId} />
       </div>
 
       {/*

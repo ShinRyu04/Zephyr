@@ -63,10 +63,21 @@ export function perkiraanBiaya(
  */
 const MSG_KOSONG: ChatMsg[] = [];
 
-export default function ContextMeter() {
+export default function ContextMeter({ composerId = '' }: { composerId?: string }) {
   const tr = useT();
   const [buka, setBuka] = useState(false);
-  const msgs = useAi((s) => s.activeSession()?.messages ?? MSG_KOSONG);
+  /*
+   * THIS surface's transcript, not the primary chat's.
+   *
+   *  resolves the store-wide , so with the chat open
+   * in both the right column and the editor tab the ring showed the COLUMN's
+   * context fullness in both places — the editor tab read 12% while its own
+   * conversation was nearly empty. Same key the transcript and send path use.
+   */
+  const msgs = useAi((s) => {
+    const id = s.activeIds[composerId] ?? null;
+    return (id ? s.sessions.find((x) => x.id === id)?.messages : null) ?? MSG_KOSONG;
+  });
   const model = useAi((s) => s.model);
 
   /*

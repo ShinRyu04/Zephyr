@@ -118,9 +118,19 @@ export default function ChatSettingsPage({
    * than a view option earns — so they are honest session-level choices, which
    * is what each row's Reset puts back.
    */
-  const [showThinking, setShowThinking] = useState(true);
-  const [showStamps, setShowStamps] = useState(true);
-  const [showDividers, setShowDividers] = useState(true);
+  /*
+   * Read from aiStore, not local state.
+   *
+   * These were three useState booleans, so flipping one changed the switch and
+   * nothing else - the transcript never saw the value. The chat reads them from
+   * the store now, which is why they have to live there.
+   */
+  const showThinking = useAi((s) => s.showThinking);
+  const showStamps = useAi((s) => s.showStamps);
+  const showDividers = useAi((s) => s.showDividers);
+  const setShowThinking = useAi((s) => s.setShowThinking);
+  const setShowStamps = useAi((s) => s.setShowStamps);
+  const setShowDividers = useAi((s) => s.setShowDividers);
   /* User or Workspace. See the tabs' own comment: only User has anything in it
      today, and the Workspace pane says so rather than pretending otherwise. */
   const [scope, setScope] = useState<'user' | 'workspace'>('user');

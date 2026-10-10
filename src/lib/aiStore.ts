@@ -1149,6 +1149,7 @@ function agentHardLimitArm() {
     if (!r) {
       useAi.setState({
         agentBusy: false,
+  agentBusys: { '': false },
         pending: null,
         agentConfirm: null,
   agentTanya: null,
@@ -1485,6 +1486,29 @@ interface AiState {
   pending: string | null;
 
   /*
+   * The run state, keyed by WHICH composer is running — same keys as `drafts`
+   * and `activeIds`.
+   *
+   * `pending`, `antrian` and `agentBusy` were single globals shared by every
+   * mounted `AiPanel`, so with the chat open in both the right column and the
+   * editor tab the two surfaces shared ONE run: sending from the editor made the
+   * column show the "answering…" spinner and its Send button turn into Stop, and
+   * a message parked while the editor was busy appeared in the column's queue.
+   * Reported as "the queue shows up in both" and "the buttons are still linked".
+   *
+   * Kept as three parallel records rather than one object per composer so each
+   * keeps its own primitive type — zustand compares selector output with `===`,
+   * and a nested object would hand back a fresh reference on every read.
+   *
+   * `''` is the primary surface (the docked right column), so the roughly forty
+   * call sites that read the flat `pending`/`agentBusy`/`antrian` — the agent
+   * loop, the cancellation path, the provider writers — need no change.
+   */
+  pendings: Record<string, string | null>;
+  antrians: Record<string, AntrianPesan[]>;
+  agentBusys: Record<string, boolean>;
+
+  /*
    * Messages the user sent while the assistant was still answering.
    *
    * Sending used to be blocked outright while a request was in flight, so a
@@ -1669,7 +1693,27 @@ interface AiActions {
   setAgentMode: (m: 'chat' | 'agent') => void;
   setRunMode: (m: 'interactive' | 'plan' | 'autopilot') => void;
   tipsVisible: boolean;
+
+  /*
+   * Transcript appearance, from Chat Settings.
+   *
+   * These three lived as local useState inside ChatSettingsPage - the file's own
+   * comment admitted it ("Local state, not saved settings"). The switches moved,
+   * the toast fired, and NOTHING changed in the transcript, because the chat
+   * never read them. Reported as "I turned Show thinking off and it still
+   * thinks" and "sometimes toggling does nothing".
+   *
+   * They live here because the transcript (ChatMessage, AiPanel) is what must
+   * obey them, and in localStorage because they are preferences, not per-chat
+   * state.
+   */
+  showThinking: boolean;
+  showStamps: boolean;
+  showDividers: boolean;
   setTipsVisible: (v: boolean) => void;
+  setShowThinking: (v: boolean) => void;
+  setShowStamps: (v: boolean) => void;
+  setShowDividers: (v: boolean) => void;
   setApprovalMode: (m: ApprovalMode) => void;
 
   agentPutuskan: (setujui: boolean) => void;
@@ -1708,7 +1752,7 @@ interface AiActions {
    * message, so a long session does not flood the context window. Returns
    * the number of messages that were compacted.
    */
-  compactContext: (keep?: number) => number;
+  compactContext: (keep?: number, composerId?: string) => number;
 
   newChat: (id?: string) => string;
     selectChat: (id: string, composerId?: string) => void;
@@ -1722,7 +1766,7 @@ interface AiActions {
     regenerate: () => Promise<void>;
     activeSession: () => ChatSession | null;
 
-    exportChat: () => Promise<void>;
+    exportChat: (composerId?: string) => Promise<void>;
 
   send: (text?: string, images?: string[], composerId?: string) => Promise<boolean>;
 
@@ -1842,6 +1886,18 @@ function bootTips(): boolean {
   }
 }
 
+/*
+ * Default ON: a preference that starts off would hide content the reader never
+ * asked to hide. `!== '0'` so a missing key reads as on.
+ */
+function bootTampil(kunci: string): boolean {
+  try {
+    return localStorage.getItem(kunci) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 function bootRunMode(): 'interactive' | 'plan' | 'autopilot' {
   try {
     const v = localStorage.getItem('zephyr.ai.runMode');
@@ -1882,14 +1938,69 @@ function bootEffort(): ReasoningEffort | null {
 }
 
 
-export const useAi = create<AiStore>((set, get) => ({
+/*
+ * Run state, mirrored into per-surface records.
+ *
+ * `pending`, `agentBusy` and `antrian` are read from roughly forty places — the
+ * agent loop, the cancellation path, the queue drain, the provider writers — and
+ * rewriting every one of them to take a composer id would be a large, risky
+ * change to code that has nothing to do with multiple surfaces.
+ *
+ * So they stay, and this wrapper keeps them honest: whichever surface wrote the
+ * flat value has its per-surface entry updated to match. A surface then reads
+ * `pendings[composerId]` / `agentBusys[composerId]` / `antrians[composerId]` and
+ * gets its OWN run state, while every untouched call site keeps working on the
+ * primary surface's copy.
+ *
+ * The mapping is positional on purpose: `set` is always called by the surface
+ * that is running, and `COMPOSER_AKTIF` is which one that is. It is set by
+ * `kirimSekarang`/`sendAgent` at the top of a turn — the only places a run
+ * starts — and cleared when the run ends.
+ */
+let COMPOSER_AKTIF = '';
+
+/** Mirror a flat run-state patch into the writing surface's record. */
+function mirrorRun(
+  patch: Record<string, unknown>,
+  s: AiState,
+): Record<string, unknown> {
+  const id = COMPOSER_AKTIF;
+  const out: Record<string, unknown> = { ...patch };
+  if ('pending' in patch) out.pendings = { ...s.pendings, [id]: patch.pending as string | null };
+  if ('agentBusy' in patch) out.agentBusys = { ...s.agentBusys, [id]: patch.agentBusy as boolean };
+  if ('antrian' in patch) {
+    const a = patch.antrian as AntrianPesan[];
+    out.antrians = { ...s.antrians, [id]: a };
+  }
+  return out;
+}
+
+export const useAi = create<AiStore>((set0, get) => {
+  /*
+   * Every write goes through `mirrorRun` first, so the flat run-state keys and
+   * their per-surface copies can never drift. Accepts both zustand call shapes —
+   * a patch object and an updater function — because the store uses both.
+   */
+  const set: typeof set0 = (partial, replace) => {
+    if (typeof partial === 'function') {
+      return set0(
+        (s) => mirrorRun((partial as (st: AiState) => Record<string, unknown>)(s), s) as never,
+        replace as never,
+      );
+    }
+    return set0((s) => mirrorRun(partial as Record<string, unknown>, s) as never, replace as never);
+  };
+
+  return {
   sessions: boot.sessions,
   activeId: boot.activeId,
   activeIds: boot.activeIds,
   model: 'custom-model',
   provider: 'custom',
   pending: null,
+  pendings: { '': null },
   antrian: [],
+  antrians: { '': [] },
   loops: {},
   goals: {},
   drafts: { '': '' },
@@ -1905,9 +2016,13 @@ export const useAi = create<AiStore>((set, get) => ({
   agentMode: bootAgentMode(),
   runMode: bootRunMode(),
   tipsVisible: bootTips(),
+  showThinking: bootTampil('zephyr.ai.tampil.think'),
+  showStamps: bootTampil('zephyr.ai.tampil.stamp'),
+  showDividers: bootTampil('zephyr.ai.tampil.divider'),
 
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'auto',
   agentBusy: false,
+  agentBusys: { '' : false },
   agentNavigationOnly: false,
   agentPhase: 'idle',
   agentCurrentTool: null,
@@ -2224,6 +2339,8 @@ export const useAi = create<AiStore>((set, get) => ({
    * the ceiling is hit the message is queued instead, which is always safe.
    */
   kirimSekarang: async (teks, images, composerId = '') => {
+    /* This surface owns the run it is about to start. */
+    COMPOSER_AKTIF = composerId;
     const teksBersih = (teks ?? '').trim();
     // "lanjut" with a pending checkpoint continues the interrupted run from
     // where it stopped instead of starting a new one on top of the failure.
@@ -2297,6 +2414,18 @@ export const useAi = create<AiStore>((set, get) => ({
     } catch {
       /* diabaikan: pilihan hanya berlaku sesi ini */
     }
+  },
+  setShowThinking: (v) => {
+    set({ showThinking: v });
+    try { localStorage.setItem('zephyr.ai.tampil.think', v ? '1' : '0'); } catch { /* sesi ini saja */ }
+  },
+  setShowStamps: (v) => {
+    set({ showStamps: v });
+    try { localStorage.setItem('zephyr.ai.tampil.stamp', v ? '1' : '0'); } catch { /* sesi ini saja */ }
+  },
+  setShowDividers: (v) => {
+    set({ showDividers: v });
+    try { localStorage.setItem('zephyr.ai.tampil.divider', v ? '1' : '0'); } catch { /* sesi ini saja */ }
   },
   /*
    * Pick the run mode and apply the approval level it implies.
@@ -2601,8 +2730,9 @@ export const useAi = create<AiStore>((set, get) => ({
   },
   clearPromptHistory: () => set({ promptHistory: [], promptHistoryIdx: -1 }),
 
-  compactContext: (keep = 4) => {
-    const id = get().activeId;
+  compactContext: (keep = 4, composerId = '') => {
+    /* The surface that ran /compact, not the primary chat. */
+    const id = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
     if (!id) {
       set({ toast: tf('No conversation is open', {}) });
       return 0;
@@ -2752,8 +2882,10 @@ export const useAi = create<AiStore>((set, get) => ({
 
   activeSession: () => get().sessions.find((s) => s.id === get().activeId) ?? null,
 
-  exportChat: async () => {
-    const s = get().activeSession();
+  exportChat: async (composerId = '') => {
+    /* The surface that ran /export, not the primary chat. */
+    const sid = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
+    const s = sid ? get().sessions.find((x) => x.id === sid) ?? null : get().activeSession();
     if (!s || s.messages.length === 0) {
       set({ toast: tx('Nothing to export yet') });
       return;
@@ -2866,6 +2998,7 @@ export const useAi = create<AiStore>((set, get) => ({
     },
 
   send: async (text, images, composerId = ''): Promise<boolean> => {
+    COMPOSER_AKTIF = composerId;
     get().sinkronProvider();
     const diketik = (text ?? get().drafts[''] ?? '').trim();
 
@@ -3249,6 +3382,7 @@ export const useAi = create<AiStore>((set, get) => ({
   },
 
   sendAgent: async (raw, explicitImages, tampilBubble, composerId = '') => {
+    COMPOSER_AKTIF = composerId;
     get().sinkronProvider();
     clearGambarMenunggu();
     if (get().pending || get().agentBusy) {
@@ -5202,7 +5336,8 @@ export const useAi = create<AiStore>((set, get) => ({
       return false;
     }
   },
-}));
+  };
+});
 
 /*
  * Akumulasi teks per permintaan untuk penjaga pengulangan.
