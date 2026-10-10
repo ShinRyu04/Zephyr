@@ -19,6 +19,24 @@
   background: var(--bg);
 }
 
+/*
+ * As an editor TAB, the page is two levels below `.editor-host` and `height:
+ * 100%` cannot resolve against a flex-computed height — the same trap the chat
+ * view documents. The page then sized to its CONTENT, so the body had no
+ * bounded height and `.cset-content`'s `overflow-y: auto` never engaged: the
+ * page simply grew past the tab and the bottom of the settings was unreachable,
+ * with no scrollbar to say so.
+ *
+ * Absolute positioning against `.editor-host` (which is `position: relative`)
+ * sidesteps the chain, exactly as `.ai-view-chat` does for the chat tab.
+ */
+.ai-view-tab > .cset-page {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
 /* ── Header ───────────────────────────────────────────────────────────── */
 
 .cset-topbar {
@@ -49,6 +67,26 @@
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/*
+ * The section column must not be squeezed by the content beside it.
+ *
+ * `flex: 0 0 168px` sets the width but NOT a floor: a flex item still shrinks
+ * below its basis unless told otherwise, and the content column next to it
+ * (`flex: 1 1 auto` with long rows inside) applies exactly that pressure. At
+ * 740px of editor tab the column collapsed and its labels overlapped the content
+ * pane - the "ketimpa di kiri" report.
+ *
+ * `min-width` on the nav, plus `min-width: 0` on the content so IT is the side
+ * that gives way, puts the give-and-take on the correct element.
+ */
+.cset-nav {
+  min-width: 168px;
+}
+
+.cset-content {
+  min-width: 0;
 }
 
 /*
@@ -463,4 +501,20 @@
    measure, because there the column is genuinely narrower. */
 .cset-content .set-section {
   max-width: 980px;
+}
+
+/*
+ * Maximised: the popup fills the viewport instead of the 1280x880 card.
+ *
+ * Positioned at the origin rather than centred, because the drag transform is
+ * added on top — a card centred by `left: calc(50% - 640px)` and then widened to
+ * 100vw would start 640px off the left edge. The button clears any drag offset
+ * when it is pressed, so there is no migration to do here.
+ */
+.cset-pop:has(> .cset-pop-inner > .cset-page.is-besar),
+.cset-pop:has(.cset-page.is-besar) {
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
 }

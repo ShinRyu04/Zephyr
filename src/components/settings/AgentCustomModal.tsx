@@ -1,10 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useDragEverywhere } from '../../lib/useDragPopup';
 import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
 import { useToolGate, SEMUA_TOOL } from '../../lib/toolGate';
 import { usePersona } from '../../lib/personaStore';
 import { buatDraft, type DraftHasil } from '../../lib/agentDraft';
-import { useState } from 'react';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import AgcToolList from './AgcToolList';
@@ -405,13 +404,15 @@ export default function AgentCustomModal() {
   const setSection = useAgentCustom((s) => s.setSection);
   const tutup = useAgentCustom((s) => s.tutup);
   const jumlahTool = useToolGate((s) => s.aktif.size);
+  /* Fills the viewport instead of the fixed 1280x880 card. */
+  const [besar, setBesar] = useState(false);
 
   if (!open) return null;
 
   return (
     <div className="modal-backdrop agc-backdrop" role="presentation" data-testid="agent-custom">
       <div
-        className="modal agc-modal"
+        className={`modal agc-modal${besar ? ' is-besar' : ''}`}
         ref={popupRef}
         style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
         onPointerDown={onPointerDown}
@@ -424,6 +425,29 @@ export default function AgentCustomModal() {
             {tr('Agent Customizations')}
             <span className="agc-head-scope"> ({tr('Copilot · Zephyr')})</span>
           </span>
+          {/*
+            * Maximise, matching the window controls the panels already use.
+            *
+            * The modal is 1280x880 — sized for reading a settings page — and on
+            * a large display the reader still has the whole editor behind it. The
+            * button grows the card to the viewport; the drag offset is cleared
+            * with it, because a card that filled the screen while still carrying
+            * a 300px offset would hang off the edge with no way to see the rest.
+            */}
+          <button
+            className="ai-ikon"
+            data-testid="agc-max"
+            title={besar ? tr('Restore size') : tr('Maximize')}
+            aria-label={besar ? tr('Restore size') : tr('Maximize')}
+            aria-pressed={besar}
+            onClick={() => {
+              popupRef.current?.style.removeProperty('--drag-x');
+              popupRef.current?.style.removeProperty('--drag-y');
+              setBesar((v) => !v);
+            }}
+          >
+            <AiIkon name={besar ? 'restore' : 'maximize'} size={14} />
+          </button>
           <button
             className="ai-ikon"
             data-testid="agc-close"
