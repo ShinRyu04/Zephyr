@@ -95,6 +95,15 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   /* Tasks - 1 */
   ['todo_write', 'Tasks & Notes', 'appWrite', true, 'Ganti daftar tugas agen untuk tugas ini'],
 
+  /* Skills - 1 */
+  /*
+   * Read-only: 'read', not 'appWrite' and not 'exec'. A skill is content the
+   * agent reads, and the prompt tells it to read one before work it matches —
+   * so a gate that could switch this off would leave the agent holding a list
+   * of skills it is not allowed to open.
+   */
+  ['skill_view', 'Skills', 'read', false, 'Baca isi skill yang terdaftar, atau daftar skillnya'],
+
   /* Notes - 2 */
   ['notes_read', 'Tasks & Notes', 'read', false, 'Baca catatan dan todo milik user'],
   ['notes_write', 'Tasks & Notes', 'appWrite', true, 'Ubah catatan atau todo milik user'],
@@ -517,6 +526,7 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'bash_background',
   'bash_logs',
   'todo_write',
+  'skill_view',
   'think',
   'ask_user',
   'run_subagent',
