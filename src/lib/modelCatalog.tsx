@@ -247,6 +247,42 @@ export const MODEL_FALLBACK: readonly {
  * catalogue has never heard of). Callers that must REFUSE a placeholder check
  * `isPlaceholderModel` themselves - see `aiStore.setModel`.
  */
+/*
+ * Ceiling output bawaan untuk sebuah model, saat katalog tidak menyebutkannya.
+ *
+ * Angka ini penting dan dulu salah. Provider free-text (Custom endpoint) tidak
+ * punya daftar model, jadi `findModel` mengembalikan `maxOut: undefined` dan
+ * setiap pemanggil jatuh ke `?? 4096`. Akibatnya model berjendela besar seperti
+ * `deepseek-v4.1-flash` - yang sebenarnya sanggup 64k token keluaran - dipaksa
+ * berhenti di 4k.
+ *
+ * Kerusakannya bukan sekadar jawaban pendek. `write_file` mengirim ISI BERKAS
+ * sebagai argumen tool, jadi menulis `index.html` 8 KB butuh lebih dari 4k
+ * token. Output terpotong di tengah JSON, `serde_json` gagal parse, Zephyr
+ * melaporkan "malformed JSON arguments", lalu langkah berikutnya ikut ditolak
+ * provider dengan 400. Yang dilihat user: "bikin website" gagal di langkah
+ * ketiga, tepat sebelum berkas pertama ditulis.
+ *
+ * Tebakan dari NAMA model lebih baik daripada satu angka tetap: nama model
+ * membawa keluarga dan generasinya, dan keluarga itulah yang menentukan
+ * ceiling. Yang tidak dikenali tetap dapat angka konservatif 4096 - salah tebak
+ * ke arah kecil hanya memperpendek jawaban, sedangkan salah tebak ke arah besar
+ * bisa ditolak provider.
+ */
+export function maxOutBawaan(modelId: string): number {
+  const s = modelId.toLowerCase();
+  /*
+   * Keluarga besar: generasi 4+ dan varian "pro"/"max". 32k aman untuk semua
+   * gateway yang sudah terbukti melayani model ini.
+   */
+  if (/(?:^|[^0-9])v?[4-9](?:\.[0-9]+)?(?:[^0-9]|$)/.test(s) || /pro|max|ultra/.test(s)) {
+    return 32768;
+  }
+  if (/flash|lite|mini|turbo|haiku/.test(s)) return 16384;
+  if (/o[1-9]|gpt-[5-9]/.test(s)) return 32768;
+  return 4096;
+}
+
 export function findModel(modelId: string, providerId?: string): ModelDef {
   const p = PROVIDER_BY_ID.get(providerId ?? 'custom') ?? PROVIDERS[PROVIDERS.length - 1];
 
@@ -254,22 +290,31 @@ export function findModel(modelId: string, providerId?: string): ModelDef {
 
   if (hit && hit.provider === p.id) return hit;
 
-  if (p.freeText) {
+  /*
+   * Pencocokan silang provider.
+   *
+   * `MODEL_BY_ID` mengembalikan model dari provider mana pun. Blok `freeText`
+   * dulu dibatasi ke `PROVIDER_BY_ID`, sehingga model yang SAMA tapi dipanggil
+   * lewat Custom endpoint tidak pernah ketemu entri katalognya - dan Custom
+   * endpoint-lah yang dipakai untuk semua gateway kompatibel-OpenAI. Akibatnya
+   * `maxOut` selalu jatuh ke bawaan, walau modelnya ada di katalog dengan angka
+   * yang jauh lebih besar.
+   *
+   * Kalau id-nya cocok tapi providernya berbeda, tetap pakai entri katalog itu
+   * untuk ANGKA-angkanya (maxOut, ctx) sambil mempertahankan provider dan
+   * baseUrl yang benar-benar dipakai user. Yang menentukan ceiling keluaran
+   * adalah MODELNYA, bukan siapa yang menjual akses ke sana.
+   */
+  if (hit) {
     return {
-      id: modelId,
-      // Rantai opsional harus penuh: `models` bisa ada tapi kosong, dan
-      // `p.models[0].label` melempar TypeError saat itu terjadi.
-      label: modelId || p.models?.[0]?.label || p.label,
+      ...hit,
       provider: p.id,
       providerLabel: p.label,
-      logo: p.logo,
-      baseUrl: p.baseUrl,
-      envKey: p.envKey,
-      maxOut: p.models?.[0]?.maxOut,
+      baseUrl: p.baseUrl || hit.baseUrl,
+      envKey: p.envKey || hit.envKey,
+      maxOut: hit.maxOut ?? maxOutBawaan(modelId),
     };
   }
-
-  if (hit) return hit;
 
   return {
     id: modelId,
@@ -279,7 +324,22 @@ export function findModel(modelId: string, providerId?: string): ModelDef {
     logo: p.logo,
     baseUrl: p.baseUrl,
     envKey: p.envKey,
-    maxOut: p.models?.[0]?.maxOut,
+    /*
+     * Deteksi nama LEBIH DULU, angka provider sebagai cadangan.
+     *
+     * Provider free-text tidak punya entri katalog untuk id yang diketik user,
+     * dan `p.models[0].maxOut` adalah angka CONTOH untuk model bawaan provider
+     * itu - bukan ceiling id yang benar-benar dipakai. Provider `custom`
+     * mendaftarkan 4096 di sana, jadi setiap id yang diketik user - termasuk
+     * `deepseek-v4.1-flash` dan `gpt-4o` - dipaksa berhenti di 4096 token
+     * keluaran walau modelnya sanggup 64k-131k.
+     *
+     * Akibatnya bukan sekadar jawaban pendek: `write_file` mengirim ISI BERKAS
+     * sebagai argumen tool, jadi menulis satu berkas HTML melewati batas itu,
+     * outputnya terpotong di tengah JSON, dan langkah setelahnya ditolak
+     * provider dengan 400.
+     */
+    maxOut: maxOutBawaan(modelId) ?? p.models?.[0]?.maxOut,
   };
 }
 

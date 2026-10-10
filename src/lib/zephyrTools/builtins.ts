@@ -216,6 +216,76 @@ export function wajib(args: Record<string, unknown>, nama: string): string {
  * types "buka halaman web" should find `browser_open` even though no single
  * token matches exactly - so the query is split and matched loosely.
  */
+/*
+ * Padanan kata Indonesia <-> Inggris untuk `tool_search`.
+ *
+ * Deskripsi tool di katalog ini campur: yang bawaan berbahasa Indonesia, yang
+ * web/browser berbahasa Inggris. Model mencari dengan kata yang paling wajar
+ * dalam bahasa percakapannya, dan pencarian yang cuma mencocokkan string akan
+ * gagal lintas bahasa - tool jadi tidak terjangkau walau terpasang dan aktif.
+ *
+ * Ini bukan teori. Dengan daftar inti yang dipangkas, `tool_search("cari di
+ * internet")` TIDAK menemukan `web_search` (deskripsinya "Search the web
+ * through DuckDuckGo"), dan `tool_search("maju mundur muat ulang")` TIDAK
+ * menemukan `browser_nav` ("Navigate the browser pane: back, forward, reload").
+ * Padahal keduanya sudah dilepas dari daftar yang dikirim setiap request, jadi
+ * tidak ada jalan lain menuju tool itu.
+ *
+ * Peta ini menutup celah tersebut di satu tempat. Kuncinya kata Indonesia yang
+ * muncul di query, nilainya kata Inggris yang muncul di deskripsi atau di nama
+ * tool. Arah sebaliknya tidak perlu: query berbahasa Inggris sudah cocok apa
+ * adanya dengan deskripsi berbahasa Inggris.
+ *
+ * Menambah entri di sini jauh lebih murah - dan jauh lebih kecil risikonya -
+ * daripada menerjemahkan 60 deskripsi tool, yang pasti akan basi begitu satu
+ * deskripsi disunting.
+ */
+const PADANAN_KATA = new Map<string, readonly string[]>([
+  ['cari', ['search', 'find']],
+  ['mencari', ['search', 'find']],
+  ['pencarian', ['search']],
+  ['internet', ['web', 'internet']],
+  ['situs', ['web', 'site']],
+  ['halaman', ['page', 'browser']],
+  ['buka', ['open', 'navigate']],
+  ['membuka', ['open', 'navigate']],
+  ['browsing', ['browser']],
+  ['maju', ['forward', 'navigate']],
+  ['mundur', ['back', 'navigate']],
+  ['kembali', ['back', 'navigate']],
+  ['muat', ['reload', 'load']],
+  ['ulang', ['reload']],
+  ['segarkan', ['reload']],
+  ['pindah', ['change', 'navigate']],
+  ['alamat', ['url', 'address']],
+  ['simbol', ['symbol']],
+  ['fungsi', ['symbol']],
+  ['kelas', ['symbol']],
+  ['metode', ['symbol']],
+  ['definisi', ['definition']],
+  ['referensi', ['references']],
+  ['rujukan', ['references']],
+  ['galat', ['diagnostics']],
+  ['kesalahan', ['diagnostics']],
+  ['peringatan', ['diagnostics']],
+  ['dokumentasi', ['hover', 'documentation']],
+  ['unduh', ['download']],
+  ['tutup', ['close']],
+  ['klik', ['click']],
+  ['ketik', ['type']],
+  ['catatan', ['notes']],
+  ['jadwal', ['schedule']],
+  ['jadwalkan', ['schedule']],
+  ['tangkap', ['screenshot', 'capture']],
+  ['layar', ['screenshot', 'screen']],
+  ['pratinjau', ['preview']],
+  ['perintah', ['command']],
+  ['jalankan', ['run', 'command']],
+  ['berkas', ['file']],
+  ['folder', ['directory', 'folder']],
+  ['direktori', ['directory']],
+]);
+
 async function cariToolTerdefer(
   query: string,
   limit: number,
@@ -244,9 +314,28 @@ async function cariToolTerdefer(
     const namaLc = nama.toLowerCase();
     const descLc = String(t.spec.description ?? '').toLowerCase();
     let nilai = 0;
+    /*
+     * Pencocokan dua bahasa dalam SATU putaran.
+     *
+     * `w` sendiri dicocokkan apa adanya, lalu padanannya dicocokkan juga. Yang
+     * penting: pencarian ini tetap longgar - query bebas ("buka halaman web")
+     * tetap bekerja karena tiap kata diuji terpisah, bukan sebagai frasa.
+     */
     for (const w of kata) {
       if (namaLc.includes(w)) nilai += 3;
       if (descLc.includes(w)) nilai += 1;
+      const padanan = PADANAN_KATA.get(w);
+      if (!padanan) continue;
+      /*
+       * Padanan diberi bobot lebih kecil dari kata aslinya. Query campuran
+       * ("cari web") bisa mencocokkan dua kata yang artinya sama, dan tanpa
+       * pembedaan ini tool yang cuma cocok lewat padanan bisa mengalahkan tool
+       * yang namanya benar-benar disebut user.
+       */
+      for (const p of padanan) {
+        if (namaLc.includes(p)) nilai += 2;
+        if (descLc.includes(p)) nilai += 1;
+      }
     }
     if (nilai > 0) {
       skor.push({

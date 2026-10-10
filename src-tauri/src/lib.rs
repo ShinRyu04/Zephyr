@@ -380,6 +380,7 @@ pub fn run() {
             app_state::portable_mode,
             ai::ai_tool_chat,
             ai::ai_tool_chat_stream,
+            ai::ai_penolakan_terakhir,
             git::git_init,
             git::git_status,
             git::git_stage,
