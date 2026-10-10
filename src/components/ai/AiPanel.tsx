@@ -130,7 +130,7 @@ const PesanList = memo(function PesanList({ ambilScroller }: { ambilScroller: ()
   return <>{baris}</>;
 });
 
-function AiPanelInner() {
+function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const tr = useT();
   const tf = useTf();
   /*
@@ -144,12 +144,29 @@ function AiPanelInner() {
    */
   const activeId = useAi((s) => s.activeId);
   const pending = useAi((s) => s.pending);
-  const draft = useAi((s) => s.draft);
+  /*
+   * The draft is this MOUNT's own, read through `drafts[composerId]`.
+   *
+   * A selector returning `s.drafts[composerId] ?? ''` keeps the primitive
+   * comparison zustand needs, so the panel still only re-renders when its own
+   * composer changes — a write to the OTHER surface's draft leaves this one
+   * alone, which is the whole point.
+   */
+  const draft = useAi((s) => s.drafts[composerId] ?? '');
   const draftImages = useAi((s) => s.draftImages);
   const toast = useAi((s) => s.toast);
   const confirmCmd = useAi((s) => s.confirmCmd);
 
-  const setDraft = useAi((s) => s.setDraft);
+  /*
+   * Bound to THIS instance's composer id, so every `setDraft` call below writes
+   * to this surface's own draft. The store's `setDraft(value, id)` is what
+   * actually keys it; rebinding here keeps the ~20 call sites in this file
+   * unchanged, which matters because they sit in callbacks (file insert,
+   * dictation, the history walk, the slash menu) that have no reason to know
+   * there is more than one surface.
+   */
+  const setDraftStore = useAi((s) => s.setDraft);
+  const setDraft = useCallback((v: string) => setDraftStore(v, composerId), [setDraftStore, composerId]);
   const compactContext = useAi((s) => s.compactContext);
   const addDraftImage = useAi((s) => s.addDraftImage);
   const removeDraftImage = useAi((s) => s.removeDraftImage);
@@ -469,7 +486,7 @@ function AiPanelInner() {
     try {
       const isi = await fsRead(p);
       const nama = p.split(/[\\/]/).pop() ?? p;
-      const d0 = useAi.getState().draft;
+      const d0 = useAi.getState().draftOf(composerId);
       setDraft(`${d0 ? `${d0}\n\n` : ''}${'```'}\n// ${nama}\n${isi}\n${'```'}`);
       setToast(tf('Attached {name}', { name: nama }));
     } catch {
@@ -491,7 +508,7 @@ function AiPanelInner() {
         .slice(0, 300)
         .map((e) => `- ${e.name}${e.isDir ? '/' : ''}`)
         .join('\n');
-      const d1 = useAi.getState().draft;
+      const d1 = useAi.getState().draftOf(composerId);
       setDraft(`${d1 ? `${d1}\n\n` : ''}Files in ${nama}:\n${baris}`);
       setToast(tf('Attached {name}', { name: nama }));
     } catch {
@@ -552,7 +569,7 @@ function AiPanelInner() {
    */
   const { dengar, bisa: bisaDengar, toggle: toggleDengar, galat: galatDengar } = useDengar(
     (teks, final) => {
-      const d = useAi.getState().draft;
+      const d = useAi.getState().draftOf(composerId);
       const hasil = final ? d.replace(/\s*\S*$/, '') + ' ' + teks : d + teks;
       setDraft(hasil);
       if (final && micAutoSend && hasil.trim()) {
@@ -2056,7 +2073,7 @@ function AiPanelInner() {
                     // The URL is asked for in the composer rather than a modal:
                     // it lands where the message is written, so the user sees
                     // exactly what will be fetched.
-                    const d2 = useAi.getState().draft;
+                    const d2 = useAi.getState().draftOf(composerId);
                     setDraft((d2 ? `${d2} ` : '') + '@url:');
                     inputRef.current?.focus();
                   }}
@@ -2073,7 +2090,7 @@ function AiPanelInner() {
                   role="menuitem"
                   onClick={() => {
                     setBukaPlus(false);
-                    const d3 = useAi.getState().draft;
+                    const d3 = useAi.getState().draftOf(composerId);
                     setDraft((d3 ? `${d3} ` : '') + '>');
                     inputRef.current?.focus();
                   }}
@@ -2426,6 +2443,8 @@ function AiPanelInner() {
     </div>
   );
 }
+
+
 
 /*
  * Memoised so the panel's parents (App.tsx, shell/Panel.tsx) cannot force a
