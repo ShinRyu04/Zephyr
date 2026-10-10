@@ -1,14 +1,33 @@
 import { create } from 'zustand';
 
 /**
- * The content behind Agent Customizations' Skills / Hooks / Plugins sections.
+ * The content behind Agent Customizations' Hooks and Plugins sections.
  *
- * VSCode Copilot keeps these as real, editable lists — a skill is a reusable
- * instruction bundle, a hook is a command run at a lifecycle event, a plugin is
- * an installable package. Zephyr showed four empty "Nothing here yet." shells
- * instead, so the panel looked unfinished. This store gives those sections real
- * CRUD state, persisted to localStorage so the lists survive a reload without
- * needing a Rust round-trip (they are editor-local preferences, not secrets).
+ * VSCode Copilot keeps these as real, editable lists — a hook is a command run
+ * at a lifecycle event, a plugin is an installable package. Zephyr showed empty
+ * "Nothing here yet." shells instead, so the panel looked unfinished. This
+ * store gives those sections real CRUD state, persisted to localStorage so the
+ * lists survive a reload without needing a Rust round-trip.
+ *
+ * ## Skills are NOT here any more
+ *
+ * They moved to `skillsStore`, which reads and writes real files through
+ * `skills.rs`. Skills had to leave: the agent runtime builds its prompt by
+ * walking skill folders on DISK, so a skill held in localStorage was written
+ * somewhere nothing could read it — the row appeared in the panel and the agent
+ * never learned the skill existed. Keeping a second copy here as well would
+ * mean two lists that can disagree, with the UI showing one and the prompt
+ * built from the other.
+ *
+ * ## Hooks are persisted but never executed
+ *
+ * There is no hook executor in Zephyr: nothing reads `hooks` except this panel,
+ * so a saved hook is a note to the reader, not a behaviour. The UI says so
+ * rather than implying a command will run. A hook that LOOKED live while
+ * running nothing would be worse than no hook at all — the reader would trust a
+ * guard that is not there. Wiring an executor means implementing timeouts,
+ * cancellation, output caps, exit-code handling and workspace-trust checks
+ * first; until then this list is a draft area, and it is labelled as one.
  *
  * The marketplace of installable plugins is a fixed curated catalogue here —
  * Zephyr has no remote registry — so "install" flips a flag on a catalogue
@@ -21,15 +40,6 @@ export type HookEvent =
   | 'session-start'
   | 'session-end'
   | 'before-write';
-
-export interface Skill {
-  id: string;
-  name: string;
-  description: string;
-  body: string;
-  enabled: boolean;
-  scope: 'workspace' | 'user';
-}
 
 export interface Hook {
   id: string;
@@ -106,7 +116,6 @@ export const HOOK_EVENTS: { id: HookEvent; label: string }[] = [
 ];
 
 interface Persisted {
-  skills: Skill[];
   hooks: Hook[];
   /** Only the installed-flags are persisted, keyed by catalogue id. */
   installed: string[];
@@ -121,26 +130,20 @@ function uid(): string {
 function load(): Persisted {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { skills: [], hooks: [], installed: [] };
+    if (!raw) return { hooks: [], installed: [] };
     const p = JSON.parse(raw) as Partial<Persisted>;
     return {
-      skills: Array.isArray(p.skills) ? p.skills : [],
       hooks: Array.isArray(p.hooks) ? p.hooks : [],
       installed: Array.isArray(p.installed) ? p.installed : [],
     };
   } catch {
-    return { skills: [], hooks: [], installed: [] };
+    return { hooks: [], installed: [] };
   }
 }
 
 interface ExtrasState {
-  skills: Skill[];
   hooks: Hook[];
   plugins: Plugin[];
-
-  addSkill: (scope: Skill['scope']) => string;
-  updateSkill: (id: string, patch: Partial<Skill>) => void;
-  removeSkill: (id: string) => void;
 
   addHook: (scope: Hook['scope']) => string;
   updateHook: (id: string, patch: Partial<Hook>) => void;
@@ -149,10 +152,9 @@ interface ExtrasState {
   installPlugin: (id: string, install: boolean) => void;
 }
 
-function persist(s: Pick<ExtrasState, 'skills' | 'hooks' | 'plugins'>): void {
+function persist(s: Pick<ExtrasState, 'hooks' | 'plugins'>): void {
   try {
     const data: Persisted = {
-      skills: s.skills,
       hooks: s.hooks,
       installed: s.plugins.filter((p) => p.installed).map((p) => p.id),
     };
@@ -167,48 +169,16 @@ export const useAgentExtras = create<ExtrasState>((set, get) => {
   const plugins = PLUGIN_CATALOG.map((p) => ({ ...p, installed: saved.installed.includes(p.id) }));
 
   return {
-    skills: saved.skills,
     hooks: saved.hooks,
     plugins,
-
-    addSkill: (scope) => {
-      const id = uid();
-      const skill: Skill = {
-        id,
-        name: 'New skill',
-        description: '',
-        body: '',
-        enabled: true,
-        scope,
-      };
-      set((s) => {
-        const next = { skills: [...s.skills, skill] };
-        persist({ ...get(), ...next });
-        return next;
-      });
-      return id;
-    },
-    updateSkill: (id, patch) =>
-      set((s) => {
-        const next = { skills: s.skills.map((k) => (k.id === id ? { ...k, ...patch } : k)) };
-        persist({ ...get(), ...next });
-        return next;
-      }),
-    removeSkill: (id) =>
-      set((s) => {
-        const next = { skills: s.skills.filter((k) => k.id !== id) };
-        persist({ ...get(), ...next });
-        return next;
-      }),
-
     addHook: (scope) => {
       const id = uid();
       const hook: Hook = {
         id,
         name: 'New hook',
-        event: 'after-tool',
+        event: 'session-end',
         command: '',
-        enabled: true,
+        enabled: false,
         scope,
       };
       set((s) => {

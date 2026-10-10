@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useT, useTf } from '../../lib/i18n';
 import {
   useAgentExtras,
   HOOK_EVENTS,
-  type Skill,
   type Hook,
 } from '../../lib/agentExtrasStore';
 import AiIkon from '../ai/AiIkon';
+import { useSkills } from '../../lib/skillsStore';
+import type { SkillInfo } from '../../lib/commands';
 
 /*
  * The real content for Agent Customizations' Skills, Hooks, Plugins and
@@ -17,67 +18,170 @@ import AiIkon from '../ai/AiIkon';
 
 /* ── Skills ──────────────────────────────────────────────────────────────── */
 
-function SkillRow({ skill }: { skill: Skill }) {
+/*
+ * Skills, backed by FILES rather than by localStorage.
+ *
+ * The pane used to edit `agentExtrasStore`, which keeps everything in a browser
+ * key. The agent reads skills from DISK (`skills.rs` walks the workspace's
+ * `.zephyr/skills/` and the app data folder and injects them into the system
+ * prompt), so a skill created here was written where nothing could read it: the
+ * row appeared, the agent never saw it.
+ *
+ * Every control below therefore goes through `useSkills`, which calls the same
+ * backend the prompt is built from. There is no Save button per row: the disk
+ * IS the state, the reader edits one skill at a time in the pane under the
+ * list, and closing it without saving leaves the file untouched.
+ */
+function SkillRow({ skill, aktif, onBuka }: { skill: SkillInfo; aktif: boolean; onBuka: () => void }) {
   const tr = useT();
-  const update = useAgentExtras((s) => s.updateSkill);
-  const remove = useAgentExtras((s) => s.removeSkill);
-  const [open, setOpen] = useState(skill.name === 'New skill');
+  const hapus = useSkills((s) => s.hapus);
+  const [konfirmasi, setKonfirmasi] = useState(false);
 
   return (
-    <div className="agc-item" data-testid={`agc-skill-${skill.id}`}>
+    <div className={`agc-item${aktif ? ' is-open' : ''}`} data-testid={`agc-skill-${skill.name}`}>
       <div className="agc-item-head">
-        <button
-          className="agc-item-toggle"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <AiIkon name={open ? 'chev-down' : 'chev-right'} size={11} />
+        <button className="agc-item-toggle" aria-expanded={aktif} onClick={onBuka}>
+          <AiIkon name={aktif ? 'chev-down' : 'chev-right'} size={11} />
           <AiIkon name="thought" size={14} />
-          <span className="agc-item-name">{skill.name || tr('Untitled skill')}</span>
+          <span className="agc-item-name">{skill.name}</span>
+          <span className="agc-item-scope">{skill.scope}</span>
         </button>
-        <label className="agc-item-switch">
-          <input
-            type="checkbox"
-            data-testid={`agc-skill-on-${skill.id}`}
-            checked={skill.enabled}
-            onChange={(e) => update(skill.id, { enabled: e.target.checked })}
-          />
-          <span>{tr('Enabled')}</span>
-        </label>
-        <button
-          className="agc-item-del"
-          data-testid={`agc-skill-del-${skill.id}`}
-          title={tr('Delete')}
-          aria-label={tr('Delete')}
-          onClick={() => remove(skill.id)}
-        >
-          <AiIkon name="trash" size={13} />
-        </button>
+        {konfirmasi ? (
+          <>
+            {/*
+              * Deleting a skill removes a real file. Two clicks rather than one:
+              * an accidental press on a trash icon next to a list row is easy,
+              * and the file is gone from disk, not from a key that could be
+              * reloaded.
+              */}
+            <button
+              className="btn btn-sm btn-danger"
+              data-testid={`agc-skill-del-yes-${skill.name}`}
+              onClick={() => void hapus(skill.name)}
+            >
+              {tr('Delete')}
+            </button>
+            <button className="btn btn-sm" onClick={() => setKonfirmasi(false)}>
+              {tr('Cancel')}
+            </button>
+          </>
+        ) : (
+          <button
+            className="agc-item-del"
+            data-testid={`agc-skill-del-${skill.name}`}
+            title={tr('Delete')}
+            aria-label={tr('Delete')}
+            onClick={() => setKonfirmasi(true)}
+          >
+            <AiIkon name="trash" size={13} />
+          </button>
+        )}
       </div>
-      {open && (
-        <div className="agc-item-body">
+      <div className="agc-item-meta">
+        {skill.description || tr('(no description)')}
+        <span className="agc-item-bytes">{Math.round(skill.bytes / 1024 * 10) / 10} KB</span>
+      </div>
+      {/* Only the open row mounts an editor: one reader edits one skill, and a
+          list of ten skills should not hold ten textareas with ten bodies. */}
+      {aktif && <SkillEditor skill={skill} />}
+    </div>
+  );
+}
+
+/** The editor for one skill: name, description, body, all read from disk. */
+function SkillEditor({ skill }: { skill: SkillInfo }) {
+  const tr = useT();
+  const { isi, memuatIsi, simpan, buka, sibuk } = useSkills();
+  const [nama, setNama] = useState(skill.name);
+  const [desc, setDesc] = useState(skill.description);
+  const [body, setBody] = useState<string | null>(null);
+
+  /*
+   * The body arrives asynchronously, so the local buffer starts null and is
+   * filled once — and only once, so a re-render during typing cannot overwrite
+   * what the reader has written with the file's older contents.
+   */
+  useEffect(() => {
+    if (memuatIsi) return;
+    setBody((lama) => lama ?? isi);
+  }, [isi, memuatIsi]);
+
+  /* Switching skills resets the buffer to the newly-read body. */
+  useEffect(() => {
+    setNama(skill.name);
+    setDesc(skill.description);
+    setBody(null);
+  }, [skill.name, skill.description]);
+
+  const kotor =
+    body !== null && (nama !== skill.name || desc !== skill.description || body !== isi);
+
+  return (
+    <div className="agc-editor" data-testid={`agc-skill-editor-${skill.name}`}>
+      {memuatIsi || body === null ? (
+        <p className="agc-group-empty">{tr('Loading…')}</p>
+      ) : (
+        <>
+          <label className="agc-label" htmlFor="agc-skill-nama">
+            {tr('Name')}
+          </label>
           <input
+            id="agc-skill-nama"
             className="agc-field"
-            data-testid={`agc-skill-name-${skill.id}`}
-            placeholder={tr('Skill name')}
-            value={skill.name}
-            onChange={(e) => update(skill.id, { name: e.target.value })}
+            data-testid="agc-skill-nama"
+            value={nama}
+            onChange={(e) => setNama(e.target.value)}
           />
+          <label className="agc-label" htmlFor="agc-skill-desc">
+            {tr('When the agent should use this')}
+          </label>
           <input
+            id="agc-skill-desc"
             className="agc-field"
+            data-testid="agc-skill-desc"
             placeholder={tr('Short description (when the agent should use it)')}
-            value={skill.description}
-            onChange={(e) => update(skill.id, { description: e.target.value })}
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
           />
+          <label className="agc-label" htmlFor="agc-skill-body">
+            {tr('Instructions')}
+          </label>
           <textarea
+            id="agc-skill-body"
             className="agc-field agc-field-area"
-            data-testid={`agc-skill-body-${skill.id}`}
-            placeholder={tr('The knowledge or workflow the agent loads for this skill…')}
-            rows={5}
-            value={skill.body}
-            onChange={(e) => update(skill.id, { body: e.target.value })}
+            data-testid="agc-skill-body"
+            rows={10}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
           />
-        </div>
+          <div className="agc-editor-actions">
+            <span className="agc-item-path" title={skill.path}>
+              {skill.path}
+            </span>
+            <button
+              className="btn btn-sm"
+              disabled={!kotor || sibuk}
+              onClick={() => buka(skill.name)}
+            >
+              {tr('Revert')}
+            </button>
+            <button
+              className="btn btn-sm btn-primary"
+              data-testid="agc-skill-simpan"
+              disabled={!kotor || sibuk}
+              onClick={() =>
+                void simpan({
+                  name: nama.trim() || skill.name,
+                  description: desc,
+                  content: body,
+                  scope: skill.scope,
+                })
+              }
+            >
+              {tr('Save')}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -85,12 +189,19 @@ function SkillRow({ skill }: { skill: Skill }) {
 
 export function AgcSkills() {
   const tr = useT();
-  const skills = useAgentExtras((s) => s.skills);
-  const add = useAgentExtras((s) => s.addSkill);
+  const { daftar, sibuk, galat, dibuka, buka, muat, bersihkanGalat } = useSkills();
+  const [namaBaru, setNamaBaru] = useState<'workspace' | 'global' | null>(null);
 
-  const groups: { scope: Skill['scope']; label: string }[] = [
+  /* Loaded on mount, and re-loaded whenever a write lands (the store does that
+     itself) — so a skill added by hand or by `git pull` appears without a
+     restart. */
+  useEffect(() => {
+    void muat();
+  }, [muat]);
+
+  const kelompok: { scope: 'workspace' | 'global'; label: string }[] = [
     { scope: 'workspace', label: 'Workspace' },
-    { scope: 'user', label: 'User' },
+    { scope: 'global', label: 'User' },
   ];
 
   return (
@@ -99,8 +210,30 @@ export function AgcSkills() {
       <p className="agc-pane-desc">
         {tr('Folders of instructions and workflows the agent loads when relevant to a specialized task.')}
       </p>
-      {groups.map((g) => {
-        const list = skills.filter((s) => s.scope === g.scope);
+
+      {/*
+        * The failure case is stated, not swallowed. Writing a skill can fail for
+        * reasons localStorage could not (no workspace open, a permission error),
+        * and an empty list would read as "you have no skills" when the truth is
+        * "the list could not be read".
+        */}
+      {galat && (
+        <p className="agc-error" data-testid="agc-skills-error" role="alert">
+          {galat}
+          <button className="btn btn-sm" onClick={bersihkanGalat}>
+            {tr('Dismiss')}
+          </button>
+        </p>
+      )}
+
+      {daftar.length === 0 && !sibuk && !galat && (
+        <p className="agc-group-empty" data-testid="agc-skills-kosong">
+          {tr('No skills yet. Create one, or install from the catalog.')}
+        </p>
+      )}
+
+      {kelompok.map((g) => {
+        const list = daftar.filter((s) => s.scope === g.scope);
         return (
           <section className="agc-group" key={g.scope} data-testid={`agc-skills-${g.scope}`}>
             <div className="agc-group-head">
@@ -110,7 +243,7 @@ export function AgcSkills() {
               <button
                 className="btn btn-sm"
                 data-testid={`agc-skill-add-${g.scope}`}
-                onClick={() => add(g.scope)}
+                onClick={() => setNamaBaru(g.scope)}
               >
                 <AiIkon name="plus" size={12} /> {tr('New Skill')}
               </button>
@@ -118,11 +251,104 @@ export function AgcSkills() {
             {list.length === 0 ? (
               <p className="agc-group-empty">{tr('No skills yet.')}</p>
             ) : (
-              list.map((s) => <SkillRow key={s.id} skill={s} />)
+              list.map((s) => (
+                <SkillRow
+                  key={`${s.scope}-${s.name}`}
+                  skill={s}
+                  aktif={dibuka === s.name}
+                  onBuka={() => void buka(dibuka === s.name ? null : s.name)}
+                />
+              ))
             )}
           </section>
         );
       })}
+
+      {/*
+        * A new skill is drafted in the editor below rather than written straight
+        * to disk. Naming a file before its contents exist would leave an empty
+        * SKILL.md in the prompt of every turn until the reader got back to it.
+        */}
+      {namaBaru !== null && (
+        <section className="agc-group" data-testid="agc-skill-baru">
+          <div className="agc-group-head">
+            <span className="agc-group-title">{tr('New skill')}</span>
+          </div>
+          <EditorBaru scope={namaBaru} onSelesai={() => setNamaBaru(null)} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** The draft editor for a skill that does not exist on disk yet. */
+function EditorBaru({ scope, onSelesai }: { scope: 'workspace' | 'global'; onSelesai: () => void }) {
+  const tr = useT();
+  const simpan = useSkills((s) => s.simpan);
+  const sibuk = useSkills((s) => s.sibuk);
+  const [nama, setNama] = useState('');
+  const [desc, setDesc] = useState('');
+  const [body, setBody] = useState('');
+
+  const bisa = nama.trim().length > 0;
+
+  return (
+    <div className="agc-editor" data-testid="agc-skill-editor-baru">
+      <label className="agc-label" htmlFor="agc-baru-nama">
+        {tr('Name')}
+      </label>
+      <input
+        id="agc-baru-nama"
+        className="agc-field"
+        data-testid="agc-baru-nama"
+        placeholder="run-tests"
+        value={nama}
+        onChange={(e) => setNama(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-baru-desc">
+        {tr('When the agent should use this')}
+      </label>
+      <input
+        id="agc-baru-desc"
+        className="agc-field"
+        data-testid="agc-baru-desc"
+        placeholder={tr('Run the test suite for whatever changed.')}
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
+      />
+      <label className="agc-label" htmlFor="agc-baru-body">
+        {tr('Instructions')}
+      </label>
+      <textarea
+        id="agc-baru-body"
+        className="agc-field agc-field-area"
+        data-testid="agc-baru-body"
+        rows={8}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      <div className="agc-editor-actions">
+        <button className="btn btn-sm" onClick={onSelesai}>
+          {tr('Cancel')}
+        </button>
+        <button
+          className="btn btn-sm btn-primary"
+          data-testid="agc-baru-simpan"
+          disabled={!bisa || sibuk}
+          onClick={() =>
+            void simpan({
+              name: nama.trim(),
+              description: desc,
+              content: body,
+              scope,
+            }).then((ok) => {
+              if (ok) onSelesai();
+            })
+          }
+        >
+          {tr('Save')}
+        </button>
+      </div>
     </div>
   );
 }
@@ -335,7 +561,11 @@ export function AgcPlugins() {
 export function AgcMigrations() {
   const tr = useT();
   const tf = useTf();
-  const skills = useAgentExtras((s) => s.skills);
+  /*
+   * Skills come from DISK here too, so an exported bundle lists what the agent
+   * actually has rather than a stale browser key.
+   */
+  const skills = useSkills((s) => s.daftar);
   const hooks = useAgentExtras((s) => s.hooks);
   const plugins = useAgentExtras((s) => s.plugins);
   const [status, setStatus] = useState<string | null>(null);
