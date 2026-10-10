@@ -92,7 +92,16 @@ function EmptyState() {
 function AiChatOnly() {
   return (
     <div className="ai-view-chat" data-testid="ai-view-chat">
-      <AiChatView />
+      {/*
+        * `composerId` is what keeps this composer's text its own.
+        *
+        * The right-hand column mounts the same `AiPanel` with the primary id
+        * ('') at the same time, and before this both read one `draft` from
+        * `aiStore` — so the two boxes mirrored each other: type here, the column
+        * typed too. The transcript is still shared (one conversation), but each
+        * surface now owns its half-typed message.
+        */}
+      <AiChatView composerId="editor" />
     </div>
   );
 }
