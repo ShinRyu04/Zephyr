@@ -10,6 +10,7 @@ import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle, VoiceKeyRow } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
+import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
 import { CLI_TABS } from '../../lib/aiTabsStore';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
@@ -1513,7 +1514,23 @@ export default function ChatSettingsPage({
         <button
           className="btn btn-sm"
           data-testid="cset-subcustom"
-          onClick={() => useAgentCustom.getState().buka('agents')}
+          onClick={() => {
+            /*
+             * Settings → Subagents, NOT the Agent Customizations modal.
+             *
+             * This used to call `useAgentCustom.buka('agents')`, which opens the
+             * modal's AGENTS pane — personas and the main agent's identity. Custom
+             * sub-agents live on their own page (the `subagent` settings section),
+             * and that modal has no pane for them at all, so the button sent the
+             * reader somewhere that does not contain what it promised.
+             */
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('subagent'),
+            );
+          }}
         >
           {tr('Manage…')}
         </button>
@@ -1565,6 +1582,26 @@ export default function ChatSettingsPage({
       ),
       isDefault: (subagent.provider ?? '') === '',
       reset: () => void apply({ subagent: { provider: '' } }),
+    },
+    {
+      section: 'subagent',
+      id: 'subworker',
+      /*
+       * The list itself, not a door to it.
+       *
+       * This section is now the only home for sub-agent settings, so sending the
+       * reader to another page to see their own workers would defeat the move.
+       * `CustomSubagentsCard` is the Settings page's own component, reused
+       * verbatim — one implementation, so the two cannot disagree about what a
+       * worker is.
+       */
+      label: 'Your sub-agents',
+      hint: 'Workers you defined yourself. Each one reads only; you approve any write.',
+      words: 'subagent sub-agent custom worker list mine define edit delete active',
+      ctl: <CustomSubagentsCard />,
+      /* Holds a list, not a value: nothing to reset and nothing to compare
+         against a default. */
+      isDefault: true,
     },
 
     /* ── MCP server ──────────────────────────────────────────────────────── */
