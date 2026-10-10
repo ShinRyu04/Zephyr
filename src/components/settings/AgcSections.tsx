@@ -9,7 +9,7 @@ import {
 import AiIkon from '../ai/AiIkon';
 import { useSkills } from '../../lib/skillsStore';
 import { buatDraft, type DraftKind, type DraftHasil } from '../../lib/agentDraft';
-import type { SkillInfo } from '../../lib/commands';
+import { ccCatalogList, ccCatalogBody, type SkillInfo, type CatalogItem } from '../../lib/commands';
 
 /*
  * The real content for Agent Customizations' Skills, Hooks, Plugins and
@@ -189,6 +189,160 @@ function SkillEditor({ skill }: { skill: SkillInfo }) {
   );
 }
 
+/*
+ * The catalog browser: 650-odd skills that ship with Zephyr, ready to install.
+ *
+ * ## Why this is not the Claude Code browser
+ *
+ * `CliSlashPanel` has its own `CatalogBrowser`, and it installs into
+ * `~/.claude/skills/` — that is the point of THAT one, because the live `claude`
+ * CLI reads from there. This pane is for ZEPHYR's agent, which reads
+ * `<workspace>/.zephyr/skills/` and the app data folder. Reusing that component
+ * would have installed every skill where this pane's own list could not see it,
+ * which is the exact class of bug this whole change set exists to remove.
+ *
+ * The body is written through `useSkills().simpan`, the same path a hand-typed
+ * skill takes, so an installed skill is an ordinary skill afterwards.
+ *
+ * ## Why the list is filtered to skills
+ *
+ * The catalog carries agents too. They belong to the subagent system, which
+ * takes a different shape (roles, tool allowlists) — offering them here would
+ * put a thing called "agent" in a pane called "Skills" and store it as a
+ * `.md` file nothing would read as an agent.
+ */
+function KatalogSkills({ scope }: { scope: 'workspace' | 'global' }) {
+  const tr = useT();
+  const tf = useTf();
+  const daftar = useSkills((s) => s.daftar);
+  const simpan = useSkills((s) => s.simpan);
+  const [buka, setBuka] = useState(false);
+  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [muat, setMuat] = useState(false);
+  const [q, setQ] = useState('');
+  const [sibuk, setSibuk] = useState<string | null>(null);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!buka || items.length > 0) return;
+    setMuat(true);
+    ccCatalogList()
+      .then((all) => setItems(all.filter((i) => i.kind === 'skill')))
+      .catch((e) => setGalat(String(e)))
+      .finally(() => setMuat(false));
+  }, [buka, items.length]);
+
+  /* Skills already on disk, so the row can say "Installed" instead of offering
+     a button that would overwrite the reader's own edits. */
+  const ada = new Set(daftar.map((d) => d.name.toLowerCase()));
+
+  const needle = q.trim().toLowerCase();
+  const tampil = needle
+    ? items.filter(
+        (i) =>
+          i.name.toLowerCase().includes(needle) ||
+          i.title.toLowerCase().includes(needle) ||
+          i.description.toLowerCase().includes(needle) ||
+          i.category.toLowerCase().includes(needle),
+      )
+    : items;
+
+  const pasang = async (it: CatalogItem) => {
+    setSibuk(it.id);
+    setGalat(null);
+    try {
+      const body = await ccCatalogBody(it.id);
+      const ok = await simpan({
+        name: it.name,
+        description: it.description,
+        content: body,
+        scope,
+      });
+      if (!ok) setGalat(tr('Could not save the skill. See the message above.'));
+    } catch (e) {
+      setGalat(String(e));
+    } finally {
+      setSibuk(null);
+    }
+  };
+
+  if (!buka) {
+    return (
+      <div className="agc-ai-aksi">
+        <button
+          className="btn btn-sm"
+          data-testid={`agc-katalog-${scope}`}
+          onClick={() => setBuka(true)}
+        >
+          <AiIkon name="link" size={12} /> {tr('Browse catalog')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="agc-katalog" data-testid={`agc-katalog-panel-${scope}`}>
+      <div className="agc-katalog-head">
+        <input
+          className="agc-field"
+          data-testid="agc-katalog-cari"
+          placeholder={tr('Search the catalog…')}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <span className="agc-katalog-count">
+          {tf('{n} skills', { n: tampil.length })}
+        </span>
+        <button className="btn btn-sm" onClick={() => setBuka(false)}>
+          {tr('Close')}
+        </button>
+      </div>
+      {galat && (
+        <p className="agc-error" role="alert">
+          {galat}
+        </p>
+      )}
+      {muat && <p className="agc-group-empty">{tr('Loading catalog…')}</p>}
+      {/*
+        * Capped on purpose. The catalog holds 427 skills and rendering them all
+        * puts 427 rows in the DOM every keystroke — the search box becomes
+        * unusable exactly when the reader is trying to narrow the list. The
+        * count above still reports the true total, so nothing is hidden without
+        * saying so.
+      */}
+      <div className="agc-katalog-list">
+        {tampil.slice(0, 40).map((it) => {
+          const sudah = ada.has(it.name.toLowerCase());
+          return (
+            <div className="agc-katalog-row" key={it.id} data-testid={`agc-katalog-${it.name}`}>
+              <div className="agc-katalog-main">
+                <span className="agc-katalog-name">{it.name}</span>
+                <span className="agc-katalog-desc">{it.description}</span>
+              </div>
+              <button
+                className="btn btn-sm"
+                disabled={sudah || sibuk === it.id}
+                data-testid={`agc-katalog-pasang-${it.name}`}
+                onClick={() => void pasang(it)}
+              >
+                {sudah ? tr('Installed') : sibuk === it.id ? tr('Installing…') : tr('Install')}
+              </button>
+            </div>
+          );
+        })}
+        {!muat && tampil.length === 0 && (
+          <p className="agc-group-empty">{tr('Nothing matches that search.')}</p>
+        )}
+        {tampil.length > 40 && (
+          <p className="agc-group-empty">
+            {tf('{n} more - narrow the search to see them', { n: tampil.length - 40 })}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AgcSkills() {
   const tr = useT();
   const { daftar, sibuk, galat, dibuka, buka, muat, bersihkanGalat } = useSkills();
@@ -280,6 +434,7 @@ export function AgcSkills() {
                 />
               ))
             )}
+            <KatalogSkills scope={g.scope === 'global' ? 'global' : 'workspace'} />
           </section>
         );
       })}
