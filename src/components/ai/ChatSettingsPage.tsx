@@ -1505,39 +1505,6 @@ export default function ChatSettingsPage({
       isDefault: true,
     },
     {
-      section: 'subagent',
-      id: 'subcustom',
-      label: 'Custom sub-agents',
-      hint: 'Read-only workers you defined yourself, with their own prompts.',
-      words: 'subagent sub-agent custom worker define prompt read-only',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-subcustom"
-          onClick={() => {
-            /*
-             * Settings → Subagents, NOT the Agent Customizations modal.
-             *
-             * This used to call `useAgentCustom.buka('agents')`, which opens the
-             * modal's AGENTS pane — personas and the main agent's identity. Custom
-             * sub-agents live on their own page (the `subagent` settings section),
-             * and that modal has no pane for them at all, so the button sent the
-             * reader somewhere that does not contain what it promised.
-             */
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('subagent'),
-            );
-          }}
-        >
-          {tr('Manage…')}
-        </button>
-      ),
-      isDefault: true,
-    },
-    {
       section: 'voice',
       id: 'speaklang',
       label: 'Spoken language',
