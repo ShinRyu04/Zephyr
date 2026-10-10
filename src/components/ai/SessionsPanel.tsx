@@ -74,7 +74,7 @@ const SessionsPanel = memo(function SessionsPanel({
       <div className="ai-sessions-head">
         <span className="ai-sessions-title">{tr('Sessions')}</span>
         <div className="ai-sessions-actions">
-          <button className="ai-ikon" title={tr('New chat')} aria-label={tr('New chat')} onClick={newChat}>
+          <button className="ai-ikon" title={tr('New chat')} aria-label={tr('New chat')} onClick={() => newChat()}>
             <AiIkon name="plus" size={13} />
           </button>
           {/* Hides the SESSION COLUMN, not the panel: the ✕ in this heading sits
