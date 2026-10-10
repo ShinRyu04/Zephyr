@@ -12,6 +12,16 @@ import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
 import {
+  langkahDariRiwayat,
+  riwayatAgen,
+  bagiLangkahDariRiwayat,
+  bentukWireRiwayat,
+  ringkasRiwayat,
+  cekMuterBrowser,
+  BATAS_BROWSER_MUTER,
+  isNavigationOnlyRequest,
+} from './aiStore';
+import {
   mengulangDominan,
   mengulangPelarian,
   MIN_FRAGMENT_LENGTH,
@@ -60,6 +70,7 @@ import {
   workspaceBolehEksekusi as workspaceBolehEksekusiCmd, asZephyrError,
 } from './commands';
 import type { CliArgs } from './types';
+import type { AgentMsg, AgentToolCall } from './types';
 import {
   tasksMatchLine as tasksMatchLineCmd,
   tasksDetectPort as tasksDetectPortCmd,
@@ -838,6 +849,28 @@ export function installDevBridge(): void {
     mengulangPelarian: (teks: string) => mengulangPelarian(teks),
     ambang: { MIN_FRAGMENT_LENGTH, STOP_PATH_MIN_CHARS },
     teksGanti: REPETITION_LOOP_INTERRUPTED,
+  };
+
+  w.__ZEPHYR_RIWAYAT__ = {    // Pembentuk bentuk wire agent. Murni dan tanpa keadaan, jadi harness bisa
+    // memanggil implementasi yang benar-benar dipakai loop - bukan salinan.
+    langkahDariRiwayat: (h: AgentMsg[]) => langkahDariRiwayat(h),
+    riwayatAgen: (
+      langkah: Array<{ content: string; toolCalls?: AgentToolCall[] }>,
+      system?: string,
+    ) => riwayatAgen(langkah, system),
+    bagiLangkahDariRiwayat: (pesan: AgentMsg[], pembagi: (t: string) => string[]) =>
+      bagiLangkahDariRiwayat(pesan, pembagi),
+    bentukWireRiwayat: (h: AgentMsg[]) => bentukWireRiwayat(h),
+    ringkasRiwayat: (h: AgentMsg[], cap?: number) => ringkasRiwayat(h, cap),
+  };
+
+  w.__ZEPHYR_MUTER__ = {
+    // Guard treadmill browser. Murni, jadi harness bisa memanggil implementasi
+    // yang benar-benar dipakai loop - bukan salinan di dalam skrip uji.
+    cek: (terbuka: boolean, muter: number, urlSudah: string[], nama: string, args: Record<string, unknown>) =>
+      cekMuterBrowser(terbuka, muter, urlSudah, nama, args),
+    batas: BATAS_BROWSER_MUTER,
+    isNavigasi: (teks: string) => isNavigationOnlyRequest(teks),
   };
 
   w.__ZEPHYR_PROMPT__ = {

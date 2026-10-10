@@ -644,8 +644,91 @@ export async function oneShot(prompt: string): Promise<string> {
   return (res.content ?? '').trim();
 }
 
-export function ringkasRiwayat(history: AgentMsg[], cap: number = PAYLOAD_MAX_CHARS): AgentMsg[] {
-  const system = history.filter((m) => m.role === 'system');
+/*
+ * Riwayat agen yang BENAR.
+ *
+ * Bentuk inilah yang sering hilang di implementasi agen, dan hilangnya membuat
+ * model mengulang panggilan tool yang sama dengan argumen yang sama persis.
+ * Penyebabnya satu: yang dikirim ke provider bukan percakapan, melainkan
+ * gabungan semua teks asisten.
+ *
+ * Satu langkah agen menghasilkan SATU pesan asisten. Pesan itu membawa teks
+ * langkah itu dan tool call-nya. Langkah berikutnya menghasilkan pesan asisten
+ * BARU. `history` versi lama menyimpan `content` saja lalu menambahkan objek
+ * terpisah yang membawa toolCalls, sehingga `pesan` yang dikirim berisi dua
+ * entri asisten berurutan untuk satu langkah, dan `content`-nya menumpuk:
+ * langkah ke-n membawa n+1 salinan kalimat yang sama. Beberapa gateway langsung
+ * menolaknya sebagai bentuk yang tidak sah; semua gateway membacanya sebagai
+ * "aku sudah mengatakannya" berulang kali, dan jawaban yang wajar untuk itu
+ * adalah mengulang aksi yang sama.
+ *
+ * Yang dibangun di sini: satu objek per langkah, dengan `tampil` sebagai teks
+ * langkah itu saja dan `pesan` sebagai apa yang dikirim ke provider.
+ */
+export function riwayatAgen(
+  langkah: Array<{ content: string; reasoning?: string; reasoningSignature?: string; toolCalls?: AgentToolCall[] }>,
+  system?: string,
+  opts?: { ringkasPesan?: (m: AgentMsg) => AgentMsg },
+): AgentMsg[] {
+  const hasil: AgentMsg[] = [];
+  if (system) hasil.push({ role: 'system', content: system });
+  const ringkasPesan = opts?.ringkasPesan ?? ((m: AgentMsg) => m);
+  for (const l of langkah) {
+    if (!l.content.trim() && !l.toolCalls?.length && !l.reasoning) continue;
+    hasil.push(
+      ringkasPesan({
+        role: 'assistant',
+        content: l.content,
+        toolCalls: l.toolCalls?.length ? l.toolCalls : undefined,
+        ...(l.reasoning ? { reasoning: l.reasoning } : {}),
+        ...(l.reasoningSignature ? { reasoningSignature: l.reasoningSignature } : {}),
+      }),
+    );
+  }
+  return hasil;
+}
+
+/**
+ * Susun blok yang dikirim ke provider dari riwayat berpasangan.
+ *
+ * Dipakai bersama `riwayatAgen`: `riwayatPesan` memegang percakapannya
+ * (peran user/assistant/tool seperti biasa), lalu tiap pesan asisten dipetakan
+ * ke beberapa langkah dengan `pembagi`. Dengan begitu bentuk wire-nya tetap
+ * bersih - satu asisten per langkah, tanpa entri duplikat - dan teks tiap
+ * langkah untuk bubble tetap utuh.
+ *
+ * Dipakai juga oleh pemadatan konteks supaya ringkasan tidak menghapus batas
+ * antar langkah, yang persis kesalahan yang membuat model mengulang tool.
+ */
+export function bagiLangkahDariRiwayat(
+  pesan: AgentMsg[],
+  pembagi: (teks: string) => string[],
+): LangkahRiwayat[] {
+  const hasil: LangkahRiwayat[] = [];
+  for (const m of pesan) {
+    if (m.role !== 'assistant') continue;
+    const potongan = pembagi(m.content ?? '').filter((p) => p.trim() || (m.toolCalls?.length ?? 0) > 0);
+    if (potongan.length === 0) {
+      hasil.push({ pesan: m, tampil: m.content ?? '' });
+      continue;
+    }
+    potongan.forEach((teks, i) => {
+      const terakhir = i === potongan.length - 1;
+      hasil.push({
+        pesan: {
+          ...m,
+          content: teks,
+          ...(terakhir ? {} : { contentStored: undefined }),
+          toolCalls: terakhir ? m.toolCalls : undefined,
+        },
+        tampil: teks,
+      });
+    });
+  }
+  return hasil;
+}
+
+export function ringkasRiwayat(history: AgentMsg[], cap: number = PAYLOAD_MAX_CHARS): AgentMsg[] {  const system = history.filter((m) => m.role === 'system');
   const sisanya = history.filter((m) => m.role !== 'system');
   if (sisanya.length === 0) return history;
   
@@ -702,6 +785,121 @@ export function ringkasRiwayat(history: AgentMsg[], cap: number = PAYLOAD_MAX_CH
   // Age-based trimming above is blind to request SIZE; this is the pass that
   // respects the gateway's body limit.
   return system.length > 0 ? ringkasUkuran(hasil, cap) : hasil;
+}
+
+/**
+ * Ubah riwayat pesan menjadi daftar langkah.
+ *
+ * `history` di store berbentuk pesan (user/assistant/tool); agent butuh batas
+ * langkah untuk memperbaiki bentuk wire dan mempertahankan kalimat asisten.
+ * Pemetaannya satu arah dan murni: pesan asisten menjadi langkah, pesan lain
+ * (user, tool) menjadi penanda yang dilewati.
+ */
+export function langkahDariRiwayat(history: AgentMsg[]): Array<{
+  content: string;
+  reasoning?: string;
+  reasoningSignature?: string;
+  toolCalls?: AgentToolCall[];
+}> {
+  return history
+    .filter((m) => m.role === 'assistant')
+    .map((m) => ({
+      content: m.content ?? '',
+      ...(m.reasoning ? { reasoning: m.reasoning } : {}),
+      ...(m.reasoningSignature ? { reasoningSignature: m.reasoningSignature } : {}),
+      ...(m.toolCalls?.length ? { toolCalls: m.toolCalls } : {}),
+    }));
+}
+
+/** Perbaiki bentuk wire: satu pesan asisten per langkah, tanpa entri duplikat. */
+export function bentukWireRiwayat(history: AgentMsg[]): AgentMsg[] {
+  const system = history.filter((m) => m.role === 'system');
+  const lain = history.filter((m) => m.role !== 'system');
+  const hasil: AgentMsg[] = [];
+  for (const m of lain) {
+    if (m.role !== 'assistant') {
+      hasil.push(m);
+      continue;
+    }
+    /*
+     * Asisten yang punya tool call TIDAK boleh punya tool berikutnya yang
+     * menggantung. Kalau entri sebelumnya adalah asisten tanpa tool call dan
+     * entri ini punya tool call, keduanya adalah satu langkah yang terpecah:
+     * gabungkan supaya bentuknya sah.
+     */
+    const sebelumnya = hasil[hasil.length - 1];
+    if (sebelumnya?.role === 'assistant' && !sebelumnya.toolCalls?.length && m.toolCalls?.length) {
+      /* Teks sebelumnya dipertahankan HANYA kalau ada isinya. Menggabungkan
+         asisten kosong ke asisten bertool-call hanya memindahkan masalah:
+         entri hasilnya tetap kosong. */
+      const isi = (sebelumnya.content ?? '').trim();
+      hasil[hasil.length - 1] = isi
+        ? { ...sebelumnya, toolCalls: m.toolCalls }
+        : { ...m, content: sebelumnya.content };
+      continue;
+    }
+    /*
+     * Asisten TANPA isi dan TANPA tool call tidak dikirim sama sekali.
+     *
+     * Bagi gateway OpenAI-compatible yang ketat, `{role:"assistant",
+     * content:""}` di AKHIR array pesan adalah bentuk yang tidak sah: tidak ada
+     * pertanyaan yang dijawabnya dan tidak ada aksi yang dimintanya. Model yang
+     * membuka langkah tanpa kalimat pembuka menghasilkan persis entri ini, dan
+     * penolakannya kembali sebagai 400 - yang lalu memicu masalah langkah
+     * menggantung di tempat lain.
+     *
+     * Asisten kosong yang PUNYA toolCalls tetap dikirim: `content:""` bersama
+     * `tool_calls` adalah bentuk resmi untuk langkah yang langsung bertindak,
+     * dan itu justru bentuk paling umum di agent loop.
+     */
+    const adaIsi = !!(m.content ?? '').trim();
+    if (!adaIsi && !m.toolCalls?.length) continue;
+    hasil.push(m);
+  }
+
+  /*
+   * Jaring terakhir: buang hasil tool yang pemanggilnya tidak ada, DAN buang
+   * tool call yang hasilnya tidak ada.
+   *
+   * Ini penjaga bentuk paling murah dan paling luas - ia bekerja apa pun yang
+   * terjadi sebelumnya (pemotongan ukuran, pemadatan konteks, gabungan langkah,
+   * penyaringan tool call). Bentuk yang dilanggar selalu berujung sama: provider
+   * menolak SELURUH request, dan seluruh langkah hilang. Membuang satu potongan
+   * hanya kehilangan informasi.
+   *
+   * Terbukti perlu dua-duanya. Payload nyata yang ditolak gateway berbunyi
+   * `system -> user -> assistant(x2) -> tool` - dua tool call, satu hasil.
+   */
+  const bersih: AgentMsg[] = [];
+  for (const m of hasil) {
+    if (m.role === 'tool') {
+      const pemanggil = bersih[bersih.length - 1];
+      if (!pemanggil || pemanggil.role !== 'assistant' || !pemanggil.toolCalls?.length) continue;
+      bersih.push(m);
+      continue;
+    }
+    if (m.role === 'assistant' && m.toolCalls?.length) {
+      /*
+       * Sebuah asisten harus meminta HANYA tool yang benar-benar punya hasil.
+       * Yang dihitung hanya `tool` yang langsung mengikutinya, karena itulah
+       * yang dibaca provider sebagai pasangannya.
+       */
+      let punyaHasil = 0;
+      for (let i = hasil.indexOf(m) + 1; i < hasil.length && hasil[i].role === 'tool'; i++) {
+        punyaHasil += 1;
+      }
+      const dipakai = m.toolCalls.slice(0, punyaHasil);
+      if (dipakai.length === 0) {
+        /* Tidak ada satu pun hasil tool: kirim teksnya saja, tanpa tool call. */
+        if ((m.content ?? '').trim()) bersih.push({ ...m, toolCalls: undefined });
+        continue;
+      }
+      bersih.push({ ...m, toolCalls: dipakai });
+      continue;
+    }
+    bersih.push(m);
+  }
+  return [...system, ...bersih];
 }
 
 /*
@@ -934,6 +1132,14 @@ interface AgentStepResult {
   reasoningSignature?: string;
 }
 
+/** Satu langkah agen. `pesan` adalah blok yang dikirim ke provider, `tampil` teks langkah itu. */
+interface LangkahRiwayat {
+  /** Pesan yang benar-benar dikirim ke provider - satu objek per langkah. */
+  pesan: AgentMsg;
+  /** Teks langkah ini saja, terpisah dari blok yang dikirim ke provider. */
+  tampil: string;
+}
+
 export interface AgentTodo {
   content: string;
   status: 'pending' | 'in_progress' | 'done';
@@ -1096,7 +1302,29 @@ export function resetAutoCompact() {
 // sits above it so Rust reports the stall first with its own message, and the
 // frontend only fires when Rust itself never answered at all.
 const AGENT_IDLE_MS = 360_000;
+
+/*
+ * Batas tanpa KEMAJUAN, jauh di bawah batas diam.
+ *
+ * Dua timer ini menjawab dua kegagalan berbeda, dan menyatukannya membuat salah
+ * satunya buta:
+ *
+ *   `AGENT_IDLE_MS` (360 detik) mengukur "provider tidak mengirim apa-apa".
+ *     Cocok untuk koneksi yang mati total.
+ *
+ *   Timer ini mengukur "provider mengirim sesuatu, tapi tidak ada ISI BARU".
+ *     Itu bentuk macet yang paling sering terjadi dan paling sulit dilihat:
+ *     stream tetap hidup, keep-alive dan potongan usage terus datang, dan
+ *     watchdog diam tidak pernah menembak karena setiap byte dianggap tanda
+ *     sehat. Yang akhirnya menghentikan run hanya batas keras 15 menit.
+ *
+ * Batasnya sengaja jauh lebih pendek dari 15 menit tetapi tetap lega: provider
+ * yang sedang menalar berat (reasoning panjang sebelum tool call) memang bisa
+ * diam beberapa menit, jadi memotong di 60 detik akan membunuh kerja yang sehat.
+ */
+const AGENT_NO_PROGRESS_MS = 120_000;
 let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
+let agentNoProgress: ReturnType<typeof setTimeout> | null = null;
 
 /*
  * Watchdog lapis kedua: pukulan tunggal di batas mutlak.
@@ -1170,6 +1398,17 @@ function agentHardLimitDisarm() {
 }
 
 const AGENT_PROVIDER_RETRY_DELAYS = [1000, 2500] as const;
+
+/** A malformed tool response is safe to retry: no tool call has been dispatched yet. */
+function isRetryableAgentToolResponseError(error: string): boolean {
+  const text = error.toLowerCase();
+  return (
+    text.includes('returned malformed json arguments') ||
+    text.includes('arguments must be a json object') ||
+    text.includes('is missing arguments') ||
+    text.includes('is missing a function name')
+  );
+}
 
 /** Only errors from the provider request itself are eligible for agent retry. */
 function isRetryableAgentProviderError(error: string): boolean {
@@ -1259,6 +1498,10 @@ async function tungguProviderPulihAgent(
 
 function agentWatchdogArm() {
   if (agentWatchdog) clearTimeout(agentWatchdog);
+  /* Timer tanpa-kemajuan dikelola terpisah: ia TIDAK di-reset oleh frame yang
+     tidak membawa isi, jadi ia tidak boleh ikut dibatalkan di sini. Kalau ikut,
+     provider yang mengirim keep-alive akan mematikan penjaga yang justru
+     mendeteksinya. */
   agentWatchdog = setTimeout(() => {
     agentWatchdog = null;
     /* Land buffered text before the step resolves as cancelled, so the exit
@@ -1283,9 +1526,52 @@ function agentWatchdogArm() {
   }, AGENT_IDLE_MS);
 }
 
+/**
+ * Timer "tidak ada ISI BARU", dipasang ulang hanya saat chunk membawa konten.
+ *
+ * Dipisah dari `agentWatchdogArm` karena keduanya harus bisa menembak
+ * sendiri-sendiri: stream yang terus mengirim keep-alive tanpa token baru tidak
+ * pernah menyentuh `AGENT_IDLE_MS`, dan justru itulah kasus yang membuat agen
+ * menggantung sampai batas keras 15 menit.
+ *
+ * Pesan yang diberikannya berbeda dari watchdog diam, dan perbedaan itu
+ * disengaja: pembaca perlu tahu bahwa providernya HIDUP tapi tidak lagi
+ * menghasilkan apa pun, supaya tidak menunggu tanpa alasan.
+ */
+function agentNoProgressArm() {
+  if (agentNoProgress) clearTimeout(agentNoProgress);
+  agentNoProgress = setTimeout(() => {
+    agentNoProgress = null;
+    flushChunkBuf();
+    agentStopReason = 'watchdog';
+    agentBatal = true;
+    const r = agentStepResolve;
+    agentStepResolve = null;
+    agentConfirmResolve = null;
+    r?.({
+      content: '',
+      toolCalls: [],
+      cancelled: true,
+      error:
+        'Provider masih terhubung tetapi tidak menghasilkan isi baru selama ' +
+        `${Math.round(AGENT_NO_PROGRESS_MS / 1000)} detik. Langkah dihentikan.`,
+    });
+    if (!r) {
+      useAi.setState({ agentBusy: false, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
+    }
+  }, AGENT_NO_PROGRESS_MS);
+}
+
 function agentWatchdogDisarm() {
   if (agentWatchdog) clearTimeout(agentWatchdog);
   agentWatchdog = null;
+  if (agentNoProgress) clearTimeout(agentNoProgress);
+  agentNoProgress = null;
+}
+
+/** Hanya menyetel ulang timer kemajuan; dipakai jalur chunk yang membawa isi. */
+function agentNoProgressTandai(): void {
+  if (agentNoProgress) agentNoProgressArm();
 }
 
 /**
@@ -3745,9 +4031,51 @@ export const useAi = create<AiStore>((set0, get) => {
       langkahAwal = checkpoint.langkah;
       set({ agentResume: null });
     }
-    const prev = (get().activeSession()?.messages ?? []).filter(
-      (m) => !m.error && (m.content.trim() || m.images?.length || m.image) && m.id !== botMsg.id,
+    /*
+     * Riwayat percakapan sebelumnya dibawa HANYA sebatas giliran terakhir, dan
+     * hanya kalau memang giliran yang BERBEDA.
+     *
+     * Sebelumnya SELURUH pesan sesi disalin, dan itu merusak dua hal sekaligus.
+     * Bukti dari payload nyata yang ditolak gateway:
+     *
+     *   isi tiap pesan:
+     *     1. user "Baca 3 berkas ini di D:/Talos: index.html..."   <- tugas LAMA
+     *     2. assistant(x1) "I'll plan this and create the three files."
+     *     3. user "Buat website company profile kecil di folder..."  <- tugas BARU
+     *     4. user "Buat website company profile kecil di folder..."
+     *     ...  (tujuh salinan tugas baru)
+     *     10. assistant(x1) ""
+     *     11. tool "Daftar tugas diperbarui..."
+     *
+     * Dua kerusakan terlihat di situ:
+     *
+     *   a. Pesan tugas yang SAMA muncul tujuh kali. Setiap run menambahkan satu
+     *      salinan ke daftar pesan sesi, dan run berikutnya menyalin semuanya -
+     *      jadi pertumbuhannya berlipat, bukan bertambah satu.
+     *
+     *   b. Giliran lama menyempil di antara asisten yang meminta tool dan hasil
+     *      tool-nya. Indeks 2 meminta sebuah tool, dan hasilnya baru muncul di
+     *      indeks 11 - delapan pesan `user` di antaranya. Bagi gateway
+     *      OpenAI-compatible itu graf yang tidak sah.
+     *
+     * Batasnya giliran TERAKHIR saja (satu user + satu asisten) - cukup untuk
+     * menjaga kesinambungan ("perbaiki yang tadi" tetap punya acuan) tanpa
+     * menyeret riwayat panjang ke konteks tugas baru.
+     *
+     * Ditambah satu saringan: pesan yang bunyinya SAMA dengan perintah yang baru
+     * saja diketik dibuang. Percobaan ulang meninggalkan pesan user sebelumnya
+     * di sesi, dan tanpa saringan ini tugas yang identik terkirim dua kali -
+     * yang bukan hanya boros, tapi juga menyesatkan model agar mengerjakan
+     * pekerjaan yang sama dua kali.
+     */
+    const prevSemua = (get().activeSession()?.messages ?? []).filter(
+      (m) =>
+        !m.error &&
+        (m.content.trim() || m.images?.length || m.image) &&
+        m.id !== botMsg.id &&
+        !(m.role === 'user' && m.content.trim() === (tampilBubble ?? content).trim()),
     );
+    const prev = prevSemua.slice(-2);
     for (const m of prev) {
       if (m.role === 'user' || m.role === 'assistant') {
         const banyak = m.images?.length ? m.images : m.image ? [m.image] : [];
@@ -3802,6 +4130,16 @@ export const useAi = create<AiStore>((set0, get) => {
     let akhir = '';
     let taskComplete = false;
     let navigationOpened = false;
+    /*
+     * Riwayat per langkah, terpisah dari `history`.
+     *
+     * Inilah yang dipakai untuk MEMBENTUK permintaan ke provider. `history`
+     * tetap jadi catatan percakapan (user/assistant/tool) untuk pemadatan dan
+     * penyimpanan; daftar ini yang tahu batas tiap langkah asisten, sehingga
+     * satu langkah menghasilkan tepat satu pesan asisten - bukan dua entri
+     * berurutan dengan teks yang menumpuk.
+     */
+    const langkahRiwayat: LangkahRiwayat[] = [];
     // A resumed run keeps counting from its checkpoint so the step meter and
     // the max-step guard see the real position, not a fresh zero.
     let langkah = langkahAwal;
@@ -3851,6 +4189,7 @@ export const useAi = create<AiStore>((set0, get) => {
         }));
 
         agentWatchdogArm();
+        agentNoProgressArm();
         agentHardLimitArm();
 
         /*
@@ -3938,18 +4277,32 @@ export const useAi = create<AiStore>((set0, get) => {
              */
           }
         }
-        for (let i = history.length - 1; i >= 0; i--) {
-          if (history[i].role === 'user' && history[i].content.startsWith('# Status pekerjaanmu')) {
-            history.splice(i, 1);
-          }
-        }
-        history.push({
-          role: 'user',
-          content: statusPekerjaan(get().agentTodos, get().agentSteps, langkah + 1, MAX_AGENT_STEPS),
-        });
+        /*
+         * Catatan status pekerjaan TIDAK disisipkan ke `history`.
+         *
+         * Dulu ia di-push sebagai pesan `user` tepat sebelum tiap langkah, dan
+         * itu merusak bentuk percakapan. Pelanggarannya terlihat di payload
+         * nyata yang ditolak gateway:
+         *
+         *   urutan peran: system -> user -> assistant -> user -> user -> user
+         *                 -> user -> user -> assistant -> tool -> ...
+         *   masalah: tool call di indeks 2 tanpa hasil tool
+         *
+         * Asisten di indeks 2 meminta sebuah tool, dan hasil tool untuknya baru
+         * muncul setelah lima pesan `user`. Bagi gateway OpenAI-compatible itu
+         * graf yang tidak sah: hasil tool wajib menjadi pesan BERIKUTNYA setelah
+         * asisten yang memintanya. Karena bentuknya dilanggar, gateway menolak
+         * dengan 400 - dan 400 itu lalu muncul sebagai "malformed JSON" pada
+         * langkah berikutnya.
+         *
+         * Isinya tidak dihapus, hanya dipindahkan: catatan status dibawa sebagai
+         * bagian dari langkah lanjutan (lihat `pesan.status`), sehingga ia tetap
+         * sampai ke model tanpa menyelip di antara pasangan tool.
+         */
         get().setAgentProgress({ agentPhase: 'thinking', agentCurrentTool: null, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
         let res: AgentStepResult;
         let faseTungguPulih = 0;
+        let koreksiArgumenTool = false;
         /*
          * Active model definition for this step, mutable so a provider failure
          * can switch to a fallback model without losing the run.
@@ -4020,12 +4373,114 @@ export const useAi = create<AiStore>((set0, get) => {
              */
             const reserveTools = ukuranPayload([toolSpecs]) + 2048;
             const capUntukPesan = Math.max(20_000, PAYLOAD_MAX_CHARS - reserveTools);
-            cmd
+            /*
+             * Build the request from the STEP list, not from `history`.
+             *
+             * `history` is the conversation record (user turns, tool results,
+             * assistant turns) and is what compaction and persistence need. What
+             * the provider must receive is that same conversation IN ORDER, with
+             * each assistant step written exactly once.
+             *
+             * The previous version sorted by a partition - all non-assistant
+             * messages first, then every assistant appended at the end - and that
+             * was wrong in a way that only shows up on the wire. The provider saw
+             * a conversation where the user asked something, tools reported
+             * results, and only THEN the assistant replied. Against a strict
+             * OpenAI-compatible gateway that is an invalid message graph, and the
+             * symptom is exactly what was reported live: the stream answers
+             * nothing, no toolDone frame ever arrives, and the step promise never
+             * resolves - so the bubble stays `streaming: true` and the step meter
+             * stays at index 1 with no tool recorded.
+             *
+             * The fix is to walk `history` in its own order and derive each
+             * assistant turn from `langkahRiwayat` at the point it happens, so
+             * the wire order matches the order the conversation actually had.
+             */
+            const pesanMentah: AgentMsg[] = [];
+            let langkahAsisten = 0;
+            for (const m of history) {
+              if (m.role !== 'assistant') {
+                pesanMentah.push(m);
+                continue;
+              }
+              /*
+               * One assistant turn in `history` = one step in `langkahRiwayat`.
+               * The step list is the authority on what was sent (it carries the
+               * real toolCalls and reasoning); `history` is the authority on
+               * POSITION. Walking them together keeps both.
+               */
+              const langkah = langkahRiwayat[langkahAsisten];
+              langkahAsisten += 1;
+              if (langkah) {
+                pesanMentah.push({ ...langkah.pesan, role: 'assistant' });
+              } else {
+                /* History holds an assistant turn with no matching step (only
+                   possible for turns written before this run). Keep it as-is
+                   rather than dropping text the reader already saw. */
+                pesanMentah.push(m);
+              }
+            }
+            const aiPesan = bentukWireRiwayat(pesanMentah);
+            /*
+             * Pemotongan ukuran berjalan SEBELUM pemeriksaan bentuk terakhir.
+             *
+             * Urutan ini penting dan dulu salah. `ringkasUkuran` membuang pesan
+             * dari depan dan memotong hasil tool menjadi stub - dua-duanya bisa
+             * memecah pasangan assistant/tool. Kalau pemeriksaan bentuk berjalan
+             * lebih dulu, kerusakan yang baru dibuat oleh pemotongan itu lolos
+             * tanpa diperiksa, dan yang terkirim ke provider adalah
+             * `assistant(x2) -> tool` - satu tool call tanpa hasil, yang
+             * ditolak sebagai 400.
+             *
+             * Karena itu alurnya: potong dulu, rapikan bentuk sesudah.
+             */
+            const dipotong = ringkasRiwayat(aiPesan, capUntukPesan);
+            const pesan = bentukWireRiwayat(dipotong);
+            /*
+             * Catatan status pekerjaan ditempel di pesan TERAKHIR, bukan
+             * disisipkan sebagai giliran sendiri.
+             *
+             * Ia harus sampai ke model - daftar tugas dan kemajuan langkah itulah
+             * yang menjaga rencana tetap terlihat - tetapi ia TIDAK BOLEH menjadi
+             * pesan `user` di antara asisten yang meminta tool dan hasil tool-nya.
+             * Pelanggaran itu terbukti dari payload nyata:
+             *
+             *   urutan peran: ... -> assistant -> user -> user -> user -> ...
+             *   masalah: tool call di indeks 2 tanpa hasil tool
+             *
+             * Menempelkannya di ekor menjaga keduanya: isinya tetap terkirim,
+             * dan pasangan assistant/tool tetap bersebelahan.
+             */
+            {
+              const catatanStatus = statusPekerjaan(
+                get().agentTodos,
+                get().agentSteps,
+                langkah + 1,
+                MAX_AGENT_STEPS,
+              );
+              const terakhir = pesan[pesan.length - 1];
+              if (terakhir && terakhir.role !== 'assistant') {
+                pesan[pesan.length - 1] = {
+                  ...terakhir,
+                  content: `${terakhir.content}\n\n${catatanStatus}`,
+                };
+              } else {
+                pesan.push({ role: 'user', content: catatanStatus });
+              }
+            }
+            if (koreksiArgumenTool) {
+               pesan.push({
+                 role: 'user',
+                 content:
+                   'The previous response had invalid tool-call arguments, so no tool was run. Retry with complete, valid JSON object arguments.',
+               });
+             }
+             cmd
               .aiToolChatStream({
                 id: attemptId,
                 provider: activeDef.provider,
                 model: activeDef.id,
-                messages: ringkasRiwayat(history, capUntukPesan),
+                messages: pesan,
                 tools: toolSpecs,
                 baseUrl: activeCfg.baseUrl || undefined,
                 maxTokens: activeDef.maxOut ?? 2048,
@@ -4059,8 +4514,14 @@ export const useAi = create<AiStore>((set0, get) => {
             !agentBatal &&
             res.toolCalls.length === 0 &&
             !!res.error &&
-            isRetryableAgentProviderError(res.error);
-          if (!bolehRetry || retry >= AGENT_PROVIDER_RETRY_DELAYS.length) {
+            (isRetryableAgentToolResponseError(res.error) ||
+              isRetryableAgentProviderError(res.error));
+          const retryableToolResponse =
+            !!res.error && isRetryableAgentToolResponseError(res.error);
+          const retryLimit = retryableToolResponse
+            ? 1
+            : AGENT_PROVIDER_RETRY_DELAYS.length;
+          if (!bolehRetry || retry >= retryLimit) {
             /*
              * Kerja lama tidak boleh mati hanya karena provider down beberapa
              * menit. Dua retry cepat di atas untuk blip sesaat; kalau masih
@@ -4071,7 +4532,11 @@ export const useAi = create<AiStore>((set0, get) => {
              * fase masih gagal, baru mati dengan error jujur. User bisa
              * Stop kapan saja (agentBatal / tungguRetryAgent membatalkan).
              */
-            if (bolehRetry && faseTungguPulih < TUNGGU_PULIH_DELAYS.length) {
+            if (
+              bolehRetry &&
+              !retryableToolResponse &&
+              faseTungguPulih < TUNGGU_PULIH_DELAYS.length
+            ) {
               const lanjut = await tungguProviderPulihAgent(
                 (p) => get().setAgentProgress({ ...p, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS }),
                 res.error!,
@@ -4100,7 +4565,7 @@ export const useAi = create<AiStore>((set0, get) => {
              * already configured. Model history is untouched, so no tool call
              * is replayed and no local write is duplicated.
              */
-            if (bolehRetry && !sudahFallback) {
+            if (bolehRetry && !retryableToolResponse && !sudahFallback) {
               const cadangan = pilihModelCadangan(
                 activeDef,
                 MODEL_FALLBACK,
@@ -4126,10 +4591,13 @@ export const useAi = create<AiStore>((set0, get) => {
             break;
           }
 
+          koreksiArgumenTool = retryableToolResponse;
           const retryNumber = retry + 1;
           get().setAgentProgress({
             agentPhase: 'thinking',
-            agentCurrentTool: `Mencoba lagi (${retryNumber}/2) karena ${labelRetryAgent(res.error!)}`,
+            agentCurrentTool: retryableToolResponse
+              ? 'Meminta ulang respons karena argumen tool tidak valid'
+              : `Mencoba lagi (${retryNumber}/2) karena ${labelRetryAgent(res.error!)}`,
             agentStepIndex: langkah + 1,
             agentStepLimit: MAX_AGENT_STEPS,
           });
@@ -4170,6 +4638,24 @@ export const useAi = create<AiStore>((set0, get) => {
         // discard everything else from that response. For ordinary tasks,
         // suppress repeated opens of the same normalized URL while preserving
         // the order and all non-browser calls.
+        /*
+         * Setiap tool call yang DIBUANG di sini mengubah bentuk wire, dan
+         * langkah yang disimpan ke `langkahRiwayat` harus memakai daftar yang
+         * SUDAH disaring - bukan daftar aslinya.
+         *
+         * Penyebab 400 yang terbukti: model mengirim dua tool call dalam satu
+         * balasan (`think` dan `create_directory`), penyaring di bawah membuang
+         * salah satunya, tetapi `langkahRiwayat` masih menyimpan keduanya.
+         * Payload yang terkirim lalu berbunyi:
+         *
+         *   assistant(x2) "I'll create the three files..."
+         *   tool          "[pemikiran tercatat] ..."
+         *   masalah: tool call di indeks 3 tanpa hasil tool
+         *
+         * Satu tool call tidak punya hasil, dan gateway menolak SELURUH body.
+         * Karena itu daftar yang dipakai harus satu dan sama: apa yang dikirim
+         * ke provider adalah apa yang benar-benar dijalankan.
+         */
         const browserOpen = (tc: AgentToolCall) => tc.name === 'browser_open' || tc.name === 'system_browser_open';
         const firstBrowser = res.toolCalls.findIndex(browserOpen);
         let callsToDispatch = res.toolCalls;
@@ -4186,6 +4672,15 @@ export const useAi = create<AiStore>((set0, get) => {
           });
         }
         /*
+         * Nama tool yang tidak dikenal tidak dijalankan, sehingga tidak akan
+         * pernah punya hasil. Menyimpannya di `langkahRiwayat` menghasilkan tool
+         * call yatim yang sama seperti di atas, jadi ia disaring di sini juga -
+         * satu tempat, sebelum wire dan sebelum eksekusi.
+         */
+        callsToDispatch = callsToDispatch.filter((tc) =>
+          AGENT_TOOLS.some((t) => t.spec.name === tc.name),
+        );
+        /*
          * Carry the turn's reasoning into the history.
          *
          * Dropping it made every step re-derive what it had already worked out,
@@ -4195,6 +4690,12 @@ export const useAi = create<AiStore>((set0, get) => {
          * the OpenAI-compatible gateways accept `reasoning_content` on the
          * assistant turn. Attached only when non-empty — an empty string is not
          * the same as absent, and some routers reject the empty form.
+         *
+         * The text stored here is ONLY this step's text. The whole-run view is
+         * built later from `langkahRiwayat`; appending the accumulated text
+         * instead made step n carry n+1 copies of the earlier sentences, which
+         * is the shape that pushes a model into repeating the tool it already
+         * ran (see `bentukWireRiwayat`).
          */
         history.push({
           role: 'assistant',
@@ -4202,6 +4703,16 @@ export const useAi = create<AiStore>((set0, get) => {
           toolCalls: callsToDispatch,
           ...(res.reasoning ? { reasoning: res.reasoning } : {}),
           ...(res.reasoningSignature ? { reasoningSignature: res.reasoningSignature } : {}),
+        });
+        langkahRiwayat.push({
+          pesan: {
+            role: 'assistant',
+            content: res.content,
+            toolCalls: callsToDispatch,
+            ...(res.reasoning ? { reasoning: res.reasoning } : {}),
+            ...(res.reasoningSignature ? { reasoningSignature: res.reasoningSignature } : {}),
+          },
+          tampil: res.content,
         });
         if (callsToDispatch.length === 0) break;
 
@@ -4700,6 +5211,32 @@ export const useAi = create<AiStore>((set0, get) => {
             navigationOpened = true;
           }
 
+            /*
+             * Tandai pane browser sebagai sudah terisi, apa pun bentuk
+             * permintaannya.
+             *
+             * Guard treadmill di atas HANYA aktif kalau `halamanTerbuka` true, dan
+             * satu-satunya tempat yang menyetelnya dulu ada di cabang "navigation
+             * only". Untuk permintaan biasa - "buka halaman ini lalu baca isinya",
+             * "cek situs X" - bendera itu tidak pernah menyala, jadi guard-nya
+             * tidak pernah hidup dan model bisa memanggil `browser_open` dan
+             * `browser_read` berulang kali sampai MAX_AGENT_STEPS. Itu persis
+             * keluhan "dia masih kerja terus, bukan berhenti".
+             *
+             * Bendera ini fakta, bukan keputusan: sebuah halaman memang sudah
+             * terbuka di pane, apa pun niat yang membukanya.
+             */
+            if (
+              navigationResultOk &&
+              (tc.name === 'browser_open' || tc.name === 'system_browser_open')
+            ) {
+              halamanTerbuka = true;
+              const urlDibuka = urlBrowserDinormalisasi(tc.name, argsObj);
+              if (urlDibuka && !urlBrowserTerbuka.includes(urlDibuka)) {
+                urlBrowserTerbuka.push(urlDibuka);
+              }
+            }
+
           /*
            * A tool result carries text only, so read_image parks the bytes it
            * loaded and they ride along on the next user turn. That turn is the
@@ -4809,12 +5346,49 @@ export const useAi = create<AiStore>((set0, get) => {
       }
     } catch (e) {
       if (!agentBatal) agentStopReason = 'provider';
-      const message = safeAgentFailureMessage(cmd.asZephyrError(e).message);
-      agentFailure = { category: classifyAgentFailure(message), message };
+      const mentah = cmd.asZephyrError(e).message;
+      const message = safeAgentFailureMessage(mentah);
+      /*
+       * Sebuah 4xx dijelaskan BENTUKNYA, bukan hanya statusnya.
+       *
+       * "Request rejected (400)" tidak memberi cara memperbaiki apa pun; yang
+       * perlu diketahui adalah pesan mana yang melanggar bentuk. Rust mencatat
+       * fakta itu saat menolak (urutan peran, asisten kosong, tool call tanpa
+       * hasil, ukuran body) plus kalimat asli dari server, dan menempelkannya
+       * di sini. Kegagalan mengambil catatannya tidak boleh menutupi error
+       * aslinya, jadi kegagalan itu diabaikan.
+       */
+      let detail: string | null = null;
+      if (/\b(?:400|413|422)\b/.test(mentah)) {
+        detail = await cmd.aiPenolakanTerakhir().catch(() => null);
+      }
+      agentFailure = {
+        category: classifyAgentFailure(message),
+        message: detail ? `${message}\n\n${detail}` : message,
+      };
     }
 
     const runWasCancelled = agentBatal;
-    const stopReason = String(agentStopReason);
+    /*
+     * `String(null)` menghasilkan "null", dan itu bukan salah satu alasan yang
+     * dikenal. Akibatnya cabang terakhir di bawah menangkap SEMUA run yang
+     * `agentBatal` tanpa alasan tercatat dan melaporkannya sebagai "Dihentikan
+     * oleh pengguna" - padahal user tidak menekan apa pun. Terbukti di app
+     * hidup: agent selesai membaca dua berkas dengan sukses, lalu bubble-nya
+     * berakhir berbunyi "Cancelled: Dihentikan oleh pengguna." dan seluruh
+     * jawabannya hilang dari layar.
+     *
+     * `agentBatal` sendiri dipakai loop sebagai "berhenti setelah langkah ini",
+     * jadi ia bisa true tanpa ada pembatalan sama sekali. Yang menentukan
+     * adalah ALASANnya; tanpa alasan, tidak ada yang boleh diklaim.
+     */
+    /*
+     * `agentStopReason` dibaca lewat variabel bertipe lebar supaya TypeScript
+     * tidak menyempitkannya berdasarkan alur `catch` di atas. Alasan 'user'
+     * memang tidak pernah bisa muncul dari `catch`, tapi ia BISA muncul dari
+     * `cancel()` - dan itulah satu-satunya penanda pembatalan yang sah.
+     */
+    const stopReason: string = agentStopReason ?? '';
     if (runWasCancelled && stopReason !== 'user') {
       /*
        * The mapping lives in agentStop.ts so it can be asserted in Node. A
@@ -4824,7 +5398,7 @@ export const useAi = create<AiStore>((set0, get) => {
        */
       const pesanStop = agentStopMessage(stopReason);
       if (pesanStop) agentFailure = pesanStop;
-    } else if (runWasCancelled) {
+    } else if (runWasCancelled && stopReason === 'user') {
       agentFailure = { category: 'cancelled', message: 'Dihentikan oleh pengguna.' };
     }
     if (langkah >= MAX_AGENT_STEPS) {
@@ -4890,6 +5464,19 @@ export const useAi = create<AiStore>((set0, get) => {
     if (activeAgentAttempt) retiredAgentAttempts.add(activeAgentAttempt);
     activeAgentAttempt = null;
     activeAgentUiId = null;
+    /*
+     * Buang jejak percobaan dari run yang baru selesai.
+     *
+     * Kedua set ini hidup selama proses dan tidak pernah dikosongkan. Id
+     * percobaan dibuat unik per run, jadi set yang tumbuh terus tidak
+     * menyebabkan kebocoran perilaku - tapi ia juga berarti `cancelledAttempts`
+     * menahan id yang sudah mati, dan `cancelledAttempts` hanya dihapus di satu
+     * tempat (`onChunk` saat frame terminal lolos), yang mudah terlewat.
+     * Membersihkannya di sini, di satu-satunya jalur keluar run, membuat
+     * keadaannya tidak bergantung pada disiplin jalur lain.
+     */
+    retiredAgentAttempts.clear();
+    cancelledAttempts.clear();
     agentConfirmResolve = null;
     finishAgentToolCache();
     agentBatal = false;
@@ -5294,33 +5881,46 @@ export const useAi = create<AiStore>((set0, get) => {
      * pensiun tidak pernah sah lagi.
      */
     const attempt = activeAgentAttempt;
-    if (retiredAgentAttempts.has(c.id)) return;
-    if (attempt && c.id !== attempt) return;
 
     /*
-     * Penjaga kedua menutup sisa lubangnya.
+     * Sebuah frame TERMINAL tidak boleh hilang tanpa melepaskan langkahnya.
      *
-     * `c.id !== attempt` hanya tahu percobaan mana yang SEDANG aktif. Satu id
-     * percobaan yang tidak pernah tercatat - misalnya id yang dipakai Rust untuk
-     * percobaan berikutnya sementara frontend belum sempat mencatatnya - akan
-     * lolos, dan potongannya menambah teks yang sudah ada.
+     * Penjaga di bawah ada untuk mencegah teks percobaan lama mendarat di bubble
+     * yang salah, dan untuk itu mereka benar. Tapi mereka `return` tanpa pernah
+     * menyentuh `agentStepResolve`. Kalau frame yang ditelan itu justru frame
+     * PENUTUP (`toolDone`/`done`/`err`), loop tetap parkir di `await` dan tidak
+     * ada apa pun yang membangunkannya - bubble tetap `streaming: true`, meter
+     * tetap di indeks lama, dan hanya batas keras 15 menit yang mengakhiri.
      *
-     * Yang membedakan percobaan sah dari sisa percobaan lama bukan nomor idnya,
-     * melainkan apakah teks itu datang dari percobaan yang DIHARAPKAN. Karena
-     * percobaan aktif dicatat saat dibuat, setiap id lain yang menyasar pesan
-     * yang sama adalah penulisan kedua atas jawaban yang sama: ia dicatat
-     * pensiun lalu dibuang, SEBELUM menyentuh state.
-     *
-     * Dibuang sebelum, bukan dibersihkan sesudah, karena yang dihindari adalah
-     * teksnya sempat muncul - menghapusnya kemudian tidak menolong pembaca yang
-     * sudah melihat kata itu dua kali.
+     * Ini satu-satunya jalur di `onChunk` yang bisa menelan terminal, jadi
+     * penutupnya dipasang di sini: frame terminal yang akan dibuang tetap
+     * melepaskan langkah yang sedang menunggu, dengan alasan yang jujur.
      */
+    const terminalFrame = !!(c.toolDone || c.done || c.err);
+    const lepaskanLangkahDitelan = (sebab: string) => {
+      if (!terminalFrame || !agentStepResolve) return;
+      const r = agentStepResolve;
+      agentStepResolve = null;
+      agentWatchdogDisarm();
+      r({ content: '', toolCalls: [], cancelled: agentBatal, error: agentBatal ? undefined : sebab });
+    };
+
+    if (retiredAgentAttempts.has(c.id)) {
+      lepaskanLangkahDitelan(
+        'Provider menutup langkah lewat percobaan yang sudah pensiun; langkah dihentikan agar agen tidak menunggu selamanya.',
+      );
+      return;
+    }
     if (attempt && c.id !== attempt) {
       retiredAgentAttempts.add(c.id);
+      lepaskanLangkahDitelan(
+        'Provider menutup langkah dari percobaan yang tidak dikenal; langkah dihentikan agar agen tidak menunggu selamanya.',
+      );
       return;
     }
     if (cancelledAttempts.has(c.id)) {
-      if (c.toolDone || c.done || c.err) cancelledAttempts.delete(c.id);
+      if (terminalFrame) cancelledAttempts.delete(c.id);
+      lepaskanLangkahDitelan('Langkah dibatalkan sebelum provider menutupnya.');
       return;
     }
     c = { ...c, id: activeAgentUiId ?? c.id };
@@ -5365,13 +5965,34 @@ export const useAi = create<AiStore>((set0, get) => {
       if (c.text) buf.text += c.text;
       if (c.reasoning) buf.reasoning.push(String(c.reasoning));
       chunkBuf.set(c.id, buf);
-      if (agentWatchdog) agentWatchdogArm();
+      if (c.text || c.reasoning) {
+        agentNoProgressTandai();
+        if (agentWatchdog) agentWatchdogArm();
+      }
       jadwalkanFlushChunk();
       return;
     }
 
-    // There is activity from the provider: postpone the idle watchdog.
-    if (agentWatchdog) agentWatchdogArm();
+    /*
+     * Watchdog idle hanya diperpanjang oleh frame yang MEMBAWA ISI.
+     *
+     * Dulu setiap frame memperpanjangnya, dan itu membuat watchdog tidak pernah
+     * menembak pada kasus yang justru paling butuh: provider yang koneksinya
+     * masih hidup tetapi tidak lagi mengirim apa-apa yang berguna. Stream yang
+     * hanya mengeluarkan keep-alive, potongan usage, atau frame kosong akan
+     * mengembalikan timer ke 360 detik setiap kali - selamanya. Yang akhirnya
+     * menghentikan run cuma batas mutlak 15 menit, dan itulah "beberapa menit
+     * lalu state kembali sendiri" yang dilaporkan.
+     *
+     * Basis timer diubah dari "ada frame" menjadi "ada perubahan konten", yang
+     * memang definisi kemajuan. Provider sehat tetap mengirim token; yang diam
+     * sekarang benar-benar dihitung diam.
+     */
+    const adaIsi = !!(c.text || c.reasoning);
+    if (adaIsi) {
+      agentNoProgressTandai();
+      if (agentWatchdog) agentWatchdogArm();
+    }
 
     if (c.toolDone) {
       agentWatchdogDisarm();

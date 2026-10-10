@@ -71,10 +71,26 @@ const TOKEN_PER_IMAGE = 1500;
  * chat sends one short message, the agent re-sends its whole working set, and
  * past some size the gateway answers 502 however well-formed the request is.
  *
- * 120k characters is deliberately conservative - about 30k tokens of text,
- * well inside any gateway, and still far more than one step needs.
+ * The old 120k figure was wrong, and the evidence is direct. A real agent step
+ * was answered with:
+ *
+ *   HTTP 400 — 15 messages, 46,440 bytes
+ *   urutan peran: system -> user -> assistant -> tool -> assistant -> ... -> user
+ *   bentuk pesan: no violation detected
+ *
+ * The shape was perfect and the request was still refused, so size was the only
+ * remaining variable - and 46 KB is under 120 KB, which is exactly why the old
+ * cap never fired. The doc-comment claimed 120k was "well inside any gateway";
+ * the gateway in front of a rotating model router says otherwise. Routers proxy
+ * to many upstreams and apply the SMALLEST limit among them, and an
+ * OpenAI-compatible relay commonly sits at 32-64 KB.
+ *
+ * 40k characters is the value that keeps the request under every ceiling seen
+ * in practice with room to spare, while still being ~10k tokens of text - far
+ * more than any single step needs once tool output is truncated the way
+ * `HISTORY_TOOL_CHARS` already does.
  */
-export const PAYLOAD_MAX_CHARS = 120_000;
+export const PAYLOAD_MAX_CHARS = 40_000;
 
 /**
  * Approximate serialized size of an outgoing message list.
@@ -139,31 +155,100 @@ export function ringkasUkuran<T extends { role: string; content?: unknown; image
   }
   if (ukuran() <= cap) return [...sistem, ...clone];
 
-  // Pass 2: shorten long bodies to a stub, oldest first.
-  const STUB = 300;
-  for (let i = 0; i < clone.length; i++) {
+  /*
+   * Pass 2: shorten long bodies to a stub, TAPI tidak untuk giliran terakhir.
+   *
+   * Dua kerusakan diperbaiki di sini.
+   *
+   * PERTAMA, `content` hasil tool diganti dengan pesan stub - bukan potongan
+   * isi. Model tidak menerima satu byte pun data yang dimintanya, hanya kalimat
+   * "hasil tool dipotong". Terbukti di app hidup: agent membaca tiga berkas yang
+   * baru saja ditulisnya, mendapat stub untuk ketiganya, lalu menjawab dengan
+   * jujur bahwa ia tidak bisa memverifikasi apa pun. Pekerjaannya benar dan
+   * verifikasinya mustahil - bukan karena modelnya, tapi karena alat yang
+   * membuang datanya sebelum dikirim.
+   *
+   * SEKARANG potongannya dipertahankan: awalan isi tetap dikirim, dengan catatan
+   * berapa yang tidak ikut. Model bisa memakai apa yang dilihatnya, dan tahu
+   * bahwa ada bagian yang hilang sehingga ia bisa membaca ulang bagian tertentu
+   * kalau perlu.
+   *
+   * KEDUA, giliran yang PALING BARU tidak dipotong sama sekali. Data yang baru
+   * saja diambil adalah yang sedang dipakai model untuk memutuskan langkah
+   * berikutnya; memotongnya membuat langkah berikutnya buta. Yang tua memang
+   * boleh dipotong - itu sudah selesai dipakai.
+   */
+  const STUB = 1_200;
+  for (let i = 0; i < clone.length - 1; i++) {
     if (ukuran() <= cap) break;
     const m = clone[i];
     const isi = typeof m.content === 'string' ? m.content : String(m.content ?? '');
     if (isi.length <= STUB) continue;
+    /* Giliran terakhir selalu dibiarkan utuh; ia yang sedang dikerjakan. */
+    if (i === clone.length - 1 && m.role === 'tool') continue;
     clone[i] = {
       ...m,
       content:
         m.role === 'tool'
-          ? `[hasil tool dipotong agar request tidak melebihi batas gateway: ${isi.length} karakter -> ${STUB}]`
+          ? `${isi.slice(0, STUB)}\n\n[isi dipotong agar request tidak melebihi batas gateway: ${isi.length} karakter, hanya ${STUB} pertama yang dikirim]`
           : isi.slice(0, STUB),
-      // An assistant message whose text was cut but whose tool call is kept
-      // still parses; the reverse does not, so the call stays only for tools.
-      toolCalls: m.role === 'tool' ? m.toolCalls : undefined,
     } as T;
   }
+  if (ukuran() <= cap) return [...sistem, ...clone];
 
-  // Pass 3: still over budget, drop whole old messages. An assistant/tool pair
-  // is dropped together - an orphaned tool result is a protocol error for the
-  // provider and costs the whole request.
+  /*
+   * Pass 3: drop whole old messages, but NEVER leave a tool result orphaned.
+   *
+   * An assistant message with `tool_calls` and the `tool` message holding its
+   * result are ONE protocol unit: the provider rejects the request outright if
+   * a tool result has no preceding call. Both directions are fatal, and both
+   * were producible here:
+   *
+   *   - Dropping the assistant but keeping the `tool` left a result with no
+   *     call. The old code only checked the head of the list, so a tool result
+   *     left at the END (the common case, because trimming removes from the
+   *     front) survived every pass untouched.
+   *
+   *   - Stripping `tool_calls` off an assistant (pass 2 did this for every
+   *     non-tool message) left its `tool` result with no call to answer.
+   *
+   * Both show up on the wire as a body the gateway refuses, and the visible
+   * symptom is a run that dies on the step where a large file is written -
+   * exactly when the payload crosses the size limit for the first time.
+   *
+   * The fix is to drop a unit WHOLE: an assistant with tool calls is removed
+   * together with the tool results that follow it, and a tool result whose call
+   * is gone is removed too.
+   */
   while (ukuran() > cap && clone.length > 2) {
+    const pertama = clone[0];
+    if (pertama?.role === 'tool') {
+      /* Yatim: hasilnya ada tapi pemanggilnya sudah tidak dikirim. */
+      clone.splice(0, 1);
+      continue;
+    }
+    if (pertama?.role === 'assistant' && (pertama.toolCalls as unknown[] | undefined)?.length) {
+      /* Buang satu unit: asisten + seluruh hasil tool yang mengikutinya. */
+      clone.splice(0, 1);
+      while (clone[0]?.role === 'tool') clone.splice(0, 1);
+      continue;
+    }
     clone.splice(0, 1);
-    if (clone[0]?.role === 'tool' && clone[1]?.role !== 'assistant') clone.splice(0, 1);
+  }
+
+  /*
+   * Setiap hasil tool yang tersisa harus masih punya pemanggilnya. Kalau tidak,
+   * membuangnya lebih baik daripada mengirim graf yang pasti ditolak - satu
+   * hasil yang hilang hanya mengurangi informasi, sedangkan body yang ditolak
+   * menghilangkan SELURUH langkah.
+   */
+  for (let i = 0; i < clone.length; i++) {
+    if (clone[i]?.role !== 'tool') continue;
+    const adaPemanggil =
+      i > 0 &&
+      clone[i - 1]?.role === 'assistant' &&
+      ((clone[i - 1].toolCalls as unknown[] | undefined)?.length ?? 0) > 0;
+    if (!adaPemanggil) clone.splice(i, 1);
   }
 
   return [...sistem, ...clone];

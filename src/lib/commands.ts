@@ -547,6 +547,16 @@ export const aiChat = (opts: {
 
 export const aiCancel = (id: string) => invoke<boolean>('ai_cancel', { id });
 
+/**
+ * Bentuk payload terakhir yang ditolak provider.
+ *
+ * "Request rejected (400)" tidak cukup untuk memperbaiki apa pun: yang perlu
+ * diketahui adalah pesan mana yang melanggar bentuk. Rust mencatatnya saat
+ * menolak, dan ini yang membacanya. Tidak ada isi percakapan yang dikembalikan -
+ * hanya urutan peran, ukuran, dan daftar pelanggaran bentuk.
+ */
+export const aiPenolakanTerakhir = () => invoke<string | null>('ai_penolakan_terakhir');
+
 export const aiToolChat = (opts: {
   provider: string;
   model: string;
