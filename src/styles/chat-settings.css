@@ -212,7 +212,15 @@
   position: fixed;
   inset: 0;
   z-index: 640;
+  /*
+   * Same wash-and-blur as `.modal-backdrop`, so the two kinds of overlay read
+   * as the same surface. The colour is lighter than the modal's because this
+   * one keeps the chat visible behind it — the reader opened this FROM the chat
+   * and should not lose sight of it.
+   */
   background: color-mix(in srgb, var(--bg0) 42%, transparent);
+  backdrop-filter: blur(3px) saturate(0.9);
+  -webkit-backdrop-filter: blur(3px) saturate(0.9);
 }
 
 .cset-pop {
@@ -237,9 +245,25 @@
   width: min(1280px, calc(100vw - 40px));
   height: min(880px, calc(100vh - 60px));
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.48);
+  /*
+   * The same two-shadow lift and accent hairline as every other dialog, so the
+   * chat popovers belong to the same family as Agent Customizations and the
+   * confirm dialogs.
+   */
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 70%, transparent) 22%,
+      color-mix(in srgb, var(--accent) 70%, transparent) 78%,
+      transparent 100%
+    )
+    1;
+  box-shadow:
+    0 24px 64px -12px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
 

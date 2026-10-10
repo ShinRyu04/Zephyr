@@ -2439,7 +2439,19 @@ body.is-resizing-v {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  /*
+   * A wash plus a blur, not a flat scrim.
+   *
+   * A plain 0.55 black rectangle dims the app into a grey slab with no sense of
+   * depth. The blur keeps the editor legible as a BACKGROUND — the reader can
+   * still see where the dialog came from — while the slightly darker wash keeps
+   * contrast against the card. `backdrop-filter` is available in this WebView
+   * (Chromium), and the plain colour underneath means a build without it still
+   * gets a usable scrim rather than nothing.
+   */
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(3px) saturate(0.9);
+  -webkit-backdrop-filter: blur(3px) saturate(0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2461,9 +2473,42 @@ body.is-resizing-v {
   max-width: 90vw;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 18px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  /*
+   * Two shadows rather than one: a tight dark one for the contact edge and a
+   * wide soft one for the lift. A single large blur reads as a haze around the
+   * card; the pair reads as a card above a surface.
+   *
+   * The accent hairline along the top is the same mark Agent Customizations and
+   * the chat popovers carry, so every dialog in the app belongs to one family.
+   */
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 60%, transparent) 25%,
+      color-mix(in srgb, var(--accent) 60%, transparent) 75%,
+      transparent 100%
+    )
+    1;
+  box-shadow:
+    0 20px 48px -12px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.32);
+}
+
+/*
+ * One focus ring for every dialog control.
+ *
+ * Set here rather than per-dialog because there are a dozen dialogs and the one
+ * that gets forgotten is the one a keyboard user is stuck in. `:focus-visible`
+ * so a mouse click does not draw a ring around the button it just pressed.
+ */
+.modal :is(button, input, select, textarea, [tabindex]):focus-visible,
+.modal-backdrop :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .modal-title {
