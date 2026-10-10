@@ -8919,3 +8919,81 @@
 }
 
 /* ── The trail of an expanded chat, beside the Sessions column ──────────── */
+
+/* ── The chat as an editor TAB ──────────────────────────────────────────── */
+/*
+ * `.ai-view-chat` fills the editor host so the chat's own flex column works
+ * exactly as it does in the right-hand column: transcript grows, composer sits
+ * at the bottom.
+ *
+ * Both rules are load-bearing. Without a DEFINITE height the wrapper is only as
+ * tall as its content, and the panel collapsed to 281px inside an 808px host —
+ * so the composer sat in the middle of empty space instead of on the floor,
+ * which is the reported "the composer still won't come down".
+ *
+ * `height: 100%` is not enough here, and the reason is worth keeping: the host is
+ * `display: grid` with one `1fr` row (see split-editor.css), which gives a
+ * DEFINITE height to its direct children — but `.ai-view-chat` is two levels
+ * down, wrapped in `.ai-view-tab`, and a percentage height resolves against an
+ * explicit height, not a flex- or grid-computed one. Absolute positioning
+ * sidesteps the chain entirely: the host is `position: relative`, so inset:0
+ * pins this element to the host's full box no matter how many wrappers sit
+ * between them.
+ */
+.ai-view-chat {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+
+/*
+ * `.ai-view-tab` is only a hook for tests — the chat inside it positions itself
+ * absolutely against `.editor-host`, exactly like `PreviewGambar` does, so this
+ * wrapper must not impose a height of its own or intercept the click that the
+ * view-tab test uses to identify the tab.
+ */
+.ai-view-tab {
+  position: static;
+  pointer-events: auto;
+}
+
+/*
+ * NO header row in the view tab.
+ *
+ * The reader's rule for this tab: everything above the conversation goes. It is
+ * a chat in the editor area, and the editor already has a tab strip naming it —
+ * so the panel's title row (session switcher, context ring, sessions toggle) is
+ * a second header directly under a header that says the same thing. The session
+ * switcher stays reachable from the "…" menu and from the docked panel, and the
+ * composer's own toolbar carries model / mode / permission / reasoning, so
+ * nothing in this row is the only way to do its job.
+ *
+ * Covers both states of the `hidden` attribute: `aiMax` is false in this tab
+ * (the tab is not the maximized column), so without this the row would show.
+ */
+.ai-view-chat .ai-head {
+  display: none;
+}
+
+/*
+ * Editor tab: the composer sits ON the chip row, VSCode-style.
+ *
+ * In the docked column the composer floats above the panel's bottom edge, so it
+ * keeps a 20px bottom margin and the chip row below it gets its own 4px — a gap
+ * that reads as deliberate separation when the panel is one narrow column. In
+ * the editor tab the two are the bottom of a full-height view with nothing under
+ * them: the same additively-stacked margins (20px + 4px = 24px measured) push
+ * the composer up off the floor and leave a band of empty background between the
+ * send button and the chips. Closing that gap is what "bring the composer down
+ * next to the Interactive chips" asks for.
+ */
+.ai-view-chat .ai-input-row {
+  margin-bottom: 0;
+}
+.ai-view-chat .ai-botbar {
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
