@@ -2928,6 +2928,17 @@ export const useAi = create<AiStore>((set0, get) => {
 
   newChat: (id = '') => {
     const st = get();
+    /*
+     * Lifecycle: a session starts here, and this is the ONLY place it does.
+     *
+     * Measured by "a new chat was created", which is a fact one call site can
+     * assert — as opposed to "the agent is about to do something", which is a
+     * guess about intent. Hooks fire from facts.
+     *
+     * Fire-and-forget: the reader asked for a new chat and gets one. A hook that
+     * takes two seconds, or fails, must not delay that or turn it into an error.
+     */
+    void import('./hookRuntime').then((m) => m.jalankanHook('session-start'));
     const s = makeSession(st.model, st.provider);
 
     s.approval = st.approvalMode;
@@ -5029,6 +5040,41 @@ export const useAi = create<AiStore>((set0, get) => {
       ),
     }));
     persist(get());
+
+    /*
+     * Lifecycle: the run is over, so `session-end` hooks fire.
+     *
+     * Placed here, after the final state has been written and persisted, so a
+     * hook that reads the transcript sees the finished one rather than a
+     * half-written message. That ordering is the whole reason a hook runner is
+     * useful at this point — a formatter or a notifier wants the answer that was
+     * actually produced.
+     *
+     * Not fired for a CANCELLED run: the reader stopped it, and a hook that
+     * formats or commits the result would be acting on work they just rejected.
+     * That mirrors the rule the rest of this function already follows for the
+     * error field and for speech.
+     *
+     * Fire-and-forget, and deliberately not awaited: the run is finished, the
+     * reader has their answer, and a hook that takes thirty seconds must not
+     * keep the panel looking busy. Its result is summarised into a toast rather
+     * than into the transcript, because a hook's output is about the reader's
+     * setup, not about what the model said.
+     */
+    if (!runWasCancelled) {
+      void import('./hookRuntime')
+        .then(async (m) => {
+          const hasil = await m.jalankanHook('session-end');
+          const ringkas = m.ringkasHook(hasil);
+          if (!ringkas) return;
+          const gagal = hasil.filter((h) => h.hasil.timed_out || h.hasil.code !== 0).length;
+          set({ toast: gagal > 0 ? tx('A hook failed - see the Hooks panel') : tx('Hooks finished') });
+        })
+        .catch(() => {
+          /* A hook runtime that cannot even load must not surface as a run
+             failure; the answer the reader asked for already arrived. */
+        });
+    }
 
     /*
      * Read the answer aloud, if the user asked for that.

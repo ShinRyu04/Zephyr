@@ -76,9 +76,23 @@ export default function McpPanel() {
 
   return (
     <Section title={tr('settings.mcp')}>
-      <p className="set-note" data-testid="mcp-note">
-        {tr('When this switch is on, Zephyr becomes an MCP server at')} <code>127.0.0.1:{port}</code>{' '}
-        {tr('External AI CLIs (Claude Code, Codex, Gemini CLI, opencode, Copilot CLI, Cursor) can read panes, editor tabs, and settings - and also drive this window: type in the terminal, open files, run commands. Loopback only: never exposed to the network.')}
+      <section className="mcp-direction-card" data-testid="mcp-server-section">
+        <header className="mcp-direction-head">
+          <div>
+            <h3 className="mcp-direction-title">External AI → Zephyr</h3>
+            <p className="mcp-direction-desc">
+              {tr('Zephyr MCP Server · External AI clients can connect to this app.')}
+            </p>
+          </div>
+          <span className={`mcp-state-pill${running ? ' is-running' : ''}`} data-testid="mcp-card-state">
+            <span className="mcp-dot" />
+            {running ? tr('Running') : tr('Stopped')}
+          </span>
+        </header>
+
+      <p className="set-note mcp-intro" data-testid="mcp-note">
+        {tr('External AI CLIs can read panes, editor tabs, and settings, and can control this window.')}
+        {' '}{tr('Loopback only: never exposed to the network.')}
       </p>
 
       <Row label={tr('mcp.enable')} hint={`${tr('main switch; port')} ${mcp.port}`}>
@@ -233,10 +247,21 @@ export default function McpPanel() {
           {terdaftar.length} {tr('of')} {ORDER.length} {tr('CLIs registered')}
         </span>
       </div>
+      </section>
 
+      <section className="mcp-direction-card" data-testid="mcp-client-section">
+        <header className="mcp-direction-head">
+          <div>
+            <h3 className="mcp-direction-title">Zephyr → MCP servers</h3>
+            <p className="mcp-direction-desc">
+              {tr('MCP Client · Connect Zephyr to tools provided by other MCP servers.')}
+            </p>
+          </div>
+          <span className="mcp-count-pill">{servers.length} {tr('connected')}</span>
+        </header>
       <Row
         label={tr('External MCP servers')}
-        hint={tr('Zephyr can connect OUT to other MCP servers and call their tools. Add a label, URL, and token, then Test to list the tools it offers.')}
+        hint={tr('Add a server endpoint, then test the connection to see which tools it provides.')}
       >
         <div className="mcp-servers" data-testid="mcp-servers">
           {servers.length === 0 && (
@@ -245,11 +270,13 @@ export default function McpPanel() {
             </span>
           )}
           {servers.map((s) => (
-            <div className="mcp-cli" key={s.id} data-server-id={s.id} data-testid="mcp-server-row">
-              <span className="mcp-cli-name">{s.label}</span>
-              <code className="mcp-cli-path" title={s.url} data-testid="mcp-server-url">
-                {s.url}
-              </code>
+            <div className="mcp-external-server" key={s.id} data-server-id={s.id} data-testid="mcp-server-row">
+              <div className="mcp-external-server-info">
+                <span className="mcp-cli-name">{s.label}</span>
+                <code className="mcp-cli-path" title={s.url} data-testid="mcp-server-url">
+                  {s.url}
+                </code>
+              </div>
               <button
                 className="btn btn-sm"
                 disabled={busy}
@@ -271,8 +298,11 @@ export default function McpPanel() {
         </div>
       </Row>
 
-      <Row label={tr('Add external MCP server')}>
-        <div className="mcp-servers">
+      <Row
+        label={tr('Add external MCP server')}
+        hint={tr('The token is stored in Zephyr settings and sent when testing this server.')}
+      >
+        <div className="mcp-server-form">
           <input
             className="set-text"
             placeholder={tr('Label')}
@@ -333,6 +363,7 @@ export default function McpPanel() {
           onChange={(v) => void toggleServer(v)}
         />
       </Row>
+      </section>
 
       {err && (
         <p className="set-note is-error" data-testid="mcp-error">
@@ -363,6 +394,8 @@ export default function McpPanel() {
         </>
       )}
 
+      <details className="mcp-advanced" data-testid="mcp-advanced">
+        <summary>{tr('Activity and technical details')}</summary>
       <div className="mcp-logwrap">
         <div className="mcp-log-head">
           <span>MCP activity</span>
@@ -427,6 +460,7 @@ export default function McpPanel() {
         <code>editor_write</code> {tr('only changes the tab buffer, it does NOT write to disk - saving remains your decision.')}{' '}
         <code>set_setting</code> {tr('is limited to a display whitelist (theme, font, tab size); credentials and MCP settings themselves cannot be changed from outside.')}
       </p>
+      </details>
     </Section>
   );
 }
