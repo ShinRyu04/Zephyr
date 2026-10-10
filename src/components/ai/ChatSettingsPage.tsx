@@ -8,6 +8,7 @@ import { useAgentCustom } from '../../lib/agentCustomStore';
 import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
+import { RULES_BAWAAN } from '../../lib/rulesCatalog';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
 
@@ -72,6 +73,7 @@ const SECTIONS = [
   { id: 'context', label: 'Context' },
   { id: 'subagent', label: 'Sub-agents' },
   { id: 'tools', label: 'Tools' },
+  { id: 'rules', label: 'Rules' },
   { id: 'models', label: 'Models' },
   { id: 'persona', label: 'Persona' },
   { id: 'voice', label: 'Voice' },
@@ -157,6 +159,9 @@ export default function ChatSettingsPage({
   const voice = settings.voice;
   const mic = settings.mic;
   const rules = settings.rules;
+  /* Whether the guard is on at all. The per-rule switches below are dead
+     while it is off, so they render disabled rather than pretending to work. */
+  const rulesOn = rules?.enabled === true;
 
   const debugBuka = useAiDebug((s) => s.buka);
   /* Tool counts, read as primitives: the Set itself is replaced on every
@@ -532,11 +537,18 @@ export default function ChatSettingsPage({
       isDefault: true,
     },
     {
-      section: 'tools',
+      /*
+       * The master switch lives at the TOP of the Rules section, not in Tools.
+       *
+       * It used to sit in Tools while the rules it controls were listed under
+       * Rules, so turning the guard on meant leaving the section that shows what
+       * it guards. The master belongs with its children.
+       */
+      section: 'rules',
       id: 'rules',
       label: 'Guard writes',
       hint: 'Refuse a save whose contents match a known-bad pattern.',
-      words: 'tools rules guard write refuse save pattern dangerous',
+      words: 'rules guard write refuse save pattern dangerous master',
       ctl: (
         <Toggle
           checked={rules?.enabled ?? false}
@@ -1804,6 +1816,156 @@ export default function ChatSettingsPage({
             st.setSettingsOpen(true);
             void import('../../lib/settingsStore').then((m) =>
               m.useSettingsUi.getState().setSection('mic'),
+            );
+          }}
+        >
+          {tr('Open…')}
+        </button>
+      ),
+      isDefault: true,
+    },
+
+    /* ── Write-guard rules, one row each ───────────────────────────────────
+     * Generated from the rule catalogue rather than typed out: the list is the
+     * single source of truth for which rules exist, and a hand-written row per
+     * rule would drift the moment one is added to the catalogue.
+     *
+     * `disabled` stores the rules that are OFF, so the checkbox is inverted
+     * against it — that is the schema's shape, not a preference.
+     */
+    ...RULES_BAWAAN.map((rule) => {
+      const mati = (settings.rules?.disabled ?? []).includes(rule.id);
+      return {
+        section: 'rules' as const,
+        id: `rule-${rule.id}`,
+        label: rule.id.replace(/-/g, ' '),
+        hint: rule.pesan,
+        words: `rules guard write ${rule.id.replace(/-/g, ' ')} ${rule.pesan}`,
+        ctl: (
+          <Toggle
+            checked={!mati}
+            testid={`cset-rule-${rule.id}`}
+            label={rule.id}
+            disabled={!rulesOn}            onChange={(nyala) => {
+              const now = new Set(settings.rules?.disabled ?? []);
+              if (nyala) now.delete(rule.id);
+              else now.add(rule.id);
+              void apply({ rules: { disabled: [...now] } });
+            }}
+          />
+        ),
+        isDefault: !mati,
+        reset: () => {
+          const now = new Set(settings.rules?.disabled ?? []);
+          now.delete(rule.id);
+          void apply({ rules: { disabled: [...now] } });
+        },
+      };
+    }),
+
+    /* ── Extension trust ─────────────────────────────────────────────────── */
+    {
+      section: 'advanced',
+      id: 'trust',
+      label: 'Extension trust',
+      hint: 'Which extensions may run code, and which are sandboxed.',
+      words: 'advanced extension trust allow sandbox code run permission',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-trust"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('extensions'),
+            );
+          }}
+        >
+          {tr(`${Object.keys(settings.extensions?.trust ?? {}).length} set…`)}
+        </button>
+      ),
+      isDefault: true,
+    },
+    {
+      section: 'advanced',
+      id: 'registry',
+      label: 'Extension registry',
+      hint: 'Where the extension list is fetched from.',
+      words: 'advanced extension registry url market source fetch',
+      ctl: (
+        <TextInput
+          value={settings.extensions?.registryUrl ?? ''}
+          testid="cset-registry"
+          label="Extension registry"
+          placeholder="https://…"
+          onChange={(v) => void apply({ extensions: { registryUrl: v } })}
+        />
+      ),
+      isDefault: (settings.extensions?.registryUrl ?? '') === '',
+      reset: () => void apply({ extensions: { registryUrl: '' } }),
+    },
+    {
+      section: 'advanced',
+      id: 'mcpcli',
+      label: 'MCP config writing',
+      hint: 'Which CLI config files Zephyr may edit to register its MCP server.',
+      words: 'advanced mcp cli config write register server claude codex',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-mcpcli"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('mcp'),
+            );
+          }}
+        >
+          {settings.mcp?.writeToCli?.length
+            ? tr(`${settings.mcp.writeToCli.length} selected…`)
+            : tr('Choose…')}
+        </button>
+      ),
+      isDefault: (settings.mcp?.writeToCli?.length ?? 0) === 0,
+    },
+    {
+      section: 'advanced',
+      id: 'mcptoken',
+      label: 'MCP token',
+      hint: 'The shared secret outside tools must send. Empty means no check.',
+      words: 'advanced mcp token secret auth bearer key',
+      ctl: (
+        <TextInput
+          value=""
+          testid="cset-mcptoken"
+          label="MCP token"
+          placeholder={settings.mcp?.token ? tr('Set — type to replace') : tr('Not set')}
+          password
+          onChange={(v) => void apply({ mcp: { token: v } })}
+        />
+      ),
+      isDefault: !settings.mcp?.token,
+    },
+    {
+      section: 'advanced',
+      id: 'idle',
+      label: 'Language server idle timeout',
+      hint: 'How long an analyser waits before it is shut down.',
+      words: 'advanced lsp language server idle timeout shutdown memory',
+      ctl: (
+        <button
+          className="btn btn-sm"
+          data-testid="cset-lspidle"
+          onClick={() => {
+            const st = useStore.getState();
+            st.setActivity('settings');
+            st.setSettingsOpen(true);
+            void import('../../lib/settingsStore').then((m) =>
+              m.useSettingsUi.getState().setSection('lsp'),
             );
           }}
         >
