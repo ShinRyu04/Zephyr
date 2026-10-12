@@ -14,7 +14,6 @@
   <p>
     <img src="https://img.shields.io/github/v/release/ShinRyu04/Zephyr?label=version&color=blue" alt="version" />
     <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="platform" />
-    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="license" />
   </p>
 </div>
 
@@ -97,7 +96,7 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 
 ## Install
 
-Download the latest installer from the [Releases](https://github.com/ShinRyu04/Zephyr/releases/latest) page and run it. If SmartScreen appears, choose **More info** then **Run anyway**; the build is not signed with a paid certificate, and the source is open to inspect. Zephyr auto-updates from Releases.
+Download the latest installer from the [Releases](https://github.com/ShinRyu04/Zephyr/releases/latest) page and run it. If SmartScreen appears, choose **More info** then **Run anyway**; the build is not signed with a paid certificate. Zephyr auto-updates from Releases.
 
 Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. Settings, keys, extensions, and logs live in `%APPDATA%\zephyr\`; delete that folder for a full reset.
 
@@ -128,11 +127,3 @@ npm run verify           # CDP verification harnesses in scripts/verify*.mjs
 ## Tech stack
 
 Tauri 2, Rust, `portable-pty`, React 18, TypeScript, Vite, CodeMirror 6, xterm.js, Zustand, axum.
-
-## Contributing
-
-Issues and pull requests are welcome. Bug reports are most useful with the diagnostics report from **Settings → About** (no secrets are included).
-
-## License
-
-Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
