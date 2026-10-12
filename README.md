@@ -106,24 +106,6 @@ Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. S
 2. Pick a provider and paste your API key, or choose **Local** / **Custom** and set the base URL (for Ollama, `http://127.0.0.1:11434/v1`).
 3. Keys are stored on the Rust side and are never sent to the frontend.
 
-## Build from source
-
-**Prerequisites:** Rust stable, Node 20 or newer, and the WebView2 Runtime.
-
-```bash
-npm install
-npm run tauri dev        # development
-npm run tauri build      # MSI + NSIS in src-tauri/target/release/bundle/
-```
-
-**Checks**
-
-```bash
-npx tsc --noEmit
-cd src-tauri && cargo test --lib
-npm run verify           # CDP verification harnesses in scripts/verify*.mjs
-```
-
 ## Tech stack
 
 Tauri 2, Rust, `portable-pty`, React 18, TypeScript, Vite, CodeMirror 6, xterm.js, Zustand, axum.
