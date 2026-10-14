@@ -97,8 +97,13 @@ All notable changes per release. Format follows the spirit of
   the project mark with motion instead of a spinner.
 
 ### Release gates
-- Build, automated test, updater end-to-end, and installer verification remain
-  pending for 1.1.13. No installer verification is claimed here.
+- Windows installers (MSI and NSIS), the portable build, and the Linux packages
+  (`.deb` and `.AppImage`) are built and signed. Each `.sig` verifies against
+  the public key embedded in the binaries, and `latest.json` on the latest
+  release points at those signed artifacts.
+- The release signing key was rotated: `1.1.12` and older report a signature
+  mismatch when they check for updates and need one manual install; `1.1.13`
+  and newer update automatically again.
 
 ## [1.1.12] - 2026-09-30
 
