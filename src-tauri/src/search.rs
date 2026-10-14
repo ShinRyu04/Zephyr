@@ -220,14 +220,18 @@ pub fn search_grep(
     };
 
     let Some(rg) = cari_rg(&state, rg_path.as_deref()) else {
-        return Ok(SearchSummary {
-            hits: 0,
-            files: 0,
-            truncated: false,
-            elapsed_ms: t0.elapsed().as_millis() as u64,
-            rg: String::new(),
-            error: "ripgrep (rg) tidak ditemukan di PATH maupun %APPDATA%\\zephyr\\bin".into(),
-        });
+        /*
+         * Tanpa ripgrep, JANGAN menyerah — cari sendiri.
+         *
+         * Mesin ini tidak punya `rg` di PATH, dan dulu itu membuat tool `grep`
+         * mengembalikan error pada SETIAP pemanggilan. Agent lalu membuang
+         * belasan langkah memakai PowerShell untuk meniru pencarian (itu sumber
+         * berkas `_*.txt`/`_*.ps1` sampah di hasil kerja), dan kerja berat jadi
+         * berantakan. Pencarian internal berbasis `walkdir` memberi hasil yang
+         * sama tanpa bergantung pada biner luar — persis yang dilakukan editor
+         * lain saat ripgrep tidak tersedia.
+         */
+        return grep_internal(&app, &opts, &root, batal_baru(&rt), t0);
     };
 
     let batal = Arc::new(AtomicBool::new(false));
@@ -380,6 +384,272 @@ pub fn search_cancel(rt: State<SearchRuntime>) -> bool {
     false
 }
 
+/* Daftarkan satu token pembatalan baru di runtime, membatalkan yang lama. */
+fn batal_baru(rt: &SearchRuntime) -> Arc<AtomicBool> {
+    let batal = Arc::new(AtomicBool::new(false));
+    let mut slot = rt.batal.lock().unwrap();
+    if let Some(lama) = slot.take() {
+        lama.store(true, Ordering::SeqCst);
+    }
+    *slot = Some(batal.clone());
+    batal
+}
+
+/* Direktori yang selalu dilewati pencarian internal — sama seperti default
+   ripgrep (menghormati .gitignore) untuk kasus yang paling umum. */
+const SKIP_DIR_INTERNAL: &[&str] = &[
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    ".cache",
+    "out",
+    "vendor",
+];
+
+const MAX_FILE_INTERNAL: u64 = 2 * 1024 * 1024;
+const MAX_DEPTH_INTERNAL: usize = 24;
+
+/*
+ * Pencarian isi berkas tanpa ripgrep.
+ *
+ * Dipakai hanya ketika `rg` tidak ada. Menjelajah `root` dengan `std::fs`,
+ * melewati direktori besar yang jelas (node_modules, target, .git, dll),
+ * melewati berkas biner dan yang lebih besar dari batas, lalu mencocokkan tiap
+ * baris dengan regex yang dibangun dari opsi. Memancarkan `search-hit` yang
+ * SAMA dengan jalur ripgrep, sehingga UI dan tool `grep` tidak tahu bedanya.
+ */
+fn grep_internal(
+    app: &AppHandle,
+    opts: &SearchOpts,
+    root: &Path,
+    batal: Arc<AtomicBool>,
+    t0: std::time::Instant,
+) -> ZResult<SearchSummary> {
+    let pattern = if opts.regex {
+        opts.query.clone()
+    } else {
+        regex::escape(&opts.query)
+    };
+    let re = regex::RegexBuilder::new(&pattern)
+        .case_insensitive(!opts.case_sensitive)
+        .build()
+        .map_err(|e| ZephyrError::InvalidInput(format!("invalid regex: {e}")))?;
+
+    let word = opts.whole_word;
+    let maks = opts.max_results.unwrap_or(MAX_HASIL_DEFAULT);
+
+    let bangun_glob = |spec: &str| -> Vec<globset::GlobMatcher> {
+        spec.split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .filter_map(|g| {
+                /*
+                 * `literal_separator(true)` supaya `*` BERHENTI di `/` dan hanya
+                 * `**` yang menyeberang folder - perilaku glob standar yang
+                 * dipakai ripgrep dan terax-ai. Dengan `false` (versi lama),
+                 * `*` ikut melahap `/`, jadi `*.html` cocok dengan path dalam di
+                 * subfolder mana pun dan filter kehilangan arti. Dipasangkan
+                 * dengan pencocokan pada path relatif ber-`/` di bawah, pola
+                 * seperti `senja/**/*.html` kini bekerja persis seperti di shell.
+                 */
+                globset::GlobBuilder::new(g)
+                    .literal_separator(true)
+                    .build()
+                    .ok()
+                    .map(|x| x.compile_matcher())
+            })
+            .collect()
+    };
+    let include = bangun_glob(&opts.include);
+    let exclude = bangun_glob(&opts.exclude);
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    kumpulkan_internal(root, &mut files, 0, opts.include_hidden);
+
+    let mut total = 0usize;
+    let mut jml_file = 0usize;
+    let mut truncated = false;
+    let mut buffer: Vec<RgHit> = Vec::with_capacity(64);
+
+    'outer: for file in files {
+        if batal.load(Ordering::SeqCst) {
+            truncated = true;
+            break;
+        }
+        let nama = file
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        /*
+         * Cocokkan glob pada PATH RELATIF yang dinormalkan ke garis-miring maju.
+         *
+         * Ini akar bug "grep tidak dipercaya" di Windows, dibuktikan dua kali:
+         * di run NADA/Senja model menyalahkan grep lalu memboroskan belasan
+         * langkah menyisir manual dengan PowerShell. Versi lama mencocokkan glob
+         * pada `nama` (nama berkas telanjang) ATAU `file` (path absolut Windows
+         * ber-backslash). Pola `senja/**/*.html` tidak pernah cocok dengan
+         * keduanya: `index.html` kehilangan segmen folder, dan `globset` memakai
+         * `/` sebagai pemisah sehingga `D:\Testing\senja\index.html` tak pernah
+         * cocok. IDE lain berarsitektur sama (terax-ai, Apache-2.0) memecahkannya
+         * dengan mencocokkan pada path relatif yang dikanonkan ke `/`
+         * (`to_canon(rel)`), dan pola itu diadopsi di sini: hitung path relatif
+         * dari `root`, ganti `\` jadi `/`, lalu cocokkan glob pada bentuk itu.
+         * `nama` dipertahankan sebagai alternatif untuk glob tanpa segmen folder
+         * seperti `*.html`.
+         */
+        let rel = file
+            .strip_prefix(root)
+            .unwrap_or(&file)
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        if !include.is_empty()
+            && !include.iter().any(|m| m.is_match(&rel) || m.is_match(&nama))
+        {
+            continue;
+        }
+        if exclude.iter().any(|m| m.is_match(&rel) || m.is_match(&nama)) {
+            continue;
+        }
+
+        let meta = match std::fs::metadata(&file) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        if meta.len() > MAX_FILE_INTERNAL {
+            continue;
+        }
+        let bytes = match std::fs::read(&file) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        /* Lewati berkas biner: NUL di 8 KB pertama adalah heuristik yang sama
+           dengan pencarian explorer. */
+        if bytes[..bytes.len().min(8192)].contains(&0) {
+            continue;
+        }
+        let text = match String::from_utf8(bytes) {
+            Ok(t) => t,
+            Err(e) => {
+                let (cow, _, _) = encoding_rs::WINDOWS_1252.decode(e.as_bytes());
+                cow.into_owned()
+            }
+        };
+
+        let path_str = file.to_string_lossy().to_string();
+        let mut file_punya_hit = false;
+
+        for (idx, baris) in text.lines().enumerate() {
+            let bersih = baris.trim_end_matches(['\n', '\r']);
+            let mut ranges: Vec<(u32, u32)> = Vec::new();
+            for m in re.find_iter(bersih) {
+                if word {
+                    /* --word-regexp: batas kata di kedua sisi kecocokan. */
+                    let kiri_ok = m.start() == 0
+                        || !bersih[..m.start()]
+                            .chars()
+                            .next_back()
+                            .map(|c| c.is_alphanumeric() || c == '_')
+                            .unwrap_or(false);
+                    let kanan_ok = m.end() == bersih.len()
+                        || !bersih[m.end()..]
+                            .chars()
+                            .next()
+                            .map(|c| c.is_alphanumeric() || c == '_')
+                            .unwrap_or(false);
+                    if !(kiri_ok && kanan_ok) {
+                        continue;
+                    }
+                }
+                let col = bersih[..m.start()].chars().count() as u32 + 1;
+                let len = m.as_str().chars().count() as u32;
+                ranges.push((col, len));
+            }
+            if ranges.is_empty() {
+                continue;
+            }
+            file_punya_hit = true;
+            let preview: String = if bersih.chars().count() > MAX_PREVIEW {
+                bersih.chars().take(MAX_PREVIEW).collect()
+            } else {
+                bersih.to_string()
+            };
+            for (col, len) in &ranges {
+                buffer.push(RgHit {
+                    path: path_str.clone(),
+                    line: idx as u32 + 1,
+                    col: *col,
+                    match_len: *len,
+                    preview: preview.clone(),
+                    ranges: ranges.clone(),
+                });
+                total += 1;
+                if total >= maks {
+                    truncated = true;
+                    kirim_internal(app, &path_str, &mut buffer);
+                    break 'outer;
+                }
+            }
+            if buffer.len() >= 40 {
+                kirim_internal(app, &path_str, &mut buffer);
+            }
+        }
+        if file_punya_hit {
+            jml_file += 1;
+        }
+        kirim_internal(app, &path_str, &mut buffer);
+    }
+
+    Ok(SearchSummary {
+        hits: total,
+        files: jml_file,
+        truncated,
+        elapsed_ms: t0.elapsed().as_millis() as u64,
+        rg: "(internal)".into(),
+        error: String::new(),
+    })
+}
+
+fn kirim_internal(app: &AppHandle, file: &str, hits: &mut Vec<RgHit>) {
+    if hits.is_empty() {
+        return;
+    }
+    let _ = app.emit(
+        "search-hit",
+        serde_json::json!({ "file": file, "hits": hits.clone() }),
+    );
+    hits.clear();
+}
+
+fn kumpulkan_internal(root: &Path, out: &mut Vec<PathBuf>, depth: usize, hidden: bool) {
+    if depth > MAX_DEPTH_INTERNAL || out.len() > 50_000 {
+        return;
+    }
+    let rd = match std::fs::read_dir(root) {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    for entry in rd.flatten() {
+        let nama = entry.file_name().to_string_lossy().to_string();
+        if !hidden && nama.starts_with('.') {
+            continue;
+        }
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir {
+            if SKIP_DIR_INTERNAL.contains(&nama.as_str()) {
+                continue;
+            }
+            kumpulkan_internal(&entry.path(), out, depth + 1, hidden);
+        } else {
+            out.push(entry.path());
+        }
+    }
+}
+
 #[tauri::command]
 pub fn search_rg_info(state: State<AppState>, rg_path: Option<String>) -> ZResult<Value> {
     let Some(rg) = cari_rg(&state, rg_path.as_deref()) else {
@@ -409,6 +679,27 @@ pub struct ReplaceHasil {
     pub error: String,
 }
 
+/**
+ * Batas jumlah berkas yang boleh disentuh SATU panggilan penggantian lintas
+ * berkas (`replace_in_files` -> `search_replace`).
+ *
+ * Kenapa 200:
+ * - Penyisir di sisi TS bisa mengumpulkan sampai 5000 berkas
+ *   (`listWorkspaceFiles(5000)`, builtins.ts:2360), jadi satu panggilan yang
+ *   salah glob bisa menyentuh hampir seluruh repo tanpa satu pun peringatan.
+ * - Angka nyata repo ini: berkas yang mengandung `ZephyrError` = 99, seluruh
+ *   berkas `.rs` = 82, seluruh `.md` = 13, seluruh `src-tauri/src` = 76.
+ *   Sapuan serentak yang masih masuk akal (mis. ganti nama satu simbol di
+ *   seluruh backend) ada di puluhan berkas, bukan ratusan - jadi 200 memberi
+ *   ruang ~2x di atas sapuan wajar terbesar.
+ * - Sapuan yang memang terlalu luas tetap tertangkap: 286 berkas `.ts/.tsx` di
+ *   `src/`, 826 berkas yang menyebut `zephyr`. Yang seperti itu harus
+ *   dipersempit dulu (glob/root), bukan dijalankan sekali jalan.
+ * - Di bawah batas ini hasilnya TIDAK berubah sama sekali: tidak ada berkas
+ *   yang dilewati, disaring, atau dipotong diam-diam.
+ */
+pub const MAKS_BERKAS_GANTI: usize = 200;
+
 #[tauri::command(async)]
 pub fn search_replace(
     state: State<AppState>,
@@ -416,8 +707,34 @@ pub fn search_replace(
     opts: SearchOpts,
     replacement: String,
 ) -> ZResult<Vec<ReplaceHasil>> {
+    ganti_lintas_berkas(&state, files, &opts, &replacement)
+}
+
+/**
+ * Badan `search_replace`, dipisah dari perintah supaya batas jumlah berkasnya
+ * bisa diuji dengan `AppState` nyata tanpa `tauri::State` (yang tidak bisa
+ * dibuat di uji unit).
+ */
+pub fn ganti_lintas_berkas(
+    state: &AppState,
+    files: Vec<String>,
+    opts: &SearchOpts,
+    replacement: &str,
+) -> ZResult<Vec<ReplaceHasil>> {
     if opts.query.trim().is_empty() {
         return Err(ZephyrError::InvalidInput("query empty".into()));
+    }
+
+    /*
+     * Diperiksa SEBELUM satu berkas pun dibaca atau ditulis: daftar yang terlalu
+     * panjang ditolak bulat, bukan dijalankan sebagian. Pesannya menyebut angka
+     * yang diminta dan batasnya, supaya pengguna tahu harus mempersempit apa.
+     */
+    if files.len() > MAKS_BERKAS_GANTI {
+        return Err(ZephyrError::InvalidInput(format!(
+            "penggantian lintas berkas menerima paling banyak {MAKS_BERKAS_GANTI} berkas, daftar ini {} berkas - persempit glob/root atau pecah jadi beberapa panggilan",
+            files.len()
+        )));
     }
 
     let pola = if opts.regex {
@@ -482,10 +799,10 @@ pub fn search_replace(
                     error: String::new(),
                 });
             }
-            let baru = re.replace_all(&teks, replacement.as_str()).to_string();
+            let baru = re.replace_all(&teks, replacement).to_string();
 
             let snap =
-                crate::history::snapshot_internal(&state, &p, "before-replace").unwrap_or_default();
+                crate::history::snapshot_internal(state, &p, "before-replace").unwrap_or_default();
 
             /*
              * Ditulis kembali dengan encoding dan akhir baris ASLINYA.
@@ -620,5 +937,195 @@ mod tests {
         let b: Value = serde_json::from_str(r#"{"bytes":"AAAA"}"#).unwrap();
         assert!(data_teks(&b).contains("non-UTF8"));
         assert_eq!(data_teks(&Value::Null), "");
+    }
+
+    /// Membangun matcher glob persis seperti `grep_internal`, lalu
+    /// mencocokkannya pada path relatif yang dinormalkan ke `/`. Ini mengunci
+    /// perbaikan bug "grep tidak dipercaya" di Windows: pola berfolder harus
+    /// cocok dengan path relatif ber-`/`, bukan dengan path absolut
+    /// ber-backslash atau nama berkas telanjang.
+    fn glob_cocok(spec: &str, root: &str, abs: &str) -> bool {
+        let matcher: Vec<globset::GlobMatcher> = spec
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .filter_map(|g| {
+                globset::GlobBuilder::new(g)
+                    .literal_separator(true)
+                    .build()
+                    .ok()
+                    .map(|x| x.compile_matcher())
+            })
+            .collect();
+        let file = Path::new(abs);
+        let nama = file
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let rel = file
+            .strip_prefix(Path::new(root))
+            .unwrap_or(file)
+            .to_string_lossy()
+            .replace('\\', "/");
+        matcher.iter().any(|m| m.is_match(&rel) || m.is_match(&nama))
+    }
+
+    #[test]
+    fn glob_folder_cocok_path_windows() {
+        // Bentuk paling umum yang ditulis model: `folder/**/*.ext`.
+        // Harus cocok dengan berkas langsung di folder dasar MAUPUN subfolder,
+        // walau path aslinya ber-backslash Windows.
+        assert!(glob_cocok(
+            "senja/**/*.html",
+            r"D:\Testing",
+            r"D:\Testing\senja\index.html"
+        ));
+        assert!(glob_cocok(
+            "senja/**/*.html",
+            r"D:\Testing",
+            r"D:\Testing\senja\sub\x.html"
+        ));
+        // Jangan cocok dengan ekstensi lain.
+        assert!(!glob_cocok(
+            "senja/**/*.html",
+            r"D:\Testing",
+            r"D:\Testing\senja\css\style.css"
+        ));
+        // Jangan bocor ke folder lain.
+        assert!(!glob_cocok(
+            "senja/**/*.html",
+            r"D:\Testing",
+            r"D:\Testing\nada\index.html"
+        ));
+    }
+
+    #[test]
+    fn glob_nama_telanjang_tetap_cocok() {
+        // Glob tanpa segmen folder dicocokkan pada nama berkas, di kedalaman
+        // mana pun - tetap berguna untuk `*.ts` dsb.
+        assert!(glob_cocok(
+            "*.css",
+            r"D:\Testing",
+            r"D:\Testing\senja\css\style.css"
+        ));
+    }
+
+    #[test]
+    fn glob_bintang_tunggal_tidak_menyeberang_folder() {
+        // `literal_separator(true)`: `*` berhenti di `/`. `senja/*.html` hanya
+        // cocok berkas LANGSUNG di `senja`, bukan di subfolder.
+        assert!(glob_cocok(
+            "senja/*.html",
+            r"D:\Testing",
+            r"D:\Testing\senja\index.html"
+        ));
+        assert!(!glob_cocok(
+            "senja/*.html",
+            r"D:\Testing",
+            r"D:\Testing\senja\sub\x.html"
+        ));
+    }
+
+    /*
+     * ---- Batas jumlah berkas penggantian lintas berkas ----
+     *
+     * Uji di bawah menjalankan `ganti_lintas_berkas` yang SESUNGGUHNYA (badan
+     * `search_replace`) dengan `AppState` nyata dan berkas nyata di folder
+     * sementara: yang dibuktikan adalah perilaku di disk, bukan salinan logika.
+     */
+
+    fn kerja_ganti(nama: &str) -> (AppState, PathBuf) {
+        let akar = std::env::temp_dir().join(format!(
+            "zephyr-batas-ganti-{nama}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&akar);
+        let ws = akar.join("ws");
+        let data = akar.join("data");
+        std::fs::create_dir_all(&ws).expect("buat workspace");
+        std::fs::create_dir_all(&data).expect("buat data");
+        let mut st = AppState::new();
+        st.data_dir = data;
+        st.set_workspace(crate::paths::canonical_or_parent(&ws))
+            .expect("set workspace");
+        (st, ws)
+    }
+
+    fn buat_berkas(ws: &Path, n: usize) -> Vec<String> {
+        let mut daftar = Vec::with_capacity(n);
+        for i in 0..n {
+            let p = ws.join(format!("b{i:04}.txt"));
+            std::fs::write(&p, "halo dunia\n").expect("tulis berkas uji");
+            daftar.push(p.to_string_lossy().replace('\\', "/"));
+        }
+        daftar
+    }
+
+    fn opsi_ganti(q: &str) -> SearchOpts {
+        opts(q)
+    }
+
+    #[test]
+    fn ganti_ditolak_saat_daftar_melebihi_batas() {
+        let (st, ws) = kerja_ganti("lebih");
+        let daftar = buat_berkas(&ws, MAKS_BERKAS_GANTI + 1);
+
+        let e = ganti_lintas_berkas(&st, daftar.clone(), &opsi_ganti("halo"), "hai")
+            .expect_err("daftar di atas batas harus ditolak");
+        assert_eq!(e.code(), "InvalidInput");
+        let pesan = e.to_string();
+        assert!(pesan.contains(&MAKS_BERKAS_GANTI.to_string()), "{pesan}");
+        assert!(pesan.contains(&(MAKS_BERKAS_GANTI + 1).to_string()), "{pesan}");
+
+        // Tidak satu berkas pun boleh berubah saat penolakan.
+        for f in &daftar {
+            let isi = std::fs::read_to_string(f).expect("baca berkas");
+            assert_eq!(isi, "halo dunia\n", "berkas {f} tidak boleh berubah");
+        }
+        let _ = std::fs::remove_dir_all(ws.parent().unwrap());
+    }
+
+    #[test]
+    fn ganti_tepat_di_batas_tetap_mengganti_seperti_biasa() {
+        let (st, ws) = kerja_ganti("tepat");
+        let semua = buat_berkas(&ws, MAKS_BERKAS_GANTI);
+        assert_eq!(semua.len(), MAKS_BERKAS_GANTI);
+
+        let hasil = ganti_lintas_berkas(&st, semua.clone(), &opsi_ganti("halo"), "hai")
+            .expect("tepat di batas harus jalan");
+        assert_eq!(hasil.len(), MAKS_BERKAS_GANTI);
+        assert!(
+            hasil.iter().all(|h| h.jumlah == 1 && h.error.is_empty()),
+            "semua berkas harus tergantikan: {:?}",
+            hasil.iter().find(|h| h.error != "").map(|h| &h.error)
+        );
+
+        for f in &semua {
+            let isi = std::fs::read_to_string(f).expect("baca berkas");
+            assert_eq!(isi, "hai dunia\n", "berkas {f} harus sudah diganti");
+        }
+        let _ = std::fs::remove_dir_all(ws.parent().unwrap());
+    }
+
+    #[test]
+    fn ganti_di_bawah_batas_tidak_berubah_hasilnya() {
+        let (st, ws) = kerja_ganti("bawah");
+        let daftar = buat_berkas(&ws, 3);
+
+        let hasil = ganti_lintas_berkas(&st, daftar.clone(), &opsi_ganti("halo"), "hai")
+            .expect("di bawah batas harus jalan");
+        assert_eq!(hasil.len(), 3);
+
+        // Berkas yang tidak punya kecocokan tetap dilaporkan dengan jumlah 0.
+        let kosong = ws.join("tanpa-cocok.txt");
+        std::fs::write(&kosong, "tidak ada kata itu\n").unwrap();
+        let mut lagi = daftar.clone();
+        lagi.push(kosong.to_string_lossy().replace('\\', "/"));
+        let hasil2 = ganti_lintas_berkas(&st, lagi, &opsi_ganti("halo"), "hai")
+            .expect("daftar kecil harus jalan");
+        assert_eq!(hasil2.len(), 4);
+        assert_eq!(hasil2[3].jumlah, 0);
+        assert!(hasil2[3].error.is_empty());
+        let _ = std::fs::remove_dir_all(ws.parent().unwrap());
     }
 }

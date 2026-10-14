@@ -6,7 +6,7 @@ import {
   SEMUA_TOOL,
   SECTION_URUTAN,
 } from '../../lib/toolGate';
-import { POLA_AWALAN_MCP } from '../../lib/zephyrTools/catalog';
+import { POLA_AWALAN_MCP, TOOL_BY_NAME } from '../../lib/zephyrTools/catalog';
 /*
  * Hook diimpor dari berkas Hook yang terpisah.
  *
@@ -99,6 +99,20 @@ export default function ToolGatePanel() {
   }, [cari, aktif]);
 
   const totalNyala = SEMUA_TOOL.filter((t) => aktif.has(t)).length;
+
+  /*
+   * Tombol "All on" menyalakan semuanya sekaligus - termasuk tool yang menulis
+   * berkas, mendownload, atau menjalankan perintah di mesin ini. Yang belum
+   * menyala itu daftar kerja tombol ini, jadi peringatannya menyebut angka
+   * nyata (bukan "hati-hati") tepat di atas tombolnya: user tahu apa yang
+   * didapat sebelum menekan, bukan sesudah.
+   *
+   * Dihitung dari katalog, bukan dari daftar nama yang ditulis tangan, supaya
+   * peringatan tidak bisa berbohong ketika katalognya berubah.
+   */
+  const matiWajibIzin = SEMUA_TOOL.filter(
+    (t) => !aktif.has(t) && TOOL_BY_NAME.get(t)?.needsApproval,
+  );
 
   /*
    * Awalan MCP adalah detail protokol, bukan nama yang perlu dibaca user.
@@ -300,6 +314,20 @@ export default function ToolGatePanel() {
             );
           })}
         </div>
+
+        {matiWajibIzin.length > 0 && (
+          <p className="tg-awas" data-testid="toolgate-all-on-awas">
+            {tr(
+              'All on sends all {n} tool schemas on every request, and {m} of them ask for approval before running:',
+            )
+              .replace('{n}', String(SEMUA_TOOL.length))
+              .replace('{m}', String(matiWajibIzin.length))}{' '}
+            <code className="tg-awas-nama">
+              {matiWajibIzin.slice(0, 4).map(namaTampil).join(', ')}
+              {matiWajibIzin.length > 4 ? ', ...' : ''}
+            </code>
+          </p>
+        )}
 
         <div className="tg-foot">
           <span className="tg-total" data-testid="toolgate-total">

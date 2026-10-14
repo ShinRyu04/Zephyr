@@ -15,10 +15,22 @@ const { cdp } = await Cdp.attach(PORT);
 const h = await cdp.json(`return JSON.stringify(await (async () => {
   const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  /* Buka picker kalau belum terbuka. */
+  /* Buka picker kalau belum terbuka - jalur UI nyata: tombol "..." (ai-more)
+     -> menu -> "Chat Settings" (ai-open-chat-settings) -> nav Tools
+     (cset-nav-tools) -> "Open tool sets…" (cset-tools). Entri menu "Tool Sets"
+     (ai-open-toolsets) dan tombol lama 'ai-toolgate' sudah dihapus dari UI. */
   if (!document.querySelector('[data-testid="toolgate"]')) {
-    document.querySelector('[data-testid="ai-toolgate"]').click();
+    document.querySelector('[data-testid="ai-more"]')?.click();
     await tidur(300);
+    document.querySelector('[data-testid="ai-open-chat-settings"]')?.click();
+    await tidur(500);
+    document.querySelector('[data-testid="cset-nav-tools"]')?.click();
+    await tidur(400);
+    document.querySelector('[data-testid="cset-tools"]')?.click();
+    await tidur(600);
+  }
+  if (!document.querySelector('[data-testid="toolgate"]')) {
+    throw new Error('picker tool tidak terbuka lewat menu "..." -> Chat Settings -> Tools -> "Open tool sets…" (cset-tools)');
   }
   /* Pastikan ada yang tercentang supaya kotak terisinya bisa diperiksa. */
   const ada = document.querySelector('.tg-row.is-on');

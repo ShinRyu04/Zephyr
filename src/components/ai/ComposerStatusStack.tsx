@@ -22,7 +22,16 @@ export default function ComposerStatusStack() {
   const tr = useT();
   const todos = useAi((s) => s.agentTodos);
   const agentBusy = useAi((s) => s.agentBusy);
-  const setTodos = useAi((s) => s.setAgentTodos);
+  /*
+   * Penghapusan butuh jalur sendiri.
+   *
+   * `setAgentTodos([])` TIDAK mengosongkan daftar: setAgentTodos sengaja
+   * menambal-balik tugas yang tidak ikut disebut, jadi kedua tombol "Clear ..."
+   * di menu bawah ini dulu cuma menutup menu - barisnya tetap penuh. Jalur
+   * eksplisitnya `kosongkanTodos`/`buangTodosSelesai`.
+   */
+  const kosongkanTodos = useAi((s) => s.kosongkanTodos);
+  const buangTodosSelesai = useAi((s) => s.buangTodosSelesai);
   const subagents = useSubAgent((s) => s.agents);
 
   const [lipat, setLipat] = useState<boolean>(() => {
@@ -184,7 +193,7 @@ export default function ComposerStatusStack() {
                   type="button"
                   className="composer-menu-item"
                   onClick={() => {
-                    setTodos(todos.filter((t) => t.status !== 'done'));
+                    buangTodosSelesai();
                     setMenuBuka(false);
                   }}
                 >
@@ -196,7 +205,7 @@ export default function ComposerStatusStack() {
                   type="button"
                   className="composer-menu-item"
                   onClick={() => {
-                    setTodos([]);
+                    kosongkanTodos();
                     setMenuBuka(false);
                   }}
                 >

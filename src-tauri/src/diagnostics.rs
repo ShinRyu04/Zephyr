@@ -175,7 +175,11 @@ fn domain_status(state: &AppState) -> Vec<DomainStatus> {
             let kb = std::fs::metadata(&p).map(|m| m.len() / 1024).unwrap_or(0);
             out.push(baris("log", "ok", format!("{kb} KB (rotate 2 MB)")));
         }
-        _ => out.push(baris("log", "warn", "the log file has not been created yet".into())),
+        _ => out.push(baris(
+            "log",
+            "warn",
+            "the log file has not been created yet".into(),
+        )),
     }
 
     out

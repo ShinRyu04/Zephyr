@@ -1,0 +1,18 @@
+UJI TABEL MARKDOWN (ZEPH-FORMAT-TABEL)
+
+(0) perender yang dipakai jawaban Zeph (dibaca dari sumber)
+  OK    plugin GFM terpasang di ChatMessage.tsx      MD_PLUGINS = [remarkGfm]
+  OK    jawaban dirender lewat <Markdown remarkPlugins={MD_PLUGINS}> komponen MD_JAWABAN
+  INFO  MD_JAWABAN menimpa `table`                   tidak (pakai bawaan react-markdown)
+  INFO  pembungkus scroll tabel                      tidak ada
+
+(1) render nyata (react-dom/server, react-markdown@9 + remark-gfm@4)
+  OK    A tabel didahului baris kosong               HTML memuat <table><td>
+  OK    B tabel TANPA baris kosong di depan          HTML memuat <table><td>
+  OK    C tabel di awal jawaban                      HTML memuat <table><td>
+  OK    D daftar + tabel                             tabel + <ul> keduanya ada
+  OK    E pipa di dalam kode tetap kode              bukan tabel (benar)
+  OK    F tabel di dalam blockquote                  jadi tabel
+
+  SKOR: 8 lulus / 8 diperiksa
+  VERDICT: LULUS - perender sanggup mengeluarkan tabel GFM di semua bentuk yang diuji

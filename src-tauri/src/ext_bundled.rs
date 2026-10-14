@@ -27,6 +27,8 @@ const TEMA_KERTAS: &str = r##"{
 
 const TEMA_KERTAS_JSON: &str = r##"{
   "colors": {
+    "--bg": "#faf7f0",
+    "--fg": "#2e2a24",
     "--bg0": "#faf7f0",
     "--bg1": "#f3efe5",
     "--bg2": "#eae5d8",
@@ -45,11 +47,21 @@ const TEMA_KERTAS_JSON: &str = r##"{
     "--danger": "#b3352f",
     "--warning": "#9a6b12",
     "--terminal-ansi-0": "#2e2a24",
-    "--syntax-comment": "#8b8272",
-    "--syntax-keyword": "#8a3fa0",
-    "--syntax-string": "#4f7a28",
-    "--syntax-number": "#a2662f",
-    "--syntax-function": "#2f6ba2"
+    "--editor-bg": "#faf7f0",
+    "--editor-gutter": "#a89f8c",
+    "--editor-active-line": "#f0ebdd",
+    "--editor-selection": "#e3dccb",
+    "--syn-comment": "#8b8272",
+    "--syn-keyword": "#8a3fa0",
+    "--syn-string": "#4f7a28",
+    "--syn-number": "#a2662f",
+    "--syn-function": "#2f6ba2",
+    "--syn-variable": "#7a5c2e",
+    "--syn-type": "#1f7a6f",
+    "--syn-operator": "#6f6759",
+    "--syn-tag": "#1f7a6f",
+    "--syn-attr": "#2f6ba2",
+    "--syn-invalid": "#b3352f"
   }
 }"##;
 
@@ -214,16 +226,13 @@ const IKON_BULAT_JSON: &str = r##"{
 
 const LANG_APL: &str = r##"{"id":"zephyr.lang-apl","name":"Bahasa APL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight APL (.apl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"apl","label":"APL","extensions":[".apl"],"legacyMode":"apl"}]}}"##;
 const LANG_ASCIIARMOR: &str = r##"{"id":"zephyr.lang-asciiarmor","name":"Bahasa ASCII Armor","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight ASCII Armor (.asc).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"asciiarmor","label":"ASCII Armor","extensions":[".asc", ".pgp"],"legacyMode":"asciiarmor"}]}}"##;
-const LANG_ASTERISK: &str = r##"{"id":"zephyr.lang-asterisk","name":"Bahasa Asterisk","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Asterisk (.conf).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"asterisk","label":"Asterisk","extensions":[".conf"],"legacyMode":"asterisk"}]}}"##;
 const LANG_BRAINFUCK: &str = r##"{"id":"zephyr.lang-brainfuck","name":"Bahasa Brainfuck","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Brainfuck (.bf).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"brainfuck","label":"Brainfuck","extensions":[".bf", ".b"],"legacyMode":"brainfuck"}]}}"##;
-const LANG_CLIKE: &str = r##"{"id":"zephyr.lang-clike","name":"Bahasa C / C++","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight C / C++ (.c).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"clike","label":"C / C++","extensions":[".c", ".h", ".cpp", ".hpp", ".cc", ".cxx"],"legacyMode":"clike"}]}}"##;
 const LANG_CLOJURE: &str = r##"{"id":"zephyr.lang-clojure","name":"Bahasa Clojure","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Clojure (.clj).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"clojure","label":"Clojure","extensions":[".clj", ".cljc", ".cljs"],"legacyMode":"clojure"}]}}"##;
 const LANG_CMAKE: &str = r##"{"id":"zephyr.lang-cmake","name":"Bahasa CMake","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight CMake (.cmake).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"cmake","label":"CMake","extensions":[".cmake"],"legacyMode":"cmake"}]}}"##;
 const LANG_COBOL: &str = r##"{"id":"zephyr.lang-cobol","name":"Bahasa COBOL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight COBOL (.cbl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"cobol","label":"COBOL","extensions":[".cbl", ".cob"],"legacyMode":"cobol"}]}}"##;
 const LANG_COFFEESCRIPT: &str = r##"{"id":"zephyr.lang-coffeescript","name":"Bahasa CoffeeScript","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight CoffeeScript (.coffee).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"coffeescript","label":"CoffeeScript","extensions":[".coffee"],"legacyMode":"coffeescript"}]}}"##;
 const LANG_COMMONLISP: &str = r##"{"id":"zephyr.lang-commonlisp","name":"Bahasa Common Lisp","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Common Lisp (.lisp).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"commonlisp","label":"Common Lisp","extensions":[".lisp", ".lsp"],"legacyMode":"commonlisp"}]}}"##;
 const LANG_CRYSTAL: &str = r##"{"id":"zephyr.lang-crystal","name":"Bahasa Crystal","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Crystal (.cr).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"crystal","label":"Crystal","extensions":[".cr"],"legacyMode":"crystal"}]}}"##;
-const LANG_CSS: &str = r##"{"id":"zephyr.lang-css","name":"Bahasa CSS","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight CSS (.css).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"css","label":"CSS","extensions":[".css"],"legacyMode":"css"}]}}"##;
 const LANG_CYPHER: &str = r##"{"id":"zephyr.lang-cypher","name":"Bahasa Cypher","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Cypher (.cyp).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"cypher","label":"Cypher","extensions":[".cyp", ".cypher"],"legacyMode":"cypher"}]}}"##;
 const LANG_D: &str = r##"{"id":"zephyr.lang-d","name":"Bahasa D","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight D (.d).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"d","label":"D","extensions":[".d"],"legacyMode":"d"}]}}"##;
 const LANG_DIFF: &str = r##"{"id":"zephyr.lang-diff","name":"Bahasa Diff","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Diff (.diff).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"diff","label":"Diff","extensions":[".diff", ".patch", ".rej"],"legacyMode":"diff"}]}}"##;
@@ -241,20 +250,17 @@ const LANG_FORTH: &str = r##"{"id":"zephyr.lang-forth","name":"Bahasa Forth","pu
 const LANG_FORTRAN: &str = r##"{"id":"zephyr.lang-fortran","name":"Bahasa Fortran","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Fortran (.f).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"fortran","label":"Fortran","extensions":[".f", ".f90", ".f95", ".f03", ".for"],"legacyMode":"fortran"}]}}"##;
 const LANG_GAS: &str = r##"{"id":"zephyr.lang-gas","name":"Bahasa Assembly (GAS)","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Assembly (GAS) (.s).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"gas","label":"Assembly (GAS)","extensions":[".s", ".asm"],"legacyMode":"gas"}]}}"##;
 const LANG_GHERKIN: &str = r##"{"id":"zephyr.lang-gherkin","name":"Bahasa Gherkin","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Gherkin (.feature).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"gherkin","label":"Gherkin","extensions":[".feature"],"legacyMode":"gherkin"}]}}"##;
-const LANG_GO: &str = r##"{"id":"zephyr.lang-go","name":"Bahasa Go","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Go (.go).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"go","label":"Go","extensions":[".go"],"legacyMode":"go"}]}}"##;
 const LANG_GROOVY: &str = r##"{"id":"zephyr.lang-groovy","name":"Bahasa Groovy","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Groovy (.groovy).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"groovy","label":"Groovy","extensions":[".groovy", ".gradle", ".gvy"],"legacyMode":"groovy"}]}}"##;
 const LANG_HASKELL: &str = r##"{"id":"zephyr.lang-haskell","name":"Bahasa Haskell","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Haskell (.hs).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"haskell","label":"Haskell","extensions":[".hs", ".lhs"],"legacyMode":"haskell"}]}}"##;
 const LANG_HAXE: &str = r##"{"id":"zephyr.lang-haxe","name":"Bahasa Haxe","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Haxe (.hx).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"haxe","label":"Haxe","extensions":[".hx"],"legacyMode":"haxe"}]}}"##;
 const LANG_HTTP: &str = r##"{"id":"zephyr.lang-http","name":"Bahasa HTTP","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight HTTP (.http).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"http","label":"HTTP","extensions":[".http", ".rest"],"legacyMode":"http"}]}}"##;
 const LANG_IDL: &str = r##"{"id":"zephyr.lang-idl","name":"Bahasa IDL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight IDL (.idl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"idl","label":"IDL","extensions":[".idl"],"legacyMode":"idl"}]}}"##;
-const LANG_JAVASCRIPT: &str = r##"{"id":"zephyr.lang-javascript","name":"Bahasa JavaScript","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight JavaScript (.js).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"javascript","label":"JavaScript","extensions":[".js", ".mjs", ".cjs", ".jsx"],"legacyMode":"javascript"}]}}"##;
 const LANG_JINJA2: &str = r##"{"id":"zephyr.lang-jinja2","name":"Bahasa Jinja2","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Jinja2 (.jinja).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"jinja2","label":"Jinja2","extensions":[".jinja", ".j2", ".jinja2"],"legacyMode":"jinja2"}]}}"##;
 const LANG_JULIA: &str = r##"{"id":"zephyr.lang-julia","name":"Bahasa Julia","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Julia (.jl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"julia","label":"Julia","extensions":[".jl"],"legacyMode":"julia"}]}}"##;
 const LANG_LIVESCRIPT: &str = r##"{"id":"zephyr.lang-livescript","name":"Bahasa LiveScript","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight LiveScript (.ls).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"livescript","label":"LiveScript","extensions":[".ls"],"legacyMode":"livescript"}]}}"##;
-const LANG_LUA: &str = r##"{"id":"zephyr.lang-lua","name":"Bahasa Lua","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Lua (.lua).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"lua","label":"Lua","extensions":[".lua"],"legacyMode":"lua"}]}}"##;
 const LANG_MATHEMATICA: &str = r##"{"id":"zephyr.lang-mathematica","name":"Bahasa Wolfram","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Wolfram (.m).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"mathematica","label":"Wolfram","extensions":[".m", ".wl", ".wls"],"legacyMode":"mathematica"}]}}"##;
 const LANG_MBOX: &str = r##"{"id":"zephyr.lang-mbox","name":"Bahasa Mbox","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Mbox (.mbox).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"mbox","label":"Mbox","extensions":[".mbox"],"legacyMode":"mbox"}]}}"##;
-const LANG_MIRC: &str = r##"{"id":"zephyr.lang-mirc","name":"Bahasa mIRC","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight mIRC (.mrc).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"mirc","label":"mIRC","extensions":[".mrc", ".ini"],"legacyMode":"mirc"}]}}"##;
+const LANG_MIRC: &str = r##"{"id":"zephyr.lang-mirc","name":"Bahasa mIRC","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight mIRC (.mrc).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"mirc","label":"mIRC","extensions":[".mrc"],"legacyMode":"mirc"}]}}"##;
 const LANG_MLLIKE: &str = r##"{"id":"zephyr.lang-mllike","name":"Bahasa OCaml / SML","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight OCaml / SML (.ml).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"mllike","label":"OCaml / SML","extensions":[".ml", ".mli", ".sml"],"legacyMode":"mllike"}]}}"##;
 const LANG_MODELICA: &str = r##"{"id":"zephyr.lang-modelica","name":"Bahasa Modelica","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Modelica (.mo).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"modelica","label":"Modelica","extensions":[".mo"],"legacyMode":"modelica"}]}}"##;
 const LANG_MSCGEN: &str = r##"{"id":"zephyr.lang-mscgen","name":"Bahasa MscGen","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight MscGen (.msc).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"mscgen","label":"MscGen","extensions":[".msc"],"legacyMode":"mscgen"}]}}"##;
@@ -266,40 +272,34 @@ const LANG_OCTAVE: &str = r##"{"id":"zephyr.lang-octave","name":"Bahasa MATLAB /
 const LANG_OZ: &str = r##"{"id":"zephyr.lang-oz","name":"Bahasa Oz","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Oz (.oz).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"oz","label":"Oz","extensions":[".oz"],"legacyMode":"oz"}]}}"##;
 const LANG_PASCAL: &str = r##"{"id":"zephyr.lang-pascal","name":"Bahasa Pascal","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Pascal (.pas).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"pascal","label":"Pascal","extensions":[".pas", ".pp", ".dpr", ".lpr"],"legacyMode":"pascal"}]}}"##;
 const LANG_PEGJS: &str = r##"{"id":"zephyr.lang-pegjs","name":"Bahasa PEG.js","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight PEG.js (.pegjs).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"pegjs","label":"PEG.js","extensions":[".pegjs", ".peg"],"legacyMode":"pegjs"}]}}"##;
-const LANG_PERL: &str = r##"{"id":"zephyr.lang-perl","name":"Bahasa Perl","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Perl (.pl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"perl","label":"Perl","extensions":[".pl", ".pm", ".t", ".pod"],"legacyMode":"perl"}]}}"##;
+const LANG_PERL: &str = r##"{"id":"zephyr.lang-perl","name":"Bahasa Perl","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Perl (.t, .pod).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"perl","label":"Perl","extensions":[".t",".pod"],"legacyMode":"perl"}]}}"##;
 const LANG_PIG: &str = r##"{"id":"zephyr.lang-pig","name":"Bahasa Pig","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Pig (.pig).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"pig","label":"Pig","extensions":[".pig"],"legacyMode":"pig"}]}}"##;
-const LANG_POWERSHELL: &str = r##"{"id":"zephyr.lang-powershell","name":"Bahasa PowerShell","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight PowerShell (.ps1).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"powershell","label":"PowerShell","extensions":[".ps1", ".psm1", ".psd1"],"legacyMode":"powershell"}]}}"##;
-const LANG_PROPERTIES: &str = r##"{"id":"zephyr.lang-properties","name":"Bahasa Properties","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Properties (.properties).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"properties","label":"Properties","extensions":[".properties", ".ini", ".cfg", ".conf"],"legacyMode":"properties"}]}}"##;
+const LANG_POWERSHELL: &str = r##"{"id":"zephyr.lang-powershell","name":"Bahasa PowerShell","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight PowerShell (.psm1, .psd1).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"powershell","label":"PowerShell","extensions":[".psm1",".psd1"],"legacyMode":"powershell"}]}}"##;
 const LANG_PROTOBUF: &str = r##"{"id":"zephyr.lang-protobuf","name":"Bahasa Protocol Buffers","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Protocol Buffers (.proto).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"protobuf","label":"Protocol Buffers","extensions":[".proto"],"legacyMode":"protobuf"}]}}"##;
 const LANG_PUG: &str = r##"{"id":"zephyr.lang-pug","name":"Bahasa Pug","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Pug (.pug).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"pug","label":"Pug","extensions":[".pug", ".jade"],"legacyMode":"pug"}]}}"##;
 const LANG_PUPPET: &str = r##"{"id":"zephyr.lang-puppet","name":"Bahasa Puppet","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Puppet (.pp).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"puppet","label":"Puppet","extensions":[".pp"],"legacyMode":"puppet"}]}}"##;
-const LANG_PYTHON: &str = r##"{"id":"zephyr.lang-python","name":"Bahasa Python","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Python (.py).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"python","label":"Python","extensions":[".py", ".pyw", ".pyi"],"legacyMode":"python"}]}}"##;
+const LANG_PYTHON: &str = r##"{"id":"zephyr.lang-python","name":"Bahasa Python","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Python (.pyi).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"python","label":"Python","extensions":[".pyi"],"legacyMode":"python"}]}}"##;
 const LANG_Q: &str = r##"{"id":"zephyr.lang-q","name":"Bahasa q/Kdb+","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight q/Kdb+ (.q).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"q","label":"q/Kdb+","extensions":[".q"],"legacyMode":"q"}]}}"##;
 const LANG_R: &str = r##"{"id":"zephyr.lang-r","name":"Bahasa R","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight R (.r).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"r","label":"R","extensions":[".r", ".R", ".Rmd"],"legacyMode":"r"}]}}"##;
 const LANG_RPM: &str = r##"{"id":"zephyr.lang-rpm","name":"Bahasa RPM Spec","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight RPM Spec (.spec).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"rpm","label":"RPM Spec","extensions":[".spec"],"legacyMode":"rpm"}]}}"##;
-const LANG_RUBY: &str = r##"{"id":"zephyr.lang-ruby","name":"Bahasa Ruby","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Ruby (.rb).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"ruby","label":"Ruby","extensions":[".rb", ".erb", ".gemspec"],"legacyMode":"ruby"}]}}"##;
-const LANG_RUST: &str = r##"{"id":"zephyr.lang-rust","name":"Bahasa Rust","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Rust (.rs).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"rust","label":"Rust","extensions":[".rs"],"legacyMode":"rust"}]}}"##;
+const LANG_RUBY: &str = r##"{"id":"zephyr.lang-ruby","name":"Bahasa Ruby","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Ruby (.erb, .gemspec).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"ruby","label":"Ruby","extensions":[".erb",".gemspec"],"legacyMode":"ruby"}]}}"##;
 const LANG_SAS: &str = r##"{"id":"zephyr.lang-sas","name":"Bahasa sas","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight sas (.sas).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"sas","label":"sas","extensions":[".sas"],"legacyMode":"sas"}]}}"##;
-const LANG_SASS: &str = r##"{"id":"zephyr.lang-sass","name":"Bahasa Sass","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Sass (.sass).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"sass","label":"Sass","extensions":[".sass", ".scss"],"legacyMode":"sass"}]}}"##;
+const LANG_SASS: &str = r##"{"id":"zephyr.lang-sass","name":"Bahasa Sass","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Sass (.sass).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"sass","label":"Sass","extensions":[".sass"],"legacyMode":"sass"}]}}"##;
 const LANG_SCHEME: &str = r##"{"id":"zephyr.lang-scheme","name":"Bahasa Scheme","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Scheme (.scm).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"scheme","label":"Scheme","extensions":[".scm", ".ss", ".rkt"],"legacyMode":"scheme"}]}}"##;
-const LANG_SHELL: &str = r##"{"id":"zephyr.lang-shell","name":"Bahasa Shell / Bash","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Shell / Bash (.sh).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"shell","label":"Shell / Bash","extensions":[".sh", ".bash", ".zsh", ".fish"],"legacyMode":"shell"}]}}"##;
+const LANG_SHELL: &str = r##"{"id":"zephyr.lang-shell","name":"Bahasa Shell / Bash","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Shell / Bash (.fish).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"shell","label":"Shell / Bash","extensions":[".fish"],"legacyMode":"shell"}]}}"##;
 const LANG_SIEVE: &str = r##"{"id":"zephyr.lang-sieve","name":"Bahasa Sieve","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Sieve (.sieve).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"sieve","label":"Sieve","extensions":[".sieve"],"legacyMode":"sieve"}]}}"##;
 const LANG_SMALLTALK: &str = r##"{"id":"zephyr.lang-smalltalk","name":"Bahasa Smalltalk","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Smalltalk (.st).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"smalltalk","label":"Smalltalk","extensions":[".st", ".sq"],"legacyMode":"smalltalk"}]}}"##;
 const LANG_SOLR: &str = r##"{"id":"zephyr.lang-solr","name":"Bahasa Solr","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Solr (.solr).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"solr","label":"Solr","extensions":[".solr"],"legacyMode":"solr"}]}}"##;
 const LANG_SPARQL: &str = r##"{"id":"zephyr.lang-sparql","name":"Bahasa SPARQL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight SPARQL (.rq).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"sparql","label":"SPARQL","extensions":[".rq", ".sparql"],"legacyMode":"sparql"}]}}"##;
 const LANG_SPREADSHEET: &str = r##"{"id":"zephyr.lang-spreadsheet","name":"Bahasa CSV / TSV","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight CSV / TSV (.csv).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"spreadsheet","label":"CSV / TSV","extensions":[".csv", ".tsv", ".tab"],"legacyMode":"spreadsheet"}]}}"##;
-const LANG_SQL: &str = r##"{"id":"zephyr.lang-sql","name":"Bahasa SQL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight SQL (.sql).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"sql","label":"SQL","extensions":[".sql"],"legacyMode":"sql"}]}}"##;
 const LANG_STEX: &str = r##"{"id":"zephyr.lang-stex","name":"Bahasa LaTeX","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight LaTeX (.tex).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"stex","label":"LaTeX","extensions":[".tex", ".ltx", ".sty"],"legacyMode":"stex"}]}}"##;
 const LANG_STYLUS: &str = r##"{"id":"zephyr.lang-stylus","name":"Bahasa Stylus","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Stylus (.styl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"stylus","label":"Stylus","extensions":[".styl"],"legacyMode":"stylus"}]}}"##;
-const LANG_SWIFT: &str = r##"{"id":"zephyr.lang-swift","name":"Bahasa Swift","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Swift (.swift).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"swift","label":"Swift","extensions":[".swift"],"legacyMode":"swift"}]}}"##;
 const LANG_TCL: &str = r##"{"id":"zephyr.lang-tcl","name":"Bahasa Tcl","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Tcl (.tcl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"tcl","label":"Tcl","extensions":[".tcl", ".tk"],"legacyMode":"tcl"}]}}"##;
 const LANG_TEXTILE: &str = r##"{"id":"zephyr.lang-textile","name":"Bahasa Textile","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Textile (.textile).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"textile","label":"Textile","extensions":[".textile"],"legacyMode":"textile"}]}}"##;
 const LANG_TIDDLYWIKI: &str = r##"{"id":"zephyr.lang-tiddlywiki","name":"Bahasa TiddlyWiki","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight TiddlyWiki (.tid).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"tiddlywiki","label":"TiddlyWiki","extensions":[".tid", ".wiki"],"legacyMode":"tiddlywiki"}]}}"##;
 const LANG_TIKI: &str = r##"{"id":"zephyr.lang-tiki","name":"Bahasa Tiki","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Tiki (.tiki).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"tiki","label":"Tiki","extensions":[".tiki"],"legacyMode":"tiki"}]}}"##;
-const LANG_TOML: &str = r##"{"id":"zephyr.lang-toml","name":"Bahasa TOML","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight TOML (.toml).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"toml","label":"TOML","extensions":[".toml"],"legacyMode":"toml"}]}}"##;
 const LANG_TROFF: &str = r##"{"id":"zephyr.lang-troff","name":"Bahasa troff","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight troff (.roff).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"troff","label":"troff","extensions":[".roff", ".man", ".1", ".groff"],"legacyMode":"troff"}]}}"##;
 const LANG_TTCN: &str = r##"{"id":"zephyr.lang-ttcn","name":"Bahasa TTCN-3","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight TTCN-3 (.ttcn).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"ttcn","label":"TTCN-3","extensions":[".ttcn", ".ttcn3"],"legacyMode":"ttcn"}]}}"##;
-const LANG_TTCN_CFG: &str = r##"{"id":"zephyr.lang-ttcn-cfg","name":"Bahasa TTCN CFG","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight TTCN CFG (.cfg).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"ttcn-cfg","label":"TTCN CFG","extensions":[".cfg"],"legacyMode":"ttcn-cfg"}]}}"##;
 const LANG_TURTLE: &str = r##"{"id":"zephyr.lang-turtle","name":"Bahasa Turtle","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Turtle (.ttl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"turtle","label":"Turtle","extensions":[".ttl", ".turtle", ".nt"],"legacyMode":"turtle"}]}}"##;
 const LANG_VB: &str = r##"{"id":"zephyr.lang-vb","name":"Bahasa Visual Basic","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Visual Basic (.vb).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"vb","label":"Visual Basic","extensions":[".vb", ".vbs"],"legacyMode":"vb"}]}}"##;
 const LANG_VBSCRIPT: &str = r##"{"id":"zephyr.lang-vbscript","name":"Bahasa VBScript","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight VBScript (.vbs).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"vbscript","label":"VBScript","extensions":[".vbs", ".vbe"],"legacyMode":"vbscript"}]}}"##;
@@ -308,10 +308,9 @@ const LANG_VERILOG: &str = r##"{"id":"zephyr.lang-verilog","name":"Bahasa Verilo
 const LANG_VHDL: &str = r##"{"id":"zephyr.lang-vhdl","name":"Bahasa VHDL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight VHDL (.vhd).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"vhdl","label":"VHDL","extensions":[".vhd", ".vhdl"],"legacyMode":"vhdl"}]}}"##;
 const LANG_WAST: &str = r##"{"id":"zephyr.lang-wast","name":"Bahasa WebAssembly Text","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight WebAssembly Text (.wast).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"wast","label":"WebAssembly Text","extensions":[".wast", ".wat"],"legacyMode":"wast"}]}}"##;
 const LANG_WEBIDL: &str = r##"{"id":"zephyr.lang-webidl","name":"Bahasa Web IDL","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Web IDL (.webidl).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"webidl","label":"Web IDL","extensions":[".webidl", ".idl"],"legacyMode":"webidl"}]}}"##;
-const LANG_XML: &str = r##"{"id":"zephyr.lang-xml","name":"Bahasa XML / HTML","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight XML / HTML (.xml).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"xml","label":"XML / HTML","extensions":[".xml", ".xsd", ".xsl", ".xhtml", ".svg"],"legacyMode":"xml"}]}}"##;
+const LANG_XML: &str = r##"{"id":"zephyr.lang-xml","name":"Bahasa XML / HTML","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight XML / HTML (.xsd, .xsl, .xhtml).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"xml","label":"XML / HTML","extensions":[".xsd",".xsl",".xhtml"],"legacyMode":"xml"}]}}"##;
 const LANG_XQUERY: &str = r##"{"id":"zephyr.lang-xquery","name":"Bahasa XQuery","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight XQuery (.xq).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"xquery","label":"XQuery","extensions":[".xq", ".xquery", ".xql"],"legacyMode":"xquery"}]}}"##;
 const LANG_YACAS: &str = r##"{"id":"zephyr.lang-yacas","name":"Bahasa Yacas","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Yacas (.ys).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"yacas","label":"Yacas","extensions":[".ys"],"legacyMode":"yacas"}]}}"##;
-const LANG_YAML: &str = r##"{"id":"zephyr.lang-yaml","name":"Bahasa YAML","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight YAML (.yaml).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"yaml","label":"YAML","extensions":[".yaml", ".yml"],"legacyMode":"yaml"}]}}"##;
 const LANG_Z80: &str = r##"{"id":"zephyr.lang-z80","name":"Bahasa Z80 Assembly","publisher":"zephyr","version":"1.0.0","description":"Syntax highlight Z80 Assembly (.z80).","engines":{"zephyr":">=1.0"},"categories":["Languages"],"contributes":{"languages":[{"id":"z80","label":"Z80 Assembly","extensions":[".z80", ".asm"],"legacyMode":"z80"}]}}"##;
 
 const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
@@ -330,25 +329,11 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#6b7280",
     ),
     (
-        "zephyr.lang-asterisk",
-        "Asterisk",
-        "Asterisk syntax for the editor (CodeMirror legacy mode).",
-        "AS",
-        "#f47f2a",
-    ),
-    (
         "zephyr.lang-brainfuck",
         "Brainfuck",
         "Brainfuck syntax for the editor (CodeMirror legacy mode).",
         "BR",
         "#ff6ec7",
-    ),
-    (
-        "zephyr.lang-clike",
-        "C / C++",
-        "C / C++ syntax for the editor (CodeMirror legacy mode).",
-        "CC",
-        "#659ad2",
     ),
     (
         "zephyr.lang-clojure",
@@ -391,13 +376,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "Crystal syntax for the editor (CodeMirror legacy mode).",
         "CR",
         "#1a1a1a",
-    ),
-    (
-        "zephyr.lang-css",
-        "CSS",
-        "CSS syntax for the editor (CodeMirror legacy mode).",
-        "CSS",
-        "#1572b6",
     ),
     (
         "zephyr.lang-cypher",
@@ -519,13 +497,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#4a90d9",
     ),
     (
-        "zephyr.lang-go",
-        "Go",
-        "Go syntax for the editor (CodeMirror legacy mode).",
-        "GO",
-        "#00add8",
-    ),
-    (
         "zephyr.lang-groovy",
         "Groovy",
         "Groovy syntax for the editor (CodeMirror legacy mode).",
@@ -561,13 +532,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#e35b2a",
     ),
     (
-        "zephyr.lang-javascript",
-        "JavaScript",
-        "JavaScript syntax for the editor (CodeMirror legacy mode).",
-        "JA",
-        "#f7df1e",
-    ),
-    (
         "zephyr.lang-jinja2",
         "Jinja2",
         "Jinja2 syntax for the editor (CodeMirror legacy mode).",
@@ -587,13 +551,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "LiveScript syntax for the editor (CodeMirror legacy mode).",
         "LI",
         "#4a90d9",
-    ),
-    (
-        "zephyr.lang-lua",
-        "Lua",
-        "Lua syntax for the editor (CodeMirror legacy mode).",
-        "LUA",
-        "#2c4f7c",
     ),
     (
         "zephyr.lang-mathematica",
@@ -715,13 +672,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#012456",
     ),
     (
-        "zephyr.lang-properties",
-        "Properties",
-        "Properties syntax for the editor (CodeMirror legacy mode).",
-        "PR",
-        "#8a8a8a",
-    ),
-    (
         "zephyr.lang-protobuf",
         "Protocol Buffers",
         "Protocol Buffers syntax for the editor (CodeMirror legacy mode).",
@@ -776,13 +726,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "Ruby syntax for the editor (CodeMirror legacy mode).",
         "RUB",
         "#cc342d",
-    ),
-    (
-        "zephyr.lang-rust",
-        "Rust",
-        "Rust syntax for the editor (CodeMirror legacy mode).",
-        "RUS",
-        "#dea584",
     ),
     (
         "zephyr.lang-sas",
@@ -848,13 +791,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#476f9e",
     ),
     (
-        "zephyr.lang-sql",
-        "SQL",
-        "SQL syntax for the editor (CodeMirror legacy mode).",
-        "SQL",
-        "#e38c00",
-    ),
-    (
         "zephyr.lang-stex",
         "LaTeX",
         "LaTeX syntax for the editor (CodeMirror legacy mode).",
@@ -867,13 +803,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "Stylus syntax for the editor (CodeMirror legacy mode).",
         "ST",
         "#ff6347",
-    ),
-    (
-        "zephyr.lang-swift",
-        "Swift",
-        "Swift syntax for the editor (CodeMirror legacy mode).",
-        "SW",
-        "#f05138",
     ),
     (
         "zephyr.lang-tcl",
@@ -904,13 +833,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#9e8547",
     ),
     (
-        "zephyr.lang-toml",
-        "TOML",
-        "TOML syntax for the editor (CodeMirror legacy mode).",
-        "TOM",
-        "#9c4221",
-    ),
-    (
         "zephyr.lang-troff",
         "troff",
         "troff syntax for the editor (CodeMirror legacy mode).",
@@ -923,13 +845,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "TTCN-3 syntax for the editor (CodeMirror legacy mode).",
         "TT",
         "#91479e",
-    ),
-    (
-        "zephyr.lang-ttcn-cfg",
-        "TTCN CFG",
-        "TTCN CFG syntax for the editor (CodeMirror legacy mode).",
-        "TT",
-        "#47679e",
     ),
     (
         "zephyr.lang-turtle",
@@ -1009,13 +924,6 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "#47579e",
     ),
     (
-        "zephyr.lang-yaml",
-        "YAML",
-        "YAML syntax for the editor (CodeMirror legacy mode).",
-        "YAM",
-        "#cb171e",
-    ),
-    (
         "zephyr.lang-z80",
         "Z80 Assembly",
         "Z80 Assembly syntax for the editor (CodeMirror legacy mode).",
@@ -1030,16 +938,8 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         &[("zephyr-extension.json", LANG_ASCIIARMOR)],
     ),
     (
-        "zephyr.lang-asterisk",
-        &[("zephyr-extension.json", LANG_ASTERISK)],
-    ),
-    (
         "zephyr.lang-brainfuck",
         &[("zephyr-extension.json", LANG_BRAINFUCK)],
-    ),
-    (
-        "zephyr.lang-clike",
-        &[("zephyr-extension.json", LANG_CLIKE)],
     ),
     (
         "zephyr.lang-clojure",
@@ -1065,7 +965,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         "zephyr.lang-crystal",
         &[("zephyr-extension.json", LANG_CRYSTAL)],
     ),
-    ("zephyr.lang-css", &[("zephyr-extension.json", LANG_CSS)]),
     (
         "zephyr.lang-cypher",
         &[("zephyr-extension.json", LANG_CYPHER)],
@@ -1110,7 +1009,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         "zephyr.lang-gherkin",
         &[("zephyr-extension.json", LANG_GHERKIN)],
     ),
-    ("zephyr.lang-go", &[("zephyr-extension.json", LANG_GO)]),
     (
         "zephyr.lang-groovy",
         &[("zephyr-extension.json", LANG_GROOVY)],
@@ -1123,10 +1021,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-http", &[("zephyr-extension.json", LANG_HTTP)]),
     ("zephyr.lang-idl", &[("zephyr-extension.json", LANG_IDL)]),
     (
-        "zephyr.lang-javascript",
-        &[("zephyr-extension.json", LANG_JAVASCRIPT)],
-    ),
-    (
         "zephyr.lang-jinja2",
         &[("zephyr-extension.json", LANG_JINJA2)],
     ),
@@ -1138,7 +1032,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         "zephyr.lang-livescript",
         &[("zephyr-extension.json", LANG_LIVESCRIPT)],
     ),
-    ("zephyr.lang-lua", &[("zephyr-extension.json", LANG_LUA)]),
     (
         "zephyr.lang-mathematica",
         &[("zephyr-extension.json", LANG_MATHEMATICA)],
@@ -1190,10 +1083,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         &[("zephyr-extension.json", LANG_POWERSHELL)],
     ),
     (
-        "zephyr.lang-properties",
-        &[("zephyr-extension.json", LANG_PROPERTIES)],
-    ),
-    (
         "zephyr.lang-protobuf",
         &[("zephyr-extension.json", LANG_PROTOBUF)],
     ),
@@ -1210,7 +1099,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-r", &[("zephyr-extension.json", LANG_R)]),
     ("zephyr.lang-rpm", &[("zephyr-extension.json", LANG_RPM)]),
     ("zephyr.lang-ruby", &[("zephyr-extension.json", LANG_RUBY)]),
-    ("zephyr.lang-rust", &[("zephyr-extension.json", LANG_RUST)]),
     ("zephyr.lang-sas", &[("zephyr-extension.json", LANG_SAS)]),
     ("zephyr.lang-sass", &[("zephyr-extension.json", LANG_SASS)]),
     (
@@ -1238,15 +1126,10 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         "zephyr.lang-spreadsheet",
         &[("zephyr-extension.json", LANG_SPREADSHEET)],
     ),
-    ("zephyr.lang-sql", &[("zephyr-extension.json", LANG_SQL)]),
     ("zephyr.lang-stex", &[("zephyr-extension.json", LANG_STEX)]),
     (
         "zephyr.lang-stylus",
         &[("zephyr-extension.json", LANG_STYLUS)],
-    ),
-    (
-        "zephyr.lang-swift",
-        &[("zephyr-extension.json", LANG_SWIFT)],
     ),
     ("zephyr.lang-tcl", &[("zephyr-extension.json", LANG_TCL)]),
     (
@@ -1258,16 +1141,11 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         &[("zephyr-extension.json", LANG_TIDDLYWIKI)],
     ),
     ("zephyr.lang-tiki", &[("zephyr-extension.json", LANG_TIKI)]),
-    ("zephyr.lang-toml", &[("zephyr-extension.json", LANG_TOML)]),
     (
         "zephyr.lang-troff",
         &[("zephyr-extension.json", LANG_TROFF)],
     ),
     ("zephyr.lang-ttcn", &[("zephyr-extension.json", LANG_TTCN)]),
-    (
-        "zephyr.lang-ttcn-cfg",
-        &[("zephyr-extension.json", LANG_TTCN_CFG)],
-    ),
     (
         "zephyr.lang-turtle",
         &[("zephyr-extension.json", LANG_TURTLE)],
@@ -1300,7 +1178,6 @@ const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
         "zephyr.lang-yacas",
         &[("zephyr-extension.json", LANG_YACAS)],
     ),
-    ("zephyr.lang-yaml", &[("zephyr-extension.json", LANG_YAML)]),
     ("zephyr.lang-z80", &[("zephyr-extension.json", LANG_Z80)]),
 ];
 
@@ -1340,12 +1217,10 @@ const PAKET: &[Paket] = &[
             ("icons/bulat.json", IKON_BULAT_JSON),
         ],
     ),
-
     /* ── Extra catalog ─────────────────────────────────────────────────
-       Icon themes, keymaps, snippets and one theme. Declared in
-       ext_bundled_extra.rs; listed here so cari_paket and bundled_ids see
-       them without a second lookup path. */
-
+    Icon themes, keymaps, snippets and one theme. Declared in
+    ext_bundled_extra.rs; listed here so cari_paket and bundled_ids see
+    them without a second lookup path. */
     (
         "zephyr.ikon-garis",
         &[
@@ -1508,11 +1383,9 @@ const META_PAKET: &[(&str, &str, &str, &str, &[&str])] = &[
         "IB",
         &[],
     ),
-
     /* The extra catalog. An entry missing here is not an error — index_bundled
-       falls back to the id as the name — but the card then reads
-       "zephyr.ikon-garis" instead of "Ikon Garis", which looks like a bug. */
-
+    falls back to the id as the name — but the card then reads
+    "zephyr.ikon-garis" instead of "Ikon Garis", which looks like a bug. */
     (
         "zephyr.ikon-garis",
         "Line Icons",

@@ -1,0 +1,49 @@
+{
+  "katalog": 67,
+  "dikirimSelalu": 26,
+  "batas": 20,
+  "maksPerGiliran": 23,
+  "tugas": [
+    {
+      "label": "baca berkas",
+      "tugas": "Baca src/lib/aiStore.ts, ringkas fungsi penyimpanan pesan",
+      "jumlah": 17
+    },
+    {
+      "label": "perbaiki kode + uji",
+      "tugas": "Perbaiki bug di src/lib/zephyrTools/builtins.ts lalu jalankan test-nya",
+      "jumlah": 23
+    },
+    {
+      "label": "tulis banyak berkas",
+      "tugas": "Tulis 20 komponen React baru untuk halaman admin di src/components/admin",
+      "jumlah": 23
+    },
+    {
+      "label": "tugas web + berkas",
+      "tugas": "Cari harga tiket pesawat ke Bali di web, lalu buka halaman hasilnya",
+      "jumlah": 20
+    },
+    {
+      "label": "berat: shell + hapus",
+      "tugas": "Rapikan repo: ganti nama folder, hapus berkas build, jalankan build ulang",
+      "jumlah": 23
+    },
+    {
+      "label": "berat: repo-wide + tulis",
+      "tugas": "Rekam regresi di seluruh repo lalu tulis ringkasannya ke docs/laporan.md",
+      "jumlah": 23
+    }
+  ],
+  "tembusan": [
+    "perbaiki kode + uji (Perbaiki bug di src/lib/zephyrTools/builtins.ts …) = 23",
+    "tulis banyak berkas (Tulis 20 komponen React baru untuk halaman admin…) = 23",
+    "berat: shell + hapus (Rapikan repo: ganti nama folder, hapus berkas bu…) = 23",
+    "berat: repo-wide + tulis (Rekam regresi di seluruh repo lalu tulis ringkas…) = 23"
+  ],
+  "takTerjangkau": [
+    "tambah isi (append)"
+  ],
+  "celah": 11,
+  "gagal": true
+}

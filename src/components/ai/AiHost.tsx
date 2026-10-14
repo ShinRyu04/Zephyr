@@ -77,7 +77,7 @@ export default function AiHost() {
         data-testid="ai-host-tab-chat"
         onClick={() => setActive('chat')}
       >
-        {tr('Chat')}
+        {tr('Agent')}
       </button>
       {cliTabs.map((c) => (
         <button

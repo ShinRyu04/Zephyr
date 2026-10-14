@@ -122,10 +122,12 @@ fn dimensi(b: &[u8]) -> (u32, u32) {
 pub fn baca_gambar(path: String) -> ZResult<GambarData> {
     let p = Path::new(&path);
     if !p.is_file() {
-        return Err(ZephyrError::NotFound(format!("file does not exist: {path}")));
+        return Err(ZephyrError::NotFound(format!(
+            "file does not exist: {path}"
+        )));
     }
-    let meta = std::fs::metadata(p)
-        .map_err(|e| ZephyrError::Io(format!("cannot read info file: {e}")))?;
+    let meta =
+        std::fs::metadata(p).map_err(|e| ZephyrError::Io(format!("cannot read info file: {e}")))?;
     if meta.len() > MAX_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
             "gambar terlalu besar ({} MB, maks {} MB)",
@@ -169,13 +171,17 @@ pub fn simpan_gambar_temp(base64: String, ext: String) -> ZResult<String> {
     use base64::Engine;
 
     /* The extension decides nothing about safety, but it DOES decide how the
-       CLI reads the file: a PNG named `.bin` is not recognised as an image, so
-       the extension is validated against a small allow-list rather than
-       sanitised into something the model cannot open. */
+    CLI reads the file: a PNG named `.bin` is not recognised as an image, so
+    the extension is validated against a small allow-list rather than
+    sanitised into something the model cannot open. */
     let ext = ext.trim_start_matches('.').to_ascii_lowercase();
     let ext = match ext.as_str() {
         "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" => {
-            if ext == "jpeg" { "jpg".to_string() } else { ext }
+            if ext == "jpeg" {
+                "jpg".to_string()
+            } else {
+                ext
+            }
         }
         other => {
             return Err(ZephyrError::InvalidInput(format!(
@@ -197,8 +203,8 @@ pub fn simpan_gambar_temp(base64: String, ext: String) -> ZResult<String> {
     }
 
     /* Content hash for the name: same screenshot -> same path -> the caller's
-       `xs.some(x => x.path === path)` dedupe keeps working, and the temp dir
-       does not grow by one file per paste. */
+    `xs.some(x => x.path === path)` dedupe keeps working, and the temp dir
+    does not grow by one file per paste. */
     let hash = blake3::hash(&bytes).to_hex();
     let nama = format!("{}.{}", &hash[..24], ext);
 
@@ -208,8 +214,10 @@ pub fn simpan_gambar_temp(base64: String, ext: String) -> ZResult<String> {
     let path = dir.join(nama);
 
     /* Skip the write when the file is already there and the same size: the
-       name IS the hash, so an existing file with that name is that image. */
-    let sudah_ada = std::fs::metadata(&path).map(|m| m.len() == bytes.len() as u64).unwrap_or(false);
+    name IS the hash, so an existing file with that name is that image. */
+    let sudah_ada = std::fs::metadata(&path)
+        .map(|m| m.len() == bytes.len() as u64)
+        .unwrap_or(false);
     if !sudah_ada {
         std::fs::write(&path, &bytes)
             .map_err(|e| ZephyrError::Io(format!("cannot write temp image: {e}")))?;

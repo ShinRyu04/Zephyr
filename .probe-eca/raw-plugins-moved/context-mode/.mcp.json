@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "context-mode": {
+      "command": "${plugin:root}/hooks/ctx-server.sh"
+    }
+  }
+}

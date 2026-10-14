@@ -59,7 +59,7 @@ await cdp.json(`return JSON.stringify(await (async () => {
 const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
 const b64 = shot?.result?.data;
 if (!b64) throw new Error('captureScreenshot gagal');
-const out = 'D:/Zephyr/docs/screenshots/14-subagent-tedi.png';
+const out = 'D:/Zephyr/docs/screenshots/14-subagent.png';
 writeFileSync(out, Buffer.from(b64, 'base64'));
 console.log(`  tersimpan: ${out}`);
 

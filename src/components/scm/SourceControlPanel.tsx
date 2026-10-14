@@ -277,19 +277,154 @@ function ChangeRow({ c }: { c: GitChange }) {
   );
 }
 
+/**
+ * One node of the folder tree built from a flat change list.
+ *
+ * A change list is flat because that is what `git status` prints, but a
+ * repository's changes have structure: forty files under `src/components/ai/`
+ * and two under `docs/`. Printed flat, the two `docs/` entries are somewhere in
+ * the middle of forty lines that all start with the same folder name — which is
+ * exactly the information the tree collapses.
+ */
+interface SimpulMap {
+  /** Full path of this folder. */
+  jalur: string;
+  /** Entries whose immediate parent is this folder. */
+  berkas: GitChange[];
+  /** Child folders, keyed by their own full path. */
+  anak: Map<string, SimpulMap>;
+}
+
+function simpulBaru(jalur: string): SimpulMap {
+  return { jalur, berkas: [], anak: new Map() };
+}
+
+/**
+ * Group changes by their parent folder.
+ *
+ * `dirOf` gives the display folder with a trailing separator; the tree needs the
+ * path WITHOUT it, so the split is done on the path itself rather than reusing
+ * the display helper — a folder called `src/` and a file called `src` would
+ * otherwise collide.
+ *
+ * A change with no separator (a top-level file like `README.md`) hangs off the
+ * root, which is the correct place for it.
+ */
+function pohonDari(items: GitChange[]): SimpulMap {
+  const akar = simpulBaru('');
+  for (const c of items) {
+    const pisah = c.path.replace(/\\/g, '/').split('/');
+    pisah.pop();
+    let kini = akar;
+    let jalur = '';
+    for (const bagian of pisah) {
+      jalur = jalur ? `${jalur}/${bagian}` : bagian;
+      let next = kini.anak.get(jalur);
+      if (!next) {
+        next = simpulBaru(jalur);
+        kini.anak.set(jalur, next);
+      }
+      kini = next;
+    }
+    kini.berkas.push(c);
+  }
+  return akar;
+}
+
+/** Folders start open: a tree that arrives fully collapsed hides the changes it
+ *  was opened to show. */
+const FOLDER_TERTUTUP_AWAL = new Set<string>();
+
+function Cabang({
+  simpul,
+  kedalaman,
+  tertutup,
+  setTertutup,
+}: {
+  simpul: SimpulMap;
+  kedalaman: number;
+  tertutup: Set<string>;
+  setTertutup: (f: (s: Set<string>) => Set<string>) => void;
+}) {
+  const tr = useT();
+  /* Folders before files, each alphabetical: the order a file tree is read in. */
+  const folder = [...simpul.anak.values()].sort((a, b) => a.jalur.localeCompare(b.jalur));
+  const berkas = [...simpul.berkas].sort((a, b) => a.path.localeCompare(b.path));
+
+  return (
+    <>
+      {folder.map((f) => {
+        const nama = f.jalur.split('/').pop() ?? f.jalur;
+        const tutup = tertutup.has(f.jalur);
+        const jumlah = hitungBerkas(f);
+        return (
+          <div key={f.jalur} className="scm-tree-folder">
+            <button
+              className="scm-tree-folder-head"
+              style={{ paddingLeft: `${8 + kedalaman * 12}px` }}
+              data-testid="scm-folder"
+              data-folder={f.jalur}
+              aria-expanded={!tutup}
+              title={f.jalur}
+              onClick={() =>
+                setTertutup((s) => {
+                  const n = new Set(s);
+                  if (n.has(f.jalur)) n.delete(f.jalur);
+                  else n.add(f.jalur);
+                  return n;
+                })
+              }
+            >
+              <span className={`scm-tree-chev${tutup ? '' : ' is-open'}`} aria-hidden="true">
+                ▸
+              </span>
+              <span className="scm-tree-fname">{nama}</span>
+              <span className="scm-tree-count">{jumlah}</span>
+            </button>
+            {!tutup && (
+              <Cabang simpul={f} kedalaman={kedalaman + 1} tertutup={tertutup} setTertutup={setTertutup} />
+            )}
+          </div>
+        );
+      })}
+      {berkas.map((c) => (
+        <div key={`${c.staged ? 's' : 'w'}:${c.path}`} style={{ paddingLeft: `${kedalaman * 12}px` }}>
+          <ul className="scm-list is-tree">
+            <ChangeRow c={c} />
+          </ul>
+        </div>
+      ))}
+      {folder.length === 0 && berkas.length === 0 && (
+        <p className="scm-tree-empty">{tr('No changes')}</p>
+      )}
+    </>
+  );
+}
+
+/** How many changes live under a folder, counting nested ones. */
+function hitungBerkas(s: SimpulMap): number {
+  let n = s.berkas.length;
+  for (const a of s.anak.values()) n += hitungBerkas(a);
+  return n;
+}
+
 function Group({
   title,
   items,
   staged,
+  mode,
 }: {
   title: string;
   items: GitChange[];
   staged: boolean;
+  /** `tree` groups by folder; `flat` lists every path as git prints it. */
+  mode: 'tree' | 'flat';
 }) {
   const tr = useT();
   const stage = useGit((s) => s.stage);
   const unstage = useGit((s) => s.unstage);
   const setConfirm = useGit((s) => s.setConfirm);
+  const [tertutup, setTertutup] = useState<Set<string>>(new Set(FOLDER_TERTUTUP_AWAL));
   if (items.length === 0) return null;
   const paths = items.map((c) => c.path);
 
@@ -323,11 +458,22 @@ function Group({
           </button>
         </div>
       </div>
-      <ul className="scm-list">
-        {items.map((c) => (
-          <ChangeRow key={`${c.staged ? 's' : 'w'}:${c.path}`} c={c} />
-        ))}
-      </ul>
+      {mode === 'flat' ? (
+        <ul className="scm-list">
+          {items.map((c) => (
+            <ChangeRow key={`${c.staged ? 's' : 'w'}:${c.path}`} c={c} />
+          ))}
+        </ul>
+      ) : (
+        <div className="scm-tree" data-testid={staged ? 'scm-tree-staged' : 'scm-tree-unstaged'}>
+          <Cabang
+            simpul={pohonDari(items)}
+            kedalaman={0}
+            tertutup={tertutup}
+            setTertutup={setTertutup}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -564,6 +710,19 @@ function GitGraphSection() {
 
 export default function SourceControlPanel() {
   const tr = useT();
+  /*
+   * Tree by default.
+   *
+   * A flat list is what `git status` prints, and for a handful of changes it is
+   * the shortest thing to read. Past that it stops being readable: a change set
+   * touching one folder deeply is forty rows that all begin with the same
+   * twenty characters, and the eye has to scan to the tail of each row to find
+   * the one file it wants. The tree folds that prefix into a single row.
+   *
+   * Kept in component state, not settings: it is a way of looking at one change
+   * set, like a sort order, not a preference about the editor.
+   */
+  const [mode, setMode] = useState<'tree' | 'flat'>('tree');
   const workspace = useStore((s) => s.workspace);
   const status = useGit((s) => s.status);
   const message = useGit((s) => s.message);
@@ -636,6 +795,36 @@ export default function SourceControlPanel() {
       <div className="scm-head">
         <span className="scm-title">Source Control</span>
         <div className="scm-head-actions">
+          {/*
+           * Tree / flat toggle.
+           *
+           * Sits in the header beside the git actions rather than inside each
+           * section, because it is a property of how the whole change set is
+           * drawn — two toggles, one per section, could disagree with each
+           * other and leave the panel showing two different shapes at once.
+           */}
+          <button
+            className="ex-btn"
+            title={mode === 'tree' ? tr('Show as a flat list') : tr('Group by folder')}
+            aria-label={mode === 'tree' ? tr('Show as a flat list') : tr('Group by folder')}
+            aria-pressed={mode === 'tree'}
+            data-testid="scm-view-toggle"
+            data-mode={mode}
+            onClick={() => setMode((m) => (m === 'tree' ? 'flat' : 'tree'))}
+          >
+            {mode === 'tree' ? (
+              /* A list glyph: what pressing it switches TO. */
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M3 4h10M3 8h10M3 12h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+              </svg>
+            ) : (
+              /* A folder-tree glyph. */
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M2.5 3.5h3.2l1 1.4h6.8v7.6h-11z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M5.5 8h5M5.5 10.4h3.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" fill="none" />
+              </svg>
+            )}
+          </button>
           <button
             className="ex-btn"
             title={busy ? `Running git…` : 'Sync (pull then push)'}
@@ -898,8 +1087,8 @@ export default function SourceControlPanel() {
       )}
 
       <div className="scm-body">
-        <Group title="Staged Changes" items={staged} staged />
-        <Group title="Changes" items={unstaged} staged={false} />
+        <Group title="Staged Changes" items={staged} staged mode={mode} />
+        <Group title="Changes" items={unstaged} staged={false} mode={mode} />
         {changes.length === 0 && (
           <p className="side-muted scm-clean" data-testid="scm-clean">
             {tr('No changes - the working tree is clean.')}

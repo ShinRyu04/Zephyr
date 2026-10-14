@@ -7,6 +7,7 @@ import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
 import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
+import { useAiModels } from './aiModelsStore';
 import { useExtensions } from './extensionStore';
 import { commandsEkstensi } from './extLoader';
 import { sandboxCommands, runEkstensiCommand } from './extHost';
@@ -32,7 +33,7 @@ import { useOutput } from './outputStore';
 import { useProblems } from './problemsStore';
 import { useLsp } from './lspStore';
 import { serverForPath } from './lsp';
-import { THEMES, semuaTema } from './themes';
+import { semuaTema } from './themes';
 import { keHex6 } from './cmColor';
 import type { EditorSettings } from './types';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
@@ -76,6 +77,26 @@ export interface CommandDef {
 
 const S = () => useStore.getState();
 const T = () => useTerminal.getState();
+
+/*
+ * Bring the AI chat forward in whichever HOME is configured.
+ *
+ * The chat has its own surfaces — the right column (VSCode secondary side bar
+ * style), an editor tab, or a pop-out window — and NO bottom-dock tab: that tab
+ * was removed because clicking anything AI-shaped kept yanking the terminal
+ * panel open. `bukaAi` is the single funnel every AI command uses so no one can
+ * reintroduce the bottom path by accident.
+ */
+function bukaAi(): void {
+  const s = S();
+  s.setSettingsOpen(false);
+  if ((s.settings.general.aiPanel ?? 'right') === 'window') {
+    void import('./aiWindow').then((m) => m.bukaAiWindow());
+  } else {
+    s.setAiKolomVisible(true);
+  }
+  window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 60);
+}
 
 const konteksLsp = () => {
   const s = S();
@@ -538,8 +559,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'sesi baru',
     run: () => {
       useAi.getState().newChat();
-      T().setVisible(true);
-      usePanel.getState().focusTab('ai');
+      bukaAi();
     },
   },
   {
@@ -547,7 +567,11 @@ export const COMMANDS: CommandDef[] = [
     title: 'AI: Configure Models & API Keys',
     group: 'AI',
     keywords: 'api key provider',
-    run: () => openSettingsSection('models'),
+    /* Models, providers and API keys are their own pop-up now (`AiModelsModal`),
+       so this command opens it directly. Sending the reader to the chat's Models
+       section - or, before that, to the editor-area Settings page - would land
+       them on a surface that no longer holds providers or keys. */
+    run: () => useAiModels.getState().buka(),
   },
   {
     id: 'ai.compact',
@@ -556,8 +580,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'padatkan ringkas konteks riwayat',
     run: () => {
       const n = useAi.getState().compactContext();
-      T().setVisible(true);
-      usePanel.getState().focusTab('ai');
+      bukaAi();
       S().setStatus(n > 0 ? `${n} pesan dipadatkan` : 'Context is already short');
     },
   },
@@ -631,13 +654,15 @@ export const COMMANDS: CommandDef[] = [
     },
   },
   /*
-   * The per-theme commands are generated from THEMES below (see the
-   * `THEMES.map(...)` entry). A second hardcoded list of six themes used to
-   * live here and overlapped with it on four ids (zephyr-dark, zephyr-light,
-   * nord, tokyo-night) — the palette rendered those four twice and React warned
-   * about duplicate keys.
+   * The per-theme commands are generated below (see the `semuaTema().map(...)`
+   * entry). A second hardcoded list of six themes used to live here and
+   * overlapped with it on four ids (zephyr-dark, zephyr-light, nord,
+   * tokyo-night) — the palette rendered those four twice and React warned about
+   * duplicate keys.
    *
-   * One source of truth: THEMES. A theme added there gets its command for free.
+   * One source of truth: `semuaTema()` — the same list the theme picker shows,
+   * so a theme hidden from the picker (`tersembunyi`) also gets no command. A
+   * theme added to THEMES gets its command for free.
    */
   {
     id: 'theme.toggleDarkLight',
@@ -802,23 +827,43 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'ai chat panel',
     run: () => {
       const s = S();
-      const t = T();
       s.setSettingsOpen(false);
-      /* Toggle the chat in its configured home; the left 'ai' sidebar is gone. */
+      /* Toggle the chat in its configured home; the bottom dock is not one. */
       const posAi = s.settings.general.aiPanel ?? 'right';
-      if (posAi === 'bottom') {
-        if (!s.sidebarVisible) s.toggleSidebar();
-        const P = usePanel.getState();
-        if (t.visible && P.activeTab === 'ai') t.setVisible(false);
-        else {
-          t.setVisible(true);
-          P.focusTab('ai');
-        }
-      } else if (posAi === 'window') {
+      if (posAi === 'window') {
         void import('./aiWindow').then((m) => m.bukaAiWindow());
       } else {
         s.toggleAiKolom();
       }
+    },
+  },
+  {
+    id: 'view.secondarySideBar',
+    title: 'View: Toggle Secondary Side Bar',
+    group: 'View',
+    keywords: 'ai sidebar sekunder kolom kanan chat samping ctrl+alt+b',
+    run: async () => {
+      /*
+       * VS Code's secondary side bar, i.e. the AI chat's right-hand column.
+       *
+       * This is the chord the Layout menu has always advertised on its "AI
+       * Sidebar" tile (Ctrl+Alt+B) — until now nothing was bound to it, so the
+       * title promised a shortcut that did not exist.
+       *
+       * The chat's homes are the right column and the pop-out window (the
+       * legacy 'editor' value is migrated to 'right' by SplitEditor). For the
+       * window the icon can only focus it — a window is not a side bar — so the
+       * toggle only flips the column flag when the chat actually lives in the
+       * column.
+       */
+      const s = S();
+      s.setSettingsOpen(false);
+      const posAi = s.settings.general.aiPanel ?? 'right';
+      if (posAi === 'window') {
+        void import('./aiWindow').then((m) => m.bukaAiWindow());
+        return;
+      }
+      s.toggleAiKolom();
     },
   },
   {
@@ -1106,11 +1151,8 @@ export const COMMANDS: CommandDef[] = [
     id: 'aiPanel.focus',
     title: 'View: Show AI',
     group: 'View',
-    keywords: 'chat panel bawah',
-    run: () => {
-      T().setVisible(true);
-      usePanel.getState().focusTab('ai');
-    },
+    keywords: 'chat side bar kanan kolom jendela',
+    run: () => bukaAi(),
   },
   {
     id: 'subagentsPanel.focus',
@@ -1293,15 +1335,23 @@ export const COMMANDS: CommandDef[] = [
     id: 'editor.formatDocument',
     title: 'Edit: Format Document',
     group: 'Edit',
-    keywords: 'format rapikan lsp',
+    keywords: 'format rapikan lsp prettier gofmt',
     enabled: () => lspSiap(),
     run: async () => {
-      const { path, view } = konteksLsp();
-      if (!path || !view) return;
-      const { lspFormat } = await import('./lspCm');
-      const ed = S().settings.editor;
+      /*
+       * Goes through `formatTab`, not `lspFormat` directly.
+       *
+       * The two used to differ: saving ran the language server AND the reader's
+       * external formatters, while "Format Document" ran only the server — so
+       * the manual command produced different output from the automatic one on
+       * the same file. A reader who pressed it to check what save would do got
+       * the wrong answer.
+       */
+      const s = S();
+      const id = s.activeTabId;
+      if (!id) return;
       try {
-        const n = await lspFormat(path, view, ed.tabSize, ed.insertSpaces);
+        const n = await s.formatTab(id);
         notifyInfo(n > 0 ? `Document formatted (${n} changes)` : 'Already tidy', { source: 'LSP' });
       } catch (e) {
         notifyError(tx('Formatting failed'), { source: 'LSP', detail: asZephyrError(e).message });
@@ -1375,12 +1425,17 @@ export const COMMANDS: CommandDef[] = [
     title: 'View: Hide AI Panel',
     group: 'View',
     keywords: 'ai sembunyikan tutup panel chat',
-    run: async () => {
-
-      if (useStore.getState().settings.general.aiPanel === 'right') {
-        await useStore.getState().applySettings({ general: { aiPanel: 'bottom' } } as never);
+    run: () => {
+      /*
+       * Hide the chat where it actually lives. The old body MOVED a right-hand
+       * chat into the bottom dock — the exact behaviour this change removes.
+       */
+      const s = S();
+      const posAi = s.settings.general.aiPanel ?? 'right';
+      if (posAi === 'window') {
+        void import('./aiWindow').then((m) => m.tutupAiWindow());
       } else {
-        useTerminal.getState().setVisible(false);
+        s.setAiKolomVisible(false);
       }
     },
   },
@@ -1411,6 +1466,14 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'symbol simbol daftar lsp',
     enabled: () => lspSiap(),
     run: () => window.dispatchEvent(new Event('zephyr-lsp-symbols')),
+  },
+  {
+    id: 'editor.callHierarchy',
+    title: 'Go: Show Call Hierarchy',
+    group: 'Edit',
+    keywords: 'call hierarchy pemanggil siapa yang memanggil callers callees lsp',
+    enabled: () => lspSiap(),
+    run: () => window.dispatchEvent(new Event('zephyr-lsp-calls')),
   },
   {
     id: 'lsp.restart',
@@ -1464,7 +1527,29 @@ export const COMMANDS: CommandDef[] = [
     },
   },
 
-  ...THEMES.map((t) => ({
+  /*
+   * Perintah per tema: SATU sumber kebenaran — `semuaTema()` (src/lib/themes.ts).
+   *
+   * `semuaTema()` = tema bawaan + tema ekstensi, minus yang ditandai
+   * `tersembunyi`. Itu daftar yang sama dengan yang dipakai pemilih tema, jadi
+   * palet tidak bisa lagi menawarkan tema yang tidak ada di pemilih.
+   *
+   * Sebelumnya baris ini memakai `THEMES` mentah, sehingga `theme.github-dark`
+   * dan `theme.min-light` ikut terdaftar padahal dua tema kembar itu sudah
+   * disembunyikan dari pemilih (lihat `tersembunyi` di themes.ts): mengkliknya
+   * menyimpan `theme.current` ke id yang tidak ditawarkan di mana pun. Menyalin
+   * syarat "ditawarkan" ke berkas ini (versi sementara: `THEMES.filter((t) =>
+   * !t.tersembunyi)`) juga bukan obatnya — definisi "ditawarkan" lalu hidup di
+   * dua tempat dan tiap perubahan penyaring harus diingat di keduanya.
+   *
+   * Tema tersembunyi TIDAK hilang dari jalur mana pun yang masih membutuhkannya:
+   * barisnya tetap di `THEMES`, `isKnownTheme`/`infoTema` tetap mengenalinya,
+   * `resolveTheme` memindahkan id-nya ke pasangan lewat `PETA_TEMA_TERSEMBUNYI`,
+   * dan blok CSS-nya tetap ada. Yang tidak dibuat hanyalah perintah paletnya —
+   * pemilih, siklus tema (`theme.next`, di atas, memakai `semuaTema()` juga), dan
+   * perintah tema ini kini membaca daftar yang sama.
+   */
+  ...semuaTema().map((t) => ({
     id: `theme.${t.id}`,
     title: `Theme: ${t.label}`,
     group: 'Settings' as const,

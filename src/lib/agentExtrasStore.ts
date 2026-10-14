@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 
 /**
- * The content behind Agent Customizations' Hooks and Plugins sections.
+ * The content behind Agent Customizations' Hooks section.
  *
- * VSCode Copilot keeps these as real, editable lists — a hook is a command run
- * at a lifecycle event, a plugin is an installable package. Zephyr showed empty
- * "Nothing here yet." shells instead, so the panel looked unfinished. This
- * store gives those sections real CRUD state, persisted to localStorage so the
- * lists survive a reload without needing a Rust round-trip.
+ * VSCode Copilot keeps hooks as a real, editable list — a command run at a
+ * lifecycle event. Zephyr showed an empty "Nothing here yet." shell instead, so
+ * the panel looked unfinished. This store gives the section real CRUD state,
+ * persisted to localStorage so the list survives a reload without needing a
+ * Rust round-trip.
  *
  * ## Skills are NOT here any more
  *
@@ -29,9 +29,14 @@ import { create } from 'zustand';
  * cancellation, output caps, exit-code handling and workspace-trust checks
  * first; until then this list is a draft area, and it is labelled as one.
  *
- * The marketplace of installable plugins is a fixed curated catalogue here —
- * Zephyr has no remote registry — so "install" flips a flag on a catalogue
- * entry rather than downloading anything.
+ * ## Plugins are NOT here any more
+ *
+ * The plugin catalogue used to be a fixed array in this file and "install"
+ * merely flipped a boolean on it, so the panel claimed a package was installed
+ * while nothing on disk or in settings changed. Plugins are real now — packages
+ * with a manifest, installed by `plugins.rs` and listed by `pluginsStore` — and
+ * a plugin's hooks arrive here through `setHooksDariPlugin`, tagged with the
+ * plugin's name so disabling it removes exactly what it added.
  */
 
 export type HookEvent =
@@ -48,77 +53,60 @@ export interface Hook {
   command: string;
   enabled: boolean;
   scope: 'workspace' | 'user';
+  /** Set when a plugin contributed the hook, so a disable can remove it. */
+  plugin?: string;
 }
 
-/** A curated, installable extension. `installed` is the only mutable field. */
-export interface Plugin {
-  id: string;
-  name: string;
-  description: string;
-  /** The sections this plugin contributes to, shown as chips. */
-  provides: string[];
-  installed: boolean;
-}
-
-/** The fixed catalogue of plugins Zephyr ships. Mirrors Copilot's marketplace
- *  shape (name + description + install), but the set is local and curated. */
-const PLUGIN_CATALOG: Plugin[] = [
+/**
+ * Every event the UI may offer, with the label and the plain-language reason.
+ *
+ * `live` is the honest half. Only two of these have a caller that fires them
+ * (see `hookRuntime.EVENT_AKTIF`): a hook on one of the other three is stored,
+ * listed and enabled — and never runs. That is worse than not offering the
+ * event at all, because the reader trusts a guard that does not exist.
+ *
+ * The flag lives on the catalogue rather than being derived in the component so
+ * there is one place to change when an event is wired up. Deriving it in the UI
+ * from `EVENT_AKTIF` would work too, but it would put the runtime's list and
+ * the catalogue's list one import apart with nothing checking that they agree.
+ */
+export const HOOK_EVENTS: {
+  id: HookEvent;
+  label: string;
+  /** True when this runtime actually fires the event. */
+  live: boolean;
+  /** Shown when `live` is false: what happens instead of the hook running. */
+  why?: string;
+}[] = [
+  { id: 'session-start', label: 'Session starts', live: true },
+  { id: 'session-end', label: 'Session ends', live: true },
   {
-    id: 'conventional-commits',
-    name: 'Conventional Commits',
-    description: 'Teaches the agent the Conventional Commits spec and adds a commit-message skill plus a pre-commit hook.',
-    provides: ['skill', 'hook'],
-    installed: false,
+    id: 'before-tool',
+    label: 'Before a tool runs',
+    live: false,
+    why: 'Not wired up: it would fire between your approval and the action it approved.',
   },
   {
-    id: 'test-runner',
-    name: 'Test Runner',
-    description: 'Adds an after-write hook that runs the project test suite and a skill describing the test layout.',
-    provides: ['hook', 'skill'],
-    installed: false,
+    id: 'after-tool',
+    label: 'After a tool runs',
+    live: false,
+    why: 'Not wired up: it would fire between your approval and the action it approved.',
   },
   {
-    id: 'code-reviewer',
-    name: 'Code Reviewer',
-    description: 'A review agent and a skill with a thorough correctness-first review checklist.',
-    provides: ['agent', 'skill'],
-    installed: false,
-  },
-  {
-    id: 'docs-writer',
-    name: 'Docs Writer',
-    description: 'A skill that keeps README and inline docs in sync with the code the agent changes.',
-    provides: ['skill'],
-    installed: false,
-  },
-  {
-    id: 'security-audit',
-    name: 'Security Audit',
-    description: 'A hook that scans staged changes for secrets and a skill listing common vulnerability patterns.',
-    provides: ['hook', 'skill'],
-    installed: false,
-  },
-  {
-    id: 'sql-helper',
-    name: 'SQL Helper',
-    description: 'A skill with query patterns and an MCP-style tool description for the local database.',
-    provides: ['skill', 'mcp'],
-    installed: false,
+    id: 'before-write',
+    label: 'Before a file write',
+    live: false,
+    why: 'Not wired up: it would fire between your approval and the action it approved.',
   },
 ];
 
-export const HOOK_EVENTS: { id: HookEvent; label: string }[] = [
-  { id: 'session-start', label: 'Session starts' },
-  { id: 'session-end', label: 'Session ends' },
-  { id: 'before-tool', label: 'Before a tool runs' },
-  { id: 'after-tool', label: 'After a tool runs' },
-  { id: 'before-write', label: 'Before a file write' },
-];
+/** The events this build genuinely fires. Kept next to the catalogue so the
+ *  two lists are read together; `hookRuntime.EVENT_AKTIF` is the runtime's
+ *  copy and a test asserts they match. */
+export const HOOK_EVENT_HIDUP: HookEvent[] = HOOK_EVENTS.filter((e) => e.live).map((e) => e.id);
 
 interface Persisted {
   hooks: Hook[];
-  /** Only the installed-flags are persisted, keyed by catalogue id. */
-  installed: string[];
 }
 
 const LS_KEY = 'zephyr.agentExtras.v1';
@@ -130,47 +118,43 @@ function uid(): string {
 function load(): Persisted {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { hooks: [], installed: [] };
+    if (!raw) return { hooks: [] };
     const p = JSON.parse(raw) as Partial<Persisted>;
     return {
       hooks: Array.isArray(p.hooks) ? p.hooks : [],
-      installed: Array.isArray(p.installed) ? p.installed : [],
     };
   } catch {
-    return { hooks: [], installed: [] };
+    return { hooks: [] };
   }
 }
 
 interface ExtrasState {
   hooks: Hook[];
-  plugins: Plugin[];
 
   addHook: (scope: Hook['scope']) => string;
   updateHook: (id: string, patch: Partial<Hook>) => void;
   removeHook: (id: string) => void;
 
-  installPlugin: (id: string, install: boolean) => void;
+  /** Replace every hook that came from `plugin` with this set (used on enable). */
+  setHooksDariPlugin: (plugin: string, hooks: Hook[]) => void;
+  /** Drop every hook that came from `plugin` (used on disable and remove). */
+  hapusHooksDariPlugin: (plugin: string) => void;
 }
 
-function persist(s: Pick<ExtrasState, 'hooks' | 'plugins'>): void {
+function persist(s: Pick<ExtrasState, 'hooks'>): void {
   try {
-    const data: Persisted = {
-      hooks: s.hooks,
-      installed: s.plugins.filter((p) => p.installed).map((p) => p.id),
-    };
+    const data: Persisted = { hooks: s.hooks };
     localStorage.setItem(LS_KEY, JSON.stringify(data));
   } catch {
-    /* storage full/blocked — these lists are not critical */
+    /* storage full/blocked — this list is not critical */
   }
 }
 
 export const useAgentExtras = create<ExtrasState>((set, get) => {
   const saved = load();
-  const plugins = PLUGIN_CATALOG.map((p) => ({ ...p, installed: saved.installed.includes(p.id) }));
 
   return {
     hooks: saved.hooks,
-    plugins,
     addHook: (scope) => {
       const id = uid();
       const hook: Hook = {
@@ -201,9 +185,26 @@ export const useAgentExtras = create<ExtrasState>((set, get) => {
         return next;
       }),
 
-    installPlugin: (id, install) =>
+    /*
+     * A plugin's hooks replace that plugin's previous set wholesale rather than
+     * merging: re-enabling after an edit must not leave an old command behind
+     * under the same id.
+     */
+    setHooksDariPlugin: (plugin, hooks) =>
       set((s) => {
-        const next = { plugins: s.plugins.map((p) => (p.id === id ? { ...p, installed: install } : p)) };
+        const next = {
+          hooks: [
+            ...s.hooks.filter((h) => h.plugin !== plugin),
+            ...hooks.map((h) => ({ ...h, plugin })),
+          ],
+        };
+        persist({ ...get(), ...next });
+        return next;
+      }),
+
+    hapusHooksDariPlugin: (plugin) =>
+      set((s) => {
+        const next = { hooks: s.hooks.filter((h) => h.plugin !== plugin) };
         persist({ ...get(), ...next });
         return next;
       }),

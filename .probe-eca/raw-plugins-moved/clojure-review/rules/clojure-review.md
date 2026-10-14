@@ -1,0 +1,1 @@
+When the user asks to review Clojure or ClojureScript code, a diff, or a PR, use the `clojure-reviewer` subagent. Review exactly the scope the user provides. If no scope is specified, use the most obvious available review unit.

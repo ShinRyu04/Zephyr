@@ -14,7 +14,9 @@ fn safe_main_path(dir: &Path, main: &str) -> ZResult<PathBuf> {
             )
         })
     {
-        return Err(ZephyrError::InvalidInput("extension main path escapes its directory".into()));
+        return Err(ZephyrError::InvalidInput(
+            "extension main path escapes its directory".into(),
+        ));
     }
     let root = crate::paths::canonical_or_parent(dir);
     let candidate = dir.join(relative);
@@ -23,7 +25,9 @@ fn safe_main_path(dir: &Path, main: &str) -> ZResult<PathBuf> {
     }
     let canonical = crate::paths::canonical_or_parent(&candidate);
     if !crate::paths::is_inside(&root, &canonical) || !canonical.is_file() {
-        return Err(ZephyrError::InvalidInput("extension main path escapes its directory".into()));
+        return Err(ZephyrError::InvalidInput(
+            "extension main path escapes its directory".into(),
+        ));
     }
     Ok(canonical)
 }
@@ -95,11 +99,7 @@ const BUILTIN: &[(&str, &str, &str)] = &[
     ("lang-python", "Python", "highlight + indentation"),
     ("lang-rust", "Rust", "highlight"),
     ("lang-markdown", "Markdown", "highlight"),
-    (
-        "bracket-pair",
-        "Bracket Pair",
-        "colored bracket pairs",
-    ),
+    ("bracket-pair", "Bracket Pair", "colored bracket pairs"),
 ];
 
 pub fn extensions_dir(state: &AppState) -> PathBuf {
@@ -316,7 +316,12 @@ fn read_package(dir: &Path, enabled: &[String]) -> Option<ExtensionInfo> {
     };
     let main_path = safe_main_path(dir, &main);
     let (main_bytes, path_error) = match &main_path {
-        Ok(path) => (std::fs::metadata(path).map(|m| m.len() as i64).unwrap_or(-1), None),
+        Ok(path) => (
+            std::fs::metadata(path)
+                .map(|m| m.len() as i64)
+                .unwrap_or(-1),
+            None,
+        ),
         Err(e) => (-1, Some(e.to_string())),
     };
 
@@ -531,7 +536,11 @@ mod tests {
         assert!(safe_main_path(&root, "nested/../main.js").is_err());
         assert!(safe_main_path(&root, &root.join("main.js").to_string_lossy()).is_err());
         assert!(safe_main_path(&root, "\\main.js").is_err());
-        assert!(safe_main_path(&root, "main.js").is_ok(), "{:?}", safe_main_path(&root, "main.js"));
+        assert!(
+            safe_main_path(&root, "main.js").is_ok(),
+            "{:?}",
+            safe_main_path(&root, "main.js")
+        );
         let _ = std::fs::remove_dir_all(root);
     }
 }

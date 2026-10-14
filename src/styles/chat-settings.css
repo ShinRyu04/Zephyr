@@ -542,3 +542,80 @@
   width: 100vw;
   height: 100vh;
 }
+
+/* Give the three model tiers equal room in the popup instead of sizing each
+   select to its longest option. At narrower widths they wrap cleanly. */
+.cset-hydra-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 720px);
+  min-width: 0;
+}
+
+.cset-hydra-tiers > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.cset-content .set-row:has(> .set-row-control .cset-hydra-tiers) {
+  align-items: flex-start;
+}
+
+.cset-content .set-row:has(> .set-row-control .cset-hydra-tiers) .set-row-control {
+  flex: 1 1 60%;
+  min-width: 0;
+}
+
+/* The custom-agent card has its own heading, actions, and list. Let it occupy
+   the full row so the generic settings label column cannot squeeze it. */
+.cset-content .set-row:has(> .set-row-control > .subagent-kartu) {
+  display: block;
+}
+
+.cset-content .set-row:has(> .set-row-control > .subagent-kartu) > .set-row-label {
+  display: none;
+}
+
+.cset-content .set-row:has(> .set-row-control > .subagent-kartu) > .set-row-control {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 850px) {
+  .cset-hydra-tiers {
+    grid-template-columns: 1fr;
+  }
+
+  .cset-content .set-row:has(> .set-row-control .cset-hydra-tiers) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cset-content .set-row:has(> .set-row-control .cset-hydra-tiers) .set-row-control {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+.cset-hydra-last {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 320px;
+  text-align: right;
+}
+
+.cset-hydra-last .set-label {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.cset-hydra-last .set-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}

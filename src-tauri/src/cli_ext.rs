@@ -331,10 +331,20 @@ pub fn ai_archive_tool_output(name: String, content: String) -> ZResult<String> 
     // could act as a path component so it cannot escape the folder.
     let aman: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .take(40)
         .collect();
-    let aman = if aman.trim_matches('-').is_empty() { "hasil".to_string() } else { aman };
+    let aman = if aman.trim_matches('-').is_empty() {
+        "hasil".to_string()
+    } else {
+        aman
+    };
 
     let dir = dir_data().join("tool-output");
     std::fs::create_dir_all(&dir).map_err(|e| ZephyrError::Io(e.to_string()))?;
@@ -371,7 +381,7 @@ pub fn ai_read_tool_output(path: String) -> ZResult<String> {
     }
     let full = dir.join(nama);
     /* Confirm containment after joining, so a component that survived the check
-       above cannot point outside. */
+    above cannot point outside. */
     if !full.starts_with(&dir) {
         return Err(ZephyrError::InvalidInput("bad archive path".into()));
     }

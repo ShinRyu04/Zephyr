@@ -431,7 +431,10 @@ pub fn tasks_load(state: State<AppState>, root: Option<String>) -> ZResult<Tasks
     for (i, t) in arr.iter().enumerate() {
         if let Some(d) = parse_satu_task(t, i, &mut errors) {
             if tasks.iter().any(|x: &TaskDef| x.label == d.label) {
-                errors.push(format!("label \"{}\" duplicated — the second one was dropped", d.label));
+                errors.push(format!(
+                    "label \"{}\" duplicated — the second one was dropped",
+                    d.label
+                ));
                 continue;
             }
             tasks.push(d);
@@ -786,7 +789,9 @@ pub fn tasks_run(
     {
         let procs = rt.procs.lock().unwrap();
         if procs.contains_key(&id) {
-            return Err(ZephyrError::InvalidInput(format!("run {id} is already going")));
+            return Err(ZephyrError::InvalidInput(format!(
+                "run {id} is already going"
+            )));
         }
     }
 

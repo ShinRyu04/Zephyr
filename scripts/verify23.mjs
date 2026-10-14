@@ -26,7 +26,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagian1 } from './v23/bagian1.mjs';
 import { bagian2 } from './v23/bagian2.mjs';
 
@@ -121,5 +121,5 @@ const main = async () => {
 
 main().catch((e) => {
   console.error('verify23 error:', e.message);
-  process.exit(1);
+  keluarBersih(1);
 });

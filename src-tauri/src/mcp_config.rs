@@ -86,7 +86,31 @@ pub fn load_or_init(state: &AppState) -> McpConfig {
 
     let cfg = McpConfig { token, port };
     let _ = save(state, &cfg);
+    sebarkan_token(state, &cfg.token);
     cfg
+}
+
+/**
+ * Menyebarkan token ke server yang sedang berjalan.
+ *
+ * Kenapa perlu. `load_or_init` dipanggil pada SETIAP polling status (perintah
+ * `mcp_status` yang dipanggil UI) dan setiap kali konfigurasi CLI ditulis.
+ * Fungsi itu bisa menghasilkan token BARU ketika berkas `mcp.json` basi,
+ * terpotong, atau ter-mask sehingga tokennya tidak lagi 64 heks - token baru
+ * itu ditulis ke berkas dan ditampilkan di layar, sementara server yang sudah
+ * bind tetap menuntut token LAMANYA. Akibatnya 401 permanen untuk SEMUA klien,
+ * tepat pada token yang ditampilkan UI sendiri; pemakai lalu menyimpulkan
+ * kliennya yang salah, bukan tokennya.
+ *
+ * Aturan yang dipakai di sini: berkas `mcp.json` adalah sumber kebenaran - apa
+ * yang ada di sana harus diterima server. Tanpa server berjalan
+ * (`mcp_token()` = None) panggilan ini tidak berefek; nilainya akan dipakai
+ * saat bind berikutnya.
+ */
+pub(crate) fn sebarkan_token(state: &AppState, token: &str) {
+    if state.mcp_token().as_deref() != Some(token) {
+        state.mcp_set_token(token);
+    }
 }
 
 pub fn save(state: &AppState, cfg: &McpConfig) -> ZResult<()> {
@@ -139,7 +163,7 @@ pub fn rotate_token(state: &AppState) -> ZResult<McpConfig> {
     save(state, &cfg)?;
 
     /* Tanpa efek bila server belum berjalan - `set_token` hanya menyegarkan
-       nilai yang nanti dipakai saat bind. */
+    nilai yang nanti dipakai saat bind. */
     state.mcp_set_token(&cfg.token);
     Ok(cfg)
 }

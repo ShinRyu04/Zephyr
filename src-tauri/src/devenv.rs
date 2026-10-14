@@ -19,7 +19,6 @@ static PID_MILIK: Mutex<Vec<(String, u32)>> = Mutex::new(Vec::new());
 /// handle keeps the exit status readable and the process owned.
 static ANAK: Mutex<Vec<std::process::Child>> = Mutex::new(Vec::new());
 
-
 fn rt() -> Vec<(String, u32)> {
     PID_MILIK.lock().map(|g| g.clone()).unwrap_or_default()
 }
@@ -269,7 +268,9 @@ fn semua_versi(exe: &Path, dirs: &[&str], tool: &str) -> Vec<String> {
 /// Detect every runtime. `custom` carries the paths pinned in Settings so a
 /// runtime the user pointed at is reported even when it is not on PATH.
 #[tauri::command(async)]
-pub fn devenv_detect_runtimes(custom: Option<std::collections::HashMap<String, String>>) -> ZResult<Vec<RuntimeFound>> {
+pub fn devenv_detect_runtimes(
+    custom: Option<std::collections::HashMap<String, String>>,
+) -> ZResult<Vec<RuntimeFound>> {
     let custom = custom.unwrap_or_default();
     let mut out = Vec::new();
 
@@ -282,7 +283,11 @@ pub fn devenv_detect_runtimes(custom: Option<std::collections::HashMap<String, S
         };
 
         let installed = !path.as_os_str().is_empty() && path.is_file();
-        let version = if installed { versi_dari(&path) } else { String::new() };
+        let version = if installed {
+            versi_dari(&path)
+        } else {
+            String::new()
+        };
         let list = if installed {
             let mut v = semua_versi(&path, k.dirs, k.id);
             if v.is_empty() && !version.is_empty() {
@@ -296,7 +301,11 @@ pub fn devenv_detect_runtimes(custom: Option<std::collections::HashMap<String, S
         out.push(RuntimeFound {
             id: k.id.to_string(),
             label: k.label.to_string(),
-            path: if installed { path.to_string_lossy().to_string() } else { String::new() },
+            path: if installed {
+                path.to_string_lossy().to_string()
+            } else {
+                String::new()
+            },
             version,
             installed,
             custom: pinned,
@@ -486,7 +495,10 @@ fn windows_service_untuk(id: &str) -> String {
         "mysql" => "mysql",
         _ => return String::new(),
     };
-    let Ok(out) = crate::proc::cmd("sc").args(["query", "state=", "all"]).output() else {
+    let Ok(out) = crate::proc::cmd("sc")
+        .args(["query", "state=", "all"])
+        .output()
+    else {
         return String::new();
     };
     let teks = String::from_utf8_lossy(&out.stdout);
@@ -600,8 +612,8 @@ fn datadir_service(exe: &Path, s: &KandidatService) -> Option<PathBuf> {
 /// because a version is what the user reads, not the packaging.
 fn versi_dari_nama_folder(nama: &str) -> String {
     for seg in nama.split(|c: char| c == '-' || c == '_') {
-        let looks_version = seg.chars().next().is_some_and(|c| c.is_ascii_digit())
-            && seg.contains('.');
+        let looks_version =
+            seg.chars().next().is_some_and(|c| c.is_ascii_digit()) && seg.contains('.');
         if looks_version {
             return seg.to_string();
         }
@@ -746,10 +758,10 @@ pub fn devenv_detect_services(root: Option<String>) -> ZResult<Vec<ServiceFound>
         };
 
         let hidup = rt()
-        .iter()
-        .find(|(k, _)| k == s.id)
-        .map(|(_, p)| *p)
-        .unwrap_or(0);
+            .iter()
+            .find(|(k, _)| k == s.id)
+            .map(|(_, p)| *p)
+            .unwrap_or(0);
         let jalan = port_live(s.port);
         // Zephyr owns the process it started, AND it is still the one serving
         // the port. If the port answers but we have no pid, the service was
@@ -936,7 +948,10 @@ pub fn devenv_service_start(id: String, root: String) -> ZResult<ServiceHasil> {
             pesan: if jalan {
                 String::new()
             } else {
-                format!("{} service did not open port {}", kandidat.label, kandidat.port)
+                format!(
+                    "{} service did not open port {}",
+                    kandidat.label, kandidat.port
+                )
             },
         });
     }
@@ -1033,7 +1048,10 @@ pub fn devenv_service_start(id: String, root: String) -> ZResult<ServiceHasil> {
         pesan: if jalan {
             String::new()
         } else {
-            format!("{} started but port {} never opened", kandidat.label, kandidat.port)
+            format!(
+                "{} started but port {} never opened",
+                kandidat.label, kandidat.port
+            )
         },
     })
 }
@@ -1125,7 +1143,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn executable_in_menemba_cmd() {        let d = std::env::temp_dir().join("dv-test-bin");
+    fn executable_in_menemba_cmd() {
+        let d = std::env::temp_dir().join("dv-test-bin");
         let _ = std::fs::create_dir_all(&d);
         let f = d.join("fake.cmd");
         std::fs::write(&f, "@echo off").unwrap();

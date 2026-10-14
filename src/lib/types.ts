@@ -117,6 +117,8 @@ export interface RecentEntry {
 export interface SessionTab {
   path: string;
   encoding: Encoding;
+  /** Optional: a session.json from before this field existed has no `pinned`. */
+  pinned?: boolean;
 }
 
 export interface DirNode {
@@ -313,6 +315,17 @@ export interface ChatMsg extends AiMessage {
    * no reasoning at all, and it can state it without counting characters.
    */
   reasoningMs?: number;
+
+  /*
+   * What this turn changed on disk, and how to undo it.
+   *
+   * Present only on an assistant message whose run wrote at least one file —
+   * a read-only turn has nothing to restore, and a button that does nothing is
+   * worse than no button. Carried on the message rather than in a store field
+   * so the undo sits on the turn it belongs to rather than always on the newest
+   * one.
+   */
+  checkpoint?: import('./checkpoint').Checkpoint;
 }
 
 export interface AgentToolRun {
@@ -656,6 +669,31 @@ export interface ExtManifest {
   manifestFile: string;
 }
 
+/**
+ * One line of an install report: a contribution, and what Zephyr does with it.
+ */
+export interface ExtKontribItem {
+  kind: string;
+  label: string;
+  detail: string;
+}
+
+/**
+ * What a package actually changes here.
+ *
+ * `didukung` is what the app applies, with the counts read from the files
+ * themselves (UI colours, code colours, icons, key bindings, snippet packs);
+ * `diabaikan` is what it cannot apply, each entry with the reason in words;
+ * `ringkasan` is one line per kind, e.g. "1 theme: 12 UI colors + 11 code
+ * colors". It travels with every install result and every status, because
+ * "Installed" on its own is not evidence that anything moved.
+ */
+export interface ExtPengaruh {
+  didukung: ExtKontribItem[];
+  diabaikan: ExtKontribItem[];
+  ringkasan: string[];
+}
+
 export interface ExtManifestStatus {
   manifest: ExtManifest | null;
   enabled: boolean;
@@ -663,6 +701,9 @@ export interface ExtManifestStatus {
   tercatat: boolean;
   path: string;
   error: string | null;
+
+  /** What this package can do here; empty `didukung` = installed and inert. */
+  pengaruh: ExtPengaruh;
 
   iconPath?: string | null;
 }
@@ -675,6 +716,9 @@ export interface ExtInstallHasil {
 
   perluReload: boolean;
   manifest: ExtManifest;
+
+  /** What the install changed, and what in the package was skipped. */
+  pengaruh: ExtPengaruh;
 }
 
 export interface RegistryEntry {
@@ -802,7 +846,7 @@ export interface Tab {
    * skips them. `view` is what routes them to their own component; a tab with
    * no `view` and no path is still the ordinary untitled buffer.
    */
-  view?: 'ai-chat' | 'chat-settings';
+  view?: 'ai-chat' | 'chat-settings' | 'search-editor';
 
   loaded?: boolean;
 
@@ -815,6 +859,32 @@ export interface Tab {
   existed?: boolean;
 
   groupId?: string | null;
+
+  /*
+   * A PREVIEW tab: opened by a single click, shown in italics, and replaced by
+   * the next preview instead of piling up.
+   *
+   * Without this, browsing a folder by clicking down a list left one tab per
+   * file visited — a column of tabs that all have to be closed by hand, and
+   * the file the reader actually wanted is somewhere in the middle of them.
+   * The reference editors solve it the same way: one reusable slot, promoted
+   * to a real tab the moment the reader commits to the file (edits it, or
+   * double-clicks it in the tree).
+   *
+   * Only ONE tab is ever a preview, and it is always the last one, so the slot
+   * is found by scanning from the end.
+   */
+  preview?: boolean;
+
+  /*
+   * A pinned tab: never reused as a preview slot, and kept at the head of the
+   * strip when tabs are reordered or restored.
+   *
+   * Distinct from "not a preview". A file opened deliberately is neither
+   * preview nor pinned; `pinned` is the reader saying "keep this one where I
+   * put it", which survives a session restart.
+   */
+  pinned?: boolean;
 }
 
 export type LangId =
@@ -940,13 +1010,14 @@ export interface GeneralSettings {
   multilineKey?: 'auto' | 'csiu' | 'lf' | 'backslash';
 
   /*
-   * Where the AI chat lives.
-   *   'bottom' - a tab inside the terminal panel (legacy)
+   * Where the AI chat lives. The legacy 'bottom' home (a tab inside the
+   * terminal panel) is RETIRED — see `normalisasiSettings`, which rewrites a
+   * saved 'bottom' to 'right' on load.
    *   'right'  - a dedicated right column, VSCode Secondary Sidebar style
    *   'editor' - a tab in the editor area (Copilot "Move Chat into Editor Area")
    *   'window' - a separate floating Zephyr window (Copilot "Move into New Window")
    */
-  aiPanel?: 'bottom' | 'right' | 'editor' | 'window';
+  aiPanel?: 'right' | 'editor' | 'window';
 
   layout?: 'editor' | 'terminal';
 
@@ -981,6 +1052,20 @@ export interface EditorSettings {
   cursorStyle: 'line' | 'block' | 'underline';
   smoothScroll: boolean;
   formatOnSave: boolean;
+
+  /*
+   * External formatters, run in order on save.
+   *
+   * Each entry is a shell command that receives the file's text on stdin and
+   * returns the new text on stdout — the shape `prettier`, `gofmt`,
+   * `clang-format`, `black`, `rustfmt` and `eslint --fix` all accept, so one
+   * mechanism covers every one of them.
+   *
+   * Chained rather than exclusive because real setups chain: `gofmt` then
+   * `goimports`, `prettier` then `eslint --fix`. Run AFTER the language
+   * server's own formatting, so a project formatter has the last word.
+   */
+  formatters?: import('./formatters').FormatterCmd[];
   showWhitespace: boolean;
   /**
    * Vim keybindings. Ketika menyala, tombol arah dan mode normal/insert
@@ -1027,11 +1112,168 @@ export interface EditorSettings {
   snippetSuggestions: 'top' | 'bottom' | 'inline' | 'none';
 
   ghostText: boolean;
+
+  /*
+   * Code folding.
+   *
+   * The gutter chevron and its keybindings. Default ON, unlike `minimap` and
+   * `stickyScroll`, because folding is a navigation aid for reading a file the
+   * reader did not write — which is most of what an editor is used for — and
+   * the gutter arrow is invisible until a foldable range exists.
+   *
+   * The phase-03 scaffold deliberately left `foldGutter` out to save RAM, with
+   * a comment saying so; that comment was removed in a later cleanup and the
+   * setting never existed, so the feature simply was not there. It is behind a
+   * setting now, which is what that decision should have been: the cost is
+   * paid only by readers who want the feature.
+   */
+  codeFolding: boolean;
+
+  /*
+   * Show the diagnostic MESSAGE at the end of the offending line, not just the
+   * gutter mark and the squiggle.
+   *
+   * Default OFF, unlike `codeFolding`. The lens puts model- or compiler-written
+   * prose into the middle of the code, and on a file with many warnings that is
+   * more noise than signal. It is opt-in because the reader who wants it knows
+   * they want it, while the reader who does not would find it intrusive.
+   */
+  diagLens: boolean;
+
+  /*
+   * Show `git blame` at the end of every line, coalesced per commit.
+   *
+   * Default OFF, and unlike `codeFolding` that is not a close call: it needs a
+   * git repository, it shells out to `git blame` for the whole file, and the
+   * answer is only wanted while asking "why is this line like this". A buffer
+   * is unreadable with blame on, so it is a mode you enter and leave.
+   */
+  gitBlame: boolean;
+
+  /*
+   * Line numbers.
+   *
+   * `relative` shows the distance from the cursor line instead of the absolute
+   * number, with the cursor line keeping its real number. It is the convention
+   * modal editors train, because `5j` needs you to know the distance, not the
+   * absolute line — so it is a three-state choice rather than a boolean.
+   *
+   * `'off'` removes the gutter entirely, which is worth having on its own: a
+   * narrow pane loses 4-5 columns to numbers nobody reads.
+   */
+  lineNumbers: 'on' | 'relative' | 'off';
+
+  /*
+   * Blank lines kept above and below the cursor while scrolling.
+   *
+   * Without a margin the cursor can sit on the last visible line, and the next
+   * few lines — which is where the code you are about to read lives — are off
+   * screen. The reference editors default this to 3.
+   */
+  scrollMargin: number;
+
+  /*
+   * Scrolling past the last line, so the final line can be brought to the
+   * middle of the window instead of stopping at the bottom.
+   */
+  scrollPastEnd: boolean;
+
+  /*
+   * Clicking in the empty area below the last line moves the cursor there,
+   * rather than placing it at the end of the nearest line.
+   */
+  autoscrollOnClick: boolean;
+
+  /*
+   * Confine the text column to a readable width and centre it.
+   *
+   * For prose and long-form review: at 1920px a full-width paragraph is a
+   * 250-character measure, and the eye loses the line on the way back. `0`
+   * means full width.
+   *
+   * Distinct from Zen mode, which hides the surrounding chrome — this keeps
+   * every panel visible and only narrows the text.
+   */
+  centeredWidth: number;
+
+  /*
+   * Run the language server's "fix all" action when the file is saved.
+   *
+   * Default OFF, and deliberately NOT bundled with `formatOnSave`. Formatting
+   * only reflows text; a fix REWRITES the reader's code — removes unused
+   * imports, rewrites a `var`, reorders members. That is editing on the
+   * reader's behalf, so it is a separate decision they have to make.
+   */
+  fixAllOnSave: boolean;
+
+  /*
+   * Coloured bars in the gutter marking lines added, modified or deleted
+   * against HEAD.
+   *
+   * Default OFF. It answers "what have I changed since the last commit", which
+   * is a question about reviewing — and a review is a mode you enter, not a
+   * state the editor should sit in. It also costs one `git diff` per save.
+   */
+  gitGutter: boolean;
+
+  /*
+   * Inlay hints: inferred types and parameter names, drawn faintly inside the
+   * code by the language server.
+   *
+   * Default OFF. They are genuinely useful and genuinely intrusive: every
+   * `let` gains a type annotation the reader did not write, which is welcome
+   * while reading unfamiliar code and noise while editing code you know. Zed,
+   * VS Code and rust-analyzer all default them off for that reason.
+   */
+  inlayHints: boolean;
+
+  /*
+   * Semantic tokens: highlighting from the language server layered over the
+   * parser's own.
+   *
+   * Default OFF, and the reason is cost rather than taste. The tokens are a
+   * request per visible range per settle, and the result repaints the buffer —
+   * on a large file that is noticeable during typing. It is also the least
+   * necessary of the language features: the parser already colours most of
+   * what the eye needs, and the server's extra is a refinement of it.
+   */
+  semanticTokens: boolean;
+
+  /*
+   * Debugger inline values: the locals, shown next to the line execution is
+   * stopped on.
+   *
+   * Default OFF, and unlike the other language features it is not about taste:
+   * the values only exist while a debug session is paused, so on almost every
+   * file at almost every moment there is nothing to draw. It is a switch for
+   * readers who step through code and want the value in front of them rather
+   * than in the Variables panel.
+   */
+  debugInlineValues: boolean;
 }
 
 export interface ThemeSettings {
   current: string;
   accent?: string;
+
+  /*
+   * Per-token colour overrides from the Theme Builder.
+   *
+   * Applied as INLINE custom properties on `:root`, which is the one place that
+   * beats both `:root` and `[data-theme='…']`. That means an override needs no
+   * theme file and no stylesheet change — and it also means it SURVIVES a theme
+   * switch, because switching rewrites `data-theme` and leaves the inline style
+   * alone.
+   *
+   * That is deliberate rather than accidental: a reader who tuned three colours
+   * expects them to stay tuned when they change the base theme, and the builder
+   * has an explicit "clear" for when they do not.
+   *
+   * Kept out of the theme catalogue: a built-in entry cannot carry this, because
+   * the whole point is that it layers ON TOP of whichever theme is active
+   * instead of replacing it.
+   */
+  overrides?: Record<string, string>;
 }
 
 export interface BackgroundSettings {
@@ -1105,6 +1347,39 @@ export interface Settings {
      */
     chatAvatar?: boolean;
     userAvatarPath?: string;
+
+    /*
+     * Ordered per-tool permission rules, evaluated before `approvalMode`.
+     *
+     * FIRST MATCH WINS. The order is the precedence, so the list reads top to
+     * bottom as the decision it makes — and a blanket rule belongs at the top,
+     * because a rule below one that already matched never fires. See
+     * `toolRules.ts` for why this is preferred over "most specific wins".
+     *
+     * Empty by default: with no rules the decision falls through to
+     * `approvalMode`, which is exactly the behaviour before this existed.
+     */
+    toolRules?: import('./toolRules').ToolRule[];
+
+    /*
+     * CLI agents the reader added themselves.
+     *
+     * The four built-in recipes (codex, claude, gemini, opencode) are
+     * hardcoded in Rust. That is fine until someone wants a fifth — a private
+     * wrapper, a fork, a CLI that did not exist when this shipped — and there
+     * is no way to add one. This is the way.
+     *
+     * `bin` is looked up on PATH like the built-ins; `promptArgs` is what the
+     * CLI needs before the prompt (codex wants `exec`, claude wants `-p`).
+     * Kept as a list rather than merged into the Rust table so an upgrade
+     * cannot silently drop a reader's entry.
+     */
+    cliAgents?: {
+      id: string;
+      label: string;
+      bin: string;
+      promptArgs: string[];
+    }[];
   };
 
   /**
@@ -1145,12 +1420,46 @@ export interface Settings {
     /** Seconds a subagent may sit idle before its step is abandoned. */
     idleSecs: number;
   };
+
+  /*
+   * HydraFusion — adaptive model orchestration for the main chat.
+   *
+   * Off by default: it spends MORE requests than a plain turn when it escalates
+   * or critiques, and a switch that quietly multiplies the reader's bill is not
+   * a default anyone should inherit. `tiers` maps its three rungs to concrete
+   * `provider/model` refs — empty means "derive them from the model catalog",
+   * which is what the settings page suggests. `maxRequests` is the cost cap: how
+   * many requests ONE run may spend.
+   *
+   * Registered in `settings.rs default_settings()` too, and that is not
+   * optional: a key missing there never reaches the frontend as a default, so
+   * the feature would read as off no matter what this file says.
+   */
+  hydrafusion?: {
+    enabled?: boolean;
+    tiers?: { cheap?: string; mid?: string; strong?: string };
+    maxRequests?: number;
+  };
   extensions: {
     enabled: string[];
 
     trust: Record<string, ExtTrust>;
 
+    /** The reader's own index, read as the FIRST source when present.
+     *  Superseded by `registryUrls`; kept so an existing settings.json keeps
+     *  working without a migration. */
     registryUrl?: string;
+
+    /*
+     * Registry sources, in priority order.
+     *
+     * A list rather than one URL because a marketplace needs several at once:
+     * the bundled index, a team's private one, a public mirror. With a single
+     * field, pointing it at your own index silently removed the public one.
+     *
+     * Order is priority for the first entry on a duplicate id.
+     */
+    registryUrls?: string[];
   };
 
   accessibility?: {
@@ -1182,6 +1491,15 @@ export interface Settings {
     enabled: boolean;
     port: number;
     token: string;
+    /**
+     * Berapa tool per server MCP pihak ketiga yang dikirim ke model.
+     *
+     * Tanpa batas, satu server dengan ratusan tool menaruh seluruh skemanya di
+     * setiap permintaan - konteks tergerus dan tool Zephyr sendiri tenggelam.
+     * `0` berarti tanpa batas, untuk server tepercaya yang memang perlu semua.
+     * Ini harus sama dengan `settings.rs default_settings()`.
+     */
+    maxToolsPerServer: number;
     writeToCli: string[];
     /**
      * Izinkan agen LUAR (lewat MCP) mengendalikan terminal lewat `terminal_exec`.
@@ -1272,6 +1590,22 @@ export const DEFAULT_SETTINGS: Settings = {
 
     snippetSuggestions: 'inline',
     ghostText: false,
+    codeFolding: true,
+    diagLens: false,
+    gitBlame: false,
+    lineNumbers: 'on',
+    scrollMargin: 3,
+    scrollPastEnd: false,
+    autoscrollOnClick: true,
+    /* 0 = full width. Off by default: the panels are already arranged around a
+       full-width editor, and narrowing it unasked would move every line the
+       reader is looking at. */
+    centeredWidth: 0,
+    fixAllOnSave: false,
+    gitGutter: false,
+    inlayHints: false,
+    semanticTokens: false,
+    debugInlineValues: false,
     vimMode: false,
     autoSave: 'off',
     autoSaveDelay: 1000,
@@ -1286,6 +1620,14 @@ export const DEFAULT_SETTINGS: Settings = {
 
   subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '', idleSecs: 90 },
 
+  /*
+   * HydraFusion defaults. `enabled: false` and `maxRequests: 3` must match
+   * `settings.rs default_settings()`: the Rust side is what an existing profile
+   * actually receives on load, so a disagreement here would show a switch that
+   * does not describe the value in use.
+   */
+  hydrafusion: { enabled: false, tiers: { cheap: '', mid: '', strong: '' }, maxRequests: 3 },
+
   allowCommands: [],
   extensions: { enabled: [], trust: {} },
 
@@ -1296,7 +1638,7 @@ export const DEFAULT_SETTINGS: Settings = {
     toastDurasiMin: 3200,
   },
   git: { defaultBranch: 'main', pullBeforePush: true },
-  mcp: { enabled: false, port: 9222, token: '', writeToCli: [], allowTerminalControl: false },
+  mcp: { enabled: false, port: 9222, token: '', writeToCli: [], allowTerminalControl: false, maxToolsPerServer: 40 },
   ssh: { recentHosts: [] },
   panel: {
     // `tests` is deliberately absent: the Test Explorer panel is opt-in and

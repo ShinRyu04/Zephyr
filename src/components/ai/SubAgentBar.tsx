@@ -3,7 +3,7 @@ import { useSubAgent, batasParalel } from '../../lib/subagentStore';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
-import { useT } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import ModelMenu from './ModelMenu';
 import { modelDariPrefix } from '../../lib/subagentRoles';
@@ -12,6 +12,7 @@ import { PROVIDERS, baseUrlEfektif, findModel, MODEL_BY_ID } from '../../lib/mod
 
 export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?: boolean }) {
   const tr = useT();
+  const tf = useTf();
 
   const adaHasil = useSubAgent((s) => s.agents.length > 0);
 
@@ -227,7 +228,7 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
   return (
     <div className="sub-form" data-testid="sub-form">
       <div className="sub-form-head">
-        <span className="sub-form-judul">{tr('Parallel tasks')}</span>
+        <span className="sub-form-judul">{tr('New parallel run')}</span>
         <span className="sub-form-hint">{tr('One line = one subagent')}</span>
         {!selaluTerbuka && (
           <button
@@ -431,6 +432,7 @@ export default function SubAgentBar({ selaluTerbuka = false }: { selaluTerbuka?:
           onClick={() => void go()}
         >
           {sibuk ? <AiIkon name="stop" size={13} /> : <AiIkon name="send" size={14} />}
+          <span>{sibuk ? tr('Stop') : tf('Run {n} agents', { n: tugas.length })}</span>
         </button>
       </div>
     </div>

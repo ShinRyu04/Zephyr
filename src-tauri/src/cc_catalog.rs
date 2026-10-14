@@ -233,8 +233,8 @@ pub async fn cc_repo_scan(repo: String) -> ZResult<Vec<RemoteEntry>> {
         .read_to_string()
         .map_err(|e| ZephyrError::Io(e.to_string()))?;
 
-    let v: serde_json::Value =
-        serde_json::from_str(&body).map_err(|e| ZephyrError::InvalidInput(format!("github json: {e}")))?;
+    let v: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| ZephyrError::InvalidInput(format!("github json: {e}")))?;
     let Some(tree) = v.get("tree").and_then(|x| x.as_array()) else {
         return Err(ZephyrError::InvalidInput(
             "github returned no tree (private repo, or rate limited)".into(),
@@ -242,7 +242,7 @@ pub async fn cc_repo_scan(repo: String) -> ZResult<Vec<RemoteEntry>> {
     };
 
     /* Only files that ARE a skill or an agent. A repo of 500 markdown files is
-       mostly docs; taking them all would bury the two real skills. */
+    mostly docs; taking them all would bury the two real skills. */
     let mut out = Vec::new();
     for node in tree {
         let Some(path) = node.get("path").and_then(|x| x.as_str()) else {
@@ -257,7 +257,7 @@ pub async fn cc_repo_scan(repo: String) -> ZResult<Vec<RemoteEntry>> {
             continue;
         };
         /* Cap the number of fetches: each candidate is a separate HTTP request,
-           and a large repo can list hundreds. */
+        and a large repo can list hundreds. */
         if out.len() >= 60 {
             break;
         }
@@ -268,7 +268,7 @@ pub async fn cc_repo_scan(repo: String) -> ZResult<Vec<RemoteEntry>> {
             .trim_end_matches(".md")
             .trim_end_matches(".MD");
         /* A skill's directory name is its identity; SKILL.md is the same
-           filename in every one of them. */
+        filename in every one of them. */
         let name = if kind == "skill" {
             path.rsplit('/').nth(1).unwrap_or(name).to_string()
         } else {
@@ -276,8 +276,8 @@ pub async fn cc_repo_scan(repo: String) -> ZResult<Vec<RemoteEntry>> {
         };
         let raw = format!("https://raw.githubusercontent.com/{slug}/HEAD/{path}");
         /* A file that fails to fetch is skipped, not fatal: one unreadable
-           path in a repo should cost the reader that entry, not the whole
-           scan. */
+        path in a repo should cost the reader that entry, not the whole
+        scan. */
         let Ok(resp) = ureq::get(&raw).header("User-Agent", "Zephyr").call() else {
             continue;
         };
@@ -288,7 +288,7 @@ pub async fn cc_repo_scan(repo: String) -> ZResult<Vec<RemoteEntry>> {
         let (title, description) = read_frontmatter(&text);
         out.push(RemoteEntry {
             /* `title` first: it falls back to `name`, so reading it after the
-               move would need a clone. */
+            move would need a clone. */
             title: title.unwrap_or_else(|| name.clone()),
             name,
             kind: kind.to_string(),
@@ -305,8 +305,10 @@ fn read_frontmatter(text: &str) -> (Option<String>, Option<String>) {
     let Some(rest) = text.strip_prefix("---") else {
         return (None, None);
     };
-    let Some(end) = rest.find("
----") else {
+    let Some(end) = rest.find(
+        "
+---",
+    ) else {
         return (None, None);
     };
     let mut title = None;
@@ -417,7 +419,10 @@ mod tests {
             if bad.starts_with("https://evil") {
                 assert!(got.is_none(), "accepted {bad:?} -> {got:?}");
             } else {
-                assert!(got.is_none() || !got.as_deref().unwrap().contains(".."), "accepted {bad:?}");
+                assert!(
+                    got.is_none() || !got.as_deref().unwrap().contains(".."),
+                    "accepted {bad:?}"
+                );
             }
         }
     }
@@ -449,7 +454,10 @@ description: does a thing
         );
         assert_eq!(
             install_path(home, "skill", "docx").unwrap(),
-            home.join(".claude").join("skills").join("docx").join("SKILL.md")
+            home.join(".claude")
+                .join("skills")
+                .join("docx")
+                .join("SKILL.md")
         );
     }
 }

@@ -1,0 +1,23 @@
+{
+  "name": "adr",
+  "description": "Architecture Decision Record subagent that guides you through structured decision documentation",
+  "version": "1.0.0",
+  "author": "editor-code-assistant",
+  "category": "Development",
+  "tags": [
+    "architecture",
+    "documentation",
+    "subagent",
+    "adr"
+  ],
+  "icon": "📐",
+  "provides": {
+    "skills": [],
+    "agents": [
+      "adr"
+    ],
+    "rules": [],
+    "hooks": [],
+    "mcp": []
+  }
+}

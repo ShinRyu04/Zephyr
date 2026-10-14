@@ -2756,6 +2756,48 @@
   color: var(--ok, var(--success));
 }
 
+/* The in-app install button, its footnote and the failure log.
+   Colours come from the theme variables like the rest of this dialog, so the
+   button and the log follow the active theme instead of pinning a shade. */
+.lsp-dialog-pasang-blok {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.lsp-dialog-catatan {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.lsp-dialog-hasil {
+  margin: 12px 0 0;
+}
+
+.lsp-dialog-gagal {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.lsp-dialog-log {
+  max-height: 150px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 .lsp-dialog-aksi {
   display: flex;
   align-items: center;
@@ -2931,4 +2973,123 @@
 }
 .set-avatar-empty {
   border-style: dashed;
+}
+
+/* ── Theme Builder ────────────────────────────────────────────────────────
+ *
+ * A compact grid rather than one full-width row per token: 27 rows of label +
+ * control would be a long scroll for a panel whose whole value is seeing the
+ * colours together.
+ *
+ * The swatch IS the button. `input[type=color]` is styled down to a square so
+ * the control the reader aims at is the colour they are looking at, rather than
+ * a native widget with the colour in a small corner of it.
+ */
+.tb-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tb-count {
+  font-size: 11.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2px 16px;
+  margin: 6px 0 10px;
+}
+
+.tb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+
+.tb-row:hover {
+  background: var(--surface-2);
+}
+
+/* A changed token is marked, so a reader can see at a glance which colours are
+   theirs and which came from the theme. */
+.tb-row[data-changed='1'] .tb-nama {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tb-swatch {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.tb-swatch input[type='color'] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+
+/* The native colour widget has its own inner chrome; stripping it is what makes
+   the swatch read as one flat colour rather than a tiny framed box. */
+.tb-swatch input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.tb-swatch input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 4px;
+}
+
+.tb-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A value the colour input cannot represent, shown as text rather than as a
+   black swatch that would misrepresent it. */
+.tb-nilai {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tb-reset {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+}
+
+.tb-reset:hover {
+  color: var(--accent);
+}
+
+.tb-aksi {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
 }

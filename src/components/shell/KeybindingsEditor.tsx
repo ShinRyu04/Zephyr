@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useKb } from '../../lib/keybindingStore';
-import { findCommand } from '../../lib/commandRegistry';
+import { availableCommands, findCommand } from '../../lib/commandRegistry';
 import { chordConflicts, displayChord, normalizeChord, type KeyBinding } from '../../lib/keybindings';
 import { eventToBinding } from '../../lib/shortcuts';
 import { useT } from '../../lib/i18n';
@@ -67,6 +67,19 @@ export default function KeybindingsEditor() {
 
   const baris = useMemo(() => {
     const cari = q.trim().toLowerCase();
+    /*
+     * Every BINDING, plus every command that has NONE.
+     *
+     * The list used to be `bindings` alone — `DEFAULT_BINDINGS` — so a command
+     * with no default chord was invisible here and could not be given one. That
+     * is most of the palette: 178 commands exist and only a fraction ship a
+     * shortcut. "Browse all actions and bind one" is the reason a reader opens
+     * this panel, and the half it could not do was the half that matters.
+     *
+     * An unbound command gets an empty chord row, which the table already
+     * renders — the record button is what fills it.
+     */
+    const terpakai = new Set(bindings.map((b) => b.command));
     const semua = bindings.map((b) => {
       const def = findCommand(b.command);
       return {
@@ -76,6 +89,18 @@ export default function KeybindingsEditor() {
         isUser: user.some((u) => u.command === b.command && !u.remove),
       };
     });
+    for (const c of availableCommands()) {
+      if (terpakai.has(c.id)) continue;
+      semua.push({
+        chord: '',
+        command: c.id,
+        when: 'global',
+        layer: 'app',
+        title: c.title,
+        adaCommand: true,
+        isUser: false,
+      });
+    }
     if (!cari) return semua;
     return semua.filter(
       (b) =>
@@ -175,7 +200,19 @@ export default function KeybindingsEditor() {
                     <code className="kb-cmd-id">{b.command}</code>
                   </td>
                   <td>
-                    <kbd data-testid="kb-chord">{displayChord(b.chord)}</kbd>
+                    {/*
+                      * An unbound command says so rather than showing an empty
+                      * cell. An empty cell reads as "the list failed to load a
+                      * chord"; the word reads as "this one has none, and the
+                      * Change button is how you give it one".
+                      */}
+                    {b.chord ? (
+                      <kbd data-testid="kb-chord">{displayChord(b.chord)}</kbd>
+                    ) : (
+                      <span className="kb-none" data-testid="kb-chord-none">
+                        {tr('Not bound')}
+                      </span>
+                    )}
                   </td>
                   <td className="kb-when">{b.when}</td>
                   <td className="kb-layer" data-layer={b.layer}>
@@ -188,22 +225,30 @@ export default function KeybindingsEditor() {
                     <button
                       className="btn btn-sm"
                       data-testid="kb-edit"
-                      title="Record a new chord"
+                      title={tr('Record a new chord')}
                       onClick={() => {
                         setRekam(b.command);
                         setTangkap([]);
                       }}
                     >
-                      Change
+                      {b.chord ? tr('Change') : tr('Bind')}
                     </button>
-                    <button
-                      className="btn btn-sm"
-                      data-testid="kb-remove"
-                      title={tr('Remove keybinding (the command stays in the palette)')}
-                      onClick={() => void removeBinding(b.command)}
-                    >
-                      Delete
-                    </button>
+                    {/*
+                      * Delete only on a row that HAS a chord. Offering it on an
+                      * unbound row would be a button whose only effect is to
+                      * write a "removed" entry for something that was never
+                      * there — harmless to the code, confusing to the reader.
+                      */}
+                    {b.chord && (
+                      <button
+                        className="btn btn-sm"
+                        data-testid="kb-remove"
+                        title={tr('Remove keybinding (the command stays in the palette)')}
+                        onClick={() => void removeBinding(b.command)}
+                      >
+                        Delete
+                      </button>
+                    )}
                     {b.isUser && (
                       <button
                         className="btn btn-sm"

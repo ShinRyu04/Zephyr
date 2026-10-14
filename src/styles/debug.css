@@ -153,8 +153,12 @@
 }
 
 .dbg-kosong {
-  padding: 2px 12px 6px;
-  font-size: 10px;
+  margin: 0;
+  padding: 14px 16px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .dbg-link {

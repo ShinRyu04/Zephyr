@@ -64,14 +64,29 @@ console.log('\n== Panel Tools berganti bahasa (10 bahasa) ==');
 const hasil = await cdp.runAsync(`
   const uiLangAsli = s.settings.general.uiLang;
 
-  /* Buka panel AI dulu: tombol ai-toolgate hanya ada kalau AiPanel ter-render. */
-  if (!document.querySelector('[data-testid="ai-toolgate"]')) {
-    const btn = [...document.querySelectorAll('button')].find((b) =>
-      /agent|assistant|\\bai\\b/i.test((b.getAttribute('aria-label') || '') + ' ' + (b.title || '')));
-    if (btn) { btn.click(); await wait(1200); }
+  /* Buka picker tool lewat jalur UI yang dipakai user: tombol "..." di strip
+     tab (ai-more) -> menu -> "Chat Settings" (ai-open-chat-settings) -> nav
+     Tools (cset-nav-tools) -> tombol "Open tool sets…" (cset-tools). Entri menu
+     "Tool Sets" (ai-open-toolsets) dan tombol lama 'ai-toolgate' sudah dicabut
+     dari UI, jadi kalau jalur ini putus ujinya harus menyebut sebabnya - bukan
+     mengukur panel yang tidak pernah dibuka. */
+  const bukaGate = async () => {
+    if (document.querySelector('[data-testid="toolgate"]')) return true;
+    const more = document.querySelector('[data-testid="ai-more"]');
+    if (!more) return false;
+    more.click(); await wait(300);
+    const cs = document.querySelector('[data-testid="ai-open-chat-settings"]');
+    if (!cs) return false;
+    cs.click(); await wait(500);
+    document.querySelector('[data-testid="cset-nav-tools"]')?.click(); await wait(400);
+    const t = document.querySelector('[data-testid="cset-tools"]');
+    if (!t) return false;
+    t.click(); await wait(600);
+    return !!document.querySelector('[data-testid="toolgate"]');
+  };
+  if (!(await bukaGate())) {
+    return { sebab: 'picker tool tidak terbuka lewat menu "..." -> Chat Settings -> Tools -> "Open tool sets…" (cset-tools)' };
   }
-  const tombolGate = document.querySelector('[data-testid="ai-toolgate"]');
-  if (!tombolGate) return { sebab: 'tombol ai-toolgate tidak ada - panel AI belum terbuka' };
 
   const panelSudahTerbuka = !!document.querySelector('[data-testid="toolgate"]');
 
@@ -85,7 +100,7 @@ const hasil = await cdp.runAsync(`
     /* Buka panel lewat klik kalau belum terbuka; klik memakai store milik
        komponen, jadi kalau panel tidak muncul itu memang produknya. */
     const terbuka = !!document.querySelector('[data-testid="toolgate"]');
-    if (!terbuka) { tombolGate.click(); await wait(900); }
+    if (!terbuka) { await bukaGate(); await wait(300); }
 
     const panel = document.querySelector('[data-testid="toolgate"]');
     cuplik.push({ kode, ada: !!panel, teks: panel ? (panel.innerText || '') : '' });

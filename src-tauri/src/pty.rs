@@ -237,7 +237,9 @@ pub fn pty_spawn(
         return Err(ZephyrError::InvalidInput("id is empty".into()));
     }
     if state.pty_exists(&id) {
-        return Err(ZephyrError::InvalidInput(format!("session {id} already exists")));
+        return Err(ZephyrError::InvalidInput(format!(
+            "session {id} already exists"
+        )));
     }
 
     let kind = kind.unwrap_or_else(|| "shell".to_string());
@@ -517,8 +519,7 @@ pub fn pty_interrupt(state: State<AppState>, id: String) -> ZResult<u32> {
             let _ = w.write_all(b"\x03");
             let _ = w.flush();
         }
-        s.pid
-            .ok_or_else(|| ZephyrError::Pty("unknown pid".into()))
+        s.pid.ok_or_else(|| ZephyrError::Pty("unknown pid".into()))
     })?;
 
     let mut sys = sysinfo::System::new();

@@ -63,6 +63,71 @@ fn lexical_clean_membuang_dotdot() {
     assert_eq!(root, PathBuf::from(r"C:\x"));
 }
 
+/*
+ * Regresi: `.` pernah dibersihkan menjadi path KOSONG.
+ *
+ * `Component::CurDir` dibuang tanpa menulis apa pun kembali, jadi
+ * `lexical_clean(".")` mengembalikan `""`. Path kosong tidak bisa
+ * di-canonicalize, sehingga `validate_cwd` menolak folder yang jelas-jelas ada
+ * dengan pesan `cwd bukan folder: .` - pesan itu menyebut `.` padahal yang
+ * diuji adalah string kosong. Akibatnya `bash_run` gagal setiap kali agen
+ * berjalan sebelum workspace terbuka, karena `akar()` mengirim `.`.
+ */
+#[test]
+fn lexical_clean_pertahankan_titik_tunggal() {
+    let titik = crate::paths::lexical_clean_for_test(Path::new("."));
+    assert_eq!(titik, PathBuf::from("."), "`.` harus tetap `.`, bukan kosong");
+
+    // Bentuk yang sama setelah dinormalkan oleh OS.
+    let titik2 = crate::paths::lexical_clean_for_test(Path::new("./"));
+    assert_eq!(titik2, PathBuf::from("."), "`./` harus tetap `.`");
+
+    // Masukan yang benar-benar kosong tetap kosong: `normalize_workspace_path`
+    // memakai kekosongan itu untuk mendeteksi path hilang.
+    let kosong = crate::paths::lexical_clean_for_test(Path::new(""));
+    assert!(kosong.as_os_str().is_empty(), "masukan kosong tetap kosong");
+}
+
+/// `..` di depan tidak punya segmen untuk dibatalkan, jadi ia harus DIPERTAHANKAN.
+#[test]
+fn lexical_clean_pertahankan_dotdot_di_depan() {
+    let satu = crate::paths::lexical_clean_for_test(Path::new(".."));
+    assert_eq!(satu, PathBuf::from(".."));
+
+    let dua = crate::paths::lexical_clean_for_test(Path::new("../.."));
+    assert_eq!(dua, PathBuf::from("../.."));
+
+    // Bercampur dengan segmen nyata: yang bisa dibatalkan tetap dibatalkan.
+    let campur = crate::paths::lexical_clean_for_test(Path::new("../ws/../x"));
+    assert_eq!(campur, PathBuf::from("../x"));
+}
+
+/**
+ * Yang paling penting: `validate_cwd(".")` harus MENERIMA direktori kerja.
+ *
+ * Ini bukan sekadar uji pembersih path - ini jalur yang dipakai `bash_run`,
+ * `pty`, dan `ext_pkg`. Sebelum perbaikan, tiga pemanggil itu menolak `.`
+ * dengan pesan yang menyesatkan.
+ */
+#[test]
+fn validate_cwd_menerima_titik() {
+    let d = crate::paths::validate_cwd(Path::new("."));
+    assert!(d.is_ok(), "`.` harus diterima sebagai cwd: {d:?}");
+    let p = d.unwrap();
+    assert!(p.is_dir(), "hasil validasi `.` harus sebuah folder: {p:?}");
+    assert!(
+        p.is_absolute(),
+        "hasilnya harus absolut supaya tidak bergantung cwd proses: {p:?}"
+    );
+}
+
+/// Bentuk yang sama, lewat jalur yang sama, untuk `./` dan `.\\`.
+#[test]
+fn validate_cwd_menerima_bentuk_titik_lain() {
+    assert!(crate::paths::validate_cwd(Path::new("./")).is_ok());
+    assert!(crate::paths::validate_cwd(Path::new(".\\")).is_ok());
+}
+
 #[test]
 fn is_inside_case_insensitive_di_windows() {
     let ws = Path::new(r"C:\Ws\Proj");
@@ -174,6 +239,64 @@ fn git_permit_serialisasi_satu_proses() {
     drop(a);
     let b = st.git_permit().expect("permit setelah dilepas");
     drop(b);
+}
+
+/// Regresi 2026-10-13 — penantian izin git TIDAK boleh membekukan runtime.
+///
+/// Bentuk kejadian asli: 12 `editor_insert` bersamaan → 12 command git (semua
+/// `#[tauri::command(async)]` dengan badan sinkron, jadi badannya jalan LANGSUNG DI
+/// WORKER runtime) → 9+ worker berputar di spin-wait izin → task IPC yang mengantar
+/// balasan `mcp_reply` tak pernah dapat giliran → app "diam" bermenti-menit.
+///
+/// Di sini runtime sengaja dibatasi 2 worker dan pemegang izin baru bisa SELESAI
+/// setelah task lain membebaskannya (spawn_blocking + timer). Kalau penunggu
+/// menyandera worker, tes ini macet sampai batas GIT_WAIT; dengan `block_in_place`
+/// ia lulus cepat.
+#[test]
+fn git_permit_penunggu_tidak_membekukan_runtime() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let st = std::sync::Arc::new(crate::app_state::AppState::new());
+    let st_pemegang = st.clone();
+
+    let mulai = std::time::Instant::now();
+    rt.block_on(async move {
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+        let pemegang = tokio::spawn(async move {
+            let _izin = st_pemegang.git_permit().expect("izin pemegang");
+            tokio::task::spawn_blocking(move || {
+                let _ = rx.recv_timeout(std::time::Duration::from_secs(30));
+            })
+            .await
+            .expect("recv");
+        });
+
+        // 12 penunggu — persis jumlah burst `editor_insert` pemicu kejadian asli.
+        let mut penunggu = Vec::new();
+        for _ in 0..12 {
+            let stx = st.clone();
+            penunggu.push(tokio::spawn(async move {
+                let _izin = stx.git_permit().expect("izin penunggu");
+            }));
+        }
+
+        // Pembebas: HARUS tetap dapat worker walau semua penunggu berputar.
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            let _ = tx.send(());
+        });
+
+        pemegang.await.expect("pemegang selesai");
+        for p in penunggu {
+            p.await.expect("penunggu selesai");
+        }
+    });
+
+    let ms = mulai.elapsed().as_millis() as u64;
+    assert!(ms < 5_000, "penantian izin memblokir runtime: {ms} ms");
 }
 
 #[test]

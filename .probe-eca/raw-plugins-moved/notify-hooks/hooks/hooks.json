@@ -1,0 +1,22 @@
+{
+  "notify-hooks.finished": {
+    "type": "postRequest",
+    "visible": false,
+    "actions": [
+      {
+        "type": "shell",
+        "shell": "jq -e '.hook_type == \"postRequest\"' > /dev/null && (canberra-gtk-play -i complete 2>/dev/null || afplay /System/Library/Sounds/Glass.aiff 2>/dev/null || true)"
+      }
+    ]
+  },
+  "notify-hooks.approval": {
+    "type": "preToolCall",
+    "visible": false,
+    "actions": [
+      {
+        "type": "shell",
+        "shell": "jq -e '.approval == \"ask\"' > /dev/null && (canberra-gtk-play -i message 2>/dev/null || afplay /System/Library/Sounds/Ping.aiff 2>/dev/null || true)"
+      }
+    ]
+  }
+}

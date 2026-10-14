@@ -7,7 +7,7 @@ import { buatDraft, type DraftHasil } from '../../lib/agentDraft';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import AgcToolList from './AgcToolList';
-import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcInstructions } from './AgcSections';
+import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcInstructions, AgcPermissions } from './AgcSections';
 
 /*
  * Agent Customizations — a modal of its own, deliberately NOT inside Settings.
@@ -253,6 +253,12 @@ const NAV: NavItem[] = [
     desc: 'Run automated commands at key points in the agent lifecycle. Use hooks to validate, format, or coordinate work.',
   },
   {
+    id: 'permissions',
+    label: 'Permissions',
+    icon: 'shield',
+    desc: 'Allow, confirm or block a tool call by pattern. First matching rule wins, and rules are checked before the approval mode.',
+  },
+  {
     id: 'tools',
     label: 'Tools',
     icon: 'wrench',
@@ -325,6 +331,8 @@ function Isi({ section }: { section: AgentCustomSection }) {
       return <AgcSkills />;
     case 'hooks':
       return <AgcHooks />;
+    case 'permissions':
+      return <AgcPermissions />;
     case 'migrations':
       return <AgcMigrations />;
     case 'overview':
@@ -421,10 +429,7 @@ export default function AgentCustomModal() {
         aria-label={tr('Agent Customizations')}
       >
         <div className="agc-head">
-          <span className="agc-head-title">
-            {tr('Agent Customizations')}
-            <span className="agc-head-scope"> ({tr('Copilot · Zephyr')})</span>
-          </span>
+          <span className="agc-head-title">{tr('Agent Customizations')}</span>
           {/*
             * Maximise, matching the window controls the panels already use.
             *

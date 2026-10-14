@@ -1,0 +1,26 @@
+{
+  "name": "superpowers",
+  "description": "Agentic development methodology: spec-driven brainstorming, structured planning, subagent-driven development, TDD, and systematic debugging",
+  "version": "1.0.0",
+  "author": "obra",
+  "category": "Workflow",
+  "tags": [
+    "methodology",
+    "skill",
+    "planning",
+    "tdd",
+    "debugging",
+    "subagent",
+    "workflow"
+  ],
+  "icon": "⚡",
+  "provides": {
+    "skills": [
+      "superpowers"
+    ],
+    "agents": [],
+    "rules": [],
+    "hooks": [],
+    "mcp": []
+  }
+}

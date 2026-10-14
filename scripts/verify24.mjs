@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagianA } from './v24/bagianA.mjs';
 import { bagianB } from './v24/bagianB.mjs';
 
@@ -193,5 +193,5 @@ const main = async () => {
 main().catch((e) => {
   console.error('verify24 error:', e.message);
   hapusFixture();
-  process.exit(1);
+  keluarBersih(1);
 });

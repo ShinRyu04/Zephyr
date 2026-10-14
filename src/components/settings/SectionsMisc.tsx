@@ -9,7 +9,7 @@ import { SelfTestPanel, ExportPanel } from './SectionsDiag';
 import UpdatePanel from './UpdatePanel';
 import { useUpdater } from '../../lib/updaterStore';
 import { useFocusTrap } from '../../lib/useFocusTrap';
-import { DiscordLogo, GitHubLogo } from './BrandLogos';
+import { GitHubLogo } from './BrandLogos';
 
 import { useTerminal } from '../../lib/terminalStore';
 export function ScmSection() {
@@ -519,13 +519,6 @@ export function AboutSection() {
           }
         >
           <GitHubLogo /> {tr('Report an issue')}
-        </button>
-        <button
-          className="btn btn-brand btn-brand-dc"
-          data-testid="about-discord"
-          onClick={() => void openUrl('https://discord.gg/fWr84DxSQ').catch(() => {})}
-        >
-          <DiscordLogo /> {tr('Discord community')}
         </button>
         <button
           className="btn btn-donate"

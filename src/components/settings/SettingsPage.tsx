@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSettingsUi, type SectionId } from '../../lib/settingsStore';
 import { EditorSection, GeneralSection, ThemeSection } from './SectionsBasic';
-import { AgentsSection, ModelsSection, ShortcutsSection, SubagentSection } from './SectionsAdvanced';
+import { AgentsSection, ShortcutsSection, SubagentSection } from './SectionsAdvanced';
 import CommandPermissions from './CommandPermissions';
 import RulesSection from './RulesSection';
 import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
@@ -11,6 +11,7 @@ import McpPanel from './McpPanel';
 import SecuritySection from './SecuritySection';
 import AccessibilitySection from './AccessibilitySection';
 import TestsSection from './TestsSection';
+import MemoriPanel from './MemoriPanel';
 import DevEnvSettingsSection from './DevEnvSettingsSection';
 import { DevUpdateSection } from './DevUpdateSection';
 
@@ -24,8 +25,6 @@ function SectionBody({ id }: { id: SectionId }) {
       return <ThemeSection />;
     case 'shortcuts':
       return <ShortcutsSection />;
-    case 'models':
-      return <ModelsSection />;
     case 'agents':
       return <AgentsSection />;
     case 'rules':
@@ -57,6 +56,8 @@ function SectionBody({ id }: { id: SectionId }) {
       return <AccessibilitySection />;
     case 'ssh':
       return <SshSection />;
+    case 'memori':
+      return <MemoriPanel />;
     case 'about':
       return <AboutSection />;
   }

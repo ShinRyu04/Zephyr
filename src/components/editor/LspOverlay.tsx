@@ -4,20 +4,24 @@ import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
 import { getActiveView, revealPosition } from '../../lib/editorRegistry';
 import { notifyError, notifyInfo, notifyWarn } from '../../lib/notificationStore';
-import { SYMBOL_KIND, pathToUri, uriToPath } from '../../lib/lsp';
+import { SYMBOL_KIND, pathToUri } from '../../lib/lsp';
 import {
   applyEdits,
+  applyWorkspaceEdit,
+  lspCallHierarchy,
   lspCodeActions,
   lspDocumentSymbols,
+  lspPrepareCallHierarchy,
   lspRename,
   lspToOffset,
+  type CallItem,
   type TextEditLsp,
 } from '../../lib/lspCm';
 import { useProblems, kunciPath } from '../../lib/problemsStore';
 import * as cmd from '../../lib/commands';
 import { tx } from '../../lib/i18n';
 
-type Mode = null | 'rename' | 'action' | 'symbol';
+type Mode = null | 'rename' | 'action' | 'symbol' | 'calls';
 
 interface ActionItem {
   title: string;
@@ -32,12 +36,23 @@ interface SymbolItem {
   detail?: string;
 }
 
+/** One side of a call hierarchy: the symbol, and the functions that call it
+ *  (or that it calls). */
+interface CallsState {
+  simbol: string;
+  pemanggil: SymbolItem[];
+  dipanggil: SymbolItem[];
+  /** Which of the two lists the keyboard is moving through. */
+  arah: 'masuk' | 'keluar';
+}
+
 export default function LspOverlay() {
   const tr = useT();
   const [mode, setMode] = useState<Mode>(null);
   const [nilai, setNilai] = useState('');
   const [aksi, setAksi] = useState<ActionItem[]>([]);
   const [simbol, setSimbol] = useState<SymbolItem[]>([]);
+  const [calls, setCalls] = useState<CallsState | null>(null);
   const [idx, setIdx] = useState(0);
   const [sibuk, setSibuk] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -166,32 +181,21 @@ export default function LspOverlay() {
     const path = pathAktif();
     if (!view || !path) return tutup();
     try {
-      const edit = item.raw.edit as Record<string, unknown> | undefined;
-      let diterapkan = 0;
-      if (edit) {
-        const changes = edit.changes as Record<string, TextEditLsp[]> | undefined;
-        if (changes) {
-          for (const [uri, edits] of Object.entries(changes)) {
-            if (kunciPath(uriToPath(uri)) === kunciPath(path)) {
-              diterapkan += applyEdits(view, edits);
-            }
-          }
-        }
-        const dc = edit.documentChanges as unknown[] | undefined;
-        if (Array.isArray(dc)) {
-          for (const d of dc) {
-            const o = d as Record<string, unknown>;
-            const uri = (o.textDocument as Record<string, unknown> | undefined)?.uri as
-              | string
-              | undefined;
-            const edits = o.edits as TextEditLsp[] | undefined;
-            if (uri && edits && kunciPath(uriToPath(uri)) === kunciPath(path)) {
-              diterapkan += applyEdits(view, edits);
-            }
-          }
-        }
-      }
-      
+      /*
+       * The edit is applied through the shared helper, not inline.
+       *
+       * This block was copied into `lspCm.lspFixAll` when fix-all-on-save
+       * needed the same thing, and two copies of "apply these ranges in reverse
+       * order, skipping other files" is exactly the shape where one copy ends
+       * up with the sort backwards and silently corrupts a buffer. The helper
+       * ignores edits for other files, which is what this did too.
+       */
+      const diterapkan = applyWorkspaceEdit(
+        view,
+        path,
+        item.raw.edit as Record<string, unknown> | undefined,
+      );
+
       const command = item.raw.command;
       if (command) {
         const c =
@@ -262,24 +266,112 @@ export default function LspOverlay() {
     return () => window.removeEventListener('zephyr-lsp-symbols', onSymbols);
   }, []);
 
+  /*
+   * Call hierarchy: who calls the symbol at the cursor, and what it calls.
+   *
+   * Both directions are fetched up front rather than on demand, because the
+   * question "who calls this" is almost always followed by "and what does it
+   * call" — and a second round trip after the panel is already open reads as
+   * the panel being slow rather than as a second question being asked.
+   *
+   * `tabIndex` is not used to pick the symbol: the CURSOR is, which is where
+   * the reader is already looking. A position picker would be a second thing to
+   * explain for a command that has one obvious answer.
+   */
   useEffect(() => {
-    if (mode !== 'action' && mode !== 'symbol') return;
-    const daftar = mode === 'action' ? aksi : simbol;
+    const onCalls = async () => {
+      const path = pathAktif();
+      const view = getActiveView();
+      if (!path || !view) {
+        notifyWarn(tx('Open a file first'), { source: 'LSP' });
+        return;
+      }
+      setSibuk(true);
+      setMode('calls');
+      try {
+        const pos = view.state.selection.main.head;
+        const item = await lspPrepareCallHierarchy(path, view, pos);
+        if (item.length === 0) {
+          setCalls(null);
+          notifyInfo(tx('No function under the cursor.'), {
+            source: 'LSP',
+            detail: tx('Call hierarchy needs the cursor on a function or method name, not inside its body.'),
+          });
+          return;
+        }
+        const utama = item[0];
+        const [masuk, keluar] = await Promise.all([
+          lspCallHierarchy(path, utama, 'incoming'),
+          lspCallHierarchy(path, utama, 'outgoing'),
+        ]);
+        const ke = (d: CallItem[]): SymbolItem[] =>
+          d.map((c) => ({ name: c.name, kind: c.kind, line: c.line, column: c.column, detail: c.detail }));
+        setCalls({
+          simbol: utama.detail ? `${utama.name} — ${utama.detail}` : utama.name,
+          pemanggil: ke(masuk),
+          dipanggil: ke(keluar),
+          arah: masuk.length > 0 ? 'masuk' : 'keluar',
+        });
+        setIdx(0);
+      } catch (e) {
+        notifyError(tx('Call hierarchy failed'), {
+          source: 'LSP',
+          detail: cmd.asZephyrError(e).message,
+        });
+        setMode(null);
+      } finally {
+        setSibuk(false);
+      }
+    };
+    window.addEventListener('zephyr-lsp-calls', onCalls);
+    return () => window.removeEventListener('zephyr-lsp-calls', onCalls);
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'action' && mode !== 'symbol' && mode !== 'calls') return;
+    /*
+     * Call hierarchy has TWO lists, so the arrow keys move through whichever
+     * one the reader last touched — tracked in `calls.arah`. Flattening the two
+     * into one list would make Down walk from "called by" into "calls" without
+     * saying so, and Enter would jump somewhere the reader did not pick.
+     *
+     * `aksi` (code actions) has no location of its own — running one is what
+     * navigates — so it is kept separate rather than forced into the same
+     * shape with dummy coordinates.
+     */
+    const lokasi: SymbolItem[] =
+      mode === 'symbol'
+        ? simbol
+        : mode === 'calls' && calls
+          ? calls.arah === 'masuk'
+            ? calls.pemanggil
+            : calls.dipanggil
+          : [];
+    const panjang = mode === 'action' ? aksi.length : lokasi.length;
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         tutup();
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setIdx((i) => (daftar.length === 0 ? 0 : (i + 1) % daftar.length));
+        setIdx((i) => (panjang === 0 ? 0 : (i + 1) % panjang));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setIdx((i) => (daftar.length === 0 ? 0 : (i - 1 + daftar.length) % daftar.length));
+        setIdx((i) => (panjang === 0 ? 0 : (i - 1 + panjang) % panjang));
+      } else if (e.key === 'Tab') {
+        /* Tab flips between the two call-hierarchy lists. Only meaningful in
+           that mode; in the others it must stay the browser's Tab. */
+        if (mode !== 'calls' || !calls) return;
+        e.preventDefault();
+        setCalls((c) => (c ? { ...c, arah: c.arah === 'masuk' ? 'keluar' : 'masuk' } : c));
+        setIdx(0);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (mode === 'action' && aksi[idx]) void jalankanAksi(aksi[idx]);
-        else if (mode === 'symbol' && simbol[idx]) {
-          const s = simbol[idx];
+        if (mode === 'action') {
+          if (aksi[idx]) void jalankanAksi(aksi[idx]);
+        } else if (lokasi[idx]) {
+          const s = lokasi[idx];
           tutup();
           window.setTimeout(() => revealPosition(s.line, s.column), 40);
         }
@@ -287,7 +379,7 @@ export default function LspOverlay() {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [mode, aksi, simbol, idx]);
+  }, [mode, aksi, simbol, calls, idx]);
 
   if (!mode) return null;
 
@@ -394,6 +486,80 @@ export default function LspOverlay() {
                 </button>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'calls' && (
+        <div className="lsp-list lsp-calls" role="dialog" aria-modal="true" aria-label="Call Hierarchy">
+          <div className="lsp-list-head">
+            {calls ? calls.simbol : tr('Call Hierarchy')}
+          </div>
+          {sibuk ? (
+            <p className="lsp-empty">{tr('Asking the language server…')}</p>
+          ) : !calls ? (
+            /*
+             * Said in full rather than shown as two empty sections. A server
+             * that does not implement call hierarchy answers an empty list, and
+             * an empty list rendered as "no callers" would tell the reader the
+             * function is unused — a conclusion the server never made.
+             */
+            <p className="lsp-empty" data-testid="lsp-calls-empty">
+              {tr('No call hierarchy here. This needs the cursor on a function name, and a language server that supports it.')}
+            </p>
+          ) : (
+            <>
+              {(
+                [
+                  ['masuk', tr('Called by'), calls.pemanggil],
+                  ['keluar', tr('Calls'), calls.dipanggil],
+                ] as const
+              ).map(([arah, judul, daftar]) => (
+                <div className="lsp-calls-sec" key={arah}>
+                  <div
+                    className={`lsp-calls-title${calls.arah === arah ? ' is-aktif' : ''}`}
+                    /* Clicking the heading switches which list the arrow keys
+                       move through, so the whole panel is reachable without
+                       reaching for the mouse. */
+                    onClick={() => {
+                      setCalls((c) => (c ? { ...c, arah } : c));
+                      setIdx(0);
+                    }}
+                  >
+                    {judul} ({daftar.length})
+                  </div>
+                  {daftar.length === 0 ? (
+                    <p className="lsp-calls-none">{tr('Nothing.')}</p>
+                  ) : (
+                    <div className="lsp-items">
+                      {daftar.slice(0, 200).map((s, i) => {
+                        const aktif = calls.arah === arah && i === idx;
+                        return (
+                          <button
+                            key={`${arah}-${s.name}-${s.line}-${i}`}
+                            className={`lsp-item${aktif ? ' is-active' : ''}`}
+                            data-testid={`lsp-call-${arah}`}
+                            data-file={undefined}
+                            onMouseMove={() => {
+                              setCalls((c) => (c ? { ...c, arah } : c));
+                              setIdx(i);
+                            }}
+                            onClick={() => {
+                              tutup();
+                              window.setTimeout(() => revealPosition(s.line, s.column), 40);
+                            }}
+                          >
+                            <span className="lsp-sym-kind">{s.kind}</span>
+                            <span className="lsp-sym-name">{s.name}</span>
+                            <span className="lsp-sym-loc">:{s.line}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
           )}
         </div>
       )}

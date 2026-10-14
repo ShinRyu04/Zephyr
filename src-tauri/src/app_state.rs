@@ -78,6 +78,10 @@ pub struct AppState {
 
     watch_generation: Arc<AtomicU64>,
 
+    /// Bumped by the file watcher on every flush; read by caches of the tree.
+    /// Separate from `watch_generation` — see `tree_generation`.
+    tree_generation: Arc<AtomicU64>,
+
     pub ai_capture: RwLock<Vec<crate::ai::CapturedRequest>>,
 
     pub ai_capture_on: std::sync::atomic::AtomicBool,
@@ -102,6 +106,31 @@ pub struct AppState {
     perf: RwLock<Vec<PerfMark>>,
 
     counters: RwLock<HashMap<String, u64>>,
+
+    /*
+     * The Quick Open file index: paths plus the lowercase haystack used to
+     * score a fuzzy query.
+     *
+     * WHY it exists: `list_workspace_files` walked the WHOLE tree on every
+     * call, and the palette calls it every time it opens — so Ctrl+P on a large
+     * repository paid a full filesystem walk per keystroke-adjacent action.
+     * The walk is the expensive part and its result changes only when files
+     * change, which the watcher already reports.
+     *
+     * One entry, not a map: there is one active workspace, and swapping
+     * workspaces replaces the index rather than accumulating stale trees.
+     */
+    pub file_index: RwLock<Option<FileIndex>>,
+}
+
+/// A cached workspace file listing.
+#[derive(Debug, Clone)]
+pub struct FileIndex {
+    /// The workspace root this was built for. A different root invalidates it.
+    pub root: PathBuf,
+    /// Bumped by the file watcher; a mismatch means the tree may have changed.
+    pub generation: u64,
+    pub files: Vec<crate::explorer::QuickFile>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -174,6 +203,7 @@ impl AppState {
             data_dir,
             git_sem: tokio::sync::Semaphore::new(1),
             watch_generation: Arc::new(AtomicU64::new(0)),
+            tree_generation: Arc::new(AtomicU64::new(0)),
             ptys: RwLock::new(HashMap::new()),
             render_paused: Arc::new(AtomicBool::new(false)),
             ai_reqs: Arc::new(RwLock::new(HashMap::new())),
@@ -185,6 +215,7 @@ impl AppState {
             started: Instant::now(),
             perf: RwLock::new(Vec::new()),
             counters: RwLock::new(HashMap::new()),
+            file_index: RwLock::new(None),
             ai_capture: RwLock::new(Vec::new()),
             ai_capture_on: std::sync::atomic::AtomicBool::new(false),
         }
@@ -226,7 +257,32 @@ impl AppState {
             .unwrap_or_default()
     }
 
+    /// Izin git (serialisasi satu proses git pada satu waktu).
+    ///
+    /// PENTING — kenapa `block_in_place`: setiap command git Zephyr ditandai
+    /// `#[tauri::command(async)]` TAPI badannya sinkron, jadi badannya dieksekusi
+    /// LANGSUNG DI WORKER runtime tokio (lihat `tauri-macros` `body_async`).
+    /// Penantian izin di sini dulu memakai `std::thread::sleep` murni (spin) sehingga
+    /// setiap penunggu menahan satu worker penuh; begitu aksinya bersamaan cukup banyak
+    /// (kejadian 2026-10-13: 12 `editor_insert` bersamaan → 9+ penunggu, log:
+    /// "the git permit was not granted within 90s" beruntun) SELURUH worker habis
+    /// dipakai menunggu → pemegang izin tak pernah dapat giliran untuk melepas →
+    /// app berhenti menjawab IPC selama menit-menitan (halaman tampak hidup, tapi tak
+    /// satu pun balasan `mcp_reply` sampai). `block_in_place` memindahkan penantian luar
+    /// dari worker sehingga runtime tetap bisa menjalankan task lain; di luar runtime
+    /// (mis. tes `#[test]`) ia hanya menjalankan closure apa adanya.
     pub fn git_permit(&self) -> ZResult<GitPermit<'_>> {
+        let di_runtime_multi = matches!(
+            tokio::runtime::Handle::try_current().map(|h| h.runtime_flavor()),
+            Ok(tokio::runtime::RuntimeFlavor::MultiThread)
+        );
+        if di_runtime_multi {
+            return tokio::task::block_in_place(|| self.ambil_izin_git());
+        }
+        self.ambil_izin_git()
+    }
+
+    fn ambil_izin_git(&self) -> ZResult<GitPermit<'_>> {
         let start = Instant::now();
         let mut warned = false;
         loop {
@@ -478,6 +534,44 @@ impl AppState {
 
     pub fn next_watch_generation(&self) -> u64 {
         self.watch_generation.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    /// The current watcher generation, for readers that cache against it.
+    ///
+    /// Read-only on purpose: a cache must not be able to invalidate the watcher
+    /// by reading the counter.
+    pub fn watch_generation(&self) -> u64 {
+        self.watch_generation.load(Ordering::Relaxed)
+    }
+
+    /*
+     * `tree_generation` is a SEPARATE counter from `watch_generation`.
+     *
+     * They answer different questions, and sharing one was a bug waiting to
+     * happen: `watch_generation` says "which watcher run is this" — the loop
+     * exits when it stops matching, and `stop_watcher` bumps it to kill the
+     * thread. A cache that bumped THAT counter to mean "the tree changed" would
+     * silently terminate the watcher: the next flush would see a mismatch and
+     * break out of its loop.
+     *
+     * So the tree counter is its own, bumped by the watcher on every flush, and
+     * read by anything caching a listing.
+     */
+    pub fn tree_generation(&self) -> u64 {
+        self.tree_generation.load(Ordering::Relaxed)
+    }
+
+    pub fn bump_tree_generation(&self) -> u64 {
+        self.tree_generation.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    /// A handle on the tree counter, for the watcher thread.
+    ///
+    /// `State<AppState>` cannot move into a thread, so the thread gets the
+    /// counter directly. It is the same `Arc` the accessors above read, so
+    /// there is no second value to keep in step.
+    pub fn tree_counter(&self) -> Arc<AtomicU64> {
+        self.tree_generation.clone()
     }
 
     pub fn watch_stop_flag(&self) -> Arc<AtomicU64> {

@@ -25,7 +25,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { Cdp } from './lib-cdp.mjs';
+import { Cdp, keluarBersih } from './lib-cdp.mjs';
 import { bagian1 } from './v31/bagian1.mjs';
 import { bagian2 } from './v31/bagian2.mjs';
 
@@ -93,10 +93,10 @@ async function main() {
 
   const lulus = hasil.filter((x) => x.ok).length;
   console.log(`\n== ${lulus}/${hasil.length} lulus ==`);
-  process.exit(lulus === hasil.length ? 0 : 1);
+  keluarBersih(lulus === hasil.length ? 0 : 1);
 }
 
 main().catch((e) => {
   console.error(e);
-  process.exit(1);
+  keluarBersih(1);
 });

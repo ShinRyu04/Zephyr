@@ -6,9 +6,20 @@
 // assignment gagal diam-diam dan hitungannya nol untuk semua event. Itu
 // kegagalan harness, bukan aplikasi.
 //
-// Yang diuji: setiap situs `listen('event', ...)` di App.tsx dijaga flag
-// modul `*Bound` yang dicek sebelum pasang dan di-set sesudah sukses - pola
-// yang mencegah StrictMode memasang effect dua kali (= teks dobel "HHaiai").
+// Yang diuji: setiap situs `listen('event', ...)` di App.tsx punya penanda
+// "sudah dipasang" yang dicek sebelum pasang - pola yang mencegah StrictMode
+// memasang effect dua kali (= teks dobel "HHaiai"). Dua BENTUK penanda sah:
+//
+//   1. flag modul `*Bound` (aiListenerBound, gitProgressListenerBound);
+//   2. bidang objek jembatan `jembatanMCP` yang disetel 'proses' sebelum
+//      memasang dan SENGAJA tidak dilepas lagi (jembatanMCP.shot di
+//      App.tsx:1241-1246, jembatanMCP.connect di :1263; alasan tidak dilepas
+//      ada di komentar App.tsx:1274-1280 - cleanup justru akar bugnya).
+//
+// Versi lama hanya mengenal bentuk 1 DAN dengan nama literal
+// `mcpShotListenerBound` / `mcpConnectListenerBound`, jadi dua situs yang
+// benar dicap GAGAL.
+//
 // `ram-usage` dikecualikan: ia helper di events.ts dengan satu pemilik,
 // bukan effect yang bisa remount.
 //
@@ -17,20 +28,22 @@ import { readFileSync } from 'node:fs';
 
 const src = readFileSync('src/App.tsx', 'utf8');
 
-const target = {
-  'onAiChunk': 'aiListenerBound',
-  'onMcpScreenshot': 'mcpShotListenerBound',
-  'onMcpConnect': 'mcpConnectListenerBound',
-  'onGitProgress': 'gitProgressListenerBound',
-};
+const target = [
+  { helper: 'onAiChunk', guard: ['let aiListenerBound = false', 'if (!aiListenerBound'] },
+  { helper: 'onMcpScreenshot', guard: ['const jembatanMCP', 'if (!jembatanMCP.shot)', "jembatanMCP.shot = 'proses'"] },
+  { helper: 'onMcpConnect', guard: ['const jembatanMCP', 'if (!jembatanMCP.connect)', "jembatanMCP.connect = 'proses'"] },
+  { helper: 'onGitProgress', guard: ['let gitProgressListenerBound = false', 'if (gitProgressListenerBound) return'] },
+];
 
 let gagal = 0;
-for (const [helper, guard] of Object.entries(target)) {
+for (const { helper, guard } of target) {
   const adaListen = src.includes(`${helper}(`);
-  const adaGuard = src.includes(`let ${guard} = false`) && (src.includes(`if (!${guard}`) || src.includes(`if (${guard})`));
-  const ok = adaListen && adaGuard;
+  const kurang = guard.filter((g) => !src.includes(g));
+  const ok = adaListen && kurang.length === 0;
   if (!ok) gagal++;
-  console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${helper} -> pakai:${adaListen ? 1 : 0} guard:${guard}=${adaGuard ? 1 : 0}`);
+  console.log(
+    `${ok ? 'LULUS' : 'GAGAL'}  ${helper} -> pakai:${adaListen ? 1 : 0} guard:${kurang.length ? `kurang ${kurang.length}` : 'lengkap'}`,
+  );
 }
 console.log(gagal === 0 ? 'SEMUA LULUS' : `${gagal} GAGAL`);
 process.exitCode = gagal === 0 ? 0 : 1;

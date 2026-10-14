@@ -1,0 +1,63 @@
+GATE PENGETAHUAN DUA LAPIS ZEPHYR (AI-TAHU-100-7)
+AMBANG blok inti: 2000 token = 8000 karakter (token = Math.ceil(karakter / 4))
+
+(A) lapis 1 (blok inti) tidak melewati ambang 2.000 token saat aturan baru ditambah
+  ANGKA AMBANG_TOKEN_INTI dibaca dari modul          2000
+  ANGKA blok generated (id)                          7950 char / 1988 tok
+  ANGKA   inti fakta (id)                            6986 char / 1747 tok
+  ANGKA   inti + larangan (id)                       7888 char / 1972 tok
+  ANGKA   inti + larangan + kepala (id)              7984 char / 1996 tok
+  ANGKA blok generated (en)                          7950 char / 1988 tok
+  ANGKA   inti fakta (en)                            6986 char / 1747 tok
+  ANGKA   inti + larangan (en)                       7824 char / 1956 tok
+  ANGKA   inti + larangan + kepala (en)              7925 char / 1982 tok
+  OK    A1 AMBANG_TOKEN_INTI == 2000 (dibaca dari modul, bukan salinan)  [2000]
+  OK    A2 faktaInti() <= ambang (id)  [1747 <= 2000 tok]
+  OK    A3 faktaInti() + blokLarangan() <= ambang (id)  [1972 <= 2000 tok]
+  OK    A4 faktaInti() + blokLarangan() + kepalaPotret() <= ambang (id)  [1996 <= 2000 tok]
+  OK    A5 faktaInti() + blokLarangan() + kepalaPotret() <= ambang (en)  [1982 <= 2000 tok]
+  OK    A6 faktaInti() <= ambang x 4 karakter (rumus ceil(len/4) konsisten)  [6986 <= 8000 char]
+  OK    A7 aturan baru tidak bocor ke blok inti (penanda kondisional absen)  [tidak ada]
+  OK    A8 setiap kelas kondisional terdaftar bisa dipicu contoh pesan nyata  [6 kelas: model, tabel, jendela, galat, keamanan, subagent]
+  OK    A9 aturan baru punya isi nyata saat topiknya disebut (blok kondisional tidak kosong)  [6/6 blok terisi]
+  ANGKA sisa anggaran blok inti (id)                 4 token
+  OK    A10 blok inti masih punya sisa anggaran (bukan pas-pasan 100%)  [4 tok sisa]
+
+(B) lapis 2 diambil on-demand dan HANYA saat relevan
+  ANGKA pertanyaan di luar Zephyr diuji              3
+  ANGKA   "tolong tuliskan puisi pendek tenta…"      0 entri
+  ANGKA   "buatkan resep rendang padang yang …"      0 entri
+  ANGKA   "siapa pemenang liga champions tahu…"      0 entri
+  OK    B1 pertanyaan di luar Zephyr (3 contoh) -> nol suntikan  [0/0/0]
+  OK    B2 pertanyaan di luar Zephyr -> blok menyebut tidak ada yang cocok  [3/3]
+  OK    B3 blok lapis 2 tetap memuat meta indeks (model tahu indeks ada)  [meta ada di semua contoh]
+  OK    B4 kueri kosong ("") -> nol entri + kalimat "carries no search words"  [0 entri]
+  ANGKA kandidat kueri diambil dari indeks sendiri   60
+  ANGKA kandidat yang menarik >= 1 entri             60
+  OK    B5 kueri yang diambil dari indeks sendiri menarik entri (lapis 2 benar-benar hidup)  [mis. "zephyr.ikon-bahasa" -> 1 entri]
+  ANGKA blok lapis 2 contoh on-topic                 741 char / 1 entri
+  ANGKA blok lapis 2 contoh off-topic                1031 char / 0 entri
+  OK    B6 penyuntikan bersyarat: off-topic 0 entri < on-topic >= 1 entri  [0 < 1]
+  OK    B7 jumlah entri lapis 2 tidak melewati BATAS_HASIL_SUNTIK  [batas 10 entri, maks terukur 8]
+  OK    B8 anggaran karakter dipatuhi: batasKarakter 300 memangkas blok (lebih pendek, entri tidak bertambah)  [219<=741 / 215<=737 / 214<=736 char]
+  OK    B9 blok inti tidak memuat teks lapis 2 (dua lapis memang terpisah)  [inti bersih dari meta indeks]
+
+(C) penggabungan dua lapis tidak pernah kehilangan fakta (superset)
+  ANGKA baris blok generated                         47
+  ANGKA baris blok inti (setelah dipotong)           45
+  ANGKA bullet on-demand dipotong dari inti          2
+  OK    C1 inti + bullet on-demand == blok generated apa adanya (byte-exact)  [identik]
+  OK    C2 tidak ada baris yang hilang diam-diam saat memotong  [47 - 45 = 2]
+  OK    C3 tiap baris inti ada di blok generated, tiap bullet on-demand TIDAK ada di inti  [model, galat tidak tumpang tindih]
+  ANGKA entri lapis 2 diperiksa keasliannya          105
+  OK    C4 tiap entri lapis 2 bisa dipetakan balik ke indeks (tidak mengarang nama)  [105 entri sah dari 6204 pasangan indeks]
+
+(D) determinisme
+  OK    D1 faktaInti() dipanggil dua kali -> identik  [6986 char]
+  OK    D2 blokLarangan() dipanggil dua kali -> identik (id dan en)  [902 char]
+  OK    D3 suntikanIndeks() dipanggil dua kali -> identik (off-topic + on-topic)  [8 panggilan ulang]
+  OK    D4 daftar kelas kondisional stabil antar panggilan  [model, tabel, jendela, galat, keamanan, subagent]
+
+  INDEKS: 6212 entri (semua kategori), app 1.1.13, hash f83cc022d0c620db
+  SKOR: 27/27 diperiksa
+  VERDICT PENGETAHUAN DUA LAPIS: LULUS

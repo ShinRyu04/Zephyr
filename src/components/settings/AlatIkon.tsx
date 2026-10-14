@@ -63,10 +63,7 @@ export default function AlatIkon({ id, size }: Props) {
         </Svg>
       );
     // Read a terminal surface: a window with a caret line.
-    // The retired prefix is kept so an icon still resolves for a session or
-    // saved selection resumed from disk.
     case 'mcp__zephyr__read':
-    case 'mcp__tedi__read':
       return (
         <Svg size={size}>
           <rect x="1.8" y="2.6" width="12.4" height="10.8" rx="1.2" />

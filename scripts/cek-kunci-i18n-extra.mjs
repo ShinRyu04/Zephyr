@@ -20,11 +20,18 @@ const batas = [...teks.matchAll(/^const ([A-Z]{2}): Dict = \{/gm)].map((m) => ({
   i: m.index,
 }));
 
+const KUNCI = /^\s{2}('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*:/gm;
+
 const kamus = {};
 for (let i = 0; i < batas.length; i++) {
   const a = i + 1 < batas.length ? batas[i + 1].i : teks.length;
   const blok = teks.slice(batas[i].i, a);
-  kamus[batas[i].b] = new Set([...blok.matchAll(/^\s{2}'(?:[^'\\]|\\.)*'\s*:/gm)].map((m) => m[0].trim()));
+  // Kunci boleh ditulis dengan kutip tunggal ATAU kutip ganda. Versi lama hanya
+  // mengenali kutip tunggal, sehingga kunci ber-kutip ganda tampak "hilang"
+  // padahal terjemahannya ada -> laporan palsu. Kedua bentuk sekarang dikenali
+  // (isi kunci tetap boleh memuat kutip jenis lain), lalu jenis kutipnya dibuang
+  // supaya perbandingan antar kamus tidak tergantung gaya penulisan.
+  kamus[batas[i].b] = new Set([...blok.matchAll(KUNCI)].map((m) => m[1].slice(1, -1)));
 }
 
 const bahasa = Object.keys(kamus);

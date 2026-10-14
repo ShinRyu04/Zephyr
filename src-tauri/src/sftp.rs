@@ -202,7 +202,14 @@ pub fn sftp_list(
     path: String,
 ) -> ZResult<Vec<SftpEntry>> {
     let port = port.unwrap_or(22);
-    let skrip = format!("ls -l {}\n", if path.trim().is_empty() { "." } else { path.trim() });
+    let skrip = format!(
+        "ls -l {}\n",
+        if path.trim().is_empty() {
+            "."
+        } else {
+            path.trim()
+        }
+    );
     let keluaran = sftp_batch(&host, port, &user, &skrip)?;
     Ok(parse_ls(&keluaran))
 }
@@ -311,7 +318,9 @@ pub fn sftp_tunnel_start(
 #[tauri::command(async)]
 pub fn sftp_tunnel_stop(id: String) -> ZResult<bool> {
     let pid = {
-        let g = TUNNEL.lock().map_err(|_| ZephyrError::Internal("tunnel is locked".into()))?;
+        let g = TUNNEL
+            .lock()
+            .map_err(|_| ZephyrError::Internal("tunnel is locked".into()))?;
         g.iter().find(|(k, _)| k == &id).map(|(_, p)| *p)
     };
     let Some(pid) = pid else {
@@ -329,7 +338,10 @@ pub fn sftp_tunnel_stop(id: String) -> ZResult<bool> {
 /// Live tunnels, so the panel can show state after a reload.
 #[tauri::command(async)]
 pub fn sftp_tunnel_list() -> ZResult<Vec<String>> {
-    Ok(TUNNEL.lock().map(|g| g.iter().map(|(k, _)| k.clone()).collect()).unwrap_or_default())
+    Ok(TUNNEL
+        .lock()
+        .map(|g| g.iter().map(|(k, _)| k.clone()).collect())
+        .unwrap_or_default())
 }
 
 /// Whether the OpenSSH client is present, so the UI can say so up front.
@@ -377,7 +389,10 @@ drwx******    1 -        -               0 Jun 15 20:27 Cisco Packet Tracer 9.0.
         let entri = parse_ls(keluaran);
         assert_eq!(entri.len(), 4, "harus empat entri");
 
-        let berkas = entri.iter().find(|e| e.nama == "zephyr-sftp-uji.txt").expect("berkas ada");
+        let berkas = entri
+            .iter()
+            .find(|e| e.nama == "zephyr-sftp-uji.txt")
+            .expect("berkas ada");
         assert!(!berkas.direktori);
         assert_eq!(berkas.ukuran, 42, "ukuran harus 42, bukan link count");
 

@@ -8,7 +8,6 @@ export type SectionId =
   | 'editor'
   | 'theme'
   | 'shortcuts'
-  | 'models'
   | 'agents'
   /* Rules guards WRITES, so it lives beside Permissions - both are about what
      the AI is allowed to do, and a user looking for one will look for the other. */
@@ -25,6 +24,12 @@ export type SectionId =
   | 'security'
   | 'accessibility'
   | 'ssh'
+  /* Memory gets a page of its own because the destructive control on it is not
+     a preference: the reader has to be able to SEE and DELETE what Zeph
+     remembers between sessions, and a delete that runs inside the chat stream
+     loses the wrong thing on a misclick. The section shows the saved entries
+     (global + this project) and lets each one be removed. */
+  | 'memori'
   | 'about';
 
 export const SECTION_ORDER: SectionId[] = [
@@ -32,7 +37,6 @@ export const SECTION_ORDER: SectionId[] = [
   'editor',
   'theme',
   'shortcuts',
-  'models',
   'extensions',
   'lsp',
   'scm',
@@ -44,8 +48,19 @@ export const SECTION_ORDER: SectionId[] = [
 
   'accessibility',
   'ssh',
+  'memori',
   'about',
 ];
+
+/*
+ * `models` USED TO SIT HERE and no longer does: the AI Models settings (provider,
+ * API keys, base URL, model list, answer language/style, Local RAG) are now a
+ * pop-up of their own - `AiModelsModal`, opened by `useAiModels` - because the
+ * reader needs them exactly when the chat in front of them is failing with a 401,
+ * not after crossing the window to a Settings page. The section component is the
+ * same one the page rendered; only the place changed, and it is no longer one of
+ * the editor-area Settings sections below.
+ */
 
 /*
  * `subagent` and `permissions` are NOT in the nav order any more: both are chat
@@ -123,7 +138,26 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   saveKey: async (provider, key) => {
     try {
       await cmd.setModelKey(provider, key);
-      set({ keys: await cmd.getPublicModels(), message: key.trim() ? 'API key saved' : 'API key removed' });
+      const keys = await cmd.getPublicModels();
+      set({ keys, message: key.trim() ? 'API key saved' : 'API key removed' });
+
+      /*
+       * The SAME key list has to land in the AI store too.
+       *
+       * Two stores hold a copy of `getPublicModels` — this one, for the
+       * Settings cards, and `useAi`, for the model picker and the composer
+       * badge. Only this one was refreshed on save, so a provider saved here
+       * stayed invisible in the picker until something else happened to call
+       * `loadKeys` there. That is exactly how a `local` provider with a saved
+       * key and a passing connection test still read as "5 providers hidden
+       * because there is no API key yet".
+       *
+       * Assigning the freshly fetched array (rather than calling `loadKeys`)
+       * keeps it to one IPC instead of two, and guarantees the two stores
+       * cannot disagree about what was just saved.
+       */
+      const { useAi } = await import('./aiStore');
+      useAi.setState({ keys });
 
       if (key.trim()) void get().refreshRemoteModels(provider);
       else set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: [] } }));

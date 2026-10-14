@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
-import { useStore } from './store';
+import { useStore, flushSetelanTerakhir } from './store';
 import type { ExtCommand, ExtensionInfo, ExtensionLoad } from './types';
 
 interface ExtState {
@@ -78,6 +78,16 @@ export const useExtensions = create<ExtStore>((set, get) => ({
     const base = cur.length === 0 ? [...BUILTIN_IDS] : cur;
     const next = on ? [...new Set([...base, id])] : base.filter((x) => x !== id);
     await s.applySettings({ extensions: { enabled: next } });
+    /*
+     * Land the write BEFORE asking the backend for the list.
+     *
+     * `applySettings` only merges state and SCHEDULES the disk write (350ms),
+     * while `extensions_list` reads the truth out of settings.json. Refreshing
+     * straight after meant Rust answered from the file that had not been
+     * written yet, so `e.enabled` came back unchanged and the switch the user
+     * had just turned off snapped back to on (until the section was reopened).
+     */
+    await flushSetelanTerakhir();
     await get().refresh();
     set({ extInfo: `${id} ${on ? 'diaktifkan' : 'dimatikan'}` });
   },
@@ -122,6 +132,9 @@ export const useExtensions = create<ExtStore>((set, get) => ({
       const cur = s.settings.extensions.enabled;
       if (cur.includes(id)) {
         await s.applySettings({ extensions: { enabled: cur.filter((x) => x !== id) } });
+        // Same reason as in `toggle`: the write is debounced and `refresh()`
+        // below reads the list back out of settings.json.
+        await flushSetelanTerakhir();
       }
       set((st) => {
         const loaded = { ...st.loaded };

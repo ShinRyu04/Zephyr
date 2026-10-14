@@ -1,0 +1,13 @@
+{
+  "secret-guard.scan": {
+    "type": "preToolCall",
+    "matcher": "eca__write_file|eca__edit_file",
+    "visible": true,
+    "actions": [
+      {
+        "type": "shell",
+        "file": "scan-secrets.sh"
+      }
+    ]
+  }
+}

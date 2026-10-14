@@ -7,10 +7,64 @@ import { MAX_LOADED_TABS, maxLoadedTabs } from './store';
 import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useAiCli } from './aiCliStore';
+import { useAgentExtras } from './agentExtrasStore';
+import { usePlugins } from './pluginsStore';
 import { useSettingsUi, SECTION_ORDER } from './settingsStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
-import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT } from './aiStore';
+import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT, jalurKonteksKerja, jejakPemadatan } from './aiStore';
+import { useToolGate } from './toolGate';
+/*
+ * Memori lintas sesi (ai-ingat-sesi). Jembatan uji memakai modul yang BENAR-BENAR
+ * dipakai prompt - termasuk `blok` yang menempuh jalur sama dengan
+ * systemPromptFor() - supaya harness tidak pernah menguji salinan logika.
+ */
+import {
+  muatLengkap,
+  muatSemua,
+  tambah,
+  hapus,
+  cari,
+  blokMemoriTersimpan,
+  dokumenTersimpan,
+  pasangDokumenTersimpan,
+  catatanMemori,
+  jalurMemori,
+  BATAS_TOKEN_BAWAAN,
+  ANGGARAN_BAWAAN,
+  MARKER_MEMORI,
+  JUDUL_BLOK,
+  type OpsiMemori,
+  type EntriBaru,
+} from './aiMemori';
+import {
+  alatUntukTugas,
+  alatRencanaPertama,
+  gerbangRencanaSiap,
+  tugasBerat,
+  tugasButuhWeb,
+  ALAT_TERAKHIR,
+} from './subsetAlat';
+/*
+ * LAMA-a1/a4: subset tool PER KELAS TUGAS, tepatnya modul yang dipakai jalur
+ * kirim di `aiStore.ts` (`pilihToolTugas` + `beratRun = tugasBerat || wajibTodo`).
+ * Jembatan di bawah memakai modul yang SAMA supaya `__ZEPHYR__.subsetAlat(teks)`
+ * membuktikan daftar yang benar-benar keluar ke provider - bukan daftar kedua
+ * yang cuma mirip.
+ */
+import {
+  pilihToolTugas,
+  wajibTodo,
+  BATAS_TOOL_TUGAS,
+  TOOL_INTI_TUGAS,
+  keluargaTool,
+  keluargaDaftar,
+  keluargaHilang,
+} from './subsetTugas';
+/* Basis acuan angka audit (26 tool "dikirim selalu"). Gerbang nyata default
+   user lebih lebar (62 aktif), jadi penguji yang mengutip angka 17/23/20 harus
+   bisa menetapkan basis yang sama, bukan menebaknya dari layar. */
+import { TOOL_DIKIRIM_SELALU } from './zephyrTools/catalog';
 import {
   langkahDariRiwayat,
   riwayatAgen,
@@ -104,7 +158,7 @@ import {
   blokIdentitasModel,
 } from './systemPrompt';
 import { allPrompts, saveUserPrompts, matchPrompts, type PromptItem } from './promptLibrary';
-import { batasParalel, batasLangkah, bolehTulis } from './subagentStore';
+import { batasParalel, batasLangkah, bolehTulis, kemampuanTulis, putusanTulis, catatanTulis } from './subagentStore';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
 import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch, setWindowSize, takeBrokenConfig, workspaceOpen } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
@@ -112,6 +166,7 @@ import { copySelection, pasteInto, writeChunked } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
 import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
+import { BATAS_TOOL_PER_SERVER, mcpBatas, mcpRingkas, mcpTerpotong, setMcpExternalTools } from './mcpTools';
 import { usePalette } from './paletteStore';
 import { useExtensions } from './extensionStore';
 import { COMMANDS, availableCommands, extensionCommands, findCommand, runCommand } from './commandRegistry';
@@ -148,6 +203,29 @@ export function installDevBridge(): void {
      CLI verification harness can drive a send and read back the message parts
      (thinking / tool / diff) without needing a dynamic import. */
   w.__ZEPHYR_CLICHAT__ = useAiCli;
+  /*
+   * The agent-customization store: hooks, and the installed-plugin flags.
+   *
+   * Exposed so the hook harness can drive the REAL path — write a hook through
+   * the same store the panel writes to, send a message, and check whether the
+   * command actually ran. Injecting into localStorage instead would test a
+   * different path from the one a reader takes.
+   */
+  w.__ZEPHYR_AGENT_EXTRAS__ = { useAgentExtras };
+
+  /*
+   * The plugin store, plus a read-only window onto the panes a plugin writes
+   * into — the same windows a person gets by opening Skills, Hooks and
+   * Personas. The pane reads are async because they pull in `store`/`aiStore`,
+   * and a static import here would close a cycle at module init.
+   */
+  w.__ZEPHYR_PLUGINS__ = {
+    usePlugins,
+    skills: async () => (await import('./skillsStore')).useSkills.getState().daftar,
+    instructions: async () => (await import('./instructionsStore')).useInstructions.getState().daftar,
+    personas: async () => (await import('./personaStore')).usePersona.getState().daftar,
+    hooks: () => useAgentExtras.getState().hooks,
+  };
   w.__ZEPHYR_CM__ = () => getActiveView();
   w.__ZEPHYR_FLUSH__ = (tabId: string) => flushTab(tabId);
   w.__ZEPHYR_FS__ = { read: fsRead, sessionLoad, scanDir, searchFiles };
@@ -242,6 +320,123 @@ export function installDevBridge(): void {
   w.__ZEPHYR_AI__ = {
     store: useAi,
 
+    /*
+     * A(i)/A(iv): predikat subset alat, dibuka untuk HARNESS.
+     *
+     * Modul `subsetAlat.ts` sengaja berisi fungsi murni tanpa efek samping
+     * supaya bisa diperiksa di sini: harness bisa menanyakan "untuk tugas
+     * seperti ini, tool apa yang benar-benar dikirim?" dan membandingkannya
+     * dengan aturan, tanpa harus menunggu run 20 menit. Yang TIDAK bisa
+     * dibuktikan dari sini adalah daftar yang benar-benar keluar ke provider
+     * pada run nyata - itu ada di `alatTerakhir()`.
+     */
+    subsetAlat: (teks: string, adaFolder?: boolean) => {
+      const aktif = [...useToolGate.getState().aktif];
+      const folder = adaFolder === undefined ? useStore.getState().workspace !== null : adaFolder;
+      /*
+       * LAMA-a1: JEMBATAN INI HARUS MELIHAT DAFTAR YANG SAMA DENGAN JALUR AGEN.
+       *
+       * Blok ini dulu memanggil `alatUntukTugas` (17-23 tool), sedangkan jalur
+       * kirim di `aiStore.ts` memakai `pilihToolTugas` (<= 20 tool). Akibatnya
+       * `subsetAlat()` melaporkan 23 tool untuk tugas yang benar-benar dikirim 20:
+       * jembatan yang seharusnya membuktikan jalur nyata justru berbohong
+       * tentangnya, dan penguji yang percaya angka itu menguji daftar yang tidak
+       * pernah keluar ke provider.
+       *
+       * `alatKirimLama` + `dipangkas` SENGAJA disediakan supaya penguji bisa
+       * memeriksa superset kemampuan (lama -> kirim) dan melihat apa yang
+       * dipangkas, bukan cuma hasil akhirnya. `batasTool` dibaca dari modulnya,
+       * bukan diketik ulang di sini - angka 20 yang disalin ke penguji akan basi
+       * begitu modulnya berubah.
+       */
+      const lama = alatUntukTugas(teks, aktif, folder);
+      const kirim = pilihToolTugas(teks, aktif, folder);
+      return {
+        butuhWeb: tugasButuhWeb(teks),
+        /* LAMA-a4: jalur agen memakai `tugasBerat(...) || wajibTodo(...)` (lihat
+           `beratRun` di aiStore.ts). Tanpa OR yang sama, tugas nyata seperti
+           "Perbaiki bug di src/lib/a.ts" dilaporkan RINGAN di sini padahal jalur
+           nyata memaksa rencana lebih dulu - dan tugas berat adalah persis kasus
+           yang gerbang rencananya diuji. */
+        berat: tugasBerat(teks) || wajibTodo(teks),
+        adaFolder: folder,
+        alatKirim: kirim,
+        alatKirimLama: lama,
+        dipangkas: lama.filter((t) => !kirim.includes(t)),
+        batasTool: BATAS_TOOL_TUGAS,
+        rencanaPertama: alatRencanaPertama(aktif, folder),
+        gerbangSiap: gerbangRencanaSiap(aktif, folder),
+        alatAktif: aktif,
+      };
+    },
+
+    /*
+     * Tabel KELUARGA KEMAMPUAN dari modul yang sama, dibuka untuk harness.
+     *
+     * Superset kemampuan hanya bisa DIPERIKSA kalau penguji tahu dua tool mana
+     * yang kembar, dan salinan tabel itu di dalam skrip uji akan berbeda dari
+     * modulnya cepat atau lambat - penguji lalu lulus atas tabelnya sendiri.
+     * Semuanya fungsi murni, tanpa keadaan: yang dibuka bukan jalan masuk baru
+     * ke jalur kirim, cuma jawaban atas "apakah kemampuan X masih punya rumah".
+     */
+    subsetTugas: {
+      batas: BATAS_TOOL_TUGAS,
+      inti: [...TOOL_INTI_TUGAS],
+      /* Basis acuan angka audit (26 tool "dikirim selalu"). */
+      bawaan: [...TOOL_DIKIRIM_SELALU],
+      keluarga: (nama: string) => keluargaTool(nama),
+      keluargaDaftar: (daftar: string[]) => keluargaDaftar(daftar),
+      /* Keluarga yang HILANG dari `sesudah` dibanding `sebelum` - kosong berarti
+         tidak ada kemampuan yang berkurang. */
+      keluargaHilang: (sebelum: string[], sesudah: string[]) =>
+        keluargaHilang(sebelum, sesudah),
+      /* Hitung sebelum/sesudah pada basis mana pun TANPA menyentuh gerbang user
+         yang sedang terbuka: penguji tidak perlu mengubah keadaan app (lalu
+         berisiko lupa mengembalikannya) supaya bisa mengukur basis acuan. */
+      hitung: (teks: string, aktif: string[], adaFolder: boolean) => ({
+        alatKirimLama: alatUntukTugas(teks, aktif, adaFolder),
+        alatKirim: pilihToolTugas(teks, aktif, adaFolder),
+      }),
+    },
+
+    /*
+     * B5: batas tool server MCP pihak ketiga.
+     *
+     * `mcpUji` memasang daftar tool TIRUAN ke registry yang sama dengan yang
+     * dipakai jalur nyata, supaya harness bisa membuktikan batas itu benar-benar
+     * memotong yang DIKIRIM ke provider - dan blok promptnya muncul. Uji yang
+     * mengimpor `mcpTools.ts` sendiri cuma menguji salinan modulnya.
+     */
+    mcpRingkas: () => mcpRingkas().map((r) => ({ ...r, contohDibuang: [...r.contohDibuang] })),
+    mcpTerpotong: () => mcpTerpotong().map((r) => ({ ...r, contohDibuang: [...r.contohDibuang] })),
+    mcpUji: (
+      list: { serverId: string; serverLabel: string; name: string; description: string }[],
+      batas?: number,
+    ) =>
+      setMcpExternalTools(
+        list.map((t) => ({ ...t, schema: { type: 'object', properties: {} } as Record<string, unknown> })),
+        batas,
+      ),
+    batasToolPerServer: () => BATAS_TOOL_PER_SERVER,
+    /* Batas yang SEDANG berlaku - bisa berbeda dari bawaan kalau pengguna
+       mengubahnya di Setelan, dan uji harus membandingkan dengan yang berlaku. */
+    mcpBatas: () => mcpBatas(),
+
+    /* Catatan alat yang TERAKHIR dikirim ke provider pada run yang berjalan. */
+    alatTerakhir: () => ({ ...ALAT_TERAKHIR }),
+
+    /* A(ii): jejak pemadatan konteks + apakah TUGAS ASLI masih ada di riwayat
+       sesudah pemadatan. Dibaca harness SESUDAH run; `kosongkan` dipakai di
+       awal uji supaya jejak run sebelumnya tidak ikut terhitung. */
+    jejakPemadatan: () => jejakPemadatan.map((x) => ({ ...x })),
+    kosongkanJejakPemadatan: () => {
+      jejakPemadatan.length = 0;
+      return true;
+    },
+
+    /* D: jalur berkas konteks kerja yang dikelola aplikasi. */
+    jalurKonteks: (ws?: string | null) => jalurKonteksKerja(ws ?? useStore.getState().workspace),
+
     catalog: () => ALL_MODELS.map((m) => ({ id: m.id, provider: m.provider, logo: m.logo, baseUrl: m.baseUrl })),
 
     destructive: (cmdText: string) => isDestructive(cmdText),
@@ -294,6 +489,20 @@ export function installDevBridge(): void {
       return id;
     },
     maxMsgs: MAX_MSGS,
+
+    /*
+     * Tool gate yang SAMA dengan yang dipakai panel tool.
+     *
+     * Uji lewat CDP tidak boleh mengimpor `toolGate.ts` sendiri: Vite menyajikan
+     * modul dengan versi berbeda ke skrip luar, jadi yang diubah adalah salinan
+     * kedua dan panelnya tidak bergerak sedikit pun - uji lalu lulus atau gagal
+     * karena alasan yang salah. Lewat jembatan ini, uji membaca dan memulihkan
+     * instance aplikasi yang sebenarnya.
+     */
+    toolGate: {
+      aktif: () => [...useToolGate.getState().aktif],
+      isi: (nama: string[]) => useToolGate.getState().dari(nama),
+    },
   };
 
   w.__ZEPHYR_GIT__ = {
@@ -355,6 +564,11 @@ export function installDevBridge(): void {
     setToast: (m: string | null) => useMcp.getState().setToast(m),
     clearLog: () => useMcp.getState().clearLog(),
     refresh: () => useMcp.getState().refresh(),
+    /* `refresh` cuma memperbarui status/info sisi Zephyr. Yang MEMASANG ULANG
+       daftar tool server luar ke registry agen adalah refreshServers - uji yang
+       memanggil `refresh` lalu menyimpulkan "registry tidak dipulihkan" menuduh
+       produk atas kesalahan namanya sendiri. */
+    refreshServers: () => useMcp.getState().refreshServers(),
 
     toggle: (on: boolean) => useMcp.getState().toggleServer(on),
     clis: () => useMcp.getState().clis,
@@ -797,7 +1011,32 @@ export function installDevBridge(): void {
       maxParallel: batasParalel(),
       maxSteps: batasLangkah(),
       allowWrite: bolehTulis(),
+
+      /*
+       * Keadaan tulis dinyatakan apa adanya, bukan ditebak dari satu setelan.
+       *
+       * `allowWrite` (baris "Let sub-agents write" di Chat Settings) adalah
+       * gerbang untuk SEMUA tulis berkas: menyala berarti subagent benar-benar
+       * menulis ke disk. Dulu tulisan disknya masih ditahan sampai mode
+       * persetujuan `auto`, dan itu membuat sakelarnya tidak ada gunanya.
+       * `persetujuanAuto` ikut dilaporkan karena masih menggerbangi perintah
+       * shell yang bisa menghapus/menimpa berkas.
+       */
+      ...kemampuanTulis(),
     }),
+
+    /*
+     * Gerbang tulisnya sendiri, bisa ditanya per nama tool.
+     *
+     * Ada supaya "apa yang diterima subagent saat menulis" bisa dibuktikan
+     * tanpa memanggil provider: balasannya adalah fungsi yang benar-benar
+     * dipakai loop subagent.
+     */
+    putusanTulis: (namaTool: string, bahayaShell?: boolean) =>
+      putusanTulis(namaTool, { bahayaShell: !!bahayaShell }),
+
+    catatanTulis: (agents: { nama: string; tulisDitolak?: number; fileDitulis?: string[] }[]) =>
+      catatanTulis(agents),
   };
 
   w.__ZEPHYR_PROMPT_LIB__ = {
@@ -889,6 +1128,46 @@ export function installDevBridge(): void {
     blokModel: (provider?: string, model?: string) =>
       blokIdentitasModel(provider ?? useAi.getState().provider, model ?? useAi.getState().model),
     modelAktif: () => ({ provider: useAi.getState().provider, model: useAi.getState().model }),
+  };
+
+  w.__ZEPHYR_MEMORI__ = {
+    /*
+     * Lapis ukur memori lintas sesi. Sengaja tidak menyembunyikan apa pun:
+     * `blok` = fungsi yang sama dengan yang dipanggil systemPromptFor(), jadi
+     * harness bisa membuktikan bahwa yang tersimpan BENAR-BENAR muncul di prompt
+     * sesi berikutnya, bukan hanya "tersimpan" menurut modul memori.
+     */
+    // jalurMemori() murni: butuh direktori data app, jadi diberi pemanggil
+    // (harness memakai jalur sebenarnya dari perintah data dir).
+    jalur: (dirData: string) => jalurMemori(dirData, useStore.getState().workspace ?? null),
+    muat: (opsi?: OpsiMemori) => muatLengkap(opsi),
+    muatSemua: (opsi?: OpsiMemori) => muatSemua(opsi),
+    tambah: (entri: EntriBaru, opsi?: OpsiMemori) => tambah(entri, opsi),
+    hapus: (id: string, opsi?: OpsiMemori) => hapus(id, opsi),
+    cari: (kueri: string, opsi?: OpsiMemori) => cari(kueri, opsi),
+    catatan: () => catatanMemori(),
+    dokumen: () => dokumenTersimpan(),
+    pasang: (dok: ReturnType<typeof dokumenTersimpan>) => pasangDokumenTersimpan(dok),
+    blok: (batas = BATAS_TOKEN_BAWAAN, opsi?: { root?: string | null; kueri?: string }) =>
+      blokMemoriTersimpan(batas, {
+        root: opsi?.root ?? (useStore.getState().workspace ?? null),
+        kueri: opsi?.kueri,
+      }),
+    batasTokenBawaan: BATAS_TOKEN_BAWAAN,
+    anggaranBawaan: ANGGARAN_BAWAAN,
+    marker: MARKER_MEMORI,
+    /*
+     * Judul blok yang benar-benar disuntik ke prompt (`JUDUL_BLOK`), terpisah
+     * dari `marker` yang menandai BERKAS store.
+     *
+     * Keduanya dulu tertukar di harness: `blok()` memang tidak pernah memuat
+     * `MARKER_MEMORI` - penanda itu kepala berkas `memory.md`, sedangkan yang
+     * masuk prompt adalah `JUDUL_BLOK` + baris entri. Tanpa kunci ini, harness
+     * tidak punya cara membuktikan blok yang disuntik memang blok memori (dan
+     * bukan sekadar teks yang kebetulan memuat entri), jadi pemeriksaannya
+     * gagal atau dilonggarkan sampai tak berarti.
+     */
+    judulBlok: JUDUL_BLOK,
   };
 
   w.__ZEPHYR_CLIAGENT__ = {
@@ -983,6 +1262,18 @@ export function installDevBridge(): void {
     setIdle: (id: string, secs: number) => useLsp.getState().setIdle(id, secs),
     probeAll: () => useLsp.getState().probeAll(),
     probe: () => useLsp.getState().probe,
+
+    /* Rung 3 of block I: the app installs the server itself. `resep()` lists the
+     * ids this build can fetch; `pasang(id)` runs it and answers with the slot,
+     * npm's exit code, whether the binary landed, and the resolved command. */
+    resep: () => import('./commands').then((m) => m.lspResep()),
+    pasang: (id: string) => {
+      const def = LSP_SERVERS.find((d) => d.id === id);
+      if (!def) return Promise.reject(new Error(`id language server tidak dikenal: ${id}`));
+      return import('./commands').then((m) =>
+        m.lspPasang(effectiveSpec(def, useLsp.getState().settings())),
+      );
+    },
     error: () => useLsp.getState().lspError,
 
     katalog: () =>
@@ -1951,6 +2242,21 @@ export function installDevBridge(): void {
     w.__ZEPHYR_TOOLS__ = {
       /** Nama semua tool yang terdaftar. */
       nama: () => m.AGENT_TOOLS.map((t) => t.spec.name),
+
+      /*
+       * Nama tool yang benar-benar DITAWARKAN pada satu batas tulis.
+       *
+       * `bolehTulis: false` adalah yang dikirim ke subagent read-only, jadi
+       * daftar ini yang membuktikan "agent read-only bahkan tidak DITAWARI tool
+       * tulis" - bukan sekadar "ditolak saat dipanggil". Bedanya penting: agent
+       * yang ditawari lalu ditolak membakar satu langkah, dan laporannya bisa
+       * terbaca seolah pekerjaannya beres.
+       */
+      untukSubagent: (bolehTulis: boolean, kedalaman = 0) =>
+        m
+          .agentToolSpecs({ bolehTulis, kedalaman })
+          .map((t) => (t as { spec?: { name?: string }; name?: string }).spec?.name ?? (t as { name?: string }).name ?? '(?)'),
+
       /** Skema satu tool, atau null kalau namanya tidak ada. */
       spec: (nama: string) => m.AGENT_TOOLS.find((t) => t.spec.name === nama)?.spec ?? null,
       /** Daftar mentahnya, untuk harness yang perlu memeriksa lebih dalam. */
@@ -1960,6 +2266,22 @@ export function installDevBridge(): void {
         const t = m.AGENT_TOOLS.find((x) => x.spec.name === nama);
         if (!t) throw new Error(`tool tidak ada: ${nama}`);
         return t.run(args);
+      },
+      /*
+       * Sama seperti `jalankan`, tapi lewat JALUR AGEN yang sebenarnya
+       * (`jalankanAgentTool`), bukan `t.run` telanjang.
+       *
+       * Bedanya bukan hiasan: `jalankanAgentTool` yang menerjemahkan galat
+       * (mis. penolakan tulis di luar folder terbuka jadi pesan yang bisa
+       * ditindaklanjuti) dan yang menghormati sakelar tool. Harness yang mau
+       * membuktikan apa yang DILIHAT MODEL harus memakai jalur ini - kalau tidak,
+       * ia menguji potongan kode yang tidak pernah dilalui agen.
+       */
+      jalankanAgen: async (nama: string, args: Record<string, unknown> = {}) => m.jalankanAgentTool(nama, args),
+      /** Terjemahan galat tool apa adanya, tanpa harus memicu kegagalan nyata. */
+      galatTool: (e: unknown, nama?: string) => {
+        const g = m.galatToolUntukModel(e, nama);
+        return { code: g.code ?? null, message: g.message };
       },
       /*
        * Tabel label + ikon per tool, supaya harness bisa memeriksa bahwa baris

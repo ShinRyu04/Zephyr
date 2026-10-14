@@ -17,6 +17,27 @@ export interface LspServerDef {
   install: string;
 }
 
+/*
+ * ONE ROW PER LANGUAGE SERVER: how to recognise the files it serves, the command
+ * to run, and the install hint.
+ *
+ * The hint is DOCUMENTATION, not a button - no code in the app runs the `install`
+ * string, so it has to be followable letter for letter. Two rules keep it honest:
+ *
+ * 1. `cmd[0]` must be the binary the package ACTUALLY ships, character for
+ *    character. The npm bundle backing css/html/json exports
+ *    `vscode-<lang>-language-server` (hyphen before `server`), so an older name
+ *    with no hyphen could never be satisfied by any install, however correct the
+ *    user was.
+ * 2. When one command cannot install the server, the hint says WHERE to put the
+ *    binary instead of ending in "put it on PATH": `%APPDATA%\zephyr\lsp\<id>\`
+ *    is the private per-server slot `resolve_cmd` (src-tauri/src/lsp.rs) reads
+ *    before PATH, so dropping the file there works without touching PATH.
+ *
+ * The same applies to installers that are correct but never reach the app's PATH
+ * (`winget` does not edit PATH; `go install` and `gem install` land in their own
+ * bin dirs): those hints name the directory, and `resolve_cmd` searches them.
+ */
 export const LSP_SERVERS: LspServerDef[] = [
   {
     id: 'typescript',
@@ -53,7 +74,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['go'],
     extensions: ['.go'],
     cmd: ['gopls'],
-    install: 'go install golang.org/x/tools/gopls@latest',
+    install: 'go install golang.org/x/tools/gopls@latest - hasilnya di %USERPROFILE%\\go\\bin (Zephyr mencari di sana juga)',
   },
   {
     id: 'clangd',
@@ -62,7 +83,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['c', 'cpp'],
     extensions: ['.c', '.h', '.cpp', '.cc', '.cxx', '.hpp', '.hh'],
     cmd: ['clangd', '--background-index'],
-    install: 'winget install LLVM.LLVM (or install clangd)',
+    install: 'winget install LLVM.LLVM - clangd.exe ada di C:\\Program Files\\LLVM\\bin (Zephyr mencari di sana juga)',
   },
   {
     id: 'bash',
@@ -79,7 +100,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     languageId: 'json',
     langs: ['json'],
     extensions: ['.json', '.jsonc'],
-    cmd: ['vscode-json-languageserver', '--stdio'],
+    cmd: ['vscode-json-language-server', '--stdio'],
     install: 'npm i -g vscode-langservers-extracted',
   },
   {
@@ -97,7 +118,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     languageId: 'html',
     langs: ['html'],
     extensions: ['.html', '.htm'],
-    cmd: ['vscode-html-languageserver', '--stdio'],
+    cmd: ['vscode-html-language-server', '--stdio'],
     install: 'npm i -g vscode-langservers-extracted',
   },
   {
@@ -106,7 +127,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     languageId: 'css',
     langs: ['css'],
     extensions: ['.css', '.scss', '.less'],
-    cmd: ['vscode-css-languageserver', '--stdio'],
+    cmd: ['vscode-css-language-server', '--stdio'],
     install: 'npm i -g vscode-langservers-extracted',
   },
   {
@@ -117,7 +138,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     extensions: ['.dart'],
     
     cmd: ['dart', 'language-server', '--protocol=lsp'],
-    install: 'Install the Dart SDK (or Flutter) — dart must be on PATH',
+    install: 'winget install Google.DartSDK',
   },
   {
     id: 'php',
@@ -135,7 +156,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['java'],
     extensions: ['.java'],
     cmd: ['jdtls'],
-    install: 'Install Eclipse JDT LS (jdtls) and put it on PATH',
+    install: 'jdtls tak ada di winget - unduh rilis eclipse-jdtls, ekstrak ke %APPDATA%\\zephyr\\lsp\\java\\ (jdtls.bat), atau set command baris ini manual',
   },
   {
     id: 'csharp',
@@ -144,7 +165,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['csharp'],
     extensions: ['.cs'],
     cmd: ['omnisharp'],
-    install: 'Install OmniSharp (omnisharp-roslyn) and put it on PATH',
+    install: 'OmniSharp tak ada di winget - unduh rilis omnisharp-roslyn (win-x64), taruh OmniSharp.exe di %APPDATA%\\zephyr\\lsp\\csharp\\',
   },
   {
     id: 'ruby',
@@ -153,7 +174,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['ruby'],
     extensions: ['.rb'],
     cmd: ['solargraph', 'stdio'],
-    install: 'gem install solargraph',
+    install: 'gem install solargraph - Zephyr mencari juga di %USERPROFILE%\\.gem\\ruby\\<versi>\\bin',
   },
   {
     id: 'lua',
@@ -162,7 +183,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['lua'],
     extensions: ['.lua'],
     cmd: ['lua-language-server'],
-    install: 'Install lua-language-server (winget/choco) and put it on PATH',
+    install: 'winget install LuaLS.lua-language-server',
   },
   {
     id: 'kotlin',
@@ -171,7 +192,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['kotlin'],
     extensions: ['.kt', '.kts'],
     cmd: ['kotlin-language-server'],
-    install: 'Install kotlin-language-server and put it on PATH',
+    install: 'unduh rilis kotlin-language-server (fwcd), ekstrak ke %APPDATA%\\zephyr\\lsp\\kotlin\\ (bin\\kotlin-language-server.bat)',
   },
   {
     id: 'swift',
@@ -196,7 +217,7 @@ export const LSP_SERVERS: LspServerDef[] = [
     label: 'Docker (dockerfile-language-server)',
     languageId: 'dockerfile',
     langs: ['dockerfile'],
-    extensions: ['dockerfile'],
+    extensions: ['.dockerfile'],
     cmd: ['docker-langserver', '--stdio'],
     install: 'npm i -g dockerfile-language-server-nodejs',
   },
@@ -215,7 +236,16 @@ export const SERVER_BY_ID = new Map(LSP_SERVERS.map((s) => [s.id, s]));
 
 export function serverForPath(path: string): LspServerDef | null {
   const m = /\.[^.\\/]+$/.exec(path.toLowerCase());
-  if (!m) return null;
+  if (!m) {
+    /*
+     * A file with no extension can still have a server: `Dockerfile` is the whole
+     * reason the docker row exists, and matching it by extension alone made that
+     * row unreachable - the server could be installed and probed green while no
+     * file in the editor could ever select it.
+     */
+    const nama = path.toLowerCase().replace(/\\/g, '/').split('/').pop() ?? '';
+    return nama === 'dockerfile' ? SERVER_BY_ID.get('docker') ?? null : null;
+  }
   const ext = m[0];
   return LSP_SERVERS.find((s) => s.extensions.includes(ext)) ?? null;
 }

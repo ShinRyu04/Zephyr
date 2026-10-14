@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
-import { useTerminal } from '../../lib/terminalStore';
-import { usePanel } from '../../lib/panelStore';
 import GhMenu from './GhMenu';
 import { useT, useTf } from '../../lib/i18n';
 import type { ActivityId } from '../../lib/types';
@@ -206,14 +204,9 @@ export default function ActivityBar() {
      the left sidebar shows an 'ai' panel (there is none any more). */
   const aiKolomVisible = useStore((s) => s.aiKolomVisible);
   const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
-  const terminalVisible = useTerminal((s) => s.visible);
-  const panelTab = usePanel((s) => s.activeTab);
-  const aiTerbuka =
-    aiPanelPos === 'bottom'
-      ? terminalVisible && panelTab === 'ai'
-      : aiPanelPos === 'window'
-        ? true
-        : aiKolomVisible;
+  /* No bottom-dock home any more: the window is always "open", otherwise the
+     right column's visibility flag is the state. */
+  const aiTerbuka = aiPanelPos === 'window' ? true : aiKolomVisible;
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
@@ -299,21 +292,15 @@ export default function ActivityBar() {
                * Posisi chat AI mengikuti setelan `general.aiPanel`:
                *   right/editor -> kolom kanan; klik = toggle kolom.
                *   window       -> jendela terpisah.
-               *   bottom       -> legacy: tab di panel bawah.
+               *   (tidak ada lagi posisi 'bottom' - tab AI di panel bawah sudah dibuang.)
                */
               if (id === 'ai') {
                 const pos =
                   useStore.getState().settings.general.aiPanel ?? 'right';
-                if (pos === 'bottom') {
-                  const t = useTerminal.getState();
-                  const p = usePanel.getState();
-                  if (t.visible && p.activeTab === 'ai') t.setVisible(false);
-                  else {
-                    t.setVisible(true);
-                    p.focusTab('ai');
-                  }
+                if (pos === 'window') {
+                  void import('../../lib/aiWindow').then((m) => m.bukaAiWindow());
                 } else {
-                  /* right / editor / window: toggle the right column. */
+                  /* right / editor: toggle the right column. */
                   useStore.getState().toggleAiKolom();
                 }
                 return;

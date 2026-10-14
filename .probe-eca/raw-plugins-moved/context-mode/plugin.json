@@ -1,0 +1,32 @@
+{
+  "name": "context-mode",
+  "description": "Saves 98% of context window via sandboxed execution, FTS5 search, and session continuity across compactions",
+  "version": "1.0.0",
+  "author": "ovistoica",
+  "category": "Development",
+  "tags": [
+    "context",
+    "mcp",
+    "performance",
+    "session",
+    "sandbox"
+  ],
+  "icon": "🪟",
+  "provides": {
+    "skills": [
+      "context-mode"
+    ],
+    "agents": [],
+    "rules": [
+      "context-mode"
+    ],
+    "hooks": [
+      "context-mode.session-start",
+      "context-mode.pre-tool",
+      "context-mode.post-tool"
+    ],
+    "mcp": [
+      "context-mode"
+    ]
+  }
+}

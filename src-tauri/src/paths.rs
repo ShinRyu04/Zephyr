@@ -36,31 +36,70 @@ pub fn is_drive_root(p: &Path) -> bool {
     }
 }
 
+/// Remove the `\\?\` verbatim prefix Windows adds when a path is canonicalized.
+///
+/// The UNC form needs its own arm. `fs::canonicalize` on a network path returns
+/// `\\?\UNC\server\share\dir`, and stripping only `\\?\` from that leaves
+/// `UNC\server\share\dir` — a RELATIVE path, because the leading `\\` that made
+/// it a UNC path went with the prefix. Every consumer then treats it as
+/// workspace-relative: `ws.join(p)` resolves it against the process's current
+/// directory instead of the share, so a workspace opened on a network share
+/// silently points at the wrong tree.
+///
+/// This mirrors `long_path`, which is what produced the `\\?\UNC\` form in the
+/// first place — the two must undo each other exactly.
 pub fn strip_unc(p: &Path) -> PathBuf {
     let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
     match s.strip_prefix(r"\\?\") {
         Some(rest) => PathBuf::from(rest),
         None => p.to_path_buf(),
     }
 }
 
+/// Drop `.` segments and cancel `..` against a preceding real segment.
+///
+/// The result must stay a USABLE path, not merely a tidier spelling of one: a
+/// path that cleans to nothing is not the current directory, it is a path that
+/// every later `stat` fails on. `lexical_clean(".")` used to return the empty
+/// path — `Component::CurDir` was discarded and nothing was written back — and
+/// because an empty path cannot be canonicalized, `validate_cwd` reported
+/// `cwd bukan folder: .` for a directory that plainly exists. The message
+/// named `.` while the thing being tested was `""`.
+///
+/// So the two degenerate cases are preserved instead of erased:
+///
+///   * everything was `.` -> `.`, which is the current directory;
+///   * a leading `..` with nothing to cancel -> `..`, which still means the
+///     parent. Dropping it would turn "go up one level" into "go nowhere".
+///
+/// A genuinely empty INPUT still returns empty, so callers that use emptiness
+/// to detect a missing path (`normalize_workspace_path`) keep working.
 fn lexical_clean(p: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for c in p.components() {
         match c {
             Component::CurDir => {}
-            Component::ParentDir => {
-                if out
-                    .components()
-                    .next_back()
-                    .map(|c| !matches!(c, Component::Prefix(_) | Component::RootDir))
-                    .unwrap_or(false)
-                {
+            Component::ParentDir => match out.components().next_back() {
+                // A real segment is cancelled by `..`, which is the point.
+                Some(Component::Normal(_)) => {
                     out.pop();
                 }
-            }
+                // `..` directly under `C:\` or `/` cannot go higher; keeping
+                // the root is what makes `C:\..\..\x` come out as `C:\x`.
+                Some(Component::Prefix(_)) | Some(Component::RootDir) => {}
+                // A run of leading `..` is kept verbatim: there is no segment
+                // to cancel it against, and `../..` is a real place.
+                Some(Component::ParentDir) | None => out.push(".."),
+                Some(Component::CurDir) => {}
+            },
             other => out.push(other.as_os_str()),
         }
+    }
+    if out.as_os_str().is_empty() && !p.as_os_str().is_empty() {
+        return PathBuf::from(".");
     }
     out
 }
@@ -251,6 +290,9 @@ mod tests {
 
     #[test]
     fn pathdiff_root_lebin_panjang_dari_child() {
-        assert_eq!(pathdiff(Path::new("D:\\aaaa\\bbbb"), Path::new("D:\\a")), None);
+        assert_eq!(
+            pathdiff(Path::new("D:\\aaaa\\bbbb"), Path::new("D:\\a")),
+            None
+        );
     }
 }

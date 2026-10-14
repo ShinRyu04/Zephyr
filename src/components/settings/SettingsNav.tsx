@@ -8,7 +8,6 @@ const NAV_KEY: Record<SectionId, string> = {
   editor: 'settings.editor',
   theme: 'settings.theme',
   shortcuts: 'settings.shortcuts',
-  models: 'settings.models',
   agents: 'settings.agents',
   rules: 'settings.rules',
   subagent: 'settings.subagent',
@@ -23,6 +22,7 @@ const NAV_KEY: Record<SectionId, string> = {
   security: 'settings.security',
   accessibility: 'settings.accessibility',
   ssh: 'settings.ssh',
+  memori: 'settings.memori',
   about: 'settings.about',
 };
 
@@ -69,16 +69,6 @@ export function NavIcon({ id }: { id: SectionId }) {
         <svg {...p}>
           <path d="M8 1.9l5.1 2v4.3c0 3.1-2.1 5.5-5.1 6.6-3-1.1-5.1-3.5-5.1-6.6V3.9z" {...st} />
           <path d="M5.7 8.1l1.7 1.7 3.2-3.4" {...st} />
-        </svg>
-      );
-    case 'models':
-      return (
-        <svg {...p}>
-          <path
-            d="M8 2.2c.6 2.6 2.2 4.2 4.8 4.8-2.6.6-4.2 2.2-4.8 4.8-.6-2.6-2.2-4.2-4.8-4.8C5.8 6.4 7.4 4.8 8 2.2z"
-            {...st}
-          />
-          <circle cx="12.2" cy="12.4" r="1.4" {...st} />
         </svg>
       );
     case 'subagent':
@@ -187,6 +177,17 @@ export function NavIcon({ id }: { id: SectionId }) {
           <path d="M8 2.4v7.2M5.4 7l2.6 2.6L10.6 7" {...st} />
           <path d="M2.8 12.4h10.4" {...st} />
           <path d="M11.6 2.4h1.6v1.6" {...st} />
+        </svg>
+      );
+    case 'memori':
+      /* Two lobes and a spine: what is remembered stays in the middle, between
+         the sessions on either side. Distinct from every other nav glyph here,
+         which are all boxes, arrows and circles. */
+      return (
+        <svg {...p}>
+          <path d="M8 3.2c-1.4 0-2.4.9-2.4 2-1 .1-1.7.9-1.7 1.9 0 .5.2 1 .6 1.3-.4.3-.6.8-.6 1.3 0 1 .8 1.8 1.8 1.9 0 1 1 1.8 2.3 1.8" {...st} />
+          <path d="M8 3.2c1.4 0 2.4.9 2.4 2 1 .1 1.7.9 1.7 1.9 0 .5-.2 1-.6 1.3.4.3.6.8.6 1.3 0 1-.8 1.8-1.8 1.9 0 1-1 1.8-2.3 1.8" {...st} />
+          <path d="M8 3.2v10.2" {...st} />
         </svg>
       );
     case 'about':

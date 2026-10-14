@@ -10,6 +10,8 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
   const requestCloseTab = useStore((s) => s.requestCloseTab);
   const reorderTab = useStore((s) => s.reorderTab);
   const newUntitled = useStore((s) => s.newUntitled);
+  const promoteTab = useStore((s) => s.promoteTab);
+  const togglePin = useStore((s) => s.togglePin);
 
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -29,7 +31,16 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
             aria-selected={t.id === activeTabId}
             tabIndex={0}
             title={t.path ?? t.name}
-            className={`tab${t.id === activeTabId ? ' is-active' : ''}${dragOver === i ? ' is-dragover' : ''}`}
+            /*
+             * `is-preview` renders the name in italics — the universal signal
+             * for "this slot is not yours yet". `is-pinned` marks a tab the
+             * reader has fixed in place.
+             */
+            className={`tab${t.id === activeTabId ? ' is-active' : ''}${
+              dragOver === i ? ' is-dragover' : ''
+            }${t.preview ? ' is-preview' : ''}${t.pinned ? ' is-pinned' : ''}`}
+            data-preview={t.preview ? '1' : undefined}
+            data-pinned={t.pinned ? '1' : undefined}
             draggable
             onDragStart={() => {
               dragFrom.current = i;
@@ -51,19 +62,33 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
               setDragOver(null);
             }}
             onClick={() => setActiveTab(t.id)}
+            /*
+             * Double-click promotes. A preview is a look; the second click is
+             * the reader saying they mean to stay, and it is the gesture the
+             * reference editors train — so it works here without having to be
+             * learned again.
+             */
+            onDoubleClick={() => promoteTab(t.id)}
+            /*
+             * Middle-click pins, matching the gesture for pinning a browser
+             * tab. Delete-on-the-keyboard deliberately does NOT unpin: "close"
+             * and "unpin" are different intentions and one key should not
+             * express both.
+             */
+            onAuxClick={(e) => {
+              if (e.button === 1) {
+                e.preventDefault();
+                togglePin(t.id);
+                return;
+              }
+              if (e.button === 2) return;
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 setActiveTab(t.id);
               } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                
-                e.preventDefault();
-                requestCloseTab(t.id);
-              }
-            }}
-            onAuxClick={(e) => {
-              
-              if (e.button === 1) {
+
                 e.preventDefault();
                 requestCloseTab(t.id);
               }
@@ -71,6 +96,11 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
           >
             <FileIcon lang={t.lang} name={t.name} />
             <span className="tab-name">{t.name}</span>
+            {t.pinned && (
+              <span className="tab-pin" title={tx('Pinned')} aria-hidden="true">
+                📌
+              </span>
+            )}
             {t.unsaved && <span className="tab-dot" title={tx('Not saved')} aria-hidden="true" />}
             {/* PHASE 31: the ✕ button was replaced with a <span>.
                 ARIA forbids `role="tab"` from having interactive descendants, and

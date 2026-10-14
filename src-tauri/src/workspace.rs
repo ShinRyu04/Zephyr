@@ -110,8 +110,8 @@ fn tulis_trust(state: &AppState, map: &HashMap<String, Trust>) -> ZResult<()> {
     let teks = serde_json::to_string_pretty(&Value::Object(obj))
         .map_err(|e| ZephyrError::Internal(format!("serialisasi trust: {e}")))?;
     /* trust.json ditulis atomik. Kalau berkasnya tinggal separuh, pengguna
-       kehilangan daftar folder yang mereka percayai - dan mereka harus menyetujui
-       ulang setiap folder, tanpa tahu kenapa. */
+    kehilangan daftar folder yang mereka percayai - dan mereka harus menyetujui
+    ulang setiap folder, tanpa tahu kenapa. */
     crate::tulis_aman::tulis_atomik_teks(&p, &teks)
         .map_err(|e| ZephyrError::Io(format!("writing trust.json failed: {e}")))?;
     Ok(())
@@ -462,9 +462,7 @@ pub fn workspace_save_file(
         .collect();
 
     if folders.is_empty() {
-        return Err(ZephyrError::InvalidInput(
-            "no root to save".into(),
-        ));
+        return Err(ZephyrError::InvalidInput("no root to save".into()));
     }
 
     let wf = WorkspaceFile {
@@ -474,8 +472,8 @@ pub fn workspace_save_file(
     let teks = serde_json::to_string_pretty(&wf)
         .map_err(|e| ZephyrError::Internal(format!("serialisasi workspace: {e}")))?;
     /* Berkas workspace ditulis atomik: kalau ia tinggal separuh, workspace-nya
-       tidak bisa dibuka sama sekali - dan workspace itu menyimpan daftar tab,
-       pengaturan, dan susunan panel pengguna. */
+    tidak bisa dibuka sama sekali - dan workspace itu menyimpan daftar tab,
+    pengaturan, dan susunan panel pengguna. */
     crate::tulis_aman::tulis_atomik_teks(&p, &format!("{teks}\n"))
         .map_err(|e| ZephyrError::Io(format!("tulis {path}: {e}")))?;
 
@@ -591,7 +589,9 @@ pub fn workspace_set_settings(
     patch: Value,
 ) -> ZResult<Value> {
     if !patch.is_object() {
-        return Err(ZephyrError::InvalidInput("the patch must be an object".into()));
+        return Err(ZephyrError::InvalidInput(
+            "the patch must be an object".into(),
+        ));
     }
     let mut cur = state.workspace_settings().unwrap_or_else(|| json!({}));
     crate::settings::deep_merge_um(&mut cur, &patch);
@@ -605,8 +605,8 @@ pub fn workspace_set_settings(
             let teks = serde_json::to_string_pretty(&wf)
                 .map_err(|e| ZephyrError::Internal(format!("serialisasi: {e}")))?;
             /* Berkas workspace ditulis atomik: kalau ia tinggal separuh, workspace-nya
-               tidak bisa dibuka sama sekali - dan workspace itu menyimpan daftar tab,
-               pengaturan, dan susunan panel pengguna. */
+            tidak bisa dibuka sama sekali - dan workspace itu menyimpan daftar tab,
+            pengaturan, dan susunan panel pengguna. */
             crate::tulis_aman::tulis_atomik_teks(&p, &format!("{teks}\n"))
                 .map_err(|e| ZephyrError::Io(format!("tulis {f}: {e}")))?;
         }

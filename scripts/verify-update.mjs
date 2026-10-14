@@ -15,6 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { createHash, verify as edVerify, createPublicKey } from 'node:crypto';
 
+import { keluarBersih } from './lib-cdp.mjs';
 const B64 = (s) => Buffer.from(s, 'base64');
 
 /** decode minisign public key (2 baris teks) -> { keyId, key (32B) } */
@@ -98,7 +99,7 @@ function verifikasi(installerPath, sigPath, pubkeyB64) {
   const lulus = checks.every(([, c]) => c);
   if (!lulus) {
     console.error('\nSIGNATURE TIDAK VALID — jangan upload latest.json ini.');
-    process.exit(1);
+    keluarBersih(1);
   }
   console.log('\nSIGNATURE VALID — field signature untuk latest.json:');
   console.log(signatureField);
@@ -113,7 +114,7 @@ function validasiManifest(latestPath, pubkeyB64) {
     m = JSON.parse(raw);
   } catch (e) {
     console.error(`GAGAL  latest.json bukan JSON valid: ${e.message}`);
-    process.exit(1);
+    keluarBersih(1);
   }
   const ok = (name, cond, detail) =>
     console.log(`${cond ? 'LULUS' : 'GAGAL'}  ${name.padEnd(34)} ${detail}`);
@@ -124,7 +125,7 @@ function validasiManifest(latestPath, pubkeyB64) {
 
   const target = m.platforms?.['windows-x86_64'];
   ok('platforms.windows-x86_64 ada', !!target, m.platforms ? Object.keys(m.platforms).join(', ') : '(tidak ada platforms!)');
-  if (!target) process.exit(1);
+  if (!target) keluarBersih(1);
 
   ok('url http(s) valid', /^https?:\/\//.test(target.url ?? ''), target.url);
   ok('field signature ada', typeof target.signature === 'string' && target.signature.length > 100, `${target.signature?.length ?? 0} char`);
@@ -136,7 +137,7 @@ function validasiManifest(latestPath, pubkeyB64) {
     ok('key_id signature == pubkey', Buffer.compare(pk.keyId, sg.keyId) === 0, 'kunci penandatangan cocok');
   } catch (e) {
     ok('signature ter-decode (format minisign)', false, e.message);
-    process.exit(1);
+    keluarBersih(1);
   }
 }
 
@@ -145,7 +146,7 @@ const conf = JSON.parse(readFileSync(new URL('../src-tauri/tauri.conf.json', imp
 const pubkeyB64 = conf.plugins?.updater?.pubkey;
 if (!pubkeyB64) {
   console.error('pubkey tidak ditemukan di src-tauri/tauri.conf.json');
-  process.exit(2);
+  keluarBersih(2);
 }
 
 const [, , installerPath, sigPath] = process.argv;

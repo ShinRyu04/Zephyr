@@ -2,9 +2,47 @@ import { create } from 'zustand';
 import * as cmd from './commands';
 import { KATALOG_BUNDLED, type KatalogItem } from './extCatalog';
 import { muatSemuaEkstensi, ringkasanLoader, type LoaderRingkasan } from './extLoader';
-import type { ExtManifestStatus } from './types';
+import type { ExtInstallHasil, ExtKontribItem, ExtManifestStatus, ExtPengaruh } from './types';
 
 export type ExtTab = 'installed' | 'recommended' | 'marketplace';
+
+/**
+ * The header Rust puts on a refusal for a package with nothing the app can use
+ * (`TOLAK_PENANDA` in `ext_pkg.rs`). Matched so the panel can tell "this
+ * package would do nothing here" - a verdict about the package - apart from
+ * "the install failed", which is a verdict about the attempt.
+ */
+export const TOLAK_PENANDA = 'NOTHING TO INSTALL:';
+
+/** Used when a response arrives without a report (older backend, dev bridge). */
+const PENGARUH_KOSONG: ExtPengaruh = { didukung: [], diabaikan: [], ringkasan: [] };
+
+/** Contribution kinds whose effect only lands after a window reload. */
+const RELOAD_KINDS = new Set(['theme', 'iconTheme', 'keymap', 'language']);
+
+/** Mirrors `InstallHasil.perlu_reload` on the Rust side. */
+const pengaruhBerat = (p: ExtPengaruh) => p.didukung.some((i) => RELOAD_KINDS.has(i.kind));
+
+export type ExtKabarJenis = 'pasang' | 'tolak' | 'hapus';
+
+/**
+ * The result of the last install or delete, in the form the user asked for:
+ * what changed, what was ignored, and - for a refusal - the whole message.
+ *
+ * `info: "X installed"` was the old answer and it was not enough: an install
+ * that applied nothing looked identical to one that repainted the window.
+ */
+export interface ExtKabar {
+  jenis: ExtKabarJenis;
+  id: string;
+  judul: string;
+  /** One line per kind: "1 theme: 12 UI colors + 11 code colors". */
+  ringkasan: string[];
+  /** Contributions this app cannot apply, with the reason. */
+  diabaikan: ExtKontribItem[];
+  /** Full text of the refusal, for `jenis === 'tolak'`. */
+  pesan?: string;
+}
 
 interface Ext19State {
   
@@ -20,6 +58,9 @@ interface Ext19State {
   info: string | null;
   
   perluReload: boolean;
+
+  /** Result of the last install/delete: what changed and what was ignored. */
+  kabar: ExtKabar | null;
   
   ringkasan: LoaderRingkasan;
   
@@ -40,6 +81,9 @@ interface Ext19Actions {
   setMenu: (id: string | null) => void;
   setErr: (m: string | null) => void;
   setInfo: (m: string | null) => void;
+
+  /** Clear the install/delete report panel. */
+  tutupKabar: () => void;
   install: (path: string) => Promise<boolean>;
   installKatalog: (item: KatalogItem) => Promise<boolean>;
   installDariDialog: (folder: boolean) => Promise<boolean>;
@@ -88,6 +132,8 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   err: null,
   info: null,
   perluReload: false,
+
+  kabar: null,
   ringkasan: ringkasanLoader(),
   
   remoteUrl: '',
@@ -114,19 +160,61 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
   setMenu: (menuFor) => set({ menuFor }),
   setErr: (err) => set({ err }),
   setInfo: (info) => set({ info }),
+  tutupKabar: () => set({ kabar: null }),
 
   install: async (path) => {
     try {
-      const h = await cmd.extensionsInstall(path);
+      const h: ExtInstallHasil = await cmd.extensionsInstall(path);
+      const pengaruh = h.pengaruh ?? PENGARUH_KOSONG;
       await get().refresh();
+
+      /*
+       * The install result answers the question the panel could not answer
+       * before: what changed? The counts come from Rust reading the files the
+       * package shipped, so "installed" now carries evidence, and a package
+       * that applied nothing says so in the same breath.
+       */
+      const ringkas = pengaruh.ringkasan.join('; ');
       set({
-        info: `${h.name} v${h.version || '-'} terpasang`,
+        info: ringkas
+          ? `${h.name} v${h.version || '-'} terpasang — ${ringkas}`
+          : `${h.name} v${h.version || '-'} terpasang tanpa perubahan yang bisa diterapkan`,
         err: null,
         perluReload: get().perluReload || h.perluReload,
+        kabar: {
+          jenis: 'pasang',
+          id: h.id,
+          judul: `${h.name} v${h.version || '-'}`,
+          ringkasan: pengaruh.ringkasan,
+          diabaikan: pengaruh.diabaikan,
+        },
       });
       return true;
     } catch (e) {
-      set({ err: cmd.asZephyrError(e).message });
+      const pesan = cmd.asZephyrError(e).message;
+
+      /*
+       * A refusal is not a failure of the attempt: the package installed fine
+       * and would have changed nothing, so Rust declined it before writing to
+       * disk. Shown as its own report rather than a red error line.
+       */
+      const ditolak = pesan.includes(TOLAK_PENANDA);
+      set({
+        err: ditolak ? null : pesan,
+        /* The refusal replaces the line from the last install: two opposing
+           statements about the same act would both be on screen otherwise. */
+        info: ditolak ? null : get().info,
+        kabar: ditolak
+          ? {
+              jenis: 'tolak',
+              id: path,
+              judul: path.split(/[\\/]/).filter(Boolean).pop() ?? path,
+              ringkasan: [],
+              diabaikan: [],
+              pesan,
+            }
+          : get().kabar,
+      });
       return false;
     }
   },
@@ -162,14 +250,29 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
 
   uninstall: async (id) => {
     try {
+      /* Read the report before the delete: after it the status is gone, and
+         "what did removing this take away" is exactly what the user needs to
+         see to trust that the removal restored the window. */
+      const st = get().sudahTerpasang(id);
+      const pengaruh = st?.pengaruh ?? PENGARUH_KOSONG;
+
       const ok = await cmd.extensionsUninstall(id);
       await get().refresh();
       set({
         info: ok ? `${id} deleted` : `${id} not found`,
         err: null,
-        perluReload: true,
+        perluReload: get().perluReload || (ok && pengaruhBerat(pengaruh)),
         detailFor: null,
         menuFor: null,
+        kabar: ok
+          ? {
+              jenis: 'hapus',
+              id,
+              judul: `${st?.manifest?.name ?? id} v${st?.manifest?.version ?? '-'}`,
+              ringkasan: pengaruh.ringkasan,
+              diabaikan: pengaruh.diabaikan,
+            }
+          : null,
       });
       return ok;
     } catch (e) {
@@ -182,16 +285,21 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
     try {
       await cmd.extensionsSetEnabled(id, on);
       await get().refresh();
-      const m = get().sudahTerpasang(id)?.manifest;
-      
-      const berat =
-        !!m &&
-        (m.contributes.themes.length > 0 ||
-          m.contributes.keymaps.length > 0 ||
-          m.contributes.languages.length > 0 ||
-          m.contributes.iconThemes.length > 0);
+
+      /*
+       * The reload banner used to be raised from the manifest ("it mentions a
+       * theme, so ask for a reload"), which was wrong for a theme with no UI
+       * colours: the reload changed nothing. The report says what is actually
+       * applied, so the banner follows that instead.
+       */
+      const pengaruh = get().sudahTerpasang(id)?.pengaruh;
+      const berat = !!pengaruh && pengaruhBerat(pengaruh);
+      const kosong = !!pengaruh && pengaruh.didukung.length === 0;
+
       set({
-        info: `${id} ${on ? 'diaktifkan' : 'dimatikan'}`,
+        info: kosong
+          ? `${id} ${on ? 'diaktifkan' : 'dimatikan'} — tidak ada kontribusi yang bisa diterapkan (lihat laporan)`
+          : `${id} ${on ? 'diaktifkan' : 'dimatikan'}`,
         err: null,
         perluReload: get().perluReload || berat,
         menuFor: null,

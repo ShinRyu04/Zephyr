@@ -67,10 +67,22 @@ export interface HasilHook {
  * agent run that happened to reach that point — breaking the turn because a
  * linter exited non-zero would punish the wrong thing.
  */
-export async function jalankanHook(
-  event: HookEvent,
-  konteks: { sesi?: string } = {},
-): Promise<HasilHook[]> {
+/**
+ * Run every enabled hook registered for one event.
+ *
+ * Returns the results so the caller can show them; a hook that fails does NOT
+ * throw. A failing hook is a fact about the reader's setup, not a failure of the
+ * agent run that happened to reach that point — breaking the turn because a
+ * linter exited non-zero would punish the wrong thing.
+ *
+ * No session context is passed to the hook. The second parameter that used to
+ * be accepted here (`{ sesi?: string }`) was never read — it was `void`-ed at
+ * the end of the function — so it was removed rather than left as an invitation
+ * to pass something that would be silently dropped. A hook is a shell command
+ * in the workspace; the transcript is not available to it, and pretending
+ * otherwise by accepting an argument would be worse than not offering it.
+ */
+export async function jalankanHook(event: HookEvent): Promise<HasilHook[]> {
   if (!EVENT_AKTIF.includes(event)) return [];
 
   const ws = useStore.getState().workspace;
@@ -121,7 +133,6 @@ export async function jalankanHook(
     }
   }
 
-  void konteks;
   return keluar;
 }
 

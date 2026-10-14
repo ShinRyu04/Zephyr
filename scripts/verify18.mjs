@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagian1 } from './v18/bagian1.mjs';
 import { bagian2 } from './v18/bagian2.mjs';
 import { bagian3 } from './v18/bagian3.mjs';
@@ -28,10 +28,17 @@ import { bagian3 } from './v18/bagian3.mjs';
 const CDP_PORT = process.argv[2] ?? '9223';
 const { check, selesai } = reporter('verify18');
 
-/** File uji dibuka supaya command yang butuh tab aktif (file.save) hidup. */
+/**
+ * Berkas uji untuk tab aktif — harus DI DALAM workspace.
+ *
+ * Dulu ditaruh di %LOCALAPPDATA%\\Temp dan hanya bisa dibuka karena app waktu itu
+ * jalan TANPA folder terbuka, sehingga pemeriksaan "path outside the workspace"
+ * tidak berlaku. Begitu workspace dibuka (seperti app normal dipakai), openPath
+ * menolaknya dan seluruh fase 18 mati di langkah pertama.
+ */
 const FILE_TAB = path.join(
-  process.env.LOCALAPPDATA ?? '',
-  'Temp',
+  path.resolve(import.meta.dirname, '..'),
+  'testfiles',
   `zephyr-v18-tab-${process.pid}.ts`,
 );
 
@@ -155,5 +162,5 @@ const main = async () => {
 
 main().catch((e) => {
   console.error('verify18 error:', e.message);
-  process.exit(1);
+  keluarBersih(1);
 });

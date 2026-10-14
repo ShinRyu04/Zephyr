@@ -8,7 +8,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const TMP = process.env.LOCALAPPDATA ?? '.';
-const bersih = JSON.parse(fs.readFileSync(path.join(TMP, 'Temp', 'indo-bersih.json'), 'utf8'));
+const BERKAS_INDO = path.join(TMP, 'Temp', 'indo-bersih.json');
+/*
+ * PRASYARAT: `indo-bersih.json` adalah artefak antara dari pemindai prosa
+ * Indonesia (daftar teks yang perlu kunci terjemahan). Tidak ada produsennya di
+ * repo ini, jadi di mesin bersih berkas itu memang tidak ada - dan dulu skrip
+ * ini mati dengan ENOENT mentah yang terbaca seperti harness rusak.
+ */
+if (!fs.existsSync(BERKAS_INDO)) {
+  console.log(`TIDAK BERLAKU: artefak antara belum ada (${BERKAS_INDO}).`);
+  console.log('  Tanpa daftar prosa hasil pemindaian, tidak ada yang bisa dibandingkan dengan kamus.');
+  process.exit(2);
+}
+const bersih = JSON.parse(fs.readFileSync(BERKAS_INDO, 'utf8'));
 const extra = fs.readFileSync('src/lib/i18n-extra.ts', 'utf8');
 
 // Kumpulkan kunci dari semua kamus.

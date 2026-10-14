@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagian1 } from './v21/bagian1.mjs';
 import { bagian2 } from './v21/bagian2.mjs';
 
@@ -155,5 +155,5 @@ const main = async () => {
 main().catch((e) => {
   console.error('verify21 error:', e.message);
   hapusFixture();
-  process.exit(1);
+  keluarBersih(1);
 });

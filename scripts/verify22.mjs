@@ -28,7 +28,7 @@
 
 import { rmSync, existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagian1 } from './v22/bagian1.mjs';
 import { bagian2 } from './v22/bagian2.mjs';
 
@@ -149,5 +149,5 @@ const main = async () => {
 main().catch((e) => {
   console.error('verify22 error:', e.message);
   bersihkanFixture();
-  process.exit(1);
+  keluarBersih(1);
 });

@@ -122,7 +122,7 @@ Khusus multi-pane (fase 06):
 - **Terminal agent pane**: sampai 6 pane; start commands di Settings.
 - **Private terminal**: spawn bersih; scrollback dihapus saat close.
 - **AI panel**: adapter 3 format (OpenAI/Anthropic/Gemini), logo model.
-- **Settings → Models**: API key per provider; test connection.
+- **AI Models pop-up** (the AI view's **…** menu; also the missing-key notice in the chat and **Edit models…** in the model dropdown): provider, API key per provider, base URL, model list, test connection. It is no longer a Settings section, and no code path should send the reader to Settings or Chat Settings for it.
 
 ## 7. Larangan
 

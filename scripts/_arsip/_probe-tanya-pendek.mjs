@@ -1,0 +1,20 @@
+import { Cdp } from './lib-cdp.mjs';
+const { cdp } = await Cdp.attach(process.argv[2] || '9223', ['Zephyr', 'Zephyr — Code Editor', 'localhost']);
+const o = await cdp.json(`return JSON.stringify(await (async () => {
+  const A = window.__ZEPHYR_AI__.store;
+  const TANYA = 'Soal Zephyr (aplikasi ini): kunci setelan mana yang mengatur jumlah pane terminal, dan berapa nilai bawaannya?';
+  if (A.getState().newChat) A.getState().newChat();
+  A.getState().setAgentMode('chat');
+  const t0 = Date.now();
+  void A.getState().send(TANYA);
+  while (Date.now() - t0 < 20000 && !A.getState().agentBusy) await new Promise((r) => setTimeout(r, 50));
+  while (Date.now() - t0 < 150000 && A.getState().agentBusy) await new Promise((r) => setTimeout(r, 300));
+  const s = A.getState();
+  const sn = s.activeSession ? s.activeSession() : null;
+  const ms = (sn && sn.messages) ? sn.messages : [];
+  const ter = ms.length ? ms[ms.length - 1] : null;
+  return { ms: Date.now() - t0, balasan: ter ? String(ter.content || '') : '', err: ter ? (ter.error ?? null) : null };
+})())`, 200000);
+console.log('ms=' + o.ms + ' err=' + o.err);
+console.log('--- jawaban ---'); console.log(o.balasan);
+await cdp.close();

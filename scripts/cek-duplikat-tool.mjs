@@ -29,6 +29,10 @@ const d = await cdp.json(`return JSON.stringify(await (async () => {
   for (const t of daftar) hitung[t.nama] = (hitung[t.nama] || 0) + 1;
   const kembar = Object.entries(hitung).filter(([, n]) => n > 1).map(([n, c]) => n + ' x' + c);
 
+  /* 3. Keluarga fetch: setelah B2, harus ada SATU tool ambil-halaman.
+     'fetch' (bawaan) dilebur ke 'web_fetch'; keduanya muncul = regresi. */
+  const keluargaFetch = daftar.filter((t) => t.nama === 'fetch' || t.nama === 'web_fetch');
+
   /* 2. Kandidat tumpang tindih: kelompokkan berdasarkan KATA KUNCI pekerjaan. */
   const keluarga = {
     'menjalankan perintah': /^(shell|terminal|run)_/,
@@ -54,7 +58,7 @@ const d = await cdp.json(`return JSON.stringify(await (async () => {
     if (anggota.length > 1) hasil[nama] = anggota.map((t) => t.nama + ' - ' + t.ket.slice(0, 80));
   }
 
-  return { jumlah: daftar.length, kembar, tumpangTindih: hasil };
+  return { jumlah: daftar.length, kembar, tumpangTindih: hasil, keluargaFetch };
 })())`);
 
 console.log('total tool:', d.jumlah);
@@ -70,5 +74,19 @@ for (const [keluarga, anggota] of entri) {
   for (const a of anggota) console.log('    ' + a);
 }
 
+const salah =
+  d.kembar.length > 0 ||
+  (d.keluargaFetch.length !== 1 || d.keluargaFetch[0].nama !== 'web_fetch')
+    ? ['keluarga fetch harus tepat satu tool: web_fetch (B2)', ...(d.keluargaFetch.map((t) => '    ada: ' + t.nama))]
+    : [];
+
+console.log('\n=== 3. KELUARGA FETCH (B2: satu tool ambil-halaman) ===');
+console.log(d.keluargaFetch.length === 0 ? '  tidak ada' : '  ' + d.keluargaFetch.map((t) => t.nama).join(', '));
+
 await cdp.close();
+if (salah.length) {
+  console.error('\nGAGAL\n' + salah.join('\n'));
+  process.exit(1);
+}
+console.log('\nJALAN (tidak ada nama kembar; keluarga fetch = web_fetch saja)');
 process.exit(0);

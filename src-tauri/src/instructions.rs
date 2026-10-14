@@ -229,7 +229,9 @@ fn cari_file(state: &AppState, nama: &str) -> ZResult<PathBuf> {
             return Ok(p);
         }
     }
-    Err(ZephyrError::NotFound(format!("instruction '{nama}' not found")))
+    Err(ZephyrError::NotFound(format!(
+        "instruction '{nama}' not found"
+    )))
 }
 
 /// Write one instruction, returning the path written.
@@ -383,11 +385,7 @@ pub fn instruction_catalog_body(id: String) -> ZResult<String> {
 /// installed entry is an ordinary instruction afterwards and cannot arrive with
 /// a shape the manual path would have refused.
 #[tauri::command]
-pub fn instruction_install(
-    state: State<AppState>,
-    id: String,
-    scope: String,
-) -> ZResult<String> {
+pub fn instruction_install(state: State<AppState>, id: String, scope: String) -> ZResult<String> {
     let e = katalog_instruksi()
         .iter()
         .find(|x| x.id == id)
@@ -429,9 +427,8 @@ mod tests {
 
     #[test]
     fn tanda_kutip_dibuang() {
-        let (d, a) = parse_instruction(
-            "---\ndescription: \"pakai kutip\"\napplyTo: \"**/*.rs\"\n---\nx\n",
-        );
+        let (d, a) =
+            parse_instruction("---\ndescription: \"pakai kutip\"\napplyTo: \"**/*.rs\"\n---\nx\n");
         assert_eq!(d, "pakai kutip");
         assert_eq!(a, "**/*.rs");
     }

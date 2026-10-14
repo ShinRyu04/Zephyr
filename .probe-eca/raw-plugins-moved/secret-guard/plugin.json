@@ -1,0 +1,23 @@
+{
+  "name": "secret-guard",
+  "description": "Pre-write hook that scans file content for hardcoded secrets, API keys, and tokens before saving",
+  "version": "1.0.0",
+  "author": "editor-code-assistant",
+  "category": "Security",
+  "tags": [
+    "security",
+    "secrets",
+    "hooks",
+    "guard"
+  ],
+  "icon": "🛡️",
+  "provides": {
+    "skills": [],
+    "agents": [],
+    "rules": [],
+    "hooks": [
+      "secret-guard.scan"
+    ],
+    "mcp": []
+  }
+}

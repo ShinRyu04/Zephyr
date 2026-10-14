@@ -96,18 +96,20 @@ export function extLangUntuk(nameOrPath: string | null): ContribLanguage | null 
   const ext = lower.slice(dot + 1);
 
   /*
-   * A language contributed by an installed extension wins over the built-in
-   * map, and it has to be checked FIRST.
+   * The built-in map wins for any extension Zephyr already handles, and the
+   * contributed language is consulted only for the rest.
    *
    * This used to read `if (!BY_EXT[ext]) return null; return bahasaUntukExt(ext)`,
    * so the lookup bailed out for every extension the built-in map did not know:
    * a contributed language for `.apl`, `.z80` or `.cbl` was installed, listed in
-   * the UI, and never activated. The built-in map is now the fallback, not the
-   * gate.
+   * the UI, and never activated. Removing the gate alone flipped the problem
+   * around - a pack claiming `.css` or `.py` then overrode the built-in grammar
+   * with its own. What the shelf needs is a rule with no silent losers either
+   * way, and it is this one: the built-in language keeps every extension it
+   * knows, a pack only ever adds extensions nothing else claims.
    */
-  const dariExt = bahasaUntukExt(ext);
-  if (dariExt) return dariExt;
-  return null;
+  if (detectLang(nameOrPath) !== 'plain') return null;
+  return bahasaUntukExt(ext);
 }
 
 export function labelBahasa(nameOrPath: string | null): string {
@@ -164,13 +166,15 @@ export async function extensiUntukFile(
   nameOrPath: string | null,
 ): Promise<{ ext: Extension[]; langId: string; dariEkstensi: boolean }> {
   /*
-   * Order matters, and it is the opposite of what it looks like.
+   * Order matters here exactly as much as in `extLangUntuk`, and the two agree:
+   * the built-in map answers first, a contributed language only fills the gaps.
    *
-   * A contributed language has to be checked BEFORE the built-in map: an
-   * extension may deliberately re-map an extension the app already knows
-   * (say `.sql` to a dialect with its own grammar), and gating on
-   * `detectLang() !== 'plain'` first made that impossible - the built-in
-   * answer always won. The built-in map is the fallback.
+   * This block used to argue the opposite - a pack claiming `.sql` should be
+   * able to re-map it to its own dialect grammar - but the bundled packs never
+   * carried a grammar better than the built-in one, so all the precedence
+   * bought was a real CodeMirror language (css, python, javascript) being
+   * replaced by a legacy stream mode. A pack wins an extension nothing else
+   * claims, and `extLangUntuk` is the single place that decides it.
    */
   const e = extLangUntuk(nameOrPath);
   if (!e) {

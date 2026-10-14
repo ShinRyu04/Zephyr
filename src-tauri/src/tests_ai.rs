@@ -254,6 +254,56 @@ mod tests {
     }
 
     #[test]
+    fn agent_msg_membaca_riwayat_tool_camel_case_dari_frontend() {
+        let messages: Vec<AgentMsg> = serde_json::from_value(json!([
+            {
+                "role": "assistant",
+                "content": "",
+                "toolCalls": [{
+                    "id": "call_browser_1",
+                    "name": "browser_open",
+                    "args": { "url": "https://www.google.com" }
+                }]
+            },
+            {
+                "role": "tool",
+                "content": "Browser opened successfully.",
+                "toolCallId": "call_browser_1",
+                "name": "browser_open"
+            }
+        ]))
+        .unwrap();
+
+        assert_eq!(
+            messages[0].tool_calls.as_ref().unwrap()[0].id,
+            "call_browser_1"
+        );
+        assert_eq!(messages[1].tool_call_id.as_deref(), Some("call_browser_1"));
+        assert_eq!(messages[1].name.as_deref(), Some("browser_open"));
+
+        let prepared = adapters::prepare_tools(
+            "custom",
+            "deepseek-v4.1-flash",
+            &messages,
+            &[spec("browser_open")],
+            Some("https://modelrouter.id/v1"),
+            "K",
+            2048,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(
+            prepared.body["messages"][0]["tool_calls"][0]["id"],
+            json!("call_browser_1")
+        );
+        assert_eq!(
+            prepared.body["messages"][1]["tool_call_id"],
+            json!("call_browser_1")
+        );
+    }
+
+    #[test]
     fn parse_tool_openai_baca_teks_dan_tool_calls() {
         let v = json!({
             "choices": [{
@@ -267,7 +317,7 @@ mod tests {
                 }
             }]
         });
-        let r = adapters::parse_tool_response("openai", &v);
+        let r = adapters::parse_tool_response("openai", &v).unwrap();
         assert_eq!(r.content, "oke");
         assert_eq!(r.tool_calls.len(), 1);
         assert_eq!(r.tool_calls[0].name, "editor_read");
@@ -275,7 +325,7 @@ mod tests {
         assert!(!r.done);
 
         let v2 = json!({ "choices": [{ "message": { "content": "selesai" } }] });
-        let r2 = adapters::parse_tool_response("openai", &v2);
+        let r2 = adapters::parse_tool_response("openai", &v2).unwrap();
         assert!(r2.tool_calls.is_empty() && r2.done);
     }
 
@@ -294,7 +344,7 @@ mod tests {
             let v = json!({ "choices": [{ "delta": { "content": p } }] });
             acc.feed(&v);
         }
-        let (content, calls) = acc.finish();
+        let (content, calls) = acc.finish().unwrap();
         assert_eq!(calls.len(), 1, "tool call XML harus dipulihkan");
         assert_eq!(calls[0].name, "file_list");
         assert_eq!(calls[0].args["path"], json!("."));
@@ -344,6 +394,82 @@ mod tests {
     }
 
     #[test]
+    fn prepare_tools_deepseek_mengisi_reasoning_kosong_pada_tool_call() {
+        let mut asst = agent_msg("assistant", "");
+        asst.tool_calls = Some(vec![ToolCall {
+            id: "call_1".into(),
+            name: "read_file".into(),
+            args: json!({ "path": "index.html" }),
+        }]);
+
+        let p = adapters::prepare_tools(
+            "custom",
+            "deepseek-v4.1-flash",
+            &[asst],
+            &[spec("read_file")],
+            Some("https://modelrouter.id/v1"),
+            "K",
+            512,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(p.body["messages"][0]["reasoning_content"], json!(" "));
+    }
+
+    #[test]
+    fn prepare_tools_deepseek_mempertahankan_reasoning_asli() {
+        let mut asst = agent_msg("assistant", "");
+        asst.reasoning = Some("cek file yang relevan".into());
+        asst.tool_calls = Some(vec![ToolCall {
+            id: "call_1".into(),
+            name: "read_file".into(),
+            args: json!({ "path": "index.html" }),
+        }]);
+
+        let p = adapters::prepare_tools(
+            "custom",
+            "deepseek-v4.1-flash",
+            &[asst],
+            &[spec("read_file")],
+            Some("https://modelrouter.id/v1"),
+            "K",
+            512,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(
+            p.body["messages"][0]["reasoning_content"],
+            json!("cek file yang relevan")
+        );
+    }
+
+    #[test]
+    fn prepare_tools_tidak_mengisi_reasoning_palsu_untuk_model_lain() {
+        let mut asst = agent_msg("assistant", "");
+        asst.tool_calls = Some(vec![ToolCall {
+            id: "call_1".into(),
+            name: "read_file".into(),
+            args: json!({ "path": "index.html" }),
+        }]);
+
+        let p = adapters::prepare_tools(
+            "custom",
+            "mr-vip",
+            &[asst],
+            &[spec("read_file")],
+            Some("https://modelrouter.id/v1"),
+            "K",
+            512,
+            None,
+        )
+        .unwrap();
+
+        assert!(p.body["messages"][0].get("reasoning_content").is_none());
+    }
+
+    #[test]
     fn parse_tool_anthropic_baca_block_teks_dan_tool_use() {
         let v = json!({
             "content": [
@@ -351,7 +477,7 @@ mod tests {
                 { "type": "tool_use", "id": "tu9", "name": "terminal_read", "input": { "lines": 5 } }
             ]
         });
-        let r = adapters::parse_tool_response("anthropic", &v);
+        let r = adapters::parse_tool_response("anthropic", &v).unwrap();
         assert_eq!(r.content, "jalankan");
         assert_eq!(r.tool_calls.len(), 1);
         assert_eq!(r.tool_calls[0].name, "terminal_read");
@@ -414,7 +540,10 @@ mod tests {
 
     #[test]
     fn cancelled_terminal_event_is_not_also_an_error() {
-        assert_eq!(crate::ai::terminal_error_to_emit(true, Some("late error".into())), None);
+        assert_eq!(
+            crate::ai::terminal_error_to_emit(true, Some("late error".into())),
+            None
+        );
         assert_eq!(
             crate::ai::terminal_error_to_emit(false, Some("provider error".into())),
             Some("provider error".into())
@@ -433,7 +562,7 @@ mod tests {
                 }
             }]
         });
-        let r = adapters::parse_tool_response("gemini", &v);
+        let r = adapters::parse_tool_response("gemini", &v).unwrap();
         assert_eq!(r.content, "gas");
         assert_eq!(r.tool_calls.len(), 1);
 
@@ -496,7 +625,10 @@ mod tests {
         /* The thinking block goes FIRST and carries the signature verbatim. */
         let blocks = p.body["messages"][0]["content"].as_array().unwrap();
         assert_eq!(blocks[0]["type"], json!("thinking"));
-        assert_eq!(blocks[0]["thinking"], json!("the user wants a short answer"));
+        assert_eq!(
+            blocks[0]["thinking"],
+            json!("the user wants a short answer")
+        );
         assert_eq!(blocks[0]["signature"], json!("SIG-abc"));
         assert_eq!(blocks[1]["type"], json!("text"));
         assert_eq!(blocks[1]["text"], json!("It is 42."));
@@ -505,9 +637,11 @@ mod tests {
     #[test]
     fn reasoning_roundtrip_openai_and_gemini() {
         /* OpenAI-compatible: the reasoning arrives under one of three field
-           names depending on the gateway, and goes back as `reasoning_content`. */
+        names depending on the gateway, and goes back as `reasoning_content`. */
         let mut acc = adapters::StreamAcc::new("openai");
-        acc.feed_reasoning(&json!({ "choices": [{ "delta": { "reasoning_content": "step one; " } }] }));
+        acc.feed_reasoning(
+            &json!({ "choices": [{ "delta": { "reasoning_content": "step one; " } }] }),
+        );
         /* `delta/reasoning` is the other spelling this must accept. */
         acc.feed_reasoning(&json!({ "choices": [{ "delta": { "reasoning": "step two" } }] }));
         let (teks, sig) = acc.reasoning_parts();

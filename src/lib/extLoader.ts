@@ -10,10 +10,14 @@ import type {
 } from './types';
 import { THEMES, type ThemeInfo } from './themes';
 import { petakanTemaVscode } from './vscodeThemeMap';
+import { petakanTokenWarna } from './vscodeTokenMap';
 
 import { useKb } from './keybindingStore';
-import { daftarkanCommandId } from './commandIds';
+import { commandIdAda, daftarkanCommandId } from './commandIds';
 import { COMMANDS } from './commandRegistry';
+import { perintahKeymap, dialihkan } from './keymapAlias';
+import { setIkonExt, kosongkanIkonExt, ikonFileExt, jumlahIkonExt } from './extIkonFile';
+import { MODE_IMPORTER, MODE_TERSEDIA } from './cmLegacyModes';
 const themeTokens = new Map<string, Record<string, string>>();
 
 const langByExt = new Map<string, ContribLanguage>();
@@ -22,7 +26,12 @@ const snippetsByLang = new Map<string, Completion[]>();
 
 const extKeymap: Array<{ key: string; command: string; source: string }> = [];
 
-const iconTheme = new Map<string, { glyph: string; color: string }>();
+/*
+ * Which package claimed a file extension. Kept so a language pack that is
+ * skipped (the extension already has an owner) can name the winner instead of
+ * vanishing from the list without explanation.
+ */
+const langPemilik = new Map<string, string>();
 
 export interface LoaderRingkasan {
   themes: string[];
@@ -86,7 +95,37 @@ const tokenTerpakai = new Set<string>();
 export const themesEkstensi = (): ThemeInfo[] => daftarThemeInfo.slice();
 const daftarThemeInfo: ThemeInfo[] = [];
 
-async function muatTema(m: ExtManifest): Promise<string[]> {
+/*
+ * Cari `tokenColors` di berkas tema.
+ *
+ * Berkas tema VS Code menaruhnya di akar, tetapi ada tema yang membungkusnya
+ * (`{ theme: {...} }`) atau menumpangkannya pada `colors`. Kandidat diambil
+ * berurutan dan yang pertama ada yang dipakai; `colors` hanya diperiksa kalau
+ * memang objek lain, bukan alias dari `raw`.
+ */
+function tokenColorsTema(
+  raw: Record<string, unknown>,
+  colors: Record<string, unknown>,
+): unknown {
+  const kandidat: unknown[] = [];
+  const tampung = (x: unknown) => {
+    if (!x || typeof x !== 'object') return;
+    kandidat.push((x as Record<string, unknown>).tokenColors);
+  };
+  tampung(raw);
+  tampung(raw.theme);
+  tampung(raw.tema);
+  if (colors !== raw) tampung(colors);
+  for (const k of kandidat) {
+    if (k !== undefined && k !== null) return k;
+  }
+  return undefined;
+}
+
+async function muatTema(
+  m: ExtManifest,
+  gagal: Array<{ id: string; alasan: string }>,
+): Promise<string[]> {
   const out: string[] = [];
   for (const t of m.contributes.themes) {
     const id = themeId(m.id, t.label || 'tema');
@@ -103,7 +142,29 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
       const colors = (raw.colors ?? raw.tokens ?? raw) as Record<string, unknown>;
       
       const tok: Record<string, string> = petakanTemaVscode(colors);
-      if (Object.keys(tok).length === 0) continue;
+
+      /*
+       * tokenColors VS Code -> token sintaks (--syn-*).
+       *
+       * Tanpa langkah ini, memasang tema VS Code mengubah chrome editor tetapi
+       * BUKAN warna kode: petakanTemaVscode hanya memetakan warna UI dan tidak
+       * pernah menyentuh tokenColors. Digabung SETELAH petakanTemaVscode supaya
+       * token sintaks menang atas warna UI yang kebetulan bernama sama, dan
+       * hanya kunci `--syn-` yang disalin - kunci lain dari peta token tidak
+       * boleh menimpa token non-sintaks milik peta tema.
+       */
+      const tokenSintaks = petakanTokenWarna(tokenColorsTema(raw, colors));
+      for (const [k, v] of Object.entries(tokenSintaks)) {
+        if (k.startsWith('--syn-')) tok[k] = v;
+      }
+
+      if (Object.keys(tok).length === 0) {
+        gagal.push({
+          id: m.id,
+          alasan: `tema "${t.label || m.name}": ${t.path} tidak memuat warna yang dikenali loader`,
+        });
+        continue;
+      }
       themeTokens.set(id, tok);
       daftarThemeInfo.push({
         id,
@@ -112,8 +173,11 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
         hint: `from extension ${m.id}`,
       });
       out.push(id);
-    } catch {
-      /* broken theme file — the caller records it as a failure */
+    } catch (e) {
+      gagal.push({
+        id: m.id,
+        alasan: `tema "${t.label || m.name}": ${cmd.asZephyrError(e).message}`,
+      });
     }
   }
   return out;
@@ -121,7 +185,11 @@ async function muatTema(m: ExtManifest): Promise<string[]> {
 
 export const keymapEkstensi = () => extKeymap.slice();
 
-async function muatKeymap(m: ExtManifest): Promise<number> {
+async function muatKeymap(
+  m: ExtManifest,
+  gagal: Array<{ id: string; alasan: string }>,
+  tidakDidukung: Array<{ id: string; fitur: string; alasan: string }>,
+): Promise<number> {
   let n = 0;
   for (const k of m.contributes.keymaps) {
     try {
@@ -131,20 +199,46 @@ async function muatKeymap(m: ExtManifest): Promise<number> {
       if (!Array.isArray(arr)) continue;
       for (const b of arr) {
         const key = String((b as { key?: unknown }).key ?? '').trim();
-        const command = String((b as { command?: unknown }).command ?? '').trim();
-        if (!key || !command) continue;
+        const asli = String((b as { command?: unknown }).command ?? '').trim();
+        if (!key || !asli) continue;
+        /*
+         * A pack written for VS Code names commands the VS Code way. Translate
+         * the names that have a Zephyr counterpart (`workbench.action.quickOpen`
+         * -> `view.quickOpen`) before validating, so the pack's chords reach the
+         * live bindings instead of being dropped as unknown.
+         */
+        const command = perintahKeymap(asli);
+        /*
+         * A binding to a command Zephyr does not implement is inert: the chord
+         * does nothing and no error appears anywhere. Name it instead of
+         * letting it pass for a working shortcut. The final say belongs to
+         * `mergeBindings` (an extension may register its command later), so the
+         * binding is still passed on - this is the snapshot a reader can see.
+         */
+        if (!commandIdAda(command)) {
+          tidakDidukung.push({
+            id: m.id,
+            fitur: 'keymap',
+            alasan: dialihkan(asli)
+              ? `binding "${key}" -> "${asli}" tidak berlaku: tidak ada padanan perintah Zephyr`
+              : `binding "${key}" -> "${command}" tidak berlaku: Zephyr tidak punya command itu`,
+          });
+        }
         extKeymap.push({ key, command, source: m.id });
         n++;
         if (n >= 200) break;
       }
-    } catch {
-      /* diabaikan; pemanggil mencatat */
+    } catch (e) {
+      gagal.push({ id: m.id, alasan: `keymap ${k.path}: ${cmd.asZephyrError(e).message}` });
     }
   }
   return n;
 }
 
-async function muatSnippet(m: ExtManifest): Promise<number> {
+async function muatSnippet(
+  m: ExtManifest,
+  gagal: Array<{ id: string; alasan: string }>,
+): Promise<number> {
   let n = 0;
   for (const s of m.contributes.snippets as ContribSnippet[]) {
     try {
@@ -169,8 +263,8 @@ async function muatSnippet(m: ExtManifest): Promise<number> {
         if (n >= 500) break;
       }
       snippetsByLang.set(lang, list);
-    } catch {
-      /* diabaikan */
+    } catch (e) {
+      gagal.push({ id: m.id, alasan: `snippet ${s.path}: ${cmd.asZephyrError(e).message}` });
     }
   }
   return n;
@@ -213,109 +307,23 @@ const PAKET_DIIZINKAN: Record<string, () => Promise<Extension[]>> = {
   '@codemirror/lang-yaml': async () => [(await import('@codemirror/lang-yaml')).yaml()],
 };
 
-const MODE_LEGACY = new Set([
-  'apl',
-  'asciiarmor',
-  'asterisk',
-  'brainfuck',
-  'clike',
-  'clojure',
-  'cmake',
-  'cobol',
-  'coffeescript',
-  'commonlisp',
-  'crystal',
-  'css',
-  'cypher',
-  'd',
-  'diff',
-  'dockerfile',
-  'dtd',
-  'dylan',
-  'ebnf',
-  'ecl',
-  'eiffel',
-  'elm',
-  'erlang',
-  'factor',
-  'fcl',
-  'forth',
-  'fortran',
-  'gas',
-  'gherkin',
-  'go',
-  'groovy',
-  'haskell',
-  'haxe',
-  'http',
-  'idl',
-  'javascript',
-  'jinja2',
-  'julia',
-  'livescript',
-  'lua',
-  'mathematica',
-  'mbox',
-  'mirc',
-  'mllike',
-  'modelica',
-  'mscgen',
-  'mumps',
-  'nginx',
-  'nsis',
-  'ntriples',
-  'octave',
-  'oz',
-  'pascal',
-  'pegjs',
-  'perl',
-  'pig',
-  'powershell',
-  'properties',
-  'protobuf',
-  'pug',
-  'puppet',
-  'python',
-  'q',
-  'r',
-  'rpm',
-  'ruby',
-  'rust',
-  'sas',
-  'sass',
-  'scheme',
-  'shell',
-  'sieve',
-  'smalltalk',
-  'solr',
-  'sparql',
-  'spreadsheet',
-  'sql',
-  'stex',
-  'stylus',
-  'swift',
-  'tcl',
-  'textile',
-  'tiddlywiki',
-  'tiki',
-  'toml',
-  'troff',
-  'ttcn',
-  'ttcn-cfg',
-  'turtle',
-  'vb',
-  'vbscript',
-  'velocity',
-  'verilog',
-  'vhdl',
-  'wast',
-  'webidl',
-  'xml',
-  'xquery',
-  'yacas',
-  'yaml',
-  'z80'
-]);
+/*
+ * The list of loadable legacy modes is not written down twice: it is
+ * `MODE_TERSEDIA`, the keys of the importer table in cmLegacyModes.ts. A
+ * hand-maintained copy here could accept a mode that no importer can load,
+ * which is how a pack ends up installed, listed, and inert.
+ */
+
+
+/*
+ * Whether a contributed language can actually produce highlight. Asked before a
+ * pack's extensions are registered, so a pack without a loadable grammar is
+ * reported instead of installed-and-inert.
+ */
+export function grammarTersedia(l: ContribLanguage): boolean {
+  if (l.cmLang && PAKET_DIIZINKAN[l.cmLang]) return true;
+  return !!l.legacyMode && MODE_TERSEDIA.has(l.legacyMode);
+}
 
 export async function muatCmBahasa(l: ContribLanguage): Promise<Extension[]> {
   if (l.cmLang && PAKET_DIIZINKAN[l.cmLang]) {
@@ -325,12 +333,11 @@ export async function muatCmBahasa(l: ContribLanguage): Promise<Extension[]> {
       return [];
     }
   }
-  if (l.legacyMode && MODE_LEGACY.has(l.legacyMode)) {
+  const muatMode = l.legacyMode ? MODE_IMPORTER[l.legacyMode] : undefined;
+  if (muatMode) {
     try {
       const { StreamLanguage } = await import('@codemirror/language');
-      const mod = (await import(
-         `@codemirror/legacy-modes/mode/${l.legacyMode}`
-      )) as Record<string, unknown>;
+      const mod = (await muatMode()) as Record<string, unknown>;
       
       const parser = Object.values(mod).find(
         (v) => v && typeof v === 'object' && 'token' in (v as object),
@@ -344,15 +351,36 @@ export async function muatCmBahasa(l: ContribLanguage): Promise<Extension[]> {
   return [];
 }
 
-function muatBahasa(m: ExtManifest): string[] {
+function muatBahasa(
+  m: ExtManifest,
+  tidakDidukung: Array<{ id: string; fitur: string; alasan: string }>,
+): string[] {
   const out: string[] = [];
   for (const l of m.contributes.languages) {
     if (!l.id) continue;
+    if (!grammarTersedia(l)) {
+      tidakDidukung.push({
+        id: m.id,
+        fitur: 'bahasa',
+        alasan: `bahasa "${l.id}" tidak punya grammar yang bisa dimuat (legacyMode: ${l.legacyMode ?? '-'})`,
+      });
+      continue;
+    }
     let dipakai = false;
     for (const e of l.extensions) {
       const key = e.toLowerCase().replace(/^\./, '');
-      if (!key || langByExt.has(key)) continue;
+      if (!key) continue;
+      if (langByExt.has(key)) {
+        const pemilik = langPemilik.get(key) ?? 'paket lain';
+        tidakDidukung.push({
+          id: m.id,
+          fitur: 'bahasa',
+          alasan: `ekstensi .${key} (bahasa "${l.id}") diabaikan: .${key} sudah dipakai "${pemilik}"`,
+        });
+        continue;
+      }
       langByExt.set(key, l);
+      langPemilik.set(key, m.id);
       dipakai = true;
     }
     if (dipakai) out.push(l.id);
@@ -360,11 +388,13 @@ function muatBahasa(m: ExtManifest): string[] {
   return out;
 }
 
-export const ikonUntukExt = (ext: string) =>
-  iconTheme.get(ext.toLowerCase().replace(/^\./, '')) ?? null;
-export const adaIconTheme = () => iconTheme.size > 0;
+export const ikonUntukExt = (ext: string) => ikonFileExt(ext);
+export const adaIconTheme = () => jumlahIkonExt() > 0;
 
-async function muatIconTheme(m: ExtManifest): Promise<number> {
+async function muatIconTheme(
+  m: ExtManifest,
+  gagal: Array<{ id: string; alasan: string }>,
+): Promise<number> {
   let n = 0;
   for (const it of m.contributes.iconThemes) {
     try {
@@ -375,14 +405,11 @@ async function muatIconTheme(m: ExtManifest): Promise<number> {
         const d = def as { glyph?: unknown; color?: unknown };
         const glyph = String(d.glyph ?? '').slice(0, 3);
         if (!glyph) continue;
-        iconTheme.set(ext.toLowerCase().replace(/^\./, ''), {
-          glyph,
-          color: String(d.color ?? 'var(--fg2)').slice(0, 40),
-        });
+        setIkonExt(ext, glyph, String(d.color ?? 'var(--fg2)').slice(0, 40));
         n++;
       }
-    } catch {
-      /* diabaikan */
+    } catch (e) {
+      gagal.push({ id: m.id, alasan: `icon theme ${it.path}: ${cmd.asZephyrError(e).message}` });
     }
   }
   return n;
@@ -409,7 +436,8 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
   langByExt.clear();
   snippetsByLang.clear();
   extKeymap.length = 0;
-  iconTheme.clear();
+  kosongkanIkonExt();
+  langPemilik.clear();
   extCommands.length = 0;
 
   const hasil: LoaderRingkasan = {
@@ -448,11 +476,11 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
       continue;
     }
 
-    hasil.themes.push(...(await muatTema(m)));
-    hasil.keymaps += await muatKeymap(m);
-    hasil.snippets += await muatSnippet(m);
-    hasil.languages.push(...muatBahasa(m));
-    hasil.iconThemes += await muatIconTheme(m);
+    hasil.themes.push(...(await muatTema(m, hasil.gagal)));
+    hasil.keymaps += await muatKeymap(m, hasil.gagal, hasil.tidakDidukung);
+    hasil.snippets += await muatSnippet(m, hasil.gagal);
+    hasil.languages.push(...muatBahasa(m, hasil.tidakDidukung));
+    hasil.iconThemes += await muatIconTheme(m, hasil.gagal);
 
     for (const c of m.contributes.commands) {
       extCommands.push({ ...c, extId: m.id });

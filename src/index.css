@@ -2420,20 +2420,7 @@ body.is-resizing-v {
   color: var(--brand-whatsapp);
 }
 
-/* The Discord button uses the same pattern as WhatsApp: its icon stays
-   in brand colour even when the button is hovered, because blurring on a dark background
-   makes the icon turn into the accent colour too and it becomes unrecognisable. */
-.btn.btn-brand-dc > svg {
-  color: var(--brand-discord);
-}
-.btn.btn-brand-dc:hover:not(:disabled) > svg {
-  color: var(--brand-discord);
-}
-.btn.btn-brand-dc:hover:not(:disabled) {
-  border-color: var(--brand-discord);
-  color: var(--brand-discord);
-}
-
+.btn.btn.btn
 /* ─────────── modal ─────────── */
 
 .modal-backdrop {
@@ -3152,4 +3139,53 @@ html[data-bg='solid'] .ai-cli-bar {
   top: calc(100% + 8px);
   right: auto;
   left: 0;
+}
+
+/* ── Preview and pinned tabs ──────────────────────────────────────────────
+ *
+ * A preview tab is the reusable slot: italic, so it is visibly not "kept"
+ * yet, and it is the only tab the next browse may replace.
+ *
+ * Italic rather than a dimmer colour: dimming reads as "disabled", which is
+ * the wrong signal — the tab is perfectly usable. Italics read as provisional,
+ * which is what it is, and the convention is already established by other
+ * editors so it needs no learning.
+ */
+.tab.is-preview .tab-name {
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* A pinned tab holds its position, so it gets a marker that says why it will
+   not move. The pin sits where the close button would be, which is also where
+   the eye already goes when looking for tab affordances. */
+.tab.is-pinned .tab-name {
+  font-weight: 600;
+}
+
+.tab-pin {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+/* A pinned tab's close button still works, so the pin mark must not eat its
+   hit area — it is decorative and non-interactive, and the ✕ keeps its own. */
+.tab.is-pinned .tab-close {
+  margin-left: 2px;
+}
+
+/* An unbound command in the keybindings table.
+ *
+ * Muted and italic rather than empty: an empty cell reads as "the list failed
+ * to load a chord", where the word reads as "this one has none, and the button
+ * beside it is how you give it one". */
+.kb-none {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
 }

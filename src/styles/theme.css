@@ -114,7 +114,7 @@
   --deleted: #f0625d;
 
   --editor-bg: #1a1418;
-  --editor-gutter: #8a766d;
+  --editor-gutter: #8f7a71;
   --editor-active-line: rgba(255, 255, 255, 0.04);
   --editor-selection: rgba(255, 140, 66, 0.28);
   --editor-cursor: #f5e6dc;
@@ -123,7 +123,7 @@
   --syn-keyword: #ff8c42;
   --syn-string: #c3d17a;
   --syn-number: #e8a33d;
-  --syn-comment: #7d6a63;
+  --syn-comment: #907a72;
   --syn-function: #7ec9d1;
   --syn-variable: #f5c2a0;
   --syn-type: #9fbf7f;

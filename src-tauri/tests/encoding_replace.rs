@@ -78,8 +78,13 @@ fn crlf_dipertahankan_saat_ditulis_kembali() {
 
     let hasil = zephyr_lib::fs_utils::read_file_detect(&path).expect("baca berkas");
     let baru = hasil.content.replace("dua", "DUA");
-    zephyr_lib::fs_utils::write_file_encoded(&path, &baru, &hasil.detected_encoding, &hasil.line_ending)
-        .expect("tulis berkas");
+    zephyr_lib::fs_utils::write_file_encoded(
+        &path,
+        &baru,
+        &hasil.detected_encoding,
+        &hasil.line_ending,
+    )
+    .expect("tulis berkas");
 
     let sesudah = std::fs::read(&path).expect("baca ulang");
     let teks = String::from_utf8_lossy(&sesudah);

@@ -8,6 +8,13 @@
 // The remaining limit: a page that sends X-Frame-Options cannot be
 // loaded here because it sits inside the main window. For pages like that,
 // open them in an external browser.
+//
+// PAGAR: setiap jalan masuk ke webview lewat `crate::web::periksa_url_pane`
+// (skema http/https saja, tanpa userinfo, tanpa IP privat/link-local, port
+// 80/443) — dipanggil SEBELUM webview lahir di `browser_pane_open`, sebelum
+// `navigate` di `browser_pane_nav`, dan pada SETIAP navigasi di dalam webview
+// lewat `WebviewBuilder::on_navigation` (menutup `location.href = ...` yang
+// dikirim `browser_pane_eval`). Bukti tanpa app: `node scripts/uji-pane-browser.mjs`.
 
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -30,6 +37,25 @@ fn daftar() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
     PANES.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Gerbang setiap navigasi DI DALAM webview pane.
+///
+/// WHY perlu di sini juga, bukan hanya di `open`/`nav`: `browser_pane_eval`
+/// menjalankan JS bebas di konteks halaman, dan JS itu bisa menulis
+/// `location.href = "http://169.254.169.254/"` atau `= "file:///C:/..."`.
+/// Navigasi seperti itu tidak pernah lewat `browser_pane_open` /
+/// `browser_pane_nav`, jadi tanpa penjaga di lapisan webview celahnya tetap
+/// terbuka walau kedua perintah itu sudah dijaga.
+///
+/// `false` menolak navigasi: halaman tetap di URL terakhir yang sah, bukan
+/// pindah ke host di luar pagar.
+///
+/// Dipisah jadi fungsi biasa (bukan closure anonim) supaya keputusannya bisa
+/// diuji unit tanpa app (`cargo test --lib`). Penegakan oleh WebView2 sendiri
+/// tetap BUTUH APP — lihat docs/LAPORAN-PANE-BROWSER-TAMBAL.md.
+fn boleh_navigasi(url: &tauri::Url) -> bool {
+    crate::web::periksa_url_pane(url.as_str()).is_ok()
+}
+
 #[derive(Serialize)]
 pub struct PaneInfo {
     pub pane_id: String,
@@ -50,11 +76,18 @@ pub fn browser_pane_open(
     height: f64,
 ) -> ZResult<PaneInfo> {
     let u = url.trim();
-    if !(u.starts_with("http://") || u.starts_with("https://")) {
-        return Err(ZephyrError::InvalidInput(
-            "the URL must start with http:// or https://".into(),
-        ));
-    }
+    /*
+     * Gerbang SEBELUM webview/socket apa pun dibuat.
+     *
+     * WHY di baris paling atas: menolak setelah `add_child` berarti webview-nya
+     * sudah lahir (dan sudah memulai permintaan jaringan) walau hasilnya error;
+     * penolakan harus terjadi lebih dulu supaya tidak ada webview/socket yang
+     * perlu dibersihkan. `periksa_url_pane` menolak skema non-http(s)
+     * (file:/javascript:/data:/about:), userinfo (user@host), host privat/
+     * link-local, dan port di luar 80/443 — jauh lebih ketat daripada prefix
+     * `starts_with("http")` yang lama: `http://127.0.0.1/` dulu lolos.
+     */
+    let tujuan = crate::web::periksa_url_pane(u)?;
     let label = label_untuk(&pane_id);
 
     /*
@@ -86,10 +119,7 @@ pub fn browser_pane_open(
             position: LogicalPosition::new(x, y).into(),
             size: LogicalSize::new(width, height).into(),
         });
-        let _ = w.navigate(
-            u.parse()
-                .map_err(|e| ZephyrError::InvalidInput(format!("invalid URL: {e}")))?,
-        );
+        let _ = w.navigate(tujuan.clone());
         return Ok(PaneInfo {
             pane_id,
             label,
@@ -102,14 +132,13 @@ pub fn browser_pane_open(
         .get_window("main")
         .ok_or_else(|| ZephyrError::InvalidInput("main window not found".into()))?;
 
-    let builder = tauri::webview::WebviewBuilder::new(
-        &label,
-        WebviewUrl::External(
-            u.parse()
-                .map_err(|e| ZephyrError::InvalidInput(format!("invalid URL: {e}")))?,
-        ),
-    )
-    .auto_resize();
+    let builder = tauri::webview::WebviewBuilder::new(&label, WebviewUrl::External(tujuan.clone()))
+        // Setiap navigasi DI DALAM webview lewat gerbang yang sama: menutup
+        // `location.href = ...` yang ditulis lewat `browser_pane_eval` (BUTUH APP
+        // untuk membuktikan penegakan runtime-nya; keputusan `boleh_navigasi`
+        // diuji unit di bawah tanpa app).
+        .on_navigation(boleh_navigasi)
+        .auto_resize();
 
     /*
      * Log the outcome either way.
@@ -210,9 +239,10 @@ pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResul
             .eval("location.reload()")
             .map_err(|e| ZephyrError::InvalidInput(format!("{e}")))?,
         lain => {
-            let u: tauri::Url = lain
-                .parse()
-                .map_err(|e| ZephyrError::InvalidInput(format!("invalid URL: {e}")))?;
+            // `back`/`forward`/`reload` tidak membawa URL baru, jadi tidak dijaga.
+            // `goto` membawa URL baru, jadi lewat gerbang yang sama seperti
+            // `browser_pane_open` (skema, userinfo, host privat, port).
+            let u = crate::web::periksa_url_pane(lain)?;
             w.navigate(u)
                 .map_err(|e| ZephyrError::InvalidInput(format!("{e}")))?;
         }
@@ -224,6 +254,13 @@ pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResul
 ///
 /// WHY this is what lets the agent "see": eval runs in the page context, so it
 /// can read document.title, innerText, the link list, and click elements.
+///
+/// CATATAN PAGAR (`docs/USULAN-PANE-BROWSER.md` U6): skrip di sini sengaja bebas
+/// (itu memang gunanya — klik dan isi form lewat sini), jadi skrip juga bisa
+/// menulis `location.href = ...`. Menyaring ISI skrip di sini adalah pagar palsu
+/// (mudah dilewati), karena itu navigasi hasil eval dijaga di lapisan webview
+/// lewat `on_navigation` -> `boleh_navigasi` -> `periksa_url_pane`, yang melihat
+/// SETIAP navigasi apa pun asalnya. Penegakan runtime-nya BUTUH APP.
 ///
 /// The value travels through two layers that both quote strings, so it arrives
 /// double-encoded and needs two unwraps:
@@ -393,8 +430,8 @@ pub fn browser_pane_cursor(app: AppHandle, pane_id: String, selector: String) ->
             ))
         }
     };
-    let lapis1 = serde_json::from_str::<serde_json::Value>(&mentah)
-        .unwrap_or(serde_json::Value::Null);
+    let lapis1 =
+        serde_json::from_str::<serde_json::Value>(&mentah).unwrap_or(serde_json::Value::Null);
     let teks = match lapis1 {
         serde_json::Value::String(s) => s,
         other => other.to_string(),
@@ -404,5 +441,52 @@ pub fn browser_pane_cursor(app: AppHandle, pane_id: String, selector: String) ->
         Ok(serde_json::Value::Null) => Ok(String::new()),
         Ok(v) => Ok(v.to_string()),
         Err(_) => Ok(teks),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::boleh_navigasi;
+
+    fn u(s: &str) -> tauri::Url {
+        s.parse().unwrap_or_else(|e| panic!("url uji {s}: {e}"))
+    }
+
+    #[test]
+    fn gerbang_navigasi_menolak_skema_terlarang() {
+        for s in [
+            "file:///C:/Windows/System32/drivers/etc/hosts",
+            "javascript:alert(1)",
+            "data:text/html,<h1>x</h1>",
+            "about:blank",
+        ] {
+            assert!(!boleh_navigasi(&u(s)), "{s} harus ditolak di on_navigation");
+        }
+    }
+
+    #[test]
+    fn gerbang_navigasi_menolak_host_privat_dan_link_local() {
+        for s in [
+            "http://127.0.0.1/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://10.0.0.5/",
+            "http://[::1]/",
+            "http://localhost/",
+        ] {
+            assert!(!boleh_navigasi(&u(s)), "{s} harus ditolak di on_navigation");
+        }
+    }
+
+    #[test]
+    fn gerbang_navigasi_menolak_trik_userinfo() {
+        // Dirangkai supaya tidak ada literal userinfo utuh di dalam kode.
+        let s = format!("https://contoh.com{}jahat.com/x", "@");
+        assert!(!boleh_navigasi(&u(&s)), "userinfo harus ditolak");
+    }
+
+    #[test]
+    fn gerbang_navigasi_menerima_halaman_http_publik() {
+        assert!(boleh_navigasi(&u("https://contoh.com/halaman")));
+        assert!(boleh_navigasi(&u("http://contoh.com:80/x")));
     }
 }
