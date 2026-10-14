@@ -198,19 +198,64 @@ pub async fn ext_registry_list(
         tambah(baca_file_terbatas(&pf, "user"));
     }
 
-    let url = crate::settings::read_settings_value(&state)
+    /*
+     * Registry sources: many, not one.
+     *
+     * A single `registryUrl` meant a reader who pointed it at their own index
+     * LOST the public one — the field is a replacement, not an addition. Zed
+     * takes a list, and a list is what a marketplace needs: the bundled index,
+     * a team's private one, and a public mirror are all useful at once.
+     *
+     * `registryUrl` (singular) is still READ, and is folded in as the first
+     * entry when present. That keeps an existing settings.json working without a
+     * migration step — the alternative is a reader's configured registry
+     * silently disappearing after an update.
+     */
+    let setelan = crate::settings::read_settings_value(&state);
+    let mut sumber: Vec<String> = Vec::new();
+    if let Some(arr) = setelan
+        .get("extensions")
+        .and_then(|e| e.get("registryUrls"))
+        .and_then(|u| u.as_array())
+    {
+        for u in arr {
+            if let Some(s) = u.as_str() {
+                let t = s.trim();
+                if !t.is_empty() {
+                    sumber.push(t.to_string());
+                }
+            }
+        }
+    }
+    if let Some(satu) = setelan
         .get("extensions")
         .and_then(|e| e.get("registryUrl"))
         .and_then(|u| u.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    if !url.is_empty() {
-        if url.starts_with("https://") {
-            tambah(ambil_remote(&url).await);
-        } else {
-            tracing::warn!(%url, "registryUrl must be https://, ignored");
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        /* Prepended so the reader's own index wins a tie on id — they
+           configured it deliberately, and the bundled set is the fallback. */
+        if !sumber.iter().any(|x| x == satu) {
+            sumber.insert(0, satu.to_string());
         }
+    }
+
+    for url in sumber {
+        /*
+         * https only, and said out loud when it is not.
+         *
+         * `tambah(ambil_remote(..).await)` fetches and parses whatever comes
+         * back, so an http:// URL would be a registry installed over a channel
+         * anyone on the network can rewrite. A rejected URL is warned about
+         * rather than skipped silently: a reader whose registry vanished needs
+         * to know why, and "must be https://" is the whole answer.
+         */
+        if !url.starts_with("https://") {
+            tracing::warn!(%url, "registry URL must be https://, ignored");
+            continue;
+        }
+        tambah(ambil_remote(&url).await);
     }
 
     let q = query.trim().to_lowercase();

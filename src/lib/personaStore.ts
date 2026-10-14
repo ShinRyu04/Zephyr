@@ -34,6 +34,11 @@ export interface Persona {
   aturan: string;
   /** Built-in personas cannot be deleted, only copied. */
   bawaan: boolean;
+  /**
+   * Set when a plugin contributed the persona. Plugin personas are ordinary
+   * custom personas that carry the tag so a disable can remove exactly them.
+   */
+  plugin?: string;
 }
 
 /**
@@ -191,6 +196,10 @@ interface PersonaState {
   hapus: (id: string) => Promise<void>;
   /** Duplicate a built-in so it can be edited without losing the original. */
   duplikat: (id: string) => Promise<void>;
+  /** Install (or refresh) the personas a plugin brings. */
+  setPersonasDariPlugin: (plugin: string, list: Persona[]) => Promise<void>;
+  /** Remove the personas a plugin brought, and unset one if it was active. */
+  hapusPersonasDariPlugin: (plugin: string) => Promise<void>;
 }
 
 function bacaPersona(): Persona[] {
@@ -291,6 +300,38 @@ export const usePersona = create<PersonaState>((set, get) => ({
       .getState()
       .applySettings({ personas: next } as never)
       .catch(() => useStore.getState().setStatus('could not duplicate the persona'));
+  },
+
+  /*
+   * Plugin personas are ordinary custom personas with a `plugin` tag. Written
+   * through `settings.personas`, the same key the editor writes, so a restart
+   * keeps them — and a disable removes them from that same list rather than
+   * leaving orphans behind in the persona picker.
+   */
+  setPersonasDariPlugin: async (plugin, list) => {
+    const next = [
+      ...get().daftar.filter((p) => p.plugin !== plugin),
+      ...list.map((p) => ({ ...p, bawaan: false, plugin })),
+    ];
+    set({ daftar: next });
+    await useStore
+      .getState()
+      .applySettings({ personas: next } as never)
+      .catch(() => useStore.getState().setStatus('could not save the plugin personas'));
+  },
+
+  hapusPersonasDariPlugin: async (plugin) => {
+    const semua = get().daftar;
+    const next = semua.filter((p) => p.plugin !== plugin);
+    if (next.length === semua.length) return;
+    // If the persona a plugin brought is the active one, fall back to the
+    // built-in orchestrator: the prompt must never point at a removed id.
+    const aktif = semua.some((p) => p.id === get().aktif && p.plugin === plugin) ? 'zeph' : get().aktif;
+    set({ daftar: next, aktif });
+    await useStore
+      .getState()
+      .applySettings({ personas: next, personaAktif: aktif } as never)
+      .catch(() => useStore.getState().setStatus('could not remove the plugin personas'));
   },
 }));
 

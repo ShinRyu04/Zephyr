@@ -219,12 +219,16 @@ pub async fn dev_update_build() -> Result<DevUpdateHasil, String> {
         .map(|l| l.trim_end().to_string())
         .collect();
 
-    let baru = cari_repo()
-        .map(|r| r.join("src-tauri").join("target").join("release").join(if cfg!(windows) {
-            "zephyr.exe"
-        } else {
-            "zephyr"
-        }));
+    let baru = cari_repo().map(|r| {
+        r.join("src-tauri")
+            .join("target")
+            .join("release")
+            .join(if cfg!(windows) {
+                "zephyr.exe"
+            } else {
+                "zephyr"
+            })
+    });
 
     match baru {
         Some(p) if p.is_file() => Ok(DevUpdateHasil {
@@ -232,14 +236,16 @@ pub async fn dev_update_build() -> Result<DevUpdateHasil, String> {
             pesan: if hasil.status.success() {
                 format!("Build selesai: {}", p.to_string_lossy())
             } else {
-                "Build selesai dengan kode keluar bukan nol - baca log sebelum menukar binary.".to_string()
+                "Build selesai dengan kode keluar bukan nol - baca log sebelum menukar binary."
+                    .to_string()
             },
             langkah: baris,
         }),
         _ => Ok(DevUpdateHasil {
             ok: false,
-            pesan: "Build selesai tetapi binary release tidak ditemukan - tidak ada yang bisa ditukar."
-                .to_string(),
+            pesan:
+                "Build selesai tetapi binary release tidak ditemukan - tidak ada yang bisa ditukar."
+                    .to_string(),
             langkah: baris,
         }),
     }
@@ -266,7 +272,11 @@ pub fn dev_update_apply(relaunch: Option<bool>) -> Result<DevUpdateHasil, String
         .join("src-tauri")
         .join("target")
         .join("release")
-        .join(if cfg!(windows) { "zephyr.exe" } else { "zephyr" });
+        .join(if cfg!(windows) {
+            "zephyr.exe"
+        } else {
+            "zephyr"
+        });
     if !baru.is_file() {
         return Err(format!(
             "binary hasil build tidak ada di {} - jalankan build dulu",
@@ -328,7 +338,8 @@ try {{
         .arg(&skrip_path);
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
-    cmd.spawn().map_err(|e| format!("gagal menjalankan helper: {e}"))?;
+    cmd.spawn()
+        .map_err(|e| format!("gagal menjalankan helper: {e}"))?;
 
     Ok(DevUpdateHasil {
         ok: true,
@@ -421,12 +432,14 @@ try {{
         .arg(&skrip_path);
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
-    cmd.spawn().map_err(|e| format!("gagal menjalankan helper: {e}"))?;
+    cmd.spawn()
+        .map_err(|e| format!("gagal menjalankan helper: {e}"))?;
 
     Ok(DevUpdateHasil {
         ok: true,
-        pesan: "Helper rollback berjalan. Zephyr akan ditutup dan build sebelumnya dipasang kembali."
-            .to_string(),
+        pesan:
+            "Helper rollback berjalan. Zephyr akan ditutup dan build sebelumnya dipasang kembali."
+                .to_string(),
         langkah: vec![
             format!("cadangan: {}", backup.to_string_lossy()),
             format!("exe: {}", exe.to_string_lossy()),

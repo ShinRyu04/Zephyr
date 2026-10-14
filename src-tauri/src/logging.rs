@@ -234,6 +234,70 @@ pub fn log_file_path() -> Option<PathBuf> {
     SINK.get().map(|s| s.path())
 }
 
+/// Batas yang dipakai `log_tail` (dibaca test, jangan ditulis ulang di dua tempat).
+pub const LOG_TAIL_N_BAWAAN: usize = 200;
+pub const LOG_TAIL_N_MAKS: usize = 1000;
+pub const LOG_TAIL_BYTES_BAWAAN: u64 = 64 * 1024;
+pub const LOG_TAIL_BYTES_MAKS: u64 = 1024 * 1024;
+pub const LOG_TAIL_BYTES_MIN: u64 = 1024;
+
+/// Baca `n` baris terakhir dari sebuah berkas, MUNDUR dari akhir.
+///
+/// - Hanya `max_bytes` ekor yang dibaca, jadi berkas 2 MiB tidak dibaca penuh.
+/// - Kalau pembacaan mulai di TENGAH baris (rotasi berbarengan / ekor terpotong),
+///   baris pertama yang setengah itu DIBUANG - frontend tidak boleh menerima
+///   baris separuh yang bisa disalahartikan sebagai pesan penuh.
+/// - Urutan keluaran kronologis MAJU (paling lama dulu), `\r` dibuang.
+pub fn baca_ekor(path: &Path, n: usize, max_bytes: u64) -> std::io::Result<Vec<String>> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let mut file = File::open(path)?;
+    let panjang = file.metadata()?.len();
+    let mulai = panjang.saturating_sub(max_bytes);
+    file.seek(SeekFrom::Start(mulai))?;
+
+    let mut buf = Vec::with_capacity((panjang - mulai) as usize);
+    file.read_to_end(&mut buf)?;
+
+    let teks = String::from_utf8_lossy(&buf).to_string();
+    let mut baris: Vec<&str> = teks.split('\n').collect();
+
+    // Mulai di tengah baris? Buang potongan pertamanya.
+    if mulai > 0 && !baris.is_empty() {
+        baris.remove(0);
+    }
+    // Buang baris kosong di ekor (sisa newline terakhir).
+    while baris
+        .last()
+        .map(|b| b.trim_end_matches('\r').trim().is_empty())
+        .unwrap_or(false)
+    {
+        baris.pop();
+    }
+
+    let dari = baris.len().saturating_sub(n);
+    Ok(baris[dari..]
+        .iter()
+        .map(|b| b.trim_end_matches('\r').to_string())
+        .collect())
+}
+
+/// Ekor berkas log APLIKASI: `n` baris terakhir dibaca dari berkas yang sama
+/// dengan yang dilaporkan `get_diagnostics`, BUKAN dari workspace pengguna.
+///
+/// Sengaja TIDAK menerima path dari pemanggil: kalau menerima, tool ini jadi
+/// jalan pintas membaca berkas di luar app - persis masalah yang dihindari
+/// `WorkspaceOutside`. Read-only.
+#[tauri::command]
+pub async fn log_tail(n: Option<usize>, max_bytes: Option<u64>) -> Result<Vec<String>, String> {
+    let path = log_file_path().ok_or_else(|| "log belum diinisialisasi".to_string())?;
+    let n = n.unwrap_or(LOG_TAIL_N_BAWAAN).clamp(1, LOG_TAIL_N_MAKS);
+    let max_bytes = max_bytes
+        .unwrap_or(LOG_TAIL_BYTES_BAWAAN)
+        .clamp(LOG_TAIL_BYTES_MIN, LOG_TAIL_BYTES_MAKS);
+    baca_ekor(&path, n, max_bytes).map_err(|e| format!("gagal membaca log: {e}"))
+}
+
 pub fn panicked() -> bool {
     PANICKED.load(Ordering::SeqCst)
 }
@@ -254,6 +318,119 @@ pub fn sink_for_test(dir: &Path) -> LogSink {
 pub fn max_bytes_for_test() -> u64 {
     MAX_BYTES
 }
+
+#[cfg(test)]
+mod tests_ekor {
+    use super::*;
+    use std::io::Write as _;
+
+    /// Berkas sementara dengan isi yang diberikan; dibersihkan saat test selesai.
+    struct BerkasUji(PathBuf);
+
+    impl BerkasUji {
+        fn baru(nama: &str, isi: &[u8]) -> Self {
+            let dir = std::env::temp_dir().join("zephyr-uji-ekor");
+            let _ = std::fs::create_dir_all(&dir);
+            let path = dir.join(format!("{}-{}.log", nama, std::process::id()));
+            let mut f = File::create(&path).expect("buat berkas uji");
+            f.write_all(isi).expect("tulis berkas uji");
+            BerkasUji(path)
+        }
+    }
+
+    impl Drop for BerkasUji {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    #[test]
+    fn ekor_mengambil_n_baris_terakhir_urutan_maju() {
+        // 500 baris: yang diminta 200 terakhir, dan urutannya lama -> baru.
+        let isi: String = (1..=500).map(|i| format!("baris-{i}\n")).collect();
+        let b = BerkasUji::baru("500", isi.as_bytes());
+        let hasil = baca_ekor(&b.0, 200, LOG_TAIL_BYTES_MAKS).expect("baca ekor");
+        assert_eq!(hasil.len(), 200);
+        assert_eq!(hasil[0], "baris-301");
+        assert_eq!(hasil[199], "baris-500");
+    }
+
+    #[test]
+    fn ekor_lebih_panjang_dari_isi_mengembalikan_semua() {
+        let b = BerkasUji::baru("sedikit", b"satu\ndua\ntiga\n");
+        let hasil = baca_ekor(&b.0, 200, LOG_TAIL_BYTES_MAKS).expect("baca ekor");
+        assert_eq!(hasil, vec!["satu", "dua", "tiga"]);
+    }
+
+    #[test]
+    fn ekor_terpotong_membuang_baris_pertama_yang_setengah() {
+        // 3600 byte isi, hanya 500 byte ekor dibaca -> pembacaan mulai di TENGAH
+        // sebuah baris, jadi baris pertama yang setengah itu dibuang: tidak ada
+        // baris separuh yang lolos ke frontend.
+        let isi: String = (1..=200).map(|i| format!("pesan-panjang-{i:04}\n")).collect();
+        let b = BerkasUji::baru("potong", isi.as_bytes());
+        let hasil = baca_ekor(&b.0, 50, 500).expect("baca ekor");
+
+        // Berapa baris UTUH yang sebenarnya ada di 500 byte ekor itu?
+        let ekor = &isi.as_bytes()[isi.len() - 500..];
+        let jumlah_newline = ekor.iter().filter(|byte| **byte == b'\n').count();
+        assert_eq!(
+            hasil.len(),
+            jumlah_newline - 1,
+            "harus tepat baris utuh di ekor, potongan pertama dibuang"
+        );
+        for baris in &hasil {
+            let angka = baris.strip_prefix("pesan-panjang-").unwrap_or_else(|| panic!("baris terpotong lolos: {baris:?}"));
+            assert_eq!(angka.len(), 4, "baris terpotong lolos: {baris:?}");
+            assert!(angka.chars().all(|c| c.is_ascii_digit()), "baris terpotong lolos: {baris:?}");
+        }
+        // Dan isinya memang EKOR-nya, bukan awal berkas.
+        assert_eq!(hasil.last().map(String::as_str), Some("pesan-panjang-0200"));
+    }
+
+    #[test]
+    fn ekor_menghormati_awal_berkas_kecil_tanpa_membuang_baris() {
+        // Berkas lebih kecil dari max_bytes -> mulai == 0 -> tidak ada yang dibuang.
+        let b = BerkasUji::baru("kecil", b"alfa\nbeta\n");
+        let hasil = baca_ekor(&b.0, 10, LOG_TAIL_BYTES_MAKS).expect("baca ekor");
+        assert_eq!(hasil, vec!["alfa", "beta"]);
+    }
+
+    #[test]
+    fn ekor_membuang_cr_dan_baris_kosong_ekor() {
+        let b = BerkasUji::baru("crlf", b"a\r\nb\r\n\r\n");
+        let hasil = baca_ekor(&b.0, 10, LOG_TAIL_BYTES_MAKS).expect("baca ekor");
+        assert_eq!(hasil, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn ekor_berkas_kosong_menghasilkan_daftar_kosong() {
+        let b = BerkasUji::baru("kosong", b"");
+        let hasil = baca_ekor(&b.0, 200, LOG_TAIL_BYTES_MAKS).expect("baca ekor");
+        assert!(hasil.is_empty());
+    }
+
+    #[test]
+    fn ekor_baris_panjang_tidak_meledak_dan_dipangkas_dari_atas() {
+        // Satu baris raksasa (lebih panjang dari max_bytes) -> tidak ada baris utuh
+        // yang bisa dikembalikan; yang penting tidak panik dan tidak menyerahkan
+        // potongan yang menyesatkan sebagai hasil.
+        let isi = "x".repeat(4000) + "\npendek\n";
+        let b = BerkasUji::baru("raksasa", isi.as_bytes());
+        let hasil = baca_ekor(&b.0, 10, 500).expect("baca ekor");
+        assert!(hasil.len() <= 1, "dapat {} baris: {hasil:?}", hasil.len());
+        let _ = LOG_TAIL_N_MAKS;
+        let _ = LOG_TAIL_BYTES_MIN;
+    }
+
+    #[test]
+    fn batas_log_tail_wajar() {
+        assert!(LOG_TAIL_N_BAWAAN <= LOG_TAIL_N_MAKS);
+        assert!(LOG_TAIL_BYTES_MIN < LOG_TAIL_BYTES_BAWAAN);
+        assert!(LOG_TAIL_BYTES_BAWAAN < LOG_TAIL_BYTES_MAKS);
+    }
+}
+
 
 #[cfg(test)]
 pub fn keep_for_test() -> usize {

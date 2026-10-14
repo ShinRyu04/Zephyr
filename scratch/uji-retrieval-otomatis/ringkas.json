@@ -1,0 +1,50 @@
+{
+  "skor": "29/29",
+  "merah": [],
+  "batas": {
+    "cariHasilBawaan": 8,
+    "cariHasilMaks": 40,
+    "cariKarakter": 6000,
+    "suntikHasil": 10,
+    "suntikKarakter": 1200,
+    "dokHasilBawaan": 8,
+    "dokHasilMaks": 30,
+    "dokKarakter": 6000,
+    "dokPotongan": 240,
+    "dokSuntikHasil": 6,
+    "dokSuntikKarakter": 1500
+  },
+  "jumlahEntri": 6212,
+  "kasus": 20,
+  "adaOk": 9,
+  "kosongOk": 4,
+  "dupEntri": 0,
+  "dupDok": 0,
+  "temuanRahasia": [],
+  "sha256": "321bfbe3fdedf54d343dad26ed5894410370cfaa02f07ba46dcf48384b1f31da",
+  "deterministik": true,
+  "titikIndeks": [
+    {
+      "berkas": "src/lib/systemPrompt.ts",
+      "n": 1
+    },
+    {
+      "berkas": "src/lib/aiStore.ts",
+      "n": 0
+    }
+  ],
+  "totalIndeks": 1,
+  "titikDok": [
+    {
+      "berkas": "src/lib/systemPrompt.ts",
+      "n": 0
+    },
+    {
+      "berkas": "src/lib/aiStore.ts",
+      "n": 0
+    }
+  ],
+  "totalDok": 0,
+  "blokSuntikTerpanjang": 1187,
+  "mentahLewatKarakter": 4
+}

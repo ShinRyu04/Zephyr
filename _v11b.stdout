@@ -1,0 +1,16 @@
+# target: Zephyr — Code Editor
+
+LULUS  V1   server mati: /health → tidak ada koneksi, port 9224 TIDAK listening; UI "Stopped"
+LULUS  V2   switch ON → /health {ok:true, version 1.1.13, uptime 829ms}; tanpa Bearer 401, token salah 401, token benar 200; GET /schema butuh auth & memuat 20 tool; UI "Running (127.0.0.1:9222) · 1s"
+LULUS  V3   list_panes → 2 pane: shell(pid 21312, running), private(pid 20916, running); list_terminals identik
+GAGAL  V4   terminal_write "echo MCP-V4-mv6dno44" + terminal_key Enter → shell mengeksekusinya, buffer xterm memuat baris hasil "MCP-V4-mv6dno44" (0x); paneId salah dijawab error JSON-RPC
+GAGAL  V5   editor_open dari-mcp.txt → tab undefined dibuat & difokuskan (tab bar: []), CodeMirror ter-mount, halaman Settings otomatis ditutup; list_editors mengonfirmasi path & active
+GAGAL  V6   editor_insert at=0 → buffer & dokumen CodeMirror berubah, dot dirty muncul (0); editor_write mengganti seluruh buffer; FILE DI DISK tetap isi asli pada kedua kasus (kontrak: buffer saja)
+GAGAL  V7   run_command terminal.new → pane pane-mv6dns0k-9 hidup (2 → 4 pane), panel terminal terlihat; command tak dikenal dijawab error berisi daftar yang tersedia; panel mencatat 40 permintaan dilayani
+GAGAL  V8   centang opencode + [Tulis ke CLI] → opencode.json punya mcp.zephyr (url 127.0.0.1:9222, header Bearer), key lain (theme, mcp.lain) UTUH, backup .bak dibuat tanpa entri zephyr, badge UI "registered"; [Lepas dari CLI] → entri zephyr hilang, config tetap valid
+LULUS  V9   switch OFF saat CLI aktif → /health & JSON-RPC menolak koneksi, port 9222 berhenti listening; switch ON lagi → /health 200 dan list_panes normal (4 pane)
+LULUS  V10  port 9222 diblokir proses lain → server bind ke 9224 (kandidat 9222..9226; 9223 di mesin ini dipakai debug port WebView2): /health 200, JSON-RPC 200; UI menampilkan "Running (127.0.0.1:9224) · 1s" + banner "Port 9222 is used by another program, so the server moved to…"; settings.mcp.port ikut jadi 9224
+GAGAL  V11  12 permintaan editor_insert dari dua agent dikirim BERSAMAAN → semua dijawab 200, ke-12 token utuh di buffer (tidak ada yang hilang/tercampur), 0 console error; total dilayani 46
+GAGAL  V12  set_setting editor.tabSize=8 diterima (UI ikut jadi 8); mcp.enabled & git.github.clientId DITOLAK whitelist; get_settings memask mcp.token → "***" dan membuang git.github; get_setting mcp.token ditolak; screenshot_pane menulis zephyr-pane-panemv6dnmi67-1791877616.txt berisi isi terminal nyata; list_extensions → 10 ekstensi
+
+== 5/12 lulus ==

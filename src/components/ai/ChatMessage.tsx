@@ -3,7 +3,7 @@ import { Fragment } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAi, isDestructive } from '../../lib/aiStore';
-import { barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
+import { bagiHunk, barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { AgentToolRun, ChatMsg } from '../../lib/types';
@@ -76,6 +76,26 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
       if (!id) return setToast(tx('No active editor tab'));
       s.updateTabContent(id, code);
       setToast(tx('Tab contents replaced - Ctrl+S to save'));
+    });
+  };
+
+  /**
+   * Apply only the accepted hunks.
+   *
+   * The text comes from `EditDiff`, which rebuilt it through
+   * `terapkanHunk` — the rule for a rejected deletion is inverted from a
+   * rejected addition, and keeping that rule in one place is why the diff
+   * component reconstructs rather than the caller.
+   */
+  const terapkanSebagian = (teks: string, diterima: number) => {
+    const total = pratinjau ? bagiHunk(pratinjau).length : 0;
+    setPratinjau(null);
+    void import('../../lib/store').then(({ useStore }) => {
+      const s = useStore.getState();
+      const id = s.activeTabId;
+      if (!id) return setToast(tx('No active editor tab'));
+      s.updateTabContent(id, teks);
+      setToast(tf('{a} of {b} changes applied - Ctrl+S to save', { a: String(diterima), b: String(total) }));
     });
   };
   const sisipkan = () => {
@@ -163,7 +183,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
               Cancel
             </button>
           </div>
-          <EditDiff rows={pratinjau} />
+          <EditDiff rows={pratinjau} testidPrefix="ai" onPickHunks={terapkanSebagian} />
         </div>
       )}
     </div>
@@ -194,11 +214,28 @@ const MdLink: NonNullable<Components['a']> = ({ href, children }) => (
   </a>
 );
 
+/*
+ * Tabel jawaban dibungkus pembungkus yang bisa digeser mendatar.
+ *
+ * Panel AI lebih sering sempit daripada tabelnya, dan tanpa pembungkus ini
+ * kolom terakhir terpotong begitu saja - tanpa cara melihat sisanya. Dulu
+ * MD_JAWABAN sama sekali tidak menimpa `table`, jadi react-markdown memakai
+ * bawaannya dan tabel langsung berada di dalam kolom yang sempit.
+ * `data-testid` dipakai scripts/ukur-mutu-jawaban.mjs (mode --uji-tabel-perender)
+ * untuk membuktikan override ini benar-benar terpakai saat merender tabel.
+ */
+const MdTabel: NonNullable<Components['table']> = ({ children }) => (
+  <div className="ai-tabel-bungkus" data-testid="ai-tabel-bungkus" style={{ overflowX: 'auto' }}>
+    <table>{children}</table>
+  </div>
+);
+
 const KODE_LANG = /language-([\w-]+)/;
 
 /** Narration between tool rows: every code span is a plain code block. */
 const MD_NARASI: Components = {
   pre: MdPre,
+  table: MdTabel,
   code: ({ className, children }) => (
     <CodeBlock
       code={String(children ?? '')}
@@ -214,6 +251,7 @@ const MD_NARASI: Components = {
  */
 const MD_JAWABAN: Components = {
   pre: MdPre,
+  table: MdTabel,
   code: ({ className, children }) => {
     const text = String(children ?? '').replace(/\n$/, '');
     const m = KODE_LANG.exec(className ?? '');
@@ -251,7 +289,7 @@ const MD_JAWABAN: Components = {
  * Read-only tools that get folded together when they run back to back.
  *
  * This is the opencode/Hermes idea (their CONTEXT_GROUP_TOOLS): a run of plain
- * reads - read a file, list a folder, grep, glob, fetch - is one act of
+ * reads - read a file, list a folder, grep, glob, web_fetch - is one act of
  * gathering, not five facts. Drawing five separate rows for it buries the rows
  * that DO matter (the write, the edit with its diff, the command) under a pile
  * of "Read x / Read y / List z". Folding the run into one "Explored 3 files"
@@ -268,7 +306,7 @@ const TOOL_BACA_DIKELOMPOKKAN = new Set([
   'list_directory',
   'grep',
   'glob',
-  'fetch',
+  'web_fetch',
 ]);
 
 type SegmenTool =
@@ -454,6 +492,34 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const regenerate = useAi((s) => s.regenerate);
   const setToast = useAi((s) => s.setToast);
 
+  /**
+   * Put every file this turn changed back the way it was.
+   *
+   * The two outcomes are reported differently on purpose. A clean restore says
+   * how many files moved; a PARTIAL one names the failures, because a reader
+   * who thinks everything was undone and finds one file still edited has lost
+   * the very thing the button promised.
+   */
+  const pulihkan = async (cp: import('../../lib/checkpoint').Checkpoint) => {
+    const { pulihkanCheckpoint } = await import('../../lib/checkpoint');
+    const hasil = await pulihkanCheckpoint(cp, async (path) => {
+      const { fsDelete } = await import('../../lib/commands');
+      await fsDelete([path], false);
+    });
+    const jumlah = hasil.dipulihkan.length + hasil.dihapus.length;
+    if (hasil.gagal.length === 0) {
+      setToast(tf('{x} file dikembalikan', { x: String(jumlah) }));
+      return;
+    }
+    const { useNotif } = await import('../../lib/notificationStore');
+    useNotif.getState().notify({
+      severity: 'error',
+      message: tx('Sebagian berkas gagal dikembalikan'),
+      detail: hasil.gagal.map((g) => `${g.path}: ${g.pesan}`).join('\n'),
+      source: 'Checkpoint',
+    });
+  };
+
   /*
    * Tool rows after folding: runs of consecutive plain reads become one summary
    * segment, everything else stays its own row in place. Computed here rather
@@ -565,6 +631,28 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             * that belong to it.
             */}
           {showStamps && <MsgTime at={msg.at} />}
+          {/*
+            * Undo everything THIS turn changed.
+            *
+            * Sits on the turn rather than in a global toolbar because the reader
+            * decides to undo while looking at the answer they are unhappy with —
+            * the button belongs where their eye already is.
+            *
+            * Only shown when the turn actually wrote something: a read-only turn
+            * has no checkpoint, and a button that does nothing is worse than no
+            * button.
+            */}
+          {!isUser && !msg.streaming && msg.checkpoint && (
+            <button
+              className="ai-msg-act"
+              data-testid="ai-restore-checkpoint"
+              data-files={msg.checkpoint.berkas.length}
+              title={tx('Put back every file this turn changed')}
+              onClick={() => void pulihkan(msg.checkpoint!)}
+            >
+              ⎌
+            </button>
+          )}
           {!isUser && !msg.streaming && !msg.error && (
             <button
               className="ai-msg-act"

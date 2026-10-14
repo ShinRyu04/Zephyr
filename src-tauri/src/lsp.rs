@@ -133,6 +133,211 @@ fn script_node(node_modules: &Path, bin_name: &str) -> Option<PathBuf> {
     }
 }
 
+/*
+ * Look for a server binary inside ONE directory, accepting the name variants an
+ * installer may leave behind: the bare name, and on Windows the `.exe`/`.cmd`/
+ * `.bat` shims npm and friends write (a `which`-style lookup would miss the
+ * `.cmd` shim entirely, which is why an npm-installed server can be on disk and
+ * still report "not found").
+ */
+fn cari_di_dir(dir: &Path, exe: &str) -> Option<PathBuf> {
+    /*
+     * Windows FIRST asks for the spawnable variants, and only then for the bare
+     * name. npm writes three files per bin in `node_modules/.bin`: a POSIX shell
+     * script with no extension, a `.cmd`, and a `.ps1`. The bare one is not a PE
+     * image, so a "green" row that returned it would fail the moment the server
+     * was started - the row has to name the file that can actually run.
+     */
+    if cfg!(windows) {
+        for ext in ["exe", "cmd", "bat"] {
+            let k = dir.join(format!("{exe}.{ext}"));
+            if k.is_file() {
+                return Some(k);
+            }
+        }
+        let langsung = dir.join(exe);
+        if langsung.is_file() {
+            return Some(langsung);
+        }
+        return None;
+    }
+    let langsung = dir.join(exe);
+    if langsung.is_file() {
+        return Some(langsung);
+    }
+    None
+}
+
+/*
+ * Directories a CORRECT install commonly writes into without ever touching the
+ * app process's PATH - the reason "I installed it and the row is still red" is
+ * the single most common complaint about this page.
+ *
+ * `winget` does not edit PATH at all (LLVM lands in C:\Program Files\LLVM\bin),
+ * `go install` writes %USERPROFILE%\go\bin, `gem install` writes a versioned
+ * bin dir under %USERPROFILE%\.gem\ruby\<ver>\bin, and npm's global prefix is
+ * %APPDATA%\npm unless the user moved it. Reading these env vars is free and
+ * needs no shell-out, so no process is spawned while probing.
+ */
+fn dir_cari_tambahan() -> Vec<PathBuf> {
+    let mut d: Vec<PathBuf> = Vec::new();
+    let mut tambah = |p: PathBuf| {
+        if !d.contains(&p) {
+            d.push(p);
+        }
+    };
+
+    if let Ok(a) = std::env::var("APPDATA") {
+        if !a.trim().is_empty() {
+            tambah(PathBuf::from(&a).join("npm"));
+        }
+    }
+    if let Ok(h) = std::env::var("USERPROFILE") {
+        if !h.trim().is_empty() {
+            tambah(PathBuf::from(&h).join("go").join("bin"));
+            tambah(PathBuf::from(&h).join(".cargo").join("bin"));
+            tambah(PathBuf::from(&h).join(".local").join("bin"));
+            let gem = PathBuf::from(&h).join(".gem").join("ruby");
+            if let Ok(rd) = std::fs::read_dir(&gem) {
+                for e in rd.flatten() {
+                    let b = e.path().join("bin");
+                    if b.is_dir() {
+                        tambah(b);
+                    }
+                }
+            }
+        }
+    }
+    for var in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Ok(pf) = std::env::var(var) {
+            if !pf.trim().is_empty() {
+                tambah(PathBuf::from(&pf).join("LLVM").join("bin"));
+            }
+        }
+    }
+    d
+}
+
+/*
+ * ---------------------------------------------------------------- pasang LSP
+ *
+ * Which servers this app can install ITSELF, and with what. Only npm packages
+ * are listed: `npm install` resolves the dependency tree, while fetching a
+ * tarball by hand would drop the server's own dependencies and leave a binary
+ * that dies on its first `require`. Rows whose toolchain this app cannot assume
+ * (rustup, go, LLVM, JDK, .NET, Ruby, Xcode, R) keep their written hint rather
+ * than pretending to be installable.
+ *
+ * The package names are the same ones the hint in `src/lib/lsp.ts` shows, so the
+ * button and the documentation cannot drift apart.
+ */
+fn resep_npm(id: &str) -> Option<Vec<&'static str>> {
+    Some(match id {
+        "typescript" => vec!["typescript-language-server", "typescript"],
+        "python" => vec!["pyright"],
+        "bash" => vec!["bash-language-server"],
+        "json" | "html" | "css" => vec!["vscode-langservers-extracted"],
+        "yaml" => vec!["yaml-language-server"],
+        "php" => vec!["intelephense"],
+        "docker" => vec!["dockerfile-language-server-nodejs"],
+        "vue" => vec!["@vue/language-server"],
+        _ => return None,
+    })
+}
+
+/// Ids that have an install recipe - what the Settings row may offer a button for.
+pub fn id_punya_resep() -> Vec<&'static str> {
+    [
+        "typescript", "python", "bash", "json", "html", "css", "yaml", "php", "docker", "vue",
+    ]
+    .iter()
+    .copied()
+    .filter(|id| resep_npm(id).is_some())
+    .collect()
+}
+
+/*
+ * Binaries are searched at most a few levels deep inside a slot: archives unpack
+ * with a versioned prefix (`lua-language-server-3.9.1-win32-x64/bin/...`) and
+ * npm shims sit two levels down (`node_modules/.bin/<exe>.cmd`). Bounded depth
+ * keeps a probe over a 200 MB node_modules cheap.
+ */
+fn cari_berulang(dir: &Path, exe: &str, sisa: u8) -> Option<PathBuf> {
+    if sisa == 0 {
+        return None;
+    }
+    let mut anak: Vec<PathBuf> = Vec::new();
+    for e in std::fs::read_dir(dir).ok()?.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            anak.push(p);
+        }
+    }
+    for d in &anak {
+        if let Some(f) = cari_di_dir(d, exe) {
+            return Some(f);
+        }
+    }
+    for d in &anak {
+        if let Some(f) = cari_berulang(d, exe, sisa - 1) {
+            return Some(f);
+        }
+    }
+    None
+}
+
+/*
+ * The private slot, in the order a correct install actually lays it out:
+ * (1) the binary straight in the slot (a hand-copied `rust-analyzer.exe`),
+ * (2) the npm shim `node_modules/.bin/<exe>.cmd`,
+ * (3) whatever a release archive nested deeper.
+ */
+fn cari_di_slot(slot: &Path, exe: &str) -> Option<PathBuf> {
+    if let Some(p) = cari_di_dir(slot, exe) {
+        return Some(p);
+    }
+    let nm = slot.join("node_modules");
+    if let Some(p) = cari_di_dir(&nm.join(".bin"), exe) {
+        return Some(p);
+    }
+    cari_berulang(slot, exe, 4)
+}
+
+/// The npm that can actually be spawned: `npm` on PATH is a `.cmd` shim on
+/// Windows, so the bare name is not enough to launch it.
+fn npm_program() -> Option<PathBuf> {
+    for nama in ["npm.cmd", "npm.exe", "npm"] {
+        if let Ok(p) = which::which(nama) {
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+    let mut kandidat: Vec<PathBuf> = Vec::new();
+    for var in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Ok(pf) = std::env::var(var) {
+            if !pf.trim().is_empty() {
+                kandidat.push(PathBuf::from(pf).join("nodejs"));
+            }
+        }
+    }
+    kandidat.extend(dir_cari_tambahan());
+    for d in kandidat {
+        if let Some(p) = cari_di_dir(&d, "npm") {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn pipa_ke_teks<R: Read + Send + 'static>(mut r: R) -> std::thread::JoinHandle<String> {
+    std::thread::spawn(move || {
+        let mut s = String::new();
+        let _ = r.read_to_string(&mut s);
+        s
+    })
+}
+
 fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(String, Vec<String>)> {
     if spec.cmd.is_empty() {
         return Err(ZephyrError::InvalidInput(
@@ -148,15 +353,9 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
     }
 
     let state = app.state::<AppState>();
-    let kandidat = state.data_dir.join("lsp").join(&spec.id).join(&exe);
-    if kandidat.exists() {
-        return Ok((kandidat.to_string_lossy().to_string(), args));
-    }
-    for ext in ["exe", "cmd", "bat"] {
-        let k = kandidat.with_extension(ext);
-        if k.exists() {
-            return Ok((k.to_string_lossy().to_string(), args));
-        }
+    let slot = state.data_dir.join("lsp").join(&spec.id);
+    if let Some(found) = cari_di_slot(&slot, &exe) {
+        return Ok((found.to_string_lossy().to_string(), args));
     }
 
     if !root.as_os_str().is_empty() {
@@ -169,16 +368,8 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
             }
         }
 
-        let bin = nm.join(".bin");
-        for nama in [
-            format!("{exe}.cmd"),
-            format!("{exe}.exe"),
-            format!("{exe}.bat"),
-        ] {
-            let k = bin.join(&nama);
-            if k.is_file() {
-                return Ok((k.to_string_lossy().to_string(), args));
-            }
+        if let Some(found) = cari_di_dir(&nm.join(".bin"), &exe) {
+            return Ok((found.to_string_lossy().to_string(), args));
         }
     }
 
@@ -186,10 +377,30 @@ fn resolve_cmd(app: &AppHandle, spec: &ServerSpec, root: &Path) -> ZResult<(Stri
         return Ok((found.to_string_lossy().to_string(), args));
     }
 
+    /* PATH missed it, so look where the common installers put things anyway. */
+    let mut dicoba: Vec<String> = vec!["PATH".to_string()];
+    for dir in dir_cari_tambahan() {
+        if let Some(found) = cari_di_dir(&dir, &exe) {
+            return Ok((found.to_string_lossy().to_string(), args));
+        }
+        if dir.is_dir() {
+            dicoba.push(dir.to_string_lossy().to_string());
+        }
+    }
+
+    /*
+     * The failure has to say WHERE we looked. A bare "not found" cannot be told
+     * apart from a wrong binary name, a PATH the app process cannot see, or a
+     * failing download - and that ambiguity is exactly what makes this page feel
+     * random. The private slot is listed first because it is the one location the
+     * user can fix without touching PATH at all.
+     */
     Err(ZephyrError::NotFound(format!(
-        "{exe} not found. Install the '{}' language server onto PATH, or set the path to {}",
+        "{exe} not found. Checked: {}; {}. Install the '{}' language server (see the hint in Settings), or put the binary at {}",
+        slot.display(),
+        dicoba.join("; "),
         spec.id,
-        state.data_dir.join("lsp").join(&spec.id).display()
+        slot.display()
     )))
 }
 
@@ -459,6 +670,24 @@ fn client_capabilities() -> Value {
                 }
             },
             "rename": { "dynamicRegistration": false, "prepareSupport": true },
+            /*
+             * Call hierarchy. Advertised so a server that supports it prepares
+             * a hierarchy at a position; without the capability most servers
+             * answer `prepareCallHierarchy` with an empty list, which reads as
+             * "this function has no callers" rather than "I was never asked
+             * properly".
+             */
+            "callHierarchy": { "dynamicRegistration": false },
+            /*
+             * Inlay hints, with `resolveSupport` so a server may send the label
+             * without the tooltip and have it requested later. Most servers
+             * send the whole thing at once; advertising resolve means the ones
+             * that do not are still usable.
+             */
+            "inlayHint": {
+              "dynamicRegistration": false,
+              "resolveSupport": { "properties": ["tooltip", "textEdits", "label"] }
+            },
             "formatting": { "dynamicRegistration": false },
             "rangeFormatting": { "dynamicRegistration": false },
             "publishDiagnostics": { "relatedInformation": true, "versionSupport": false }
@@ -709,6 +938,120 @@ pub fn lsp_set_idle(server: String, secs: u64) -> ZResult<()> {
 }
 
 #[tauri::command(async)]
+pub fn lsp_resep() -> Vec<String> {
+    id_punya_resep().into_iter().map(|s| s.to_string()).collect()
+}
+
+/*
+ * Install one language server into the app's own slot (`data_dir/lsp/<id>/`) so
+ * the row turns green without the user touching PATH. Runs `npm install --prefix`
+ * because that is what resolves the package's dependency tree; a hand-rolled
+ * tarball fetch would leave a server that cannot start.
+ *
+ * Every outcome is reported, including the ones that fail: the npm exit code and
+ * its last bytes of output go back to the caller, and the answer says whether the
+ * binary was actually found afterwards. A silent failure here would be worse than
+ * the static hint it replaces.
+ */
+#[tauri::command(async)]
+pub fn lsp_pasang(app: AppHandle, state: State<'_, AppState>, spec: ServerSpec) -> ZResult<Value> {
+    let slot = state.data_dir.join("lsp").join(&spec.id);
+    let paket = resep_npm(&spec.id).ok_or_else(|| {
+        ZephyrError::InvalidInput(format!(
+            "no automatic install for '{}'. Pick the server named '{}' with your own tools, or drop the binary into {}",
+            spec.id,
+            spec.cmd.first().cloned().unwrap_or_default(),
+            slot.display()
+        ))
+    })?;
+    std::fs::create_dir_all(&slot)
+        .map_err(|e| ZephyrError::Io(format!("buat slot {}: {e}", slot.display())))?;
+
+    let npm = npm_program().ok_or_else(|| {
+        ZephyrError::NotFound(
+            "npm is not installed (or not reachable), so this server cannot be fetched automatically"
+                .into(),
+        )
+    })?;
+
+    let mut perintah = if cfg!(windows) {
+        let mut c = std::process::Command::new("cmd.exe");
+        c.arg("/C").arg(&npm);
+        c
+    } else {
+        std::process::Command::new(&npm)
+    };
+    perintah
+        .arg("install")
+        .arg("--prefix")
+        .arg(&slot)
+        .arg("--no-audit")
+        .arg("--no-fund")
+        .arg("--no-package-lock")
+        .arg("--loglevel=error");
+    for p in &paket {
+        perintah.arg(p);
+    }
+    perintah
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let mut anak = perintah
+        .spawn()
+        .map_err(|e| ZephyrError::Io(format!("jalan npm: {e}")))?;
+    let out = anak.stdout.take().map(pipa_ke_teks);
+    let err = anak.stderr.take().map(pipa_ke_teks);
+
+    /* Bounded wait: npm talks to a registry, so it can hang. Without a ceiling the
+     * command would never return and the UI would show a spinner forever. */
+    let batas = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    let kode = loop {
+        match anak.try_wait() {
+            Ok(Some(st)) => break st.code(),
+            Ok(None) => {
+                if std::time::Instant::now() > batas {
+                    let _ = anak.kill();
+                    break None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            Err(e) => return Err(ZephyrError::Io(format!("tunggu npm: {e}"))),
+        }
+    };
+
+    let mut log = String::new();
+    if let Some(h) = out {
+        log.push_str(&h.join().unwrap_or_default());
+    }
+    if let Some(h) = err {
+        let e = h.join().unwrap_or_default();
+        if !e.trim().is_empty() {
+            log.push('\n');
+            log.push_str(&e);
+        }
+    }
+    if log.len() > 8000 {
+        log = log[log.len() - 8000..].to_string();
+    }
+
+    let found = cari_di_slot(&slot, &spec.cmd[0]);
+    let dijalankan = resolve_cmd(&app, &spec, Path::new(""))
+        .map(|(e, a)| json!({ "exe": e, "args": a }))
+        .unwrap_or(Value::Null);
+
+    Ok(json!({
+        "ok": found.is_some() && kode == Some(0),
+        "slot": slot.display().to_string(),
+        "paket": paket,
+        "keluar": kode,
+        "exe": found.map(|p| p.display().to_string()),
+        "dijalankan": dijalankan,
+        "log": log,
+    }))
+}
+
+#[tauri::command(async)]
 pub fn lsp_probe(app: AppHandle, spec: ServerSpec, root: Option<String>) -> ZResult<Value> {
     let r = root.unwrap_or_default();
     match resolve_cmd(&app, &spec, Path::new(&r)) {
@@ -719,6 +1062,49 @@ pub fn lsp_probe(app: AppHandle, spec: ServerSpec, root: Option<String>) -> ZRes
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /*
+     * The lookup that makes "installed but still red" go away. Deterministic and
+     * filesystem-only, so it runs on any machine: a temp dir with a `.cmd` shim
+     * (what npm writes on Windows) must be found when the bare name is asked for,
+     * a missing name must stay missing, and the same size in `dir_cari_tambahan`
+     * must be reported without duplicates.
+     */
+    #[test]
+    fn cari_di_dir_menemukan_varian_shim() {
+        let dir = std::env::temp_dir().join(format!("zephyr-lsp-uji-{}", now_secs()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("server.cmd"), "x").unwrap();
+        std::fs::write(dir.join("polos"), "x").unwrap();
+
+        assert_eq!(cari_di_dir(&dir, "server.cmd"), Some(dir.join("server.cmd")));
+        if cfg!(windows) {
+            assert_eq!(cari_di_dir(&dir, "server"), Some(dir.join("server.cmd")));
+        } else {
+            assert_eq!(cari_di_dir(&dir, "server"), Some(dir.join("polos")));
+        }
+        assert_eq!(cari_di_dir(&dir, "polos"), Some(dir.join("polos")));
+        assert!(cari_di_dir(&dir, "tidak-ada").is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dir_tambahan_tanpa_duplikat() {
+        let d = dir_cari_tambahan();
+        let mut unik = std::collections::HashSet::new();
+        for p in &d {
+            assert!(unik.insert(p.clone()), "duplikat: {}", p.display());
+        }
+        /* On Windows the npm gobin for this machine is under APPDATA, so the list
+         * cannot be empty there; on other platforms the vars may be absent and an
+         * empty list is the honest answer. */
+        if cfg!(windows) {
+            assert!(!d.is_empty());
+        }
+    }
+
     use super::*;
 
     #[test]
@@ -733,5 +1119,113 @@ mod tests {
         assert!(u.starts_with("file:///D:/a%20b/"), "dapat: {u}");
         assert!(u.ends_with(".ts"));
         assert!(!u.contains('中'), "unicode must be encoded: {u}");
+    }
+
+    /*
+     * The slot lookup is what makes an in-app install visible to the probe. Both
+     * layouts npm and release archives really produce are covered, plus the
+     * negative case: a slot with an unrelated file must not report success.
+     */
+    #[test]
+    fn cari_di_slot_shim_npm_dan_arsip_bertingkat() {
+        let akar = std::env::temp_dir().join(format!("zephyr-lsp-slot-{}", now_secs()));
+        let slot = akar.join("docker");
+
+        let bin = slot.join("node_modules").join(".bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("docker-langserver.cmd"), "x").unwrap();
+        if cfg!(windows) {
+            assert_eq!(
+                cari_di_slot(&slot, "docker-langserver"),
+                Some(bin.join("docker-langserver.cmd"))
+            );
+        }
+
+        let dalam = slot.join("lua-language-server-3.9.1-win32-x64").join("bin");
+        std::fs::create_dir_all(&dalam).unwrap();
+        std::fs::write(dalam.join("lua-language-server.exe"), "x").unwrap();
+        assert_eq!(
+            cari_di_slot(&slot, "lua-language-server.exe"),
+            Some(dalam.join("lua-language-server.exe"))
+        );
+
+        assert!(cari_di_slot(&slot, "tidak-ada-sama-sekali").is_none());
+        let _ = std::fs::remove_dir_all(&akar);
+    }
+
+    /*
+     * `node_modules/.bin` on Windows holds `x` (a sh script), `x.cmd` and `x.ps1`.
+     * The bare file must NOT win: spawning it dies with "not a valid Win32
+     * application", so the probe would report a green row that cannot start.
+     */
+    #[test]
+    fn cari_di_dir_utamakan_shim_yang_bisa_dijalankan() {
+        let dir = std::env::temp_dir().join(format!("zephyr-lsp-shim-{}", now_secs()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("server"), "#!/bin/sh\nexec node cli.js\n").unwrap();
+        std::fs::write(dir.join("server.cmd"), "@echo off\r\necho HALO\r\n").unwrap();
+
+        if cfg!(windows) {
+            assert_eq!(cari_di_dir(&dir, "server"), Some(dir.join("server.cmd")));
+        } else {
+            assert_eq!(cari_di_dir(&dir, "server"), Some(dir.join("server")));
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /*
+     * The green row is only worth anything if the resolved path really starts.
+     * This asks the same helper the LSP launcher uses (`proc::cmd`) to run a .cmd
+     * shim and read its output back, so "shim resolves" and "shim runs" cannot
+     * drift apart.
+     */
+    #[test]
+    fn shim_cmd_bisa_dijalankan() {
+        if !cfg!(windows) {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("zephyr-lsp-jalan-{}", now_secs()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let shim = dir.join("uji-shim.cmd");
+        std::fs::write(&shim, "@echo off\r\necho HALO-SHIM\r\n").unwrap();
+
+        let out = crate::proc::cmd(&shim).args(["--stdio"]).output();
+        let out = match out {
+            Ok(o) => o,
+            Err(e) => panic!("shim .cmd tidak bisa dijalankan: {e}"),
+        };
+        assert!(
+            String::from_utf8_lossy(&out.stdout).contains("HALO-SHIM"),
+            "stdout shim: {:?}",
+            String::from_utf8_lossy(&out.stdout)
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /*
+     * The recipe table has to stay anchored to the rows the Settings page shows:
+     * every id with a recipe must exist in `src/lib/lsp.ts`, or the button would
+     * offer to install a server no row can select. The reverse is not required -
+     * servers needing rustup/go/LLVM/JDK deliberately have no recipe.
+     */
+    #[test]
+    fn resep_npm_selaras_dengan_baris_settings() {
+        let ts = std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("src")
+                .join("lib")
+                .join("lsp.ts"),
+        )
+        .expect("src/lib/lsp.ts harus bisa dibaca");
+        for id in id_punya_resep() {
+            assert!(
+                ts.contains(&format!("id: '{id}'")),
+                "resep untuk '{id}' tidak punya baris di src/lib/lsp.ts"
+            );
+        }
+        assert!(resep_npm("docker").is_some());
+        assert!(resep_npm("swift").is_none(), "swift butuh toolchain, bukan npm");
+        assert!(resep_npm("r").is_none());
     }
 }

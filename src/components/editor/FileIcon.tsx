@@ -33,6 +33,30 @@ export default function FileIcon({
 }) {
   const ikon = folder ? ikonFolder(name, folderOpen) : ikonFile(name ?? '', lang);
 
+  /*
+   * A glyph from an installed icon pack. The packs ship text marks ("{}", "#",
+   * "TS") rather than art, so there is no SVG to inline — this branch is what
+   * makes an installed pack show up in the tree at all.
+   */
+  if (ikon.glyph) {
+    return (
+      <span
+        className="tree-fikon tree-fikon-glif"
+        data-ikon={ikon.id}
+        style={{
+          width: size,
+          height: size,
+          color: ikon.color,
+          fontSize: Math.max(8, Math.round(size * 0.78)),
+          lineHeight: `${size}px`,
+        }}
+        aria-hidden="true"
+      >
+        {ikon.glyph}
+      </span>
+    );
+  }
+
   if (!ikon.svg) {
     // Nothing in the theme for this file and no language to fall back on: a
     // quiet dot keeps the row aligned without pretending to know the type.

@@ -121,11 +121,22 @@ pub fn credentials_list(state: State<'_, AppState>) -> ZResult<Vec<CredentialInf
     let map = baca(&state);
     let mut out = Vec::new();
     for (id, v) in map {
-        let label = v.get("label").and_then(|x| x.as_str()).unwrap_or(&id).to_string();
-        let kind = v.get("kind").and_then(|x| x.as_str()).unwrap_or("password").to_string();
+        let label = v
+            .get("label")
+            .and_then(|x| x.as_str())
+            .unwrap_or(&id)
+            .to_string();
+        let kind = v
+            .get("kind")
+            .and_then(|x| x.as_str())
+            .unwrap_or("password")
+            .to_string();
         let updated_at = v.get("updatedAt").and_then(|x| x.as_u64()).unwrap_or(0);
         out.push(CredentialInfo {
-            has: v.get("secret").and_then(|x| x.as_str()).is_some_and(|s| !s.is_empty()),
+            has: v
+                .get("secret")
+                .and_then(|x| x.as_str())
+                .is_some_and(|s| !s.is_empty()),
             label,
             kind,
             updated_at,
@@ -179,7 +190,9 @@ pub fn credentials_delete(state: State<'_, AppState>, id: String) -> ZResult<()>
 #[tauri::command(async)]
 pub fn credentials_get(state: State<'_, AppState>, id: String) -> ZResult<Option<String>> {
     let map = baca(&state);
-    let Some(v) = map.get(&id) else { return Ok(None) };
+    let Some(v) = map.get(&id) else {
+        return Ok(None);
+    };
     let Some(enc) = v.get("secret").and_then(|x| x.as_str()) else {
         return Ok(None);
     };

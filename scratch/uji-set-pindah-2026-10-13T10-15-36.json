@@ -1,0 +1,441 @@
+{
+  "ketika": "2026-10-13T10:15:53.349Z",
+  "port": "9223",
+  "app": {
+    "activityAwal": "explorer",
+    "url": "http://localhost:5173/"
+  },
+  "dasar": {
+    "activity": "explorer",
+    "settingsOpen": false,
+    "sidebarVisible": true,
+    "termVisible": false,
+    "termMaximized": false,
+    "provider": "custom"
+  },
+  "lulus": 16,
+  "total": 16,
+  "catatan": [
+    {
+      "id": "P0",
+      "ok": true,
+      "detail": "permukaan AI ada dan tampak (ai-panel=true, tampak=true, ai-chat=true, ai-host=true, kolom right)"
+    },
+    {
+      "id": "P1",
+      "ok": true,
+      "detail": "garis dasar bersih sebelum uji: halaman Setelan lama TIDAK terbuka (settings-page=false, activity=explorer [dasar explorer], settingsOpen=false)"
+    },
+    {
+      "id": "P2",
+      "ok": true,
+      "detail": "tidak ada kontrol bernama lama (settings-page/open-settings) di permukaan AI (dari 35 testid; yang berbau \"settings/setelan\": [-])"
+    },
+    {
+      "id": "A0",
+      "ok": true,
+      "detail": "KONTROL - halaman Setelan lama memang terdeteksi saat sengaja dibuka lewat bukaSet() (settings-page=true, topbar=true, activity=settings, settingsOpen=true)"
+    },
+    {
+      "id": "A1",
+      "ok": true,
+      "detail": "banner kunci di panel chat (ai-nokey-open): TIDAK membuka halaman Setelan lama; mendarat di Chat Settings terbuka (seksinya diperiksa di B) — setelanLama=tidak activity=explorer settingsOpen=false | cset=terbuka seksi=cset-nav-models baris=[cset-row-askmodel,cset-row-provider2,cset-row-baseurl,cset-row-keys,cset-row-hydra,cset-row-hydrantingkat,cset-row-hydrabiaya,cset-row-hydraterakhir]"
+    },
+    {
+      "id": "A2",
+      "ok": true,
+      "detail": "menu \"…\" panel chat (ai-open-chat-settings): TIDAK membuka halaman Setelan lama; mendarat di Chat Settings terbuka (seksi bawaan, tanpa target) — setelanLama=tidak activity=explorer settingsOpen=false | cset=terbuka seksi=cset-nav-mode baris=[cset-row-dispatch,cset-row-runmode,cset-row-reasoning]"
+    },
+    {
+      "id": "A3",
+      "ok": true,
+      "detail": "pemilih model panel chat (ai-model-edit): TIDAK membuka halaman Setelan lama; mendarat di Chat Settings pada seksi Models — setelanLama=tidak activity=explorer settingsOpen=false | cset=terbuka seksi=cset-nav-models baris=[cset-row-askmodel,cset-row-provider2,cset-row-baseurl,cset-row-keys,cset-row-hydra,cset-row-hydrantingkat,cset-row-hydrabiaya,cset-row-hydraterakhir]"
+    },
+    {
+      "id": "A4",
+      "ok": true,
+      "detail": "pemilih model header subagent (sub-model-edit): TIDAK membuka halaman Setelan lama; mendarat di Chat Settings pada seksi Models — setelanLama=tidak activity=explorer settingsOpen=false | cset=terbuka seksi=cset-nav-models baris=[cset-row-askmodel,cset-row-provider2,cset-row-baseurl,cset-row-keys,cset-row-hydra,cset-row-hydrantingkat,cset-row-hydrabiaya,cset-row-hydraterakhir]"
+    },
+    {
+      "id": "A5",
+      "ok": true,
+      "detail": "baris izin-tulis di tampilan subagent (sav-tulis-setelan): TIDAK membuka halaman Setelan lama; mendarat di Chat Settings pada seksi Sub-agents — setelanLama=tidak activity=explorer settingsOpen=false | cset=terbuka seksi=cset-nav-subagent baris=[cset-row-subwrite,cset-row-subpanel,cset-row-parallel,cset-row-steps,cset-row-idle,cset-row-submodel2,cset-row-subworker]"
+    },
+    {
+      "id": "A6",
+      "ok": true,
+      "detail": "baris personas di menu mode (ai-mode-manage): TIDAK membuka halaman Setelan lama; mendarat di Agent Customizations (bukan halaman Setelan) — setelanLama=tidak activity=explorer settingsOpen=false | cset=tidak seksi=- baris=[] | agent-custom=terbuka"
+    },
+    {
+      "id": "B",
+      "ok": true,
+      "detail": "banner kunci mendarat di seksi Models (akar halaman tampak=true, nav aktif=cset-nav-models, baris model=[cset-row-keys,cset-row-askmodel] dari [cset-row-keys,cset-row-askmodel], judul=[Models])"
+    },
+    {
+      "id": "C",
+      "ok": true,
+      "detail": "baris subagent mendarat di seksi Sub-agents (akar halaman tampak=true, nav aktif=cset-nav-subagent, baris=[cset-row-subwrite,cset-row-subpanel,cset-row-parallel,cset-row-steps,cset-row-idle,cset-row-submodel2,cset-row-subworker], judul=[Sub-agents])"
+    },
+    {
+      "id": "D1",
+      "ok": true,
+      "detail": "tab panel bawah tidak memuat tab AI (terrender=[problems,output,debug,terminal,ports,subagents], menu=[problems,output,debug,terminal,ports,subagents], semua tab=[problems,output,debug,terminal,ports,subagents], aktif=subagents, entri berbau AI=[-])"
+    },
+    {
+      "id": "D1b",
+      "ok": true,
+      "detail": "isi strip & menu tab sama dengan daftar tab yang sah (problems/output/debug/terminal/ports/subagents); di luar daftar=[-], jumlah di menu=6 dari 6"
+    },
+    {
+      "id": "D2",
+      "ok": true,
+      "detail": "panel AI tetap di kolom kanan, bukan di dalam panel bawah (ai-panel=true, tampak=true, ai-chat=true, ai-host=true, di dalam panel-body=false, rect.x=1057 dari lebar 1536)"
+    },
+    {
+      "id": "Z0",
+      "ok": true,
+      "detail": "keadaan app dikembalikan seperti semula (activity=explorer [dasar explorer], settingsOpen=false, settings-page=false, cset=false, panel visible=false, provider=custom, ai-panel=true/true)"
+    }
+  ],
+  "capture": {
+    "A1": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": false,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": true,
+      "csetTampak": true,
+      "csetJudul": [
+        "Models"
+      ],
+      "navAktif": "cset-nav-models",
+      "baris": [
+        "cset-row-askmodel",
+        "cset-row-provider2",
+        "cset-row-baseurl",
+        "cset-row-keys",
+        "cset-row-hydra",
+        "cset-row-hydrantingkat",
+        "cset-row-hydrabiaya",
+        "cset-row-hydraterakhir"
+      ],
+      "scopeUser": "true",
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "A2": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": false,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": true,
+      "csetTampak": true,
+      "csetJudul": [
+        "Mode"
+      ],
+      "navAktif": "cset-nav-mode",
+      "baris": [
+        "cset-row-dispatch",
+        "cset-row-runmode",
+        "cset-row-reasoning"
+      ],
+      "scopeUser": "true",
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "A3": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": false,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": true,
+      "csetTampak": true,
+      "csetJudul": [
+        "Models"
+      ],
+      "navAktif": "cset-nav-models",
+      "baris": [
+        "cset-row-askmodel",
+        "cset-row-provider2",
+        "cset-row-baseurl",
+        "cset-row-keys",
+        "cset-row-hydra",
+        "cset-row-hydrantingkat",
+        "cset-row-hydrabiaya",
+        "cset-row-hydraterakhir"
+      ],
+      "scopeUser": "true",
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "A4": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": true,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": true,
+      "csetTampak": true,
+      "csetJudul": [
+        "Models"
+      ],
+      "navAktif": "cset-nav-models",
+      "baris": [
+        "cset-row-askmodel",
+        "cset-row-provider2",
+        "cset-row-baseurl",
+        "cset-row-keys",
+        "cset-row-hydra",
+        "cset-row-hydrantingkat",
+        "cset-row-hydrabiaya",
+        "cset-row-hydraterakhir"
+      ],
+      "scopeUser": "true",
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "A5": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": true,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": true,
+      "csetTampak": true,
+      "csetJudul": [
+        "Sub-agents"
+      ],
+      "navAktif": "cset-nav-subagent",
+      "baris": [
+        "cset-row-subwrite",
+        "cset-row-subpanel",
+        "cset-row-parallel",
+        "cset-row-steps",
+        "cset-row-idle",
+        "cset-row-submodel2",
+        "cset-row-subworker"
+      ],
+      "scopeUser": "true",
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "A6": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": false,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": false,
+      "csetTampak": false,
+      "csetJudul": [],
+      "navAktif": null,
+      "baris": [],
+      "scopeUser": null,
+      "agc": true,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "D2": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": false,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": false,
+      "csetTampak": false,
+      "csetJudul": [],
+      "navAktif": null,
+      "baris": [],
+      "scopeUser": null,
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    },
+    "Z0": {
+      "activity": "explorer",
+      "settingsOpen": false,
+      "sidebarVisible": true,
+      "termVisible": false,
+      "termMaximized": false,
+      "aiPanelCfg": "right",
+      "provider": "custom",
+      "setPage": false,
+      "setTopbar": false,
+      "cset": false,
+      "csetTampak": false,
+      "csetJudul": [],
+      "navAktif": null,
+      "baris": [],
+      "scopeUser": null,
+      "agc": false,
+      "aiPanel": true,
+      "aiTampak": true,
+      "aiDalamPanel": false,
+      "aiRect": {
+        "x": 1057,
+        "lebar": 479
+      },
+      "layar": 1536,
+      "aiChat": true,
+      "aiHost": true
+    }
+  },
+  "tabs": {
+    "render": [
+      {
+        "id": "problems",
+        "label": "Problems"
+      },
+      {
+        "id": "output",
+        "label": "Output"
+      },
+      {
+        "id": "debug",
+        "label": "Debug Console"
+      },
+      {
+        "id": "terminal",
+        "label": "Terminal"
+      },
+      {
+        "id": "ports",
+        "label": "Ports"
+      },
+      {
+        "id": "subagents",
+        "label": "Subagents"
+      }
+    ],
+    "daftar": [
+      {
+        "id": "problems",
+        "label": "✓Problems"
+      },
+      {
+        "id": "output",
+        "label": "✓Output"
+      },
+      {
+        "id": "debug",
+        "label": "✓Debug Console"
+      },
+      {
+        "id": "terminal",
+        "label": "✓Terminal"
+      },
+      {
+        "id": "ports",
+        "label": "✓Ports"
+      },
+      {
+        "id": "subagents",
+        "label": "✓Subagents"
+      }
+    ],
+    "menuTerbuka": true,
+    "semulaTampak": false,
+    "semua": [
+      "problems",
+      "output",
+      "debug",
+      "terminal",
+      "ports",
+      "subagents"
+    ],
+    "aktif": "subagents",
+    "stripAda": true
+  }
+}

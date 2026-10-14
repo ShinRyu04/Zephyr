@@ -1,0 +1,7 @@
+<<<<<<< HEAD
+A ours
+||||||| base
+B base
+=======
+C theirs
+>>>>>>> other

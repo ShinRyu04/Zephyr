@@ -21,7 +21,7 @@
 // Pakai: node scripts/verify33.mjs [port-cdp]
 // Syarat: zephyr.exe hidup dengan --remote-debugging-port=<port> DAN dev server.
 
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 const R = reporter('aiStore guard');
@@ -141,10 +141,10 @@ async function main() {
 
   R.selesai();
   await cdp.close();
-  process.exit(0);
+  keluarBersih(0);
 }
 
 main().catch((e) => {
   console.error('FATAL:', e.message);
-  process.exit(1);
+  keluarBersih(1);
 });

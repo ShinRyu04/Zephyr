@@ -303,7 +303,26 @@ export default function SearchPanel() {
               {error}
             </span>
           ) : query && summary ? (
-            `${total}${summary.truncated ? '+' : ''} results in ${jmlFile} files · ${summary.elapsedMs}ms`
+            <>
+              {`${total}${summary.truncated ? '+' : ''} results in ${jmlFile} files · ${summary.elapsedMs}ms`}
+              {/*
+                * Open the results as a tab.
+                *
+                * The two answer different questions and neither replaces the
+                * other: this panel is for PICKING one hit and going there, the
+                * tab is for READING them all with their surroundings and
+                * copying them somewhere. Offered only when there is something
+                * to show, so the button is never a no-op.
+                */}
+              <button
+                className="find-btn"
+                data-testid="search-open-editor"
+                title={tr('Open the results as a tab, with surrounding lines')}
+                onClick={() => useStore.getState().bukaViewAi('search-editor')}
+              >
+                {tr('Open as tab')}
+              </button>
+            </>
           ) : rg && !rg.ada ? (
             tr('ripgrep is not installed - using the built-in search')
           ) : (

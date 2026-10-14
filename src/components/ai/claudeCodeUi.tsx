@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { barisDiff, type DiffRow } from '../../lib/simpleDiff';
+import { bagiHunk, barisDiff, terapkanHunk, type DiffRow } from '../../lib/simpleDiff';
 import { useT, tf } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 
@@ -266,6 +266,8 @@ export const EditDiff = memo(function EditDiff({
   newText,
   rows: given,
   mode,
+  onPickHunks,
+  testidPrefix = 'cli',
 }: {
   oldText?: string;
   newText?: string;
@@ -282,6 +284,20 @@ export const EditDiff = memo(function EditDiff({
    * prop is the explicit override for a caller that knows better.
    */
   mode?: 'unified' | 'split';
+  /**
+   * When present, each hunk gets a checkbox and the caller can apply a SUBSET.
+   *
+   * Absent for a pure diff view, which has nothing to apply to — so every
+   * existing caller keeps exactly the component it had, and the checkboxes
+   * appear only where a partial result is meaningful.
+   *
+   * Receives the rebuilt text rather than the selection, because the rebuild
+   * rule (a rejected `del` keeps its line, a rejected `add` does not) lives in
+   * `simpleDiff` and duplicating it in the caller is how the two would drift.
+   */
+  onPickHunks?: (teks: string, diterima: number) => void;
+  /** Data-testid prefix, so the chat diff and the CLI diff stay distinguishable. */
+  testidPrefix?: string;
 }) {
   const tr = useT();
   const computed = useMemo(
@@ -293,6 +309,21 @@ export const EditDiff = memo(function EditDiff({
   const long = rows.length > DIFF_PEEK + 6;
   const shown = long && !expand ? rows.slice(0, DIFF_PEEK) : rows;
   const hidden = rows.length - shown.length;
+
+  /*
+   * Per-hunk selection.
+   *
+   * Only meaningful when the caller supplies a way to apply a partial result —
+   * a pure diff VIEW has nothing to apply to. When `onPickHunks` is absent the
+   * state is unused and no checkboxes render, so every existing caller keeps
+   * exactly the component it had.
+   *
+   * Default is "all accepted", which is what the old single Apply button did.
+   * Starting from none would make the common case (accept everything) take two
+   * clicks.
+   */
+  const hunks = useMemo(() => bagiHunk(rows), [rows]);
+  const [tolak, setTolak] = useState<ReadonlySet<number>>(new Set());
   const [wantSplit, setWantSplit] = useState<boolean | null>(
     mode === undefined ? null : mode === 'split',
   );
@@ -372,17 +403,80 @@ export const EditDiff = memo(function EditDiff({
                 </div>
               </div>
             ))
-          : shown.map((r, i) => (
-              <div key={i} className={`cli-diff-row is-${r.kind}`} data-kind={r.kind}>
-                <span className="cli-diff-num">{r.a ?? ''}</span>
-                <span className="cli-diff-num">{r.b ?? ''}</span>
-                <span className="cli-diff-sign" aria-hidden="true">
-                  {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ''}
-                </span>
-                <code className="cli-diff-text">{r.text || ' '}</code>
-              </div>
-            ))}
+          : shown.map((r, i) => {
+              /*
+               * The checkbox goes on the FIRST row of each hunk only.
+               *
+               * One box per row would let a reader uncheck half a change —
+               * leaving `let x = 1` AND `let x = 2` in the file — which is the
+               * incoherent state `bagiHunk` exists to prevent. One box per
+               * hunk is the smallest unit that has a meaning.
+               */
+              const hunk = hunks.find((h) => h.id !== undefined && h.rows[0] === i);
+              /* Which hunk this row belongs to, not just whether it STARTS one —
+                 the dimming has to cover every row of a rejected change, and
+                 the checkbox only sits on the first. */
+              const milik = hunks.find((h) => h.rows.includes(i));
+              return (
+                <div
+                  key={i}
+                  className={`cli-diff-row is-${r.kind}`}
+                  data-kind={r.kind}
+                  data-hunk={hunk ? hunk.id : undefined}
+                  data-hunk-first={hunk ? '1' : undefined}
+                  data-rejected={milik && tolak.has(milik.id) ? '1' : undefined}
+                >
+                  {onPickHunks && (
+                    <span className="cli-diff-pick">
+                      {hunk ? (
+                        <input
+                          type="checkbox"
+                          data-testid={`${testidPrefix}-hunk-${hunk.id}`}
+                          aria-label={tf('Accept change {n}', { n: String(hunk.id + 1) })}
+                          checked={!tolak.has(hunk.id)}
+                          onChange={(e) =>
+                            setTolak((s) => {
+                              const n = new Set(s);
+                              if (e.target.checked) n.delete(hunk.id);
+                              else n.add(hunk.id);
+                              return n;
+                            })
+                          }
+                        />
+                      ) : null}
+                    </span>
+                  )}
+                  <span className="cli-diff-num">{r.a ?? ''}</span>
+                  <span className="cli-diff-num">{r.b ?? ''}</span>
+                  <span className="cli-diff-sign" aria-hidden="true">
+                    {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ''}
+                  </span>
+                  <code className="cli-diff-text">{r.text || ' '}</code>
+                </div>
+              );
+            })}
       </div>
+      {onPickHunks && (
+        <div className="cli-diff-foot cli-diff-foot-pick">
+          <span className="cli-diff-pick-sum" data-testid={`${testidPrefix}-hunk-sum`}>
+            {tf('{a} of {b} changes accepted', {
+              a: String(hunks.length - tolak.size),
+              b: String(hunks.length),
+            })}
+          </span>
+          <button
+            className="btn btn-sm"
+            data-testid={`${testidPrefix}-hunk-apply`}
+            disabled={hunks.length === 0}
+            onClick={() => {
+              const diterima = new Set(hunks.map((h) => h.id).filter((id) => !tolak.has(id)));
+              onPickHunks(terapkanHunk(rows, diterima), diterima.size);
+            }}
+          >
+            {tr('Apply selected')}
+          </button>
+        </div>
+      )}
       <div className="cli-diff-foot">
         {long && (
           <button className="cli-diff-more" onClick={() => setExpand((v) => !v)}>

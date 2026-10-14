@@ -18,6 +18,91 @@ const MAX_BARIS = 5_000;
 
 const MAX_RECENT = 8;
 
+/**
+ * Replace `$ZEPHYR_*` tokens in one string.
+ *
+ * Substitution happens on the VALUE, not by building a shell command, and an
+ * unknown token is left AS WRITTEN rather than blanked. Blanking it would turn
+ * a typo (`$ZEPHYR_SYMBOL`) into a command that runs with an empty argument —
+ * silently wrong output is worse than an obviously broken command.
+ */
+export function isiKonteks(teks: string, nilai: Record<string, string>): string {
+  return teks.replace(/\$\{?(ZEPHYR_[A-Z_]+)\}?/g, (utuh, nama: string) =>
+    Object.prototype.hasOwnProperty.call(nilai, nama) ? nilai[nama] : utuh,
+  );
+}
+
+/**
+ * Build the substitution table for a run, from what is on screen right now.
+ *
+ * Every field is optional and a missing one is simply ABSENT from the table,
+ * which is what makes `isiKonteks` leave its token in place: a task that needs
+ * `$ZEPHYR_SYMBOL` and runs with no symbol under the cursor should fail
+ * visibly, not run against an empty string.
+ */
+async function konteksTugas(): Promise<Record<string, string>> {
+  const nilai: Record<string, string> = {};
+  /* Both imported here rather than at the top of the file: `store.ts` imports
+     this module, so a static import would close a cycle. */
+  const [{ useStore }, { getActiveView, activeSelection }] = await Promise.all([
+    import('./store'),
+    import('./editorRegistry'),
+  ]);
+
+  const s = useStore.getState();
+  const akar = s.workspace;
+  if (akar) nilai.ZEPHYR_WORKTREE_ROOT = akar;
+
+  const tab = s.tabs.find((t) => t.id === s.activeTabId);
+  if (tab?.path) {
+    nilai.ZEPHYR_FILE = tab.path;
+    /*
+     * The relative form is what most commands actually want: `cargo test`
+     * takes a module path, and a compiler invoked with an absolute path
+     * outside the source root can produce output paths the problem matchers
+     * do not recognise.
+     *
+     * Computed by string prefix rather than by a path library because the
+     * comparison has to ignore separator style and case (Windows), which
+     * `kunciPath` already does for the rest of the app.
+     */
+    const kunciAkar = akar ? akar.replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase() : '';
+    const kunciBerkas = tab.path.replace(/\\/g, '/');
+    if (kunciAkar && kunciBerkas.toLowerCase().startsWith(`${kunciAkar}/`)) {
+      nilai.ZEPHYR_FILE_REL = kunciBerkas.slice(kunciAkar.length + 1);
+    } else {
+      nilai.ZEPHYR_FILE_REL = tab.path;
+    }
+    nilai.ZEPHYR_FILE_NAME = tab.name;
+    nilai.ZEPHYR_FILE_EXT = tab.name.includes('.') ? tab.name.split('.').pop() ?? '' : '';
+  }
+
+  const view = getActiveView();
+  if (view) {
+    /* 1-based: a task command talks in the same numbers the status bar shows
+       and the compiler prints, not in the 0-based offsets CodeMirror uses. */
+    nilai.ZEPHYR_ROW = String(view.state.doc.lineAt(view.state.selection.main.head).number);
+    nilai.ZEPHYR_COLUMN = String(
+      view.state.selection.main.head - view.state.doc.lineAt(view.state.selection.main.head).from + 1,
+    );
+  }
+
+  const sel = activeSelection();
+  if (sel) {
+    /*
+     * Passed as a single token, quoted for the shell it is going into.
+     *
+     * Unquoted, a selection containing a space becomes two arguments and a
+     * selection containing a quote can end the command early — the task would
+     * run something the reader never wrote. The quoting is conservative: wrap
+     * in backslash-escaped quotes so it survives both sh and PowerShell.
+     */
+    nilai.ZEPHYR_SELECTED_TEXT = sel.replace(/(["`$\\])/g, '\\$1');
+  }
+
+  return nilai;
+}
+
 export interface TaskState {
 
   file: TasksFile | null;
@@ -232,13 +317,25 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     }));
 
     try {
+      /*
+       * Context variables are resolved ONCE per run, then substituted into the
+       * command, its arguments and its cwd.
+       *
+       * Resolved here rather than inside `tasksRun` because the values describe
+       * what is on screen at the moment the reader pressed the key — resolving
+       * them later (or per argument) would let the file, row or selection
+       * change halfway through and produce a command matching neither.
+       */
+      const nilai = await konteksTugas();
+      const ganti = (x: string) => isiKonteks(x, nilai);
+
       await tasksRun({
         id: runId,
         label,
         kind: def.kind,
-        command: def.command,
-        args: def.args,
-        cwd: def.cwd || undefined,
+        command: ganti(def.command),
+        args: def.args.map(ganti),
+        cwd: def.cwd ? ganti(def.cwd) : undefined,
         env: Object.keys(def.env).length > 0 ? def.env : undefined,
         problemMatchers: def.problemMatchers,
         isBackground: def.isBackground,
@@ -306,13 +403,18 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     }));
 
     try {
+      /* Same substitution as a named task: an ad-hoc command is usually the one
+         a reader types when they want "run what I am looking at", so it needs
+         the context variables at least as much. */
+      const nilai = await konteksTugas();
+      const ganti = (x: string) => isiKonteks(x, nilai);
       await tasksRun({
         id: runId,
         label,
         kind: 'test',
-        command,
-        args,
-        cwd: cwd || undefined,
+        command: ganti(command),
+        args: args.map(ganti),
+        cwd: cwd ? ganti(cwd) : undefined,
         isBackground: false,
       });
     } catch (e) {

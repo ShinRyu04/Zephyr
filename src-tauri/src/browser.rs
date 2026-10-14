@@ -1,8 +1,8 @@
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
+use crate::web::validate_outbound_url;
 use serde::Serialize;
 use std::path::Path;
-use crate::web::validate_outbound_url;
 use std::time::Duration;
 use tauri::State;
 
@@ -33,7 +33,9 @@ pub fn browser_download_url(
         .parent()
         .ok_or_else(|| ZephyrError::InvalidInput("destination has no parent folder".into()))?;
     if !parent.is_dir() {
-        return Err(ZephyrError::InvalidInput("destination parent folder does not exist".into()));
+        return Err(ZephyrError::InvalidInput(
+            "destination parent folder does not exist".into(),
+        ));
     }
 
     let response = ureq::get(url)
@@ -46,7 +48,10 @@ pub fn browser_download_url(
         .call()
         .map_err(|e| ZephyrError::Io(format!("direct download failed: {e}")))?;
     if response.status().as_u16() < 200 || response.status().as_u16() >= 300 {
-        return Err(ZephyrError::Io(format!("direct download returned HTTP {}", response.status().as_u16())));
+        return Err(ZephyrError::Io(format!(
+            "direct download returned HTTP {}",
+            response.status().as_u16()
+        )));
     }
     let bytes = response
         .into_body()
@@ -55,7 +60,9 @@ pub fn browser_download_url(
         .read_to_vec()
         .map_err(|e| ZephyrError::Io(format!("reading direct download failed: {e}")))?;
     if bytes.is_empty() {
-        return Err(ZephyrError::InvalidInput("direct download returned an empty body".into()));
+        return Err(ZephyrError::InvalidInput(
+            "direct download returned an empty body".into(),
+        ));
     }
 
     let temp = parent.join(format!(".zephyr-download-{}.tmp", uuid::Uuid::new_v4()));
@@ -72,13 +79,15 @@ pub fn browser_download_url(
         let _ = std::fs::remove_file(&temp);
         ZephyrError::Io(format!("committing download failed: {e}"))
     })?;
-    Ok(BrowserDownloadResult { path: target.to_string_lossy().to_string(), bytes: written })
+    Ok(BrowserDownloadResult {
+        path: target.to_string_lossy().to_string(),
+        bytes: written,
+    })
 }
 
 /// WebView2 CapturePreview is not exposed by the Tauri 2 Webview API used by
 /// this application. Keep screenshot unsupported rather than producing a fake
 /// PNG or using undocumented native handles.
-
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -162,14 +171,16 @@ pub fn decide(xfo: Option<&str>, csp: Option<&str>) -> (bool, String, Option<Str
         if low.contains("deny") {
             return (
                 false,
-                "The server sends X-Frame-Options: DENY — embedding is completely disallowed.".into(),
+                "The server sends X-Frame-Options: DENY — embedding is completely disallowed."
+                    .into(),
                 Some(format!("X-Frame-Options: {v}")),
             );
         }
         if low.contains("sameorigin") {
             return (
                 false,
-                "the server sent X-Frame-Options: SAMEORIGIN — it only allows embedding by itself.".into(),
+                "the server sent X-Frame-Options: SAMEORIGIN — it only allows embedding by itself."
+                    .into(),
                 Some(format!("X-Frame-Options: {v}")),
             );
         }

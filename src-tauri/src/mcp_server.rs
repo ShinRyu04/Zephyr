@@ -7,8 +7,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{json, Value};
 use std::sync::Arc;
-use tokio_stream::StreamExt as _;
 use tauri::{AppHandle, Emitter, Manager};
+use tokio_stream::StreamExt as _;
 
 const UI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 
@@ -26,7 +26,8 @@ struct Ctx {
      * Nilainya hanya menjadi cadangan bila runtime tidak bisa dibaca.
      */
     token: String,
-    sse: Arc<std::sync::Mutex<std::collections::HashMap<String, tokio::sync::mpsc::Sender<String>>>>,
+    sse:
+        Arc<std::sync::Mutex<std::collections::HashMap<String, tokio::sync::mpsc::Sender<String>>>>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -149,9 +150,9 @@ pub async fn start(app: AppHandle) -> ZResult<u16> {
         started: std::time::Instant::now(),
         shutdown: tx,
         /* Token ikut disimpan di runtime, bukan hanya di dalam `Ctx`. `Ctx`
-           dibekukan saat bind, jadi token di sana tidak bisa diubah lagi -
-           menyimpannya di sini yang memungkinkan pemutaran token tanpa
-           memulai ulang server. */
+        dibekukan saat bind, jadi token di sana tidak bisa diubah lagi -
+        menyimpannya di sini yang memungkinkan pemutaran token tanpa
+        memulai ulang server. */
         token: cfg.token.clone(),
     });
 
@@ -313,10 +314,7 @@ async fn schema(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::re
     Json(tools_schema()).into_response()
 }
 
-async fn mcp_get(
-    AxState(ctx): AxState<Arc<Ctx>>,
-    headers: HeaderMap,
-) -> axum::response::Response {
+async fn mcp_get(AxState(ctx): AxState<Arc<Ctx>>, headers: HeaderMap) -> axum::response::Response {
     let state = ctx.app.state::<AppState>();
     use axum::body::Body;
     use axum::response::Response;
@@ -667,7 +665,10 @@ async fn dispatch(app: &AppHandle, method: &str, params: Value) -> ZResult<Value
         "ping" => Ok(json!({ "pong": true })),
         "tools/call" => {
             let name = need_str(&params, "name")?;
-            let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+            let args = params
+                .get("arguments")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
             let hasil = match name.as_str() {
                 "list_panes" | "list_terminals" => ui_call(app, "list_panes", json!({})).await?,
                 "list_editors" => ui_call(app, "list_editors", json!({})).await?,
@@ -926,7 +927,10 @@ fn token_lama_berhenti_diterima_setelah_diputar() {
      * pasangan, karena `Ctx` memerlukan AppHandle yang tidak bisa dibuat di
      * uji unit.
      */
-    assert!(bearer_ok_for_test(&header(baru), baru), "token baru harus diterima");
+    assert!(
+        bearer_ok_for_test(&header(baru), baru),
+        "token baru harus diterima"
+    );
     assert!(
         !bearer_ok_for_test(&header(lama), baru),
         "token lama harus BERHENTI diterima setelah diputar"
@@ -944,7 +948,9 @@ fn kandidat_port_tidak_pernah_9223() {
     assert!(!def.contains(&9223));
 
     // The default requested port still yields five usable alternatives.
-    for w in [0u16, 1024, 9220, 9221, 9222, 9224, 9225, 9226, 9227, 4096, 65535] {
+    for w in [
+        0u16, 1024, 9220, 9221, 9222, 9224, 9225, 9226, 9227, 4096, 65535,
+    ] {
         let c = candidate_ports(w, 5);
         assert!(!c.contains(&PORT_DILARANG), "want {w} produced 9223");
         assert!(!c.is_empty());

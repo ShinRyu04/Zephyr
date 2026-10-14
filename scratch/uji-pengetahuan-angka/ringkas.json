@@ -1,0 +1,214 @@
+{
+  "skor": "54/54",
+  "merah": [],
+  "intiChar": 7984,
+  "intiTok": 1996,
+  "ambang": 2000,
+  "batasKarakterSuntik": 1200,
+  "blokSuntikMin": 732,
+  "blokSuntikMaks": 1199,
+  "blokSuntikMeteredMaks": 950,
+  "penutupChar": 351,
+  "blokSuntikBawaanMaks": 1199,
+  "kontrol": {
+    "blokPenuhLewat": 14,
+    "salahPangkas": 0,
+    "sempitChar": 219,
+    "sempitBlokPenuh": 741,
+    "sempitAdaPenutup": false,
+    "muatanMaks1Token": 797,
+    "cacheSuntik": {
+      "eksporUkuran": "function",
+      "eksporBersihkan": "function",
+      "miss": 1,
+      "hit": 1,
+      "identik": true,
+      "bedaOpsi": 2,
+      "bedaIsi": true
+    },
+    "bebanNolIdentik": true,
+    "barisKemutakhiranSegar": "Kemutakhiran indeks: segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI) - cap 1.1.13 / edcf2edbdfe7127e (190 berkas, 6253 entri); cara memeriksa dari app: zephyr_self bagian=indeks"
+  },
+  "cache": {
+    "sebelumBersih": 0,
+    "setelahBersih": 0,
+    "missDelta": 4,
+    "missCalls": [
+      "getAppInfo",
+      "getDiagnostics",
+      "getSettings",
+      "getAppInfo"
+    ],
+    "missUkuran": 1,
+    "hitDelta": 2,
+    "hitCalls": [
+      "getAppInfo",
+      "getDiagnostics"
+    ],
+    "hitUkuran": 1,
+    "hitIdentik": true,
+    "bedaDelta": 4,
+    "bedaCalls": [
+      "getAppInfo",
+      "getDiagnostics",
+      "getSettings",
+      "getAppInfo"
+    ],
+    "bedaUkuran": 2
+  },
+  "potongan": {
+    "konstanta": {
+      "POTONGAN_MAKS": 4,
+      "TOKEN_POTONGAN_MAKS": 800,
+      "KARAKTER_PER_TOKEN": 4,
+      "ukuranCacheSesi": 1
+    },
+    "empat": [
+      668,
+      768,
+      667,
+      696
+    ],
+    "diminta5": 4,
+    "token900": 900,
+    "hasil900": 796
+  },
+  "jaringan": {
+    "runtime": 0,
+    "referensiBundel": []
+  },
+  "determinisme": {
+    "shaB": "c90194d04c907d1bc764e58b2f8d6c1a0fb72cba67302070df44edecc6545376",
+    "shaB2": "c90194d04c907d1bc764e58b2f8d6c1a0fb72cba67302070df44edecc6545376",
+    "shaBK": "c90194d04c907d1bc764e58b2f8d6c1a0fb72cba67302070df44edecc6545376",
+    "identik": true,
+    "tanpaFolderUser": true
+  },
+  "versi": {
+    "indeks": "1.1.13",
+    "paket": "1.1.13",
+    "tauri": "1.1.13",
+    "hashBundel": "edcf2edbdfe7127e",
+    "hashSumberNyata": "edcf2edbdfe7127e",
+    "checkExit": 0,
+    "checkPesan": "sinkron: zephyrFakta.ts 9843 byte + zephyrIndeks.ts 1060231 byte (6253 entri; bridge=1, dokumen=176, ekstensi=17, kode=429, label=3023, layar=1991, menu=122, panel=22, perintah=179, pintasan=66, port=4, seksi=31, setelan=124, tool=68)."
+  },
+  "basi": {
+    "segarKepala": {
+      "bagian": "semua",
+      "potongan": 1,
+      "maks": 4,
+      "token": [
+        85
+      ],
+      "versiApp": "1.1.13",
+      "versiIndeks": "1.1.13",
+      "basi": false,
+      "sumber": [
+        "get_app_info",
+        "get_diagnostics",
+        "mcp_status",
+        "extensions_list",
+        "store.workspace",
+        "zephyrCari"
+      ],
+      "aturan": "ai-tahu-100-7 (maks 4 potongan, <=800 token/potongan TERMASUK kepala/header, cache per sesi)"
+    },
+    "basiKepala": {
+      "bagian": "semua",
+      "potongan": 1,
+      "maks": 4,
+      "token": [
+        96
+      ],
+      "versiApp": "9.9.9",
+      "versiIndeks": "1.1.13",
+      "basi": true,
+      "sumber": [
+        "get_app_info",
+        "get_diagnostics",
+        "mcp_status",
+        "extensions_list",
+        "store.workspace",
+        "zephyrCari"
+      ],
+      "aturan": "ai-tahu-100-7 (maks 4 potongan, <=800 token/potongan TERMASUK kepala/header, cache per sesi)"
+    },
+    "segarAdaBasi": false,
+    "basiAdaBasi": true,
+    "basiAdaPeringatan": true,
+    "basiVersiAdaBasi": true,
+    "segarVersiAdaBasi": true,
+    "barisKemutakhiranBasi": "Kemutakhiran indeks: BASI - indeks dibuat untuk versi 1.1.13, aplikasi berjalan 9.9.9 - cap 1.1.13 / edcf2edbdfe7127e (190 berkas, 6253 entri); cara memeriksa dari app: zephyr_self bagian=indeks",
+    "barisKemutakhiranSegar": "Kemutakhiran indeks: segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI) - cap 1.1.13 / edcf2edbdfe7127e (190 berkas, 6253 entri); cara memeriksa dari app: zephyr_self bagian=indeks",
+    "basiHashRuntimeAda": true
+  },
+  "blokLapis2": {
+    "menyebutHash": true,
+    "menyebutBasi": false,
+    "contoh": "# Zephyr knowledge index - excerpt injected automatically for THIS turn\nIndex 6253 entries, app 1.1.13, source hash edcf2edbdfe7127e | categories: bridge 1, dokumen 176, ekstensi 17, kode 429, label 3023, layar 1991, menu 122, panel 22, perintah 179, pintasan 66, port 4, seksi 31, setelan 124, tool 68\nThese entries come from Zephyr's own sources, so they outrank anything you remember about Zephyr."
+  },
+  "cakupan": {
+    "N": 14,
+    "total": 14,
+    "entri": 6253,
+    "rincian": [
+      {
+        "kategori": "bridge",
+        "jumlah": 1
+      },
+      {
+        "kategori": "dokumen",
+        "jumlah": 176
+      },
+      {
+        "kategori": "ekstensi",
+        "jumlah": 17
+      },
+      {
+        "kategori": "kode",
+        "jumlah": 429
+      },
+      {
+        "kategori": "label",
+        "jumlah": 3023
+      },
+      {
+        "kategori": "layar",
+        "jumlah": 1991
+      },
+      {
+        "kategori": "menu",
+        "jumlah": 122
+      },
+      {
+        "kategori": "panel",
+        "jumlah": 22
+      },
+      {
+        "kategori": "perintah",
+        "jumlah": 179
+      },
+      {
+        "kategori": "pintasan",
+        "jumlah": 66
+      },
+      {
+        "kategori": "port",
+        "jumlah": 4
+      },
+      {
+        "kategori": "seksi",
+        "jumlah": 31
+      },
+      {
+        "kategori": "setelan",
+        "jumlah": 124
+      },
+      {
+        "kategori": "tool",
+        "jumlah": 68
+      }
+    ]
+  }
+}

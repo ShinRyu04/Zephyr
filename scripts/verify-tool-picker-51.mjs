@@ -30,11 +30,30 @@ const hasil = await cdp.json(`return JSON.stringify(await (async () => {
     el.click();
   };
 
-  /* Buka picker dengan jalur UI yang dipakai user. */
-  if (!document.querySelector('[data-testid="toolgate"]')) {
-    klik('[data-testid="ai-toolgate"]');
+  /* Buka picker lewat jalur UI yang dipakai user: tombol "..." di strip tab
+     (ai-more) -> menu -> "Chat Settings" (ai-open-chat-settings) -> nav Tools
+     (cset-nav-tools) -> tombol "Open tool sets…" (cset-tools). Entri menu lama
+     "Tool Sets" (ai-open-toolsets) dan tombol lama 'ai-toolgate' sudah tidak
+     ada di UI, jadi jalur inilah kontraknya. Kalau jalur ini putus, uji harus
+     gagal - bukan diam-diam "tidak menemukan panel". */
+  const bukaLewatMenu = async () => {
+    if (document.querySelector('[data-testid="toolgate"]')) return 'sudah terbuka';
+    klik('[data-testid="ai-more"]');
     await tidur(250);
-  }
+    const cs = document.querySelector('[data-testid="ai-open-chat-settings"]');
+    if (!cs) throw new Error('menu "..." terbuka tapi item Chat Settings (ai-open-chat-settings) tidak ada');
+    cs.click();
+    await tidur(450);
+    const navTools = document.querySelector('[data-testid="cset-nav-tools"]');
+    if (navTools) { navTools.click(); await tidur(350); }
+    const item = document.querySelector('[data-testid="cset-tools"]');
+    if (!item) throw new Error('Chat Settings terbuka tapi tombol "Open tool sets…" (cset-tools) tidak ada');
+    const label = (item.textContent || '').trim();
+    item.click();
+    await tidur(500);
+    return label ? 'Chat Settings -> Tools -> ' + label : 'Chat Settings -> Tools';
+  };
+  const jalurBuka = await bukaLewatMenu();
 
   /* Keadaan dasar harus selalu bisa dipulihkan dari UI. */
   klik('[data-testid="toolgate-all-off"]');
@@ -66,7 +85,6 @@ const hasil = await cdp.json(`return JSON.stringify(await (async () => {
     return {
       bagian,
       total: panel.querySelector('[data-testid="toolgate-total"]')?.textContent?.trim() ?? '',
-      trigger: document.querySelector('[data-testid="ai-toolgate-angka"]')?.textContent?.trim() ?? '',
       namaBaris,
       teks: panel.textContent ?? '',
       jumlahSwitch: panel.querySelectorAll('.tg-row').length,
@@ -81,7 +99,13 @@ const hasil = await cdp.json(`return JSON.stringify(await (async () => {
   await tidur(150);
   const kembali = ambil();
 
-  return { dasar, semuaNyala, kembali };
+  /* Escape menutup panel - jalur tutup yang dipakai user, dan satu-satunya
+     yang tersisa sekarang tombol trigger berangka itu dihapus. */
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await tidur(300);
+  const tertutupSesudahEsc = !document.querySelector('[data-testid="toolgate"]');
+
+  return { dasar, semuaNyala, kembali, jalurBuka, tertutupSesudahEsc };
 })())`);
 
 let lulus = 0;
@@ -115,7 +139,7 @@ cek('MCP tidak berisi Web/Browser', !mcp?.groups.some((g) => g === 'Web' || g ==
  * dan tidak lagi menangkap kata turunan di dalam kalimat.
  */
 cek('tidak ada label Optional', !/\boptional\b/i.test(hasil.dasar.teks));
-cek('tidak ada nama aplikasi di picker', !/Zephyr|TEDI/.test(hasil.dasar.teks));
+cek('tidak ada nama aplikasi di picker', !/Zephyr/.test(hasil.dasar.teks));
 cek('nama MCP tampil polos', hasil.dasar.namaBaris.includes('inspect') && !hasil.dasar.namaBaris.some((n) => n.includes('mcp__')), {
   contoh: hasil.dasar.namaBaris.filter((n) => n.includes('inspect') || n.includes('mcp__')).slice(0, 5),
 });
@@ -125,31 +149,34 @@ cek('nama MCP tampil polos', hasil.dasar.namaBaris.includes('inspect') && !hasil
  * antara footer, trigger, dan jumlah baris yang benar-benar dirender.
  */
 const bacaCounter = (teks) => {
-  const m = String(teks).match(/^(\d+)\s*(?:of|\/)\s*(\d+)/);
+  /* Teks footer ikut bahasa antarmuka ("61 dari 66 nyala" / "61 of 66 on"), jadi
+     yang dibaca hanya dua angkanya, bukan kata penghubungnya. */
+  const m = String(teks).match(/^(\d+)\s*(?:of|dari|\/)\s*(\d+)/);
   return m ? { nyala: Number(m[1]), total: Number(m[2]) } : null;
 };
 const dasarCount = bacaCounter(hasil.dasar.total);
-const dasarTrigger = bacaCounter(hasil.dasar.trigger);
 const semuaCount = bacaCounter(hasil.semuaNyala.total);
-const semuaTrigger = bacaCounter(hasil.semuaNyala.trigger);
 const kembaliCount = bacaCounter(hasil.kembali.total);
-const kembaliTrigger = bacaCounter(hasil.kembali.trigger);
+
+console.log('\n== Jalur buka/tutup panel ==');
+cek(
+  'panel dibuka lewat jalur UI nyata (menu "..." -> Chat Settings -> Tools -> "Open tool sets…")',
+  (hasil.jalurBuka === 'sudah terbuka' || String(hasil.jalurBuka).startsWith('Chat Settings -> Tools ->'))
+    && !/ai-more|ai-open-toolsets|ai-toolgate/.test(String(hasil.jalurBuka)),
+  { jalurBuka: hasil.jalurBuka },
+);
+cek('Escape menutup panel', hasil.tertutupSesudahEsc === true, { tertutup: hasil.tertutupSesudahEsc });
 
 console.log('\n== Counter dasar ==');
 cek(
-  'footer memakai bentuk "N of M on"',
-  dasarCount !== null && /^\d+ of \d+ on$/.test(hasil.dasar.total),
+  'footer memuat dua angka "N dari M nyala"',
+  dasarCount !== null,
   { dapat: hasil.dasar.total },
 );
 cek(
   'M footer = jumlah baris yang dirender',
   dasarCount !== null && dasarCount.total === hasil.dasar.jumlahSwitch,
   { footer: dasarCount, baris: hasil.dasar.jumlahSwitch },
-);
-cek(
-  'trigger dasar cocok dengan footer',
-  dasarTrigger !== null && dasarTrigger.nyala === dasarCount?.nyala && dasarTrigger.total === dasarCount?.total,
-  { trigger: dasarTrigger, footer: dasarCount },
 );
 cek(
   'keadaan dasar: web/browser OFF',
@@ -164,18 +191,10 @@ cek(
   semuaCount !== null && semuaCount.nyala === semuaCount.total && semuaCount.total === dasarCount?.total,
   { dapat: hasil.semuaNyala.total },
 );
-cek('trigger sesudah All on = M/M', /^(\d+)\/\1$/.test(String(hasil.semuaNyala.trigger)), {
-  dapat: hasil.semuaNyala.trigger,
-});
 cek(
   'All off memulihkan keadaan dasar persis',
   kembaliCount?.nyala === dasarCount?.nyala && kembaliCount?.total === dasarCount?.total,
   { dasar: hasil.dasar.total, kembali: hasil.kembali.total },
-);
-cek(
-  'trigger sesudah All off = keadaan dasar',
-  kembaliTrigger?.nyala === dasarTrigger?.nyala && kembaliTrigger?.total === dasarTrigger?.total,
-  { dasar: hasil.dasar.trigger, kembali: hasil.kembali.trigger },
 );
 
 console.log('\n== ' + lulus + '/' + (lulus + gagal) + ' lulus ==');

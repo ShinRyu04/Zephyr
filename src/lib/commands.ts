@@ -60,6 +60,7 @@ import type {
   RegistryEntry,
   ZephyrError,
 } from './types';
+import { pasangRealpathBacaKode } from './bacaKode';
 
 /**
  * Turn anything that gets thrown into a ZephyrError that is safe to display.
@@ -113,6 +114,50 @@ export const setSettings = (patch: Record<string, unknown>) =>
   invoke<void>('set_settings', { patch });
 export const setWindowSize = (width: number, height: number) =>
   invoke<void>('set_window_size', { width, height });
+
+/*
+ * Tangkap layar jendela (item ZEPH-SCREENSHOT-TOOL / 151).
+ *
+ * Sisi TypeScript dari perintah Rust `window_capture` yang SUDAH ADA:
+ * `src-tauri/src/tangkap_layar.rs`, didaftarkan di `src-tauri/src/lib.rs:60`
+ * (`mod tangkap_layar;`) dan `src-tauri/src/lib.rs:536` di
+ * `tauri::generate_handler!`. Namanya ditaruh di sini, di modul yang sama dengan
+ * seluruh `invoke()` lain, supaya kontraknya terkunci di satu tempat - dan
+ * harness `scripts/uji-tool-jendela.mjs` membandingkan nama ini dengan yang
+ * terdaftar di Rust, jadi dua nama yang berbeda tidak bisa lolos diam-diam.
+ *
+ * Bendera `TANGKAP_LAYAR_TERSEDIA` di src/lib/zephyrTools/kendaliJendela.ts
+ * sekarang menyala (true), dan hanya boleh menyala selama entri di
+ * generate_handler! di atas benar-benar ada: tanpa entri itu, Tauri menolak
+ * invoke ini, dan pemanggilnya akan menyimpulkan "tangkap layar gagal" padahal
+ * perintahnya tidak pernah ada.
+ */
+export const NAMA_PERINTAH_TANGKAP = 'window_capture';
+
+export interface HasilTangkapLayar {
+  /** Path PNG yang benar-benar tertulis. */
+  path: string;
+  width: number;
+  height: number;
+  bytes: number;
+  /**
+   * `true` HANYA kalau PNG benar-benar tertulis dan byte-nya sudah diverifikasi
+   * di disk oleh Rust (`src-tauri/src/tangkap_layar.rs` → `HasilTangkapLayar`).
+   * Field ini tidak ada di rancangan awal; perintah Rust SELALU mengirimnya.
+   */
+  berhasil?: boolean;
+  /**
+   * Alasan gagal saat `berhasil === false`. Perintah Rust tidak pernah
+   * melempar - tanpa field ini sebab kegagalan hilang dan pemanggil hanya
+   * melihat pesan generik.
+   */
+  pesanGalat?: string;
+}
+
+export const captureWindow = (args: { target?: 'window' | 'screen'; savePath?: string }) =>
+  invoke<HasilTangkapLayar>(NAMA_PERINTAH_TANGKAP, {
+    args: { target: args.target ?? 'window', savePath: args.savePath ?? null },
+  });
 
 export const extRegistryList = (query: string) =>
   invoke<RegistryEntry[]>('ext_registry_list', { query });
@@ -219,11 +264,39 @@ export const lspSetIdle = (server: string, secs: number) =>
   invoke<void>('lsp_set_idle', { server, secs });
 export const lspProbe = (spec: { id: string; cmd: string[]; lang: string }, root?: string) =>
   invoke<unknown>('lsp_probe', { spec, root });
+/* Which rows this build can install by itself (ids, in the same order as lsp.ts). */
+export const lspResep = () => invoke<string[]>('lsp_resep');
+/* Install one server into the app's private slot. It REJECTS with the reason
+ * (no recipe for that id, npm missing, npm could not start) and resolves with
+ * the run's report when npm did run - including a non-zero exit, which is a
+ * failed install that still needs to be shown. */
+export const lspPasang = (spec: { id: string; cmd: string[]; lang: string }) =>
+  invoke<unknown>('lsp_pasang', { spec });
 export const workspaceOpen = (path: string) => invoke<void>('workspace_open', { path });
 export const workspaceClose = () => invoke<void>('workspace_close');
 
 export const fsRead = (path: string, encoding?: Encoding) =>
   invoke<ReadResult>('fs_read', { path, encoding });
+
+/*
+ * Bentuk NYATA (kanonik) sebuah jalur: symlink/junction sudah diselesaikan,
+ * dan hasilnya DITOLAK backend kalau keluar dari akar workspace
+ * (`WorkspaceOutside`). Dipakai jalur tool `zephyr_kode` lewat
+ * `bacaKode.ts`: pagar symlink di sana membandingkan bentuk nyata berkas
+ * dengan bentuk nyata akar, jadi tanpa realpath yang sungguhan pautan yang
+ * menunjuk keluar repo tetap terlihat "di dalam".
+ */
+export const fsRealpath = (path: string) => invoke<string>('fs_realpath', { path });
+
+/*
+ * Suntikkan realpath sungguhan ke jalur tool `zephyr_kode`. `bacaKode.ts`
+ * sengaja TIDAK mengimpor berkas ini (lapisan itu tidak boleh menyentuh
+ * `@tauri-apps/api`), jadi penyambungannya lewat seam `pasangRealpathBacaKode`.
+ * Kalau aplikasi memuat modul ini - dan itu selalu terjadi - jalur tool dapat
+ * realpath nyata; tanpa itu `bacaKode.ts` MENOLAK membaca (fail-closed),
+ * bukan memakai realpath identitas yang selalu lolos pagar symlink.
+ */
+pasangRealpathBacaKode((path) => fsRealpath(path));
 
 export interface AgentExecResult {
   exitCode: number;
@@ -463,6 +536,16 @@ export const revealPath = (path: string) => invoke<void>('reveal_path', { path }
 export const listWorkspaceFiles = (limit?: number) =>
   invoke<QuickFile[]>('list_workspace_files', { limit });
 
+/**
+ * Drop the Quick Open file index.
+ *
+ * The index invalidates itself on a file-watcher generation change and on a
+ * different workspace root, so this is belt-and-braces for the one event that
+ * changes BOTH at once: switching workspace. Clearing eagerly means there is no
+ * window in which a stale answer is one generation away.
+ */
+export const clearWorkspaceFileIndex = () => invoke<boolean>('workspace_file_index_clear');
+
 export const browserProbe = (url: string) => invoke<ProbeResult>('browser_probe', { url });
 
 export interface RagHit {
@@ -603,6 +686,18 @@ export interface CliRunResult {
 }
 
 export const cliAgentsDetect = () => invoke<CliAgent[]>('cli_agents_detect');
+
+/*
+ * External formatter, run over a string.
+ *
+ * `input` goes in on stdin and the new text comes back on stdout, so the
+ * editor's buffer stays the source of truth: a formatter that fails changes
+ * nothing, and there is never a moment where a file on disk disagrees with the
+ * tab that is open.
+ */
+export const formatText = (command: string, input: string, cwd?: string, path?: string) =>
+  invoke<{ ok: boolean; out: string; err: string }>('format_text', { command, input, cwd, path });
+
 
 export const cliAgentRun = (opts: { id: string; prompt: string; cwd?: string }) =>
   invoke<CliRunResult>('cli_agent_run', opts);
@@ -820,6 +915,14 @@ export const gitCreateBranch = (name: string, from?: string) =>
 export const gitDeleteBranch = (name: string) => invoke<void>('git_delete_branch', { name });
 export const gitDiff = (path: string, staged = false) =>
   invoke<string>('git_diff', { path, staged });
+/**
+ * One file's diff against HEAD — both staged and unstaged.
+ *
+ * Distinct from `gitDiff`, which compares to the index: a staged file has no
+ * index diff, so the gutter built on that would clear its bars the moment the
+ * reader staged the file, before anything was committed.
+ */
+export const gitDiffHead = (path: string) => invoke<string>('git_diff_head', { path });
 export const gitDiscard = (paths: string[]) => invoke<void>('git_discard', { paths });
 export const gitLog = (n = 20) => invoke<GitCommitInfo[]>('git_log', { n });
 export const gitConfigGetUser = () => invoke<GitUser>('git_config_get_user');
@@ -910,6 +1013,29 @@ export const mcpClientTools = (url: string, token: string) =>
 export const mcpClientCall = (server: string, tool: string, args?: Record<string, unknown>) =>
   invoke<unknown>('mcp_client_call', { server, tool, args: args ?? {} });
 
+/*
+ * MCP PROMPTS — the other half of the protocol.
+ *
+ * A server exposes tools (the model calls them) and prompts (a person picks
+ * them). Zephyr only spoke the tools half, so a server whose value is mostly
+ * its prompts looked like it did nothing.
+ */
+export interface McpPromptSpec {
+  name: string;
+  description: string;
+  /** As the server describes them: `{name, description, required}[]`. */
+  arguments: unknown;
+}
+
+export const mcpClientPrompts = (url: string, token: string) =>
+  invoke<McpPromptSpec[]>('mcp_client_prompts', { url, token });
+
+export const mcpClientPromptGet = (
+  server: string,
+  name: string,
+  args?: Record<string, unknown>,
+) => invoke<unknown>('mcp_client_prompt_get', { server, name, args: args ?? {} });
+
 export const mcpClientSave = (opts: {
   id: string;
   label: string;
@@ -966,6 +1092,15 @@ export const extExec = (opts: {
 }) => invoke<ExtExecResult>('ext_exec', opts);
 
 export const getDiagnostics = () => invoke<Diagnostics>('get_diagnostics');
+
+/**
+ * `n` baris terakhir ISI berkas log aplikasi (folder dataDir/logs), dibaca
+ * READ-ONLY oleh perintah Rust `log_tail`. Perintah itu TIDAK menerima path dari
+ * pemanggil - sengaja: kalau menerima, ini jadi jalan pintas membaca berkas di
+ * luar app, persis yang ditolak `WorkspaceOutside`. Dipakai `zephyr_self`
+ * bagian `log` supaya Zeph AI bisa memeriksa diri sendiri tanpa folder user.
+ */
+export const logTail = (n = 200) => invoke<string[]>('log_tail', { n });
 
 
 export const aiCaptureSet = (on: boolean) => invoke<boolean>('ai_capture_set', { on });

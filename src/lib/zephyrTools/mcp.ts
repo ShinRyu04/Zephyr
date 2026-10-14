@@ -60,6 +60,16 @@ export function resetPenjagaPerintahSama(): void {
 }
 import type { AgentTool } from '../agentTools';
 import { potong, bacaAngka, wajib, periksaPerintah } from './builtins';
+import {
+  aksiPane,
+  bukaPanel,
+  bukaSetelan,
+  daftarPanel,
+  daftarSetelan,
+  laporanTangkapLayar,
+  ringkasJendela,
+  tangkapJendela,
+} from './kendaliJendela';
 
 export const TOOL_MCP: AgentTool[] = [
   /* 1. inspect */
@@ -67,13 +77,13 @@ export const TOOL_MCP: AgentTool[] = [
     spec: {
       name: 'mcp__zephyr__inspect',
       description:
-        'Inspect the internal state of the editor: commands, extensions, settings, workspaces, or logs.',
+        'Inspect the internal state of the editor: commands, extensions, settings, workspaces, logs, or window (which panels and Settings sections can be opened, plus the current state summary).',
       parameters: {
         type: 'object',
         properties: {
           what: {
             type: 'string',
-            enum: ['commands', 'extensions', 'settings', 'workspaces', 'logs'],
+            enum: ['commands', 'extensions', 'settings', 'workspaces', 'logs', 'window'],
             description: 'What to inspect.',
           },
         },
@@ -82,6 +92,25 @@ export const TOOL_MCP: AgentTool[] = [
     },
     run: async (a) => {
       const what = wajib(a, 'what');
+      /*
+       * `window` menjawab "apa yang bisa kamu munculkan?" dengan daftar yang
+       * BENAR-BENAR dipakai `run_command`, bukan salinan: panel dan bagian
+       * Settings dibaca dari peta yang sama dengan yang mengeksekusi. Ditambah
+       * dua hal yang tidak punya jalur lain: keadaan jendela sekarang, dan
+       * status penangkap layar (yang belum ada di build ini).
+       */
+      if (what === 'window') {
+        return JSON.stringify(
+          {
+            panel: daftarPanel(),
+            bagianSetelan: daftarSetelan(),
+            ringkasan: ringkasJendela(),
+            tangkapLayar: laporanTangkapLayar(),
+          },
+          null,
+          2,
+        );
+      }
       if (what === 'workspaces') {
         const s = useStore.getState();
         return JSON.stringify({ active: s.workspace ?? null, root: s.workspace ?? '.' }, null, 2);
@@ -117,17 +146,65 @@ export const TOOL_MCP: AgentTool[] = [
   {
     spec: {
       name: 'mcp__zephyr__run_command',
-      description: 'Run an internal application command by its ID.',
+      description:
+        'Open/act on the application window: run any registered command id, open a panel (problems, output, debug, terminal, ports, subagents), or open a Settings section - and return the real window state afterwards.',
       parameters: {
         type: 'object',
         properties: {
           id: { type: 'string', description: 'Command ID, e.g. workbench.action.splitEditor.' },
+          panel: {
+            type: 'string',
+            description: 'Panel to open: problems | output | debug | terminal | ports | subagents.',
+          },
+          settings: {
+            type: 'string',
+            description: 'Settings section to open, e.g. editor, theme, shortcuts, extensions, about.',
+          },
+          capture: {
+            type: 'boolean',
+            description: 'Tangkap layar jendela aplikasi, simpan sebagai PNG, lalu salin ke clipboard.',
+          },
+          path: { type: 'string', description: 'Untuk capture: path PNG tujuan (opsional).' },
+          copy: { type: 'boolean', description: 'Untuk capture: salin gambar ke clipboard (default true).' },
         },
-        required: ['id'],
+        required: [],
       },
     },
     run: async (a) => {
-      const id = wajib(a, 'id');
+      const panel = a.panel ? String(a.panel).trim() : '';
+      const setelan = a.settings ? String(a.settings).trim() : '';
+      /*
+       * Dua parameter ini yang membuat Zeph benar-benar MEMUNCULKAN sesuatu.
+       *
+       * Keduanya sengaja ada di tool yang sudah dipakai (`run_command`), bukan
+       * di tool baru: satu-satunya yang berubah bagi model adalah nilai
+       * parameternya, dan tidak ada nama tool tambahan yang harus ditemukan
+       * lebih dulu. Jawabannya selalu memuat ringkasan keadaan - jadi model
+       * membaca jendela yang benar-benar ada, bukan yang ia maksudkan.
+       */
+      if (panel) return await bukaPanel(panel);
+      if (setelan) return await bukaSetelan(setelan);
+
+      /*
+       * Tangkap layar menumpang tool yang sama. Tanpa perintah Rust-nya
+       * (`window_capture` belum terdaftar) jawabannya adalah laporan keadaan -
+       * bukan error, dan bukan klaim berhasil.
+       */
+      if (a.capture === true) {
+        return await tangkapJendela({
+          path: a.path ? String(a.path) : undefined,
+          salin: a.copy !== false,
+        });
+      }
+
+      const id = a.id ? String(a.id).trim() : '';
+      if (!id) {
+        throw new Error(
+          'ERROR: run_command butuh salah satu dari: "id" (id perintah, mis. workbench.action.togglePanel), ' +
+            '"panel" (problems|output|debug|terminal|ports|subagents), "settings" (bagian setelan), ' +
+            'atau "capture": true (tangkap layar jendela).',
+        );
+      }
       if (id.includes('terminal.new')) {
         const t = useTerminal.getState();
         const paneId = await t.addPane('shell');
@@ -142,18 +219,35 @@ export const TOOL_MCP: AgentTool[] = [
         return `Command dijalankan: editor ditutup.`;
       }
       /*
-       * Never report success for an id that was not actually executed.
+       * Jangan pernah melaporkan sukses untuk id yang tidak benar-benar jalan.
        *
-       * This used to return `Command dieksekusi: <id>` for ANY unknown id, so
-       * the model was told its command ran when nothing happened. A model that
-       * believes a failed action succeeded does not retry it - it builds the
-       * rest of the turn on a result that does not exist, which is the worst
-       * possible failure mode. Fail loudly so the model can route around it
-       * (e.g. to bash_run for a shell command).
+       * Dulu tool ini mengembalikan `Command dieksekusi: <id>` untuk id apa pun
+       * yang tidak dikenal, sehingga model diberi tahu perintahnya berjalan
+       * padahal tidak terjadi apa-apa - dan model yang percaya aksi gagal
+       * berhasil tidak akan mengulanginya, ia membangun sisa giliran di atas
+       * hasil yang tidak ada. Sekarang: id yang tidak ada di registry DITOLAK.
        */
+      /*
+       * Registri perintah adalah jalur UTAMA, bukan cadangan.
+       *
+       * Sebelum ini `run_command` hanya mengenal dua id hardcoded dan melempar
+       * error untuk sisanya - termasuk SETIAP id panel dan Settings, sehingga
+       * Zeph tidak bisa memunculkan satu pun panel aplikasinya. Yang dijalankan
+       * sekarang adalah `commandRegistry.runCommand`, jalur yang sama dengan
+       * menu bar dan Command Palette: apa pun yang bisa diklik user bisa
+       * dipanggil Zeph, dan id yang tidak ada tetap ditolak apa adanya.
+       */
+      const { findCommand, runCommand } = await import('../commandRegistry');
+      if (findCommand(id)) {
+        const ok = await runCommand(id);
+        const lapor = ok
+          ? `Command dijalankan: ${id}.`
+          : `Command ${id} gagal dijalankan (lihat status bar).`;
+        return `${lapor} ${ringkasJendela()}`;
+      }
       throw new Error(
-        `ERROR: command id "${id}" is not implemented by run_command (it only runs a few internal editor ids). ` +
-          'For a shell command, use bash_run instead.',
+        `ERROR: command id "${id}" tidak dikenal (tidak ada di commandRegistry). ` +
+          'Untuk perintah shell pakai bash_run; untuk membuka panel atau bagian setelan pakai parameter panel/settings.',
       );
     },
   },
@@ -241,24 +335,54 @@ export const TOOL_MCP: AgentTool[] = [
     },
   },
 
-  /* 6. extension */
+  /*
+   * 6. extension
+   *
+   * AKAR (dulu STUB -> temuan MERAH "kapabilitas diklaim, belum terlayani"):
+   * handler lama hanya mengembalikan "aksi ${action} dicatat" tanpa memanggil
+   * apa pun. Kapabilitasnya (lihat ekstensi, aktif/nonaktif, copot) SUDAH ADA
+   * sebagai perintah aplikasi; jadi memperbaiki akarnya = menyambung handler ke
+   * perintah itu, bukan menghapus tool. `reload`/`update` DIBUANG karena tidak
+   * ada perintah yang melayaninya (padanan reload ada di `mcp__zephyr__run_command`
+   * bila commandRegistry memaparkannya; kalau tidak, tidak ada kapabilitas yang
+   * hilang karena memang tak pernah jalan).
+   */
   {
     spec: {
       name: 'mcp__zephyr__extension',
-      description: 'Kelola ekstensi: enable, disable, reload, update, uninstall.',
+      description:
+        'Kelola ekstensi Zephyr: list (daftar terpasang), enable, disable, atau uninstall. ' +
+        'Untuk memasang/mencopot berkas ekstensi dari luar pakai perintah aplikasi terkait.',
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['enable', 'disable', 'reload', 'update', 'uninstall'] },
-          id: { type: 'string', description: 'ID ekstensi.' },
+          action: { type: 'string', enum: ['list', 'enable', 'disable', 'uninstall'] },
+          id: { type: 'string', description: 'ID ekstensi (wajib untuk enable/disable/uninstall).' },
         },
-        required: ['action', 'id'],
+        required: ['action'],
       },
     },
     run: async (a) => {
       const action = wajib(a, 'action');
+      if (action === 'list') {
+        const daftar = await cmd.extensionsList();
+        if (!daftar.length) return 'Tidak ada ekstensi terpasang.';
+        return JSON.stringify(daftar, null, 2);
+      }
       const id = wajib(a, 'id');
-      return `Ekstensi ${id}: aksi ${action} dicatat.`;
+      if (action === 'enable') {
+        const ok = await cmd.extensionsSetEnabled(id, true);
+        return ok ? `Ekstensi ${id} diaktifkan.` : `Ekstensi ${id} tidak diaktifkan (lihat Setelan > Ekstensi).`;
+      }
+      if (action === 'disable') {
+        const ok = await cmd.extensionsSetEnabled(id, false);
+        return ok ? `Ekstensi ${id} dinonaktifkan.` : `Ekstensi ${id} tetap aktif (lihat Setelan > Ekstensi).`;
+      }
+      if (action === 'uninstall') {
+        const ok = await cmd.extensionsUninstall(id);
+        return ok ? `Ekstensi ${id} dicopot.` : `Ekstensi ${id} tidak dicopot (lihat Setelan > Ekstensi).`;
+      }
+      throw new Error(`ERROR: aksi extension tidak dikenal: ${action}. Pakai list|enable|disable|uninstall.`);
     },
   },
 
@@ -411,43 +535,122 @@ export const TOOL_MCP: AgentTool[] = [
     },
   },
 
-  /* 11. wait_for_terminal */
+  /*
+   * 11. wait_for_terminal
+   *
+   * AKAR (dulu STUB): handler lama hanya `setTimeout` lalu melapor "selesai" —
+   * ia TIDAK pernah membaca terminal, jadi "selesai" itu klaim kosong (dokumen
+   * audit menyebutnya C13: "isyarat teks yang ditunggu tidak diperiksa").
+   *
+   * Perbaikan akar: benar-benar MEMBACA scrollback pane aktif (cmd.ptyTail) dan
+   * berhenti dengan ALASAN yang jujur — teks `until` muncul, keluaran berhenti
+   * berubah (idle), atau batas waktu habis — lalu mengembalikan cuplikan keluaran
+   * sebagai bukti. Kapabilitas yang dilayani: membaca terminal (shell:baca).
+   */
   {
     spec: {
       name: 'mcp__zephyr__wait_for_terminal',
-      description: 'Tunggu beberapa saat sampai terminal selesai memproses.',
+      description:
+        'Tunggu terminal aktif menyelesaikan prosesnya: berhenti begitu keluaran berhenti berubah (idle), ' +
+        'begitu teks `until` muncul, atau saat batas waktu habis. Mengembalikan cuplikan keluaran terakhir sebagai bukti.',
       parameters: {
         type: 'object',
         properties: {
-          timeout: { type: ['number', 'string'], description: 'Waktu tunggu dalam milidetik.' },
+          timeout: { type: ['number', 'string'], description: 'Batas tunggu dalam milidetik (bawaan 5000, maksimum 60000).' },
+          until: { type: 'string', description: 'Teks yang ditunggu; tunggu berhenti lebih awal begitu teks ini muncul di scrollback.' },
+          leafId: { type: 'string', description: 'ID pane terminal target; kosongkan untuk pane aktif.' },
         },
         required: [],
       },
     },
     run: async (a) => {
-      const ms = Math.min(10000, bacaAngka(a.timeout, 1500) ?? 1500);
-      await new Promise((r) => setTimeout(r, ms));
-      return `Selesai menunggu terminal (${ms} ms).`;
+      const batasMs = Math.min(60000, Math.max(200, bacaAngka(a.timeout, 5000) ?? 5000));
+      const until = a.until ? String(a.until) : '';
+      const t = useTerminal.getState();
+      const aktif = t.terminalTabs.find((x) => x.id === t.activeTabId);
+      const targetId = a.leafId
+        ? String(a.leafId)
+        : aktif?.activePaneId ?? aktif?.panes[0]?.id;
+      if (!targetId) throw new Error('ERROR: tidak ada terminal aktif untuk ditunggu.');
+      const mulai = Date.now();
+      let sebelumnya = '';
+      let stabil = 0;
+      while (Date.now() - mulai < batasMs) {
+        const teks = await cmd.ptyTail(targetId, 200).catch(() => '');
+        if (until && teks.includes(until)) {
+          const ms = Date.now() - mulai;
+          return potong(`Teks "${until}" muncul di terminal ${targetId} setelah ${ms} ms:\n${teks}`);
+        }
+        if (teks === sebelumnya) {
+          stabil += 1;
+          if (stabil >= 2) break;
+        } else {
+          stabil = 0;
+        }
+        sebelumnya = teks;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      const ms = Date.now() - mulai;
+      if (!sebelumnya.trim()) return `Terminal ${targetId} menunggu ${ms} ms: belum ada keluaran.`;
+      return potong(`Terminal ${targetId} idle setelah ${ms} ms. Keluaran terakhir:\n${sebelumnya}`);
     },
   },
 
-  /* 12. worktree */
+  /*
+   * 12. worktree
+   *
+   * AKAR (dulu STUB -> dokumen audit C10): handler lama mengembalikan "selesai"
+   * tanpa memanggil apa pun, padahal perintah git worktree NYATA sudah ada
+   * (commands.ts: `git_worktree_list/add/remove/prune`). Perbaikan akarnya =
+   * menyambung ke perintah itu. Aksi `open` DIBUANG karena tak ada backend
+   * "buka worktree"; padanannya jelas: buka foldernya lewat `mcp__zephyr__workspace`
+   * action="switch" dengan `path` worktree tersebut.
+   */
   {
     spec: {
       name: 'mcp__zephyr__worktree',
-      description: 'Kelola git worktree di repositori.',
+      description:
+        'Kelola git worktree repositori aktif: list, add, remove, prune. ' +
+        'Untuk MEMBUKA folder worktree hasil `add`, pakai mcp__zephyr__workspace action="switch" dengan path-nya.',
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['list', 'add', 'remove', 'prune', 'open'] },
-          branch: { type: 'string' },
+          action: { type: 'string', enum: ['list', 'add', 'remove', 'prune'] },
+          path: { type: 'string', description: 'Jalur worktree (wajib untuk add/remove).' },
+          branch: { type: 'string', description: 'Nama branch (untuk add).' },
+          createBranch: { type: 'boolean', description: 'Buat branch baru (untuk add).' },
+          force: { type: 'boolean', description: 'Paksa hapus meski worktree kotor (untuk remove).' },
         },
         required: ['action'],
       },
     },
     run: async (a) => {
       const action = wajib(a, 'action');
-      return `Git worktree ${action} selesai.`;
+      if (action === 'list') {
+        const daftar = await cmd.worktreeList();
+        if (!daftar.length) return 'Tidak ada git worktree.';
+        return JSON.stringify(daftar, null, 2);
+      }
+      if (action === 'add') {
+        const path = wajib(a, 'path');
+        const branch = a.branch ? String(a.branch) : undefined;
+        const hasil = await cmd.worktreeAdd({
+          path,
+          branch,
+          createBranch: a.createBranch === true,
+        });
+        return `Worktree ditambahkan di ${path}${branch ? ` (branch ${branch})` : ''}. ${hasil}`;
+      }
+      if (action === 'remove') {
+        const path = wajib(a, 'path');
+        const hasil = await cmd.worktreeRemove({ path, force: a.force === true });
+        return `Worktree ${path} dihapus. ${hasil}`;
+      }
+      if (action === 'prune') {
+        const hasil = await cmd.worktreePrune();
+        return `Worktree prune selesai. ${hasil}`;
+      }
+      throw new Error(`ERROR: aksi worktree tidak dikenal: ${action}. Pakai list|add|remove|prune.`);
     },
   },
 
@@ -479,33 +682,44 @@ export const TOOL_MCP: AgentTool[] = [
   {
     spec: {
       name: 'mcp__zephyr__pane',
-      description: 'Buka, bagi, atau tutup pane terminal.',
+      description:
+        'Buka, bagi, atur layout, atau tutup pane terminal, dan ganti tab terminal. Selalu mengembalikan ringkasan keadaan jendela.',
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['open', 'close', 'rotate', 'group', 'consolidate'] },
-          leafId: { type: 'string', description: 'ID pane yang dituju.' },
+          action: {
+            type: 'string',
+            enum: [
+              'open',
+              'close',
+              'rotate',
+              'split',
+              'grid',
+              'group',
+              'consolidate',
+              'tab',
+              'nextTab',
+              'prevTab',
+              'focus',
+            ],
+            description:
+              'open=pane baru; close=tutup pane; rotate/split/grid/group/consolidate=atur layout tab; tab/nextTab/prevTab=ganti tab terminal; focus=fokuskan pane.',
+          },
+          leafId: { type: 'string', description: 'ID pane yang dituju (close/focus).' },
+          target: {
+            type: 'string',
+            description: 'Untuk action="tab": "next" | "prev" | "new" | id atau judul tab.',
+          },
         },
         required: ['action'],
       },
     },
     run: async (a) => {
       const action = wajib(a, 'action');
-      const t = useTerminal.getState();
-      if (action === 'open') {
-        const paneId = await t.addPane('shell');
-        if (!paneId) {
-          throw new Error(`ERROR: ${useTerminal.getState().terminalError ?? 'pane terminal gagal dibuat'}`);
-        }
-        return `Pane terminal baru dibuka: ${paneId}`;
-      }
-      if (action === 'close') {
-        const activeTab = t.terminalTabs.find((x) => x.id === t.activeTabId);
-        const id = a.leafId ? String(a.leafId) : activeTab?.panes[0]?.id;
-        if (id) await t.closePane(id);
-        return `Pane ${id} ditutup.`;
-      }
-      return `Aksi pane ${action} selesai.`;
+      return await aksiPane(action, {
+        leafId: a.leafId ? String(a.leafId) : undefined,
+        target: a.target ? String(a.target) : undefined,
+      });
     },
   },
 ];

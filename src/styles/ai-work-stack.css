@@ -566,46 +566,48 @@
   background: var(--bg2);
 }
 
-.ai-work-menu-pop {
-  position: absolute;
-  top: 26px;
-  right: 4px;
-  z-index: 30;
-  min-width: 150px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-1, var(--bg1));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-
-.ai-work-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 5px 7px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--fg0);
-  font: inherit;
-  font-size: 11.5px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.ai-work-menu-item:hover {
-  background: var(--bg2);
-}
-
-.ai-work-menu-item.is-danger {
-  color: rgb(248, 81, 73);
-}
-
 /* The popover is positioned against the section header, so that row must be
    the containing block - without this it anchors to the nearest positioned
    ancestor, which is the panel, and lands in the wrong place. */
 .ai-work-section {
   position: relative;
+}
+
+
+/*
+ * The HydraFusion stage row.
+ *
+ * Same shape as the prompt/cadence rows above (small icon, one line) because it
+ * lives in the same stack, and a differently-shaped row would read as a
+ * different kind of thing. Accent-coloured: unlike cadence, this line changes
+ * during a run, and for a critique-and-revise route it is the ONLY thing on
+ * screen while two of the three requests are in flight - those two are
+ * buffered on purpose, so they never stream into the transcript.
+ *
+ * The model name is dimmer than the stage count: the count is what the reader
+ * checks to see progress, the name is what they look up only when the run
+ * looks wrong. Kept to one line so it cannot push the composer down.
+ */
+.ai-work-hydra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--accent);
+}
+
+.ai-work-hydra svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.ai-work-hydra .ai-work-meta {
+  color: var(--fg3, var(--fg2));
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

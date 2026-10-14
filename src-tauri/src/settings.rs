@@ -97,7 +97,31 @@ pub fn default_settings() -> Value {
             "bracketPairColorization": true,
             "vimMode": false,
             "autoSave": "off",
-            "autoSaveDelay": 1000
+            "autoSaveDelay": 1000,
+
+            // Setiap kunci di bawah WAJIB ada di sini juga, bukan hanya di
+            // `DEFAULT_SETTINGS` (types.ts). `get_settings` menggabungkan
+            // default Rust ini dengan settings.json milik user, dan frontend
+            // TIDAK pernah mengisi kekosongan di `editor.*` - ia hanya
+            // menambal beberapa kunci `general.*` (lihat `normalisasiSettings`
+            // di store.ts). Jadi kunci yang lupa didaftarkan di sini tiba di
+            // komponen sebagai `undefined`, dan default yang tertulis di
+            // types.ts tidak pernah berlaku: `codeFolding: true` tetap
+            // membuat folding MATI, dan `lineNumbers: 'on'` membuat dropdown
+            // tidak punya opsi yang cocok dengan nilainya.
+            "codeFolding": true,
+            "diagLens": false,
+            "gitBlame": false,
+            "lineNumbers": "on",
+            "scrollMargin": 3,
+            "scrollPastEnd": false,
+            "autoscrollOnClick": true,
+            "centeredWidth": 0,
+            "fixAllOnSave": false,
+            "gitGutter": false,
+            "inlayHints": false,
+            "semanticTokens": false,
+            "debugInlineValues": false
         },
         "theme": { "current": "zephyr-dark", "accent": "#3884ff" },
         "shortcuts": {},
@@ -120,7 +144,8 @@ pub fn default_settings() -> Value {
             "enabled": [],
             "trust": {},
 
-            "registryUrl": ""
+            "registryUrl": "",
+            "registryUrls": []
         },
 
         "accessibility": {
@@ -136,12 +161,39 @@ pub fn default_settings() -> Value {
         "subagent": {
             "maxParallel": 4,
             "maxSteps": 15,
+            // Subagent file writes. OFF by default, and that default is the one
+            // the UI has to be honest about.
+            //
+            // This flag opens the write CLASS, not a file. A second gate still
+            // applies: a subagent that wants to change a file on disk needs the
+            // approval mode `auto`, because a subagent has no approval card of
+            // its own to ask the user with. So `true` here means "may write",
+            // not "will write" - turn it on and a write can still be refused,
+            // with the refusal reported back instead of a silent no-op.
             "allowWrite": false,
             "showPanel": true,
             "autoCollapse": true,
             "model": "",
             "provider": "",
             "idleSecs": 90
+        },
+
+        // HydraFusion: adaptive model orchestration for the main chat.
+        //
+        // OFF by default. When it is on it can spend up to `maxRequests`
+        // provider calls on ONE turn (escalation, or draft+critique+revision),
+        // so enabling it is a deliberate answer to "may this cost more than a
+        // plain turn". `tiers` is empty on purpose: an empty ref means the
+        // frontend derives the rung from the model catalog, which keeps this
+        // default from naming a model that may not be configured.
+        //
+        // Every key has to be listed here. settings_load deep-merges the stored
+        // file over these defaults, so a missing key arrives as `undefined` in
+        // the frontend and the feature reads as off forever.
+        "hydrafusion": {
+            "enabled": false,
+            "tiers": { "cheap": "", "mid": "", "strong": "" },
+            "maxRequests": 3
         },
         // `allow_terminal_control` sudah dibaca di mcp_server.rs sejak lama,
         // tapi bawaannya harus ditulis eksplisit di sini juga. Tanpa kunci ini,
@@ -153,6 +205,12 @@ pub fn default_settings() -> Value {
             "token": "",
             "writeToCli": [],
             "allow_terminal_control": false,
+
+            // Berapa tool per server MCP pihak ketiga yang dikirim ke model.
+            // Harus sama dengan `mcp.maxToolsPerServer` di src/lib/types.ts:
+            // settings_load menimpa berkas tersimpan di atas nilai bawaan ini,
+            // jadi kunci yang hilang tiba di frontend sebagai undefined.
+            "maxToolsPerServer": 40,
         },
         "ssh": { "recentHosts": [] },
 
@@ -250,11 +308,7 @@ pub fn read_json_um(path: &PathBuf) -> Option<Value> {
     tracing::error!(
         "{} is corrupt ({e}) — {} to {}",
         path.display(),
-        if ok {
-            "moved"
-        } else {
-            "MOVE FAILED"
-        },
+        if ok { "moved" } else { "MOVE FAILED" },
         backup.display()
     );
     if ok {
@@ -301,7 +355,9 @@ pub fn get_keybindings(state: State<AppState>) -> ZResult<Value> {
 #[tauri::command(async)]
 pub fn set_keybindings(app: AppHandle, state: State<AppState>, bindings: Value) -> ZResult<()> {
     if !bindings.is_array() {
-        return Err(ZephyrError::InvalidInput("keybindings must be an array".into()));
+        return Err(ZephyrError::InvalidInput(
+            "keybindings must be an array".into(),
+        ));
     }
     write_json(&state.file("keybindings.json"), &bindings)?;
     let _ = app.emit("settings-changed", json!({ "key": "keybindings" }));
@@ -315,9 +371,9 @@ pub fn set_keybindings(app: AppHandle, state: State<AppState>, bindings: Value) 
 fn write_json(path: &PathBuf, v: &Value) -> ZResult<()> {
     let bytes = serde_json::to_vec_pretty(v)?;
     /* Memakai helper bersama `tulis_aman`: satu implementasi penulisan atomik
-       untuk seluruh proyek. Sebelumnya ada dua salinan (di sini dan di
-       secrets.rs), dan dua salinan berarti salah satunya bisa diperbaiki dan
-       yang lain tertinggal. */
+    untuk seluruh proyek. Sebelumnya ada dua salinan (di sini dan di
+    secrets.rs), dan dua salinan berarti salah satunya bisa diperbaiki dan
+    yang lain tertinggal. */
     crate::tulis_aman::tulis_atomik(path, &bytes)
 }
 
@@ -330,8 +386,7 @@ pub fn get_app_info(app: AppHandle, state: State<AppState>) -> ZResult<AppInfo> 
         .map(|d| d.to_string_lossy().to_string())
         .unwrap_or_default();
 
-    let portable =
-        !exe_dir.is_empty() && crate::cli_ext::portable_aktif();
+    let portable = !exe_dir.is_empty() && crate::cli_ext::portable_aktif();
     Ok(AppInfo {
         version: app.package_info().version.to_string(),
         identifier: app.config().identifier.clone(),
@@ -394,8 +449,11 @@ pub fn get_settings(state: State<AppState>) -> ZResult<Value> {
 }
 
 #[tauri::command]
-pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZResult<()> {    if !patch.is_object() {
-        return Err(ZephyrError::InvalidInput("the patch must be an object".into()));
+pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZResult<()> {
+    if !patch.is_object() {
+        return Err(ZephyrError::InvalidInput(
+            "the patch must be an object".into(),
+        ));
     }
     let path = state.file("settings.json");
     let mut current = match baca_untuk_patch(&path) {
@@ -521,7 +579,9 @@ pub fn patch_settings(app: &AppHandle, state: &AppState, patch: Value) -> ZResul
 
 pub fn patch_settings_no_emit(state: &AppState, patch: Value) -> ZResult<()> {
     if !patch.is_object() {
-        return Err(ZephyrError::InvalidInput("the patch must be an object".into()));
+        return Err(ZephyrError::InvalidInput(
+            "the patch must be an object".into(),
+        ));
     }
     let path = state.file("settings.json");
     let mut current = match baca_untuk_patch(&path) {

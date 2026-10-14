@@ -7,9 +7,22 @@ use std::time::{Duration, Instant};
 use tauri::State;
 
 const MAX_OUTPUT_CHARS: usize = 20_000;
-// Shell commands that omit a timeout should fail fast on a stalled network call.
-// Explicit values, including long build timeouts, are still honored up to the cap.
-const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+/*
+ * Default when the model does not pass a timeout.
+ *
+ * 30s was too short for real work, and the failure it produced was silent:
+ * a build, an install, or a test suite that legitimately runs for a minute was
+ * killed, and the timeout branch below returns EMPTY stdout and stderr - so the
+ * model saw a command that "ran" and said nothing at all. It then retried,
+ * guessed, or gave up, which reads on screen as heavy work that keeps breaking
+ * off. `bash_run` is the general-purpose command tool and cannot know in advance
+ * whether it got a `dir` or a `cargo build`.
+ *
+ * 5 minutes covers a cold install or a full build; the caller can still pass an
+ * explicit value (honored up to MAX_TIMEOUT_MS) and long-lived processes belong
+ * in `bash_background` regardless.
+ */
+const DEFAULT_TIMEOUT_MS: u64 = 300_000;
 const MAX_TIMEOUT_MS: u64 = 600_000;
 const POLL_MS: u64 = 25;
 
@@ -125,28 +138,70 @@ async fn jalan(
     child: &mut tokio::process::Child,
     out_pipe: &mut Option<tokio::process::ChildStdout>,
     err_pipe: &mut Option<tokio::process::ChildStderr>,
+    out_buf: &std::sync::Arc<tokio::sync::Mutex<Vec<u8>>>,
+    err_buf: &std::sync::Arc<tokio::sync::Mutex<Vec<u8>>>,
 ) -> std::io::Result<(i32, String, String)> {
     use tokio::io::AsyncReadExt;
 
+    /*
+     * Output accumulates into SHARED buffers, not local ones.
+     *
+     * A local buffer only becomes readable when the future completes - and on
+     * the timeout path the future is dropped, taking every byte with it. That is
+     * how a timed-out command came back with `stdout: ""` and `stderr: ""`: the
+     * model was told the command ran and produced nothing, which is
+     * indistinguishable from a command that genuinely printed nothing. It then
+     * retried or invented a reason, and the run looked broken.
+     *
+     * Reading incrementally means the timeout branch below can still return what
+     * arrived before the deadline: usually the compiler error, the progress
+     * line, or the prompt that explains WHY it was slow.
+     */
     let so = out_pipe.as_mut();
     let se = err_pipe.as_mut();
+    let ob = out_buf.clone();
+    let eb = err_buf.clone();
     let t_out = async {
-        let mut buf = Vec::new();
         if let Some(p) = so {
-            let _ = p.read_to_end(&mut buf).await;
+            let mut chunk = [0u8; 8192];
+            loop {
+                match p.read(&mut chunk).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => ob.lock().await.extend_from_slice(&chunk[..n]),
+                }
+            }
         }
-        String::from_utf8_lossy(&buf).to_string()
     };
     let t_err = async {
-        let mut buf = Vec::new();
         if let Some(p) = se {
-            let _ = p.read_to_end(&mut buf).await;
+            let mut chunk = [0u8; 8192];
+            loop {
+                match p.read(&mut chunk).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => eb.lock().await.extend_from_slice(&chunk[..n]),
+                }
+            }
         }
-        String::from_utf8_lossy(&buf).to_string()
     };
 
-    let status = child.wait().await;
-    let (stdout, stderr) = tokio::join!(t_out, t_err);
+    /*
+     * The three run CONCURRENTLY, not in sequence.
+     *
+     * The earlier version awaited `child.wait()` first and only then joined the
+     * readers - which meant the readers did not begin until the process had
+     * already exited. On the happy path that still works (the pipes buffer the
+     * output), but on the timeout path the whole future is dropped the moment
+     * the deadline fires, and `child.wait()` never returns, so the readers never
+     * even started and the shared buffers stayed empty. That is why a timed-out
+     * command came back with nothing.
+     *
+     * Reading alongside the wait means every byte the process prints lands in
+     * the shared buffer as it arrives, so the timeout branch can read whatever
+     * was collected before the kill.
+     */
+    let (status, _, _) = tokio::join!(child.wait(), t_out, t_err);
+    let stdout = String::from_utf8_lossy(&ob.lock().await).to_string();
+    let stderr = String::from_utf8_lossy(&eb.lock().await).to_string();
     let code = status?.code().unwrap_or(-1);
     Ok((code, stdout, stderr))
 }
@@ -179,25 +234,46 @@ pub async fn agent_exec(
     let mut out_pipe = child.stdout.take();
     let mut err_pipe = child.stderr.take();
 
-    let (exit_code, timed_out, stdout, stderr) =
-        match tokio::time::timeout(Duration::from_millis(ms_cap), jalan(&mut child, &mut out_pipe, &mut err_pipe)).await {
-            Ok(Ok((code, so, se))) => (code, false, so, se),
-            Ok(Err(e)) => {
-                return Err(ZephyrError::Internal(format!("waiting for the command failed: {e}")));
-            }
-            Err(_) => {
-                kill_tree(&child);
-                let _ = child.start_kill();
-                tokio::time::sleep(Duration::from_millis(POLL_MS)).await;
-                let _ = child.kill().await;
-                // Do not wait for inherited stdout/stderr handles. A descendant
-                // that escaped the shell can otherwise keep read_to_end pending.
-                drop(out_pipe.take());
-                drop(err_pipe.take());
-                let _ = child.wait().await;
-                (-1, true, String::new(), String::new())
-            }
-        };
+    /*
+     * Shared so the timeout branch can still hand back what arrived before the
+     * deadline - see `jalan`. A killed command that returns its partial output
+     * tells the model what happened; one that returns nothing tells it nothing.
+     */
+    let out_buf = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::<u8>::new()));
+    let err_buf = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::<u8>::new()));
+
+    let (exit_code, timed_out, stdout, stderr) = match tokio::time::timeout(
+        Duration::from_millis(ms_cap),
+        jalan(&mut child, &mut out_pipe, &mut err_pipe, &out_buf, &err_buf),
+    )
+    .await
+    {
+        Ok(Ok((code, so, se))) => (code, false, so, se),
+        Ok(Err(e)) => {
+            return Err(ZephyrError::Internal(format!(
+                "waiting for the command failed: {e}"
+            )));
+        }
+        Err(_) => {
+            kill_tree(&child);
+            let _ = child.start_kill();
+            tokio::time::sleep(Duration::from_millis(POLL_MS)).await;
+            let _ = child.kill().await;
+            // Do not wait for inherited stdout/stderr handles. A descendant
+            // that escaped the shell can otherwise keep read_to_end pending.
+            drop(out_pipe.take());
+            drop(err_pipe.take());
+            let _ = child.wait().await;
+            /*
+             * Keep the partial output. The buffer is read AFTER the kill so it
+             * holds everything the process managed to print; whatever the reader
+             * task appended last is already in there because it locks per chunk.
+             */
+            let so = String::from_utf8_lossy(&out_buf.lock().await).to_string();
+            let se = String::from_utf8_lossy(&err_buf.lock().await).to_string();
+            (-1, true, so, se)
+        }
+    };
 
     let (stdout, t1) = potong_ekor(&stdout);
     let (stderr, t2) = potong_ekor(&stderr);
@@ -259,6 +335,9 @@ mod tests {
         let dir = std::env::temp_dir();
         let c = build("echo halo", dir).expect("build harus berhasil");
         let s = format!("{:?}", c);
-        assert!(s.contains("/d /s /c") || s.contains("/c"), "perintah harus dibungkus shell");
+        assert!(
+            s.contains("/d /s /c") || s.contains("/c"),
+            "perintah harus dibungkus shell"
+        );
     }
 }

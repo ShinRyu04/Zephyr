@@ -1,14 +1,40 @@
 import { useEffect, useMemo } from 'react';
-import { useExt19, setBahasaWorkspace, type ExtTab } from '../../lib/extensionsStore19';
+import {
+  useExt19,
+  setBahasaWorkspace,
+  type ExtKabar,
+  type ExtTab,
+} from '../../lib/extensionsStore19';
 import { KATALOG_BUNDLED, type KatalogItem } from '../../lib/extCatalog';
 import { ikonEkstensi, inlineIkonDataUri } from '../../lib/extIkon';
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
 import { detectLang } from '../../lib/lang';
+import { labelPaket } from '../../lib/labelPaket';
+import { catatanBahasaTerpasang, type BarisGrammar } from './bahasaTerpasang';
 import Popover from '../shell/Popover';
 import { useRef, useState } from 'react';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useT, useTf } from '../../lib/i18n';
+import { grammarTersedia, type LoaderRingkasan } from '../../lib/extLoader';
+
+/*
+ * Penilai grammar untuk catatan bahasa: fungsi yang SAMA dengan yang dipakai
+ * loader sebelum mendaftarkan ekstensi (`grammarTersedia`, extLoader.ts). Kalau
+ * `cmLang` paket bukan salah satu paket bahasa yang diizinkan, loader tidak
+ * mendaftarkan akhiran berkasnya - jadi catatan di panel detail tidak boleh
+ * menjanjikan "menambah akhiran baru". Menyerahkan fungsi ini yang membuatnya
+ * begitu; tanpa itu catatan hanya tahu soal bahasa bawaan, bukan soal grammar
+ * yang bisa dimuat.
+ */
+const grammarBisaDimuat = (l: BarisGrammar): boolean =>
+  grammarTersedia({
+    id: l.cmLang ?? l.legacyMode ?? '',
+    extensions: [],
+    cmLang: l.cmLang ?? '',
+    legacyMode: l.legacyMode ?? '',
+    label: '',
+  });
 
 const TAB_LABEL: Record<ExtTab, string> = {
   installed: 'Installed',
@@ -176,6 +202,125 @@ function IkonExt({ item, logoUrl }: { item: KatalogItem; logoUrl?: string }) {
   );
 }
 
+/*
+ * The result of the last install or delete.
+ *
+ * "Installed" used to be the whole message, and it was a claim with no evidence
+ * behind it: a package whose theme carried only `tokenColors`, or whose only
+ * contribution was a list of commands nothing registers, installed, appeared in
+ * the list as Installed, and left the window exactly as it was. The report
+ * below comes from Rust reading the files the package ships, so it states what
+ * changed with counts, and names every contribution it could not apply with the
+ * reason. A refusal gets its own shape: not an error (the package is fine, it
+ * simply does nothing here), and nothing was written to disk.
+ */
+function KabarPaket({ kabar }: { kabar: ExtKabar }) {
+  const tutupKabar = useExt19((s) => s.tutupKabar);
+  const judul =
+    kabar.jenis === 'pasang'
+      ? `Installed: ${kabar.judul}`
+      : kabar.jenis === 'hapus'
+        ? `Deleted: ${kabar.judul}`
+        : `Not installed: ${kabar.judul}`;
+
+  const BATAS = 12;
+
+  return (
+    <div
+      className={`xv-kabar is-${kabar.jenis}`}
+      data-testid="ext-kabar"
+      data-jenis={kabar.jenis}
+      role="status"
+    >
+      <div className="xv-kabar-head">
+        <strong className="xv-kabar-judul" data-testid="ext-kabar-judul">
+          {judul}
+        </strong>
+        <button className="btn btn-sm" data-testid="ext-kabar-close" onClick={tutupKabar}>
+          Close
+        </button>
+      </div>
+
+      {kabar.jenis === 'tolak' ? (
+        <>
+          <p className="xv-kabar-baris">
+            Refused before anything was written to disk: no contribution in this package is
+            something Zephyr can apply yet, so installing it would have left the window unchanged.
+          </p>
+          <pre className="xv-kabar-pesan" data-testid="ext-kabar-pesan">
+            {kabar.pesan}
+          </pre>
+        </>
+      ) : (
+        <>
+          <div className="xv-kabar-baris" data-testid="ext-kabar-ringkasan">
+            {kabar.ringkasan.length === 0 ? (
+              <span data-testid="ext-kabar-tanpa-efek">
+                Nothing in this package can be applied here - the window is unchanged.
+              </span>
+            ) : (
+              <>
+                <b>{kabar.jenis === 'hapus' ? 'Taken away' : 'What changed'}:</b>{' '}
+                {kabar.ringkasan.join(' \u00b7 ')}
+              </>
+            )}
+          </div>
+
+          {kabar.jenis === 'hapus' && (
+            <div className="xv-kabar-baris">
+              The folder is gone from disk and the entry is gone from installed.json, so the window
+              is back to what it was before this package.
+            </div>
+          )}
+
+          {kabar.diabaikan.length > 0 && (
+            <ul className="xv-kabar-skip" data-testid="ext-kabar-diabaikan">
+              {kabar.diabaikan.slice(0, BATAS).map((i, n) => (
+                <li key={`${i.kind}-${n}`}>
+                  <b>{i.kind}</b> ({i.label}): {i.detail}
+                </li>
+              ))}
+              {kabar.diabaikan.length > BATAS && (
+                <li>+{kabar.diabaikan.length - BATAS} more ignored entries</li>
+              )}
+            </ul>
+          )}
+
+          {kabar.jenis === 'pasang' && (
+            <p className="xv-kabar-baris">
+              The counts are read from the files the package ships. Whether Zephyr could apply them
+              is in the loader report just below.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/*
+ * Penanda jujur untuk paket bahasa di daftar ekstensi.
+ *
+ * Tabelnya pindah ke `src/lib/labelPaket.ts` supaya bisa diuji tanpa aplikasi
+ * (`scripts/uji-katalog-ekstensi-jujur.mjs` menurunkan ulang status tiap paket
+ * dari sumber katalog lalu menuntut tabel itu setuju, termasuk daftar ekstensi
+ * sisanya yang persis). Di sini hanya ditampilkan; paketnya tetap bisa
+ * dipasang/dilepas seperti biasa.
+ */
+
+/* Nama jenis kontribusi apa adanya dari loader (kind = token di
+   `ext_pkg.rs`/`extLoader.ts`), dipetakan ke kata yang bisa dibaca di kartu.
+   Yang tidak dikenal tetap ditampilkan mentah - lebih baik mentah daripada
+   hilang. */
+const JENIS_KATA: Record<string, string> = {
+  theme: 'theme',
+  iconTheme: 'icons',
+  snippet: 'snippets',
+  keymap: 'keys',
+  language: 'language',
+  script: 'script',
+};
+
 function ExtensionCard({
   item,
   onUninstall,
@@ -198,12 +343,36 @@ function ExtensionCard({
   const aktif = sudah?.enabled ?? false;
   const rusak = !!sudah?.error;
 
+  /*
+   * Installed and inert: the package is in the list, enabled, and applies
+   * nothing. That is a state the card has to show, because it is
+   * indistinguishable from a working package otherwise - the reason a user
+   * files "I installed it and nothing happened".
+   */
+  const kosong = terpasang && !rusak && (sudah.pengaruh?.didukung.length ?? 0) === 0;
+
+  /*
+   * Jenis kontribusi yang benar-benar berlaku di sini, dibaca dari `pengaruh`
+   * (hasil pemuatan loader), bukan dari `item.categories`: kategori katalog
+   * bilang "apa ini di rak", ini bilang "apa yang berubah di editor". Kartu
+   * yang cuma menambah dua snippet tidak lagi terlihat sama dengan kartu yang
+   * mengganti tema.
+   */
+  const jenisBerlaku = Array.from(new Set((sudah?.pengaruh?.didukung ?? []).map((i) => i.kind).filter(Boolean)));
+  /*
+   * Label jujur dari `src/lib/labelPaket.ts` ("no-op" / "sudah didukung
+   * bawaan"). Hanya paket bahasa yang kartunya menjanjikan lebih dari yang
+   * diberikannya yang punya label; pemasangan/pelepasan tidak dipengaruhi.
+   */
+  const label = labelPaket(item.id);
+
   return (
     <article
       className={`xc${rusak ? ' is-broken' : ''}`}
       data-ext-card={item.id}
       data-terpasang={terpasang ? '1' : '0'}
       data-enabled={aktif ? '1' : '0'}
+      data-inert={kosong ? '1' : '0'}
     >
       <span
         className={`xc-logo${item.logoUrl ? ' has-img' : ''}${item.logoColor ? ' has-color' : ''}`}
@@ -219,6 +388,16 @@ function ExtensionCard({
           {item.bundled && <span className="xc-tag">OFFLINE</span>}
           {item.perluRuntime && <span className="xc-tag is-err">needs runtime</span>}
           {rusak && <span className="xc-tag is-err">broken</span>}
+          {kosong && <span className="xc-tag is-err">no effect</span>}
+          {jenisBerlaku.length > 0 && (
+            <span
+              className="xc-tag"
+              data-jenis={jenisBerlaku.join(' ')}
+              title={`contributions that take effect here: ${jenisBerlaku.map((k) => JENIS_KATA[k] ?? k).join(', ')}`}
+            >
+              {jenisBerlaku.map((k) => JENIS_KATA[k] ?? k).join('+')}
+            </span>
+          )}
           <span className="xc-pub-badge">{item.publisher}</span>
           <span className="xc-ver-badge">• v{sudah?.manifest?.version || item.version}</span>
           {item.categories[0] && <span className="xc-cat-badge">{item.categories[0]}</span>}
@@ -227,9 +406,24 @@ function ExtensionCard({
           )}
         </span>
         <span className="xc-desc">{tr(item.description)}</span>
+        {label && (
+          <span
+            className={`xc-desc xc-label-jujur is-${label.jenis}`}
+            data-testid={`xc-catatan-${item.id}`}
+            data-jenis-label={label.jenis}
+          >
+            {label.teks}
+          </span>
+        )}
         {rusak && (
           <span className="xc-err" data-testid={`xc-err-${item.id}`}>
             {sudah?.error}
+          </span>
+        )}
+        {kosong && (
+          <span className="xc-err" data-testid={`xc-inert-${item.id}`}>
+            Installed, but nothing in this package is applied here - open Details for the list of
+            contributions Zephyr ignores and why.
           </span>
         )}
       </div>
@@ -345,6 +539,22 @@ function Details({ id }: { id: string }) {
   const m = st?.manifest;
 
   const c = m?.contributes;
+
+  /*
+   * Catatan jujur per baris bahasa, dihitung dari manifest yang terpasang
+   * (`.py` yang sudah dipegang bahasa bawaan tidak bisa diklaim lagi oleh
+   * paket - lihat `bahasaTerpasang.ts`). Tabel tangan `labelPaket.ts` hanya
+   * menutup 7 id bawaan; ini menutup paket lain, termasuk yang diunduh.
+   */
+  const catatanBahasa = catatanBahasaTerpasang(c, grammarBisaDimuat);
+
+  /*
+   * The same report the install panel shows, kept with the package so it is
+   * still there tomorrow: what this package applies here (with the counts read
+   * from its own files) and what Zephyr ignores, each with the reason.
+   */
+  const pengaruh = st?.pengaruh;
+
   const baris: Array<[string, string[]]> = [
     ['Themes', c?.themes.map((x) => x.label) ?? []],
     ['Keymaps', c?.keymaps.map((x) => x.label) ?? []],
@@ -418,11 +628,144 @@ function Details({ id }: { id: string }) {
             ))}
           </div>
 
+          {catatanBahasa.length > 0 && (
+            <>
+              <h4 className="xd-h4">Bahasa vs bawaan</h4>
+              <div className="xd-contribs" data-testid="ext-catatan-bahasa">
+                {catatanBahasa.map((n) => (
+                  <div
+                    key={n.label}
+                    className="xd-contrib"
+                    data-bahasa={n.label}
+                    data-bahasa-noefek={n.noEfek ? '1' : '0'}
+                    data-bahasa-grammar={
+                      n.grammarBisaDimuat === null ? 'tidak-diperiksa' : n.grammarBisaDimuat ? 'bisa-dimuat' : 'tidak-bisa-dimuat'
+                    }
+                  >
+                    <span className="xd-contrib-nama">{n.label}</span>
+                    <span className="xd-contrib-isi">{n.teks}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <h4 className="xd-h4">What this changes here</h4>
+          <div className="xd-contribs" data-testid="ext-pengaruh">
+            {(pengaruh?.didukung.length ?? 0) === 0 ? (
+              <div className="xd-contrib" data-pengaruh="kosong">
+                <span className="xd-contrib-nama">nothing</span>
+                <span className="xd-contrib-isi">
+                  This package is installed but Zephyr applies none of it: the window does not
+                  change, now or after a reload.
+                </span>
+              </div>
+            ) : (
+              pengaruh!.didukung.map((i, n) => (
+                <div key={`${i.kind}-${n}`} className="xd-contrib" data-pengaruh="didukung">
+                  <span className="xd-contrib-nama">{i.kind}</span>
+                  <span className="xd-contrib-isi">
+                    {i.label} — {i.detail}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {(pengaruh?.diabaikan.length ?? 0) > 0 && (
+            <>
+              <h4 className="xd-h4">Ignored here</h4>
+              <ul className="xv-ringkas-skip" data-testid="ext-pengaruh-diabaikan">
+                {pengaruh!.diabaikan.map((i, n) => (
+                  <li key={`${i.kind}-${n}`}>
+                    <b>{i.kind}</b> ({i.label}): {i.detail}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           <p className="xd-warn">
-            The extension JS code is not executed (v1 manifest-only). Registered commands
-            use Zephyr's built-in handlers; the extension's own handlers are ignored.
+            {m.main
+              ? 'A main script ships with this package: Zephyr asks for approval and then runs it in the sandboxed extension host worker, so its own command handlers are the ones that answer.'
+              : 'This package ships no main script, so the commands it declares have no handler: Zephyr shows no command for it and the declared ids do nothing.'}
           </p>
         </>
+      )}
+    </div>
+  );
+}
+
+/*
+ * What the loader actually did.
+ *
+ * Installing a package used to change nothing visible: a theme whose tokens the
+ * loader did not recognise, a keymap bound to a command Zephyr does not have, a
+ * language whose extension already had an owner - all of them were skipped in
+ * silence, and the panel looked exactly the same before and after. Two lists fix
+ * that: `gagal` (something broke) and `tidakDidukung` (it loaded, but this
+ * version cannot use it), both with the reason in words.
+ *
+ * `ringkasan` is rebuilt on every refresh, so it answers "why did nothing
+ * happen when I installed this" directly under the toolbar.
+ */
+function RingkasLoader({ ringkasan }: { ringkasan: LoaderRingkasan }) {
+  const { themes, keymaps, snippets, languages, commands, iconThemes, gagal, tidakDidukung } =
+    ringkasan;
+
+  /* How many of each contribution the loader took. Zero-count rows are dropped
+     so the line reads as a summary rather than a spreadsheet. */
+  const semuaJumlah: Array<[string, number]> = [
+    ['themes', themes.length],
+    ['languages', languages.length],
+    ['snippets', snippets],
+    ['keymaps', keymaps],
+    ['icon themes', iconThemes],
+    ['commands', commands],
+  ];
+  const jumlah = semuaJumlah.filter((baris) => baris[1] > 0);
+
+  const adaMasalah = gagal.length > 0 || tidakDidukung.length > 0;
+  if (jumlah.length === 0 && !adaMasalah) return null;
+
+  /* Both lists are unbounded in principle - one bad registry can produce
+     hundreds of rows - so they are cut off with a count of what is hidden. */
+  const BATAS = 12;
+  const sisaGagal = gagal.length - BATAS;
+  const sisaSkip = tidakDidukung.length - BATAS;
+
+  return (
+    <div className="xv-ringkas" data-testid="ext-ringkas" role="status">
+      <div className="xv-ringkas-judul">Loader report</div>
+      {jumlah.length > 0 && (
+        <div className="xv-ringkas-baris" data-testid="ext-ringkas-jumlah">
+          {jumlah.map(([label, n]) => `${n} ${label}`).join(' \u00b7 ')}
+        </div>
+      )}
+      {gagal.length > 0 && (
+        <ul className="xv-ringkas-gagal" data-testid="ext-ringkas-gagal">
+          {gagal.slice(0, BATAS).map((g, i) => (
+            <li key={`${g.id}-${i}`}>
+              <b>{g.id}</b>: {g.alasan}
+            </li>
+          ))}
+          {sisaGagal > 0 && <li>+{sisaGagal} more failures</li>}
+        </ul>
+      )}
+      {tidakDidukung.length > 0 && (
+        <ul className="xv-ringkas-skip" data-testid="ext-ringkas-skip">
+          {tidakDidukung.slice(0, BATAS).map((g, i) => (
+            <li key={`${g.id}-${i}`}>
+              <b>{g.id}</b> ({g.fitur}): {g.alasan}
+            </li>
+          ))}
+          {sisaSkip > 0 && <li>+{sisaSkip} more skipped entries</li>}
+        </ul>
+      )}
+      {!adaMasalah && (
+        <div className="xv-ringkas-baris" data-testid="ext-ringkas-bersih">
+          Every installed package loaded. Nothing was skipped.
+        </div>
       )}
     </div>
   );
@@ -435,6 +778,7 @@ export default function ExtensionsView() {
   const loading = useExt19((s) => s.loading);
   const err = useExt19((s) => s.err);
   const info = useExt19((s) => s.info);
+  const kabar = useExt19((s) => s.kabar);
   const perluReload = useExt19((s) => s.perluReload);
   const detailFor = useExt19((s) => s.detailFor);
   const remoteUrl = useExt19((s) => s.remoteUrl);
@@ -442,6 +786,7 @@ export default function ExtensionsView() {
   
   const remote = useExt19((s) => s.remote);
   const jmlManifest = useExt19((s) => s.manifests.length);
+  const ringkasan = useExt19((s) => s.ringkasan);
 
   const setQ = useExt19((s) => s.setQ);
   const setTab = useExt19((s) => s.setTab);
@@ -459,6 +804,16 @@ export default function ExtensionsView() {
     aktif: !!uninstallTarget,
     onEscape: () => setUninstallTarget(null),
   });
+
+  /*
+   * What the delete is about to take away, read from the status of the package
+   * while it is still on disk. A delete that silently reverts a theme leaves
+   * the user guessing what changed, so the confirmation names it, and the report
+   * after the delete repeats what was removed.
+   */
+  const pengaruhHapus = useExt19((s) =>
+    uninstallTarget ? (s.sudahTerpasang(uninstallTarget.id)?.pengaruh ?? null) : null
+  );
 
   const workspace = useStore((s) => s.workspace);
   const anakRoot = useExplorer((s) => (workspace ? s.children[workspace] : undefined));
@@ -639,6 +994,10 @@ export default function ExtensionsView() {
         </p>
       )}
 
+      {kabar && <KabarPaket kabar={kabar} />}
+
+      <RingkasLoader ringkasan={ringkasan} />
+
       {/*
         * The bundled catalog lives in this tab, so an empty registry is no
         * longer an error state — it just means the list is bundled-only. The
@@ -720,6 +1079,12 @@ export default function ExtensionsView() {
             <p className="modal-body" data-testid="ext-uninstall-body">
               {tr('The extension folder will be deleted PERMANENTLY (cannot be undone).')}
             </p>
+            {pengaruhHapus && pengaruhHapus.ringkasan.length > 0 && (
+              <p className="modal-body" data-testid="ext-uninstall-pengaruh">
+                This takes away: {pengaruhHapus.ringkasan.join(' \u00b7 ')}. The window goes back to
+                what it was before this package.
+              </p>
+            )}
             <div className="modal-actions">
               <button
                 className="btn btn-danger"

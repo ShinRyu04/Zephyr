@@ -17,6 +17,7 @@ import { useAiChatSettings } from '../../lib/chatSettingsStore';
 const SettingsPage = lazy(() => import('../settings/SettingsPage'));
 const AiChatView = lazy(() => import('../ai/AiPanel'));
 const ChatSettingsPage = lazy(() => import('../ai/ChatSettingsPage'));
+const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 // Dev Environment, API Client and SFTP are full-page views: each carries its own
 // header and row layout. They take over the middle area the same way Settings
 // does below, instead of sitting in the sidebar, where they were squeezed into a
@@ -167,6 +168,14 @@ function EditorPane({ gid }: { gid: string }) {
             <ErrorBoundary nama="ChatSettings">
               <Suspense fallback={null}>
                 <ChatSettingsPage onClose={() => useStore.getState().requestCloseTab(tab.id)} />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'search-editor' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-search-editor">
+            <ErrorBoundary nama="SearchEditor">
+              <Suspense fallback={null}>
+                <SearchEditorView />
               </Suspense>
             </ErrorBoundary>
           </div>

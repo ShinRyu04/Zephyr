@@ -145,16 +145,20 @@ export function menulisKeDisk(nama: string): boolean {
 export const TOOL_WAJIB: readonly string[] = ['read_file', 'list_directory', 'grep'];
 
 /**
- * 40 tool inti: yang WAJIB terpasang dan WAJIB aktif.
+ * Tool inti: yang WAJIB terpasang dan WAJIB aktif (seluruh katalog kecuali
+ * grup web/browser).
  *
  * Ini bukan preferensi dan bukan saran, melainkan kontrak: selama Zephyr
- * dijalankan, 40 tool inilah yang selalu tersedia untuk agen. Yang di luar
+ * dijalankan, tool inti inilah yang selalu tersedia untuk agen. Yang di luar
  * daftar - kesebelas tool web/browser - bisa dinyalakan user, tapi tidak
  * pernah menyala sendiri.
  *
  * Diturunkan dari katalog, bukan diketik ulang. Daftar yang ditulis manual
  * akan berbeda dari katalognya cepat atau lambat, dan bedanya baru ketahuan
- * ketika ada tool yang tidak pernah muncul di panel.
+ * ketika ada tool yang tidak pernah muncul di panel. Karena itu JUMLAHNYA tidak
+ * ditulis di komentar ini juga: angka yang diketik ulang adalah daftar kedua
+ * dengan cara lain, dan begitulah angka 40 di sini jadi salah tanpa ada yang
+ * menyadarinya. Untuk angkanya, pakai `TOOL_COUNTS` di `zephyrTools/catalog.ts`.
  */
 export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter((t) => t.source !== 'web').map(
   (t) => t.name,

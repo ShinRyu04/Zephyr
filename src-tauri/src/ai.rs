@@ -762,6 +762,34 @@ pub(crate) fn catat_penolakan(
         }
     }
 
+    /*
+     * Dua pesan USER berurutan.
+     *
+     * This one went undetected and cost a real debugging session: a 400 came
+     * back with the roles printed as `system -> user -> user -> assistant -> …`
+     * and this checker said "no violation detected", which pointed the reader at
+     * the body instead of at the sequence.
+     *
+     * It is reachable without anyone doing anything odd. A turn whose reply
+     * never arrived — a transient failure, a cancel, a stream that closed with
+     * no text — leaves a user message with no assistant after it. The next
+     * message the reader types produces `user -> user`, and from then on EVERY
+     * request 400s. The conversation is stuck permanently with nothing on screen
+     * saying why.
+     *
+     * Checked for `user` specifically rather than "the same role twice" because
+     * a repeated `tool` role is a different fault with its own message below.
+     */
+    for i in 1..peran.len() {
+        if peran[i] == "user" && peran[i - 1] == "user" {
+            catatan.push(format!(
+                "dua pesan user berurutan di indeks {i} — gateway OpenAI-compatible menolak ini; \
+                 balasan yang hilang meninggalkan user tanpa assistant sesudahnya"
+            ));
+            break;
+        }
+    }
+
     /* Asisten tanpa isi DAN tanpa tool call. */
     for (i, m) in pesan.iter().enumerate() {
         if m.get("role").and_then(Value::as_str) != Some("assistant") {
@@ -1112,7 +1140,18 @@ pub fn ai_chat(
                 }
                 Ok(_) => {}
                 Err(e) => {
-                    terminal_error = Some(format!("stream terputus: {e}"));
+                    /*
+                     * Sebuah stream yang putus di tengah TIDAK membuang teks yang
+                     * sudah sampai. Kalau sudah ada jawaban (`sent_any`), potongan
+                     * yang hilang hanyalah ekornya; melaporkan error fatal di sini
+                     * membuang kalimat yang utuh dan menggantinya dengan bubble
+                     * merah. Yang sudah terkirim dibiarkan, dan hanya kalau belum
+                     * ada apa-apa yang datang putusnya diperlakukan sebagai
+                     * kegagalan.
+                     */
+                    if !sent_any {
+                        terminal_error = Some(format!("stream terputus: {e}"));
+                    }
                     break;
                 }
             }
@@ -1141,7 +1180,16 @@ pub fn ai_chat(
             let v: Value = match serde_json::from_str(payload) {
                 Ok(v) => v,
                 Err(e) => {
-                    terminal_error = Some(format!("invalid stream response: {e}"));
+                    /*
+                     * Satu baris SSE yang gagal diparse biasanya adalah ekor yang
+                     * terpotong saat koneksi putus - bukan alasan membuang jawaban
+                     * yang sudah utuh. Kalau sudah ada teks, perlakukan sebagai
+                     * akhir stream yang wajar; kalau belum ada apa-apa, barulah ini
+                     * kegagalan sungguhan.
+                     */
+                    if !sent_any {
+                        terminal_error = Some(format!("invalid stream response: {e}"));
+                    }
                     break;
                 }
             };
@@ -1194,7 +1242,28 @@ pub fn ai_chat(
 
         let cancelled = cancel.load(Ordering::Relaxed);
         if !cancelled && terminal_error.is_none() && !sent_any {
-            terminal_error = Some("The provider sent no text at all".into());
+            /*
+             * No visible text came back. Two very different causes:
+             *
+             *   1. The stream carried reasoning but ran out before any answer —
+             *      a reasoning model (mr-vip, claude-sonnet-4.6, …) that spent
+             *      its whole `max_tokens` budget thinking. The turn is not
+             *      broken; the budget was too small. Saying "sent no text at
+             *      all" here is wrong and sent readers chasing a provider bug
+             *      that did not exist.
+             *   2. Nothing at all arrived — a genuinely empty stream.
+             *
+             * Tell them apart so the message points at the real fix (raise the
+             * output limit) instead of a phantom one.
+             */
+            terminal_error = Some(if !reasoning_acc.is_empty() {
+                "Model menghabiskan seluruh anggaran token untuk bernalar tanpa \
+                 sempat menjawab — naikkan batas keluaran (max tokens) atau turunkan \
+                 reasoning effort"
+                    .into()
+            } else {
+                "The provider sent no text at all".into()
+            });
         }
         if let Some(err) = terminal_error_to_emit(cancelled, terminal_error) {
             emit_chunk(&handle, json!({ "id": req_id, "err": err }));
@@ -1476,7 +1545,18 @@ pub fn ai_tool_chat_stream(
                 }
                 Ok(_) => {}
                 Err(e) => {
-                    terminal_error = Some(format!("stream terputus: {e}"));
+                    /*
+                     * Sebuah stream yang putus di tengah TIDAK membuang teks yang
+                     * sudah sampai. Kalau sudah ada output (`ada_output`), potongan
+                     * yang hilang hanyalah ekornya; melaporkan error fatal di sini
+                     * membuang kalimat yang utuh dan menggantinya dengan bubble
+                     * merah. Yang sudah terkirim dibiarkan, dan hanya kalau belum
+                     * ada apa-apa yang datang putusnya diperlakukan sebagai
+                     * kegagalan.
+                     */
+                    if !ada_output {
+                        terminal_error = Some(format!("stream terputus: {e}"));
+                    }
                     break;
                 }
             }
@@ -1502,7 +1582,15 @@ pub fn ai_tool_chat_stream(
             let v: Value = match serde_json::from_str(payload) {
                 Ok(v) => v,
                 Err(e) => {
-                    terminal_error = Some(format!("invalid stream response: {e}"));
+                    /*
+                     * Satu baris SSE yang gagal diparse biasanya ekor yang
+                     * terpotong saat koneksi putus. Kalau sudah ada output,
+                     * perlakukan sebagai akhir stream yang wajar; hanya kalau
+                     * belum ada apa-apa ini kegagalan sungguhan.
+                     */
+                    if !ada_output {
+                        terminal_error = Some(format!("invalid stream response: {e}"));
+                    }
                     break;
                 }
             };

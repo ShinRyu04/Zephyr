@@ -1,4 +1,4 @@
-// uji-blank.mjs — bukti bug "layar blank" (Settings → Model AI) sudah mati.
+// uji-blank.mjs — bukti bug "layar blank" pada setelan provider/model sudah mati.
 //
 // Reproduksi asli: patch settings `{ models: { answerLang } }` di-merge DANGKAL
 // oleh applySettings → `models.providers` hilang → ModelsSection crash
@@ -6,7 +6,7 @@
 //
 // Tes ini memaksa kondisi itu lewat store, lalu memeriksa:
 //   A. setelah patch parsial, `models.providers` MASIH ada  (fix mergeDalam)
-//   B. halaman Settings → Model AI tetap render (tidak blank)
+//   B. pop-up "AI Models" (dulu halaman Settings → Model AI) tetap render (tidak blank)
 //   C. root masih punya anak (app hidup), bukan layar kosong
 import WebSocket from 'ws';
 
@@ -80,22 +80,25 @@ cek(
 );
 
 // ---------------------------------------------------------------- B
-// Buka Settings → Model AI, pastikan render penuh.
+// Buka pop-up "AI Models". Setelan provider/kunci/model pindah ke sini, dan
+// seksi "models" tidak lagi ada di nav Settings maupun di Chat Settings -
+// jadi setSection('models') menunjuk halaman yang sudah tidak ada. Pintunya
+// perintah yang sama dengan yang dijalankan palet perintah
+// ("AI: Configure Models & API Keys" -> useAiModels.getState().buka()).
 await ev(
-  `(() => {
-     const S = window.__ZEPHYR__;
-     S.getState().setSettingsOpen(true);
-     S.getState().setActivity('settings');
-     window.__ZEPHYR_SET__.ui.getState().setSection('models');
+  `(async () => {
+     await window.__ZEPHYR_NOTIF__.run('ai.models');
      return 'ok';
    })()`,
+  true,
 );
 await new Promise((r) => setTimeout(r, 2500));
 
 const dom = await ev(
   `JSON.stringify({
-     provRows: document.querySelectorAll('[data-testid^="prov-model-"]').length,
-     provList: document.querySelectorAll('.prov-list').length,
+     popUp: !!document.querySelector('[data-testid="aim-pop"]'),
+     provRows: document.querySelectorAll('[data-testid="aim-pop-content"] [data-testid^="prov-model-"]').length,
+     provList: document.querySelectorAll('[data-testid="aim-pop-content"] .prov-list').length,
      errCard: document.querySelectorAll('.err-boundary').length,
      rootKids: document.getElementById('root').children.length,
      bodyLen: document.body.innerText.length,
@@ -103,14 +106,15 @@ const dom = await ev(
 );
 const d = JSON.parse(dom ?? '{}');
 console.log(`DOM               : ${dom}`);
-cek('B. ModelsSection render (daftar provider tampil)', (d.provRows ?? 0) > 0, `${d.provRows} baris`);
+cek('B. pop-up AI Models render (badan ModelsSection tampil)', d.popUp === true && (d.provRows ?? 0) > 0, `aim-pop=${d.popUp}, ${d.provRows} baris`);
 cek('B2. tidak ada kartu error', (d.errCard ?? 0) === 0, `${d.errCard} kartu`);
 cek('C. app hidup (root ada isi)', (d.rootKids ?? 0) > 0 && (d.bodyLen ?? 0) > 200, `${d.bodyLen} char`);
 
 const nyata = ex.filter((t) => /gemini|providers|ModelsSection/.test(t));
 cek('D. tidak ada exception ModelsSection', nyata.length === 0, nyata[0] ?? 'bersih');
 
-// Tutup settings lagi (harness fase 02/03 mengharapkan empty-state editor).
+// Tutup pop-up AI Models lagi (harness fase 02/03 mengharapkan empty-state editor).
+await ev(`document.querySelector('[data-testid="aim-pop-close"]')?.click()`);
 await ev(`window.__ZEPHYR__.getState().setSettingsOpen(false)`);
 await new Promise((r) => setTimeout(r, 800));
 

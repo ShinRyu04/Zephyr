@@ -21,21 +21,67 @@ mod tests {
     }
 
     #[test]
+    fn token_di_berkas_ikut_diterima_server_yang_sedang_jalan() {
+        use crate::app_state::McpRuntime;
+        use crate::mcp_config::sebarkan_token;
+
+        /* Tanpa server berjalan: tidak ada yang bisa disebar. */
+        let diam = crate::app_state::AppState::new();
+        sebarkan_token(&diam, TOKEN);
+        assert_eq!(
+            diam.mcp_token(),
+            None,
+            "tanpa runtime, token tidak boleh diciptakan dari udara"
+        );
+
+        /* Server berjalan dengan token lama; berkas sudah memuat token baru. */
+        let state = crate::app_state::AppState::new();
+        let (tx, _rx) = tokio::sync::oneshot::channel::<()>();
+        state.mcp_set_runtime(McpRuntime {
+            port: 9222,
+            requested: 9222,
+            started: std::time::Instant::now(),
+            shutdown: tx,
+            token: "token-lama-yang-sudah-basi".into(),
+        });
+        sebarkan_token(&state, TOKEN);
+        assert_eq!(
+            state.mcp_token().as_deref(),
+            Some(TOKEN),
+            "server harus menerima token yang ditampilkan UI/ditulis mcp.json - \
+             kalau tidak, semua klien 401 permanen"
+        );
+
+        /* Idempoten: pemanggilan berulang tidak mengubah apa pun. */
+        sebarkan_token(&state, TOKEN);
+        assert_eq!(state.mcp_token().as_deref(), Some(TOKEN));
+    }
+
+    #[test]
     fn bearer_auth_rejects_missing_and_wrong_tokens() {
         let empty = HeaderMap::new();
         assert!(!bearer_ok_for_test(&empty, TOKEN));
         let mut wrong = HeaderMap::new();
         wrong.insert("authorization", HeaderValue::from_static("Bearer wrong"));
         assert!(!bearer_ok_for_test(&wrong, TOKEN));
-        wrong.insert("authorization", HeaderValue::from_static("Bearer 0123456789abcdef0123456789abcdef"));
+        wrong.insert(
+            "authorization",
+            HeaderValue::from_static("Bearer 0123456789abcdef0123456789abcdef"),
+        );
         assert!(bearer_ok_for_test(&wrong, TOKEN));
     }
 
     #[test]
     fn terminal_control_is_default_deny() {
-        assert!(!terminal_control_setting_enabled_for_test(&json!({"mcp": {}})));
-        assert!(!terminal_control_setting_enabled_for_test(&json!({"mcp": {"allow_terminal_control": false}})));
-        assert!(terminal_control_setting_enabled_for_test(&json!({"mcp": {"allow_terminal_control": true}})));
+        assert!(!terminal_control_setting_enabled_for_test(
+            &json!({"mcp": {}})
+        ));
+        assert!(!terminal_control_setting_enabled_for_test(
+            &json!({"mcp": {"allow_terminal_control": false}})
+        ));
+        assert!(terminal_control_setting_enabled_for_test(
+            &json!({"mcp": {"allow_terminal_control": true}})
+        ));
     }
 
     #[test]
@@ -65,7 +111,10 @@ mod tests {
     fn merge_json_pada_file_kosong_dan_key_bukan_object() {
         let out = merge_json_for_test("", "mcpServers", 9224, TOKEN).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(v["mcpServers"]["zephyr"]["url"], "http://127.0.0.1:9224/mcp");
+        assert_eq!(
+            v["mcpServers"]["zephyr"]["url"],
+            "http://127.0.0.1:9224/mcp"
+        );
 
         let out2 =
             merge_json_for_test(r#"{"mcpServers": "rusak"}"#, "mcpServers", 9222, TOKEN).unwrap();

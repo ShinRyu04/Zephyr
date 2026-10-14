@@ -105,7 +105,7 @@ fn dir_kerja(state: &AppState, cwd: &str) -> ZResult<PathBuf> {
         )));
     }
     /* The same guard the write commands use: refuse anything outside the open
-       folder. Checked on the canonical path so a symlink cannot smuggle it out. */
+    folder. Checked on the canonical path so a symlink cannot smuggle it out. */
     let kanon = target.canonicalize().unwrap_or_else(|_| target.clone());
     state.ensure_writable(&kanon)?;
     Ok(kanon)
@@ -130,7 +130,7 @@ pub async fn hook_run(
         return Err(ZephyrError::InvalidInput("hook command is empty".into()));
     }
     /* One line. A newline would let the stored "command" be several commands,
-       which is not what the single-line field in the UI shows the reader. */
+    which is not what the single-line field in the UI shows the reader. */
     if cmd_teks.contains('\n') || cmd_teks.contains('\r') {
         return Err(ZephyrError::InvalidInput(
             "hook command must be a single line".into(),
@@ -144,7 +144,34 @@ pub async fn hook_run(
     #[cfg(windows)]
     let mut perintah = {
         let mut c = crate::proc::tokio_cmd("cmd");
-        c.arg("/C").arg(cmd_teks);
+        /*
+         * `/d /s /c "<the whole line>"`, built with `raw_arg`.
+         *
+         * This is the SAME form `agent_exec.rs` uses, and the two must agree
+         * because both hand a reader-written shell line to `cmd.exe`.
+         *
+         * The old form — `.arg("/C").arg(line)` — breaks on any command
+         * containing a quote. Measured on this machine with the line
+         * `echo ok > "C:\Temp\x.txt"`:
+         *
+         *   .arg()                      -> exit 1, "The filename, directory
+         *                                  name, or volume label syntax is
+         *                                  incorrect."
+         *   .raw_arg("/C") .raw_arg(x)  -> exit 1, same error
+         *   .raw_arg("/d /s /c \"x\"")  -> exit 0, file written
+         *
+         * `/s` is what makes the difference: it tells `cmd` to strip the
+         * OUTER quotes and take the rest of the line literally, which is the
+         * only way an inner quote survives. Without it `cmd` re-parses the
+         * line under its own quoting rules and mangles the quoted path.
+         *
+         * The impact was not limited to `echo`: every hook whose command
+         * contained a quote failed — a path with a space, `node -e "..."`, a
+         * PowerShell one-liner. Those are most real hooks, and the failure
+         * reads as the reader's command being wrong rather than as the runner
+         * corrupting it.
+         */
+        c.raw_arg(format!("/d /s /c \"{cmd_teks}\""));
         c
     };
     #[cfg(not(windows))]
@@ -229,16 +256,13 @@ pub async fn hook_run(
     let tunggu = anak.wait();
     let timeout = tokio::time::sleep(Duration::from_secs(batas));
 
-    let (hasil_out, hasil_err, hasil_status) = tokio::join!(
-        baca(out.take()),
-        baca_err(err.take()),
-        async {
+    let (hasil_out, hasil_err, hasil_status) =
+        tokio::join!(baca(out.take()), baca_err(err.take()), async {
             tokio::select! {
                 s = tunggu => Ok(s),
                 _ = timeout => Err(()),
             }
-        }
-    );
+        });
 
     let (stdout_bytes, potong_out) = hasil_out;
     let (stderr_bytes, potong_err) = hasil_err;
@@ -288,4 +312,164 @@ mod tests {
         let batas = OUTPUT_MAX_BYTES;
         assert_eq!(batas, 64 * 1024);
     }
+}
+
+/* ── External formatter ─────────────────────────────────────────────────── */
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormatResult {
+    pub ok: bool,
+    pub out: String,
+    pub err: String,
+}
+
+/// Run one external formatter over a string.
+///
+/// ## Why the text goes through stdin and stdout
+///
+/// The alternative is "let the command rewrite the file in place", which is how
+/// most formatters are used from a shell — and it is wrong here. The editor
+/// holds unsaved changes, so an in-place rewrite would either lose them or
+/// leave the buffer disagreeing with the disk; and a formatter that fails
+/// halfway leaves a truncated file, which is worse than not formatting.
+///
+/// Through stdin there is exactly one writer (the save), the buffer stays the
+/// source of truth, and a command that exits non-zero changes nothing.
+///
+/// ## Why it uses the SAME `/d /s /c` form as hooks
+///
+/// Both hand a reader-written shell line to `cmd.exe`, and the quoting rules
+/// that make an inner quote survive are not the obvious ones. Two places doing
+/// it two ways is how one of them ends up mangling a path with a space. See the
+/// note in `hook_run` for the measured difference between `.arg` and
+/// `/d /s /c "…"`.
+///
+/// ## Why no `dir_kerja` guard
+///
+/// A hook runs unattended and repeatedly, so its cwd is confined to the
+/// workspace. This runs ONCE, synchronously, because the reader pressed Ctrl+S
+/// — the same trust level as `agent_exec`, which also lets the reader's own
+/// command choose its directory. The cwd still defaults to the workspace root,
+/// which is what a project-local formatter needs to find its config.
+/// `path` is the file being formatted, substituted for `{file}` in the command.
+///
+/// Needed because several formatters choose their parser FROM the filename:
+/// `prettier --stdin-filepath x.ts` and `clang-format --assume-filename=x.c`
+/// both infer the language that way. Without the substitution those tools
+/// either guess wrong or refuse, and the reader has no way to pass the name
+/// through stdin.
+#[tauri::command(async)]
+pub async fn format_text(
+    state: State<'_, AppState>,
+    command: String,
+    input: String,
+    cwd: Option<String>,
+    path: Option<String>,
+) -> ZResult<FormatResult> {
+    let cmd_teks = command.trim();
+    if cmd_teks.is_empty() {
+        return Err(ZephyrError::InvalidInput("formatter command is empty".into()));
+    }
+    /*
+     * A newline would make the stored command several commands. For a hook that
+     * is a UI-honesty rule (the field is one line); here it is also a safety
+     * one, because the command is invoked on every save and a multi-line value
+     * means something other than what the settings field shows.
+     */
+    if cmd_teks.contains('\n') || cmd_teks.contains('\r') {
+        return Err(ZephyrError::InvalidInput(
+            "formatter command must be a single line".into(),
+        ));
+    }
+
+    let dir = match cwd.as_deref().map(str::trim).filter(|d| !d.is_empty()) {
+        Some(d) => crate::paths::validate_cwd(Path::new(d))?,
+        None => state
+            .workspace_path()
+            .ok_or_else(|| ZephyrError::InvalidInput("no workspace is open".into()))?,
+    };
+
+    /*
+     * `{file}` becomes the quoted path.
+     *
+     * Quoted because a path routinely contains spaces, and a bare substitution
+     * would split it into several arguments — which for a formatter means it
+     * silently formats the wrong thing or refuses. `{dir}` is the same for the
+     * containing folder, which a repo-local script often needs.
+     *
+     * A command with no placeholder is passed through untouched, so the common
+     * `npx prettier` case needs nothing.
+     */
+    let cmd_teks: String = {
+        let basis = cmd_teks.to_string();
+        match path.as_deref().map(str::trim).filter(|p| !p.is_empty()) {
+            Some(p) => {
+                let berkas = Path::new(p);
+                let folder = berkas.parent().map(|d| d.to_string_lossy().to_string());
+                basis
+                    .replace("{file}", &format!("\"{p}\""))
+                    .replace("{dir}", &format!("\"{}\"", folder.unwrap_or_default()))
+            }
+            None => basis,
+        }
+    };
+
+    #[cfg(windows)]
+    let mut perintah = {
+        let mut c = crate::proc::tokio_cmd("cmd");
+        c.raw_arg(format!("/d /s /c \"{cmd_teks}\""));
+        c
+    };
+    #[cfg(not(windows))]
+    let mut perintah = {
+        let mut c = crate::proc::tokio_cmd("sh");
+        c.arg("-c").arg(cmd_teks);
+        c
+    };
+
+    perintah
+        .current_dir(&dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut anak = perintah.spawn().map_err(|e| {
+        ZephyrError::InvalidInput(format!("cannot start formatter '{cmd_teks}': {e}"))
+    })?;
+
+    /* Write the buffer, then CLOSE stdin. Without the explicit drop the child
+       waits for more input forever — it cannot know the text is complete. */
+    if let Some(mut masuk) = anak.stdin.take() {
+        use tokio::io::AsyncWriteExt;
+        let _ = masuk.write_all(input.as_bytes()).await;
+        drop(masuk);
+    }
+
+    let mut out = anak.stdout.take();
+    let mut err = anak.stderr.take();
+    /* The same concurrent drain as `hook_run`, for the same reason: reading one
+       pipe to completion deadlocks when the other fills. */
+    let baca_out = async {
+        let mut buf = Vec::new();
+        if let Some(h) = out.as_mut() {
+            let _ = h.read_to_end(&mut buf).await;
+        }
+        buf
+    };
+    let baca_err = async {
+        let mut buf = Vec::new();
+        if let Some(h) = err.as_mut() {
+            let _ = h.read_to_end(&mut buf).await;
+        }
+        buf
+    };
+    let (keluar, so, se) = tokio::join!(anak.wait(), baca_out, baca_err);
+
+    let status = keluar.map_err(|e| ZephyrError::Internal(format!("formatter failed: {e}")))?;
+    Ok(FormatResult {
+        ok: status.success(),
+        out: String::from_utf8_lossy(&so).to_string(),
+        err: String::from_utf8_lossy(&se).to_string(),
+    })
 }

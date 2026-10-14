@@ -103,7 +103,7 @@ Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. S
 
 ## Configure AI
 
-1. Open **Settings → Models**.
+1. Open the **…** menu in the AI view and pick **AI Models**. The same pop-up opens from the missing-key notice in the chat and from **Edit models…** in the model dropdown.
 2. Pick a provider and paste your API key, or choose **Local** / **Custom** and set the base URL (for Ollama, `http://127.0.0.1:11434/v1`).
 3. Keys are stored on the Rust side and are never sent to the frontend.
 

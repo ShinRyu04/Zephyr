@@ -1,0 +1,23 @@
+{
+  "name": "caveman",
+  "description": "Ultra-compressed communication skill that cuts ~75% of output tokens by talking like caveman while keeping full technical accuracy",
+  "version": "1.0.0",
+  "author": "JuliusBrussee",
+  "category": "Productivity",
+  "tags": [
+    "tokens",
+    "compression",
+    "skill",
+    "efficiency"
+  ],
+  "icon": "🪨",
+  "provides": {
+    "skills": [
+      "caveman"
+    ],
+    "agents": [],
+    "rules": [],
+    "hooks": [],
+    "mcp": []
+  }
+}

@@ -43,7 +43,7 @@
   --syn-operator: #81a1c1;
   --syn-tag: #8fbcbb;
   --syn-attr: #8fbcbb;
-  --syn-invalid: #bf616a;
+  --syn-invalid: #ec7883;
 }
 
 /* ── Tokyo Night ── */
@@ -131,7 +131,7 @@
   --syn-operator: #fe8019;
   --syn-tag: #8ec07c;
   --syn-attr: #fabd2f;
-  --syn-invalid: #fb4934;
+  --syn-invalid: #ff4f38;
 }
 
 /* ── One Dark Pro ── */
@@ -173,9 +173,9 @@
   --syn-variable: #e1717a;
   --syn-type: #e5c07b;
   --syn-operator: #56b6c2;
-  --syn-tag: #e06c75;
+  --syn-tag: #e36e77;
   --syn-attr: #d19a66;
-  --syn-invalid: #e06c75;
+  --syn-invalid: #e36e77;
 }
 
 /* ── Zephyr Dark Acrylic (modern terminal-first acrylic look) ── */
@@ -185,11 +185,11 @@
   --surface-2: #212530;
   --surface-3: #2d3240;
   --border: #282d3b;
-  --border-strong: #454d63;
+  --border-strong: #606679;
 
   --text: #e2e8f0;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #758498;
   --text-inverse: #0f172a;
 
   --accent: #38bdf8;
@@ -203,7 +203,7 @@
   --deleted: #f87171;
 
   --editor-bg: #12141a;
-  --editor-gutter: #475569;
+  --editor-gutter: #6a7f9d;
   --editor-active-line: rgba(255, 255, 255, 0.04);
   --editor-selection: rgba(56, 189, 248, 0.25);
   --editor-cursor: #38bdf8;
@@ -212,7 +212,7 @@
   --syn-keyword: #c084fc;
   --syn-string: #4ade80;
   --syn-number: #fb923c;
-  --syn-comment: #64748b;
+  --syn-comment: #6e7f98;
   --syn-function: #38bdf8;
   --syn-variable: #f43f5e;
   --syn-type: #38bdf8;
@@ -229,7 +229,7 @@
   --surface-2: #3d4055;
   --surface-3: #4a4d63;
   --border: #44475a;
-  --border-strong: #6272a4;
+  --border-strong: #7180ad;
 
   --text: #f8f8f2;
   --text-secondary: #d8d8d2;
@@ -239,7 +239,7 @@
   --accent: #bd93f9;
   --accent-hover: #caa9fa;
   --accent-subtle: rgba(189, 147, 249, 0.18);
-  --danger: #ff5555;
+  --danger: #ff7575;
   --warning: #f1fa8c;
   --success: #50fa7b;
   --modified: #f1fa8c;
@@ -247,7 +247,7 @@
   --deleted: #ff5555;
 
   --editor-bg: #282a36;
-  --editor-gutter: #7f8bb0;
+  --editor-gutter: #8490b7;
   --editor-active-line: rgba(255, 255, 255, 0.045);
   --editor-selection: rgba(189, 147, 249, 0.28);
   --editor-cursor: #f8f8f2;
@@ -256,8 +256,14 @@
   --syn-keyword: #ff79c6;
   --syn-string: #f1fa8c;
   --syn-number: #bd93f9;
-  --syn-comment: #8290b3;
+  --syn-comment: #8391b4;
   --syn-function: #50fa7b;
+  --syn-variable: #f8f8f2;
+  --syn-type: #8be9fd;
+  --syn-tag: #8be9fd;
+  --syn-operator: #ffb86c;
+  --syn-attr: #ffb86c;
+  --syn-invalid: #ff6767;
 }
 
 /* Catppuccin Mocha — pastel lembut, populer */
@@ -267,7 +273,7 @@
   --surface-2: #2d2d44;
   --surface-3: #363650;
   --border: #313244;
-  --border-strong: #585b70;
+  --border-strong: #6c6f81;
 
   --text: #cdd6f4;
   --text-secondary: #bac2de;
@@ -285,7 +291,7 @@
   --deleted: #f38ba8;
 
   --editor-bg: #1e1e2e;
-  --editor-gutter: #7f849c;
+  --editor-gutter: #80859e;
   --editor-active-line: rgba(255, 255, 255, 0.045);
   --editor-selection: rgba(203, 166, 247, 0.26);
   --editor-cursor: #f5e0dc;
@@ -294,8 +300,14 @@
   --syn-keyword: #cba6f7;
   --syn-string: #a6e3a1;
   --syn-number: #fab387;
-  --syn-comment: #7f849c;
+  --syn-comment: #80859e;
   --syn-function: #89b4fa;
+  --syn-variable: #f5c2e7;
+  --syn-type: #f9e2af;
+  --syn-tag: #f9e2af;
+  --syn-operator: #89dceb;
+  --syn-attr: #89dceb;
+  --syn-invalid: #f38ba8;
 }
 
 /* Rosé Pine — mawar tua, tenang */
@@ -305,7 +317,7 @@
   --surface-2: #26233a;
   --surface-3: #2f2b45;
   --border: #26233a;
-  --border-strong: #524f67;
+  --border-strong: #6a677c;
 
   --text: #e0def4;
   --text-secondary: #c9c6dd;
@@ -323,7 +335,7 @@
   --deleted: #eb6f92;
 
   --editor-bg: #191724;
-  --editor-gutter: #6e6a86;
+  --editor-gutter: #827d9e;
   --editor-active-line: rgba(255, 255, 255, 0.04);
   --editor-selection: rgba(235, 188, 186, 0.26);
   --editor-cursor: #e0def4;
@@ -332,8 +344,14 @@
   --syn-keyword: #c4a7e7;
   --syn-string: #f6c177;
   --syn-number: #ebbcba;
-  --syn-comment: #6e6a86;
+  --syn-comment: #827d9e;
   --syn-function: #9ccfd8;
+  --syn-variable: #e0def4;
+  --syn-type: #9ccfd8;
+  --syn-tag: #9ccfd8;
+  --syn-operator: #908caa;
+  --syn-attr: #908caa;
+  --syn-invalid: #eb6f92;
 }
 
 /* Kanagawa — sumi-e, gelap kehijauan */
@@ -343,17 +361,17 @@
   --surface-2: #31313e;
   --surface-3: #3b3b4d;
   --border: #2d2d3b;
-  --border-strong: #54546d;
+  --border-strong: #727287;
 
   --text: #dcd7ba;
   --text-secondary: #c8c093;
   --text-muted: #9c9a84;
-  --text-inverse: #1f1f28;
+  --text-inverse: #07070a;
 
   --accent: #7e9cd8;
   --accent-hover: #93aee0;
   --accent-subtle: rgba(126, 156, 216, 0.18);
-  --danger: #e82424;
+  --danger: #ef6565;
   --warning: #e6c384;
   --success: #98bb6c;
   --modified: #e6c384;
@@ -361,7 +379,7 @@
   --deleted: #e82424;
 
   --editor-bg: #1f1f28;
-  --editor-gutter: #727169;
+  --editor-gutter: #88877d;
   --editor-active-line: rgba(255, 255, 255, 0.04);
   --editor-selection: rgba(126, 156, 216, 0.26);
   --editor-cursor: #dcd7ba;
@@ -370,8 +388,14 @@
   --syn-keyword: #957fb8;
   --syn-string: #98bb6c;
   --syn-number: #d27e99;
-  --syn-comment: #727169;
+  --syn-comment: #88877d;
   --syn-function: #7e9cd8;
+  --syn-variable: #ffa066;
+  --syn-type: #e6c384;
+  --syn-tag: #e6c384;
+  --syn-operator: #7fb4ca;
+  --syn-attr: #7fb4ca;
+  --syn-invalid: #ff5d62;
 }
 
 /* Everforest — hijau hutan, mata nyaman */
@@ -381,7 +405,7 @@
   --surface-2: #3a454a;
   --surface-3: #445055;
   --border: #3a454a;
-  --border-strong: #5c6a72;
+  --border-strong: #7a868c;
 
   --text: #d3c6aa;
   --text-secondary: #c0b595;
@@ -391,7 +415,7 @@
   --accent: #a7c080;
   --accent-hover: #b6cd93;
   --accent-subtle: rgba(167, 192, 128, 0.18);
-  --danger: #e67e80;
+  --danger: #e8898b;
   --warning: #dbbc7f;
   --success: #a7c080;
   --modified: #dbbc7f;
@@ -399,7 +423,7 @@
   --deleted: #e67e80;
 
   --editor-bg: #2b3339;
-  --editor-gutter: #7a8471;
+  --editor-gutter: #919d86;
   --editor-active-line: rgba(255, 255, 255, 0.04);
   --editor-selection: rgba(167, 192, 128, 0.26);
   --editor-cursor: #d3c6aa;
@@ -408,8 +432,14 @@
   --syn-keyword: #e67e80;
   --syn-string: #a7c080;
   --syn-number: #d699b6;
-  --syn-comment: #7a8471;
+  --syn-comment: #919d86;
   --syn-function: #83c092;
+  --syn-variable: #e69875;
+  --syn-type: #dbbc7f;
+  --syn-tag: #dbbc7f;
+  --syn-operator: #7fbbb3;
+  --syn-attr: #7fbbb3;
+  --syn-invalid: #ef8385;
 }
 
 /* GitHub Dark — ala GitHub, netral */
@@ -419,7 +449,7 @@
   --surface-2: #1c2128;
   --surface-3: #21262d;
   --border: #30363d;
-  --border-strong: #484f58;
+  --border-strong: #61676f;
 
   --text: #e6edf3;
   --text-secondary: #c9d1d9;
@@ -437,7 +467,7 @@
   --deleted: #f85149;
 
   --editor-bg: #0d1117;
-  --editor-gutter: #6e7681;
+  --editor-gutter: #757d89;
   --editor-active-line: rgba(255, 255, 255, 0.045);
   --editor-selection: rgba(88, 166, 255, 0.24);
   --editor-cursor: #e6edf3;
@@ -448,6 +478,12 @@
   --syn-number: #79c0ff;
   --syn-comment: #8b949e;
   --syn-function: #d2a8ff;
+  --syn-variable: #ffa657;
+  --syn-type: #7ee787;
+  --syn-tag: #7ee787;
+  --syn-operator: #79c0ff;
+  --syn-attr: #79c0ff;
+  --syn-invalid: #f85149;
 }
 
 /* Ayu Mirage — biru malam, aksen jingga */
@@ -457,7 +493,7 @@
   --surface-2: #2a2f3d;
   --surface-3: #343a4a;
   --border: #2a2f3d;
-  --border-strong: #5c6773;
+  --border-strong: #68727d;
 
   --text: #cbccc6;
   --text-secondary: #b8b9b3;
@@ -475,7 +511,7 @@
   --deleted: #f28779;
 
   --editor-bg: #1f2430;
-  --editor-gutter: #6c7680;
+  --editor-gutter: #808c98;
   --editor-active-line: rgba(255, 255, 255, 0.04);
   --editor-selection: rgba(255, 204, 102, 0.24);
   --editor-cursor: #cbccc6;
@@ -484,8 +520,14 @@
   --syn-keyword: #ffa759;
   --syn-string: #bae67e;
   --syn-number: #d4bfff;
-  --syn-comment: #6c7680;
+  --syn-comment: #808c98;
   --syn-function: #73d0ff;
+  --syn-variable: #ffb454;
+  --syn-type: #5ccfe6;
+  --syn-tag: #5ccfe6;
+  --syn-operator: #ffd580;
+  --syn-attr: #ffd580;
+  --syn-invalid: #ff6666;
 }
 
 /* Solarized Light — krem hangat, terang */
@@ -495,35 +537,41 @@
   --surface-2: #eee8d5;
   --surface-3: #e4ddc8;
   --border: #d9d2bd;
-  --border-strong: #b8b09a;
+  --border-strong: #908978;
 
   --text: #073642;
   --text-secondary: #586e75;
-  --text-muted: #7d8b8f;
-  --text-inverse: #fdf6e3;
+  --text-muted: #636f72;
+  --text-inverse: #efefef;
 
-  --accent: #268bd2;
-  --accent-hover: #3a9de0;
-  --accent-subtle: rgba(38, 139, 210, 0.14);
-  --danger: #dc322f;
-  --warning: #b58900;
-  --success: #859900;
+  --accent: #1f71ab;
+  --accent-hover: #3a87c1;
+  --accent-subtle: rgba(31, 113, 171, 0.14);
+  --danger: #cd2f2c;
+  --warning: #896800;
+  --success: #647400;
   --modified: #b58900;
   --added: #859900;
   --deleted: #dc322f;
 
   --editor-bg: #fdf6e3;
-  --editor-gutter: #93a1a1;
+  --editor-gutter: #697373;
   --editor-active-line: rgba(0, 0, 0, 0.04);
   --editor-selection: rgba(38, 139, 210, 0.20);
   --editor-cursor: #073642;
   --editor-match: rgba(181, 137, 0, 0.24);
 
-  --syn-keyword: #859900;
-  --syn-string: #2aa198;
-  --syn-number: #d33682;
-  --syn-comment: #93a1a1;
-  --syn-function: #268bd2;
+  --syn-keyword: #697800;
+  --syn-string: #217e77;
+  --syn-number: #ca347d;
+  --syn-comment: #697373;
+  --syn-function: #2076b3;
+  --syn-variable: #b84414;
+  --syn-type: #627100;
+  --syn-tag: #627100;
+  --syn-operator: #1e6fa7;
+  --syn-attr: #1e6fa7;
+  --syn-invalid: #c82e2b;
 }
 
 /* Nord Light — biru dingin, terang */
@@ -533,35 +581,41 @@
   --surface-2: #dde2ec;
   --surface-3: #d0d7e5;
   --border: #c8d0e0;
-  --border-strong: #9aa5bd;
+  --border-strong: #7c8599;
 
   --text: #2e3440;
   --text-secondary: #4c566a;
-  --text-muted: #6d788f;
-  --text-inverse: #eceff4;
+  --text-muted: #60697d;
+  --text-inverse: #e9e9e9;
 
-  --accent: #5e81ac;
-  --accent-hover: #7395bd;
-  --accent-subtle: rgba(94, 129, 172, 0.14);
-  --danger: #bf616a;
-  --warning: #d08770;
-  --success: #a3be8c;
+  --accent: #4e6b8f;
+  --accent-hover: #637d9c;
+  --accent-subtle: rgba(78, 107, 143, 0.14);
+  --danger: #a05159;
+  --warning: #8e5c4d;
+  --success: #5e6d51;
   --modified: #d08770;
   --added: #a3be8c;
   --deleted: #bf616a;
 
   --editor-bg: #eceff4;
-  --editor-gutter: #8b95a9;
+  --editor-gutter: #666d7c;
   --editor-active-line: rgba(0, 0, 0, 0.04);
   --editor-selection: rgba(94, 129, 172, 0.20);
   --editor-cursor: #2e3440;
   --editor-match: rgba(208, 135, 112, 0.26);
 
-  --syn-keyword: #5e81ac;
-  --syn-string: #a3be8c;
-  --syn-number: #b48ead;
-  --syn-comment: #8b95a9;
-  --syn-function: #81a1c1;
+  --syn-keyword: #516e93;
+  --syn-string: #617254;
+  --syn-number: #7f647a;
+  --syn-comment: #666d7c;
+  --syn-function: #596f85;
+  --syn-variable: #7e6039;
+  --syn-type: #456f4b;
+  --syn-tag: #456f4b;
+  --syn-operator: #476791;
+  --syn-attr: #476791;
+  --syn-invalid: #af3f49;
 }
 
 /* Min Light — putih bersih minimalis */
@@ -571,11 +625,11 @@
   --surface-2: #eef0f4;
   --surface-3: #e3e6ec;
   --border: #e1e4e8;
-  --border-strong: #b9bfca;
+  --border-strong: #8c9099;
 
   --text: #24292f;
   --text-secondary: #57606a;
-  --text-muted: #7d8590;
+  --text-muted: #6c737c;
   --text-inverse: #ffffff;
 
   --accent: #0969da;
@@ -589,7 +643,7 @@
   --deleted: #cf222e;
 
   --editor-bg: #ffffff;
-  --editor-gutter: #8c959f;
+  --editor-gutter: #70777f;
   --editor-active-line: rgba(0, 0, 0, 0.035);
   --editor-selection: rgba(9, 105, 218, 0.18);
   --editor-cursor: #24292f;
@@ -600,4 +654,10 @@
   --syn-number: #0550ae;
   --syn-comment: #6e7781;
   --syn-function: #8250df;
+  --syn-variable: #953800;
+  --syn-type: #1a7f37;
+  --syn-tag: #1a7f37;
+  --syn-operator: #0550ae;
+  --syn-attr: #0550ae;
+  --syn-invalid: #cf222e;
 }

@@ -3,6 +3,7 @@ import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
+import { useAiModels } from '../../lib/aiModelsStore';
 import { useT } from '../../lib/i18n';
 import {
   baseUrlEfektif,
@@ -45,8 +46,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const keys = useAi((s) => s.keys);
   const setOpenAi = useAi((s) => s.setModelMenuOpen);
   const setAiModel = useAi((s) => s.setModel);
-  const setActivity = useStore((s) => s.setActivity);
-  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const applySettings = useStore((s) => s.applySettings);
   const subCfg = useStore((s) => s.settings.subagent);
   const wrap = useRef<HTMLDivElement | null>(null);
@@ -95,9 +94,18 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   );
   const providerTersembunyi = PROVIDERS.length - providerSiap.length;
 
-  const pakai = (m: string) => {
-    if (sub) void applySettings({ subagent: { model: m } } as never);
-    else void setAiModel(m);
+  /*
+   * `p` = the provider group the row (or the typed name) came from.
+   *
+   * It has to reach setModel: a row sits inside one provider's group, and the
+   * click means "this model, from this provider". Dropping it left the previous
+   * provider active - the composer showed "Anthropic - gemini-3.8-flash" and
+   * sent Gemini's model to Anthropic's endpoint.
+   */
+  const pakai = (m: string, p?: string) => {
+    if (sub) {
+      void applySettings({ subagent: p ? { model: m, provider: p } : { model: m } } as never);
+    } else void setAiModel(m, p);
   };
 
   useEffect(() => {
@@ -121,16 +129,28 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   }, [open]);
 
   /*
-   * Pull the key list as soon as the selector mounts, not when a request is
-   * sent.
+   * Pull the key list whenever the menu OPENS, not once at mount.
    *
    * The provider list is built from `keys`, so an empty store meant the menu
    * opened with no providers at all and only filled in after the first send
    * happened to call loadKeys — the "custom provider shows up late" symptom.
+   * Making it run on mount fixed that one, and introduced a worse one: the
+   * snapshot never refreshed again. A key saved in Settings afterwards went
+   * into `useSettingsUi`'s own copy and never reached this store, so the menu
+   * kept the pre-save snapshot and hid the provider forever — the user saw
+   * "key saved" and a passing connection test in Settings, and "providers
+   * hidden because there is no API key yet" in the picker. Only a reload
+   * reconciled the two.
+   *
+   * Re-reading on open costs one IPC that lists providers and masks keys; it
+   * does not touch the network. That is cheap enough to be unconditional, and
+   * being unconditional is the point — a condition based on "was a key saved
+   * since?" is another piece of state that can itself go stale.
    */
   useEffect(() => {
+    if (!open) return;
     void useAi.getState().loadKeys();
-  }, []);
+  }, [open]);
 
   /*
    * Fetch the live model list the moment the menu opens.
@@ -180,7 +200,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const commitTyped = (p: string) => {
     const v = typed.trim();
     if (!v) return;
-    pakai(v);
+    pakai(v, p);
 
     setSaved((s) => {
       const list = s[p] ?? [];
@@ -197,14 +217,17 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     setOpen(false);
   };
 
-  const bukaSettings = () => {
+  /*
+   * "Edit models" opens CHAT SETTINGS on Models.
+   *
+   * The old body did four things to reach a section: close the menu, switch the
+   * activity bar to Settings, force the sidebar open, then ask for 'models' on a
+   * page across the window. None of that survives: the model settings are a pop-up
+   * now, so reaching them is one call and this panel stays where it is.
+   */
+  const bukaModels = () => {
     setOpen(false);
-    setActivity('settings');
-    setSettingsOpen(true);
-    if (!useStore.getState().sidebarVisible) useStore.getState().toggleSidebar();
-    void import('../../lib/settingsStore').then(({ useSettingsUi }) =>
-      useSettingsUi.getState().setSection('models'),
-    );
+    useAiModels.getState().buka();
   };
 
   const hasilCari = useMemo(() => {
@@ -320,7 +343,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               onChange={(e) => setCari(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && modeCari && hasilCari[0]) {
-                  pakai(hasilCari[0].id);
+                  pakai(hasilCari[0].id, hasilCari[0].provider);
                   setOpen(false);
                 }
               }}
@@ -353,7 +376,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   data-model-item={m.id}
                   data-provider={m.provider}
                   onClick={() => {
-                    pakai(m.id);
+                    pakai(m.id, m.provider);
                     setOpen(false);
                   }}
                 >
@@ -369,8 +392,8 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           ) : providerSiap.length === 0 ? (
             <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
               {tr('No API key installed yet. Add a key first to pick a model.')}
-              <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={bukaSettings}>
-                {tr('Open Settings → AI Models')}
+              <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={bukaModels}>
+                {tr('Open AI Models')}
               </button>
             </div>
           ) : (
@@ -445,7 +468,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                           data-provider={g.provider}
                           data-baseurl={PROVIDER_BY_ID.get(g.provider)?.baseUrl}
                           onClick={() => {
-                            pakai(m.id);
+                            pakai(m.id, g.provider);
                             setOpen(false);
                           }}
                         >
@@ -512,7 +535,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               {fetching ? tr('Refreshing…') : tr('Refresh models')}
             </span>
           </button>
-          <button type="button" className="ai-plus-item" data-testid={`${pfx}-model-edit`} onClick={bukaSettings}>
+          <button type="button" className="ai-plus-item" data-testid={`${pfx}-model-edit`} onClick={bukaModels}>
             <AiIkon name="gear" />
             <span className="ai-plus-label">{tr('Edit models…')}</span>
           </button>

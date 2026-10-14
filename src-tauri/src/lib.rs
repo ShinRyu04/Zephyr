@@ -5,22 +5,22 @@ mod agents;
 mod ai;
 mod api_client;
 mod app_state;
-mod database;
-mod credentials;
 mod bg_image;
 mod browser;
 mod browser_pane;
-mod cli;
-mod cli_agents;
 mod cc_catalog;
 mod cc_plugins;
+mod cli;
+mod cli_agents;
 mod cli_chat;
 mod cli_ext;
 mod credential;
+mod credentials;
 mod cron;
 mod dap;
-mod devenv;
+mod database;
 mod dev_update;
+mod devenv;
 mod diagnostics;
 mod dialogs;
 mod discord_rpc;
@@ -32,31 +32,32 @@ mod ext_pkg;
 mod ext_registry;
 mod extensions;
 pub mod fs_utils;
-pub mod tulis_aman;
 mod gambar;
 mod git;
 mod github;
 mod history;
+mod hooks;
+mod instructions;
 mod logging;
 mod lsp;
 mod mcp_client;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
-mod hooks;
-mod instructions;
 mod memory;
 mod paths;
+mod plugins;
 mod proc;
 mod pty;
 mod rag;
 pub mod search;
 mod secrets;
-mod sftp;
 mod settings;
+mod sftp;
 mod skills;
 mod snippets;
 mod ssh;
+mod tangkap_layar;
 mod tasks;
 mod tests_ai;
 mod tests_browser;
@@ -65,8 +66,10 @@ mod tests_git;
 mod tests_log;
 mod tests_mcp;
 mod titlebar;
+pub mod tulis_aman;
 mod web;
 mod workspace;
+mod worktree;
 
 use app_state::AppState;
 use serde_json::json;
@@ -99,7 +102,7 @@ use tauri::{Emitter, Manager, RunEvent, WindowEvent};
  * Yang tersisa selain kedua flag wajib di atas hanya argumen yang aman: hemat RAM
  * tanpa mengganggu proses ATAU cara WebView2 menggambar.
  */
-const RAM_ARGS_BASE: &str = "--js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
+const RAM_ARGS_BASE: &str = "--js-flags=--max-old-space-size=192 --disable-background-networking --no-first-run --disable-component-update --disable-domain-reliability --disable-sync --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-features=SpareRendererForSitePerProcess,CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeIdentity,msEdgeSync,msEdgeAutofill,msEdgeSidebar,msEdgeShoppingAssistant,msEdgeCollections,msEdgeWorkspaces";
 
 fn pasang_arg_webview2() {
     let ada = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
@@ -267,6 +270,8 @@ pub fn run() {
             lsp::lsp_reap,
             lsp::lsp_set_idle,
             lsp::lsp_probe,
+            lsp::lsp_resep,
+            lsp::lsp_pasang,
             settings::set_window_size,
             settings::list_recents,
             settings::workspace_open,
@@ -275,6 +280,7 @@ pub fn run() {
             fs_utils::fs_write,
             fs_utils::fs_exists,
             fs_utils::fs_stat,
+            fs_utils::fs_realpath,
             fs_utils::fs_create_file,
             fs_utils::fs_create_dir,
             fs_utils::fs_delete,
@@ -286,6 +292,7 @@ pub fn run() {
             explorer::fs_unwatch,
             explorer::search_files,
             explorer::list_workspace_files,
+            explorer::workspace_file_index_clear,
             browser::browser_probe,
             browser::browser_download_url,
             browser_pane::browser_pane_open,
@@ -307,7 +314,7 @@ pub fn run() {
             pty::pty_resize,
             pty::pty_kill,
             pty::pty_list,
-    pty::pty_tail,
+            pty::pty_tail,
             pty::pty_set_paused,
             pty::pty_interrupt,
             /*
@@ -394,6 +401,7 @@ pub fn run() {
             git::git_create_branch,
             git::git_delete_branch,
             git::git_diff,
+            git::git_diff_head,
             git::git_discard,
             git::git_log,
             git::git_config_get_user,
@@ -413,6 +421,9 @@ pub fn run() {
             git::git_worktree_add,
             git::git_worktree_remove,
             git::git_worktree_prune,
+            worktree::worktree_list,
+            worktree::worktree_add,
+            worktree::worktree_remove,
             github::gh_status,
             github::gh_set_pat,
             github::gh_login_device,
@@ -431,6 +442,8 @@ pub fn run() {
             mcp_commands::mcp_client_list,
             mcp_commands::mcp_client_tools,
             mcp_commands::mcp_client_call,
+            mcp_commands::mcp_client_prompts,
+            mcp_commands::mcp_client_prompt_get,
             mcp_commands::mcp_client_save,
             mcp_commands::mcp_client_remove,
             extensions::extensions_list,
@@ -518,11 +531,16 @@ pub fn run() {
             diagnostics::log_frontend,
             diagnostics::perf_mark,
             diagnostics::debug_panic,
+            logging::log_tail,
             dialogs::file_dialog_open,
             dialogs::file_dialog_save,
             dialogs::folder_dialog_open,
             titlebar::titlebar_theme,
+            // item ZEPH-SCREENSHOT-TOOL (151): tangkap layar jendela -> PNG.
+            // Perintah ini hanya MENULIS berkas; tidak ada parameter jaringan.
+            tangkap_layar::window_capture,
             hooks::hook_run,
+            hooks::format_text,
             instructions::instructions_list,
             instructions::instruction_read,
             instructions::instruction_write,
@@ -535,6 +553,12 @@ pub fn run() {
             skills::skill_write,
             skills::skill_delete,
             skills::agent_context,
+            plugins::plugins_list,
+            plugins::plugins_marketplace,
+            plugins::plugin_install,
+            plugins::plugin_install_bundled,
+            plugins::plugin_enable,
+            plugins::plugin_remove,
             memory::memory_read,
             memory::memory_write,
             cron::cron_list,
@@ -543,7 +567,6 @@ pub fn run() {
             cron::cron_toggle,
             cron::cron_due,
             cron::cron_mark_run,
-
             /*
              * The API Client, SQL Explorer and Credentials handlers.
              *

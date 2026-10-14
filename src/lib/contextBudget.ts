@@ -118,10 +118,11 @@ export function ukuranPayload(messages: unknown[]): number {
  * the provider refuses with 502 - a limit that belongs to the transport, not
  * to the model, so no token estimate can see it.
  *
- * Order of sacrifice: shorten old tool output, then drop old messages
- * whole, then stop. System messages are never touched and the newest turn is
- * always kept, because those are what make the request answerable; a shorter
- * request beats a useless one.
+ * Order of sacrifice: shorten old tool output, drop old messages whole, strip
+ * the newest turn's images, then shorten the newest turn's own body. System
+ * messages are never touched and the newest turn is preferred over the older
+ * ones, because that is what makes the request answerable; a request that is
+ * slightly short beats one the transport refuses outright (502).
  *
  * Generic over the message type so it stays testable without the store.
  */
@@ -179,13 +180,29 @@ export function ringkasUkuran<T extends { role: string; content?: unknown; image
    * boleh dipotong - itu sudah selesai dipakai.
    */
   const STUB = 1_200;
-  for (let i = 0; i < clone.length - 1; i++) {
+  /*
+   * Batas loop MENJANGKAU elemen terakhir (`i < clone.length`, bukan
+   * `clone.length - 1`). Versi lama berbunyi `i < clone.length - 1`, sehingga
+   * penjaga tepat di bawah (`if (i === clone.length - 1 ...) continue;`) TIDAK
+   * PERNAH bisa benar: batas loop sudah mengecualikan indeks terakhir, jadi
+   * syarat penjaga mustahil terpenuhi dan baris itu menjadi kode mati.
+   *
+   * Sekarang penjaga benar-benar dieksekusi: satu iterasi tambahan mencapai
+   * indeks terakhir dan `continue` di sana yang meloloskannya. Efek akhirnya
+   * sama dengan batas lama, tetapi kali ini terlihat dan teruji - kode yang
+   * TAMPAK menjaga sesuatu padahal tidak lebih buruk daripada tanpa penjaga,
+   * karena pembaca berikutnya menganggapnya sudah aman.
+   *
+   * Penjaga ini hanya berlaku pada pass ini; jalur potong-terakhir di bawah
+   * (isi penuh dipotong sesuai sisa anggaran) tetap boleh memendekkannya.
+   */
+  for (let i = 0; i < clone.length; i++) {
     if (ukuran() <= cap) break;
     const m = clone[i];
     const isi = typeof m.content === 'string' ? m.content : String(m.content ?? '');
     if (isi.length <= STUB) continue;
     /* Giliran terakhir selalu dibiarkan utuh; ia yang sedang dikerjakan. */
-    if (i === clone.length - 1 && m.role === 'tool') continue;
+    if (i === clone.length - 1) continue;
     clone[i] = {
       ...m,
       content:
@@ -249,6 +266,53 @@ export function ringkasUkuran<T extends { role: string; content?: unknown; image
       clone[i - 1]?.role === 'assistant' &&
       ((clone[i - 1].toolCalls as unknown[] | undefined)?.length ?? 0) > 0;
     if (!adaPemanggil) clone.splice(i, 1);
+  }
+
+  /*
+   * Pass 4: jaring terakhir untuk giliran PALING BARU.
+   *
+   * Tiga pass di atas sengaja melindungi giliran terakhir: datanya yang sedang
+   * dipakai model untuk memutuskan langkah berikutnya. Tapi kalau giliran itu
+   * SENDIRI yang melewati cap, semua pass di atas selesai tanpa hasil dan
+   * requestnya tetap ditolak gateway - SELURUH langkah hilang, bukan sebagian
+   * datanya. Terukur: 2.701.517 karakter turun ke 50.230 karakter dengan cap
+   * 40.000, yaitu request yang pasti dijawab 502.
+   *
+   * Jadi di sini giliran terakhir ikut dipangkas, urutannya dari yang paling
+   * sedikit merugikan:
+   *   1. gambarnya dilepas (pikselnya memang tidak bisa ikut; teksnya tetap
+   *      utuh dan model diberi tahu supaya ia tidak menjawab seolah melihat),
+   *   2. baru isinya diperpendek - awalan tetap dikirim, dengan catatan berapa
+   *      karakter yang tidak ikut.
+   * Yang penting: hasilnya selalu lebih baik daripada request yang ditolak.
+   */
+  if (ukuran() > cap && clone.length > 0) {
+    const idx = clone.length - 1;
+    const terakhir = clone[idx];
+    const jumlahGambar = Array.isArray(terakhir?.images) ? (terakhir.images as unknown[]).length : 0;
+    if (jumlahGambar > 0) {
+      const isiAwal = typeof terakhir.content === 'string' ? terakhir.content : null;
+      clone[idx] = {
+        ...terakhir,
+        images: [],
+        ...(isiAwal !== null
+          ? { content: `${isiAwal}\n\n[catatan: ${jumlahGambar} gambar dilepas agar request tidak melebihi batas gateway]` }
+          : {}),
+      } as T;
+    }
+  }
+  if (ukuran() > cap && clone.length > 0) {
+    const idx = clone.length - 1;
+    const terakhir = clone[idx];
+    const isi = typeof terakhir.content === 'string' ? terakhir.content : '';
+    const MIN = 400;
+    if (isi.length > MIN) {
+      const simpan = Math.max(MIN, isi.length - (ukuran() - cap) - 240);
+      clone[idx] = {
+        ...terakhir,
+        content: `${isi.slice(0, simpan)}\n\n[isi dipotong agar request tidak melebihi batas gateway: ${isi.length} karakter, hanya ${simpan} pertama yang dikirim]`,
+      } as T;
+    }
   }
 
   return [...sistem, ...clone];

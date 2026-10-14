@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAiCli, EMPTY_LIST, EMPTY_TASKS, type CliTask } from '../../lib/aiCliStore';
+import { useAiChatSettings } from '../../lib/chatSettingsStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import AgentMapPanel from './AgentMapPanel';
 import { useAi } from '../../lib/aiStore';
@@ -724,8 +725,11 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
           void import('../../lib/panelStore').then((m) => m.usePanel.getState().focusTab('source-control' as never));
           setToast(tx('Opened Source Control for the working-tree changes'));
         } else {
-          void import('../../lib/store').then((m) => m.useStore.getState().setSettingsOpen(true));
-          setToast(tx('Opened Settings — review what is sent to the provider'));
+          /* "What is sent to the provider" is a chat setting (context), and it
+             is edited in the chat's own settings page - not in the editor-area
+             Settings page, which has not owned it since those rows moved. */
+          useAiChatSettings.getState().bukaDi('context');
+          setToast(tx('Opened Chat Settings — review what is sent to the provider'));
         }
         setMenu(null);
         break;
@@ -779,8 +783,10 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         break;
       }
       case 'statusline':
-        void import('../../lib/store').then((m) => m.useStore.getState().setSettingsOpen(true));
-        setToast(tx('Opened Settings — choose what the status line shows'));
+        /* The status line is chat chrome, so its switches live in Chat Settings
+           (Appearance) with the rest of them. */
+        useAiChatSettings.getState().bukaDi('appearance');
+        setToast(tx('Opened Chat Settings — choose what the status line shows'));
         setMenu(null);
         break;
       case 'tasks': {
@@ -870,9 +876,10 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
        * typing a command at a prompt that cannot receive one.
        */
       case 'config': {
-        void import('../../lib/store').then((m) => {
-          m.useStore.getState().setSettingsOpen(true);
-        });
+        /* The CLI's /config has no single Zephyr equivalent: what it shows is
+           split across the chat's settings page. Open that page rather than the
+           editor-area Settings page, where half of these rows no longer exist. */
+        useAiChatSettings.getState().setBuka(true);
         setMenu(null);
         break;
       }

@@ -85,7 +85,6 @@ interface StoreState {
 
   terminalTabs: never[];
   ai: { model: string; messages: never[] };
-  mcp: { enabled: boolean; running: boolean; port: number };
 
   settings: Settings;
   settingsLoaded: boolean;
@@ -137,7 +136,23 @@ interface StoreActions {
   closeWorkspace: () => Promise<void>;
   refreshRecents: () => Promise<void>;
   openFileDialog: () => Promise<void>;
-  openPath: (path: string) => Promise<void>;
+  openPath: (
+    path: string,
+    /**
+     * `preview: false` opens a permanent tab. Omit it for the browsing default
+     * — see the note on the implementation for why the default is preview.
+     */
+    opts?: { preview?: boolean },
+  ) => Promise<void>;
+
+  /** Retire every preview tab except `kecuali`. */
+  tutupPreviewLama: (kecuali?: string) => void;
+
+  /** Pin or unpin a tab; pinning also clears the preview flag. */
+  togglePin: (id: string) => void;
+
+  /** Make a preview tab permanent (double-click). */
+  promoteTab: (id: string) => void;
   newUntitled: () => void;
 
   /*
@@ -146,7 +161,7 @@ interface StoreActions {
    * is at most ONE chat tab and ONE Chat Settings tab, so pressing the button
    * twice focuses rather than stacking duplicates.
    */
-  bukaViewAi: (view: 'ai-chat' | 'chat-settings') => void;
+  bukaViewAi: (view: 'ai-chat' | 'chat-settings' | 'search-editor') => void;
 
   setActiveTab: (id: string) => void;
   updateTabContent: (id: string, content: string) => void;
@@ -155,11 +170,28 @@ interface StoreActions {
 
   formatTab: (id: string) => Promise<number>;
 
+  /**
+   * Apply the language server's "fix all" action to one buffer.
+   *
+   * `diterapkan` is the number of edits written into the buffer; `ditawarkan`
+   * is how many actions the server returned. They are reported separately
+   * because "the server offered nothing" and "the server offered a fix that
+   * changed nothing" are different facts, and a caller deciding whether to say
+   * anything needs to tell them apart.
+   */
+  fixAllTab: (id: string) => Promise<{ diterapkan: number; ditawarkan: number; lain: string[] }>;
+
   requestCloseTab: (id: string) => void;
   forceCloseTab: (id: string) => void;
   reorderTab: (from: number, to: number) => void;
 
-  openPathAt: (path: string, line: number, col?: number) => Promise<void>;
+  openPathAt: (
+    path: string,
+    line: number,
+    col?: number,
+    /** `preview: true` for a browse-to-line; default pins. */
+    opts?: { preview?: boolean },
+  ) => Promise<void>;
 
   renamePathInTabs: (from: string, to: string) => void;
 
@@ -468,7 +500,6 @@ export const useStore = create<Store>((set, get) => ({
 
   terminalTabs: [],
   ai: { model: '', messages: [] },
-  mcp: { enabled: false, running: false, port: 9222 },
 
   settings: DEFAULT_SETTINGS,
   settingsLoaded: false,
@@ -575,7 +606,15 @@ export const useStore = create<Store>((set, get) => ({
       set({ navSuppress: true });
       for (const t of saved) {
         try {
-          await get().openPath(t.path);
+          /* Restoring is not browsing: every file the reader had open comes
+             back as a real tab, never as a preview slot that a later click
+             could replace. `pinned` is carried over so a tab the reader had
+             fixed in place is still fixed after a restart. */
+          await get().openPath(t.path, { preview: false });
+          if (t.pinned) {
+            const tab = get().tabs.find((x) => x.path && pathSama(x.path, t.path));
+            if (tab) set((s) => ({ tabs: s.tabs.map((x) => (x.id === tab.id ? { ...x, pinned: true } : x)) }));
+          }
           restored++;
         } catch {
 
@@ -617,6 +656,12 @@ export const useStore = create<Store>((set, get) => ({
 
   syncWorkspaceLokal: async (dir) => {
     set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
+    /*
+     * Drop the Quick Open index. The new root alone would invalidate it, but
+     * clearing here means the very next Ctrl+P cannot answer for the previous
+     * tree even for an instant — which is exactly when a reader would notice.
+     */
+    void cmd.clearWorkspaceFileIndex().catch(() => {});
 
     void import('./aiStore').then((m) => m.resetKonteksAgent());
     void import('./systemPrompt').then((m) => m.resetAturanProyek());
@@ -644,6 +689,9 @@ export const useStore = create<Store>((set, get) => ({
 
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
     set({ workspace: null, statusMessage: 'Workspace closed' });
+    /* Same reason as opening one: no workspace means no index, and leaving the
+       old one in place would let Ctrl+P answer for a tree nobody has open. */
+    void cmd.clearWorkspaceFileIndex().catch(() => {});
     void import('./aiStore').then((m) => m.resetKonteksAgent());
     void import('./systemPrompt').then((m) => m.resetAturanProyek());
     void import('./projectContext').then((m) => m.resetRingkasanProyek());
@@ -662,13 +710,41 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const picked = await cmd.fileDialogOpen(true);
       if (!picked || picked.length === 0) return;
-      for (const p of picked) await get().openPath(p);
+      /* Deliberate: the reader chose these in a dialog, so none of them is a
+         preview. A preview slot would let the next tree click replace the file
+         they just went and picked. */
+      for (const p of picked) await get().openPath(p, { preview: false });
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }
   },
 
-  openPath: async (path) => {
+  openPath: async (path, opts) => {
+    /*
+     * Default for `preview` is TRUE, and that is deliberate.
+     *
+     * The feature only works if browsing is the default and committing is the
+     * exception. The other way round — every caller opting in — would need
+     * every tree, search hit, go-to-definition and debugger jump to remember
+     * to ask, and the first one that forgot would silently return the tab
+     * herd. Callers that know the open is deliberate (a file dialog, a drop,
+     * a CLI request) pass `{ preview: false }`, and there are few of those.
+     *
+     * A preview never replaces a tab that is dirty, pinned, or read-only, nor
+     * one for the same path — those are handled before this point.
+     */
+    const preview = opts?.preview !== false;
+
+    /*
+     * Promote a preview tab that an already-open file is occupying.
+     *
+     * Only a deliberate open (preview: false) asks for this; a preview open
+     * keeps the slot evictable on purpose, which is what makes browsing cheap.
+     */
+    const promoteKalauDiminta = (id: string) => {
+      if (opts?.preview === false) get().promoteTab(id);
+    };
+
     const s0 = get();
     if (!s0.navSuppress && s0.activeTabId) {
       const tabAktif = s0.tabs.find((t) => t.id === s0.activeTabId);
@@ -683,6 +759,18 @@ export const useStore = create<Store>((set, get) => ({
     const existing = get().tabs.find((t) => t.path && pathSama(t.path, path));
     if (existing) {
       set({ activeTabId: existing.id });
+
+      /*
+       * A deliberate open must ALSO promote a preview that is already sitting
+       * there, and this is the common case rather than a corner: the single
+       * click that shows a file previews it, and the double click that follows
+       * finds that file already open, landing right here. Without the promote,
+       * the user's second, deliberate click would do nothing visible and the
+       * tab would stay evictable — replaced by the next file they merely glance
+       * at, and gone from the strip after the next restart, since previews are
+       * not persisted. `preview: false` means "keep this open"; honour it.
+       */
+      promoteKalauDiminta(existing.id);
 
       const fokus = useLayout.getState().fokus;
       set((s) => ({
@@ -703,6 +791,9 @@ export const useStore = create<Store>((set, get) => ({
       const again = get().tabs.find((t) => t.path && pathSama(t.path, path));
       if (again) {
         set({ activeTabId: again.id });
+        // Same rule as the pre-read branch above: a request to keep the file
+        // open must not be lost just because someone else won the race to add it.
+        promoteKalauDiminta(again.id);
         return;
       }
 
@@ -722,15 +813,74 @@ export const useStore = create<Store>((set, get) => ({
         bytes: res.bytes,
         existed: true,
         groupId: useLayout.getState().fokus,
+        preview,
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
       touchTab(tab.id);
+
+      /*
+       * After inserting, collapse any earlier preview.
+       *
+       * Done here rather than before the read so the replacement happens in
+       * one visible step: the reader sees the old preview swapped for the new
+       * file, not an empty slot followed by a new tab. Only a tab that is
+       * still a preview, still clean and still unpinned is removed — anything
+       * else has become a real tab and must stay.
+       */
+      if (preview) get().tutupPreviewLama(tab.id);
 
       get().unloadColdTabs();
       void get().persistSession();
     } finally {
       opening.delete(kunci);
     }
+  },
+
+  /**
+   * Drop every preview tab except `kecuali`.
+   *
+   * Isolated as its own action because two callers need it: opening a new
+   * preview, and pinning the current one (which must first retire any OTHER
+   * stale preview so the strip keeps exactly one). Sharing one implementation
+   * means the "still clean, still unpinned" rule cannot drift between them.
+   */
+  tutupPreviewLama: (kecuali) => {
+    set((s) => {
+      const buang = new Set(
+        s.tabs.filter((t) => t.preview && t.id !== kecuali && !t.unsaved && !t.pinned).map((t) => t.id),
+      );
+      if (buang.size === 0) return {};
+      const tabs = s.tabs.filter((t) => !buang.has(t.id));
+      const activeTabId =
+        s.activeTabId && buang.has(s.activeTabId) ? (tabs[tabs.length - 1]?.id ?? null) : s.activeTabId;
+      return { tabs, activeTabId };
+    });
+  },
+
+  /**
+   * Pin or unpin a tab.
+   *
+   * Pinning also clears `preview`, because the two are answers to the same
+   * question ("may this slot be reused?"). A tab that is both would be pinned
+   * against replacement and eligible for it at once.
+   */
+  togglePin: (id) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === id ? { ...t, pinned: !t.pinned, preview: t.pinned ? t.preview : false } : t,
+      ),
+    }));
+    void get().persistSession();
+  },
+
+  /** Make a preview tab permanent without pinning it (double-click). */
+  promoteTab: (id) => {
+    set((s) => {
+      const t = s.tabs.find((x) => x.id === id);
+      if (!t?.preview) return {};
+      return { tabs: s.tabs.map((x) => (x.id === id ? { ...x, preview: false } : x)) };
+    });
+    void get().persistSession();
   },
 
   bukaViewAi: (view) => {
@@ -750,7 +900,8 @@ export const useStore = create<Store>((set, get) => ({
     const tab: Tab = {
       id: nextId(),
       path: null,
-      name: view === 'ai-chat' ? 'Chat' : 'Chat Settings',
+      name:
+        view === 'ai-chat' ? 'Chat' : view === 'chat-settings' ? 'Chat Settings' : 'Search Results',
       encoding: 'utf8' as Encoding,
       lineEnding: 'crlf' as LineEnding,
       unsaved: false,
@@ -886,11 +1037,24 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   updateTabContent: (id, content) => {
+    /*
+     * Editing PROMOTES a preview tab.
+     *
+     * This is the whole contract of a preview: it is a look, not a commitment.
+     * The moment the reader types in it, they have committed, and a tab that
+     * would be silently replaced while holding unsaved edits is the one way
+     * this feature could lose work. Promoting on the first character removes
+     * that possibility rather than trying to guard against it later.
+     */
     set((s) => ({
       tabs: s.tabs.map((t) =>
-
         t.id === id && t.loaded !== false && !t.readOnly
-          ? { ...t, content, unsaved: t.content !== content ? true : t.unsaved }
+          ? {
+              ...t,
+              content,
+              unsaved: t.content !== content ? true : t.unsaved,
+              preview: t.content !== content ? false : t.preview,
+            }
           : t,
       ),
     }));
@@ -929,6 +1093,26 @@ export const useStore = create<Store>((set, get) => ({
     }
     try {
 
+      /*
+       * Fix-all runs BEFORE formatting, and both before the write.
+       *
+       * Order matters: a fix can introduce formatting that the formatter then
+       * normalises, while formatting first would leave the fixes unformatted.
+       * This is the order the reference editors use, and it is the order that
+       * makes the result idempotent — running it twice changes nothing more.
+       *
+       * Failures are swallowed on purpose. A save must not be blocked because
+       * a language server is slow, absent, or unhappy: the reader asked for the
+       * file to be written, and losing that because ESLint timed out would be
+       * the wrong trade. The status line only reports what actually happened.
+       */
+      if (get().settings.editor.fixAllOnSave && tab.path) {
+        const hasil = await get().fixAllTab(id);
+        if (hasil.diterapkan > 0) {
+          set({ statusMessage: `Perbaikan otomatis: ${hasil.diterapkan} perubahan · ${cur.name}` });
+        }
+      }
+
       if (get().settings.editor.formatOnSave) {
         const diformat = await get().formatTab(id);
         if (diformat > 0) {
@@ -936,12 +1120,22 @@ export const useStore = create<Store>((set, get) => ({
         }
       }
 
+      /* Re-read: both steps above write into the buffer through
+         `updateTabContent`, so `cur.content` captured before them is stale.
+         This can legitimately come back undefined — fixAll and format both
+         await LSP round-trips, and the tab can be closed while they are in
+         flight. Without the guard the next line throws and the reader gets
+         "Save failed: Cannot read properties of undefined", which names a
+         cause that has nothing to do with what happened. */
+      const sesudahFormat = get().tabs.find((t) => t.id === id);
+      if (!sesudahFormat) return false;
+
       window.dispatchEvent(
         new CustomEvent('zephyr-history-snapshot', {
           detail: { path: cur.path as string, reason: 'save' },
         }),
       );
-      await cmd.fsWrite(cur.path as string, cur.content, cur.encoding, cur.lineEnding, {
+      await cmd.fsWrite(sesudahFormat.path as string, sesudahFormat.content, sesudahFormat.encoding, sesudahFormat.lineEnding, {
         wasExisting: cur.existed === true,
       });
       // Timer dibatalkan di sini, bukan hanya saat tab ditutup: tab yang sudah
@@ -972,6 +1166,47 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  /**
+   * Apply the language server's "fix all" action to this buffer.
+   *
+   * Runs over the whole document with the file's CURRENT diagnostics attached.
+   *
+   * Two things this deliberately does NOT do:
+   *
+   *   * it does not touch other files. A `source.fixAll` for one file can
+   *     return edits for its imports' files too. Those are collected into
+   *     `lain` and reported, but not applied — this editor writes ONE buffer
+   *     on save, and silently rewriting a file the reader is not looking at
+   *     while they pressed Ctrl+S on a different one is not something a save
+   *     should do.
+   *   * it does not throw. Called from `saveTab`, a language server that is
+   *     absent, still starting, or unhappy must not stop the write.
+   */
+  fixAllTab: async (id) => {
+    const kosong = { diterapkan: 0, ditawarkan: 0, lain: [] as string[] };
+    const tab = get().tabs.find((t) => t.id === id);
+    if (!tab?.path) return kosong;
+    if (get().activeTabId !== id) return kosong;
+
+    const { getActiveView } = await import('./editorRegistry');
+    const view = getActiveView();
+    if (!view) return kosong;
+
+    /* Diagnostics for THIS file, which is what most servers read to decide
+       which fixes to offer. An empty list makes ESLint answer with nothing. */
+    const { useProblems } = await import('./problemsStore');
+    const diags = useProblems.getState().all().filter((d) => pathSama(d.file, tab.path as string));
+
+    try {
+      const { lspFixAll } = await import('./lspCm');
+      const hasil = await lspFixAll(tab.path, view, diags);
+      if (hasil.diterapkan > 0) get().updateTabContent(id, view.state.doc.toString());
+      return hasil;
+    } catch {
+      return kosong;
+    }
+  },
+
   formatTab: async (id) => {
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab?.path) return 0;
@@ -981,18 +1216,50 @@ export const useStore = create<Store>((set, get) => ({
     const view = getActiveView();
     if (!view) return 0;
     const ed = get().settings.editor;
+    let diubah = 0;
     try {
+      /*
+       * The language server formats first, then the external chain runs on the
+       * result. That order gives the PROJECT's formatter the last word, which
+       * is what a reader with a `.prettierrc` or a repo-local script expects —
+       * the server's opinion is a baseline, theirs is the decision.
+       */
       const { lspFormat } = await import('./lspCm');
       const n = await lspFormat(tab.path, view, ed.tabSize, ed.insertSpaces);
+      if (n > 0) diubah += n;
 
-      if (n > 0) {
-        const teks = view.state.doc.toString();
-        get().updateTabContent(id, teks);
+      const daftar = ed.formatters ?? [];
+      if (daftar.length > 0) {
+        const { rangkaiFormat } = await import('./formatters');
+        const hasil = await rangkaiFormat(
+          view.state.doc.toString(),
+          tab.path,
+          daftar,
+          async (command, input) => {
+            const r = await cmd.formatText(command, input, get().workspace ?? undefined, tab.path ?? undefined);
+            return { ok: r.ok, out: r.out, err: r.err };
+          },
+        );
+        if (hasil.teks !== view.state.doc.toString()) {
+          /* Replace the whole document in one transaction, so undo treats the
+             format as one step rather than one per line. */
+          view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: hasil.teks } });
+          diubah += 1;
+        }
+        if (hasil.gagal.length > 0) {
+          /* Named, so a reader whose formatter is not on PATH can see which
+             one and why — instead of a silent no-op that looks like the
+             setting is broken. */
+          set({
+            statusMessage: `Formatter gagal: ${hasil.gagal.map((g) => g.cmd).join(', ')} — ${hasil.gagal[0].pesan}`,
+          });
+        }
       }
-      return n;
-    } catch {
 
-      return 0;
+      if (diubah > 0) get().updateTabContent(id, view.state.doc.toString());
+      return diubah;
+    } catch {
+      return diubah;
     }
   },
 
@@ -1108,9 +1375,13 @@ export const useStore = create<Store>((set, get) => ({
    * belum ada, dan tidak ada yang bisa dilakukan selain membiarkan agent
    * melanjutkan tulisannya.
    */
-  openPathAt: async (path, line, col = 1) => {
+  openPathAt: async (path, line, col = 1, opts?: { preview?: boolean }) => {
     try {
-      await get().openPath(path);
+      /* Good to a specific LINE, so it came from a search hit, a reference, a
+         diagnostic or the debugger — the reader is going somewhere to look at
+         something. That is a deliberate open, not a browse, so it pins by
+         default. Callers that are genuinely browsing pass `preview: true`. */
+      await get().openPath(path, { preview: opts?.preview === true ? true : false });
     } catch {
       return;
     }
@@ -1335,7 +1606,17 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const tabs = get()
         .tabs.filter((t) => t.path)
-        .map((t) => ({ path: t.path as string, encoding: t.encoding }));
+        /*
+         * Preview tabs are NOT persisted.
+         *
+         * A preview is a transient look at a file the reader clicked past on
+         * their way somewhere else. Restoring it would reopen a file they had
+         * already moved on from, in a slot whose whole purpose is to be
+         * replaced — and on the next launch nothing would replace it, so it
+         * would just sit there as an unexplained extra tab.
+         */
+        .filter((t) => !t.preview)
+        .map((t) => ({ path: t.path as string, encoding: t.encoding, pinned: !!t.pinned }));
       await cmd.sessionSave(tabs);
     } catch {
 
@@ -1375,6 +1656,15 @@ export const useStore = create<Store>((set, get) => ({
    * delayed - and the merge is recomputed from CURRENT state when it runs, so
    * the delayed write carries every change made in the meantime rather than
    * just the one that scheduled it.
+   *
+   * CONSEQUENCE, and the trap this comment exists to close: the returned
+   * promise resolves as soon as the STATE merged, which is BEFORE anything
+   * reached the file. Code that writes and then immediately asks the backend to
+   * read that setting back must `await flushSetelanTerakhir()` (exported right
+   * below `flushSetelan`) in between, or it will be answered from the previous
+   * file contents. `extensionStore.toggle` shipped exactly that bug: the
+   * extension switch was written, read back too early, and flipped itself on
+   * again in the UI.
    */
   applySettings: (patch) => {
     const sebelumnya = get().settings;

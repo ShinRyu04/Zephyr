@@ -11,6 +11,7 @@
 // bukan hanya dari store.
 
 import WebSocket from 'ws';
+import { keluarBersih } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -96,7 +97,20 @@ class Cdp {
           if (!S.getState().sidebarVisible) S.getState().toggleSidebar();
           await new Promise(r => setTimeout(r, 260));
           if (sec) {
-            document.querySelector('[data-testid="set-nav-' + sec + '"]').click();
+            /*
+             * The agents, subagent and permissions sections have NO nav button,
+             * and that is deliberate: they became chat settings, reached from
+             * Chat Settings and the mode menu, which deep-link with setSection().
+             * Clicking a nav testid that no longer exists used to throw
+             * "Cannot read properties of null (reading 'click')" and kill this
+             * whole file mid-way, hiding every later check. So: click the nav
+             * button when the section has one, otherwise walk the deep link the
+             * UI itself uses. (No backticks in this comment: it lives inside a
+             * template literal, where a backtick would end the string early.)
+             */
+            const nav = document.querySelector('[data-testid="set-nav-' + sec + '"]');
+            if (nav) nav.click();
+            else U.getState().setSection(sec);
             await new Promise(r => setTimeout(r, 300));
           }
         };
@@ -132,6 +146,17 @@ const check = (id, ok, detail) => {
   console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${id.padEnd(4)} ${detail}`);
 };
 
+/*
+ * Handle CDP perlu terlihat oleh penangan galat.
+ *
+ * `main()` menutup koneksinya sendiri saat selesai, tapi jalur GAGAL dulu cuma
+ * menyetel process.exitCode: WebSocket-nya tetap terbuka, event loop tetap
+ * hidup, dan prosesnya menggantung sampai ada yang membunuhnya dari luar. Di
+ * runner suite itu muncul sebagai "verify:08 timeout 480s" yang menyembunyikan
+ * galat aslinya - padahal skripnya sudah mencetak penyebabnya sebelum diam.
+ */
+let cdpTerbuka = null;
+
 // Daftar section MENGIKUTI nav yang benar-benar ada. Dulu hardcode 11; sekarang
 // 18 setelah Subagent/Prompt AI/Language Server/Keamanan/Aksesibilitas masuk
 // (fase-fase setelah 08), ditambah Tests/DevEnv yang sudah ada dan devupdate
@@ -143,6 +168,7 @@ const main = async () => {
   const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
+  cdpTerbuka = cdp;
   console.log(`# target: ${page.title}\n`);
 
   if ((await cdp.eval('typeof window.__ZEPHYR_SET__')) === 'undefined') {
@@ -451,25 +477,43 @@ const main = async () => {
   // ───────── V8: API key masked + test connection ─────────
   const v8 = JSON.parse(
     await cdp.runAsync(`
-      await bukaSettings('models');
+      /*
+       * Providers, API keys and the model list are the "AI Models" POP-UP now,
+       * not a Settings section: bukaSettings('models') walks a nav row that no
+       * longer exists. Open it the way the command palette does - run the
+       * registered command - then wait for the lazily-loaded body so the
+       * provider cards really are in the DOM before anything is read.
+       */
+      await window.__ZEPHYR_NOTIF__.run('ai.models');
+      const dalamPop = (sel) => q('[data-testid="aim-pop-content"] ' + sel);
+      for (let i = 0; i < 40 && !dalamPop('[data-testid="prov-key-gemini"]'); i++) await wait(150);
+      if (!dalamPop('[data-testid="prov-key-gemini"]')) {
+        throw new Error('pop-up AI Models tidak terbuka / badan model tidak ter-render (aim-pop-content tanpa prov-key-gemini)');
+      }
       const sebelum = await X.publicModels();
-      const badge0 = q('[data-testid="prov-badge-gemini"]').textContent.trim();
+      const badge0 = dalamPop('[data-testid="prov-badge-gemini"]').textContent.trim();
 
       // simpan key dummy lewat UI (bukan panggilan langsung)
-      const input = q('[data-testid="prov-key-gemini"]');
+      const input = dalamPop('[data-testid="prov-key-gemini"]');
       setNativeValue(input, 'AIzaSy-DUMMY-KEY-UNTUK-UJI-1234abcd');
       await wait(260);
-      q('[data-testid="prov-save-gemini"]').click();
+      dalamPop('[data-testid="prov-save-gemini"]').click();
       await wait(700);
 
       const sesudah = await X.publicModels();
-      const badge1 = q('[data-testid="prov-badge-gemini"]').textContent.trim();
+      const badge1 = dalamPop('[data-testid="prov-badge-gemini"]').textContent.trim();
       const g = sesudah.find(x => x.provider === 'gemini');
 
       // test connection dengan key dummy -> harus gagal dengan pesan ramah
-      q('[data-testid="prov-test-gemini"]').click();
+      dalamPop('[data-testid="prov-test-gemini"]').click();
       await wait(9000);
-      const hasil = q('[data-testid="prov-result-gemini"]')?.textContent?.trim() ?? '(tidak ada hasil)';
+      const hasil = dalamPop('[data-testid="prov-result-gemini"]')?.textContent?.trim() ?? '(tidak ada hasil)';
+
+      const logo = !!dalamPop('[data-provider="gemini"] svg[aria-label="Google Gemini"]');
+      /* Tutup pop-up lagi sebelum keluar: backdrop-nya menutupi seluruh layar
+         dan akan menelan klik uji berikutnya (V9 membuka Settings lagi). */
+      q('[data-testid="aim-pop-close"]')?.click();
+      await wait(300);
 
       return JSON.stringify({
         hasKeyAwal: sebelum.find(x => x.provider === 'gemini')?.hasKey ?? null,
@@ -478,7 +522,7 @@ const main = async () => {
         hasil,
         // BUKTI KEAMANAN: key utuh tidak pernah ada di objek yang diterima UI
         adaKeyUtuh: JSON.stringify(sesudah).includes('DUMMY-KEY-UNTUK-UJI'),
-        logo: !!q('[data-provider="gemini"] svg[aria-label="Google Gemini"]'),
+        logo,
       });
     `, 40000),
   );
@@ -723,26 +767,44 @@ const main = async () => {
       await bukaSettings('extensions');
       await wait(600);
       const kartu = qa('[data-testid="ext-list"] [data-ext]').map(e => e.dataset.ext);
-      const semuaOnAwal = qa('[data-testid="ext-list"] [role="switch"]').every(b => b.getAttribute('aria-checked') === 'true');
+      const sw = () => q('[data-testid="ext-lang-rust"]').getAttribute('aria-checked');
+      const ariaSemua = () => qa('[data-testid="ext-list"] [role="switch"]').map(b => b.getAttribute('aria-checked'));
+      // Keadaan awal TIDAK diasumsikan: uji ini mematikan satu ekstensi, dan
+      // kalau dirinya sendiri tidak memulihkannya, run berikutnya mulai dari
+      // keadaan yang sudah berubah - kliknya justru MENYALAKAN, lalu uji gagal
+      // pada keadaan warisan, bukan pada kode. Karena itu: baca dulu, balik,
+      // lalu kembalikan.
+      const awalAria = sw();
+      const awalSemua = ariaSemua();
       q('[data-testid="ext-lang-rust"]').click();
       await wait(800);
+      const akhirAria = sw();
+      const akhirSemua = ariaSemua();
       const disk = (await X.settingsFromDisk()).extensions.enabled;
-      const rustOff = q('[data-testid="ext-lang-rust"]').getAttribute('aria-checked') === 'false';
-      const aria = q('[data-testid="ext-lang-rust"]').getAttribute('aria-checked');
-      const ariaSemua = qa('[data-testid="ext-list"] [role="switch"]').map(b => b.getAttribute('aria-checked'));
-      return JSON.stringify({ kartu, semuaOnAwal, disk, rustOff, aria, ariaSemua });
+      const beda = akhirSemua.filter((v, i) => v !== awalSemua[i]).length;
+      const diskCocok = disk.includes('lang-rust') === (akhirAria === 'true');
+      // pulihkan keadaan awal
+      q('[data-testid="ext-lang-rust"]').click();
+      await wait(800);
+      const kembaliAria = sw();
+      const kembaliDisk = (await X.settingsFromDisk()).extensions.enabled;
+      const kembaliCocok = kembaliDisk.includes('lang-rust') === (kembaliAria === 'true');
+      return JSON.stringify({ kartu, awalAria, akhirAria, beda, disk, diskCocok, kembaliAria, kembaliCocok });
     `),
   );
   check(
     'V11',
     v11.kartu.length === 8 &&
-      v11.semuaOnAwal &&
-      v11.rustOff &&
-      !v11.disk.includes('lang-rust') &&
+      v11.akhirAria !== v11.awalAria &&
+      v11.beda === 1 &&
+      v11.diskCocok &&
+      v11.kembaliAria === v11.awalAria &&
+      v11.kembaliCocok &&
       v11.disk.includes('lang-web') &&
       v11.disk.includes('git-provider'),
-    `${v11.kartu.length} ekstensi bawaan, awalnya semua aktif=${v11.semuaOnAwal}; mematikan lang-rust -> UI off=${v11.rustOff} (aria=${JSON.stringify(v11.aria)})` +
-      `${v11.ariaSemua ? `, semua aria=[${v11.ariaSemua.join(',')}]` : ''}, disk enabled=[${v11.disk.join(', ')}]`,
+    `${v11.kartu.length} ekstensi bawaan; lang-rust ${v11.awalAria} -> ${v11.akhirAria} (saklar berubah=${v11.beda})` +
+      `, UI-ke-disk cocok=${v11.diskCocok}, dipulihkan ke ${v11.kembaliAria} (cocok=${v11.kembaliCocok})` +
+      `, disk enabled=[${v11.disk.join(', ')}]`,
   );
 
   // ───────── V12: Source Control field tersimpan ─────────
@@ -840,7 +902,16 @@ const main = async () => {
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
-  if (lulus !== results.length) process.exitCode = 1;
+  /*
+   * Keluar eksplisit, jangan cuma menyetel process.exitCode.
+   *
+   * Dulu berkas ini mengandalkan event loop mengalir habis. Saat dijalankan
+   * runner suite (spawnSync, stdout pipa) prosesnya TIDAK keluar: runner
+   * menunggu 8 menit, mematikannya, dan yang tercatat hanya "timeout" - padahal
+   * semua uji selesai dan ringkasannya lengkap. keluarBersih menjaga kode keluar
+   * yang sama sekaligus memastikan output tidak ikut hilang.
+   */
+  keluarBersih(lulus === results.length ? 0 : 1);
 };
 
 main().catch((e) => {
@@ -848,5 +919,14 @@ main().catch((e) => {
   // Print the whole value plus the stack so a failure is always readable.
   const pesan = e?.stack ?? e?.message ?? JSON.stringify(e);
   console.error('verify08 error:', pesan);
-  process.exitCode = 2;
+  // Tutup koneksinya, kalau tidak proses ini tidak akan pernah keluar dan
+  // pemanggilnya (runner suite) hanya melihat "timeout" tanpa galat.
+  try {
+    cdpTerbuka?.close();
+  } catch {
+    /* sudah tertutup atau gagal ditutup: tetap harus keluar */
+  }
+  // keluarBersih, bukan process.exit: output yang belum terkirim tidak boleh
+  // hilang bersama prosesnya.
+  keluarBersih(2);
 });

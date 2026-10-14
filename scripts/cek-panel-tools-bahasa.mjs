@@ -123,15 +123,29 @@ const layar = await cdp.json(`return JSON.stringify(await (async () => {
   const S = window.__ZEPHYR_SET__;
   const uiLangAsli = window.__ZEPHYR__.getState().settings.general.uiLang;
 
-  /* Buka panel AI dulu: tombol ai-toolgate hanya ada kalau AiPanel ter-render,
-     dan panel tidak dirender sampai dock = 'ai'. */
-  if (!document.querySelector('[data-testid="ai-toolgate"]')) {
-    const btn = [...document.querySelectorAll('button')].find((b) =>
-      /agent|assistant|\\bai\\b/i.test((b.getAttribute('aria-label') || '') + ' ' + (b.title || '')));
-    if (btn) { btn.click(); await new Promise((r) => setTimeout(r, 1200)); }
+  /* Buka picker tool lewat jalur UI nyata: tombol "..." (ai-more) -> menu ->
+     "Chat Settings" (ai-open-chat-settings) -> nav Tools (cset-nav-tools) ->
+     "Open tool sets…" (cset-tools). Entri menu "Tool Sets"
+     (ai-open-toolsets) dan tombol lama 'ai-toolgate' sudah dihapus. */
+  const bukaGate = async () => {
+    if (document.querySelector('[data-testid="toolgate"]')) return true;
+    const more = document.querySelector('[data-testid="ai-more"]');
+    if (!more) return false;
+    more.click(); await new Promise((r) => setTimeout(r, 300));
+    const cs = document.querySelector('[data-testid="ai-open-chat-settings"]');
+    if (!cs) return false;
+    cs.click(); await new Promise((r) => setTimeout(r, 500));
+    document.querySelector('[data-testid="cset-nav-tools"]')?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    const tombol = document.querySelector('[data-testid="cset-tools"]');
+    if (!tombol) return false;
+    tombol.click();
+    await new Promise((r) => setTimeout(r, 600));
+    return !!document.querySelector('[data-testid="toolgate"]');
+  };
+  if (!(await bukaGate())) {
+    return JSON.stringify({ adaPanel: false, panjang: 0, cuplikan: '', sebab: 'picker tool tidak terbuka lewat menu \"..." -> Chat Settings -> Tools -> cset-tools' });
   }
-  const tombolGate = document.querySelector('[data-testid="ai-toolgate"]');
-  if (!tombolGate) return JSON.stringify({ adaPanel: false, panjang: 0, cuplikan: '', sebab: 'tombol ai-toolgate tidak ada - panel AI belum terbuka' });
 
   /* Paksa bahasa English lewat store ASLI, lalu buka panel lewat KLIK TOMBOL
      yang sebenarnya - bukan lewat setBuka. Klik memakai store milik komponen,
@@ -139,9 +153,7 @@ const layar = await cdp.json(`return JSON.stringify(await (async () => {
   await S.set({ general: { ...window.__ZEPHYR__.getState().settings.general, uiLang: 'en' } });
   await new Promise((r) => setTimeout(r, 400));
 
-  const panelSebelum = !!document.querySelector('[data-testid="toolgate"]');
-  if (!panelSebelum) tombolGate.click();
-  await new Promise((r) => setTimeout(r, 1200));
+  await bukaGate();
 
   /* Kuncinya data-testid="toolgate". Kalau tidak ketemu, hasilnya TIDAK
      boleh diam-diam jatuh ke document.body: mengukur seluruh halaman bukan
@@ -153,8 +165,10 @@ const layar = await cdp.json(`return JSON.stringify(await (async () => {
 
   /* Kembalikan seperti semula: bahasa dan keadaan panel. Harness yang
      mengubah state global dan tidak memulihkannya membuat uji berikutnya
-     bergantung urutan, dan kelihatan seperti produknya yang rusak. */
-  if (panel) { tombolGate.click(); await new Promise((r) => setTimeout(r, 400)); }
+     bergantung urutan, dan kelihatan seperti produknya yang rusak.
+     Panel ditutup lewat jalur asli (Escape), bukan dengan mengklik ulang
+     pembukanya - pembukanya sekarang item menu, bukan tombol toggle. */
+  if (panel) { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 400)); }
   await S.set({ general: { ...window.__ZEPHYR__.getState().settings.general, uiLang: uiLangAsli } });
   return hasil;
 })())`);

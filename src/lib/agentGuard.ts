@@ -238,7 +238,7 @@ const PERINTAH_BERBAHAYA: RegExp[] = [
   /\bFormat-Volume\b/i,
   /\bRemove-Item\b[^\n]*\b-Credential\b/i,
   // rm -rf / dengan varian kutip / --no-preserve-root
-  /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--recursive\s+--force|--force\s+--recursive)\s+(['"]?\/['"]?\s*($|;|&|\|))/i,
+  /\brm\s+((-[a-zA-Z]*[rf][a-zA-Z]*|--(recursive|force))\s+)+(['"]?\/\**['"]?\s*($|;|&|\|))/i,
   // rm -rf ~ / $HOME
   /\brm\s+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*\s+(['"]?(~(\/[^\s'"]*)?|\$\{?HOME\}?(\/[^\s'"]*)?)['"]?)(\s|$|;|&|\|)/i,
   /--no-preserve-root/i,
@@ -250,7 +250,39 @@ const PERINTAH_BERBAHAYA: RegExp[] = [
   // fork bomb
   /:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/,
   // curl | sh
-  /\b(curl|wget)\b[^|;&]*\|\s*(ba|z|k|d|fi|c)?sh\b/i,
+  /\b(curl|wget)\b[^|;&]*\|\s*(sudo\s+|doas\s+)?(ba|z|k|d|fi|c)?sh\b/i,
+  // PowerShell: terenkode base64 (-enc/-EncodedCommand/-ec; `-e` alias resmi -> payload opak, fail-closed)
+  /\b(powershell|pwsh)\b[^\n]*\s-(encodedcommand|enc|ec|e)\b/i,
+  // PowerShell: iex / Invoke-Expression yang dijalankan dari unduhan (dua arah)
+  /\b(iex|invoke-expression)\b[^\n]*\b(iwr|invoke-webrequest|downloadstring|downloadfile|net\.webclient|new-object)\b/i,
+  /\b(iwr|invoke-webrequest|downloadstring|downloadfile|net\.webclient)\b[^\n]*\b(iex|invoke-expression)\b/i,
+
+  /* ---------------- BAGIAN B: pola baru (ditambahkan di AKHIR) ----------------
+   * Diletakkan setelah pola lama supaya (1) nomor baris pola lama tidak bergeser
+   * - harness cek-izin-terminal menjejaki baris pola apa adanya - dan (2) pola
+   * umum di sini tidak menyamarkan pola spesifik di atas. Keputusan & bukti:
+   * docs/LAPORAN-IZIN-TERMINAL-BAGIAN-B.md. */
+
+  // (b) rm -rf ke direktori SISTEM absolut - padanan Unix dari /etc.
+  //     `/etc` saja tidak tertangkap pola akar di atas (akar = tepat `/`).
+  /\brm\s+((-[a-zA-Z]*[rf][a-zA-Z]*|--(recursive|force))\s+)+['"]?\/(etc|usr|bin|sbin|boot|lib|lib64|var|sys|proc|dev|root)(\/[^\s'"]*)?['"]?(\s|$|;|&|\|)/i,
+  // (b) Remove-Item rekursif/paksa ke AKAR drive (C:\ atau C:/) - padanan
+  //     Windows dari `rm -rf /`. Dua lookahead supaya urutan argumen bebas.
+  /\b(remove-item|ri)\b(?=[^\n]*(-recurse|-force|-r\b|-f\b))(?=[^\n]*['"]?[a-z]:[\\/]{1,2}(?=\s|$|['"]|;|&|\|))[^\n]*/i,
+  // (b) Remove-Item rekursif/paksa ke direktori SISTEM Windows.
+  /\b(remove-item|ri)\b(?=[^\n]*(-recurse|-force|-r\b|-f\b))(?=[^\n]*['"]?[a-z]:[\\/](windows|program files(?: \(x86\))?|programdata|system32|winsxs)\b)[^\n]*/i,
+  // (e) fork bomb BERNAMA (POSIX): bomb(){ bomb|bomb& };bomb
+  /\b([a-zA-Z_]\w*)\s*\(\s*\)\s*\{\s*\1\s*\|\s*\1\s*&\s*\}\s*;\s*\1/i,
+  // (e) fork bomb PowerShell: proses/job baru di dalam loop TAK BERUJUNG
+  /\bwhile\s*\(\s*(\$?true|1)\s*\)\s*\{[^\n]*\b(start-process|start-job)\b/i,
+  /\bfor\s*\(\s*;\s*;\s*\)\s*\{[^\n]*\b(start-process|start-job)\b/i,
+  // (d) Invoke-Expression / iex = eval; argumennya tak bisa diverifikasi saat
+  //     persetujuan -> tolak apa pun bentuknya (fail-closed). Diletakkan SETELAH
+  //     pola unduh-jalankan supaya jejak pola spesifik tetap terpakai.
+  /\b(iex|invoke-expression)\b/i,
+  // (d) here-string PowerShell (@"..."@ / @'...'@): wadah teks multi-baris untuk
+  //     menyelundupkan skrip melewati pandangan satu-baris.
+  /@(['"])\s*[^\n]*\1@/,
 ];
 
 /**
@@ -263,7 +295,32 @@ const PERINTAH_BERBAHAYA: RegExp[] = [
  *  - karakter override bidi Unicode. Kartu persetujuan merender perintah apa
  *    adanya, dan perintah dengan mark arah bisa tampil berbeda dari yang benar
  *    dijalankan - serangan Trojan Source.
+ *  - kutip tak berpasangan (Bagian B/c). Tokenisasi ambigu -> fail-closed:
+ *    ragu berarti TOLAK, bukan diloloskan.
  */
+
+/**
+ * Gerbang FAIL-CLOSED untuk tokenisasi yang ambigu.
+ *
+ * Bila kutip TIDAK berpasangan, kartu persetujuan dan shell bisa berbeda
+ * pendapat soal di mana string berakhir, sehingga perintah tak bisa dibuktikan
+ * aman. Keputusannya: TOLAK (fail-closed), bukan diloloskan.
+ *
+ * Kutip yang memang berpasangan dibuang lebih dulu - termasuk yang ter-escape
+ * (`"a\"b"`) dan yang bersarang (`'a"b'`, `"a'b"`) - supaya perintah wajar tidak
+ * salah-tolak. Bila SETELAH itu masih ada sisa kutip, berarti ada yang tidak
+ * berpasangan.
+ */
+function kutipTimpang(c: string): boolean {
+  let s = c.replace(/\\["']/g, 'xx');
+  for (let i = 0; i < 4; i++) {
+    const sebelum = s;
+    s = s.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+    if (s === sebelum) break;
+  }
+  return /["']/.test(s);
+}
+
 export function periksaPerintahShell(command: string): HasilAman {
   const c = command.trim();
   if (c.length === 0) {
@@ -280,6 +337,14 @@ export function periksaPerintahShell(command: string): HasilAman {
     return {
       ok: false,
       alasan: 'ditolak: perintah memuat karakter override bidi Unicode.',
+    };
+  }
+  if (kutipTimpang(c)) {
+    return {
+      ok: false,
+      alasan:
+        'ditolak: kutip tidak berpasangan (tokenisasi ambigu) - fail-closed. ' +
+        'Tutup kutipnya atau hapus; perintah dengan kutip tak seimbang tidak bisa dibuktikan aman.',
     };
   }
   for (const pola of PERINTAH_BERBAHAYA) {

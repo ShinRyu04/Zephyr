@@ -128,6 +128,11 @@
   --syntax-fn: var(--syn-function);
   --syntax-type: var(--syn-type);
   --syntax-operator: var(--syn-operator);
+  /* `--syn-variable` sudah dipakai `src/styles/debug.css` lewat nama ini, tapi
+     alias-nya dulu tidak pernah ada: nilainya jatuh ke `var(--text)` yang
+     di-hardcode di pemanggilnya, jadi warna `variable` di panel debug tidak ikut
+     tema seperti sepuluh token kode yang lain. Satu baris ini yang menyambungkannya. */
+  --syntax-variable: var(--syn-variable);
 
   /* bracket pair colorization — 6 levels, then it repeats.
      Derived from the existing syntax palette, so every theme follows
@@ -235,4 +240,6 @@
   --terminal-ansi-7: #d8c3b6;
   --terminal-ansi-8: #a58d80;
   --terminal-ansi-15: #f5e6dc;
+  --editor-gutter: #907b72;
+  --border-strong: #73636b;
 }

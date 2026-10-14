@@ -1,0 +1,18 @@
+LULUS  S1   zephyrSelf.ts NOL jaringan: tidak ada fetch/XHR/WebSocket/sendBeacon/EventSource/URL http
+LULUS  S2   zephyrSelf.ts tidak mengimpor aiStore/builtins (tidak menambah siklus modul)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:9223
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2017:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 9223
+  }
+}
+
+Node.js v26.7.0

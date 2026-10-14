@@ -76,6 +76,7 @@ __pycache__/
 # Hasil uji sekali pakai — dibaca scripts/run-all-verify.mjs, bukan bagian aplikasi
 verify-all.json
 verify-all.txt
+verify-logs/
 
 # Folder sementara yang dibuat harness uji (v4-folder-<timestamp>, v6-pindah-*, dst.)
 v4-folder-*
@@ -95,3 +96,17 @@ s2.txt
 s3.txt
 s4.txt
 .revtmp/
+
+# Byproducts of the AI/task test harness (uji-ai-berat, uji-t3-*)
+.uji-db.sqlite
+.uji-img/
+ZEPHYR-UJI-COBA.txt
+
+# JCE context index runtime state
+.opencode-jce/context/
+
+# Catatan kerja lama (dulu dipakai sebagai basis fitur) - jangan dilacak
+.tedi/
+testfiles/zephyr-v18-tab-*
+testfiles/zephyr-th-*
+testfiles/zephyr-cp-*

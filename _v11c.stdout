@@ -1,0 +1,11 @@
+# target: Zephyr — Code Editor
+
+LULUS  V1   server mati: /health → tidak ada koneksi, port 9222 TIDAK listening; UI "Stopped"
+LULUS  V2   switch ON → /health {ok:true, version 1.1.13, uptime 929ms}; tanpa Bearer 401, token salah 401, token benar 200; GET /schema butuh auth & memuat 20 tool; UI "Running (127.0.0.1:9222) · 1s"
+LULUS  V3   list_panes → 2 pane: shell(pid 49340, running), private(pid 47448, running); list_terminals identik
+GAGAL  V4   terminal_write "echo MCP-V4-mv6e99u8" + terminal_key Enter → shell mengeksekusinya, buffer xterm memuat baris hasil "MCP-V4-mv6e99u8" (0x); paneId salah dijawab error JSON-RPC
+GAGAL  V5   editor_open dari-mcp.txt → tab undefined dibuat & difokuskan (tab bar: []), CodeMirror ter-mount, halaman Settings otomatis ditutup; list_editors mengonfirmasi path & active
+GAGAL  V6   editor_insert at=0 → buffer & dokumen CodeMirror berubah, dot dirty muncul (0); editor_write mengganti seluruh buffer; FILE DI DISK tetap isi asli pada kedua kasus (kontrak: buffer saja)
+GAGAL  V7   run_command terminal.new → pane pane-mv6e9dq6-4 hidup (2 → 4 pane), panel terminal terlihat; command tak dikenal dijawab error berisi daftar yang tersedia; panel mencatat 18 permintaan dilayani
+GAGAL  V8   centang opencode + [Tulis ke CLI] → opencode.json punya mcp.zephyr (url 127.0.0.1:9222, header Bearer), key lain (theme, mcp.lain) UTUH, backup .bak dibuat tanpa entri zephyr, badge UI "registered"; [Lepas dari CLI] → entri zephyr hilang, config tetap valid
+LULUS  V9   switch OFF saat CLI aktif → /health & JSON-RPC menolak koneksi, port 9222 berhenti listening; switch ON lagi → /health 200 dan list_panes normal (4 pane)

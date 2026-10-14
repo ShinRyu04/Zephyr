@@ -1,0 +1,9 @@
+# target: Zephyr — Code Editor
+
+LULUS  V1   dua tingkat: 1 provider ber-key (gemini) 竊・12 model gemini, semua berlogo; ganti gemini 竊・openai: provider disk=gemini, baseUrl efektif "undefined"
+LULUS  V2   tanpa key: kirim ditolak (chat tetap 0 pesan, pending=null), toast tampil "No key for Google Gemini - switched to Custom (OpenAI-compatible), which has one", provider anthropic -> custom (ber-key: custom, custom-voice), 0 console error
+GAGAL  V3   streaming bertahap di jalur agen: panjang teks bubble naik 9x (5, 9, 9, 17, 25, 31, 31, 39, 48, 48, 58, 64, 64, 69), cuplikan "Baik, ini jawaban", pesan: user #2-16 n=37 | assistant #2-17 n=76; indikator "mengetik..." tampil; akhir="Baik, ini jawaban panjang untuk menguji "; markdown <strong>=null; html="<p>Baik, ini jawaban panjang untuk menguji tampilan bertahap. Satu. Dua. Tiga.</p>"; adapter gemini dipanggil 1x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)
+[verify09] settings.json dipulihkan ke keadaan sebelum uji
+verify09 error: Error: tombol Kirim tidak ada (pending=null, agentBusy=true, inputAda=true, panelAda=true, setTerbuka=false, kaki="Zeph▾gemini-2.0-flash")
+    at kirim (<anonymous>:87:27)
+    at async <anonymous>:180:7

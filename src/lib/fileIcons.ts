@@ -26,12 +26,19 @@ import {
   IKON_FOLDER_BUKA,
   IKON_FILE,
 } from './fileIconMap';
+import { ikonFileExt } from './extIkonFile';
 
 export interface FileIkon {
   /** Icon name from the theme, used as the React key and by tests. */
   id: string;
   /** Inline SVG markup, or null when the name is unknown. */
   svg: string | null;
+  /**
+   * A text glyph contributed by an installed icon pack, drawn instead of the
+   * theme's SVG. Both fields are absent for every built-in icon.
+   */
+  glyph?: string;
+  color?: string;
 }
 
 const bungkus = (id: string | undefined): FileIkon | null =>
@@ -65,8 +72,18 @@ function cariEkstensi(base: string): string | undefined {
  */
 export function ikonFile(nama: string, lang?: string): FileIkon {
   const base = (nama.split(/[\\/]/).pop() ?? nama).toLowerCase();
+  /*
+   * An installed icon pack is consulted before the built-in extension chain: a
+   * pack that only repeated what the theme already drew would be invisible, and
+   * "the pack installed but the tree never changed" is the defect this closes.
+   * An exact file NAME still wins, so `package.json` keeps its npm mark.
+   */
+  const dariPaket = base.includes('.') ? ikonFileExt(base) : null;
   return (
     bungkus(IKON_NAMA[base]) ??
+    (dariPaket
+      ? { id: `ext:${base}`, svg: null, glyph: dariPaket.glyph, color: dariPaket.color }
+      : null) ??
     bungkus(cariEkstensi(base)) ??
     bungkus(lang ? IKON_LANG[lang.toLowerCase()] : undefined) ??
     { id: IKON_FILE, svg: IKON_SVG[IKON_FILE] ?? null }

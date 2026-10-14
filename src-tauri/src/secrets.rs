@@ -156,13 +156,27 @@ pub struct PublicModel {
     pub preview: String,
 }
 
-const KNOWN_PROVIDERS: [&str; 6] = [
+/*
+ * Every provider id the frontend catalogue ships, so `get_public_models`
+ * reports `hasKey: false` for one that has never been configured instead of
+ * omitting it (the frontend reads `undefined` as "unknown", not "no key").
+ *
+ * Two custom slots on purpose: a user driving two OpenAI-compatible gateways
+ * needs two keys, and an id is the key's storage slot. `custom2` MUST stay
+ * distinct from `custom` — sharing an id would make the two entries overwrite
+ * each other's key and make `activeProvider: 'custom'` ambiguous.
+ *
+ * `xai` is deliberately absent: the catalogue no longer offers it. A key left
+ * over in secrets.json under that name is simply never read.
+ */
+const KNOWN_PROVIDERS: [&str; 7] = [
     "gemini",
     "openai",
     "anthropic",
     "deepseek",
     "local",
     "custom",
+    "custom2",
 ];
 
 #[tauri::command(async)]
@@ -321,13 +335,11 @@ fn endpoint_for(provider: &str, base_url: Option<&str>, key: &str) -> ZResult<En
             false,
             false,
         ),
-        "xai" => (
-            given.unwrap_or("https://api.x.ai/v1"),
-            "Authorization",
-            format!("Bearer {key}"),
-            false,
-            false,
-        ),
+        // `xai` used to sit here. The provider was removed from the catalogue,
+        // so no arm belongs here either: with the arm gone, `xai` now falls to
+        // the unknown-provider path below and is REFUSED when no base URL is
+        // given. That is the correct outcome — a leftover key can no longer be
+        // pointed at a host by a default nobody chose.
         "lmstudio" => (
             given.unwrap_or("http://127.0.0.1:1234/v1"),
             "Authorization",
@@ -335,8 +347,12 @@ fn endpoint_for(provider: &str, base_url: Option<&str>, key: &str) -> ZResult<En
             false,
             false,
         ),
+        // Same default as `adapters::openai::default_base` — the two MUST
+        // agree, or a connection test reports one host while a real send goes
+        // to another. 11434 is Ollama's port, which is what "local" means to
+        // almost everyone who picks it.
         "local" => (
-            given.unwrap_or("http://127.0.0.1:4096/v1"),
+            given.unwrap_or("http://127.0.0.1:11434/v1"),
             "Authorization",
             format!("Bearer {key}"),
             false,
@@ -389,13 +405,26 @@ pub fn test_model_connection(
 ) -> ZResult<TestResult> {
     let key = key_for(&state, &provider);
 
+    /*
+     * Same rule as `list_models`: a loopback endpoint does not authenticate,
+     * so a missing key is not a failure there. Without this, testing a local
+     * server reported "No API key for this provider yet" while the server was
+     * running and would have answered — a false negative about the user's own
+     * machine.
+     */
     if key.is_empty() {
-        return Ok(TestResult {
-            ok: false,
-            message: "No API key for this provider yet".into(),
-            status: None,
-            ms: 0,
-        });
+        let given = base_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
+        let lokal = endpoint_for(&provider, given, "")
+            .map(|ep| endpoint_is_loopback(&ep.url))
+            .unwrap_or(false);
+        if !lokal {
+            return Ok(TestResult {
+                ok: false,
+                message: "No API key for this provider yet".into(),
+                status: None,
+                ms: 0,
+            });
+        }
     }
 
     let ep = endpoint_for(&provider, base_url.as_deref(), &key)?;
@@ -404,8 +433,22 @@ pub fn test_model_connection(
     let mut req = ureq::get(&ep.url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(8)))
-        .build()
-        .header(ep.header, &ep.value);
+        .build();
+    /*
+     * Send the Authorization header only when there is a token to send.
+     *
+     * With an empty key every Authorization arm of `endpoint_for` produces the
+     * literal `Bearer ` — a trailing space and nothing else. Ollama ignores it,
+     * but a stricter front-end (vLLM behind a proxy, say) answers 400, and the
+     * reader sees "Server answered 400" for a server that is running and was
+     * reachable. That is the exact false negative the loopback-no-key rule
+     * exists to remove, so it must not be reintroduced by the header.
+     *
+     * `list_models` already guards this; the two paths must agree.
+     */
+    if !ep.value.trim().trim_start_matches("Bearer").trim().is_empty() {
+        req = req.header(ep.header, &ep.value);
+    }
     if ep.anthropic {
         req = req.header("anthropic-version", "2023-06-01");
     }
@@ -436,26 +479,105 @@ pub fn test_model_connection(
     })
 }
 
+/// Is this provider a server on the user's own machine?
+///
+/// A loopback endpoint does not authenticate. Ollama, LM Studio, llama.cpp's
+/// server and vLLM all answer `/v1/models` without a key, so requiring one
+/// before the request is even attempted rejected exactly the case the feature
+/// exists for: `Refresh` on `local` failed with "No API key for local yet"
+/// while the server was running and reachable. The key was never going to be
+/// used; it was only being demanded.
+///
+/// The check is on the ADDRESS, not the provider id, so a `custom` gateway
+/// pointed at loopback works too — and a `custom` gateway pointed at a real
+/// host still requires its key.
+///
+/// IPv6 hosts arrive bracketed (`http://[::1]:11434/…`), so the host is taken
+/// between brackets when present; splitting on `:` alone would reduce `[::1]`
+/// to `[`, which matches nothing.
+///
+/// Userinfo is removed FIRST. `http://localhost:8080@evil.test/v1` has the
+/// authority `localhost:8080@evil.test`, and splitting that on `:` yields
+/// `localhost` — so the URL would be classified as loopback while the request
+/// actually goes to `evil.test`. Taking the part after the last `@` is what the
+/// HTTP spec does, and what an attacker would rely on us not doing.
+fn endpoint_is_loopback(url: &str) -> bool {
+    let s = url.trim().to_ascii_lowercase();
+    let Some(rest) = s
+        .strip_prefix("https://")
+        .or_else(|| s.strip_prefix("http://"))
+    else {
+        return false;
+    };
+    // Authority ends at the first `/`, and any query/fragment with it.
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    // `user:pass@host` — the host is what follows the LAST `@`.
+    let authority = authority.rsplit('@').next().unwrap_or("");
+    let host = match authority.strip_prefix('[') {
+        Some(sisa) => match sisa.split(']').next() {
+            Some(h) => h,
+            None => return false,
+        },
+        None => authority.split(':').next().unwrap_or(""),
+    };
+    matches!(host, "127.0.0.1" | "localhost" | "::1" | "0.0.0.0")
+}
+
+#[cfg(test)]
+pub fn endpoint_is_loopback_for_test(url: &str) -> bool {
+    endpoint_is_loopback(url)
+}
+
 #[tauri::command(async)]
 pub fn list_models(
     state: State<AppState>,
     provider: String,
     base_url: Option<String>,
 ) -> ZResult<Vec<String>> {
+    /*
+     * Resolve the endpoint BEFORE insisting on a key.
+     *
+     * The old order was the bug: it read the key first and returned early when
+     * it was empty, so a local server was never even contacted. Now the
+     * endpoint is known first, and a loopback address is allowed through with
+     * no key at all — which is what these servers actually require.
+     */
+    let given = base_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
     let key = key_for(&state, &provider);
+
     if key.is_empty() {
-        return Err(ZephyrError::InvalidInput(format!(
-            "No API key for {provider} yet — add one in Settings → AI Models"
-        )));
+        // `endpoint_for` is what turns a provider id plus an optional override
+        // into a URL. Calling it with an empty key is fine for the local case
+        // (the auth header is built, just never sent) and it is what tells us
+        // whether this provider is local in the first place.
+        let probe = endpoint_for(&provider, given, "");
+        let lokal = match &probe {
+            Ok(ep) => endpoint_is_loopback(&ep.url),
+            // No endpoint to resolve at all (e.g. `custom` with no base URL).
+            // The original error is the useful one, so let it surface.
+            Err(_) => false,
+        };
+        if !lokal {
+            return Err(ZephyrError::InvalidInput(format!(
+                "No API key for {provider} yet — add one in Settings → AI Models"
+            )));
+        }
     }
 
-    let ep = endpoint_for(&provider, base_url.as_deref(), &key)?;
+    let ep = endpoint_for(&provider, given, &key)?;
 
+    /*
+     * Send the Authorization header only when there is something to send.
+     * `Bearer ` with an empty value is not the same as omitting it: some
+     * servers reject the malformed form outright instead of ignoring it.
+     */
     let mut req = ureq::get(&ep.url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(8)))
-        .build()
-        .header(ep.header, &ep.value);
+        .build();
+    if !ep.value.trim().trim_start_matches("Bearer").trim().is_empty() {
+        req = req.header(ep.header, &ep.value);
+    }
     if ep.anthropic {
         req = req.header("anthropic-version", "2023-06-01");
     }
@@ -527,5 +649,7 @@ pub fn preview_for_test(key: &str) -> String {
 /// regression: a `custom` provider must never resolve to OpenAI.
 #[cfg(test)]
 pub fn endpoint_for_test(provider: &str, base_url: Option<&str>) -> Result<String, String> {
-    endpoint_for(provider, base_url, "uji").map(|e| e.url).map_err(|e| e.to_string())
+    endpoint_for(provider, base_url, "uji")
+        .map(|e| e.url)
+        .map_err(|e| e.to_string())
 }

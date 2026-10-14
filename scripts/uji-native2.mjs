@@ -34,12 +34,15 @@ async function evalJs(expr, awaitPromise = false) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-await evalJs(`(() => { const b = [...document.querySelectorAll('[data-activity]')].find(e => e.getAttribute('data-activity') === 'settings'); if (b) b.click(); return 1; })()`);
+// Buka pop-up "AI Models" (jalur UI nyata: menu "…" -> "AI Models") lalu cek
+// elemen models-answerlang di dalamnya. Seksi AI Models sudah DICABUT dari nav
+// Settings kiri, jadi pintunya bukan lagi set-nav-models.
+await evalJs(`(() => { const b = document.querySelector('[data-testid="ai-more"]'); if (b) b.click(); return 1; })()`);
+await sleep(500);
+await evalJs(`(() => { const b = document.querySelector('[data-testid="ai-open-models"]'); if (b) b.click(); return 1; })()`);
 await sleep(1000);
-await evalJs(`(() => { const b = document.querySelector('[data-testid="set-nav-models"]'); if (b) b.click(); return 1; })()`);
-await sleep(700);
 console.log('elemen answerlang ada?', await evalJs(`!!document.querySelector('[data-testid="models-answerlang"]')`));
-console.log('nav model aktif?', await evalJs(`!!document.querySelector('[data-testid="set-nav-models"][aria-selected=true]') || !!document.querySelector('.set-nav .is-active')`));
+console.log('pop-up AI Models aktif?', await evalJs(`!!document.querySelector('[data-testid="aim-pop"]') && !!document.querySelector('[data-testid="models-answerlang"]')`));
 const r = await evalJs(`
   (() => {
     try {

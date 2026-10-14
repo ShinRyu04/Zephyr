@@ -126,8 +126,7 @@ fn baca_invoke(teks: &str, dari: usize) -> Option<(String, Value, usize)> {
      */
     let nama_tool = match nama_tag {
         "invoke" => atribut(tag_buka, "name")?,
-        "function" => atribut(tag_buka, "function")
-            .or_else(|| atribut(tag_buka, "name"))?,
+        "function" => atribut(tag_buka, "function").or_else(|| atribut(tag_buka, "name"))?,
         /*
          * `<tool_call>tool_search{...}` — a bare tag whose body opens with the
          * name. Handled by the caller's fallback below, not here.
@@ -137,8 +136,12 @@ fn baca_invoke(teks: &str, dari: usize) -> Option<(String, Value, usize)> {
     let isi_mulai = dari + awal + gt_rel + 1;
 
     /* The closing tag follows the opening one: `</function>` for the OpenAI
-       spelling, `</invoke>` otherwise. */
-    let penutup = if nama_tag == "function" { "function" } else { "invoke" };
+    spelling, `</invoke>` otherwise. */
+    let penutup = if nama_tag == "function" {
+        "function"
+    } else {
+        "invoke"
+    };
     let (isi, setelah) = potong_sampai_penutup(teks, isi_mulai, penutup)?;
 
     let mut args = serde_json::Map::new();
@@ -290,10 +293,11 @@ pub fn posisi_aman(teks: &str) -> usize {
         Some((idx, _)) => &t[idx..],
         None => t,
     };
-    let partial = AWALAN
+    let partial = AWALAN.iter().any(|a| {
+        a.starts_with(ekor.trim_end()) && !ekor.trim_end().is_empty() && ekor.contains('<')
+    }) || ["|DSML", "<|DSM", "<|DS", "<|D", "<|", "<"]
         .iter()
-        .any(|a| a.starts_with(ekor.trim_end()) && !ekor.trim_end().is_empty() && ekor.contains('<'))
-        || ["|DSML", "<|DSM", "<|DS", "<|D", "<|", "<"].iter().any(|s| ekor.ends_with(s));
+        .any(|s| ekor.ends_with(s));
     if partial {
         let mulai = t.len().saturating_sub(ekor.len());
         if mulai < batas {
@@ -354,14 +358,7 @@ pub fn mungkin_awal_tag(teks: &str) -> bool {
      * Nothing yet. Only a partial marker at the very end is worth holding, so
      * prose that merely contains a comparison or an HTML tag still streams.
      */
-    const AWALAN: [&str; 6] = [
-        "<|DSML|",
-        "|DSML|",
-        "<",
-        "<|",
-        "||DSML||",
-        "<||DSML||",
-    ];
+    const AWALAN: [&str; 6] = ["<|DSML|", "|DSML|", "<", "<|", "||DSML||", "<||DSML||"];
     /*
      * Take the tail on a CHARACTER boundary, not a byte one. A byte index of
      * `len - 24` lands mid-character whenever the text ends in a fullwidth or
@@ -373,11 +370,10 @@ pub fn mungkin_awal_tag(teks: &str) -> bool {
         None => teks,
     };
     /* A `<` alone is too common in prose to hold on its own; require a partial
-       match that already commits to the marker. */
-    AWALAN
-        .iter()
-        .any(|a| a.starts_with(ekor.trim_end()) && !ekor.trim_end().is_empty() && ekor.contains('<'))
-        || ekor.ends_with("|DSML")
+    match that already commits to the marker. */
+    AWALAN.iter().any(|a| {
+        a.starts_with(ekor.trim_end()) && !ekor.trim_end().is_empty() && ekor.contains('<')
+    }) || ekor.ends_with("|DSML")
         || ekor.ends_with("<|DSM")
         || ekor.ends_with("<|DS")
         || ekor.ends_with("<|D")
@@ -527,7 +523,6 @@ pub fn parse_teks(teks: &str) -> Vec<ToolCall> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn dsml_diparse() {
         let t = "Saya cek dulu.\n\n<|DSML| calls>\n<|DSML| invoke name=\"fs_read\">\n<|DSML| parameter name=\"path\" string=\"true\">src/main.rs</|DSML| parameter>\n</|DSML| invoke>\n</|DSML| calls>";
@@ -675,7 +670,11 @@ mod tests {
     fn posisi_aman_tidak_menahan_prosa_biasa() {
         // A comparison or an HTML tag in mid-sentence is not a marker: holding
         // on every `<` would reintroduce the same stall for ordinary text.
-        for t in ["2 < 3 dan itu benar", "pakai <div> untuk itu", "harga < 100 ribu"] {
+        for t in [
+            "2 < 3 dan itu benar",
+            "pakai <div> untuk itu",
+            "harga < 100 ribu",
+        ] {
             assert_eq!(posisi_aman(t), t.len(), "held prose: {t:?}");
         }
     }
@@ -714,7 +713,7 @@ mod tests {
     #[test]
     fn awal_tag_lebar_juga_terdeteksi() {
         /* The fullwidth form has to survive the same check, or a model that
-           emits it gets its markup streamed raw. */
+        emits it gets its markup streamed raw. */
         let lebar = normalisasi_penanda("\u{FF1C}\u{FF5C}DSML\u{FF5C}");
         assert!(mungkin_awal_tag(&lebar));
     }
@@ -722,7 +721,7 @@ mod tests {
     #[test]
     fn dsml_gaya_screenshot_tertangkap() {
         /* The exact shape that leaked into a reply: a doubled ASCII bar, and
-           the closing tags written as `</` followed by the marker. */
+        the closing tags written as `</` followed by the marker. */
         let t = "Let me check what's available first.\n\n<||DSML|| calls>\n<||DSML|| invoke name=\"file_list\">\n<||DSML|| parameter name=\"path\" string=\"true\">D:/Zephyr</||DSML|| parameter>\n</||DSML|| invoke>\n</||DSML|| calls>";
         let calls = parse_teks(t);
         assert_eq!(calls.len(), 1, "harus satu tool call");
@@ -750,7 +749,10 @@ mod tests {
          * terkirim tidak bisa ditarik.
          */
         let tag = "<|DSML| invoke name=\"browser_close\">";
-        assert!(tag.len() > 24, "tag ini harus memang lebih panjang dari jendela ekor");
+        assert!(
+            tag.len() > 24,
+            "tag ini harus memang lebih panjang dari jendela ekor"
+        );
         assert!(
             mungkin_awal_tag(tag),
             "tag yang sudah lengkap di dalam buffer tetap harus ditahan"
@@ -796,7 +798,7 @@ mod tests {
     fn jalur_produksi_menahan_marker_lebar() {
         let mentah = "\u{FF1C}\u{FF5C}\u{FF5C}DSML\u{FF5C}\u{FF5C} invoke name=\"browser_close\">";
         /* Guard harus menyala pada teks mentah, persis seperti ai.rs
-           memanggilnya pada `tahan` tanpa normalisasi. */
+        memanggilnya pada `tahan` tanpa normalisasi. */
         assert!(
             mungkin_awal_tag(mentah),
             "marker fullwidth harus ditahan, bukan dialirkan ke layar"

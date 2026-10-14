@@ -6,6 +6,7 @@
 //         WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223"
 
 import WebSocket from 'ws';
+import { keluarBersih } from './lib-cdp.mjs';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -175,9 +176,22 @@ const main = async () => {
   await sleep(500);
 
   // ───────── V1: terminal muncul, prompt PowerShell, echo halo ─────────
+  /*
+   * Tunggu PROMPT-nya, jangan tidur dengan durasi tetap.
+   *
+   * PowerShell bisa butuh lebih dari dua detik untuk mencetak prompt pertama
+   * ketika app baru saja dipakai uji lain (startup shell berebut CPU dengan
+   * pemuatan ulang halaman). Dengan sleep tetap, uji ini gagal hanya karena
+   * urutan menjalankan berkas uji - lulus saat berdiri sendiri, gagal saat
+   * dijalankan sesudah harness lain - dan itu bukan sinyal tentang app.
+   */
   const id1 = await cdp.runAsync(`
     const id = await T.getState().addPane('shell');
-    await new Promise(r => setTimeout(r, 2000));
+    const mulai = Date.now();
+    while (Date.now() - mulai < 10000) {
+      await new Promise(r => setTimeout(r, 250));
+      if (/PS [A-Z]:\\\\/.test(P.read(id, 30))) break;
+    }
     return id;
   `);
 
@@ -601,11 +615,11 @@ const main = async () => {
   console.log(`\n== ${results.length - fail.length}/${results.length} lulus ==`);
   if (fail.length) {
     console.log('GAGAL: ' + fail.map((f) => f.id).join(', '));
-    process.exit(1);
+    keluarBersih(1);
   }
 };
 
 main().catch((e) => {
   console.error('verify05 error:', e.message);
-  process.exit(2);
+  keluarBersih(2);
 });

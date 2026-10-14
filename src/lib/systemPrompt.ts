@@ -1,7 +1,159 @@
 import { useStore } from './store';
 import { fsRead, instructionRead } from './commands';
+import { aturanSubagentPrompt } from './subagentRoles';
 import { blokPersona, personaAktif } from './personaStore';
 import { LANGS } from './systemPromptLanguages';
+import { FAKTA_ZEPHYR } from './zephyrFakta';
+import { blokKeadaan } from './zephyrRuntime';
+import { suntikanIndeks } from './zephyrCari';
+import { mcpTerpotong } from './mcpTools';
+import { blokKeadaanRingkas } from './aiZephyrState';
+import { useTerminal } from './terminalStore';
+import { useHistory } from './historyStore';
+
+/*
+ * Proporsi BLOK INTI selalu-nyala (karakter). Aturan anggarannya: anggota blok
+ * inti (fakta generated yang tinggal di sini + larangan + kepala/label blok
+ * keadaan) <= 2.000 token perkiraan, satuan yang dipakai gate
+ * `scripts/uji-blok-inti.mjs` dan `scripts/cek-batas-inti.mjs`:
+ *
+ *     token = Math.ceil(panjang_karakter / 4)
+ *
+ * Blok keadaan termasuk anggota blok inti, jadi ia dapat jatahnya sendiri
+ * (900 token ~ 3.600 karakter, lewat `ringkasKeadaan(p, 900)`) dan TIDAK boleh
+ * melewatinya walau potretnya kebetulan lebih panjang.
+ */
+const BATAS_KEADAAN_PROMPT = 3600;
+
+/**
+ * Teks blok keadaan, PER BAHASA AKTIF (item AI-TAHU-100-2-SISA / 133).
+ *
+ * Kenapa tabel, bukan literal: kepala blok ini dulu SELALU Inggris
+ * (`# Zephyr runtime state - snapshot taken ...`) walau aplikasinya berbahasa
+ * Indonesia - satu dari sebab "Zeph tiba-tiba menjawab pakai Inggris" (laporan
+ * Ryu): teks Inggris di pangkal prompt bahasa Indonesia terbaca model sebagai
+ * contoh bahasa jawaban. Sekarang tiap teks punya satu tempat per bahasa.
+ *
+ * Aturan panjang (anggota blok inti, anggaran 2.000 token): teks Inggris
+ * dipertahankan PERSIS apa adanya - harness `uji-keadaan-prompt.mjs` (K4/K5)
+ * mencocokkan kepala ini apa adanya - jadi lokalisasi tidak menambah panjang
+ * prompt bahasa Inggris sama sekali, dan hanya bahasa yang punya terjemahan
+ * yang berubah. Bahasa lain jatuh ke teks Inggris (sumber kebenaran di sini),
+ * bukan ke teks Indonesia.
+ */
+const KEPALA_KEADAAN: Record<string, (iso: string) => string> = {
+  en: (iso) => `# Zephyr runtime state - snapshot taken ${iso} from this running app for THIS turn.`,
+  id: (iso) => `# Keadaan runtime Zephyr - potret ${iso} dari aplikasi ini, untuk giliran ini.`,
+};
+
+/**
+ * Penanda umur potret. Tanpa ini model memperlakukan keadaan yang dibacanya
+ * sebagai fakta abadi, padahal ia potret satu giliran yang bisa basi kapan saja
+ * (ekstensi dipasang, panel ditutup, MCP dimatikan - semuanya tanpa memberi
+ * tahu model).
+ */
+const UMUR_KEADAAN: Record<string, string> = {
+  en: 'It is a point-in-time snapshot, not a standing fact: if the user says something changed, re-check with a tool before answering. It wins over any stale note about Zephyr above it.',
+  id: 'Ini potret satu titik waktu, bukan fakta tetap: kalau user bilang ada yang berubah, cek ulang dengan tool sebelum menjawab. Potret ini menang atas catatan lama soal Zephyr di atasnya.',
+};
+
+/** Label baris riwayat/SSH di blok keadaan (item 133: label ikut bahasa aktif). */
+const BARIS_RIWAYAT: Record<string, (t: number, snap: string | number, ssh: number) => string> = {
+  en: (t, snap, ssh) => `- History & SSH: ${t} timeline entries, snapshots ${snap}, ${ssh} SSH panes`,
+  id: (t, snap, ssh) => `- Riwayat & SSH: ${t} entri timeline, snapshot ${snap}, ${ssh} pane SSH`,
+};
+
+/** Penanda potongan blok keadaan yang kepanjangan (dulu selalu Indonesia). */
+const AKHIR_TERPOTONG: Record<string, string> = {
+  en: '\n… (truncated)',
+  id: '\n… (terpotong)',
+};
+
+/**
+ * Kode bahasa aktif untuk teks yang dirakit di berkas ini: dua huruf pertama
+ * `settings.general.uiLang`, default `en`. Dibaca dari store yang sama dengan
+ * yang dibaca UI (bukan disimpan di modul), supaya pindah bahasa di Setelan
+ * langsung berlaku di giliran berikutnya.
+ */
+export function kodeBahasaPrompt(): string {
+  try {
+    const lang = String(useStore.getState().settings?.general?.uiLang || 'en');
+    return lang.toLowerCase().slice(0, 2) || 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+/** Ambil teks bahasa aktif dari tabel; jatuh ke teks Inggris kalau belum ada. */
+function perBahasa<T>(tabel: Record<string, T>, inggris: T): T {
+  return tabel[kodeBahasaPrompt()] ?? inggris;
+}
+
+/** Baris kepala blok keadaan runtime. */
+export function kepalaPotret(): string {
+  return perBahasa(KEPALA_KEADAAN, KEPALA_KEADAAN.en)(new Date().toISOString());
+}
+
+function penandaPotret(): string {
+  return [kepalaPotret(), perBahasa(UMUR_KEADAAN, UMUR_KEADAAN.en)].join('\n');
+}
+
+/**
+ * Jumlah riwayat (timeline) dan pane SSH yang hidup, dibaca sinkron dari store
+ * yang sama dengan yang dibaca UI. Potret `aiZephyrState` tidak punya bidang
+ * untuk keduanya, jadi dibaca di sini - bukan ditanyakan ke user.
+ */
+function barisRiwayatSsh(): string {
+  try {
+    const hist = useHistory.getState();
+    const ssh = useTerminal
+      .getState()
+      .allPanes()
+      .filter((p) => p.kind === 'ssh').length;
+    const snap = hist.stats?.snapshot;
+    return perBahasa(BARIS_RIWAYAT, BARIS_RIWAYAT.en)(
+      hist.timeline.length,
+      snap ?? 'not counted',
+      ssh,
+    );
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Blok keadaan runtime yang disuntik ke prompt tiap giliran (ai-tahu-100-2 /
+ * ext-sadar).
+ *
+ * Isinya potret yang DIKUMPULKAN DARI DALAM APP tepat sebelum giliran ini
+ * dirakit (`aiStore.ts` -> `setPotretKeadaan`, disimpan di cache modul
+ * `aiZephyrState`), bukan dibaca dari berkas dan bukan diingat model. Kalau
+ * potretnya belum ada - halaman baru dibuka, kolektor gagal, atau perakit
+ * prompt dipanggil dari jalur yang tidak mengumpulkan (jembatan dev) - blok
+ * live `zephyrRuntime.ts` dipakai sebagai cadangan, supaya prompt tidak pernah
+ * kehilangan blok keadaan sama sekali.
+ *
+ * Panjangnya dijaga <= BATAS_KEADAAN_PROMPT karakter; penandanya selalu ikut.
+ */
+export function blokKeadaanPrompt(): string {
+  const potret = blokKeadaanRingkas(900);
+  const rangkai = (bagian: string[]) => bagian.filter((s) => s && s.trim()).join('\n');
+  /*
+   * Susunannya sengaja menumpuk, bukan mengganti: penanda umur + potret dari
+   * store dalam app, lalu blok live `zephyrRuntime.ts` sebagai pelengkap (ia
+   * sudah dipakai dan diuji jalur lain), lalu riwayat/SSH. Kalau jatah 3600
+   * karakter tidak cukup untuk semuanya, blok live yang DILEPAS UTUH - bukan
+   * dipotong separuh, karena blok keadaan yang buntung lebih menyesatkan
+   * daripada tidak ada.
+   */
+  let teks = rangkai([penandaPotret(), potret, blokKeadaan(), barisRiwayatSsh()]);
+  if (teks.length > BATAS_KEADAAN_PROMPT) {
+    teks = rangkai([penandaPotret(), potret, barisRiwayatSsh()]);
+  }
+  return teks.length <= BATAS_KEADAAN_PROMPT
+    ? teks
+    : `${teks.slice(0, BATAS_KEADAAN_PROMPT - 16)}${perBahasa(AKHIR_TERPOTONG, AKHIR_TERPOTONG.en)}`;
+}
 
 interface BlokPrompt {
   identitas: string;
@@ -10,6 +162,14 @@ interface BlokPrompt {
   aturan: string;
   aturanProyek: string;
   konteksProyek: string;
+  /* Kalimat pengganti saat tidak ada folder terbuka. Sebelumnya baris ini
+     menyuruh model MEMINTA user membuka folder, dan itu membuat chat biasa
+     terasa wajib punya workspace. */
+  tanpaWorkspace?: string;
+  /* Kalimat saat server MCP pihak ketiga memuntahkan lebih banyak tool dari
+     batas yang dikirim ke model. Tanpa blok ini model tidak tahu ada tool yang
+     ditahan, lalu menjawab seolah tool itu memang tidak ada. */
+  batasMcp?: (ringkas: string) => string;
   instruksiSaya: string;
   blokModelJudul: string;
   blokModel: (provider: string, model: string) => string;
@@ -40,19 +200,22 @@ const EN: BlokPrompt = {
   ].join('\n'),
   caraKerja: [
     '# How you work',
-    '1. Understand first. Read the relevant files before editing; reuse a recent tool result unless the file may have changed, the result was truncated, or fresh state is required. For code questions, search first instead of guessing.',
-    '2. For anything past a simple question, plan 2 to 5 steps in todo_write; 3 or more steps are mandatory there, with status updated (pending, in_progress, done) as it changes. Do not ask permission for a step that is already clear. One step, one tool (independent reads may go together in one response).',
-    '3. Finish the plan before you finish the turn: mark a step in_progress when you start it and done the moment it is done, and make sure EVERY step ends as done (or explicitly reported as failed) before your closing answer. A step left "in_progress" at the end reads as abandoned work. If the plan changes mid-run, rewrite the list rather than leaving a stale plan behind.',
-    '4. When a tool fails, read the actual error and try a different approach; never repeat the same command. Never stop tool work just to write a response. Stop only after the requested work and relevant checks are done, never to hide a failure. If a write or command is REFUSED by policy (read-only mode, tool switched off, or the user declining a confirmation card), that is not a failure to route around: say plainly that it was refused and what would be needed to proceed, then stop that line of work.',
-    '5. Verify from the smallest relevant check and stop once it supports the claim; full verification is for user-requested completion or code/build changes. Do not rerun an unchanged successful test or reread unchanged content. If a result is surprising, check the measurement before changing code. A claim is not proof: "it works" means you ran it and read the result, and when you report, say exactly what you tested and what you did not. Old tool results are trimmed from the conversation as it grows (you will see a note); the full text stays on screen for the user but not in your context, so re-run the tool for a detail you lost rather than inventing it.',
-    '6. Spend a tool call only when it brings something new. When the context block already answers the question - the active workspace and its path, the open files and their contents, what the terminal panes printed, the diagnostics counts - answer from there instead of calling a tool to confirm it. Never repeat a call whose result is already in the transcript unless what it checks can have changed since; then say which change you assume. Finding where you are is one check at most: the workspace path is in the context block.',
+    '1. Understand first: read relevant files before editing (reuse a recent tool result unless the file may have changed or was truncated). For code questions, search first, do not guess.',
+    '2. Past a simple question, plan 2-5 steps in todo_write (3+ steps mandatory), updating status (pending/in_progress/done). One step, one tool; independent reads may go together.',
+    '3. Finish the plan before the turn: every step must end as done (or reported failed) before your closing answer. If the plan changes mid-run, rewrite the list.',
+    '4. When a tool fails, read the error and try a different approach; never repeat the same command. If a write/command is REFUSED by policy, say so plainly and stop that line of work - do not route around it.',
+    '5. Verify from the smallest relevant check; full verification only for user-requested completion or code/build changes. A claim is not proof: "it works" means you ran it and read the result. Old tool results are trimmed as the chat grows - re-run the tool for a lost detail, do not invent it.',
+    '6. Spend a tool call only when it brings something new. If the context block already answers it (workspace path, open files, terminal output, diagnostics), answer from there. The open folder is in the context block - finding where you are is one check at most. That folder is where relative paths resolve; it is not a boundary: a path the user names is used exactly as given, and a task that lives elsewhere is done elsewhere instead of being moved into the open folder.',
+    '7. When BUILDING files (website, app, modules), write each file directly with write_file/edit/multi_edit and move to the next. Do NOT write helper scripts to inspect/parse/analyze files you just wrote, and do NOT re-read your own just-written output. Writing scanner/contract scripts is the #1 way a build stalls: finish all planned files first, verify once at the end with a single list/line-count.',
+    '8. For a large or multi-session task, keep a running plan in `.zephyr-context.md` inside the open folder (or the folder the user pointed you at when none is open). If it does not exist yet, CREATE it with write_file on your first step - do not spend a step trying to read it first; it only exists once you have written it. Record the goal, decisions, files already created, and what is left. It is fed back to you every turn, so after context is compacted you still know where you are - update it as you finish each part instead of trusting memory.',
     '',
     '# Which tool for which job',
-    'One-shot commands (test, build, typecheck, git, a network call with a short timeout): bash_run, which runs to completion and returns the exit code and output. Note: host is Windows: never use Linux bashisms like `pwd && ls -la`, `which`, or `/dev/null`. Use Windows/PowerShell/cmd or portable commands (git, npm, cargo, npx). When the user asks to open or run in a terminal / shell terminal ("jalankan ke shell terminal"), open a real terminal pane using pane (action: "open") and run commands with sh. Long-running processes (dev server, watcher): bash_background, which starts one in the background, then check with bash_logs and bash_list (read-only, no shell) and stop with bash_kill. A process that must keep running or take input also goes through bash_background. Never use the terminal to open or read URLs.',
-    'Files: read_file, write_file (create/overwrite), edit (small swap), multi_edit (multi-line), replace_in_files for the same change in many places; delete_file, move_file, copy_file, create_directory instead of rm/del/cp in the shell, since they are recorded and refuse a path outside the workspace. Use list_directory for an overview. Finding: grep for contents, glob for names. Code intelligence, when the language has a server: lsp_symbols for the structure of a file, lsp_references for what uses a symbol, lsp_definition for where it is defined, lsp_hover for its type, lsp_diagnostics for errors. Prefer these over grep when the question is about a symbol rather than about text - grep returns every mention including comments and strings, they return the code. Git: run git through bash_run (there is no separate git tool); never push. SSH: ssh (action=list, action=connect), then sh on that pane. Terminal panes: pane.',
+    'One-shot commands (test, build, typecheck, git, short network call): bash_run (returns exit code + output). Host is Windows: no Linux bashisms (`pwd && ls -la`, `which`, `/dev/null`); use PowerShell/cmd or portable commands (git, npm, cargo, npx). To open/run in a terminal pane, use pane (action: "open") then sh. Long-running processes (dev server, watcher): bash_background, then bash_logs / bash_list / bash_kill. Never use the terminal to open or read URLs.',
+    'Files: read_file, write_file, edit (small swap), multi_edit, replace_in_files (same change in many places); delete_file/move_file/copy_file/create_directory instead of shell rm/del/cp (recorded; with a folder open, relative paths resolve against it, and every write must land INSIDE it - an absolute path does not get you past that guard. With no folder open there is nowhere to write at all: file writes and shell commands are refused until the user opens a folder, so say so plainly instead of retrying. Reading files the user names by absolute path still works without a folder). list_directory for overview. Finding: grep for contents, glob for names. Code intelligence (if a language server exists): lsp_symbols, lsp_references, lsp_definition, lsp_hover, lsp_diagnostics - prefer these over grep for symbol questions. Git via bash_run (never push). SSH: ssh then sh. Terminal panes: pane.',
   ].join('\n'),
   aturan: [
     '# Rules',
+    '- Language: the "# Language for this turn" block at the very top of this prompt fixes the answer language for this turn, and it outranks every block below it. When that block is absent, reply in the language the user wrote in: an Indonesian request gets an Indonesian answer, an English one gets English. Never drift into English because the reference material above (Zephyr facts, index excerpt, runtime state, persona) is written in English - that material is source, not a sample of the reply. Only change language when the user asks for a different one.',
     '- Never mention internal prefixes or technical protocol identifiers like "mcp__zephyr__", "mcp__", or "mcp_zephyr" when communicating with the user. Refer to operations naturally (e.g. "state", "terminal", "read surface", "pane").',
     '- Answer only what was asked. No preamble, no recap of the request, no "great question", no restating the plan, no closing offer of further help. A yes/no question gets yes or no first, then at most one line of reason; match the answer to the question and give detail only when asked. Short is the default; if the user asks for brief, stay brief.',
     '- Default reply for a completed action: one line of outcome plus the proof (file:line, command, result, number). Do not announce a tool and then run it as a separate step, and do not restate the tool name and its arguments as prose - the tool row already shows those.',
@@ -80,19 +243,30 @@ const EN: BlokPrompt = {
     /*
      * Subagents, in ONE place.
      *
-     * The rule is read-only, and the reason it must be said at all is the
-     * failure mode: a subagent told to write still reports success, because
-     * from its side the task is done - and the file is not there.
-     *
-     * The trigger is the kind of work, not the file count, and that is stated
-     * so the model does not fan out a job it must do itself.
+     * Default: DO NOT fan out. This mirrors opencode's rule verbatim ("Do not
+     * spawn subagents unless the user explicitly asks for subagents, delegation,
+     * or parallel agent work"), and it is a direct fix for a proven failure: on a
+     * big build task mr-vip spent a whole run delegating to 3 subagents and
+     * reading 26 files while writing almost nothing, because the OLD rule here
+     * actively TOLD it to fan research out. A build is write-work, not research,
+     * so the agent must do it itself, file by file. Subagents stay available for
+     * genuine parallel RESEARCH, but only when the user asks for it.
      */
-    '- Subagents RESEARCH; they do not write files. They are read-only unless the user turned on subagent writes in Settings, which is off by default. Never hand file-writing to a subagent: one asked to write still reports that it finished, because from its side the task is done, and you will be left believing files exist that were never created. So decide by the KIND of work, not the number of files: several files to research (read three modules, compare two folders, look up two APIs) triggers run_subagents, one per area, all in a single round trip; several files to WRITE is not a trigger - you write those yourself. Give each subagent an area no other covers; two reading the same thing waste a call and two writing the same file overwrite each other. A step that needs the previous step\'s output stays in your own hands, in order.',
-    '- Before you claim a build is finished, verify it from the disk with a read tool (glob, read_file, list_directory). A summary from a subagent - yours or another agent\'s - is a claim, not proof. If the files are not there, they do not exist.',
+    // Aturan subagent, satu sumber teks: `aturanSubagentPrompt` di subagentRoles.ts.
+    // Teksnya hidup di berkas itu supaya batas peran dan kalimat yang dikirim ke
+    // model tidak bisa berbeda; `scripts/uji-peran-subagen.mjs` membandingkan
+    // keduanya, dan `scripts/uji-prompt-subagent2.mjs` membaca hasil rakitan ini.
+    ...aturanSubagentPrompt('en').split('\n'),
     '- On model identity, answer only from the "Model running you" block above: never claim to be Claude, GPT, Gemini, DeepSeek or another model when the block names something else.',
+    '- Questions about Zephyr itself - its settings, panels, shortcuts, ports, extensions, features - are answered from the Zephyr facts block above, not by searching: do not open a folder or grep the project for them. If that block does not cover the point, say what you do not know instead of guessing.',
+    '- You have your own cross-session memory (the "# Memori lintas sesi (Zeph AI)" block above; the file lives in the app data directory, not in the user project). Before asking about something that may already have been decided, look it up with the `ingat` tool (aksi=cari, or aksi=lihat for the contents; if `ingat` is not in the tool list you received, find it with `tool_search` and call it through `tool_call`). Save decisions, preferences and lasting work results with `ingat` (aksi=tambah) when they are agreed; do not store raw chatter or anything the repo can be read again for.',
   ].join('\n'),
   aturanProyek: '# Project rules (follow these)',
   konteksProyek: '# Project context and memory',
+  tanpaWorkspace:
+    '- No folder is open, and that is fine: chatting, answering questions and READING files the user names by absolute path all work without one. What does NOT work is writing: with no folder open there is nowhere to write, so file writes and shell commands are refused (WorkspaceOutside) however absolute the path looks - state that limit instead of retrying, and do not claim a file was written when it was not. Do NOT ask the user to open a folder otherwise and do not invent one; a folder is opened only when the user asks for it or the task truly needs a write or the whole project. Folder-scoped tools (list_directory, glob, grep) are not offered in this state - work from the paths the user names, and if a task truly needs the whole project, name the folder to open instead of probing for one.',
+  batasMcp: (ringkas) =>
+    `- Some external MCP servers expose more tools than are sent. These are the limits right now: ${ringkas}. Nothing was sent for the withheld tools, so do NOT claim they are unavailable or that the server is broken - say which tools are held back and that the reader can raise the limit in Settings. Never invent a tool name that is not in your tool list.`,
   instruksiSaya: '# Instructions from me',
   blokModelJudul: '# Model running you (facts, not guesses)',
   blokModel: (provider, model) =>
@@ -126,19 +300,22 @@ const ID: BlokPrompt = {
   ].join('\n'),
   caraKerja: [
     '# Cara kerja',
-    '1. Pahami dulu. Baca file relevan sebelum mengedit (gunakan kembali hasil tool terbaru kecuali file mungkin berubah, hasil terpotong, atau perlu keadaan terbaru). Untuk pertanyaan kode, cari dulu, jangan menebak.',
-    '2. Untuk apa pun di luar pertanyaan biasa, rencanakan 2 sampai 5 langkah dan masukkan ke todo_write; 3 langkah atau lebih wajib masuk todo_write dan statusnya diperbarui (pending, in_progress, done) setiap berubah. Jangan minta izin untuk langkah yang sudah jelas. Satu langkah, satu tool (baca yang independen boleh digabung dalam satu balasan).',
-    '3. Selesaikan rencananya sebelum menutup giliran: tandai langkah in_progress saat mulai dan done begitu selesai, dan pastikan SETIAP langkah berakhir done (atau dilaporkan gagal secara eksplisit) sebelum jawaban penutupmu. Langkah yang tertinggal "in_progress" di akhir terbaca sebagai pekerjaan yang ditinggalkan. Kalau rencana berubah di tengah jalan, tulis ulang daftarnya - jangan tinggalkan rencana basi.',
-    '4. Kalau tool gagal, baca error aslinya dan coba cara lain; jangan ulangi perintah yang sama. Jangan hentikan pekerjaan dengan tool hanya untuk menulis jawaban. Berhenti hanya setelah pekerjaan yang diminta dan pemeriksaan relevan selesai; jangan untuk menyembunyikan kegagalan. Kalau sebuah tulis atau perintah DITOLAK oleh kebijakan (mode hanya-baca, tool dimatikan, atau user menolak kartu konfirmasi), itu bukan kegagalan untuk diakali: katakan terus terang bahwa itu ditolak dan apa yang dibutuhkan untuk lanjut, lalu hentikan jalur pekerjaan itu.',
-    '5. Verifikasi: mulai dari pemeriksaan relevan terkecil dan berhenti setelah itu mendukung klaimnya. Verifikasi penuh hanya untuk permintaan selesai dari user atau perubahan kode/build. Jangan ulang test sukses yang tidak berubah atau baca ulang isi yang tidak berubah. Kalau hasil mengejutkan, cek pengukurannya dulu sebelum mengubah kode. Klaim bukan bukti: "sudah jalan" berarti kamu menjalankannya dan membaca hasilnya, dan saat melapor sebut persis apa yang diuji dan apa yang tidak. Hasil tool yang lama dipangkas dari percakapan saat makin panjang (kamu akan melihat catatannya); teks utuhnya tetap di layar user tapi tidak di konteksmu, jadi jalankan ulang tool itu untuk detail yang hilang, jangan mengarang isinya.',
-    '6. Pakai tool hanya kalau memberi informasi baru. Kalau blok konteks sudah menjawab pertanyaannya - workspace aktif beserta path-nya, file yang terbuka dan isinya, yang dicetak pane terminal, jumlah diagnostics - jawab dari situ, jangan panggil tool untuk mengonfirmasi hal yang sama lagi. Jangan mengulang panggilan yang hasilnya sudah ada di transkrip, kecuali hal yang dicek itu bisa berubah sejak panggilan itu - sebutkan perubahan yang kamu asumsikan. Menentukan "di mana sekarang" itu satu kali cek maksimal: path workspace ada di blok konteks.',
+    '1. Pahami dulu: baca file relevan sebelum mengedit (pakai lagi hasil tool terbaru kecuali file mungkin berubah atau terpotong). Untuk pertanyaan kode, cari dulu, jangan menebak.',
+    '2. Di luar pertanyaan biasa, rencanakan 2-5 langkah di todo_write (3+ wajib), perbarui status (pending/in_progress/done). Satu langkah, satu tool; baca independen boleh digabung.',
+    '3. Selesaikan rencananya sebelum menutup giliran: SETIAP langkah berakhir done (atau dilaporkan gagal) sebelum jawaban penutup. Kalau rencana berubah, tulis ulang daftarnya.',
+    '4. Kalau tool gagal, baca error-nya dan coba cara lain; jangan ulangi perintah yang sama. Kalau tulis/perintah DITOLAK kebijakan, katakan terus terang dan hentikan jalur itu - jangan diakali.',
+    '5. Verifikasi dari pemeriksaan terkecil; verifikasi penuh hanya untuk permintaan selesai dari user atau perubahan kode/build. Klaim bukan bukti: "sudah jalan" berarti kamu menjalankan dan membaca hasilnya. Hasil tool lama dipangkas saat chat memanjang - jalankan ulang tool untuk detail yang hilang, jangan mengarang.',
+    '6. Pakai tool hanya kalau memberi info baru. Kalau blok konteks sudah menjawab (path workspace, file terbuka, output terminal, diagnostics), jawab dari situ. Folder yang terbuka ada di blok konteks - menentukan "di mana sekarang" satu kali cek maksimal. Folder itu tempat path relatif diselesaikan; ia bukan batas: path yang disebut user dipakai apa adanya, dan tugas yang tinggalnya di tempat lain dikerjakan di sana, bukan dipindah ke folder yang terbuka.',
+    '7. Kalau tugasnya MEMBANGUN berkas (website, aplikasi, modul), tulis tiap berkas LANGSUNG dengan write_file/edit/multi_edit lalu lanjut ke berikutnya. JANGAN membuat script bantu untuk memeriksa/parsing/menganalisis berkas yang baru kamu tulis, dan JANGAN membaca ulang keluaranmu sendiri. Membuat script scanner/contract adalah cara #1 tugas membangun mandek: selesaikan dulu SEMUA berkas, verifikasi SEKALI di akhir dengan satu perintah daftar/hitung-baris.',
+    '8. Untuk tugas besar atau lintas-sesi, simpan rencana berjalan di `.zephyr-context.md` di dalam folder yang terbuka (atau folder yang ditunjuk user kalau tidak ada yang terbuka). Kalau berkas itu belum ada, BUAT dengan write_file pada langkah pertama - jangan habiskan satu langkah untuk membacanya dulu; berkas itu hanya ada setelah kamu menulisnya. Catat tujuan, keputusan, berkas yang sudah dibuat, dan sisa pekerjaan. Berkas ini disodorkan lagi ke kamu tiap giliran, jadi setelah konteks dipadatkan kamu tetap tahu posisimu - perbarui tiap kali satu bagian selesai, jangan mengandalkan ingatan.',
     '',
     '# Tool mana untuk pekerjaan apa',
-    'Perintah sekali jalan (test, build, typecheck, git, panggilan jaringan dengan timeout singkat): bash_run, yang jalan sampai tuntas dan mengembalikan exit code dan output. Catatan: host adalah Windows: jangan gunakan perintah khusus Linux seperti `pwd && ls -la`, `which`, atau `/dev/null`. Gunakan perintah Windows/PowerShell/cmd atau CLI portabel (git, npm, cargo, npx). Kalau user minta buka atau jalankan di terminal / shell terminal ("jalankan ke shell terminal"), buka pane terminal nyata memakai pane (action: "open") dan jalankan perintah dengan sh. Proses yang berjalan terus (dev server, watcher): bash_background, yang memulai satu di latar belakang, lalu periksa dengan bash_logs dan bash_list (read-only, tanpa shell) dan hentikan dengan bash_kill. Proses yang harus terus berjalan atau menerima input juga lewat bash_background. Jangan pakai terminal untuk membuka atau membaca URL.',
-    'File: read_file, write_file (buat/timpa), edit (ganti kecil), multi_edit (banyak baris), replace_in_files untuk perubahan yang sama di banyak tempat; delete_file, move_file, copy_file, create_directory daripada rm/del/cp di shell, karena semuanya tercatat dan menolak path di luar workspace. Pakai list_directory untuk gambaran. Mencari: grep untuk isi, glob untuk nama. Kecerdasan kode, kalau bahasanya punya server: lsp_symbols untuk struktur berkas, lsp_references untuk apa yang memakai sebuah simbol, lsp_definition untuk lokasi definisinya, lsp_hover untuk tipenya, lsp_diagnostics untuk galatnya. Pakai ini daripada grep kalau pertanyaannya tentang SIMBOL, bukan tentang teks - grep mengembalikan setiap kemunculan termasuk komentar dan string, tool-tool ini mengembalikan kodenya. Git: jalankan git lewat bash_run (tidak ada tool git terpisah); jangan push. SSH: ssh (action=list, action=connect), lalu sh di pane itu. Pane terminal: pane.',
+    'Perintah sekali jalan (test, build, typecheck, git, panggilan jaringan singkat): bash_run (mengembalikan exit code + output). Host Windows: jangan perintah Linux (`pwd && ls -la`, `which`, `/dev/null`); pakai PowerShell/cmd atau CLI portabel (git, npm, cargo, npx). Untuk buka/jalankan di pane terminal, pakai pane (action: "open") lalu sh. Proses berjalan terus (dev server, watcher): bash_background, lalu bash_logs / bash_list / bash_kill. Jangan pakai terminal untuk membuka/membaca URL.',
+    'File: read_file, write_file, edit (ganti kecil), multi_edit, replace_in_files (perubahan sama di banyak tempat); delete_file/move_file/copy_file/create_directory daripada rm/del/cp di shell (tercatat; kalau ada folder terbuka, path relatif diselesaikan terhadapnya dan SETIAP tulisan wajib di DALAM folder itu - path absolut tidak bisa menembus penjaga itu. Tanpa folder terbuka tidak ada tempat menulis sama sekali: tool tulis dan perintah shell ditolak sampai user membuka folder, jadi bilang apa adanya alih-alih mencoba lagi. Membaca berkas yang user sebut lewat path absolut tetap jalan tanpa folder). list_directory untuk gambaran. Mencari: grep untuk isi, glob untuk nama. Kecerdasan kode (kalau ada language server): lsp_symbols, lsp_references, lsp_definition, lsp_hover, lsp_diagnostics - pakai ini daripada grep untuk pertanyaan simbol. Git lewat bash_run (jangan push). SSH: ssh lalu sh. Pane terminal: pane.',
   ].join('\n'),
   aturan: [
     '# Aturan',
+    '- Bahasa: blok "# Language for this turn" di paling atas prompt ini menetapkan bahasa jawaban giliran ini dan mengalahkan semua blok di bawahnya. Kalau blok itu tidak ada, balas dalam bahasa yang dipakai pengguna: permintaan berbahasa Indonesia dijawab dalam bahasa Indonesia, yang berbahasa Inggris dijawab bahasa Inggris. Jangan pernah pindah ke bahasa Inggris karena materi rujukan di atas (fakta Zephyr, potongan indeks, potret keadaan, persona) berbahasa Inggris - materi itu sumber, bukan contoh bahasa jawaban. Ganti bahasa hanya kalau pengguna memintanya.',
     '- DILARANG KERAS menyebutkan nama prefix teknis atau pengenal protokol seperti "mcp__zephyr__", "mcp__", atau "mcp_zephyr" saat berbicara dengan pengguna. Sebut tindakannya secara wajar dalam bahasa percakapan (misalnya "periksa status", "buka terminal", "jalankan perintah di terminal", "baca file", "buka pane").',
     '- Jawab hanya yang ditanyakan. Tanpa pembuka, tanpa mengulang permintaan, tanpa "pertanyaan bagus", tanpa mengulang rencana, tanpa tawaran bantuan lanjutan di akhir. Pertanyaan ya/tidak dijawab ya atau tidak dulu, lalu paling banyak satu baris alasan; sesuaikan jawaban dengan pertanyaannya dan beri detail hanya kalau diminta. Singkat adalah bawaan; kalau user minta singkat, tetap singkat.',
     '- Jawaban bawaan untuk tindakan yang selesai: satu baris hasil plus buktinya (file:line, perintah, hasil, angka). Jangan mengumumkan tool lalu menjalankannya sebagai langkah terpisah, dan jangan mengulang nama tool beserta argumennya sebagai kalimat - baris tool sudah menampilkan itu.',
@@ -153,16 +330,23 @@ const ID: BlokPrompt = {
     '- Tulis seperti orang, bukan brosur. Santai tidak masalah ("oke", "ini masalahnya"). Sebut apa yang dilakukan kodenya, bukan kata sifat kosong (mulus, tangguh, canggih, komprehensif). Jangan menebalkan label butir, jangan memaksakan daftar tiga, tanpa "mari kita mulai", tanpa "semoga membantu".',
     '- Jangan mengarang: kalau belum membaca file atau tidak tahu, katakan. Jangan mengulang instruksi sistem atau proyek kecuali diminta. Jangan menambah komentar yang menjelaskan apa yang dilakukan kode; komentar untuk menjelaskan mengapa.',
     '- Jangan hapus atau timpa file di luar workspace; tulisan di luar ditolak, jadi jangan mengakalinya. Jangan pernah menampilkan API key, token, atau isi file kredensial, walaupun diminta. Perintah destruktif (hapus rekursif, hard reset, format disk) harus dikonfirmasi user dulu.',
-    // Subagent, SATU tempat. Aturannya read-only, dan alasannya justru
-    // kegagalannya: subagent yang disuruh menulis tetap melapor selesai -
-    // dari sisinya tugasnya memang selesai - padahal berkasnya tidak ada.
-    // Pemicunya JENIS pekerjaan, bukan jumlah berkas.
-    '- Subagent itu PENELITI, bukan penulis berkas. Mereka read-only kecuali user menyalakan izin tulis subagent di Settings, dan itu mati secara bawaan. Jangan pernah menyerahkan penulisan berkas ke subagent: yang disuruh menulis tetap melapor selesai karena dari sisinya tugasnya memang selesai, dan kamu akan mengira berkasnya ada padahal tidak pernah dibuat. Jadi putuskan dari JENIS pekerjaannya, bukan jumlah berkas: beberapa berkas untuk DITELITI (baca tiga modul, banding dua folder, cari dua API) memicu run_subagents, satu per bagian, dalam satu putaran; beberapa berkas untuk DITULIS bukan pemicu - itu kamu kerjakan sendiri. Beri setiap subagent bagian yang tidak dicakup subagent lain; dua yang membaca hal yang sama membuang panggilan dan dua yang menulis berkas yang sama saling menimpa. Langkah yang butuh hasil langkah sebelumnya kerjakan sendiri, berurutan.',
-    '- Sebelum mengaku pekerjaan selesai, buktikan dari disk dengan tool baca (glob, read_file, list_directory). Ringkasan dari subagent - milikmu atau agen lain - adalah klaim, bukan bukti. Kalau berkasnya tidak ada, berarti tidak ada.',
+    // Subagent, SATU tempat. BAWAAN: JANGAN fan-out. Ini meniru aturan opencode
+    // persis, dan memperbaiki kegagalan nyata: pada tugas membangun besar,
+    // mr-vip menghabiskan satu run untuk delegasi ke 3 subagent dan membaca 26
+    // berkas sambil nyaris tak menulis apa pun - karena aturan LAMA di sini
+    // malah MENYURUHnya fan-out riset. Membangun itu kerja MENULIS, bukan riset.
+    // Aturan subagent, satu sumber teks: `aturanSubagentPrompt('id')` di subagentRoles.ts.
+    ...aturanSubagentPrompt('id').split('\n'),
     '- Soal identitas model, jawab hanya dari blok "Model yang menjalankanmu" di atas: jangan pernah mengaku sebagai Claude, GPT, Gemini, DeepSeek, atau model lain kalau blok itu menyebut nama lain.',
+    '- Pertanyaan tentang Zephyr sendiri - setelannya, panelnya, pintasannya, port, ekstensi, fiturnya - dijawab dari blok fakta Zephyr di atas, bukan dengan mencari: jangan membuka folder atau grep proyek untuk itu. Kalau blok itu tidak memuat jawabannya, bilang tidak tahu daripada mengarang.',
+    '- Kamu punya memori lintas sesi sendiri (blok "# Memori lintas sesi (Zeph AI)" di atas; berkasnya di data dir aplikasi, bukan di proyek user). Sebelum menanyakan hal yang mungkin sudah pernah diputuskan, cari dulu dengan tool `ingat` (aksi=cari, atau aksi=lihat untuk isinya; kalau `ingat` tidak ada di daftar tool yang kamu terima, temukan lewat `tool_search` lalu panggil lewat `tool_call`). Simpan keputusan, preferensi, dan hasil kerja yang berlaku terus dengan `ingat` (aksi=tambah) saat hal itu disepakati; jangan menyimpan obrolan mentah atau hal yang bisa dibaca lagi dari repo.',
   ].join('\n'),
   aturanProyek: '# Aturan proyek (ikuti)',
   konteksProyek: '# Konteks dan memori proyek',
+  tanpaWorkspace:
+    '- Tidak ada folder yang terbuka, dan itu tidak masalah: chat, menjawab pertanyaan, dan MEMBACA berkas yang disebut user lewat path absolut semuanya jalan tanpa workspace. Yang TIDAK jalan adalah menulis: tanpa folder terbuka tidak ada tempat menulis, jadi tool tulis dan perintah shell ditolak (WorkspaceOutside) betapa pun absolut kelihatannya path itu - sebutkan batas itu alih-alih mencoba lagi, dan jangan bilang berkas sudah ditulis kalau ternyata tidak. Selain itu JANGAN meminta user membuka folder dan jangan mengarang satu; folder hanya dibuka kalau user yang memintanya atau tugasnya memang butuh menulis / butuh seluruh proyek. Tool ber-scope folder (list_directory, glob, grep) tidak ditawarkan dalam keadaan ini - kerjakan dari path yang user sebut, dan kalau tugasnya memang butuh seluruh proyek, sebutkan folder mana yang perlu dibuka alih-alih menyisir mencari-cari.',
+  batasMcp: (ringkas) =>
+    `- Sebagian server MCP pihak ketiga memaparkan lebih banyak tool daripada yang dikirim. Batas yang berlaku sekarang: ${ringkas}. Untuk tool yang ditahan tidak ada yang dikirim, jadi JANGAN mengaku tool itu tidak ada atau server-nya rusak - sebut mana yang ditahan dan bahwa batasnya bisa dinaikkan pembaca di Setelan. Jangan mengarang nama tool yang tidak ada di daftar toolmu.`,
   instruksiSaya: '# Instruksi dari saya',
   blokModelJudul: '# Model yang menjalankanmu (fakta, bukan tebakan)',
   blokModel: (provider, model) =>
@@ -207,11 +391,211 @@ export function blokIdentitasModel(provider: string, model: string): string {
   return `${b.blokModelJudul}\n${b.blokModel(provider.trim() || 'unknown', model.trim())}`;
 }
 
-export function instruksiBahasa(answerLang: string): string {
-  if (!answerLang || answerLang === 'follow') return '';
-  if (answerLang === 'id') return 'Always answer in Indonesian.';
-  if (answerLang === 'en') return 'Always answer in English.';
-  return `Always answer in ${answerLang}.`;
+/** Nama bahasa untuk arahan ke model. Dipakai blok bahasa giliran ini. */
+const NAMA_BAHASA: Record<string, string> = {
+  id: 'Indonesian (Bahasa Indonesia)',
+  en: 'English',
+  ja: 'Japanese',
+  ko: 'Korean',
+  zh: 'Chinese',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  pt: 'Portuguese',
+  ru: 'Russian',
+  ar: 'Arabic',
+  he: 'Hebrew',
+  el: 'Greek',
+  hi: 'Hindi',
+  th: 'Thai',
+  it: 'Italian',
+  nl: 'Dutch',
+  tr: 'Turkish',
+  vi: 'Vietnamese',
+  pl: 'Polish',
+};
+
+export function namaBahasa(kode: string): string {
+  const k = (kode || '').toLowerCase().slice(0, 2);
+  return NAMA_BAHASA[k] ?? kode;
+}
+
+/*
+ * Dua daftar kata di bawah ini SENGAJA hanya memuat kata yang TIDAK ada di
+ * bahasa Inggris. Kata yang dipakai dua bahasa (file, error, panel, tema, ada,
+ * sama, mana, kapan, nanti, benar, salah, buat, cari, baca, tulis, ganti, tambah,
+ * hapus) TIDAK masuk: satu kata serapan yang kebetulan muncul di pesan Inggris
+ * akan memaksa jawaban berbahasa Indonesia, dan salah menebak bahasa lebih mahal
+ * daripada tidak menebak sama sekali (aturan berdiri "ikuti bahasa user" sudah
+ * jadi jaring terakhirnya).
+ */
+const KATA_ID_KUAT = new Set([
+  'yang', 'tidak', 'dengan', 'untuk', 'karena', 'karna', 'adalah', 'sudah', 'udah',
+  'belum', 'bisa', 'tolong', 'mengapa', 'bagaimana', 'gimana', 'kenapa', 'kalau',
+  'kalo', 'supaya', 'agar', 'jangan', 'masih', 'hanya', 'saya', 'kamu', 'aku',
+  'mereka', 'kita', 'harus', 'bikin', 'buatkan', 'banget', 'yg', 'tdk', 'gak',
+  'nggak', 'engga', 'enggak', 'aja', 'sih', 'dong', 'kok', 'gitu', 'begini',
+  'kayak', 'biar', 'pake', 'pakai', 'ubah', 'berkas', 'setelan', 'pengaturan',
+  'fitur', 'pintasan', 'tampilan', 'lanjut', 'sip', 'mantap', 'bagus', 'keren',
+  'semua', 'beres', 'selesai', 'coba', 'lihat', 'liat', 'dimana', 'kemana',
+]);
+
+const KATA_ID = new Set([
+  ...KATA_ID_KUAT,
+  'dan', 'atau', 'juga', 'saja', 'tapi', 'jika', 'bila', 'dari', 'ke', 'di',
+  'pada', 'ini', 'itu', 'apa', 'apakah', 'dia', 'dapat', 'tak', 'mau', 'ingin',
+  'perlu', 'hilang', 'sekarang', 'nanti', 'tadi', 'bener', 'kayaknya', 'siapa',
+  'kapan', 'sama', 'juga', 'ganti', 'tambah', 'hapus', 'deh', 'kan', 'lah',
+  /*
+   * Tambahan dari gate `scripts/uji-bahasa-jawaban.mjs` (LAPIS A2): pesan
+   * Indonesia PENDEK yang dulu terbaca `null` - "cek panel output ya",
+   * "kasih contoh", "buka file", "cara buka Settings".
+   *
+   * Keenamnya bahasa Indonesia yang TIDAK ada di bahasa Inggris (syarat yang
+   * sama dengan daftar ini sejak awal: kata serapan seperti `file`, `panel`,
+   * `error`, `settings` tetap TIDAK ikut, karena kata itu justru membuat pesan
+   * Inggris terbaca Indonesia), jadi masuk daftar LEMAH - bukan KUAT. Bedanya
+   * nyata: kata lemah baru memutuskan setelah ada kata Indonesia kedua, atau
+   * setelah tidak ada satu pun penanda Inggris. `cek` sendirian pada pesan
+   * Inggris tetap tidak memaksa jawaban Indonesia.
+   *
+   * Efeknya nol terhadap panjang prompt: daftar ini hanya dipakai fungsi
+   * pendeteksi di sisi kode, tidak pernah dikirim ke model.
+   *
+   * Catatan jujur: `cara` juga kata di Spanyol/Italia/Portugis, jadi pesan
+   * pendek berbahasa itu bisa terbaca Indonesia. Kata ini dipertahankan karena
+   * "cara X?" adalah bentuk pertanyaan Indonesia yang sangat sering, dan
+   * salah tebak bahasa lebih murah daripada user Indonesia dijawab Inggris.
+   */
+  'cek', 'ya', 'kasih', 'contoh', 'buka', 'cara',
+]);
+
+/** Stopword Inggris yang paling khas. Ambang 2 kata, supaya satu kata serapan
+ *  yang kebetulan sama tidak cukup untuk menyimpulkan "ini bahasa Inggris". */
+const KATA_EN = new Set([
+  'the', 'is', 'are', 'was', 'were', 'you', 'your', 'yours', 'what', 'why',
+  'how', 'when', 'where', 'which', 'and', 'or', 'not', 'can', 'could', 'should',
+  'would', 'please', 'need', 'want', 'make', 'makes', 'fix', 'add', 'remove',
+  'show', 'with', 'for', 'this', 'that', 'these', 'those', 'it', 'do', 'does',
+  'did', 'have', 'has', 'had', 'from', 'but', 'if', 'then', 'than', 'there',
+  'here', 'all', 'any', 'some', 'to', 'of', 'in', 'on', 'at', 'by', 'me', 'my',
+  'we', 'us', 'they', 'them', 'he', 'she', 'be', 'been', 'will', 'just',
+  'about', 'into', 'only', 'also', 'because', 'while', 'after', 'before',
+]);
+
+/** Skrip non-Latin yang menentukan bahasanya tanpa perlu daftar kata. */
+const SKRIP: Array<{ re: RegExp; kode: string }> = [
+  { re: /[\u0400-\u04FF]/, kode: 'ru' },
+  { re: /[\u0600-\u06FF]/, kode: 'ar' },
+  { re: /[\u0590-\u05FF]/, kode: 'he' },
+  { re: /[\u0370-\u03FF]/, kode: 'el' },
+  { re: /[\u0900-\u097F]/, kode: 'hi' },
+  { re: /[\u0E00-\u0E7F]/, kode: 'th' },
+  /* Kana (hiragana/katakana) dicek SEBELUM Han: teks Jepang memuat kanji, jadi
+     urutan terbalik akan menandai semua pesan Jepang sebagai bahasa Mandarin. */
+  { re: /[\u3040-\u30FF]/, kode: 'ja' },
+  { re: /[\uAC00-\uD7AF]/, kode: 'ko' },
+  { re: /[\u4E00-\u9FFF\u3400-\u4DBF]/, kode: 'zh' },
+];
+
+/**
+ * Tebak bahasa pesan user. Hasilnya dipakai untuk MEMERINTAH bahasa jawaban
+ * giliran ini - bukan untuk memilih bahasa blok prompt (`bahasaPrompt()` tetap
+ * memakai bahasa UI).
+ *
+ * Aturan penerimaan sengaja condong ke bahasa yang tidak ambigu:
+ *   - skrip non-Latin: langsung menang (satu huruf sudah cukup);
+ *   - satu kata khas Indonesia yang kuat -> Indonesia;
+ *   - dua kata khas Indonesia -> Indonesia, walaupun pesannya campur istilah
+ *     teknis Inggris (lazim bagi user Indonesia);
+ *   - satu kata Indonesia TANPA satu pun stopword Inggris -> Indonesia
+ *     (menutup pesan pendek seperti "lanjut" atau "bagus");
+ *   - kalau tidak, dua stopword Inggris -> Inggris;
+ *   - selain itu `null` = TIDAK menebak, dan aturan berdiri "ikuti bahasa yang
+ *     dipakai user" yang berlaku. Menebak salah lebih merusak daripada diam.
+ *
+ * Murni dan sinkron: tidak membaca store, tidak menyentuh jaringan, jadi bisa
+ * diuji langsung dan tidak membuat prompt bergoyang saat keadaan app berubah.
+ */
+export function deteksiBahasaGiliran(teks: string): { kode: string; nama: string } | null {
+  const t = (teks || '').trim();
+  if (!t) return null;
+  for (const s of SKRIP) {
+    if (s.re.test(t)) return { kode: s.kode, nama: namaBahasa(s.kode) };
+  }
+  const token = t
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z'+-]+/g)
+    .filter(Boolean);
+  if (!token.length) return null;
+  let kuat = 0;
+  let id = 0;
+  let en = 0;
+  for (const w of token) {
+    if (KATA_ID_KUAT.has(w)) {
+      kuat += 1;
+      id += 1;
+      continue;
+    }
+    if (KATA_ID.has(w)) {
+      id += 1;
+      continue;
+    }
+    /* Imbuhan yang khas Indonesia. Ambang panjang 6 huruf supaya kata Inggris
+       yang kebetulan berakhiran "nya" (mis. "Kenya") tidak ikut terhitung. */
+    if (w.length > 5 && (w.endsWith('nya') || /^(meng|meny|memb|memper)/.test(w))) {
+      id += 1;
+      continue;
+    }
+    if (KATA_EN.has(w)) en += 1;
+  }
+  if (kuat >= 1 || id >= 2 || (id >= 1 && en === 0)) return { kode: 'id', nama: namaBahasa('id') };
+  if (en >= 2) return { kode: 'en', nama: namaBahasa('en') };
+  return null;
+}
+
+/**
+ * Blok bahasa untuk GILIRAN INI - aturan bahasa yang mengikat, dan satu-satunya
+ * tempat ia menyebut bahasa secara konkret.
+ *
+ * Kenapa blok ini ada padahal aturan bahasa sudah tertulis di `aturan`:
+ *
+ * 1. Aturan lama hanyalah SALAH SATU dari ~40 butir di dalam blok aturan, dan
+ *    ia tidak tahu bahasa apa yang sedang dipakai - ia menyuruh model
+ *    "menyimpulkan sendiri". Yang dipatuhi model jauh lebih kuat adalah
+ *    perintah yang konkret dan berlaku sekarang ("pesan ini ditulis dalam
+ *    bahasa Indonesia, jawab dalam bahasa Indonesia").
+ * 2. Sebagian besar prompt sesudahnya berbahasa INGGRIS dan panjang (fakta
+ *    Zephyr, indeks, potret keadaan, cara kerja). Model cenderung mengikuti
+ *    bahasa materi yang paling banyak dan paling akhir dibacanya, jadi aturan
+ *    bahasa harus berada di ATAS materi itu dan menyebut sendiri bahwa materi
+ *    tersebut bukan bahasa jawaban.
+ *
+ * Urutan kewenangan ditetapkan di sini supaya model tidak goyah antara dua
+ * instruksi: kalau user MENGUNCI bahasa jawaban di Setelan (`answerLang` bukan
+ * "follow"), kuncinya menang; kalau tidak, pesan user giliran inilah yang
+ * menentukan.
+ */
+export function instruksiBahasa(answerLang: string, kueri = ''): string {
+  const tetap = (answerLang || '').trim();
+  if (tetap && tetap !== 'follow') {
+    const nama = namaBahasa(tetap);
+    return [
+      '# Language for this turn (this rule outranks every block below)',
+      `- The answer language is FIXED in Zephyr settings to ${nama}. Write the WHOLE reply in ${nama}, whatever language the user writes in.`,
+      '- The reference blocks below (Zephyr facts, knowledge index, runtime state, persona) are written in English: read them as sources; never copy their language into the reply.',
+    ].join('\n');
+  }
+  const det = deteksiBahasaGiliran(kueri);
+  if (!det) return '';
+  return [
+    '# Language for this turn (this rule outranks every block below)',
+    `- The message you are answering is written in ${det.nama}. Write the WHOLE reply in ${det.nama}: the closing answer, the sentences between tool calls, and every list item.`,
+    '- The reference blocks below (Zephyr facts, knowledge index, runtime state, persona, project rules) are written in English. They are source material: read them in English, never answer in English because of them.',
+    `- Numbers, code, file paths, identifiers and command names stay exactly as they are; only the prose changes to ${det.nama}.`,
+  ].join('\n');
 }
 
 /*
@@ -319,6 +703,283 @@ function lapisan(bawaan: string, persona: string, saya: string): string[] {
   return keluar;
 }
 
+/*
+ * Memori lintas sesi (ai-ingat-sesi): dokumen yang dimuat sekali per giliran
+ * oleh segarkanPotretKeadaan() di aiStore. Perakit prompt SINKRON, jadi ia
+ * hanya membaca cache - cache kosong = string kosong, prompt tetap sah.
+ */
+import { blokMemoriTersimpan, BATAS_TOKEN_BAWAAN } from './aiMemori';
+
+/* =========================================================================
+ * BLOK INTI + LARANGAN PADAT + BLOK KONDISIONAL
+ * item AI-TAHU-100-7 (101), 153, 162
+ * ========================================================================= */
+
+/**
+ * Anggaran blok inti, dalam token perkiraan - item AI-TAHU-100-7 / 101.
+ *
+ * CARA HITUNG (dipakai konsisten di sini, di `scripts/cek-batas-inti.mjs`, dan
+ * di `scripts/uji-blok-inti.mjs`):
+ *
+ *     token = Math.ceil(panjang_karakter / 4)      // perkiraan 4 karakter = 1 token
+ *
+ * Perkiraan kasar ini SENGAJA dipilih supaya angkanya keras dan bisa gagal
+ * tanpa memasang tokenizer penuh: 2.000 token = 8.000 karakter (satuan yang
+ * dipakai gate `cek-batas-inti.mjs` untuk blok generated).
+ *
+ * Yang dihitung sebagai blok inti = apa pun yang SELALU ikut tiap giliran:
+ * fakta Zephyr yang tinggal di sini (`faktaInti()`) + larangan padat
+ * (`blokLarangan()`) + kepala/label blok keadaan (`kepalaPotret()` dkk).
+ * Yang ON-DEMAND tidak dihitung: potongan indeks (`suntikanIndeks`), blok
+ * kondisional, dan potret keadaan - ketiganya hanya ikut saat giliran ini
+ * memang membutuhkannya.
+ */
+export const AMBANG_TOKEN_INTI = 2000;
+
+/**
+ * Bullet fakta yang TIDAK layak ikut tiap giliran: hanya berguna saat user
+ * menyentuh topiknya, jadi ia dipotong dari blok inti dan dikirim UTUH oleh
+ * kelas kondisional yang cocok begitu topiknya disebut.
+ *
+ * Potongannya tidak hilang dan tidak disalin: yang disimpan cuma penanda awal
+ * bullet-nya, teksnya diambil apa adanya dari blok generated. Kalau penandanya
+ * tidak ketemu (generator berubah bentuk), bullet itu tetap dikirim di blok inti
+ * - lebih panjang, tapi tidak pernah ada fakta yang hilang tanpa suara.
+ *
+ * Kenapa dipotong DI SINI, bukan di `src/lib/zephyrFakta.ts`: berkas itu
+ * generated oleh `scripts/gen-fakta-zephyr.mjs`, mode `--check`-nya
+ * membandingkan byte penuh, dan berkas itu bukan milik lane ini.
+ */
+const ON_DEMAND: { penanda: string; kelas: string }[] = [
+  /* Setelan provider/API key/model: kelas `model` (item 162). */
+  { penanda: '- "AI Models" (Settings group', kelas: 'model' },
+  /* Jalur log: kelas `galat`, yang memang blok prosedur debugging. */
+  { penanda: '- Logs: %APPDATA%', kelas: 'galat' },
+];
+
+/**
+ * Rentang satu bullet di dalam blok generated (`null` kalau penandanya hilang).
+ *
+ * Berhenti di AKHIR BARIS, bukan di bullet berikutnya: tiap bullet di blok ini
+ * satu baris panjang, sedangkan di antara bullet bisa ada judul seksi (`## ...`)
+ * beserta baris isinya. Memotong sampai bullet berikutnya pernah ikut
+ * menghapus seluruh seksi `## Shortcuts` - tepat jenis kerusakan yang tidak
+ * terlihat sampai ada pertanyaan yang tidak terjawab.
+ */
+function rentangBullet(penanda: string): { mulai: number; akhir: number; teks: string } | null {
+  const i = FAKTA_ZEPHYR.indexOf(penanda);
+  if (i < 0) return null;
+  const mulai = FAKTA_ZEPHYR.lastIndexOf('\n- ', i);
+  const akhir = FAKTA_ZEPHYR.indexOf('\n', i + penanda.length);
+  if (mulai < 0 || akhir < 0) return null;
+  return { mulai, akhir, teks: FAKTA_ZEPHYR.slice(mulai + 1, akhir) };
+}
+
+/** Semua bullet on-demand yang berhasil ditemukan, urut dari yang paling belakang. */
+function rentangOnDemand() {
+  return ON_DEMAND.map((od) => ({ ...od, r: rentangBullet(od.penanda) }))
+    .filter((x): x is { penanda: string; kelas: string; r: NonNullable<ReturnType<typeof rentangBullet>> } => x.r !== null)
+    .sort((a, b) => b.r.mulai - a.r.mulai);
+}
+
+/** Bullet on-demand milik satu kelas (mis. `model`), apa adanya dari blok generated. */
+export function faktaOnDemand(kelas: string): string {
+  return rentangOnDemand()
+    .filter((x) => x.kelas === kelas)
+    .map((x) => x.r.teks)
+    .join('\n');
+}
+
+/** Bullet fakta setelan model, apa adanya dari blok generated (`''` kalau penandanya hilang). */
+export function faktaModelAi(): string {
+  return faktaOnDemand('model');
+}
+
+/**
+ * Fakta Zephyr yang SELALU ikut - blok inti lapis pertama.
+ *
+ * Dibangun tiap dipanggil (bukan konstanta modul): kalau blok generated
+ * berubah, hasilnya ikut berubah, tanpa ada teks fakta yang disalin ke sini.
+ * Kalau penandanya hilang (generator berubah bentuk), fakta dikirim UTUH -
+ * lebih panjang, tapi tidak pernah ada fakta yang hilang tanpa suara.
+ */
+export function faktaInti(): string {
+  let teks = FAKTA_ZEPHYR;
+  for (const x of rentangOnDemand()) {
+    teks = teks.slice(0, x.r.mulai) + teks.slice(x.r.akhir);
+  }
+  return teks;
+}
+
+/**
+ * Blok CARA KERJA + LARANGAN PADAT - item 153 + ZEPH-LARANGAN-BLOK.
+ *
+ * Yang diambil dari aturan lama cuma STRUKTUR penegasannya, bukan panjangnya:
+ * delapan butir, satu baris satu butir, tanpa cerita sebab-akibat (sebabnya
+ * sudah ada di blok `aturan`/`caraKerja`). Isinya yang paling mahal kalau
+ * dilanggar: nilai karangan, klaim palsu, bahasa yang pindah sendiri, rahasia
+ * yang tercetak, tool perusak/commit-push tanpa izin, keluaran karangan, dan
+ * jawaban soal Zephyr dari ingatan. Butir 1 (baca dulu sebelum menebak) dan
+ * butir 8 (kutip hanya keluaran tool yang benar-benar jalan; bentuk positif,
+ * karena larangan "jangan mengarang output" sudah ada di blok `aturan` dan
+ * mengulangnya kata-per-kata = aturan kembar) baru di ronde ini; butir 6
+ * diperluas dengan commit/push.
+ *
+ * ANGGARAN: blok inti cuma menyisakan ~190 karakter sebelum menembus
+ * AMBANG_TOKEN_INTI, jadi setiap tambahan dibayar dengan memangkas EKOR
+ * penjelas butir lama (mis. "tidak ketemu = fiturnya tidak ada",
+ * "dan tidak dibaca giliran ini") - bagian yang sebabnya sudah ada di
+ * `caraKerja`/`aturan`. Kalimat PEMBUKA tiap butir tidak boleh dipangkas:
+ * `scripts/uji-blok-kondisional.mjs` (A.7) dan `scripts/uji-blok-inti.mjs`
+ * (C.4/C.8) mencocokkannya apa adanya, dan JUDUL blok wajib tetap jadi baris
+ * pertama. Ukurannya dijaga `scripts/uji-larangan-live.mjs`.
+ *
+ * Posisinya di EKOR blok inti - paling dekat dengan jawaban - karena model
+ * lebih patuh pada materi terakhir yang dibacanya (`bhs` di depan memakai
+ * alasan yang sama). Bahasa Inggris dipertahankan sebagai jatuhan (harness
+ * lain mencocokkan teks Inggris), versi Indonesia ditulis penuh.
+ */
+const LARANGAN_EN = [
+  '# Hard limits',
+  '1. Read before you guess: open the relevant file or setting before answering or editing.',
+  '2. Never invent a value, file, setting, port or doc: not in the facts above = say so, or look it up.',
+  '3. Answer in the active language of the app; the English above is SOURCE, not your answer language.',
+  '4. Never claim you did, ran or fixed something you did not: a claim is not proof. Run it, read the result, then say it.',
+  '5. Never print secrets (API key, token, SSH key, .env): say where the user can see them.',
+  '6. Never run a destructive tool (delete, move, overwrite, force push, kill a process) or commit/push unless the user asked for it.',
+  '7. Never answer a Zephyr question from memory: the facts above + `zephyr_self`.',
+  '8. Any output you quote must come from a tool that actually ran this turn; if it failed, quote the error as it is.',
+].join('\n');
+
+const LARANGAN_ID = [
+  '# Batas keras',
+  '1. Baca dulu sebelum menebak: buka berkas atau setelan yang relevan sebelum menjawab atau mengedit.',
+  '2. Jangan mengarang nilai, berkas, setelan, port, atau dokumen: tidak ada di fakta di atas = bilang apa adanya, atau cari dulu.',
+  '3. Jangan bilang sudah menjalankan atau memperbaiki sesuatu kalau belum: klaim bukan bukti. Jalankan, baca hasilnya, baru bilang.',
+  '4. Jawab dalam bahasa aktif aplikasi; teks Inggris di atas itu SUMBER, bukan bahasa jawabanmu.',
+  '5. Jangan tampilkan isi rahasia (API key, token, kunci SSH, .env): sebut di mana user bisa melihatnya.',
+  '6. Jangan panggil tool perusak (hapus, pindah, timpa, force push, matikan proses) atau commit/push tanpa diminta user.',
+  '7. Jangan menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas + `zephyr_self`.',
+  '8. Keluaran yang kamu kutip harus dari tool yang benar-benar jalan giliran ini; kalau gagal, kutip error-nya apa adanya.',
+].join('\n');
+
+/** Blok larangan dalam bahasa aktif (bahasa lain jatuh ke Inggris). */
+export function blokLarangan(): string {
+  return kodeBahasaPrompt() === 'id' ? LARANGAN_ID : LARANGAN_EN;
+}
+
+/**
+ * Blok KONDISIONAL - item 162.
+ *
+ * Anggaran blok inti sudah habis, jadi aturan baru TIDAK boleh ditambahkan ke
+ * sana lagi. Aturan/fakta tambahan masuk ke tabel di bawah dan dipilih
+ * DETERMINISTIK dari isi pesan user giliran ini: regex tetap atas kata kunci
+ * (Indonesia + Inggris), bukan penilaian model dan bukan pencarian - pesan yang
+ * sama selalu mendapat blok yang sama, dan blok mana yang terpilih bisa diuji
+ * (`scripts/uji-blok-inti.mjs`) tanpa memanggil model.
+ *
+ * Blok di sini juga boleh lebih panjang dari yang pantas selalu ikut: ia hanya
+ * menempel saat topiknya memang dibahas (sama seperti potongan indeks).
+ */
+export interface AturanKondisional {
+  /** Nama kelas; dipakai harness, log, dan `kelasKondisional()`. */
+  kelas: string;
+  /** Pemicu: kata kunci pesan user (deterministik, tanpa `/g`). */
+  cocok: RegExp;
+  /** Isi blok; dibangun saat dipanggil supaya teks generated tidak pernah basi. */
+  teks: (bahasa: string) => string;
+}
+
+const KONDISIONAL: AturanKondisional[] = [
+  {
+    kelas: 'model',
+    cocok:
+      /\b(models?|provider|openrouter|openai|anthropic|gemini|grok|deepseek|ollama|llama|mistral|api[-_ ]?key|kunci api|base ?url|endpoint|401|kuota|quota|context window|rag)\b/i,
+    /*
+     * Isinya bullet fakta yang dipotong dari blok inti (`faktaModelAi()`), apa
+     * adanya dari blok generated - tidak ditulis ulang di sini, jadi tidak bisa
+     * menyimpang dari fakta. Judulnya bahasa aktif supaya user tahu potongan
+     * Inggris ini bahan sumber.
+     */
+    teks: (bahasa) =>
+      `${
+        bahasa === 'id'
+          ? '# Fakta tambahan: provider, API key, daftar model (bahan sumber, bahasa Inggris)'
+          : '# Extra facts: providers, API keys, model list (source material)'
+      }\n${faktaModelAi()}`,
+  },
+  {
+    kelas: 'tabel',
+    cocok: /\b(tabel|table|kolom|bandingkan|perbandingan|compare|matriks|matrix|ceklis|checklist)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? '# Aturan tambahan: bentuk jawaban\n- Perbandingan, ceklis, atau lebih dari 3 item dengan kolom yang sama: tulis sebagai tabel markdown (judul kolom + baris `---`), maksimal 6 kolom, tanpa emoji di judul kolom, satuan ikut di dalam selnya. Satu nilai tunggal tetap ditulis sebagai kalimat.'
+        : '# Extra rule: answer shape\n- A comparison, a checklist, or more than 3 items with the same fields: write a markdown table (header + `---` row), max 6 columns, no emoji in headers, unit inside the cell. A single value stays a sentence.',
+  },
+  {
+    kelas: 'jendela',
+    cocok:
+      /\b(jendela|window|panel|antarmuka|tampilan|tata letak|layout|sidebar|tab ?bar|tombol|dialog|popup|pintasan|shortcut|hotkey|keybind)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? '# Aturan tambahan: panel & jendela\n- Kalau user minta panel/jendela/tata letak diubah: sebut KUNCI setelannya (grup `panel`, `ai`, `editor`) atau pintasan bawaannya, lalu tawarkan satu langkah. Jangan menjalankan perintah shell untuk membuka/menutup UI.\n- Pintasan bawaan yang relevan (bisa sudah diubah user di Setelan > Shortcuts): panel bawah Ctrl+J, sidebar Ctrl+B, terminal Ctrl+`, panel AI Ctrl+Shift+A, Setelan Ctrl+,.'
+        : '# Extra rule: panels & windows\n- When the user asks for a panel/window/layout change: name the setting key (group `panel`, `ai`, `editor`) or the default shortcut, then offer one step. Do not run a shell command to open or close UI.\n- Relevant defaults (the user may have rebound them in Settings > Shortcuts): bottom panel Ctrl+J, sidebar Ctrl+B, terminal Ctrl+`, AI panel Ctrl+Shift+A, Settings Ctrl+,.',
+  },
+  {
+    kelas: 'galat',
+    cocok: /\b(error|err|gagal|rusak|crash|hang|macet|tidak jalan|nggak jalan|log|debug|lsp)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? `# Prosedur tambahan: ada yang bermasalah\n${faktaOnDemand('galat')}\n- Urutannya: blok keadaan di atas (yang dilaporkan aplikasi ini GILIRAN INI) -> tab Problems/Output di panel bawah -> berkas log di atas (satu berkas per hari). Kumpulkan bukti dulu; jangan menebak sebab dari nama berkas. Port 9223 itu CDP WebView2 (debug), bukan MCP.\n- Satu langkah, lalu baca hasilnya. Panggilan tool yang gagal adalah HASIL, bukan jalan buntu: laporkan error-nya apa adanya, jangan diam-diam mencoba hal lain.`
+        : `# Extra procedure: something is broken\n${faktaOnDemand('galat')}\n- Order: the state block above (what the app reports about itself THIS turn) -> the Problems/Output tabs of the bottom panel -> the log file above (one file per day). Gather evidence first; do not guess a cause from a file name. Port 9223 is the WebView2 CDP debug port, not MCP.\n- One step, then read the result. A failed tool call is a RESULT, not a dead end: report its exact error instead of silently trying something else.`,
+  },
+  {
+    kelas: 'keamanan',
+    cocok:
+      /\b(rahasia|secret|api[-_ ]?key|kunci api|kredensial|credential|password|sandi|passphrase|\.env|ssh key|kunci ssh)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? '# Aturan tambahan: rahasia & kredensial\n- Jangan pernah mencetak nilainya; sebut di mana user bisa melihat atau mengubahnya sendiri: API key + provider ada di pop-up "AI Models", nilai setelan di halaman Setelan atau berkas global `settings.json`, kunci SSH di mesin user (bukan di dalam proyek).\n- Kredensial yang user tempel ke chat tetap rahasia: pakai, tapi jangan digaungkan kembali ke jawaban dan jangan ditulis ke berkas di dalam proyek.'
+        : '# Extra rule: secrets & credentials\n- Never print the value; name where the user can see or change it: API keys + providers live in the "AI Models" pop-up, setting values in the Settings page or the global `settings.json`, SSH keys on the user machine (not inside the project).\n- A credential the user pastes into the chat is still a secret: use it, but do not echo it back and do not write it into a project file.',
+  },
+  {
+    kelas: 'subagent',
+    cocok: /\b(subagents?|sub-?agen|paralel|parallel|banyak berkas|beberapa berkas)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? '# Aturan tambahan: subagent & kerja paralel\n- Memakai subagent butuh alasan: pekerjaannya memang paralel, atau panjang dan user memintanya. Pekerjaan yang diminta ke kamu diselesaikan di giliran ini, bukan diserahkan.\n- Sebelum memanggil: sebut anggarannya (`subagent.maxParallel`, `agents.maxPanes`) dan apakah anak boleh menulis berkas (`subagent.allowWrite`). Anak yang tidak boleh menulis itu peneliti, bukan pelaksana.'
+        : '# Extra rule: subagents & parallel work\n- Reaching for subagents takes a reason: the work is genuinely parallel, or long and the user asked for it. Work the user asked YOU to do is done in this turn, not delegated.\n- Before spawning: name the budget (`subagent.maxParallel`, `agents.maxPanes`) and whether the child may write files (`subagent.allowWrite`). A child that cannot write is a researcher, not an implementer.',
+  },
+];
+
+/** Kelas kondisional yang cocok dengan pesan user giliran ini (urut, bisa lebih dari satu). */
+export function kelasKondisional(kueri: string): string[] {
+  const teks = (kueri || '').trim();
+  if (!teks) return [];
+  return KONDISIONAL.filter((a) => a.cocok.test(teks)).map((a) => a.kelas);
+}
+
+/** Blok kondisional siap sisip: `''` kalau tidak ada kelas yang cocok. */
+export function blokKondisional(kueri: string): string {
+  const kode = kodeBahasaPrompt();
+  return KONDISIONAL.filter((a) => a.cocok.test(kueri || ''))
+    .map((a) => a.teks(kode).trim())
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/**
+ * Nama semua kelas kondisional yang terdaftar, urut deklarasi.
+ *
+ * Dipakai harness `scripts/uji-blok-inti.mjs` (memastikan tiap kelas punya
+ * contoh pesan uji) dan laporan: daftar kelas dibaca dari kode, bukan dari
+ * ingatan penulisnya. Kelas baru yang belum punya contoh akan membuat harness
+ * GAGAL - itu memang tujuannya.
+ */
+export function kelasKondisionalTersedia(): string[] {
+  return KONDISIONAL.map((a) => a.kelas);
+}
+
 export function systemPromptFor(
   answerLang: string,
   konteks = '',
@@ -326,6 +987,19 @@ export function systemPromptFor(
   model = '',
   provider = '',
   answerStyle = '',
+  /*
+   * Pesan user giliran ini, APA ADANYA (belum dipangkas, belum digabung
+   * lampiran). Dua blok dibangun darinya dan keduanya harus dibangun dari teks
+   * yang sama supaya tidak bisa saling bertentangan:
+   *   - bahasa jawaban (`instruksiBahasa`), dan
+   *   - potongan indeks pengetahuan Zephyr (`suntikanIndeks`).
+   *
+   * Default '' membuat pemanggil lama tetap jalan: tanpa teks, bahasa jatuh ke
+   * aturan berdiri "ikuti bahasa user" di blok aturan, dan blok indeks berisi
+   * kepala + meta + ajakan memakai `zephyr_self` - tidak kosong, jadi model
+   * tetap tahu ada indeks yang bisa dicari.
+   */
+  kueri = '',
 ): string {
   const b = bahasaPrompt();
   /*
@@ -363,6 +1037,90 @@ export function systemPromptFor(
     ...lapisan(b.identitas, per.identitas, saya),
     b.editorFakta,
     /*
+     * Zeph's knowledge of Zephyr itself, generated by
+     * `scripts/gen-fakta-zephyr.mjs` into `src/lib/zephyrFakta.ts`.
+     *
+     * Before this block, "self knowledge" was three lines of identity, so a
+     * question like "where is the pane setting" was answered from memory - and a
+     * setting name that does not exist costs the user more than an honest "let me
+     * check". The text is generated from Zephyr's own sources (settings.rs,
+     * settingsStore.ts, shortcuts.ts, ChatSettingsPage.tsx, vite.config.ts,
+     * mcp_server.rs), so it cannot drift from the build in front of the user, and
+     * its last section forbids inventing names that are not in it.
+     *
+     * Blok inti sekarang DUA lapis dan punya anggaran keras (item
+     * AI-TAHU-100-7: `AMBANG_TOKEN_INTI`, 2.000 token perkiraan = 8.000
+     * karakter, lihat `scripts/uji-blok-inti.mjs` yang MENGGAGALKAN build kalau
+     * lewat):
+     *
+     *  1. `faktaInti()`     - fakta generated yang selalu ikut, MINUS bagian
+     *                         yang cuma berguna saat topiknya dibahas (setelan
+     *                         model/API key: dikirim UTUH oleh kelas
+     *                         kondisional `model` begitu user menyentuhnya).
+     *  2. `blokLarangan()`  - larangan padat (item 153) di EKOR blok inti,
+     *                         karena model paling patuh pada materi terakhir.
+     *
+     * Keduanya text-produk, bukan konstanta modul, jadi tidak ada teks fakta
+     * yang disalin ke berkas ini dan tidak bisa basi kalau generated block
+     * berubah. Blok di luar blok inti (indeks dan kondisional) TIDAK dihitung
+     * anggaran: keduanya cuma ikut kalau giliran ini membutuhkannya.
+     */
+    faktaInti(),
+    blokLarangan(),
+    /*
+     * Potongan INDEKS pengetahuan Zephyr (indeks penuh 676 KB di
+     * `zephyrIndeks.ts`). Yang disuntik di sini HANYA entri yang cocok dengan
+     * kata-kata pesan user giliran ini, dipilih `suntikanIndeks()` di
+     * `zephyrCari.ts`.
+     *
+     * Inilah jalur OTOMATIS, dan itu intinya: sebelumnya satu-satunya jalan
+     * mencapai indeks adalah tool `zephyr_self`, jadi fakta Zephyr sampai ke
+     * jawaban HANYA kalau model kebetulan ingat memanggilnya. Pertanyaan
+     * "di mana setelan panel" sering dijawab lebih dulu dari ingatan - dan nama
+     * setelan karangan lebih mahal bagi user daripada satu blok konteks.
+     *
+     * Blok ini deterministik (kueri sama -> blok sama), dibatasi anggaran
+     * karakter (`BATAS_KARAKTER_SUNTIK`), dan TIDAK PERNAH kosong: kalau tidak
+     * ada entri yang cocok, kepala + meta indeks (jumlah entri, versi app, hash
+     * sumber, peta kategori) tetap ikut, jadi model tahu indeks itu ada dan tahu
+     * entri yang tidak ditemukan berarti fiturnya tidak ada.
+     *
+     * Urutannya sengaja: FAKTA_ZEPHYR memberi BENTUK Zephyr, blok ini
+     * mempersempitnya ke pertanyaan giliran ini, dan blok keadaan live sesudahnya
+     * tetap jadi kata terakhir soal keadaan app yang sebenarnya.
+     */
+    suntikanIndeks(kueri),
+    /*
+     * Blok KONDISIONAL (item 162): aturan/fakta tambahan yang dipilih
+     * DETERMINISTIK dari isi pesan user giliran ini (`blokKondisional()` di
+     * bawah - kata kunci, bukan penilaian model). Inilah jalan menambah aturan
+     * baru sekarang: anggaran blok inti sudah habis, jadi aturan baru masuk ke
+     * kelas di sini dan cuma menempel saat topiknya memang dibahas.
+     *
+     * Contoh: pesan minta tabel -> kelas `tabel` (bentuk jawaban); pesan soal
+     * panel/jendela -> kelas `jendela` (kunci setelan + pintasan bawaan); pesan
+     * soal model/API key -> kelas `model`, yang mengirimkan utuh bullet fakta
+     * yang dipotong dari blok inti (`faktaModelAi()`).
+     *
+     * Kosong berarti tidak ada topik yang cocok - bukan fallback ke "serahkan
+     * ke model": tidak ada kelas yang cocok memang tidak ada blok tambahan.
+     */
+    blokKondisional(kueri),
+    /*
+     * Keadaan SAAT INI, dibaca dari store yang sama dengan yang dibaca UI
+     * (`zephyrRuntime.ts`): ekstensi terpasang + yang gagal dimuat beserta
+     * alasannya, LSP yang jalan/terpasang, server MCP hidup di port berapa,
+     * panel yang benar-benar terbuka, versi app + status update, dan nilai
+     * setelan yang sedang berlaku.
+     *
+     * FAKTA_ZEPHYR tahu BENTUK Zephyr; blok ini tahu keadaannya. Tanpa ini
+     * pertanyaan seperti "kenapa ekstensiku tidak jalan" dijawab dari tebakan -
+     * sementara jawabannya sudah ada di memori proses yang sedang menjawab.
+     * Dibaca tiap giliran, bukan sekali saat start: keadaan itu berubah tanpa
+     * memberi tahu model.
+     */
+    blokKeadaanPrompt(),
+    /*
      * The built-in caraKerja block carries OPERATIONAL rules, not prose style:
      * the numbered rules (plan in todo_write, one step one tool, verify, a
      * claim is not proof, spend a tool call only when it brings something new)
@@ -386,14 +1144,75 @@ export function systemPromptFor(
 
     `${b.blokModelJudul}\n${b.blokModel(provider.trim() || 'unknown', model.trim())}`,
   ].filter(Boolean);
-  const bhs = instruksiBahasa(answerLang);
-  if (bhs) bagian.push(`# Language\n${bhs}`);
+  /*
+   * Blok bahasa dibangun dari pesan user giliran ini dan DISISIPKAN PALING
+   * DEPAN, bukan ditambahkan di belakang seperti dua blok lain di bawah.
+   *
+   * Alasannya posisi: prompt ini panjang dan hampir seluruhnya berbahasa
+   * Inggris (fakta Zephyr, indeks, potret keadaan, cara kerja, persona). Model
+   * cenderung mengikuti bahasa materi yang paling akhir dan paling banyak
+   * dibacanya, jadi aturan bahasa yang berdiri jauh di belakang - sebagai satu
+   * butir di antara puluhan - kalah oleh beratnya materi sesudahnya. Di depan,
+   * ia jadi premis yang membaca seluruh blok berikutnya sebagai sumber, bukan
+   * sebagai contoh bahasa.
+   *
+   * `instruksiBahasa` sudah mengembalikan judul bloknya sendiri (`# Language
+   * for this turn`), jadi tidak ada pembungkus `# Language` lagi di sini.
+   * Kosong berarti TIDAK menebak bahasa (lihat `deteksiBahasaGiliran`): aturan
+   * berdiri "ikuti bahasa yang dipakai user" di `b.aturan` yang mengambil alih.
+   */
+  const bhs = instruksiBahasa(answerLang, kueri);
+  if (bhs) bagian.unshift(bhs);
   const gaya = instruksiGaya(answerStyle);
   if (gaya) bagian.push(gaya);
 
   if (aturan.trim()) bagian.push(`${b.aturanProyek}\n${aturan.trim()}`);
   if (konteks.trim()) bagian.push(`${b.konteksProyek}\n${konteks.trim()}`);
-  else bagian.push(`${b.konteksProyek}\n- No workspace is open yet. Ask the user to open a folder, or work with files they name by absolute path.`);
+
+  /*
+   * Memori lintas sesi: apa yang Zeph putuskan/utamakan/hasilkan di sesi
+   * SEBELUMNYA - sesi baru tidak boleh mulai dari nol. Dokumen di-cache tiap
+   * giliran; penyaring root penting supaya entri lapis proyek hanya muncul di
+   * folder tempat ia ditulis, dan tanpa folder terbuka hanya lapis global.
+   */
+  const memoriSesi = blokMemoriTersimpan(BATAS_TOKEN_BAWAAN, {
+    root: useStore.getState().workspace ?? null,
+  });
+  if (memoriSesi) bagian.push(memoriSesi);
+  /*
+   * "No folder is open" is a fact about the APP, not about the context text.
+   *
+   * This used to ride in the `else` of the context check, so it only spoke when
+   * the context block was empty - which almost never happens, because the
+   * context block carries the open tabs, the terminal panes and the settings
+   * pointer on every turn. The rule was therefore dead code in the one state it
+   * was written for: with no folder open the agent still believed a workspace
+   * existed, asked for one, or reached for folder-scoped tools. Reading it off
+   * the store makes the rule follow the real state.
+   */
+  const adaFolder = !!useStore.getState().workspace;
+  if (!adaFolder && b.tanpaWorkspace) {
+    bagian.push(konteks.trim() ? b.tanpaWorkspace : `${b.konteksProyek}\n${b.tanpaWorkspace}`);
+  }
+
+  /*
+   * Batas tool MCP pihak ketiga (B5) disebut ke MODEL, bukan cuma ke panel.
+   *
+   * Kalau hanya panel yang tahu, model tetap melihat daftar yang terpotong dan
+   * menjawab "server itu tidak punya tool seperti itu" - jawaban salah yang
+   * terdengar benar. Satu baris di sini membuat model bisa bilang apa adanya.
+   */
+  const mcpDipotong = mcpTerpotong();
+  if (mcpDipotong.length && b.batasMcp) {
+    const ringkasMcp = mcpDipotong
+      .map(
+        (r) =>
+          `${r.serverLabel}: ${r.dipakai}/${r.total} sent, ${r.dibuang} held back` +
+          (r.contohDibuang.length ? ` (e.g. ${r.contohDibuang.join(', ')})` : ''),
+      )
+      .join('; ');
+    bagian.push(`# External MCP tools (limit)\n${b.batasMcp(ringkasMcp)}`);
+  }
 
   // A persona's own rules land last, after the project rules, so they read as
   // the operator's standing preference rather than a project constraint.
@@ -406,16 +1225,107 @@ export function promptBawaan() {
   return { identitas: b.identitas, caraKerja: b.caraKerja, aturan: b.aturan };
 }
 
-export function identityReminder(model = ''): string {
+/**
+ * Pengingat yang ditempel di UJUNG pesan user (bukan di prompt sistem), jadi ia
+ * adalah teks terakhir yang dibaca model sebelum mulai menjawab.
+ *
+ * `kueri` adalah pesan user giliran ini, dan bahasa jawabannya dikunci DI SINI
+ * juga - bukan hanya di prompt sistem. Alasannya: blok bahasa di kepala prompt
+ * sistem berjarak ribuan token dari jawaban, dan perintah di ujung pesan user
+ * jauh lebih sulit "hilang" saat model menimbang bahasa. Dua tempat itu saling
+ * menguatkan, dan keduanya memakai teks user yang sama persis.
+ *
+ * Kalau bahasanya tidak bisa ditebak (`deteksiBahasaGiliran` -> null) atau user
+ * mengunci bahasa di Setelan, sufiks ini TIDAK ditambahkan: pemaksaan yang salah
+ * justru jawaban yang salah.
+ */
+export function identityReminder(model = '', kueri = ''): string {
   const b = bahasaPrompt();
-  return b.reminder(model.trim());
+  const tetap = (useStore.getState().settings.models?.answerLang ?? '').trim();
+  const det =
+    tetap && tetap !== 'follow' ? { kode: tetap, nama: namaBahasa(tetap) } : deteksiBahasaGiliran(kueri);
+  const sufiks = det ? `\n\nAnswer in ${det.nama} - the message above is written in it.` : '';
+  return b.reminder(model.trim()) + sufiks;
 }
 
-const FILE_ATURAN = ['AGENTS.md', 'CLAUDE.md', 'ZEPHYR.md', 'TERAX.md', '.cursorrules'];
-const ATURAN_MAX_CHARS = 4000;
-const ATURAN_TOTAL_MAX = 12000;
+/*
+ * The rules files, in the order they are read, with a comment on WHY that file.
+ *
+ * Wider than the original five so a repository already using another tool's
+ * convention does not need a duplicate file written for Zephyr — the whole
+ * point of `AGENTS.md` being a shared convention is that it is shared.
+ *
+ * ORDER IS PRECEDENCE, and it is deliberate rather than alphabetical:
+ *
+ *   1. `AGENTS.md` first — the cross-tool convention, so it is the one a
+ *      repository is most likely to maintain.
+ *   2. `ZEPHYR.md` next — this editor's own name, so a repo that has both gets
+ *      Zephyr's specifics applied on top.
+ *   3. Then the other tools' files, so a project migrating from one of them
+ *      keeps working before anyone rewrites anything.
+ *
+ * All matching files are CONCATENATED in this order, not first-match-wins. That
+ * is the opposite of the per-tool permission rules, and for a different reason:
+ * these are prose a human wrote for a repository, and silently dropping four of
+ * five because the first exists would lose guidance nobody meant to discard. The
+ * order still matters — a later file can contradict an earlier one, and the
+ * agent reads the later one having seen the earlier, which is how precedence
+ * works in prose.
+ */
+const FILE_ATURAN = [
+  'AGENTS.md',
+  'ZEPHYR.md',
+  'CLAUDE.md',
+  'GEMINI.md',
+  'TERAX.md',
+  'QWEN.md',
+  '.cursorrules',
+  '.windsurfrules',
+  '.clinerules',
+  '.rules',
+  '.github/copilot-instructions.md',
+  '.github/instructions.md',
+];
+/*
+ * Memori proyek lintas-sesi, meniru `.opencode-context.md` opencode.
+ *
+ * Ini jawaban untuk "kenapa opencode selesai, Zephyr lupa di tengah": opencode
+ * menyimpan rencana + keputusan + status ke SATU berkas di disk, jadi walau
+ * percakapan dipadatkan atau sesi baru dibuka, agen tetap tahu sudah bikin apa
+ * dan sisa apa. Zephyr dulu hanya mengandalkan todo dalam percakapan, yang
+ * hilang saat auto-compact. Berkas ini dibaca ke dalam prompt tiap giliran
+ * (kalau ada), dan agen diminta memeliharanya lewat tool `notes`/write.
+ */
+const FILE_KONTEKS_MEMORI = '.zephyr-context.md';
+const KONTEKS_MEMORI_MAX = 6000;
+const ATURAN_MAX_CHARS = 2000;
+const ATURAN_TOTAL_MAX = 4000;
 let cacheAturan: { at: number; teks: string } | null = null;
 const ATURAN_TTL_MS = 30000;
+
+/**
+ * Baca memori proyek `.zephyr-context.md` dari akar workspace, kalau ada.
+ *
+ * Dikembalikan sebagai blok untuk ditempel ke prompt. Kosong kalau tak ada
+ * workspace atau berkasnya belum dibuat - agen akan membuatnya saat kerja.
+ */
+export async function konteksMemoriProyek(): Promise<string> {
+  const ws = useStore.getState().workspace;
+  if (!ws) return '';
+  const path = `${ws}/${FILE_KONTEKS_MEMORI}`.replace(/\\/g, '/');
+  try {
+    const isi = await fsRead(path, 'utf8');
+    const teks = typeof isi === 'string' ? isi : ((isi as { content?: string })?.content ?? '');
+    const bersih = teks.trim();
+    if (!bersih) return '';
+    const potong = bersih.length > KONTEKS_MEMORI_MAX
+      ? `${bersih.slice(0, KONTEKS_MEMORI_MAX)}\n[... dipotong]`
+      : bersih;
+    return `## ${FILE_KONTEKS_MEMORI} (memori proyek lintas-sesi)\n${potong}`;
+  } catch {
+    return '';
+  }
+}
 
 export async function aturanProyek(): Promise<string> {
   const now = Date.now();

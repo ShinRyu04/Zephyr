@@ -65,3 +65,97 @@ export function ringkasDiff(rows: DiffRow[]): { tambah: number; hapus: number } 
   }
   return { tambah, hapus };
 }
+
+/* ── Per-hunk accept / reject ─────────────────────────────────────────────
+ *
+ * ## Why hunks and not lines
+ *
+ * A line is too small to decide on. `del "let x = 1"` / `add "let x = 2"` is
+ * ONE change written as two rows; accepting the addition while rejecting the
+ * deletion would leave both lines in the file. A hunk — a run of adjacent
+ * changed rows with the unchanged lines around it — is the smallest unit whose
+ * accept/reject has a coherent meaning.
+ *
+ * ## Why the unchanged rows between hunks are not part of one
+ *
+ * They carry no decision. Grouping them in would make two changes separated by
+ * a single unchanged line into one hunk, so a reader wanting the first and not
+ * the second would have no way to say so.
+ */
+
+export interface Hunk {
+  /** Stable index, used as the selection key. */
+  id: number;
+  /** Indices into the `rows` array this hunk covers. */
+  rows: number[];
+  tambah: number;
+  hapus: number;
+}
+
+/**
+ * Group a diff into hunks.
+ *
+ * A hunk is a maximal run of consecutive non-`same` rows. Two changed runs
+ * separated by even one unchanged line are separate hunks, so they can be
+ * decided independently.
+ */
+export function bagiHunk(rows: DiffRow[]): Hunk[] {
+  const out: Hunk[] = [];
+  let kini: Hunk | null = null;
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i];
+    if (r.kind === 'same') {
+      kini = null;
+      continue;
+    }
+    if (!kini) {
+      kini = { id: out.length, rows: [], tambah: 0, hapus: 0 };
+      out.push(kini);
+    }
+    kini.rows.push(i);
+    if (r.kind === 'add') kini.tambah += 1;
+    else kini.hapus += 1;
+  }
+  return out;
+}
+
+/**
+ * Rebuild the text with only the accepted hunks applied.
+ *
+ * The rule is one line per row kind, and each is the whole semantics:
+ *
+ *   * `same`  — always emitted; it is not part of any decision.
+ *   * `add`   — emitted only when its hunk is accepted. A rejected addition is
+ *               simply not there, which is what "reject" means for new text.
+ *   * `del`   — emitted only when its hunk is REJECTED. The old line stays
+ *               because the change that would have removed it was refused.
+ *
+ * That inversion on `del` is the part that is easy to get backwards, and
+ * getting it backwards produces a file that is missing lines the reader never
+ * agreed to lose.
+ */
+export function terapkanHunk(rows: DiffRow[], diterima: ReadonlySet<number>): string {
+  const pemilik = new Map<number, number>();
+  for (const h of bagiHunk(rows)) {
+    for (const i of h.rows) pemilik.set(i, h.id);
+  }
+
+  const keluar: string[] = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i];
+    if (r.kind === 'same') {
+      keluar.push(r.text);
+      continue;
+    }
+    const punya = pemilik.get(i);
+    const ok = punya !== undefined && diterima.has(punya);
+    if (r.kind === 'add' ? ok : !ok) keluar.push(r.text);
+  }
+  return keluar.join('\n');
+}
+
+/** Which hunks a full-accept set contains, for the default state. */
+export function semuaHunk(hunks: Hunk[]): Set<number> {
+  return new Set(hunks.map((h) => h.id));
+}

@@ -6779,10 +6779,10 @@
 .agc-tools-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px;
+  padding: 12px;
   background: var(--surface);
 }
 
@@ -6797,7 +6797,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 4px;
+  padding: 9px 6px;
 }
 
 .agc-tools-grup-head {
@@ -6858,15 +6858,8 @@
 .agc-tools-row {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
 }
 
 .agc-tools-row:hover {
@@ -6892,10 +6885,16 @@
 .agc-tools-nama {
   font-size: 12.5px;
   color: var(--text);
-  flex-shrink: 0;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agc-tools-objek {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 11.5px;
   color: var(--text-muted);
   overflow: hidden;
@@ -7098,6 +7097,34 @@
 
 .agc-plugin .btn {
   flex-shrink: 0;
+}
+
+/* The button pair on an installed row, held to the right of the text block. */
+.agc-plugin-aksi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin-left: auto;
+}
+
+/* A version or author sitting inside the name line reads as a suffix. */
+.agc-plugin-name .agc-plugin-desc {
+  margin-left: 6px;
+}
+
+.agc-plugin-name .agc-plugin-chip {
+  margin-left: 8px;
+}
+
+/* The enable/disable report: kept-your-file skips and MCP warnings. */
+.agc-plugin-notes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
 }
 
 /* ── Agent Customizations: Migrations ──────────────────────────────────── */
@@ -9680,4 +9707,224 @@
 .ai-sessions-cari:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* ═══════════ Tampilan premium Chat AI ═══════════
+ *
+ * Tiga hal, semuanya memakai bahasa desain yang sudah dipakai di tempat lain
+ * supaya panel chat tidak terasa sebagai permukaan yang berbeda dari dialog
+ * dan Agent Customizations.
+ *
+ * Prinsipnya sama seperti blok premium di sana: kedalaman, bukan garis. Versi
+ * sebelumnya menandai setiap batas dengan border 1px, dan hasilnya terbaca
+ * sebagai tabel - banyak garis, tidak ada yang menonjol. Yang dipakai sekarang
+ * adalah aksen tipis di tempat yang memang perlu ditandai, dan bayangan halus
+ * untuk hal yang bisa ditekan.
+ */
+
+/*
+ * 1. Kepala panel: garis aksen tipis di tepi atas.
+ *
+ * Ini yang membuat panel chat terbaca sebagai jendelanya sendiri, bukan
+ * sebagai kolom yang kebetulan ikut terpotong. Sama seperti `.agc-modal`, dan
+ * sengaja sama: dua permukaan yang penggunanya sama tidak boleh punya dua cara
+ * berbeda untuk mengatakan "ini batasku".
+ */
+.ai-head {
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 55%, transparent) 22%,
+      color-mix(in srgb, var(--accent) 55%, transparent) 78%,
+      transparent 100%
+    )
+    1;
+  /*
+   * Padding sedikit lebih lega dari sebelumnya. Kepala yang rapat membuat
+   * tombol-tombolnya terlihat berdesakan, dan itu yang paling mudah terbaca
+   * sebagai "belum dirapikan".
+   */
+  padding: 7px 10px;
+}
+
+/*
+ * 2. Giliran asisten: aturan aksen tipis di kiri saat disorot.
+ *
+ * Bukan kotak, bukan isian latar. Satu garis 2px yang muncul saat kursor
+ * mendekat, dengan padding yang bergeser untuk mengimbanginya - jadi teksnya
+ * tidak bergerak sedikit pun saat garisnya muncul. Itu syaratnya: penanda yang
+ * menggeser isi membuat transkrip terasa bergetar saat dibaca.
+ */
+.ai-msg.is-assistant {
+  border-left: 2px solid transparent;
+  padding-left: 8px;
+  margin-left: -10px;
+  transition: border-color 110ms ease;
+}
+
+.ai-msg.is-assistant:hover {
+  border-left-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/*
+ * Giliran pengguna tetap tanpa penanda. Yang perlu ditemukan kembali saat
+ * menggulir adalah jawaban, bukan pertanyaan - dan menandai keduanya berarti
+ * tidak menandai apa pun.
+ */
+
+/*
+ * 3. Composer: cincin fokus yang sama dengan kontrol di seluruh aplikasi.
+ *
+ * `:focus-within` dipakai, bukan `:focus`, karena yang menerima fokus adalah
+ * textarea di dalamnya - dan yang harus terlihat "sedang aktif" adalah kotak
+ * yang dibaca pengguna, bukan kotak yang lebih kecil di dalamnya.
+ */
+.ai-input-row:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Mode gelap dan terang sama-sama butuh bayangan yang terlihat; `--bg` di tema
+   terang jauh lebih terang dari hitam, jadi bayangan bawaan hilang di sana. */
+:root[data-theme='light'] .ai-input-row:focus-within,
+.theme-light .ai-input-row:focus-within {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Per-tool permission rules ────────────────────────────────────────────
+ *
+ * One rule per row, reading left to right as the sentence it is:
+ * number, tool, pattern, action. The order on screen IS the precedence, so the
+ * up/down controls sit at the far left where the eye starts — a reader who
+ * needs to fix "why is my rule not firing" is looking for exactly those.
+ */
+.agc-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.agc-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  transition: border-color 110ms ease;
+}
+
+.agc-rule:hover {
+  border-color: var(--border-strong);
+}
+
+.agc-rule-urut {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+/* The position number, so "rule 3 decided" in a transcript can be found here. */
+.agc-rule-no {
+  min-width: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.agc-field-sempit {
+  flex: 0 0 auto;
+  width: 150px;
+}
+
+/* The pattern field takes the remaining width: it is the longest thing typed
+   and the one being read character by character when a rule misbehaves. */
+.agc-rule .agc-field-mono {
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+
+/*
+ * An invalid pattern is marked while it is being typed, not on save. The
+ * evaluator fails closed, so saving one costs a rule that silently does
+ * nothing — safe, and confusing. Red here is the five-second version.
+ */
+.agc-field.is-salah {
+  border-color: var(--danger, #f85149);
+}
+
+.agc-rule-salah {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-left: 2px;
+  font-size: 11px;
+  color: var(--danger, #f85149);
+}
+
+.agc-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agc-actions-pesan {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ── Per-hunk accept/reject ───────────────────────────────────────────────
+ *
+ * The checkbox column sits at the far left of a diff row, before the line
+ * numbers. It is the only interactive control in the table, so it belongs where
+ * the eye starts on a row it has not read yet — and keeping it outside the
+ * number columns stops the numbers from shifting when the feature is off.
+ */
+.cli-diff-pick {
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cli-diff-pick input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/*
+ * A row in a REJECTED hunk is dimmed, so the diff says so before Apply is
+ * pressed. The sign column keeps its colour: the change is still visible, only
+ * demoted. `data-rejected` is set by the component, not inferred from
+ * `data-hunk` — a hunk id alone says nothing about whether it is still wanted.
+ */
+.cli-diff-row[data-rejected='1'] .cli-diff-text {
+  opacity: 0.45;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
+}
+
+.cli-diff-foot-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cli-diff-pick-sum {
+  margin-right: auto;
+  font-size: 11px;
+  color: var(--text-muted);
 }

@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter, sleep } from './lib-cdp.mjs';
+import { Cdp, reporter, sleep, keluarBersih } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 
@@ -543,5 +543,5 @@ const main = async () => {
 
 main().catch((e) => {
   console.error(`verify16 error: ${e.message}`);
-  process.exitCode = 1;
+  keluarBersih(1);
 });

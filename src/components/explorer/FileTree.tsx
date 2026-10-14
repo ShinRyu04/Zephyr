@@ -237,7 +237,33 @@ export default function FileTree({ root }: { root?: string }) {
                 select(node.path, mode, order);
                 if (mode !== 'single') return;
                 if (node.isDir) void toggleExpand(node.path);
-                else void openPath(node.path);
+                /*
+                 * Klik-sekali membuka tab PERMANEN, bukan preview.
+                 *
+                 * Default lama memakai preview (preview: true), dan tiap preview
+                 * berikutnya MENIMPA preview sebelumnya - jadi mengklik file
+                 * kedua di tree mengganti file pertama alih-alih menambah tab.
+                 * Yang terlihat user: "editornya cuma bisa satu file, gonta-ganti
+                 * dan menimpa". Membuka permanen membuat tiap klik menambah tab
+                 * sendiri dan semuanya tetap terbuka berdampingan - itu yang
+                 * diharapkan dari sebuah file tree. Folder tidak terpengaruh.
+                 */
+                else void openPath(node.path, { preview: false });
+              }}
+              onDoubleClick={(e) => {
+                /*
+                 * Double-click membuka tab PERMANEN (preview: false).
+                 *
+                 * Klik-sekali membuka preview (preview default true), dan tiap
+                 * preview berikutnya menimpa yang lama - itu sebabnya editor
+                 * tampak "selalu satu file": membuka file kedua menggantikan
+                 * yang pertama alih-alih menambah tab. Persis seperti VSCode,
+                 * double-click menjadikannya permanen sehingga tab-tab lain
+                 * tetap terbuka berdampingan. Folder tidak terpengaruh.
+                 */
+                if (node.isDir) return;
+                e.preventDefault();
+                void openPath(node.path, { preview: false });
               }}
               onContextMenu={(e) => {
                 e.preventDefault();

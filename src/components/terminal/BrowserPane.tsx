@@ -125,19 +125,26 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
     }
     setGalat('');
     let batal = false;
-    let percobaan = 0;
 
     const buka = () => {
-      if (batal) return;
+      if (batal || siapRef.current) return;
       const el = stageRef.current;
       const r = el?.getBoundingClientRect();
       if (!r || r.width < 4 || r.height < 4) {
         /*
-         * Not laid out yet. Try again next frame, but give up after ~1s so a
-         * pane that is genuinely hidden (a background tab) does not spin
-         * forever — the sync loop takes over as soon as it becomes visible.
+         * Not laid out yet — the observer below calls again once it is.
+         *
+         * WHY there is no frame budget here any more: the old version retried
+         * for ~1s and then GAVE UP. A pane created while its tab is not the
+         * active one has no size yet, so it was abandoned: no webview was ever
+         * created, the pane stayed a dark rectangle for good when the user
+         * finally switched to it, and the agent's browser_read answered
+         * "browser pane not found" for a pane that plainly exists in the store.
+         * Waiting until the container actually has geometry costs nothing (a
+         * frame or two when the pane is on screen) and removes that whole class
+         * of dead panes. The sync loop below cannot repair it either — it only
+         * moves a webview that already exists.
          */
-        if (percobaan++ < 60) requestAnimationFrame(buka);
         return;
       }
       void cmd
@@ -165,8 +172,17 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
     };
 
     requestAnimationFrame(buka);
+    /* Trigger berikutnya: kontainer ini MENDAPAT ukuran. Itu yang terjadi saat
+       panel terminal dibuka, tab-nya diaktifkan, atau kolomnya dilebarkan. */
+    const ro = new ResizeObserver(buka);
+    if (stageRef.current) ro.observe(stageRef.current);
+    /* Jaring pengaman untuk perubahan layout yang tidak mengubah ukuran
+       kontainer (mis. panel lain menutup dan pane ini jadi terlihat). */
+    const net = window.setInterval(buka, 500);
     return () => {
       batal = true;
+      ro.disconnect();
+      window.clearInterval(net);
     };
   }, [pane.id, pane.url]);
 

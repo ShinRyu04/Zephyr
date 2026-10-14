@@ -25,7 +25,7 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::errors::{ZephyrError, ZResult};
+use crate::errors::{ZResult, ZephyrError};
 
 /// Tulis `isi` ke `path` secara atomik, buat direktori induknya bila perlu.
 pub fn tulis_atomik(path: &Path, isi: &[u8]) -> ZResult<()> {
@@ -45,7 +45,7 @@ pub fn tulis_atomik(path: &Path, isi: &[u8]) -> ZResult<()> {
         let mut f = std::fs::File::create(&tmp)?;
         f.write_all(isi)?;
         /* Sinkronkan isinya ke disk SEBELUM rename. Tanpa ini, urutan di disk
-           belum tentu sama dengan urutan pemanggilan. */
+        belum tentu sama dengan urutan pemanggilan. */
         f.sync_all()?;
         Ok(())
     })();

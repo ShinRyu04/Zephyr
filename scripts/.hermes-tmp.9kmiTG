@@ -1,0 +1,122 @@
+// PROBE sementara: muat aiStore.ts di node (stub semua modul UI/tauri).
+import { build } from 'esbuild';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const out = mkdtempSync(join(tmpdir(), 'zephyr-uji-'));
+
+const stubCommands = `
+const fsMap = new Map();
+const calls = [];
+module.exports = new Proxy({
+  __fsMap: fsMap,
+  __calls: calls,
+  aiToolChat: async () => ({ content: 'ringkasan palsu' }),
+  fsExists: async (p) => fsMap.has(p),
+  fsRead: async (p) => ({ content: fsMap.get(p) ?? '' }),
+  fsWrite: async (p, c) => { fsMap.set(p, c); return true; },
+}, {
+  get(t, k) {
+    if (k in t) return t[k];
+    if (typeof k !== 'string') return undefined;
+    return t[k] = (...a) => { calls.push([k, a]); return Promise.resolve(undefined); };
+  },
+});
+`;
+
+const stubTauri = `module.exports = new Proxy({ invoke: async () => undefined }, {
+  get(t, k) {
+    if (typeof k !== 'string') return undefined;
+    if (k in t) return t[k];
+    return t[k] = (() => {});
+  },
+});`;
+
+const stubSrc = `module.exports = new Proxy(function () {}, {
+  get(t, k) {
+    if (typeof k !== 'string') return undefined;
+    if (k === '__esModule') return true;
+    return t[k] = ((...a) => undefined);
+  },
+});`;
+
+const stubStore = `module.exports = {
+  useStore: {
+    getState: () => ({ workspace: 'D:/Zephyr', activeFile: null }),
+    setState: () => {},
+    subscribe: () => () => {},
+  },
+};`;
+
+const stubSettings = `module.exports = {
+  useSettingsUi: {
+    getState: () => ({ settings: {}, set: () => {} }),
+    setState: () => {},
+    subscribe: () => () => {},
+  },
+};`;
+
+const REAL = /^\.\/src\/lib\/aiStore\.ts$|^\.\/(commands(\.ts)?|contextBudget(\.ts)?|types(\.ts)?|agentStop(\.ts)?|modelCatalog(\.ts)?)$|^\.\/zephyrTools\/catalog(\.ts)?$/;
+
+const hasil = await build({
+  stdin: { contents: `export * from './src/lib/aiStore.ts';\n`, resolveDir: process.cwd(), sourcefile: 'uji-entry.ts', loader: 'ts' },
+  bundle: true,
+  format: 'cjs',
+  platform: 'node',
+  target: 'node20',
+  outfile: join(out, 'bundle.cjs'),
+  logLevel: 'silent',
+  define: { 'import.meta.env': '{}' },
+  plugins: [{
+    name: 'stub',
+    setup(b) {
+      b.onResolve({ filter: /^\.\/commands(\.ts)?$/ }, () => ({ path: 'commands', namespace: 'stub' }));
+      b.onResolve({ filter: /^\.\/store(\.ts)?$/ }, () => ({ path: 'store', namespace: 'stub' }));
+      b.onResolve({ filter: /^\.\/settingsStore(\.ts)?$/ }, () => ({ path: 'settings', namespace: 'stub' }));
+      b.onResolve({ filter: /^\.\/modelCatalog(\.tsx?)?$/ }, (a) => ({ path: a.path, namespace: 'stub-src' }));
+      b.onResolve({ filter: /^@tauri-apps\// }, (a) => ({ path: a.path, namespace: 'stub-tauri' }));
+      b.onResolve({ filter: /.*/ }, (a) => {
+        if (a.namespace === 'stub' || a.namespace === 'stub-tauri' || a.namespace === 'stub-src') return null;
+        if (REAL.test(a.path)) return null;
+        if (/^(\.\.?\/)/.test(a.path)) return { path: a.path, namespace: 'stub-src' };
+        return null;
+      });
+      b.onLoad({ filter: /.*/, namespace: 'stub' }, (a) => ({
+        contents: a.path === 'commands' ? stubCommands : a.path === 'store' ? stubStore : stubSettings,
+        loader: 'js',
+      }));
+      b.onLoad({ filter: /.*/, namespace: 'stub-tauri' }, () => ({ contents: stubTauri, loader: 'js' }));
+      b.onLoad({ filter: /.*/, namespace: 'stub-src' }, () => ({ contents: stubSrc, loader: 'js' }));
+    },
+  }],
+});
+console.log('BUILD: errors=' + hasil.errors.length);
+
+globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+globalThis.window = globalThis;
+globalThis.self = globalThis;
+globalThis.document = {
+  addEventListener() {}, removeEventListener() {}, documentElement: {},
+  createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {} }),
+  querySelector: () => null, querySelectorAll: () => [],
+};
+globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 16);
+globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+
+console.log('OUTDIR=' + out);
+const req = createRequire(join(out, 'x.cjs'));
+try {
+  const m = req('./bundle.cjs');
+  const fn = Object.keys(m).filter((k) => typeof m[k] === 'function');
+  console.log('LOAD OK. fungsi:', fn.slice(0, 20).join(', '));
+  console.log('useAi?', typeof m.useAi, '| padatkanRiwayat?', typeof m.padatkanRiwayat, '| siapkanKonteksKerja?', typeof m.siapkanKonteksKerja);
+  if (m.useAi) {
+    const s = m.useAi.getState();
+    console.log('jumlah state:', Object.keys(s).length, '| agentMode=', s.agentMode, '| agentBusy=', s.agentBusy);
+    console.log('antrians=', JSON.stringify(s.antrians), '| sessions=', Array.isArray(s.sessions) ? s.sessions.length : typeof s.sessions);
+  }
+} catch (e) {
+  console.log('LOAD GAGAL:', String((e && e.stack) || e).split('\n').slice(0, 8).join('\n'));
+}

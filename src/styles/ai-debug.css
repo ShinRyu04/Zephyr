@@ -22,8 +22,9 @@
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  width: min(620px, calc(100vw - 48px));
-  max-height: min(440px, calc(100vh - 140px));
+  width: min(760px, calc(100vw - 48px));
+  min-height: min(260px, calc(100vh - 100px));
+  max-height: min(520px, calc(100vh - 100px));
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -140,10 +141,15 @@
 }
 
 .dbg-kosong {
-  margin: 0;
-  padding: 18px 8px;
+  margin: auto;
+  width: min(100%, 460px);
+  padding: 28px 20px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-3) 45%, transparent);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.6;
   text-align: center;
 }
 

@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import { PANEL_TABS, usePanel, type PanelTabId } from '../../lib/panelStore';
-import { useStore } from '../../lib/store';
 import Popover from './Popover';
 import { useProblems } from '../../lib/problemsStore';
 import { useOutput } from '../../lib/outputStore';
@@ -14,7 +13,6 @@ export default function PanelTabStrip() {
   const tr = useT();
   const activeTab = usePanel((s) => s.activeTab);
 
-  const aiBukanBawah = useStore((s) => (s.settings.general.aiPanel ?? 'right') !== 'bottom');
   const visibleTabs = usePanel((s) => s.visibleTabs);
   const tabMenuOpen = usePanel((s) => s.tabMenuOpen);
   const focusTab = usePanel((s) => s.focusTab);
@@ -80,12 +78,7 @@ export default function PanelTabStrip() {
   return (
     <div className="pts-root" data-testid="panel-tabstrip">
       <div className="pts-tabs" role="tablist" aria-label={tr('Bottom panel tabs')}>
-        {PANEL_TABS.filter((t) => visibleTabs.includes(t.id))
-          // The AI tab only belongs in the bottom panel in legacy 'bottom' mode.
-          // In right/editor/window mode its content is just a note, so the slot
-          // is hidden.
-          .filter((t) => !(t.id === 'ai' && aiBukanBawah))
-          .map((t) => (
+        {PANEL_TABS.filter((t) => visibleTabs.includes(t.id)).map((t) => (
           <button
             key={t.id}
             role="tab"

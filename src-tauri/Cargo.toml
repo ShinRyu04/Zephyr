@@ -35,6 +35,10 @@ globset = "0.4.20"
 tauri-plugin-clipboard-manager = "2"
 which = "8"
 blake3 = "1.8.7"
+# sha256 dipakai memeriksa paket yang diunduh dari registry (Open VSX
+# menerbitkan sha256 di metadatanya). Sudah ada di Cargo.lock lewat ureq,
+# jadi ini menambah pemakaian langsung, bukan dependensi baru.
+sha2 = "0.10"
 base64 = "0.23.1"
 ureq = { version = "3", features = ["json"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }

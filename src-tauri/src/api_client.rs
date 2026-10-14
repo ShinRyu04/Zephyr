@@ -86,13 +86,21 @@ pub fn http_request(
 
     // A credential is resolved here, at send time, so the saved request only
     // ever carries an id.
-    if let Some(id) = req.bearer_credential.as_deref().filter(|s| !s.trim().is_empty()) {
+    if let Some(id) = req
+        .bearer_credential
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+    {
         headers.push(HttpHeader {
             nama: "Authorization".into(),
             nilai: format!("Bearer {}", ambil_rahasia(&app, id)?),
         });
     }
-    if let Some(id) = req.api_key_credential.as_deref().filter(|s| !s.trim().is_empty()) {
+    if let Some(id) = req
+        .api_key_credential
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+    {
         headers.push(HttpHeader {
             nama: "X-API-Key".into(),
             nilai: ambil_rahasia(&app, id)?,
@@ -187,11 +195,7 @@ pub fn http_request(
 
     let ms = mulai.elapsed().as_millis() as u64;
     let status = resp.status().as_u16();
-    let status_text = resp
-        .status()
-        .canonical_reason()
-        .unwrap_or("")
-        .to_string();
+    let status_text = resp.status().canonical_reason().unwrap_or("").to_string();
 
     let headers_out: Vec<HttpHeader> = resp
         .headers()

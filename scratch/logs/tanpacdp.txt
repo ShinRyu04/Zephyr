@@ -1,0 +1,55 @@
+UJI PENGETAHUAN ZEPHYR - TANPA CDP (141+163, lapis deterministik)
+
+(A) sumber kebenaran yang dibundel dari src/lib/
+  OK    zephyrFakta.FAKTA_ZEPHYR terbaca                 7950 char
+  OK    systemPrompt.faktaInti() terbaca                 6986 char (fakta - bullet model)
+  OK    systemPrompt.faktaModelAi() terbaca              831 char (bullet yang dipotong)
+  OK    zephyrIndeks.FAKTA_INDEKS terbaca                6212 entri
+
+(B) prompt pesan netral: "berapa jumlah berkas di folder ini?"
+  OK    memuat faktaInti() UTUH                          utuh, tidak terpotong
+  OK    bullet model DIPOTONG dari blok inti             tidak ikut (memang dipotong, dipulihkan di C)
+  OK    menyebut port MCP 9222                           ada
+  OK    menyebut port CDP 9223                           ada
+  OK    menyebut port dev UI 5173                        ada
+  OK    menyebut tool zephyr_self                        ada
+  OK    menyebut bridge __ZEPHYR_PROMPT__                ada
+  OK    memuat aturan bahasa giliran ini                 ada
+  OK    TIDAK memuat blok kondisional                    kosong (benar: tidak ada topik yang cocok)
+  OK    ukuran prompt wajar (<= 60k char)                22012 char
+
+(C) kelas kondisional (kata kunci -> blok tambahan)
+  OK    kelas 'tabel' untuk "bandingkan setelan editor dan " [tabel] + aturan bentuk (tabel markdown)
+  OK    kelas 'model' untuk "pengen ganti api key provider " [model,keamanan] + bullet fakta model yang dipotong dari blok inti
+  OK    kelas 'jendela' untuk "pindahkan panel terminal ke ba" [jendela] + kunci setelan + pintasan bawaan
+  OK    kelas 'galat' untuk "zephyr crash terus, lihat log " [galat] + urutan bukti + arti port 9223
+  OK    kelas 'keamanan' untuk "aman tidak kalau saya tempel p" [keamanan] + larangan mencetak rahasia
+  OK    kelas ganda terdeteksi (keamanan+model)          [model,keamanan]
+  OK    kata kunci Inggris juga jalan (compare)          [tabel]
+
+(D) negatif - badan berkas tidak boleh bocor ke prompt
+  OK    bukan bocoran: fungsi sumber systemPrompt        tidak ada (benar)
+  OK    bukan bocoran: deklarasi indeks                  tidak ada (benar)
+  OK    bukan bocoran: jalur berkas sumber               tidak ada (benar)
+  OK    bukan bocoran: isi zephyrCari                    tidak ada (benar)
+
+(E) pertanyaan user terjawab dari indeks zephyr_self (bukan dari hafalan)
+  OK    indeks memuat setelan answerStyle                ada
+  OK    indeks memuat port 9223                          ada
+  OK    indeks memuat grup setelan models                ada
+  OK    indeks memuat pintasan Ctrl+J                    ada
+  OK    indeks memuat perintah ai.models                 ada
+
+(F) daftar berkas sumber fakta (FAKTA_ZEPHYR_SUMBER)
+  OK    semua berkas sumber fakta masih ada di disk      13 berkas
+
+(G) cacat bentuk jawaban (item 149) - laporkan, jangan diamkan
+  CACAT batas 3 kalimat menimpa aturan tabel             blok tabel di offset 10202, blok gaya di offset 20958 -> gaya jadi kata TERAKHIR (systemPrompt.ts:1021 vs :1079-1080); default answerStyle short (:601-608) meminta at most 3 sentences sehingga bertabrakan dengan perintah tabel (:836-843)
+  CACAT panjang jawaban tidak terukur tanpa CDP          panjang prompt uji: short=22248 char vs detail=22029 char (selisih -219) - ini penanda setelan, BUKAN panjang jawaban; jawaban nyata hanya terukur lewat scripts/cek-pengetahuan-2lapis.mjs (butuh CDP)
+
+  SKOR: 31 lulus / 31 diperiksa | 2 CACAT dilaporkan (lane lain)
+  VERDICT JALUR PENGETAHUAN: LULUS
+  CACAT TERBUKA (bukan lane ini, src/lib/systemPrompt.ts): batas 3 kalimat menimpa aturan tabel | panjang jawaban tidak terukur tanpa CDP
+  Catatan: ini lapis DETERMINISTIK (prompt + indeks). Lapis 2 (jawaban
+  nyata dari provider) hanya jalan dengan app + CDP hidup:
+  node scripts/cek-pengetahuan-2lapis.mjs

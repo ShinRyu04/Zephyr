@@ -2,7 +2,10 @@ import SubAgentPanel from '../ai/SubAgentPanel';
 import SubAgentBar from '../ai/SubAgentBar';
 import SubSummary from '../ai/SubSummary';
 import ModelSelector from '../ai/ModelSelector';
-import { useSubAgent, batasParalel } from '../../lib/subagentStore';
+import { useSubAgent, batasParalel, kemampuanTulis } from '../../lib/subagentStore';
+import { useStore } from '../../lib/store';
+import { useAi } from '../../lib/aiStore';
+import { useAiChatSettings } from '../../lib/chatSettingsStore';
 import { useT, useTf } from '../../lib/i18n';
 import { useEffect } from 'react';
 
@@ -15,7 +18,20 @@ export default function SubAgentView() {
   const batalSemua = useSubAgent((s) => s.batalSemua);
   const muatTersimpan = useSubAgent((s) => s.muatTersimpan);
 
+  /*
+   * Ikut berubah begitu salah satu gerbang berubah.
+   *
+   * Barisnya harus berubah saat user menyalakan setelannya di jendela Setelan
+   * yang terbuka di atas tab ini, bukan setelah reload: petunjuk yang tertinggal
+   * satu keadaan justru mengembalikan masalah yang mau diperbaiki di sini.
+   */
+  void useStore((s) => s.settings.subagent?.allowWrite);
+  void useAi((s) => s.approvalMode);
+
+  const kem = kemampuanTulis();
+
   const maks = batasParalel();
+  const tolakTulis = agents.reduce((n, a) => n + (a.tulisDitolak ?? 0), 0);
 
   // Bring back the last batch after a restart, so a long run's result is not
   // lost when the window is closed.
@@ -23,9 +39,12 @@ export default function SubAgentView() {
     muatTersimpan();
   }, [muatTersimpan]);
 
-  const jalan = agents.filter((a) => a.status === 'jalan' || a.status === 'menunggu').length;
+  const jalan = agents.filter((a) => a.status === 'jalan').length;
+  const antri = agents.filter((a) => a.status === 'menunggu').length;
   const beres = agents.filter((a) => a.status === 'selesai').length;
   const gagal = agents.filter((a) => a.status === 'gagal').length;
+  const selesai = agents.filter((a) => a.status === 'selesai' || a.status === 'gagal' || a.status === 'batal').length;
+  const progress = agents.length ? Math.round((selesai / agents.length) * 100) : 0;
 
   return (
     <div className="sav-root" data-testid="subagents-view">
@@ -39,13 +58,16 @@ export default function SubAgentView() {
        * The counts live here, once.
        */}
       <div className="sav-head">
-        <span className="sav-judul">{tr('Subagent')}</span>
+        <span className="sav-judul">{tr('Subagents')}</span>
         <span className="sav-angka" data-testid="sav-angka">
           {agents.length} {tr('total')}
-          {jalan > 0 && <> · <b className="is-jalan">{jalan} {tr('running')}</b></>}
-          {beres > 0 && <> · <b className="is-beres">{beres} {tr('done')}</b></>}
-          {gagal > 0 && <> · <b className="is-gagal">{gagal} {tr('failed')}</b></>}
         </span>
+        <div className="sav-status-counts" aria-label={tr('Subagent status')}>
+          {jalan > 0 && <span className="sav-status-chip is-running"><i />{jalan} {tr('running')}</span>}
+          {beres > 0 && <span className="sav-status-chip is-done"><i />{beres} {tr('done')}</span>}
+          {gagal > 0 && <span className="sav-status-chip is-failed"><i />{gagal} {tr('failed')}</span>}
+          {antri > 0 && <span className="sav-status-chip is-waiting"><i />{antri} {tr('waiting')}</span>}
+        </div>
         <span className="sav-maks" data-testid="sav-maks">
           {tf('max {n}', { n: maks })}
         </span>
@@ -76,6 +98,65 @@ export default function SubAgentView() {
       </div>
 
       <SubAgentBar selaluTerbuka />
+
+      {/*
+       * Keadaan izin tulis, dinyatakan di tempat subagentnya dijalankan.
+       *
+       * Sebelumnya satu-satunya tempat keadaan ini ada adalah halaman Setelan,
+       * dan kalimatnya sendiri hanya menyebut `allowWrite` - jadi tab ini bisa
+       * berjalan read-only tanpa satu pun tanda di layar, sementara user yang
+       * sudah menyalakan setelannya tetap melihat subagentnya ditolak tanpa
+       * sebab yang terlihat (mode persetujuan bukan Auto). Baris ini membaca
+       * gerbang yang sama dengan loop subagent, menyebut gerbang mana yang
+       * menutup, dan menyediakan jalan ke setelannya.
+       */}
+      <div
+        className={`sav-tulis${kem.bisaTulisDisk ? ' is-on' : ' is-off'}`}
+        data-testid="sav-tulis"
+        data-bisa-tulis-disk={kem.bisaTulisDisk ? 'ya' : 'tidak'}
+        data-setelan={kem.setelan ? 'ya' : 'tidak'}
+        data-persetujuan-auto={kem.persetujuanAuto ? 'ya' : 'tidak'}
+      >
+        <span className="sav-tulis-teks" data-testid="sav-tulis-teks">
+          {tr(
+            kem.bisaTulisDisk
+              ? 'Sub-agents can write files in this session.'
+              : 'Read-only: sub-agents cannot write files.',
+          )}
+        </span>
+        {!kem.bisaTulisDisk && (
+          <span className="sav-tulis-alasan" data-testid="sav-tulis-alasan">
+            {tr(
+              'Turn on "Let sub-agents write" in Chat Settings, in the Sub-agents section, so they can work (write files) instead of only reading.',
+            )}
+          </span>
+        )}
+        <button
+          className="btn btn-sm sav-tulis-setelan"
+          data-testid="sav-tulis-setelan"
+          onClick={() => useAiChatSettings.getState().bukaDi('subagent')}
+        >
+          {tr('Open Chat Settings → Sub-agents')}
+        </button>
+      </div>
+
+      {tolakTulis > 0 && (
+        <p className="sav-tulis-ditolak" data-testid="sav-tulis-ditolak">
+          {tf('{n} write attempts were refused by the write gate', { n: tolakTulis })}
+        </p>
+      )}
+
+      {agents.length > 0 && (
+        <section className="sav-progress" aria-label={tr('Current run')} data-testid="sav-progress">
+          <div className="sav-progress-head">
+            <strong>{tr(sibuk ? 'Active run' : 'Current run')}</strong>
+            <span>{selesai} / {agents.length} {tr('complete')}</span>
+          </div>
+          <div className="sav-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+        </section>
+      )}
 
       {agents.length === 0 ? (
         <div className="sav-kosong" data-testid="sav-kosong">

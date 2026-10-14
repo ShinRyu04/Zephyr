@@ -12,7 +12,119 @@
 
 import WebSocket from 'ws';
 
+/* Tee ke berkas: di mesin ini stdout process latar (node dijalankan lewat
+   terminal Hermes) kadang dimakan ("stdin is not a tty" tanpa isi lain),
+   sehingga laporan harness hilang walau run-nya benar-benar jalan. Set
+   UJI_LOG=<path> dan setiap baris laporan ikut ditulis ke berkas itu. */
+if (process.env.UJI_LOG) {
+  const { appendFileSync: _tulis } = await import('node:fs');
+  const _berkas = process.env.UJI_LOG;
+  for (const _nama of ['log', 'error']) {
+    const _asli = console[_nama].bind(console);
+    console[_nama] = (...a) => {
+      const baris = a.map((x) => (typeof x === 'string' ? x : (() => { try { return JSON.stringify(x); } catch { return String(x); } })())).join(' ');
+      try { _tulis(_berkas, baris + '\n'); } catch { /* laporan tidak boleh menjatuhkan uji */ }
+      _asli(...a);
+    };
+  }
+}
+
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/*
+ * Batas waktu tiap panggilan CDP. Harness yang membeku tanpa pesan adalah
+ * kerugian ganda: run-nya menghabiskan jatah waktu runner DAN tidak
+ * meninggalkan bukti apa pun. Karena itu setiap permintaan punya jaring
+ * sendiri, bukan hanya loop di atasnya.
+ */
+export const BATAS_PANGGILAN_MS = Number(process.env.ZEPHYR_CDP_BATAS_MS ?? 20000);
+
+/**
+ * Tunggu sampai bridge dev (`window.__ZEPHYR_*__`) benar-benar terpasang.
+ *
+ * Sebagian bridge dipasang lewat `void import('./agentTools').then(...)`, dan
+ * seluruh `installDevBridge` baru jalan beberapa saat setelah halaman selesai
+ * memuat. Harness yang memeriksa langsung setelah attach lalu mati dengan
+ * "bridge tidak ada" / "__ZEPHYR_THEME__ tidak ada" — padahal app-nya sehat dan
+ * bridge-nya muncul sepersekian detik kemudian. Itu kegagalan balapan, bukan
+ * regresi kode, jadi tunggu (poll), jangan memeriksa sekali.
+ */
+export async function tungguBridge(cdp, nama, batasMs = 25000) {
+  const batas = Date.now() + batasMs;
+  for (;;) {
+    let ada = false;
+    try {
+      ada = (await cdp.eval(`typeof window[${JSON.stringify(nama)}] !== 'undefined'`, 5000)) === true;
+    } catch {
+      /* halaman sedang reload */
+    }
+    if (ada) return true;
+    if (Date.now() > batas) return false;
+    await sleep(400);
+  }
+}
+
+/**
+ * Bangunkan renderer yang membeku, lewat endpoint BROWSER.
+ *
+ * `Target.*` dan `Page.reload` dilayani proses browser, jadi keduanya masih
+ * dijawab saat renderer halamannya sendiri sudah tidak menjawab apa pun. Ini
+ * jalur pemulihan satu-satunya yang tidak perlu mematikan app user: halaman
+ * yang beku direload di tempat, lalu bisa dipakai lagi.
+ *
+ * Kembalian: jumlah halaman yang direload.
+ */
+async function pulihkanLewatBrowser(port) {
+  const ver = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const ws = new WebSocket(ver.webSocketDebuggerUrl, { perMessageDeflate: false });
+  await new Promise((res, rej) => {
+    ws.once('open', res);
+    ws.once('error', rej);
+  });
+  let id = 0;
+  const tunggu = new Map();
+  ws.on('message', (raw) => {
+    const m = JSON.parse(raw.toString());
+    const p = tunggu.get(m.id);
+    if (p) {
+      tunggu.delete(m.id);
+      p(m);
+    }
+  });
+  const kirim = (method, params = {}, sessionId) =>
+    new Promise((res) => {
+      const i = ++id;
+      tunggu.set(i, res);
+      const jaring = setTimeout(() => {
+        if (tunggu.delete(i)) res({ timeout: true });
+      }, 5000);
+      /* Tidak di-unref(): timer yang di-unref tidak menahan event loop, jadi
+         socket yang macet berakhir sebagai proses keluar diam-diam, bukan
+         sebagai timeout. */
+      ws.send(JSON.stringify({ id: i, method, params, ...(sessionId ? { sessionId } : {}) }));
+    });
+  try {
+    const tg = await kirim('Target.getTargets');
+    let jumlah = 0;
+    for (const t of (tg.result?.targetInfos ?? []).filter((x) => x.type === 'page')) {
+      const at = await kirim('Target.attachToTarget', { targetId: t.targetId, flatten: true });
+      const sid = at.result?.sessionId;
+      if (!sid) continue;
+      const cek = await kirim('Runtime.evaluate', { expression: '1+1', returnByValue: true }, sid);
+      if (cek.result?.result?.value === 2) continue; // halaman ini sudah sehat
+      await kirim('Page.enable', {}, sid);
+      await kirim('Page.reload', { ignoreCache: false }, sid);
+      jumlah++;
+    }
+    return jumlah;
+  } finally {
+    try {
+      ws.close();
+    } catch {
+      /* sudah tutup */
+    }
+  }
+}
 
 export class Cdp {
   #ws;
@@ -31,10 +143,29 @@ export class Cdp {
       const p = c.#pending.get(msg.id);
       if (p) {
         c.#pending.delete(msg.id);
-        p(msg);
+        clearTimeout(p.jaring);
+        p.resolve(msg);
       }
     });
+    /*
+     * Socket mati = semua permintaan yang masih menunggu TIDAK AKAN PERNAH
+     * dijawab. Tanpa ini, `send` menggantung selamanya: harness membeku tanpa
+     * error, deadline di sekitarnya (runAsync) tidak pernah dievaluasi karena
+     * ia menunggu eval di dalam loop-nya, dan runner suite hanya melihat
+     * "timeout" tanpa satu baris pun alasan. Terjadi saat app reload / WebView2
+     * membuang konteks di tengah uji.
+     */
+    c.#ws.on('close', () => c.#tolakSemua(new Error('socket CDP tertutup: app reload / target hilang?')));
+    c.#ws.on('error', (e) => c.#tolakSemua(new Error(`socket CDP error: ${e?.message ?? e}`)));
     return c;
+  }
+
+  #tolakSemua(err) {
+    for (const [, p] of this.#pending) {
+      clearTimeout(p.jaring);
+      p.reject(err);
+    }
+    this.#pending.clear();
   }
 
   /**
@@ -55,20 +186,48 @@ export class Cdp {
     // lalu menyamar sebagai masalah lingkungan, bukan masalah nyata yang
     // sedang diburu.
     const daftar = Array.isArray(judul) ? judul : [judul];
-    let page;
+    const kandidat = [];
     for (const j of daftar) {
-      page = targets.find((t) => t.type === 'page' && (t.title ?? '').includes(j));
-      if (page) break;
+      for (const t of targets) {
+        if (t.type === 'page' && (t.title ?? '').includes(j)) kandidat.push(t);
+      }
+      if (kandidat.length) break;
     }
     // Jaring terakhir: kalau judulnya tidak dikenal sama sekali, pakai halaman
     // Tauri yang ada. Menyerah di sini membuat harness mustahil dijalankan
     // pada build dengan judul lain.
-    if (!page) page = targets.find((t) => t.url?.startsWith('http://tauri.localhost'));
-    if (!page) throw new Error(`target ${daftar.join('/')} tidak ditemukan di :${port}`);
-    const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
-    try {
-      cdp.snapshot = await cdp.json(
-        `return JSON.stringify(await (async () => {
+    if (!kandidat.length) {
+      kandidat.push(...targets.filter((t) => t.type === 'page' && t.url?.startsWith('http://tauri.localhost')));
+    }
+    if (!kandidat.length) throw new Error(`target ${daftar.join('/')} tidak ditemukan di :${port}`);
+
+    /*
+     * Pilih target yang BENAR-BENAR MENJAWAB.
+     *
+     * Setelah webview reload, daftar /json/list sempat memuat target LAMA dengan
+     * judul dan URL yang sama persis. Koneksi websocket ke target mati itu tetap
+     * DITERIMA (yang menjawab server devtools, bukan halaman), tapi tidak ada
+     * satu pun perintah yang dijawab. Harness yang memilih target pertama secara
+     * membabi buta lalu membeku tanpa pesan — dulu ini menyamar sebagai
+     * "app tidak siap" dan memaksa orang menebak-nebak. Karena itu tiap kandidat
+     * diprobe dengan eval sepele dan yang bisu dilewati.
+     */
+    let galatTerakhir;
+    const coba = async () => {
+      for (const page of kandidat) {
+        let cdp;
+        try {
+          cdp = await Cdp.connect(page.webSocketDebuggerUrl);
+          const balas = await cdp.eval('1+1', 4000);
+          if (balas !== 2) throw new Error(`probe menjawab ${JSON.stringify(balas)}, bukan 2`);
+        } catch (e) {
+          galatTerakhir = e;
+          try { cdp?.close(); } catch { /* sudah mati */ }
+          continue;
+        }
+        try {
+          cdp.snapshot = await cdp.json(
+            `return JSON.stringify(await (async () => {
   const s = window.__ZEPHYR__?.getState?.();
   if (!s) return null;
   // SELURUH settings disimpan (bukan sebagian): harness ada yang memanggil
@@ -77,29 +236,77 @@ export class Cdp {
   // tidak ter-render (kelas sidebar-pos-undefined).
   return { penuh: s.settings ?? null };
 })())`,
-        30000,
-      );
-    } catch {
-      // Halaman belum siap / bukan app Zephyr — lewati pemulihan.
-      cdp.snapshot = null;
+            30000,
+          );
+        } catch {
+          // Halaman belum siap / bukan app Zephyr — lewati pemulihan.
+          cdp.snapshot = null;
+        }
+        return { cdp, page };
+      }
+      return null;
+    };
+
+    let hasil = await coba();
+    if (hasil) return hasil;
+
+    /*
+     * Semua kandidat bisu: renderer-nya yang macet, bukan daftarnya yang salah.
+     * WebView2 bisa membeku di tengah kerja (halaman tetap terdaftar, websocket
+     * tetap menerima koneksi, tapi tidak satu pun perintah dijawab). Reload
+     * dilayani proses BROWSER, jadi masih bisa dipakai untuk membangunkan
+     * renderer — sekali percobaan, lalu probe ulang.
+     */
+    const dibangunkan = await pulihkanLewatBrowser(port).catch(() => 0);
+    if (dibangunkan) {
+      await sleep(3000);
+      hasil = await coba();
+      if (hasil) return hasil;
     }
-    return { cdp, page };
+
+    throw new Error(
+      `tidak ada target ${daftar.join('/')} yang menjawab di :${port} (${kandidat.length} kandidat, semua bisu, ${dibangunkan} direload): ${galatTerakhir?.message}`,
+    );
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, batasMs = BATAS_PANGGILAN_MS) {
     const id = ++this.#id;
-    return new Promise((res) => {
-      this.#pending.set(id, res);
+    return new Promise((resolve, reject) => {
+      /*
+       * Socket yang sudah tidak terbuka: menolak SEGERA.
+       *
+       * `ws.send()` di socket tertutup hanya memancarkan 'error' lewat
+       * process.nextTick; kalau saat itu event loop sudah tidak punya handle
+       * lain, Node menguras loop dan mati dengan "Detected unsettled top-level
+       * await" + exit 13 - tanpa satu baris pun alasan, seolah skripnya cuma
+       * berhenti. Menolak di sini membuat penyebabnya terlihat.
+       */
+      if (this.#ws.readyState !== 1) {
+        reject(new Error(`socket CDP tidak terbuka (readyState=${this.#ws.readyState}): ${method}`));
+        return;
+      }
+      /*
+       * Batas waktu per panggilan. Timer ini SENGAJA tidak di-unref(): socket
+       * yang setengah mati (TCP hidup, target berhenti menjawab) tidak
+       * mengirim 'close', dan timer yang di-unref() tidak menahan event loop
+       * tetap hidup - jadi permintaan yang menggantung berakhir sebagai proses
+       * yang keluar diam-diam, bukan sebagai timeout yang bisa dibaca.
+       */
+      const jaring = setTimeout(() => {
+        this.#pending.delete(id);
+        reject(new Error(`timeout ${batasMs}ms: ${method} tidak dijawab (socket CDP macet?)`));
+      }, batasMs);
+      this.#pending.set(id, { resolve, reject, jaring });
       this.#ws.send(JSON.stringify({ id, method, params }));
     });
   }
 
-  async eval(expr) {
+  async eval(expr, batasMs = BATAS_PANGGILAN_MS) {
     const r = await this.send('Runtime.evaluate', {
       expression: expr,
       returnByValue: true,
       userGesture: true,
-    });
+    }, batasMs);
     if (r.error) throw new Error(`RPC: ${JSON.stringify(r.error)}`);
     if (r.result?.exceptionDetails) {
       throw new Error(r.result.exceptionDetails.exception?.description ?? 'eval error');
@@ -208,7 +415,18 @@ export class Cdp {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
       await sleep(150);
-      const st = JSON.parse(await this.eval(`JSON.stringify(window[${JSON.stringify(slot)}])`));
+      const mentah = await this.eval(`JSON.stringify(window[${JSON.stringify(slot)}])`);
+      // Halaman bisa RELOAD di tengah uji (Vite HMR saat berkas src disunting) sehingga slot hilang
+      // dan eval mengembalikan "undefined"; dulu ini meledak jadi SyntaxError JSON.parse yang menyesatkan.
+      if (mentah === undefined || mentah === 'undefined') {
+        if (Date.now() > deadline) {
+          throw new Error(
+            `timeout: halaman sepertinya RELOAD di tengah uji (slot ${slot} hilang) — ${body.slice(0, 60)}…`
+          );
+        }
+        continue;
+      }
+      const st = JSON.parse(mentah);
       if (st.done) {
         await this.eval(`(() => { delete window[${JSON.stringify(slot)}]; return 'x'; })()`);
         if (st.error) throw new Error(st.error);
@@ -292,6 +510,27 @@ export function reporter(nama) {
     return { lulus, total: results.length };
   };
   return { check, selesai, results, nama };
+}
+
+/**
+ * Keluar TANPA menelan output.
+ *
+ * `process.exit()` tidak menunggu stdout. Saat harness dialihkan ke berkas atau
+ * pipa - persis yang dilakukan runner suite - baris yang masih di buffer hilang,
+ * dan run yang berakhir dengan "EXIT=1" tidak menyisakan satu pun baris GAGAL
+ * untuk menjelaskan sebabnya: daftar kegagalan itulah yang lenyap lebih dulu.
+ *
+ * Menulis potongan kosong dan keluar dari callback-nya mempertahankan kode keluar
+ * yang sama sekaligus memastikan semua yang sudah diantre benar-benar sampai ke
+ * OS. Jaring 1 detik menjaga proses tidak menggantung bila callback tak datang
+ * (mis. stdout sudah tertutup).
+ */
+export function keluarBersih(kode) {
+  const jaring = setTimeout(() => process.exit(kode), 1000);
+  process.stdout.write('', () => {
+    clearTimeout(jaring);
+    process.exit(kode);
+  });
 }
 
 /** JSON-RPC ke server MCP. `status: 0` = port tidak listening (fetch melempar). */

@@ -35,11 +35,7 @@ fn hitung_baris(patch: &str) -> (usize, usize) {
 }
 
 #[tauri::command(async)]
-pub fn file_patch(
-    state: State<AppState>,
-    path: String,
-    patch: String,
-) -> ZResult<PatchResult> {
+pub fn file_patch(state: State<AppState>, path: String, patch: String) -> ZResult<PatchResult> {
     let p = patch.trim();
     if p.is_empty() {
         return Err(ZephyrError::InvalidInput("empty patch".into()));
@@ -54,7 +50,9 @@ pub fn file_patch(
 
     let target = state.resolve_ws(&PathBuf::from(&path));
     if !target.is_file() {
-        return Err(ZephyrError::InvalidInput(format!("file does not exist: {path}")));
+        return Err(ZephyrError::InvalidInput(format!(
+            "file does not exist: {path}"
+        )));
     }
     state.ensure_writable(&target)?;
 
@@ -65,10 +63,7 @@ pub fn file_patch(
     }
     let (added, removed) = hitung_baris(&isi);
 
-    let tmp = std::env::temp_dir().join(format!(
-        "zephyr-patch-{}.diff",
-        std::process::id()
-    ));
+    let tmp = std::env::temp_dir().join(format!("zephyr-patch-{}.diff", std::process::id()));
     std::fs::write(&tmp, &isi)?;
 
     let git = crate::proc::cmd("git")

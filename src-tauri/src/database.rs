@@ -38,13 +38,28 @@ pub struct DbHasil {
 
 /// A statement is allowed only when it starts with one of these. Anything else
 /// is refused before it reaches the engine.
-const DIIZINKAN: &[&str] = &["select", "pragma", "show", "describe", "desc", "explain", "with"];
+const DIIZINKAN: &[&str] = &[
+    "select", "pragma", "show", "describe", "desc", "explain", "with",
+];
 
 /// A keyword that must never appear, even inside an otherwise allowed
 /// statement: `WITH x AS (...) DELETE FROM t` would pass the prefix check.
 const DILARANG: &[&str] = &[
-    "insert", "update", "delete", "drop", "alter", "create", "replace", "truncate", "attach",
-    "detach", "grant", "revoke", "vacuum", "reindex", "load_extension",
+    "insert",
+    "update",
+    "delete",
+    "drop",
+    "alter",
+    "create",
+    "replace",
+    "truncate",
+    "attach",
+    "detach",
+    "grant",
+    "revoke",
+    "vacuum",
+    "reindex",
+    "load_extension",
 ];
 
 const MAKS_BARIS: usize = 500;
@@ -136,7 +151,8 @@ fn sqlite_hasil(conn: &rusqlite::Connection, sql: &str) -> ZResult<DbHasil> {
                 }
                 let mut satu = Vec::with_capacity(jumlah);
                 for i in 0..jumlah {
-                    let v: rusqlite::types::Value = r.get(i).unwrap_or(rusqlite::types::Value::Null);
+                    let v: rusqlite::types::Value =
+                        r.get(i).unwrap_or(rusqlite::types::Value::Null);
                     satu.push(match v {
                         rusqlite::types::Value::Null => String::new(),
                         rusqlite::types::Value::Integer(n) => n.to_string(),
@@ -152,7 +168,11 @@ fn sqlite_hasil(conn: &rusqlite::Connection, sql: &str) -> ZResult<DbHasil> {
         }
     }
 
-    Ok(DbHasil { kolom, baris, dipotong })
+    Ok(DbHasil {
+        kolom,
+        baris,
+        dipotong,
+    })
 }
 
 fn buka_sqlite(path: &Path) -> ZResult<rusqlite::Connection> {
@@ -195,9 +215,11 @@ pub fn db_tables(path: String, engine: Option<String>) -> ZResult<Vec<DbTabel>> 
         // A count per table keeps the list informative; an error here means a
         // view that cannot be counted, which is not fatal.
         let baris = conn
-            .query_row(&format!("SELECT COUNT(*) FROM \"{}\"", n.replace('"', "\"\"")), [], |r| {
-                r.get::<_, i64>(0)
-            })
+            .query_row(
+                &format!("SELECT COUNT(*) FROM \"{}\"", n.replace('"', "\"\"")),
+                [],
+                |r| r.get::<_, i64>(0),
+            )
             .unwrap_or(0);
         out.push(DbTabel { nama: n, baris });
     }
@@ -209,7 +231,10 @@ pub fn db_tables(path: String, engine: Option<String>) -> ZResult<Vec<DbTabel>> 
 pub fn db_columns(path: String, tabel: String) -> ZResult<Vec<DbKolom>> {
     let conn = buka_sqlite(Path::new(&path))?;
     let mut stmt = conn
-        .prepare(&format!("PRAGMA table_info(\"{}\")", tabel.replace('"', "\"\"")))
+        .prepare(&format!(
+            "PRAGMA table_info(\"{}\")",
+            tabel.replace('"', "\"\"")
+        ))
         .map_err(|e| ZephyrError::Internal(format!("pragma: {e}")))?;
     let kolom = stmt
         .query_map([], |r| {
@@ -235,11 +260,7 @@ pub fn db_query(path: String, sql: String) -> ZResult<DbHasil> {
 /// Path the app offers by default: the MariaDB data folder, if it exists.
 #[tauri::command(async)]
 pub fn db_default_path(root: String) -> ZResult<String> {
-    let kandidat = [
-        "mariadb",
-        "mysql",
-        "data",
-    ];
+    let kandidat = ["mariadb", "mysql", "data"];
     for k in kandidat {
         let p = PathBuf::from(&root).join(k);
         if p.is_dir() {

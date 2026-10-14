@@ -1,10 +1,15 @@
 /**
  * Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran.
  *
- * Bentuknya dua lapis:
+ * Bentuknya tiga blok, dan jumlahnya sengaja TIDAK ditulis di sini:
  *
- *   43 tool INTI - 29 bawaan + 14 MCP. Selalu terpasang, selalu aktif.
- *   11 tool web/browser - terpasang, tapi mati sampai user menyalakannya.
+ *   BUILTIN + MCP  - tool INTI. Selalu terpasang, selalu aktif.
+ *   WEB            - terpasang, tapi sebagian mati sampai user menyalakannya.
+ *
+ * Angka yang diketik di komentar akan basi begitu ada tool baru - itu sudah
+ * terjadi di berkas ini (prosa menyebut angka lama sementara katalognya sudah
+ * bertambah). Sumber angkanya cuma dua: `TOOL_COUNTS` dan `periksaKatalog()`.
+ * Butuh jumlahnya, hitung dari katalog; jangan mengutipnya dari prosa.
  *
  * Aturan yang membuat berkas ini berguna:
  *
@@ -24,6 +29,8 @@
  */
 
 import { DESKRIPSI_TOOL_ID } from './deskripsiTool';
+import { AWALAN_MCP, POLA_AWALAN_MCP } from './awalan';
+export { AWALAN_MCP, POLA_AWALAN_MCP };
 
 /** Sumber tool, untuk ditampilkan di picker sebagai bagian terpisah. */
 export type ToolSource = 'builtin' | 'mcp' | 'web';
@@ -56,7 +63,7 @@ export interface ToolCatalogEntry {
 }
 
 /* ------------------------------------------------------------------ */
-/* 29 tool BAWAAN - nama diambil persis dari katalog sumber.             */
+/* BUILTIN - nama diambil persis dari katalog sumber.             */
 /* ------------------------------------------------------------------ */
 
 const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
@@ -74,9 +81,27 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['edit', 'Edit', 'fsWrite', true, 'Ubah sebagian isi berkas: cari teks lama, ganti teks baru'],
   ['multi_edit', 'Edit', 'fsWrite', true, 'Beberapa penggantian pada satu berkas dalam satu langkah'],
 
-  /* Search - 2 */
+  /* Search - 3 */
   ['grep', 'Search', 'read', false, 'Cari teks di seluruh workspace'],
   ['glob', 'Search', 'read', false, 'Cari berkas berdasarkan pola nama atau jalur'],
+  /* Sumber jawabannya ada DI DALAM aplikasi, bukan di folder user: setelan
+     yang sedang dipakai, berkas log, registry ekstensi + hasil loader, dokumen
+     yang ikut terbundel, versi + status update, plus indeks fakta Zephyr
+     (label, setelan, perintah, tool, ekstensi, dokumen, peta kode).
+     Read-only, tanpa efek samping, tanpa jaringan, dan tetap bekerja saat
+     tidak ada folder yang terbuka - jadi tidak butuh izin. */
+  ['zephyr_self', 'Search', 'read', false, 'Periksa Zephyr sendiri dari sumber milik aplikasi: setelan aktif, log, ekstensi, dokumen bundel, versi, dan indeks fakta'],
+
+  /* Memori - 1.
+     Memori LINTAS SESI milik Zeph AI (`memory.md` di data dir aplikasi), bukan
+     berkas user: efeknya `appWrite` karena yang berubah adalah keadaan di dalam
+     aplikasi, dan entri bisa dihapus lagi lewat panel Memori. Tanpa izin
+     (`needsApproval: false`) justru karena menyimpan keputusan harus terjadi
+     saat keputusannya dibuat - kalau setiap penyimpanan menunggu klik, memori
+     tidak akan pernah terisi, dan itulah keluhan aslinya ("tiap sesi mulai dari
+     nol"). Yang tetap berlaku: mode baca-saja menyaringnya keluar, karena
+     `appWrite` termasuk kelas tulis di `toolGate.ts`. */
+  ['ingat', 'Memori', 'appWrite', false, 'Simpan, cari, dan rapikan memori lintas sesi Zeph AI (berkas memori global + per-proyek)'],
 
   /* Shell - 5 */
   ['bash_run', 'Shell', 'exec', true, 'Jalankan perintah dan tunggu sampai selesai'],
@@ -85,9 +110,6 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['bash_list', 'Shell', 'read', false, 'Daftar proses latar belakang yang hidup'],
   ['bash_kill', 'Shell', 'exec', true, 'Hentikan proses latar belakang'],
 
-  /* Web / fetch - 1 */
-  ['fetch', 'Network', 'net', false, 'Ambil satu halaman web dan kembalikan teksnya'],
-
   /* Sub-agents - 2 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
   ['run_subagents', 'Sub-agents', 'exec', true, 'Jalankan beberapa subagent paralel'],
@@ -95,18 +117,26 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   /* Tasks - 1 */
   ['todo_write', 'Tasks & Notes', 'appWrite', true, 'Ganti daftar tugas agen untuk tugas ini'],
 
-  /* Code intelligence - 5 */
+  /* Code intelligence - 6 */
   /*
    * The language-server queries. Read-only, and grouped apart from `grep`/`glob`
    * because they answer a different question: those find TEXT, these find CODE.
    * A gate that switched these off would leave the agent with only text search,
    * which still works — just less precisely — so they are not in TOOL_WAJIB.
+   *
+   * `zephyr_kode` joined this group last: it reads SLICES of Zephyr's own source
+   * as numbered lines (`src/lib/bacaKode.ts`). Same read-only shape and the same
+   * "text search still works without it" argument, so it is not in TOOL_WAJIB
+   * either. Its spec lived only in `bacaKode.ts` until now, which is why the
+   * model could not call it: unreachable spec, no catalog entry.
    */
   ['lsp_symbols', 'Code intelligence', 'read', false, 'Daftar simbol di sebuah berkas, dengan jenis dan kedalaman'],
   ['lsp_references', 'Code intelligence', 'read', false, 'Tempat-tempat yang memakai sebuah simbol, menurut language server'],
   ['lsp_definition', 'Code intelligence', 'read', false, 'Lokasi definisi sebuah simbol'],
   ['lsp_hover', 'Code intelligence', 'read', false, 'Tipe dan dokumentasi simbol pada satu posisi'],
   ['lsp_diagnostics', 'Code intelligence', 'read', false, 'Galat dan peringatan language server untuk sebuah berkas'],
+  ['lsp_call_hierarchy', 'Code intelligence', 'read', false, 'Fungsi yang memanggil dan dipanggil oleh sebuah simbol, menurut language server'],
+  ['zephyr_kode', 'Code intelligence', 'read', false, 'Potongan baris BERKODE NOMOR dari sumber Zephyr sendiri (baca-kode): satu berkas, satu rentang baris, atau simbol'],
 
   /* Skills - 1 */
   /*
@@ -141,7 +171,7 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* 14 tool MCP - nama polos diambil dari tabel handler mcpServer.       */
+/* MCP - nama polos diambil dari tabel handler mcpServer.       */
 /* ------------------------------------------------------------------ */
 
 const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
@@ -162,11 +192,11 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* 11 tool web/browser - tetap terpasang, tapi TIDAK menyala default. */
+/* WEB - tetap terpasang; sebagian TIDAK menyala default. */
 /* ------------------------------------------------------------------ */
 
 /*
- * Sebelas tool ini sengaja dipisah dari 43 tool inti.
+ * Tool di blok ini sengaja dipisah dari tool inti.
  *
  * Alasannya bukan soal asal-usul, melainkan soal apa yang terjadi kalau alat
  * ini menyala sejak awal. Pane browser bisa membuka halaman apa pun, klik dan
@@ -176,14 +206,17 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
  * Kontraknya:
  *   - tetap ada di katalog, tetap bisa dinyalakan satu per satu atau per grup
  *   - pada profil baru, HANYA yang membaca yang menyala (lihat di bawah)
- *   - 43 tool inti di atas tidak pernah bergantung padanya
+ *   - tool inti di atas tidak pernah bergantung padanya
  *
- * Empat di antaranya menyala sejak awal - `browser_open`, `browser_read`,
- * `browser_nav`, dan `web_fetch` - karena keempatnya hanya MENAMPILKAN atau
- * MEMBACA. Yang tetap mati adalah yang bertindak: klik, ketik, unduh ke disk,
- * dan buka browser sistem. Batasnya "mengubah vs menampilkan", bukan "di dalam
- * Zephyr vs di internet": `web_fetch` memang menarik data dari luar, tapi ia
- * tidak mengubah apa pun dan tidak menulis berkas.
+ * Yang menyala sejak awal hanyalah yang sekedar MENAMPILKAN atau MEMBACA.
+ * Yang tetap mati adalah yang bertindak: klik, ketik, unduh ke disk, menutup
+ * pane, dan membuka browser sistem. Nama-namanya TIDAK ditulis di sini karena
+ * keduanya turunan: `WEB_MATI` menyebut yang mati, `TOOL_WEB_AKTIF_AWAL`
+ * menghitung sisanya. Daftar nama di prosa pernah tertinggal dari kodenya -
+ * `browser_list` sudah nyala di sekat tapi tidak ada di daftar komentar ini.
+ * Batasnya "mengubah vs menampilkan", bukan "di dalam Zephyr vs di internet":
+ * `web_fetch` memang menarik data dari luar, tapi ia tidak mengubah apa pun
+ * dan tidak menulis berkas.
  *
  * Daftar yang menyala itu tinggal di `toolGate.ts` (`TOOL_WEB_AKTIF_AWAL`),
  * bukan di sini - katalog hanya memutuskan bahwa tool ini ADA dan berisiko
@@ -206,29 +239,15 @@ const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
 
 /* ------------------------------------------------------------------ */
 
-/**
- * Awalan internal tool MCP - konvensi protokol, bukan bagian dari nama yang
- * dibaca siapa pun. Dispatcher dan prompt model bergantung padanya, jadi tool
- * MCP tetap menyusun namanya dengan awalan ini; yang dilepas hanya di lapisan
- * tampilan (lihat `namaPolos` di `labelAksi.ts`).
+/*
+ * Awalan nama tool MCP tinggal di `awalan.ts`, bukan di sini.
+ *
+ * Sebelumnya pola ini ditulis dua kali - di berkas ini dan di
+ * `deskripsiTool.ts` - dengan isi identik; mengubah satu dan lupa yang lain
+ * tidak memunculkan error, cuma nama tool yang bocor mentah di salah satu
+ * panel. Diekspor ulang di sini supaya pemanggil lama (`labelAksi.ts`,
+ * `toolGate.ts`, panel Tools) tidak perlu ikut berubah.
  */
-export const AWALAN_MCP = 'mcp__zephyr__';
-
-/**
- * Pelepasan awalan yang MASIH MENERIMA prefix lama.
- *
- * Sesi, checkpoint, dan setelan tersimpan dari versi sebelum penggantian nama
- * membawa awalan yang sudah dipensiunkan. Dua tempat membacanya:
- *
- *   - pembacaan: nama lama harus tetap dipetakan ke tool yang sama, kalau tidak
- *     giliran yang dilanjutkan berhenti di tengah jalan.
- *   - tampilan: nama lama harus tetap dilepas sebelum dibaca user, kalau tidak
- *     prefix yang sedang dihapus justru bocor lagi ke layar.
- *
- * Yang TIDAK boleh tetap memakai awalan lama adalah penulisan nama baru: semua
- * nama yang keluar dari katalog memakai `mcp__zephyr__`.
- */
-export const POLA_AWALAN_MCP = /^mcp__(?:zephyr|tedi)__/;
 
 function rakit(
   baris: Array<[string, string, ToolEffect, boolean, string]>,
@@ -251,10 +270,10 @@ function rakit(
 }
 
 /**
- * Katalog final: 29 bawaan + 14 MCP + 11 web/browser = 54 tool.
+ * Katalog final: BUILTIN + MCP (inti) + WEB.
  *
- * Dua puluh sembilan dan empat belas membentuk 43 tool INTI. Sebelas sisanya
- * tersedia tapi tidak menyala sendiri.
+ * Blok inti selalu menyala; blok WEB tersedia tapi tidak menyala sendiri.
+ * Jumlahnya dibaca dari `TOOL_COUNTS` di bawah, bukan dari komentar ini.
  */
 export const TOOL_CATALOG: readonly ToolCatalogEntry[] = [
   ...rakit(BUILTIN, 'builtin'),
@@ -273,15 +292,7 @@ export const TOOL_COUNTS = {
 } as const;
 
 /**
- * Tool yang aktif pada profil baru.
- *
- * Sengaja hanya yang membaca. Tool yang menulis, menjalankan perintah, atau
- * mengubah keadaan aplikasi dimatikan sampai user menyalakannya sendiri.
- * Alasannya sederhana: tool baru yang langsung menyala bisa melakukan sesuatu
- * yang tidak diminta sebelum user sempat membaca apa yang dia aktifkan.
- */
-/**
- * Tool yang aktif pada profil baru: SELURUH 43 tool inti.
+ * Tool yang aktif pada profil baru: SELURUH tool inti.
  *
  * Dulu berkas ini memuat daftar pendek berisi tool pembaca saja, dengan alasan
  * bahwa tool menulis tidak pantas menyala sendiri. Alasannya tidak salah, tapi
@@ -290,9 +301,9 @@ export const TOOL_COUNTS = {
  * tugas berhenti di tengah dengan pesan "tool dinonaktifkan", dan user
  * menyimpulkan aplikasinya rusak.
  *
- * Sekarang kontraknya jelas: 43 tool inti selalu aktif. Satu-satunya yang mati
- * sejak awal adalah 11 tool web/browser, karena itu permukaan yang bisa
- * mengirim data ke luar dan memang pantas dipilih user lebih dulu.
+ * Sekarang kontraknya jelas: seluruh tool inti selalu aktif. Satu-satunya yang
+ * mati sejak awal adalah sebagian tool web/browser, karena itu permukaan yang
+ * bisa mengirim data ke luar dan memang pantas dipilih user lebih dulu.
  *
  * Diturunkan dari katalog, bukan diketik ulang - daftar manual akan berbeda
  * dari katalognya cepat atau lambat, dan itu sudah terbukti di sini.
@@ -473,7 +484,7 @@ export function periksaKatalog(): string[] {
    * Dan `TOOL_BAWAAN_AKTIF` tetap harus bersih dari web.
    *
    * Ia turunan katalog yang dibaca pemanggil lama, dan pada profil baru yang
-   * dianggap "selalu menyala" adalah 43 - empat tambahan itu datang dari sekat,
+   * dianggap "selalu menyala" adalah tool inti - tambahannya datang dari sekat,
    * bukan dari katalog. Kalau ada nama web menyusup ke sini, dua sumber itu
    * mulai berbeda diam-diam.
    */
@@ -485,7 +496,7 @@ export function periksaKatalog(): string[] {
   return masalah;
 }
 
-/** Nama 43 tool inti: yang wajib terpasang dan wajib aktif. */
+/** Nama tool inti: yang wajib terpasang dan wajib aktif. */
 export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
   (t) => t.source !== 'web',
 ).map((t) => t.name);
@@ -493,13 +504,13 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
 /**
  * Tool yang DIKIRIM ke provider setiap permintaan (progressive disclosure).
  *
- * Ini subset kecil dari TOOL_INTI - hanya yang dipakai hampir setiap tugas:
+ * Ini subset kecil dari `TOOL_INTI` - hanya yang dipakai hampir setiap tugas:
  * membaca/menulis/mengubah berkas, mencari, menjalankan perintah, merencanakan,
  * dan bertanya. Sisanya (web, browser, SSH, MCP, jadwal, catatan, preview, dan
  * tool tulis lain) TIDAK dikirim setiap kali; model menemukannya lewat
  * `tool_search` lalu memanggilnya lewat `tool_call`.
  *
- * Kenapa: mengirim 50+ skema tool setiap permintaan memakan ~22 KB - lebih besar
+ * Kenapa: mengirim seluruh skema tool setiap permintaan memakan puluhan KB - lebih besar
  * dari seluruh percakapan - dan ukuran itulah yang membuat gateway lambat lalu
  * balas 502. opencode dan Hermes melakukan hal yang sama (kirim inti, sisanya
  * on-demand). Yang penting: tidak ada tool yang HILANG dari model, hanya satu
@@ -550,16 +561,31 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    * satu-satunya yang benar-benar sulit ditiru: menemukan definisi sebuah simbol
    * tanpa language server berarti menebak nama berkas lalu grep di sana.
    *
-   * `lsp_symbols`, `lsp_references`, `lsp_hover`, dan `lsp_diagnostics` tetap
-   * TERPASANG dan tetap AKTIF - hanya tidak dikirim setiap kali. Model
-   * menemukannya lewat `tool_search` ("cari simbol", "error language server")
-   * lalu memanggilnya lewat `tool_call`. Tidak ada yang hilang, hanya satu
-   * langkah lebih jauh untuk yang memang jarang dipakai.
+   * `lsp_symbols`, `lsp_references`, `lsp_hover`, `lsp_diagnostics`, dan
+   * `lsp_call_hierarchy` tetap TERPASANG dan tetap AKTIF - hanya tidak dikirim
+   * setiap kali. Model menemukannya lewat `tool_search` ("cari simbol", "error
+   * language server", "siapa yang memanggil") lalu memanggilnya lewat
+   * `tool_call`. Tidak ada yang hilang, hanya satu langkah lebih jauh untuk
+   * yang memang jarang dipakai.
    *
    * `grep` dan `glob` tetap selalu dikirim: berkas yang bahasanya tidak punya
    * language server tetap harus bisa dicari.
    */
   'lsp_definition',
+  /*
+   * Self-inspection (`zephyr_self`).
+   *
+   * Blok fakta inti menyebut tool ini NAMANYA sebagai pintu ke lapis kedua
+   * (indeks `zephyrIndeks.ts`), dan aturan prompt berbunyi "cari dulu sebelum
+   * menyebut setelan, pintasan, atau tool yang tidak tertulis di blok inti".
+   * Aturannya sama dengan browser/web di bawah: apa pun yang di-route prompt
+   * WAJIB ikut dikirim setiap permintaan. Kalau tidak, model membaca pintunya
+   * di prompt tapi tidak bisa memanggilnya tanpa `tool_search` lebih dulu -
+   * dan pertanyaan "ada setelan X?" berhenti jadi "kurang tahu".
+   *
+   * Read-only, dan tetap jalan tanpa folder user terbuka.
+   */
+  'zephyr_self',
   'skill_view',
   'think',
   'ask_user',
@@ -578,8 +604,8 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   /*
    * Browser/web.
    *
-   * Empat yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
-   * ambil halaman sebagai teks, dan cari di web.
+   * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
+   * dan ambil halaman sebagai teks.
    *
    * Dua yang DILEPAS dari daftar ini:
    *

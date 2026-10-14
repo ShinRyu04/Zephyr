@@ -149,7 +149,8 @@ pub fn parse(argv: &[String], cwd: &Path) -> Args {
                     a.targets.push(Target::Diff { kiri, kanan });
                     i += 2;
                 } else {
-                    a.errors.push("--diff requires two paths: --diff A B".into());
+                    a.errors
+                        .push("--diff requires two paths: --diff A B".into());
 
                     i = argv.len();
                 }
@@ -222,7 +223,8 @@ pub fn cli_wait_buat(token: String) -> ZResult<String> {
     std::fs::create_dir_all(&dir)
         .map_err(|e| ZephyrError::Io(format!("creating the wait folder failed: {e}")))?;
     let p = path_penanda_wait(&token);
-    std::fs::write(&p, b"1").map_err(|e| ZephyrError::Io(format!("failed to write marker: {e}")))?;
+    std::fs::write(&p, b"1")
+        .map_err(|e| ZephyrError::Io(format!("failed to write marker: {e}")))?;
     Ok(p.to_string_lossy().replace('\\', "/"))
 }
 

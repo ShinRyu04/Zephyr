@@ -775,6 +775,200 @@
   font-size: 10.5px;
 }
 
+/* Polished batch overview: clear hierarchy without changing the compact table flow. */
+.sub-panel {
+  gap: 0;
+  padding: 10px 14px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-1, var(--bg1)) 45%, transparent);
+}
+
+.sub-bar {
+  min-height: 30px;
+  padding: 0 0 8px;
+  gap: 9px;
+}
+
+.sub-judul {
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.sub-maks {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 10px;
+}
+
+.sub-bar .btn {
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+}
+
+.sub-progress {
+  padding: 2px 0 10px;
+}
+
+.sub-segmen {
+  gap: 4px;
+  height: 5px;
+}
+
+.sub-segmen-blok {
+  border-radius: 999px;
+}
+
+.sub-tabel-head {
+  grid-template-columns: 28px minmax(0, 1fr) 100px 92px 24px;
+  gap: 10px;
+  padding: 0 10px 7px;
+  border-bottom-color: color-mix(in srgb, var(--border) 75%, transparent);
+  font-size: 9px;
+}
+
+.sub-timeline {
+  gap: 5px;
+  padding-top: 5px;
+}
+
+.sub-baris {
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 9px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.sub-baris:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+.sub-node-col {
+  padding-top: 9px;
+}
+
+.sub-node {
+  width: 19px;
+  height: 19px;
+  font-size: 10px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-1, var(--bg1)) 70%, transparent);
+}
+
+.sub-isi {
+  padding: 8px 0 9px;
+  border-bottom: 0;
+}
+
+.sub-head {
+  grid-template-columns: 16px auto minmax(0, 1fr) auto max-content auto auto 76px auto auto 24px;
+  gap: 9px;
+  min-height: 23px;
+}
+
+.sub-agent-chip {
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.sub-tugas {
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.sub-model-badge {
+  min-height: 23px;
+  padding: 0 8px;
+  border-radius: 6px;
+}
+
+.sub-verdict {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sub-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.sub-waktu {
+  font-size: 10px;
+}
+
+.sub-aksi-btn {
+  width: 24px;
+  height: 24px;
+  opacity: 0.65;
+}
+
+.sub-aksi-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-3));
+  color: var(--accent);
+}
+
+.sub-ket {
+  margin-top: 5px;
+  padding: 5px 8px 5px 24px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-3) 35%, transparent);
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .sub-panel {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .sub-tabel-head {
+    grid-template-columns: 26px minmax(0, 1fr) 82px 65px 20px;
+    gap: 6px;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .sub-baris {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .sub-head {
+    grid-template-columns: 15px auto minmax(0, 1fr) auto max-content auto 70px auto 22px;
+    gap: 6px;
+  }
+
+  .sub-head > :nth-child(7) {
+    display: none;
+  }
+
+  .sub-tugas {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sub-baris {
+    transition: none;
+  }
+}
+
 /* ── Steps toggle + list ──────────────────────────────────────────────── */
 
 .sub-toggle {

@@ -40,9 +40,10 @@
  * "MCP tidak kosong" mengukur fungsi yang benar-benar dikirim ke aplikasi,
  * bukan tiruannya.
  */
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import ts from 'typescript';
 
 const akar = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -74,7 +75,7 @@ while ((mk = reKatalog.exec(katalogTeks)) !== null) katalog.push(mk[1]);
  * Katalog menulis tool MCP lengkap (`mcp__zephyr__inspect`), sedangkan peta
  * deskripsi memakai nama polos (`inspect`). Bandingkan dalam bentuk polos.
  */
-const AWALAN_MCP = /^mcp__(?:zephyr|tedi)__/;
+const AWALAN_MCP = /^mcp__zephyr__/;
 const namaKatalog = katalog.map((n) => n.replace(AWALAN_MCP, ''));
 const himpunanKatalog = new Set(namaKatalog);
 
@@ -82,14 +83,31 @@ const himpunanKatalog = new Set(namaKatalog);
 /* 2. Jalankan modul deskripsi SUNGGUHAN lewat transpilasi TypeScript. */
 /* ------------------------------------------------------------------ */
 
-const sumber = readFileSync(jalurDeskripsi, 'utf8');
-const hasilTranspil = ts.transpileModule(sumber, {
+/*
+ * `deskripsiTool.ts` mengimpor satu berkas daun (`./awalan`, memuat definisi
+ * awalan nama tool). Modul `data:` tidak bisa menyelesaikan impor relatif,
+ * jadi keduanya ditranspilasi ke berkas SUNGGUHAN di folder sementara, dan
+ * impor relatifnya diberi ekstensi `.js` supaya Node dapat menemukannya
+ * (Node ESM tidak menebak ekstensi). Berkasnya dihapus lagi setelah dimuat -
+ * modulnya sudah ada di memori, jadi sisa folder tidak menumpuk.
+ */
+const opsiTranspil = {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-  fileName: 'deskripsiTool.ts',
-});
-const urlData =
-  'data:text/javascript;base64,' + Buffer.from(hasilTranspil.outputText, 'utf8').toString('base64');
-const modul = await import(urlData);
+};
+const dirSementara = mkdtempSync(join(tmpdir(), 'uji-deskripsi-'));
+const transpilKe = (namaAsal, namaKeluar) => {
+  const hasil = ts.transpileModule(readFileSync(join(dirname(jalurDeskripsi), namaAsal), 'utf8'), {
+    ...opsiTranspil,
+    fileName: namaAsal,
+  });
+  const keluaran = hasil.outputText.replace(/(from\s+')(\.\/[^']+)(')/g, '$1$2.js$3');
+  writeFileSync(join(dirSementara, namaKeluar), keluaran, 'utf8');
+  return keluaran;
+};
+transpilKe('awalan.ts', 'awalan.js');
+transpilKe('deskripsiTool.ts', 'deskripsiTool.js');
+const modul = await import(pathToFileURL(join(dirSementara, 'deskripsiTool.js')).href);
+rmSync(dirSementara, { recursive: true, force: true });
 const { deskripsiTool, POLA_AWALAN_MCP } = modul;
 
 /* Nama yang diekspor tergantung perubahan: kumpulkan semua peta `DESKRIPSI_TOOL_*`. */
@@ -300,13 +318,23 @@ console.log(
     `${mcpPanjang.length} tool MCP terisi di semua bahasa; fallback ke Inggris bekerja.`,
 );
 
-/* Awalan yang dipakai katalog harus benar-benar `mcp__zephyr__`.
-   Kalau suatu saat awalan itu diganti, daftar MCP di atas berhenti mewakili
-   kenyataan - dan uji "MCP tidak kosong" akan lulus tanpa menguji apa pun. */
-if (!/export const AWALAN_MCP = 'mcp__zephyr__'/.test(katalogTeks)) {
+/* Awalan nama tool MCP hidup di SATU sumber: `zephyrTools/awalan.ts`.
+   `catalog.ts` mengimpornya, jadi literal `AWALAN_MCP = ...` memang tidak ada
+   lagi di sana - memeriksa catalog.ts akan selalu gagal walau keadaannya benar.
+   Yang diperiksa sekarang: (a) awalan.ts memuat literalnya, dan (b) catalog.ts
+   benar-benar mengambilnya dari './awalan', supaya tidak ada salinan kedua yang
+   bisa menyimpang dari daftar MCP yang diuji di atas. */
+const awalanTeks = readFileSync(join(dirname(jalurDeskripsi), 'awalan.ts'), 'utf8');
+const masalahAwalan = [];
+if (!/export const AWALAN_MCP = 'mcp__zephyr__'/.test(awalanTeks))
+  masalahAwalan.push("awalan.ts tidak lagi memuat AWALAN_MCP = 'mcp__zephyr__'");
+if (!/from '\.\/awalan'/.test(katalogTeks) || !/\bAWALAN_MCP\b/.test(katalogTeks))
+  masalahAwalan.push("catalog.ts tidak mengimpor AWALAN_MCP dari './awalan'");
+if (masalahAwalan.length) {
   console.error(
-    '\nCATATAN: AWALAN_MCP di catalog.ts tidak lagi literal \'mcp__zephyr__\' - ' +
-      'perbarui daftar MCP di harness ini supaya ia tetap menguji tool yang benar.',
+    '\nCATATAN: ' +
+      masalahAwalan.join('; ') +
+      ' - perbarui daftar MCP di harness ini supaya ia tetap menguji tool yang benar.',
   );
   process.exit(1);
 }

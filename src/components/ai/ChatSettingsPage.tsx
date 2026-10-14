@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
+import { useAiChatSettings, type ChatSeksi } from '../../lib/chatSettingsStore';
 
 import { useToolGate } from '../../lib/toolGate';
 import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
+import { PROVIDERS, providerSiap } from '../../lib/modelCatalog';
+import { HYDRA_MAX_REQUESTS_BAWAAN, HYDRA_MAX_REQUESTS_LIMIT } from '../../lib/hydraFusion';
 import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
+import { useAgentCustom } from '../../lib/agentCustomStore';
+import { PemilihAvatar } from './PemilihAvatar';
 import CommandPermissions from '../settings/CommandPermissions';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
@@ -67,7 +72,7 @@ const EFFORT: { id: string; label: string }[] = [
  * `label` is both the nav text and the section heading, so a reader who clicks
  * "Agent" lands on a heading that says the same word.
  */
-const SECTIONS = [
+const SECTIONS: ReadonlyArray<{ id: ChatSeksi; label: string }> = [
   { id: 'mode', label: 'Mode' },
   { id: 'agent', label: 'Agent' },
   { id: 'context', label: 'Context' },
@@ -78,9 +83,9 @@ const SECTIONS = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'session', label: 'Session' },
   { id: 'advanced', label: 'Advanced' },
-] as const;
+];
 
-type SectionId = (typeof SECTIONS)[number]['id'];
+type SectionId = ChatSeksi;
 
 export default function ChatSettingsPage({
   onClose,
@@ -107,7 +112,20 @@ export default function ChatSettingsPage({
   onDragStart?: (e: React.PointerEvent) => void;
 }) {
   const tr = useT();
-  const [bagian, setBagian] = useState<SectionId>('mode');
+  /*
+   * A door can NAME the section it opens on: `bukaDi('subagent')` from the
+   * sub-agent panel. Read as the initial state and then CONSUMED, so the plain
+   * "Chat Settings" row - which names no section - still lands on Mode instead
+   * of on whatever the last caller asked for. Providers, keys and the model list
+   * are not sections of this page any more: they open the AI Models pop-up.
+   */
+  const seksiDiminta = useAiChatSettings((s) => s.seksi);
+  const [bagian, setBagian] = useState<SectionId>(seksiDiminta ?? 'mode');
+  useEffect(() => {
+    if (!seksiDiminta) return;
+    setBagian(seksiDiminta);
+    useAiChatSettings.getState().seksiTerpakai();
+  }, [seksiDiminta]);
   const [cari, setCari] = useState('');
   /*
    * Display-only chat preferences.
@@ -135,9 +153,8 @@ export default function ChatSettingsPage({
      today, and the Workspace pane says so rather than pretending otherwise. */
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
 
-  /* Conversation state — the same fields the composer chips read. */
-  const agentMode = useAi((s) => s.agentMode ?? 'chat');
-  const setAgentMode = useAi((s) => s.setAgentMode);
+  /* Conversation state — the same fields the composer chips read. `agentMode`
+     is deliberately not read: chat is retired, so dispatch is not a choice. */
   const runMode = useAi((s) => s.runMode ?? 'interactive');
   const setRunMode = useAi((s) => s.setRunMode);
   const approvalMode = useAi((s) => s.approvalMode ?? 'work');
@@ -154,6 +171,11 @@ export default function ChatSettingsPage({
   const agents = settings.agents;
   const rules = settings.rules;
   const subagent = settings.subagent;
+  const hydra = settings.hydrafusion;
+  /* What the LAST HydraFusion run did. Read rather than recomputed: after the
+     answer lands, "which model wrote this" is a fact about the past, and the
+     plan that produced it is gone by then. */
+  const hydraTerakhir = useAi((s) => s.hydraTerakhir);
   /* Whether the guard is on at all. The per-rule switches below are dead
      while it is off, so they render disabled rather than pretending to work. */
   const rulesOn = rules?.enabled === true;
@@ -180,27 +202,39 @@ export default function ChatSettingsPage({
    * identity does not feed a selector, so memoising it would only add a
    * dependency list to keep correct.
    */
+  /*
+   * Every model the tier rows can offer: only providers that are usable RIGHT
+   * NOW (key + endpoint). Listing an unreachable model would let the reader map
+   * a rung to a model that always errors, which turns an escalation into an
+   * instant failure — the same reason the store filters candidates this way.
+   */
+  const opsiModel: Array<{ value: string; label: string }> = PROVIDERS.flatMap((p) => {
+    const siap = providerSiap(p, useAi.getState().hasKey(p.id), models.providers);
+    if (!siap) return [];
+    return p.models.map((m) => ({ value: `${p.id}/${m.id}`, label: `${p.label} · ${m.label}` }));
+  });
+
   const rows: RowDef[] = [
     {
+      /*
+       * Dispatch is not a choice any more: chat was retired, so every turn is
+       * an agent run and there is no second value to switch to. The row stays
+       * (a reader who remembers the switch should find the answer where the
+       * switch was, not a silent hole) but it states the fact instead of
+       * offering a control, and it has no `reset` - there is no value of its
+       * own to put back.
+       */
       section: 'mode',
       id: 'dispatch',
       label: 'Dispatch',
-      hint: 'Whether these turns only answer or also act on your project.',
+      hint: 'Chat mode was removed; every turn runs as the agent now.',
       words: 'mode dispatch chat agent q&a answer tools act',
       ctl: (
-        <Select
-          value={agentMode}
-          testid="cset-mode"
-          label="Dispatch"
-          options={[
-            { value: 'chat', label: tr('Chat — answer only') },
-            { value: 'agent', label: tr('Agent — reads files, runs tools') },
-          ]}
-          onChange={(v) => setAgentMode(v as 'chat' | 'agent')}
-        />
+        <span className="set-hint" data-testid="cset-mode">
+          {tr('Agent mode - the AI reads files and runs commands')}
+        </span>
       ),
-      isDefault: agentMode === 'chat',
-      reset: () => setAgentMode('chat'),
+      isDefault: true,
     },
     {
       section: 'mode',
@@ -273,6 +307,34 @@ export default function ChatSettingsPage({
       ),
       isDefault: (agents.attachActiveFile ?? false) === false,
       reset: () => void apply({ agents: { attachActiveFile: false } }),
+    },
+    {
+      section: 'agent',
+      id: 'agentscustom',
+      /*
+       * The persona set, opened from where it is USED.
+       *
+       * Personas used to be a page of the editor-area Settings ("Agents"). They
+       * moved to the Agent Customizations modal with the rest of the agent's own
+       * configuration; this row is what keeps them reachable from the page the
+       * user is already on - the same modal, and the same section, that the mode
+       * menu's "Manage personas & sub-agents" row opens.
+       */
+      label: 'Agents & personas',
+      hint: 'The personas the agent can work as, and who edits the set.',
+      words: 'agent persona agents custom manage editor subagent set',
+      ctl: (
+        <button
+          className="cset-value"
+          data-testid="cset-agentcustom"
+          title={tr('Opens the persona editor')}
+          onClick={() => useAgentCustom.getState().buka('agents')}
+        >
+          {tr('Manage personas & sub-agents')}
+        </button>
+      ),
+      /* A door to another surface: no value of its own to reset or compare. */
+      isDefault: true,
     },
 
     {
@@ -393,7 +455,7 @@ export default function ChatSettingsPage({
       section: 'subagent',
       id: 'subwrite',
       label: 'Let sub-agents write',
-      hint: 'Off means every sub-agent may only read; you approve writes yourself.',
+      hint: 'Off means every sub-agent may only read. On means they write files themselves; commands that can delete or overwrite files still need the Auto approval mode.',
       words: 'subagent sub-agent write edit allow worker parallel permission',
       ctl: (
         <Toggle
@@ -555,104 +617,95 @@ export default function ChatSettingsPage({
       isDefault: true,
     },
 
-
     {
       section: 'models',
-      id: 'askmodel',
-      label: 'Chat model',
-      hint: 'Which model answers in this panel.',
-      words: 'models model chat pick llm provider answer',
+      id: 'hydra',
+      label: 'HydraFusion',
+      hint: 'Let the app pick the model and the workflow for each task: one cheap model, escalation, or draft → critique → revise.',
+      words: 'hydra fusion orchestration model pick choose workflow adaptive escalate escalation critique revise cost cap tier cheap strong',
       ctl: (
-        <button
-          className="cset-value"
-          data-testid="cset-askmodel"
-          title={tr('Opens the model picker')}
-          onClick={() => useAi.getState().setModelMenuOpen(true)}
-        >
-          {useAi.getState().model || tr('Choose…')}
-        </button>
+        <Toggle
+          checked={hydra?.enabled === true}
+          testid="cset-hydra"
+          label="HydraFusion"
+          onChange={(v) => void apply({ hydrafusion: { enabled: v } })}
+        />
       ),
-      isDefault: true,
+      isDefault: (hydra?.enabled ?? false) === false,
+      reset: () => void apply({ hydrafusion: { enabled: false } }),
     },
     {
       section: 'models',
-      id: 'provider2',
-      label: 'Active provider',
-      hint: 'Where those models come from.',
-      words: 'models provider active openai anthropic gemini custom ollama',
+      id: 'hydrantingkat',
+      label: 'HydraFusion model tiers',
+      hint: 'Which models stand for cheap, mid and strong. Auto takes them from the model list.',
+      words: 'hydra fusion tier cheap mid strong model mapping ladder rung auto',
+      ctl: (
+        <div className="cset-hydra-tiers" data-testid="cset-hydratiers">
+          {(['cheap', 'mid', 'strong'] as const).map((tier) => (
+            <Select
+              key={tier}
+              value={hydra?.tiers?.[tier] ?? ''}
+              testid={`cset-hydra-${tier}`}
+              label={`HydraFusion ${tier} tier`}
+              options={[{ value: '', label: tr('Auto (from the model list)') }, ...opsiModel]}
+              /* One key per call, and `applySettings` deep-merges, so setting
+                 the cheap rung cannot wipe the other two. */
+              onChange={(v) => void apply({ hydrafusion: { tiers: { [tier]: v } } })}
+            />
+          ))}
+        </div>
+      ),
+      isDefault: !hydra?.tiers?.cheap && !hydra?.tiers?.mid && !hydra?.tiers?.strong,
+      reset: () => void apply({ hydrafusion: { tiers: { cheap: '', mid: '', strong: '' } } }),
+    },
+    {
+      section: 'models',
+      id: 'hydrabiaya',
+      label: 'HydraFusion cost cap',
+      hint: 'Requests one run may spend. Escalation and critique stop at this limit.',
+      words: 'hydra fusion cost cap budget limit requests spend escalation stop',
       ctl: (
         <Select
-          value={models.activeProvider ?? 'custom'}
-          testid="cset-provider2"
-          label="Active provider"
-          options={[
-            { value: 'custom', label: 'Custom / local' },
-            { value: 'openai', label: 'OpenAI' },
-            { value: 'anthropic', label: 'Anthropic' },
-            { value: 'gemini', label: 'Google Gemini' },
-            { value: 'ollama', label: 'Ollama' },
-            { value: 'groq', label: 'Groq' },
-          ]}
-          onChange={(v) => void apply({ models: { activeProvider: v } })}
+          value={String(hydra?.maxRequests ?? HYDRA_MAX_REQUESTS_BAWAAN)}
+          testid="cset-hydracap"
+          label="HydraFusion cost cap"
+          options={Array.from({ length: HYDRA_MAX_REQUESTS_LIMIT }, (_, i) => {
+            const n = i + 1;
+            return { value: String(n), label: `${n} ${tr('request(s)')}` };
+          })}
+          onChange={(v) => void apply({ hydrafusion: { maxRequests: Number(v) } })}
         />
       ),
-      isDefault: (models.activeProvider ?? 'custom') === 'custom',
-      reset: () => void apply({ models: { activeProvider: 'custom' } }),
+      isDefault: (hydra?.maxRequests ?? HYDRA_MAX_REQUESTS_BAWAAN) === HYDRA_MAX_REQUESTS_BAWAAN,
+      reset: () => void apply({ hydrafusion: { maxRequests: HYDRA_MAX_REQUESTS_BAWAAN } }),
     },
     {
       section: 'models',
-      id: 'baseurl',
-      label: 'Endpoint',
-      hint: 'Override the provider URL. Empty uses the provider default.',
-      words: 'models endpoint base url override gateway custom local',
-      ctl: (
-        <TextInput
-          value={models.providers?.[models.activeProvider ?? 'custom']?.baseUrl ?? ''}
-          testid="cset-baseurl"
-          label="Endpoint"
-          placeholder="https://…"
-          onChange={(v) =>
-            void apply({
-              models: {
-                providers: {
-                  [models.activeProvider ?? 'custom']: { baseUrl: v },
-                },
-              },
-            })
-          }
-        />
+      id: 'hydraterakhir',
+      label: 'HydraFusion last route',
+      hint: 'The model that produced the last answer and why the route chose it.',
+      words: 'hydra fusion last route model reason why chosen answer explain',
+      ctl: hydraTerakhir ? (
+        <span className="cset-hydra-last" data-testid="cset-hydralast">
+          <span className="set-label" data-testid="cset-hydralast-model">
+            {`${hydraTerakhir.provider}/${hydraTerakhir.model}`}
+          </span>
+          <span className="set-hint" data-testid="cset-hydralast-why">
+            {hydraTerakhir.alasan}
+          </span>
+          <span className="set-hint" data-testid="cset-hydralast-meta">
+            {`${hydraTerakhir.request} ${tr('request(s)')} · ${hydraTerakhir.jalur} · ${hydraTerakhir.berhenti}`}
+          </span>
+        </span>
+      ) : (
+        <span className="set-hint" data-testid="cset-hydralast">
+          {tr('No HydraFusion run yet in this session.')}
+        </span>
       ),
-      isDefault: (models.providers?.[models.activeProvider ?? 'custom']?.baseUrl ?? '') === '',
-      reset: () =>
-        void apply({
-          models: { providers: { [models.activeProvider ?? 'custom']: { baseUrl: '' } } },
-        }),
-    },
-    {
-      section: 'models',
-      id: 'keys',
-      label: 'API keys',
-      hint: 'Keys are stored encrypted and never shown back to the screen.',
-      words: 'models api key secret token openai anthropic gemini credential',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-keys"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('models'),
-            );
-          }}
-        >
-          {tr('Manage keys…')}
-        </button>
-      ),
+      /* A report, not a setting: nothing to reset, so no badge and no Reset. */
       isDefault: true,
     },
-
 
     {
       section: 'agent',
@@ -1012,22 +1065,7 @@ export default function ChatSettingsPage({
       label: 'My avatar',
       hint: 'The picture shown beside your own messages.',
       words: 'appearance avatar picture me user photo profile image',
-      ctl: (
-        <button
-          className="btn btn-sm"
-          data-testid="cset-myavatar"
-          onClick={() => {
-            const st = useStore.getState();
-            st.setActivity('settings');
-            st.setSettingsOpen(true);
-            void import('../../lib/settingsStore').then((m) =>
-              m.useSettingsUi.getState().setSection('agents'),
-            );
-          }}
-        >
-          {agents.userAvatarPath ? tr('Change…') : tr('Choose…')}
-        </button>
-      ),
+      ctl: <PemilihAvatar />,
       isDefault: !agents.userAvatarPath,
     },
     {
@@ -1127,7 +1165,6 @@ export default function ChatSettingsPage({
     q === '' ? bagian === id : rows.some((r) => r.section === id && cocok(r));
 
   const rowsOf = (id: SectionId) => rows.filter((r) => r.section === id && cocok(r));
-
 
   /* The "N found" readout. The full list while no query is active, so the
      number and the page always describe each other. */

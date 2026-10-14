@@ -1,3 +1,7 @@
+import { POLA_AWALAN_MCP } from './awalan';
+
+export { POLA_AWALAN_MCP };
+
 /**
  * Deskripsi tampilan tool, dipisah dari katalog supaya bahasa bisa berganti.
  *
@@ -34,6 +38,16 @@
 
 /** Deskripsi Indonesia asli, disalin persis dari catalog.ts. */
 export const DESKRIPSI_TOOL_ID: Record<string, string> = {
+  lsp_symbols: 'Daftar simbol di sebuah berkas, dengan jenis dan kedalaman',
+  lsp_references: 'Tempat-tempat yang memakai sebuah simbol, menurut language server',
+  lsp_definition: 'Lokasi definisi sebuah simbol',
+  lsp_hover: 'Tipe dan dokumentasi simbol pada satu posisi',
+  lsp_diagnostics: 'Galat dan peringatan language server untuk sebuah berkas',
+  lsp_call_hierarchy: 'Fungsi yang memanggil dan dipanggil oleh sebuah simbol, menurut language server',
+  skill_view: 'Baca isi skill yang terdaftar, atau daftar skillnya',
+  ask_user: 'Tanya user saat keputusan benar-benar ambigu, lalu tunggu jawabannya',
+  tool_search: 'Cari tool yang tidak ada di daftar utama (web, browser, SSH, MCP, jadwal)',
+  tool_call: 'Panggil tool yang ditemukan lewat tool_search',
   read_file: 'Baca berkas dari disk, atau buffer editor yang belum tersimpan',
   list_directory: 'Daftar isi sebuah folder',
   write_file: 'Tulis berkas ke disk, atau buat berkas baru',
@@ -51,7 +65,6 @@ export const DESKRIPSI_TOOL_ID: Record<string, string> = {
   bash_logs: 'Baca keluaran proses latar belakang',
   bash_list: 'Daftar proses latar belakang yang hidup',
   bash_kill: 'Hentikan proses latar belakang',
-  fetch: 'Ambil satu halaman web dan kembalikan teksnya',
   run_subagent: 'Jalankan satu subagent untuk tugas mandiri',
   run_subagents: 'Jalankan beberapa subagent paralel',
   todo_write: 'Ganti daftar tugas agen untuk tugas ini',
@@ -92,10 +105,22 @@ export const DESKRIPSI_TOOL_ID: Record<string, string> = {
   browser_close: 'Tutup pane browser',
   browser_download_url: 'Unduh URL langsung ke berkas di workspace',
   system_browser_open: 'Buka URL di browser sistem',
+  zephyr_self: 'Periksa Zephyr sendiri dari sumber milik aplikasi: setelan aktif, log, ekstensi, dokumen bundel, versi, dan indeks fakta',
+  ingat: 'Simpan, cari, dan rapikan memori lintas sesi Zeph AI (berkas memori global + per-proyek)',
 };
 
 /** Padanan Inggrisnya, satu kunci untuk setiap nama tool di katalog. */
 export const DESKRIPSI_TOOL_EN: Record<string, string> = {
+  lsp_symbols: 'List symbols in a file, with kind and depth',
+  lsp_references: 'Places that use a symbol, according to the language server',
+  lsp_definition: "Location of a symbol's definition",
+  lsp_hover: 'Type and documentation of a symbol at one position',
+  lsp_diagnostics: 'Language server errors and warnings for a file',
+  lsp_call_hierarchy: 'Functions that call and are called by a symbol, according to the language server',
+  skill_view: 'Read the contents of a listed skill, or list the skills',
+  ask_user: 'Ask the user when a decision is truly ambiguous, then wait for their answer',
+  tool_search: 'Search for a tool not in the main list (web, browser, SSH, MCP, schedule)',
+  tool_call: 'Call a tool found through tool_search',
   read_file: 'Read a file from disk, or an unsaved editor buffer',
   list_directory: 'List the contents of a folder',
   write_file: 'Write a file to disk, or create a new one',
@@ -113,7 +138,6 @@ export const DESKRIPSI_TOOL_EN: Record<string, string> = {
   bash_logs: 'Read the output of a background process',
   bash_list: 'List the background processes that are running',
   bash_kill: 'Stop a background process',
-  fetch: 'Fetch a single web page and return its text',
   run_subagent: 'Run one subagent for a self-contained task',
   run_subagents: 'Run several subagents in parallel',
   todo_write: "Replace the agent's task list for this task",
@@ -152,9 +176,21 @@ export const DESKRIPSI_TOOL_EN: Record<string, string> = {
   browser_close: 'Close a browser pane',
   browser_download_url: 'Download a URL straight to a file in the workspace',
   system_browser_open: 'Open a URL in the system browser',
+  zephyr_self: 'Inspect Zephyr itself from app-owned sources: live settings, log, extensions, bundled docs, version, fact index',
+  ingat: 'Save, search, and tidy the cross-session memory of Zeph AI (global + per-project memory files)',
 };
 
 export const DESKRIPSI_TOOL_JA: Record<string, string> = {
+  lsp_symbols: 'ファイル内のシンボルを種類と深さ付きで一覧表示する',
+  lsp_references: '言語サーバーが報告する、シンボルを使用している箇所',
+  lsp_definition: 'シンボルの定義の場所',
+  lsp_hover: 'ある位置のシンボルの型とドキュメント',
+  lsp_diagnostics: 'ファイルに対する言語サーバーのエラーと警告',
+  lsp_call_hierarchy: '言語サーバーによる、シンボルを呼ぶ／呼ばれる関数',
+  skill_view: '登録済みスキルの内容を読む、またはスキルの一覧を表示する',
+  ask_user: '判断が本当に曖昧なときだけユーザーに尋ね、回答を待つ',
+  tool_search: 'メイン一覧にないツールを検索する（web、ブラウザー、SSH、MCP、スケジュール）',
+  tool_call: 'tool_search で見つかったツールを呼び出す',
   read_file: 'ディスク上のファイル、または未保存のエディタバッファを読み込む',
   list_directory: 'フォルダの内容を一覧表示する',
   write_file: 'ファイルをディスクに書き込む、または新規作成する',
@@ -172,7 +208,6 @@ export const DESKRIPSI_TOOL_JA: Record<string, string> = {
   bash_logs: 'バックグラウンドプロセスの出力を読む',
   bash_list: '実行中のバックグラウンドプロセスを一覧表示する',
   bash_kill: 'バックグラウンドプロセスを停止する',
-  fetch: '単一のWebページを取得してテキストを返す',
   run_subagent: '独立したタスク用にサブエージェントを1つ実行する',
   run_subagents: '複数のサブエージェントを並列実行する',
   todo_write: 'エージェントのこのタスク用タスク一覧を置き換える',
@@ -211,9 +246,21 @@ export const DESKRIPSI_TOOL_JA: Record<string, string> = {
   browser_close: 'ブラウザペインを閉じる',
   browser_download_url: 'URLをワークスペース内のファイルへ直接ダウンロードする',
   system_browser_open: 'システムのブラウザでURLを開く',
+  zephyr_self: 'アプリ自身のソースから Zephyr を調査: 現在の設定・ログ・拡張機能・同梱ドキュメント・バージョン・事実インデックス',
+  ingat: 'Zeph AI のセッションをまたぐメモリを保存・検索・整理（グローバル + プロジェクト別）',
 };
 
 export const DESKRIPSI_TOOL_KO: Record<string, string> = {
+  lsp_symbols: '파일의 심볼을 종류와 깊이와 함께 나열합니다',
+  lsp_references: '언어 서버가 보고한, 심볼을 사용하는 위치',
+  lsp_definition: '심볼 정의의 위치',
+  lsp_hover: '한 위치의 심볼 유형과 문서',
+  lsp_diagnostics: '파일에 대한 언어 서버 오류와 경고',
+  lsp_call_hierarchy: '언어 서버가 보고한, 심볼을 호출하는/호출되는 함수',
+  skill_view: '등록된 스킬의 내용을 읽거나 스킬 목록을 표시합니다',
+  ask_user: '결정이 정말 애매할 때만 사용자에게 묻고 답변을 기다립니다',
+  tool_search: '기본 목록에 없는 도구를 검색합니다 (web, 브라우저, SSH, MCP, 일정)',
+  tool_call: 'tool_search로 찾은 도구를 호출합니다',
   read_file: '디스크의 파일 또는 저장되지 않은 편집기 버퍼를 읽습니다',
   list_directory: '폴더의 내용을 나열합니다',
   write_file: '파일을 디스크에 쓰거나 새 파일을 만듭니다',
@@ -231,7 +278,6 @@ export const DESKRIPSI_TOOL_KO: Record<string, string> = {
   bash_logs: '백그라운드 프로세스의 출력을 읽습니다',
   bash_list: '실행 중인 백그라운드 프로세스를 나열합니다',
   bash_kill: '백그라운드 프로세스를 중지합니다',
-  fetch: '웹 페이지 하나를 가져와 텍스트를 반환합니다',
   run_subagent: '독립적인 작업을 위해 서브에이전트 하나를 실행합니다',
   run_subagents: '여러 서브에이전트를 병렬로 실행합니다',
   todo_write: '이 작업의 에이전트 할 일 목록을 교체합니다',
@@ -270,9 +316,21 @@ export const DESKRIPSI_TOOL_KO: Record<string, string> = {
   browser_close: '브라우저 페인을 닫습니다',
   browser_download_url: 'URL을 워크스페이스의 파일로 바로 다운로드합니다',
   system_browser_open: '시스템 브라우저에서 URL을 엽니다',
+  zephyr_self: '앱 자체 소스에서 Zephyr를 점검합니다: 현재 설정, 로그, 확장, 번들 문서, 버전, 사실 인덱스',
+  ingat: 'Zeph AI의 세션 간 메모리를 저장·검색·정리합니다(전역 + 프로젝트별 메모리 파일)',
 };
 
 export const DESKRIPSI_TOOL_ZH: Record<string, string> = {
+  lsp_symbols: '列出文件中的符号，含种类与深度',
+  lsp_references: '语言服务器报告的、使用某个符号的位置',
+  lsp_definition: '符号定义的位置',
+  lsp_hover: '某个位置符号的类型与文档',
+  lsp_diagnostics: '语言服务器对文件报出的错误与警告',
+  lsp_call_hierarchy: '语言服务器报告的调用／被调用某符号的函数',
+  skill_view: '读取已注册技能的内容，或列出技能',
+  ask_user: '仅在决定确实含糊时询问用户，并等待答复',
+  tool_search: '搜索主列表之外的工具（web、浏览器、SSH、MCP、日程）',
+  tool_call: '调用通过 tool_search 找到的工具',
   read_file: '从磁盘读取文件，或读取编辑器中未保存的缓冲区',
   list_directory: '列出某个文件夹的内容',
   write_file: '把文件写入磁盘，或新建一个文件',
@@ -290,7 +348,6 @@ export const DESKRIPSI_TOOL_ZH: Record<string, string> = {
   bash_logs: '读取后台进程的输出',
   bash_list: '列出仍在运行的后台进程',
   bash_kill: '停止一个后台进程',
-  fetch: '抓取单个网页并返回其文本',
   run_subagent: '为独立任务运行一个子代理',
   run_subagents: '并行运行多个子代理',
   todo_write: '替换该任务下代理的任务列表',
@@ -329,9 +386,21 @@ export const DESKRIPSI_TOOL_ZH: Record<string, string> = {
   browser_close: '关闭浏览器窗格',
   browser_download_url: '把网址直接下载为工作区中的文件',
   system_browser_open: '在系统浏览器中打开网址',
+  zephyr_self: '从应用自身来源检查 Zephyr：当前设置、日志、扩展、随附文档、版本、事实索引',
+  ingat: '保存、检索和整理 Zeph AI 的跨会话记忆（全局 + 按项目的记忆文件）',
 };
 
 export const DESKRIPSI_TOOL_ES: Record<string, string> = {
+  lsp_symbols: 'Lista los símbolos de un archivo, con tipo y profundidad',
+  lsp_references: 'Lugares que usan un símbolo, según el servidor de lenguaje',
+  lsp_definition: 'Ubicación de la definición de un símbolo',
+  lsp_hover: 'Tipo y documentación del símbolo en una posición',
+  lsp_diagnostics: 'Errores y advertencias del servidor de lenguaje para un archivo',
+  lsp_call_hierarchy: 'Funciones que llaman y son llamadas por un símbolo, según el servidor de lenguaje',
+  skill_view: 'Lee el contenido de una habilidad registrada, o lista las habilidades',
+  ask_user: 'Pregunta al usuario cuando una decisión es realmente ambigua y espera su respuesta',
+  tool_search: 'Busca una herramienta que no está en la lista principal (web, navegador, SSH, MCP, agenda)',
+  tool_call: 'Llama a una herramienta encontrada con tool_search',
   read_file: 'Leer un archivo del disco o un búfer sin guardar del editor',
   list_directory: 'Listar el contenido de una carpeta',
   write_file: 'Escribir un archivo en disco o crear uno nuevo',
@@ -349,7 +418,6 @@ export const DESKRIPSI_TOOL_ES: Record<string, string> = {
   bash_logs: 'Leer la salida de un proceso en segundo plano',
   bash_list: 'Listar los procesos en segundo plano activos',
   bash_kill: 'Detener un proceso en segundo plano',
-  fetch: 'Obtener una página web y devolver su texto',
   run_subagent: 'Ejecutar un subagente para una tarea autónoma',
   run_subagents: 'Ejecutar varios subagentes en paralelo',
   todo_write: 'Reemplazar la lista de tareas del agente para esta tarea',
@@ -388,9 +456,21 @@ export const DESKRIPSI_TOOL_ES: Record<string, string> = {
   browser_close: 'Cerrar un panel del navegador',
   browser_download_url: 'Descargar una URL directamente a un archivo del espacio de trabajo',
   system_browser_open: 'Abrir una URL en el navegador del sistema',
+  zephyr_self: 'Inspeccionar el propio Zephyr desde fuentes de la app: ajustes actuales, registro, extensiones, documentos incluidos, versión e índice de datos',
+  ingat: 'Guardar, buscar y ordenar la memoria entre sesiones de Zeph AI (archivos de memoria global y por proyecto)',
 };
 
 export const DESKRIPSI_TOOL_FR: Record<string, string> = {
+  lsp_symbols: "Liste les symboles d'un fichier, avec type et profondeur",
+  lsp_references: 'Endroits qui utilisent un symbole, selon le serveur de langage',
+  lsp_definition: "Emplacement de la définition d'un symbole",
+  lsp_hover: 'Type et documentation du symbole à une position',
+  lsp_diagnostics: 'Erreurs et avertissements du serveur de langage pour un fichier',
+  lsp_call_hierarchy: 'Fonctions qui appellent et sont appelées par un symbole, selon le serveur de langage',
+  skill_view: "Lit le contenu d'une compétence enregistrée, ou liste les compétences",
+  ask_user: "Demande à l'utilisateur quand une décision est vraiment ambiguë, puis attend sa réponse",
+  tool_search: 'Cherche un outil absent de la liste principale (web, navigateur, SSH, MCP, planning)',
+  tool_call: 'Appelle un outil trouvé via tool_search',
   read_file: 'Lire un fichier sur le disque, ou un tampon d\'éditeur non enregistré',
   list_directory: 'Lister le contenu d\'un dossier',
   write_file: 'Écrire un fichier sur le disque, ou en créer un nouveau',
@@ -408,7 +488,6 @@ export const DESKRIPSI_TOOL_FR: Record<string, string> = {
   bash_logs: 'Lire la sortie d\'un processus en arrière-plan',
   bash_list: 'Lister les processus en arrière-plan actifs',
   bash_kill: 'Arrêter un processus en arrière-plan',
-  fetch: 'Récupérer une page web et renvoyer son texte',
   run_subagent: 'Lancer un sous-agent pour une tâche autonome',
   run_subagents: 'Lancer plusieurs sous-agents en parallèle',
   todo_write: 'Remplacer la liste de tâches de l\'agent pour cette tâche',
@@ -447,9 +526,21 @@ export const DESKRIPSI_TOOL_FR: Record<string, string> = {
   browser_close: 'Fermer un volet navigateur',
   browser_download_url: 'Télécharger une URL directement vers un fichier de l\'espace de travail',
   system_browser_open: 'Ouvrir une URL dans le navigateur du système',
+  zephyr_self: 'Inspecter Zephyr lui-même depuis les sources de l’application : réglages actifs, journal, extensions, documents embarqués, version, index des faits',
+  ingat: 'Enregistrer, rechercher et ranger la mémoire inter-sessions de Zeph AI (fichiers mémoire globaux et par projet)',
 };
 
 export const DESKRIPSI_TOOL_DE: Record<string, string> = {
+  lsp_symbols: 'Listet Symbole einer Datei mit Art und Tiefe auf',
+  lsp_references: 'Stellen, die ein Symbol verwenden, laut Language Server',
+  lsp_definition: 'Ort der Definition eines Symbols',
+  lsp_hover: 'Typ und Dokumentation eines Symbols an einer Position',
+  lsp_diagnostics: 'Fehler und Warnungen des Language Servers für eine Datei',
+  lsp_call_hierarchy: 'Funktionen, die ein Symbol aufrufen oder von ihm aufgerufen werden, laut Language Server',
+  skill_view: 'Liest den Inhalt eines registrierten Skills oder listet die Skills auf',
+  ask_user: 'Fragt den Benutzer, wenn eine Entscheidung wirklich mehrdeutig ist, und wartet auf die Antwort',
+  tool_search: 'Sucht ein Werkzeug, das nicht in der Hauptliste steht (Web, Browser, SSH, MCP, Zeitplan)',
+  tool_call: 'Ruft ein über tool_search gefundenes Werkzeug auf',
   read_file: 'Eine Datei von der Festplatte oder einen ungespeicherten Editor-Puffer lesen',
   list_directory: 'Den Inhalt eines Ordners auflisten',
   write_file: 'Eine Datei auf die Festplatte schreiben oder neu anlegen',
@@ -467,7 +558,6 @@ export const DESKRIPSI_TOOL_DE: Record<string, string> = {
   bash_logs: 'Die Ausgabe eines Hintergrundprozesses lesen',
   bash_list: 'Die laufenden Hintergrundprozesse auflisten',
   bash_kill: 'Einen Hintergrundprozess beenden',
-  fetch: 'Eine einzelne Webseite abrufen und ihren Text zurückgeben',
   run_subagent: 'Einen Subagenten für eine eigenständige Aufgabe ausführen',
   run_subagents: 'Mehrere Subagenten parallel ausführen',
   todo_write: 'Die Aufgabenliste des Agenten für diese Aufgabe ersetzen',
@@ -506,9 +596,21 @@ export const DESKRIPSI_TOOL_DE: Record<string, string> = {
   browser_close: 'Ein Browser-Pane schließen',
   browser_download_url: 'Eine URL direkt in eine Datei im Workspace herunterladen',
   system_browser_open: 'Eine URL im Systembrowser öffnen',
+  zephyr_self: 'Zephyr selbst aus app-eigenen Quellen prüfen: aktive Einstellungen, Log, Erweiterungen, mitgelieferte Doku, Version, Faktenindex',
+  ingat: 'Sitzungsübergreifenden Speicher von Zeph AI speichern, durchsuchen und aufräumen (globale und projektspezifische Speicherdateien)',
 };
 
 export const DESKRIPSI_TOOL_PT: Record<string, string> = {
+  lsp_symbols: 'Lista os símbolos de um arquivo, com tipo e profundidade',
+  lsp_references: 'Locais que usam um símbolo, segundo o servidor de linguagem',
+  lsp_definition: 'Local da definição de um símbolo',
+  lsp_hover: 'Tipo e documentação do símbolo em uma posição',
+  lsp_diagnostics: 'Erros e avisos do servidor de linguagem para um arquivo',
+  lsp_call_hierarchy: 'Funções que chamam e são chamadas por um símbolo, segundo o servidor de linguagem',
+  skill_view: 'Lê o conteúdo de uma habilidade registrada, ou lista as habilidades',
+  ask_user: 'Pergunta ao usuário quando uma decisão é realmente ambígua e aguarda a resposta',
+  tool_search: 'Procura uma ferramenta fora da lista principal (web, navegador, SSH, MCP, agenda)',
+  tool_call: 'Chama uma ferramenta encontrada via tool_search',
   read_file: 'Ler um arquivo do disco, ou um buffer do editor ainda não salvo',
   list_directory: 'Listar o conteúdo de uma pasta',
   write_file: 'Gravar um arquivo no disco, ou criar um novo',
@@ -526,7 +628,6 @@ export const DESKRIPSI_TOOL_PT: Record<string, string> = {
   bash_logs: 'Ler a saída de um processo em segundo plano',
   bash_list: 'Listar os processos em segundo plano ativos',
   bash_kill: 'Encerrar um processo em segundo plano',
-  fetch: 'Buscar uma página web e devolver seu texto',
   run_subagent: 'Executar um subagente para uma tarefa autocontida',
   run_subagents: 'Executar vários subagentes em paralelo',
   todo_write: 'Substituir a lista de tarefas do agente para esta tarefa',
@@ -565,9 +666,21 @@ export const DESKRIPSI_TOOL_PT: Record<string, string> = {
   browser_close: 'Fechar um painel de navegador',
   browser_download_url: 'Baixar uma URL direto para um arquivo no workspace',
   system_browser_open: 'Abrir uma URL no navegador do sistema',
+  zephyr_self: 'Inspecionar o próprio Zephyr a partir de fontes do app: configurações ativas, log, extensões, documentos incluídos, versão e índice de fatos',
+  ingat: 'Salvar, pesquisar e organizar a memória entre sessões do Zeph AI (arquivos de memória global e por projeto)',
 };
 
 export const DESKRIPSI_TOOL_AR: Record<string, string> = {
+  lsp_symbols: 'يعرض رموز ملف مع النوع والعمق',
+  lsp_references: 'الأماكن التي تستخدم رمزًا، وفق خادم اللغة',
+  lsp_definition: 'موقع تعريف الرمز',
+  lsp_hover: 'نوع الرمز وتوثيقه في موضع واحد',
+  lsp_diagnostics: 'أخطاء وتحذيرات خادم اللغة لملف',
+  lsp_call_hierarchy: 'الدوال التي تستدعي رمزًا أو يُستدعى بها، وفق خادم اللغة',
+  skill_view: 'يقرأ محتوى مهارة مسجلة، أو يعرض قائمة المهارات',
+  ask_user: 'يسأل المستخدم عندما يكون القرار غامضًا فعلًا، ثم ينتظر إجابته',
+  tool_search: 'يبحث عن أداة غير موجودة في القائمة الرئيسية (ويب، متصفح، SSH، MCP، جدول)',
+  tool_call: 'يستدعي أداة عُثر عليها عبر tool_search',
   read_file: 'يقرأ ملفاً من القرص أو من المخزن المؤقت غير المحفوظ للمحرر',
   list_directory: 'يسرد محتويات مجلد',
   write_file: 'يكتب ملفاً على القرص أو ينشئ ملفاً جديداً',
@@ -585,7 +698,6 @@ export const DESKRIPSI_TOOL_AR: Record<string, string> = {
   bash_logs: 'يقرأ مخرجات عملية قيد التشغيل في الخلفية',
   bash_list: 'يسرد عمليات الخلفية النشطة',
   bash_kill: 'يوقف عملية في الخلفية',
-  fetch: 'يجلب صفحة ويب واحدة ويعيد نصها',
   run_subagent: 'يشغّل وكيلاً فرعياً لمهمة مستقلة',
   run_subagents: 'يشغّل عدة وكلاء فرعيين بالتوازي',
   todo_write: 'يستبدل قائمة مهام الوكيل لهذه المهمة',
@@ -624,17 +736,18 @@ export const DESKRIPSI_TOOL_AR: Record<string, string> = {
   browser_close: 'يغلق جزء المتصفح',
   browser_download_url: 'ينزّل رابطاً مباشرة إلى ملف في مساحة العمل',
   system_browser_open: 'يفتح رابطاً في متصفح النظام',
+  zephyr_self: 'افحص Zephyr نفسه من مصادر التطبيق: الإعدادات الحالية والسجل والإضافات والمستندات المضمّنة والإصدار وفهرس الحقائق',
+  ingat: 'احفظ وابحث ونظّم ذاكرة Zeph AI عبر الجلسات (ملفات ذاكرة عامة ولكل مشروع)',
 };
 
-/**
- * Pelepasan awalan MCP untuk nama tool yang dibaca manusia.
+/*
+ * `POLA_AWALAN_MCP` sekarang datang dari `awalan.ts` - satu definisi untuk
+ * seluruh aplikasi. Diekspor ulang dari sini karena `deskripsiToolHook.ts` dan
+ * `verify-deskripsi-tool-8bahasa.mjs` mengimpornya lewat berkas ini.
  *
- * Sama seperti di katalog, awalan yang sudah dipensiunkan ikut diterima:
- * giliran yang dilanjutkan dari sesi tersimpan masih membawa awalan lama, dan
- * kalau awalan itu tidak dilepas di sini, baris tool itu tampil polos tanpa
- * deskripsi.
+ * Kenapa tidak diimpor dari `catalog.ts` saja: katalog sudah mengimpor berkas
+ * ini, jadi arah sebaliknya akan membuat lingkaran impor.
  */
-export const POLA_AWALAN_MCP = /^mcp__(?:zephyr|tedi)__/;
 
 /**
  * Kode bahasa -> peta deskripsi.

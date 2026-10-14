@@ -11,6 +11,7 @@
 // (WinError 10013 — masuk excluded port range Hyper-V/WinNAT).
 
 import WebSocket from 'ws';
+import { keluarBersih } from './lib-cdp.mjs';
 import { createServer } from 'node:http';
 
 const PORT = process.argv[2] ?? '9223';
@@ -494,9 +495,26 @@ const main = async () => {
       await wait(3000);
 
       let bacaanReload = '';
+      /*
+       * Baca ulang HARUS lewat jalankan, bukan read.run.
+       *
+       * "read" di atas adalah hasil spec('browser_read') - sebuah SKEMA, bukan
+       * objek yang bisa dijalankan. Dulu baris ini memanggil read.run(...),
+       * yang selalu melempar TypeError, lalu TypeError itu ditelan catch {}
+       * kosong di bawah sehingga bacaanReload tinggal string kosong. Akibatnya
+       * pemeriksaan "setelah reload masih terbaca" GAGAL walaupun halaman
+       * sungguh terbaca - dan pesan gagalnya sendiri masih berbunyi "sekarang
+       * bisa", karena teksnya tidak pernah menampilkan bacaanReload.
+       * Jembatan dev hanya punya spec(nama) dan jalankan(nama, args).
+       * (Jangan pakai backtick di komentar dalam blok ini: seluruh blok ini
+       *  hidup DI DALAM template literal, backtick akan menutupnya lebih awal.)
+       */
       try {
-        if (read) bacaanReload = String(await read.run({ paneId: bp0.id }));
-      } catch { /* dicek di bawah */ }
+        if (read) bacaanReload = String(await window.__ZEPHYR_TOOLS__.jalankan('browser_read', { paneId: bp0.id }));
+        window.__v7reloadOk = bacaanReload.includes('${MARKER}');
+      } catch (e) {
+        window.__v7reloadErr = String(e.message || e).slice(0, 200);
+      }
 
       const tab = T.getState().terminalTabs[0];
       const bp = tab.panes.find(p => p.kind === 'browser');
@@ -525,7 +543,9 @@ const main = async () => {
       v7.adaReload &&
       v7.adaStage,
     `pane [${v7.panes.join(' + ')}]; halaman dibaca lewat tool browser_read: ` +
-      `"${String(v7.bacaan).slice(0, 70)}…"; setelah reload masih terbaca; ` +
+      `"${String(v7.bacaan).slice(0, 70)}…"; setelah reload: ` +
+      `"${String(v7.bacaanReload).slice(0, 40)}…"` +
+      `${v7.errWebview ? ` (err: ${v7.errWebview})` : ''}; ` +
       `server uji menerima ${hits} request; URL bar & reload ada. ` +
       `Dulu ini iframe dan isinya TIDAK bisa dibaca — sekarang bisa.`,
   );
@@ -699,8 +719,8 @@ const main = async () => {
   console.log(`\n== ${results.length - fail.length}/${results.length} lulus ==`);
   if (fail.length) {
     console.log('GAGAL: ' + fail.map((f) => f.id).join(', '));
-    process.exit(1);
-  }
+    keluarBersih(1);
+      }
 };
 
 main().catch((e) => {
@@ -709,5 +729,5 @@ main().catch((e) => {
   console.error('verify06 error:', e?.message ?? e);
   console.error('stack:', e?.stack ?? '(tidak ada stack)');
   if (e?.cause) console.error('cause:', e.cause);
-  process.exit(2);
+  keluarBersih(2);
 });

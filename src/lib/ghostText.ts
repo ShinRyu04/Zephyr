@@ -12,6 +12,7 @@ import { useAi } from './aiStore';
 import { useStore } from './store';
 import { findModel } from './modelCatalog';
 import type { AiChunk, AiMessage } from './types';
+import { ambilSaran, PEMASOK_LOKAL, setPemasokSaran } from './ghostPemasok';
 
 import { getActiveView } from './editorRegistry';
 
@@ -206,11 +207,35 @@ function konteksSekitar(view: EditorView): string {
 }
 
 async function mintaSaran(view: EditorView) {
+  /*
+   * Jalur LOKAL dulu: penyedia murni yang sudah ada di `ghostPemasok.ts`
+   * (tanpa jaringan, tanpa kunci API, tanpa model). Bila seam mengembalikan
+   * usulan, tampilkan dan BERHENTI — jangan panggil model. Bila null (tak ada
+   * pola yang dilanjutkan, seam dimatikan, atau penyedia melempar) jatuh ke
+   * jalur AI seperti semula: tidak ada regresi, dan `pastikanListener()` hanya
+   * dipasang di jalur AI (jalur lokal tidak streaming).
+   */
+  const path = view.dom.closest('.zephyr-cm-host')?.getAttribute('data-path') ?? 'file';
+  const bahasa = path.includes('.') ? path.split('.').pop() ?? 'plain' : 'plain';
+  const lokal = await ambilSaran(konteksSekitar(view), bahasa, { path });
+  if (lokal) {
+    viewAktif = view;
+    tampilkan(lokal.teks.split('\n')[0]);
+    return;
+  }
+
   const ai = useAi.getState();
   const def = findModel(ai.model, ai.provider);
   const cfg = (useStore.getState().settings.models.providers ?? {})[def.provider] ?? {};
   if (!ai.hasKey(def.provider)) {
-    ai.onChunk({ id: 'ghost', err: `No API key yet for ${def.label}` });
+    /*
+     * No request id exists yet at this point, so a synthetic one is used — but
+     * it must not be the bare word `ghost`, which is also the prefix of the
+     * real ids. The chunk handler uses the id to decide which run a chunk
+     * belongs to, and a short id that prefixes the others risks being matched
+     * by the wrong run.
+     */
+    ai.onChunk({ id: 'ghost-nokey', err: `No API key yet for ${def.label}` });
     return;
   }
 
@@ -219,7 +244,6 @@ async function mintaSaran(view: EditorView) {
   akumulasi = '';
   aktif = `ghost-${Date.now()}`;
 
-  const path = view.dom.closest('.zephyr-cm-host')?.getAttribute('data-path') ?? 'file';
   const pesan: AiMessage[] = [
     {
       role: 'system',
@@ -388,6 +412,17 @@ const batalSaatBlur = EditorView.domEventHandlers({
     return false;
   },
 });
+
+/*
+ * Pasang penyedia LOKAL sekali saat modul dimuat.
+ *
+ * `ghostPemasok.ts` default ke `PEMASOK_MATI` (selalu `null`), jadi tanpa baris
+ * ini seam mengembalikan null dan `mintaSaran` selalu jatuh ke jaringan — persis
+ * celah yang ditutup. Penyedia ini murni: tutup-pasangan, badan kata kunci, dan
+ * lanjutan baris atas. Jalur AI tetap ada sebagai cadangan, jadi perilaku saat
+ * seam mengembalikan null tidak berubah.
+ */
+setPemasokSaran(PEMASOK_LOKAL);
 
 export function ghostText(on: boolean): Extension[] {
   return on ? [ghostField, ghostTextKeymap, pemicuOtomatis, batalSaatBlur] : [];

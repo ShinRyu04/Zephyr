@@ -14,7 +14,8 @@ import { PROVIDERS, ProviderLogo, type ProviderInfo } from '../../lib/modelCatal
 import * as cmd from '../../lib/commands';
 import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
-import { useSubAgent } from '../../lib/subagentStore';
+import { useSubAgent, kemampuanTulis } from '../../lib/subagentStore';
+import { useAi } from '../../lib/aiStore';
 import { useSubagentCustom } from '../../lib/subagentCustom';
 import SubagentCustomModal from './SubagentCustomModal';
 import { IkonAgen } from '../ai/IkonAgen';
@@ -700,6 +701,7 @@ export function AgentsSection() {
       )}
 
       <SnippetCard />
+      <CliAgentsCard />
     </Section>
   );
 }
@@ -823,6 +825,19 @@ export function SubagentSection() {
   const sibuk = useSubAgent((s) => s.sibuk);
   const agents = useSubAgent((s) => s.agents);
 
+  /*
+   * Keadaan izin tulis yang EFEKTIF, bukan cuma sakelarnya.
+   *
+   * Sakelar di bawah adalah gerbang pertama; tanpa mode persetujuan Auto
+   * subagent tetap tidak bisa menulis ke disk (ia tidak punya kartu persetujuan
+   * untuk dimintai izin). Baris status di bawah sakelarnya menyatakan hasil
+   * gabungan keduanya, supaya "sudah saya nyalakan tapi tetap ditolak" tidak
+   * perlu ditebak-tebak. Dihitung dari fungsi yang sama dengan gerbangnya,
+   * bukan dari salinan logika di sini.
+   */
+  void useAi((s) => s.approvalMode);
+  const kem = kemampuanTulis();
+
   useEffect(() => {
     const t = setInterval(() => {
       const n = useSubAgent.getState().agents.filter(
@@ -865,7 +880,9 @@ export function SubagentSection() {
 
       <Row
         label={tr('sub.allowWrite')}
-        hint={tr('default NO. Several subagents writing the same file can overwrite each other')}
+        hint={`${tr('default NO. Several subagents writing the same file can overwrite each other')} ${tr(
+          'A subagent cannot ask for approval, so a file write also needs the approval mode Auto - without it the write is refused and reported as a refusal, not as a written file.',
+        )}`}
       >
         <Toggle
           label={tr('sub.allowWrite')}
@@ -873,6 +890,23 @@ export function SubagentSection() {
           checked={sb.allowWrite}
           onChange={(v) => void apply({ subagent: { allowWrite: v } })}
         />
+      </Row>
+
+      {/*
+       * Baris status: hasil gabungan dua gerbang, bukan janji dari sakelarnya.
+       */}
+      <Row label={tr('Write permission now')}>
+        <span
+          className={`set-note${kem.bisaTulisDisk ? ' is-ok' : ' is-warn'}`}
+          data-testid="sub-allowwrite-state"
+          data-bisa-tulis-disk={kem.bisaTulisDisk ? 'ya' : 'tidak'}
+        >
+          {tr(
+            kem.bisaTulisDisk
+              ? 'Subagents can write files while the approval mode is Auto.'
+              : 'Off. Subagent write attempts are refused and reported back: no file is changed.',
+          )}
+        </span>
       </Row>
 
       <Row label={tr('sub.showPanel')} hint={tr('if turned off, only the summary appears')}>
@@ -1126,5 +1160,143 @@ export function CustomSubagentsCard() {
         />
       )}
     </>
+  );
+}
+
+/* ── CLI agents the reader adds ────────────────────────────────────────── */
+
+/**
+ * Add a CLI to the AI panel's path switcher.
+ *
+ * The four built-ins (codex, claude, gemini, opencode) are a hardcoded table in
+ * Rust. That is fine until someone wants a fifth — a private wrapper, a fork, a
+ * CLI that did not exist when this shipped — and then there was no way to add
+ * one at all.
+ *
+ * The three fields are the minimum a CLI needs to be runnable: an id to invoke
+ * it by, the binary to look up on PATH, and the arguments it wants BEFORE the
+ * prompt. `codex` needs `exec`, `claude` needs `-p`; without that field the
+ * prompt would arrive as a bare argument and the CLI would read it as a
+ * filename or a flag.
+ */
+function CliAgentsCard() {
+  const tr = useT();
+  const daftar = useStore((s) => s.settings.agents?.cliAgents) ?? [];
+  const apply = useStore((s) => s.applySettings);
+  const [buka, setBuka] = useState(false);
+  const [id, setId] = useState('');
+  const [label, setLabel] = useState('');
+  const [bin, setBin] = useState('');
+  const [argsTeks, setArgsTeks] = useState('');
+
+  const idSah = /^[a-zA-Z0-9_-]+$/.test(id.trim());
+  const idBentrok = daftar.some((a) => a.id === id.trim());
+  const bisaSimpan = idSah && !idBentrok && bin.trim() !== '';
+
+  const simpan = () => {
+    const promptArgs = argsTeks
+      .split(/\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    void apply({
+      agents: {
+        cliAgents: [
+          ...daftar,
+          { id: id.trim(), label: label.trim() || id.trim(), bin: bin.trim(), promptArgs },
+        ],
+      },
+    } as never);
+    setId('');
+    setLabel('');
+    setBin('');
+    setArgsTeks('');
+    setBuka(false);
+  };
+
+  return (
+    <div className="subagent-card" data-testid="cli-agents-card">
+      <h3 className="subagent-title">{tr('CLI Agents')}</h3>
+      <p className="set-hint">
+        {tr('CLIs that appear in the AI panel path switcher. The built-in four are always listed; these are added to them.')}
+      </p>
+
+      {daftar.length > 0 && (
+        <div data-testid="cli-agents-list">
+          {daftar.map((a) => (
+            <div className="row-inline" key={a.id} data-testid={`cli-agent-${a.id}`}>
+              <code>{a.id}</code>
+              <span className="set-hint">
+                {a.bin}
+                {a.promptArgs.length > 0 ? ` ${a.promptArgs.join(' ')}` : ''} …
+              </span>
+              <button
+                className="btn btn-sm btn-danger"
+                data-testid={`cli-agent-del-${a.id}`}
+                onClick={() =>
+                  void apply({ agents: { cliAgents: daftar.filter((x) => x.id !== a.id) } } as never)
+                }
+              >
+                {tr('Remove')}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {buka ? (
+        <div className="subagent-field">
+          <input
+            className="input"
+            data-testid="cli-agent-id"
+            placeholder={tr('id, e.g. mycli')}
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+          />
+          <input
+            className="input"
+            data-testid="cli-agent-label"
+            placeholder={tr('label shown in the panel')}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <input
+            className="input"
+            data-testid="cli-agent-bin"
+            placeholder={tr('binary on PATH, e.g. mycli')}
+            value={bin}
+            onChange={(e) => setBin(e.target.value)}
+          />
+          <input
+            className="input input-sm"
+            data-testid="cli-agent-args"
+            placeholder={tr('arguments before the prompt, e.g. -p')}
+            value={argsTeks}
+            onChange={(e) => setArgsTeks(e.target.value)}
+          />
+          {id.trim() !== '' && !idSah && (
+            <p className="set-hint is-bahaya" data-testid="cli-agent-id-bad">
+              {tr('The id may only use letters, digits, hyphens and underscores.')}
+            </p>
+          )}
+          {idBentrok && (
+            <p className="set-hint is-bahaya" data-testid="cli-agent-id-dup">
+              {tr('That id is already used.')}
+            </p>
+          )}
+          <div className="row-inline">
+            <button className="btn btn-primary btn-sm" data-testid="cli-agent-save" disabled={!bisaSimpan} onClick={simpan}>
+              {tr('common.save')}
+            </button>
+            <button className="btn btn-sm" onClick={() => setBuka(false)}>
+              {tr('common.cancel')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-sm" data-testid="cli-agent-add" onClick={() => setBuka(true)}>
+          {tr('Add a CLI')}
+        </button>
+      )}
+    </div>
   );
 }

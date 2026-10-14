@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useCliAgent } from '../../lib/cliAgentStore';
-import { useAi } from '../../lib/aiStore';
 import { useT } from '../../lib/i18n';
 
 export default function CliAgentBar() {
@@ -10,7 +9,6 @@ export default function CliAgentBar() {
   const sibuk = useCliAgent((s) => s.sibuk);
   const detect = useCliAgent((s) => s.detect);
   const setAktif = useCliAgent((s) => s.setAktif);
-  const agentMode = useAi((s) => s.agentMode);
 
   useEffect(() => {
     void detect();
@@ -54,11 +52,11 @@ export default function CliAgentBar() {
           </button>
         );
       })}
-      {aktif !== null && agentMode === 'chat' && (
-        <span className="ai-cli-hint" data-testid="ai-cli-hint">
-          {tr('CLI mode: send a message to run the CLI')}
-        </span>
-      )}
+      {/*
+       * The "CLI mode: send a message to run the CLI" hint used to live here,
+       * shown only in chat mode. With chat retired every turn is an agent run,
+       * so the condition was never false and the hint was permanent furniture.
+       */}
     </div>
   );
 }

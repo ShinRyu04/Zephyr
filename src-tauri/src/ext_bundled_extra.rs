@@ -134,16 +134,16 @@ pub(super) const KEYMAP_VIM: &str = r##"{
 }"##;
 
 pub(super) const KEYMAP_VIM_JSON: &str = r##"[
-  { "key": "Ctrl+W Ctrl+W", "command": "workbench.action.focusNextGroup" },
+  { "key": "Ctrl+W Ctrl+W", "command": "view.nextTab" },
   { "key": "Ctrl+W Ctrl+V", "command": "workbench.action.splitEditorRight" },
-  { "key": "Ctrl+W Ctrl+S", "command": "workbench.action.splitEditorDown" },
+  { "key": "Ctrl+W Ctrl+S", "command": "view.joinEditorGroups" },
   { "key": "Ctrl+W Ctrl+Q", "command": "workbench.action.closeActiveEditor" },
-  { "key": "Ctrl+W Ctrl+H", "command": "workbench.action.focusLeftGroup" },
-  { "key": "Ctrl+W Ctrl+L", "command": "workbench.action.focusRightGroup" },
-  { "key": "Ctrl+W Ctrl+J", "command": "workbench.action.focusBelowGroup" },
-  { "key": "Ctrl+W Ctrl+K", "command": "workbench.action.focusAboveGroup" },
+  { "key": "Ctrl+W Ctrl+H", "command": "view.prevTab" },
+  { "key": "Ctrl+W Ctrl+L", "command": "view.nextTab" },
+  { "key": "Ctrl+W Ctrl+J", "command": "workbench.action.togglePanel" },
+  { "key": "Ctrl+W Ctrl+K", "command": "terminalPanel.focus" },
   { "key": "Ctrl+W |", "command": "workbench.action.splitEditorRight" },
-  { "key": "Ctrl+W -", "command": "workbench.action.splitEditorDown" }
+  { "key": "Ctrl+W -", "command": "view.maximizePanel" }
 ]"##;
 
 pub(super) const KEYMAP_EMACS: &str = r##"{
@@ -167,11 +167,11 @@ pub(super) const KEYMAP_EMACS_JSON: &str = r##"[
   { "key": "Ctrl+X Ctrl+K", "command": "workbench.action.closeAllEditors" },
   { "key": "Ctrl+C Ctrl+C", "command": "workbench.action.terminal.kill" },
   { "key": "Alt+X", "command": "workbench.action.showCommands" },
-  { "key": "Ctrl+G", "command": "workbench.action.closeQuickOpen" },
+  { "key": "Ctrl+G", "command": "editor.gotoLine" },
   { "key": "Ctrl+S", "command": "workbench.action.terminal.focusFind" },
-  { "key": "Ctrl+X 2", "command": "workbench.action.splitEditorDown" },
+  { "key": "Ctrl+X 2", "command": "view.splitEditorRight" },
   { "key": "Ctrl+X 3", "command": "workbench.action.splitEditorRight" },
-  { "key": "Ctrl+X O", "command": "workbench.action.focusNextGroup" }
+  { "key": "Ctrl+X O", "command": "view.nextTab" }
 ]"##;
 
 pub(super) const KEYMAP_IDE: &str = r##"{
@@ -196,7 +196,7 @@ pub(super) const KEYMAP_IDE_JSON: &str = r##"[
   { "key": "Ctrl+Shift+R", "command": "workbench.action.replaceInFiles" },
   { "key": "Alt+Insert", "command": "workbench.action.files.newFile" },
   { "key": "Ctrl+Alt+L", "command": "editor.action.formatDocument" },
-  { "key": "Ctrl+Alt+O", "command": "editor.action.organizeImports" },
+  { "key": "Ctrl+Alt+O", "command": "editor.quickFix" },
   { "key": "F2", "command": "editor.action.rename" }
 ]"##;
 
@@ -213,7 +213,7 @@ pub(super) const SNIPPET_JS: &str = r##"{
   "contributes": {
     "snippets": [
       { "language": "javascript", "path": "./snippets/js.json" },
-      { "language": "javascriptreact", "path": "./snippets/js.json" }
+      { "language": "jsx", "path": "./snippets/js.json" }
     ]
   }
 }"##;
@@ -382,8 +382,7 @@ pub(super) const SNIPPET_CSS: &str = r##"{
   "categories": ["Snippets"],
   "contributes": {
     "snippets": [
-      { "language": "css", "path": "./snippets/css.json" },
-      { "language": "scss", "path": "./snippets/css.json" }
+      { "language": "css", "path": "./snippets/css.json" }
     ]
   }
 }"##;
@@ -501,6 +500,14 @@ pub(super) const TEMA_MALAM: &str = r##"{
 
 pub(super) const TEMA_MALAM_JSON: &str = r##"{
   "colors": {
+    "--bg": "#0f1216",
+    "--fg": "#d3dae3",
+    "--text": "#d3dae3",
+    "--text-secondary": "#98a2ae",
+    "--text-muted": "#6f7a86",
+    "--surface": "#151a20",
+    "--surface-2": "#1b2129",
+    "--surface-3": "#232a33",
     "--bg0": "#0f1216",
     "--bg1": "#151a20",
     "--bg2": "#1b2129",
@@ -514,6 +521,21 @@ pub(super) const TEMA_MALAM_JSON: &str = r##"{
     "--accent-subtle": "rgba(91, 141, 239, 0.14)",
     "--danger": "#e06c75",
     "--warning": "#d4a259",
-    "--success": "#7fbf7f"
+    "--success": "#7fbf7f",
+    "--editor-bg": "#0f1216",
+    "--editor-gutter": "#5b6673",
+    "--editor-active-line": "#171d24",
+    "--editor-selection": "#243043",
+    "--syn-comment": "#6f7a86",
+    "--syn-keyword": "#c792ea",
+    "--syn-string": "#9ece6a",
+    "--syn-number": "#d4a259",
+    "--syn-function": "#82aaff",
+    "--syn-variable": "#d3dae3",
+    "--syn-type": "#7fd1c0",
+    "--syn-operator": "#89a0b8",
+    "--syn-tag": "#7fbf7f",
+    "--syn-attr": "#82aaff",
+    "--syn-invalid": "#e06c75"
   }
 }"##;
