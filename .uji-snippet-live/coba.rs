@@ -1,1 +1,0 @@
-// berkas uji harness snippet
