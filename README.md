@@ -14,6 +14,7 @@
   <p>
     <img src="https://img.shields.io/github/v/release/ShinRyu04/Zephyr?label=version&color=blue" alt="version" />
     <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="platform" />
+    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="license" />
   </p>
 </div>
 
@@ -96,16 +97,24 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 
 ## Install
 
-Download the latest installer from the [Releases](https://github.com/ShinRyu04/Zephyr/releases/latest) page and run it. If SmartScreen appears, choose **More info** then **Run anyway**; the build is not signed with a paid certificate. Zephyr auto-updates from Releases.
+Download the latest installer from the [Releases](https://github.com/ShinRyu04/Zephyr/releases/latest) page and run it. If SmartScreen appears, choose **More info** then **Run anyway**; the build is not signed with a paid certificate. Zephyr auto-updates from Releases. Releases older than 1.1.13 need one manual install because the release signing key was rotated.
 
 Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. Settings, keys, extensions, and logs live in `%APPDATA%\zephyr\`; delete that folder for a full reset.
 
 ## Configure AI
 
-1. Open **Settings → Models**.
+1. Open the **…** menu in the AI view and pick **AI Models**. The same pop-up opens from the missing-key notice in the chat and from **Edit models…** in the model dropdown.
 2. Pick a provider and paste your API key, or choose **Local** / **Custom** and set the base URL (for Ollama, `http://127.0.0.1:11434/v1`).
 3. Keys are stored on the Rust side and are never sent to the frontend.
 
 ## Tech stack
 
 Tauri 2, Rust, `portable-pty`, React 18, TypeScript, Vite, CodeMirror 6, xterm.js, Zustand, axum.
+
+## Contributing
+
+Issues and pull requests are welcome. Bug reports are most useful with the diagnostics report from **Settings → About** (no secrets are included).
+
+## License
+
+Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
